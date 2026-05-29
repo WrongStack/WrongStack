@@ -178,7 +178,9 @@ export class AutoPhaseWebSocketHandler {
       },
       autonomous,
       maxConcurrentPhases: 1,
-      maxConcurrentTasks: 2,
+      // Sequential within a phase: each todo is a full-tool agent editing the
+      // shared working tree, so running two at once risks concurrent writes.
+      maxConcurrentTasks: 1,
     });
 
     this.graph = await this.runner.start();

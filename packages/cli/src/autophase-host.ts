@@ -183,7 +183,10 @@ export function createAutoPhaseHost(deps: AutoPhaseHostDeps): AutoPhaseHostHooks
         events: deps.events,
         autonomous: true,
         maxConcurrentPhases: 1,
-        maxConcurrentTasks: 2,
+        // Sequential within a phase: each todo is a full-tool agent editing the
+        // shared working tree, and todos in a phase typically build on one
+        // another. Running two at once risks concurrent writes / lost edits.
+        maxConcurrentTasks: 1,
       });
 
       // Re-persist on terminal graph events.
