@@ -1,5 +1,6 @@
 import type { WebSocket } from 'ws';
 import {
+  AutoPhasePlanner,
   AutoPhaseRunner,
   PhaseGraphBuilder,
   PhaseOrchestrator,
@@ -131,19 +132,16 @@ export class AutoPhaseWebSocketHandler {
   }
 
   private async handleStart(payload?: Record<string, unknown>): Promise<void> {
-    const title = (payload?.title as string) || 'Untitled Project';
+    const title = (payload?.goal as string) || (payload?.title as string) || 'Untitled Project';
     const autonomous = (payload?.autonomous as boolean) ?? true;
 
-    // Varsayılan faz şablonları
-    const defaultPhases: PhaseTemplate[] = [
-      { name: 'Discovery', description: 'Requirements gathering', priority: 'high', estimateHours: 2, parallelizable: false },
-      { name: 'Design', description: 'Architecture and design', priority: 'critical', estimateHours: 4, parallelizable: false },
-      { name: 'Implementation', description: 'Core development', priority: 'critical', estimateHours: 12, parallelizable: false },
-      { name: 'Testing', description: 'Unit and integration tests', priority: 'high', estimateHours: 6, parallelizable: true },
-      { name: 'Deployment', description: 'Deploy to production', priority: 'medium', estimateHours: 2, parallelizable: false },
-    ];
-
-    const phases = (payload?.phases as PhaseTemplate[]) || defaultPhases;
+    // Phase plan resolution:
+    //   1. explicit phases in the payload win (caller override);
+    //   2. otherwise the LLM plans phases+todos for the goal;
+    //   3. failing that, fall back to the generic default phases.
+    const phases = Array.isArray(payload?.phases)
+      ? (payload.phases as PhaseTemplate[])
+      : await this.planPhases(title);
 
     this.logger.info(`[AutoPhase] Starting: ${title}`);
 
@@ -189,6 +187,43 @@ export class AutoPhaseWebSocketHandler {
     // Periyodik state broadcast başlat
     this.startBroadcast();
     this.broadcastState();
+  }
+
+  /** Generic fallback phases when the LLM planner produces nothing usable. */
+  private defaultPhases(): PhaseTemplate[] {
+    return [
+      { name: 'Discovery', description: 'Requirements gathering', priority: 'high', estimateHours: 2, parallelizable: false },
+      { name: 'Design', description: 'Architecture and design', priority: 'critical', estimateHours: 4, parallelizable: false },
+      { name: 'Implementation', description: 'Core development', priority: 'critical', estimateHours: 12, parallelizable: false },
+      { name: 'Testing', description: 'Unit and integration tests', priority: 'high', estimateHours: 6, parallelizable: true },
+      { name: 'Deployment', description: 'Deploy to production', priority: 'medium', estimateHours: 2, parallelizable: false },
+    ];
+  }
+
+  /** Plan phases+todos for the goal via the LLM; fall back to defaults on failure. */
+  private async planPhases(goal: string): Promise<PhaseTemplate[]> {
+    try {
+      const planner = new AutoPhasePlanner({
+        goal,
+        runOnce: async (prompt) => {
+          const result = (await this.agent.run(prompt, { signal: new AbortController().signal })) as {
+            status: string;
+            finalText?: string;
+          };
+          return result.status === 'done' ? (result.finalText ?? '') : '';
+        },
+      });
+      const { phases, parseFailed } = await planner.plan();
+      if (!parseFailed && phases.length > 0) {
+        const todos = phases.reduce((n, p) => n + (p.taskTemplates?.length ?? 0), 0);
+        this.logger.info(`[AutoPhase] Planned ${phases.length} phases / ${todos} todos for: ${goal}`);
+        return phases;
+      }
+      this.logger.info(`[AutoPhase] Planner produced no phases; using defaults for: ${goal}`);
+    } catch (err) {
+      this.logger.error(`[AutoPhase] Planning failed, using defaults: ${err instanceof Error ? err.message : String(err)}`);
+    }
+    return this.defaultPhases();
   }
 
   private async executeTaskWithAgent(task: import('@wrongstack/core').TaskNode, phaseId: string): Promise<unknown> {
