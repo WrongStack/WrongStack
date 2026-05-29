@@ -1,12 +1,10 @@
 import type { WebSocket } from 'ws';
 import {
   AutoPhasePlanner,
-  AutoPhaseRunner,
   PhaseGraphBuilder,
   PhaseOrchestrator,
   PhaseStore,
   type PhaseGraph,
-  type PhaseNode,
   type PhaseProgress,
   type PhaseTemplate,
 } from '@wrongstack/core';
@@ -35,11 +33,13 @@ interface AutoPhaseWSMessage {
  *   autophase.taskStatus  → { taskId, status }
  */
 export class AutoPhaseWebSocketHandler {
-  private runner: AutoPhaseRunner | null = null;
+  private orchestrator: PhaseOrchestrator | null = null;
   private graph: PhaseGraph | null = null;
   private store: PhaseStore;
   private clients = new Set<WSClient>();
   private broadcastInterval: ReturnType<typeof setInterval> | null = null;
+  /** Aborts in-flight task agents when the run is stopped. */
+  private abort: AbortController | null = null;
 
   constructor(
     private agent: Agent,
@@ -67,16 +67,18 @@ export class AutoPhaseWebSocketHandler {
         await this.handleStart(msg.payload);
         break;
       case 'autophase.pause':
-        this.runner?.pause();
+        this.orchestrator?.pause();
         this.broadcast({ type: 'autophase.paused', payload: {} });
         break;
       case 'autophase.resume':
-        this.runner?.resume();
+        this.orchestrator?.resume();
         this.broadcast({ type: 'autophase.resumed', payload: {} });
         break;
       case 'autophase.stop':
-        this.runner?.stop();
+        this.abort?.abort();
+        this.orchestrator?.stop();
         this.stopBroadcast();
+        if (this.graph) void this.store.save(this.graph);
         this.broadcast({ type: 'autophase.stopped', payload: {} });
         break;
       case 'autophase.status':
@@ -145,36 +147,32 @@ export class AutoPhaseWebSocketHandler {
 
     this.logger.info(`[AutoPhase] Starting: ${title}`);
 
-    this.runner = new AutoPhaseRunner({
-      title,
-      phases,
-      executeTask: async (task, phaseId) => {
-        this.logger.info(`[AutoPhase] [${phaseId}] Executing: ${task.title}`);
-        // Gerçek AI agent çalıştırma
-        const result = await this.executeTaskWithAgent(task, phaseId);
-        this.logger.info(`[AutoPhase] [${phaseId}] Completed: ${task.title}`);
-        return result;
-      },
-      onPhaseComplete: (phase) => {
-        this.logger.info(`[AutoPhase] Phase completed: ${phase.name}`);
-        this.broadcastState();
-      },
-      onPhaseFail: (phase, error) => {
-        this.logger.error(`[AutoPhase] Phase failed: ${phase.name} — ${error.message}`);
-        this.broadcastState();
-      },
-      onProgress: (progress) => {
-        this.broadcast({ type: 'autophase.progress', payload: progress });
-      },
-      onComplete: (graph) => {
-        this.logger.info(`[AutoPhase] All phases completed: ${graph.title}`);
-        this.stopBroadcast();
-        this.broadcast({ type: 'autophase.completed', payload: { title: graph.title } });
-      },
-      onFail: (graph, phase, error) => {
-        this.logger.error(`[AutoPhase] Failed: ${phase.name} — ${error.message}`);
-        this.stopBroadcast();
-        this.broadcast({ type: 'autophase.failed', payload: { phase: phase.name, error: error.message } });
+    // Build the graph up-front so we have a reference for live broadcasts and
+    // persistence *before* the (long-running) build begins.
+    const graph = await new PhaseGraphBuilder({ title, phases, autonomous }).build();
+    this.graph = graph;
+    this.abort = new AbortController();
+    await this.store.save(graph);
+
+    this.orchestrator = new PhaseOrchestrator({
+      graph,
+      ctx: {
+        executeTask: async (task, phaseId) => {
+          this.logger.info(`[AutoPhase] [${phaseId}] Executing: ${task.title}`);
+          const result = await this.executeTaskWithAgent(task, phaseId);
+          this.logger.info(`[AutoPhase] [${phaseId}] Completed: ${task.title}`);
+          return result;
+        },
+        onPhaseComplete: (phase) => {
+          this.logger.info(`[AutoPhase] Phase completed: ${phase.name}`);
+          void this.store.save(graph);
+          this.broadcastState();
+        },
+        onPhaseFail: (phase, error) => {
+          this.logger.error(`[AutoPhase] Phase failed: ${phase.name} — ${error.message}`);
+          void this.store.save(graph);
+          this.broadcastState();
+        },
       },
       autonomous,
       maxConcurrentPhases: 1,
@@ -183,12 +181,32 @@ export class AutoPhaseWebSocketHandler {
       maxConcurrentTasks: 1,
     });
 
-    this.graph = await this.runner.start();
-    await this.store.save(this.graph);
-
-    // Periyodik state broadcast başlat
+    // Start the live broadcast immediately, then run the orchestrator in the
+    // background. Awaiting start() would block until the *entire* build
+    // finishes — the periodic broadcast (below) reads the mutating graph, so
+    // clients see live progress while it runs.
     this.startBroadcast();
     this.broadcastState();
+
+    void this.orchestrator
+      .start()
+      .then(() => {
+        this.orchestrator?.stop(); // clear the autonomous tick interval
+        void this.store.save(graph);
+        this.stopBroadcast();
+        const failed = graph.failedPhaseIds.length > 0;
+        this.broadcast(
+          failed
+            ? { type: 'autophase.failed', payload: { title } }
+            : { type: 'autophase.completed', payload: { title } },
+        );
+        this.broadcastState();
+      })
+      .catch((err: unknown) => {
+        this.logger.error(`[AutoPhase] Aborted: ${err instanceof Error ? err.message : String(err)}`);
+        this.stopBroadcast();
+        this.broadcast({ type: 'autophase.failed', payload: { title, error: String(err) } });
+      });
   }
 
   /** Generic fallback phases when the LLM planner produces nothing usable. */
@@ -231,7 +249,8 @@ export class AutoPhaseWebSocketHandler {
   private async executeTaskWithAgent(task: import('@wrongstack/core').TaskNode, phaseId: string): Promise<unknown> {
     // Task'ı agent'a çalıştır
     const prompt = `Execute task: ${task.title}\n\nDescription: ${task.description}\nPhase: ${phaseId}\nPriority: ${task.priority}\nType: ${task.type}`;
-    const result = await this.agent.run(prompt, { signal: new AbortController().signal });
+    const signal = this.abort?.signal ?? new AbortController().signal;
+    const result = await this.agent.run(prompt, { signal });
     return result;
   }
 
@@ -252,6 +271,8 @@ export class AutoPhaseWebSocketHandler {
   private startBroadcast(): void {
     if (this.broadcastInterval) return;
     this.broadcastInterval = setInterval(() => {
+      const progress = this.orchestrator?.getProgress();
+      if (progress) this.broadcast({ type: 'autophase.progress', payload: progress });
       this.broadcastState();
     }, 2000);
   }
