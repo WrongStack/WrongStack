@@ -308,6 +308,53 @@ export async function execute(deps: ExecutionDeps): Promise<number> {
           .find((v): v is string => !!v);
       const banneredKeyTail =
         banneredKey && banneredKey.length >= 3 ? banneredKey.slice(-3) : undefined;
+
+      // AutoPhase event forwarding — subscribes to PhaseOrchestrator events
+      // on the main EventBus and forwards them to the TUI handler so the
+      // PhaseMonitor/PhasePanel stay in sync with the running graph.
+      const autoPhaseHandlers = new Map<string, (payload: unknown) => void>();
+      const subscribeAutoPhase = (
+        handler: (event: string, payload: unknown) => void,
+      ): (() => void) => {
+        const registrations: Array<() => void> = [];
+        const autoPhaseEvents = [
+          'phase.started',
+          'phase.completed',
+          'phase.failed',
+          'phase.statusChange',
+          'phase.taskCompleted',
+          'phase.taskFailed',
+          'phase.taskRetrying',
+          'autonomous.tick',
+          'graph.completed',
+          'graph.failed',
+          'agent.assigned',
+          'agent.released',
+        ];
+        // AutoPhase events are emitted on the untyped surface of the bus
+        // (the orchestrator casts `emit` to a string-keyed signature), so we
+        // subscribe through the same untyped view rather than the typed
+        // event-name overloads.
+        const onUntyped = events.on as unknown as (
+          event: string,
+          handler: (payload: unknown) => void,
+        ) => void;
+        const offUntyped = events.off as unknown as (
+          event: string,
+          handler: (payload: unknown) => void,
+        ) => void;
+        for (const ev of autoPhaseEvents) {
+          const h = (p: unknown) => handler(ev, p);
+          autoPhaseHandlers.set(ev, h);
+          onUntyped(ev, h);
+          registrations.push(() => offUntyped(ev, h));
+        }
+        return () => {
+          for (const unregister of registrations) unregister();
+          autoPhaseHandlers.clear();
+        };
+      };
+
       try {
         code = await runTui({
           agent,
@@ -326,6 +373,7 @@ export async function execute(deps: ExecutionDeps): Promise<number> {
           getEternalEngine,
           subscribeEternalIteration,
           subscribeEternalStage,
+          subscribeAutoPhase,
           appVersion: CLI_VERSION,
           provider: config.provider,
           family: banneredFamily,

@@ -24,6 +24,8 @@ import { FilePicker } from './components/file-picker.js';
 import { FleetPanel } from './components/fleet-panel.js';
 import { FleetMonitor } from './components/fleet-monitor.js';
 import { AgentsMonitor } from './components/agents-monitor.js';
+import { PhaseMonitor } from './components/phase-monitor.js';
+import { PhasePanel } from './components/phase-panel.js';
 import { History, type HistoryEntry } from './components/history.js';
 import { Input, type KeyEvent } from './components/input.js';
 import { LiveActivityStrip } from './components/live-activity-strip.js';
@@ -1243,13 +1245,21 @@ export function reducer(state: State, action: Action): State {
       };
     }
     case 'autoPhasePhaseUpdate': {
-      if (!state.autoPhase) return state;
+      // Lazily initialize autoPhase state on first phase event — the title
+      // is not shown in the PhaseMonitor so a placeholder is fine here.
+      const existing = state.autoPhase ?? {
+        title: 'AutoPhase',
+        phases: {},
+        runningPhaseIds: [],
+        elapsedMs: 0,
+        monitorOpen: false,
+      };
       return {
         ...state,
         autoPhase: {
-          ...state.autoPhase,
+          ...existing,
           phases: {
-            ...state.autoPhase.phases,
+            ...existing.phases,
             [action.phaseId]: {
               name: action.name,
               status: action.status,
@@ -4416,6 +4426,14 @@ export function App({
           totalTokens={state.fleetTokens}
           nowTick={nowTick}
         />
+      ) : state.autoPhase?.monitorOpen ? (
+        <PhaseMonitor
+          phases={state.autoPhase.phases}
+          runningPhaseIds={state.autoPhase.runningPhaseIds}
+          elapsedMs={state.autoPhase.elapsedMs}
+          nowTick={nowTick}
+          onClose={() => dispatch({ type: 'autoPhaseMonitorToggle' })}
+        />
       ) : state.monitorOpen ? (
         <FleetMonitor
           entries={state.fleet}
@@ -4425,6 +4443,13 @@ export function App({
         />
       ) : director ? (
         <FleetPanel entries={state.fleet} totalCost={state.fleetCost} roster={fleetRoster} />
+      ) : null}
+      {state.autoPhase && !state.autoPhase.monitorOpen ? (
+        <PhasePanel
+          phases={state.autoPhase.phases}
+          runningPhaseIds={state.autoPhase.runningPhaseIds}
+          nowTick={nowTick}
+        />
       ) : null}
     </Box>
   );

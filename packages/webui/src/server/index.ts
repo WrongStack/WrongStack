@@ -352,8 +352,9 @@ export async function startWebUI(opts: { wsPort?: number; wsHost?: string } = {}
   });
   console.log('[WebUI] Agent initialized');
 
-  // AutoPhase handler — manages AutoPhaseRunner lifecycle via WS messages
-  const autoPhaseHandler = new AutoPhaseWebSocketHandler(agent, context, logger, wpaths.projectTaskGraphs);
+  // AutoPhase handler — manages AutoPhaseRunner lifecycle via WS messages.
+  // Stored under the per-project autophase dir (not the shared SDD task-graphs).
+  const autoPhaseHandler = new AutoPhaseWebSocketHandler(agent, context, logger, wpaths.projectAutophase);
 
   // Helper: build the rich session.start payload from current runtime state.
   // Centralised so initial connect, post-/new, and post-model.switch all

@@ -37,4 +37,13 @@ describe('wstack-paths', () => {
     expect(paths.projectTrust).not.toContain(projSeg);
     expect(paths.projectMemory).not.toContain(projSeg);
   });
+
+  it('keeps AutoPhase state under the per-project dir', () => {
+    const paths = resolveWstackPaths({
+      userHome: '/home/dev',
+      projectRoot: '/work/x',
+    });
+    expect(paths.projectAutophase).toBe(path.join(paths.projectDir, 'autophase'));
+    expect(paths.projectAutophase).toContain(paths.projectHash);
+  });
 });

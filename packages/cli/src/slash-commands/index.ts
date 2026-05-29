@@ -1,6 +1,7 @@
 import type {
   CompactReport,
   Context,
+  EventBus,
   HealthRegistry,
   MemoryStore,
   MetricsSink,
@@ -27,6 +28,8 @@ export interface SlashCommandContext {
   skillLoader?: SkillLoader;
   tokenCounter: TokenCounter;
   renderer: Renderer;
+  /** App-level EventBus — used by AutoPhaseRunner to emit phase/graph events to the TUI. */
+  events: EventBus;
   memoryStore?: MemoryStore;
   context?: Context;
   /** Working directory for the current session. */
@@ -188,6 +191,25 @@ export interface SlashCommandContext {
   onSddParallelRun?: (opts?: { parallelSlots?: number }) => Promise<string>;
   /** Stop the currently running SDD parallel fan-out. */
   onSddParallelStop?: () => void;
+  /**
+   * Start a real, LLM-driven AutoPhase run from a free-text goal. The host
+   * plans phases (each holding many todos), persists the phase-graph as
+   * per-project JSON, and drives the orchestrator — one subagent per task —
+   * in the background. Returns the built graph or an error.
+   */
+  onAutoPhaseStart?: (opts: { goal: string; projectContext?: string }) => Promise<
+    | { ok: true; graph: import('@wrongstack/core').PhaseGraph }
+    | { ok: false; error: string }
+  >;
+  onAutoPhasePause?: () => void;
+  onAutoPhaseResume?: () => void;
+  onAutoPhaseStop?: () => void;
+  /** Live, read-only view of the running AutoPhase (null when idle). */
+  getAutoPhaseRunner?: () => {
+    graph: import('@wrongstack/core').PhaseGraph;
+    getProgress: () => import('@wrongstack/core').PhaseProgress | null;
+    isRunning: () => boolean;
+  } | null;
 }
 
 // Re-export helpers for external consumers (pre-launch.ts)
@@ -232,7 +254,7 @@ import {
   buildSkillUpdateCommand,
   buildSkillUninstallCommand,
 } from './skill-install.js';
-import { autophaseCommand } from './autophase.js';
+import { buildAutoPhaseCommand } from './autophase.js';
 
 export function buildBuiltinSlashCommands(opts: SlashCommandContext): SlashCommand[] {
   return [
@@ -274,7 +296,7 @@ export function buildBuiltinSlashCommands(opts: SlashCommandContext): SlashComma
     buildPushCommand(opts),
     buildSecurityCommand(opts),
     buildFixCommand(opts),
-    autophaseCommand,
+    buildAutoPhaseCommand(opts),
     buildStatuslineCommand({
       cwd: opts.cwd,
       hiddenItems: opts.statuslineHiddenItems ?? [],

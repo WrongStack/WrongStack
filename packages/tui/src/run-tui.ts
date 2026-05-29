@@ -209,6 +209,14 @@ export interface RunTuiOptions {
    * Returns displayable status messages.
    */
   onSDDOutput?: (output: string) => Promise<string[]>;
+  /**
+   * Subscribe to AutoPhase phase/graph events from the PhaseOrchestrator.
+   * Returns an unsubscribe function. The TUI uses this to drive the
+   * PhaseMonitor and PhasePanel live views via dispatch actions.
+   */
+  subscribeAutoPhase?: (
+    handler: (event: string, payload: unknown) => void,
+  ) => () => void;
 }
 
 // Bracketed paste mode wraps any pasted text with these markers, letting us
@@ -350,6 +358,7 @@ export async function runTui(opts: RunTuiOptions): Promise<number> {
           getParallelEngine: opts.getParallelEngine,
           subscribeEternalIteration: opts.subscribeEternalIteration,
           subscribeEternalStage: opts.subscribeEternalStage,
+          subscribeAutoPhase: opts.subscribeAutoPhase,
           appVersion: opts.appVersion,
           provider: opts.provider,
           family: opts.family,

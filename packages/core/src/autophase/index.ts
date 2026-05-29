@@ -33,6 +33,13 @@ export {
   type PhaseGraphBuilderOptions,
 } from './phase-graph-builder.js';
 
+export {
+  AutoPhasePlanner,
+  extractJSONArray as extractAutoPhaseJSONArray,
+  type AutoPhasePlannerOptions,
+  type AutoPhasePlanResult,
+} from './auto-phase-planner.js';
+
 export type {
   PhaseGraph,
   PhaseNode,

@@ -7,6 +7,7 @@ import {
   ToolRegistry,
   DefaultMemoryStore,
   DefaultModeStore,
+  EventBus,
   type WstackPaths,
 } from '@wrongstack/core';
 import { setupSlashCommands } from '../src/wiring/slash-commands.js';
@@ -77,6 +78,10 @@ function fakeMultiAgentHost() {
   } as never;
 }
 
+function fakeEvents(): EventBus {
+  return new EventBus();
+}
+
 function callSetup(overrides: Record<string, unknown> = {}): Promise<void> {
   const wpaths = makeWpaths();
   return setupSlashCommands({
@@ -87,6 +92,7 @@ function callSetup(overrides: Record<string, unknown> = {}): Promise<void> {
     skillLoader: undefined,
     tokenCounter: {} as never,
     renderer: { write: vi.fn(), writeInfo: vi.fn(), writeError: vi.fn() } as never,
+    events: fakeEvents(),
     memoryStore: new DefaultMemoryStore({ paths: wpaths }),
     context: fakeContext(),
     cwd: tmp,

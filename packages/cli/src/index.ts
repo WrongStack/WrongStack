@@ -69,6 +69,7 @@ import { buildPickableProviders } from './provider-helpers.js';
 import type { TerminalRenderer } from './renderer.js';
 import { SessionStats } from './session-stats.js';
 import { buildBuiltinSlashCommands } from './slash-commands/index.js';
+import { createAutoPhaseHost } from './autophase-host.js';
 import { buildStatuslineCommand, loadStatuslineConfig, saveStatuslineConfig } from './slash-commands/statusline.js';
 import { Spinner } from './spinner.js';
 import { fmtTaskResultLine, fmtTok, patchConfig } from './utils.js';
@@ -677,6 +678,17 @@ export async function main(argv: string[]): Promise<number> {
     },
   };
 
+  // AutoPhase host — plans phases+todos via a subagent, then drives the
+  // PhaseOrchestrator (one subagent per task) in the background. `getConfig`
+  // reads the live `config` (it can be patched, e.g. YOLO toggles).
+  const autoPhaseHost = createAutoPhaseHost({
+    multiAgentHost,
+    getConfig: () => config,
+    events,
+    storeDir: wpaths.projectAutophase,
+    log: (line) => renderer.write(`${line}\n`),
+  });
+
   const slashCmds = buildBuiltinSlashCommands({
     registry: slashRegistry,
     toolRegistry,
@@ -686,6 +698,7 @@ export async function main(argv: string[]): Promise<number> {
     skillLoader,
     tokenCounter,
     renderer,
+    events,
     memoryStore,
     context,
     cwd,
@@ -1371,6 +1384,11 @@ export async function main(argv: string[]): Promise<number> {
       const run = (globalThis as SddParallelRunGlobal).__sddParallelRun;
       run?.stop();
     },
+    onAutoPhaseStart: autoPhaseHost.onAutoPhaseStart,
+    onAutoPhasePause: autoPhaseHost.onAutoPhasePause,
+    onAutoPhaseResume: autoPhaseHost.onAutoPhaseResume,
+    onAutoPhaseStop: autoPhaseHost.onAutoPhaseStop,
+    getAutoPhaseRunner: autoPhaseHost.getAutoPhaseRunner,
   });
   for (const cmd of slashCmds) slashRegistry.register(cmd);
 

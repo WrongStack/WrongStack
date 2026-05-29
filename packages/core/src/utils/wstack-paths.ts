@@ -65,6 +65,8 @@ export interface WstackPaths {
   projectSddSession: string;
   /** ~/.wrongstack/projects/<hash>/plan.json — plan persistence */
   projectPlan: string;
+  /** ~/.wrongstack/projects/<hash>/autophase — AutoPhase phase-graph JSON files */
+  projectAutophase: string;
 }
 
 export function projectHash(absRoot: string): string {
@@ -108,5 +110,6 @@ export function resolveWstackPaths(opts: WstackPathOptions): WstackPaths {
     projectTaskGraphs: path.join(projectDir, 'task-graphs'),
     projectSddSession: path.join(projectDir, 'sdd-session.json'),
     projectPlan: path.join(projectDir, 'plan.json'),
+    projectAutophase: path.join(projectDir, 'autophase'),
   };
 }

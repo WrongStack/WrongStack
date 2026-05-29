@@ -129,10 +129,13 @@ export {
 export {
   AutoPhaseRunner,
   createAutoPhaseFromTaskGraph,
+  AutoPhasePlanner,
   PhaseOrchestrator,
   PhaseGraphBuilder,
   PhaseStore,
   CheckpointManager,
+  type AutoPhasePlannerOptions,
+  type AutoPhasePlanResult,
   type AutoPhaseRunnerOptions,
   type PhaseOrchestratorOptions,
   type PhaseGraphBuilderOptions,
