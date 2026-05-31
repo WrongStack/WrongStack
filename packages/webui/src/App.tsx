@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import { useWebSocketBootstrap } from '@/hooks/useWebSocket';
 import { cn } from '@/lib/utils';
 import { getWSClient } from '@/lib/ws-client';
@@ -80,9 +80,12 @@ function AppInner() {
         setSearchOpen(true);
         return;
       }
-      if (mod && e.key.toLowerCase() === '/') {
-        const ta = document.querySelector('textarea');
-        ta?.focus();
+      if (mod && e.key === '/') {
+        e.preventDefault();
+        const ta = document.querySelector('.chat-input textarea');
+        if (ta) {
+          (ta as HTMLElement).focus();
+        }
         return;
       }
       if (mod && !inField) {
@@ -161,7 +164,7 @@ function AppInner() {
   }, [toggleSidebar, setSearchOpen]);
 
   return (
-    <div className={cn('flex h-screen', theme)}>
+    <div className="flex h-screen">
       {sidebarOpen && <Sidebar />}
       <main className="flex-1 flex flex-col overflow-hidden">
         <ConnectionBanner />

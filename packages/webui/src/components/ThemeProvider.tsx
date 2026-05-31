@@ -25,9 +25,9 @@ export function ThemeProvider({
   const { theme: storeTheme, setTheme: setStoreTheme } = useConfigStore();
   const [theme, setTheme] = useState<Theme>(() => {
     if (typeof window !== 'undefined') {
-      return (localStorage.getItem(storageKey) as Theme) || defaultTheme;
+      return (localStorage.getItem(storageKey) as Theme) || storeTheme || defaultTheme;
     }
-    return defaultTheme;
+    return storeTheme || defaultTheme;
   });
 
   useEffect(() => {

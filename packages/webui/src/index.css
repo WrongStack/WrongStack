@@ -141,9 +141,16 @@
   animation: pulse-ring 2s ease-in-out infinite;
 }
 
-/* Focus visible styles for accessibility */
+/* Focus visible styles for accessibility — scoped to interactive elements only */
 @layer base {
-  :focus-visible {
+  button:focus-visible,
+  a:focus-visible,
+  input:focus-visible,
+  textarea:focus-visible,
+  select:focus-visible,
+  [role="button"]:focus-visible,
+  [role="switch"]:focus-visible,
+  [role="tab"]:focus-visible {
     @apply outline-none ring-2 ring-ring ring-offset-2 ring-offset-background;
   }
 }

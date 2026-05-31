@@ -10,6 +10,7 @@ import {
   Loader2,
   Maximize2,
   Minimize2,
+  Monitor,
   Moon,
   Settings,
   Sun,
@@ -28,8 +29,8 @@ export function TopBar() {
   const { totalTokens, cost, lastInputTokens, maxContext } = useSessionStore();
   const isLoading = useChatStore((s) => s.isLoading);
   const compactMode = useUIStore((s) => s.compactMode);
-  const sidebarOpen = useUIStore((s) => s.sidebarOpen);
   const setCurrentView = useUIStore((s) => s.setCurrentView);
+  const setPaletteOpen = useUIStore((s) => s.setPaletteOpen);
   const toggleCompactMode = useUIStore((s) => s.toggleCompactMode);
   const { theme, setTheme } = useTheme();
 
@@ -158,20 +159,26 @@ export function TopBar() {
           {compactMode ? <Maximize2 className="h-4 w-4" /> : <Minimize2 className="h-4 w-4" />}
         </button>
 
-        {/* Theme toggle */}
+        {/* Theme toggle — cycles through light → dark → system */}
         <button
           type="button"
-          onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+          onClick={() => setTheme(theme === 'light' ? 'dark' : theme === 'dark' ? 'system' : 'light')}
           className="p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
           title={`Theme: ${theme}`}
         >
-          {theme === 'dark' ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+          {theme === 'dark' ? (
+            <Sun className="h-4 w-4" />
+          ) : theme === 'system' ? (
+            <Monitor className="h-4 w-4" />
+          ) : (
+            <Moon className="h-4 w-4" />
+          )}
         </button>
 
         {/* Command palette shortcut */}
         <button
           type="button"
-          onClick={() => useUIStore.getState().setPaletteOpen(true)}
+          onClick={() => setPaletteOpen(true)}
           className="hidden sm:flex items-center gap-1.5 px-2 py-1 rounded-md bg-muted text-xs text-muted-foreground hover:text-foreground hover:bg-muted/80 transition-colors"
         >
           <Command className="h-3 w-3" />
