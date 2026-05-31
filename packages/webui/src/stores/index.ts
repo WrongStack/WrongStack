@@ -603,6 +603,8 @@ interface UIState {
    *  ("Auth refactor exploration") without a backend round-trip. Used by
    *  the History list, recent-sessions cards, and the tab title. */
   sessionNicknames: Record<string, string>;
+  /** Right info panel (fleet, context, tokens) visibility. */
+  rightPanelOpen: boolean;
 
   toggleSidebar: () => void;
   setSidebarOpen: (open: boolean) => void;
@@ -643,6 +645,7 @@ export const useUIStore = create<UIState>()(
       modelSwitcherOpen: false,
       favoriteSessionIds: [],
       sessionNicknames: {},
+      rightPanelOpen: false,
 
       toggleSidebar: () => set((state) => ({ sidebarOpen: !state.sidebarOpen })),
       setSidebarOpen: (open) => set({ sidebarOpen: open }),
@@ -690,6 +693,7 @@ export const useUIStore = create<UIState>()(
           else delete next[id];
           return { sessionNicknames: next };
         }),
+      setRightPanelOpen: (open) => set({ rightPanelOpen: open }),
     }),
     {
       name: 'wrongstack-ui',

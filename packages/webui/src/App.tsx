@@ -1,8 +1,8 @@
+import { useCallback, useEffect, useState } from 'react';
 import { useWebSocketBootstrap } from '@/hooks/useWebSocket';
 import { cn } from '@/lib/utils';
 import { getWSClient } from '@/lib/ws-client';
 import { useChatStore, useConfigStore, useSessionStore, useUIStore } from '@/stores';
-import { useEffect } from 'react';
 import { ChatView } from './components/ChatView';
 import { CommandPalette, downloadChatAsMarkdown } from './components/CommandPalette';
 import { ConfirmDialog } from './components/ConfirmDialog';
@@ -23,15 +23,9 @@ function AppInner() {
   const projectName = useSessionStore((s) => s.projectName);
   const sessionTitle = useSessionStore((s) => s.session?.title);
   const sessionId = useSessionStore((s) => s.session?.id);
-  // User-set local nickname for the current session — takes precedence
-  // over the backend title in the tab strip and topbar.
   const nickname = useUIStore((s) => (sessionId ? s.sessionNicknames[sessionId] : undefined));
 
-  // Mobile-friendly: collapse the sidebar automatically below the md
-  // breakpoint (768px). Tracks viewport changes so a window resize behaves
-  // the same as a fresh load. We only AUTO-close — re-opening (or keeping
-  // it open) on small screens stays a user decision, so we never call
-  // setSidebarOpen(true) here.
+  // Mobile-friendly: collapse the sidebar automatically below the md breakpoint
   useEffect(() => {
     if (typeof window === 'undefined') return;
     const mq = window.matchMedia('(max-width: 768px)');
@@ -44,17 +38,11 @@ function AppInner() {
     mq.addEventListener('change', apply);
     return () => mq.removeEventListener('change', apply);
   }, [setSidebarOpen]);
-  // Install WS handlers exactly once for the whole app. Every other consumer
-  // (ChatInput, ConfirmDialog, SettingsPanel) uses the cheap `useWebSocket()`
-  // hook which returns action methods only — see hooks/useWebSocket.ts for
-  // the duplicate-handler trap this avoids.
+
+  // Install WS handlers exactly once for the whole app
   useWebSocketBootstrap();
 
-  // Reflect the agent's run state + session identity in the browser tab
-  // title. Pinned/grouped tab strips become readable at a glance — the
-  // project name surfaces first so multiple WrongStack windows on the same
-  // bar can still be distinguished, then the session title (if any), then
-  // the running indicator. Falls back gracefully when fields are missing.
+  // Reflect the agent's run state + session identity in the browser tab title
   useEffect(() => {
     const parts: string[] = [];
     if (isLoading) {
@@ -75,10 +63,7 @@ function AppInner() {
     };
   }, [isLoading, iteration, projectName, sessionTitle, nickname]);
 
-  // Global keyboard shortcuts for the actions that don't have a dedicated
-  // owner (palette/shortcuts handle their own). Bound here so they fire
-  // anywhere except inside text inputs (where Ctrl+F should still search
-  // the chat, but Ctrl+L would otherwise be a browser address-bar focus).
+  // Global keyboard shortcuts
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const t = e.target as HTMLElement | null;
@@ -96,18 +81,10 @@ function AppInner() {
         return;
       }
       if (mod && e.key.toLowerCase() === '/') {
-        // Focus the chat textarea so the user can start typing without
-        // hunting for it. Useful after closing palette/settings.
-        e.preventDefault();
         const ta = document.querySelector('textarea');
         ta?.focus();
         return;
       }
-      // The Ctrl-letter shortcuts skip when the user is typing in any
-      // input — otherwise Ctrl+L wipes the chat while they're composing.
-      // Access the WS client via the Zustand store instead of the `ws`
-      // hook return value so we don't re-register this effect on every
-      // render (useWebSocket() returns a fresh object each time).
       if (mod && !inField) {
         if (e.key.toLowerCase() === 'l') {
           e.preventDefault();
@@ -121,16 +98,10 @@ function AppInner() {
           downloadChatAsMarkdown();
         }
       }
-      // Ctrl+Shift+D toggles compact UI density. Distinct from Ctrl+D
-      // (which is reserved as the browser bookmark accelerator).
       if (mod && e.shiftKey && e.key.toLowerCase() === 'd') {
         e.preventDefault();
         useUIStore.getState().toggleCompactMode();
       }
-      // Vim-style chat navigation: j/k step between bubbles, g goes to the
-      // first message and G to the last. Skipped while typing so j/k inside
-      // the textarea still inserts those letters. No modifier required —
-      // this is the chat surface's primary input mode for keyboard users.
       if (!inField && !mod && !e.altKey) {
         const bubbles = Array.from(document.querySelectorAll<HTMLElement>('[data-message-id]'));
         if (bubbles.length === 0) return;
@@ -144,10 +115,6 @@ function AppInner() {
           target.scrollIntoView({ behavior: 'smooth', block: 'center' });
         };
         if (e.key === 'j' || e.key === 'ArrowDown') {
-          // ArrowDown only intercepts when nothing else has focus AND the
-          // user is not in a scrollable list context — the textarea check
-          // above covers the only place arrows have meaningful default
-          // behaviour for this app.
           const next = bubbles[Math.min(bubbles.length - 1, Math.max(0, idx + 1))];
           if (next) {
             e.preventDefault();
@@ -178,9 +145,6 @@ function AppInner() {
           current.removeAttribute('data-focused');
           return;
         }
-        // `c` while a bubble is focused: copy its visible text. Useful
-        // pairing with the j/k flow so power users can step + copy without
-        // hunting for the in-bubble copy button.
         if (e.key === 'c' && current) {
           const text =
             current.querySelector<HTMLElement>('.markdown-content')?.innerText ?? current.innerText;
@@ -204,7 +168,6 @@ function AppInner() {
         {currentView === 'chat' && <ChatView />}
         {currentView === 'settings' && <SettingsPanel />}
       </main>
-
       {/* Global overlays */}
       <ConfirmDialog />
       <CommandPalette />

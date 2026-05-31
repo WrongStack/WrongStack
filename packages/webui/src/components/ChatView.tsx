@@ -1,43 +1,19 @@
 import { cn } from '@/lib/utils';
 import { useChatStore, useSessionStore, useUIStore } from '@/stores';
 import type { ChatMessage } from '@/stores';
-import { useConfigStore } from '@/stores';
 import {
-  Activity,
   ArrowDown,
   ArrowUp,
   Bot,
   Brain,
-  Command,
-  Cpu,
-  FolderOpen,
-  Monitor,
-  Moon,
-  PanelLeftOpen,
-  Settings,
-  Sun,
-  Wifi,
-  WifiOff,
-  Zap,
 } from 'lucide-react';
 import { type ReactNode, useCallback, useEffect, useRef, useState } from 'react';
 import { ChatInput } from './ChatInput';
-import { ConnectionChip } from './ConnectionChip';
-import { ContextModePicker } from './ContextModePicker';
-import { CostChip } from './CostChip';
 import { MessageBubble } from './MessageBubble';
-import { ModePicker } from './ModePicker';
 import { SearchOverlay } from './SearchOverlay';
 import { ToolGroup } from './ToolGroup';
 import { WelcomeScreen } from './WelcomeScreen';
-import { Button } from './ui/button';
 import { ScrollArea } from './ui/scroll-area';
-
-function fmtTok(n: number): string {
-  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
-  if (n >= 1000) return `${(n / 1000).toFixed(n >= 10_000 ? 0 : 1)}k`;
-  return String(n);
-}
 
 /**
  * Soft, ephemeral chip rendered while the model is mid-reasoning. Reads the
@@ -76,50 +52,16 @@ function ThinkingBubble() {
 
 export function ChatView() {
   const { messages, isLoading } = useChatStore();
-  const setPaletteOpen = useUIStore((s) => s.setPaletteOpen);
-  const setShortcutsOpen = useUIStore((s) => s.setShortcutsOpen);
-  const sidebarOpen = useUIStore((s) => s.sidebarOpen);
-  const toggleSidebar = useUIStore((s) => s.toggleSidebar);
   const compactMode = useUIStore((s) => s.compactMode);
-  const setTheme = useConfigStore((s) => s.setTheme);
-  const theme = useConfigStore((s) => s.theme);
-  const { totalTokens, cost, startTime, lastInputTokens, maxContext, projectName, iteration } =
-    useSessionStore();
-  const { wsConnected, wsStatus, provider, model } = useConfigStore();
-  const { setCurrentView } = useUIStore();
+  const { iteration } = useSessionStore();
   const scrollRef = useRef<HTMLDivElement>(null);
 
-  // Context window usage (mirrors TUI's ContextChip semantics: lastInputTokens
-  // is the most recent provider call's input size — the de-facto live context).
-  const ctxPct =
-    maxContext > 0 && lastInputTokens > 0
-      ? Math.min(100, Math.round((lastInputTokens / maxContext) * 100))
-      : 0;
-  const ctxTone =
-    ctxPct >= 85
-      ? 'bg-red-500/15 text-red-600 dark:text-red-400'
-      : ctxPct >= 70
-        ? 'bg-amber-500/15 text-amber-600 dark:text-amber-400'
-        : 'bg-muted text-muted-foreground';
-
-  // Auto-scroll with "user is reading older messages" lock. We watch the
-  // Radix ScrollArea viewport's scroll position; if the user is within
-  // ~120px of the bottom we keep pinning new messages to the bottom. The
-  // moment they scroll up, we let go — new content appends invisibly and a
-  // floating "↓ new messages" button shows up so they can rejoin the live
-  // tail when they're ready.
+  // Auto-scroll with "user is reading older messages" lock.
   const [pinnedToBottom, setPinnedToBottom] = useState(true);
   const [unreadCount, setUnreadCount] = useState(0);
-  /** True when the user has scrolled past ~1 viewport-height from the top
-   *  AND isn't anchored at the bottom — i.e. they're deep in mid-history.
-   *  Used to surface a "back to top" pill so navigating a 200-message
-   *  transcript doesn't require thumb-flicking. */
   const [scrolledDeep, setScrolledDeep] = useState(false);
   const lastSeenCount = useRef(messages.length);
 
-  // Resolve the actual scrollable viewport that Radix renders inside the
-  // ScrollArea root. We re-resolve every render because the ref points at
-  // the root, not the viewport.
   const getViewport = useCallback((): HTMLElement | null => {
     return scrollRef.current?.querySelector('[data-radix-scroll-area-viewport]') ?? null;
   }, []);
@@ -135,9 +77,6 @@ export function ChatView() {
         setUnreadCount(0);
         lastSeenCount.current = messages.length;
       }
-      // Show "back to top" only when there's actually a lot of content
-      // ABOVE the user (so it doesn't pop up on tiny chats) AND they're
-      // not already near the top.
       const deep =
         viewport.scrollTop > viewport.clientHeight &&
         viewport.scrollHeight > viewport.clientHeight * 2.5;
@@ -174,16 +113,9 @@ export function ChatView() {
     viewport.scrollTo({ top: 0, behavior: 'smooth' });
   }, [getViewport]);
 
-  // Live "agent is busy" indicator. We track when the current run started
-  // (rising edge of isLoading) and tick a second-resolution clock so the
-  // running-status bubble shows a live elapsed timer. Reset on idle.
+  // Live "agent is busy" indicator.
   const [runStartedAt, setRunStartedAt] = useState<number | null>(null);
   const [nowTick, setNowTick] = useState<number>(() => Date.now());
-  /** Anchor for streaming-speed computation. We capture the assistant
-   *  message id, the wall-clock time, and the content length at the moment
-   *  streaming starts; chars-per-second is derived from the delta between
-   *  then and `nowTick`. Reset when the streaming bubble changes (new turn)
-   *  or when streaming flips off (idle). */
   const streamAnchor = useRef<{ id: string; at: number; len: number } | null>(null);
   useEffect(() => {
     if (isLoading && runStartedAt === null) setRunStartedAt(Date.now());
@@ -195,229 +127,8 @@ export function ChatView() {
     return () => clearInterval(t);
   }, [isLoading]);
 
-  const formatDuration = (start: number | null) => {
-    if (!start) return '--';
-    const seconds = Math.floor((Date.now() - start) / 1000);
-    if (seconds < 60) return `${seconds}s`;
-    const minutes = Math.floor(seconds / 60);
-    const secs = seconds % 60;
-    return `${minutes}m ${secs}s`;
-  };
-
-  // Agent state derived once — used by both the chip and the indicator
-  // bubble at the bottom of the chat. `streaming` while an assistant
-  // bubble is mid-text, else `thinking` between turns, else `idle`.
-  const agentState = (() => {
-    if (!isLoading) return 'idle' as const;
-    const last = messages[messages.length - 1];
-    const isStreaming = last?.role === 'assistant' && !!last.content && last.streaming;
-    return isStreaming ? ('streaming' as const) : ('thinking' as const);
-  })();
-  const stateTone =
-    agentState === 'idle'
-      ? 'bg-muted text-muted-foreground'
-      : agentState === 'streaming'
-        ? 'bg-blue-500/10 text-blue-600 dark:text-blue-400'
-        : 'bg-amber-500/10 text-amber-600 dark:text-amber-400';
-
-  // We show the status row (ctx / tokens / cost / elapsed) only when there's
-  // *something* worth reporting — otherwise the second line is just dead
-  // pixels on a brand-new empty session.
-  const hasStatusContent =
-    (maxContext > 0 && lastInputTokens > 0) || totalTokens.input > 0 || !!startTime;
-
   return (
     <div className="flex flex-col h-full">
-      {/* Header — two compact rows.
-          Row 1: identity + actions (sidebar reopen, connection, project,
-                 model, mode, state, iteration, palette/theme/?/settings).
-          Row 2 (when present): live numbers (ctx %, tokens, cache %, cost,
-                 elapsed) — kept off-row 1 so the action cluster never
-                 wraps when a session warms up. */}
-      <header className="flex flex-col border-b bg-card shrink-0">
-        <div className="flex items-center justify-between gap-2 px-3 py-2">
-          <div className="flex items-center gap-1.5 min-w-0 flex-1">
-            {/* Sidebar reopen — only visible when the sidebar is hidden.
-                Otherwise the sidebar's own toggle handles it. */}
-            {!sidebarOpen && (
-              <Button
-                variant="ghost"
-                size="icon"
-                className="h-7 w-7 shrink-0"
-                onClick={toggleSidebar}
-                title="Open sidebar (Ctrl+\\)"
-              >
-                <PanelLeftOpen className="h-4 w-4" />
-              </Button>
-            )}
-            {/* When the sidebar is hidden we surface a tiny WrongStack mark
-                so the user can still see they're in WrongStack — but inline,
-                no big header text. */}
-            {!sidebarOpen && (
-              <div className="flex items-center gap-1.5 shrink-0 mr-1">
-                <div className="w-5 h-5 rounded bg-primary flex items-center justify-center">
-                  <Zap className="h-3 w-3 text-primary-foreground" />
-                </div>
-              </div>
-            )}
-            {/* Connection pill — granular status with retry button. Lives
-                next to the sidebar toggle so it's always visible. Hover
-                shows the last error (if any). */}
-            <ConnectionChip wsStatus={wsStatus} wsConnected={wsConnected} />
-            <span
-              className={cn(
-                'flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[11px] font-medium shrink-0 tabular-nums',
-                stateTone,
-              )}
-              title={`Agent state: ${agentState}`}
-            >
-              {agentState !== 'idle' && (
-                <span className="h-1.5 w-1.5 rounded-full bg-current animate-pulse" />
-              )}
-              <span>{agentState}</span>
-            </span>
-            {projectName && (
-              <span
-                className="flex items-center gap-1 text-[11px] text-muted-foreground shrink-0 min-w-0"
-                title={`Project: ${projectName}`}
-              >
-                <FolderOpen className="h-3 w-3 shrink-0" />
-                <span className="truncate max-w-[12rem]">{projectName}</span>
-              </span>
-            )}
-            <button
-              type="button"
-              onClick={() => useUIStore.getState().setModelSwitcherOpen(true)}
-              className="group flex items-center gap-1 px-2 py-0.5 rounded-md border bg-background/50 hover:bg-accent hover:border-primary/40 transition-colors text-[11px] min-w-0 shrink-0"
-              title="Change provider / model (Ctrl+M)"
-            >
-              <Cpu className="h-3 w-3 text-muted-foreground group-hover:text-foreground shrink-0" />
-              <span className="font-mono truncate max-w-[16rem]">
-                <span className="text-muted-foreground">{provider || 'no-provider'}</span>
-                <span className="text-muted-foreground/40 mx-0.5">/</span>
-                <span className="font-medium">{model || 'no-model'}</span>
-              </span>
-            </button>
-            <ModePicker />
-            <ContextModePicker />
-            {iteration && (
-              <span
-                className="flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[11px] font-medium bg-primary/10 text-primary shrink-0"
-                title="Agent iteration"
-              >
-                <Activity className="h-3 w-3 animate-pulse" />
-                iter {iteration.index}
-                {iteration.max > 0 ? `/${iteration.max}` : ''}
-              </span>
-            )}
-          </div>
-
-          <div className="flex items-center gap-0.5 shrink-0">
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-7 w-7"
-              onClick={() => setPaletteOpen(true)}
-              title="Command palette (Ctrl+K)"
-            >
-              <Command className="h-4 w-4" />
-            </Button>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-7 w-7"
-              onClick={() => {
-                const next = theme === 'light' ? 'dark' : theme === 'dark' ? 'system' : 'light';
-                setTheme(next);
-              }}
-              title={`Theme: ${theme} (click to cycle)`}
-            >
-              {theme === 'light' ? (
-                <Sun className="h-4 w-4" />
-              ) : theme === 'dark' ? (
-                <Moon className="h-4 w-4" />
-              ) : (
-                <Monitor className="h-4 w-4" />
-              )}
-            </Button>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-7 w-7 font-mono text-xs"
-              onClick={() => setShortcutsOpen(true)}
-              title="Keyboard shortcuts (?)"
-            >
-              ?
-            </Button>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-7 w-7"
-              onClick={() => setCurrentView('settings')}
-              title="Settings"
-            >
-              <Settings className="h-4 w-4" />
-            </Button>
-          </div>
-        </div>
-
-        {hasStatusContent && (
-          <div className="flex items-center justify-between gap-3 px-3 py-1 border-t bg-muted/20 text-[11px] text-muted-foreground">
-            <div className="flex items-center gap-3 min-w-0 flex-1 tabular-nums">
-              {maxContext > 0 && lastInputTokens > 0 && (
-                <span
-                  className={cn(
-                    'flex items-center gap-1 px-1.5 py-0.5 rounded-full font-medium shrink-0',
-                    ctxTone,
-                  )}
-                  title={`Last input: ${lastInputTokens.toLocaleString()} / ${maxContext.toLocaleString()} tokens`}
-                >
-                  ctx {ctxPct}% · {fmtTok(lastInputTokens)}/{fmtTok(maxContext)}
-                </span>
-              )}
-              {totalTokens.input > 0 && (
-                <>
-                  <span className="flex items-center gap-1">
-                    <span className="font-medium text-foreground">{fmtTok(totalTokens.input)}</span>
-                    <span>in</span>
-                  </span>
-                  <span className="flex items-center gap-1">
-                    <span className="font-medium text-foreground">
-                      {fmtTok(totalTokens.output)}
-                    </span>
-                    <span>out</span>
-                  </span>
-                  {totalTokens.cacheRead &&
-                    totalTokens.cacheRead > 0 &&
-                    (() => {
-                      const denom = (totalTokens.cacheRead ?? 0) + totalTokens.input;
-                      const pct =
-                        denom > 0 ? Math.round(((totalTokens.cacheRead ?? 0) / denom) * 100) : 0;
-                      return (
-                        <span
-                          className="flex items-center gap-1"
-                          title={`Cache hit ratio: ${pct}%`}
-                        >
-                          <span className="font-medium text-foreground">
-                            {fmtTok(totalTokens.cacheRead)}
-                          </span>
-                          <span>cache ({pct}%)</span>
-                        </span>
-                      );
-                    })()}
-                  <CostChip />
-                </>
-              )}
-            </div>
-            {startTime && (
-              <span className="text-muted-foreground/70 tabular-nums shrink-0">
-                {formatDuration(startTime)}
-              </span>
-            )}
-          </div>
-        )}
-      </header>
-
       {/* Messages */}
       <div className="flex-1 relative overflow-hidden">
         {/* Chat-local Ctrl+F overlay — pinned top-right, scrolls hits into
