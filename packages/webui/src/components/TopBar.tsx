@@ -7,6 +7,7 @@ import {
 } from '@/stores';
 import {
   Command,
+  Globe,
   Loader2,
   Maximize2,
   Minimize2,
@@ -18,6 +19,7 @@ import {
   WifiOff,
   Zap,
 } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { useTheme } from './ThemeProvider';
 
 /**
@@ -25,8 +27,9 @@ import { useTheme } from './ThemeProvider';
  * context usage, and quick actions.
  */
 export function TopBar() {
+  const { t, i18n } = useTranslation();
   const { wsConnected, wsStatus, provider, model } = useConfigStore();
-  const { totalTokens, cost, lastInputTokens, maxContext } = useSessionStore();
+  const { cost, lastInputTokens, maxContext } = useSessionStore();
   const isLoading = useChatStore((s) => s.isLoading);
   const compactMode = useUIStore((s) => s.compactMode);
   const setCurrentView = useUIStore((s) => s.setCurrentView);
@@ -48,6 +51,14 @@ export function TopBar() {
           ? 'bg-amber-500'
           : 'bg-emerald-500';
 
+  const toggleLanguage = () => {
+    const next = i18n.language === 'tr' ? 'en' : 'tr';
+    void i18n.changeLanguage(next);
+  };
+
+  const themeLabel =
+    theme === 'dark' ? t('topbar.theme_dark') : theme === 'system' ? t('topbar.theme_system') : t('topbar.theme_light');
+
   return (
     <header
       className={cn(
@@ -62,7 +73,7 @@ export function TopBar() {
             <Zap className="h-4 w-4 text-primary-foreground" />
           </div>
           <span className="font-semibold tracking-tight text-sm hidden sm:inline">
-            WrongStack
+            {t('app.name')}
           </span>
         </div>
 
@@ -76,10 +87,10 @@ export function TopBar() {
           )}
           title={
             wsStatus.state === 'reconnecting'
-              ? `Reconnecting (attempt ${wsStatus.attempt})`
+              ? t('connection.reconnecting_attempt', { attempt: wsStatus.attempt })
               : wsConnected
-                ? 'Connected to backend'
-                : (wsStatus.state === 'closed' && wsStatus.error) || 'Disconnected'
+                ? t('connection.connected_to_backend')
+                : (wsStatus.state === 'closed' && wsStatus.error) || t('connection.disconnected')
           }
         >
           {wsConnected ? (
@@ -91,10 +102,10 @@ export function TopBar() {
           )}
           <span className="hidden sm:inline">
             {wsStatus.state === 'reconnecting'
-              ? `Reconnecting ${wsStatus.attempt}`
+              ? t('connection.reconnecting_attempt', { attempt: wsStatus.attempt })
               : wsConnected
-                ? 'Connected'
-                : 'Disconnected'}
+                ? t('connection.connected')
+                : t('connection.disconnected')}
           </span>
         </div>
 
@@ -104,7 +115,7 @@ export function TopBar() {
             type="button"
             onClick={() => setCurrentView('settings')}
             className="hidden md:flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-muted text-xs font-mono text-muted-foreground hover:text-foreground hover:bg-muted/80 transition-colors"
-            title="Click to change model"
+            title={t('topbar.click_to_change_model')}
           >
             <span className="truncate max-w-[120px]">{provider}</span>
             <span className="text-muted-foreground/40">/</span>
@@ -117,7 +128,7 @@ export function TopBar() {
       {maxContext > 0 && (
         <div className="hidden lg:flex items-center gap-2">
           <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-            <span>Context</span>
+            <span>{t('topbar.context')}</span>
             <div className="w-24 h-1.5 bg-muted rounded-full overflow-hidden">
               <div
                 className={cn('h-full rounded-full transition-all duration-500', ctxColor)}
@@ -145,16 +156,26 @@ export function TopBar() {
         {isLoading && (
           <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-600 dark:text-amber-400 text-xs mr-1">
             <Loader2 className="h-3 w-3 animate-spin" />
-            <span className="hidden sm:inline">Running</span>
+            <span className="hidden sm:inline">{t('topbar.running')}</span>
           </div>
         )}
+
+        {/* Language toggle */}
+        <button
+          type="button"
+          onClick={toggleLanguage}
+          className="p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+          title={i18n.language === 'tr' ? 'Switch to English' : 'Türkçeye geç'}
+        >
+          <Globe className="h-4 w-4" />
+        </button>
 
         {/* Compact toggle */}
         <button
           type="button"
           onClick={toggleCompactMode}
           className="p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
-          title={compactMode ? 'Expand layout' : 'Compact layout'}
+          title={compactMode ? t('topbar.expand_layout') : t('topbar.compact_layout')}
         >
           {compactMode ? <Maximize2 className="h-4 w-4" /> : <Minimize2 className="h-4 w-4" />}
         </button>
@@ -164,7 +185,7 @@ export function TopBar() {
           type="button"
           onClick={() => setTheme(theme === 'light' ? 'dark' : theme === 'dark' ? 'system' : 'light')}
           className="p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
-          title={`Theme: ${theme}`}
+          title={themeLabel}
         >
           {theme === 'dark' ? (
             <Sun className="h-4 w-4" />
@@ -190,7 +211,7 @@ export function TopBar() {
           type="button"
           onClick={() => setCurrentView('settings')}
           className="p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
-          title="Settings"
+          title={t('topbar.settings')}
         >
           <Settings className="h-4 w-4" />
         </button>
