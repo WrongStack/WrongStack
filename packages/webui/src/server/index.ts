@@ -194,10 +194,10 @@ export { AutoPhaseWebSocketHandler } from './autophase-ws-handler.js';
 // external consumers. The previous local copies shadowed these and made the
 // `Map<WebSocket, ConnectedClient>` passed to the extracted ws-utils helpers
 // nominally distinct, which TS rejected.
-import type { ConnectedClient, WSClientMessage, WSServerMessage } from './types.js';
+import type { ConnectedClient, WSClientMessage, WSServerMessage, WebUIOptions } from './types.js';
 
 export async function startWebUI(
-  opts: {
+  opts: WebUIOptions & {
     wsPort?: number | undefined;
     wsHost?: string | undefined;
     open?: boolean | undefined;

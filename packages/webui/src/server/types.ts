@@ -25,6 +25,23 @@ export interface WSClientMessage {
 export interface WebUIOptions {
   port?: number | undefined;
   webuiPort?: number | undefined;
+  /**
+   * Pre-built backend services. When provided, `startWebUI` skips its
+   * default agent/event-bus/session/store construction and wires the
+   * supplied instances into the WS message router and HTTP API
+   * handlers instead.
+   *
+   * Intended for callers (most notably `cli/webui-server.ts`) that
+   * already own the agent lifecycle — the CLI's `runWebUI` constructs
+   * the Agent, EventBus, SessionWriter, and friends so it can run an
+   * eternal iteration against them, then hands the lot to the webui
+   * for the human-facing surface.
+   *
+   * When `services` is omitted, `startWebUI` retains its existing
+   * behavior (builds the defaults in-place). This keeps the standalone
+   * `node dist/index.js webui` flow fully back-compatible.
+   */
+  services?: BackendServices | undefined;
 }
 
 export interface BackendServices {
