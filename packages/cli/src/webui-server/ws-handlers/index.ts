@@ -25,17 +25,12 @@ export interface WsServerMessage {
 }
 
 /**
- * Shared state threaded explicitly into every ws-handler group.
- *
- * Only the dependencies the extracted handlers actually use live
- * here. As more handler groups move out of webui-server.ts (sessions,
- * mailbox, …) this context grows the fields they need.
+ * The messaging surface every ws-handler group needs. Each group's
+ * context extends this with its own dependencies, so the per-group
+ * contexts stay focused instead of one shared god-object growing a
+ * field for every concern in the file.
  */
-export interface WsHandlerContext {
-  /** Provider-config store (load/save the saved-providers map), bound to the global config path. */
-  providerStore: ProviderConfigStore;
-  /** Models registry backing the provider/model catalog (optional). */
-  modelsRegistry: ModelsRegistry | undefined;
+export interface WsCommon {
   /** Send one message to a single socket (no-op if the socket isn't OPEN). */
   send: (ws: WebSocket, msg: WsServerMessage) => void;
   /** Broadcast a message to every connected socket. */
@@ -44,6 +39,22 @@ export interface WsHandlerContext {
   log: (msg: string) => void;
 }
 
+/**
+ * Context for the provider / model / API-key handlers.
+ */
+export interface WsHandlerContext extends WsCommon {
+  /** Provider-config store (load/save the saved-providers map), bound to the global config path. */
+  providerStore: ProviderConfigStore;
+  /** Models registry backing the provider/model catalog (optional). */
+  modelsRegistry: ModelsRegistry | undefined;
+}
+
+export {
+  type BrainHandlerContext,
+  handleBrainAsk,
+  handleBrainRisk,
+  handleBrainStatus,
+} from './brain.js';
 export {
   handleKeyDelete,
   handleKeySetActive,

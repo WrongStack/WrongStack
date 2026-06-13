@@ -100,7 +100,11 @@ import {
 import { createProviderConfigStore } from './webui-server/provider-config.js';
 import { startStaticServe } from './webui-server/static-serve.js';
 import {
+  type BrainHandlerContext,
   type WsHandlerContext,
+  handleBrainAsk,
+  handleBrainRisk,
+  handleBrainStatus,
   handleKeyDelete,
   handleKeySetActive,
   handleKeyUpsert,
@@ -1238,6 +1242,21 @@ export async function runWebUI(opts: CliWebUIOptions): Promise<void> {
     log: (m) => console.log(m),
   };
 
+  const brainCtx: BrainHandlerContext = {
+    brainSettings: opts.brainSettings,
+    getBrainLog: opts.getBrainLog,
+    // Prefer the host-supplied arbiter; otherwise resolve the one bound
+    // in the agent container (if any). Mirrors the former inline lookup.
+    resolveArbiter: () =>
+      opts.brain ??
+      (opts.agent.container.has(TOKENS.BrainArbiter)
+        ? opts.agent.container.resolve(TOKENS.BrainArbiter)
+        : undefined),
+    send,
+    broadcast,
+    log: (m) => console.log(m),
+  };
+
   async function handleMessage(
     ws: WebSocket,
     client: ConnectedClient,
@@ -2328,66 +2347,19 @@ export async function runWebUI(opts: CliWebUIOptions): Promise<void> {
       // terminal and the WebUI never diverge. These used to be unknown
       // message types on the embedded server.
       case 'brain.status': {
-        send(ws, {
-          type: 'brain.status',
-          payload: {
-            maxAutoRisk: opts.brainSettings?.maxAutoRisk ?? 'medium',
-            log: opts.getBrainLog?.() ?? [],
-          },
-        });
+        handleBrainStatus(brainCtx, ws);
         break;
       }
 
       case 'brain.risk': {
         const level = (msg as { payload?: { level?: string } }).payload?.level ?? '';
-        const valid = ['off', 'low', 'medium', 'high', 'all'];
-        if (!valid.includes(level)) {
-          sendResult(ws, false, `Unknown risk level "${level}". Use: ${valid.join(', ')}.`);
-          break;
-        }
-        if (!opts.brainSettings) {
-          sendResult(ws, false, 'Brain settings are not wired into this server.');
-          break;
-        }
-        opts.brainSettings.maxAutoRisk = level as BrainAutoRisk;
-        send(ws, {
-          type: 'brain.status',
-          payload: { maxAutoRisk: opts.brainSettings.maxAutoRisk, log: opts.getBrainLog?.() ?? [] },
-        });
+        handleBrainRisk(brainCtx, ws, level);
         break;
       }
 
       case 'brain.ask': {
-        const question = (msg as { payload?: { question?: string } }).payload?.question?.trim();
-        if (!question) {
-          sendResult(ws, false, 'Usage: /brain ask <question>');
-          break;
-        }
-        const arbiter =
-          opts.brain ??
-          (opts.agent.container.has(TOKENS.BrainArbiter)
-            ? opts.agent.container.resolve(TOKENS.BrainArbiter)
-            : undefined);
-        if (!arbiter) {
-          sendResult(ws, false, 'No Brain is wired into this server.');
-          break;
-        }
-        try {
-          const decision = await arbiter.decide({
-            id: `brain-ask-${Date.now().toString(36)}`,
-            source: 'user',
-            question,
-            risk: 'medium',
-            fallback: 'ask_human',
-          });
-          send(ws, { type: 'brain.answer', payload: { question, decision } });
-        } catch (err) {
-          sendResult(
-            ws,
-            false,
-            `Brain consultation failed: ${err instanceof Error ? err.message : String(err)}`,
-          );
-        }
+        const question = (msg as { payload?: { question?: string } }).payload?.question;
+        await handleBrainAsk(brainCtx, ws, question);
         break;
       }
 

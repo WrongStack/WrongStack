@@ -17,7 +17,8 @@ refactor). Update this before switching context, handing off, or resuming.
 | 5  | ws-handlers/ — **provider group** | ✅ merged | #58 |
 | 7  | lifecycle.ts | ✅ merged | #59 |
 | 8  | Final pass (module-map header + this doc) | ✅ merged | #61 |
-| 5b | ws-handlers/ — **remaining groups** | 🔴 deferred | — |
+| 5b | ws-handlers/ — **brain group** | ✅ merged | #62 |
+| 5c | ws-handlers/ — **remaining groups** | 🔴 in progress | — |
 
 `webui-server.ts` is ~3000 lines (down from ~3250). The self-contained
 concerns now live under `packages/cli/src/webui-server/`:
@@ -31,28 +32,33 @@ webui-server/
   static-serve.ts       — dist discovery + HTTP bring-up    (PR 6)
   lifecycle.ts          — registry / ready+open / shutdown  (PR 7)
   ws-handlers/
-    index.ts            — WsHandlerContext + barrel         (PR 5)
+    index.ts            — WsCommon + per-group contexts + barrel (PR 5/5b)
     providers.ts        — provider/model/key handlers       (PR 5)
+    brain.ts            — brain.status/risk/ask handlers     (PR 5b)
 ```
+
+Per-group contexts now extend a small `WsCommon` base (`send`/`broadcast`/
+`log`) rather than one shared god-object growing a field per concern.
 
 A module-map doc comment at the top of `webui-server.ts` points to each.
 
 ---
 
-## PR 5b — remaining ws-handler groups (🔴 deferred, the real risk)
+## PR 5c — remaining ws-handler groups (🔴 in progress)
 
-PR 5 extracted the **provider** group (the largest cleanly-separable one:
-8 handlers + `WsHandlerContext`, fully unit-tested). The doc's original
-plan also listed sessions / mailbox / worktree / memory groups. Current
-reality:
+PR 5 extracted the **provider** group and PR 5b the **brain** group (each
+fully unit-tested, threaded via a per-group context extending `WsCommon`).
+The doc's original plan also listed sessions / mailbox / worktree / memory
+groups. Current reality:
 
 - **Already delegated** — `memory.*`, `files.*`, `mailbox.*`, `shell.open`
   cases already call the shared `@wrongstack/webui/server` handlers. No
   CLI-local extraction to do.
-- **Still inline, deferred** — the `handleMessage` switch cases for
-  `sessions` / `session.*`, `context.*`, `brain.*`, `tasks`/`task.*`,
+- **Still inline** — the `handleMessage` switch cases for
+  `sessions` / `session.*`, `context.*`, `tasks`/`task.*`,
   `projects.*`, `plan.*`, `skills`, `modes`/`mode.*`, `model.*`, `todos.*`,
   `diag`/`stats`, `autonomy.switch`, `prefs.*`, plus `handleUserMessage`.
+  (`brain.*` extracted in PR 5b — the small self-contained groups go first.)
 
 **Why deferred (not "forgotten"):** these cases are coupled to ~25 pieces
 of run-loop state (`abortController` + `abortControllers`, `clients`,
