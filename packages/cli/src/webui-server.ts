@@ -9,7 +9,6 @@ import type {
   BrainAutoRisk,
   Context,
   EventBus,
-  Logger,
   MemoryStore,
   ModelsRegistry,
   ModeStore,
@@ -88,29 +87,8 @@ import {
 // ── Console logger adapter for AutoPhaseWebSocketHandler ──────────────────────
 // AutoPhaseWebSocketHandler requires a Logger. The CLI uses console.log/error
 // directly, so we adapt that to the Logger interface expected by the handler.
-const structuredLine = (level: string, message: string): string =>
-  JSON.stringify({ level, event: 'webui.autophase', message, timestamp: new Date().toISOString() });
-const consoleLogger: Logger = {
-  level: 'debug',
-  error(msg: string, _ctx?: unknown) {
-    console.error(structuredLine('error', msg));
-  },
-  warn(msg: string, _ctx?: unknown) {
-    console.warn(structuredLine('warn', msg));
-  },
-  info(msg: string, _ctx?: unknown) {
-    console.log(structuredLine('info', msg));
-  },
-  debug(msg: string, _ctx?: unknown) {
-    console.debug(structuredLine('debug', msg));
-  },
-  trace(msg: string, _ctx?: unknown) {
-    console.debug(structuredLine('trace', msg));
-  },
-  child(_bindings: Record<string, unknown>): Logger {
-    return this;
-  },
-};
+// PR 1 of Issue #30: extracted to `./webui-server/logger-shim.js`.
+import { consoleLogger } from './webui-server/logger-shim.js';
 
 interface PromptBlock {
   text?: string | undefined;
