@@ -66,7 +66,7 @@ export class ToolExecutor {
       // Fast path: unknown tool
       if (!tool) {
         const result = this.unknownToolResult(use, () => this.registry.list().map((t) => t.name));
-        budget = this.decrementBudget(result, budget);
+        budget = this.budgetForString(result.content, budget);
         return { result, tool, durationMs: Date.now() - start };
       }
 
@@ -89,7 +89,7 @@ export class ToolExecutor {
             `You can use the "tool-help" tool with name="${tool.name}" to see the exact expected schema.`,
           is_error: true,
         };
-        budget = this.decrementBudget(result, budget);
+        budget = this.budgetForString(result.content, budget);
         return { result, tool, durationMs: Date.now() - start };
       }
 
@@ -110,7 +110,7 @@ export class ToolExecutor {
       // resends well-formed arguments.
       if (hasMalformedArguments(use.input)) {
         const result = this.malformedInputResult(use, extractMalformedRaw(use.input));
-        budget = this.decrementBudget(result, budget);
+        budget = this.budgetForString(result.content, budget);
         return { result, tool, durationMs: Date.now() - start };
       }
 
@@ -121,7 +121,7 @@ export class ToolExecutor {
         const pre = await this.opts.hookRunner.preToolUse(tool.name, use.input, ctx);
         if (pre.block) {
           const result = this.blockedByHookResult(use, pre.reason);
-          budget = this.decrementBudget(result, budget);
+          budget = this.budgetForString(result.content, budget);
           return { result, tool, durationMs: Date.now() - start };
         }
         if (pre.input) {
@@ -139,7 +139,7 @@ export class ToolExecutor {
                 `Validation errors:\n${errorDetails}`,
               is_error: true,
             };
-            budget = this.decrementBudget(result, budget);
+            budget = this.budgetForString(result.content, budget);
             return { result, tool, durationMs: Date.now() - start };
           }
           use = { ...use, input: pre.input };
@@ -172,7 +172,7 @@ export class ToolExecutor {
 
       if (effectivePermission === 'deny') {
         const result = this.deniedResult(use, decision.reason);
-        budget = this.decrementBudget(result, budget);
+        budget = this.budgetForString(result.content, budget);
         return { result, tool, durationMs: Date.now() - start };
       }
 
@@ -186,7 +186,7 @@ export class ToolExecutor {
               content: `Tool "${tool.name}" denied by user.`,
               is_error: true,
             };
-            budget = this.decrementBudget(result, budget);
+            budget = this.budgetForString(result.content, budget);
             return { result, tool, durationMs: Date.now() - start };
           }
           // fall through to execute
@@ -220,9 +220,16 @@ export class ToolExecutor {
         'tool.has_dangerous_capabilities': toolCapsForAudit.length > 0,
       });
       try {
-        let result = await this.executeTool(tool, use, ctx, budget);
-        // PostToolUse hooks: observe the result and optionally append context
-        // (e.g. a linter note) that the model sees alongside the tool output.
+        // H2: executeTool returns the rendered block plus the exact byte
+        // count it spent against the iteration output cap. The cap was
+        // enforced inside `enforceCap`, so the spend is known without
+        // any second `Buffer.byteLength` walk.
+        let { block: result, bytes } = await this.executeTool(tool, use, ctx, budget);
+        budget -= bytes;
+        // PostToolUse hooks: observe the result and optionally append
+        // context (e.g. a linter note) that the model sees alongside the
+        // tool output. Append the post-hook bytes to the budget spend
+        // without re-walking the full result content.
         if (this.opts.hookRunner?.has('PostToolUse')) {
           const post = await this.opts.hookRunner.postToolUse(
             tool.name,
@@ -231,10 +238,15 @@ export class ToolExecutor {
             ctx,
           );
           if (post.additionalContext) {
-            result = { ...result, content: `${result.content}\n\n${post.additionalContext}` };
+            const appended = `\n\n${post.additionalContext}`;
+            result = { ...result, content: `${result.content}${appended}` };
+            // Only the appended bytes are new — the pre-hook portion was
+            // already counted by enforceCap. Walking just the appended
+            // tail is `O(additionalContext.length)`, never `O(content)`.
+            // Floor at 0 to match `decrementBudget`'s pre-fix clamp.
+            budget = Math.max(0, budget - Buffer.byteLength(appended, 'utf8'));
           }
         }
-        budget = this.decrementBudget(result, budget);
         span?.setAttribute('tool.is_error', !!result.is_error);
         span?.setAttribute(
           'tool.output_bytes',
@@ -251,7 +263,7 @@ export class ToolExecutor {
           content: `Tool "${tool.name}" threw: ${scrubbed}`,
           is_error: true,
         };
-        budget = this.decrementBudget(result, budget);
+        budget = this.budgetForString(result.content, budget);
         if (err instanceof Error) span?.recordError(err);
         span?.setAttribute('tool.is_error', true);
         return { result, tool, durationMs: Date.now() - start };
@@ -278,7 +290,7 @@ export class ToolExecutor {
           content: `Tool "${use.name}" execution failed: ${scrubbed}`,
           is_error: true,
         };
-        budget = this.decrementBudget(result, budget);
+        budget = this.budgetForString(result.content, budget);
         return { result, tool: this.registry.get(use.name), durationMs: 0 };
       }
     };
@@ -327,7 +339,7 @@ export class ToolExecutor {
     use: ToolUseBlock,
     ctx: Context,
     budget: number,
-  ): Promise<ToolResultBlock> {
+  ): Promise<{ block: ToolResultBlock; bytes: number }> {
     this.opts.events?.emit('tool.started', {
       name: tool.name,
       id: use.id,
@@ -337,14 +349,24 @@ export class ToolExecutor {
     const output = await this.runWithTimeout(tool, use.input, ctx.signal, ctx, use.id);
     const text = this.serializer.serialize(output);
     const scrubbed = this.opts.secretScrubber.scrub(text);
-    const { text: capped } = this.serializer.enforceCap(scrubbed, budget);
+    // enforceCap already walks the text to compute bytes for the budget
+    // cap. Carry the residual budget back as `bytes` so the caller can
+    // deduct the spend without a second `Buffer.byteLength` walk — and
+    // never falls back to `JSON.stringify` on a structured value.
+    const { text: capped, newBudget } = this.serializer.enforceCap(scrubbed, budget);
     this.opts.renderer?.writeToolResult(tool.name, capped, false);
     return {
-      type: 'tool_result',
-      tool_use_id: use.id,
-      name: tool.name,
-      content: capped,
-      is_error: false,
+      block: {
+        type: 'tool_result',
+        tool_use_id: use.id,
+        name: tool.name,
+        content: capped,
+        is_error: false,
+      },
+      // `budget - newBudget` is the exact byte count enforceCap spent
+      // (capped at `budget` so a truncated output shows as `budget`
+      // consumed, matching the pre-fix `decrementBudget` semantics).
+      bytes: budget - newBudget,
     };
   }
 
@@ -549,12 +571,19 @@ export class ToolExecutor {
     };
   }
 
-  private decrementBudget(result: ToolResultBlock, budget: number): number {
-    const contentBytes =
-      typeof result.content === 'string'
-        ? Buffer.byteLength(result.content, 'utf8')
-        : Buffer.byteLength(JSON.stringify(result.content), 'utf8');
-    return Math.max(0, budget - contentBytes);
+  /**
+   * Subtract a string-content result's UTF-8 byte length from the
+   * iteration output budget. Used for synthesized results (unknown tool,
+   * validation error, blocked, threw) where the content is a small
+   * string built in the executor. The success path no longer goes
+   * through here — `executeTool` carries the exact byte count it spent
+   * in its return value, derived from `enforceCap`'s `newBudget`.
+   *
+   * Floors the result at 0 to match the pre-fix `decrementBudget`
+   * semantics (over-budget spends don't underflow the running total).
+   */
+  private budgetForString(content: string, budget: number): number {
+    return Math.max(0, budget - Buffer.byteLength(content, 'utf8'));
   }
 
   /**

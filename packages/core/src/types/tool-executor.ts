@@ -125,11 +125,16 @@ export interface ToolExecutorLike {
   /**
    * Execute a single tool with timeout and output capping.
    * Used by the agent when it needs to run one tool at a time.
+   *
+   * Returns the rendered `ToolResultBlock` plus the exact byte count it
+   * consumed against the iteration output cap. The caller subtracts
+   * `bytes` from the running budget — no second `Buffer.byteLength`
+   * walk, and no `JSON.stringify` fallback for structured results.
    */
   executeTool(
     tool: Tool,
     use: ToolUseBlock,
     ctx: import('../core/context.js').Context,
     budget: number,
-  ): Promise<ToolResultBlock>;
+  ): Promise<{ block: ToolResultBlock; bytes: number }>;
 }

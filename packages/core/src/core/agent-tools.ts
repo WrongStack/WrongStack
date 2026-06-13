@@ -40,7 +40,11 @@ export function createAgentToolHandler(a: AgentInternals): AgentToolHandler {
         a.ctx,
         a.perIterationOutputCapBytes,
       );
-      return { result, durationMs: Date.now() - start };
+      // H2: `result` is now { block, bytes }. The executeTools caller
+      // gets the block; the `bytes` field is for budget accounting
+      // (caller of *this* function already has the budget, so we
+      // surface `block` only here and let it handle the bytes).
+      return { result: result.block, durationMs: Date.now() - start };
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       return {
