@@ -57,6 +57,18 @@ export {
   handleModesList,
 } from './agent-config.js';
 export {
+  type ContextHandlerContext,
+  handleContextClear,
+  handleContextCompact,
+  handleContextDebug,
+  handleContextModeCreate,
+  handleContextModeDelete,
+  handleContextModeSwitch,
+  handleContextModeUpdate,
+  handleContextModesList,
+  handleContextRepair,
+} from './context.js';
+export {
   type BrainHandlerContext,
   handleBrainAsk,
   handleBrainRisk,

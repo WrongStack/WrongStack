@@ -56,8 +56,6 @@ import {
   DEFAULT_CONTEXT_WINDOW_MODE_ID,
   DefaultSecretScrubber,
   GlobalMailbox,
-  repairToolUseAdjacency,
-  resolveContextWindowPolicy,
   resolveProjectDir,
   TOKENS,
   type TodoItem,
@@ -95,6 +93,7 @@ import { startStaticServe } from './webui-server/static-serve.js';
 import {
   type AgentConfigContext,
   type BrainHandlerContext,
+  type ContextHandlerContext,
   type IntrospectionContext,
   type PrefsContext,
   type ProjectsContext,
@@ -104,6 +103,15 @@ import {
   handleBrainAsk,
   handleBrainRisk,
   handleBrainStatus,
+  handleContextClear,
+  handleContextCompact,
+  handleContextDebug,
+  handleContextModeCreate,
+  handleContextModeDelete,
+  handleContextModeSwitch,
+  handleContextModeUpdate,
+  handleContextModesList,
+  handleContextRepair,
   handleDiagGet,
   handlePrefsGet,
   handlePrefsUpdate,
@@ -143,12 +151,6 @@ import { WebSocket, WebSocketServer } from 'ws';
 // directly, so we adapt that to the Logger interface expected by the handler.
 // PR 1 of Issue #30: extracted to `./webui-server/logger-shim.js`.
 import { consoleLogger } from './webui-server/logger-shim.js';
-
-// PR 3 of Issue #30: extracted to `./webui-server/context-breakdown.js`.
-import { estimateContextBreakdown } from './webui-server/context-breakdown.js';
-type PromptBlock = import('./webui-server/context-breakdown.js').PromptBlock;
-type ToolLike = import('./webui-server/context-breakdown.js').ToolLike;
-type MessageLike = import('./webui-server/context-breakdown.js').MessageLike;
 
 // ── Cost computation helpers (inlined from @wrongstack/webui/server/usage-cost.ts) ──
 // PR 2 of Issue #30: extracted to `./webui-server/cost-helpers.js`.
@@ -1090,6 +1092,15 @@ export async function runWebUI(opts: CliWebUIOptions): Promise<void> {
     broadcast,
     log: (m) => console.log(m),
   };
+
+  const contextHandlerCtx: ContextHandlerContext = {
+    agent: opts.agent,
+    buildSessionStart: (overrides) => buildSessionStartPayload(overrides),
+    getCustomModeStore,
+    send,
+    broadcast,
+    log: (m) => console.log(m),
+  };
   return new Promise<void>((resolve) => {
     wss.on('listening', () => {
       console.log(`[WebUI] WebSocket server running on ws://${host}:${port}`);
@@ -1573,15 +1584,7 @@ export async function runWebUI(opts: CliWebUIOptions): Promise<void> {
       }
 
       case 'context.clear': {
-        // In-memory wipe — same as session.new but reuses the current session.
-        const ctx = opts.agent.ctx;
-        ctx.state.replaceMessages([]);
-        ctx.state.replaceTodos([]);
-        ctx.readFiles.clear();
-        ctx.fileMtimes.clear();
-        sendResult(ws, true, 'Context cleared');
-        const ctxClearP = await buildSessionStartPayload({ reset: true });
-        broadcast({ type: 'session.start', payload: ctxClearP });
+        await handleContextClear(contextHandlerCtx, ws);
         break;
       }
 
@@ -1891,228 +1894,86 @@ export async function runWebUI(opts: CliWebUIOptions): Promise<void> {
       }
 
       case 'context.debug': {
-        // Per-section token estimate so users can see what's eating the context window.
-        const ctx = opts.agent.ctx;
-        const breakdown = estimateContextBreakdown({
-          systemPrompt: ctx.systemPrompt as ReadonlyArray<PromptBlock>,
-          tools: opts.agent.tools.list() as ReadonlyArray<ToolLike>,
-          messages: ctx.messages as ReadonlyArray<MessageLike>,
-        });
-        send(ws, {
-          type: 'context.debug',
-          payload: {
-            ...breakdown,
-            mode: (ctx.meta['contextWindowMode'] as string) ?? DEFAULT_CONTEXT_WINDOW_MODE_ID,
-            policy: ctx.meta['contextWindowPolicy'] ?? null,
-          },
-        });
+        handleContextDebug(contextHandlerCtx, ws);
         break;
       }
 
       case 'context.compact': {
-        const aggressive = !!(msg as { payload?: { aggressive?: boolean | undefined } }).payload
-          ?.aggressive;
-        try {
-          const compactor = opts.agent.container.resolve(TOKENS.Compactor);
-          if (!compactor) {
-            sendResult(ws, false, 'Compactor not available');
-            break;
-          }
-          const before = opts.agent.ctx.tokenCounter.total();
-          const report = await compactor.compact(opts.agent.ctx, { aggressive });
-          const after = opts.agent.ctx.tokenCounter.total();
-          send(ws, {
-            type: 'context.compacted',
-            payload: {
-              before: before.input + before.output,
-              after: after.input + after.output,
-              saved: Math.max(0, before.input + before.output - after.input - after.output),
-              reductions: report.reductions ?? [],
-              repaired: report.repaired ?? false,
-            },
-          });
-          sendResult(
-            ws,
-            true,
-            `Compacted: ${before.input + before.output} → ${after.input + after.output} tokens`,
-          );
-        } catch (err) {
-          sendResult(ws, false, err instanceof Error ? err.message : String(err));
-        }
+        await handleContextCompact(
+          contextHandlerCtx,
+          ws,
+          !!(msg as { payload?: { aggressive?: boolean | undefined } }).payload?.aggressive,
+        );
         break;
       }
 
       case 'context.repair': {
-        const ctx = opts.agent.ctx;
-        const beforeMessages = ctx.messages.length;
-        const repaired = repairToolUseAdjacency(ctx.messages);
-        if (repaired.report.changed) {
-          ctx.state.replaceMessages(repaired.messages);
-        }
-        const payload = {
-          removedToolUses: repaired.report.removedToolUses,
-          removedToolResults: repaired.report.removedToolResults,
-          removedMessages: repaired.report.removedMessages,
-          beforeMessages,
-          afterMessages: ctx.messages.length,
-        };
-        broadcast({ type: 'context.repaired', payload });
-        const removed =
-          payload.removedToolUses.length +
-          payload.removedToolResults.length +
-          payload.removedMessages;
-        sendResult(
-          ws,
-          true,
-          removed > 0
-            ? `Context repaired: removed ${removed} orphan protocol item(s)`
-            : 'Context repair found no orphan protocol blocks',
-        );
+        handleContextRepair(contextHandlerCtx, ws);
         break;
       }
 
       case 'context.modes.list': {
-        // Built-ins + file-backed custom modes (store.list() merges both),
-        // matching the standalone server.
-        const active = String(
-          opts.agent.ctx.meta['contextWindowMode'] ?? DEFAULT_CONTEXT_WINDOW_MODE_ID,
-        );
-        const modeStore = await getCustomModeStore();
-        send(ws, {
-          type: 'context.modes.list',
-          payload: {
-            activeId: active,
-            modes: modeStore.list().map((m) => ({
-              id: m.id,
-              name: m.name,
-              description: m.description,
-              isActive: m.id === active,
-              thresholds: m.thresholds,
-              preserveK: m.preserveK,
-              eliseThreshold: m.eliseThreshold,
-              custom: m.custom === true,
-            })),
-          },
-        });
+        await handleContextModesList(contextHandlerCtx, ws);
         break;
       }
 
       case 'context.mode.switch': {
-        const { id } = (msg as { payload: { id: string } }).payload;
-        // Built-in first, then custom (parity with the standalone server —
-        // custom modes were previously unswitchable here).
-        let policy = resolveContextWindowPolicy({}, id);
-        if (policy.id !== id) {
-          const modeStore = await getCustomModeStore();
-          const custom = modeStore.list().find((m) => m.custom === true && m.id === id);
-          if (!custom) {
-            sendResult(ws, false, `Unknown context mode "${id}"`);
-            break;
-          }
-          policy = custom as unknown as typeof policy;
-        }
-        opts.agent.ctx.meta['contextWindowMode'] = policy.id;
-        opts.agent.ctx.meta['contextWindowPolicy'] = policy;
-        sendResult(ws, true, `Context mode switched to ${policy.id}`);
-        broadcast({
-          type: 'context.mode.changed',
-          payload: { id: policy.id, name: policy.name, policy },
-        });
+        await handleContextModeSwitch(
+          contextHandlerCtx,
+          ws,
+          (msg as { payload: { id: string } }).payload.id,
+        );
         break;
       }
 
       case 'context.mode.create': {
-        const payload = (
-          msg as {
-            payload: {
-              id: string;
-              name: string;
-              description: string;
-              thresholds: { warn: number; soft: number; hard: number };
-              preserveK: number;
-              eliseThreshold: number;
-            };
-          }
-        ).payload;
-        const modeStore = await getCustomModeStore();
-        const result = modeStore.create({
-          id: payload.id,
-          name: payload.name,
-          description: payload.description,
-          thresholds: payload.thresholds,
-          preserveK: payload.preserveK,
-          eliseThreshold: payload.eliseThreshold,
-          custom: true,
-          aggressiveOn: 'soft',
-          targetLoad: 0.65,
-        });
-        if (result.ok)
-          await modeStore.save().catch(() => undefined); /* best-effort: user preferences */
-        sendResult(ws, result.ok, result.error ?? `Mode "${payload.id}" created`);
+        await handleContextModeCreate(
+          contextHandlerCtx,
+          ws,
+          (
+            msg as {
+              payload: {
+                id: string;
+                name: string;
+                description: string;
+                thresholds: { warn: number; soft: number; hard: number };
+                preserveK: number;
+                eliseThreshold: number;
+              };
+            }
+          ).payload,
+        );
         break;
       }
 
       case 'context.mode.update': {
-        const payload = (
-          msg as {
-            payload: {
-              id: string;
-              name?: string | undefined;
-              description?: string | undefined;
-              thresholds?:
-                | {
-                    warn?: number | undefined;
-                    soft?: number | undefined;
-                    hard?: number | undefined;
-                  }
-                | undefined;
-              preserveK?: number | undefined;
-              eliseThreshold?: number | undefined;
-            };
-          }
-        ).payload;
-        const modeStore = await getCustomModeStore();
-        // Build the patch without explicit-undefined keys
-        // (exactOptionalPropertyTypes).
-        const result = modeStore.update(payload.id, {
-          ...(payload.name !== undefined ? { name: payload.name } : {}),
-          ...(payload.description !== undefined ? { description: payload.description } : {}),
-          ...(payload.thresholds
-            ? {
-                thresholds: {
-                  warn: payload.thresholds.warn ?? 0.6,
-                  soft: payload.thresholds.soft ?? 0.75,
-                  hard: payload.thresholds.hard ?? 0.9,
-                },
-              }
-            : {}),
-          ...(payload.preserveK !== undefined ? { preserveK: payload.preserveK } : {}),
-          ...(payload.eliseThreshold !== undefined
-            ? { eliseThreshold: payload.eliseThreshold }
-            : {}),
-        });
-        if (result.ok)
-          await modeStore.save().catch(() => undefined); /* best-effort: user preferences */
-        sendResult(ws, result.ok, result.error ?? `Mode "${payload.id}" updated`);
+        await handleContextModeUpdate(
+          contextHandlerCtx,
+          ws,
+          (
+            msg as {
+              payload: {
+                id: string;
+                name?: string | undefined;
+                description?: string | undefined;
+                thresholds?:
+                  | { warn?: number | undefined; soft?: number | undefined; hard?: number | undefined }
+                  | undefined;
+                preserveK?: number | undefined;
+                eliseThreshold?: number | undefined;
+              };
+            }
+          ).payload,
+        );
         break;
       }
 
       case 'context.mode.delete': {
-        const { id } = (msg as { payload: { id: string } }).payload;
-        const ctx = opts.agent.ctx;
-        // If the active mode is being deleted, fall back to the default.
-        if (String(ctx.meta['contextWindowMode'] ?? '') === id) {
-          ctx.meta['contextWindowMode'] = DEFAULT_CONTEXT_WINDOW_MODE_ID;
-          ctx.meta['contextWindowPolicy'] = resolveContextWindowPolicy(
-            {},
-            DEFAULT_CONTEXT_WINDOW_MODE_ID,
-          );
-        }
-        const modeStore = await getCustomModeStore();
-        const result = modeStore.remove(id);
-        if (result.ok)
-          await modeStore.save().catch(() => undefined); /* best-effort: user preferences */
-        sendResult(ws, result.ok, result.error ?? `Mode "${id}" deleted`);
+        await handleContextModeDelete(
+          contextHandlerCtx,
+          ws,
+          (msg as { payload: { id: string } }).payload.id,
+        );
         break;
       }
 
