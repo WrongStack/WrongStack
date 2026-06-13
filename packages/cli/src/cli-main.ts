@@ -1,3 +1,27 @@
+/**
+ * cli-main — top-level CLI entry point.
+ *
+ * This module is the orchestrator: it parses argv, calls
+ * `boot(argv)` to build a `BootContext`, then dispatches to
+ * the right sub-mode (REPL, webui, eternal, subcommand, etc.).
+ *
+ * After the Issue #29 refactor (PRs 0–7), the boot sequence
+ * is split into focused helpers under `packages/cli/src/boot/`.
+ * Each phase has a single, testable home:
+ *
+ *   - argv parsing             — `parseArgs` in `./arg-parser.js`
+ *   - pre-boot side effects    — `runPreflight` in `./boot/preflight.js`       (PR 2)
+ *   - env defaults             — inline (lines 126–130)                         (PR 1)
+ *   - container wiring         — `wireContainer` in `./boot/container-wiring.js` (PR 3)
+ *   - mode + capabilities      — `resolveModeAndCapabilities` in `./boot/system-prompt.js` (PR 4)
+ *   - SystemPromptBuilder bind — `bindSystemPromptBuilder` in `./boot/system-prompt-builder.js` (PR 5)
+ *   - tool registry            — `registerBuiltinTools` in `./boot/tool-registry.js` (PR 6)
+ *   - final pass + re-exports  — this file's doc + the boot module map          (PR 7, this file)
+ *
+ * If you're adding a new boot phase, put it in a new
+ * `boot/<phase>.ts` file and call it from `main()` in the
+ * order shown above. Do not inline it.
+ */
 import { spawn } from 'node:child_process';
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
@@ -2393,3 +2417,12 @@ export async function main(argv: string[]): Promise<number> {
 // isMain detection + bounded exit-on-both-success-and-failure live in
 // `index.ts` (the real entry point). This module exports `main` for
 // library consumers; `index.ts` calls `runAsMain(main)` once.
+//
+// Issue #29 (cli-main 7-PR refactor) — final state:
+//   - All seven PRs (0 through 7) landed.
+//   - The boot sequence is decomposed into focused helpers
+//     under `packages/cli/src/boot/` (see the file header for
+//     the full module map).
+//   - This file is the orchestrator only. Adding a new boot
+//     phase means adding a new `boot/<phase>.ts` and calling
+//     it from `main()` — do not inline it here.
