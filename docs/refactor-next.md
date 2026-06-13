@@ -18,7 +18,8 @@ refactor). Update this before switching context, handing off, or resuming.
 | 7  | lifecycle.ts | ✅ merged | #59 |
 | 8  | Final pass (module-map header + this doc) | ✅ merged | #61 |
 | 5b | ws-handlers/ — **brain group** | ✅ merged | #62 |
-| 5c | ws-handlers/ — **remaining groups** | 🔴 in progress | — |
+| 5c | ws-handlers/ — **introspection group** | ✅ merged | #63 |
+| 5d | ws-handlers/ — **remaining groups** | 🔴 in progress | — |
 
 `webui-server.ts` is ~3000 lines (down from ~3250). The self-contained
 concerns now live under `packages/cli/src/webui-server/`:
@@ -32,9 +33,10 @@ webui-server/
   static-serve.ts       — dist discovery + HTTP bring-up    (PR 6)
   lifecycle.ts          — registry / ready+open / shutdown  (PR 7)
   ws-handlers/
-    index.ts            — WsCommon + per-group contexts + barrel (PR 5/5b)
+    index.ts            — WsCommon + per-group contexts + barrel (PR 5/5b/5c)
     providers.ts        — provider/model/key handlers       (PR 5)
     brain.ts            — brain.status/risk/ask handlers     (PR 5b)
+    introspection.ts    — skills/tools/diag/stats snapshots  (PR 5c)
 ```
 
 Per-group contexts now extend a small `WsCommon` base (`send`/`broadcast`/
@@ -44,21 +46,25 @@ A module-map doc comment at the top of `webui-server.ts` points to each.
 
 ---
 
-## PR 5c — remaining ws-handler groups (🔴 in progress)
+## PR 5d — remaining ws-handler groups (🔴 in progress)
 
-PR 5 extracted the **provider** group and PR 5b the **brain** group (each
-fully unit-tested, threaded via a per-group context extending `WsCommon`).
-The doc's original plan also listed sessions / mailbox / worktree / memory
-groups. Current reality:
+PR 5 extracted **providers**, PR 5b **brain**, PR 5c **introspection**
+(skills/tools/diag/stats) — each fully unit-tested, threaded via a
+per-group context extending `WsCommon`. The doc's original plan also
+listed sessions / mailbox / worktree / memory groups. Current reality:
 
 - **Already delegated** — `memory.*`, `files.*`, `mailbox.*`, `shell.open`
   cases already call the shared `@wrongstack/webui/server` handlers. No
   CLI-local extraction to do.
 - **Still inline** — the `handleMessage` switch cases for
   `sessions` / `session.*`, `context.*`, `tasks`/`task.*`,
-  `projects.*`, `plan.*`, `skills`, `modes`/`mode.*`, `model.*`, `todos.*`,
-  `diag`/`stats`, `autonomy.switch`, `prefs.*`, plus `handleUserMessage`.
-  (`brain.*` extracted in PR 5b — the small self-contained groups go first.)
+  `projects.*`, `plan.*`, `modes`/`mode.*`, `model.*`, `todos.*`,
+  `autonomy.switch`, `prefs.*`, plus `handleUserMessage`. These are coupled
+  to run-loop state (the abort controllers, client map, custom-mode store,
+  session writer/store, the session.start payload builder, the
+  prefs-snapshot/persist closures) — extract test-first, one group at a
+  time, growing each group's context. The small self-contained groups
+  (provider/brain/introspection) went first.
 
 **Why deferred (not "forgotten"):** these cases are coupled to ~25 pieces
 of run-loop state (`abortController` + `abortControllers`, `clients`,

@@ -101,10 +101,12 @@ import { createProviderConfigStore } from './webui-server/provider-config.js';
 import { startStaticServe } from './webui-server/static-serve.js';
 import {
   type BrainHandlerContext,
+  type IntrospectionContext,
   type WsHandlerContext,
   handleBrainAsk,
   handleBrainRisk,
   handleBrainStatus,
+  handleDiagGet,
   handleKeyDelete,
   handleKeySetActive,
   handleKeyUpsert,
@@ -113,6 +115,9 @@ import {
   handleProviderRemove,
   handleProvidersList,
   handleProvidersSaved,
+  handleSkillsList,
+  handleStatsGet,
+  handleToolsList,
 } from './webui-server/ws-handlers/index.js';
 import { WebSocket, WebSocketServer } from 'ws';
 import { expectDefined } from './provider-config-utils.js';
@@ -131,7 +136,7 @@ type MessageLike = import('./webui-server/context-breakdown.js').MessageLike;
 
 // ── Cost computation helpers (inlined from @wrongstack/webui/server/usage-cost.ts) ──
 // PR 2 of Issue #30: extracted to `./webui-server/cost-helpers.js`.
-import { getCostRates, computeUsageCost } from './webui-server/cost-helpers.js';
+import { getCostRates } from './webui-server/cost-helpers.js';
 
 // Re-export types from webui for type checking
 // At runtime, the actual types are resolved via workspace resolution
@@ -1257,6 +1262,18 @@ export async function runWebUI(opts: CliWebUIOptions): Promise<void> {
     log: (m) => console.log(m),
   };
 
+  const introspectionCtx: IntrospectionContext = {
+    agent: opts.agent,
+    skillLoader: opts.skillLoader,
+    modelsRegistry: opts.modelsRegistry,
+    projectRoot: opts.projectRoot,
+    sessionId: opts.session.id,
+    sessionStartedAt,
+    send,
+    broadcast,
+    log: (m) => console.log(m),
+  };
+
   async function handleMessage(
     ws: WebSocket,
     client: ConnectedClient,
@@ -1600,67 +1617,12 @@ export async function runWebUI(opts: CliWebUIOptions): Promise<void> {
       }
 
       case 'diag.get': {
-        // Snapshot of key metrics — mirrors the standalone server's handler
-        // and the CLI /diag output. Uses the agent context for live state.
-        const ctx = opts.agent.ctx;
-        const tools = opts.agent.tools.list();
-        send(ws, {
-          type: 'diag.get',
-          payload: {
-            provider: (ctx.provider as { id: string }).id,
-            model: ctx.model,
-            cwd: opts.projectRoot ?? ctx.projectRoot,
-            sessionId: opts.session.id,
-            tools: {
-              count: tools.length,
-              names: tools.map((t) => t.name),
-            },
-            features: {},
-            mode: 'default',
-            usage: ctx.tokenCounter.total(),
-            messages: ctx.messages.length,
-            todos: ctx.todos.length,
-          },
-        });
+        handleDiagGet(introspectionCtx, ws);
         break;
       }
 
       case 'stats.get': {
-        // Detailed session usage stats, mirroring the CLI /stats.
-        const ctx = opts.agent.ctx;
-        const usage = ctx.tokenCounter.total();
-        const cacheStats = ctx.tokenCounter.cacheStats();
-        let cost: number | null = null;
-        try {
-          if (opts.modelsRegistry) {
-            const model = await opts.modelsRegistry.getModel(
-              (ctx.provider as { id: string }).id,
-              ctx.model,
-            );
-            const rates = getCostRates(model);
-            cost = computeUsageCost(
-              { input: usage.input, output: usage.output, cacheRead: cacheStats.readTokens },
-              rates,
-            );
-          }
-        } catch {
-          /* cost stays null */
-        }
-        send(ws, {
-          type: 'stats.get',
-          payload: {
-            sessionId: opts.session.id,
-            provider: (ctx.provider as { id: string }).id,
-            model: ctx.model,
-            usage,
-            cache: cacheStats,
-            cost,
-            messages: ctx.messages.length,
-            readFiles: ctx.readFiles.size,
-            tools: opts.agent.tools.list().length,
-            elapsedMs: Date.now() - sessionStartedAt,
-          },
-        });
+        await handleStatsGet(introspectionCtx, ws);
         break;
       }
 
@@ -1677,17 +1639,7 @@ export async function runWebUI(opts: CliWebUIOptions): Promise<void> {
       }
 
       case 'tools.list': {
-        const list = opts.agent.tools.list().map((t) => {
-          const schema =
-            (t as { inputSchema?: { properties?: Record<string, unknown> } }).inputSchema ?? {};
-          const params = schema.properties ? Object.keys(schema.properties) : [];
-          return {
-            name: t.name,
-            description: (t as { description?: string | undefined }).description ?? '',
-            params,
-          };
-        });
-        send(ws, { type: 'tools.list', payload: { tools: list } });
+        handleToolsList(introspectionCtx, ws);
         break;
       }
 
@@ -1924,39 +1876,7 @@ export async function runWebUI(opts: CliWebUIOptions): Promise<void> {
       }
 
       case 'skills.list': {
-        if (!opts.skillLoader) {
-          send(ws, { type: 'skills.list', payload: { skills: [], enabled: false } });
-          break;
-        }
-        try {
-          const manifests = await opts.skillLoader.list();
-          const entries = await opts.skillLoader.listEntries();
-          const byName = new Map(entries.map((e) => [e.name, e]));
-          send(ws, {
-            type: 'skills.list',
-            payload: {
-              enabled: true,
-              skills: manifests.map((m) => ({
-                name: m.name,
-                description: m.description,
-                version: m.version ?? '',
-                source: m.source,
-                path: m.path,
-                trigger: byName.get(m.name)?.trigger ?? '',
-                scope: byName.get(m.name)?.scope ?? [],
-              })),
-            },
-          });
-        } catch (err) {
-          send(ws, {
-            type: 'skills.list',
-            payload: {
-              skills: [],
-              enabled: true,
-              error: err instanceof Error ? err.message : String(err),
-            },
-          });
-        }
+        await handleSkillsList(introspectionCtx, ws);
         break;
       }
 

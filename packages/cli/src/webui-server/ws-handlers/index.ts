@@ -56,6 +56,13 @@ export {
   handleBrainStatus,
 } from './brain.js';
 export {
+  handleDiagGet,
+  handleSkillsList,
+  handleStatsGet,
+  handleToolsList,
+  type IntrospectionContext,
+} from './introspection.js';
+export {
   handleKeyDelete,
   handleKeySetActive,
   handleKeyUpsert,
