@@ -296,6 +296,11 @@ function AppInner() {
             <AgentFlowGraph />
           </div>
         )}
+        {currentView === 'fleet' && (
+          <div className="flex-1 flex flex-col overflow-hidden">
+            <FleetMonitor isOverlay={false} />
+          </div>
+        )}
         {currentView === 'sessions' && (
           <div className="flex-1 overflow-y-auto">
             <SessionsDashboard />
@@ -305,9 +310,10 @@ function AppInner() {
         {currentView === 'files' && <CodeEditor />}
       </main>
 
-      {/* Fleet Monitor overlay */}
-      {fleetMonitorOpen && (
+      {/* Fleet Monitor overlay — only when not already on fleet page */}
+      {fleetMonitorOpen && currentView !== 'fleet' && (
         <FleetMonitor
+          isOverlay={true}
           onClose={() => setFleetMonitorOpen(false)}
           onSelectAgent={(agent) => {
             // Open agent detail — close fleet monitor and open the agent

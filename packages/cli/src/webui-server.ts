@@ -21,6 +21,7 @@ import {
   atomicWrite,
   DEFAULT_CONTEXT_WINDOW_MODE_ID,
   DefaultSecretScrubber,
+  DefaultSystemPromptBuilder,
   enhanceUserPrompt,
   GlobalMailbox,
   mutatePlan,
@@ -603,6 +604,9 @@ export async function runWebUI(opts: WebUIOptions): Promise<void> {
       provider: (opts.agent.ctx.provider as { id: string }).id,
       mode: opts.modeId ?? 'default',
       projectName: opts.projectRoot ? path.basename(opts.projectRoot) : undefined,
+      // Frontend reads `projectRoot` from session.start (ws-handlers setEnv) —
+      // omitting it left the store's projectRoot empty after a project switch.
+      projectRoot: opts.projectRoot ?? (opts.agent.ctx as { projectRoot?: string }).projectRoot ?? '',
       cwd: opts.projectRoot ?? (opts.agent.ctx as { projectRoot?: string }).projectRoot ?? '',
       needsSetup, // true when provider/model not configured and running in --webui mode
       contextMode: String(
@@ -2649,6 +2653,35 @@ export async function runWebUI(opts: WebUIOptions): Promise<void> {
           opts.projectRoot = resolved;
           ctx.cwd = resolved;
           ctx.projectRoot = resolved;
+
+          // Rebuild the system prompt for the NEW project. The environment
+          // block (project root, git status, languages) is baked into the
+          // prompt at boot; without this rebuild the agent keeps the
+          // launch-directory environment and tries to operate in the old
+          // folder until tool errors correct it. Best-effort — a failure here
+          // leaves the prior prompt rather than breaking the switch.
+          try {
+            const switchMode =
+              opts.modeId && opts.modeId !== 'default' && opts.modeStore
+                ? await opts.modeStore.getMode(opts.modeId)
+                : undefined;
+            const switchBuilder = new DefaultSystemPromptBuilder({
+              memoryStore: opts.memoryStore,
+              skillLoader: opts.skillLoader,
+              modeStore: opts.modeStore,
+              modeId: opts.modeId ?? 'default',
+              modePrompt: switchMode?.prompt ?? '',
+            });
+            ctx.systemPrompt = await switchBuilder.build({
+              cwd: resolved,
+              projectRoot: resolved,
+              tools: opts.agent.tools.list(),
+              provider: (ctx.provider as { id?: string }).id,
+              model: ctx.model,
+            });
+          } catch {
+            /* best-effort — keep the prior system prompt if rebuild fails */
+          }
 
           // Fresh per-project session store + session.
           const globalRoot = opts.globalConfigPath

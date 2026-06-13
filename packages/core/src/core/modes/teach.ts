@@ -66,7 +66,7 @@ Rules for suggestions:
 - If nothing is pending, say "No pending actions — everything is up to date."
 
 The user can execute suggestions via \`/next 1\`, view them via \`/next list\`,
-or generate fresh ones via \`/suggest\`.`
+or generate fresh ones via \`/suggest\`.
 
 ## Core principles (for reference)
 

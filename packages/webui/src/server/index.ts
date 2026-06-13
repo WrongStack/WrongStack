@@ -2698,11 +2698,42 @@ export async function startWebUI(
           context.cwd = workingDir;
           context.projectRoot = projectRoot;
 
+          const switchSlug = entry?.slug ?? generateProjectSlug(resolved);
+
+          // Rebuild the system prompt for the NEW project. The environment
+          // block (project root, git status, detected languages) is baked into
+          // the prompt at boot and cached by projectRoot; without this rebuild
+          // the agent keeps the launch-directory environment and tries to work
+          // in the old folder until tool errors force a correction. Mirrors the
+          // mode.switch rebuild; best-effort so a failure here leaves the prior
+          // (stale-but-usable) prompt rather than breaking the switch.
+          try {
+            const switchMode =
+              modeId === 'default' ? undefined : await modeStore.getMode(modeId);
+            const switchBuilder = new DefaultSystemPromptBuilder({
+              memoryStore,
+              skillLoader,
+              modeStore,
+              modeId,
+              modePrompt: switchMode?.prompt ?? '',
+              modelCapabilities,
+            });
+            context.systemPrompt = await switchBuilder.build({
+              cwd: workingDir,
+              projectRoot,
+              tools: toolRegistry.list(),
+              provider: config.provider,
+              model: config.model,
+            });
+          } catch {
+            /* best-effort — keep the prior system prompt if rebuild fails */
+          }
+
           // Create a new session store for the new project's sessions dir
           const newSessionsDir = path.join(
             path.dirname(globalConfigPath),
             'projects',
-            entry?.slug ?? generateProjectSlug(resolved),
+            switchSlug,
             'sessions',
           );
           await fs.mkdir(newSessionsDir, { recursive: true });
@@ -2737,6 +2768,27 @@ export async function startWebUI(
           context.fileMtimes.clear();
           tokenCounter.reset();
           sessionStartedAt = Date.now();
+
+          // Re-point the cross-process SessionRegistry at the new project +
+          // session id. Without this, `/sessions status`, the WebUI sessions
+          // dashboard, and the 5s status poll keep listing this process under
+          // the launch project's root/workingDir — the WebUI looks like it is
+          // still "in" the old folder after the switch. register() is now
+          // re-entrant (drops the old entry, restarts a single heartbeat).
+          try {
+            const registry = getSessionRegistry(wpaths.globalRoot);
+            await registry.register({
+              sessionId: session.id,
+              projectSlug: switchSlug,
+              projectRoot,
+              projectName: path.basename(projectRoot),
+              workingDir,
+              pid: process.pid,
+              startedAt: new Date().toISOString(),
+            });
+          } catch {
+            /* best-effort — discovery degrades gracefully */
+          }
 
           send(ws, {
             type: 'projects.selected',

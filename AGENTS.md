@@ -434,6 +434,12 @@ Slash commands are documented in `docs/slash/`. When adding a new one:
 
 Previously-planned but not yet implemented: `git`, `health`, `metrics`, `plan`, `security`, `skill-gen`, `skills`. Their `docs/slash/*.md` files were deleted in 2026-06-13 (H13 from the 2026-06-03 audit). If any of them become priorities, add them via a `buildXxxCommand` registered in `packages/cli/src/slash-commands/index.ts` first, then write a fresh `docs/slash/<name>.md` describing the actual implementation.
 
+## Issue tracking
+
+Open issues and follow-up refactors that span more than a single PR are tracked as `docs/issues/YYYY-MM-DD-<slug>.md` files. The first such file is `docs/issues/2026-06-13-tui-app-refactor.md`, which describes an 8-PR plan to split `packages/tui/src/app.tsx` (5,671 lines) into focused hooks. Future refactors of similar scope should also land here so the next session can pick up where the last one left off.
+
+These files are the **in-repo equivalent of a GitHub issue**. When opening the corresponding GitHub issue, copy the markdown body to the issue; when closing the GitHub issue, the file stays as historical record.
+
 ## Skill system
 
 Skills are `SKILL.md` files loaded by `DefaultSkillLoader` from three scopes (first-seen wins by name):
