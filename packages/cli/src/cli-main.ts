@@ -34,11 +34,9 @@ import {
   makeMailboxTool,
   makeMailInboxTool,
   makeMailSendTool,
-  mergeCustomModelDefs,
   ObservableBrainArbiter,
   type PackageAuthorTrackerOptions,
   ParallelEternalEngine,
-  type ProviderRegistry,
   recordFileAction,
   resolveSessionLoggingConfig,
   type SessionEventBridge,
@@ -53,7 +51,7 @@ import {
   writeOut,
 } from '@wrongstack/core';
 import { MCPRegistry } from '@wrongstack/mcp';
-import { capabilitiesFor, makeProviderFromConfig } from '@wrongstack/providers';
+import { makeProviderFromConfig } from '@wrongstack/providers';
 import {
   builtinToolsPack,
   forgetTool,
@@ -92,9 +90,9 @@ import { setupCodebaseIndexing } from './wiring/codebase-index.js';
 import { setupMetrics } from './wiring/metrics.js';
 import { createAgent, setupCompaction, setupPipelines } from './wiring/pipeline.js';
 import { setupPlugins } from './wiring/plugins.js';
-import { setupProvider } from './wiring/provider.js';
 import { bindReplayToContainer } from './wiring/replay.js';
 import { setupSession } from './wiring/session.js';
+import { resolveModeAndCapabilities } from './boot/system-prompt.js';
 
 export { CLI_VERSION };
 
@@ -219,41 +217,33 @@ export async function main(argv: string[]): Promise<number> {
 
   const configStore = container.resolve(TOKENS.ConfigStore);
 
-  // Resolve modeId and modelCapabilities before building system prompt.
+  // PR 4 of Issue #29: mode + provider + modelCapabilities
+  // resolution is now in `resolveModeAndCapabilities()`. The
+  // helper returns a discriminated union; on `kind: 'exit'`
+  // we teardown the reader and return the exit code (the
+  // pre-refactor inline writeErr + reader.close + return 2
+  // shape, now in one place).
   const modeStore = container.resolve(TOKENS.ModeStore);
   const activeMode = await modeStore.getActiveMode();
-  let resolvedProvider: import('@wrongstack/core').ResolvedProvider | undefined;
-  let providerRegistry: ProviderRegistry;
-  let provider: ReturnType<ProviderRegistry['create']>;
-  try {
-    const result = await setupProvider({ config, modelsRegistry, logger });
-    resolvedProvider = result.resolvedProvider;
-    providerRegistry = result.providerRegistry;
-    provider = result.provider;
-  } catch (err) {
-    writeErr(`${err instanceof Error ? err.message : err}\n`);
+  const modeResult = await resolveModeAndCapabilities({
+    config,
+    modelsRegistry,
+    logger,
+    activeMode,
+  });
+  if (modeResult.kind === 'exit') {
+    writeErr(`${modeResult.message}\n`);
     await reader.close();
-    return 2;
+    return modeResult.code;
   }
-  const modeId = activeMode?.id ?? 'default';
-  const modePrompt = activeMode?.prompt ?? '';
-  const [resolvedCaps, resolvedModel] = await Promise.all([
-    capabilitiesFor(
-      modelsRegistry,
-      provider.id,
-      config.model,
-      mergeCustomModelDefs(config.providers?.[provider.id]?.customModels, config.models),
-    ).catch(() => undefined),
-    modelsRegistry.getModel(config.provider, config.model).catch(() => undefined),
-  ]);
-  const modelCapabilities = resolvedCaps
-    ? {
-        maxContextTokens: resolvedCaps.maxContext,
-        supportsTools: resolvedCaps.tools,
-        supportsVision: resolvedCaps.vision,
-        supportsReasoning: resolvedModel?.capabilities.reasoning ?? false,
-      }
-    : undefined;
+  const {
+    resolvedProvider,
+    providerRegistry,
+    provider,
+    modeId,
+    modePrompt,
+    modelCapabilities,
+  } = modeResult;
 
   const memoryStore = container.resolve(TOKENS.MemoryStore);
   const skillLoader = container.resolve(TOKENS.SkillLoader);
