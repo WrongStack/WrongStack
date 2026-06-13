@@ -213,7 +213,19 @@ export interface WSClientMessage {
   payload?: unknown | undefined;
 }
 
-interface WebUIOptions {
+/**
+ * CLI-shaped webui options. Distinct from the standalone
+ * `WebUIOptions` exported by `@wrongstack/webui/server` (which is the
+ * type `startWebUI` accepts): the CLI builds its own agent/events/
+ * session/etc. up front because the same instances power the
+ * eternal-autonomy loop, and just hands the webui the surfaces it
+ * needs. This type used to be called `WebUIOptions` too, which
+ * caused a name collision with the standalone one whenever both
+ * were imported into the same module (the CLI here imports from
+ * `@wrongstack/webui/server` for shared helpers, so the collision
+ * was a real source of confusion when reading this file).
+ */
+interface CliWebUIOptions {
   agent: Agent;
   events: EventBus;
   session: SessionWriter;
@@ -291,7 +303,7 @@ interface ConnectedClient {
   sessionId: string | null;
 }
 
-export async function runWebUI(opts: WebUIOptions): Promise<void> {
+export async function runWebUI(opts: CliWebUIOptions): Promise<void> {
   const host = '127.0.0.1';
   const requestedWsPort = opts.port ?? 3457;
   const requestedHttpPort = opts.httpPort ?? 3456;
