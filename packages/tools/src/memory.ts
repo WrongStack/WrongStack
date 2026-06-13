@@ -50,6 +50,7 @@ export function rememberTool(memory: MemoryStore): Tool<RememberInput, RememberO
     permission: 'auto',
     mutating: true,
     timeoutMs: 2_000,
+    capabilities: ['memory.write'],
     inputSchema: {
       type: 'object',
       properties: {
@@ -106,6 +107,7 @@ export function forgetTool(memory: MemoryStore): Tool<ForgetInput, ForgetOutput>
     permission: 'confirm',
     mutating: true,
     timeoutMs: 2_000,
+    capabilities: ['memory.delete'],
     inputSchema: {
       type: 'object',
       properties: {
@@ -156,6 +158,7 @@ export function searchMemoryTool(memory: MemoryStore): Tool<SearchMemoryInput, S
     permission: 'auto',
     mutating: false,
     timeoutMs: 2_000,
+    capabilities: ['memory.read'],
     inputSchema: {
       type: 'object',
       properties: {
@@ -214,6 +217,7 @@ export function relatedMemoryTool(memory: MemoryStore): Tool<RelatedMemoryInput,
     permission: 'auto',
     mutating: false,
     timeoutMs: 2_000,
+    capabilities: ['memory.read'],
     inputSchema: {
       type: 'object',
       properties: {

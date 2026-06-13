@@ -38,6 +38,7 @@ export const auditTool: Tool<AuditInput, AuditOutput> = {
     'This is one of the most important tools for supply chain security.',
   permission: 'confirm',
   mutating: false,
+  capabilities: ['shell.restricted'],
   timeoutMs: 60_000,
   inputSchema: {
     type: 'object',

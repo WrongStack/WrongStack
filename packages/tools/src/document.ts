@@ -43,6 +43,7 @@ export const documentTool: Tool<DocumentInput, DocumentOutput> = {
   permission: 'auto',
   mutating: false,
   timeoutMs: 30_000,
+  capabilities: ['fs.read'],
   inputSchema: {
     type: 'object',
     properties: {

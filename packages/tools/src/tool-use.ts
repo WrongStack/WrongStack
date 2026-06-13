@@ -28,6 +28,7 @@ export const toolUseTool: Tool<ToolUseInput, ToolUseOutput> = {
   permission: 'confirm',
   mutating: true,
   timeoutMs: 60_000,
+  capabilities: ['tool.mutate.any'],
   inputSchema: {
     type: 'object',
     properties: {

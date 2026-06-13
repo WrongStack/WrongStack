@@ -33,6 +33,7 @@ export const toolSearchTool: Tool<ToolSearchInput, ToolSearchOutput> = {
   permission: 'auto',
   mutating: false,
   timeoutMs: 1_000,
+  capabilities: ['tool.meta'],
   inputSchema: {
     type: 'object',
     properties: {

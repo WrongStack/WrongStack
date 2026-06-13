@@ -33,6 +33,7 @@ export const typecheckTool: Tool<TypecheckInput, TypecheckOutput> = {
   permission: 'confirm',
   mutating: false,
   timeoutMs: 120_000,
+  capabilities: ['shell.restricted'],
   inputSchema: {
     type: 'object',
     properties: {

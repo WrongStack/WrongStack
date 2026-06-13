@@ -32,6 +32,7 @@ export const lintTool: Tool<LintInput, LintOutput> = {
   permission: 'confirm',
   mutating: false,
   timeoutMs: 60_000,
+  capabilities: ['shell.restricted'],
   inputSchema: {
     type: 'object',
     properties: {

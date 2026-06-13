@@ -38,6 +38,7 @@ export const testTool: Tool<TestInput, TestOutput> = {
   permission: 'confirm',
   mutating: false,
   timeoutMs: 120_000,
+  capabilities: ['shell.restricted'],
   inputSchema: {
     type: 'object',
     properties: {

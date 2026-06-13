@@ -37,6 +37,7 @@ export const batchToolUseTool: Tool<BatchToolUseInput, BatchToolUseOutput> = {
   permission: 'confirm',
   mutating: true,
   timeoutMs: 120_000,
+  capabilities: ['tool.mutate.any'],
   inputSchema: {
     type: 'object',
     properties: {
