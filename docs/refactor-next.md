@@ -1,7 +1,10 @@
-# webui-server Refactor — Status & Remaining Work
+# webui-server Refactor — Status (Issue #30 COMPLETE ✅)
 
 Checkpoint for Issue #30 (the `packages/cli/src/webui-server.ts` N-PR
-refactor). Update this before switching context, handing off, or resuming.
+refactor). **All planned PRs are merged** — every self-contained concern,
+and every `handleMessage` ws-handler group, now lives in a focused
+`webui-server/*` module. `handleMessage` is a pure router. This doc is kept
+as the historical map; there is no remaining extraction work.
 
 ## Completed status
 
@@ -26,9 +29,9 @@ refactor). Update this before switching context, handing off, or resuming.
 | 5h | ws-handlers/ — **context** (clear/debug/compact/repair/modes) | ✅ merged | #68 |
 | 5i | ws-handlers/ — **process** (list/kill/killAll) | ✅ merged | #69 |
 | 5j | ws-handlers/ — **sessions** (goal.get/sessions.list/session.*) | ✅ merged | #70 |
-| 5k | ws-handlers/ — **handleUserMessage** + connection cases | 🔴 in progress | — |
+| 5k | ws-handlers/ — **connection** (user_message/abort/ping/tool.confirm_result) | ✅ merged | #71 |
 
-`webui-server.ts` is ~3000 lines (down from ~3250). The self-contained
+`webui-server.ts` is ~2070 lines (down from ~3250). The self-contained
 concerns now live under `packages/cli/src/webui-server/`:
 
 ```
@@ -51,6 +54,7 @@ webui-server/
     context.ts          — context.clear/debug/compact/repair/modes (PR 5h)
     process.ts          — process.list/kill/killAll           (PR 5i)
     sessions.ts         — goal.get/sessions.list/session.*     (PR 5j)
+    connection.ts       — user_message/abort/ping/tool.confirm_result (PR 5k)
 ```
 
 Per-group contexts now extend a small `WsCommon` base (`send`/`broadcast`/
@@ -63,44 +67,32 @@ A module-map doc comment at the top of `webui-server.ts` points to each.
 
 ---
 
-## PR 5k — remaining ws-handler work (🔴 in progress)
+## ws-handlers extraction — COMPLETE
 
-Extracted so far: **providers** (5), **brain** (5b), **introspection**
-(5c), **worklist** (5d), **agent-config** (5e), **prefs** (5f),
-**projects** (5g), **context** (5h), **process** (5i), **sessions** (5j)
-— each fully unit-tested, threaded via a per-group context extending
-`WsCommon`. Current reality:
+All eleven groups are extracted, each fully unit-tested and threaded via a
+per-group context extending `WsCommon`: **providers** (5), **brain** (5b),
+**introspection** (5c), **worklist** (5d), **agent-config** (5e), **prefs**
+(5f), **projects** (5g), **context** (5h), **process** (5i), **sessions**
+(5j), **connection** (5k).
 
-- **Already delegated** — `memory.*`, `files.*`, `mailbox.*`, `shell.open`
-  cases already call the shared `@wrongstack/webui/server` handlers. No
-  CLI-local extraction to do.
-- **Still inline** — only `handleUserMessage` (the agent-run entry) and
-  the connection-level cases (`user_message` / `abort` / `ping` /
-  `tool.confirm_result`). This is the riskiest remaining extraction: it
-  drives the live run loop, owns the abort controllers + pending-confirm
-  map, and bridges agent events back to the socket. Extract test-first,
-  growing its context with the run-loop state it needs.
+- **Delegated, not extracted** — `memory.*`, `files.*`, `mailbox.*`,
+  `shell.open` call the shared `@wrongstack/webui/server` handlers directly.
+  There was never CLI-local code to move for these.
+- **`connection` (5k)** was the last and was expected to be the riskiest
+  (it owns the per-socket abort controllers + the pending-confirm map and
+  drives `agent.run`). In practice the four cases only touch
+  `abortControllers`, `pendingConfirms`, and `opts.agent` — so they moved
+  cleanly behind a `ConnectionContext` that shares those two maps by
+  reference with the connection/close handlers, plus `opts` by reference so
+  `user_message` runs the live (post-project-switch) agent. 10 unit tests
+  cover overlap-rejection, result/error mapping, per-socket abort scoping,
+  ping, and confirm-resolve.
 
-**Why deferred (not "forgotten"):** these cases are coupled to ~25 pieces
-of run-loop state (`abortController` + `abortControllers`, `clients`,
-`pendingConfirms`, `eventUnsubscribers`, `autoPhaseHandler`,
-`getCustomModeStore`, `opts.agent`/`events`/`session`/`sessionStore`,
-the event bridge, `broadcast`, …) and have **no standalone unit
-coverage**. Moving them safely means first growing `WsHandlerContext` to
-carry that state explicitly, then extracting one group at a time behind
-characterization tests — a dedicated test-first effort, not an
-opportunistic move bundled into another PR.
-
-**Suggested approach when picked up:**
-1. Pick one cohesive group (sessions is a good first — it's large and
-   relatively self-contained around `sessionStore`/`session`).
-2. Add a handler-level test that drives the current inline behaviour
-   through a real (or faithfully faked) context — lock in the contract.
-3. Add the group's dependencies to `WsHandlerContext`.
-4. Move the cases into `webui-server/ws-handlers/<group>.ts` as
-   `ctx`-threaded functions; the switch case calls them.
-5. Repeat. The `WsHandlerContext` + provider group from PR 5 are the
-   template.
+`handleMessage` is now a pure router: every case unpacks its payload and
+calls a `handleXxx(ctx, …)`. The per-group contexts are all built before
+the WS connection handler is wired (TDZ-safe). The template to follow for
+any future ws message is: add the handler to its topic file, export it
+through `ws-handlers/index.ts`, add a router case.
 
 ---
 

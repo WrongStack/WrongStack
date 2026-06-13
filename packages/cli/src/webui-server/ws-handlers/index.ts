@@ -63,6 +63,15 @@ export {
   handleBrainStatus,
 } from './brain.js';
 export {
+  type ConfirmDecision,
+  type ConnectionContext,
+  type ConnectionOptions,
+  handleAbort,
+  handlePing,
+  handleToolConfirmResult,
+  handleUserMessage,
+} from './connection.js';
+export {
   type ContextHandlerContext,
   handleContextClear,
   handleContextCompact,

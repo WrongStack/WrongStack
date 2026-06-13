@@ -17,19 +17,23 @@
  *                                        ProviderConfigStore facade
  *                                        (PR 4 + follow-up)
  *   webui-server/static-serve.ts       — dist discovery + HTTP bring-up (PR 6)
- *   webui-server/ws-handlers/          — provider/model/key WS handlers,
- *                                        threaded via WsHandlerContext (PR 5)
  *   webui-server/lifecycle.ts          — instance registry, ready banner +
  *                                        open-browser, SIGINT/SIGTERM
  *                                        graceful shutdown (PR 7)
+ *   webui-server/ws-handlers/          — every `handleMessage` case, one
+ *                                        topic file per group, each threaded
+ *                                        through a per-group context that
+ *                                        extends the small `WsCommon` base
+ *                                        (PR 5 + 5b–5k):
+ *       providers · brain · introspection · worklist · agent-config ·
+ *       prefs · projects · context · process · sessions · connection
  *
- * The remaining `handleMessage` switch (sessions, todos, context, brain,
- * tasks, projects, plan, skills, modes, model, …) is still inline here:
- * those cases are coupled to ~25 pieces of run-loop state and have no
- * standalone unit coverage, so they await a dedicated test-first
- * extraction rather than being moved opportunistically. The file/memory/
- * mailbox/shell cases already delegate to the shared
- * `@wrongstack/webui/server` handlers.
+ * `handleMessage` now only routes: each case unpacks the payload and calls
+ * the matching `handleXxx(ctx, …)`. The per-group contexts are all built
+ * once (before the WS connection handler is wired, so a fast client message
+ * can't reach a handler before its context initializes). The file/memory/
+ * mailbox/shell cases delegate to the shared `@wrongstack/webui/server`
+ * handlers.
  *
  * Public surface: `runWebUI` plus the `WSServerMessage` / `WSClientMessage`
  * message shapes. Everything else is internal to the run.
@@ -92,6 +96,7 @@ import { startStaticServe } from './webui-server/static-serve.js';
 import {
   type AgentConfigContext,
   type BrainHandlerContext,
+  type ConnectionContext,
   type ContextHandlerContext,
   type IntrospectionContext,
   type PrefsContext,
@@ -100,10 +105,14 @@ import {
   type WorklistContext,
   type WsCommon,
   type WsHandlerContext,
+  handleAbort,
   handleAutonomySwitch,
   handleBrainAsk,
   handleBrainRisk,
   handleBrainStatus,
+  handlePing,
+  handleToolConfirmResult,
+  handleUserMessage,
   handleContextClear,
   handleContextCompact,
   handleContextDebug,
@@ -1126,6 +1135,18 @@ export async function runWebUI(opts: CliWebUIOptions): Promise<void> {
     broadcast,
     log: (m) => console.log(m),
   };
+
+  // Connection-level cases (user_message/abort/ping/tool.confirm_result).
+  // `opts` is by reference so `user_message` runs the live agent; the two
+  // maps are the SAME instances the connection/close handlers mutate.
+  const connectionCtx: ConnectionContext = {
+    opts,
+    abortControllers,
+    pendingConfirms,
+    send,
+    broadcast,
+    log: (m) => console.log(m),
+  };
   return new Promise<void>((resolve) => {
     wss.on('listening', () => {
       console.log(`[WebUI] WebSocket server running on ws://${host}:${port}`);
@@ -1372,48 +1393,31 @@ export async function runWebUI(opts: CliWebUIOptions): Promise<void> {
 
   async function handleMessage(
     ws: WebSocket,
-    client: ConnectedClient,
+    _client: ConnectedClient,
     msg: WSClientMessage,
   ): Promise<void> {
     switch (msg.type) {
       case 'user_message':
         await handleUserMessage(
+          connectionCtx,
           ws,
-          client,
           (msg as { payload: { content: string } }).payload.content,
         );
         break;
 
       case 'abort':
-        // Scope the abort to the requesting socket. The legacy module-scope
-        // `abortController` (project-switch path) is left alone — a
-        // `case 'abort'` from one client should not interfere with another
-        // client's in-flight run. The error message is sent only to the
-        // requesting socket (was `broadcast({...})` previously), which is
-        // correct: other clients have no idea what just happened.
-        {
-          const wsController = abortControllers.get(ws);
-          wsController?.abort();
-        }
-        send(ws, {
-          type: 'error',
-          payload: { phase: 'abort', message: 'User aborted' },
-        });
+        handleAbort(connectionCtx, ws);
         break;
 
       case 'ping':
-        send(ws, { type: 'pong', payload: {} });
+        handlePing(connectionCtx, ws);
         break;
 
       case 'tool.confirm_result': {
         const { id, decision } = (
           msg as { payload: { id: string; decision: 'yes' | 'no' | 'always' | 'deny' } }
         ).payload;
-        const resolve = pendingConfirms.get(id);
-        if (resolve) {
-          pendingConfirms.delete(id);
-          resolve(decision);
-        }
+        handleToolConfirmResult(connectionCtx, id, decision);
         break;
       }
 
@@ -2030,64 +2034,6 @@ export async function runWebUI(opts: CliWebUIOptions): Promise<void> {
         }
         break;
       }
-    }
-  }
-
-  async function handleUserMessage(
-    ws: WebSocket,
-    _client: ConnectedClient,
-    content: string,
-  ): Promise<void> {
-    // Guard against overlapping runs on the same Agent instance. Two
-    // rapid user messages would otherwise start a second agent.run()
-    // before the first one's cleanup settles, corrupting context state.
-    // Scoped to the requesting socket via `abortControllers` — a second
-    // tab's `user_message` is allowed to start its own run; only an
-    // overlapping message from the SAME tab is rejected.
-    if (abortControllers.has(ws)) {
-      send(ws, {
-        type: 'error',
-        payload: { phase: 'agent.run', message: 'A run is already in progress. Abort it first.' },
-      });
-      return;
-    }
-
-    // Abort any existing run (safety net; the guard above makes this
-    // unreachable in the overlapping case, but direct abort requests
-    // from the client still need the controller reference).
-    const wsAbort = new AbortController();
-    abortControllers.set(ws, wsAbort);
-
-    try {
-      const result = await opts.agent.run(content, {
-        signal: wsAbort.signal,
-      });
-
-      send(ws, {
-        type: 'run.result',
-        payload: {
-          status: result.status,
-          iterations: result.iterations,
-          finalText: result.finalText,
-          error: result.error
-            ? {
-                code: result.error.code,
-                message: result.error.message,
-                recoverable: result.error.recoverable,
-              }
-            : undefined,
-        },
-      });
-    } catch (err) {
-      send(ws, {
-        type: 'error',
-        payload: {
-          phase: 'agent.run',
-          message: err instanceof Error ? err.message : String(err),
-        },
-      });
-    } finally {
-      abortControllers.delete(ws);
     }
   }
 
