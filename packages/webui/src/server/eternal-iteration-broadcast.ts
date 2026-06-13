@@ -16,24 +16,31 @@
 // — this module intentionally knows nothing about the engine itself.
 
 import type { WebSocket } from 'ws';
-import type { ConnectedClient, WSServerMessage } from './types.js';
+import type { WSServerMessage } from './types.js';
 import type { JournalEntry } from '@wrongstack/core';
 
 export type EternalSubscribe = (
   fn: (entry: JournalEntry) => void,
 ) => () => void;
 
-export type EternalBroadcast = (clients: Map<WebSocket, ConnectedClient>, msg: WSServerMessage) => void;
+// `clients` is generic so callers that use a structurally-similar
+// `ConnectedClient` (the CLI's own Map<WebSocket, { ws; sessionId }>,
+// for example) don't have to alias their type to webui's
+// `ConnectedClient`. The helper doesn't read the value at all —
+// `broadcast` gets to decide whether to use the map or not — so we
+// only need the key type (WebSocket) to be present, which is
+// enforced by the constraint.
+export type EternalBroadcast<C> = (clients: Map<WebSocket, C>, msg: WSServerMessage) => void;
 
 export interface EternalSubscription {
   /** Tear down the underlying engine subscription. Idempotent. */
   dispose: () => void;
 }
 
-export function createEternalSubscription(
+export function createEternalSubscription<C>(
   subscribe: EternalSubscribe,
-  broadcast: EternalBroadcast,
-  clientsRef: () => Map<WebSocket, ConnectedClient>,
+  broadcast: EternalBroadcast<C>,
+  clientsRef: () => Map<WebSocket, C>,
 ): EternalSubscription {
   let disposed = false;
   const dispose = subscribe((entry) => {

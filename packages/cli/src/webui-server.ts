@@ -59,6 +59,7 @@ import {
   AutoPhaseWebSocketHandler,
   type CustomModeStore,
   createCustomModeStore,
+  createEternalSubscription,
   createHttpServer,
   findFreePort,
   handleFilesList,
@@ -1022,26 +1023,20 @@ export async function runWebUI(opts: CliWebUIOptions): Promise<void> {
     // eternal-autonomy iteration events. Each iteration the engine
     // completes lands here and is fanned out to every connected client
     // so the frontend can render a live timeline of the autonomous loop.
-    // The unsubscribe is collected into eventUnsubscribers so a reconnect
-    // or shutdown tears it down cleanly with the rest of the subscriptions.
+    // Wired through `createEternalSubscription` (shared with `@wrongstack/webui/server`'s
+    // standalone `startWebUI`) so the `eternal.iteration` payload shape stays
+    // in lockstep across the two entry points — earlier revisions spelled out
+    // every field by hand here, which drifted from the standalone shape
+    // (`{ entry: JournalEntry }`) and forced the frontend to keep two
+    // deserializers. The whole `JournalEntry` (including the CLI-only
+    // `costUsd` delta) now rides in the `entry` field.
     if (opts.subscribeEternalIteration) {
-      eventUnsubscribers.push(
-        opts.subscribeEternalIteration((entry) => {
-          broadcast({
-            type: 'eternal.iteration',
-            payload: {
-              iteration: entry.iteration,
-              at: entry.at,
-              source: entry.source,
-              task: entry.task,
-              status: entry.status,
-              note: entry.note,
-              tokens: entry.tokens,
-              costUsd: entry.costUsd,
-            },
-          });
-        }),
+      const subscription = createEternalSubscription(
+        opts.subscribeEternalIteration,
+        (_liveClients, msg) => broadcast(msg),
+        () => clients,
       );
+      eventUnsubscribers.push(() => subscription.dispose());
     }
 
     // ── Mailbox events — broadcast to WebUI for real-time per-project visibility ──

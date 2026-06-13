@@ -12,7 +12,7 @@ import { createEternalSubscription, type EternalBroadcast, type EternalSubscribe
 function makeFixture() {
   const clients = new Map();
   const clientsRef = () => clients;
-  const broadcast: EternalBroadcast = vi.fn((c, msg) => {
+  const broadcast: EternalBroadcast<unknown> = vi.fn((c, msg) => {
     // Pretend each entry in the map is a WebSocket — we don't need a
     // real one; the test only cares that broadcast is called with the
     // right clients and message shape.
@@ -71,5 +71,31 @@ describe('createEternalSubscription', () => {
     const sub = createEternalSubscription(f.subscribe, f.broadcast, f.clientsRef);
     sub.dispose();
     expect(() => sub.dispose()).not.toThrow();
+  });
+
+  it('broadcast callback can ignore the clients map (CLI pattern)', () => {
+    // The CLI's `runWebUI` has its own `broadcast(msg: WSServerMessage)`
+    // that doesn't take a clients map — it closes over the local one
+    // already. With `EternalBroadcast<C>` now generic, the CLI can
+    // pass a structurally different `Map<WebSocket, CliConnectedClient>`
+    // (its own { ws, sessionId } shape) and a callback that drops the
+    // first arg, as long as the map keys are WebSockets. This test
+    // pins that pattern so the generic stays `Map<WebSocket, C>` and
+    // doesn't accidentally get tightened back to `ConnectedClient`.
+    interface CliConnectedClient { ws: unknown; sessionId: string | null }
+    const cliClients = new Map<unknown, CliConnectedClient>();
+    const cliClientsRef = () => cliClients;
+    const sentTo: unknown[] = [];
+    const cliBroadcast: EternalBroadcast<CliConnectedClient> = (_c, msg) => {
+      sentTo.push(msg);
+    };
+    const sub = createEternalSubscription(
+      (fn) => { fn({ kind: 'cli' }); return () => {}; },
+      cliBroadcast,
+      cliClientsRef,
+    );
+    expect(sentTo).toHaveLength(1);
+    expect(sentTo[0]).toEqual({ type: 'eternal.iteration', payload: { entry: { kind: 'cli' } } });
+    sub.dispose();
   });
 });
