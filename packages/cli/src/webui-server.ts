@@ -135,49 +135,8 @@ function estimateContextBreakdown(input: {
 }
 
 // ── Cost computation helpers (inlined from @wrongstack/webui/server/usage-cost.ts) ──
-
-/** Per-1,000,000-token pricing, normalized to numbers (0 when unpriced). */
-interface CostRates {
-  input: number;
-  output: number;
-  cacheRead: number;
-}
-
-/** Token counts for a turn/session. */
-interface TokenUsage {
-  input: number;
-  output: number;
-  cacheRead?: number | undefined;
-}
-
-function getCostRates(model: unknown): CostRates {
-  const cost = (
-    model as
-      | {
-          cost?: {
-            input?: number | undefined;
-            output?: number | undefined;
-            cache_read?: number | undefined;
-          };
-        }
-      | null
-      | undefined
-  )?.cost;
-  return {
-    input: cost?.input ?? 0,
-    output: cost?.output ?? 0,
-    cacheRead: cost?.cache_read ?? 0,
-  };
-}
-
-function computeUsageCost(usage: TokenUsage, rates: CostRates): number {
-  return (
-    (usage.input * rates.input +
-      usage.output * rates.output +
-      (usage.cacheRead ?? 0) * rates.cacheRead) /
-    1_000_000
-  );
-}
+// PR 2 of Issue #30: extracted to `./webui-server/cost-helpers.js`.
+import { getCostRates, computeUsageCost } from './webui-server/cost-helpers.js';
 
 // Re-export types from webui for type checking
 // At runtime, the actual types are resolved via workspace resolution
