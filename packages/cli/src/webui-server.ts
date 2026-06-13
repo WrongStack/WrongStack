@@ -36,18 +36,6 @@ import {
   type TodoItem,
   wstackGlobalRoot,
 } from '@wrongstack/core';
-// Reuse the standalone webui server's token estimator rather than
-// maintaining an inlined copy. Two implementations of `estimateTokens`
-// / `messageTokens` / `messagePreview` were drifting apart; the
-// standalone module is the canonical source (and is unit-tested
-// independently). Phase 2 of the refactor plan continues this
-// pattern for the rest of the file.
-import {
-  estimateTokens,
-  messageTokens,
-  messagePreview,
-  stringifyContent,
-} from '@wrongstack/webui/server';
 import {
   DefaultSecretVault,
   decryptConfigSecrets,
@@ -90,49 +78,11 @@ import {
 // PR 1 of Issue #30: extracted to `./webui-server/logger-shim.js`.
 import { consoleLogger } from './webui-server/logger-shim.js';
 
-interface PromptBlock {
-  text?: string | undefined;
-}
-interface ToolLike {
-  name: string;
-  inputSchema?: unknown;
-  description?: string;
-}
-interface MessageLike {
-  role: string;
-  content: unknown;
-}
-
-function estimateContextBreakdown(input: {
-  systemPrompt: ReadonlyArray<PromptBlock>;
-  tools: ReadonlyArray<ToolLike>;
-  messages: ReadonlyArray<MessageLike>;
-}) {
-  const sysTokens = input.systemPrompt.reduce((acc, b) => acc + estimateTokens(b.text ?? ''), 0);
-  const toolBreakdown = input.tools.map((t) => {
-    const schema = t.inputSchema ?? {};
-    const desc = t.description ?? '';
-    return {
-      name: t.name,
-      tokens:
-        estimateTokens(t.name) + estimateTokens(desc) + estimateTokens(stringifyContent(schema)),
-    };
-  });
-  const toolTokens = toolBreakdown.reduce((a, b) => a + b.tokens, 0);
-  const messageBreakdown = input.messages.map((m, i) => ({
-    index: i,
-    role: m.role,
-    tokens: messageTokens(m.content),
-    preview: messagePreview(m.content),
-  }));
-  const msgTokens = messageBreakdown.reduce((a, b) => a + b.tokens, 0);
-  return {
-    total: sysTokens + toolTokens + msgTokens,
-    systemPrompt: sysTokens,
-    tools: { total: toolTokens, count: input.tools.length, breakdown: toolBreakdown },
-    messages: { total: msgTokens, count: input.messages.length, breakdown: messageBreakdown },
-  };
-}
+// PR 3 of Issue #30: extracted to `./webui-server/context-breakdown.js`.
+import { estimateContextBreakdown } from './webui-server/context-breakdown.js';
+type PromptBlock = import('./webui-server/context-breakdown.js').PromptBlock;
+type ToolLike = import('./webui-server/context-breakdown.js').ToolLike;
+type MessageLike = import('./webui-server/context-breakdown.js').MessageLike;
 
 // ── Cost computation helpers (inlined from @wrongstack/webui/server/usage-cost.ts) ──
 // PR 2 of Issue #30: extracted to `./webui-server/cost-helpers.js`.
