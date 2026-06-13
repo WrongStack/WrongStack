@@ -42,6 +42,7 @@ import {
 import { ToolExecutor } from '@wrongstack/core/execution';
 import { makeProviderFromConfig } from '@wrongstack/providers';
 import { resolveRuntimeMaxContext } from '../context-limit.js';
+import { createFallbackModelExtension } from '../fallback-model.js';
 import { buildRoutingRunner } from './routing.js';
 
 export interface MultiAgentDeps {
@@ -560,6 +561,19 @@ export class MultiAgentHost {
         permissionPolicy: new AutoApprovePermissionPolicy(),
         toolExecutor,
       });
+
+      // Subagents inherit the same fallback chain as the leader (explicit
+      // `fallbackModels` or the smart default). Without this a 429/529/5xx on a
+      // subagent's model — after its own retries — fails the whole task instead
+      // of rotating to a working model. Emits `provider.fallback` on the
+      // subagent's own bus, mirroring its other provider.* events.
+      agent.extensions.register(
+        createFallbackModelExtension({
+          getConfig: () => this.deps.configStore.get(),
+          buildProvider: (id) => this.buildSubagentProvider(config, id, effModel),
+          events,
+        }),
+      );
 
       // Close the per-subagent JSONL writer when the task ends. Without
       // this each completed task leaks one open file descriptor; over a
