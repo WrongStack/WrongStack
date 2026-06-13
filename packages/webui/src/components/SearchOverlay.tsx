@@ -18,8 +18,12 @@ export function SearchOverlay() {
   const setQuery = useUIStore((s) => s.setSearchQuery);
   const messages = useChatStore((s) => s.messages);
 
+  const requestScrollToMessage = useUIStore((s) => s.requestScrollToMessage);
   const inputRef = useRef<HTMLInputElement>(null);
   const [activeHit, setActiveHit] = useState(0);
+  // Bumped over a few frames after a navigation so the highlight pass re-runs
+  // once the (virtualized-out) active hit has been scrolled in and mounted.
+  const [repaintNonce, setRepaintNonce] = useState(0);
 
   useEffect(() => {
     if (open) requestAnimationFrame(() => inputRef.current?.focus());
@@ -55,6 +59,7 @@ export function SearchOverlay() {
   // covers only the message currently navigated to (so the user can see
   // where they are in the list). The registry is cleared on unmount and on
   // every query change so stale ranges don't linger.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: repaintNonce re-runs the pass after a virtualized hit mounts
   useEffect(() => {
     // Feature-detect — falls back to silent no-op on older browsers; the
     // ring-flash navigation behaviour below still works.
@@ -113,16 +118,22 @@ export function SearchOverlay() {
       highlights.delete('chat-search-active');
     }
     return clear;
-  }, [query, hits, activeHit, open]);
+  }, [query, hits, activeHit, open, repaintNonce]);
 
   useEffect(() => {
     const id = hits[activeHit];
     if (!id) return;
-    const el = document.querySelector(`[data-message-id="${id}"]`);
-    if (el) {
-      el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    }
-  }, [hits, activeHit]);
+    // The chat list is virtualized, so the hit may have no DOM node yet — ask
+    // ChatView to scroll its VList to that row, then repaint highlights over
+    // the next few frames once the element has mounted.
+    requestScrollToMessage(id);
+    let n = 0;
+    let raf = requestAnimationFrame(function tick() {
+      setRepaintNonce((v) => v + 1);
+      if (++n < 3) raf = requestAnimationFrame(tick);
+    });
+    return () => cancelAnimationFrame(raf);
+  }, [hits, activeHit, requestScrollToMessage]);
 
   if (!open) return null;
 

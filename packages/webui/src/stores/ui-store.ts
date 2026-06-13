@@ -45,6 +45,12 @@ interface UIState {
   shortcutsOpen: boolean;
   searchOpen: boolean;
   searchQuery: string;
+  /** Imperative "scroll the virtualized chat list to this message" request.
+   *  The chat list is virtualized, so an off-screen message has no DOM node to
+   *  scrollIntoView — SearchOverlay sets this and ChatView consumes it by
+   *  mapping the id to a VList row index and calling scrollToIndex. The nonce
+   *  lets the same id be re-requested (e.g. Enter on the same hit). */
+  scrollTarget: { id: string; nonce: number } | null;
   promptHistory: string[];
   sidebarWidth: number;
   pinnedIds: string[];
@@ -82,6 +88,7 @@ interface UIState {
   setShortcutsOpen: (open: boolean) => void;
   setSearchOpen: (open: boolean) => void;
   setSearchQuery: (q: string) => void;
+  requestScrollToMessage: (id: string) => void;
   pushPrompt: (text: string) => void;
   setSidebarWidth: (px: number) => void;
   togglePin: (id: string) => void;
@@ -113,6 +120,7 @@ export const useUIStore = create<UIState>()(
       shortcutsOpen: false,
       searchOpen: false,
       searchQuery: '',
+      scrollTarget: null,
       promptHistory: [],
       sidebarWidth: SIDEBAR_DEFAULT_WIDTH,
       pinnedIds: [],
@@ -138,6 +146,8 @@ export const useUIStore = create<UIState>()(
       setShortcutsOpen: (open) => set({ shortcutsOpen: open }),
       setSearchOpen: (open) => set({ searchOpen: open, searchQuery: open ? '' : '' }),
       setSearchQuery: (q) => set({ searchQuery: q }),
+      requestScrollToMessage: (id) =>
+        set((s) => ({ scrollTarget: { id, nonce: (s.scrollTarget?.nonce ?? 0) + 1 } })),
       pushPrompt: (text) =>
         set((state) => {
           const trimmed = text.trim();

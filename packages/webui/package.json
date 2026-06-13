@@ -92,6 +92,7 @@
     "rehype-highlight": "^7.0.2",
     "remark-gfm": "^4.0.1",
     "tailwind-merge": "^3.6.0",
+    "virtua": "^0.49.1",
     "ws": "^8.21.0",
     "zustand": "^5.0.14"
   },

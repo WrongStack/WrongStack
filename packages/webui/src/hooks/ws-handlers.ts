@@ -4,6 +4,7 @@ import { playCompletionChime, playPermissionChime } from '@/lib/chime';
 import { setFaviconStatus } from '@/lib/favicon';
 import { ensureNotificationPermission, notifyIfHidden } from '@/lib/notify';
 import { getWSClient } from '@/lib/ws-client';
+import { streamCoalescer } from '@/lib/stream-coalescer';
 import type { WrongStackWebSocketClient } from '@/lib/ws-client';
 import type { PhaseItem } from '@/components/PhasePanel';
 import {
@@ -258,6 +259,9 @@ export function handleProviderResponse(msg: WSServerMessage) {
   if (payload.stopReason !== 'tool_use' && payload.stopReason !== 'tool_call') useChatStore.getState().setLoading(false);
   const id = useChatStore.getState().currentAssistantMessageId;
   if (id) {
+    // Drain any buffered tokens for this message before finalizing so the
+    // dedupe/streaming-off pass sees the complete text.
+    streamCoalescer.flush(id);
     useChatStore.getState().finalizeMessage(id);
     if (payload.usage.output > 0) useChatStore.getState().updateMessage(id, { usage: payload.usage });
   }
@@ -293,18 +297,25 @@ export function handleIterationStarted(msg: WSServerMessage) {
 export function handleTextDelta(msg: WSServerMessage) {
   const payload = msg.payload as { text: string; messageId: string };
   useChatStore.getState().clearThinking();
+  streamCoalescer.drop('__thinking__');
   let id = useChatStore.getState().currentAssistantMessageId;
   if (!id) {
     id = useChatStore.getState().addMessage({ role: 'assistant', content: '', streaming: true });
     useChatStore.getState().setCurrentAssistantMessage(id);
   }
-  useChatStore.getState().appendToMessage(id, payload.text);
+  // Coalesce per-token deltas into one store write per frame — see
+  // stream-coalescer.ts. Keyed by the assistant message id.
+  streamCoalescer.push(id, payload.text, (mid, text) =>
+    useChatStore.getState().appendToMessage(mid, text),
+  );
 }
 
 export function handleThinkingDelta(msg: WSServerMessage) {
   const payload = msg.payload as { text: string };
   if (!payload.text) return;
-  useChatStore.getState().appendThinking(payload.text);
+  streamCoalescer.push('__thinking__', payload.text, (_k, text) =>
+    useChatStore.getState().appendThinking(text),
+  );
 }
 
 export function handleToolStarted(msg: WSServerMessage) {
@@ -312,6 +323,7 @@ export function handleToolStarted(msg: WSServerMessage) {
   const existing = useChatStore.getState().messages.find((m) => m.toolUseId === payload.id);
   if (existing) { useChatStore.getState().setCurrentToolId(existing.id); return; }
   useChatStore.getState().clearThinking();
+  streamCoalescer.drop('__thinking__');
   useChatStore.getState().setCurrentAssistantMessage(null);
   const id = useChatStore.getState().addMessage({ role: 'tool', content: '', toolName: payload.name, toolInput: payload.input, toolUseId: payload.id });
   useChatStore.getState().setCurrentToolId(id);
@@ -326,7 +338,14 @@ export function handleToolProgress(msg: WSServerMessage) {
   const owner = messages.find((m) => m.toolUseId === payload.id);
   if (!owner) return;
   const prefix = payload.event?.type === 'warning' ? '⚠ ' : '';
-  useChatStore.getState().appendToolProgress(owner.id, prefix + text);
+  // Coalesce progress lines per owner; flush splits back into lines and does a
+  // single store write. Lines are newline-joined in the buffer.
+  streamCoalescer.push(owner.id, `${prefix}${text}\n`, (oid, buffered) =>
+    useChatStore.getState().appendToolProgressLines(
+      oid,
+      buffered.split('\n').filter((l) => l.length > 0),
+    ),
+  );
 }
 
 export function handleToolExecuted(msg: WSServerMessage) {
@@ -335,6 +354,9 @@ export function handleToolExecuted(msg: WSServerMessage) {
   const owner = payload.id ? messages.find((m) => m.toolUseId === payload.id) : currentToolId ? messages.find((m) => m.id === currentToolId) : undefined;
   if (owner?.toolResult !== undefined) return;
   if (owner) {
+    // The final result replaces progress lines — discard any still-buffered
+    // progress so it can't re-add a progressLines array a frame later.
+    streamCoalescer.drop(owner.id);
     useChatStore.getState().setToolResult(owner.id, payload.output ?? '', payload.ok);
     useChatStore.getState().updateMessage(owner.id, { toolDurationMs: payload.durationMs });
   }
@@ -354,6 +376,8 @@ export function handleToolConfirmNeeded(msg: WSServerMessage) {
 
 export function handleRunResult(msg: WSServerMessage) {
   const payload = msg.payload as { status: string; iterations: number; finalText?: string | undefined; error?: { code: string | undefined; message: string; recoverable: boolean } };
+  // Drain all buffered stream text before we read messages for the run summary.
+  streamCoalescer.flushAll();
   useSessionStore.getState().setIteration(null);
   useChatStore.getState().setLoading(false);
   useChatStore.getState().setCurrentAssistantMessage(null);

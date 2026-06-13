@@ -68,6 +68,7 @@ interface ChatState {
   finalizeMessage: (id: string) => void;
   setToolResult: (id: string, result: string, ok: boolean) => void;
   appendToolProgress: (id: string, line: string) => void;
+  appendToolProgressLines: (id: string, lines: string[]) => void;
   setLoading: (loading: boolean) => void;
   setAbortController: (ctrl: AbortController | null) => void;
   clearMessages: () => void;
@@ -152,11 +153,16 @@ export const useChatStore = create<ChatState>()(
       },
 
       appendToolProgress: (id, line) => {
+        get().appendToolProgressLines(id, [line]);
+      },
+
+      appendToolProgressLines: (id, lines) => {
+        if (lines.length === 0) return;
         set((state) => ({
           messages: state.messages.map((m) => {
             if (m.id !== id) return m;
             const prev = m.progressLines ?? [];
-            const next = [...prev, line];
+            const next = [...prev, ...lines];
             const trimmed = next.length > 30 ? next.slice(next.length - 30) : next;
             return { ...m, progressLines: trimmed };
           }),

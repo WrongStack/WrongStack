@@ -1,9 +1,7 @@
-import { expectDefined } from '@wrongstack/core';
 import { cn } from '@/lib/utils';
 import { getWSClient } from '@/lib/ws-client';
 import { useChatStore, useHistoryStore, useSessionStore, useUIStore } from '@/stores';
 import { useLocalPrefs } from '@/stores/local-prefs';
-import type { ChatMessage } from '@/stores';
 import { useConfigStore } from '@/stores';
 import {
   Activity,
@@ -19,7 +17,8 @@ import {
   Terminal,
   Zap,
 } from 'lucide-react';
-import { type ReactNode, useCallback, useEffect, useRef, useState } from 'react';
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { VList, type VListHandle } from 'virtua';
 import { AutonomyPicker } from '../AutonomyPicker';
 import { ChatInput } from '../ChatInput';
 import { CheckpointTimeline } from '../CheckpointTimeline';
@@ -34,11 +33,84 @@ import { SearchOverlay } from '../SearchOverlay';
 import { ToolGroup } from '../ToolGroup';
 import { WelcomeScreen } from '../WelcomeScreen';
 import { Button } from '../ui/button';
-import { ScrollArea } from '../ui/scroll-area';
-import { fmtTok } from './utils.js';
+import { type ChatRow, buildChatRows, fmtTok } from './utils.js';
 import { ThinkingBubble } from './ThinkingBubble.js';
+
+/**
+ * One virtualized chat row. Module-scoped + memoized so a stable row keeps its
+ * identity across renders; the heavy markdown lives in MessageBubble (also
+ * memoized on `message` identity), which `appendToMessage` preserves for every
+ * message except the one being streamed.
+ */
+const ChatRowView = memo(function ChatRowView({
+  row,
+  isLoading,
+  compactMode,
+  isFirstRow,
+}: {
+  row: ChatRow;
+  isLoading: boolean;
+  compactMode: boolean;
+  isFirstRow: boolean;
+}) {
+  const wrap = cn(
+    'mx-auto max-w-5xl w-full px-4',
+    isFirstRow && 'pt-4',
+    compactMode ? 'pb-3' : 'pb-6',
+  );
+  if (row.kind === 'day') {
+    return (
+      <div className={wrap}>
+        <div className="flex items-center gap-3 py-1 text-[11px] text-muted-foreground/70 uppercase tracking-wider font-medium">
+          <div className="flex-1 h-px bg-border/50" />
+          <span>{row.label}</span>
+          <div className="flex-1 h-px bg-border/50" />
+        </div>
+      </div>
+    );
+  }
+  if (row.kind === 'user') {
+    return (
+      <div className={wrap}>
+        <MessageBubble message={row.message} isFirst />
+      </div>
+    );
+  }
+  return (
+    <div className={wrap}>
+      <div className={cn('chat-turn', compactMode ? 'space-y-1' : 'space-y-1.5')}>
+        {row.items.map((it) => {
+          if (it.kind === 'msg') {
+            return (
+              <MessageBubble
+                key={it.key}
+                message={it.message}
+                isFirst={it.isFirst}
+                isContinuation={it.isContinuation}
+              />
+            );
+          }
+          const defaultOpen = row.isLastTurn && it.isLastGroup && isLoading && it.hasRunningTool;
+          return (
+            <ToolGroup
+              key={it.key}
+              tools={it.tools}
+              defaultOpen={defaultOpen}
+              isContinuation={it.isContinuation}
+            />
+          );
+        })}
+      </div>
+    </div>
+  );
+});
+
 export function ChatView() {
-  const { messages, isLoading } = useChatStore();
+  // Narrow selectors — subscribing to the whole store re-rendered ChatView on
+  // every stream delta (thinking / tool progress) even when the message list
+  // was untouched.
+  const messages = useChatStore((s) => s.messages);
+  const isLoading = useChatStore((s) => s.isLoading);
   const sidebarOpen = useUIStore((s) => s.sidebarOpen);
   const toggleSidebar = useUIStore((s) => s.toggleSidebar);
   const compactMode = useUIStore((s) => s.compactMode);
@@ -67,7 +139,31 @@ export function ChatView() {
   }, [switcherOpen]);
 
   const { provider, model } = useConfigStore();
-  const scrollRef = useRef<HTMLDivElement>(null);
+  const vlistRef = useRef<VListHandle>(null);
+
+  // Grouped, memoized rows — recomputed only when the messages array identity
+  // changes (i.e. a coalesced stream flush), not on every unrelated store write.
+  const rows = useMemo(() => buildChatRows(messages), [messages]);
+  // VList children = rows + the trailing live-activity item. Kept in a ref so
+  // scroll callbacks read the latest count without re-creating on every change.
+  const childCountRef = useRef(0);
+  childCountRef.current = rows.length + 1;
+
+  // message id → row index, for search-jump into a virtualized-out hit.
+  const rowIndexById = useMemo(() => {
+    const map = new Map<string, number>();
+    rows.forEach((row, i) => {
+      if (row.kind === 'user') map.set(row.message.id, i);
+      else if (row.kind === 'agent') {
+        for (const it of row.items) {
+          if (it.kind === 'msg') map.set(it.message.id, i);
+          else for (const t of it.tools) map.set(t.id, i);
+        }
+      }
+    });
+    return map;
+  }, [rows]);
+  const scrollTarget = useUIStore((s) => s.scrollTarget);
 
   // Autonomy mode — read from the shared local-prefs store (seeded from the
   // server's config-backed snapshot on connect), NOT component-local state.
@@ -106,74 +202,71 @@ export function ChatView() {
         ? 'bg-amber-500/15 text-amber-600 dark:text-amber-400'
         : 'bg-muted text-muted-foreground';
 
-  // Auto-scroll with "user is reading older messages" lock
+  // Auto-scroll with "user is reading older messages" lock. Scroll metrics now
+  // come from the VList imperative handle instead of the Radix viewport.
   const [pinnedToBottom, setPinnedToBottom] = useState(true);
   const [unreadCount, setUnreadCount] = useState(0);
   const [scrolledDeep, setScrolledDeep] = useState(false);
   const lastSeenCount = useRef(messages.length);
 
-  const getViewport = useCallback((): HTMLElement | null => {
-    return scrollRef.current?.querySelector('[data-radix-scroll-area-viewport]') ?? null;
+  const handleScroll = useCallback(() => {
+    const h = vlistRef.current;
+    if (!h) return;
+    const dist = h.scrollSize - h.scrollOffset - h.viewportSize;
+    const nowPinned = dist < 120;
+    setPinnedToBottom(nowPinned);
+    if (nowPinned) {
+      setUnreadCount(0);
+      lastSeenCount.current = useChatStore.getState().messages.length;
+    }
+    setScrolledDeep(h.scrollOffset > h.viewportSize && h.scrollSize > h.viewportSize * 2.5);
   }, []);
 
+  // Follow new content while pinned; otherwise accumulate the unread count.
   useEffect(() => {
-    const viewport = getViewport();
-    if (!viewport) return;
-    const onScroll = () => {
-      const dist = viewport.scrollHeight - viewport.scrollTop - viewport.clientHeight;
-      const nowPinned = dist < 120;
-      setPinnedToBottom(nowPinned);
-      if (nowPinned) {
-        setUnreadCount(0);
-        lastSeenCount.current = messages.length;
-      }
-      const deep =
-        viewport.scrollTop > viewport.clientHeight &&
-        viewport.scrollHeight > viewport.clientHeight * 2.5;
-      setScrolledDeep(deep);
-    };
-    viewport.addEventListener('scroll', onScroll, { passive: true });
-    return () => viewport.removeEventListener('scroll', onScroll);
-  }, [getViewport, messages.length]);
-
-  useEffect(() => {
-    const viewport = getViewport();
-    if (!viewport) return;
+    const h = vlistRef.current;
+    if (!h) return;
     if (pinnedToBottom) {
-      viewport.scrollTop = viewport.scrollHeight;
+      h.scrollToIndex(childCountRef.current - 1, { align: 'end' });
       lastSeenCount.current = messages.length;
     } else {
       const delta = messages.length - lastSeenCount.current;
       if (delta > 0) setUnreadCount(delta);
     }
-  }, [messages, pinnedToBottom, getViewport]);
+  }, [messages, pinnedToBottom]);
 
   // A session switch (resume / new) repopulates the transcript wholesale —
   // open it pinned to the end even if the user had scrolled up in the
   // previous session, so the replayed history starts at its latest turn.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: re-run only on session change
   useEffect(() => {
-    const viewport = getViewport();
-    if (!viewport) return;
-    viewport.scrollTop = viewport.scrollHeight;
     setPinnedToBottom(true);
     setUnreadCount(0);
     lastSeenCount.current = useChatStore.getState().messages.length;
-  }, [sessionId, getViewport]);
+    // Rows reflect the freshly-replayed transcript on the next frame.
+    requestAnimationFrame(() => {
+      vlistRef.current?.scrollToIndex(childCountRef.current - 1, { align: 'end' });
+    });
+  }, [sessionId]);
+
+  // Search-jump: scroll a (possibly virtualized-out) hit into view.
+  useEffect(() => {
+    if (!scrollTarget) return;
+    const idx = rowIndexById.get(scrollTarget.id);
+    if (idx === undefined) return;
+    vlistRef.current?.scrollToIndex(idx, { align: 'center', smooth: true });
+  }, [scrollTarget, rowIndexById]);
 
   const scrollToBottom = useCallback(() => {
-    const viewport = getViewport();
-    if (!viewport) return;
-    viewport.scrollTo({ top: viewport.scrollHeight, behavior: 'smooth' });
+    vlistRef.current?.scrollToIndex(childCountRef.current - 1, { align: 'end', smooth: true });
     setPinnedToBottom(true);
     setUnreadCount(0);
-    lastSeenCount.current = messages.length;
-  }, [getViewport, messages.length]);
+    lastSeenCount.current = useChatStore.getState().messages.length;
+  }, []);
 
   const scrollToTop = useCallback(() => {
-    const viewport = getViewport();
-    if (!viewport) return;
-    viewport.scrollTo({ top: 0, behavior: 'smooth' });
-  }, [getViewport]);
+    vlistRef.current?.scrollToIndex(0, { align: 'start', smooth: true });
+  }, []);
 
   // Live "agent is busy" indicator
   const [runStartedAt, setRunStartedAt] = useState<number | null>(null);
@@ -483,142 +576,34 @@ export function ChatView() {
             <span>Top</span>
           </button>
         )}
-        <ScrollArea className="h-full" ref={scrollRef}>
-          <div
-            className={cn(
-              'mx-auto pb-8',
-              compactMode ? 'max-w-5xl p-3 space-y-3' : 'max-w-5xl p-4 space-y-6',
-            )}
-          >
-            {messages.length === 0 && !isLoading && <WelcomeScreen />}
+        {rows.length === 0 && !isLoading ? (
+          <div className="mx-auto max-w-5xl w-full px-4 pt-4">
+            <WelcomeScreen />
+          </div>
+        ) : (
+          <VList ref={vlistRef} className="h-full" onScroll={handleScroll}>
+            {rows.map((row, i) => (
+              <ChatRowView
+                key={row.key}
+                row={row}
+                isLoading={isLoading}
+                compactMode={compactMode}
+                isFirstRow={i === 0}
+              />
+            ))}
 
-            {/* Two-pass grouping */}
-            {(() => {
-              type Group =
-                | { kind: 'msg'; message: ChatMessage; isFirst: boolean }
-                | { kind: 'tools'; tools: ChatMessage[]; key: string };
-              const groups: Group[] = [];
-              for (let i = 0; i < messages.length; i++) {
-                const m = expectDefined(messages[i]);
-                if (m.role === 'tool') {
-                  const last = groups[groups.length - 1];
-                  if (last && last.kind === 'tools') {
-                    last.tools.push(m);
-                  } else {
-                    groups.push({ kind: 'tools', tools: [m], key: m.id });
-                  }
-                } else {
-                  const prev = messages[i - 1];
-                  groups.push({
-                    kind: 'msg',
-                    message: m,
-                    isFirst: !prev || prev.role !== m.role,
-                  });
-                }
-              }
-              type Turn =
-                | { kind: 'user'; message: ChatMessage; key: string }
-                | { kind: 'agent'; items: Group[]; key: string };
-              const turns: Turn[] = [];
-              for (const g of groups) {
-                if (g.kind === 'msg' && g.message.role === 'user') {
-                  turns.push({ kind: 'user', message: g.message, key: g.message.id });
-                  continue;
-                }
-                const last = turns[turns.length - 1];
-                if (last && last.kind === 'agent') {
-                  last.items.push(g);
-                } else {
-                  const key = g.kind === 'msg' ? g.message.id : g.key;
-                  turns.push({ kind: 'agent', items: [g], key });
-                }
-              }
-              let prevDay: string | null = null;
-              const dayKey = (ts: number) => {
-                const d = new Date(ts);
-                return `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
-              };
-              const dayLabel = (ts: number) => {
-                const d = new Date(ts);
-                const today = new Date();
-                const yest = new Date(Date.now() - 86_400_000);
-                if (dayKey(ts) === dayKey(today.getTime())) return 'Today';
-                if (dayKey(ts) === dayKey(yest.getTime())) return 'Yesterday';
-                return d.toLocaleDateString(undefined, {
-                  weekday: 'short',
-                  month: 'short',
-                  day: 'numeric',
-                  year: d.getFullYear() === today.getFullYear() ? undefined : 'numeric',
-                });
-              };
-              const turnTs = (t: Turn): number => {
-                if (t.kind === 'user') return t.message.timestamp;
-                const first = expectDefined(t.items[0]);
-                return first.kind === 'msg' ? first.message.timestamp : first.tools[0]?.timestamp;
-              };
-              const out: ReactNode[] = [];
-              for (let idx = 0; idx < turns.length; idx++) {
-                const t = expectDefined(turns[idx]);
-                const ts = turnTs(t);
-                const day = dayKey(ts);
-                if (day !== prevDay) {
-                  out.push(
-                    <div
-                      key={`day-${day}-${idx}`}
-                      className="flex items-center gap-3 py-1 text-[11px] text-muted-foreground/70 uppercase tracking-wider font-medium"
-                    >
-                      <div className="flex-1 h-px bg-border/50" />
-                      <span>{dayLabel(ts)}</span>
-                      <div className="flex-1 h-px bg-border/50" />
-                    </div>,
-                  );
-                  prevDay = day;
-                }
-                if (t.kind === 'user') {
-                  out.push(<MessageBubble key={t.key} message={t.message} isFirst />);
-                  continue;
-                }
-                const isLastTurn = idx === turns.length - 1;
-                out.push(
-                  <div key={t.key} className={cn('chat-turn', compactMode ? 'space-y-1' : 'space-y-1.5')}>
-                    {t.items.map((g, gi) => {
-                      const continuation = gi > 0;
-                      if (g.kind === 'msg') {
-                        return (
-                          <MessageBubble
-                            key={g.message.id}
-                            message={g.message}
-                            isFirst={!continuation && g.isFirst}
-                            isContinuation={continuation}
-                          />
-                        );
-                      }
-                      const isLatestRunning =
-                        isLastTurn &&
-                        gi === t.items.length - 1 &&
-                        isLoading &&
-                        g.tools.some((tt) => tt.toolResult === undefined);
-                      return (
-                        <ToolGroup
-                          key={g.key}
-                          tools={g.tools}
-                          defaultOpen={isLatestRunning}
-                          isContinuation={continuation}
-                        />
-                      );
-                    })}
-                  </div>,
-                );
-              }
-              return out;
-            })()}
+            {/* Trailing live-activity item — always the last VList row so its
+                frequent updates (thinking / running status) re-render only it. */}
+            <div
+              key="__live"
+              id="chat-activity"
+              className={cn('mx-auto max-w-5xl w-full px-4', compactMode ? 'pb-3' : 'pb-8')}
+            >
+              <ThinkingBubble />
 
-            <div id="chat-activity">
-            <ThinkingBubble />
-
-            {/* Running status bubble */}
-            {isLoading &&
-              (() => {
+              {/* Running status bubble */}
+              {isLoading &&
+                (() => {
                 const last = messages[messages.length - 1];
                 const runningTools = messages.filter(
                   (m) => m.role === 'tool' && m.toolResult === undefined,
@@ -706,8 +691,8 @@ export function ChatView() {
                 );
               })()}
             </div>
-          </div>
-        </ScrollArea>
+          </VList>
+        )}
       </div>
 
       {/* Input */}
