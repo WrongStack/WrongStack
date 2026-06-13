@@ -97,6 +97,7 @@ export type { WSServerMessage, WSClientMessage, ConnectedClient } from './types.
 // WS port, pick free ports, and register in the shared instance registry —
 // without duplicating any of that logic.
 export { createHttpServer, buildCspHeader, injectWsPort } from './http-server.js';
+export type { CreateHttpServerOptions } from './http-server.js';
 export { findFreePort, isPortFree } from './port-utils.js';
 export { openBrowser, browserOpenCommand } from './open-browser.js';
 // Token estimator primitives — exposed for the CLI's embedded webui

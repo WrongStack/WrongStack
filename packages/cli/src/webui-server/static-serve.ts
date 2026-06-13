@@ -1,7 +1,7 @@
 import { createRequire } from 'node:module';
 import * as path from 'node:path';
 import type { Server } from 'node:http';
-import { createHttpServer } from '@wrongstack/webui/server';
+import { type CreateHttpServerOptions, createHttpServer } from '@wrongstack/webui/server';
 
 /**
  * PR 6 of Issue #30 (webui-server 8-PR refactor):
@@ -38,17 +38,48 @@ export interface StaticServeOptions {
   globalRoot: string;
 }
 
-export function startStaticServe(opts: StaticServeOptions): StaticServeHandle | null {
-  let distDir: string;
+/**
+ * Resolve the webui package's built `dist` directory.
+ *
+ * Returns the absolute path, or `null` if the package's
+ * server entry can't be resolved (webui not built). This
+ * is the one piece of `startStaticServe` that touches the
+ * module tree, so it lives behind its own function: tests
+ * can exercise the resolution (and stub it) without
+ * binding a socket.
+ */
+export function resolveDistDir(): string | null {
   try {
     const requireFromHere = createRequire(import.meta.url);
     const serverEntry = requireFromHere.resolve('@wrongstack/webui/server');
-    distDir = path.resolve(path.dirname(serverEntry), '..'); // .../dist
+    return path.resolve(path.dirname(serverEntry), '..'); // .../dist
   } catch {
     return null;
   }
+}
 
-  const server = createHttpServer({
+/**
+ * Injectable seams for `startStaticServe`. Both default to
+ * the real implementations; tests override them to assert
+ * the wiring without resolving the webui package or binding
+ * a real port.
+ */
+export interface StaticServeDeps {
+  resolveDist?: () => string | null;
+  createServer?: (opts: CreateHttpServerOptions) => Server;
+}
+
+export function startStaticServe(
+  opts: StaticServeOptions,
+  deps: StaticServeDeps = {},
+): StaticServeHandle | null {
+  const resolveDist = deps.resolveDist ?? resolveDistDir;
+  const create = deps.createServer ?? createHttpServer;
+
+  const distDir = resolveDist();
+  if (distDir === null) return null;
+
+  const server = create({
     host: opts.host,
     distDir,
     wsPort: opts.wsPort,
