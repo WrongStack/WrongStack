@@ -69,6 +69,7 @@ import {
   handleMemoryForget,
   handleMemoryList,
   handleMemoryRemember,
+  handleShellOpen,
   openBrowser,
   registerInstance,
   unregisterInstance,
@@ -2815,53 +2816,18 @@ export async function runWebUI(opts: CliWebUIOptions): Promise<void> {
       }
 
       case 'shell.open': {
-        // Open the OS file manager / a terminal at a path (FileExplorer
-        // context actions). Ported from the standalone server, but WITHOUT
-        // a shell: the path arrives over the WebSocket, so it is passed as a
-        // spawn() argument array (no string interpolation into cmd/sh), with
-        // a metacharacter guard as defense in depth.
-        const { path: targetPath, target } = (
-          msg as { payload: { path: string; target: 'terminal' | 'file-manager' } }
-        ).payload;
-        try {
-          const resolved = path.resolve(targetPath);
-          await fs.access(resolved);
-          // Real directories virtually never contain these; rejecting them
-          // closes the cmd.exe re-parsing injection class outright.
-          if (/[&|<>^"'`\n\r]/.test(resolved)) {
-            sendResult(ws, false, 'Path contains unsupported characters.');
-            break;
-          }
-          const { spawn } = await import('node:child_process');
-          const platform = process.platform;
-          const launch = (cmd: string, args: string[], onError?: () => void) => {
-            // windowsHide hides the LAUNCHER's console only — a terminal
-            // opened via `start cmd /k` still gets its own visible window.
-            const child = spawn(cmd, args, { detached: true, stdio: 'ignore', windowsHide: true });
-            child.on('error', () => onError?.());
-            child.unref();
-          };
-          if (target === 'file-manager') {
-            if (platform === 'win32') launch('explorer', [resolved]);
-            else if (platform === 'darwin') launch('open', [resolved]);
-            else launch('xdg-open', [resolved]);
-          } else if (platform === 'win32') {
-            // `start` is a cmd builtin; each token is a separate argv entry
-            // (Node quotes them individually — no string concatenation).
-            launch('cmd', ['/c', 'start', 'cmd', '/k', 'cd', '/d', resolved]);
-          } else if (platform === 'darwin') {
-            launch('open', ['-a', 'Terminal', resolved]);
-          } else {
-            launch('x-terminal-emulator', [`--working-directory=${resolved}`], () =>
-              launch('gnome-terminal', [`--working-directory=${resolved}`], () =>
-                launch('xterm', ['-e', `cd '${resolved}' && ${process.env['SHELL'] ?? 'sh'}`]),
-              ),
-            );
-          }
-          sendResult(ws, true, `Opened ${target} at ${resolved}`);
-        } catch (err) {
-          sendResult(ws, false, err instanceof Error ? err.message : String(err));
-        }
+        // Logic lives in `@wrongstack/webui/server`'s `shell-open.ts`
+        // so the standalone and CLI entry points share the same
+        // metacharacter guard + cross-platform spawn chain. See the
+        // docstring in shell-open.ts for the security rationale and
+        // the fallback chain. The CLI used to inline this 49-line
+        // block (and lacked the spawn-failure logger.warn that the
+        // standalone has) — this delegate brings them back in line.
+        const result = await handleShellOpen(
+          msg.payload as Parameters<typeof handleShellOpen>[0],
+          consoleLogger,
+        );
+        sendResult(ws, result.success, result.message);
         break;
       }
 

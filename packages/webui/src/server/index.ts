@@ -86,6 +86,7 @@ import { maskedKey, normalizeKeys } from './provider-keys.js';
 import { send, broadcast, sendResult, errMessage, generateAuthToken } from './ws-utils.js';
 import { estimateContextBreakdown } from './token-estimator.js';
 import { createEternalSubscription } from './eternal-iteration-broadcast.js';
+import { handleShellOpen, type ShellOpenRequest, type ShellOpenResult } from './shell-open.js';
 // Re-export types — shared message shapes and options used by both the
 // standalone server and the CLI's `--webui` embedded mode.
 export type { WebUIOptions, BackendServices } from './types.js';
@@ -128,6 +129,12 @@ export {
   type EternalBroadcast,
   type EternalSubscription,
 } from './eternal-iteration-broadcast.js';
+export {
+  handleShellOpen,
+  type ShellOpenRequest,
+  type ShellOpenResult,
+  type ShellOpenTarget,
+} from './shell-open.js';
 export {
   send,
   broadcast,
@@ -2934,74 +2941,15 @@ export async function startWebUI(
       // ── Shell open — spawn terminal or file manager at a path ─────────
 
       case 'shell.open': {
-        const { path: targetPath, target } = (
-          msg as { payload: { path: string; target: 'terminal' | 'file-manager' } }
-        ).payload;
-        try {
-          const resolved = path.resolve(targetPath);
-          await fs.access(resolved);
-          // Metacharacter guard. Real directory paths virtually never
-          // contain these; rejecting them closes the cmd.exe re-parsing
-          // injection class outright (`"foo" && calc.exe`, `'$(...)'`,
-          // backticks, redirections). Defense in depth alongside the
-          // argv-array spawn below.
-          if (/[&|<>^"'`\n\r]/.test(resolved)) {
-            sendResult(ws, false, 'Path contains unsupported characters.');
-            break;
-          }
-
-          const { spawn } = await import('node:child_process');
-          const platform = process.platform; // 'win32' | 'darwin' | 'linux'
-          // detached: true + stdio: 'ignore' + unref() — the launcher
-          // does its job and exits; the spawned terminal/Explorer keeps
-          // running independently of the webui process lifetime. This
-          // is what `start cmd /k` (cmd builtin) needs on Windows to
-          // actually open a new window.
-          const launch = (cmd: string, args: string[], onError?: () => void) => {
-            const child = spawn(cmd, args, {
-              detached: true,
-              stdio: 'ignore',
-              windowsHide: true,
-            });
-            child.on('error', (err) => {
-              // `error` fires when the binary is missing (e.g. xterm not
-              // installed) — log it, but never block the WS caller. The
-              // fallback chain in the terminal branch uses onError to
-              // try the next emulator.
-              logger.warn(`shell.open spawn failed: ${err.message}`);
-              onError?.();
-            });
-            child.unref();
-          };
-
-          if (target === 'file-manager') {
-            if (platform === 'win32') launch('explorer', [resolved]);
-            else if (platform === 'darwin') launch('open', [resolved]);
-            else launch('xdg-open', [resolved]);
-          } else if (target === 'terminal') {
-            if (platform === 'win32') {
-              // `start` is a cmd builtin; each token is a separate argv
-              // entry (Node quotes them individually — no string
-              // concatenation). This replaces the previous
-              // `start cmd /k cd /d "..."` exec() call that was
-              // shell-injectable.
-              launch('cmd', ['/c', 'start', 'cmd', '/k', 'cd', '/d', resolved]);
-            } else if (platform === 'darwin') {
-              launch('open', ['-a', 'Terminal', resolved]);
-            } else {
-              // Try several terminal emulators
-              launch('x-terminal-emulator', [`--working-directory=${resolved}`], () =>
-                launch('gnome-terminal', [`--working-directory=${resolved}`], () =>
-                  launch('xterm', ['-e', `cd '${resolved}' && ${process.env['SHELL'] ?? 'sh'}`]),
-                ),
-              );
-            }
-          }
-
-          sendResult(ws, true, `Opened ${target} at ${resolved}`);
-        } catch (err) {
-          sendResult(ws, false, errMessage(err));
-        }
+        // Logic lives in `shell-open.ts` so the CLI's `runWebUI` can
+        // share the same metacharacter guard + cross-platform spawn
+        // chain. See the docstring in shell-open.ts for the security
+        // rationale and the fallback chain.
+        const result: ShellOpenResult = await handleShellOpen(
+          msg.payload as ShellOpenRequest,
+          logger,
+        );
+        sendResult(ws, result.success, result.message);
         break;
       }
 
