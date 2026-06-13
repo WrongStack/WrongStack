@@ -11,7 +11,6 @@ import {
   type Config,
   color,
   createAutonomyBrain,
-  createContextManagerTool,
   createDelegateTool,
   createMcpControlTool,
   createSessionEventBridge,
@@ -29,9 +28,6 @@ import {
   isStdinTTY,
   loadDirectorState,
   mailboxSessionTag,
-  makeMailboxTool,
-  makeMailInboxTool,
-  makeMailSendTool,
   ObservableBrainArbiter,
   type PackageAuthorTrackerOptions,
   ParallelEternalEngine,
@@ -50,15 +46,9 @@ import {
 } from '@wrongstack/core';
 import { MCPRegistry } from '@wrongstack/mcp';
 import { makeProviderFromConfig } from '@wrongstack/providers';
-import {
-  builtinToolsPack,
-  forgetTool,
-  relatedMemoryTool,
-  rememberTool,
-  searchMemoryTool,
-} from '@wrongstack/tools';
 import { createAutoPhaseHost } from './autophase-host.js';
 import { boot } from './boot.js';
+import { registerBuiltinTools } from './boot/tool-registry.js';
 import { parseArgs } from './arg-parser.js';
 import { launchEternalFromFlag } from './cli-eternal-flag.js';
 import { promptRecovery } from './cli-recovery-prompt.js';
@@ -278,26 +268,21 @@ export async function main(argv: string[]): Promise<number> {
     systemPromptBuilderToken: TOKENS.SystemPromptBuilder,
   });
 
-  // Tool registry
+  // Tool registry — PR 6 of Issue #29. The 18-line
+  // registration block (context manager + memory tools +
+  // mailbox tools) is now a single helper call. The helper
+  // takes the pre-constructed ToolRegistry, the feature
+  // flags, the memory store, the events bus, and the
+  // project dir; it does not touch the container.
   const toolRegistry = new ToolRegistry();
-  toolRegistry.registerAllOrThrow([...(builtinToolsPack.tools ?? [])], builtinToolsPack.name);
-  toolRegistry.registerDefault(
-    createContextManagerTool({ compactor: container.resolve(TOKENS.Compactor) }),
-  );
-  if (config.features.memory) {
-    toolRegistry.register(rememberTool(memoryStore));
-    toolRegistry.register(forgetTool(memoryStore));
-    toolRegistry.register(searchMemoryTool(memoryStore));
-    toolRegistry.register(relatedMemoryTool(memoryStore));
-  }
-  // Register the inter-agent mailbox tool — resolves to project-level GlobalMailbox at runtime.
-  // events are passed so mailbox.agent_registered/heartbeat events are emitted for TUI/WebUI
-  // to update the online agent count in the status bar.
-  toolRegistry.register(makeMailboxTool({ projectDir: wpaths.projectDir, events }));
-  // High-affordance thin wrappers (mail_send/mail_inbox) — the explicit
-  // verbs are what makes agents use the mailbox autonomously mid-task.
-  toolRegistry.register(makeMailSendTool({ projectDir: wpaths.projectDir, events }));
-  toolRegistry.register(makeMailInboxTool({ projectDir: wpaths.projectDir, events }));
+  registerBuiltinTools({
+    toolRegistry,
+    compactor: container.resolve(TOKENS.Compactor),
+    config,
+    memoryStore,
+    events,
+    wpaths,
+  });
 
   // Metrics wiring — extracted to wiring/metrics.ts
   const { metricsSink, healthRegistry } = (() => {
