@@ -25,7 +25,8 @@ refactor). Update this before switching context, handing off, or resuming.
 | 5g | ws-handlers/ — **projects** (list/select/add/working_dir) | ✅ merged | #67 |
 | 5h | ws-handlers/ — **context** (clear/debug/compact/repair/modes) | ✅ merged | #68 |
 | 5i | ws-handlers/ — **process** (list/kill/killAll) | ✅ merged | #69 |
-| 5j | ws-handlers/ — **sessions** + handleUserMessage | 🔴 in progress | — |
+| 5j | ws-handlers/ — **sessions** (goal.get/sessions.list/session.*) | ✅ merged | #70 |
+| 5k | ws-handlers/ — **handleUserMessage** + connection cases | 🔴 in progress | — |
 
 `webui-server.ts` is ~3000 lines (down from ~3250). The self-contained
 concerns now live under `packages/cli/src/webui-server/`:
@@ -49,6 +50,7 @@ webui-server/
     projects.ts         — projects.list/select/add, working_dir (PR 5g)
     context.ts          — context.clear/debug/compact/repair/modes (PR 5h)
     process.ts          — process.list/kill/killAll           (PR 5i)
+    sessions.ts         — goal.get/sessions.list/session.*     (PR 5j)
 ```
 
 Per-group contexts now extend a small `WsCommon` base (`send`/`broadcast`/
@@ -61,24 +63,23 @@ A module-map doc comment at the top of `webui-server.ts` points to each.
 
 ---
 
-## PR 5j — remaining ws-handler groups (🔴 in progress)
+## PR 5k — remaining ws-handler work (🔴 in progress)
 
 Extracted so far: **providers** (5), **brain** (5b), **introspection**
 (5c), **worklist** (5d), **agent-config** (5e), **prefs** (5f),
-**projects** (5g), **context** (5h), **process** (5i) — each fully
-unit-tested, threaded via a per-group context extending `WsCommon`.
-Current reality:
+**projects** (5g), **context** (5h), **process** (5i), **sessions** (5j)
+— each fully unit-tested, threaded via a per-group context extending
+`WsCommon`. Current reality:
 
 - **Already delegated** — `memory.*`, `files.*`, `mailbox.*`, `shell.open`
   cases already call the shared `@wrongstack/webui/server` handlers. No
   CLI-local extraction to do.
-- **Still inline** — the `handleMessage` switch cases for
-  `sessions` / `session.*`, plus
-  `handleUserMessage`. These
-  are coupled to run-loop state (the abort controllers, client map,
-  custom-mode store, session writer/store, the session.start payload
-  builder, the prefs-snapshot/persist closures) — extract test-first, one
-  group at a time, growing each group's context.
+- **Still inline** — only `handleUserMessage` (the agent-run entry) and
+  the connection-level cases (`user_message` / `abort` / `ping` /
+  `tool.confirm_result`). This is the riskiest remaining extraction: it
+  drives the live run loop, owns the abort controllers + pending-confirm
+  map, and bridges agent events back to the socket. Extract test-first,
+  growing its context with the run-loop state it needs.
 
 **Why deferred (not "forgotten"):** these cases are coupled to ~25 pieces
 of run-loop state (`abortController` + `abortControllers`, `clients`,

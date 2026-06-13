@@ -107,6 +107,18 @@ export {
   handleProvidersSaved,
 } from './providers.js';
 export {
+  handleGoalGet,
+  handleSessionCheckpoints,
+  handleSessionDelete,
+  handleSessionNew,
+  handleSessionResume,
+  handleSessionRewind,
+  handleSessionSave,
+  handleSessionsList,
+  type SessionsContext,
+  type SessionsOptions,
+} from './sessions.js';
+export {
   handlePlanGet,
   handlePlanItemUpdate,
   handlePlanTemplateUse,

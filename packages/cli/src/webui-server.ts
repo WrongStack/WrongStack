@@ -66,7 +66,6 @@ import {
   decryptConfigSecrets,
   encryptConfigSecrets,
 } from '@wrongstack/core/security';
-import { DefaultSessionStore } from '@wrongstack/core/storage';
 import {
   AutoPhaseWebSocketHandler,
   type CustomModeStore,
@@ -97,6 +96,7 @@ import {
   type IntrospectionContext,
   type PrefsContext,
   type ProjectsContext,
+  type SessionsContext,
   type WorklistContext,
   type WsCommon,
   type WsHandlerContext,
@@ -141,6 +141,14 @@ import {
   handleProcessKill,
   handleProcessKillAll,
   handleProcessList,
+  handleGoalGet,
+  handleSessionCheckpoints,
+  handleSessionDelete,
+  handleSessionNew,
+  handleSessionResume,
+  handleSessionRewind,
+  handleSessionSave,
+  handleSessionsList,
   handleTodoUpdate,
   handleTodosClear,
   handleTodosGet,
@@ -1108,6 +1116,16 @@ export async function runWebUI(opts: CliWebUIOptions): Promise<void> {
 
   // Bare messaging surface for handler groups that need no run-loop state.
   const wsCommon: WsCommon = { send, broadcast, log: (m) => console.log(m) };
+
+  // `opts` is passed by reference so the session handlers read live
+  // agent.ctx.session / opts.sessionStore at call time.
+  const sessionsCtx: SessionsContext = {
+    opts,
+    buildSessionStart: (overrides) => buildSessionStartPayload(overrides),
+    send,
+    broadcast,
+    log: (m) => console.log(m),
+  };
   return new Promise<void>((resolve) => {
     wss.on('listening', () => {
       console.log(`[WebUI] WebSocket server running on ws://${host}:${port}`);
@@ -1459,107 +1477,21 @@ export async function runWebUI(opts: CliWebUIOptions): Promise<void> {
       }
 
       case 'goal.get': {
-        // Read goal.json from disk and broadcast to all connected clients.
-        // The frontend polls this periodically; we serve the latest snapshot.
-        const projectRoot = opts.projectRoot ?? opts.agent.ctx.projectRoot;
-        try {
-          const goalPath = path.join(projectRoot, '.wrongstack', 'goal.json');
-          const raw = await fs.readFile(goalPath, 'utf8');
-          const goal = JSON.parse(raw);
-          broadcast({ type: 'goal.updated', payload: goal });
-        } catch {
-          broadcast({ type: 'goal.updated', payload: null });
-        }
+        await handleGoalGet(sessionsCtx, ws);
         break;
       }
 
       case 'sessions.list': {
-        // Prefer the wired SessionStore (the real ~/.wrongstack/projects/<hash>/
-        // sessions location). The transient store at <projectRoot>/.wrongstack/
-        // sessions is a legacy fallback only — real sessions never live there.
-        const limit = (msg as { payload?: { limit?: number | undefined } }).payload?.limit ?? 50;
-        try {
-          const store =
-            opts.sessionStore ??
-            new DefaultSessionStore({
-              dir: path.join(
-                opts.projectRoot ?? opts.agent.ctx.projectRoot,
-                '.wrongstack',
-                'sessions',
-              ),
-            });
-          const list = await store.list(limit);
-          const currentId = opts.agent.ctx.session?.id ?? opts.session.id;
-          send(ws, {
-            type: 'sessions.list',
-            payload: {
-              sessions: list.map((s) => ({
-                id: s.id,
-                title: s.title,
-                startedAt: s.startedAt,
-                model: s.model,
-                provider: s.provider,
-                tokenTotal: s.tokenTotal,
-                isCurrent: s.id === currentId,
-              })),
-            },
-          });
-        } catch (err) {
-          send(ws, {
-            type: 'sessions.list',
-            payload: { sessions: [], error: err instanceof Error ? err.message : String(err) },
-          });
-        }
+        await handleSessionsList(
+          sessionsCtx,
+          ws,
+          (msg as { payload?: { limit?: number | undefined } }).payload?.limit ?? 50,
+        );
         break;
       }
 
       case 'session.new': {
-        // Full new session when the SessionStore is wired (the normal case):
-        // finalize the current writer (session_end + close → summary sidecar)
-        // and swap in a fresh on-disk session, exactly like the standalone
-        // server. Previously this only wiped in-memory state — the "new"
-        // conversation kept appending to the OLD session's JSONL.
-        const ctx = opts.agent.ctx;
-        const oldId = ctx.session?.id ?? opts.session.id;
-        if (opts.sessionStore) {
-          try {
-            const oldWriter = ctx.session;
-            const oldUsage = ctx.tokenCounter.total();
-            if (oldWriter) {
-              void (async () => {
-                await oldWriter
-                  .append({ type: 'session_end', ts: new Date().toISOString(), usage: oldUsage })
-                  .catch(() => undefined);
-                await oldWriter.close().catch(() => undefined);
-              })();
-            }
-            const fresh = await opts.sessionStore.create({
-              id: '',
-              title: '',
-              model: ctx.model,
-              provider: (ctx.provider as { id?: string }).id ?? '',
-            });
-            ctx.session = fresh;
-            opts.onSessionSwapped?.(fresh.id);
-            ctx.tokenCounter.reset();
-          } catch (err) {
-            // Store failure degrades to the in-memory reset below.
-            console.warn(
-              JSON.stringify({
-                level: 'warn',
-                event: 'webui.session_new_store_failed',
-                message: err instanceof Error ? err.message : String(err),
-                timestamp: new Date().toISOString(),
-              }),
-            );
-          }
-        }
-        ctx.state.replaceMessages([]);
-        ctx.state.replaceTodos([]);
-        ctx.readFiles.clear();
-        ctx.fileMtimes.clear();
-        const sessNewP = await buildSessionStartPayload({ reset: true, clearedSessionId: oldId });
-        broadcast({ type: 'session.start', payload: sessNewP });
+        await handleSessionNew(sessionsCtx, ws);
         break;
       }
 
@@ -1631,50 +1563,16 @@ export async function runWebUI(opts: CliWebUIOptions): Promise<void> {
       }
 
       case 'session.checkpoints': {
-        const projectRoot = opts.projectRoot ?? opts.agent.ctx.projectRoot;
-        try {
-          const { DefaultSessionRewinder } = await import('@wrongstack/core');
-          const rewinder = new DefaultSessionRewinder(
-            opts.sessionsDir ?? path.join(projectRoot, '.wrongstack', 'sessions'),
-            projectRoot,
-          );
-          // Use the LIVE writer's id — after an in-app resume the active
-          // session is agent.ctx.session, not the startup one.
-          const liveId = opts.agent.ctx.session?.id ?? opts.session.id;
-          const checkpoints = await rewinder.listCheckpoints(liveId);
-          send(ws, {
-            type: 'session.checkpoints',
-            payload: { checkpoints },
-          });
-        } catch {
-          send(ws, {
-            type: 'session.checkpoints',
-            payload: { checkpoints: [] },
-          });
-        }
+        await handleSessionCheckpoints(sessionsCtx, ws);
         break;
       }
 
       case 'session.rewind': {
-        const { checkpointIndex } = (msg as { payload: { checkpointIndex: number } }).payload;
-        const projectRoot = opts.projectRoot ?? opts.agent.ctx.projectRoot;
-        try {
-          const { DefaultSessionRewinder } = await import('@wrongstack/core');
-          const rewinder = new DefaultSessionRewinder(
-            opts.sessionsDir ?? path.join(projectRoot, '.wrongstack', 'sessions'),
-            projectRoot,
-          );
-          // Rewind the LIVE session — both the file reverts (rewinder) and
-          // the JSONL truncation (writer) must target the same session.
-          const liveSession = opts.agent.ctx.session ?? opts.session;
-          await rewinder.rewindToCheckpoint(liveSession.id, checkpointIndex);
-          await liveSession.truncateToCheckpoint(checkpointIndex);
-          sendResult(ws, true, `Rewound to checkpoint ${checkpointIndex}`);
-          const rewindP = await buildSessionStartPayload({ reset: true });
-          broadcast({ type: 'session.start', payload: rewindP });
-        } catch (err) {
-          sendResult(ws, false, err instanceof Error ? err.message : String(err));
-        }
+        await handleSessionRewind(
+          sessionsCtx,
+          ws,
+          (msg as { payload: { checkpointIndex: number } }).payload.checkpointIndex,
+        );
         break;
       }
 
@@ -1700,36 +1598,12 @@ export async function runWebUI(opts: CliWebUIOptions): Promise<void> {
       }
 
       case 'session.delete': {
-        const { id } = (msg as { payload: { id: string } }).payload;
-        // Guard against the CURRENT writer — after an in-app resume the
-        // active session is agent.ctx.session, not the startup one.
-        if (id === (opts.agent.ctx.session?.id ?? opts.session.id)) {
-          sendResult(ws, false, 'Cannot delete the active session');
-          break;
-        }
-        try {
-          // Prefer the wired SessionStore (real sessions location); the
-          // transient <projectRoot>/.wrongstack/sessions store is legacy-only.
-          const store =
-            opts.sessionStore ??
-            new DefaultSessionStore({
-              dir: path.join(
-                opts.projectRoot ?? opts.agent.ctx.projectRoot,
-                '.wrongstack',
-                'sessions',
-              ),
-            });
-          await store.delete(id);
-          sendResult(ws, true, `Session ${id} deleted`);
-        } catch (err) {
-          sendResult(ws, false, err instanceof Error ? err.message : String(err));
-        }
+        await handleSessionDelete(sessionsCtx, ws, (msg as { payload: { id: string } }).payload.id);
         break;
       }
 
       case 'session.save':
-        // SessionWriter auto-flushes — confirm for UI habit parity.
-        sendResult(ws, true, `Session ${opts.session.id} is auto-saved`);
+        handleSessionSave(sessionsCtx, ws);
         break;
 
       case 'plan.get': {
@@ -1806,61 +1680,7 @@ export async function runWebUI(opts: CliWebUIOptions): Promise<void> {
       }
 
       case 'session.resume': {
-        if (!opts.sessionStore) {
-          sendResult(ws, false, 'Session store not available');
-          break;
-        }
-        const { id } = (msg as { payload: { id: string } }).payload;
-        try {
-          // Compare against the CURRENT writer — after a prior in-app resume
-          // the active session is agent.ctx.session, not the startup one.
-          const ctx = opts.agent.ctx;
-          if (id === (ctx.session?.id ?? opts.session.id)) {
-            sendResult(ws, false, 'Session is already active');
-            break;
-          }
-          const resumed = await opts.sessionStore.resume(id);
-          // Finalize the writer we are leaving (session_end + flush + summary
-          // sidecar), then swap the context to the resumed writer so all new
-          // events land in the resumed session's JSONL. Without the swap,
-          // the conversation kept recording into the old session's log and
-          // the resumed writer leaked an open file handle.
-          const oldWriter = ctx.session;
-          if (oldWriter && oldWriter !== resumed.writer) {
-            const oldUsage = ctx.tokenCounter.total();
-            void (async () => {
-              await oldWriter
-                .append({
-                  type: 'session_end',
-                  ts: new Date().toISOString(),
-                  usage: oldUsage,
-                })
-                .catch(() => undefined);
-              await oldWriter.close().catch(() => undefined);
-            })();
-          }
-          ctx.session = resumed.writer;
-          // Let the host re-point crash-recovery state (active.json) at the
-          // session that is now actually being written.
-          opts.onSessionSwapped?.(resumed.writer.id);
-          // Hydrate the context with the old session's messages.
-          ctx.state.replaceMessages(resumed.data.messages);
-          ctx.state.replaceTodos([]);
-          ctx.readFiles.clear();
-          ctx.fileMtimes.clear();
-          ctx.tokenCounter.reset();
-          // Replay usage so the topbar shows accurate totals.
-          ctx.tokenCounter.account(resumed.data.usage, ctx.model);
-          const resumeP = await buildSessionStartPayload({
-            reset: true,
-            replayMessages: resumed.data.messages,
-            replayUsage: resumed.data.usage,
-          });
-          broadcast({ type: 'session.start', payload: resumeP });
-          sendResult(ws, true, `Resumed session ${id}`);
-        } catch (err) {
-          sendResult(ws, false, err instanceof Error ? err.message : String(err));
-        }
+        await handleSessionResume(sessionsCtx, ws, (msg as { payload: { id: string } }).payload.id);
         break;
       }
 
