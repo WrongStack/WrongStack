@@ -1,124 +1,87 @@
-# webui-server Refactor — Remaining Work (PRs 5, 7, 8)
+# webui-server Refactor — Status & Remaining Work
 
-This file captures the unfinished PRs from Issue #30 (webui-server 8-PR refactor)
-and any follow-up tasks from completed PRs. Use it as a checkpoint before
-switching context, handing off, or resuming later.
+Checkpoint for Issue #30 (the `packages/cli/src/webui-server.ts` N-PR
+refactor). Update this before switching context, handing off, or resuming.
 
 ## Completed status
 
-| PR | Module | Status | PR # |
-|----|--------|--------|------|
+| PR | Module / concern | Status | PR # |
+|----|------------------|--------|------|
 | 0  | Baseline integration test | ✅ merged | #53 |
 | 1  | logger-shim.ts | ✅ merged | #50 |
 | 2  | cost-helpers.ts | ✅ merged | #51 |
 | 3  | context-breakdown.ts | ✅ merged | #52 |
-| 4  | provider-config.ts | ✅ merged | #55 |
-| 5  | ws-handlers/ directory | 🔴 **NOT STARTED** | — |
-| 6  | static-serve.ts | ✅ committed, **PR NOT OPENED** | — |
-| 7  | lifecycle.ts | 🔴 **NOT STARTED** | — |
-| 8  | Final pass | 🔴 **NOT STARTED** | — |
+| 4  | provider-config.ts (IO) | ✅ merged | #55 |
+| 4f | **ProviderConfigStore facade** (PR 4 follow-up) | ✅ merged | #60 |
+| 6  | static-serve.ts (+ unit tests) | ✅ merged | #57 |
+| 5  | ws-handlers/ — **provider group** | ✅ merged | #58 |
+| 7  | lifecycle.ts | ✅ merged | #59 |
+| 8  | Final pass (module-map header + this doc) | ✅ merged | #61 |
+| 5b | ws-handlers/ — **remaining groups** | 🔴 deferred | — |
 
-## PR 6 — static-serve.ts (committed, needs PR)
-
-Branch: `refactor/webui-server-static-serve`
-Commit: `ab245dc4`
-
-**What it does:** extracts the `createRequire` + `distDir` resolution + `createHttpServer` call
-into `webui-server/static-serve.ts` with a `startStaticServe()` function. Three other
-cleanups: removed unused `createRequire` and `createHttpServer` imports from
-`webui-server.ts`, and fixed two `httpServer.close()` → `httpServer.server.close()` call sites
-because the variable type changed from `Server | null` to `StaticServeHandle | null`.
-
-**Missing:**
-- [ ] Unit tests for `startStaticServe`
-- [ ] Open the PR (title: `refactor(cli): extract static-serve to webui-server/static-serve (PR 6 of #30)`)
-- [ ] Squash-merge
-
----
-
-## PR 5 — ws-handlers/ directory (🔥 HIGH PRIORITY)
-
-This is the **core extraction**. The 25+ inline `handleXxx` WebSocket handlers
-(in the ~500-line block after the provider-config helpers) move into
-`packages/cli/src/webui-server/ws-handlers/<topic>.ts`, grouped by topic:
+`webui-server.ts` is ~3000 lines (down from ~3250). The self-contained
+concerns now live under `packages/cli/src/webui-server/`:
 
 ```
-webui-server/ws-handlers/
-  providers.ts      — handleProviderAdd, handleProviderKeyAdd, … (~400 lines)
-  sessions.ts       — handleSessionList, handleSessionGet, …      (~300 lines)
-  mailbox.ts        — handleMailboxSend, handleMailboxRead, …      (~200 lines)
-  worktree.ts       — handleWorktreeList, handleWorktreeCreate, …  (~200 lines)
-  memory.ts         — handleMemoryList, handleMemoryRemember, …    (~200 lines)
-  index.ts          — barrel: `registerAllHandlers(wsServer, ctx)` (~50 lines)
+webui-server/
+  logger-shim.ts        — console→Logger adapter            (PR 1)
+  cost-helpers.ts       — token/usage cost math             (PR 2)
+  context-breakdown.ts  — context-window estimation         (PR 3)
+  provider-config.ts    — provider IO + ProviderConfigStore (PR 4 + 4f)
+  static-serve.ts       — dist discovery + HTTP bring-up    (PR 6)
+  lifecycle.ts          — registry / ready+open / shutdown  (PR 7)
+  ws-handlers/
+    index.ts            — WsHandlerContext + barrel         (PR 5)
+    providers.ts        — provider/model/key handlers       (PR 5)
 ```
 
-**Risk:** HIGH. The handlers share closure-captured state (`providers`, `vault`,
-`wpaths`, `eventBridge`, `broadcast`). A `WsHandlerContext` interface must be
-created to thread all shared state explicitly — no closure captures allowed.
-
-**Strategy:**
-1. Define `WsHandlerContext` interface in `index.ts` with all shared dependencies
-2. Extract one file at a time: `providers.ts` first (largest), then sessions, mailbox, etc.
-3. Each handler file exports a `register*` function that takes `(wss, ctx)`
-4. `registerAllHandlers(wss, ctx)` calls each register function
-5. After all files extract, `webui-server.ts` just calls `registerAllHandlers`
-
-**Blockers:** None. All preceding PRs cleaned up the imports/helpers this depends on.
+A module-map doc comment at the top of `webui-server.ts` points to each.
 
 ---
 
-## PR 7 — lifecycle.ts (low risk)
+## PR 5b — remaining ws-handler groups (🔴 deferred, the real risk)
 
-Extract ~100 lines of SIGINT/SIGTERM shutdown handling, instance registry
-`register`/`unregister`, and the `openBrowser` orchestration into
-`webui-server/lifecycle.ts`.
+PR 5 extracted the **provider** group (the largest cleanly-separable one:
+8 handlers + `WsHandlerContext`, fully unit-tested). The doc's original
+plan also listed sessions / mailbox / worktree / memory groups. Current
+reality:
 
-After this PR, `webui-server.ts` contains only the top-level `runWebUI` body:
-boot static serve, boot WS server, register handlers, wait for shutdown signal.
+- **Already delegated** — `memory.*`, `files.*`, `mailbox.*`, `shell.open`
+  cases already call the shared `@wrongstack/webui/server` handlers. No
+  CLI-local extraction to do.
+- **Still inline, deferred** — the `handleMessage` switch cases for
+  `sessions` / `session.*`, `context.*`, `brain.*`, `tasks`/`task.*`,
+  `projects.*`, `plan.*`, `skills`, `modes`/`mode.*`, `model.*`, `todos.*`,
+  `diag`/`stats`, `autonomy.switch`, `prefs.*`, plus `handleUserMessage`.
 
-**What moves:**
-- The `process.on('SIGINT')` / `process.on('SIGTERM')` handlers (~30 lines)
-- `registerInstance(process.pid, …)` call and the `unregistered` promise chain (~20 lines)
-- The `openBrowser(openUrl)` call with guard (~10 lines)
-- The shutdown `console.warn` / cleanup comment (~10 lines)
+**Why deferred (not "forgotten"):** these cases are coupled to ~25 pieces
+of run-loop state (`abortController` + `abortControllers`, `clients`,
+`pendingConfirms`, `eventUnsubscribers`, `autoPhaseHandler`,
+`getCustomModeStore`, `opts.agent`/`events`/`session`/`sessionStore`,
+the event bridge, `broadcast`, …) and have **no standalone unit
+coverage**. Moving them safely means first growing `WsHandlerContext` to
+carry that state explicitly, then extracting one group at a time behind
+characterization tests — a dedicated test-first effort, not an
+opportunistic move bundled into another PR.
 
-**Dependency:** wait for PR 6 to merge (the `httpServer` variable changes from
-`Server | null` to `StaticServeHandle | null`).
-
----
-
-## PR 8 — Final pass (low risk)
-
-`webui-server.ts` should be < 200 lines after PRs 1–7: just the `runWebUI()`
-function, its re-exports of the public API, and a doc comment pointing to the
-seven `webui-server/*.ts` modules so contributors know where each concern lives.
-
-The `Logger` re-export keeps its public surface; the cost/token helpers and the
-WS handlers stop being importable directly from this file.
-
----
-
-## Follow-up tasks from completed PRs
-
-### PR 4 follow-up: ProviderConfigStore interface
-
-The plan body envisioned a `ProviderConfigStore` interface to dedupe the two
-import paths (`./provider-config-utils.js` for `writeKeysBack`/`normalizeKeys`,
-and `./webui-server/provider-config.js` for `getVault`/`loadSavedProviders`/
-`saveProviders`). Currently both paths exist. A single facade would simplify
-callers and prevent silent drift.
-
-### PR 6 follow-up: unit tests
-
-`startStaticServe` has no unit tests. The function is small but involves
-`createRequire` resolution which is hard to test without a real module tree.
-Consider an integration test or a `resolveDistDir` helper extracted from
-`startStaticServe` that can be unit-tested with a mock module tree.
+**Suggested approach when picked up:**
+1. Pick one cohesive group (sessions is a good first — it's large and
+   relatively self-contained around `sessionStore`/`session`).
+2. Add a handler-level test that drives the current inline behaviour
+   through a real (or faithfully faked) context — lock in the contract.
+3. Add the group's dependencies to `WsHandlerContext`.
+4. Move the cases into `webui-server/ws-handlers/<group>.ts` as
+   `ctx`-threaded functions; the switch case calls them.
+5. Repeat. The `WsHandlerContext` + provider group from PR 5 are the
+   template.
 
 ---
 
-## git state
+## Notes
 
-Current branch: main
-Unmerged branch: `refactor/webui-server-static-serve` (PR 6, needs PR+merge)
-PR 5 and 7 branches not yet created.
+- The standalone webui server (`packages/webui/src/server/index.ts`) is a
+  near-duplicate that is further along its own extraction (`provider-keys`,
+  `provider-config-io`, `lifecycle`, `setup-events`, `ws-utils`, …). It's
+  the reference for shapes the CLI side can mirror.
+- All extracted modules have unit tests under
+  `packages/cli/tests/webui-server/`.

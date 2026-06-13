@@ -1,3 +1,39 @@
+/**
+ * CLI embedded WebUI server — the backend behind `wrongstack --webui`.
+ *
+ * `runWebUI(opts)` boots a WebSocket bridge (and, when the webui package
+ * is built, the static HTTP frontend) over the *same* agent/events/
+ * session instances the REPL and eternal-autonomy loop use, then routes
+ * browser messages through a `handleMessage` switch.
+ *
+ * Issue #30 (the webui-server N-PR refactor) pulled the self-contained
+ * concerns out of this file into focused `webui-server/*` modules. Where
+ * each concern now lives:
+ *
+ *   webui-server/logger-shim.ts        — console→Logger adapter (PR 1)
+ *   webui-server/cost-helpers.ts       — token/usage cost math (PR 2)
+ *   webui-server/context-breakdown.ts  — context-window estimation (PR 3)
+ *   webui-server/provider-config.ts    — provider-config IO + the
+ *                                        ProviderConfigStore facade
+ *                                        (PR 4 + follow-up)
+ *   webui-server/static-serve.ts       — dist discovery + HTTP bring-up (PR 6)
+ *   webui-server/ws-handlers/          — provider/model/key WS handlers,
+ *                                        threaded via WsHandlerContext (PR 5)
+ *   webui-server/lifecycle.ts          — instance registry, ready banner +
+ *                                        open-browser, SIGINT/SIGTERM
+ *                                        graceful shutdown (PR 7)
+ *
+ * The remaining `handleMessage` switch (sessions, todos, context, brain,
+ * tasks, projects, plan, skills, modes, model, …) is still inline here:
+ * those cases are coupled to ~25 pieces of run-loop state and have no
+ * standalone unit coverage, so they await a dedicated test-first
+ * extraction rather than being moved opportunistically. The file/memory/
+ * mailbox/shell cases already delegate to the shared
+ * `@wrongstack/webui/server` handlers.
+ *
+ * Public surface: `runWebUI` plus the `WSServerMessage` / `WSClientMessage`
+ * message shapes. Everything else is internal to the run.
+ */
 import * as crypto from 'node:crypto';
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
