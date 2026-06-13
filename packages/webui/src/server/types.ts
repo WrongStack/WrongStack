@@ -6,6 +6,7 @@ import type {
   Agent,
   ConfigStore,
   EventBus,
+  JournalEntry,
   ModelsRegistry,
   SecretVault,
   SessionStore,
@@ -50,6 +51,22 @@ export interface WebUIOptions {
    * `node dist/index.js webui` flow fully back-compatible.
    */
   services?: BackendServices | undefined;
+  /**
+   * Subscribe to live per-iteration events from the eternal-autonomy
+   * engine. When provided, `startWebUI` wires a WS broadcast that
+   * pushes each `JournalEntry` to every connected client. Observability
+   * only — starting the loop still goes through REPL/TUI or `--eternal`,
+   * since the webui has no slash-command dispatch surface yet.
+   *
+   * The argument is a *function* the caller supplies that performs the
+   * actual subscription; the returned disposer is invoked on
+   * `shutdown()`. This indirection lets the caller (most commonly
+   * `cli/webui-server.ts`) own the engine lifecycle and merely hand the
+   * webui an observer slot.
+   */
+  subscribeEternalIteration?:
+    | ((fn: (entry: JournalEntry) => void) => () => void)
+    | undefined;
 }
 
 export interface BackendServices {

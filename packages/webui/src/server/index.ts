@@ -85,6 +85,7 @@ import { createCustomModeStore } from './custom-context-modes.js';
 import { maskedKey, normalizeKeys } from './provider-keys.js';
 import { send, broadcast, sendResult, errMessage, generateAuthToken } from './ws-utils.js';
 import { estimateContextBreakdown } from './token-estimator.js';
+import { createEternalSubscription } from './eternal-iteration-broadcast.js';
 // Re-export types — shared message shapes and options used by both the
 // standalone server and the CLI's `--webui` embedded mode.
 export type { WebUIOptions, BackendServices } from './types.js';
@@ -121,6 +122,12 @@ export {
 } from './instance-registry.js';
 
 // WebSocket utilities shared with CLI
+export {
+  createEternalSubscription,
+  type EternalSubscribe,
+  type EternalBroadcast,
+  type EternalSubscription,
+} from './eternal-iteration-broadcast.js';
 export {
   send,
   broadcast,
@@ -1104,6 +1111,21 @@ export async function startWebUI(
       payload: { cwd: newDir, projectRoot },
     });
   });
+
+  // ── Eternal-autonomy iteration broadcast (PR 4 of Phase 2) ─────────
+  // When the CLI passes `opts.subscribeEternalIteration`, hook the
+  // returned observer into a WS broadcast so every connected client
+  // gets a live stream of `JournalEntry` items as the engine ticks.
+  // The disposer is captured and invoked on shutdown() so the CLI's
+  // engine subscription is properly torn down with the webui.
+  let eternalSubscription: { dispose: () => void } | null = null;
+  if (opts.subscribeEternalIteration) {
+    eternalSubscription = createEternalSubscription(
+      opts.subscribeEternalIteration,
+      broadcast,
+      () => clients,
+    );
+  }
 
   // Per-connection message rate limiting: 60 messages per 60-second window.
   // Exceeding clients are temporarily blocked to prevent flooding.
@@ -3121,6 +3143,10 @@ export async function startWebUI(
     // reality. Crash exits are healed by the next register()/list() prune pass.
     onShutdown: () => {
       brainMonitor.stop();
+      if (eternalSubscription) {
+        eternalSubscription.dispose();
+        eternalSubscription = null;
+      }
       return unregisterInstance(process.pid, registryBaseDir);
     },
   });
