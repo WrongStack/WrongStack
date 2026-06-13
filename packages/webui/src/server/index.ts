@@ -287,11 +287,15 @@ export async function startWebUI(
   // We still start the HTTP/WS servers so the user can configure via the UI.
   const needsProvider = !config.provider || !config.model;
 
-  // ModelsRegistry
-  const modelsRegistry = new DefaultModelsRegistry({
-    cacheFile: wpaths.modelsCache,
-    ttlSeconds: 24 * 3600,
-  });
+  // ModelsRegistry — use injected one if `services.modelsRegistry` was passed,
+  // otherwise build a fresh one. The injected path lets the CLI's `runWebUI`
+  // share a single registry across its own runtime and the webui surface.
+  const modelsRegistry =
+    opts.services?.modelsRegistry ??
+    new DefaultModelsRegistry({
+      cacheFile: wpaths.modelsCache,
+      ttlSeconds: 24 * 3600,
+    });
 
   // Container via shared factory
   const container = createDefaultContainer({ config, wpaths, logger, modelsRegistry });
@@ -315,9 +319,17 @@ export async function startWebUI(
     }));
   }
 
-  // Tool registry
-  const toolRegistry = new ToolRegistry();
-  toolRegistry.registerAllOrThrow([...(builtinToolsPack.tools ?? [])], builtinToolsPack.name);
+  // Tool registry — use injected one if `services.toolRegistry` was passed.
+  // When injected, the caller has already registered the tools they want
+  // (the CLI's runWebUI registers its own runtime tools); startWebUI just
+  // uses the registry as-is.
+  const toolRegistry =
+    opts.services?.toolRegistry ??
+    (() => {
+      const r = new ToolRegistry();
+      r.registerAllOrThrow([...(builtinToolsPack.tools ?? [])], builtinToolsPack.name);
+      return r;
+    })();
 
   // Memory tools
   const memoryStore = new DefaultMemoryStore({ paths: wpaths });
@@ -328,8 +340,11 @@ export async function startWebUI(
     toolRegistry.register(relatedMemoryTool(memoryStore));
   }
 
-  // Event bus
-  const events = new EventBus();
+  // Event bus — use injected one if `services.events` was passed. The CLI's
+  // runWebUI owns the agent's EventBus so it can wire sub-agents onto the
+  // same bus the webui dashboard reads from. When injected, we just
+  // attach the logger and reuse the existing instance.
+  const events = opts.services?.events ?? new EventBus();
   events.setLogger(logger);
 
   // Inter-agent mailbox tools — same project-level GlobalMailbox the CLI
