@@ -258,6 +258,44 @@ describe('tool-format conversions', () => {
     expect(a.tool_calls).toHaveLength(1);
   });
 
+  // ------------------------------------------------------------------
+  // K2P7 wire shape: every assistant message must have a content field.
+  // OpenAI 2024-2025 spec, K2P7's Moonshot gateway, OpenRouter strict
+  // mode, and modern Mistral all 400 on a tool_calls message that omits
+  // content. Default is `''`; permissive proxies (vLLM, llama.cpp) can
+  // opt out with `emptyToolCallContent: 'null'`.
+  // ------------------------------------------------------------------
+
+  it('messagesToOpenAI defaults to content:"" on tool-only assistant (K2P7 wire shape)', () => {
+    // No opts passed — the converter defaults to the OpenAI-spec shape.
+    // K2P7 / OpenRouter strict / modern Mistral all require this.
+    const messages: Message[] = [
+      {
+        role: 'assistant',
+        content: [{ type: 'tool_use', id: 'u1', name: 'read', input: { path: 'a' } }],
+      },
+    ];
+    const out = messagesToOpenAI(undefined, messages);
+    const a = out.find((m) => m.role === 'assistant')!;
+    expect(a.content).toBe('');
+    expect(a.tool_calls).toHaveLength(1);
+  });
+
+  it('messagesToOpenAI honors emptyToolCallContent:"null" for vLLM / llama.cpp', () => {
+    // Permissive proxies (vLLM, llama.cpp) reject content: '' and want
+    // the field omitted entirely. The 'null' opt-in writes content: null.
+    const messages: Message[] = [
+      {
+        role: 'assistant',
+        content: [{ type: 'tool_use', id: 'u1', name: 'read', input: { path: 'a' } }],
+      },
+    ];
+    const out = messagesToOpenAI(undefined, messages, { emptyToolCallContent: 'null' });
+    const a = out.find((m) => m.role === 'assistant')!;
+    expect(a.content).toBeNull();
+    expect(a.tool_calls).toHaveLength(1);
+  });
+
   it('messagesToOpenAI flattens image content to text marker under flattenContentToString', () => {
     const messages: Message[] = [
       {
