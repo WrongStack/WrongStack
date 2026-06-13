@@ -207,6 +207,17 @@ CLI-specific extras (`writeKeysBack`'s `addKey` semantics,
 > `ProviderConfigStore` interface), it should land as a
 > follow-up to PR 4.
 
+> **Update 2026-06-13 (after PR #55):** the plan body listed
+> `writeKeysBack` and `normalizeKeys` in this PR. These two
+> functions are *already* imported from
+> `packages/cli/src/provider-config-utils.js` (not inlined in
+> `webui-server.ts`), so PR #55 extracted only the inlined
+> helpers (`loadSavedProviders`, `saveProviders`, `getVault`)
+> and did not move them. If a future PR needs to dedupe the
+> import path (e.g. wrap them behind a single
+> `ProviderConfigStore` interface), it should land as a
+> follow-up to PR 4.
+
 ### PR 5 — `webui-server/ws-handlers/` directory (medium risk) 🔥
 
 This is the **core extraction**. The 25+ inline `handleXxx` WebSocket
