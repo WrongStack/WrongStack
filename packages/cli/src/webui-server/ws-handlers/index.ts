@@ -50,6 +50,13 @@ export interface WsHandlerContext extends WsCommon {
 }
 
 export {
+  type AgentConfigContext,
+  handleModelRefine,
+  handleModelSwitch,
+  handleModeSwitch,
+  handleModesList,
+} from './agent-config.js';
+export {
   type BrainHandlerContext,
   handleBrainAsk,
   handleBrainRisk,

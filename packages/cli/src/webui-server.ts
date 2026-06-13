@@ -56,10 +56,8 @@ import {
   DEFAULT_CONTEXT_WINDOW_MODE_ID,
   DefaultSecretScrubber,
   DefaultSystemPromptBuilder,
-  enhanceUserPrompt,
   GlobalMailbox,
   projectSlug,
-  recentTextTurns,
   repairToolUseAdjacency,
   resolveContextWindowPolicy,
   resolveProjectDir,
@@ -97,6 +95,7 @@ import {
 import { createProviderConfigStore } from './webui-server/provider-config.js';
 import { startStaticServe } from './webui-server/static-serve.js';
 import {
+  type AgentConfigContext,
   type BrainHandlerContext,
   type IntrospectionContext,
   type WorklistContext,
@@ -108,6 +107,10 @@ import {
   handleKeyDelete,
   handleKeySetActive,
   handleKeyUpsert,
+  handleModeSwitch,
+  handleModelRefine,
+  handleModelSwitch,
+  handleModesList,
   handlePlanGet,
   handlePlanItemUpdate,
   handlePlanTemplateUse,
@@ -1288,6 +1291,16 @@ export async function runWebUI(opts: CliWebUIOptions): Promise<void> {
     log: (m) => console.log(m),
   };
 
+  const agentConfigCtx: AgentConfigContext = {
+    agent: opts.agent,
+    modeStore: opts.modeStore,
+    globalConfigPath: opts.globalConfigPath,
+    buildSessionStart: (overrides) => buildSessionStartPayload(overrides),
+    send,
+    broadcast,
+    log: (m) => console.log(m),
+  };
+
   async function handleMessage(
     ws: WebSocket,
     client: ConnectedClient,
@@ -1774,98 +1787,21 @@ export async function runWebUI(opts: CliWebUIOptions): Promise<void> {
       }
 
       case 'modes.list': {
-        if (!opts.modeStore) {
-          send(ws, {
-            type: 'modes.list',
-            payload: { modes: [], activeId: 'default', error: 'Mode store not available' },
-          });
-          break;
-        }
-        try {
-          const modes = await opts.modeStore.listModes();
-          const active = await opts.modeStore.getActiveMode();
-          send(ws, {
-            type: 'modes.list',
-            payload: {
-              modes: modes.map((m) => ({
-                id: m.id,
-                name: m.name,
-                description: m.description,
-                isActive: m.id === (active?.id ?? 'default'),
-              })),
-              activeId: active?.id ?? 'default',
-            },
-          });
-        } catch (err) {
-          send(ws, {
-            type: 'modes.list',
-            payload: {
-              modes: [],
-              activeId: 'default',
-              error: err instanceof Error ? err.message : String(err),
-            },
-          });
-        }
+        await handleModesList(agentConfigCtx, ws);
         break;
       }
 
       case 'mode.switch': {
-        if (!opts.modeStore) {
-          sendResult(ws, false, 'Mode store not available');
-          break;
-        }
-        const { id } = (msg as { payload: { id: string } }).payload;
-        try {
-          if (id === 'default') {
-            await opts.modeStore.setActiveMode(null);
-          } else {
-            const found = await opts.modeStore.getMode(id);
-            if (!found) throw new Error(`Unknown mode "${id}"`);
-            await opts.modeStore.setActiveMode(id);
-          }
-          // Store the mode in context.meta so the agent sees it on the next turn.
-          opts.agent.ctx.meta['mode'] = id;
-          sendResult(ws, true, `Switched to mode "${id}"`);
-          const modeSwP = await buildSessionStartPayload({ mode: id });
-          broadcast({ type: 'session.start', payload: modeSwP });
-        } catch (err) {
-          sendResult(ws, false, err instanceof Error ? err.message : String(err));
-        }
+        await handleModeSwitch(agentConfigCtx, ws, (msg as { payload: { id: string } }).payload.id);
         break;
       }
 
       case 'model.switch': {
-        const { provider: newProvider, model: newModel } = (
-          msg as { payload: { provider: string; model: string } }
-        ).payload;
-        try {
-          // Update context
-          const ctx = opts.agent.ctx;
-          ctx.model = newModel;
-
-          // Create a new provider instance from the saved config
-          const { makeProviderFromConfig } = await import('@wrongstack/providers');
-          const { loadSavedProviders } = await import('./webui-server/provider-config.js');
-          const saved = await loadSavedProviders(opts.globalConfigPath);
-          const providerCfg = saved[newProvider] ?? { type: newProvider };
-          const newProv = makeProviderFromConfig(newProvider, providerCfg);
-          ctx.provider = newProv;
-
-          send(ws, {
-            type: 'key.operation_result',
-            payload: { success: true, message: `Switched to ${newProvider} / ${newModel}` },
-          });
-          const modelSwP = await buildSessionStartPayload();
-          broadcast({ type: 'session.start', payload: modelSwP });
-        } catch (err) {
-          send(ws, {
-            type: 'key.operation_result',
-            payload: {
-              success: false,
-              message: `Switch failed: ${err instanceof Error ? err.message : String(err)}`,
-            },
-          });
-        }
+        await handleModelSwitch(
+          agentConfigCtx,
+          ws,
+          (msg as { payload: { provider: string; model: string } }).payload,
+        );
         break;
       }
 
@@ -2500,55 +2436,7 @@ export async function runWebUI(opts: CliWebUIOptions): Promise<void> {
       }
 
       case 'model.refine': {
-        const { text } = (msg as { payload: { text: string } }).payload;
-        if (!text?.trim()) {
-          send(ws, {
-            type: 'model.refine_result',
-            payload: { refined: '', english: '', error: 'Empty text' },
-          });
-          break;
-        }
-        try {
-          const ctx = opts.agent.ctx;
-          const history = recentTextTurns(ctx.messages);
-          const result = await enhanceUserPrompt({
-            provider: ctx.provider,
-            model: ctx.model,
-            text,
-            history,
-            timeoutMs: 90000,
-            onError: (reason) => {
-              console.warn(
-                JSON.stringify({
-                  level: 'warn',
-                  event: 'model.refine_failed',
-                  reason,
-                  timestamp: new Date().toISOString(),
-                }),
-              );
-            },
-          });
-          if (result) {
-            send(ws, {
-              type: 'model.refine_result',
-              payload: { refined: result.refined, english: result.english },
-            });
-          } else {
-            send(ws, {
-              type: 'model.refine_result',
-              payload: { refined: text, english: text, error: 'Refinement returned no result' },
-            });
-          }
-        } catch (err) {
-          send(ws, {
-            type: 'model.refine_result',
-            payload: {
-              refined: text,
-              english: text,
-              error: err instanceof Error ? err.message : String(err),
-            },
-          });
-        }
+        await handleModelRefine(agentConfigCtx, ws, (msg as { payload: { text: string } }).payload.text);
         break;
       }
 
