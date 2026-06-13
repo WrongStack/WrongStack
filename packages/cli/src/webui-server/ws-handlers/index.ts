@@ -76,6 +76,14 @@ export {
   type PrefsContext,
 } from './prefs.js';
 export {
+  handleProjectsAdd,
+  handleProjectsList,
+  handleProjectsSelect,
+  handleWorkingDirSet,
+  type ProjectsContext,
+  type ProjectsOptions,
+} from './projects.js';
+export {
   handleKeyDelete,
   handleKeySetActive,
   handleKeyUpsert,

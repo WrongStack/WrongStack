@@ -55,9 +55,7 @@ import {
   atomicWrite,
   DEFAULT_CONTEXT_WINDOW_MODE_ID,
   DefaultSecretScrubber,
-  DefaultSystemPromptBuilder,
   GlobalMailbox,
-  projectSlug,
   repairToolUseAdjacency,
   resolveContextWindowPolicy,
   resolveProjectDir,
@@ -99,6 +97,7 @@ import {
   type BrainHandlerContext,
   type IntrospectionContext,
   type PrefsContext,
+  type ProjectsContext,
   type WorklistContext,
   type WsHandlerContext,
   handleAutonomySwitch,
@@ -118,6 +117,9 @@ import {
   handlePlanGet,
   handlePlanItemUpdate,
   handlePlanTemplateUse,
+  handleProjectsAdd,
+  handleProjectsList,
+  handleProjectsSelect,
   handleProviderAdd,
   handleProviderModels,
   handleProviderRemove,
@@ -132,6 +134,7 @@ import {
   handleTodosGet,
   handleTodosRemove,
   handleToolsList,
+  handleWorkingDirSet,
 } from './webui-server/ws-handlers/index.js';
 import { WebSocket, WebSocketServer } from 'ws';
 
@@ -1005,6 +1008,88 @@ export async function runWebUI(opts: CliWebUIOptions): Promise<void> {
     );
   }
 
+  // Shared state for the extracted ws-handler groups (PR 5 of #30).
+  // `send`/`broadcast` are hoisted function declarations, so capturing
+  // them here is safe even though they're defined further down.
+  const wsHandlerCtx: WsHandlerContext = {
+    providerStore: createProviderConfigStore(opts.globalConfigPath),
+    modelsRegistry: opts.modelsRegistry,
+    send,
+    broadcast,
+    log: (m) => console.log(m),
+  };
+
+  const brainCtx: BrainHandlerContext = {
+    brainSettings: opts.brainSettings,
+    getBrainLog: opts.getBrainLog,
+    // Prefer the host-supplied arbiter; otherwise resolve the one bound
+    // in the agent container (if any). Mirrors the former inline lookup.
+    resolveArbiter: () =>
+      opts.brain ??
+      (opts.agent.container.has(TOKENS.BrainArbiter)
+        ? opts.agent.container.resolve(TOKENS.BrainArbiter)
+        : undefined),
+    send,
+    broadcast,
+    log: (m) => console.log(m),
+  };
+
+  const introspectionCtx: IntrospectionContext = {
+    agent: opts.agent,
+    skillLoader: opts.skillLoader,
+    modelsRegistry: opts.modelsRegistry,
+    projectRoot: opts.projectRoot,
+    sessionId: opts.session.id,
+    sessionStartedAt,
+    send,
+    broadcast,
+    log: (m) => console.log(m),
+  };
+
+  const worklistCtx: WorklistContext = {
+    agent: opts.agent,
+    sessionId: opts.session.id,
+    send,
+    broadcast,
+    log: (m) => console.log(m),
+  };
+
+  const agentConfigCtx: AgentConfigContext = {
+    agent: opts.agent,
+    modeStore: opts.modeStore,
+    globalConfigPath: opts.globalConfigPath,
+    buildSessionStart: (overrides) => buildSessionStartPayload(overrides),
+    send,
+    broadcast,
+    log: (m) => console.log(m),
+  };
+
+  const prefsCtx: PrefsContext = {
+    agent: opts.agent,
+    prefSnapshot,
+    persistPrefs: persistPrefsToConfig,
+    onAutonomySwitch: opts.onAutonomySwitch,
+    send,
+    broadcast,
+    log: (m) => console.log(m),
+  };
+
+  // projects.select re-roots the run in place, so `opts` is passed by
+  // reference (the handlers mutate opts.projectRoot / opts.sessionStore).
+  const projectsCtx: ProjectsContext = {
+    opts,
+    abortControllers,
+    abortLegacyRun: () => {
+      if (abortController) {
+        abortController.abort();
+        abortController = null;
+      }
+    },
+    buildSessionStart: (overrides) => buildSessionStartPayload(overrides),
+    send,
+    broadcast,
+    log: (m) => console.log(m),
+  };
   return new Promise<void>((resolve) => {
     wss.on('listening', () => {
       console.log(`[WebUI] WebSocket server running on ws://${host}:${port}`);
@@ -1248,72 +1333,6 @@ export async function runWebUI(opts: CliWebUIOptions): Promise<void> {
 
     registerWebuiSignalHandlers(signalShutdown);
   });
-
-  // Shared state for the extracted ws-handler groups (PR 5 of #30).
-  // `send`/`broadcast` are hoisted function declarations, so capturing
-  // them here is safe even though they're defined further down.
-  const wsHandlerCtx: WsHandlerContext = {
-    providerStore: createProviderConfigStore(opts.globalConfigPath),
-    modelsRegistry: opts.modelsRegistry,
-    send,
-    broadcast,
-    log: (m) => console.log(m),
-  };
-
-  const brainCtx: BrainHandlerContext = {
-    brainSettings: opts.brainSettings,
-    getBrainLog: opts.getBrainLog,
-    // Prefer the host-supplied arbiter; otherwise resolve the one bound
-    // in the agent container (if any). Mirrors the former inline lookup.
-    resolveArbiter: () =>
-      opts.brain ??
-      (opts.agent.container.has(TOKENS.BrainArbiter)
-        ? opts.agent.container.resolve(TOKENS.BrainArbiter)
-        : undefined),
-    send,
-    broadcast,
-    log: (m) => console.log(m),
-  };
-
-  const introspectionCtx: IntrospectionContext = {
-    agent: opts.agent,
-    skillLoader: opts.skillLoader,
-    modelsRegistry: opts.modelsRegistry,
-    projectRoot: opts.projectRoot,
-    sessionId: opts.session.id,
-    sessionStartedAt,
-    send,
-    broadcast,
-    log: (m) => console.log(m),
-  };
-
-  const worklistCtx: WorklistContext = {
-    agent: opts.agent,
-    sessionId: opts.session.id,
-    send,
-    broadcast,
-    log: (m) => console.log(m),
-  };
-
-  const agentConfigCtx: AgentConfigContext = {
-    agent: opts.agent,
-    modeStore: opts.modeStore,
-    globalConfigPath: opts.globalConfigPath,
-    buildSessionStart: (overrides) => buildSessionStartPayload(overrides),
-    send,
-    broadcast,
-    log: (m) => console.log(m),
-  };
-
-  const prefsCtx: PrefsContext = {
-    agent: opts.agent,
-    prefSnapshot,
-    persistPrefs: persistPrefsToConfig,
-    onAutonomySwitch: opts.onAutonomySwitch,
-    send,
-    broadcast,
-    log: (m) => console.log(m),
-  };
 
   async function handleMessage(
     ws: WebSocket,
@@ -2159,258 +2178,34 @@ export async function runWebUI(opts: CliWebUIOptions): Promise<void> {
         break;
 
       case 'projects.list': {
-        // Read the project manifest from ~/.wrongstack/projects.json
-        const projectsBase = opts.globalConfigPath
-          ? path.resolve(path.dirname(opts.globalConfigPath))
-          : wstackGlobalRoot();
-        const manifestPath = path.join(projectsBase, 'projects.json');
-        try {
-          const raw = await fs.readFile(manifestPath, 'utf8');
-          const manifest = JSON.parse(raw) as {
-            projects: Array<{ name: string; root: string; slug: string; lastSeen?: string }>;
-          };
-          send(ws, {
-            type: 'projects.list',
-            payload: { projects: manifest.projects ?? [] },
-          });
-        } catch {
-          send(ws, { type: 'projects.list', payload: { projects: [] } });
-        }
+        await handleProjectsList(projectsCtx, ws);
         break;
       }
 
       case 'projects.select': {
-        // In-process project switch — mirrors the standalone server's handler:
-        // re-root everything the handlers read at call time (opts.projectRoot,
-        // agent ctx, session store), finalize the old session writer, start a
-        // fresh session in the new project, and broadcast a reset
-        // session.start so every client re-renders (sessions, file manager,
-        // mailbox, context bar).
-        //
-        // An older version spawned a NEW interactive wstack with
-        // stdio:'inherit' into the host's terminal and changed nothing in the
-        // browser — the WebUI stayed on the old project.
-        const { root, name: projectName } = (
-          msg as { payload: { root: string; name?: string | undefined } }
-        ).payload;
-        try {
-          const resolved = path.resolve(root);
-          const stat = await fs.stat(resolved).catch(() => null);
-          if (!stat?.isDirectory()) {
-            send(ws, {
-              type: 'projects.selected',
-              payload: {
-                root,
-                name: projectName ?? path.basename(root),
-                message: `Cannot switch: not a directory: ${resolved}`,
-              },
-            });
-            break;
-          }
-
-          // Manifest: bump lastSeen, or auto-register an unknown root.
-          const { loadManifest, saveManifest } = await import('./slash-commands/project-utils.js');
-          const manifest = await loadManifest(opts.globalConfigPath);
-          const entry = manifest.projects.find((p) => path.resolve(p.root) === resolved);
-          const displayName = projectName?.trim() || entry?.name || path.basename(resolved);
-          if (entry) {
-            entry.lastSeen = new Date().toISOString();
-          } else {
-            manifest.projects.push({
-              name: displayName,
-              root: resolved,
-              slug: projectSlug(resolved),
-              lastSeen: new Date().toISOString(),
-              createdAt: new Date().toISOString(),
-            });
-          }
-          await saveManifest(manifest, opts.globalConfigPath);
-
-          // Abort any in-flight run — its context is about to be re-rooted.
-          if (abortController) {
-            abortController.abort();
-            abortController = null;
-          }
-          // Also clear the per-socket controller for this switching client
-          // so a subsequent `case 'abort'` from a reconnected socket starts
-          // clean. We do NOT iterate other sockets' controllers — a project
-          // switch is a server-wide state change and other sockets should see
-          // it via the projects.list broadcast below, not be aborted.
-          abortControllers.delete(ws);
-
-          const ctx = opts.agent.ctx;
-          const oldSessionId = ctx.session?.id ?? opts.session.id;
-
-          // Finalize the writer we are leaving. Usage captured before the
-          // counter reset below (the closure runs after it).
-          const oldWriter = ctx.session;
-          const oldUsage = ctx.tokenCounter.total();
-          if (oldWriter) {
-            void (async () => {
-              await oldWriter
-                .append({ type: 'session_end', ts: new Date().toISOString(), usage: oldUsage })
-                .catch(() => undefined);
-              await oldWriter.close().catch(() => undefined);
-            })();
-          }
-
-          // Re-root: every handler resolves opts.projectRoot / ctx at call
-          // time (files.*, mailbox.*, goal, …), so mutating these re-roots
-          // them all without further plumbing.
-          opts.projectRoot = resolved;
-          ctx.cwd = resolved;
-          ctx.projectRoot = resolved;
-
-          // Rebuild the system prompt for the NEW project. The environment
-          // block (project root, git status, languages) is baked into the
-          // prompt at boot; without this rebuild the agent keeps the
-          // launch-directory environment and tries to operate in the old
-          // folder until tool errors correct it. Best-effort — a failure here
-          // leaves the prior prompt rather than breaking the switch.
-          try {
-            const switchMode =
-              opts.modeId && opts.modeId !== 'default' && opts.modeStore
-                ? await opts.modeStore.getMode(opts.modeId)
-                : undefined;
-            const switchBuilder = new DefaultSystemPromptBuilder({
-              memoryStore: opts.memoryStore,
-              skillLoader: opts.skillLoader,
-              modeStore: opts.modeStore,
-              modeId: opts.modeId ?? 'default',
-              modePrompt: switchMode?.prompt ?? '',
-            });
-            ctx.systemPrompt = await switchBuilder.build({
-              cwd: resolved,
-              projectRoot: resolved,
-              tools: opts.agent.tools.list(),
-              provider: (ctx.provider as { id?: string }).id,
-              model: ctx.model,
-            });
-          } catch {
-            /* best-effort — keep the prior system prompt if rebuild fails */
-          }
-
-          // Fresh per-project session store + session.
-          const globalRoot = opts.globalConfigPath
-            ? path.dirname(opts.globalConfigPath)
-            : wstackGlobalRoot();
-          const newSessionsDir = path.join(resolveProjectDir(resolved, globalRoot), 'sessions');
-          await fs.mkdir(newSessionsDir, { recursive: true });
-          const newStore = new DefaultSessionStore({ dir: newSessionsDir });
-          opts.sessionStore = newStore;
-          const newWriter = await newStore.create({
-            id: '',
-            title: '',
-            model: ctx.model,
-            provider: (ctx.provider as { id?: string }).id ?? '',
-          });
-          ctx.session = newWriter;
-          opts.onSessionSwapped?.(newWriter.id);
-          ctx.state.replaceMessages([]);
-          ctx.state.replaceTodos([]);
-          ctx.readFiles.clear();
-          ctx.fileMtimes.clear();
-          ctx.tokenCounter.reset();
-
-          send(ws, {
-            type: 'projects.selected',
-            payload: {
-              root: resolved,
-              name: displayName,
-              message: `Switched to ${displayName}`,
-            },
-          });
-          // Full-state broadcast so ALL clients re-root their panels.
-          const switchedP = await buildSessionStartPayload({
-            reset: true,
-            clearedSessionId: oldSessionId,
-          });
-          broadcast({ type: 'session.start', payload: switchedP });
-        } catch (err) {
-          sendResult(ws, false, err instanceof Error ? err.message : String(err));
-        }
+        await handleProjectsSelect(
+          projectsCtx,
+          ws,
+          (msg as { payload: { root: string; name?: string | undefined } }).payload,
+        );
         break;
       }
 
       case 'projects.add': {
-        // Register a folder in the project manifest (Projects panel "Add").
-        // Ported from the standalone server — this message used to fall
-        // through to "Unknown message type" here, so adding a project from
-        // the WebUI silently did nothing on the embedded server.
-        const { root: addRoot, name: addName } = (
-          msg as { payload: { root: string; name?: string | undefined } }
-        ).payload;
-        try {
-          const resolved = path.resolve(addRoot);
-          const stat = await fs.stat(resolved).catch(() => null);
-          if (!stat?.isDirectory()) throw new Error(`Not a directory: ${resolved}`);
-
-          const { loadManifest, saveManifest, ensureProjectDataDir } = await import(
-            './slash-commands/project-utils.js'
-          );
-          const manifest = await loadManifest(opts.globalConfigPath);
-          const existing = manifest.projects.find((p) => path.resolve(p.root) === resolved);
-          if (existing) {
-            send(ws, {
-              type: 'projects.added',
-              payload: {
-                name: existing.name,
-                root: existing.root,
-                slug: existing.slug,
-                message: `Already registered as "${existing.name}"`,
-              },
-            });
-            break;
-          }
-          const name = addName?.trim() || path.basename(resolved);
-          const slug = projectSlug(resolved);
-          await ensureProjectDataDir(slug, opts.globalConfigPath);
-          const now = new Date().toISOString();
-          manifest.projects.push({ name, root: resolved, slug, lastSeen: now, createdAt: now });
-          await saveManifest(manifest, opts.globalConfigPath);
-          send(ws, {
-            type: 'projects.added',
-            payload: { name, root: resolved, slug, message: `Registered project "${name}"` },
-          });
-        } catch (err) {
-          send(ws, {
-            type: 'projects.added',
-            payload: {
-              name: path.basename(addRoot),
-              root: addRoot,
-              slug: '',
-              message: err instanceof Error ? err.message : String(err),
-            },
-          });
-        }
+        await handleProjectsAdd(
+          projectsCtx,
+          ws,
+          (msg as { payload: { root: string; name?: string | undefined } }).payload,
+        );
         break;
       }
 
       case 'working_dir.set': {
-        // FileExplorer breadcrumb navigation. Ported from the standalone
-        // server (used to be an unknown message here).
-        const { path: newPath } = (msg as { payload: { path: string } }).payload;
-        try {
-          const wdRoot = opts.projectRoot ?? opts.agent.ctx.projectRoot;
-          const resolved = path.resolve(wdRoot, newPath);
-          if (!resolved.startsWith(wdRoot + path.sep) && resolved !== wdRoot) {
-            sendResult(ws, false, `Path must stay inside the project root: ${wdRoot}`);
-            break;
-          }
-          const stat = await fs.stat(resolved).catch(() => null);
-          if (!stat?.isDirectory()) {
-            sendResult(ws, false, `Directory not found or not accessible: ${resolved}`);
-            break;
-          }
-          opts.agent.ctx.cwd = resolved;
-          broadcast({
-            type: 'working_dir.changed',
-            payload: { cwd: resolved, projectRoot: wdRoot },
-          });
-          sendResult(ws, true, `Working directory set to ${resolved}`);
-        } catch (err) {
-          sendResult(ws, false, err instanceof Error ? err.message : String(err));
-        }
+        await handleWorkingDirSet(
+          projectsCtx,
+          ws,
+          (msg as { payload: { path: string } }).payload.path,
+        );
         break;
       }
 
