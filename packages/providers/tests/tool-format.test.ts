@@ -528,4 +528,53 @@ describe('tool-format conversions', () => {
     expect(content).toHaveLength(1);
     expect(content[0]).toEqual({ type: 'text', text: '   \n  ' });
   });
+
+  // ------------------------------------------------------------------
+  // emptyToolCallContent quirk — opt-in switch for K2P7 / strict proxies
+  // ------------------------------------------------------------------
+  //
+  // OpenAI 2024-2025 wire spec requires every assistant message to have
+  // a `content` field. K2P7's Moonshot gateway, OpenRouter in strict
+  // mode, and modern Mistral 400 on a tool_calls message that omits
+  // content (`messages.N.content must be a string`). Vanilla OpenAI and
+  // permissive proxies (vLLM, llama.cpp) accept the omitted form.
+  //
+  // The default is the omitted form (matches upstream's wire shape and
+  // preserves compatibility with permissive proxies). Strict providers
+  // opt in via `emptyToolCallContent: 'empty_string'`. The provider
+  // preset wires the option, so the agent loop and the user never see it.
+
+  it('messagesToOpenAI omits content on tool-only assistant by default (upstream wire shape)', () => {
+    // The default behaviour is to omit `content` entirely on a tool-only
+    // assistant message. This matches what the wire has always been
+    // for OpenAI / vLLM / llama.cpp / permissive proxies.
+    const messages: Message[] = [
+      {
+        role: 'assistant',
+        content: [{ type: 'tool_use', id: 'u1', name: 'read', input: { path: 'a' } }],
+      },
+    ];
+    const out = messagesToOpenAI(undefined, messages);
+    const a = out.find((m) => m.role === 'assistant')!;
+    expect('content' in a).toBe(false);
+    expect(a.tool_calls).toHaveLength(1);
+  });
+
+  it('messagesToOpenAI emits content:"" on tool-only assistant under emptyToolCallContent:empty_string (K2P7 wire shape)', () => {
+    // K2P7's Moonshot gateway 400s without this. The opt-in tells the
+    // converter to write content: '' rather than omit the field. This
+    // is the wire shape OpenAI itself ships today.
+    const messages: Message[] = [
+      {
+        role: 'assistant',
+        content: [{ type: 'tool_use', id: 'u1', name: 'read', input: { path: 'a' } }],
+      },
+    ];
+    const out = messagesToOpenAI(undefined, messages, {
+      emptyToolCallContent: 'empty_string',
+    });
+    const a = out.find((m) => m.role === 'assistant')!;
+    expect(a.content).toBe('');
+    expect(a.tool_calls).toHaveLength(1);
+  });
 });
