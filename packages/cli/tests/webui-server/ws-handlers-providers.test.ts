@@ -3,7 +3,10 @@ import * as os from 'node:os';
 import * as path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import type { WebSocket } from 'ws';
-import { loadSavedProviders } from '../../src/webui-server/provider-config.js';
+import {
+  createProviderConfigStore,
+  loadSavedProviders,
+} from '../../src/webui-server/provider-config.js';
 import type {
   WsHandlerContext,
   WsServerMessage,
@@ -43,7 +46,7 @@ function makeCtx(
 ): { ctx: WsHandlerContext; cap: Captured } {
   const cap: Captured = { sent: [], broadcasts: [], logs: [] };
   const ctx: WsHandlerContext = {
-    globalConfigPath,
+    providerStore: createProviderConfigStore(globalConfigPath),
     modelsRegistry,
     send: (_ws, msg) => cap.sent.push(msg),
     broadcast: (msg) => cap.broadcasts.push(msg),

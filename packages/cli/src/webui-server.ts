@@ -61,6 +61,7 @@ import {
   registerWebuiInstance,
   registerWebuiSignalHandlers,
 } from './webui-server/lifecycle.js';
+import { createProviderConfigStore } from './webui-server/provider-config.js';
 import { startStaticServe } from './webui-server/static-serve.js';
 import {
   type WsHandlerContext,
@@ -1194,7 +1195,7 @@ export async function runWebUI(opts: CliWebUIOptions): Promise<void> {
   // `send`/`broadcast` are hoisted function declarations, so capturing
   // them here is safe even though they're defined further down.
   const wsHandlerCtx: WsHandlerContext = {
-    globalConfigPath: opts.globalConfigPath,
+    providerStore: createProviderConfigStore(opts.globalConfigPath),
     modelsRegistry: opts.modelsRegistry,
     send,
     broadcast,

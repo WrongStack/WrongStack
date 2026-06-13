@@ -3,6 +3,21 @@ import { DefaultSecretVault } from '@wrongstack/core/security';
 import type { ProviderConfig } from '@wrongstack/core/types';
 import { loadConfigProviders, mutateConfigProviders } from '../provider-config-utils.js';
 
+// Re-export the provider-record transforms the webui handlers need, so
+// callers (ws-handlers/providers.ts) have a single import surface for
+// "webui provider config" instead of juggling this module *and*
+// ../provider-config-utils.js. The transforms themselves stay in the
+// broadly-shared provider-config-utils.js (auth-menu, slash-commands,
+// subcommands all use it); this is a facade re-export, not a move.
+// PR 4 follow-up of Issue #30.
+export {
+  expectDefined,
+  maskedKey,
+  normalizeKeys,
+  nowIso,
+  writeKeysBack,
+} from '../provider-config-utils.js';
+
 /**
  * PR 4 of Issue #30 (webui-server 8-PR refactor):
  * provider-config IO.
@@ -47,9 +62,42 @@ export async function saveProviders(
   providers: Record<string, ProviderConfig>,
 ): Promise<void> {
   if (!globalConfigPath) return;
-  await mutateConfigProviders(globalConfigPath, getVault(globalConfigPath), (existing: Record<string, ProviderConfig>) => {
-    // Replace the entire providers map.
-    for (const key of Object.keys(existing)) delete existing[key];
-    Object.assign(existing, providers);
-  });
+  await mutateConfigProviders(
+    globalConfigPath,
+    getVault(globalConfigPath),
+    (existing: Record<string, ProviderConfig>) => {
+      // Replace the entire providers map.
+      for (const key of Object.keys(existing)) delete existing[key];
+      Object.assign(existing, providers);
+    },
+  );
+}
+
+/**
+ * A provider-config store bound to one `globalConfigPath`.
+ *
+ * PR 4 follow-up of Issue #30: the provider ws-handlers used to take a
+ * raw `globalConfigPath` and call `loadSavedProviders`/`saveProviders`
+ * with it on every operation. Binding the path once into a small
+ * `load`/`save` object (mirrors the standalone server's
+ * `createProviderConfigIO`) removes the repeated path threading and
+ * gives callers a single dependency to mock.
+ */
+export interface ProviderConfigStore {
+  load(): Promise<Record<string, ProviderConfig>>;
+  save(providers: Record<string, ProviderConfig>): Promise<void>;
+}
+
+/**
+ * Build a {@link ProviderConfigStore} for `globalConfigPath`. When the
+ * path is undefined the store is a no-op (load ⇒ `{}`, save ⇒ nothing),
+ * matching the underlying helpers' behaviour.
+ */
+export function createProviderConfigStore(
+  globalConfigPath: string | undefined,
+): ProviderConfigStore {
+  return {
+    load: () => loadSavedProviders(globalConfigPath),
+    save: (providers) => saveProviders(globalConfigPath, providers),
+  };
 }

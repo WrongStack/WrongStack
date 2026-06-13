@@ -6,17 +6,17 @@ import {
   normalizeKeys,
   nowIso,
   writeKeysBack,
-} from '../../provider-config-utils.js';
-import { loadSavedProviders, saveProviders } from '../provider-config.js';
+} from '../provider-config.js';
 import type { WsHandlerContext } from './index.js';
 
 /**
  * PR 5 of Issue #30: provider / model / API-key WebSocket handlers.
  *
- * Extracted verbatim from the `runWebUI` closure in webui-server.ts.
- * Every former closure capture (`opts.modelsRegistry`,
- * `opts.globalConfigPath`, `send`, `broadcast`, `console.log`) is now a
- * field on `ctx: WsHandlerContext` — no hidden state.
+ * Extracted from the `runWebUI` closure in webui-server.ts. Every former
+ * closure capture is now a field on `ctx: WsHandlerContext` — no hidden
+ * state: `opts.modelsRegistry` → `ctx.modelsRegistry`, the
+ * globalConfigPath-bound provider IO → `ctx.providerStore`, and
+ * `send`/`broadcast`/`console.log` → `ctx.send`/`broadcast`/`log`.
  */
 
 /**
@@ -35,7 +35,7 @@ export async function handleProvidersList(ctx: WsHandlerContext, ws: WebSocket):
   }
   try {
     const providers = await ctx.modelsRegistry.listProviders();
-    const savedProviders = await loadSavedProviders(ctx.globalConfigPath);
+    const savedProviders = await ctx.providerStore.load();
     const savedIds = new Set(Object.keys(savedProviders));
 
     ctx.send(ws, {
@@ -99,7 +99,7 @@ export async function handleProviderModels(
 
 export async function handleProvidersSaved(ctx: WsHandlerContext, ws: WebSocket): Promise<void> {
   try {
-    const providers = await loadSavedProviders(ctx.globalConfigPath);
+    const providers = await ctx.providerStore.load();
     ctx.send(ws, {
       type: 'providers.saved',
       payload: {
@@ -129,7 +129,7 @@ export async function handleKeyUpsert(
   apiKey: string,
 ): Promise<void> {
   try {
-    const providers = await loadSavedProviders(ctx.globalConfigPath);
+    const providers = await ctx.providerStore.load();
     const existing = providers[providerId] ?? { type: providerId };
     const keys = normalizeKeys(existing);
 
@@ -145,7 +145,7 @@ export async function handleKeyUpsert(
     if (!existing.activeKey) existing.activeKey = label;
     providers[providerId] = existing;
 
-    await saveProviders(ctx.globalConfigPath, providers);
+    await ctx.providerStore.save(providers);
     sendResult(ctx, ws, true, `Key "${label}" saved for ${providerId}`);
   } catch (err) {
     sendResult(ctx, ws, false, err instanceof Error ? err.message : String(err));
@@ -159,7 +159,7 @@ export async function handleKeyDelete(
   label: string,
 ): Promise<void> {
   try {
-    const providers = await loadSavedProviders(ctx.globalConfigPath);
+    const providers = await ctx.providerStore.load();
     const existing = providers[providerId];
     if (!existing) {
       sendResult(ctx, ws, false, `Provider "${providerId}" not found`);
@@ -175,7 +175,7 @@ export async function handleKeyDelete(
       }
       providers[providerId] = existing;
     }
-    await saveProviders(ctx.globalConfigPath, providers);
+    await ctx.providerStore.save(providers);
     sendResult(ctx, ws, true, `Key "${label}" deleted from ${providerId}`);
   } catch (err) {
     sendResult(ctx, ws, false, err instanceof Error ? err.message : String(err));
@@ -189,7 +189,7 @@ export async function handleKeySetActive(
   label: string,
 ): Promise<void> {
   try {
-    const providers = await loadSavedProviders(ctx.globalConfigPath);
+    const providers = await ctx.providerStore.load();
     const existing = providers[providerId];
     if (!existing) {
       sendResult(ctx, ws, false, `Provider "${providerId}" not found`);
@@ -198,7 +198,7 @@ export async function handleKeySetActive(
     existing.activeKey = label;
     writeKeysBack(existing, normalizeKeys(existing));
     providers[providerId] = existing;
-    await saveProviders(ctx.globalConfigPath, providers);
+    await ctx.providerStore.save(providers);
     sendResult(ctx, ws, true, `Active key for ${providerId} set to "${label}"`);
   } catch (err) {
     sendResult(ctx, ws, false, err instanceof Error ? err.message : String(err));
@@ -216,7 +216,7 @@ export async function handleProviderAdd(
   },
 ): Promise<void> {
   try {
-    const providers = await loadSavedProviders(ctx.globalConfigPath);
+    const providers = await ctx.providerStore.load();
     if (providers[payload.id]) {
       sendResult(
         ctx,
@@ -236,7 +236,7 @@ export async function handleProviderAdd(
       newProv.activeKey = 'default';
     }
     providers[payload.id] = newProv;
-    await saveProviders(ctx.globalConfigPath, providers);
+    await ctx.providerStore.save(providers);
     sendResult(ctx, ws, true, `Provider "${payload.id}" added`);
     ctx.log(`[WebUI] Provider "${payload.id}" added via provider.add`);
     ctx.broadcast({
@@ -266,13 +266,13 @@ export async function handleProviderRemove(
   providerId: string,
 ): Promise<void> {
   try {
-    const providers = await loadSavedProviders(ctx.globalConfigPath);
+    const providers = await ctx.providerStore.load();
     if (!providers[providerId]) {
       sendResult(ctx, ws, false, `Provider "${providerId}" not found`);
       return;
     }
     delete providers[providerId];
-    await saveProviders(ctx.globalConfigPath, providers);
+    await ctx.providerStore.save(providers);
     sendResult(ctx, ws, true, `Provider "${providerId}" removed`);
   } catch (err) {
     sendResult(ctx, ws, false, err instanceof Error ? err.message : String(err));

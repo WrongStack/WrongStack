@@ -1,10 +1,13 @@
+import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
-import * as fs from 'node:fs/promises';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import {
+  createProviderConfigStore,
   getVault,
   loadSavedProviders,
+  maskedKey,
+  normalizeKeys,
   saveProviders,
 } from '../../src/webui-server/provider-config.js';
 
@@ -91,5 +94,31 @@ describe('webui-server/provider-config (PR 4 of #30)', () => {
     // The function must not throw, must not create
     // any files, and must not write to anything.
     await expect(saveProviders(undefined, {})).resolves.toBeUndefined();
+  });
+});
+
+describe('webui-server/provider-config facade (PR 4 follow-up of #30)', () => {
+  it('re-exports the provider-record transforms (single import surface)', () => {
+    expect(typeof normalizeKeys).toBe('function');
+    expect(typeof maskedKey).toBe('function');
+    // maskedKey never returns the plaintext.
+    expect(maskedKey('sk-supersecret-value')).not.toContain('supersecret');
+  });
+
+  it('createProviderConfigStore: load/save round-trip bound to one path', async () => {
+    const store = createProviderConfigStore(configPath);
+    const input = {
+      anthropic: { type: 'anthropic', apiKeys: [{ label: 'k1', key: 'sk-test-1' }] },
+    } as never;
+    await store.save(input);
+    expect(await store.load()).toEqual(input);
+    // The store is just a binding over the same IO.
+    expect(await loadSavedProviders(configPath)).toEqual(input);
+  });
+
+  it('createProviderConfigStore: no-op store when path is undefined', async () => {
+    const store = createProviderConfigStore(undefined);
+    expect(await store.load()).toEqual({});
+    await expect(store.save({})).resolves.toBeUndefined();
   });
 });

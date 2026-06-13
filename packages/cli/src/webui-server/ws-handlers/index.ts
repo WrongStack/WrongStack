@@ -1,5 +1,6 @@
 import type { ModelsRegistry } from '@wrongstack/core';
 import type { WebSocket } from 'ws';
+import type { ProviderConfigStore } from '../provider-config.js';
 
 /**
  * PR 5 of Issue #30 (webui-server 8-PR refactor): ws-handlers/.
@@ -31,8 +32,8 @@ export interface WsServerMessage {
  * mailbox, …) this context grows the fields they need.
  */
 export interface WsHandlerContext {
-  /** Path to the global config (~/.wrongstack/config.json) — provider keys live here. */
-  globalConfigPath: string | undefined;
+  /** Provider-config store (load/save the saved-providers map), bound to the global config path. */
+  providerStore: ProviderConfigStore;
   /** Models registry backing the provider/model catalog (optional). */
   modelsRegistry: ModelsRegistry | undefined;
   /** Send one message to a single socket (no-op if the socket isn't OPEN). */
