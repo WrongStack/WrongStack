@@ -17,7 +17,6 @@ import {
   createSessionEventBridge,
   createTieredBrainArbiter,
   DefaultBrainArbiter,
-  DefaultSystemPromptBuilder,
   type Director,
   EternalAutonomyEngine,
   expectDefined,
@@ -30,7 +29,6 @@ import {
   isStdinTTY,
   loadDirectorState,
   mailboxSessionTag,
-  makeAutonomyPromptContributor,
   makeMailboxTool,
   makeMailInboxTool,
   makeMailSendTool,
@@ -66,6 +64,7 @@ import { launchEternalFromFlag } from './cli-eternal-flag.js';
 import { promptRecovery } from './cli-recovery-prompt.js';
 import { runPreflight } from './preflight.js';
 import { wireContainer } from './boot/container-wiring.js';
+import { bindSystemPromptBuilder } from './boot/system-prompt-builder.js';
 import { helpCmd, versionCmd } from './subcommands/handlers/version-help.js';
 import { resolveRuntimeMaxContext } from './context-limit.js';
 import { type ExecutionDeps, execute } from './execution.js';
@@ -247,7 +246,7 @@ export async function main(argv: string[]): Promise<number> {
 
   const memoryStore = container.resolve(TOKENS.MemoryStore);
   const skillLoader = container.resolve(TOKENS.SkillLoader);
-  const sessionRef: { current?: import('@wrongstack/core').SessionWriter | undefined } = {};
+  const sessionRef: { current: import('@wrongstack/core').SessionWriter | undefined } = { current: undefined };
   // Forward declaration: the autonomy mode state lives later in this
   // function but the SystemPromptBuilder needs a reference to it NOW so
   // the autonomy contributor can read the current mode at build time.
@@ -256,35 +255,28 @@ export async function main(argv: string[]): Promise<number> {
   const autonomyModeRef: {
     current: import('./slash-commands/autonomy.js').AutonomyMode;
   } = { current: 'off' };
-  const goalPathForPrompt = wpaths.projectGoal;
-  container.bind(
-    TOKENS.SystemPromptBuilder,
-    () =>
-      new DefaultSystemPromptBuilder({
-        memoryStore,
-        skillLoader: config.features.skills ? skillLoader : undefined,
-        modeStore,
-        modeId,
-        modePrompt,
-        modelCapabilities,
-        planPath: () =>
-          sessionRef.current
-            ? path.join(wpaths.projectSessions, `${sessionRef.current.id}.plan.json`)
-            : undefined,
-        contributors: [
-          // Injects the ETERNAL AUTONOMY block when the user has activated
-          // a long-running autonomy engine. Without this, the per-iteration
-          // directive is the only place the model sees the rules — compaction
-          // can drop it and the model forgets it's in autonomy mode.
-          makeAutonomyPromptContributor({
-            goalPath: goalPathForPrompt,
-            enabled: () =>
-              autonomyModeRef.current === 'eternal' ||
-              autonomyModeRef.current === 'eternal-parallel',
-          }),
-        ],
-      }),
-  );
+  // PR 5 of Issue #29: SystemPromptBuilder binding is now
+  // a single helper call. The helper takes the same forward
+  // declarations and reads them lazily through the same
+  // closure shape — no behavior change.
+  bindSystemPromptBuilder({
+    container,
+    modeStore,
+    memoryStore,
+    skillLoader,
+    sessionRef,
+    autonomyModeRef,
+    modeId,
+    modePrompt,
+    modelCapabilities,
+    skillsEnabled: config.features.skills,
+    paths: {
+      projectGoal: wpaths.projectGoal,
+      projectSessions: wpaths.projectSessions,
+    },
+    pathJoiner: { join: (a, b) => path.join(a, b) },
+    systemPromptBuilderToken: TOKENS.SystemPromptBuilder,
+  });
 
   // Tool registry
   const toolRegistry = new ToolRegistry();
