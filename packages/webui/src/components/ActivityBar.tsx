@@ -47,7 +47,7 @@ interface PanelDef {
   pairedView?: 'chat' | 'files';
 }
 
-type MainView = 'autophase' | 'agentflow' | 'settings';
+type MainView = 'autophase' | 'agentflow' | 'fleet' | 'settings';
 
 interface ViewDef {
   id: MainView;
@@ -67,6 +67,7 @@ const PANELS: PanelDef[] = [
 const VIEWS: ViewDef[] = [
   { id: 'autophase', icon: <Rocket size={16} />, label: 'Phases' },
   { id: 'agentflow', icon: <GitBranch size={16} />, label: 'Flow' },
+  { id: 'fleet', icon: <Monitor size={16} />, label: 'Fleet' },
   { id: 'settings', icon: <SettingsIcon size={16} />, label: 'Settings' },
 ];
 

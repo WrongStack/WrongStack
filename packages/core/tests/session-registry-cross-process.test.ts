@@ -64,6 +64,40 @@ describe('cross-process session discovery', () => {
     expect(list[0]!.gitBranch).toBe('main');
   });
 
+  it('re-registering the same process (project switch) replaces its entry, not adds one', async () => {
+    const root = await freshRoot();
+    const reg = new SessionRegistry(root);
+    // Initial registration — process is "in" project Alpha.
+    await reg.register({
+      sessionId: 'sess-old',
+      projectSlug: 'alpha',
+      projectRoot: '/home/alpha',
+      projectName: 'Alpha',
+      workingDir: '/home/alpha',
+      pid: 9001,
+      startedAt: new Date().toISOString(),
+    });
+    // WebUI switches projects in place: same pid, fresh session id, new root.
+    await reg.register({
+      sessionId: 'sess-new',
+      projectSlug: 'beta',
+      projectRoot: '/home/beta',
+      projectName: 'Beta',
+      workingDir: '/home/beta',
+      pid: 9001,
+      startedAt: new Date().toISOString(),
+    });
+
+    const list = await reg.list();
+    // Exactly one entry for this process — no phantom pointing at the old root.
+    expect(list).toHaveLength(1);
+    expect(list[0]!.sessionId).toBe('sess-new');
+    expect(list[0]!.projectSlug).toBe('beta');
+    expect(list[0]!.workingDir).toBe('/home/beta');
+    expect(await reg.get('sess-old')).toBeUndefined();
+    expect(await reg.listByProject('alpha')).toHaveLength(0);
+  });
+
   it('two processes can discover each other', async () => {
     const root = await freshRoot();
     // Simulate process 1

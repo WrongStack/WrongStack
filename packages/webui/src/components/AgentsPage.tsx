@@ -5,6 +5,7 @@ import type { SubagentView } from '@/stores';
 import {
   Activity,
   ArrowDown,
+  ArrowRight,
   ArrowUp,
   Bot,
   CheckCircle2,
@@ -13,8 +14,13 @@ import {
   Clock,
   Cpu,
   Copy,
+  Database,
+  DollarSign,
+  FolderOpen,
   Gauge,
+  Loader2,
   Sparkles,
+  Timer,
   Wrench,
   XCircle,
   Zap,
@@ -132,6 +138,15 @@ interface LeaderEntry {
   partialText?: string | undefined;
   finalText?: string | undefined;
   error?: { kind: string | undefined; message: string } | undefined;
+  /** Human-readable description of the current task. */
+  description?: string | undefined;
+  /** Budget warning if hitting a soft limit. */
+  budgetWarning?: { kind: string; used: number; limit: number } | undefined;
+  /** Per-agent token usage. */
+  tokensIn?: number | undefined;
+  tokensOut?: number | undefined;
+  /** Sparkline bins for activity visualization. */
+  sparklineBins?: number[];
 }
 
 type AgentView = SubagentView | LeaderEntry;
@@ -146,6 +161,7 @@ function AgentDetailPanel({
   now: number;
 }): React.ReactElement {
   const [copied, setCopied] = useState(false);
+  const [showFullToolLog, setShowFullToolLog] = useState(false);
   const handleCopy = useCallback(async (text: string) => {
     try {
       await navigator.clipboard.writeText(text);
@@ -164,159 +180,295 @@ function AgentDetailPanel({
   const outputText = agent.partialText || agent.finalText || undefined;
   const isStream = !agent.finalText && !!agent.partialText;
 
+  // Calculate total tool duration
+  const totalToolDuration = agent.toolLog.reduce((sum, t) => sum + t.durationMs, 0);
+  const avgToolDuration = agent.toolLog.length > 0 ? Math.round(totalToolDuration / agent.toolLog.length) : 0;
+
+  // Get unique tools used
+  const uniqueTools = useMemo(() => {
+    const tools = new Set<string>();
+    agent.toolLog.forEach((t) => tools.add(t.name));
+    return tools.size;
+  }, [agent.toolLog]);
+
   return (
-    <div className="rounded-lg border border-primary/30 bg-card p-4 space-y-4">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <span className="text-sm font-semibold text-primary">{agent.name}</span>
-          <span className={cn('text-[10px] uppercase tracking-wider', STATUS_META[agent.status]?.color ?? 'text-muted-foreground')}>
-            {STATUS_META[agent.status]?.label ?? agent.status}
-          </span>
-        </div>
-        <span className="text-[10px] text-muted-foreground tabular-nums">
-          {active ? fmtElapsed(Math.max(0, now - agent.startedAt)) : '—'}
-        </span>
-      </div>
-
-      {/* Sparkline + last tool */}
-      {(spark || lastTool) && (
-        <div className="flex items-center gap-3">
-          {spark && <span className="text-sm text-[hsl(var(--success))] font-mono tracking-[-0.1em]">{spark}</span>}
-          {lastTool && (
-            <span className="text-xs text-muted-foreground">
-              last: <span className="font-mono">{lastTool.name}</span>
-              <span className="tabular-nums"> {lastTool.durationMs}ms</span>
-              {!lastTool.ok && <span className="text-destructive ml-1">✗</span>}
-            </span>
-          )}
-        </div>
-      )}
-
-      {/* Stats grid */}
-      <div className="grid grid-cols-3 gap-2">
-        <div className="rounded bg-muted/30 px-2 py-1.5">
-          <span className="text-[9px] text-muted-foreground">Provider / Model</span>
-          <div className="flex items-center gap-1 mt-0.5">
-            <Cpu className="h-3 w-3 text-muted-foreground" />
-            <span className="text-[11px] font-mono font-medium">
-              {agent.provider ?? '?'}/{agent.model ?? '?'}
-            </span>
+    <div className="h-full flex flex-col">
+      {/* Fixed header */}
+      <div className="shrink-0 border-b bg-card p-4 space-y-3">
+        {/* Header */}
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="flex items-center justify-center w-10 h-10 rounded-lg bg-primary/10">
+              <Bot className="h-5 w-5 text-primary" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="text-base font-semibold">{agent.name}</span>
+                <span className={cn(
+                  'px-2 py-0.5 rounded text-[10px] font-medium uppercase tracking-wider',
+                  STATUS_META[agent.status]?.color === 'text-[hsl(var(--success))]'
+                    ? 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400'
+                    : STATUS_META[agent.status]?.color === 'text-destructive'
+                      ? 'bg-destructive/15 text-destructive'
+                      : 'bg-muted text-muted-foreground'
+                )}>
+                  {STATUS_META[agent.status]?.label ?? agent.status}
+                </span>
+              </div>
+              {'sessionId' in agent && agent.sessionId && (
+                <span className="text-[10px] text-muted-foreground font-mono">
+                  session: {agent.sessionId.slice(0, 12)}…
+                </span>
+              )}
+            </div>
+          </div>
+          <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
+            {active && (
+              <span className="flex items-center gap-1.5">
+                <Timer className="h-3.5 w-3.5" />
+                <span className="tabular-nums font-mono">{fmtElapsed(Math.max(0, now - agent.startedAt))}</span>
+              </span>
+            )}
+            <span className={cn('led', STATUS_META[agent.status]?.color.replace('text-', 'bg-'), active && 'led-pulse')} />
           </div>
         </div>
-        <div className="rounded bg-muted/30 px-2 py-1.5">
-          <span className="text-[9px] text-muted-foreground">Iterations</span>
-          <span className="block text-[11px] font-mono font-medium mt-0.5">
-            L{getIterations(agent)}
-          </span>
-        </div>
-        <div className="rounded bg-muted/30 px-2 py-1.5">
-          <span className="text-[9px] text-muted-foreground">Tool Calls</span>
-          <span className="block text-[11px] font-mono font-medium mt-0.5">
-            {agent.toolCalls}t
-          </span>
-        </div>
-        <div className="rounded bg-muted/30 px-2 py-1.5 col-span-3">
-          <span className="text-[9px] text-muted-foreground">Cost Breakdown</span>
-          <div className="flex items-center gap-2 mt-0.5">
-            <span className="text-[11px] font-mono font-medium text-[hsl(var(--success))]">
-              {fmtCost(agent.costUsd)} total
-            </span>
-            {agent.ctxPct > 0 && (
-              <span className="text-[11px] font-mono text-[hsl(var(--warning))]">
-                ctx {agent.ctxPct}%
+
+        {/* Activity sparkline */}
+        {spark && (
+          <div className="flex items-center gap-3 px-3 py-2 rounded-lg bg-muted/30">
+            <span className="text-[10px] text-muted-foreground uppercase tracking-wider">Activity</span>
+            <span className="text-sm text-[hsl(var(--success))] font-mono tracking-[-0.1em]">{spark}</span>
+            {lastTool && (
+              <span className="text-[10px] text-muted-foreground ml-auto">
+                last: <span className="font-mono">{lastTool.name}</span>
+                <span className="tabular-nums"> {lastTool.durationMs}ms</span>
+                {!lastTool.ok && <span className="text-destructive ml-1">✗</span>}
               </span>
             )}
           </div>
-        </div>
+        )}
+
+        {/* Task description */}
+        {agent.description && (
+          <div className="px-3 py-2 rounded-lg bg-muted/20 border border-border/50">
+            <span className="text-[9px] text-muted-foreground uppercase tracking-wider">Current Task</span>
+            <p className="text-xs mt-1 text-foreground/80">{agent.description}</p>
+          </div>
+        )}
       </div>
 
-      {/* Context bar */}
-      {agent.maxContext > 0 && (
-        <ContextFillBar
-          pct={agent.ctxPct}
-          tokens={agent.ctxTokens}
-          maxTokens={agent.maxContext}
-        />
-      )}
-
-      {/* Current tool */}
-      {tool && active && (
-        <div className="rounded-lg border border-primary/30 bg-primary/[0.04] px-3 py-2 flex items-center gap-2">
-          <Wrench className="h-3.5 w-3.5 text-primary animate-pulse" />
-          <span className="text-xs font-mono">{tool}</span>
-          <span className="text-[10px] text-muted-foreground ml-auto">running…</span>
+      {/* Scrollable content */}
+      <div className="flex-1 overflow-y-auto p-4 space-y-4">
+        {/* Stats grid - detailed */}
+        <div className="grid grid-cols-2 gap-3">
+          <div className="rounded-lg border bg-card p-3">
+            <div className="flex items-center gap-2 text-[9px] text-muted-foreground uppercase tracking-wider mb-2">
+              <Cpu className="h-3 w-3" /> Provider / Model
+            </div>
+            <div className="text-sm font-mono font-medium">
+              {agent.provider ?? '?'}/{agent.model ?? '?'}
+            </div>
+          </div>
+          <div className="rounded-lg border bg-card p-3">
+            <div className="flex items-center gap-2 text-[9px] text-muted-foreground uppercase tracking-wider mb-2">
+              <Activity className="h-3 w-3" /> Performance
+            </div>
+            <div className="space-y-1">
+              <div className="flex justify-between text-[11px]">
+                <span className="text-muted-foreground">Iterations</span>
+                <span className="font-mono font-medium">L{getIterations(agent)}</span>
+              </div>
+              <div className="flex justify-between text-[11px]">
+                <span className="text-muted-foreground">Tool Calls</span>
+                <span className="font-mono font-medium">{agent.toolCalls}</span>
+              </div>
+              <div className="flex justify-between text-[11px]">
+                <span className="text-muted-foreground">Unique Tools</span>
+                <span className="font-mono font-medium">{uniqueTools}</span>
+              </div>
+            </div>
+          </div>
+          <div className="rounded-lg border bg-card p-3">
+            <div className="flex items-center gap-2 text-[9px] text-muted-foreground uppercase tracking-wider mb-2">
+              <DollarSign className="h-3 w-3" /> Cost
+            </div>
+            <div className="text-lg font-mono font-bold text-[hsl(var(--success))]">
+              {fmtCost(agent.costUsd)}
+            </div>
+            <div className="text-[10px] text-muted-foreground mt-1">
+              avg {avgToolDuration}ms per tool
+            </div>
+          </div>
+          <div className="rounded-lg border bg-card p-3">
+            <div className="flex items-center gap-2 text-[9px] text-muted-foreground uppercase tracking-wider mb-2">
+              <Database className="h-3 w-3" /> Context
+            </div>
+            <div className="space-y-2">
+              <div className="flex justify-between text-[11px]">
+                <span className="text-muted-foreground">Tokens</span>
+                <span className="font-mono font-medium">{fmtTok(agent.ctxTokens)}</span>
+              </div>
+              <ContextFillBar pct={agent.ctxPct} tokens={agent.ctxTokens} maxTokens={agent.maxContext} />
+            </div>
+          </div>
         </div>
-      )}
 
-      {/* Output */}
-      {outputText ? (
-        <div className="rounded-lg border bg-muted/20 p-3">
-          <div className="flex items-center justify-between mb-1.5">
-            <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
-              {isStream ? 'Live Output' : 'Output'}
-            </span>
+        {/* Context bar - full width */}
+        {agent.maxContext > 0 && (
+          <div className="rounded-lg border bg-card p-3">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-[9px] text-muted-foreground uppercase tracking-wider">Context Usage</span>
+              <span className={cn(
+                'text-[11px] font-mono font-medium',
+                agent.ctxPct >= 85 ? 'text-destructive' : agent.ctxPct >= 70 ? 'text-amber-500' : 'text-[hsl(var(--success))]'
+              )}>
+                {agent.ctxPct}%
+              </span>
+            </div>
+            <ContextFillBar pct={agent.ctxPct} tokens={agent.ctxTokens} maxTokens={agent.maxContext} />
+          </div>
+        )}
+
+        {/* Current tool */}
+        {tool && (
+          <div className={cn(
+            'rounded-lg border px-4 py-3 flex items-center gap-3',
+            active ? 'border-primary/30 bg-primary/[0.04]' : 'border-border bg-muted/30'
+          )}>
+            <Wrench className={cn('h-4 w-4', active ? 'text-primary animate-pulse' : 'text-muted-foreground')} />
+            <span className="text-sm font-mono font-medium">{tool}</span>
+            {active ? (
+              <span className="ml-auto flex items-center gap-1.5 text-[10px] text-primary">
+                <Loader2 className="h-3 w-3 animate-spin" /> running…
+              </span>
+            ) : (
+              <span className="ml-auto text-[10px] text-muted-foreground">completed</span>
+            )}
+          </div>
+        )}
+
+        {/* Streaming/Final output */}
+        {outputText ? (
+          <div className="rounded-lg border bg-card">
+            <div className="flex items-center justify-between px-4 py-2 border-b bg-muted/30">
+              <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-2">
+                {isStream ? (
+                  <>
+                    <span className="w-2 h-2 rounded-full bg-blue-500 animate-pulse" />
+                    Live Output
+                  </>
+                ) : (
+                  <>
+                    <FolderOpen className="h-3 w-3" />
+                    Final Output
+                  </>
+                )}
+              </span>
+              <button
+                type="button"
+                onClick={() => handleCopy(outputText)}
+                className="flex items-center gap-1 px-2 py-1 rounded text-[10px] text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+              >
+                {copied ? <CheckCircle2 className="h-3 w-3 text-emerald-500" /> : <Copy className="h-3 w-3" />}
+                {copied ? 'Copied' : 'Copy'}
+              </button>
+            </div>
+            <pre className="p-4 text-xs whitespace-pre-wrap font-mono text-foreground/80 leading-relaxed max-h-64 overflow-y-auto">
+              {outputText}
+            </pre>
+          </div>
+        ) : active ? (
+          <div className="rounded-lg border border-dashed border-border p-6 text-center">
+            <Loader2 className="h-6 w-6 mx-auto mb-2 text-muted-foreground/50 animate-spin" />
+            <span className="text-xs text-muted-foreground">Waiting for output…</span>
+          </div>
+        ) : null}
+
+        {/* Budget warning */}
+        {agent.budgetWarning && (
+          <div className="flex items-center gap-3 px-4 py-3 rounded-lg bg-amber-500/10 border border-amber-500/20">
+            <Zap className="h-5 w-5 text-amber-500 shrink-0" />
+            <div>
+              <span className="text-sm font-medium text-amber-600 dark:text-amber-400">
+                ⚡ Budget Warning
+              </span>
+              <p className="text-[11px] text-amber-600/80 dark:text-amber-400/80 mt-0.5">
+                Hitting {agent.budgetWarning.kind} limit ({agent.budgetWarning.used}/{agent.budgetWarning.limit})
+              </p>
+            </div>
+          </div>
+        )}
+
+        {/* Extensions */}
+        {agent.extensions > 0 && (
+          <div className="flex items-center gap-3 px-4 py-3 rounded-lg bg-[hsl(var(--warning))]/10 border border-[hsl(var(--warning))]/20">
+            <Zap className="h-5 w-5 text-[hsl(var(--warning))] shrink-0" />
+            <div>
+              <span className="text-sm font-medium">
+                {agent.extensions} Budget Extension{agent.extensions === 1 ? '' : 's'}
+              </span>
+              <p className="text-[11px] text-muted-foreground mt-0.5">
+                Agent extended its budget {agent.extensions} time{agent.extensions === 1 ? '' : 's'} due to long-running tasks
+              </p>
+            </div>
+          </div>
+        )}
+
+        {/* Error */}
+        {agent.error && (
+          <div className="rounded-lg border border-destructive/30 bg-destructive/5 p-4">
+            <div className="flex items-center gap-2 mb-2">
+              <XCircle className="h-4 w-4 text-destructive" />
+              <span className="text-[10px] font-semibold text-destructive uppercase tracking-wider">Error</span>
+            </div>
+            <p className="text-sm text-destructive/90">{agent.error.message}</p>
+          </div>
+        )}
+
+        {/* Tool Log - detailed */}
+        {agent.toolLog.length > 0 && (
+          <div className="rounded-lg border bg-card">
             <button
               type="button"
-              onClick={() => handleCopy(outputText)}
-              className="flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+              onClick={() => setShowFullToolLog(!showFullToolLog)}
+              className="w-full flex items-center justify-between px-4 py-2 border-b bg-muted/30 hover:bg-muted/50 transition-colors"
             >
-              {copied ? <CheckCircle2 className="h-3 w-3 text-emerald-500" /> : <Copy className="h-3 w-3" />}
-              {copied ? 'Copied' : 'Copy'}
+              <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-2">
+                <Wrench className="h-3 w-3" />
+                Tool Log ({agent.toolLog.length} calls)
+              </span>
+              <ChevronRight className={cn('h-4 w-4 text-muted-foreground transition-transform', showFullToolLog && 'rotate-90')} />
             </button>
-          </div>
-          <pre className="text-xs whitespace-pre-wrap font-mono text-foreground/80 leading-relaxed max-h-48 overflow-y-auto">
-            {outputText}
-          </pre>
-        </div>
-      ) : active ? (
-        <div className="rounded-lg border border-dashed border-border p-3 text-center">
-          <span className="text-xs text-muted-foreground">Waiting for output…</span>
-        </div>
-      ) : null}
-
-      {/* Extensions */}
-      {agent.extensions > 0 && (
-        <div className="rounded-lg bg-[hsl(var(--warning))]/10 px-3 py-1.5 flex items-center gap-2">
-          <Zap className="h-3.5 w-3.5 text-[hsl(var(--warning))]" />
-          <span className="text-xs">
-            <span className="font-medium">{agent.extensions}</span> budget extension{agent.extensions === 1 ? '' : 's'}
-          </span>
-        </div>
-      )}
-
-      {/* Error */}
-      {agent.error && (
-        <div className="rounded-lg border border-destructive/30 bg-destructive/5 p-3">
-          <span className="text-[10px] font-semibold text-destructive uppercase tracking-wider">Error</span>
-          <p className="text-xs text-destructive/90 mt-1">{agent.error.message}</p>
-        </div>
-      )}
-
-      {/* Tool log */}
-      {agent.toolLog.length > 0 && (
-        <div className="space-y-1">
-          <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
-            Tool Log ({agent.toolLog.length})
-          </span>
-          <div className="max-h-40 overflow-y-auto space-y-0.5">
-            {agent.toolLog.slice(0, 20).map((tl, i) => (
-              <div
-                key={`${tl.name}-${tl.at}-${i}`}
-                className={cn(
-                  'flex items-center gap-2 rounded px-2 py-1 text-[10px]',
-                  tl.ok ? 'bg-muted/30' : 'bg-destructive/5 border border-destructive/20',
-                )}
-              >
-                <span className={cn('led shrink-0', tl.ok ? 'text-[hsl(var(--success))]' : 'text-destructive')} />
-                <span className="font-mono truncate flex-1">{tl.name}</span>
-                <span className="tabular text-muted-foreground">{tl.durationMs}ms</span>
-                {!tl.ok && <span className="text-destructive font-medium">fail</span>}
+            <div className={cn('overflow-hidden transition-all', showFullToolLog ? 'max-h-[500px]' : 'max-h-48')}>
+              <div className="p-2 space-y-0.5">
+                {agent.toolLog.map((tl, i) => (
+                  <div
+                    key={`${tl.name}-${tl.at}-${i}`}
+                    className={cn(
+                      'flex items-center gap-3 rounded px-3 py-2 text-[11px]',
+                      tl.ok ? 'bg-muted/30 hover:bg-muted/50' : 'bg-destructive/5 border border-destructive/20',
+                    )}
+                  >
+                    <span className={cn('led shrink-0', tl.ok ? 'text-[hsl(var(--success))]' : 'text-destructive')} />
+                    <span className={cn('font-mono font-medium w-20 shrink-0', tl.ok ? 'text-foreground' : 'text-destructive')}>
+                      {tl.name}
+                    </span>
+                    <span className="text-muted-foreground tabular-nums text-[10px]">
+                      {tl.durationMs >= 1000 ? `${(tl.durationMs / 1000).toFixed(2)}s` : `${tl.durationMs}ms`}
+                    </span>
+                    {!tl.ok && (
+                      <span className="ml-auto text-[10px] text-destructive font-medium">Failed</span>
+                    )}
+                    <span className="ml-auto text-[9px] text-muted-foreground tabular-nums">
+                      {new Date(tl.at).toLocaleTimeString()}
+                    </span>
+                  </div>
+                ))}
               </div>
-            ))}
+            </div>
           </div>
-        </div>
-      )}
+        )}
+      </div>
     </div>
   );
 }
@@ -596,157 +748,211 @@ export function AgentsPage({
   }, [sorted]);
 
   return (
-    <div className={cn('flex flex-col h-full', className)} ref={containerRef}>
-      {/* ── Header ── */}
-      <div className="border-b bg-card/95 backdrop-blur-sm shrink-0">
-        <div className="px-4 py-2 space-y-1.5">
-          {/* Title row */}
-          <div className="flex items-center gap-2">
-            <h2 className="text-sm font-semibold flex items-center gap-1.5">
-              <Bot className="h-4 w-4 text-primary" />
-              AGENTS · LIVE
-            </h2>
-            <span className="text-muted-foreground/40">│</span>
-            {counts.running > 0 && (
-              <span className="flex items-center gap-1 text-[11px] text-[hsl(var(--success))] font-medium">
-                <span className="led led-pulse text-[hsl(var(--success))]" />
-                {counts.running} running
-              </span>
-            )}
-            <span className="text-[11px] text-muted-foreground">
-              {counts.completed} done
-            </span>
-            {counts.failed > 0 && (
-              <span className="text-[11px] text-destructive">
-                {counts.failed} failed
-              </span>
-            )}
-            <span className="text-[10px] text-muted-foreground ml-auto">
-              j/k or ↑↓ to navigate · Esc to deselect
-            </span>
-          </div>
-
-          {/* Model mapping */}
-          {modelMap.length > 0 && (
+    <div className={cn('flex h-full', className)} ref={containerRef}>
+      {/* ── Left column: Agent list ── */}
+      <div className={cn(
+        'flex flex-col border-r bg-card/95 transition-all duration-200',
+        selected ? 'w-[400px] shrink-0' : 'w-full'
+      )}>
+        {/* Header */}
+        <div className="border-b bg-card/95 backdrop-blur-sm shrink-0">
+          <div className="px-4 py-3 space-y-2">
+            {/* Title row */}
             <div className="flex items-center gap-2">
-              <span className="text-[10px] text-muted-foreground">models</span>
-              {modelMap.map(([name, mod]) => (
-                <span key={name} className="text-[10px] text-muted-foreground font-mono">
-                  {name}:{mod}
+              <h2 className="text-sm font-semibold flex items-center gap-1.5">
+                <Bot className="h-4 w-4 text-primary" />
+                AGENTS · LIVE
+              </h2>
+              <span className="text-muted-foreground/40">│</span>
+              {counts.running > 0 && (
+                <span className="flex items-center gap-1 text-[11px] text-[hsl(var(--success))] font-medium">
+                  <span className="led led-pulse text-[hsl(var(--success))]" />
+                  {counts.running} running
                 </span>
-              ))}
+              )}
+              <span className="text-[11px] text-muted-foreground">
+                {counts.completed} done
+              </span>
+              {counts.failed > 0 && (
+                <span className="text-[11px] text-destructive">
+                  {counts.failed} failed
+                </span>
+              )}
+            </div>
+
+            {/* Model mapping */}
+            {modelMap.length > 0 && (
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] text-muted-foreground">models</span>
+                {modelMap.map(([name, mod]) => (
+                  <span key={name} className="text-[10px] text-muted-foreground font-mono">
+                    {name}:{mod}
+                  </span>
+                ))}
+              </div>
+            )}
+
+            {/* Totals row */}
+            <div className="flex items-center gap-2">
+              <span className="text-[10px] text-muted-foreground">shown</span>
+              <span className="text-[10px] font-medium">{sorted.length}</span>
+              <span className="text-[10px] text-muted-foreground">total</span>
+              <span className="text-[10px] text-[hsl(var(--success))] font-medium tabular-nums">
+                {fmtCost(totalCost)}
+              </span>
+              <span className="text-[10px] text-muted-foreground">
+                (leader {fmtCost(leaderEntry.costUsd)} · fleet {fmtCost(totalCost - leaderEntry.costUsd)})
+              </span>
+            </div>
+
+            {/* Navigation hint */}
+            <div className="flex items-center gap-2">
+              <span className="text-[9px] text-muted-foreground/60">
+                j/k or ↑↓ to navigate
+              </span>
+              {selected && (
+                <button
+                  type="button"
+                  onClick={() => setSelectedId(null)}
+                  className="text-[9px] text-muted-foreground/60 hover:text-foreground transition-colors"
+                >
+                  · Esc to close detail
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Agent list */}
+        <div className="flex-1 overflow-y-auto">
+          {sorted.length === 0 ? (
+            <div className="flex items-center justify-center h-full">
+              <div className="text-center space-y-2">
+                <Bot className="h-8 w-8 text-muted-foreground/40 mx-auto" />
+                <p className="text-sm text-muted-foreground">
+                  No agents running.
+                </p>
+                <p className="text-xs text-muted-foreground/60">
+                  Agents appear here when the fleet is active.
+                </p>
+              </div>
+            </div>
+          ) : (
+            <div className="p-2 space-y-1">
+              {(() => {
+                const groups = new Map<string, AgentView[]>();
+                for (const a of sorted) {
+                  const sid = 'sessionId' in a ? a.sessionId : undefined;
+                  const key = sid ?? '__unknown__';
+                  const list = groups.get(key) ?? [];
+                  list.push(a);
+                  groups.set(key, list);
+                }
+                const entries = [...groups.entries()];
+                const multiSession = entries.length > 1;
+
+                const rows: React.ReactNode[] = [];
+                for (const [sid, agents] of entries) {
+                  if (multiSession) {
+                    const label = sid === '__unknown__' ? 'Unknown session' : sid.slice(0, 8);
+                    const agentCount = agents.length;
+                    rows.push(
+                      <button
+                        type="button"
+                        key={`grp-${sid}`}
+                        className="text-[9px] text-muted-foreground/50 font-mono px-2 pt-3 pb-1 uppercase tracking-wider hover:text-muted-foreground hover:bg-muted/30 rounded transition-colors cursor-pointer w-full text-left"
+                        title={`Session: ${sid} — click to copy ID`}
+                        onClick={async () => {
+                          try {
+                            await navigator.clipboard.writeText(sid);
+                          } catch {
+                            // clipboard unavailable — no-op
+                          }
+                        }}
+                      >
+                        {label}
+                        {sid !== '__unknown__' && (
+                          <span className="ml-1.5 text-[8px] opacity-60">session</span>
+                        )}
+                        <span className="ml-1 text-[8px] opacity-40">
+                          · {agentCount} agent{agentCount !== 1 ? 's' : ''}
+                        </span>
+                      </button>,
+                    );
+                  }
+                  for (const a of agents) {
+                    rows.push(
+                      <AgentRow
+                        key={a.id}
+                        agent={a}
+                        now={nowTick}
+                        selected={a.id === selected?.id}
+                        onClick={() => setSelectedId(selectedId === a.id ? null : a.id)}
+                        onContextClick={() => setBreakdownOpen(true)}
+                      />,
+                    );
+                  }
+                }
+                return rows;
+              })()}
             </div>
           )}
-
-          {/* Totals row */}
-          <div className="flex items-center gap-2">
-            <span className="text-[10px] text-muted-foreground">shown</span>
-            <span className="text-[10px] font-medium">{sorted.length}</span>
-            <span className="text-[10px] text-muted-foreground">total</span>
-            <span className="text-[10px] text-[hsl(var(--success))] font-medium tabular-nums">
-              {fmtCost(totalCost)}
-            </span>
-            <span className="text-[10px] text-muted-foreground">
-              (leader {fmtCost(leaderEntry.costUsd)} · fleet {fmtCost(totalCost - leaderEntry.costUsd)})
-            </span>
-          </div>
         </div>
       </div>
 
-      {/* ── Agent list ── */}
-      <div className="flex-1 overflow-y-auto">
-        {sorted.length === 0 ? (
-          <div className="flex items-center justify-center h-full">
-            <div className="text-center space-y-2">
-              <Bot className="h-8 w-8 text-muted-foreground/40 mx-auto" />
-              <p className="text-sm text-muted-foreground">
-                No agents running.
-              </p>
-              <p className="text-xs text-muted-foreground/60">
-                Agents appear here when the fleet is active.
-              </p>
+      {/* ── Right column: Agent detail ── */}
+      {selected && (
+        <div className="flex-1 overflow-hidden bg-card/50">
+          <div className="h-full flex flex-col">
+            {/* Detail header bar */}
+            <div className="shrink-0 px-4 py-2 border-b bg-card/80 flex items-center gap-2">
+              <ArrowRight className="h-4 w-4 text-primary" />
+              <span className="text-xs font-semibold text-primary">{selected.name}</span>
+              <span className="text-[10px] text-muted-foreground">detailed view</span>
+              <button
+                type="button"
+                onClick={() => setSelectedId(null)}
+                className="ml-auto text-[10px] text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1"
+              >
+                ✕ close
+              </button>
+            </div>
+            {/* Detail content */}
+            <div className="flex-1 overflow-hidden">
+              <AgentDetailPanel agent={selected} now={nowTick} />
             </div>
           </div>
-        ) : (
-          <div className="p-3 space-y-1.5">
-            {(() => {
-              // Group agents by sessionId — show a subtle header when
-              // agents from multiple sessions exist in the roster.
-              const groups = new Map<string, AgentView[]>();
-              for (const a of sorted) {
-                const sid = 'sessionId' in a ? a.sessionId : undefined;
-                const key = sid ?? '__unknown__';
-                const list = groups.get(key) ?? [];
-                list.push(a);
-                groups.set(key, list);
-              }
-              const entries = [...groups.entries()];
-              const multiSession = entries.length > 1;
+        </div>
+      )}
 
-              const rows: React.ReactNode[] = [];
-              for (const [sid, agents] of entries) {
-                if (multiSession) {
-                  const label = sid === '__unknown__' ? 'Unknown session' : sid.slice(0, 8);
-                  const agentCount = agents.length;
-                  rows.push(
-                    <button
-                      type="button"
-                      key={`grp-${sid}`}
-                      className="text-[9px] text-muted-foreground/50 font-mono px-1 pt-2 pb-0.5 uppercase tracking-wider hover:text-muted-foreground hover:bg-muted/30 rounded transition-colors cursor-pointer w-full text-left"
-                      title={`Session: ${sid} — click to copy ID`}
-                      onClick={async () => {
-                        try {
-                          await navigator.clipboard.writeText(sid);
-                        } catch {
-                          // clipboard unavailable — no-op
-                        }
-                      }}
-                    >
-                      {label}
-                      {sid !== '__unknown__' && (
-                        <span className="ml-1.5 text-[8px] opacity-60">session</span>
-                      )}
-                      <span className="ml-1 text-[8px] opacity-40">
-                        · {agentCount} agent{agentCount !== 1 ? 's' : ''}
-                      </span>
-                    </button>,
-                  );
-                }
-                for (const a of agents) {
-                  rows.push(
-                    <AgentRow
-                      key={a.id}
-                      agent={a}
-                      now={nowTick}
-                      selected={a.id === selected?.id}
-                      onClick={() => setSelectedId(selectedId === a.id ? null : a.id)}
-                      onContextClick={() => setBreakdownOpen(true)}
-                    />,
-                  );
-                }
-              }
-              return rows;
-            })()}
+      {/* Empty state when nothing selected */}
+      {!selected && sorted.length > 0 && (
+        <div className="flex-1 flex items-center justify-center bg-muted/20">
+          <div className="text-center space-y-3 max-w-sm">
+            <Bot className="h-12 w-12 text-muted-foreground/30 mx-auto" />
+            <p className="text-sm text-muted-foreground">
+              Select an agent to view detailed information
+            </p>
+            <p className="text-xs text-muted-foreground/60">
+              Click on any agent in the list to see detailed metrics, tool logs,
+              streaming output, and more — similar to the chat history detailed view.
+            </p>
+            <div className="flex items-center justify-center gap-4 pt-2">
+              <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
+                <kbd className="px-1.5 py-0.5 rounded bg-muted border text-[9px]">j</kbd>
+                <kbd className="px-1.5 py-0.5 rounded bg-muted border text-[9px]">k</kbd>
+                <span>navigate</span>
+              </div>
+              <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
+                <kbd className="px-1.5 py-0.5 rounded bg-muted border text-[9px]">Enter</kbd>
+                <span>select</span>
+              </div>
+              <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
+                <kbd className="px-1.5 py-0.5 rounded bg-muted border text-[9px]">Esc</kbd>
+                <span>deselect</span>
+              </div>
+            </div>
           </div>
-        )}
-      </div>
-
-      {/* ── Selected agent detail ── */}
-      {selected && (
-        <div className="border-t bg-card/50 shrink-0 max-h-[50vh] overflow-y-auto p-4">
-          <div className="flex items-center gap-2 mb-3">
-            <span className="text-[10px] text-muted-foreground">───</span>
-            <span className="text-xs font-semibold text-primary">{selected.name}</span>
-            <span className="text-[10px] text-muted-foreground">details ───</span>
-            <button
-              type="button"
-              onClick={() => setSelectedId(null)}
-              className="ml-auto text-[10px] text-muted-foreground hover:text-foreground transition-colors"
-            >
-              ✕ close
-            </button>
-          </div>
-          <AgentDetailPanel agent={selected} now={nowTick} />
         </div>
       )}
 

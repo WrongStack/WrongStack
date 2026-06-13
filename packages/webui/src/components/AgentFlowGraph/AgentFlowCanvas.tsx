@@ -259,7 +259,16 @@ const nodeTypes: NodeTypes = {
   context: ContextNode,
 };
 
-// ── Custom Edge ─────────────────────────────────────────────────────────────
+// ── Custom Edge with Flow Annotations ─────────────────────────────────────────
+
+interface FlowEdgeData {
+  animated?: boolean;
+  color?: string;
+  label?: string;
+  flowType?: 'prompt' | 'response' | 'tool_result' | 'tokens' | 'spawn' | 'status';
+  sequence?: number;
+  dataPayload?: string;
+}
 
 function FlowEdge({
   id,
@@ -275,47 +284,103 @@ function FlowEdge({
   sourceY: number;
   targetX: number;
   targetY: number;
-  data?: { animated?: boolean; color?: string; label?: string };
+  data?: FlowEdgeData;
   selected?: boolean;
 }) {
-  const [path, offsetX, offsetY] = getBezierPath(sourceX, sourceY, targetX, targetY);
+  const [path, labelX, labelY] = getBezierPath(sourceX, sourceY, targetX, targetY);
   const color = data?.color || '#6366f1';
   const isAnimated = data?.animated;
+  const flowType = data?.flowType || 'response';
+  const sequence = data?.sequence;
+
+  // Flow type icons and colors
+  const flowMeta: Record<string, { icon: string; bg: string; text: string }> = {
+    prompt: { icon: '📥', bg: 'bg-blue-500/20', text: 'text-blue-400' },
+    response: { icon: '📤', bg: 'bg-emerald-500/20', text: 'text-emerald-400' },
+    tool_result: { icon: '🔧', bg: 'bg-amber-500/20', text: 'text-amber-400' },
+    tokens: { icon: '💎', bg: 'bg-cyan-500/20', text: 'text-cyan-400' },
+    spawn: { icon: '✨', bg: 'bg-purple-500/20', text: 'text-purple-400' },
+    status: { icon: '📊', bg: 'bg-pink-500/20', text: 'text-pink-400' },
+  };
+
+  const meta = flowMeta[flowType] || flowMeta.response;
 
   return (
     <>
+      {/* Main edge path */}
       <path
         id={id}
         d={path}
         fill="none"
         stroke={color}
         strokeWidth={selected ? 3 : 2}
-        strokeOpacity={0.5}
+        strokeOpacity={selected ? 0.9 : 0.4}
         className="react-flow__edge-path"
+        markerEnd={`url(#arrow-${color.replace('#', '')})`}
       />
+
+      {/* Animated flow particles */}
       {isAnimated && (
         <path
           d={path}
           fill="none"
           stroke={color}
-          strokeWidth={2}
-          strokeDasharray="5 5"
+          strokeWidth={2.5}
+          strokeDasharray="8 4"
           className="animated-edge"
+          opacity={0.8}
         />
       )}
+
+      {/* Sequence number badge */}
+      {sequence !== undefined && (
+        <g transform={`translate(${labelX - 6}, ${labelY - 18})`}>
+          <circle r="8" fill={color} opacity={0.9} />
+          <text
+            x="0"
+            y="3"
+            textAnchor="middle"
+            fill="white"
+            fontSize="9"
+            fontWeight="bold"
+          >
+            {sequence}
+          </text>
+        </g>
+      )}
+
+      {/* Flow type label */}
       {data?.label && (
         <foreignObject
-          width={80}
-          height={20}
-          x={offsetX - 40}
-          y={offsetY - 10}
+          width={100}
+          height={28}
+          x={labelX - 50}
+          y={labelY - 14}
           className="overflow-visible"
         >
-          <div className="text-[8px] text-center bg-background/80 px-1 py-0.5 rounded border border-border">
-            {data.label}
+          <div className="flex items-center justify-center gap-1">
+            <span className="text-[10px]">{meta.icon}</span>
+            <div className={cn('px-2 py-1 rounded-md border text-[9px] font-medium', meta.bg, 'border-border/50', meta.text)}>
+              {data.label}
+            </div>
           </div>
         </foreignObject>
       )}
+
+      {/* Arrow marker definition */}
+      <defs>
+        <marker
+          id={`arrow-${color.replace('#', '')}`}
+          viewBox="0 0 10 10"
+          refX="9"
+          refY="5"
+          markerWidth="6"
+          markerHeight="6"
+          orient="auto-start-reverse"
+        >
+          <path d="M 0 0 L 10 5 L 0 10 z" fill={color} opacity={0.7} />
+        </marker>
+      </defs>
     </>
   );
 }
@@ -511,24 +576,36 @@ export function AgentFlowCanvas({ containerRef }: AgentFlowCanvasProps) {
         },
       });
 
-      // Session → Agent edge
+      // Session → Agent edge (task assignment)
       rfEdges.push({
         id: `session->${nodeId}`,
         source: 'session',
         target: nodeId,
         type: 'flow',
         animated: isActive,
-        data: { color: agentColor, animated: isActive },
+        data: {
+          color: agentColor,
+          animated: isActive,
+          label: 'task',
+          flowType: 'prompt',
+          sequence: i + 1,
+        },
       });
 
-      // Agent → Provider edge
+      // Agent → Provider edge (LLM call)
       rfEdges.push({
         id: `${nodeId}->provider`,
         source: nodeId,
         target: 'provider',
         type: 'flow',
         animated: isActive,
-        data: { color: '#06b6d4', animated: isActive },
+        data: {
+          color: '#06b6d4',
+          animated: isActive,
+          label: 'prompt',
+          flowType: 'prompt',
+          sequence: 0,
+        },
       });
 
       // Tool nodes (below agents)
@@ -554,28 +631,61 @@ export function AgentFlowCanvas({ containerRef }: AgentFlowCanvasProps) {
           target: toolNodeId,
           type: 'flow',
           animated: isActive,
-          data: { color: '#f59e0b', animated: isActive, label: toolName },
+          data: {
+            color: '#f59e0b',
+            animated: isActive,
+            label: 'execute',
+            flowType: 'tool_result',
+            sequence: 2,
+          },
+        });
+
+        // Tool → Agent edge (result)
+        rfEdges.push({
+          id: `${toolNodeId}->${nodeId}`,
+          source: toolNodeId,
+          target: nodeId,
+          type: 'flow',
+          animated: false,
+          data: {
+            color: '#22c55e',
+            animated: false,
+            label: 'result',
+            flowType: 'tool_result',
+            sequence: 3,
+          },
         });
       }
     });
 
-    // Provider → Session edge
+    // Provider → Session edge (LLM response)
     rfEdges.push({
       id: 'provider->session',
       source: 'provider',
       target: 'session',
       type: 'flow',
       animated: !!session,
-      data: { color: '#06b6d4', animated: !!session, label: 'llm' },
+      data: {
+        color: '#06b6d4',
+        animated: !!session,
+        label: 'response',
+        flowType: 'response',
+        sequence: 4,
+      },
     });
 
-    // Context → Session edge
+    // Context → Session edge (context fetch)
     rfEdges.push({
       id: 'context->session',
       source: 'context',
       target: 'session',
       type: 'flow',
-      data: { color: '#3b82f6' },
+      data: {
+        color: '#3b82f6',
+        animated: false,
+        label: 'tokens',
+        flowType: 'tokens',
+      },
     });
 
     setNodes(rfNodes);
@@ -750,9 +860,28 @@ export function AgentFlowCanvas({ containerRef }: AgentFlowCanvasProps) {
         </div>
       </div>
 
-      {/* Legend */}
+      {/* Flow Sequence Panel */}
+      <div className="absolute top-4 left-4 bg-background/95 border border-border rounded-lg p-3 backdrop-blur z-50 max-w-xs">
+        <div className="text-[9px] text-muted-foreground mb-2 font-semibold uppercase tracking-wider flex items-center gap-2">
+          <span className="text-primary">⟳</span> Flow Sequence
+        </div>
+        <div className="space-y-1.5">
+          <FlowStep sequence={0} icon="📥" label="Prompt" description="User input → LLM" color="#06b6d4" />
+          <FlowStep sequence={1} icon="👤" label="Task" description="Session → Agent" color="#a855f7" />
+          <FlowStep sequence={2} icon="🔧" label="Execute" description="Agent → Tool" color="#f59e0b" />
+          <FlowStep sequence={3} icon="✅" label="Result" description="Tool → Agent" color="#22c55e" />
+          <FlowStep sequence={4} icon="📤" label="Response" description="LLM → Session" color="#06b6d4" />
+        </div>
+        <div className="mt-2 pt-2 border-t border-border">
+          <div className="text-[9px] text-muted-foreground flex items-center gap-2">
+            <span>💎</span> Tokens: Context → Session
+          </div>
+        </div>
+      </div>
+
+      {/* Node Legend */}
       <div className="absolute bottom-4 right-4 bg-background/95 border border-border rounded-lg p-2 backdrop-blur">
-        <div className="text-[9px] text-muted-foreground mb-1 font-semibold uppercase tracking-wider">Legend</div>
+        <div className="text-[9px] text-muted-foreground mb-1 font-semibold uppercase tracking-wider">Nodes</div>
         <div className="space-y-1">
           <LegendItem color="#22c55e" label="Session" />
           <LegendItem color="#a855f7" label="Agent" />
@@ -779,6 +908,30 @@ function LegendItem({ color, label }: { color: string; label: string }) {
     <div className="flex items-center gap-1.5 text-[10px]">
       <span className="w-2.5 h-2.5 rounded-sm" style={{ backgroundColor: color }} />
       <span className="text-muted-foreground">{label}</span>
+    </div>
+  );
+}
+
+function FlowStep({ sequence, icon, label, description, color }: {
+  sequence: number;
+  icon: string;
+  label: string;
+  description: string;
+  color: string;
+}) {
+  return (
+    <div className="flex items-center gap-2 text-[10px]">
+      <div
+        className="w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-bold text-white shrink-0"
+        style={{ backgroundColor: color }}
+      >
+        {sequence}
+      </div>
+      <div className="flex items-center gap-1">
+        <span>{icon}</span>
+        <span className="font-medium" style={{ color }}>{label}</span>
+        <span className="text-muted-foreground text-[9px]">{description}</span>
+      </div>
     </div>
   );
 }
