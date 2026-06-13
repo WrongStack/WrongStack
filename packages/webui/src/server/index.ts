@@ -257,7 +257,14 @@ export async function startWebUI(
 
   // Boot configuration
   const boot = await bootConfig();
-  const { config: baseConfig, vault, globalConfigPath, wpaths, logger } = boot;
+  const { config: baseConfig, globalConfigPath, wpaths, logger } = boot;
+  // PR 5 of Phase 2: when the caller (typically the CLI) supplies a
+  // pre-built `BackendServices`, prefer its `vault` over the one the
+  // default boot would construct. This lets `runWebUI` keep owning the
+  // vault lifecycle (so it can decrypt/encrypt its own config writes
+  // in lockstep with the rest of the CLI session) instead of having
+  // the webui build a parallel vault it can never see.
+  const vault = opts.services?.vault ?? boot.vault;
   let config = baseConfig;
 
   /** Mutable project root — updated on `projects.select`. File handlers,
@@ -306,7 +313,15 @@ export async function startWebUI(
 
   // Container via shared factory
   const container = createDefaultContainer({ config, wpaths, logger, modelsRegistry });
-  const configStore = container.resolve(TOKENS.ConfigStore);
+  // PR 5 of Phase 2: when the caller (typically the CLI) supplies a
+  // pre-built `BackendServices`, prefer its `configStore` over the one
+  // the default container would resolve. This is the read+write
+  // counterpart of the `vault` injection above: together they let
+  // `runWebUI` own the global config lifecycle and have the webui
+  // operate on the *same* in-memory store, so a `provider.switch`
+  // from the webui is visible to the CLI's next call without a disk
+  // round-trip in between.
+  const configStore = opts.services?.configStore ?? container.resolve(TOKENS.ConfigStore);
 
   // Provider registry
   const providerRegistry = new ProviderRegistry();
