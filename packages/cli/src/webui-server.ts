@@ -24,7 +24,6 @@ import {
   GlobalMailbox,
   mutatePlan,
   mutateTasks,
-  type ProviderConfig,
   projectSlug,
   recentTextTurns,
   repairToolUseAdjacency,
@@ -59,19 +58,20 @@ import {
   registerInstance,
   unregisterInstance,
 } from '@wrongstack/webui/server';
-import {
-  loadSavedProviders,
-  saveProviders,
-} from './webui-server/provider-config.js';
 import { startStaticServe } from './webui-server/static-serve.js';
-import { WebSocket, WebSocketServer } from 'ws';
 import {
-  expectDefined,
-  maskedKey,
-  normalizeKeys,
-  nowIso,
-  writeKeysBack,
-} from './provider-config-utils.js';
+  type WsHandlerContext,
+  handleKeyDelete,
+  handleKeySetActive,
+  handleKeyUpsert,
+  handleProviderAdd,
+  handleProviderModels,
+  handleProviderRemove,
+  handleProvidersList,
+  handleProvidersSaved,
+} from './webui-server/ws-handlers/index.js';
+import { WebSocket, WebSocketServer } from 'ws';
+import { expectDefined } from './provider-config-utils.js';
 
 // ── Console logger adapter for AutoPhaseWebSocketHandler ──────────────────────
 // AutoPhaseWebSocketHandler requires a Logger. The CLI uses console.log/error
@@ -1203,6 +1203,17 @@ export async function runWebUI(opts: CliWebUIOptions): Promise<void> {
     process.on('SIGTERM', shutdown);
   });
 
+  // Shared state for the extracted ws-handler groups (PR 5 of #30).
+  // `send`/`broadcast` are hoisted function declarations, so capturing
+  // them here is safe even though they're defined further down.
+  const wsHandlerCtx: WsHandlerContext = {
+    globalConfigPath: opts.globalConfigPath,
+    modelsRegistry: opts.modelsRegistry,
+    send,
+    broadcast,
+    log: (m) => console.log(m),
+  };
+
   async function handleMessage(
     ws: WebSocket,
     client: ConnectedClient,
@@ -1251,36 +1262,37 @@ export async function runWebUI(opts: CliWebUIOptions): Promise<void> {
       }
 
       case 'providers.list':
-        await handleProvidersList(ws);
+        await handleProvidersList(wsHandlerCtx, ws);
         break;
 
       case 'provider.models':
         await handleProviderModels(
+          wsHandlerCtx,
           ws,
           (msg as { payload: { providerId: string } }).payload.providerId,
         );
         break;
 
       case 'providers.saved':
-        await handleProvidersSaved(ws);
+        await handleProvidersSaved(wsHandlerCtx, ws);
         break;
 
       case 'key.add':
       case 'key.update': {
         const m = msg as { payload: { providerId: string; label: string; apiKey: string } };
-        await handleKeyUpsert(ws, m.payload.providerId, m.payload.label, m.payload.apiKey);
+        await handleKeyUpsert(wsHandlerCtx, ws, m.payload.providerId, m.payload.label, m.payload.apiKey);
         break;
       }
 
       case 'key.delete': {
         const m = msg as { payload: { providerId: string; label: string } };
-        await handleKeyDelete(ws, m.payload.providerId, m.payload.label);
+        await handleKeyDelete(wsHandlerCtx, ws, m.payload.providerId, m.payload.label);
         break;
       }
 
       case 'key.set_active': {
         const m = msg as { payload: { providerId: string; label: string } };
-        await handleKeySetActive(ws, m.payload.providerId, m.payload.label);
+        await handleKeySetActive(wsHandlerCtx, ws, m.payload.providerId, m.payload.label);
         break;
       }
 
@@ -1293,13 +1305,13 @@ export async function runWebUI(opts: CliWebUIOptions): Promise<void> {
             apiKey?: string | undefined;
           };
         };
-        await handleProviderAdd(ws, m.payload);
+        await handleProviderAdd(wsHandlerCtx, ws, m.payload);
         break;
       }
 
       case 'provider.remove': {
         const m = msg as { payload: { providerId: string } };
-        await handleProviderRemove(ws, m.payload.providerId);
+        await handleProviderRemove(wsHandlerCtx, ws, m.payload.providerId);
         break;
       }
 
@@ -3001,238 +3013,6 @@ export async function runWebUI(opts: CliWebUIOptions): Promise<void> {
           // — let the 'close' handler remove it from the map naturally.
         }
       }
-    }
-  }
-
-  // ---- Provider/Model/Key management handlers ----
-
-  async function handleProvidersList(ws: WebSocket): Promise<void> {
-    if (!opts.modelsRegistry) {
-      sendResult(ws, false, 'Models registry not available');
-      return;
-    }
-    try {
-      const providers = await opts.modelsRegistry.listProviders();
-      const savedProviders = await loadSavedProviders(opts.globalConfigPath);
-      const savedIds = new Set(Object.keys(savedProviders));
-
-      send(ws, {
-        type: 'provider.catalog',
-        payload: {
-          providers: providers.map((p) => ({
-            id: p.id,
-            name: p.name,
-            family: p.family,
-            apiBase: p.apiBase,
-            envVars: p.envVars,
-            modelCount: p.models.length,
-            hasApiKey: savedIds.has(p.id) || p.envVars.some((v) => !!process.env[v]),
-          })),
-        },
-      });
-    } catch (err) {
-      sendResult(ws, false, err instanceof Error ? err.message : String(err));
-    }
-  }
-
-  async function handleProviderModels(ws: WebSocket, providerId: string): Promise<void> {
-    if (!opts.modelsRegistry) {
-      sendResult(ws, false, 'Models registry not available');
-      return;
-    }
-    try {
-      const provider = await opts.modelsRegistry.getProvider(providerId);
-      if (!provider) {
-        sendResult(ws, false, `Provider "${providerId}" not found in catalog`);
-        return;
-      }
-      send(ws, {
-        type: 'provider.models',
-        payload: {
-          provider: providerId,
-          models: provider.models.map((m) => ({
-            id: m.id,
-            name: m.name,
-            releaseDate: m.release_date,
-            contextWindow: m.limit?.context,
-            inputCost: m.cost?.input,
-            outputCost: m.cost?.output,
-            capabilities: [
-              ...(m.tool_call ? ['tools'] : []),
-              ...(m.reasoning ? ['reasoning'] : []),
-              ...(m.modalities?.input?.includes('image') ? ['vision'] : []),
-              ...(m.open_weights ? ['open_weights'] : []),
-            ],
-          })),
-        },
-      });
-    } catch (err) {
-      sendResult(ws, false, err instanceof Error ? err.message : String(err));
-    }
-  }
-
-  async function handleProvidersSaved(ws: WebSocket): Promise<void> {
-    try {
-      const providers = await loadSavedProviders(opts.globalConfigPath);
-      send(ws, {
-        type: 'providers.saved',
-        payload: {
-          providers: Object.entries(providers).map(([id, cfg]) => ({
-            id,
-            family: cfg.family,
-            baseUrl: cfg.baseUrl,
-            apiKeys: normalizeKeys(cfg).map((k) => ({
-              label: k.label,
-              maskedKey: maskedKey(k.apiKey),
-              isActive: k.label === cfg.activeKey,
-              createdAt: k.createdAt,
-            })),
-          })),
-        },
-      });
-    } catch (err) {
-      sendResult(ws, false, err instanceof Error ? err.message : String(err));
-    }
-  }
-
-  async function handleKeyUpsert(
-    ws: WebSocket,
-    providerId: string,
-    label: string,
-    apiKey: string,
-  ): Promise<void> {
-    try {
-      const providers = await loadSavedProviders(opts.globalConfigPath);
-      const existing = providers[providerId] ?? { type: providerId };
-      const keys = normalizeKeys(existing);
-
-      // Check if label exists
-      const existingIdx = keys.findIndex((k) => k.label === label);
-      if (existingIdx >= 0) {
-        keys[existingIdx] = { ...expectDefined(keys[existingIdx]), apiKey, createdAt: nowIso() };
-      } else {
-        keys.push({ label, apiKey, createdAt: nowIso() });
-      }
-
-      writeKeysBack(existing, keys);
-      if (!existing.activeKey) existing.activeKey = label;
-      providers[providerId] = existing;
-
-      await saveProviders(opts.globalConfigPath, providers);
-      sendResult(ws, true, `Key "${label}" saved for ${providerId}`);
-    } catch (err) {
-      sendResult(ws, false, err instanceof Error ? err.message : String(err));
-    }
-  }
-
-  async function handleKeyDelete(ws: WebSocket, providerId: string, label: string): Promise<void> {
-    try {
-      const providers = await loadSavedProviders(opts.globalConfigPath);
-      const existing = providers[providerId];
-      if (!existing) {
-        sendResult(ws, false, `Provider "${providerId}" not found`);
-        return;
-      }
-      const keys = normalizeKeys(existing).filter((k) => k.label !== label);
-      if (keys.length === 0) {
-        delete providers[providerId];
-      } else {
-        writeKeysBack(existing, keys);
-        if (existing.activeKey === label) {
-          existing.activeKey = keys[0]?.label;
-        }
-        providers[providerId] = existing;
-      }
-      await saveProviders(opts.globalConfigPath, providers);
-      sendResult(ws, true, `Key "${label}" deleted from ${providerId}`);
-    } catch (err) {
-      sendResult(ws, false, err instanceof Error ? err.message : String(err));
-    }
-  }
-
-  async function handleKeySetActive(
-    ws: WebSocket,
-    providerId: string,
-    label: string,
-  ): Promise<void> {
-    try {
-      const providers = await loadSavedProviders(opts.globalConfigPath);
-      const existing = providers[providerId];
-      if (!existing) {
-        sendResult(ws, false, `Provider "${providerId}" not found`);
-        return;
-      }
-      existing.activeKey = label;
-      writeKeysBack(existing, normalizeKeys(existing));
-      providers[providerId] = existing;
-      await saveProviders(opts.globalConfigPath, providers);
-      sendResult(ws, true, `Active key for ${providerId} set to "${label}"`);
-    } catch (err) {
-      sendResult(ws, false, err instanceof Error ? err.message : String(err));
-    }
-  }
-
-  async function handleProviderAdd(
-    ws: WebSocket,
-    payload: {
-      id: string;
-      family: string;
-      baseUrl?: string | undefined;
-      apiKey?: string | undefined;
-    },
-  ): Promise<void> {
-    try {
-      const providers = await loadSavedProviders(opts.globalConfigPath);
-      if (providers[payload.id]) {
-        sendResult(ws, false, `Provider "${payload.id}" already exists. Use key.add to add a key.`);
-        return;
-      }
-      const newProv: ProviderConfig = {
-        type: payload.id,
-        family: payload.family as ProviderConfig['family'],
-        baseUrl: payload.baseUrl,
-      };
-      if (payload.apiKey) {
-        newProv.apiKeys = [{ label: 'default', apiKey: payload.apiKey, createdAt: nowIso() }];
-        newProv.activeKey = 'default';
-      }
-      providers[payload.id] = newProv;
-      await saveProviders(opts.globalConfigPath, providers);
-      sendResult(ws, true, `Provider "${payload.id}" added`);
-      console.log(`[WebUI] Provider "${payload.id}" added via provider.add`);
-      broadcast({
-        type: 'providers.saved',
-        payload: {
-          providers: Object.entries(providers).map(([id, cfg]) => ({
-            id,
-            family: cfg.family,
-            baseUrl: cfg.baseUrl,
-            apiKeys: normalizeKeys(cfg).map((k) => ({
-              label: k.label,
-              maskedKey: maskedKey(k.apiKey),
-              isActive: k.label === cfg.activeKey,
-              createdAt: k.createdAt,
-            })),
-          })),
-        },
-      });
-    } catch (err) {
-      sendResult(ws, false, err instanceof Error ? err.message : String(err));
-    }
-  }
-
-  async function handleProviderRemove(ws: WebSocket, providerId: string): Promise<void> {
-    try {
-      const providers = await loadSavedProviders(opts.globalConfigPath);
-      if (!providers[providerId]) {
-        sendResult(ws, false, `Provider "${providerId}" not found`);
-        return;
-      }
-      delete providers[providerId];
-      await saveProviders(opts.globalConfigPath, providers);
-      sendResult(ws, true, `Provider "${providerId}" removed`);
-    } catch (err) {
-      sendResult(ws, false, err instanceof Error ? err.message : String(err));
     }
   }
 
