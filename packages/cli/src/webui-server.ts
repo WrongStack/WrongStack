@@ -98,6 +98,7 @@ import {
   type PrefsContext,
   type ProjectsContext,
   type WorklistContext,
+  type WsCommon,
   type WsHandlerContext,
   handleAutonomySwitch,
   handleBrainAsk,
@@ -137,6 +138,9 @@ import {
   handleStatsGet,
   handleTaskUpdate,
   handleTasksGet,
+  handleProcessKill,
+  handleProcessKillAll,
+  handleProcessList,
   handleTodoUpdate,
   handleTodosClear,
   handleTodosGet,
@@ -1101,6 +1105,9 @@ export async function runWebUI(opts: CliWebUIOptions): Promise<void> {
     broadcast,
     log: (m) => console.log(m),
   };
+
+  // Bare messaging surface for handler groups that need no run-loop state.
+  const wsCommon: WsCommon = { send, broadcast, log: (m) => console.log(m) };
   return new Promise<void>((resolve) => {
     wss.on('listening', () => {
       console.log(`[WebUI] WebSocket server running on ws://${host}:${port}`);
@@ -1589,53 +1596,17 @@ export async function runWebUI(opts: CliWebUIOptions): Promise<void> {
       }
 
       case 'process.list': {
-        try {
-          const { getProcessRegistry } = await import('@wrongstack/tools');
-          const procs = getProcessRegistry().list();
-          send(ws, {
-            type: 'process.list',
-            payload: {
-              processes: procs.map((p) => ({
-                pid: p.pid,
-                command: p.command,
-                tool: p.name,
-                startedAt: p.startedAt,
-                status: p.killed ? ('killed' as const) : ('running' as const),
-                protected: p.protected,
-              })),
-            },
-          });
-        } catch {
-          send(ws, { type: 'process.list', payload: { processes: [] } });
-        }
+        handleProcessList(wsCommon, ws);
         break;
       }
 
       case 'process.kill': {
-        const { pid } = (msg as { payload: { pid: number } }).payload;
-        try {
-          const { getProcessRegistry } = await import('@wrongstack/tools');
-          const proc = getProcessRegistry().get(pid);
-          if (proc?.protected) {
-            sendResult(ws, false, `Cannot kill protected process (PID ${pid})`);
-            break;
-          }
-          getProcessRegistry().kill(pid);
-          sendResult(ws, true, `Killed PID ${pid}`);
-        } catch (err) {
-          sendResult(ws, false, err instanceof Error ? err.message : String(err));
-        }
+        handleProcessKill(wsCommon, ws, (msg as { payload: { pid: number } }).payload.pid);
         break;
       }
 
       case 'process.killAll': {
-        try {
-          const { getProcessRegistry } = await import('@wrongstack/tools');
-          getProcessRegistry().killAll();
-          sendResult(ws, true, 'All processes killed');
-        } catch (err) {
-          sendResult(ws, false, err instanceof Error ? err.message : String(err));
-        }
+        handleProcessKillAll(wsCommon, ws);
         break;
       }
 

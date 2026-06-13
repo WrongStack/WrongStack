@@ -57,6 +57,12 @@ export {
   handleModesList,
 } from './agent-config.js';
 export {
+  type BrainHandlerContext,
+  handleBrainAsk,
+  handleBrainRisk,
+  handleBrainStatus,
+} from './brain.js';
+export {
   type ContextHandlerContext,
   handleContextClear,
   handleContextCompact,
@@ -64,16 +70,10 @@ export {
   handleContextModeCreate,
   handleContextModeDelete,
   handleContextModeSwitch,
-  handleContextModeUpdate,
   handleContextModesList,
+  handleContextModeUpdate,
   handleContextRepair,
 } from './context.js';
-export {
-  type BrainHandlerContext,
-  handleBrainAsk,
-  handleBrainRisk,
-  handleBrainStatus,
-} from './brain.js';
 export {
   handleDiagGet,
   handleSkillsList,
@@ -87,6 +87,7 @@ export {
   handlePrefsUpdate,
   type PrefsContext,
 } from './prefs.js';
+export { handleProcessKill, handleProcessKillAll, handleProcessList } from './process.js';
 export {
   handleProjectsAdd,
   handleProjectsList,

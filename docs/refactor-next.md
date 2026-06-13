@@ -24,7 +24,8 @@ refactor). Update this before switching context, handing off, or resuming.
 | 5f | ws-handlers/ — **prefs** (prefs/autonomy.switch) | ✅ merged | #66 |
 | 5g | ws-handlers/ — **projects** (list/select/add/working_dir) | ✅ merged | #67 |
 | 5h | ws-handlers/ — **context** (clear/debug/compact/repair/modes) | ✅ merged | #68 |
-| 5i | ws-handlers/ — **remaining groups** | 🔴 in progress | — |
+| 5i | ws-handlers/ — **process** (list/kill/killAll) | ✅ merged | #69 |
+| 5j | ws-handlers/ — **sessions** + handleUserMessage | 🔴 in progress | — |
 
 `webui-server.ts` is ~3000 lines (down from ~3250). The self-contained
 concerns now live under `packages/cli/src/webui-server/`:
@@ -47,6 +48,7 @@ webui-server/
     prefs.ts            — prefs.get/update, autonomy.switch   (PR 5f)
     projects.ts         — projects.list/select/add, working_dir (PR 5g)
     context.ts          — context.clear/debug/compact/repair/modes (PR 5h)
+    process.ts          — process.list/kill/killAll           (PR 5i)
 ```
 
 Per-group contexts now extend a small `WsCommon` base (`send`/`broadcast`/
@@ -59,18 +61,19 @@ A module-map doc comment at the top of `webui-server.ts` points to each.
 
 ---
 
-## PR 5i — remaining ws-handler groups (🔴 in progress)
+## PR 5j — remaining ws-handler groups (🔴 in progress)
 
 Extracted so far: **providers** (5), **brain** (5b), **introspection**
 (5c), **worklist** (5d), **agent-config** (5e), **prefs** (5f),
-**projects** (5g), **context** (5h) — each fully unit-tested, threaded via
-a per-group context extending `WsCommon`. Current reality:
+**projects** (5g), **context** (5h), **process** (5i) — each fully
+unit-tested, threaded via a per-group context extending `WsCommon`.
+Current reality:
 
 - **Already delegated** — `memory.*`, `files.*`, `mailbox.*`, `shell.open`
   cases already call the shared `@wrongstack/webui/server` handlers. No
   CLI-local extraction to do.
 - **Still inline** — the `handleMessage` switch cases for
-  `sessions` / `session.*`, `process.*`, plus
+  `sessions` / `session.*`, plus
   `handleUserMessage`. These
   are coupled to run-loop state (the abort controllers, client map,
   custom-mode store, session writer/store, the session.start payload
