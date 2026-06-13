@@ -70,7 +70,7 @@ import { parseArgs } from './arg-parser.js';
 import { resolveBundledSkillsDir } from './cli-bundled-skills.js';
 import { launchEternalFromFlag } from './cli-eternal-flag.js';
 import { promptRecovery } from './cli-recovery-prompt.js';
-import { printUpdateNotice } from './cli-update-notice.js';
+import { runPreflight } from './preflight.js';
 import { helpCmd, versionCmd } from './subcommands/handlers/version-help.js';
 import { resolveRuntimeMaxContext } from './context-limit.js';
 import { type ExecutionDeps, execute } from './execution.js';
@@ -112,19 +112,15 @@ type SddParallelRunGlobal = typeof globalThis & {
 };
 
 export async function main(argv: string[]): Promise<number> {
-  // Default to React/Ink PRODUCTION builds. Without NODE_ENV, the package
-  // exports map resolves react-reconciler.development.js, whose Component
-  // Performance Track calls performance.measure() for EVERY component
-  // render (supportsUserTiming is true under Node — console.timeStamp and
-  // performance.measure both exist). Node retains user-timing entries in
-  // the global timeline until explicitly cleared, so a ticking TUI leaked
-  // ~200 PerformanceMeasure entries/sec → ~3 GB heap over a long session
-  // (root-caused from a live 4.1M-measure heap snapshot, 2026-06-12).
-  // Must run before the lazy `--tui` import evaluates ink/react. Explicit
-  // user/test overrides win (vitest sets NODE_ENV=test). The marker flag
-  // lets buildChildEnv() strip the injected value from child processes —
-  // a leaked NODE_ENV=production would make `pnpm install` skip
-  // devDependencies and flip test-runner behavior.
+  // PR 2 of Issue #29 extracted the three pre-boot side effects
+  // (NODE_ENV defaulting, update-notice quick-check, debug-stream
+  // seed) into `preflight.ts`. The order is documented there; the
+  // orchestrator runs `applyNodeEnvDefault()` synchronously
+  // *before* the lazy `--tui` import evaluates ink/react (see the
+  // preflight module docstring for the long rationale). We *don't*
+  // call `runPreflight` here at the top of main() because the
+  // `--help` / `--version` short-circuit below needs to fire
+  // without paying for the 2-second update-notice network call.
   if (process.env['NODE_ENV'] === undefined) {
     process.env['NODE_ENV'] = 'production';
     process.env['WRONGSTACK_NODE_ENV_DEFAULTED'] = '1';
@@ -179,20 +175,16 @@ export async function main(argv: string[]): Promise<number> {
     needsSetup,
   } = ctx;
 
-  // Show update notification (best-effort, never blocks boot).
-  updateInfo = await printUpdateNotice(updateInfo);
-
-  // Seed the stream-debug singleton from persisted config so WireAdapter
-  // picks it up on construction. Runtime toggles update this singleton
-  // directly; the config file is the source of truth for restarts.
-  const { setDebugStreamEnabled } = await import('@wrongstack/providers');
-  if (config.debugStream) setDebugStreamEnabled(true);
-  // Default debug-stream callback is intentionally left unset.
-  // The TUI installs its own reducer-bound callback that renders inside
-  // Ink's StatusBar. In REPL/headless mode, stderr output from the default
-  // callback interferes with the readline prompt and floods the terminal;
-  // debug-stream data is still collected (and accessible via /diag-stats)
-  // but not dumped to the console.
+  // PR 2 of Issue #29: pre-boot side effects (update-notice
+  // quick-check, debug-stream seed) are now in `runPreflight()`. The
+  // NODE_ENV defaulting stayed at the top of main() because it has
+  // to fire *before* the lazy `--tui` import and also before the
+  // --help / --version short-circuit (the TUI-less paths still
+  // hit it on a cold start). Everything else runs after `boot()`
+  // returns the BootContext and the early-return short-circuit has
+  // been ruled out.
+  const { updateInfo: refreshedUpdateInfo } = await runPreflight(config, updateInfo);
+  updateInfo = refreshedUpdateInfo;
 
   // PathResolver is created from the resolved projectRoot
   const pathResolver = new DefaultPathResolver(cwd);
