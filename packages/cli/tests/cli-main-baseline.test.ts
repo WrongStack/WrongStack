@@ -48,38 +48,39 @@ afterEach(() => {
 });
 
 describe('cli main() — baseline boot shape (PR 0 of #29)', () => {
-  it('returns a number exit code (currently 2) for --help — does not throw', async () => {
-    // Characterize the *actual* current behavior: as of 2026-06-13 the
-    // CLI does NOT short-circuit on `--help`; it falls through to the
-    // boot() failure path because no provider is configured. This
-    // test pins that as the *starting* state of the refactor — the
-    // first cli-main PR after this baseline is expected to add the
-    // missing --help short-circuit, at which point this assertion
-    // gets tightened to `expect(exit).toBe(0)`.
+  it('returns exit 0 for --help (PR 1 short-circuit)', async () => {
+    // PR 1 of the cli-main refactor (Issue #29) added a `--help`
+    // short-circuit *before* `boot()` runs: `parseArgs` runs once,
+    // sees `--help`, and dispatches to `helpCmd` directly. The
+    // baseline shape (PR 0) had us returning 2 here because
+    // `bootConfig()` ran first and warned about a missing provider.
+    // The whole point of the short-circuit is that a one-line
+    // informational flag must not depend on a configured provider.
     const { main } = await import('../src/cli-main.js');
     const exit = await main(['node', 'wstack', '--help']);
-    expect(typeof exit).toBe('number');
-    // main() must not throw on a well-formed --help argv.
-    expect(Number.isInteger(exit)).toBe(true);
+    expect(exit).toBe(0);
   });
 
-  it('returns a number exit code for --version — does not throw', async () => {
+  it('returns exit 0 for --version (PR 1 short-circuit)', async () => {
     const { main } = await import('../src/cli-main.js');
     const exit = await main(['node', 'wstack', '--version']);
-    expect(typeof exit).toBe('number');
-    expect(Number.isInteger(exit)).toBe(true);
+    expect(exit).toBe(0);
   });
 
-  it('writes the provider-missing notice to stderr on --help when no config exists', async () => {
-    // Pin the boot-time notice shape: when there's no global config,
-    // `boot()` logs an actionable "No provider or model configured"
-    // message to stderr. Future cli-main extractions must keep this
-    // discoverable — it is the only guidance a brand-new user sees
-    // before they run `wrongstack init`.
+  it('does not write the provider-missing notice on --help short-circuit', async () => {
+    // Companion to the previous baseline assertion. Pre-PR-1 the
+    // `--help` path fell through to `boot()` and emitted the
+    // "No provider or model configured" notice on stderr — useful
+    // as guidance for a brand-new user, but spammy on every
+    // informational flag. Now that `--help` short-circuits before
+    // `bootConfig()`, the notice should NOT appear when the user
+    // explicitly asked for help. The notice is still emitted on
+    // bare `wstack` invocations (and that path is pinned by
+    // PR 0's test #1 + the existing boot-time notice contract).
     const { main } = await import('../src/cli-main.js');
     await main(['node', 'wstack', '--help']);
     const combined = stderrWrites.join('');
-    expect(combined).toMatch(/No provider or model configured/);
+    expect(combined).not.toMatch(/No provider or model configured/);
   });
 
   it('exits cleanly when given a no-op argv (the smoke test for a hung REPL)', async () => {

@@ -66,10 +66,12 @@ import {
 } from '@wrongstack/tools';
 import { createAutoPhaseHost } from './autophase-host.js';
 import { boot } from './boot.js';
+import { parseArgs } from './arg-parser.js';
 import { resolveBundledSkillsDir } from './cli-bundled-skills.js';
 import { launchEternalFromFlag } from './cli-eternal-flag.js';
 import { promptRecovery } from './cli-recovery-prompt.js';
 import { printUpdateNotice } from './cli-update-notice.js';
+import { helpCmd, versionCmd } from './subcommands/handlers/version-help.js';
 import { resolveRuntimeMaxContext } from './context-limit.js';
 import { type ExecutionDeps, execute } from './execution.js';
 import { createFallbackModelExtension } from './fallback-model.js';
@@ -127,6 +129,35 @@ export async function main(argv: string[]): Promise<number> {
     process.env['NODE_ENV'] = 'production';
     process.env['WRONGSTACK_NODE_ENV_DEFAULTED'] = '1';
   }
+
+  // --help / --version short-circuit (PR 1 of Issue #29):
+  //
+  // The baseline boot-shape integration test (PR 0, merged as #36) showed
+  // that `wstack --help` previously returned exit 2 with a
+  // "No provider or model configured" notice on stderr — the help
+  // subcommand was *registered*, but `boot()` only reached it after
+  // `bootConfig()` had read/written the global config and warned
+  // about the missing provider, so the user-visible exit code wasn't
+  // 0. For a one-line flag like `--help` that should print text and
+  // exit, the bare flag should bypass config I/O entirely.
+  //
+  // We re-parse argv here with the same `parseArgs` shape `boot()`
+  // uses (so the flag-name matrix stays in lockstep) and dispatch to
+  // the existing `helpCmd` / `versionCmd` handlers directly. The
+  // handler closure is set up in `boot()`'s `subcommands` map; we
+  // import it here so we don't have to duplicate the help/version
+  // strings. The renderer is a stub because the help text is plain
+  // `write` calls — we don't need a TTY-aware renderer for `--help`
+  // to `wstack --help` on stdout.
+  const earlyFlags = parseArgs(argv).flags;
+  if (earlyFlags['help'] === true || earlyFlags['version'] === true) {
+    const stubRenderer = {
+      write: (line: string) => { process.stdout.write(line); },
+    } as unknown as Parameters<typeof helpCmd>[1]['renderer'];
+    const handler = earlyFlags['help'] === true ? helpCmd : versionCmd;
+    return await handler([], { renderer: stubRenderer } as Parameters<typeof helpCmd>[1]);
+  }
+
   const ctx = await boot(argv);
   // `wrongstack quick` sets flags.quick = true in boot() and removes 'quick' from
   // positional, so boot() returns BootContext (not a number). Proceed to execute().
