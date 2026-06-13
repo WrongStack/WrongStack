@@ -65,6 +65,13 @@ in isolation. Nothing exercises the end-to-end `start()` boot shape.
    two-thirds of H-1. Filing them with sequenced PRs closes the
    loop on the system audit's H-1 finding.
 
+> **H-1 progress 2026-06-13:** of the 24 H-1 PRs across
+> the three issues, **6/24 have merged** — this issue
+> accounts for 4 (PR 0-3 → #50, #51, #52, #53), the
+> tui-app-refactor issue for 2 (PR 0 + PR 1b → #24,
+> #27). The webui-package-server issue (#31) has not
+> started yet.
+
 ## Proposed approach (sequenced, one PR per step)
 
 Same `PR-0 characterization test → extract → verify` template as the
