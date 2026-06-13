@@ -72,6 +72,7 @@ import { WorktreePanel } from './components/worktree-panel.js';
 import { searchFiles } from './file-search.js';
 import { type GitInfo, readGitInfo } from './git-info.js';
 import { useDirectorFleetBridge } from './hooks/use-director-fleet-bridge.js';
+import { useStatuslineState } from './hooks/use-statusline-state.js';
 import { useTuiControllers } from './hooks/use-tui-controllers.js';
 import { useTuiEventBridge } from './hooks/use-tui-event-bridge.js';
 import { INLINE_TOKEN_SRC, deleteTokenBackward, layoutInputRows, tokenLengthForward } from './input-tokens.js';
@@ -618,21 +619,30 @@ export function App({
   // re-renders when /model or /use mutate them. The banner is `Static`
   // and never re-renders — the user gets the textual confirmation from
   // the slash command's message in history instead.
-  const [liveModel, setLiveModel] = useState<string>(model);
-  const [liveProvider, setLiveProvider] = useState<string>(provider ?? 'agent');
-  // CLI resolves the startup model's catalog limit, but /model can switch to a
-  // different model without remounting App. Keep the denominator mutable so the
-  // status bar follows the active model instead of a stale launch-time prop.
-  const [activeMaxContext, setActiveMaxContext] = useState<number | undefined>(effectiveMaxContext);
-  const [yoloLive, setYoloLive] = useState<boolean>(yolo);
-  const [autonomyLive, setAutonomyLive] = useState<
-    'off' | 'suggest' | 'auto' | 'eternal' | 'eternal-parallel'
-  >(getAutonomy?.() ?? 'off');
-  // Reactive mirror of the active agent mode so the status bar chip
-  // updates after /mode <id> without remounting the App.
-  const [liveModeLabel, setLiveModeLabel] = useState<string>(modeLabel ?? '');
-  const [hiddenItems, setHiddenItems] = useState(statuslineHiddenItems);
-  const [sessionCount, setSessionCount] = useState<number>(0);
+  //
+  // Statusline state was previously inlined as 8 useState calls here; it
+  // lives in `useStatuslineState` now (PR 1b of the tui/app.tsx split,
+  // see docs/issues/2026-06-13-tui-app-refactor-tasks.md). The destructured
+  // local names (`liveModel`, `setLiveProvider`, etc.) are preserved so
+  // every existing call site in this file continues to work unchanged.
+  const {
+    liveModel, setLiveModel,
+    liveProvider, setLiveProvider,
+    activeMaxContext, setActiveMaxContext,
+    yoloLive, setYoloLive,
+    autonomyLive, setAutonomyLive,
+    liveModeLabel, setLiveModeLabel,
+    hiddenItems, setHiddenItems,
+    sessionCount, setSessionCount,
+  } = useStatuslineState({
+    model,
+    provider,
+    effectiveMaxContext,
+    yolo,
+    getAutonomy,
+    modeLabel,
+    statuslineHiddenItems,
+  });
 
   // Track previous git branch to detect switches
   const prevBranchRef = useRef<string | null>(null);
@@ -647,7 +657,7 @@ export function App({
 
   // Sync when parent re-loads from config file (e.g., after /statusline reset)
   useEffect(() => {
-    setHiddenItems(statuslineHiddenItems);
+    setHiddenItems([...statuslineHiddenItems]);
   }, [statuslineHiddenItems]);
 
   // Push local changes back to the parent controller so /statusline sees them
