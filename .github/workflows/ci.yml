@@ -38,7 +38,7 @@ jobs:
       # pnpm version comes from package.json's "packageManager" field (single
       # source of truth) — passing a `version:` input too is now rejected by
       # action-setup as a conflict.
-      - uses: pnpm/action-setup@a74893613cd5e5e64db2e55241f10fe25887ba0a # v4 (2025-06)
+      - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4 (resolved 2026-05-29)
 
       - uses: actions/setup-node@1d0ff469b7ec7b3cb9d8673fde0c81c44821de2a # v4 (2025-06)
         with:
