@@ -5,7 +5,10 @@ import type { SessionEventBridge } from '../storage/session-event-bridge.js';
 import type { CompactReport, Compactor } from '../types/compactor.js';
 import type { ContextWindowAggressiveOn, ContextWindowPolicy } from '../types/context-window.js';
 import { AgentError, ERROR_CODES } from '../types/errors.js';
-import { estimateRequestTokensCalibrated } from '../utils/token-estimate.js';
+import {
+  estimateRequestTokensCalibrated,
+  getCalibrationState,
+} from '../utils/token-estimate.js';
 
 type PressureLevel = 'warn' | 'soft' | 'hard';
 const LEVEL_RANK: Record<PressureLevel, number> = { warn: 0, soft: 1, hard: 2 };
@@ -151,8 +154,24 @@ export class AutoCompactionMiddleware {
       ) {
         // Default estimator, context unchanged — reuse cached value.
         tokens = this._cachedTokens;
+      } else if (this.tryStashedTokens(ctx, msgCount, toolCount) !== null) {
+        // H1: the agent loop's pre-flight (or its restash in emitContextPct)
+        // populated `ctx.lastRequestTokens` this iteration. Apply the
+        // per-(provider,model) calibration ratio and use it. This avoids
+        // a third redundant O(n) walk per iteration.
+        const stashed = this.tryStashedTokens(ctx, msgCount, toolCount) as number;
+        const cal = getCalibrationState(`${ctx.provider?.id ?? 'unknown'}/${ctx.model}`);
+        tokens = cal.calibrated
+          ? Math.round(stashed * Math.min(1.5, Math.max(0.5, cal.ratio)))
+          : stashed;
+        this._cachedTokens = tokens;
+        this._cachedMsgCount = msgCount;
+        this._cachedToolCount = toolCount;
       } else {
-        // Default estimator, context changed — compute fresh and cache.
+        // Default estimator, context changed and no stash — compute fresh
+        // and cache. Cold-start path: very first iteration, or the
+        // middleware is being driven from somewhere that didn't run the
+        // agent loop's pre-flight (tests, manual compaction trigger).
         tokens = estimateRequestTokensCalibrated(
           ctx.messages,
           ctx.systemPrompt,
@@ -203,6 +222,31 @@ export class AutoCompactionMiddleware {
 
       return next(ctx);
     };
+  }
+
+  /**
+   * H1: try to read a pre-computed token total from `ctx.lastRequestTokens`
+   * (set by the agent loop's pre-flight or its restash in emitContextPct).
+   * Returns the uncalibrated total when the stash is valid for the current
+   * context shape (positive number, and the message count it was computed
+   * at matches the current one — otherwise tool results have been appended
+   * since and the value is stale). Returns null when missing or stale so
+   * the caller falls back to a fresh walk.
+   */
+  private tryStashedTokens(ctx: Context, msgCount: number, toolCount: number): number | null {
+    const stashed = ctx.lastRequestTokens;
+    if (typeof stashed !== 'number' || stashed <= 0) return null;
+    // The agent loop writes the (msg, tool) count it computed the stash at
+    // into ctx.meta['lastRequestTokensAt']. When the counts disagree the
+    // caller has already recomputed and refreshed the stash, but we verify
+    // the meta key exists for safety — older code paths and tests may set
+    // lastRequestTokens without the companion entry.
+    const stashedAt = ctx.meta?.['lastRequestTokensAt'];
+    if (typeof stashedAt !== 'object' || stashedAt === null) return null;
+    const meta = stashedAt as { msgCount?: unknown; toolCount?: unknown };
+    if (meta.msgCount !== msgCount) return null;
+    if (typeof meta.toolCount === 'number' && meta.toolCount !== toolCount) return null;
+    return stashed;
   }
 
   /**

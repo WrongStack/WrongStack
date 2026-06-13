@@ -81,6 +81,19 @@ export function createAgentLoopHandler(
     _lastEmittedMsgCount = msgCount;
     _lastEmittedToolCount = toolCount;
 
+    // H1: the pre-flight stash is stale if tool results have been appended
+    // since. Recompute and refresh so the bar and the next middleware
+    // invocation see the same number.
+    if (msgCount !== _lastPreFlightMsgCount) {
+      a.ctx.lastRequestTokens = estimateRequestTokens(
+        a.ctx.messages,
+        a.ctx.systemPrompt,
+        a.ctx.tools ?? [],
+      ).total;
+      _lastPreFlightMsgCount = msgCount;
+      a.ctx.meta['lastRequestTokensAt'] = { msgCount, toolCount };
+    }
+
     // Mirror the denominator AutoCompactionMiddleware uses: an explicit
     // effectiveMaxContext override (ctx.meta) wins, then the provider window,
     // then a safe default. Avoids divide-by-zero when the window is unknown (0).
@@ -95,19 +108,35 @@ export function createAgentLoopHandler(
             ? providerMax
             : 200_000;
     }
-    // Use the calibrated estimate so the live context bar matches the figure
-    // the middleware uses to decide when to compact.
-    const { total } = estimateRequestTokensCalibrated(
-      a.ctx.messages,
-      a.ctx.systemPrompt,
-      a.ctx.tools ?? [],
-      calibrationKey(),
-    );
+    // H1: prefer the pre-flight stash so the bar and the middleware see
+    // the same number. Fall back to a fresh compute only on cold start
+    // (no pre-flight yet) — emitContextPct is called at the end of an
+    // iteration, after the pre-flight has always run.
+    let total: number;
+    const stashed = a.ctx.lastRequestTokens;
+    if (typeof stashed === 'number' && stashed > 0) {
+      const cal = getCalibrationState(calibrationKey());
+      total = cal.calibrated
+        ? Math.round(stashed * Math.min(1.5, Math.max(0.5, cal.ratio)))
+        : stashed;
+    } else {
+      const est = estimateRequestTokensCalibrated(
+        a.ctx.messages,
+        a.ctx.systemPrompt,
+        a.ctx.tools ?? [],
+        calibrationKey(),
+      );
+      total = est.total;
+    }
     a.events.emit('ctx.pct', { load: total / _maxContext, tokens: total, maxContext: _maxContext });
   }
   let _maxContext = 0;
   let _lastEmittedMsgCount = -1;
   let _lastEmittedToolCount = -1;
+  // H1: tracks the message count at the most recent pre-flight. emitContextPct
+  // uses it to detect when tool results have been appended since the
+  // pre-flight and the stash needs a restash. -1 = no pre-flight yet.
+  let _lastPreFlightMsgCount = -1;
 
   /**
    * Append an informational block to the conversation, merging into the
@@ -272,10 +301,28 @@ export function createAgentLoopHandler(
 
         const req = await handlers.response.buildAndRunRequestPipeline(opts);
 
-        // Compute the token estimate ONCE for both the session audit log
-        // and the post-response calibration update. Previously these were
-        // two separate calls that walked the same messages/system/tools arrays.
+        // H1: compute once, share with the middleware + context bar.
+        // Previously this estimate was repeated three times per iteration
+        // (pre-flight, emitContextPct, AutoCompactionMiddleware), each
+        // walking the same messages/system/tools arrays. Now the result
+        // is stashed on ctx and the other two call sites consult it.
         const preFlight = estimateRequestTokens(req.messages, req.system, req.tools ?? []);
+
+        // Stash the uncalibrated total on ctx so the middleware and the
+        // context bar (emitContextPct) can read it without re-walking the
+        // messages. The middleware applies its own per-(provider,model)
+        // calibration ratio on read so the value it sees matches the
+        // calibrated figure the compaction decision was made on.
+        a.ctx.lastRequestTokens = preFlight.total;
+        _lastPreFlightMsgCount = req.messages.length;
+        // Companion meta entry: the (msg, tool) count snapshot the stash
+        // was computed at, so the middleware can detect when tool results
+        // were appended between pre-flight and compaction and refuse the
+        // stale value. See AutoCompactionMiddleware.tryStashedTokens.
+        a.ctx.meta['lastRequestTokensAt'] = {
+          msgCount: req.messages.length,
+          toolCount: (req.tools ?? []).length,
+        };
 
         await a.ctx.session.append({
           type: 'llm_request',

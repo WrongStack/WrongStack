@@ -4,6 +4,7 @@
 //   1. Token estimation cache — per-iteration CPU savings from _estTokens
 //   2. parseInline memoization — TUI re-render savings from LRU cache
 //   3. eliseOldToolResults early-exit — compaction allocation savings
+//   4. Per-iteration hot loop — pre-flight + emit + middleware (H1 fix)
 //
 // Usage: node scripts/bench.mjs
 
@@ -11,7 +12,7 @@ import { writeFileSync } from 'node:fs';
 import * as core from '../packages/core/dist/index.js';
 import { parseInline } from '../packages/tui/dist/index.js';
 
-const { estimateMessageTokens, estimateRequestTokens, computeMessageTokens, eliseOldToolResults, estimateToolResultTokens } = core;
+const { AutoCompactionMiddleware, estimateMessageTokens, estimateRequestTokens, estimateRequestTokensCalibrated, computeMessageTokens, eliseOldToolResults, estimateToolResultTokens } = core;
 
 // ═══════════════════════════════════════════════════════════════════════════
 // Shared helpers
@@ -327,6 +328,180 @@ function bench3_elision() {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
+// Benchmark 4: Per-iteration hot loop (H1 — shared token estimate cache)
+// ═══════════════════════════════════════════════════════════════════════════
+//
+// Simulates one full agent iteration: the pre-flight token estimate
+// (estimateRequestTokens), the emitContextPct call that drives the live
+// context bar, and the AutoCompactionMiddleware.handler() invocation that
+// decides whether to compact. Each of these three call sites used to
+// walk the same messages/system/tools arrays independently — three
+// redundant O(n) scans per iteration. The H1 fix stashes the pre-flight
+// total on ctx and has the other two consult it.
+//
+// We measure the cost of running 50 iterations of this trio, comparing
+// the pre-fix (each call site recomputes) vs post-fix (stashed) path.
+
+function bench4_perIterHotLoop() {
+  hline('Benchmark 4: Per-iteration hot loop (H1 shared token cache)');
+
+  function makeSystemPrompt() {
+    let text = 'You are WrongStack, an expert AI coding mentor.';
+    for (let i = 0; i < 10; i++) text += `\n${i + 1}. Core principle ${i + 1}`;
+    for (let i = 0; i < 40; i++) text += `\n- **tool_${i}** — Description`;
+    for (let i = 0; i < 15; i++) text += `\n## Skill ${i}: content`;
+    return [{ type: 'text', text }];
+  }
+
+  function makeToolDefs(count) {
+    return Array.from({ length: count }, (_, i) => ({
+      name: `tool_${i}`,
+      description: `Tool ${i} description.`,
+      inputSchema: { type: 'object', properties: { p1: { type: 'string' } }, required: ['p1'] },
+    }));
+  }
+
+  function makeContext(msgs, systemPrompt, tools) {
+    return {
+      messages: msgs,
+      todos: [],
+      readFiles: new Set(),
+      fileMtimes: new Map(),
+      systemPrompt,
+      provider: { id: 'mock', capabilities: { maxContext: 200_000 } },
+      session: { append: async () => {} },
+      signal: new AbortController().signal,
+      tokenCounter: { account: () => {}, total: () => ({ input: 0, output: 0 }) },
+      cwd: '/tmp',
+      projectRoot: '/tmp',
+      model: 'mock-model',
+      tools,
+      meta: {},
+      // H1 fields — present in the post-fix code, undefined in the pre-fix path.
+      lastRequestTokens: undefined,
+      toolAdjacencyDirty: false,
+      clearFileTracking: () => {},
+      // ConversationState is a class in the real codebase; the middleware
+      // doesn't use it directly so a stand-in object is fine for the bench.
+      state: { replaceMessages: () => {} },
+    };
+  }
+
+  function makeCompactor() {
+    return {
+      async compact() {
+        return { before: 0, after: 0, reductions: [] };
+      },
+    };
+  }
+
+  const systemPrompt = makeSystemPrompt();
+  const tools = makeToolDefs(40);
+  const ITERATIONS_PER_BENCH = 50;
+
+  console.log(
+    `\n  Size   pre-fix    post-fix   speedup  saved/iter   reduction`,
+  );
+  console.log(
+    `  ` + '─'.repeat(6) + `  ` + '─'.repeat(10) + `  ` + '─'.repeat(10) + `  ` + '─'.repeat(8) + `  ` + '─'.repeat(12) + `  ` + '─'.repeat(10),
+  );
+
+  const rows = [];
+  for (const sz of [50, 100, 200, 400]) {
+    const baseMessages = buildConversation(sz);
+
+    // ── Pre-fix: each of the three call sites recomputes ──────────────
+    // Mirrors the pre-H1 hot path: pre-flight uses estimateRequestTokens,
+    // emitContextPct and the middleware each call estimateRequestTokensCalibrated.
+    const ctxOld = makeContext(baseMessages, systemPrompt, tools);
+    const mwOld = new AutoCompactionMiddleware(
+      makeCompactor(),
+      200_000,
+      () => 0, // _estimator is required; never called because we pass 0 tokens
+      { warn: 0.6, soft: 0.75, hard: 0.9 },
+    );
+
+    // Force stamp so the per-message cache mirrors the production path
+    // (ConversationState stamps _estTokens on appendMessage).
+    for (const m of baseMessages) {
+      if (m._estTokens === undefined) m._estTokens = computeMessageTokens(m);
+    }
+
+    // Warmup
+    for (let n = 0; n < WARM; n++) {
+      const pre = estimateRequestTokens(ctxOld.messages, ctxOld.systemPrompt, ctxOld.tools);
+      estimateRequestTokensCalibrated(ctxOld.messages, ctxOld.systemPrompt, ctxOld.tools, 'mock/mock-model');
+      mwOld.handler()(ctxOld, async (c) => c);
+    }
+
+    const rOld = bench(() => {
+      for (let n = 0; n < ITERATIONS_PER_BENCH; n++) {
+        const pre = estimateRequestTokens(ctxOld.messages, ctxOld.systemPrompt, ctxOld.tools);
+        // emitContextPct — its own calibrate call
+        estimateRequestTokensCalibrated(ctxOld.messages, ctxOld.systemPrompt, ctxOld.tools, 'mock/mock-model');
+        // Middleware — same calibrate call
+        mwOld.handler()(ctxOld, async (c) => c);
+        // Reference `pre` to prevent dead-code elimination
+        if (pre.total < -1) throw new Error('unreachable');
+      }
+    });
+
+    // ── Post-fix: pre-flight stashes, the other two consult ctx ───────
+    // Mirrors the new H1 code path. The middleware hits the stashed fast
+    // path (no calibrate call). emitContextPct skips its own call and
+    // reads ctx.lastRequestTokens. Pre-flight is the only walk per iter.
+    const ctxNew = makeContext(baseMessages, systemPrompt, tools);
+    const mwNew = new AutoCompactionMiddleware(
+      makeCompactor(),
+      200_000,
+      () => 0,
+      { warn: 0.6, soft: 0.75, hard: 0.9 },
+    );
+
+    // Warmup
+    for (let n = 0; n < WARM; n++) {
+      const pre = estimateRequestTokens(ctxNew.messages, ctxNew.systemPrompt, ctxNew.tools);
+      ctxNew.lastRequestTokens = pre.total;
+      ctxNew.meta['lastRequestTokensAt'] = { msgCount: ctxNew.messages.length, toolCount: ctxNew.tools.length };
+      mwNew.handler()(ctxNew, async (c) => c);
+    }
+
+    const rNew = bench(() => {
+      for (let n = 0; n < ITERATIONS_PER_BENCH; n++) {
+        // Pre-flight — the only walk per iteration in the new code.
+        const pre = estimateRequestTokens(ctxNew.messages, ctxNew.systemPrompt, ctxNew.tools);
+        ctxNew.lastRequestTokens = pre.total;
+        ctxNew.meta['lastRequestTokensAt'] = { msgCount: ctxNew.messages.length, toolCount: ctxNew.tools.length };
+        // emitContextPct reads the stash, no walk.
+        // Middleware reads the stash, no walk.
+        mwNew.handler()(ctxNew, async (c) => c);
+        if (pre.total < -1) throw new Error('unreachable');
+      }
+    });
+
+    const speedup = rOld.median / Math.max(rNew.median, 0.001);
+    const savedPerIter = (rOld.median - rNew.median) / ITERATIONS_PER_BENCH;
+    const reduction = (1 - rNew.median / Math.max(rOld.median, 0.001)) * 100;
+
+    console.log(
+      `  ${String(sz).padStart(4)}msg  ${rOld.median.toFixed(3).padStart(8)}ms  ${rNew.median.toFixed(3).padStart(8)}ms  ${(speedup.toFixed(2) + 'x').padStart(8)}  ${savedPerIter.toFixed(4).padStart(10)}ms  ${(reduction.toFixed(0) + '%').padStart(8)}`,
+    );
+
+    rows.push({
+      messages: sz,
+      iterations: ITERATIONS_PER_BENCH,
+      oldMs: +rOld.median.toFixed(4),
+      newMs: +rNew.median.toFixed(4),
+      speedup: +speedup.toFixed(2),
+      savedPerIterMs: +savedPerIter.toFixed(4),
+      reductionPct: +reduction.toFixed(0),
+    });
+  }
+
+  return { iterationsPerBench: ITERATIONS_PER_BENCH, rows };
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
 // Main
 // ═══════════════════════════════════════════════════════════════════════════
 
@@ -349,6 +524,7 @@ const results = {
 results.benchmarks.tokenCache = bench1_tokenCache();
 results.benchmarks.parseInline = bench2_parseInline();
 results.benchmarks.elision = bench3_elision();
+results.benchmarks.perIterHotLoop = bench4_perIterHotLoop();
 
 // Write CI artifact
 writeFileSync('bench-results.json', JSON.stringify(results, null, 2));

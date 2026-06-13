@@ -101,6 +101,20 @@ export class Context implements RunEnv {
    */
   toolAdjacencyDirty = false;
 
+  /**
+   * H1: pre-computed total-request token estimate from the most recent
+   * `estimateRequestTokens()` call in the agent loop's pre-flight step.
+   * The middleware that decides when to compact, the `emitContextPct`
+   * helper that drives the live context-fill bar, and the pre-flight
+   * itself all need this number; previously each one walked the same
+   * messages/system/tools arrays independently. Stashing it here lets
+   * the three call sites share a single compute per iteration.
+   *
+   * The value is the **uncalibrated** total. Callers that want the
+   * calibrated number apply the per-(provider,model) ratio themselves.
+   */
+  lastRequestTokens: number | undefined = undefined;
+
   constructor(init: ContextInit) {
     this.systemPrompt = init.systemPrompt;
     this.provider = init.provider;
