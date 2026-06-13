@@ -17,11 +17,9 @@ import {
   createSessionEventBridge,
   createTieredBrainArbiter,
   DefaultBrainArbiter,
-  DefaultPathResolver,
   DefaultSystemPromptBuilder,
   type Director,
   EternalAutonomyEngine,
-  EventBus,
   expectDefined,
   type FileAuthorTrackerOptions,
   FLEET_ROSTER,
@@ -56,7 +54,6 @@ import {
 } from '@wrongstack/core';
 import { MCPRegistry } from '@wrongstack/mcp';
 import { capabilitiesFor, makeProviderFromConfig } from '@wrongstack/providers';
-import { createDefaultContainer } from '@wrongstack/runtime';
 import {
   builtinToolsPack,
   forgetTool,
@@ -67,17 +64,17 @@ import {
 import { createAutoPhaseHost } from './autophase-host.js';
 import { boot } from './boot.js';
 import { parseArgs } from './arg-parser.js';
-import { resolveBundledSkillsDir } from './cli-bundled-skills.js';
 import { launchEternalFromFlag } from './cli-eternal-flag.js';
 import { promptRecovery } from './cli-recovery-prompt.js';
 import { runPreflight } from './preflight.js';
+import { wireContainer } from './boot/container-wiring.js';
 import { helpCmd, versionCmd } from './subcommands/handlers/version-help.js';
 import { resolveRuntimeMaxContext } from './context-limit.js';
 import { type ExecutionDeps, execute } from './execution.js';
 import { createFallbackModelExtension } from './fallback-model.js';
 import { createLifecycleHooksExtension, createUserPromptSubmitMiddleware } from './hooks-wiring.js';
 import { MultiAgentHost } from './multi-agent.js';
-import { makeConfirmAwaiter, makePromptDelegate } from './permission-prompt.js';
+import { makeConfirmAwaiter } from './permission-prompt.js';
 import { runPluginManagementCommand } from './plugin-management.js';
 import { buildPickableProviders } from './provider-helpers.js';
 import { SessionStats } from './session-stats.js';
@@ -100,12 +97,6 @@ import { bindReplayToContainer } from './wiring/replay.js';
 import { setupSession } from './wiring/session.js';
 
 export { CLI_VERSION };
-
-type ContainerPromptDelegate = (
-  tool: unknown,
-  input: unknown,
-  suggestedPattern: string,
-) => Promise<'yes' | 'no' | 'always' | 'deny'>;
 
 type SddParallelRunGlobal = typeof globalThis & {
   __sddParallelRun?: import('@wrongstack/core').SddParallelRun | undefined;
@@ -186,30 +177,24 @@ export async function main(argv: string[]): Promise<number> {
   const { updateInfo: refreshedUpdateInfo } = await runPreflight(config, updateInfo);
   updateInfo = refreshedUpdateInfo;
 
-  // PathResolver is created from the resolved projectRoot
-  const pathResolver = new DefaultPathResolver(cwd);
-
-  const events = new EventBus();
-  events.setLogger(logger);
-
-  // Build container via shared factory
-  const container = createDefaultContainer({
+  // PR 3 of Issue #29: PathResolver + EventBus + container
+  // setup is now in `wireContainer()`. The function returns
+  // the PathResolver, the new EventBus, and the container;
+  // main() resolves the bootstrap-level services out of the
+  // container below. Replay wiring (next block) still lives
+  // here because it gates on CLI flags and isn't a
+  // container-binding step.
+  const { events, container } = wireContainer({
     config,
     wpaths,
+    cwd,
     logger,
+    reader,
+    renderer,
     modelsRegistry,
-    events,
-    permission: {
-      yolo: config.yolo,
-      yoloDestructive: flags['yolo-destructive'] === true || flags['force-all-yolo'] === true,
-      confirmDestructive: flags['confirm-destructive'] === true,
-      promptDelegate: makePromptDelegate(reader) as unknown as ContainerPromptDelegate,
-    },
-    compactor: {
-      preserveK: config.context.preserveK,
-      eliseThreshold: config.context.eliseThreshold,
-    },
-    bundledSkillsDir: config.features.skills ? resolveBundledSkillsDir() : undefined,
+    yoloDestructive:
+      flags['yolo-destructive'] === true || flags['force-all-yolo'] === true,
+    confirmDestructive: flags['confirm-destructive'] === true,
   });
 
   // Replay wiring (idea #2). When `--replay <sessionId>` is set, every
@@ -233,9 +218,6 @@ export async function main(argv: string[]): Promise<number> {
   }
 
   const configStore = container.resolve(TOKENS.ConfigStore);
-  container.bind(TOKENS.PathResolver, () => pathResolver);
-  container.bind(TOKENS.Renderer, () => renderer);
-  container.bind(TOKENS.InputReader, () => reader);
 
   // Resolve modeId and modelCapabilities before building system prompt.
   const modeStore = container.resolve(TOKENS.ModeStore);
