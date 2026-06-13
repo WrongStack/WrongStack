@@ -84,13 +84,25 @@ export class ConversationState {
   }
 
   replaceMessages(messages: Message[]): void {
-    // Compute per-message token estimates for any message that doesn't
-    // already carry one (e.g. fresh messages from eliseOldToolResults or
-    // repairToolUseAdjacency). Messages that already have _estTokens
-    // (from a prior appendMessage) are left untouched.
+    // M1 (combined with the existing _estTokens loop): single pass over the
+    // replacement messages that handles per-message token estimation AND
+    // tool-block detection for the adjacency-dirty flag. The previous
+    // implementation did a separate `messages.some(m => m.content.some(...))`
+    // walk — a second O(n·m) pass that the first loop can absorb with a
+    // tiny amount of extra state. For 200 messages with a 5-block average
+    // this halves the work done here.
+    let hasToolBlock = false;
     for (const m of messages) {
       if (m._estTokens === undefined) {
         m._estTokens = computeMessageTokens(m);
+      }
+      if (!hasToolBlock && Array.isArray(m.content)) {
+        for (const b of m.content) {
+          if (b.type === 'tool_use' || b.type === 'tool_result') {
+            hasToolBlock = true;
+            break;
+          }
+        }
       }
     }
     // In-place replacement without array spread to avoid a temporary
@@ -111,12 +123,7 @@ export class ConversationState {
     // Without this, replaceMessages() can silently skip repair when
     // it introduces or modifies tool_use/tool_result pairs (e.g. test
     // setup, agent-loop content rewrite).
-    if (
-      messages.some(
-        (m) => Array.isArray(m.content) &&
-          m.content.some((b) => b.type === 'tool_use' || b.type === 'tool_result'),
-      )
-    ) {
+    if (hasToolBlock) {
       this.ctx.toolAdjacencyDirty = true;
     }
 

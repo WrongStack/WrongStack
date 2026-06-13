@@ -90,22 +90,30 @@ export function createAgentResponseHandler(a: AgentInternals): AgentResponseHand
     await a.ctx.session.flush();
 
     if (a.ctx.signal.aborted) {
-      let finalText = '';
+      // M3: collect into an array and join at the end. `finalText += block.text`
+      // is O(n²) on V8 for many concatenations because each `+=` may allocate
+      // a new backing string. For a typical 4-block response this is moot,
+      // but the streaming-text path concatenates the *full* response in chunks
+      // — and long autonomous loops with verbose reasoning can hit dozens of
+      // chunks, making the cost visible. `Array.push` + single `join('')` is
+      // amortized O(n).
+      const parts: string[] = [];
       for (const block of res.content) {
-        if (isTextBlock(block)) finalText += block.text;
+        if (isTextBlock(block)) parts.push(block.text);
       }
-      return { finalText, aborted: true, done: false };
+      return { finalText: parts.join(''), aborted: true, done: false };
     }
 
-    let finalText = '';
+    const parts: string[] = [];
     const streamed = a.ctx.provider.capabilities.streaming;
     for (const block of res.content) {
       if (isTextBlock(block)) {
         const rendered = await a.pipelines.assistantOutput.run(block);
-        finalText += rendered.text;
+        parts.push(rendered.text);
         if (!streamed) a.renderer?.write(rendered);
       }
     }
+    const finalText = parts.join('');
 
     let directive: ContinueDirective = 'none';
     if (finalText) {

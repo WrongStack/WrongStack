@@ -58,9 +58,46 @@ export function createAgentLoopHandler(
   // sessions (no transcriptPath) get a no-op that returns [].
   const checkMailbox = attachMailboxChecker(a);
 
-  /** Run context window pipeline. */
+  /**
+   * Run context window pipeline — but skip the pipeline call entirely
+   * when we already know context is comfortably below the warn threshold
+   * and nothing has changed since the last run. The middleware inside
+   * the pipeline already short-circuits below the warn threshold with
+   * a cached token count, but the *pipeline materialization* itself
+   * (middleware chain walk, await plumbing, EventBus subscription setup)
+   * is not free. Skipping the whole call is free.
+   *
+   * Safety: we only skip when the message count is unchanged AND the
+   * last run was a no-op. If context grew (new messages, tool results
+   * appended, tool definitions changed) the next call must re-evaluate.
+   * If the last run actually fired a compaction, we must also re-run so
+   * the noop-retry logic gets its delta check.
+   */
   async function compactContextIfNeeded(): Promise<void> {
+    const msgCount = a.ctx.messages.length;
+    if (
+      _lastCompactionMsgCount === msgCount &&
+      _lastCompactionWasNoop &&
+      _maxContext > 0
+    ) {
+      return;
+    }
     await a.pipelines.contextWindow.run(a.ctx);
+    _lastCompactionMsgCount = msgCount;
+    // Mark as noop when the cached token count is below the warn fraction.
+    // The middleware's own noop-retry check (lastNoopAttempt) tracks a more
+    // nuanced "tried but couldn't reduce" state — this flag is coarser: it
+    // answers "should we even bother running the pipeline next time?"
+    const stashed = a.ctx.lastRequestTokens;
+    const tokens = typeof stashed === 'number' && stashed > 0
+      ? stashed
+      : 0;
+    const load = _maxContext > 0 ? tokens / _maxContext : 0;
+    // 0.5 is the soft default warn threshold used by `defaultConfig`; we
+    // hard-code it here to avoid a context.options lookup. The middleware
+    // is the authority on the actual policy threshold — this is just a
+    // fast-path heuristic for "definitely below warn" to skip the pipeline.
+    _lastCompactionWasNoop = tokens > 0 && load < 0.5;
   }
 
   /** Per-(provider,model) calibration bucket so a model-switching or fleet
@@ -137,6 +174,14 @@ export function createAgentLoopHandler(
   // uses it to detect when tool results have been appended since the
   // pre-flight and the stash needs a restash. -1 = no pre-flight yet.
   let _lastPreFlightMsgCount = -1;
+  // H3: fast-path for the context-window pipeline. When the message count
+  // is unchanged since the last run AND the last run was a noop (load
+  // below warn), we can skip the entire pipeline call. The middleware
+  // inside the pipeline still has its own per-call caches, but the
+  // pipeline materialization itself (chain walk, await plumbing) is
+  // pure overhead in this case.
+  let _lastCompactionMsgCount = -1;
+  let _lastCompactionWasNoop = false;
 
   /**
    * Append an informational block to the conversation, merging into the
