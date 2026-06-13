@@ -8,7 +8,7 @@ import type {
   EventBus,
   ModelsRegistry,
   SecretVault,
-  SessionWriter,
+  SessionStore,
   ToolRegistry,
 } from '@wrongstack/core';
 
@@ -33,9 +33,17 @@ export interface WebUIOptions {
    *
    * Intended for callers (most notably `cli/webui-server.ts`) that
    * already own the agent lifecycle — the CLI's `runWebUI` constructs
-   * the Agent, EventBus, SessionWriter, and friends so it can run an
+   * the Agent, EventBus, SessionStore, and friends so it can run an
    * eternal iteration against them, then hands the lot to the webui
    * for the human-facing surface.
+   *
+   * `session` is typed as `SessionStore` (read + write) rather than
+   * the narrower `SessionWriter` because `startWebUI` needs to
+   * `load()` existing session history to project the chat view, and
+   * `list()` past sessions to populate the sessions dashboard. A
+   * `SessionWriter`-only field would force `startWebUI` to take a
+   * separate `sessionStore` for reads, which is a worse API for the
+   * CLI caller (`runWebUI` already has one store, not two).
    *
    * When `services` is omitted, `startWebUI` retains its existing
    * behavior (builds the defaults in-place). This keeps the standalone
@@ -47,7 +55,7 @@ export interface WebUIOptions {
 export interface BackendServices {
   agent: Agent;
   events: EventBus;
-  session: SessionWriter;
+  session: SessionStore;
   toolRegistry: ToolRegistry;
   modelsRegistry: ModelsRegistry;
   configStore: ConfigStore;

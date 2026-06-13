@@ -357,14 +357,23 @@ export async function startWebUI(
   console.log('[WebUI] Tool registry loaded:', toolRegistry.list().length, 'tools');
 
   // Session store — mutable so projects.select can swap it to the new project's dir.
-  let sessionStore = new DefaultSessionStore({ dir: wpaths.projectSessions });
-  // Prune old sessions on server start (non-blocking).
-  sessionStore
-    .prune(DEFAULT_SESSION_PRUNE_DAYS)
-    .then((count) => {
-      if (count > 0) logger.info(`Pruned ${count} old session${count === 1 ? '' : 's'}.`);
-    })
-    .catch(() => undefined);
+  // Use the injected one if `services.session` was passed. The CLI's
+  // runWebUI already has its own session store pointing at the
+  // right per-project dir; we reuse it here so the webui reads
+  // the same history the CLI is writing.
+  let sessionStore = opts.services?.session ?? new DefaultSessionStore({ dir: wpaths.projectSessions });
+  // Prune old sessions on server start (non-blocking). Skipped when
+  // an injected store is in use — the CLI's eternal loop is
+  // responsible for its own lifecycle and pruning an in-use store
+  // would race with the CLI's own prune policy.
+  if (!opts.services?.session) {
+    sessionStore
+      .prune(DEFAULT_SESSION_PRUNE_DAYS)
+      .then((count) => {
+        if (count > 0) logger.info(`Pruned ${count} old session${count === 1 ? '' : 's'}.`);
+      })
+      .catch(() => undefined);
+  }
   // Session reader — same on-disk store, read-only access. Used by the
   // collaboration handler to replay the last N events to late-joining
   // observers (Phase 1.5 of idea #13).
