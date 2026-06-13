@@ -1,6 +1,5 @@
 import * as crypto from 'node:crypto';
 import * as fs from 'node:fs/promises';
-import { createRequire } from 'node:module';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import type {
@@ -47,7 +46,6 @@ import {
   type CustomModeStore,
   createCustomModeStore,
   createEternalSubscription,
-  createHttpServer,
   findFreePort,
   handleFilesList,
   handleFilesRead,
@@ -65,6 +63,7 @@ import {
   loadSavedProviders,
   saveProviders,
 } from './webui-server/provider-config.js';
+import { startStaticServe } from './webui-server/static-serve.js';
 import { WebSocket, WebSocketServer } from 'ws';
 import {
   expectDefined,
@@ -575,33 +574,31 @@ export async function runWebUI(opts: CliWebUIOptions): Promise<void> {
   console.log(`[WebUI] WebSocket server starting on ws://${host}:${port}`);
 
   // Serve the React frontend over HTTP so `wrongstack --webui` is a one-command
-  // launch (open the printed URL) instead of only a WS bridge. The static
-  // serve + WS-port injection live in @wrongstack/webui; we resolve its built
-  // dist via the package entry. If the webui package isn't built, we degrade
+  // launch (open the printed URL) instead of only a WS bridge. The dist
+  // discovery + HTTP server bring-up live in
+  // `webui-server/static-serve.ts`; we just hand it the options and
+  // wire the open-browser callback on top. If the webui package
+  // isn't built, `startStaticServe` returns null and we degrade
   // gracefully to WS-only (the original behavior).
-  let httpServer: import('node:http').Server | null = null;
-  try {
-    const requireFromHere = createRequire(import.meta.url);
-    const serverEntry = requireFromHere.resolve('@wrongstack/webui/server');
-    const distDir = path.resolve(path.dirname(serverEntry), '..'); // .../dist
-    httpServer = createHttpServer({
-      host,
-      distDir,
-      wsPort,
-      globalRoot: path.dirname(opts.globalConfigPath ?? ''),
-    });
+  const httpServer = startStaticServe({
+    host,
+    httpPort,
+    wsPort,
+    globalRoot: path.dirname(opts.globalConfigPath ?? ''),
+  });
+  if (httpServer) {
     const openUrl = `http://${host}:${httpPort}`;
-    httpServer?.listen(httpPort, host, () => {
+    httpServer.server.on('listening', () => {
       console.log(
         `\n  ▸ WebUI ready — open \x1b[1m${openUrl}\x1b[0m in your browser` +
           `\n    (same agent as this terminal · ws:${wsPort})\n`,
       );
       if (opts.open) openBrowser(openUrl);
     });
-  } catch (err) {
+  } else {
     console.warn(
-      `[WebUI] Frontend not served (run \`pnpm --filter @wrongstack/webui build\`): ` +
-        `${err instanceof Error ? err.message : String(err)}. WS bridge still active on ws://${host}:${wsPort}.`,
+      `[WebUI] Frontend not served (run \`pnpm --filter @wrongstack/webui build\`). ` +
+        `WS bridge still active on ws://${host}:${wsPort}.`,
     );
   }
 
@@ -1193,7 +1190,7 @@ export async function runWebUI(opts: CliWebUIOptions): Promise<void> {
       const unregistered = unregisterInstance(process.pid, registryBaseDir).catch((err: unknown) =>
         console.debug(`[webui-server] unregister failed: ${err}`),
       );
-      httpServer?.close();
+      httpServer?.server.close();
       wss.close(() => {
         void unregistered.then(() => {
           console.log('[WebUI] Server stopped');
@@ -2989,7 +2986,7 @@ export async function runWebUI(opts: CliWebUIOptions): Promise<void> {
   function shutdown(): void {
     console.log('[WebUI] Shutting down...');
     unregisterWebuiClient();
-    httpServer?.close();
+    httpServer?.server.close();
     opts.onExit?.();
   }
 
