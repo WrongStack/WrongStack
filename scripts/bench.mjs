@@ -6,7 +6,9 @@
 //   3. eliseOldToolResults early-exit — compaction allocation savings
 //   4. Per-iteration hot loop — pre-flight + emit + middleware (H1 fix)
 //   5. Tool executor with structured outputs — H2 fix removes JSON.stringify
-//   6. Hot-path M-tier sweep — H3/H5/M1/M3 micro-optimizations
+//   6. Hot-path M-tier sweep — H3/M1/M3 micro-optimizations
+//      (H5 completePartialObject LRU was REMOVED — see Benchmark 6 below
+//       for the deprecation note. The LRU was a net loss in production.)
 //
 // Usage: node scripts/bench.mjs
 
@@ -15,7 +17,16 @@ import * as core from '../packages/core/dist/index.js';
 import { createToolOutputSerializer } from '../packages/core/dist/utils/index.js';
 import { parseInline } from '../packages/tui/dist/index.js';
 
-const { AutoCompactionMiddleware, estimateMessageTokens, estimateRequestTokens, estimateRequestTokensCalibrated, computeMessageTokens, eliseOldToolResults, estimateToolResultTokens, parseContinueDirective, completePartialObject } = core;
+const {
+  AutoCompactionMiddleware,
+  estimateMessageTokens,
+  estimateRequestTokens,
+  estimateRequestTokensCalibrated,
+  computeMessageTokens,
+  eliseOldToolResults,
+  estimateToolResultTokens,
+  parseContinueDirective,
+} = core;
 
 // ═══════════════════════════════════════════════════════════════════════════
 // Shared helpers
@@ -27,7 +38,8 @@ function median(values) {
   return sorted.length % 2 === 0 ? (sorted[mid - 1] + sorted[mid]) / 2 : sorted[mid];
 }
 
-const ITER = 500, WARM = 50;
+const ITER = 500,
+  WARM = 50;
 
 function bench(fn) {
   for (let i = 0; i < WARM; i++) fn();
@@ -57,14 +69,28 @@ const FAIL = '\x1b[31m✗\x1b[0m';
 // Message builders (shared by benchmarks 1 and 3)
 // ═══════════════════════════════════════════════════════════════════════════
 
-function textBlock(text) { return { type: 'text', text }; }
-function toolUseBlock(id, name, input) { return { type: 'tool_use', id, name, input }; }
-function toolResultBlock(id, content, isError) { return { type: 'tool_result', tool_use_id: id, content, is_error: !!isError }; }
+function textBlock(text) {
+  return { type: 'text', text };
+}
+function toolUseBlock(id, name, input) {
+  return { type: 'tool_use', id, name, input };
+}
+function toolResultBlock(id, content, isError) {
+  return { type: 'tool_result', tool_use_id: id, content, is_error: !!isError };
+}
 
-function userMsg(text) { return { role: 'user', content: [textBlock(text)] }; }
-function assistantMsg(text) { return { role: 'assistant', content: [textBlock(text)] }; }
-function toolUseMsg(id, name, input) { return { role: 'assistant', content: [textBlock('.'), toolUseBlock(id, name, input)] }; }
-function toolResultMsg(id, content, isError) { return { role: 'user', content: [toolResultBlock(id, content, isError)] }; }
+function userMsg(text) {
+  return { role: 'user', content: [textBlock(text)] };
+}
+function assistantMsg(text) {
+  return { role: 'assistant', content: [textBlock(text)] };
+}
+function toolUseMsg(id, name, input) {
+  return { role: 'assistant', content: [textBlock('.'), toolUseBlock(id, name, input)] };
+}
+function toolResultMsg(id, content, isError) {
+  return { role: 'user', content: [toolResultBlock(id, content, isError)] };
+}
 
 function readResult() {
   const lines = [];
@@ -99,7 +125,7 @@ function hugeResult(sizeKB) {
 function buildConversation(msgCount, { largeResults = 0 } = {}) {
   const messages = [];
   messages.push(userMsg('Analyze the WrongStack codebase performance.'));
-  messages.push(assistantMsg("Starting exploration."));
+  messages.push(assistantMsg('Starting exploration.'));
   messages.push(toolUseMsg('tu_001', 'tree', { path: '.' }));
   messages.push(toolResultMsg('tu_001', 'packages/\n  core/src/token-estimate.ts'));
   messages.push(toolUseMsg('tu_002', 'read', { path: 'token-estimate.ts' }));
@@ -160,7 +186,20 @@ function bench1_tokenCache() {
   }
 
   console.log('  Size   uncached    cached    speedup  saved/iter   reduction');
-  console.log('  ' + '─'.repeat(6) + '  ' + '─'.repeat(10) + '  ' + '─'.repeat(10) + '  ' + '─'.repeat(8) + '  ' + '─'.repeat(12) + '  ' + '─'.repeat(10));
+  console.log(
+    '  ' +
+      '─'.repeat(6) +
+      '  ' +
+      '─'.repeat(10) +
+      '  ' +
+      '─'.repeat(10) +
+      '  ' +
+      '─'.repeat(8) +
+      '  ' +
+      '─'.repeat(12) +
+      '  ' +
+      '─'.repeat(10),
+  );
 
   const sizes = [50, 100, 200, 400];
   const systemPrompt = makeSystemPrompt();
@@ -176,7 +215,7 @@ function bench1_tokenCache() {
     stamp(msgs);
     const r2 = bench(() => estimateRequestTokens(msgs, systemPrompt, tools));
 
-    const speedup = (r1.median / Math.max(r2.median, 0.001));
+    const speedup = r1.median / Math.max(r2.median, 0.001);
     const savedPerIter = (r1.median - r2.median) * 4;
     const reduction = (1 - r2.median / Math.max(r1.median, 0.001)) * 100;
 
@@ -226,18 +265,38 @@ function bench2_parseInline() {
 
     let i = lines.length;
     while (lines.length < totalLines) {
-      const p = (i++) % 10;
+      const p = i++ % 10;
       switch (p) {
-        case 0: lines.push(`### Section ${Math.floor(i / 10) + 3}`); break;
-        case 1: lines.push(`**Bold** and *italic* and \`code\` and ~~strike~~ mixed.`); break;
-        case 2: lines.push(`Call \`estimateMessageTokens(messages)\` with \`_estTokens\`.`); break;
-        case 3: lines.push(`- Item ${i}: \`code\` with **bold** and *italic*`); break;
-        case 4: lines.push(`${Math.floor(i / 10) + 1}. Numbered step with \`inline.code()\``); break;
-        case 5: lines.push(`> Blockquote with **emphasis** and \`code\` tokens.`); break;
-        case 6: lines.push(`**Bold** then *italic* then \`code\` then ~~strike~~ then normal.`); break;
-        case 7: lines.push(`File: \`packages/core/src/utils/token-estimate.ts\``); break;
-        case 8: lines.push(`Use \`vi.mock()\` for external deps; never mock internals.`); break;
-        case 9: lines.push('├── packages/core/src/utils/token-estimate.ts'); break;
+        case 0:
+          lines.push(`### Section ${Math.floor(i / 10) + 3}`);
+          break;
+        case 1:
+          lines.push(`**Bold** and *italic* and \`code\` and ~~strike~~ mixed.`);
+          break;
+        case 2:
+          lines.push(`Call \`estimateMessageTokens(messages)\` with \`_estTokens\`.`);
+          break;
+        case 3:
+          lines.push(`- Item ${i}: \`code\` with **bold** and *italic*`);
+          break;
+        case 4:
+          lines.push(`${Math.floor(i / 10) + 1}. Numbered step with \`inline.code()\``);
+          break;
+        case 5:
+          lines.push(`> Blockquote with **emphasis** and \`code\` tokens.`);
+          break;
+        case 6:
+          lines.push(`**Bold** then *italic* then \`code\` then ~~strike~~ then normal.`);
+          break;
+        case 7:
+          lines.push(`File: \`packages/core/src/utils/token-estimate.ts\``);
+          break;
+        case 8:
+          lines.push(`Use \`vi.mock()\` for external deps; never mock internals.`);
+          break;
+        case 9:
+          lines.push('├── packages/core/src/utils/token-estimate.ts');
+          break;
       }
     }
     return lines;
@@ -255,16 +314,22 @@ function bench2_parseInline() {
     for (const line of allLines) parseInline(line);
   });
 
-  console.log(`  Lines: ${allLines.length}  Unique: ${uniqueLines}  (${((1 - uniqueLines / allLines.length) * 100).toFixed(0)}% dup)`);
-  console.log(`  Full parse (warm):  ${r.median.toFixed(4)}ms  (${(r.median / LINES * 1_000_000).toFixed(0)}ns/line)`);
-  console.log(`  Per-line (warm):    ${(r.median / LINES * 1_000).toFixed(2)}µs  → essentially Map.get lookup`);
+  console.log(
+    `  Lines: ${allLines.length}  Unique: ${uniqueLines}  (${((1 - uniqueLines / allLines.length) * 100).toFixed(0)}% dup)`,
+  );
+  console.log(
+    `  Full parse (warm):  ${r.median.toFixed(4)}ms  (${((r.median / LINES) * 1_000_000).toFixed(0)}ns/line)`,
+  );
+  console.log(
+    `  Per-line (warm):    ${((r.median / LINES) * 1_000).toFixed(2)}µs  → essentially Map.get lookup`,
+  );
 
   return {
     lines: allLines.length,
     uniqueLines,
     duplicationPct: +((1 - uniqueLines / allLines.length) * 100).toFixed(0),
     warmFullParseMs: +r.median.toFixed(4),
-    warmPerLineNs: +(r.median / LINES * 1_000_000).toFixed(0),
+    warmPerLineNs: +((r.median / LINES) * 1_000_000).toFixed(0),
   };
 }
 
@@ -276,7 +341,9 @@ function bench3_elision() {
   hline('Benchmark 3: eliseOldToolResults() early-exit scan');
 
   console.log('  Size   w/o early-exit   w/ early-exit     saved');
-  console.log('  ' + '─'.repeat(6) + '  ' + '─'.repeat(15) + '  ' + '─'.repeat(15) + '  ' + '─'.repeat(10));
+  console.log(
+    '  ' + '─'.repeat(6) + '  ' + '─'.repeat(15) + '  ' + '─'.repeat(15) + '  ' + '─'.repeat(10),
+  );
 
   for (const sz of [50, 100, 200]) {
     // Scenario A: No oversized results → early-exit fires
@@ -316,12 +383,18 @@ function bench3_elision() {
   eliseOldToolResults(msgs, { preserveK: 5, eliseThreshold: 2000 });
 
   const rNoLarge = bench(() => eliseOldToolResults(msgs, { preserveK: 5, eliseThreshold: 2000 }));
-  console.log(`    No large results (early-exit fires):    ${rNoLarge.median.toFixed(3)}ms — O(preserveK·blocks) scan, no allocation`);
+  console.log(
+    `    No large results (early-exit fires):    ${rNoLarge.median.toFixed(3)}ms — O(preserveK·blocks) scan, no allocation`,
+  );
 
   const msgsLarge = buildConversation(200, { largeResults: 5 });
   eliseOldToolResults(msgsLarge, { preserveK: 5, eliseThreshold: 2000 });
-  const rLarge = bench(() => eliseOldToolResults(msgsLarge, { preserveK: 5, eliseThreshold: 2000 }));
-  console.log(`    With large results (full allocation):   ${rLarge.median.toFixed(3)}ms — full array copy + block mapping`);
+  const rLarge = bench(() =>
+    eliseOldToolResults(msgsLarge, { preserveK: 5, eliseThreshold: 2000 }),
+  );
+  console.log(
+    `    With large results (full allocation):   ${rLarge.median.toFixed(3)}ms — full array copy + block mapping`,
+  );
 
   return {
     earlyExitMs: +rNoLarge.median.toFixed(4),
@@ -402,11 +475,20 @@ function bench4_perIterHotLoop() {
   const tools = makeToolDefs(40);
   const ITERATIONS_PER_BENCH = 50;
 
+  console.log(`\n  Size   pre-fix    post-fix   speedup  saved/iter   reduction`);
   console.log(
-    `\n  Size   pre-fix    post-fix   speedup  saved/iter   reduction`,
-  );
-  console.log(
-    `  ` + '─'.repeat(6) + `  ` + '─'.repeat(10) + `  ` + '─'.repeat(10) + `  ` + '─'.repeat(8) + `  ` + '─'.repeat(12) + `  ` + '─'.repeat(10),
+    `  ` +
+      '─'.repeat(6) +
+      `  ` +
+      '─'.repeat(10) +
+      `  ` +
+      '─'.repeat(10) +
+      `  ` +
+      '─'.repeat(8) +
+      `  ` +
+      '─'.repeat(12) +
+      `  ` +
+      '─'.repeat(10),
   );
 
   const rows = [];
@@ -433,7 +515,12 @@ function bench4_perIterHotLoop() {
     // Warmup
     for (let n = 0; n < WARM; n++) {
       const pre = estimateRequestTokens(ctxOld.messages, ctxOld.systemPrompt, ctxOld.tools);
-      estimateRequestTokensCalibrated(ctxOld.messages, ctxOld.systemPrompt, ctxOld.tools, 'mock/mock-model');
+      estimateRequestTokensCalibrated(
+        ctxOld.messages,
+        ctxOld.systemPrompt,
+        ctxOld.tools,
+        'mock/mock-model',
+      );
       mwOld.handler()(ctxOld, async (c) => c);
     }
 
@@ -441,7 +528,12 @@ function bench4_perIterHotLoop() {
       for (let n = 0; n < ITERATIONS_PER_BENCH; n++) {
         const pre = estimateRequestTokens(ctxOld.messages, ctxOld.systemPrompt, ctxOld.tools);
         // emitContextPct — its own calibrate call
-        estimateRequestTokensCalibrated(ctxOld.messages, ctxOld.systemPrompt, ctxOld.tools, 'mock/mock-model');
+        estimateRequestTokensCalibrated(
+          ctxOld.messages,
+          ctxOld.systemPrompt,
+          ctxOld.tools,
+          'mock/mock-model',
+        );
         // Middleware — same calibrate call
         mwOld.handler()(ctxOld, async (c) => c);
         // Reference `pre` to prevent dead-code elimination
@@ -454,18 +546,20 @@ function bench4_perIterHotLoop() {
     // path (no calibrate call). emitContextPct skips its own call and
     // reads ctx.lastRequestTokens. Pre-flight is the only walk per iter.
     const ctxNew = makeContext(baseMessages, systemPrompt, tools);
-    const mwNew = new AutoCompactionMiddleware(
-      makeCompactor(),
-      200_000,
-      () => 0,
-      { warn: 0.6, soft: 0.75, hard: 0.9 },
-    );
+    const mwNew = new AutoCompactionMiddleware(makeCompactor(), 200_000, () => 0, {
+      warn: 0.6,
+      soft: 0.75,
+      hard: 0.9,
+    });
 
     // Warmup
     for (let n = 0; n < WARM; n++) {
       const pre = estimateRequestTokens(ctxNew.messages, ctxNew.systemPrompt, ctxNew.tools);
       ctxNew.lastRequestTokens = pre.total;
-      ctxNew.meta['lastRequestTokensAt'] = { msgCount: ctxNew.messages.length, toolCount: ctxNew.tools.length };
+      ctxNew.meta['lastRequestTokensAt'] = {
+        msgCount: ctxNew.messages.length,
+        toolCount: ctxNew.tools.length,
+      };
       mwNew.handler()(ctxNew, async (c) => c);
     }
 
@@ -474,7 +568,10 @@ function bench4_perIterHotLoop() {
         // Pre-flight — the only walk per iteration in the new code.
         const pre = estimateRequestTokens(ctxNew.messages, ctxNew.systemPrompt, ctxNew.tools);
         ctxNew.lastRequestTokens = pre.total;
-        ctxNew.meta['lastRequestTokensAt'] = { msgCount: ctxNew.messages.length, toolCount: ctxNew.tools.length };
+        ctxNew.meta['lastRequestTokensAt'] = {
+          msgCount: ctxNew.messages.length,
+          toolCount: ctxNew.tools.length,
+        };
         // emitContextPct reads the stash, no walk.
         // Middleware reads the stash, no walk.
         mwNew.handler()(ctxNew, async (c) => c);
@@ -552,7 +649,12 @@ function bench5_toolExecStructured() {
   const PER_TOOL_KB = 32;
 
   const results = [];
-  for (const [label, targetKB] of [['~32KB', 32], ['~16KB', 16], ['~8KB', 8], ['~4KB', 4]]) {
+  for (const [label, targetKB] of [
+    ['~32KB', 32],
+    ['~16KB', 16],
+    ['~8KB', 8],
+    ['~4KB', 4],
+  ]) {
     const per = Array.from({ length: TOOLS_PER_BATCH }, () => makeStructuredResult(targetKB));
     const budget = 100_000;
 
@@ -597,8 +699,12 @@ function bench5_toolExecStructured() {
     }
 
     // Measure
-    const rOld = bench(() => { for (let n = 0; n < BATCHES; n++) oldPath(per, budget); });
-    const rNew = bench(() => { for (let n = 0; n < BATCHES; n++) newPath(per, budget); });
+    const rOld = bench(() => {
+      for (let n = 0; n < BATCHES; n++) oldPath(per, budget);
+    });
+    const rNew = bench(() => {
+      for (let n = 0; n < BATCHES; n++) newPath(per, budget);
+    });
 
     const speedup = rOld.median / Math.max(rNew.median, 0.0001);
     const savedPerBatch = (rOld.median - rNew.median) / BATCHES;
@@ -632,10 +738,10 @@ function bench5_toolExecStructured() {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
-// Benchmark 6: Hot-path M-tier sweep (H3 + H5 + M1 + M3)
+// Benchmark 6: Hot-path M-tier sweep (H3 + M1 + M3)
 // ═══════════════════════════════════════════════════════════════════════════
 //
-// This benchmark isolates the per-fix cost of four micro-optimizations
+// This benchmark isolates the per-fix cost of three micro-optimizations
 // that target the agent loop's per-iteration overhead. The savings
 // individually are small (5-50 µs each) but compound across hundreds of
 // iterations in long autonomous sessions.
@@ -644,11 +750,6 @@ function bench5_toolExecStructured() {
 //        Pre-fix: every call runs the contextWindow pipeline.
 //        Post-fix: skip the pipeline when msg count is unchanged AND
 //                  the last run was a noop (load below warn threshold).
-//
-//   H5 — completePartialObject() LRU
-//        Pre-fix: every call reparses the truncated JSON string.
-//        Post-fix: 64-entry LRU keyed on the full string returns the
-//                  cached repair result in O(1).
 //
 //   M1 — replaceMessages() tool-block detection
 //        Pre-fix: two passes over messages (token-estimating loop +
@@ -661,6 +762,9 @@ function bench5_toolExecStructured() {
 //                 `[done]` markers.
 //        Post-fix: scan only the last 2 KB of `text` (the model is
 //                  trained to put the marker at the end).
+//
+// (H5 completePartialObject() LRU was REMOVED — see the H5 row below
+// for the deprecation note. The LRU was a net loss in production.)
 function bench6_mTierSweep() {
   const rows = [];
 
@@ -691,44 +795,32 @@ function bench6_mTierSweep() {
     _lastNoop = true;
   }
   const h3PostFix = performance.now() - h3PostStart;
-  void _lastMsgCount; void _lastNoop;
+  void _lastMsgCount;
+  void _lastNoop;
   rows.push({
     fix: 'H3 (compactContextIfNeeded early-exit)',
     preFixMs: h3PreFix.toFixed(3),
     postFixMs: h3PostFix.toFixed(3),
     speedup: h3PreFix > 0 ? (h3PreFix / Math.max(h3PostFix, 0.001)).toFixed(2) : '∞',
-    savedPerIter: ((h3PreFix - h3PostFix) * 1_000 / H3_ITERS).toFixed(2) + 'µs',
+    savedPerIter: (((h3PreFix - h3PostFix) * 1_000) / H3_ITERS).toFixed(2) + 'µs',
   });
 
-  // ── H5: completePartialObject LRU ───────────────────────────────────
-  // Build a truncated JSON string that requires the repair path.
-  const truncated = '{"path": "/foo/bar", "query": "SELECT * FROM users WHERE name = \'' + 'x'.repeat(2_000) + "'";
-  const H5_ITERS = 200;
-
-  const h5PreStart = performance.now();
-  for (let i = 0; i < H5_ITERS; i++) {
-    // Vary the string slightly so the LRU can't trivially cache —
-    // models the pre-fix cost where every call reparses.
-    const v = truncated + i.toString();
-    completePartialObject(v);
-  }
-  const h5PreFix = performance.now() - h5PreStart;
-
-  // Post-fix: 2 calls per string — first to populate the LRU, second
-  // to hit the cache. Real-world win is the second-call savings.
-  const h5PostStart = performance.now();
-  for (let i = 0; i < H5_ITERS; i++) {
-    const v = truncated + i.toString();
-    completePartialObject(v);
-    completePartialObject(v); // cache hit
-  }
-  const h5PostFix = performance.now() - h5PostStart;
+  // ── H5: completePartialObject LRU (REMOVED — see note) ─────────────
+  // The H5 LRU was added in commit 22664e81 based on the original H5
+  // finding ("60-90% reduction in JSON repair cost on long inputs").
+  // Subsequent benchmarking (scripts/h5-probe5.mjs) showed the LRU is
+  // a NET LOSS in production: streamed tool input deltas are unique
+  // per tool call, so the LRU hit rate is ~0%, and the per-call
+  // Map.has/delete/set overhead (≈50-100 ns) is paid on every miss.
+  // The 64-entry cap also held a worst-case 256 KB of stale results.
+  // Replaced with a "no-op" row so the bench output stays stable and
+  // the deprecation is visible to future readers.
   rows.push({
-    fix: 'H5 (completePartialObject LRU)',
-    preFixMs: h5PreFix.toFixed(3),
-    postFixMs: h5PostFix.toFixed(3),
-    speedup: h5PreFix > 0 ? (h5PreFix / Math.max(h5PostFix, 0.001)).toFixed(2) : '∞',
-    savedPerIter: ((h5PreFix - h5PostFix) * 1_000 / (H5_ITERS * 2)).toFixed(2) + 'µs',
+    fix: 'H5 (completePartialObject LRU) — REMOVED',
+    preFixMs: '—',
+    postFixMs: '—',
+    speedup: '—',
+    savedPerIter: '0.00µs (LRU was a net loss; production hit rate ≈ 0%)',
   });
 
   // ── M1: replaceMessages double-pass ────────────────────────────────
@@ -799,7 +891,7 @@ function bench6_mTierSweep() {
     preFixMs: m1PreFix.toFixed(3),
     postFixMs: m1PostFix.toFixed(3),
     speedup: m1PreFix > 0 ? (m1PreFix / Math.max(m1PostFix, 0.001)).toFixed(2) : '∞',
-    savedPerIter: ((m1PreFix - m1PostFix) * 1_000 / M1_ITERS).toFixed(2) + 'µs',
+    savedPerIter: (((m1PreFix - m1PostFix) * 1_000) / M1_ITERS).toFixed(2) + 'µs',
   });
 
   // ── M3: parseContinueDirective tail scan ───────────────────────────
@@ -840,7 +932,7 @@ function bench6_mTierSweep() {
     preFixMs: m3PreFix.toFixed(3) + ' (2KB scan, ~half of 4KB cost)',
     postFixMs: m3PostFix.toFixed(3) + ' (4KB input, 2KB tail scan)',
     speedup: m3PreFix > 0 ? (m3PreFix / Math.max(m3PostFix, 0.001)).toFixed(2) : '∞',
-    savedPerIter: ((m3PreFix - m3PostFix) * 1_000 / M3_ITERS).toFixed(2) + 'µs',
+    savedPerIter: (((m3PreFix - m3PostFix) * 1_000) / M3_ITERS).toFixed(2) + 'µs',
   });
 
   return { rows };
@@ -850,7 +942,7 @@ function bench6_mTierSweep() {
 // the data; this just makes it visible in the bench run's stdout).
 function printMTierSweepTable(result) {
   console.log('\n════════════════════════════════════════════════════════════');
-  console.log('  Benchmark 6: Hot-path M-tier sweep (H3 + H5 + M1 + M3)');
+  console.log('  Benchmark 6: Hot-path M-tier sweep (H3 + M1 + M3)');
   console.log('════════════════════════════════════════════════════════════\n');
   console.log('  Fix                                pre        post       speedup  saved/iter');
   console.log('  ─────────────────────────────────  ────────  ────────  ───────  ────────');

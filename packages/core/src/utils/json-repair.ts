@@ -1,39 +1,6 @@
 import { expectDefined } from './expect-defined.js';
 
 /**
- * Bounded LRU cache for `completePartialObject` results. Implemented
- * as a Map because Map iteration order in JS is insertion order, so
- * the *first* key is also the oldest — deletion is O(1) without
- * walking a separate doubly-linked list.
- */
-class LruStringCache {
-  private readonly cap: number;
-  private readonly map = new Map<string, string>();
-
-  constructor(cap: number) {
-    this.cap = cap;
-  }
-
-  get(key: string): string | undefined {
-    return this.map.get(key);
-  }
-
-  set(key: string, value: string): void {
-    if (this.map.has(key)) {
-      // Re-insert to bump to the back (most-recently-used).
-      this.map.delete(key);
-    } else if (this.map.size >= this.cap) {
-      // Evict the oldest by deleting the first key in insertion order.
-      const oldest = this.map.keys().next().value;
-      if (oldest !== undefined) this.map.delete(oldest);
-    }
-    this.map.set(key, value);
-  }
-}
-
-const REPAIR_LRU = new LruStringCache(64);
-
-/**
  * Attempt to close an incomplete JSON object string by auto-closing braces
  * and completing any unclosed double-quoted string values.
  *
@@ -56,29 +23,11 @@ const REPAIR_LRU = new LruStringCache(64);
  */
 export function completePartialObject(s: string): string {
   if (!s.trim().startsWith('{')) return s;
-  // H5: memoize the fast-path `tryParse(s).ok` and the slow repair
-  // separately. The fast path is a JSON.parse; for streamed tool input
-  // it's checked once at the very end (when the string is complete) and
-  // again when the parser runs on the tool_use stop event. Without the
-  // cache, the same long string gets parsed twice.
   if (tryParse(s).ok) return s;
-
-  // LRU(64) for the slow path. Streaming input deltas are unique per
-  // tool call, so the cache hit rate on the *repair* is low — but when
-  // the same model emits the same truncated pattern across iterations
-  // (very common in long autonomous sessions), the repair work is pure
-  // repetition. A 64-entry cap keeps memory under ~256 KB at the worst
-  // case (4 KB strings × 64), which is negligible against a 200 KB
-  // iteration output cap.
-  const cached = REPAIR_LRU.get(s);
-  if (cached !== undefined) return cached;
-  const result = repairTruncated(s);
-  REPAIR_LRU.set(s, result);
-  return result;
+  return repairTruncated(s);
 }
 
 function repairTruncated(s: string): string {
-
   // Single forward scan capturing the structural state at the truncation point:
   // the open-container stack, whether we are inside a string, a dangling escape,
   // and where the last significant (non-trailing-whitespace) character sits.
@@ -185,6 +134,9 @@ function endsWithInvalidEscape(str: string): boolean {
 }
 
 function tryParse(s: string): { ok: true; value: unknown } | { ok: false } {
-  try { return { ok: true, value: JSON.parse(s) }; }
-  catch { return { ok: false }; }
+  try {
+    return { ok: true, value: JSON.parse(s) };
+  } catch {
+    return { ok: false };
+  }
 }
