@@ -61,12 +61,14 @@ import {
   registerInstance,
   unregisterInstance,
 } from '@wrongstack/webui/server';
+import {
+  loadSavedProviders,
+  saveProviders,
+} from './webui-server/provider-config.js';
 import { WebSocket, WebSocketServer } from 'ws';
 import {
   expectDefined,
-  loadConfigProviders,
   maskedKey,
-  mutateConfigProviders,
   normalizeKeys,
   nowIso,
   writeKeysBack,
@@ -1978,10 +1980,8 @@ export async function runWebUI(opts: CliWebUIOptions): Promise<void> {
 
           // Create a new provider instance from the saved config
           const { makeProviderFromConfig } = await import('@wrongstack/providers');
-          const { loadConfigProviders } = await import('./provider-config-utils.js');
-          const saved = opts.globalConfigPath
-            ? await loadConfigProviders(opts.globalConfigPath, getVault())
-            : {};
+          const { loadSavedProviders } = await import('./webui-server/provider-config.js');
+          const saved = await loadSavedProviders(opts.globalConfigPath);
           const providerCfg = saved[newProvider] ?? { type: newProvider };
           const newProv = makeProviderFromConfig(newProvider, providerCfg);
           ctx.provider = newProv;
@@ -3016,7 +3016,7 @@ export async function runWebUI(opts: CliWebUIOptions): Promise<void> {
     }
     try {
       const providers = await opts.modelsRegistry.listProviders();
-      const savedProviders = await loadSavedProviders();
+      const savedProviders = await loadSavedProviders(opts.globalConfigPath);
       const savedIds = new Set(Object.keys(savedProviders));
 
       send(ws, {
@@ -3076,7 +3076,7 @@ export async function runWebUI(opts: CliWebUIOptions): Promise<void> {
 
   async function handleProvidersSaved(ws: WebSocket): Promise<void> {
     try {
-      const providers = await loadSavedProviders();
+      const providers = await loadSavedProviders(opts.globalConfigPath);
       send(ws, {
         type: 'providers.saved',
         payload: {
@@ -3105,7 +3105,7 @@ export async function runWebUI(opts: CliWebUIOptions): Promise<void> {
     apiKey: string,
   ): Promise<void> {
     try {
-      const providers = await loadSavedProviders();
+      const providers = await loadSavedProviders(opts.globalConfigPath);
       const existing = providers[providerId] ?? { type: providerId };
       const keys = normalizeKeys(existing);
 
@@ -3121,7 +3121,7 @@ export async function runWebUI(opts: CliWebUIOptions): Promise<void> {
       if (!existing.activeKey) existing.activeKey = label;
       providers[providerId] = existing;
 
-      await saveProviders(providers);
+      await saveProviders(opts.globalConfigPath, providers);
       sendResult(ws, true, `Key "${label}" saved for ${providerId}`);
     } catch (err) {
       sendResult(ws, false, err instanceof Error ? err.message : String(err));
@@ -3130,7 +3130,7 @@ export async function runWebUI(opts: CliWebUIOptions): Promise<void> {
 
   async function handleKeyDelete(ws: WebSocket, providerId: string, label: string): Promise<void> {
     try {
-      const providers = await loadSavedProviders();
+      const providers = await loadSavedProviders(opts.globalConfigPath);
       const existing = providers[providerId];
       if (!existing) {
         sendResult(ws, false, `Provider "${providerId}" not found`);
@@ -3146,7 +3146,7 @@ export async function runWebUI(opts: CliWebUIOptions): Promise<void> {
         }
         providers[providerId] = existing;
       }
-      await saveProviders(providers);
+      await saveProviders(opts.globalConfigPath, providers);
       sendResult(ws, true, `Key "${label}" deleted from ${providerId}`);
     } catch (err) {
       sendResult(ws, false, err instanceof Error ? err.message : String(err));
@@ -3159,7 +3159,7 @@ export async function runWebUI(opts: CliWebUIOptions): Promise<void> {
     label: string,
   ): Promise<void> {
     try {
-      const providers = await loadSavedProviders();
+      const providers = await loadSavedProviders(opts.globalConfigPath);
       const existing = providers[providerId];
       if (!existing) {
         sendResult(ws, false, `Provider "${providerId}" not found`);
@@ -3168,7 +3168,7 @@ export async function runWebUI(opts: CliWebUIOptions): Promise<void> {
       existing.activeKey = label;
       writeKeysBack(existing, normalizeKeys(existing));
       providers[providerId] = existing;
-      await saveProviders(providers);
+      await saveProviders(opts.globalConfigPath, providers);
       sendResult(ws, true, `Active key for ${providerId} set to "${label}"`);
     } catch (err) {
       sendResult(ws, false, err instanceof Error ? err.message : String(err));
@@ -3185,7 +3185,7 @@ export async function runWebUI(opts: CliWebUIOptions): Promise<void> {
     },
   ): Promise<void> {
     try {
-      const providers = await loadSavedProviders();
+      const providers = await loadSavedProviders(opts.globalConfigPath);
       if (providers[payload.id]) {
         sendResult(ws, false, `Provider "${payload.id}" already exists. Use key.add to add a key.`);
         return;
@@ -3200,7 +3200,7 @@ export async function runWebUI(opts: CliWebUIOptions): Promise<void> {
         newProv.activeKey = 'default';
       }
       providers[payload.id] = newProv;
-      await saveProviders(providers);
+      await saveProviders(opts.globalConfigPath, providers);
       sendResult(ws, true, `Provider "${payload.id}" added`);
       console.log(`[WebUI] Provider "${payload.id}" added via provider.add`);
       broadcast({
@@ -3226,39 +3226,20 @@ export async function runWebUI(opts: CliWebUIOptions): Promise<void> {
 
   async function handleProviderRemove(ws: WebSocket, providerId: string): Promise<void> {
     try {
-      const providers = await loadSavedProviders();
+      const providers = await loadSavedProviders(opts.globalConfigPath);
       if (!providers[providerId]) {
         sendResult(ws, false, `Provider "${providerId}" not found`);
         return;
       }
       delete providers[providerId];
-      await saveProviders(providers);
+      await saveProviders(opts.globalConfigPath, providers);
       sendResult(ws, true, `Provider "${providerId}" removed`);
     } catch (err) {
       sendResult(ws, false, err instanceof Error ? err.message : String(err));
     }
   }
 
-  // ---- Config I/O helpers (delegated to shared provider-config-utils) ----
-
-  function getVault(): DefaultSecretVault {
-    const keyFile = path.join(path.dirname(opts.globalConfigPath ?? ''), '.key');
-    return new DefaultSecretVault({ keyFile });
-  }
-
-  async function loadSavedProviders(): Promise<Record<string, ProviderConfig>> {
-    if (!opts.globalConfigPath) return {};
-    return loadConfigProviders(opts.globalConfigPath, getVault());
-  }
-
-  async function saveProviders(providers: Record<string, ProviderConfig>): Promise<void> {
-    if (!opts.globalConfigPath) return;
-    await mutateConfigProviders(opts.globalConfigPath, getVault(), (existing) => {
-      // Replace the entire providers map.
-      for (const key of Object.keys(existing)) delete existing[key];
-      Object.assign(existing, providers);
-    });
-  }
+  // ---- Config I/O helpers (delegated to webui-server/provider-config) ----
 
   function sendResult(ws: WebSocket, success: boolean, message: string): void {
     send(ws, { type: 'key.operation_result', payload: { success, message } });
