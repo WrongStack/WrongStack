@@ -58,14 +58,11 @@ import {
   DefaultSystemPromptBuilder,
   enhanceUserPrompt,
   GlobalMailbox,
-  mutatePlan,
-  mutateTasks,
   projectSlug,
   recentTextTurns,
   repairToolUseAdjacency,
   resolveContextWindowPolicy,
   resolveProjectDir,
-  setPlanItemStatus,
   TOKENS,
   type TodoItem,
   wstackGlobalRoot,
@@ -102,6 +99,7 @@ import { startStaticServe } from './webui-server/static-serve.js';
 import {
   type BrainHandlerContext,
   type IntrospectionContext,
+  type WorklistContext,
   type WsHandlerContext,
   handleBrainAsk,
   handleBrainRisk,
@@ -110,6 +108,9 @@ import {
   handleKeyDelete,
   handleKeySetActive,
   handleKeyUpsert,
+  handlePlanGet,
+  handlePlanItemUpdate,
+  handlePlanTemplateUse,
   handleProviderAdd,
   handleProviderModels,
   handleProviderRemove,
@@ -117,10 +118,15 @@ import {
   handleProvidersSaved,
   handleSkillsList,
   handleStatsGet,
+  handleTaskUpdate,
+  handleTasksGet,
+  handleTodoUpdate,
+  handleTodosClear,
+  handleTodosGet,
+  handleTodosRemove,
   handleToolsList,
 } from './webui-server/ws-handlers/index.js';
 import { WebSocket, WebSocketServer } from 'ws';
-import { expectDefined } from './provider-config-utils.js';
 
 // ── Console logger adapter for AutoPhaseWebSocketHandler ──────────────────────
 // AutoPhaseWebSocketHandler requires a Logger. The CLI uses console.log/error
@@ -1274,6 +1280,14 @@ export async function runWebUI(opts: CliWebUIOptions): Promise<void> {
     log: (m) => console.log(m),
   };
 
+  const worklistCtx: WorklistContext = {
+    agent: opts.agent,
+    sessionId: opts.session.id,
+    send,
+    broadcast,
+    log: (m) => console.log(m),
+  };
+
   async function handleMessage(
     ws: WebSocket,
     client: ConnectedClient,
@@ -1376,12 +1390,7 @@ export async function runWebUI(opts: CliWebUIOptions): Promise<void> {
       }
 
       case 'todos.get': {
-        // On-demand snapshot — sends the live todo list from agent ctx.
-        // Mirrors the standalone server's handler.
-        send(ws, {
-          type: 'todos.updated',
-          payload: { todos: [...opts.agent.ctx.todos] },
-        });
+        handleTodosGet(worklistCtx, ws);
         break;
       }
 
@@ -1491,64 +1500,29 @@ export async function runWebUI(opts: CliWebUIOptions): Promise<void> {
       }
 
       case 'todos.clear': {
-        // Manual override — clear the todo list without losing context.
-        opts.agent.ctx.state.replaceTodos([]);
-        sendResult(ws, true, 'Todos cleared');
-        broadcast({ type: 'todos.updated', payload: { todos: [] } });
+        handleTodosClear(worklistCtx, ws);
         break;
       }
 
       case 'todos.remove': {
-        const payload = msg.payload as
-          | { id?: string | undefined; index?: number | undefined }
-          | undefined;
-        if (!payload) {
-          sendResult(ws, false, 'Missing id or index');
-          break;
-        }
-        const { id, index } = payload;
-        const todos = opts.agent.ctx.todos;
-        let targetIdx = -1;
-        if (typeof id === 'string') {
-          targetIdx = todos.findIndex((t) => t.id === id);
-        } else if (typeof index === 'number' && index > 0) {
-          targetIdx = index - 1;
-        }
-        if (targetIdx < 0 || !todos[targetIdx]) {
-          sendResult(ws, false, 'Todo not found');
-          break;
-        }
-        const removed = expectDefined(todos[targetIdx]);
-        const next = [...todos.slice(0, targetIdx), ...todos.slice(targetIdx + 1)];
-        opts.agent.ctx.state.replaceTodos(next);
-        sendResult(ws, true, `Removed: ${removed.content}`);
-        broadcast({ type: 'todos.updated', payload: { todos: next } });
+        handleTodosRemove(
+          worklistCtx,
+          ws,
+          msg.payload as { id?: string | undefined; index?: number | undefined } | undefined,
+        );
         break;
       }
 
       case 'todo.update': {
-        // Update a todo's status and/or activeForm in agent context.
-        const payload = msg.payload as {
-          id: string;
-          status?: TodoItem['status'] | undefined;
-          activeForm?: string | undefined;
-        };
-        const todos = opts.agent.ctx.todos;
-        const idx = todos.findIndex((t) => t.id === payload.id);
-        if (idx === -1) {
-          sendResult(ws, false, 'Todo not found');
-          break;
-        }
-        const next = [...todos];
-        const existing = expectDefined(next[idx]);
-        next[idx] = {
-          ...existing,
-          status: payload.status ?? existing.status,
-          activeForm: payload.activeForm !== undefined ? payload.activeForm : existing.activeForm,
-        };
-        opts.agent.ctx.state.replaceTodos(next);
-        sendResult(ws, true, `Todo "${existing.content}" updated`);
-        broadcast({ type: 'todos.updated', payload: { todos: next } });
+        handleTodoUpdate(
+          worklistCtx,
+          ws,
+          msg.payload as {
+            id: string;
+            status?: TodoItem['status'] | undefined;
+            activeForm?: string | undefined;
+          },
+        );
         break;
       }
 
@@ -1746,106 +1720,25 @@ export async function runWebUI(opts: CliWebUIOptions): Promise<void> {
         break;
 
       case 'plan.get': {
-        // On-demand plan snapshot from context.meta.
-        const planPath = (opts.agent.ctx.meta as Record<string, unknown>)['plan.path'];
-        if (typeof planPath === 'string' && planPath) {
-          try {
-            const { loadPlan } = await import('@wrongstack/core');
-            const plan = await loadPlan(planPath);
-            send(ws, {
-              type: 'plan.updated',
-              payload: {
-                plan: plan ?? {
-                  version: 1,
-                  sessionId: opts.session.id,
-                  updatedAt: new Date().toISOString(),
-                  items: [],
-                },
-              },
-            });
-          } catch {
-            send(ws, {
-              type: 'plan.updated',
-              payload: {
-                plan: {
-                  version: 1,
-                  sessionId: opts.session.id,
-                  updatedAt: new Date().toISOString(),
-                  items: [],
-                },
-              },
-            });
-          }
-        } else {
-          send(ws, {
-            type: 'plan.updated',
-            payload: { plan: null, error: 'Plan storage is not configured for this session.' },
-          });
-        }
+        await handlePlanGet(worklistCtx, ws);
         break;
       }
 
       case 'plan.template_use': {
-        const { template } = (msg as { payload: { template: string } }).payload;
-        const planPath = (opts.agent.ctx.meta as Record<string, unknown>)['plan.path'];
-        if (typeof planPath !== 'string' || !planPath) {
-          sendResult(ws, false, 'Plan storage is not configured for this session.');
-          break;
-        }
-        try {
-          const { getPlanTemplate, loadPlan, savePlan, emptyPlan, addPlanItem } = await import(
-            '@wrongstack/core'
-          );
-          const tpl = getPlanTemplate(template);
-          if (!tpl) {
-            sendResult(ws, false, `Unknown template "${template}".`);
-            break;
-          }
-          let plan = (await loadPlan(planPath)) ?? emptyPlan(opts.session.id);
-          for (const item of tpl.items) {
-            ({ plan } = addPlanItem(plan, item.title, item.details));
-          }
-          await savePlan(planPath, plan);
-          sendResult(ws, true, `Applied template "${tpl.name}" — ${tpl.items.length} items added.`);
-          broadcast({
-            type: 'plan.updated',
-            payload: { plan },
-          });
-        } catch (err) {
-          sendResult(ws, false, err instanceof Error ? err.message : String(err));
-        }
+        await handlePlanTemplateUse(
+          worklistCtx,
+          ws,
+          (msg as { payload: { template: string } }).payload.template,
+        );
         break;
       }
 
       case 'plan.item.update': {
-        // Update a single plan item's status and broadcast.
-        const planPath = (opts.agent.ctx.meta as Record<string, unknown>)['plan.path'];
-        if (typeof planPath !== 'string' || !planPath) {
-          sendResult(ws, false, 'Plan storage is not configured for this session.');
-          break;
-        }
-        const payload = msg.payload as {
-          target: string;
-          status: 'open' | 'in_progress' | 'done';
-        };
-        try {
-          const sessionId = opts.session.id;
-          let changed = false;
-          const plan = await mutatePlan(planPath, sessionId, async (p) => {
-            const before = p.updatedAt;
-            const next = setPlanItemStatus(p, payload.target, payload.status);
-            changed = next.updatedAt !== before;
-            return next;
-          });
-          if (!changed) {
-            sendResult(ws, false, `No plan item matched "${payload.target}".`);
-            break;
-          }
-          sendResult(ws, true, `Plan item status updated to "${payload.status}".`);
-          broadcast({ type: 'plan.updated', payload: { plan } });
-        } catch (err) {
-          sendResult(ws, false, err instanceof Error ? err.message : String(err));
-        }
+        await handlePlanItemUpdate(
+          worklistCtx,
+          ws,
+          msg.payload as { target: string; status: 'open' | 'in_progress' | 'done' },
+        );
         break;
       }
 
@@ -2310,56 +2203,19 @@ export async function runWebUI(opts: CliWebUIOptions): Promise<void> {
       // ── Tasks ───────────────────────────────────────────────
 
       case 'tasks.get': {
-        // On-demand task snapshot — loads from <sessionId>.tasks.json
-        const taskPath = (opts.agent.ctx.meta as Record<string, unknown>)['task.path'];
-        if (typeof taskPath === 'string' && taskPath) {
-          try {
-            const { loadTasks } = await import('@wrongstack/core');
-            const file = await loadTasks(taskPath);
-            send(ws, {
-              type: 'tasks.updated',
-              payload: { tasks: file?.tasks ?? [] },
-            });
-          } catch {
-            send(ws, { type: 'tasks.updated', payload: { tasks: [] } });
-          }
-        } else {
-          send(ws, {
-            type: 'tasks.updated',
-            payload: { tasks: [], error: 'Task storage not configured.' },
-          });
-        }
+        await handleTasksGet(worklistCtx, ws);
         break;
       }
 
       case 'task.update': {
-        // Update a task's status in the task file and broadcast.
-        const taskPath = (opts.agent.ctx.meta as Record<string, unknown>)['task.path'];
-        if (typeof taskPath !== 'string' || !taskPath) {
-          sendResult(ws, false, 'Task storage not configured.');
-          break;
-        }
-        const payload = msg.payload as {
-          id: string;
-          status: 'pending' | 'in_progress' | 'blocked' | 'failed' | 'review' | 'completed';
-        };
-        try {
-          const sessionId = opts.session.id;
-          const file = await mutateTasks(taskPath, sessionId, async (f) => {
-            const task = f.tasks.find((t) => t.id === payload.id);
-            if (!task) return f;
-            task.status = payload.status;
-            task.updatedAt = new Date().toISOString();
-            return f;
-          });
-          sendResult(ws, true, `Task status updated to "${payload.status}".`);
-          broadcast({
-            type: 'tasks.updated',
-            payload: { tasks: file.tasks },
-          });
-        } catch (err) {
-          sendResult(ws, false, err instanceof Error ? err.message : String(err));
-        }
+        await handleTaskUpdate(
+          worklistCtx,
+          ws,
+          msg.payload as {
+            id: string;
+            status: 'pending' | 'in_progress' | 'blocked' | 'failed' | 'review' | 'completed';
+          },
+        );
         break;
       }
 
