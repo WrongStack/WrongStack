@@ -3,6 +3,7 @@ import { defineConfig } from 'tsup';
 export default defineConfig({
   entry: {
     index: 'src/main.tsx',
+    types: 'src/types.ts',
     'server/entry': 'src/server/entry.ts',
     'server/index': 'src/server/index.ts',
   },

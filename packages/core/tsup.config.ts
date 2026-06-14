@@ -18,6 +18,7 @@ export default defineConfig({
     'src/models/index.ts',
     'src/infrastructure/index.ts',
     'src/observability/index.ts',
+    'src/tools/index.ts',
     'src/extension/index.ts',
     // Skill installer
     'src/skills/index.ts',
