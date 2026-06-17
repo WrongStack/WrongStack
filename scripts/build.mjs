@@ -84,15 +84,24 @@ function topoSort(metas) {
 }
 
 function runBuild(pkgDir, script) {
-  const shell = process.env.ComSpec || 'cmd.exe';
+  // Cross-platform: cmd.exe on Windows (ComSpec), POSIX sh elsewhere.
+  // pnpm 11.5.2 + cmd.exe strips the script-shell config that lets `npm
+  // run`-style `; echo "EXIT=$?"` wrappers work, so on Windows we still
+  // shell out to cmd.exe /c which handles `&&` chained scripts correctly
+  // (e.g. `vite build && tsup`). On macOS/Linux we use the user's $SHELL
+  // (or /bin/sh fallback) with `-c`.
+  const isWin = process.platform === 'win32';
+  const shell = isWin ? process.env.ComSpec || 'cmd.exe' : process.env.SHELL || '/bin/sh';
+  const shellArgs = isWin ? ['/c', script] : ['-c', script];
   console.log(`\n> ${pkgDir} > ${script}`);
   // node_modules/.bin must be on PATH so tsup, tsc, etc. resolve when
-  // spawned via cmd.exe — the Node process inherits npm's path resolution
-  // but cmd.exe /c does not. Prepend both the root bin dir and the
-  // package-local bin dir (pnpm isolates bins per-package) to be safe.
+  // spawned via cmd.exe (or sh) — the Node process inherits npm's path
+  // resolution but the spawned shell does not. Prepend both the root bin
+  // dir and the package-local bin dir (pnpm isolates bins per-package) to
+  // be safe.
   const rootBin = join(root, 'node_modules', '.bin');
   const pkgBin = join(root, pkgDir, 'node_modules', '.bin');
-  const pathSep = process.platform === 'win32' ? ';' : ':';
+  const pathSep = isWin ? ';' : ':';
   const envPath = [rootBin, pkgBin, process.env.PATH || process.env.Path || ''].join(pathSep);
   const env = {
     ...process.env,
@@ -100,7 +109,7 @@ function runBuild(pkgDir, script) {
     Path: envPath,
     NODE_OPTIONS: '--max-old-space-size=4096',
   };
-  const result = spawnSync(shell, ['/c', script], {
+  const result = spawnSync(shell, shellArgs, {
     cwd: join(root, pkgDir),
     stdio: 'inherit',
     env,
