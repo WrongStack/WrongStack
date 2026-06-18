@@ -160,7 +160,7 @@ export const AGENTS_CATALOG: readonly ACPAgentDescriptor[] = [
       fs: true,
     },
     integration: 'experimental',
-    docs: 'https://github.com/All-Hands-AI/OpenHands',
+    docs: 'https://github.com/OpenHands/OpenHands',
   },
 
   // ── Vendor CLIs (native binaries) ───────────────────────────────────
