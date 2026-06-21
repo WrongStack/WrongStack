@@ -39,7 +39,6 @@ import {
   validateMailboxAgentsPayload,
   validateMailboxMessagesPayload,
   validateMailboxPurgePayload,
-  validateModeSwitchPayload,
   validateModelSwitchPayload,
   validatePrefsUpdatePayload,
   validatePlanTemplateUsePayload,
@@ -150,6 +149,7 @@ import { findFreePort } from './port-utils.js';
 import { openBrowser } from './open-browser.js';
 import { computeUsageCost, getCostRates } from './usage-cost.js';
 import { createProviderHandlers } from './provider-handlers.js';
+import { createModeHandlers } from './mode-handlers.js';
 import { handleProviderRoute, type ProviderRouteHandlers } from './provider-routes.js';
 import { handleSessionRoute, type SessionRouteHandlers } from './session-routes.js';
 import { handleProjectRoute, type ProjectRouteHandlers } from './project-routes.js';
@@ -2947,76 +2947,21 @@ export async function startWebUI(
     },
   };
 
-  modeRoutes = {
-    listModes: async (ws) => {
-      try {
-        const modes = await modeStore.listModes();
-        const active = await modeStore.getActiveMode();
-        send(ws, {
-          type: 'modes.list',
-          payload: {
-            modes: modes.map((m) => ({
-              id: m.id,
-              name: m.name,
-              description: m.description,
-              isActive: m.id === (active?.id ?? 'default'),
-            })),
-            activeId: active?.id ?? 'default',
-          },
-        });
-      } catch (err) {
-        send(ws, {
-          type: 'modes.list',
-          payload: {
-            modes: [],
-            activeId: 'default',
-            error: errMessage(err),
-          },
-        });
-      }
+  modeRoutes = createModeHandlers({
+    modeStore,
+    memoryStore,
+    skillLoader,
+    modelCapabilities,
+    context,
+    toolRegistry,
+    config,
+    projectRoot,
+    clients,
+    setModeId: (id) => {
+      modeId = id;
     },
-    switchMode: async (ws, msg) => {
-      const parsed = validateModeSwitchPayload(msg.payload);
-      if (!parsed.ok) {
-        sendResult(ws, false, parsed.message);
-        return;
-      }
-      const { id } = parsed.value;
-      try {
-        if (id === 'default') {
-          await modeStore.setActiveMode(null);
-        } else {
-          const found = await modeStore.getMode(id);
-          if (!found) throw new Error(`Unknown mode "${id}"`);
-          await modeStore.setActiveMode(id);
-        }
-        modeId = id;
-        const modePrompt = id === 'default' ? '' : ((await modeStore.getMode(id))?.prompt ?? '');
-        const freshBuilder = new DefaultSystemPromptBuilder({
-          memoryStore,
-          skillLoader,
-          modeStore,
-          modeId: id,
-          modePrompt,
-          modelCapabilities,
-        });
-        context.systemPrompt = await freshBuilder.build({
-          cwd: projectRoot,
-          projectRoot,
-          tools: toolRegistry.list(),
-          provider: config.provider,
-          model: config.model,
-        });
-        sendResult(ws, true, `Switched to mode "${id}"`);
-        broadcast(clients, {
-          type: 'session.start',
-          payload: { ...(await sessionStartPayload()) },
-        });
-      } catch (err) {
-        sendResult(ws, false, errMessage(err));
-      }
-    },
-  };
+    sessionStartPayload,
+  });
 
   shellGitRoutes = {
     gitInfo: async (ws) => {
