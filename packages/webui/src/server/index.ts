@@ -127,6 +127,13 @@ import { createDefaultContainer } from '../../../runtime/src/container.js';
 import { bootConfig, patchConfig } from './boot.js';
 import { AutoPhaseWebSocketHandler } from './autophase-ws-handler.js';
 import { CollaborationWebSocketHandler } from './collaboration-ws-handler.js';
+import {
+  ensureProjectDataDir,
+  generateProjectSlug,
+  loadManifest,
+  saveManifest,
+} from './projects-manifest.js';
+import { TerminalWebSocketHandler } from './terminal-ws-handler.js';
 import { WorktreeWebSocketHandler } from './worktree-ws-handler.js';
 import { handleMailboxMessages, handleMailboxAgents, handleMailboxClear, handleMailboxPurge } from './mailbox-handlers.js';
 import { verifyClient as verifyWsClient } from './ws-auth.js';
@@ -826,6 +833,7 @@ export async function startWebUI(
     'featureModelsRegistry', 'indexOnStart',
     'contextAutoCompact', 'contextStrategy', 'logLevel', 'auditLevel',
     'tgConfigured', 'tgSessionEnd', 'tgDelegate', 'tgLongToolMs',
+    'reasoningMode', 'reasoningEffort', 'reasoningPreserve', 'cacheTtl',
   ] as const;
 
   const prefSnapshot = (): Record<string, unknown> => {
@@ -930,6 +938,27 @@ export async function startWebUI(
         }
         ext['telegram'] = tg;
         decrypted.extensions = ext;
+      }
+
+      // Reasoning / cache runtime controls → Config.modelRuntime
+      const modelRuntimeTouched =
+        typeof payload['reasoningMode'] === 'string' ||
+        typeof payload['reasoningEffort'] === 'string' ||
+        typeof payload['reasoningPreserve'] === 'boolean' ||
+        typeof payload['cacheTtl'] === 'string';
+      if (modelRuntimeTouched) {
+        const mr = (decrypted.modelRuntime as Record<string, unknown>) ?? {};
+        const reasoning = (mr.reasoning as Record<string, unknown>) ?? {};
+        if (typeof payload['reasoningMode'] === 'string') reasoning.mode = payload['reasoningMode'];
+        if (typeof payload['reasoningEffort'] === 'string') reasoning.effort = payload['reasoningEffort'];
+        if (typeof payload['reasoningPreserve'] === 'boolean') reasoning.preserve = payload['reasoningPreserve'];
+        mr.reasoning = reasoning;
+        if (typeof payload['cacheTtl'] === 'string' && payload['cacheTtl'] !== 'default') {
+          mr.cache = { ttl: payload['cacheTtl'] };
+        } else if (payload['cacheTtl'] === 'default') {
+          delete mr.cache;
+        }
+        decrypted.modelRuntime = mr;
       }
     }, 'prefs');
   };
@@ -1158,6 +1187,10 @@ export async function startWebUI(
   // Worktree handler — subscribes to the shared EventBus `worktree.*` events
   // and streams live swim-lane / DAG state to connected clients.
   const worktreeHandler = new WorktreeWebSocketHandler(events, logger);
+
+  // Integrated terminal handler — per-client node-pty sessions backing the
+  // WebUI terminal panel. New terminals open in the live working directory.
+  const terminalHandler = new TerminalWebSocketHandler(() => workingDir, logger);
 
   // Collaboration handler — Phase 1 of idea #13. Lets a second client
   // (e.g. a senior dev) join an active agent run as a read-only
@@ -1414,6 +1447,8 @@ export async function startWebUI(
     worktreeHandler.addClient(ws);
     // …and the collaboration handler for read-only session observation.
     collabHandler.addClient(ws);
+    // …and the terminal handler for the integrated terminal panel.
+    terminalHandler.addClient(ws);
 
     ws.on('message', async (data) => {
       if (!checkRateLimit(ws, client)) {
@@ -1562,20 +1597,6 @@ export async function startWebUI(
 
   // ── Project manifest helpers ──────────────────────────────────────────
 
-  interface ProjectEntry {
-    name: string;
-    root: string;
-    slug: string;
-    lastSeen?: string | undefined;
-    createdAt?: string | undefined;
-    /** Working directory of the most recent session (may differ from root). */
-    lastWorkingDir?: string | undefined;
-  }
-
-  interface ProjectsManifest {
-    projects: ProjectEntry[];
-  }
-
   /**
    * Idempotent manifest registration (mirrors the CLI's
    * touchProjectInManifest): create the projects.json entry when missing,
@@ -1601,40 +1622,6 @@ export async function startWebUI(
     }
     await saveManifest(manifest, globalConfigPath);
     await ensureProjectDataDir(generateProjectSlug(resolved), globalConfigPath);
-  }
-
-  function projectsJsonPath(globalConfigPath: string): string {
-    const base = path.dirname(globalConfigPath);
-    return path.join(base, 'projects.json');
-  }
-
-  async function loadManifest(globalConfigPath: string): Promise<ProjectsManifest> {
-    try {
-      const raw = await fs.readFile(projectsJsonPath(globalConfigPath), 'utf8');
-      const parsed = JSON.parse(raw) as ProjectsManifest;
-      return { projects: parsed.projects ?? [] };
-    } catch {
-      return { projects: [] };
-    }
-  }
-
-  async function saveManifest(manifest: ProjectsManifest, globalConfigPath: string): Promise<void> {
-    const file = projectsJsonPath(globalConfigPath);
-    await fs.mkdir(path.dirname(file), { recursive: true });
-    await fs.writeFile(file, JSON.stringify(manifest, null, 2), 'utf8');
-  }
-
-  function generateProjectSlug(rootPath: string): string {
-    // Canonical derivation — must match wstack-paths/projectSlug exactly or
-    // the WebUI and CLI would key the same project under different dirs.
-    return projectSlug(rootPath);
-  }
-
-  async function ensureProjectDataDir(slug: string, globalConfigPath: string): Promise<string> {
-    const base = path.dirname(globalConfigPath);
-    const dir = path.join(base, 'projects', slug);
-    await fs.mkdir(dir, { recursive: true });
-    return dir;
   }
 
   function makeWorklistContext(): WorklistContext {
@@ -1684,6 +1671,14 @@ export async function startWebUI(
       case 'collab.request_pause':
       case 'collab.resume': {
         collabHandler.handleMessage(ws, msg as { type: string; payload?: unknown | undefined });
+        return;
+      }
+      // Integrated terminal — interactive pty transport, bypasses the agent loop.
+      case 'terminal.create':
+      case 'terminal.input':
+      case 'terminal.resize':
+      case 'terminal.close': {
+        terminalHandler.handleMessage(ws, msg);
         return;
       }
       case 'user_message': {

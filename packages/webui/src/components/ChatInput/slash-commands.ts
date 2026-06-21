@@ -37,6 +37,20 @@ export const SLASH_COMMANDS: SlashCommandDef[] = [
   { name: '/suggest', category: 'Inspect', aliases: ['/next-steps'], description: 'Ask the agent for concrete next steps' },
   { name: '/next', category: 'Inspect', description: 'Show or run numbered next-step suggestions' },
 
+  // Agent / autonomy
+  { name: '/review', category: 'Agent', aliases: ['/cr'], description: 'Ask the agent to review the pending changes (optional focus)' },
+  { name: '/fix', category: 'Agent', description: 'Diagnose and fix an error (paste it) or the latest failure' },
+  { name: '/autonomy', category: 'Agent', description: 'Switch self-driving mode: off | suggest | auto | eternal | eternal-parallel' },
+  { name: '/goal', category: 'Agent', description: 'Show the current goal (opens the Goal dock chip)' },
+  { name: '/fleet', category: 'Agent', description: 'Open the Fleet orchestration monitor' },
+  { name: '/terminal', category: 'App', aliases: ['/term'], description: 'Open the integrated terminal (Ctrl+`)' },
+  { name: '/collab', category: 'Agent', description: 'Open the live collaboration panel' },
+  { name: '/worktree', category: 'Agent', aliases: ['/worktrees'], description: 'Open the worktree view' },
+  { name: '/autophase', category: 'Agent', description: 'AutoPhase: start <title> | pause | resume | stop' },
+  { name: '/mode', category: 'Agent', description: 'Switch session mode (no arg lists available modes)' },
+  { name: '/mcp', category: 'Agent', description: 'Open MCP server settings and refresh the server list' },
+  { name: '/working-dir', category: 'Agent', aliases: ['/cwd'], description: 'Show or change the working directory' },
+
   // Config
   { name: '/settings', category: 'Config', aliases: ['/model'], description: 'Open settings (provider/model/keys)' },
   { name: '/enhance', category: 'Config', description: 'Toggle prompt refinement before sending' },
@@ -63,7 +77,7 @@ export const SLASH_COMMANDS: SlashCommandDef[] = [
   { name: '/f12', category: 'App', description: 'Status line picker', hidden: true },
 ];
 
-export const SLASH_CATEGORY_ORDER: SlashCategory[] = ['Run', 'Session', 'Inspect', 'Config', 'App'];
+export const SLASH_CATEGORY_ORDER: SlashCategory[] = ['Run', 'Session', 'Inspect', 'Agent', 'Config', 'App'];
 
 export function matchSlash(query: string): SlashCommandDef[] {
   const q = query.toLowerCase();

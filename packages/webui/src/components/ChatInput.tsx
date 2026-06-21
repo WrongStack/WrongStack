@@ -65,6 +65,8 @@ export function ChatInput({
     onTextPaste,
     pasteHint,
     pendingImageRef,
+    pendingImage,
+    clearPendingImage,
     setPasteHint,
   } = usePasteDrop({ input, textareaRef, setInput, setAtMention });
 
@@ -218,7 +220,7 @@ export function ChatInput({
 
       // Drain and clear the pending clipboard image (if any)
       const pendingImage = pendingImageRef.current;
-      pendingImageRef.current = null;
+      clearPendingImage();
 
       const content = input.trim();
 
@@ -299,6 +301,8 @@ export function ChatInput({
       pushPrompt,
       _clearTextarea,
       resetAutoSubmitStreak,
+      clearPendingImage,
+      pendingImageRef,
     ],
   );
 
@@ -493,6 +497,27 @@ export function ChatInput({
           </div>
         </div>
       )}
+      {/* Pending image preview — shown when an image is pasted or dropped.
+          Sent alongside the next message as a markdown image link. */}
+      {pendingImage && (
+        <div className="mb-2 inline-flex items-center gap-2 rounded-lg border border-border bg-muted/40 px-2 py-1.5">
+          <img
+            src={pendingImage}
+            alt="Pending attachment"
+            className="h-12 w-12 rounded object-cover border border-border/50"
+          />
+          <span className="text-xs text-muted-foreground">Image attached</span>
+          <button
+            type="button"
+            onClick={clearPendingImage}
+            title="Remove image"
+            className="inline-flex items-center justify-center h-5 w-5 rounded text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+          >
+            ×
+          </button>
+        </div>
+      )}
+
       {/* Queue visualization — shows messages the user stacked while the
           agent was still running. Each row has a remove button; the whole
           queue can be cleared. The hook below drains them after run.result. */}

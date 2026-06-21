@@ -1,4 +1,4 @@
-import { act, renderHook } from '@testing-library/react';
+import { act, renderHook, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { usePasteDrop } from '../../src/components/ChatInput/use-paste-drop.js';
 
@@ -142,6 +142,46 @@ describe('usePasteDrop', () => {
       expect(inserted).toContain('@test.ts');
       // setAtMention called via requestAnimationFrame — verify queued
       expect(setAtMention).not.toHaveBeenCalled();
+    });
+
+    it('onDrop with an image file attaches it instead of inserting an @mention', async () => {
+      const { options, setInput } = makeHookOptions({ input: 'hi', selectionStart: 2 });
+      const { result } = renderHook(() => usePasteDrop(options));
+
+      const imageFile = new File(['fake-bytes'], 'shot.png', { type: 'image/png' });
+      const event = {
+        dataTransfer: { files: [imageFile] },
+        preventDefault: vi.fn(),
+      } as unknown as React.DragEvent<HTMLFormElement>;
+
+      act(() => {
+        result.current.onDrop(event);
+      });
+
+      // No @mention insertion for a pure-image drop (synchronous decision).
+      expect(setInput).not.toHaveBeenCalled();
+      // FileReader resolves asynchronously — poll until the data URL lands.
+      await waitFor(() => {
+        expect(typeof result.current.pendingImage).toBe('string');
+        expect(result.current.pendingImage).toMatch(/^data:image\/png/);
+      });
+    });
+
+    it('clearPendingImage resets the pending image', async () => {
+      const { options } = makeHookOptions();
+      const { result } = renderHook(() => usePasteDrop(options));
+      const imageFile = new File(['x'], 'a.png', { type: 'image/png' });
+
+      act(() => {
+        result.current.onDrop({
+          dataTransfer: { files: [imageFile] },
+          preventDefault: vi.fn(),
+        } as unknown as React.DragEvent<HTMLFormElement>);
+      });
+      await waitFor(() => expect(result.current.pendingImage).toBeTruthy());
+
+      act(() => result.current.clearPendingImage());
+      expect(result.current.pendingImage).toBeNull();
     });
 
     it('onDrop with empty files clears draggingOver and returns', () => {

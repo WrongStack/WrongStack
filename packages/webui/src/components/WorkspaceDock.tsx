@@ -11,7 +11,7 @@
  * their Tasks/Plan/collab WebSocket subscriptions must survive.
  */
 
-import { Bot, GitBranch, ListTodo, Maximize2, Rocket, Target, Users } from 'lucide-react';
+import { Bot, GitBranch, ListTodo, Maximize2, Rocket, SlidersHorizontal, Target, Users } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { cn } from '@/lib/utils';
 import { useWebSocket } from '@/hooks/useWebSocket';
@@ -30,6 +30,14 @@ import { FleetPanel } from './FleetPanel';
 import { GoalPanel } from './GoalPanel';
 import { PhasePanel } from './PhasePanel';
 import { Button } from './ui/button';
+import {
+  DropdownMenu,
+  DropdownMenuCheckboxItem,
+  DropdownMenuContent,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from './ui/dropdown-menu';
 import { WorkDashboard } from './WorkDashboard';
 import { WorktreeGraph } from './WorktreeGraph';
 import { WorktreeLanes } from './WorktreeLanes';
@@ -62,6 +70,17 @@ const CHIP_TONES: Record<DockSection, { active: string; idle: string }> = {
     idle: 'text-muted-foreground hover:bg-muted/60',
   },
 };
+
+/** Human labels for the chip customization menu. */
+const CHIP_LABELS: Record<DockSection, string> = {
+  autophase: 'AutoPhase',
+  goal: 'Goal',
+  fleet: 'Fleet',
+  work: 'Work',
+  worktrees: 'Worktrees',
+  collab: 'Collab',
+};
+const CHIP_ORDER: DockSection[] = ['autophase', 'goal', 'fleet', 'work', 'worktrees', 'collab'];
 
 function DockChip({
   section,
@@ -106,6 +125,8 @@ export function WorkspaceDock({ sessionId }: { sessionId: string }) {
   const dockSection = useUIStore((s) => s.dockSection);
   const toggleDockSection = useUIStore((s) => s.toggleDockSection);
   const setCurrentView = useUIStore((s) => s.setCurrentView);
+  const hiddenChips = useUIStore((s) => s.hiddenChips);
+  const toggleChipHidden = useUIStore((s) => s.toggleChipHidden);
 
   const goal = useGoalStore((s) => s.goal);
   const autoPhase = useAutoPhaseStore((s) => s);
@@ -153,13 +174,23 @@ export function WorkspaceDock({ sessionId }: { sessionId: string }) {
 
   // Chip visibility — a section without data shows no chip, and an open
   // section whose data vanished collapses rather than rendering a husk.
-  const visible: Record<DockSection, boolean> = {
+  // A chip the user hid via the customization menu is always suppressed.
+  const hidden = useMemo(() => new Set(hiddenChips), [hiddenChips]);
+  const hasData: Record<DockSection, boolean> = {
     autophase: phasesActive,
     goal: goal !== null,
     fleet: fleetTotal > 0,
     work: true,
     worktrees: worktrees.length > 0,
     collab: true,
+  };
+  const visible: Record<DockSection, boolean> = {
+    autophase: hasData.autophase && !hidden.has('autophase'),
+    goal: hasData.goal && !hidden.has('goal'),
+    fleet: hasData.fleet && !hidden.has('fleet'),
+    work: hasData.work && !hidden.has('work'),
+    worktrees: hasData.worktrees && !hidden.has('worktrees'),
+    collab: hasData.collab && !hidden.has('collab'),
   };
   const open = dockSection && visible[dockSection] ? dockSection : null;
 
@@ -266,6 +297,33 @@ export function WorkspaceDock({ sessionId }: { sessionId: string }) {
           active={open === 'collab'}
           onClick={() => toggleDockSection('collab')}
         />
+
+        {/* Chip customization menu — TUI F12 status-line picker parity. */}
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <button
+              type="button"
+              title="Customize dock chips"
+              className="ml-auto inline-flex items-center justify-center h-7 w-7 rounded-full border border-border/40 text-muted-foreground hover:bg-muted/60 transition-colors shrink-0"
+            >
+              <SlidersHorizontal className="h-3 w-3" />
+            </button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-44">
+            <DropdownMenuLabel>Dock chips</DropdownMenuLabel>
+            <DropdownMenuSeparator />
+            {CHIP_ORDER.map((section) => (
+              <DropdownMenuCheckboxItem
+                key={section}
+                checked={!hidden.has(section)}
+                onCheckedChange={() => toggleChipHidden(section)}
+                onSelect={(e) => e.preventDefault()}
+              >
+                {CHIP_LABELS[section]}
+              </DropdownMenuCheckboxItem>
+            ))}
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
 
       {/* ── Expanded section — exactly one, or nothing ── */}

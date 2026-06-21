@@ -16,6 +16,16 @@ type SlashRoutingClientMessage = Extract<
   | { type: 'brain.risk' }
   | { type: 'brain.ask' }
   | { type: 'brain.status' }
+  | { type: 'autonomy.switch' }
+  | { type: 'goal.get' }
+  | { type: 'mode.switch' }
+  | { type: 'modes.list' }
+  | { type: 'mcp.list' }
+  | { type: 'working_dir.set' }
+  | { type: 'autophase.start' }
+  | { type: 'autophase.pause' }
+  | { type: 'autophase.resume' }
+  | { type: 'autophase.stop' }
 >;
 
 interface SlashRoutingClient {
@@ -148,6 +158,103 @@ export function runChatSlashCommand(options: RunChatSlashCommandOptions): boolea
     case '/agents':
       useUIStore.getState().setAgentsMonitorOpen(true);
       return true;
+    case '/autonomy': {
+      // Mirrors the CLI's /autonomy: off | suggest | auto | eternal | eternal-parallel.
+      const mode = args.trim().toLowerCase();
+      const valid = ['off', 'suggest', 'auto', 'eternal', 'eternal-parallel'];
+      if (!mode) {
+        addMessage({
+          role: 'assistant',
+          content: `Usage: \`/autonomy <mode>\` — one of: ${valid.map((m) => `\`${m}\``).join(', ')}.`,
+        });
+        return true;
+      }
+      if (!valid.includes(mode)) {
+        addMessage({ role: 'assistant', content: `Unknown autonomy mode \`${mode}\`. Try: ${valid.join(', ')}.` });
+        return true;
+      }
+      client?.send?.({ type: 'autonomy.switch', payload: { mode } });
+      addMessage({ role: 'assistant', content: `🤖 Autonomy mode → **${mode}**.` });
+      return true;
+    }
+    case '/goal':
+      client?.send?.({ type: 'goal.get' });
+      useUIStore.getState().setDockSection('goal');
+      return true;
+    case '/fleet':
+      useUIStore.getState().setFleetMonitorOpen(true);
+      return true;
+    case '/terminal':
+    case '/term':
+      useUIStore.getState().setTerminalOpen(true);
+      return true;
+    case '/collab':
+      useUIStore.getState().setDockSection('collab');
+      return true;
+    case '/worktree':
+    case '/worktrees':
+      useUIStore.getState().setDockSection('worktrees');
+      return true;
+    case '/mode': {
+      // No arg → list available modes; arg → switch.
+      const id = args.trim();
+      if (!id) {
+        client?.send?.({ type: 'modes.list' });
+        addMessage({ role: 'assistant', content: 'Fetching available modes… (or pass `/mode <name>` to switch).' });
+        return true;
+      }
+      client?.send?.({ type: 'mode.switch', payload: { id } });
+      addMessage({ role: 'assistant', content: `Mode → **${id}**.` });
+      return true;
+    }
+    case '/mcp':
+      client?.send?.({ type: 'mcp.list' });
+      setCurrentView('settings');
+      return true;
+    case '/working-dir':
+    case '/cwd': {
+      const path = args.trim();
+      if (!path) {
+        const cwd = useSessionStore.getState().cwd;
+        addMessage({
+          role: 'assistant',
+          content: cwd ? `📂 Working directory: \`${cwd}\`\n\n_Pass \`/working-dir <path>\` to change it._` : 'Working directory unknown. Pass `/working-dir <path>` to set it.',
+        });
+        return true;
+      }
+      client?.send?.({ type: 'working_dir.set', payload: { path } });
+      addMessage({ role: 'assistant', content: `📂 Working directory → \`${path}\`.` });
+      return true;
+    }
+    case '/autophase': {
+      // start <title> | pause | resume | stop. No arg → open the full view.
+      const [sub, ...rest] = args.split(/\s+/).filter(Boolean);
+      const subcmd = (sub ?? '').toLowerCase();
+      if (subcmd === 'start') {
+        const title = rest.join(' ').trim();
+        if (!title) {
+          addMessage({ role: 'assistant', content: 'Usage: `/autophase start <title>`' });
+          return true;
+        }
+        client?.send?.({ type: 'autophase.start', payload: { title } });
+        useUIStore.getState().setCurrentView('autophase');
+        return true;
+      }
+      if (subcmd === 'pause') {
+        client?.send?.({ type: 'autophase.pause', payload: {} });
+        return true;
+      }
+      if (subcmd === 'resume') {
+        client?.send?.({ type: 'autophase.resume', payload: {} });
+        return true;
+      }
+      if (subcmd === 'stop') {
+        client?.send?.({ type: 'autophase.stop', payload: {} });
+        return true;
+      }
+      useUIStore.getState().setCurrentView('autophase');
+      return true;
+    }
     case '/brain': {
       // Mirrors the CLI's /brain: status (default), risk <level>, ask <question>.
       const [sub, ...rest] = args.split(/\s+/).filter(Boolean);
@@ -232,6 +339,29 @@ export function runChatSlashCommand(options: RunChatSlashCommandOptions): boolea
       // Ask the agent to suggest next steps
       sendMsg('What are the next steps I should take? Be specific and actionable.');
       return true;
+    case '/review':
+    case '/cr': {
+      // Prompt-based code review — the agent uses its own git/read tools.
+      const focus = args.trim();
+      const focusLine = focus
+        ? `Focus especially on: ${focus}.`
+        : 'Cover correctness bugs, security issues, performance, and obvious simplifications.';
+      sendMsg(
+        `Review the pending git changes (run \`git diff\` and \`git status\` to see them). ${focusLine} ` +
+          'For each finding give the file, a short description, severity, and a concrete fix. ' +
+          'If there are no changes, review the most recently edited files instead.',
+      );
+      return true;
+    }
+    case '/fix': {
+      const err = args.trim();
+      sendMsg(
+        err
+          ? `Diagnose and fix this error. Find the root cause, then apply the fix and explain it:\n\n${err}`
+          : 'Investigate the most recent error or failing test, find the root cause, fix it, and verify the fix.',
+      );
+      return true;
+    }
     case '/kill':
     case '/ps':
       // /kill — open the Process Monitor overlay

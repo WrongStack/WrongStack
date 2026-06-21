@@ -8,11 +8,14 @@ const mocks = vi.hoisted(() => ({
   setQueuePanelOpen: vi.fn(),
   setProcessMonitorOpen: vi.fn(),
   setDockSection: vi.fn(),
+  setCurrentViewUI: vi.fn(),
+  setTerminalOpen: vi.fn(),
 }));
 
 vi.mock('@/stores', () => ({
   useSessionStore: {
     getState: () => ({
+      cwd: '/work/proj',
       todos: [
         { id: '1', content: 'Write tests', status: 'completed' },
         { id: '2', content: 'Ship feature', status: 'in_progress', activeForm: 'Shipping feature' },
@@ -27,6 +30,8 @@ vi.mock('@/stores', () => ({
       setQueuePanelOpen: mocks.setQueuePanelOpen,
       setProcessMonitorOpen: mocks.setProcessMonitorOpen,
       setDockSection: mocks.setDockSection,
+      setCurrentView: mocks.setCurrentViewUI,
+      setTerminalOpen: mocks.setTerminalOpen,
     }),
   },
 }));
@@ -232,6 +237,134 @@ describe('runChatSlashCommand — /f', () => {
     const opts = makeOptions({ raw: '/f3' });
     expect(runChatSlashCommand(opts)).toBe(true);
     expect(mocks.setAgentsMonitorOpen).toHaveBeenCalledWith(true);
+  });
+});
+
+describe('runChatSlashCommand — agent/autonomy commands', () => {
+  beforeEach(() => {
+    mocks.setDockSection.mockClear();
+    mocks.setFleetMonitorOpen.mockClear();
+    mocks.setCurrentViewUI.mockClear();
+  });
+
+  it('/autonomy <mode> sends autonomy.switch', () => {
+    const opts = makeOptions({ raw: '/autonomy auto' });
+    expect(runChatSlashCommand(opts)).toBe(true);
+    expect(opts.client?.send).toHaveBeenCalledWith({ type: 'autonomy.switch', payload: { mode: 'auto' } });
+  });
+
+  it('/autonomy with no arg shows usage and does not send', () => {
+    const opts = makeOptions({ raw: '/autonomy' });
+    expect(runChatSlashCommand(opts)).toBe(true);
+    expect(opts.client?.send).not.toHaveBeenCalled();
+    expect(opts.addMessage).toHaveBeenCalledWith(
+      expect.objectContaining({ content: expect.stringContaining('Usage') }),
+    );
+  });
+
+  it('/autonomy with invalid mode is rejected', () => {
+    const opts = makeOptions({ raw: '/autonomy turbo' });
+    expect(runChatSlashCommand(opts)).toBe(true);
+    expect(opts.client?.send).not.toHaveBeenCalled();
+  });
+
+  it('/goal requests goal and opens the goal dock chip', () => {
+    const opts = makeOptions({ raw: '/goal' });
+    expect(runChatSlashCommand(opts)).toBe(true);
+    expect(opts.client?.send).toHaveBeenCalledWith({ type: 'goal.get' });
+    expect(mocks.setDockSection).toHaveBeenCalledWith('goal');
+  });
+
+  it('/fleet opens the fleet monitor', () => {
+    const opts = makeOptions({ raw: '/fleet' });
+    expect(runChatSlashCommand(opts)).toBe(true);
+    expect(mocks.setFleetMonitorOpen).toHaveBeenCalledWith(true);
+  });
+
+  it('/worktree opens the worktrees dock chip', () => {
+    const opts = makeOptions({ raw: '/worktree' });
+    expect(runChatSlashCommand(opts)).toBe(true);
+    expect(mocks.setDockSection).toHaveBeenCalledWith('worktrees');
+  });
+
+  it('/mode <name> sends mode.switch', () => {
+    const opts = makeOptions({ raw: '/mode plan' });
+    expect(runChatSlashCommand(opts)).toBe(true);
+    expect(opts.client?.send).toHaveBeenCalledWith({ type: 'mode.switch', payload: { id: 'plan' } });
+  });
+
+  it('/mode with no arg lists modes', () => {
+    const opts = makeOptions({ raw: '/mode' });
+    expect(runChatSlashCommand(opts)).toBe(true);
+    expect(opts.client?.send).toHaveBeenCalledWith({ type: 'modes.list' });
+  });
+
+  it('/mcp lists servers and opens settings', () => {
+    const opts = makeOptions({ raw: '/mcp' });
+    expect(runChatSlashCommand(opts)).toBe(true);
+    expect(opts.client?.send).toHaveBeenCalledWith({ type: 'mcp.list' });
+    expect(opts.setCurrentView).toHaveBeenCalledWith('settings');
+  });
+
+  it('/working-dir <path> sends working_dir.set', () => {
+    const opts = makeOptions({ raw: '/working-dir /tmp/x' });
+    expect(runChatSlashCommand(opts)).toBe(true);
+    expect(opts.client?.send).toHaveBeenCalledWith({ type: 'working_dir.set', payload: { path: '/tmp/x' } });
+  });
+
+  it('/working-dir with no arg shows current cwd', () => {
+    const opts = makeOptions({ raw: '/working-dir' });
+    expect(runChatSlashCommand(opts)).toBe(true);
+    expect(opts.client?.send).not.toHaveBeenCalled();
+    expect(opts.addMessage).toHaveBeenCalledWith(
+      expect.objectContaining({ content: expect.stringContaining('/work/proj') }),
+    );
+  });
+
+  it('/autophase start <title> sends autophase.start and opens the view', () => {
+    const opts = makeOptions({ raw: '/autophase start Build the thing' });
+    expect(runChatSlashCommand(opts)).toBe(true);
+    expect(opts.client?.send).toHaveBeenCalledWith({
+      type: 'autophase.start',
+      payload: { title: 'Build the thing' },
+    });
+    expect(mocks.setCurrentViewUI).toHaveBeenCalledWith('autophase');
+  });
+
+  it.each(['pause', 'resume', 'stop'] as const)('/autophase %s sends the matching message', (sub) => {
+    const opts = makeOptions({ raw: `/autophase ${sub}` });
+    expect(runChatSlashCommand(opts)).toBe(true);
+    expect(opts.client?.send).toHaveBeenCalledWith({ type: `autophase.${sub}`, payload: {} });
+  });
+
+  it('/review sends a review prompt to the agent', () => {
+    const opts = makeOptions({ raw: '/review' });
+    expect(runChatSlashCommand(opts)).toBe(true);
+    expect(opts.sendMsg).toHaveBeenCalledWith(expect.stringContaining('git diff'));
+  });
+
+  it('/review <focus> includes the focus in the prompt', () => {
+    const opts = makeOptions({ raw: '/review security' });
+    expect(runChatSlashCommand(opts)).toBe(true);
+    expect(opts.sendMsg).toHaveBeenCalledWith(expect.stringContaining('security'));
+  });
+
+  it('/fix <error> sends a diagnose-and-fix prompt', () => {
+    const opts = makeOptions({ raw: '/fix TypeError: x is undefined' });
+    expect(runChatSlashCommand(opts)).toBe(true);
+    expect(opts.sendMsg).toHaveBeenCalledWith(expect.stringContaining('TypeError: x is undefined'));
+  });
+
+  it('/fix with no arg targets the latest failure', () => {
+    const opts = makeOptions({ raw: '/fix' });
+    expect(runChatSlashCommand(opts)).toBe(true);
+    expect(opts.sendMsg).toHaveBeenCalledWith(expect.stringContaining('most recent error'));
+  });
+
+  it('/terminal opens the integrated terminal', () => {
+    const opts = makeOptions({ raw: '/terminal' });
+    expect(runChatSlashCommand(opts)).toBe(true);
+    expect(mocks.setTerminalOpen).toHaveBeenCalledWith(true);
   });
 });
 

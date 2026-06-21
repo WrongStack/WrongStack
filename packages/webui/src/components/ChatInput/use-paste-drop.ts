@@ -19,6 +19,16 @@ interface UsePasteDropOptions {
   setAtMention: (value: FileMentionState | null) => void;
 }
 
+/** Read a File into a base64 data-URL. */
+function readFileAsDataURL(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result as string);
+    reader.onerror = () => reject(reader.error);
+    reader.readAsDataURL(file);
+  });
+}
+
 export function usePasteDrop({ input, textareaRef, setInput, setAtMention }: UsePasteDropOptions) {
   const [pasteHint, setPasteHint] = useState<PasteHintState | null>(null);
   const [draggingOver, setDraggingOver] = useState(false);
@@ -26,6 +36,13 @@ export function usePasteDrop({ input, textareaRef, setInput, setAtMention }: Use
   /** Accumulates base64 image data pasted while the input is focused.
    *  Cleared after each submit so images aren't re-sent accidentally. */
   const pendingImageRef = useRef<string | null>(null);
+  /** State mirror of pendingImageRef so a thumbnail preview re-renders.
+   *  The ref stays the submit-time source of truth; this drives the pill. */
+  const [pendingImage, setPendingImageState] = useState<string | null>(null);
+  const setPendingImage = (data: string | null) => {
+    pendingImageRef.current = data;
+    setPendingImageState(data);
+  };
 
   /** Intercept native paste events to detect and accumulate clipboard images. */
   useEffect(() => {
@@ -44,7 +61,7 @@ export function usePasteDrop({ input, textareaRef, setInput, setAtMention }: Use
             if (!blob) continue;
             const reader = new FileReader();
             reader.onload = () => {
-              pendingImageRef.current = reader.result as string;
+              setPendingImage(reader.result as string);
             };
             reader.readAsDataURL(blob);
           } catch {
@@ -84,13 +101,27 @@ export function usePasteDrop({ input, textareaRef, setInput, setAtMention }: Use
 
   const onDrop = (event: React.DragEvent<HTMLFormElement>): void => {
     if (!event.dataTransfer) return;
-    const files = Array.from(event.dataTransfer.files ?? []);
-    if (files.length === 0) {
+    const allFiles = Array.from(event.dataTransfer.files ?? []);
+    if (allFiles.length === 0) {
       setDraggingOver(false);
       return;
     }
     event.preventDefault();
     setDraggingOver(false);
+
+    // Dropped image → attach inline (same channel as a pasted image). We keep
+    // a single pending image, so the first dropped image wins.
+    const imageFile = allFiles.find((f) => f.type?.startsWith('image/'));
+    if (imageFile) {
+      void readFileAsDataURL(imageFile)
+        .then((data) => setPendingImage(data))
+        .catch(() => {});
+    }
+    const files = allFiles.filter((f) => !f.type?.startsWith('image/'));
+    if (files.length === 0) {
+      // Only image(s) were dropped — nothing to insert as @mentions.
+      return;
+    }
 
     // Insert `@<filename>` per dropped file at the current cursor, with spaces
     // between them. Browsers strip the full path for security, so we use the
@@ -181,6 +212,8 @@ export function usePasteDrop({ input, textareaRef, setInput, setAtMention }: Use
     onTextPaste,
     pasteHint,
     pendingImageRef,
+    pendingImage,
+    clearPendingImage: () => setPendingImage(null),
     setPasteHint,
   };
 }

@@ -242,6 +242,12 @@ export function SetupScreen() {
   const [savedProviders, setSavedProviders] = useState<SavedProvider[]>([]);
   const [isLoadingCatalog, setIsLoadingCatalog] = useState(false);
   const [isLoadingModels, setIsLoadingModels] = useState(false);
+  // Non-null when the provider catalog never arrived (unresponsive/crashed
+  // backend or dropped connection). Drives an inline error card with retry
+  // instead of an infinite spinner.
+  const [catalogError, setCatalogError] = useState<string | null>(null);
+  // Bumped by the retry button to re-run the catalog-fetch effect.
+  const [reloadNonce, setReloadNonce] = useState(0);
 
   // Selected values
   const [selectedProvider, setSelectedProvider] = useState<string | null>(null);
@@ -253,8 +259,26 @@ export function SetupScreen() {
 
     const wsClient = getWSClient(wsUrl);
 
+    // If the catalog never arrives within 8s the backend is likely down or
+    // wedged — surface a retry card rather than spin forever.
+    let catalogTimeout: ReturnType<typeof setTimeout> | null = setTimeout(() => {
+      catalogTimeout = null;
+      setIsLoadingCatalog(false);
+      setCatalogError(
+        'The backend is not responding. It may have crashed or the connection dropped.',
+      );
+    }, 8000);
+    const clearCatalogTimeout = () => {
+      if (catalogTimeout) {
+        clearTimeout(catalogTimeout);
+        catalogTimeout = null;
+      }
+    };
+
     const off1 = wsClient.on('provider.catalog', (msg: WSServerMessage) => {
       if (msg.type === 'provider.catalog') {
+        clearCatalogTimeout();
+        setCatalogError(null);
         const payload = msg.payload as { providers: CatalogProvider[] };
         const sorted = payload.providers.sort((a, b) => a.id.localeCompare(b.id));
         setCatalogProviders(sorted);
@@ -291,15 +315,23 @@ export function SetupScreen() {
       }
     });
 
+    setCatalogError(null);
     setIsLoadingCatalog(true);
     wsClient.listProviders();
 
     return () => {
+      clearCatalogTimeout();
       off1?.();
       off2?.();
       off3?.();
     };
-  }, [wsConnected, wsUrl, provider, model]);
+  }, [wsConnected, wsUrl, provider, model, reloadNonce]);
+
+  // Retry catalog fetch after a timeout / lost connection.
+  const handleRetryCatalog = useCallback(() => {
+    setCatalogError(null);
+    setReloadNonce((n) => n + 1);
+  }, []);
 
   // Fetch models when provider is selected
   useEffect(() => {
@@ -447,7 +479,21 @@ export function SetupScreen() {
                 </p>
               </div>
 
-              {isLoadingCatalog ? (
+              {catalogError ? (
+                <div className="flex flex-col items-center text-center gap-4 py-12 rounded-xl border border-destructive/30 bg-destructive/5 px-6">
+                  <div className="w-12 h-12 rounded-xl bg-destructive/10 border border-destructive/30 flex items-center justify-center">
+                    <Network className="h-6 w-6 text-destructive" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-destructive">Can&apos;t reach the backend</p>
+                    <p className="text-xs text-muted-foreground mt-1 max-w-sm">{catalogError}</p>
+                  </div>
+                  <Button onClick={handleRetryCatalog} size="sm" variant="outline">
+                    <Loader2 className="h-4 w-4 mr-2" />
+                    Retry
+                  </Button>
+                </div>
+              ) : isLoadingCatalog ? (
                 <div className="flex items-center justify-center py-12">
                   <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
                 </div>

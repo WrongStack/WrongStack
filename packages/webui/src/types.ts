@@ -702,6 +702,11 @@ export type WSClientMessage =
   | { type: 'mcp.enable'; payload: { name: string } }
   | { type: 'mcp.disable'; payload: { name: string } }
   | { type: 'mcp.restart'; payload: { name: string } }
+  // ── Integrated terminal (node-pty) client messages ───────────────────────────
+  | { type: 'terminal.create'; payload: { id: string; cols?: number | undefined; rows?: number | undefined } }
+  | { type: 'terminal.input'; payload: { id: string; data: string } }
+  | { type: 'terminal.resize'; payload: { id: string; cols: number; rows: number } }
+  | { type: 'terminal.close'; payload: { id: string } }
   // ── Misc client messages ─────────────────────────────────────────────────────
   | { type: 'plan.template_use'; payload: { template: string } }
   | { type: 'webui.shutdown' };
@@ -802,7 +807,10 @@ export type WSServerMessage =
   | { type: 'mcp.server.waking'; payload: { name: string } }
   | { type: 'mcp.server.connected'; payload: { name: string; pid?: number } }
   | { type: 'mcp.server.error'; payload: { name: string; error: string } }
-  | { type: 'mcp.operation_result'; payload: { success: boolean; message: string } };
+  | { type: 'mcp.operation_result'; payload: { success: boolean; message: string } }
+  // ── Integrated terminal (node-pty) server events ──────────────────────────────
+  | { type: 'terminal.output'; payload: { id: string; data: string } }
+  | { type: 'terminal.exit'; payload: { id: string; exitCode: number; signal?: number | undefined } };
 
 // Helper to broadcast to all clients
 export type BroadcastFn = (msg: WSServerMessage) => void;

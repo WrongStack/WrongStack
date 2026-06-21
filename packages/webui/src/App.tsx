@@ -28,6 +28,7 @@ import { FleetMonitor } from './components/FleetMonitor';
 import { InspectorPanel } from './components/InspectorPanel';
 import { ProcessMonitor } from './components/ProcessMonitor';
 import { QueuePanel } from './components/QueuePanel';
+import { TerminalPanel } from './components/TerminalPanel';
 import { MailboxDetailView } from './components/MailboxDetailView';
 import { SkillDetailView } from './components/SkillDetailView';
 import { OfficeMapPanel } from './components/OfficeMapPanel';
@@ -39,6 +40,7 @@ function AppInner() {
     setInspectorTab, toggleInspector,
     fleetMonitorOpen, agentsMonitorOpen, setFleetMonitorOpen, setAgentsMonitorOpen,
     processMonitorOpen, setProcessMonitorOpen, queuePanelOpen, setQueuePanelOpen,
+    terminalOpen, setTerminalOpen,
   } = useUIStore();
   const isLoading = useChatStore((s) => s.isLoading);
   const iteration = useSessionStore((s) => s.iteration);
@@ -146,6 +148,12 @@ function AppInner() {
       if (mod && e.key === '\\') {
         e.preventDefault();
         toggleSidebar();
+        return;
+      }
+      // Ctrl+` — toggle the integrated terminal bottom-dock (VS Code parity).
+      if (mod && e.key === '`') {
+        e.preventDefault();
+        useUIStore.getState().toggleTerminal();
         return;
       }
       // Ctrl+1..7 — jump straight to a side panel (same logic as clicking
@@ -381,6 +389,9 @@ function AppInner() {
       {queuePanelOpen && (
         <QueuePanel open={queuePanelOpen} onClose={() => setQueuePanelOpen(false)} />
       )}
+
+      {/* Integrated terminal bottom-dock — toggled by Ctrl+` or /terminal */}
+      {terminalOpen && <TerminalPanel onClose={() => setTerminalOpen(false)} />}
 
       {/* Global overlays */}
       <ConfirmDialog />

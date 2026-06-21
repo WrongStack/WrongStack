@@ -37,11 +37,16 @@ import {
   Wrench,
 } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { SLASH_COMMANDS } from '../ChatInput/slash-commands.js';
+import {
+  type RunChatSlashCommandOptions,
+  runChatSlashCommand,
+} from '../ChatInput/slash-routing.js';
 import { downloadChatAsHtml, downloadChatAsMarkdown } from './export-utils.js';
 
 interface PaletteItem {
   id: string;
-  category: 'Command' | 'Session' | 'Theme' | 'Tool';
+  category: 'Command' | 'Session' | 'Theme' | 'Tool' | 'Slash';
   label: string;
   hint?: string | undefined;
   icon: LucideIcon;
@@ -215,6 +220,59 @@ export function CommandPalette() {
         run: () => ws.stopAutoPhase(),
       },
     ];
+
+    // Bridge every slash command into the palette so Ctrl+K can run them
+    // all — not just the curated subset above. Picking one routes through
+    // the same runChatSlashCommand the chat input uses.
+    const buildSlashOptions = (raw: string): RunChatSlashCommandOptions => {
+      const chat = useChatStore.getState();
+      const ui = useUIStore.getState();
+      const sendMsg = (content: string) => {
+        if (chat.isLoading) {
+          chat.enqueue(content);
+          return;
+        }
+        chat.addMessage({ role: 'user', content });
+        const id = ws.sendMessage(content);
+        if (id) chat.setLoading(true);
+      };
+      return {
+        raw,
+        addMessage,
+        clearMessages,
+        client: ws.client,
+        queue: chat.queue,
+        sendAbort: ws.sendAbort,
+        sendMsg,
+        setLoading: chat.setLoading,
+        setCurrentView,
+        toggleRefineEnabled: ui.toggleRefineEnabled,
+        setProcessMonitorOpen: ui.setProcessMonitorOpen,
+        setQueuePanelOpen: ui.setQueuePanelOpen,
+        ws,
+        onOpenBreakdown: () => setCurrentView('debug'),
+        handleNextList: () => false,
+        handleNextSelect: () => false,
+      };
+    };
+    for (const c of SLASH_COMMANDS) {
+      if (c.hidden) continue;
+      base.push({
+        id: `slash-${c.name}`,
+        category: 'Slash',
+        label: c.name,
+        hint: c.description,
+        icon: Hash,
+        keywords: [
+          'slash',
+          c.name.replace('/', ''),
+          ...(c.aliases ?? []).map((a) => a.replace('/', '')),
+        ],
+        run: () => {
+          runChatSlashCommand(buildSlashOptions(c.name));
+        },
+      });
+    }
 
     for (const entry of historyEntries.slice(0, 10)) {
       if (entry.isCurrent) continue;

@@ -8,7 +8,7 @@ import {
 
 describe('SLASH_CATEGORY_ORDER', () => {
   it('contains all expected categories', () => {
-    expect(SLASH_CATEGORY_ORDER).toEqual(['Run', 'Session', 'Inspect', 'Config', 'App']);
+    expect(SLASH_CATEGORY_ORDER).toEqual(['Run', 'Session', 'Inspect', 'Agent', 'Config', 'App']);
   });
 });
 

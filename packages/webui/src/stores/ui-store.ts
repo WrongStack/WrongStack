@@ -65,6 +65,10 @@ interface UIState {
   refineEnabled: boolean;
   /** Which WorkspaceDock section is expanded above the chat. Null = all collapsed. */
   dockSection: DockSection | null;
+  /** Dock chips the user has explicitly hidden via the customization menu.
+   *  Empty = all chips visible (subject to each chip's own data condition).
+   *  Mirrors the TUI's F12 status-line chip picker. */
+  hiddenChips: DockSection[];
   /** Full-screen Fleet Monitor overlay. */
   fleetMonitorOpen: boolean;
   /** Full-screen Agents Monitor overlay. */
@@ -77,8 +81,12 @@ interface UIState {
   processMonitorOpen: boolean;
   /** Queue Panel overlay — triggered by /queue slash command. */
   queuePanelOpen: boolean;
+  /** Integrated terminal bottom-dock — toggled by Ctrl+` or /terminal. */
+  terminalOpen: boolean;
   setProcessMonitorOpen: (open: boolean) => void;
   setQueuePanelOpen: (open: boolean) => void;
+  setTerminalOpen: (open: boolean) => void;
+  toggleTerminal: () => void;
 
   /** Skills panel breadcrumb state — persisted so history survives panel switches. */
   skillsState: {
@@ -136,6 +144,8 @@ interface UIState {
   setDockSection: (section: DockSection | null) => void;
   /** Click-a-chip semantics: same section again collapses the dock. */
   toggleDockSection: (section: DockSection) => void;
+  /** Show/hide a dock chip from the customization menu. */
+  toggleChipHidden: (section: DockSection) => void;
   setFleetMonitorOpen: (open: boolean) => void;
   setAgentsMonitorOpen: (open: boolean) => void;
   setInspectorOpen: (open: boolean) => void;
@@ -168,12 +178,14 @@ export const useUIStore = create<UIState>()(
       refineEnabled: true,
       refinePanel: null,
       dockSection: null,
+      hiddenChips: [],
       fleetMonitorOpen: false,
       agentsMonitorOpen: false,
       inspectorOpen: false,
       inspectorTab: 'fleet',
       processMonitorOpen: false,
       queuePanelOpen: false,
+      terminalOpen: false,
       selectedMailMessage: null,
       skillsState: {
         selectedSkill: null,
@@ -240,6 +252,17 @@ export const useUIStore = create<UIState>()(
       setDockSection: (section) => set({ dockSection: section }),
       toggleDockSection: (section) =>
         set((s) => ({ dockSection: s.dockSection === section ? null : section })),
+      toggleChipHidden: (section) =>
+        set((s) => {
+          const hidden = s.hiddenChips.includes(section);
+          return {
+            hiddenChips: hidden
+              ? s.hiddenChips.filter((c) => c !== section)
+              : [...s.hiddenChips, section],
+            // Collapse the dock if we're hiding the currently-open section.
+            dockSection: !hidden && s.dockSection === section ? null : s.dockSection,
+          };
+        }),
       setFleetMonitorOpen: (open: boolean) => set({ fleetMonitorOpen: open }),
       setAgentsMonitorOpen: (open: boolean) => set({ agentsMonitorOpen: open }),
       setInspectorOpen: (open: boolean) => set({ inspectorOpen: open }),
@@ -247,6 +270,8 @@ export const useUIStore = create<UIState>()(
       toggleInspector: () => set((s) => ({ inspectorOpen: !s.inspectorOpen })),
       setProcessMonitorOpen: (open: boolean) => set({ processMonitorOpen: open }),
       setQueuePanelOpen: (open: boolean) => set({ queuePanelOpen: open }),
+      setTerminalOpen: (open: boolean) => set({ terminalOpen: open }),
+      toggleTerminal: () => set((s) => ({ terminalOpen: !s.terminalOpen })),
       setSkillsState: (state) => set({ skillsState: state }),
       setSelectedMailMessage: (msg) => set({ selectedMailMessage: msg }),
     }),
@@ -284,6 +309,7 @@ export const useUIStore = create<UIState>()(
         sessionNicknames: s.sessionNicknames,
         fileExplorerWidth: s.fileExplorerWidth,
         refineEnabled: s.refineEnabled,
+        hiddenChips: s.hiddenChips,
         inspectorOpen: s.inspectorOpen,
         inspectorTab: s.inspectorTab,
         skillsState: s.skillsState,
