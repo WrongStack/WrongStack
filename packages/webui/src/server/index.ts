@@ -47,10 +47,6 @@ import {
   validateAutonomySwitchPayload,
   validateBrainAskPayload,
   validateBrainRiskPayload,
-  validateContextModeCreatePayload,
-  validateContextModeDeletePayload,
-  validateContextModeSwitchPayload,
-  validateContextModeUpdatePayload,
 } from './ws-payload-validation.js';
 import {
   handleMemoryList,
@@ -111,7 +107,6 @@ import {
   DEFAULT_SESSION_PRUNE_DAYS,
   DEFAULT_TOOLS_CONFIG,
   listContextWindowModes,
-  repairToolUseAdjacency,
   resolveContextWindowPolicy,
   enhanceUserPrompt,
   recentTextTurns,
@@ -147,6 +142,7 @@ import { computeUsageCost, getCostRates } from './usage-cost.js';
 import { createProviderHandlers } from './provider-handlers.js';
 import { createModeHandlers } from './mode-handlers.js';
 import { createProjectHandlers } from './project-handlers.js';
+import { createSessionHandlers } from './session-handlers.js';
 import { handleProviderRoute, type ProviderRouteHandlers } from './provider-routes.js';
 import { handleSessionRoute, type SessionRouteHandlers } from './session-routes.js';
 import { handleProjectRoute, type ProjectRouteHandlers } from './project-routes.js';
@@ -159,7 +155,6 @@ import { setupEvents, type FileWatcherMetrics } from './setup-events.js';
 import { createCustomModeStore } from './custom-context-modes.js';
 import { maskedKey, normalizeKeys } from './provider-keys.js';
 import { send, broadcast, sendResult, errMessage, generateAuthToken } from './ws-utils.js';
-import { estimateContextBreakdown } from './token-estimator.js';
 import { createEternalSubscription } from './eternal-iteration-broadcast.js';
 import { handleShellOpen, type ShellOpenRequest, type ShellOpenResult } from './shell-open.js';
 import { handleGitChanges, handleGitDiff, handleGitInfo } from './git-handlers.js';
@@ -2354,326 +2349,27 @@ export async function startWebUI(
     },
   };
 
-  sessionRoutes = {
-    newSession: async (ws) => {
-      try {
-        await session.append({
-          type: 'session_end',
-          ts: new Date().toISOString(),
-          usage: tokenCounter.total(),
-        });
-        await session.close();
-      } catch {
-        // best-effort
-      }
-      session = await sessionStore.create({
-        id: '',
-        title: '',
-        model: config.model,
-        provider: config.provider,
-      });
-      context.session = session;
-      context.state.replaceMessages([]);
-      context.state.replaceTodos([]);
-      context.readFiles.clear();
-      context.fileMtimes.clear();
-      tokenCounter.reset();
-      sessionStartedAt = Date.now();
-      broadcast(clients, { type: 'session.start', payload: await sessionStartPayload() });
-    },
-    clearContext: async (ws) => {
-      context.state.replaceMessages([]);
-      context.state.replaceTodos([]);
-      context.readFiles.clear();
-      context.fileMtimes.clear();
-      tokenCounter.reset();
-      sendResult(ws, true, 'Context cleared');
-      broadcast(clients, {
-        type: 'session.start',
-        payload: { ...(await sessionStartPayload()), reset: true },
-      });
-    },
-    debugContext: async (ws) => {
-      const breakdown = estimateContextBreakdown({
-        systemPrompt: context.systemPrompt,
-        tools: toolRegistry.list(),
-        messages: context.messages,
-      });
-      send(ws, {
-        type: 'context.debug',
-        payload: {
-          ...breakdown,
-          mode: context.meta['contextWindowMode'] ?? DEFAULT_CONTEXT_WINDOW_MODE_ID,
-          policy: context.meta['contextWindowPolicy'],
-        },
-      });
-    },
-    compactContext: async (ws, msg) => {
-      const aggressive = !!(msg as { payload?: { aggressive?: boolean | undefined } }).payload?.aggressive;
-      try {
-        const report = await compactor.compact(context, { aggressive });
-        send(ws, {
-          type: 'context.compacted',
-          payload: {
-            before: report.before,
-            after: report.after,
-            saved: Math.max(0, report.before - report.after),
-            reductions: report.reductions,
-            repaired: report.repaired,
-          },
-        });
-        sendResult(
-          ws,
-          true,
-          `Compacted: ${report.before} → ${report.after} tokens (saved ~${Math.max(0, report.before - report.after)})`,
-        );
-      } catch (err) {
-        sendResult(ws, false, errMessage(err));
-      }
-    },
-    repairContext: async (ws) => {
-      const beforeMessages = context.messages.length;
-      const repaired = repairToolUseAdjacency(context.messages);
-      if (repaired.report.changed) {
-        context.state.replaceMessages(repaired.messages);
-      }
-      const payload = {
-        removedToolUses: repaired.report.removedToolUses,
-        removedToolResults: repaired.report.removedToolResults,
-        removedMessages: repaired.report.removedMessages,
-        beforeMessages,
-        afterMessages: context.messages.length,
-      };
-      broadcast(clients, { type: 'context.repaired', payload });
-      const removed =
-        payload.removedToolUses.length +
-        payload.removedToolResults.length +
-        payload.removedMessages;
-      sendResult(
-        ws,
-        true,
-        removed > 0
-          ? `Context repaired: removed ${removed} orphan protocol item(s)`
-          : 'Context repair found no orphan protocol blocks',
-      );
-    },
-    listContextModes: async (ws) => {
-      const active = String(context.meta['contextWindowMode'] ?? DEFAULT_CONTEXT_WINDOW_MODE_ID);
-      const allModes = customModeStore.list().map((m) => ({
-        id: m.id,
-        name: m.name,
-        description: m.description,
-        isActive: m.id === active,
-        thresholds: m.thresholds,
-        preserveK: m.preserveK,
-        eliseThreshold: m.eliseThreshold,
-        custom: (m as { custom?: boolean }).custom === true,
-      }));
-      send(ws, {
-        type: 'context.modes.list',
-        payload: { activeId: active, modes: allModes },
-      });
-    },
-    switchContextMode: async (ws, msg) => {
-      const parsed = validateContextModeSwitchPayload(msg.payload);
-      if (!parsed.ok) {
-        sendResult(ws, false, parsed.message);
-        return;
-      }
-      const { id } = parsed.value;
-      let policy = resolveContextWindowPolicy({}, id);
-      if (policy.id !== id) {
-        const customModes = customModeStore.list().filter((m) => (m as { custom?: boolean }).custom === true);
-        const custom = customModes.find((m) => m.id === id);
-        if (!custom) {
-          sendResult(ws, false, `Unknown context mode "${id}"`);
-          return;
-        }
-        policy = custom as unknown as typeof policy;
-      }
-      context.meta['contextWindowMode'] = policy.id;
-      context.meta['contextWindowPolicy'] = policy;
-      sendResult(ws, true, `Context mode switched to ${policy.id}`);
-      broadcast(clients, {
-        type: 'context.mode.changed',
-        payload: { id: policy.id, name: policy.name, policy },
-      });
-    },
-    createContextMode: async (ws, msg) => {
-      const parsed = validateContextModeCreatePayload(msg.payload);
-      if (!parsed.ok) {
-        sendResult(ws, false, parsed.message);
-        return;
-      }
-      const payload = parsed.value;
-      const result = customModeStore.create({
-        id: payload.id,
-        name: payload.name,
-        description: payload.description,
-        thresholds: payload.thresholds,
-        preserveK: payload.preserveK,
-        eliseThreshold: payload.eliseThreshold,
-        custom: true,
-        aggressiveOn: 'soft',
-        targetLoad: 0.65,
-      });
-      sendResult(ws, result.ok, result.error ?? `Mode "${payload.id}" created`);
-    },
-    updateContextMode: async (ws, msg) => {
-      const parsed = validateContextModeUpdatePayload(msg.payload);
-      if (!parsed.ok) {
-        sendResult(ws, false, parsed.message);
-        return;
-      }
-      const payload = parsed.value;
-      const result = customModeStore.update(payload.id, {
-        name: payload.name,
-        description: payload.description,
-        thresholds: payload.thresholds ? {
-          warn: payload.thresholds.warn ?? 0.6,
-          soft: payload.thresholds.soft ?? 0.75,
-          hard: payload.thresholds.hard ?? 0.9,
-        } : undefined,
-        preserveK: payload.preserveK,
-        eliseThreshold: payload.eliseThreshold,
-      });
-      sendResult(ws, result.ok, result.error ?? `Mode "${payload.id}" updated`);
-    },
-    deleteContextMode: async (ws, msg) => {
-      const parsed = validateContextModeDeletePayload(msg.payload);
-      if (!parsed.ok) {
-        sendResult(ws, false, parsed.message);
-        return;
-      }
-      const { id } = parsed.value;
-      if (String(context.meta['contextWindowMode'] ?? '') === id) {
-        context.meta['contextWindowMode'] = DEFAULT_CONTEXT_WINDOW_MODE_ID;
-        context.meta['contextWindowPolicy'] = resolveContextWindowPolicy({}, DEFAULT_CONTEXT_WINDOW_MODE_ID);
-      }
-      const result = customModeStore.remove(id);
-      sendResult(ws, result.ok, result.error ?? `Mode "${id}" deleted`);
-    },
-    listSessions: async (ws, msg) => {
-      const limit = (msg as { payload?: { limit?: number | undefined } }).payload?.limit ?? 50;
-      try {
-        const list = await sessionStore.list(limit);
-        send(ws, {
-          type: 'sessions.list',
-          payload: {
-            sessions: list.map((s) => ({
-              id: s.id,
-              title: s.title,
-              startedAt: s.startedAt,
-              model: s.model,
-              provider: s.provider,
-              tokenTotal: s.tokenTotal,
-              isCurrent: s.id === session.id,
-            })),
-          },
-        });
-      } catch (err) {
-        send(ws, {
-          type: 'sessions.list',
-          payload: { sessions: [], error: errMessage(err) },
-        });
-      }
-    },
-    deleteSession: async (ws, msg) => {
-      const { id } = (msg as { payload: { id: string } }).payload;
-      try {
-        if (id === session.id) {
-          sendResult(ws, false, 'Cannot delete the active session');
-          return;
-        }
-        await sessionStore.delete(id);
-        sendResult(ws, true, `Session ${id} deleted`);
-      } catch (err) {
-        sendResult(ws, false, errMessage(err));
-      }
-    },
-    resumeSession: async (ws, msg) => {
-      const { id } = (msg as { payload: { id: string } }).payload;
-      try {
-        if (id === session.id) {
-          sendResult(ws, false, 'Session is already active');
-          return;
-        }
-        const resumed = await sessionStore.resume(id);
-        try {
-          await session.append({
-            type: 'session_end',
-            ts: new Date().toISOString(),
-            usage: tokenCounter.total(),
-          });
-          await session.close();
-        } catch {
-          /* noop */
-        }
-        session = resumed.writer;
-        context.session = session;
-        context.state.replaceMessages(resumed.data.messages);
-        context.readFiles.clear();
-        context.fileMtimes.clear();
-        tokenCounter.reset();
-        tokenCounter.account(resumed.data.usage, config.model);
-        sessionStartedAt = Date.now();
-        broadcast(clients, {
-          type: 'session.start',
-          payload: {
-            ...(await sessionStartPayload()),
-            reset: true,
-            replayMessages: resumed.data.messages,
-            replayUsage: resumed.data.usage,
-          },
-        });
-        sendResult(ws, true, `Resumed session ${id}`);
-      } catch (err) {
-        sendResult(ws, false, errMessage(err));
-      }
-    },
-    saveSession: async (ws) => {
-      sendResult(ws, true, `Session ${session.id} is auto-saved`);
-    },
-    listCheckpoints: async (ws) => {
-      try {
-        const { DefaultSessionRewinder } = await import('@wrongstack/core');
-        const rewinder = new DefaultSessionRewinder(
-          path.join(projectRoot, '.wrongstack', 'sessions'),
-          projectRoot,
-        );
-        const checkpoints = await rewinder.listCheckpoints(session.id);
-        send(ws, {
-          type: 'session.checkpoints',
-          payload: { checkpoints },
-        });
-      } catch {
-        send(ws, {
-          type: 'session.checkpoints',
-          payload: { checkpoints: [] },
-        });
-      }
-    },
-    rewindSession: async (ws, msg) => {
-      const { checkpointIndex } = (msg as { payload: { checkpointIndex: number } }).payload;
-      try {
-        const { DefaultSessionRewinder } = await import('@wrongstack/core');
-        const rewinder = new DefaultSessionRewinder(
-          path.join(projectRoot, '.wrongstack', 'sessions'),
-          projectRoot,
-        );
-        await rewinder.rewindToCheckpoint(session.id, checkpointIndex);
-        await context.session.truncateToCheckpoint(checkpointIndex);
-        sendResult(ws, true, `Rewound to checkpoint ${checkpointIndex}`);
-        broadcast(clients, {
-          type: 'session.start',
-          payload: { ...(await sessionStartPayload()), reset: true },
-        });
-      } catch (err) {
-        sendResult(ws, false, errMessage(err));
-      }
-    },
-  };
 
+
+  sessionRoutes = createSessionHandlers({
+    config,
+    clients,
+    context,
+    toolRegistry,
+    compactor,
+    customModeStore,
+    tokenCounter,
+    getProjectRoot: () => projectRoot,
+    getSession: () => session,
+    getSessionStore: () => sessionStore,
+    setSession: (s) => {
+      session = s;
+    },
+    setSessionStartedAt: (t) => {
+      sessionStartedAt = t;
+    },
+    sessionStartPayload,
+  });
 
   projectRoutes = createProjectHandlers({
     globalConfigPath,
