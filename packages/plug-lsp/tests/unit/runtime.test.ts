@@ -131,6 +131,9 @@ describe('runtime helpers', () => {
     tracker.setCwd(root);
     await tracker.open(path.join(root, 'README.md'));
     await tracker.fileWritten(path.join(root, 'missing.ts'));
+    await expect(
+      tracker.handleToolExecuted({ name: 'read', ok: true, input: { path: 'missing.ts' } } as never),
+    ).resolves.toBeUndefined();
     await tracker.handleToolExecuted({ name: 'read', ok: true, input: { path: 'a.ts' } } as never);
     expect(opened).toHaveBeenCalledOnce();
     const fresh = path.join(root, 'fresh.ts');

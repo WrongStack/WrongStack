@@ -65,7 +65,13 @@ export class DocumentTracker {
     const absPath = this.resolve(filePath);
     const languageId = languageIdFor(absPath);
     if (!languageId) return;
-    const text = knownText ?? (await fs.readFile(absPath, 'utf8'));
+    let text: string;
+    try {
+      text = knownText ?? (await fs.readFile(absPath, 'utf8'));
+    } catch (err) {
+      this.log.debug(`LSP tracker could not read opened file ${absPath}`, err);
+      return;
+    }
     let doc = this.docs.get(absPath);
     /* v8 ignore next -- both create and existing paths are covered; branch accounting is source-map noisy. */
     if (!doc) {

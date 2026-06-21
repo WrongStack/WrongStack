@@ -58,7 +58,9 @@ const plugin: Plugin = {
         void tracker.forceCloseAll().finally(() => registry.shutdown());
       }),
       api.events.on('tool.executed', (event) => {
-        void tracker.handleToolExecuted(event);
+        void tracker
+          .handleToolExecuted(event)
+          .catch((err) => api.log.debug('LSP tracker failed to handle tool event', err));
       }),
     ];
 
