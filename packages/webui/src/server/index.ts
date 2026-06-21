@@ -34,7 +34,6 @@ import {
   handleFilesWrite,
   handleFilesList,
 } from './file-handlers.js';
-import { resolveWorkingDirInsideProject } from './path-containment.js';
 import {
   validateMailboxAgentsPayload,
   validateMailboxMessagesPayload,
@@ -43,8 +42,6 @@ import {
   validatePrefsUpdatePayload,
   validatePlanTemplateUsePayload,
   validateProcessKillPayload,
-  validateProjectsAddPayload,
-  validateProjectsSelectPayload,
   validateShellOpenPayload,
   validateGitDiffPayload,
   validateAutonomySwitchPayload,
@@ -54,7 +51,6 @@ import {
   validateContextModeDeletePayload,
   validateContextModeSwitchPayload,
   validateContextModeUpdatePayload,
-  validateWorkingDirSetPayload,
 } from './ws-payload-validation.js';
 import {
   handleMemoryList,
@@ -150,6 +146,7 @@ import { openBrowser } from './open-browser.js';
 import { computeUsageCost, getCostRates } from './usage-cost.js';
 import { createProviderHandlers } from './provider-handlers.js';
 import { createModeHandlers } from './mode-handlers.js';
+import { createProjectHandlers } from './project-handlers.js';
 import { handleProviderRoute, type ProviderRouteHandlers } from './provider-routes.js';
 import { handleSessionRoute, type SessionRouteHandlers } from './session-routes.js';
 import { handleProjectRoute, type ProjectRouteHandlers } from './project-routes.js';
@@ -2677,275 +2674,45 @@ export async function startWebUI(
     },
   };
 
-  projectRoutes = {
-    listProjects: async (ws) => {
-      try {
-        const manifest = await loadManifest(globalConfigPath);
-        send(ws, {
-          type: 'projects.list',
-          payload: { projects: manifest.projects },
-        });
-      } catch (err) {
-        send(ws, {
-          type: 'projects.list',
-          payload: { projects: [], error: errMessage(err) },
-        });
+
+  projectRoutes = createProjectHandlers({
+    globalConfigPath,
+    wpaths,
+    clients,
+    context,
+    modeStore,
+    memoryStore,
+    skillLoader,
+    modelCapabilities,
+    toolRegistry,
+    tokenCounter,
+    config,
+    getModeId: () => modeId,
+    getProjectRoot: () => projectRoot,
+    getSession: () => session,
+    setProjectRoot: (p) => {
+      projectRoot = p;
+    },
+    setWorkingDir: (p) => {
+      workingDir = p;
+    },
+    setSession: (s) => {
+      session = s;
+    },
+    setSessionStore: (s) => {
+      sessionStore = s;
+    },
+    setSessionStartedAt: (t) => {
+      sessionStartedAt = t;
+    },
+    abortRunLock: () => {
+      if (runLock) {
+        runLock.abort();
+        runLock = null;
       }
     },
-    addProject: async (ws, msg) => {
-      const parsed = validateProjectsAddPayload(msg.payload);
-      if (!parsed.ok) {
-        send(ws, {
-          type: 'projects.added',
-          payload: { name: '', root: '', slug: '', message: parsed.message },
-        });
-        return;
-      }
-      const { root: addRoot, name: displayName } = parsed.value;
-      try {
-        const resolved = path.resolve(addRoot);
-        await fs.access(resolved);
-        const stat = await fs.stat(resolved);
-        if (!stat.isDirectory()) throw new Error(`Not a directory: ${resolved}`);
-
-        const manifest = await loadManifest(globalConfigPath);
-        const existing = manifest.projects.find((p) => p.root === resolved);
-        if (existing) {
-          send(ws, {
-            type: 'projects.added',
-            payload: {
-              name: existing.name,
-              root: existing.root,
-              slug: existing.slug,
-              message: `Already registered as "${existing.name}"`,
-            },
-          });
-          return;
-        }
-
-        const name = displayName?.trim() || path.basename(resolved);
-        const slug = generateProjectSlug(resolved);
-        await ensureProjectDataDir(slug, globalConfigPath);
-        const now = new Date().toISOString();
-        manifest.projects.push({ name, root: resolved, slug, lastSeen: now, createdAt: now });
-        await saveManifest(manifest, globalConfigPath);
-
-        send(ws, {
-          type: 'projects.added',
-          payload: {
-            name,
-            root: resolved,
-            slug,
-            message: `Registered project "${name}"`,
-          },
-        });
-      } catch (err) {
-        send(ws, {
-          type: 'projects.added',
-          payload: {
-            name: path.basename(addRoot),
-            root: addRoot,
-            slug: '',
-            message: errMessage(err),
-          },
-        });
-      }
-    },
-    selectProject: async (ws, msg) => {
-      const parsed = validateProjectsSelectPayload(msg.payload);
-      if (!parsed.ok) {
-        send(ws, {
-          type: 'projects.selected',
-          payload: { root: '', name: '', message: parsed.message },
-        });
-        return;
-      }
-      const { root: selRoot, name: selName } = parsed.value;
-      try {
-        const resolved = path.resolve(selRoot);
-
-        try {
-          await fs.access(resolved);
-          const stat = await fs.stat(resolved);
-          if (!stat.isDirectory()) throw new Error(`Not a directory: ${resolved}`);
-        } catch (err) {
-          send(ws, {
-            type: 'projects.selected',
-            payload: {
-              root: selRoot,
-              name: selName || path.basename(selRoot),
-              message: `Cannot switch: ${errMessage(err)}`,
-            },
-          });
-          return;
-        }
-
-        const manifest = await loadManifest(globalConfigPath);
-        const entry = manifest.projects.find((p) => p.root === resolved);
-        if (entry) {
-          entry.lastSeen = new Date().toISOString();
-          entry.lastWorkingDir = resolved;
-        } else {
-          const name = selName?.trim() || path.basename(resolved);
-          const slug = generateProjectSlug(resolved);
-          manifest.projects.push({
-            name,
-            root: resolved,
-            slug,
-            lastSeen: new Date().toISOString(),
-            createdAt: new Date().toISOString(),
-            lastWorkingDir: resolved,
-          });
-          await ensureProjectDataDir(slug, globalConfigPath);
-        }
-        await saveManifest(manifest, globalConfigPath);
-
-        if (runLock) {
-          runLock.abort();
-          runLock = null;
-        }
-
-        projectRoot = resolved;
-        workingDir = resolved;
-
-        context.cwd = workingDir;
-        context.projectRoot = projectRoot;
-
-        const switchSlug = entry?.slug ?? generateProjectSlug(resolved);
-
-        try {
-          const switchMode = modeId === 'default' ? undefined : await modeStore.getMode(modeId);
-          const switchBuilder = new DefaultSystemPromptBuilder({
-            memoryStore,
-            skillLoader,
-            modeStore,
-            modeId,
-            modePrompt: switchMode?.prompt ?? '',
-            modelCapabilities,
-          });
-          context.systemPrompt = await switchBuilder.build({
-            cwd: workingDir,
-            projectRoot,
-            tools: toolRegistry.list(),
-            provider: config.provider,
-            model: config.model,
-          });
-        } catch {
-          /* best-effort */
-        }
-
-        const newSessionsDir = path.join(
-          path.dirname(globalConfigPath),
-          'projects',
-          switchSlug,
-          'sessions',
-        );
-        await fs.mkdir(newSessionsDir, { recursive: true });
-        const newSessionStore = new DefaultSessionStore({ dir: newSessionsDir });
-
-        const oldSessionId = session.id;
-        try {
-          await session.append({
-            type: 'session_end',
-            ts: new Date().toISOString(),
-            usage: tokenCounter.total(),
-          });
-          await session.close();
-        } catch {
-          // best-effort
-        }
-
-        sessionStore = newSessionStore;
-        session = await sessionStore.create({
-          id: '',
-          title: '',
-          model: config.model,
-          provider: config.provider,
-        });
-        context.session = session;
-        context.state.replaceMessages([]);
-        context.state.replaceTodos([]);
-        context.readFiles.clear();
-        context.fileMtimes.clear();
-        tokenCounter.reset();
-        sessionStartedAt = Date.now();
-
-        try {
-          const registry = getSessionRegistry(wpaths.globalRoot);
-          await registry.register({
-            sessionId: session.id,
-            projectSlug: switchSlug,
-            projectRoot,
-            projectName: path.basename(projectRoot),
-            workingDir,
-            clientType: 'webui',
-            pid: process.pid,
-            startedAt: new Date().toISOString(),
-          });
-        } catch {
-          /* best-effort */
-        }
-
-        send(ws, {
-          type: 'projects.selected',
-          payload: {
-            root: resolved,
-            name: selName || path.basename(resolved),
-            message: `Switched to ${selName || path.basename(resolved)}`,
-          },
-        });
-
-        broadcast(clients, {
-          type: 'subagent.event',
-          payload: {
-            kind: 'session_stopped',
-            sessionId: oldSessionId,
-          },
-        });
-
-        broadcast(clients, {
-          type: 'session.start',
-          payload: {
-            ...(await sessionStartPayload()),
-            reset: true,
-            clearedSessionId: oldSessionId,
-          },
-        });
-      } catch (err) {
-        send(ws, {
-          type: 'projects.selected',
-          payload: {
-            root: selRoot,
-            name: selName || path.basename(selRoot),
-            message: errMessage(err),
-          },
-        });
-      }
-    },
-    setWorkingDir: async (ws, msg) => {
-      const parsed = validateWorkingDirSetPayload(msg.payload);
-      if (!parsed.ok) {
-        sendResult(ws, false, parsed.message);
-        return;
-      }
-      const { path: newPath } = parsed.value;
-      try {
-        const resolved = await resolveWorkingDirInsideProject(projectRoot, newPath);
-
-        workingDir = resolved;
-        context.cwd = resolved;
-
-        broadcast(clients, {
-          type: 'working_dir.changed',
-          payload: { cwd: resolved, projectRoot },
-        });
-
-        sendResult(ws, true, `Working directory set to ${resolved}`);
-      } catch (err) {
-        sendResult(ws, false, errMessage(err));
-      }
-    },
-  };
+    sessionStartPayload,
+  });
 
   modeRoutes = createModeHandlers({
     modeStore,
