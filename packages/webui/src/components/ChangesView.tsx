@@ -76,7 +76,7 @@ export function ChangesView({ className }: { className?: string }) {
           File too large to diff.
         </div>
       ) : mode === 'edit' ? (
-        <MonacoDiffView path={diff.path} oldText={diff.oldText ?? ''} newText={diff.newText ?? ''} />
+        <MonacoDiffView key={diff.path} path={diff.path} oldText={diff.oldText ?? ''} newText={diff.newText ?? ''} />
       ) : (
         <DiffView oldText={diff.oldText} newText={diff.newText} caption={diff.path} fill />
       )}
