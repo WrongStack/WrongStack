@@ -1,5 +1,5 @@
 import type { Request } from '@wrongstack/core';
-import type { Capabilities } from '@wrongstack/core';
+import type { Capabilities, ReasoningEffort } from '@wrongstack/core';
 import { capabilitiesForFamily } from './family-capabilities.js';
 import { OpenAIProvider } from './openai.js';
 import type { WireAdapterStreamOptions } from './wire-adapter.js';
@@ -103,6 +103,11 @@ export class OpenAICompatibleProvider extends OpenAIProvider {
   protected override buildBody(req: Request): Record<string, unknown> {
     const body = super.buildBody(req);
     applyThinkingParams(body, req, this.opts.quirks?.thinkingParam);
+    // #14: the base builder only emits `reasoning_effort` for the values real
+    // OpenAI accepts (none/low/medium/high); the broader internal levels —
+    // `minimal`, `xhigh`, `max` — were silently dropped, so picking `max` on a
+    // generic compatible model (MiniMax, DeepSeek, …) sent no effort at all.
+    applyGenericReasoningEffort(body, req, this.opts.quirks?.thinkingParam);
     // Many OpenAI-compatible servers (Together, Fireworks, DeepSeek, etc.)
     // accept the `top_k` parameter even though real OpenAI rejects it.
     if (req.topK !== undefined) body['top_k'] = req.topK;
@@ -151,5 +156,44 @@ function mapZaiReasoningEffort(effort: NonNullable<Request['reasoning']>['effort
       return 'max';
     default:
       return effort;
+  }
+}
+
+/**
+ * Fill in the reasoning effort levels the base OpenAI body builder drops (#14).
+ * It emits `reasoning_effort` only for none/low/medium/high; `minimal`, `xhigh`,
+ * and `max` fall through and never reach the wire. Map those onto the accepted
+ * `low | high` extremes and set them — but never override a value the base or a
+ * more specific quirk (`zai-glm`) already wrote, and never when reasoning was
+ * explicitly disabled.
+ */
+function applyGenericReasoningEffort(
+  body: Record<string, unknown>,
+  req: Request,
+  mode: CompatibilityQuirks['thinkingParam'],
+): void {
+  if (mode === 'zai-glm') return; // already mapped effort → reasoning_effort
+  const effort = req.reasoning?.effort;
+  if (!effort) return;
+  if (req.reasoning?.enabled === false) return;
+  if (body['reasoning_effort'] !== undefined) return;
+  const mapped = mapGenericReasoningEffort(effort);
+  if (mapped) body['reasoning_effort'] = mapped;
+}
+
+/**
+ * Collapse the internal levels the base builder rejects onto the values OpenAI's
+ * `reasoning_effort` accepts. none/low/medium/high are already handled upstream,
+ * so they return undefined here (no double-write).
+ */
+function mapGenericReasoningEffort(effort: ReasoningEffort): 'low' | 'high' | undefined {
+  switch (effort) {
+    case 'minimal':
+      return 'low';
+    case 'xhigh':
+    case 'max':
+      return 'high';
+    default:
+      return undefined;
   }
 }

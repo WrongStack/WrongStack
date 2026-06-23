@@ -150,6 +150,61 @@ describe('OpenAICompatibleProvider', () => {
     expect(captured?.['thinking']).toBeUndefined();
   });
 
+  it('maps the effort levels the base builder drops onto reasoning_effort (#14)', async () => {
+    let captured: Record<string, unknown> | undefined;
+    const spy = vi.fn(async (_url: unknown, init: { body?: string } = {}) => {
+      captured = JSON.parse(init.body ?? '{}');
+      return { ok: true, status: 200, json: async () => ({ model: 'm', choices: [], usage: {} }), text: async () => '' };
+    }) as never as typeof fetch;
+    const p = new OpenAICompatibleProvider({
+      id: 'deepseek',
+      apiKey: 'k',
+      baseUrl: 'https://api.deepseek.com/v1',
+      fetchImpl: spy,
+    });
+    // `max` is outside OpenAI's accepted set, so the base builder dropped it
+    // entirely before this fix; it now collapses onto `high`.
+    await p.complete(
+      { model: 'm', messages: [{ role: 'user', content: 'hi' }], maxTokens: 1, reasoning: { effort: 'max' } },
+      { signal: new AbortController().signal },
+    );
+    expect(captured?.['reasoning_effort']).toBe('high');
+
+    // `minimal` collapses onto `low`.
+    await p.complete(
+      { model: 'm', messages: [{ role: 'user', content: 'hi' }], maxTokens: 1, reasoning: { effort: 'minimal' } },
+      { signal: new AbortController().signal },
+    );
+    expect(captured?.['reasoning_effort']).toBe('low');
+  });
+
+  it('leaves base-handled efforts untouched and skips when reasoning is disabled (#14)', async () => {
+    let captured: Record<string, unknown> | undefined;
+    const spy = vi.fn(async (_url: unknown, init: { body?: string } = {}) => {
+      captured = JSON.parse(init.body ?? '{}');
+      return { ok: true, status: 200, json: async () => ({ model: 'm', choices: [], usage: {} }), text: async () => '' };
+    }) as never as typeof fetch;
+    const p = new OpenAICompatibleProvider({
+      id: 'deepseek',
+      apiKey: 'k',
+      baseUrl: 'https://api.deepseek.com/v1',
+      fetchImpl: spy,
+    });
+    // medium is in OpenAI's set — emitted verbatim by the base builder, not remapped.
+    await p.complete(
+      { model: 'm', messages: [{ role: 'user', content: 'hi' }], maxTokens: 1, reasoning: { effort: 'medium' } },
+      { signal: new AbortController().signal },
+    );
+    expect(captured?.['reasoning_effort']).toBe('medium');
+
+    // An out-of-set effort with reasoning explicitly disabled is not injected.
+    await p.complete(
+      { model: 'm', messages: [{ role: 'user', content: 'hi' }], maxTokens: 1, reasoning: { enabled: false, effort: 'max' } },
+      { signal: new AbortController().signal },
+    );
+    expect(captured?.['reasoning_effort']).toBeUndefined();
+  });
+
   it('works without custom headers', async () => {
     const spy = mockFetchSpy();
     const p = new OpenAICompatibleProvider({
