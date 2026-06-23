@@ -5,7 +5,7 @@ import {
   type WorklistMessage,
 } from './handlers/index.js';
 import { makeMailboxTool, makeMailSendTool, makeMailInboxTool, mailboxSessionTag } from '@wrongstack/core';
-import { toErrorMessage, wstackGlobalRoot, projectHash, resolveWstackPaths } from '@wrongstack/core/utils';
+import { toErrorMessage, wstackGlobalRoot, projectHash } from '@wrongstack/core/utils';
 import { SkillInstaller } from '@wrongstack/core/skills';
 import {
   BrainMonitor,
@@ -153,6 +153,7 @@ import {
   handleProcessKillAll,
   handleProcessList,
 } from './process-handlers.js';
+import { handleGoalGet } from './goal-handlers.js';
 // Re-export types — shared message shapes and options used by both the
 // standalone server and the CLI's `--webui` embedded mode.
 export type { WebUIOptions, BackendServices } from './types.js';
@@ -1966,23 +1967,7 @@ export async function startWebUI(
       }
 
       case 'goal.get': {
-        // Read goal.json from disk and broadcast to all clients so every
-        // connected browser sees the same goal state. The file is polled
-        // by the frontend every 10s — we serve the latest snapshot here.
-        try {
-          // Canonical goal path — must match /goal, the autonomy engines, and
-          // TUI F9, which all resolve via resolveWstackPaths().projectGoal
-          // (~/.wrongstack/projects/<slug>/goal.json), NOT the repo-local
-          // .wrongstack/goal.json.
-          const goalPath = resolveWstackPaths({ projectRoot }).projectGoal;
-          const raw = await fs.readFile(goalPath, 'utf8');
-          const goal = JSON.parse(raw);
-          broadcast(clients, { type: 'goal.updated', payload: goal });
-        } catch {
-          // No goal file yet or parse error — broadcast null so the
-          // frontend clears any stale goal state.
-          broadcast(clients, { type: 'goal.updated', payload: null });
-        }
+        await handleGoalGet(projectRoot, (m) => broadcast(clients, m));
         break;
       }
 
