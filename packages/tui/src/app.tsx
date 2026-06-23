@@ -5925,10 +5925,19 @@ export function App({
       if (autonomyLive === 'auto' && nextStepsAutoSubmitTimerRef.current != null) {
         switchAutonomy?.('off');
       }
-      dispatch({
-        type: 'addEntry',
-        entry: { kind: 'user', text: displayText, queued: true, pasteContent },
-      });
+      // A steering redirect is NOT a backlog item (#87). The Esc-interrupt
+      // already cleared the queue, so this becomes queue[0] and the drainer
+      // runs it the instant the aborting iteration settles — echoing it then as
+      // a clean `↯`-marked user entry (see the drain after runBlocks' finally).
+      // Adding a greyed "queued" entry here would both mislead (it reads as
+      // backlog, not the next thing to run) and double up with that drain echo.
+      // So when steering, enqueue silently and let the drainer surface it.
+      if (!steering) {
+        dispatch({
+          type: 'addEntry',
+          entry: { kind: 'user', text: displayText, queued: true, pasteContent },
+        });
+      }
       dispatch({ type: 'enqueue', item: { displayText, blocks } });
       return;
     }
