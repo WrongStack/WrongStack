@@ -41,7 +41,6 @@ import {
   validateModelSwitchPayload,
   validatePrefsUpdatePayload,
   validatePlanTemplateUsePayload,
-  validateProcessKillPayload,
   validateShellOpenPayload,
   validateGitDiffPayload,
   validateAutonomySwitchPayload,
@@ -158,6 +157,11 @@ import { send, broadcast, sendResult, errMessage, generateAuthToken } from './ws
 import { createEternalSubscription } from './eternal-iteration-broadcast.js';
 import { handleShellOpen, type ShellOpenRequest, type ShellOpenResult } from './shell-open.js';
 import { handleGitChanges, handleGitDiff, handleGitInfo } from './git-handlers.js';
+import {
+  handleProcessKill,
+  handleProcessKillAll,
+  handleProcessList,
+} from './process-handlers.js';
 // Re-export types — shared message shapes and options used by both the
 // standalone server and the CLI's `--webui` embedded mode.
 export type { WebUIOptions, BackendServices } from './types.js';
@@ -1981,59 +1985,17 @@ export async function startWebUI(
       }
 
       case 'process.list': {
-        // Return tracked process list from the process registry.
-        try {
-          const { getProcessRegistry } = await import('@wrongstack/tools');
-          const procs = getProcessRegistry().list();
-          send(ws, {
-            type: 'process.list',
-            payload: {
-              processes: procs.map((p) => ({
-                pid: p.pid,
-                command: p.command,
-                tool: p.name,
-                startedAt: p.startedAt,
-                status: p.killed ? ('killed' as const) : ('running' as const),
-                protected: p.protected,
-              })),
-            },
-          });
-        } catch {
-          send(ws, { type: 'process.list', payload: { processes: [] } });
-        }
+        await handleProcessList(ws);
         break;
       }
 
       case 'process.kill': {
-        const parsed = validateProcessKillPayload(msg.payload);
-        if (!parsed.ok) {
-          sendResult(ws, false, parsed.message);
-          break;
-        }
-        const { pid } = parsed.value;
-        try {
-          const { getProcessRegistry } = await import('@wrongstack/tools');
-          const proc = getProcessRegistry().get(pid);
-          if (proc?.protected) {
-            sendResult(ws, false, `Cannot kill protected process (PID ${pid})`);
-            break;
-          }
-          getProcessRegistry().kill(pid);
-          sendResult(ws, true, `Killed PID ${pid}`);
-        } catch (err) {
-          sendResult(ws, false, errMessage(err));
-        }
+        await handleProcessKill(ws, msg.payload);
         break;
       }
 
       case 'process.killAll': {
-        try {
-          const { getProcessRegistry } = await import('@wrongstack/tools');
-          getProcessRegistry().killAll();
-          sendResult(ws, true, 'All processes killed');
-        } catch (err) {
-          sendResult(ws, false, errMessage(err));
-        }
+        await handleProcessKillAll(ws);
         break;
       }
 
