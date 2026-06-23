@@ -121,10 +121,17 @@ const DEFAULT_GRACE_MS = 2000;
  */
 export function killWin32Tree(pid: number): boolean {
   try {
-    spawn('taskkill', ['/pid', String(pid), '/T', '/F'], {
+    const child = spawn('taskkill', ['/pid', String(pid), '/T', '/F'], {
       stdio: 'ignore',
       windowsHide: true,
-    }).unref();
+    });
+    // spawn() reports a failure to launch (e.g. taskkill not on PATH, blocked by
+    // security software) via an ASYNC 'error' event — the surrounding try/catch
+    // only traps synchronous throws. Without a listener that event is unhandled
+    // and crashes the whole process. Swallow it: this is best-effort tree-kill
+    // and the registry still has the direct child.kill() fallback.
+    child.on('error', () => {});
+    child.unref();
     return true;
   } catch {
     return false;
