@@ -11,6 +11,7 @@
 
 import type { WebSocket } from 'ws';
 import type { TodoItem } from '@wrongstack/core';
+import { validatePlanTemplateUsePayload } from '../ws-payload-validation.js';
 
 // ── Shared result helper ───────────────────────────────────────────────────────
 
@@ -242,5 +243,74 @@ export async function handlePlanItemUpdate(
     ctx.broadcast({ type: 'plan.updated', payload: { plan } });
   } catch (err) {
     sendResult(ws, ctx, false, String(err));
+  }
+}
+
+// ── Dispatcher ──────────────────────────────────────────────────────────────────
+// Single entry point for the nine worklist message types, so the host server's
+// switch delegates one grouped case here instead of repeating the per-type
+// `makeWorklistContext()` boilerplate. Unknown types are a no-op (the caller
+// only routes worklist types to this function).
+
+/** Loosely-typed worklist WS message — payload shapes are narrowed per case. */
+export interface WorklistMessage {
+  type: string;
+  payload?: unknown;
+}
+
+export async function handleWorklistMessage(
+  ctx: WorklistContext,
+  ws: WebSocket,
+  msg: WorklistMessage,
+): Promise<void> {
+  switch (msg.type) {
+    case 'todos.get':
+      handleTodosGet(ctx, ws);
+      return;
+    case 'todos.clear':
+      handleTodosClear(ctx, ws);
+      return;
+    case 'todos.remove':
+      handleTodosRemove(ctx, ws, msg.payload as { id?: string; index?: number } | undefined);
+      return;
+    case 'todo.update':
+      handleTodoUpdate(
+        ctx,
+        ws,
+        msg.payload as { id: string; status?: TodoItem['status']; activeForm?: string },
+      );
+      return;
+    case 'tasks.get':
+      await handleTasksGet(ctx, ws);
+      return;
+    case 'task.update':
+      await handleTaskUpdate(
+        ctx,
+        ws,
+        msg.payload as {
+          id: string;
+          status: 'pending' | 'in_progress' | 'blocked' | 'failed' | 'review' | 'completed';
+        },
+      );
+      return;
+    case 'plan.get':
+      await handlePlanGet(ctx, ws);
+      return;
+    case 'plan.template_use': {
+      const parsed = validatePlanTemplateUsePayload(msg.payload);
+      if (!parsed.ok) {
+        sendResult(ws, ctx, false, parsed.message);
+        return;
+      }
+      await handlePlanTemplateUse(ctx, ws, parsed.value.template);
+      return;
+    }
+    case 'plan.item.update':
+      await handlePlanItemUpdate(
+        ctx,
+        ws,
+        msg.payload as { target: string; status: 'open' | 'in_progress' | 'done' },
+      );
+      return;
   }
 }

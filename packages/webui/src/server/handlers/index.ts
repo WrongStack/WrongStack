@@ -18,5 +18,7 @@ export {
   handlePlanGet,
   handlePlanTemplateUse,
   handlePlanItemUpdate,
+  handleWorklistMessage,
   type WorklistContext,
+  type WorklistMessage,
 } from './worklist-handlers.js';

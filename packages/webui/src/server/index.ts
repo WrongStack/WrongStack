@@ -1,15 +1,8 @@
 import { expectDefined, GlobalMailbox, projectSlug, getSessionRegistry, AgentStatusTracker, FleetNotifier } from '@wrongstack/core';
 import {
-  handleTodosGet,
-  handleTodosClear,
-  handleTodosRemove,
-  handleTodoUpdate,
-  handleTasksGet,
-  handleTaskUpdate,
-  handlePlanGet,
-  handlePlanTemplateUse,
-  handlePlanItemUpdate,
+  handleWorklistMessage,
   type WorklistContext,
+  type WorklistMessage,
 } from './handlers/index.js';
 import { makeMailboxTool, makeMailSendTool, makeMailInboxTool, mailboxSessionTag } from '@wrongstack/core';
 import { toErrorMessage, wstackGlobalRoot, projectHash, resolveWstackPaths } from '@wrongstack/core/utils';
@@ -40,7 +33,6 @@ import {
   validateMailboxPurgePayload,
   validateModelSwitchPayload,
   validatePrefsUpdatePayload,
-  validatePlanTemplateUsePayload,
   validateShellOpenPayload,
   validateGitDiffPayload,
   validateAutonomySwitchPayload,
@@ -110,7 +102,6 @@ import {
   enhanceUserPrompt,
   recentTextTurns,
   resolveProviderModelList,
-  type TodoItem,
 } from '@wrongstack/core';
 import { ToolExecutor } from '@wrongstack/core/execution';
 import { decryptConfigSecrets, encryptConfigSecrets } from '@wrongstack/core/security';
@@ -1896,54 +1887,19 @@ export async function startWebUI(
         break;
       }
 
-      case 'todos.get': {
-        const ctx = makeWorklistContext();
-        handleTodosGet(ctx, ws);
-        break;
-      }
-      case 'todos.clear': {
-        const ctx = makeWorklistContext();
-        handleTodosClear(ctx, ws);
-        break;
-      }
-      case 'todos.remove': {
-        const ctx = makeWorklistContext();
-        handleTodosRemove(ctx, ws, msg.payload as { id?: string; index?: number } | undefined);
-        break;
-      }
-      case 'tasks.get': {
-        const ctx = makeWorklistContext();
-        await handleTasksGet(ctx, ws);
-        break;
-      }
-      case 'plan.get': {
-        const ctx = makeWorklistContext();
-        await handlePlanGet(ctx, ws);
-        break;
-      }
-      case 'plan.template_use': {
-        const parsed = validatePlanTemplateUsePayload(msg.payload);
-        if (!parsed.ok) {
-          sendResult(ws, false, parsed.message);
-          break;
-        }
-        const ctx = makeWorklistContext();
-        await handlePlanTemplateUse(ctx, ws, parsed.value.template);
-        break;
-      }
-      case 'todo.update': {
-        const ctx = makeWorklistContext();
-        handleTodoUpdate(ctx, ws, msg.payload as { id: string; status?: TodoItem['status']; activeForm?: string });
-        break;
-      }
-      case 'task.update': {
-        const ctx = makeWorklistContext();
-        await handleTaskUpdate(ctx, ws, msg.payload as { id: string; status: 'pending' | 'in_progress' | 'blocked' | 'failed' | 'review' | 'completed' });
-        break;
-      }
+      // ── Worklist (todos / tasks / plan) — delegated to the shared dispatcher ──
+      // The nine worklist message types share one context factory; the dispatcher
+      // in handlers/worklist-handlers.ts narrows each payload and routes it.
+      case 'todos.get':
+      case 'todos.clear':
+      case 'todos.remove':
+      case 'tasks.get':
+      case 'plan.get':
+      case 'plan.template_use':
+      case 'todo.update':
+      case 'task.update':
       case 'plan.item.update': {
-        const ctx = makeWorklistContext();
-        await handlePlanItemUpdate(ctx, ws, msg.payload as { target: string; status: 'open' | 'in_progress' | 'done' });
+        await handleWorklistMessage(makeWorklistContext(), ws, msg as WorklistMessage);
         break;
       }
 
