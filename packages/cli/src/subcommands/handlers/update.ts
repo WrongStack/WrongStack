@@ -29,7 +29,7 @@ export const updateCmd: SubcommandHandler = async (args, deps) => {
 
   // npm install -g wrongstack@latest
   try {
-    const result = await new Promise<{ code: number }>((resolve, reject) => {
+    const result = await new Promise<{ code: number; stderr: string }>((resolve, reject) => {
       const npmCommand = process.platform === 'win32' ? 'npm.cmd' : 'npm';
       const child = spawn(npmCommand, ['install', '-g', 'wrongstack@latest'], {
         cwd,
@@ -37,12 +37,12 @@ export const updateCmd: SubcommandHandler = async (args, deps) => {
         signal: AbortSignal.timeout(120_000),
         windowsHide: true,
       });
-      let _stderr = '';
+      let stderr = '';
       child.stderr?.on('data', (d) => {
-        _stderr += d;
+        stderr += d;
       });
       child.on('error', reject);
-      child.on('close', (code) => resolve({ code: code ?? 0 }));
+      child.on('close', (code) => resolve({ code: code ?? 0, stderr }));
     });
 
     if (result.code === 0) {
@@ -50,7 +50,21 @@ export const updateCmd: SubcommandHandler = async (args, deps) => {
         `\nUpdated to v${info.latest}. Restart wrongstack to use the new version.\n`,
       );
     } else {
+      // A bare "exit code 243" is opaque — npm's actual reason (EACCES, a custom
+      // prefix it can't write, a pnpm/yarn/bun global that npm doesn't own) lives
+      // in stderr, which used to be collected and thrown away (#13). Surface it,
+      // then point at the package-manager-specific update command so users who
+      // didn't install via npm have a working path forward.
       deps.renderer.write(`\nUpdate failed with exit code ${result.code}.\n`);
+      const detail = result.stderr.trim();
+      if (detail) deps.renderer.write(`\n${detail}\n`);
+      deps.renderer.write(
+        '\nWrongStack updates itself with npm. If you installed it with a different\n' +
+          'package manager, update with the matching command instead:\n' +
+          '  pnpm add -g wrongstack@latest\n' +
+          '  yarn global add wrongstack@latest\n' +
+          '  bun  add -g wrongstack@latest\n',
+      );
     }
     return result.code;
   } catch (err) {

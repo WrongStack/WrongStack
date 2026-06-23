@@ -137,6 +137,29 @@ describe('updateCmd subcommand', () => {
     expect(writes.join('')).toContain('Update failed with exit code 2');
   });
 
+  it('surfaces npm stderr and package-manager guidance on failure (#13)', async () => {
+    updateMocks.checkForUpdate.mockResolvedValue({
+      outdated: true,
+      current: '1.0.0',
+      latest: '1.2.3',
+    });
+    // Exit 243 with a real reason in stderr — previously discarded, leaving the
+    // user with only the opaque code.
+    updateMocks.spawn.mockReturnValue(
+      makeFakeChild(243, undefined, ['npm error code EACCES\n', 'npm error EACCES: permission denied\n']),
+    );
+    const code = await updateCmd([], deps);
+    expect(code).toBe(243);
+    const out = writes.join('');
+    expect(out).toContain('Update failed with exit code 243');
+    // The underlying npm reason is now shown.
+    expect(out).toContain('EACCES: permission denied');
+    // And the alternative package managers are offered.
+    expect(out).toContain('pnpm add -g wrongstack@latest');
+    expect(out).toContain('yarn global add wrongstack@latest');
+    expect(out).toContain('bun  add -g wrongstack@latest');
+  });
+
   it('handles ENOENT (npm not installed)', async () => {
     updateMocks.checkForUpdate.mockResolvedValue({
       outdated: true,
