@@ -160,7 +160,8 @@ export const AGENTS_CATALOG: readonly ACPAgentDescriptor[] = [
       fs: true,
     },
     integration: 'experimental',
-    docs: 'https://github.com/All-Hands-AI/OpenHands',
+    // Canonical repo URL — the org renamed; All-Hands-AI/OpenHands 301-redirects here.
+    docs: 'https://github.com/OpenHands/OpenHands',
   },
 
   // ── Vendor CLIs (native binaries) ───────────────────────────────────
