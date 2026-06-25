@@ -366,15 +366,18 @@ function createProviderForId(
   cfg: { providers?: Record<string, ProviderConfig>; apiKey?: string; baseUrl?: string },
 ): ReturnType<typeof makeProviderFromConfig> | undefined {
   const savedCfg = cfg.providers?.[providerId];
-  const resolvedProviderId = savedCfg?.type ?? providerId;
-  // Object.assign preserves the required `type: string` from resolvedProviderId
-  // without union'ing with the optional type from the savedCfg spread.
+  // Match the startup path (packages/cli/src/wiring/provider.ts:82): keep
+  // `cfg.type === providerId` so the resulting Provider's `id` is the user's
+  // chosen id. The wire family is read from `savedCfg.family` inside
+  // `makeProviderFromConfig`, so OAuth/subscription aliases (e.g.
+  // `minimax-coding-plan` with `type: 'anthropic'`) get the right protocol
+  // without their saved `type` leaking into the Provider's id.
   const cfgWithType = Object.assign(
-    { type: resolvedProviderId },
+    { type: providerId },
     savedCfg ?? { apiKey: cfg.apiKey, baseUrl: cfg.baseUrl },
   );
   try {
-    return makeProviderFromConfig(resolvedProviderId, cfgWithType);
+    return makeProviderFromConfig(providerId, cfgWithType);
   } catch {
     return undefined;
   }

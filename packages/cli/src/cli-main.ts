@@ -75,7 +75,7 @@ import {
   normalizeTokenSavingTier,
 } from '@wrongstack/core';
 import { MCPRegistry } from '@wrongstack/mcp';
-import { makeProviderFromConfig, setOAuthTokenPersister } from '@wrongstack/providers';
+import { setOAuthTokenPersister } from '@wrongstack/providers';
 import {
   mutateConfigProviders,
   normalizeKeys,
@@ -115,6 +115,7 @@ import { CLI_VERSION } from './version.js';
 import { setupCodebaseIndexing } from './wiring/codebase-index.js';
 import { setupMetrics } from './wiring/metrics.js';
 import { createAgent, setupCompaction, setupPipelines } from './wiring/pipeline.js';
+import { buildProviderForId as buildProviderForIdRuntime, resolveProviderCfg as resolveProviderCfgRuntime } from './wiring/provider-runtime.js';
 import { setupPlugins } from './wiring/plugins.js';
 import { bindReplayToContainer } from './wiring/replay.js';
 import { setupSession } from './wiring/session.js';
@@ -945,31 +946,31 @@ export async function main(argv: string[]): Promise<number> {
   // concrete provider id + the runtime ProviderConfig used to build it and to
   // refresh the context-window denominator. Single source of truth so the
   // `/model` switch and the fallback extension can't drift apart.
-  const resolveProviderCfg = (providerId: string) => {
-    const savedCfg = config.providers?.[providerId];
-    const resolvedProviderId = savedCfg?.type ?? providerId;
-    const cfgWithType = {
-      ...(savedCfg ?? { type: providerId, apiKey: config.apiKey, baseUrl: config.baseUrl }),
-      type: resolvedProviderId,
-    };
-    return { resolvedProviderId, cfgWithType };
-  };
+  //
+  // The actual logic lives in `./wiring/provider-runtime.js` so it can be
+  // unit-tested directly without spinning up the full CLI. Bug-fix history:
+  // prior to this refactor, `resolveProviderCfg` collapsed `savedCfg.type`
+  // into the returned id, so `buildProviderForId('minimax-coding-plan')`
+  // (where the saved config has `type: 'anthropic'`) produced a Provider
+  // with `id === 'anthropic'` instead of the user's chosen id. The startup
+  // path in `wiring/provider.ts` already does the right thing; this
+  // runtime path now mirrors it.
+  const resolveProviderCfg = (providerId: string) =>
+    resolveProviderCfgRuntime(config, providerId);
 
   // Construct a credential-resolved Provider for a provider id, WITHOUT
-  // persisting anything. Shared by the `/model` switch and the fallback extension.
-  const buildProviderForId = (providerId: string): import('@wrongstack/core').Provider => {
-    const { resolvedProviderId, cfgWithType } = resolveProviderCfg(providerId);
-    return config.features.modelsRegistry && providerRegistry.has(resolvedProviderId)
-      ? providerRegistry.create(cfgWithType)
-      : makeProviderFromConfig(resolvedProviderId, cfgWithType);
-  };
+  // persisting anything. Shared by the `/model` switch and the fallback
+  // extension. The returned Provider's `id` is always the user-visible
+  // `providerId`.
+  const buildProviderForId = (providerId: string): import('@wrongstack/core').Provider =>
+    buildProviderForIdRuntime({ config, providerRegistry }, providerId);
 
   // Refresh the auto-compaction / context-chip denominator for a (provider,
   // model) pair. Used by both the `/model` switch and the fallback extension so
   // a switch to a smaller-window model recomputes thresholds.
   const refreshMaxContextFor = async (providerId: string, modelId: string): Promise<void> => {
-    const { resolvedProviderId, cfgWithType } = resolveProviderCfg(providerId);
-    await refreshMaxContext(resolvedProviderId, modelId, cfgWithType);
+    const { cfg } = resolveProviderCfg(providerId);
+    await refreshMaxContext(providerId, modelId, cfg);
   };
 
   // Cross-provider fallback: switch to the next configured model when the
