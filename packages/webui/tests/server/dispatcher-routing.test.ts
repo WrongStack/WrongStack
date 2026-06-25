@@ -36,6 +36,7 @@ import { handleModeRoute } from '../../src/server/mode-routes.js';
 import { handlePrefsRoute } from '../../src/server/prefs-routes.js';
 import { handleShellGitRoute } from '../../src/server/shell-git-routes.js';
 import { handleMailboxRoute } from '../../src/server/mailbox-routes.js';
+import { handleMcpRoute } from '../../src/server/mcp-routes.js';
 import { handleBrainRoute } from '../../src/server/brain-routes.js';
 import { handleAutoPhaseRoute } from '../../src/server/autophase-routes.js';
 import { handleSpecsRoute } from '../../src/server/specs-routes.js';
@@ -247,6 +248,45 @@ describe('WS message dispatcher routing (Issue #31 PR 0)', () => {
       clear: vi.fn(),
       purge: vi.fn(),
     } as never);
+    expect(out).toBe(false);
+  });
+
+  // ── McpRouteHandlers ──────────────────────────────────────────────
+  // Issue #31 follow-on (after PR #118 baseline, #119 prefs extraction).
+  // The 10 mcp.* callbacks delegate to handleMcpXxx in mcp-handlers.ts;
+  // this test pins the chain-of-responsibility contract for the new 13th
+  // sibling.
+  const mcpHandlersStub = () => ({
+    list: vi.fn(),
+    add: vi.fn(),
+    update: vi.fn(),
+    remove: vi.fn(),
+    enable: vi.fn(),
+    disable: vi.fn(),
+    sleep: vi.fn(),
+    wake: vi.fn(),
+    restart: vi.fn(),
+    discover: vi.fn(),
+  });
+
+  it('handleMcpRoute: claims mcp.list; rejects foreign', async () => {
+    const h = mcpHandlersStub();
+    const out = await handleMcpRoute(ws, { type: 'mcp.list' }, h as never);
+    expect(out).toBe(true);
+    expect(h.list).toHaveBeenCalledOnce();
+  });
+
+  it('handleMcpRoute: claims mcp.restart; rejects foreign', async () => {
+    const h = mcpHandlersStub();
+    const out = await handleMcpRoute(ws, { type: 'mcp.restart', payload: { name: 'foo' } }, h as never);
+    expect(out).toBe(true);
+    expect(h.restart).toHaveBeenCalledOnce();
+    expect(h.restart).toHaveBeenCalledWith(ws, { type: 'mcp.restart', payload: { name: 'foo' } });
+  });
+
+  it('handleMcpRoute: returns false for foreign message type', async () => {
+    const h = mcpHandlersStub();
+    const out = await handleMcpRoute(ws, { type: FOREIGN }, h as never);
     expect(out).toBe(false);
   });
 

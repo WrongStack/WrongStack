@@ -145,6 +145,7 @@ import { handleModeRoute, type ModeRouteHandlers } from './mode-routes.js';
 import { handlePrefsRoute, type PrefsRouteHandlers } from './prefs-routes.js';
 import { handleShellGitRoute, type ShellGitRouteHandlers } from './shell-git-routes.js';
 import { handleMailboxRoute, type MailboxRouteHandlers } from './mailbox-routes.js';
+import { handleMcpRoute, type McpRouteHandlers } from './mcp-routes.js';
 import { handleBrainRoute, type BrainRouteHandlers } from './brain-routes.js';
 import { handleAutoPhaseRoute, type AutoPhaseRouteHandlers } from './autophase-routes.js';
 import { handleSpecsRoute, type SpecsRouteHandlers } from './specs-routes.js';
@@ -1797,6 +1798,7 @@ export async function startWebUI(
   let prefsRoutes: PrefsRouteHandlers;
   let shellGitRoutes: ShellGitRouteHandlers;
   let mailboxRoutes: MailboxRouteHandlers;
+  let mcpRoutes: McpRouteHandlers;
   let brainRoutes: BrainRouteHandlers;
   let autoPhaseRoutes: AutoPhaseRouteHandlers;
   let specsRoutes: SpecsRouteHandlers;
@@ -1815,6 +1817,7 @@ export async function startWebUI(
     if (await handlePrefsRoute(ws, msg, prefsRoutes)) return;
     if (await handleShellGitRoute(ws, msg, shellGitRoutes)) return;
     if (await handleMailboxRoute(ws, msg, mailboxRoutes)) return;
+    if (await handleMcpRoute(ws, msg, mcpRoutes)) return;
     if (await handleBrainRoute(ws, msg, brainRoutes)) return;
     if (await handleAutoPhaseRoute(ws, msg, autoPhaseRoutes)) return;
     if (await handleSpecsRoute(ws, msg, specsRoutes)) return;
@@ -1957,27 +1960,31 @@ export async function startWebUI(
         return handleMemoryForget(ws, msg, memoryStore);
 
       // ── MCP operations — delegated to shared handlers (mcp-handlers.ts),
-      // backed by the live MCPRegistry constructed above. ──
+      // backed by the live MCPRegistry constructed above. Routed via
+      // handleMcpRoute (see mcpRoutes = { ... } below). These case arms
+      // are unreachable but left as tripwires for any future regression
+      // where the route chain stops claiming 'mcp.*'. If you see one
+      // fire, fix the dispatch order in the handleMessage chain above.
       case 'mcp.list':
-        return handleMcpList(ws, msg, globalConfigPath, mcpRegistry);
+        throw new Error('handleMcpRoute did not claim mcp.list — check chain order');
       case 'mcp.add':
-        return handleMcpAdd(ws, msg, globalConfigPath, mcpRegistry);
-      case 'mcp.remove':
-        return handleMcpRemove(ws, msg, globalConfigPath, mcpRegistry);
+        throw new Error('handleMcpRoute did not claim mcp.add — check chain order');
       case 'mcp.update':
-        return handleMcpUpdate(ws, msg, globalConfigPath, mcpRegistry);
-      case 'mcp.wake':
-        return handleMcpWake(ws, msg, globalConfigPath, mcpRegistry);
-      case 'mcp.sleep':
-        return handleMcpSleep(ws, msg, globalConfigPath, mcpRegistry);
-      case 'mcp.discover':
-        return handleMcpDiscover(ws, msg, globalConfigPath, mcpRegistry);
+        throw new Error('handleMcpRoute did not claim mcp.update — check chain order');
+      case 'mcp.remove':
+        throw new Error('handleMcpRoute did not claim mcp.remove — check chain order');
       case 'mcp.enable':
-        return handleMcpEnable(ws, msg, globalConfigPath, mcpRegistry);
+        throw new Error('handleMcpRoute did not claim mcp.enable — check chain order');
       case 'mcp.disable':
-        return handleMcpDisable(ws, msg, globalConfigPath, mcpRegistry);
+        throw new Error('handleMcpRoute did not claim mcp.disable — check chain order');
+      case 'mcp.sleep':
+        throw new Error('handleMcpRoute did not claim mcp.sleep — check chain order');
+      case 'mcp.wake':
+        throw new Error('handleMcpRoute did not claim mcp.wake — check chain order');
       case 'mcp.restart':
-        return handleMcpRestart(ws, msg, globalConfigPath, mcpRegistry);
+        throw new Error('handleMcpRoute did not claim mcp.restart — check chain order');
+      case 'mcp.discover':
+        throw new Error('handleMcpRoute did not claim mcp.discover — check chain order');
 
       // Skills — full request→response cycle lives in skills-handlers.ts
       // (shared with the CLI's embedded server). skillsCtx is the closed-over
@@ -2565,6 +2572,26 @@ export async function startWebUI(
       }
       return handleMailboxPurge(ws, { projectRoot, globalRoot: path.dirname(globalConfigPath) }, parsed.value);
     },
+  };
+
+  // ---- MCP route (handleMcpRoute) ----
+  // Issue #31 follow-on (after #118 PR 0 baseline, #119 prefs extraction).
+  // Each callback delegates to the matching handleMcpXxx in mcp-handlers.ts
+  // — that module already owns the WS-message logic, this is just the
+  // chain-of-responsibility wiring. The 10 cases were pure delegations
+  // inside the residual switch before this PR; now they're an explicit
+  // sibling in the chain.
+  mcpRoutes = {
+    list: (ws, msg) => handleMcpList(ws, msg, globalConfigPath, mcpRegistry),
+    add: (ws, msg) => handleMcpAdd(ws, msg, globalConfigPath, mcpRegistry),
+    update: (ws, msg) => handleMcpUpdate(ws, msg, globalConfigPath, mcpRegistry),
+    remove: (ws, msg) => handleMcpRemove(ws, msg, globalConfigPath, mcpRegistry),
+    enable: (ws, msg) => handleMcpEnable(ws, msg, globalConfigPath, mcpRegistry),
+    disable: (ws, msg) => handleMcpDisable(ws, msg, globalConfigPath, mcpRegistry),
+    sleep: (ws, msg) => handleMcpSleep(ws, msg, globalConfigPath, mcpRegistry),
+    wake: (ws, msg) => handleMcpWake(ws, msg, globalConfigPath, mcpRegistry),
+    restart: (ws, msg) => handleMcpRestart(ws, msg, globalConfigPath, mcpRegistry),
+    discover: (ws, msg) => handleMcpDiscover(ws, msg, globalConfigPath, mcpRegistry),
   };
 
   brainRoutes = {
