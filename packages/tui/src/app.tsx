@@ -4501,9 +4501,19 @@ export function App({
       dispatch({ type: 'toggleSddBoardMonitor' });
       return;
     }
-    // While the SDD board overlay is open, plain `c` / `z` drive run lifecycle
-    // (both refuse while the run is still live — stop it first with Ctrl+C).
+    // While the SDD board overlay is open, ←/→ drive the per-phase drill-down
+    // (→ focuses a single topological column, ← steps back / exits to the
+    // all-phases view) and plain `c` / `z` drive run lifecycle (both refuse
+    // while the run is still live — stop it first with Ctrl+C).
     if (state.sddBoard?.monitorOpen && !key.ctrl && !key.meta) {
+      if (key.rightArrow) {
+        dispatch({ type: 'sddBoardFocusNext' });
+        return;
+      }
+      if (key.leftArrow) {
+        dispatch({ type: 'sddBoardFocusPrev' });
+        return;
+      }
       if (input === 'c') {
         const run = getSddRun?.();
         if (run) {
@@ -5986,12 +5996,23 @@ export function App({
     clearDraft();
     const blocks = await builder.submit();
 
-    if (state.status !== 'idle') {
+    if (state.status !== 'idle' && !steering) {
       // Agent is busy — queue this message for the drainer to pick up.
       // Abort any next-steps auto-submit countdown since user is providing input.
       // Only cancel autonomy if a countdown was actually running — otherwise
       // this would override the user's explicit 'auto' selection in the
       // autonomy picker (which also fires this handler via Enter).
+      //
+      // ── Steering override (#87) ────────────────────────────────────
+      // When the user has just confirmed an Esc interrupt (or run `/steer`),
+      // `steeringPending` is true and `state.status` is 'aborting' — the
+      // active controller is mid-settle. Without this override the message
+      // is queued behind the interrupted work and the user's "new
+      // direction" is never acted on. With the override, we fall through
+      // to the normal `runBlocks(blocks)` path below; `buildSteeringPreamble`
+      // (line ~5964) prepends the STEERING preamble using `steerSnapshot`,
+      // and `dispatch({ type: 'steerConsume' })` clears `steeringPending`
+      // so subsequent submits go through the normal queue branch again.
       if (autonomyLive === 'auto' && nextStepsAutoSubmitTimerRef.current != null) {
         switchAutonomy?.('off');
       }
@@ -6507,7 +6528,10 @@ export function App({
               nowTick={nowTick}
             />
           ) : state.sddBoard?.monitorOpen ? (
-            <SddBoardOverlay snapshot={state.sddBoard.snapshot} />
+            <SddBoardOverlay
+              snapshot={state.sddBoard.snapshot}
+              focusColumn={state.sddBoard.focusColumn ?? null}
+            />
           ) : state.worktreeMonitorOpen ? (
             <WorktreeMonitor
               worktrees={state.worktrees}

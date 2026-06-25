@@ -217,6 +217,72 @@ describe('TUI reducer', () => {
     expect(s.sddBoard?.monitorOpen).toBe(false);
   });
 
+  // ── SDD board per-phase drill-down ──────────────────────────────────────
+  const cols = (n: number) =>
+    Array.from({ length: n }, (_, i) => ({ label: i === 0 ? 'Start' : `Phase ${i}`, taskIds: [] }));
+  const openBoard = (n: number) => {
+    let s = reducer(initial(), {
+      type: 'sddBoardSnapshot',
+      snapshot: sampleSnapshot({ columns: cols(n) }) as never,
+    });
+    s = reducer(s, { type: 'toggleSddBoardMonitor' });
+    return s;
+  };
+
+  it('sddBoardFocusNext enters at column 0 then advances, clamped to the last', () => {
+    let s = openBoard(3);
+    expect(s.sddBoard?.focusColumn ?? null).toBeNull();
+    s = reducer(s, { type: 'sddBoardFocusNext' });
+    expect(s.sddBoard?.focusColumn).toBe(0);
+    s = reducer(s, { type: 'sddBoardFocusNext' });
+    expect(s.sddBoard?.focusColumn).toBe(1);
+    s = reducer(s, { type: 'sddBoardFocusNext' });
+    expect(s.sddBoard?.focusColumn).toBe(2);
+    s = reducer(s, { type: 'sddBoardFocusNext' });
+    expect(s.sddBoard?.focusColumn).toBe(2); // clamped
+  });
+
+  it('sddBoardFocusPrev steps back and exits the drill-down at column 0', () => {
+    let s = openBoard(3);
+    s = reducer(s, { type: 'sddBoardFocusNext' });
+    s = reducer(s, { type: 'sddBoardFocusNext' }); // focus = 1
+    s = reducer(s, { type: 'sddBoardFocusPrev' });
+    expect(s.sddBoard?.focusColumn).toBe(0);
+    s = reducer(s, { type: 'sddBoardFocusPrev' });
+    expect(s.sddBoard?.focusColumn ?? null).toBeNull(); // exited to all-phases
+    s = reducer(s, { type: 'sddBoardFocusPrev' });
+    expect(s.sddBoard?.focusColumn ?? null).toBeNull(); // no-op
+  });
+
+  it('focus actions are no-ops while the board overlay is closed', () => {
+    const s = reducer(initial(), {
+      type: 'sddBoardSnapshot',
+      snapshot: sampleSnapshot({ columns: cols(3) }) as never,
+    });
+    const out = reducer(s, { type: 'sddBoardFocusNext' });
+    expect(out.sddBoard?.focusColumn ?? null).toBeNull();
+  });
+
+  it('closing the board resets the phase drill-down', () => {
+    let s = openBoard(3);
+    s = reducer(s, { type: 'sddBoardFocusNext' });
+    expect(s.sddBoard?.focusColumn).toBe(0);
+    s = reducer(s, { type: 'toggleSddBoardMonitor' }); // close
+    expect(s.sddBoard?.focusColumn ?? null).toBeNull();
+  });
+
+  it('a snapshot with fewer columns clamps an out-of-range focus to all-phases', () => {
+    let s = openBoard(3);
+    s = reducer(s, { type: 'sddBoardFocusNext' });
+    s = reducer(s, { type: 'sddBoardFocusNext' });
+    s = reducer(s, { type: 'sddBoardFocusNext' }); // focus = 2
+    s = reducer(s, {
+      type: 'sddBoardSnapshot',
+      snapshot: sampleSnapshot({ columns: cols(2) }) as never,
+    });
+    expect(s.sddBoard?.focusColumn ?? null).toBeNull();
+  });
+
   it('opening another panel closes the F5 plan panel', () => {
     let s = reducer(initial(), { type: 'togglePlanPanel' });
     expect(s.planPanelOpen).toBe(true);
@@ -685,6 +751,38 @@ describe('TUI reducer', () => {
     let s = reducer(initial(), { type: 'steerStart', snapshot });
     expect(s.steeringPending).toBe(true);
     expect(s.steerSnapshot).toEqual(snapshot);
+    s = reducer(s, { type: 'steerConsume' });
+    expect(s.steeringPending).toBe(false);
+    expect(s.steerSnapshot).toBeNull();
+  });
+
+  it('Esc confirm flow leaves steeringPending=true AND status=aborting simultaneously (regression for #87)', () => {
+    // Regression for issue #87. After the user confirms the Esc interrupt
+    // prompt, the TUI is in this exact state:
+    //   - `status: 'aborting'` because the active controller is mid-settle
+    //   - `steeringPending: true` because the next user message is reserved
+    //     as the steering redirect and must NOT be enqueued
+    //
+    // The submit handler in app.tsx reads both and the !steering override
+    // below gates the "queue when busy" branch on `!steering`. This test
+    // pins the precondition that the override depends on: when both
+    // signals are simultaneously true, the reducer must NOT clear
+    // `steeringPending` (so the submit handler sees it), and the status
+    // remains 'aborting' (so the gate would otherwise fire).
+    const snapshot = { runningTools: ['bash'], subagents: [], subagentsTerminated: 0, partialAssistantText: '' };
+    let s = reducer(initial(), { type: 'status', status: 'aborting' });
+    s = reducer(s, { type: 'steerStart', snapshot });
+    // Both signals fire together — the gate in app.tsx relies on this.
+    expect(s.status).toBe('aborting');
+    expect(s.steeringPending).toBe(true);
+    expect(s.steerSnapshot).toEqual(snapshot);
+    // status: 'idle' after the abort settles does NOT clear steeringPending
+    // — only steerConsume does. Otherwise the user's next message would
+    // lose the preamble and be enqueued again.
+    s = reducer(s, { type: 'status', status: 'idle' });
+    expect(s.steeringPending).toBe(true);
+    expect(s.steerSnapshot).toEqual(snapshot);
+    // Only steerConsume clears the steering flag.
     s = reducer(s, { type: 'steerConsume' });
     expect(s.steeringPending).toBe(false);
     expect(s.steerSnapshot).toBeNull();
