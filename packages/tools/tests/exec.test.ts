@@ -218,3 +218,97 @@ async function mkRealSandbox() {
   } as never as Context;
   return { ctx, cleanup: async () => fs.rm(dir, { recursive: true, force: true }) };
 }
+
+// ─── Coverage: abort / ENOENT hardening (issue #99) ─────────────────────────
+// Before the fix, a child process that exited via `AbortSignal.timeout()`
+// emitted an `'error'` event with code 'ABORT_ERR'. Without an `'error'`
+// listener attached at the moment the abort fired, Node's EventEmitter
+// contract rethrows the error on nextTick and crashes the host process
+// with `uncaughtException`. The fix in exec.ts attaches the error listener
+// immediately after `spawn()` and wraps the lifecycle in try/catch so
+// synchronous spawn failures resolve gracefully too.
+//
+// These tests exercise the abort path WITHOUT running a long-lived
+// command: a *pre-aborted* signal causes spawn() (non-Windows) to
+// emit `'error'` with ABORT_ERR synchronously after spawn returns.
+// That is the exact EventEmitter race the fix guards against — if the
+// `'error'` listener weren't attached before the abort fired, Node
+// would throw on nextTick and crash this test process.
+describe('exec abort and ENOENT hardening (#99)', () => {
+  it('survives a pre-aborted signal without crashing the host (POSIX)', async () => {
+    if (process.platform === 'win32') {
+      // The pre-aborted signal path is handled differently on Windows
+      // (manual onAbort() in the signal listener). The POSIX path is
+      // what crashes per the issue body.
+      return;
+    }
+    const sb = await mkRealSandbox();
+    let crashed = false;
+    const onUncaught = (err: Error) => {
+      if (/abort/i.test(err.message)) crashed = true;
+    };
+    process.on('uncaughtException', onUncaught);
+    try {
+      const ac = new AbortController();
+      ac.abort(); // pre-abort BEFORE spawn() is called
+      const result = await execTool.execute(
+        { command: 'node', args: ['--version'], timeout: 5000 },
+        sb.ctx,
+        { signal: ac.signal },
+      );
+      // spawn() with an already-aborted signal emits 'error' immediately
+      // with code 'ABORT_ERR'. The error listener catches it and the
+      // helper resolves with exitCode=124 + an Aborted: stderr.
+      expect(result.allowed).toBe(true);
+      expect(result.exitCode).toBe(124);
+      expect(result.stderr).toMatch(/aborted/i);
+    } finally {
+      process.removeListener('uncaughtException', onUncaught);
+      await sb.cleanup();
+    }
+    expect(crashed).toBe(false);
+  });
+
+  it('handles ENOENT (command not on PATH) gracefully — does not crash the host', async () => {
+    // The tool allowlist gates known-bad command names — pick a name that
+    // is syntactically allowed but doesn't exist on any PATH. The
+    // single-letter + dot pattern passes `cmd in ALLOWED_COMMANDS`'s
+    // existence check but Node's spawn() will emit an ENOENT error
+    // (async) or throw synchronously (depending on Node version).
+    // Both paths must resolve the promise without crashing the host.
+    // We bypass the allowlist by going through execTool with a 1-char
+    // synthetic command — but the allowlist gate refuses unknown names,
+    // so we use a known-allowed command name that has been removed from
+    // PATH for this test only by using a sandboxed PATH.
+    const sb = await mkRealSandbox();
+    let crashed = false;
+    const onUncaught = (err: Error) => {
+      if (/ENOENT/.test(err.message)) crashed = true;
+    };
+    process.on('uncaughtException', onUncaught);
+    try {
+      // `mkdir` is in the allowlist. Rename it temporarily via PATH
+      // stripping so spawn() reports ENOENT. We restore PATH after.
+      const originalPath = process.env.PATH;
+      process.env.PATH = '';
+      try {
+        const result = await execTool.execute(
+          { command: 'mkdir', args: ['-p', 'subdir'], timeout: 5000 },
+          sb.ctx,
+          { signal: new AbortController().signal },
+        );
+        // The command exits gracefully (either ENOENT caught async via
+        // 'error' event OR synchronous spawn throw caught by try/catch).
+        expect(result.allowed).toBe(true);
+        expect(result.exitCode).toBe(1);
+        expect(result.stderr.length).toBeGreaterThan(0);
+      } finally {
+        process.env.PATH = originalPath;
+      }
+    } finally {
+      process.removeListener('uncaughtException', onUncaught);
+      await sb.cleanup();
+    }
+    expect(crashed).toBe(false);
+  });
+});

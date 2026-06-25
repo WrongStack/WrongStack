@@ -1,5 +1,6 @@
 import { spawn } from 'node:child_process';
 import type { Tool } from '@wrongstack/core';
+import { toErrorMessage } from '@wrongstack/core/utils/error';
 import { buildChildEnv } from './_env.js';
 import { createOutputSpool, spoolNote } from './_output-spool.js';
 import { COMMAND_OUTPUT_MAX_BYTES, normalizeCommandOutput, safeResolveReal } from './_util.js';
@@ -270,6 +271,16 @@ function runCommand(
     let stdout = '';
     let stderr = '';
     let killed = false;
+    const resolvedOnce = { value: false };
+    const finish = (result: ExecOutput): void => {
+      // Guard against double-resolve: 'error' and 'close' can both fire for
+      // the same abort (Node's abort path emits both), and resolving twice
+      // is a no-op but the extra work (normalizeCommandOutput, registry
+      // bookkeeping, spool finalize) is wasted. First writer wins.
+      if (resolvedOnce.value) return;
+      resolvedOnce.value = true;
+      resolve(result);
+    };
     const startedAt = Date.now();
     // Full-output spool (stdout+stderr interleaved as they arrive): the
     // in-memory buffers keep only the first MAX_OUTPUT bytes; the spool
@@ -290,17 +301,73 @@ function runCommand(
     // verbatim args reach cmd.exe unquoted — reject injection metacharacters.
     if (needsShell) assertSafeWin32ShellArgs(args);
 
-    // On Windows the abort signal is handled manually below: Node's built-in
-    // handling kills only the direct child, orphaning grandchildren (vitest
-    // forks, dev servers, anything under a .cmd shim) that keep the inherited
-    // stdio pipes open. registry.kill() tree-kills via taskkill instead.
-    const child = spawn(spawnCmd, args, {
-      cwd,
-      env: buildChildEnv(sessionId),
-      stdio: ['ignore', 'pipe', 'pipe'],
-      windowsHide: true,
-      ...(isWin ? {} : { signal }),
-      ...(needsShell ? { shell: true, windowsVerbatimArguments: true } : {}),
+    // Wrap the entire spawn lifecycle in try/catch so a synchronous throw
+    // (bad argv, ENOENT for missing binary, ERR_INVALID_ARG_TYPE for bad
+    // signal, etc.) resolves the promise with an error response instead
+    // of producing an unhandled rejection. Without this guard the
+    // promise executor itself can throw, which Node treats as an
+    // unhandled rejection and surfaces in process.on('unhandledRejection').
+    let child: ReturnType<typeof spawn>;
+    try {
+      // On Windows the abort signal is handled manually below: Node's built-in
+      // handling kills only the direct child, orphaning grandchildren (vitest
+      // forks, dev servers, anything under a .cmd shim) that keep the inherited
+      // stdio pipes open. registry.kill() tree-kills via taskkill instead.
+      child = spawn(spawnCmd, args, {
+        cwd,
+        env: buildChildEnv(sessionId),
+        stdio: ['ignore', 'pipe', 'pipe'],
+        windowsHide: true,
+        ...(isWin ? {} : { signal }),
+        ...(needsShell ? { shell: true, windowsVerbatimArguments: true } : {}),
+      });
+    } catch (err) {
+      // spawn() can throw synchronously — e.g. ERR_INVALID_ARG_TYPE for a
+      // malformed `signal`, or for some Node versions ENOENT when the binary
+      // isn't on PATH. Convert to a graceful result so the tool caller
+      // sees a structured error instead of an unhandled rejection that
+      // would crash the host.
+      spool.finalize();
+      finish({
+        command: cmd,
+        args,
+        stdout: '',
+        stderr: `spawn failed: ${toErrorMessage(err)}`,
+        exitCode: 1,
+        truncated: false,
+        allowed: true,
+      });
+      return;
+    }
+
+    // Attach the 'error' listener IMMEDIATELY after spawn, BEFORE any other
+    // async setup (process registry call, setTimeout, abort listener). The
+    // Node EventEmitter contract is that an 'error' event with no listener
+    // rethrows on nextTick and crashes the entire process — this is the
+    // exact failure mode issue #99 describes. Attach first, then do the
+    // bookkeeping, so an abort / ENOENT / EPIPE that fires between spawn
+    // and the rest of setup still has a listener attached.
+    child.on('error', (err) => {
+      // Distinguish an abort from a true spawn failure so the caller can
+      // tell "the user cancelled this" apart from "the binary is missing".
+      // The signal passed to spawn() is an AbortSignal; Node internally
+      // converts the abort into an AbortError with `code: 'ABORT_ERR'`.
+      const isAbort = err && (err as NodeJS.ErrnoException).code === 'ABORT_ERR';
+      const stderrText = isAbort ? `Aborted: ${err.message}` : err.message;
+      clearTimeout(timer);
+      if (isWin) signal.removeEventListener('abort', onAbort);
+      if (typeof pid === 'number') registry.unregister(pid);
+      registry.afterCall(Date.now() - startedAt, true);
+      spool.finalize();
+      finish({
+        command: cmd,
+        args,
+        stdout: normalizeCommandOutput(stdout),
+        stderr: stderrText,
+        exitCode: isAbort ? 124 : 1,
+        truncated: Buffer.byteLength(stdout, 'utf8') > COMMAND_OUTPUT_MAX_BYTES,
+        allowed: true,
+      });
     });
 
     const registry = getProcessRegistry();
@@ -346,7 +413,7 @@ function runCommand(
       const exitCode = killed ? 124 : (code ?? 1);
       registry.afterCall(durationMs, exitCode !== 0);
       const spooled = spool.finalize();
-      resolve({
+      finish({
         command: cmd,
         args,
         stdout: normalizeCommandOutput(stdout) + (spooled ? spoolNote(spooled) : ''),
@@ -355,23 +422,6 @@ function runCommand(
         truncated:
           Buffer.byteLength(stdout, 'utf8') > COMMAND_OUTPUT_MAX_BYTES ||
           Buffer.byteLength(stderr, 'utf8') > COMMAND_OUTPUT_MAX_BYTES,
-        allowed: true,
-      });
-    });
-
-    child.on('error', (err) => {
-      clearTimeout(timer);
-      if (isWin) signal.removeEventListener('abort', onAbort);
-      if (typeof pid === 'number') registry.unregister(pid);
-      registry.afterCall(Date.now() - startedAt, true);
-      spool.finalize();
-      resolve({
-        command: cmd,
-        args,
-        stdout: normalizeCommandOutput(stdout),
-        stderr: err.message,
-        exitCode: 1,
-        truncated: Buffer.byteLength(stdout, 'utf8') > COMMAND_OUTPUT_MAX_BYTES,
         allowed: true,
       });
     });
