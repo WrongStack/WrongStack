@@ -155,61 +155,265 @@ type PartialConfig = Partial<Config> & {
 
 /**
  * Top-level config keys a REPO-COMMITTED `<project>/.wrongstack/config.json`
- * (the `inProjectConfig` layer) is NOT permitted to set. The in-project config
+ * (the `inProjectConfig` layer) IS permitted to set. The in-project config
  * is attacker-controllable (it ships inside a cloned/pulled repository), so
- * honoring these fields would let a malicious repo achieve code execution or
- * credential theft the moment the user runs the agent in that directory:
+ * every other field is denied by default. Anything not in this list is
+ * stripped by `stripUnsafeInProjectFields()` before the merge.
  *
- *   - `mcpServers` / `hooks` / `plugins` — each carries an arbitrary command /
- *     module that is spawned or loaded at boot → remote code execution.
- *   - `provider` / `apiKey` / `baseUrl` / `providers` / `sync` — redirect the
- *     provider endpoint (the user's decrypted API key is sent to whatever
- *     `baseUrl` is configured) or carry credentials → secret exfiltration.
- *   - `yolo` — disables every permission confirmation prompt.
- *   - `extensions` — per-plugin config that can itself carry command-spawning
- *     fields (e.g. the LSP plugin's `servers[].command`/`env`, spawned on
- *     autoStart) or credentials (e.g. a bot token) → RCE / secret exposure.
+ * Why an allow-list and not a deny-list? A deny-list of N known-bad keys is
+ * structurally incomplete: any new field added to `Config` without a matching
+ * edit to the deny list silently becomes attacker-controllable, and the next
+ * field that carries an executable string or a credential immediately turns
+ * `<project>/.wrongstack/config.json` into an RCE / secret-exfiltration
+ * vector the moment someone clones a malicious repo. An allow-list inverts
+ * that — new fields are denied by default and must be explicitly added, so a
+ * forgotten update is a safe default instead of an unsafe one.
  *
- * Stripping them enforces the "safe fields only" contract documented on
- * `WstackPaths.inProjectConfig`. Benign project-level preferences (model,
- * context, tools limits, features display, autonomy, indexing, …) still merge.
- * The user's own `~/.wrongstack/config.json`, the (non-committed) project-local
- * config at `~/.wrongstack/projects/<hash>/config.local.json`, env vars, and
- * CLI flags are all unaffected — per-project plugin/provider config belongs in
- * those user-controlled layers, not in a repo-committed file.
+ * Each entry below is a benign user-preference that a project author may
+ * legitimately want to pin for everyone who works in the repo:
+ *
+ *   - `version`            — schema marker required for any config merge.
+ *   - `model`              — model id (also settable via env / CLI).
+ *   - `cwd`                — working-directory hint (UX, not a permission).
+ *   - `context`            — compaction thresholds, mode, preserveK.
+ *   - `tools`              — iteration / timeouts / restrictToProjectRoot.
+ *   - `features`           — feature toggles (display-only side effects).
+ *   - `autonomy`           — autoProceedDelayMs, thinkingWord.
+ *   - `indexing`           — onSessionStart / onEdit / debounceMs.
+ *   - `session`            — audit level + sampling.
+ *   - `log`                — log level.
+ *   - `launch`             — saved launch prefs.
+ *   - `nextPrediction`     — toggle `/next` after-turn suggestions.
+ *   - `hints`              — toggle startup hints.
+ *   - `debugStream`        — verbose SSE dump (noisy, not security-sensitive).
+ *   - `configScope`        — where settings persist.
+ *   - `maxConcurrent`      — fleet concurrency limit.
+ *   - `fallbackModels`     — model references tried on 429/5xx.
+ *   - `fallbackAuto`       — derived-fallback toggle.
+ *   - `models`             — custom model definitions (data, not code).
+ *   - `modelMatrix`        — per-task model matrix.
+ *   - `circuitBreaker`     — process circuit-breaker config (process gating).
+ *   - `adaptiveConcurrency` — adaptive concurrency controller.
+ *   - `modelRuntime`       — runtime reasoning/cache/parameters.
+ *
+ * Fields deliberately NOT in the allow-list (and therefore always stripped
+ * from `<project>/.wrongstack/config.json`) — see `KNOWN_DENIED_IN_PROJECT`
+ * below for the reason each is unsafe.
  */
-const IN_PROJECT_FORBIDDEN_KEYS: ReadonlySet<string> = new Set([
+const IN_PROJECT_ALLOWED_KEYS: ReadonlySet<string> = new Set([
+  'version',
+  'model',
+  'cwd',
+  'context',
+  'tools',
+  'features',
+  'autonomy',
+  'indexing',
+  'session',
+  'log',
+  'launch',
+  'nextPrediction',
+  'hints',
+  'debugStream',
+  'configScope',
+  'maxConcurrent',
+  'fallbackModels',
+  'fallbackAuto',
+  'models',
+  'modelMatrix',
+  'circuitBreaker',
+  'adaptiveConcurrency',
+  'modelRuntime',
+]);
+
+/**
+ * Top-level config keys that exist on `Config` but MUST NEVER be settable
+ * from a repo-committed `<project>/.wrongstack/config.json`. Each entry pairs
+ * the field name with the specific way a malicious repo would abuse it. This
+ * list is documentation + exhaustiveness checking; the runtime enforcement
+ * is the *allow-list* above (anything not in the allow-list is stripped).
+ *
+ *   - `provider`     — set provider id to a custom / evil implementation →
+ *                      intercepts every prompt and response.
+ *   - `apiKey`       — overrides the user's API key with attacker-controlled
+ *                      value, exfiltrating prompts to the attacker.
+ *   - `baseUrl`      — redirects the provider endpoint so the user's real
+ *                      decrypted API key is sent to the attacker's server.
+ *   - `providers`    — per-provider `apiKey`/`baseUrl`/`oauthConfig` map,
+ *                      same endpoint-redirect + secret-exfiltration vector.
+ *   - `mcpServers`   — arbitrary `command` + `args` + `env` spawned at boot.
+ *   - `hooks`        — shell command arrays attached to lifecycle events.
+ *   - `plugins`      — npm package names dynamically loaded into the agent
+ *                      process at boot.
+ *   - `sync`         — carries `githubToken` (credential) and the repo
+ *                      the user's sync push targets.
+ *   - `yolo`         — flips off every permission confirmation prompt so a
+ *                      malicious agent turn can run `bash` / `write` /
+ *                      `install` without user approval.
+ *   - `extensions`   — per-plugin namespaced config; the LSP plugin's
+ *                      `servers[].command` is spawned on autoStart, and
+ *                      arbitrary plugin configs can carry their own
+ *                      credential / command fields → RCE / secret exposure.
+ *   - `hq`           — carries `token` (HQ client credential) and `url`
+ *                      (HQ endpoint, similar to `baseUrl`).
+ */
+const KNOWN_DENIED_IN_PROJECT: ReadonlyArray<{ key: string; reason: string }> = [
+  { key: 'provider', reason: 'Provider id override; can intercept prompts/responses.' },
+  { key: 'apiKey', reason: 'Overrides user API key; exfiltrates prompts.' },
+  { key: 'baseUrl', reason: 'Redirects provider endpoint; leaks real API key.' },
+  { key: 'providers', reason: 'Per-provider apiKey/baseUrl/oauthConfig; same redirect/exfil.' },
+  { key: 'mcpServers', reason: 'Arbitrary command/args/env spawned at boot (RCE).' },
+  { key: 'hooks', reason: 'Shell command arrays on lifecycle events (RCE).' },
+  { key: 'plugins', reason: 'Dynamic npm package load at boot (RCE).' },
+  { key: 'sync', reason: 'Carries githubToken credential and target repo.' },
+  { key: 'yolo', reason: 'Disables all permission confirmation prompts.' },
+  { key: 'extensions', reason: 'Per-plugin config can carry command/credential fields.' },
+  { key: 'hq', reason: 'Carries HQ client token credential and endpoint URL.' },
+];
+
+/**
+ * Every top-level key that exists on the `Config` interface. This is the
+ * *ground truth* used by `assertInProjectAllowListComplete()` to detect when
+ * a new field has been added to `Config` without a corresponding decision
+ * about whether it is safe for an attacker-controllable source to set it.
+ *
+ * Each entry must appear in EXACTLY ONE of:
+ *   - `IN_PROJECT_ALLOWED_KEYS`   — explicitly safe for in-project config
+ *   - `KNOWN_DENIED_IN_PROJECT`   — explicitly documented as unsafe
+ *
+ * The drift-check function below throws at runtime / test time when this
+ * invariant is violated, so a forgotten update fails loudly instead of
+ * silently widening the attack surface.
+ */
+const KNOWN_CONFIG_TOP_LEVEL_KEYS: ReadonlySet<string> = new Set([
+  'version',
   'provider',
+  'model',
   'apiKey',
   'baseUrl',
+  'maxConcurrent',
   'providers',
+  'models',
+  'modelMatrix',
+  'context',
+  'tools',
   'mcpServers',
+  'fallbackModels',
+  'fallbackAuto',
   'hooks',
   'plugins',
-  'sync',
+  'log',
+  'features',
   'yolo',
+  'nextPrediction',
+  'cwd',
+  'autonomy',
+  'hints',
+  'debugStream',
+  'configScope',
+  'indexing',
+  'circuitBreaker',
+  'adaptiveConcurrency',
+  'launch',
+  'session',
+  'modelRuntime',
+  'hq',
+  'sync',
   'extensions',
 ]);
+
+/**
+ * Assert that the allow-list and deny-list together cover every top-level
+ * field of `Config`. Throws on drift so the failure is loud at test time and
+ * at first boot, not a silent widening of the attack surface. Exported so
+ * tests (and any consumer building tooling on top of this) can call it
+ * explicitly; `stripUnsafeInProjectFields()` also calls it lazily on its
+ * first invocation so the guarantee is structural, not test-only.
+ *
+ * The check is two-sided:
+ *   1. Every key in `KNOWN_CONFIG_TOP_LEVEL_KEYS` is either allowed or
+ *      explicitly documented as denied (catches: "added a new field but
+ *      forgot to decide").
+ *   2. Every entry in `KNOWN_DENIED_IN_PROJECT` actually exists on Config
+ *      (catches: "left a stale denied-field entry behind after a rename").
+ *   3. The two lists are disjoint (catches: "put the same field in both
+ *      lists; allow-list silently wins and the deny docs lie").
+ */
+export function assertInProjectAllowListComplete(): void {
+  const missingFromBoth: string[] = [];
+  for (const key of KNOWN_CONFIG_TOP_LEVEL_KEYS) {
+    if (IN_PROJECT_ALLOWED_KEYS.has(key)) continue;
+    const denied = KNOWN_DENIED_IN_PROJECT.find((d) => d.key === key);
+    if (!denied) missingFromBoth.push(key);
+  }
+  const staleDenials = KNOWN_DENIED_IN_PROJECT
+    .filter((d) => !KNOWN_CONFIG_TOP_LEVEL_KEYS.has(d.key))
+    .map((d) => d.key);
+  const duplicate = KNOWN_DENIED_IN_PROJECT
+    .filter((d) => IN_PROJECT_ALLOWED_KEYS.has(d.key))
+    .map((d) => d.key);
+
+  const problems: string[] = [];
+  if (missingFromBoth.length > 0) {
+    problems.push(
+      `new Config field(s) not classified as allowed or denied for in-project config: ` +
+        missingFromBoth.join(', ') +
+        '. Add each to IN_PROJECT_ALLOWED_KEYS (if safe) or KNOWN_DENIED_IN_PROJECT (with a reason).',
+    );
+  }
+  if (staleDenials.length > 0) {
+    problems.push(
+      `KNOWN_DENIED_IN_PROJECT references keys that no longer exist on Config: ` +
+        staleDenials.join(', ') +
+        '. Remove them or restore the field on Config.',
+    );
+  }
+  if (duplicate.length > 0) {
+    problems.push(
+      `field(s) appear in BOTH IN_PROJECT_ALLOWED_KEYS and KNOWN_DENIED_IN_PROJECT: ` +
+        duplicate.join(', ') +
+        '. The allow-list wins at runtime; remove from one of the two.',
+    );
+  }
+  if (problems.length > 0) {
+    throw new Error(
+      `stripUnsafeInProjectFields drift check failed:\n  - ${problems.join('\n  - ')}`,
+    );
+  }
+}
+
+let driftChecked = false;
 
 /**
  * Remove forbidden top-level keys from a repo-committed in-project config
  * before it is merged. Returns a new object; the original is not mutated.
  * Emits a warning (and a `config.read` failure-style event) naming the
  * stripped keys so the behavior is observable rather than silent.
+ *
+ * On first invocation, runs `assertInProjectAllowListComplete()` to verify
+ * the allow-list + deny-list together still cover every top-level field of
+ * `Config`. The check is idempotent and the result is memoized so the cost
+ * is paid at most once per process. The assertion throws on drift, which
+ * surfaces the issue at boot in production and at first test invocation in
+ * CI — both observable, never silent.
  */
 export function stripUnsafeInProjectFields(
   inProject: PartialConfig,
   sourcePath: string,
   warn: (msg: string) => void = (msg) => console.warn(msg),
 ): PartialConfig {
+  if (!driftChecked) {
+    assertInProjectAllowListComplete();
+    driftChecked = true;
+  }
   const stripped: string[] = [];
   const out: PartialConfig = {};
   for (const [k, v] of Object.entries(inProject)) {
-    if (IN_PROJECT_FORBIDDEN_KEYS.has(k)) {
-      stripped.push(k);
+    if (IN_PROJECT_ALLOWED_KEYS.has(k)) {
+      (out as Record<string, unknown>)[k] = v;
       continue;
     }
-    (out as Record<string, unknown>)[k] = v;
+    stripped.push(k);
   }
   if (stripped.length > 0) {
     warn(
@@ -219,9 +423,11 @@ export function stripUnsafeInProjectFields(
         path: sourcePath,
         ignoredKeys: stripped,
         message:
-          `Ignored ${stripped.length} unsafe field(s) from the repo-committed config ` +
-          `"${sourcePath}": ${stripped.join(', ')}. These can only be set in your ` +
-          `personal ~/.wrongstack/config.json, not in a project-committed file.`,
+          `Ignored ${stripped.length} field(s) from the repo-committed config ` +
+          `"${sourcePath}": ${stripped.join(', ')}. ` +
+          `Only a small allow-list of benign preferences (model, context, tools limits, ` +
+          `features, …) may be set by <project>/.wrongstack/config.json. ` +
+          `Everything else must live in your personal ~/.wrongstack/config.json.`,
         timestamp: new Date().toISOString(),
       }),
     );

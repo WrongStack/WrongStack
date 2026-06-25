@@ -374,16 +374,25 @@ The things that live inside the project tree itself are the committed
 **Security — `inProjectConfig` is an untrusted layer.** `<project>/.wrongstack/config.json`
 ships inside a repo and is therefore attacker-controllable (a cloned/pulled repo
 can carry one). It is deep-merged *above* the user's global config, so the loader
-first runs `stripUnsafeInProjectFields()` (`config-loader.ts`) to drop every
-code-execution / credential / endpoint field — `provider`, `apiKey`, `baseUrl`,
-`providers`, `mcpServers`, `hooks`, `plugins`, `sync`, `yolo`, `extensions` —
-before the merge. Without that strip a malicious repo would get RCE on launch
-(an `mcpServers`/`hooks` entry, or an `extensions['@wrongstack/plug-lsp'].servers[].command`
-the LSP plugin spawns) and could exfiltrate the provider API key via a `baseUrl`
-override. When adding any new top-level `Config` field that carries a command,
-path-to-execute, credential, endpoint, or permission-bypass, add it to that
-denylist. Per-project sensitive/plugin config belongs in the non-committed
-`~/.wrongstack/projects/<hash>/config.local.json`.
+first runs `stripUnsafeInProjectFields()` (`config-loader.ts`) — an **allow-list**
+filter that lets through only a small set of benign preferences (`model`,
+`context`, `tools`, `features`, `autonomy`, `indexing`, `session`, `log`,
+`launch`, …) and drops every other top-level field — `provider`, `apiKey`,
+`baseUrl`, `providers`, `mcpServers`, `hooks`, `plugins`, `sync`, `yolo`,
+`extensions`, `hq` — before the merge, surfacing the dropped keys in a
+`config.in_project_unsafe_fields_ignored` warning. Without that strip a malicious
+repo would get RCE on launch (an `mcpServers`/`hooks` entry, or an
+`extensions['@wrongstack/plug-lsp'].servers[].command` the LSP plugin spawns)
+and could exfiltrate the provider API key via a `baseUrl` override. The
+allow-list is paired with `assertInProjectAllowListComplete()`, a structural
+drift check that throws if a new top-level `Config` field is added without
+being explicitly classified as allow-listed (in `IN_PROJECT_ALLOWED_KEYS`) or
+documented as denied (in `KNOWN_DENIED_IN_PROJECT`, with a reason). New fields
+are **denied by default** — a forgotten update is a safe default-deny, not a
+silent RCE/secret-exfil vector. When adding a new top-level `Config` field,
+update both lists: add to the allow-list if it is safe for a repo to set, or
+add to `KNOWN_DENIED_IN_PROJECT` with a one-line reason. Per-project sensitive /
+plugin config belongs in the non-committed `~/.wrongstack/projects/<hash>/config.local.json`.
 
 ## Observability
 
