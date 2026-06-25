@@ -2388,16 +2388,31 @@ export async function main(argv: string[]): Promise<number> {
       // Read current provider from the ConfigStore so /diag always shows
       // the live value, even if /model swapped it mid-session (L1-B).
       const liveCfg = configStore.get();
+      // Surface the wire family on its own line so the user can tell whether
+      // the active provider id is a real catalog entry (e.g. "anthropic") or
+      // a saved-config alias that resolves to a catalog family (e.g. the
+      // user picks "minimax-coding-plan" but the wire family is "anthropic").
+      // Fix for issue #16: distinguish provider id from wire family in /diag.
+      // Mirrors the banner layout (provider / family on separate lines) and
+      // reads from the same ProviderConfig.family field the banner uses via
+      // banneredFamily in execution.ts, so the two surfaces never disagree.
+      // The runtime Provider interface does not expose family, so we read
+      // it from the saved config which is the same source of truth the
+      // banner reads at boot.
+      const liveFamily = liveCfg.providers?.[liveCfg.provider]?.family;
       return [
         `${color.bold('WrongStack diag')}`,
         `  provider:     ${liveCfg.provider} / ${context.model}`,
+        liveFamily ? `  family:       ${liveFamily}` : null,
         `  projectRoot:  ${projectRoot}`,
         `  tokens:       in ${u.input}  out ${u.output}  cacheR ${u.cacheRead ?? 0}`,
         `  cost:         $${cost.total.toFixed(4)}`,
         `  tools:        ${toolRegistry.list().length}`,
         `  mcpServers:   ${mcpRegistry.list().length}`,
         ...errSection,
-      ].join('\n');
+      ]
+        .filter((line): line is string => line !== null)
+        .join('\n');
     },
     onStats: () => stats.format(),
     generateCommitMessage: async (diff: string) => {
