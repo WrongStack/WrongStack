@@ -47,6 +47,43 @@ export function resolveWin32Command(cmd: string): string {
 }
 
 /**
+ * Resolve a PowerShell binary by name. `pickShell` in `_shell-pick.ts`
+ * already decides whether the user wants `'pwsh'` (PowerShell 7+) or
+ * `'powershell'` (Windows PowerShell 5.1). This helper turns that decision
+ * into a real on-disk path.
+ *
+ * Order:
+ *   1. If `cmd` is `pwsh` and a `pwsh.exe` exists on PATH → return that.
+ *   2. If `cmd` is `pwsh` and only `powershell.exe` exists → fall back to
+ *      that (the alternative is a cryptic ENOENT for the user).
+ *   3. Symmetric for `powershell`: prefer `powershell.exe`, fall back to
+ *      `pwsh.exe` if installed and the legacy binary is missing.
+ *   4. Anything else → delegate to `resolveWin32Command` (handles `.cmd`
+ *      shims a sysadmin might drop in place, etc.).
+ *
+ * Returns the original command on ENOENT — `spawn()` will surface a clean
+ * ENOENT and the user sees "PowerShell not installed", which is the right
+ * diagnostic. We never throw from here.
+ */
+export function resolvePowerShell(cmd: string): string {
+  if (process.platform !== 'win32') return cmd;
+  const lower = cmd.toLowerCase();
+  if (lower !== 'pwsh' && lower !== 'powershell' && lower !== 'pwsh.exe' && lower !== 'powershell.exe') {
+    return resolveWin32Command(cmd);
+  }
+  // Prefer the requested edition, fall back to the other one.
+  const primary = lower.startsWith('pwsh') ? 'pwsh.exe' : 'powershell.exe';
+  const fallback = lower.startsWith('pwsh') ? 'powershell.exe' : 'pwsh.exe';
+  const resolved = resolveWin32Command(primary);
+  if (resolved !== primary) {
+    // resolveWin32Command returns the original string when not found.
+    const fb = resolveWin32Command(fallback);
+    return fb === fallback ? cmd : fb;
+  }
+  return resolved;
+}
+
+/**
  * cmd.exe metacharacters that chain a new command or redirect I/O. When a
  * `.cmd`/`.bat` wrapper is spawned with `shell: true` + `windowsVerbatimArguments:
  * true`, Node passes argv through to `cmd.exe /c` UNQUOTED — so an argument

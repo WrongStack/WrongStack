@@ -7,6 +7,8 @@ import { normalizeCommandOutput } from './_util.js';
 import { killWin32Tree, redactCommand } from './process-registry.js';
 import { getProcessRegistry } from './process-registry.js';
 import { checkAndBlockKillCommand } from './bash-kill-guard.js';
+import { pickShell, shellArgs, type BashShell } from './_shell-pick.js';
+import { resolvePowerShell } from './_win32-resolve.js';
 
 interface BashInput {
   command: string;
@@ -162,24 +164,81 @@ export const bashTool: Tool<BashInput, BashOutput> = {
     const timeoutMs = Math.max(1, Math.min(input.timeout_ms ?? DEFAULT_TIMEOUT_MS, 600_000));
 
     const isWin = os.platform() === 'win32';
-    // Use WRONGSTACK_SHELL / WRONGSTACK_COMSPEC for explicit override.
-    // If not set, fall back to an allowlist: /bin/bash, /bin/zsh, /bin/sh
-    // on POSIX; cmd.exe, powershell.exe on Windows. The standard SHELL and
-    // COMSPEC env vars are NOT trusted — they are user-controllable and could
-    // point to an arbitrary binary on shared systems.
-    const shell = (() => {
-      const explicit = process.env[isWin ? 'WRONGSTACK_COMSPEC' : 'WRONGSTACK_SHELL'];
-      if (explicit) return explicit;
-      if (isWin) return process.env['COMSPEC'] ?? 'cmd.exe';
-      // POSIX: use SHELL only if it appears in a short allowlist.
-      const fromEnv = process.env['SHELL'];
-      if (fromEnv) {
-        const name = fromEnv.split('/').pop() ?? '';
-        if (['bash', 'zsh', 'sh', 'dash', 'fish'].includes(name)) return fromEnv;
+    // Shell selection:
+    //   - POSIX: existing behavior — `WRONGSTACK_SHELL` override, else `$SHELL`
+    //     if it names an allowlisted shell, else `/bin/bash`. cmd.exe-style
+    //     semantics don't apply on POSIX.
+    //   - Windows: delegate to `pickShell`, which honours `WRONGSTACK_SHELL`
+    //     (when set to cmd|powershell|pwsh), auto-detects PowerShell-style
+    //     commands (so Codex-style `Get-Content`/`Set-Location`/etc. work
+    //     without forcing every user to set an env var), and falls back to
+    //     `cmd.exe` for legacy scripts. The `BashShell` sentinel is then
+    //     mapped to the actual binary path below.
+    //
+    // The user-controllable `SHELL` and `COMSPEC` env vars are NOT trusted
+    // — a user (or another agent) could point them at an arbitrary binary on
+    // shared systems. Only `WRONGSTACK_SHELL` (and the hard-coded defaults
+    // in `_shell-pick.ts` / this block) are honoured.
+    type ShellPlan = {
+      /** Binary path passed to spawn(). */
+      bin: string;
+      /** argv prefix (everything except the inline command). */
+      argv: readonly string[];
+      /** When true, write `input.command` to the child's stdin instead of
+       *  passing it as an argv. PowerShell uses this because quotes and
+       *  dollar-signs can break `-Command "..."` quoting; `pwsh -Command -`
+       *  reads the script from stdin verbatim. */
+      useStdin: boolean;
+    };
+    let plan: ShellPlan;
+    if (isWin) {
+      const shell: BashShell = pickShell('win32', input.command, {
+        get: (k) => process.env[k],
+      });
+      // Resolve a sensible default binary. `pickShell` decided the shell
+      // kind, but the actual spawn uses a real path:
+      //   - 'cmd'         → COMSPEC or `cmd.exe`. The user can override
+      //                    via WRONGSTACK_SHELL=cmd (already handled by
+      //                    pickShell).
+      //   - 'powershell'  → `powershell.exe` (Windows PS 5.1).
+      //   - 'pwsh'        → `pwsh.exe` (PS 7+) if installed, else fall
+      //                    back to `powershell.exe`. We don't probe the
+      //                    filesystem here; _win32-resolve.ts does the
+      //                    PATHEXT walk at spawn time and surfaces ENOENT
+      //                    cleanly if PowerShell is not installed.
+      // `resolvePowerShell` walks PATH/PATHEXT to find the binary (PS 7 is
+      // not always on PATH; legacy PS 5.1 is in System32). For 'cmd' we let
+      // Node's own PATH search handle COMSPEC — `cmd.exe` is always on
+      // System32 which is in PATH by default.
+      const bin =
+        shell === 'powershell'
+          ? resolvePowerShell('powershell.exe')
+          : shell === 'pwsh'
+            ? resolvePowerShell('pwsh.exe')
+            : process.env['COMSPEC'] ?? 'cmd.exe';
+      plan = {
+        bin,
+        argv: shellArgs(shell),
+        useStdin: shell === 'powershell' || shell === 'pwsh',
+      };
+    } else {
+      // POSIX: use WRONGSTACK_SHELL if set; else honor $SHELL only when it
+      // names an allowlisted shell (bash/zsh/sh/dash/fish); else /bin/bash.
+      const explicit = process.env['WRONGSTACK_SHELL'];
+      let bin: string;
+      if (explicit) bin = explicit;
+      else {
+        const fromEnv = process.env['SHELL'];
+        if (fromEnv) {
+          const name = fromEnv.split('/').pop() ?? '';
+          if (['bash', 'zsh', 'sh', 'dash', 'fish'].includes(name)) bin = fromEnv;
+          else bin = '/bin/bash';
+        } else bin = '/bin/bash';
       }
-      return '/bin/bash';
-    })();
-    const args = isWin ? ['/c', input.command] : ['-c', input.command];
+      plan = { bin, argv: ['-c'], useStdin: false };
+    }
+    const shell = plan.bin;
+    const args = plan.useStdin ? [...plan.argv] : [...plan.argv, input.command];
 
     const env = buildChildEnv(ctx.session?.id);
 
@@ -201,7 +260,9 @@ export const bashTool: Tool<BashInput, BashOutput> = {
       const child = spawn(shell, args, {
         cwd: ctx.projectRoot,
         env,
-        stdio: ['ignore', 'pipe', 'pipe'],
+        // PowerShell takes the script on stdin (no argv quoting); cmd.exe
+        // and POSIX shells ignore stdin when given the command inline.
+        stdio: [plan.useStdin ? 'pipe' : 'ignore', 'pipe', 'pipe'],
         // win32: CreateProcess IGNORES CREATE_NO_WINDOW (windowsHide) when
         // DETACHED_PROCESS (detached: true) is set, so the console-less
         // cmd.exe's grandchildren (node, dev servers) each allocate a fresh
@@ -212,6 +273,19 @@ export const bashTool: Tool<BashInput, BashOutput> = {
         detached: !isWin,
         windowsHide: true,
       });
+      // PowerShell: stream the script to stdin and close. We do this AFTER
+      // spawn() returns because `child.stdin` is only available then. The
+      // write is buffered in the OS pipe; pwsh reads it as it boots. Closing
+      // stdin is what tells pwsh "end of script" — without an .end(), the
+      // pipe stays open and pwsh waits forever for more input.
+      if (plan.useStdin) {
+        try {
+          child.stdin?.write(input.command);
+          child.stdin?.end();
+        } catch {
+          /* spawn already errored — the error handler below will fire */
+        }
+      }
       const pid = child.pid;
       if (typeof pid === 'number') {
         registry.register({
@@ -284,11 +358,26 @@ export const bashTool: Tool<BashInput, BashOutput> = {
     const child = spawn(shell, args, {
       cwd: ctx.projectRoot,
       env,
-      stdio: ['ignore', 'pipe', 'pipe'],
+      // PowerShell takes the script on stdin (no argv quoting); cmd.exe
+      // and POSIX shells ignore stdin when given the command inline.
+      stdio: [plan.useStdin ? 'pipe' : 'ignore', 'pipe', 'pipe'],
       detached,
       windowsHide: true,
       ...(isWin ? {} : { signal: opts.signal }),
     });
+    // PowerShell: stream the script to stdin and close. We do this AFTER
+    // spawn() returns because `child.stdin` is only available then. The
+    // write is buffered in the OS pipe; pwsh reads it as it boots. Closing
+    // stdin is what tells pwsh "end of script" — without an .end(), the
+    // pipe stays open and pwsh waits forever for more input.
+    if (plan.useStdin) {
+      try {
+        child.stdin?.write(input.command);
+        child.stdin?.end();
+      } catch {
+        /* spawn already errored — the error handler below will fire */
+      }
+    }
 
     // Register with global registry so Ctrl+C / /kill can find and kill it.
     const pid = child.pid;
