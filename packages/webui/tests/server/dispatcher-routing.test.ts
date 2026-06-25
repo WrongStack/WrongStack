@@ -33,6 +33,7 @@ import { handleProviderRoute } from '../../src/server/provider-routes.js';
 import { handleSessionRoute } from '../../src/server/session-routes.js';
 import { handleProjectRoute } from '../../src/server/project-routes.js';
 import { handleModeRoute } from '../../src/server/mode-routes.js';
+import { handlePrefsRoute } from '../../src/server/prefs-routes.js';
 import { handleShellGitRoute } from '../../src/server/shell-git-routes.js';
 import { handleMailboxRoute } from '../../src/server/mailbox-routes.js';
 import { handleBrainRoute } from '../../src/server/brain-routes.js';
@@ -164,6 +165,41 @@ describe('WS message dispatcher routing (Issue #31 PR 0)', () => {
     const out = await handleModeRoute(ws, { type: FOREIGN }, {
       listModes: vi.fn(),
       switchMode: vi.fn(),
+    } as never);
+    expect(out).toBe(false);
+  });
+
+  // ── PrefsRouteHandlers ─────────────────────────────────────────────
+  // Issue #31 follow-on (extracted from index.ts as the 12th sibling).
+  // Two callbacks only — `getPrefs` and `updatePrefs` — because the
+  // standalone server's pref logic is rich enough that bundling 10+
+  // closure-captured dependencies into a single PrefsContext would
+  // duplicate state already living on index.ts.
+  it('handlePrefsRoute: claims prefs.get; rejects foreign', async () => {
+    const getPrefs = vi.fn();
+    const out = await handlePrefsRoute(ws, { type: 'prefs.get' }, {
+      getPrefs,
+      updatePrefs: vi.fn(),
+    } as never);
+    expect(out).toBe(true);
+    expect(getPrefs).toHaveBeenCalledOnce();
+  });
+
+  it('handlePrefsRoute: claims prefs.update; rejects foreign', async () => {
+    const updatePrefs = vi.fn();
+    const out = await handlePrefsRoute(ws, { type: 'prefs.update', payload: { yolo: true } }, {
+      getPrefs: vi.fn(),
+      updatePrefs,
+    } as never);
+    expect(out).toBe(true);
+    expect(updatePrefs).toHaveBeenCalledOnce();
+    expect(updatePrefs).toHaveBeenCalledWith(ws, { yolo: true });
+  });
+
+  it('handlePrefsRoute: returns false for foreign message type', async () => {
+    const out = await handlePrefsRoute(ws, { type: FOREIGN }, {
+      getPrefs: vi.fn(),
+      updatePrefs: vi.fn(),
     } as never);
     expect(out).toBe(false);
   });

@@ -142,6 +142,7 @@ import { handleProviderRoute, type ProviderRouteHandlers } from './provider-rout
 import { handleSessionRoute, type SessionRouteHandlers } from './session-routes.js';
 import { handleProjectRoute, type ProjectRouteHandlers } from './project-routes.js';
 import { handleModeRoute, type ModeRouteHandlers } from './mode-routes.js';
+import { handlePrefsRoute, type PrefsRouteHandlers } from './prefs-routes.js';
 import { handleShellGitRoute, type ShellGitRouteHandlers } from './shell-git-routes.js';
 import { handleMailboxRoute, type MailboxRouteHandlers } from './mailbox-routes.js';
 import { handleBrainRoute, type BrainRouteHandlers } from './brain-routes.js';
@@ -1793,6 +1794,7 @@ export async function startWebUI(
   let sessionRoutes: SessionRouteHandlers;
   let projectRoutes: ProjectRouteHandlers;
   let modeRoutes: ModeRouteHandlers;
+  let prefsRoutes: PrefsRouteHandlers;
   let shellGitRoutes: ShellGitRouteHandlers;
   let mailboxRoutes: MailboxRouteHandlers;
   let brainRoutes: BrainRouteHandlers;
@@ -1810,6 +1812,7 @@ export async function startWebUI(
     if (await handleSessionRoute(ws, msg, sessionRoutes)) return;
     if (await handleProjectRoute(ws, msg, projectRoutes)) return;
     if (await handleModeRoute(ws, msg, modeRoutes)) return;
+    if (await handlePrefsRoute(ws, msg, prefsRoutes)) return;
     if (await handleShellGitRoute(ws, msg, shellGitRoutes)) return;
     if (await handleMailboxRoute(ws, msg, mailboxRoutes)) return;
     if (await handleBrainRoute(ws, msg, brainRoutes)) return;
@@ -2147,87 +2150,18 @@ export async function startWebUI(
       }
 
       case 'prefs.update': {
-        // Batch preference update from the webui. Merges arbitrary key/value
-        // pairs into context.meta so the runtime can read them immediately,
-        // broadcasts the full pref snapshot to every connected client so all
-        // browser tabs stay in sync, and persists the durable keys to
-        // config.json (same keys the TUI settings picker writes).
-        const parsed = validatePrefsUpdatePayload(msg.payload);
-        if (!parsed.ok) {
-          sendResult(ws, false, parsed.message);
-          break;
-        }
-        const payload = parsed.value.prefs;
-        // Write each pref into context.meta
-        for (const [key, val] of Object.entries(payload)) {
-          context.meta[key] = val;
-        }
-        void persistPrefsToConfig(payload);
-        // YOLO mode: toggle the permission policy so tool confirmations
-        // are auto-approved instead of prompting the user. Uses the live
-        // reference resolved from the container at startup.
-        if (typeof payload['yolo'] === 'boolean') {
-          permissionPolicy.setYolo?.(payload['yolo']);
-        }
-        // Also update config.features for feature flags that affect tool/skill
-        // initialisation (these were read at startup but can be changed at runtime
-        // by the agent's permission middleware or tool guards).
-        if (typeof payload['featureMcp'] === 'boolean')
-          config.features.mcp = payload['featureMcp'];
-        if (typeof payload['featurePlugins'] === 'boolean')
-          config.features.plugins = payload['featurePlugins'];
-        if (typeof payload['featureMemory'] === 'boolean')
-          config.features.memory = payload['featureMemory'];
-        if (typeof payload['featureSkills'] === 'boolean')
-          config.features.skills = payload['featureSkills'];
-        if (typeof payload['featureModelsRegistry'] === 'boolean')
-          config.features.modelsRegistry = payload['featureModelsRegistry'];
-
-        // Global fallback chain: mutate the live config so the leader's fallback
-        // extension (which reads config each turn) honours it without a restart.
-        if (Array.isArray(payload['fallbackModels']))
-          config.fallbackModels = payload['fallbackModels'] as string[];
-        if (typeof payload['fallbackAuto'] === 'boolean')
-          config.fallbackAuto = payload['fallbackAuto'];
-
-        // Runtime effects: apply prefs that change server behaviour immediately.
-
-        // contextAutoCompact — toggle AutoCompactionMiddleware in/out of the
-        // contextWindow pipeline. When off, the pipeline skips the compaction
-        // step entirely (zero overhead). When on, re-adds the middleware.
-        if (typeof payload['contextAutoCompact'] === 'boolean') {
-          if (payload['contextAutoCompact'] && autoCompactor) {
-            // Re-add: remove first (idempotent via optional), then insert.
-            pipelines.contextWindow.remove('AutoCompaction', { optional: true });
-            pipelines.contextWindow.use({ name: 'AutoCompaction', handler: autoCompactor.handler() });
-          } else {
-            pipelines.contextWindow.remove('AutoCompaction', { optional: true });
-          }
-        }
-
-        // logLevel — the DefaultLogger.level property is a public mutable
-        // field. Setting it at runtime changes the log threshold immediately
-        // (the log() method checks LEVEL_RANK on every call).
-        if (typeof payload['logLevel'] === 'string') {
-          const valid = ['debug', 'info', 'warn', 'error'] as const;
-          if ((valid as readonly string[]).includes(payload['logLevel'])) {
-            logger.level = payload['logLevel'] as typeof valid[number];
-          }
-        }
-
-        // auditLevel — stored in context.meta by the generic loop above.
-        // Consumed by the session audit log system at session-close time.
-
-        // Broadcast the full current prefs snapshot to ALL clients.
-        broadcast(clients, { type: 'prefs.updated', payload: prefSnapshot() });
-        break;
+        // Routed via handlePrefsRoute (see prefsRoutes = { ... } below) —
+        // the actual handler is `updatePrefs`. This case is unreachable but
+        // left as a tripwire for any future regression where the route
+        // chain stops claiming 'prefs.*'. If you see this fire, fix the
+        // dispatch order in the handleMessage chain above.
+        void ws;
+        throw new Error('handlePrefsRoute did not claim prefs.update — check chain order');
       }
 
       case 'prefs.get': {
-        // Return the current pref snapshot so a freshly-connected client
-        // can seed its local-prefs store from the server's truth.
-        send(ws, { type: 'prefs.updated', payload: prefSnapshot() });
-        break;
+        // Routed via handlePrefsRoute (see prefsRoutes = { ... } below).
+        throw new Error('handlePrefsRoute did not claim prefs.get — check chain order');
       }
 
       default:
@@ -2486,6 +2420,97 @@ export async function startWebUI(
     },
     sessionStartPayload,
   });
+
+  // ---- Prefs route (handlePrefsRoute) ----
+  // The standalone server's pref surface is richer than the CLI's embedded
+  // prefs.ts (issue #31 follow-on to #94–#110). We own the full set of
+  // runtime effects: YOLO toggle on permissionPolicy, feature-flag mutation
+  // on config.features, fallback chain update on config, AutoCompaction
+  // pipeline add/remove, logger.level mutation, and config.json persistence.
+  // Closure-captured dependencies stay here in index.ts; the dispatch layer
+  // (prefs-routes.ts) just calls these two functions.
+  prefsRoutes = {
+    getPrefs: async (ws) => {
+      // Return the current pref snapshot so a freshly-connected client
+      // can seed its local-prefs store from the server's truth.
+      send(ws, { type: 'prefs.updated', payload: prefSnapshot() });
+    },
+    updatePrefs: async (ws, msgPayload) => {
+      // Batch preference update from the webui. Merges arbitrary key/value
+      // pairs into context.meta so the runtime can read them immediately,
+      // broadcasts the full pref snapshot to every connected client so all
+      // browser tabs stay in sync, and persists the durable keys to
+      // config.json (same keys the TUI settings picker writes).
+      const parsed = validatePrefsUpdatePayload(msgPayload);
+      if (!parsed.ok) {
+        sendResult(ws, false, parsed.message);
+        return;
+      }
+      const payload = parsed.value.prefs;
+      // Write each pref into context.meta
+      for (const [key, val] of Object.entries(payload)) {
+        context.meta[key] = val;
+      }
+      void persistPrefsToConfig(payload);
+      // YOLO mode: toggle the permission policy so tool confirmations
+      // are auto-approved instead of prompting the user. Uses the live
+      // reference resolved from the container at startup.
+      if (typeof payload['yolo'] === 'boolean') {
+        permissionPolicy.setYolo?.(payload['yolo']);
+      }
+      // Also update config.features for feature flags that affect tool/skill
+      // initialisation (these were read at startup but can be changed at runtime
+      // by the agent's permission middleware or tool guards).
+      if (typeof payload['featureMcp'] === 'boolean')
+        config.features.mcp = payload['featureMcp'];
+      if (typeof payload['featurePlugins'] === 'boolean')
+        config.features.plugins = payload['featurePlugins'];
+      if (typeof payload['featureMemory'] === 'boolean')
+        config.features.memory = payload['featureMemory'];
+      if (typeof payload['featureSkills'] === 'boolean')
+        config.features.skills = payload['featureSkills'];
+      if (typeof payload['featureModelsRegistry'] === 'boolean')
+        config.features.modelsRegistry = payload['featureModelsRegistry'];
+
+      // Global fallback chain: mutate the live config so the leader's fallback
+      // extension (which reads config each turn) honours it without a restart.
+      if (Array.isArray(payload['fallbackModels']))
+        config.fallbackModels = payload['fallbackModels'] as string[];
+      if (typeof payload['fallbackAuto'] === 'boolean')
+        config.fallbackAuto = payload['fallbackAuto'];
+
+      // Runtime effects: apply prefs that change server behaviour immediately.
+
+      // contextAutoCompact — toggle AutoCompactionMiddleware in/out of the
+      // contextWindow pipeline. When off, the pipeline skips the compaction
+      // step entirely (zero overhead). When on, re-adds the middleware.
+      if (typeof payload['contextAutoCompact'] === 'boolean') {
+        if (payload['contextAutoCompact'] && autoCompactor) {
+          // Re-add: remove first (idempotent via optional), then insert.
+          pipelines.contextWindow.remove('AutoCompaction', { optional: true });
+          pipelines.contextWindow.use({ name: 'AutoCompaction', handler: autoCompactor.handler() });
+        } else {
+          pipelines.contextWindow.remove('AutoCompaction', { optional: true });
+        }
+      }
+
+      // logLevel — the DefaultLogger.level property is a public mutable
+      // field. Setting it at runtime changes the log threshold immediately
+      // (the log() method checks LEVEL_RANK on every call).
+      if (typeof payload['logLevel'] === 'string') {
+        const valid = ['debug', 'info', 'warn', 'error'] as const;
+        if ((valid as readonly string[]).includes(payload['logLevel'])) {
+          logger.level = payload['logLevel'] as typeof valid[number];
+        }
+      }
+
+      // auditLevel — stored in context.meta by the generic loop above.
+      // Consumed by the session audit log system at session-close time.
+
+      // Broadcast the full current prefs snapshot to ALL clients.
+      broadcast(clients, { type: 'prefs.updated', payload: prefSnapshot() });
+    },
+  };
 
   shellGitRoutes = {
     gitInfo: async (ws) => {
