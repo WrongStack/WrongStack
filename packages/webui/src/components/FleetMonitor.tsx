@@ -34,6 +34,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ConcurrencyGauge, EventTimeline } from '@/components/ui';
 import { SparklineChart } from '@/components/ui/sparkline';
 import { cn } from '@/lib/utils';
+import { compareAgentsByActivity, tallyAgents } from '@/lib/agent-status';
 import type { SubagentView } from '@/stores';
 import { useFleetStore } from '@/stores';
 
@@ -504,11 +505,7 @@ export function FleetMonitor({
       // Leader first
       if (x.id === leaderId) return -1;
       if (y.id === leaderId) return 1;
-      // Running before done
-      const xa = x.status === 'running' ? 0 : 1;
-      const ya = y.status === 'running' ? 0 : 1;
-      if (xa !== ya) return xa - ya;
-      return x.startedAt - y.startedAt;
+      return compareAgentsByActivity(x, y);
     });
     return arr;
   }, [fleetAgents, leaderId]);
@@ -518,7 +515,7 @@ export function FleetMonitor({
     [fleetAgents],
   );
 
-  const runningCount = fleetList.filter((a) => a.status === 'running').length;
+  const runningCount = tallyAgents(fleetList).running;
   const selectedAgent = selectedIdx !== null ? fleetList[selectedIdx] : null;
 
   const handleAgentClick = useCallback(

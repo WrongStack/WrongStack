@@ -1,5 +1,6 @@
 import { cn } from '@/lib/utils';
 import { type SubagentView, useFleetStore } from '@/stores';
+import { compareAgentsByActivity, tallyAgents } from '@/lib/agent-status';
 import { Bot, Check, ChevronDown, ChevronRight, Clock, Copy, Cpu, Crown, Wrench, X, Zap } from 'lucide-react';
 import { useCallback, useMemo, useState } from 'react';
 import { SparklineChart } from '@/components/ui/sparkline';
@@ -419,12 +420,7 @@ export function FleetPanel({
 
   const list = useMemo(() => {
     const arr = Array.from(agents.values());
-    arr.sort((x, y) => {
-      const xa = x.status === 'running' ? 0 : 1;
-      const ya = y.status === 'running' ? 0 : 1;
-      if (xa !== ya) return xa - ya;
-      return x.startedAt - y.startedAt;
-    });
+    arr.sort(compareAgentsByActivity);
     return arr;
   }, [agents]);
 
@@ -432,9 +428,7 @@ export function FleetPanel({
 
   if (list.length === 0) return null;
 
-  const running = list.filter((a) => a.status === 'running');
-  const done = list.filter((a) => a.status === 'completed');
-  const failed = list.filter((a) => a.status === 'failed' || a.status === 'timeout');
+  const tally = tallyAgents(list);
   const totalCost = list.reduce((sum, a) => sum + (a.costUsd ?? 0), 0);
 
   // Auto-expand when small fleet; collapse when large
@@ -458,17 +452,17 @@ export function FleetPanel({
 
           {/* Compact summary pills */}
           <span className="flex items-center gap-1.5 ml-auto text-[10px]">
-            {running.length > 0 && (
+            {tally.running > 0 && (
               <span className="flex items-center gap-1 text-[hsl(var(--success))]">
                 <span className="led led-pulse text-[hsl(var(--success))]" />
-                {running.length}
+                {tally.running}
               </span>
             )}
-            {done.length > 0 && (
-              <span className="text-muted-foreground">{done.length} done</span>
+            {tally.completed > 0 && (
+              <span className="text-muted-foreground">{tally.completed} done</span>
             )}
-            {failed.length > 0 && (
-              <span className="text-destructive">{failed.length} err</span>
+            {tally.failed > 0 && (
+              <span className="text-destructive">{tally.failed} err</span>
             )}
             {totalCost > 0 && (
               <span className="tabular text-foreground/70">{fmtCost(totalCost)}</span>
