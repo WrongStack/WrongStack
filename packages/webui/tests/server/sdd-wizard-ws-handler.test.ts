@@ -114,6 +114,26 @@ describe('SddWizardWebSocketHandler (end-to-end message flow)', () => {
     expect(lastOfType(ws, 'sdd.run.started').payload.runId).toBe('run-xyz');
   });
 
+  it('forwards the run-config knobs (parallelSlots + worktrees) to startRun', async () => {
+    const { handler, startRunCalls } = makeHandler();
+    const ws = fakeWs();
+    handler.addClient(ws);
+
+    await handler.handleMessage({ type: 'sdd.spec.start', payload: { goal: 'OAuth login' } });
+    await handler.handleMessage({ type: 'sdd.spec.message', payload: { text: 'Google and GitHub' } });
+    await handler.handleMessage({ type: 'sdd.spec.approve', payload: {} });
+
+    // Start with explicit parallel slots + worktrees disabled.
+    await handler.handleMessage({
+      type: 'sdd.run.start',
+      payload: { parallelSlots: 8, worktrees: false },
+    });
+
+    expect(startRunCalls).toHaveLength(1);
+    expect(startRunCalls[0]?.opts.parallelSlots).toBe(8);
+    expect(startRunCalls[0]?.opts.worktrees).toBe(false);
+  });
+
   it('surfaces an error when starting a run with no spec', async () => {
     const { handler, startRunCalls } = makeHandler();
     const ws = fakeWs();
