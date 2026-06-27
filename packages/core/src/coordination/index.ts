@@ -193,12 +193,19 @@ export type {
   MailboxQuery,
   MailboxSendInput,
   MailboxAckInput,
+  MailboxAckBatchInput,
   MailboxAgentStatus,
   MailboxTaskContext,
   ReadReceipts,
   RegisteredAgent,
   AgentRegistrationInput,
   AgentHeartbeatInput,
+  ClientSource,
+  ClientStatus,
+  ClientRegistrationInput,
+  ClientHeartbeatInput,
+  PurgeOptions,
+  PurgeResult,
 } from './mailbox-types.js';
 // ── Dependency watcher — file-change → mailbox bridge ────────────────────
 export {
