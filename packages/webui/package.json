@@ -1,6 +1,6 @@
 {
   "name": "@wrongstack/webui",
-  "version": "0.274.0",
+  "version": "0.274.1",
   "license": "MIT",
   "description": "Browser-based WebUI for WrongStack — React + Vite frontend with WebSocket backend that drives the same agent kernel as the CLI/TUI.",
   "keywords": [

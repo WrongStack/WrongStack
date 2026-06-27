@@ -76,6 +76,14 @@ describe('ACPProtocolHandler', () => {
           loadSession: true,
           promptCapabilities: { image: false, audio: false, embeddedContext: true },
         },
+        authMethods: [
+          {
+            id: 'wrongstack-auth',
+            name: 'Run wstack auth',
+            type: 'terminal',
+            args: ['auth'],
+          },
+        ],
       });
     });
 

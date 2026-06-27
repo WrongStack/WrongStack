@@ -55,7 +55,16 @@ function toWire(msg: WireMessage): ACPMessage {
   return msg as never as ACPMessage;
 }
 
-export const WRONGSTACK_VERSION = '0.263.0';
+export const WRONGSTACK_VERSION = '0.274.1';
+const WRONGSTACK_AUTH_METHODS = [
+  {
+    id: 'wrongstack-auth',
+    name: 'Run wstack auth',
+    description: 'Configure a WrongStack model provider in an interactive terminal.',
+    type: 'terminal',
+    args: ['auth'],
+  },
+];
 
 /** What kinds of content the agent accepts in a prompt. */
 export interface PromptCapabilities {
@@ -292,7 +301,7 @@ export class ACPProtocolHandler {
         // Static options advertised at handshake. They are also
         // re-sent on every `current_mode_update` / `config_option_update`
         // notification so late-joining clients see them.
-        authMethods: [],
+        authMethods: WRONGSTACK_AUTH_METHODS,
         modes: this.modes,
         configOptions: this.configOptions,
       },

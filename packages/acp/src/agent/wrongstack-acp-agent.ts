@@ -20,10 +20,9 @@
  * a real core `Agent` (with the right provider, model, system prompt,
  * etc.) per session.
  *
- * Startup: prints the legacy `[wstack-acp]\n` marker (kept for backward
- * compatibility with the old `StdioTransport` handshake) so the client
- * knows the protocol boundary. v1 initialize is then sent by the client
- * and answered by `ACPProtocolHandler`.
+ * Startup: ACP v1 is newline-delimited JSON-RPC on stdout. The server
+ * therefore writes no non-JSON stdout by default. A legacy startup marker
+ * remains available for older internal harnesses via `legacyStartupMarker`.
  */
 import { fileURLToPath } from 'node:url';
 import { writeErr } from '@wrongstack/core';
@@ -47,11 +46,14 @@ export interface WrongStackACPServerOptions {
   defaultCwd?: string | undefined;
   /** Agent name advertised in initialize. */
   agentName?: string | undefined;
+  /** Emit the old non-standard startup marker. Defaults to false. */
+  legacyStartupMarker?: boolean | undefined;
 }
 
 export class WrongStackACPServer {
   private readonly transport: StdioTransport;
   private readonly handler: ACPProtocolHandler;
+  private readonly legacyStartupMarker: boolean;
   private running = false;
 
   constructor(opts: WrongStackACPServerOptions = {}) {
@@ -63,17 +65,18 @@ export class WrongStackACPServer {
       runTurn,
       agentName: opts.agentName,
     });
+    this.legacyStartupMarker = opts.legacyStartupMarker === true;
   }
 
   /**
    * Start the server. Blocks until the client disconnects.
    *
-   * 1. Print the legacy `[wstack-acp]\n` marker so the client knows the
-   *    process is the ACP server (the old `StdioTransport` handshake).
-   * 2. Loop: read messages, dispatch to the handler, until EOF / error.
+   * Loop: read JSON-RPC messages, dispatch to the handler, until EOF / error.
    */
   async start(): Promise<void> {
-    this.transport.sendStartupMarker();
+    if (this.legacyStartupMarker) {
+      this.transport.sendStartupMarker();
+    }
     this.running = true;
     while (this.running) {
       const msg = await this.transport.read();

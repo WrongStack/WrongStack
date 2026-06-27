@@ -1,6 +1,6 @@
 {
   "name": "@wrongstack/tui",
-  "version": "0.274.0",
+  "version": "0.274.1",
   "license": "MIT",
   "description": "WrongStack terminal UI: Ink-based interactive renderer with history, pickers, and slash menus.",
   "repository": {

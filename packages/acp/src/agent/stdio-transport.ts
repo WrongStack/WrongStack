@@ -5,8 +5,8 @@
  *   client → agent:  JSON-RPC request/notification on stdin
  *   agent  → client: JSON-RPC response/notification on stdout
  *
- * Start message: clients look for the `[wstack-acp]` marker on stdout before
- * treating subsequent lines as protocol messages.
+ * Legacy startup marker support remains for older internal harnesses, but
+ * standard ACP agents must not write non-JSON data to stdout.
  */
 import { expectDefined, writeErr } from '@wrongstack/core';
 import type { ACPMessage } from '../types/acp-messages.js';

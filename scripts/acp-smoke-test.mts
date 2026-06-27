@@ -5,14 +5,13 @@
 //
 // What this test does:
 //  1. spawn the server as a child process
-//  2. read the [wstack-acp]\n startup marker
-//  3. send initialize, assert protocolVersion=1 + agentCapabilities
-//  4. send session/new, assert sessionId is returned
-//  5. send session/prompt, collect any session/update notifications
+//  2. send initialize, assert protocolVersion=1 + agentCapabilities
+//  3. send session/new, assert sessionId is returned
+//  4. send session/prompt, collect any session/update notifications
 //     and assert the stopReason
-//  6. send session/cancel notification
-//  7. send exit notification
-//  8. close stdin, expect the process to exit cleanly
+//  5. send session/cancel notification
+//  6. send exit notification
+//  7. close stdin, expect the process to exit cleanly
 //
 // Run: node scripts/acp-smoke-test.mts (from repo root)
 //
@@ -28,6 +27,10 @@ import { fileURLToPath } from 'node:url';
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const serverEntry = join(__dirname, '..', 'packages', 'acp', 'dist', 'wrongstack-acp-agent.js');
 
+function writeError(message: string): void {
+  process.stderr.write(`${message}\n`);
+}
+
 let child;
 try {
   child = spawn(process.execPath, [serverEntry], {
@@ -35,31 +38,18 @@ try {
     windowsHide: true,
   });
 } catch (err) {
-  console.error('Failed to spawn server:', err);
+  writeError(`Failed to spawn server: ${err instanceof Error ? err.message : String(err)}`);
   process.exit(1);
 }
 
 let nextId = 1;
 const inflight = new Map<number, { resolve: (v: unknown) => void; reject: (e: Error) => void }>();
 const notifications: unknown[] = [];
-let initDone = false;
 
 let lineBuffer = '';
 child.stdout.setEncoding('utf8');
 child.stdout.on('data', (chunk: string) => {
-  // First chunk is the [wstack-acp]\n marker. Consume it.
-  if (!initDone) {
-    if (chunk.includes('[wstack-acp]\n')) {
-      initDone = true;
-      // Strip the marker and any prefix content, keep the rest
-      const after = chunk.split('[wstack-acp]\n')[1] ?? '';
-      lineBuffer += after;
-    } else {
-      lineBuffer += chunk;
-    }
-  } else {
-    lineBuffer += chunk;
-  }
+  lineBuffer += chunk;
   // Process complete JSON-RPC lines.
   let nlIdx = lineBuffer.indexOf('\n');
   while (nlIdx !== -1) {
@@ -71,7 +61,8 @@ child.stdout.on('data', (chunk: string) => {
       const msg = JSON.parse(line);
       handleMessage(msg);
     } catch (err) {
-      console.error('Non-JSON line from server:', line, err);
+      const detail = err instanceof Error ? err.message : String(err);
+      writeError(`Non-JSON line from server: ${line} ${detail}`);
     }
   }
 });
@@ -112,7 +103,7 @@ function sendNotification(method: string, params: unknown): void {
 
 function assert(cond: unknown, msg: string): void {
   if (!cond) {
-    console.error('FAIL:', msg);
+    writeError(`FAIL: ${msg}`);
     child.kill();
     process.exit(1);
   }
@@ -182,7 +173,7 @@ async function main(): Promise<void> {
     const timer = setTimeout(() => {
       if (settled) return;
       settled = true;
-      console.error('TIMEOUT: server did not exit within 5s');
+      writeError('TIMEOUT: server did not exit within 5s');
       child.kill();
       process.exit(1);
     }, 5000);
@@ -193,7 +184,7 @@ async function main(): Promise<void> {
 }
 
 main().catch((err) => {
-  console.error('Smoke test error:', err);
+  writeError(`Smoke test error: ${err instanceof Error ? err.message : String(err)}`);
   child.kill();
   process.exit(1);
 });

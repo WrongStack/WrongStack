@@ -60,7 +60,7 @@ describe('WrongStackACPServer', () => {
     expect(() => new WrongStackACPServer({ agentName: 'acme' })).not.toThrow();
   });
 
-  it('start sends the marker, dispatches messages, and stops at EOF', async () => {
+  it('start dispatches messages and stops at EOF without non-JSON stdout by default', async () => {
     const server = new WrongStackACPServer();
     const t = lastTransport();
     const handler = lastHandler();
@@ -71,9 +71,19 @@ describe('WrongStackACPServer', () => {
 
     await server.start();
 
-    expect(t.sendStartupMarker).toHaveBeenCalledTimes(1);
+    expect(t.sendStartupMarker).not.toHaveBeenCalled();
     expect(handler.handleMessage).toHaveBeenCalledTimes(2);
     expect(t.close).toHaveBeenCalledTimes(1);
+  });
+
+  it('can emit the legacy startup marker when explicitly requested', async () => {
+    const server = new WrongStackACPServer({ legacyStartupMarker: true });
+    const t = lastTransport();
+    t.read.mockResolvedValueOnce(null);
+
+    await server.start();
+
+    expect(t.sendStartupMarker).toHaveBeenCalledTimes(1);
   });
 
   it('start stops when the handler reports a terminal message', async () => {

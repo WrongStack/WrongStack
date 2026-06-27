@@ -1,6 +1,6 @@
 {
   "name": "wrongstack",
-  "version": "0.274.0",
+  "version": "0.274.1",
   "license": "MIT",
   "description": "WrongStack — terminal AI coding agent. Installs `wrongstack` and `wstack` binaries (re-export of @wrongstack/cli).",
   "keywords": [
