@@ -493,6 +493,7 @@ import { buildInitCommand } from './init.js';
 import { buildInterruptCommand } from './interrupt.js';
 import { buildMailboxCommand } from './mailbox.js';
 import { buildMailboxDemoCommand } from './mailbox-demo.js';
+import { buildMailboxServeCommand } from './mailbox-serve.js';
 import { buildMcpSlashCommand } from './mcp.js';
 import { buildMemoryCommand } from './memory.js';
 import { buildDesignCommand } from './design.js';
@@ -579,6 +580,7 @@ export function buildBuiltinSlashCommands(opts: SlashCommandContext): SlashComma
     buildDesignCommand(opts),
     buildMailboxDemoCommand(opts),
     buildMailboxCommand(opts),
+    buildMailboxServeCommand(opts),
     buildExitCommand(opts),
     buildFixCommand(opts),
     buildAutoPhaseCommand(opts),
