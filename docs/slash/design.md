@@ -41,9 +41,26 @@ Stacks: `web` · `react-native` · `flutter` · `swiftui` · `compose`.
 
 ## Bundled kits
 
-`minimal-clarity`, `soft-glass`, `neo-brutalist`, `editorial`, `bento-dashboard`,
-`dopamine-pop`, `aurora-gradient`, `corporate-trust`, `playful-rounded`, `dark-pro`,
-`ios-native`, `material-expressive`.
+**50 curated kits** ship bundled — run `/design` (or open the WebUI gallery) to
+browse them all. A sampling across the range:
+
+- **Product / UI:** `minimal-clarity`, `linear-dark`, `dark-pro`, `corporate-trust`,
+  `bento-dashboard`, `notion-docs`, `soft-glass`.
+- **Expressive / playful:** `dopamine-pop`, `playful-rounded`, `aurora-gradient`,
+  `pastel-dream`, `kids-bright`, `vaporwave`.
+- **Editorial / graphic:** `editorial`, `swiss-grid`, `grid-poster`, `monochrome`,
+  `luxury-serif`, `newspaper-print`, `dark-academia`.
+- **Bold / retro / themed:** `neo-brutalist`, `cyberpunk-neon`, `retro-terminal`,
+  `retro-70s`, `nordic-noir`, `liquid-metal`, `solarpunk`, `warm-organic`.
+- **Native:** `ios-native`, `material-expressive`.
+
+## Live preview gallery (WebUI)
+
+The WebUI Design Studio panel has a **Gallery** button that opens a full-page
+grid where every kit is rendered as a live light + dark mini-UI from its own
+`tokens.json` — so you can *see* each kit, search by name/tag, pick a target
+stack, and **Use** it to pin the live agent. (No code or model call needed to
+preview — it's styled entirely from the token snapshots.)
 
 ## Adding your own kits
 
