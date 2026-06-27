@@ -4,6 +4,16 @@
 node scripts/guard-against-corruption.mjs --verbose
 node scripts/lint-console-logging.mjs --verbose
 
+# ── Mailbox-bridge integrity ─────────────────────────────────────
+# If any mailbox-bridge source file is staged, run the route-table +
+# source-union guard. Cheap to skip when nothing relevant is staged.
+mb_staged=$(git diff --cached --name-only --diff-filter=ACM \
+  | grep -E '^packages/(cli/src/subcommands/(handlers/mailbox-serve\.ts|index\.ts)|core/src/(coordination/(mailbox-types|index)|hq/protocol))\.ts$' \
+  || true)
+if [ -n "$mb_staged" ]; then
+  node scripts/guard-mailbox-bridge.mjs --verbose
+fi
+
 # ── Typecheck gate ───────────────────────────────────────────────────
 # Catches stale `@wrongstack/*` dist/ before the commit lands.
 #
