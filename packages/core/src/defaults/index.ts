@@ -158,6 +158,7 @@ export {
   makeDesignDetectUserInputMiddleware,
   makeDesignStudioRequestMiddleware,
   setActiveKit,
+  setDesignOverrides,
 } from '../execution/design-detect.js';
 export {
   _resetDesignKitLoaderMemo,
@@ -167,13 +168,31 @@ export {
   resolveBundledDesignKitsDir,
 } from '../execution/design-kit-loader.js';
 export {
+  colorToHex,
+  isColorToken,
+  oklchToHex,
+  parseOklch,
+} from '../execution/design-color.js';
+export {
+  type MaterializeResult,
+  materializeTokens,
+} from '../execution/design-materialize.js';
+export {
+  type DesignVerifyReport,
+  type DesignViolation,
+  verifyFiles,
+} from '../execution/design-verify.js';
+export {
   _resetDesignRulesCache,
+  applyTokenOverrides,
   clearPersistedActiveKit,
   designProjectDir,
+  type DesignOverrides,
   loadActiveKit,
   loadProjectDesignRules,
   type PersistedActiveKit,
   recordKitChoice,
+  recordOverrides,
 } from '../execution/design-project-store.js';
 export { DefaultErrorHandler } from '../execution/error-handler.js';
 export {

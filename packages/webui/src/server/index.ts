@@ -68,6 +68,8 @@ import {
 } from './skills-handlers.js';
 import {
   handleDesignList,
+  handleDesignMaterialize,
+  handleDesignSet,
   handleDesignUse,
   handleDesignState,
 } from './design-handlers.js';
@@ -348,6 +350,8 @@ export {
 export {
   type DesignContext,
   handleDesignList,
+  handleDesignMaterialize,
+  handleDesignSet,
   handleDesignUse,
   handleDesignState,
 } from './design-handlers.js';
@@ -2086,6 +2090,12 @@ export async function startWebUI(
         break;
       case 'design.state':
         await handleDesignState(ws, { projectRoot, agentMeta: context });
+        break;
+      case 'design.set':
+        await handleDesignSet(ws, { projectRoot, agentMeta: context }, msg);
+        break;
+      case 'design.materialize':
+        await handleDesignMaterialize(ws, { projectRoot, agentMeta: context }, msg);
         break;
 
       case 'diag.get': {

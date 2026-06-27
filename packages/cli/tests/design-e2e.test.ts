@@ -97,4 +97,39 @@ describe('Design Studio — end-to-end (built packages)', () => {
     const out2 = await inject.handler(baseReq, async (r) => r);
     expect(out2.system[1].text).toMatch(/Active design kit: cyberpunk-neon/);
   });
+
+  it('set override → materialize writes a real theme file → verify flags drift', async () => {
+    const sigCtx = { signal: new AbortController().signal };
+    const ctx = { projectRoot: root, meta: {} } as any;
+
+    // Pin a kit for web.
+    await designTool.execute({ action: 'use', kit: 'minimal-clarity', stack: 'web' }, ctx, sigCtx);
+
+    // Override the primary color (structured).
+    const setRes = await designTool.execute(
+      { action: 'set', set: { primary: 'oklch(62.79% 0.2577 29.23)' } },
+      ctx,
+      sigCtx,
+    );
+    expect(setRes.output).toMatch(/primary=/);
+
+    // Materialize → writes a CSS file carrying the overridden token.
+    const mat = await designTool.execute(
+      { action: 'materialize', stack: 'web', out: 'src/styles/tokens.css' },
+      ctx,
+      sigCtx,
+    );
+    expect(mat.path).toBe('src/styles/tokens.css');
+    const css = await fs.readFile(path.join(root, 'src/styles/tokens.css'), 'utf8');
+    expect(css).toContain(':root');
+    expect(css).toContain('@theme inline');
+    expect(css).toContain('--primary: oklch(62.79% 0.2577 29.23)'); // override won
+
+    // Verify: an off-palette file is flagged; the materialized vars are clean.
+    await fs.writeFile(path.join(root, 'bad.css'), '.x { color: #123456; background: #abcdef; }');
+    const ver = await designTool.execute({ action: 'verify', files: ['bad.css'] }, ctx, sigCtx);
+    expect(ver.violations).toBeGreaterThanOrEqual(2);
+    expect((ver.score ?? 1) < 1).toBe(true);
+    expect(ver.output).toMatch(/off-palette/);
+  });
 });

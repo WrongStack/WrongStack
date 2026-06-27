@@ -66,11 +66,22 @@ export function setActiveKit(
   ctx: { meta: Record<string, unknown> },
   kitId: string,
   stack?: DesignStack,
+  overrides?: Record<string, string> | undefined,
 ): void {
   const s = ensureState(ctx);
   s.active = true;
   s.activeKit = kitId;
   if (stack) s.stack = stack;
+  if (overrides !== undefined) s.overrides = overrides;
+}
+
+/** Merge color/token overrides into the live state (used by `design set`). */
+export function setDesignOverrides(
+  ctx: { meta: Record<string, unknown> },
+  overrides: Record<string, string>,
+): void {
+  const s = ensureState(ctx);
+  s.overrides = { ...(s.overrides ?? {}), ...overrides };
 }
 
 /** Clear the active kit (e.g. `/design off`), leaving detection state intact. */
@@ -210,10 +221,17 @@ export function makeDesignStudioRequestMiddleware(deps: {
 
       let text: string;
       if (state.activeKit) {
+        const ov =
+          state.overrides && Object.keys(state.overrides).length > 0
+            ? `\nUser color overrides (these WIN over kit tokens): ${Object.entries(state.overrides)
+                .map(([k, v]) => `${k}=${v}`)
+                .join(', ')}.`
+            : '';
         text =
           `## Active design kit: ${state.activeKit}\n` +
           `Adhere strictly to its tokens, components, and patterns. Keep light/dark + ` +
-          `responsive + WCAG AA. Re-load the full spec with \`design use ${state.activeKit}\` if unsure.`;
+          `responsive + WCAG AA. Re-load the full spec with \`design use ${state.activeKit}\` if unsure.` +
+          `${ov}`;
       } else {
         const menu = await loader.menuText().catch(() => '');
         const stackLine = state.stack ? ` (detected stack: ${state.stack})` : '';
@@ -280,7 +298,7 @@ export function installDesignStudioMiddleware(deps: {
       if (persisted && !getDesignState(deps.ctx)?.activeKit) {
         const stack =
           persisted.stack && isDesignStack(persisted.stack) ? persisted.stack : undefined;
-        setActiveKit(deps.ctx, persisted.kit, stack);
+        setActiveKit(deps.ctx, persisted.kit, stack, persisted.overrides);
       }
     })
     .catch(() => {

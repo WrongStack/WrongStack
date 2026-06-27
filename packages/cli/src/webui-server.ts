@@ -115,6 +115,8 @@ import {
   type SkillsContext,
   type DesignContext,
   handleDesignList,
+  handleDesignMaterialize,
+  handleDesignSet,
   handleDesignUse,
   handleDesignState,
   verifyClient as verifyWsClient,
@@ -2196,6 +2198,8 @@ export async function runWebUI(opts: CliWebUIOptions): Promise<void> {
     'design.list': (_msg, ws) => handleDesignList(ws, designCtx),
     'design.use': (msg, ws) => handleDesignUse(ws, designCtx, msg),
     'design.state': (_msg, ws) => handleDesignState(ws, designCtx),
+    'design.set': (msg, ws) => handleDesignSet(ws, designCtx, msg),
+    'design.materialize': (msg, ws) => handleDesignMaterialize(ws, designCtx, msg),
 
     // ── Projects / working dir ──
     'projects.list': (_msg, ws) => handleProjectsList(projectsCtx, ws),

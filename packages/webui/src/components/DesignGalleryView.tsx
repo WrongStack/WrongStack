@@ -1,19 +1,23 @@
 /**
  * DesignGalleryView — a live preview gallery of every design kit.
  *
- * For each kit it renders a small representative "mini-app" sample styled inline
- * from the kit's own tokens (the same `light`/`dark` token sets sent by the
- * `design.list` WS message), in both light and dark, so you can see — not just
- * read — what each kit looks like. "Use" pins the kit on the live agent.
+ * Each kit renders as a small "mini-app" styled inline from its own `light`/
+ * `dark` token sets (sent by `design.list`), so you can SEE each kit, not just
+ * read it. "Use" pins the kit on the live agent. For the active kit you can also
+ * tweak its colors live (`design.set` overrides) and write the resulting tokens
+ * to a real theme file (`design.materialize`) — so the palette becomes the
+ * codebase's source of truth, not just a prompt hint.
  */
 
-import { Check, Palette, X } from 'lucide-react';
+import { Check, Download, Palette, X } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useWebSocket } from '@/hooks/useWebSocket';
+import { colorToHex } from '@/lib/color';
 import { cn } from '@/lib/utils';
 import { useUIStore } from '@/stores/ui-store';
 
 type Tokens = Record<string, string>;
+type ThemeName = 'light' | 'dark';
 interface Kit {
   id: string;
   name: string;
@@ -26,6 +30,22 @@ interface Kit {
 }
 
 const STACKS = ['web', 'react-native', 'flutter', 'swiftui', 'compose'] as const;
+const EDITABLE = ['primary', 'accent', 'bg', 'surface', 'fg', 'border'] as const;
+
+/** Overlay overrides onto one theme's tokens (bare key = both themes; `light.`/`dark.` scoped). */
+function applyOv(base: Tokens, overrides: Tokens, theme: ThemeName): Tokens {
+  const out = { ...base };
+  for (const [k, v] of Object.entries(overrides)) {
+    if (k.startsWith('light.')) {
+      if (theme === 'light') out[k.slice(6)] = v;
+    } else if (k.startsWith('dark.')) {
+      if (theme === 'dark') out[k.slice(5)] = v;
+    } else {
+      out[k] = v;
+    }
+  }
+  return out;
+}
 
 /** A small fake UI rendered purely from a kit's token set. */
 function KitPreview({ t, label }: { t: Tokens; label: string }) {
@@ -95,31 +115,107 @@ function KitPreview({ t, label }: { t: Tokens; label: string }) {
   );
 }
 
+/** Per-theme color editor for the active kit — sets `<theme>.<token>` overrides. */
+function ColorEditor({
+  kit,
+  overrides,
+  onSet,
+}: {
+  kit: Kit;
+  overrides: Tokens;
+  onSet: (key: string, hex: string) => void;
+}) {
+  const [theme, setTheme] = useState<ThemeName>('light');
+  const merged = applyOv(theme === 'light' ? kit.light : kit.dark, overrides, theme);
+  return (
+    <div className="mt-1 rounded-lg border border-border/60 p-2 bg-muted/30">
+      <div className="flex items-center gap-2 mb-1.5">
+        <span className="text-[10px] font-semibold uppercase text-muted-foreground">Colors</span>
+        <div className="ml-auto inline-flex rounded border border-border/60 overflow-hidden">
+          {(['light', 'dark'] as ThemeName[]).map((th) => (
+            <button
+              key={th}
+              type="button"
+              onClick={() => setTheme(th)}
+              className={cn(
+                'text-[10px] px-1.5 py-0.5',
+                theme === th ? 'bg-primary text-primary-foreground' : 'text-muted-foreground',
+              )}
+            >
+              {th}
+            </button>
+          ))}
+        </div>
+      </div>
+      <div className="flex flex-wrap gap-2">
+        {EDITABLE.filter((tok) => merged[tok]).map((tok) => {
+          const hex = colorToHex(merged[tok] ?? '') ?? '#000000';
+          return (
+            <label
+              key={tok}
+              className="flex flex-col items-center gap-0.5"
+              title={`${tok}: ${merged[tok]}`}
+            >
+              <input
+                type="color"
+                value={hex}
+                onChange={(e) => onSet(`${theme}.${tok}`, e.target.value)}
+                className="w-6 h-6 rounded cursor-pointer bg-transparent border border-border/60 p-0"
+              />
+              <span className="text-[8px] text-muted-foreground">{tok}</span>
+            </label>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 export function DesignGalleryView({ className }: { className?: string }) {
   const { client } = useWebSocket();
   const setCurrentView = useUIStore((s) => s.setCurrentView);
   const [kits, setKits] = useState<Kit[]>([]);
   const [activeKit, setActiveKit] = useState<string | null>(null);
+  const [overrides, setOverrides] = useState<Tokens>({});
   const [stack, setStack] = useState<string>('web');
   const [q, setQ] = useState('');
+  const [status, setStatus] = useState<string | null>(null);
 
   useEffect(() => {
     if (!client) return;
     const onList = (msg: unknown) => {
-      const p = (msg as { payload?: { kits?: Kit[]; activeKit?: string | null } }).payload;
+      const p = (
+        msg as { payload?: { kits?: Kit[]; activeKit?: string | null; overrides?: Tokens } }
+      ).payload;
       setKits(p?.kits ?? []);
       setActiveKit(p?.activeKit ?? null);
+      setOverrides(p?.overrides ?? {});
     };
     const onUse = (msg: unknown) => {
-      const p = (msg as { payload?: { ok?: boolean; kit?: string } }).payload;
-      if (p?.ok && p.kit) setActiveKit(p.kit);
+      const p = (msg as { payload?: { ok?: boolean; kit?: string; overrides?: Tokens } }).payload;
+      if (p?.ok && p.kit) {
+        setActiveKit(p.kit);
+        setOverrides(p.overrides ?? {});
+      }
+    };
+    const onSet = (msg: unknown) => {
+      const p = (msg as { payload?: { ok?: boolean; overrides?: Tokens } }).payload;
+      if (p?.ok && p.overrides) setOverrides(p.overrides);
+    };
+    const onMat = (msg: unknown) => {
+      const p = (msg as { payload?: { ok?: boolean; path?: string; error?: string } }).payload;
+      setStatus(p?.ok ? `Wrote ${p.path}` : `Materialize failed: ${p?.error ?? 'error'}`);
     };
     client.on('design.list', onList);
     client.on('design.use', onUse);
+    client.on('design.set', onSet);
+    client.on('design.materialize', onMat);
     client.send({ type: 'design.list' });
     return () => {
       client.off('design.list', onList);
       client.off('design.use', onUse);
+      client.off('design.set', onSet);
+      client.off('design.materialize', onMat);
     };
   }, [client]);
 
@@ -127,6 +223,20 @@ export function DesignGalleryView({ className }: { className?: string }) {
     (id: string) => client?.send({ type: 'design.use', payload: { kit: id, stack } }),
     [client, stack],
   );
+
+  // Optimistic override update + persist to the server for the active kit.
+  const setOverride = useCallback(
+    (key: string, hex: string) => {
+      setOverrides((prev) => ({ ...prev, [key]: hex }));
+      client?.send({ type: 'design.set', payload: { overrides: { [key]: hex } } });
+    },
+    [client],
+  );
+
+  const materialize = useCallback(() => {
+    setStatus('Writing theme file…');
+    client?.send({ type: 'design.materialize', payload: { stack } });
+  }, [client, stack]);
 
   const filtered = useMemo(() => {
     const needle = q.trim().toLowerCase();
@@ -158,7 +268,7 @@ export function DesignGalleryView({ className }: { className?: string }) {
           value={stack}
           onChange={(e) => setStack(e.target.value)}
           className="text-xs bg-transparent border border-border/60 rounded px-1.5 py-1"
-          title="Stack applied when you click Use"
+          title="Stack for Use + Materialize"
         >
           {STACKS.map((s) => (
             <option key={s} value={s}>
@@ -166,6 +276,9 @@ export function DesignGalleryView({ className }: { className?: string }) {
             </option>
           ))}
         </select>
+        {status && (
+          <span className="text-[11px] text-muted-foreground max-w-48 truncate">{status}</span>
+        )}
         <button
           type="button"
           onClick={() => setCurrentView('chat')}
@@ -180,6 +293,7 @@ export function DesignGalleryView({ className }: { className?: string }) {
         <div className="grid gap-4 [grid-template-columns:repeat(auto-fill,minmax(300px,1fr))]">
           {filtered.map((kit) => {
             const isActive = activeKit === kit.id;
+            const ov = isActive ? overrides : {};
             return (
               <div
                 key={kit.id}
@@ -188,10 +302,10 @@ export function DesignGalleryView({ className }: { className?: string }) {
                   isActive ? 'border-primary/60 ring-1 ring-primary/40' : 'border-border/60',
                 )}
               >
-                {/* Live light + dark previews from the kit's own tokens */}
+                {/* Live light + dark previews (override-applied for the active kit) */}
                 <div className="grid grid-cols-2">
-                  <KitPreview t={kit.light} label="Light" />
-                  <KitPreview t={kit.dark} label="Dark" />
+                  <KitPreview t={applyOv(kit.light, ov, 'light')} label="Light" />
+                  <KitPreview t={applyOv(kit.dark, ov, 'dark')} label="Dark" />
                 </div>
                 <div className="p-3 border-t border-border/60 flex flex-col gap-1.5 bg-card">
                   <div className="flex items-center gap-1.5">
@@ -217,10 +331,21 @@ export function DesignGalleryView({ className }: { className?: string }) {
                     >
                       {isActive ? 'Reapply' : 'Use'}
                     </button>
+                    {isActive && (
+                      <button
+                        type="button"
+                        onClick={materialize}
+                        className="inline-flex items-center gap-1 text-[11px] px-2 py-1 rounded font-medium border border-border/60 hover:bg-muted"
+                        title={`Write tokens to a ${stack} theme file`}
+                      >
+                        <Download className="w-3 h-3" /> Materialize
+                      </button>
+                    )}
                     <span className="text-[10px] text-muted-foreground truncate">
                       {kit.bestFor}
                     </span>
                   </div>
+                  {isActive && <ColorEditor kit={kit} overrides={ov} onSet={setOverride} />}
                 </div>
               </div>
             );

@@ -460,6 +460,7 @@ export interface WSDesignList {
     kits: WSDesignKitSummary[];
     activeKit: string | null;
     stack: string | null;
+    overrides?: Record<string, string> | undefined;
     error?: string | undefined;
   };
 }
@@ -473,6 +474,7 @@ export interface WSDesignUse {
     aesthetic?: string | undefined;
     stack?: string | undefined;
     body?: string | undefined;
+    overrides?: Record<string, string> | undefined;
     light?: Record<string, string> | undefined;
     dark?: Record<string, string> | undefined;
     error?: string | undefined;
@@ -484,6 +486,27 @@ export interface WSDesignState {
   payload: {
     activeKit: string | null;
     stack: string | null;
+    overrides?: Record<string, string> | undefined;
+  };
+}
+
+export interface WSDesignSet {
+  type: 'design.set';
+  payload: {
+    ok: boolean;
+    overrides?: Record<string, string> | undefined;
+    error?: string | undefined;
+  };
+}
+
+export interface WSDesignMaterialize {
+  type: 'design.materialize';
+  payload: {
+    ok: boolean;
+    path?: string | undefined;
+    format?: string | undefined;
+    stack?: string | undefined;
+    error?: string | undefined;
   };
 }
 
@@ -1080,8 +1103,16 @@ export type WSClientMessage =
   | { type: 'skills.edit'; payload: { name: string; body: string } }
   // ── Design Studio client messages ────────────────────────────────────────────
   | { type: 'design.list' }
-  | { type: 'design.use'; payload: { kit: string; stack?: string | undefined } }
+  | {
+      type: 'design.use';
+      payload: { kit: string; stack?: string | undefined; overrides?: Record<string, string> | undefined };
+    }
   | { type: 'design.state' }
+  | { type: 'design.set'; payload: { overrides: Record<string, string> } }
+  | {
+      type: 'design.materialize';
+      payload?: { stack?: string | undefined; out?: string | undefined } | undefined;
+    }
   // ── MCP client messages (requests to server) ─────────────────────────────────
   | { type: 'mcp.list' }
   | { type: 'mcp.add'; payload: { name: string; transport: string; description?: string; enabled?: boolean; command?: string; args?: string[]; env?: Record<string, string>; allowedTools?: string[] } }
@@ -1143,6 +1174,8 @@ export type WSServerMessage =
   | WSDesignList
   | WSDesignUse
   | WSDesignState
+  | WSDesignSet
+  | WSDesignMaterialize
   | WSSkillsInstalled
   | WSSkillsUninstalled
   | WSSkillsUpdated

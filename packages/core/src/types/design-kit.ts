@@ -73,6 +73,12 @@ export interface DesignStudioState {
   signals: string[];
   /** Kit id the model/user committed to, if any. */
   activeKit?: string | undefined;
+  /**
+   * User color/token overrides applied over the active kit's tokens. Keys are
+   * token names (`primary`) applied to both themes, or theme-scoped
+   * (`light.bg`/`dark.bg`). See `applyTokenOverrides`.
+   */
+  overrides?: Record<string, string> | undefined;
 }
 
 export interface DesignKitLoader {
