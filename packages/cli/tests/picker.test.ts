@@ -1,7 +1,16 @@
 import { Writable } from 'node:stream';
 import type { ModelsDevModel, ResolvedProvider } from '@wrongstack/core';
 import { describe, expect, it, vi } from 'vitest';
-import { runPicker, saveToGlobalConfig } from '../src/picker.js';
+import {
+  applyPickerKey,
+  filterModels,
+  filterProviders,
+  type ProviderPickerState,
+  renderLiveModelList,
+  renderLiveProviderList,
+  runPicker,
+  saveToGlobalConfig,
+} from '../src/picker.js';
 import { TerminalRenderer } from '../src/renderer.js';
 
 class CapStream extends Writable {
@@ -233,10 +242,7 @@ describe('runPicker', () => {
     const { renderer, err } = mkRig();
     const providers = [
       fakeProvider({
-        models: [
-          fakeModel({ id: 'claude-opus-4' }),
-          fakeModel({ id: 'claude-sonnet-4' }),
-        ],
+        models: [fakeModel({ id: 'claude-opus-4' }), fakeModel({ id: 'claude-sonnet-4' })],
       }),
     ];
     // 'claude' matches both — should print an error and return undefined
@@ -331,6 +337,53 @@ describe('runPicker', () => {
     expect(err.buf).toMatch(/No models listed/);
   });
 
+  it('renders providers within each family in alphabetical (case-insensitive) order', async () => {
+    const { renderer, out } = mkRig();
+    // Same family, deliberately non-alphabetical and mixed-case to pin
+    // case-insensitive ordering. Without sorting these would render in
+    // insertion order (zzz-last, aaa-first, Mmm-mid).
+    const providers = [
+      fakeProvider({
+        id: 'zzz-last',
+        name: 'ZZZ',
+        family: 'openai-compatible',
+        envVars: [],
+        models: [fakeModel({ id: 'm1' })],
+      }),
+      fakeProvider({
+        id: 'aaa-first',
+        name: 'AAA',
+        family: 'openai-compatible',
+        envVars: [],
+        models: [fakeModel({ id: 'm1' })],
+      }),
+      fakeProvider({
+        id: 'Mmm-mid',
+        name: 'MMM',
+        family: 'openai-compatible',
+        envVars: [],
+        models: [fakeModel({ id: 'm1' })],
+      }),
+      fakeProvider({
+        id: 'anthropic',
+        name: 'Anthropic',
+        family: 'anthropic',
+        envVars: ['ANTHROPIC_API_KEY'],
+        models: [fakeModel()],
+      }),
+    ];
+    // Cancel at the provider prompt; the provider list is already rendered.
+    const reader = fakeReader(['']);
+    const registry = fakeRegistry(providers);
+    await runPicker({ modelsRegistry: registry as never, renderer, reader: reader as never });
+
+    const pos = (id: string) => out.buf.indexOf(id);
+    expect(pos('aaa-first')).toBeGreaterThan(-1);
+    // Case-insensitive alphabetical: aaa-first < Mmm-mid < zzz-last
+    expect(pos('aaa-first')).toBeLessThan(pos('Mmm-mid'));
+    expect(pos('Mmm-mid')).toBeLessThan(pos('zzz-last'));
+  });
+
   it('matches provider by id string', async () => {
     const { renderer } = mkRig();
     const providers = [
@@ -354,6 +407,257 @@ describe('runPicker', () => {
     expect(result).toBeDefined();
     expect(result!.provider).toBe('openai');
     expect(result!.model).toBe('gpt-4o');
+  });
+});
+
+describe('filterProviders', () => {
+  const sample = [
+    fakeProvider({ id: 'anthropic', name: 'Anthropic', family: 'anthropic', envVars: [] }),
+    fakeProvider({
+      id: 'google-vertex-anthropic',
+      name: 'Vertex (Anthropic)',
+      family: 'anthropic',
+      envVars: [],
+    }),
+    fakeProvider({ id: 'openai', name: 'OpenAI', family: 'openai', envVars: ['OPENAI_API_KEY'] }),
+    fakeProvider({
+      id: 'openrouter',
+      name: 'OpenRouter',
+      family: 'openai-compatible',
+      envVars: [],
+    }),
+    fakeProvider({ id: 'kimi', name: 'Kimi For Coding', family: 'anthropic', envVars: [] }),
+  ];
+
+  it('returns all providers when the query is empty or whitespace', () => {
+    expect(filterProviders('', sample)).toHaveLength(sample.length);
+    expect(filterProviders('   ', sample)).toHaveLength(sample.length);
+  });
+
+  it('matches by id substring (case-insensitive)', () => {
+    expect(filterProviders('anthr', sample).map((p) => p.id)).toEqual([
+      'anthropic',
+      'google-vertex-anthropic',
+    ]);
+  });
+
+  it('matches by name substring when the id does not contain the query', () => {
+    // "coding" is in the name "Kimi For Coding" but not in the id "kimi".
+    expect(filterProviders('coding', sample).map((p) => p.id)).toEqual(['kimi']);
+  });
+
+  it('matches id or name as a union, preserving input order', () => {
+    expect(filterProviders('open', sample).map((p) => p.id)).toEqual(['openai', 'openrouter']);
+  });
+
+  it('is case-insensitive', () => {
+    expect(filterProviders('KIMI', sample).map((p) => p.id)).toEqual(['kimi']);
+  });
+
+  it('returns an empty list when nothing matches', () => {
+    expect(filterProviders('zzz-nope', sample)).toEqual([]);
+  });
+});
+
+describe('filterModels', () => {
+  const models = [
+    fakeModel({ id: 'glm-5.2', name: 'GLM 5.2' }),
+    fakeModel({ id: 'glm-4.5-air', name: 'GLM 4.5 Air' }),
+    fakeModel({ id: 'special-1', name: 'Special Model' }),
+  ];
+
+  it('returns all models when the query is empty', () => {
+    expect(filterModels('', models)).toHaveLength(models.length);
+  });
+
+  it('matches by id substring (case-insensitive)', () => {
+    expect(filterModels('GLM', models).map((m) => m.id)).toEqual(['glm-5.2', 'glm-4.5-air']);
+  });
+
+  it('matches by name substring when the id does not contain the query', () => {
+    expect(filterModels('special', models).map((m) => m.id)).toEqual(['special-1']);
+  });
+
+  it('returns an empty list when nothing matches', () => {
+    expect(filterModels('zzz-nope', models)).toEqual([]);
+  });
+});
+
+describe('renderLiveModelList', () => {
+  const models = [
+    fakeModel({
+      id: 'glm-4.5-air',
+      name: 'GLM 4.5 Air',
+      release_date: '2025-01-01',
+      limit: { context: 131000, output: 8192 },
+      cost: { input: 0, output: 0 },
+      tool_call: true,
+      reasoning: true,
+    }),
+    fakeModel({
+      id: 'glm-5.2',
+      name: 'GLM 5.2',
+      release_date: '2026-06-01',
+      limit: { context: 1000000, output: 8192 },
+      cost: { input: 0, output: 0 },
+      tool_call: true,
+      reasoning: true,
+    }),
+    fakeModel({
+      id: 'glm-5v-turbo',
+      name: 'GLM 5V Turbo',
+      release_date: '2026-05-01',
+      modalities: { input: ['text', 'image'], output: ['text'] },
+      tool_call: true,
+      reasoning: true,
+    }),
+  ];
+  const header = 'Z.AI Coding Plan (zai-coding-plan) models:';
+
+  it('sorts by release_date desc (newest first)', () => {
+    const out = renderLiveModelList('', models, 0, header);
+    expect(out.indexOf('glm-5.2')).toBeLessThan(out.indexOf('glm-5v-turbo'));
+    expect(out.indexOf('glm-5v-turbo')).toBeLessThan(out.indexOf('glm-4.5-air'));
+  });
+
+  it('echoes the query and the provider header', () => {
+    const out = renderLiveModelList('5.2', filterModels('5.2', models), 0, header);
+    expect(out).toContain('Select model: 5.2');
+    expect(out).toContain(header);
+  });
+
+  it('marks only the selected model with the cursor', () => {
+    // sorted desc: [glm-5.2, glm-5v-turbo, glm-4.5-air]; index 0 = glm-5.2
+    const out = renderLiveModelList('', models, 0, header);
+    const lines = out.split('\n');
+    expect(lines.find((l) => l.includes('glm-5.2'))).toMatch(/▶/);
+    expect(lines.find((l) => l.includes('glm-5v-turbo'))).not.toMatch(/▶/);
+  });
+
+  it('caps the list to a visible window with a "more" hint when results exceed it', () => {
+    const many = Array.from({ length: 20 }, (_, i) =>
+      fakeModel({ id: `model-${String(i + 1).padStart(2, '0')}`, name: `Model ${i}` }),
+    );
+    const out = renderLiveModelList('', many, 0, header);
+    expect(out).toContain('model-15');
+    expect(out).not.toContain('model-16');
+    expect(out).toMatch(/more/i);
+  });
+});
+
+describe('applyPickerKey', () => {
+  const st = (
+    query = '',
+    selected = 0,
+    status: ProviderPickerState['status'] = 'typing',
+  ): ProviderPickerState => ({ query, selected, status });
+
+  it('appends a printable char to the query and resets selection', () => {
+    expect(applyPickerKey(st('a', 3), 'b', 5)).toEqual(st('ab', 0));
+  });
+
+  it('appends a pasted run of chars', () => {
+    expect(applyPickerKey(st(), 'abc', 5)).toEqual(st('abc', 0));
+  });
+
+  it('erases one char on backspace and resets selection', () => {
+    expect(applyPickerKey(st('ab', 2), '\x7f', 5)).toEqual(st('a', 0));
+  });
+
+  it('keeps an empty query on backspace', () => {
+    expect(applyPickerKey(st(''), '\x7f', 5)).toEqual(st(''));
+  });
+
+  it('clears the whole query on Ctrl+U', () => {
+    expect(applyPickerKey(st('abc', 2), '\x15', 5)).toEqual(st('', 0));
+  });
+
+  it('clears the whole query on lone Esc', () => {
+    expect(applyPickerKey(st('abc', 2), '\x1b', 5)).toEqual(st('', 0));
+  });
+
+  it('moves selection up on Up arrow, clamped at top', () => {
+    expect(applyPickerKey(st('x', 2), '\x1b[A', 5).selected).toBe(1);
+    expect(applyPickerKey(st('x', 0), '\x1b[A', 5).selected).toBe(0);
+  });
+
+  it('moves selection down on Down arrow, clamped at bottom', () => {
+    expect(applyPickerKey(st('x', 1), '\x1b[B', 5).selected).toBe(2);
+    expect(applyPickerKey(st('x', 4), '\x1b[B', 5).selected).toBe(4);
+  });
+
+  it('submits on Enter when matches exist', () => {
+    expect(applyPickerKey(st('x', 1), '\r', 3).status).toBe('submitted');
+    expect(applyPickerKey(st('x', 1), '\n', 3).status).toBe('submitted');
+  });
+
+  it('ignores Enter when there are zero matches', () => {
+    expect(applyPickerKey(st('zzz', 0), '\r', 0).status).toBe('typing');
+  });
+
+  it('cancels on Ctrl+C', () => {
+    expect(applyPickerKey(st('x', 1), '\x03', 5).status).toBe('cancelled');
+  });
+
+  it('ignores other escape sequences (e.g. left/right arrows)', () => {
+    expect(applyPickerKey(st('x', 2), '\x1b[C', 5)).toEqual(st('x', 2));
+  });
+});
+
+describe('renderLiveProviderList', () => {
+  const list = [
+    fakeProvider({ id: 'zzz-gw', name: 'ZZZ Gateway', family: 'openai-compatible', envVars: [] }),
+    fakeProvider({ id: 'aaa-gw', name: 'AAA Gateway', family: 'openai-compatible', envVars: [] }),
+    fakeProvider({ id: 'anthropic', name: 'Anthropic', family: 'anthropic', envVars: [] }),
+    fakeProvider({ id: 'openai', name: 'OpenAI', family: 'openai', envVars: [] }),
+    fakeProvider({ id: 'google', name: 'Google', family: 'google', envVars: [] }),
+  ];
+
+  it('groups families in preferred order then the rest', () => {
+    const out = renderLiveProviderList('', list, 0);
+    const pos = (id: string) => out.indexOf(id);
+    expect(pos('anthropic')).toBeLessThan(pos('openai'));
+    expect(pos('openai')).toBeLessThan(pos('google'));
+    expect(pos('google')).toBeLessThan(pos('aaa-gw'));
+  });
+
+  it('sorts within each family alphabetically by id', () => {
+    const out = renderLiveProviderList('', list, 0);
+    expect(out.indexOf('aaa-gw')).toBeLessThan(out.indexOf('zzz-gw'));
+  });
+
+  it('echoes the current query in the prompt line', () => {
+    expect(renderLiveProviderList('anthr', list, 0)).toContain('Select provider: anthr');
+  });
+
+  it('marks only the selected provider with the cursor', () => {
+    const out = renderLiveProviderList('gw', filterProviders('gw', list), 1);
+    const lines = out.split('\n');
+    const sel = lines.find((l) => l.includes('zzz-gw'));
+    const other = lines.find((l) => l.includes('aaa-gw'));
+    expect(sel).toMatch(/▶/);
+    expect(other).not.toMatch(/▶/);
+  });
+
+  it('renders every provider when the query is empty', () => {
+    const out = renderLiveProviderList('', list, 0);
+    for (const p of list) expect(out).toContain(p.id);
+  });
+
+  it('caps the list to a visible window with a "more" hint when results exceed it', () => {
+    const many = Array.from({ length: 25 }, (_, i) =>
+      fakeProvider({
+        id: `prov-${String(i).padStart(2, '0')}`,
+        name: `Prov ${i}`,
+        family: 'openai-compatible',
+        envVars: [],
+      }),
+    );
+    const out = renderLiveProviderList('', many, 0);
+    expect(out).toContain('prov-00');
+    expect(out).toContain('prov-14');
+    expect(out).not.toContain('prov-15');
+    expect(out).toMatch(/more/i);
   });
 });
 

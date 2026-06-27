@@ -1,14 +1,202 @@
 import os from 'node:os';
-import type { Config, ModelsRegistry, ResolvedProvider } from '@wrongstack/core';
-import { color, expectDefined } from '@wrongstack/core';
+import type { Config, ModelsDevModel, ModelsRegistry, ResolvedProvider } from '@wrongstack/core';
+import { color, expectDefined, setOutputLineGuard, setRawMode, writeOut } from '@wrongstack/core';
+import { toErrorMessage } from '@wrongstack/core/utils';
 import { appendHistory, backupCurrent } from './config-history.js';
 import type { ReadlineInputReader } from './input-reader.js';
 import { hasApiKey, visibleModelIds } from './provider-helpers.js';
 import type { TerminalRenderer } from './renderer.js';
-import { toErrorMessage } from '@wrongstack/core/utils';
 
 // Simple theme alias (avoids importing the full theme module just for one color)
 const theme = { primary: color.amber };
+
+/**
+ * Filter providers by a free-text query: case-insensitive substring match
+ * against the provider id OR display name. An empty/whitespace query returns
+ * all providers (as a copy). Input order is preserved. Powers the live
+ * type-to-filter provider picker.
+ */
+export function filterProviders(query: string, providers: ResolvedProvider[]): ResolvedProvider[] {
+  const q = query.trim().toLowerCase();
+  if (!q) return [...providers];
+  return providers.filter(
+    (p) => p.id.toLowerCase().includes(q) || p.name.toLowerCase().includes(q),
+  );
+}
+
+export interface ProviderPickerState {
+  query: string;
+  selected: number;
+  status: 'typing' | 'submitted' | 'cancelled';
+}
+
+/**
+ * Advance the live type-to-filter provider picker by one raw input chunk.
+ * Pure: given the current state, a key chunk (a single keystroke, a paste, or
+ * a multi-byte arrow escape sequence), and the number of providers matching
+ * the CURRENT query, returns the next state. The raw-stdin loop in
+ * runLiveProviderPicker is a thin shell around this so the input logic is
+ * fully unit-testable.
+ */
+export function applyPickerKey(
+  state: ProviderPickerState,
+  chunk: string,
+  matchCount: number,
+): ProviderPickerState {
+  // Arrow keys arrive as a 3-byte CSI sequence.
+  if (chunk === '\x1b[A') return { ...state, selected: Math.max(0, state.selected - 1) };
+  if (chunk === '\x1b[B')
+    return { ...state, selected: Math.min(Math.max(0, matchCount - 1), state.selected + 1) };
+  // Lone Esc clears the query (same as Ctrl+U).
+  if (chunk === '\x1b') return { ...state, query: '', selected: 0, status: 'typing' };
+  // Ignore other escape sequences (left/right arrows, etc.).
+  if (chunk.charCodeAt(0) === 0x1b) return state;
+
+  let query = state.query;
+  let selected = state.selected;
+  const status: ProviderPickerState['status'] = 'typing';
+  for (const ch of chunk) {
+    if (ch === '\r' || ch === '\n') {
+      return { ...state, status: matchCount > 0 ? 'submitted' : 'typing' };
+    }
+    if (ch === '\x03') return { ...state, status: 'cancelled' };
+    if (ch === '\x15') {
+      query = '';
+      selected = 0;
+      continue;
+    }
+    if (ch === '\x7f' || ch === '\b') {
+      if (query.length > 0) query = query.slice(0, -1);
+      selected = 0;
+      continue;
+    }
+    if (ch < ' ') continue; // skip stray control bytes
+    query += ch;
+    selected = 0;
+  }
+  return { query, selected, status };
+}
+
+/** Preferred family display order; remaining families follow in insertion order. */
+const PROVIDER_FAMILY_PREFERRED_ORDER = [
+  'anthropic',
+  'anthropic-oauth',
+  'openai',
+  'openai-codex',
+  'github-copilot',
+  'google',
+  'openai-compatible',
+];
+
+/** Max providers rendered in one live-picker frame (keeps a frame in-viewport). */
+export const LIVE_PICKER_MAX_VISIBLE = 15;
+
+/**
+ * Order providers for display: grouped by wire family in preferred order, then
+ * alphabetical by id within each family. Pure. Shared by the live render and
+ * the raw-stdin loop so the selection index and the rendered cursor always
+ * refer to the same provider.
+ */
+function orderProvidersForDisplay(filtered: ResolvedProvider[]): ResolvedProvider[] {
+  const families = new Map<string, ResolvedProvider[]>();
+  for (const p of filtered) {
+    const arr = families.get(p.family) ?? [];
+    arr.push(p);
+    families.set(p.family, arr);
+  }
+  const order = [
+    ...PROVIDER_FAMILY_PREFERRED_ORDER.filter((f) => families.has(f)),
+    ...[...families.keys()].filter((f) => !PROVIDER_FAMILY_PREFERRED_ORDER.includes(f)),
+  ];
+  const flat: ResolvedProvider[] = [];
+  for (const fam of order) {
+    const arr = (families.get(fam) ?? [])
+      .slice()
+      .sort((a, b) => a.id.toLowerCase().localeCompare(b.id.toLowerCase()));
+    flat.push(...arr);
+  }
+  return flat;
+}
+
+/**
+ * Render the live type-to-filter provider view as one string: the query line,
+ * providers grouped by wire family (preferred order, alphabetical within each
+ * family), the selected provider marked with ▶, and a key hint. Capped to
+ * LIVE_PICKER_MAX_VISIBLE rows so a frame always fits the viewport (the raw
+ * loop redraws by moving the cursor up and clearing). Pure.
+ */
+export function renderLiveProviderList(
+  query: string,
+  filtered: ResolvedProvider[],
+  selectedIdx: number,
+): string {
+  const ordered = orderProvidersForDisplay(filtered);
+  const visible = ordered.slice(0, LIVE_PICKER_MAX_VISIBLE);
+  let out = `? Select provider: ${query}\n`;
+  let flat = 0;
+  let lastFamily = '';
+  for (const p of visible) {
+    if (p.family !== lastFamily) {
+      out += `  ${p.family}\n`;
+      lastFamily = p.family;
+    }
+    const marker = flat === selectedIdx ? '▶ ' : '  ';
+    out += `${marker}${p.id.padEnd(24)} ${p.name}\n`;
+    flat++;
+  }
+  if (ordered.length > LIVE_PICKER_MAX_VISIBLE) {
+    out += `  … ${ordered.length - LIVE_PICKER_MAX_VISIBLE} more — type to filter\n`;
+  }
+  out += '  ↑↓ move · Enter select · Esc clear · Ctrl+C quit';
+  return out;
+}
+
+/**
+ * Filter models by a free-text query: case-insensitive substring match against
+ * the model id OR display name. Empty/whitespace query returns all (copy).
+ * Powers the live type-to-filter model picker.
+ */
+export function filterModels(query: string, models: ModelsDevModel[]): ModelsDevModel[] {
+  const q = query.trim().toLowerCase();
+  if (!q) return [...models];
+  return models.filter((m) => m.id.toLowerCase().includes(q) || m.name.toLowerCase().includes(q));
+}
+
+/**
+ * Render the live type-to-filter model view as one string: the provider header,
+ * the query line, models sorted newest-first (release_date desc) with context /
+ * cost / capability columns, the selected model marked with ▶, and a key hint.
+ * Capped to LIVE_PICKER_MAX_VISIBLE rows so a frame fits the viewport. Pure.
+ */
+export function renderLiveModelList(
+  query: string,
+  filtered: ModelsDevModel[],
+  selectedIdx: number,
+  header: string,
+): string {
+  const ordered = [...filtered].sort((a, b) =>
+    (b.release_date ?? '').localeCompare(a.release_date ?? ''),
+  );
+  const visible = ordered.slice(0, LIVE_PICKER_MAX_VISIBLE);
+  let out = `  ${header}\n? Select model: ${query}\n`;
+  let flat = 0;
+  for (const m of visible) {
+    const ctx = m.limit?.context ? `${(m.limit.context / 1000).toFixed(0)}k`.padStart(6) : '     ?';
+    const cost = m.cost?.input !== undefined ? `$${m.cost.input}/$${m.cost.output ?? '?'}` : '';
+    const caps: string[] = [];
+    if (m.tool_call) caps.push('tools');
+    if (m.reasoning) caps.push('reason');
+    if (m.modalities?.input?.includes('image')) caps.push('vision');
+    const marker = flat === selectedIdx ? '▶ ' : '  ';
+    out += `${marker}${m.id.padEnd(34)}${ctx}  ${cost.padEnd(12)} ${caps.join(',')}\n`;
+    flat++;
+  }
+  if (ordered.length > LIVE_PICKER_MAX_VISIBLE) {
+    out += `  … ${ordered.length - LIVE_PICKER_MAX_VISIBLE} more — type to filter\n`;
+  }
+  out += '  ↑↓ move · Enter select · Esc clear · Ctrl+C quit';
+  return out;
+}
 
 /**
  * Save provider + model to the global config file.
@@ -93,6 +281,87 @@ export interface PickerResult {
  * When `defaultProvider`/`defaultModel` are passed, they're pre-selected
  * so the user can press Enter to accept the previous choice.
  */
+/**
+ * Live type-to-filter provider picker (TTY only). Takes over stdin in raw mode
+ * and redraws the filtered, family-grouped list on every keystroke. Thin I/O
+ * shell around the pure filterProviders / applyPickerKey / renderLiveProviderList
+ * helpers (which are fully unit-tested). Returns the chosen provider, or
+ * undefined on cancel. runPicker only calls this when stdin is a TTY; non-TTY
+ * callers (CI, piped input, tests) fall through to the numbered readLine picker.
+ */
+async function runLiveProviderPicker(
+  displayList: ResolvedProvider[],
+): Promise<ResolvedProvider | undefined> {
+  const stdin = process.stdin;
+  const out = process.stdout;
+  if (!stdin.isTTY || !out.isTTY) return undefined;
+
+  setOutputLineGuard(null);
+  let state: ProviderPickerState = { query: '', selected: 0, status: 'typing' };
+  let ordered = orderProvidersForDisplay(filterProviders(state.query, displayList));
+  // Selection lives within the visible window so it always maps to a rendered row.
+  const visibleCount = (): number => Math.min(ordered.length, LIVE_PICKER_MAX_VISIBLE);
+  const clamp = (): void => {
+    if (state.selected >= visibleCount()) state.selected = Math.max(0, visibleCount() - 1);
+  };
+  clamp();
+  let frame = renderLiveProviderList(state.query, ordered, state.selected);
+  writeOut(frame);
+
+  return new Promise<ResolvedProvider | undefined>((resolve) => {
+    const wasRaw = stdin.isRaw;
+    const wasPaused = stdin.isPaused();
+    setRawMode(stdin, true);
+    stdin.resume();
+    stdin.setEncoding('utf8');
+
+    const cleanup = (): void => {
+      stdin.off('data', onData);
+      setRawMode(stdin, wasRaw);
+      if (wasPaused) stdin.pause();
+    };
+    const repaint = (): void => {
+      // Move back to the top of the previous frame and clear to end of screen.
+      const ups = (frame.match(/\n/g) ?? []).length;
+      writeOut(`\x1b[${ups}A\r\x1b[J`);
+      ordered = orderProvidersForDisplay(filterProviders(state.query, displayList));
+      clamp();
+      frame = renderLiveProviderList(state.query, ordered, state.selected);
+      writeOut(frame);
+    };
+    const onData = (chunk: string): void => {
+      ordered = orderProvidersForDisplay(filterProviders(state.query, displayList));
+      state = applyPickerKey(state, chunk, visibleCount());
+      // applyPickerKey may have changed the query (type/paste) — recompute against
+      // the NEW query before resolving a selection, so a paste like "zzz\r" can't
+      // submit a provider from the pre-paste list.
+      ordered = orderProvidersForDisplay(filterProviders(state.query, displayList));
+      clamp();
+      if (state.status === 'cancelled') {
+        cleanup();
+        writeOut('\n');
+        resolve(undefined);
+        return;
+      }
+      if (state.status === 'submitted') {
+        // Query emptied the matches mid-chunk (e.g. paste): stay in the picker.
+        if (ordered.length === 0) {
+          state = { ...state, status: 'typing' };
+          repaint();
+          return;
+        }
+        const pick = ordered[state.selected] ?? ordered[0];
+        cleanup();
+        writeOut('\n');
+        resolve(pick);
+        return;
+      }
+      repaint();
+    };
+    stdin.on('data', onData);
+  });
+}
+
 export async function runPicker(deps: {
   modelsRegistry: ModelsRegistry;
   renderer: TerminalRenderer;
@@ -149,8 +418,12 @@ export async function runPicker(deps: {
         // know which models their endpoint actually serves (e.g. LM
         // Studio, vLLM, or a proxy with custom model ids). Otherwise the
         // catalog list keeps providing suggestions.
-        models: visibleModelIds(p.id, config ?? ({ providers: {} } as Config), p.models.map((m) => m.id), cfg)
-          .map((m) => p.models.find((pm) => pm.id === m) ?? { id: m, name: m }),
+        models: visibleModelIds(
+          p.id,
+          config ?? ({ providers: {} } as Config),
+          p.models.map((m) => m.id),
+          cfg,
+        ).map((m) => p.models.find((pm) => pm.id === m) ?? { id: m, name: m }),
       });
     } else {
       merged.push(p);
@@ -167,8 +440,12 @@ export async function runPicker(deps: {
       family: cfg.family,
       apiBase: cfg.baseUrl ?? inherited?.apiBase,
       envVars: cfg.envVars ?? inherited?.envVars ?? [],
-      models: visibleModelIds(id, config ?? ({ providers: {} } as Config), (inherited?.models ?? []).map((m) => m.id), cfg)
-        .map((m) => inherited?.models.find((pm) => pm.id === m) ?? { id: m, name: m }),
+      models: visibleModelIds(
+        id,
+        config ?? ({ providers: {} } as Config),
+        (inherited?.models ?? []).map((m) => m.id),
+        cfg,
+      ).map((m) => inherited?.models.find((pm) => pm.id === m) ?? { id: m, name: m }),
       npm: inherited?.npm,
     });
   }
@@ -188,6 +465,17 @@ export async function runPicker(deps: {
   if (keyed.length === 0) {
     displayList = merged;
     showingFallback = true;
+  }
+
+  // TTY: live type-to-filter picker. Non-TTY (CI, piped, tests) falls through
+  // to the numbered readLine picker below.
+  if (process.stdin.isTTY) {
+    const chosen = await runLiveProviderPicker(displayList);
+    if (!chosen) {
+      renderer.write(color.dim('Cancelled.\n'));
+      return undefined;
+    }
+    return pickModel(chosen, modelsRegistry, renderer, reader, defaultModel);
   }
 
   // Group by family for nicer display
@@ -223,7 +511,10 @@ export async function runPicker(deps: {
   let defaultIdx: number | undefined;
   renderer.write('\n');
   for (const fam of familyOrder) {
-    const list = families.get(fam);
+    // Sort within each family alphabetically (case-insensitive) by id.
+    const list = [...(families.get(fam) ?? [])].sort((a, b) =>
+      a.id.toLowerCase().localeCompare(b.id.toLowerCase()),
+    );
     if (!list || list.length === 0) continue;
     renderer.write(`  ${color.bold(fam)}\n`);
     for (const p of list) {
@@ -299,6 +590,95 @@ export async function runPicker(deps: {
   return pickModel(chosen.provider, modelsRegistry, renderer, reader, modelHint);
 }
 
+/**
+ * Live type-to-filter model picker (TTY only). Mirrors runLiveProviderPicker:
+ * takes over stdin in raw mode and redraws the filtered, newest-first model
+ * list on every keystroke. Selection indexes the release_date-desc order used
+ * by renderLiveModelList so the ▶ cursor and Enter always agree. Returns the
+ * chosen model, or undefined on cancel.
+ */
+async function runLiveModelPicker(
+  provider: ResolvedProvider,
+  defaultModel?: string,
+): Promise<ModelsDevModel | undefined> {
+  const stdin = process.stdin;
+  const out = process.stdout;
+  if (!stdin.isTTY || !out.isTTY) return undefined;
+
+  const header = `${provider.name} (${provider.id}) models:`;
+  const byNewest = (a: ModelsDevModel, b: ModelsDevModel): number =>
+    (b.release_date ?? '').localeCompare(a.release_date ?? '');
+  // Pre-select the default model (if any) in newest-first order.
+  const ranked = [...provider.models].sort(byNewest);
+  const defaultIdx =
+    defaultModel !== undefined ? ranked.findIndex((m) => m.id === defaultModel) : -1;
+
+  setOutputLineGuard(null);
+  let state: ProviderPickerState = {
+    query: '',
+    selected: defaultIdx >= 0 ? defaultIdx : 0,
+    status: 'typing',
+  };
+  const order = (filtered: ModelsDevModel[]): ModelsDevModel[] => [...filtered].sort(byNewest);
+  let ordered = order(filterModels(state.query, provider.models));
+  const visibleCount = (): number => Math.min(ordered.length, LIVE_PICKER_MAX_VISIBLE);
+  const clamp = (): void => {
+    if (state.selected >= visibleCount()) state.selected = Math.max(0, visibleCount() - 1);
+  };
+  clamp();
+  let frame = renderLiveModelList(state.query, ordered, state.selected, header);
+  writeOut(frame);
+
+  return new Promise<ModelsDevModel | undefined>((resolve) => {
+    const wasRaw = stdin.isRaw;
+    const wasPaused = stdin.isPaused();
+    setRawMode(stdin, true);
+    stdin.resume();
+    stdin.setEncoding('utf8');
+
+    const cleanup = (): void => {
+      stdin.off('data', onData);
+      setRawMode(stdin, wasRaw);
+      if (wasPaused) stdin.pause();
+    };
+    const repaint = (): void => {
+      const ups = (frame.match(/\n/g) ?? []).length;
+      writeOut(`\x1b[${ups}A\r\x1b[J`);
+      ordered = order(filterModels(state.query, provider.models));
+      clamp();
+      frame = renderLiveModelList(state.query, ordered, state.selected, header);
+      writeOut(frame);
+    };
+    const onData = (chunk: string): void => {
+      ordered = order(filterModels(state.query, provider.models));
+      state = applyPickerKey(state, chunk, visibleCount());
+      // applyPickerKey may have changed the query — recompute before resolving.
+      ordered = order(filterModels(state.query, provider.models));
+      clamp();
+      if (state.status === 'cancelled') {
+        cleanup();
+        writeOut('\n');
+        resolve(undefined);
+        return;
+      }
+      if (state.status === 'submitted') {
+        if (ordered.length === 0) {
+          state = { ...state, status: 'typing' };
+          repaint();
+          return;
+        }
+        const pick = ordered[state.selected] ?? ordered[0];
+        cleanup();
+        writeOut('\n');
+        resolve(pick);
+        return;
+      }
+      repaint();
+    };
+    stdin.on('data', onData);
+  });
+}
+
 async function pickModel(
   provider: ResolvedProvider,
   registry: ModelsRegistry,
@@ -315,6 +695,20 @@ async function pickModel(
   if (models.length === 0) {
     renderer.writeError('  No models listed for this provider in the catalog.');
     return undefined;
+  }
+
+  // TTY: live type-to-filter model picker. Non-TYY (CI/piped/tests) falls
+  // through to the paginated numbered picker below.
+  if (process.stdin.isTTY) {
+    const chosen = await runLiveModelPicker(provider, defaultModel);
+    if (!chosen) {
+      renderer.write(color.dim('Cancelled.\n'));
+      return undefined;
+    }
+    renderer.write(
+      `\n  ${color.green('✓')} ${color.bold(provider.id)} / ${color.bold(chosen.id)}\n\n`,
+    );
+    return { provider: provider.id, model: chosen.id };
   }
 
   // Find default-model index for the "Enter = default" hint.
