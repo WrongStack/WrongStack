@@ -214,16 +214,16 @@ describe('looksLikePowerShell — unit-level', () => {
 });
 
 describe('wrapPowerShellScript', () => {
-  it('adds UTF-8 BOM and encoding bootstrap', () => {
+  it('adds encoding bootstrap without a stdin BOM', () => {
     const wrapped = wrapPowerShellScript('npm run build');
-    expect(wrapped.charCodeAt(0)).toBe(0xfeff);
+    expect(wrapped.charCodeAt(0)).not.toBe(0xfeff);
+    expect(wrapped.startsWith('[Console]::OutputEncoding')).toBe(true);
     expect(wrapped).toContain('[Console]::OutputEncoding = [System.Text.Encoding]::UTF8');
   });
-  it('wraps user command in try/finally with exit code propagation', () => {
+  it('wraps user command with native exit code propagation', () => {
     const wrapped = wrapPowerShellScript('npm run build');
-    expect(wrapped).toContain('try {');
     expect(wrapped).toContain('npm run build');
-    expect(wrapped).toContain('} finally { exit $LASTEXITCODE }');
+    expect(wrapped).toContain('if ($LASTEXITCODE -is [int]) { exit $LASTEXITCODE }');
   });
   it('suppresses confirmations without enabling WhatIf mode', () => {
     const wrapped = wrapPowerShellScript('Remove-Item foo.txt');
@@ -231,7 +231,7 @@ describe('wrapPowerShellScript', () => {
     expect(wrapped).toContain('$WhatIfPreference=$false');
     expect(wrapped).not.toContain('$WhatIfPreference=$true');
   });
-  it('preserves multi-line scripts verbatim inside try block', () => {
+  it('preserves multi-line scripts verbatim', () => {
     const script = '$x = 1\n$x + 2';
     const wrapped = wrapPowerShellScript(script);
     expect(wrapped).toContain(script);

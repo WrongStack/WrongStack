@@ -3,6 +3,7 @@ import {
   buildSaveCommand,
   buildLoadCommand,
   buildExitCommand,
+  isSafeSessionKillPid,
 } from '../src/slash-commands/session.js';
 import type { Context } from '@wrongstack/core';
 
@@ -87,6 +88,21 @@ describe('buildLoadCommand', () => {
     expect(res?.message).toContain('second task');
     expect(res?.message).toContain('/resume to open interactive picker, or wstack resume a');
     expect(write).toHaveBeenCalled();
+  });
+});
+
+describe('isSafeSessionKillPid', () => {
+  it('rejects host-sensitive PIDs', () => {
+    expect(isSafeSessionKillPid(0)).toBe(false);
+    expect(isSafeSessionKillPid(1)).toBe(false);
+    expect(isSafeSessionKillPid(-1)).toBe(false);
+    expect(isSafeSessionKillPid(process.pid)).toBe(false);
+    expect(isSafeSessionKillPid(process.ppid)).toBe(false);
+  });
+
+  it('allows ordinary positive integer PIDs', () => {
+    const pid = Math.max(process.pid, process.ppid, 10_000) + 1;
+    expect(isSafeSessionKillPid(pid)).toBe(true);
   });
 });
 

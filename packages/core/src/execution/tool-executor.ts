@@ -530,7 +530,7 @@ export class ToolExecutor {
       });
     };
     const flushProgressTail = (force: boolean) => {
-      if (progressTail.length === 0 && !force) return;
+      if (progressTail.length === 0) return;
       const now = Date.now();
       if (!force && now - lastProgressEmitAt < ToolExecutor.PROGRESS_EMIT_INTERVAL_MS) return;
       lastProgressEmitAt = now;

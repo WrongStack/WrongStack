@@ -24,9 +24,11 @@ const isWin = os.platform() === 'win32';
  */
 describe('bash backpressure — MAX_QUEUE_CHUNKS upper bound (P1 #3)', () => {
   // POSIX: seq 4000 | each line ~60 bytes → ~240 KB raw, far past MAX_OUTPUT.
-  // Windows: a PowerShell one-liner with no inner quotes.
+  // Windows: a PowerShell script body. The bash tool selects PowerShell and
+  // sends the script on stdin; nesting `powershell -Command ...` would make the
+  // wrapper itself part of a second PowerShell invocation.
   const bigCmd = isWin
-    ? 'powershell -NoProfile -Command "1..4000 | ForEach-Object { Write-Output ($_); Write-Output -NoNewline (' + "'x' * 50)" + ' }"'
+    ? "1..4000 | ForEach-Object { Write-Output $_; Write-Output -NoNewline ('x' * 50) }"
     : 'seq -w 4000 | sed "s/^/line-/; s/$/ padding-padding-padding-padding-padding-padding-padding-padding/"';
 
   it('terminates and truncates output from a command exceeding MAX_QUEUE_CHUNKS', async () => {
@@ -83,7 +85,7 @@ describe('bash backpressure — MAX_QUEUE_CHUNKS upper bound (P1 #3)', () => {
       // the head. seq on POSIX, PowerShell on Windows — both print a marker
       // line first, then flood.
       const cmd = isWin
-        ? 'powershell -NoProfile -Command "Write-Output START; 1..3000 | ForEach-Object { Write-Output $_ }"'
+        ? 'Write-Output START; 1..3000 | ForEach-Object { Write-Output $_ }'
         : 'echo START; seq 3000';
       const out = await bashTool.execute(
         { command: cmd },

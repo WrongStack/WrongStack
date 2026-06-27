@@ -6,6 +6,22 @@ import { wrapPowerShellScript } from '../src/_shell-pick.js';
 // + truncation, foreground error/throw, backpressure, teardown, both
 // platform kill paths) without launching a real shell.
 type Mode = 'close' | 'error' | 'hang';
+const hoisted = vi.hoisted(() => ({
+  cfg: {
+    stdout: '',
+    stderr: '',
+    code: 0,
+    mode: 'close' as Mode,
+    pid: 7777 as number | undefined,
+    platform: process.platform,
+    chunkCount: 0,
+    spawnCalls: [] as Array<{ cmd: string; args: readonly string[]; opts: { stdio?: unknown } }>,
+    stdinWrites: [] as string[],
+    stdinEnds: [] as boolean[],
+    wrongstackShell: undefined as string | undefined,
+  },
+}));
+
 const cfg: {
   stdout: string;
   stderr: string;
@@ -22,25 +38,13 @@ const cfg: {
   stdinEnds: boolean[];
   /** Override WRONGSTACK_SHELL for the duration of one test. */
   wrongstackShell: string | undefined;
-} = {
-  stdout: '',
-  stderr: '',
-  code: 0,
-  mode: 'close',
-  pid: 7777,
-  platform: process.platform,
-  chunkCount: 0,
-  spawnCalls: [],
-  stdinWrites: [],
-  stdinEnds: [],
-  wrongstackShell: undefined,
-};
+} = hoisted.cfg;
 
 let _lastChild: (EventEmitter & { killSignals: string[]; killed: boolean; exitCode: number | null });
 
 vi.mock('node:os', async (orig) => {
   const actual = await orig<typeof import('node:os')>();
-  return { ...actual, default: actual, platform: () => cfg.platform };
+  return { ...actual, default: actual, platform: () => hoisted.cfg.platform };
 });
 
 vi.mock('node:child_process', async (orig) => {

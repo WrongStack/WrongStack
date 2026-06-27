@@ -208,4 +208,20 @@ export const WS_HANDLERS: Record<string, (msg: WSServerMessage) => void> = {
   'projects.selected': (_msg: WSServerMessage) => {
     // Handled directly by ProjectsPanel component
   },
+  'prompts.search': (_msg: WSServerMessage) => {
+    // Reserved for server-side prompt search; the current modal filters its
+    // loaded prompt list locally.
+  },
+  'prompts.created': (_msg: WSServerMessage) => {
+    // Fire-and-forget acknowledgement for future prompt creation UI.
+  },
+  'prompts.favorite': (_msg: WSServerMessage) => {
+    // PromptLibraryModal updates favorite state optimistically.
+  },
+  'prompts.used': (_msg: WSServerMessage) => {
+    // Best-effort usage telemetry acknowledgement.
+  },
+  'design.state': (_msg: WSServerMessage) => {
+    // Design panels hydrate from design.list/design.use/design.set.
+  },
 };

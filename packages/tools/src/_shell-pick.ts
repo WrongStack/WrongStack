@@ -231,38 +231,36 @@ export function looksLikePowerShellExtended(command: string): boolean {
  *
  * The wrapper addresses four reliability gaps in Windows PowerShell:
  *
- * 1. **UTF-8 stdin BOM**: PowerShell 5.1 decodes stdin as ASCII by default;
- *    a leading BOM (`\uFEFF`) tells it to expect UTF-8 so non-ASCII
- *    characters (CJK filenames, emoji, accented text) survive. PS 7+
- *    already defaults to UTF-8, so the BOM is harmless there.
- *
- * 2. **Console output encoding**: PS 5.1 outputs in the system codepage
+ * 1. **Console output encoding**: PS 5.1 outputs in the system codepage
  *    (often Windows-1252) which mojibakes non-ASCII. Setting
  *    `[Console]::OutputEncoding = [System.Text.Encoding]::UTF8` at the
  *    top of the script ensures UTF-8 output in both editions.
  *
- * 3. **Exit-code propagation**: Native commands (dotnet, npm, node, etc.)
+ * 2. **Exit-code propagation**: Native commands (dotnet, npm, node, etc.)
  *    set `$LASTEXITCODE`. Without explicit propagation, `pwsh -Command -`
- *    exits 0 even when the native command failed. Wrapping in
- *    `try { ... } finally { exit $LASTEXITCODE }` fixes this.
+ *    exits 0 even when the native command failed. Running the command body
+ *    and then exiting with `$LASTEXITCODE` when it is numeric preserves native
+ *    exit codes without swallowing PowerShell output.
  *
- * 4. **Confirmation suppression**: `$ConfirmPreference='None'` suppresses
+ * 3. **Confirmation suppression**: `$ConfirmPreference='None'` suppresses
  *    interactive confirmation prompts (e.g. `-Confirm` cmdlets) so scripts
  *    don't block waiting for user input. `$WhatIfPreference=$false` ensures
  *    commands actually RUN (not just print what they would do).
+ *
+ * Do not prefix the stdin script with a UTF-8 BOM. Some PowerShell builds do
+ * not strip it when reading `-Command -` and treat it as part of the first
+ * command name (`\uFEFF[Console]::OutputEncoding`), causing every wrapped
+ * command to fail before the user's script runs.
  */
 export function wrapPowerShellScript(command: string): string {
   const bootstrap =
     '[Console]::OutputEncoding = [System.Text.Encoding]::UTF8;' +
     "$ConfirmPreference='None';$WhatIfPreference=$false";
-  // Prepend UTF-8 BOM (\uFEFF = U+FEFF). Use 4-digit \uFEFF in string
-  // literals; \u{FEFF} only works in ES2018+ regex with the 'u' flag.
   return (
-    '\uFEFF' +
     bootstrap +
-    '\ntry {\n' +
+    "\n$ErrorActionPreference='Stop'\n" +
     command +
-    '\n} finally { exit $LASTEXITCODE }'
+    '\nif ($LASTEXITCODE -is [int]) { exit $LASTEXITCODE }'
   );
 }
 

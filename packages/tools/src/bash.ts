@@ -302,6 +302,7 @@ export const bashTool: Tool<BashInput, BashOutput> = {
           startedAt: Date.now(),
           sessionId: ctx.session?.id,
           child,
+          processGroupLeader: detached && child.pid === pid,
         });
         // Register the close handler on the same tick as spawn() so the
         // handler is guaranteed to be in place before Node's event loop
@@ -396,6 +397,7 @@ export const bashTool: Tool<BashInput, BashOutput> = {
         startedAt: Date.now(),
         sessionId: ctx.session?.id,
         child,
+        processGroupLeader: detached && child.pid === pid,
       });
     }
 
@@ -431,29 +433,24 @@ export const bashTool: Tool<BashInput, BashOutput> = {
         return;
       }
 
-      // Best-effort SIGTERM: try process-group kill first, fall back to child.kill.
-      try {
-        if (typeof child.pid === 'number') {
-          try { process.kill(-child.pid, 'SIGTERM'); }
-          catch { child.kill('SIGTERM'); }
-        } else {
-          child.kill('SIGTERM');
-        }
-      } catch { /* ignore */ }
-
-      // After timeoutMs, assert-kill with SIGKILL.
-      const killTimer = setTimeout(() => {
+      if (typeof child.pid === 'number') {
+        registry.kill(child.pid, { graceMs: timeoutMs });
+      } else {
         try {
-          if (typeof child.pid === 'number') {
-            try { process.kill(-child.pid, 'SIGKILL'); }
-            catch { child.kill('SIGKILL'); }
-          } else {
+          child.kill('SIGTERM');
+        } catch {
+          /* ignore */
+        }
+        const killTimer = setTimeout(() => {
+          try {
             child.kill('SIGKILL');
+          } catch {
+            /* ignore */
           }
-        } catch { /* ignore */ }
-      }, timeoutMs);
-      timers.push(killTimer);
-      killTimer.unref?.();
+        }, timeoutMs);
+        timers.push(killTimer);
+        killTimer.unref?.();
+      }
     }
 
     const timer = setTimeout(() => {

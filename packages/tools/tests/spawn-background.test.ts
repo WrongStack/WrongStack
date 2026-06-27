@@ -1,4 +1,5 @@
 import { spawnSync } from 'node:child_process';
+import type { ChildProcess } from 'node:child_process';
 import * as os from 'node:os';
 import { afterEach, describe, expect, it } from 'vitest';
 import { spawnBackground, spawnBackgroundExec } from '../src/spawn-background.js';
@@ -9,14 +10,28 @@ const isWin = os.platform() === 'win32';
 // test. These are *detached* processes — without explicit cleanup each run
 // left orphaned cmd.exe/node sleepers behind (multi-second `setTimeout`
 // children piled up across the suite and ate CPU/RAM on the host).
-const spawned: Array<{ pid: number | null }> = [];
+const spawned: Array<{ pid: number | null; child: ChildProcess }> = [];
 
-function track<T extends { pid: number | null }>(result: T): T {
+function track<T extends { pid: number | null; child: ChildProcess }>(result: T): T {
   spawned.push(result);
   return result;
 }
 
-function treeKill(pid: number): void {
+function isSafePid(pid: number): boolean {
+  return Number.isInteger(pid) && pid > 1 && pid !== process.pid && pid !== process.ppid;
+}
+
+function treeKill(entry: { pid: number; child: ChildProcess }): void {
+  const { pid, child } = entry;
+  if (!isSafePid(pid) || child.pid !== pid) {
+    try {
+      child.kill('SIGKILL');
+    } catch {
+      /* already gone */
+    }
+    return;
+  }
+
   try {
     if (isWin) {
       // The shell-wrapped variant spawns cmd.exe whose *grandchild* is the
@@ -37,8 +52,8 @@ function treeKill(pid: number): void {
 }
 
 afterEach(() => {
-  for (const { pid } of spawned.splice(0)) {
-    if (typeof pid === 'number') treeKill(pid);
+  for (const entry of spawned.splice(0)) {
+    if (typeof entry.pid === 'number') treeKill({ pid: entry.pid, child: entry.child });
   }
 });
 

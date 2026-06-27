@@ -151,6 +151,7 @@ function isHandled(type: string, cases: Set<string>, prefixes: Set<string>): boo
  * wired or listed here.
  */
 const KNOWN_UNIMPLEMENTED: string[] = [];
+const NON_WS_CASE_LABELS = new Set(['absent', 'live', 'probe-failed']);
 
 describe('WebUI WS-handler parity (embedded vs standalone)', () => {
   it('both server files exist and have message-type cases', () => {
@@ -167,7 +168,9 @@ describe('WebUI WS-handler parity (embedded vs standalone)', () => {
     const standalone = caseLabels(standalonePaths);
 
     const onlyEmbedded = [...embedded].filter((t) => !standalone.has(t)).sort();
-    const onlyStandalone = [...standalone].filter((t) => !embedded.has(t)).sort();
+    const onlyStandalone = [...standalone]
+      .filter((t) => !embedded.has(t) && !NON_WS_CASE_LABELS.has(t))
+      .sort();
 
     // If this fails, a message handler was added to one server but not the
     // other. Add the matching `case` to the other server (or, for messages

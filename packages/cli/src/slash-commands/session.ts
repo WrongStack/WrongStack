@@ -70,6 +70,10 @@ function getRegistry(): SessionRegistry | undefined {
   }
 }
 
+export function isSafeSessionKillPid(pid: number): boolean {
+  return Number.isInteger(pid) && pid > 1 && pid !== process.pid && pid !== process.ppid;
+}
+
 export function buildSaveCommand(_opts: SlashCommandContext): SlashCommand {
   return {
     name: 'save',
@@ -480,6 +484,14 @@ async function killSession(sessionId: string): Promise<{ message: string }> {
     return {
       message: color.yellow(
         `Cannot kill the current session (PID ${process.pid}). Use /exit or Ctrl+C instead.`,
+      ),
+    };
+  }
+
+  if (!isSafeSessionKillPid(entry.pid)) {
+    return {
+      message: color.yellow(
+        `Refusing to kill unsafe session PID ${entry.pid}. The session registry entry may be corrupt.`,
       ),
     };
   }
