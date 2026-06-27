@@ -29,6 +29,11 @@ export interface TrackedProcess {
    *  use `kill()` below which handles process groups correctly on POSIX
    *  and degrades gracefully on Windows. */
   child: ChildProcess;
+  /** True only when this child was spawned as a POSIX process-group/session
+   *  leader (for example `spawn(..., { detached: true })`) and `pid` is the
+   *  actual `child.pid`. Negative-PID signaling is host-wide dangerous for
+   *  values like -1, so tests and manually registered entries must not opt in. */
+  processGroupLeader?: boolean | undefined;
   /** True once the process has been kill()ed but not yet exited.
    *  We keep it in the registry until 'close' fires so callers can
    *  distinguish "still running" from "just exited". */
@@ -164,6 +169,41 @@ export class ProcessRegistryImpl {
 
   register(info: Omit<TrackedProcess, 'killed' | 'protected'> & { protected?: boolean | undefined }): void {
     this.processes.set(info.pid, { ...info, killed: false, protected: info.protected ?? false });
+  }
+
+  private _isSafeSignalPid(pid: number): boolean {
+    return Number.isInteger(pid) && pid > 1 && pid !== process.pid && pid !== process.ppid;
+  }
+
+  private _canSignalProcessGroup(p: TrackedProcess): boolean {
+    return (
+      os.platform() !== 'win32' &&
+      p.processGroupLeader === true &&
+      this._isSafeSignalPid(p.pid) &&
+      typeof p.child.pid === 'number' &&
+      p.child.pid === p.pid
+    );
+  }
+
+  private _killChildDirect(p: TrackedProcess, signal: NodeJS.Signals): void {
+    try {
+      p.child.kill(signal);
+    } catch {
+      // Process may have already exited, or this may be a persistent entry
+      // without a live ChildProcess handle in the current process.
+    }
+  }
+
+  private _killPosix(p: TrackedProcess, signal: NodeJS.Signals): void {
+    if (this._canSignalProcessGroup(p)) {
+      try {
+        process.kill(-p.pid, signal);
+        return;
+      } catch {
+        // Process group may already be gone; fall back to the direct child.
+      }
+    }
+    this._killChildDirect(p, signal);
   }
 
   /** Unregister a process by PID. Called on 'close' / 'exit' events. */
@@ -405,33 +445,19 @@ export class ProcessRegistryImpl {
       return true;
     }
 
-    // POSIX: kill the process group so grandchildren are cleaned up too.
+    // POSIX: kill the process group only when the tracked child is proven to
+    // be the group leader. Otherwise use child.kill(); negative PID signaling
+    // with untrusted/fake PIDs can target unrelated host processes.
     try {
       if (force) {
-        try {
-          process.kill(-pid, 'SIGKILL');
-        } catch {
-          p.child.kill('SIGKILL');
-        }
+        this._killPosix(p, 'SIGKILL');
       } else {
-        try {
-          process.kill(-pid, 'SIGTERM');
-        } catch {
-          p.child.kill('SIGTERM');
-        }
+        this._killPosix(p, 'SIGTERM');
         // Schedule SIGKILL as backup.
         const timer = setTimeout(() => {
           // Re-check: process may have exited on its own.
           if (this.processes.has(pid) && !p.child.killed) {
-            try {
-              process.kill(-pid, 'SIGKILL');
-            } catch {
-              try {
-                p.child.kill('SIGKILL');
-              } catch {
-                /* already gone */
-              }
-            }
+            this._killPosix(p, 'SIGKILL');
           }
         }, graceMs);
         timer.unref?.(); // Don't keep event loop alive.
