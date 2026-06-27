@@ -7,10 +7,11 @@
  * WS pattern (client.on / client.send / client.off).
  */
 
-import { Check, Loader2, Palette } from 'lucide-react';
+import { Check, LayoutGrid, Loader2, Palette } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useWebSocket } from '@/hooks/useWebSocket';
 import { cn } from '@/lib/utils';
+import { useUIStore } from '@/stores/ui-store';
 
 interface KitSummary {
   id: string;
@@ -48,6 +49,7 @@ function Swatches({ tokens, label }: { tokens: Record<string, string>; label: st
 
 export function DesignStudioPanel({ className }: { className?: string }) {
   const { client } = useWebSocket();
+  const setCurrentView = useUIStore((s) => s.setCurrentView);
   const [kits, setKits] = useState<KitSummary[]>([]);
   const [activeKit, setActiveKit] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -94,6 +96,14 @@ export function DesignStudioPanel({ className }: { className?: string }) {
         <span className="text-xs text-muted-foreground flex-1">
           Pick a kit — the agent will adhere to it.
         </span>
+        <button
+          type="button"
+          onClick={() => setCurrentView('design-gallery')}
+          className="inline-flex items-center gap-1 text-[11px] px-1.5 py-0.5 rounded border border-border/60 hover:bg-muted"
+          title="Open live preview gallery"
+        >
+          <LayoutGrid className="w-3 h-3" /> Gallery
+        </button>
         <select
           value={stack}
           onChange={(e) => setStack(e.target.value)}

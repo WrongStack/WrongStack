@@ -35,6 +35,7 @@ import { QueuePanel } from './components/QueuePanel';
 import { TerminalPanel } from './components/TerminalPanel';
 import { MailboxDetailView } from './components/MailboxDetailView';
 import { SkillDetailView } from './components/SkillDetailView';
+import { DesignGalleryView } from './components/DesignGalleryView';
 import { OfficeMapPanel } from './components/OfficeMapPanel';
 import { DebugDashboard } from './components/DebugDashboard';
 function AppInner() {
@@ -430,6 +431,13 @@ function AppInner() {
 
         {/* ── Mailbox detail — wide main area; list lives in the SidePanel ── */}
         {currentView === 'mailbox' && <MailboxDetailView className="h-full" />}
+
+        {/* ── Design Studio gallery — live kit previews ── */}
+        {currentView === 'design-gallery' && (
+          <div className="flex-1 overflow-hidden">
+            <DesignGalleryView className="h-full" />
+          </div>
+        )}
 
         {/* ── Skill detail — wide main area; list lives in the SidePanel ── */}
         {currentView === 'skill' && (

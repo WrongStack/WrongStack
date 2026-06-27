@@ -26,13 +26,27 @@ afterAll(async () => {
 
 describe('Design Studio — end-to-end (built packages)', () => {
   it('loader discovers the full bundled kit set (foundations excluded)', async () => {
-    const entries = await getDesignKitLoader(root).listEntries();
-    expect(entries.length).toBeGreaterThanOrEqual(20);
+    const loader = getDesignKitLoader(root);
+    const entries = await loader.listEntries();
+    expect(entries.length).toBeGreaterThanOrEqual(50);
     const ids = entries.map((e) => e.id);
     expect(ids).toContain('cyberpunk-neon');
     expect(ids).toContain('luxury-serif');
     expect(ids).toContain('minimal-clarity');
+    expect(ids).toContain('linear-dark');
+    expect(ids).toContain('solarpunk');
     expect(ids).not.toContain('_foundations');
+    // Every kit parses (name + aesthetic) and loads body + tokens cleanly.
+    for (const e of entries) {
+      expect(e.name, `${e.id} name`).toBeTruthy();
+      expect(e.aesthetic, `${e.id} aesthetic`).toBeTruthy();
+      expect(e.stacks.length, `${e.id} stacks`).toBeGreaterThan(0);
+      const body = await loader.readBody(e.id, 'web');
+      expect(body, `${e.id} body`).toMatch(/## Stack: web/);
+      const tokens = await loader.readTokens(e.id);
+      const themed = tokens?.light ?? tokens?.dark;
+      expect(themed, `${e.id} tokens`).toBeTruthy();
+    }
   });
 
   it('detection → menu injection → tool load → .design/ persistence → reminder', async () => {
