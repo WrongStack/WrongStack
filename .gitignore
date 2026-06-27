@@ -51,6 +51,8 @@ security-reports/*
 
 
 .wrongstack/
+# Design Studio project-local decisions/rules (also self-ignored via .design/.gitignore)
+.design/
 CLAUDE.md
 AGENTS.md
 .github/copilot-instructions.md

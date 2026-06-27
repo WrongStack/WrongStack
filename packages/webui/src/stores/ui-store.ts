@@ -9,7 +9,7 @@ import type { MailboxMessage } from './mailbox-store';
 // Activity types shown in the ActivityBar (secondary panel content).
 // One icon = one full panel. 'context' and 'sessions' were folded into
 // 'chat' and 'history' — coerceActivity maps persisted legacy values.
-export type Activity = 'chat' | 'agents' | 'history' | 'files' | 'changes' | 'projects' | 'mailbox' | 'skills' | 'officemap';
+export type Activity = 'chat' | 'agents' | 'history' | 'files' | 'changes' | 'projects' | 'mailbox' | 'skills' | 'design' | 'officemap';
 
 const ACTIVITIES: readonly Activity[] = ['chat', 'agents', 'history', 'files', 'changes', 'projects', 'mailbox', 'skills', 'officemap'];
 

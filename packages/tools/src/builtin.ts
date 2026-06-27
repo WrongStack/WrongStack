@@ -3,6 +3,7 @@ import { auditTool } from './audit.js';
 import { bashTool } from './bash.js';
 import { batchToolUseTool } from './batch-tool-use.js';
 import { codebaseIndexTool, codebaseSearchTool, codebaseStatsTool } from './codebase-index/index.js';
+import { designTool } from './design.js';
 import { diffTool } from './diff.js';
 import { documentTool } from './document.js';
 import { editTool } from './edit.js';
@@ -109,6 +110,7 @@ export const TIER2_TOOLS: Tool[] = [
   taskTool,
   installTool,
   auditTool,
+  designTool,
 ];
 
 /**
@@ -164,6 +166,7 @@ export const builtinTools: Tool[] = [
   logsTool,
   documentTool,
   scaffoldTool,
+  designTool,
   toolSearchTool,
   toolUseTool,
   batchToolUseTool,

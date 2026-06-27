@@ -67,6 +67,11 @@ import {
   handleSkillsExport,
 } from './skills-handlers.js';
 import {
+  handleDesignList,
+  handleDesignUse,
+  handleDesignState,
+} from './design-handlers.js';
+import {
   Agent,
   AutoCompactionMiddleware,
   Context,
@@ -91,6 +96,7 @@ import {
   ToolRegistry,
   atomicWrite,
   createDefaultPipelines,
+  installDesignStudioMiddleware,
   createSessionEventBridge,
   resolveSessionLoggingConfig,
   DEFAULT_CONTEXT_WINDOW_MODE_ID,
@@ -338,6 +344,13 @@ export {
   handleSkillsEdit,
   handleSkillsExport,
 } from './skills-handlers.js';
+// Design Studio handlers — shared so the CLI's embedded server reaches parity.
+export {
+  type DesignContext,
+  handleDesignList,
+  handleDesignUse,
+  handleDesignState,
+} from './design-handlers.js';
 
 // Message + client shapes now live in ./types.ts (shared with the CLI's
 // embedded server). Imported here for internal use; re-exported above for
@@ -1100,6 +1113,9 @@ export async function startWebUI(
   const collabInject = collabInjectMiddleware(collabBus, { logger });
   Object.defineProperty(collabInject, 'name', { value: 'collab-inject' });
   pipelines.toolCall.prepend(collabInject as never);
+  // Design Studio — per-turn UI-intent detection + kit-menu injection, so the
+  // WebUI host gets the same auto-trigger behavior as the CLI/TUI.
+  installDesignStudioMiddleware({ pipelines, ctx: context });
   const codebaseIndexing = setupWebUICodebaseIndexing({
     config,
     context,
@@ -2058,6 +2074,18 @@ export async function startWebUI(
         break;
       case 'skills.export':
         await handleSkillsExport(ws, { skillLoader, skillInstaller, projectRoot });
+        break;
+
+      // Design Studio — shared handlers (design-handlers.ts). agentMeta is the
+      // live context so design.use pins the active kit for the next turn.
+      case 'design.list':
+        await handleDesignList(ws, { projectRoot, agentMeta: context });
+        break;
+      case 'design.use':
+        await handleDesignUse(ws, { projectRoot, agentMeta: context }, msg);
+        break;
+      case 'design.state':
+        await handleDesignState(ws, { projectRoot, agentMeta: context });
         break;
 
       case 'diag.get': {

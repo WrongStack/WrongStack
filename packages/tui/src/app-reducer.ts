@@ -564,6 +564,36 @@ export function reducer(state: State, action: Action): State {
         ...state,
         autonomyPicker: { ...state.autonomyPicker, hint: action.text },
       };
+    case 'designPickerOpen':
+      return {
+        ...state,
+        ...closePanels(state),
+        designPicker: {
+          open: true,
+          kits: action.kits,
+          selected: 0,
+          stack: state.designPicker.stack || 'web',
+        },
+      };
+    case 'designPickerClose':
+      return {
+        ...state,
+        designPicker: { ...state.designPicker, open: false },
+      };
+    case 'designPickerMove': {
+      const n = state.designPicker.kits.length;
+      if (n === 0) return state;
+      const next = (state.designPicker.selected + action.delta + n) % n;
+      return {
+        ...state,
+        designPicker: { ...state.designPicker, selected: next },
+      };
+    }
+    case 'designPickerStack':
+      return {
+        ...state,
+        designPicker: { ...state.designPicker, stack: action.stack },
+      };
     case 'resumePickerOpen':
       return {
         ...state,

@@ -1,6 +1,6 @@
 // State, Action, and supporting types extracted from app-reducer.ts.
 // This file has NO React or Ink dependencies — pure type definitions.
-import type { AutonomyStage, ContentBlock, SddBoardSnapshot, TokenSavingTier } from '@wrongstack/core';
+import type { AutonomyStage, ContentBlock, DesignKitEntry, SddBoardSnapshot, TokenSavingTier } from '@wrongstack/core';
 import type { AutonomyOption } from './components/autonomy-picker.js';
 import type { HistoryEntry } from './components/history.js';
 import type { ProviderOption } from './components/model-picker.js';
@@ -244,6 +244,14 @@ export type State = {
     options: AutonomyOption[];
     selected: number;
     hint?: string | undefined;
+  };
+  /** Design Studio kit picker — opened by `/design`. */
+  designPicker: {
+    open: boolean;
+    kits: DesignKitEntry[];
+    selected: number;
+    /** Target stack applied on selection. */
+    stack: string;
   };
   /** Session resume picker — opened by `/resume`. Lists recent sessions with metadata. */
   resumePicker: {
@@ -750,6 +758,10 @@ export type Action =
   | { type: 'autonomyPickerClose' }
   | { type: 'autonomyPickerMove'; delta: number }
   | { type: 'autonomyPickerHint'; text?: string | undefined }
+  | { type: 'designPickerOpen'; kits: DesignKitEntry[] }
+  | { type: 'designPickerClose' }
+  | { type: 'designPickerMove'; delta: number }
+  | { type: 'designPickerStack'; stack: string }
   | { type: 'resumePickerOpen'; sessions: ResumeSessionEntry[] }
   | { type: 'resumePickerClose' }
   | { type: 'resumePickerMove'; delta: number }

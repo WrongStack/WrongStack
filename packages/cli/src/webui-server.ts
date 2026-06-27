@@ -113,6 +113,10 @@ import {
   handleSkillsUninstall,
   handleSkillsUpdate,
   type SkillsContext,
+  type DesignContext,
+  handleDesignList,
+  handleDesignUse,
+  handleDesignState,
   verifyClient as verifyWsClient,
   WorktreeWebSocketHandler,
 } from '@wrongstack/webui/server';
@@ -1509,6 +1513,13 @@ export async function runWebUI(opts: CliWebUIOptions): Promise<void> {
     projectRoot: skillsProjectRoot,
   };
 
+  // Design Studio context — same project root, live agent ctx so design.use
+  // pins the active kit for the next turn.
+  const designCtx: DesignContext = {
+    projectRoot: skillsProjectRoot,
+    agentMeta: opts.agent.ctx as unknown as { meta: Record<string, unknown> },
+  };
+
   const worklistCtx: WorklistContext = {
     agent: opts.agent,
     sessionId: opts.session.id,
@@ -2180,6 +2191,11 @@ export async function runWebUI(opts: CliWebUIOptions): Promise<void> {
     'skills.create': (msg, ws) => handleSkillsCreate(ws, skillsCtx, msg),
     'skills.edit': (msg, ws) => handleSkillsEdit(ws, skillsCtx, msg),
     'skills.export': (_msg, ws) => handleSkillsExport(ws, skillsCtx),
+
+    // ── Design Studio ──
+    'design.list': (_msg, ws) => handleDesignList(ws, designCtx),
+    'design.use': (msg, ws) => handleDesignUse(ws, designCtx, msg),
+    'design.state': (_msg, ws) => handleDesignState(ws, designCtx),
 
     // ── Projects / working dir ──
     'projects.list': (_msg, ws) => handleProjectsList(projectsCtx, ws),

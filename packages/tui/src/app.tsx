@@ -17,6 +17,7 @@ import type {
 } from '@wrongstack/core';
 import { type AutonomyStage, DefaultSessionRewinder } from '@wrongstack/core';
 import { loadGoal, resolveWstackPaths } from '@wrongstack/core';
+import { clearActiveKit, clearPersistedActiveKit, getDesignKitLoader, isDesignStack, setActiveKit } from '@wrongstack/core';
 import { InputBuilder, buildGoalPreamble, formatTodosList, writeOut } from '@wrongstack/core';
 import { enhanceUserPrompt, normalizedEqual, recentTextTurns, shouldEnhance } from '@wrongstack/core';
 import { type VisionAdapters, routeImagesForModel } from '@wrongstack/runtime/vision';
@@ -34,6 +35,7 @@ import React, {
 import { readClipboardImage, readClipboardText } from './clipboard.js';
 import { AgentsMonitor } from './components/agents-monitor.js';
 import { AUTONOMY_OPTIONS, AutonomyPicker } from './components/autonomy-picker.js';
+import { DesignPicker } from './components/design-picker.js';
 import { BrainDecisionPrompt } from './components/brain-decision-prompt.js';
 import { CheckpointTimeline } from './components/checkpoint-timeline.js';
 import { type ConfirmDecision, ConfirmPrompt } from './components/confirm-prompt.js';
@@ -1059,6 +1061,7 @@ export function App({
       searchQuery: '',
     },
     autonomyPicker: { open: false, options: [], selected: 0 },
+    designPicker: { open: false, kits: [], selected: 0, stack: 'web' },
     resumePicker: { open: false, sessions: [], selected: 0, busy: false, hint: undefined, error: undefined },
     settingsPicker: { open: false, field: 0, lastSettingsField: 0, filter: '', mode: 'off', delayMs: 0, titleAnimation: true, yolo: false, streamFleet: true, chime: false, confirmExit: true, nextPrediction: false, featureMcp: true, featurePlugins: true, featureMemory: true, featureSkills: true, featureModelsRegistry: true, tokenSavingTier: 'off' as TokenSavingTier, allowOutsideProjectRoot: true, contextAutoCompact: true, contextStrategy: 'hybrid', contextMode: 'balanced' as ContextMode, maxConcurrent: 10, logLevel: 'info', auditLevel: 'standard', indexOnStart: true, multiDiffSummaryThreshold: 5, maxIterations: 500, autoProceedMaxIterations: 50, enhanceDelayMs: 60_000, enhanceEnabled: true, enhanceLanguage: 'original', debugStream: false, statuslineMode: 'detailed' as StatuslineMode, reasoningMode: 'auto' as 'auto', reasoningEffort: 'high', reasoningPreserve: false, thinkingWord: 'thinking', thinkingWordEditing: false, thinkingWordDraft: '', cacheTtl: 'default', configScope: 'global' },
     statuslinePicker: { open: false, field: 0, hiddenItems: [], visibleChips: [], hint: undefined },
@@ -1356,6 +1359,7 @@ export function App({
   const pickerOverlayOpen =
     state.modelPicker.open ||
     state.autonomyPicker.open ||
+    state.designPicker.open ||
     state.settingsPicker.open ||
     state.projectPicker.open ||
     state.slashPicker.open ||
@@ -1988,6 +1992,7 @@ export function App({
       state.slashPicker.open ||
       state.modelPicker.open ||
       state.autonomyPicker.open ||
+      state.designPicker.open ||
       state.resumePicker.open ||
       state.settingsPicker.open ||
       state.enhanceBusy ||
@@ -2010,6 +2015,7 @@ export function App({
     state.slashPicker.open,
     state.modelPicker.open,
     state.autonomyPicker.open,
+    state.designPicker.open,
     state.settingsPicker.open,
     state.enhanceBusy,
     state.enhance,
@@ -2075,6 +2081,7 @@ export function App({
       if (stateRef.current.projectPicker.open) dispatch({ type: 'projectPickerClose' });
       if (stateRef.current.modelPicker.open) dispatch({ type: 'modelPickerClose' });
       if (stateRef.current.autonomyPicker.open) dispatch({ type: 'autonomyPickerClose' });
+      if (stateRef.current.designPicker.open) dispatch({ type: 'designPickerClose' });
       if (stateRef.current.resumePicker.open) dispatch({ type: 'resumePickerClose' });
       if (stateRef.current.slashPicker.open) dispatch({ type: 'slashPickerClose' });
       if (stateRef.current.picker.open) dispatch({ type: 'pickerClose' });
@@ -2972,6 +2979,48 @@ export function App({
       slashRegistry.unregister('f');
     };
   }, [slashRegistry, openFKeyPicker]);
+
+  // Register the TUI-only `/design` command. With no args it opens the visual
+  // kit picker; with args it pins/clears like the CLI command. The picker's
+  // Enter routes back through `/design <id> <stack>`, so this one handler
+  // serves both the visual and typed paths.
+  useEffect(() => {
+    const cmd = {
+      name: 'design',
+      description: 'Open the Design Studio kit picker (or /design <kit> [stack] | off | foundations).',
+      async run(args: string) {
+        const loader = getDesignKitLoader(projectRoot);
+        const tokens = (args ?? '').trim().split(/\s+/).filter(Boolean);
+        const sub = tokens[0]?.toLowerCase();
+        if (!sub) {
+          const kits = await loader.listEntries();
+          dispatch({ type: 'designPickerOpen', kits });
+          return { message: undefined };
+        }
+        if (sub === 'off') {
+          clearActiveKit(agent.ctx);
+          await clearPersistedActiveKit(projectRoot);
+          return { message: 'Cleared the active design kit.' };
+        }
+        if (sub === 'foundations') {
+          return { runText: 'design foundations' };
+        }
+        const kit = await loader.find(sub);
+        if (!kit) {
+          const menu = await loader.menuText();
+          return { message: `Unknown kit "${sub}".\n\n${menu}` };
+        }
+        const stackArg = tokens[1]?.toLowerCase();
+        const stack = stackArg && isDesignStack(stackArg) ? stackArg : undefined;
+        setActiveKit(agent.ctx, kit.id, stack);
+        return { runText: `design use ${kit.id}${stack ? ` --stack ${stack}` : ''}` };
+      },
+    };
+    slashRegistry.register(cmd, 'tui', { official: true });
+    return () => {
+      slashRegistry.unregister('design');
+    };
+  }, [slashRegistry, projectRoot, agent]);
 
   // Register the TUI-only `/settings` command — opens the interactive
   // SettingsPicker immediately, same as Ctrl+S. Accepts an optional
@@ -4018,6 +4067,7 @@ export function App({
     const overlaySelectable =
       state.modelPicker.open ||
       state.autonomyPicker.open ||
+      state.designPicker.open ||
       state.resumePicker.open ||
       state.settingsPicker.open ||
       state.projectPicker.open ||
@@ -4039,6 +4089,8 @@ export function App({
         );
       } else if (state.autonomyPicker.open) {
         dispatch({ type: 'autonomyPickerClose' });
+      } else if (state.designPicker.open) {
+        dispatch({ type: 'designPickerClose' });
       } else if (state.resumePicker.open) {
         dispatch({ type: 'resumePickerClose' });
       } else if (state.settingsPicker.open) {
@@ -4171,6 +4223,46 @@ export function App({
           return;
         }
         dispatch({ type: 'autonomyPickerClose' });
+        return;
+      }
+      return;
+    }
+
+    // Design Studio kit picker — arrows navigate, ←/→ cycle the target stack,
+    // Enter applies the kit by running `/design <id> <stack>` (pins + loads it).
+    if (state.designPicker.open) {
+      if (key.escape) {
+        dispatch({ type: 'designPickerClose' });
+        return;
+      }
+      if (key.mouse?.kind === 'wheel') {
+        dispatch({ type: 'designPickerMove', delta: key.mouse.wheel > 0 ? -1 : 1 });
+        return;
+      }
+      if (key.upArrow) {
+        dispatch({ type: 'designPickerMove', delta: -1 });
+        return;
+      }
+      if (key.downArrow) {
+        dispatch({ type: 'designPickerMove', delta: 1 });
+        return;
+      }
+      if (key.leftArrow || key.rightArrow) {
+        const stacks = ['web', 'react-native', 'flutter', 'swiftui', 'compose'];
+        const cur = stacks.indexOf(state.designPicker.stack);
+        const delta = key.rightArrow ? 1 : -1;
+        const next = stacks[(cur + delta + stacks.length) % stacks.length] ?? 'web';
+        dispatch({ type: 'designPickerStack', stack: next });
+        return;
+      }
+      if (isEnter) {
+        const now = Date.now();
+        if (now - lastEnterAtRef.current < 50) return;
+        lastEnterAtRef.current = now;
+        const kit = state.designPicker.kits[state.designPicker.selected];
+        const stack = state.designPicker.stack;
+        dispatch({ type: 'designPickerClose' });
+        if (kit) void submit(`/design ${kit.id} ${stack}`);
         return;
       }
       return;
@@ -6621,6 +6713,13 @@ export function App({
               hint={state.autonomyPicker.hint}
             />
           ) : null}
+          {state.designPicker.open ? (
+            <DesignPicker
+              kits={state.designPicker.kits}
+              selected={state.designPicker.selected}
+              stack={state.designPicker.stack}
+            />
+          ) : null}
           {state.resumePicker.open ? (
             <ResumePicker
               sessions={state.resumePicker.sessions}
@@ -7001,7 +7100,7 @@ export function App({
             const ctx: KeyHintContext = {
               monitor: anyMonitorOpen,
               managed: state.scrollOffset > 0,
-              picker: state.settingsPicker.open || state.modelPicker.open || state.autonomyPicker.open,
+              picker: state.settingsPicker.open || state.modelPicker.open || state.autonomyPicker.open || state.designPicker.open,
               nextPanelHint,
             };
             return <KeyHintBar context={ctx} />;

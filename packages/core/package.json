@@ -97,11 +97,13 @@
       "import": "./dist/skills/index.js"
     },
     "./package.json": "./package.json",
-    "./skills/*": "./skills/*"
+    "./skills/*": "./skills/*",
+    "./design-kits/*": "./design-kits/*"
   },
   "files": [
     "dist",
-    "skills"
+    "skills",
+    "design-kits"
   ],
   "wrongstackApiVersion": "0.1.10",
   "scripts": {

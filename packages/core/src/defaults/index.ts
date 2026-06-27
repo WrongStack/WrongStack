@@ -21,323 +21,339 @@
 //
 // =============================================================================
 
-// ---- Infrastructure (was core/) ----
 export {
-  DefaultLogger,
-  type DefaultLoggerOptions,
-  type LogFormat,
-} from '../infrastructure/logger.js';
-
-// ---- Storage ----
+  createMessage,
+  InMemoryAgentBridge,
+  InMemoryBridgeTransport,
+} from '../coordination/agent-bridge.js';
 export {
-  DefaultSessionStore,
-  type SessionStoreOptions,
-} from '../storage/session-store.js';
+  type AgentFactory,
+  type AgentFactoryResult,
+  type AgentRunnerOptions,
+  makeAgentSubagentRunner,
+} from '../coordination/agent-subagent-runner.js';
 export {
-  QueueStore,
-  type PersistedQueueItem,
-} from '../storage/queue-store.js';
+  AGENT_CATALOG,
+  AGENTS_BY_PHASE,
+  type AgentBudgetTier,
+  type AgentCapability,
+  type AgentDefinition,
+  type AgentPhase,
+  ALL_AGENT_DEFINITIONS,
+  getAgentDefinition,
+} from '../coordination/agents/index.js';
 export {
-  DefaultAttachmentStore,
-  type AttachmentStoreOptions,
-} from '../storage/attachment-store.js';
+  type AutoExtendCeiling,
+  type AutoExtendPolicy,
+  attachAutoExtend,
+} from '../coordination/auto-extend.js';
 export {
-  DefaultMemoryStore,
-  type MemoryStoreOptions,
-} from '../storage/memory-store.js';
-export { DefaultConfigStore } from '../storage/config-store.js';
-export {
-  DefaultConfigLoader,
-  type ConfigLoaderOptions,
-  type ConfigSource,
-} from '../storage/config-loader.js';
-export {
-  runConfigMigrations,
-  ConfigMigrationError,
-  DEFAULT_CONFIG_MIGRATIONS,
-  type ConfigMigration,
-  type MigrationContext,
-  type MigrationResult,
-} from '../storage/config-migration.js';
-export {
-  RecoveryLock,
-  type RecoveryLockOptions,
-  type AbandonedSession,
-} from '../storage/recovery-lock.js';
-export { DefaultSessionReader } from '../storage/session-reader.js';
-export { SessionAnalyzer } from '../storage/session-analyzer.js';
-
-export {
-  createSessionEventBridge,
-  resolveAuditLevel,
-  resolveSessionLoggingConfig,
-  type SessionEventBridge,
-  type AuditLevel,
-  type SessionEventBridgeOptions,
-  type SessionSamplingOptions,
-  type ToolProgressSamplingOptions,
-} from '../storage/session-event-bridge.js';
-export {
-  attachTodosCheckpoint,
-  loadTodosCheckpoint,
-  saveTodosCheckpoint,
-  type TodosCheckpointFile,
-} from '../storage/todos-checkpoint.js';
-export {
-  attachPlanCheckpoint,
-  loadPlan,
-  savePlan,
-  emptyPlan,
-  addPlanItem,
-  removePlanItem,
-  setPlanItemStatus,
-  clearPlan,
-  formatPlan,
-  deriveTodosFromPlanItem,
-  type PlanItem,
-  type PlanFile,
-} from '../storage/plan-store.js';
-export {
-  listPlanTemplates,
-  getPlanTemplate,
-  formatPlanTemplates,
-  type PlanTemplate,
-} from '../storage/plan-templates.js';
-export {
-  DirectorStateCheckpoint,
-  loadDirectorState,
-  type DirectorStateSnapshot,
-  type DirectorTaskState,
-  type DirectorSubagentState,
-} from '../storage/director-state.js';
-
-// ---- Security ----
-export { DefaultSecretScrubber } from '../security/secret-scrubber.js';
-export {
-  DefaultSecretVault,
-  type SecretVaultOptions,
-  decryptConfigSecrets,
-  encryptConfigSecrets,
-  rewriteConfigEncrypted,
-  migratePlaintextSecrets,
-} from '../security/secret-vault.js';
-export {
-  DefaultPermissionPolicy,
-  AutoApprovePermissionPolicy,
-  type PermissionPolicyOptions,
-} from '../security/permission-policy.js';
-
-// ---- Execution ----
-export { DefaultRetryPolicy } from '../execution/retry-policy.js';
-export { DefaultErrorHandler } from '../execution/error-handler.js';
-export { DefaultSkillLoader, type SkillLoaderOptions } from '../execution/skill-loader.js';
-export { DefaultProviderRunner } from '../execution/provider-runner-impl.js';
-export {
-  HybridCompactor,
-  type CompactorOptions,
-  DEFAULT_TOOLS_CONFIG,
-  DEFAULT_CONTEXT_CONFIG,
-  DEFAULT_AUTONOMY_CONFIG,
-} from '../execution/compactor.js';
-export {
-  IntelligentCompactor,
-  type IntelligentCompactorOptions,
-} from '../execution/intelligent-compactor.js';
-export {
-  SelectiveCompactor,
-  type SelectiveCompactorOptions,
-} from '../execution/selective-compactor.js';
-export {
-  createStrategyCompactor,
-  type CompactorStrategy,
-  type StrategyCompactorOptions,
-} from '../execution/strategy-compactor.js';
-export { AutoCompactionMiddleware } from '../execution/auto-compaction-middleware.js';
-export { ToolExecutor } from '../execution/tool-executor.js';
-export {
-  AutonomousRunner,
-  DoneConditionChecker,
-  type DoneCheckResult,
-  type AutonomousRunnerOptions,
-} from '../execution/autonomous-runner.js';
-export {
-  EternalAutonomyEngine,
-  type EternalAutonomyOptions,
-  type EternalEngineState,
-  type IterationStage,
-} from '../execution/eternal-autonomy.js';
-export {
-  ParallelEternalEngine,
-  type ParallelEternalOptions,
-  type ParallelEngineState,
-  type ParallelIterationStage,
-} from '../execution/parallel-eternal-engine.js';
-export {
-  makeAutonomyPromptContributor,
-  type AutonomyPromptContributorOptions,
-} from '../execution/autonomy-prompt-contributor.js';
-export { buildGoalPreamble } from '../execution/goal-preamble.js';
-
+  type CreateDelegateToolOptions,
+  createDelegateTool,
+  type DelegateHost,
+} from '../coordination/delegate-tool.js';
 // ---- Coordination (multi-agent) ----
 export {
   Director,
   FleetSpawnBudgetError,
 } from '../coordination/director.js';
 export {
-  makeSpawnTool,
+  composeDirectorPrompt,
+  composeSubagentPrompt,
+  DEFAULT_DIRECTOR_PREAMBLE,
+  DEFAULT_SUBAGENT_BASELINE,
+  type DirectorPromptParts,
+  rosterSummaryFromConfigs,
+  type SubagentPromptParts,
+} from '../coordination/director-prompts.js';
+export {
+  type DirectorSessionFactory,
+  type DirectorSessionFactoryOptions,
+  makeDirectorSessionFactory,
+} from '../coordination/director-session.js';
+export {
+  makeAskTool,
   makeAssignTool,
   makeAwaitTasksTool,
-  makeAskTool,
-  makeRollUpTool,
-  makeTerminateTool,
-  makeFleetStatusTool,
-  makeFleetUsageTool,
-  makeFleetSessionTool,
-  makeFleetHealthTool,
   makeCollabDebugTool,
   makeFleetEmitTool,
+  makeFleetHealthTool,
+  makeFleetSessionTool,
+  makeFleetStatusTool,
+  makeFleetUsageTool,
+  makeRollUpTool,
+  makeSpawnTool,
+  makeTerminateTool,
 } from '../coordination/director-tools.js';
 export {
-  createDelegateTool,
-  type DelegateHost,
-  type CreateDelegateToolOptions,
-} from '../coordination/delegate-tool.js';
+  DEFAULT_DISPATCH_ROLE,
+  type DispatchCandidate,
+  type DispatchClassifier,
+  type DispatchMethod,
+  type DispatchOptions,
+  type DispatchResult,
+  dispatchAgent,
+  makeLLMClassifier,
+  scoreAgents,
+} from '../coordination/dispatcher.js';
+export {
+  ALL_FLEET_AGENTS,
+  AUDIT_LOG_AGENT,
+  applyRosterBudget,
+  BUG_HUNTER_AGENT,
+  FLEET_ROSTER,
+  FLEET_ROSTER_BUDGETS,
+  type FleetRosterBudget,
+  REFACTOR_PLANNER_AGENT,
+  SECURITY_SCANNER_AGENT,
+} from '../coordination/fleet.js';
+export {
+  FleetBus,
+  type FleetEvent,
+  type FleetHandler,
+  type FleetUsage,
+  FleetUsageAggregator,
+  type SubagentUsageSnapshot,
+} from '../coordination/fleet-bus.js';
+export type { ICoordinator } from '../coordination/icoordinator.js';
+export type { IFleetManager } from '../coordination/ifleet-manager.js';
 export {
   DefaultMultiAgentCoordinator,
   type MultiAgentCoordinatorOptions,
 } from '../coordination/multi-agent-coordinator.js';
+export { NULL_FLEET_BUS } from '../coordination/null-fleet-bus.js';
 export {
-  SubagentBudget,
   BudgetExceededError,
   type BudgetKind,
   type BudgetLimits,
   type BudgetUsage,
+  SubagentBudget,
 } from '../coordination/subagent-budget.js';
+export { AutoCompactionMiddleware } from '../execution/auto-compaction-middleware.js';
 export {
-  makeAgentSubagentRunner,
-  type AgentFactory,
-  type AgentFactoryResult,
-  type AgentRunnerOptions,
-} from '../coordination/agent-subagent-runner.js';
+  AutonomousRunner,
+  type AutonomousRunnerOptions,
+  type DoneCheckResult,
+  DoneConditionChecker,
+} from '../execution/autonomous-runner.js';
 export {
-  FleetBus,
-  FleetUsageAggregator,
-  type FleetEvent,
-  type FleetHandler,
-  type FleetUsage,
-  type SubagentUsageSnapshot,
-} from '../coordination/fleet-bus.js';
+  type AutonomyPromptContributorOptions,
+  makeAutonomyPromptContributor,
+} from '../execution/autonomy-prompt-contributor.js';
 export {
-  makeDirectorSessionFactory,
-  type DirectorSessionFactory,
-  type DirectorSessionFactoryOptions,
-} from '../coordination/director-session.js';
+  type CompactorOptions,
+  DEFAULT_AUTONOMY_CONFIG,
+  DEFAULT_CONTEXT_CONFIG,
+  DEFAULT_TOOLS_CONFIG,
+  HybridCompactor,
+} from '../execution/compactor.js';
 export {
-  composeDirectorPrompt,
-  composeSubagentPrompt,
-  rosterSummaryFromConfigs,
-  DEFAULT_DIRECTOR_PREAMBLE,
-  DEFAULT_SUBAGENT_BASELINE,
-  type DirectorPromptParts,
-  type SubagentPromptParts,
-} from '../coordination/director-prompts.js';
+  activateDesign,
+  clearActiveKit,
+  detectFrontendFile,
+  detectFrontendIntent,
+  getDesignState,
+  installDesignStudioMiddleware,
+  makeDesignDetectToolCallMiddleware,
+  makeDesignDetectUserInputMiddleware,
+  makeDesignStudioRequestMiddleware,
+  setActiveKit,
+} from '../execution/design-detect.js';
 export {
-  InMemoryAgentBridge,
-  InMemoryBridgeTransport,
-  createMessage,
-} from '../coordination/agent-bridge.js';
+  _resetDesignKitLoaderMemo,
+  DefaultDesignKitLoader,
+  type DesignKitLoaderOptions,
+  getDesignKitLoader,
+  resolveBundledDesignKitsDir,
+} from '../execution/design-kit-loader.js';
 export {
-  AUDIT_LOG_AGENT,
-  BUG_HUNTER_AGENT,
-  REFACTOR_PLANNER_AGENT,
-  SECURITY_SCANNER_AGENT,
-  FLEET_ROSTER,
-  FLEET_ROSTER_BUDGETS,
-  applyRosterBudget,
-  ALL_FLEET_AGENTS,
-  type FleetRosterBudget,
-} from '../coordination/fleet.js';
+  _resetDesignRulesCache,
+  clearPersistedActiveKit,
+  designProjectDir,
+  loadActiveKit,
+  loadProjectDesignRules,
+  type PersistedActiveKit,
+  recordKitChoice,
+} from '../execution/design-project-store.js';
+export { DefaultErrorHandler } from '../execution/error-handler.js';
 export {
-  ALL_AGENT_DEFINITIONS,
-  AGENT_CATALOG,
-  AGENTS_BY_PHASE,
-  getAgentDefinition,
-  type AgentDefinition,
-  type AgentCapability,
-  type AgentBudgetTier,
-  type AgentPhase,
-} from '../coordination/agents/index.js';
+  EternalAutonomyEngine,
+  type EternalAutonomyOptions,
+  type EternalEngineState,
+  type IterationStage,
+} from '../execution/eternal-autonomy.js';
+export { buildGoalPreamble } from '../execution/goal-preamble.js';
 export {
-  dispatchAgent,
-  scoreAgents,
-  makeLLMClassifier,
-  DEFAULT_DISPATCH_ROLE,
-  type DispatchResult,
-  type DispatchCandidate,
-  type DispatchClassifier,
-  type DispatchOptions,
-  type DispatchMethod,
-} from '../coordination/dispatcher.js';
+  IntelligentCompactor,
+  type IntelligentCompactorOptions,
+} from '../execution/intelligent-compactor.js';
 export {
-  attachAutoExtend,
-  type AutoExtendPolicy,
-  type AutoExtendCeiling,
-} from '../coordination/auto-extend.js';
-export type { ICoordinator } from '../coordination/icoordinator.js';
-export type { IFleetManager } from '../coordination/ifleet-manager.js';
-export { NULL_FLEET_BUS } from '../coordination/null-fleet-bus.js';
-
-// ---- Models ----
+  type ParallelEngineState,
+  ParallelEternalEngine,
+  type ParallelEternalOptions,
+  type ParallelIterationStage,
+} from '../execution/parallel-eternal-engine.js';
+export { DefaultProviderRunner } from '../execution/provider-runner-impl.js';
+// ---- Execution ----
+export { DefaultRetryPolicy } from '../execution/retry-policy.js';
 export {
-  DefaultModelsRegistry,
-  classifyFamily,
-  type DefaultModelsRegistryOptions,
-} from '../models/models-registry.js';
+  SelectiveCompactor,
+  type SelectiveCompactorOptions,
+} from '../execution/selective-compactor.js';
+export { DefaultSkillLoader, type SkillLoaderOptions } from '../execution/skill-loader.js';
+export {
+  type CompactorStrategy,
+  createStrategyCompactor,
+  type StrategyCompactorOptions,
+} from '../execution/strategy-compactor.js';
+export { ToolExecutor } from '../execution/tool-executor.js';
+// ---- Context manager (tool) ----
+export {
+  type ContextManagerAction,
+  type ContextManagerInput,
+  type ContextManagerResult,
+  type ContextManagerToolOptions,
+  contextManagerTool,
+  createContextManagerTool,
+} from '../infrastructure/context-manager.js';
+// ---- Infrastructure (was core/) ----
+export {
+  DefaultLogger,
+  type DefaultLoggerOptions,
+  type LogFormat,
+} from '../infrastructure/logger.js';
+// ---- MCP servers ----
+export {
+  allServers,
+  awsServer,
+  blockServer,
+  braveSearchServer,
+  context7Server,
+  everArtServer,
+  filesystemServer,
+  githubServer,
+  googleMapsServer,
+  miniMaxVisionServer,
+  playwrightServer,
+  sentinelServer,
+  slackServer,
+  sshManagerServer,
+  zaiVisionServer,
+} from '../infrastructure/mcp-servers.js';
+export { CODEX_MODELS, type CodexModelMeta, codexModelMeta } from '../models/codex-catalog.js';
+export { LLMSelector, type LLMSelectorOptions } from '../models/llm-selector.js';
 export {
   DefaultModeStore,
   loadProjectModes,
   loadUserModes,
   type ModeLoaderOptions,
 } from '../models/mode-store.js';
-export { LLMSelector, type LLMSelectorOptions } from '../models/llm-selector.js';
+// ---- Models ----
 export {
-  resolveProviderModelList,
+  classifyFamily,
+  DefaultModelsRegistry,
+  type DefaultModelsRegistryOptions,
+} from '../models/models-registry.js';
+export {
   describeCatalogModel,
   type ProviderModelDescriptor,
+  resolveProviderModelList,
 } from '../models/provider-model-resolve.js';
-export { CODEX_MODELS, codexModelMeta, type CodexModelMeta } from '../models/codex-catalog.js';
-
-// ---- SDD ----
-export { SpecParser } from '../sdd/spec-parser.js';
+// ---- Observability ----
 export {
-  TaskGenerator,
-  DefaultTaskStore,
-  extractVerificationCommand,
-  type TaskGeneratorOptions,
-  type GeneratedTask,
-} from '../sdd/task-generator.js';
+  buildOtlpMetricsRequest,
+  buildOtlpTracesRequest,
+  DefaultHealthRegistry,
+  InMemoryMetricsSink,
+  type MetricsServerHandle,
+  type MetricsServerOptions,
+  NoopMetricsSink,
+  NoopTracer,
+  OTelTracer,
+  type OtlpMetricsExporterHandle,
+  type OtlpMetricsExporterOptions,
+  type OtlpTraceExporterHandle,
+  type OtlpTraceExporterOptions,
+  PROMETHEUS_CONTENT_TYPE,
+  renderPrometheus,
+  startMetricsServer,
+  startOtlpMetricsExporter,
+  startOtlpTraceExporter,
+  wireMetricsToEvents,
+} from '../observability/index.js';
 export {
-  TaskTracker,
-  type TaskStore,
-  type TaskTrackerOptions,
-  type TaskTransition,
-} from '../sdd/task-tracker.js';
+  AutoExecutor,
+  type AutoExecutorOptions,
+  createAutoExecutor,
+  type ExecutionSummary,
+  type TaskExecutionContext,
+  type TaskExecutionResult,
+} from '../sdd/auto-executor.js';
+// Live SDD board: model, persistence, projector, run registry.
 export {
-  TaskFlow,
-  SpecDrivenDev,
-  type TaskFlowPhase,
-  type TaskFlowOptions,
-  type TaskFlowExecutionContext,
-  type TaskFlowEventMap,
-  type TaskFlowEventName,
-  type SpecDrivenDevOptions,
-} from '../sdd/task-flow.js';
-export { SpecStore, type SpecStoreOptions, type SpecIndexEntry } from '../sdd/spec-store.js';
+  buildBoardSnapshot,
+  buildBoardTasks,
+  type SddBoardColumn,
+  type SddBoardFeedEntry,
+  type SddBoardSnapshot,
+  type SddBoardStatus,
+  type SddBoardTask,
+  type SddDeadlockChain,
+  type SddTaskDisplayStatus,
+  shortIdMap,
+} from '../sdd/board-types.js';
 export {
-  TaskGraphStore,
-  type TaskGraphStoreOptions,
-  type TaskGraphIndexEntry,
-} from '../sdd/task-graph-store.js';
+  type ConflictSide,
+  hasConflictMarkers,
+  type LlmConflictResolverOptions,
+  makeLlmConflictResolver,
+  makePreferSideConflictResolver,
+  resolveConflictText,
+} from '../sdd/conflict-resolver.js';
+export {
+  analyzeCriticalPath,
+  type BottleneckTask,
+  type CriticalPathAnalysis,
+} from '../sdd/critical-path.js';
+export { makeLlmSubtaskGenerator, type SubtaskGeneratorOptions } from '../sdd/decompose-task.js';
+export { SddBoardProjector, type SddBoardProjectorOptions } from '../sdd/sdd-board-projector.js';
+export {
+  type SddBoardEvent,
+  type SddBoardIndexEntry,
+  SddBoardStore,
+  type SddBoardStoreOptions,
+} from '../sdd/sdd-board-store.js';
+export {
+  isExplanatoryText,
+  type SddIngestResult,
+  SddInterviewDriver,
+  type SddInterviewDriverOptions,
+  type SddInterviewSnapshot,
+} from '../sdd/sdd-interview-driver.js';
+export {
+  cleanupSddWorktrees,
+  type DestroySddProjectOptions,
+  type DestroySddProjectResult,
+  destroySddProject,
+  type RollbackFromDiskOptions,
+  rollbackSddRunFromDisk,
+} from '../sdd/sdd-lifecycle.js';
+export {
+  type RunResult,
+  SddParallelRun,
+  type SddParallelRunOptions,
+  type SddProgress,
+  type SddSubtaskSpec,
+  type SddSupervisorVerdict,
+  type WaveResult,
+} from '../sdd/sdd-parallel-run.js';
+export { type SddRunControl, SddRunRegistry } from '../sdd/sdd-run-registry.js';
+export { SddSupervisor, type SddSupervisorOptions } from '../sdd/sdd-supervisor.js';
+export {
+  SddTaskDecomposer,
+  type SddTaskDecomposerOptions,
+  type TaskBatch,
+} from '../sdd/sdd-task-decomposer.js';
 export {
   AISpecBuilder,
   type AISpecBuilderOptions,
@@ -345,147 +361,149 @@ export {
   type AISpecSession,
   type CollectedAnswer,
 } from '../sdd/spec-builder.js';
+// ---- SDD ----
+export { SpecParser } from '../sdd/spec-parser.js';
+export { type SpecIndexEntry, SpecStore, type SpecStoreOptions } from '../sdd/spec-store.js';
 export {
-  SPEC_TEMPLATES,
   getTemplate,
   listTemplates,
+  SPEC_TEMPLATES,
   templateToMarkdown,
 } from '../sdd/spec-templates.js';
+export { type SpecDiff, type SpecVersion, SpecVersioning } from '../sdd/spec-versioning.js';
 export {
-  renderTaskGraph,
-  renderProgress,
-  renderTaskList,
-  renderSpecAnalysis,
-} from '../sdd/task-visualizer.js';
-export {
-  analyzeCriticalPath,
-  type CriticalPathAnalysis,
-  type BottleneckTask,
-} from '../sdd/critical-path.js';
-export { SpecVersioning, type SpecVersion, type SpecDiff } from '../sdd/spec-versioning.js';
-export {
-  AutoExecutor,
-  createAutoExecutor,
-  type AutoExecutorOptions,
-  type TaskExecutionContext,
-  type TaskExecutionResult,
-  type ExecutionSummary,
-} from '../sdd/auto-executor.js';
-export {
-  SddTaskDecomposer,
-  type SddTaskDecomposerOptions,
-  type TaskBatch,
-} from '../sdd/sdd-task-decomposer.js';
-export {
-  SddParallelRun,
-  type SddParallelRunOptions,
-  type SddProgress,
-  type WaveResult,
-  type RunResult,
-  type SddSubtaskSpec,
-  type SddSupervisorVerdict,
-} from '../sdd/sdd-parallel-run.js';
-export { SddSupervisor, type SddSupervisorOptions } from '../sdd/sdd-supervisor.js';
-export { makeCommandVerifier, type CommandVerifierOptions } from '../sdd/verify-task.js';
-export { makeLlmSubtaskGenerator, type SubtaskGeneratorOptions } from '../sdd/decompose-task.js';
-export {
-  makePreferSideConflictResolver,
-  makeLlmConflictResolver,
-  resolveConflictText,
-  hasConflictMarkers,
-  type ConflictSide,
-  type LlmConflictResolverOptions,
-} from '../sdd/conflict-resolver.js';
-// Live SDD board: model, persistence, projector, run registry.
-export {
-  buildBoardTasks,
-  buildBoardSnapshot,
-  shortIdMap,
-  type SddBoardSnapshot,
-  type SddBoardTask,
-  type SddBoardColumn,
-  type SddBoardStatus,
-  type SddTaskDisplayStatus,
-  type SddDeadlockChain,
-  type SddBoardFeedEntry,
-} from '../sdd/board-types.js';
-export {
-  SddBoardStore,
-  type SddBoardStoreOptions,
-  type SddBoardIndexEntry,
-  type SddBoardEvent,
-} from '../sdd/sdd-board-store.js';
-export { SddBoardProjector, type SddBoardProjectorOptions } from '../sdd/sdd-board-projector.js';
-export { SddRunRegistry, type SddRunControl } from '../sdd/sdd-run-registry.js';
-export {
-  SddInterviewDriver,
-  isExplanatoryText,
-  type SddInterviewDriverOptions,
-  type SddInterviewSnapshot,
-  type SddIngestResult,
-} from '../sdd/sdd-interview-driver.js';
-export {
-  startSddRun,
-  type StartSddRunOptions,
   type SddRunHandle,
+  type StartSddRunOptions,
+  startSddRun,
 } from '../sdd/start-sdd-run.js';
 export {
-  cleanupSddWorktrees,
-  rollbackSddRunFromDisk,
-  destroySddProject,
-  type RollbackFromDiskOptions,
-  type DestroySddProjectOptions,
-  type DestroySddProjectResult,
-} from '../sdd/sdd-lifecycle.js';
-
-// ---- Observability ----
+  SpecDrivenDev,
+  type SpecDrivenDevOptions,
+  TaskFlow,
+  type TaskFlowEventMap,
+  type TaskFlowEventName,
+  type TaskFlowExecutionContext,
+  type TaskFlowOptions,
+  type TaskFlowPhase,
+} from '../sdd/task-flow.js';
 export {
-  InMemoryMetricsSink,
-  NoopMetricsSink,
-  DefaultHealthRegistry,
-  NoopTracer,
-  OTelTracer,
-  wireMetricsToEvents,
-  renderPrometheus,
-  startMetricsServer,
-  PROMETHEUS_CONTENT_TYPE,
-  type MetricsServerOptions,
-  type MetricsServerHandle,
-  buildOtlpMetricsRequest,
-  startOtlpMetricsExporter,
-  type OtlpMetricsExporterOptions,
-  type OtlpMetricsExporterHandle,
-  buildOtlpTracesRequest,
-  startOtlpTraceExporter,
-  type OtlpTraceExporterOptions,
-  type OtlpTraceExporterHandle,
-} from '../observability/index.js';
-
-// ---- Context manager (tool) ----
+  DefaultTaskStore,
+  extractVerificationCommand,
+  type GeneratedTask,
+  TaskGenerator,
+  type TaskGeneratorOptions,
+} from '../sdd/task-generator.js';
 export {
-  contextManagerTool,
-  createContextManagerTool,
-  type ContextManagerInput,
-  type ContextManagerResult,
-  type ContextManagerAction,
-  type ContextManagerToolOptions,
-} from '../infrastructure/context-manager.js';
-
-// ---- MCP servers ----
+  type TaskGraphIndexEntry,
+  TaskGraphStore,
+  type TaskGraphStoreOptions,
+} from '../sdd/task-graph-store.js';
 export {
-  filesystemServer,
-  githubServer,
-  context7Server,
-  braveSearchServer,
-  blockServer,
-  everArtServer,
-  slackServer,
-  awsServer,
-  googleMapsServer,
-  sentinelServer,
-  zaiVisionServer,
-  miniMaxVisionServer,
-  playwrightServer,
-  sshManagerServer,
-  allServers,
-} from '../infrastructure/mcp-servers.js';
+  type TaskStore,
+  TaskTracker,
+  type TaskTrackerOptions,
+  type TaskTransition,
+} from '../sdd/task-tracker.js';
+export {
+  renderProgress,
+  renderSpecAnalysis,
+  renderTaskGraph,
+  renderTaskList,
+} from '../sdd/task-visualizer.js';
+export { type CommandVerifierOptions, makeCommandVerifier } from '../sdd/verify-task.js';
+export {
+  AutoApprovePermissionPolicy,
+  DefaultPermissionPolicy,
+  type PermissionPolicyOptions,
+} from '../security/permission-policy.js';
+// ---- Security ----
+export { DefaultSecretScrubber } from '../security/secret-scrubber.js';
+export {
+  DefaultSecretVault,
+  decryptConfigSecrets,
+  encryptConfigSecrets,
+  migratePlaintextSecrets,
+  rewriteConfigEncrypted,
+  type SecretVaultOptions,
+} from '../security/secret-vault.js';
+export {
+  type AttachmentStoreOptions,
+  DefaultAttachmentStore,
+} from '../storage/attachment-store.js';
+export {
+  type ConfigLoaderOptions,
+  type ConfigSource,
+  DefaultConfigLoader,
+} from '../storage/config-loader.js';
+export {
+  type ConfigMigration,
+  ConfigMigrationError,
+  DEFAULT_CONFIG_MIGRATIONS,
+  type MigrationContext,
+  type MigrationResult,
+  runConfigMigrations,
+} from '../storage/config-migration.js';
+export { DefaultConfigStore } from '../storage/config-store.js';
+export {
+  DirectorStateCheckpoint,
+  type DirectorStateSnapshot,
+  type DirectorSubagentState,
+  type DirectorTaskState,
+  loadDirectorState,
+} from '../storage/director-state.js';
+export {
+  DefaultMemoryStore,
+  type MemoryStoreOptions,
+} from '../storage/memory-store.js';
+export {
+  addPlanItem,
+  attachPlanCheckpoint,
+  clearPlan,
+  deriveTodosFromPlanItem,
+  emptyPlan,
+  formatPlan,
+  loadPlan,
+  type PlanFile,
+  type PlanItem,
+  removePlanItem,
+  savePlan,
+  setPlanItemStatus,
+} from '../storage/plan-store.js';
+export {
+  formatPlanTemplates,
+  getPlanTemplate,
+  listPlanTemplates,
+  type PlanTemplate,
+} from '../storage/plan-templates.js';
+export {
+  type PersistedQueueItem,
+  QueueStore,
+} from '../storage/queue-store.js';
+export {
+  type AbandonedSession,
+  RecoveryLock,
+  type RecoveryLockOptions,
+} from '../storage/recovery-lock.js';
+export { SessionAnalyzer } from '../storage/session-analyzer.js';
+export {
+  type AuditLevel,
+  createSessionEventBridge,
+  resolveAuditLevel,
+  resolveSessionLoggingConfig,
+  type SessionEventBridge,
+  type SessionEventBridgeOptions,
+  type SessionSamplingOptions,
+  type ToolProgressSamplingOptions,
+} from '../storage/session-event-bridge.js';
+export { DefaultSessionReader } from '../storage/session-reader.js';
+// ---- Storage ----
+export {
+  DefaultSessionStore,
+  type SessionStoreOptions,
+} from '../storage/session-store.js';
+export {
+  attachTodosCheckpoint,
+  loadTodosCheckpoint,
+  saveTodosCheckpoint,
+  type TodosCheckpointFile,
+} from '../storage/todos-checkpoint.js';

@@ -443,6 +443,50 @@ export interface WSSkillContent {
   };
 }
 
+export interface WSDesignKitSummary {
+  id: string;
+  name: string;
+  aesthetic: string;
+  bestFor: string;
+  stacks: string[];
+  tags: string[];
+  light: Record<string, string>;
+  dark: Record<string, string>;
+}
+
+export interface WSDesignList {
+  type: 'design.list';
+  payload: {
+    kits: WSDesignKitSummary[];
+    activeKit: string | null;
+    stack: string | null;
+    error?: string | undefined;
+  };
+}
+
+export interface WSDesignUse {
+  type: 'design.use';
+  payload: {
+    ok: boolean;
+    kit?: string | undefined;
+    name?: string | undefined;
+    aesthetic?: string | undefined;
+    stack?: string | undefined;
+    body?: string | undefined;
+    light?: Record<string, string> | undefined;
+    dark?: Record<string, string> | undefined;
+    error?: string | undefined;
+  };
+}
+
+export interface WSDesignState {
+  type: 'design.state';
+  payload: {
+    activeKit: string | null;
+    stack: string | null;
+  };
+}
+
 export interface WSSkillsInstalled {
   type: 'skills.installed';
   payload: {
@@ -1034,6 +1078,10 @@ export type WSClientMessage =
   | { type: 'skills.create'; payload: { name: string; description: string; scope: 'project' | 'global' } }
   | { type: 'skills.export'; payload?: Record<string, unknown> }
   | { type: 'skills.edit'; payload: { name: string; body: string } }
+  // ── Design Studio client messages ────────────────────────────────────────────
+  | { type: 'design.list' }
+  | { type: 'design.use'; payload: { kit: string; stack?: string | undefined } }
+  | { type: 'design.state' }
   // ── MCP client messages (requests to server) ─────────────────────────────────
   | { type: 'mcp.list' }
   | { type: 'mcp.add'; payload: { name: string; transport: string; description?: string; enabled?: boolean; command?: string; args?: string[]; env?: Record<string, string>; allowedTools?: string[] } }
@@ -1092,6 +1140,9 @@ export type WSServerMessage =
   | WSMemoryList
   | WSSkillsList
   | WSSkillContent
+  | WSDesignList
+  | WSDesignUse
+  | WSDesignState
   | WSSkillsInstalled
   | WSSkillsUninstalled
   | WSSkillsUpdated

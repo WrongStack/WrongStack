@@ -39,6 +39,7 @@ export { outdatedTool } from './outdated.js';
 export { logsTool } from './logs.js';
 export { documentTool } from './document.js';
 export { scaffoldTool } from './scaffold.js';
+export { designTool } from './design.js';
 export { toolSearchTool } from './tool-search.js';
 export { toolUseTool } from './tool-use.js';
 export { batchToolUseTool } from './batch-tool-use.js';

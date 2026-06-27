@@ -495,6 +495,7 @@ import { buildMailboxCommand } from './mailbox.js';
 import { buildMailboxDemoCommand } from './mailbox-demo.js';
 import { buildMcpSlashCommand } from './mcp.js';
 import { buildMemoryCommand } from './memory.js';
+import { buildDesignCommand } from './design.js';
 import { buildModeCommand } from './mode.js';
 import { buildModelCapsCommand } from './modelcaps.js';
 import { buildModelsCommand } from './models.js';
@@ -575,6 +576,7 @@ export function buildBuiltinSlashCommands(opts: SlashCommandContext): SlashComma
     buildBtwCommand(opts),
     buildNextCommand(opts),
     buildModeCommand(opts),
+    buildDesignCommand(opts),
     buildMailboxDemoCommand(opts),
     buildMailboxCommand(opts),
     buildExitCommand(opts),

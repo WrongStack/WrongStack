@@ -26,6 +26,7 @@ import { ChangesPanel } from './ChangesPanel';
 import { HistoryPanel } from './HistoryPanel';
 import { SessionPanel } from './SessionPanel';
 import { SkillsList } from './SkillsList';
+import { DesignStudioPanel } from './DesignStudioPanel';
 import { OfficeMapSettingsPanel } from '../OfficeMapSettingsPanel';
 
 const PANEL_TITLE: Record<Activity, string> = {
@@ -37,6 +38,7 @@ const PANEL_TITLE: Record<Activity, string> = {
   projects: 'Projects',
   mailbox: 'Mailbox',
   skills: 'Skills',
+  design: 'Design Studio',
   officemap: 'Office Map',
 };
 
@@ -129,6 +131,11 @@ export function SidePanel() {
         {activeActivity === 'skills' && (
           <div className="flex-1 overflow-hidden">
             <SkillsList className="h-full" />
+          </div>
+        )}
+        {activeActivity === 'design' && (
+          <div className="flex-1 overflow-hidden">
+            <DesignStudioPanel className="h-full" />
           </div>
         )}
         {activeActivity === 'officemap' && (

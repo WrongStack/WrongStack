@@ -29,6 +29,8 @@ export interface WstackPaths {
   globalMemory: string;
   /** ~/.wrongstack/skills — user-global skills. */
   globalSkills: string;
+  /** ~/.wrongstack/design-kits — user-global Design Studio kits. */
+  globalDesignKits: string;
   /** ~/.wrongstack/prompts — user-global prompt library. */
   globalPrompts: string;
   /** ~/.wrongstack/cache — fetched data (models.dev, etc.). */
@@ -66,6 +68,8 @@ export interface WstackPaths {
   inProjectAgentsFile: string;
   /** <project>/.wrongstack/skills — committed project skills. */
   inProjectSkills: string;
+  /** <project>/.wrongstack/design-kits — committed project Design Studio kits. */
+  inProjectDesignKits: string;
   /** <project>/.wrongstack/worktrees — git worktrees for per-phase isolation (gitignored). */
   inProjectWorktrees: string;
   /** Stable hash for the project root. */
@@ -158,6 +162,7 @@ export function resolveWstackPaths(opts: WstackPathOptions): WstackPaths {
     secretsKey: path.join(globalRoot, '.key'),
     globalMemory: path.join(globalRoot, 'memory.md'),
     globalSkills: path.join(globalRoot, 'skills'),
+    globalDesignKits: path.join(globalRoot, 'design-kits'),
     globalPrompts: path.join(globalRoot, 'prompts'),
     cacheDir: path.join(globalRoot, 'cache'),
     modelsCache: path.join(globalRoot, 'cache', 'models.dev.json'),
@@ -174,6 +179,7 @@ export function resolveWstackPaths(opts: WstackPathOptions): WstackPaths {
     inProjectConfig: path.join(opts.projectRoot, '.wrongstack', 'config.json'),
     inProjectAgentsFile: path.join(opts.projectRoot, '.wrongstack', 'AGENTS.md'),
     inProjectSkills: path.join(opts.projectRoot, '.wrongstack', 'skills'),
+    inProjectDesignKits: path.join(opts.projectRoot, '.wrongstack', 'design-kits'),
     inProjectWorktrees: path.join(opts.projectRoot, '.wrongstack', 'worktrees'),
     projectHash: hash,
     projectSlug: slug,
