@@ -129,10 +129,15 @@ export function renderLiveProviderList(
   query: string,
   filtered: ResolvedProvider[],
   selectedIdx: number,
+  savedSet?: Set<string>,
 ): string {
   const ordered = orderProvidersForDisplay(filtered);
-  const visible = ordered.slice(0, LIVE_PICKER_MAX_VISIBLE);
+  const scrollOffset = Math.max(0, selectedIdx - LIVE_PICKER_MAX_VISIBLE + 1);
+  const visible = ordered.slice(scrollOffset, scrollOffset + LIVE_PICKER_MAX_VISIBLE);
   let out = `? Select provider: ${query}\n`;
+  if (scrollOffset > 0) {
+    out += `  … ${scrollOffset} more ↑\n`;
+  }
   let flat = 0;
   let lastFamily = '';
   for (const p of visible) {
@@ -140,14 +145,21 @@ export function renderLiveProviderList(
       out += `  ${p.family}\n`;
       lastFamily = p.family;
     }
-    const marker = flat === selectedIdx ? '▶ ' : '  ';
+    const sel = flat === selectedIdx - scrollOffset ? '▶' : ' ';
+    let marker: string;
+    if (savedSet) {
+      const mark = savedSet.has(p.id) ? color.cyan('◉') : color.dim('○');
+      marker = `${sel} ${mark} `;
+    } else {
+      marker = `${sel} `;
+    }
     out += `${marker}${p.id.padEnd(24)} ${p.name}\n`;
     flat++;
   }
-  if (ordered.length > LIVE_PICKER_MAX_VISIBLE) {
-    out += `  … ${ordered.length - LIVE_PICKER_MAX_VISIBLE} more — type to filter\n`;
+  if (scrollOffset + LIVE_PICKER_MAX_VISIBLE < ordered.length) {
+    out += `  … ${ordered.length - scrollOffset - LIVE_PICKER_MAX_VISIBLE} more ↓\n`;
   }
-  out += '  ↑↓ move · Enter select · Esc clear · Ctrl+C quit';
+  out += '  ↑↓ scroll · Enter select · Esc clear · Ctrl+C quit';
   return out;
 }
 
@@ -289,8 +301,17 @@ export interface PickerResult {
  * undefined on cancel. runPicker only calls this when stdin is a TTY; non-TTY
  * callers (CI, piped input, tests) fall through to the numbered readLine picker.
  */
-async function runLiveProviderPicker(
+  const QUERY_PREFIX = '? Select provider: ';
+
+  function cursorToQuery(frame: string, query: string): void {
+    const newlines = (frame.match(/\n/g) ?? []).length;
+    const col = QUERY_PREFIX.length + query.length + 1;
+    writeOut(`\x1b[${newlines}A\x1b[${col}G`);
+  }
+
+  export async function runLiveProviderPicker(
   displayList: ResolvedProvider[],
+  savedSet?: Set<string>,
 ): Promise<ResolvedProvider | undefined> {
   const stdin = process.stdin;
   const out = process.stdout;
@@ -299,14 +320,15 @@ async function runLiveProviderPicker(
   setOutputLineGuard(null);
   let state: ProviderPickerState = { query: '', selected: 0, status: 'typing' };
   let ordered = orderProvidersForDisplay(filterProviders(state.query, displayList));
-  // Selection lives within the visible window so it always maps to a rendered row.
-  const visibleCount = (): number => Math.min(ordered.length, LIVE_PICKER_MAX_VISIBLE);
+  const visibleCount = (): number => ordered.length;
   const clamp = (): void => {
     if (state.selected >= visibleCount()) state.selected = Math.max(0, visibleCount() - 1);
   };
   clamp();
-  let frame = renderLiveProviderList(state.query, ordered, state.selected);
+  let frame = renderLiveProviderList(state.query, ordered, state.selected, savedSet);
   writeOut(frame);
+  writeOut('\x1b7');
+  cursorToQuery(frame, state.query);
 
   return new Promise<ResolvedProvider | undefined>((resolve) => {
     const wasRaw = stdin.isRaw;
@@ -321,13 +343,15 @@ async function runLiveProviderPicker(
       if (wasPaused) stdin.pause();
     };
     const repaint = (): void => {
-      // Move back to the top of the previous frame and clear to end of screen.
+      writeOut('\x1b8');
       const ups = (frame.match(/\n/g) ?? []).length;
       writeOut(`\x1b[${ups}A\r\x1b[J`);
       ordered = orderProvidersForDisplay(filterProviders(state.query, displayList));
       clamp();
-      frame = renderLiveProviderList(state.query, ordered, state.selected);
+      frame = renderLiveProviderList(state.query, ordered, state.selected, savedSet);
       writeOut(frame);
+      writeOut('\x1b7');
+      cursorToQuery(frame, state.query);
     };
     const onData = (chunk: string): void => {
       ordered = orderProvidersForDisplay(filterProviders(state.query, displayList));

@@ -12,6 +12,8 @@ const oauthMocks = vi.hoisted(() => ({
   runCopilotOAuthLogin: vi.fn(async () => 0),
 }));
 
+const mockRunLiveProviderPicker = vi.hoisted(() => vi.fn<(...args: unknown[]) => Promise<unknown>>());
+
 vi.mock('../src/auth-menu/openai-codex-oauth.js', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../src/auth-menu/openai-codex-oauth.js')>()),
   runCodexOAuthLogin: oauthMocks.runCodexOAuthLogin,
@@ -23,6 +25,10 @@ vi.mock('../src/auth-menu/anthropic-oauth.js', async (importOriginal) => ({
 vi.mock('../src/auth-menu/github-copilot-oauth.js', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../src/auth-menu/github-copilot-oauth.js')>()),
   runCopilotOAuthLogin: oauthMocks.runCopilotOAuthLogin,
+}));
+vi.mock('../src/picker.js', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../src/picker.js')>()),
+  runLiveProviderPicker: mockRunLiveProviderPicker,
 }));
 
 const { runAuthDirect, runAuthMenu } = await import('../src/auth-menu/index.js');
@@ -239,6 +245,7 @@ describe('runAuthMenu', () => {
   });
 
   it('shows OAuth login options in the add menu and starts provider-specific login', async () => {
+    mockRunLiveProviderPicker.mockResolvedValueOnce(undefined);
     const { deps } = await setupDeps({
       catalog: {
         anthropic: {
@@ -249,7 +256,7 @@ describe('runAuthMenu', () => {
           envVars: ['ANTHROPIC_API_KEY'],
         },
       },
-      scripted: { lines: ['a', '', 'copilot', 'q'] },
+      scripted: { lines: ['a', 'copilot', 'q'] },
     });
 
     const code = await runAuthMenu(deps);
@@ -260,6 +267,13 @@ describe('runAuthMenu', () => {
   });
 
   it('writes a key after picking a catalog entry by number', async () => {
+    mockRunLiveProviderPicker.mockResolvedValueOnce({
+      id: 'anthropic',
+      name: 'Anthropic',
+      family: 'anthropic',
+      apiBase: 'https://api.anthropic.com',
+      envVars: ['ANTHROPIC_API_KEY'],
+    } as ResolvedProvider);
     const { deps, configPath } = await setupDeps({
       catalog: {
         anthropic: {
@@ -271,10 +285,9 @@ describe('runAuthMenu', () => {
         },
       },
       scripted: {
-        // Top menu: 'a' (add) → empty filter → pick '1' (the only entry) →
-        // accept family default → accept baseUrl default → accept alias →
-        // empty label → then 'q' to leave the loop.
-        lines: ['a', '', '1', '', '', '', '', 'q'],
+        // Top menu: 'a' (add) → picker mocked → accept family default →
+        // accept baseUrl default → accept alias → empty label → 'q' to quit.
+        lines: ['a', '', '', '', '', 'q'],
         secrets: ['sk-anth-test'],
       },
     });
@@ -293,19 +306,6 @@ describe('runAuthMenu', () => {
     expect(code).toBe(0);
     expect(deps.renderer.writeError).toHaveBeenCalledWith(
       expect.stringContaining('Unknown selection'),
-    );
-  });
-
-  it('catalog filter that matches nothing writes an error', async () => {
-    const { deps } = await setupDeps({
-      catalog: {
-        anthropic: { id: 'anthropic', name: 'Anthropic', family: 'anthropic', envVars: ['X'] },
-      },
-      scripted: { lines: ['a', 'no-match-xyz', 'q'] },
-    });
-    await runAuthMenu(deps);
-    expect(deps.renderer.writeError).toHaveBeenCalledWith(
-      expect.stringMatching(/No providers match/),
     );
   });
 

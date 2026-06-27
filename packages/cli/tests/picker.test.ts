@@ -5,6 +5,7 @@ import {
   applyPickerKey,
   filterModels,
   filterProviders,
+  LIVE_PICKER_MAX_VISIBLE,
   type ProviderPickerState,
   renderLiveModelList,
   renderLiveProviderList,
@@ -658,6 +659,114 @@ describe('renderLiveProviderList', () => {
     expect(out).toContain('prov-14');
     expect(out).not.toContain('prov-15');
     expect(out).toMatch(/more/i);
+  });
+
+  it('marks saved providers with ◉ and unsaved with ○ when savedSet is provided', () => {
+    const saved = new Set(['anthropic', 'openai']);
+    const out = renderLiveProviderList('', list, 0, saved);
+    expect(out).toContain('◉');
+    expect(out).toContain('○');
+    const lines = out.split('\n');
+    // Provider lines have ▶ or start with space followed by a marker;
+    // family header lines only have the family name. Match by checking both id + marker.
+    const anthroLine = lines.find((l) => l.includes('anthropic') && l.includes('◉'));
+    const googleLine = lines.find((l) => l.includes('google') && l.includes('○'));
+    expect(anthroLine).toBeTruthy();
+    expect(googleLine).toBeTruthy();
+  });
+
+  it('combines selection cursor ▶ with saved/unsaved markers', () => {
+    const saved = new Set(['anthropic']);
+    const out = renderLiveProviderList('', list, 0, saved);
+    const lines = out.split('\n');
+    const selectedLine = lines.find((l) => l.includes('▶') && l.includes('◉') && l.includes('anthropic'));
+    expect(selectedLine).toBeTruthy();
+  });
+
+  describe('scroll', () => {
+    const N = 25;
+    const many = Array.from({ length: N }, (_, i) =>
+      fakeProvider({
+        id: `prov-${String(i).padStart(2, '0')}`,
+        name: `Prov ${i}`,
+        family: 'openai-compatible',
+        envVars: [],
+      }),
+    );
+
+    it('scrolls window down when selection moves past max visible', () => {
+      const selectedIdx = N - 1;
+      const out = renderLiveProviderList('', many, selectedIdx);
+      const expectedOffset = selectedIdx - LIVE_PICKER_MAX_VISIBLE + 1;
+      expect(out).toContain(`prov-${String(expectedOffset).padStart(2, '0')}`);
+      expect(out).toContain(`prov-${String(N - 1).padStart(2, '0')}`);
+      expect(out).not.toContain('prov-00');
+      expect(out).not.toContain(`prov-${String(expectedOffset - 1).padStart(2, '0')}`);
+    });
+
+    it('shows "more ↑" when window is scrolled past the first items', () => {
+      const selectedIdx = N - 1;
+      const out = renderLiveProviderList('', many, selectedIdx);
+      const expectedOffset = selectedIdx - LIVE_PICKER_MAX_VISIBLE + 1;
+      expect(out).toMatch(new RegExp(`${expectedOffset} more .*↑`));
+    });
+
+    it('hides "more ↓" when window reaches the last items', () => {
+      const out = renderLiveProviderList('', many, N - 1);
+      expect(out).not.toMatch(/more.*↓/);
+    });
+
+    it('shows "more ↑" and "more ↓" when window is in the middle', () => {
+      const mid = LIVE_PICKER_MAX_VISIBLE + 4;
+      const out = renderLiveProviderList('', many, mid);
+      expect(out).toMatch(/more.*↑/);
+      expect(out).toMatch(/more.*↓/);
+    });
+
+    it('shows no "more ↑" on the first page', () => {
+      const out = renderLiveProviderList('', many, 0);
+      expect(out).not.toMatch(/more.*↑/);
+    });
+
+    it('shows "more ↓" on the first page', () => {
+      const out = renderLiveProviderList('', many, 0);
+      expect(out).toMatch(new RegExp(`${N - LIVE_PICKER_MAX_VISIBLE} more .*↓`));
+    });
+
+    it('cursor tracks the correct item within a scrolled window', () => {
+      const selectedIdx = 18;
+      const out = renderLiveProviderList('', many, selectedIdx);
+      const lines = out.split('\n');
+      const selectedLine = lines.find((l) => l.includes('▶') && l.includes(`prov-${String(selectedIdx).padStart(2, '0')}`));
+      expect(selectedLine).toBeTruthy();
+      lines.forEach((line) => {
+        if (line.includes('▶') && !line.includes(`prov-${String(selectedIdx).padStart(2, '0')}`)) {
+          expect(line).not.toMatch(/▶/);
+        }
+      });
+    });
+
+    it('scroll + savedSet markers render together', () => {
+      const saved = new Set(['prov-00', 'prov-10', 'prov-18', 'prov-24']);
+      const selectedIdx = 18;
+      const out = renderLiveProviderList('', many, selectedIdx, saved);
+      expect(out).toMatch(/◉/);
+      expect(out).toMatch(/○/);
+      const lines = out.split('\n');
+      const cursorLine = lines.find((l) => l.includes('▶'));
+      expect(cursorLine).toBeTruthy();
+      if (cursorLine) {
+        expect(cursorLine).toMatch(/▶.*◉/);
+        expect(cursorLine).toContain('prov-18');
+      }
+    });
+
+    it('shows at most LIVE_PICKER_MAX_VISIBLE providers per frame when scrolled', () => {
+      const selectedIdx = N - 1;
+      const out = renderLiveProviderList('', many, selectedIdx);
+      const providerLines = out.split('\n').filter((l) => l.includes('prov-'));
+      expect(providerLines.length).toBe(LIVE_PICKER_MAX_VISIBLE);
+    });
   });
 });
 

@@ -7,7 +7,11 @@ import {
   writeKeysBack,
 } from '../provider-config-utils.js';
 import { loadProviders } from './helpers.js';
-import { renderOAuthLoginOptions, runOAuthLoginChoice } from './oauth-menu.js';
+import {
+  renderOAuthLoginOptions,
+  runOAuthLoginChoice,
+} from './oauth-menu.js';
+import { runLiveProviderPicker } from '../picker.js';
 import { readKeyInput, suggestLabel, validateFamily } from './shared.js';
 import type { AuthMenuDeps } from './types.js';
 
@@ -27,99 +31,30 @@ export async function addFromCatalog(deps: AuthMenuDeps): Promise<boolean> {
     return addManualEntry(deps);
   }
 
-  // Group catalog by family, optionally narrowed by a substring filter
   const saved = new Set(Object.keys(await loadProviders(deps)));
   deps.renderer.write(
     color.dim(
-      `  Catalog: ${catalog.length} providers. Filter to narrow, "s" for unsaved-only, or enter to show all.\n`,
+      `  Catalog: ${catalog.length} providers. Type to filter, ↑/↓ navigate, Enter to select.\n`,
     ),
   );
-
-  const filterRaw = (
-    await deps.reader.readLine(
-      `  ${color.amber('?')} Filter ${color.dim('(substring / "s" / q to quit)')}: `,
-    )
-  ).trim();
-  if (filterRaw === 'q') return false;
-
-  const filterLc = filterRaw.toLowerCase();
-  const showUnsavedOnly = filterLc === 's' || filterLc === 'unsaved';
-
-  function matches(p: ResolvedProvider): boolean {
-    if (showUnsavedOnly) return !saved.has(p.id);
-    if (!filterLc) return true;
-    return p.id.toLowerCase().includes(filterLc) || p.name.toLowerCase().includes(filterLc);
-  }
-
-  const byFamily = new Map<WireFamily, ResolvedProvider[]>();
-  let filteredCount = 0;
-  for (const p of catalog) {
-    if (!matches(p)) continue;
-    filteredCount++;
-    const list = byFamily.get(p.family as WireFamily) ?? [];
-    list.push(p);
-    byFamily.set(p.family as WireFamily, list);
-  }
-
-  if (filteredCount === 0) {
-    deps.renderer.writeError(
-      `No providers match "${filterRaw}". Try a shorter substring or check \`wstack providers\`.`,
-    );
-    return false;
-  }
-
-  if (filterRaw && !showUnsavedOnly) {
-    deps.renderer.write(
-      color.dim(`  ${filteredCount} match${filteredCount === 1 ? '' : 'es'} for "${filterRaw}".\n`),
-    );
-  }
-
-  // Render OAuth choices first, then grouped API-key providers from the catalog.
+  deps.renderer.write(`  ${color.dim('◉ already saved   ○ no key yet')}\n\n`);
   renderOAuthLoginOptions(deps);
   deps.renderer.write('\n');
-  const ordered: ResolvedProvider[] = [];
-  const familyOrder: WireFamily[] = ['anthropic', 'openai', 'google', 'openai-compatible'];
-  let idx = 1;
-  deps.renderer.write('\n');
-  for (const fam of familyOrder) {
-    const list = byFamily.get(fam);
-    if (!list || list.length === 0) continue;
-    deps.renderer.write(`  ${color.bold(fam)}\n`);
-    for (const p of list) {
-      const savedMark = saved.has(p.id) ? color.cyan('◉') : color.dim('○');
-      const env = p.envVars[0] ? color.dim(`[${p.envVars[0]}]`) : '';
-      deps.renderer.write(
-        `    ${color.dim(`${idx}.`.padStart(4))} ${savedMark} ` +
-          `${p.id.padEnd(22)} ${color.dim(p.name)} ${env}\n`,
-      );
-      ordered.push(p);
-      idx++;
-    }
-  }
-  deps.renderer.write(`\n  ${color.dim('◉ already saved   ○ no key yet')}\n`);
 
-  const answer = (
-    await deps.reader.readLine(
-      `\n${color.amber('?')} Pick (1-${ordered.length}), type provider id, or OAuth option ${color.dim('[chatgpt/claude/copilot, q to quit]')}: `,
-    )
-  ).trim();
-  if (!answer || answer === 'q') return false;
-
-  if (await runOAuthLoginChoice(deps, answer, { allowNumeric: false })) {
-    return true;
-  }
-
-  let chosen: ResolvedProvider | undefined;
-  const num = Number.parseInt(answer, 10);
-  if (!Number.isNaN(num) && num >= 1 && num <= ordered.length) {
-    chosen = ordered[num - 1];
-  } else {
-    chosen =
-      ordered.find((p) => p.id.toLowerCase() === answer.toLowerCase()) ??
-      catalog.find((p) => p.id.toLowerCase() === answer.toLowerCase());
-  }
+  const chosen = await runLiveProviderPicker(catalog, saved);
   if (!chosen) {
-    deps.renderer.writeError(`No such provider: "${answer}"`);
+    // User cancelled — offer OAuth as an alternative.
+    deps.renderer.write(
+      `\n  ${color.dim('OAuth login options:')} ${color.dim('chatgpt')}, ${color.dim('claude')}, or ${color.dim('copilot')}?\n`,
+    );
+    const answer = (
+      await deps.reader.readLine(
+        `  ${color.amber('?')} OAuth or q to quit ${color.dim('[chatgpt/claude/copilot]')}: `,
+      )
+    ).trim();
+    if (answer && await runOAuthLoginChoice(deps, answer, { allowNumeric: false })) {
+      return true;
+    }
     return false;
   }
 
