@@ -184,6 +184,15 @@ export { DefaultMailbox } from './mailbox.js';
 export { normalizeRecipient } from './mailbox-types.js';
 export { BrainMonitor, type BrainMonitorOptions, type BrainInterventionInput } from './brain-monitor.js';
 export { GlobalMailbox, resolveProjectDir } from './global-mailbox.js';
+export {
+  MailboxHealthWatchdog,
+  MAILBOX_HEALTH_DEFAULT_INTERVAL_MS,
+  MAILBOX_HEALTH_DEFAULT_TIMEOUT_MS,
+  MAILBOX_HEALTH_DEFAULT_FAILURE_THRESHOLD,
+  MAILBOX_HEALTH_DEFAULT_FROM,
+  type MailboxHealthWatchdogOptions,
+  type MailboxHealthEvent,
+} from './mailbox-health.js';
 export { makeMailboxTool, resolveMailboxIdentity, mailboxSessionTag, type MailboxToolOptions, type MailboxResolver } from './mailbox-tool.js';
 export { makeMailSendTool, makeMailInboxTool, type MailToolsOptions } from './mail-tools.js';
 export type {
