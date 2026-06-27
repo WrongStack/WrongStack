@@ -355,7 +355,7 @@ export interface HqMailboxAgentSummary {
   lastActivityAt: string;
   lastSeenAt: string;
   online: boolean;
-  source?: 'cli' | 'webui' | 'mcp' | 'acp';
+  source?: 'cli' | 'webui' | 'mcp' | 'acp' | 'http';
 }
 
 export interface HqMailboxSnapshotPayload {

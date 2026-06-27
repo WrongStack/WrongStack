@@ -130,7 +130,7 @@ export interface RegisteredAgent {
   /** Which process registered this agent (PID). */
   pid: number;
   /** Where the agent is running (e.g. "cli", "webui"). */
-  source?: 'cli' | 'webui' | 'mcp' | 'acp' | undefined;
+  source?: 'cli' | 'webui' | 'mcp' | 'acp' | 'http' | undefined;
 }
 
 // ── Agent status entry (for discovery) ───────────────────────────────────
@@ -163,7 +163,7 @@ export interface MailboxAgentStatus {
   /** Which process. */
   pid: number;
   /** Source. */
-  source?: 'cli' | 'webui' | 'mcp' | 'acp' | undefined;
+  source?: 'cli' | 'webui' | 'mcp' | 'acp' | 'http' | undefined;
 }
 
 // ── Mailbox query ────────────────────────────────────────────────────────
@@ -253,12 +253,12 @@ export interface AgentRegistrationInput {
   name: string;
   role?: string | undefined;
   pid: number;
-  source?: 'cli' | 'webui' | 'mcp' | 'acp' | undefined;
+  source?: 'cli' | 'webui' | 'mcp' | 'acp' | 'http' | undefined;
 }
 
 // ── Client (REPL/TUI/WebUI) registration ─────────────────────────────────
 
-export type ClientSource = 'repl' | 'tui' | 'webui';
+export type ClientSource = 'repl' | 'tui' | 'webui' | 'http';
 
 export interface RegisteredClient {
   /** Unique client id. */
