@@ -43,6 +43,17 @@ describe('feedPaste', () => {
     expect(r3).toEqual({ accum: null, complete: 'a\nb' });
   });
 
+  it('accumulates \\r (Windows CR) mid-paste same as \\n', () => {
+    // Windows terminals send \r\n for newlines. Ink may split these into
+    // separate events; feedPaste must accumulate \r as ordinary content.
+    const r1 = feedPaste(null, `${BEGIN}hello`);
+    expect(r1?.complete).toBeNull();
+    const r2 = feedPaste(r1?.accum ?? null, '\r');
+    expect(r2).toEqual({ accum: 'hello\r', complete: null });
+    const r3 = feedPaste(r2?.accum ?? null, `world${END}`);
+    expect(r3).toEqual({ accum: null, complete: 'hello\rworld' });
+  });
+
   it('strips begin and end markers even when both arrive in the same later fragment', () => {
     const r1 = feedPaste(null, `${BEGIN}x`);
     const r2 = feedPaste(r1?.accum ?? null, `y${END}`);

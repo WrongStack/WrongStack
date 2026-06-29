@@ -4327,6 +4327,14 @@ export function App({
       return;
     }
 
+    // ── Paste-active guard: swallow Enter mid-paste ──────────────────
+    // Ink can split `\r\n` (which arrives inside a paste payload) into
+    // BOTH a raw `\r` character AND a decoded Enter event (key.return,
+    // input=''). The former is correctly accumulated by feedPaste above,
+    // but the decoded Enter has input='' → it bypasses feedPaste and
+    // would submit the buffer mid-paste. Catch it here.
+    if (pasteAccumRef.current !== null && isEnter) return;
+
     // IMPORTANT: do NOT bail on `!input` here. Special keys (arrows,
     // Enter, Escape, Tab, Backspace) arrive with an empty `input`
     // string, and the slash/file pickers + cursor movement below all
