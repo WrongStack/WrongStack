@@ -19,6 +19,10 @@
     ".": {
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
+    },
+    "./oauth": {
+      "types": "./dist/oauth/index.d.ts",
+      "import": "./dist/oauth/index.js"
     }
   },
   "files": [

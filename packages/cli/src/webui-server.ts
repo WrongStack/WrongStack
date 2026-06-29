@@ -185,6 +185,9 @@ import {
   handleModelSwitch,
   handleModeSwitch,
   handleModesList,
+  handleOAuthCancel,
+  handleOAuthCode,
+  handleOAuthStart,
   handlePing,
   handlePlanGet,
   handlePlanItemUpdate,
@@ -600,16 +603,21 @@ export async function runWebUI(opts: CliWebUIOptions): Promise<void> {
       const projectName = opts.projectRoot ? path.basename(opts.projectRoot) : 'unknown';
       await mailbox.registerClient({
         clientId: webuiClientId,
-        sessionId: projectRoot,
+        sessionId: opts.agent.ctx.session?.id ?? opts.session.id,
         name: `WebUI [${projectName}]`,
         source: 'webui',
         pid: process.pid,
       });
 
       webuiHeartbeatTimer = setInterval(() => {
-        mailbox.clientHeartbeat({ clientId: webuiClientId! }).catch(() => {
-          // best-effort — ignore heartbeat failures during shutdown
-        });
+        mailbox
+          .clientHeartbeat({
+            clientId: webuiClientId!,
+            sessionId: opts.agent.ctx.session?.id ?? opts.session.id,
+          })
+          .catch(() => {
+            // best-effort — ignore heartbeat failures during shutdown
+          });
       }, CLIENT_HEARTBEAT_MS);
       webuiHeartbeatTimer.unref();
 
@@ -743,17 +751,21 @@ export async function runWebUI(opts: CliWebUIOptions): Promise<void> {
   const STREAM_COALESCE_MS = 16;
   const STREAM_COALESCE_MAX_CHARS = 8 * 1024;
   const currentSessionId = (): string => opts.agent.ctx.session?.id ?? opts.session.id;
-  const sessionPayload = <T extends Record<string, unknown>>(payload: T): T & { sessionId: string } => ({
-    ...payload,
-    sessionId: currentSessionId(),
-  });
+  const sessionPayload = <T extends Record<string, unknown>>(payload: T): T & { sessionId: string } => {
+    const provided = payload['sessionId'];
+    const sessionId = typeof provided === 'string' && provided.length > 0 ? provided : currentSessionId();
+    return { ...payload, sessionId };
+  };
   let textDeltaBuffer = '';
+  let textDeltaSessionId: string | undefined;
   let textDeltaTimer: ReturnType<typeof setTimeout> | null = null;
   let thinkingDeltaBuffer = '';
+  let thinkingDeltaSessionId: string | undefined;
   let thinkingDeltaTimer: ReturnType<typeof setTimeout> | null = null;
   const toolProgressBuffers = new Map<
     string,
     {
+      sessionId?: string | undefined;
       id: string;
       name: string;
       eventType: string;
@@ -769,10 +781,12 @@ export async function runWebUI(opts: CliWebUIOptions): Promise<void> {
     }
     if (!textDeltaBuffer) return;
     const text = textDeltaBuffer;
+    const sessionId = textDeltaSessionId;
     textDeltaBuffer = '';
+    textDeltaSessionId = undefined;
     broadcast({
       type: 'provider.text_delta',
-      payload: sessionPayload({ text, messageId: 'current' }),
+      payload: sessionPayload({ sessionId, text, messageId: 'current' }),
     });
   };
 
@@ -783,15 +797,21 @@ export async function runWebUI(opts: CliWebUIOptions): Promise<void> {
     }
     if (!thinkingDeltaBuffer) return;
     const text = thinkingDeltaBuffer;
+    const sessionId = thinkingDeltaSessionId;
     thinkingDeltaBuffer = '';
+    thinkingDeltaSessionId = undefined;
     broadcast({
       type: 'provider.thinking_delta',
-      payload: sessionPayload({ text }),
+      payload: sessionPayload({ sessionId, text }),
     });
   };
 
-  const queueTextDelta = (text: string): void => {
+  const queueTextDelta = (text: string, sessionId?: string | undefined): void => {
     if (!text) return;
+    if (textDeltaBuffer && textDeltaSessionId !== sessionId) {
+      flushTextDelta();
+    }
+    textDeltaSessionId = sessionId;
     textDeltaBuffer += text;
     if (textDeltaBuffer.length >= STREAM_COALESCE_MAX_CHARS) {
       flushTextDelta();
@@ -803,8 +823,12 @@ export async function runWebUI(opts: CliWebUIOptions): Promise<void> {
     }
   };
 
-  const queueThinkingDelta = (text: string): void => {
+  const queueThinkingDelta = (text: string, sessionId?: string | undefined): void => {
     if (!text) return;
+    if (thinkingDeltaBuffer && thinkingDeltaSessionId !== sessionId) {
+      flushThinkingDelta();
+    }
+    thinkingDeltaSessionId = sessionId;
     thinkingDeltaBuffer += text;
     if (thinkingDeltaBuffer.length >= STREAM_COALESCE_MAX_CHARS) {
       flushThinkingDelta();
@@ -825,6 +849,7 @@ export async function runWebUI(opts: CliWebUIOptions): Promise<void> {
     broadcast({
       type: 'tool.progress',
       payload: sessionPayload({
+        sessionId: buffered.sessionId,
         name: buffered.name,
         id: buffered.id,
         event: { type: buffered.eventType, text: buffered.text },
@@ -839,6 +864,7 @@ export async function runWebUI(opts: CliWebUIOptions): Promise<void> {
   };
 
   const queueToolProgress = (payload: {
+    sessionId?: string | undefined;
     id: string;
     name: string;
     event: { type?: string | undefined; text?: string | undefined };
@@ -852,14 +878,17 @@ export async function runWebUI(opts: CliWebUIOptions): Promise<void> {
 
     const eventType = payload.event.type ?? 'progress';
     const existing = toolProgressBuffers.get(payload.id);
+    if (existing && existing.sessionId !== payload.sessionId) flushToolProgress(payload.id);
     if (existing && existing.eventType !== eventType) flushToolProgress(payload.id);
     const buffered = toolProgressBuffers.get(payload.id) ?? {
+      sessionId: payload.sessionId,
       id: payload.id,
       name: payload.name,
       eventType,
       text: '',
       timer: null,
     };
+    buffered.sessionId = payload.sessionId;
     buffered.name = payload.name;
     buffered.text += buffered.text ? `\n${text}` : text;
     toolProgressBuffers.set(payload.id, buffered);
@@ -906,6 +935,7 @@ export async function runWebUI(opts: CliWebUIOptions): Promise<void> {
         broadcast({
           type: 'iteration.started',
           payload: sessionPayload({
+            sessionId: e.sessionId,
             index: e.index,
             ...(typeof maxIt === 'number' ? { maxIterations: maxIt } : {}),
           }),
@@ -917,13 +947,14 @@ export async function runWebUI(opts: CliWebUIOptions): Promise<void> {
       opts.events.on('iteration.completed', (e) => {
         broadcast({
           type: 'iteration.completed',
-          payload: sessionPayload({ index: e.index, totalIterations: e.index + 1 }),
+          payload: sessionPayload({ sessionId: e.sessionId, index: e.index, totalIterations: e.index + 1 }),
         });
       }),
       opts.events.on('iteration.limit_reached', (e) => {
         broadcast({
           type: 'iteration.limit_reached',
           payload: sessionPayload({
+            sessionId: e.sessionId,
             currentIterations: e.currentIterations,
             currentLimit: e.currentLimit,
           }),
@@ -935,7 +966,7 @@ export async function runWebUI(opts: CliWebUIOptions): Promise<void> {
     eventUnsubscribers.push(
       opts.events.on('provider.text_delta', (e) => {
         flushThinkingDelta();
-        queueTextDelta(e.text);
+        queueTextDelta(e.text, e.sessionId);
       }),
     );
 
@@ -944,7 +975,7 @@ export async function runWebUI(opts: CliWebUIOptions): Promise<void> {
     // collapsible thinking log when the iteration ends.
     eventUnsubscribers.push(
       opts.events.on('provider.thinking_delta', (e) => {
-        queueThinkingDelta(e.text);
+        queueThinkingDelta(e.text, e.sessionId);
       }),
     );
 
@@ -952,7 +983,7 @@ export async function runWebUI(opts: CliWebUIOptions): Promise<void> {
       opts.events.on('provider.stream_error', (e) => {
         broadcast({
           type: 'provider.stream_error',
-          payload: sessionPayload({ eventType: e.eventType, message: e.msg }),
+          payload: sessionPayload({ sessionId: e.sessionId, eventType: e.eventType, message: e.msg }),
         });
       }),
     );
@@ -964,6 +995,7 @@ export async function runWebUI(opts: CliWebUIOptions): Promise<void> {
         broadcast({
           type: 'tool.started',
           payload: sessionPayload({
+            sessionId: e.sessionId,
             id: e.id,
             name: e.name,
             input: secretScrubber.scrubObject(e.input),
@@ -977,6 +1009,7 @@ export async function runWebUI(opts: CliWebUIOptions): Promise<void> {
     eventUnsubscribers.push(
       opts.events.on('tool.progress', (e) => {
         queueToolProgress({
+          sessionId: e.sessionId,
           name: e.name,
           id: e.id,
           event: e.event,
@@ -991,6 +1024,7 @@ export async function runWebUI(opts: CliWebUIOptions): Promise<void> {
         broadcast({
           type: 'tool.executed',
           payload: sessionPayload({
+            sessionId: e.sessionId,
             // Forward the tool_use id so the WebUI can correlate this with
             // the matching tool.started bubble for parallel tool calls.
             id: e.id,
@@ -1005,7 +1039,7 @@ export async function runWebUI(opts: CliWebUIOptions): Promise<void> {
         // Always broadcast current todos so the panel stays in sync.
         broadcast({
           type: 'todos.updated',
-          payload: sessionPayload({ todos: [...opts.agent.ctx.todos] }),
+          payload: sessionPayload({ sessionId: e.sessionId, todos: [...opts.agent.ctx.todos] }),
         });
 
         // After task/plan/todo tool executions, also broadcast those snapshots.
@@ -1018,7 +1052,7 @@ export async function runWebUI(opts: CliWebUIOptions): Promise<void> {
                 const file = await loadTasks(taskPath);
                 broadcast({
                   type: 'tasks.updated',
-                  payload: sessionPayload({ tasks: file?.tasks ?? [] }),
+                  payload: sessionPayload({ sessionId: e.sessionId, tasks: file?.tasks ?? [] }),
                 });
               }
             } catch {
@@ -1032,9 +1066,10 @@ export async function runWebUI(opts: CliWebUIOptions): Promise<void> {
                 broadcast({
                   type: 'plan.updated',
                   payload: sessionPayload({
+                    sessionId: e.sessionId,
                     plan: plan ?? {
                       version: 1,
-                      sessionId: currentSessionId(),
+                      sessionId: e.sessionId ?? currentSessionId(),
                       updatedAt: new Date().toISOString(),
                       items: [],
                     },
@@ -1054,6 +1089,7 @@ export async function runWebUI(opts: CliWebUIOptions): Promise<void> {
         broadcast({
           type: 'tool.loop_detected',
           payload: sessionPayload({
+            sessionId: e.sessionId,
             tools: e.tools,
             repeatCount: e.repeatCount,
             iteration: e.iteration,
@@ -1064,19 +1100,20 @@ export async function runWebUI(opts: CliWebUIOptions): Promise<void> {
       opts.events.on('trust.persisted', (e) => {
         broadcast({
           type: 'trust.persisted',
-          payload: sessionPayload({ tool: e.tool, pattern: e.pattern, decision: e.decision }),
+          payload: sessionPayload({ sessionId: e.sessionId, tool: e.tool, pattern: e.pattern, decision: e.decision }),
         });
       }),
       opts.events.on('delegate.started', (e) => {
         broadcast({
           type: 'delegate.started',
-          payload: sessionPayload({ target: e.target, task: e.task }),
+          payload: sessionPayload({ sessionId: e.sessionId, target: e.target, task: e.task }),
         });
       }),
       opts.events.on('delegate.completed', (e) => {
         broadcast({
           type: 'delegate.completed',
           payload: sessionPayload({
+            sessionId: e.sessionId,
             target: e.target,
             task: e.task,
             ok: e.ok,
@@ -1099,6 +1136,7 @@ export async function runWebUI(opts: CliWebUIOptions): Promise<void> {
         broadcast({
           type: 'provider.response',
           payload: sessionPayload({
+            sessionId: e.sessionId,
             usage: e.usage,
             stopReason: e.stopReason,
             messageId: 'current',
@@ -1111,11 +1149,12 @@ export async function runWebUI(opts: CliWebUIOptions): Promise<void> {
       opts.events.on('ctx.pct', (e) => {
         broadcast({
           type: 'ctx.pct',
-          payload: sessionPayload({ load: e.load, tokens: e.tokens, maxContext: e.maxContext }),
+          payload: sessionPayload({ sessionId: e.sessionId, load: e.load, tokens: e.tokens, maxContext: e.maxContext }),
         });
         broadcast({
           type: 'subagent.event',
           payload: sessionPayload({
+            sessionId: e.sessionId,
             kind: 'ctx_pct',
             subagentId: 'leader',
             load: e.load,
@@ -1127,7 +1166,18 @@ export async function runWebUI(opts: CliWebUIOptions): Promise<void> {
       opts.events.on('ctx.max_context', (e) => {
         broadcast({
           type: 'ctx.max_context',
-          payload: sessionPayload({ providerId: e.providerId, modelId: e.modelId, maxContext: e.maxContext }),
+          payload: sessionPayload({ sessionId: e.sessionId, providerId: e.providerId, modelId: e.modelId, maxContext: e.maxContext }),
+        });
+      }),
+      opts.events.on('context.repaired', (e) => {
+        broadcast({
+          type: 'context.repaired',
+          payload: sessionPayload({
+            sessionId: e.sessionId,
+            removedToolUses: e.removedToolUses,
+            removedToolResults: e.removedToolResults,
+            removedMessages: e.removedMessages,
+          }),
         });
       }),
       opts.events.on('token.threshold', (e) => {
@@ -1149,6 +1199,7 @@ export async function runWebUI(opts: CliWebUIOptions): Promise<void> {
         broadcast({
           type: 'provider.retry',
           payload: sessionPayload({
+            sessionId: e.sessionId,
             providerId: e.providerId,
             attempt: e.attempt,
             delayMs: e.delayMs,
@@ -1161,6 +1212,7 @@ export async function runWebUI(opts: CliWebUIOptions): Promise<void> {
         broadcast({
           type: 'provider.error',
           payload: sessionPayload({
+            sessionId: e.sessionId,
             providerId: e.providerId,
             status: e.status,
             description: e.description,
@@ -1172,6 +1224,7 @@ export async function runWebUI(opts: CliWebUIOptions): Promise<void> {
         broadcast({
           type: 'provider.fallback',
           payload: sessionPayload({
+            sessionId: e.sessionId,
             from: e.from,
             to: e.to,
             status: e.status,
@@ -1183,6 +1236,7 @@ export async function runWebUI(opts: CliWebUIOptions): Promise<void> {
         broadcast({
           type: 'context.compacted',
           payload: sessionPayload({
+            sessionId: e.sessionId,
             before: e.report.before,
             after: e.report.after,
             saved: Math.max(0, e.report.before - e.report.after),
@@ -1194,6 +1248,7 @@ export async function runWebUI(opts: CliWebUIOptions): Promise<void> {
         broadcast({
           type: 'compaction.failed',
           payload: sessionPayload({
+            sessionId: e.sessionId,
             message: e.err.message,
             aggressive: e.aggressive,
             level: e.level,
@@ -1268,6 +1323,7 @@ export async function runWebUI(opts: CliWebUIOptions): Promise<void> {
         broadcast({
           type: 'session.rewound',
           payload: sessionPayload({
+            sessionId: e.sessionId,
             toPromptIndex: e.toPromptIndex,
             revertedFiles: e.revertedFiles,
             removedEvents: e.removedEvents,
@@ -1278,6 +1334,7 @@ export async function runWebUI(opts: CliWebUIOptions): Promise<void> {
         broadcast({
           type: 'checkpoint.written',
           payload: sessionPayload({
+            sessionId: e.sessionId,
             promptIndex: e.promptIndex,
             promptPreview: e.promptPreview,
             ts: e.ts,
@@ -1288,13 +1345,13 @@ export async function runWebUI(opts: CliWebUIOptions): Promise<void> {
       opts.events.on('in_flight.started', (e) => {
         broadcast({
           type: 'in_flight.started',
-          payload: sessionPayload({ context: e.context, ts: e.ts }),
+          payload: sessionPayload({ sessionId: e.sessionId, context: e.context, ts: e.ts }),
         });
       }),
       opts.events.on('in_flight.ended', (e) => {
         broadcast({
           type: 'in_flight.ended',
-          payload: sessionPayload({ reason: e.reason, ts: e.ts }),
+          payload: sessionPayload({ sessionId: e.sessionId, reason: e.reason, ts: e.ts }),
         });
       }),
       opts.events.on('concurrency.changed', (e) => {
@@ -1314,6 +1371,7 @@ export async function runWebUI(opts: CliWebUIOptions): Promise<void> {
         broadcast({
           type: 'tool.confirm_needed',
           payload: sessionPayload({
+            sessionId: e.sessionId,
             id,
             toolName: e.tool?.name ?? 'unknown',
             input: secretScrubber.scrubObject(e.input),
@@ -1337,6 +1395,7 @@ export async function runWebUI(opts: CliWebUIOptions): Promise<void> {
         fleetConcurrency += 1;
         emitConcurrency();
         forwardSubagent('spawned', {
+          sessionId: e.sessionId,
           subagentId: e.subagentId,
           taskId: e.taskId,
           name: e.name,
@@ -1347,6 +1406,7 @@ export async function runWebUI(opts: CliWebUIOptions): Promise<void> {
       }),
       opts.events.on('subagent.task_started', (e) =>
         forwardSubagent('task_started', {
+          sessionId: e.sessionId,
           subagentId: e.subagentId,
           taskId: e.taskId,
           description: e.description,
@@ -1354,6 +1414,7 @@ export async function runWebUI(opts: CliWebUIOptions): Promise<void> {
       ),
       opts.events.on('subagent.tool_executed', (e) =>
         forwardSubagent('tool_executed', {
+          sessionId: e.sessionId,
           subagentId: e.subagentId,
           toolName: e.name,
           durationMs: e.durationMs,
@@ -1362,6 +1423,7 @@ export async function runWebUI(opts: CliWebUIOptions): Promise<void> {
       ),
       opts.events.on('subagent.iteration_summary', (e) =>
         forwardSubagent('iteration_summary', {
+          sessionId: e.sessionId,
           subagentId: e.subagentId,
           iteration: e.iteration,
           toolCalls: e.toolCalls,
@@ -1372,6 +1434,7 @@ export async function runWebUI(opts: CliWebUIOptions): Promise<void> {
       ),
       opts.events.on('subagent.budget_warning', (e) =>
         forwardSubagent('budget_warning', {
+          sessionId: e.sessionId,
           subagentId: e.subagentId,
           budgetKind: e.kind,
           used: e.used,
@@ -1380,6 +1443,7 @@ export async function runWebUI(opts: CliWebUIOptions): Promise<void> {
       ),
       opts.events.on('subagent.budget_extended', (e) =>
         forwardSubagent('budget_extended', {
+          sessionId: e.sessionId,
           subagentId: e.subagentId,
           budgetKind: e.kind,
           newLimit: e.newLimit,
@@ -1388,6 +1452,7 @@ export async function runWebUI(opts: CliWebUIOptions): Promise<void> {
       ),
       opts.events.on('subagent.ctx_pct', (e) =>
         forwardSubagent('ctx_pct', {
+          sessionId: e.sessionId,
           subagentId: e.subagentId,
           load: e.load,
           tokens: e.tokens,
@@ -1398,6 +1463,7 @@ export async function runWebUI(opts: CliWebUIOptions): Promise<void> {
         fleetConcurrency = Math.max(0, fleetConcurrency - 1);
         emitConcurrency();
         forwardSubagent('task_completed', {
+          sessionId: e.sessionId,
           subagentId: e.subagentId,
           status: e.status,
           iterations: e.iterations,
@@ -1414,6 +1480,7 @@ export async function runWebUI(opts: CliWebUIOptions): Promise<void> {
       broadcast({
         type: 'agent.timeline.message',
         payload: sessionPayload({
+          sessionId: e.sessionId,
           subagentId: e.subagentId,
           agentName: e.agentName,
           content: e.content,
@@ -1429,6 +1496,7 @@ export async function runWebUI(opts: CliWebUIOptions): Promise<void> {
       broadcast({
         type: 'agent.status_changed',
         payload: sessionPayload({
+          sessionId: e.sessionId,
           subagentId: e.subagentId,
           agentName: e.agentName,
           status: e.status,
@@ -1464,7 +1532,7 @@ export async function runWebUI(opts: CliWebUIOptions): Promise<void> {
       opts.events.onPattern('mailbox.*', (eventName, payload) => {
         broadcast({
           type: 'mailbox.event',
-          payload: { event: eventName, ...(payload as Record<string, unknown>) },
+          payload: sessionPayload({ event: eventName, ...(payload as Record<string, unknown>) }),
         });
       }),
     );
@@ -1474,7 +1542,7 @@ export async function runWebUI(opts: CliWebUIOptions): Promise<void> {
       opts.events.onPattern('brain.*', (eventName, payload) => {
         broadcast({
           type: 'brain.event',
-          payload: { event: eventName, ...(payload as Record<string, unknown>) },
+          payload: sessionPayload({ event: eventName, ...(payload as Record<string, unknown>) }),
         });
       }),
     );
@@ -1564,6 +1632,7 @@ export async function runWebUI(opts: CliWebUIOptions): Promise<void> {
       (opts.agent.container.has(TOKENS.BrainArbiter)
         ? opts.agent.container.resolve(TOKENS.BrainArbiter)
         : undefined),
+    getSessionId: currentSessionId,
     send,
     broadcast,
     log: (m) => console.log(m),
@@ -1866,7 +1935,7 @@ export async function runWebUI(opts: CliWebUIOptions): Promise<void> {
           if (++msgCount > rateLimitMax) {
             send(ws, {
               type: 'error',
-              payload: { phase: 'rate_limit', message: 'Too many messages. Please wait.' },
+              payload: sessionPayload({ phase: 'rate_limit', message: 'Too many messages. Please wait.' }),
             });
             return;
           }
@@ -2036,6 +2105,12 @@ export async function runWebUI(opts: CliWebUIOptions): Promise<void> {
   const projectRootFor = () =>
     opts.projectRoot ?? (opts.agent.ctx as { projectRoot?: string }).projectRoot ?? '';
 
+  /** Validate an `auth.oauth.*` message's `kind` field. */
+  const oauthKindOf = (msg: unknown): 'chatgpt' | 'claude' | 'copilot' | null => {
+    const kind = (msg as { payload?: { kind?: unknown } })?.payload?.kind;
+    return kind === 'chatgpt' || kind === 'claude' || kind === 'copilot' ? kind : null;
+  };
+
   const wsRoutes: Record<string, WsRouteHandler> = {
     // ── Core connection ──
     user_message: (msg, ws) =>
@@ -2131,6 +2206,23 @@ export async function runWebUI(opts: CliWebUIOptions): Promise<void> {
     'provider.probe': (msg, ws) => {
       const m = msg as { payload: { providerId: string; timeoutMs?: number } };
       handleProviderProbe(wsHandlerCtx, ws, m.payload.providerId, m.payload.timeoutMs);
+    },
+
+    // ── Subscription OAuth login (ChatGPT / Claude / Copilot) ──
+    'auth.oauth.start': (msg, ws) => {
+      const kind = oauthKindOf(msg);
+      if (kind) void handleOAuthStart(wsHandlerCtx, ws, kind);
+    },
+    'auth.oauth.code': (msg, ws) => {
+      const kind = oauthKindOf(msg);
+      const input = (msg as { payload?: { input?: unknown } }).payload?.input;
+      if (kind && typeof input === 'string' && input.trim()) {
+        void handleOAuthCode(wsHandlerCtx, ws, kind, input);
+      }
+    },
+    'auth.oauth.cancel': (msg, ws) => {
+      const kind = oauthKindOf(msg);
+      if (kind) handleOAuthCancel(wsHandlerCtx, ws, kind);
     },
 
     // ── Todos / goals / plans / tasks ──

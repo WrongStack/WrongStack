@@ -1,6 +1,12 @@
 import type { WebSocket } from 'ws';
-import type { ProviderConfig } from '@wrongstack/core';
+import type { ModelsRegistry, ProviderConfig } from '@wrongstack/core';
 import { DefaultSecretScrubber } from '@wrongstack/core';
+import {
+  beginOAuthLogin,
+  type OAuthKind,
+  type OAuthLoginOutcome,
+  type OAuthSession,
+} from '@wrongstack/providers/oauth';
 import { probeLocalLlm } from '@wrongstack/runtime/probe';
 import { loadSavedProviders, saveProviders } from './provider-config-io.js';
 import { toErrorMessage } from '@wrongstack/core/utils';
@@ -12,6 +18,7 @@ import {
   removeProvider as removeProviderRecord,
   maskedKey,
   normalizeKeys,
+  writeKeysBack,
 } from './provider-keys.js';
 import type { ConnectedClient, WSServerMessage } from './types.js';
 import { send, sendResult, errMessage } from './ws-utils.js';
@@ -83,6 +90,8 @@ export interface ProviderHandlerDeps {
   broadcast: (clients: Map<WebSocket, ConnectedClient>, msg: WSServerMessage) => void;
   /** Connected WebUI clients map */
   clients: Map<WebSocket, ConnectedClient>;
+  /** Used by the ChatGPT OAuth flow's tier-2 model lookup (best-effort). */
+  modelsRegistry?: ModelsRegistry | undefined;
 }
 
 export function createProviderHandlers(deps: ProviderHandlerDeps) {
@@ -299,6 +308,127 @@ export function createProviderHandlers(deps: ProviderHandlerDeps) {
     }
   }
 
+  // ── Subscription OAuth login (ChatGPT / Claude / Copilot) ──────────────────
+  //
+  // One in-flight session per kind, shared across clients (single-user). A
+  // second start for the same kind closes the prior one. The engine
+  // (@wrongstack/providers/oauth) is IO-free — persistence is local below.
+
+  const oauthSessions = new Map<OAuthKind, OAuthSession>();
+
+  function sendOAuthStatus(
+    ws: WebSocket,
+    kind: OAuthKind,
+    phase: 'awaiting_browser' | 'awaiting_code' | 'exchanging' | 'fetching_models' | 'success' | 'error',
+    extra: Record<string, unknown> = {},
+  ): void {
+    send(ws, { type: 'auth.oauth.status', payload: { kind, phase, ...extra } });
+  }
+
+  /** Persist a successful login by upserting the OAuth credential. */
+  async function persistOAuthOutcome(outcome: OAuthLoginOutcome): Promise<void> {
+    const providers = await loadConfigProviders();
+    const existing = providers[outcome.providerId];
+    const p: ProviderConfig = existing ? { ...existing } : { type: outcome.providerId };
+    p.family = outcome.family as ProviderConfig['family'];
+    if (!p.baseUrl) p.baseUrl = outcome.baseUrl;
+    p.models = [...outcome.models];
+    const keys = normalizeKeys(p).filter((k) => k.label !== outcome.apiKey.label);
+    keys.push(outcome.apiKey);
+    writeKeysBack(p, keys);
+    p.activeKey = outcome.apiKey.label;
+    providers[outcome.providerId] = p;
+    await saveConfigProviders(providers);
+    broadcastSaved(providers);
+  }
+
+  async function finishOAuth(
+    ws: WebSocket,
+    kind: OAuthKind,
+    outcome: OAuthLoginOutcome | null,
+  ): Promise<void> {
+    if (!outcome) {
+      sendOAuthStatus(ws, kind, 'error', { message: 'Sign-in cancelled or timed out.' });
+      return;
+    }
+    sendOAuthStatus(ws, kind, 'fetching_models', { providerId: outcome.providerId });
+    await persistOAuthOutcome(outcome);
+    sendOAuthStatus(ws, kind, 'success', {
+      providerId: outcome.providerId,
+      message: `Signed in — saved as ${outcome.providerId} (${outcome.models.length} models).`,
+    });
+  }
+
+  async function handleOAuthStart(ws: WebSocket, kind: OAuthKind): Promise<void> {
+    try {
+      oauthSessions.get(kind)?.close();
+      oauthSessions.delete(kind);
+
+      const session = await beginOAuthLogin(kind, { modelsRegistry: deps.modelsRegistry });
+      oauthSessions.set(kind, session);
+
+      if (kind === 'copilot') {
+        sendOAuthStatus(ws, kind, 'awaiting_code', {
+          providerId: session.providerId,
+          verificationUri: session.verificationUri,
+          userCode: session.userCode,
+          bound: false,
+        });
+      } else {
+        sendOAuthStatus(ws, kind, 'awaiting_browser', {
+          providerId: session.providerId,
+          authorizeUrl: session.authorizeUrl,
+          bound: session.bound,
+        });
+      }
+
+      // Drive to completion in the background when there is something to wait
+      // for: the copilot device poll, or a bound loopback callback. When the
+      // loopback could not bind, we wait for a manual `auth.oauth.code` paste.
+      const drive = kind === 'copilot' || session.bound;
+      if (drive) {
+        void (async () => {
+          try {
+            const outcome = await session.waitForCompletion();
+            await finishOAuth(ws, kind, outcome);
+          } catch (err) {
+            sendOAuthStatus(ws, kind, 'error', { message: errMessage(err) });
+          } finally {
+            if (oauthSessions.get(kind) === session) oauthSessions.delete(kind);
+          }
+        })();
+      }
+    } catch (err) {
+      sendOAuthStatus(ws, kind, 'error', { message: errMessage(err) });
+    }
+  }
+
+  async function handleOAuthCode(ws: WebSocket, kind: OAuthKind, input: string): Promise<void> {
+    const session = oauthSessions.get(kind);
+    if (!session) {
+      sendOAuthStatus(ws, kind, 'error', {
+        message: 'No active sign-in for this provider — start the login again.',
+      });
+      return;
+    }
+    try {
+      sendOAuthStatus(ws, kind, 'exchanging', { providerId: session.providerId });
+      const outcome = await session.completeWithCode(input);
+      await finishOAuth(ws, kind, outcome);
+    } catch (err) {
+      sendOAuthStatus(ws, kind, 'error', { message: errMessage(err) });
+    } finally {
+      session.close();
+      if (oauthSessions.get(kind) === session) oauthSessions.delete(kind);
+    }
+  }
+
+  function handleOAuthCancel(ws: WebSocket, kind: OAuthKind): void {
+    oauthSessions.get(kind)?.close();
+    oauthSessions.delete(kind);
+    sendOAuthStatus(ws, kind, 'error', { message: 'Sign-in cancelled.' });
+  }
+
   return {
     handleKeyUpsert,
     handleKeyDelete,
@@ -309,6 +439,9 @@ export function createProviderHandlers(deps: ProviderHandlerDeps) {
     handleProviderUndoClear,
     handleProviderUpdate,
     handleProviderProbe,
+    handleOAuthStart,
+    handleOAuthCode,
+    handleOAuthCancel,
     loadConfigProviders,
   };
 }

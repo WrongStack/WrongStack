@@ -739,6 +739,33 @@ export interface WSKeyOperationResult {
   };
 }
 
+/** Which subscription OAuth login a flow is running. */
+export type OAuthKind = 'chatgpt' | 'claude' | 'copilot';
+
+/**
+ * Progress for an in-flight subscription OAuth login, broadcast in reply to
+ * `auth.oauth.start` / `auth.oauth.code`. `phase` drives the UI:
+ *  - `awaiting_browser` — loopback flows: open `authorizeUrl` in a new tab.
+ *  - `awaiting_code` — copilot device flow: show `userCode` + `verificationUri`.
+ *  - `exchanging` / `fetching_models` — spinner states.
+ *  - `success` — `providerId` is now saved (the `providers.saved` broadcast follows).
+ *  - `error` — `message` carries the reason.
+ */
+export interface WSAuthOAuthStatus {
+  type: 'auth.oauth.status';
+  payload: {
+    kind: OAuthKind;
+    phase: 'awaiting_browser' | 'awaiting_code' | 'exchanging' | 'fetching_models' | 'success' | 'error';
+    providerId?: string | undefined;
+    authorizeUrl?: string | undefined;
+    verificationUri?: string | undefined;
+    userCode?: string | undefined;
+    /** True when a loopback listener bound (false → manual paste needed). */
+    bound?: boolean | undefined;
+    message?: string | undefined;
+  };
+}
+
 export interface WSFilesList {
   type: 'files.list';
   payload: {
@@ -867,7 +894,7 @@ export interface WSEternalIteration {
 
 export interface WSAgentTimelineMessage {
   type: 'agent.timeline.message';
-  payload: {
+  payload: SessionScopedPayload & {
     subagentId: string;
     agentName: string;
     content: string;
@@ -881,7 +908,7 @@ export interface WSAgentTimelineMessage {
 
 export interface WSAgentStatusChanged {
   type: 'agent.status_changed';
-  payload: {
+  payload: SessionScopedPayload & {
     subagentId: string;
     agentName: string;
     status: 'spawned' | 'running' | 'completed' | 'failed' | 'timeout' | 'stopped' | 'budget_exhausted';
@@ -1131,6 +1158,9 @@ export type WSClientMessage =
       };
     }
   | { type: 'provider.probe'; payload: { providerId: string; timeoutMs?: number | undefined } }
+  | { type: 'auth.oauth.start'; payload: { kind: OAuthKind } }
+  | { type: 'auth.oauth.code'; payload: { kind: OAuthKind; input: string } }
+  | { type: 'auth.oauth.cancel'; payload: { kind: OAuthKind } }
   | { type: 'tools.list' }
   | { type: 'memory.list' }
   | { type: 'memory.remember'; payload: { text: string; scope?: MemoryScope | undefined } }
@@ -1313,6 +1343,7 @@ export type WSServerMessage =
   | WSSavedProviders
   | WSProviderProbe
   | WSKeyOperationResult
+  | WSAuthOAuthStatus
   | WSFilesList
   | { type: 'files.tree'; payload: { root: string; tree: unknown[]; error?: string | undefined } }
   | { type: 'files.read'; payload: { filePath: string; content: string; error?: string | undefined } }
@@ -1349,7 +1380,7 @@ export type WSServerMessage =
   | WSEternalIteration
   | WSAgentTimelineMessage
   | WSAgentStatusChanged
-  | { type: 'subagent.event'; payload: Record<string, unknown> & { kind: string } }
+  | { type: 'subagent.event'; payload: SessionScopedPayload & Record<string, unknown> & { kind: string } }
   | WSWorktreeState
   | WSWorktreeEvent
   | WSWorktreeOrphans
@@ -1382,13 +1413,13 @@ export type WSServerMessage =
   | { type: 'projects.selected'; payload: { root: string; name: string; message: string } }
   | { type: 'working_dir.changed'; payload: { cwd: string; projectRoot: string } }
   | { type: 'brain.status'; payload: { maxAutoRisk: string; log: Array<{ at: number; kind: string; question: string; outcome: string }> } }
-  | { type: 'brain.answer'; payload: { question: string; decision: { type: string; optionId?: string | undefined; text?: string | undefined; rationale?: string | undefined; reason?: string | undefined; prompt?: string | undefined } } }
-  | { type: 'brain.event'; payload: Record<string, unknown> & { event: string } }
+  | { type: 'brain.answer'; payload: SessionScopedPayload & { question: string; decision: { type: string; optionId?: string | undefined; text?: string | undefined; rationale?: string | undefined; reason?: string | undefined; prompt?: string | undefined } } }
+  | { type: 'brain.event'; payload: SessionScopedPayload & Record<string, unknown> & { event: string } }
   | { type: 'session.damaged'; payload: { sessionId: string; detail: string } }
-  | { type: 'session.rewound'; payload: { toPromptIndex: number; revertedFiles: string[]; removedEvents: number } }
-  | { type: 'checkpoint.written'; payload: { promptIndex: number; promptPreview: string; ts: string; fileCount: number } }
-  | { type: 'in_flight.started'; payload: { context: string; ts: string } }
-  | { type: 'in_flight.ended'; payload: { reason: 'clean' | 'aborted' | 'recovered'; ts: string } }
+  | { type: 'session.rewound'; payload: SessionScopedPayload & { toPromptIndex: number; revertedFiles: string[]; removedEvents: number } }
+  | { type: 'checkpoint.written'; payload: SessionScopedPayload & { promptIndex: number; promptPreview: string; ts: string; fileCount: number } }
+  | { type: 'in_flight.started'; payload: SessionScopedPayload & { context: string; ts: string } }
+  | { type: 'in_flight.ended'; payload: SessionScopedPayload & { reason: 'clean' | 'aborted' | 'recovered'; ts: string } }
   | { type: 'model.refine_result'; payload: { refined: string; english: string; error?: string | undefined } }
   // ── Coordinator / autonomous fleet events ──────────────────────────────
   | { type: 'coordinator.status'; payload: { status: 'idle' | 'running' | 'draining' | 'stopped'; mode?: string; subagentCount?: number; taskQueue?: { pending: number; running: number; completed: number; failed: number } } }

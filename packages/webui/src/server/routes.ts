@@ -286,6 +286,7 @@ export function buildRoutes(
     setConfigWriteLock: state.setConfigWriteLock,
     broadcast: (msg) => broadcast(state.getClients(), msg),
     clients: state.getClients(),
+    modelsRegistry: deps.modelsRegistry,
   });
 
   const providerRoutes: ProviderRouteHandlers = {
@@ -724,12 +725,13 @@ export function buildRoutes(
       try {
         const decision = await deps.brain.decide({
           id: `brain-ask-${Date.now().toString(36)}`,
+          sessionId: deps.context.session?.id,
           source: 'user',
           question,
           risk: 'medium',
           fallback: 'ask_human',
         });
-        send(ws, { type: 'brain.answer', payload: { question, decision } });
+        send(ws, { type: 'brain.answer', payload: { sessionId: deps.context.session?.id, question, decision } });
       } catch (err) {
         sendResult(ws, false, `Brain consultation failed: ${errMessage(err)}`);
       }

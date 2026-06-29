@@ -510,6 +510,23 @@ export class WrongStackWebSocketClient {
     this.send({ type: 'provider.remove', payload: { providerId } });
   }
 
+  // ---- Subscription OAuth login (ChatGPT / Claude / Copilot) ----
+
+  /** Begin a subscription sign-in; progress arrives as `auth.oauth.status`. */
+  startOAuth(kind: 'chatgpt' | 'claude' | 'copilot') {
+    this.send({ type: 'auth.oauth.start', payload: { kind } });
+  }
+
+  /** Manual-paste fallback for loopback flows (port busy / remote browser). */
+  submitOAuthCode(kind: 'chatgpt' | 'claude' | 'copilot', input: string) {
+    this.send({ type: 'auth.oauth.code', payload: { kind, input } });
+  }
+
+  /** Cancel an in-flight subscription sign-in. */
+  cancelOAuth(kind: 'chatgpt' | 'claude' | 'copilot') {
+    this.send({ type: 'auth.oauth.cancel', payload: { kind } });
+  }
+
   /** Run a health probe against a saved provider's `/v1/models`. */
   probeProvider(providerId: string, timeoutMs?: number) {
     this.send({

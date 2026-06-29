@@ -41,6 +41,14 @@ function invalidPayload(ws: WebSocket, type: string): true {
   return true;
 }
 
+const OAUTH_KINDS = new Set(['chatgpt', 'claude', 'copilot']);
+function oauthKind(payload: Record<string, unknown> | null): 'chatgpt' | 'claude' | 'copilot' | null {
+  const kind = payload?.['kind'];
+  return typeof kind === 'string' && OAUTH_KINDS.has(kind)
+    ? (kind as 'chatgpt' | 'claude' | 'copilot')
+    : null;
+}
+
 export async function handleProviderRoute(
   ws: WebSocket,
   msg: WSClientMessage,
@@ -160,6 +168,29 @@ export async function handleProviderRoute(
       const timeoutMs = payload ? optionalNumber(payload, 'timeoutMs') : null;
       if (!providerId || timeoutMs === null) return invalidPayload(ws, msg.type);
       await routes.providerHandlers.handleProviderProbe(ws, providerId, timeoutMs);
+      return true;
+    }
+
+    case 'auth.oauth.start': {
+      const kind = oauthKind(asPayloadRecord(msg));
+      if (!kind) return invalidPayload(ws, msg.type);
+      await routes.providerHandlers.handleOAuthStart(ws, kind);
+      return true;
+    }
+
+    case 'auth.oauth.code': {
+      const payload = asPayloadRecord(msg);
+      const kind = oauthKind(payload);
+      const input = payload ? requiredString(payload, 'input') : null;
+      if (!kind || !input) return invalidPayload(ws, msg.type);
+      await routes.providerHandlers.handleOAuthCode(ws, kind, input);
+      return true;
+    }
+
+    case 'auth.oauth.cancel': {
+      const kind = oauthKind(asPayloadRecord(msg));
+      if (!kind) return invalidPayload(ws, msg.type);
+      routes.providerHandlers.handleOAuthCancel(ws, kind);
       return true;
     }
 

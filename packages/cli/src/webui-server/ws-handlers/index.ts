@@ -120,6 +120,7 @@ export {
   handleProvidersSaved,
   broadcastSaved,
 } from './providers.js';
+export { handleOAuthStart, handleOAuthCode, handleOAuthCancel } from './oauth.js';
 export {
   handleGoalGet,
   handleSessionCheckpoints,
