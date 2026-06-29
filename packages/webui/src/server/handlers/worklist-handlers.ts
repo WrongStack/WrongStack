@@ -28,7 +28,10 @@ function sessionPayload<T extends Record<string, unknown>>(
   ctx: WorklistContext,
   payload: T,
 ): T & { sessionId: string } {
-  return { ...payload, sessionId: ctx.context.session?.id ?? '' };
+  const provided = payload['sessionId'];
+  const fallback = ctx.context.session?.id ?? '';
+  const sessionId = typeof provided === 'string' && provided.length > 0 ? provided : fallback;
+  return { ...payload, sessionId };
 }
 
 // ── Context interface ─────────────────────────────────────────────────────────

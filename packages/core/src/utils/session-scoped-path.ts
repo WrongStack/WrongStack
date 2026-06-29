@@ -5,7 +5,7 @@ import { ERROR_CODES, FsError } from '../types/errors.js';
  * Resolve `<dir>/<sessionId><suffix>` for per-session sidecar files
  * (annotations, audit chain, replay log, the session JSONL itself).
  *
- * Modern session ids are date-sharded ("2026-06-11/12-30-45Z_model_ab12"),
+ * Modern session ids are date-sharded ("2026-06-11/sess_<ULID>"),
  * so a forward slash is a legitimate shard separator — NOT traversal.
  * Escape attempts are blocked two ways: an explicit ban on `..` and
  * backslashes, plus a resolved-path containment check that rejects any

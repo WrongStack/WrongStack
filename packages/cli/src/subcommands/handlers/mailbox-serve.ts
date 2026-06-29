@@ -57,7 +57,7 @@
  *   POST /mailbox/agents/register   → registerAgent({...})  source='http'
  *   POST /mailbox/agents/heartbeat  → heartbeat({...})
  *   POST /mailbox/register-client   → registerClient({...}) source='http'
- *   POST /mailbox/heartbeat         → clientHeartbeat({clientId})
+ *   POST /mailbox/heartbeat         → clientHeartbeat({clientId,sessionId?})
  *   GET  /mailbox/agents            → getAgentStatuses()
  *   GET  /mailbox/agents/online     → getOnlineAgents()
  *
@@ -603,7 +603,9 @@ function validateClientRegistration(body: unknown): ClientRegistrationInput {
 function validateClientHeartbeat(body: unknown): ClientHeartbeatInput {
   if (typeof body !== 'object' || body === null) throw validationError('expected JSON object body');
   const o = body as Record<string, unknown>;
-  return { clientId: requireString(o, 'clientId') };
+  const clientId = requireString(o, 'clientId');
+  const sessionId = optionalString(o, 'sessionId');
+  return sessionId ? { clientId, sessionId } : { clientId };
 }
 
 // ── Startup info / help ───────────────────────────────────────────────────

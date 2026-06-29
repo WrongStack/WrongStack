@@ -21,8 +21,9 @@ import type { EventBus } from '../kernel/events.js';
  *   on the history.
  *
  *   So we keep annotations in a sibling file: one JSON document per
- *   session, at `<sessionDir>/<sessionId>.annotations.json`. The
- *   shape is a simple versioned array, written atomically.
+ *   session, resolved with `sessionScopedPath(sessionDir, sessionId,
+ *   '.annotations.json')`. The shape is a simple versioned array,
+ *   written atomically.
  *
  * Concurrency model:
  *
@@ -71,7 +72,7 @@ const MAX_TEXT_LENGTH = 2000;
 const MAX_ANNOTATIONS = 1000;
 
 export interface AnnotationsStoreOptions {
-  /** Directory where `<sessionId>.annotations.json` files live. */
+  /** Root sessions directory used with `sessionScopedPath(..., '.annotations.json')`. */
   dir: string;
   events?: EventBus;
   traceId?: string;

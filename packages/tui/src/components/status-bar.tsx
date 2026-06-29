@@ -419,6 +419,8 @@ export interface StatusBarProps {
   mode?: StatuslineMode | undefined;
   /** EventBus for subscribing to token.accounted events for real-time cost/token updates. */
   events?: EventBus | undefined;
+  /** Active session id used to ignore token events from other same-process sessions. */
+  sessionId?: string | undefined;
   /**
    * Live iteration stage from the active autonomy engine. When set, renders
    * a chip like `⏸ decide` or `▶ execute(todo:fix-auth)` next to the
@@ -545,6 +547,7 @@ export function StatusBar({
   hiddenItems,
   mode = 'detailed',
   events,
+  sessionId,
   eternalStage,
   goalSummary,
   indexState,
@@ -582,7 +585,7 @@ export function StatusBar({
   const showChip = (item: StatuslineItem): boolean => !hiddenSet.has(item);
   // Use the refresh hook so token/cost updates appear immediately when
   // the provider responds, instead of waiting for the next nowTick poll.
-  const tokenData = useTokenCounterRefresh(tokenCounter, events);
+  const tokenData = useTokenCounterRefresh(tokenCounter, events, sessionId);
   const usage = tokenData?.usage;
   const displayTokens = tokenDisplayTotals(usage, tokenData?.currentRequest);
   const showTokenDisplay = hasTokenDisplay(displayTokens);

@@ -3,6 +3,11 @@ import type React from 'react';
 import type { FleetEntry } from '../app.js';
 import { fmtElapsed, renderProgress } from './status-bar.js';
 
+function shortSessionId(sessionId: string): string {
+  const leaf = sessionId.split('/').pop() ?? sessionId;
+  return leaf.length > 12 ? `${leaf.slice(0, 12)}…` : leaf;
+}
+
 export interface FleetMonitorProps {
   entries: Record<string, FleetEntry>;
   /** Fleet-wide accumulated cost. */
@@ -207,7 +212,7 @@ export function FleetMonitor({
               ⚡ COLLAB SESSION
             </Text>
             {collabSession.sessionId ? (
-              <Text dimColor>{collabSession.sessionId.slice(0, 8)}</Text>
+              <Text dimColor>{shortSessionId(collabSession.sessionId)}</Text>
             ) : null}
             <Text dimColor>│</Text>
             <Text color="red">🐛{collabSession.bugCount}</Text>

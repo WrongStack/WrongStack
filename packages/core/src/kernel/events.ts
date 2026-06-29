@@ -34,21 +34,23 @@ export interface TrackedAgentSnapshot {
 }
 
 export interface EventMap {
-  'brain.decision_requested': { request: BrainDecisionRequest; at: number };
-  'brain.decision_answered': { request: BrainDecisionRequest; decision: BrainDecision; at: number };
+  'brain.decision_requested': { sessionId?: string | undefined; request: BrainDecisionRequest; at: number };
+  'brain.decision_answered': { sessionId?: string | undefined; request: BrainDecisionRequest; decision: BrainDecision; at: number };
   'brain.decision_ask_human': {
+    sessionId?: string | undefined;
     request: BrainDecisionRequest;
     decision: BrainDecision;
     at: number;
   };
   'brain.human_answered': {
+    sessionId?: string | undefined;
     id: string;
     optionId?: string | undefined;
     deny?: boolean | undefined;
     text?: string | undefined;
     at: number;
   };
-  'brain.decision_denied': { request: BrainDecisionRequest; decision: BrainDecision; at: number };
+  'brain.decision_denied': { sessionId?: string | undefined; request: BrainDecisionRequest; decision: BrainDecision; at: number };
   /**
    * Fired by the BrainMonitor when it PROACTIVELY engaged (self-activation):
    * a watched signal (tool-failure streak, error storm) crossed its
@@ -56,6 +58,7 @@ export interface EventMap {
    * it — a corrective steer was delivered to the working agent.
    */
   'brain.intervention': {
+    sessionId?: string | undefined;
     kind: 'tool_failure_streak' | 'error_storm';
     request: BrainDecisionRequest;
     decision: BrainDecision;
@@ -63,8 +66,8 @@ export interface EventMap {
     intervened: boolean;
     at: number;
   };
-  'session.started': { id: string };
-  'session.ended': { id: string; usage: Usage };
+  'session.started': { id: string; sessionId?: string | undefined };
+  'session.ended': { id: string; sessionId?: string | undefined; usage: Usage };
   'session.damaged': { sessionId: string; detail: string };
   /**
    * Fired by AgentStatusTracker after every flush with the full agent list
@@ -72,45 +75,47 @@ export interface EventMap {
    * bridge) read this to build live snapshots without re-reading the shared
    * session-registry file.
    */
-  'session.agents_updated': { agents: readonly TrackedAgentSnapshot[] };
+  'session.agents_updated': { sessionId?: string | undefined; agents: readonly TrackedAgentSnapshot[] };
   /**
    * Fired around a single Agent.run() call. Status trackers use these to
    * measure active-run elapsed time instead of inferring it from iterations.
    */
-  'agent.run.started': { ctx: Context; model: string; at: string };
+  'agent.run.started': { sessionId?: string | undefined; ctx: Context; model: string; at: string };
   'agent.run.completed': {
+    sessionId?: string | undefined;
     ctx: Context;
     status: 'done' | 'failed' | 'max_iterations' | 'aborted';
     iterations: number;
     at: string;
     durationMs: number;
   };
-  'agent.run.error': { ctx: Context; err: Error; at: string; durationMs: number };
-  'iteration.started': { ctx: Context; index: number };
-  'iteration.completed': { ctx: Context; index: number };
+  'agent.run.error': { sessionId?: string | undefined; ctx: Context; err: Error; at: string; durationMs: number };
+  'iteration.started': { sessionId?: string | undefined; ctx: Context; index: number };
+  'iteration.completed': { sessionId?: string | undefined; ctx: Context; index: number };
   /**
    * Fired when the agent hits its iteration limit. Listeners (CLI/TUI) can
    * call `grant(extra)` to allow more iterations, or `deny()` to stop.
    * If no listener responds within 30s the run ends with 'max_iterations'.
    */
   'iteration.limit_reached': {
+    sessionId?: string | undefined;
     currentIterations: number;
     currentLimit: number;
     grant: (extraIterations: number) => void;
     deny: () => void;
   };
-  'provider.response': { ctx: Context; usage: Usage; stopReason: string };
-  'provider.text_delta': { ctx: Context; text: string };
-  'provider.thinking_delta': { ctx: Context; text: string };
-  'provider.tool_use_start': { ctx: Context; id: string; name: string };
-  'provider.tool_use_stop': { ctx: Context; id: string; name: string };
+  'provider.response': { sessionId?: string | undefined; ctx: Context; usage: Usage; stopReason: string };
+  'provider.text_delta': { sessionId?: string | undefined; ctx: Context; text: string };
+  'provider.thinking_delta': { sessionId?: string | undefined; ctx: Context; text: string };
+  'provider.tool_use_start': { sessionId?: string | undefined; ctx: Context; id: string; name: string };
+  'provider.tool_use_stop': { sessionId?: string | undefined; ctx: Context; id: string; name: string };
   /**
    * Fired when a single SSE event handler throws mid-stream. Best-effort: the
    * malformed event is skipped and the partial response built from earlier
    * events is preserved, so the stream is not aborted. `eventType` is the SSE
    * event's `type`; `msg` is the handler error message.
    */
-  'provider.stream_error': { ctx: Context; eventType: string; msg: string };
+  'provider.stream_error': { sessionId?: string | undefined; ctx: Context; eventType: string; msg: string };
   /**
    * Fired before each retry of a failed provider call. `attempt` is 1-based
    * (the first retry is attempt 1, etc.). `description` is the human-readable
@@ -118,6 +123,7 @@ export interface EventMap {
    * instead of grepping logger output for the raw JSON body.
    */
   'provider.retry': {
+    sessionId?: string | undefined;
     providerId: string;
     attempt: number;
     delayMs: number;
@@ -129,6 +135,7 @@ export interface EventMap {
    * non-retryable error). Same shape as `provider.retry` minus the delay.
    */
   'provider.error': {
+    sessionId?: string | undefined;
     providerId: string;
     status: number;
     description: string;
@@ -142,12 +149,13 @@ export interface EventMap {
    * render this as a notice: "⚠ opus overloaded — falling back to sonnet".
    */
   'provider.fallback': {
+    sessionId?: string | undefined;
     from: { providerId: string; model: string };
     to: { providerId: string; model: string };
     status: number;
     providerSwitched: boolean;
   };
-  'tool.started': { name: string; id: string; input?: unknown | undefined };
+  'tool.started': { sessionId?: string | undefined; name: string; id: string; input?: unknown | undefined };
   /**
    * Fired when a tool call finishes successfully. Metrics collectors can count
    * calls and build latency histograms without parsing renderer output.
@@ -183,7 +191,7 @@ export interface EventMap {
    * subscribe to render incremental progress (streaming bash output, file
    * tree counts, etc.) without the tool having to know about the UI.
    */
-  'tool.progress': { name: string; id: string; event: ToolProgressEvent };
+  'tool.progress': { sessionId?: string | undefined; name: string; id: string; event: ToolProgressEvent };
   /** Cache hit on session store load — used by observability layers. */
   'storage.cache_hit': {
     sessionId: string;
@@ -199,6 +207,7 @@ export interface EventMap {
    * passed in the payload with a decision string ('yes' | 'no' | 'always' | 'deny').
    */
   'tool.confirm_needed': {
+    sessionId?: string | undefined;
     tool: Tool;
     input: unknown;
     toolUseId: string;
@@ -211,6 +220,7 @@ export interface EventMap {
    * persisted to the trust file (e.g. "✓ always allowed popo.txt" / "✗ denied popo.txt").
    */
   'trust.persisted': {
+    sessionId?: string | undefined;
     tool: string;
     pattern: string;
     decision: 'always' | 'deny';
@@ -237,6 +247,7 @@ export interface EventMap {
    * subscribers that only read `tools` continue to work.
    */
   'tool.loop_detected': {
+    sessionId?: string | undefined;
     ctx: Context;
     /** Comma-separated tool names involved in the loop, or empty string for pure message loops. */
     tools: string;
@@ -258,6 +269,7 @@ export interface EventMap {
    * tool history line without re-fetching from the session log.
    */
   'tool.executed': {
+    sessionId?: string | undefined;
     /**
      * The tool_use id (e.g. "toolu_…") issued by the provider for this call.
      * Pairs with `tool.started.id` so subscribers can correlate start/finish
@@ -306,6 +318,8 @@ export interface EventMap {
    * of the subagent. Paired with `delegate.completed`.
    */
   'delegate.started': {
+    /** Parent/host session id for the delegation lifecycle. */
+    sessionId?: string | undefined;
     /** Resolved roster role or free-form subagent name. */
     target: string;
     /** The task instruction handed to the subagent (untruncated — UIs trim). */
@@ -319,6 +333,8 @@ export interface EventMap {
    * preview.
    */
   'delegate.completed': {
+    /** Parent/host session id for the delegation lifecycle. */
+    sessionId?: string | undefined;
     /** Resolved roster role or free-form subagent name. */
     target: string;
     /** The task instruction handed to the subagent. */
@@ -344,6 +360,8 @@ export interface EventMap {
    * and the iteration index so UIs can render a threaded timeline.
    */
   'agent.timeline.message': {
+    /** Parent/host session id this subagent timeline belongs to. */
+    sessionId?: string | undefined;
     /** Subagent id (e.g. "bug-hunter@abc123"). */
     subagentId: string;
     /** Human-readable name or role label. */
@@ -367,6 +385,8 @@ export interface EventMap {
    * and add status-change entries to the timeline.
    */
   'agent.status_changed': {
+    /** Parent/host session id this subagent status belongs to. */
+    sessionId?: string | undefined;
     subagentId: string;
     agentName: string;
     status: 'spawned' | 'running' | 'completed' | 'failed' | 'timeout' | 'stopped' | 'budget_exhausted';
@@ -385,6 +405,7 @@ export interface EventMap {
    * `rawLoad`.
    */
   'ctx.pct': {
+    sessionId?: string | undefined;
     /** Fraction of maxContext currently in use, clamped to 0..1 for display. */
     load: number;
     /** Unclamped fraction when available. Can exceed 1 when over budget. */
@@ -395,8 +416,13 @@ export interface EventMap {
     maxContext: number;
   };
   /** Fired when the active model's resolved context window changes. */
-  'ctx.max_context': { providerId: string; modelId: string; maxContext: number };
-  'token.threshold': { used: number; limit: number };
+  'ctx.max_context': {
+    sessionId?: string | undefined;
+    providerId: string;
+    modelId: string;
+    maxContext: number;
+  };
+  'token.threshold': { sessionId?: string | undefined; used: number; limit: number };
   /**
    * Fired by `DefaultTokenCounter` after each call to `account()` /
    * `accountWithModel()` updates its internal state. The payload carries
@@ -406,7 +432,11 @@ export interface EventMap {
    * is unknown to the ModelsRegistry — that is already signalled separately
    * by `token.cost_estimate_unavailable`.
    */
-  'token.accounted': { usage: Usage; cost: { input: number; output: number; total: number } };
+  'token.accounted': {
+    sessionId?: string | undefined;
+    usage: Usage;
+    cost: { input: number; output: number; total: number };
+  };
   /**
    * Fired when the subagent budget hits a soft limit and the coordinator
    * is being asked for an extension. The coordinator should call `extend()`
@@ -419,6 +449,7 @@ export interface EventMap {
    * runner/budget classes.
    */
   'budget.threshold_reached': {
+    sessionId?: string | undefined;
     kind: 'iterations' | 'tool_calls' | 'tokens' | 'cost' | 'timeout' | 'idle_timeout';
     used: number;
     limit: number;
@@ -442,6 +473,7 @@ export interface EventMap {
     timeoutMs: number;
   };
   'context.repaired': {
+    sessionId?: string | undefined;
     ctx: Context;
     changed: boolean;
     removedToolUses: string[];
@@ -449,6 +481,7 @@ export interface EventMap {
     removedMessages: number;
   };
   'compaction.fired': {
+    sessionId?: string | undefined;
     /** Threshold level that triggered compaction (warn / soft / hard). */
     level: 'warn' | 'soft' | 'hard';
     /** Tokens estimated before compaction ran. */
@@ -483,6 +516,7 @@ export interface EventMap {
    * layers / dashboards subscribe to this to surface the silent regression.
    */
   'compaction.failed': {
+    sessionId?: string | undefined;
     err: Error;
     aggressive: boolean;
     level: 'warn' | 'soft' | 'hard';
@@ -510,6 +544,8 @@ export interface EventMap {
    * and director-orchestrated work.
    */
   'subagent.spawned': {
+    /** Parent/host session id. Subagents remain children of this session. */
+    sessionId?: string | undefined;
     subagentId: string;
     taskId: string;
     name?: string | undefined;
@@ -526,6 +562,8 @@ export interface EventMap {
     transcriptPath?: string | undefined;
   };
   'subagent.task_started': {
+    /** Parent/host session id. */
+    sessionId?: string | undefined;
     subagentId: string;
     taskId: string;
     description?: string | undefined;
@@ -538,6 +576,8 @@ export interface EventMap {
    * denies the extension and the task ends with 'budget_exhausted'.
    */
   'subagent.budget_warning': {
+    /** Parent/host session id. */
+    sessionId?: string | undefined;
     subagentId: string;
     kind: string;
     used: number;
@@ -553,6 +593,8 @@ export interface EventMap {
    * all kinds; `newLimit` is the patched value for `kind`.
    */
   'subagent.budget_extended': {
+    /** Parent/host session id. */
+    sessionId?: string | undefined;
     subagentId: string;
     kind: string;
     newLimit: number;
@@ -567,6 +609,8 @@ export interface EventMap {
    * multiple parallel subagents are distinguishable.
    */
   'subagent.tool_executed': {
+    /** Parent/host session id. */
+    sessionId?: string | undefined;
     subagentId: string;
     taskId?: string | undefined;
     name: string;
@@ -584,6 +628,8 @@ export interface EventMap {
    * the 25-iteration window passes while the agent is between tool calls.
    */
   'subagent.iteration_summary': {
+    /** Parent/host session id. */
+    sessionId?: string | undefined;
     subagentId: string;
     iteration: number;
     toolCalls: number;
@@ -592,6 +638,8 @@ export interface EventMap {
     partialText?: string | undefined;
   };
   'subagent.task_completed': {
+    /** Parent/host session id. */
+    sessionId?: string | undefined;
     subagentId: string;
     taskId: string;
     status: 'success' | 'failed' | 'timeout' | 'stopped';
@@ -623,7 +671,7 @@ export interface EventMap {
    * loop listens for this to collect `delegateSummaries` for the RunResult,
    * so the CLI/TUI can render flashy completion banners.
    */
-  'subagent.done': { summary: string; ok: boolean };
+  'subagent.done': { sessionId?: string | undefined; summary: string; ok: boolean };
   /**
    * Fired by MultiAgentHost when a subagent's context window load changes.
    * The leader agent's ctx.pct is emitted directly on the host EventBus;
@@ -631,6 +679,8 @@ export interface EventMap {
    * TUI uses this to render live context fill bars per agent.
    */
   'subagent.ctx_pct': {
+    /** Parent/host session id. */
+    sessionId?: string | undefined;
     subagentId: string;
     /** Fraction of maxContext currently in use, clamped to 0..1 for display. */
     load: number;
@@ -645,6 +695,7 @@ export interface EventMap {
   // one run; the projector composes them into `sdd.board.snapshot`.
   /** A parallel SDD run started. */
   'sdd.run.started': {
+    sessionId?: string | undefined;
     runId: string;
     graphId: string;
     specId?: string | undefined;
@@ -654,6 +705,7 @@ export interface EventMap {
   };
   /** A parallel SDD run reached a terminal state. */
   'sdd.run.finished': {
+    sessionId?: string | undefined;
     runId: string;
     deadlocked: boolean;
     completed: number;
@@ -662,6 +714,7 @@ export interface EventMap {
   };
   /** A task began executing on a worker (carries who + which worktree). */
   'sdd.task.started': {
+    sessionId?: string | undefined;
     runId: string;
     taskId: string;
     subagentId: string;
@@ -669,30 +722,32 @@ export interface EventMap {
     worktreeBranch?: string | undefined;
   };
   /** A task finished successfully. */
-  'sdd.task.completed': { runId: string; taskId: string; subagentId: string; durationMs: number };
+  'sdd.task.completed': { sessionId?: string | undefined; runId: string; taskId: string; subagentId: string; durationMs: number };
   /** A task failed terminally (retries exhausted). */
-  'sdd.task.failed': { runId: string; taskId: string; subagentId: string; error: string };
+  'sdd.task.failed': { sessionId?: string | undefined; runId: string; taskId: string; subagentId: string; error: string };
   /** A failed task was requeued for another attempt. */
-  'sdd.task.retrying': { runId: string; taskId: string; attempt: number; maxRetries: number };
+  'sdd.task.retrying': { sessionId?: string | undefined; runId: string; taskId: string; attempt: number; maxRetries: number };
   /** A task's worker reported success but the post-task verification gate rejected it. */
-  'sdd.task.verification_failed': { runId: string; taskId: string; reason: string };
+  'sdd.task.verification_failed': { sessionId?: string | undefined; runId: string; taskId: string; reason: string };
   /** A completed task's worktree could not be merged back into the base branch. */
-  'sdd.task.conflict': { runId: string; taskId: string; conflictFiles: string[] };
+  'sdd.task.conflict': { sessionId?: string | undefined; runId: string; taskId: string; conflictFiles: string[] };
   /** A completed task's worktree was squash-merged onto the base branch (sha = the run commit). */
-  'sdd.task.merged': { runId: string; taskId: string; sha: string };
+  'sdd.task.merged': { sessionId?: string | undefined; runId: string; taskId: string; sha: string };
   /** A task was split into sub-tasks (the parent becomes a completed container). */
-  'sdd.task.split': { runId: string; taskId: string; subtaskIds: string[] };
+  'sdd.task.split': { sessionId?: string | undefined; runId: string; taskId: string; subtaskIds: string[] };
   /** The supervisor made a decision about a failing/stuck task. */
   'sdd.supervisor.decision': {
+    sessionId?: string | undefined;
     runId: string;
     taskId: string;
     action: 'retry' | 'reassign' | 'split' | 'fail';
     rationale?: string | undefined;
   };
   /** A new wave of dependency-ready tasks began. */
-  'sdd.wave': { runId: string; wave: number; batchSize: number };
+  'sdd.wave': { sessionId?: string | undefined; runId: string; wave: number; batchSize: number };
   /** No runnable tasks remain but some are still blocked — with the blocking chains. */
   'sdd.deadlock': {
+    sessionId?: string | undefined;
     runId: string;
     chains: Array<{ blocked: string; blockedBy: string[] }>;
   };
@@ -702,13 +757,14 @@ export interface EventMap {
    * layer never imports from the higher `sdd/` layer (it sits below it in the
    * DAG); consumers cast it back. The producer (SddBoardProjector) is typed.
    */
-  'sdd.board.snapshot': { runId: string; snapshot: unknown };
+  'sdd.board.snapshot': { sessionId?: string | undefined; runId: string; snapshot: unknown };
   'mcp.server.connected': { name: string; toolCount: number };
   'mcp.server.reconnected': { name: string; toolCount: number };
   'mcp.server.disconnected': { name: string; reason: string };
-  'token.cost_estimate_unavailable': { model: string };
+  'token.cost_estimate_unavailable': { sessionId?: string | undefined; model: string };
   /** Fired by SessionWriter.writeCheckpoint() after the checkpoint event is appended to JSONL. */
   'checkpoint.written': {
+    sessionId?: string | undefined;
     promptIndex: number;
     promptPreview: string;
     ts: string;
@@ -720,21 +776,22 @@ export interface EventMap {
    * on clean shutdown. A marker with no end indicates a crash.
    * (Idea #1 from IDEAS.md — Stateful Session Recovery.)
    */
-  'in_flight.started': { context: string; ts: string };
+  'in_flight.started': { sessionId?: string | undefined; context: string; ts: string };
   /** Fired by SessionWriter.clearInFlightMarker() — operation completed cleanly. */
-  'in_flight.ended': { reason: 'clean' | 'aborted' | 'recovered'; ts: string };
+  'in_flight.ended': { sessionId?: string | undefined; reason: 'clean' | 'aborted' | 'recovered'; ts: string };
   /**
    * Fired after a session rewind completes: files are reverted and the session
    * history is truncated. The TUI listens to this to update its checkpoint
    * list and clear history entries that are now invalid.
    */
-  'session.rewound': { toPromptIndex: number; revertedFiles: string[]; removedEvents: number };
+  'session.rewound': { sessionId?: string | undefined; toPromptIndex: number; revertedFiles: string[]; removedEvents: number };
   /**
    * Fired by the multi-agent coordinator on FleetBus whenever subagent
    * counts change (spawn/stop/complete). The TUI subscribes to render
    * live fleet counters without polling.
    */
   'coordinator.stats': {
+    sessionId?: string | undefined;
     total: number;
     running: number;
     idle: number;
@@ -749,13 +806,14 @@ export interface EventMap {
    * (e.g. via `/fleet concurrency <n>`). `n` is the new ceiling. Lets the
    * TUI/WebUI reflect the updated limit without polling the host.
    */
-  'concurrency.changed': { n: number };
+  'concurrency.changed': { sessionId?: string | undefined; n: number };
   /**
    * Git-worktree lifecycle, emitted by WorktreeManager. AutoPhase allocates one
    * worktree per phase so parallelizable phases run isolated, then merges them
    * back sequentially. The WebUI/TUI subscribe to render live swim-lanes/DAG.
    */
   'worktree.allocated': {
+    sessionId?: string | undefined;
     handleId: string;
     ownerId: string;
     ownerLabel: string;
@@ -765,6 +823,7 @@ export interface EventMap {
     baseBranch: string;
   };
   'worktree.committed': {
+    sessionId?: string | undefined;
     handleId: string;
     ownerId: string;
     branch: string;
@@ -775,6 +834,7 @@ export interface EventMap {
     sha?: string | undefined;
   };
   'worktree.merged': {
+    sessionId?: string | undefined;
     handleId: string;
     ownerId: string;
     branch: string;
@@ -782,13 +842,15 @@ export interface EventMap {
     squash: boolean;
   };
   'worktree.conflict': {
+    sessionId?: string | undefined;
     handleId: string;
     ownerId: string;
     branch: string;
     conflictFiles: string[];
   };
-  'worktree.released': { handleId: string; ownerId: string; branch: string; kept: boolean };
+  'worktree.released': { sessionId?: string | undefined; handleId: string; ownerId: string; branch: string; kept: boolean };
   'worktree.failed': {
+    sessionId?: string | undefined;
     handleId: string;
     ownerId: string;
     branch?: string | undefined;
@@ -801,7 +863,7 @@ export interface EventMap {
    * StatusBar renders it as an "auto-proceed in Ns" chip; no consumer should
    * derive behavior from it (the REPL owns the actual timer).
    */
-  'countdown.tick': { remaining: number };
+  'countdown.tick': { sessionId?: string | undefined; remaining: number };
   // ── Memory store events — emitted by DefaultMemoryStore so plugins can react ──
   'memory.remembered': MemoryRememberedPayload;
   'memory.forgotten': MemoryForgottenPayload;
@@ -866,6 +928,8 @@ export interface EventMap {
    * external watchers.
    */
   'client.status': {
+    /** Active session represented by this client status update. */
+    sessionId?: string | undefined;
     clientType: string;
     clientId: string;
     projectHash: string;
@@ -880,7 +944,7 @@ export interface EventMap {
     timestamp: number;
     projectSlug: string;
   };
-  error: { err: Error; phase: string; _original?: Error | undefined };
+  error: { sessionId?: string | undefined; err: Error; phase: string; _original?: Error | undefined };
 }
 
 export type EventName = keyof EventMap;

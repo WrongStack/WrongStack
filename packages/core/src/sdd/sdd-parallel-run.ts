@@ -150,6 +150,8 @@ export interface SddParallelRunOptions {
   onProgress?: ((progress: SddProgress) => void) | undefined;
   /** Shared EventBus — when set, the run emits `sdd.*` live-board events. */
   events?: EventBus | undefined;
+  /** Parent session id for every emitted `sdd.*` event. */
+  sessionId?: string | (() => string | undefined) | undefined;
   /** Stable id correlating all events of this run (default: random). */
   runId?: string | undefined;
   /**
@@ -230,6 +232,7 @@ export class SddParallelRun {
   private retryMap = new Map<string, number>();
   readonly runId: string;
   private readonly events?: EventBus | undefined;
+  private readonly sessionIdSource: string | (() => string | undefined) | undefined;
   private readonly maxTotalWaves: number;
   private readonly maxWallClockMs?: number | undefined;
   private readonly maxRecoveryRounds: number;
@@ -273,6 +276,7 @@ export class SddParallelRun {
     this.maxFailedSweeps = Math.max(0, opts.maxFailedRetrySweeps ?? 2);
     this.runId = opts.runId ?? `sdd-${randomUUID().slice(0, 8)}`;
     this.events = opts.events;
+    this.sessionIdSource = opts.sessionId;
     // Backstop: even with retries + recovery the loop must terminate. Derive a
     // generous ceiling from the graph size unless the caller pins one.
     this.maxTotalWaves =
@@ -287,7 +291,19 @@ export class SddParallelRun {
     event: K,
     payload: import('../kernel/events.js').EventMap[K],
   ): void {
-    this.events?.emit(event, payload);
+    const sessionId = this.currentSessionId();
+    this.events?.emit(
+      event,
+      (sessionId ? { ...payload, sessionId } : payload) as import('../kernel/events.js').EventMap[K],
+    );
+  }
+
+  private currentSessionId(): string | undefined {
+    const value =
+      typeof this.sessionIdSource === 'function'
+        ? this.sessionIdSource()
+        : this.sessionIdSource;
+    return typeof value === 'string' && value.length > 0 ? value : undefined;
   }
 
   // -------------------------------------------------------------------

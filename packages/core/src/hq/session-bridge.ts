@@ -14,8 +14,8 @@
  */
 import * as fs from 'node:fs';
 import * as fsp from 'node:fs/promises';
-import * as path from 'node:path';
 import type { EventBus, TrackedAgentSnapshot } from '../kernel/events.js';
+import { sessionScopedPath } from '../utils/session-scoped-path.js';
 import { resolveWstackPaths } from '../utils/wstack-paths.js';
 import type {
   HqSessionAgentLiveStatus,
@@ -102,9 +102,7 @@ export function startSessionTelemetryBridge(opts: SessionTelemetryBridgeOptions)
     projectRoot: opts.projectRoot,
     ...(opts.globalRoot !== undefined ? { globalRoot: opts.globalRoot } : {}),
   });
-  // sessionId embeds a `YYYY-MM-DD/HH-MM-SS…` shard prefix, so path.join
-  // produces the correct sharded `.jsonl` path on every platform.
-  const sessionFile = path.join(wpaths.projectSessions, `${opts.sessionId}.jsonl`);
+  const sessionFile = sessionScopedPath(wpaths.projectSessions, opts.sessionId, '.jsonl');
 
   let agents: HqSessionAgentSummary[] = (opts.initialAgents ?? []).map(toAgentSummary);
   let lastActivityAt = agents.reduce(

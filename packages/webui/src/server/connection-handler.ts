@@ -92,6 +92,12 @@ export function createConnectionHandler(
   // a session id (multiple tabs / F5 reloads).
   let connSeq = 0;
 
+  const sessionPayload = <T extends Record<string, unknown>>(payload: T): T & { sessionId: string } => {
+    const provided = payload['sessionId'];
+    const sessionId = typeof provided === 'string' && provided.length > 0 ? provided : opts.getSessionId();
+    return { ...payload, sessionId };
+  };
+
   function checkRateLimit(client: ConnectedClient): boolean {
     if (RATE_LIMIT_MESSAGES <= 0) return true; // disabled
     const now = Date.now();
@@ -174,10 +180,10 @@ export function createConnectionHandler(
       if (!checkRateLimit(client)) {
         send(ws, {
           type: 'error',
-          payload: {
+          payload: sessionPayload({
             phase: 'rate_limit',
             message: 'Too many messages. Please wait before sending more.',
-          },
+          }),
         });
         return;
       }
@@ -197,7 +203,7 @@ export function createConnectionHandler(
           ) {
             send(ws, {
               type: 'error',
-              payload: { phase: 'parse', message: 'Invalid message object' },
+              payload: sessionPayload({ phase: 'parse', message: 'Invalid message object' }),
             });
           } else {
             await opts.handleMessage(ws, client, rawObj as never as WSClientMessage);

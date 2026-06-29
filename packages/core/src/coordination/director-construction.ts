@@ -38,6 +38,7 @@ export const MAX_COMPLETED = 10_000;
  *  deriving from Director to include private fields the wiring code needs. */
 export interface DirectorInternals {
   id: string;
+  directorRunId: string;
   completed: Map<string, import('../types/multi-agent.js').TaskResult>;
   taskWaiters: Map<
     string,
@@ -288,6 +289,7 @@ export function wireBudgetHandler(d: DirectorInternals): void {
       void d.brain
         .decide({
           id: `director-budget-${e.subagentId}-${payload.kind}`,
+          sessionId: d.directorRunId,
           source: 'director',
           question: `Should the director extend the ${payload.kind} budget for subagent ${e.subagentId}?`,
           context: [

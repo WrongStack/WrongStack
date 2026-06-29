@@ -51,7 +51,9 @@ function sessionPayload<T extends Record<string, unknown>>(
   ctx: SessionsContext,
   payload: T,
 ): T & { sessionId: string } {
-  return { ...payload, sessionId: currentSessionId(ctx) };
+  const provided = payload['sessionId'];
+  const sessionId = typeof provided === 'string' && provided.length > 0 ? provided : currentSessionId(ctx);
+  return { ...payload, sessionId };
 }
 
 /** The session store to use: the wired one, else a transient legacy fallback. */

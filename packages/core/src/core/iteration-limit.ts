@@ -2,6 +2,7 @@ import type { EventBus } from '../kernel/events.js';
 
 export interface RequestLimitExtensionOptions {
   events: EventBus;
+  sessionId?: string | undefined;
   currentIterations: number;
   currentLimit: number;
   /** When true (default), auto-grant 100 extra after giving listeners a tick to deny. */
@@ -33,7 +34,7 @@ export interface RequestLimitExtensionOptions {
  *     wins; subsequent calls are no-ops.
  */
 export function requestLimitExtension(opts: RequestLimitExtensionOptions): Promise<number> {
-  const { events, currentIterations, currentLimit, autoExtend, timeoutMs = 30_000 } = opts;
+  const { events, sessionId, currentIterations, currentLimit, autoExtend, timeoutMs = 30_000 } = opts;
   return new Promise((resolve) => {
     let resolved = false;
     // Shared flag so setImmediate knows when timer already resolved.
@@ -60,6 +61,7 @@ export function requestLimitExtension(opts: RequestLimitExtensionOptions): Promi
       }
     };
     events.emit('iteration.limit_reached', {
+      sessionId,
       currentIterations,
       currentLimit,
       grant,

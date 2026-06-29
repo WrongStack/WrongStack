@@ -54,7 +54,7 @@ export function defaultResolveProjectDir(ctx: Context): string {
 
 /**
  * Compact, deterministic tag for a session id — 8 hex chars of its sha256.
- * Session ids are date-sharded paths ("2026-06-11/10-48-34Z_model_e66c");
+ * Session ids are date-sharded paths ("2026-06-11/sess_<ULID>");
  * the tag keeps mailbox identities short, filesystem-safe, and stable for
  * the lifetime of the session (including across process restarts/resumes).
  */

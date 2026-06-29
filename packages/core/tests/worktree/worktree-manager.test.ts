@@ -69,10 +69,17 @@ describe('WorktreeManager (stubbed git)', () => {
         ? { code: 0, stdout: 'main\n', stderr: '' }
         : { code: 0, stdout: '', stderr: '' },
     );
-    const wm = new WorktreeManager({ projectRoot: '/proj', events: fakeBus, run });
+    const wm = new WorktreeManager({
+      projectRoot: '/proj',
+      events: fakeBus,
+      sessionId: () => '2026-06-29/sess_worktree',
+      run,
+    });
     const h = await wm.allocate('p1', { slugHint: 'x' });
     expect(h.status).toBe('active');
     expect(events.map((e) => e.name)).toContain('worktree.allocated');
+    expect(events.find((e) => e.name === 'worktree.allocated')?.payload.sessionId)
+      .toBe('2026-06-29/sess_worktree');
   });
 
   it('marks failed (and emits) when `worktree add` fails', async () => {

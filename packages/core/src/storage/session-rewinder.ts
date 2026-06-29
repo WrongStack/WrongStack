@@ -6,6 +6,7 @@ import type { CheckpointInfo, RewindResult, RewindResultExtended, SessionRewinde
 import type { SessionEvent, FileSnapshot } from '../types/session.js';
 import { atomicWrite } from '../utils/atomic-write.js';
 import { SessionError, ERROR_CODES } from '../types/errors.js';
+import { sessionScopedPath } from '../utils/session-scoped-path.js';
 
 export interface SessionRewinderOptions {
   sessionsDir: string;
@@ -20,8 +21,12 @@ export interface SessionRewinderOptions {
 export class DefaultSessionRewinder implements SessionRewinder {
   constructor(private readonly sessionsDir: string, private readonly projectRoot: string) {}
 
+  private sessionFile(sessionId: string): string {
+    return sessionScopedPath(this.sessionsDir, sessionId, '.jsonl');
+  }
+
   async listCheckpoints(sessionId: string): Promise<CheckpointInfo[]> {
-    const file = path.join(this.sessionsDir, `${sessionId}.jsonl`);
+    const file = this.sessionFile(sessionId);
     const raw = await fsp.readFile(file, 'utf8');
     const events = parseEvents(raw);
 
@@ -54,7 +59,7 @@ export class DefaultSessionRewinder implements SessionRewinder {
     sessionId: string,
     checkpointIndex: number,
   ): Promise<RewindResultExtended> {
-    const file = path.join(this.sessionsDir, `${sessionId}.jsonl`);
+    const file = this.sessionFile(sessionId);
     const raw = await fsp.readFile(file, 'utf8');
     const events = parseEvents(raw);
 
@@ -98,7 +103,7 @@ export class DefaultSessionRewinder implements SessionRewinder {
   }
 
   async rewindLastN(sessionId: string, n: number): Promise<RewindResultExtended> {
-    const file = path.join(this.sessionsDir, `${sessionId}.jsonl`);
+    const file = this.sessionFile(sessionId);
     const raw = await fsp.readFile(file, 'utf8');
     const events = parseEvents(raw);
 
@@ -134,7 +139,7 @@ export class DefaultSessionRewinder implements SessionRewinder {
   }
 
   async rewindToStart(sessionId: string): Promise<RewindResultExtended> {
-    const file = path.join(this.sessionsDir, `${sessionId}.jsonl`);
+    const file = this.sessionFile(sessionId);
     const raw = await fsp.readFile(file, 'utf8');
     const events = parseEvents(raw);
 

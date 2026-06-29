@@ -35,6 +35,7 @@ export function createAgentResponseHandler(a: AgentInternals): AgentResponseHand
       if (repaired.report.changed) {
         a.ctx.state.replaceMessages(repaired.messages);
         a.events.emit('context.repaired', {
+          sessionId: a.ctx.session.id,
           ctx: a.ctx,
           ...repaired.report,
         });
@@ -65,6 +66,7 @@ export function createAgentResponseHandler(a: AgentInternals): AgentResponseHand
     let res = raw;
     res = await a.pipelines.response.run(res);
     a.events.emit('provider.response', {
+      sessionId: a.ctx.session.id,
       ctx: a.ctx,
       usage: res.usage,
       stopReason: res.stopReason,

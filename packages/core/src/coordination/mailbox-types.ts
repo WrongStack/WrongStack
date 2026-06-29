@@ -305,6 +305,8 @@ export interface ClientRegistrationInput {
 
 export interface ClientHeartbeatInput {
   clientId: string;
+  /** Active session id for this client. When present, updates the registry entry. */
+  sessionId?: string | undefined;
 }
 
 // ── Agent heartbeat input ────────────────────────────────────────────────

@@ -29,6 +29,8 @@ export interface SddBoardProjectorOptions {
   graph: TaskGraph;
   tracker: TaskTracker;
   events: EventBus;
+  /** Parent session id for emitted `sdd.board.snapshot` events. */
+  sessionId?: string | (() => string | undefined) | undefined;
   /** Persist snapshots + JSONL events (optional — omit for in-memory only). */
   store?: SddBoardStore | undefined;
   specId?: string | undefined;
@@ -313,12 +315,25 @@ export class SddBoardProjector {
       this.timer = null;
     }
     const snap = this.build();
-    this.o.events.emit('sdd.board.snapshot', { runId: this.o.runId, snapshot: snap });
+    const sessionId = this.currentSessionId();
+    this.o.events.emit('sdd.board.snapshot', {
+      ...(sessionId ? { sessionId } : {}),
+      runId: this.o.runId,
+      snapshot: snap,
+    });
     if (this.o.store) {
       // Serialize writes (no two snapshots race on the same file) and swallow
       // persistence errors — a live stream must never crash on a disk hiccup.
       const store = this.o.store;
       this.lastSave = this.lastSave.then(() => store.saveSnapshot(snap)).catch(() => {});
     }
+  }
+
+  private currentSessionId(): string | undefined {
+    const value =
+      typeof this.o.sessionId === 'function'
+        ? this.o.sessionId()
+        : this.o.sessionId;
+    return typeof value === 'string' && value.length > 0 ? value : undefined;
   }
 }

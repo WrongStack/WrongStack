@@ -171,7 +171,7 @@ export async function handleModelSwitch(
       else delete actx.meta['effectiveMaxContext'];
       ctx.broadcast({
         type: 'ctx.max_context',
-        payload: { providerId: newProvider, modelId: newModel, maxContext },
+        payload: { sessionId: actx.session.id, providerId: newProvider, modelId: newModel, maxContext },
       });
     }
     const payloadOut = await ctx.buildSessionStart();

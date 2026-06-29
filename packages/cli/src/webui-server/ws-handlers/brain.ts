@@ -29,6 +29,8 @@ export interface BrainHandlerContext extends WsCommon {
   getBrainLog: (() => BrainLogEntry[]) | undefined;
   /** Resolve the active Brain arbiter (host instance, else container-bound), or undefined. */
   resolveArbiter: () => BrainArbiter | undefined;
+  /** Read the active session id for brain.ask requests. */
+  getSessionId?: (() => string | undefined) | undefined;
 }
 
 function sendResult(ctx: WsCommon, ws: WebSocket, success: boolean, message: string): void {
@@ -80,12 +82,13 @@ export async function handleBrainAsk(
   try {
     const decision = await arbiter.decide({
       id: `brain-ask-${Date.now().toString(36)}`,
+      sessionId: ctx.getSessionId?.(),
       source: 'user',
       question: q,
       risk: 'medium',
       fallback: 'ask_human',
     });
-    ctx.send(ws, { type: 'brain.answer', payload: { question: q, decision } });
+    ctx.send(ws, { type: 'brain.answer', payload: { sessionId: ctx.getSessionId?.(), question: q, decision } });
   } catch (err) {
     sendResult(
       ctx,

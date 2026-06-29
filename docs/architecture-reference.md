@@ -763,13 +763,13 @@ Auto-generated if missing. Plaintext values pass through unchanged.
 sessions/
 ├── _index.jsonl                    ← session index (with tombstones)
 ├── YYYY-MM-DD/                     ← date shard directories
-│   └── HH-MM-SSZ_model_xxxx.jsonl  ← session JSONL log
+│   └── sess_<ULID>.jsonl           ← session JSONL log
 │   └── *.summary.json               ← session metadata sidecar
 │   └── *.plan.json / *.todos.json   ← plan/todos sidecars
 ```
 
-Session ID format: `YYYY-MM-DD/HH-MM-SSZ[_model]_xxxx`
-Example: `2026-06-09/14-30-45Z_claude-sonnet_a1b2.jsonl`
+Session ID format: `YYYY-MM-DD/sess_<ULID>`
+Example: `2026-06-09/sess_01JX2S9V7T5M6N7P8Q9R0STXVW`
 
 ### Session JSONL Events
 

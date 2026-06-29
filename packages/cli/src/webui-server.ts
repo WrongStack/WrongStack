@@ -741,7 +741,7 @@ export async function runWebUI(opts: CliWebUIOptions): Promise<void> {
   const emitConcurrency = () =>
     broadcast({
       type: 'fleet.concurrency_update',
-      payload: { fleetConcurrency, fleetConcurrencyMax },
+      payload: sessionPayload({ fleetConcurrency, fleetConcurrencyMax }),
     });
 
   // Coalesce high-volume live events on the server before they hit every
@@ -1183,13 +1183,13 @@ export async function runWebUI(opts: CliWebUIOptions): Promise<void> {
       opts.events.on('token.threshold', (e) => {
         broadcast({
           type: 'token.threshold',
-          payload: sessionPayload({ used: e.used, limit: e.limit }),
+          payload: sessionPayload({ sessionId: e.sessionId, used: e.used, limit: e.limit }),
         });
       }),
       opts.events.on('token.cost_estimate_unavailable', (e) => {
         broadcast({
           type: 'token.cost_estimate_unavailable',
-          payload: sessionPayload({ model: e.model }),
+          payload: sessionPayload({ sessionId: e.sessionId, model: e.model }),
         });
       }),
     );
@@ -1280,7 +1280,8 @@ export async function runWebUI(opts: CliWebUIOptions): Promise<void> {
       opts.events.on('coordinator.stats', (e) => {
         broadcast({
           type: 'coordinator.stats',
-          payload: {
+          payload: sessionPayload({
+            sessionId: e.sessionId,
             total: e.total,
             running: e.running,
             idle: e.idle,
@@ -1294,7 +1295,7 @@ export async function runWebUI(opts: CliWebUIOptions): Promise<void> {
               status: s.status,
               currentTask: s.taskId,
             })),
-          },
+          }),
         });
       }),
     );
@@ -1305,6 +1306,7 @@ export async function runWebUI(opts: CliWebUIOptions): Promise<void> {
         broadcast({
           type: 'error',
           payload: sessionPayload({
+            sessionId: e.sessionId,
             phase: e.phase,
             message: e.err instanceof Error ? e.err.message : String(e.err),
           }),

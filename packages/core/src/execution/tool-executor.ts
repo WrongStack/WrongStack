@@ -545,6 +545,7 @@ export class ToolExecutor {
     budget: number,
   ): Promise<{ block: ToolResultBlock; bytes: number }> {
     this.opts.events?.emit('tool.started', {
+      sessionId: ctx.session.id,
       name: tool.name,
       id: use.id,
       input: use.input,
@@ -671,6 +672,7 @@ export class ToolExecutor {
     let lastProgressEmitAt = 0;
     const emitProgress = (ev: ToolProgressEvent) => {
       this.opts.events?.emit('tool.progress', {
+        sessionId: ctx.session.id,
         name: tool.name,
         id: toolUseId ?? '<unknown>',
         event: ev,

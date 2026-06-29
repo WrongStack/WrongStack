@@ -888,7 +888,8 @@ export function buildSddCommand(opts: SlashCommandContext): SlashCommand {
 
           lines.push(`╰${'─'.repeat(56)}╯`);
           lines.push('');
-          lines.push(`  Session ID: ${session.id.slice(0, 8)}…`);
+          const sessionLeaf = session.id.split('/').pop() ?? session.id;
+          lines.push(`  Session ID: ${sessionLeaf.slice(0, 12)}…`);
 
           return {
             message: lines.join('\n'),

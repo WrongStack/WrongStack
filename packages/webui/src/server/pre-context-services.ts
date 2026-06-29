@@ -219,7 +219,12 @@ export async function createPreContextServices(
       startedAt: new Date().toISOString(),
     });
     const fleetNotifier = new FleetNotifier({ baseDir: wpaths.globalRoot, projectRoot, selfPid: process.pid });
-    statusTracker = new AgentStatusTracker({ events, registry, onUpdate: () => fleetNotifier.notify() });
+    statusTracker = new AgentStatusTracker({
+      events,
+      registry,
+      sessionId: () => session.id,
+      onUpdate: () => fleetNotifier.notify(),
+    });
     statusTracker.start();
 
     // ── HQ session telemetry ──
@@ -265,7 +270,13 @@ export async function createPreContextServices(
   }
 
   // ── Token counter ──
-  const tokenCounter = new DefaultTokenCounter({ registry: modelsRegistry, providerId: config.provider });
+  let context: Context;
+  const tokenCounter = new DefaultTokenCounter({
+    registry: modelsRegistry,
+    providerId: config.provider,
+    events,
+    sessionId: () => context?.session?.id ?? session.id,
+  });
 
   // ── Mode store ──
   const modeStore = new DefaultModeStore({ directory: wpaths.configDir });
@@ -339,7 +350,7 @@ export async function createPreContextServices(
   const needsSetup = resolvedProvider.needsSetup;
 
   // ── Context ──
-  const context = new Context({
+  context = new Context({
     systemPrompt, provider, session, signal: new AbortController().signal,
     tokenCounter, cwd: workingDir, projectRoot, model: config.model,
   });

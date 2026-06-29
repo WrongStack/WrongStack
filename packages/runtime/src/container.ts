@@ -86,7 +86,7 @@ export function createDefaultContainer(opts: CreateContainerOptions): Container 
   container.bind(TOKENS.ModelsRegistry, () => modelsRegistry);
   container.bind(
     TOKENS.TokenCounter,
-    () => new DefaultTokenCounter({ registry: modelsRegistry, providerId: config.provider }),
+    () => new DefaultTokenCounter({ registry: modelsRegistry, providerId: config.provider, events: opts.events }),
   );
 
   const modeStore = new DefaultModeStore({ directory: wpaths.configDir });

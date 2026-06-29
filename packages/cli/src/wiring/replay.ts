@@ -28,8 +28,9 @@ import {
  *     particular request is seen, it is recorded; subsequent
  *     identical requests are served from the log.
  *
- * The log lives in `<projectSessions>/<sessionId>.replay.jsonl`,
- * colocated with the session log and annotations sidecar.
+ * The log lives next to the session JSONL via
+ * `sessionScopedPath(projectSessions, sessionId, '.replay.jsonl')`,
+ * colocated with annotations and audit sidecars.
  */
 export interface BindReplayOptions {
   container: Container;

@@ -122,7 +122,7 @@ describe('AnnotationsStore', () => {
   });
 
   it('accepts date-sharded session ids', async () => {
-    const sharded = '2026-06-11/12-00-00Z_model_ab12';
+    const sharded = '2026-06-11/sess_01JX2S9V7T5M6N7P8Q9R0STXVW';
     const added = await store.add({ sessionId: sharded, atEventIndex: 0, authorId: 'p1', text: 'sharded' });
     expect(added.sessionId).toBe(sharded);
     expect(await store.list(sharded)).toHaveLength(1);

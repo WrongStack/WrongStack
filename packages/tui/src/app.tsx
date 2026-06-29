@@ -1969,8 +1969,8 @@ export function App({
     return { leader: leaderEntry, ...state.fleet };
   }, [state.fleet, state.leader, state.status, liveProvider, liveModel, effectiveMaxContext, tokenCounter]);
 
-  // Plan counts come from `<sessionId>.plan.json` on disk, not React
-  // state. We poll lazily every few ticks so the chip stays current
+  // Plan counts come from the session-scoped plan sidecar on disk, not
+  // React state. We poll lazily every few ticks so the chip stays current
   // without slamming the FS — plans change at human pace (a few times
   // per session at most), so 3s granularity is plenty.
   const [planCounts, setPlanCounts] = useState<{
@@ -2015,7 +2015,7 @@ export function App({
     };
   }, [agent.ctx.meta]);
 
-  // Task counts — polled from <sessionId>.tasks.json, same 3s cadence.
+  // Task counts — polled from the session-scoped task sidecar, same 3s cadence.
   const [taskCounts, setTaskCounts] = useState<{
     pending: number;
     inProgress: number;
@@ -3631,6 +3631,7 @@ export function App({
       events.emit('client.status', {
         clientType: 'tui',
         clientId,
+        sessionId: agent.ctx.session.id,
         projectHash: agent.ctx.projectRoot ? projectSlug(agent.ctx.projectRoot) : 'unknown',
         agentCount: 1, // TUI is a single leader agent
         model: agent.ctx.model,
@@ -3758,12 +3759,14 @@ export function App({
   const [nextStepsAutoSubmitLabel, setNextStepsAutoSubmitLabel] = useState<string | null>(null);
   const nextStepsAutoSubmitSuggestionRef = useRef<string | null>(null);
   const nextStepsAutoSubmitTimerRef = useRef<ReturnType<typeof setInterval> | undefined>(undefined);
+  const getActiveSessionId = useCallback(() => agent.ctx.session.id, [agent]);
 
   useTuiEventBridge({
     events,
     dispatch,
     stateRef,
     setActiveMaxContext,
+    getSessionId: getActiveSessionId,
     subscribeAutoPhase,
     onClearHistory,
   });
@@ -6624,6 +6627,7 @@ export function App({
             mode={liveStatuslineMode}
             visibleChips={state.statuslinePicker.visibleChips}
             events={events}
+            sessionId={agent.ctx.session.id}
             eternalStage={state.eternalStage}
             goalSummary={state.goalSummary}
             indexState={indexState}

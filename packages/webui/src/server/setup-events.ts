@@ -67,10 +67,24 @@ export function setupEvents(deps: SetupEventsDeps): () => void {
   const { events, broadcast, clients, config, context, pendingConfirms, globalConfigPath, sessionBridge, wpaths, watcherMetrics, onFleetBroadcaster } = deps;
   const disposers: Array<() => void> = [];
   const currentSessionId = (): string => context.session?.id ?? '';
-  const sessionPayload = <T extends Record<string, unknown>>(payload: T): T & { sessionId: string } => ({
-    ...payload,
-    sessionId: currentSessionId(),
-  });
+  const sessionPayload = <T extends Record<string, unknown>>(payload: T): T & { sessionId: string } => {
+    const provided = payload['sessionId'];
+    const sessionId = typeof provided === 'string' && provided.length > 0 ? provided : currentSessionId();
+    return { ...payload, sessionId };
+  };
+  const isCurrentSession = (sessionId?: string | undefined): boolean => {
+    const current = currentSessionId();
+    return !sessionId || !current || sessionId === current;
+  };
+  const appendForCurrentSession = (
+    sessionId: string | undefined,
+    event: Parameters<SessionEventBridge['append']>[0],
+  ): void => {
+    if (!isCurrentSession(sessionId)) return;
+    sessionBridge
+      ?.append(event)
+      .catch(() => { /* best-effort */ });
+  };
 
   events.on('iteration.started', (e) => {
     // Read maxIterations from context.meta so the UI reflects the
@@ -80,14 +94,14 @@ export function setupEvents(deps: SetupEventsDeps): () => void {
       : config.tools?.maxIterations ?? 100;
     broadcast(clients, {
       type: 'iteration.started',
-      payload: sessionPayload({ index: e.index, maxIterations: maxIt }),
+      payload: sessionPayload({ sessionId: e.sessionId, index: e.index, maxIterations: maxIt }),
     });
   });
 
   events.on('iteration.completed', (e) => {
     broadcast(clients, {
       type: 'iteration.completed',
-      payload: sessionPayload({ index: e.index, totalIterations: e.index + 1 }),
+      payload: sessionPayload({ sessionId: e.sessionId, index: e.index, totalIterations: e.index + 1 }),
     });
   });
 
@@ -95,6 +109,7 @@ export function setupEvents(deps: SetupEventsDeps): () => void {
     broadcast(clients, {
       type: 'iteration.limit_reached',
       payload: sessionPayload({
+        sessionId: e.sessionId,
         currentIterations: e.currentIterations,
         currentLimit: e.currentLimit,
       }),
@@ -102,35 +117,33 @@ export function setupEvents(deps: SetupEventsDeps): () => void {
   });
 
   events.on('provider.text_delta', (e) => {
-    broadcast(clients, { type: 'provider.text_delta', payload: sessionPayload({ text: e.text, messageId: 'current' }) });
+    broadcast(clients, { type: 'provider.text_delta', payload: sessionPayload({ sessionId: e.sessionId, text: e.text, messageId: 'current' }) });
   });
 
   events.on('provider.thinking_delta', (e) => {
-    broadcast(clients, { type: 'provider.thinking_delta', payload: sessionPayload({ text: e.text }) });
+    broadcast(clients, { type: 'provider.thinking_delta', payload: sessionPayload({ sessionId: e.sessionId, text: e.text }) });
   });
 
   events.on('provider.stream_error', (e) => {
     broadcast(clients, {
       type: 'provider.stream_error',
-      payload: sessionPayload({ eventType: e.eventType, message: e.msg }),
+      payload: sessionPayload({ sessionId: e.sessionId, eventType: e.eventType, message: e.msg }),
     });
   });
 
   events.on('tool.started', (e) => {
     broadcast(clients, {
       type: 'tool.started',
-      payload: sessionPayload({ id: e.id, name: e.name, input: e.input, messageId: `tool_${e.id}` }),
+      payload: sessionPayload({ sessionId: e.sessionId, id: e.id, name: e.name, input: e.input, messageId: `tool_${e.id}` }),
     });
     // Persist for audit + resume tool history (respects auditLevel).
-    sessionBridge
-      ?.append({
-        type: 'tool_call_start',
-        ts: new Date().toISOString(),
-        name: e.name,
-        id: e.id,
-        input: e.input,
-      })
-      .catch(() => { /* best-effort */ });
+    appendForCurrentSession(e.sessionId, {
+      type: 'tool_call_start',
+      ts: new Date().toISOString(),
+      name: e.name,
+      id: e.id,
+      input: e.input,
+    });
   });
 
   events.on('tool.progress', (e) => {
@@ -140,39 +153,35 @@ export function setupEvents(deps: SetupEventsDeps): () => void {
       // and early-returns on a falsy text, so a flat { eventType, text } payload
       // makes live tool progress (bash streaming, partial_output, warnings)
       // never render. Must match WSToolProgress and the CLI server.
-      payload: sessionPayload({ id: e.id, name: e.name, event: { type: e.event.type, text: e.event.text, data: e.event.data } }),
+      payload: sessionPayload({ sessionId: e.sessionId, id: e.id, name: e.name, event: { type: e.event.type, text: e.event.text, data: e.event.data } }),
     });
-    sessionBridge
-      ?.append({
-        type: 'tool_progress',
-        ts: new Date().toISOString(),
-        name: e.name,
-        id: e.id,
-        event: { type: e.event.type, text: e.event.text, data: e.event.data },
-      })
-      .catch(() => { /* best-effort */ });
+    appendForCurrentSession(e.sessionId, {
+      type: 'tool_progress',
+      ts: new Date().toISOString(),
+      name: e.name,
+      id: e.id,
+      event: { type: e.event.type, text: e.event.text, data: e.event.data },
+    });
   });
 
   events.on('tool.executed', (e) => {
     broadcast(clients, {
       type: 'tool.executed',
-      payload: sessionPayload({ id: e.id, name: e.name, durationMs: e.durationMs, ok: e.ok, input: e.input, output: e.output }),
+      payload: sessionPayload({ sessionId: e.sessionId, id: e.id, name: e.name, durationMs: e.durationMs, ok: e.ok, input: e.input, output: e.output }),
     });
-    sessionBridge
-      ?.append({
-        type: 'tool_call_end',
-        ts: new Date().toISOString(),
-        name: e.name,
-        id: e.id ?? '',
-        durationMs: e.durationMs,
-        outputSize: e.outputBytes ?? 0,
-        ok: e.ok,
-        outputBytes: e.outputBytes,
-        outputTokens: e.outputTokens,
-        outputLines: e.outputLines,
-      })
-      .catch(() => { /* best-effort */ });
-    broadcast(clients, { type: 'todos.updated', payload: sessionPayload({ todos: [...context.todos] }) });
+    appendForCurrentSession(e.sessionId, {
+      type: 'tool_call_end',
+      ts: new Date().toISOString(),
+      name: e.name,
+      id: e.id ?? '',
+      durationMs: e.durationMs,
+      outputSize: e.outputBytes ?? 0,
+      ok: e.ok,
+      outputBytes: e.outputBytes,
+      outputTokens: e.outputTokens,
+      outputLines: e.outputLines,
+    });
+    broadcast(clients, { type: 'todos.updated', payload: sessionPayload({ sessionId: e.sessionId, todos: [...context.todos] }) });
 
     // P2 #5: push updated side effects after every tool execution so the
     // Audit tab refreshes automatically — no manual refresh needed.
@@ -181,6 +190,7 @@ export function setupEvents(deps: SetupEventsDeps): () => void {
       broadcast(clients, {
         type: 'side_effects',
         payload: sessionPayload({
+          sessionId: e.sessionId,
           sideEffects: sideEffects.slice(-50).map((se) => ({
             toolUseId: se.toolUseId,
             toolName: se.toolName,
@@ -201,7 +211,7 @@ export function setupEvents(deps: SetupEventsDeps): () => void {
           if (typeof taskPath === 'string' && taskPath) {
             const { loadTasks } = await import('@wrongstack/core');
             const file = await loadTasks(taskPath);
-            broadcast(clients, { type: 'tasks.updated', payload: sessionPayload({ tasks: file?.tasks ?? [] }) });
+            broadcast(clients, { type: 'tasks.updated', payload: sessionPayload({ sessionId: e.sessionId, tasks: file?.tasks ?? [] }) });
           }
         } catch { /* best-effort */ }
         try {
@@ -209,7 +219,7 @@ export function setupEvents(deps: SetupEventsDeps): () => void {
           if (typeof planPath === 'string' && planPath) {
             const { loadPlan } = await import('@wrongstack/core');
             const plan = await loadPlan(planPath);
-            broadcast(clients, { type: 'plan.updated', payload: sessionPayload({ plan: plan ?? { version: 1, sessionId: context.session?.id ?? '', updatedAt: new Date().toISOString(), items: [] } }) });
+            broadcast(clients, { type: 'plan.updated', payload: sessionPayload({ sessionId: e.sessionId, plan: plan ?? { version: 1, sessionId: e.sessionId ?? context.session?.id ?? '', updatedAt: new Date().toISOString(), items: [] } }) });
           }
         } catch { /* best-effort */ }
       })();
@@ -220,6 +230,7 @@ export function setupEvents(deps: SetupEventsDeps): () => void {
     broadcast(clients, {
       type: 'tool.loop_detected',
       payload: sessionPayload({
+        sessionId: e.sessionId,
         tools: e.tools,
         repeatCount: e.repeatCount,
         iteration: e.iteration,
@@ -231,14 +242,14 @@ export function setupEvents(deps: SetupEventsDeps): () => void {
   events.on('trust.persisted', (e) => {
     broadcast(clients, {
       type: 'trust.persisted',
-      payload: sessionPayload({ tool: e.tool, pattern: e.pattern, decision: e.decision }),
+      payload: sessionPayload({ sessionId: e.sessionId, tool: e.tool, pattern: e.pattern, decision: e.decision }),
     });
   });
 
   events.on('delegate.started', (e) => {
     broadcast(clients, {
       type: 'delegate.started',
-      payload: sessionPayload({ target: e.target, task: e.task }),
+      payload: sessionPayload({ sessionId: e.sessionId, target: e.target, task: e.task }),
     });
   });
 
@@ -246,6 +257,7 @@ export function setupEvents(deps: SetupEventsDeps): () => void {
     broadcast(clients, {
       type: 'delegate.completed',
       payload: sessionPayload({
+        sessionId: e.sessionId,
         target: e.target,
         task: e.task,
         ok: e.ok,
@@ -261,17 +273,18 @@ export function setupEvents(deps: SetupEventsDeps): () => void {
   });
 
   events.on('provider.response', (e) => {
-    broadcast(clients, { type: 'provider.response', payload: sessionPayload({ usage: e.usage, stopReason: e.stopReason, messageId: 'current' }) });
+    broadcast(clients, { type: 'provider.response', payload: sessionPayload({ sessionId: e.sessionId, usage: e.usage, stopReason: e.stopReason, messageId: 'current' }) });
   });
 
   events.on('ctx.pct', (e) => {
     broadcast(clients, {
       type: 'ctx.pct',
-      payload: sessionPayload({ load: e.load, tokens: e.tokens, maxContext: e.maxContext }),
+      payload: sessionPayload({ sessionId: e.sessionId, load: e.load, tokens: e.tokens, maxContext: e.maxContext }),
     });
     broadcast(clients, {
       type: 'subagent.event',
       payload: sessionPayload({
+        sessionId: e.sessionId,
         kind: 'ctx_pct',
         subagentId: 'leader',
         load: e.load,
@@ -284,44 +297,42 @@ export function setupEvents(deps: SetupEventsDeps): () => void {
   events.on('ctx.max_context', (e) => {
     broadcast(clients, {
       type: 'ctx.max_context',
-      payload: sessionPayload({ providerId: e.providerId, modelId: e.modelId, maxContext: e.maxContext }),
+      payload: sessionPayload({ sessionId: e.sessionId, providerId: e.providerId, modelId: e.modelId, maxContext: e.maxContext }),
     });
   });
 
   events.on('token.threshold', (e) => {
     broadcast(clients, {
       type: 'token.threshold',
-      payload: sessionPayload({ used: e.used, limit: e.limit }),
+      payload: sessionPayload({ sessionId: e.sessionId, used: e.used, limit: e.limit }),
     });
   });
 
   events.on('token.cost_estimate_unavailable', (e) => {
     broadcast(clients, {
       type: 'token.cost_estimate_unavailable',
-      payload: sessionPayload({ model: e.model }),
+      payload: sessionPayload({ sessionId: e.sessionId, model: e.model }),
     });
   });
 
   events.on('context.repaired', (e) => {
-    broadcast(clients, { type: 'context.repaired', payload: sessionPayload({ removedToolUses: e.removedToolUses, removedToolResults: e.removedToolResults, removedMessages: e.removedMessages }) });
+    broadcast(clients, { type: 'context.repaired', payload: sessionPayload({ sessionId: e.sessionId, removedToolUses: e.removedToolUses, removedToolResults: e.removedToolResults, removedMessages: e.removedMessages }) });
   });
 
   events.on('tool.confirm_needed', (e) => {
     const id = e.toolUseId ?? `confirm_${Date.now()}`;
     pendingConfirms.set(id, e.resolve);
-    broadcast(clients, { type: 'tool.confirm_needed', payload: sessionPayload({ id, toolName: e.tool?.name ?? 'unknown', input: e.input, suggestedPattern: e.suggestedPattern }) });
+    broadcast(clients, { type: 'tool.confirm_needed', payload: sessionPayload({ sessionId: e.sessionId, id, toolName: e.tool?.name ?? 'unknown', input: e.input, suggestedPattern: e.suggestedPattern }) });
   });
 
   events.on('error', (e) => {
-    broadcast(clients, { type: 'error', payload: sessionPayload({ phase: e.phase, message: e.err instanceof Error ? e.err.message : String(e.err) }) });
-    sessionBridge
-      ?.append({
-        type: 'error',
-        ts: new Date().toISOString(),
-        message: e.err instanceof Error ? e.err.message : String(e.err),
-        phase: e.phase,
-      })
-      .catch(() => { /* best-effort */ });
+    broadcast(clients, { type: 'error', payload: sessionPayload({ sessionId: e.sessionId, phase: e.phase, message: e.err instanceof Error ? e.err.message : String(e.err) }) });
+    appendForCurrentSession(e.sessionId, {
+      type: 'error',
+      ts: new Date().toISOString(),
+      message: e.err instanceof Error ? e.err.message : String(e.err),
+      phase: e.phase,
+    });
   });
 
   events.on('session.damaged', (e) => {
@@ -335,6 +346,7 @@ export function setupEvents(deps: SetupEventsDeps): () => void {
     broadcast(clients, {
       type: 'session.rewound',
       payload: sessionPayload({
+        sessionId: e.sessionId,
         toPromptIndex: e.toPromptIndex,
         revertedFiles: e.revertedFiles,
         removedEvents: e.removedEvents,
@@ -346,6 +358,7 @@ export function setupEvents(deps: SetupEventsDeps): () => void {
     broadcast(clients, {
       type: 'checkpoint.written',
       payload: sessionPayload({
+        sessionId: e.sessionId,
         promptIndex: e.promptIndex,
         promptPreview: e.promptPreview,
         ts: e.ts,
@@ -357,14 +370,14 @@ export function setupEvents(deps: SetupEventsDeps): () => void {
   events.on('in_flight.started', (e) => {
     broadcast(clients, {
       type: 'in_flight.started',
-      payload: sessionPayload({ context: e.context, ts: e.ts }),
+      payload: sessionPayload({ sessionId: e.sessionId, context: e.context, ts: e.ts }),
     });
   });
 
   events.on('in_flight.ended', (e) => {
     broadcast(clients, {
       type: 'in_flight.ended',
-      payload: sessionPayload({ reason: e.reason, ts: e.ts }),
+      payload: sessionPayload({ sessionId: e.sessionId, reason: e.reason, ts: e.ts }),
     });
   });
 
@@ -374,6 +387,7 @@ export function setupEvents(deps: SetupEventsDeps): () => void {
     broadcast(clients, {
       type: 'provider.retry',
       payload: sessionPayload({
+        sessionId: e.sessionId,
         providerId: e.providerId,
         attempt: e.attempt,
         delayMs: e.delayMs,
@@ -381,45 +395,43 @@ export function setupEvents(deps: SetupEventsDeps): () => void {
         description: e.description,
       }),
     });
-    sessionBridge
-      ?.append({
-        type: 'provider_retry',
-        ts: new Date().toISOString(),
-        providerId: e.providerId,
-        attempt: e.attempt,
-        delayMs: e.delayMs,
-        status: e.status,
-        description: e.description,
-      })
-      .catch(() => { /* best-effort */ });
+    appendForCurrentSession(e.sessionId, {
+      type: 'provider_retry',
+      ts: new Date().toISOString(),
+      providerId: e.providerId,
+      attempt: e.attempt,
+      delayMs: e.delayMs,
+      status: e.status,
+      description: e.description,
+    });
   });
 
   events.on('provider.error', (e) => {
     broadcast(clients, {
       type: 'provider.error',
       payload: sessionPayload({
+        sessionId: e.sessionId,
         providerId: e.providerId,
         status: e.status,
         description: e.description,
         retryable: e.retryable,
       }),
     });
-    sessionBridge
-      ?.append({
-        type: 'provider_error',
-        ts: new Date().toISOString(),
-        providerId: e.providerId,
-        status: e.status,
-        description: e.description,
-        retryable: e.retryable,
-      })
-      .catch(() => { /* best-effort */ });
+    appendForCurrentSession(e.sessionId, {
+      type: 'provider_error',
+      ts: new Date().toISOString(),
+      providerId: e.providerId,
+      status: e.status,
+      description: e.description,
+      retryable: e.retryable,
+    });
   });
 
   events.on('provider.fallback', (e) => {
     broadcast(clients, {
       type: 'provider.fallback',
       payload: sessionPayload({
+        sessionId: e.sessionId,
         from: e.from,
         to: e.to,
         status: e.status,
@@ -432,6 +444,7 @@ export function setupEvents(deps: SetupEventsDeps): () => void {
     broadcast(clients, {
       type: 'context.compacted',
       payload: sessionPayload({
+        sessionId: e.sessionId,
         before: e.report.before,
         after: e.report.after,
         saved: Math.max(0, e.report.before - e.report.after),
@@ -444,6 +457,7 @@ export function setupEvents(deps: SetupEventsDeps): () => void {
     broadcast(clients, {
       type: 'compaction.failed',
       payload: sessionPayload({
+        sessionId: e.sessionId,
         message: e.err.message,
         aggressive: e.aggressive,
         level: e.level,
@@ -479,7 +493,8 @@ export function setupEvents(deps: SetupEventsDeps): () => void {
   events.on('coordinator.stats', (e) => {
     broadcast(clients, {
       type: 'coordinator.stats',
-      payload: {
+      payload: sessionPayload({
+        sessionId: e.sessionId,
         total: e.total,
         running: e.running,
         idle: e.idle,
@@ -493,7 +508,7 @@ export function setupEvents(deps: SetupEventsDeps): () => void {
           status: s.status,
           currentTask: s.taskId,
         })),
-      },
+      }),
     });
   });
 
@@ -514,19 +529,20 @@ export function setupEvents(deps: SetupEventsDeps): () => void {
   const forwardSubagent = (kind: string, payload: Record<string, unknown>) =>
     broadcast(clients, { type: 'subagent.event', payload: sessionPayload({ kind, ...payload }) });
 
-  events.on('subagent.spawned', (e) => forwardSubagent('spawned', { subagentId: e.subagentId, taskId: e.taskId, name: e.name, provider: e.provider, model: e.model, description: e.description }));
-  events.on('subagent.task_started', (e) => forwardSubagent('task_started', { subagentId: e.subagentId, taskId: e.taskId, description: e.description }));
-  events.on('subagent.tool_executed', (e) => forwardSubagent('tool_executed', { subagentId: e.subagentId, toolName: e.name, durationMs: e.durationMs, ok: e.ok }));
-  events.on('subagent.iteration_summary', (e) => forwardSubagent('iteration_summary', { subagentId: e.subagentId, iteration: e.iteration, toolCalls: e.toolCalls, costUsd: e.costUsd, currentTool: e.currentTool, partialText: e.partialText }));
-  events.on('subagent.budget_warning', (e) => forwardSubagent('budget_warning', { subagentId: e.subagentId, budgetKind: e.kind, used: e.used, limit: e.limit }));
-  events.on('subagent.budget_extended', (e) => forwardSubagent('budget_extended', { subagentId: e.subagentId, budgetKind: e.kind, newLimit: e.newLimit, totalExtensions: e.totalExtensions }));
-  events.on('subagent.ctx_pct', (e) => forwardSubagent('ctx_pct', { subagentId: e.subagentId, load: e.load, tokens: e.tokens, maxContext: e.maxContext }));
-  events.on('subagent.task_completed', (e) => forwardSubagent('task_completed', { subagentId: e.subagentId, status: e.status, iterations: e.iterations, toolCalls: e.toolCalls, finalText: (e as Record<string, unknown>).finalText as string | undefined, failureReason: e.error?.kind, error: e.error ? { kind: e.error.kind, message: e.error.message } : undefined }));
+  events.on('subagent.spawned', (e) => forwardSubagent('spawned', { sessionId: e.sessionId, subagentId: e.subagentId, taskId: e.taskId, name: e.name, provider: e.provider, model: e.model, description: e.description }));
+  events.on('subagent.task_started', (e) => forwardSubagent('task_started', { sessionId: e.sessionId, subagentId: e.subagentId, taskId: e.taskId, description: e.description }));
+  events.on('subagent.tool_executed', (e) => forwardSubagent('tool_executed', { sessionId: e.sessionId, subagentId: e.subagentId, toolName: e.name, durationMs: e.durationMs, ok: e.ok }));
+  events.on('subagent.iteration_summary', (e) => forwardSubagent('iteration_summary', { sessionId: e.sessionId, subagentId: e.subagentId, iteration: e.iteration, toolCalls: e.toolCalls, costUsd: e.costUsd, currentTool: e.currentTool, partialText: e.partialText }));
+  events.on('subagent.budget_warning', (e) => forwardSubagent('budget_warning', { sessionId: e.sessionId, subagentId: e.subagentId, budgetKind: e.kind, used: e.used, limit: e.limit }));
+  events.on('subagent.budget_extended', (e) => forwardSubagent('budget_extended', { sessionId: e.sessionId, subagentId: e.subagentId, budgetKind: e.kind, newLimit: e.newLimit, totalExtensions: e.totalExtensions }));
+  events.on('subagent.ctx_pct', (e) => forwardSubagent('ctx_pct', { sessionId: e.sessionId, subagentId: e.subagentId, load: e.load, tokens: e.tokens, maxContext: e.maxContext }));
+  events.on('subagent.task_completed', (e) => forwardSubagent('task_completed', { sessionId: e.sessionId, subagentId: e.subagentId, status: e.status, iterations: e.iterations, toolCalls: e.toolCalls, finalText: (e as Record<string, unknown>).finalText as string | undefined, failureReason: e.error?.kind, error: e.error ? { kind: e.error.kind, message: e.error.message } : undefined }));
 
   events.on('agent.timeline.message', (e) => {
     broadcast(clients, {
       type: 'agent.timeline.message',
       payload: sessionPayload({
+        sessionId: e.sessionId,
         subagentId: e.subagentId,
         agentName: e.agentName,
         content: e.content,
@@ -542,6 +558,7 @@ export function setupEvents(deps: SetupEventsDeps): () => void {
     broadcast(clients, {
       type: 'agent.status_changed',
       payload: sessionPayload({
+        sessionId: e.sessionId,
         subagentId: e.subagentId,
         agentName: e.agentName,
         status: e.status,
@@ -559,11 +576,12 @@ export function setupEvents(deps: SetupEventsDeps): () => void {
 
   // Leader spawned: sent on first iteration so the frontend creates the leader row.
   let leaderSpawned = false;
-  events.on('iteration.started', () => {
+  events.on('iteration.started', (e) => {
     if (!leaderSpawned) {
       leaderSpawned = true;
       const provider = (context.provider as { id?: string } | undefined)?.id ?? 'unknown';
       forwardSubagent('spawned', {
+        sessionId: e.sessionId,
         subagentId: 'leader',
         name: 'LEADER',
         provider,
@@ -576,6 +594,7 @@ export function setupEvents(deps: SetupEventsDeps): () => void {
   // Leader tool execution: emitted on every tool.executed in the main session.
   events.on('tool.executed', (e) => {
     forwardSubagent('tool_executed', {
+      sessionId: e.sessionId,
       subagentId: 'leader',
       toolName: e.name,
       durationMs: e.durationMs,
@@ -591,6 +610,7 @@ export function setupEvents(deps: SetupEventsDeps): () => void {
       const load = Math.max(0, Math.min(1, rawLoad));
       const costUsd = context.tokenCounter.estimateCost().total;
       forwardSubagent('ctx_pct', {
+        sessionId: e.sessionId,
         subagentId: 'leader',
         load,
         rawLoad,
@@ -605,12 +625,13 @@ export function setupEvents(deps: SetupEventsDeps): () => void {
   // The frontend uses sessionStore for accurate cost/iteration counts.
   // When the run completes, the frontend's run.result handler resets isLoading,
   // making the leader go idle. We reset leader state on iteration.started.
-  events.on('iteration.completed', () => {
+  events.on('iteration.completed', (e) => {
     // Respawn leader if it was cleared (e.g., on session resume).
     if (!leaderSpawned) {
       leaderSpawned = true;
       const provider = (context.provider as { id?: string } | undefined)?.id ?? 'unknown';
       forwardSubagent('spawned', {
+        sessionId: e.sessionId,
         subagentId: 'leader',
         name: 'LEADER',
         provider,
@@ -622,12 +643,18 @@ export function setupEvents(deps: SetupEventsDeps): () => void {
 
   // ── Mailbox events — broadcast to WebUI for real-time per-project visibility ──
   events.onPattern('mailbox.*', (eventName, payload) => {
-    broadcast(clients, { type: 'mailbox.event', payload: { event: eventName, ...payload as Record<string, unknown> } });
+    broadcast(clients, {
+      type: 'mailbox.event',
+      payload: sessionPayload({ event: eventName, ...(payload as Record<string, unknown>) }),
+    });
   });
 
   // ── Brain events — decisions + proactive interventions, live in the browser ──
   events.onPattern('brain.*', (eventName, payload) => {
-    broadcast(clients, { type: 'brain.event', payload: { event: eventName, ...payload as Record<string, unknown> } } as never as WSServerMessage);
+    broadcast(clients, {
+      type: 'brain.event',
+      payload: sessionPayload({ event: eventName, ...(payload as Record<string, unknown>) }),
+    } as never as WSServerMessage);
   });
 
   // ── Client status events — immediate broadcast to WebUI + write to status.json ──

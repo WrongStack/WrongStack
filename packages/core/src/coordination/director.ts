@@ -159,6 +159,12 @@ export interface DirectorOptions {
    */
   sessionWriter?: SessionWriter | undefined;
   /**
+   * Session id for live fleet/coordinator events. Defaults to
+   * `sessionWriter.id` when a writer is available; accepts a getter so
+   * embedding surfaces can follow session swaps.
+   */
+  sessionId?: string | (() => string | undefined) | undefined;
+  /**
    * Debounce window for periodic manifest writes triggered by spawn/
    * assign/complete events. Default: 2000ms. Pass 0 to disable periodic
    * writes (the manifest will then only be written on `shutdown()`).
@@ -324,6 +330,14 @@ export class Director implements ICoordinator {
     const resolved = typeof this.maxContext === 'function' ? this.maxContext() : this.maxContext;
     return resolved && resolved > 0 ? resolved : 128_000;
   }
+
+  private currentSessionId(): string | undefined {
+    const value =
+      typeof this.sessionIdSource === 'function'
+        ? this.sessionIdSource()
+        : this.sessionIdSource;
+    return typeof value === 'string' && value.length > 0 ? value : undefined;
+  }
   /** Optional Brain arbiter for director-level policy decisions. */
   private readonly brain?: BrainArbiter | undefined;
   /**
@@ -410,6 +424,7 @@ export class Director implements ICoordinator {
   private readonly stateCheckpoint: DirectorStateCheckpoint | null;
   /** Optional session writer for emitting task_* / agent_* lifecycle events. */
   private readonly sessionWriter: SessionWriter | null;
+  private readonly sessionIdSource: string | (() => string | undefined) | undefined;
   /** Debounce timer for periodic manifest writes. */
   private manifestTimer: NodeJS.Timeout | null = null;
   private readonly manifestDebounceMs: number;
@@ -501,6 +516,7 @@ export class Director implements ICoordinator {
     this.maxSpawnDepth = opts.maxSpawnDepth ?? 2;
     this.spawnDepth = opts.spawnDepth ?? 0;
     this.sessionWriter = opts.sessionWriter ?? null;
+    this.sessionIdSource = opts.sessionId ?? (() => opts.sessionWriter?.id);
     this.manifestDebounceMs = opts.manifestDebounceMs ?? 2000;
     this.dispatchClassifier = opts.dispatchClassifier;
     this.maxFleetCostUsd = opts.directorBudget?.maxCostUsd ?? Number.POSITIVE_INFINITY;
@@ -557,7 +573,7 @@ export class Director implements ICoordinator {
     }
     this.coordinator = new DefaultMultiAgentCoordinator(
       { ...opts.config, coordinatorId: this.id },
-      { runner: opts.runner },
+      { runner: opts.runner, sessionId: () => this.currentSessionId() },
     );
     this.coordinator.setFleetBus(this.fleet);
     this.fleetManager?.setCoordinator(this.coordinator);
@@ -762,6 +778,7 @@ export class Director implements ICoordinator {
         void this.brain
           .decide({
             id: `director-budget-${e.subagentId}-${payload.kind}`,
+            sessionId: this.currentSessionId(),
             source: 'director',
             question: `Should the director extend the ${payload.kind} budget for subagent ${e.subagentId}?`,
             context: [

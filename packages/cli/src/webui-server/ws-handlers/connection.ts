@@ -46,7 +46,9 @@ function sessionPayload<T extends Record<string, unknown>>(
   payload: T,
 ): T & { sessionId?: string } {
   const sessionId = currentSessionId(ctx);
-  return sessionId ? { ...payload, sessionId } : payload;
+  const provided = payload['sessionId'];
+  const resolved = typeof provided === 'string' && provided.length > 0 ? provided : sessionId;
+  return resolved ? { ...payload, sessionId: resolved } : payload;
 }
 
 export async function handleUserMessage(

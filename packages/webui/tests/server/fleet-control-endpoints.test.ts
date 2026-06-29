@@ -15,7 +15,7 @@ import * as os from 'node:os';
 import * as path from 'node:path';
 import { createHttpServer } from '../../src/server/http-server.js';
 
-const SESSION_ID = '2026-06-19/12-00-00Z_test_abcd';
+const SESSION_ID = '2026-06-19/sess_01JX2S9V7T5M6N7P8Q9R0STXVW';
 const ENC = encodeURIComponent(SESSION_ID);
 
 let globalRoot: string;

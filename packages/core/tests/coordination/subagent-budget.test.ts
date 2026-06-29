@@ -245,6 +245,36 @@ describe('SubagentBudget', () => {
     expect(decision).toEqual({ extend: { maxIterations: 999 } });
   });
 
+  it('includes the current session id on threshold events', async () => {
+    const bus = new EventBus();
+    let sessionId = '2026-06-29/sess_one';
+    const seen: Array<string | undefined> = [];
+    bus.on('budget.threshold_reached', (payload) => {
+      seen.push(payload.sessionId);
+      payload.extend({ maxIterations: 999 });
+    });
+    const b = new SubagentBudget(
+      { maxIterations: 2 },
+      'auto',
+      { sessionId: () => sessionId },
+    );
+    (b as never as { _events: EventBus })._events = bus;
+    b.onThreshold = ({ requestDecision }) => requestDecision();
+    b.recordIteration();
+    b.recordIteration();
+
+    let signal: BudgetThresholdSignal | null = null;
+    try {
+      sessionId = '2026-06-29/sess_two';
+      b.recordIteration();
+    } catch (e) {
+      signal = e as BudgetThresholdSignal;
+    }
+    expect(signal).toBeInstanceOf(BudgetThresholdSignal);
+    await signal!.decision;
+    expect(seen).toEqual(['2026-06-29/sess_two']);
+  });
+
   it('checkLimit throws synchronously for timeout kind without calling _onThreshold', async () => {
     const b = new SubagentBudget({ timeoutMs: 50 });
     b.start();

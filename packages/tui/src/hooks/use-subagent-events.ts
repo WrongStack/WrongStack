@@ -29,6 +29,7 @@ export function useSubagentEvents(
   events: EventBus,
   dispatch: React.Dispatch<Action>,
   setActiveMaxContext: (v: number | undefined) => void,
+  getSessionId?: (() => string | undefined) | undefined,
 ): void {
   const labelsRef = useRef<Map<string, { label: string; color: string }>>(new Map());
   const lbl = useCallback(
@@ -37,7 +38,12 @@ export function useSubagentEvents(
   );
 
   useEffect(() => {
+    const isCurrentSession = (sessionId?: string | undefined): boolean => {
+      const current = getSessionId?.();
+      return !sessionId || !current || sessionId === current;
+    };
     const offSpawned = events.on('subagent.spawned', (e) => {
+      if (!isCurrentSession(e.sessionId)) return;
       const l = lbl(e.subagentId, e.name);
       dispatch({ type: 'fleetSpawn', id: e.subagentId, name: e.name, provider: e.provider, model: e.model, transcriptPath: e.transcriptPath });
       const where = e.provider && e.model ? `${e.provider}/${e.model}` : 'spawned';
@@ -46,6 +52,7 @@ export function useSubagentEvents(
     });
 
     const offStarted = events.on('subagent.task_started', (e) => {
+      if (!isCurrentSession(e.sessionId)) return;
       const l = lbl(e.subagentId);
       dispatch({ type: 'fleetStart', id: e.subagentId, taskId: e.taskId });
       const desc = e.description ? ` — ${e.description.slice(0, 80)}` : '';
@@ -53,6 +60,7 @@ export function useSubagentEvents(
     });
 
     const offCompleted = events.on('subagent.task_completed', (e) => {
+      if (!isCurrentSession(e.sessionId)) return;
       const l = lbl(e.subagentId);
       const errKind = e.error?.kind;
       dispatch({ type: 'fleetDone', id: e.subagentId, status: e.status, iterations: e.iterations, toolCalls: e.toolCalls, failureReason: errKind });
@@ -65,6 +73,7 @@ export function useSubagentEvents(
     });
 
     const offBudgetWarning = events.on('subagent.budget_warning', (e) => {
+      if (!isCurrentSession(e.sessionId)) return;
       const l = lbl(e.subagentId);
       dispatch({ type: 'fleetBudgetWarning', id: e.subagentId, kind: e.kind, used: e.used, limit: e.limit });
       const timeoutSuffix = e.kind === 'timeout' ? ' (subagent continues running)' : ' — extending';
@@ -72,12 +81,14 @@ export function useSubagentEvents(
     });
 
     const offBudgetExtended = events.on('subagent.budget_extended', (e) => {
+      if (!isCurrentSession(e.sessionId)) return;
       const l = lbl(e.subagentId);
       dispatch({ type: 'fleetBudgetExtended', id: e.subagentId, totalExtensions: e.totalExtensions });
       dispatch({ type: 'addEntry', entry: { kind: 'subagent', agentLabel: l.label, agentColor: l.color, icon: '⚡', text: `extended ${e.kind} → ${e.newLimit} (×${e.totalExtensions})` } });
     });
 
     const offIterationSummary = events.on('subagent.iteration_summary', (e) => {
+      if (!isCurrentSession(e.sessionId)) return;
       const l = lbl(e.subagentId);
       const costStr = e.costUsd > 0 ? ` · ${e.costUsd.toFixed(4)}` : '';
       const toolStr = e.currentTool ? ` · doing ${e.currentTool}` : '';
@@ -86,6 +97,7 @@ export function useSubagentEvents(
     });
 
     const offCtxPct = events.on('subagent.ctx_pct', (e) => {
+      if (!isCurrentSession(e.sessionId)) return;
       dispatch({ type: 'fleetCtxPct', id: e.subagentId, load: e.load, tokens: e.tokens, maxContext: e.maxContext });
     });
 
@@ -101,22 +113,26 @@ export function useSubagentEvents(
     // upstream consumers.
 
     const offConcurrencyChanged = events.on('concurrency.changed', (e: unknown) => {
-      const { n } = e as { n: number };
+      const { n, sessionId } = e as { n: number; sessionId?: string | undefined };
+      if (!isCurrentSession(sessionId)) return;
       if (typeof n === 'number' && n > 0) {
         dispatch({ type: 'fleetConcurrency', n });
       }
     });
 
     const offLeaderCtxPct = events.on('ctx.pct', (e) => {
+      if (!isCurrentSession(e.sessionId)) return;
       setActiveMaxContext(e.maxContext);
       dispatch({ type: 'leaderCtxPct', load: e.load, tokens: e.tokens, maxContext: e.maxContext });
     });
 
     const offLeaderMaxContext = events.on('ctx.max_context', (e) => {
+      if (!isCurrentSession(e.sessionId)) return;
       if (e.maxContext > 0) setActiveMaxContext(e.maxContext);
     });
 
     const offTool = events.on('subagent.tool_executed', (e) => {
+      if (!isCurrentSession(e.sessionId)) return;
       dispatch({ type: 'fleetTool', id: e.subagentId, name: e.name, ok: e.ok, durationMs: e.durationMs, outputBytes: e.outputBytes });
       dispatch({ type: 'fleetToolEnd', id: e.subagentId });
     });
@@ -128,5 +144,5 @@ export function useSubagentEvents(
       offLeaderCtxPct(); offLeaderMaxContext();
       offTool();
     };
-  }, [events, dispatch, setActiveMaxContext, lbl]);
+  }, [events, dispatch, setActiveMaxContext, getSessionId, lbl]);
 }

@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { theme } from '../theme.js';
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
-import { resolveWstackPaths } from '@wrongstack/core/utils';
+import { resolveWstackPaths, sessionScopedPath } from '@wrongstack/core/utils';
 
 interface PlanItem {
   id: string;
@@ -55,7 +55,7 @@ function planFilePath(projectRoot: string, sessionId: string | null, scope: 'ses
   }
   // Session scope — use sessionId if available, otherwise fall back to project
   if (sessionId) {
-    return path.join(base, `${sessionId}.plan.json`);
+    return sessionScopedPath(base, sessionId, '.plan.json');
   }
   return path.join(base, 'backlog.plan.json');
 }

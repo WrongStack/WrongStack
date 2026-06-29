@@ -29,6 +29,11 @@ import { bucketActivity, fmtCost, fmtDuration, fmtElapsed, sparkline } from './A
 // imports from '../AgentsPage' keep resolving.
 export { bucketActivity, fmtCost, fmtDuration, fmtElapsed, sparkline };
 
+function shortSessionId(sessionId: string): string {
+  const leaf = sessionId.split('/').pop() ?? sessionId;
+  return leaf.length > 12 ? `${leaf.slice(0, 12)}…` : leaf;
+}
+
 const STATUS_META: Record<string, { icon: React.ReactNode; color: string; label: string }> = {
   running: {
     icon: <span className="led text-[hsl(var(--success))] led-pulse" />,
@@ -478,7 +483,7 @@ function AgentRow({
           className="shrink-0 text-[9px] font-mono text-muted-foreground/50 bg-muted/40 px-1 py-0.5 rounded select-none"
           title={`Session: ${agent.sessionId}${projectName ? ` · Project: ${projectName}` : ''}`}
         >
-          {agent.sessionId.slice(0, 8)}
+          {shortSessionId(agent.sessionId)}
         </span>
       )}
 

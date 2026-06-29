@@ -118,7 +118,8 @@ export interface MultiAgentHostOptions {
   sharedScratchpadPath?: string | undefined;
   /**
    * Absolute path to the directory under which per-subagent JSONL
-   * transcripts land — typically `<projectSessions>/<sessionId>/subagents/`.
+   * transcripts land — typically
+   * `<projectSessions>/<date>/sess_<ULID>/subagents/`.
    * When set, the host builds a `DirectorSessionFactory` rooted there and
    * each spawned subagent gets its own session writer (instead of sharing
    * the parent session). Director mode only.
@@ -361,6 +362,7 @@ export class MultiAgentHost {
       sharedScratchpadPath: defaultScratchpad,
       stateCheckpointPath: this.opts.stateCheckpointPath,
       sessionWriter: this.opts.sessionWriter,
+      sessionId: () => this.deps.session.id,
       directorBudget: this.opts.directorBudget,
       maxBudgetExtensions: this.opts.maxBudgetExtensions,
       checkpointDebounceMs: this.opts.checkpointDebounceMs,
@@ -412,6 +414,7 @@ export class MultiAgentHost {
       this.director.fleet.filter('budget.threshold_reached', (e) => {
         const payload = e.payload as { kind: string; used: number; limit: number };
         this.deps.events.emit('subagent.budget_warning', {
+          sessionId: this.deps.session.id,
           subagentId: e.subagentId,
           kind: payload.kind,
           used: payload.used,
@@ -427,10 +430,41 @@ export class MultiAgentHost {
       this.director.fleet.filter('budget.extended', (e) => {
         const payload = e.payload as { kind: string; newLimit: number; totalExtensions: number };
         this.deps.events.emit('subagent.budget_extended', {
+          sessionId: this.deps.session.id,
           subagentId: e.subagentId,
           kind: payload.kind,
           newLimit: payload.newLimit,
           totalExtensions: payload.totalExtensions,
+        });
+      }),
+    );
+    this.directorOffHandles.push(
+      this.director.fleet.filter('coordinator.stats', (e) => {
+        const payload = e.payload as {
+          total: number;
+          running: number;
+          idle: number;
+          stopped: number;
+          inFlight: number;
+          pending: number;
+          completed: number;
+          subagentStatuses: {
+            subagentId: string;
+            taskId: string;
+            status: string;
+            assigned: boolean;
+          }[];
+        };
+        this.deps.events.emit('coordinator.stats', {
+          sessionId: this.deps.session.id,
+          total: payload.total,
+          running: payload.running,
+          idle: payload.idle,
+          stopped: payload.stopped,
+          inFlight: payload.inFlight,
+          pending: payload.pending,
+          completed: payload.completed,
+          subagentStatuses: payload.subagentStatuses,
         });
       }),
     );
@@ -440,6 +474,7 @@ export class MultiAgentHost {
       this.director.fleet.filter('ctx.pct', (e) => {
         const payload = e.payload as { load: number; tokens: number; maxContext: number };
         this.deps.events.emit('subagent.ctx_pct', {
+          sessionId: this.deps.session.id,
           subagentId: e.subagentId,
           load: payload.load,
           tokens: payload.tokens,
@@ -461,6 +496,7 @@ export class MultiAgentHost {
           model?: string | undefined;
         };
         this.deps.events.emit('subagent.spawned', {
+          sessionId: this.deps.session.id,
           subagentId: payload.subagentId,
           taskId: payload.taskId,
           name: payload.name,
@@ -484,6 +520,7 @@ export class MultiAgentHost {
     }) => {
       if (this.shadowTaskIds.has(task.id)) return;
       this.deps.events.emit('subagent.task_started', {
+        sessionId: this.deps.session.id,
         subagentId,
         taskId: task.id,
         description: task.description,
@@ -809,6 +846,7 @@ export class MultiAgentHost {
         registry: this.deps.modelsRegistry,
         providerId: effProvider,
         events,
+        sessionId: () => this.deps.session.id,
       });
 
       const ctx = new Context({
@@ -916,6 +954,7 @@ export class MultiAgentHost {
         // drops events — observability is more useful than perfect
         // attribution in that edge case.
         hostEvents.emit('subagent.tool_executed', {
+          sessionId: this.deps.session.id,
           subagentId: subCfg.id ?? subCfg.name ?? 'subagent',
           name: e.name,
           durationMs: e.durationMs,
@@ -928,12 +967,14 @@ export class MultiAgentHost {
       const offSummaryBridge = events.on('subagent.iteration_summary', (e) => {
         hostEvents.emit('subagent.iteration_summary', {
           ...e,
+          sessionId: this.deps.session.id,
           subagentId: subCfg.id ?? subCfg.name ?? 'subagent',
         });
       });
 
       const offCtxBridge = events.on('ctx.pct', (e) => {
         hostEvents.emit('subagent.ctx_pct', {
+          sessionId: this.deps.session.id,
           subagentId: subCfg.id ?? subCfg.name ?? 'subagent',
           load: e.load,
           tokens: e.tokens,
@@ -1090,6 +1131,7 @@ export class MultiAgentHost {
     // Emit for TUI visibility - ACP agents use subagentId as their name
     // (e.g. "bug-hunter", "refactor-planner" - already meaningful names)
     this.deps.events.emit('subagent.spawned', {
+      sessionId: this.deps.session.id,
       subagentId,
       taskId,
       name: subagentId,
@@ -1328,6 +1370,7 @@ export class MultiAgentHost {
    */
   private emitLifecycleCompleted(taskId: string, result: TaskResult): void {
     this.deps.events.emit('subagent.task_completed', {
+      sessionId: this.deps.session.id,
       subagentId: result.subagentId,
       taskId,
       status: result.status,

@@ -164,6 +164,17 @@ describe('GlobalMailbox client registry', () => {
     expect(events.emitCustom).not.toHaveBeenCalled();
   });
 
+  it('updates client session id on heartbeat when provided', async () => {
+    await reg();
+    await mb.clientHeartbeat({ clientId: 'c1', sessionId: 's2' });
+    const statuses = await mb.getClientStatuses();
+    expect(statuses[0]).toMatchObject({ clientId: 'c1', sessionId: 's2' });
+    expect(events.emitCustom).toHaveBeenCalledWith(
+      'mailbox.client_heartbeat',
+      expect.objectContaining({ clientId: 'c1', sessionId: 's2' }),
+    );
+  });
+
   it('sorts multiple clients by last-seen', async () => {
     await reg({ clientId: 'c1' });
     await reg({ clientId: 'c2' });

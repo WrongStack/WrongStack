@@ -274,6 +274,8 @@ export interface RunTuiOptions {
    * trigger a rewind via `/rewind` or Ctrl+R.
    */
   sessionsDir?: string | undefined;
+  /** Live active session id for cross-surface client registration. */
+  getSessionId?: (() => string | undefined) | undefined;
   /**
    * SDD session context getter. When an SDD session is active, returns
    * the AI prompt context to inject into user messages.
@@ -723,7 +725,7 @@ export async function runTui(opts: RunTuiOptions): Promise<number> {
       const clientId = `tui@${randomUUID().slice(0, 8)}`;
       await mailbox.registerClient({
         clientId,
-        sessionId: opts.projectRoot,
+        sessionId: opts.getSessionId?.() ?? opts.projectRoot,
         name: `TUI [${path.basename(opts.projectRoot)}]`,
         source: 'tui',
         pid: process.pid,
@@ -731,7 +733,7 @@ export async function runTui(opts: RunTuiOptions): Promise<number> {
 
       // Heartbeat to keep registration alive
       clientHeartbeatTimer = setInterval(() => {
-        mailbox.clientHeartbeat({ clientId }).catch(() => {
+        mailbox.clientHeartbeat({ clientId, sessionId: opts.getSessionId?.() ?? opts.projectRoot }).catch(() => {
           // best-effort — ignore heartbeat failures during shutdown
         });
       }, CLIENT_HEARTBEAT_MS);

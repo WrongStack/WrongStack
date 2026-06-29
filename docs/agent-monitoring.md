@@ -120,7 +120,7 @@ The HQ dashboard shows:
 Per-subagent transcripts are written to the director's run directory:
 
 ```
-<projectSessions>/<sessionId>/subagents/transcripts/
+<projectSessions>/<date>/sess_<ULID>/subagents/transcripts/
   <subagentId>/
     transcript.jsonl     # Append-only JSONL, one AgentTimelineEntry per line
 ```

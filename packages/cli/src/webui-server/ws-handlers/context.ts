@@ -44,7 +44,10 @@ function sessionPayload<T extends Record<string, unknown>>(
   ctx: ContextHandlerContext,
   payload: T,
 ): T & { sessionId: string } {
-  return { ...payload, sessionId: ctx.agent.ctx.session?.id ?? '' };
+  const provided = payload['sessionId'];
+  const fallback = ctx.agent.ctx.session?.id ?? '';
+  const sessionId = typeof provided === 'string' && provided.length > 0 ? provided : fallback;
+  return { ...payload, sessionId };
 }
 
 export async function handleContextClear(ctx: ContextHandlerContext, ws: WebSocket): Promise<void> {
@@ -120,6 +123,7 @@ export function handleContextRepair(ctx: ContextHandlerContext, ws: WebSocket): 
     actx.state.replaceMessages(repaired.messages);
   }
   const payload = {
+    sessionId: actx.session?.id,
     removedToolUses: repaired.report.removedToolUses,
     removedToolResults: repaired.report.removedToolResults,
     removedMessages: repaired.report.removedMessages,

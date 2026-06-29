@@ -273,8 +273,15 @@ describe('startSddRun (integration — real SddParallelRun + coordinator)', () =
     const { tracker, graph } = await makeGraph(1);
     const events = new EventBus();
     const seen: string[] = [];
-    events.on('sdd.run.started' as never, (() => seen.push('started')) as never);
-    events.on('sdd.run.finished' as never, (() => seen.push('finished')) as never);
+    const sessionIds: Array<string | undefined> = [];
+    events.on('sdd.run.started', (event) => {
+      seen.push('started');
+      sessionIds.push(event.sessionId);
+    });
+    events.on('sdd.run.finished', (event) => {
+      seen.push('finished');
+      sessionIds.push(event.sessionId);
+    });
 
     const handle = startSddRun({
       tracker,
@@ -282,11 +289,13 @@ describe('startSddRun (integration — real SddParallelRun + coordinator)', () =
       agent: fakeLeader(),
       projectRoot: '/proj',
       events,
+      sessionId: () => '2026-06-29/sess_sdd',
       subagentFactory: successFactory({ count: 0 }),
       boardStore: new SddBoardStore({ baseDir: tmp() }),
     });
     await handle.completion;
     expect(seen).toContain('started');
     expect(seen).toContain('finished');
+    expect(sessionIds).toEqual(['2026-06-29/sess_sdd', '2026-06-29/sess_sdd']);
   });
 });

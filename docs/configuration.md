@@ -442,7 +442,7 @@ Override with `--verbose` (`debug`), `--trace` (`trace`), or `--log-level <level
 ## `session` — Session logging & audit trail
 
 Controls what gets persisted to the per-project session JSONL file
-(`~/.wrongstack/projects/<hash>/sessions/<id>.jsonl`).
+(`~/.wrongstack/projects/<hash>/sessions/<date>/sess_<ULID>.jsonl`).
 
 ```jsonc
 {

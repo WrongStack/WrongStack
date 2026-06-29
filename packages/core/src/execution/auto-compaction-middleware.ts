@@ -337,6 +337,7 @@ export class AutoCompactionMiddleware {
       const report = await this.compactor.compact(ctx, { aggressive });
       this.recordAttempt(pressure.level, pressure.tokens, report);
       this.events?.emit('compaction.fired', {
+        sessionId: ctx.session.id,
         level: pressure.level,
         tokens: pressure.tokens,
         load: pressure.load,
@@ -384,6 +385,7 @@ export class AutoCompactionMiddleware {
           `Auto-compaction left context above the hard threshold after ${pressure.level} compaction`,
         );
         this.events?.emit('compaction.failed', {
+          sessionId: ctx.session.id,
           err: error,
           aggressive,
           level: pressure.level,
@@ -413,6 +415,7 @@ export class AutoCompactionMiddleware {
         this.failureMode === 'throw' ||
         (this.failureMode === 'throw_on_hard' && pressure.level === 'hard');
       this.events?.emit('compaction.failed', {
+        sessionId: ctx.session.id,
         err: error,
         aggressive,
         level: pressure.level,

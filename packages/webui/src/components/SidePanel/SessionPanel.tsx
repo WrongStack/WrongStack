@@ -53,6 +53,11 @@ function fmtElapsed(ms: number): string {
   return `${hours}h ${minutes % 60}m`;
 }
 
+function shortSessionId(sessionId: string): string {
+  const leaf = sessionId.split('/').pop() ?? sessionId;
+  return leaf.length > 18 ? leaf.slice(0, 18) : leaf;
+}
+
 // ── Small building blocks ─────────────────────────────────────────────
 
 function ActionButton({
@@ -543,7 +548,7 @@ export function SessionPanel() {
             className="text-[10px] text-muted-foreground font-mono mt-1 truncate"
             title={session.id}
           >
-            session {session.id.slice(0, 8)}
+            session {shortSessionId(session.id)}
           </div>
         )}
       </div>

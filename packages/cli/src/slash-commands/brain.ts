@@ -91,6 +91,7 @@ export function buildBrainCommand(opts: SlashCommandContext): SlashCommand {
         try {
           const decision = await opts.brain.decide({
             id: `brain-ask-${randomUUID()}`,
+            sessionId: opts.context?.session.id,
             source: 'user',
             question,
             risk: 'medium',

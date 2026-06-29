@@ -4,6 +4,7 @@ import type { WSServerMessage } from '@/types';
 import { toast } from '@/components/Toaster';
 import { getWSClient } from '@/lib/ws-client';
 import { trackEvent } from '@/lib/analytics';
+import { recordReferralClick, trackReferralConversion } from '@/lib/analytics';
 import {
   ArrowRight,
   Bot,
@@ -276,6 +277,11 @@ function ProviderKeyCard({
           isNewProvider: !catalogProvider,
         },
       });
+
+      // Track referral conversion if user clicked referral link before saving
+      if (popular.referral) {
+        trackReferralConversion(popular.id, popular.name);
+      }
     } catch {
       toast.error(`Failed to save ${popular.name} API key`);
 
@@ -404,6 +410,16 @@ function ProviderKeyCard({
                         hasReferral: !!popular.referral,
                       },
                     });
+                    // Track referral click if this provider has a referral
+                    if (popular.referral) {
+                      recordReferralClick({
+                        providerId: popular.id,
+                        providerName: popular.name,
+                        referralCode: popular.referral!.code,
+                        clickedAt: new Date().toISOString(),
+                        docsUrl: popular.docsUrl ?? '',
+                      });
+                    }
                   }}
                 >
                   Get your API key <ExternalLink className="h-3 w-3" />

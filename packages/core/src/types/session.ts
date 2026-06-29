@@ -44,7 +44,7 @@ export interface SessionMetadata {
  *   hard crashes; `DefaultSessionStore.load()` silently skips bad lines.
  *
  * ## Location (source of truth: resolveWstackPaths)
- * ~/.wrongstack/projects/<sha256(projectRoot).slice(0,12)>/sessions/<id>.jsonl
+ * ~/.wrongstack/projects/<sha256(projectRoot).slice(0,12)>/sessions/<date>/sess_<ULID>.jsonl
  *
  * The only files that live inside the project tree are the committed
  * `.wrongstack/AGENTS.md` and `.wrongstack/skills/`.

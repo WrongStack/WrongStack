@@ -31,6 +31,7 @@ export function snapshotTokenCounter(tokenCounter: TokenCounter): TokenRefreshDa
 export function useTokenCounterRefresh(
   tokenCounter: TokenCounter | undefined,
   events: EventBus | undefined,
+  sessionId?: string | undefined,
 ): TokenRefreshData | undefined {
   const [data, setData] = useState<TokenRefreshData | undefined>(() =>
     tokenCounter ? snapshotTokenCounter(tokenCounter) : undefined,
@@ -51,12 +52,13 @@ export function useTokenCounterRefresh(
 
     if (!events) return;
 
-    const off = events.on('token.accounted', () => {
+    const off = events.on('token.accounted', (event) => {
+      if (sessionId && event.sessionId && event.sessionId !== sessionId) return;
       setData(snapshot());
     });
 
     return off;
-  }, [tokenCounter, events]);
+  }, [tokenCounter, events, sessionId]);
 
   return data;
 }

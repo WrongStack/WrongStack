@@ -62,6 +62,7 @@ const VIEWS = [
   'debug',
   'design-gallery',
   'refresh-debug',
+  'analytics',
 ] as const;
 type View = (typeof VIEWS)[number];
 
@@ -102,7 +103,8 @@ interface UIState {
     | 'mailbox'
     | 'debug'
     | 'design-gallery'
-    | 'refresh-debug';
+    | 'refresh-debug'
+    | 'analytics';
   showConfirmDialog: boolean;
   confirmInfo: {
     id: string;

@@ -71,22 +71,23 @@ wstack plugin remove @wrongstack/telegram   # remove from config.plugins
 ~/.wrongstack/projects/<hash>/       per-project state
   memory.md                          project memory (auto-gitignored)
   sessions/                          per-session artifacts
-    <id>.jsonl                       append-only event log (messages, tool calls, task_* events)
-    <id>.summary.json                fast-path manifest read by /sessions
-    <id>.todos.json                  ctx.todos checkpoint (atomic-written on every mutation)
-    <id>.plan.json                   /plan strategic roadmap (atomic-written on every mutation)
-    <id>/                            multi-agent (director mode) fleet workspace
-      fleet.json                     director manifest (debounced ~2s; final on shutdown)
-      director-state.json            live task graph: pending/running/completed + spawn roster
-      shared/                        cross-subagent scratchpad (markdown findings)
-      subagents/<runId>/<subagentId>.jsonl   per-subagent transcripts
-      attachments/                   spooled images/files for the session
+    <date>/
+      sess_<ULID>.jsonl              append-only event log (messages, tool calls, task_* events)
+      sess_<ULID>.summary.json       fast-path manifest read by /sessions
+      sess_<ULID>.todos.json         ctx.todos checkpoint (atomic-written on every mutation)
+      sess_<ULID>.plan.json          /plan strategic roadmap (atomic-written on every mutation)
+      sess_<ULID>/                   multi-agent (director mode) fleet workspace
+        fleet.json                   director manifest (debounced ~2s; final on shutdown)
+        director-state.json          live task graph: pending/running/completed + spawn roster
+        shared/                      cross-subagent scratchpad (markdown findings)
+        subagents/<runId>/<subagentId>.jsonl   per-subagent transcripts
+        attachments/                 spooled images/files for the session
   trust.json                         per-project tool/permission trust
 .wrongstack/AGENTS.md                committable project memory
 .wrongstack/skills/                  committable project skills
 ```
 
-**Resume semantics.** `wstack --resume <id>` replays the messages JSONL into the agent context, reloads `<id>.todos.json` if present, and surfaces a banner summarizing any prior plan items and unfinished fleet tasks. Per-subagent transcripts under `subagents/` survive crashes — combine with the `director-state.json` checkpoint to inspect what each worker was doing when the run was interrupted.
+**Resume semantics.** `wstack --resume <id>` replays the messages JSONL into the agent context, reloads the session-scoped todos sidecar if present, and surfaces a banner summarizing any prior plan items and unfinished fleet tasks. Per-subagent transcripts under `subagents/` survive crashes — combine with the `director-state.json` checkpoint to inspect what each worker was doing when the run was interrupted.
 
 API keys are encrypted at rest with AES-256-GCM and the key file at `~/.wrongstack/.key`. The vault auto-bootstraps on first run; the key never leaves the machine.
 

@@ -1,6 +1,6 @@
 import * as path from 'node:path';
 import { randomBytes } from 'node:crypto';
-import { toErrorMessage } from '@wrongstack/core/utils';
+import { sessionScopedPath, toErrorMessage } from '@wrongstack/core/utils';
 import {
   // createSessionEventBridge,
   // resolveAuditLevel,
@@ -144,19 +144,21 @@ export async function setupSession(params: {
   }
 
   const sessionRef: { current?: SessionWriter | undefined } = { current: session };
-  await recoveryLock.write(session?.id).catch((err) => {
+  const sessionId = expectDefined(session?.id, 'active session id');
+  const sessionDir = sessionScopedPath(wpaths.projectSessions, sessionId, '');
+  await recoveryLock.write(sessionId).catch((err) => {
     console.error(
       JSON.stringify({
         level: 'error',
         event: 'recovery_lock_write_failed',
         error: String(err),
-        sessionId: session?.id,
+        sessionId,
       }),
     );
   });
 
   const attachments = new DefaultAttachmentStore({
-    spoolDir: path.join(wpaths.projectSessions, session?.id, 'attachments'),
+    spoolDir: path.join(sessionDir, 'attachments'),
   });
 
   const ctxSignal = new AbortController().signal;
@@ -190,12 +192,12 @@ export async function setupSession(params: {
   if (restoredMessages.length > 0) context.state.replaceMessages(restoredMessages);
 
   const queueStore = new QueueStore({
-    dir: path.join(wpaths.projectSessions, session?.id),
+    dir: sessionDir,
     ...(eventsBus ? { events: eventsBus } : {}),
     ...(traceId ? { traceId } : {}),
   });
 
-  const todosCheckpointPath = path.join(wpaths.projectSessions, `${session?.id}.todos.json`);
+  const todosCheckpointPath = sessionScopedPath(wpaths.projectSessions, sessionId, '.todos.json');
   if (resumeId) {
     try {
       const restoredTodos = await loadTodosCheckpoint(
@@ -216,21 +218,21 @@ export async function setupSession(params: {
   const detachTodosCheckpoint = attachTodosCheckpoint(
     context.state,
     todosCheckpointPath,
-    session?.id,
+    sessionId,
     eventsBus,
     traceId,
   );
 
-  const planPath = path.join(wpaths.projectSessions, `${session?.id}.plan.json`);
+  const planPath = sessionScopedPath(wpaths.projectSessions, sessionId, '.plan.json');
   context.state.setMeta('plan.path', planPath);
 
-  const taskPath = path.join(wpaths.projectSessions, `${session?.id}.tasks.json`);
+  const taskPath = sessionScopedPath(wpaths.projectSessions, sessionId, '.tasks.json');
   context.state.setMeta('task.path', taskPath);
 
   let dirState;
   if (resumeId) {
     try {
-      const fleetRoot = path.join(wpaths.projectSessions, session?.id);
+      const fleetRoot = sessionDir;
       dirState = await loadDirectorState(path.join(fleetRoot, 'director-state.json'));
       if (dirState) {
         const tCounts: Record<string, number> = {};

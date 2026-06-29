@@ -76,6 +76,7 @@ export async function runProviderWithRetry(opts: RunProviderOptions): Promise<Re
       if (!canRetry) {
         if (isProviderErr) {
           events.emit('provider.error', {
+            sessionId: ctx.session.id,
             providerId: (err as ProviderError).providerId,
             status: (err as ProviderError).status,
             description,
@@ -108,6 +109,7 @@ export async function runProviderWithRetry(opts: RunProviderOptions): Promise<Re
       });
       if (isProviderErr) {
         events.emit('provider.retry', {
+          sessionId: ctx.session.id,
           providerId: (err as ProviderError).providerId,
           attempt: attemptNum,
           delayMs: delay,

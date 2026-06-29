@@ -48,6 +48,32 @@ describe('DefaultTokenCounter', () => {
     expect(seen).toEqual([{ input: 1000, output: 500, cacheRead: 250, cacheWrite: 125 }]);
   });
 
+  it('emits session id from a live session getter', () => {
+    const events = new EventBus();
+    const seen: Array<string | undefined> = [];
+    let sessionId = 's1';
+    events.on('token.accounted', (e) => seen.push(e.sessionId));
+    const tc = new DefaultTokenCounter({ events, sessionId: () => sessionId });
+
+    tc.account({ input: 10, output: 1 }, 'm');
+    sessionId = 's2';
+    tc.reset();
+
+    expect(seen).toEqual(['s1', 's2']);
+  });
+
+  it('can update the session id binding after construction', () => {
+    const events = new EventBus();
+    const seen: Array<string | undefined> = [];
+    events.on('token.accounted', (e) => seen.push(e.sessionId));
+    const tc = new DefaultTokenCounter({ events });
+    tc.setSessionId('s1');
+
+    tc.account({ input: 10, output: 1 }, 'm');
+
+    expect(seen).toEqual(['s1']);
+  });
+
   it('emits token.accounted when registry has no matching model', async () => {
     const events = new EventBus();
     const seen: Array<{ input: number; output: number; cacheRead?: number; cacheWrite?: number }> = [];
@@ -67,6 +93,35 @@ describe('DefaultTokenCounter', () => {
     await new Promise((r) => setTimeout(r, 5));
 
     expect(seen).toEqual([{ input: 1234, output: 56, cacheRead: 0, cacheWrite: 0 }]);
+  });
+
+  it('keeps the account-time session id across async price lookup', async () => {
+    const events = new EventBus();
+    const seen: Array<string | undefined> = [];
+    let sessionId = 's1';
+    let resolveModel!: (value: ResolvedModel | undefined) => void;
+    events.on('token.accounted', (e) => seen.push(e.sessionId));
+    const registry = {
+      getModel: vi.fn().mockImplementation(
+        () => new Promise<ResolvedModel | undefined>((resolve) => {
+          resolveModel = resolve;
+        }),
+      ),
+      load: async () => ({}) as never,
+      refresh: async () => ({}) as never,
+      listProviders: async () => [],
+      getProvider: async () => undefined,
+      suggestModel: async () => undefined,
+      ageSeconds: async () => 0,
+    } as never as ModelsRegistry;
+    const tc = new DefaultTokenCounter({ events, registry, providerId: 'local', sessionId: () => sessionId });
+
+    tc.account({ input: 1234, output: 56 }, 'custom-model');
+    sessionId = 's2';
+    resolveModel(undefined);
+    await new Promise((r) => setTimeout(r, 5));
+
+    expect(seen).toEqual(['s1']);
   });
 
   it('reset clears tokens and cost and emits a zero snapshot', () => {

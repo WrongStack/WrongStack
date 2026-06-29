@@ -31,6 +31,22 @@ describe('DefaultSessionRewinder', () => {
   }
 
   describe('listCheckpoints', () => {
+    it('reads checkpoints from date-sharded session ids', async () => {
+      const id = '2026-06-11/sess_01JX2S9V7T5M6N7P8Q9R0STXVW';
+      const shardDir = path.join(tmp, '2026-06-11');
+      await fs.mkdir(shardDir, { recursive: true });
+      await fs.writeFile(
+        path.join(shardDir, 'sess_01JX2S9V7T5M6N7P8Q9R0STXVW.jsonl'),
+        JSON.stringify(makeCheckpoint(0, 'sharded prompt')) + '\n',
+        'utf8',
+      );
+
+      const rewind = new DefaultSessionRewinder(tmp, tmp);
+      expect(await rewind.listCheckpoints(id)).toMatchObject([
+        { promptIndex: 0, promptPreview: 'sharded prompt' },
+      ]);
+    });
+
     it('returns empty array when no checkpoints', async () => {
       const id = await writeSession([
         { type: 'session_start', ts: new Date().toISOString(), id: 's1', model: 'm', provider: 'p' },

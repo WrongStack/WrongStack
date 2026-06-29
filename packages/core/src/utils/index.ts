@@ -41,6 +41,7 @@ export {
 export * from './newline-normalize.js';
 export { type CompileFail, type CompileResult, compileUserRegex } from './regex-guard.js';
 export * from './safe-json.js';
+export { sessionScopedPath } from './session-scoped-path.js';
 export { slugify } from './slug.js';
 export { ulid, isUlid } from './ulid.js';
 export * from './sleep.js';

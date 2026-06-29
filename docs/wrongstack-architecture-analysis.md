@@ -403,7 +403,7 @@ Session JSONL files write in **two tiers**:
 | `standard` (default) | Core + lightweight audit |
 | `full` | Everything, including heavy payloads |
 
-**Location:** `~/.wrongstack/projects/<sha256(projectRoot).slice(0,12)>/sessions/<id>.jsonl`
+**Location:** `~/.wrongstack/projects/<sha256(projectRoot).slice(0,12)>/sessions/<date>/sess_<ULID>.jsonl`
 
 **Guarantee:** All writes are best-effort — a failed write never aborts the agent loop. Sensitive content passes through `SecretScrubber`.
 

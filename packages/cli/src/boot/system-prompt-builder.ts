@@ -53,6 +53,7 @@
 import {
   DefaultSystemPromptBuilder,
   makeAutonomyPromptContributor,
+  sessionScopedPath,
   type TokenSavingTier,
 } from '@wrongstack/core';
 import type { AutonomyMode } from '../slash-commands/autonomy.js';
@@ -172,10 +173,7 @@ export function bindSystemPromptBuilder(deps: BindSystemPromptBuilderDeps): void
         },
         planPath: () =>
           deps.sessionRef.current
-            ? deps.pathJoiner.join(
-                deps.paths.projectSessions,
-                `${deps.sessionRef.current.id}.plan.json`,
-              )
+            ? sessionScopedPath(deps.paths.projectSessions, deps.sessionRef.current.id, '.plan.json')
             : undefined,
         contributors: [
           // Injects the ETERNAL AUTONOMY block when the

@@ -1423,9 +1423,9 @@ export type WSServerMessage =
   | { type: 'model.refine_result'; payload: { refined: string; english: string; error?: string | undefined } }
   // ── Coordinator / autonomous fleet events ──────────────────────────────
   | { type: 'coordinator.status'; payload: { status: 'idle' | 'running' | 'draining' | 'stopped'; mode?: string; subagentCount?: number; taskQueue?: { pending: number; running: number; completed: number; failed: number } } }
-  | { type: 'coordinator.stats'; payload: { total: number; running: number; idle: number; stopped: number; inFlight: number; pending: number; completed: number; subagentStatuses?: Array<{ id: string; name: string; status: string; currentTask?: string }> } }
-  | { type: 'fleet.concurrency_update'; payload: { fleetConcurrency: number; fleetConcurrencyMax: number } }
-  | { type: 'budget.threshold_reached'; payload: { subagentId: string; taskId?: string; ts: number; kind: string; used: number; limit: number; timeoutMs: number } }
+  | { type: 'coordinator.stats'; payload: SessionScopedPayload & { total: number; running: number; idle: number; stopped: number; inFlight: number; pending: number; completed: number; subagentStatuses?: Array<{ id: string; name: string; status: string; currentTask?: string }> } }
+  | { type: 'fleet.concurrency_update'; payload: SessionScopedPayload & { fleetConcurrency: number; fleetConcurrencyMax: number } }
+  | { type: 'budget.threshold_reached'; payload: SessionScopedPayload & { subagentId: string; taskId?: string; ts: number; kind: string; used: number; limit: number; timeoutMs: number } }
   | { type: 'budget.decision'; payload: { subagentId: string; kind: string; decision: 'extend' | 'deny'; extended?: { timeoutMs?: number; maxIterations?: number; maxToolCalls?: number } } }
   | { type: 'subagent.budget_extended'; payload: { subagentId: string; kind: string; extendedMs?: number; extendedTo?: number } }
   | { type: 'consensus.vote_initiated'; payload: { changeId: string; title: string; eligible: Array<{ agentId: string; agentName: string }> } }

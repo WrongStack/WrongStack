@@ -1,5 +1,4 @@
 import * as fs from 'node:fs/promises';
-import * as path from 'node:path';
 import { expectDefined } from '../utils/expect-defined.js';
 import type { ContentBlock } from '../types/blocks.js';
 import type {
@@ -12,6 +11,7 @@ import type {
   SessionSummaryLite,
 } from '../types/session-reader.js';
 import { compileUserRegex } from '../utils/regex-guard.js';
+import { sessionScopedPath } from '../utils/session-scoped-path.js';
 import type { SessionData, SessionEvent, SessionMetadata, SessionStore } from '../types/session.js';
 
 /**
@@ -38,7 +38,7 @@ export class DefaultSessionReader implements SessionReader {
     if (!rootDir) {
       return await this.store.load(sessionId);
     }
-    const sessionPath = path.join(rootDir, `${sessionId}.jsonl`);
+    const sessionPath = sessionScopedPath(rootDir, sessionId, '.jsonl');
     let mtimeMs: number | null = null;
     try {
       const stat = await fs.stat(sessionPath);

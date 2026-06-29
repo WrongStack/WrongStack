@@ -170,7 +170,7 @@ export class FileSessionWriter implements SessionWriter {
     traceId?: string | undefined,
   ) {
     this.resumed = opts.resumed ?? false;
-    // id already contains a date-prefix shard (e.g. "2026-06-06/17-46-57Z_…").
+    // id already contains a date-prefix shard (e.g. "2026-06-06/sess_<ULID>").
     // opts.dir is the shard directory — join with basename so the manifest
     // lives next to the JSONL file instead of creating a double-nested path.
     this.manifestFile = opts.dir ? path.join(opts.dir, `${path.basename(id)}.summary.json`) : '';
@@ -493,6 +493,7 @@ export class FileSessionWriter implements SessionWriter {
       promptPreview,
     });
     this.events?.emit('checkpoint.written', {
+      sessionId: this.id,
       promptIndex,
       promptPreview,
       ts: new Date().toISOString(),
@@ -732,6 +733,7 @@ export class FileSessionWriter implements SessionWriter {
     });
 
     this.events?.emit('session.rewound', {
+      sessionId: this.id,
       toPromptIndex: targetPromptIndex,
       revertedFiles: [],
       removedEvents: removedCount,
@@ -779,7 +781,7 @@ export class FileSessionWriter implements SessionWriter {
       ts: new Date().toISOString(),
       context,
     });
-    this.events?.emit('in_flight.started', { context, ts: new Date().toISOString() });
+    this.events?.emit('in_flight.started', { sessionId: this.id, context, ts: new Date().toISOString() });
   }
 
   /**
@@ -795,6 +797,6 @@ export class FileSessionWriter implements SessionWriter {
       ts: new Date().toISOString(),
       reason,
     });
-    this.events?.emit('in_flight.ended', { reason, ts: new Date().toISOString() });
+    this.events?.emit('in_flight.ended', { sessionId: this.id, reason, ts: new Date().toISOString() });
   }
 }

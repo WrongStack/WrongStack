@@ -261,7 +261,7 @@ describe('ToolAuditLog', () => {
   });
 
   it('records and verifies under a date-sharded session id', async () => {
-    const shardedId = '2026-06-11/12-00-00Z_model_ab12';
+    const shardedId = '2026-06-11/sess_01JX2S9V7T5M6N7P8Q9R0STXVW';
     await log.record({
       sessionId: shardedId,
       toolName: 'read',
@@ -272,7 +272,7 @@ describe('ToolAuditLog', () => {
     });
     expect(await log.verify(shardedId)).toEqual({ ok: true, entries: 1 });
     await expect(
-      fsp.access(path.join(dir, '2026-06-11', '12-00-00Z_model_ab12.audit.jsonl')),
+      fsp.access(path.join(dir, '2026-06-11', 'sess_01JX2S9V7T5M6N7P8Q9R0STXVW.audit.jsonl')),
     ).resolves.toBeUndefined();
   });
 

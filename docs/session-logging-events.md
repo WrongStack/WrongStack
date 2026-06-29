@@ -477,18 +477,17 @@ tool_progress
 
 ### Session Log Location
 ```
-~/.wrongstack/projects/<projectHash>/sessions/<id>.jsonl
+~/.wrongstack/projects/<projectHash>/sessions/<date>/sess_<ULID>.jsonl
 ```
 
-Session IDs include a date shard and timestamp:
+Session IDs include a date shard and opaque sortable id:
 ```
-2026-06-19/14-30-45Z_a1b2.jsonl
-2026-06-19/14-22-10Z_claude-sonnet_a1b2.jsonl
+2026-06-19/sess_01JX2S9V7T5M6N7P8Q9R0STXVW
 ```
 
 ### Tool Audit Log (Tamper-Evident Sidecar)
 ```
-<sessionDir>/<sessionId>.audit.jsonl
+~/.wrongstack/projects/<projectHash>/sessions/<date>/sess_<ULID>.audit.jsonl
 ```
 
 Each entry contains a SHA-256 chain:
@@ -556,7 +555,7 @@ bus.onAny((event, payload) => {
 
 ```typescript
 const store = new DefaultSessionStore({ dir: sessionRoot });
-const session = await store.resume('2026-06-19/14-30-45Z_a1b2');
+const session = await store.resume('2026-06-19/sess_01JX2S9V7T5M6N7P8Q9R0STXVW');
 // Events replayed from JSONL → messages, usage, toolCallEnds
 ```
 

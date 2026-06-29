@@ -74,7 +74,7 @@ export function setupAutonomousCoordinator(
     if (!currentDirector) return null;
 
     // Resolve the session dir from the transcript path (e.g.
-    // "~/.wrongstack/.../sessions/<id>.jsonl" → parent dir). Fall back
+    // "~/.wrongstack/.../sessions/<date>/sess_<ULID>.jsonl" → parent dir). Fall back
     // to the global project dir when the writer is in-memory.
     const transcript = context.session.transcriptPath;
     const sessionDir = transcript

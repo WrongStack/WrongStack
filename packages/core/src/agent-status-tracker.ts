@@ -34,6 +34,8 @@ function clampPct(pct: number): number {
 export interface AgentStatusTrackerOptions {
   events: EventBus;
   registry: SessionRegistry;
+  /** Session id whose live agent state is mirrored by this tracker. */
+  sessionId?: string | (() => string | undefined) | undefined;
   /** Leader agent name shown in the registry. Default: "leader". */
   leaderName?: string | undefined;
   /**
@@ -47,6 +49,7 @@ export interface AgentStatusTrackerOptions {
 export class AgentStatusTracker {
   private readonly events: EventBus;
   private readonly registry: SessionRegistry;
+  private readonly sessionId: string | (() => string | undefined) | undefined;
   private readonly leaderName: string;
 
   // Live agent map: agentId → AgentEntry
@@ -76,6 +79,7 @@ export class AgentStatusTracker {
   constructor(opts: AgentStatusTrackerOptions) {
     this.events = opts.events;
     this.registry = opts.registry;
+    this.sessionId = opts.sessionId;
     this.leaderName = opts.leaderName ?? 'leader';
     this.onUpdate = opts.onUpdate;
   }
@@ -86,9 +90,18 @@ export class AgentStatusTracker {
   }
 
   start(): void {
+    const on = (
+      pattern: string,
+      fn: (event: string, payload: unknown) => void,
+    ): (() => void) =>
+      this.events.onPattern(pattern, (event, payload) => {
+        if (!this.acceptsSession(payload)) return;
+        fn(event, payload);
+      });
+
     // Leader events
     this.unsubscribers.push(
-      this.events.onPattern('agent.run.started', (_event, payload) => {
+      on('agent.run.started', (_event, payload) => {
         const p = payload as { at?: string; model?: string; ctx?: unknown } | undefined;
         this.markLeaderStarted(p?.at);
         this.captureLeaderContext(p?.ctx);
@@ -101,7 +114,7 @@ export class AgentStatusTracker {
 
     // Capture the leader's model + context fill from each iteration's context.
     this.unsubscribers.push(
-      this.events.onPattern('iteration.started', (_e, payload) => {
+      on('iteration.started', (_e, payload) => {
         const p = payload as { ctx?: unknown; index?: number } | undefined;
         const ctx = p?.ctx;
         this.markLeaderStarted();
@@ -119,7 +132,7 @@ export class AgentStatusTracker {
     );
 
     this.unsubscribers.push(
-      this.events.onPattern('agent.run.completed', (_event, payload) => {
+      on('agent.run.completed', (_event, payload) => {
         const p = payload as { status?: string; ctx?: unknown } | undefined;
         this.captureLeaderContext(p?.ctx);
         this.leaderStatus = p?.status === 'failed' ? 'error' : 'idle';
@@ -131,7 +144,7 @@ export class AgentStatusTracker {
     );
 
     this.unsubscribers.push(
-      this.events.onPattern('agent.run.error', (_event, payload) => {
+      on('agent.run.error', (_event, payload) => {
         const p = payload as { ctx?: unknown } | undefined;
         this.captureLeaderContext(p?.ctx);
         this.leaderStatus = 'error';
@@ -143,7 +156,7 @@ export class AgentStatusTracker {
 
     // Tool events — track current tool
     this.unsubscribers.push(
-      this.events.onPattern('tool.started', (_event, payload) => {
+      on('tool.started', (_event, payload) => {
         const p = payload as { name?: string } | undefined;
         if (p?.name) {
           this.markLeaderStarted();
@@ -156,7 +169,7 @@ export class AgentStatusTracker {
     );
 
     this.unsubscribers.push(
-      this.events.onPattern('tool.executed', () => {
+      on('tool.executed', () => {
         this.leaderCurrentTool = undefined;
         this.flush();
       }),
@@ -164,7 +177,7 @@ export class AgentStatusTracker {
 
     // Brain ask_human → waiting for user input
     this.unsubscribers.push(
-      this.events.onPattern('brain.ask_human', () => {
+      on('brain.ask_human', () => {
         this.markLeaderStarted();
         this.leaderStatus = 'waiting_user';
         this.flush();
@@ -173,7 +186,7 @@ export class AgentStatusTracker {
 
     // Streaming events
     this.unsubscribers.push(
-      this.events.onPattern('llm.stream_started', () => {
+      on('llm.stream_started', () => {
         this.markLeaderStarted();
         this.leaderStatus = 'streaming';
         // A new response is starting — drop the previous turn's live tail.
@@ -186,7 +199,7 @@ export class AgentStatusTracker {
     // watcher sees the response form. Flushed on a throttle, NOT per token
     // (text_delta fires once per chunk → would thrash the shared registry).
     this.unsubscribers.push(
-      this.events.onPattern('provider.text_delta', (_e, payload) => {
+      on('provider.text_delta', (_e, payload) => {
         const p = payload as { text?: string; ctx?: unknown } | undefined;
         const text = p?.text;
         if (!text) return;
@@ -201,7 +214,7 @@ export class AgentStatusTracker {
     );
 
     this.unsubscribers.push(
-      this.events.onPattern('provider.response', (_e, payload) => {
+      on('provider.response', (_e, payload) => {
         const p = payload as { ctx?: unknown } | undefined;
         this.captureLeaderContext(p?.ctx);
         this.flush();
@@ -209,7 +222,7 @@ export class AgentStatusTracker {
     );
 
     this.unsubscribers.push(
-      this.events.onPattern('provider.fallback', (_e, payload) => {
+      on('provider.fallback', (_e, payload) => {
         const p = payload as { to?: { providerId?: string; model?: string } } | undefined;
         if (p?.to?.model) {
           this.leaderModel = p.to.providerId
@@ -221,7 +234,7 @@ export class AgentStatusTracker {
     );
 
     this.unsubscribers.push(
-      this.events.onPattern('ctx.pct', (_e, payload) => {
+      on('ctx.pct', (_e, payload) => {
         const p = payload as { load?: number } | undefined;
         if (typeof p?.load === 'number' && Number.isFinite(p.load)) {
           this.leaderCtxPct = clampPct(Math.round(p.load * 100));
@@ -232,7 +245,7 @@ export class AgentStatusTracker {
 
     // Leader token + cost accounting (per provider call — accumulate).
     this.unsubscribers.push(
-      this.events.onPattern('token.accounted', (_e, payload) => {
+      on('token.accounted', (_e, payload) => {
         const p = payload as
           | { usage?: { input?: number; output?: number }; cost?: { total?: number } }
           | undefined;
@@ -261,7 +274,7 @@ export class AgentStatusTracker {
     };
 
     this.unsubscribers.push(
-      this.events.onPattern('subagent.spawned', (_e, payload) => {
+      on('subagent.spawned', (_e, payload) => {
         const p = payload as { subagentId?: string; name?: string; model?: string } | undefined;
         if (!p?.subagentId) return;
         const entry = touch(p.subagentId);
@@ -274,7 +287,7 @@ export class AgentStatusTracker {
     );
 
     this.unsubscribers.push(
-      this.events.onPattern('subagent.ctx_pct', (_e, payload) => {
+      on('subagent.ctx_pct', (_e, payload) => {
         const p = payload as { subagentId?: string; load?: number } | undefined;
         if (!p?.subagentId) return;
         const entry = touch(p.subagentId);
@@ -284,7 +297,7 @@ export class AgentStatusTracker {
     );
 
     this.unsubscribers.push(
-      this.events.onPattern('subagent.task_started', (_e, payload) => {
+      on('subagent.task_started', (_e, payload) => {
         const p = payload as { subagentId?: string } | undefined;
         if (!p?.subagentId) return;
         const entry = touch(p.subagentId);
@@ -296,7 +309,7 @@ export class AgentStatusTracker {
     );
 
     this.unsubscribers.push(
-      this.events.onPattern('subagent.tool_executed', (_e, payload) => {
+      on('subagent.tool_executed', (_e, payload) => {
         const p = payload as { subagentId?: string; name?: string } | undefined;
         if (!p?.subagentId) return;
         const entry = touch(p.subagentId);
@@ -309,7 +322,7 @@ export class AgentStatusTracker {
     );
 
     this.unsubscribers.push(
-      this.events.onPattern('subagent.iteration_summary', (_e, payload) => {
+      on('subagent.iteration_summary', (_e, payload) => {
         const p = payload as
           | {
               subagentId?: string;
@@ -341,7 +354,7 @@ export class AgentStatusTracker {
     );
 
     this.unsubscribers.push(
-      this.events.onPattern('subagent.task_completed', (_e, payload) => {
+      on('subagent.task_completed', (_e, payload) => {
         const p = payload as
           | { subagentId?: string; status?: string; iterations?: number; toolCalls?: number }
           | undefined;
@@ -361,7 +374,7 @@ export class AgentStatusTracker {
     );
 
     this.unsubscribers.push(
-      this.events.onPattern('subagent.stopped', (_e, payload) => {
+      on('subagent.stopped', (_e, payload) => {
         const p = payload as { subagentId?: string } | undefined;
         if (!p?.subagentId) return;
         if (this.agents.delete(p.subagentId)) this.flush();
@@ -447,7 +460,10 @@ export class AgentStatusTracker {
     // (e.g. the HQ session-telemetry bridge) can build snapshots without
     // re-reading the shared registry file. Best-effort, never throws here.
     try {
-      this.events.emit('session.agents_updated', { agents: allAgents });
+      this.events.emit('session.agents_updated', {
+        sessionId: this.currentSessionId(),
+        agents: allAgents,
+      });
     } catch {
       /* best-effort */
     }
@@ -463,6 +479,18 @@ export class AgentStatusTracker {
         }
       })
       .catch(() => undefined);
+  }
+
+  private currentSessionId(): string | undefined {
+    return typeof this.sessionId === 'function' ? this.sessionId() : this.sessionId;
+  }
+
+  private acceptsSession(payload: unknown): boolean {
+    const expected = this.currentSessionId();
+    if (!expected) return true;
+    if (typeof payload !== 'object' || payload === null) return true;
+    const actual = (payload as { sessionId?: unknown }).sessionId;
+    return typeof actual !== 'string' || actual.length === 0 || actual === expected;
   }
 
   private markLeaderStarted(startedAt?: string): void {

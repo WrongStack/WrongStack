@@ -119,6 +119,94 @@ function isPriority(s: string): s is MemoryPriority {
   return s === 'critical' || s === 'high' || s === 'medium' || s === 'low';
 }
 
+// ── Inverted index for fast search ─────────────────────────────────────
+
+interface IndexedEntry {
+  entry: MemoryEntry;
+  /** Lower-cased words extracted from text. */
+  words: string[];
+  /** Lower-cased tags. */
+  tags: string[];
+}
+
+interface InvertedIndex {
+  /** word -> entry indices */
+  wordMap: Map<string, number[]>;
+  /** tag -> entry indices */
+  tagMap: Map<string, number[]>;
+  entries: IndexedEntry[];
+  /** Last known file mtime for cache invalidation. */
+  mtimeMs: number;
+}
+
+function buildInvertedIndex(entries: MemoryEntry[]): InvertedIndex {
+  const wordMap = new Map<string, number[]>();
+  const tagMap = new Map<string, number[]>();
+  const indexed: IndexedEntry[] = new Array(entries.length);
+
+  for (let i = 0; i < entries.length; i++) {
+    const e = entries[i]!;
+    const words = e.text.toLowerCase().split(/\s+/).filter((w) => w.length > 0);
+    const tags = (e.tags ?? []).map((t) => t.toLowerCase());
+    indexed[i] = { entry: e, words, tags };
+
+    for (const w of words) {
+      const arr = wordMap.get(w);
+      if (arr) arr.push(i);
+      else wordMap.set(w, [i]);
+    }
+    for (const t of tags) {
+      const arr = tagMap.get(t);
+      if (arr) arr.push(i);
+      else tagMap.set(t, [i]);
+    }
+  }
+
+  return { wordMap, tagMap, entries: indexed, mtimeMs: 0 };
+}
+
+function searchIndex(
+  index: InvertedIndex,
+  query: string,
+  limit?: number,
+): MemoryEntry[] {
+  const needles = query.toLowerCase().split(/\s+/).filter((n) => n.length > 0);
+  if (needles.length === 0) return [];
+
+  const scores = new Map<number, number>();
+
+  for (const n of needles) {
+    // Word prefix matches
+    for (const [word, indices] of index.wordMap) {
+      if (word.includes(n) || n.includes(word)) {
+        for (const idx of indices) {
+          scores.set(idx, (scores.get(idx) ?? 0) + 1);
+        }
+      }
+    }
+    // Tag matches (weighted higher)
+    for (const [tag, indices] of index.tagMap) {
+      if (tag.includes(n) || n.includes(tag)) {
+        for (const idx of indices) {
+          scores.set(idx, (scores.get(idx) ?? 0) + 2);
+        }
+      }
+    }
+  }
+
+  if (scores.size === 0) return [];
+
+  const scored = Array.from(scores.entries());
+  scored.sort((a, b) => b[1] - a[1]);
+
+  const result: MemoryEntry[] = [];
+  const max = limit ? Math.min(limit, scored.length) : scored.length;
+  for (let i = 0; i < max; i++) {
+    result.push(index.entries[scored[i]![0]]!.entry);
+  }
+  return result;
+}
+
 // ── File-based backend ─────────────────────────────────────────────────
 
 export interface FileMemoryBackendOptions {
@@ -128,6 +216,12 @@ export interface FileMemoryBackendOptions {
 export class FileMemoryBackend implements MemoryBackend {
   readonly kind = 'file';
   private readonly files: Record<MemoryScope, string>;
+  /** Cache of parsed entries per file path. */
+  private readonly entryCache = new Map<string, MemoryEntry[]>();
+  /** Inverted index per file path. */
+  private readonly indexCache = new Map<string, InvertedIndex>();
+  /** File mtime cache for invalidation. */
+  private readonly mtimeCache = new Map<string, number>();
 
   constructor(opts: FileMemoryBackendOptions) {
     this.files = {
@@ -139,6 +233,55 @@ export class FileMemoryBackend implements MemoryBackend {
 
   private resolveFile(filePath: string, scope: MemoryScope): string {
     return filePath || this.files[scope];
+  }
+
+  private async getMtime(file: string): Promise<number> {
+    try {
+      const stat = await fs.stat(file);
+      return stat.mtimeMs;
+    } catch {
+      return 0;
+    }
+  }
+
+  private invalidateCache(file: string): void {
+    this.entryCache.delete(file);
+    this.indexCache.delete(file);
+    this.mtimeCache.delete(file);
+  }
+
+  private async loadEntries(file: string, scope: MemoryScope): Promise<MemoryEntry[]> {
+    const mtime = await this.getMtime(file);
+    const cachedMtime = this.mtimeCache.get(file);
+    if (cachedMtime === mtime && this.entryCache.has(file)) {
+      return this.entryCache.get(file)!;
+    }
+
+    const raw = await this.readAll(scope, file);
+    if (!raw.trim()) {
+      this.entryCache.set(file, []);
+      this.mtimeCache.set(file, mtime);
+      return [];
+    }
+
+    const entries = parseEntries(raw, scope);
+    this.entryCache.set(file, entries);
+    this.mtimeCache.set(file, mtime);
+    return entries;
+  }
+
+  private async getIndex(file: string, scope: MemoryScope): Promise<InvertedIndex> {
+    const mtime = await this.getMtime(file);
+    const cached = this.indexCache.get(file);
+    if (cached && cached.mtimeMs === mtime) {
+      return cached;
+    }
+
+    const entries = await this.loadEntries(file, scope);
+    const index = buildInvertedIndex(entries);
+    index.mtimeMs = mtime;
+    this.indexCache.set(file, index);
+    return index;
   }
 
   async remember(scope: MemoryScope, entry: MemoryEntry, filePath: string): Promise<void> {
@@ -154,6 +297,7 @@ export class FileMemoryBackend implements MemoryBackend {
       ? existing.replace(/\n+$/, '') + line
       : `# Agent Memory\n${line}`;
     await atomicWrite(file, next);
+    this.invalidateCache(file);
   }
 
   async forget(scope: MemoryScope, query: string, filePath: string): Promise<number> {
@@ -182,6 +326,7 @@ export class FileMemoryBackend implements MemoryBackend {
           await atomicWrite(file, lines.join('\n'));
         }
       }
+      this.invalidateCache(file);
       return removed;
     });
   }
@@ -192,36 +337,21 @@ export class FileMemoryBackend implements MemoryBackend {
   }
 
   async list(scope: MemoryScope, filePath: string, limit?: number): Promise<MemoryEntry[]> {
-    const raw = await this.readAll(scope, filePath);
-    if (!raw.trim()) return [];
-    const entries = parseEntries(raw, scope);
+    const file = this.resolveFile(filePath, scope);
+    const entries = await this.loadEntries(file, scope);
     return limit ? entries.slice(0, limit) : entries;
   }
 
   async search(scope: MemoryScope, query: string, filePath: string, limit?: number): Promise<MemoryEntry[]> {
-    const entries = await this.list(scope, filePath);
-    const needle = query.toLowerCase().split(/\s+/);
-
-    // Score by word overlap + tag match
-    const scored = entries.map((e) => {
-      const words = e.text.toLowerCase().split(/\s+/);
-      let score = 0;
-      for (const n of needle) {
-        if (words.some((w) => w.includes(n))) score += 1;
-        // Tag matches are weighted higher
-        if (e.tags?.some((t) => t.toLowerCase().includes(n))) score += 2;
-      }
-      return { entry: e, score };
-    });
-
-    scored.sort((a, b) => b.score - a.score);
-    const matched = scored.filter((s) => s.score > 0).map((s) => s.entry);
-    return limit ? matched.slice(0, limit) : matched;
+    const file = this.resolveFile(filePath, scope);
+    const index = await this.getIndex(file, scope);
+    return searchIndex(index, query, limit);
   }
 
   async clear(scope: MemoryScope, filePath: string): Promise<void> {
     const file = this.resolveFile(filePath, scope);
     await atomicWrite(file, '');
+    this.invalidateCache(file);
   }
 
   async consolidate(scope: MemoryScope, filePath: string): Promise<number> {
@@ -255,6 +385,7 @@ export class FileMemoryBackend implements MemoryBackend {
     } catch { /* best-effort */ }
     /* v8 ignore next -- best-effort: atomicWrite failure during consolidate is non-fatal */
     try { await atomicWrite(file, next); } catch { return 0; /* best-effort */ }
+    this.invalidateCache(file);
     return removed;
   }
 }

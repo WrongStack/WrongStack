@@ -6,8 +6,16 @@ import type { HistoryEntry } from '../components/history.js';
 /**
  * Brain decision events → chat history / status bar.
  */
-export function useBrainEvents(events: EventBus, dispatch: React.Dispatch<Action>): void {
+export function useBrainEvents(
+  events: EventBus,
+  dispatch: React.Dispatch<Action>,
+  getSessionId?: (() => string | undefined) | undefined,
+): void {
   useEffect(() => {
+    const isCurrentSession = (sessionId?: string | undefined): boolean => {
+      const current = getSessionId?.();
+      return !sessionId || !current || sessionId === current;
+    };
     const requestSummary = (request: { source: string; question: string }) =>
       `${request.source}: ${request.question}`.slice(0, 80);
 
@@ -40,16 +48,24 @@ export function useBrainEvents(events: EventBus, dispatch: React.Dispatch<Action
       dispatch({ type: 'addEntry', entry: { kind: 'brain', status, source: p.request.source, risk: p.request.risk, question: p.request.question, decision, rationale: p.decision.rationale } });
     };
 
-    const offRequested = events.on('brain.decision_requested', ({ request }) => {
+    const offRequested = events.on('brain.decision_requested', ({ sessionId, request }) => {
+      if (!isCurrentSession(sessionId)) return;
       dispatch({ type: 'brainStatus', state: 'deciding', source: request.source, risk: request.risk, summary: requestSummary(request) });
     });
-    const offAnswered = events.on('brain.decision_answered', (payload) => addBrainEntry('answered', payload));
-    const offAskHuman = events.on('brain.decision_ask_human', (payload) => addBrainEntry('ask_human', payload));
-    const offDenied = events.on('brain.decision_denied', (payload) => addBrainEntry('denied', payload));
+    const offAnswered = events.on('brain.decision_answered', (payload) => {
+      if (isCurrentSession(payload.sessionId)) addBrainEntry('answered', payload);
+    });
+    const offAskHuman = events.on('brain.decision_ask_human', (payload) => {
+      if (isCurrentSession(payload.sessionId)) addBrainEntry('ask_human', payload);
+    });
+    const offDenied = events.on('brain.decision_denied', (payload) => {
+      if (isCurrentSession(payload.sessionId)) addBrainEntry('denied', payload);
+    });
     // Self-activation: the BrainMonitor engaged on a distress signal
     // (tool-failure streak / error storm). Show whether it steered the
     // agent or just observed — the steer itself arrives as mailbox mail.
     const offIntervention = events.on('brain.intervention', (payload) => {
+      if (!isCurrentSession(payload.sessionId)) return;
       const decision = payload.intervened
         ? `steered the agent (${payload.kind.replace(/_/g, ' ')})`
         : 'observed — no action needed';
@@ -70,5 +86,5 @@ export function useBrainEvents(events: EventBus, dispatch: React.Dispatch<Action
     });
 
     return () => { offRequested(); offAnswered(); offAskHuman(); offDenied(); offIntervention(); };
-  }, [events, dispatch]);
+  }, [events, dispatch, getSessionId]);
 }

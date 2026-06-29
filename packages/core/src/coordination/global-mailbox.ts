@@ -522,6 +522,9 @@ export class GlobalMailbox implements Mailbox {
       const client = registry.get(input.clientId);
       if (client) {
         client.lastSeenAt = new Date().toISOString();
+        if (typeof input.sessionId === 'string' && input.sessionId.length > 0) {
+          client.sessionId = input.sessionId;
+        }
       }
 
       this._clientRegistryCache = registry;
@@ -532,6 +535,7 @@ export class GlobalMailbox implements Mailbox {
     // Emit event so TUI/WebUI can track online clients in real time
     this._events?.emitCustom('mailbox.client_heartbeat', {
       clientId: input.clientId,
+      ...(input.sessionId ? { sessionId: input.sessionId } : {}),
     });
     this.publishHqMailboxSnapshot();
   }

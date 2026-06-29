@@ -14,6 +14,7 @@ import type {
   TaskSpec,
 } from '../types/multi-agent.js';
 import {
+  type BudgetSessionIdSource,
   BudgetExceededError,
   DECISION_TIMEOUT_MS,
   SubagentBudget,
@@ -43,12 +44,18 @@ export interface MultiAgentCoordinatorOptions {
    * own bridge) and enforces timeout + concurrency.
    */
   runner?: SubagentRunner | undefined;
+  /**
+   * Session id for EventBus/FleetBus emissions produced by this coordinator.
+   * Accepts a getter so a long-lived coordinator follows session resume/new.
+   */
+  sessionId?: BudgetSessionIdSource | undefined;
 }
 
 export class DefaultMultiAgentCoordinator extends EventEmitter implements MultiAgentCoordinator {
   readonly coordinatorId: string;
   readonly config: MultiAgentConfig;
   private runner?: SubagentRunner | undefined;
+  private readonly sessionId: BudgetSessionIdSource | undefined;
   private fleetBus?: import('./fleet-bus.js').FleetBus | undefined;
 
   private readonly subagents = new Map<string, SubagentEntry>();
@@ -92,6 +99,12 @@ export class DefaultMultiAgentCoordinator extends EventEmitter implements MultiA
     this.coordinatorId = config.coordinatorId;
     this.config = config;
     this.runner = options.runner;
+    this.sessionId = options.sessionId;
+  }
+
+  private currentSessionId(): string | undefined {
+    const value = typeof this.sessionId === 'function' ? this.sessionId() : this.sessionId;
+    return typeof value === 'string' && value.length > 0 ? value : undefined;
   }
 
   /**
@@ -307,11 +320,16 @@ export class DefaultMultiAgentCoordinator extends EventEmitter implements MultiA
       status: s.status,
       assigned: s.context.parentBridge !== null,
     }));
+    const sessionId = this.currentSessionId();
     this.fleetBus?.emit({
       subagentId: this.coordinatorId,
       ts: Date.now(),
       type: 'coordinator.stats',
-      payload: { ...stats, subagentStatuses },
+      payload: {
+        ...(sessionId ? { sessionId } : {}),
+        ...stats,
+        subagentStatuses,
+      },
     });
   }
 
@@ -566,26 +584,30 @@ export class DefaultMultiAgentCoordinator extends EventEmitter implements MultiA
     const rawTimeoutMs = subagent.config.timeoutMs;
     const rawIdleTimeoutMs = subagent.config.idleTimeoutMs;
     const configWithRosterDefaults = applyRosterBudget(subagent.config);
-    const budget = new SubagentBudget({
-      maxIterations:
-        rawMaxIterations ?? this.config.defaultBudget?.maxIterations ?? configWithRosterDefaults.maxIterations,
-      maxToolCalls:
-        rawMaxToolCalls ??
-        this.config.defaultBudget?.maxToolCalls ??
-        configWithRosterDefaults.maxToolCalls,
-      maxTokens:
-        rawMaxTokens ?? this.config.defaultBudget?.maxTokens ?? configWithRosterDefaults.maxTokens,
-      maxCostUsd:
-        rawMaxCostUsd ?? this.config.defaultBudget?.maxCostUsd ?? configWithRosterDefaults.maxCostUsd,
-      // Wall-clock cap is opt-in (explicit config / defaultBudget only); the
-      // roster no longer supplies one. Idle is the default reaper.
-      timeoutMs:
-        rawTimeoutMs ?? this.config.defaultBudget?.timeoutMs ?? configWithRosterDefaults.timeoutMs,
-      idleTimeoutMs:
-        rawIdleTimeoutMs ??
-        this.config.defaultBudget?.idleTimeoutMs ??
-        configWithRosterDefaults.idleTimeoutMs,
-    });
+    const budget = new SubagentBudget(
+      {
+        maxIterations:
+          rawMaxIterations ?? this.config.defaultBudget?.maxIterations ?? configWithRosterDefaults.maxIterations,
+        maxToolCalls:
+          rawMaxToolCalls ??
+          this.config.defaultBudget?.maxToolCalls ??
+          configWithRosterDefaults.maxToolCalls,
+        maxTokens:
+          rawMaxTokens ?? this.config.defaultBudget?.maxTokens ?? configWithRosterDefaults.maxTokens,
+        maxCostUsd:
+          rawMaxCostUsd ?? this.config.defaultBudget?.maxCostUsd ?? configWithRosterDefaults.maxCostUsd,
+        // Wall-clock cap is opt-in (explicit config / defaultBudget only); the
+        // roster no longer supplies one. Idle is the default reaper.
+        timeoutMs:
+          rawTimeoutMs ?? this.config.defaultBudget?.timeoutMs ?? configWithRosterDefaults.timeoutMs,
+        idleTimeoutMs:
+          rawIdleTimeoutMs ??
+          this.config.defaultBudget?.idleTimeoutMs ??
+          configWithRosterDefaults.idleTimeoutMs,
+      },
+      'auto',
+      { sessionId: () => this.currentSessionId() },
+    );
     subagent.activeBudget = budget;
 
     if (!this.runner) {
@@ -782,7 +804,9 @@ export class DefaultMultiAgentCoordinator extends EventEmitter implements MultiA
                 resolveDecision(d);
               };
               const fallback = setTimeout(() => resolve('stop'), DECISION_TIMEOUT_MS);
+              const sessionId = this.currentSessionId();
               budget._events?.emit('budget.threshold_reached', {
+                ...(sessionId ? { sessionId } : {}),
                 kind: 'timeout',
                 used,
                 limit,
@@ -825,7 +849,9 @@ export class DefaultMultiAgentCoordinator extends EventEmitter implements MultiA
         // emit the threshold event first so observers (director / monitor) can
         // record the reap, but any extension a listener offers is ignored.
         if (idleExceeded && !wallExceeded) {
+          const sessionId = this.currentSessionId();
           budget._events?.emit('budget.threshold_reached', {
+            ...(sessionId ? { sessionId } : {}),
             kind: 'idle_timeout',
             used: budget.idleMs(),
             limit: idleLimit ?? 0,

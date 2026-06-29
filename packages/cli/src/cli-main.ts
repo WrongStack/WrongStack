@@ -80,6 +80,7 @@ import {
 } from '@wrongstack/core';
 import { MCPRegistry } from '@wrongstack/mcp';
 import { setOAuthTokenPersister } from '@wrongstack/providers';
+import { sessionScopedPath } from '@wrongstack/core/utils';
 import { toErrorMessage } from '@wrongstack/core/utils/error';
 import {
   mutateConfigProviders,
@@ -411,6 +412,7 @@ export async function main(argv: string[]): Promise<number> {
     renderer,
     getProvider: () => config.provider,
     getModel: () => config.model,
+    getSessionId: () => sessionRef.current?.id ?? '',
     projectSlug: wpaths.projectSlug,
     getActiveModeId: () => activeMode?.id ?? 'off',
     tuiOwnsScreen,
@@ -444,6 +446,7 @@ export async function main(argv: string[]): Promise<number> {
   // Session — extracted to wiring/session
   const sessionStore = container.resolve(TOKENS.SessionStore);
   const tokenCounter = container.resolve(TOKENS.TokenCounter);
+  tokenCounter.setSessionId?.(() => sessionRef.current?.id);
   const sessResult = await setupSession({
     config: { model: config.model, provider: config.provider },
     wpaths,
@@ -526,7 +529,12 @@ export async function main(argv: string[]): Promise<number> {
       projectRoot,
       selfPid: process.pid,
     });
-    tracker = new AgentStatusTracker({ events, registry, onUpdate: () => fleetNotifier.notify() });
+    tracker = new AgentStatusTracker({
+      events,
+      registry,
+      sessionId: () => context.session.id,
+      onUpdate: () => fleetNotifier.notify(),
+    });
     tracker.start();
 
     // Graceful shutdown. `registry.markClosing()` is an awaited atomic disk
@@ -568,6 +576,20 @@ export async function main(argv: string[]): Promise<number> {
       sampling: sessionConfig.sampling,
     },
   );
+  const currentSessionId = (): string => context.session?.id ?? sessionRef.current?.id ?? session.id;
+  const isCurrentSession = (sessionId?: string | undefined): boolean =>
+    !sessionId || sessionId === currentSessionId();
+  const appendSessionEvent = (
+    sessionId: string | undefined,
+    event: Parameters<SessionEventBridge['append']>[0],
+  ): void => {
+    if (!isCurrentSession(sessionId)) return;
+    sessionBridge
+      .append(event)
+      .catch(() => {
+        // best-effort, never block on session logging
+      });
+  };
 
   const stats = new SessionStats(events, tokenCounter);
 
@@ -590,51 +612,39 @@ export async function main(argv: string[]): Promise<number> {
 
     // Also persist to the session log via the central bridge (respects auditLevel).
     // This gives us error history in the JSONL for forensics / post-mortems.
-    sessionBridge
-      .append({
-        type: 'error',
-        ts,
-        message,
-        phase: e.phase,
-      })
-      .catch(() => {
-        // best-effort, never block on session logging
-      });
+    appendSessionEvent(e.sessionId, {
+      type: 'error',
+      ts,
+      message,
+      phase: e.phase,
+    });
   });
 
   // Persist tool execution start/end to the session log for audit + timing forensics.
   // Uses the same central bridge (respects auditLevel).
   evOn('tool.started', (e) => {
-    sessionBridge
-      .append({
-        type: 'tool_call_start',
-        ts: new Date().toISOString(),
-        name: e.name,
-        id: e.id,
-        input: e.input,
-      })
-      .catch(() => {
-        // best-effort
-      });
+    appendSessionEvent(e.sessionId, {
+      type: 'tool_call_start',
+      ts: new Date().toISOString(),
+      name: e.name,
+      id: e.id,
+      input: e.input,
+    });
   });
 
   evOn('tool.executed', (e) => {
-    sessionBridge
-      .append({
-        type: 'tool_call_end',
-        ts: new Date().toISOString(),
-        name: e.name,
-        id: e.id ?? '',
-        durationMs: e.durationMs,
-        outputSize: e.outputBytes ?? 0,
-        ok: e.ok,
-        outputBytes: e.outputBytes,
-        outputTokens: e.outputTokens,
-        outputLines: e.outputLines,
-      })
-      .catch(() => {
-        // best-effort
-      });
+    appendSessionEvent(e.sessionId, {
+      type: 'tool_call_end',
+      ts: new Date().toISOString(),
+      name: e.name,
+      id: e.id ?? '',
+      durationMs: e.durationMs,
+      outputSize: e.outputBytes ?? 0,
+      ok: e.ok,
+      outputBytes: e.outputBytes,
+      outputTokens: e.outputTokens,
+      outputLines: e.outputLines,
+    });
 
     // ── File-author tracking: record which agent wrote/edited files ──
     if (
@@ -680,49 +690,37 @@ export async function main(argv: string[]): Promise<number> {
   // Sampling + "full" level filtering is now handled inside the SessionEventBridge
   // for consistency and reusability across CLI / TUI / WebUI etc.
   evOn('tool.progress', (e) => {
-    sessionBridge
-      .append({
-        type: 'tool_progress',
-        ts: new Date().toISOString(),
-        name: e.name,
-        id: e.id,
-        event: { type: e.event.type, text: e.event.text, data: e.event.data },
-      })
-      .catch(() => {
-        // best-effort
-      });
+    appendSessionEvent(e.sessionId, {
+      type: 'tool_progress',
+      ts: new Date().toISOString(),
+      name: e.name,
+      id: e.id,
+      event: { type: e.event.type, text: e.event.text, data: e.event.data },
+    });
   });
 
   // Provider visibility — very valuable for debugging retry storms and provider failures.
   evOn('provider.retry', (e) => {
-    sessionBridge
-      .append({
-        type: 'provider_retry',
-        ts: new Date().toISOString(),
-        providerId: e.providerId,
-        attempt: e.attempt,
-        delayMs: e.delayMs,
-        status: e.status,
-        description: e.description,
-      })
-      .catch(() => {
-        // best-effort
-      });
+    appendSessionEvent(e.sessionId, {
+      type: 'provider_retry',
+      ts: new Date().toISOString(),
+      providerId: e.providerId,
+      attempt: e.attempt,
+      delayMs: e.delayMs,
+      status: e.status,
+      description: e.description,
+    });
   });
 
   evOn('provider.error', (e) => {
-    sessionBridge
-      .append({
-        type: 'provider_error',
-        ts: new Date().toISOString(),
-        providerId: e.providerId,
-        status: e.status,
-        description: e.description,
-        retryable: e.retryable,
-      })
-      .catch(() => {
-        // best-effort
-      });
+    appendSessionEvent(e.sessionId, {
+      type: 'provider_error',
+      ts: new Date().toISOString(),
+      providerId: e.providerId,
+      status: e.status,
+      description: e.description,
+      retryable: e.retryable,
+    });
   });
 
   // Live view of the active model's reasoning capabilities. Refreshed whenever
@@ -855,7 +853,12 @@ export async function main(argv: string[]): Promise<number> {
       delete context.meta['effectiveMaxContext'];
       autoCompactor?.setEnabled(false);
     }
-    events.emit('ctx.max_context', { providerId, modelId, maxContext: effectiveMaxContext });
+    events.emit('ctx.max_context', {
+      sessionId: context.session.id,
+      providerId,
+      modelId,
+      maxContext: effectiveMaxContext,
+    });
     eventWiring.setEffectiveMaxContext(effectiveMaxContext);
   };
 
@@ -1124,7 +1127,7 @@ export async function main(argv: string[]): Promise<number> {
   // `--director` upgrades the host to Director mode — same external API,
   // but task lifecycle flows through a `Director` so manifest writing
   // works and the FleetBus is available for observability hooks. Manifest
-  // path defaults to `<projectSessions>/<sessionId>/fleet.json`; users can
+  // path defaults to `<projectSessions>/<date>/sess_<ULID>/fleet.json`; users can
   // override via `WRONGSTACK_FLEET_MANIFEST` if they want a fixed path.
   const directorMode = flags['director'] === true || typeof flags['resume'] === 'string';
   // Concurrent subagent ceiling. Priority: CLI flag → env var → config → default (4).
@@ -1199,13 +1202,13 @@ export async function main(argv: string[]): Promise<number> {
     }
   };
   // Convention: director artifacts all live under the same fleet root —
-  //   <projectSessions>/<sessionId>/
+  //   <projectSessions>/<date>/sess_<ULID>/
   //     ├─ fleet.json              (manifest)
   //     ├─ shared/                 (cross-agent scratchpad)
   //     └─ subagents/              (per-subagent JSONL transcripts)
   // The user can override the manifest path with WRONGSTACK_FLEET_MANIFEST
   // but the scratchpad + transcripts always sit relative to the session.
-  const fleetRoot = directorMode ? path.join(wpaths.projectSessions, session.id) : undefined;
+  const fleetRoot = directorMode ? sessionScopedPath(wpaths.projectSessions, session.id, '') : undefined;
   const manifestPath = directorMode
     ? typeof process.env['WRONGSTACK_FLEET_MANIFEST'] === 'string'
       ? process.env['WRONGSTACK_FLEET_MANIFEST']
@@ -1225,7 +1228,7 @@ export async function main(argv: string[]): Promise<number> {
     : undefined;
   // Always derive a fleetRoot for runtime promotion — /director needs
   // a base dir to write manifest + scratchpad + per-subagent JSONLs into.
-  const fleetRootForPromotion = path.join(wpaths.projectSessions, session.id);
+  const fleetRootForPromotion = sessionScopedPath(wpaths.projectSessions, session.id, '');
 
   // ── Agent Monitor — subagent conversation tracking ─────────────────────
   // Creates the AgentMonitorService that listens to FleetBus events and
@@ -1233,6 +1236,7 @@ export async function main(argv: string[]): Promise<number> {
   // The transcripts dir sits alongside the director's subagent sessions.
   const agentMonitor = createAgentMonitorService({
     events,
+    sessionId: session.id,
     transcriptsDir: path.join(fleetRootForPromotion, 'subagents', 'transcripts'),
     maxEntriesPerAgent: 500,
     streamEnabled: false,
@@ -1374,6 +1378,7 @@ export async function main(argv: string[]): Promise<number> {
   const brainMonitor = new BrainMonitor({
     events,
     brain,
+    sessionId: () => context.session?.id ?? session.id,
     intervene: async ({ subject, body }) => {
       const leaderUniqueId = `leader@${mailboxSessionTag(session.id)}`;
       await brainMailbox.send({
@@ -1692,6 +1697,7 @@ export async function main(argv: string[]): Promise<number> {
     multiAgentHost,
     getConfig: () => config,
     events,
+    getSessionId: () => sessionRef.current?.id ?? session.id,
     storeDir: wpaths.projectAutophase,
     projectRoot,
     brain,
@@ -1961,7 +1967,7 @@ export async function main(argv: string[]): Promise<number> {
         }
         try {
           multiAgentHost.setMaxConcurrent(n);
-          events.emit('concurrency.changed', { n });
+          events.emit('concurrency.changed', { sessionId: sessionRef.current?.id ?? session.id, n });
         } catch (err) {
           return err instanceof Error ? err.message : String(err);
         }
@@ -2312,6 +2318,7 @@ export async function main(argv: string[]): Promise<number> {
         context.meta['effectiveMaxContext'] = tokens;
         autoCompactor?.setMaxContext(tokens);
         events.emit('ctx.max_context', {
+          sessionId: context.session.id,
           providerId: config.provider,
           modelId: context.model,
           maxContext: tokens,
@@ -2606,7 +2613,11 @@ export async function main(argv: string[]): Promise<number> {
           await core
             .cleanupStaleSddWorktrees({ projectRoot, boardsDir: wpaths.projectSddBoards })
             .catch(() => undefined);
-          worktrees = new core.WorktreeManager({ projectRoot, events });
+          worktrees = new core.WorktreeManager({
+            projectRoot,
+            events,
+            sessionId: () => sessionRef.current?.id ?? session.id,
+          });
         }
       }
 
@@ -2685,6 +2696,7 @@ export async function main(argv: string[]): Promise<number> {
         agent,
         projectRoot,
         events,
+        sessionId: () => sessionRef.current?.id ?? session.id,
         parallelSlots: opts?.parallelSlots,
         subagentFactory: sddSubagentFactory,
         worktrees,
@@ -2923,7 +2935,7 @@ export async function main(argv: string[]): Promise<number> {
         }
         if (s.maxConcurrent !== undefined && s.maxConcurrent > 0) {
           multiAgentHost.setMaxConcurrent(s.maxConcurrent);
-          events.emit('concurrency.changed', { n: s.maxConcurrent });
+          events.emit('concurrency.changed', { sessionId: sessionRef.current?.id ?? session.id, n: s.maxConcurrent });
           config = patchConfig(config, { maxConcurrent: s.maxConcurrent });
         }
         if (s.restrictFsToRoot !== undefined || s.allowOutsideProjectRoot !== undefined) {
@@ -3051,7 +3063,7 @@ export async function main(argv: string[]): Promise<number> {
       return () => stageListeners.delete(fn);
     },
     onCountdownTick: (remaining) => {
-      events.emit('countdown.tick', { remaining });
+      events.emit('countdown.tick', { sessionId: sessionRef.current?.id ?? session.id, remaining });
       return false;
     },
     skillLoader: config.features.skills ? skillLoader : undefined,

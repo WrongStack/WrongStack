@@ -140,3 +140,74 @@ export function getAnalyticsQueue(): readonly AnalyticsEvent[] {
 export function clearAnalyticsQueue(): void {
   ANALYTICS_QUEUE.length = 0;
 }
+
+// ── Referral Click Tracking ──────────────────────────────────────────────────
+
+const REFERRAL_CLICK_KEY = 'wrongstack_referral_click';
+
+interface ReferralClickData {
+  providerId: string;
+  providerName: string;
+  referralCode: string;
+  clickedAt: string;
+  docsUrl: string;
+}
+
+/** Record that a user clicked on a referral link. Call from the docs link onClick. */
+export function recordReferralClick(data: ReferralClickData): void {
+  try {
+    sessionStorage.setItem(REFERRAL_CLICK_KEY, JSON.stringify(data));
+  } catch {
+    // sessionStorage may be unavailable (private mode, etc.)
+  }
+
+  trackEvent('referral_link_clicked', 'engagement', {
+    label: data.providerName,
+    metadata: {
+      providerId: data.providerId,
+      referralCode: data.referralCode,
+      docsUrl: data.docsUrl,
+    },
+  });
+}
+
+/** Check if a referral click was recorded and return it (for conversion tracking). */
+export function getReferralClick(): ReferralClickData | null {
+  try {
+    const raw = sessionStorage.getItem(REFERRAL_CLICK_KEY);
+    if (!raw) return null;
+    return JSON.parse(raw) as ReferralClickData;
+  } catch {
+    return null;
+  }
+}
+
+/** Clear the recorded referral click. Call after tracking conversion or on session end. */
+export function clearReferralClick(): void {
+  try {
+    sessionStorage.removeItem(REFERRAL_CLICK_KEY);
+  } catch {
+    // sessionStorage may be unavailable
+  }
+}
+
+/** Track a referral conversion (API key saved after clicking referral link). */
+export function trackReferralConversion(providerId: string, providerName: string): void {
+  const click = getReferralClick();
+  if (click && click.providerId === providerId) {
+    const timeToConvert = Date.now() - new Date(click.clickedAt).getTime();
+
+    trackEvent('referral_converted', 'conversion', {
+      label: providerName,
+      value: Math.round(timeToConvert / 1000), // seconds to convert
+      metadata: {
+        providerId,
+        referralCode: click.referralCode,
+        timeToConvertMs: timeToConvert,
+        clickedAt: click.clickedAt,
+      },
+    });
+
+    clearReferralClick();
+  }
+}

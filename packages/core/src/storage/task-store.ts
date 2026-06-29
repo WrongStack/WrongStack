@@ -6,8 +6,8 @@ import type { TaskItem } from '../utils/task-format.js';
 import { SessionError } from '../types/errors.js';
 
 // ---------------------------------------------------------------------------
-// Task file persistence — one JSON file per session in
-// `<projectSessions>/<sessionId>.tasks.json`.
+// Task file persistence — one JSON file per session, resolved via
+// `sessionScopedPath(projectSessions, sessionId, '.tasks.json')`.
 //
 // Low-level load/save are exported for read-only consumers. Mutating callers
 // should use `mutateTasks` which wraps the entire read-modify-write cycle

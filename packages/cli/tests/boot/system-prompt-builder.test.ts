@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
+import * as path from 'node:path';
 
 /**
  * PR 5 of Issue #29: extract the SystemPromptBuilder
@@ -122,7 +123,7 @@ describe('bindSystemPromptBuilder (PR 5 of #29)', () => {
     });
     const builder = capturedFactory();
     const planPath = builder.opts.planPath as () => string | undefined;
-    expect(planPath()).toBe('/var/sessions/sess-abc.plan.json');
+    expect(planPath()).toBe(path.resolve('/var/sessions/sess-abc.plan.json'));
   });
 
   it('planPath tracks subsequent sessionRef updates (lazy reads, not a snapshot)', () => {
@@ -157,11 +158,11 @@ describe('bindSystemPromptBuilder (PR 5 of #29)', () => {
     expect(planPath()).toBeUndefined();
     // Bind a session.
     sessionRef.current = { id: 'sess-1' };
-    expect(planPath()).toBe('/tmp/sessions/sess-1.plan.json');
+    expect(planPath()).toBe(path.resolve('/tmp/sessions/sess-1.plan.json'));
     // Rebind to a different session \u2014 the closure must
     // pick up the new id, not a stale snapshot.
     sessionRef.current = { id: 'sess-2' };
-    expect(planPath()).toBe('/tmp/sessions/sess-2.plan.json');
+    expect(planPath()).toBe(path.resolve('/tmp/sessions/sess-2.plan.json'));
   });
 
   it('passes tokenSavingMode through to DefaultSystemPromptBuilder', () => {

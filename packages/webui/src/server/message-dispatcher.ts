@@ -154,7 +154,9 @@ export function createMessageDispatcher(
 
   function sessionPayload(payload: Record<string, unknown>): Record<string, unknown> {
     const current = state.getSession().id;
-    return { ...payload, sessionId: current };
+    const provided = payload['sessionId'];
+    const sessionId = typeof provided === 'string' && provided.length > 0 ? provided : current;
+    return { ...payload, sessionId };
   }
 
   function ensureCurrentSession(ws: WebSocket, msg: WSClientMessage, phase: string): boolean {

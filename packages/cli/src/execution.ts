@@ -1025,6 +1025,7 @@ export async function execute(deps: ExecutionDeps): Promise<number> {
           initialAsk: askFlag,
           projectRoot,
           appConfig: config,
+          getSessionId: () => agent.ctx.session?.id ?? session.id,
           getSDDContext: () => getSDDContextExtracted(),
           onSDDOutput: (output: string) => onSDDOutputExtracted(output),
           modeLabel: modeId,
@@ -1123,6 +1124,7 @@ export async function execute(deps: ExecutionDeps): Promise<number> {
         projectName: path.basename(projectRoot) || undefined,
         projectRoot,
         appConfig: config,
+        getSessionId: () => agent.ctx.session?.id ?? session.id,
         getAutonomy,
         onAutonomy,
         getNextPredict,
@@ -1197,7 +1199,7 @@ export async function execute(deps: ExecutionDeps): Promise<number> {
       usage: tokenCounter.total(),
       pendingToolUses: pending.length > 0 ? pending : undefined,
     });
-    events.emit('session.ended', { id: activeSession.id, usage: tokenCounter.total() });
+    events.emit('session.ended', { id: activeSession.id, sessionId: activeSession.id, usage: tokenCounter.total() });
     // Await chimera's in-flight work so the review result is written to the JSONL
     // before we close — without this, session.close() races against the subagent
     // and the review text is silently dropped because append returns early on closed.

@@ -18,6 +18,7 @@ import type {
 import { atomicWrite, ensureDir } from '../utils/atomic-write.js';
 import { repairToolUseAdjacency } from '../utils/message-invariants.js';
 import { toErrorMessage } from '../utils/index.js';
+import { sessionScopedPath } from '../utils/session-scoped-path.js';
 import { FileSessionWriter } from './file-session-writer.js';
 import { userInputTitle } from './session-helpers.js';
 import { generateSessionId } from './session-id.js';
@@ -117,7 +118,7 @@ export class DefaultSessionStore implements SessionStore {
   private emitRead(
     sessionId: string,
     filePath: string,
-    operation: 'load' | 'list' | 'summary' | 'index_read',
+    operation: 'load' | 'load_events_only' | 'list' | 'summary' | 'index_read',
     outcome: 'success' | 'failure',
     durationMs: number,
     error?: string,
@@ -178,7 +179,7 @@ export class DefaultSessionStore implements SessionStore {
 
   /** Join session ID to its absolute path within the store directory. */
   private sessionPath(id: string, ext: '.jsonl' | '.summary.json'): string {
-    return path.join(this.dir, `${id}${ext}`);
+    return sessionScopedPath(this.dir, id, ext);
   }
 
   private shardManifestPath(shardKey: string): string {
@@ -200,7 +201,7 @@ export class DefaultSessionStore implements SessionStore {
    * subdirectory so sessions group naturally by day.
    */
   private async ensureShardDir(id: string): Promise<string> {
-    const dirPath = path.dirname(path.join(this.dir, id));
+    const dirPath = path.dirname(sessionScopedPath(this.dir, id, ''));
     await ensureDir(dirPath);
     return dirPath;
   }
@@ -210,9 +211,9 @@ export class DefaultSessionStore implements SessionStore {
     const id =
       meta.id && meta.id.length > 0
         ? meta.id
-        : generateSessionId(startedAt, meta.model ?? meta.provider);
+        : generateSessionId(startedAt);
     const shardDir = await this.ensureShardDir(id);
-    const file = path.join(shardDir, `${path.basename(id)}.jsonl`);
+    const file = this.sessionPath(id, '.jsonl');
     const t0 = Date.now();
     let handle: fsp.FileHandle;
     try {
@@ -302,6 +303,31 @@ export class DefaultSessionStore implements SessionStore {
   }
 
   async load(id: string): Promise<SessionData> {
+    return this.loadInternal(id, { full: true });
+  }
+
+  /**
+   * Fast-path loader that skips message reconstruction and adjacency repair.
+   *
+   * Use this for callers that only need the raw event stream + session
+   * metadata — e.g. session listers, analytics, audit, and the TUI's
+   * "events only" views. It avoids the message array build and
+   * repairToolUseAdjacency cost on large session files (a long agent
+   * run can have 50k+ events; rebuilding messages is O(events) and
+   * allocates per-block, so skipping it is a meaningful win).
+   *
+   * The returned data.messages is an empty array; data.toolCallEnds
+   * is computed from the raw events. usage is the sum across all
+   * llm_response events — same as full load().
+   */
+  async loadEventsOnly(id: string): Promise<SessionData> {
+    return this.loadInternal(id, { full: false });
+  }
+
+  private async loadInternal(
+    id: string,
+    mode: { full: true } | { full: false },
+  ): Promise<SessionData> {
     const file = this.sessionPath(id, '.jsonl');
     const t0 = Date.now();
     let outcome: 'success' | 'failure' = 'success';
@@ -322,13 +348,15 @@ export class DefaultSessionStore implements SessionStore {
         // evicted by the LRU eviction logic.
         this._loadCache.delete(id);
         this._loadCache.set(id, cached);
-        return cached.data;
+        if (mode.full) return cached.data;
+        return { ...cached.data, messages: [] };
       }
 
       // Cache miss â€” do the full read + parse.
       // Fused single pass: parse events + build messages + extract metadata together.
-      const raw = await fsp.readFile(file, 'utf8');
-      const lines = raw.split('\n').filter((l) => l.trim());
+      // Streams the file line-by-line so we don't materialize the whole JSONL
+      // (multi-MB for long sessions). Events-only requests skip the message
+      // build and the adjacency repair entirely.
       const events: SessionEvent[] = [];
 
       // Metadata extracted in the same single pass over the raw lines.
@@ -338,97 +366,121 @@ export class DefaultSessionStore implements SessionStore {
       let sessionProvider: string | undefined;
       let sessionPendingToolUses: string[] | undefined;
 
-      // Message builder state (equivalent to what replay() maintains).
-      const messages: Message[] = [];
-      const openToolUses = new Set<string>();
+      // Message builder state — only allocated when mode.full.
+      const messages: Message[] | undefined = mode.full ? [] : undefined;
+      const openToolUses: Set<string> | undefined = mode.full ? new Set<string>() : undefined;
       let usage = { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 };
 
-      for (const line of lines) {
-        try {
-          const parsed: unknown = JSON.parse(line);
-          if (
-            parsed !== null &&
-            typeof parsed === 'object' &&
-            typeof (parsed as { type?: unknown | undefined }).type === 'string' &&
-            typeof (parsed as { ts?: unknown | undefined }).ts === 'string'
-          ) {
-            const ev = parsed as SessionEvent;
-            events.push(ev);
+      const stream = createReadStream(file, { encoding: 'utf8' });
+      const rl = createInterface({ input: stream, crlfDelay: Infinity });
 
-            // Track metadata in the same pass.
-            if (ev.type === 'session_start' && !sessionStartEvent) {
-              sessionStartEvent = ev;
-              sessionModel = ev.model;
-              sessionProvider = ev.provider;
-            }
-            if (ev.type === 'session_end') {
-              sessionEndEvent = ev;
-              sessionPendingToolUses = ev.pendingToolUses;
-            }
+      try {
+        for await (const line of rl) {
+          if (!line.trim()) continue;
+          try {
+            const parsed: unknown = JSON.parse(line);
+            if (
+              parsed !== null &&
+              typeof parsed === 'object' &&
+              typeof (parsed as { type?: unknown | undefined }).type === 'string' &&
+              typeof (parsed as { ts?: unknown | undefined }).ts === 'string'
+            ) {
+              const ev = parsed as SessionEvent;
+              events.push(ev);
 
-            // Build messages in the same pass (replay() logic inlined).
-            if (ev.type === 'user_input') {
-              openToolUses.clear();
-              messages.push({ role: 'user', content: ev.content, ts: ev.ts });
-            } else if (ev.type === 'llm_response') {
-              messages.push({ role: 'assistant', content: ev.content, ts: ev.ts });
-              for (const b of ev.content) {
-                if (b.type === 'tool_use') openToolUses.add(b.id);
+              // Track metadata in the same pass.
+              if (ev.type === 'session_start' && !sessionStartEvent) {
+                sessionStartEvent = ev;
+                sessionModel = ev.model;
+                sessionProvider = ev.provider;
               }
-              usage = {
-                input: usage.input + (ev.usage.input ?? 0),
-                output: usage.output + (ev.usage.output ?? 0),
-                cacheRead: (usage.cacheRead ?? 0) + (ev.usage.cacheRead ?? 0),
-                cacheWrite: (usage.cacheWrite ?? 0) + (ev.usage.cacheWrite ?? 0),
-              };
-            } else if (ev.type === 'tool_result') {
-              if (!openToolUses.has(ev.id)) {
-                this.events?.emit('session.damaged', {
-                  sessionId: id,
-                  detail: `Orphan tool_result "${ev.id}" has no matching tool_use`,
-                });
-                continue;
+              if (ev.type === 'session_end') {
+                sessionEndEvent = ev;
+                sessionPendingToolUses = ev.pendingToolUses;
               }
-              openToolUses.delete(ev.id);
-              const resultBlock: ContentBlock = {
-                type: 'tool_result',
-                tool_use_id: ev.id,
-                content: typeof ev.content === 'string' ? ev.content : JSON.stringify(ev.content),
-                is_error: ev.isError,
-              };
-              const last = messages[messages.length - 1];
-              const lastIsToolResultUser =
-                last?.role === 'user' &&
-                Array.isArray(last.content) &&
-                last.content.every((b) => (b as ContentBlock).type === 'tool_result');
-              if (lastIsToolResultUser && Array.isArray(last.content)) {
-                last.content.push(resultBlock);
-              } else {
-                messages.push({ role: 'user', content: [resultBlock], ts: ev.ts });
+
+              // Build messages in the same pass (replay() logic inlined).
+              // Skipped entirely when mode.full is false.
+              if (mode.full && messages !== undefined && openToolUses !== undefined) {
+                if (ev.type === 'user_input') {
+                  openToolUses.clear();
+                  messages.push({ role: 'user', content: ev.content, ts: ev.ts });
+                } else if (ev.type === 'llm_response') {
+                  messages.push({ role: 'assistant', content: ev.content, ts: ev.ts });
+                  for (const b of ev.content) {
+                    if (b.type === 'tool_use') openToolUses.add(b.id);
+                  }
+                  usage = {
+                    input: usage.input + (ev.usage.input ?? 0),
+                    output: usage.output + (ev.usage.output ?? 0),
+                    cacheRead: (usage.cacheRead ?? 0) + (ev.usage.cacheRead ?? 0),
+                    cacheWrite: (usage.cacheWrite ?? 0) + (ev.usage.cacheWrite ?? 0),
+                  };
+                } else if (ev.type === 'tool_result') {
+                  if (!openToolUses.has(ev.id)) {
+                    this.events?.emit('session.damaged', {
+                      sessionId: id,
+                      detail: `Orphan tool_result "${ev.id}" has no matching tool_use`,
+                    });
+                    continue;
+                  }
+                  openToolUses.delete(ev.id);
+                  const resultBlock: ContentBlock = {
+                    type: 'tool_result',
+                    tool_use_id: ev.id,
+                    content: typeof ev.content === 'string' ? ev.content : JSON.stringify(ev.content),
+                    is_error: ev.isError,
+                  };
+                  const last = messages[messages.length - 1];
+                  const lastIsToolResultUser =
+                    last?.role === 'user' &&
+                    Array.isArray(last.content) &&
+                    last.content.every((b) => (b as ContentBlock).type === 'tool_result');
+                  if (lastIsToolResultUser && Array.isArray(last.content)) {
+                    last.content.push(resultBlock);
+                  } else {
+                    messages.push({ role: 'user', content: [resultBlock], ts: ev.ts });
+                  }
+                }
+              } else if (ev.type === 'llm_response') {
+                // events-only path still accumulates usage.
+                usage = {
+                  input: usage.input + (ev.usage.input ?? 0),
+                  output: usage.output + (ev.usage.output ?? 0),
+                  cacheRead: (usage.cacheRead ?? 0) + (ev.usage.cacheRead ?? 0),
+                  cacheWrite: (usage.cacheWrite ?? 0) + (ev.usage.cacheWrite ?? 0),
+                };
               }
             }
+          } catch {
+            // skip malformed JSON
           }
-        } catch {
-          // skip malformed JSON
         }
+      } finally {
+        rl.close();
+        stream.close();
       }
 
-      // Repair tool adjacency after the single parse + replay loop.
-      if (openToolUses.size > 0) {
-        this.events?.emit('session.damaged', {
-          sessionId: id,
-          detail: `${openToolUses.size} tool_use blocks without matching results - replay repaired`,
-        });
-      }
-      const repaired = repairToolUseAdjacency(messages);
-      if (repaired.report.changed) {
-        this.events?.emit('session.damaged', {
-          sessionId: id,
-          detail:
-            `Repaired replay adjacency: removed ${repaired.report.removedToolUses.length} tool_use, ` +
-            `${repaired.report.removedToolResults.length} tool_result, ` +
-            `${repaired.report.removedMessages} empty messages`,
-        });
+      let finalMessages: Message[] = [];
+      if (mode.full && messages !== undefined && openToolUses !== undefined) {
+        // Repair tool adjacency after the single parse + replay loop.
+        if (openToolUses.size > 0) {
+          this.events?.emit('session.damaged', {
+            sessionId: id,
+            detail: `${openToolUses.size} tool_use blocks without matching results - replay repaired`,
+          });
+        }
+        const repaired = repairToolUseAdjacency(messages);
+        if (repaired.report.changed) {
+          this.events?.emit('session.damaged', {
+            sessionId: id,
+            detail:
+              `Repaired replay adjacency: removed ${repaired.report.removedToolUses.length} tool_use, ` +
+              `${repaired.report.removedToolResults.length} tool_result, ` +
+              `${repaired.report.removedMessages} empty messages`,
+          });
+        }
+        finalMessages = repaired.messages;
       }
 
       // Build metadata from the extracted session_start/end events.
@@ -443,10 +495,14 @@ export class DefaultSessionStore implements SessionStore {
 
       // Extract tool_call_end events for TUI tool entry rendering on resume.
       const toolCallEnds = extractToolCallEnds(events);
-      const data: SessionData = { metadata: meta, events, messages: repaired.messages, usage, toolCallEnds };
+      const data: SessionData = { metadata: meta, events, messages: finalMessages, usage, toolCallEnds };
 
       // Update the cache. Evict oldest entry if at capacity.
-      if (this._loadCache.size >= DefaultSessionStore.LOAD_CACHE_MAX_ENTRIES) {
+      // Only full loads populate the cache; events-only loads always read
+      // through (they're cheap, and a hot loop on events-only would
+      // otherwise evict full-load entries that callers also need).
+      if (mode.full) {
+        if (this._loadCache.size >= DefaultSessionStore.LOAD_CACHE_MAX_ENTRIES) {
         // Map iteration order is insertion order â€” delete the first key.
         const oldest = this._loadCache.keys().next().value;
         if (oldest !== undefined) {
@@ -454,6 +510,7 @@ export class DefaultSessionStore implements SessionStore {
         }
       }
       this._loadCache.set(id, { mtimeMs: stat.mtimeMs, size: stat.size, data });
+      }
 
       return data;
     } catch (err) {
@@ -461,13 +518,13 @@ export class DefaultSessionStore implements SessionStore {
       errorMsg = toErrorMessage(err);
       throw err;
     } finally {
-      this.emitRead(id, file, 'load', outcome, Date.now() - t0, errorMsg);
+      this.emitRead(id, file, mode.full ? 'load' : 'load_events_only', outcome, Date.now() - t0, errorMsg);
       if (cacheHit) {
         this.events?.emit('storage.cache_hit', {
           sessionId: id,
           store: 'session',
           filePath: file,
-          operation: 'load',
+          operation: mode.full ? 'load' : 'load_events_only',
           durationMs: Date.now() - t0,
         });
       }
@@ -1094,15 +1151,16 @@ export class DefaultSessionStore implements SessionStore {
   private async deleteSession(id: string): Promise<void> {
     const jsonlPath = this.sessionPath(id, '.jsonl');
     const summaryPath = this.sessionPath(id, '.summary.json');
-    const shardDir = path.dirname(path.join(this.dir, id));
+    const shardDir = path.dirname(jsonlPath);
     const base = path.basename(id);
     const sessDir = path.join(shardDir, base);
 
     const deletions: Array<Promise<void>> = [
       fsp.unlink(jsonlPath),
       fsp.unlink(summaryPath),
-      fsp.unlink(path.join(shardDir, `${base}.plan.json`)),
-      fsp.unlink(path.join(shardDir, `${base}.todos.json`)),
+      fsp.unlink(sessionScopedPath(this.dir, id, '.plan.json')),
+      fsp.unlink(sessionScopedPath(this.dir, id, '.tasks.json')),
+      fsp.unlink(sessionScopedPath(this.dir, id, '.todos.json')),
     ];
 
     const results = await Promise.allSettled(deletions);
@@ -1348,4 +1406,3 @@ export class DefaultSessionStore implements SessionStore {
 
 
 }
-

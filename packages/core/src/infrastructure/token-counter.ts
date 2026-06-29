@@ -29,18 +29,32 @@ export class DefaultTokenCounter implements TokenCounter {
   private readonly registry?: ModelsRegistry | undefined;
   private readonly providerId?: string | undefined;
   private readonly events?: EventBus | undefined;
+  private sessionId?: string | (() => string | undefined) | undefined;
   private priceCache = new Map<string, PriceEntry>();
   /** Most recently accounted request's tokens. Used for per-request context pressure. */
   private lastInput = 0;
   private lastCacheRead = 0;
 
-  constructor(opts: { registry?: ModelsRegistry | undefined; providerId?: string | undefined; events?: EventBus | undefined } = {}) {
+  constructor(
+    opts: {
+      registry?: ModelsRegistry | undefined;
+      providerId?: string | undefined;
+      events?: EventBus | undefined;
+      sessionId?: string | (() => string | undefined) | undefined;
+    } = {},
+  ) {
     this.registry = opts.registry;
     this.providerId = opts.providerId;
     this.events = opts.events;
+    this.sessionId = opts.sessionId;
+  }
+
+  setSessionId(sessionId: string | (() => string | undefined) | undefined): void {
+    this.sessionId = sessionId;
   }
 
   account(usage: Usage, model?: string): void {
+    const eventSessionId = this.currentSessionId();
     this.input += usage.input;
     this.output += usage.output;
     this.cacheRead += usage.cacheRead ?? 0;
@@ -52,7 +66,7 @@ export class DefaultTokenCounter implements TokenCounter {
     const price = model ? this.priceCache.get(model) : undefined;
     if (price) {
       this.applyPrice(usage, price);
-      this.emitAccounted();
+      this.emitAccounted(eventSessionId);
       return;
     }
 
@@ -74,12 +88,15 @@ export class DefaultTokenCounter implements TokenCounter {
           // Token totals are authoritative even when pricing is unresolved.
           // Emit after the lookup settles so live UIs update for unknown models
           // without double-emitting when pricing is resolved.
-          this.emitAccounted();
+          this.emitAccounted(eventSessionId);
         })
         .catch(() => {
           // Emit so observability tooling can detect unknown models.
-          this.events?.emit('token.cost_estimate_unavailable', { model: model ?? '<unknown>' });
-          this.emitAccounted();
+          this.events?.emit('token.cost_estimate_unavailable', {
+            ...(eventSessionId ? { sessionId: eventSessionId } : {}),
+            model: model ?? '<unknown>',
+          });
+          this.emitAccounted(eventSessionId);
           return undefined;
         });
       return;
@@ -87,11 +104,12 @@ export class DefaultTokenCounter implements TokenCounter {
 
     // No pricing source exists. Still emit token totals so live UIs do not stay
     // at 0 just because cost cannot be estimated.
-    this.emitAccounted();
+    this.emitAccounted(eventSessionId);
   }
 
   /** Synchronous variant for code paths that have already resolved the model. */
   accountWithModel(usage: Usage, resolved: ResolvedModel): void {
+    const eventSessionId = this.currentSessionId();
     this.input += usage.input;
     this.output += usage.output;
     this.cacheRead += usage.cacheRead ?? 0;
@@ -106,7 +124,7 @@ export class DefaultTokenCounter implements TokenCounter {
     }
     this.priceCache.set(resolved.modelId, price);
     this.applyPrice(usage, price);
-    this.emitAccounted();
+    this.emitAccounted(eventSessionId);
   }
 
   total(): Usage {
@@ -148,11 +166,17 @@ export class DefaultTokenCounter implements TokenCounter {
     this.priceCache.clear();
   }
 
-  private emitAccounted(): void {
+  private emitAccounted(sessionId = this.currentSessionId()): void {
     this.events?.emit('token.accounted', {
+      ...(sessionId ? { sessionId } : {}),
       usage: this.total(),
       cost: { input: this.costInput, output: this.costOutput, total: this.costInput + this.costOutput },
     });
+  }
+
+  private currentSessionId(): string | undefined {
+    const value = typeof this.sessionId === 'function' ? this.sessionId() : this.sessionId;
+    return typeof value === 'string' && value.length > 0 ? value : undefined;
   }
 
   reset(): void {

@@ -7,6 +7,43 @@ import {
   estimateToolResultTokens,
 } from '../utils/token-estimate.js';
 
+// ── Pre-compiled regexes for scoreMessage ─────────────────────────────
+// These were previously declared inline as literal expressions inside
+// `scoreMessage`, which means a fresh RegExp object was compiled on every
+// call. With ~50k messages in a long agent run, that's a lot of wasted
+// work. Hoisting them to module scope means the regex engine compiles
+// them exactly once at module load.
+
+// Repeated-failure detection (used twice in scoreMessage — once for the
+// boolean match, once to extract the error key).
+const FAILURE_PATTERN = /(error|fail|exception|timeout|enonet|eacces|eperm|enoent|abort)/i;
+
+// User corrections / stop signals.
+const CORRECTION_PATTERN = /\b(wrong|no\b|stop\b|don'?t\b|actually|fix that|undo|revert|forget|ignore|skip)\b/i;
+
+// Error / exception / crash language.
+const ERROR_LANG_PATTERN = /\b(error|exception|fatal|critical|crash|panic|abort|segfault|core dump|undefined is not|null pointer|typeerror|referenceerror|syntaxerror)\b/i;
+
+// Security findings.
+const SECURITY_PATTERN = /\b(security|vulnerability|injection|xss|csrf|secret|apikey|api.key|hardcoded|leak|exploit|cve)\b/i;
+
+// Architecture / design decisions.
+const ARCHITECTURE_PATTERN = /\b(architecture|design|approach|strategy|pattern|refactor|migrate|restructure|decision|trade.?off)\b/i;
+
+// Grep / list / tree output markers (low-priority boilerplate).
+const BOILERPLATE_PATTERN = /\b(files_with_matches|count|found \d+ match|directory tree|\.\.\. and \d+ more)\b/i;
+
+// Path hint extraction — used inside firstErrorLine path summaries.
+const PATH_HINT_PATTERN = /(?:(?:[A-Za-z]:)?[./\\]?[\w@.-]+(?:[\\/][\w@(). -]+)+\.[A-Za-z0-9]{1,12})/g;
+const PATH_BACKSLASH_PATTERN = /\\/g;
+const PATH_TRIM_PATTERN = /^["'`]+|["'`),;:]+$/g;
+
+// Error line detection — first non-blank line whose text matches the
+// set of words that indicate something went wrong.
+const ERROR_LINE_PATTERN = /\b(error|exception|failed|failure|fatal|panic|timeout|denied|enoent|eacces|eperm)\b/i;
+const NEWLINE_SPLIT_PATTERN = /\r?\n/;
+const WHITESPACE_COLLAPSE_PATTERN = /\s+/g;
+
 /**
  * Instrumentation state for compaction hot-path analysis.
  * Tracks actual vs. nominal iteration counts to detect O(n·m) blowup.
@@ -395,9 +432,8 @@ function summarizeToolResultElision(block: ToolResultBlock, tokens: number): str
 function extractPathHints(content: unknown): string[] {
   const text = typeof content === 'string' ? content : JSON.stringify(content);
   const out = new Set<string>();
-  const re = /(?:(?:[A-Za-z]:)?[./\\]?[\w@.-]+(?:[\\/][\w@(). -]+)+\.[A-Za-z0-9]{1,12})/g;
-  for (const match of text.matchAll(re)) {
-    const clean = match[0]?.replace(/\\/g, '/').replace(/^["'`]+|["'`),;:]+$/g, '');
+  for (const match of text.matchAll(PATH_HINT_PATTERN)) {
+    const clean = match[0]?.replace(PATH_BACKSLASH_PATTERN, '/').replace(PATH_TRIM_PATTERN, '');
     if (clean && clean.length <= 220) out.add(clean);
     if (out.size >= 5) break;
   }
@@ -406,14 +442,9 @@ function extractPathHints(content: unknown): string[] {
 
 function firstErrorLine(content: unknown): string | undefined {
   const text = typeof content === 'string' ? content : JSON.stringify(content);
-  for (const line of text.split(/\r?\n/)) {
-    if (
-      !/\b(error|exception|failed|failure|fatal|panic|timeout|denied|enoent|eacces|eperm)\b/i.test(
-        line,
-      )
-    )
-      continue;
-    const trimmed = line.replace(/\s+/g, ' ').trim();
+  for (const line of text.split(NEWLINE_SPLIT_PATTERN)) {
+    if (!ERROR_LINE_PATTERN.test(line)) continue;
+    const trimmed = line.replace(WHITESPACE_COLLAPSE_PATTERN, ' ').trim();
     if (trimmed) return trimmed.slice(0, 180);
   }
   return undefined;
@@ -514,13 +545,11 @@ export function scoreMessage(
   // ── Repeated failure detection ─────────────────────────────────────
   if (context?.failureCounts && m.role === 'user' && hasToolUse(m) === false) {
     // Check if this is a tool_result that matches a failure pattern
-    const isFailure = /error|fail|exception|timeout|enonet|eacces|eperm|enoent|abort/i.test(text);
-    if (isFailure) {
-      // Build a key from the error type
-      const errKey =
-        /(error|fail|exception|timeout|enonet|eacces|eperm|enoent|abort)/i
-          .exec(text)?.[0]
-          ?.toLowerCase() ?? 'error';
+    const failureMatch = FAILURE_PATTERN.exec(text);
+    if (failureMatch) {
+      // Build a key from the error type. Reuse the match result from
+      // the boolean test above to avoid scanning the text twice.
+      const errKey = failureMatch[0]?.toLowerCase() ?? 'error';
       const count = (context.failureCounts.get(errKey) ?? 0) + 1;
       context.failureCounts.set(errKey, count);
       if (count >= 5) return 0; // 5th+ identical failure → noise
@@ -530,40 +559,23 @@ export function scoreMessage(
 
   // ── Critical: user corrections / stop signals ──────────────────────
   if (m.role === 'user') {
-    if (
-      /\b(wrong|no\b|stop\b|don'?t\b|actually|fix that|undo|revert|forget|ignore|skip)\b/i.test(
-        text,
-      )
-    ) {
+    if (CORRECTION_PATTERN.test(text)) {
       return 5;
     }
   }
 
   // ── Critical: error / exception messages ───────────────────────────
-  if (
-    /\b(error|exception|fatal|critical|crash|panic|abort|segfault|core dump|undefined is not|null pointer|typeerror|referenceerror|syntaxerror)\b/i.test(
-      text,
-    )
-  ) {
+  if (ERROR_LANG_PATTERN.test(text)) {
     return 5;
   }
 
   // ── Critical: security findings ────────────────────────────────────
-  if (
-    /\b(security|vulnerability|injection|xss|csrf|secret|apikey|api.key|hardcoded|leak|exploit|cve)\b/i.test(
-      text,
-    )
-  ) {
+  if (SECURITY_PATTERN.test(text)) {
     return 5;
   }
 
   // ── Critical: architecture / design decisions ──────────────────────
-  if (
-    m.role === 'assistant' &&
-    /\b(architecture|design|approach|strategy|pattern|refactor|migrate|restructure|decision|trade.?off)\b/i.test(
-      text,
-    )
-  ) {
+  if (m.role === 'assistant' && ARCHITECTURE_PATTERN.test(text)) {
     return 5;
   }
 
@@ -574,7 +586,7 @@ export function scoreMessage(
   if (
     m.role === 'user' &&
     !hasToolUse(m) &&
-    /\b(files_with_matches|count|found \d+ match|directory tree|\.\.\. and \d+ more)\b/i.test(text)
+    BOILERPLATE_PATTERN.test(text)
   ) {
     return 1;
   }
@@ -599,6 +611,18 @@ export function buildSmartDigest(messages: readonly Message[]): string {
   let noiseCount = 0;
 
   for (const m of messages) {
+    // Noise early-bail: a message with no text AND no tool_use block is
+    // pure tool I/O (only tool_result blocks). scoreMessage would return 0
+    // for it after a full scan, so skip the regex suite entirely. This is
+    // the dominant case in long sessions — repeated tool I/O often
+    // accounts for >50% of message count.
+    const isPureToolIO =
+      Array.isArray(m.content) && m.content.length > 0 && !hasToolUse(m) && m.content.every((b) => b.type === 'tool_result');
+    if (isPureToolIO) {
+      noiseCount++;
+      continue;
+    }
+
     const score = scoreMessage(m, { failureCounts });
     const text = extractText(m);
     const toolCount = countToolBlocks(m);

@@ -88,6 +88,7 @@ export interface RunResult {
 export interface WorktreeManagerOptions {
   projectRoot: string;
   events?: EventBus | undefined;
+  sessionId?: string | (() => string | undefined) | undefined;
   gitBin?: string | undefined;
   /**
    * Test seam. When provided, replaces the real `git` spawn so the manager's
@@ -107,6 +108,7 @@ const MAX_SLUG = 40;
 export class WorktreeManager {
   private readonly projectRoot: string;
   private readonly events?: EventBus | undefined;
+  private readonly sessionIdSource: string | (() => string | undefined) | undefined;
   private readonly gitBin: string;
   private readonly runGit: (args: string[], cwd: string) => Promise<RunResult>;
   /** Keyed by ownerId. */
@@ -116,6 +118,7 @@ export class WorktreeManager {
   constructor(opts: WorktreeManagerOptions) {
     this.projectRoot = resolve(opts.projectRoot);
     this.events = opts.events;
+    this.sessionIdSource = opts.sessionId;
     this.gitBin = opts.gitBin ?? 'git';
     this.runGit = opts.run ?? ((args, cwd) => this.defaultRun(args, cwd));
   }
@@ -851,7 +854,21 @@ export class WorktreeManager {
     event: E,
     payload: Parameters<EventBus['emit']>[1],
   ): void {
-    this.events?.emit(event, payload as never);
+    const sessionId = this.currentSessionId();
+    this.events?.emit(
+      event,
+      (sessionId && payload && typeof payload === 'object'
+        ? { ...(payload as Record<string, unknown>), sessionId }
+        : payload) as never,
+    );
+  }
+
+  private currentSessionId(): string | undefined {
+    const value =
+      typeof this.sessionIdSource === 'function'
+        ? this.sessionIdSource()
+        : this.sessionIdSource;
+    return typeof value === 'string' && value.length > 0 ? value : undefined;
   }
 
   private defaultRun(args: string[], cwd: string): Promise<RunResult> {

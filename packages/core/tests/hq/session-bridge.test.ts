@@ -121,7 +121,7 @@ describe('session telemetry bridge', () => {
   });
 
   it('publishes an initial snapshot, agent updates, transcript, and ended', async () => {
-    const sessionId = '2026-06-23/12-00-00Z_test_aa11';
+    const sessionId = '2026-06-23/sess_01JX2S9V7T5M6N7P8Q9R0STXVW';
     await writeSessionLog(sessionId, [
       { type: 'user_input', ts: '2026-06-23T12:00:01Z', content: 'hello' },
       {

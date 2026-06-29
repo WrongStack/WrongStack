@@ -286,7 +286,11 @@ export class AutoPhaseWebSocketHandler {
       useWorktrees &&
       isGitRepo(this.projectRoot)
     ) {
-      this.worktrees = new WorktreeManager({ projectRoot: this.projectRoot, events: this.events });
+      this.worktrees = new WorktreeManager({
+        projectRoot: this.projectRoot,
+        events: this.events,
+        sessionId: () => this.context.session?.id,
+      });
     }
     // Capture the pre-run base tip so `autophase.revert` can git-revert exactly
     // the commits this run lands on the base branch.

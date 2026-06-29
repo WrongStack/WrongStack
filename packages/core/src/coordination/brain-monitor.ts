@@ -41,6 +41,8 @@ export interface BrainInterventionInput {
 export interface BrainMonitorOptions {
   events: EventBus;
   brain: BrainArbiter;
+  /** Active host session id, read lazily so resume/new-session switches are reflected. */
+  sessionId?: (() => string | undefined) | undefined;
   /**
    * Deliver a corrective steer to the working agent(s). Hosts typically
    * send a `steer` mail to this session's leader via the project
@@ -141,6 +143,7 @@ export class BrainMonitor {
     try {
       const request: BrainDecisionRequest = {
         id: `brainmon-${randomUUID()}`,
+        sessionId: this.opts.sessionId?.(),
         source: 'system',
         question: input.question,
         context: input.context,
@@ -166,6 +169,7 @@ export class BrainMonitor {
       const decision = await this.opts.brain.decide(request);
       const intervened = await this.maybeIntervene(kind, request, decision);
       this.opts.events.emit('brain.intervention', {
+        sessionId: request.sessionId,
         kind,
         request,
         decision,

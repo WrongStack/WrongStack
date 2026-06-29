@@ -6,6 +6,12 @@ import { useAutoPhaseStore, useChatStore, useFileStore, useGitChangesStore, useG
 import { useLocalPrefs } from '@/stores/local-prefs';
 import type { WSServerMessage } from '@/types';
 
+function isActiveSessionMessage(msg: WSServerMessage): boolean {
+  const sessionId = (msg.payload as { sessionId?: string | undefined } | undefined)?.sessionId;
+  const activeId = useSessionStore.getState().session?.id;
+  return !sessionId || !activeId || sessionId === activeId;
+}
+
 function deriveAutoPhaseStatus(phases: PhaseItem[] | undefined): 'running' | 'paused' | 'completed' | 'failed' | undefined {
   if (!phases || phases.length === 0) return undefined;
   const statuses = phases.map((p) => (p as unknown as { status?: string }).status);
@@ -124,6 +130,7 @@ export function handlePrefsUpdated(msg: WSServerMessage) {
 }
 
 export function handleBrainStatus(msg: WSServerMessage) {
+  if (!isActiveSessionMessage(msg)) return;
   const p = msg.payload as {
     maxAutoRisk: string;
     log: Array<{ at: number; kind: string; question: string; outcome: string }>;
@@ -148,6 +155,7 @@ export function handleBrainStatus(msg: WSServerMessage) {
 }
 
 export function handleBrainAnswer(msg: WSServerMessage) {
+  if (!isActiveSessionMessage(msg)) return;
   const p = msg.payload as {
     question: string;
     decision: { type: string; text?: string; rationale?: string; reason?: string };
@@ -168,6 +176,7 @@ export function handleBrainAnswer(msg: WSServerMessage) {
 }
 
 export function handleBrainEvent(msg: WSServerMessage) {
+  if (!isActiveSessionMessage(msg)) return;
   const p = msg.payload as {
     event: string;
     intervened?: boolean;

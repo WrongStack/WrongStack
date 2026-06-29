@@ -31,6 +31,8 @@ export interface StartSddRunOptions {
   agent: Agent;
   projectRoot: string;
   events: EventBus;
+  /** Parent session id for all SDD EventBus emissions. */
+  sessionId?: string | (() => string | undefined) | undefined;
   /** Per-task agent factory. Omit to run every task on the leader agent. */
   subagentFactory?: AgentFactory | undefined;
   /** Board snapshot/event persistence (also drained for cross-process control). */
@@ -89,6 +91,7 @@ export function startSddRun(opts: StartSddRunOptions): SddRunHandle {
     graph: opts.graph,
     agent: opts.agent,
     projectRoot: opts.projectRoot,
+    sessionId: opts.sessionId,
     parallelSlots: opts.parallelSlots,
     taskTimeoutMs: opts.taskTimeoutMs,
     taskIdleTimeoutMs: opts.taskIdleTimeoutMs,
@@ -113,6 +116,7 @@ export function startSddRun(opts: StartSddRunOptions): SddRunHandle {
     tracker: opts.tracker,
     events: opts.events,
     store: opts.boardStore,
+    sessionId: opts.sessionId,
     specId: opts.graph.specId,
     defaultModel: opts.defaultModel,
     defaultProvider: opts.defaultProvider,

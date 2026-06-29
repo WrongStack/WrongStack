@@ -396,3 +396,67 @@ describe('FileSessionWriter — observeForSummary event types + scheduled flush'
     expect(data.events.filter((e) => e.type === 'user_input').length).toBeGreaterThanOrEqual(61);
   });
 });
+
+describe('DefaultSessionStore.loadEventsOnly — fast-path loader', () => {
+  it('returns events and metadata but skips message reconstruction', async () => {
+    const w = await store.create({ id: 'eo1', model: 'm', provider: 'p' });
+    await w.append({ type: 'user_input', ts: now(), content: 'hello' });
+    await w.append({
+      type: 'llm_response',
+      ts: now(),
+      content: [
+        { type: 'text', text: 'world' },
+        { type: 'tool_use', id: 't1', name: 'bash', input: {} },
+      ],
+      usage: { input: 7, output: 11 },
+      stopReason: 'tool_use',
+    });
+    await w.append({ type: 'tool_result', ts: now(), id: 't1', content: 'r', isError: false });
+    await w.close();
+
+    const data = await store.loadEventsOnly('eo1');
+    // Events are preserved verbatim.
+    expect(data.events.length).toBeGreaterThan(0);
+    expect(data.events.some((e) => e.type === 'user_input')).toBe(true);
+    expect(data.events.some((e) => e.type === 'llm_response')).toBe(true);
+    // Messages array is empty — this is the whole point of the fast path.
+    expect(data.messages).toEqual([]);
+    // Metadata is still extracted.
+    expect(data.metadata.id).toBe('eo1');
+    expect(data.metadata.model).toBe('m');
+    expect(data.metadata.provider).toBe('p');
+    // Usage is still summed across llm_response events.
+    expect(data.usage.input).toBe(7);
+    expect(data.usage.output).toBe(11);
+  });
+
+  it('reuses the full-load cache when called after load()', async () => {
+    const w = await store.create({ id: 'eo2', model: 'm', provider: 'p' });
+    await w.append({ type: 'user_input', ts: now(), content: 'x' });
+    await w.close();
+
+    // First call — populates the cache.
+    const full = await store.load('eo2');
+    expect(full.messages.length).toBeGreaterThan(0);
+    // Second call (events-only) — should hit the cache and project to messages=[].
+    const eventsOnly = await store.loadEventsOnly('eo2');
+    expect(eventsOnly.messages).toEqual([]);
+    // Events list is shared with the cached full load.
+    expect(eventsOnly.events.length).toBe(full.events.length);
+    expect(eventsOnly.metadata.id).toBe('eo2');
+  });
+
+  it('reads through the file when cache is cold (no prior full load)', async () => {
+    const w = await store.create({ id: 'eo3', model: 'm', provider: 'p' });
+    await w.append({ type: 'user_input', ts: now(), content: 'cold' });
+    await w.close();
+
+    // First call is events-only — cache is cold, so it reads through.
+    const eventsOnly = await store.loadEventsOnly('eo3');
+    expect(eventsOnly.messages).toEqual([]);
+    expect(eventsOnly.events.some((e) => e.type === 'user_input')).toBe(true);
+    // A subsequent full load sees the same events (no corruption from the cold path).
+    const full = await store.load('eo3');
+    expect(full.events.length).toBe(eventsOnly.events.length);
+  });
+});

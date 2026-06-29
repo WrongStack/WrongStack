@@ -27,10 +27,35 @@ export interface AnalyticsEvent {
 const EVENT_BUFFER: AnalyticsEvent[] = [];
 const MAX_BUFFER_SIZE = 1000;
 
+// Running counters so /summary is O(1) instead of O(n). Maintained alongside
+// the ring buffer; reset together with the buffer (see clearAnalyticsBuffer).
+const EVENT_COUNTS = new Map<string, number>();
+const CATEGORY_COUNTS = new Map<string, number>();
+
+function incCount(map: Map<string, number>, key: string): void {
+  map.set(key, (map.get(key) ?? 0) + 1);
+}
+
+function decCount(map: Map<string, number>, key: string): void {
+  const next = (map.get(key) ?? 0) - 1;
+  if (next <= 0) {
+    map.delete(key);
+  } else {
+    map.set(key, next);
+  }
+}
+
 function pushEvent(event: AnalyticsEvent): void {
   EVENT_BUFFER.push(event);
+  incCount(EVENT_COUNTS, event.event);
+  incCount(CATEGORY_COUNTS, event.category);
+  // Cap the ring buffer; decrement the counter for the evicted event.
   if (EVENT_BUFFER.length > MAX_BUFFER_SIZE) {
-    EVENT_BUFFER.shift();
+    const evicted = EVENT_BUFFER.shift();
+    if (evicted) {
+      decCount(EVENT_COUNTS, evicted.event);
+      decCount(CATEGORY_COUNTS, evicted.category);
+    }
   }
 }
 
@@ -118,22 +143,14 @@ export async function handleApiAnalyticsGet(
 export async function handleApiAnalyticsSummary(
   res: http.ServerResponse,
 ): Promise<void> {
-  const eventCounts = new Map<string, number>();
-  const categoryCounts = new Map<string, number>();
-
-  for (const evt of EVENT_BUFFER) {
-    eventCounts.set(evt.event, (eventCounts.get(evt.event) ?? 0) + 1);
-    categoryCounts.set(evt.category, (categoryCounts.get(evt.category) ?? 0) + 1);
-  }
-
   res.writeHead(200, { 'Content-Type': 'application/json' });
   res.end(
     JSON.stringify({
       totalEvents: EVENT_BUFFER.length,
-      uniqueEvents: eventCounts.size,
-      uniqueCategories: categoryCounts.size,
-      eventBreakdown: Object.fromEntries(eventCounts),
-      categoryBreakdown: Object.fromEntries(categoryCounts),
+      uniqueEvents: EVENT_COUNTS.size,
+      uniqueCategories: CATEGORY_COUNTS.size,
+      eventBreakdown: Object.fromEntries(EVENT_COUNTS),
+      categoryBreakdown: Object.fromEntries(CATEGORY_COUNTS),
       oldestTimestamp: EVENT_BUFFER[0]?.timestamp ?? null,
       newestTimestamp: EVENT_BUFFER[EVENT_BUFFER.length - 1]?.timestamp ?? null,
     }),
@@ -143,6 +160,8 @@ export async function handleApiAnalyticsSummary(
 /** Clear the in-memory buffer (useful for testing). */
 export function clearAnalyticsBuffer(): void {
   EVENT_BUFFER.length = 0;
+  EVENT_COUNTS.clear();
+  CATEGORY_COUNTS.clear();
 }
 
 /** Get a snapshot of the buffer (useful for testing). */

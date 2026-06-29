@@ -33,6 +33,9 @@ describe('session lifecycle end-to-end (JSONL chain)', () => {
     const writer1 = await store.create({ id: '', model: 'model-x', provider: 'prov-y' });
     const id = writer1.id;
     expect(id).toMatch(/^\d{4}-\d{2}-\d{2}\//); // date shard prefix
+    expect(id).toMatch(/^\d{4}-\d{2}-\d{2}\/sess_[0-9A-HJKMNP-TV-Z]{26}$/);
+    expect(id).not.toContain('model-x');
+    expect(id).not.toContain('prov-y');
 
     await writer1.append({ type: 'user_input', ts: ts(1), content: 'first question' });
     await writer1.append({

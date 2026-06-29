@@ -65,7 +65,7 @@ export interface PlanFile {
   project-level plan at `~/.wrongstack/projects/<hash>/plan.json`
   (`WstackPaths.projectPlan`).
 - The LLM-callable `plan` tool uses `ctx.meta['plan.path']`, which CLI session
-  setup seeds as `~/.wrongstack/projects/<hash>/sessions/<session-id>.plan.json`.
+  setup seeds as `~/.wrongstack/projects/<hash>/sessions/<date>/sess_<ULID>.plan.json`.
   This keeps tool-driven planning scoped to the active session while the slash
   command remains a project-level board.
 - Atomic write via `atomicWrite` with `0o600` permissions

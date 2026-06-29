@@ -953,6 +953,7 @@ export class EternalAutonomyEngine {
     try {
       const decision = await this.opts.brain.decide({
         id: `goal-done-${goal.iterations}`,
+        sessionId: this.opts.agent.ctx.session?.id,
         source: 'system',
         question: `Brainstorm returned DONE ${this.consecutiveBrainstormDone}x. Is the goal truly complete?`,
         context: [

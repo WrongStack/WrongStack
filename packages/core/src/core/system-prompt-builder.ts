@@ -27,6 +27,11 @@ import type { Tool } from '../types/tool.js';
 
 export const LAYER_1_IDENTITY = DEFAULT_PROMPT;
 
+function shortSessionId(sessionId: string): string {
+  const leaf = sessionId.split('/').pop() ?? sessionId;
+  return leaf.length > 12 ? `${leaf.slice(0, 12)}…` : leaf;
+}
+
 /** Canonical shell the `bash` tool targets — drives the Environment Shell line
  *  and the syntax-guidance sub-block. */
 export type EffectiveShell = 'pwsh' | 'powershell' | 'cmd' | 'posix';
@@ -371,10 +376,10 @@ export class DefaultSystemPromptBuilder implements SystemPromptBuilder {
   private _planCache?: { path: string; mtimeMs: number; text: string } | undefined;
 
   /**
-   * Reads `<sessionId>.plan.json` (when configured) and produces a short
-   * "Active plan" block listing open items so the model is anchored to
-   * the strategic roadmap every turn. Reads on every `build()` so a
-   * plan edit (via `/plan` or the `plan` tool) reflects on the next
+   * Reads the session-scoped plan sidecar (when configured) and produces
+   * a short "Active plan" block listing open items so the model is
+   * anchored to the strategic roadmap every turn. Reads on every `build()`
+   * so a plan edit (via `/plan` or the `plan` tool) reflects on the next
    * turn without restarting the session.
    */
   private async buildActivePlan(): Promise<string> {
@@ -715,7 +720,7 @@ export class DefaultSystemPromptBuilder implements SystemPromptBuilder {
     const agentList = agents
       .map(
         (a) =>
-          `- **${a.name}** (${a.source ?? 'unknown'}${a.sessionId ? `, session: ${a.sessionId.slice(0, 8)}` : ''})`,
+          `- **${a.name}** (${a.source ?? 'unknown'}${a.sessionId ? `, session: ${shortSessionId(a.sessionId)}` : ''})`,
       )
       .join('\n');
     const text = `\n\n**Currently online (${totalCount} agent${totalCount !== 1 ? 's' : ''}):**\n${agentList}`;

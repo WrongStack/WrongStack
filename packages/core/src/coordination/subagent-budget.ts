@@ -74,6 +74,12 @@ export interface BudgetLimits {
  */
 export type BudgetNegotiationMode = 'auto' | 'sync';
 
+export type BudgetSessionIdSource = string | (() => string | undefined);
+
+export interface SubagentBudgetOptions {
+  sessionId?: BudgetSessionIdSource | undefined;
+}
+
 export interface BudgetUsage {
   iterations: number;
   toolCalls: number;
@@ -201,6 +207,7 @@ export class SubagentBudget {
    */
   private lastActivityTime: number | null = null;
   private _onThreshold: BudgetThresholdHandler | undefined;
+  private readonly _sessionId: BudgetSessionIdSource | undefined;
   /**
    * Hard cap on how long `_negotiateExtension` waits for the coordinator to
    * respond before defaulting to 'stop'. Without this fallback an absent
@@ -271,8 +278,13 @@ export class SubagentBudget {
     return this._mode;
   }
 
-  constructor(limits: BudgetLimits = {}, mode: BudgetNegotiationMode = 'auto') {
+  constructor(
+    limits: BudgetLimits = {},
+    mode: BudgetNegotiationMode = 'auto',
+    options: SubagentBudgetOptions = {},
+  ) {
     this._mode = mode;
+    this._sessionId = options.sessionId;
     // NOT frozen: `negotiateExtension` patches these limits in place when the
     // coordinator grants an auto-extension. Freezing made every granted
     // extension throw `TypeError: Cannot assign to read only property` in
@@ -280,6 +292,11 @@ export class SubagentBudget {
     // silently became kills. The `readonly limits: Readonly<BudgetLimits>`
     // typing still blocks external mutation at compile time.
     this.limits = { ...limits };
+  }
+
+  private currentSessionId(): string | undefined {
+    const value = typeof this._sessionId === 'function' ? this._sessionId() : this._sessionId;
+    return typeof value === 'string' && value.length > 0 ? value : undefined;
   }
 
   start(): void {
@@ -509,7 +526,9 @@ export class SubagentBudget {
         resolve(d);
       };
       const fallback = setTimeout(() => respond('stop'), SubagentBudget.DECISION_TIMEOUT_MS);
+      const sessionId = this.currentSessionId();
       bus.emit('budget.threshold_reached', {
+        ...(sessionId ? { sessionId } : {}),
         kind: entry.kind as
           | 'iterations'
           | 'tool_calls'

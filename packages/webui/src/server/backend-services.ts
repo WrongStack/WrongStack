@@ -285,6 +285,7 @@ export async function createAgentServices(input: AgentServicesInput): Promise<Ag
       autoCompactor?.setEnabled(false);
     }
     events.emit('ctx.max_context', {
+      sessionId: context.session.id,
       providerId: newProvider.id,
       modelId: context.model,
       maxContext: newMaxContext,
@@ -397,6 +398,7 @@ export async function createAgentServices(input: AgentServicesInput): Promise<Ag
   const brainMonitor = new BrainMonitor({
     events,
     brain,
+    sessionId: () => context.session?.id,
     intervene: async ({ subject, body }) => {
       const tag = mailboxSessionTag(input.sessionGetter().id);
       await brainMailbox.send({

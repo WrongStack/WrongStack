@@ -16,6 +16,7 @@ export interface UseTuiEventBridgeOptions {
   dispatch: React.Dispatch<Action>;
   stateRef: React.MutableRefObject<State>;
   setActiveMaxContext: (value: number | undefined) => void;
+  getSessionId?: (() => string | undefined) | undefined;
   subscribeAutoPhase?:
     | ((handler: (event: string, payload: unknown) => void) => () => void)
     | undefined;
@@ -33,22 +34,29 @@ export function useTuiEventBridge({
   dispatch,
   stateRef,
   setActiveMaxContext,
+  getSessionId,
   subscribeAutoPhase,
   onClearHistory,
 }: UseTuiEventBridgeOptions): void {
-  useSubagentEvents(events, dispatch, setActiveMaxContext);
-  useSessionEvents(events, dispatch, onClearHistory);
-  useBrainEvents(events, dispatch);
-  useAutoPhaseEvents(subscribeAutoPhase, dispatch, stateRef);
+  useSubagentEvents(events, dispatch, setActiveMaxContext, getSessionId);
+  useSessionEvents(events, dispatch, onClearHistory, getSessionId);
+  useBrainEvents(events, dispatch, getSessionId);
+  useAutoPhaseEvents(subscribeAutoPhase, dispatch, stateRef, getSessionId);
 }
 
 function useSessionEvents(
   events: EventBus,
   dispatch: React.Dispatch<Action>,
   onClearHistory?: ((dispatch: ClearHistoryDispatch) => void) | undefined,
+  getSessionId?: (() => string | undefined) | undefined,
 ): void {
   useEffect(() => {
+    const isCurrentSession = (sessionId?: string | undefined): boolean => {
+      const current = getSessionId?.();
+      return !sessionId || !current || sessionId === current;
+    };
     const offCheckpoint = events.on('checkpoint.written', (e) => {
+      if (!isCurrentSession(e.sessionId)) return;
       dispatch({
         type: 'checkpointReceived',
         cp: {
@@ -59,7 +67,8 @@ function useSessionEvents(
         },
       });
     });
-    const offRewound = events.on('session.rewound', () => {
+    const offRewound = events.on('session.rewound', (e) => {
+      if (!isCurrentSession(e.sessionId)) return;
       dispatch({ type: 'sessionRewound', toPromptIndex: 0 });
       dispatch({ type: 'clearHistory' });
       dispatch({ type: 'resetContextChip' });
@@ -69,7 +78,7 @@ function useSessionEvents(
       offCheckpoint();
       offRewound();
     };
-  }, [events, dispatch, onClearHistory]);
+  }, [events, dispatch, onClearHistory, getSessionId]);
 }
 
 function useAutoPhaseEvents(
@@ -78,11 +87,21 @@ function useAutoPhaseEvents(
     | undefined,
   dispatch: React.Dispatch<Action>,
   stateRef: React.MutableRefObject<State>,
+  getSessionId?: (() => string | undefined) | undefined,
 ): void {
   useEffect(() => {
     if (!subscribeAutoPhase) return;
+    const isCurrentSession = (sessionId?: string | undefined): boolean => {
+      const current = getSessionId?.();
+      return !sessionId || !current || sessionId === current;
+    };
 
     const handler = (event: string, payload: unknown) => {
+      const sessionId =
+        payload && typeof payload === 'object' && 'sessionId' in payload
+          ? (payload as { sessionId?: string | undefined }).sessionId
+          : undefined;
+      if (!isCurrentSession(sessionId)) return;
       switch (event) {
         case 'phase.started': {
           const p = payload as { phaseId: string; name: string };
@@ -294,5 +313,5 @@ function useAutoPhaseEvents(
     };
 
     return subscribeAutoPhase(handler);
-  }, [subscribeAutoPhase, dispatch, stateRef]);
+  }, [subscribeAutoPhase, dispatch, stateRef, getSessionId]);
 }

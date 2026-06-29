@@ -21,6 +21,7 @@ import {
   type ModeStore,
   RecoveryLock,
   resolveWstackPaths,
+  sessionScopedPath,
   setQueuedMessagesSnapshot,
 } from '@wrongstack/core';
 import type { TuiRuntimeState } from './tui-runtime-state.js';
@@ -95,11 +96,11 @@ export async function switchProjectInPlace(
   context.clearFileTracking();
   context.tokenCounter.reset();
   context.meta['packageTrackerOpts'] = { storageDir: nextWpaths.projectDir, projectRoot: resolved };
-  context.state.setMeta('plan.path', path.join(nextWpaths.projectSessions, `${nextWriter.id}.plan.json`));
-  context.state.setMeta('task.path', path.join(nextWpaths.projectSessions, `${nextWriter.id}.tasks.json`));
+  context.state.setMeta('plan.path', sessionScopedPath(nextWpaths.projectSessions, nextWriter.id, '.plan.json'));
+  context.state.setMeta('task.path', sessionScopedPath(nextWpaths.projectSessions, nextWriter.id, '.tasks.json'));
   state.detachActiveTodosCheckpoint = attachTodosCheckpoint(
     context.state,
-    path.join(nextWpaths.projectSessions, `${nextWriter.id}.todos.json`),
+    sessionScopedPath(nextWpaths.projectSessions, nextWriter.id, '.todos.json'),
     nextWriter.id,
     events,
     context.traceId,

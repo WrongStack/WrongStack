@@ -72,6 +72,11 @@ function fmtDuration(startedAt: string): string {
   return `${Math.floor(h / 24)}d ${h % 24}h`;
 }
 
+function shortSessionId(sessionId: string): string {
+  const leaf = sessionId.split('/').pop() ?? sessionId;
+  return leaf.length > 18 ? leaf.slice(0, 18) : leaf;
+}
+
 /**
  * Full-width panel showing all live sessions tracked by the SessionRegistry.
  * Opened with F10. Mirrors the output of /sessions status.
@@ -122,7 +127,7 @@ export function SessionsPanel({
               </Text>
               <Text bold>{s.projectName}</Text>
               <Text dimColor> [{s.projectSlug}]</Text>
-              <Text dimColor> · {s.sessionId.slice(0, 8)}</Text>
+              <Text dimColor> · {shortSessionId(s.sessionId)}</Text>
               {s.gitBranch ? (
                 <Text color="magenta"> ⎇ {s.gitBranch}</Text>
               ) : null}

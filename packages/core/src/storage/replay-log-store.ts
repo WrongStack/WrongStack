@@ -38,7 +38,8 @@ function storageErrorString(err: unknown): string {
  *   the event log would inflate every read for replay-irrelevant
  *   paths.
  *
- * File layout: `<dir>/<sessionId>.replay.jsonl`, one entry per line.
+ * File layout: `sessionScopedPath(dir, sessionId, '.replay.jsonl')`,
+ * one entry per line.
  * Each entry: `{ hash, ts, request, response }`. The `hash` is
  * computed via `hashRequest` so lookups are O(1) by hash.
  *
@@ -59,7 +60,7 @@ const FILE_VERSION = 1;
 const DEFAULT_MAX_ENTRIES = 1000;
 
 export interface ReplayLogStoreOptions {
-  /** Directory where `<sessionId>.replay.jsonl` files live. */
+  /** Root sessions directory used with `sessionScopedPath(..., '.replay.jsonl')`. */
   dir: string;
   /**
    * Cap on the number of entries per session. When a `record` would

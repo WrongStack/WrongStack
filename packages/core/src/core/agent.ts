@@ -176,9 +176,11 @@ export class Agent {
     await this.extensions.runBeforeRun(this.ctx, inputPayload);
     const runStartedAt = Date.now();
     const runStartedIso = new Date(runStartedAt).toISOString();
+    const sessionId = this.ctx.session.id;
 
     try {
       this.events.emit('agent.run.started', {
+        sessionId,
         ctx: this.ctx,
         model: opts.model ?? this.ctx.model,
         at: runStartedIso,
@@ -189,6 +191,7 @@ export class Agent {
       span?.setAttribute('agent.iterations', result.iterations);
       await this.extensions.runAfterRun(this.ctx, result);
       this.events.emit('agent.run.completed', {
+        sessionId,
         ctx: this.ctx,
         status: result.status,
         iterations: result.iterations,
@@ -201,7 +204,12 @@ export class Agent {
       const safeError = err instanceof Error
         ? new Error(err.message)
         : new Error(String(err));
-      this.events.emit('error', { err: safeError, phase: 'agent', _original: err instanceof Error ? err : undefined });
+      this.events.emit('error', {
+        sessionId,
+        err: safeError,
+        phase: 'agent',
+        _original: err instanceof Error ? err : undefined,
+      });
       if (err instanceof Error) span?.recordError(err);
       span?.setAttribute('agent.status', 'failed');
       const result: RunResult = {
@@ -213,6 +221,7 @@ export class Agent {
       await this.extensions.runAfterRun(this.ctx, result);
       if (result.status === 'failed') {
         this.events.emit('agent.run.error', {
+          sessionId,
           ctx: this.ctx,
           err: safeError,
           at: new Date().toISOString(),
@@ -220,6 +229,7 @@ export class Agent {
         });
       }
       this.events.emit('agent.run.completed', {
+        sessionId,
         ctx: this.ctx,
         status: result.status,
         iterations: result.iterations,

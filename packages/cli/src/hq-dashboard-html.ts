@@ -264,7 +264,7 @@ var Store = {
 
 function tokenStr(){ try { return new URL(location.href).searchParams.get('token') || ''; } catch(e){ return ''; } }
 function withTok(p){ var u = new URL(p, location.href); var t = tokenStr(); if (t) u.searchParams.set('token', t); return u.pathname + u.search; }
-function shortId(s){ if(!s) return '—'; s=String(s); return s.length>16 ? s.slice(0,8)+'…'+s.slice(-5) : s; }
+function shortId(s){ if(!s) return '—'; s=String(s); var leaf=s.split('/').pop()||s; return leaf.length>16 ? leaf.slice(0,12)+'…'+leaf.slice(-5) : leaf; }
 function fmtTime(iso){ if(!iso) return ''; var d=new Date(iso); return isNaN(d.getTime())?'':d.toLocaleTimeString(); }
 function fmtAgo(iso){ if(!iso) return ''; var d=new Date(iso).getTime(); if(isNaN(d)) return ''; var s=Math.max(0,Math.floor((Date.now()-d)/1000)); if(s<5) return 'now'; if(s<60) return s+'s ago'; var m=Math.floor(s/60); if(m<60) return m+'m ago'; var hh=Math.floor(m/60); if(hh<24) return hh+'h ago'; return Math.floor(hh/24)+'d ago'; }
 function fmtElapsed(iso){ if(!iso) return ''; var d=new Date(iso).getTime(); if(isNaN(d)) return ''; var s=Math.max(0,Math.floor((Date.now()-d)/1000)); if(s<60) return s+'s'; var m=Math.floor(s/60); if(m<60) return m+'m '+(s%60)+'s'; var h=Math.floor(m/60); if(h<24) return h+'h '+(m%60)+'m'; return Math.floor(h/24)+'d '+(h%24)+'h'; }

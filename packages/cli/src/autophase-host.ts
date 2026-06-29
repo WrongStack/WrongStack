@@ -263,6 +263,8 @@ export interface AutoPhaseHostDeps {
   getConfig: () => Config;
   /** Shared app EventBus — orchestrator events feed the TUI PhaseMonitor. */
   events: EventBus;
+  /** Current parent session id for worktree lifecycle events. */
+  getSessionId?: (() => string | undefined) | undefined;
   /** Directory for per-project phase-graph JSON (wpaths.projectAutophase). */
   storeDir: string;
   /** Project root — base for git-worktree isolation. */
@@ -513,7 +515,11 @@ export function createAutoPhaseHost(deps: AutoPhaseHostDeps): AutoPhaseHostHooks
         deps.worktrees !== false && process.env['WRONGSTACK_AUTOPHASE_WORKTREES'] !== '0';
       let worktrees: WorktreeManager | undefined;
       if (worktreesEnabled && (await isGitRepo(deps.projectRoot))) {
-        worktrees = new WorktreeManager({ projectRoot: deps.projectRoot, events: deps.events });
+        worktrees = new WorktreeManager({
+          projectRoot: deps.projectRoot,
+          events: deps.events,
+          sessionId: deps.getSessionId,
+        });
         log(
           `🌿 Worktree isolation on — up to ${deps.maxConcurrentPhases ?? WORKTREE_PHASE_CONCURRENCY} phases run in parallel.`,
         );

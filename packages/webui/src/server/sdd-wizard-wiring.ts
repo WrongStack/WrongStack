@@ -141,7 +141,11 @@ export function buildSddWizardDeps(opts: SddWizardWiringOptions): SddWizardDeps 
             projectRoot: opts.projectRoot,
             boardsDir: opts.paths.projectSddBoards,
           }).catch(() => undefined);
-          worktrees = new WorktreeManager({ projectRoot: opts.projectRoot, events: opts.events });
+          worktrees = new WorktreeManager({
+            projectRoot: opts.projectRoot,
+            events: opts.events,
+            sessionId: () => opts.agent.ctx.session?.id,
+          });
         }
       }
 
@@ -178,6 +182,7 @@ export function buildSddWizardDeps(opts: SddWizardWiringOptions): SddWizardDeps 
         agent: opts.agent,
         projectRoot: opts.projectRoot,
         events: opts.events,
+        sessionId: () => opts.agent.ctx.session?.id,
         subagentFactory: opts.subagentFactory,
         worktrees,
         boardStore,

@@ -89,6 +89,7 @@ export function createAgentToolHandler(a: AgentInternals): AgentToolHandler {
     }
     return new Promise((resolve) => {
       a.events.emit('tool.confirm_needed', {
+        sessionId: a.ctx.session.id,
         tool: info.tool,
         input: info.input,
         toolUseId: info.toolUseId,
@@ -118,6 +119,7 @@ export function createAgentToolHandler(a: AgentInternals): AgentToolHandler {
       outputLines: sig.outputLines,
     });
     a.events.emit('tool.executed', {
+      sessionId: a.ctx.session.id,
       id: toolUseId,
       name: toolName,
       durationMs,
@@ -157,12 +159,12 @@ export function createAgentToolHandler(a: AgentInternals): AgentToolHandler {
         if (decision === 'always') {
           try {
             await a.permission.trust({ tool: tool.name, pattern: result.suggestedPattern });
-            a.events.emit('trust.persisted', { tool: tool.name, pattern: result.suggestedPattern, decision });
+            a.events.emit('trust.persisted', { sessionId: a.ctx.session.id, tool: tool.name, pattern: result.suggestedPattern, decision });
           } catch { /* best-effort */ }
         } else if (decision === 'deny') {
           try {
             await a.permission.deny({ tool: tool.name, pattern: result.suggestedPattern });
-            a.events.emit('trust.persisted', { tool: tool.name, pattern: result.suggestedPattern, decision });
+            a.events.emit('trust.persisted', { sessionId: a.ctx.session.id, tool: tool.name, pattern: result.suggestedPattern, decision });
           } catch { /* best-effort */ }
         }
 

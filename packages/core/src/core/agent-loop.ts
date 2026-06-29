@@ -293,7 +293,7 @@ export function createAgentLoopHandler(
     }
     const rawLoad = maxContext > 0 ? total / maxContext : 0;
     const load = Math.max(0, Math.min(1, rawLoad));
-    a.events.emit('ctx.pct', { load, rawLoad, tokens: total, maxContext });
+    a.events.emit('ctx.pct', { sessionId: a.ctx.session.id, load, rawLoad, tokens: total, maxContext });
   }
 
   function currentMaxContext(): number {
@@ -437,6 +437,7 @@ export function createAgentLoopHandler(
     if (hasHardLimit && iterationIndex >= limit) {
       const extendBy = await requestLimitExtension({
         events: a.events,
+        sessionId: a.ctx.session.id,
         currentIterations,
         currentLimit: limit,
         autoExtend: a.autoExtendLimit,
@@ -568,7 +569,7 @@ export function createAgentLoopHandler(
         }
 
         await a.extensions.runBeforeIteration(a.ctx, i);
-        a.events.emit('iteration.started', { ctx: a.ctx, index: i });
+        a.events.emit('iteration.started', { sessionId: a.ctx.session.id, ctx: a.ctx, index: i });
 
         injectPendingBtwNotes();
         injectQueueAwareness();
@@ -628,14 +629,14 @@ export function createAgentLoopHandler(
           recoveryRetries = 0;
         } catch (err) {
           if (controller.signal.aborted) {
-            a.events.emit('error', { err: toError(err), phase: 'provider' });
+            a.events.emit('error', { sessionId: a.ctx.session.id, err: toError(err), phase: 'provider' });
             return { status: 'aborted', iterations, error: toWrongStackError(err, 'AGENT_ABORTED'), abortReason: signalAbortReason(controller.signal) };
           }
 
           const extDecision = await a.extensions.runOnError(a.ctx, err, 'provider', i);
           if (extDecision) {
             if (extDecision.action === 'fail') {
-              a.events.emit('error', { err: toError(err), phase: 'provider' });
+              a.events.emit('error', { sessionId: a.ctx.session.id, err: toError(err), phase: 'provider' });
               return { status: 'failed', iterations, error: toWrongStackError(err), delegateSummaries };
             }
             if (extDecision.action === 'continue') {
@@ -645,7 +646,7 @@ export function createAgentLoopHandler(
             if (extDecision.action === 'retry') {
               recoveryRetries++;
               if (recoveryRetries > 2) {
-                a.events.emit('error', { err: toError(err), phase: 'provider' });
+                a.events.emit('error', { sessionId: a.ctx.session.id, err: toError(err), phase: 'provider' });
                 return { status: 'failed', iterations, error: toWrongStackError(err), delegateSummaries };
               }
               if (extDecision.model) a.ctx.model = extDecision.model;
@@ -656,7 +657,7 @@ export function createAgentLoopHandler(
 
           const recovered = await a.errorHandler.recover(err, a.ctx);
           if (!recovered || recovered.action === 'fail') {
-            a.events.emit('error', { err: toError(err), phase: 'provider' });
+            a.events.emit('error', { sessionId: a.ctx.session.id, err: toError(err), phase: 'provider' });
             return {
               status: 'failed', iterations,
               error: toWrongStackError(recovered?.error ?? err),
@@ -666,7 +667,7 @@ export function createAgentLoopHandler(
           if (recovered.action === 'retry') {
             recoveryRetries++;
             if (recoveryRetries > 2) {
-              a.events.emit('error', { err: toError(err), phase: 'provider' });
+              a.events.emit('error', { sessionId: a.ctx.session.id, err: toError(err), phase: 'provider' });
               return { status: 'failed', iterations, error: toWrongStackError(err) };
             }
             if (recovered.model) a.ctx.model = recovered.model;
@@ -731,6 +732,7 @@ export function createAgentLoopHandler(
               `Loop detected: ${detail} — stopping to prevent infinite loop.`,
             );
             a.events.emit('tool.loop_detected', {
+              sessionId: a.ctx.session.id,
               ctx: a.ctx,
               tools: names,
               repeatCount: toolLoopCount,
@@ -758,7 +760,7 @@ export function createAgentLoopHandler(
         if (toolUses.length === 0) {
           await compactContextIfNeeded();
           emitContextPct();
-          a.events.emit('iteration.completed', { ctx: a.ctx, index: i });
+          a.events.emit('iteration.completed', { sessionId: a.ctx.session.id, ctx: a.ctx, index: i });
           if (autonomousContinue && responseResult.directive === 'continue') {
             await a.extensions.runAfterIteration(a.ctx, i);
             continue;
@@ -783,14 +785,14 @@ export function createAgentLoopHandler(
         if (autonomousContinue && consumeAutonomousContinue(a.ctx)) {
           await compactContextIfNeeded();
           emitContextPct();
-          a.events.emit('iteration.completed', { ctx: a.ctx, index: i });
+          a.events.emit('iteration.completed', { sessionId: a.ctx.session.id, ctx: a.ctx, index: i });
           await a.extensions.runAfterIteration(a.ctx, i);
           continue;
         }
 
         await compactContextIfNeeded();
         emitContextPct();
-        a.events.emit('iteration.completed', { ctx: a.ctx, index: i });
+        a.events.emit('iteration.completed', { sessionId: a.ctx.session.id, ctx: a.ctx, index: i });
         await a.extensions.runAfterIteration(a.ctx, i);
 
         if (autonomousContinue && responseResult.directive === 'continue') {

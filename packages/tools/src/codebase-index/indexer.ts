@@ -15,7 +15,7 @@ import * as path from 'node:path';
 import type { Dirent, Stats } from 'node:fs';
 import type { Context } from '@wrongstack/core';
 import { compileGlob } from '@wrongstack/core';
-import type { FileMeta, IndexResult, Ref, SymbolLang } from './schema.js';
+import type { FileMeta, IndexResult, Ref, Symbol as IndexSymbol, SymbolLang } from './schema.js';
 import { IndexStore } from './writer.js';
 import { parseSymbols as parseTs, detectLang } from './ts-parser.js';
 import { parseSymbols as parseGo } from './go-parser.js';
@@ -300,7 +300,23 @@ async function runIndexerWithStore(store: IndexStore, opts: IndexerOptions): Pro
       })
     );
 
-    // Phase 2: Sequential SQLite writes (must be ordered for id allocation)
+    // Phase 2: Sequential SQLite writes — amortized across the whole batch.
+    //
+    // Each file is still parsed in parallel (Phase 1), but the writes
+    // happen in a single `commitBatch` transaction per outer batch
+    // (PARALLEL_BATCH = 20 files). This drops the commit count from
+    // ~5/file to 1/parallel-batch, which is the difference between
+    // 100 fsync round-trips and 5 on a 20-file slice.
+    const batchEntries: Array<{
+      file: string;
+      lang: SymbolLang;
+      symbols: IndexSymbol[];
+      refs: Ref[];
+      mtimeMs: number;
+      symbolCount: number;
+    }> = [];
+    const deleteForFiles: string[] = [];
+
     for (let fi = 0; fi < statReadParse.length; fi++) {
       const settled = statReadParse[fi]!;
       const file = expectDefined(batchFiles[fi]);
@@ -329,55 +345,138 @@ async function runIndexerWithStore(store: IndexStore, opts: IndexerOptions): Pro
 
       if (!lang || !parsed) {
         if (lang) {
-          store.upsertFile({ file, lang: lang as SymbolLang, mtimeMs: Math.floor(stat.mtimeMs), symbolCount: 0, lastIndexed: Date.now() });
+          store.upsertFile({
+            file,
+            lang: lang as SymbolLang,
+            mtimeMs: Math.floor(stat.mtimeMs),
+            symbolCount: 0,
+            lastIndexed: Date.now(),
+          });
           filesIndexed++;
         }
         continue;
       }
 
-      // Refs first: deleteRefsForFile resolves the file's symbol ids via the
-      // symbols table, so it must run before those symbols are deleted (otherwise
-      // the lookup finds nothing and orphan refs are left behind).
-      store.deleteRefsForFile(file);
-      store.deleteSymbolsForFile(file);
-
+      // Empty symbol files still need their file row updated so future runs
+      // know the mtime. They don't contribute any symbols or refs, so we
+      // upsert directly without scheduling them for the batch.
       if (parsed.symbols.length === 0) {
-        store.upsertFile({ file, lang: lang as SymbolLang, mtimeMs: Math.floor(stat.mtimeMs), symbolCount: 0, lastIndexed: Date.now() });
+        store.upsertFile({
+          file,
+          lang: lang as SymbolLang,
+          mtimeMs: Math.floor(stat.mtimeMs),
+          symbolCount: 0,
+          lastIndexed: Date.now(),
+        });
         filesIndexed++;
         continue;
       }
 
-      // Insert symbols with IDs assigned atomically inside a BEGIN IMMEDIATE
-      // transaction, preventing UNIQUE constraint violations during concurrent
-      // indexing (each process sees a different MAX(id) without the lock).
-      const symbolsWithIds = store.insertSymbols(parsed.symbols);
-      const count = symbolsWithIds.length;
-      symbolsIndexed += count;
-      langStats[lang] = (langStats[lang] ?? 0) + count;
-
-      // Insert cross-references. Group refs by line once (O(refs)) instead of
-      // re-filtering the whole list per symbol (O(refs × symbols) per file), then
-      // emit a single batched insert — one transaction for the file, not one per
-      // symbol. deleteRefsForFile already ran above, so no per-source DELETE needed.
+      // Pre-compute the refs batch with placeholder fromId=0 — we'll
+      // remap fromId after `commitBatch` assigns real ids.
+      const refs: Ref[] = [];
       if (parsed.refs && parsed.refs.length > 0) {
-        const refsByLine = new Map<number, Ref[]>();
-        for (const r of parsed.refs) {
-          let arr = refsByLine.get(r.line);
-          if (!arr) { arr = []; refsByLine.set(r.line, arr); }
-          arr.push(r);
-        }
-        const batch: Ref[] = [];
-        for (const sym of symbolsWithIds) {
-          const symRefs = refsByLine.get(sym.line);
-          if (symRefs) {
-            for (const r of symRefs) batch.push({ ...r, fromId: sym.id });
-          }
-        }
-        if (batch.length > 0) store.insertRefsBatch(batch);
+        for (const r of parsed.refs) refs.push({ ...r, fromId: 0 });
       }
 
-      store.upsertFile({ file, lang: lang as SymbolLang, mtimeMs: Math.floor(stat.mtimeMs), symbolCount: count, lastIndexed: Date.now() });
-      filesIndexed++;
+      batchEntries.push({
+        file,
+        lang: lang as SymbolLang,
+        symbols: parsed.symbols,
+        refs,
+        mtimeMs: Math.floor(stat.mtimeMs),
+        symbolCount: parsed.symbols.length,
+      });
+      deleteForFiles.push(file);
+    }
+
+    if (batchEntries.length > 0) {
+      try {
+        const inserted = store.commitBatch(batchEntries, { deleteForFiles });
+        // inserted is the full list of inserted symbols in order; the
+        // caller assigned one id per entry.symbols in iteration order, so
+        // we can split it back per-file for the refs remap.
+        let cursor = 0;
+        for (const entry of batchEntries) {
+          const count = entry.symbols.length;
+          const symbolsWithIds = inserted.slice(cursor, cursor + count);
+          cursor += count;
+
+          symbolsIndexed += count;
+          langStats[entry.lang] = (langStats[entry.lang] ?? 0) + count;
+          filesIndexed++;
+
+          // Map refs to their real fromId. Refs were grouped per-line in
+          // the parser, so we can reindex by line.
+          if (entry.refs.length > 0 && symbolsWithIds.length > 0) {
+            const refsByLine = new Map<number, number[]>();
+            for (let i = 0; i < symbolsWithIds.length; i++) {
+              const sym = symbolsWithIds[i]!;
+              let arr = refsByLine.get(sym.line);
+              if (!arr) {
+                arr = [];
+                refsByLine.set(sym.line, arr);
+              }
+              arr.push(i);
+            }
+            for (const ref of entry.refs) {
+              const indices = refsByLine.get(ref.line);
+              if (indices && indices.length > 0) {
+                // Pop the next index — refs with the same line get distinct
+                // symbols in their source order. (Symbols are already ordered
+                // by line, then by parser output order.)
+                const idx = indices.shift()!;
+                ref.fromId = symbolsWithIds[idx]!.id;
+              }
+            }
+          }
+        }
+      } catch (err) {
+        // If the batch commit fails, fall back to per-file writes so the
+        // user still gets a partial index. Per-file writes are slower but
+        // isolate failures.
+        const message = err instanceof Error ? err.message : String(err);
+        errors.push(`commitBatch failed: ${message} — falling back to per-file writes`);
+        for (const entry of batchEntries) {
+          try {
+            store.deleteRefsForFile(entry.file);
+            store.deleteSymbolsForFile(entry.file);
+            const symbolsWithIds = store.insertSymbols(entry.symbols);
+            symbolsIndexed += symbolsWithIds.length;
+            langStats[entry.lang] = (langStats[entry.lang] ?? 0) + symbolsWithIds.length;
+            filesIndexed++;
+            if (entry.refs.length > 0 && symbolsWithIds.length > 0) {
+              const refsByLine = new Map<number, IndexSymbol[]>();
+              for (const sym of symbolsWithIds) {
+                let arr = refsByLine.get(sym.line);
+                if (!arr) {
+                  arr = [];
+                  refsByLine.set(sym.line, arr);
+                }
+                arr.push(sym);
+              }
+              const fallbackBatch: Ref[] = [];
+              for (const ref of entry.refs) {
+                const syms = refsByLine.get(ref.line);
+                if (syms && syms.length > 0) {
+                  const sym = syms.shift()!;
+                  fallbackBatch.push({ ...ref, fromId: sym.id });
+                }
+              }
+              if (fallbackBatch.length > 0) store.insertRefsBatch(fallbackBatch);
+            }
+            store.upsertFile({
+              file: entry.file,
+              lang: entry.lang,
+              mtimeMs: entry.mtimeMs,
+              symbolCount: entry.symbolCount,
+              lastIndexed: Date.now(),
+            });
+          } catch (innerErr) {
+            errors.push(`fallback write failed: ${entry.file}: ${innerErr instanceof Error ? innerErr.message : String(innerErr)}`);
+          }
+        }
+      }
     }
   }
 

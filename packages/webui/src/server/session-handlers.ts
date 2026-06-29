@@ -70,10 +70,11 @@ export interface SessionHandlersContext {
 
 export function createSessionHandlers(ctx: SessionHandlersContext): SessionRouteHandlers {
   const currentSessionId = (): string => ctx.getSession().id;
-  const sessionPayload = <T extends Record<string, unknown>>(payload: T): T & { sessionId: string } => ({
-    ...payload,
-    sessionId: currentSessionId(),
-  });
+  const sessionPayload = <T extends Record<string, unknown>>(payload: T): T & { sessionId: string } => {
+    const provided = payload['sessionId'];
+    const sessionId = typeof provided === 'string' && provided.length > 0 ? provided : currentSessionId();
+    return { ...payload, sessionId };
+  };
   const requestedSessionId = (msg: WSMessageLike): string | undefined => {
     const payload = msg.payload;
     return payload && typeof payload === 'object' && typeof (payload as { sessionId?: unknown }).sessionId === 'string'
@@ -186,6 +187,7 @@ export function createSessionHandlers(ctx: SessionHandlersContext): SessionRoute
         ctx.context.state.replaceMessages(repaired.messages);
       }
       const payload = {
+        sessionId: ctx.context.session.id,
         removedToolUses: repaired.report.removedToolUses,
         removedToolResults: repaired.report.removedToolResults,
         removedMessages: repaired.report.removedMessages,

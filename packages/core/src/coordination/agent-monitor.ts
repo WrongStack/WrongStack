@@ -52,6 +52,8 @@ export interface AgentVirtualSession {
 }
 
 export interface AgentMonitorOptions {
+  /** Parent/host session id for emitted agent timeline/status events. */
+  sessionId?: string | undefined;
   /** The FleetBus to listen on for subagent events. Optional — set via `setFleetBus()` before `start()`. */
   fleetBus?: FleetBus | undefined;
   /** Local EventBus for emitting agent.timeline.* and agent.status_changed events. */
@@ -71,6 +73,7 @@ export interface AgentMonitorOptions {
 export class AgentMonitorService {
   private _fleetBus: FleetBus | undefined;
   private readonly _events: EventBus;
+  private readonly _sessionId: string | undefined;
   private readonly _transcriptsDir: string;
   private readonly _maxEntries: number;
   private _streamEnabled: boolean;
@@ -88,6 +91,7 @@ export class AgentMonitorService {
   constructor(opts: AgentMonitorOptions) {
     this._fleetBus = opts.fleetBus;
     this._events = opts.events;
+    this._sessionId = opts.sessionId;
     this._transcriptsDir = opts.transcriptsDir;
     this._maxEntries = opts.maxEntriesPerAgent ?? 500;
     this._streamEnabled = opts.streamEnabled ?? false;
@@ -194,6 +198,7 @@ export class AgentMonitorService {
 
     // Emit status change.
     this._events.emit('agent.status_changed', {
+      sessionId: this._sessionId,
       subagentId,
       agentName,
       status: 'spawned',
@@ -226,6 +231,7 @@ export class AgentMonitorService {
     });
 
     this._events.emit('agent.status_changed', {
+      sessionId: this._sessionId,
       subagentId,
       agentName: session.agentName,
       status,
@@ -344,6 +350,7 @@ export class AgentMonitorService {
 
     // Emit local timeline event (for TUI/WebUI).
     this._events.emit('agent.timeline.message', {
+      sessionId: this._sessionId,
       subagentId: entry.subagentId,
       agentName: entry.agentName,
       content: entry.content,

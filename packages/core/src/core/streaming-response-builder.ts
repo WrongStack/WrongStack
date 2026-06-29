@@ -241,6 +241,7 @@ export async function streamProviderToResponse(
   logger: Logger,
 ): Promise<Response> {
   const state = createStreamingState(req.model);
+  const sessionId = ctx.session?.id;
   logger.debug('Stream started', { providerId: provider.id, model: req.model });
 
   // Batch text_delta EventBus emissions to cut fan-out ~4×. Subscribers
@@ -252,7 +253,7 @@ export async function streamProviderToResponse(
   let pendingCount = 0;
   const flushText = (): void => {
     if (pendingCount > 0) {
-      events.emit('provider.text_delta', { ctx, text: pendingText });
+      events.emit('provider.text_delta', { sessionId, ctx, text: pendingText });
       pendingText = '';
       pendingCount = 0;
     }
@@ -286,7 +287,7 @@ export async function streamProviderToResponse(
             const idVal = ev.id;
             const nameVal = ev.name;
             handleToolUseStart(state, { id: idVal, name: nameVal });
-            const emittedPayload = { ctx, id: idVal ?? 'unknown', name: nameVal ?? 'unknown' };
+            const emittedPayload = { sessionId, ctx, id: idVal ?? 'unknown', name: nameVal ?? 'unknown' };
             events.emit('provider.tool_use_start', emittedPayload);
             break;
           }
@@ -297,7 +298,7 @@ export async function streamProviderToResponse(
             flushText();
             const stoppedName = state.tools.get(ev.id)?.name ?? 'unknown';
             handleToolUseStop(state, ev as Parameters<typeof handleToolUseStop>[1]);
-            events.emit('provider.tool_use_stop', { ctx, id: ev.id, name: stoppedName });
+            events.emit('provider.tool_use_stop', { sessionId, ctx, id: ev.id, name: stoppedName });
             break;
           }
           case 'thinking_start':
@@ -306,7 +307,7 @@ export async function streamProviderToResponse(
           case 'thinking_delta':
             flushText();
             handleThinkingDelta(state, ev.text);
-            events.emit('provider.thinking_delta', { ctx, text: ev.text });
+            events.emit('provider.thinking_delta', { sessionId, ctx, text: ev.text });
             break;
           case 'thinking_signature':
             handleThinkingSignature(state, ev.signature);
@@ -341,6 +342,7 @@ export async function streamProviderToResponse(
         });
         flushText();
         events.emit('provider.stream_error', {
+          sessionId,
           ctx,
           eventType: String(evAny.type),
           msg: errMsg,

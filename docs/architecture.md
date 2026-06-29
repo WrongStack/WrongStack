@@ -398,8 +398,8 @@ Each line is one `SessionEvent`: `user_input`, `llm_request`, `llm_response`,
 `tool_use`, `tool_result`, `compaction`, `error`, plus mode/task/agent/
 skill events.
 
-`DefaultSessionStore.list()` reads a side-car `<id>.summary.json` for
-fast listing; only damaged or pre-manifest sessions force a full parse.
+`DefaultSessionStore.list()` reads a session-scoped `.summary.json` sidecar
+for fast listing; only damaged or pre-manifest sessions force a full parse.
 
 `DefaultSessionReader` provides query/replay/search/export over the
 store. Export formats: markdown, json, text.

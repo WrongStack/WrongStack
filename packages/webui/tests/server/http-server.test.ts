@@ -99,12 +99,12 @@ describe('buildCspHeader', () => {
 
 describe('decodeSessionId', () => {
   it('decodes the %2F-encoded slash in a session id (regression for Fleet HQ 404s)', () => {
-    // Session ids carry a literal slash (`YYYY-MM-DD/HH-MM-SSZ_…`); the frontend
+    // Session ids carry a literal slash (`YYYY-MM-DD/sess_<ULID>`); the frontend
     // sends it as `%2F` via encodeURIComponent. The registry is keyed by the
     // decoded id, so the route must decode before lookup — otherwise every
     // /api/sessions/:id/{events,message,agents} request 404s.
-    const encoded = '2026-06-19%2F06-47-34Z_MiniMax-M2-7-highspeed_439b';
-    expect(decodeSessionId(encoded)).toBe('2026-06-19/06-47-34Z_MiniMax-M2-7-highspeed_439b');
+    const encoded = '2026-06-19%2Fsess_01JX2S9V7T5M6N7P8Q9R0STXVW';
+    expect(decodeSessionId(encoded)).toBe('2026-06-19/sess_01JX2S9V7T5M6N7P8Q9R0STXVW');
   });
 
   it('passes through an already-decoded id unchanged', () => {

@@ -190,6 +190,7 @@ export function createDelegateTool(opts: CreateDelegateToolOptions): Tool {
     mutating: false,
     inputSchema,
     async execute(input: unknown) {
+      const sessionId = opts.directorRunId;
       const i = (input ?? {}) as {
         task?: string | undefined;
         role?: string | undefined;
@@ -292,7 +293,7 @@ export function createDelegateTool(opts: CreateDelegateToolOptions): Tool {
         // Announce the delegation before we block — UIs render a
         // "started" line immediately so the (often minutes-long) wait
         // doesn't look idle.
-        opts.events?.emit('delegate.started', { target, task: i.task });
+        opts.events?.emit('delegate.started', { sessionId, target, task: i.task });
 
         const subagentId = await director.spawn(cfg);
         const taskId = await director.assign({
@@ -344,6 +345,7 @@ export function createDelegateTool(opts: CreateDelegateToolOptions): Tool {
         if ('__timeout' in result) {
           const partial = await readSubagentPartial(opts, subagentId);
           opts.events?.emit('delegate.completed', {
+            sessionId,
             target,
             task: i.task,
             ok: false,
@@ -368,6 +370,7 @@ export function createDelegateTool(opts: CreateDelegateToolOptions): Tool {
         if ('__emptyResult' in result) {
           const partial = await readSubagentPartial(opts, subagentId);
           opts.events?.emit('delegate.completed', {
+            sessionId,
             target,
             task: i.task,
             ok: false,
@@ -417,6 +420,7 @@ export function createDelegateTool(opts: CreateDelegateToolOptions): Tool {
           costUsd = undefined;
         }
         opts.events?.emit('delegate.completed', {
+          sessionId,
           target,
           task: i.task,
           ok: result.status === 'success',
@@ -457,6 +461,7 @@ export function createDelegateTool(opts: CreateDelegateToolOptions): Tool {
         // spawn/assign failure after delegate.started would leave a
         // dangling "Delegating…" entry with no outcome.
         opts.events?.emit('delegate.completed', {
+          sessionId,
           target,
           task: i.task,
           ok: false,

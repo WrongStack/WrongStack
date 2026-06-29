@@ -19,6 +19,7 @@ export interface WireEventWiringDeps {
   renderer: EventWiringRenderer;
   getProvider: () => string;
   getModel: () => string;
+  getSessionId: () => string;
   projectSlug: string;
   getActiveModeId: () => string;
   tuiOwnsScreen: boolean;
@@ -41,6 +42,9 @@ export function wireEventWiring(deps: WireEventWiringDeps): EventWiring {
   let cliOutputTokens = 0;
   let cliCacheTokens = 0;
   let cliCostUsd = 0;
+
+  const isCurrentSession = (sessionId?: string | undefined): boolean =>
+    !sessionId || sessionId === deps.getSessionId();
 
   const updateSpinnerContext = (): void => {
     spinner.setContext(
@@ -65,6 +69,7 @@ export function wireEventWiring(deps: WireEventWiringDeps): EventWiring {
     events.emit('client.status', {
       clientType: 'cli',
       clientId: cliClientId,
+      sessionId: deps.getSessionId(),
       projectHash: projectSlug,
       agentCount: 1,
       model: getModel(),
@@ -79,35 +84,46 @@ export function wireEventWiring(deps: WireEventWiringDeps): EventWiring {
     });
   };
 
-  evOn('provider.response', (e: { usage?: { input?: number } }) => {
+  evOn('provider.response', (e: { sessionId?: string | undefined; usage?: { input?: number } }) => {
+    if (!isCurrentSession(e.sessionId)) return;
     lastInputTokens = e.usage?.input ?? 0;
     updateSpinnerContext();
     spinner.stop();
   });
 
-  evOn('iteration.started', () => {
+  evOn('iteration.started', (e: { sessionId?: string | undefined }) => {
+    if (!isCurrentSession(e.sessionId)) return;
     updateSpinnerContext();
     spinner.start(color.dim(`${getProvider()}/${getModel()} thinking…`));
   });
-  evOn('error', () => spinner.stop());
+  evOn('error', (e: { sessionId?: string | undefined }) => {
+    if (!isCurrentSession(e.sessionId)) return;
+    spinner.stop();
+  });
 
-  evOn('provider.text_delta', (p: { text: string }) => {
+  evOn('provider.text_delta', (p: { sessionId?: string | undefined; text: string }) => {
+    if (!isCurrentSession(p.sessionId)) return;
     if (!streamingActive) {
       spinner.stop();
       streamingActive = true;
     }
     renderer.write(p.text);
   });
-  evOn('iteration.completed', closeStreamingLine);
+  evOn('iteration.completed', (e: { sessionId?: string | undefined }) => {
+    if (!isCurrentSession(e.sessionId)) return;
+    closeStreamingLine();
+  });
 
-  evOn('provider.retry', (p: { delayMs: number; attempt: number; description: string }) => {
+  evOn('provider.retry', (p: { sessionId?: string | undefined; delayMs: number; attempt: number; description: string }) => {
+    if (!isCurrentSession(p.sessionId)) return;
     stopSpinnerAndStreaming();
     const secs = (p.delayMs / 1000).toFixed(p.delayMs >= 1000 ? 1 : 2);
     writeErr(color.yellow(`  ⟳ retry ${p.attempt} in ${secs}s — ${p.description}\n`));
     spinner.start(color.dim(`${getProvider()}/${getModel()} thinking…`));
   });
 
-  evOn('provider.fallback', (p: { status: number; to: { providerId: string; model: string } }) => {
+  evOn('provider.fallback', (p: { sessionId?: string | undefined; status: number; to: { providerId: string; model: string } }) => {
+    if (!isCurrentSession(p.sessionId)) return;
     stopSpinnerAndStreaming();
     writeErr(
       color.yellow(`  ↻ rate-limited (${p.status}) — switched to ${p.to.providerId}/${p.to.model}\n`),
@@ -115,19 +131,22 @@ export function wireEventWiring(deps: WireEventWiringDeps): EventWiring {
     spinner.start(color.dim(`${p.to.providerId}/${p.to.model} thinking…`));
   });
 
-  evOn('provider.error', (p: { description: string }) => {
+  evOn('provider.error', (p: { sessionId?: string | undefined; description: string }) => {
+    if (!isCurrentSession(p.sessionId)) return;
     stopSpinnerAndStreaming();
     writeErr(color.red(`  ✗ ${p.description}\n`));
   });
 
-  evOn('tool.executed', () => {
+  evOn('tool.executed', (e: { sessionId?: string | undefined }) => {
+    if (!isCurrentSession(e.sessionId)) return;
     cliToolCalls++;
     emitClientStatus();
   });
 
   evOn(
     'provider.response',
-    (e: { usage?: { input?: number; output?: number; cacheRead?: number; cacheWrite?: number } }) => {
+    (e: { sessionId?: string | undefined; usage?: { input?: number; output?: number; cacheRead?: number; cacheWrite?: number } }) => {
+      if (!isCurrentSession(e.sessionId)) return;
       if (e.usage) {
         cliInputTokens = e.usage.input ?? cliInputTokens;
         cliOutputTokens = e.usage.output ?? cliOutputTokens;
@@ -137,11 +156,15 @@ export function wireEventWiring(deps: WireEventWiringDeps): EventWiring {
     },
   );
 
-  evOn('token.accounted', (e: { cost: { total: number } }) => {
+  evOn('token.accounted', (e: { sessionId?: string | undefined; cost: { total: number } }) => {
+    if (!isCurrentSession(e.sessionId)) return;
     cliCostUsd = e.cost.total;
     emitClientStatus();
   });
-  evOn('iteration.completed', emitClientStatus);
+  evOn('iteration.completed', (e: { sessionId?: string | undefined }) => {
+    if (!isCurrentSession(e.sessionId)) return;
+    emitClientStatus();
+  });
   emitClientStatus();
 
   return {

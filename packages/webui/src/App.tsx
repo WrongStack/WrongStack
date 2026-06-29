@@ -7,6 +7,7 @@ import { getWSClient } from '@/lib/ws-client';
 import { useChatStore, useConfigStore, useFileStore, useSessionStore, useUIStore } from '@/stores';
 import { ActivityBar, openPanel, PANEL_ORDER } from './components/ActivityBar';
 import { AgentsMonitor } from './components/AgentsMonitor';
+import { AnalyticsDashboard } from './components/AnalyticsDashboard';
 import { AutoPhaseView } from './components/AutoPhaseView';
 import { ChangesView } from './components/ChangesView';
 import { ChatView } from './components/ChatView';
@@ -69,14 +70,13 @@ function AppInner() {
   const sessionId = useSessionStore((s) => s.session?.id);
   const nickname = useUIStore((s) => (sessionId ? s.sessionNicknames[sessionId] : undefined));
 
-  // Detect /debug URL path and switch to debug view. /refresh-debug
-  // exposes the F5-resilience verifier view so the user can confirm in
-  // one place that the latest active session, transcript, and UI state
-  // survive a page refresh.
+  // Detect /debug, /analytics, /refresh-debug URL paths and switch views.
   useEffect(() => {
     if (typeof window === 'undefined') return;
     if (window.location.pathname === '/debug') {
       setCurrentView('debug');
+    } else if (window.location.pathname === '/analytics') {
+      setCurrentView('analytics');
     } else if (window.location.pathname === '/refresh-debug') {
       setCurrentView('refresh-debug');
     }
@@ -178,6 +178,7 @@ function AppInner() {
     const persistedView = useUIStore.getState().currentView;
     if (
       persistedView === 'debug' ||
+      persistedView === 'analytics' ||
       persistedView === 'design-gallery' ||
       persistedView === 'setup'
     ) {
@@ -525,6 +526,13 @@ function AppInner() {
         {currentView === 'officemap' && (
           <div className="flex-1 overflow-hidden">
             <OfficeMapPanel />
+          </div>
+        )}
+
+        {/* ── Analytics Dashboard — event stats, session metrics, usage ── */}
+        {currentView === 'analytics' && (
+          <div className="flex-1 overflow-hidden">
+            <AnalyticsDashboard />
           </div>
         )}
       </main>

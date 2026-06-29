@@ -632,7 +632,7 @@ describe('DefaultSessionStore — JSONL correctness', () => {
   });
 
   it('resume() writes the summary sidecar into the shard directory, not the sessions root', async () => {
-    const id = '2026-06-11/12-00-00Z_test_ab12';
+    const id = '2026-06-11/sess_01JX2S9V7T5M6N7P8Q9R0STXVW';
     const w = await store.create({ id, model: 'm', provider: 'p' });
     await w.append({ type: 'user_input', ts: new Date().toISOString(), content: 'hi' });
     await w.close();
@@ -643,11 +643,11 @@ describe('DefaultSessionStore — JSONL correctness', () => {
 
     // Sidecar must sit next to the JSONL inside the date shard…
     await expect(
-      fs.access(path.join(tmp, '2026-06-11', '12-00-00Z_test_ab12.summary.json')),
+      fs.access(path.join(tmp, '2026-06-11', 'sess_01JX2S9V7T5M6N7P8Q9R0STXVW.summary.json')),
     ).resolves.toBeUndefined();
     // …and must NOT be orphaned at the sessions root.
     await expect(
-      fs.access(path.join(tmp, '12-00-00Z_test_ab12.summary.json')),
+      fs.access(path.join(tmp, 'sess_01JX2S9V7T5M6N7P8Q9R0STXVW.summary.json')),
     ).rejects.toThrow();
   });
 

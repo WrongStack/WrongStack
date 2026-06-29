@@ -39,8 +39,8 @@ import type { EventBus } from '../kernel/events.js';
  *   - The agent itself misbehaving; this is post-hoc audit, not
  *     real-time enforcement. Use `PermissionPolicy` for that.
  *
- * File layout: `<dir>/<sessionId>.audit.jsonl`, one entry per
- * line. The chain starts with a `genesis` entry whose
+ * File layout: `sessionScopedPath(dir, sessionId, '.audit.jsonl')`,
+ * one entry per line. The chain starts with a `genesis` entry whose
  * `prevHash` is all zeros.
  */
 export interface AuditEntry {
@@ -68,7 +68,7 @@ export type VerifyResult =
   | { ok: false; brokenAt: number; reason: string };
 
 export interface ToolAuditLogOptions {
-  /** Directory where `<sessionId>.audit.jsonl` files live. */
+  /** Root sessions directory used with `sessionScopedPath(..., '.audit.jsonl')`. */
   dir: string;
   /**
    * Flush the file system cache to disk every N writes per session.

@@ -25,6 +25,8 @@ export interface BrainDecisionOption {
 
 export interface BrainDecisionRequest {
   id: string;
+  /** Active host session id for surfaces that multiplex multiple sessions. */
+  sessionId?: string | undefined;
   source: BrainDecisionSource;
   question: string;
   context?: string | undefined;
@@ -68,7 +70,7 @@ export class ObservableBrainArbiter implements BrainArbiter {
   ) {}
 
   async decide(request: BrainDecisionRequest): Promise<BrainDecision> {
-    this.events.emit('brain.decision_requested', { request, at: Date.now() });
+    this.events.emit('brain.decision_requested', { sessionId: request.sessionId, request, at: Date.now() });
     const decision = await this.inner.decide(request);
     const event =
       decision.type === 'ask_human'
@@ -76,7 +78,7 @@ export class ObservableBrainArbiter implements BrainArbiter {
         : decision.type === 'deny'
           ? 'brain.decision_denied'
           : 'brain.decision_answered';
-    this.events.emit(event, { request, decision, at: Date.now() });
+    this.events.emit(event, { sessionId: request.sessionId, request, decision, at: Date.now() });
     return decision;
   }
 }
@@ -145,7 +147,7 @@ export class BrainDecisionQueue {
       }
       this.pending.set(request.id, entry);
     });
-    this.events.emit('brain.decision_ask_human', { request, decision: ask, at: Date.now() });
+    this.events.emit('brain.decision_ask_human', { sessionId: request.sessionId, request, decision: ask, at: Date.now() });
     return pending;
   }
 

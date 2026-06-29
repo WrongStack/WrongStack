@@ -456,17 +456,17 @@ Important files and directories:
 | `~/.wrongstack/memory.md` | User-global memory. |
 | `~/.wrongstack/skills/` | User-global skills. |
 | `~/.wrongstack/projects/<hash>/` | Per-project state. |
-| `~/.wrongstack/projects/<hash>/sessions/<id>.jsonl` | Append-only session event log. |
-| `~/.wrongstack/projects/<hash>/sessions/<id>.summary.json` | Fast session listing manifest. |
-| `~/.wrongstack/projects/<hash>/sessions/<id>.todos.json` | Todo checkpoint. |
-| `~/.wrongstack/projects/<hash>/sessions/<id>.plan.json` | Persistent plan checkpoint. |
+| `~/.wrongstack/projects/<hash>/sessions/<date>/sess_<ULID>.jsonl` | Append-only session event log. |
+| `~/.wrongstack/projects/<hash>/sessions/<date>/sess_<ULID>.summary.json` | Fast session listing manifest. |
+| `~/.wrongstack/projects/<hash>/sessions/<date>/sess_<ULID>.todos.json` | Todo checkpoint. |
+| `~/.wrongstack/projects/<hash>/sessions/<date>/sess_<ULID>.plan.json` | Persistent plan checkpoint. |
 | `.wrongstack/AGENTS.md` | Optional committable project memory. |
 | `.wrongstack/skills/` | Optional committable project skills. |
 
 The root README documents a director-mode fleet workspace shape as well:
 
 ```text
-sessions/<id>/
+sessions/<date>/sess_<ULID>/
   fleet.json
   director-state.json
   shared/
@@ -500,7 +500,7 @@ Session replay reconstructs `messages` from `user_input`, `llm_response`, and ma
 | Environment | cwd, project root, OS, shell, Node, languages, git state, date, provider/model. |
 | Memory and skills | Project/user memory plus skill inventory when enabled. |
 | Mode | Active mode prompt from `DefaultModeStore`. |
-| Plan | Active session plan from `<session>.plan.json`, skipped for subagents. |
+| Plan | Active session plan sidecar, skipped for subagents. |
 | Contributors | System prompt contributors registered through extensions/plugins. |
 
 The builder caches the environment block by project root and marks dynamic memory/mode/plan blocks as ephemeral where supported.
@@ -512,7 +512,7 @@ flowchart TD
   Memory[DefaultMemoryStore] --> PromptBuilder
   Skills[DefaultSkillLoader] --> PromptBuilder
   Mode[DefaultModeStore] --> PromptBuilder
-  Plan["<session>.plan.json"] --> PromptBuilder
+  Plan["session-scoped plan sidecar"] --> PromptBuilder
   Contributors[Extension contributors] --> PromptBuilder
   PromptBuilder --> Blocks[TextBlock system prompt array]
 ```
@@ -845,7 +845,7 @@ flowchart TD
 
 ```text
 spawn_subagent, assign_task, await_tasks, ask_subagent, roll_up,
-terminate_subagent, fleet_status, fleet_usage, fleet_health, fleet_emit, work_complete
+terminate_subagent, fleet (action: status/usage/health/session), fleet_emit, work_complete
 ```
 
 There is also a parallel `CollabSession` mode (`makeCollabDebugTool`) that runs BugHunter, RefactorPlanner, and Critic agents in parallel and aggregates their findings.

@@ -48,14 +48,14 @@ WrongStack maintains a comprehensive, tiered event logging system that serves as
 
 ### Primary Log (JSONL)
 ```
-~/.wrongstack/projects/<projectHash>/sessions/<date>/<time>Z[_model]_<suffix>.jsonl
+~/.wrongstack/projects/<projectHash>/sessions/<date>/sess_<ULID>.jsonl
 ```
 
 Format: One JSON object per line, ISO timestamps throughout.
 
 ### Tool Audit Sidecar (Hash Chain)
 ```
-<sessionDir>/<sessionId>.audit.jsonl
+~/.wrongstack/projects/<projectHash>/sessions/<date>/sess_<ULID>.audit.jsonl
 ```
 
 Tamper-evident via SHA-256 chain. Each entry links to the previous via `prevHash`. Verification walks the chain and recomputes hashes.
@@ -124,8 +124,8 @@ The EventBus exposes a parallel set of in-memory events for live consumers (TUI,
 
 | Artifact | Path Pattern |
 |----------|-------------|
-| Session JSONL | `~/.wrongstack/projects/<hash>/sessions/<date>/<time>Z_*.jsonl` |
-| Tool Audit | `~/.wrongstack/projects/<hash>/sessions/<id>.audit.jsonl` |
+| Session JSONL | `~/.wrongstack/projects/<hash>/sessions/<date>/sess_<ULID>.jsonl` |
+| Tool Audit | `~/.wrongstack/projects/<hash>/sessions/<date>/sess_<ULID>.audit.jsonl` |
 | Config | `~/.wrongstack/config.json` |
 
 ---

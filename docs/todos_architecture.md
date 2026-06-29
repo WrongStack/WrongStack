@@ -101,7 +101,7 @@ export interface TodosCheckpointFile {
 }
 ```
 
-- Stored at `<projectSessions>/<session-id>.todos.json`
+- Stored at `<projectSessions>/<date>/sess_<ULID>.todos.json`
 - Written atomically via `atomicWrite` with `0o600` permissions
 - Version field makes future migrations trivial
 

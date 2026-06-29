@@ -226,6 +226,34 @@ describe('AgentStatusTracker', () => {
     expect(leader?.costUsd).toBeCloseTo(0.45, 5);
   });
 
+  it('ignores session-scoped events for other sessions', () => {
+    tracker = new AgentStatusTracker({
+      events: events as never as import('@wrongstack/core').EventBus,
+      registry: registry as never as SessionRegistry,
+      sessionId: 's1',
+    });
+    tracker.start();
+
+    events.emit('tool.started', { sessionId: 's2', name: 'bash', id: 'tu-other' });
+    events.emit('token.accounted', {
+      sessionId: 's2',
+      usage: { input: 1000, output: 200 },
+      cost: { input: 0.1, output: 0.2, total: 0.3 },
+    });
+    expect(registry.updateAgents).not.toHaveBeenCalled();
+
+    events.emit('token.accounted', {
+      sessionId: 's1',
+      usage: { input: 10, output: 2 },
+      cost: { input: 0, output: 0, total: 0.01 },
+    });
+    const call = registry.updateAgents.mock.calls.at(-1)?.[0] as AgentEntry[];
+    const leader = call?.find((a: AgentEntry) => a.id === 'leader');
+    expect(leader?.tokensIn).toBe(10);
+    expect(leader?.tokensOut).toBe(2);
+    expect(leader?.costUsd).toBeCloseTo(0.01, 5);
+  });
+
   it('captures leader context fill from ctx.pct', () => {
     tracker.start();
     events.emit('ctx.pct', { load: 0.68, tokens: 136_000, maxContext: 200_000 });

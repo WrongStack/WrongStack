@@ -730,6 +730,136 @@ export class IndexStore {
   }
 
   /**
+   * Commit a batch of file-level symbol/refs/upserts in a single transaction.
+   *
+   * Used by the indexer to amortize SQLite commit overhead across many files.
+   * Before this, the indexer issued one transaction per file (BEGIN IMMEDIATE
+   * for symbols, plus per-file deletes and an upsertFile call), so a 20-file
+   * parallel batch cost ~5+ transactions × 20 files = 100+ commits. With
+   * this entry point we do exactly one BEGIN/COMMIT per parallel batch.
+   *
+   * Each entry must already be a fully-parsed FileSymbols (symbols + refs).
+   * The caller is responsible for the per-file prefix accounting
+   * (refsByLine → flat list with `fromId` populated). `deleteForFiles` lets
+   * the caller clear stale symbols/refs for any files being re-indexed before
+   * the inserts run (required to keep refs → symbols FK invariants).
+   *
+   * Returns the symbols back with their assigned `id` (same shape as
+   * {@link insertSymbols}) so callers can build final per-file results.
+   */
+  commitBatch(
+    entries: Array<{
+      file: string;
+      lang: SymbolLang;
+      symbols: IndexSymbol[];
+      refs: Ref[];
+      mtimeMs: number;
+      symbolCount: number;
+    }>,
+    options: { deleteForFiles?: string[] | undefined } = {},
+  ): IndexSymbol[] {
+    if (entries.length === 0 && (options.deleteForFiles?.length ?? 0) === 0) {
+      return [];
+    }
+    return this.runWithRetry(() => {
+      this.db.exec('BEGIN IMMEDIATE');
+      try {
+        // 1) Clear stale refs+symbols for any files being re-indexed.
+        if (options.deleteForFiles && options.deleteForFiles.length > 0) {
+          const placeholders = options.deleteForFiles.map(() => '?').join(',');
+          if (this.ftsAvailable) {
+            this.db
+              .prepare(
+                `DELETE FROM symbols_fts WHERE rowid IN (SELECT id FROM symbols WHERE file IN (${placeholders}))`,
+              )
+              .run(...options.deleteForFiles);
+          }
+          // Refs first (FK direction: refs.from_id → symbols.id).
+          this.db
+            .prepare(
+              `DELETE FROM refs WHERE from_id IN (SELECT id FROM symbols WHERE file IN (${placeholders}))`,
+            )
+            .run(...options.deleteForFiles);
+          this.db
+            .prepare(`DELETE FROM symbols WHERE file IN (${placeholders})`)
+            .run(...options.deleteForFiles);
+        }
+
+        // 2) Assign ids + insert symbols.
+        const maxRows = this.db.prepare('SELECT MAX(id) AS m FROM symbols').all() as { m: number | null }[];
+        let nextId = (maxRows[0]?.m ?? 0) + 1;
+
+        const symStmt = this.db.prepare(
+          `INSERT INTO symbols(id, lang, kind, name, file, line, col, signature, doc_comment, scope, text, file_fk)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        );
+        const ftsStmt = this.ftsAvailable
+          ? this.db.prepare('INSERT INTO symbols_fts(rowid, text) VALUES (?, ?)')
+          : null;
+
+        const allInserted: IndexSymbol[] = [];
+        const refsToInsert: Ref[] = [];
+
+        for (const entry of entries) {
+          for (const s of entry.symbols) {
+            const id = nextId++;
+            symStmt.run(
+              id,
+              s.lang,
+              s.kind,
+              s.name,
+              s.file,
+              s.line,
+              s.col,
+              s.signature,
+              s.docComment,
+              s.scope,
+              s.text,
+              s.file,
+            );
+            ftsStmt?.run(id, buildIndexableText(s.name, s.signature, s.docComment));
+            allInserted.push({ ...s, id });
+          }
+          // Carry refs forward — caller has already populated `fromId`.
+          for (const r of entry.refs) refsToInsert.push(r);
+        }
+
+        // 3) Insert all refs in one go.
+        if (refsToInsert.length > 0) {
+          const refStmt = this.db.prepare(
+            `INSERT INTO refs(from_id, to_name, to_id, call_type, line)
+             VALUES (?, ?, ?, ?, ?)`,
+          );
+          for (const ref of refsToInsert) {
+            refStmt.run(ref.fromId, ref.toName, ref.toId ?? null, ref.callType, ref.line);
+          }
+        }
+
+        // 4) Upsert file metadata for every entry.
+        const upsertStmt = this.db.prepare(
+          `INSERT INTO files(file, lang, mtime_ms, symbol_count, last_indexed)
+           VALUES (?, ?, ?, ?, ?)
+           ON CONFLICT(file) DO UPDATE SET
+             lang = excluded.lang,
+             mtime_ms = excluded.mtime_ms,
+             symbol_count = excluded.symbol_count,
+             last_indexed = excluded.last_indexed`,
+        );
+        const now = Date.now();
+        for (const entry of entries) {
+          upsertStmt.run(entry.file, entry.lang, entry.mtimeMs, entry.symbolCount, now);
+        }
+
+        this.db.exec('COMMIT');
+        return allInserted;
+      } catch (err) {
+        this.db.exec('ROLLBACK');
+        throw err;
+      }
+    });
+  }
+
+  /**
    * Delete all refs whose source symbols are in a given file.
    * Used when re-indexing a file to clear stale refs.
    */

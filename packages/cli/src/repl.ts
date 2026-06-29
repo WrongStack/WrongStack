@@ -170,6 +170,8 @@ export interface ReplOptions {
   projectRoot?: string | undefined;
   /** Full app config, used for HQ client publishing settings. */
   appConfig?: import('@wrongstack/core').Config | undefined;
+  /** Live active session id for cross-surface client registration. */
+  getSessionId?: (() => string | undefined) | undefined;
   /** Resolve current model vision support. Falls back to provider capability when omitted. */
   supportsVision?: (() => boolean | Promise<boolean>) | undefined;
   /** Skill loader for the skill generator wizard. */
@@ -313,14 +315,14 @@ export async function runRepl(opts: ReplOptions): Promise<number> {
   clientMailbox
     .registerClient({
       clientId,
-      sessionId: replProjectRoot,
+      sessionId: opts.getSessionId?.() ?? replProjectRoot,
       name: `REPL [${path.basename(replProjectRoot)}]`,
       source: 'repl',
       pid: process.pid,
     })
     .then(() => {
       clientHeartbeat = setInterval(() => {
-        clientMailbox.clientHeartbeat({ clientId }).catch(() => {
+        clientMailbox.clientHeartbeat({ clientId, sessionId: opts.getSessionId?.() ?? replProjectRoot }).catch(() => {
           // best-effort — if the registry is gone, don't spam errors
         });
       }, 15_000);
