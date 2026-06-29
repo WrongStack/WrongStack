@@ -1,0 +1,21 @@
+This commit's message says "feat(webui): add toast notification showing
+provider count changes on refresh" but it actually contains TWO unrelated
+changes due to a staging collision on a shared working tree:
+
+1. The toast-notification feature (SetupScreen.tsx) — the message's
+   stated intent.
+2. The Phase 1c god-module refactor (backend-services.ts, context-meta.ts,
+   pref-helpers.ts, index.ts) — a different agent/session's work.
+
+What happened: the Phase 1c author staged their 4 files, then ran a
+build (which regenerated dist/), and during that window a concurrent
+agent ran `git add` + `git commit` which swept up the already-staged
+files along with its own SetupScreen.tsx changes under one commit.
+The Phase 1c author's subsequent `git commit -F` found nothing left to
+commit (the index was drained) and exited 1.
+
+The code is correct and typechecks clean; only the attribution and
+commit message are wrong. The Phase 1c refactor is intact and functional.
+Documented in docs/architecture.md under the WebUI module-map section.
+
+— WrongStack Phase 1c author session, 2026-06-29
