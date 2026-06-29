@@ -53,6 +53,35 @@ export function softColor(color?: string): string | undefined {
   return (pastel as Record<string, string>)[color] ?? color;
 }
 
+/**
+ * Whether the host terminal can render truecolor backgrounds.
+ *
+ * Surfaced as `theme.supportsBackground` so diff / status / progress
+ * components can opt out of pastel background washes on plain terminals
+ * (e.g. `TERM=xterm`, `NO_COLOR=1`, or a piped non-TTY). Detection follows
+ * the chalk / supports-color convention: explicit `NO_COLOR` wins, then
+ * `COLORTERM=truecolor|24bit`, then a `TERM` substring match. Default is
+ * `true` (most modern terminals are truecolor); a missing TTY flips it to
+ * `false` so captured output stays clean.
+ *
+ * Both `env` and `isTTY` are overridable so unit tests can exercise every
+ * branch without mutating process state.
+ */
+export function detectSupportsBackground(
+  env: NodeJS.ProcessEnv = process.env,
+  isTTY: boolean = process.stdout.isTTY ?? false,
+): boolean {
+  if (!isTTY) return false;
+  if (typeof env.NO_COLOR === 'string' && env.NO_COLOR !== '') return false;
+  const colorterm = env.COLORTERM ?? '';
+  if (/^(truecolor|24bit)$/i.test(colorterm)) return true;
+  const term = env.TERM ?? '';
+  if (/truecolor|24bit/i.test(term)) return true;
+  if (/256(color)?/i.test(term)) return true;
+  if (colorterm !== '' && colorterm !== 'false') return true;
+  return true;
+}
+
 export interface Theme {
   /** Primary accent — prompts, links, tool names, assistant label. */
   accent: string;
@@ -70,6 +99,13 @@ export interface Theme {
   error: string;
   /** Muted/secondary text. `true` maps to Ink's `dimColor`; a color name also works. */
   dim: true | string;
+  /**
+   * Whether the host terminal can render truecolor backgrounds. Determined
+   * at startup from `process.env.TERM` / `COLORTERM` / `NO_COLOR` plus
+   * `process.stdout.isTTY`; passed to diff blocks so they can fall back to
+   * marker-only colouring when the terminal strips backgrounds.
+   */
+  supportsBackground: boolean;
   /** Default (quiet) border color for panels. */
   borderDefault: string;
   /** Active/attention border (confirm prompts, focused frames). */
@@ -112,4 +148,8 @@ export const theme: Theme = Object.freeze({
   // Diff blocks render dark text on a pastel wash (see DiffBlock).
   diffAddBg: pastel.green,
   diffDelBg: pastel.red,
+  // Whether the host terminal can render truecolor backgrounds. Diff blocks
+  // downgrade to marker-only rendering when this is false (e.g. `TERM=xterm`,
+  // `NO_COLOR=1`, captured/piped output).
+  supportsBackground: detectSupportsBackground(),
 });

@@ -296,7 +296,7 @@ export const Entry = React.memo(function Entry({
                 ) : null;
               })()}
               {multiDiffs.map((item) => (
-                <DiffFileBlock key={item.path} path={item.path} preview={item.preview} useColor />
+                <DiffFileBlock key={item.path} path={item.path} preview={item.preview} useColor={theme.supportsBackground} />
               ))}
             </Box>
           ) : entry.resultRenderMode !== 'simple' && diff ? (
@@ -307,7 +307,7 @@ export const Entry = React.memo(function Entry({
               removed={diff.removed}
               hiddenAdded={diff.hiddenAdded}
               hiddenRemoved={diff.hiddenRemoved}
-              useColor
+              useColor={theme.supportsBackground}
             />
           ) : null}
         </Box>
