@@ -19,6 +19,12 @@ export interface TokenCounter {
    * ceiling.
    */
   currentRequestTokens(): { input: number; cacheRead: number };
+  /**
+   * Override the last-request token snapshot. Used by slash commands like
+   * /compact that modify ctx.messages without making an API request —
+   * after calling this, the TUI/REPL context bar reflects the new size.
+   */
+  setCurrentRequestTokens(input: number, cacheRead?: number): void;
   total(): Usage;
   estimateCost(): { input: number; output: number; total: number; currency: 'USD' };
   cacheStats(): CacheStats;

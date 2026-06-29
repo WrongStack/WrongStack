@@ -201,4 +201,17 @@ describe('DefaultTokenCounter', () => {
     await new Promise((r) => setTimeout(r, 5));
     expect(tc.total().input).toBe(1);
   });
+
+  it('setCurrentRequestTokens overrides the per-request snapshot', () => {
+    const tc = new DefaultTokenCounter();
+    // account() sets lastInput = 10
+    tc.account({ input: 10, output: 5 }, 'm');
+    expect(tc.currentRequestTokens().input).toBe(10);
+    // setCurrentRequestTokens overrides it
+    tc.setCurrentRequestTokens(42, 7);
+    expect(tc.currentRequestTokens().input).toBe(42);
+    expect(tc.currentRequestTokens().cacheRead).toBe(7);
+    // total() is unchanged — only the snapshot was overridden
+    expect(tc.total().input).toBe(10);
+  });
 });

@@ -122,6 +122,11 @@ export class DefaultTokenCounter implements TokenCounter {
     return { input: this.lastInput, cacheRead: this.lastCacheRead };
   }
 
+  setCurrentRequestTokens(input: number, cacheRead?: number): void {
+    this.lastInput = input;
+    this.lastCacheRead = cacheRead ?? 0;
+  }
+
   estimateCost(): { input: number; output: number; total: number; currency: 'USD' } {
     return {
       input: round4(this.costInput),

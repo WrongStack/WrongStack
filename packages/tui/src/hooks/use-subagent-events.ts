@@ -116,6 +116,19 @@ export function useSubagentEvents(
       if (e.maxContext > 0) setActiveMaxContext(e.maxContext);
     });
 
+    const offCompactionFired = events.on('compaction.fired', (e) => {
+      const saved = e.report.before - e.report.after;
+      let label: string;
+      if (saved > 0) {
+        label = `⚡ compact: ${e.report.before} → ${e.report.after} tokens (−${saved}) [${e.level}]`;
+      } else if (saved < 0) {
+        label = `⚠️ compact: context GREW by ${-saved} tokens [${e.level}]`;
+      } else {
+        label = '⚡ compact: no reduction needed';
+      }
+      dispatch({ type: 'addEntry', entry: { kind: 'warn', text: label } });
+    });
+
     const offTool = events.on('subagent.tool_executed', (e) => {
       dispatch({ type: 'fleetTool', id: e.subagentId, name: e.name, ok: e.ok, durationMs: e.durationMs, outputBytes: e.outputBytes });
       dispatch({ type: 'fleetToolEnd', id: e.subagentId });
@@ -125,7 +138,7 @@ export function useSubagentEvents(
       offSpawned(); offStarted(); offCompleted();
       offBudgetWarning(); offBudgetExtended();
       offIterationSummary(); offCtxPct(); offConcurrencyChanged();
-      offLeaderCtxPct(); offLeaderMaxContext();
+      offLeaderCtxPct(); offLeaderMaxContext(); offCompactionFired();
       offTool();
     };
   }, [events, dispatch, setActiveMaxContext, lbl]);
