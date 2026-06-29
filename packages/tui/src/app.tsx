@@ -94,13 +94,13 @@ import {
 import { TodosMonitor } from './components/todos-monitor.js';
 import { WorktreeMonitor } from './components/worktree-monitor.js';
 import { WorktreePanel } from './components/worktree-panel.js';
-import { searchFiles } from './file-search.js';
 import { type GitInfo, readGitInfo } from './git-info.js';
 import { useQueueManager } from './hooks/use-queue-manager.js';
 import { usePasteHandling } from './hooks/use-paste-handling.js';
 import { usePickerKeys } from './hooks/use-picker-keys.js';
 import { useDirectorFleetBridge } from './hooks/use-director-fleet-bridge.js';
 import { useAutonomousCoordinator } from './hooks/use-autonomous-coordinator.js';
+import { useFileSearch } from './hooks/use-file-search.js';
 import { useStatuslineState } from './hooks/use-statusline-state.js';
 import { useTuiControllers } from './hooks/use-tui-controllers.js';
 import { useTuiEventBridge } from './hooks/use-tui-event-bridge.js';
@@ -2307,31 +2307,6 @@ export function App({
     if (state.enhanceBusy || state.enhance != null) eraseLiveRegion();
   });
 
-  // Detect an active `@<query>` token at the cursor and drive the picker.
-  // Reruns whenever buffer/cursor changes — guards against stale results.
-  useEffect(() => {
-    const detected = detectAtToken(state.buffer, state.cursor);
-    if (!detected) {
-      if (state.picker.open) dispatch({ type: 'pickerClose' });
-      return;
-    }
-    if (!state.picker.open || state.picker.query !== detected.query) {
-      dispatch({ type: 'pickerOpen', query: detected.query });
-    }
-    let cancelled = false;
-    searchFiles(projectRoot, detected.query, 8)
-      .then((matches) => {
-        if (!cancelled) {
-          dispatch({ type: 'pickerSetMatches', query: detected.query, matches });
-        }
-      })
-      .catch(() => undefined);
-    return () => {
-      cancelled = true;
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [state.buffer, state.cursor, projectRoot]);
-
   // Detect an active `/<query>` token at the cursor and drive the slash picker.
   useEffect(() => {
     const trimmed = state.buffer.trimStart();
@@ -2358,54 +2333,6 @@ export function App({
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [state.buffer, slashRegistry]);
-
-  const acceptPickerSelection = async (): Promise<void> => {
-    const { open, matches, selected } = state.picker;
-    if (!open || matches.length === 0) return;
-    const picked = matches[selected];
-    if (!picked) return;
-    const builder = builderRef.current;
-    if (!builder) return;
-
-    // Find the @-token span we're replacing.
-    const draft = draftRef.current;
-    const tok = detectAtToken(draft.buffer, draft.cursor);
-    if (!tok) {
-      dispatch({ type: 'pickerClose' });
-      return;
-    }
-
-    // Register the file (no builder display mutation) and put a path-keyed
-    // `[file:<path>]` token inline in the visible buffer (replacing @query).
-    // The buffer is the single source of truth — the token expands back to the
-    // file content at submit via the store's path lookup.
-    const absPath = path.isAbsolute(picked) ? picked : path.join(projectRoot, picked);
-    try {
-      const data = await fs.readFile(absPath, 'utf8');
-      const token = await builder.registerFile({
-        kind: 'file',
-        data,
-        meta: { filename: picked, label: picked },
-      });
-      // Store the full file content so slash commands like /fix can resolve
-      // @-mention tokens to their actual text instead of just the placeholder.
-      tokenPreviewsRef.current.set(token, data);
-      const before = draft.buffer.slice(0, tok.start);
-      const after = draft.buffer.slice(tok.end);
-      const next = `${before}${token}${after}`;
-      setDraft(next, tok.start + token.length);
-      dispatch({ type: 'pickerClose' });
-    } catch (err) {
-      dispatch({
-        type: 'addEntry',
-        entry: {
-          kind: 'error',
-          text: `Attach failed: ${toErrorMessage(err)}`,
-        },
-      });
-      dispatch({ type: 'pickerClose' });
-    }
-  };
 
   /** Fill the buffer with the selected slash command and close the picker. */
   const acceptSlashPickerSelection = (): void => {
@@ -3806,6 +3733,17 @@ export function App({
     streamFleet: state.streamFleet,
   });
 
+  // ── File search (@-token detection + picker selection) ───────────
+  const { onPickerEnter } = useFileSearch({
+    state,
+    dispatch,
+    projectRoot,
+    builderRef,
+    draftRef,
+    setDraft,
+    tokenPreviewsRef,
+  });
+
   // submit is defined later in the component body (after handleKey);
   // this ref lets usePickerKeys call it without reordering code.
   const submitRef = useRef<(text: string) => void>(() => {});
@@ -3986,9 +3924,7 @@ export function App({
       const action = actionForFKeyPanel(entry, statuslineHiddenForPicker());
       if (action) dispatch(action);
     },
-    onPickerEnter: async () => {
-      await acceptPickerSelection();
-    },
+    onPickerEnter,
   });
 
   // Handle SIGINT as a three-stage escalation:
@@ -6793,30 +6729,6 @@ export function renderRunningTools(
   return `running: ${oldest.name} ${elapsedSec}s${more}`;
 }
 
-/**
- * Find an active `@<query>` token at the cursor. The token starts at the
- * last `@` not preceded by a non-whitespace char, and runs up to the cursor
- * (no whitespace allowed inside). Returns null if no active token.
- */
-export function detectAtToken(
-  buffer: string,
-  cursor: number,
-): { start: number; end: number; query: string } | null {
-  let i = cursor - 1;
-  while (i >= 0) {
-    const ch = buffer.charCodeAt(i);
-    if (ch === 64 /* @ */) {
-      // Must be at the start of buffer or preceded by whitespace.
-      if (i === 0 || /\s/.test(buffer[i - 1] ?? '')) {
-        return { start: i, end: cursor, query: buffer.slice(i + 1, cursor) };
-      }
-      return null;
-    }
-    if (ch === 32 /* space */ || ch === 9 /* tab */ || ch === 10 /* nl */) return null;
-    i--;
-  }
-  return null;
-}
 
 function fmtTok(n: number): string {
   if (n < 1000) return String(n);

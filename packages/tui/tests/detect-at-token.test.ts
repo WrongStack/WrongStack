@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { detectAtToken } from '../src/app.js';
+import { detectAtToken } from '../src/hooks/use-file-search.js';
 
 describe('detectAtToken', () => {
   it('returns null when no @ is present', () => {
