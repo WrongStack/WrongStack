@@ -188,7 +188,7 @@
     "undici": "^8.5.0"
   },
   "devDependencies": {
-    "@types/node": "^25.9.4",
+    "@types/node": "^26.0.1",
     "tsup": "^8.5.1"
   },
   "publishConfig": {

@@ -37,7 +37,7 @@
   "devDependencies": {
     "@biomejs/biome": "^2.5.1",
     "@playwright/test": "^1.61.1",
-    "@types/node": "^25.9.4",
+    "@types/node": "^26.0.1",
     "@vitest/coverage-v8": "^4.1.9",
     "cross-env": "^10.1.0",
     "jsdom": "^29.1.1",
@@ -49,6 +49,6 @@
   "overrides": {
     "dompurify": ">=3.4.11",
     "esbuild": "^0.28.1",
-    "undici-types": "^8.4.0"
+    "undici-types": "^8.5.0"
   }
 }

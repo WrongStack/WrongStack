@@ -7,7 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-_Nothing yet._
+### Changed
+
+- **Major dependency bump: `@types/node` 25.9.4 → 26.0.1 across all 14
+  workspaces.** Added `engines.node: ">=22.19.0"` is already satisfied (Node 26
+  is in the supported range). TypeScript 6.0.3 is compatible. No source-code
+  changes required; the bump tracks upstream Node type definitions matching the
+  runtime the project already pins. Root `overrides.undici-types` raised from
+  `^8.4.0` to `^8.5.0` to align with `@types/node@26`'s `~8.3.0` requirement
+  under pnpm's override resolution. Verified with `pnpm typecheck` across all
+  16 workspaces and `pnpm audit --audit-level=high` (no vulnerabilities).
+
 
 ## [0.276.2] — 2026-06-29
 

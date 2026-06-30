@@ -41,7 +41,7 @@
     "@wrongstack/core": "workspace:*"
   },
   "devDependencies": {
-    "@types/node": "^25.9.4",
+    "@types/node": "^26.0.1",
     "@wrongstack/core": "workspace:*",
     "tsup": "^8.5.1",
     "typescript": "^6.0.3"
