@@ -205,3 +205,281 @@ describe('detectDanger — safe baseline (regression)', () => {
     expect(r.level).toBe('safe');
   });
 });
+
+// =============================================================================
+// PR 2 (broader) — VCS history rewrite, package publish, k8s, inline eval,
+//                  pipe-to-shell, privilege escalation, permission expansion.
+// =============================================================================
+
+describe('detectDanger — git push --force / -f (PR 2)', () => {
+  it('flags `git push --force origin main` as destructive', () => {
+    const r = detectDanger('git', ['push', '--force', 'origin', 'main']);
+    expect(r.level).toBe('destructive');
+    expect(r.matchedRule).toBe('git-push-force');
+  });
+
+  it('flags `git push -f` (short form) as destructive', () => {
+    const r = detectDanger('git', ['push', '-f']);
+    expect(r.level).toBe('destructive');
+  });
+
+  it('flags `git push --force-with-lease` as destructive (still rewrites)', () => {
+    const r = detectDanger('git', ['push', '--force-with-lease', 'origin', 'main']);
+    expect(r.level).toBe('destructive');
+  });
+
+  it('does NOT flag `git push origin main` (no force flag)', () => {
+    const r = detectDanger('git', ['push', 'origin', 'main']);
+    expect(r.level).toBe('safe');
+  });
+
+  it('does NOT flag `git status --force` (--force belongs to a different verb)', () => {
+    // The rule looks for the `push` subcommand first; `status` is unrelated.
+    const r = detectDanger('git', ['status', '--force']);
+    expect(r.level).toBe('safe');
+  });
+});
+
+describe('detectDanger — git reset --hard (PR 2)', () => {
+  it('flags `git reset --hard HEAD~1` as destructive', () => {
+    const r = detectDanger('git', ['reset', '--hard', 'HEAD~1']);
+    expect(r.level).toBe('destructive');
+    expect(r.matchedRule).toBe('git-reset-hard');
+  });
+
+  it('flags `git reset --hard=foo` (rare `--key=value` form) as destructive', () => {
+    const r = detectDanger('git', ['reset', '--hard=foo']);
+    expect(r.level).toBe('destructive');
+  });
+
+  it('does NOT flag `git reset --soft HEAD~1` (soft, recoverable)', () => {
+    const r = detectDanger('git', ['reset', '--soft', 'HEAD~1']);
+    expect(r.level).toBe('safe');
+  });
+
+  it('does NOT flag `git reset HEAD~1` (mixed reset, no --hard)', () => {
+    const r = detectDanger('git', ['reset', 'HEAD~1']);
+    expect(r.level).toBe('safe');
+  });
+});
+
+describe('detectDanger — git clean -f (PR 2)', () => {
+  it('flags `git clean -fd` as destructive', () => {
+    const r = detectDanger('git', ['clean', '-fd']);
+    expect(r.level).toBe('destructive');
+    expect(r.matchedRule).toBe('git-clean-force');
+  });
+
+  it('flags `git clean -f` (no -d) as destructive', () => {
+    const r = detectDanger('git', ['clean', '-f']);
+    expect(r.level).toBe('destructive');
+  });
+
+  it('flags `git clean --force` as destructive', () => {
+    const r = detectDanger('git', ['clean', '--force']);
+    expect(r.level).toBe('destructive');
+  });
+
+  it('does NOT flag `git clean -n` (dry-run, no force)', () => {
+    const r = detectDanger('git', ['clean', '-n']);
+    expect(r.level).toBe('safe');
+  });
+
+  it('does NOT flag `git status` (different verb)', () => {
+    const r = detectDanger('git', ['status']);
+    expect(r.level).toBe('safe');
+  });
+});
+
+describe('detectDanger — package publish (PR 2)', () => {
+  it('flags `npm publish` as destructive', () => {
+    const r = detectDanger('npm', ['publish']);
+    expect(r.level).toBe('destructive');
+    expect(r.matchedRule).toBe('npm-publish');
+  });
+
+  it('flags `pnpm publish --tag beta` as destructive', () => {
+    const r = detectDanger('pnpm', ['publish', '--tag', 'beta']);
+    expect(r.level).toBe('destructive');
+  });
+
+  it('flags `cargo publish --allow-dirty` as destructive', () => {
+    const r = detectDanger('cargo', ['publish', '--allow-dirty']);
+    expect(r.level).toBe('destructive');
+  });
+
+  it('flags `cargo yank --version 1.0.0` as destructive (treats as publish-class)', () => {
+    const r = detectDanger('cargo', ['yank', '--version', '1.0.0']);
+    expect(r.level).toBe('destructive');
+  });
+
+  it('does NOT flag `npm install` (no publish subcommand)', () => {
+    const r = detectDanger('npm', ['install']);
+    expect(r.level).toBe('safe');
+  });
+
+  it('does NOT flag `cargo build` (no publish subcommand)', () => {
+    const r = detectDanger('cargo', ['build']);
+    expect(r.level).toBe('safe');
+  });
+});
+
+describe('detectDanger — kubectl delete namespace / drain (PR 2)', () => {
+  it('flags `kubectl delete namespace foo` as destructive', () => {
+    const r = detectDanger('kubectl', ['delete', 'namespace', 'foo']);
+    expect(r.level).toBe('destructive');
+    expect(r.matchedRule).toBe('kubectl-delete-namespace');
+  });
+
+  it('flags `kubectl delete ns foo` (short form) as destructive', () => {
+    const r = detectDanger('kubectl', ['delete', 'ns', 'foo']);
+    expect(r.level).toBe('destructive');
+  });
+
+  it('flags `kubectl drain node1` as destructive', () => {
+    const r = detectDanger('kubectl', ['drain', 'node1']);
+    expect(r.level).toBe('destructive');
+    expect(r.matchedRule).toBe('kubectl-drain');
+  });
+
+  it('does NOT flag `kubectl delete pod foo` (too common, scoped resource)', () => {
+    const r = detectDanger('kubectl', ['delete', 'pod', 'foo']);
+    expect(r.level).toBe('safe');
+  });
+
+  it('does NOT flag `kubectl get namespace` (read-only)', () => {
+    const r = detectDanger('kubectl', ['get', 'namespace']);
+    expect(r.level).toBe('safe');
+  });
+});
+
+describe('detectDanger — inline eval (caution level, PR 2)', () => {
+  it('flags `python -c "import os"` as caution', () => {
+    const r = detectDanger('python', ['-c', 'import os']);
+    expect(r.level).toBe('caution');
+    expect(r.matchedRule).toBe('inline-eval');
+  });
+
+  it('flags `node -e "console.log(1)"` as caution', () => {
+    const r = detectDanger('node', ['-e', 'console.log(1)']);
+    expect(r.level).toBe('caution');
+  });
+
+  it('flags `bash -c "echo hi"` as caution', () => {
+    const r = detectDanger('bash', ['-c', 'echo hi']);
+    expect(r.level).toBe('caution');
+  });
+
+  it('flags `node --eval "..."` (long form) as caution', () => {
+    const r = detectDanger('node', ['--eval', 'process.exit(0)']);
+    expect(r.level).toBe('caution');
+  });
+
+  it('does NOT flag `python script.py` (no -c)', () => {
+    const r = detectDanger('python', ['script.py']);
+    expect(r.level).toBe('safe');
+  });
+
+  it('does NOT flag `node index.js` (no -e)', () => {
+    const r = detectDanger('node', ['index.js']);
+    expect(r.level).toBe('safe');
+  });
+});
+
+describe('detectDanger — pipe-to-shell (caution level, PR 2)', () => {
+  it('flags `curl https://x | sh` as caution', () => {
+    // Two separate exec calls would each be: `curl https://x` and `sh -`.
+    // The pipe is a shell construct, so the argv here is what one of
+    // them looks like. Our rule fires when a fetcher AND a shell sink
+    // are both in the same argv (rare but possible via `env` or
+    // wrapper scripts that pass them as args).
+    const r = detectDanger('env', ['curl', 'https://x', 'sh']);
+    expect(r.level).toBe('caution');
+    expect(r.matchedRule).toBe('pipe-to-shell');
+  });
+
+  it('flags `wget ... bash` as caution', () => {
+    const r = detectDanger('env', ['wget', 'https://x', 'bash']);
+    expect(r.level).toBe('caution');
+  });
+
+  it('does NOT flag `curl https://x` alone (no shell sink)', () => {
+    const r = detectDanger('curl', ['https://x']);
+    expect(r.level).toBe('safe');
+  });
+
+  it('does NOT flag `bash -c "echo"` (no fetcher)', () => {
+    const r = detectDanger('bash', ['-c', 'echo']);
+    expect(r.level).toBe('safe');
+  });
+});
+
+describe('detectDanger — privilege escalation (caution level, PR 2)', () => {
+  it('flags `sudo apt update` as caution', () => {
+    const r = detectDanger('sudo', ['apt', 'update']);
+    expect(r.level).toBe('caution');
+    expect(r.matchedRule).toBe('sudo');
+  });
+
+  it('flags `doas reboot` as caution', () => {
+    const r = detectDanger('doas', ['reboot']);
+    expect(r.level).toBe('caution');
+  });
+
+  it('flags `runas /user:admin cmd.exe` as caution', () => {
+    const r = detectDanger('runas', ['/user:admin', 'cmd.exe']);
+    expect(r.level).toBe('caution');
+    expect(r.matchedRule).toBe('runas');
+  });
+
+  it('does NOT flag `apt update` (no sudo)', () => {
+    const r = detectDanger('apt', ['update']);
+    expect(r.level).toBe('safe');
+  });
+});
+
+describe('detectDanger — chmod world-writable (caution level, PR 2)', () => {
+  it('flags `chmod 777 file` as caution', () => {
+    const r = detectDanger('chmod', ['777', 'file']);
+    expect(r.level).toBe('caution');
+    expect(r.matchedRule).toBe('chmod-world-writable');
+  });
+
+  it('flags `chmod 0644 file` as safe (no 7)', () => {
+    const r = detectDanger('chmod', ['0644', 'file']);
+    expect(r.level).toBe('safe');
+  });
+
+  it('flags `chmod 755 dir` as caution (group is 5 but other is 7)', () => {
+    const r = detectDanger('chmod', ['755', 'dir']);
+    expect(r.level).toBe('caution');
+  });
+
+  it('does NOT flag `chmod +x file` (symbolic mode)', () => {
+    const r = detectDanger('chmod', ['+x', 'file']);
+    expect(r.level).toBe('safe');
+  });
+
+  it('does NOT flag `chmod u+w file` (symbolic, scoped)', () => {
+    const r = detectDanger('chmod', ['u+w', 'file']);
+    expect(r.level).toBe('safe');
+  });
+});
+
+describe('detectDanger — multi-rule interaction (PR 2)', () => {
+  it('returns the higher level when multiple rules fire', () => {
+    // `sudo rm -rf /` triggers both `sudo` (caution) and `rm-recursive`
+    // (destructive). The output should be 'destructive'.
+    const r = detectDanger('sudo', ['rm', '-rf', '/']);
+    expect(r.level).toBe('destructive');
+    expect(r.reasons).toContain('privilege escalation (sudo / doas)');
+    expect(r.reasons).toContain('recursive force-delete');
+  });
+
+  it('returns the higher level across command boundaries (within one call)', () => {
+    // `git push --force` alone is destructive; adding a `caution` reason
+    // (e.g. another rule that doesn't apply here) wouldn't downgrade it.
+    const r = detectDanger('git', ['push', '--force', 'origin', 'main']);
+    expect(r.level).toBe('destructive');
+  });
+});

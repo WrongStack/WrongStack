@@ -20,8 +20,16 @@
  *   - Reasons are human-readable, joined with "; " for the confirm prompt.
  *
  * PR 1 (narrow): destructive file deletion + disk/boot operations.
- * PR 2 (broader, follow-up): git push --force, npm/cargo publish,
- *   kubectl delete namespace, network exfil, privilege escalation.
+ * PR 2 (broader): VCS history rewrite, package publish, k8s cluster ops,
+ *   inline code eval, pipe-to-shell, privilege escalation, permission
+ *   expansion. Mix of 'destructive' and 'caution' levels.
+ *
+ * Caution rules are deliberately permissive — they execute and emit a
+ * warning rather than blocking. The rationale: many of these patterns
+ * (python -c, sudo, curl | bash) are part of legitimate dev workflows,
+ * so a hard deny would block too much. A warning gives the user a
+ * chance to notice "wait, I didn't mean to do that" without forcing
+ * them to add a config override for every script.
  */
 
 export type DangerLevel = 'safe' | 'caution' | 'destructive';
@@ -185,6 +193,179 @@ const RULES: readonly DangerRule[] = [
     level: 'destructive',
     test: (cmd) => cmd === 'sdelete' || cmd === 'sdelete.exe',
     reason: 'sdelete (Sysinternals secure delete)',
+  },
+  // ----- PR 2: VCS history rewrite (destructive) -----
+  // `git push --force` / `-f` rewrites remote history. `--force-with-lease`
+  // is the safer variant (checks remote hasn't moved) but still rewrites.
+  {
+    id: 'git-push-force',
+    level: 'destructive',
+    test: (cmd, args) => {
+      if (cmd !== 'git') return false;
+      // Look for `push` as a subcommand, then any force flag in subsequent args.
+      const pushIdx = args.indexOf('push');
+      if (pushIdx < 0) return false;
+      for (let i = pushIdx + 1; i < args.length; i++) {
+        const a = args[i]!;
+        if (a === '--force' || a === '-f' || a === '--force-with-lease') return true;
+        // Stop scanning if we hit a non-flag that isn't a remote/ref name
+        // (simple heuristic: remote names don't start with --).
+        if (!a.startsWith('-') && !a.includes('=')) continue;
+        if (a.startsWith('--force') /* covers --force-with-lease already */) return true;
+      }
+      return false;
+    },
+    reason: 'git push with --force / -f (rewrites remote history)',
+  },
+  // ----- PR 2: git reset --hard (destructive) -----
+  {
+    id: 'git-reset-hard',
+    level: 'destructive',
+    test: (cmd, args) =>
+      cmd === 'git' && args.some((a) => a === '--hard' || a.startsWith('--hard=')),
+    reason: 'git reset --hard (discards working tree + index)',
+  },
+  // ----- PR 2: git clean -f / -fd (destructive) -----
+  {
+    id: 'git-clean-force',
+    level: 'destructive',
+    test: (cmd, args) => {
+      if (cmd !== 'git') return false;
+      const cleanIdx = args.indexOf('clean');
+      if (cleanIdx < 0) return false;
+      // Must include -f / --force (without it, git clean errors out and
+      // does nothing). -fd / -fdX combinations are subsumed.
+      return args.slice(cleanIdx + 1).some(
+        (a) =>
+          a === '-f' ||
+          a === '--force' ||
+          a.startsWith('-f') /* -fd, -fdx, etc. */ ||
+          a.startsWith('--force='),
+      );
+    },
+    reason: 'git clean -f (deletes untracked files)',
+  },
+  // ----- PR 2: package publish (destructive — public, irreversible) -----
+  {
+    id: 'npm-publish',
+    level: 'destructive',
+    test: (cmd, args) => {
+      if (!['npm', 'pnpm', 'yarn', 'bun', 'cargo'].includes(cmd)) return false;
+      // For npm/pnpm/yarn/bun: subcommand is "publish".
+      // For cargo: subcommand is "publish" OR "yank" (both touch the
+      // public registry; yank is reversible, publish is not, but yank
+      // is rare enough we treat it the same).
+      return args.includes('publish') || (cmd === 'cargo' && args.includes('yank'));
+    },
+    reason: 'publishing to a public package registry (hard to reverse)',
+  },
+  // ----- PR 2: k8s cluster-wide destructive ops (destructive) -----
+  {
+    id: 'kubectl-delete-namespace',
+    level: 'destructive',
+    test: (cmd, args) => {
+      if (cmd !== 'kubectl') return false;
+      const delIdx = args.indexOf('delete');
+      if (delIdx < 0) return false;
+      // Match `kubectl delete namespace <name>` or `kubectl delete ns <name>`.
+      // Generic `kubectl delete pod foo` is left out — too common.
+      const after = args.slice(delIdx + 1);
+      return after[0] === 'namespace' || after[0] === 'ns';
+    },
+    reason: 'kubectl delete namespace (deletes all resources in the namespace)',
+  },
+  {
+    id: 'kubectl-drain',
+    level: 'destructive',
+    test: (cmd, args) => cmd === 'kubectl' && args.includes('drain'),
+    reason: 'kubectl drain (evicts pods, marks node unschedulable)',
+  },
+  // ----- PR 2: inline code evaluation (caution — high false-positive) -----
+  // Common in scripts: `python -c "..."`, `node -e "..."`, `bash -c "..."`.
+  // We tag 'caution' rather than 'destructive' because these are used in
+  // many legitimate one-liners (e.g. `python -c "print(1)"`).
+  {
+    id: 'inline-eval',
+    level: 'caution',
+    test: (cmd, args) => {
+      if (!['python', 'python3', 'python2', 'node', 'bash', 'sh', 'zsh', 'ruby', 'perl', 'lua'].includes(cmd)) {
+        return false;
+      }
+      // -c, -e, --eval, -eval — short form first
+      return args.some(
+        (a) =>
+          a === '-c' ||
+          a === '-e' ||
+          a === '--eval' ||
+          a === '-eval' ||
+          a === '-E' /* node --eval shorthand in some shells */,
+      );
+    },
+    reason: 'inline script evaluation (-c / -e / --eval)',
+  },
+  // ----- PR 2: pipe-to-shell (caution — well-known exfil pattern) -----
+  // The classic `curl https://... | sh` indir-çalıştır vector. Detected by
+  // looking for a known fetcher followed by a shell sink. We use a simple
+  // substring scan; false positives are limited because both tokens must
+  // appear in the same argv.
+  {
+    id: 'pipe-to-shell',
+    level: 'caution',
+    test: (_cmd, args) => {
+      const hasFetcher = args.some(
+        (a) =>
+          /^(curl|wget|fetch|httpie|http)$/i.test(a) ||
+          a.startsWith('curl') /* curl.exe on Windows */ ||
+          a.startsWith('wget'),
+      );
+      const hasShellSink = args.some(
+        (a) =>
+          a === 'sh' ||
+          a === 'bash' ||
+          a === 'zsh' ||
+          a === 'fish' ||
+          a === 'pwsh' ||
+          a === 'powershell' ||
+          a.endsWith('/sh') ||
+          a.endsWith('/bash') ||
+          a.endsWith('/zsh') ||
+          a.endsWith('/pwsh'),
+      );
+      // Also catch the sh -c "..." form (where "sh" is the cmd, not in args)
+      // — but that's covered by inline-eval. This rule is specifically
+      // for the fetcher-pipe-shell case in a single command.
+      return hasFetcher && hasShellSink;
+    },
+    reason: 'network fetch piped to a shell (indir-çalıştır pattern)',
+  },
+  // ----- PR 2: privilege escalation (caution) -----
+  {
+    id: 'sudo',
+    level: 'caution',
+    test: (cmd) => cmd === 'sudo' || cmd === 'doas',
+    reason: 'privilege escalation (sudo / doas)',
+  },
+  {
+    id: 'runas',
+    level: 'caution',
+    test: (cmd) => cmd === 'runas' || cmd === 'runas.exe',
+    reason: 'Windows runas (run as different user)',
+  },
+  // ----- PR 2: world-writable permissions (caution) -----
+  // `chmod 777` is rarely correct. `chmod -R 777` is almost always wrong.
+  // We only flag octal modes; symbolic modes like `chmod o+w` are
+  // left to the operator's discretion.
+  {
+    id: 'chmod-world-writable',
+    level: 'caution',
+    test: (cmd, args) => {
+      if (cmd !== 'chmod') return false;
+      // Skip symbolic modes: anything starting with [ugoa]=\w or [ugoa]+\w.
+      // The only thing we flag is a pure octal mode containing 7 anywhere
+      // in the user/group/other triple (e.g. 777, 776, 747, 707).
+      return args.some((a) => /^[0-7]{3,4}$/.test(a) && /7/.test(a));
+    },
+    reason: 'chmod with world-writable octal mode (e.g. 777)',
   },
 ];
 
