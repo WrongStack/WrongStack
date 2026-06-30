@@ -6,6 +6,7 @@ import { createOutputSpool, spoolNote } from './_output-spool.js';
 import { COMMAND_OUTPUT_MAX_BYTES, normalizeCommandOutput, safeResolveReal } from './_util.js';
 import { getProcessRegistry, redactCommand } from './process-registry.js';
 import { assertSafeWin32ShellArgs, resolveWin32Command } from './_win32-resolve.js';
+import { detectDanger, type DangerAssessment } from './_danger-detect.js';
 
 const isWin = process.platform === 'win32';
 
@@ -310,6 +311,19 @@ interface ExecOutput {
   exitCode: number;
   truncated: boolean;
   allowed: boolean;
+  /**
+   * Heuristic danger assessment of the (cmd, args) pair. Populated for every
+   * call (not just blocked ones) so the UI/TUI can render a banner when the
+   * level is 'caution' or 'destructive'. See `_danger-detect.ts` for the
+   * rule set; this is a NARROW set in this commit (file deletion, disk /
+   * boot ops). Broader categories (git push --force, npm publish, etc.)
+   * are tracked in a follow-up PR.
+   *
+   * Pre-execution error returns (allowlist miss, arg block, etc.) report
+   * `level: 'safe'` because the command never actually ran; the UI should
+   * surface the error separately and not also a danger warning.
+   */
+  danger: DangerAssessment;
 }
 
 export const execTool: Tool<ExecInput, ExecOutput> = {
@@ -367,6 +381,7 @@ export const execTool: Tool<ExecInput, ExecOutput> = {
         exitCode: 1,
         truncated: false,
         allowed: false,
+        danger: { level: 'safe' as const, reasons: [] },
       };
     }
 
@@ -380,6 +395,7 @@ export const execTool: Tool<ExecInput, ExecOutput> = {
         exitCode: 1,
         truncated: false,
         allowed: false,
+        danger: { level: 'safe' as const, reasons: [] },
       };
 
     if (!isExecCommandAllowed(cmd)) {
@@ -394,11 +410,18 @@ export const execTool: Tool<ExecInput, ExecOutput> = {
         exitCode: 1,
         truncated: false,
         allowed: false,
+        danger: { level: 'safe' as const, reasons: [] },
       };
     }
 
     const args = (input.args ?? []).slice(0, MAX_ARGS);
     const timeout = Math.max(1, Math.min(input.timeout ?? DEFAULT_TIMEOUT_MS, DEFAULT_TIMEOUT_MS));
+
+    // Heuristic danger assessment. Computed once here, attached to every
+    // successful-execution return so the UI can render a banner for
+    // 'caution' / 'destructive' levels. The rule set is narrow in this
+    // commit; see `_danger-detect.ts` for the rules and the follow-up plan.
+    const danger: DangerAssessment = detectDanger(cmd, args);
 
     // Validate args against per-command security patterns
     const argError = validateArgs(cmd, args);
@@ -411,6 +434,7 @@ export const execTool: Tool<ExecInput, ExecOutput> = {
         exitCode: 1,
         truncated: false,
         allowed: false,
+        danger: detectDanger(cmd, args),
       };
     }
 
@@ -428,11 +452,12 @@ export const execTool: Tool<ExecInput, ExecOutput> = {
         exitCode: 1,
         truncated: false,
         allowed: false,
+        danger: detectDanger(cmd, args),
       };
     }
     const signal = opts.signal;
 
-    return runCommand(cmd, args, cwd, timeout, signal, ctx.session?.id);
+    return runCommand(cmd, args, cwd, timeout, signal, ctx.session?.id, danger);
   },
 };
 
@@ -443,6 +468,7 @@ function runCommand(
   timeout: number,
   signal: AbortSignal,
   sessionId: string | undefined,
+  danger: DangerAssessment,
 ): Promise<ExecOutput> {
   return new Promise((resolve) => {
     let stdout = '';
@@ -513,6 +539,7 @@ function runCommand(
         exitCode: 1,
         truncated: false,
         allowed: true,
+        danger,
       });
       return;
     }
@@ -544,6 +571,7 @@ function runCommand(
         exitCode: isAbort ? 124 : 1,
         truncated: Buffer.byteLength(stdout, 'utf8') > COMMAND_OUTPUT_MAX_BYTES,
         allowed: true,
+        danger,
       });
     });
 
@@ -600,6 +628,7 @@ function runCommand(
           Buffer.byteLength(stdout, 'utf8') > COMMAND_OUTPUT_MAX_BYTES ||
           Buffer.byteLength(stderr, 'utf8') > COMMAND_OUTPUT_MAX_BYTES,
         allowed: true,
+        danger,
       });
     });
   });

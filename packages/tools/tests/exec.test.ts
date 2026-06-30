@@ -505,4 +505,58 @@ describe('exec command policy (configurable allowlist)', () => {
       expect(isExecCommandAllowed(cmd)).toBe(true);
     }
   });
+
+  it('attaches a danger assessment to every exec return (PR 1 narrow set)', () => {
+    // Integration: verify that the danger-detection layer is wired into the
+    // exec tool. This is the contract that UI/TUI consumers will rely on
+    // to render a banner. We test three categories:
+    //   - a pre-execution error return (allowlist miss) → level 'safe'
+    //   - a destructive command (rm -rf in a sandbox) → level 'destructive'
+    //   - a normal command (git status in a sandbox) → level 'safe'
+    //
+    // Note: rm is NOT in the default allowlist (it's a Unix tool that
+    // happens to be available everywhere). We add it to the runtime
+    // allowlist for this test only, then reset via afterEach.
+    const sb = (async () => {
+      const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'ws-exec-danger-'));
+      return {
+        ctx: { cwd: dir, tools: [], projectRoot: dir, session: { id: 'sess_danger' } } as any,
+        cleanup: async () => {
+          await fs.rm(dir, { recursive: true, force: true });
+        },
+      };
+    })();
+
+    return (async () => {
+      const { ctx, cleanup } = await sb;
+      try {
+        // (1) Allowlist miss → 'safe' (the call never reached danger detection
+        // for a meaningful reason; we still attach 'safe' to satisfy the schema)
+        const r1 = await execTool.execute({ command: 'not-in-allowlist' }, ctx, makeOpts());
+        expect(r1.danger.level).toBe('safe');
+
+        // (2) Destructive: rm -rf on a sandbox dir
+        configureExecPolicy({ allow: ['rm'] });
+        const target = path.join(ctx.cwd, 'build');
+        await fs.mkdir(target, { recursive: true });
+        const r2 = await execTool.execute(
+          { command: 'rm', args: ['-rf', target] },
+          ctx,
+          makeOpts(),
+        );
+        expect(r2.allowed).toBe(true);
+        expect(r2.danger.level).toBe('destructive');
+        expect(r2.danger.reasons).toContain('recursive force-delete');
+        expect(r2.danger.matchedRule).toBe('rm-recursive');
+
+        // (3) Safe: git status in a sandbox dir
+        const r3 = await execTool.execute({ command: 'git', args: ['status'] }, ctx, makeOpts());
+        expect(r3.allowed).toBe(true);
+        expect(r3.danger.level).toBe('safe');
+        expect(r3.danger.reasons).toEqual([]);
+      } finally {
+        await cleanup();
+      }
+    })();
+  });
 });
