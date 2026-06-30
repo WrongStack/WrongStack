@@ -9,6 +9,9 @@ import {
   resetExecPolicy,
   isExecCommandAllowed,
   getExecAllowlist,
+  configureDangerBypass,
+  resetDangerBypass,
+  getDangerBypass,
 } from '../src/exec.js';
 
 const makeOpts = () => ({ signal: new AbortController().signal });
@@ -323,7 +326,10 @@ describe('exec command policy (configurable allowlist)', () => {
   const makeCtx2 = () => ({ cwd: '/fake', tools: [], projectRoot: '/fake' }) as any;
   const makeOpts2 = () => ({ signal: new AbortController().signal });
 
-  afterEach(() => resetExecPolicy());
+  afterEach(() => {
+    resetExecPolicy();
+    resetDangerBypass();
+  });
 
   it('ships common build tools in the default allowlist (incl. modern dev runners)', () => {
     for (const cmd of [
@@ -556,6 +562,60 @@ describe('exec command policy (configurable allowlist)', () => {
         expect(r3.danger.reasons).toEqual([]);
       } finally {
         await cleanup();
+      }
+    })();
+  });
+
+  it('honors configureDangerBypass (PR 3): a bypassed rule is suppressed in danger output', () => {
+    // Wire the danger-bypass from "config" before each call, then verify
+    // the same (cmd, args) that previously returned 'destructive' now
+    // returns 'safe' when its rule id is in the bypass set.
+    return (async () => {
+      const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'ws-exec-bypass-'));
+      const ctx = {
+        cwd: dir,
+        tools: [],
+        projectRoot: dir,
+        session: { id: 'sess_bypass' },
+      } as any;
+      try {
+        // Allow rm for this test only; afterEach in the parent describe
+        // resets both the policy and the bypass.
+        configureExecPolicy({ allow: ['rm'] });
+
+        // (1) Without bypass: rm -rf is destructive.
+        configureDangerBypass({ bypass: [] });
+        const r1 = await execTool.execute(
+          { command: 'rm', args: ['-rf', path.join(dir, 'a')] },
+          ctx,
+          makeOpts(),
+        );
+        expect(r1.danger.level).toBe('destructive');
+        expect(r1.danger.matchedRule).toBe('rm-recursive');
+
+        // (2) With bypass on the rule: level drops to safe.
+        configureDangerBypass({ bypass: ['rm-recursive'] });
+        expect(getDangerBypass().has('rm-recursive')).toBe(true);
+        const r2 = await execTool.execute(
+          { command: 'rm', args: ['-rf', path.join(dir, 'b')] },
+          ctx,
+          makeOpts(),
+        );
+        expect(r2.danger.level).toBe('safe');
+        expect(r2.danger.reasons).toEqual([]);
+        expect(r2.danger.matchedRule).toBeUndefined();
+
+        // (3) Bypass on a different rule does NOT affect rm-recursive.
+        configureDangerBypass({ bypass: ['inline-eval'] });
+        const r3 = await execTool.execute(
+          { command: 'rm', args: ['-rf', path.join(dir, 'c')] },
+          ctx,
+          makeOpts(),
+        );
+        expect(r3.danger.level).toBe('destructive');
+        expect(r3.danger.matchedRule).toBe('rm-recursive');
+      } finally {
+        await fs.rm(dir, { recursive: true, force: true });
       }
     })();
   });

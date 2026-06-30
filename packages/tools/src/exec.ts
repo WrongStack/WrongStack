@@ -180,6 +180,51 @@ export function resetExecPolicy(): void {
   allowedCommands = new Set(DEFAULT_ALLOWED_COMMANDS);
 }
 
+// -----------------------------------------------------------------------
+// Danger-detection bypass (config.tools.exec.danger.bypass)
+// -----------------------------------------------------------------------
+
+/**
+ * Set of rule ids that should be skipped during danger detection. Wired
+ * from `config.tools.exec.danger.bypass` at boot. Mirrors the
+ * `allowedCommands` pattern above: defaults to empty, replaced wholesale
+ * by `configureDangerBypass()`, reset by `resetDangerBypass()`.
+ *
+ * SECURITY: like `allow`, this is a per-rule weakening of the danger
+ * gate. The boot path strips `tools.exec.danger.bypass` from in-project
+ * repo config; only trusted config (user-global, system) sets it.
+ */
+let dangerBypass: ReadonlySet<string> = new Set();
+
+/**
+ * Apply the configured danger-bypass policy. Each id in `bypass` is
+ * added to the effective skip set; duplicates are fine. Idempotent.
+ *
+ * Call once at boot from `config.tools.exec.danger.bypass`.
+ */
+export function configureDangerBypass(opts: { bypass?: readonly string[] | undefined } = {}): void {
+  const next = new Set<string>();
+  for (const id of opts.bypass ?? []) {
+    const trimmed = id.trim();
+    if (trimmed) next.add(trimmed);
+  }
+  dangerBypass = next;
+}
+
+/** Reset the danger-bypass set to empty (tests / re-init). */
+export function resetDangerBypass(): void {
+  dangerBypass = new Set();
+}
+
+/**
+ * Read-only view of the active bypass set. `detectDanger()` takes a
+ * `bypass` argument directly, so consumers should prefer passing this
+ * rather than reading the set and matching themselves.
+ */
+export function getDangerBypass(): ReadonlySet<string> {
+  return dangerBypass;
+}
+
 /** Whether `cmd` is currently in the effective exec allowlist. */
 export function isExecCommandAllowed(cmd: string): boolean {
   return allowedCommands.has(normalizeCmd(cmd));
@@ -421,7 +466,9 @@ export const execTool: Tool<ExecInput, ExecOutput> = {
     // successful-execution return so the UI can render a banner for
     // 'caution' / 'destructive' levels. The rule set is narrow in this
     // commit; see `_danger-detect.ts` for the rules and the follow-up plan.
-    const danger: DangerAssessment = detectDanger(cmd, args);
+    // The `bypass` argument is wired from `config.tools.exec.danger.bypass`
+    // (see `configureDangerBypass`); rule ids in that set are skipped.
+    const danger: DangerAssessment = detectDanger(cmd, args, dangerBypass);
 
     // Validate args against per-command security patterns
     const argError = validateArgs(cmd, args);

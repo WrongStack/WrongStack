@@ -483,3 +483,67 @@ describe('detectDanger — multi-rule interaction (PR 2)', () => {
     expect(r.level).toBe('destructive');
   });
 });
+
+// =============================================================================
+// PR 3 — config bypass for danger rules.
+// =============================================================================
+
+describe('detectDanger — bypass argument (PR 3)', () => {
+  it('skips a rule whose id is in the bypass set', () => {
+    const bypass = new Set(['rm-recursive']);
+    const r = detectDanger('rm', ['-rf', './build'], bypass);
+    expect(r.level).toBe('safe');
+    expect(r.reasons).toEqual([]);
+    expect(r.matchedRule).toBeUndefined();
+  });
+
+  it('ignores unknown bypass ids (forward-compat: future rule can be referenced)', () => {
+    const bypass = new Set(['this-rule-does-not-exist']);
+    const r = detectDanger('rm', ['-rf', './build'], bypass);
+    // Unknown bypass id should not affect anything; rm-recursive still fires.
+    expect(r.level).toBe('destructive');
+  });
+
+  it('skips only the specified rule; other matched rules still fire', () => {
+    // Bypass `rm-recursive` but keep `sudo` active. `sudo rm -rf /` then
+    // has the destructive rule suppressed, leaving only the caution rule.
+    const bypass = new Set(['rm-recursive']);
+    const r = detectDanger('sudo', ['rm', '-rf', '/'], bypass);
+    expect(r.level).toBe('caution');
+    expect(r.reasons).toEqual(['privilege escalation (sudo / doas)']);
+  });
+
+  it('treats empty bypass the same as no bypass (default behavior)', () => {
+    const emptyBypass = new Set<string>();
+    const noBypass = undefined;
+    const a = detectDanger('rm', ['-rf', './build'], emptyBypass);
+    const b = detectDanger('rm', ['-rf', './build'], noBypass);
+    expect(a).toEqual(b);
+    expect(a.level).toBe('destructive');
+  });
+
+  it('bypasses a caution-level rule (e.g. inline-eval)', () => {
+    const bypass = new Set(['inline-eval']);
+    const r = detectDanger('python', ['-c', 'import os'], bypass);
+    expect(r.level).toBe('safe');
+  });
+
+  it('does NOT silently suppress unmatched rules when bypass is provided', () => {
+    // Bypass `rm-recursive`, but invoke a different destructive rule. The
+    // bypass should not affect it.
+    const bypass = new Set(['rm-recursive']);
+    const r = detectDanger('git', ['push', '--force', 'origin', 'main'], bypass);
+    expect(r.level).toBe('destructive');
+    expect(r.matchedRule).toBe('git-push-force');
+  });
+
+  it('handles bypass with multiple ids', () => {
+    const bypass = new Set(['rm-recursive', 'git-push-force', 'inline-eval']);
+    const r1 = detectDanger('rm', ['-rf', 'foo'], bypass);
+    const r2 = detectDanger('git', ['push', '--force'], bypass);
+    const r3 = detectDanger('python', ['-c', 'evil'], bypass);
+    expect(r1.level).toBe('safe');
+    expect(r2.level).toBe('safe');
+    expect(r3.level).toBe('safe');
+  });
+});

@@ -376,15 +376,27 @@ const RULES: readonly DangerRule[] = [
  * matching rules. The 'matchedRule' field is the *last* rule that fired
  * (stable, since rules are evaluated in declaration order).
  *
+ * Optional `bypass` argument: a set of rule ids that should be SKIPPED
+ * even if they would otherwise match. Wired from
+ * `config.tools.exec.danger.bypass` (see `ExecDangerConfig` in
+ * `@wrongstack/core/src/types/config.ts`). Unknown ids are silently
+ * ignored — forward-compat: a rule added in a future version can be
+ * referenced before the user upgrades their config schema.
+ *
  * This function is the single source of truth for danger classification;
  * it is pure (no side effects) and unit-tested in `danger-detect.test.ts`.
  */
-export function detectDanger(cmd: string, args: readonly string[]): DangerAssessment {
+export function detectDanger(
+  cmd: string,
+  args: readonly string[],
+  bypass?: ReadonlySet<string>,
+): DangerAssessment {
   const reasons: string[] = [];
   let level: DangerLevel = 'safe';
   let matchedRule: string | undefined;
 
   for (const rule of RULES) {
+    if (bypass?.has(rule.id)) continue;
     if (!rule.test(cmd, args)) continue;
     reasons.push(rule.reason);
     matchedRule = rule.id;

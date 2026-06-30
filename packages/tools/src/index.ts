@@ -19,7 +19,11 @@ export {
   resetExecPolicy,
   isExecCommandAllowed,
   getExecAllowlist,
+  configureDangerBypass,
+  resetDangerBypass,
+  getDangerBypass,
 } from './exec.js';
+export { detectDanger, type DangerLevel, type DangerAssessment } from './_danger-detect.js';
 export { fetchTool } from './fetch.js';
 export { searchTool } from './search.js';
 export { todoTool } from './todo.js';
