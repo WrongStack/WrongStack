@@ -20,6 +20,7 @@ import {
 } from '@wrongstack/core';
 import {
   builtinToolsPack,
+  configureDangerBypass,
   configureExecPolicy,
   forgetTool,
   makeSkillTool,
@@ -101,6 +102,7 @@ export async function setupTools(params: ToolsWiringDeps): Promise<ToolsWiringRe
   // is trusted-config-only — the config loader already stripped
   // `tools.exec.allow` from any in-project repo config before this point.
   configureExecPolicy(config.tools?.exec ?? {});
+  configureDangerBypass(config.tools?.exec?.danger ?? {});
 
   // Tool registry — already created by caller, just configure it here.
   // Determine token-saving tier (handles boolean backward-compat: true → 'medium')

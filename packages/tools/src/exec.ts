@@ -9,6 +9,7 @@ import {
   buildWin32CmdShimInvocation,
   resolveWin32Command,
 } from './_win32-resolve.js';
+import { detectDanger, type DangerAssessment } from './_danger-detect.js';
 
 const isWin = process.platform === 'win32';
 
@@ -190,6 +191,51 @@ export function resetExecPolicy(): void {
   allowedCommands = new Set(DEFAULT_ALLOWED_COMMANDS);
 }
 
+// -----------------------------------------------------------------------
+// Danger-detection bypass (config.tools.exec.danger.bypass)
+// -----------------------------------------------------------------------
+
+/**
+ * Set of rule ids that should be skipped during danger detection. Wired
+ * from `config.tools.exec.danger.bypass` at boot. Mirrors the
+ * `allowedCommands` pattern above: defaults to empty, replaced wholesale
+ * by `configureDangerBypass()`, reset by `resetDangerBypass()`.
+ *
+ * SECURITY: like `allow`, this is a per-rule weakening of the danger
+ * gate. The boot path strips `tools.exec.danger.bypass` from in-project
+ * repo config; only trusted config (user-global, system) sets it.
+ */
+let dangerBypass: ReadonlySet<string> = new Set();
+
+/**
+ * Apply the configured danger-bypass policy. Each id in `bypass` is
+ * added to the effective skip set; duplicates are fine. Idempotent.
+ *
+ * Call once at boot from `config.tools.exec.danger.bypass`.
+ */
+export function configureDangerBypass(opts: { bypass?: readonly string[] | undefined } = {}): void {
+  const next = new Set<string>();
+  for (const id of opts.bypass ?? []) {
+    const trimmed = id.trim();
+    if (trimmed) next.add(trimmed);
+  }
+  dangerBypass = next;
+}
+
+/** Reset the danger-bypass set to empty (tests / re-init). */
+export function resetDangerBypass(): void {
+  dangerBypass = new Set();
+}
+
+/**
+ * Read-only view of the active bypass set. `detectDanger()` takes a
+ * `bypass` argument directly, so consumers should prefer passing this
+ * rather than reading the set and matching themselves.
+ */
+export function getDangerBypass(): ReadonlySet<string> {
+  return dangerBypass;
+}
+
 /** Whether `cmd` is currently in the effective exec allowlist. */
 export function isExecCommandAllowed(cmd: string): boolean {
   return allowedCommands.has(normalizeCmd(cmd));
@@ -321,7 +367,20 @@ interface ExecOutput {
   exitCode: number;
   truncated: boolean;
   allowed: boolean;
+  /**
+   * Heuristic danger assessment of the (cmd, args) pair. Populated for every
+   * call (not just blocked ones) so the UI/TUI can render a banner when the
+   * level is 'caution' or 'destructive'. See `_danger-detect.ts` for the
+   * rule set.
+   *
+   * Pre-execution error returns (allowlist miss, circuit breaker, etc.)
+   * report `level: 'safe'` because the command never actually ran; the UI
+   * should surface the error separately and not also a danger warning.
+   */
+  danger: DangerAssessment;
 }
+
+const SAFE_DANGER: DangerAssessment = { level: 'safe', reasons: [] };
 
 export const execTool: Tool<ExecInput, ExecOutput> = {
   name: 'exec',
@@ -378,6 +437,7 @@ export const execTool: Tool<ExecInput, ExecOutput> = {
         exitCode: 1,
         truncated: false,
         allowed: false,
+        danger: SAFE_DANGER,
       };
     }
 
@@ -391,6 +451,7 @@ export const execTool: Tool<ExecInput, ExecOutput> = {
         exitCode: 1,
         truncated: false,
         allowed: false,
+        danger: SAFE_DANGER,
       };
 
     if (!isExecCommandAllowed(cmd)) {
@@ -405,11 +466,19 @@ export const execTool: Tool<ExecInput, ExecOutput> = {
         exitCode: 1,
         truncated: false,
         allowed: false,
+        danger: SAFE_DANGER,
       };
     }
 
     const args = (input.args ?? []).slice(0, MAX_ARGS);
     const timeout = Math.max(1, Math.min(input.timeout ?? DEFAULT_TIMEOUT_MS, DEFAULT_TIMEOUT_MS));
+
+    // Heuristic danger assessment. Computed once here, attached to every
+    // return from this point on (including error returns) so the UI can
+    // render a banner for 'caution' / 'destructive' levels. The `bypass`
+    // argument is wired from `config.tools.exec.danger.bypass` (see
+    // `configureDangerBypass`); rule ids in that set are skipped.
+    const danger: DangerAssessment = detectDanger(cmd, args, dangerBypass);
 
     // Validate args against per-command security patterns
     const argError = validateArgs(cmd, args);
@@ -422,6 +491,7 @@ export const execTool: Tool<ExecInput, ExecOutput> = {
         exitCode: 1,
         truncated: false,
         allowed: false,
+        danger,
       };
     }
 
@@ -439,11 +509,12 @@ export const execTool: Tool<ExecInput, ExecOutput> = {
         exitCode: 1,
         truncated: false,
         allowed: false,
+        danger,
       };
     }
     const signal = opts.signal;
 
-    return runCommand(cmd, args, cwd, timeout, signal, ctx.session?.id);
+    return runCommand(cmd, args, cwd, timeout, signal, ctx.session?.id, danger);
   },
 };
 
@@ -454,6 +525,7 @@ function runCommand(
   timeout: number,
   signal: AbortSignal,
   sessionId: string | undefined,
+  danger: DangerAssessment,
 ): Promise<ExecOutput> {
   return new Promise((resolve) => {
     let stdout = '';
@@ -519,6 +591,7 @@ function runCommand(
         exitCode: 1,
         truncated: false,
         allowed: true,
+        danger,
       });
       return;
     }
@@ -550,6 +623,7 @@ function runCommand(
         exitCode: isAbort ? 124 : 1,
         truncated: Buffer.byteLength(stdout, 'utf8') > COMMAND_OUTPUT_MAX_BYTES,
         allowed: true,
+        danger,
       });
     });
 
@@ -606,6 +680,7 @@ function runCommand(
           Buffer.byteLength(stdout, 'utf8') > COMMAND_OUTPUT_MAX_BYTES ||
           Buffer.byteLength(stderr, 'utf8') > COMMAND_OUTPUT_MAX_BYTES,
         allowed: true,
+        danger,
       });
     });
   });

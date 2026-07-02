@@ -731,7 +731,8 @@ The current rule set is documented in `packages/tools/src/_danger-detect.ts`. St
 | `git-reset-hard` | destructive | `git reset --hard` |
 | `git-clean-force` | destructive | `git clean -f` / `-fd` / `--force` |
 | `npm-publish` | destructive | `npm`/`pnpm`/`yarn`/`bun` `publish`, `cargo publish` / `yank` |
-| `kubectl-delete-namespace` | destructive | `kubectl delete namespace/ns`, `kubectl drain` |
+| `kubectl-delete-namespace` | destructive | `kubectl delete namespace/ns` |
+| `kubectl-drain` | destructive | `kubectl drain` |
 | `inline-eval` | caution | `python`/`node`/`bash`/`sh`/`zsh`/`ruby`/`perl`/`lua` with `-c`, `-e`, `--eval` |
 | `pipe-to-shell` | caution | `curl`/`wget` + `sh`/`bash`/`pwsh` in same argv |
 | `sudo`, `runas` | caution | privilege escalation |

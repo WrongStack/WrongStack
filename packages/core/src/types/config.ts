@@ -296,6 +296,34 @@ export interface ExecToolConfig {
    * removing a command can only narrow what runs, so it is always safe.
    */
   deny?: string[] | undefined;
+  /**
+   * Per-rule bypass for the heuristic danger detector. Each entry is a
+   * stable `matchedRule` id (e.g. `rm-recursive`, `git-push-force`); a
+   * matched rule whose id is in this list is suppressed.
+   *
+   * Use case: a project that legitimately runs `rm -rf ./build` on every
+   * CI run can add `"rm-recursive"` to bypass so the detector stops
+   * emitting banners for that one rule — without disabling it for every
+   * other `rm -rf` invocation.
+   *
+   * **Trusted sources only.** Bypassing a danger rule means the user
+   * agreed to a specific destructive pattern; in-project repo config
+   * could otherwise be used to silently opt everyone in. The boot path
+   * strips this field from `<project>/.wrongstack/config.json` the
+   * same way it strips `allow`.
+   */
+  danger?: ExecDangerConfig | undefined;
+}
+
+export interface ExecDangerConfig {
+  /**
+   * List of danger rule ids to skip. Each id corresponds to a rule in
+   * `@wrongstack/tools/src/_danger-detect.ts` (e.g. `rm-recursive`,
+   * `git-push-force`, `inline-eval`, `sudo`). Unknown ids are ignored
+   * (forward-compat: a rule added in a future version can be referenced
+   * before the user upgrades).
+   */
+  bypass?: string[] | undefined;
 }
 
 export type ToolDescriptionMode = 'extend' | 'simple';

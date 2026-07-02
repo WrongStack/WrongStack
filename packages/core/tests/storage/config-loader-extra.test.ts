@@ -270,6 +270,87 @@ describe('DefaultConfigLoader in-project config hardening (WS-06)', () => {
     expect((input as { tools: { exec: { allow: string[] } } }).tools.exec.allow).toEqual(['curl']);
   });
 
+  it('strips tools.exec.danger (with bypass) from in-project config — same threat model as allow', () => {
+    // `tools.exec.danger.bypass` weakens the heuristic danger gate on a
+    // per-rule basis. A repo must never be able to silently disarm safety
+    // checks for anyone who clones it. We strip the whole `danger` object
+    // (the only field it contains today is `bypass`, and the strip is
+    // forward-compat: any future field added under `danger` is also
+    // denied until it gets an explicit allow decision).
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const out = stripUnsafeInProjectFields(
+      {
+        tools: {
+          maxIterations: 7,
+          exec: {
+            deny: ['rm'],
+            danger: { bypass: ['rm-recursive', 'git-push-force'] },
+          },
+        },
+      } as never,
+      '/tmp/.wrongstack/config.json',
+      warn,
+    );
+    const tools = (
+      out as {
+        tools?: {
+          maxIterations?: number;
+          exec?: { deny?: unknown; danger?: unknown; allow?: unknown };
+        };
+      }
+    ).tools;
+    expect(tools?.maxIterations).toBe(7);
+    expect(tools?.exec?.deny).toEqual(['rm']);
+    expect(tools?.exec?.danger).toBeUndefined(); // dangerous: stripped
+    expect(tools?.exec?.allow).toBeUndefined(); // not set, but cross-check
+    const warned = warn.mock.calls.map((c) => String(c[0])).join('\n');
+    expect(warned).toContain('tools.exec.danger');
+    // The inner bypass field should not be named separately — we strip
+    // the parent, so the warning should not mention `tools.exec.danger.bypass`.
+    expect(warned).not.toContain('tools.exec.danger.bypass');
+    warn.mockRestore();
+  });
+
+  it('strips BOTH tools.exec.allow and tools.exec.danger in one pass', () => {
+    // A repo that tries to widen the allowlist AND disarm danger detection
+    // at the same time — both should be stripped in a single call.
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const out = stripUnsafeInProjectFields(
+      {
+        tools: {
+          exec: {
+            allow: ['curl', 'powershell'],
+            deny: ['rm'],
+            danger: { bypass: ['rm-recursive'] },
+          },
+        },
+      } as never,
+      '/tmp/.wrongstack/config.json',
+      warn,
+    );
+    const exec = (out as { tools?: { exec?: { allow?: unknown; deny?: unknown; danger?: unknown } } }).tools?.exec;
+    expect(exec?.allow).toBeUndefined();
+    expect(exec?.danger).toBeUndefined();
+    expect(exec?.deny).toEqual(['rm']); // safe field kept
+    const warned = warn.mock.calls.map((c) => String(c[0])).join('\n');
+    expect(warned).toContain('tools.exec.allow');
+    expect(warned).toContain('tools.exec.danger');
+    warn.mockRestore();
+  });
+
+  it('does not mutate the caller input when stripping tools.exec.danger', () => {
+    const input = {
+      tools: { exec: { danger: { bypass: ['rm-recursive'] } } },
+    } as never;
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    stripUnsafeInProjectFields(input, '/tmp/.wrongstack/config.json', warn);
+    warn.mockRestore();
+    // Original input still has its bypass — we cloned before deleting.
+    expect(
+      (input as { tools: { exec: { danger: { bypass: string[] } } } }).tools.exec.danger.bypass,
+    ).toEqual(['rm-recursive']);
+  });
+
   it('strips skills.extraDirs from in-project config but keeps readClaudeSkills/mode', () => {
     // `skills` is allow-listed (benign prefs), but `skills.extraDirs` points the
     // loader at ARBITRARY directories to scan and inject into the prompt — a repo

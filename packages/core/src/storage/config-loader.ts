@@ -524,18 +524,41 @@ export function stripUnsafeInProjectFields(
   // `tools.exec.allow` EXPANDS what the agent may execute — never honor that
   // from an attacker-controllable repo config. Remove it while preserving
   // `tools.exec.deny` (removing commands only narrows, so it is always safe).
+  //
+  // `tools.exec.danger.bypass` is the same threat model: a bypass list
+  // weakens the heuristic danger gate on a per-rule basis. A malicious
+  // repo that auto-loaded its own bypass rules could silently disarm
+  // safety checks for anyone who clones it. Same strip semantics.
+  //
   // Clone the affected objects so the caller's input is not mutated.
   const outTools = (out as Record<string, unknown>)['tools'];
   if (outTools && typeof outTools === 'object') {
     const execCfg = (outTools as Record<string, unknown>)['exec'];
-    if (execCfg && typeof execCfg === 'object' && 'allow' in (execCfg as Record<string, unknown>)) {
-      const clonedExec = { ...(execCfg as Record<string, unknown>) };
-      delete clonedExec['allow'];
-      (out as Record<string, unknown>)['tools'] = {
-        ...(outTools as Record<string, unknown>),
-        exec: clonedExec,
-      };
-      stripped.push('tools.exec.allow');
+    if (execCfg && typeof execCfg === 'object') {
+      const hasAllow = 'allow' in (execCfg as Record<string, unknown>);
+      const hasDanger = 'danger' in (execCfg as Record<string, unknown>);
+      if (hasAllow || hasDanger) {
+        const clonedExec: Record<string, unknown> = { ...(execCfg as Record<string, unknown>) };
+        if (hasAllow) {
+          delete clonedExec['allow'];
+          stripped.push('tools.exec.allow');
+        }
+        if (hasDanger) {
+          // Strip the whole `danger` object — `ExecDangerConfig` only
+          // has `bypass` today, and bypass is the unsafe field, so
+          // stripping the parent is equivalent and forward-compat with
+          // any future fields added under `danger` that we don't yet
+          // know about. Better to be conservative: anything new under
+          // `danger` from a repo config is rejected until it gets an
+          // explicit allow decision.
+          delete clonedExec['danger'];
+          stripped.push('tools.exec.danger');
+        }
+        (out as Record<string, unknown>)['tools'] = {
+          ...(outTools as Record<string, unknown>),
+          exec: clonedExec,
+        };
+      }
     }
   }
 

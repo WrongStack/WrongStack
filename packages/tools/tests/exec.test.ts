@@ -9,6 +9,9 @@ import {
   resetExecPolicy,
   isExecCommandAllowed,
   getExecAllowlist,
+  configureDangerBypass,
+  resetDangerBypass,
+  getDangerBypass,
 } from '../src/exec.js';
 
 const makeOpts = () => ({ signal: new AbortController().signal });
@@ -323,7 +326,10 @@ describe('exec command policy (configurable allowlist)', () => {
   const makeCtx2 = () => ({ cwd: '/fake', tools: [], projectRoot: '/fake' }) as any;
   const makeOpts2 = () => ({ signal: new AbortController().signal });
 
-  afterEach(() => resetExecPolicy());
+  afterEach(() => {
+    resetExecPolicy();
+    resetDangerBypass();
+  });
 
   it('ships common build tools in the default allowlist (incl. modern dev runners)', () => {
     for (const cmd of [
@@ -511,6 +517,76 @@ describe('exec command policy (configurable allowlist)', () => {
       'nmap', 'tcpdump', 'masscan', 'nuclei',
     ]) {
       expect(isExecCommandAllowed(cmd)).toBe(true);
+    }
+  });
+
+  it('attaches a danger assessment to every exec return', async () => {
+    // Integration: verify that the danger-detection layer is wired into the
+    // exec tool. This is the contract that UI/TUI consumers rely on to
+    // render a banner. We test three categories:
+    //   - a pre-execution error return (allowlist miss) → level 'safe'
+    //   - a destructive command (rm -rf in a sandbox) → level 'destructive'
+    //   - a normal command (git status in a sandbox) → level 'safe'
+    const r1 = await execTool.execute({ command: 'not-in-allowlist' }, makeCtx2(), makeOpts2());
+    expect(r1.danger.level).toBe('safe');
+
+    configureExecPolicy({ allow: ['rm'] });
+    const sb = await mkRealSandbox();
+    try {
+      const target = path.join(sb.ctx.cwd, 'build');
+      await fs.mkdir(target, { recursive: true });
+      const r2 = await execTool.execute({ command: 'rm', args: ['-rf', target] }, sb.ctx, makeOpts2());
+      expect(r2.allowed).toBe(true);
+      expect(r2.danger.level).toBe('destructive');
+      expect(r2.danger.reasons).toContain('recursive force-delete');
+      expect(r2.danger.matchedRule).toBe('rm-recursive');
+
+      const r3 = await execTool.execute({ command: 'git', args: ['status'] }, sb.ctx, makeOpts2());
+      expect(r3.allowed).toBe(true);
+      expect(r3.danger.level).toBe('safe');
+      expect(r3.danger.reasons).toEqual([]);
+    } finally {
+      await sb.cleanup();
+    }
+  });
+
+  it('honors configureDangerBypass: a bypassed rule is suppressed in danger output', async () => {
+    configureExecPolicy({ allow: ['rm'] });
+    const sb = await mkRealSandbox();
+    try {
+      // Without bypass: rm -rf is destructive.
+      configureDangerBypass({ bypass: [] });
+      const r1 = await execTool.execute(
+        { command: 'rm', args: ['-rf', path.join(sb.ctx.cwd, 'a')] },
+        sb.ctx,
+        makeOpts2(),
+      );
+      expect(r1.danger.level).toBe('destructive');
+      expect(r1.danger.matchedRule).toBe('rm-recursive');
+
+      // With bypass on the rule: level drops to safe.
+      configureDangerBypass({ bypass: ['rm-recursive'] });
+      expect(getDangerBypass().has('rm-recursive')).toBe(true);
+      const r2 = await execTool.execute(
+        { command: 'rm', args: ['-rf', path.join(sb.ctx.cwd, 'b')] },
+        sb.ctx,
+        makeOpts2(),
+      );
+      expect(r2.danger.level).toBe('safe');
+      expect(r2.danger.reasons).toEqual([]);
+      expect(r2.danger.matchedRule).toBeUndefined();
+
+      // Bypass on a different rule does NOT affect rm-recursive.
+      configureDangerBypass({ bypass: ['inline-eval'] });
+      const r3 = await execTool.execute(
+        { command: 'rm', args: ['-rf', path.join(sb.ctx.cwd, 'c')] },
+        sb.ctx,
+        makeOpts2(),
+      );
+      expect(r3.danger.level).toBe('destructive');
+      expect(r3.danger.matchedRule).toBe('rm-recursive');
+    } finally {
+      await sb.cleanup();
     }
   });
 });

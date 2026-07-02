@@ -50,7 +50,7 @@ import type {
   WstackPaths,
 } from '@wrongstack/core';
 import { applyToolDescriptionModes, applyToolResultRenderModes, createContextManagerTool, makeMailboxTool, makeMailInboxTool, makeMailSendTool, normalizeTokenSavingTier } from '@wrongstack/core';
-import { builtinToolsPack, configureExecPolicy, forgetTool, relatedMemoryTool, rememberTool, searchMemoryTool, TIER1_TOOLS, TIER2_TOOLS, TIER3_TOOLS } from '@wrongstack/tools';
+import { builtinToolsPack, configureDangerBypass, configureExecPolicy, forgetTool, relatedMemoryTool, rememberTool, searchMemoryTool, TIER1_TOOLS, TIER2_TOOLS, TIER3_TOOLS } from '@wrongstack/tools';
 import { configureAutophasePolicy } from '../autophase-host.js';
 import type { TokenSavingTier } from '@wrongstack/core';
 import type { Tool } from '@wrongstack/core';
@@ -65,7 +65,13 @@ export interface RegisterBuiltinToolsDeps {
           descriptionMode?: ToolDescriptionModeConfig | undefined;
           resultRenderMode?: ToolResultRenderModeConfig | undefined;
           disabledTools?: string[] | undefined;
-          exec?: { allow?: string[] | undefined; deny?: string[] | undefined } | undefined;
+          exec?:
+            | {
+                allow?: string[] | undefined;
+                deny?: string[] | undefined;
+                danger?: { bypass?: string[] | undefined } | undefined;
+              }
+            | undefined;
         }
       | undefined;
   };
@@ -164,6 +170,7 @@ export function registerBuiltinTools(deps: RegisterBuiltinToolsDeps): void {
   // is trusted-config-only — the config loader strips `tools.exec.allow` from
   // any in-project repo config before this point.
   configureExecPolicy(deps.config.tools?.exec ?? {});
+  configureDangerBypass(deps.config.tools?.exec?.danger ?? {});
   // Autonomous autophase verification honors the same trusted exec.allow opt-ins
   // (added to autophase's narrower base), so non-JS projects (go/cargo/…) can
   // run their verify command without confirmation when the user allowed it.

@@ -64,6 +64,7 @@ import { buildProviderFactoriesFromRegistry } from '@wrongstack/providers';
 import { createDefaultContainer } from '@wrongstack/runtime';
 import {
   builtinToolsPack,
+  configureDangerBypass,
   configureExecPolicy,
   forgetTool,
   relatedMemoryTool,
@@ -202,6 +203,7 @@ export async function createPreContextServices(
   applyToolDescriptionModes(toolRegistry, config.tools?.descriptionMode);
   applyToolResultRenderModes(toolRegistry, config.tools?.resultRenderMode);
   configureExecPolicy(config.tools?.exec ?? {});
+  configureDangerBypass(config.tools?.exec?.danger ?? {});
   console.log('[WebUI] Tool registry loaded:', toolRegistry.list().length, 'tools');
 
   // ── MCP registry ──
