@@ -47,7 +47,11 @@ export function CodeBlock({
   code,
   lang,
   contentWidth,
-}: { code: string; lang: Lang; contentWidth: number }): React.ReactElement {
+}: {
+  code: string;
+  lang: Lang;
+  contentWidth: number;
+}): React.ReactElement {
   let lines = code.replace(/\n+$/, '').split('\n');
   const hidden = Math.max(0, lines.length - MAX_CODE_LINES);
   if (hidden > 0) lines = lines.slice(0, MAX_CODE_LINES);
@@ -193,7 +197,9 @@ export function formatMultiDiffSummary(
     const hiddenParts: string[] = [];
     if (summary.hiddenAdded > 0) hiddenParts.push(`+${summary.hiddenAdded}`);
     if (summary.hiddenRemoved > 0) hiddenParts.push(`-${summary.hiddenRemoved}`);
-    parts.push(`… ${hiddenParts.join(' ')} hidden across ${summary.truncatedFiles} file${summary.truncatedFiles === 1 ? '' : 's'}`);
+    parts.push(
+      `… ${hiddenParts.join(' ')} hidden across ${summary.truncatedFiles} file${summary.truncatedFiles === 1 ? '' : 's'}`,
+    );
   }
   return parts.join(' · ');
 }
@@ -216,7 +222,9 @@ export function DiffFileBlock({
 }): React.ReactElement {
   return (
     <Box flexDirection="column" marginTop={1}>
-      <Text dimColor italic>{path}</Text>
+      <Text dimColor italic>
+        {path}
+      </Text>
       <DiffBlock
         rows={preview.rows}
         hidden={preview.hidden}
@@ -338,7 +346,7 @@ export function DiffBlock({
             <Box key={key} backgroundColor={bg} minWidth={1} flexShrink={0}>
               <Text>
                 <Text dimColor>{gutter}</Text>
-                <Text>{' '}</Text>
+                <Text> </Text>
                 <Text color={lineColor} bold>
                   {marker}
                 </Text>
@@ -356,7 +364,7 @@ export function DiffBlock({
         return (
           <Text key={key}>
             <Text dimColor>{gutter}</Text>
-            <Text>{' '}</Text>
+            <Text> </Text>
             <Text color={fgColor} bold>
               {marker}
             </Text>
@@ -416,7 +424,11 @@ function summaryFooter(opts: {
       <Text dimColor>{` added  `}</Text>
       <Text color={theme.error} bold>{`-${removed}`}</Text>
       <Text dimColor>{` deleted`}</Text>
-      {truncNote ? <Text dimColor italic>{truncNote}</Text> : null}
+      {truncNote ? (
+        <Text dimColor italic>
+          {truncNote}
+        </Text>
+      ) : null}
     </Text>
   );
 }
@@ -499,8 +511,16 @@ export function extractDiffPreview(
       const obj = parsed as Record<string, unknown>;
       diff =
         toolName === 'write' && obj['created'] === true
-          ? newFileDiffFromWriteInput(obj, input) ?? stringOf(obj['diff'])
+          ? (newFileDiffFromWriteInput(obj, input) ?? stringOf(obj['diff']))
           : stringOf(obj['diff']);
+    } else {
+      // The tool-output serializer renders edit/diff/write results as a
+      // human-readable string (a header line such as
+      // `edit (path=… replacements=1)` followed by the raw unified diff),
+      // NOT as JSON. When JSON parsing fails, recover the diff body by
+      // slicing from the first real diff marker so the DiffBlock renders
+      // instead of falling back to a flat plain-text view.
+      diff = extractUnifiedDiffText(text);
     }
   } else if (toolName === 'patch') {
     const parsed = tryParseJson(text);
@@ -637,7 +657,10 @@ function collectMultiFileDiffItems(
     // `extractReplaceDiffs` behaviour).
     const allMissing = items.every((item) => !item.path);
     const fallback =
-      allMissing && _input && typeof _input === 'object' && typeof (_input as Record<string, unknown>)['path'] === 'string'
+      allMissing &&
+      _input &&
+      typeof _input === 'object' &&
+      typeof (_input as Record<string, unknown>)['path'] === 'string'
         ? stringOf((_input as Record<string, unknown>)['path'])
         : undefined;
     if (fallback) {
@@ -804,6 +827,27 @@ function extractPatchHeaderPath(diffText: string): string | undefined {
     }
   }
   return undefined;
+}
+
+/**
+ * Recover the unified-diff body from a serialized tool-output string.
+ *
+ * The tool-output serializer renders edit/diff/write results as a header
+ * line (e.g. `edit (path=… replacements=1)`) followed by the raw unified
+ * diff. Feeding the whole string to `parseUnifiedDiff` would mis-read the
+ * header as a context line and skew the hunk line counters, so we slice
+ * from the first genuine diff marker (`--- `, `diff --git`, or `@@`).
+ *
+ * Returns `undefined` when no diff markers are present so callers keep
+ * their existing plain-text fallback.
+ */
+function extractUnifiedDiffText(text: string): string | undefined {
+  const lines = text.split('\n');
+  const start = lines.findIndex(
+    (line) => line.startsWith('--- ') || line.startsWith('diff --git') || line.startsWith('@@'),
+  );
+  if (start === -1) return undefined;
+  return lines.slice(start).join('\n');
 }
 
 function newFileDiffFromWriteInput(

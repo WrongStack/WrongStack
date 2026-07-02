@@ -58,9 +58,13 @@ describe('formatToolArgs', () => {
     expect(formatToolArgs('task', { action: 'status', id: 't1', status: 'completed' })).toBe(
       'status · t1 · completed',
     );
-    expect(formatToolArgs('remember', { scope: 'project-memory', type: 'decision', text: 'Use pnpm for tests' })).toBe(
-      'project-memory · decision · Use pnpm for tests',
-    );
+    expect(
+      formatToolArgs('remember', {
+        scope: 'project-memory',
+        type: 'decision',
+        text: 'Use pnpm for tests',
+      }),
+    ).toBe('project-memory · decision · Use pnpm for tests');
     expect(formatToolArgs('search_memory', { query: 'pnpm', scope: 'project-memory' })).toBe(
       '"pnpm" · project-memory',
     );
@@ -69,16 +73,23 @@ describe('formatToolArgs', () => {
 
   it('catalog/index tools: concise filters', () => {
     expect(formatToolArgs('tool_help', { tool: 'write', format: 'full' })).toBe('write · full');
-    expect(formatToolArgs('tool_search', { query: 'file', permission: 'auto', mutating: false })).toBe(
-      '"file" · auto · read-only',
-    );
+    expect(
+      formatToolArgs('tool_search', { query: 'file', permission: 'auto', mutating: false }),
+    ).toBe('"file" · auto · read-only');
     expect(formatToolArgs('tool_use', { tool: 'read' })).toBe('call read');
-    expect(formatToolArgs('batch_tool_use', { calls: [{ tool: 'read' }, { tool: 'grep' }], parallel: false })).toBe(
-      '2 calls · sequential',
-    );
-    expect(formatToolArgs('codebase-search', { query: 'Agent', kind: 'class', file: 'packages/core/src' })).toBe(
-      '"Agent" · class · in packages/core/src',
-    );
+    expect(
+      formatToolArgs('batch_tool_use', {
+        calls: [{ tool: 'read' }, { tool: 'grep' }],
+        parallel: false,
+      }),
+    ).toBe('2 calls · sequential');
+    expect(
+      formatToolArgs('codebase-search', {
+        query: 'Agent',
+        kind: 'class',
+        file: 'packages/core/src',
+      }),
+    ).toBe('"Agent" · class · in packages/core/src');
     expect(formatToolArgs('codebase-index', { force: true, langs: ['ts', 'tsx'] })).toBe(
       'force · ts,tsx',
     );
@@ -245,7 +256,12 @@ describe('formatToolOutput', () => {
   it('bash: output/error aliases render line counts and timeout metadata', () => {
     const out = formatToolOutput(
       'bash',
-      JSON.stringify({ exitCode: 124, output: 'partial\noutput', error: 'late warning', timedOut: true }),
+      JSON.stringify({
+        exitCode: 124,
+        output: 'partial\noutput',
+        error: 'late warning',
+        timedOut: true,
+      }),
       true,
     );
 
@@ -295,7 +311,11 @@ describe('formatToolOutput', () => {
         exit_code: 0,
         stdout: 'removed ./build',
         stderr: '',
-        danger: { level: 'destructive', reasons: ['recursive force-delete'], matchedRule: 'rm-recursive' },
+        danger: {
+          level: 'destructive',
+          reasons: ['recursive force-delete'],
+          matchedRule: 'rm-recursive',
+        },
       }),
       true,
     );
@@ -573,6 +593,39 @@ describe('extractDiffPreview', () => {
     expect(out!.rows.some((r) => r.text.startsWith('+++'))).toBe(false);
   });
 
+  it('parses the serializer plain-text form (header line + raw diff, not JSON)', () => {
+    // This is exactly what the tool-output serializer emits for an edit:
+    // a human-readable header line followed by the raw unified diff — NOT
+    // JSON. Before the fix this fell through to a flat plain-text view.
+    const serialized = ['edit (path=/x replacements=1)', sampleDiff].join('\n');
+    const out = extractDiffPreview('edit', serialized);
+    expect(out).toBeDefined();
+    const kinds = out!.rows.map((r) => r.kind);
+    expect(kinds).toContain('hunk');
+    expect(kinds).toContain('add');
+    expect(kinds).toContain('del');
+    expect(kinds).toContain('ctx');
+    expect(out!.added).toBe(1);
+    expect(out!.removed).toBe(1);
+    // The `edit (...)` header line must NOT leak in as a context row.
+    expect(out!.rows.some((r) => r.text.includes('replacements='))).toBe(false);
+  });
+
+  it('parses a serializer diff with no `---` header, only @@ hunks', () => {
+    const serialized = [
+      'edit (path=/x replacements=2)',
+      '@@ -1,2 +1,2 @@',
+      ' ctx',
+      '-gone',
+      '+here',
+    ].join('\n');
+    const out = extractDiffPreview('edit', serialized);
+    expect(out).toBeDefined();
+    expect(out!.added).toBe(1);
+    expect(out!.removed).toBe(1);
+    expect(out!.rows.some((r) => r.text.includes('replacements='))).toBe(false);
+  });
+
   it('caps long previews and reports the hidden remainder with add/remove stats', () => {
     const many = ['@@ -1,20 +1,20 @@', ...Array.from({ length: 30 }, (_, i) => `+line ${i}`)].join(
       '\n',
@@ -642,13 +695,7 @@ describe('extractDiffPreview', () => {
   });
 
   it('attaches old/new line numbers from the @@ hunk header', () => {
-    const diff = [
-      '@@ -10,3 +20,3 @@',
-      ' ctx-a',
-      '-removed',
-      '+added',
-      ' ctx-b',
-    ].join('\n');
+    const diff = ['@@ -10,3 +20,3 @@', ' ctx-a', '-removed', '+added', ' ctx-b'].join('\n');
     const out = extractDiffPreview('patch', diff);
     expect(out).toBeDefined();
     const rows = out!.rows;
@@ -690,9 +737,10 @@ describe('extractReplaceDiffs', () => {
   });
 
   it('caps each per-file preview independently and reports hidden stats', () => {
-    const longDiff = ['@@ -1,30 +1,30 @@', ...Array.from({ length: 30 }, (_, i) => `+line ${i}`)].join(
-      '\n',
-    );
+    const longDiff = [
+      '@@ -1,30 +1,30 @@',
+      ...Array.from({ length: 30 }, (_, i) => `+line ${i}`),
+    ].join('\n');
     const out = extractReplaceDiffs(
       'replace',
       JSON.stringify({
@@ -815,7 +863,9 @@ describe('extractMultiFileDiffs', () => {
     });
 
     it('returns undefined for diff output without a diff body', () => {
-      expect(extractMultiFileDiffs('diff', JSON.stringify({ files: [], diff: '' }))).toBeUndefined();
+      expect(
+        extractMultiFileDiffs('diff', JSON.stringify({ files: [], diff: '' })),
+      ).toBeUndefined();
     });
 
     it('handles paths with spaces via the lastIndexOf b/ fallback', () => {
@@ -837,16 +887,25 @@ describe('extractMultiFileDiffs', () => {
     it('splits a multi-file patch from JSON { diff, files }', () => {
       const out = extractMultiFileDiffs(
         'patch',
-        JSON.stringify({ applied: 2, rejected: 0, files: ['src/a.ts', 'src/b.ts'], diff: gitStyleMultiDiff }),
+        JSON.stringify({
+          applied: 2,
+          rejected: 0,
+          files: ['src/a.ts', 'src/b.ts'],
+          diff: gitStyleMultiDiff,
+        }),
       );
       expect(out).toBeDefined();
       expect(out!.map((item) => item.path)).toEqual(['src/a.ts', 'src/b.ts']);
     });
 
     it('handles a single-file patch with `--- /+++` but no `diff --git`', () => {
-      const singleFile = ['--- a/src/only.ts', '+++ b/src/only.ts', '@@ -1,1 +1,1 @@', '-old', '+new'].join(
-        '\n',
-      );
+      const singleFile = [
+        '--- a/src/only.ts',
+        '+++ b/src/only.ts',
+        '@@ -1,1 +1,1 @@',
+        '-old',
+        '+new',
+      ].join('\n');
       const out = extractMultiFileDiffs(
         'patch',
         JSON.stringify({ applied: 1, files: ['src/only.ts'], diff: singleFile }),
@@ -885,7 +944,10 @@ describe('extractMultiFileDiffs', () => {
 
     it('returns undefined for a diff output that is JSON but has no diff body', () => {
       expect(
-        extractMultiFileDiffs('diff', JSON.stringify({ files: [], mode: 'unified', truncated: false })),
+        extractMultiFileDiffs(
+          'diff',
+          JSON.stringify({ files: [], mode: 'unified', truncated: false }),
+        ),
       ).toBeUndefined();
     });
   });
@@ -906,7 +968,10 @@ describe('extractMultiFileDiffs', () => {
         '@@ -1,40 +1,40 @@',
         ...Array.from({ length: 40 }, (_, i) => `-drop ${i}`),
       ].join('\n');
-      const out = extractMultiFileDiffs('diff', JSON.stringify({ diff: `${longA}\n${longB}`, files: [] }));
+      const out = extractMultiFileDiffs(
+        'diff',
+        JSON.stringify({ diff: `${longA}\n${longB}`, files: [] }),
+      );
       expect(out).toBeDefined();
       expect(out![0]!.preview.added).toBe(30);
       expect(out![1]!.preview.removed).toBe(40);
@@ -1097,7 +1162,9 @@ describe('extractMultiFileDiffs', () => {
       );
       const summary = summarizeMultiFileDiffs(items);
       // No second argument — should match the default behavior.
-      expect(formatMultiDiffSummary(summary)).toBe(formatMultiDiffSummary(summary, MULTI_DIFF_SUMMARY_THRESHOLD));
+      expect(formatMultiDiffSummary(summary)).toBe(
+        formatMultiDiffSummary(summary, MULTI_DIFF_SUMMARY_THRESHOLD),
+      );
     });
 
     it('threshold=2 produces a footer at exactly 2 files', () => {
@@ -1154,9 +1221,13 @@ describe('formatToolVisualOutput', () => {
   it('renders verifier report status rows', () => {
     const passed = formatToolVisualOutput(
       'typecheck',
-      ['typecheck (exit_code=0 errors=0)', 'report:', 'status=passed', 'errors=0', 'warnings=1'].join(
-        '\n',
-      ),
+      [
+        'typecheck (exit_code=0 errors=0)',
+        'report:',
+        'status=passed',
+        'errors=0',
+        'warnings=1',
+      ].join('\n'),
       true,
     );
     expect(passed?.[0]).toMatchObject({ kind: 'ok', marker: 'ok ' });
@@ -1190,12 +1261,19 @@ describe('formatToolVisualOutput', () => {
   });
 
   it('renders todo, plan, and task summaries', () => {
-    expect(formatToolVisualOutput('todo', JSON.stringify({ count: 3, in_progress: 1 }), true)?.[0])
-      .toMatchObject({ kind: 'ok', marker: 'ok ', text: '3 todos · 1 in progress' });
+    expect(
+      formatToolVisualOutput('todo', JSON.stringify({ count: 3, in_progress: 1 }), true)?.[0],
+    ).toMatchObject({ kind: 'ok', marker: 'ok ', text: '3 todos · 1 in progress' });
 
     const plan = formatToolVisualOutput(
       'plan',
-      JSON.stringify({ ok: true, message: 'add ok', count: 2, open: 1, plan: '1. Build UI\n2. Ship' }),
+      JSON.stringify({
+        ok: true,
+        message: 'add ok',
+        count: 2,
+        open: 1,
+        plan: '1. Build UI\n2. Ship',
+      }),
       true,
     );
     expect(plan?.[0]).toMatchObject({ kind: 'ok', marker: 'ok ' });
@@ -1204,15 +1282,26 @@ describe('formatToolVisualOutput', () => {
 
     const task = formatToolVisualOutput(
       'task',
-      JSON.stringify({ ok: false, message: 'Task "x" not found.', count: 0, completed: 0, inProgress: 0 }),
+      JSON.stringify({
+        ok: false,
+        message: 'Task "x" not found.',
+        count: 0,
+        completed: 0,
+        inProgress: 0,
+      }),
       false,
     );
     expect(task?.[0]).toMatchObject({ kind: 'error', marker: 'x ' });
   });
 
   it('renders memory writes and memory search results', () => {
-    expect(formatToolVisualOutput('remember', JSON.stringify({ ok: true, scope: 'project-memory' }), true)?.[0])
-      .toMatchObject({ kind: 'ok', marker: 'ok ', text: 'remember · project-memory' });
+    expect(
+      formatToolVisualOutput(
+        'remember',
+        JSON.stringify({ ok: true, scope: 'project-memory' }),
+        true,
+      )?.[0],
+    ).toMatchObject({ kind: 'ok', marker: 'ok ', text: 'remember · project-memory' });
 
     const search = formatToolVisualOutput(
       'search_memory',
@@ -1296,7 +1385,9 @@ describe('formatToolVisualOutput', () => {
       false,
     );
     expect(batch?.[0]).toMatchObject({ kind: 'error', marker: 'x ' });
-    expect(batch?.some((row) => row.text.includes('write') && row.text.includes('denied'))).toBe(true);
+    expect(batch?.some((row) => row.text.includes('write') && row.text.includes('denied'))).toBe(
+      true,
+    );
   });
 
   it('renders codebase index/search/stats and context tools', () => {
@@ -1338,7 +1429,11 @@ describe('formatToolVisualOutput', () => {
 
     const mode = formatToolVisualOutput(
       'mode',
-      JSON.stringify({ action: 'list', success: true, modes: [{ id: 'review', name: 'Review', description: 'Find bugs' }] }),
+      JSON.stringify({
+        action: 'list',
+        success: true,
+        modes: [{ id: 'review', name: 'Review', description: 'Find bugs' }],
+      }),
       true,
     );
     expect(mode?.[0]?.text).toContain('1 mode');
