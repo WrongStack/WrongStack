@@ -14,7 +14,7 @@ describe('tool-glyph (TUI per-tool glyph+color)', () => {
   it('resolves a known tool to its glyph + canonical color', () => {
     const v = getToolVisual('bash');
     expect(v.glyph).toBe(TOOL_GLYPHS.terminal);
-    expect(v.color).toBe('#fb923c'); // terminal = orange, from TOOL_ICON_CONFIG
+    expect(v.color).toBe('#67e8f9'); // terminal = cyan-light, from TOOL_ICON_CONFIG
   });
 
   it('is case-insensitive and handles aliases', () => {

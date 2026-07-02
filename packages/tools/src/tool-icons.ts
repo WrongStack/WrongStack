@@ -43,9 +43,9 @@ export const TOOL_ICON_CONFIG: Record<ToolIconId, { color: string }> = {
   edit: { color: '#fbbf24' }, // amber
   search: { color: '#a78bfa' }, // violet
   folder: { color: '#38bdf8' }, // sky
-  terminal: { color: '#fb923c' }, // orange
+  terminal: { color: '#67e8f9' }, // cyan-light
   web: { color: '#34d399' }, // emerald
-  git: { color: '#fb923c' }, // orange
+  git: { color: '#a3e635' }, // lime
   tree: { color: '#22d3ee' }, // cyan
   code: { color: '#818cf8' }, // indigo
   test: { color: '#4ade80' }, // green
@@ -58,7 +58,7 @@ export const TOOL_ICON_CONFIG: Record<ToolIconId, { color: string }> = {
   meta: { color: '#cbd5e1' }, // slate-light
   index: { color: '#06b6d4' }, // cyan-dark
   json: { color: '#eab308' }, // yellow-dark
-  diff: { color: '#f97316' }, // orange-dark
+  diff: { color: '#93c5fd' }, // blue-light
   logs: { color: '#a3a3a3' }, // neutral
   settings: { color: '#9ca3af' }, // gray
   brain: { color: '#e879f9' }, // fuchsia

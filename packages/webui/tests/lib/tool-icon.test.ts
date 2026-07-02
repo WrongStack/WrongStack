@@ -13,7 +13,7 @@ describe('tool-icon (webui per-tool lucide + color)', () => {
   it('resolves a known tool to its lucide component + canonical color', () => {
     const v = getToolVisual('bash');
     expect(v.Icon).toBe(TOOL_LUCIDE.terminal);
-    expect(v.color).toBe('#fb923c'); // terminal = orange, from TOOL_ICON_CONFIG
+    expect(v.color).toBe('#67e8f9'); // terminal = cyan-light, from TOOL_ICON_CONFIG
   });
 
   it('is case-insensitive and handles aliases', () => {
@@ -30,7 +30,7 @@ describe('tool-icon (webui per-tool lucide + color)', () => {
 
 describe('getToolTooltip', () => {
   it('returns category and color name for known tools', () => {
-    expect(getToolTooltip('bash')).toBe('shell commands — orange');
+    expect(getToolTooltip('bash')).toBe('shell commands — cyan-light');
     expect(getToolTooltip('read')).toBe('file read/write — blue');
     expect(getToolTooltip('grep')).toBe('search & grep — violet');
   });
@@ -42,8 +42,8 @@ describe('getToolTooltip', () => {
   });
 
   it('handles case-insensitive tool names', () => {
-    expect(getToolTooltip('BASH')).toBe('shell commands — orange');
-    expect(getToolTooltip('Shell')).toBe('shell commands — orange');
+    expect(getToolTooltip('BASH')).toBe('shell commands — cyan-light');
+    expect(getToolTooltip('Shell')).toBe('shell commands — cyan-light');
   });
 });
 
