@@ -29,6 +29,15 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      # Build all workspace packages in dependency (topological) order before
+      # typechecking. Each package resolves its `@wrongstack/*` imports from a
+      # dependency's *emitted* dist/*.d.ts, so without this step downstream
+      # packages (e.g. @wrongstack/acp -> @wrongstack/core) fail with
+      # TS2307 "Cannot find module '@wrongstack/core' or its corresponding
+      # type declarations". `pnpm build` runs scripts/build.mjs, which topo-sorts.
+      - name: Build
+        run: pnpm build
+
       - name: Typecheck
         run: pnpm typecheck
 
