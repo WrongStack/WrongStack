@@ -108,10 +108,13 @@ export async function tryAcquireMailboxBridge(
       source: 'joined',
     };
   }
-  if (existing.kind === 'probe-failed') {
-    // Lock exists with a recorded PID, but /healthz didn't respond.
-    // Return the recorded URL/token anyway — the caller's request
-    // layer will surface a real error if the bridge is truly dead.
+  if (existing.kind === 'probe-failed' && existing.pidAlive) {
+    // Lock exists, the recorded PID is ALIVE, but /healthz didn't
+    // respond — the bridge may be booting, wedged, or the PID was
+    // reused. Return the recorded URL/token anyway; the caller's
+    // request layer surfaces a real error if the bridge is truly
+    // dead. We must NOT spawn a second bridge here: a live PID still
+    // owns the lock, and racing it risks a port conflict.
     return {
       url: existing.lock.url,
       token: existing.lock.token,
@@ -120,8 +123,16 @@ export async function tryAcquireMailboxBridge(
       source: 'unhealthy',
     };
   }
+  // `existing.kind === 'probe-failed' && !existing.pidAlive` is a
+  // STALE lock: the owning process is gone but the lock file was
+  // never cleaned up (e.g. the bridge crashed or the machine was
+  // hard-rebooted). Treat it exactly like `absent` and fall through
+  // to Phase 2 — spawning `wstack mailbox serve` runs `acquireOrJoin`,
+  // which unlinks the stale lock and reacquires the slot. Without
+  // this, a stale lock would wedge every boot into `unhealthy`
+  // forever and no bridge would ever come up.
 
-  // Phase 2 — no live owner; spawn a fresh bridge.
+  // Phase 2 — no live owner (absent or stale); spawn a fresh bridge.
   let child: SpawnedChild;
   try {
     // SpawnFn is declared async — must await, otherwise `child` is a

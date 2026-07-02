@@ -104,9 +104,7 @@ export interface AcquireOptions {
  * the caller owns the HTTP server instance; the lock module owns
  * the on-disk contract.
  */
-export async function acquireOrJoin(
-  opts: AcquireOptions,
-): Promise<AcquireResult> {
+export async function acquireOrJoin(opts: AcquireOptions): Promise<AcquireResult> {
   const lockPath = path.join(opts.projectDir, MAILBOX_BRIDGE_LOCK_FILENAME);
   const tokenPath = path.join(opts.projectDir, MAILBOX_BRIDGE_TOKEN_FILENAME);
 
@@ -137,9 +135,7 @@ export async function acquireOrJoin(
     /* v8 ignore next -- best-effort: a vanished stale lock is fine */
     await fsp.unlink(lockPath).catch(() => undefined);
   }
-  const generation = inspected.kind === 'stale'
-    ? inspected.lock.generation + 1
-    : 1;
+  const generation = inspected.kind === 'stale' ? inspected.lock.generation + 1 : 1;
   const token = randomBytes(32).toString('hex');
 
   // Pre-write a tentative lock with the requested port (or 0 if
@@ -151,9 +147,7 @@ export async function acquireOrJoin(
     pid: process.pid,
     host: opts.host,
     port: opts.requestedPort ?? 0,
-    url: opts.requestedPort !== null
-      ? `http://${opts.host}:${opts.requestedPort}`
-      : '', // finalized in finalize() once we know the OS-assigned port
+    url: opts.requestedPort !== null ? `http://${opts.host}:${opts.requestedPort}` : '', // finalized in finalize() once we know the OS-assigned port
     token,
     generation,
     spawnedAt: new Date().toISOString(),
@@ -219,7 +213,18 @@ export async function release(projectDir: string, generation: number): Promise<v
 
 type LockInspection =
   | { kind: 'live'; lock: MailboxBridgeLock }
-  | { kind: 'stale'; lock: MailboxBridgeLock }
+  /**
+   * The lock is present and parseable but not usable. `pidAlive`
+   * distinguishes the two reasons:
+   *  - `pidAlive: false` — the recorded PID is dead. The lock is
+   *    a leftover from a crashed/killed bridge; a fresh spawn is the
+   *    right recovery (`acquireOrJoin` unlinks + reacquires).
+   *  - `pidAlive: true`  — the PID is alive but /healthz didn't
+   *    respond. The bridge may be booting, wedged, or a PID got
+   *    reused. Callers may still surface the recorded URL/token so
+   *    a real request can confirm/deny liveness.
+   */
+  | { kind: 'stale'; lock: MailboxBridgeLock; pidAlive: boolean }
   | { kind: 'absent' };
 
 /**
@@ -259,9 +264,10 @@ async function readLockForInspection(lockPath: string): Promise<LockInspection> 
     return { kind: 'absent' };
   }
   if (!isProcessAlive(parsed.pid)) {
-    // Stale PID — keep the data so callers (acquireOrJoin) can bump
-    // generation off it; the caller decides whether to unlink.
-    return { kind: 'stale', lock: parsed };
+    // Dead PID — keep the data so callers (acquireOrJoin) can bump
+    // generation off it; the caller decides whether to unlink. The
+    // owning bridge is gone, so recovery is a fresh spawn.
+    return { kind: 'stale', lock: parsed, pidAlive: false };
   }
   // Sanity-check the URL too — if the lock is well-formed but the
   // recorded port doesn't have anything bound, the PID might be
@@ -270,7 +276,7 @@ async function readLockForInspection(lockPath: string): Promise<LockInspection> 
   if (!(await probeHealthz(parsed.url))) {
     // PID alive but /healthz unreachable. Keep the data so the
     // caller can surface the URL/token to the user; do NOT unlink.
-    return { kind: 'stale', lock: parsed };
+    return { kind: 'stale', lock: parsed, pidAlive: true };
   }
   return { kind: 'live', lock: parsed };
 }
@@ -293,7 +299,17 @@ async function readLockForInspection(lockPath: string): Promise<LockInspection> 
  */
 export type LiveLockResult =
   | { kind: 'live'; lock: MailboxBridgeLock }
-  | { kind: 'probe-failed'; lock: MailboxBridgeLock }
+  /**
+   * The lock exists but isn't usable. `pidAlive` tells the caller
+   * which recovery to pick:
+   *  - `pidAlive: false` — the owning process is dead (stale lock).
+   *    Callers should treat this like `absent` and spawn a fresh
+   *    bridge rather than surfacing a dead URL.
+   *  - `pidAlive: true`  — the process is alive but /healthz didn't
+   *    respond (booting/wedged/PID-reuse). Callers may return the
+   *    recorded URL/token and let a real request confirm liveness.
+   */
+  | { kind: 'probe-failed'; lock: MailboxBridgeLock; pidAlive: boolean }
   | { kind: 'absent' };
 
 export async function readLiveLock(projectDir: string): Promise<LiveLockResult> {
@@ -303,7 +319,7 @@ export async function readLiveLock(projectDir: string): Promise<LiveLockResult> 
     return { kind: 'live', lock: result.lock };
   }
   if (result.kind === 'stale') {
-    return { kind: 'probe-failed', lock: result.lock };
+    return { kind: 'probe-failed', lock: result.lock, pidAlive: result.pidAlive };
   }
   return { kind: 'absent' };
 }
@@ -342,11 +358,10 @@ function isProcessAlive(pid: number): boolean {
   if (pid === process.pid) return true;
   if (os.platform() === 'win32') {
     try {
-      const out = execFileSync(
-        'tasklist',
-        ['/FI', `PID eq ${pid}`, '/NH', '/FO', 'CSV'],
-        { encoding: 'utf-8', stdio: ['pipe', 'pipe', 'pipe'] },
-      );
+      const out = execFileSync('tasklist', ['/FI', `PID eq ${pid}`, '/NH', '/FO', 'CSV'], {
+        encoding: 'utf-8',
+        stdio: ['pipe', 'pipe', 'pipe'],
+      });
       // tasklist prints the header even with /NH; if the pid exists,
       // it includes a row with the pid somewhere.
       return /\b"?,?\d+,?"?/.test(out) || out.includes(String(pid));

@@ -3,10 +3,7 @@ import { createServer, type Server } from 'node:http';
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
-import {
-  acquireOrJoin,
-  MAILBOX_BRIDGE_LOCK_FILENAME,
-} from '@wrongstack/core/coordination';
+import { acquireOrJoin, MAILBOX_BRIDGE_LOCK_FILENAME } from '@wrongstack/core/coordination';
 import {
   tryAcquireMailboxBridge,
   type ProbeFn,
@@ -88,11 +85,7 @@ function _failingProbe(): ProbeFn {
   return async () => false;
 }
 
-function makeSpawnFnWritingLock(
-  host: string,
-  port: number,
-  token: string,
-): SpawnFn {
+function makeSpawnFnWritingLock(host: string, port: number, token: string): SpawnFn {
   return async (_args, cwd) => {
     // Use the test process's own PID so `isProcessAlive` accepts the
     // lock as live — `readLiveLock` checks both PID and /healthz, and
@@ -141,11 +134,7 @@ describe('tryAcquireMailboxBridge', () => {
         path.join(projectDir, MAILBOX_BRIDGE_LOCK_FILENAME),
         JSON.stringify(ownerLock, null, 2),
       );
-      await fs.writeFile(
-        path.join(projectDir, '.mailbox.token'),
-        ownerLock.token,
-        { mode: 0o600 },
-      );
+      await fs.writeFile(path.join(projectDir, '.mailbox.token'), ownerLock.token, { mode: 0o600 });
 
       const handle = await tryAcquireMailboxBridge({
         projectDir,
@@ -170,11 +159,7 @@ describe('tryAcquireMailboxBridge', () => {
       const handle = await tryAcquireMailboxBridge({
         projectDir,
         probeFn: liveProbe(),
-        spawnFn: makeSpawnFnWritingLock(
-          '127.0.0.1',
-          owner.port,
-          'b'.repeat(64),
-        ),
+        spawnFn: makeSpawnFnWritingLock('127.0.0.1', owner.port, 'b'.repeat(64)),
       });
 
       expect(handle.source).toBe('spawned');
@@ -233,6 +218,60 @@ describe('tryAcquireMailboxBridge', () => {
     }
   });
 
+  it('spawns a fresh bridge when the lock PID is DEAD (stale lock), not source=unhealthy', async () => {
+    // Regression test for the stale-lock wedge: a bridge crashed or the
+    // machine rebooted, leaving a lock file whose recorded PID is gone.
+    // Previously `tryAcquireMailboxBridge` short-circuited such a lock to
+    // source='unhealthy' and NEVER spawned — wedging every boot forever.
+    // Now a dead PID is treated like an absent lock: we spawn a fresh
+    // bridge (which internally unlinks the stale lock via acquireOrJoin).
+    const owner = await startHealthzServer();
+    try {
+      // A PID that is reliably dead on every platform: way above any
+      // realistic live PID. tasklist won't find it; process.kill(0)
+      // throws ESRCH. So `isProcessAlive` returns false → stale lock
+      // with pidAlive=false.
+      const deadPid = 999_999;
+      const staleLock = {
+        pid: deadPid,
+        host: '127.0.0.1',
+        port: 1, // dead port — irrelevant, PID check fails first
+        url: 'http://127.0.0.1:1',
+        token: 'd'.repeat(64),
+        generation: 3,
+        spawnedAt: '2020-01-01T00:00:00.000Z',
+      };
+      await fs.writeFile(
+        path.join(projectDir, MAILBOX_BRIDGE_LOCK_FILENAME),
+        JSON.stringify(staleLock, null, 2),
+      );
+
+      let spawnCalled = false;
+      const handle = await tryAcquireMailboxBridge({
+        projectDir,
+        timeoutMs: 2000,
+        spawnFn: (...args) => {
+          spawnCalled = true;
+          // The real subcommand would run acquireOrJoin (unlinking the
+          // stale lock) and bind a port; our stub writes a fresh live
+          // lock pointing at the running healthz server, using the
+          // test process PID so it reads back as live.
+          return makeSpawnFnWritingLock('127.0.0.1', owner.port, 'e'.repeat(64))(...args);
+        },
+      });
+
+      // The stale lock must trigger a spawn — NOT a short-circuit to
+      // 'unhealthy'.
+      expect(spawnCalled).toBe(true);
+      expect(handle.source).toBe('spawned');
+      expect(handle.url).toBe(`http://127.0.0.1:${owner.port}`);
+      expect(handle.token).toBe('e'.repeat(64));
+      expect(handle.childPid).not.toBeNull();
+    } finally {
+      await owner.close();
+    }
+  });
+
   it('returns source=failed when spawn throws', async () => {
     const handle = await tryAcquireMailboxBridge({
       projectDir,
@@ -250,7 +289,12 @@ describe('tryAcquireMailboxBridge', () => {
     // SpawnFn that does NOT write the lock file (simulating a bridge
     // that crashes before listen succeeds).
     const noopSpawn: SpawnFn = async () => {
-      return { pid: 12345, unref: () => { /* noop */ } };
+      return {
+        pid: 12345,
+        unref: () => {
+          /* noop */
+        },
+      };
     };
     const handle = await tryAcquireMailboxBridge({
       projectDir,
@@ -263,9 +307,7 @@ describe('tryAcquireMailboxBridge', () => {
   });
 
   it('cross-project: project A and B are isolated', async () => {
-    const projectB = await fs.mkdtemp(
-      path.join(os.tmpdir(), 'mailbox-bootstrap-other-'),
-    );
+    const projectB = await fs.mkdtemp(path.join(os.tmpdir(), 'mailbox-bootstrap-other-'));
     try {
       const owner = await startHealthzServer();
       // Project B needs its OWN bridge on a different port — use the
@@ -292,11 +334,7 @@ describe('tryAcquireMailboxBridge', () => {
         const handleB = await tryAcquireMailboxBridge({
           projectDir: projectB,
           probeFn: liveProbe(),
-          spawnFn: makeSpawnFnWritingLock(
-            '127.0.0.1',
-            ownerB.port,
-            'e'.repeat(64),
-          ),
+          spawnFn: makeSpawnFnWritingLock('127.0.0.1', ownerB.port, 'e'.repeat(64)),
         });
         expect(handleB.source).toBe('spawned');
         expect(handleB.token).toBe('e'.repeat(64));

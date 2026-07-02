@@ -241,20 +241,28 @@ describe('release', () => {
     await writeLock(tmp, { pid: process.pid, generation: 1 });
     await fs.writeFile(path.join(tmp, MAILBOX_BRIDGE_TOKEN_FILENAME), 'tok');
     await release(tmp, 1);
-    await expect(fs.readFile(path.join(tmp, MAILBOX_BRIDGE_LOCK_FILENAME), 'utf-8')).rejects.toThrow();
-    await expect(fs.readFile(path.join(tmp, MAILBOX_BRIDGE_TOKEN_FILENAME), 'utf-8')).rejects.toThrow();
+    await expect(
+      fs.readFile(path.join(tmp, MAILBOX_BRIDGE_LOCK_FILENAME), 'utf-8'),
+    ).rejects.toThrow();
+    await expect(
+      fs.readFile(path.join(tmp, MAILBOX_BRIDGE_TOKEN_FILENAME), 'utf-8'),
+    ).rejects.toThrow();
   });
 
   it('keeps the files when the generation does not match (not ours)', async () => {
     await writeLock(tmp, { pid: process.pid, generation: 2 });
     await release(tmp, 1);
-    await expect(fs.readFile(path.join(tmp, MAILBOX_BRIDGE_LOCK_FILENAME), 'utf-8')).resolves.toBeTruthy();
+    await expect(
+      fs.readFile(path.join(tmp, MAILBOX_BRIDGE_LOCK_FILENAME), 'utf-8'),
+    ).resolves.toBeTruthy();
   });
 
   it('keeps the files when the pid does not match (not ours)', async () => {
     await writeLock(tmp, { pid: 999999, generation: 1 });
     await release(tmp, 1);
-    await expect(fs.readFile(path.join(tmp, MAILBOX_BRIDGE_LOCK_FILENAME), 'utf-8')).resolves.toBeTruthy();
+    await expect(
+      fs.readFile(path.join(tmp, MAILBOX_BRIDGE_LOCK_FILENAME), 'utf-8'),
+    ).resolves.toBeTruthy();
   });
 
   it('still removes the lock when the token file is already gone (best-effort)', async () => {
@@ -262,7 +270,9 @@ describe('release', () => {
     // best-effort .catch must swallow so the lock cleanup completes.
     await writeLock(tmp, { pid: process.pid, generation: 1 });
     await release(tmp, 1);
-    await expect(fs.readFile(path.join(tmp, MAILBOX_BRIDGE_LOCK_FILENAME), 'utf-8')).rejects.toThrow();
+    await expect(
+      fs.readFile(path.join(tmp, MAILBOX_BRIDGE_LOCK_FILENAME), 'utf-8'),
+    ).rejects.toThrow();
   });
 
   it('is a no-op when no lock file exists', async () => {
@@ -277,13 +287,16 @@ describe('readLiveLock', () => {
     expect(res.kind).toBe('live');
   });
 
-  it('returns probe-failed when the owner pid is alive but /healthz is unreachable', async () => {
+  it('returns probe-failed with pidAlive=true when the owner pid is alive but /healthz is unreachable', async () => {
     await writeLock(tmp, { pid: process.pid, port: 7000, url: 'http://127.0.0.1:7000' });
     (globalThis.fetch as ReturnType<typeof vi.fn>).mockImplementationOnce(
       async () => ({ ok: false }) as Response,
     );
     const res = await readLiveLock(tmp);
     expect(res.kind).toBe('probe-failed');
+    // Live PID, dead /healthz → pidAlive stays true so callers don't
+    // race a second spawn against a still-running owner.
+    if (res.kind === 'probe-failed') expect(res.pidAlive).toBe(true);
   });
 
   it('returns probe-failed when the healthz fetch itself throws', async () => {
@@ -304,7 +317,9 @@ describe('readLiveLock', () => {
     await fs.writeFile(path.join(tmp, MAILBOX_BRIDGE_LOCK_FILENAME), '{ not json');
     const res = await readLiveLock(tmp);
     expect(res.kind).toBe('absent');
-    await expect(fs.readFile(path.join(tmp, MAILBOX_BRIDGE_LOCK_FILENAME), 'utf-8')).rejects.toThrow();
+    await expect(
+      fs.readFile(path.join(tmp, MAILBOX_BRIDGE_LOCK_FILENAME), 'utf-8'),
+    ).rejects.toThrow();
   });
 
   it('treats a lock with an invalid (zero) pid as stale', async () => {
@@ -326,11 +341,13 @@ describe('isProcessAlive (win32 tasklist branch)', () => {
     expect(res.kind).toBe('live');
   });
 
-  it('reports a pid absent from tasklist as stale', async () => {
+  it('reports a pid absent from tasklist as stale (pidAlive=false)', async () => {
     await writeLock(tmp, { pid: 8888, port: 8000, url: 'http://127.0.0.1:8000' });
     const res = await readLiveLock(tmp);
-    // dead pid → stale → readLiveLock surfaces probe-failed
+    // dead pid → stale → readLiveLock surfaces probe-failed with
+    // pidAlive=false so bootstrap callers know to spawn a fresh bridge.
     expect(res.kind).toBe('probe-failed');
+    if (res.kind === 'probe-failed') expect(res.pidAlive).toBe(false);
   });
 
   it('reports stale when tasklist itself throws', async () => {
