@@ -1,4 +1,5 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest';
+import { join } from 'node:path';
 import {
   setupPlugins,
   DEPRECATED_PLUGIN_NAMES,
@@ -12,14 +13,22 @@ import type { Config, Logger } from '@wrongstack/core';
 // invocations to confirm setupPlugins wires options & API factory correctly.
 const loadPluginsMock = vi.fn().mockResolvedValue(undefined);
 
-vi.mock('virtual:broken-plugin', () => {
-  throw new Error('boom');
-}, { virtual: true } as never);
+vi.mock(
+  'virtual:broken-plugin',
+  () => {
+    throw new Error('boom');
+  },
+  { virtual: true } as never,
+);
 
 // A virtual ESM module that setupPlugins can dynamically import.
-vi.mock('virtual:test-plugin', () => ({
-  default: { name: 'virtual:test-plugin', register: vi.fn() },
-}), { virtual: true } as never);
+vi.mock(
+  'virtual:test-plugin',
+  () => ({
+    default: { name: 'virtual:test-plugin', register: vi.fn() },
+  }),
+  { virtual: true } as never,
+);
 
 // Mock @wrongstack/core: replace loadPlugins so we can observe calls
 vi.mock('@wrongstack/core', async (orig) => {
@@ -33,7 +42,14 @@ vi.mock('../src/plugin-api-factory.js', () => ({
 }));
 
 function fakeLogger(): Logger {
-  return { debug: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn(), child: vi.fn(), setLevel: vi.fn() } as never as Logger;
+  return {
+    debug: vi.fn(),
+    info: vi.fn(),
+    warn: vi.fn(),
+    error: vi.fn(),
+    child: vi.fn(),
+    setLevel: vi.fn(),
+  } as never as Logger;
 }
 
 function baseDeps(overrides: Partial<Config> = {}) {
@@ -119,9 +135,7 @@ describe('setupPlugins', () => {
 
   it('loads object-form plugin and merges options from plugin + extensions', async () => {
     const deps = baseDeps({
-      plugins: [
-        { name: 'virtual:test-plugin', options: { foo: 1, bar: 'a' } },
-      ] as never,
+      plugins: [{ name: 'virtual:test-plugin', options: { foo: 1, bar: 'a' } }] as never,
       extensions: { 'virtual:test-plugin': { bar: 'override', baz: true } } as never,
     });
     await setupPlugins(deps);
@@ -168,6 +182,42 @@ describe('setupPlugins', () => {
     expect(names).toEqual(expect.arrayContaining(EXPECTED_BUILTINS));
   });
 
+  // ── todo-tracker project-scoped filePath defaulting ───────────────────────
+
+  it('injects default todo-tracker filePath from paths.projectDir', async () => {
+    const deps = {
+      ...baseDeps(),
+      paths: { ...fakePaths(), projectDir: '/p/proj' },
+    };
+    await setupPlugins(deps as never);
+    const [, opts] = loadPluginsMock.mock.calls[0]!;
+    // filePath is derived as <projectDir>/todo-tracker.json (join uses the
+    // host path separator; assert on both to stay cross-platform).
+    const fp = opts.pluginOptions['todo-tracker']?.filePath as string;
+    expect(fp).toBe(join('/p/proj', 'todo-tracker.json'));
+  });
+
+  it('does NOT override an explicit user-configured todo-tracker filePath', async () => {
+    const deps = {
+      ...baseDeps({
+        extensions: { 'todo-tracker': { filePath: '/custom/todos.json' } } as never,
+      }),
+      paths: { ...fakePaths(), projectDir: '/p/proj' },
+    };
+    await setupPlugins(deps as never);
+    const [, opts] = loadPluginsMock.mock.calls[0]!;
+    expect(opts.pluginOptions['todo-tracker']?.filePath).toBe('/custom/todos.json');
+  });
+
+  it('does NOT inject todo-tracker filePath when paths.projectDir is absent', async () => {
+    // fakePaths() has no projectDir → nothing to derive from.
+    const deps = { ...baseDeps(), paths: fakePaths() };
+    await setupPlugins(deps as never);
+    const [, opts] = loadPluginsMock.mock.calls[0]!;
+    const tt = opts.pluginOptions['todo-tracker'] as { filePath?: string } | undefined;
+    expect(tt?.filePath).toBeUndefined();
+  });
+
   it('opts a single built-in out via config.plugins { enabled: false }', async () => {
     const deps = {
       ...baseDeps({ plugins: [{ name: 'wstack-git', enabled: false }] as never }),
@@ -201,11 +251,13 @@ describe('setupPlugins', () => {
     const apiFactoryMod = (await import('../src/plugin-api-factory.js')) as never as {
       default: ReturnType<typeof vi.fn>;
     };
-    apiFactoryMod.default.mockImplementation((_name, cfg: { sessionWriter: { append: (e: unknown) => void; transcriptPath: string } }) => {
-      apiCfgCapture(cfg);
-      cfg.sessionWriter.append({ type: 't', ts: 'now', data: 'x' });
-      return {};
-    });
+    apiFactoryMod.default.mockImplementation(
+      (_name, cfg: { sessionWriter: { append: (e: unknown) => void; transcriptPath: string } }) => {
+        apiCfgCapture(cfg);
+        cfg.sessionWriter.append({ type: 't', ts: 'now', data: 'x' });
+        return {};
+      },
+    );
     opts.apiFactory({ name: 'virtual:test-plugin' });
     expect(apiCfgCapture).toHaveBeenCalled();
     expect(deps.sessionWriter.append).toHaveBeenCalledWith({ type: 't', ts: 'now', data: 'x' });
@@ -216,7 +268,10 @@ describe('setupPlugins', () => {
     // baseDeps returns a Partial<Config>-shaped bag; the wiring layer
     // accepts additional PluginsWiringDeps fields (like `mailbox`) on
     // top of that, so we add it after the spread.
-    const deps = { ...baseDeps({ plugins: ['virtual:test-plugin'] as never }), mailbox: mailboxMock as never };
+    const deps = {
+      ...baseDeps({ plugins: ['virtual:test-plugin'] as never }),
+      mailbox: mailboxMock as never,
+    };
     await setupPlugins(deps);
     const [, opts] = loadPluginsMock.mock.calls[0]!;
     const apiCfgCapture = vi.fn();
@@ -290,12 +345,8 @@ describe('plugin deprecation policy', () => {
       const log = fakeLogger();
       expect(warnIfDeprecatedPluginName('web-search', log)).toBe(true);
       expect(log.warn).toHaveBeenCalledTimes(1);
-      expect((log.warn as ReturnType<typeof vi.fn>).mock.calls[0]![0]).toContain(
-        'web-search',
-      );
-      expect((log.warn as ReturnType<typeof vi.fn>).mock.calls[0]![0]).toContain(
-        'deprecated',
-      );
+      expect((log.warn as ReturnType<typeof vi.fn>).mock.calls[0]![0]).toContain('web-search');
+      expect((log.warn as ReturnType<typeof vi.fn>).mock.calls[0]![0]).toContain('deprecated');
     });
 
     it('dedupes: a second call for the same name does not log again', () => {
@@ -328,12 +379,8 @@ describe('plugin deprecation policy', () => {
       // empty plugin set means "nothing to load", not "load zero".
       expect(loadPluginsMock).not.toHaveBeenCalled();
       // Warning fires once with the migration hint
-      expect(deps.log.warn).toHaveBeenCalledWith(
-        expect.stringContaining('web-search'),
-      );
-      expect(deps.log.warn).toHaveBeenCalledWith(
-        expect.stringContaining('search'),
-      );
+      expect(deps.log.warn).toHaveBeenCalledWith(expect.stringContaining('web-search'));
+      expect(deps.log.warn).toHaveBeenCalledWith(expect.stringContaining('search'));
     });
 
     it('skips a user plugin named @wrongstack/plugins/json-path (qualified spec)', async () => {
@@ -342,17 +389,12 @@ describe('plugin deprecation policy', () => {
       });
       await setupPlugins(deps);
       expect(loadPluginsMock).not.toHaveBeenCalled();
-      expect(deps.log.warn).toHaveBeenCalledWith(
-        expect.stringContaining('json-path'),
-      );
+      expect(deps.log.warn).toHaveBeenCalledWith(expect.stringContaining('json-path'));
     });
 
     it('dedupes across object-form and string-form references in the same config', async () => {
       const deps = baseDeps({
-        plugins: [
-          { name: 'web-search', enabled: true },
-          '@wrongstack/plugins/web-search',
-        ] as never,
+        plugins: [{ name: 'web-search', enabled: true }, '@wrongstack/plugins/web-search'] as never,
       });
       await setupPlugins(deps);
       // Both entries resolve to bare name 'web-search' — the helper's
@@ -391,10 +433,7 @@ describe('plugin deprecation policy', () => {
     it('a mix of deprecated and active user plugins still loads the active ones', async () => {
       // web-search should be skipped; virtual:test-plugin should load.
       const deps = baseDeps({
-        plugins: [
-          { name: 'web-search', enabled: true },
-          'virtual:test-plugin',
-        ] as never,
+        plugins: [{ name: 'web-search', enabled: true }, 'virtual:test-plugin'] as never,
       });
       await setupPlugins(deps);
       expect(loadPluginsMock).toHaveBeenCalledTimes(1);

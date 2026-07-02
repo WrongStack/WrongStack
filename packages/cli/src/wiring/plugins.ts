@@ -17,6 +17,7 @@ import type {
   SlashCommandRegistry,
   ToolRegistry,
 } from '@wrongstack/core';
+import { join } from 'node:path';
 import { loadPlugins } from '@wrongstack/core';
 import type { MCPRegistry } from '@wrongstack/mcp';
 import createApi from '../plugin-api-factory.js';
@@ -65,9 +66,7 @@ export function warnIfDeprecatedPluginName(name: string, log: Logger): boolean {
   if (!replacement) return false;
   if (deprecatedWarningsEmitted.has(name)) return true;
   deprecatedWarningsEmitted.add(name);
-  log.warn(
-    `[setupPlugins] plugin "${name}" is deprecated and no longer loaded — ${replacement}`,
-  );
+  log.warn(`[setupPlugins] plugin "${name}" is deprecated and no longer loaded — ${replacement}`);
   return true;
 }
 
@@ -310,6 +309,20 @@ export async function setupPlugins(params: PluginsWiringDeps): Promise<void> {
   if (allPlugins.length === 0) return;
 
   const pluginOptions = buildPluginOptions(config);
+
+  // Workspace plugins that persist project-scoped state read ONLY their own
+  // namespaced `config.extensions[name]` options — they never see the
+  // top-level `paths` injected below. Bridge that gap for todo-tracker by
+  // seeding a default `filePath` derived from `paths.projectDir` when the
+  // user hasn't set one explicitly. This mirrors how goals/SDD boards/tasks
+  // live under `~/.wrongstack/projects/<slug>/` and follows the intent
+  // documented on `PluginsWiringDeps.paths.projectDir`.
+  if (paths?.projectDir) {
+    const todoTrackerOpts = (pluginOptions['todo-tracker'] ??= {});
+    if (typeof todoTrackerOpts['filePath'] !== 'string' || todoTrackerOpts['filePath'] === '') {
+      todoTrackerOpts['filePath'] = join(paths.projectDir, 'todo-tracker.json');
+    }
+  }
 
   // Built-in plugins read their host dependencies off the TOP LEVEL of the
   // config object they receive (e.g. prompts/sync use `config.paths` /
