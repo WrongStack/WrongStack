@@ -1,0 +1,12 @@
+{
+  "session": {
+    "saved": "Session saved",
+    "loaded": "Session loaded",
+    "deleted": "Session deleted"
+  },
+  "error": {
+    "generic": "Something went wrong.",
+    "connectionLost": "Connection lost. Reconnecting…",
+    "reconnected": "Reconnected."
+  }
+}

@@ -1,0 +1,18 @@
+{
+  "emptyState": {
+    "title": "Konversation starten",
+    "subtitle": "Sende eine Nachricht, um zu beginnen."
+  },
+  "sessionNamePlaceholder": "Sitzungsname…",
+  "switchSession": "Sitzung wechseln",
+  "inputPlaceholder": "Agent anschreiben… (/ für Befehle, @ für Dateien)",
+  "inputPlaceholderConnecting": "Zuerst mit Server verbinden…",
+  "inputPlaceholderLoading": "Folgenachricht btw/steer/queue eingeben…",
+  "send": "Senden",
+  "sendTitle": "Senden (Enter)",
+  "stop": "Stopp",
+  "newSession": "Neue Sitzung",
+  "empty": "(leer)",
+  "messageCount_one": "{{count}} Nachricht",
+  "messageCount_other": "{{count}} Nachrichten"
+}

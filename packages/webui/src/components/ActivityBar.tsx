@@ -1,3 +1,4 @@
+import { useAppTranslation } from '@/i18n';
 import { cn } from '@/lib/utils';
 import {
   openMainView,
@@ -188,6 +189,10 @@ export function ActivityBar({ desktopShell = false }: { desktopShell?: boolean |
   const projectName = useSessionStore((s) => s.projectName);
   const cwd = useSessionStore((s) => s.cwd);
   const wsConnected = useConfigStore((s) => s.wsConnected);
+  const { t } = useAppTranslation();
+  // Translate nav labels at render time (arrays are module-level constants;
+  // `def.label` is kept as the English fallback for any missing key).
+  const navLabel = (id: string, fallback: string) => t(`activity:nav.${id}`, fallback);
   const runningAgents = useFleetStore(
     (s) => Array.from(s.agents.values()).filter((a) => a.status === 'running').length,
   );
@@ -248,7 +253,11 @@ export function ActivityBar({ desktopShell = false }: { desktopShell?: boolean |
             // "Home" — open the Session panel, back to chat.
             showPanel('chat');
           }}
-          title={projectName ? `${projectName} — return to chat` : 'WrongStack — return to chat'}
+          title={
+            projectName
+              ? t('activity:brand.returnToChat', { name: projectName })
+              : t('activity:brand.returnToChatDefault')
+          }
           className={cn(
             'relative rounded-md bg-primary flex items-center justify-center shadow-[0_0_0_1px_hsl(var(--primary)/0.4),0_2px_8px_-2px_hsl(var(--primary)/0.5)] hover:shadow-[0_0_0_1px_hsl(var(--primary)/0.6),0_3px_12px_-2px_hsl(var(--primary)/0.6)] transition-shadow',
             desktopShell ? 'w-7 h-7' : 'w-8 h-8',
@@ -275,7 +284,7 @@ export function ActivityBar({ desktopShell = false }: { desktopShell?: boolean |
             desktopShell ? 'mt-1.5' : 'mt-1',
             wsConnected ? 'bg-[hsl(var(--success))] shadow-[0_0_4px_hsl(var(--success)/0.6)]' : 'bg-[hsl(var(--warning))]',
           )}
-          title={wsConnected ? 'Connected' : 'Disconnected'}
+          title={wsConnected ? t('activity:status.connected') : t('activity:status.disconnected')}
         />
       </div>
 
@@ -291,7 +300,7 @@ export function ActivityBar({ desktopShell = false }: { desktopShell?: boolean |
             key={def.id}
             compact={desktopShell}
             icon={def.icon}
-            label={`${def.label} (${shortcutLabelForActivity(def.id)})`}
+            label={`${navLabel(def.id, def.label)} (${shortcutLabelForActivity(def.id)})`}
             active={sidebarOpen && activeActivity === def.id}
             badge={badgeFor(def.id)}
             onClick={() => openPanel(def.id)}
@@ -307,7 +316,7 @@ export function ActivityBar({ desktopShell = false }: { desktopShell?: boolean |
             key={def.id}
             compact={desktopShell}
             icon={def.icon}
-            label={def.label}
+            label={navLabel(def.id, def.label)}
             active={currentView === def.id}
             onClick={() => openMainView(def.id)}
           />
@@ -348,6 +357,7 @@ function UtilitiesMenu({
   overflowViews: ViewDef[];
 }) {
   const { theme, setTheme } = useTheme();
+  const { t } = useAppTranslation();
   const activeActivity = useUIStore((s) => s.activeActivity);
   const sidebarOpen = useUIStore((s) => s.sidebarOpen);
   const currentView = useUIStore((s) => s.currentView);
@@ -377,15 +387,15 @@ function UtilitiesMenu({
           type="button"
           aria-label={
             hiddenItemCount > 0
-              ? `More, ${hiddenItemCount} hidden items`
-              : 'More options'
+              ? t('activity:menu.moreWithHidden', { count: hiddenItemCount })
+              : t('activity:menu.moreOptions')
           }
           title={
             compact && hiddenItemCount > 0
-              ? `More — ${hiddenItemCount} hidden panels/views, palette, theme, monitors`
+              ? t('activity:menu.moreCompactHidden', { count: hiddenItemCount })
               : compact
-                ? 'More — palette, theme, monitors'
-              : 'More — palette, theme, shortcuts, monitors'
+                ? t('activity:menu.moreCompact')
+              : t('activity:menu.moreFull')
           }
           className={cn(
             'relative flex items-center justify-center rounded-lg transition-colors',
@@ -419,12 +429,12 @@ function UtilitiesMenu({
       <DropdownMenuContent side="right" align="end" sideOffset={8} className="w-56">
         <DropdownMenuItem onSelect={() => useUIStore.getState().setPaletteOpen(true)}>
           <Command size={16} />
-          <span>Command Palette</span>
+          <span>{t('activity:menu.commandPalette')}</span>
           <DropdownMenuShortcut>⌘K</DropdownMenuShortcut>
         </DropdownMenuItem>
         <DropdownMenuItem onSelect={() => useUIStore.getState().setShortcutsOpen(true)}>
           <Keyboard size={16} />
-          <span>Keyboard Shortcuts</span>
+          <span>{t('activity:menu.keyboardShortcuts')}</span>
           <DropdownMenuShortcut>?</DropdownMenuShortcut>
         </DropdownMenuItem>
 
@@ -432,12 +442,12 @@ function UtilitiesMenu({
           <>
             <DropdownMenuSeparator />
             <DropdownMenuLabel className="text-[11px] uppercase tracking-wide text-muted-foreground">
-              Panels
+              {t('activity:menu.panels')}
             </DropdownMenuLabel>
             {overflowPanels.map((def) => (
               <DropdownMenuItem key={def.id} onSelect={() => showPanel(def.id)}>
                 {def.icon}
-                <span>{def.label}</span>
+                <span>{t(`activity:nav.${def.id}`, def.label)}</span>
                 {sidebarOpen && activeActivity === def.id ? (
                   <span className="ml-auto w-1.5 h-1.5 rounded-full bg-primary" />
                 ) : (
@@ -452,7 +462,7 @@ function UtilitiesMenu({
           <>
             <DropdownMenuSeparator />
             <DropdownMenuLabel className="text-[11px] uppercase tracking-wide text-muted-foreground">
-              Views
+              {t('activity:menu.views')}
             </DropdownMenuLabel>
             {overflowViews.map((def) => (
               <DropdownMenuItem
@@ -460,7 +470,7 @@ function UtilitiesMenu({
                 onSelect={() => openMainView(def.id)}
               >
                 {def.icon}
-                <span>{def.label}</span>
+                <span>{t(`activity:nav.${def.id}`, def.label)}</span>
                 {currentView === def.id && (
                   <span className="ml-auto w-1.5 h-1.5 rounded-full bg-primary" />
                 )}
@@ -471,30 +481,30 @@ function UtilitiesMenu({
 
         <DropdownMenuSeparator />
         <DropdownMenuLabel className="text-[11px] uppercase tracking-wide text-muted-foreground">
-          Theme
+          {t('activity:menu.theme')}
         </DropdownMenuLabel>
         <DropdownMenuRadioGroup value={theme} onValueChange={(v) => setTheme(v as typeof theme)}>
           <DropdownMenuRadioItem value="light">
             <Sun size={16} className="mr-2" />
-            Light
+            {t('settings:appearance.themeLight')}
           </DropdownMenuRadioItem>
           <DropdownMenuRadioItem value="dark">
             <Moon size={16} className="mr-2" />
-            Dark
+            {t('settings:appearance.themeDark')}
           </DropdownMenuRadioItem>
           <DropdownMenuRadioItem value="system">
             <Monitor size={16} className="mr-2" />
-            System
+            {t('settings:appearance.themeSystem')}
           </DropdownMenuRadioItem>
         </DropdownMenuRadioGroup>
 
         <DropdownMenuSeparator />
         <DropdownMenuLabel className="text-[11px] uppercase tracking-wide text-muted-foreground">
-          Monitors
+          {t('activity:menu.monitors')}
         </DropdownMenuLabel>
         <DropdownMenuItem onSelect={() => toggleInspectorTab('fleet')}>
           <LayoutGrid size={16} />
-          <span>Fleet Monitor</span>
+          <span>{t('activity:menu.fleetMonitor')}</span>
           {inspectorOpen && inspectorTab === 'fleet' ? (
             <span className="ml-auto w-1.5 h-1.5 rounded-full bg-primary" />
           ) : (
@@ -503,7 +513,7 @@ function UtilitiesMenu({
         </DropdownMenuItem>
         <DropdownMenuItem onSelect={() => toggleInspectorTab('agents')}>
           <ActivityIconSvg size={16} />
-          <span>Agents Monitor</span>
+          <span>{t('activity:menu.agentsMonitor')}</span>
           {inspectorOpen && inspectorTab === 'agents' ? (
             <span className="ml-auto w-1.5 h-1.5 rounded-full bg-primary" />
           ) : (

@@ -1,4 +1,5 @@
 import { useWebSocket } from '@/hooks/useWebSocket';
+import { useAppTranslation } from '@/i18n';
 import { useLocalPrefs } from '@/stores/local-prefs';
 import { useUIStore } from '@/stores';
 import { AlertTriangle, FileEdit, Globe, ShieldAlert, Terminal, Wrench, Zap } from 'lucide-react';
@@ -37,6 +38,7 @@ function SmartInputPreview({
   toolName: string;
   input: unknown;
 }) {
+  const { t } = useAppTranslation();
   const diffArgs = diffFromToolInput(toolName, input);
   if (diffArgs) {
     return (
@@ -60,7 +62,7 @@ function SmartInputPreview({
         <div className="rounded-lg border bg-background/40 overflow-hidden">
           <div className="px-3 py-1.5 text-[10px] uppercase tracking-wider text-muted-foreground border-b bg-muted/40 flex items-center gap-1.5">
             <Terminal className="h-3 w-3" />
-            <span>Command</span>
+            <span>{t('confirm.command')}</span>
           </div>
           <pre className="px-3 py-2 text-xs font-mono whitespace-pre-wrap break-all max-h-40 overflow-auto">
             {cmd}
@@ -83,7 +85,7 @@ function SmartInputPreview({
 
   return (
     <div className="p-3 rounded-lg bg-muted/50 border text-xs font-mono">
-      <div className="text-muted-foreground mb-2">Input:</div>
+      <div className="text-muted-foreground mb-2">{t('confirm.inputLabel')}</div>
       <pre className="whitespace-pre-wrap break-all max-h-60 overflow-auto">
         {JSON.stringify(input, null, 2)}
       </pre>
@@ -93,6 +95,7 @@ function SmartInputPreview({
 
 export function ConfirmDialog() {
   const { showConfirmDialog, confirmInfo, hideConfirm } = useUIStore();
+  const { t } = useAppTranslation();
   const yolo = useLocalPrefs((s) => s.yolo);
   const setLocalPrefs = useLocalPrefs((s) => s.set);
   const { sendConfirm, updatePrefs } = useWebSocket();
@@ -196,11 +199,10 @@ export function ConfirmDialog() {
         <DialogHeader className="shrink-0">
           <DialogTitle className="flex items-center gap-2">
             <ShieldAlert className="h-5 w-5 text-yellow-500 animate-pulse" />
-            Approval required: {confirmInfo.toolName}
+            {t('confirm.title', { tool: confirmInfo.toolName })}
           </DialogTitle>
           <DialogDescription>
-            The agent wants to {isEdit ? 'modify a file' : 'run this tool'}. Review the request
-            below and decide whether to proceed.
+            {isEdit ? t('confirm.descriptionEdit') : t('confirm.descriptionTool')}
           </DialogDescription>
         </DialogHeader>
 
@@ -210,7 +212,8 @@ export function ConfirmDialog() {
             <div className="min-w-0">
               <div className="font-medium font-mono truncate">{confirmInfo.toolName}</div>
               <div className="text-xs text-muted-foreground">
-                {isEdit ? 'File modification' : 'Tool execution'} — {riskLabel} risk
+                {isEdit ? t('confirm.fileModification') : t('confirm.toolExecution')} —{' '}
+                {t('confirm.riskSuffix', { risk: riskLabel })}
               </div>
             </div>
           </div>
@@ -224,14 +227,13 @@ export function ConfirmDialog() {
               <AlertTriangle className="h-4 w-4 text-yellow-600 mt-0.5 shrink-0" />
               <div className="text-sm min-w-0">
                 <div className="font-medium text-yellow-800 dark:text-yellow-200">
-                  Trust pattern suggestion
+                  {t('confirm.trustSuggestionTitle')}
                 </div>
                 <div className="font-mono text-xs mt-1 break-all">
                   {confirmInfo.suggestedPattern}
                 </div>
                 <div className="text-xs text-muted-foreground mt-1">
-                  Picking <span className="font-medium">Always</span> will whitelist matching calls
-                  for this project.
+                  {t('confirm.trustSuggestionHint')}
                 </div>
               </div>
             </div>
@@ -241,8 +243,7 @@ export function ConfirmDialog() {
             (confirmInfo.riskTier === 'destructive' ||
               confirmInfo.decisionSource === 'yolo_destructive') && (
               <div className="rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2 text-xs text-destructive">
-                YOLO is on. This prompt is still shown because the request was classified as
-                destructive.
+                {t('confirm.yoloDestructiveNote')}
               </div>
             )}
 
@@ -250,20 +251,19 @@ export function ConfirmDialog() {
             <div className="flex items-start gap-2 p-3 rounded-lg bg-primary/5 border border-primary/20">
               <Zap className="h-4 w-4 text-primary mt-0.5 shrink-0" />
               <div className="text-sm min-w-0 flex-1">
-                <div className="font-medium">Skip future approvals</div>
+                <div className="font-medium">{t('confirm.skipApprovalsTitle')}</div>
                 <div className="text-xs text-muted-foreground mt-0.5">
-                  Enable YOLO mode and the agent runs without asking. Destructive operations
-                  still prompt.
+                  {t('confirm.skipApprovalsHint')}
                 </div>
               </div>
               <Button
                 variant="outline"
                 size="sm"
                 onClick={enableYolo}
-                title="Enable YOLO mode (auto-approve this and future non-destructive calls)"
+                title={t('confirm.enableYoloTitle')}
                 className="shrink-0"
               >
-                Enable YOLO
+                {t('confirm.enableYoloBtn')}
               </Button>
             </div>
           )}
@@ -274,32 +274,32 @@ export function ConfirmDialog() {
             variant="outline"
             size="sm"
             onClick={() => handleConfirm('deny')}
-            title="Reject this and all future calls matching the pattern (d)"
+            title={t('confirm.denyAlwaysTitle')}
           >
-            Deny always <kbd className="ml-1 text-[10px] border rounded px-1 bg-background">d</kbd>
+            {t('confirm.denyAlways')} <kbd className="ml-1 text-[10px] border rounded px-1 bg-background">d</kbd>
           </Button>
           <Button
             variant="outline"
             size="sm"
             onClick={() => handleConfirm('no')}
-            title="Reject this single call (Esc / n)"
+            title={t('confirm.noTitle')}
           >
-            No <kbd className="ml-1 text-[10px] border rounded px-1 bg-background">n</kbd>
+            {t('action.no')} <kbd className="ml-1 text-[10px] border rounded px-1 bg-background">n</kbd>
           </Button>
           <Button
             variant="outline"
             size="sm"
             onClick={() => handleConfirm('always')}
-            title="Approve and remember the pattern for the project (a)"
+            title={t('confirm.alwaysTitle')}
           >
-            Always <kbd className="ml-1 text-[10px] border rounded px-1 bg-background">a</kbd>
+            {t('action.always')} <kbd className="ml-1 text-[10px] border rounded px-1 bg-background">a</kbd>
           </Button>
           <Button
             size="sm"
             onClick={() => handleConfirm('yes')}
-            title="Approve this single call (y)"
+            title={t('confirm.yesTitle')}
           >
-            Yes <kbd className="ml-1 text-[10px] border rounded px-1 bg-background/80">y</kbd>
+            {t('action.yes')} <kbd className="ml-1 text-[10px] border rounded px-1 bg-background/80">y</kbd>
           </Button>
         </DialogFooter>
       </DialogContent>

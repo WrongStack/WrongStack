@@ -1,0 +1,51 @@
+{
+  "welcome": {
+    "title": "WrongStack'a hoş geldiniz",
+    "subtitle": "Başlamak için bir sağlayıcı bağlayın.",
+    "heroTitle": "Nereden başlamak istersin?",
+    "heroTitleInProject": "{{name}} içinde nereden başlamak istersin?",
+    "heroSubtitle": "Vekil, projenize bağlı ve dosyaları okumaya, düzenlemeye, komut çalıştırmaya, kod tabanında arama yapmaya, yapılacakları takip etmeye ve oturumlar arasında bağlamı hatırlamaya hazır. Aşağıdan bir başlangıç promptu seçin, kendiniz yazın veya tüm komut paleti için / yazın.",
+    "workingDirectory": "Çalışma dizini: {{cwd}}",
+    "noKeyTitle": "Henüz API anahtarı yapılandırılmadı",
+    "noKeyBody": "Mesaj göndermeden önce Ayarlar'dan bir sağlayıcı kaydedin — yoksa vekilin bağlanacağı biri olmaz. Anthropic, OpenAI, Google ve OpenAI uyumlu herhangi bir uç nokta çalışır.",
+    "openSettings": "Ayarları aç",
+    "pickBackUp": "Kaldığın yerden devam et",
+    "recentPrompts": "Son promptlar",
+    "quickCommands": "Hızlı komutlar",
+    "empty": "(boş)",
+    "card": {
+      "understand": {
+        "title": "Anla",
+        "hint": "Kod tabanını keşfet ve analiz et"
+      },
+      "create": {
+        "title": "Oluştur",
+        "hint": "Yeni özellikler ve işlevler oluştur"
+      },
+      "investigate": {
+        "title": "Araştır",
+        "hint": "Sorunları ayıkla ve kök nedenleri bul"
+      },
+      "improve": {
+        "title": "Geliştir",
+        "hint": "Mevcut kodu yeniden düzenle ve iyileştir"
+      }
+    },
+    "slashRef": {
+      "help": "tüm slash komutlarını listele",
+      "diag": "çalışma zamanı tanılamaları",
+      "stats": "token · önbellek · maliyet · geçen süre",
+      "tools": "kayıtlı araçları göster",
+      "memory": "hatırlanan notları göster",
+      "compact": "bağlamı daralt",
+      "clear": "mevcut bağlamı sil",
+      "new": "temiz oturum"
+    }
+  },
+  "provider": {
+    "heading": "Bir sağlayıcı seçin",
+    "keyPlaceholder": "API anahtarınızı yapıştırın",
+    "connect": "Bağlan",
+    "connected": "Bağlandı"
+  }
+}

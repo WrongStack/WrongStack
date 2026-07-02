@@ -1,0 +1,18 @@
+{
+  "emptyState": {
+    "title": "Démarrer une conversation",
+    "subtitle": "Envoyez un message pour commencer."
+  },
+  "sessionNamePlaceholder": "Nom de session…",
+  "switchSession": "Changer de session",
+  "inputPlaceholder": "Envoyer un message à l'agent… (tapez / pour les commandes, @ pour les fichiers)",
+  "inputPlaceholderConnecting": "Connectez-vous d'abord au serveur…",
+  "inputPlaceholderLoading": "Saisissez un suivi btw/steer/queue…",
+  "send": "Envoyer",
+  "sendTitle": "Envoyer (Entrée)",
+  "stop": "Arrêter",
+  "newSession": "Nouvelle session",
+  "empty": "(vide)",
+  "messageCount_one": "{{count}} message",
+  "messageCount_other": "{{count}} messages"
+}

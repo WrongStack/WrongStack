@@ -1,0 +1,37 @@
+{
+  "title": "Configurações",
+  "tabs": {
+    "provider": "Provedor",
+    "connection": "Conexão",
+    "appearance": "Aparência",
+    "agent": "Agente",
+    "features": "Recursos",
+    "mcp": "MCP"
+  },
+  "appearance": {
+    "themeHeading": "Tema",
+    "themeLight": "Claro",
+    "themeDark": "Escuro",
+    "themeSystem": "Sistema",
+    "themeSystemHint": "Sistema segue a preferência claro/escuro do seu sistema operacional.",
+    "preferencesHeading": "Preferências",
+    "compactDensity": "Densidade compacta",
+    "compactDensityHint": "Espaçamento mais estreito em todo o chat.",
+    "soundOnComplete": "Som ao concluir",
+    "soundOnCompleteHint": "Reproduz um toque suave quando uma execução termina.",
+    "titleAnimation": "Animação do título",
+    "titleAnimationHint": "Mostrar título animado do terminal no CLI.",
+    "languageHeading": "Idioma",
+    "languageLabel": "Idioma da interface",
+    "languageHint": "Altera apenas o texto da interface. Prompts, skills e a saída do modelo não são afetados."
+  },
+  "model": {
+    "heading": "Modelo"
+  },
+  "connection": {
+    "wsUrlLabel": "URL do servidor WebSocket",
+    "wsUrlPlaceholder": "ws://localhost:3457",
+    "wsUrlHint": "URL do servidor WebSocket do agente. O servidor é executado junto com o CLI.",
+    "startingHeading": "Iniciando o servidor WebSocket"
+  }
+}

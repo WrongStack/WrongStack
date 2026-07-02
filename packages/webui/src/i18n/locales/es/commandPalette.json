@@ -1,0 +1,51 @@
+{
+  "placeholder": "Buscar comandos, sesiones, ajustes…",
+  "noMatches": "Sin resultados para \"{{query}}\"",
+  "footer": {
+    "navigate": "↑↓ navegar",
+    "select": "↵ seleccionar",
+    "dismiss": "Esc cerrar"
+  },
+  "cat": {
+    "Command": "Comando",
+    "Session": "Sesión",
+    "Theme": "Tema",
+    "Tool": "Herramienta",
+    "Slash": "Slash"
+  },
+  "cmd": {
+    "help": "Mostrar comandos slash",
+    "tools": "Listar herramientas",
+    "memory": "Mostrar memoria",
+    "skills": "Listar habilidades",
+    "diag": "Diagnóstico en tiempo de ejecución",
+    "stats": "Estadísticas de sesión (tokens, caché, costo)",
+    "clear": "Limpiar contexto",
+    "clearHint": "Borra el contexto en memoria, conserva el id de sesión",
+    "new": "Nueva sesión",
+    "newHint": "Totalmente nueva en disco y memoria",
+    "compact": "Compactar contexto",
+    "repairContext": "Reparar contexto",
+    "repairContextHint": "Elimina los bloques huérfanos del protocolo de herramientas",
+    "export": "Exportar chat como markdown",
+    "exportHtml": "Exportar chat como HTML",
+    "exportHtmlHint": "Autónomo, se abre en cualquier navegador",
+    "history": "Abrir panel de historial",
+    "settings": "Abrir ajustes",
+    "model": "Cambiar proveedor/modelo",
+    "themeLight": "Tema: Claro",
+    "themeDark": "Tema: Oscuro",
+    "themeSystem": "Tema: Seguir el sistema",
+    "compactToggle": "Activar/desactivar densidad compacta",
+    "soundOn": "Sonido al completar: ACTIVADO — desactivar",
+    "soundOff": "Sonido al completar: DESACTIVADO — activar",
+    "soundHint": "Tono cuando termina una ejecución",
+    "autophaseOpen": "Abrir vista de AutoPhase",
+    "autoOn": "Modo autónomo: ACTIVADO — desactivar",
+    "autoOff": "Modo autónomo: DESACTIVADO — activar",
+    "autoHint": "Activar/desactivar la ejecución autónoma de fases",
+    "autophaseStop": "Detener AutoPhase",
+    "resume": "Reanudar: {{title}}",
+    "emptyTitle": "(vacío)"
+  }
+}

@@ -1,0 +1,12 @@
+{
+  "session": {
+    "saved": "Oturum kaydedildi",
+    "loaded": "Oturum yüklendi",
+    "deleted": "Oturum silindi"
+  },
+  "error": {
+    "generic": "Bir şeyler ters gitti.",
+    "connectionLost": "Bağlantı koptu. Yeniden bağlanıyor…",
+    "reconnected": "Yeniden bağlandı."
+  }
+}

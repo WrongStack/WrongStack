@@ -1,0 +1,51 @@
+{
+  "nav": {
+    "chat": "Sesión",
+    "agents": "Agentes",
+    "history": "Historial",
+    "files": "Archivos",
+    "changes": "Cambios",
+    "mailbox": "Buzón",
+    "skills": "Habilidades",
+    "worktrees": "Worktrees",
+    "design": "Estudio de diseño",
+    "officemap": "Mapa de oficinas",
+    "settings": "Ajustes",
+    "sddwizard": "Nuevo proyecto SDD",
+    "specs": "Especificaciones",
+    "sddboard": "Tablero en vivo",
+    "autophase": "Fases",
+    "fleet": "Flota",
+    "inspector": "Inspector",
+    "prompts": "Prompts"
+  },
+  "brand": {
+    "returnToChat": "{{name}} — volver al chat",
+    "returnToChatDefault": "WrongStack — volver al chat"
+  },
+  "status": {
+    "connected": "Conectado",
+    "disconnected": "Desconectado",
+    "idle": "Inactivo",
+    "thinking": "Pensando",
+    "running": "En ejecución",
+    "waiting": "En espera",
+    "done": "Completado",
+    "stopped": "Detenido"
+  },
+  "menu": {
+    "moreWithHidden": "Más, {{count}} elementos ocultos",
+    "moreOptions": "Más opciones",
+    "moreCompactHidden": "Más — {{count}} paneles/vistas ocultos, paleta, tema, monitores",
+    "moreCompact": "Más — paleta, tema, monitores",
+    "moreFull": "Más — paleta, tema, atajos, monitores",
+    "commandPalette": "Paleta de comandos",
+    "keyboardShortcuts": "Atajos de teclado",
+    "panels": "Paneles",
+    "views": "Vistas",
+    "theme": "Tema",
+    "monitors": "Monitores",
+    "fleetMonitor": "Monitor de flota",
+    "agentsMonitor": "Monitor de agentes"
+  }
+}

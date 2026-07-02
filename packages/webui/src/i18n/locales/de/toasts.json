@@ -1,0 +1,12 @@
+{
+  "session": {
+    "saved": "Sitzung gespeichert",
+    "loaded": "Sitzung geladen",
+    "deleted": "Sitzung gelöscht"
+  },
+  "error": {
+    "generic": "Etwas ist schiefgelaufen.",
+    "connectionLost": "Verbindung verloren. Verbindung wird wiederhergestellt…",
+    "reconnected": "Verbindung wiederhergestellt."
+  }
+}

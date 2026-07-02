@@ -1,0 +1,51 @@
+{
+  "welcome": {
+    "title": "Welcome to WrongStack",
+    "subtitle": "Connect a provider to get started.",
+    "heroTitle": "Where do you want to start?",
+    "heroTitleInProject": "Where do you want to start in {{name}}?",
+    "heroSubtitle": "The agent is connected to your project and ready to read, edit, run commands, search the codebase, track todos, and remember context across sessions. Pick a starting prompt below, write your own, or type / for the full command palette.",
+    "workingDirectory": "Working directory: {{cwd}}",
+    "noKeyTitle": "No API key configured yet",
+    "noKeyBody": "Register a provider in Settings before sending a message — otherwise the agent has nothing to talk to. Anthropic, OpenAI, Google, and any OpenAI-compatible endpoint all work.",
+    "openSettings": "Open Settings",
+    "pickBackUp": "Pick back up",
+    "recentPrompts": "Recent prompts",
+    "quickCommands": "Quick commands",
+    "empty": "(empty)",
+    "card": {
+      "understand": {
+        "title": "Understand",
+        "hint": "Explore and analyze the codebase"
+      },
+      "create": {
+        "title": "Create",
+        "hint": "Build new features and functionality"
+      },
+      "investigate": {
+        "title": "Investigate",
+        "hint": "Debug issues and find root causes"
+      },
+      "improve": {
+        "title": "Improve",
+        "hint": "Refactor and optimize existing code"
+      }
+    },
+    "slashRef": {
+      "help": "list every slash command",
+      "diag": "runtime diagnostics",
+      "stats": "tokens · cache · cost · elapsed",
+      "tools": "show registered tools",
+      "memory": "show remembered notes",
+      "compact": "shrink context",
+      "clear": "wipe current context",
+      "new": "fresh session"
+    }
+  },
+  "provider": {
+    "heading": "Choose a provider",
+    "keyPlaceholder": "Paste your API key",
+    "connect": "Connect",
+    "connected": "Connected"
+  }
+}

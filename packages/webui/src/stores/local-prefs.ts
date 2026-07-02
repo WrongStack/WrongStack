@@ -1,3 +1,4 @@
+import { detectLocale } from '@/i18n/languages';
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 
@@ -100,6 +101,14 @@ export interface LocalPrefs {
   /** Long-tool threshold in ms. 0 = disabled. */
   tgLongToolMs: number;
 
+  /**
+   * Display-only UI language (BCP-47 code, e.g. `en`, `pt-BR`).
+   * NOT synced to the server / config.json — only affects which translation
+   * catalog the WebUI chrome renders. Follows the same local-only precedent
+   * as `theme`. Distinct from `enhanceLanguage` (a prompt-refinement pref).
+   */
+  uiLocale: string;
+
   set: (patch: Partial<LocalPrefs>) => void;
   reset: () => void;
 }
@@ -153,6 +162,7 @@ const DEFAULTS: Omit<LocalPrefs, 'set' | 'reset'> = {
   tgSessionEnd: false,
   tgDelegate: true,
   tgLongToolMs: 30_000,
+  uiLocale: detectLocale(),
 };
 
 export const useLocalPrefs = create<LocalPrefs>()(
@@ -164,7 +174,7 @@ export const useLocalPrefs = create<LocalPrefs>()(
     }),
     {
       name: 'wrongstack-local-prefs',
-      version: 4,
+      version: 5,
       // v1 stored option values that don't exist in core's config schema —
       // contextStrategy frugal/balanced/deep/archival (context-window modes,
       // a different setting) and auditLevel 'verbose'. Map them onto the
@@ -177,6 +187,8 @@ export const useLocalPrefs = create<LocalPrefs>()(
       // the spread of DEFAULTS; no explicit remap is needed.
       //
       // v4 added fallbackProfiles/favoriteModels/favoriteModelsOnly/modelMatrix.
+      //
+      // v5 added uiLocale (display-only UI language; not synced to server).
       migrate: (persisted) => {
         const p = (persisted ?? {}) as Record<string, unknown>;
         const validStrategies = ['hybrid', 'intelligent', 'selective'];
@@ -197,6 +209,10 @@ export const useLocalPrefs = create<LocalPrefs>()(
         if (typeof p.favoriteModelsOnly !== 'boolean') p.favoriteModelsOnly = false;
         if (!p.modelMatrix || typeof p.modelMatrix !== 'object' || Array.isArray(p.modelMatrix)) {
           p.modelMatrix = {};
+        }
+        if (typeof p.uiLocale !== 'string' || !p.uiLocale) {
+          // Backfill older stores with the browser-detected language.
+          p.uiLocale = detectLocale();
         }
         return p as never as LocalPrefs;
       },

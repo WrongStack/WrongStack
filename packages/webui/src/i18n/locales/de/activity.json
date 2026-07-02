@@ -1,0 +1,51 @@
+{
+  "nav": {
+    "chat": "Sitzung",
+    "agents": "Agents",
+    "history": "Verlauf",
+    "files": "Dateien",
+    "changes": "Änderungen",
+    "mailbox": "Postfach",
+    "skills": "Skills",
+    "worktrees": "Worktrees",
+    "design": "Design Studio",
+    "officemap": "Bürokarte",
+    "settings": "Einstellungen",
+    "sddwizard": "Neues SDD-Projekt",
+    "specs": "Spezifikationen",
+    "sddboard": "Live-Board",
+    "autophase": "Phasen",
+    "fleet": "Fleet",
+    "inspector": "Inspektor",
+    "prompts": "Prompts"
+  },
+  "brand": {
+    "returnToChat": "{{name}} — zurück zum Chat",
+    "returnToChatDefault": "WrongStack — zurück zum Chat"
+  },
+  "status": {
+    "connected": "Verbunden",
+    "disconnected": "Getrennt",
+    "idle": "Inaktiv",
+    "thinking": "Denkt nach",
+    "running": "Läuft",
+    "waiting": "Wartend",
+    "done": "Fertig",
+    "stopped": "Gestoppt"
+  },
+  "menu": {
+    "moreWithHidden": "Mehr, {{count}} ausgeblendete Elemente",
+    "moreOptions": "Weitere Optionen",
+    "moreCompactHidden": "Mehr — {{count}} ausgeblendete Panels/Ansichten, Palette, Design, Monitore",
+    "moreCompact": "Mehr — Palette, Design, Monitore",
+    "moreFull": "Mehr — Palette, Design, Tastenkürzel, Monitore",
+    "commandPalette": "Befehls-Palette",
+    "keyboardShortcuts": "Tastenkürzel",
+    "panels": "Panels",
+    "views": "Ansichten",
+    "theme": "Design",
+    "monitors": "Monitore",
+    "fleetMonitor": "Fleet-Monitor",
+    "agentsMonitor": "Agents-Monitor"
+  }
+}

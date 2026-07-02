@@ -1,0 +1,51 @@
+{
+  "placeholder": "Komutları, oturumları, ayarları ara…",
+  "noMatches": "\"{{query}}\" için eşleşme yok",
+  "footer": {
+    "navigate": "↑↓ gezin",
+    "select": "↵ seç",
+    "dismiss": "Esc kapat"
+  },
+  "cat": {
+    "Command": "Komut",
+    "Session": "Oturum",
+    "Theme": "Tema",
+    "Tool": "Araç",
+    "Slash": "Slash"
+  },
+  "cmd": {
+    "help": "Slash komutlarını göster",
+    "tools": "Araçları listele",
+    "memory": "Belleği göster",
+    "skills": "Becerileri listele",
+    "diag": "Çalışma zamanı tanılamaları",
+    "stats": "Oturum istatistikleri (token, önbellek, maliyet)",
+    "clear": "Bağlamı temizle",
+    "clearHint": "Bellekteki bağlamı sil, oturum kimliğini koru",
+    "new": "Yeni oturum",
+    "newHint": "Diskte + bellekte tamamen yeni",
+    "compact": "Bağlamı sıkıştır",
+    "repairContext": "Bağlamı onar",
+    "repairContextHint": "Yetim araç protokol bloklarını kaldır",
+    "export": "Sohbeti markdown olarak dışa aktar",
+    "exportHtml": "Sohbeti HTML olarak dışa aktar",
+    "exportHtmlHint": "Kendi kendine yeten, her tarayıcıda açılır",
+    "history": "Geçmiş panelini aç",
+    "settings": "Ayarları aç",
+    "model": "Sağlayıcı/modeli değiştir",
+    "themeLight": "Tema: Açık",
+    "themeDark": "Tema: Koyu",
+    "themeSystem": "Tema: Sistemi izle",
+    "compactToggle": "Sıkışık yoğunluğu aç/kapat",
+    "soundOn": "Tamamlanınca ses: AÇIK — kapat",
+    "soundOff": "Tamamlanınca ses: KAPALI — aç",
+    "soundHint": "Çalışma bitince çan sesi",
+    "autophaseOpen": "AutoPhase görünümünü aç",
+    "autoOn": "Otonom mod: AÇIK — devre dışı bırak",
+    "autoOff": "Otonom mod: KAPALI — etkinleştir",
+    "autoHint": "Otonom aşama yürütmesini aç/kapat",
+    "autophaseStop": "AutoPhase'i durdur",
+    "resume": "Sürdür: {{title}}",
+    "emptyTitle": "(boş)"
+  }
+}

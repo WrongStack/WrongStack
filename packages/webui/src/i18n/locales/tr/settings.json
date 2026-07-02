@@ -1,0 +1,37 @@
+{
+  "title": "Ayarlar",
+  "tabs": {
+    "provider": "Sağlayıcı",
+    "connection": "Bağlan",
+    "appearance": "Görünüm",
+    "agent": "Vekil",
+    "features": "Özellikler",
+    "mcp": "MCP"
+  },
+  "appearance": {
+    "themeHeading": "Tema",
+    "themeLight": "Açık",
+    "themeDark": "Koyu",
+    "themeSystem": "Sistem",
+    "themeSystemHint": "Sistem, işletim sistemi düzeyindeki açık/koyu tercihinizi izler.",
+    "preferencesHeading": "Tercihler",
+    "compactDensity": "Sıkışık yoğunluk",
+    "compactDensityHint": "Sohbet boyunca daha dar aralıklar.",
+    "soundOnComplete": "Tamamlanınca ses çal",
+    "soundOnCompleteHint": "Bir çalışma bitince hafif bir çan sesi çal.",
+    "titleAnimation": "Başlık animasyonu",
+    "titleAnimationHint": "CLI'da animasyonlu terminal başlığını göster.",
+    "languageHeading": "Dil",
+    "languageLabel": "Arayüz dili",
+    "languageHint": "Yalnızca arayüz metnini değiştirir. Promptlar, beceriler ve model çıktısı etkilenmez."
+  },
+  "model": {
+    "heading": "Model"
+  },
+  "connection": {
+    "wsUrlLabel": "WebSocket Sunucu URL'si",
+    "wsUrlPlaceholder": "ws://localhost:3457",
+    "wsUrlHint": "Vekil WebSocket sunucusunun URL'si. Sunucu CLI ile birlikte çalışır.",
+    "startingHeading": "WebSocket Sunucusunu Başlatma"
+  }
+}

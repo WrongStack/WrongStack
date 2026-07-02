@@ -1,0 +1,51 @@
+{
+  "nav": {
+    "chat": "Sessione",
+    "agents": "Agenti",
+    "history": "Cronologia",
+    "files": "File",
+    "changes": "Modifiche",
+    "mailbox": "Posta",
+    "skills": "Skill",
+    "worktrees": "Worktree",
+    "design": "Design Studio",
+    "officemap": "Mappa uffici",
+    "settings": "Impostazioni",
+    "sddwizard": "Nuovo progetto SDD",
+    "specs": "Specifiche",
+    "sddboard": "Bacheca live",
+    "autophase": "Fasi",
+    "fleet": "Flotta",
+    "inspector": "Ispettore",
+    "prompts": "Prompt"
+  },
+  "brand": {
+    "returnToChat": "{{name}} — torna alla chat",
+    "returnToChatDefault": "WrongStack — torna alla chat"
+  },
+  "status": {
+    "connected": "Connesso",
+    "disconnected": "Disconnesso",
+    "idle": "Inattivo",
+    "thinking": "In riflessione",
+    "running": "In esecuzione",
+    "waiting": "In attesa",
+    "done": "Completato",
+    "stopped": "Fermato"
+  },
+  "menu": {
+    "moreWithHidden": "Altro, {{count}} elementi nascosti",
+    "moreOptions": "Altre opzioni",
+    "moreCompactHidden": "Altro — {{count}} pannelli/viste nascosti, palette, tema, monitor",
+    "moreCompact": "Altro — palette, tema, monitor",
+    "moreFull": "Altro — palette, tema, scorciatoie, monitor",
+    "commandPalette": "Palette dei comandi",
+    "keyboardShortcuts": "Scorciatoie da tastiera",
+    "panels": "Pannelli",
+    "views": "Viste",
+    "theme": "Tema",
+    "monitors": "Monitor",
+    "fleetMonitor": "Monitor della flotta",
+    "agentsMonitor": "Monitor degli agenti"
+  }
+}

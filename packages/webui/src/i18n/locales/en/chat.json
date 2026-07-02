@@ -1,0 +1,18 @@
+{
+  "emptyState": {
+    "title": "Start a conversation",
+    "subtitle": "Send a message to begin."
+  },
+  "sessionNamePlaceholder": "Session name…",
+  "switchSession": "Switch session",
+  "inputPlaceholder": "Message the agent… (type / for commands, @ for files)",
+  "inputPlaceholderConnecting": "Connect to server first…",
+  "inputPlaceholderLoading": "Type a btw/steer/queue follow-up…",
+  "send": "Send",
+  "sendTitle": "Send (Enter)",
+  "stop": "Stop",
+  "newSession": "New session",
+  "empty": "(empty)",
+  "messageCount_one": "{{count}} message",
+  "messageCount_other": "{{count}} messages"
+}

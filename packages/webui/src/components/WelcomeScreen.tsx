@@ -1,4 +1,5 @@
 import { useWebSocket } from '@/hooks/useWebSocket';
+import { useAppTranslation } from '@/i18n';
 import { cn } from '@/lib/utils';
 import { getWSClient } from '@/lib/ws-client';
 import { openMainView } from '@/lib/view-navigation';
@@ -20,6 +21,7 @@ import {
 import { useEffect, useState } from 'react';
 
 interface PromptCard {
+  id: 'understand' | 'create' | 'investigate' | 'improve';
   icon: LucideIcon;
   title: string;
   hint: string;
@@ -29,6 +31,7 @@ interface PromptCard {
 
 const CARDS: PromptCard[] = [
   {
+    id: 'understand',
     icon: Search,
     title: 'Understand',
     hint: 'Explore and analyze the codebase',
@@ -40,6 +43,7 @@ const CARDS: PromptCard[] = [
     ],
   },
   {
+    id: 'create',
     icon: Lightbulb,
     title: 'Create',
     hint: 'Build new features and functionality',
@@ -51,6 +55,7 @@ const CARDS: PromptCard[] = [
     ],
   },
   {
+    id: 'investigate',
     icon: Crosshair,
     title: 'Investigate',
     hint: 'Debug issues and find root causes',
@@ -62,6 +67,7 @@ const CARDS: PromptCard[] = [
     ],
   },
   {
+    id: 'improve',
     icon: Sparkles,
     title: 'Improve',
     hint: 'Refactor and optimize existing code',
@@ -74,15 +80,15 @@ const CARDS: PromptCard[] = [
   },
 ];
 
-const SLASH_REFS: Array<{ name: string; hint: string }> = [
-  { name: '/help', hint: 'list every slash command' },
-  { name: '/diag', hint: 'runtime diagnostics' },
-  { name: '/stats', hint: 'tokens · cache · cost · elapsed' },
-  { name: '/tools', hint: 'show registered tools' },
-  { name: '/memory', hint: 'show remembered notes' },
-  { name: '/compact', hint: 'shrink context' },
-  { name: '/clear', hint: 'wipe current context' },
-  { name: '/new', hint: 'fresh session' },
+const SLASH_REFS: Array<{ id: string; name: string; hint: string }> = [
+  { id: 'help', name: '/help', hint: 'list every slash command' },
+  { id: 'diag', name: '/diag', hint: 'runtime diagnostics' },
+  { id: 'stats', name: '/stats', hint: 'tokens · cache · cost · elapsed' },
+  { id: 'tools', name: '/tools', hint: 'show registered tools' },
+  { id: 'memory', name: '/memory', hint: 'show remembered notes' },
+  { id: 'compact', name: '/compact', hint: 'shrink context' },
+  { id: 'clear', name: '/clear', hint: 'wipe current context' },
+  { id: 'new', name: '/new', hint: 'fresh session' },
 ];
 
 function fillTextarea(text: string): void {
@@ -98,6 +104,7 @@ function fillTextarea(text: string): void {
 }
 
 export function WelcomeScreen() {
+  const { t } = useAppTranslation();
   const { projectName, cwd } = useSessionStore();
   const { provider, model } = useConfigStore();
   const wsConnected = useConfigStore((s) => s.wsConnected);
@@ -154,22 +161,12 @@ export function WelcomeScreen() {
         </div>
         <div>
           <h2 className="text-2xl font-semibold tracking-tight">
-            Where do you want to start
-            {projectName ? (
-              <>
-                {' in '}
-                <span className="text-primary">{projectName}</span>
-              </>
-            ) : (
-              ''
-            )}
-            ?
+            {projectName
+              ? t('setup:welcome.heroTitleInProject', { name: projectName })
+              : t('setup:welcome.heroTitle')}
           </h2>
           <p className="text-sm text-muted-foreground mt-2 max-w-2xl mx-auto leading-relaxed">
-            The agent is connected to your project and ready to read, edit, run commands,
-            search the codebase, track todos, and remember context across sessions. Pick a
-            starting prompt below, write your own, or type{' '}
-            <span className="font-mono text-foreground/80">/</span> for the full command palette.
+            {t('setup:welcome.heroSubtitle')}
           </p>
           {provider && model && (
             <p className="text-xs text-muted-foreground/70 mt-2 font-mono">
@@ -178,7 +175,7 @@ export function WelcomeScreen() {
           )}
           {cwd && (
             <p className="text-[11px] text-muted-foreground/50 mt-1 font-mono" title={cwd}>
-              Working directory: {cwd}
+              {t('setup:welcome.workingDirectory', { cwd })}
             </p>
           )}
         </div>
@@ -203,15 +200,13 @@ export function WelcomeScreen() {
             <KeyRound className="h-6 w-6" />
           </span>
           <div className="flex-1 min-w-0">
-            <h3 className="text-base font-semibold mb-1">No API key configured yet</h3>
+            <h3 className="text-base font-semibold mb-1">{t('setup:welcome.noKeyTitle')}</h3>
             <p className="text-sm text-muted-foreground leading-relaxed">
-              Register a provider in Settings before sending a message — otherwise the agent has
-              nothing to talk to. Anthropic, OpenAI, Google, and any OpenAI-compatible endpoint all
-              work.
+              {t('setup:welcome.noKeyBody')}
             </p>
           </div>
           <span className="flex items-center gap-1 text-xs text-amber-600 dark:text-amber-400 font-medium shrink-0 group-hover:translate-x-0.5 transition-transform">
-            Open Settings <ArrowRight className="h-3.5 w-3.5" />
+            {t('setup:welcome.openSettings')} <ArrowRight className="h-3.5 w-3.5" />
           </span>
         </button>
       )}
@@ -222,7 +217,7 @@ export function WelcomeScreen() {
           const Icon = card.icon;
           return (
             <div
-              key={card.title}
+              key={card.id}
               className="rounded-xl border bg-card/40 backdrop-blur-sm p-4 flex flex-col gap-3 animate-message hover:border-primary/20 hover:shadow-sm transition-all"
               style={{ animationDelay: `${ci * 80}ms` }}
             >
@@ -236,8 +231,8 @@ export function WelcomeScreen() {
                   <Icon className="h-4 w-4" />
                 </span>
                 <div>
-                  <h3 className="text-sm font-semibold">{card.title}</h3>
-                  <p className="text-xs text-muted-foreground">{card.hint}</p>
+                  <h3 className="text-sm font-semibold">{t(`setup:welcome.card.${card.id}.title`)}</h3>
+                  <p className="text-xs text-muted-foreground">{t(`setup:welcome.card.${card.id}.hint`)}</p>
                 </div>
               </div>
               <div className="flex flex-col gap-1.5">
@@ -267,7 +262,7 @@ export function WelcomeScreen() {
           <div className="flex items-center gap-2 mb-3">
             <ArchiveRestore className="h-4 w-4 text-muted-foreground" />
             <span className="text-xs uppercase tracking-wider text-muted-foreground font-medium">
-              Pick back up
+              {t('setup:welcome.pickBackUp')}
             </span>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
@@ -280,7 +275,7 @@ export function WelcomeScreen() {
                 title={entry.title}
               >
                 <div className="text-sm font-medium truncate text-foreground group-hover/sess:text-primary">
-                  {sessionNicknames[entry.id] || entry.title || '(empty)'}
+                  {sessionNicknames[entry.id] || entry.title || t('setup:welcome.empty')}
                 </div>
                 <div className="text-[10px] text-muted-foreground font-mono truncate mt-0.5">
                   {entry.provider}/{entry.model}
@@ -302,7 +297,7 @@ export function WelcomeScreen() {
           <div className="flex items-center gap-2 mb-3">
             <Clock className="h-4 w-4 text-muted-foreground" />
             <span className="text-xs uppercase tracking-wider text-muted-foreground font-medium">
-              Recent prompts
+              {t('setup:welcome.recentPrompts')}
             </span>
           </div>
           <div className="flex flex-col gap-1.5">
@@ -329,7 +324,7 @@ export function WelcomeScreen() {
         <div className="flex items-center gap-2 mb-3">
           <Keyboard className="h-4 w-4 text-muted-foreground" />
           <span className="text-xs uppercase tracking-wider text-muted-foreground font-medium">
-            Quick commands
+            {t('setup:welcome.quickCommands')}
           </span>
         </div>
         <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
@@ -341,7 +336,7 @@ export function WelcomeScreen() {
               className="text-left flex flex-col gap-0.5 rounded-md border border-border/40 bg-background/60 px-3 py-2 hover:border-primary/40 hover:bg-accent/40 transition-colors"
             >
               <span className="font-mono text-xs text-foreground">{c.name}</span>
-              <span className="text-[11px] text-muted-foreground truncate">{c.hint}</span>
+              <span className="text-[11px] text-muted-foreground truncate">{t(`setup:welcome.slashRef.${c.id}`)}</span>
             </button>
           ))}
         </div>

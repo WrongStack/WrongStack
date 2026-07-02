@@ -1,0 +1,12 @@
+{
+  "session": {
+    "saved": "Sessione salvata",
+    "loaded": "Sessione caricata",
+    "deleted": "Sessione eliminata"
+  },
+  "error": {
+    "generic": "Qualcosa è andato storto.",
+    "connectionLost": "Connessione persa. Riconnessione…",
+    "reconnected": "Riconnesso."
+  }
+}

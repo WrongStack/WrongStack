@@ -1,0 +1,37 @@
+{
+  "title": "Einstellungen",
+  "tabs": {
+    "provider": "Anbieter",
+    "connection": "Verbinden",
+    "appearance": "Aussehen",
+    "agent": "Agent",
+    "features": "Features",
+    "mcp": "MCP"
+  },
+  "appearance": {
+    "themeHeading": "Design",
+    "themeLight": "Hell",
+    "themeDark": "Dunkel",
+    "themeSystem": "System",
+    "themeSystemHint": "System folgt deiner Hell-/Dunkel-Einstellung auf Betriebssystemebene.",
+    "preferencesHeading": "Einstellungen",
+    "compactDensity": "Kompakte Dichte",
+    "compactDensityHint": "Engerer Abstand im gesamten Chat.",
+    "soundOnComplete": "Ton bei Fertigstellung",
+    "soundOnCompleteHint": "Spielt einen sanften Ton, wenn ein Durchlauf abgeschlossen ist.",
+    "titleAnimation": "Titelanimation",
+    "titleAnimationHint": "Animierten Terminal-Titel im CLI anzeigen.",
+    "languageHeading": "Sprache",
+    "languageLabel": "Oberflächensprache",
+    "languageHint": "Ändert nur den Oberflächentext. Prompts, Skills und Modellausgaben bleiben unberührt."
+  },
+  "model": {
+    "heading": "Modell"
+  },
+  "connection": {
+    "wsUrlLabel": "WebSocket-Server-URL",
+    "wsUrlPlaceholder": "ws://localhost:3457",
+    "wsUrlHint": "URL des Agent-WebSocket-Servers. Der Server läuft neben dem CLI.",
+    "startingHeading": "Den WebSocket-Server starten"
+  }
+}

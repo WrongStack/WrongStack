@@ -1,0 +1,51 @@
+{
+  "placeholder": "Befehle, Sitzungen, Einstellungen suchen…",
+  "noMatches": "Keine Treffer für \"{{query}}\"",
+  "footer": {
+    "navigate": "↑↓ navigieren",
+    "select": "↵ auswählen",
+    "dismiss": "Esc schließen"
+  },
+  "cat": {
+    "Command": "Befehl",
+    "Session": "Sitzung",
+    "Theme": "Design",
+    "Tool": "Tool",
+    "Slash": "Slash"
+  },
+  "cmd": {
+    "help": "Slash-Befehle anzeigen",
+    "tools": "Tools auflisten",
+    "memory": "Memory anzeigen",
+    "skills": "Skills auflisten",
+    "diag": "Laufzeitdiagnose",
+    "stats": "Sitzungsstatistik (Token, Cache, Kosten)",
+    "clear": "Kontext leeren",
+    "clearHint": "Kontext im Speicher löschen, Sitzungs-ID behalten",
+    "new": "Neue Sitzung",
+    "newHint": "Komplett neu auf Festplatte und im Speicher",
+    "compact": "Kontext komprimieren",
+    "repairContext": "Kontext reparieren",
+    "repairContextHint": "Verwaiste Tool-Protokollblöcke entfernen",
+    "export": "Chat als markdown exportieren",
+    "exportHtml": "Chat als HTML exportieren",
+    "exportHtmlHint": "Eigenständig, öffnet sich in jedem Browser",
+    "history": "Verlauf-Panel öffnen",
+    "settings": "Einstellungen öffnen",
+    "model": "Anbieter/Modell ändern",
+    "themeLight": "Design: Hell",
+    "themeDark": "Design: Dunkel",
+    "themeSystem": "Design: System folgen",
+    "compactToggle": "Kompakte Dichte umschalten",
+    "soundOn": "Ton bei Fertigstellung: AN — ausschalten",
+    "soundOff": "Ton bei Fertigstellung: AUS — einschalten",
+    "soundHint": "Ton, wenn ein Durchlauf abgeschlossen ist",
+    "autophaseOpen": "AutoPhase-Ansicht öffnen",
+    "autoOn": "Autonomer Modus: AN — deaktivieren",
+    "autoOff": "Autonomer Modus: AUS — aktivieren",
+    "autoHint": "Autonome Phasenausführung umschalten",
+    "autophaseStop": "AutoPhase stoppen",
+    "resume": "Fortsetzen: {{title}}",
+    "emptyTitle": "(leer)"
+  }
+}

@@ -1,0 +1,51 @@
+{
+  "welcome": {
+    "title": "Bienvenue sur WrongStack",
+    "subtitle": "Connectez un fournisseur pour démarrer.",
+    "heroTitle": "Par où voulez-vous commencer ?",
+    "heroTitleInProject": "Par où voulez-vous commencer dans {{name}} ?",
+    "heroSubtitle": "L'agent est connecté à votre projet et prêt à lire, modifier, exécuter des commandes, rechercher dans la base de code, suivre les tâches et mémoriser le contexte entre les sessions. Choisissez un prompt de départ ci-dessous, rédigez le vôtre, ou tapez / pour la palette de commandes complète.",
+    "workingDirectory": "Répertoire de travail : {{cwd}}",
+    "noKeyTitle": "Aucune clé API configurée pour le moment",
+    "noKeyBody": "Enregistrez un fournisseur dans les Paramètres avant d'envoyer un message — sinon l'agent n'aura personne à qui parler. Anthropic, OpenAI, Google et tout point de terminaison OpenAI-compatible fonctionnent.",
+    "openSettings": "Ouvrir les Paramètres",
+    "pickBackUp": "Reprendre",
+    "recentPrompts": "Prompts récents",
+    "quickCommands": "Commandes rapides",
+    "empty": "(vide)",
+    "card": {
+      "understand": {
+        "title": "Comprendre",
+        "hint": "Explorer et analyser la base de code"
+      },
+      "create": {
+        "title": "Créer",
+        "hint": "Construire de nouvelles fonctionnalités"
+      },
+      "investigate": {
+        "title": "Investiguer",
+        "hint": "Déboguer les problèmes et trouver les causes profondes"
+      },
+      "improve": {
+        "title": "Améliorer",
+        "hint": "Refactorer et optimiser le code existant"
+      }
+    },
+    "slashRef": {
+      "help": "lister toutes les commandes slash",
+      "diag": "diagnostics d'exécution",
+      "stats": "jetons · cache · coût · durée",
+      "tools": "afficher les outils enregistrés",
+      "memory": "afficher les notes mémorisées",
+      "compact": "réduire le contexte",
+      "clear": "effacer le contexte actuel",
+      "new": "nouvelle session"
+    }
+  },
+  "provider": {
+    "heading": "Choisissez un fournisseur",
+    "keyPlaceholder": "Collez votre clé API",
+    "connect": "Connecter",
+    "connected": "Connecté"
+  }
+}

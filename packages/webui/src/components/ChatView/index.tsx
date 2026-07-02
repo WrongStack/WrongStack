@@ -1,3 +1,4 @@
+import { useAppTranslation } from '@/i18n';
 import { cn } from '@/lib/utils';
 import { getWSClient } from '@/lib/ws-client';
 import { useChatStore, useHistoryStore, useSessionStore, useUIStore } from '@/stores';
@@ -108,6 +109,7 @@ export function ChatView() {
   // Narrow selectors — subscribing to the whole store re-rendered ChatView on
   // every stream delta (thinking / tool progress) even when the message list
   // was untouched.
+  const { t } = useAppTranslation();
   const messages = useChatStore((s) => s.messages);
   const isLoading = useChatStore((s) => s.isLoading);
   const sidebarOpen = useUIStore((s) => s.sidebarOpen);
@@ -407,7 +409,7 @@ export function ChatView() {
                   onChange={(e) => setTitleDraft(e.target.value)}
                   onBlur={() => { if (titleDraft.trim()) setSessionNickname(sessionId, titleDraft); setRenamingTitle(false); }}
                   onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); if (titleDraft.trim()) setSessionNickname(sessionId, titleDraft); setRenamingTitle(false); } else if (e.key === 'Escape') { e.preventDefault(); setRenamingTitle(false); } }}
-                  placeholder="Session name…"
+                  placeholder={t('chat:sessionNamePlaceholder')}
                   className="h-5 px-1.5 text-[11px] bg-background border border-primary/40 rounded focus:outline-none focus:ring-1 focus:ring-ring shrink-0 w-32"
                   autoFocus
                 />
@@ -436,7 +438,7 @@ export function ChatView() {
                   type="button"
                   onClick={() => setSwitcherOpen((v) => !v)}
                   className="flex items-center gap-0.5 px-1 py-0.5 rounded text-[10px] text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
-                  title="Switch session"
+                  title={t('chat:switchSession')}
                 >
                   <History className="h-3 w-3" />
                   <ChevronDown className="h-2.5 w-2.5" />
@@ -453,7 +455,7 @@ export function ChatView() {
                           e.isCurrent && 'bg-primary/10',
                         )}
                       >
-                        <div className="font-medium truncate">{e.title || '(empty)'}</div>
+                        <div className="font-medium truncate">{e.title || t('chat:empty')}</div>
                         <div className="text-[10px] text-muted-foreground font-mono truncate">{e.provider}/{e.model} · {e.tokenTotal.toLocaleString()} tok</div>
                       </button>
                     ))}

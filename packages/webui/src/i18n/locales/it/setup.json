@@ -1,0 +1,51 @@
+{
+  "welcome": {
+    "title": "Benvenuto in WrongStack",
+    "subtitle": "Collega un provider per iniziare.",
+    "heroTitle": "Da dove vuoi iniziare?",
+    "heroTitleInProject": "Da dove vuoi iniziare in {{name}}?",
+    "heroSubtitle": "L'agente è connesso al tuo progetto e pronto a leggere, modificare, eseguire comandi, cercare nel codebase, tenere traccia dei todo e ricordare il contesto tra le sessioni. Scegli un prompt di partenza qui sotto, scrivi il tuo, oppure digita / per la palette dei comandi completa.",
+    "workingDirectory": "Directory di lavoro: {{cwd}}",
+    "noKeyTitle": "Nessuna chiave API configurata",
+    "noKeyBody": "Registra un provider in Impostazioni prima di inviare un messaggio — altrimenti l'agente non ha nessuno con cui parlare. Anthropic, OpenAI, Google e qualsiasi endpoint compatibile con OpenAI funzionano tutti.",
+    "openSettings": "Apri Impostazioni",
+    "pickBackUp": "Riprendi",
+    "recentPrompts": "Prompt recenti",
+    "quickCommands": "Comandi rapidi",
+    "empty": "(vuoto)",
+    "card": {
+      "understand": {
+        "title": "Capire",
+        "hint": "Esplora e analizza il codebase"
+      },
+      "create": {
+        "title": "Creare",
+        "hint": "Crea nuove funzionalità"
+      },
+      "investigate": {
+        "title": "Indagare",
+        "hint": "Esegui il debug dei problemi e trova le cause principali"
+      },
+      "improve": {
+        "title": "Migliorare",
+        "hint": "Effettua il refactoring e ottimizza il codice esistente"
+      }
+    },
+    "slashRef": {
+      "help": "elenca ogni comando slash",
+      "diag": "diagnostica di runtime",
+      "stats": "token · cache · costo · tempo trascorso",
+      "tools": "mostra gli strumenti registrati",
+      "memory": "mostra le note memorizzate",
+      "compact": "riduci il contesto",
+      "clear": "cancella il contesto corrente",
+      "new": "nuova sessione"
+    }
+  },
+  "provider": {
+    "heading": "Scegli un provider",
+    "keyPlaceholder": "Incolla la tua chiave API",
+    "connect": "Connetti",
+    "connected": "Connesso"
+  }
+}

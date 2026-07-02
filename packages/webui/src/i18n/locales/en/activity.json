@@ -1,0 +1,51 @@
+{
+  "nav": {
+    "chat": "Session",
+    "agents": "Agents",
+    "history": "History",
+    "files": "Files",
+    "changes": "Changes",
+    "mailbox": "Mailbox",
+    "skills": "Skills",
+    "worktrees": "Worktrees",
+    "design": "Design Studio",
+    "officemap": "Office Map",
+    "settings": "Settings",
+    "sddwizard": "New SDD Project",
+    "specs": "Specs",
+    "sddboard": "Live Board",
+    "autophase": "Phases",
+    "fleet": "Fleet",
+    "inspector": "Inspector",
+    "prompts": "Prompts"
+  },
+  "brand": {
+    "returnToChat": "{{name}} — return to chat",
+    "returnToChatDefault": "WrongStack — return to chat"
+  },
+  "status": {
+    "connected": "Connected",
+    "disconnected": "Disconnected",
+    "idle": "Idle",
+    "thinking": "Thinking",
+    "running": "Running",
+    "waiting": "Waiting",
+    "done": "Done",
+    "stopped": "Stopped"
+  },
+  "menu": {
+    "moreWithHidden": "More, {{count}} hidden items",
+    "moreOptions": "More options",
+    "moreCompactHidden": "More — {{count}} hidden panels/views, palette, theme, monitors",
+    "moreCompact": "More — palette, theme, monitors",
+    "moreFull": "More — palette, theme, shortcuts, monitors",
+    "commandPalette": "Command Palette",
+    "keyboardShortcuts": "Keyboard Shortcuts",
+    "panels": "Panels",
+    "views": "Views",
+    "theme": "Theme",
+    "monitors": "Monitors",
+    "fleetMonitor": "Fleet Monitor",
+    "agentsMonitor": "Agents Monitor"
+  }
+}

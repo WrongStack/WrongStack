@@ -1,0 +1,51 @@
+{
+  "placeholder": "Buscar comandos, sessões, configurações…",
+  "noMatches": "Nenhum resultado para \"{{query}}\"",
+  "footer": {
+    "navigate": "↑↓ navegar",
+    "select": "↵ selecionar",
+    "dismiss": "Esc fechar"
+  },
+  "cat": {
+    "Command": "Comando",
+    "Session": "Sessão",
+    "Theme": "Tema",
+    "Tool": "Ferramenta",
+    "Slash": "Slash"
+  },
+  "cmd": {
+    "help": "Mostrar comandos slash",
+    "tools": "Listar ferramentas",
+    "memory": "Mostrar memória",
+    "skills": "Listar skills",
+    "diag": "Diagnósticos de tempo de execução",
+    "stats": "Estatísticas da sessão (tokens, cache, custo)",
+    "clear": "Limpar contexto",
+    "clearHint": "Apaga o contexto em memória, mantém o id da sessão",
+    "new": "Nova sessão",
+    "newHint": "Totalmente novo no disco + na memória",
+    "compact": "Compactar contexto",
+    "repairContext": "Reparar contexto",
+    "repairContextHint": "Remover blocos órfãos de protocolo de ferramentas",
+    "export": "Exportar chat como markdown",
+    "exportHtml": "Exportar chat como HTML",
+    "exportHtmlHint": "Autossuficiente, abre em qualquer navegador",
+    "history": "Abrir painel de histórico",
+    "settings": "Abrir configurações",
+    "model": "Trocar provedor/modelo",
+    "themeLight": "Tema: Claro",
+    "themeDark": "Tema: Escuro",
+    "themeSystem": "Tema: Seguir o sistema",
+    "compactToggle": "Alternar densidade compacta",
+    "soundOn": "Som ao concluir: LIGADO — desligar",
+    "soundOff": "Som ao concluir: DESLIGADO — ligar",
+    "soundHint": "Toque quando uma execução termina",
+    "autophaseOpen": "Abrir visualização AutoPhase",
+    "autoOn": "Modo autônomo: LIGADO — desativar",
+    "autoOff": "Modo autônomo: DESLIGADO — ativar",
+    "autoHint": "Alternar execução autônoma das fases",
+    "autophaseStop": "Parar AutoPhase",
+    "resume": "Retomar: {{title}}",
+    "emptyTitle": "(vazio)"
+  }
+}

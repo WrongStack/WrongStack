@@ -1,0 +1,18 @@
+{
+  "emptyState": {
+    "title": "Sohbet başlat",
+    "subtitle": "Başlamak için bir mesaj gönder."
+  },
+  "sessionNamePlaceholder": "Oturum adı…",
+  "switchSession": "Oturumu değiştir",
+  "inputPlaceholder": "Vekile mesaj gönder… (komutlar için /, dosyalar için @ yazın)",
+  "inputPlaceholderConnecting": "Önce sunucuya bağlanın…",
+  "inputPlaceholderLoading": "Bir btw/steer/queue takip mesajı yaz…",
+  "send": "Gönder",
+  "sendTitle": "Gönder (Enter)",
+  "stop": "Durdur",
+  "newSession": "Yeni oturum",
+  "empty": "(boş)",
+  "messageCount_one": "{{count}} mesaj",
+  "messageCount_other": "{{count}} mesaj"
+}

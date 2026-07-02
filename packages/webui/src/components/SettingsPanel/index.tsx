@@ -27,6 +27,7 @@ import {
   MODEL_MATRIX_ROUTE_GROUPS,
 } from '@/lib/model-matrix-routes';
 import { useWebSocket } from '@/hooks/useWebSocket';
+import { i18n, LANGUAGES, useAppTranslation } from '@/i18n';
 import { showPanel } from '@/lib/view-navigation';
 import { useConfigStore, useUIStore } from '@/stores';
 import { useLocalPrefs, type LocalPrefs } from '@/stores/local-prefs';
@@ -127,6 +128,7 @@ export function SettingsPanel() {
   const wsClient = ws.client;
   const { updatePrefs, switchAutonomy } = ws;
   const localPrefs = useLocalPrefs();
+  const { t } = useAppTranslation();
   // Model catalogue for the global fallback chain editor (fetched while open).
   const fallbackCandidates = useProviderModels(true);
 
@@ -140,6 +142,16 @@ export function SettingsPanel() {
     },
     [localPrefs, updatePrefs],
   );
+
+  // Display-only locale switch: write to localStorage ONLY (never syncPref /
+  // updatePrefs — uiLocale must never reach the WS server or config.json).
+  // The i18n module's useLocalPrefs.subscribe then drives i18n.changeLanguage
+  // + <html lang>, so a plain store write is all that's needed here.
+  const setUiLocale = useCallback((code: string) => {
+    localPrefs.set({ uiLocale: code });
+    // Defensive: also swap directly in case the subscriber hasn't mounted.
+    if (i18n.language !== code) void i18n.changeLanguage(code);
+  }, [localPrefs]);
 
   // Catalog data (unchanged)
   const [catalogProviders, setCatalogProviders] = useState<CatalogProvider[]>([]);
@@ -574,10 +586,10 @@ export function SettingsPanel() {
               </div>
             </TabsContent>
 
-            {/* Appearance Tab — unchanged */}
+            {/* Appearance Tab */}
             <TabsContent value="appearance" className="space-y-4">
               <div>
-                <h3 className="text-sm font-semibold mb-3">Theme</h3>
+                <h3 className="text-sm font-semibold mb-3">{t('settings:appearance.themeHeading')}</h3>
                 <div className="grid grid-cols-3 gap-2 max-w-md">
                   <Button
                     variant={theme === 'light' ? 'default' : 'outline'}
@@ -585,7 +597,7 @@ export function SettingsPanel() {
                     onClick={() => setTheme('light')}
                   >
                     <Sun className="h-4 w-4 mr-1" />
-                    Light
+                    {t('settings:appearance.themeLight')}
                   </Button>
                   <Button
                     variant={theme === 'dark' ? 'default' : 'outline'}
@@ -593,7 +605,7 @@ export function SettingsPanel() {
                     onClick={() => setTheme('dark')}
                   >
                     <Moon className="h-4 w-4 mr-1" />
-                    Dark
+                    {t('settings:appearance.themeDark')}
                   </Button>
                   <Button
                     variant={theme === 'system' ? 'default' : 'outline'}
@@ -601,31 +613,40 @@ export function SettingsPanel() {
                     onClick={() => setTheme('system')}
                   >
                     <Monitor className="h-4 w-4 mr-1" />
-                    System
+                    {t('settings:appearance.themeSystem')}
                   </Button>
                 </div>
-                <p className="text-xs text-muted-foreground mt-2">
-                  System follows your OS-level light/dark preference.
-                </p>
+                <p className="text-xs text-muted-foreground mt-2">{t('settings:appearance.themeSystemHint')}</p>
               </div>
 
               <div className="pt-2 border-t">
-                <h3 className="text-sm font-semibold mb-3 mt-3">Preferences</h3>
+                <h3 className="text-sm font-semibold mb-3 mt-3">{t('settings:appearance.languageHeading')}</h3>
+                <PreferenceSelect
+                  label={t('settings:appearance.languageLabel')}
+                  hint={t('settings:appearance.languageHint')}
+                  value={localPrefs.uiLocale}
+                  options={LANGUAGES.map((l) => ({ value: l.code, label: l.name }))}
+                  onChange={setUiLocale}
+                />
+              </div>
+
+              <div className="pt-2 border-t">
+                <h3 className="text-sm font-semibold mb-3 mt-3">{t('settings:appearance.preferencesHeading')}</h3>
                 <PreferenceToggle
-                  label="Compact density"
-                  hint="Tighter spacing throughout the chat."
+                  label={t('settings:appearance.compactDensity')}
+                  hint={t('settings:appearance.compactDensityHint')}
                   selector={(s) => s.compactMode}
                   onChange={() => useUIStore.getState().toggleCompactMode()}
                 />
                 <PreferenceToggle
-                  label="Sound on completion"
-                  hint="Play a soft chime when a run finishes."
+                  label={t('settings:appearance.soundOnComplete')}
+                  hint={t('settings:appearance.soundOnCompleteHint')}
                   selector={null}
                   configKey="soundOnComplete"
                 />
                 <PreferenceToggle
-                  label="Title animation"
-                  hint="Show animated terminal title in the CLI."
+                  label={t('settings:appearance.titleAnimation')}
+                  hint={t('settings:appearance.titleAnimationHint')}
                   value={localPrefs.titleAnimation}
                   onChange={() => syncPref('titleAnimation', !localPrefs.titleAnimation)}
                 />

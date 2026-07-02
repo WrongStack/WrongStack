@@ -1,0 +1,37 @@
+{
+  "title": "Paramètres",
+  "tabs": {
+    "provider": "Fournisseur",
+    "connection": "Connexion",
+    "appearance": "Apparence",
+    "agent": "Agent",
+    "features": "Fonc.",
+    "mcp": "MCP"
+  },
+  "appearance": {
+    "themeHeading": "Thème",
+    "themeLight": "Clair",
+    "themeDark": "Sombre",
+    "themeSystem": "Système",
+    "themeSystemHint": "Système suit votre préférence clair/sombre définie au niveau du système d'exploitation.",
+    "preferencesHeading": "Préférences",
+    "compactDensity": "Densité compacte",
+    "compactDensityHint": "Espacement plus serré dans tout le chat.",
+    "soundOnComplete": "Son à la fin de l'exécution",
+    "soundOnCompleteHint": "Émet une douce sonnerie quand une exécution se termine.",
+    "titleAnimation": "Animation du titre",
+    "titleAnimationHint": "Affiche un titre de terminal animé dans le CLI.",
+    "languageHeading": "Langue",
+    "languageLabel": "Langue de l'interface",
+    "languageHint": "Modifie uniquement le texte de l'interface. Les prompts, les compétences et la sortie du modèle ne sont pas affectés."
+  },
+  "model": {
+    "heading": "Modèle"
+  },
+  "connection": {
+    "wsUrlLabel": "URL du serveur WebSocket",
+    "wsUrlPlaceholder": "ws://localhost:3457",
+    "wsUrlHint": "URL du serveur WebSocket de l'agent. Le serveur fonctionne en parallèle du CLI.",
+    "startingHeading": "Démarrage du serveur WebSocket"
+  }
+}

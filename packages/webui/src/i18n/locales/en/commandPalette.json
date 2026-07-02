@@ -1,0 +1,51 @@
+{
+  "placeholder": "Search commands, sessions, settings…",
+  "noMatches": "No matches for \"{{query}}\"",
+  "footer": {
+    "navigate": "↑↓ navigate",
+    "select": "↵ select",
+    "dismiss": "Esc dismiss"
+  },
+  "cat": {
+    "Command": "Command",
+    "Session": "Session",
+    "Theme": "Theme",
+    "Tool": "Tool",
+    "Slash": "Slash"
+  },
+  "cmd": {
+    "help": "Show slash commands",
+    "tools": "List tools",
+    "memory": "Show memory",
+    "skills": "List skills",
+    "diag": "Runtime diagnostics",
+    "stats": "Session stats (tokens, cache, cost)",
+    "clear": "Clear context",
+    "clearHint": "Wipe in-memory context, keep session id",
+    "new": "New session",
+    "newHint": "Brand-new on disk + memory",
+    "compact": "Compact context",
+    "repairContext": "Repair context",
+    "repairContextHint": "Remove orphan tool protocol blocks",
+    "export": "Export chat as markdown",
+    "exportHtml": "Export chat as HTML",
+    "exportHtmlHint": "Self-contained, opens in any browser",
+    "history": "Open history panel",
+    "settings": "Open settings",
+    "model": "Change provider/model",
+    "themeLight": "Theme: Light",
+    "themeDark": "Theme: Dark",
+    "themeSystem": "Theme: Follow system",
+    "compactToggle": "Toggle compact density",
+    "soundOn": "Sound on completion: ON — turn off",
+    "soundOff": "Sound on completion: OFF — turn on",
+    "soundHint": "Chime when a run finishes",
+    "autophaseOpen": "Open AutoPhase view",
+    "autoOn": "Autonomous mode: ON — disable",
+    "autoOff": "Autonomous mode: OFF — enable",
+    "autoHint": "Toggle autonomous phase execution",
+    "autophaseStop": "Stop AutoPhase",
+    "resume": "Resume: {{title}}",
+    "emptyTitle": "(empty)"
+  }
+}

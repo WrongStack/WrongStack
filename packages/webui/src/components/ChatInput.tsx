@@ -3,6 +3,7 @@ import { Bell, ListPlus, Pencil, RotateCw, Send, Sparkles, Square } from 'lucide
 import type React from 'react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useWebSocket } from '@/hooks/useWebSocket';
+import { useAppTranslation } from '@/i18n';
 import { cn } from '@/lib/utils';
 import { useChatStore, useFileReferenceStore, useSessionStore, useUIStore } from '@/stores';
 import { refsToMarkdown } from '@/stores/file-reference-store.js';
@@ -46,6 +47,7 @@ export function ChatInput({
   const promptHistory = useUIStore((s) => s.promptHistory);
   const ws = useWebSocket();
   const { sendMessage, sendAbort, client, refineModel } = ws;
+  const { t } = useAppTranslation();
   const refineEnabled = useUIStore((s) => s.refineEnabled);
   const refinePanel = useUIStore((s) => s.refinePanel);
   const promptInsertRequest = useUIStore((s) => s.promptInsertRequest);
@@ -804,10 +806,10 @@ export function ChatInput({
             onPaste={onTextPaste}
             placeholder={
               !client?.isConnected
-                ? 'Connect to server first…'
+                ? t('chat:inputPlaceholderConnecting')
                 : isLoading
-                  ? 'Type a btw/steer/queue follow-up…'
-                  : 'Message the agent… (type / for commands, @ for files)'
+                  ? t('chat:inputPlaceholderLoading')
+                  : t('chat:inputPlaceholder')
             }
             className={cn(
               'flex min-h-[44px] w-full resize-none rounded-lg border border-input bg-background px-4 py-3 pr-12',
@@ -923,7 +925,7 @@ export function ChatInput({
             variant="default"
             disabled={!input.trim() || !client?.isConnected}
             className="h-[44px] w-[44px] rounded-lg bg-sky-600 hover:bg-sky-700 text-white dark:bg-sky-500 dark:hover:bg-sky-600"
-            title="Send (Enter)"
+            title={t('chat:sendTitle')}
             data-testid="send-submit"
           >
             <Send className="h-4 w-4" />

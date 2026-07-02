@@ -1,0 +1,51 @@
+{
+  "welcome": {
+    "title": "Willkommen bei WrongStack",
+    "subtitle": "Verbinde einen Anbieter, um loszulegen.",
+    "heroTitle": "Wo möchtest du starten?",
+    "heroTitleInProject": "Wo möchtest du in {{name}} starten?",
+    "heroSubtitle": "Der Agent ist mit deinem Projekt verbunden und bereit, Code zu lesen, zu bearbeiten, Befehle auszuführen, die Codebasis zu durchsuchen, Todos zu verfolgen und den Kontext über Sitzungen hinweg zu speichern. Wähle unten einen Start-Prompt, schreib deinen eigenen oder gib / für die vollständige Befehls-Palette ein.",
+    "workingDirectory": "Arbeitsverzeichnis: {{cwd}}",
+    "noKeyTitle": "Noch kein API-Schlüssel konfiguriert",
+    "noKeyBody": "Registriere einen Anbieter in den Einstellungen, bevor du eine Nachricht sendest — sonst hat der Agent niemanden, mit dem er reden kann. Anthropic, OpenAI, Google und jeder OpenAI-kompatible Endpunkt funktionieren.",
+    "openSettings": "Einstellungen öffnen",
+    "pickBackUp": "Fortsetzen",
+    "recentPrompts": "Zuletzt verwendete Prompts",
+    "quickCommands": "Schnellbefehle",
+    "empty": "(leer)",
+    "card": {
+      "understand": {
+        "title": "Verstehen",
+        "hint": "Codebasis erkunden und analysieren"
+      },
+      "create": {
+        "title": "Erstellen",
+        "hint": "Neue Features und Funktionen bauen"
+      },
+      "investigate": {
+        "title": "Untersuchen",
+        "hint": "Probleme debuggen und Ursachen finden"
+      },
+      "improve": {
+        "title": "Verbessern",
+        "hint": "Bestehenden Code refactorn und optimieren"
+      }
+    },
+    "slashRef": {
+      "help": "alle Slash-Befehle auflisten",
+      "diag": "Laufzeitdiagnose",
+      "stats": "Token · Cache · Kosten · Dauer",
+      "tools": "registrierte Tools anzeigen",
+      "memory": "gemerkte Notizen anzeigen",
+      "compact": "Kontext verkleinern",
+      "clear": "aktuellen Kontext löschen",
+      "new": "neue Sitzung"
+    }
+  },
+  "provider": {
+    "heading": "Anbieter wählen",
+    "keyPlaceholder": "API-Schlüssel einfügen",
+    "connect": "Verbinden",
+    "connected": "Verbunden"
+  }
+}

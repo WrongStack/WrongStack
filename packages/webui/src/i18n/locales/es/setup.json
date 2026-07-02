@@ -1,0 +1,51 @@
+{
+  "welcome": {
+    "title": "Te damos la bienvenida a WrongStack",
+    "subtitle": "Conecta un proveedor para empezar.",
+    "heroTitle": "¿Por dónde quieres empezar?",
+    "heroTitleInProject": "¿Por dónde quieres empezar en {{name}}?",
+    "heroSubtitle": "El agente está conectado a tu proyecto y listo para leer, editar, ejecutar comandos, buscar en el código, hacer seguimiento de tareas y recordar el contexto entre sesiones. Elige un prompt de inicio a continuación, escribe el tuyo propio, o escribe / para ver la paleta de comandos completa.",
+    "workingDirectory": "Directorio de trabajo: {{cwd}}",
+    "noKeyTitle": "Aún no se ha configurado ninguna clave de API",
+    "noKeyBody": "Registra un proveedor en Ajustes antes de enviar un mensaje; de lo contrario, el agente no tendrá con quién comunicarse. Anthropic, OpenAI, Google y cualquier endpoint compatible con OpenAI funcionan.",
+    "openSettings": "Abrir Ajustes",
+    "pickBackUp": "Retomar",
+    "recentPrompts": "Prompts recientes",
+    "quickCommands": "Comandos rápidos",
+    "empty": "(vacío)",
+    "card": {
+      "understand": {
+        "title": "Comprender",
+        "hint": "Explora y analiza el código"
+      },
+      "create": {
+        "title": "Crear",
+        "hint": "Crea nuevas funciones y características"
+      },
+      "investigate": {
+        "title": "Investigar",
+        "hint": "Depura problemas y encuentra causas raíz"
+      },
+      "improve": {
+        "title": "Mejorar",
+        "hint": "Refactoriza y optimiza el código existente"
+      }
+    },
+    "slashRef": {
+      "help": "listar todos los comandos slash",
+      "diag": "diagnóstico en tiempo de ejecución",
+      "stats": "tokens · caché · costo · transcurrido",
+      "tools": "mostrar herramientas registradas",
+      "memory": "mostrar notas guardadas",
+      "compact": "reducir contexto",
+      "clear": "borrar el contexto actual",
+      "new": "sesión nueva"
+    }
+  },
+  "provider": {
+    "heading": "Elige un proveedor",
+    "keyPlaceholder": "Pega tu clave de API",
+    "connect": "Conectar",
+    "connected": "Conectado"
+  }
+}

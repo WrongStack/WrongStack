@@ -1,0 +1,51 @@
+{
+  "placeholder": "Cerca comandi, sessioni, impostazioni…",
+  "noMatches": "Nessuna corrispondenza per \"{{query}}\"",
+  "footer": {
+    "navigate": "↑↓ naviga",
+    "select": "↵ seleziona",
+    "dismiss": "Esc chiudi"
+  },
+  "cat": {
+    "Command": "Comando",
+    "Session": "Sessione",
+    "Theme": "Tema",
+    "Tool": "Strumento",
+    "Slash": "Slash"
+  },
+  "cmd": {
+    "help": "Mostra i comandi slash",
+    "tools": "Elenca gli strumenti",
+    "memory": "Mostra la memoria",
+    "skills": "Elenca le skill",
+    "diag": "Diagnostica di runtime",
+    "stats": "Statistiche di sessione (token, cache, costo)",
+    "clear": "Cancella il contesto",
+    "clearHint": "Azzera il contesto in memoria, mantiene l'id di sessione",
+    "new": "Nuova sessione",
+    "newHint": "Nuovo di zecca su disco + memoria",
+    "compact": "Compatta il contesto",
+    "repairContext": "Ripara il contesto",
+    "repairContextHint": "Rimuovi i blocchi di protocollo strumento orfani",
+    "export": "Esporta la chat come markdown",
+    "exportHtml": "Esporta la chat come HTML",
+    "exportHtmlHint": "Autonomo, si apre in qualsiasi browser",
+    "history": "Apri il pannello cronologia",
+    "settings": "Apri le impostazioni",
+    "model": "Cambia provider/modello",
+    "themeLight": "Tema: Chiaro",
+    "themeDark": "Tema: Scuro",
+    "themeSystem": "Tema: Segui sistema",
+    "compactToggle": "Attiva/disattiva densità compatta",
+    "soundOn": "Suono al completamento: ATTIVO — disattiva",
+    "soundOff": "Suono al completamento: SPENTO — attiva",
+    "soundHint": "Suono al termine di un'esecuzione",
+    "autophaseOpen": "Apri vista AutoPhase",
+    "autoOn": "Modalità autonoma: ATTIVA — disabilita",
+    "autoOff": "Modalità autonoma: SPENTA — abilita",
+    "autoHint": "Attiva/disattiva l'esecuzione autonoma delle fasi",
+    "autophaseStop": "Ferma AutoPhase",
+    "resume": "Riprendi: {{title}}",
+    "emptyTitle": "(vuoto)"
+  }
+}

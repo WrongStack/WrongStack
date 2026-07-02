@@ -1,0 +1,51 @@
+{
+  "nav": {
+    "chat": "Sessão",
+    "agents": "Agentes",
+    "history": "Histórico",
+    "files": "Arquivos",
+    "changes": "Alterações",
+    "mailbox": "Caixa de entrada",
+    "skills": "Skills",
+    "worktrees": "Worktrees",
+    "design": "Design Studio",
+    "officemap": "Mapa de escritórios",
+    "settings": "Configurações",
+    "sddwizard": "Novo projeto SDD",
+    "specs": "Specs",
+    "sddboard": "Painel ao vivo",
+    "autophase": "Fases",
+    "fleet": "Frota",
+    "inspector": "Inspetor",
+    "prompts": "Prompts"
+  },
+  "brand": {
+    "returnToChat": "{{name}} — voltar ao chat",
+    "returnToChatDefault": "WrongStack — voltar ao chat"
+  },
+  "status": {
+    "connected": "Conectado",
+    "disconnected": "Desconectado",
+    "idle": "Ocioso",
+    "thinking": "Pensando",
+    "running": "Executando",
+    "waiting": "Aguardando",
+    "done": "Concluído",
+    "stopped": "Parado"
+  },
+  "menu": {
+    "moreWithHidden": "Mais, {{count}} itens ocultos",
+    "moreOptions": "Mais opções",
+    "moreCompactHidden": "Mais — {{count}} painéis/visualizações ocultos, paleta, tema, monitores",
+    "moreCompact": "Mais — paleta, tema, monitores",
+    "moreFull": "Mais — paleta, tema, atalhos, monitores",
+    "commandPalette": "Paleta de comandos",
+    "keyboardShortcuts": "Atalhos do teclado",
+    "panels": "Painéis",
+    "views": "Visualizações",
+    "theme": "Tema",
+    "monitors": "Monitores",
+    "fleetMonitor": "Monitor da frota",
+    "agentsMonitor": "Monitor de agentes"
+  }
+}

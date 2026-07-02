@@ -1,0 +1,51 @@
+{
+  "welcome": {
+    "title": "Bem-vindo ao WrongStack",
+    "subtitle": "Conecte um provedor para começar.",
+    "heroTitle": "Por onde você quer começar?",
+    "heroTitleInProject": "Por onde você quer começar em {{name}}?",
+    "heroSubtitle": "O agente está conectado ao seu projeto e pronto para ler, editar, executar comandos, buscar na base de código, acompanhar tarefas e lembrar o contexto entre sessões. Escolha um prompt inicial abaixo, escreva o seu, ou digite / para a paleta de comandos completa.",
+    "workingDirectory": "Diretório de trabalho: {{cwd}}",
+    "noKeyTitle": "Nenhuma chave de API configurada ainda",
+    "noKeyBody": "Registre um provedor em Configurações antes de enviar uma mensagem — caso contrário, o agente não terá com quem conversar. Anthropic, OpenAI, Google e qualquer endpoint compatível com OpenAI funcionam.",
+    "openSettings": "Abrir Configurações",
+    "pickBackUp": "Retomar de onde parou",
+    "recentPrompts": "Prompts recentes",
+    "quickCommands": "Comandos rápidos",
+    "empty": "(vazio)",
+    "card": {
+      "understand": {
+        "title": "Entender",
+        "hint": "Explorar e analisar a base de código"
+      },
+      "create": {
+        "title": "Criar",
+        "hint": "Construir novos recursos e funcionalidades"
+      },
+      "investigate": {
+        "title": "Investigar",
+        "hint": "Depurar problemas e encontrar causas raiz"
+      },
+      "improve": {
+        "title": "Melhorar",
+        "hint": "Refatorar e otimizar o código existente"
+      }
+    },
+    "slashRef": {
+      "help": "listar todos os comandos slash",
+      "diag": "diagnósticos de tempo de execução",
+      "stats": "tokens · cache · custo · decorrido",
+      "tools": "mostrar ferramentas registradas",
+      "memory": "mostrar notas memorizadas",
+      "compact": "reduzir o contexto",
+      "clear": "limpar o contexto atual",
+      "new": "nova sessão"
+    }
+  },
+  "provider": {
+    "heading": "Escolha um provedor",
+    "keyPlaceholder": "Cole sua chave de API",
+    "connect": "Conectar",
+    "connected": "Conectado"
+  }
+}

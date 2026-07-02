@@ -1,0 +1,51 @@
+{
+  "placeholder": "Rechercher des commandes, sessions, paramètres…",
+  "noMatches": "Aucun résultat pour « {{query}} »",
+  "footer": {
+    "navigate": "↑↓ naviguer",
+    "select": "↵ sélectionner",
+    "dismiss": "Échap fermer"
+  },
+  "cat": {
+    "Command": "Commande",
+    "Session": "Session",
+    "Theme": "Thème",
+    "Tool": "Outil",
+    "Slash": "Slash"
+  },
+  "cmd": {
+    "help": "Afficher les commandes slash",
+    "tools": "Lister les outils",
+    "memory": "Afficher la mémoire",
+    "skills": "Lister les compétences",
+    "diag": "Diagnostics d'exécution",
+    "stats": "Statistiques de session (jetons, cache, coût)",
+    "clear": "Effacer le contexte",
+    "clearHint": "Effacer le contexte en mémoire, conserver l'identifiant de session",
+    "new": "Nouvelle session",
+    "newHint": "Tout neuf sur disque + en mémoire",
+    "compact": "Compacter le contexte",
+    "repairContext": "Réparer le contexte",
+    "repairContextHint": "Supprimer les blocs de protocole d'outil orphelins",
+    "export": "Exporter le chat en markdown",
+    "exportHtml": "Exporter le chat en HTML",
+    "exportHtmlHint": "Autonome, s'ouvre dans n'importe quel navigateur",
+    "history": "Ouvrir le panneau d'historique",
+    "settings": "Ouvrir les paramètres",
+    "model": "Changer de fournisseur/modèle",
+    "themeLight": "Thème : Clair",
+    "themeDark": "Thème : Sombre",
+    "themeSystem": "Thème : Suivre le système",
+    "compactToggle": "Activer/désactiver la densité compacte",
+    "soundOn": "Son à la fin de l'exécution : ACTIVÉ — désactiver",
+    "soundOff": "Son à la fin de l'exécution : DÉSACTIVÉ — activer",
+    "soundHint": "Sonnerie quand une exécution se termine",
+    "autophaseOpen": "Ouvrir la vue AutoPhase",
+    "autoOn": "Mode autonome : ACTIVÉ — désactiver",
+    "autoOff": "Mode autonome : DÉSACTIVÉ — activer",
+    "autoHint": "Activer/désactiver l'exécution autonome des phases",
+    "autophaseStop": "Arrêter AutoPhase",
+    "resume": "Reprendre : {{title}}",
+    "emptyTitle": "(vide)"
+  }
+}

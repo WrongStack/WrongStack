@@ -1,0 +1,51 @@
+{
+  "nav": {
+    "chat": "Oturum",
+    "agents": "Vekiller",
+    "history": "Geçmiş",
+    "files": "Dosyalar",
+    "changes": "Değişiklikler",
+    "mailbox": "Posta Kutusu",
+    "skills": "Beceriler",
+    "worktrees": "Çalışma Ağaçları",
+    "design": "Tasarım Stüdyosu",
+    "officemap": "Ofis Haritası",
+    "settings": "Ayarlar",
+    "sddwizard": "Yeni SDD Projesi",
+    "specs": "Spesifikasyonlar",
+    "sddboard": "Canlı Pano",
+    "autophase": "Aşamalar",
+    "fleet": "Filo",
+    "inspector": "Denetçi",
+    "prompts": "Promptlar"
+  },
+  "brand": {
+    "returnToChat": "{{name}} — sohbete dön",
+    "returnToChatDefault": "WrongStack — sohbete dön"
+  },
+  "status": {
+    "connected": "Bağlı",
+    "disconnected": "Bağlı değil",
+    "idle": "Boşta",
+    "thinking": "Düşünüyor",
+    "running": "Çalışıyor",
+    "waiting": "Bekliyor",
+    "done": "Bitti",
+    "stopped": "Durduruldu"
+  },
+  "menu": {
+    "moreWithHidden": "Daha fazla, {{count}} gizli öğe",
+    "moreOptions": "Daha fazla seçenek",
+    "moreCompactHidden": "Daha fazla — {{count}} gizli panel/görünüm, palet, tema, izleyiciler",
+    "moreCompact": "Daha fazla — palet, tema, izleyiciler",
+    "moreFull": "Daha fazla — palet, tema, kısayollar, izleyiciler",
+    "commandPalette": "Komut Paleti",
+    "keyboardShortcuts": "Klavye Kısayolları",
+    "panels": "Paneller",
+    "views": "Görünümler",
+    "theme": "Tema",
+    "monitors": "İzleyiciler",
+    "fleetMonitor": "Filo İzleyici",
+    "agentsMonitor": "Vekil İzleyici"
+  }
+}
