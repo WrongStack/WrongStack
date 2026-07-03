@@ -5,8 +5,20 @@ import type {
   DesktopWebuiStatusSnapshot,
   DesktopWebuiCommand,
 } from '../../shared/types.js';
-import { t } from './i18n.js';
+import { getLocale, onLocaleChange, setLocale, SUPPORTED_LOCALES, t } from './i18n.js';
 import './styles.css';
+
+/** Locale code → endonym (shown untranslated so a user finds their language in
+ *  any UI language, same principle as the WebUI LANGUAGES list). */
+const LOCALE_ENDONYMS: Record<string, string> = {
+  en: 'English',
+  tr: 'Türkçe',
+  de: 'Deutsch',
+  fr: 'Français',
+  it: 'Italiano',
+  es: 'Español',
+  'pt-BR': 'Português',
+};
 
 const appRootElement = document.querySelector<HTMLDivElement>('#app');
 if (!appRootElement) throw new Error('Missing #app root');
@@ -135,6 +147,17 @@ function renderDesktopRail(): string {
       </div>
       ${renderCollapsedRuntimeButtons()}
       <div class="rail-spacer"></div>
+      <select
+        class="rail-locale-select"
+        data-action="set-locale"
+        title="${t('settings')}"
+        aria-label="${t('settings')}"
+      >
+        ${SUPPORTED_LOCALES.map(
+          (code) =>
+            `<option value="${code}"${code === getLocale() ? ' selected' : ''}>${LOCALE_ENDONYMS[code] ?? code}</option>`,
+        ).join('')}
+      </select>
       <button class="rail-button" title="${t('globalSettings')}" data-action="open-settings" ${busy ? 'disabled' : ''}>
         ${iconSvg('settings')}
       </button>
@@ -892,6 +915,19 @@ appRoot.addEventListener('input', (event) => {
   focusProjectSearch(cursor);
 });
 
+// Language picker (a <select>, so it fires `change`). setLocale updates the
+// renderer chrome instantly + pushes to main, which persists it to the shared
+// config so every other surface (webui, menu) follows.
+appRoot.addEventListener('change', (event) => {
+  const target = event.target as HTMLSelectElement | null;
+  if (target?.dataset.action !== 'set-locale') return;
+  const match = SUPPORTED_LOCALES.find((c) => c === target.value);
+  if (match && match !== getLocale()) {
+    setLocale(match);
+    render();
+  }
+});
+
 appRoot.addEventListener('click', (event) => {
   const target = event.target as HTMLElement | null;
   const actionTarget = target?.closest<HTMLElement>('[data-action]');
@@ -1073,6 +1109,10 @@ window.wrongstackDesktop.onShellSidebarCollapsedChanged((collapsed) => {
   writeShellSidebarCollapsed();
   render();
 });
+
+// Re-render whenever the locale changes — user picker OR a config push from
+// main (another surface changed the shared language).
+onLocaleChange(() => render());
 
 void refresh();
 void window.wrongstackDesktop.setShellSidebarCollapsed(shellSidebarCollapsed);

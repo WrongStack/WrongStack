@@ -41,13 +41,25 @@ let currentLocale: DesktopLocale = readLocale();
  * changes (the `onLocaleChanged` listener) so we don't echo back (loop).
  */
 export function setLocale(locale: DesktopLocale, opts: { propagate?: boolean } = {}): void {
+  if (locale === currentLocale) return;
   currentLocale = locale;
   try { localStorage.setItem(STORAGE_KEY, locale); } catch { /* ignore */ }
   if (opts.propagate !== false) pushLocaleToMain(locale);
+  for (const cb of localeChangeListeners) cb();
 }
 
 export function getLocale(): DesktopLocale {
   return currentLocale;
+}
+
+const localeChangeListeners = new Set<() => void>();
+/** Subscribe to locale changes (user picker or a config push from main).
+ *  Returns an unsubscribe. The desktop shell uses this to re-render its DOM. */
+export function onLocaleChange(cb: () => void): () => void {
+  localeChangeListeners.add(cb);
+  return () => {
+    localeChangeListeners.delete(cb);
+  };
 }
 
 export const SUPPORTED_LOCALES: DesktopLocale[] = ['en', 'tr', 'de', 'fr', 'it', 'es', 'pt-BR'];

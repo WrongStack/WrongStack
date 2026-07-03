@@ -140,6 +140,19 @@ describe('renderer locale IPC', () => {
     expect(setLocaleMock).not.toHaveBeenCalled();
   });
 
+  it('onLocaleChange fires for both user and main-originated changes (drives re-render)', async () => {
+    const { setLocale, getLocale, onLocaleChange } = await import('../src/renderer/src/i18n.js');
+    const fired: string[] = [];
+    onLocaleChange(() => fired.push(getLocale()));
+    expect(fired).toHaveLength(0);
+
+    setLocale('tr'); // user change
+    expect(fired).toEqual(['tr']);
+
+    setLocale('de', { propagate: false }); // main-originated
+    expect(fired).toEqual(['tr', 'de']);
+  });
+
   it('is a no-op when the desktop bridge is absent (e.g. unit tests)', async () => {
     // No window mock → pushLocaleToMain / onLocaleChanged swallow the absence.
     const { setLocale } = await import('../src/renderer/src/i18n.js');

@@ -355,6 +355,29 @@ button {
   cursor: pointer;
 }
 
+/* Language picker in the rail — compact, matches rail-button chrome. */
+.rail-locale-select {
+  width: 38px;
+  height: 36px;
+  padding: 0 2px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: var(--panel);
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 600;
+  text-align: center;
+  cursor: pointer;
+}
+.rail-locale-select:hover:not(:disabled) {
+  border-color: var(--primary);
+  color: var(--foreground);
+}
+.rail-locale-select:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 1px;
+}
+
 .rail-button.accent {
   border-color: rgba(213, 155, 45, 0.62);
   background: rgba(213, 155, 45, 0.14);
