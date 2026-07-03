@@ -109,3 +109,25 @@ body {
 .hq-tree-node:hover { background: var(--panel); }
 .hq-tree-node.sel { background: rgba(88,166,255,0.13); border-left-color: var(--accent); }
 .hq-spark { font-family: ui-monospace, monospace; font-size: 11px; letter-spacing: -1px; }
+/* Mailbox detail feed */
+.hq-toggle { background: transparent; color: var(--muted); border: 1px solid var(--border); border-radius: 4px; width: 22px; height: 22px; padding: 0; font-size: 12px; line-height: 1; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; }
+.hq-toggle:hover { color: var(--text); background: var(--panel2); }
+.hq-msg-list { display: flex; flex-direction: column; gap: 6px; border-top: 1px solid var(--border); padding-top: 10px; }
+.hq-msg { background: var(--bg); border: 1px solid var(--border); border-radius: 7px; padding: 8px 10px; }
+.hq-msg.done { opacity: 0.62; }
+.hq-msg-head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; cursor: default; }
+.hq-msg-head > .hq-msg-subject { cursor: default; }
+.hq-msg-head > .hq-msg-toggle { margin-left: 4px; }
+.hq-msg-icon { font-size: 14px; line-height: 1; }
+.hq-msg-subject { flex: 1 1 180px; min-width: 120px; color: var(--text); font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.hq-msg-route { color: var(--muted); font-size: 11px; }
+.hq-msg-time { color: var(--dim); font-size: 11px; }
+.hq-msg-id { color: var(--dim); font-size: 11px; }
+.hq-msg-flag { font-size: 11px; font-weight: 600; }
+.hq-msg-flag.open { color: var(--amber); }
+.hq-msg-flag.done { color: var(--green); }
+.hq-msg-body { margin-top: 8px; padding: 10px 12px; background: var(--panel2); border: 1px solid var(--border); border-radius: 6px; }
+.hq-msg-pre { margin: 0; padding: 0; background: transparent; color: var(--text); font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 12px; white-space: pre-wrap; word-break: break-word; line-height: 1.45; }
+.hq-msg-sublabel { margin: 10px 0 4px; font-size: 10px; text-transform: uppercase; letter-spacing: 0.8px; color: var(--dim); font-weight: 700; }
+.hq-msg-meta { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 10px; padding-top: 8px; border-top: 1px dashed var(--border); font-size: 11px; color: var(--muted); }
+.hq-msg-meta strong { color: var(--text); font-weight: 600; margin-right: 4px; }
