@@ -18,11 +18,10 @@ import { randomUUID } from 'node:crypto';
 import * as fsp from 'node:fs/promises';
 
 import * as path from 'node:path';
+import type { HqPublisher } from '../hq/publisher.js';
+import type { EventBus } from '../kernel/events.js';
 import { withFileLock } from '../utils/atomic-write.js';
 import { projectSlug } from '../utils/wstack-paths.js';
-import { normalizeRecipient } from './mailbox-types.js';
-import type { EventBus } from '../kernel/events.js';
-import type { HqPublisher } from '../hq/publisher.js';
 import type {
   AgentHeartbeatInput,
   AgentRegistrationInput,
@@ -41,6 +40,7 @@ import type {
   RegisteredAgent,
   RegisteredClient,
 } from './mailbox-types.js';
+import { normalizeRecipient } from './mailbox-types.js';
 
 // ── Constants ────────────────────────────────────────────────────────────
 
@@ -236,6 +236,10 @@ export class GlobalMailbox implements Mailbox {
         continue;
       }
       if (q.since !== undefined && m.timestamp <= q.since) continue;
+      // Default behavior: soft-deleted messages are hidden unless the
+      // caller explicitly opts in via `includeDeleted: true` (used by
+      // the WebUI's "trash" view).
+      if (!q.includeDeleted && m.deletedAt !== undefined) continue;
       out.push(m);
     }
 
@@ -330,6 +334,78 @@ export class GlobalMailbox implements Mailbox {
       }
     }
     return count;
+  }
+
+  async softDelete(mailId: string, by: string): Promise<MailboxMessage | null> {
+    // Single-message soft delete. Acquires the file lock and writes
+    // the file with the matched message's `deletedAt` set. No-op if
+    // the message does not exist or is already soft-deleted (the
+    // second case is a successful no-op: returns the message with
+    // `deletedAt` unchanged).
+    let updated: MailboxMessage | null = null;
+    let cacheSnapshot: MailboxMessage[] | null = null;
+    await withFileLock(this.messagePath, async () => {
+      const all = await this._readMessagesFresh();
+      const now = new Date().toISOString();
+      for (const m of all) {
+        if (m.id !== mailId) continue;
+        if (m.deletedAt !== undefined) {
+          // Already soft-deleted — return the existing record so the
+          // caller can no-op cleanly. No event is published.
+          updated = m;
+          continue;
+        }
+        m.deletedAt = now;
+        m.deletedBy = by;
+        updated = m;
+      }
+      const serialized = all.map((m) => JSON.stringify(m)).join(LINE_SEPARATOR) + LINE_SEPARATOR;
+      await fsp.writeFile(this.messagePath, serialized, 'utf8');
+      cacheSnapshot = all;
+    });
+    if (cacheSnapshot) this._setMessageCache(cacheSnapshot);
+    if (updated !== null) {
+      this.publishHqMailboxEvent({
+        mailboxId: this.hqMailboxId,
+        action: 'message.updated',
+        message: updated,
+      });
+      this.publishHqMailboxSnapshot();
+    }
+    return updated;
+  }
+
+  async restore(mailId: string): Promise<MailboxMessage | null> {
+    // Inverse of `softDelete`. Clears `deletedAt` + `deletedBy` so the
+    // message reappears in the default `query()` result. No-op when
+    // the message exists but is not currently soft-deleted. Emits an
+    // event unconditionally so the WebUI can re-fetch the message
+    // (the duplicate-event cost is acceptable: the WebUI dedupes by
+    // `mailId`).
+    let updated: MailboxMessage | null = null;
+    let cacheSnapshot: MailboxMessage[] | null = null;
+    await withFileLock(this.messagePath, async () => {
+      const all = await this._readMessagesFresh();
+      for (const m of all) {
+        if (m.id !== mailId) continue;
+        delete m.deletedAt;
+        delete m.deletedBy;
+        updated = m;
+      }
+      const serialized = all.map((m) => JSON.stringify(m)).join(LINE_SEPARATOR) + LINE_SEPARATOR;
+      await fsp.writeFile(this.messagePath, serialized, 'utf8');
+      cacheSnapshot = all;
+    });
+    if (cacheSnapshot) this._setMessageCache(cacheSnapshot);
+    if (updated !== null) {
+      this.publishHqMailboxEvent({
+        mailboxId: this.hqMailboxId,
+        action: 'message.updated',
+        message: updated,
+      });
+      this.publishHqMailboxSnapshot();
+    }
+    return updated;
   }
 
   // ── Agent registry ──────────────────────────────────────────────────────

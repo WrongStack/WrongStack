@@ -82,6 +82,17 @@ export interface MailboxMessage {
   timestamp: string;
   /** ISO8601 — when the message was marked complete. */
   completedAt?: string | undefined;
+  /**
+   * ISO8601 — when the message was soft-deleted. When present, the
+   * default `Mailbox.query()` filter excludes the message from the
+   * normal inbox view; {@link GlobalMailbox.restore} clears the
+   * field to undo the delete. Hard deletes (removing the line from
+   * the JSONL) are reserved for the CLI and never happen via the
+   * server route handlers.
+   */
+  deletedAt?: string | undefined;
+  /** When the soft-delete happened, the agentId that issued it. */
+  deletedBy?: string | undefined;
   /** If this is a reply, the id of the parent message. */
   replyTo?: string | undefined;
   /** For assign-type messages — task context for agent discovery. */
@@ -186,6 +197,13 @@ export interface MailboxQuery {
   limit?: number | undefined;
   /** ISO8601 — only messages after this timestamp. */
   since?: string | undefined;
+  /**
+   * Include soft-deleted messages (where `deletedAt` is set). When
+   * `false` (the default), soft-deleted messages are filtered out so
+   * the normal inbox view stays clean. The "trash" view passes
+   * `true` to surface them.
+   */
+  includeDeleted?: boolean | undefined;
 }
 
 // ── Mailbox operations ───────────────────────────────────────────────────
@@ -369,6 +387,26 @@ export interface Mailbox {
    * read-modify-rewrite of the mailbox file for every call.
    */
   ackMany(input: MailboxAckBatchInput): Promise<MailboxMessage[]>;
+
+  /**
+   * Soft-delete a message. Sets `deletedAt` to the current timestamp
+   * and records the acting agent in `deletedBy`. Reversible via
+   * {@link restore}. The default `query()` filter hides the message
+   * once `deletedAt` is set; pass `includeDeleted: true` to see the
+   * trash.
+   *
+   * Phase 2 skeleton — the method signature is declared here so the
+   * WebUI client and the server route handler can compile against
+   * it; the implementation lands in the same PR.
+   */
+  softDelete(mailId: string, by: string): Promise<MailboxMessage | null>;
+
+  /**
+   * Undo a {@link softDelete}. Clears `deletedAt` and `deletedBy` on
+   * the message. No-op (returns the message as-is) if the message is
+   * not soft-deleted.
+   */
+  restore(mailId: string): Promise<MailboxMessage | null>;
 
   /** Get a snapshot of online/offline agents and their current tasks. */
   getAgentStatuses(): Promise<MailboxAgentStatus[]>;

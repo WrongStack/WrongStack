@@ -14,7 +14,6 @@ import { randomUUID } from 'node:crypto';
 import * as fsp from 'node:fs/promises';
 import * as path from 'node:path';
 import { withFileLock } from '../utils/atomic-write.js';
-import { normalizeRecipient } from './mailbox-types.js';
 import type {
   AgentHeartbeatInput,
   AgentRegistrationInput,
@@ -31,6 +30,7 @@ import type {
   PurgeOptions,
   PurgeResult,
 } from './mailbox-types.js';
+import { normalizeRecipient } from './mailbox-types.js';
 
 const MAILBOX_FILE = '_mailbox.jsonl';
 const LINE_SEPARATOR = '\n';
@@ -184,6 +184,19 @@ export class DefaultMailbox implements Mailbox {
   async ack(input: MailboxAckInput): Promise<MailboxMessage | null> {
     const updated = await this.ackMany({ acks: [input] });
     return updated.length > 0 ? updated[0]! : null;
+  }
+
+  async softDelete(_mailId: string, _by: string): Promise<MailboxMessage | null> {
+    // No-op default — subclasses backed by a real file backend
+    // (`GlobalMailbox`) override this. The skeleton exists so the
+    // interface compiles; an in-memory default would just confuse
+    // callers.
+    return null;
+  }
+
+  async restore(_mailId: string): Promise<MailboxMessage | null> {
+    // See `softDelete` — no-op default.
+    return null;
   }
 
   async ackMany(input: MailboxAckBatchInput): Promise<MailboxMessage[]> {
