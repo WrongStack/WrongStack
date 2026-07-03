@@ -142,7 +142,7 @@ function handleSelection(
   if (suggestions.length === 0) {
     return {
       message: color.amber(
-        'No suggestions available. Run /suggest first, or enable prediction with /next on.',
+        'No suggestions available. Run /suggest to generate, or finish any open todos first — <next_steps> is suppressed while todos are pending.',
       ),
     };
   }

@@ -1,4 +1,5 @@
 import { Box, Text } from '../../ink.js';
+import { hasOpenTodos, type TodoItem } from '@wrongstack/core';
 import React, { useEffect, useMemo } from 'react';
 import { theme } from '../../theme.js';
 import { getToolVisual } from '../../tool-glyph.js';
@@ -71,6 +72,7 @@ export const Entry = React.memo(function Entry({
   setSuggestions,
   autonomyMode,
   multiDiffSummaryThreshold,
+  todos,
 }: {
   entry: HistoryEntry;
   termWidth: number;
@@ -81,9 +83,23 @@ export const Entry = React.memo(function Entry({
   /** User-tunable cutoff for the multi-file diff summary footer. Passes
    *  through to `formatMultiDiffSummary`; `undefined` means "use default". */
   multiDiffSummaryThreshold?: number | undefined;
+  /** Live todo list. When non-empty (pending/in_progress), the NEXT STEPS
+   *  panel is hidden and the store is not written — same rule as the host
+   *  callback (b0970387), so the two paths agree. */
+  todos?: readonly TodoItem[] | undefined;
 }): React.ReactElement {
+  // Whether the agent still has open (pending/in_progress) todos. While it
+  // does, finishing them takes priority over offering `<next_steps>` — both
+  // the host callback (execution.ts → parseSuggestionsFromOutput) and this
+  // render path gate on the same condition (b0970387) so they never disagree
+  // about whether suggestions are available.
+  const openTodos = hasOpenTodos(todos);
+
   // Parse next steps from assistant text — computed once, used only in
   // the assistant case. Must live at the top level (hooks rules).
+  // Always parse (even when todos are open) so `stripped` is available and
+  // the raw `<next_steps>` block never leaks into the message body; only the
+  // panel rendering and the store write are gated below.
   const nextSteps = useMemo(() => {
     if (entry.kind !== 'assistant') return { steps: [] as ParsedNextStep[], stripped: '' };
     // strict=true: accepts 💡 emoji heading OR <next_steps> XML tag
@@ -93,16 +109,19 @@ export const Entry = React.memo(function Entry({
   // Store parsed next steps in the shared suggestion store (for /next and
   // auto-submit countdown). Strict=true accepts 💡 headings or <next_steps> XML tags
   // (consistent with what the TUI renders in the message body).
+  // Skipped while todos are open — mirrors parseSuggestionsFromOutput, so the
+  // store isn't repopulated here right after the host callback cleared it.
   // NOTE: Only assistant entries should have <next_steps> — subagents return
   // task results, not suggestions, so we skip parsing for subagent entries.
   useEffect(() => {
     if (!setSuggestions) return;
     if (entry.kind !== 'assistant') return;
+    if (openTodos) return;
     const text = (entry as never as { text?: string }).text ?? '';
     const { texts } = parseNextSteps(text, true);
     if (texts.length > 0) setSuggestions(texts);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [entry.kind, (entry as never as { text?: string }).text, setSuggestions]);
+  }, [entry.kind, (entry as never as { text?: string }).text, openTodos, setSuggestions]);
 
   switch (entry.kind) {
     case 'user':
@@ -137,7 +156,9 @@ export const Entry = React.memo(function Entry({
     case 'assistant': {
       const contentWidth = assistantContentWidth(termWidth);
       const { steps, stripped } = nextSteps;
-      const hasNext = steps.length > 0;
+      // Panel only when there are steps AND no open todos (the latter mirrors
+      // the host callback — suggestions are suppressed mid-task).
+      const hasNext = steps.length > 0 && !openTodos;
       return (
         <Box flexDirection="column">
           <Box

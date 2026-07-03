@@ -1,3 +1,4 @@
+import type { TodoItem } from '@wrongstack/core';
 import type { Lang } from '../../highlight.js';
 
 // ============================================
@@ -104,6 +105,14 @@ export interface HistoryProps {
    * default (`MULTI_DIFF_SUMMARY_THRESHOLD`) is used.
    */
   multiDiffSummaryThreshold?: number | undefined;
+  /**
+   * Live todo list. When it has any `pending`/`in_progress` items, the
+   * `💡 NEXT STEPS` panel is hidden and the suggestion store is not
+   * written from the render path — mirrors the host callback's
+   * `hasOpenTodos` gate (b0970387) so the two paths can't disagree about
+   * whether suggestions are available.
+   */
+  todos?: readonly TodoItem[] | undefined;
 }
 
 export interface BodySegment {

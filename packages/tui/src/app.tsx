@@ -6636,6 +6636,7 @@ export function App({
             setSuggestions={setSuggestions}
             autonomyMode={autonomyLive}
             multiDiffSummaryThreshold={state.settingsPicker.multiDiffSummaryThreshold}
+            todos={agent.ctx.todos}
           />
         ) : (
           <History
@@ -6646,6 +6647,7 @@ export function App({
             setSuggestions={setSuggestions}
             autonomyMode={autonomyLive}
             multiDiffSummaryThreshold={state.settingsPicker.multiDiffSummaryThreshold}
+            todos={agent.ctx.todos}
           />
         )}
         <Box flexDirection="column" flexShrink={0} ref={bottomRegionRef}>
