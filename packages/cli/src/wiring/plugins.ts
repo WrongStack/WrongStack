@@ -117,6 +117,20 @@ export interface PluginsWiringDeps {
    * minimal hosts (tests, the LSP server) may omit.
    */
   mailbox?: import('@wrongstack/core').Mailbox | undefined;
+  /**
+   * LLM wiring for `api.llm` — the host session's live provider, its
+   * default model, and a factory for named-provider overrides. Optional —
+   * minimal hosts omit it and plugins see `api.llm === undefined`.
+   */
+  llm?:
+    | {
+        provider: import('@wrongstack/core').Provider;
+        model: string;
+        createProvider?:
+          | ((name: string, model?: string) => import('@wrongstack/core').Provider)
+          | undefined;
+      }
+    | undefined;
   /** Health registry — injected so the observability built-in can run /health. */
   healthRegistry?: HealthRegistry | undefined;
   /** Skill loader — injected so the skills built-in can list/read skills. */
@@ -211,6 +225,21 @@ export const BUILTIN_PLUGIN_FACTORIES: (() => Promise<Plugin>)[] = [
   async () => (await import('@wrongstack/plugins/todo-listener')).default,
   async () => (await import('@wrongstack/plugins/session-recap')).default,
   async () => (await import('@wrongstack/plugins/spec-linker')).default,
+  async () => (await import('@wrongstack/plugins/loop-breaker')).default,
+  async () => (await import('@wrongstack/plugins/path-guard')).default,
+  async () => (await import('@wrongstack/plugins/context-pins')).default,
+  async () => (await import('@wrongstack/plugins/checkpoint')).default,
+  async () => (await import('@wrongstack/plugins/error-lens')).default,
+  async () => (await import('@wrongstack/plugins/dep-guard')).default,
+  async () => (await import('@wrongstack/plugins/config-validator')).default,
+  async () => (await import('@wrongstack/plugins/notify-hub')).default,
+  async () => (await import('@wrongstack/plugins/changelog-writer')).default,
+  async () => (await import('@wrongstack/plugins/injection-shield')).default,
+  async () => (await import('@wrongstack/plugins/llm-cache')).default,
+  async () => (await import('@wrongstack/plugins/model-router')).default,
+  async () => (await import('@wrongstack/plugins/prompt-firewall')).default,
+  async () => (await import('@wrongstack/plugins/auto-escalate')).default,
+  async () => (await import('@wrongstack/plugins/token-throttle')).default,
   // ── LSP plugin ──────────────────────────────────────────────────────
   async () => (await import('@wrongstack/plug-lsp')).default,
   // ── Telegram plugin ─────────────────────────────────────────────────
@@ -322,6 +351,13 @@ export async function setupPlugins(params: PluginsWiringDeps): Promise<void> {
     if (typeof todoTrackerOpts['filePath'] !== 'string' || todoTrackerOpts['filePath'] === '') {
       todoTrackerOpts['filePath'] = join(paths.projectDir, 'todo-tracker.json');
     }
+    // context-pins persists pinned facts the same way — project-scoped,
+    // next to goals/SDD boards/todo-tracker.
+    const contextPinsOpts = pluginOptions['context-pins'] ?? {};
+    pluginOptions['context-pins'] = contextPinsOpts;
+    if (typeof contextPinsOpts['filePath'] !== 'string' || contextPinsOpts['filePath'] === '') {
+      contextPinsOpts['filePath'] = join(paths.projectDir, 'context-pins.json');
+    }
   }
 
   // Built-in plugins read their host dependencies off the TOP LEVEL of the
@@ -362,6 +398,7 @@ export async function setupPlugins(params: PluginsWiringDeps): Promise<void> {
         hookRegistry,
         modelsRegistry,
         mailbox,
+        llm: params.llm,
         sessionWriter: {
           transcriptPath: sessionWriter.transcriptPath,
           append: (e: Record<string, unknown> & { type: string; ts: string }) =>

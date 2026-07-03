@@ -18,6 +18,9 @@ import type {
   PluginAPI,
   PluginCapabilities,
   PluginDependency,
+  PluginLLM,
+  PluginLLMOptions,
+  PluginLLMResult,
   PluginPipelines,
   ProviderFactory,
   ProviderRegistryView,
@@ -25,6 +28,7 @@ import type {
   SlashCommandRegistryView,
   ToolRegistryView,
 } from '../types/plugin.js';
+import type { Provider, Request } from '../types/provider.js';
 import type { HookEvent, HookMatcher, InProcessHook } from '../types/hooks.js';
 import type { SystemPromptContributor } from '../types/system-prompt-contributor.js';
 import type { JSONSchema, Tool } from '../types/tool.js';
@@ -78,6 +82,29 @@ export interface PluginAPIInit {
    * When not provided, those plugins should gracefully no-op.
    */
   mailbox?: Mailbox | undefined;
+  /**
+   * LLM wiring for `api.llm`. When provided, `DefaultPluginAPI` exposes a
+   * `PluginLLM` that routes completions through the host's provider layer:
+   *
+   *  - `provider` — the host session's live default Provider instance
+   *  - `model`    — the host session's default model id
+   *  - `createProvider` — optional factory used when a plugin requests a
+   *    DIFFERENT provider by name (per-call `opts.provider` or the plugin's
+   *    `config.extensions[<name>].llm.provider`). The CLI host passes an
+   *    implementation backed by the provider registry + saved provider
+   *    configs; when absent, `DefaultPluginAPI` falls back to
+   *    `providerRegistry.create({ ...config.providers[name], type: name })`.
+   *
+   * Omit entirely on minimal hosts — `api.llm` stays undefined and plugins
+   * must guard.
+   */
+  llm?:
+    | {
+        provider: Provider;
+        model: string;
+        createProvider?: ((name: string, model?: string) => Provider) | undefined;
+      }
+    | undefined;
   config: Config;
   /**
    * The host's ConfigStore. Used to wire `api.onConfigChange()`.
@@ -115,6 +142,7 @@ export class DefaultPluginAPI implements PluginAPI {
   readonly log: Logger;
   readonly modelsRegistry: ModelsRegistry | undefined;
   readonly mailbox: Mailbox | undefined;
+  readonly llm: PluginLLM | undefined;
   private readonly configStore:
     | { watch(cb: (next: unknown, prev: unknown) => void): () => void }
     | undefined;
@@ -136,6 +164,29 @@ export class DefaultPluginAPI implements PluginAPI {
     this.metrics = init.metricsSink ? scopedMetrics(init.metricsSink, owner) : noopMetrics;
     this.modelsRegistry = init.modelsRegistry;
     this.mailbox = init.mailbox;
+    // Live view of config.extensions: `/plugin llm <name> …` updates flow
+    // through ConfigStore.update(), and api.llm should honour the new
+    // per-plugin override WITHOUT a restart. When no ConfigStore is wired
+    // (minimal hosts), the setup-time snapshot stands.
+    let liveExtensions: Config['extensions'] | undefined;
+    if (init.configStore) {
+      const off = init.configStore.watch((next) => {
+        const n = next as Config | undefined;
+        if (n && typeof n === 'object') liveExtensions = n.extensions;
+      });
+      this.pluginCleanupFns.push(off);
+    }
+    this.llm = init.llm
+      ? makePluginLLM(
+          owner,
+          init.llm,
+          init.providerRegistry,
+          init.config,
+          () => liveExtensions,
+          this.metrics,
+          this.log,
+        )
+      : undefined;
 
     // Convert concrete pipelines to read-only views before passing to plugins.
     const pipelines = init.pipelines as never as Record<string, Pipeline<unknown>>;
@@ -306,6 +357,140 @@ const noopMetrics: MetricsSinkView = {
   histogram() {},
   gauge() {},
 };
+
+/**
+ * Build the `api.llm` facade for one plugin.
+ *
+ * Resolution order for provider/model on every call:
+ *   1. per-call `PluginLLMOptions.provider` / `.model`
+ *   2. per-plugin config: `config.extensions[<owner>].llm.{provider,model}`
+ *   3. host defaults (`init.llm.provider` / `init.llm.model`)
+ *
+ * Providers other than the host default are created lazily via the
+ * host-supplied `createProvider` (preferred — it knows about saved
+ * provider configs and non-catalog wire families) or, as a fallback,
+ * `providerRegistry.create({ ...config.providers[name], type: name })`.
+ * Created instances are cached per `(name, model)` for the lifetime of
+ * the API object.
+ */
+function makePluginLLM(
+  owner: string,
+  hostLLM: {
+    provider: Provider;
+    model: string;
+    createProvider?: ((name: string, model?: string) => Provider) | undefined;
+  },
+  providerRegistry: ProviderRegistry,
+  config: Config,
+  getLiveExtensions: () => Config['extensions'] | undefined,
+  metrics: MetricsSinkView,
+  log: Logger,
+): PluginLLM {
+  const providerCache = new Map<string, Provider>();
+  // Keep plugin calls bounded — a plugin should never be able to ask for
+  // an effectively unbounded generation on the user's bill.
+  const DEFAULT_MAX_TOKENS = 2_048;
+  const HARD_MAX_TOKENS = 32_768;
+
+  const pluginDefaults = (): {
+    provider?: string;
+    model?: string;
+    maxTokens?: number;
+    temperature?: number;
+  } => {
+    // Once a ConfigStore update has been observed, the live extensions
+    // map REPLACES the setup-time snapshot — so a cleared override falls
+    // back to the session default instead of resurrecting the old value.
+    const extensions = getLiveExtensions() ?? config.extensions;
+    const raw = extensions?.[owner]?.['llm'];
+    if (!raw || typeof raw !== 'object') return {};
+    const r = raw as Record<string, unknown>;
+    return {
+      ...(typeof r['provider'] === 'string' && r['provider'] ? { provider: r['provider'] } : {}),
+      ...(typeof r['model'] === 'string' && r['model'] ? { model: r['model'] } : {}),
+      ...(typeof r['maxTokens'] === 'number' ? { maxTokens: r['maxTokens'] } : {}),
+      ...(typeof r['temperature'] === 'number' ? { temperature: r['temperature'] } : {}),
+    };
+  };
+
+  const resolveProvider = (name: string | undefined, model: string): { provider: Provider; providerName: string } => {
+    const defaults = pluginDefaults();
+    const providerName = name ?? defaults.provider ?? config.provider;
+    // The host session's own provider serves the default name directly —
+    // no re-creation, and per-model capabilities stay as the host resolved them.
+    if (providerName === config.provider) {
+      return { provider: hostLLM.provider, providerName };
+    }
+    const cacheKey = `${providerName}|${model}`;
+    const cached = providerCache.get(cacheKey);
+    if (cached) return { provider: cached, providerName };
+    let created: Provider;
+    if (hostLLM.createProvider) {
+      created = hostLLM.createProvider(providerName, model);
+    } else {
+      const savedCfg = config.providers?.[providerName] ?? {};
+      created = providerRegistry.create({ ...savedCfg, type: providerName, model });
+    }
+    providerCache.set(cacheKey, created);
+    return { provider: created, providerName };
+  };
+
+  return {
+    defaults() {
+      const d = pluginDefaults();
+      return {
+        provider: d.provider ?? config.provider,
+        model: d.model ?? hostLLM.model,
+      };
+    },
+    async complete(prompt: string, opts?: PluginLLMOptions): Promise<PluginLLMResult> {
+      const defaults = pluginDefaults();
+      const model = opts?.model ?? defaults.model ?? hostLLM.model;
+      const { provider, providerName } = resolveProvider(opts?.provider, model);
+      const maxTokens = Math.min(
+        HARD_MAX_TOKENS,
+        opts?.maxTokens ?? defaults.maxTokens ?? DEFAULT_MAX_TOKENS,
+      );
+      const temperature = opts?.temperature ?? defaults.temperature;
+      const request: Request = {
+        model,
+        messages: [{ role: 'user', content: [{ type: 'text', text: prompt }] }],
+        maxTokens,
+        ...(temperature !== undefined ? { temperature } : {}),
+        ...(opts?.system ? { system: [{ type: 'text', text: opts.system }] } : {}),
+        ...(opts?.responseFormat === 'json'
+          ? { responseFormat: { type: 'json_object' as const } }
+          : {}),
+      };
+      const signal = opts?.signal ?? new AbortController().signal;
+      metrics.counter('llm.calls', 1, { provider: providerName, model });
+      try {
+        const response = await provider.complete(request, { signal });
+        const text = response.content
+          .filter((b): b is { type: 'text'; text: string } => b.type === 'text')
+          .map((b) => b.text)
+          .join('');
+        metrics.counter('llm.tokens_in', response.usage.input);
+        metrics.counter('llm.tokens_out', response.usage.output);
+        return {
+          text,
+          model: response.model,
+          provider: providerName,
+          usage: { input: response.usage.input, output: response.usage.output },
+          stopReason: response.stopReason,
+        };
+      } catch (err) {
+        metrics.counter('llm.errors', 1, { provider: providerName, model });
+        log.warn(`plugin "${owner}" llm.complete failed`, {
+          provider: providerName,
+          model,
+          error: err instanceof Error ? err.message : String(err),
+        });
+        throw err;
+      }
+    },
+  };
+}
 
 /**
  * Wrap a MetricsSinkView so every metric name is prefixed with

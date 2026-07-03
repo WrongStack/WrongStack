@@ -9,13 +9,25 @@
  * - For staging: use `git_autocommit` with `files` (it stages automatically), or `bash` with `git add`.
  * - For status: use the built-in `git` tool with `command: "status"` or `command: "diff"`.
  */
-import type { Plugin } from '@wrongstack/core';
+
 import { execFileSync } from 'node:child_process';
 import { existsSync } from 'node:fs';
+import type { Plugin } from '@wrongstack/core';
 
 const API_VERSION = '^0.1.10';
 
-type ConventionalType = 'feat' | 'fix' | 'docs' | 'style' | 'refactor' | 'test' | 'chore' | 'perf' | 'ci' | 'build' | 'revert';
+type ConventionalType =
+  | 'feat'
+  | 'fix'
+  | 'docs'
+  | 'style'
+  | 'refactor'
+  | 'test'
+  | 'chore'
+  | 'perf'
+  | 'ci'
+  | 'build'
+  | 'revert';
 
 // Module-level state, shared between `setup`, `teardown`, and `health`.
 //
@@ -32,6 +44,8 @@ type ConventionalType = 'feat' | 'fix' | 'docs' | 'style' | 'refactor' | 'test' 
 // on plugin reload); teardown clears them and logs.
 const commitCount = { value: 0 };
 const lastCommit = { hash: null as string | null, at: null as string | null };
+/** Commits whose message was written by the LLM this session. */
+const llmGenerated = { value: 0 };
 
 // ---------------------------------------------------------------------------
 // Git helpers
@@ -73,7 +87,11 @@ function stageFiles(files: string[] | undefined, cwd?: string): void {
   if (!files || !Array.isArray(files)) return;
   // Filter to only files that exist (avoids "pathspec did not match any files" errors)
   const existing = (files as string[]).filter((f) => {
-    try { return existsSync(f); } catch { return false; }
+    try {
+      return existsSync(f);
+    } catch {
+      return false;
+    }
   });
   if (existing.length === 0) throw new Error('No files exist to stage');
   runGit(['add', ...existing], cwd);
@@ -144,7 +162,8 @@ function getStagedDiff(cwd?: string): { stat: string; diff: string } {
     // Limit full diff to prevent blowing up tool output
     const diff = runGit(['diff', '--cached'], cwd);
     const MAX_DIFF = 20_000;
-    const truncated = diff.length > MAX_DIFF ? diff.slice(0, MAX_DIFF) + '\n\n... (diff truncated)' : diff;
+    const truncated =
+      diff.length > MAX_DIFF ? diff.slice(0, MAX_DIFF) + '\n\n... (diff truncated)' : diff;
     return { stat: stat || '(no stat)', diff: truncated || '(clean)' };
   } catch {
     return { stat: '(unavailable)', diff: '(unavailable)' };
@@ -195,6 +214,81 @@ function generateCommitMessage(
   return `${type}${scopePart}: ${summary}${footer}`;
 }
 
+const VALID_TYPES: ConventionalType[] = [
+  'feat',
+  'fix',
+  'docs',
+  'style',
+  'refactor',
+  'test',
+  'chore',
+  'perf',
+  'ci',
+  'build',
+  'revert',
+];
+
+/**
+ * Ask the host LLM (`api.llm`) for a conventional commit message from the
+ * staged diff. Returns null on any failure (no api.llm, provider error, or
+ * an unparseable / invalid response) so the caller keeps whatever the user
+ * supplied. Provider/model follow `config.extensions['git-autocommit'].llm`,
+ * then the session default.
+ */
+async function generateCommitFromDiff(
+  api: Parameters<Plugin['setup']>[0],
+  stat: string,
+  diff: string,
+): Promise<{ type: ConventionalType; scope?: string; summary: string; body?: string } | null> {
+  if (!api.llm) return null;
+  try {
+    const result = await api.llm.complete(
+      'Write a Conventional Commits message for this staged git diff. ' +
+        'Respond with ONLY a JSON object of the form ' +
+        '{"type": string, "scope": string, "summary": string, "body": string}. ' +
+        `type is one of: ${VALID_TYPES.join(', ')}. ` +
+        'scope is a short area (empty string if unclear). summary is an imperative, ' +
+        'lower-case, <=72-char subject with no trailing period. body is an optional ' +
+        'short explanation (empty string if not needed). No prose outside the JSON.\n\n' +
+        `Stat:\n${stat}\n\nDiff:\n${diff}`,
+      {
+        system:
+          'You are a precise release engineer writing Conventional Commits. Output only JSON.',
+        maxTokens: 400,
+        responseFormat: 'json',
+      },
+    );
+    const parsed = JSON.parse(extractJsonObject(result.text)) as {
+      type?: unknown;
+      scope?: unknown;
+      summary?: unknown;
+      body?: unknown;
+    };
+    const type = VALID_TYPES.includes(parsed.type as ConventionalType)
+      ? (parsed.type as ConventionalType)
+      : null;
+    const summary =
+      typeof parsed.summary === 'string' && parsed.summary.trim() ? parsed.summary.trim() : null;
+    if (!type || !summary) return null;
+    const scope =
+      typeof parsed.scope === 'string' && parsed.scope.trim() ? parsed.scope.trim() : undefined;
+    const body =
+      typeof parsed.body === 'string' && parsed.body.trim() ? parsed.body.trim() : undefined;
+    return { type, summary, ...(scope ? { scope } : {}), ...(body ? { body } : {}) };
+  } catch {
+    return null;
+  }
+}
+
+/** Pull the first {...} JSON object out of a possibly-fenced response. */
+function extractJsonObject(text: string): string {
+  const fenced = /```(?:json)?\s*([\s\S]*?)```/.exec(text);
+  const body = fenced?.[1] ?? text;
+  const start = body.indexOf('{');
+  const end = body.lastIndexOf('}');
+  return start >= 0 && end > start ? body.slice(start, end + 1) : body.trim();
+}
+
 // ---------------------------------------------------------------------------
 // Plugin
 // ---------------------------------------------------------------------------
@@ -209,6 +303,7 @@ const plugin: Plugin = {
     conventionalCommits: true,
     autoStage: false,
     defaultType: 'feat',
+    useLlm: false,
   },
   configSchema: {
     type: 'object',
@@ -216,6 +311,16 @@ const plugin: Plugin = {
       conventionalCommits: { type: 'boolean', default: true },
       autoStage: { type: 'boolean', default: false },
       defaultType: { type: 'string', default: 'feat' },
+      useLlm: {
+        type: 'boolean',
+        default: false,
+        description:
+          'Auto-generate the commit message with the LLM (api.llm) when the caller supplies neither type nor message. Provider/model follow extensions["git-autocommit"].llm, then the session default.',
+      },
+      llm: {
+        type: 'object',
+        description: 'Optional { provider, model } override for LLM commit messages.',
+      },
     },
   },
 
@@ -224,20 +329,28 @@ const plugin: Plugin = {
     // counters reported by health() reflect the current plugin lifetime,
     // not the accumulated history across reloads.
     commitCount.value = 0;
+    llmGenerated.value = 0;
     lastCommit.hash = null;
     lastCommit.at = null;
 
-    const extConfig = api.config.extensions?.['git-autocommit'] as Record<string, unknown> | undefined;
+    const extConfig = api.config.extensions?.['git-autocommit'] as
+      | Record<string, unknown>
+      | undefined;
     const opts = {
       conventionalCommits: (extConfig?.['conventionalCommits'] as boolean) ?? true,
       autoStage: (extConfig?.['autoStage'] as boolean) ?? false,
       defaultType: (extConfig?.['defaultType'] as string) ?? 'feat',
+      // Opt-in: when true, git_autocommit writes the commit message with
+      // the LLM from the staged diff whenever the caller supplies neither
+      // `type` nor `message` (an explicit `generate: true` always asks).
+      useLlm: (extConfig?.['useLlm'] as boolean) ?? false,
     };
 
     // --- git_autocommit tool ---
     api.tools.register({
       name: 'git_autocommit',
-      description: 'Stage files and create a git commit with an AI-generated conventional commit message. Pass files to stage specific ones, or leave empty to auto-detect all changed files.',
+      description:
+        'Stage files and create a git commit with an AI-generated conventional commit message. Pass files to stage specific ones, or leave empty to auto-detect all changed files.',
       inputSchema: {
         type: 'object',
         properties: {
@@ -248,13 +361,34 @@ const plugin: Plugin = {
           },
           type: {
             type: 'string',
-            enum: ['feat', 'fix', 'docs', 'style', 'refactor', 'test', 'chore', 'perf', 'ci', 'build', 'revert'],
+            enum: [
+              'feat',
+              'fix',
+              'docs',
+              'style',
+              'refactor',
+              'test',
+              'chore',
+              'perf',
+              'ci',
+              'build',
+              'revert',
+            ],
             description: 'Conventional commit type',
           },
           scope: { type: 'string', description: 'Commit scope (e.g. auth, api, ui)' },
           message: { type: 'string', description: 'Commit summary message' },
           body: { type: 'string', description: 'Optional commit body/description' },
-          dry_run: { type: 'boolean', default: false, description: 'Show what would be committed without committing' },
+          generate: {
+            type: 'boolean',
+            description:
+              'Write the conventional commit message with the LLM (api.llm) from the staged diff. Ignored when no LLM is wired.',
+          },
+          dry_run: {
+            type: 'boolean',
+            default: false,
+            description: 'Show what would be committed without committing',
+          },
         },
       },
       permission: 'confirm',
@@ -262,149 +396,221 @@ const plugin: Plugin = {
       mutating: true,
       async execute(input: Record<string, unknown>, _ctx) {
         try {
-        const type = (input['type'] as ConventionalType | undefined) ?? opts.defaultType as ConventionalType;
-        const scope = input['scope'] as string | undefined;
-        const summary = (input['message'] as string | undefined) ?? '';
-        const body = input['body'] as string | undefined;
-        const dryRun = input['dry_run'] as boolean ?? false;
+          let type = input['type'] as ConventionalType | undefined;
+          let scope = input['scope'] as string | undefined;
+          let summary = (input['message'] as string | undefined) ?? '';
+          let body = input['body'] as string | undefined;
+          const dryRun = (input['dry_run'] as boolean) ?? false;
 
-        // Validate type
-        const validTypes = ['feat', 'fix', 'docs', 'style', 'refactor', 'test', 'chore', 'perf', 'ci', 'build', 'revert'];
-        if (!type || !validTypes.includes(type)) {
-          // For dryRun, generate a message anyway (smoke test uses empty input)
+          // LLM message generation is opt-in and only runs when the host
+          // wired `api.llm`: an explicit `generate: true`, or the `useLlm`
+          // config flag when the caller supplied neither type nor message.
+          const explicitAsk = input['generate'] === true;
+          const autoAsk =
+            opts.useLlm && !input['type'] && !(input['message'] as string | undefined);
+          const wantGenerate = (explicitAsk || autoAsk) && Boolean(api.llm);
+
+          // Validate files input shape early.
+          let files: string[] | undefined;
+          const rawFiles = input['files'];
+          if (rawFiles !== undefined) {
+            if (!Array.isArray(rawFiles)) {
+              return { ok: false, error: 'files must be an array of file paths' };
+            }
+            files = rawFiles;
+          }
+
+          // Stage files if provided.
+          if (files && files.length > 0) {
+            try {
+              stageFiles(files);
+            } catch (err: unknown) {
+              /* v8 ignore next -- stageFiles only throws Error; the String(err) branch is defensive. */
+              return {
+                ok: false,
+                error: `Failed to stage files: ${err instanceof Error ? err.message : String(err)}`,
+              };
+            }
+          }
+
+          // Check staged files; auto-detect and stage all changed if empty.
+          let staged: string[] = [];
+          try {
+            staged = getStagedFiles();
+          } catch {
+            staged = [];
+          }
+          if (staged.length === 0) {
+            try {
+              const changed = getChangedFiles();
+              if (changed.length > 0) {
+                try {
+                  stageFiles(changed);
+                } catch {
+                  /* ignore staging errors */
+                }
+                try {
+                  staged = getStagedFiles();
+                } catch {
+                  staged = [];
+                }
+              }
+            } catch {
+              /* ignore */
+            }
+          }
+
+          // Compute the staged diff once — used for LLM generation, the
+          // dry-run preview, and the committed result's diff field.
+          const { stat, diff: stagedDiff } = getStagedDiff();
+
+          // LLM generation from the staged diff (best-effort; needs a diff).
+          let generatedByLlm = false;
+          if (wantGenerate && staged.length > 0) {
+            const g = await generateCommitFromDiff(api, stat, stagedDiff);
+            if (g) {
+              type = g.type;
+              if (g.scope) scope = g.scope;
+              summary = g.summary;
+              if (g.body && !body) body = g.body;
+              generatedByLlm = true;
+            }
+          }
+
+          // Default the type when the caller (and the LLM) left it unset.
+          if (!type) type = opts.defaultType as ConventionalType;
+
+          // Validate the resolved type.
+          const validTypes = [
+            'feat',
+            'fix',
+            'docs',
+            'style',
+            'refactor',
+            'test',
+            'chore',
+            'perf',
+            'ci',
+            'build',
+            'revert',
+          ];
+          if (!type || !validTypes.includes(type)) {
+            // For dryRun, preview a message anyway (smoke test uses empty input).
+            if (dryRun) {
+              return {
+                ok: true,
+                dry_run: true,
+                message: `Would create: ${summary || 'update code'}`,
+              };
+            }
+            return {
+              ok: false,
+              error: 'type is required and must be a valid conventional commit type',
+            };
+          }
+
+          const msg = generateCommitMessage(type, scope, summary || 'update code', body);
+
+          if (staged.length === 0) {
+            return {
+              ok: false,
+              error: 'Nothing staged. Add files with git add or provide files input.',
+            };
+          }
+
+          // Build warning before committing.
+          const worktreeWarn = simultaneousEditWarning();
+
+          // Detect files modified by other agents since staging
+          const externalChanges = externalChangesSinceStage();
+          let externalWarning: string | null = null;
+          if (externalChanges && externalChanges.length > 0) {
+            const preview = externalChanges.slice(0, 10).join(', ');
+            const suffix =
+              externalChanges.length > 10 ? ` and ${externalChanges.length - 10} more` : '';
+            externalWarning =
+              `⚠ External changes detected since staging: ${preview}${suffix}. ` +
+              'Another agent may be modifying files concurrently. ' +
+              'These unstaged changes will NOT be included in this commit, ' +
+              'but they indicate simultaneous edits. Review carefully.';
+          }
+
+          const warning = [worktreeWarn, externalWarning].filter(Boolean).join('\n') || undefined;
+
+          // Return early in dry run with the diff visible
           if (dryRun) {
             return {
               ok: true,
               dry_run: true,
-              message: `Would create: ${summary || 'update code'}`,
+              message: `Would create: ${msg}`,
+              warning: warning ?? undefined,
+              stagedDiff: `\n## Staged changes (dry run)\n\n${stat}\n\n\`\`\`diff\n${stagedDiff}\n\`\`\``,
             };
           }
-          return { ok: false, error: 'type is required and must be a valid conventional commit type' };
-        }
 
-        const msg = generateCommitMessage(type, scope, summary || 'update code', body);
-
-        // Get or validate files
-        let files: string[] | undefined;
-        const rawFiles = input['files'];
-        if (rawFiles !== undefined) {
-          if (!Array.isArray(rawFiles)) {
-            return { ok: false, error: 'files must be an array of file paths' };
+          // Check if we need to stage before diff (if nothing was staged yet)
+          let preCommitDiff = stagedDiff;
+          let preCommitStat = stat;
+          /* v8 ignore start -- unreachable: an empty `staged` already returned at the "Nothing staged" guard above. */
+          if (staged.length === 0) {
+            const fresh = getStagedDiff();
+            preCommitDiff = fresh.diff;
+            preCommitStat = fresh.stat;
           }
-          files = rawFiles;
-        }
+          /* v8 ignore stop */
 
-        // Stage files if provided
-        if (files && files.length > 0) {
-          try { stageFiles(files); }
-          /* v8 ignore next -- stageFiles only throws Error; the String(err) branch is defensive. */
-          catch (err: unknown) { return { ok: false, error: `Failed to stage files: ${err instanceof Error ? err.message : String(err)}` }; }
-        }
-
-        // Check staged files
-        let staged: string[] = [];
-        try { staged = getStagedFiles(); }
-        catch { staged = []; }
-
-        // If nothing is staged, try to auto-detect changed files
-        if (staged.length === 0) {
+          // Commit
+          let hash = '';
           try {
-            const changed = getChangedFiles();
-            if (changed.length > 0) {
-              try { stageFiles(changed); }
-              catch { /* ignore staging errors */ }
-              try { staged = getStagedFiles(); }
-              catch { staged = []; }
-            }
-          } catch { /* ignore */ }
-        }
+            hash = commitWithMessage(msg);
+          } catch (err: unknown) {
+            /* v8 ignore next -- commitWithMessage only throws Error; the String(err) branch is defensive. */
+            return {
+              ok: false,
+              error: `Failed to commit: ${err instanceof Error ? err.message : String(err)}`,
+            };
+          }
 
-        if (staged.length === 0) {
-          return { ok: false, error: 'Nothing staged. Add files with git add or provide files input.' };
-        }
+          api.log.info('git-autocommit: created commit', { hash, type, scope });
 
-        // Build warning and diff before committing
-        const worktreeWarn = simultaneousEditWarning();
+          // Bump the health counters only on success — a failed commit
+          // must not show up in /diag plugins as having happened.
+          commitCount.value += 1;
+          if (generatedByLlm) llmGenerated.value += 1;
+          lastCommit.hash = String(hash);
+          lastCommit.at = new Date().toISOString();
+          try {
+            await api.session.append({
+              type: 'git-autocommit:commit',
+              ts: new Date().toISOString(),
+              hash: String(hash),
+              commitType: type,
+              scope: String(scope ?? ''),
+              /* v8 ignore next -- staged is always an array here; the : [] fallback is defensive. */
+              files: Array.isArray(staged) ? staged : [],
+              warning: warning ?? null,
+            });
+          } catch (_err) {
+            // Session append is best-effort; ignore errors
+          }
 
-        // Detect files modified by other agents since staging
-        const externalChanges = externalChangesSinceStage();
-        let externalWarning: string | null = null;
-        if (externalChanges && externalChanges.length > 0) {
-          const preview = externalChanges.slice(0, 10).join(', ');
-          const suffix = externalChanges.length > 10 ? ` and ${externalChanges.length - 10} more` : '';
-          externalWarning =
-            `⚠ External changes detected since staging: ${preview}${suffix}. ` +
-            'Another agent may be modifying files concurrently. ' +
-            'These unstaged changes will NOT be included in this commit, ' +
-            'but they indicate simultaneous edits. Review carefully.';
-        }
-
-        const warning = [worktreeWarn, externalWarning].filter(Boolean).join('\n') || undefined;
-        const { stat, diff: stagedDiff } = getStagedDiff();
-
-        // Return early in dry run with the diff visible
-        if (dryRun) {
           return {
             ok: true,
-            dry_run: true,
-            message: `Would create: ${msg}`,
+            hash,
+            message: msg,
+            stagedFiles: staged,
+            type,
+            scope: scope ?? null,
+            generatedByLlm,
             warning: warning ?? undefined,
-            stagedDiff: `\n## Staged changes (dry run)\n\n${stat}\n\n\`\`\`diff\n${stagedDiff}\n\`\`\``,
+            diff: `\n## Staged diff\n\n${preCommitStat}\n\n\`\`\`diff\n${preCommitDiff}\n\`\`\``,
           };
-        }
-
-        // Check if we need to stage before diff (if nothing was staged yet)
-        let preCommitDiff = stagedDiff;
-        let preCommitStat = stat;
-        /* v8 ignore start -- unreachable: an empty `staged` already returned at the "Nothing staged" guard above. */
-        if (staged.length === 0) {
-          const fresh = getStagedDiff();
-          preCommitDiff = fresh.diff;
-          preCommitStat = fresh.stat;
-        }
-        /* v8 ignore stop */
-
-        // Commit
-        let hash = '';
-        try { hash = commitWithMessage(msg); }
-        /* v8 ignore next -- commitWithMessage only throws Error; the String(err) branch is defensive. */
-        catch (err: unknown) { return { ok: false, error: `Failed to commit: ${err instanceof Error ? err.message : String(err)}` }; }
-
-        api.log.info('git-autocommit: created commit', { hash, type, scope });
-
-        // Bump the health counters only on success — a failed commit
-        // must not show up in /diag plugins as having happened.
-        commitCount.value += 1;
-        lastCommit.hash = String(hash);
-        lastCommit.at = new Date().toISOString();
-        try {
-          await api.session.append({
-            type: 'git-autocommit:commit',
-            ts: new Date().toISOString(),
-            hash: String(hash),
-            commitType: type,
-            scope: String(scope ?? ''),
-            /* v8 ignore next -- staged is always an array here; the : [] fallback is defensive. */
-            files: Array.isArray(staged) ? staged : [],
-            warning: warning ?? null,
-          });
-        } catch (_err) {
-          // Session append is best-effort; ignore errors
-        }
-
-        return {
-          ok: true,
-          hash,
-          message: msg,
-          stagedFiles: staged,
-          type,
-          scope: scope ?? null,
-          warning: warning ?? undefined,
-          diff: `\n## Staged diff\n\n${preCommitStat}\n\n\`\`\`diff\n${preCommitDiff}\n\`\`\``,
-        };
-        /* v8 ignore start -- top-level safety net: inner try/catches already handle the realistic failures. */
+          /* v8 ignore start -- top-level safety net: inner try/catches already handle the realistic failures. */
         } catch (err: unknown) {
-          return { ok: false, error: `Uncaught error in git_autocommit: ${err instanceof Error ? err.message : String(err)}` };
+          return {
+            ok: false,
+            error: `Uncaught error in git_autocommit: ${err instanceof Error ? err.message : String(err)}`,
+          };
         }
         /* v8 ignore stop */
       },
@@ -429,11 +635,14 @@ const plugin: Plugin = {
     // pattern from the H1 audit).
     const finalCount = commitCount.value;
     const finalHash = lastCommit.hash;
+    const finalLlm = llmGenerated.value;
     commitCount.value = 0;
+    llmGenerated.value = 0;
     lastCommit.hash = null;
     lastCommit.at = null;
     api.log.info('git-autocommit: teardown complete', {
       commits: finalCount,
+      llmGenerated: finalLlm,
       lastHash: finalHash,
     });
   },
@@ -450,8 +659,9 @@ const plugin: Plugin = {
       message:
         commitCount.value === 0
           ? 'git-autocommit: no commits yet this session'
-          : `git-autocommit: ${commitCount.value} commit(s), last ${String(lastCommit.hash).slice(0, 8)} at ${lastCommit.at}`,
+          : `git-autocommit: ${commitCount.value} commit(s) (${llmGenerated.value} LLM-written), last ${String(lastCommit.hash).slice(0, 8)} at ${lastCommit.at}`,
       commits: commitCount.value,
+      llmGenerated: llmGenerated.value,
       lastCommitHash: lastCommit.hash,
       lastCommitAt: lastCommit.at,
     };

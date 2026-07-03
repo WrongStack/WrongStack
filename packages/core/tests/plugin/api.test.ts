@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
+import type { Config, ProviderFactory, Tool } from '../../src/index.js';
 import {
   Container,
   DefaultLogger,
@@ -9,7 +10,6 @@ import {
   ProviderRegistry,
   ToolRegistry,
 } from '../../src/index.js';
-import type { Config, ProviderFactory, Tool } from '../../src/index.js';
 
 const baseConfig: Config = {
   providers: {},
@@ -423,9 +423,7 @@ describe('DefaultPluginAPI', () => {
       log: new DefaultLogger({ level: 'error' }),
       capabilities: { toolMutateCapabilities: ['fs.read'] },
     });
-    expect(() =>
-      api.tools.wrap('read', (t) => ({ ...t, description: 'wrapped' })),
-    ).not.toThrow();
+    expect(() => api.tools.wrap('read', (t) => ({ ...t, description: 'wrapped' }))).not.toThrow();
   });
 
   it('denies non-official plugin to wrap tool without matching toolMutateCapabilities', () => {
@@ -442,9 +440,9 @@ describe('DefaultPluginAPI', () => {
       log: new DefaultLogger({ level: 'error' }),
       capabilities: { toolMutateCapabilities: ['fs.read'] },
     });
-    expect(() =>
-      api.tools.wrap('write', (t) => ({ ...t, description: 'wrapped' })),
-    ).toThrow('Missing required capability');
+    expect(() => api.tools.wrap('write', (t) => ({ ...t, description: 'wrapped' }))).toThrow(
+      'Missing required capability',
+    );
   });
 
   it('denies non-official plugin to wrap tool with no capabilities declared', () => {
@@ -461,9 +459,9 @@ describe('DefaultPluginAPI', () => {
       log: new DefaultLogger({ level: 'error' }),
       capabilities: { toolMutateCapabilities: ['fs.read'] },
     });
-    expect(() =>
-      api.tools.wrap('legacy', (t) => ({ ...t, description: 'wrapped' })),
-    ).toThrow('Missing required capability');
+    expect(() => api.tools.wrap('legacy', (t) => ({ ...t, description: 'wrapped' }))).toThrow(
+      'Missing required capability',
+    );
   });
 
   it('allows official plugin to wrap any tool regardless of capabilities', () => {
@@ -480,9 +478,7 @@ describe('DefaultPluginAPI', () => {
       log: new DefaultLogger({ level: 'error' }),
       official: true,
     });
-    expect(() =>
-      api.tools.wrap('write', (t) => ({ ...t, description: 'wrapped' })),
-    ).not.toThrow();
+    expect(() => api.tools.wrap('write', (t) => ({ ...t, description: 'wrapped' }))).not.toThrow();
   });
 
   it('allows plugin to wrap its own tool regardless of capabilities', () => {
@@ -593,5 +589,176 @@ describe('DefaultPluginAPI tool trust tiers (F-02)', () => {
     toolRegistry.register({ ...tool('bash'), permission: 'confirm' }, 'core');
     expect(() => api.tools.wrap('bash', (t) => ({ ...t, permission: 'auto' }))).not.toThrow();
     expect(toolRegistry.get('bash')?.permission).toBe('auto');
+  });
+});
+
+// ── api.llm — plugin LLM access through the host provider layer ─────────
+
+describe('DefaultPluginAPI.llm', () => {
+  function fakeProvider(
+    id: string,
+    reply = 'ok',
+  ): {
+    provider: import('../../src/index.js').Provider;
+    calls: Array<import('../../src/index.js').Request>;
+  } {
+    const calls: Array<import('../../src/index.js').Request> = [];
+    const provider = {
+      id,
+      capabilities: {} as never,
+      stream: (() => {
+        throw new Error('not used');
+      }) as never,
+      async complete(req: import('../../src/index.js').Request) {
+        calls.push(req);
+        return {
+          content: [{ type: 'text' as const, text: reply }],
+          stopReason: 'end_turn' as const,
+          usage: { input: 10, output: 5 },
+          model: req.model,
+        };
+      },
+    } as never as import('../../src/index.js').Provider;
+    return { provider, calls };
+  }
+
+  function mkApiWithLLM(
+    opts: {
+      extensions?: Record<string, Record<string, unknown>>;
+      createProvider?: (name: string, model?: string) => import('../../src/index.js').Provider;
+      withConfigStore?: boolean;
+    } = {},
+  ) {
+    const { provider, calls } = fakeProvider('default-prov');
+    const config = {
+      provider: 'default-prov',
+      model: 'default-model',
+      providers: {},
+      extensions: opts.extensions ?? {},
+      log: { level: 'error' },
+    } as never as Config;
+    // Minimal ConfigStore stand-in: capture the watcher so tests can
+    // push a config update and observe api.llm hot-reload.
+    const watchers: Array<(next: unknown, prev: unknown) => void> = [];
+    const configStore = opts.withConfigStore
+      ? {
+          watch(cb: (next: unknown, prev: unknown) => void) {
+            watchers.push(cb);
+            return () => {};
+          },
+        }
+      : undefined;
+    const api = new DefaultPluginAPI({
+      ownerName: 'plugin-x',
+      container: new Container(),
+      events: new EventBus(),
+      pipelines: {} as Parameters<typeof DefaultPluginAPI>[0]['pipelines'],
+      toolRegistry: new ToolRegistry(),
+      providerRegistry: new ProviderRegistry(),
+      config,
+      log: new DefaultLogger({ level: 'error' }),
+      configStore,
+      llm: {
+        provider,
+        model: 'default-model',
+        createProvider: opts.createProvider,
+      },
+    });
+    const pushConfig = (next: Partial<Config>) => {
+      for (const w of watchers) w({ ...config, ...next }, config);
+    };
+    return { api, calls, pushConfig };
+  }
+
+  it('is undefined when the host does not wire llm', () => {
+    const { api } = mkApi();
+    expect(api.llm).toBeUndefined();
+  });
+
+  it('completes with the host default provider/model', async () => {
+    const { api, calls } = mkApiWithLLM();
+    const result = await api.llm!.complete('hello');
+    expect(result.text).toBe('ok');
+    expect(result.provider).toBe('default-prov');
+    expect(result.usage).toEqual({ input: 10, output: 5 });
+    expect(calls[0]!.model).toBe('default-model');
+    expect(calls[0]!.maxTokens).toBe(2048);
+    expect(api.llm!.defaults()).toEqual({ provider: 'default-prov', model: 'default-model' });
+  });
+
+  it('applies system prompt, json format, and per-call model override', async () => {
+    const { api, calls } = mkApiWithLLM();
+    await api.llm!.complete('hello', {
+      system: 'be terse',
+      responseFormat: 'json',
+      model: 'other-model',
+      maxTokens: 99,
+      temperature: 0.1,
+    });
+    const req = calls[0]!;
+    expect(req.model).toBe('other-model');
+    expect(req.maxTokens).toBe(99);
+    expect(req.temperature).toBe(0.1);
+    expect(req.system).toEqual([{ type: 'text', text: 'be terse' }]);
+    expect(req.responseFormat).toEqual({ type: 'json_object' });
+  });
+
+  it('per-plugin config llm.{provider,model} beats host defaults, per-call beats both', async () => {
+    const other = fakeProvider('other-prov', 'from-other');
+    const createProvider = vi.fn(() => other.provider);
+    const { api, calls } = mkApiWithLLM({
+      extensions: { 'plugin-x': { llm: { provider: 'other-prov', model: 'cfg-model' } } },
+      createProvider,
+    });
+    expect(api.llm!.defaults()).toEqual({ provider: 'other-prov', model: 'cfg-model' });
+
+    const result = await api.llm!.complete('hi');
+    expect(createProvider).toHaveBeenCalledWith('other-prov', 'cfg-model');
+    expect(result.provider).toBe('other-prov');
+    expect(other.calls[0]!.model).toBe('cfg-model');
+    expect(calls).toHaveLength(0); // host default provider untouched
+
+    // Per-call override wins over plugin config.
+    await api.llm!.complete('hi', { provider: 'default-prov', model: 'call-model' });
+    expect(calls[0]!.model).toBe('call-model');
+  });
+
+  it('caches created providers per (name, model)', async () => {
+    const other = fakeProvider('other-prov');
+    const createProvider = vi.fn(() => other.provider);
+    const { api } = mkApiWithLLM({ createProvider });
+    await api.llm!.complete('a', { provider: 'other-prov' });
+    await api.llm!.complete('b', { provider: 'other-prov' });
+    expect(createProvider).toHaveBeenCalledTimes(1);
+  });
+
+  it('hard-caps maxTokens', async () => {
+    const { api, calls } = mkApiWithLLM();
+    await api.llm!.complete('x', { maxTokens: 999_999 });
+    expect(calls[0]!.maxTokens).toBe(32_768);
+  });
+
+  it('hot-reloads per-plugin overrides from ConfigStore updates (set + clear)', async () => {
+    const other = fakeProvider('other-prov');
+    const createProvider = vi.fn(() => other.provider);
+    const { api, calls, pushConfig } = mkApiWithLLM({ withConfigStore: true, createProvider });
+
+    // Before any update: session defaults.
+    expect(api.llm!.defaults()).toEqual({ provider: 'default-prov', model: 'default-model' });
+
+    // `/plugin llm plugin-x other-prov live-model` lands as a ConfigStore update.
+    pushConfig({
+      extensions: { 'plugin-x': { llm: { provider: 'other-prov', model: 'live-model' } } },
+    } as Partial<Config>);
+    expect(api.llm!.defaults()).toEqual({ provider: 'other-prov', model: 'live-model' });
+    await api.llm!.complete('hi');
+    expect(other.calls[0]!.model).toBe('live-model');
+
+    // `--clear` removes the key — resolution must fall back to the
+    // session default, not resurrect the setup-time snapshot.
+    pushConfig({ extensions: {} } as Partial<Config>);
+    expect(api.llm!.defaults()).toEqual({ provider: 'default-prov', model: 'default-model' });
+    await api.llm!.complete('again');
+    expect(calls).toHaveLength(1); // back on the host default provider
   });
 });

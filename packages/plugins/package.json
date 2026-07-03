@@ -1,7 +1,7 @@
 {
   "name": "@wrongstack/plugins",
   "version": "0.280.0",
-  "description": "Official WrongStack plugin collection — auto-doc, git-autocommit, shell-check, cost-tracker, file-watcher, cron, template-engine, semver-bump, secret-scanner, todo-tracker, token-budget, lint-gate, branch-guard, diff-summary, commit-validator, format-on-save, test-runner-gate, import-organizer, todo-listener, session-recap, spec-linker",
+  "description": "Official WrongStack plugin collection — auto-doc, git-autocommit, shell-check, cost-tracker, file-watcher, cron, template-engine, semver-bump, secret-scanner, todo-tracker, token-budget, lint-gate, branch-guard, diff-summary, commit-validator, format-on-save, test-runner-gate, import-organizer, todo-listener, session-recap, spec-linker, loop-breaker, path-guard, context-pins, checkpoint, error-lens, dep-guard, config-validator, notify-hub, changelog-writer, injection-shield, llm-cache, model-router, prompt-firewall, auto-escalate, token-throttle",
   "license": "MIT",
   "author": "ECOSTACK TECHNOLOGY OÜ",
   "type": "module",
@@ -95,6 +95,66 @@
     "./spec-linker": {
       "types": "./dist/spec-linker.d.ts",
       "import": "./dist/spec-linker.js"
+    },
+    "./loop-breaker": {
+      "types": "./dist/loop-breaker.d.ts",
+      "import": "./dist/loop-breaker.js"
+    },
+    "./path-guard": {
+      "types": "./dist/path-guard.d.ts",
+      "import": "./dist/path-guard.js"
+    },
+    "./context-pins": {
+      "types": "./dist/context-pins.d.ts",
+      "import": "./dist/context-pins.js"
+    },
+    "./checkpoint": {
+      "types": "./dist/checkpoint.d.ts",
+      "import": "./dist/checkpoint.js"
+    },
+    "./error-lens": {
+      "types": "./dist/error-lens.d.ts",
+      "import": "./dist/error-lens.js"
+    },
+    "./dep-guard": {
+      "types": "./dist/dep-guard.d.ts",
+      "import": "./dist/dep-guard.js"
+    },
+    "./config-validator": {
+      "types": "./dist/config-validator.d.ts",
+      "import": "./dist/config-validator.js"
+    },
+    "./notify-hub": {
+      "types": "./dist/notify-hub.d.ts",
+      "import": "./dist/notify-hub.js"
+    },
+    "./changelog-writer": {
+      "types": "./dist/changelog-writer.d.ts",
+      "import": "./dist/changelog-writer.js"
+    },
+    "./injection-shield": {
+      "types": "./dist/injection-shield.d.ts",
+      "import": "./dist/injection-shield.js"
+    },
+    "./llm-cache": {
+      "types": "./dist/llm-cache.d.ts",
+      "import": "./dist/llm-cache.js"
+    },
+    "./model-router": {
+      "types": "./dist/model-router.d.ts",
+      "import": "./dist/model-router.js"
+    },
+    "./prompt-firewall": {
+      "types": "./dist/prompt-firewall.d.ts",
+      "import": "./dist/prompt-firewall.js"
+    },
+    "./auto-escalate": {
+      "types": "./dist/auto-escalate.d.ts",
+      "import": "./dist/auto-escalate.js"
+    },
+    "./token-throttle": {
+      "types": "./dist/token-throttle.d.ts",
+      "import": "./dist/token-throttle.js"
     }
   },
   "files": [

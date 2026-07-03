@@ -1007,6 +1007,16 @@ export async function main(argv: string[]): Promise<number> {
     },
     hookRegistry,
     mailbox: brainMailbox,
+    // api.llm — plugins get LLM access through the host's provider layer.
+    // Default = the session's live provider/model; a named override goes
+    // through buildProviderForId (same alias-safe path as /model switch).
+    // The model itself travels in each Request, so the factory ignores it.
+    llm: {
+      provider,
+      model: config.model,
+      createProvider: (name: string) =>
+        buildProviderForIdRuntime({ config, providerRegistry }, name),
+    },
   });
 
   // ── Dep-watcher bridge: wire file-watcher events into the mailbox ────

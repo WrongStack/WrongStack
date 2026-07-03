@@ -26,6 +26,8 @@ wstack plugin remove @wrongstack/telegram
 `install` is an alias for `add`. `report` prints the built-in plugin audit
 table, including effective state, risk, and whether a row can be toggled.
 `menu` opens the TUI picker when available and otherwise prints the same report.
+`toggle <name>` flips a row in the safe audit list — see
+[Lockable rows](#lockable-rows--the-plugin-audit-table) below for the policy.
 Official aliases currently include `telegram` -> `@wrongstack/telegram`
 and `lsp` -> `@wrongstack/plug-lsp`. `add`, `install`, and `enable` also set
 `features.plugins: true` in the global config.
@@ -33,6 +35,39 @@ Changes are written to `~/.wrongstack/config.json`.
 Official plugins are bundled with the CLI package and published as regular
 public packages, so `install telegram` means "add the official plugin to config
 and enable plugin loading"; it does not shell out to npm.
+
+## Lockable rows — the plugin audit table
+
+Every built-in plugin row has a `lockable` flag in `PLUGIN_AUDIT_ENTRIES`
+(see `packages/cli/src/plugin-management.ts`):
+
+- **Toggleable** (`lockable: false`): safe to flip from `/plugin toggle`,
+  `/settings plugin toggle`, or the interactive picker — examples:
+  [`format-on-save`](packages/plugins/src/format-on-save), `diff-summary`,
+  `spec-linker`, `token-budget`, `auto-doc`, `git-autocommit`.
+- **Locked** (`lockable: true`): refuses toggle. Two examples today:
+  [`secret-scanner`](packages/plugins/src/secret-scanner) and
+  [`branch-guard`](packages/plugins/src/branch-guard) — both are
+  first-line defenses that the agent must not silently disable.
+
+UX behavior:
+
+| Surface | Locked-row UX |
+|---|---|
+| Interactive TUI picker | Row renders in yellow with a 🔒 marker; hint bar adds `🔒 = locked`; Enter / ← / → on a locked row prints `<name> is locked — see /plugin report` and does not toggle. |
+| REPL `/plugin toggle <locked>` | Same hint message, exit code 0, no state change. |
+| `/plugin report` | One row per plugin, including a `lockable: true/false` column so users see why a row refused. |
+| `/plugin menu` fallback (no TUI) | Prints the audit report (same shape as `/plugin report`) instead of opening an overlay. |
+
+The picker lists **every** entry in `PLUGIN_AUDIT_ENTRIES`, not only the
+toggleable subset — locked rows are visible but non-toggleable, so the
+model and the user both understand the policy from a single screen.
+
+The same audit surface is reachable as `/settings plugins`,
+`/settings plugin report`, and `/settings plugin toggle <name>` — they
+delegate to `plugin-management.ts` and share the lockable policy. See
+[`docs/slash/settings.md`](slash/settings.md#plugin-picker-settings-plugins)
+for the full verb table.
 
 The same management surface is available in an interactive session:
 
@@ -52,6 +87,27 @@ The same management surface is available in an interactive session:
 Slash commands update config immediately, but plugin code is loaded at boot.
 Restart WrongStack after install/enable/disable/toggle/remove to change the
 current session's loaded plugins.
+
+## Per-plugin LLM routing
+
+Plugins that call the LLM (via `api.llm`) follow the active session
+provider/model — the chat leader — by default. Route an individual plugin
+through a different provider and/or model:
+
+```bash
+wstack plugin llm error-lens                       # show the override
+wstack plugin llm error-lens omniroute qwen3-30b   # provider + model
+wstack plugin llm changelog-writer - haiku-x       # keep session provider, set model
+wstack plugin llm error-lens --clear               # back to the session default
+```
+
+(Also available as `/plugin llm …` in a session.) The override is stored as
+`extensions.<plugin>.llm = { provider, model }` in `~/.wrongstack/config.json`
+and resolved on every `api.llm.complete()` call: per-call options win over the
+per-plugin override, which wins over the session default. `provider` is any
+key of `config.providers` or a catalog provider id. Unlike enable/disable,
+LLM routing hot-reloads: `/plugin llm` changes apply to the very next
+`api.llm` call in the running session — no restart needed.
 
 ## Config Shape
 
