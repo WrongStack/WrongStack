@@ -43,8 +43,8 @@ body {
   background: var(--bg); border: 1px solid var(--border); border-radius: 8px;
   padding: 5px 11px; text-align: center; min-width: 64px;
 }
-.hq-stat.green .hq-stat-num { color: var(--green); }
 .hq-stat-num { display: block; font-size: 16px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.hq-stat.green .hq-stat-num { color: var(--green); }
 .hq-stat-label { font-size: 9px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--dim); }
 .hq-nav {
   display: flex; gap: 2px; padding: 6px 16px 0; border-bottom: 1px solid var(--border);
@@ -116,7 +116,6 @@ body {
 .hq-msg { background: var(--bg); border: 1px solid var(--border); border-radius: 7px; padding: 8px 10px; }
 .hq-msg.done { opacity: 0.62; }
 .hq-msg-head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; cursor: default; }
-.hq-msg-head > .hq-msg-subject { cursor: default; }
 .hq-msg-head > .hq-msg-toggle { margin-left: 4px; }
 .hq-msg-icon { font-size: 14px; line-height: 1; }
 .hq-msg-subject { flex: 1 1 180px; min-width: 120px; color: var(--text); font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

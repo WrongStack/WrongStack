@@ -14,14 +14,13 @@
  * The actual grouping/dedup/sort lives in `./mailbox-grouping.ts` as a
  * pure helper so it can be unit-tested without jsdom or React.
  */
-import React, { useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useHqStore } from '../store.js';
 import type {
   HqEventEnvelope,
   HqMailboxEventPayload,
   HqMailboxMessageSummary,
   HqMailboxMessageType,
-  HqMailboxPriority,
 } from '@wrongstack/core';
 import { groupMailboxEvents, type FlatMessage, type ProjectGroup } from './mailbox-grouping.js';
 
@@ -36,12 +35,6 @@ const TYPE_LABEL: Record<HqMailboxMessageType, { icon: string; tone: string }> =
   result: { icon: '✅', tone: 'running' },
   review: { icon: '🔍', tone: 'info' },
   control: { icon: '⚙️', tone: 'error' },
-};
-
-const PRIORITY_PILL: Record<HqMailboxPriority, string> = {
-  low: 'idle',
-  normal: 'info',
-  high: 'error',
 };
 
 const ACTION_LABEL: Record<HqMailboxEventPayload['action'], string> = {

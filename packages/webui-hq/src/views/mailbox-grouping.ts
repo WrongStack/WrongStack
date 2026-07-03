@@ -191,7 +191,7 @@ export function groupMailboxEvents(
         key: `e:${p.message.mailId}:${evt.seq}`,
       });
     }
-    if (p.agent !== undefined && p.agent.online) {
+    if (p.agent?.online) {
       g.onlineAgentCount += 1;
     }
   }

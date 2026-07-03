@@ -98,7 +98,10 @@ async function main(): Promise<void> {
         return null;
       }
     })
-    .filter((f): f is { type: string; event?: any } => f !== null && typeof f === 'object')
+    .filter(
+      (f): f is { type: string; event?: { type: string; payload: unknown } } =>
+        f !== null && typeof f === 'object',
+    )
     .filter(
       (f) =>
         f.event !== undefined &&
