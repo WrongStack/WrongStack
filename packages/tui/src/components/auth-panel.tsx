@@ -218,10 +218,9 @@ export function AuthPanel({ panel }: AuthPanelProps): React.ReactElement {
       {panel.view === 'flow' ? (
         <Box flexDirection="column" marginTop={1}>
           {logWindow.length === 0 && !panel.flowDone ? <Text dimColor>Starting…</Text> : null}
-          {logWindow.map((line, i) => (
+          {logWindow.map((line) => (
             <Text
-              // biome-ignore lint/suspicious/noArrayIndexKey: append-only log window
-              key={`log-${i}`}
+              key={line}
               wrap="truncate-end"
               color={line.startsWith('✗') ? 'red' : line.startsWith('✓') ? 'green' : undefined}
               dimColor={!line.startsWith('✗') && !line.startsWith('✓')}

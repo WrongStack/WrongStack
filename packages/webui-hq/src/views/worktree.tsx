@@ -2,7 +2,7 @@
  * Worktree view — git worktree lifecycle swim-lanes (AutoPhase build phases).
  * Fed by `worktree.event` envelopes from Phase 1.
  */
-import React from 'react';
+import type React from 'react';
 import { useHqStore } from '../store.js';
 import type { HqWorktreeEventPayload } from '@wrongstack/core';
 

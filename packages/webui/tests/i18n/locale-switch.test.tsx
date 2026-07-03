@@ -21,7 +21,6 @@
  */
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { cleanup, render, screen, waitFor } from '@testing-library/react';
-import type React from 'react';
 import { i18n, useAppTranslation } from '../../src/i18n';
 import { useLocalPrefs } from '../../src/stores/local-prefs';
 import settings_en from '../../src/i18n/locales/en/settings.json';

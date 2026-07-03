@@ -318,7 +318,10 @@ export async function setupPlugins(params: PluginsWiringDeps): Promise<void> {
   // live under `~/.wrongstack/projects/<slug>/` and follows the intent
   // documented on `PluginsWiringDeps.paths.projectDir`.
   if (paths?.projectDir) {
-    const todoTrackerOpts = (pluginOptions['todo-tracker'] ??= {});
+    if (pluginOptions['todo-tracker'] === undefined) {
+      pluginOptions['todo-tracker'] = {};
+    }
+    const todoTrackerOpts = pluginOptions['todo-tracker'];
     if (typeof todoTrackerOpts['filePath'] !== 'string' || todoTrackerOpts['filePath'] === '') {
       todoTrackerOpts['filePath'] = join(paths.projectDir, 'todo-tracker.json');
     }

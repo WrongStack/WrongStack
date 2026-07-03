@@ -2,7 +2,7 @@
  * Brain view — decision requests, answers, denials, interventions timeline.
  * Fed by `brain.event` envelopes from Phase 1.
  */
-import React from 'react';
+import type React from 'react';
 import { useHqStore } from '../store.js';
 import type { HqBrainEventPayload } from '@wrongstack/core';
 

@@ -2,7 +2,8 @@
  * Alerts view — live alert feed + active alerts.
  * Fed by `hq.alert` WS messages (Phase 6) + /api/alerts history.
  */
-import React, { useEffect, useState } from 'react';
+import type React from 'react';
+import { useEffect, useState } from 'react';
 import { useHqStore, fetchJson } from '../store.js';
 import type { HqAlert } from '@wrongstack/core';
 

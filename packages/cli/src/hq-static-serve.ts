@@ -9,7 +9,7 @@
 import { createRequire } from 'node:module';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-import * as http from 'node:http';
+import type * as http from 'node:http';
 
 const requireFromHere = createRequire(import.meta.url);
 

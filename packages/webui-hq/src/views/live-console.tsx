@@ -2,7 +2,8 @@
  * LiveConsole view — full chat transcript for the selected session.
  * Fetches /api/sessions/:id/events on selection, then streams live.
  */
-import React, { useEffect, useState } from 'react';
+import type React from 'react';
+import { useEffect, useState } from 'react';
 import { useHqStore, fetchJson } from '../store.js';
 import type { HqTranscriptEntry } from '@wrongstack/core';
 

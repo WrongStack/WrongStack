@@ -1,7 +1,7 @@
 /**
  * Cost view — fleet-wide cost breakdown by project.
  */
-import React from 'react';
+import type React from 'react';
 import { useHqStore } from '../store.js';
 
 export function CostView(): React.ReactElement {

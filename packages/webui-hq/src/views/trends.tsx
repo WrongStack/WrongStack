@@ -1,7 +1,8 @@
 /**
  * Trends view — time-bucketed cost + activity from /api/trends/cost.
  */
-import React, { useEffect, useState } from 'react';
+import type React from 'react';
+import { useEffect, useState } from 'react';
 import { fetchJson } from '../store.js';
 import type { HqTimeseriesSample } from '@wrongstack/core';
 

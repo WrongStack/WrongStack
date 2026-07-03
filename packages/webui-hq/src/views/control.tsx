@@ -2,7 +2,8 @@
  * Control view — enqueue commands to connected clients (steer/abort/spawn/broadcast).
  * Only clients advertising `control.receive` are targetable.
  */
-import React, { useState } from 'react';
+import type React from 'react';
+import { useState } from 'react';
 import { useHqStore, selectClient, postCommand } from '../store.js';
 
 type CmdType = 'steer' | 'abort' | 'spawn' | 'broadcast';

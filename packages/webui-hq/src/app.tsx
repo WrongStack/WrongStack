@@ -2,7 +2,7 @@
  * HQ dashboard root — activity bar + view router + status bar.
  * Offline React app, no CDN. Connects to /ws/browser on mount.
  */
-import React from 'react';
+import type React from 'react';
 import { useHqStore, setActiveView, type ViewId } from './store.js';
 import { FleetMapView } from './views/fleet-map.js';
 import { LiveConsoleView } from './views/live-console.js';

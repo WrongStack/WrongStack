@@ -2,7 +2,7 @@
  * FleetMap view — machine → project → terminal → agent tree.
  * The spine of the HQ dashboard. Click a session to open it in Console.
  */
-import React from 'react';
+import type React from 'react';
 import { useHqStore, selectSession } from '../store.js';
 import type { HqSessionSnapshotPayload } from '@wrongstack/core';
 
