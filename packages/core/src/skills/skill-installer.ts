@@ -1,12 +1,20 @@
-import { expectDefined } from '../utils/expect-defined.js';
-import { toErrorMessage } from '../utils/error.js';
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
+import { ERROR_CODES, FsError, WrongStackError } from '../types/errors.js';
 import type { SkillLoader } from '../types/skill.js';
-import { downloadGitHubTarball, parseSkillRef } from './github-fetcher.js';
+import { toErrorMessage } from '../utils/error.js';
+import { expectDefined } from '../utils/expect-defined.js';
 import { isValidSkillNameFormat, parseSkillFrontmatter } from './frontmatter.js';
+import { downloadGitHubTarball, parseSkillRef } from './github-fetcher.js';
+import { SKILL_LIMITS } from './limits.js';
 import { type InstalledSkillEntry, SkillManifestStore } from './manifest-store.js';
-import { FsError, WrongStackError, ERROR_CODES } from '../types/errors.js';
+import { githubDirectAdapter } from './registry/github-direct-adapter.js';
+import type {
+  RegistrySearchOptions,
+  RegistrySearchResult,
+  RegistrySkillSummary,
+  SkillRegistryAdapter,
+} from './registry/registry-adapter.js';
 export interface SkillInstallerOptions {
   /** Path to the manifest file (~/.wrongstack/installed-skills.json) */
   manifestPath: string;
@@ -19,7 +27,14 @@ export interface SkillInstallerOptions {
   /** Skill loader — cache will be invalidated after mutations */
   skillLoader?: SkillLoader | undefined;
   /** Logger for status messages */
-  log?: (((msg: string) => void)) | undefined;
+  log?: ((msg: string) => void) | undefined;
+  /**
+   * Skill registries used to resolve `<adapterId>:<registryId>` refs and to
+   * serve `/skill-search`. Defaults to `[githubDirectAdapter]` (the original
+   * direct `user/repo` install path). Add a skills.sh adapter to enable
+   * searching the marketplace and installing registry hits by id.
+   */
+  registryAdapters?: SkillRegistryAdapter[] | undefined;
 }
 
 export interface InstallResult {
@@ -37,28 +52,49 @@ export interface UpdateResult {
   errors: Array<{ name: string; error: string }>;
 }
 
-const MAX_SKILL_FILE_SIZE = 100 * 1024; // 100KB
+const MAX_SKILL_FILE_SIZE = SKILL_LIMITS.MAX_SKILL_FILE_SIZE;
 
 export class SkillInstaller {
   private readonly opts: SkillInstallerOptions;
   private readonly manifest: SkillManifestStore;
+  private readonly adapters: SkillRegistryAdapter[];
 
   constructor(opts: SkillInstallerOptions) {
     this.opts = opts;
     this.manifest = new SkillManifestStore(opts.manifestPath);
+    this.adapters = opts.registryAdapters?.length ? opts.registryAdapters : [githubDirectAdapter];
   }
 
   /**
-   * Install skills from a GitHub repository.
-   * Supports both single-skill repos (SKILL.md at root) and multi-skill repos (skills/ subdirectory).
+   * Install skills from a skill reference.
+   *
+   * Accepts two ref formats:
+   *   - `user/repo[@ref]`               — direct GitHub install (original path)
+   *   - `<adapterId>:<registryId>`      — registry-resolved (e.g.
+   *                                       `skills.sh:owner/repo@v1`); the
+   *                                       adapter resolves it to a `user/repo`
+   *                                       ref and the install proceeds as above.
+   *
+   * Supports both single-skill repos (SKILL.md at root) and multi-skill repos
+   * (skills/ subdirectory). The manifest records the GitHub source as
+   * `github:owner/repo` (so `/skill-update` keeps working) plus the originating
+   * registry in `registryFrom` when the install came through a registry.
    */
-  async install(refInput: string, opts?: { global?: boolean | undefined }): Promise<InstallResult[]> {
-    const parsed = parseSkillRef(refInput);
+  async install(
+    refInput: string,
+    opts?: { global?: boolean | undefined },
+  ): Promise<InstallResult[]> {
+    const resolved = this.resolveRef(refInput);
+    const parsed = parseSkillRef(resolved.installRef);
     const scope: 'project' | 'user' = opts?.global ? 'user' : 'project';
     const targetDir = scope === 'project' ? this.opts.projectSkillsDir : this.opts.globalSkillsDir;
     const source = `github:${parsed.owner}/${parsed.repo}`;
 
-    this.opts.log?.(`Downloading ${parsed.owner}/${parsed.repo}@${parsed.ref}...`);
+    this.opts.log?.(
+      resolved.fromRegistry
+        ? `Resolving ${refInput} → ${resolved.installRef} (${resolved.adapterId}), downloading...`
+        : `Downloading ${parsed.owner}/${parsed.repo}@${parsed.ref}...`,
+    );
 
     const { tempDir } = await downloadGitHubTarball(parsed);
 
@@ -68,7 +104,8 @@ export class SkillInstaller {
 
       if (skills.length === 0) {
         throw new WrongStackError({
-          message: 'No skills found in repository. Expected SKILL.md at root or skills/ subdirectory.',
+          message:
+            'No skills found in repository. Expected SKILL.md at root or skills/ subdirectory.',
           code: ERROR_CODES.VALIDATION_ERROR,
           subsystem: 'general',
           context: { owner: parsed.owner, repo: parsed.repo, ref: parsed.ref },
@@ -133,6 +170,13 @@ export class SkillInstaller {
           projectHash: scope === 'project' ? this.opts.projectHash : undefined,
           installedAt: new Date().toISOString(),
           files: copiedFiles,
+          // When the install came through a registry (e.g. skills.sh), record
+          // which adapter + registry id resolved to this GitHub repo, so the
+          // source is traceable. `source` stays `github:owner/repo` for
+          // backward compat with `/skill-update`.
+          ...(resolved.fromRegistry
+            ? { registryFrom: { adapterId: resolved.adapterId, registryId: resolved.registryId } }
+            : {}),
         };
         await this.manifest.addEntry(entry);
 
@@ -376,6 +420,32 @@ export class SkillInstaller {
     return this.manifest.listAll();
   }
 
+  /**
+   * Search across all configured registry adapters. Results from each adapter
+   * are merged (deduplicated by `installRef`, adapters earlier in the list win
+   * conflicts). Adapters that don't support search (e.g. github-direct)
+   * contribute nothing.
+   */
+  async search(query: string, opts?: RegistrySearchOptions): Promise<RegistrySearchResult[]> {
+    const settled = await Promise.allSettled(this.adapters.map((a) => a.search(query, opts)));
+    const perAdapter: RegistrySearchResult[] = [];
+    const errors: string[] = [];
+    settled.forEach((s, i) => {
+      if (s.status === 'fulfilled') perAdapter.push(s.value);
+      else {
+        const id = this.adapters[i]?.id ?? '?';
+        errors.push(`${id}: ${toErrorMessage(s.reason)}`);
+      }
+    });
+    // Surface adapter errors via the log so a single broken registry doesn't
+    // silently hide results — but don't throw, since other adapters may have
+    // returned useful results.
+    if (errors.length > 0) {
+      this.opts.log?.(`Some registries failed during search: ${errors.join('; ')}`);
+    }
+    return dedupeSearchResults(perAdapter);
+  }
+
   // ── Private helpers ──────────────────────────────────────────────
 
   /**
@@ -440,8 +510,7 @@ export class SkillInstaller {
    * Remove all files for an installed skill.
    */
   private async removeSkillFiles(name: string, scope: 'project' | 'user'): Promise<void> {
-    const targetDir =
-      scope === 'project' ? this.opts.projectSkillsDir : this.opts.globalSkillsDir;
+    const targetDir = scope === 'project' ? this.opts.projectSkillsDir : this.opts.globalSkillsDir;
     const skillDir = path.join(targetDir, name);
     await fs.rm(skillDir, { recursive: true, force: true });
   }
@@ -456,6 +525,35 @@ export class SkillInstaller {
     if (loader && typeof loader.invalidateCache === 'function') {
       loader.invalidateCache();
     }
+  }
+
+  /**
+   * Resolve an install ref, dispatching registry-prefixed refs to the matching
+   * adapter. Returns the concrete `user/repo[@ref]` install ref plus provenance
+   * (which adapter resolved it, if any).
+   */
+  private resolveRef(refInput: string): {
+    installRef: string;
+    fromRegistry: boolean;
+    adapterId: string;
+    registryId: string;
+  } {
+    const trimmed = refInput.trim();
+    const colonIdx = trimmed.indexOf(':');
+    // A colon prefix matches `<adapterId>:<registryId>`. We require the segment
+    // before the colon to be a known adapter id so plain `user/repo` refs (and
+    // Windows-style `C:\...` paths that should never reach here) aren't
+    // misread as registry refs.
+    if (colonIdx > 0) {
+      const maybeAdapterId = trimmed.slice(0, colonIdx);
+      const adapter = this.adapters.find((a) => a.id === maybeAdapterId);
+      if (adapter) {
+        const registryId = trimmed.slice(colonIdx + 1);
+        const installRef = adapter.resolveInstallRef(registryId);
+        return { installRef, fromRegistry: true, adapterId: adapter.id, registryId };
+      }
+    }
+    return { installRef: trimmed, fromRegistry: false, adapterId: '', registryId: '' };
   }
 }
 
@@ -495,4 +593,32 @@ async function collectFiles(dir: string, baseDir: string): Promise<string[]> {
     }
   }
   return results;
+}
+
+/**
+ * Merge per-adapter search results, deduplicating by `installRef`.
+ *
+ * Two adapters may index the same GitHub repo (e.g. skills.sh and a future
+ * internal hub both list `obra/superpowers`). When they do, the first adapter
+ * in the configured order wins — its metadata (security score, install count)
+ * is the one shown, and the dedup key is the concrete `user/repo[@ref]` so a
+ * ref difference still surfaces both. Per-adapter result boundaries are
+ * preserved (the caller renders them grouped by adapter).
+ */
+function dedupeSearchResults(perAdapter: RegistrySearchResult[]): RegistrySearchResult[] {
+  const seen = new Set<string>();
+  const out: RegistrySearchResult[] = [];
+  for (const block of perAdapter) {
+    const kept: RegistrySkillSummary[] = [];
+    for (const r of block.results) {
+      const key = r.installRef;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      kept.push(r);
+    }
+    if (kept.length > 0 || block.results.length > 0) {
+      out.push({ ...block, results: kept });
+    }
+  }
+  return out;
 }

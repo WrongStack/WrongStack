@@ -21,6 +21,7 @@ packages/
   telegram/     Telegram bridge plugin — send messages, receive prompts, get notified
   skills/       Skill subpackages published independently
   webui/        Standalone Vite+React web UI (wstackui) + WS backend; also embeddable via --webui
+  webui-hq/     HQ command-center React dashboard (Phase 5) — replaces the inline CDN HTML
 apps/
   wrongstack/   bin entry — runs cli/main(argv)
 ```

@@ -3,14 +3,14 @@ name: skill-creator
 description: |
   Use this skill when the user wants to create a new AI skill in WrongStack.
   Triggers: user says "create a skill", "new skill", "add a skill", "skill definition".
-version: 1.1.0
+version: 1.2.0
 ---
 
 # Skill Creator — WrongStack
 
 ## Overview
 
-Guides the creation of new WrongStack skills. A skill is a Markdown file with YAML frontmatter — the first sentence of the description is the trigger. You are the wizard: ask questions, validate answers, write the file.
+Guides the creation of new WrongStack skills. A skill is a Markdown file with YAML frontmatter — the first sentence of the description is the trigger. You are the wizard: ask questions, validate answers, write the file. Use the `/skill-gen` sub-commands to do the mechanical parts (validation, scaffolding) deterministically.
 
 ## Rules
 
@@ -21,6 +21,22 @@ Guides the creation of new WrongStack skills. A skill is a Markdown file with YA
 5. Content must be actionable — rules, patterns, anti-patterns, not just prose.
 6. End with "Skills in scope" listing related skills for delegation.
 7. Don't let skill names collide with existing skills.
+
+## Authoring commands (use these)
+
+The `/skill-gen` command is a toolkit — pick the right sub-command for the job instead of writing files by hand:
+
+| Sub-command | When to use |
+|---|---|
+| `/skill-gen` (bare) | Open-ended creation: you (the agent) ask questions one at a time, then write the file. Best for nuanced skills. |
+| `/skill-gen skeleton <name> --desc "..." --trigger a,b` | Quick scaffold: generates a valid SKILL.md skeleton the user edits. Use when the name + trigger are already known. |
+| `/skill-gen from-prompt "<text>"` | Turn an existing prompt/instruction into a skill draft. Use when the user hands you a prompt and says "make this a skill". |
+| `/skill-gen validate <name>` | Validate a name (format + collisions) before writing. **Always run this before creating a file.** |
+| `/skill-gen view <name>` | Read-only: show a skill's body. |
+| `/skill-gen edit <name>` | Open the skill in `$EDITOR`/`$VISUAL`. |
+| `/skill-gen list` | List skills with their source layer. |
+
+After writing a skill with the wizard flow, run `/skill-gen validate <name>` to confirm it loads cleanly.
 
 ## Patterns
 

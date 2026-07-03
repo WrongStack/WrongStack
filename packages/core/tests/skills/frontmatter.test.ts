@@ -19,7 +19,9 @@ compatibility: Requires Docker 24+
 body`;
     const fm = parseSkillFrontmatter(raw);
     expect(fm.name).toBe('docker-deploy');
-    expect(fm.description).toBe('Use this skill when deploying Docker.\nTriggers: user says "docker".');
+    expect(fm.description).toBe(
+      'Use this skill when deploying Docker.\nTriggers: user says "docker".',
+    );
     expect(fm.version).toBe('1.2.0');
     expect(fm.license).toBe('MIT');
     expect(fm.compatibility).toBe('Requires Docker 24+');
@@ -53,7 +55,8 @@ b`);
   });
 
   it('parses CRLF line endings (Windows-authored skills)', () => {
-    const raw = '---\r\nname: docker-deploy\r\ndescription: Deploy docker.\r\nlicense: MIT\r\n---\r\nbody\r\n';
+    const raw =
+      '---\r\nname: docker-deploy\r\ndescription: Deploy docker.\r\nlicense: MIT\r\n---\r\nbody\r\n';
     const fm = parseSkillFrontmatter(raw);
     expect(fm.name).toBe('docker-deploy');
     expect(fm.description).toBe('Deploy docker.');
@@ -70,7 +73,9 @@ b`);
   });
 
   it('tolerates comma-separated allowed-tools', () => {
-    const fm = parseSkillFrontmatter('---\nname: x\ndescription: d\nallowed-tools: Read, Glob, Grep\n---\nb');
+    const fm = parseSkillFrontmatter(
+      '---\nname: x\ndescription: d\nallowed-tools: Read, Glob, Grep\n---\nb',
+    );
     expect(fm.allowedTools).toEqual(['Read', 'Glob', 'Grep']);
   });
 });

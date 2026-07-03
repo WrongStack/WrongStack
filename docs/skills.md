@@ -317,3 +317,74 @@ version: 1.0.0
 ```
 
 Save as `<project>/.wrongstack/skills/acme-conventions/SKILL.md` and commit it.
+
+---
+
+## Installing, searching, and authoring skills
+
+WrongStack ships a toolkit of slash commands (the first-party `wstack-skills`
+plugin) for discovering, installing, and creating skills:
+
+| Command | Purpose |
+|---|---|
+| `/skill` | List available skills or show one skill's body. |
+| `/skill-search <query>` | Search the skill registry (skills.sh) for installable skills. |
+| `/skill-install <ref>` | Install from `<user/repo[@ref]>`, `skills.sh:<owner/repo>`, or any registry id. |
+| `/skill-import [--from <tool>]` | Take ownership of a foreign agent's skill (copy/symlink into `.wrongstack/skills`). |
+| `/skill-update [name]` | Re-fetch installed skills from their source. |
+| `/skill-uninstall <name>` | Remove an installed skill. |
+| `/skill-gen` | Authoring toolkit — see below. |
+
+### Searching the registry
+
+`/skill-search` queries **skills.sh** (the open agent-skills marketplace backed
+by [mastra-ai/skills-api](https://github.com/mastra-ai/skills-api), 34k+ skills
+across 2.8k+ repos). Each hit shows a security score (0–100): hits below 30 are
+flagged with ⚠ and warrant a review before installing.
+
+```
+/skill-search react
+```
+
+To point at a self-hosted skills-api instance, set `config.skills.registryUrl`
+in `~/.wrongstack/config.json`. This field is **stripped from repo-committed
+config** (`<project>/.wrongstack/config.json`) because the parsed registry
+response flows into the prompt — a repo-controlled URL would be an
+SSRF / prompt-injection vector.
+
+### Installing
+
+```
+/skill-install octocat/react-pro              # GitHub, default branch
+/skill-install octocat/react-pro@v2.0.0       # GitHub, specific ref
+/skill-install skills.sh:octocat/react-pro    # registry-resolved
+/skill-install octocat/react-pro --global     # → ~/.wrongstack/skills/
+```
+
+**Private repos:** set `GITHUB_TOKEN` (or `GH_TOKEN`) in your environment. The
+token is sent as `Authorization: Bearer <token>` to the GitHub API; without it
+only public repos work and the anonymous 60/hour rate limit applies.
+
+Supports both single-skill repos (`SKILL.md` at root) and multi-skill repos
+(`skills/<name>/SKILL.md`).
+
+### Authoring with `/skill-gen`
+
+`/skill-gen` is a toolkit with sub-commands for the mechanical parts of skill
+creation (validation, scaffolding) plus an AI-guided wizard for the open-ended
+parts:
+
+| Sub-command | Purpose |
+|---|---|
+| `/skill-gen` (bare) | AI-guided wizard — you answer questions, the agent writes the file. |
+| `/skill-gen skeleton <name> --desc "..." --trigger a,b` | Generate a valid SKILL.md skeleton to edit. |
+| `/skill-gen from-prompt "<text>"` | Turn a prompt into a skill draft. |
+| `/skill-gen validate <name>` | Validate a name (kebab-case format + collisions) before writing. |
+| `/skill-gen view <name>` | Show a skill's body (read-only). |
+| `/skill-gen edit <name>` | Open a skill in `$EDITOR` / `$VISUAL`. |
+| `/skill-gen list` | List skills with their source layer. |
+
+The bundled `skill-creator` skill (loaded into the prompt) is the wizard's
+brain — it holds the authoring rules and workflow. Always run
+`/skill-gen validate <name>` after writing a new skill to confirm it loads.
+

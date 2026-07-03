@@ -7,6 +7,57 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added — Skill system (registry search, authoring toolkit, private repos)
+
+- **`/skill-search`** — new command that searches the skills.sh skill registry
+  (the open agent-skills marketplace backed by mastra-ai/skills-api, 34k+
+  skills across 2.8k+ repos). Results show name, author, install count, a
+  0–100 security score (low scores flagged with ⚠), and the `/skill-install`
+  ref. See `docs/slash/skill-search.md`.
+- **Registry adapter layer** (`packages/core/src/skills/registry/`) — a pluggable
+  `SkillRegistryAdapter` interface with two built-in adapters: `github-direct`
+  (the original `user/repo` install path) and `skills.sh` (search + resolve).
+  The installer resolves `<adapterId>:<registryId>` refs (e.g.
+  `skills.sh:octo/repo@v1`) to a GitHub install target and records the
+  originating registry in the manifest (`registryFrom`).
+- **`/skill-gen` authoring toolkit** — `/skill-gen` is now a multi-tool:
+  - `/skill-gen skeleton <name> --desc "..." --trigger a,b` — generate a valid
+    SKILL.md scaffold (`packages/core/src/skills/skill-generator.ts`).
+  - `/skill-gen from-prompt "<text>"` — turn a prompt into a skill draft.
+  - `/skill-gen validate <name>` — kebab-case format + collision check.
+  - `/skill-gen view <name>` (renamed from the misleading `edit`) and
+    `/skill-gen edit <name>` (now actually opens `$EDITOR`/`$VISUAL`).
+  The bare `/skill-gen` AI-guided wizard flow is preserved.
+- **Private GitHub repo installs** — `GITHUB_TOKEN` / `GH_TOKEN` (or
+  `WRONGSTACK_GITHUB_TOKEN`) is now read by the skill installer and sent as a
+  bearer token, enabling private-repo installs and the much higher
+  authenticated GitHub API rate limit. The 403/404 messages now point at the
+  env var when no token is set.
+- **`config.skills.registryUrl`** — point `/skill-search` at a self-hosted
+  skills-api instance. Stripped from repo-committed in-project config (the
+  parsed response flows into the prompt → SSRF/prompt-injection guard).
+
+### Changed — Skill system (Cursor fix, centralized limits, AGENTS.md sync)
+
+- **Cursor foreign-skill path fixed** — Cursor now uses the standard
+  `~/.cursor/skills/` subdir (aligned with skills.sh / antfu-skills-cli /
+  vercel-labs), not the WrongStack-only `~/.cursor/skills-cursor/`. The
+  previous path meant real Cursor skills were never discovered.
+- **Centralized skill limits** (`packages/core/src/skills/limits.ts`) — the
+  per-skill body cap, resource cap, eager-mode budget, tarball/file size
+  limits, compact-body budgets, and name length are now in one place
+  (`SKILL_LIMITS`) consumed by the loader, system-prompt builder, `skill`
+  tool, installer, and github-fetcher. Previously duplicated magic numbers
+  (e.g. the 16k body cap was defined independently in two modules).
+- **`resolveForeignToolIdsWithWarnings`** — surfaces unknown tool ids in
+  `config.skills.foreignSources` (likely typos) instead of silently dropping
+  them.
+- **AGENTS.md bundle skill list synced** — now lists all 23 bundled skills
+  (was 16); notably `output-standards`, which almost every other skill
+  depends on for `<next_steps>` formatting.
+
+## [Unreleased]
+
 ### Added — Desktop Surface
 
 - **WrongStack Desktop is now covered as a first-class surface** — the root

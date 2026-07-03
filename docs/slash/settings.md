@@ -26,6 +26,9 @@ command is argument-driven so it works in both the plain REPL and the Ink TUI.
 | `/settings reasoning-preserve on\|off` | Preserve thinking across turns |
 | `/settings cache-ttl 5m\|1h` | Set prompt cache TTL |
 | `/settings semver-part patch\|minor\|major\|auto` | Default part used by `/semver` and the `semver_bump` tool when no explicit part is given |
+| `/settings plugins` | Open the interactive plugin picker (TUI overlay) or print the audit report (REPL) — same surface as `/plugin menu` |
+| `/settings plugin report` | Print the audit report: each built-in plugin row's name, state, risk tier, lockable flag, and current toggle policy |
+| `/settings plugin toggle <name>` | Toggle a single safe audit-list plugin row; refuses to toggle `lockable: true` rows ([`secret-scanner`](../packages/plugins/src/secret-scanner), [`branch-guard`](../packages/plugins/src/branch-guard), etc.) with a hint pointing to `/plugin report` |
 | `/settings defaults` | Show built-in defaults |
 
 Settings are persisted to the active config scope: global
@@ -37,8 +40,33 @@ Model Routing when a specific subagent role/phase needs its own reasoning
 budget.
 
 `semver-part` is stored under `extensions["semver-bump"].defaultPart` (the
-semver-bump plugin's config key) and always goes to the **global** config —
-`extensions` is not project-safe, so a project-scope write would drop it.
+[`semver-bump`](../packages/plugins/src/semver-bump) plugin's config key) and
+always goes to the **global** config — `extensions` is not project-safe, so a
+project-scope write would drop it.
+
+## Plugin picker (`/settings plugins*`)
+
+The plugin surface is reachable two ways:
+
+- **`/plugin menu` / `/plugin report` / `/plugin toggle <name>`** — the
+  primary surface, registered as a top-level slash command.
+- **`/settings plugins` / `/settings plugin report` / `/settings plugin toggle <name>`** —
+  the same three verbs under `/settings` for users who already navigated
+  to the settings menu.
+
+Both paths delegate to `packages/cli/src/plugin-management.ts`. The three
+verbs are:
+
+| Verb | Effect |
+|---|---|
+| `plugins` / `menu` | Open the interactive plugin picker (TUI overlay when available; otherwise the audit report in REPL). |
+| `plugin report` / `report` | Print a row-per-plugin audit: name, current state, risk tier, lockable flag, and the toggle policy in effect. |
+| `plugin toggle <name>` / `toggle <name>` | Toggle one plugin in the safe audit list. **Refuses** to toggle `lockable: true` rows ([`secret-scanner`](../packages/plugins/src/secret-scanner), [`branch-guard`](../packages/plugins/src/branch-guard), etc.) — the model returns a hint pointing to `/plugin report` for the rationale. |
+
+The picker covers `PLUGIN_AUDIT_ENTRIES` in full — every entry is
+listed, not only the toggleable subset. `canDisable: false` entries
+appear with a 🔒 marker and a yellow row, and the hint bar carries
+"🔒 = locked" so users know why a row refuses to toggle.
 
 ## Token-Saving Tier
 
@@ -79,5 +107,7 @@ Or set it in the config file:
 
 - `packages/cli/src/slash-commands/settings.ts`
 - `packages/cli/src/settings-menu.ts`
+- `packages/cli/src/plugin-management.ts` — `/settings plugins*` + `/plugin *`
+- `packages/cli/src/slash-commands/plugin.ts`
 - `packages/tui/src/components/settings-picker.tsx`
 - `packages/core/src/types/config.ts`

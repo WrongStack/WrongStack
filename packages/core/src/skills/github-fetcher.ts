@@ -1,11 +1,13 @@
-import { expectDefined } from '../utils/expect-defined.js';
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
-import { createGunzip } from 'node:zlib';
 import { Readable } from 'node:stream';
 import { pipeline } from 'node:stream/promises';
-import { WrongStackError, ERROR_CODES } from '../types/errors.js';
+import { createGunzip } from 'node:zlib';
+import { ERROR_CODES, FetchError, WrongStackError } from '../types/errors.js';
+import { expectDefined } from '../utils/expect-defined.js';
+import { SKILL_LIMITS } from './limits.js';
+
 export interface ParsedRef {
   owner: string;
   repo: string;
@@ -17,7 +19,10 @@ export interface ParsedRef {
  * Formats: `user/repo` (default ref: main), `user/repo@ref`
  */
 export function parseSkillRef(input: string): ParsedRef {
-  const trimmed = input.trim().replace(/^https?:\/\/github\.com\//, '').replace(/\.git$/, '');
+  const trimmed = input
+    .trim()
+    .replace(/^https?:\/\/github\.com\//, '')
+    .replace(/\.git$/, '');
   const atIdx = trimmed.indexOf('@');
   let refPath: string;
   let ref: string;
@@ -45,42 +50,93 @@ export interface DownloadResult {
   tempDir: string;
 }
 
-const MAX_TARBALL_SIZE = 50 * 1024 * 1024; // 50MB
+/**
+ * Resolve a GitHub auth token, if one is configured.
+ *
+ * Order: `WRONGSTACK_GITHUB_TOKEN` (WrongStack-specific override) → `GITHUB_TOKEN`
+ * → `GH_TOKEN` (the gh CLI convention). Returns `undefined` when none are set,
+ * which means only public repos can be fetched.
+ *
+ * Exposed for testing and for the installer's user-facing messaging (so it can
+ * say "set GITHUB_TOKEN to install private repos" rather than just "403").
+ */
+export function resolveGitHubToken(env: NodeJS.ProcessEnv = process.env): string | undefined {
+  const raw = env['WRONGSTACK_GITHUB_TOKEN'] ?? env['GITHUB_TOKEN'] ?? env['GH_TOKEN'];
+  if (!raw) return undefined;
+  const trimmed = raw.trim();
+  return trimmed.length > 0 ? trimmed : undefined;
+}
 
 /**
  * Download and extract a GitHub repository tarball.
- * Uses the public GitHub API — no auth token required for public repos.
- * Returns the path to a temp directory with the extracted contents.
+ *
+ * Auth: reads `WRONGSTACK_GITHUB_TOKEN` / `GITHUB_TOKEN` / `GH_TOKEN` (in that
+ * order). Without a token only public repos work; with one, private repos the
+ * token can read also work, and the API rate limit is the authenticated
+ * (much higher) limit instead of the anonymous 60/hour.
+ *
+ * Returns the path to a temp directory with the extracted contents. The caller
+ * must remove it (the installer does this in a `finally`).
  */
 export async function downloadGitHubTarball(parsed: ParsedRef): Promise<DownloadResult> {
   const url = `https://api.github.com/repos/${parsed.owner}/${parsed.repo}/tarball/${parsed.ref}`;
+  const token = resolveGitHubToken();
 
-  const response = await fetch(url, {
-    signal: AbortSignal.timeout(30_000),
-    headers: {
-      Accept: 'application/vnd.github+json',
-      'User-Agent': 'wrongstack-skill-installer',
-    },
-    redirect: 'follow',
-  });
+  const headers: Record<string, string> = {
+    Accept: 'application/vnd.github+json',
+    'User-Agent': 'wrongstack-skill-installer',
+  };
+  if (token) headers['Authorization'] = `Bearer ${token}`;
+
+  let response: Response;
+  try {
+    response = await fetch(url, {
+      signal: AbortSignal.timeout(30_000),
+      headers,
+      redirect: 'follow',
+    });
+  } catch (err) {
+    // Network error / timeout — surface as a recoverable FetchError so callers
+    // can retry if they want. Don't leak the raw error (may contain the URL).
+    throw new FetchError({
+      message: `Network error fetching ${parsed.owner}/${parsed.repo}: ${
+        err instanceof Error ? err.message : String(err)
+      }`,
+      status: 0,
+      context: { owner: parsed.owner, repo: parsed.repo, ref: parsed.ref, op: 'tarball' },
+      cause: err,
+    });
+  }
 
   if (!response.ok) {
     if (response.status === 404) {
       throw new WrongStackError({
         message:
           `Repository not found: ${parsed.owner}/${parsed.repo}` +
-          (parsed.ref !== 'main' ? ` (ref: ${parsed.ref})` : ''),
+          (parsed.ref !== 'main' ? ` (ref: ${parsed.ref})` : '') +
+          (token ? '' : '. If this is a private repo, set GITHUB_TOKEN (or GH_TOKEN).'),
         code: ERROR_CODES.UNKNOWN,
         subsystem: 'general',
         context: { owner: parsed.owner, repo: parsed.repo, ref: parsed.ref, status: 404 },
       });
     }
     if (response.status === 403) {
+      // Distinguish rate-limit (anonymous 60/hour) from a real access denial.
+      const remaining = response.headers.get('x-ratelimit-remaining');
+      const isRateLimited = remaining === '0';
       throw new WrongStackError({
-        message: `Access denied: ${parsed.owner}/${parsed.repo}. The repository may be private or rate-limited.`,
+        message: isRateLimited
+          ? `GitHub API rate limit exceeded. Set GITHUB_TOKEN (or GH_TOKEN) to use the higher authenticated limit.`
+          : `Access denied: ${parsed.owner}/${parsed.repo}. The repository may be private (set GITHUB_TOKEN to install private repos) or rate-limited.`,
         code: ERROR_CODES.UNKNOWN,
         subsystem: 'general',
-        context: { owner: parsed.owner, repo: parsed.repo, status: 403 },
+        context: {
+          owner: parsed.owner,
+          repo: parsed.repo,
+          status: 403,
+          rateLimited: isRateLimited,
+          hasToken: Boolean(token),
+        },
       });
     }
     throw new WrongStackError({
@@ -92,18 +148,18 @@ export async function downloadGitHubTarball(parsed: ParsedRef): Promise<Download
   }
 
   const contentLength = response.headers.get('content-length');
-  if (contentLength && Number.parseInt(contentLength, 10) > MAX_TARBALL_SIZE) {
+  if (contentLength && Number.parseInt(contentLength, 10) > SKILL_LIMITS.MAX_TARBALL_SIZE) {
     throw new WrongStackError({
       message:
         `Tarball too large (${(Number.parseInt(contentLength, 10) / 1024 / 1024).toFixed(1)}MB). ` +
-        `Max: ${MAX_TARBALL_SIZE / 1024 / 1024}MB`,
+        `Max: ${SKILL_LIMITS.MAX_TARBALL_SIZE / 1024 / 1024}MB`,
       code: ERROR_CODES.UNKNOWN,
       subsystem: 'general',
       context: {
         owner: parsed.owner,
         repo: parsed.repo,
         contentLengthBytes: Number.parseInt(contentLength, 10),
-        maxBytes: MAX_TARBALL_SIZE,
+        maxBytes: SKILL_LIMITS.MAX_TARBALL_SIZE,
       },
     });
   }

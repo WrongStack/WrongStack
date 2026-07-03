@@ -30,6 +30,7 @@ This is the on-ramp to the WrongStack documentation. If you're new to the projec
 | [architecture-reference.md](architecture-reference.md) | Complete technical reference: kernel primitives, agent lifecycle, prompt architecture, compaction, events, security, persistence, multi-agent coordination, autonomy, MCP, TUI, WebUI | Read when you need the full picture of a specific subsystem |
 | [architecture-rules.md](architecture-rules.md) | Strict internal layering rules (Layer 1 / 2 / 3) with automated enforcement | Read when adding a new file to `packages/core/src/` |
 | [webui.md](webui.md) | WebUI architecture: Vite + React 19 + WebSocket + Monaco | Read when working on `packages/webui/` |
+| [plans/hq-command-center-2026-07.md](plans/hq-command-center-2026-07.md) | HQ command center enhancement plan — `packages/webui-hq/` React app (Phase 5) | Read when working on the cross-machine HQ dashboard |
 | [agent-monitoring.md](agent-monitoring.md) | Agent monitoring system: FleetBus → AgentMonitorService → HQ browser + TUI timeline | Read when working on subagent visibility or HQ integration |
 | [mcp-server.md](mcp-server.md) | MCP server architecture: stdio / SSE / streamable-HTTP transports | Read when working on `packages/mcp/` |
 | [director-architecture.md](director-architecture.md) | Multi-agent Director orchestration: phase-based pipeline, brain handoff, autonomy levels | Read when working on `packages/core/src/coordination/` |

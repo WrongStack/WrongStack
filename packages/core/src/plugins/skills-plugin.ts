@@ -1,31 +1,53 @@
 import * as os from 'node:os';
 import * as path from 'node:path';
+import type { Context, SlashCommand } from '../index.js';
+import { FOREIGN_SKILL_TOOLS, securityScoreToTier } from '../skills/foreign-sources.js';
+import { githubDirectAdapter } from '../skills/registry/github-direct-adapter.js';
+import type { SkillRegistryAdapter } from '../skills/registry/registry-adapter.js';
+import {
+  createSkillsShAdapter,
+  DEFAULT_SKILLS_SH_URL,
+} from '../skills/registry/skills-sh-adapter.js';
+import {
+  bodyLineAdvisory,
+  extractSkillFromPrompt,
+  generateSkillSkeleton,
+  openInEditor,
+  validateSkillNameAvailable,
+  writeSkeletonSkill,
+} from '../skills/skill-generator.js';
+import { SkillInstaller } from '../skills/skill-installer.js';
+import type { Plugin } from '../types/plugin.js';
+import type { SkillLoader } from '../types/skill.js';
 import { color } from '../utils/color.js';
 import { toErrorMessage } from '../utils/error.js';
 import { resolveWstackPaths } from '../utils/wstack-paths.js';
-import { FOREIGN_SKILL_TOOLS } from '../skills/foreign-sources.js';
-import { SkillInstaller } from '../skills/skill-installer.js';
-import type { Plugin } from '../types/plugin.js';
-import type { SlashCommand, Context } from '../index.js';
-import type { SkillLoader } from '../types/skill.js';
 
 interface SkillsPluginOptions {
   skillLoader?: SkillLoader | undefined;
+  /**
+   * Registry adapters. When unset the plugin wires the github-direct adapter
+   * (for `user/repo` installs) plus a skills.sh adapter pointed at
+   * `config.skills.registryUrl` (default {@link DEFAULT_SKILLS_SH_URL}).
+   */
+  registryAdapters?: SkillRegistryAdapter[] | undefined;
 }
 
 /**
- * SkillsPlugin — skill library + installer.
+ * SkillsPlugin — skill library + installer + authoring toolkit.
  *
- * Registers `/skill`, `/skill-gen`, `/skill-install`, `/skill-update`,
- * `/skill-uninstall`. First-party ("official") plugin, so the commands keep
- * their bare names. Needs a `SkillLoader` (injected by the host via
- * `config.skillLoader`); without one the commands report that and no-op.
+ * Registers `/skill`, `/skill-gen`, `/skill-search`, `/skill-install`,
+ * `/skill-import`, `/skill-update`, `/skill-uninstall`. First-party ("official")
+ * plugin, so the commands keep their bare names. Needs a `SkillLoader` (injected
+ * by the host via `config.skillLoader`); without one the commands report that
+ * and no-op.
  */
 export function createSkillsPlugin(opts?: SkillsPluginOptions): Plugin {
   return {
     name: 'wstack-skills',
-    version: '1.0.0',
-    description: 'Skill library and GitHub installer: /skill, /skill-gen, /skill-install, ...',
+    version: '1.1.0',
+    description:
+      'Skill library, registry search, installer and authoring toolkit: /skill, /skill-gen, /skill-search, /skill-install, ...',
     apiVersion: '^0.1',
     capabilities: { slashCommands: true },
     defaultConfig: {},
@@ -33,18 +55,37 @@ export function createSkillsPlugin(opts?: SkillsPluginOptions): Plugin {
     setup(api) {
       const rawConfig = api.config as never as Record<string, unknown>;
       const skillLoader = opts?.skillLoader ?? (rawConfig.skillLoader as SkillLoader | undefined);
+      const registryUrl =
+        (rawConfig.skills as { registryUrl?: string } | undefined)?.registryUrl?.trim() ||
+        undefined;
+
+      const registryAdapters = opts?.registryAdapters ?? [
+        githubDirectAdapter,
+        createSkillsShAdapter(registryUrl ? { baseUrl: registryUrl } : {}),
+      ];
 
       api.slashCommands.register(buildSkillCommand(skillLoader));
       api.slashCommands.register(buildSkillGeneratorCommand(skillLoader));
-      api.slashCommands.register(buildSkillInstallCommand(skillLoader));
+      api.slashCommands.register(buildSkillSearchCommand(skillLoader, registryAdapters));
+      api.slashCommands.register(buildSkillInstallCommand(skillLoader, registryAdapters));
       api.slashCommands.register(buildSkillImportCommand(skillLoader));
-      api.slashCommands.register(buildSkillUpdateCommand(skillLoader));
+      api.slashCommands.register(buildSkillUpdateCommand(skillLoader, registryAdapters));
       api.slashCommands.register(buildSkillUninstallCommand(skillLoader));
-      api.log.info('[skills] loaded — /skill, /skill-gen, /skill-install, /skill-import, /skill-update/uninstall available');
+      api.log.info(
+        '[skills] loaded — /skill, /skill-gen, /skill-search, /skill-install, /skill-import, /skill-update/uninstall available',
+      );
     },
 
     teardown(api) {
-      for (const name of ['skill', 'skill-gen', 'skill-install', 'skill-import', 'skill-update', 'skill-uninstall']) {
+      for (const name of [
+        'skill',
+        'skill-gen',
+        'skill-search',
+        'skill-install',
+        'skill-import',
+        'skill-update',
+        'skill-uninstall',
+      ]) {
         api.slashCommands.unregister(name);
       }
       api.log.info('[skills] unloaded');
@@ -56,7 +97,11 @@ export function createSkillsPlugin(opts?: SkillsPluginOptions): Plugin {
   };
 }
 
-function makeInstaller(skillLoader: SkillLoader | undefined, projectRoot: string): SkillInstaller {
+function makeInstaller(
+  skillLoader: SkillLoader | undefined,
+  projectRoot: string,
+  registryAdapters?: SkillRegistryAdapter[],
+): SkillInstaller {
   const paths = resolveWstackPaths({ projectRoot });
   return new SkillInstaller({
     manifestPath: path.join(paths.globalRoot, 'installed-skills.json'),
@@ -64,13 +109,15 @@ function makeInstaller(skillLoader: SkillLoader | undefined, projectRoot: string
     globalSkillsDir: paths.globalSkills,
     projectHash: paths.projectHash,
     skillLoader,
+    ...(registryAdapters ? { registryAdapters } : {}),
   });
 }
 
 export function buildSkillCommand(skillLoader?: SkillLoader): SlashCommand {
   return {
     name: 'skill',
-    description: 'Show skill details or list available skills. Use /skill-gen to create new skills.',
+    description:
+      'Show skill details or list available skills. Use /skill-gen to create new skills.',
     async run(args: string) {
       if (!skillLoader) return { message: 'No skill loader configured.' };
       if (!args.trim()) {
@@ -93,42 +140,102 @@ export function buildSkillCommand(skillLoader?: SkillLoader): SlashCommand {
 export function buildSkillGeneratorCommand(skillLoader?: SkillLoader): SlashCommand {
   return {
     name: 'skill-gen',
-    description: 'Create a new AI skill interactively. The AI will guide you.',
+    description:
+      'Create or validate skills. /skill-gen (wizard) | validate <name> | skeleton <name> | from-prompt <text> | view <name> | edit <name> | list',
     help: [
       '╔═══ Skill Generator ═══╗',
       '',
-      'Create new AI skills with AI guidance.',
+      'Create and validate AI skills.',
       '',
       'Usage:',
-      '  /skill-gen              Start skill creation',
-      '  /skill-gen list         List existing skills',
-      '  /skill-gen edit <name>  View an existing skill',
+      '  /skill-gen                        Start the interactive AI-guided wizard',
+      '  /skill-gen list                   List existing skills (with source)',
+      '  /skill-gen validate <name>        Validate a skill name (format + collisions)',
+      '  /skill-gen skeleton <name>        Generate a SKILL.md skeleton to draft',
+      '         [--desc "..."] [--trigger a,b,c] [--global] [--force]',
+      '  /skill-gen from-prompt <text>     Turn a prompt into a skill draft',
+      '         [--global] [--force]',
+      "  /skill-gen view <name>            Show a skill's body (read-only)",
+      '  /skill-gen edit <name>            Open a skill in $EDITOR/$VISUAL',
       '',
-      'The AI will ask you questions and create the skill file.',
-      'Skills are saved to .wrongstack/skills/<name>/SKILL.md',
+      'Skeletons are written to .wrongstack/skills/<name>/SKILL.md (--global: ~/.wrongstack/skills/).',
+      'The interactive wizard reads the bundled `skill-creator` skill and guides you step by step.',
     ].join('\n'),
-    async run(args: string) {
+    async run(args: string, ctx: Context) {
       const trimmed = args.trim();
+      const [sub, ...rest] = trimmed.split(/\s+/);
 
-      if (trimmed === 'list' || trimmed === 'ls') {
+      // ── list ────────────────────────────────────────────────────────────
+      if (sub === 'list' || sub === 'ls') {
         if (!skillLoader) return { message: 'No skill loader configured.' };
         const entries = await skillLoader.listEntries();
         if (entries.length === 0) return { message: 'No skills found.' };
         const lines = entries.map((e) => {
           const src =
-            e.source === 'project' ? '📁'
-            : e.source === 'user' ? '👤'
-            : e.source === 'claude-project' || e.source === 'claude-user' ? '🌐'
-            : e.source === 'foreign' ? `🌐(${e.originTool ?? '?'})`
-            : e.source === 'extra' ? '➕'
-            : '📦';
+            e.source === 'project'
+              ? '📁'
+              : e.source === 'user'
+                ? '👤'
+                : e.source === 'claude-project' || e.source === 'claude-user'
+                  ? '🌐'
+                  : e.source === 'foreign'
+                    ? `🌐(${e.originTool ?? '?'})`
+                    : e.source === 'extra'
+                      ? '➕'
+                      : '📦';
           return `  ${src} ${e.name}\n     ${e.trigger}`;
         });
         return { message: `Available Skills:\n${lines.join('\n\n')}\n` };
       }
 
-      if (trimmed.startsWith('edit ')) {
-        const skillName = trimmed.slice(5).trim();
+      // ── validate <name> ─────────────────────────────────────────────────
+      if (sub === 'validate') {
+        const name = rest[0];
+        if (!name) return { message: 'Usage: /skill-gen validate <name>' };
+        const result = await validateSkillNameAvailable(name, skillLoader);
+        const lines: string[] = [`Validating "${name}":`];
+        if (result.formatViolations.length > 0) {
+          lines.push(`  ✗ Format issues:`);
+          for (const v of result.formatViolations) lines.push(`    - ${v}`);
+        } else {
+          lines.push(`  ✓ Format: valid kebab-case`);
+        }
+        if (result.conflicts.length > 0) {
+          const sameLayer = result.conflicts.filter(
+            (c) => c.source === 'project' || c.source === 'user',
+          );
+          const shadowing = result.conflicts.filter(
+            (c) => c.source !== 'project' && c.source !== 'user',
+          );
+          if (sameLayer.length > 0) {
+            lines.push(`  ✗ Collisions (same layer — would overwrite):`);
+            for (const c of sameLayer) lines.push(`    - ${c.name} (${c.source})`);
+          }
+          if (shadowing.length > 0) {
+            lines.push(`  ⚠ Shadows lower-priority skills (intentional override):`);
+            for (const c of shadowing) lines.push(`    - ${c.name} (${c.source})`);
+          }
+        } else {
+          lines.push(`  ✓ No collisions`);
+        }
+        lines.push(result.ok ? `  → Ready to use.` : `  → Fix the issues above first.`);
+        return { message: lines.join('\n') };
+      }
+
+      // ── skeleton <name> [--desc ...] [--trigger a,b] [--global] [--force]
+      if (sub === 'skeleton') {
+        return runSkeleton(rest, ctx, skillLoader);
+      }
+
+      // ── from-prompt <text> [--global] [--force] ─────────────────────────
+      if (sub === 'from-prompt') {
+        return runFromPrompt(rest, ctx, skillLoader);
+      }
+
+      // ── view <name> ─────────────────────────────────────────────────────
+      if (sub === 'view') {
+        const skillName = rest[0];
+        if (!skillName) return { message: 'Usage: /skill-gen view <name>' };
         if (!skillLoader) return { message: 'No skill loader configured.' };
         const skill = await skillLoader.find(skillName);
         if (!skill) return { message: `Skill "${skillName}" not found.` };
@@ -136,49 +243,278 @@ export function buildSkillGeneratorCommand(skillLoader?: SkillLoader): SlashComm
         return { message: [`Skill: ${skillName}`, `Path: ${skill.path}`, '', body].join('\n') };
       }
 
+      // ── edit <name> ─────────────────────────────────────────────────────
+      if (sub === 'edit') {
+        const skillName = rest[0];
+        if (!skillName) return { message: 'Usage: /skill-gen edit <name>' };
+        if (!skillLoader) return { message: 'No skill loader configured.' };
+        const skill = await skillLoader.find(skillName);
+        if (!skill) return { message: `Skill "${skillName}" not found.` };
+        try {
+          await openInEditor(skill.path);
+          return { message: `Opening ${skill.path} in your editor…` };
+        } catch (err) {
+          return { message: `✗ ${toErrorMessage(err)}` };
+        }
+      }
+
+      // ── default: interactive wizard (legacy `edit <name>` kept as alias) ─
+      // Accept `/skill-gen edit <name>` as a legacy alias for `view` only when
+      // someone passes it without the new semantics — but we already handled
+      // `edit` above, so this only fires for bare `/skill-gen` or unknown args.
+      if (trimmed.startsWith('edit ')) {
+        // Back-compat: old `edit <name>` meant "view". Re-route to view.
+        return buildSkillGeneratorCommand(skillLoader).run(`view ${rest.join(' ')}`, ctx);
+      }
+
       // AI-guided creation: return runText so the AI reads the skill-creator
       // skill and walks the user through it.
       return {
         message:
-          '╔═══ Skill Generator ═══╗\n\nThe AI will guide you through creating a new skill.\nAnswer its questions naturally.',
+          '╔═══ Skill Generator ═══╗\n\nThe AI will guide you through creating a new skill.\nAnswer its questions naturally. (Or use /skill-gen skeleton <name> for a quick scaffold.)',
         runText:
-          'I want to create a new AI skill. Read the skill-creator skill and guide me through the process. Ask me questions one at a time — name, description, what to cover — then create the SKILL.md file.',
+          'I want to create a new AI skill. Read the skill-creator skill and guide me through the process. Ask me questions one at a time — name, description, what to cover — then create the SKILL.md file. After writing it, run /skill-gen validate <name> to confirm.',
       };
     },
   };
 }
 
-export function buildSkillInstallCommand(skillLoader?: SkillLoader): SlashCommand {
+/** Parse and run the `skeleton` sub-command. */
+async function runSkeleton(
+  rest: string[],
+  ctx: Context,
+  skillLoader?: SkillLoader,
+): Promise<{ message: string }> {
+  const name = rest.find((p) => !p.startsWith('--'));
+  if (!name) {
+    return {
+      message:
+        'Usage: /skill-gen skeleton <name> [--desc "..."] [--trigger a,b,c] [--global] [--force]',
+    };
+  }
+  const desc = parseFlagValue(rest, '--desc');
+  const triggers = parseFlagValue(rest, '--trigger')
+    ?.split(',')
+    .map((t) => t.trim())
+    .filter(Boolean);
+  const isGlobal = rest.includes('--global');
+  const force = rest.includes('--force');
+
+  // Validate before writing.
+  const validation = await validateSkillNameAvailable(name, skillLoader);
+  if (!validation.ok) {
+    const issues = [...validation.formatViolations];
+    for (const c of validation.conflicts) {
+      if (c.source === 'project' || c.source === 'user') {
+        issues.push(
+          `collides with existing ${c.source} skill "${c.name}" (use --force to overwrite)`,
+        );
+      }
+    }
+    return { message: `✗ Cannot scaffold "${name}":\n  - ${issues.join('\n  - ')}` };
+  }
+
+  const body = generateSkillSkeleton({ name, description: desc ?? '', triggerKeywords: triggers });
+  const paths = resolveWstackPaths({ projectRoot: ctx.projectRoot });
+  const skillsDir = isGlobal ? paths.globalSkills : paths.inProjectSkills;
+  try {
+    const written = await writeSkeletonSkill(skillsDir, body, { overwrite: force });
+    const advisory = bodyLineAdvisory(body);
+    return {
+      message: [
+        `✓ Scaffolded ${name} → ${written}`,
+        advisory.over ? `  ⚠ Body is ${advisory.lines} lines (skill-creator recommends ≤500).` : '',
+        `  Next: edit the body, then /skill-gen validate ${name}.`,
+      ]
+        .filter(Boolean)
+        .join('\n'),
+    };
+  } catch (err) {
+    return { message: `✗ ${toErrorMessage(err)}` };
+  }
+}
+
+/** Parse and run the `from-prompt` sub-command. */
+async function runFromPrompt(
+  rest: string[],
+  ctx: Context,
+  skillLoader?: SkillLoader,
+): Promise<{ message: string }> {
+  // Everything that isn't a flag is the prompt text.
+  const promptText = rest
+    .filter((p) => !p.startsWith('--'))
+    .join(' ')
+    .trim();
+  if (!promptText) {
+    return { message: 'Usage: /skill-gen from-prompt <text> [--global] [--force]' };
+  }
+  const isGlobal = rest.includes('--global');
+  const force = rest.includes('--force');
+
+  const draft = extractSkillFromPrompt(promptText);
+  if (!draft.suggestedName) {
+    return { message: '✗ Could not derive a skill name from the prompt. Provide a # heading.' };
+  }
+  // Validate the derived name (don't block on shadowing).
+  const validation = await validateSkillNameAvailable(draft.suggestedName, skillLoader);
+  if (!validation.ok) {
+    return {
+      message:
+        `✗ Derived name "${draft.suggestedName}" has issues:\n  - ` +
+        [
+          ...validation.formatViolations,
+          ...validation.conflicts.map((c) => `collides with ${c.name}`),
+        ].join('\n  - '),
+    };
+  }
+
+  const body = generateSkillSkeleton({
+    name: draft.suggestedName,
+    description: draft.description,
+    triggerKeywords: draft.triggerKeywords,
+  });
+  // Splice the extracted body into the skeleton's Overview.
+  const withBody = draft.body
+    ? body.replace('## Overview\n', `## Overview\n\n${draft.body}\n`)
+    : body;
+  const paths = resolveWstackPaths({ projectRoot: ctx.projectRoot });
+  const skillsDir = isGlobal ? paths.globalSkills : paths.inProjectSkills;
+  try {
+    const written = await writeSkeletonSkill(skillsDir, withBody, { overwrite: force });
+    return {
+      message:
+        `✓ Drafted ${draft.suggestedName} from prompt → ${written}\n` +
+        `  Triggers: ${draft.triggerKeywords.join(', ') || '(none detected)'}\n` +
+        `  Next: review and edit the body, then /skill-gen validate ${draft.suggestedName}.`,
+    };
+  } catch (err) {
+    return { message: `✗ ${toErrorMessage(err)}` };
+  }
+}
+
+/** Extract the value following a `--flag` from a token list. */
+function parseFlagValue(tokens: string[], flag: string): string | undefined {
+  const idx = tokens.indexOf(flag);
+  if (idx === -1) return undefined;
+  const next = tokens[idx + 1];
+  return next && !next.startsWith('--') ? next : undefined;
+}
+
+export function buildSkillSearchCommand(
+  _skillLoader: SkillLoader | undefined,
+  registryAdapters: SkillRegistryAdapter[],
+): SlashCommand {
+  return {
+    name: 'skill-search',
+    description: 'Search the skill registry (skills.sh) for installable skills.',
+    argsHint: '<query> [--page N] [--pageSize N]',
+    help: [
+      '╔═══ Skill Search ═══╗',
+      '',
+      'Search the skill registry for installable skills.',
+      'Results show name, author, installs, security score, and the install ref.',
+      '',
+      'Usage:',
+      '  /skill-search react                 Search for "react" skills',
+      '  /skill-search "code review" --page 2  Second page of results',
+      '',
+      `Registries: ${registryAdapters.map((a) => a.id).join(', ')}.`,
+      'To install a hit: /skill-install <owner/repo> (or the full install ref shown).',
+    ].join('\n'),
+    async run(args: string) {
+      const parts = args.trim().split(/\s+/).filter(Boolean);
+      const query = parts
+        .filter((p) => !p.startsWith('--'))
+        .join(' ')
+        .trim();
+      if (!query) return { message: 'Usage: /skill-search <query> [--page N]' };
+      const page = parseFlagValue(parts, '--page');
+      const pageSize = parseFlagValue(parts, '--pageSize');
+
+      // Use a throwaway installer just to fan out across adapters (search()
+      // doesn't touch the manifest or filesystem).
+      const tmpInstaller = new SkillInstaller({
+        manifestPath: ':memory:', // never written — search() is read-only
+        projectSkillsDir: '/dev/null',
+        globalSkillsDir: '/dev/null',
+        projectHash: 'search',
+        registryAdapters,
+      });
+      try {
+        const perAdapter = await tmpInstaller.search(query, {
+          ...(page ? { page: Number(page) } : {}),
+          ...(pageSize ? { pageSize: Number(pageSize) } : {}),
+        });
+        const total = perAdapter.reduce((n, b) => n + b.results.length, 0);
+        if (total === 0) {
+          return {
+            message: `No skills found for "${query}" in ${registryAdapters.map((a) => a.id).join(', ')}.`,
+          };
+        }
+        const lines: string[] = [`Found ${total} skill(s) for "${query}":`];
+        for (const block of perAdapter) {
+          if (block.results.length === 0) continue;
+          lines.push(`\n${color.bold(block.adapterId)}:`);
+          for (const r of block.results) {
+            const tier = r.securityScore != null ? securityScoreToTier(r.securityScore) : undefined;
+            const scoreMark =
+              tier === 'low'
+                ? ` ⚠${r.securityScore}`
+                : r.securityScore != null
+                  ? ` ✓${r.securityScore}`
+                  : '';
+            const installs = r.installs != null ? ` · ${formatCount(r.installs)} installs` : '';
+            const author = r.author ? ` ${color.dim(r.author)}` : '';
+            lines.push(`  ${color.bold(r.name)}${author}${scoreMark}${installs}`);
+            if (r.description) lines.push(`    ${truncate(r.description, 90)}`);
+            lines.push(`    ${color.dim('→ /skill-install ' + r.installRef)}`);
+          }
+        }
+        return { message: lines.join('\n') };
+      } catch (err) {
+        return { message: `✗ Search failed: ${toErrorMessage(err)}` };
+      }
+    },
+  };
+}
+
+export function buildSkillInstallCommand(
+  skillLoader?: SkillLoader,
+  registryAdapters?: SkillRegistryAdapter[],
+): SlashCommand {
   return {
     name: 'skill-install',
-    description: 'Install skills from a GitHub repository.',
-    argsHint: '<user/repo[@ref]> [--global]',
+    description: 'Install skills from a GitHub repository or a registry hit (skills.sh:<id>).',
+    argsHint: '<user/repo[@ref] | skills.sh:<owner/repo> | registry:<id>> [--global]',
     help: [
       '╔═══ Skill Install ═══╗',
       '',
-      'Install skills from a GitHub repository.',
+      'Install skills from GitHub (direct) or a registry (resolved to GitHub).',
       '',
       'Usage:',
       '  /skill-install <user/repo>              Install from default branch (main)',
       '  /skill-install <user/repo@ref>          Install specific tag/branch/commit',
       '  /skill-install <user/repo> --global     Install to user-global skills',
+      '  /skill-install skills.sh:<owner/repo>   Resolve a skills.sh hit and install',
       '',
-      'Supports both single-skill repos (SKILL.md at root)',
-      'and multi-skill repos (skills/ subdirectory).',
+      'Supports single-skill repos (SKILL.md at root) and multi-skill repos (skills/).',
+      'Use /skill-search to find skills, then install with the shown install ref.',
       '',
-      'Examples:',
-      '  /skill-install wrongstack/awesome-skills',
-      '  /skill-install wrongstack/skills@v1.0',
-      '  /skill-install user/my-skills --global',
+      'Private repos: set GITHUB_TOKEN (or GH_TOKEN) in your environment.',
     ].join('\n'),
     async run(args: string, ctx: Context) {
       const parts = args.trim().split(/\s+/);
       const ref = parts.find((p) => !p.startsWith('--'));
       const isGlobal = parts.includes('--global');
 
-      if (!ref) return { message: 'Usage: /skill-install <user/repo[@ref]> [--global]' };
+      if (!ref) {
+        return {
+          message:
+            'Usage: /skill-install <user/repo[@ref] | skills.sh:<owner/repo>> [--global]\nUse /skill-search to find skills.',
+        };
+      }
 
-      const installer = makeInstaller(skillLoader, ctx.projectRoot);
+      const installer = makeInstaller(skillLoader, ctx.projectRoot, registryAdapters);
 
       try {
         const results = await installer.install(ref, { global: isGlobal });
@@ -232,7 +568,7 @@ export function buildSkillImportCommand(skillLoader?: SkillLoader): SlashCommand
       'them. Foreign skills are already readable without importing — this takes ownership.',
       '',
       'Usage:',
-      '  /skill-import --from cursor              Import project .cursor/skills-cursor',
+      '  /skill-import --from cursor              Import project .cursor/skills',
       '  /skill-import --from codex --global      Import ~/.codex/skills',
       '  /skill-import --from claude              Import project .claude/skills (--from-claude alias)',
       '  /skill-import /path/to/skills            Import from any directory',
@@ -263,7 +599,8 @@ export function buildSkillImportCommand(skillLoader?: SkillLoader): SlashCommand
         srcDir = path.resolve(ctx.projectRoot, positional);
       } else {
         return {
-          message: 'Usage: /skill-import <src-dir> | --from <tool> | --from-claude [--global] [--link]',
+          message:
+            'Usage: /skill-import <src-dir> | --from <tool> | --from-claude [--global] [--link]',
         };
       }
 
@@ -274,7 +611,9 @@ export function buildSkillImportCommand(skillLoader?: SkillLoader): SlashCommand
           return { message: `No valid skills found in ${srcDir}.` };
         }
         const scope = isGlobal ? 'user-global' : 'project';
-        const lines = [`Imported ${results.length} skill(s) [${scope}]${link ? ' (symlinked)' : ''}:`];
+        const lines = [
+          `Imported ${results.length} skill(s) [${scope}]${link ? ' (symlinked)' : ''}:`,
+        ];
         for (const r of results) {
           lines.push(`  ✓ ${r.name}`);
           lines.push(`    → ${r.path}`);
@@ -287,7 +626,10 @@ export function buildSkillImportCommand(skillLoader?: SkillLoader): SlashCommand
   };
 }
 
-export function buildSkillUpdateCommand(skillLoader?: SkillLoader): SlashCommand {
+export function buildSkillUpdateCommand(
+  skillLoader?: SkillLoader,
+  registryAdapters?: SkillRegistryAdapter[],
+): SlashCommand {
   return {
     name: 'skill-update',
     description: 'Update installed skills from their GitHub source.',
@@ -308,7 +650,7 @@ export function buildSkillUpdateCommand(skillLoader?: SkillLoader): SlashCommand
       const nameOrRef = parts.find((p) => !p.startsWith('--'));
       const isGlobal = parts.includes('--global');
 
-      const installer = makeInstaller(skillLoader, ctx.projectRoot);
+      const installer = makeInstaller(skillLoader, ctx.projectRoot, registryAdapters);
 
       try {
         const result = await installer.update(nameOrRef, { global: isGlobal });
@@ -387,4 +729,16 @@ export function buildSkillUninstallCommand(skillLoader?: SkillLoader): SlashComm
       }
     },
   };
+}
+
+// ── Formatting helpers ────────────────────────────────────────────────────
+
+function formatCount(n: number): string {
+  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
+  if (n >= 1_000) return `${(n / 1_000).toFixed(1)}k`;
+  return String(n);
+}
+
+function truncate(s: string, max: number): string {
+  return s.length > max ? s.slice(0, max - 1) + '…' : s;
 }

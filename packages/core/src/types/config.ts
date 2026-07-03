@@ -109,18 +109,10 @@ export type TokenSavingTier = 'off' | 'minimal' | 'light' | 'medium' | 'aggressi
  * - string values are returned as-is after validation
  * - `undefined` → 'off'
  */
-export function normalizeTokenSavingTier(
-  val?: TokenSavingTier | boolean,
-): TokenSavingTier {
+export function normalizeTokenSavingTier(val?: TokenSavingTier | boolean): TokenSavingTier {
   if (val === undefined) return 'off';
   if (typeof val === 'boolean') return val ? 'medium' : 'off';
-  const validTiers = new Set<TokenSavingTier>([
-    'off',
-    'minimal',
-    'light',
-    'medium',
-    'aggressive',
-  ]);
+  const validTiers = new Set<TokenSavingTier>(['off', 'minimal', 'light', 'medium', 'aggressive']);
   return validTiers.has(val) ? val : 'off';
 }
 
@@ -434,18 +426,20 @@ export interface ProviderConfig {
    * uses this instead of prompting for a raw API key. Set by the catalog or
    * by the user via `/settings`.
    */
-  oauthConfig?: {
-    /** OAuth client id registered with the provider. */
-    clientId?: string | undefined;
-    /** Device authorization endpoint (RFC 8628). */
-    deviceCodeEndpoint?: string | undefined;
-    /** Token endpoint for code exchange and refresh. */
-    tokenEndpoint?: string | undefined;
-    /** Authorization server URL shown to the user for opening in browser. */
-    authorizationEndpoint?: string | undefined;
-    /** Default OAuth scopes to request. */
-    scopes?: string[] | undefined;
-  } | undefined;
+  oauthConfig?:
+    | {
+        /** OAuth client id registered with the provider. */
+        clientId?: string | undefined;
+        /** Device authorization endpoint (RFC 8628). */
+        deviceCodeEndpoint?: string | undefined;
+        /** Token endpoint for code exchange and refresh. */
+        tokenEndpoint?: string | undefined;
+        /** Authorization server URL shown to the user for opening in browser. */
+        authorizationEndpoint?: string | undefined;
+        /** Default OAuth scopes to request. */
+        scopes?: string[] | undefined;
+      }
+    | undefined;
 }
 
 /**
@@ -745,10 +739,11 @@ export interface SkillsConfig {
   readClaudeSkills?: boolean | undefined;
   /**
    * Scan OTHER coding agents' skill directories (`~/.codex/skills`,
-   * `~/.cursor/skills-cursor`, `~/.agents/skills`, `~/.qwen/skills`,
+   * `~/.cursor/skills`, `~/.agents/skills`, `~/.qwen/skills`,
    * `~/.trae/skills`, … + their `<project>/.<tool>/…` equivalents). Default
    * `true` (all known tools); pass a tool-id list to restrict, or `false` to
-   * disable. Non-existent dirs are skipped.
+   * disable. Non-existent dirs are skipped. Unknown ids in the list (likely
+   * typos) are dropped and surfaced via a config warning.
    */
   foreignSources?: boolean | string[] | undefined;
   /**
@@ -771,6 +766,15 @@ export interface SkillsConfig {
    * progressive mode (which injects only the manifest anyway).
    */
   eagerMaxChars?: number | undefined;
+  /**
+   * Base URL of the skill registry used by `/skill-search` and
+   * `/skill-install <registry>:<id>`. Default `https://skills.sh` (the open
+   * marketplace backed by mastra-ai/skills-api). Honored only from the user
+   * config; stripped from in-project config (a repo-committed override would be
+   * an SSRF / prompt-injection vector — the registry response is parsed into the
+   * prompt). Set to a self-hosted skills-api instance to use a private catalog.
+   */
+  registryUrl?: string | undefined;
 }
 
 export interface Config {
@@ -833,10 +837,7 @@ export interface Config {
    * `~/.wrongstack/config.json`, never from a repo-committed config.
    */
   acp?: {
-    agents?: Record<
-      string,
-      { command: string; args?: string[]; env?: Record<string, string> }
-    >;
+    agents?: Record<string, { command: string; args?: string[]; env?: Record<string, string> }>;
   };
   /**
    * Ordered list of fallback model references tried, in order, when the
@@ -938,7 +939,10 @@ export interface Config {
 }
 
 export interface ConfigLoader {
-  load(opts?: { cliFlags?: Partial<Config> | undefined; cwd?: string | undefined }): Promise<Config>;
+  load(opts?: {
+    cliFlags?: Partial<Config> | undefined;
+    cwd?: string | undefined;
+  }): Promise<Config>;
   /** Load and decrypt the sync config from ~/.wrongstack/sync.json. */
   loadSyncConfig(): Promise<SyncConfig | null>;
   /** Persist sync config to ~/.wrongstack/sync.json with encrypted token. */

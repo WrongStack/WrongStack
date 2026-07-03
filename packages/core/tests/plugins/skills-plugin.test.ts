@@ -1,5 +1,5 @@
-import { describe, expect, it, vi, beforeEach } from 'vitest';
 import * as path from 'node:path';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 // SkillInstaller is mocked at its internal module path — its real behaviour
 // (GitHub fetch, file extraction) is covered under tests/skills.
@@ -8,6 +8,8 @@ const installerMocks = vi.hoisted(() => ({
   update: vi.fn(),
   uninstall: vi.fn(),
   listInstalled: vi.fn(),
+  search: vi.fn(),
+  importFromDir: vi.fn(),
 }));
 
 vi.mock('../../src/skills/skill-installer.js', () => ({
@@ -16,6 +18,8 @@ vi.mock('../../src/skills/skill-installer.js', () => ({
     update = installerMocks.update;
     uninstall = installerMocks.uninstall;
     listInstalled = installerMocks.listInstalled;
+    search = installerMocks.search;
+    importFromDir = installerMocks.importFromDir;
   },
 }));
 
@@ -23,10 +27,12 @@ import {
   buildSkillCommand,
   buildSkillGeneratorCommand,
   buildSkillInstallCommand,
-  buildSkillUpdateCommand,
+  buildSkillSearchCommand,
   buildSkillUninstallCommand,
+  buildSkillUpdateCommand,
   resolveImportSourceDir,
 } from '../../src/plugins/skills-plugin.js';
+import { githubDirectAdapter } from '../../src/skills/registry/github-direct-adapter.js';
 
 function fakeLoader(overrides: Record<string, unknown> = {}) {
   return {
@@ -46,6 +52,8 @@ beforeEach(() => {
   installerMocks.update.mockReset();
   installerMocks.uninstall.mockReset();
   installerMocks.listInstalled.mockReset();
+  installerMocks.search.mockReset();
+  installerMocks.importFromDir.mockReset();
 });
 
 // ── /skill ────────────────────────────────────────────────────────────────────
@@ -153,15 +161,43 @@ describe('buildSkillGeneratorCommand', () => {
     expect(res?.message).toContain('not found');
   });
 
-  it('edit returns formatted skill body when found', async () => {
+  it('view returns formatted skill body when found (legacy edit now routes to editor)', async () => {
+    // `view` is the new name for what `edit` used to do (show the body).
     const loader = fakeLoader({
       find: vi.fn().mockResolvedValue({ path: '/skills/x/SKILL.md' }),
       readBody: vi.fn().mockResolvedValue('# X\nBody contents'),
     });
-    const res = await buildSkillGeneratorCommand(loader).run('edit x');
+    const res = await buildSkillGeneratorCommand(loader).run('view x');
     expect(res?.message).toContain('Skill: x');
     expect(res?.message).toContain('Path: /skills/x/SKILL.md');
     expect(res?.message).toContain('# X');
+  });
+
+  it('view without name shows usage', async () => {
+    const res = await buildSkillGeneratorCommand(undefined).run('view');
+    expect(res?.message).toContain('Usage: /skill-gen view');
+  });
+
+  it('validate reports format issues and collisions', async () => {
+    const loader = fakeLoader({
+      listEntries: vi
+        .fn()
+        .mockResolvedValue([{ name: 'my-skill', source: 'project', trigger: 't', scope: [] }]),
+    });
+    const res = await buildSkillGeneratorCommand(loader).run('validate My Skill');
+    expect(res?.message).toContain('Format issues');
+    // The spaces make it invalid kebab-case
+  });
+
+  it('validate passes a clean name', async () => {
+    const res = await buildSkillGeneratorCommand(undefined).run('validate my-new-skill');
+    expect(res?.message).toContain('valid kebab-case');
+    expect(res?.message).toContain('Ready to use');
+  });
+
+  it('validate without name shows usage', async () => {
+    const res = await buildSkillGeneratorCommand(undefined).run('validate');
+    expect(res?.message).toContain('Usage: /skill-gen validate');
   });
 
   it('default (no subcommand) returns runText to launch AI-guided flow', async () => {
@@ -288,7 +324,13 @@ describe('buildSkillUpdateCommand', () => {
 describe('buildSkillUninstallCommand', () => {
   it('lists installed skills when no name given (project scope)', async () => {
     installerMocks.listInstalled.mockResolvedValue([
-      { name: 'a', source: 'u/r', ref: 'v1', installedAt: '2026-01-15T00:00:00Z', scope: 'project' },
+      {
+        name: 'a',
+        source: 'u/r',
+        ref: 'v1',
+        installedAt: '2026-01-15T00:00:00Z',
+        scope: 'project',
+      },
       { name: 'b', source: 'u/s', ref: 'main', installedAt: '2026-02-01T00:00:00Z', scope: 'user' },
     ]);
     const res = await buildSkillUninstallCommand(undefined).run('', fakeCtx());
@@ -346,17 +388,110 @@ describe('buildSkillUninstallCommand', () => {
   });
 });
 
+// ── /skill-search ─────────────────────────────────────────────────────────
+
+describe('buildSkillSearchCommand', () => {
+  it('exposes name and help', () => {
+    const cmd = buildSkillSearchCommand(undefined, [githubDirectAdapter]);
+    expect(cmd.name).toBe('skill-search');
+    expect(cmd.help).toBeDefined();
+  });
+
+  it('reports usage when no query given', async () => {
+    const cmd = buildSkillSearchCommand(undefined, [githubDirectAdapter]);
+    const res = await cmd.run('');
+    expect(res?.message).toContain('Usage:');
+  });
+
+  it('reports "no skills" when all adapters return empty', async () => {
+    installerMocks.search.mockResolvedValue([{ adapterId: 'stub', results: [], hasMore: false }]);
+    const cmd = buildSkillSearchCommand(undefined, [githubDirectAdapter]);
+    const res = await cmd.run('nothingmatches');
+    expect(res?.message).toContain('No skills found');
+  });
+
+  it('renders hits with name, author, install ref', async () => {
+    installerMocks.search.mockResolvedValue([
+      {
+        adapterId: 'stub',
+        results: [
+          {
+            id: 'o/r',
+            name: 'react-pro',
+            description: 'React patterns',
+            author: 'octocat',
+            installs: 1500,
+            securityScore: 88,
+            installRef: 'octocat/react-pro',
+          },
+        ],
+      },
+    ]);
+    const cmd = buildSkillSearchCommand(undefined, []);
+    const res = await cmd.run('react');
+    expect(res?.message).toContain('react-pro');
+    expect(res?.message).toContain('octocat');
+    expect(res?.message).toContain('/skill-install octocat/react-pro');
+    expect(res?.message).toContain('✓88'); // high-tier score mark
+  });
+
+  it('flags low security scores with a warning glyph', async () => {
+    installerMocks.search.mockResolvedValue([
+      {
+        adapterId: 'stub',
+        results: [
+          {
+            id: 'o/risky',
+            name: 'risky',
+            description: 'low score',
+            securityScore: 12,
+            installRef: 'o/risky',
+          },
+        ],
+      },
+    ]);
+    const cmd = buildSkillSearchCommand(undefined, []);
+    const res = await cmd.run('risky');
+    expect(res?.message).toContain('⚠12');
+  });
+
+  it('surfaces search errors gracefully', async () => {
+    installerMocks.search.mockRejectedValue(new Error('registry down'));
+    const cmd = buildSkillSearchCommand(undefined, []);
+    const res = await cmd.run('x');
+    expect(res?.message).toContain('Search failed');
+    expect(res?.message).toContain('registry down');
+  });
+});
+
+describe('buildSkillInstallCommand — registry refs', () => {
+  it('passes a skills.sh:<id> ref through to the installer', async () => {
+    installerMocks.install.mockResolvedValue([
+      { name: 'react-pro', source: 'github:octo/react-pro', ref: 'main', path: '/p' },
+    ]);
+    const res = await buildSkillInstallCommand(undefined).run(
+      'skills.sh:octo/react-pro',
+      fakeCtx(),
+    );
+    expect(res?.message).toContain('Installed');
+    // The ref is passed through unchanged to the (mocked) installer.
+    expect(installerMocks.install).toHaveBeenCalledWith('skills.sh:octo/react-pro', {
+      global: false,
+    });
+  });
+});
+
 describe('resolveImportSourceDir (--from <tool>)', () => {
-  it('resolves cursor to its non-standard skills-cursor subdir (project)', () => {
+  it('resolves cursor to its standard skills subdir (project)', () => {
     expect(resolveImportSourceDir('cursor', { global: false, projectRoot: '/p' })).toBe(
-      path.join('/p', '.cursor', 'skills-cursor'),
+      path.join('/p', '.cursor', 'skills'),
     );
   });
 
   it('resolves a tool to the user home when --global', () => {
-    expect(resolveImportSourceDir('codex', { global: true, projectRoot: '/p', homeDir: '/h' })).toBe(
-      path.join('/h', '.codex', 'skills'),
-    );
+    expect(
+      resolveImportSourceDir('codex', { global: true, projectRoot: '/p', homeDir: '/h' }),
+    ).toBe(path.join('/h', '.codex', 'skills'));
   });
 
   it('resolves claude (the --from-claude alias path)', () => {

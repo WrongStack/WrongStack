@@ -1,12 +1,12 @@
-import { Box, Text } from '../../ink.js';
 import type React from 'react';
 import {
   type HLState,
-  type Lang,
-  type Token,
   highlightLine,
+  type Lang,
   langFromPath,
+  type Token,
 } from '../../highlight.js';
+import { Box, Text } from '../../ink.js';
 import { theme } from '../../theme.js';
 import { stringOf, truncMid, tryParseJson } from './utils.js';
 
@@ -45,6 +45,20 @@ export interface DiffFilePreview {
 /** Max code-block lines rendered before a "+N more" footer. */
 export const MAX_CODE_LINES = 80;
 const DIFF_MAX_LINES = 12;
+/**
+ * Safety cap on a single diff row's stored text. Diff rows render at full
+ * length (wrapped onto continuation rows, never mid-line truncated), so this
+ * only guards against pathological one-line files (minified bundles, huge
+ * JSON blobs) flooding the screen — never real code lines.
+ */
+const DIFF_LINE_SAFETY_CAP = 4000;
+/**
+ * Wrap budget when the caller doesn't supply `contentWidth` (e.g. the
+ * approval dialog). Matches the historical per-row cap so the layout risk
+ * on narrow terminals is unchanged — but the content wraps instead of
+ * being cut off.
+ */
+const DIFF_FALLBACK_WRAP_WIDTH = 100;
 
 // ── CodeBlock ──
 
@@ -283,6 +297,38 @@ function renderTokens(tokens: Token[]): React.ReactNode {
   ));
 }
 
+/**
+ * Hard-wrap a highlighted token stream into segments of at most `width`
+ * display characters. Splitting happens on the token list (not the raw
+ * string) so a token that straddles the boundary keeps its color/style on
+ * both sides. Always returns at least one segment so empty rows still
+ * render as a (blank) line.
+ */
+function wrapTokens(tokens: Token[], width: number): Token[][] {
+  if (width <= 0) return [tokens];
+  const segments: Token[][] = [];
+  let current: Token[] = [];
+  let currentLen = 0;
+  for (const t of tokens) {
+    let text = t.text;
+    while (text.length > 0) {
+      const room = width - currentLen;
+      if (room <= 0) {
+        segments.push(current);
+        current = [];
+        currentLen = 0;
+        continue;
+      }
+      const piece = text.slice(0, room);
+      current.push({ ...t, text: piece });
+      currentLen += piece.length;
+      text = text.slice(piece.length);
+    }
+  }
+  if (current.length > 0 || segments.length === 0) segments.push(current);
+  return segments;
+}
+
 export function DiffBlock({
   rows,
   hidden,
@@ -329,10 +375,11 @@ export function DiffBlock({
    */
   showStats?: boolean | undefined;
   /**
-   * Terminal width available to this block. When set, line bodies are
-   * truncated (with a trailing `…`) so a row never wraps — a wrapped row
-   * would continue under the gutter and break the diff's column alignment.
-   * When omitted, rows keep the parser's own 100-char cap.
+   * Terminal width available to this block. Line bodies longer than the
+   * remaining budget hard-wrap onto continuation rows (blank gutter, blank
+   * marker cell, same background wash) so the full line content is always
+   * visible without ever flowing under the gutter. When omitted, wrapping
+   * falls back to a 100-char budget.
    */
   contentWidth?: number | undefined;
 }): React.ReactElement {
@@ -364,15 +411,14 @@ export function DiffBlock({
   const stats = showStats ? formatDiffStats(added, removed) : null;
 
   // Row anatomy: box margin (2) + `   ` prefix (3) + line number + ` X `
-  // marker cell (3). Whatever remains is the body budget.
+  // marker cell (3). Whatever remains is the per-segment wrap budget.
   const bodyBudget =
     typeof contentWidth === 'number'
       ? Math.max(16, contentWidth - (2 + 3 + gutterWidth + 3))
-      : undefined;
-  const clampBody = (body: string): string =>
-    bodyBudget !== undefined && body.length > bodyBudget
-      ? `${body.slice(0, bodyBudget - 1)}…`
-      : body;
+      : DIFF_FALLBACK_WRAP_WIDTH;
+  // Continuation-row prefix: same width as `   ${ln} X ` so wrapped
+  // segments line up with the first segment's body column.
+  const contPrefix = `   ${blank}   `;
 
   const hiddenStats: string[] = [];
   if (hiddenAdded > 0) hiddenStats.push(`+${hiddenAdded}`);
@@ -408,17 +454,25 @@ export function DiffBlock({
         }
         const n = lineNoOf(row);
         const ln = typeof n === 'number' ? String(n).padStart(gutterWidth, ' ') : blank;
-        const body = clampBody(textForDisplay(row));
+        const body = textForDisplay(row);
         // Fresh highlight state per row: diff rows are disjoint slices of
         // the file, so carrying block-comment state across add/del pairs
         // would color the wrong lines.
         const tokens = highlightLine(body, lang).tokens;
+        // Long lines hard-wrap onto continuation rows (blank gutter, blank
+        // marker cell) instead of being mid-line truncated — the full line
+        // content always renders.
+        const segments = wrapTokens(tokens, bodyBudget);
         if (row.kind === 'ctx') {
           return (
-            <Text key={key}>
-              <Text dimColor>{`   ${ln}   `}</Text>
-              {renderTokens(tokens)}
-            </Text>
+            <Box key={key} flexDirection="column">
+              {segments.map((seg, si) => (
+                <Text key={si}>
+                  <Text dimColor>{si === 0 ? `   ${ln}   ` : contPrefix}</Text>
+                  {renderTokens(seg)}
+                </Text>
+              ))}
+            </Box>
           );
         }
         const marker = markerFor(row.kind);
@@ -430,27 +484,47 @@ export function DiffBlock({
         if (useColor) {
           const bg = row.kind === 'add' ? theme.diffAddBg : theme.diffDelBg;
           return (
-            <Box key={key} backgroundColor={bg} minWidth={1} flexShrink={0}>
-              <Text>
-                <Text dimColor>{`   ${ln} `}</Text>
-                <Text color={markerColor} bold>
-                  {marker}
-                </Text>
-                <Text> </Text>
-                {renderTokens(tokens)}
-              </Text>
+            <Box key={key} flexDirection="column">
+              {segments.map((seg, si) => (
+                <Box key={si} backgroundColor={bg} minWidth={1} flexShrink={0}>
+                  <Text>
+                    {si === 0 ? (
+                      <>
+                        <Text dimColor>{`   ${ln} `}</Text>
+                        <Text color={markerColor} bold>
+                          {marker}
+                        </Text>
+                        <Text> </Text>
+                      </>
+                    ) : (
+                      <Text dimColor>{contPrefix}</Text>
+                    )}
+                    {renderTokens(seg)}
+                  </Text>
+                </Box>
+              ))}
             </Box>
           );
         }
         return (
-          <Text key={key}>
-            <Text dimColor>{`   ${ln} `}</Text>
-            <Text color={markerColor} bold>
-              {marker}
-            </Text>
-            <Text> </Text>
-            {renderTokens(tokens)}
-          </Text>
+          <Box key={key} flexDirection="column">
+            {segments.map((seg, si) => (
+              <Text key={si}>
+                {si === 0 ? (
+                  <>
+                    <Text dimColor>{`   ${ln} `}</Text>
+                    <Text color={markerColor} bold>
+                      {marker}
+                    </Text>
+                    <Text> </Text>
+                  </>
+                ) : (
+                  <Text dimColor>{contPrefix}</Text>
+                )}
+                {renderTokens(seg)}
+              </Text>
+            ))}
+          </Box>
         );
       })}
       {hidden > 0 ? (
@@ -484,12 +558,12 @@ export function parseUnifiedDiff(diff: string, maxLines: number): DiffPreview {
       continue;
     }
     if (line.startsWith('+')) {
-      all.push({ kind: 'add', text: truncMid(line, 100), newLine: newLn });
+      all.push({ kind: 'add', text: truncMid(line, DIFF_LINE_SAFETY_CAP), newLine: newLn });
       newLn++;
       continue;
     }
     if (line.startsWith('-')) {
-      all.push({ kind: 'del', text: truncMid(line, 100), oldLine: oldLn });
+      all.push({ kind: 'del', text: truncMid(line, DIFF_LINE_SAFETY_CAP), oldLine: oldLn });
       oldLn++;
       continue;
     }
@@ -498,7 +572,12 @@ export function parseUnifiedDiff(diff: string, maxLines: number): DiffPreview {
       continue;
     }
     if (line.length === 0) continue;
-    all.push({ kind: 'ctx', text: truncMid(line, 100), oldLine: oldLn, newLine: newLn });
+    all.push({
+      kind: 'ctx',
+      text: truncMid(line, DIFF_LINE_SAFETY_CAP),
+      oldLine: oldLn,
+      newLine: newLn,
+    });
     oldLn++;
     newLn++;
   }

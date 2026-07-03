@@ -1,7 +1,13 @@
 import type { Dirent } from 'node:fs';
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
-import { stripFrontmatter, ToolValidationError, type SkillLoader, type Tool } from '@wrongstack/core';
+import {
+  SKILL_LIMITS,
+  type SkillLoader,
+  stripFrontmatter,
+  type Tool,
+  ToolValidationError,
+} from '@wrongstack/core';
 
 interface SkillToolInput {
   name: string;
@@ -36,9 +42,9 @@ interface SkillToolOutput {
   loadedResource?: LoadedResource | undefined;
 }
 
-const MAX_BODY_CHARS = 16_000;
-const MAX_RESOURCE_CHARS = 32_000;
-const MAX_LISTED_RESOURCES = 100;
+const MAX_BODY_CHARS = SKILL_LIMITS.MAX_SKILL_BODY_CHARS;
+const MAX_RESOURCE_CHARS = SKILL_LIMITS.MAX_RESOURCE_CHARS;
+const MAX_LISTED_RESOURCES = SKILL_LIMITS.MAX_LISTED_RESOURCES;
 const SKIP_DIRS = new Set(['node_modules', '.git', 'dist', 'build']);
 
 /**
@@ -123,12 +129,21 @@ export function makeSkillTool(skillLoader: SkillLoader): Tool<SkillToolInput, Sk
         // best-effort: session recording must never break skill loading
       }
 
-      return { name: manifest.name, description: manifest.description, body, resources, dir, loadedResource };
+      return {
+        name: manifest.name,
+        description: manifest.description,
+        body,
+        resources,
+        dir,
+        loadedResource,
+      };
     },
     serialize(output) {
       if (output.loadedResource) {
         const lr = output.loadedResource;
-        const note = lr.truncated ? ` (truncated to ${lr.content.length} chars of ${lr.bytes} B)` : '';
+        const note = lr.truncated
+          ? ` (truncated to ${lr.content.length} chars of ${lr.bytes} B)`
+          : '';
         return `# Resource: ${output.name}/${lr.rel}\n(abs path: ${lr.absPath})${note}\n\n${lr.content}`;
       }
       const head = `# Skill: ${output.name}\n${output.description}\n\n${output.body}`;

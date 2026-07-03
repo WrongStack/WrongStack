@@ -42,7 +42,7 @@ pnpm prepublishOnly
 | File | Why it matters |
 |------|-----------------|
 | `packages/plugins/tests/catalog.test.ts` | The plugin catalog must list every plugin exported from `src/index.ts`. A mismatch means `spec-linker` (or any other consumer) will be stale on day one. |
-| `packages/plugins/tests/plugin-teardown.test.ts` | The H1 audit pattern (every plugin implements `teardown` + `health`) must hold across the 21 plugins. A regression means a plugin can leak timers, watchers, or file handles across hot-reload. |
+| `packages/plugins/tests/plugin-teardown.test.ts` | The H1 audit pattern (every plugin implements `teardown` + `health`) must hold across the **31** plugins. A regression means a plugin can leak timers, watchers, or file handles across hot-reload. |
 | `packages/plugins/tests/smoke.test.ts` | All 8 historic plugin files (the original 8 from the pre-catalog era) must still import and register. Catches broken barrel exports. |
 
 **Why a separate script?** Running only the guards (≈2 seconds
@@ -83,6 +83,12 @@ The pattern: a guard test is **fast** (sub-second each), **specific**
 existing guards — catalog, H1 teardown, smoke — are the
 baseline; new ones should match the same shape.
 
+> The H1 teardown test enumerates every entry in
+> `packages/plugins/src/catalog.ts`. The catalog itself enforces
+> kebab-case names + uniqueness at module load, so any future plugin
+> added to the index must also be added to the catalog — the
+> `plugin-teardown.test.ts` guard catches a drift between the two.
+
 ## Why two layers and not one
 
 | Concern | Layer 1 | Layer 2 |
@@ -103,6 +109,6 @@ publish was invoked.
 ## Cross-references
 
 - [`packages/plugins/src/catalog.ts`](../packages/plugins/src/catalog.ts) — what the catalog test guards
-- [`docs/feature-matrix.md`](feature-matrix.md) — the 21 plugins the H1 teardown test covers
+- [`docs/feature-matrix.md`](feature-matrix.md) — the 31 plugins the H1 teardown test covers
 - [`packages/plugins/README.md`](../packages/plugins/README.md) — the plugin contract
 - [`.github/workflows/release.yml`](../.github/workflows/release.yml) — the CI workflow that runs both layers on tag push and (optionally) on manual dispatch

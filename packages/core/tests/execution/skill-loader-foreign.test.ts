@@ -7,8 +7,10 @@ import { DefaultSkillLoader, resolveWstackPaths } from '../../src/index.js';
 /**
  * Faz 6: foreign (non-claude) coding-agent skill dirs — codex/cursor/agents/qwen/
  * trae/… are scanned natively (source: 'foreign' + originTool), restricted by
- * `config.skills.foreignSources`, with each tool's correct subdir (cursor uses
- * `skills-cursor`).
+ * `config.skills.foreignSources`. Every tool uses the standard `skills` subdir
+ * (aligned with the skills.sh / antfu-skills-cli / vercel-labs ecosystem as of
+ * 2026-07; Cursor previously used `skills-cursor`, which was WrongStack-only
+ * and meant real Cursor skills were never discovered).
  */
 let tmp: string;
 let projectRoot: string;
@@ -38,9 +40,9 @@ function mkLoader(opts: { readClaudeSkills?: false; foreignSources?: boolean | s
 }
 
 describe('DefaultSkillLoader — foreign (non-claude) agent dirs', () => {
-  it('discovers codex skills and cursor skills-cursor with originTool', async () => {
+  it('discovers codex skills and cursor skills (standard subdir) with originTool', async () => {
     await writeSkill(path.join(userHome, '.codex', 'skills'), 'codex-skill');
-    await writeSkill(path.join(userHome, '.cursor', 'skills-cursor'), 'cursor-skill');
+    await writeSkill(path.join(userHome, '.cursor', 'skills'), 'cursor-skill');
     const byName = new Map((await mkLoader().list()).map((s) => [s.name, s]));
     expect(byName.get('codex-skill')?.source).toBe('foreign');
     expect(byName.get('codex-skill')?.originTool).toBe('codex');
@@ -64,18 +66,24 @@ describe('DefaultSkillLoader — foreign (non-claude) agent dirs', () => {
 
   it('foreignSources:[ids] restricts to those tools', async () => {
     await writeSkill(path.join(userHome, '.codex', 'skills'), 'codex-skill');
-    await writeSkill(path.join(userHome, '.cursor', 'skills-cursor'), 'cursor-skill');
+    await writeSkill(path.join(userHome, '.cursor', 'skills'), 'cursor-skill');
     const names = (await mkLoader({ foreignSources: ['cursor'] }).list()).map((s) => s.name);
     expect(names).toContain('cursor-skill');
     expect(names).not.toContain('codex-skill');
   });
 
-  it('a wrong subdir name is skipped (cursor is skills-cursor, not skills)', async () => {
-    await fs.mkdir(path.join(userHome, '.cursor', 'skills', 'cursor-x'), { recursive: true });
+  it('the legacy non-standard cursor subdir (skills-cursor) is NOT scanned', async () => {
+    // Cursor now uses the standard `skills` subdir like every other agent.
+    // A skill placed under the old WrongStack-only `skills-cursor` path must
+    // not be discovered — otherwise users would think Cursor integration works
+    // while it reads the wrong dir.
+    await fs.mkdir(path.join(userHome, '.cursor', 'skills-cursor', 'legacy-cursor'), {
+      recursive: true,
+    });
     await fs.writeFile(
-      path.join(userHome, '.cursor', 'skills', 'cursor-x', 'SKILL.md'),
-      fm('cursor-x'),
+      path.join(userHome, '.cursor', 'skills-cursor', 'legacy-cursor', 'SKILL.md'),
+      fm('legacy-cursor'),
     );
-    expect((await mkLoader().list()).map((s) => s.name)).not.toContain('cursor-x');
+    expect((await mkLoader().list()).map((s) => s.name)).not.toContain('legacy-cursor');
   });
 });

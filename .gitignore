@@ -153,3 +153,6 @@ AGENTS.md
 .scratch/
 
 before-release.md
+
+
+*.tmp

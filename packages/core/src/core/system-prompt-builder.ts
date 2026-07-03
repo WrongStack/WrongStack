@@ -2,28 +2,29 @@ import { spawn } from 'node:child_process';
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
-import { buildChildEnv } from '../utils/child-env.js';
-import { PROMPT as DEFAULT_PROMPT, LEADER_AFTER_TASK_PROMPT } from './modes/default.js';
-import {
-  loadInstructionBundle,
-  mergeInstructionBundle,
-  type InstructionBundle,
-  type InstructionBundlePaths,
-} from './instruction-bundle.js';
+import type { MailboxAgentStatus } from '../coordination/mailbox-types.js';
+import { SKILL_LIMITS } from '../skills/limits.js';
 import type { TextBlock } from '../types/blocks.js';
+import type { TokenSavingTier } from '../types/config.js';
+import { normalizeTokenSavingTier } from '../types/config.js';
 import type { MemoryStore } from '../types/memory.js';
 import type { ModeStore } from '../types/mode.js';
 import type { SkillLoader } from '../types/skill.js';
-import type { SystemPromptContributor } from '../types/system-prompt-contributor.js';
 import type {
   BuildContext,
   ModelCapabilities,
   SystemPromptBuilder,
 } from '../types/system-prompt.js';
-import type { MailboxAgentStatus } from '../coordination/mailbox-types.js';
-import type { TokenSavingTier } from '../types/config.js';
-import { normalizeTokenSavingTier } from '../types/config.js';
+import type { SystemPromptContributor } from '../types/system-prompt-contributor.js';
 import type { Tool } from '../types/tool.js';
+import { buildChildEnv } from '../utils/child-env.js';
+import {
+  type InstructionBundle,
+  type InstructionBundlePaths,
+  loadInstructionBundle,
+  mergeInstructionBundle,
+} from './instruction-bundle.js';
+import { PROMPT as DEFAULT_PROMPT, LEADER_AFTER_TASK_PROMPT } from './modes/default.js';
 
 export const LAYER_1_IDENTITY = DEFAULT_PROMPT;
 
@@ -200,7 +201,9 @@ export class DefaultSystemPromptBuilder implements SystemPromptBuilder {
   /** Cached rendered online agents string, keyed by content fingerprint. */
   private _lastOnlineAgents?: { hash: string; text: string } | undefined;
   /** Cached full buildToolUsage output — keyed by tools array ref + agents fingerprint + tier. */
-  private _toolsUsageCache?: { toolsRef: readonly Tool[]; agentsHash: string; tier: string; text: string } | undefined;
+  private _toolsUsageCache?:
+    | { toolsRef: readonly Tool[]; agentsHash: string; tier: string; text: string }
+    | undefined;
   private _instructionBundle?: Promise<InstructionBundle> | undefined;
   constructor(private readonly opts: DefaultSystemPromptBuilderOptions = {}) {}
 
@@ -233,11 +236,16 @@ export class DefaultSystemPromptBuilder implements SystemPromptBuilder {
    */
   private toolDescLimit(): number {
     switch (this.tier) {
-      case 'minimal':    return 40;
-      case 'light':      return 50;
-      case 'medium':     return 60;
-      case 'aggressive': return 70;
-      default:            return 80;
+      case 'minimal':
+        return 40;
+      case 'light':
+        return 50;
+      case 'medium':
+        return 60;
+      case 'aggressive':
+        return 70;
+      default:
+        return 80;
     }
   }
 
@@ -425,7 +433,10 @@ export class DefaultSystemPromptBuilder implements SystemPromptBuilder {
   }
 
   private _formatPlan(raw: string): string {
-    let parsed: { items?: Array<{ status?: string | undefined; title?: string | undefined }>; title?: string | undefined };
+    let parsed: {
+      items?: Array<{ status?: string | undefined; title?: string | undefined }>;
+      title?: string | undefined;
+    };
     try {
       parsed = JSON.parse(raw);
     } catch {
@@ -710,9 +721,7 @@ export class DefaultSystemPromptBuilder implements SystemPromptBuilder {
    * - 'off' / 'medium' / 'aggressive' → full list with names, sessions, sources
    * - 'minimal' / 'light' → count only (no list)
    */
-  private renderOnlineAgents(
-    agents: readonly MailboxAgentStatus[] | undefined,
-  ): string {
+  private renderOnlineAgents(agents: readonly MailboxAgentStatus[] | undefined): string {
     if (!agents || agents.length === 0) return '';
 
     // Content fingerprint: detects membership changes without holding the
@@ -883,8 +892,11 @@ export class DefaultSystemPromptBuilder implements SystemPromptBuilder {
                 lines.push(`- ${e.text}`);
               } else {
                 const badge = e.type ? `[\`${e.type.replace('_', '-')}\`] ` : '';
-                const priorityMark = e.priority === 'critical' ? '⚡' : e.priority === 'high' ? '▲' : '';
-                lines.push(`- ${priorityMark}${badge}${e.text}${e.tags ? ` \`#${e.tags.join(' #')}\`` : ''}`);
+                const priorityMark =
+                  e.priority === 'critical' ? '⚡' : e.priority === 'high' ? '▲' : '';
+                lines.push(
+                  `- ${priorityMark}${badge}${e.text}${e.tags ? ` \`#${e.tags.join(' #')}\`` : ''}`,
+                );
               }
             }
             parts.push(lines.join('\n'));
@@ -973,7 +985,7 @@ export class DefaultSystemPromptBuilder implements SystemPromptBuilder {
       // listed as a manifest the agent loads on demand via the `skill` tool.
       // Without this, discovering many skills (foreign agents add a lot) would
       // bloat every prompt with every skill body.
-      const budget = this.opts.skillEagerMaxChars ?? 24_000;
+      const budget = this.opts.skillEagerMaxChars ?? SKILL_LIMITS.EAGER_DEFAULT_MAX_CHARS;
       const bodies: string[] = [];
       const overflow: string[] = [];
       let used = 0;
@@ -1014,7 +1026,10 @@ export class DefaultSystemPromptBuilder implements SystemPromptBuilder {
    * first, then falls back to auto-compaction.
    */
   private async buildCompactSkillBodies(): Promise<void> {
-    if (!this.opts.skillLoader) { this.skillBodyCache = ''; return; }
+    if (!this.opts.skillLoader) {
+      this.skillBodyCache = '';
+      return;
+    }
     try {
       const skills = await this.opts.skillLoader.list();
       if (skills.length > 0) {
@@ -1161,24 +1176,20 @@ function stripFrontmatter(raw: string): string {
  * I5 audit (Sprint 3). See
  * `packages/core/tests/core/system-prompt-builder-i-skills.test.ts`.
  */
-const MAX_SKILL_BODY_CHARS = 16_000;
-
 /**
- * Cap a skill body at MAX_SKILL_BODY_CHARS, truncating at a paragraph
- * boundary when possible to preserve readability. Appends an
+ * Cap a skill body at `SKILL_LIMITS.MAX_SKILL_BODY_CHARS`, truncating at a
+ * paragraph boundary when possible to preserve readability. Appends an
  * ellipsis marker when truncated so the model can detect the cap.
  */
 function capSkillBody(body: string): string {
-  if (body.length <= MAX_SKILL_BODY_CHARS) return body;
+  const max = SKILL_LIMITS.MAX_SKILL_BODY_CHARS;
+  if (body.length <= max) return body;
   // Try to cut at the last paragraph break (`\n\n`) within the
   // budget so the truncated body ends cleanly. Fall back to a
   // hard cut if no paragraph break exists.
-  const budget = MAX_SKILL_BODY_CHARS - 1; // reserve 1 char for ellipsis
+  const budget = max - 1; // reserve 1 char for ellipsis
   const cut = body.lastIndexOf('\n\n', budget);
-  const truncated =
-    cut > budget / 2
-      ? body.slice(0, cut)
-      : body.slice(0, budget);
+  const truncated = cut > budget / 2 ? body.slice(0, cut) : body.slice(0, budget);
   return truncated + '…';
 }
 

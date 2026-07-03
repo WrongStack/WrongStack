@@ -1,7 +1,11 @@
 import { render } from 'ink-testing-library';
 import { createElement as e } from 'react';
 import { describe, expect, it } from 'vitest';
-import { DiffBlock, type DiffLineRow, formatDiffStats } from '../src/components/history/code-block.js';
+import {
+  DiffBlock,
+  type DiffLineRow,
+  formatDiffStats,
+} from '../src/components/history/code-block.js';
 
 function renderDiffBlock(
   rows: DiffLineRow[],
@@ -14,6 +18,7 @@ function renderDiffBlock(
     hiddenRemoved?: number;
     lang?: 'ts' | 'plain';
     showStats?: boolean;
+    contentWidth?: number;
   } = {},
 ): string {
   const { lastFrame, unmount } = render(
@@ -27,6 +32,7 @@ function renderDiffBlock(
       useColor: opts.useColor ?? false,
       lang: opts.lang ?? 'plain',
       showStats: opts.showStats ?? true,
+      ...(opts.contentWidth !== undefined ? { contentWidth: opts.contentWidth } : {}),
     }),
   );
   const frame = lastFrame() ?? '';
@@ -196,11 +202,37 @@ describe('<DiffBlock /> rendering', () => {
     expect(normalize(withoutColor)).toBe(normalize(withColor));
   });
 
+  it('hard-wraps a long line onto continuation rows instead of mid-line truncating', () => {
+    // A body far wider than the content budget must render in FULL — the
+    // ellipsis (…) truncation that used to cut the row is gone; the whole
+    // line survives, split across continuation rows.
+    const longWord = 'x'.repeat(200);
+    const frame = renderDiffBlock([{ kind: 'add', text: `+${longWord}`, newLine: 1 }], {
+      contentWidth: 60,
+    });
+    // The full 200-char run is present (wrapping only inserts continuation
+    // indent whitespace, never drops characters — strip all whitespace to
+    // reconstruct the original body).
+    const joined = frame.replace(/\s+/g, '');
+    expect(joined).toContain(longWord);
+    // No ellipsis marker — nothing was truncated.
+    expect(frame).not.toContain('…');
+    // It actually wrapped: more than one visual row carries the x-run.
+    expect(frame.split('\n').filter((l) => l.includes('x')).length).toBeGreaterThan(1);
+  });
+
+  it('preserves a full long line even with no contentWidth (fallback wrap budget)', () => {
+    const longWord = 'y'.repeat(160);
+    const frame = renderDiffBlock([{ kind: 'add', text: `+${longWord}`, newLine: 1 }]);
+    const joined = frame.replace(/\s+/g, '');
+    expect(joined).toContain(longWord);
+    expect(frame).not.toContain('…');
+  });
+
   it('syntax highlighting is length-preserving — body text unchanged under lang=ts', () => {
-    const plain = renderDiffBlock(
-      [{ kind: 'add', text: '+const x = "hi"; // note', newLine: 1 }],
-      { lang: 'plain' },
-    );
+    const plain = renderDiffBlock([{ kind: 'add', text: '+const x = "hi"; // note', newLine: 1 }], {
+      lang: 'plain',
+    });
     const highlighted = renderDiffBlock(
       [{ kind: 'add', text: '+const x = "hi"; // note', newLine: 1 }],
       { lang: 'ts' },

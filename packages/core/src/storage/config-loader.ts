@@ -1,32 +1,32 @@
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
+import type { EventBus } from '../kernel/events.js';
 import { decryptConfigSecrets } from '../security/secret-vault.js';
-import { atomicWrite, withFileLock } from '../utils/atomic-write.js';
-import { toErrorMessage } from '../utils/error.js';
+import {
+  type Config,
+  type ConfigLoader,
+  DEFAULT_TUI_THINKING_WORD,
+  type SyncConfig,
+} from '../types/config.js';
 import {
   DEFAULT_CONTEXT_WINDOW_MODE_ID,
   isContextWindowModeId,
   listContextWindowModes,
 } from '../types/context-window.js';
 import {
-  DEFAULT_TUI_THINKING_WORD,
-  type Config,
-  type ConfigLoader,
-  type SyncConfig,
-} from '../types/config.js';
-import type { SecretVault } from '../types/secret-vault.js';
-import { ConfigError, ERROR_CODES } from '../types/errors.js';
-import { safeParse } from '../utils/safe-json.js';
-import { deepMerge as deepMergeCore, type DeepMergeOptions } from '../utils/deep-merge.js';
-import type { WstackPaths } from '../utils/wstack-paths.js';
-import {
   DEFAULT_AUTONOMY_CONFIG,
   DEFAULT_CIRCUIT_BREAKER_CONFIG,
-  DEFAULT_TOOLS_CONFIG,
   DEFAULT_CONTEXT_CONFIG,
   DEFAULT_SESSION_LOGGING_CONFIG,
+  DEFAULT_TOOLS_CONFIG,
 } from '../types/default-config.js';
-import type { EventBus } from '../kernel/events.js';
+import { ConfigError, ERROR_CODES } from '../types/errors.js';
+import type { SecretVault } from '../types/secret-vault.js';
+import { atomicWrite, withFileLock } from '../utils/atomic-write.js';
+import { type DeepMergeOptions, deepMerge as deepMergeCore } from '../utils/deep-merge.js';
+import { toErrorMessage } from '../utils/error.js';
+import { safeParse } from '../utils/safe-json.js';
+import type { WstackPaths } from '../utils/wstack-paths.js';
 
 /**
  * Surface the OS error code (EACCES, ENOSPC, …) alongside the message in
@@ -452,12 +452,12 @@ export function assertInProjectAllowListComplete(): void {
     const denied = KNOWN_DENIED_IN_PROJECT.find((d) => d.key === key);
     if (!denied) missingFromBoth.push(key);
   }
-  const staleDenials = KNOWN_DENIED_IN_PROJECT
-    .filter((d) => !KNOWN_CONFIG_TOP_LEVEL_KEYS.has(d.key))
-    .map((d) => d.key);
-  const duplicate = KNOWN_DENIED_IN_PROJECT
-    .filter((d) => IN_PROJECT_ALLOWED_KEYS.has(d.key))
-    .map((d) => d.key);
+  const staleDenials = KNOWN_DENIED_IN_PROJECT.filter(
+    (d) => !KNOWN_CONFIG_TOP_LEVEL_KEYS.has(d.key),
+  ).map((d) => d.key);
+  const duplicate = KNOWN_DENIED_IN_PROJECT.filter((d) => IN_PROJECT_ALLOWED_KEYS.has(d.key)).map(
+    (d) => d.key,
+  );
 
   const problems: string[] = [];
   if (missingFromBoth.length > 0) {
@@ -568,14 +568,25 @@ export function stripUnsafeInProjectFields(
   // points the loader at ARBITRARY directories to scan and inject into the
   // prompt — never honor that from an attacker-controllable repo config
   // (prompt-injection / read-into-prompt vector). `readClaudeSkills` and `mode`
-  // are safe prefs and survive.
+  // are safe prefs and survive. `skills.registryUrl` is also stripped: it points
+  // the skill-search HTTP client at an arbitrary URL whose parsed response flows
+  // into the prompt (SSRF + prompt-injection vector). Safe prefs
+  // (`readClaudeSkills`, `mode`, `eagerMaxChars`) survive.
   const outSkills = (out as Record<string, unknown>)['skills'];
   if (outSkills && typeof outSkills === 'object') {
-    if ('extraDirs' in (outSkills as Record<string, unknown>)) {
-      const clonedSkills = { ...(outSkills as Record<string, unknown>) };
-      delete clonedSkills['extraDirs'];
+    const skillsRec = outSkills as Record<string, unknown>;
+    const needsClone = 'extraDirs' in skillsRec || 'registryUrl' in skillsRec;
+    if (needsClone) {
+      const clonedSkills = { ...skillsRec };
+      if ('extraDirs' in clonedSkills) {
+        delete clonedSkills['extraDirs'];
+        stripped.push('skills.extraDirs');
+      }
+      if ('registryUrl' in clonedSkills) {
+        delete clonedSkills['registryUrl'];
+        stripped.push('skills.registryUrl');
+      }
       (out as Record<string, unknown>)['skills'] = clonedSkills;
-      stripped.push('skills.extraDirs');
     }
   }
 
@@ -631,7 +642,11 @@ function deepMerge<T>(base: T, patch: Partial<T>): T {
       );
     };
   }
-  return deepMergeCore(base as Record<string, unknown>, patch as Record<string, unknown>, opts) as T;
+  return deepMergeCore(
+    base as Record<string, unknown>,
+    patch as Record<string, unknown>,
+    opts,
+  ) as T;
 }
 
 /**
@@ -745,13 +760,15 @@ export class DefaultConfigLoader implements ConfigLoader {
         }
       } catch (err) {
         // Best-effort: skip failing sources so one bad source doesn't block boot.
-        console.warn(JSON.stringify({
-          level: 'warn',
-          event: 'config.source_load_failed',
-          source: src.name,
-          message: toErrorMessage(err),
-          timestamp: new Date().toISOString(),
-        }));
+        console.warn(
+          JSON.stringify({
+            level: 'warn',
+            event: 'config.source_load_failed',
+            source: src.name,
+            message: toErrorMessage(err),
+            timestamp: new Date().toISOString(),
+          }),
+        );
       }
     }
 
@@ -839,13 +856,15 @@ export class DefaultConfigLoader implements ConfigLoader {
               durationMs: Date.now() - t0,
               ...(this.traceId !== undefined ? { traceId: this.traceId } : {}),
             });
-            console.warn(JSON.stringify({
-              level: 'warn',
-              event: 'config.defaults_read_failed',
-              path: fp,
-              message: toErrorMessage(err),
-              timestamp: new Date().toISOString(),
-            }));
+            console.warn(
+              JSON.stringify({
+                level: 'warn',
+                event: 'config.defaults_read_failed',
+                path: fp,
+                message: toErrorMessage(err),
+                timestamp: new Date().toISOString(),
+              }),
+            );
             return;
           }
           parsed = {};
@@ -880,13 +899,15 @@ export class DefaultConfigLoader implements ConfigLoader {
         durationMs: Date.now() - t0,
         ...(this.traceId !== undefined ? { traceId: this.traceId } : {}),
       });
-      console.warn(JSON.stringify({
-        level: 'warn',
-        event: 'config.defaults_write_failed',
-        path: fp,
-        message: toErrorMessage(err),
-        timestamp: new Date().toISOString(),
-      }));
+      console.warn(
+        JSON.stringify({
+          level: 'warn',
+          event: 'config.defaults_write_failed',
+          path: fp,
+          message: toErrorMessage(err),
+          timestamp: new Date().toISOString(),
+        }),
+      );
     }
   }
 
@@ -995,12 +1016,14 @@ export class DefaultConfigLoader implements ConfigLoader {
         error: storageErrorString(err),
         ...(this.traceId !== undefined ? { traceId: this.traceId } : {}),
       });
-      console.warn(JSON.stringify({
-        level: 'warn',
-        event: 'config.sync_load_failed',
-        message: toErrorMessage(err),
-        timestamp: new Date().toISOString(),
-      }));
+      console.warn(
+        JSON.stringify({
+          level: 'warn',
+          event: 'config.sync_load_failed',
+          message: toErrorMessage(err),
+          timestamp: new Date().toISOString(),
+        }),
+      );
       return null;
     }
   }
@@ -1030,13 +1053,15 @@ export class DefaultConfigLoader implements ConfigLoader {
         error: storageErrorString(err),
         ...(this.traceId !== undefined ? { traceId: this.traceId } : {}),
       });
-      console.warn(JSON.stringify({
-        level: 'warn',
-        event: 'config.read_failed',
-        path: file,
-        message: toErrorMessage(err),
-        timestamp: new Date().toISOString(),
-      }));
+      console.warn(
+        JSON.stringify({
+          level: 'warn',
+          event: 'config.read_failed',
+          path: file,
+          message: toErrorMessage(err),
+          timestamp: new Date().toISOString(),
+        }),
+      );
       return {};
     }
 
@@ -1055,13 +1080,15 @@ export class DefaultConfigLoader implements ConfigLoader {
           error: storageErrorString(err),
           ...(this.traceId !== undefined ? { traceId: this.traceId } : {}),
         });
-        console.warn(JSON.stringify({
-          level: 'warn',
-          event: 'config.read_failed',
-          path: file,
-          message: toErrorMessage(err),
-          timestamp: new Date().toISOString(),
-        }));
+        console.warn(
+          JSON.stringify({
+            level: 'warn',
+            event: 'config.read_failed',
+            path: file,
+            message: toErrorMessage(err),
+            timestamp: new Date().toISOString(),
+          }),
+        );
       }
       this.jsonCache.set(file, { mtimeMs: null, value: {} });
       return {};
@@ -1078,13 +1105,15 @@ export class DefaultConfigLoader implements ConfigLoader {
         error: 'parse error or empty file',
         ...(this.traceId !== undefined ? { traceId: this.traceId } : {}),
       });
-      console.warn(JSON.stringify({
-        level: 'warn',
-        event: 'config.parse_failed',
-        path: file,
-        message: 'invalid JSON — falling back to defaults for this layer',
-        timestamp: new Date().toISOString(),
-      }));
+      console.warn(
+        JSON.stringify({
+          level: 'warn',
+          event: 'config.parse_failed',
+          path: file,
+          message: 'invalid JSON — falling back to defaults for this layer',
+          timestamp: new Date().toISOString(),
+        }),
+      );
       return {};
     }
     this.jsonCache.set(file, { mtimeMs, value: structuredClone(parsed.value) });
@@ -1093,23 +1122,26 @@ export class DefaultConfigLoader implements ConfigLoader {
 
   private validateBehavior(cfg: PartialConfig): void {
     /* v8 ignore start -- defensive: config defaults always seed version:1 before validation */
-    if (cfg.version === undefined) throw new ConfigError({
-      message: 'Config: missing version field',
-      code: ERROR_CODES.CONFIG_INVALID,
-      context: { field: 'version' },
-    });
+    if (cfg.version === undefined)
+      throw new ConfigError({
+        message: 'Config: missing version field',
+        code: ERROR_CODES.CONFIG_INVALID,
+        context: { field: 'version' },
+      });
     /* v8 ignore stop */
-    if (cfg.version !== 1) throw new ConfigError({
-      message: `Config: unsupported version ${cfg.version}`,
-      code: ERROR_CODES.CONFIG_INVALID,
-      context: { field: 'version', actual: cfg.version },
-    });
+    if (cfg.version !== 1)
+      throw new ConfigError({
+        message: `Config: unsupported version ${cfg.version}`,
+        code: ERROR_CODES.CONFIG_INVALID,
+        context: { field: 'version', actual: cfg.version },
+      });
     const c = cfg.context;
-    if (!c) throw new ConfigError({
-      message: 'Config: missing context section',
-      code: ERROR_CODES.CONFIG_INVALID,
-      context: { field: 'context' },
-    });
+    if (!c)
+      throw new ConfigError({
+        message: 'Config: missing context section',
+        code: ERROR_CODES.CONFIG_INVALID,
+        context: { field: 'context' },
+      });
     // A user-edited config.json can land strings here ("0.6") and slip past
     // truthiness checks; the `>=` comparison then coerces silently and the
     // threshold ordering check passes for nonsense values. Validate types

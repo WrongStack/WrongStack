@@ -1,8 +1,8 @@
-import { describe, expect, it, beforeEach, afterEach } from 'vitest';
 import * as fs from 'node:fs/promises';
-import * as path from 'node:path';
 import * as os from 'node:os';
-import { SkillManifestStore, type InstalledSkillEntry } from '../../src/skills/manifest-store.js';
+import * as path from 'node:path';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { type InstalledSkillEntry, SkillManifestStore } from '../../src/skills/manifest-store.js';
 
 let tmp: string;
 let manifestPath: string;
@@ -109,7 +109,7 @@ describe('SkillManifestStore', () => {
     await store.addEntry(makeEntry({ name: 'a' }));
     const ok = await store.removeEntry('a', 'project');
     expect(ok).toBe(true);
-    expect((await store.listAll())).toEqual([]);
+    expect(await store.listAll()).toEqual([]);
   });
 
   it('removeEntry returns false on miss without rewriting', async () => {

@@ -1,7 +1,7 @@
-import { describe, expect, it, beforeEach, afterEach, vi } from 'vitest';
 import * as fs from 'node:fs/promises';
-import * as path from 'node:path';
 import * as os from 'node:os';
+import * as path from 'node:path';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const fetcherMocks = vi.hoisted(() => ({
   downloadGitHubTarball: vi.fn(),
@@ -37,7 +37,13 @@ afterEach(async () => {
   await fs.rm(tmpRoot, { recursive: true, force: true });
 });
 
-function mkInstaller(extra: Partial<{ skillLoader: unknown; log: (m: string) => void }> = {}) {
+function mkInstaller(
+  extra: Partial<{
+    skillLoader: unknown;
+    log: (m: string) => void;
+    registryAdapters: SkillRegistryAdapter[];
+  }> = {},
+) {
   return new SkillInstaller({
     manifestPath,
     projectSkillsDir,
@@ -82,10 +88,7 @@ describe('SkillInstaller.install', () => {
     expect(res[0].source).toBe('github:user/alpha');
     expect(res[0].ref).toBe('main');
     // File should exist at destination
-    const installed = await fs.readFile(
-      path.join(projectSkillsDir, 'alpha', 'SKILL.md'),
-      'utf8',
-    );
+    const installed = await fs.readFile(path.join(projectSkillsDir, 'alpha', 'SKILL.md'), 'utf8');
     expect(installed).toContain('name: alpha');
   });
 
@@ -106,10 +109,7 @@ describe('SkillInstaller.install', () => {
     expect(res).toHaveLength(3);
     expect(res.map((r) => r.name).sort()).toEqual(['a', 'b', 'c']);
     // Extra files copied
-    const extra = await fs.readFile(
-      path.join(projectSkillsDir, 'a', 'extra.md'),
-      'utf8',
-    );
+    const extra = await fs.readFile(path.join(projectSkillsDir, 'a', 'extra.md'), 'utf8');
     expect(extra).toContain('extra content');
   });
 
@@ -305,7 +305,10 @@ describe('SkillInstaller.importFromDir', () => {
     await fs.writeFile(path.join(src, 'valid-skill', 'references', 'REF.md'), '# ref');
     // Invalid name (uppercase) → skipped
     await fs.mkdir(path.join(src, 'BadName'), { recursive: true });
-    await fs.writeFile(path.join(src, 'BadName', 'SKILL.md'), '---\nname: BadName\ndescription: d\n---\nbody');
+    await fs.writeFile(
+      path.join(src, 'BadName', 'SKILL.md'),
+      '---\nname: BadName\ndescription: d\n---\nbody',
+    );
     // Non-skill subdir (no SKILL.md) → skipped
     await fs.mkdir(path.join(src, 'not-a-skill'), { recursive: true });
 
@@ -325,11 +328,16 @@ describe('SkillInstaller.importFromDir', () => {
   it('targets the global dir when --global is requested', async () => {
     const src = path.join(tmpRoot, 'src2');
     await fs.mkdir(path.join(src, 'g-skill'), { recursive: true });
-    await fs.writeFile(path.join(src, 'g-skill', 'SKILL.md'), '---\nname: g-skill\ndescription: d\n---\nbody');
+    await fs.writeFile(
+      path.join(src, 'g-skill', 'SKILL.md'),
+      '---\nname: g-skill\ndescription: d\n---\nbody',
+    );
 
     const inst = mkInstaller();
     await inst.importFromDir(src, { global: true });
-    await expect(fs.access(path.join(globalSkillsDir, 'g-skill', 'SKILL.md'))).resolves.toBeUndefined();
+    await expect(
+      fs.access(path.join(globalSkillsDir, 'g-skill', 'SKILL.md')),
+    ).resolves.toBeUndefined();
     expect((await inst.listInstalled()).find((e) => e.name === 'g-skill')?.scope).toBe('user');
   });
 
@@ -338,5 +346,124 @@ describe('SkillInstaller.importFromDir', () => {
     await expect(inst.importFromDir(path.join(tmpRoot, 'nope'))).rejects.toThrow(
       /not found or not readable/,
     );
+  });
+});
+
+// ── registry adapters + search() ───────────────────────────────────────────
+
+import { githubDirectAdapter } from '../../src/skills/registry/github-direct-adapter.js';
+import type { SkillRegistryAdapter } from '../../src/skills/registry/registry-adapter.js';
+
+function stubAdapter(
+  id: string,
+  overrides: Partial<SkillRegistryAdapter> = {},
+): SkillRegistryAdapter {
+  return {
+    id,
+    displayName: id,
+    search: vi.fn().mockResolvedValue({ adapterId: id, results: [] }),
+    resolveInstallRef: vi.fn((ref: string) => ref),
+    ...overrides,
+  };
+}
+
+describe('SkillInstaller — registry ref resolution', () => {
+  it('resolves skills.sh:<id> through the adapter before installing', async () => {
+    const resolved: string[] = [];
+    const skillsSh = stubAdapter('skills.sh', {
+      resolveInstallRef: (id) => {
+        resolved.push(id);
+        return 'octocat/registry-skill';
+      },
+    });
+    await seedSingleSkillRepo(mockRepoDir, 'registry-skill');
+    fetcherMocks.downloadGitHubTarball.mockResolvedValue({ tempDir: mockRepoDir });
+
+    const inst = mkInstaller({ registryAdapters: [githubDirectAdapter, skillsSh] } as never);
+    const res = await inst.install('skills.sh:octocat/registry-skill@v1');
+    expect(resolved).toEqual(['octocat/registry-skill@v1']);
+    expect(res[0]?.source).toBe('github:octocat/registry-skill');
+    // manifest carries the registry provenance
+    const installed = await inst.listInstalled();
+    expect(installed[0]?.registryFrom?.adapterId).toBe('skills.sh');
+  });
+
+  it('passes a bare user/repo ref straight to github (no adapter resolution)', async () => {
+    const skillsSh = stubAdapter('skills.sh');
+    await seedSingleSkillRepo(mockRepoDir, 'direct');
+    fetcherMocks.downloadGitHubTarball.mockResolvedValue({ tempDir: mockRepoDir });
+
+    const inst = mkInstaller({ registryAdapters: [githubDirectAdapter, skillsSh] } as never);
+    const res = await inst.install('user/direct');
+    expect(res[0]?.source).toBe('github:user/direct');
+    expect(skillsSh.resolveInstallRef).not.toHaveBeenCalled();
+    const installed = await inst.listInstalled();
+    expect(installed[0]?.registryFrom).toBeUndefined();
+  });
+
+  it('does not treat a plain owner/repo with no adapter prefix as a registry ref', async () => {
+    // An adapter id of "github" exists, but "user/repo" has no colon → not a
+    // registry ref. Guards against misreading URLs / paths.
+    const github = stubAdapter('github');
+    await seedSingleSkillRepo(mockRepoDir, 'plain');
+    fetcherMocks.downloadGitHubTarball.mockResolvedValue({ tempDir: mockRepoDir });
+    const inst = mkInstaller({ registryAdapters: [github] } as never);
+    const res = await inst.install('user/plain');
+    expect(res[0]?.name).toBe('plain');
+    expect(github.resolveInstallRef).not.toHaveBeenCalled();
+  });
+});
+
+describe('SkillInstaller.search', () => {
+  it('merges results across adapters and dedupes by installRef', async () => {
+    const a = stubAdapter('a', {
+      search: vi.fn().mockResolvedValue({
+        adapterId: 'a',
+        results: [
+          { id: '1', name: 'shared', description: 'd', installRef: 'o/repo' },
+          { id: '2', name: 'a-only', description: 'd', installRef: 'o/a-only' },
+        ],
+      }),
+    });
+    const b = stubAdapter('b', {
+      search: vi.fn().mockResolvedValue({
+        adapterId: 'b',
+        results: [
+          { id: '1', name: 'shared-dup', description: 'd', installRef: 'o/repo' }, // dup
+          { id: '3', name: 'b-only', description: 'd', installRef: 'o/b-only' },
+        ],
+      }),
+    });
+    const inst = mkInstaller({ registryAdapters: [a, b] } as never);
+    const blocks = await inst.search('x');
+    const all = blocks.flatMap((bl) => bl.results);
+    expect(all.map((r) => r.installRef).sort()).toEqual(['o/a-only', 'o/b-only', 'o/repo']);
+    // adapter a won the dedup for o/repo
+    const sharedBlock = blocks.find((bl) => bl.adapterId === 'a');
+    expect(sharedBlock?.results.find((r) => r.installRef === 'o/repo')?.name).toBe('shared');
+  });
+
+  it('continues when one adapter rejects (logs, keeps others)', async () => {
+    const a = stubAdapter('a', {
+      search: vi.fn().mockResolvedValue({
+        adapterId: 'a',
+        results: [{ id: '1', name: 'ok', description: 'd', installRef: 'o/ok' }],
+      }),
+    });
+    const b = stubAdapter('b', { search: vi.fn().mockRejectedValue(new Error('down')) });
+    const inst = mkInstaller({
+      registryAdapters: [a, b],
+      log: () => {},
+    } as never);
+    const blocks = await inst.search('x');
+    expect(blocks).toHaveLength(1); // only adapter a's results survived
+    expect(blocks[0]?.results[0]?.name).toBe('ok');
+  });
+
+  it('uses only the github-direct adapter when none are configured', async () => {
+    const inst = mkInstaller(); // default → [githubDirectAdapter]
+    const blocks = await inst.search('anything');
+    // github-direct returns empty
+    expect(blocks.flatMap((b) => b.results)).toEqual([]);
   });
 });

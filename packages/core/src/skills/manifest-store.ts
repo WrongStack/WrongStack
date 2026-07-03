@@ -16,6 +16,12 @@ export interface InstalledSkillEntry {
   installedAt: string;
   /** List of files that were installed (relative to skill dir) */
   files: string[];
+  /**
+   * When the install was resolved through a registry (e.g. `skills.sh`), the
+   * adapter id + registry id that mapped to the GitHub `source`. Absent for
+   * direct `user/repo` installs.
+   */
+  registryFrom?: { adapterId: string; registryId: string } | undefined;
 }
 
 export interface ManifestData {
@@ -56,9 +62,7 @@ export class SkillManifestStore {
   async addEntry(entry: InstalledSkillEntry): Promise<void> {
     const data = await this.read();
     // Remove existing entry with the same name + scope
-    data.skills = data.skills.filter(
-      (s) => !(s.name === entry.name && s.scope === entry.scope),
-    );
+    data.skills = data.skills.filter((s) => !(s.name === entry.name && s.scope === entry.scope));
     data.skills.push(entry);
     await this.write(data);
   }
@@ -66,9 +70,7 @@ export class SkillManifestStore {
   async removeEntry(name: string, scope: 'project' | 'user'): Promise<boolean> {
     const data = await this.read();
     const before = data.skills.length;
-    data.skills = data.skills.filter(
-      (s) => !(s.name === name && s.scope === scope),
-    );
+    data.skills = data.skills.filter((s) => !(s.name === name && s.scope === scope));
     if (data.skills.length === before) return false;
     await this.write(data);
     return true;

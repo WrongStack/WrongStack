@@ -3,12 +3,12 @@
 A bird's-eye view of every first-party plugin in
 [`@wrongstack/plugins`](../packages/plugins/README.md). The catalog
 below groups plugins by what they do, so you can spot overlaps and
-pick the right one for a job without scrolling through 21 entries.
+pick the right one for a job without scrolling through 31 entries.
 
-> **Living document** — last updated when the 21st plugin
-> (`spec-linker`) was added. When you add a plugin, update this
+> **Living document** — last updated when the 31st plugin
+> (`injection-shield`) was added. When you add a plugin, update this
 > file in the same commit so it never drifts from
-> `packages/plugins/README.md`.
+> `packages/plugins/README.md` and `packages/plugins/src/catalog.ts`.
 
 ## At a glance
 
@@ -35,6 +35,16 @@ pick the right one for a job without scrolling through 21 entries.
 | 19 | [`todo-listener`](../packages/plugins/src/todo-listener) | cross-agent | `PostToolUse` (`todo`) | `todo_listener_status` |
 | 20 | [`session-recap`](../packages/plugins/src/session-recap)   | cross-agent | `Stop` | `session_recap_status` |
 | 21 | [`spec-linker`](../packages/plugins/src/spec-linker)     | quality | `PostToolUse` (`write\|edit`) | `spec_linker_status` |
+| 22 | [`loop-breaker`](../packages/plugins/src/loop-breaker)   | safety | `PreToolUse` (`*`) | `loop_breaker_status` |
+| 23 | [`path-guard`](../packages/plugins/src/path-guard)     | safety | `PreToolUse` (`write\|edit\|bash`) | `path_guard_status` |
+| 24 | [`context-pins`](../packages/plugins/src/context-pins)  | utilities | — | `pin_add`, `pin_remove`, `pin_list` |
+| 25 | [`checkpoint`](../packages/plugins/src/checkpoint)     | utilities | — | `checkpoint_create`, `checkpoint_restore`, `checkpoint_list` |
+| 26 | [`error-lens`](../packages/plugins/src/error-lens)      | observability | `PostToolUse` (`bash\|exec`) | `error_lens_status` |
+| 27 | [`dep-guard`](../packages/plugins/src/dep-guard)        | safety | `PreToolUse` (`install`) | `dep_guard_status` |
+| 28 | [`config-validator`](../packages/plugins/src/config-validator) | quality | `PostToolUse` (`write\|edit`) | `config_validator_status` |
+| 29 | [`notify-hub`](../packages/plugins/src/notify-hub)      | observability | `Stop` + `PostToolUse` (`*`) | `notify_hub_status`, `notify_send` |
+| 30 | [`changelog-writer`](../packages/plugins/src/changelog-writer) | developer workflow | — | `changelog_add`, `changelog_preview`, `changelog_write` |
+| 31 | [`injection-shield`](../packages/plugins/src/injection-shield) | safety | `PostToolUse` (`*`) | `injection_shield_status` |
 
 ---
 
@@ -49,6 +59,7 @@ Plugins that produce git/PR/commit artifacts from agent activity.
 | `auto-doc` | Generates JSDoc/TSDoc from source | yes (when not `dry_run: true`) | Direct file write |
 | `git-autocommit` | AI-written conventional commits | yes (creates a real commit) | `git commit` + optional tag |
 | `semver-bump` | Conventional-commit → semver bump | yes (when not `dryRun`) | `package.json` + git tag |
+| `changelog-writer` | Keep-a-Changelog entries under `[Unreleased]` from session work | yes (on `changelog_write`) | `CHANGELOG.md` mutations |
 
 **Recommended chain** for a release:
 `git-autocommit` → `commit-validator` (gate) → `semver-bump` → `branch-guard`
@@ -69,6 +80,7 @@ fire on `write|edit` either *before* (block / warn) or *after*
 | `commit-validator` | `PreToolUse` `bash\|git_autocommit` | conventional-commit format gate | `block` / `warn` |
 | `test-runner-gate` | `PostToolUse` `write\|edit` | runs the matching test file | `block` / `injectOnPass` |
 | `spec-linker` | `PostToolUse` `write\|edit` + `PreToolUse` `write` (when `autoFix: true`) | surfaces unlinked plugin references in markdown files (read-only by default; opt-in auto-link via PreToolUse) | `enabled` / `fileGlobs` / `maxReferences` / `autoFix` |
+| `config-validator` | `PostToolUse` `write\|edit` | validates JSON/JSONC/YAML/TOML files in the same turn; reports syntax problems | `enabled` / `fileGlobs` |
 
 **Stacking** the quality chain on `write|edit`:
 `lint-gate` (PreToolUse, block) → `test-runner-gate` (PostToolUse) →
@@ -85,6 +97,10 @@ Plugins that stop destructive operations from happening by accident.
 |--------|----------------|-----------------|
 | `secret-scanner` | Plaintext credentials in `bash` / `write` / `edit` input, and credentials leaking in tool *output* | `block` (input) / `warn` (output) |
 | `branch-guard` | Commits, pushes, and merges on protected branches (default: `main`, `master`) | `block` |
+| `path-guard` | Writes/edits/destructive shell on protected paths (lockfiles, `.env`, `.git`, migrations) | `block` |
+| `loop-breaker` | Runaway tool-call loops — identical repeats *and* A-B-A-B oscillation; warns then blocks | `warn` → `block` after threshold |
+| `dep-guard` | Risky `install` calls: deny list, typosquat lookalike warnings, unpinned version warnings | `warn` |
+| `injection-shield` | Prompt-injection patterns in tool *output* (warns the model that content is data, not instructions) | `warn` |
 
 Both are first-line defenses — they should run *before* the agent's
 own judgment kicks in. Pair `secret-scanner` with the prompt-level
@@ -99,6 +115,8 @@ Plugins that surface session activity to humans or other systems.
 | `cost-tracker` | on every `provider.response` | Per-model token + USD cost (configurable pricing via `pricingOverrides` or `api.modelsRegistry`) |
 | `token-budget` | every tool, plus `Stop` | Per-session token usage; warns at `warnPercent` (default 80%), stops the agent loop at `stopPercent` (default 100%) |
 | `diff-summary` | after every `write\|edit` | Compact `git diff` injected into the LLM's context |
+| `error-lens` | `PostToolUse` `bash\|exec` | Distills failed command output to error line + project stack frames; flags repeated failures |
+| `notify-hub` | `Stop` + `PostToolUse` (`*`) | POSTs session events (stop, tool errors, budget thresholds) and ad-hoc `notify_send` messages to a configurable webhook |
 
 `cost-tracker` and `token-budget` are complementary: the former
 tracks *spend* (with pricing), the latter enforces a *budget*
@@ -131,6 +149,8 @@ slot — they provide general-purpose tools.
 | `cron` | In-session recurring tasks |
 | `template-engine` | Handlebars-style `{{var}}` / `{{#if}}` / `{{#each}}` text expansion |
 | `todo-tracker` | Persistent, project-scoped todo backlog (survives across sessions) |
+| `context-pins` | Pinned facts that survive compaction and persist across sessions; exposed via `pin_add` / `pin_remove` / `pin_list` |
+| `checkpoint` | In-session file snapshots — auto-captures content before `write`/`edit`; `checkpoint_restore` rolls back |
 
 ---
 
@@ -148,6 +168,9 @@ noticeable per-tool overhead.
 | `write\|edit` | `lint-gate` | Blocks or warns on lint issues; optionally auto-fixes |
 | `bash\|git_autocommit` | `branch-guard` | Blocks commits/pushes/merges to protected branches |
 | `bash\|git_autocommit` | `commit-validator` | Blocks on invalid conventional-commit format |
+| `write\|edit\|bash` | `path-guard` | Blocks touches on protected paths (lockfiles, `.env`, `.git`, migrations) |
+| `install` | `dep-guard` | Warns on deny list / typosquat / unpinned install calls |
+| `*` | `loop-breaker` | Detects identical-repeat and A-B-A-B oscillation loops; warns then blocks after threshold |
 | `todo` | `todo-listener` | (technically PostToolUse; tracks todo changes) |
 
 ### `PostToolUse` (auto-fix / inject context after the tool runs)
@@ -156,11 +179,15 @@ noticeable per-tool overhead.
 |---------|--------|----------|
 | `bash\|write\|edit` | `secret-scanner` | Warns if tool output contains credentials |
 | `*` | `token-budget` | One-shot LLM context injection when budget thresholds are crossed |
+| `*` | `injection-shield` | Warns the model when tool output contains prompt-injection patterns (content is data, not instructions) |
+| `*` | `notify-hub` | Optional webhook forward on tool errors / budget thresholds |
 | `write\|edit` | `diff-summary` | Injects compact git diff into context |
 | `write\|edit` | `format-on-save` | `biome format --write` on the file |
 | `write\|edit` | `import-organizer` | `biome check --write --unsafe` (sort, group, remove unused) |
 | `write\|edit` | `test-runner-gate` | Runs the relevant test file |
 | `write\|edit` | `spec-linker` | Surfaces unlinked plugin references in markdown files |
+| `write\|edit` | `config-validator` | Validates JSON/JSONC/YAML/TOML files in the same turn |
+| `bash\|exec` | `error-lens` | Distills failed command output to error line + project stack frames |
 | `todo` | `todo-listener` | Broadcasts the new list to the mailbox |
 
 ### `Stop` (fires when the agent loop ends)
@@ -169,12 +196,13 @@ noticeable per-tool overhead.
 |--------|----------|
 | `token-budget` | Final budget check; blocks if already over |
 | `session-recap` | Posts the one-page session summary to the mailbox |
+| `notify-hub` | POSTs `stop` (and `tool.error` / budget) events to the configured webhook |
 
 ### No hook (tool-only)
 
 | Plugin |
 |--------|
-| `auto-doc`, `git-autocommit`, `shell-check`, `cost-tracker`, `file-watcher`, `cron`, `template-engine`, `semver-bump`, `todo-tracker` |
+| `auto-doc`, `git-autocommit`, `shell-check`, `cost-tracker`, `file-watcher`, `cron`, `template-engine`, `semver-bump`, `todo-tracker`, `context-pins`, `checkpoint`, `changelog-writer` |
 
 ---
 
@@ -209,8 +237,18 @@ consistency.
 | `todo-listener` | yes | invocations, sent/skipped/errors |
 | `session-recap` | yes | stop invocations, recaps published/errored |
 | `spec-linker` | yes | invocations, unlinked, clean, skipped (non-md) |
+| `loop-breaker` | yes | repeat streak, oscillation, last warning/block |
+| `path-guard` | yes | block count, last block path/reason |
+| `context-pins` | yes | pin count, last pin id/timestamp |
+| `checkpoint` | yes | snapshot count, last restore id |
+| `error-lens` | yes | invocations, digests produced, repeated-failure flags |
+| `dep-guard` | yes | block/warn counts, last reason |
+| `config-validator` | yes | invocations, error counts, last file |
+| `notify-hub` | yes | delivered/failed/dropped counts, last delivery |
+| `changelog-writer` | yes | entries added, last write id |
+| `injection-shield` | yes | scan count, hits, last detection |
 
-**All 21 plugins follow the H1 pattern** — every `setup()` re-zeros
+**All 31 plugins follow the H1 pattern** — every `setup()` re-zeros
 state, every `teardown()` releases it, and every `health()` reports
 it. `/diag plugins` therefore gives a uniform view.
 

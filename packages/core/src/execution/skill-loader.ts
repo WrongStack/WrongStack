@@ -1,7 +1,8 @@
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
-import { isValidSkillNameFormat, parseSkillFrontmatter } from '../skills/frontmatter.js';
 import { FOREIGN_SKILL_TOOLS, resolveForeignToolIds } from '../skills/foreign-sources.js';
+import { isValidSkillNameFormat, parseSkillFrontmatter } from '../skills/frontmatter.js';
+import { SKILL_LIMITS } from '../skills/limits.js';
 import type { SkillEntry, SkillLoader, SkillManifest } from '../types/skill.js';
 import type { WstackPaths } from '../utils/wstack-paths.js';
 
@@ -19,19 +20,19 @@ function stripFrontmatter(raw: string): string {
 
 /**
  * Compact a full skill body for token-saving fallback.
- * Extracts the Overview and Rules sections, trims to ~400 chars max.
+ * Extracts the Overview and Rules sections, trims to the compact budget.
  */
 function compactSkillBody(body: string): string {
   const sections: string[] = [];
   const overviewMatch = body.match(/##\s*Overview\s*\n([\s\S]*?)(?=\n##|\n$|$)/i);
   const overview = overviewMatch?.[1];
   if (overview?.trim()) {
-    sections.push(overview.trim().slice(0, 200));
+    sections.push(overview.trim().slice(0, SKILL_LIMITS.COMPACT_OVERVIEW_MAX));
   }
   const rulesMatch = body.match(/##\s*Rules\s*\n([\s\S]*?)(?=\n##|\n$|$)/i);
   const rules = rulesMatch?.[1];
   if (rules?.trim()) {
-    const trimmed = rules.trim().slice(0, 350);
+    const trimmed = rules.trim().slice(0, SKILL_LIMITS.COMPACT_RULES_MAX);
     const ruleLines = trimmed
       .split('\n')
       .filter((l) => /^\s*[-*]\s/.test(l) || /^\s*\d+[.)]\s/.test(l))
@@ -40,11 +41,12 @@ function compactSkillBody(body: string): string {
     if (ruleLines) sections.push(ruleLines);
   }
   if (sections.length === 0) {
-    const first = body.trim().slice(0, 200);
+    const first = body.trim().slice(0, SKILL_LIMITS.COMPACT_OVERVIEW_MAX);
     if (first) sections.push(first);
   }
   const result = sections.join('\n\n');
-  return result.length > 450 ? result.slice(0, 447) + '…' : result;
+  const total = SKILL_LIMITS.COMPACT_TOTAL_MAX;
+  return result.length > total ? result.slice(0, total - 3) + '…' : result;
 }
 
 /**
@@ -107,7 +109,11 @@ export class DefaultSkillLoader implements SkillLoader {
       if (!root) return;
       for (const tool of FOREIGN_SKILL_TOOLS) {
         if (!foreignIds.includes(tool.id)) continue;
-        dirs.push({ dir: path.join(root, '.' + tool.id, tool.subdir), source: 'foreign', originTool: tool.id });
+        dirs.push({
+          dir: path.join(root, '.' + tool.id, tool.subdir),
+          source: 'foreign',
+          originTool: tool.id,
+        });
       }
     };
     dirs.push({ dir: opts.paths.inProjectSkills, source: 'project' });
@@ -189,7 +195,14 @@ export class DefaultSkillLoader implements SkillLoader {
       // Parse trigger/scope from the description that list() already parsed —
       // no need to re-read the file; s.description === fm.description.
       const { trigger, scope } = parseDescriptionFromText(s.description ?? '');
-      entries.push({ name: s.name, trigger, scope, source: s.source, originTool: s.originTool, path: s.path });
+      entries.push({
+        name: s.name,
+        trigger,
+        scope,
+        source: s.source,
+        originTool: s.originTool,
+        path: s.path,
+      });
     }
     this.entriesCache = entries;
     return entries;

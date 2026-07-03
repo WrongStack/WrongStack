@@ -1,7 +1,11 @@
-import { describe, expect, it, vi, afterEach } from 'vitest';
 import * as fs from 'node:fs/promises';
 import { gzipSync } from 'node:zlib';
-import { parseSkillRef, downloadGitHubTarball } from '../../src/skills/github-fetcher.js';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import {
+  downloadGitHubTarball,
+  parseSkillRef,
+  resolveGitHubToken,
+} from '../../src/skills/github-fetcher.js';
 
 // ── parseSkillRef ────────────────────────────────────────────────────────────
 
@@ -129,56 +133,135 @@ describe('downloadGitHubTarball', () => {
   });
 
   it('throws repo-not-found on 404', async () => {
-    globalThis.fetch = vi.fn().mockResolvedValue(
-      new Response('', { status: 404, statusText: 'Not Found' }),
-    ) as never;
-    await expect(
-      downloadGitHubTarball({ owner: 'u', repo: 'r', ref: 'main' }),
-    ).rejects.toThrow(/Repository not found/);
+    globalThis.fetch = vi
+      .fn()
+      .mockResolvedValue(new Response('', { status: 404, statusText: 'Not Found' })) as never;
+    await expect(downloadGitHubTarball({ owner: 'u', repo: 'r', ref: 'main' })).rejects.toThrow(
+      /Repository not found/,
+    );
   });
 
   it('mentions non-default ref in 404 error', async () => {
-    globalThis.fetch = vi.fn().mockResolvedValue(
-      new Response('', { status: 404, statusText: 'Not Found' }),
-    ) as never;
-    await expect(
-      downloadGitHubTarball({ owner: 'u', repo: 'r', ref: 'v1.2.3' }),
-    ).rejects.toThrow(/v1\.2\.3/);
+    globalThis.fetch = vi
+      .fn()
+      .mockResolvedValue(new Response('', { status: 404, statusText: 'Not Found' })) as never;
+    await expect(downloadGitHubTarball({ owner: 'u', repo: 'r', ref: 'v1.2.3' })).rejects.toThrow(
+      /v1\.2\.3/,
+    );
   });
 
   it('throws access-denied on 403', async () => {
-    globalThis.fetch = vi.fn().mockResolvedValue(
-      new Response('', { status: 403, statusText: 'Forbidden' }),
-    ) as never;
-    await expect(
-      downloadGitHubTarball({ owner: 'u', repo: 'r', ref: 'main' }),
-    ).rejects.toThrow(/Access denied/);
+    globalThis.fetch = vi
+      .fn()
+      .mockResolvedValue(new Response('', { status: 403, statusText: 'Forbidden' })) as never;
+    await expect(downloadGitHubTarball({ owner: 'u', repo: 'r', ref: 'main' })).rejects.toThrow(
+      /Access denied/,
+    );
   });
 
   it('throws generic error on other failure status', async () => {
-    globalThis.fetch = vi.fn().mockResolvedValue(
-      new Response('', { status: 500, statusText: 'Server Error' }),
-    ) as never;
-    await expect(
-      downloadGitHubTarball({ owner: 'u', repo: 'r', ref: 'main' }),
-    ).rejects.toThrow(/GitHub API error \(500\)/);
+    globalThis.fetch = vi
+      .fn()
+      .mockResolvedValue(new Response('', { status: 500, statusText: 'Server Error' })) as never;
+    await expect(downloadGitHubTarball({ owner: 'u', repo: 'r', ref: 'main' })).rejects.toThrow(
+      /GitHub API error \(500\)/,
+    );
   });
 
   it('rejects tarballs larger than MAX_TARBALL_SIZE via content-length header', async () => {
     const huge = (60 * 1024 * 1024).toString(); // 60MB
     globalThis.fetch = vi.fn().mockReturnValue(mockFetchOk(makeTarball([]), huge)) as never;
-    await expect(
-      downloadGitHubTarball({ owner: 'u', repo: 'r', ref: 'main' }),
-    ).rejects.toThrow(/too large/);
+    await expect(downloadGitHubTarball({ owner: 'u', repo: 'r', ref: 'main' })).rejects.toThrow(
+      /too large/,
+    );
   });
 
   it('rejects empty response body', async () => {
     // null-body response by going through the cast
+    globalThis.fetch = vi
+      .fn()
+      .mockResolvedValue(
+        new Response(null, { status: 200, headers: { 'content-type': 'application/gzip' } }),
+      ) as never;
+    await expect(downloadGitHubTarball({ owner: 'u', repo: 'r', ref: 'main' })).rejects.toThrow(
+      /Empty response body/,
+    );
+  });
+
+  it('sends an Authorization header when GITHUB_TOKEN is set', async () => {
+    const prev = process.env['GITHUB_TOKEN'];
+    process.env['GITHUB_TOKEN'] = 'ghp_testtoken';
+    const seenHeaders: Record<string, string> = {};
+    try {
+      globalThis.fetch = vi.fn().mockImplementation((_url, init) => {
+        Object.assign(seenHeaders, (init as RequestInit).headers as Record<string, string>);
+        return mockFetchOk(makeTarball([{ name: 'SKILL.md', content: 'x' }]));
+      }) as never;
+      const { tempDir } = await downloadGitHubTarball({ owner: 'u', repo: 'r', ref: 'main' });
+      await fs.rm(tempDir, { recursive: true, force: true });
+      expect(seenHeaders['Authorization']).toBe('Bearer ghp_testtoken');
+    } finally {
+      if (prev === undefined) delete process.env['GITHUB_TOKEN'];
+      else process.env['GITHUB_TOKEN'] = prev;
+    }
+  });
+
+  it('mentions GITHUB_TOKEN in the rate-limit 403 message', async () => {
     globalThis.fetch = vi.fn().mockResolvedValue(
-      new Response(null, { status: 200, headers: { 'content-type': 'application/gzip' } }),
+      new Response('', {
+        status: 403,
+        statusText: 'Forbidden',
+        headers: { 'x-ratelimit-remaining': '0' },
+      }),
     ) as never;
+    await expect(downloadGitHubTarball({ owner: 'u', repo: 'r', ref: 'main' })).rejects.toThrow(
+      /rate limit/i,
+    );
+  });
+
+  it('mentions GITHUB_TOKEN in the 404 message (private repo hint)', async () => {
+    globalThis.fetch = vi
+      .fn()
+      .mockResolvedValue(new Response('', { status: 404, statusText: 'Not Found' })) as never;
     await expect(
-      downloadGitHubTarball({ owner: 'u', repo: 'r', ref: 'main' }),
-    ).rejects.toThrow(/Empty response body/);
+      downloadGitHubTarball({ owner: 'u', repo: 'private', ref: 'main' }),
+    ).rejects.toThrow(/GITHUB_TOKEN/);
+  });
+
+  it('wraps network errors as FetchError (status 0)', async () => {
+    globalThis.fetch = vi.fn().mockRejectedValue(new Error('ETIMEDOUT')) as never;
+    await expect(downloadGitHubTarball({ owner: 'u', repo: 'r', ref: 'main' })).rejects.toThrow(
+      /Network error/,
+    );
+  });
+});
+
+// ── resolveGitHubToken ───────────────────────────────────────────────────
+
+describe('resolveGitHubToken', () => {
+  it('returns undefined when no token env var is set', () => {
+    expect(resolveGitHubToken({})).toBeUndefined();
+  });
+
+  it('prefers WRONGSTACK_GITHUB_TOKEN', () => {
+    expect(
+      resolveGitHubToken({
+        WRONGSTACK_GITHUB_TOKEN: 'ws-token',
+        GITHUB_TOKEN: 'gh-token',
+        GH_TOKEN: 'gh-cli',
+      }),
+    ).toBe('ws-token');
+  });
+
+  it('falls back to GITHUB_TOKEN', () => {
+    expect(resolveGitHubToken({ GITHUB_TOKEN: 'gh-token', GH_TOKEN: 'gh-cli' })).toBe('gh-token');
+  });
+
+  it('falls back to GH_TOKEN (gh CLI convention)', () => {
+    expect(resolveGitHubToken({ GH_TOKEN: 'gh-cli' })).toBe('gh-cli');
+  });
+
+  it('treats a whitespace-only token as unset', () => {
+    expect(resolveGitHubToken({ GITHUB_TOKEN: '   ' })).toBeUndefined();
   });
 });
