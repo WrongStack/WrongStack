@@ -108,10 +108,55 @@ distributes extensions from unknown third parties.
 | `api.extensions` | Register lifecycle hooks (beforeRun, afterRun, onError, etc.) |
 | `api.session` | Append custom events to the JSONL session log |
 | `api.metrics` | Record scoped counters/histograms/gauges → Prometheus/OTLP |
+| `api.llm` | LLM completions through the host's provider layer (optional — guard for `undefined`) |
 
 Use `onEvent` instead of `events.on(...)` when you want the listener to
 disappear with the plugin. Use raw `events.on` only when you need to
 explicitly unsubscribe yourself in `teardown`.
+
+### `api.llm` — LLM access for plugins
+
+Plugins can call the LLM without ever touching API keys — completions
+are routed through the host session's provider layer:
+
+```ts
+async setup(api) {
+  if (!api.llm) return; // minimal hosts (tests, LSP server) don't wire it
+
+  const result = await api.llm.complete('Summarize: …', {
+    system: 'You are terse.',
+    maxTokens: 200,              // default 2048, hard-capped at 32768
+    responseFormat: 'json',      // optional: ask for a JSON object
+  });
+  api.log.info(result.text, { model: result.model, usage: result.usage });
+}
+```
+
+Provider/model resolution, per call:
+
+1. `complete(prompt, { provider, model })` — per-call override
+2. `config.extensions['<plugin>'].llm = { provider, model }` — per-plugin
+   default the USER configures (any key of `config.providers`, e.g. a
+   cheap local `omniroute` model for background chores)
+3. the host session's active provider/model
+
+`api.llm.defaults()` returns the effective per-plugin `{ provider, model }`.
+Calls are metered under `plugin.<name>.llm.*` (calls, tokens_in,
+tokens_out, errors).
+
+Built-in consumers (all opt-in, all fall back to non-LLM behavior on any
+failure):
+
+| Plugin | Flag | What the LLM does |
+|---|---|---|
+| `auto-doc` | `useLlm` / `use_llm` | Writes real doc-comment prose instead of `TODO:` placeholders |
+| `git-autocommit` | `generate` / `useLlm` | Writes the conventional commit message from the staged diff |
+| `session-recap` | `aiSummary` | Prepends a natural-language session summary to the recap |
+| `error-lens` | `aiHints` | One-line fix hint on each new failure digest |
+| `changelog-writer` | `polish` | Rewrites entries into user-facing release-notes wording |
+
+Every consumer is guarded on `api.llm` and honors the per-plugin
+`extensions[<name>].llm` provider/model override.
 
 ---
 

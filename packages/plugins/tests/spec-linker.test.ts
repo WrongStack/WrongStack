@@ -25,6 +25,7 @@ import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import specLinkerPlugin from '../src/spec-linker/index.js';
+import { PLUGIN_NAMES } from '../src/catalog.js';
 
 // ---------------------------------------------------------------------------
 // Types + helpers
@@ -552,7 +553,9 @@ describe('spec-linker plugin', () => {
       expect(status.fileGlobs).toEqual(['**/*.md', '**/*.mdx']);
       expect(status.maxReferences).toBe(8);
       expect(status.autoFix).toBe(false);
-      expect(status.catalogSize).toBe(21);
+      // Stays in sync with the plugin catalog — adding a plugin must not
+      // break this test, only catalog/spec-linker drift should.
+      expect(status.catalogSize).toBe(PLUGIN_NAMES.length);
       expect(status.counters.postInvocations).toBe(0);
       expect(status.counters.preInvocations).toBe(0);
       expect(status.counters.unlinked).toBe(0);

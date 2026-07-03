@@ -76,6 +76,63 @@ export interface MetricsSinkView {
   gauge(name: string, value: number, labels?: Record<string, string>): void;
 }
 
+/**
+ * Options for a single `api.llm.complete()` call. Everything is
+ * optional — omitted fields fall back first to the plugin's own
+ * configured defaults (`config.extensions[<name>].llm`), then to the
+ * host session's provider/model.
+ */
+export interface PluginLLMOptions {
+  /** System prompt for this call. */
+  system?: string | undefined;
+  /** Model override (e.g. `claude-haiku-4-5`). */
+  model?: string | undefined;
+  /**
+   * Provider override by configured provider name (a key of
+   * `config.providers`, e.g. `anthropic`, `openai`, `omniroute`).
+   * When omitted the host session's provider is used.
+   */
+  provider?: string | undefined;
+  /** Output-token cap. Default 2048, hard-capped by the host. */
+  maxTokens?: number | undefined;
+  temperature?: number | undefined;
+  /** `'json'` asks the provider for a JSON object response. */
+  responseFormat?: 'text' | 'json' | undefined;
+  /** Abort signal — plugins should pass one for cancellable work. */
+  signal?: AbortSignal | undefined;
+}
+
+export interface PluginLLMResult {
+  /** Concatenated text blocks of the response. */
+  text: string;
+  /** The model that actually served the call. */
+  model: string;
+  /** The provider name the call was routed through. */
+  provider: string;
+  usage: { input: number; output: number };
+  stopReason: string;
+}
+
+/**
+ * LLM access for plugins, routed through the host's provider layer —
+ * plugins never handle API keys themselves. Resolution order for
+ * provider/model on each call:
+ *
+ *   1. `PluginLLMOptions.provider` / `.model` (per call)
+ *   2. `config.extensions[<plugin>].llm.provider` / `.model` (per plugin)
+ *   3. the host session's active provider/model (default)
+ *
+ * Exposed as `api.llm` — `undefined` on minimal hosts (tests, the LSP
+ * server) that have no provider wired. Always guard:
+ * `if (!api.llm) return;`
+ */
+export interface PluginLLM {
+  /** The effective defaults for this plugin (after config resolution). */
+  defaults(): { provider: string; model: string };
+  /** One-shot completion. Throws on provider errors. */
+  complete(prompt: string, opts?: PluginLLMOptions): Promise<PluginLLMResult>;
+}
+
 export interface PluginPipelines {
   request: ReadonlyPipeline<Request>;
   response: ReadonlyPipeline<Response>;
@@ -166,6 +223,13 @@ export interface PluginAPI {
    * and gracefully no-op otherwise.
    */
   mailbox?: Mailbox | undefined;
+  /**
+   * LLM access routed through the host's provider layer. Optional —
+   * minimal hosts without a wired provider omit it; plugins must guard
+   * (`if (!api.llm) …`). Per-plugin provider/model defaults come from
+   * `config.extensions[<name>].llm = { provider, model }`.
+   */
+  llm?: PluginLLM | undefined;
 }
 
 /**

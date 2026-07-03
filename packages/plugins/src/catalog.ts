@@ -19,25 +19,41 @@
 import type { Plugin } from '@wrongstack/core';
 
 import autoDoc from './auto-doc/index.js';
-import gitAutocommit from './git-autocommit/index.js';
-import shellCheck from './shell-check/index.js';
+import autoEscalate from './auto-escalate/index.js';
+import branchGuard from './branch-guard/index.js';
+import changelogWriter from './changelog-writer/index.js';
+import checkpoint from './checkpoint/index.js';
+import commitValidator from './commit-validator/index.js';
+import configValidator from './config-validator/index.js';
+import contextPins from './context-pins/index.js';
 import costTracker from './cost-tracker/index.js';
-import fileWatcher from './file-watcher/index.js';
 import cron from './cron/index.js';
-import templateEngine from './template-engine/index.js';
-import semverBump from './semver-bump/index.js';
+import depGuard from './dep-guard/index.js';
+import diffSummary from './diff-summary/index.js';
+import errorLens from './error-lens/index.js';
+import fileWatcher from './file-watcher/index.js';
+import formatOnSave from './format-on-save/index.js';
+import gitAutocommit from './git-autocommit/index.js';
+import importOrganizer from './import-organizer/index.js';
+import injectionShield from './injection-shield/index.js';
+import lintGate from './lint-gate/index.js';
+import llmCache from './llm-cache/index.js';
+import loopBreaker from './loop-breaker/index.js';
+import modelRouter from './model-router/index.js';
+import notifyHub from './notify-hub/index.js';
+import pathGuard from './path-guard/index.js';
+import promptFirewall from './prompt-firewall/index.js';
 import secretScanner from './secret-scanner/index.js';
+import semverBump from './semver-bump/index.js';
+import sessionRecap from './session-recap/index.js';
+import shellCheck from './shell-check/index.js';
+import templateEngine from './template-engine/index.js';
+import testRunnerGate from './test-runner-gate/index.js';
+import todoListener from './todo-listener/index.js';
 import todoTracker from './todo-tracker/index.js';
 import tokenBudget from './token-budget/index.js';
-import lintGate from './lint-gate/index.js';
-import branchGuard from './branch-guard/index.js';
-import diffSummary from './diff-summary/index.js';
-import commitValidator from './commit-validator/index.js';
-import formatOnSave from './format-on-save/index.js';
-import testRunnerGate from './test-runner-gate/index.js';
-import importOrganizer from './import-organizer/index.js';
-import todoListener from './todo-listener/index.js';
-import sessionRecap from './session-recap/index.js';
+import tokenThrottle from './token-throttle/index.js';
+
 // NOTE: `spec-linker` is NOT imported here to avoid a circular
 // dependency (spec-linker imports `catalog.ts` to read its own
 // catalog entry). `spec-linker` self-registers in its source file.
@@ -71,6 +87,21 @@ const ENTRIES: CatalogEntry[] = [
   { name: todoListener.name, path: './src/todo-listener' },
   { name: sessionRecap.name, path: './src/session-recap' },
   { name: 'spec-linker', path: './src/spec-linker' },
+  { name: loopBreaker.name, path: './src/loop-breaker' },
+  { name: pathGuard.name, path: './src/path-guard' },
+  { name: contextPins.name, path: './src/context-pins' },
+  { name: checkpoint.name, path: './src/checkpoint' },
+  { name: errorLens.name, path: './src/error-lens' },
+  { name: depGuard.name, path: './src/dep-guard' },
+  { name: configValidator.name, path: './src/config-validator' },
+  { name: notifyHub.name, path: './src/notify-hub' },
+  { name: changelogWriter.name, path: './src/changelog-writer' },
+  { name: injectionShield.name, path: './src/injection-shield' },
+  { name: llmCache.name, path: './src/llm-cache' },
+  { name: modelRouter.name, path: './src/model-router' },
+  { name: promptFirewall.name, path: './src/prompt-firewall' },
+  { name: autoEscalate.name, path: './src/auto-escalate' },
+  { name: tokenThrottle.name, path: './src/token-throttle' },
 ];
 
 /**

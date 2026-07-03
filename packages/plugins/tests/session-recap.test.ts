@@ -8,10 +8,11 @@
  *  - Transcript tail reading (with and without a transcript path)
  *  - H1 audit pattern (teardown + health + idempotent re-init)
  */
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import sessionRecapPlugin from '../src/session-recap/index.js';
 
 // ---------------------------------------------------------------------------
@@ -45,14 +46,22 @@ interface PluginAPI {
     send: ReturnType<typeof vi.fn>;
     query: ReturnType<typeof vi.fn>;
   };
+  llm?: { complete: ReturnType<typeof vi.fn> };
 }
 
-function createMockAPI(opts: { withMailbox?: boolean; withTranscript?: boolean } = {}): PluginAPI {
+function createMockAPI(
+  opts: {
+    withMailbox?: boolean;
+    withTranscript?: boolean;
+    extensions?: Record<string, unknown>;
+    llm?: { complete: ReturnType<typeof vi.fn> };
+  } = {},
+): PluginAPI {
   return {
     tools: { register: vi.fn() },
     slashCommands: { register: vi.fn() },
     pipelines: {},
-    config: { extensions: {} },
+    config: { extensions: opts.extensions ?? {} },
     log: { info: vi.fn(), warn: vi.fn(), error: vi.fn() },
     metrics: { counter: vi.fn(), histogram: vi.fn(), gauge: vi.fn() },
     session: {
@@ -69,6 +78,7 @@ function createMockAPI(opts: { withMailbox?: boolean; withTranscript?: boolean }
     ...(opts.withMailbox
       ? { mailbox: { send: vi.fn().mockResolvedValue({ id: 'msg-1' }), query: vi.fn() } }
       : {}),
+    ...(opts.llm ? { llm: opts.llm } : {}),
   };
 }
 
@@ -342,6 +352,71 @@ describe('session-recap plugin', () => {
       expect(status.mailboxAvailable).toBe(true);
       expect(status.metrics.totalInputTokens).toBe(30);
       expect(status.metrics.perModel).toHaveLength(2);
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  describe('AI summary (api.llm)', () => {
+    const llmReply = (text: string) => ({
+      text,
+      model: 'claude-haiku-4-5',
+      provider: 'anthropic',
+      usage: { input: 50, output: 30 },
+      stopReason: 'end_turn',
+    });
+
+    it('prepends an LLM summary to the recap body when aiSummary is on', async () => {
+      const complete = vi
+        .fn()
+        .mockResolvedValue(llmReply('Refactored the auth module and added tests.'));
+      const api = createMockAPI({
+        withMailbox: true,
+        extensions: { 'session-recap': { aiSummary: true } },
+        llm: { complete },
+      });
+      sessionRecapPlugin.setup(api as never);
+      await getHook(api, 'Stop')({ sessionId: 's1', cwd: '/w' });
+      expect(complete).toHaveBeenCalledTimes(1);
+      const sendArg = vi.mocked(api.mailbox!.send).mock.calls[0]?.[0] as { body: string };
+      expect(sendArg.body.startsWith('Refactored the auth module')).toBe(true);
+      expect(sendArg.body).toContain('"summary"');
+    });
+
+    it('posts the metrics-only recap when the LLM call fails', async () => {
+      const complete = vi.fn().mockRejectedValue(new Error('provider down'));
+      const api = createMockAPI({
+        withMailbox: true,
+        extensions: { 'session-recap': { aiSummary: true } },
+        llm: { complete },
+      });
+      sessionRecapPlugin.setup(api as never);
+      await getHook(api, 'Stop')({ sessionId: 's1' });
+      expect(api.mailbox!.send).toHaveBeenCalledTimes(1);
+      const sendArg = vi.mocked(api.mailbox!.send).mock.calls[0]?.[0] as { body: string };
+      expect(sendArg.body).not.toContain('Refactored');
+    });
+
+    it('does not call the LLM when aiSummary is off', async () => {
+      const complete = vi.fn();
+      const api = createMockAPI({ withMailbox: true, llm: { complete } });
+      sessionRecapPlugin.setup(api as never);
+      await getHook(api, 'Stop')({ sessionId: 's1' });
+      expect(complete).not.toHaveBeenCalled();
+    });
+
+    it('status tool reports aiSummary + llmAvailable', async () => {
+      const api = createMockAPI({
+        withMailbox: true,
+        extensions: { 'session-recap': { aiSummary: true } },
+        llm: { complete: vi.fn() },
+      });
+      sessionRecapPlugin.setup(api as never);
+      const tool = vi.mocked(api.tools.register).mock.calls[0]?.[0] as {
+        execute: () => Promise<unknown>;
+      };
+      const status = (await tool.execute()) as { aiSummary: boolean; llmAvailable: boolean };
+      expect(status.aiSummary).toBe(true);
+      expect(status.llmAvailable).toBe(true);
     });
   });
 });

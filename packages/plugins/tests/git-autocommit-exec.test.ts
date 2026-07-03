@@ -15,14 +15,22 @@ interface Tool {
 let gitHandler: (args: string[]) => string;
 let sessionAppend: ReturnType<typeof vi.fn>;
 
-function setup(extensions: Record<string, unknown> = {}): Record<string, Tool> {
+function setup(
+  extensions: Record<string, unknown> = {},
+  llm?: { complete: ReturnType<typeof vi.fn> },
+): Record<string, Tool> {
   const tools: Record<string, Tool> = {};
   sessionAppend = vi.fn(async () => {});
   const api = {
-    tools: { register: (t: Tool) => { tools[t.name] = t; } },
+    tools: {
+      register: (t: Tool) => {
+        tools[t.name] = t;
+      },
+    },
     config: { extensions },
     log: { info: vi.fn(), warn: vi.fn(), error: vi.fn() },
     session: { append: sessionAppend },
+    llm,
   };
   gitAutocommitPlugin.setup(api as never);
   return tools;
@@ -69,7 +77,13 @@ describe('git_autocommit', () => {
       return '';
     };
     const tools = setup();
-    const res = await tools.git_autocommit!.execute({ type: 'feat', scope: 'core', message: 'add thing', body: 'details', files: ['a.ts'] });
+    const res = await tools.git_autocommit!.execute({
+      type: 'feat',
+      scope: 'core',
+      message: 'add thing',
+      body: 'details',
+      files: ['a.ts'],
+    });
     expect(res.ok).toBe(true);
     expect(res.hash).toBe('deadbeef committed');
     expect(res.message).toBe('feat(core): add thing\n\ndetails');
@@ -80,7 +94,11 @@ describe('git_autocommit', () => {
   it('reports a staging failure when no provided file exists', async () => {
     fsm.existsSync.mockReturnValue(false);
     const tools = setup();
-    const res = await tools.git_autocommit!.execute({ type: 'fix', message: 'x', files: ['ghost.ts'] });
+    const res = await tools.git_autocommit!.execute({
+      type: 'fix',
+      message: 'x',
+      files: ['ghost.ts'],
+    });
     expect(res.ok).toBe(false);
     expect(res.error).toMatch(/Failed to stage files/);
   });
@@ -169,7 +187,11 @@ describe('git_autocommit', () => {
       return '';
     };
     const tools = setup();
-    const res = await tools.git_autocommit!.execute({ type: 'feat', message: 'big', dry_run: true });
+    const res = await tools.git_autocommit!.execute({
+      type: 'feat',
+      message: 'big',
+      dry_run: true,
+    });
     expect(res.dry_run).toBe(true);
     expect(res.stagedDiff).toMatch(/diff truncated/);
   });
@@ -188,7 +210,9 @@ describe('git_autocommit', () => {
   });
 
   it('tolerates a throwing existsSync during staging', async () => {
-    fsm.existsSync.mockImplementation(() => { throw new Error('stat failed'); });
+    fsm.existsSync.mockImplementation(() => {
+      throw new Error('stat failed');
+    });
     const tools = setup();
     // No files exist (existsSync throws → treated as absent) → staging fails.
     const res = await tools.git_autocommit!.execute({ type: 'fix', message: 'x', files: ['a.ts'] });
@@ -242,3 +266,94 @@ describe('git_autocommit', () => {
   });
 });
 
+describe('git_autocommit LLM generation (api.llm)', () => {
+  const stagedRepo = (args: string[]): string => {
+    const k = key(args);
+    if (k === 'diff --cached --name-only') return 'a.ts';
+    if (k === 'diff --cached --stat') return ' a.ts | 2 +-';
+    if (k === 'diff --cached') return '+const x = 1;\n-const x = 0;';
+    if (k.startsWith('commit -m')) return 'abc123 committed';
+    return '';
+  };
+
+  const llmReply = (obj: unknown) => ({
+    text: JSON.stringify(obj),
+    model: 'claude-haiku-4-5',
+    provider: 'anthropic',
+    usage: { input: 40, output: 20 },
+    stopReason: 'end_turn',
+  });
+
+  it('generate:true writes the message from the diff via the LLM', async () => {
+    gitHandler = stagedRepo;
+    const complete = vi
+      .fn()
+      .mockResolvedValue(
+        llmReply({ type: 'fix', scope: 'core', summary: 'correct off-by-one', body: '' }),
+      );
+    const tools = setup({}, { complete });
+    const res = await tools.git_autocommit!.execute({ generate: true });
+    expect(complete).toHaveBeenCalledTimes(1);
+    expect(res.ok).toBe(true);
+    expect(res.message).toBe('fix(core): correct off-by-one');
+    expect(res.type).toBe('fix');
+    expect(res.generatedByLlm).toBe(true);
+  });
+
+  it('useLlm config auto-generates when neither type nor message is given', async () => {
+    gitHandler = stagedRepo;
+    const complete = vi
+      .fn()
+      .mockResolvedValue(llmReply({ type: 'feat', scope: '', summary: 'add a thing', body: '' }));
+    const tools = setup({ 'git-autocommit': { useLlm: true } }, { complete });
+    const res = await tools.git_autocommit!.execute({});
+    expect(complete).toHaveBeenCalledTimes(1);
+    expect(res.message).toBe('feat: add a thing');
+  });
+
+  it('does not auto-generate when the caller supplies a type', async () => {
+    gitHandler = stagedRepo;
+    const complete = vi.fn();
+    const tools = setup({ 'git-autocommit': { useLlm: true } }, { complete });
+    const res = await tools.git_autocommit!.execute({ type: 'chore', message: 'manual msg' });
+    expect(complete).not.toHaveBeenCalled();
+    expect(res.message).toBe('chore: manual msg');
+  });
+
+  it('falls back to the caller/default when the LLM returns an invalid type', async () => {
+    gitHandler = stagedRepo;
+    const complete = vi.fn().mockResolvedValue(llmReply({ type: 'nonsense', summary: 'x' }));
+    const tools = setup({}, { complete });
+    const res = await tools.git_autocommit!.execute({
+      generate: true,
+      message: 'fallback summary',
+    });
+    // Invalid generation ignored → default type 'feat', caller's message kept.
+    expect(res.ok).toBe(true);
+    expect(res.type).toBe('feat');
+    expect(res.message).toBe('feat: fallback summary');
+    expect(res.generatedByLlm).toBe(false);
+  });
+
+  it('commit still succeeds when the LLM call throws (best-effort)', async () => {
+    gitHandler = stagedRepo;
+    const complete = vi.fn().mockRejectedValue(new Error('provider down'));
+    const tools = setup({}, { complete });
+    const res = await tools.git_autocommit!.execute({
+      generate: true,
+      type: 'feat',
+      message: 'safe',
+    });
+    expect(res.ok).toBe(true);
+    expect(res.generatedByLlm).toBe(false);
+    expect(res.message).toBe('feat: safe');
+  });
+
+  it('generate is ignored when no api.llm is wired', async () => {
+    gitHandler = stagedRepo;
+    const tools = setup(); // no llm
+    const res = await tools.git_autocommit!.execute({ generate: true, type: 'feat', message: 'm' });
+    expect(res.ok).toBe(true);
+    expect(res.generatedByLlm).toBe(false);
+  });
+});

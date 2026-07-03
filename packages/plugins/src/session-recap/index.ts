@@ -61,6 +61,10 @@ interface RecapState {
   recapsErrored: number;
   /** Whether we've skipped (mailbox undefined, no data, etc.). */
   recapsSkipped: number;
+  /** Natural-language summaries written by the LLM. */
+  aiSummariesWritten: number;
+  /** LLM summary attempts that failed (recap still posted). */
+  aiSummaryErrors: number;
   /** Stop-hook invocations. */
   stopInvocations: number;
   /** Total tokens across all models. */
@@ -86,6 +90,8 @@ const state: RecapState = {
   recapsPublished: 0,
   recapsErrored: 0,
   recapsSkipped: 0,
+  aiSummariesWritten: 0,
+  aiSummaryErrors: 0,
   stopInvocations: 0,
   totalInputTokens: 0,
   totalOutputTokens: 0,
@@ -110,6 +116,12 @@ interface SessionRecapConfig {
   includeTranscriptTail: number;
   /** Hard cap on the recap body size (chars). Default 8 KB. */
   maxBodyChars: number;
+  /**
+   * When true and `api.llm` is wired, a natural-language summary of the
+   * session is written by the LLM and prepended to the recap body.
+   * Best-effort — a failure leaves the metrics-only recap intact.
+   */
+  aiSummary: boolean;
 }
 
 const DEFAULTS: SessionRecapConfig = {
@@ -117,6 +129,7 @@ const DEFAULTS: SessionRecapConfig = {
   subjectPrefix: 'session recap: ',
   includeTranscriptTail: 3,
   maxBodyChars: 8_000,
+  aiSummary: false,
 };
 
 function readConfig(raw: unknown): SessionRecapConfig {
@@ -134,6 +147,7 @@ function readConfig(raw: unknown): SessionRecapConfig {
       typeof r['maxBodyChars'] === 'number' && r['maxBodyChars'] > 0
         ? r['maxBodyChars']
         : DEFAULTS.maxBodyChars,
+    aiSummary: r['aiSummary'] === true,
   };
 }
 
@@ -262,6 +276,16 @@ const plugin: Plugin = {
         default: 8_000,
         description: 'Hard cap on the recap body size (chars).',
       },
+      aiSummary: {
+        type: 'boolean',
+        default: false,
+        description:
+          'Prepend an LLM-written natural-language summary (api.llm) to the recap. Provider/model follow extensions["session-recap"].llm, then the session default.',
+      },
+      llm: {
+        type: 'object',
+        description: 'Optional { provider, model } override for the AI summary.',
+      },
     },
   },
 
@@ -270,6 +294,8 @@ const plugin: Plugin = {
     state.recapsPublished = 0;
     state.recapsErrored = 0;
     state.recapsSkipped = 0;
+    state.aiSummariesWritten = 0;
+    state.aiSummaryErrors = 0;
     state.stopInvocations = 0;
     state.totalInputTokens = 0;
     state.totalOutputTokens = 0;
@@ -427,7 +453,45 @@ const plugin: Plugin = {
           200,
         );
 
-      const body = truncate(JSON.stringify(recap, null, 2), cfg.maxBodyChars);
+      // Optional natural-language summary from the LLM (best-effort). The
+      // metrics-only recap is always posted; the prose is a bonus prepended
+      // to the body when it succeeds.
+      let aiSummary: string | null = null;
+      if (cfg.aiSummary && api.llm) {
+        try {
+          const topTools = recap.tools.top.map(([n, c]) => `${n}×${c}`).join(', ') || 'none';
+          const result = await api.llm.complete(
+            'Summarize this coding-agent session in 2-3 sentences for a teammate catching up. ' +
+              'Focus on what was worked on and the scale of activity. Be concrete and terse.\n\n' +
+              `Duration: ${duration}\n` +
+              `Tool calls: ${recap.tools.totalCalls} (top: ${topTools})\n` +
+              `Commits: ${recap.commits}\n` +
+              `Tokens: ${recap.tokens.total.input} in / ${recap.tokens.total.output} out\n` +
+              (recap.transcriptTail.length > 0
+                ? `Recent activity: ${recap.transcriptTail
+                    .map((e) => e.preview ?? e.type ?? '')
+                    .filter(Boolean)
+                    .join(' | ')
+                    .slice(0, 500)}`
+                : ''),
+            { system: 'You write concise engineering session recaps.', maxTokens: 200 },
+          );
+          const text = result.text.trim();
+          if (text) {
+            aiSummary = text;
+            state.aiSummariesWritten += 1;
+          }
+        } catch {
+          state.aiSummaryErrors += 1;
+        }
+      }
+
+      const recapWithSummary = aiSummary ? { summary: aiSummary, ...recap } : recap;
+      const bodyPrefix = aiSummary ? `${aiSummary}\n\n---\n` : '';
+      const body = truncate(
+        bodyPrefix + JSON.stringify(recapWithSummary, null, 2),
+        cfg.maxBodyChars,
+      );
 
       try {
         const result = (await mailbox.send({
@@ -473,11 +537,15 @@ const plugin: Plugin = {
           includeTranscriptTail: cfg.includeTranscriptTail,
           maxBodyChars: cfg.maxBodyChars,
           mailboxAvailable: Boolean(mailbox),
+          aiSummary: cfg.aiSummary,
+          llmAvailable: Boolean(api.llm),
           counters: {
             stopInvocations: state.stopInvocations,
             recapsPublished: state.recapsPublished,
             recapsErrored: state.recapsErrored,
             recapsSkipped: state.recapsSkipped,
+            aiSummariesWritten: state.aiSummariesWritten,
+            aiSummaryErrors: state.aiSummaryErrors,
           },
           metrics: {
             totalInputTokens: state.totalInputTokens,
@@ -532,6 +600,7 @@ const plugin: Plugin = {
       recapsPublished: state.recapsPublished,
       recapsErrored: state.recapsErrored,
       recapsSkipped: state.recapsSkipped,
+      aiSummariesWritten: state.aiSummariesWritten,
       totalInputTokens: state.totalInputTokens,
       totalOutputTokens: state.totalOutputTokens,
       toolCalls: [...state.toolCounts.values()].reduce((a, b) => a + b, 0),
@@ -540,6 +609,8 @@ const plugin: Plugin = {
     state.recapsPublished = 0;
     state.recapsErrored = 0;
     state.recapsSkipped = 0;
+    state.aiSummariesWritten = 0;
+    state.aiSummaryErrors = 0;
     state.stopInvocations = 0;
     state.totalInputTokens = 0;
     state.totalOutputTokens = 0;
@@ -554,12 +625,14 @@ const plugin: Plugin = {
   async health() {
     return {
       ok: true,
-      message: `session-recap: ${state.stopInvocations} stop(s), ${state.recapsPublished} recap(s) published, ${state.recapsErrored} error(s), ${state.totalInputTokens + state.totalOutputTokens} tokens observed`,
+      message: `session-recap: ${state.stopInvocations} stop(s), ${state.recapsPublished} recap(s) published (${state.aiSummariesWritten} with AI summary), ${state.recapsErrored} error(s), ${state.totalInputTokens + state.totalOutputTokens} tokens observed`,
       counters: {
         stopInvocations: state.stopInvocations,
         recapsPublished: state.recapsPublished,
         recapsErrored: state.recapsErrored,
         recapsSkipped: state.recapsSkipped,
+        aiSummariesWritten: state.aiSummariesWritten,
+        aiSummaryErrors: state.aiSummaryErrors,
       },
       metrics: {
         totalInputTokens: state.totalInputTokens,

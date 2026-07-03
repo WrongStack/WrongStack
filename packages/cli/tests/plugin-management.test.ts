@@ -130,6 +130,138 @@ describe('plugin management', () => {
     expect(result.message).toContain('/plugin menu');
   });
 
+  it('llm set writes a per-plugin provider/model override and patches extensions', async () => {
+    await fs.writeFile(configPath, JSON.stringify({ features: { plugins: true } }));
+
+    const result = await runPluginManagementCommand(
+      ['llm', 'error-lens', 'omniroute', 'qwen3-30b'],
+      {
+        config: config({ provider: 'anthropic', model: 'claude-fable-5' } as Partial<Config>),
+        configPath,
+      },
+    );
+
+    expect(result.code).toBe(0);
+    expect(result.restartRequired).toBeUndefined(); // hot-reloaded via ConfigStore, no restart
+    expect(result.message).toContain('provider=omniroute');
+    expect(result.message).toContain('model=qwen3-30b');
+    expect(result.patch?.extensions).toMatchObject({
+      'error-lens': { llm: { provider: 'omniroute', model: 'qwen3-30b' } },
+    });
+    await expect(readConfig()).resolves.toMatchObject({
+      extensions: { 'error-lens': { llm: { provider: 'omniroute', model: 'qwen3-30b' } } },
+    });
+  });
+
+  it('llm with "-" provider overrides only the model', async () => {
+    await fs.writeFile(configPath, JSON.stringify({}));
+
+    const result = await runPluginManagementCommand(['llm', 'changelog-writer', '-', 'haiku-x'], {
+      config: config(),
+      configPath,
+    });
+
+    expect(result.code).toBe(0);
+    await expect(readConfig()).resolves.toMatchObject({
+      extensions: { 'changelog-writer': { llm: { model: 'haiku-x' } } },
+    });
+    const ext = result.patch?.extensions?.['changelog-writer'] as { llm?: Record<string, unknown> };
+    expect(ext.llm).toEqual({ model: 'haiku-x' });
+  });
+
+  it('llm set preserves sibling extension options for the same plugin', async () => {
+    await fs.writeFile(
+      configPath,
+      JSON.stringify({ extensions: { 'error-lens': { aiHints: true } } }),
+    );
+
+    await runPluginManagementCommand(['llm', 'error-lens', 'openai'], {
+      config: config(),
+      configPath,
+    });
+
+    await expect(readConfig()).resolves.toMatchObject({
+      extensions: { 'error-lens': { aiHints: true, llm: { provider: 'openai' } } },
+    });
+  });
+
+  it('llm show reports the current override or the session default', async () => {
+    const shown = await runPluginManagementCommand(['llm', 'error-lens'], {
+      config: config({
+        provider: 'anthropic',
+        model: 'claude-fable-5',
+        extensions: { 'error-lens': { llm: { provider: 'omniroute', model: 'm1' } } },
+      } as Partial<Config>),
+      configPath,
+    });
+    expect(shown.code).toBe(0);
+    expect(shown.message).toContain('provider=omniroute');
+    expect(shown.message).toContain('anthropic / claude-fable-5');
+
+    const empty = await runPluginManagementCommand(['llm', 'dep-guard'], {
+      config: config({ provider: 'anthropic', model: 'claude-fable-5' } as Partial<Config>),
+      configPath,
+    });
+    expect(empty.message).toContain('no override');
+  });
+
+  it('llm --clear removes the override from file and patch', async () => {
+    await fs.writeFile(
+      configPath,
+      JSON.stringify({
+        extensions: { 'error-lens': { aiHints: true, llm: { provider: 'omniroute' } } },
+      }),
+    );
+
+    const result = await runPluginManagementCommand(['llm', 'error-lens', '--clear'], {
+      config: config({
+        extensions: { 'error-lens': { aiHints: true, llm: { provider: 'omniroute' } } },
+      } as Partial<Config>),
+      configPath,
+    });
+
+    expect(result.code).toBe(0);
+    const written = await readConfig();
+    expect((written.extensions as Record<string, Record<string, unknown>>)['error-lens']).toEqual({
+      aiHints: true,
+    });
+    const patched = result.patch?.extensions?.['error-lens'] as Record<string, unknown>;
+    expect(patched).toBeDefined();
+    expect('llm' in patched).toBe(false);
+    expect(patched['aiHints']).toBe(true);
+  });
+
+  it('bare "llm" lists every configured override', async () => {
+    const result = await runPluginManagementCommand(['llm'], {
+      config: config({
+        provider: 'anthropic',
+        model: 'claude-fable-5',
+        extensions: {
+          'error-lens': { llm: { provider: 'omniroute', model: 'qwen3-30b' } },
+          'changelog-writer': { llm: { model: 'haiku-x' } },
+          'dep-guard': { aiHints: false }, // no llm key → not listed
+        },
+      } as Partial<Config>),
+      configPath,
+    });
+    expect(result.code).toBe(0);
+    expect(result.message).toContain('error-lens');
+    expect(result.message).toContain('provider=omniroute');
+    expect(result.message).toContain('changelog-writer');
+    expect(result.message).toContain('model=haiku-x');
+    expect(result.message).not.toContain('dep-guard');
+    expect(result.message).toContain('anthropic / claude-fable-5');
+  });
+
+  it('bare "llm" reports when no overrides exist', async () => {
+    const result = await runPluginManagementCommand(['llm'], {
+      config: config({ provider: 'anthropic', model: 'claude-fable-5' } as Partial<Config>),
+      configPath,
+    });
+    expect(result.code).toBe(0);
+    expect(result.message).toContain('No plugin overrides');
+  });
+
   it('canonicalizes the legacy Telegram package spec when toggling', async () => {
     await fs.writeFile(
       configPath,
