@@ -1,4 +1,4 @@
-import { ConfigError, expectDefined } from '@wrongstack/core';
+import { CODEX_MODELS, ConfigError, expectDefined } from '@wrongstack/core';
 import type {
   Logger,
   ModelsRegistry,
@@ -198,12 +198,7 @@ export async function withCatalogCapabilities(
   log?: Logger,
 ): Promise<Provider> {
   try {
-    const resolved = await capabilitiesFor(
-      registry,
-      providerId,
-      cfg.model ?? '',
-      cfg.customModels,
-    );
+    const resolved = await capabilitiesFor(registry, providerId, cfg.model ?? '', cfg.customModels);
     // `Provider.capabilities` is `readonly`; the property descriptor was
     // set with `writable: false` at construction time. Redefine it so
     // the catalog overlay lands cleanly.
@@ -276,9 +271,7 @@ export async function buildProviderFactoriesFromRegistry(
  */
 function resolveActiveKey(cfg: ProviderConfig): string | undefined {
   if (Array.isArray(cfg.apiKeys) && cfg.apiKeys.length > 0) {
-    const active = cfg.activeKey
-      ? cfg.apiKeys.find((k) => k.label === cfg.activeKey)
-      : undefined;
+    const active = cfg.activeKey ? cfg.apiKeys.find((k) => k.label === cfg.activeKey) : undefined;
     return (active ?? cfg.apiKeys[0])?.apiKey;
   }
   return cfg.apiKey && cfg.apiKey.length > 0 ? cfg.apiKey : undefined;
@@ -288,9 +281,7 @@ function resolveActiveKey(cfg: ProviderConfig): string | undefined {
  *  families that carry refresh tokens / expiry / account id alongside the key. */
 function resolveActiveKeyEntry(cfg: ProviderConfig): ProviderApiKey | undefined {
   if (Array.isArray(cfg.apiKeys) && cfg.apiKeys.length > 0) {
-    const active = cfg.activeKey
-      ? cfg.apiKeys.find((k) => k.label === cfg.activeKey)
-      : undefined;
+    const active = cfg.activeKey ? cfg.apiKeys.find((k) => k.label === cfg.activeKey) : undefined;
     return active ?? cfg.apiKeys[0];
   }
   return undefined;
@@ -315,13 +306,15 @@ function makeProvider(p: ResolvedProvider, cfg: ProviderConfig): Provider {
   if (!family || family === 'unsupported') {
     if (family === 'unsupported') {
       throw new ConfigError({
-        message: `Provider "${p.id}" uses an unsupported wire family (${p.npm ?? 'unknown'}). ` +
+        message:
+          `Provider "${p.id}" uses an unsupported wire family (${p.npm ?? 'unknown'}). ` +
           `Register a custom factory via a plugin to enable it.`,
         code: 'CONFIG_INVALID',
       });
     }
     throw new ConfigError({
-      message: `Provider "${p.id}" has no wire family configured. ` +
+      message:
+        `Provider "${p.id}" has no wire family configured. ` +
         `Set an explicit family ("anthropic" | "openai" | "openai-compatible" | "google") in config or the models.dev catalog.`,
       code: 'CONFIG_INVALID',
     });
@@ -448,10 +441,28 @@ export function makeProviderFromConfig(id: string, cfg: ProviderConfig): Provide
     family: cfg.family,
     apiBase: cfg.baseUrl,
     envVars: cfg.envVars ?? [],
-    models: (cfg.models ?? []).map((m) => ({ id: m, name: m })),
+    models: seedConfigModels(cfg),
     npm: undefined,
   };
   return makeProvider(synthetic, cfg);
+}
+
+/**
+ * Resolve the model list for a config-only Provider. The saved `cfg.models`
+ * allowlist wins when non-empty, but an empty/absent allowlist must NOT yield
+ * an empty picker for OAuth / subscription families whose canonical model list
+ * is known offline — otherwise deleting the models from config (or a fresh
+ * login that hasn't persisted an allowlist yet) leaves the provider showing
+ * zero models. For `openai-codex` (ChatGPT sign-in) we fall back to the
+ * canonical `CODEX_MODELS` catalog so the provider is always populated.
+ */
+function seedConfigModels(cfg: ProviderConfig): Array<{ id: string; name: string }> {
+  const saved = cfg.models ?? [];
+  if (saved.length > 0) return saved.map((m) => ({ id: m, name: m }));
+  if (cfg.family === 'openai-codex' || cfg.type === 'openai-codex') {
+    return CODEX_MODELS.map((m) => ({ id: m.id, name: m.name }));
+  }
+  return [];
 }
 
 function readFromEnv(vars: string[]): string | undefined {

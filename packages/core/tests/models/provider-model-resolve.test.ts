@@ -44,9 +44,9 @@ describe('describeCatalogModel', () => {
   });
 
   it('surfaces an overlay description when present, omits it otherwise', () => {
-    expect(describeCatalogModel(catalogModel({ description: 'Ultra-fast coding model.' }))).toMatchObject(
-      { description: 'Ultra-fast coding model.' },
-    );
+    expect(
+      describeCatalogModel(catalogModel({ description: 'Ultra-fast coding model.' })),
+    ).toMatchObject({ description: 'Ultra-fast coding model.' });
     expect(describeCatalogModel(catalogModel())).not.toHaveProperty('description');
   });
 });
@@ -119,5 +119,38 @@ describe('resolveProviderModelList', () => {
   it('returns an empty list (never an error) for an unknown provider with no allowlist', () => {
     expect(resolveProviderModelList(undefined, undefined)).toEqual([]);
     expect(resolveProviderModelList([], undefined)).toEqual([]);
+  });
+
+  it('falls back to the canonical codex list for openai-codex when config + catalog are empty', () => {
+    // User deleted cfg.models AND the models.dev/overlay catalog is unavailable
+    // (e.g. offline). The provider must still surface the ChatGPT sign-in models.
+    const list = resolveProviderModelList([], undefined, 'openai-codex');
+    expect(list.map((m) => m.id)).toEqual([
+      'gpt-5.5',
+      'gpt-5.4',
+      'gpt-5.4-mini',
+      'gpt-5.3-codex-spark',
+    ]);
+    expect(list[0]).toMatchObject({
+      id: 'gpt-5.5',
+      name: 'GPT-5.5',
+      description: 'Frontier model for complex coding, research, and real-world work.',
+      capabilities: [],
+    });
+  });
+
+  it('falls back to the codex list for openai-codex when the catalog has zero models', () => {
+    const list = resolveProviderModelList(undefined, catalog([]), 'openai-codex');
+    expect(list.map((m) => m.id)).toEqual([
+      'gpt-5.5',
+      'gpt-5.4',
+      'gpt-5.4-mini',
+      'gpt-5.3-codex-spark',
+    ]);
+  });
+
+  it('does not synthesize codex models for non-codex providers', () => {
+    expect(resolveProviderModelList([], undefined, 'openai')).toEqual([]);
+    expect(resolveProviderModelList([], catalog([]), 'openai')).toEqual([]);
   });
 });

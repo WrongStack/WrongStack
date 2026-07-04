@@ -1,5 +1,5 @@
 import type { ModelsDevModel, ResolvedProvider } from '../types/models-registry.js';
-import { codexModelMeta } from './codex-catalog.js';
+import { CODEX_MODELS, codexModelMeta } from './codex-catalog.js';
 
 /**
  * A model descriptor shaped for the WebUI `provider.models` message. All
@@ -58,6 +58,14 @@ export function describeCatalogModel(m: ModelsDevModel): ProviderModelDescriptor
 export function resolveProviderModelList(
   savedModels: string[] | undefined,
   catalog: ResolvedProvider | undefined,
+  /**
+   * Provider id / wire family the list is being resolved for. Lets the
+   * resolver fall back to a known offline catalog (currently the ChatGPT
+   * `openai-codex` models) when the saved allowlist is empty AND the
+   * models.dev catalog is unavailable — so deleting the models from config
+   * never leaves the provider showing zero models.
+   */
+  providerHint?: string | undefined,
 ): ProviderModelDescriptor[] {
   if (savedModels && savedModels.length > 0) {
     const byId = new Map((catalog?.models ?? []).map((m) => [m.id, m]));
@@ -77,6 +85,18 @@ export function resolveProviderModelList(
       return { id, name: id, capabilities: [] };
     });
   }
-  if (catalog) return catalog.models.map(describeCatalogModel);
+  if (catalog && catalog.models.length > 0) return catalog.models.map(describeCatalogModel);
+  // No allowlist and no catalog models. For the ChatGPT sign-in provider the
+  // canonical model list is known offline, so surface it rather than an empty
+  // picker (the models.dev catalog omits `openai-codex`; its models live only
+  // in the curated overlay, which may be missing offline).
+  if (providerHint === 'openai-codex') {
+    return CODEX_MODELS.map((m) => ({
+      id: m.id,
+      name: m.name,
+      description: m.description,
+      capabilities: [],
+    }));
+  }
   return [];
 }

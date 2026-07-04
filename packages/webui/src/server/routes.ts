@@ -61,11 +61,7 @@ import type { Config } from '@wrongstack/core/types';
 import type { MCPRegistry } from '@wrongstack/mcp';
 import { makeProviderFromConfig } from '@wrongstack/providers';
 
-import {
-  handleGitChanges,
-  handleGitDiff,
-  handleGitInfo,
-} from './git-handlers.js';
+import { handleGitChanges, handleGitDiff, handleGitInfo } from './git-handlers.js';
 import { handleShellOpen, type ShellOpenRequest, type ShellOpenResult } from './shell-open.js';
 import {
   handleMailboxAgents,
@@ -335,15 +331,24 @@ export function buildRoutes(
       send(ws, {
         type: 'provider.catalog',
         payload: {
-          providers: providers.map((p: { id: string; name: string; family: unknown; apiBase?: unknown; envVars: string[]; models: readonly unknown[] }) => ({
-            id: p.id,
-            name: p.name,
-            family: p.family,
-            apiBase: p.apiBase,
-            envVars: p.envVars,
-            modelCount: p.models.length,
-            hasApiKey: savedIds.has(p.id) || p.envVars.some((v: string) => !!process.env[v]),
-          })),
+          providers: providers.map(
+            (p: {
+              id: string;
+              name: string;
+              family: unknown;
+              apiBase?: unknown;
+              envVars: string[];
+              models: readonly unknown[];
+            }) => ({
+              id: p.id,
+              name: p.name,
+              family: p.family,
+              apiBase: p.apiBase,
+              envVars: p.envVars,
+              modelCount: p.models.length,
+              hasApiKey: savedIds.has(p.id) || p.envVars.some((v: string) => !!process.env[v]),
+            }),
+          ),
         },
       });
     },
@@ -362,16 +367,12 @@ export function buildRoutes(
       // reply (possibly empty) — the switcher lazy-loads every saved provider.
       const saved = await providerHandlers.loadConfigProviders();
       const cfg = saved[providerId];
-      const provider = await resolveProviderCatalogForModels(
-        deps.modelsRegistry,
-        providerId,
-        cfg,
-      );
+      const provider = await resolveProviderCatalogForModels(deps.modelsRegistry, providerId, cfg);
       const models = await enrichProviderModelDescriptors(
         deps.modelsRegistry,
         providerId,
         cfg,
-        resolveProviderModelList(cfg?.models, provider),
+        resolveProviderModelList(cfg?.models, provider, cfg?.type ?? providerId),
       );
       send(ws, {
         type: 'provider.models',
@@ -398,7 +399,9 @@ export function buildRoutes(
         // Create new provider instance — fail loudly if the user picks a
         // provider with no creds rather than silently keeping the old one.
         const newCfg = state.getConfig();
-        const providerCfg: ProviderConfig = newCfg.providers?.[newProvider] ?? { type: newProvider };
+        const providerCfg: ProviderConfig = newCfg.providers?.[newProvider] ?? {
+          type: newProvider,
+        };
         const newProv = deps.providerRegistry.has(newProvider)
           ? deps.providerRegistry.create({ ...providerCfg, type: newProvider } as never)
           : makeProviderFromConfig(newProvider, providerCfg);
@@ -468,12 +471,14 @@ export function buildRoutes(
           timeoutMs: 90000,
           ...(reasoning ? { reasoning } : {}),
           onError: (reason: unknown) => {
-            console.warn(JSON.stringify({
-              level: 'warn',
-              event: 'model.refine_failed',
-              reason,
-              timestamp: new Date().toISOString(),
-            }));
+            console.warn(
+              JSON.stringify({
+                level: 'warn',
+                event: 'model.refine_failed',
+                reason,
+                timestamp: new Date().toISOString(),
+              }),
+            );
           },
         });
         if (result) {
@@ -488,12 +493,14 @@ export function buildRoutes(
           });
         }
       } catch (err) {
-        console.error(JSON.stringify({
-          level: 'error',
-          event: 'model.refine.error',
-          error: errMessage(err),
-          timestamp: new Date().toISOString(),
-        }));
+        console.error(
+          JSON.stringify({
+            level: 'error',
+            event: 'model.refine.error',
+            error: errMessage(err),
+            timestamp: new Date().toISOString(),
+          }),
+        );
         send(ws, {
           type: 'model.refine_result',
           payload: { refined: text, english: text, error: errMessage(err) },
@@ -593,15 +600,20 @@ export function buildRoutes(
       const cfg = state.getConfig();
       const features = (cfg.features ?? {}) as unknown as Record<string, unknown>;
       if (typeof payload['featureMcp'] === 'boolean') features['mcp'] = payload['featureMcp'];
-      if (typeof payload['featurePlugins'] === 'boolean') features['plugins'] = payload['featurePlugins'];
-      if (typeof payload['featureMemory'] === 'boolean') features['memory'] = payload['featureMemory'];
-      if (typeof payload['featureSkills'] === 'boolean') features['skills'] = payload['featureSkills'];
-      if (typeof payload['featureModelsRegistry'] === 'boolean') features['modelsRegistry'] = payload['featureModelsRegistry'];
+      if (typeof payload['featurePlugins'] === 'boolean')
+        features['plugins'] = payload['featurePlugins'];
+      if (typeof payload['featureMemory'] === 'boolean')
+        features['memory'] = payload['featureMemory'];
+      if (typeof payload['featureSkills'] === 'boolean')
+        features['skills'] = payload['featureSkills'];
+      if (typeof payload['featureModelsRegistry'] === 'boolean')
+        features['modelsRegistry'] = payload['featureModelsRegistry'];
       cfg.features = features as never;
 
       // Global fallback chain: mutate the live config so the leader's fallback
       // extension (which reads config each turn) honours it without a restart.
-      if (Array.isArray(payload['fallbackModels'])) cfg.fallbackModels = payload['fallbackModels'] as string[];
+      if (Array.isArray(payload['fallbackModels']))
+        cfg.fallbackModels = payload['fallbackModels'] as string[];
       if (
         payload['fallbackProfiles'] &&
         typeof payload['fallbackProfiles'] === 'object' &&
@@ -609,8 +621,10 @@ export function buildRoutes(
       ) {
         cfg.fallbackProfiles = payload['fallbackProfiles'] as Record<string, string[]>;
       }
-      if (Array.isArray(payload['favoriteModels'])) cfg.favoriteModels = payload['favoriteModels'] as string[];
-      if (typeof payload['favoriteModelsOnly'] === 'boolean') cfg.favoriteModelsOnly = payload['favoriteModelsOnly'];
+      if (Array.isArray(payload['favoriteModels']))
+        cfg.favoriteModels = payload['favoriteModels'] as string[];
+      if (typeof payload['favoriteModelsOnly'] === 'boolean')
+        cfg.favoriteModelsOnly = payload['favoriteModelsOnly'];
       if (
         payload['modelMatrix'] &&
         typeof payload['modelMatrix'] === 'object' &&
@@ -629,7 +643,10 @@ export function buildRoutes(
         if (payload['contextAutoCompact'] && deps.autoCompactor) {
           // Re-add: remove first (idempotent via optional), then insert.
           deps.pipelines.contextWindow.remove('AutoCompaction', { optional: true });
-          deps.pipelines.contextWindow.use({ name: 'AutoCompaction', handler: deps.autoCompactor.handler() });
+          deps.pipelines.contextWindow.use({
+            name: 'AutoCompaction',
+            handler: deps.autoCompactor.handler(),
+          });
         } else {
           deps.pipelines.contextWindow.remove('AutoCompaction', { optional: true });
         }
@@ -641,7 +658,7 @@ export function buildRoutes(
       if (typeof payload['logLevel'] === 'string') {
         const valid = ['debug', 'info', 'warn', 'error'] as const;
         if ((valid as readonly string[]).includes(payload['logLevel'])) {
-          (deps.logger as { level: string }).level = payload['logLevel'] as typeof valid[number];
+          (deps.logger as { level: string }).level = payload['logLevel'] as (typeof valid)[number];
         }
       }
 
@@ -674,7 +691,10 @@ export function buildRoutes(
         sendResult(ws, false, parsed.message);
         return;
       }
-      const result: ShellOpenResult = await handleShellOpen(parsed.value as ShellOpenRequest, deps.logger);
+      const result: ShellOpenResult = await handleShellOpen(
+        parsed.value as ShellOpenRequest,
+        deps.logger,
+      );
       sendResult(ws, result.success, result.message);
     },
   };
@@ -705,10 +725,10 @@ export function buildRoutes(
       );
     },
     clear: (ws) =>
-      handleMailboxClear(
-        ws,
-        { projectRoot: state.getProjectRoot(), globalRoot: path.dirname(deps.globalConfigPath) },
-      ),
+      handleMailboxClear(ws, {
+        projectRoot: state.getProjectRoot(),
+        globalRoot: path.dirname(deps.globalConfigPath),
+      }),
     purge: (ws, msg) => {
       const parsed = validateMailboxPurgePayload(msg.payload);
       if (!parsed.ok) {
@@ -779,7 +799,10 @@ export function buildRoutes(
           risk: 'medium',
           fallback: 'ask_human',
         });
-        send(ws, { type: 'brain.answer', payload: { sessionId: deps.context.session?.id, question, decision } });
+        send(ws, {
+          type: 'brain.answer',
+          payload: { sessionId: deps.context.session?.id, question, decision },
+        });
       } catch (err) {
         sendResult(ws, false, `Brain consultation failed: ${errMessage(err)}`);
       }

@@ -59,7 +59,10 @@ function projectSavedProviders(providers: Record<string, ProviderConfig>) {
   });
 }
 
-export function broadcastSaved(ctx: WsHandlerContext, providers: Record<string, ProviderConfig>): void {
+export function broadcastSaved(
+  ctx: WsHandlerContext,
+  providers: Record<string, ProviderConfig>,
+): void {
   ctx.broadcast({
     type: 'providers.saved',
     payload: { providers: projectSavedProviders(providers) },
@@ -122,7 +125,7 @@ export async function handleProviderModels(
       type: 'provider.models',
       payload: {
         provider: providerId,
-        models: resolveProviderModelList(cfg?.models, provider),
+        models: resolveProviderModelList(cfg?.models, provider, cfg?.type ?? providerId),
       },
     });
   } catch (err) {
