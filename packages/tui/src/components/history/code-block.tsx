@@ -278,14 +278,44 @@ export function formatDiffStats(added: number, removed: number): string | null {
 }
 
 /**
+ * Return the token list to render on a diff wash (`diffAddBg` /
+ * `diffDelBg`). When `onWash` is false the input is returned unchanged —
+ * plain-background rendering keeps the conventional dim/gray comment
+ * look and there is no contrast reason to intervene.
+ *
+ * When `onWash` is true, comment tokens (color `gray`, conventionally
+ * `dim: true`) are promoted to a brighter foreground (`grayBright`) and
+ * lose their dim flag. The diff wash is dark enough that `dim gray`
+ * (`pastel.gray`) falls below WCAG AA contrast on either `theme.diffAddBg`
+ * (ratio ≈ 2.91) or `theme.diffDelBg` (ratio ≈ 3.47) and reads as near-
+ * invisible noise; `grayBright` clears both wash backgrounds (≥ 4.5) and
+ * keeps the comment visually secondary without becoming unreadable.
+ * Non-comment tokens pass through unchanged so the rest of the line keeps
+ * its existing syntax palette on the wash.
+ *
+ * Exported for unit testing — `renderTokens` calls it before mapping to
+ * `<Text>` elements so the override logic itself stays a pure function.
+ */
+export function applyWashTokens(tokens: Token[], onWash: boolean): Token[] {
+  if (!onWash) return tokens;
+  return tokens.map((t) => {
+    if (t.color !== 'gray') return t;
+    return { ...t, color: 'grayBright', dim: false };
+  });
+}
+
+/**
  * Render highlight tokens as nested `<Text>` segments. Tokens without a
  * color inherit the enclosing default foreground, so the same token list
  * reads correctly both on the plain background (context lines) and on the
- * dark add/del washes.
+ * dark add/del washes. `onWash` switches into "sitting on a dark
+ * green/maroon diff wash" mode — see {@link applyWashTokens} for the
+ * contrast rationale and the override rules.
  */
-function renderTokens(tokens: Token[]): React.ReactNode {
-  if (tokens.length === 0) return ' ';
-  return tokens.map((t, j) => (
+function renderTokens(tokens: Token[], onWash: boolean = false): React.ReactNode {
+  const effective = applyWashTokens(tokens, onWash);
+  if (effective.length === 0) return ' ';
+  return effective.map((t, j) => (
     <Text
       key={j}
       dimColor={Boolean(t.dim)}
@@ -502,6 +532,11 @@ export function DiffBlock({
           // background behind characters only, so the whole line — prefix,
           // marker, syntax-highlighted body and the trailing pad — must sit
           // inside one background <Text> for the wash to reach the edge.
+          //
+          // `onWash: true` lets `renderTokens` promote comment tokens off
+          // dim/gray — see {@link renderTokens}. Without that promotion the
+          // dim-gray comment collapses into the dark green/maroon wash and
+          // becomes unreadable.
           return (
             <Box key={key} flexDirection="column">
               {segments.map((seg, si) => {
@@ -519,7 +554,7 @@ export function DiffBlock({
                     ) : (
                       <Text dimColor>{contPrefix}</Text>
                     )}
-                    {renderTokens(seg)}
+                    {renderTokens(seg, true)}
                     {pad > 0 ? <Text>{' '.repeat(pad)}</Text> : null}
                   </Text>
                 );

@@ -259,4 +259,24 @@ describe('<DiffBlock /> rendering', () => {
     expect(normalize(highlighted)).toBe(normalize(plain));
     expect(highlighted).toContain('const x = "hi"; // note');
   });
+
+  it('wash mode keeps the comment text intact (contrast override does not drop glyphs)', () => {
+    // Regression for the comment-color override on the diff wash: the
+    // override only swaps the foreground/dim bits on comment tokens, so
+    // the rendered text width must stay identical between the useColor
+    // wash path and the no-color fallback. ink-testing-library strips
+    // ANSI escapes from `lastFrame`, so we can compare textual parity.
+    const body = '+const x = "hi"; // note';
+    const withoutColor = renderDiffBlock([{ kind: 'add', text: body, newLine: 1 }], {
+      useColor: false,
+      lang: 'ts',
+    });
+    const withColor = renderDiffBlock([{ kind: 'add', text: body, newLine: 1 }], {
+      useColor: true,
+      lang: 'ts',
+    });
+    const normalize = (s: string) => s.replace(/\s+/g, ' ').trim();
+    expect(normalize(withColor)).toBe(normalize(withoutColor));
+    expect(withColor).toContain('// note');
+  });
 });
