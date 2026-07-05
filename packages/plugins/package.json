@@ -155,6 +155,10 @@
     "./token-throttle": {
       "types": "./dist/token-throttle.d.ts",
       "import": "./dist/token-throttle.js"
+    },
+    "./plugin-stack-observer": {
+      "types": "./dist/plugin-stack-observer.d.ts",
+      "import": "./dist/plugin-stack-observer.js"
     }
   },
   "files": [

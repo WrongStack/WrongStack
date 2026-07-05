@@ -46,6 +46,10 @@ interface DepGuardState {
   installsSeen: number;
   blocks: number;
   warns: number;
+  /** Times the LLM successfully confirmed a typosquat candidate. */
+  llmConfirmCount: number;
+  /** Times the LLM confirmation call failed or was skipped. */
+  llmConfirmErrors: number;
   lastBlock: { pkg: string; command: string; when: string } | null;
   hookUnregister: null | (() => void);
 }
@@ -55,6 +59,8 @@ const state: DepGuardState = {
   installsSeen: 0,
   blocks: 0,
   warns: 0,
+  llmConfirmCount: 0,
+  llmConfirmErrors: 0,
   lastBlock: null,
   hookUnregister: null,
 };
@@ -70,6 +76,16 @@ interface DepGuardConfig {
   allow: string[];
   warnOnUnpinned: boolean;
   typosquatCheck: boolean;
+  /**
+   * When true (default OFF), the plugin asks the host LLM
+   * (`api.llm`) to confirm whether a flagged typosquat candidate is
+   * actually a real (but obscure) package or genuinely a typo.
+   * The LLM's verdict is appended to the warn context, never used
+   * to upgrade a warn into a block. Off by default because LLM
+   * calls aren't free and the Levenshtein-1 heuristic is already a
+   * strong signal.
+   */
+  confirmTyposquatsWithLlm: boolean;
 }
 
 const DEFAULTS: DepGuardConfig = {
@@ -79,6 +95,7 @@ const DEFAULTS: DepGuardConfig = {
   allow: [],
   warnOnUnpinned: false,
   typosquatCheck: true,
+  confirmTyposquatsWithLlm: false,
 };
 
 function readConfig(raw: unknown): DepGuardConfig {
@@ -93,6 +110,7 @@ function readConfig(raw: unknown): DepGuardConfig {
     allow: strings(r['allow']),
     warnOnUnpinned: r['warnOnUnpinned'] === true,
     typosquatCheck: r['typosquatCheck'] !== false,
+    confirmTyposquatsWithLlm: r['confirmTyposquatsWithLlm'] === true,
   };
 }
 
@@ -278,6 +296,12 @@ const plugin: Plugin = {
         default: true,
         description: 'Warn when a package name is one edit away from a well-known package.',
       },
+      confirmTyposquatsWithLlm: {
+        type: 'boolean',
+        default: false,
+        description:
+          'Ask the host LLM to confirm whether a flagged typosquat is real-but-obscure or genuinely a typo. Appended to the warn context, never escalates to a block. Off by default.',
+      },
     },
   },
 
@@ -287,6 +311,8 @@ const plugin: Plugin = {
     state.installsSeen = 0;
     state.blocks = 0;
     state.warns = 0;
+    state.llmConfirmCount = 0;
+    state.llmConfirmErrors = 0;
     state.lastBlock = null;
     if (state.hookUnregister) {
       try {
@@ -299,7 +325,7 @@ const plugin: Plugin = {
 
     const cfg = readConfig(api.config.extensions?.['dep-guard']);
 
-    const hook = (input: { toolName?: string | undefined; toolInput?: unknown }) => {
+    const hook = async (input: { toolName?: string | undefined; toolInput?: unknown }) => {
       if (!cfg.enabled) return;
       state.invocations += 1;
       const ti = (input.toolInput ?? {}) as Record<string, unknown>;
@@ -339,9 +365,32 @@ const plugin: Plugin = {
         if (cfg.typosquatCheck) {
           const lookalike = typosquatOf(pkg.name);
           if (lookalike) {
-            notes.push(
-              `"${pkg.name}" is one edit away from the well-known package "${lookalike}" — possible typosquat. Verify the name before installing.`,
-            );
+            const baseNote = `"${pkg.name}" is one edit away from the well-known package "${lookalike}" — possible typosquat. Verify the name before installing.`;
+            if (cfg.confirmTyposquatsWithLlm && api.llm) {
+              try {
+                const verdict = await api.llm.complete(
+                  `A user is installing the npm package "${pkg.name}" which is 1 edit away from the well-known "${lookalike}". Is "${pkg.name}" likely a typo of "${lookalike}" or a real-but-obscure package? Reply with ONE sentence starting with "TYPO:" or "REAL:".`,
+                  {
+                    system:
+                      'You are a supply-chain security assistant. Reply tersely with a single TYPO: or REAL: verdict.',
+                    maxTokens: 80,
+                  },
+                );
+                const t = verdict.text.trim();
+                if (t) {
+                  state.llmConfirmCount += 1;
+                  api.metrics.counter('llm_confirm');
+                  notes.push(`${baseNote} LLM verdict: ${t.slice(0, 300)}`);
+                } else {
+                  notes.push(baseNote);
+                }
+              } catch {
+                state.llmConfirmErrors += 1;
+                notes.push(baseNote);
+              }
+            } else {
+              notes.push(baseNote);
+            }
           }
         }
         if (cfg.warnOnUnpinned && pkg.version === null) {
@@ -387,6 +436,8 @@ const plugin: Plugin = {
           counters: {
             invocations: state.invocations,
             installsSeen: state.installsSeen,
+            llmConfirmCount: state.llmConfirmCount,
+            llmConfirmErrors: state.llmConfirmErrors,
             blocks: state.blocks,
             warns: state.warns,
           },
@@ -415,6 +466,8 @@ const plugin: Plugin = {
     const final = {
       invocations: state.invocations,
       installsSeen: state.installsSeen,
+      llmConfirmCount: state.llmConfirmCount,
+      llmConfirmErrors: state.llmConfirmErrors,
       blocks: state.blocks,
       warns: state.warns,
     };
@@ -422,6 +475,8 @@ const plugin: Plugin = {
     state.installsSeen = 0;
     state.blocks = 0;
     state.warns = 0;
+    state.llmConfirmCount = 0;
+    state.llmConfirmErrors = 0;
     state.lastBlock = null;
     api.log.info('dep-guard: teardown complete', { final });
   },
@@ -436,6 +491,8 @@ const plugin: Plugin = {
       counters: {
         invocations: state.invocations,
         installsSeen: state.installsSeen,
+        llmConfirmCount: state.llmConfirmCount,
+        llmConfirmErrors: state.llmConfirmErrors,
         blocks: state.blocks,
         warns: state.warns,
       },

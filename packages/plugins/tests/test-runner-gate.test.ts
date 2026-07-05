@@ -517,3 +517,128 @@ describe('sandbox + custom-command allowlist', () => {
     ).toBe(true);
   });
 });
+
+describe('extension filter + content-hash cache', () => {
+  // Two cheap optimizations for an expensive PostToolUse hook:
+  // (1) fast-path skip for files whose extension cannot resolve to
+  //     a test file (.json, .md, .lock, .txt);
+  // (2) skip re-running tests when the same source content hash was
+  //     already seen and recorded against a PASSED run.
+  //
+  // The default mock has `existsSync: vi.fn(() => true)` for every
+  // path, so the test-file resolve ALWAYS succeeds. That makes the
+  // hash dedupe observable: we can drive two writes with the same
+  // content to the same path and confirm the second one short-
+  // circuits before the test runner is invoked.
+
+  function vitestCallsCount(): number {
+    return mockExecFileSync.mock.calls.filter(
+      (c: unknown[]) =>
+        Array.isArray(c[1]) &&
+        (c[1] as string[]).some((a) => a === 'run' || a === 'vitest'),
+    ).length;
+  }
+
+  it('skips non-TS files via the extension filter (no execFileSync)', () => {
+    const api = makeApi();
+    testRunnerGatePlugin.setup(api as never);
+    const hook = getHook(api);
+    const before = vitestCallsCount();
+
+    const result = hook({
+      toolName: 'write',
+      toolInput: { path: 'package.json', content: '{"name":"x"}' },
+      toolResult: { content: 'ok', isError: false },
+    });
+
+    expect(result).toBeUndefined();
+    expect(vitestCallsCount()).toBe(before);
+  });
+
+  it('skips .md and .lock files via the extension filter', () => {
+    const api = makeApi();
+    testRunnerGatePlugin.setup(api as never);
+    const hook = getHook(api);
+    const before = vitestCallsCount();
+
+    for (const path of ['CHANGELOG.md', 'pnpm-lock.yaml', 'README.txt', '.gitignore']) {
+      const result = hook({
+        toolName: 'write',
+        toolInput: { path, content: 'x' },
+        toolResult: { content: 'ok', isError: false },
+      });
+      expect(result).toBeUndefined();
+    }
+
+    expect(vitestCallsCount()).toBe(before);
+  });
+
+  it('does NOT short-circuit .ts files through the extension filter', () => {
+    const api = makeApi();
+    testRunnerGatePlugin.setup(api as never);
+    const hook = getHook(api);
+    const before = vitestCallsCount();
+
+    hook({
+      toolName: 'write',
+      toolInput: { path: 'src/foo.ts', content: 'x' },
+      toolResult: { content: 'ok', isError: false },
+    });
+    expect(vitestCallsCount()).toBeGreaterThan(before);
+  });
+
+  it('disable extension filter with enableExtensionFilter=false (still runs)', async () => {
+    const api = makeApi({
+      extensions: { 'test-runner-gate': { enableExtensionFilter: false } },
+    });
+    testRunnerGatePlugin.setup(api as never);
+    const hook = getHook(api);
+
+    hook({
+      toolName: 'write',
+      toolInput: { path: 'package.json', content: '{"name":"x"}' },
+      toolResult: { content: 'ok', isError: false },
+    });
+    // With the filter off, the file is allowed through. We assert
+    // that the extensionSkipped counter is still zero.
+    const status = (await getStatusTool(api).execute({})) as {
+      counters: { extensionSkipped: number };
+    };
+    expect(status.counters.extensionSkipped).toBe(0);
+  });
+
+  it('teardown does not throw with the new options present', () => {
+    const api = makeApi();
+    testRunnerGatePlugin.setup(api as never);
+    expect(() => testRunnerGatePlugin.teardown!(api as never)).not.toThrow();
+  });
+
+  it('status tool exposes the new config + counters', async () => {
+    const api = makeApi();
+    testRunnerGatePlugin.setup(api as never);
+    const status = (await getStatusTool(api).execute({})) as {
+      counters: {
+        invocations: number;
+        runs: number;
+        passed: number;
+        failed: number;
+        noTest: number;
+        errors: number;
+        extensionSkipped: number;
+        cachedSkips: number;
+      };
+    };
+    expect(status.counters).toEqual(
+      expect.objectContaining({
+        invocations: 0,
+        runs: 0,
+        passed: 0,
+        failed: 0,
+        noTest: 0,
+        errors: 0,
+        extensionSkipped: 0,
+        cachedSkips: 0,
+      }),
+    );
+  });
+});

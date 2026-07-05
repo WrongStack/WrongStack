@@ -28,9 +28,10 @@
  *
  * @public
  */
-import type { Plugin } from '@wrongstack/core';
+
 import { execFileSync } from 'node:child_process';
 import { isAbsolute, relative, resolve } from 'node:path';
+import type { Plugin } from '@wrongstack/core';
 
 const API_VERSION = '^0.1.10';
 
@@ -65,6 +66,10 @@ const state = {
   injectedCount: 0,
   /** Times git diff failed (not a repo, untracked, etc.). */
   fallbackCount: 0,
+  /** Times the per-path throttle fired (no git diff was spawned). */
+  throttledCount: 0,
+  /** Times the content hash matched the last injection (no git diff). */
+  duplicateContentCount: 0,
   /** Hook handle for teardown. */
   hookUnregister: null as null | (() => void),
   /** Last diff summary — surfaced by health() + status tool. */
@@ -96,6 +101,23 @@ interface DiffSummaryConfig {
    * default, higher = more surrounding lines for orientation.
    */
   includeContext: number;
+  /**
+   * Minimum interval (ms) between two diff-summary injections for
+   * the SAME path. Defaults to 1000 (1 s). Set to 0 to disable the
+   * per-path throttle. Without this, a model retry that re-issues
+   * an `edit` (or a tight loop of writes to the same file) would
+   * pay a `git diff` per call -- easily 50-500 ms each.
+   */
+  minIntervalMs: number;
+  /**
+   * When true (default), the plugin fingerprints each PostToolUse
+   * payload's `content` (write) or `new_string` (edit) with a tiny
+   * hash and skips the `git diff` when the hash matches the one
+   * injected for this path last time. Catches the common case of
+   * the model re-issuing an identical edit because its first call
+   * "didn't seem to take". Default ON.
+   */
+  enableContentHashCache: boolean;
 }
 
 const DEFAULTS: DiffSummaryConfig = {
@@ -103,6 +125,8 @@ const DEFAULTS: DiffSummaryConfig = {
   showStat: true,
   mode: 'diff',
   includeContext: 3,
+  minIntervalMs: 1_000,
+  enableContentHashCache: true,
 };
 
 function readConfig(raw: unknown): DiffSummaryConfig {
@@ -117,8 +141,41 @@ function readConfig(raw: unknown): DiffSummaryConfig {
       typeof r['includeContext'] === 'number' && r['includeContext'] >= 0
         ? r['includeContext']
         : DEFAULTS.includeContext,
+    minIntervalMs:
+      typeof r['minIntervalMs'] === 'number' && r['minIntervalMs'] >= 0
+        ? Math.floor(r['minIntervalMs'])
+        : DEFAULTS.minIntervalMs,
+    enableContentHashCache: r['enableContentHashCache'] !== false,
   };
 }
+
+/**
+ * Tiny non-cryptographic content fingerprint for the per-path
+ * content-hash cache. DJB2 over the string produces a stable
+ * 32-bit unsigned hash; collisions are tolerable (they only mean a
+ * false dedupe -> we miss one diff, not corrupt data). The input is
+ * capped at 64 KB to keep the cost bounded on very large files --
+ * the first 64 KB is more than enough to detect "same edit, retry".
+ */
+function contentHash(s: string): number {
+  const cap = Math.min(s.length, 65536);
+  let h = 5381;
+  for (let i = 0; i < cap; i++) {
+    h = ((h << 5) + h + s.charCodeAt(i)) | 0;
+  }
+  return h >>> 0;
+}
+
+/**
+ * Per-path memo: last injected content hash + last injection time.
+ * Bounded by the set of paths the user has touched this session --
+ * typically tens to hundreds, not thousands.
+ */
+interface PathMemo {
+  hash: number;
+  lastInjectedAt: number;
+}
+const pathMemo = new Map<string, PathMemo>();
 
 // ---------------------------------------------------------------------------
 // Git helpers
@@ -266,6 +323,19 @@ const plugin: Plugin = {
         description:
           'Context lines around each change (git -U<N>). 0 = compact (no surrounding lines), 3 = git default, higher = more orientation.',
       },
+      minIntervalMs: {
+        type: 'number',
+        minimum: 0,
+        default: 1000,
+        description:
+          'Per-path throttle: minimum interval (ms) between two diff-summary injections for the same file. Skips `git diff` when the model re-touches a file within the window. Set to 0 to disable.',
+      },
+      enableContentHashCache: {
+        type: 'boolean',
+        default: true,
+        description:
+          'When true, fingerprints the PostToolUse payload content and skips `git diff` when the hash matches the previously injected hash for the same path. Catches "edit retry" loops.',
+      },
     },
   },
 
@@ -274,8 +344,11 @@ const plugin: Plugin = {
     state.invocationCount = 0;
     state.injectedCount = 0;
     state.fallbackCount = 0;
+    state.throttledCount = 0;
+    state.duplicateContentCount = 0;
     state.hookUnregister = null;
     state.lastSummary = null;
+    pathMemo.clear();
 
     const cfg = readConfig(api.config.extensions?.['diff-summary']);
     const cwd = typeof process.cwd === 'function' ? process.cwd() : undefined;
@@ -305,6 +378,37 @@ const plugin: Plugin = {
         return;
       }
 
+      // Per-path throttle + content-hash dedupe. These two cheap
+      // checks skip the expensive `git diff` invocation when the
+      // model just retried the same edit (or hammered the same path
+      // in quick succession). They run AFTER the sandbox check so
+      // hostile paths are still refused; they run BEFORE `git diff`
+      // so we save the subprocess spawn.
+      const toolInputForHash =
+        toolName === 'edit'
+          ? ((inp['new_string'] as unknown) ?? '')
+          : toolName === 'write'
+            ? ((inp['content'] as unknown) ?? '')
+            : '';
+      const now = Date.now();
+      const memo = pathMemo.get(filePath);
+      if (memo) {
+        if (cfg.minIntervalMs > 0 && now - memo.lastInjectedAt < cfg.minIntervalMs) {
+          state.throttledCount = (state.throttledCount ?? 0) + 1;
+          api.metrics.counter('throttled');
+          return;
+        }
+        if (
+          cfg.enableContentHashCache &&
+          typeof toolInputForHash === 'string' &&
+          contentHash(toolInputForHash) === memo.hash
+        ) {
+          state.duplicateContentCount = (state.duplicateContentCount ?? 0) + 1;
+          api.metrics.counter('duplicate_content');
+          return;
+        }
+      }
+
       const result = getGitDiff(filePath, cfg.includeContext, cwd);
       if (!result) {
         state.fallbackCount += 1;
@@ -323,6 +427,21 @@ const plugin: Plugin = {
         removed: result.removed,
         when: new Date().toISOString(),
       };
+
+      // Record the content hash + injection time so the next call to
+      // this path can be deduped / throttled without another `git diff`.
+      if (cfg.enableContentHashCache && typeof toolInputForHash === 'string') {
+        pathMemo.set(filePath, {
+          hash: contentHash(toolInputForHash),
+          lastInjectedAt: now,
+        });
+      } else if (cfg.minIntervalMs > 0) {
+        // Even if content caching is off, keep the throttle memo.
+        pathMemo.set(filePath, {
+          hash: 0,
+          lastInjectedAt: now,
+        });
+      }
 
       let summary: string;
       if (cfg.mode === 'stat') {
@@ -356,10 +475,14 @@ const plugin: Plugin = {
           maxLines: cfg.maxLines,
           showStat: cfg.showStat,
           includeContext: cfg.includeContext,
+          minIntervalMs: cfg.minIntervalMs,
+          enableContentHashCache: cfg.enableContentHashCache,
           counters: {
             invocations: state.invocationCount,
             injected: state.injectedCount,
             fallbacks: state.fallbackCount,
+            throttled: state.throttledCount,
+            duplicateContent: state.duplicateContentCount,
           },
           lastSummary: state.lastSummary,
         };
@@ -386,11 +509,16 @@ const plugin: Plugin = {
       invocations: state.invocationCount,
       injected: state.injectedCount,
       fallbacks: state.fallbackCount,
+      throttled: state.throttledCount,
+      duplicateContent: state.duplicateContentCount,
     };
     state.invocationCount = 0;
     state.injectedCount = 0;
     state.fallbackCount = 0;
+    state.throttledCount = 0;
+    state.duplicateContentCount = 0;
     state.lastSummary = null;
+    pathMemo.clear();
     api.log.info('diff-summary: teardown complete', { final });
   },
 
@@ -399,12 +527,14 @@ const plugin: Plugin = {
       ok: true,
       message:
         state.lastSummary === null
-          ? `diff-summary: ${state.invocationCount} invocation(s), ${state.injectedCount} injected`
+          ? `diff-summary: ${state.invocationCount} invocation(s), ${state.injectedCount} injected, ${state.throttledCount} throttled, ${state.duplicateContentCount} dup-content`
           : `diff-summary: last ${state.lastSummary.tool} on ${state.lastSummary.path} (+${state.lastSummary.added} -${state.lastSummary.removed}) at ${state.lastSummary.when}`,
       counters: {
         invocations: state.invocationCount,
         injected: state.injectedCount,
         fallbacks: state.fallbackCount,
+        throttled: state.throttledCount,
+        duplicateContent: state.duplicateContentCount,
       },
       lastSummary: state.lastSummary,
     };

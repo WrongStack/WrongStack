@@ -272,6 +272,13 @@ const plugin: Plugin = {
     const cfg = readConfig(api.config.extensions?.['prompt-firewall']);
 
     if (cfg.enabled) {
+      // Announce participation in the wrap stack so plugin-stack-observer
+      // can build a system-prompt summary of who is wrapping what.
+      api.emitCustom?.('provider.wrap:loaded', {
+        plugin: 'prompt-firewall',
+        kind: 'security',
+        wraps: ['request', 'response'],
+      });
       state.extensionUnregister = api.extensions.register({
         name: 'prompt-firewall',
         owner: 'prompt-firewall',

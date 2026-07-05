@@ -122,6 +122,24 @@ function resolveProjectPath(rawPath: string, cwd = process.cwd()): string | null
   return null;
 }
 
+/**
+ * Tiny non-cryptographic content fingerprint (DJB2) used by the
+ * `checkpoint:captured` custom event. Consumers compare hashes per
+ * path to detect file changes between captures — same hash means
+ * no observable change, different hash means the file mutated.
+ *
+ * Capped at 64 KB to keep the cost bounded on very large files; the
+ * first 64 KB is more than enough to distinguish real edits.
+ */
+function hashContent(s: string): number {
+  const cap = Math.min(s.length, 65536);
+  let h = 5381;
+  for (let i = 0; i < cap; i++) {
+    h = ((h << 5) + h + s.charCodeAt(i)) | 0;
+  }
+  return h >>> 0;
+}
+
 function captureFile(path: string, maxBytes: number): Snapshot['files'][number] | 'too-large' {
   try {
     const st = statSync(path);
@@ -221,6 +239,22 @@ const plugin: Plugin = {
         );
         state.captures += 1;
         api.metrics.counter('captures');
+
+        // Cross-plugin coordination: announce the capture so plugins
+        // that read the file post-write (spec-linker, diff-summary,
+        // etc.) can avoid a redundant disk read or use the captured
+        // bytes as a change-detection signal. The hash is a tiny
+        // DJB2 over the captured content (null content => 0).
+        api.emitCustom?.('checkpoint:captured', {
+          path: safePath,
+          bytes: captured.bytes,
+          hadContent: captured.content !== null,
+          // 32-bit unsigned hash of the captured bytes. Collisions
+          // are tolerable (consumers should compare hashes per-path,
+          // not across paths).
+          contentHash: captured.content !== null ? hashContent(captured.content) : 0,
+          when: new Date().toISOString(),
+        });
       };
       state.hookUnregister = api.registerHook('PreToolUse', 'write|edit', hook as never);
     }

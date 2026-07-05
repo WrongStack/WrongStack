@@ -527,4 +527,148 @@ describe('import-organizer plugin', () => {
       expect(payload.linterAvailable).toBe(false);
     });
   });
+
+  // -------------------------------------------------------------------------
+  describe('cross-plugin coordination: import-organizer:done emit', () => {
+    // format-on-save listens for this custom event and skips its
+    // redundant biome run on the same path. These tests pin the
+    // emit side of the contract.
+
+    function getHook(api: PluginAPI) {
+      const call = vi.mocked(api.registerHook).mock.calls[0];
+      if (!call?.[2]) throw new Error('hook not registered');
+      return call[2] as (input: {
+        toolName?: string | undefined;
+        toolInput?: unknown;
+        toolResult?: { content: string; isError: boolean } | undefined;
+      }) => Promise<unknown>;
+    }
+
+    function getEmits(api: PluginAPI): Array<{ event: string; payload: unknown }> {
+      return vi.mocked(api.emitCustom).mock.calls.map((c) => ({
+        event: c[0] as string,
+        payload: c[1],
+      }));
+    }
+
+    it('emits import-organizer:done with path + changed on a successful run', async () => {
+      const api = createMockAPI();
+      importOrganizerPlugin.setup(api as never);
+      const hook = getHook(api);
+
+      const filePath = path.join(tmpDir, 'emit.ts');
+      await fs.writeFile(filePath, 'const a = 1;', 'utf8');
+      mockSpawnOk('', '', 0, (p) => fsSync.appendFileSync(p, '\nconst b = 2;', 'utf8'));
+
+      await hook({
+        toolName: 'write',
+        toolInput: { path: filePath, content: '' },
+        toolResult: { content: 'ok', isError: false },
+      });
+
+      const emit = getEmits(api).find((e) => e.event === 'import-organizer:done');
+      expect(emit).toBeDefined();
+      const payload = emit?.payload as { path: string; changed: boolean; command: string };
+      expect(payload.path).toBe(filePath);
+      expect(payload.changed).toBe(true);
+      expect(payload.command).toContain('biome');
+    });
+
+    it('emits import-organizer:done even on a clean run (changed=false)', async () => {
+      const api = createMockAPI();
+      importOrganizerPlugin.setup(api as never);
+      const hook = getHook(api);
+
+      const filePath = path.join(tmpDir, 'clean-emit.ts');
+      await fs.writeFile(filePath, 'const c = 3;', 'utf8');
+      mockSpawnOk(''); // no byte change → clean
+
+      await hook({
+        toolName: 'write',
+        toolInput: { path: filePath, content: '' },
+        toolResult: { content: 'ok', isError: false },
+      });
+
+      const emit = getEmits(api).find((e) => e.event === 'import-organizer:done');
+      expect(emit).toBeDefined();
+      const payload = emit?.payload as { path: string; changed: boolean };
+      expect(payload.path).toBe(filePath);
+      expect(payload.changed).toBe(false);
+    });
+
+    it('does not emit when the linter failed (neither primary nor fallback ran)', async () => {
+      const api = createMockAPI();
+      importOrganizerPlugin.setup(api as never);
+      const hook = getHook(api);
+
+      const filePath = path.join(tmpDir, 'no-linter.ts');
+      await fs.writeFile(filePath, 'const x = 1;', 'utf8');
+      // 127 = command not found. Without a working fallback, the
+      // hook returns without emitting. (We disable the fallback via
+      // a disallowed command so neither path succeeds.)
+      api.config.extensions = { 'import-organizer': { fallbackCommand: 'definitely-not-installed-xyz' } };
+      importOrganizerPlugin.teardown!(api as never);
+      importOrganizerPlugin.setup(api as never);
+      const hook2 = getHook(api);
+
+      // Force the spawn to return 127 (command missing)
+      vi.mocked(spawn).mockImplementation((() => {
+        const { EventEmitter } = require('node:events');
+        const child = new EventEmitter() as EventEmitter & { stdout: EventEmitter; stderr: EventEmitter };
+        child.stdout = new EventEmitter();
+        child.stderr = new EventEmitter();
+        // close with code 127 → fallback path also returns null
+        queueMicrotask(() => child.emit('close', 127));
+        return child;
+      }) as never);
+
+      await hook2({
+        toolName: 'write',
+        toolInput: { path: filePath, content: '' },
+        toolResult: { content: 'ok', isError: false },
+      });
+
+      const emit = getEmits(api).find((e) => e.event === 'import-organizer:done');
+      expect(emit).toBeUndefined();
+    });
+
+    it('does not emit when notifyFormatOnSave=false (opt-out)', async () => {
+      const api = createMockAPI();
+      api.config.extensions = { 'import-organizer': { notifyFormatOnSave: false } };
+      importOrganizerPlugin.setup(api as never);
+      const hook = getHook(api);
+
+      const filePath = path.join(tmpDir, 'optout.ts');
+      await fs.writeFile(filePath, 'const x = 1;', 'utf8');
+      mockSpawnOk('', '', 0, (p) => fsSync.appendFileSync(p, '\nconst y = 2;', 'utf8'));
+
+      await hook({
+        toolName: 'write',
+        toolInput: { path: filePath, content: '' },
+        toolResult: { content: 'ok', isError: false },
+      });
+
+      const emit = getEmits(api).find((e) => e.event === 'import-organizer:done');
+      expect(emit).toBeUndefined();
+    });
+
+    it('notifyFormatOnSave defaults to true', async () => {
+      const api = createMockAPI();
+      importOrganizerPlugin.setup(api as never);
+      const hook = getHook(api);
+
+      const filePath = path.join(tmpDir, 'default-on.ts');
+      await fs.writeFile(filePath, 'const x = 1;', 'utf8');
+      mockSpawnOk('', '', 0, (p) => fsSync.appendFileSync(p, '\n', 'utf8'));
+
+      await hook({
+        toolName: 'write',
+        toolInput: { path: filePath, content: '' },
+        toolResult: { content: 'ok', isError: false },
+      });
+
+      const emit = getEmits(api).find((e) => e.event === 'import-organizer:done');
+      expect(emit).toBeDefined();
+    });
+  });
 });

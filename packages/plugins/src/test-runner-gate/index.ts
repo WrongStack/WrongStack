@@ -29,10 +29,11 @@
  *
  * @public
  */
-import type { Plugin } from '@wrongstack/core';
+
 import { execFileSync, execSync } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import { basename, dirname, isAbsolute, join, relative, resolve } from 'node:path';
+import type { Plugin } from '@wrongstack/core';
 
 const API_VERSION = '^0.1.10';
 
@@ -52,6 +53,10 @@ const state = {
   noTestCount: 0,
   /** Times the test runner itself failed (timeout, crash). */
   errorCount: 0,
+  /** Times the extension filter short-circuited the hook (.json, .md, etc.). */
+  extensionSkippedCount: 0,
+  /** Times a re-run was skipped because the source hash matched a previous PASS. */
+  cachedSkipCount: 0,
   /** Hook handle for teardown. */
   hookUnregister: null as null | (() => void),
   /** Last test result — surfaced by health() + status tool. */
@@ -78,6 +83,23 @@ interface TestGateConfig {
   timeoutMs: number;
   testFilePatterns: string[];
   injectOnPass: boolean;
+  /**
+   * When true (default), the plugin fingerprints the source path's
+   * last PASSED run and skips re-running tests if the same path
+   * shows up again with the same fingerprint within the session.
+   * Catches the common case of the model re-touching a file
+   * (e.g. during a `format-on-save` or `import-organizer` cycle)
+   * and re-spawning vitest for tests we already proved pass.
+   */
+  enableContentHashCache: boolean;
+  /**
+   * When true (default), skip files whose extension is clearly not
+   * TS/JS (.json, .md, .lock, .txt, …) BEFORE we try to resolve a
+   * test file. The default patterns all end in `.test.ts` / `.spec.ts`
+   * so the resolve would always come up empty for non-TS files; this
+   * is just a fast-path that avoids the filesystem walk.
+   */
+  enableExtensionFilter: boolean;
 }
 
 const DEFAULTS: TestGateConfig = {
@@ -87,6 +109,8 @@ const DEFAULTS: TestGateConfig = {
   timeoutMs: 30_000,
   testFilePatterns: ['src/{name}.test.ts', 'tests/{name}.test.ts', 'tests/{name}-exec.test.ts'],
   injectOnPass: false,
+  enableContentHashCache: true,
+  enableExtensionFilter: true,
 };
 
 function readConfig(raw: unknown): TestGateConfig {
@@ -109,8 +133,54 @@ function readConfig(raw: unknown): TestGateConfig {
         ? (r['testFilePatterns'] as unknown[]).filter((x): x is string => typeof x === 'string')
         : DEFAULTS.testFilePatterns,
     injectOnPass: r['injectOnPass'] === true,
+    enableContentHashCache: r['enableContentHashCache'] !== false,
+    enableExtensionFilter: r['enableExtensionFilter'] !== false,
   };
 }
+
+/**
+ * File extensions that the default testFilePatterns can possibly
+ * resolve a test file for (i.e. patterns ending in `.test.ts`,
+ * `.test.tsx`, `.test.js`, `.spec.ts`, etc.). When `enableExtensionFilter`
+ * is on, files outside this set short-circuit BEFORE we walk the
+ * filesystem. Custom `testFilePatterns` override this — the filter
+ * only looks at the LAST candidate's extension, so a user who adds
+ * a `.test.json` pattern will not be filtered out.
+ */
+const TESTABLE_DEFAULT_EXTS = new Set(['.ts', '.tsx', '.js', '.jsx', '.mjs', '.mts', '.cts']);
+
+function getResolvableExtensions(patterns: string[]): Set<string> {
+  const exts = new Set<string>();
+  for (const p of patterns) {
+    // Take the last `.xxx` of the pattern template. Patterns are
+    // project-controlled so this is a safe heuristic.
+    const m = /\.([a-z0-9]+)$/i.exec(p);
+    if (m?.[1]) exts.add(`.${m[1].toLowerCase()}`);
+  }
+  return exts;
+}
+
+/**
+ * Tiny non-cryptographic content fingerprint (DJB2) for the
+ * per-path cache. Capped at 64 KB to keep the cost bounded on
+ * very large source files — the first 64 KB is plenty to detect
+ * "same source, retouched".
+ */
+function pathContentHash(content: string): number {
+  const cap = Math.min(content.length, 65536);
+  let h = 5381;
+  for (let i = 0; i < cap; i++) {
+    h = ((h << 5) + h + content.charCodeAt(i)) | 0;
+  }
+  return h >>> 0;
+}
+
+/**
+ * Per-path memo: hash of the source content at the last PASSED run.
+ * We only cache PASSES because caching failures would freeze broken
+ * state — the model needs to see the failure so it knows to fix.
+ */
+const lastPassedHash = new Map<string, number>();
 
 // ---------------------------------------------------------------------------
 // Sandbox: reject paths outside the project root, and lock down the
@@ -460,6 +530,18 @@ const plugin: Plugin = {
         default: false,
         description: 'Inject additionalContext when tests pass too (default: only on failure).',
       },
+      enableContentHashCache: {
+        type: 'boolean',
+        default: true,
+        description:
+          'Skip re-running tests when the source path is touched again with the same content hash as a previous PASS in this session.',
+      },
+      enableExtensionFilter: {
+        type: 'boolean',
+        default: true,
+        description:
+          'Fast-path skip for non-TS/JS files (.json, .md, .lock, .txt, ...) before the test-file resolve walk.',
+      },
     },
   },
 
@@ -471,8 +553,11 @@ const plugin: Plugin = {
     state.failCount = 0;
     state.noTestCount = 0;
     state.errorCount = 0;
+    state.extensionSkippedCount = 0;
+    state.cachedSkipCount = 0;
     state.hookUnregister = null;
     state.lastResult = null;
+    lastPassedHash.clear();
 
     const cfg = readConfig(api.config.extensions?.['test-runner-gate']);
 
@@ -514,7 +599,48 @@ const plugin: Plugin = {
       // likely already knows the result from the tool output.
       if (sourcePath.includes('.test.') || sourcePath.includes('.spec.')) return;
 
+      // Fast-path: if the file extension cannot possibly resolve to
+      // a test file under the current patterns (e.g. .json, .md,
+      // .lock, .txt), bail out BEFORE the filesystem walk and BEFORE
+      // bumping invocationCount. The walk would always return null
+      // for these; the filter just avoids the cost. User-supplied
+      // patterns override the default ext list, so we derive
+      // resolvable extensions from the patterns themselves.
+      if (cfg.enableExtensionFilter) {
+        const ext = sourcePath.includes('.')
+          ? sourcePath.slice(sourcePath.lastIndexOf('.')).toLowerCase()
+          : '';
+        const resolvable = getResolvableExtensions(cfg.testFilePatterns);
+        if (ext && !resolvable.has(ext) && !TESTABLE_DEFAULT_EXTS.has(ext)) {
+          state.extensionSkippedCount += 1;
+          api.metrics.counter('extension_skipped');
+          return;
+        }
+      }
+
       state.invocationCount += 1;
+
+      // Content-hash dedupe: if a previous PASS for this path
+      // recorded the same content fingerprint, skip the test run.
+      // Catches the "format-on-save / import-organizer re-touches the
+      // file right after the test already passed" pattern.
+      if (cfg.enableContentHashCache) {
+        const content =
+          input.toolName === 'write'
+            ? ((inp['content'] as unknown) ?? '')
+            : input.toolName === 'edit'
+              ? ((inp['new_string'] as unknown) ?? '')
+              : '';
+        if (typeof content === 'string' && content.length > 0) {
+          const hash = pathContentHash(content);
+          const last = lastPassedHash.get(sourcePath);
+          if (last !== undefined && last === hash) {
+            state.cachedSkipCount += 1;
+            api.metrics.counter('cached_skip');
+            return;
+          }
+        }
+      }
 
       // Find the corresponding test file.
       const testFile = findTestFile(sourcePath, cfg.testFilePatterns);
@@ -542,6 +668,18 @@ const plugin: Plugin = {
 
       if (result.passed) {
         state.passCount += 1;
+        // Record content hash on PASS so enableContentHashCache can dedupe.
+        if (cfg.enableContentHashCache) {
+          const content =
+            input.toolName === 'write'
+              ? ((inp['content'] as unknown) ?? '')
+              : input.toolName === 'edit'
+                ? ((inp['new_string'] as unknown) ?? '')
+                : '';
+          if (typeof content === 'string' && content.length > 0) {
+            lastPassedHash.set(sourcePath, pathContentHash(content));
+          }
+        }
         if (!cfg.injectOnPass) return; // silent on pass (default)
         return {
           additionalContext:
@@ -596,6 +734,8 @@ const plugin: Plugin = {
             failed: state.failCount,
             noTest: state.noTestCount,
             errors: state.errorCount,
+            extensionSkipped: state.extensionSkippedCount,
+            cachedSkips: state.cachedSkipCount,
           },
           lastResult: state.lastResult,
         };
@@ -625,6 +765,8 @@ const plugin: Plugin = {
       failed: state.failCount,
       noTest: state.noTestCount,
       errors: state.errorCount,
+      extensionSkipped: state.extensionSkippedCount,
+      cachedSkips: state.cachedSkipCount,
     };
     state.invocationCount = 0;
     state.runCount = 0;
@@ -632,7 +774,10 @@ const plugin: Plugin = {
     state.failCount = 0;
     state.noTestCount = 0;
     state.errorCount = 0;
+    state.extensionSkippedCount = 0;
+    state.cachedSkipCount = 0;
     state.lastResult = null;
+    lastPassedHash.clear();
     api.log.info('test-runner-gate: teardown complete', { final });
   },
 
@@ -652,6 +797,8 @@ const plugin: Plugin = {
         failed: state.failCount,
         noTest: state.noTestCount,
         errors: state.errorCount,
+        extensionSkipped: state.extensionSkippedCount,
+        cachedSkips: state.cachedSkipCount,
       },
       lastResult: state.lastResult,
     };

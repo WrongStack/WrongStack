@@ -45,6 +45,7 @@ interface MockApi {
   };
   registerHook: ReturnType<typeof vi.fn>;
   onEvent: ReturnType<typeof vi.fn>;
+  onPattern: ReturnType<typeof vi.fn>;
   emitCustom: ReturnType<typeof vi.fn>;
   session: { append: ReturnType<typeof vi.fn> };
 }
@@ -57,6 +58,7 @@ function makeApi(overrides: { extensions?: Record<string, unknown> } = {}): Mock
     metrics: { counter: vi.fn(), histogram: vi.fn(), gauge: vi.fn() },
     registerHook: vi.fn(() => vi.fn()),
     onEvent: vi.fn(),
+    onPattern: vi.fn(() => () => {}),
     emitCustom: vi.fn(),
     session: { append: vi.fn().mockResolvedValue(undefined) },
   };
@@ -250,5 +252,166 @@ describe('teardown + H1 pattern', () => {
   it('teardown is safe before setup (defensive)', () => {
     const api = makeApi();
     expect(() => formatOnSavePlugin.teardown!(api as never)).not.toThrow();
+  });
+});
+
+describe('cross-plugin coordination with import-organizer', () => {
+  // The plugin registers an `import-organizer:done` listener and
+  // remembers the path so a follow-up PostToolUse on the same file
+  // can skip the redundant `biome format --write` invocation. These
+  // tests pin the contract.
+
+  function getImportOrganizerListener(
+    api: MockApi,
+  ): (eventName: string, payload: unknown) => void {
+    const call = api.onPattern.mock.calls.find((c) => c[0] === 'import-organizer:done');
+    if (!call) throw new Error('import-organizer:done listener not registered');
+    return call[1] as (eventName: string, payload: unknown) => void;
+  }
+
+  it('subscribes to import-organizer:done on setup', () => {
+    const api = makeApi();
+    formatOnSavePlugin.setup(api as never);
+    const eventNames = api.onPattern.mock.calls.map((c) => c[0]);
+    expect(eventNames).toContain('import-organizer:done');
+  });
+
+  it('skips the format pass when import-organizer:done was just received for the same path', () => {
+    let callCount = 0;
+    mockStatSync.mockImplementation(() => {
+      callCount++;
+      // Both calls would normally show a size change. The skip must
+      // short-circuit BEFORE the second statSync call, so we count.
+      return { size: callCount === 1 ? 100 : 120 };
+    });
+    // Count execFileSync calls with --write (the format-on-save pass).
+    const writeCallsBefore = mockExecFileSync.mock.calls.filter(
+      (c) => Array.isArray(c[1]) && (c[1] as string[]).includes('--write'),
+    ).length;
+
+    const api = makeApi();
+    formatOnSavePlugin.setup(api as never);
+    const listener = getImportOrganizerListener(api);
+    const hook = getHook(api);
+
+    // import-organizer announces it just touched src/foo.ts
+    listener('import-organizer:done', { path: 'src/foo.ts', changed: true });
+
+    // A write to the same path arrives — the hook should skip
+    const result = hook({
+      toolName: 'write',
+      toolInput: { path: 'src/foo.ts', content: 'x' },
+      toolResult: { content: 'ok', isError: false },
+    });
+    expect(result).toBeUndefined();
+    // No additional biome --write invocation was made for this hook
+    const writeCallsAfter = mockExecFileSync.mock.calls.filter(
+      (c) => Array.isArray(c[1]) && (c[1] as string[]).includes('--write'),
+    ).length;
+    expect(writeCallsAfter).toBe(writeCallsBefore);
+  });
+
+  it('runs normally when import-organizer:done was for a different path', () => {
+    let callCount = 0;
+    mockStatSync.mockImplementation(() => {
+      callCount++;
+      return { size: callCount === 1 ? 100 : 120 };
+    });
+    const api = makeApi();
+    formatOnSavePlugin.setup(api as never);
+    const listener = getImportOrganizerListener(api);
+    const hook = getHook(api);
+
+    listener('import-organizer:done', { path: 'src/foo.ts', changed: true });
+    const result = hook({
+      toolName: 'edit',
+      toolInput: { path: 'src/other.ts', old_string: 'a', new_string: 'b' },
+      toolResult: { content: 'ok', isError: false },
+    });
+    expect(result?.additionalContext).toContain('format-on-save');
+    expect(result?.additionalContext).toContain('src/other.ts');
+  });
+
+  it('runs normally when skipWhenCoveredBy=false', () => {
+    let callCount = 0;
+    mockStatSync.mockImplementation(() => {
+      callCount++;
+      return { size: callCount === 1 ? 100 : 120 };
+    });
+    const api = makeApi({
+      extensions: { 'format-on-save': { skipWhenCoveredBy: false } },
+    });
+    formatOnSavePlugin.setup(api as never);
+    const listener = getImportOrganizerListener(api);
+    const hook = getHook(api);
+
+    listener('import-organizer:done', { path: 'src/foo.ts', changed: true });
+    const result = hook({
+      toolName: 'write',
+      toolInput: { path: 'src/foo.ts', content: 'x' },
+      toolResult: { content: 'ok', isError: false },
+    });
+    expect(result?.additionalContext).toContain('format-on-save');
+  });
+
+  it('increments coveredSkips counter when a skip happens', async () => {
+    let callCount = 0;
+    mockStatSync.mockImplementation(() => {
+      callCount++;
+      return { size: callCount === 1 ? 100 : 120 };
+    });
+    const api = makeApi();
+    formatOnSavePlugin.setup(api as never);
+    const listener = getImportOrganizerListener(api);
+    const hook = getHook(api);
+
+    listener('import-organizer:done', { path: 'src/foo.ts', changed: true });
+    hook({
+      toolName: 'write',
+      toolInput: { path: 'src/foo.ts', content: 'x' },
+      toolResult: { content: 'ok', isError: false },
+    });
+
+    const status = (await getStatusTool(api).execute({})) as {
+      counters: { coveredSkips: number };
+    };
+    expect(status.counters.coveredSkips).toBe(1);
+  });
+
+  it('ignores import-organizer:done payloads without a path string', () => {
+    const api = makeApi();
+    formatOnSavePlugin.setup(api as never);
+    const listener = getImportOrganizerListener(api);
+
+    // Each must not throw and must not register a covered path.
+    expect(() => listener('import-organizer:done', {})).not.toThrow();
+    expect(() => listener('import-organizer:done', { path: 42 })).not.toThrow();
+    expect(() => listener('import-organizer:done', null)).not.toThrow();
+  });
+
+  it('teardown clears the recentlyCovered cache so a fresh setup starts clean', async () => {
+    let callCount = 0;
+    mockStatSync.mockImplementation(() => {
+      callCount++;
+      return { size: callCount === 1 ? 100 : 120 };
+    });
+    const api = makeApi();
+    formatOnSavePlugin.setup(api as never);
+    const listener = getImportOrganizerListener(api);
+
+    listener('import-organizer:done', { path: 'src/foo.ts', changed: true });
+    formatOnSavePlugin.teardown!(api as never);
+
+    // Re-setup, then verify the cache was cleared: a follow-up
+    // PostToolUse on the same path without a fresh listener emission
+    // must NOT be skipped.
+    formatOnSavePlugin.setup(api as never);
+    const hook = getHook(api);
+    const result = hook({
+      toolName: 'write',
+      toolInput: { path: 'src/foo.ts', content: 'x' },
+      toolResult: { content: 'ok', isError: false },
+    });
+    expect(result?.additionalContext).toContain('format-on-save');
   });
 });

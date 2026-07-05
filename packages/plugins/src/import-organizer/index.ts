@@ -44,10 +44,11 @@
  *
  * @public
  */
-import type { Plugin } from '@wrongstack/core';
+
 import { spawn } from 'node:child_process';
 import { existsSync, statSync } from 'node:fs';
 import { basename, isAbsolute, relative, resolve } from 'node:path';
+import type { Plugin } from '@wrongstack/core';
 
 // ---------------------------------------------------------------------------
 // Sandbox + command allowlist. import-organizer already uses spawn() with
@@ -156,6 +157,17 @@ interface ImportOrganizerConfig {
   command: string;
   fallbackCommand: string;
   timeoutMs: number;
+  /**
+   * When true (default), emit `import-organizer:done` after every
+   * successful linter run. The `format-on-save` plugin listens for
+   * this and skips its own `biome format --write` pass when
+   * import-organizer just touched the same path — saving one biome
+   * invocation per write/edit.
+   *
+   * Set to false only if you specifically want both plugins to run
+   * unconditionally (e.g. for stricter CI parity).
+   */
+  notifyFormatOnSave: boolean;
 }
 
 const DEFAULTS: ImportOrganizerConfig = {
@@ -163,6 +175,7 @@ const DEFAULTS: ImportOrganizerConfig = {
   command: 'npx @biomejs/biome check --write --unsafe',
   fallbackCommand: 'npx eslint --fix',
   timeoutMs: 10_000,
+  notifyFormatOnSave: true,
 };
 
 function readConfig(raw: unknown): ImportOrganizerConfig {
@@ -180,6 +193,7 @@ function readConfig(raw: unknown): ImportOrganizerConfig {
       typeof r['timeoutMs'] === 'number' && r['timeoutMs'] > 0
         ? r['timeoutMs']
         : DEFAULTS.timeoutMs,
+    notifyFormatOnSave: r['notifyFormatOnSave'] !== false,
   };
 }
 
@@ -352,6 +366,12 @@ const plugin: Plugin = {
         default: 10_000,
         description: 'Per-invocation linter timeout in milliseconds.',
       },
+      notifyFormatOnSave: {
+        type: 'boolean',
+        default: true,
+        description:
+          'Emit `import-organizer:done` after each successful run so `format-on-save` can skip its redundant `biome format --write` pass on the same file. Set false to keep both running unconditionally.',
+      },
     },
   },
 
@@ -404,6 +424,20 @@ const plugin: Plugin = {
 
       state.linterAvailable = true;
       state.probeComplete = true;
+
+      // Cross-plugin coordination: announce that we just ran the
+      // linter (which, for `biome check --write --unsafe` or any
+      // `eslint --fix`-shaped command, also applies formatting).
+      // format-on-save listens for this so it can skip its own
+      // `biome format --write` pass on the same file.
+      if (cfg.notifyFormatOnSave) {
+        api.emitCustom('import-organizer:done', {
+          path: filePath,
+          changed: result.changed,
+          command: result.command,
+          when: new Date().toISOString(),
+        });
+      }
 
       state.lastResult = {
         path: filePath,

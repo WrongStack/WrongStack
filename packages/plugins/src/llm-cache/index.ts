@@ -258,6 +258,13 @@ const plugin: Plugin = {
 
     // ── The intervention: wrap every provider call ────────────────────
     if (cfg.enabled) {
+      // Announce participation in the wrap stack so plugin-stack-observer
+      // can build a system-prompt summary of who is wrapping what.
+      api.emitCustom?.('provider.wrap:loaded', {
+        plugin: 'llm-cache',
+        kind: 'cache',
+        wraps: ['request'],
+      });
       state.extensionUnregister = api.extensions.register({
         name: 'llm-cache',
         owner: 'llm-cache',

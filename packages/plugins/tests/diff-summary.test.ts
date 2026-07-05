@@ -332,3 +332,206 @@ describe('teardown + H1 pattern', () => {
     expect(() => diffSummaryPlugin.teardown!(api as never)).not.toThrow();
   });
 });
+
+describe('per-path throttle + content-hash dedupe', () => {
+  // Two cheap optimizations for an expensive PostToolUse hook:
+  // (1) rate-limit same-path invocations within minIntervalMs;
+  // (2) skip when the PostToolUse payload's content hashes the same
+  //     as the previously injected one (model retry of an edit).
+  // Both run AFTER the sandbox check but BEFORE the `git diff` call.
+
+  function diffCallsCount(): number {
+    return mockExecFileSync.mock.calls.filter(
+      (c: unknown[]) => Array.isArray(c[1]) && (c[1] as string[]).includes('diff'),
+    ).length;
+  }
+
+  it('throttles second invocation within minIntervalMs for the same path', async () => {
+    const api = makeApi({ extensions: { 'diff-summary': { minIntervalMs: 60_000 } } });
+    diffSummaryPlugin.setup(api as never);
+    const hook = getHook(api);
+
+    hook({
+      toolName: 'write',
+      toolInput: { path: 'src/a.ts', content: 'hello' },
+      toolResult: { content: 'ok', isError: false },
+    });
+    const firstDiffCalls = diffCallsCount();
+
+    hook({
+      toolName: 'write',
+      toolInput: { path: 'src/a.ts', content: 'world' },
+      toolResult: { content: 'ok', isError: false },
+    });
+    expect(diffCallsCount()).toBe(firstDiffCalls); // no second git diff
+
+    const status = (await getStatusTool(api).execute({})) as {
+      counters: { throttled: number };
+    };
+    expect(status.counters.throttled).toBe(1);
+  });
+
+  it('does NOT throttle a different path within the same window', async () => {
+    const api = makeApi({ extensions: { 'diff-summary': { minIntervalMs: 60_000 } } });
+    diffSummaryPlugin.setup(api as never);
+    const hook = getHook(api);
+
+    hook({
+      toolName: 'write',
+      toolInput: { path: 'src/a.ts', content: 'hello' },
+      toolResult: { content: 'ok', isError: false },
+    });
+    const afterFirst = diffCallsCount();
+    hook({
+      toolName: 'write',
+      toolInput: { path: 'src/b.ts', content: 'world' },
+      toolResult: { content: 'ok', isError: false },
+    });
+    expect(diffCallsCount()).toBe(afterFirst + 1);
+  });
+
+  it('dedupes identical edit payload via content hash', async () => {
+    const api = makeApi({ extensions: { 'diff-summary': { minIntervalMs: 0 } } });
+    diffSummaryPlugin.setup(api as never);
+    const hook = getHook(api);
+
+    // Different paths so the throttle does not interfere
+    hook({
+      toolName: 'edit',
+      toolInput: { path: 'src/a.ts', old_string: 'a', new_string: 'X' },
+      toolResult: { content: 'ok', isError: false },
+    });
+    const firstDiff = diffCallsCount();
+
+    // Same new_string, different path: hash dedupe should NOT fire
+    // (memo is per-path).
+    hook({
+      toolName: 'edit',
+      toolInput: { path: 'src/b.ts', old_string: 'a', new_string: 'X' },
+      toolResult: { content: 'ok', isError: false },
+    });
+    expect(diffCallsCount()).toBe(firstDiff + 1);
+
+    // Same path, same new_string: dedupe MUST fire.
+    hook({
+      toolName: 'edit',
+      toolInput: { path: 'src/a.ts', old_string: 'a', new_string: 'X' },
+      toolResult: { content: 'ok', isError: false },
+    });
+    expect(diffCallsCount()).toBe(firstDiff + 1);
+
+    const status = (await getStatusTool(api).execute({})) as {
+      counters: { duplicateContent: number; throttled: number };
+    };
+    expect(status.counters.duplicateContent).toBe(1);
+    expect(status.counters.throttled).toBe(0);
+  });
+
+  it('runs again when the same path receives a different new_string', async () => {
+    const api = makeApi({ extensions: { 'diff-summary': { minIntervalMs: 0 } } });
+    diffSummaryPlugin.setup(api as never);
+    const hook = getHook(api);
+
+    hook({
+      toolName: 'edit',
+      toolInput: { path: 'src/a.ts', old_string: 'a', new_string: 'X' },
+      toolResult: { content: 'ok', isError: false },
+    });
+    const baseline = diffCallsCount();
+    hook({
+      toolName: 'edit',
+      toolInput: { path: 'src/a.ts', old_string: 'a', new_string: 'Y' },
+      toolResult: { content: 'ok', isError: false },
+    });
+    expect(diffCallsCount()).toBe(baseline + 1);
+  });
+
+  it('does NOT dedupe when enableContentHashCache=false', async () => {
+    const api = makeApi({
+      extensions: { 'diff-summary': { minIntervalMs: 0, enableContentHashCache: false } },
+    });
+    diffSummaryPlugin.setup(api as never);
+    const hook = getHook(api);
+
+    hook({
+      toolName: 'edit',
+      toolInput: { path: 'src/a.ts', old_string: 'a', new_string: 'X' },
+      toolResult: { content: 'ok', isError: false },
+    });
+    const baseline = diffCallsCount();
+    hook({
+      toolName: 'edit',
+      toolInput: { path: 'src/a.ts', old_string: 'a', new_string: 'X' },
+      toolResult: { content: 'ok', isError: false },
+    });
+    expect(diffCallsCount()).toBe(baseline + 1);
+
+    const status = (await getStatusTool(api).execute({})) as {
+      counters: { duplicateContent: number };
+    };
+    expect(status.counters.duplicateContent).toBe(0);
+  });
+
+  it('throttle takes precedence over hash dedupe (cheaper check first)', async () => {
+    const api = makeApi({ extensions: { 'diff-summary': { minIntervalMs: 60_000 } } });
+    diffSummaryPlugin.setup(api as never);
+    const hook = getHook(api);
+
+    hook({
+      toolName: 'edit',
+      toolInput: { path: 'src/a.ts', old_string: 'a', new_string: 'X' },
+      toolResult: { content: 'ok', isError: false },
+    });
+    // Same path, same new_string, within throttle window.
+    hook({
+      toolName: 'edit',
+      toolInput: { path: 'src/a.ts', old_string: 'a', new_string: 'X' },
+      toolResult: { content: 'ok', isError: false },
+    });
+
+    const status = (await getStatusTool(api).execute({})) as {
+      counters: { throttled: number; duplicateContent: number };
+    };
+    expect(status.counters.throttled).toBe(1);
+    expect(status.counters.duplicateContent).toBe(0);
+  });
+
+  it('teardown clears the per-path memo so a fresh setup starts clean', async () => {
+    const api = makeApi({ extensions: { 'diff-summary': { minIntervalMs: 60_000 } } });
+    diffSummaryPlugin.setup(api as never);
+    const hook = getHook(api);
+
+    hook({
+      toolName: 'write',
+      toolInput: { path: 'src/a.ts', content: 'hello' },
+      toolResult: { content: 'ok', isError: false },
+    });
+    diffSummaryPlugin.teardown!(api as never);
+    diffSummaryPlugin.setup(api as never);
+
+    // Same path after re-setup: throttle memo must be cleared, so
+    // the hook must run git diff again.
+    const hook2 = getHook(api);
+    const beforeCalls = diffCallsCount();
+    hook2({
+      toolName: 'write',
+      toolInput: { path: 'src/a.ts', content: 'hello' },
+      toolResult: { content: 'ok', isError: false },
+    });
+    expect(diffCallsCount()).toBe(beforeCalls + 1);
+  });
+
+  it('status tool reports new throttle + contentHash config + counters', async () => {
+    const api = makeApi();
+    diffSummaryPlugin.setup(api as never);
+    const status = (await getStatusTool(api).execute({})) as {
+      minIntervalMs: number;
+      enableContentHashCache: boolean;
+      counters: { throttled: number; duplicateContent: number };
+    };
+    expect(status.minIntervalMs).toBe(1000);
+    expect(status.enableContentHashCache).toBe(true);
+    expect(status.counters.throttled).toBe(0);
+    expect(status.counters.duplicateContent).toBe(0);
+  });
+});

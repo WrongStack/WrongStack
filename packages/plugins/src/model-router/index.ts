@@ -220,6 +220,13 @@ const plugin: Plugin = {
     const cfg = readConfig(api.config.extensions?.['model-router']);
 
     if (cfg.enabled && cfg.rules.length > 0) {
+      // Announce participation in the wrap stack so plugin-stack-observer
+      // can build a system-prompt summary of who is wrapping what.
+      api.emitCustom?.('provider.wrap:loaded', {
+        plugin: 'model-router',
+        kind: 'routing',
+        wraps: ['request'],
+      });
       state.extensionUnregister = api.extensions.register({
         name: 'model-router',
         owner: 'model-router',

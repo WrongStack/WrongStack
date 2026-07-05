@@ -42,6 +42,7 @@ import loopBreaker from './loop-breaker/index.js';
 import modelRouter from './model-router/index.js';
 import notifyHub from './notify-hub/index.js';
 import pathGuard from './path-guard/index.js';
+import pluginStackObserver from './plugin-stack-observer/index.js';
 import promptFirewall from './prompt-firewall/index.js';
 import secretScanner from './secret-scanner/index.js';
 import semverBump from './semver-bump/index.js';
@@ -102,6 +103,7 @@ const ENTRIES: CatalogEntry[] = [
   { name: promptFirewall.name, path: './src/prompt-firewall' },
   { name: autoEscalate.name, path: './src/auto-escalate' },
   { name: tokenThrottle.name, path: './src/token-throttle' },
+  { name: pluginStackObserver.name, path: './src/plugin-stack-observer' },
 ];
 
 /**

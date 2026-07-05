@@ -27,10 +27,11 @@
  *
  * @public
  */
-import type { Plugin } from '@wrongstack/core';
+
 import { execFileSync, execSync } from 'node:child_process';
 import { existsSync, statSync } from 'node:fs';
 import { isAbsolute, relative, resolve } from 'node:path';
+import type { Plugin } from '@wrongstack/core';
 
 const API_VERSION = '^0.1.10';
 
@@ -65,6 +66,9 @@ const state = {
   cleanCount: 0,
   /** Times biome failed (not installed, timeout, parse error). */
   errorCount: 0,
+  /** Times the format pass was skipped because import-organizer
+   * had already covered the path within the TTL window. */
+  coveredSkipCount: 0,
   /** Hook handle for teardown. */
   hookUnregister: null as null | (() => void),
   /** Last format result — surfaced by health() + status tool. */
@@ -85,11 +89,34 @@ const state = {
 interface FormatOnSaveConfig {
   enabled: boolean;
   timeoutMs: number;
+  /**
+   * When the same path was just formatted by another plugin
+   * (currently only `import-organizer`), skip the redundant
+   * `biome format --write` pass. Defaults to ON. Set to `false`
+   * to always run format-on-save regardless of who else touched
+   * the file.
+   *
+   * Coordination is event-based: format-on-save subscribes to
+   * `import-organizer:done` (custom event emitted after every
+   * successful import-organizer linter run) and remembers the
+   * path for `skipTtlMs` milliseconds. While the path is
+   * remembered, format-on-save skips its own format invocation.
+   */
+  skipWhenCoveredBy: boolean;
+  /**
+   * How long (ms) to remember a "recently formatted by another
+   * plugin" path. Default 30 000 (30 s). After this window the
+   * path falls out of the cache and format-on-save runs normally
+   * again.
+   */
+  skipTtlMs: number;
 }
 
 const DEFAULTS: FormatOnSaveConfig = {
   enabled: true,
   timeoutMs: 5_000,
+  skipWhenCoveredBy: true,
+  skipTtlMs: 30_000,
 };
 
 function readConfig(raw: unknown): FormatOnSaveConfig {
@@ -101,7 +128,28 @@ function readConfig(raw: unknown): FormatOnSaveConfig {
       typeof r['timeoutMs'] === 'number' && r['timeoutMs'] > 0
         ? r['timeoutMs']
         : DEFAULTS.timeoutMs,
+    skipWhenCoveredBy: r['skipWhenCoveredBy'] !== false,
+    skipTtlMs:
+      typeof r['skipTtlMs'] === 'number' && r['skipTtlMs'] >= 0
+        ? r['skipTtlMs']
+        : DEFAULTS.skipTtlMs,
   };
+}
+
+/**
+ * Paths that were just touched by another plugin (import-organizer),
+ * with the timestamp at which the notice was received. Used by the
+ * hook to skip a redundant `biome format --write` pass while the
+ * path is still "recent" (TTL-controlled).
+ */
+const recentlyCovered = new Map<string, number>();
+
+/** Evict entries older than `ttlMs` from the recentlyCovered map. */
+function evictExpired(ttlMs: number): void {
+  const cutoff = Date.now() - ttlMs;
+  for (const [path, ts] of recentlyCovered) {
+    if (ts < cutoff) recentlyCovered.delete(path);
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -211,6 +259,19 @@ const plugin: Plugin = {
         default: 5000,
         description: 'Biome format process timeout in milliseconds.',
       },
+      skipWhenCoveredBy: {
+        type: 'boolean',
+        default: true,
+        description:
+          'Skip the format pass when another plugin (e.g. import-organizer) just touched the same path. Saves one biome invocation per write/edit when both plugins are enabled.',
+      },
+      skipTtlMs: {
+        type: 'number',
+        minimum: 0,
+        default: 30000,
+        description:
+          'How long (ms) to remember a path covered by another plugin. 0 disables the memory.',
+      },
     },
   },
 
@@ -220,8 +281,10 @@ const plugin: Plugin = {
     state.formattedCount = 0;
     state.cleanCount = 0;
     state.errorCount = 0;
+    state.coveredSkipCount = 0;
     state.hookUnregister = null;
     state.lastResult = null;
+    recentlyCovered.clear();
 
     const cfg = readConfig(api.config.extensions?.['format-on-save']);
 
@@ -255,6 +318,27 @@ const plugin: Plugin = {
       const inp = (input.toolInput ?? {}) as Record<string, unknown>;
       const filePath = inp['path'] as string | undefined;
       if (!filePath || typeof filePath !== 'string') return;
+
+      // Cross-plugin coordination: skip if import-organizer already
+      // touched this path within the TTL window. import-organizer's
+      // `biome check --write --unsafe` runs the full formatter as a
+      // side-effect, so re-running `biome format --write` here is
+      // redundant. Eviction is lazy — happens once per invocation —
+      // so the cache never grows unbounded.
+      if (cfg.skipWhenCoveredBy && cfg.skipTtlMs > 0) {
+        evictExpired(cfg.skipTtlMs);
+        if (recentlyCovered.has(filePath)) {
+          state.coveredSkipCount = (state.coveredSkipCount ?? 0) + 1;
+          recentlyCovered.delete(filePath);
+          api.log.info(
+            `format-on-save: skipped ${filePath} — already formatted by import-organizer`,
+            {
+              tool: toolName,
+            },
+          );
+          return;
+        }
+      }
 
       state.invocationCount += 1;
 
@@ -294,11 +378,27 @@ const plugin: Plugin = {
 
     state.hookUnregister = api.registerHook('PostToolUse', 'write|edit', hook);
 
+    // Cross-plugin listener: import-organizer announces each
+    // successful linter run via `import-organizer:done`. We cache the
+    // path so a follow-up write/edit to the same file can skip its
+    // own `biome format --write` (import-organizer's `biome check
+    // --write --unsafe` already formatted the file). The listener is
+    // tied to the hook lifetime — calling unregister on teardown is
+    // best-effort.
+    api.onPattern('import-organizer:done', (_eventName: string, payload: unknown) => {
+      // Custom plugin events don't show up in the typed EventMap,
+      // so we listen via onPattern (string-typed) instead of onEvent.
+      const p = (payload ?? {}) as { path?: unknown };
+      if (typeof p.path !== 'string' || p.path.length === 0) return;
+      recentlyCovered.set(p.path, Date.now());
+      api.metrics.counter('covered_notice');
+    });
+
     // --- format_on_save_status tool ---
     api.tools.register({
       name: 'format_on_save_status',
       description:
-        'Reports format-on-save state: biome availability, and per-session formatted/clean/error counters.',
+        'Reports format-on-save state: biome availability, and per-session formatted/clean/error/skipped counters.',
       inputSchema: { type: 'object', properties: {} },
       permission: 'auto',
       category: 'Code Quality',
@@ -309,11 +409,14 @@ const plugin: Plugin = {
           enabled: cfg.enabled,
           biomeAvailable,
           timeoutMs: cfg.timeoutMs,
+          skipWhenCoveredBy: cfg.skipWhenCoveredBy,
+          skipTtlMs: cfg.skipTtlMs,
           counters: {
             invocations: state.invocationCount,
             formatted: state.formattedCount,
             clean: state.cleanCount,
             errors: state.errorCount,
+            coveredSkips: state.coveredSkipCount,
           },
           lastResult: state.lastResult,
         };
@@ -341,12 +444,15 @@ const plugin: Plugin = {
       formatted: state.formattedCount,
       clean: state.cleanCount,
       errors: state.errorCount,
+      coveredSkips: state.coveredSkipCount,
     };
     state.invocationCount = 0;
     state.formattedCount = 0;
     state.cleanCount = 0;
     state.errorCount = 0;
+    state.coveredSkipCount = 0;
     state.lastResult = null;
+    recentlyCovered.clear();
     api.log.info('format-on-save: teardown complete', { final });
   },
 
@@ -355,7 +461,7 @@ const plugin: Plugin = {
       ok: true,
       message:
         state.lastResult === null
-          ? `format-on-save: ${state.invocationCount} invocation(s), ${state.formattedCount} formatted`
+          ? `format-on-save: ${state.invocationCount} invocation(s), ${state.formattedCount} formatted, ${state.coveredSkipCount} covered-skipped`
           : state.lastResult.changed
             ? `format-on-save: last formatted ${state.lastResult.path} (${state.lastResult.tool}) at ${state.lastResult.when}`
             : `format-on-save: last check on ${state.lastResult.path} was already clean`,
@@ -364,6 +470,7 @@ const plugin: Plugin = {
         formatted: state.formattedCount,
         clean: state.cleanCount,
         errors: state.errorCount,
+        coveredSkips: state.coveredSkipCount,
       },
       lastResult: state.lastResult,
     };

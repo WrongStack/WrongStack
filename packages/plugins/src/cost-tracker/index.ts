@@ -1,4 +1,3 @@
-import { expectDefined } from '@wrongstack/core';
 /**
  * cost-tracker plugin — Tracks LLM token usage and cost per session.
  *
@@ -32,6 +31,8 @@ import { expectDefined } from '@wrongstack/core';
  * @public
  */
 import type { Plugin } from '@wrongstack/core';
+import { expectDefined } from '@wrongstack/core';
+
 const API_VERSION = '^0.1.10';
 
 /**
@@ -89,7 +90,7 @@ const PRICING: Record<string, ModelPricing> = {
   'claude-3-opus': { input: 15.0, output: 75.0 },
   'gemini-1.5-pro': { input: 3.5, output: 10.5 },
   'gemini-1.5-flash': { input: 0.075, output: 0.3 },
-  'default': { input: 5.0, output: 15.0 },
+  default: { input: 5.0, output: 15.0 },
 };
 
 const DEFAULT_PRICING: ModelPricing = { input: 5.0, output: 15.0 };
@@ -123,9 +124,34 @@ const bundledFromRegistry: Record<string, ModelPricing> = {};
  */
 const lastCost = { usd: 0, model: null as string | null, at: null as string | null };
 
+/**
+ * Module-scope mailbox-digest counters (separate from sessionCost
+ * because those reset on reload while these track cumulative plugin
+ * activity for /diag). Reset on setup() per the H1 idempotency
+ * pattern.
+ */
+const digestCounters = {
+  totalRequests: 0,
+  mailboxDigestsSent: 0,
+  mailboxDigestErrors: 0,
+};
+
 interface CostTrackerConfig {
   budgetLimit: number;
   warningThreshold: number;
+  /**
+   * When > 0, the plugin posts a compact cost digest to the project
+   * mailbox every N provider responses. Useful for fleet operators
+   * who want a running total in their mailbox without polling the
+   * `cost_summary` tool. Disabled (0) by default — set to 10 to get
+   * a digest roughly every 10 LLM calls.
+   */
+  mailboxDigestEveryN: number;
+  /**
+   * Mailbox recipient. Defaults to `cost-tracker` (self-loop is fine
+   * for the dedicated inbox view) or set to `*` to broadcast.
+   */
+  mailboxDigestTo: string;
 }
 
 /**
@@ -137,6 +163,16 @@ function readCostTrackerConfig(raw: Record<string, unknown> | undefined): CostTr
   return {
     budgetLimit: typeof raw?.['budgetLimit'] === 'number' ? raw['budgetLimit'] : 0,
     warningThreshold: typeof raw?.['warningThreshold'] === 'number' ? raw['warningThreshold'] : 80,
+    mailboxDigestEveryN:
+      typeof raw?.['mailboxDigestEveryN'] === 'number' &&
+      (raw?.['mailboxDigestEveryN'] as number) >= 0
+        ? Math.floor(raw?.['mailboxDigestEveryN'] as number)
+        : 0,
+    mailboxDigestTo:
+      typeof raw?.['mailboxDigestTo'] === 'string' &&
+      (raw?.['mailboxDigestTo'] as string).length > 0
+        ? (raw?.['mailboxDigestTo'] as string)
+        : 'cost-tracker',
   };
 }
 
@@ -180,10 +216,7 @@ function readCostTrackerConfig(raw: Record<string, unknown> | undefined): CostTr
 function estimateCost(model: string, promptTokens: number, completionTokens: number): number {
   const key = model.toLowerCase();
   const pricing =
-    pricingOverrides[key] ??
-    bundledFromRegistry[key] ??
-    PRICING[key] ??
-    DEFAULT_PRICING;
+    pricingOverrides[key] ?? bundledFromRegistry[key] ?? PRICING[key] ?? DEFAULT_PRICING;
   const inputCost = (promptTokens / 1_000_000) * pricing.input;
   const outputCost = (completionTokens / 1_000_000) * pricing.output;
   return inputCost + outputCost;
@@ -211,11 +244,20 @@ const plugin: Plugin = {
     properties: {
       trackPerModel: { type: 'boolean', default: true },
       trackPerUser: { type: 'boolean', default: false },
-      budgetLimit: { type: 'number', default: 0, description: 'Budget limit in USD (0 = no limit)' },
-      warningThreshold: { type: 'number', default: 80, description: 'Warning threshold as percentage of budget' },
+      budgetLimit: {
+        type: 'number',
+        default: 0,
+        description: 'Budget limit in USD (0 = no limit)',
+      },
+      warningThreshold: {
+        type: 'number',
+        default: 80,
+        description: 'Warning threshold as percentage of budget',
+      },
       pricingOverrides: {
         type: 'object',
-        description: 'Per-model pricing overrides in USD per 1M tokens. Keys are lowercased model names; values are { input, output }. Takes precedence over the bundled PRICING table.',
+        description:
+          'Per-model pricing overrides in USD per 1M tokens. Keys are lowercased model names; values are { input, output }. Takes precedence over the bundled PRICING table.',
         additionalProperties: {
           type: 'object',
           properties: {
@@ -243,12 +285,16 @@ const plugin: Plugin = {
     lastCost.usd = 0;
     lastCost.model = null;
     lastCost.at = null;
+    digestCounters.totalRequests = 0;
+    digestCounters.mailboxDigestsSent = 0;
+    digestCounters.mailboxDigestErrors = 0;
 
     // Apply user-supplied pricing overrides from config first (sync —
     // available immediately for the first cost calculation).
     const rawConfig = api.config.extensions?.['cost-tracker'] as
       | Record<string, unknown>
       | undefined;
+    const cfg = readCostTrackerConfig(rawConfig);
     const userOverrides = rawConfig?.['pricingOverrides'];
     if (userOverrides && typeof userOverrides === 'object') {
       for (const [model, value] of Object.entries(userOverrides as Record<string, unknown>)) {
@@ -281,11 +327,7 @@ const plugin: Plugin = {
           if (!providerModels) continue;
           for (const [modelId, model] of Object.entries(providerModels)) {
             const cost = model?.cost;
-            if (
-              cost &&
-              typeof cost.input === 'number' &&
-              typeof cost.output === 'number'
-            ) {
+            if (cost && typeof cost.input === 'number' && typeof cost.output === 'number') {
               bundledFromRegistry[modelId.toLowerCase()] = {
                 input: cost.input,
                 output: cost.output,
@@ -318,7 +360,7 @@ const plugin: Plugin = {
     };
 
     // Subscribe to provider.response events to capture token usage
-    api.onEvent('provider.response', (payload) => {
+    api.onEvent('provider.response', async (payload) => {
       const usage = payload.usage;
       const model = payload.ctx?.model ?? 'unknown';
 
@@ -352,6 +394,35 @@ const plugin: Plugin = {
 
       api.metrics.counter('tokens_total', totalTokens, { model });
       api.metrics.histogram('cost_usd', costUsd, { model });
+      digestCounters.totalRequests += 1;
+
+      // Opt-in mailbox digest: every N requests, post a running
+      // totals summary. Skipped silently if the host has no mailbox
+      // (minimal hosts, tests).
+      if (
+        cfg.mailboxDigestEveryN > 0 &&
+        digestCounters.totalRequests % cfg.mailboxDigestEveryN === 0 &&
+        api.mailbox
+      ) {
+        const top = Object.entries(sessionCost.byModel)
+          .map(([m, v]) => `${m}:${v.tokens}t/${v.costUsd.toFixed(4)}`)
+          .join(', ');
+        try {
+          await api.mailbox.send({
+            to: cfg.mailboxDigestTo,
+            from: 'cost-tracker',
+            type: 'note',
+            subject: `cost-tracker digest @ #${digestCounters.totalRequests} requests`,
+            body:
+              `running totals: ${sessionCost.totalTokens} tokens, ` +
+              `~${sessionCost.totalCostUsd.toFixed(4)} USD, ${sessionCost.requests.length} reqs\n` +
+              `by model: ${top || '(none)'}`,
+          });
+          digestCounters.mailboxDigestsSent += 1;
+        } catch {
+          digestCounters.mailboxDigestErrors += 1;
+        }
+      }
 
       // Snapshot for /diag plugins (health()).
       lastCost.usd = costUsd;
@@ -362,15 +433,14 @@ const plugin: Plugin = {
     // --- cost_summary tool ---
     api.tools.register({
       name: 'cost_summary',
-      description: 'Returns the current session\'s token usage breakdown by model, total cost estimate, and budget status.',
+      description:
+        "Returns the current session's token usage breakdown by model, total cost estimate, and budget status.",
       inputSchema: { type: 'object', properties: {} },
       permission: 'auto',
       category: 'Meta',
       mutating: false,
       async execute() {
-        const { budgetLimit, warningThreshold } = readCostTrackerConfig(
-          api.config.extensions?.['cost-tracker'],
-        );
+        const { budgetLimit, warningThreshold } = cfg;
 
         const usage = {
           totalRequests: sessionCost.requests.length,
@@ -387,14 +457,15 @@ const plugin: Plugin = {
           })),
         };
 
-        const budgetStatus = budgetLimit > 0
-          ? {
-              limit: budgetLimit,
-              spent: sessionCost.totalCostUsd,
-              percentUsed: Math.round((sessionCost.totalCostUsd / budgetLimit) * 100),
-              warning: sessionCost.totalCostUsd / budgetLimit * 100 >= warningThreshold,
-            }
-          : null;
+        const budgetStatus =
+          budgetLimit > 0
+            ? {
+                limit: budgetLimit,
+                spent: sessionCost.totalCostUsd,
+                percentUsed: Math.round((sessionCost.totalCostUsd / budgetLimit) * 100),
+                warning: (sessionCost.totalCostUsd / budgetLimit) * 100 >= warningThreshold,
+              }
+            : null;
 
         return {
           ok: true,
@@ -486,9 +557,15 @@ const plugin: Plugin = {
             },
             requests: includeModel
               ? sessionCost.requests
-              : sessionCost.requests.map(({ promptTokens, completionTokens, totalTokens, costUsd, timestamp }) => ({
-                  promptTokens, completionTokens, totalTokens, costUsd, timestamp,
-                })),
+              : sessionCost.requests.map(
+                  ({ promptTokens, completionTokens, totalTokens, costUsd, timestamp }) => ({
+                    promptTokens,
+                    completionTokens,
+                    totalTokens,
+                    costUsd,
+                    timestamp,
+                  }),
+                ),
           },
         };
       },
@@ -528,6 +605,9 @@ const plugin: Plugin = {
     lastCost.usd = 0;
     lastCost.model = null;
     lastCost.at = null;
+    digestCounters.totalRequests = 0;
+    digestCounters.mailboxDigestsSent = 0;
+    digestCounters.mailboxDigestErrors = 0;
     api.log.info('cost-tracker: teardown complete', {
       overrideCount,
       registryCount,
@@ -555,6 +635,9 @@ const plugin: Plugin = {
       lastCostUsd: lastCost.usd,
       lastCostModel: lastCost.model,
       lastCostAt: lastCost.at,
+      mailboxDigestsSent: digestCounters.mailboxDigestsSent,
+      mailboxDigestErrors: digestCounters.mailboxDigestErrors,
+      totalRequests: digestCounters.totalRequests,
     };
   },
 };

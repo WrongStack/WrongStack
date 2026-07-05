@@ -37,6 +37,10 @@ const state = {
   invocationCount: 0,
   validCount: 0,
   invalidCount: 0,
+  /** Times the LLM successfully produced a subject suggestion. */
+  suggestFixCount: 0,
+  /** Times the LLM call failed or was skipped (api.llm absent, etc.). */
+  suggestFixErrors: 0,
   hookUnregister: null as null | (() => void),
   lastValidation: null as null | {
     tool: string;
@@ -62,6 +66,14 @@ interface CommitValidatorConfig {
   bodyRequired: boolean;
   /** Minimum body length in characters (when bodyRequired). */
   minBodyLength: number;
+  /**
+   * When true and `mode === 'warn'`, the plugin asks the host LLM
+   * (`api.llm`) for a one-line corrected conventional-commit subject
+   * and includes it in the warn-context. Strictly opt-in because LLM
+   * calls aren't free. The LLM is never consulted in `block` mode
+   * (the model already has the block reason to act on).
+   */
+  suggestFix: boolean;
 }
 
 const DEFAULTS: CommitValidatorConfig = {
@@ -71,6 +83,7 @@ const DEFAULTS: CommitValidatorConfig = {
   maxSubjectLength: 72,
   bodyRequired: false,
   minBodyLength: 10,
+  suggestFix: false,
 };
 
 function readConfig(raw: unknown): CommitValidatorConfig {
@@ -82,13 +95,16 @@ function readConfig(raw: unknown): CommitValidatorConfig {
     allowedTypes: Array.isArray(r['allowedTypes'])
       ? (r['allowedTypes'] as unknown[]).filter((x): x is string => typeof x === 'string')
       : [],
-    maxSubjectLength: typeof r['maxSubjectLength'] === 'number' && r['maxSubjectLength'] > 0
-      ? r['maxSubjectLength']
-      : DEFAULTS.maxSubjectLength,
+    maxSubjectLength:
+      typeof r['maxSubjectLength'] === 'number' && r['maxSubjectLength'] > 0
+        ? r['maxSubjectLength']
+        : DEFAULTS.maxSubjectLength,
     bodyRequired: r['bodyRequired'] === true,
-    minBodyLength: typeof r['minBodyLength'] === 'number' && r['minBodyLength'] > 0
-      ? r['minBodyLength']
-      : DEFAULTS.minBodyLength,
+    minBodyLength:
+      typeof r['minBodyLength'] === 'number' && r['minBodyLength'] > 0
+        ? r['minBodyLength']
+        : DEFAULTS.minBodyLength,
+    suggestFix: r['suggestFix'] === true,
   };
 }
 
@@ -108,7 +124,17 @@ interface ParsedCommit {
 
 // Standard conventional-commit types.
 const STANDARD_TYPES = [
-  'feat', 'fix', 'docs', 'style', 'refactor', 'perf', 'test', 'build', 'ci', 'chore', 'revert',
+  'feat',
+  'fix',
+  'docs',
+  'style',
+  'refactor',
+  'perf',
+  'test',
+  'build',
+  'ci',
+  'chore',
+  'revert',
 ];
 
 /**
@@ -126,7 +152,14 @@ function parseCommitMessage(message: string, cfg: CommitValidatorConfig): Parsed
   const firstLine = message.trim().split('\n')[0] ?? '';
 
   if (!firstLine) {
-    return { valid: false, type: '', scope: '', subject: '', breaking: false, errors: ['empty commit message'] };
+    return {
+      valid: false,
+      type: '',
+      scope: '',
+      subject: '',
+      breaking: false,
+      errors: ['empty commit message'],
+    };
   }
 
   // Regex: type(scope)!: subject  or  type: subject  or  type!: subject
@@ -136,7 +169,7 @@ function parseCommitMessage(message: string, cfg: CommitValidatorConfig): Parsed
   if (!match) {
     errors.push(
       `Message does not match conventional-commit format: "<type>[(scope)][!]: <description>". ` +
-      `Got: "${firstLine.slice(0, 60)}"`,
+        `Got: "${firstLine.slice(0, 60)}"`,
     );
     return { valid: false, type: '', scope: '', subject: firstLine, breaking: false, errors };
   }
@@ -153,7 +186,7 @@ function parseCommitMessage(message: string, cfg: CommitValidatorConfig): Parsed
   } else if (cfg.allowedTypes.length > 0 && !cfg.allowedTypes.includes(type)) {
     errors.push(
       `Type "${type}" is not in allowedTypes: ${cfg.allowedTypes.join(', ')}. ` +
-      `Standard types: ${STANDARD_TYPES.join(', ')}.`,
+        `Standard types: ${STANDARD_TYPES.join(', ')}.`,
     );
   } else if (cfg.allowedTypes.length === 0 && !STANDARD_TYPES.includes(type)) {
     // Warn about non-standard types but don't block (allowedTypes is empty = allow all).
@@ -172,7 +205,7 @@ function parseCommitMessage(message: string, cfg: CommitValidatorConfig): Parsed
   if (subject.length > cfg.maxSubjectLength) {
     errors.push(
       `Subject is ${subject.length} characters — exceeds maxSubjectLength of ${cfg.maxSubjectLength}. ` +
-      `Move details to the body.`,
+        `Move details to the body.`,
     );
   }
   // Subject should NOT end with a period.
@@ -188,15 +221,21 @@ function parseCommitMessage(message: string, cfg: CommitValidatorConfig): Parsed
     // Subject is lines[0]. A properly formatted body has a blank line
     // after the subject, then the body content.
     const bodyStart = lines.findIndex((line, i) => i > 0 && line.trim() === '');
-    const body = bodyStart >= 0
-      ? lines.slice(bodyStart + 1).join('\n').trim()
-      : '';
+    const body =
+      bodyStart >= 0
+        ? lines
+            .slice(bodyStart + 1)
+            .join('\n')
+            .trim()
+        : '';
     if (!body) {
-      errors.push('A commit body is required. Add a blank line after the subject, then the description.');
+      errors.push(
+        'A commit body is required. Add a blank line after the subject, then the description.',
+      );
     } else if (body.length < cfg.minBodyLength) {
       errors.push(
         `Body is ${body.length} characters — minimum is ${cfg.minBodyLength}. ` +
-        `Add more context about what changed and why.`,
+          `Add more context about what changed and why.`,
       );
     }
   }
@@ -235,7 +274,8 @@ function extractMessageFromBash(command: string): string | null {
 const plugin: Plugin = {
   name: 'commit-validator',
   version: '0.1.0',
-  description: 'PreToolUse hook that validates conventional-commit format before git_autocommit or bash git commit runs',
+  description:
+    'PreToolUse hook that validates conventional-commit format before git_autocommit or bash git commit runs',
   apiVersion: API_VERSION,
   capabilities: { tools: true, hooks: true },
   defaultConfig: { ...DEFAULTS },
@@ -246,7 +286,8 @@ const plugin: Plugin = {
         type: 'string',
         enum: ['block', 'warn'],
         default: 'block',
-        description: '"block" refuses the commit; "warn" injects errors as context but lets it through.',
+        description:
+          '"block" refuses the commit; "warn" injects errors as context but lets it through.',
       },
       requireScope: {
         type: 'boolean',
@@ -257,7 +298,8 @@ const plugin: Plugin = {
         type: 'array',
         items: { type: 'string' },
         default: [],
-        description: 'Restrict to these commit types. Empty = allow all standard types (feat, fix, docs, style, refactor, perf, test, build, ci, chore, revert) plus any custom type.',
+        description:
+          'Restrict to these commit types. Empty = allow all standard types (feat, fix, docs, style, refactor, perf, test, build, ci, chore, revert) plus any custom type.',
       },
       maxSubjectLength: {
         type: 'number',
@@ -276,6 +318,12 @@ const plugin: Plugin = {
         default: 10,
         description: 'Minimum body length in characters (when bodyRequired is true).',
       },
+      suggestFix: {
+        type: 'boolean',
+        default: false,
+        description:
+          "When true and mode=warn, ask the host LLM for a corrected conventional-commit subject and include it in the warn context. Off by default (LLM calls aren't free). Ignored in block mode.",
+      },
     },
   },
 
@@ -284,15 +332,21 @@ const plugin: Plugin = {
     state.invocationCount = 0;
     state.validCount = 0;
     state.invalidCount = 0;
+    state.suggestFixCount = 0;
+    state.suggestFixErrors = 0;
     state.hookUnregister = null;
     state.lastValidation = null;
 
     const cfg = readConfig(api.config.extensions?.['commit-validator']);
 
-    const hook = (input: {
+    const hook = async (input: {
       toolName?: string | undefined;
       toolInput?: unknown;
-    }): { decision?: 'block' | 'allow' | undefined; reason?: string; additionalContext?: string } | void => {
+    }): Promise<{
+      decision?: 'block' | 'allow' | undefined;
+      reason?: string;
+      additionalContext?: string;
+    } | void> => {
       const toolName = input.toolName ?? '';
       const inp = (input.toolInput ?? {}) as Record<string, unknown>;
 
@@ -305,7 +359,7 @@ const plugin: Plugin = {
         // and the `type` field hints at the conventional type.
         // If the user provided a message, validate it. If not, trust
         // the plugin's heuristic.
-        message = inp['message'] as string | undefined ?? null;
+        message = (inp['message'] as string | undefined) ?? null;
         if (!message) {
           // No user message — validate the type field instead.
           const type = inp['type'] as string | undefined;
@@ -313,7 +367,11 @@ const plugin: Plugin = {
             state.invocationCount += 1;
             state.invalidCount += 1;
             state.lastValidation = {
-              tool: toolName, valid: false, type, scope: '', subject: '',
+              tool: toolName,
+              valid: false,
+              type,
+              scope: '',
+              subject: '',
               errors: [`Type "${type}" is not in allowedTypes: ${cfg.allowedTypes.join(', ')}`],
               when: new Date().toISOString(),
             };
@@ -376,11 +434,39 @@ const plugin: Plugin = {
       }
 
       // mode === 'warn'
+      let baseContext =
+        `\n?? commit-validator: commit message has ${parsed.errors.length} issue(s):\n${errorList}\n` +
+        `Expected: <type>[(scope)][!]: <description>`;
+
+      // Opt-in LLM suggestion. Strictly best-effort: a failure here
+      // never blocks the warn context from being injected.
+      if (cfg.suggestFix && api.llm) {
+        try {
+          const suggest = await api.llm.complete(
+            `The user wrote a conventional-commit message that fails validation:\n` +
+              `Original: ${message}\n` +
+              `Errors: ${parsed.errors.join('; ')}\n` +
+              `Reply with ONE corrected conventional-commit subject line (and optional body) and nothing else.`,
+            {
+              system:
+                'You rewrite commit subjects to follow the conventional-commits format. Reply tersely, no preamble, no quotes.',
+              maxTokens: 120,
+            },
+          );
+          const text = suggest.text.trim();
+          if (text) {
+            state.suggestFixCount += 1;
+            api.metrics.counter('suggest_fix');
+            baseContext += `\nSuggested rewrite (${suggest.model}):\n  ${text.split('\n').join('\n  ')}`;
+          }
+        } catch {
+          state.suggestFixErrors += 1;
+        }
+      }
+
       return {
         decision: 'allow',
-        additionalContext:
-          `\n⚠️ commit-validator: commit message has ${parsed.errors.length} issue(s):\n${errorList}\n` +
-          `Expected: <type>[(scope)][!]: <description>`,
+        additionalContext: baseContext,
       };
     };
 
@@ -409,6 +495,8 @@ const plugin: Plugin = {
             invocations: state.invocationCount,
             valid: state.validCount,
             invalid: state.invalidCount,
+            suggestFix: state.suggestFixCount,
+            suggestFixErrors: state.suggestFixErrors,
           },
           lastValidation: state.lastValidation,
         };
@@ -435,10 +523,14 @@ const plugin: Plugin = {
       invocations: state.invocationCount,
       valid: state.validCount,
       invalid: state.invalidCount,
+      suggestFix: state.suggestFixCount,
+      suggestFixErrors: state.suggestFixErrors,
     };
     state.invocationCount = 0;
     state.validCount = 0;
     state.invalidCount = 0;
+    state.suggestFixCount = 0;
+    state.suggestFixErrors = 0;
     state.lastValidation = null;
     api.log.info('commit-validator: teardown complete', { final });
   },
@@ -456,6 +548,8 @@ const plugin: Plugin = {
         invocations: state.invocationCount,
         valid: state.validCount,
         invalid: state.invalidCount,
+        suggestFix: state.suggestFixCount,
+        suggestFixErrors: state.suggestFixErrors,
       },
       lastValidation: state.lastValidation,
     };

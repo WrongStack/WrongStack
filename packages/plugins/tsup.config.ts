@@ -39,6 +39,7 @@ export default defineConfig({
     'prompt-firewall': 'src/prompt-firewall/index.ts',
     'auto-escalate': 'src/auto-escalate/index.ts',
     'token-throttle': 'src/token-throttle/index.ts',
+    'plugin-stack-observer': 'src/plugin-stack-observer/index.ts',
   },
   format: ['esm'],
   dts: true,
