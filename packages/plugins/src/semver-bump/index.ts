@@ -11,8 +11,17 @@ import { toErrorMessage } from '@wrongstack/core/utils';
 import type { Plugin } from '@wrongstack/core';
 import { execFileSync } from 'node:child_process';
 import { existsSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { isAbsolute, join, relative, resolve } from 'node:path';
 const API_VERSION = '^0.1.10';
+
+function resolveProjectRoot(rawCwd: string | undefined, root = process.cwd()): string | null {
+  if (typeof rawCwd !== 'string' || rawCwd.length === 0) return root;
+  const base = resolve(root);
+  const resolved = isAbsolute(rawCwd) ? resolve(rawCwd) : resolve(base, rawCwd);
+  const rel = relative(base, resolved);
+  if (rel === '' || (!rel.startsWith('..') && !isAbsolute(rel))) return resolved;
+  return null;
+}
 
 // ---------------------------------------------------------------------------
 // Module-scope state (H1 audit pattern: shared between setup, teardown,
@@ -58,7 +67,11 @@ function runGit(args: string[], cwd?: string): string {
       windowsHide: true,
     }).trim();
   } catch (err: unknown) {
-    const e = err as { message?: string | undefined; stderr?: string | undefined; status?: number | undefined };
+    const e = err as {
+      message?: string | undefined;
+      stderr?: string | undefined;
+      status?: number | undefined;
+    };
     if (e.status === 128) throw new Error('Not a git repository');
     /* v8 ignore next -- execFileSync errors always carry .message; the stderr/String fallbacks are defensive. */
     throw new Error(`git failed: ${e.message ?? e.stderr ?? String(err)}`);
@@ -99,7 +112,11 @@ function collectManifests(root: string): string[] {
 function parseVersion(v: string): [number, number, number] {
   const m = v.match(/^v?(\d+)\.(\d+)\.(\d+)/);
   if (!m) return [0, 0, 0];
-  return [Number.parseInt(expectDefined(m[1]), 10), Number.parseInt(expectDefined(m[2]), 10), Number.parseInt(expectDefined(m[3]), 10)];
+  return [
+    Number.parseInt(expectDefined(m[1]), 10),
+    Number.parseInt(expectDefined(m[2]), 10),
+    Number.parseInt(expectDefined(m[3]), 10),
+  ];
 }
 
 function bumpVersion(version: string, part: BumpType): string {
@@ -140,12 +157,15 @@ function getRecentCommits(sinceTag?: string, cwd?: string): ConventionalCommit[]
 
   if (!output) return [];
 
-  return output.split('\n').filter(Boolean).map((line) => {
-    const spaceIdx = line.indexOf(' ');
-    const hash = line.slice(0, spaceIdx);
-    const message = line.slice(spaceIdx + 1);
-    return { hash, ...parseConventional(message) };
-  });
+  return output
+    .split('\n')
+    .filter(Boolean)
+    .map((line) => {
+      const spaceIdx = line.indexOf(' ');
+      const hash = line.slice(0, spaceIdx);
+      const message = line.slice(spaceIdx + 1);
+      return { hash, ...parseConventional(message) };
+    });
 }
 
 export function determineBump(commits: ConventionalCommit[]): BumpType {
@@ -249,12 +269,20 @@ const plugin: Plugin = {
     state.perTool = { semver_bump: 0, semver_current: 0, semver_changelog: 0 };
     state.lastBump = null;
 
-    const tagPrefix = (api.config.extensions?.['semver-bump'] as Record<string, unknown>)?.['tagPrefix'] as string ?? 'v';
-    const autoTag = (api.config.extensions?.['semver-bump'] as Record<string, unknown>)?.['autoTag'] as boolean ?? true;
+    const tagPrefix =
+      ((api.config.extensions?.['semver-bump'] as Record<string, unknown>)?.[
+        'tagPrefix'
+      ] as string) ?? 'v';
+    const autoTag =
+      ((api.config.extensions?.['semver-bump'] as Record<string, unknown>)?.[
+        'autoTag'
+      ] as boolean) ?? true;
 
     const VALID_PARTS: readonly BumpType[] = ['major', 'minor', 'patch', 'auto'];
     function readDefaultPart(cfg: typeof api.config): BumpType {
-      const raw = (cfg.extensions?.['semver-bump'] as Record<string, unknown> | undefined)?.['defaultPart'];
+      const raw = (cfg.extensions?.['semver-bump'] as Record<string, unknown> | undefined)?.[
+        'defaultPart'
+      ];
       return VALID_PARTS.includes(raw as BumpType) ? (raw as BumpType) : 'patch';
     }
     // Tracked live so `/settings semver-part` applies without a restart.
@@ -264,149 +292,165 @@ const plugin: Plugin = {
     });
 
     /** Shared by the semver_bump tool and the /semver slash command. */
-    async function performBump(part: BumpType, dryRun: boolean, cwd?: string): Promise<Record<string, unknown>> {
-        // Get current version
-        const pkg = getPackageJson(cwd);
-        if (!pkg) {
-          return { ok: false, error: 'No package.json found' };
-        }
+    async function performBump(
+      part: BumpType,
+      dryRun: boolean,
+      cwd?: string,
+    ): Promise<Record<string, unknown>> {
+      const safeCwd = resolveProjectRoot(cwd);
+      if (!safeCwd) {
+        return { ok: false, error: 'cwd must stay within the current project directory' };
+      }
+      cwd = safeCwd;
+      // Get current version
+      const pkg = getPackageJson(cwd);
+      if (!pkg) {
+        return { ok: false, error: 'No package.json found' };
+      }
 
-        const currentVersion = pkg.version;
+      const currentVersion = pkg.version;
 
-        // Determine bump
-        let bumpPart: BumpType = part;
-        let commits: ConventionalCommit[] = [];
+      // Determine bump
+      let bumpPart: BumpType = part;
+      let commits: ConventionalCommit[] = [];
 
-        if (part === 'auto') {
-          // Find last tag
-          let lastTag: string | undefined;
-          try {
-            const tagsOutput = runGit(['describe', '--tags', '--abbrev=0'], cwd);
-            lastTag = tagsOutput || undefined;
-          } catch {
-            // No tags yet — use empty commit list
-          }
-
-          try {
-            commits = getRecentCommits(lastTag, cwd);
-          } catch (err: unknown) {
-            /* v8 ignore next -- getRecentCommits only throws Error; the String(err) branch is defensive. */
-            const msg = toErrorMessage(err);
-            return { ok: false, error: `Git error: ${msg}`, bumpPart: 'patch' };
-          }
-          bumpPart = determineBump(commits);
-        } else {
-          bumpPart = part;
-        }
-
-        const newVersion = bumpVersion(currentVersion, bumpPart);
-
-        if (dryRun) {
-          return {
-            ok: true,
-            dry_run: true,
-            currentVersion,
-            suggestedBump: bumpPart,
-            newVersion,
-            commitCount: part === 'auto' ? commits.length : undefined,
-            message: `Would bump ${currentVersion} → ${newVersion} (${bumpPart})`,
-          };
-        }
-
-        // Actually apply the bump
-        // 1. Update every manifest that shares the repo version. If the repo
-        //    has its own lockstep script (the single bump entry point — it
-        //    also covers files outside the workspace, e.g. website/), delegate
-        //    to it so the plugin can never drift from the repo's convention.
-        const root = cwd ?? process.cwd();
-        const bumpScript = join(root, 'scripts', 'bump-version.mjs');
-        const changed: string[] = collectManifests(root);
-        if (existsSync(bumpScript)) {
-          try {
-            execFileSync(process.execPath, [bumpScript, 'set', newVersion], {
-              cwd: root,
-              stdio: ['pipe', 'pipe', 'pipe'],
-              timeout: 30_000,
-              windowsHide: true,
-            });
-          } catch (err: unknown) {
-            /* v8 ignore next -- execFileSync only throws Error; the String(err) branch is defensive. */
-            const msg = toErrorMessage(err);
-            return { ok: false, error: `bump script failed: ${msg}` };
-          }
-          for (const rel of ['package.json', 'package-lock.json', 'src/lib/utils.ts', 'index.html']) {
-            const p = join(root, 'website', rel);
-            if (existsSync(p)) changed.push(p);
-          }
-        } else {
-          for (const manifest of changed) {
-            const pkgData = JSON.parse(readFileSync(manifest, 'utf-8'));
-            pkgData.version = newVersion;
-            writeFileSync(manifest, JSON.stringify(pkgData, null, 2) + '\n', 'utf-8');
-          }
-        }
-
-        // 2. Git commit the version bump (stage only the files we touched)
+      if (part === 'auto') {
+        // Find last tag
+        let lastTag: string | undefined;
         try {
-          runGit(['add', '--', ...changed], cwd);
-          runGit(['commit', '-m', `chore: bump version to ${newVersion}`], cwd);
+          const tagsOutput = runGit(['describe', '--tags', '--abbrev=0'], cwd);
+          lastTag = tagsOutput || undefined;
         } catch {
-          // commit might fail if nothing changed, that's OK
+          // No tags yet — use empty commit list
         }
 
-        // 3. Create git tag
-        if (autoTag) {
-          try {
-            runGit(['tag', '-a', `${tagPrefix}${newVersion}`, '-m', `Release ${newVersion}`], cwd);
-          } catch {
-            // tag might already exist
-          }
+        try {
+          commits = getRecentCommits(lastTag, cwd);
+        } catch (err: unknown) {
+          /* v8 ignore next -- getRecentCommits only throws Error; the String(err) branch is defensive. */
+          const msg = toErrorMessage(err);
+          return { ok: false, error: `Git error: ${msg}`, bumpPart: 'patch' };
         }
+        bumpPart = determineBump(commits);
+      } else {
+        bumpPart = part;
+      }
 
-        api.log.info('semver-bump: bumped', { from: currentVersion, to: newVersion, bump: bumpPart });
-        api.metrics.counter('version_bump', 1, { bump: bumpPart });
+      const newVersion = bumpVersion(currentVersion, bumpPart);
 
-        await api.session.append({
-          type: 'semver-bump:bumped',
-          ts: new Date().toISOString(),
-          from: currentVersion,
-          to: newVersion,
-          bump: bumpPart,
-        });
-
-        // Snapshot the success for health() / /diag plugins. We capture
-        // commit counts at this point because the bumps write a
-        // "chore: bump version" commit after this block, so the
-        // pre-bump count is the meaningful one for an operator.
-        state.lastBump = {
-          when: new Date().toISOString(),
-          from: currentVersion,
-          to: newVersion,
-          type: bumpPart,
-          commitCount: commits.length,
-          breakingCount: commits.filter((c) => c.breaking).length,
-        };
-
+      if (dryRun) {
         return {
           ok: true,
+          dry_run: true,
           currentVersion,
+          suggestedBump: bumpPart,
           newVersion,
-          bump: bumpPart,
-          tag: `${tagPrefix}${newVersion}`,
-          message: `Bumped ${currentVersion} → ${newVersion} (${bumpPart})`,
+          commitCount: part === 'auto' ? commits.length : undefined,
+          message: `Would bump ${currentVersion} → ${newVersion} (${bumpPart})`,
         };
+      }
+
+      // Actually apply the bump
+      // 1. Update every manifest that shares the repo version. If the repo
+      //    has its own lockstep script (the single bump entry point — it
+      //    also covers files outside the workspace, e.g. website/), delegate
+      //    to it so the plugin can never drift from the repo's convention.
+      const root = cwd ?? process.cwd();
+      const bumpScript = join(root, 'scripts', 'bump-version.mjs');
+      const changed: string[] = collectManifests(root);
+      if (existsSync(bumpScript)) {
+        try {
+          execFileSync(process.execPath, [bumpScript, 'set', newVersion], {
+            cwd: root,
+            stdio: ['pipe', 'pipe', 'pipe'],
+            timeout: 30_000,
+            windowsHide: true,
+          });
+        } catch (err: unknown) {
+          /* v8 ignore next -- execFileSync only throws Error; the String(err) branch is defensive. */
+          const msg = toErrorMessage(err);
+          return { ok: false, error: `bump script failed: ${msg}` };
+        }
+        for (const rel of ['package.json', 'package-lock.json', 'src/lib/utils.ts', 'index.html']) {
+          const p = join(root, 'website', rel);
+          if (existsSync(p)) changed.push(p);
+        }
+      } else {
+        for (const manifest of changed) {
+          const pkgData = JSON.parse(readFileSync(manifest, 'utf-8'));
+          pkgData.version = newVersion;
+          writeFileSync(manifest, JSON.stringify(pkgData, null, 2) + '\n', 'utf-8');
+        }
+      }
+
+      // 2. Git commit the version bump (stage only the files we touched)
+      try {
+        runGit(['add', '--', ...changed], cwd);
+        runGit(['commit', '-m', `chore: bump version to ${newVersion}`], cwd);
+      } catch {
+        // commit might fail if nothing changed, that's OK
+      }
+
+      // 3. Create git tag
+      if (autoTag) {
+        try {
+          runGit(['tag', '-a', `${tagPrefix}${newVersion}`, '-m', `Release ${newVersion}`], cwd);
+        } catch {
+          // tag might already exist
+        }
+      }
+
+      api.log.info('semver-bump: bumped', { from: currentVersion, to: newVersion, bump: bumpPart });
+      api.metrics.counter('version_bump', 1, { bump: bumpPart });
+
+      await api.session.append({
+        type: 'semver-bump:bumped',
+        ts: new Date().toISOString(),
+        from: currentVersion,
+        to: newVersion,
+        bump: bumpPart,
+      });
+
+      // Snapshot the success for health() / /diag plugins. We capture
+      // commit counts at this point because the bumps write a
+      // "chore: bump version" commit after this block, so the
+      // pre-bump count is the meaningful one for an operator.
+      state.lastBump = {
+        when: new Date().toISOString(),
+        from: currentVersion,
+        to: newVersion,
+        type: bumpPart,
+        commitCount: commits.length,
+        breakingCount: commits.filter((c) => c.breaking).length,
+      };
+
+      return {
+        ok: true,
+        currentVersion,
+        newVersion,
+        bump: bumpPart,
+        tag: `${tagPrefix}${newVersion}`,
+        message: `Bumped ${currentVersion} → ${newVersion} (${bumpPart})`,
+      };
     }
 
     // --- semver_bump ---
     api.tools.register({
       name: 'semver_bump',
-      description: 'Determine the next version bump from conventional commits since the last tag, or force a specific bump. Creates a git tag.',
+      description:
+        'Determine the next version bump from conventional commits since the last tag, or force a specific bump. Creates a git tag.',
       inputSchema: {
         type: 'object',
         properties: {
           cwd: { type: 'string', description: 'Working directory (defaults to project root)' },
           dry_run: { type: 'boolean', default: false },
-          part: { type: 'string', enum: ['major', 'minor', 'patch', 'auto'], default: defaultPart, description: 'Version part to bump. Omitted → the configured default (/settings semver-part, factory default: patch). Use auto to infer from commits.' },
+          part: {
+            type: 'string',
+            enum: ['major', 'minor', 'patch', 'auto'],
+            default: defaultPart,
+            description:
+              'Version part to bump. Omitted → the configured default (/settings semver-part, factory default: patch). Use auto to infer from commits.',
+          },
         },
       },
       permission: 'confirm',
@@ -477,7 +521,11 @@ const plugin: Plugin = {
           return { message: `Unknown mode "${mode}". Use status, patch, minor, major or auto.` };
         }
 
-        const result = await performBump(mode, dry, cwd);
+        const safeCwd = resolveProjectRoot(cwd);
+        if (!safeCwd) {
+          return { message: 'cwd must stay within the current project directory' };
+        }
+        const result = await performBump(mode, dry, safeCwd);
         /* v8 ignore next -- performBump always returns a message or an error; the JSON.stringify fallback is defensive. */
         return { message: String(result['message'] ?? result['error'] ?? JSON.stringify(result)) };
       },
@@ -498,19 +546,23 @@ const plugin: Plugin = {
       async execute(input: Record<string, unknown>) {
         state.invocationCount += 1;
         state.perTool['semver_current'] = (state.perTool['semver_current'] ?? 0) + 1;
-        const cwd = input['cwd'] as string | undefined;
+        const cwdInput = input['cwd'] as string | undefined;
+        const safeCwd = resolveProjectRoot(cwdInput);
+        if (!safeCwd) {
+          return { ok: false, error: 'cwd must stay within the current project directory' };
+        }
 
-        const pkg = getPackageJson(cwd);
+        const pkg = getPackageJson(safeCwd);
         const currentVersion = pkg?.version ?? 'unknown';
 
         let latestTag: string | null = null;
         let commitsSinceTag = 0;
         try {
-          const tagsOutput = runGit(['describe', '--tags', '--abbrev=0'], cwd);
+          const tagsOutput = runGit(['describe', '--tags', '--abbrev=0'], safeCwd);
           latestTag = tagsOutput || null;
 
           if (latestTag) {
-            const countOutput = runGit(['rev-list', '--count', `${latestTag}..HEAD`], cwd);
+            const countOutput = runGit(['rev-list', '--count', `${latestTag}..HEAD`], safeCwd);
             commitsSinceTag = Number.parseInt(countOutput, 10) || 0;
           }
         } catch {
@@ -530,7 +582,8 @@ const plugin: Plugin = {
     // --- semver_changelog ---
     api.tools.register({
       name: 'semver_changelog',
-      description: 'Generate a changelog (in markdown) between two version tags or from a tag to HEAD.',
+      description:
+        'Generate a changelog (in markdown) between two version tags or from a tag to HEAD.',
       inputSchema: {
         type: 'object',
         properties: {
@@ -546,21 +599,28 @@ const plugin: Plugin = {
         state.invocationCount += 1;
         state.perTool['semver_changelog'] = (state.perTool['semver_changelog'] ?? 0) + 1;
         const from = input['from'] as string | undefined;
-        const to = input['to'] as string ?? 'HEAD';
+        const to = (input['to'] as string) ?? 'HEAD';
         const cwd = input['cwd'] as string | undefined;
+        const safeCwd = resolveProjectRoot(cwd);
+        if (!safeCwd) {
+          return { ok: false, error: 'cwd must stay within the current project directory' };
+        }
         const format = (input['format'] as 'markdown' | 'json') ?? 'markdown';
 
         const range = from ? `${from}..${to}` : to;
 
         let commits: ConventionalCommit[];
         try {
-          const output = runGit(['log', range === to ? '-30' : range, '--format=%H %s'], cwd);
-          commits = output.split('\n').filter(Boolean).map((line) => {
-            const spaceIdx = line.indexOf(' ');
-            const hash = line.slice(0, spaceIdx);
-            const message = line.slice(spaceIdx + 1);
-            return { hash, ...parseConventional(message) };
-          });
+          const output = runGit(['log', range === to ? '-30' : range, '--format=%H %s'], safeCwd);
+          commits = output
+            .split('\n')
+            .filter(Boolean)
+            .map((line) => {
+              const spaceIdx = line.indexOf(' ');
+              const hash = line.slice(0, spaceIdx);
+              const message = line.slice(spaceIdx + 1);
+              return { hash, ...parseConventional(message) };
+            });
         } catch (err: unknown) {
           return { ok: false, error: `Failed to get git log: ${err}` };
         }

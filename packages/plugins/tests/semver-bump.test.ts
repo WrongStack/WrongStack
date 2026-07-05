@@ -104,6 +104,23 @@ describe('semver-bump plugin', () => {
     expect(result.suggestedBump).toBe('patch');
   });
 
+  it('rejects cwd outside the project directory', async () => {
+    semverBumpPlugin.setup(mockApi as any);
+    const tool = mockApi.tools.register.mock.calls.find(
+      ([tool]: any[]) => tool.name === 'semver_bump'
+    )?.[0];
+    const result = await tool.execute({ cwd: '../escape', dry_run: true });
+    expect(result.ok).toBe(false);
+    expect(result.error).toMatch(/current project directory/);
+  });
+
+  it('rejects cwd outside the project directory in /semver slash command', async () => {
+    semverBumpPlugin.setup(mockApi as any);
+    const cmd = mockApi.slashCommands.register.mock.calls[0]?.[0];
+    const result = await cmd.run('patch', { cwd: '../escape' });
+    expect(result.message).toMatch(/current project directory/);
+  });
+
   it('/semver rejects unknown modes without mutating anything', async () => {
     semverBumpPlugin.setup(mockApi as any);
     const cmd = mockApi.slashCommands.register.mock.calls[0]?.[0];
