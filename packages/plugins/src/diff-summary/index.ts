@@ -29,9 +29,31 @@
  * @public
  */
 import type { Plugin } from '@wrongstack/core';
-import { execSync } from 'node:child_process';
+import { execFileSync, execSync } from 'node:child_process';
+import { isAbsolute, relative, resolve } from 'node:path';
 
 const API_VERSION = '^0.1.10';
+
+// ---------------------------------------------------------------------------
+// Sandbox: reject file paths that resolve outside the project root.
+// diff-summary invokes `git diff` against whatever path the write/edit
+// tool passed. An absolute path outside the project would feed host FS
+// contents into the LLM context. Used to call `execSync` with a string
+// template — fine when path contains no shell metacharacters, brittle
+// when it does. Switch to execFileSync for argv-form git invocations so
+// filenames with spaces, double quotes, or shell metacharacters cannot
+// escape the command.
+// ---------------------------------------------------------------------------
+function withinProject(p: string): boolean {
+  if (typeof p !== 'string' || p.length === 0 || p.length > 4096) return false;
+  const root = process.cwd();
+  const resolved = isAbsolute(p) ? resolve(p) : resolve(root, p);
+  const rel = relative(root, resolved);
+  if (rel === '' || rel === '.') return true;
+  if (rel.startsWith('..')) return false;
+  if (isAbsolute(rel)) return false;
+  return true;
+}
 
 // ---------------------------------------------------------------------------
 // Module-scope state (H1 audit pattern)
@@ -87,10 +109,14 @@ function readConfig(raw: unknown): DiffSummaryConfig {
   if (!raw || typeof raw !== 'object') return { ...DEFAULTS };
   const r = raw as Record<string, unknown>;
   return {
-    maxLines: typeof r['maxLines'] === 'number' && r['maxLines'] > 0 ? r['maxLines'] : DEFAULTS.maxLines,
+    maxLines:
+      typeof r['maxLines'] === 'number' && r['maxLines'] > 0 ? r['maxLines'] : DEFAULTS.maxLines,
     showStat: r['showStat'] !== false,
     mode: r['mode'] === 'stat' ? 'stat' : r['mode'] === 'off' ? 'off' : 'diff',
-    includeContext: typeof r['includeContext'] === 'number' && r['includeContext'] >= 0 ? r['includeContext'] : DEFAULTS.includeContext,
+    includeContext:
+      typeof r['includeContext'] === 'number' && r['includeContext'] >= 0
+        ? r['includeContext']
+        : DEFAULTS.includeContext,
   };
 }
 
@@ -121,13 +147,14 @@ function getGitDiff(filePath: string, contextLines: number, cwd?: string): DiffR
     encoding: 'utf-8' as const,
     timeout: 3_000,
     cwd,
-    stdio: ['pipe', 'pipe', 'pipe'] as ('pipe')[],
+    stdio: ['pipe', 'pipe', 'pipe'] as 'pipe'[],
   };
 
-  // First, check if the file is tracked by git.
+  // First, check if the file is tracked by git. execFileSync (argv) so a
+  // filePath with `"` or `;` cannot escape the command.
   let isTracked = false;
   try {
-    execSync(`git ls-files --error-unmatch "${filePath}"`, opts);
+    execFileSync('git', ['ls-files', '--error-unmatch', '--', filePath], opts);
     isTracked = true;
   } catch {
     isTracked = false;
@@ -137,12 +164,16 @@ function getGitDiff(filePath: string, contextLines: number, cwd?: string): DiffR
     let rawDiff: string;
     const contextFlag = `-U${contextLines}`;
     if (isTracked) {
-      // Standard diff for tracked files
-      rawDiff = execSync(`git diff ${contextFlag} -- "${filePath}"`, opts);
+      // Standard diff for tracked files — argv form, no shell interpolation.
+      rawDiff = execFileSync('git', ['diff', contextFlag, '--', filePath], opts);
     } else {
-      // New/untracked file — diff against /dev/null
+      // New/untracked file — diff against /dev/null.
       try {
-        rawDiff = execSync(`git diff --no-index ${contextFlag} /dev/null "${filePath}"`, opts);
+        rawDiff = execFileSync(
+          'git',
+          ['diff', '--no-index', contextFlag, '/dev/null', filePath],
+          opts,
+        );
       } catch (err: unknown) {
         // git diff --no-index exits 1 when there ARE differences (which is
         // what we want). stdout has the diff.
@@ -202,7 +233,8 @@ function buildDiffSummary(filePath: string, result: DiffResult, maxLines: number
 const plugin: Plugin = {
   name: 'diff-summary',
   version: '0.1.0',
-  description: 'PostToolUse hook that injects a compact git diff into the LLM context after every write or edit',
+  description:
+    'PostToolUse hook that injects a compact git diff into the LLM context after every write or edit',
   apiVersion: API_VERSION,
   capabilities: { tools: true, hooks: true },
   defaultConfig: { ...DEFAULTS },
@@ -224,13 +256,15 @@ const plugin: Plugin = {
         type: 'string',
         enum: ['diff', 'stat', 'off'],
         default: 'diff',
-        description: '"diff" injects unified diff; "stat" injects only +N -M counts; "off" disables the hook.',
+        description:
+          '"diff" injects unified diff; "stat" injects only +N -M counts; "off" disables the hook.',
       },
       includeContext: {
         type: 'number',
         minimum: 0,
         default: 3,
-        description: 'Context lines around each change (git -U<N>). 0 = compact (no surrounding lines), 3 = git default, higher = more orientation.',
+        description:
+          'Context lines around each change (git -U<N>). 0 = compact (no surrounding lines), 3 = git default, higher = more orientation.',
       },
     },
   },
@@ -263,6 +297,14 @@ const plugin: Plugin = {
 
       state.invocationCount += 1;
 
+      // Sandbox: refuse to diff a file outside the project root. Without
+      // this a prompt-injected write with an absolute host path could
+      // stream host-fs content into the LLM context.
+      if (!withinProject(filePath)) {
+        state.fallbackCount += 1;
+        return;
+      }
+
       const result = getGitDiff(filePath, cfg.includeContext, cwd);
       if (!result) {
         state.fallbackCount += 1;
@@ -289,9 +331,7 @@ const plugin: Plugin = {
         summary = buildDiffSummary(filePath, result, cfg.maxLines);
       }
 
-      const header = cfg.showStat
-        ? `\n📝 diff-summary (${toolName}): `
-        : '\n📝 diff-summary: ';
+      const header = cfg.showStat ? `\n📝 diff-summary (${toolName}): ` : '\n📝 diff-summary: ';
 
       return {
         additionalContext: header + summary,

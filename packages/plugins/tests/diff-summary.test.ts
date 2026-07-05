@@ -1,12 +1,15 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 
-// Mock execSync before importing the plugin.
+// Mock execSync + execFileSync before importing the plugin. The plugin
+// switched from execSync string templates to execFileSync argv to defeat
+// shell-injection; tests must cover both surfaces.
 const mockExecSync = vi.fn((cmd: string): string => {
-  // git ls-files --error-unmatch → tracked file
   if (cmd.includes('ls-files')) return 'src/test.ts\n';
-  // git diff → sample diff output
   if (cmd.includes('git diff --no-index')) {
-    throw { stdout: 'diff --git a/dev/null b/src/test.ts\nnew file mode 100644\n+const x = 1;\n', killed: false };
+    throw {
+      stdout: 'diff --git a/dev/null b/src/test.ts\nnew file mode 100644\n+const x = 1;\n',
+      killed: false,
+    };
   }
   if (cmd.includes('git diff')) {
     return 'diff --git a/src/test.ts b/src/test.ts\n-old code\n+new code\n';
@@ -14,8 +17,21 @@ const mockExecSync = vi.fn((cmd: string): string => {
   return '';
 });
 
+const mockExecFileSync = vi.fn((_cmd: string, args: string[]): string => {
+  const joined = args.join(' ');
+  if (joined.includes('ls-files')) return 'src/test.ts\n';
+  if (joined.includes('--no-index')) {
+    throw {
+      stdout: 'diff --git a/dev/null b/src/test.ts\nnew file mode 100644\n+const x = 1;\n',
+      killed: false,
+    };
+  }
+  return 'diff --git a/src/test.ts b/src/test.ts\n-old code\n+new code\n';
+});
+
 vi.mock('node:child_process', () => ({
   execSync: mockExecSync,
+  execFileSync: mockExecFileSync,
 }));
 
 const diffSummaryPlugin = (await import('../src/diff-summary')).default;
@@ -23,8 +39,16 @@ const diffSummaryPlugin = (await import('../src/diff-summary')).default;
 interface MockApi {
   tools: { register: ReturnType<typeof vi.fn> };
   config: { extensions: Record<string, unknown> };
-  log: { info: ReturnType<typeof vi.fn>; warn: ReturnType<typeof vi.fn>; error: ReturnType<typeof vi.fn> };
-  metrics: { counter: ReturnType<typeof vi.fn>; histogram: ReturnType<typeof vi.fn>; gauge: ReturnType<typeof vi.fn> };
+  log: {
+    info: ReturnType<typeof vi.fn>;
+    warn: ReturnType<typeof vi.fn>;
+    error: ReturnType<typeof vi.fn>;
+  };
+  metrics: {
+    counter: ReturnType<typeof vi.fn>;
+    histogram: ReturnType<typeof vi.fn>;
+    gauge: ReturnType<typeof vi.fn>;
+  };
   registerHook: ReturnType<typeof vi.fn>;
   onEvent: ReturnType<typeof vi.fn>;
   emitCustom: ReturnType<typeof vi.fn>;
@@ -51,9 +75,11 @@ function getHook(api: MockApi): (input: unknown) => { additionalContext?: string
 }
 
 function getStatusTool(api: MockApi): { execute: (input: unknown) => Promise<unknown> } {
-  const call = api.tools.register.mock.calls.find(([t]: unknown[]) => (t as { name: string }).name === 'diff_summary_status');
+  const call = api.tools.register.mock.calls.find(
+    ([t]: unknown[]) => (t as { name: string }).name === 'diff_summary_status',
+  );
   if (!call) throw new Error('diff_summary_status not registered');
-  return (call[0] as { execute: (input: unknown) => Promise<unknown> });
+  return call[0] as { execute: (input: unknown) => Promise<unknown> };
 }
 
 beforeEach(() => {
@@ -192,12 +218,15 @@ describe('includeContext in git diff command', () => {
       toolInput: { path: 'src/test.ts', content: 'x' },
       toolResult: { content: 'ok', isError: false },
     });
-    // Verify the mock was called with -U0 in the diff command
-    const diffCall = mockExecSync.mock.calls.find(
-      (c: unknown[]) => typeof c[0] === 'string' && (c[0] as string).includes('git diff') && !(c[0] as string).includes('ls-files'),
+    // Plugin uses execFileSync argv-form; verify the -U0 flag passed through.
+    const diffCall = mockExecFileSync.mock.calls.find(
+      (c: unknown[]) =>
+        Array.isArray(c[1]) &&
+        (c[1] as string[]).includes('diff') &&
+        (c[1] as string[]).some((a) => a.startsWith('-U')),
     );
     expect(diffCall).toBeDefined();
-    expect((diffCall![0] as string)).toContain('-U0');
+    expect((diffCall![1] as string[]).some((a) => a === '-U0')).toBe(true);
   });
 
   it('passes -U5 when includeContext=5', () => {
@@ -209,11 +238,14 @@ describe('includeContext in git diff command', () => {
       toolInput: { path: 'src/test.ts', content: 'x' },
       toolResult: { content: 'ok', isError: false },
     });
-    const diffCall = mockExecSync.mock.calls.find(
-      (c: unknown[]) => typeof c[0] === 'string' && (c[0] as string).includes('git diff') && !(c[0] as string).includes('ls-files'),
+    const diffCall = mockExecFileSync.mock.calls.find(
+      (c: unknown[]) =>
+        Array.isArray(c[1]) &&
+        (c[1] as string[]).includes('diff') &&
+        (c[1] as string[]).some((a) => a.startsWith('-U')),
     );
     expect(diffCall).toBeDefined();
-    expect((diffCall![0] as string)).toContain('-U5');
+    expect((diffCall![1] as string[]).some((a) => a === '-U5')).toBe(true);
   });
 
   it('passes -U3 by default', () => {
@@ -225,11 +257,47 @@ describe('includeContext in git diff command', () => {
       toolInput: { path: 'src/test.ts', content: 'x' },
       toolResult: { content: 'ok', isError: false },
     });
-    const diffCall = mockExecSync.mock.calls.find(
-      (c: unknown[]) => typeof c[0] === 'string' && (c[0] as string).includes('git diff') && !(c[0] as string).includes('ls-files'),
+    const diffCall = mockExecFileSync.mock.calls.find(
+      (c: unknown[]) =>
+        Array.isArray(c[1]) &&
+        (c[1] as string[]).includes('diff') &&
+        (c[1] as string[]).some((a) => a.startsWith('-U')),
     );
     expect(diffCall).toBeDefined();
-    expect((diffCall![0] as string)).toContain('-U3');
+    expect((diffCall![1] as string[]).some((a) => a === '-U3')).toBe(true);
+  });
+});
+
+describe('sandbox', () => {
+  it('does not invoke git when the file path is outside the project root', () => {
+    const api = makeApi();
+    diffSummaryPlugin.setup(api as never);
+    const hook = getHook(api);
+    const outside = process.platform === 'win32' ? 'C:\\Windows\\System32\\evil.ts' : '/etc/passwd';
+    const result = hook({
+      toolName: 'write',
+      toolInput: { path: outside, content: 'x' },
+      toolResult: { content: 'ok', isError: false },
+    });
+    // Hook should silently return void (no additionalContext) instead of
+    // leaking host file content through git diff.
+    expect(result).toBeUndefined();
+    expect(mockExecSync).not.toHaveBeenCalled();
+    expect(mockExecFileSync).not.toHaveBeenCalled();
+  });
+
+  it('does not invoke git when the path traverses out of the project root', () => {
+    const api = makeApi();
+    diffSummaryPlugin.setup(api as never);
+    const hook = getHook(api);
+    const escape = '../../escape.ts';
+    hook({
+      toolName: 'write',
+      toolInput: { path: escape, content: 'x' },
+      toolResult: { content: 'ok', isError: false },
+    });
+    expect(mockExecSync).not.toHaveBeenCalled();
+    expect(mockExecFileSync).not.toHaveBeenCalled();
   });
 });
 
@@ -238,7 +306,10 @@ describe('teardown + H1 pattern', () => {
     const api = makeApi();
     diffSummaryPlugin.setup(api as never);
     expect(() => diffSummaryPlugin.teardown!(api as never)).not.toThrow();
-    expect(api.log.info).toHaveBeenCalledWith('diff-summary: teardown complete', expect.any(Object));
+    expect(api.log.info).toHaveBeenCalledWith(
+      'diff-summary: teardown complete',
+      expect.any(Object),
+    );
   });
 
   it('zeros counters on teardown', async () => {
