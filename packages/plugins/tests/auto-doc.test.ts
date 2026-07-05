@@ -43,10 +43,7 @@ describe('auto-doc plugin', () => {
 
   it('logs info on setup and teardown', () => {
     autoDocPlugin.setup(mockApi as any);
-    expect(mockApi.log.info).toHaveBeenCalledWith(
-      'auto-doc plugin loaded',
-      expect.any(Object),
-    );
+    expect(mockApi.log.info).toHaveBeenCalledWith('auto-doc plugin loaded', expect.any(Object));
     autoDocPlugin.teardown(mockApi as any);
     // H1 audit pattern: teardown now logs a single info line with a
     // structured payload (the final invocation count).
@@ -85,28 +82,31 @@ describe('runAutoDoc input validation', () => {
 
 describe('runAutoDoc doc generation', () => {
   let tmpDir: string;
+  let originalCwd: string;
 
   beforeEach(async () => {
+    originalCwd = process.cwd();
     tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'autodoc-'));
+    process.chdir(tmpDir);
   });
 
   afterEach(async () => {
+    process.chdir(originalCwd);
     await fs.rm(tmpDir, { recursive: true, force: true });
   });
 
   it('generates TSDoc comments for exported functions', async () => {
     const filePath = path.join(tmpDir, 'sample.ts');
-    await fs.writeFile(filePath, [
-      'export function hello(name: string): string {',
-      `  return \`Hello, \${name}\`;`,
-      '}',
-    ].join('\n'));
+    await fs.writeFile(
+      filePath,
+      ['export function hello(name: string): string {', `  return \`Hello, \${name}\`;`, '}'].join(
+        '\n',
+      ),
+    );
 
     const result = await runAutoDocTool({ files: [filePath], dry_run: true });
     expect(result.ok).toBe(true);
-    expect(result.changes).toContainEqual(
-      expect.objectContaining({ entity: 'hello' }),
-    );
+    expect(result.changes).toContainEqual(expect.objectContaining({ entity: 'hello' }));
   });
 
   it('generates TSDoc for exported const arrow functions', async () => {
@@ -115,9 +115,7 @@ describe('runAutoDoc doc generation', () => {
 
     const result = await runAutoDocTool({ files: [filePath], dry_run: true });
     expect(result.ok).toBe(true);
-    expect(result.changes).toContainEqual(
-      expect.objectContaining({ entity: 'add' }),
-    );
+    expect(result.changes).toContainEqual(expect.objectContaining({ entity: 'add' }));
   });
 
   it('generates TSDoc for exported classes', async () => {
@@ -126,9 +124,7 @@ describe('runAutoDoc doc generation', () => {
 
     const result = await runAutoDocTool({ files: [filePath], dry_run: true });
     expect(result.ok).toBe(true);
-    expect(result.changes).toContainEqual(
-      expect.objectContaining({ entity: 'MyClass' }),
-    );
+    expect(result.changes).toContainEqual(expect.objectContaining({ entity: 'MyClass' }));
   });
 
   it('generates TSDoc for exported types', async () => {
@@ -166,5 +162,23 @@ describe('runAutoDoc doc generation', () => {
     const result = await runAutoDocTool({ files: ['/nonexistent/file.ts'], dry_run: true });
     expect(result.ok).toBe(true);
     expect(mockApi.log.warn).toHaveBeenCalled();
+  });
+
+  it('skips files outside the project directory', async () => {
+    const outsideDir = await fs.mkdtemp(path.join(os.tmpdir(), 'autodoc-out-'));
+    const outsideFile = path.join(outsideDir, 'outside.ts');
+    await fs.writeFile(outsideFile, 'export function skip(): void {}\n');
+    try {
+      const result = await runAutoDocTool({ files: [outsideFile], dry_run: true });
+      expect(result.ok).toBe(true);
+      expect(result.changes).toEqual([]);
+      expect(mockApi.log.warn).toHaveBeenCalledWith(
+        expect.stringContaining('skipped file outside project directory'),
+      );
+      // Source must remain untouched.
+      expect(await fs.readFile(outsideFile, 'utf-8')).not.toContain('/**');
+    } finally {
+      await fs.rm(outsideDir, { recursive: true, force: true });
+    }
   });
 });

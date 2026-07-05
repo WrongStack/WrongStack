@@ -15,8 +15,18 @@
  * falls back to the template for that entity — a doc comment always lands.
  */
 import type { Plugin, PluginAPI } from '@wrongstack/core';
+import { isAbsolute, relative, resolve } from 'node:path';
 
 const AUTO_DOC_API_VERSION = '^0.1.10';
+
+function resolveProjectPath(rawPath: string, cwd = process.cwd()): string | null {
+  if (typeof rawPath !== 'string' || rawPath.length === 0) return null;
+  const root = resolve(cwd);
+  const resolved = isAbsolute(rawPath) ? resolve(rawPath) : resolve(root, rawPath);
+  const rel = relative(root, resolved);
+  if (rel === '' || (!rel.startsWith('..') && !isAbsolute(rel))) return resolved;
+  return null;
+}
 
 // ---------------------------------------------------------------------------
 // Module-scope state (H1 audit pattern: shared between setup, teardown,
@@ -300,14 +310,19 @@ async function runAutoDoc(input: AutoDocInput, api: Parameters<Plugin['setup']>[
   const results: Array<{ file: string; entity: string; source: 'llm' | 'template' }> = [];
   let llmBudget = maxLlmEntities;
 
-  for (const file of input.files) {
+  for (const rawFile of input.files) {
+    const safeFile = resolveProjectPath(rawFile);
+    if (!safeFile) {
+      api.log.warn(`auto-doc: skipped file outside project directory: ${rawFile}`);
+      continue;
+    }
     try {
       const { readFileSync, writeFileSync } = await import('node:fs');
       let content: string;
       try {
-        content = readFileSync(file, 'utf-8');
+        content = readFileSync(safeFile, 'utf-8');
       } catch {
-        api.log.warn(`auto-doc: could not read file ${file}`);
+        api.log.warn(`auto-doc: could not read file ${safeFile}`);
         continue;
       }
 
@@ -339,15 +354,15 @@ async function runAutoDoc(input: AutoDocInput, api: Parameters<Plugin['setup']>[
         if (!doc) doc = generateDocComment(entity, includeTypes);
 
         modified = injectDocComment(modified, entity, doc);
-        results.push({ file, entity: entity.name, source });
+        results.push({ file: safeFile, entity: entity.name, source });
       }
 
       if (!input.dry_run && results.length > 0) {
-        writeFileSync(file, modified, 'utf-8');
-        api.log.info(`auto-doc: updated ${file}`);
+        writeFileSync(safeFile, modified, 'utf-8');
+        api.log.info(`auto-doc: updated ${safeFile}`);
       }
     } catch (err) {
-      api.log.error(`auto-doc: error processing ${file}: ${err}`);
+      api.log.error(`auto-doc: error processing ${safeFile}: ${err}`);
     }
   }
 
