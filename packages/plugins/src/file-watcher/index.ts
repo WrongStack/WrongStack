@@ -8,9 +8,29 @@
  */
 import type { Plugin } from '@wrongstack/core';
 import { watch as fsWatch } from 'node:fs';
-import * as path from 'node:path';
+import { isAbsolute, relative, resolve } from 'node:path';
 
 const API_VERSION = '^0.1.10';
+
+// ---------------------------------------------------------------------------
+// Sandbox: reject paths that resolve outside the current working directory.
+// file-watcher opens native fs.FSWatcher handles on arbitrary paths and,
+// when autoIndex is on, escalates to codebase-index which then *reads*
+// those files. A tool caller (or prompt-injected LLM) could ask to watch
+// `$HOME`, /etc, C:\Windows, etc. and then have the watcher stream every
+// event into LLM context. Also harden indexProjectRoot the same way —
+// it's user-supplied and routes full-project reads.
+// ---------------------------------------------------------------------------
+function withinProject(p: string): boolean {
+  if (typeof p !== 'string' || p.length === 0 || p.length > 4096) return false;
+  const root = process.cwd();
+  const resolved = isAbsolute(p) ? resolve(p) : resolve(root, p);
+  const rel = relative(root, resolved);
+  if (rel === '' || rel === '.') return true;
+  if (rel.startsWith('..')) return false;
+  if (isAbsolute(rel)) return false;
+  return true;
+}
 
 interface WatchHandle {
   id: string;
@@ -72,7 +92,8 @@ const plugin: Plugin = {
       autoIndex: {
         type: 'boolean',
         default: false,
-        description: 'When true, automatically reindex changed .ts/.tsx/.js/.jsx files via codebase-index (incremental)',
+        description:
+          'When true, automatically reindex changed .ts/.tsx/.js/.jsx files via codebase-index (incremental)',
       },
       indexProjectRoot: {
         type: 'string',
@@ -82,7 +103,8 @@ const plugin: Plugin = {
       depWatcher: {
         type: 'object',
         default: { enabled: false },
-        description: 'Bridge dependency file changes (package.json, go.mod, etc.) to the inter-agent mailbox for tech-stack audits. Requires the mailbox tool to be registered.',
+        description:
+          'Bridge dependency file changes (package.json, go.mod, etc.) to the inter-agent mailbox for tech-stack audits. Requires the mailbox tool to be registered.',
         properties: {
           enabled: { type: 'boolean', default: false },
           targetAgent: { type: 'string', default: 'tech-stack' },
@@ -109,24 +131,51 @@ const plugin: Plugin = {
     for (const t of debounceTimers.values()) clearTimeout(t);
     debounceTimers.clear();
 
-    const debounceMs = (api.config.extensions?.['file-watcher'] as Record<string, unknown>)?.['debounceMs'] as number ?? 500;
+    const debounceMs =
+      ((api.config.extensions?.['file-watcher'] as Record<string, unknown>)?.[
+        'debounceMs'
+      ] as number) ?? 500;
 
     function debounceEvent(key: string, fn: () => void, ms: number): void {
       const existing = debounceTimers.get(key);
       if (existing) clearTimeout(existing);
-      debounceTimers.set(key, setTimeout(() => {
-        debounceTimers.delete(key);
-        fn();
-      }, ms));
+      debounceTimers.set(
+        key,
+        setTimeout(() => {
+          debounceTimers.delete(key);
+          fn();
+        }, ms),
+      );
     }
 
-    const autoIndex = (api.config.extensions?.['file-watcher'] as Record<string, unknown>)?.['autoIndex'] as boolean ?? false;
-    const indexProjectRoot = (api.config.extensions?.['file-watcher'] as Record<string, unknown>)?.['indexProjectRoot'] as string ?? '';
+    const autoIndex =
+      ((api.config.extensions?.['file-watcher'] as Record<string, unknown>)?.[
+        'autoIndex'
+      ] as boolean) ?? false;
+    const indexProjectRoot =
+      ((api.config.extensions?.['file-watcher'] as Record<string, unknown>)?.[
+        'indexProjectRoot'
+      ] as string) ?? '';
+    // Sandbox: the configured index root must live inside the project.
+    // An out-of-project value would route codebase-index reads anywhere
+    // on disk; ignore it and warn instead of trusting the config.
+    const safeIndexRoot =
+      indexProjectRoot !== '' && withinProject(indexProjectRoot) ? indexProjectRoot : '';
+    if (indexProjectRoot !== '' && safeIndexRoot === '') {
+      api.log.warn(
+        'file-watcher: indexProjectRoot is outside the project root — using watched dirPath instead',
+        {
+          indexProjectRoot,
+        },
+      );
+    }
 
     const INDEXABLE_EXTENSIONS = new Set(['.ts', '.tsx', '.js', '.jsx']);
 
     function isIndexableFile(filePath: string): boolean {
-      return INDEXABLE_EXTENSIONS.has(path.extname(filePath));
+      const dot = filePath.lastIndexOf('.');
+      const ext = dot >= 0 ? filePath.slice(dot).toLowerCase() : '';
+      return INDEXABLE_EXTENSIONS.has(ext);
     }
 
     function safeWatchDir(dirPath: string, recursive: boolean, handle: WatchHandle): void {
@@ -135,39 +184,47 @@ const plugin: Plugin = {
           if (!filename) return;
           const fullPath = `${dirPath}/${filename}`;
           const key = `${handle.id}:${fullPath}:${eventType}`;
-          debounceEvent(key, () => {
-            api.emitCustom('file-watcher:changed', {
-              watch_id: handle.id,
-              path: fullPath,
-              event: eventType,
-              filename,
-              timestamp: new Date().toISOString(),
-            });
-            api.metrics.counter('file_change', 1, { event: eventType ?? 'unknown' });
-            api.log.debug(`file-watcher: ${eventType} ${fullPath} (watch=${handle.id})`);
+          debounceEvent(
+            key,
+            () => {
+              api.emitCustom('file-watcher:changed', {
+                watch_id: handle.id,
+                path: fullPath,
+                event: eventType,
+                filename,
+                timestamp: new Date().toISOString(),
+              });
+              api.metrics.counter('file_change', 1, { event: eventType ?? 'unknown' });
+              api.log.debug(`file-watcher: ${eventType} ${fullPath} (watch=${handle.id})`);
 
-            if (autoIndex && isIndexableFile(fullPath)) {
-              debounceEvent(`index:${fullPath}`, async () => {
-                try {
-                  // Route through the background coordinator (mutex + watchdog +
-                  // circuit breaker) — a direct runIndexer call here used to race
-                  // the startup scan and per-edit reindexes on the same SQLite file.
-                  const { enqueueReindex } = await import('@wrongstack/tools/codebase-index');
-                  const root = indexProjectRoot || dirPath;
-                  enqueueReindex({
-                    projectRoot: root,
-                    files: [fullPath],
-                    onError: (err: unknown) =>
-                      api.log.warn(`file-watcher: auto-index failed for ${fullPath}: ${err}`),
-                  });
-                  api.metrics.counter('index_file', 1);
-                  api.log.debug(`file-watcher: auto-index scheduled for ${fullPath}`);
-                } catch (err) {
-                  api.log.warn(`file-watcher: auto-index failed for ${fullPath}: ${err}`);
-                }
-              }, debounceMs);
-            }
-          }, debounceMs);
+              if (autoIndex && isIndexableFile(fullPath)) {
+                debounceEvent(
+                  `index:${fullPath}`,
+                  async () => {
+                    try {
+                      // Route through the background coordinator (mutex + watchdog +
+                      // circuit breaker) — a direct runIndexer call here used to race
+                      // the startup scan and per-edit reindexes on the same SQLite file.
+                      const { enqueueReindex } = await import('@wrongstack/tools/codebase-index');
+                      const root = safeIndexRoot || dirPath;
+                      enqueueReindex({
+                        projectRoot: root,
+                        files: [fullPath],
+                        onError: (err: unknown) =>
+                          api.log.warn(`file-watcher: auto-index failed for ${fullPath}: ${err}`),
+                      });
+                      api.metrics.counter('index_file', 1);
+                      api.log.debug(`file-watcher: auto-index scheduled for ${fullPath}`);
+                    } catch (err) {
+                      api.log.warn(`file-watcher: auto-index failed for ${fullPath}: ${err}`);
+                    }
+                  },
+                  debounceMs,
+                );
+              }
+            },
+            debounceMs,
+          );
         });
 
         watcher.on('error', (err: unknown) => {
@@ -183,7 +240,8 @@ const plugin: Plugin = {
     // --- watch_start ---
     api.tools.register({
       name: 'watch_start',
-      description: 'Start watching one or more file paths for changes (add, change, delete). Returns a watch ID for stopping the watch later.',
+      description:
+        'Start watching one or more file paths for changes (add, change, delete). Returns a watch ID for stopping the watch later.',
       inputSchema: {
         type: 'object',
         properties: {
@@ -211,15 +269,36 @@ const plugin: Plugin = {
       mutating: false,
       async execute(input: Record<string, unknown>) {
         const rawPaths = input['paths'];
-        if (!rawPaths || (typeof rawPaths !== 'object') || !Array.isArray(rawPaths)) {
-          return { ok: false, error: 'paths must be an array of file/directory paths', watch_id: null };
+        if (!rawPaths || typeof rawPaths !== 'object' || !Array.isArray(rawPaths)) {
+          return {
+            ok: false,
+            error: 'paths must be an array of file/directory paths',
+            watch_id: null,
+          };
         }
         const paths = rawPaths as string[];
         if (paths.length === 0) {
-          return { ok: false, error: 'paths array is empty — provide at least one path', watch_id: null };
+          return {
+            ok: false,
+            error: 'paths array is empty — provide at least one path',
+            watch_id: null,
+          };
         }
         const events = (input['events'] as string[] | undefined) ?? ['change', 'add', 'delete'];
         const recursive = (input['recursive'] as boolean | undefined) ?? true;
+
+        // Sandbox: every requested path must resolve inside the project
+        // root. Reject the whole call early otherwise — half-attaching
+        // some watchers would silently leave unsafe paths unmonitored.
+        const bad = paths.find((p) => !withinProject(p));
+        if (bad !== undefined) {
+          return {
+            ok: false,
+            error: `path is outside the project root: ${bad}`,
+            watch_id: null,
+            rejectedOutsideProject: true,
+          };
+        }
 
         const id = nextId();
         const handle: WatchHandle = {
@@ -293,7 +372,8 @@ const plugin: Plugin = {
     // --- watch_list ---
     api.tools.register({
       name: 'watch_list',
-      description: 'List all currently active file watches with their IDs, paths, and creation times.',
+      description:
+        'List all currently active file watches with their IDs, paths, and creation times.',
       inputSchema: { type: 'object', properties: {} },
       permission: 'auto',
       mutating: false,
