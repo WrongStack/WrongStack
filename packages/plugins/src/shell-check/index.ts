@@ -280,7 +280,7 @@ const plugin: Plugin = {
             rejectedOutsideProject: true,
           };
         }
-        if (files && files.some((f) => !pathIsSafe(f))) {
+        if (files?.some((f) => !pathIsSafe(f))) {
           return {
             ok: false,
             error: 'one or more file paths are outside the project root',
