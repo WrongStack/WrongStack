@@ -47,6 +47,58 @@
 import type { Plugin } from '@wrongstack/core';
 import { spawn } from 'node:child_process';
 import { existsSync, statSync } from 'node:fs';
+import { basename, isAbsolute, relative, resolve } from 'node:path';
+
+// ---------------------------------------------------------------------------
+// Sandbox + command allowlist. import-organizer already uses spawn() with
+// argv (no shell interpolation), so file paths cannot break out of the
+// command. The remaining risk: the `command` config field lets a config-
+// writer set an arbitrary first token, which spawn will execute directly.
+// Lock down that first token to a known set of linter binaries.
+// ---------------------------------------------------------------------------
+function withinProject(p: string): boolean {
+  if (typeof p !== 'string' || p.length === 0 || p.length > 4096) return false;
+  const root = process.cwd();
+  const resolved = isAbsolute(p) ? resolve(p) : resolve(root, p);
+  const rel = relative(root, resolved);
+  if (rel === '' || rel === '.') return true;
+  if (rel.startsWith('..')) return false;
+  if (isAbsolute(rel)) return false;
+  return true;
+}
+
+const ALLOWED_FIRST_TOKENS = new Set<string>([
+  'npx',
+  'pnpm',
+  'npm',
+  'yarn',
+  'biome',
+  '@biomejs/biome',
+  'eslint',
+  'node',
+  // Recognise a fully-qualified project-local path like
+  // "./node_modules/.bin/biome"; basename check kicks in below.
+]);
+
+function resolveAllowedCommand(command: string): { cmd: string; args: string[] } | null {
+  const tokens = command.split(/\s+/).filter(Boolean);
+  if (tokens.length === 0) return null;
+  const head = tokens[0]!;
+  if (ALLOWED_FIRST_TOKENS.has(head)) {
+    return { cmd: head, args: tokens.slice(1) };
+  }
+  if (isAbsolute(head)) {
+    if (!withinProject(head)) return null;
+    const base = basename(head);
+    if (ALLOWED_FIRST_TOKENS.has(base)) return { cmd: head, args: tokens.slice(1) };
+  }
+  // Allow relative paths under project root (./node_modules/.bin/biome).
+  if (!isAbsolute(head) && withinProject(head)) {
+    const base = basename(head);
+    if (ALLOWED_FIRST_TOKENS.has(base)) return { cmd: head, args: tokens.slice(1) };
+  }
+  return null;
+}
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -118,13 +170,16 @@ function readConfig(raw: unknown): ImportOrganizerConfig {
   const r = raw as Record<string, unknown>;
   return {
     enabled: r['enabled'] !== false,
-    command: typeof r['command'] === 'string' && r['command'].length > 0 ? r['command'] : DEFAULTS.command,
+    command:
+      typeof r['command'] === 'string' && r['command'].length > 0 ? r['command'] : DEFAULTS.command,
     fallbackCommand:
       typeof r['fallbackCommand'] === 'string' && r['fallbackCommand'].length > 0
         ? r['fallbackCommand']
         : DEFAULTS.fallbackCommand,
     timeoutMs:
-      typeof r['timeoutMs'] === 'number' && r['timeoutMs'] > 0 ? r['timeoutMs'] : DEFAULTS.timeoutMs,
+      typeof r['timeoutMs'] === 'number' && r['timeoutMs'] > 0
+        ? r['timeoutMs']
+        : DEFAULTS.timeoutMs,
   };
 }
 
@@ -144,7 +199,12 @@ interface SpawnResult {
  * via AbortSignal. Uses `spawn` (not `execSync`) so the caller can mock
  * it from tests without spawning real processes.
  */
-function runCommand(command: string, args: string[], timeoutMs: number, cwd: string): Promise<SpawnResult> {
+function runCommand(
+  command: string,
+  args: string[],
+  timeoutMs: number,
+  cwd: string,
+): Promise<SpawnResult> {
   return new Promise((resolve) => {
     let timedOut = false;
     const stdoutChunks: Buffer[] = [];
@@ -202,6 +262,10 @@ async function organizeImports(
   cfg: ImportOrganizerConfig,
   cwd: string,
 ): Promise<OrganizeResult | null> {
+  // Sandbox: refuse to lint files outside the project root. Without
+  // this guard a prompt-injected write/edit with a host-FS path could
+  // pivot the linter into reading and rewriting arbitrary files.
+  if (!withinProject(filePath)) return null;
   if (!existsSync(filePath)) return null;
 
   let bytesBefore: number;
@@ -211,17 +275,21 @@ async function organizeImports(
     return null;
   }
 
-  const primary = cfg.command.split(/\s+/).filter(Boolean);
-  if (primary.length === 0) return null;
-  const [primaryCmd, ...primaryArgs] = primary as [string, ...string[]];
+  // Command allowlist: the primary command's first token must resolve
+  // to a known linter. Without this guard, a config-supplied `command`
+  // would let an attacker pivot the post-save hook into spawning
+  // arbitrary processes.
+  const primary = resolveAllowedCommand(cfg.command);
+  if (!primary) return null;
+  const [primaryCmd, ...primaryArgs] = [primary.cmd, ...primary.args] as [string, ...string[]];
 
   let result = await runCommand(primaryCmd, [...primaryArgs, filePath], cfg.timeoutMs, cwd);
   let usedCommand = cfg.command;
 
   if (result.code === 127 && cfg.fallbackCommand) {
-    const fallback = cfg.fallbackCommand.split(/\s+/).filter(Boolean);
-    if (fallback.length > 0) {
-      const [fbCmd, ...fbArgs] = fallback as [string, ...string[]];
+    const fallback = resolveAllowedCommand(cfg.fallbackCommand);
+    if (fallback) {
+      const [fbCmd, ...fbArgs] = [fallback.cmd, ...fallback.args] as [string, ...string[]];
       result = await runCommand(fbCmd, [...fbArgs, filePath], cfg.timeoutMs, cwd);
       usedCommand = cfg.fallbackCommand;
     }
@@ -253,7 +321,8 @@ async function organizeImports(
 const plugin: Plugin = {
   name: 'import-organizer',
   version: '0.1.0',
-  description: 'PostToolUse hook that re-sorts and de-duplicates imports in a file after every write or edit',
+  description:
+    'PostToolUse hook that re-sorts and de-duplicates imports in a file after every write or edit',
   apiVersion: API_VERSION,
   capabilities: { tools: true, hooks: true },
   defaultConfig: { ...DEFAULTS },
@@ -268,12 +337,14 @@ const plugin: Plugin = {
       command: {
         type: 'string',
         default: DEFAULTS.command,
-        description: 'Primary linter command. Use the `--write` (or `--fix`) flag and biome-specific `--unsafe` so import organization runs.',
+        description:
+          'Primary linter command. Use the `--write` (or `--fix`) flag and biome-specific `--unsafe` so import organization runs.',
       },
       fallbackCommand: {
         type: 'string',
         default: DEFAULTS.fallbackCommand,
-        description: 'Fallback command (e.g. `eslint --fix`) used when the primary linter is not installed.',
+        description:
+          'Fallback command (e.g. `eslint --fix`) used when the primary linter is not installed.',
       },
       timeoutMs: {
         type: 'number',
@@ -323,7 +394,9 @@ const plugin: Plugin = {
         if (!state.linterAvailable) {
           state.linterAvailable = false; // first probe failed
           state.probeComplete = true;
-          api.log.warn('import-organizer: no linter available — hook will be a no-op for the rest of the session');
+          api.log.warn(
+            'import-organizer: no linter available — hook will be a no-op for the rest of the session',
+          );
         }
         state.errorCount += 1;
         return;
@@ -360,8 +433,7 @@ const plugin: Plugin = {
       // Don't surface anything when nothing changed — keeps the context window clean.
       if (result.stderr.trim().length > 0) {
         return {
-          additionalContext:
-            `\n📦 import-organizer: '${filePath}' was already clean, but the linter reported:\n${result.stderr.trim()}`,
+          additionalContext: `\n📦 import-organizer: '${filePath}' was already clean, but the linter reported:\n${result.stderr.trim()}`,
         };
       }
       return;

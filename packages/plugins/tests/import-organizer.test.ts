@@ -47,8 +47,16 @@ interface PluginAPI {
   slashCommands: { register: ReturnType<typeof vi.fn> };
   pipelines: Record<string, { use: (h: unknown) => void }>;
   config: { extensions?: Record<string, unknown> };
-  log: { info: ReturnType<typeof vi.fn>; warn: ReturnType<typeof vi.fn>; error: ReturnType<typeof vi.fn> };
-  metrics: { counter: ReturnType<typeof vi.fn>; histogram: ReturnType<typeof vi.fn>; gauge: ReturnType<typeof vi.fn> };
+  log: {
+    info: ReturnType<typeof vi.fn>;
+    warn: ReturnType<typeof vi.fn>;
+    error: ReturnType<typeof vi.fn>;
+  };
+  metrics: {
+    counter: ReturnType<typeof vi.fn>;
+    histogram: ReturnType<typeof vi.fn>;
+    gauge: ReturnType<typeof vi.fn>;
+  };
   session: { append: ReturnType<typeof vi.fn> };
   extensions: { register: ReturnType<typeof vi.fn> };
   registerSystemPromptContributor: ReturnType<typeof vi.fn>;
@@ -125,13 +133,20 @@ function mockSpawnNotFound() {
 
 describe('import-organizer plugin', () => {
   let tmpDir: string;
+  let originalCwd: string;
 
   beforeEach(async () => {
+    originalCwd = process.cwd();
     tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'import-organizer-test-'));
+    // Sandbox: chdir into tmpDir so withinProject() accepts the file
+    // paths under it. Tests that want to exercise out-of-project paths
+    // explicitly construct absolute paths outside tmpDir.
+    process.chdir(tmpDir);
     vi.mocked(spawn).mockReset();
   });
 
   afterEach(async () => {
+    process.chdir(originalCwd);
     await fs.rm(tmpDir, { recursive: true, force: true });
   });
 
@@ -160,7 +175,10 @@ describe('import-organizer plugin', () => {
     });
 
     it('configSchema defines enabled, command, fallbackCommand, timeoutMs', () => {
-      const schema = importOrganizerPlugin.configSchema as Record<string, { type: string; properties?: Record<string, unknown> }>;
+      const schema = importOrganizerPlugin.configSchema as Record<
+        string,
+        { type: string; properties?: Record<string, unknown> }
+      >;
       expect(schema).toBeDefined();
       const props = schema.properties;
       expect(props).toBeDefined();
@@ -211,7 +229,11 @@ describe('import-organizer plugin', () => {
       mockSpawnOk('', '', 0, (p) => fsSync.appendFileSync(p, '\n'));
       const hookCall = vi.mocked(api.registerHook).mock.calls[0];
       const handler = hookCall?.[2] as (i: unknown) => Promise<unknown>;
-      await handler({ toolName: 'write', toolInput: { path: filePath, content: '' }, toolResult: { content: 'ok', isError: false } });
+      await handler({
+        toolName: 'write',
+        toolInput: { path: filePath, content: '' },
+        toolResult: { content: 'ok', isError: false },
+      });
 
       importOrganizerPlugin.teardown!(api as never);
       importOrganizerPlugin.setup(api as never);
@@ -401,18 +423,74 @@ describe('import-organizer plugin', () => {
       const filePath1 = path.join(tmpDir, 'c1.ts');
       await fs.writeFile(filePath1, 'const a = 1;', 'utf8');
       mockSpawnOk('', '', 0, (p) => fsSync.appendFileSync(p, '\nconst b = 2;', 'utf8'));
-      await hook({ toolName: 'write', toolInput: { path: filePath1, content: '' }, toolResult: { content: 'ok', isError: false } });
+      await hook({
+        toolName: 'write',
+        toolInput: { path: filePath1, content: '' },
+        toolResult: { content: 'ok', isError: false },
+      });
 
       // Invocation 2: file unchanged (clean++)
       const filePath2 = path.join(tmpDir, 'c2.ts');
       await fs.writeFile(filePath2, 'const c = 3;', 'utf8');
       mockSpawnOk('');
-      await hook({ toolName: 'write', toolInput: { path: filePath2, content: '' }, toolResult: { content: 'ok', isError: false } });
+      await hook({
+        toolName: 'write',
+        toolInput: { path: filePath2, content: '' },
+        toolResult: { content: 'ok', isError: false },
+      });
 
       const health = await importOrganizerPlugin.health!();
       expect(health.message).toMatch(/2 invocation/);
       expect(health.message).toMatch(/1 organized/);
       expect(health.message).toMatch(/1 clean/);
+    });
+
+    it('does not invoke the linter when the file path is outside the project root', async () => {
+      const api = createMockAPI();
+      importOrganizerPlugin.setup(api as never);
+      const hook = getHook(api);
+
+      const outside =
+        process.platform === 'win32' ? 'C:\\Windows\\System32\\evil.ts' : '/etc/evil.ts';
+      const result = await hook({
+        toolName: 'write',
+        toolInput: { path: outside, content: 'x' },
+        toolResult: { content: 'ok', isError: false },
+      });
+      expect(result).toBeUndefined();
+      expect(spawn).not.toHaveBeenCalled();
+    });
+
+    it('does not invoke the linter when the path traverses out of the project root', async () => {
+      const api = createMockAPI();
+      importOrganizerPlugin.setup(api as never);
+      const hook = getHook(api);
+
+      const result = await hook({
+        toolName: 'write',
+        toolInput: { path: '../../escape.ts', content: 'x' },
+        toolResult: { content: 'ok', isError: false },
+      });
+      expect(result).toBeUndefined();
+      expect(spawn).not.toHaveBeenCalled();
+    });
+
+    it('rejects a custom command whose first token is not on the allowlist', async () => {
+      const api = createMockAPI();
+      api.config.extensions = { 'import-organizer': { command: 'curl http://evil' } };
+      importOrganizerPlugin.setup(api as never);
+      const hook = getHook(api);
+
+      const filePath = path.join(tmpDir, 'd1.ts');
+      await fs.writeFile(filePath, 'const a = 1;', 'utf8');
+      mockSpawnOk();
+      const result = await hook({
+        toolName: 'write',
+        toolInput: { path: filePath, content: '' },
+        toolResult: { content: 'ok', isError: false },
+      });
+      expect(spawn).not.toHaveBeenCalled();
+      expect(result).toBeUndefined();
     });
   });
 
