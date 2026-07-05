@@ -1,15 +1,24 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 
-// Mock execSync before importing the plugin.
+// Mock execSync + execFileSync before importing the plugin. The plugin
+// switched from execSync string templates to execFileSync argv to defeat
+// shell-injection; tests must cover both surfaces.
 const mockExecSync = vi.fn((cmd: string): string => {
-  if (cmd.includes('--version')) return '2.5.1\n'; // biome --version
-  if (cmd.includes('format --write')) return '';   // success
-  if (cmd.includes('format "')) return '';          // check mode = clean
+  if (cmd.includes('--version')) return '2.5.1\n';
+  return '';
+});
+
+const mockExecFileSync = vi.fn((_cmd: string, _args: string[]): string => {
+  // biome --write returns empty on success; second invocation (check
+  // mode) also returns empty when the file is already clean. Tests can
+  // override mockExecFileSync.mockImplementation when they need
+  // specific behavior (size change, parse error, etc.).
   return '';
 });
 
 vi.mock('node:child_process', () => ({
   execSync: mockExecSync,
+  execFileSync: mockExecFileSync,
 }));
 
 // Mock fs to simulate file existence + size changes.
@@ -24,8 +33,16 @@ const formatOnSavePlugin = (await import('../src/format-on-save')).default;
 interface MockApi {
   tools: { register: ReturnType<typeof vi.fn> };
   config: { extensions: Record<string, unknown> };
-  log: { info: ReturnType<typeof vi.fn>; warn: ReturnType<typeof vi.fn>; error: ReturnType<typeof vi.fn> };
-  metrics: { counter: ReturnType<typeof vi.fn>; histogram: ReturnType<typeof vi.fn>; gauge: ReturnType<typeof vi.fn> };
+  log: {
+    info: ReturnType<typeof vi.fn>;
+    warn: ReturnType<typeof vi.fn>;
+    error: ReturnType<typeof vi.fn>;
+  };
+  metrics: {
+    counter: ReturnType<typeof vi.fn>;
+    histogram: ReturnType<typeof vi.fn>;
+    gauge: ReturnType<typeof vi.fn>;
+  };
   registerHook: ReturnType<typeof vi.fn>;
   onEvent: ReturnType<typeof vi.fn>;
   emitCustom: ReturnType<typeof vi.fn>;
@@ -52,9 +69,11 @@ function getHook(api: MockApi): (input: unknown) => { additionalContext?: string
 }
 
 function getStatusTool(api: MockApi): { execute: (input: unknown) => Promise<unknown> } {
-  const call = api.tools.register.mock.calls.find(([t]: unknown[]) => (t as { name: string }).name === 'format_on_save_status');
+  const call = api.tools.register.mock.calls.find(
+    ([t]: unknown[]) => (t as { name: string }).name === 'format_on_save_status',
+  );
   if (!call) throw new Error('format_on_save_status not registered');
-  return (call[0] as { execute: (input: unknown) => Promise<unknown> });
+  return call[0] as { execute: (input: unknown) => Promise<unknown> };
 }
 
 beforeEach(() => {
@@ -143,6 +162,45 @@ describe('hook behavior', () => {
     });
     expect(result).toBeUndefined();
   });
+
+  it('does not invoke biome when the file path is outside the project root', () => {
+    const api = makeApi();
+    formatOnSavePlugin.setup(api as never);
+    const hook = getHook(api);
+    const outside =
+      process.platform === 'win32' ? 'C:\\Windows\\System32\\evil.ts' : '/etc/evil.ts';
+    const result = hook({
+      toolName: 'write',
+      toolInput: { path: outside, content: 'x' },
+      toolResult: { content: 'ok', isError: false },
+    });
+    expect(result).toBeUndefined();
+    // biome binary probe still runs at setup time, but the per-file
+    // format --write must not.
+    expect(
+      mockExecFileSync.mock.calls.some(
+        (c) => Array.isArray(c[1]) && (c[1] as string[]).includes('--write'),
+      ),
+    ).toBe(false);
+  });
+
+  it('does not invoke biome when the path traverses out of the project root', () => {
+    const api = makeApi();
+    formatOnSavePlugin.setup(api as never);
+    const hook = getHook(api);
+    const escape = '../../escape.ts';
+    const result = hook({
+      toolName: 'write',
+      toolInput: { path: escape, content: 'x' },
+      toolResult: { content: 'ok', isError: false },
+    });
+    expect(result).toBeUndefined();
+    expect(
+      mockExecFileSync.mock.calls.some(
+        (c) => Array.isArray(c[1]) && (c[1] as string[]).includes('--write'),
+      ),
+    ).toBe(false);
+  });
 });
 
 describe('status tool', () => {
@@ -168,7 +226,10 @@ describe('teardown + H1 pattern', () => {
     const api = makeApi();
     formatOnSavePlugin.setup(api as never);
     expect(() => formatOnSavePlugin.teardown!(api as never)).not.toThrow();
-    expect(api.log.info).toHaveBeenCalledWith('format-on-save: teardown complete', expect.any(Object));
+    expect(api.log.info).toHaveBeenCalledWith(
+      'format-on-save: teardown complete',
+      expect.any(Object),
+    );
   });
 
   it('zeros counters on teardown', async () => {

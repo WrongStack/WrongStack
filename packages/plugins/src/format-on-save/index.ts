@@ -28,10 +28,30 @@
  * @public
  */
 import type { Plugin } from '@wrongstack/core';
-import { execSync } from 'node:child_process';
+import { execFileSync, execSync } from 'node:child_process';
 import { existsSync, statSync } from 'node:fs';
+import { isAbsolute, relative, resolve } from 'node:path';
 
 const API_VERSION = '^0.1.10';
+
+// ---------------------------------------------------------------------------
+// Sandbox: reject file paths outside the project root, plus switch the
+// `npx biome` shell form to execFileSync argv form. format-on-save runs
+// after every write/edit; a prompt-injected write with an absolute host
+// path would have `npx biome format --write "C:\Windows\evil.txt"`
+// interpolated into a shell — quoting is brittle and Windows quotes can
+// be escaped.
+// ---------------------------------------------------------------------------
+function withinProject(p: string): boolean {
+  if (typeof p !== 'string' || p.length === 0 || p.length > 4096) return false;
+  const root = process.cwd();
+  const resolved = isAbsolute(p) ? resolve(p) : resolve(root, p);
+  const rel = relative(root, resolved);
+  if (rel === '' || rel === '.') return true;
+  if (rel.startsWith('..')) return false;
+  if (isAbsolute(rel)) return false;
+  return true;
+}
 
 // ---------------------------------------------------------------------------
 // Module-scope state (H1 audit pattern)
@@ -77,7 +97,10 @@ function readConfig(raw: unknown): FormatOnSaveConfig {
   const r = raw as Record<string, unknown>;
   return {
     enabled: r['enabled'] !== false,
-    timeoutMs: typeof r['timeoutMs'] === 'number' && r['timeoutMs'] > 0 ? r['timeoutMs'] : DEFAULTS.timeoutMs,
+    timeoutMs:
+      typeof r['timeoutMs'] === 'number' && r['timeoutMs'] > 0
+        ? r['timeoutMs']
+        : DEFAULTS.timeoutMs,
   };
 }
 
@@ -97,6 +120,10 @@ interface FormatResult {
  * failed or the file doesn't exist.
  */
 function formatFile(filePath: string, timeoutMs: number): FormatResult | null {
+  // Sandbox: refuse to format files outside the project root before we
+  // spawn biome. Without this guard a host-FS file could be written or
+  // diffed through the formatter call.
+  if (!withinProject(filePath)) return null;
   if (!existsSync(filePath)) return null;
 
   let bytesBefore: number;
@@ -107,7 +134,7 @@ function formatFile(filePath: string, timeoutMs: number): FormatResult | null {
   }
 
   try {
-    execSync(`npx biome format --write "${filePath}"`, {
+    execFileSync('npx', ['biome', 'format', '--write', filePath], {
       encoding: 'utf-8',
       timeout: timeoutMs,
       cwd: process.cwd(),
@@ -142,7 +169,7 @@ function formatFile(filePath: string, timeoutMs: number): FormatResult | null {
   // We can't compare pre/post without a snapshot, so we re-run biome
   // in check mode: if it exits 0, the file is already formatted.
   try {
-    execSync(`npx biome format "${filePath}"`, {
+    execFileSync('npx', ['biome', 'format', filePath], {
       encoding: 'utf-8',
       timeout: timeoutMs,
       cwd: process.cwd(),
@@ -165,7 +192,8 @@ function formatFile(filePath: string, timeoutMs: number): FormatResult | null {
 const plugin: Plugin = {
   name: 'format-on-save',
   version: '0.1.0',
-  description: 'PostToolUse hook that runs biome format --write on the file after every write or edit',
+  description:
+    'PostToolUse hook that runs biome format --write on the file after every write or edit',
   apiVersion: API_VERSION,
   capabilities: { tools: true, hooks: true },
   defaultConfig: { ...DEFAULTS },
