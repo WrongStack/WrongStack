@@ -29,7 +29,7 @@
  * @public
  */
 import type { Plugin } from '@wrongstack/core';
-import { execFileSync, execSync } from 'node:child_process';
+import { execFileSync } from 'node:child_process';
 import { isAbsolute, relative, resolve } from 'node:path';
 
 const API_VERSION = '^0.1.10';
