@@ -5810,16 +5810,27 @@ export function App({
           },
         });
       }
+      const assistantEntriesBeforeRun = stateRef.current.entries.filter(
+        (entry) => entry.kind === 'assistant',
+      ).length;
       const result = await agent.run(routed.blocks, { signal: ctrl.signal });
 
-      // Per-iteration assistant text was already committed by the
-      // `provider.response` listener as each LLM call finished. Safety net:
-      // if anything is still lingering in the synchronous ref (e.g. an
-      // aborted run that never received a final provider.response), commit
-      // it now so partial output is preserved rather than silently dropped.
+      // Per-iteration assistant text is normally committed by the
+      // `provider.response` listener as each LLM call finishes. Safety nets:
+      // 1) if anything is still lingering in the synchronous ref (e.g. an
+      //    aborted run that never received a final provider.response), commit it;
+      // 2) if no assistant entry appeared but agent.run returned finalText,
+      //    recover it so the TUI still shows the reply and parsed next steps.
       const lingering = streamingTextRef.current;
       if (lingering.trim()) {
         dispatch({ type: 'addEntry', entry: { kind: 'assistant', text: lingering } });
+      } else if (
+        result.status === 'done' &&
+        result.finalText?.trim() &&
+        stateRef.current.entries.filter((entry) => entry.kind === 'assistant').length ===
+          assistantEntriesBeforeRun
+      ) {
+        dispatch({ type: 'addEntry', entry: { kind: 'assistant', text: result.finalText } });
       }
       streamingTextRef.current = '';
       pendingDeltaRef.current = '';

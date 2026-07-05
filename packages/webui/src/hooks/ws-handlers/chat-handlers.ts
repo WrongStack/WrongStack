@@ -187,8 +187,15 @@ export function handleRunResult(msg: WSServerMessage) {
   // after run.result, leaving a perpetual "typing…" bubble if no later
   // message superseded it.
   const streamingId = useChatStore.getState().currentAssistantMessageId;
+  const finalText = payload.status === 'done' ? payload.finalText?.trim() : undefined;
   if (streamingId) {
-    useChatStore.getState().updateMessage(streamingId, { streaming: false });
+    const streamed = useChatStore.getState().messages.find((m) => m.id === streamingId);
+    useChatStore.getState().updateMessage(streamingId, { content: streamed?.content?.trim() ? streamed.content : (finalText ?? streamed?.content ?? ''), streaming: false });
+  } else if (finalText) {
+    // Defensive fallback: a run may complete with finalText even if the live
+    // text_delta/provider.response path failed to create a visible assistant
+    // bubble. Preserve the user-facing reply so next steps can render.
+    useChatStore.getState().addMessage({ role: 'assistant', content: finalText });
   }
   useChatStore.getState().setCurrentAssistantMessage(null);
   useChatStore.getState().clearThinking();

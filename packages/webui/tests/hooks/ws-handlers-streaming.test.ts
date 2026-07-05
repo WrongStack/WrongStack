@@ -135,6 +135,25 @@ describe('streaming pipeline: text_delta → coalescer → chat-store', () => {
     expect(messages[0]?.streaming).toBe(false);
   });
 
+  it('falls back to run.result finalText when no streamed assistant message exists', () => {
+    handleRunResult({
+      type: 'run.result',
+      payload: {
+        status: 'done',
+        iterations: 1,
+        sessionId: 'sess_stream',
+        finalText:
+          'Recovered assistant reply\n\n<next_steps>\n1. Continue investigating\n</next_steps>',
+      },
+    } as unknown as WSServerMessage);
+
+    const messages = useChatStore.getState().messages;
+    expect(messages.length).toBe(1);
+    expect(messages[0]?.role).toBe('assistant');
+    expect(messages[0]?.content).toContain('Recovered assistant reply');
+    expect(messages[0]?.content).toContain('<next_steps>');
+  });
+
   it('ignores deltas for a non-active session', async () => {
     // Mark a different session id on the payload; isActiveSessionMessage
     // should drop it.

@@ -230,9 +230,9 @@ describe('semver_bump', () => {
 
   it('honours an explicit cwd', async () => {
     const { tools } = setup();
-    const res = await tools.semver_bump!.execute({ part: 'patch', dry_run: true, cwd: '/work' });
+    const res = await tools.semver_bump!.execute({ part: 'patch', dry_run: true, cwd: 'work' });
     expect(res.ok).toBe(true);
-    expect(fsm.existsSync).toHaveBeenCalledWith(expect.stringContaining('/work/package.json'));
+    expect(fsm.existsSync).toHaveBeenCalledWith(expect.stringMatching(/[\\/]work[\\/]package\.json$/));
   });
 
   it('skips tagging when autoTag is disabled', async () => {

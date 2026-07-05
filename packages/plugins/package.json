@@ -1,6 +1,6 @@
 {
   "name": "@wrongstack/plugins",
-  "version": "0.281.0",
+  "version": "0.281.1",
   "description": "Official WrongStack plugin collection — auto-doc, git-autocommit, shell-check, cost-tracker, file-watcher, cron, template-engine, semver-bump, secret-scanner, todo-tracker, token-budget, lint-gate, branch-guard, diff-summary, commit-validator, format-on-save, test-runner-gate, import-organizer, todo-listener, session-recap, spec-linker, loop-breaker, path-guard, context-pins, checkpoint, error-lens, dep-guard, config-validator, notify-hub, changelog-writer, injection-shield, llm-cache, model-router, prompt-firewall, auto-escalate, token-throttle",
   "license": "MIT",
   "author": "ECOSTACK TECHNOLOGY OÜ",
