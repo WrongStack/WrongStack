@@ -37,7 +37,7 @@
  */
 
 import { mkdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
-import { dirname } from 'node:path';
+import { dirname, isAbsolute, relative, resolve } from 'node:path';
 import type { Plugin } from '@wrongstack/core';
 
 // ---------------------------------------------------------------------------
@@ -113,6 +113,14 @@ function readConfig(raw: unknown): CheckpointConfig {
 // ---------------------------------------------------------------------------
 // Capture helpers
 // ---------------------------------------------------------------------------
+
+function resolveProjectPath(rawPath: string, cwd = process.cwd()): string | null {
+  const root = resolve(cwd);
+  const resolved = isAbsolute(rawPath) ? resolve(rawPath) : resolve(root, rawPath);
+  const rel = relative(root, resolved);
+  if (rel === '' || (!rel.startsWith('..') && !isAbsolute(rel))) return resolved;
+  return null;
+}
 
 function captureFile(path: string, maxBytes: number): Snapshot['files'][number] | 'too-large' {
   try {
@@ -195,7 +203,9 @@ const plugin: Plugin = {
         const ti = (input.toolInput ?? {}) as Record<string, unknown>;
         const raw = ti['path'] ?? ti['file_path'] ?? ti['filePath'];
         if (typeof raw !== 'string' || raw.length === 0) return;
-        const captured = captureFile(raw, cfg.maxFileBytes);
+        const safePath = resolveProjectPath(raw);
+        if (!safePath) return;
+        const captured = captureFile(safePath, cfg.maxFileBytes);
         if (captured === 'too-large') {
           state.skippedLarge += 1;
           return;
@@ -242,15 +252,28 @@ const plugin: Plugin = {
           : [];
         if (paths.length === 0) return { ok: false, error: 'paths must not be empty' };
         const files: Snapshot['files'] = [];
+        const rejectedOutsideProject: string[] = [];
         let skipped = 0;
         for (const p of paths) {
-          const captured = captureFile(p, cfg.maxFileBytes);
+          const safePath = resolveProjectPath(p);
+          if (!safePath) {
+            rejectedOutsideProject.push(p);
+            continue;
+          }
+          const captured = captureFile(safePath, cfg.maxFileBytes);
           if (captured === 'too-large') {
             skipped += 1;
             state.skippedLarge += 1;
             continue;
           }
           files.push(captured);
+        }
+        if (rejectedOutsideProject.length > 0) {
+          return {
+            ok: false,
+            error: 'paths must stay within the current project directory',
+            rejectedOutsideProject,
+          };
         }
         if (files.length === 0) {
           return { ok: false, error: 'all files were skipped (too large)' };

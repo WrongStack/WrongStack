@@ -49,13 +49,17 @@ function getHook(api: MockApi): (input: unknown) => void {
 }
 
 let tmp: string;
+let originalCwd: string;
 
 beforeEach(() => {
   vi.clearAllMocks();
+  originalCwd = process.cwd();
   tmp = mkdtempSync(join(tmpdir(), 'checkpoint-'));
+  process.chdir(tmp);
 });
 
 afterEach(() => {
+  process.chdir(originalCwd);
   try {
     rmSync(tmp, { recursive: true, force: true });
   } catch {
@@ -129,6 +133,36 @@ describe('checkpoint plugin', () => {
     writeFileSync(big, 'x'.repeat(4096));
     const result = await getTool(api, 'checkpoint_create').execute({ paths: [big] });
     expect(result['ok']).toBe(false);
+  });
+
+  it('rejects manual snapshots outside the project directory', async () => {
+    const api = makeApi();
+    checkpointPlugin.setup(api as never);
+    const outside = join(tmpdir(), `checkpoint-outside-${Date.now()}.txt`);
+    writeFileSync(outside, 'outside');
+    try {
+      const result = await getTool(api, 'checkpoint_create').execute({ paths: [outside] });
+      expect(result['ok']).toBe(false);
+      expect(result['error']).toMatch(/current project directory/);
+      expect(result['rejectedOutsideProject']).toContain(outside);
+    } finally {
+      rmSync(outside, { force: true });
+    }
+  });
+
+  it('auto-capture ignores paths outside the project directory', async () => {
+    const api = makeApi();
+    checkpointPlugin.setup(api as never);
+    const hook = getHook(api);
+    const outside = join(tmpdir(), `checkpoint-outside-${Date.now()}.txt`);
+    writeFileSync(outside, 'outside');
+    try {
+      hook({ toolName: 'write', toolInput: { path: outside } });
+      const list = await getTool(api, 'checkpoint_list').execute({});
+      expect(list['total']).toBe(0);
+    } finally {
+      rmSync(outside, { force: true });
+    }
   });
 
   it('ring drops oldest snapshots beyond maxSnapshots', async () => {
