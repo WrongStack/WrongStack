@@ -290,10 +290,10 @@ describe('sandbox', () => {
     const api = makeApi();
     diffSummaryPlugin.setup(api as never);
     const hook = getHook(api);
-    const escape = '../../escape.ts';
+    const escapedPath = '../../escape.ts';
     hook({
       toolName: 'write',
-      toolInput: { path: escape, content: 'x' },
+      toolInput: { path: escapedPath, content: 'x' },
       toolResult: { content: 'ok', isError: false },
     });
     expect(mockExecSync).not.toHaveBeenCalled();

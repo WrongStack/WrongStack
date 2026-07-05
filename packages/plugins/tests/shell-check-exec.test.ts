@@ -298,8 +298,8 @@ describe('shellcheck tool — directory scan mode (merged from shellcheck_scan)'
     const { tools } = setup();
     // `..` from cwd = just inside; double `..` lands at os.tmpdir() parent
     // which is outside the chdir'd tmpRoot sandbox.
-    const escape = join(tmpRoot, '..', '..', 'escape.sh');
-    const res = await tools.shellcheck!.execute({ files: [escape] });
+    const escapedPath = join(tmpRoot, '..', '..', 'escape.sh');
+    const res = await tools.shellcheck!.execute({ files: [escapedPath] });
     expect(res.ok).toBe(false);
     expect(res.error).toMatch(/outside the project root/);
     expect(cp.execFileSync).not.toHaveBeenCalled();
