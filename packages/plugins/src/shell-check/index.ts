@@ -11,9 +11,32 @@
 import type { Plugin } from '@wrongstack/core';
 import { execFileSync, execSync } from 'node:child_process';
 import { existsSync, readdirSync } from 'node:fs';
-import { join } from 'node:path';
+import { isAbsolute, join, relative, resolve } from 'node:path';
 
 const API_VERSION = '^0.1.10';
+
+// ---------------------------------------------------------------------------
+// Sandbox: reject paths that resolve outside the current working directory.
+// shell-check is a recursive file-lister over arbitrary directories — it
+// must not let a tool caller (or a prompt-injected LLM) sweep the host
+// filesystem, exfiltrate script contents, or expose /etc, $HOME or
+// C:\Windows to the linter. The check is absolute-path resolution + a
+// `relative()` that must not start with `..` or be absolute.
+// ---------------------------------------------------------------------------
+function withinProject(p: string): boolean {
+  const root = process.cwd();
+  const resolved = isAbsolute(p) ? resolve(p) : resolve(root, p);
+  const rel = relative(root, resolved);
+  if (rel === '' || rel === '.') return true;
+  if (rel.startsWith('..')) return false;
+  if (isAbsolute(rel)) return false;
+  return true;
+}
+
+// Length cap matched to the schema description (filenames) and arbitrary
+// user-supplied paths via tool input — prevents absurd inputs from
+// blowing up `readdirSync` recursion.
+const MAX_PATH_LEN = 4096;
 
 // ---------------------------------------------------------------------------
 // Module-scope state (H1 audit pattern: shared between setup, teardown,
@@ -62,7 +85,9 @@ function runShellCheck(
     try {
       execSync('shellcheck --version', { encoding: 'utf-8', stdio: 'ignore', windowsHide: true });
     } catch {
-      throw new Error('shellcheck is not installed. Install via: apt install shellcheck / brew install shellcheck');
+      throw new Error(
+        'shellcheck is not installed. Install via: apt install shellcheck / brew install shellcheck',
+      );
     }
   }
 
@@ -149,7 +174,8 @@ function findShellFiles(dir: string, pattern: string): string[] {
 const plugin: Plugin = {
   name: 'shell-check',
   version: '0.2.0',
-  description: 'Runs shellcheck analysis on bash/shell scripts and surfaces issues with severity levels',
+  description:
+    'Runs shellcheck analysis on bash/shell scripts and surfaces issues with severity levels',
   apiVersion: API_VERSION,
   capabilities: { tools: true, pipelines: ['toolCall'] },
   defaultConfig: {
@@ -162,7 +188,11 @@ const plugin: Plugin = {
     type: 'object',
     properties: {
       severity: { type: 'string', enum: ['error', 'warning', 'info', 'style'], default: 'warning' },
-      severityThreshold: { type: 'string', enum: ['error', 'warning', 'info', 'style'], default: 'warning' },
+      severityThreshold: {
+        type: 'string',
+        enum: ['error', 'warning', 'info', 'style'],
+        default: 'warning',
+      },
       ignoredCodes: { type: 'array', items: { type: 'string' }, default: [] },
       autoScanOnBash: { type: 'boolean', default: false },
     },
@@ -192,12 +222,14 @@ const plugin: Plugin = {
           directory: {
             type: 'string',
             default: '.',
-            description: 'Directory to recursively scan for .sh files. Used when `files` is omitted.',
+            description:
+              'Directory to recursively scan for .sh files. Used when `files` is omitted.',
           },
           pattern: {
             type: 'string',
             default: '',
-            description: 'Filename pattern to match when scanning a directory (default: all .sh files).',
+            description:
+              'Filename pattern to match when scanning a directory (default: all .sh files).',
           },
           severity: {
             type: 'string',
@@ -221,12 +253,42 @@ const plugin: Plugin = {
         // answer "what was the last lint?" — failed runs (empty
         // file list, runShellCheck threw) are still counted because
         // the operator wants to see activity.
-        const inp = input as { files?: string[]; directory?: string; pattern?: string; severity?: ShellCheckIssue['level'] };
+        const inp = input as {
+          files?: string[];
+          directory?: string;
+          pattern?: string;
+          severity?: ShellCheckIssue['level'];
+        };
         const files = inp.files;
         const directory = inp.directory ?? '.';
         const pattern = inp.pattern ?? '';
         const severity = inp.severity ?? 'warning';
         state.invocationCount += 1;
+
+        // Sandbox: confine any user-supplied path to the project root
+        // before it touches the filesystem or the external shellcheck
+        // binary. Without this guard a tool caller (or a prompt-
+        // injected LLM) could sweep /etc, $HOME, C:\Windows, etc.
+        const pathIsSafe = (p: string): boolean =>
+          typeof p === 'string' && p.length > 0 && p.length <= MAX_PATH_LEN && withinProject(p);
+        if (!pathIsSafe(directory)) {
+          return {
+            ok: false,
+            error: `directory path is outside the project root: ${directory}`,
+            issues: [],
+            filesScanned: 0,
+            rejectedOutsideProject: true,
+          };
+        }
+        if (files && files.some((f) => !pathIsSafe(f))) {
+          return {
+            ok: false,
+            error: 'one or more file paths are outside the project root',
+            issues: [],
+            filesScanned: 0,
+            rejectedOutsideProject: true,
+          };
+        }
 
         // Resolve the file list: explicit files, or recursive directory scan.
         let checkFiles: string[];
@@ -303,11 +365,12 @@ const plugin: Plugin = {
             style: styleCount,
           },
           byFile,
-          recommendation: errorCount > 0
-            ? 'Fix errors before deploying.'
-            : warningCount > 0
-              ? 'Review and fix warnings for better script quality.'
-              : 'No issues found.',
+          recommendation:
+            errorCount > 0
+              ? 'Fix errors before deploying.'
+              : warningCount > 0
+                ? 'Review and fix warnings for better script quality.'
+                : 'No issues found.',
         };
       },
     });

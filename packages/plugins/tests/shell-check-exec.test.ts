@@ -1,4 +1,6 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { mkdirSync, mkdtempSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 // Mock the OS-facing calls so we exercise the plugin's logic without a real
@@ -19,16 +21,40 @@ vi.mock('node:fs', async (orig) => ({
 
 import shellCheckPlugin from '../src/shell-check';
 
+// The shell-check sandbox resolves every path relative to process.cwd().
+// Real tests run in the workspace, so chdir into a temp dir for isolation.
+let originalCwd: string;
+let tmpRoot: string;
+beforeEach(() => {
+  vi.clearAllMocks();
+  fsm.existsSync.mockReturnValue(true); // pretend `shellcheck` resolves; skip PATH probe
+  originalCwd = process.cwd();
+  tmpRoot = mkdtempSync(join(tmpdir(), 'shellcheck-'));
+  mkdirSync(join(tmpRoot, 'sub'), { recursive: true });
+  process.chdir(tmpRoot);
+});
+afterEach(() => {
+  process.chdir(originalCwd);
+  rmSync(tmpRoot, { recursive: true, force: true });
+});
+
 interface Tool {
   name: string;
   execute: (input: Record<string, unknown>) => Promise<Record<string, unknown>>;
 }
 
-function setup(): { tools: Record<string, Tool>; metrics: { counter: ReturnType<typeof vi.fn>; histogram: ReturnType<typeof vi.fn> } } {
+function setup(): {
+  tools: Record<string, Tool>;
+  metrics: { counter: ReturnType<typeof vi.fn>; histogram: ReturnType<typeof vi.fn> };
+} {
   const tools: Record<string, Tool> = {};
   const metrics = { counter: vi.fn(), histogram: vi.fn(), gauge: vi.fn() };
   const api = {
-    tools: { register: (t: Tool) => { tools[t.name] = t; } },
+    tools: {
+      register: (t: Tool) => {
+        tools[t.name] = t;
+      },
+    },
     config: { extensions: {} },
     log: { info: vi.fn(), warn: vi.fn(), error: vi.fn() },
     metrics,
@@ -39,23 +65,30 @@ function setup(): { tools: Record<string, Tool>; metrics: { counter: ReturnType<
 }
 
 const issue = (over: Partial<Record<string, unknown>> = {}) => ({
-  file: 'a.sh', line: 1, column: 1, level: 'warning', code: 'SC2086', message: 'quote it', ...over,
+  file: 'a.sh',
+  line: 1,
+  column: 1,
+  level: 'warning',
+  code: 'SC2086',
+  message: 'quote it',
+  ...over,
 });
-const dirent = (name: string, isDir: boolean) => ({ name, isDirectory: () => isDir, isFile: () => !isDir });
-
-beforeEach(() => {
-  vi.clearAllMocks();
-  fsm.existsSync.mockReturnValue(true); // pretend `shellcheck` resolves; skip PATH probe
+const dirent = (name: string, isDir: boolean) => ({
+  name,
+  isDirectory: () => isDir,
+  isFile: () => !isDir,
 });
 
 describe('shellcheck tool execute', () => {
   it('returns a structured summary and groups issues by file', async () => {
-    cp.execFileSync.mockReturnValue(JSON.stringify([
-      issue({ file: 'a.sh', level: 'error', code: 'SC1000' }),
-      issue({ file: 'a.sh', level: 'warning' }),
-      issue({ file: 'b.sh', level: 'info' }),
-      issue({ file: 'b.sh', level: 'style' }),
-    ]));
+    cp.execFileSync.mockReturnValue(
+      JSON.stringify([
+        issue({ file: 'a.sh', level: 'error', code: 'SC1000' }),
+        issue({ file: 'a.sh', level: 'warning' }),
+        issue({ file: 'b.sh', level: 'info' }),
+        issue({ file: 'b.sh', level: 'style' }),
+      ]),
+    );
     const { tools, metrics } = setup();
     const res = await tools.shellcheck!.execute({ files: ['a.sh', 'b.sh'], severity: 'info' });
 
@@ -85,7 +118,9 @@ describe('shellcheck tool execute', () => {
 
   it('returns ok:false when shellcheck is not installed', async () => {
     fsm.existsSync.mockReturnValue(false);
-    cp.execSync.mockImplementation(() => { throw new Error('not found'); });
+    cp.execSync.mockImplementation(() => {
+      throw new Error('not found');
+    });
     const { tools } = setup();
     const res = await tools.shellcheck!.execute({ files: ['a.sh'] });
     expect(res.ok).toBe(false);
@@ -114,7 +149,9 @@ describe('shellcheck tool execute', () => {
   });
 
   it('returns no issues when the error has no usable stderr', async () => {
-    cp.execFileSync.mockImplementation(() => { throw { stderr: 'shellcheck: fatal' }; });
+    cp.execFileSync.mockImplementation(() => {
+      throw { stderr: 'shellcheck: fatal' };
+    });
     const { tools } = setup();
     const res = await tools.shellcheck!.execute({ files: ['a.sh'] });
     expect(res.summary).toMatchObject({ total: 0 });
@@ -146,13 +183,18 @@ describe('shellcheck tool — directory scan mode (merged from shellcheck_scan)'
   it('returns early when no shell files are found in directory', async () => {
     fsm.readdirSync.mockReturnValue([dirent('readme.md', false)]);
     const { tools } = setup();
-    const res = await tools.shellcheck!.execute({ directory: '/root' });
-    expect(res).toMatchObject({ ok: true, filesScanned: 0, summary: { total: 0 }, mode: 'directory' });
+    const res = await tools.shellcheck!.execute({ directory: '.' });
+    expect(res).toMatchObject({
+      ok: true,
+      filesScanned: 0,
+      summary: { total: 0 },
+      mode: 'directory',
+    });
   });
 
   it('scans found files recursively, skipping node_modules and .git', async () => {
     fsm.readdirSync.mockImplementation((dir: string) => {
-      if (dir === '/root') {
+      if (dir === tmpRoot) {
         return [
           dirent('sub', true),
           dirent('node_modules', true),
@@ -162,45 +204,55 @@ describe('shellcheck tool — directory scan mode (merged from shellcheck_scan)'
           dirent('notes.txt', false),
         ];
       }
-      if (dir === join('/root', 'sub')) return [dirent('nested.sh', false)];
+      if (dir === join(tmpRoot, 'sub')) return [dirent('nested.sh', false)];
       return [];
     });
-    cp.execFileSync.mockReturnValue(JSON.stringify([
-      issue({ file: 'top.sh', level: 'error' }),
-      issue({ file: 'top.sh', level: 'warning' }),
-      issue({ file: 'nested.sh', level: 'warning' }),
-    ]));
+    cp.execFileSync.mockReturnValue(
+      JSON.stringify([
+        issue({ file: 'top.sh', level: 'error' }),
+        issue({ file: 'top.sh', level: 'warning' }),
+        issue({ file: 'nested.sh', level: 'warning' }),
+      ]),
+    );
     const { tools } = setup();
-    const res = await tools.shellcheck!.execute({ directory: '/root' });
+    const res = await tools.shellcheck!.execute({ directory: tmpRoot });
     expect(res.ok).toBe(true);
     expect(res.mode).toBe('directory');
     // top.sh, Dockerfile, nested.sh (node_modules/.git skipped, notes.txt ignored)
     expect(res.filesScanned).toBe(3);
     expect(res.filesWithIssues).toBe(2);
-    expect((res.summary as { errors: number; warnings: number })).toMatchObject({ total: 3, errors: 1, warnings: 2 });
+    expect(res.summary as { errors: number; warnings: number }).toMatchObject({
+      total: 3,
+      errors: 1,
+      warnings: 2,
+    });
   });
 
   it('filters by filename pattern in directory mode', async () => {
     fsm.readdirSync.mockReturnValue([dirent('build.sh', false), dirent('deploy.sh', false)]);
     cp.execFileSync.mockReturnValue('[]');
     const { tools } = setup();
-    const res = await tools.shellcheck!.execute({ directory: '/root', pattern: 'deploy' });
+    const res = await tools.shellcheck!.execute({ directory: tmpRoot, pattern: 'deploy' });
     expect(res.filesScanned).toBe(1);
   });
 
   it('tolerates unreadable directories', async () => {
-    fsm.readdirSync.mockImplementation(() => { throw new Error('EACCES'); });
+    fsm.readdirSync.mockImplementation(() => {
+      throw new Error('EACCES');
+    });
     const { tools } = setup();
-    const res = await tools.shellcheck!.execute({ directory: '/forbidden' });
+    const res = await tools.shellcheck!.execute({ directory: 'unreadable' });
     expect(res).toMatchObject({ ok: true, filesScanned: 0 });
   });
 
   it('returns ok:false when shellcheck fails during a directory scan', async () => {
     fsm.readdirSync.mockReturnValue([dirent('a.sh', false)]);
     fsm.existsSync.mockReturnValue(false);
-    cp.execSync.mockImplementation(() => { throw new Error('nope'); });
+    cp.execSync.mockImplementation(() => {
+      throw new Error('nope');
+    });
     const { tools } = setup();
-    const res = await tools.shellcheck!.execute({ directory: '/root' });
+    const res = await tools.shellcheck!.execute({ directory: tmpRoot });
     expect(res.ok).toBe(false);
     expect(res.error).toMatch(/not installed/);
   });
@@ -217,8 +269,39 @@ describe('shellcheck tool — directory scan mode (merged from shellcheck_scan)'
     fsm.readdirSync.mockReturnValue([dirent('other.sh', false)]);
     cp.execFileSync.mockReturnValue('[]');
     const { tools } = setup();
-    const res = await tools.shellcheck!.execute({ files: ['a.sh'], directory: '/root' });
+    const res = await tools.shellcheck!.execute({ files: ['a.sh'], directory: tmpRoot });
     expect(res.mode).toBe('files');
     expect(fsm.readdirSync).not.toHaveBeenCalled();
+  });
+
+  it('rejects directory paths outside the project root', async () => {
+    const { tools } = setup();
+    const outside = process.platform === 'win32' ? 'C:\\Windows\\System32' : '/etc';
+    const res = await tools.shellcheck!.execute({ directory: outside });
+    expect(res.ok).toBe(false);
+    expect(res.error).toMatch(/outside the project root/);
+    expect(res.rejectedOutsideProject).toBe(true);
+    expect(cp.execFileSync).not.toHaveBeenCalled();
+  });
+
+  it('rejects file paths outside the project root', async () => {
+    const { tools } = setup();
+    const outside = process.platform === 'win32' ? 'C:\\Windows\\System32\\evil.sh' : '/etc/passwd';
+    const res = await tools.shellcheck!.execute({ files: [outside] });
+    expect(res.ok).toBe(false);
+    expect(res.error).toMatch(/outside the project root/);
+    expect(res.rejectedOutsideProject).toBe(true);
+    expect(cp.execFileSync).not.toHaveBeenCalled();
+  });
+
+  it('rejects paths that traverse out of the project root', async () => {
+    const { tools } = setup();
+    // `..` from cwd = just inside; double `..` lands at os.tmpdir() parent
+    // which is outside the chdir'd tmpRoot sandbox.
+    const escape = join(tmpRoot, '..', '..', 'escape.sh');
+    const res = await tools.shellcheck!.execute({ files: [escape] });
+    expect(res.ok).toBe(false);
+    expect(res.error).toMatch(/outside the project root/);
+    expect(cp.execFileSync).not.toHaveBeenCalled();
   });
 });
