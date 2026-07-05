@@ -45,6 +45,7 @@
  */
 
 import { readFileSync, writeFileSync } from 'node:fs';
+import { isAbsolute, relative, resolve } from 'node:path';
 import type { Plugin } from '@wrongstack/core';
 
 // ---------------------------------------------------------------------------
@@ -105,6 +106,14 @@ const DEFAULTS: ChangelogWriterConfig = {
   maxEntries: 200,
 };
 
+function resolveProjectPath(rawPath: string, cwd = process.cwd()): string | null {
+  const root = resolve(cwd);
+  const resolved = isAbsolute(rawPath) ? resolve(rawPath) : resolve(root, rawPath);
+  const rel = relative(root, resolved);
+  if (rel === '' || (!rel.startsWith('..') && !isAbsolute(rel))) return resolved;
+  return null;
+}
+
 function readConfig(raw: unknown): ChangelogWriterConfig {
   if (!raw || typeof raw !== 'object') return { ...DEFAULTS };
   const r = raw as Record<string, unknown>;
@@ -112,8 +121,8 @@ function readConfig(raw: unknown): ChangelogWriterConfig {
     enabled: r['enabled'] !== false,
     filePath:
       typeof r['filePath'] === 'string' && r['filePath'].length > 0
-        ? r['filePath']
-        : DEFAULTS.filePath,
+        ? (resolveProjectPath(r['filePath']) ?? '')
+        : (resolveProjectPath(DEFAULTS.filePath) ?? DEFAULTS.filePath),
     collectCommits: r['collectCommits'] !== false,
     maxEntries:
       typeof r['maxEntries'] === 'number' && r['maxEntries'] >= 10
@@ -436,6 +445,9 @@ const plugin: Plugin = {
       mutating: true,
       async execute(input: { polish?: boolean | undefined }) {
         if (!cfg.enabled) return { ok: false, error: 'changelog-writer is disabled' };
+        if (!cfg.filePath) {
+          return { ok: false, error: 'filePath must stay within the current project directory' };
+        }
         if (state.entries.length === 0) {
           return { ok: false, error: 'no pending entries — add some with changelog_add first' };
         }

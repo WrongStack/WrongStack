@@ -55,13 +55,17 @@ function getTool(
 }
 
 let tmp: string;
+let originalCwd: string;
 
 beforeEach(() => {
   vi.clearAllMocks();
+  originalCwd = process.cwd();
   tmp = mkdtempSync(join(tmpdir(), 'changelog-writer-'));
+  process.chdir(tmp);
 });
 
 afterEach(() => {
+  process.chdir(originalCwd);
   try {
     rmSync(tmp, { recursive: true, force: true });
   } catch {
@@ -160,6 +164,16 @@ describe('changelog-writer plugin', () => {
     // pending cleared:
     const again = await getTool(api, 'changelog_write').execute({});
     expect(again['ok']).toBe(false);
+  });
+
+  it('rejects changelog writes outside the project directory', async () => {
+    const filePath = join(tmpdir(), `outside-changelog-${Date.now()}.md`);
+    const api = makeApi({ extensions: { 'changelog-writer': { filePath } } });
+    changelogWriterPlugin.setup(api as never);
+    await getTool(api, 'changelog_add').execute({ text: 'dark mode', section: 'Added' });
+    const write = await getTool(api, 'changelog_write').execute({});
+    expect(write['ok']).toBe(false);
+    expect(write['error']).toMatch(/current project directory/);
   });
 
   it('merges into an existing changelog without clobbering it', async () => {
