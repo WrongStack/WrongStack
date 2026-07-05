@@ -156,3 +156,5 @@ before-release.md
 
 
 *.tmp
+
+.temp_files/
