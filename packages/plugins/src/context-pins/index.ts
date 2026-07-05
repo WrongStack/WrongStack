@@ -33,7 +33,7 @@
  */
 
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
-import { dirname } from 'node:path';
+import { dirname, isAbsolute, relative, resolve } from 'node:path';
 import type { Plugin } from '@wrongstack/core';
 
 // ---------------------------------------------------------------------------
@@ -83,12 +83,22 @@ const DEFAULTS: ContextPinsConfig = {
   maxPinChars: 500,
 };
 
+function resolveProjectPath(rawPath: string, cwd = process.cwd()): string | null {
+  if (typeof rawPath !== 'string' || rawPath.length === 0) return '';
+  const root = resolve(cwd);
+  const resolved = isAbsolute(rawPath) ? resolve(rawPath) : resolve(root, rawPath);
+  const rel = relative(root, resolved);
+  if (rel === '' || (!rel.startsWith('..') && !isAbsolute(rel))) return resolved;
+  return null;
+}
+
 function readConfig(raw: unknown): ContextPinsConfig {
   if (!raw || typeof raw !== 'object') return { ...DEFAULTS };
   const r = raw as Record<string, unknown>;
+  const rawPath = typeof r['filePath'] === 'string' ? r['filePath'] : DEFAULTS.filePath;
   return {
     enabled: r['enabled'] !== false,
-    filePath: typeof r['filePath'] === 'string' ? r['filePath'] : DEFAULTS.filePath,
+    filePath: rawPath ? (resolveProjectPath(rawPath) ?? '') : '',
     maxPins:
       typeof r['maxPins'] === 'number' && r['maxPins'] >= 1 && r['maxPins'] <= 100
         ? r['maxPins']

@@ -45,13 +45,17 @@ function getTool(
 }
 
 let tmp: string;
+let originalCwd: string;
 
 beforeEach(() => {
   vi.clearAllMocks();
+  originalCwd = process.cwd();
   tmp = mkdtempSync(join(tmpdir(), 'context-pins-'));
+  process.chdir(tmp);
 });
 
 afterEach(() => {
+  process.chdir(originalCwd);
   try {
     rmSync(tmp, { recursive: true, force: true });
   } catch {
@@ -143,6 +147,16 @@ describe('context-pins plugin', () => {
     contextPinsPlugin.setup(api2 as never);
     const list = await getTool(api2, 'pin_list').execute({});
     expect(list['totalPins']).toBe(1);
+  });
+
+  it('rejects filePath outside the project directory and runs in-memory', async () => {
+    const outside = join(tmpdir(), `outside-pins-${Date.now()}.json`);
+    const api = makeApi({ extensions: { 'context-pins': { filePath: outside } } });
+    contextPinsPlugin.setup(api as never);
+    const list = await getTool(api, 'pin_list').execute({});
+    expect(list['filePath']).toBeNull();
+    await getTool(api, 'pin_add').execute({ text: 'in-memory fact' });
+    expect(existsSync(outside)).toBe(false);
   });
 
   it('enabled:false rejects pin_add and skips the contributor', async () => {
