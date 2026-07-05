@@ -1,8 +1,9 @@
 # @wrongstack/plugins
 
 First-party plugin collection for [WrongStack](https://github.com/WrongStack/WrongStack).
-Twenty-one focused, single-purpose plugins ship in this package and load
-automatically for every `wstack` session.
+Thirty-six focused, single-purpose plugins ship in this package. Core safety
+plugins load automatically for every `wstack` session; provider-wire plugins
+are opt-in because they can change model-call semantics.
 
 ## What this is
 
@@ -23,25 +24,40 @@ under the `BUILTIN_PLUGIN_FACTORIES` array. To opt out, add
 |---|---|---|---|---|
 | 1 | [`auto-doc`](./src/auto-doc) | `auto_doc` | — | JSDoc/TSDoc generation with `dry_run` preview |
 | 2 | [`git-autocommit`](./src/git-autocommit) | `git_autocommit` | — | AI-written conventional commits; warns on simultaneous worktrees |
-| 3 | [`shell-check`](./src/shell-check) | `shellcheck` | — | Runs `shellcheck` on files OR directories (recursive scan) |
-| 4 | [`cost-tracker`](./src/cost-tracker) | `cost_summary`, `cost_reset`, `cost_export` | — | Per-model token + USD tracking; reads from `api.modelsRegistry` (models.dev) with a `pricingOverrides` config escape hatch |
-| 5 | [`file-watcher`](./src/file-watcher) | `watch_start`, `watch_stop`, `watch_list` | — | Filesystem event hook (chokidar); feeds the `dep-watcher` bridge in the CLI |
-| 6 | [`cron`](./src/cron) | `cron_schedule`, `cron_list`, `cron_cancel` | — | In-session recurring tasks; lifecycle via `beforeIteration` |
-| 7 | [`template-engine`](./src/template-engine) | `template_expand`, `template_render`, `template_create`, `template_list` | — | Handlebars-style `{{var}}`, `{{#if}}`, `{{#each}}` |
-| 8 | [`semver-bump`](./src/semver-bump) | `semver_bump`, `semver_current`, `semver_changelog` | — | Conventional-commit → semver version bump; can tag |
-| 9 | [`secret-scanner`](./src/secret-scanner) | `secret_scanner_status`, `secret_scanner_test` | `PreToolUse` (`bash\|write\|edit`) + `PostToolUse` (`*`) | Blocks/redacts input secrets; warns on output leaks |
-| 10 | [`todo-tracker`](./src/todo-tracker) | `todo_tracker_list/add/complete/drop/remove/pull/status` | — | Persistent project-scoped backlog that survives across sessions; cross-session bridge via `todo_tracker_pull` |
-| 11 | [`token-budget`](./src/token-budget) | `token_budget_status` | `Stop` | Enforces a per-session token budget — warns at `warnPercent`, stops agent loop at `stopPercent` |
-| 12 | [`lint-gate`](./src/lint-gate) | `lint_gate_status` | `PreToolUse` (`write\|edit`) | Runs biome/eslint on would-be file content before write or edit commits; blocks or warns on lint issues |
-| 13 | [`branch-guard`](./src/branch-guard) | `branch_guard_status` | `PreToolUse` (`bash\|git_autocommit`) | Blocks commits, pushes, and merges to protected branches (default: main, master) |
-| 14 | [`diff-summary`](./src/diff-summary) | `diff_summary_status` | `PostToolUse` (`write\|edit`) | Injects compact git diff into LLM context after every write or edit |
-| 15 | [`commit-validator`](./src/commit-validator) | `commit_validator_status` | `PreToolUse` (`bash\|git_autocommit`) | Validates conventional-commit format before git_autocommit or bash git commit runs |
-| 16 | [`format-on-save`](./src/format-on-save) | `format_on_save_status` | `PostToolUse` (`write\|edit`) | Runs `biome format --write` on the file after every write or edit |
-| 17 | [`test-runner-gate`](./src/test-runner-gate) | `test_gate_status` | `PostToolUse` (`write\|edit`) | Runs the relevant test file after every write or edit to a source file |
-| 18 | [`import-organizer`](./src/import-organizer) | `import_organizer_status` | `PostToolUse` (`write\|edit`) | Runs `biome check --write --unsafe` (or `eslint --fix`) on the file after write or edit, re-sorting imports and applying safe fixes |
-| 19 | [`todo-listener`](./src/todo-listener) | `todo_listener_status` | `PostToolUse` (`todo`) | Broadcasts a status update to the project mailbox whenever the `todo` tool is called, so other agents can see what this one is working on |
-| 20 | [`session-recap`](./src/session-recap) | `session_recap_status` | `Stop` | Posts a one-page session summary (tokens, tool calls, commits, last activity) to the project mailbox when the agent loop ends |
-| 21 | [`spec-linker`](./src/spec-linker) | `spec_linker_status` | `PostToolUse` (`write\|edit`) | Scans markdown files for unlinked plugin references and surfaces them to the LLM via additionalContext |
+| 3 | [`shell-check`](./src/shell-check) | `shellcheck` | — | Runs `shellcheck` on files or directories |
+| 4 | [`cost-tracker`](./src/cost-tracker) | `cost_summary`, `cost_reset`, `cost_export` | — | Tracks per-model token usage and estimated USD cost |
+| 5 | [`file-watcher`](./src/file-watcher) | `watch_start`, `watch_stop`, `watch_list` | — | Watches project files and emits debounced change events |
+| 6 | [`cron`](./src/cron) | `cron_schedule`, `cron_list`, `cron_cancel` | — | Schedules recurring in-session actions |
+| 7 | [`template-engine`](./src/template-engine) | `template_expand`, `template_render`, `template_create`, `template_list` | — | Expands templates with variables, conditionals, and loops |
+| 8 | [`semver-bump`](./src/semver-bump) | `semver_bump`, `semver_current`, `semver_changelog` | — | Infers version bumps and changelogs from conventional commits |
+| 9 | [`secret-scanner`](./src/secret-scanner) | `secret_scanner_status`, `secret_scanner_test` | `PreToolUse` + `PostToolUse` | Blocks/redacts input secrets and warns on output leaks |
+| 10 | [`todo-tracker`](./src/todo-tracker) | `todo_tracker_*` | — | Persistent project-scoped backlog that survives sessions |
+| 11 | [`token-budget`](./src/token-budget) | `token_budget_status` | `Stop` + `PostToolUse` | Tracks token use and can warn/stop at configured limits |
+| 12 | [`lint-gate`](./src/lint-gate) | `lint_gate_status` | `PreToolUse` | Lints would-be write/edit content before mutation |
+| 13 | [`branch-guard`](./src/branch-guard) | `branch_guard_status` | `PreToolUse` | Blocks or warns on commits, pushes, and merges on protected branches |
+| 14 | [`diff-summary`](./src/diff-summary) | `diff_summary_status` | `PostToolUse` | Injects compact git diff context after write/edit |
+| 15 | [`commit-validator`](./src/commit-validator) | `commit_validator_status` | `PreToolUse` | Validates conventional-commit messages |
+| 16 | [`format-on-save`](./src/format-on-save) | `format_on_save_status` | `PostToolUse` | Runs formatter after write/edit |
+| 17 | [`test-runner-gate`](./src/test-runner-gate) | `test_gate_status` | `PostToolUse` | Runs relevant tests after source edits |
+| 18 | [`import-organizer`](./src/import-organizer) | `import_organizer_status` | `PostToolUse` | Organizes imports and applies safe fixes after write/edit |
+| 19 | [`todo-listener`](./src/todo-listener) | `todo_listener_status` | `PostToolUse` | Broadcasts todo status changes to the project mailbox |
+| 20 | [`session-recap`](./src/session-recap) | `session_recap_status` | `Stop` | Posts a compact session recap to the project mailbox |
+| 21 | [`spec-linker`](./src/spec-linker) | `spec_linker_status` | `PreToolUse` + `PostToolUse` | Detects unlinked plugin references in markdown docs |
+| 22 | [`loop-breaker`](./src/loop-breaker) | `loop_breaker_status` | `PreToolUse` | Detects repeated tool-call loops and oscillations |
+| 23 | [`path-guard`](./src/path-guard) | `path_guard_status` | `PreToolUse` | Guards protected paths from writes and destructive shell commands |
+| 24 | [`context-pins`](./src/context-pins) | `pin_add`, `pin_remove`, `pin_list` | System prompt contributor | Persists short pinned facts across compaction/session boundaries |
+| 25 | [`checkpoint`](./src/checkpoint) | `checkpoint_create`, `checkpoint_list`, `checkpoint_restore` | `PreToolUse` | Captures file snapshots before risky edits and restores them on demand |
+| 26 | [`error-lens`](./src/error-lens) | `error_lens_history` | `PostToolUse` | Summarizes failed tool output and repeated failure patterns |
+| 27 | [`dep-guard`](./src/dep-guard) | `dep_guard_status` | `PreToolUse` | Supervises dependency installs for deny-list and supply-chain warnings |
+| 28 | [`config-validator`](./src/config-validator) | `config_validator_status` | `PostToolUse` | Validates edited JSON/JSONC/YAML/TOML config files |
+| 29 | [`notify-hub`](./src/notify-hub) | `notify_send`, `notify_hub_status` | `Stop` + event subscriptions | Sends session/tool notifications to a configured webhook |
+| 30 | [`changelog-writer`](./src/changelog-writer) | `changelog_add`, `changelog_preview`, `changelog_write` | — | Collects and writes Keep-a-Changelog entries |
+| 31 | [`injection-shield`](./src/injection-shield) | `injection_shield_status` | `PostToolUse` | Warns when tool output contains prompt-injection patterns |
+| 32 | [`llm-cache`](./src/llm-cache) | `llm_cache_status`, `llm_cache_clear` | Provider runner wrapper | Opt-in cache for deterministic provider requests |
+| 33 | [`model-router`](./src/model-router) | `model_router_status` | Provider runner wrapper | Opt-in routing of provider calls by declarative rules |
+| 34 | [`prompt-firewall`](./src/prompt-firewall) | `prompt_firewall_status` | Provider runner wrapper | Opt-in provider-wire prompt/secret scanning and redaction/blocking |
+| 35 | [`auto-escalate`](./src/auto-escalate) | `auto_escalate_status` | `onError` extension | Opt-in retry/escalation ladder for transient provider errors |
+| 36 | [`token-throttle`](./src/token-throttle) | `token_throttle_status` | Provider runner wrapper | Opt-in rolling-window token throttling for provider calls |
 
 ### Removed plugins (use built-in tools instead)
 
@@ -101,7 +117,7 @@ with a bundled `PRICING` table as the baseline (Layer 3) and a
 `pricingOverrides` config field as the top-priority escape hatch
 (Layer 1). The `pricingOverrides` field is the user-facing tool for
 correcting a specific model's price without waiting for a plugin
-release. See [cost-tracker source](./src/cost-tracker/index.ts) for
+release. See the [`cost-tracker`](./src/cost-tracker) source for
 the full lookup chain.
 
 ```jsonc
@@ -174,7 +190,7 @@ has already run, the hook cannot block — instead it injects
 `additionalContext` so the LLM knows not to echo, store, or commit
 the leaked value.
 
-Three modes (`config.extensions['secret-scanner'].mode`):
+Three modes (`config.extensions['secret-scanner'].mode`) for [`secret-scanner`](./src/secret-scanner):
 - **`block` (default)**: returns `HookOutcome{ decision: 'block', reason }`
 - **`redact`**: returns `HookOutcome{ decision: 'allow', modifiedInput, additionalContext }` with the offending strings replaced by `[REDACTED:type]`
 - **`allow`**: only logs; never blocks
@@ -246,7 +262,7 @@ mutates `ctx.todos`). The plugin never touches `ctx.todos` directly
 
 **Storage**: per-project JSON at the path provided by
 `paths.projectDir` (via the host's wiring) or via the explicit
-`config.extensions["todo-tracker"].filePath` config field.
+[`todo-tracker`](./src/todo-tracker) `filePath` config field.
 
 ```jsonc
 // Explicit override (use when the host doesn't supply paths.projectDir)
@@ -451,9 +467,10 @@ the file was reformatted.
 ```
 
 Biome detection runs once at setup(). If biome is not installed, the
-hook is a silent no-op. Works alongside lint-gate (which lints BEFORE
-the write) and diff-summary (which shows the diff AFTER) — together
-they form a complete write pipeline: lint → write → format → diff.
+hook is a silent no-op. Works alongside [`lint-gate`](./src/lint-gate)
+(which lints BEFORE the write) and [`diff-summary`](./src/diff-summary)
+(which shows the diff AFTER) — together they form a complete write
+pipeline: lint → write → format → diff.
 
 ### 17. `test-runner-gate` — automatic test execution
 
@@ -655,7 +672,7 @@ context. Increase `includeTranscriptTail` for more history.
 Two hooks working together:
 
 **PostToolUse** (always active when the plugin is enabled):
-scans markdown files for *unlinked* references to one of the 21
+scans markdown files for *unlinked* references to one of the 36
 known plugins and surfaces them to the LLM via
 `additionalContext`. The plugin does NOT modify the file — it
 only injects a low-noise context block listing the unlinked
@@ -679,7 +696,7 @@ the PostToolUse context tells the LLM what to fix.
 
 **Detection rules** (both hooks):
 - Source matches `config.fileGlobs` (default: `**/*.md`, `**/*.mdx`)
-- The reference matches one of the 21 known plugin names
+- The reference matches one of the 36 known plugin names
   (case-insensitive)
 - It is NOT already wrapped in a markdown link `[name](...)` or
   inline code `` `name` ``
@@ -712,6 +729,281 @@ elsewhere or under review. Surfacing a suggestion lets the
 LLM (or the user) decide whether to fix it, instead of
 silently rewriting the file on every save. Opt into `autoFix`
 once you're confident in the rewrite.
+
+### 22 — `loop-breaker`
+
+**Tools**: `loop_breaker_status`
+**Hooks**: `PreToolUse`
+
+Detects repeated tool calls before they execute. It tracks exact-repeat
+streaks and A-B-A-B oscillations, then either blocks the call or injects a
+warning depending on `mode`.
+
+```jsonc
+{
+  "extensions": {
+    "loop-breaker": {
+      "enabled": true,
+      "mode": "block",        // "block" | "warn"
+      "repeatThreshold": 3,
+      "oscillationThreshold": 2
+    }
+  }
+}
+```
+
+### 23 — `path-guard`
+
+**Tools**: `path_guard_status`
+**Hooks**: `PreToolUse`
+
+Protects sensitive paths from accidental writes/edits and destructive shell
+commands. Defaults cover lockfiles, `.env`, `.git`, and migration-like paths;
+use `mode: "warn"` for advisory-only enforcement.
+
+```jsonc
+{
+  "extensions": {
+    "path-guard": {
+      "enabled": true,
+      "mode": "block",
+      "protected": [".env*", ".git/**", "**/migrations/**"]
+    }
+  }
+}
+```
+
+### 24 — `context-pins`
+
+**Tools**: `pin_add`, `pin_remove`, `pin_list`
+**Hooks**: system prompt contributor
+
+Stores short durable facts and injects them into the system prompt so they
+survive context compaction. When the host supplies a project directory, pins
+persist to a per-project JSON file; otherwise the plugin falls back to
+in-memory state.
+
+```jsonc
+pin_add({ label: "api", text: "Use the v2 billing endpoint for invoices." })
+```
+
+### 25 — `checkpoint`
+
+**Tools**: `checkpoint_create`, `checkpoint_list`, `checkpoint_restore`
+**Hooks**: `PreToolUse`
+
+Captures file snapshots before risky write/edit operations and lets the agent
+restore a snapshot later. Restore never deletes files that did not exist at
+capture time; it reports them instead.
+
+```jsonc
+checkpoint_create({ paths: ["src/service.ts"], label: "before refactor" })
+```
+
+### 26 — `error-lens`
+
+**Tools**: `error_lens_history`
+**Hooks**: `PostToolUse`
+
+Distills failed command/tool output into compact diagnostics: likely error
+line, source frames, repeat count, and a capped history for follow-up
+inspection.
+
+```jsonc
+{
+  "extensions": {
+    "error-lens": { "enabled": true, "maxFrames": 5, "historyLimit": 10 }
+  }
+}
+```
+
+### 27 — `dep-guard`
+
+**Tools**: `dep_guard_status`
+**Hooks**: `PreToolUse`
+
+Supervises dependency installs before they run. It can block deny-listed
+packages, warn on typosquat lookalikes, and flag unpinned versions or risky
+install sources.
+
+```jsonc
+{
+  "extensions": {
+    "dep-guard": {
+      "enabled": true,
+      "mode": "block",
+      "deny": ["event-stream"],
+      "warnUnpinned": true
+    }
+  }
+}
+```
+
+### 28 — `config-validator`
+
+**Tools**: `config_validator_status`
+**Hooks**: `PostToolUse`
+
+Validates edited config files immediately after write/edit. Supported formats
+include JSON, JSONC, YAML, and TOML-like files depending on extension.
+
+```jsonc
+{
+  "extensions": {
+    "config-validator": {
+      "enabled": true,
+      "extensions": [".json", ".jsonc", ".yaml", ".yml", ".toml"]
+    }
+  }
+}
+```
+
+### 29 — `notify-hub`
+
+**Tools**: `notify_send`, `notify_hub_status`
+**Hooks**: `Stop` + event subscriptions
+
+Sends compact JSON notifications to a configured webhook for session stops,
+tool errors, budget threshold events, and manual `notify_send` calls. Empty
+`webhookUrl` means the plugin idles.
+
+```jsonc
+{
+  "extensions": {
+    "notify-hub": {
+      "webhookUrl": "https://hooks.example.test/wrongstack",
+      "events": ["session.stop", "tool.error"],
+      "timeoutMs": 5000
+    }
+  }
+}
+```
+
+### 30 — `changelog-writer`
+
+**Tools**: `changelog_add`, `changelog_preview`, `changelog_write`
+
+Collects pending Keep-a-Changelog entries during a session and writes them
+under `## [Unreleased]`. It can also collect conventional-commit subjects and
+map them to changelog sections.
+
+```jsonc
+changelog_add({ section: "Fixed", text: "Prevent template path traversal." })
+```
+
+### 31 — `injection-shield`
+
+**Tools**: `injection_shield_status`
+**Hooks**: `PostToolUse`
+
+Scans tool output for prompt-injection patterns such as attempts to override
+instructions, exfiltrate secrets, or treat retrieved content as higher-priority
+commands. It warns via additional context; it does not modify tool output.
+
+```jsonc
+{
+  "extensions": {
+    "injection-shield": { "enabled": true, "tools": "*", "maxFindings": 5 }
+  }
+}
+```
+
+### 32 — `llm-cache`
+
+**Tools**: `llm_cache_status`, `llm_cache_clear`
+**Hooks**: provider runner wrapper (opt-in)
+
+Caches identical deterministic provider requests and short-circuits the
+provider call on a hit. It is disabled by default because caching changes
+provider-call semantics; sampled/high-temperature calls are intentionally not
+cached.
+
+```jsonc
+{
+  "extensions": {
+    "llm-cache": { "enabled": true, "maxEntries": 256, "ttlMs": 300000 }
+  }
+}
+```
+
+### 33 — `model-router`
+
+**Tools**: `model_router_status`
+**Hooks**: provider runner wrapper (opt-in)
+
+Routes provider calls to alternate models based on declarative rules such as
+input size, tool usage, or dry-run mode. Disabled by default because it changes
+which model serves a turn.
+
+```jsonc
+{
+  "extensions": {
+    "model-router": {
+      "enabled": true,
+      "dryRun": false,
+      "rules": []
+    }
+  }
+}
+```
+
+### 34 — `prompt-firewall`
+
+**Tools**: `prompt_firewall_status`
+**Hooks**: provider runner wrapper (opt-in)
+
+Scans provider requests and, optionally, responses for credential leaks and
+prompt-risk patterns. Modes are `warn`, `redact`, and `block`; the plugin is
+disabled by default because redact/block can alter or stop provider calls.
+
+```jsonc
+{
+  "extensions": {
+    "prompt-firewall": { "enabled": true, "mode": "redact", "scanResponse": true }
+  }
+}
+```
+
+### 35 — `auto-escalate`
+
+**Tools**: `auto_escalate_status`
+**Hooks**: `onError` extension (opt-in)
+
+Retries transient provider failures with the next model in a configured
+escalation ladder. Disabled by default because it changes error-recovery
+behavior and can increase cost.
+
+```jsonc
+{
+  "extensions": {
+    "auto-escalate": {
+      "enabled": true,
+      "escalation": ["gpt-5-mini", "gpt-5.5"]
+    }
+  }
+}
+```
+
+### 36 — `token-throttle`
+
+**Tools**: `token_throttle_status`
+**Hooks**: provider runner wrapper (opt-in)
+
+Applies a rolling-window token/minute budget to provider calls. When the next
+request would exceed the configured rate, the wrapper delays the call instead
+of failing it.
+
+```jsonc
+{
+  "extensions": {
+    "token-throttle": {
+      "enabled": true,
+      "tokensPerMinute": 120000,
+      "maxDelayMs": 30000
+    }
+  }
+}
+```
 
 ## Configuration patterns
 
@@ -747,11 +1039,10 @@ To disable a single built-in without removing its config:
 
 ## H1 audit pattern
 
-Plugins that hold module-scope state (`cron`, `file-watcher`,
-`template-engine`, `git-autocommit`, `cost-tracker`, `secret-scanner`,
-`todo-tracker`, `auto-doc`, `shell-check`, `semver-bump`,
-`token-budget`, `lint-gate`, `branch-guard`, `diff-summary`, `commit-validator`, `format-on-save`, `test-runner-gate`, `import-organizer`, `todo-listener`, `session-recap`, `spec-linker`) follow a strict lifecycle to survive hot-reload
-without leaking resources. The pattern was formalized after a
+All built-in plugins that hold module-scope state follow a strict lifecycle
+to survive hot-reload without leaking resources. This includes file-backed
+stores, timers, watchers, hook counters, in-memory caches, provider wrappers,
+and notification state. The pattern was formalized after a
 2026-06-03 audit (the "H1 audit") found that several plugins kept
 their state inside the `setup()` closure, where the loader's
 `WeakMap<Plugin, PluginAPI>` could not reach it during teardown —

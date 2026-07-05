@@ -49,44 +49,34 @@ function expandTemplate(template: string, variables: Record<string, string>): st
   return result;
 }
 
-function expandConditionals(
-  template: string,
-  variables: Record<string, string>,
-): string {
+function expandConditionals(template: string, variables: Record<string, string>): string {
   // Handle {{#if variable}}...{{/if}}
-  return template.replace(
-    /\{\{#if\s+(\w+)\}\}([\s\S]*?)\{\{\/if\}\}/g,
-    (_, key, content) => {
-      const val = variables[key];
-      return val !== undefined && val !== '' && val !== 'false' && val !== '0' ? content : '';
-    },
-  );
+  return template.replace(/\{\{#if\s+(\w+)\}\}([\s\S]*?)\{\{\/if\}\}/g, (_, key, content) => {
+    const val = variables[key];
+    return val !== undefined && val !== '' && val !== 'false' && val !== '0' ? content : '';
+  });
 }
 
-function expandLoops(
-  template: string,
-  variables: Record<string, string>,
-): string {
+function expandLoops(template: string, variables: Record<string, string>): string {
   // Handle {{#each items}}...{{item}}...{{/each}}
   // Simplified: just repeat the block for each item separated by newlines
-  return template.replace(
-    /\{\{#each\s+(\w+)\}\}([\s\S]*?)\{\{\/each\}\}/g,
-    (_, key, content) => {
-      const val = variables[key];
-      if (!val) return '';
-      // If the variable value is a comma-separated list, expand each
-      if (typeof val === 'string' && val.includes(',')) {
-        const items = val.split(',').map((s) => s.trim());
-        return items
-          .map((item) => expandTemplate(content, { ...variables, [key]: item }))
-          .join('\n');
-      }
-      return expandTemplate(content, variables);
-    },
-  );
+  return template.replace(/\{\{#each\s+(\w+)\}\}([\s\S]*?)\{\{\/each\}\}/g, (_, key, content) => {
+    const val = variables[key];
+    if (!val) return '';
+    // If the variable value is a comma-separated list, expand each
+    if (typeof val === 'string' && val.includes(',')) {
+      const items = val.split(',').map((s) => s.trim());
+      return items.map((item) => expandTemplate(content, { ...variables, [key]: item })).join('\n');
+    }
+    return expandTemplate(content, variables);
+  });
 }
 
-function renderTemplate(template: string, variables: Record<string, string>, escapeHtml = true): string {
+function renderTemplate(
+  template: string,
+  variables: Record<string, string>,
+  escapeHtml = true,
+): string {
   let result = template;
 
   // Process conditionals first
@@ -120,6 +110,16 @@ function renderTemplateRaw(template: string, variables: Record<string, string>):
   return result;
 }
 
+function validateRelativeTemplatePath(field: string, value: string): string | null {
+  // Path traversal guard: reject absolute paths and path components that
+  // escape the working directory. Core file tools have project-root
+  // sandboxing; plugin-local fs access needs defense in depth.
+  if (isAbsolute(value) || value.split(/[\\/]+/).includes('..')) {
+    return `${field} must be a relative path without ".." components`;
+  }
+  return null;
+}
+
 // ---------------------------------------------------------------------------
 // Plugin
 // ---------------------------------------------------------------------------
@@ -150,22 +150,32 @@ const plugin: Plugin = {
     // here). If setup is called for the first time, the module-level
     // Map is already empty.
     templates.clear();
-    const autoEscapeHtml = (api.config.extensions?.['template-engine'] as Record<string, unknown>)?.['autoEscapeHtml'] as boolean ?? true;
+    const autoEscapeHtml =
+      ((api.config.extensions?.['template-engine'] as Record<string, unknown>)?.[
+        'autoEscapeHtml'
+      ] as boolean) ?? true;
 
     // --- template_expand ---
     api.tools.register({
       name: 'template_expand',
-      description: 'Expand a template string with variable substitution. Supports {{variable}}, {{#if var}}...{{/if}} conditionals, and {{#each items}}...{{/each}} loops.',
+      description:
+        'Expand a template string with variable substitution. Supports {{variable}}, {{#if var}}...{{/if}} conditionals, and {{#each items}}...{{/each}} loops.',
       inputSchema: {
         type: 'object',
         properties: {
-          template: { type: 'string', description: 'Template string with {{variable}} placeholders' },
+          template: {
+            type: 'string',
+            description: 'Template string with {{variable}} placeholders',
+          },
           variables: {
             type: 'object',
             description: 'Variables to substitute into the template',
             additionalProperties: { type: 'string' },
           },
-          output_path: { type: 'string', description: 'Optional path to write the expanded result' },
+          output_path: {
+            type: 'string',
+            description: 'Optional path to write the expanded result',
+          },
           raw: { type: 'boolean', default: false, description: 'Disable HTML auto-escaping' },
         },
         required: ['template', 'variables'],
@@ -189,19 +199,17 @@ const plugin: Plugin = {
         let result: string;
         /* v8 ignore start -- the render pipeline (regex replaces) does not throw; this guard is defensive. */
         try {
-          result = raw ? renderTemplateRaw(template, variables) : renderTemplate(template, variables, autoEscapeHtml);
+          result = raw
+            ? renderTemplateRaw(template, variables)
+            : renderTemplate(template, variables, autoEscapeHtml);
         } catch (err: unknown) {
           return { ok: false, error: String(err) };
         }
         /* v8 ignore stop */
 
         if (output_path) {
-          // Path traversal guard: reject absolute paths and path components
-          // that escape the working directory. The core write tool has full
-          // project-root sandboxing; plugins get defense-in-depth only.
-          if (isAbsolute(output_path) || output_path.includes('..')) {
-            return { ok: false, error: 'output_path must be a relative path without ".." components' };
-          }
+          const pathError = validateRelativeTemplatePath('output_path', output_path);
+          if (pathError) return { ok: false, error: pathError };
           const { writeFileSync } = await import('node:fs');
           writeFileSync(output_path, result, 'utf-8');
           return {
@@ -234,7 +242,10 @@ const plugin: Plugin = {
             description: 'Variables to substitute',
             additionalProperties: { type: 'string' },
           },
-          output_path: { type: 'string', description: 'Optional path to write the rendered result' },
+          output_path: {
+            type: 'string',
+            description: 'Optional path to write the rendered result',
+          },
           raw: { type: 'boolean', default: false },
         },
         required: ['template_path', 'variables'],
@@ -250,6 +261,8 @@ const plugin: Plugin = {
         if (!template_path || typeof template_path !== 'string') {
           return { ok: false, error: 'template_path is required and must be a string' };
         }
+        const templatePathError = validateRelativeTemplatePath('template_path', template_path);
+        if (templatePathError) return { ok: false, error: templatePathError };
         if (!variables || typeof variables !== 'object') {
           return { ok: false, error: 'variables is required and must be an object' };
         }
@@ -265,16 +278,17 @@ const plugin: Plugin = {
         let result: string;
         /* v8 ignore start -- the render pipeline (regex replaces) does not throw; this guard is defensive. */
         try {
-          result = raw ? renderTemplateRaw(content, variables) : renderTemplate(content, variables, autoEscapeHtml);
+          result = raw
+            ? renderTemplateRaw(content, variables)
+            : renderTemplate(content, variables, autoEscapeHtml);
         } catch (err: unknown) {
           return { ok: false, error: `Template rendering failed: ${err}` };
         }
         /* v8 ignore stop */
 
         if (output_path) {
-          if (isAbsolute(output_path) || output_path.includes('..')) {
-            return { ok: false, error: 'output_path must be a relative path without ".." components' };
-          }
+          const pathError = validateRelativeTemplatePath('output_path', output_path);
+          if (pathError) return { ok: false, error: pathError };
           const { writeFileSync } = await import('node:fs');
           writeFileSync(output_path, result, 'utf-8');
           return {
@@ -297,13 +311,19 @@ const plugin: Plugin = {
     // --- template_create ---
     api.tools.register({
       name: 'template_create',
-      description: 'Save a named template to the plugin\'s template store for later use.',
+      description: "Save a named template to the plugin's template store for later use.",
       inputSchema: {
         type: 'object',
         properties: {
           name: { type: 'string', description: 'Unique name for this template' },
-          content: { type: 'string', description: 'Template content with {{variable}} placeholders' },
-          description: { type: 'string', description: 'Optional description of what this template is for' },
+          content: {
+            type: 'string',
+            description: 'Template content with {{variable}} placeholders',
+          },
+          description: {
+            type: 'string',
+            description: 'Optional description of what this template is for',
+          },
         },
         required: ['name', 'content'],
       },
@@ -347,7 +367,7 @@ const plugin: Plugin = {
     // --- template_list ---
     api.tools.register({
       name: 'template_list',
-      description: 'List all templates saved in the plugin\'s template store.',
+      description: "List all templates saved in the plugin's template store.",
       inputSchema: { type: 'object', properties: {} },
       permission: 'auto',
       mutating: false,

@@ -36,8 +36,16 @@ interface PluginAPI {
   slashCommands: { register: ReturnType<typeof vi.fn> };
   pipelines: Record<string, { use: (h: unknown) => void }>;
   config: { extensions?: Record<string, unknown> };
-  log: { info: ReturnType<typeof vi.fn>; warn: ReturnType<typeof vi.fn>; error: ReturnType<typeof vi.fn> };
-  metrics: { counter: ReturnType<typeof vi.fn>; histogram: ReturnType<typeof vi.fn>; gauge: ReturnType<typeof vi.fn> };
+  log: {
+    info: ReturnType<typeof vi.fn>;
+    warn: ReturnType<typeof vi.fn>;
+    error: ReturnType<typeof vi.fn>;
+  };
+  metrics: {
+    counter: ReturnType<typeof vi.fn>;
+    histogram: ReturnType<typeof vi.fn>;
+    gauge: ReturnType<typeof vi.fn>;
+  };
   session: { append: ReturnType<typeof vi.fn> };
   extensions: { register: ReturnType<typeof vi.fn> };
   registerSystemPromptContributor: ReturnType<typeof vi.fn>;
@@ -122,7 +130,10 @@ describe('spec-linker plugin', () => {
     });
 
     it('configSchema defines enabled, fileGlobs, maxReferences, autoFix', () => {
-      const schema = specLinkerPlugin.configSchema as Record<string, { properties?: Record<string, unknown> }>;
+      const schema = specLinkerPlugin.configSchema as Record<
+        string,
+        { properties?: Record<string, unknown> }
+      >;
       const props = schema.properties;
       expect(props?.enabled).toBeDefined();
       expect(props?.fileGlobs).toBeDefined();
@@ -228,8 +239,12 @@ describe('spec-linker plugin', () => {
         toolResult: { content: 'ok', isError: false },
       });
       expect(result).toBeUndefined();
-      const tool = vi.mocked(api.tools.register).mock.calls[0]?.[0] as { execute: () => Promise<unknown> };
-      const status = (await tool.execute()) as { counters: { skippedNonMd: number; postInvocations: number } };
+      const tool = vi.mocked(api.tools.register).mock.calls[0]?.[0] as {
+        execute: () => Promise<unknown>;
+      };
+      const status = (await tool.execute()) as {
+        counters: { skippedNonMd: number; postInvocations: number };
+      };
       expect(status.counters.skippedNonMd).toBe(1);
       expect(status.counters.postInvocations).toBe(0);
     });
@@ -246,7 +261,9 @@ describe('spec-linker plugin', () => {
         toolInput: { path: filePath, content: '' },
         toolResult: { content: 'ok', isError: false },
       });
-      const tool = vi.mocked(api.tools.register).mock.calls[0]?.[0] as { execute: () => Promise<unknown> };
+      const tool = vi.mocked(api.tools.register).mock.calls[0]?.[0] as {
+        execute: () => Promise<unknown>;
+      };
       const status = (await tool.execute()) as { counters: { postInvocations: number } };
       expect(status.counters.postInvocations).toBe(0);
     });
@@ -290,8 +307,12 @@ describe('spec-linker plugin', () => {
         toolResult: { content: 'ok', isError: false },
       });
       expect(result).toBeUndefined();
-      const statusTool = vi.mocked(api.tools.register).mock.calls[0]?.[0] as { execute: () => Promise<unknown> };
-      const status = (await statusTool.execute()) as { counters: { clean: number; unlinked: number } };
+      const statusTool = vi.mocked(api.tools.register).mock.calls[0]?.[0] as {
+        execute: () => Promise<unknown>;
+      };
+      const status = (await statusTool.execute()) as {
+        counters: { clean: number; unlinked: number };
+      };
       expect(status.counters.clean).toBe(1);
       expect(status.counters.unlinked).toBe(0);
     });
@@ -302,6 +323,24 @@ describe('spec-linker plugin', () => {
       const hook = getHook(api, 'PostToolUse');
       const filePath = path.join(tmpDir, 'code.md');
       await fs.writeFile(filePath, 'Run `secret-scanner` to block credentials.\n', 'utf-8');
+      const result = await hook({
+        toolName: 'write',
+        toolInput: { path: filePath, content: '' },
+        toolResult: { content: 'ok', isError: false },
+      });
+      expect(result).toBeUndefined();
+    });
+
+    it('skips references inside fenced code blocks', async () => {
+      const api = createMockAPI();
+      specLinkerPlugin.setup(api as never);
+      const hook = getHook(api, 'PostToolUse');
+      const filePath = path.join(tmpDir, 'fenced.md');
+      await fs.writeFile(
+        filePath,
+        ['```jsonc', '{ "plugins": { "secret-scanner": { "mode": "block" } } }', '```'].join('\n'),
+        'utf-8',
+      );
       const result = await hook({
         toolName: 'write',
         toolInput: { path: filePath, content: '' },
@@ -387,8 +426,12 @@ describe('spec-linker plugin', () => {
         },
       });
       expect(result).toBeUndefined();
-      const tool = vi.mocked(api.tools.register).mock.calls[0]?.[0] as { execute: () => Promise<unknown> };
-      const status = (await tool.execute()) as { counters: { preInvocations: number; autoFixApplied: number } };
+      const tool = vi.mocked(api.tools.register).mock.calls[0]?.[0] as {
+        execute: () => Promise<unknown>;
+      };
+      const status = (await tool.execute()) as {
+        counters: { preInvocations: number; autoFixApplied: number };
+      };
       // preInvocations was incremented, autoFixApplied was not.
       expect(status.counters.preInvocations).toBe(1);
       expect(status.counters.autoFixApplied).toBe(0);
@@ -405,7 +448,11 @@ describe('spec-linker plugin', () => {
           path: '/tmp/x.md',
           content: 'The secret-scanner plugin blocks credentials. See token-budget.\n',
         },
-      })) as { decision: 'allow' | 'block'; modifiedInput: { content: string; path: string }; additionalContext: string };
+      })) as {
+        decision: 'allow' | 'block';
+        modifiedInput: { content: string; path: string };
+        additionalContext: string;
+      };
 
       expect(result.decision).toBe('allow');
       expect(result.modifiedInput.path).toBe('/tmp/x.md');
@@ -489,6 +536,27 @@ describe('spec-linker plugin', () => {
       expect(result.modifiedInput.content).not.toContain('`[lint-gate]');
     });
 
+    it('does not auto-fix references inside fenced code blocks', async () => {
+      const api = createMockAPI();
+      api.config.extensions = { 'spec-linker': { autoFix: true } };
+      specLinkerPlugin.setup(api as never);
+      const hook = getHook(api, 'PreToolUse');
+      const content = [
+        'Before secret-scanner.',
+        '```jsonc',
+        '{ "plugins": { "token-budget": {} } }',
+        '```',
+      ].join('\n');
+      const result = (await hook({
+        toolName: 'write',
+        toolInput: { path: '/tmp/x.md', content },
+      })) as { modifiedInput: { content: string } };
+
+      expect(result.modifiedInput.content).toContain('[secret-scanner](./src/secret-scanner)');
+      expect(result.modifiedInput.content).toContain('"token-budget": {}');
+      expect(result.modifiedInput.content).not.toContain('"[token-budget]');
+    });
+
     it('respects word boundaries in autoFix mode', async () => {
       const api = createMockAPI();
       api.config.extensions = { 'spec-linker': { autoFix: true } };
@@ -522,8 +590,12 @@ describe('spec-linker plugin', () => {
         toolName: 'write',
         toolInput: { path: '/tmp/y.md', content: 'all clean' },
       });
-      const tool = vi.mocked(api.tools.register).mock.calls[0]?.[0] as { execute: () => Promise<unknown> };
-      const status = (await tool.execute()) as { counters: { preInvocations: number; autoFixApplied: number } };
+      const tool = vi.mocked(api.tools.register).mock.calls[0]?.[0] as {
+        execute: () => Promise<unknown>;
+      };
+      const status = (await tool.execute()) as {
+        counters: { preInvocations: number; autoFixApplied: number };
+      };
       expect(status.counters.preInvocations).toBe(2);
       expect(status.counters.autoFixApplied).toBe(1);
     });
@@ -547,7 +619,13 @@ describe('spec-linker plugin', () => {
         maxReferences: number;
         autoFix: boolean;
         catalogSize: number;
-        counters: { postInvocations: number; preInvocations: number; unlinked: number; clean: number; autoFixApplied: number };
+        counters: {
+          postInvocations: number;
+          preInvocations: number;
+          unlinked: number;
+          clean: number;
+          autoFixApplied: number;
+        };
       };
       expect(status.enabled).toBe(true);
       expect(status.fileGlobs).toEqual(['**/*.md', '**/*.mdx']);

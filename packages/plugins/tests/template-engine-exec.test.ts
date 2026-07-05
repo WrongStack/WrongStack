@@ -9,7 +9,10 @@ vi.mock('node:fs', async (o) => ({
 
 import templatePlugin from '../src/template-engine';
 
-interface Tool { name: string; execute: (i: Record<string, unknown>) => Promise<Record<string, unknown>>; }
+interface Tool {
+  name: string;
+  execute: (i: Record<string, unknown>) => Promise<Record<string, unknown>>;
+}
 
 let metrics: { gauge: ReturnType<typeof vi.fn> };
 let promptContributor: (() => Promise<Array<{ type: string; text: string }>>) | undefined;
@@ -18,11 +21,17 @@ function setup(): Record<string, Tool> {
   const tools: Record<string, Tool> = {};
   metrics = { gauge: vi.fn() };
   const api = {
-    tools: { register: (t: Tool) => { tools[t.name] = t; } },
+    tools: {
+      register: (t: Tool) => {
+        tools[t.name] = t;
+      },
+    },
     config: { extensions: {} },
     log: { info: vi.fn() },
     metrics,
-    registerSystemPromptContributor: (fn: () => Promise<Array<{ type: string; text: string }>>) => { promptContributor = fn; },
+    registerSystemPromptContributor: (fn: () => Promise<Array<{ type: string; text: string }>>) => {
+      promptContributor = fn;
+    },
   };
   templatePlugin.setup(api as never);
   return tools;
@@ -37,20 +46,28 @@ beforeEach(() => {
 describe('template_expand', () => {
   it('validates template and variables', async () => {
     const tools = setup();
-    expect((await tools.template_expand!.execute({ variables: {} })).error).toMatch(/template is required/);
-    expect((await tools.template_expand!.execute({ template: 'x', variables: 'no' })).error).toMatch(/variables is required/);
+    expect((await tools.template_expand!.execute({ variables: {} })).error).toMatch(
+      /template is required/,
+    );
+    expect(
+      (await tools.template_expand!.execute({ template: 'x', variables: 'no' })).error,
+    ).toMatch(/variables is required/);
   });
 
   it('substitutes variables and leaves unresolved placeholders', async () => {
     const tools = setup();
-    const res = await tools.template_expand!.execute({ template: 'Hi {{name}}, {{missing}}', variables: { name: 'Bob' } });
+    const res = await tools.template_expand!.execute({
+      template: 'Hi {{name}}, {{missing}}',
+      variables: { name: 'Bob' },
+    });
     expect(res.result).toBe('Hi Bob, {{missing}}');
     expect(res.variableCount).toBe(1);
   });
 
   it('expands conditionals on truthy and falsy values', async () => {
     const tools = setup();
-    const t = '{{#if on}}YES{{/if}}{{#if off}}NO{{/if}}{{#if blank}}B{{/if}}{{#if zero}}Z{{/if}}{{#if no}}N{{/if}}';
+    const t =
+      '{{#if on}}YES{{/if}}{{#if off}}NO{{/if}}{{#if blank}}B{{/if}}{{#if zero}}Z{{/if}}{{#if no}}N{{/if}}';
     const res = await tools.template_expand!.execute({
       template: t,
       variables: { on: 'x', off: 'false', blank: '', zero: '0', no: 'false' },
@@ -84,15 +101,26 @@ describe('template_expand', () => {
 
   it('HTML-escapes by default and leaves raw output untouched', async () => {
     const tools = setup();
-    const escaped = await tools.template_expand!.execute({ template: '{{v}}', variables: { v: '<a href="x">&' } });
+    const escaped = await tools.template_expand!.execute({
+      template: '{{v}}',
+      variables: { v: '<a href="x">&' },
+    });
     expect(escaped.result).toBe('&lt;a href=&quot;x&quot;&gt;&amp;');
-    const raw = await tools.template_expand!.execute({ template: '{{v}}', variables: { v: '<a>&' }, raw: true });
+    const raw = await tools.template_expand!.execute({
+      template: '{{v}}',
+      variables: { v: '<a>&' },
+      raw: true,
+    });
     expect(raw.result).toBe('<a>&');
   });
 
   it('writes to a relative output_path', async () => {
     const tools = setup();
-    const res = await tools.template_expand!.execute({ template: 'hi {{n}}', variables: { n: 'x' }, output_path: 'out/result.txt' });
+    const res = await tools.template_expand!.execute({
+      template: 'hi {{n}}',
+      variables: { n: 'x' },
+      output_path: 'out/result.txt',
+    });
     expect(res.ok).toBe(true);
     expect(res.output_path).toBe('out/result.txt');
     expect(fsm.writeFileSync).toHaveBeenCalledWith('out/result.txt', 'hi x', 'utf-8');
@@ -100,38 +128,80 @@ describe('template_expand', () => {
 
   it('rejects absolute or traversing output paths', async () => {
     const tools = setup();
-    expect((await tools.template_expand!.execute({ template: 'x', variables: {}, output_path: '/etc/passwd' })).error).toMatch(/relative path/);
-    expect((await tools.template_expand!.execute({ template: 'x', variables: {}, output_path: '../escape' })).error).toMatch(/relative path/);
+    expect(
+      (
+        await tools.template_expand!.execute({
+          template: 'x',
+          variables: {},
+          output_path: '/etc/passwd',
+        })
+      ).error,
+    ).toMatch(/relative path/);
+    expect(
+      (
+        await tools.template_expand!.execute({
+          template: 'x',
+          variables: {},
+          output_path: '../escape',
+        })
+      ).error,
+    ).toMatch(/relative path/);
   });
 });
 
 describe('template_render', () => {
   it('validates template_path and variables', async () => {
     const tools = setup();
-    expect((await tools.template_render!.execute({ variables: {} })).error).toMatch(/template_path is required/);
-    expect((await tools.template_render!.execute({ template_path: 'a', variables: 5 })).error).toMatch(/variables is required/);
+    expect((await tools.template_render!.execute({ variables: {} })).error).toMatch(
+      /template_path is required/,
+    );
+    expect(
+      (await tools.template_render!.execute({ template_path: 'a', variables: 5 })).error,
+    ).toMatch(/variables is required/);
   });
 
   it('reads, renders and returns the result', async () => {
     fsm.readFileSync.mockReturnValue('Hello {{who}}');
     const tools = setup();
-    const res = await tools.template_render!.execute({ template_path: 't.tmpl', variables: { who: 'World' } });
+    const res = await tools.template_render!.execute({
+      template_path: 't.tmpl',
+      variables: { who: 'World' },
+    });
     expect(res.ok).toBe(true);
     expect(res.result).toBe('Hello World');
   });
 
   it('errors when the template file cannot be read', async () => {
-    fsm.readFileSync.mockImplementation(() => { throw new Error('ENOENT'); });
+    fsm.readFileSync.mockImplementation(() => {
+      throw new Error('ENOENT');
+    });
     const tools = setup();
     const res = await tools.template_render!.execute({ template_path: 'missing', variables: {} });
     expect(res.ok).toBe(false);
     expect(res.error).toMatch(/Could not read template file/);
   });
 
+  it('rejects absolute or traversing template paths before reading', async () => {
+    const tools = setup();
+    expect(
+      (await tools.template_render!.execute({ template_path: '/etc/passwd', variables: {} })).error,
+    ).toMatch(/relative path/);
+    expect(
+      (await tools.template_render!.execute({ template_path: '../secret.tmpl', variables: {} }))
+        .error,
+    ).toMatch(/relative path/);
+    expect(fsm.readFileSync).not.toHaveBeenCalled();
+  });
+
   it('writes the rendered output to a relative path', async () => {
     fsm.readFileSync.mockReturnValue('raw {{v}}');
     const tools = setup();
-    const res = await tools.template_render!.execute({ template_path: 't', variables: { v: 'x' }, output_path: 'r.txt', raw: true });
+    const res = await tools.template_render!.execute({
+      template_path: 't',
+      variables: { v: 'x' },
+      output_path: 'r.txt',
+      raw: true,
+    });
     expect(res.ok).toBe(true);
     expect(fsm.writeFileSync).toHaveBeenCalledWith('r.txt', 'raw x', 'utf-8');
   });
@@ -139,7 +209,11 @@ describe('template_render', () => {
   it('rejects a traversing output path on render', async () => {
     fsm.readFileSync.mockReturnValue('x');
     const tools = setup();
-    const res = await tools.template_render!.execute({ template_path: 't', variables: {}, output_path: '../x' });
+    const res = await tools.template_render!.execute({
+      template_path: 't',
+      variables: {},
+      output_path: '../x',
+    });
     expect(res.error).toMatch(/relative path/);
   });
 });
@@ -147,17 +221,28 @@ describe('template_render', () => {
 describe('template_create / template_list', () => {
   it('validates name and content', async () => {
     const tools = setup();
-    expect((await tools.template_create!.execute({ content: 'x' })).error).toMatch(/name is required/);
-    expect((await tools.template_create!.execute({ name: 'n', content: 5 })).error).toMatch(/content is required/);
+    expect((await tools.template_create!.execute({ content: 'x' })).error).toMatch(
+      /name is required/,
+    );
+    expect((await tools.template_create!.execute({ name: 'n', content: 5 })).error).toMatch(
+      /content is required/,
+    );
   });
 
   it('creates then updates a template, and lists it', async () => {
     const tools = setup();
-    const created = await tools.template_create!.execute({ name: 'greeting', content: 'hi {{n}}', description: 'a greeting' });
+    const created = await tools.template_create!.execute({
+      name: 'greeting',
+      content: 'hi {{n}}',
+      description: 'a greeting',
+    });
     expect(created.message).toMatch(/Created template/);
     expect(metrics.gauge).toHaveBeenCalledWith('template_count', 1);
 
-    const updated = await tools.template_create!.execute({ name: 'greeting', content: 'hello {{n}}' });
+    const updated = await tools.template_create!.execute({
+      name: 'greeting',
+      content: 'hello {{n}}',
+    });
     expect(updated.message).toMatch(/Updated template/);
     expect(updated.createdAt).toBe(created.createdAt); // createdAt preserved on update
 

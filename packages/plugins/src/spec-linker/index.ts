@@ -167,13 +167,31 @@ function escapeRegExp(s: string): string {
   return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
+function mapMarkdownFences(lines: string[]): boolean[] {
+  const fenced = new Array<boolean>(lines.length).fill(false);
+  let inFence = false;
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i]!;
+    if (/^\s*```/.test(line)) {
+      fenced[i] = true;
+      inFence = !inFence;
+      continue;
+    }
+    fenced[i] = inFence;
+  }
+  return fenced;
+}
+
 /**
  * Find all unlinked plugin references on the given lines.
  * Returns a list of plugin names in their original casing.
  */
 function findUnlinkedReferences(lines: string[], names: string[]): string[] {
   const found = new Map<string, true>(); // preserve original casing
-  for (const line of lines) {
+  const fencedLines = mapMarkdownFences(lines);
+  for (let i = 0; i < lines.length; i++) {
+    if (fencedLines[i]) continue;
+    const line = lines[i]!;
     if (line.length === 0) continue;
     for (const name of names) {
       // Word-boundary check: the name must appear as a complete
@@ -209,8 +227,10 @@ function findUnlinkedReferences(lines: string[], names: string[]): string[] {
  */
 function wrapUnlinkedReferences(content: string): string {
   const lines = content.split('\n');
+  const fencedLines = mapMarkdownFences(lines);
   let changed = false;
   for (let i = 0; i < lines.length; i++) {
+    if (fencedLines[i]) continue;
     const line = lines[i]!;
     if (line.length === 0) continue;
     const newLine = wrapLineReferences(line);
@@ -366,7 +386,9 @@ const plugin: Plugin = {
       const overflow = unlinked.length - limited.length;
 
       const lines = limited
-        .map((name) => `- \`${name}\` → \`[${name}](${PLUGIN_CATALOG.get(name) ?? `./src/${name}`})\``)
+        .map(
+          (name) => `- \`${name}\` → \`[${name}](${PLUGIN_CATALOG.get(name) ?? `./src/${name}`})\``,
+        )
         .join('\n');
       const overflowNote = overflow > 0 ? `\n- …and ${overflow} more` : '';
 
@@ -384,7 +406,11 @@ const plugin: Plugin = {
       const preHook = async (input: {
         toolName?: string | undefined;
         toolInput?: unknown;
-      }): Promise<{ decision?: 'allow' | 'block'; modifiedInput?: Record<string, unknown>; additionalContext?: string } | void> => {
+      }): Promise<{
+        decision?: 'allow' | 'block';
+        modifiedInput?: Record<string, unknown>;
+        additionalContext?: string;
+      } | void> => {
         if (!cfg.enabled) return;
         // Auto-fix targets `write` only — see file-level comment
         // for why we don't touch `edit` (partial-string complexity).
@@ -404,8 +430,7 @@ const plugin: Plugin = {
         return {
           decision: 'allow',
           modifiedInput: { ...inp, content: fixed, path: filePath },
-          additionalContext:
-            `\n🔗 spec-linker (autoFix): wrapped unlinked plugin reference(s) in '${filePath}'.`,
+          additionalContext: `\n🔗 spec-linker (autoFix): wrapped unlinked plugin reference(s) in '${filePath}'.`,
         };
       };
       state.preHookUnregister = api.registerHook('PreToolUse', 'write', preHook as never);
