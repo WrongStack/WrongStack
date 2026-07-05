@@ -54,7 +54,7 @@ afterEach(() => {
   globalThis.fetch = realFetch;
 });
 
-const URL_CFG = { 'notify-hub': { webhookUrl: 'https://hooks.example.test/x' } };
+const URL_CFG = { 'notify-hub': { webhookUrl: 'https://hooks.example.com/x' } };
 
 describe('notify-hub plugin', () => {
   it('registers notify_send + notify_hub_status', () => {
@@ -83,6 +83,25 @@ describe('notify-hub plugin', () => {
     expect(api.onPattern).toHaveBeenCalledWith('tool.*', expect.any(Function));
   });
 
+  it('rejects unsafe webhook URLs and idles', async () => {
+    for (const webhookUrl of [
+      'ftp://hooks.example.com/x',
+      'https://user:pass@hooks.example.com/x',
+      'http://localhost:3000/hook',
+      'http://127.0.0.1/hook',
+      'http://10.0.0.5/hook',
+      'http://192.168.1.20/hook',
+      'http://[::1]/hook',
+    ]) {
+      const api = makeApi({ extensions: { 'notify-hub': { webhookUrl } } });
+      notifyHubPlugin.setup(api as never);
+      const result = await getTool(api, 'notify_send').execute({ message: 'x' });
+      expect(result['ok']).toBe(false);
+      expect(api.registerHook).not.toHaveBeenCalled();
+    }
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
   it('notify_send POSTs JSON to the webhook', async () => {
     const api = makeApi({ extensions: URL_CFG });
     notifyHubPlugin.setup(api as never);
@@ -94,7 +113,7 @@ describe('notify-hub plugin', () => {
     expect(result['ok']).toBe(true);
     expect(fetchMock).toHaveBeenCalledTimes(1);
     const [url, init] = fetchMock.mock.calls[0]!;
-    expect(url).toBe('https://hooks.example.test/x');
+    expect(url).toBe('https://hooks.example.com/x');
     const body = JSON.parse((init as { body: string }).body) as Record<string, unknown>;
     expect(body['event']).toBe('manual');
     expect(body['message']).toBe('migration finished');

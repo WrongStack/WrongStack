@@ -91,6 +91,50 @@ const DEFAULTS: NotifyHubConfig = {
   maxConsecutiveFailures: 5,
 };
 
+function isPrivateIPv4(hostname: string): boolean {
+  const parts = hostname.split('.').map((p) => Number(p));
+  if (parts.length !== 4 || parts.some((p) => !Number.isInteger(p) || p < 0 || p > 255)) {
+    return false;
+  }
+  const [a, b] = parts as [number, number, number, number];
+  return (
+    a === 0 ||
+    a === 10 ||
+    a === 127 ||
+    (a === 169 && b === 254) ||
+    (a === 172 && b >= 16 && b <= 31) ||
+    (a === 192 && b === 168)
+  );
+}
+
+function isBlockedHostname(hostname: string): boolean {
+  const h = hostname.toLowerCase().replace(/^\[|\]$/g, '');
+  return (
+    h === 'localhost' ||
+    h.endsWith('.localhost') ||
+    h === '::1' ||
+    h === '0:0:0:0:0:0:0:1' ||
+    h.startsWith('fc') ||
+    h.startsWith('fd') ||
+    h.startsWith('fe80:') ||
+    isPrivateIPv4(h)
+  );
+}
+
+function normalizeWebhookUrl(raw: unknown): string {
+  if (typeof raw !== 'string' || raw.trim().length === 0) return '';
+  try {
+    const url = new URL(raw.trim());
+    if (url.protocol !== 'https:' && url.protocol !== 'http:') return '';
+    if (url.username || url.password) return '';
+    if (!url.hostname || isBlockedHostname(url.hostname)) return '';
+    url.hash = '';
+    return url.toString();
+  } catch {
+    return '';
+  }
+}
+
 function readConfig(raw: unknown): NotifyHubConfig {
   if (!raw || typeof raw !== 'object') return { ...DEFAULTS, events: [...DEFAULTS.events] };
   const r = raw as Record<string, unknown>;
@@ -102,7 +146,7 @@ function readConfig(raw: unknown): NotifyHubConfig {
   }
   return {
     enabled: r['enabled'] !== false,
-    webhookUrl: typeof r['webhookUrl'] === 'string' ? r['webhookUrl'] : '',
+    webhookUrl: normalizeWebhookUrl(r['webhookUrl']),
     events: Array.isArray(r['events'])
       ? r['events'].filter((e): e is NotifyEvent => KNOWN_EVENTS.includes(e as NotifyEvent))
       : [...DEFAULTS.events],
