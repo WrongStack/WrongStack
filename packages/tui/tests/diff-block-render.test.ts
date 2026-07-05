@@ -2,9 +2,12 @@ import { render } from 'ink-testing-library';
 import { createElement as e } from 'react';
 import { describe, expect, it } from 'vitest';
 import {
+  DIFF_MAX_LINES,
   DiffBlock,
   type DiffLineRow,
+  extractDiffPreview,
   formatDiffStats,
+  parseUnifiedDiff,
 } from '../src/components/history/code-block.js';
 
 function renderDiffBlock(
@@ -127,7 +130,15 @@ describe('<DiffBlock /> rendering', () => {
     expect(frame).toContain('new line');
   });
 
-  it('renders hidden-line footer when there are more rows than shown', () => {
+  it('renders hidden-line footer when caller passes hidden > 0', () => {
+    // DiffBlock still prints a `… +N -M hidden` footer whenever the
+    // caller reports `hidden > 0`. The Update tool's default path
+    // (extractDiffPreview → parseUnifiedDiff) no longer slices the
+    // diff, so the footer stays suppressed there; but the rendering
+    // path itself is unchanged and any caller that explicitly passes
+    // `hidden` (e.g. a future cap-aware call site) still gets the
+    // truncation note. This test pins that contract — drop the footer
+    // rendering only after every truncation-aware caller is gone.
     const many: DiffLineRow[] = [
       { kind: 'hunk', text: '@@ -1,30 +1,30 @@' },
       ...Array.from({ length: 12 }, (_, i) => ({
@@ -161,6 +172,35 @@ describe('<DiffBlock /> rendering', () => {
     // Hidden breakdown (+4 / -1) carried by the truncation note.
     expect(frame).toMatch(/\+4\b/);
     expect(frame).toMatch(/-1\b/);
+  });
+
+  it('omits the hidden footer when hidden = 0 (default extractDiffPreview path)', () => {
+    // Regression for the `DIFF_MAX_LINES = Infinity` change: the
+    // default Update tool path now reports `hidden = 0` for any diff,
+    // so the footer is suppressed and every row renders. A 16-row add
+    // is enough to prove "all rows shown, no truncation note".
+    const rows: DiffLineRow[] = [
+      { kind: 'hunk', text: '@@ -1 +1 @@' },
+      ...Array.from({ length: 16 }, (_, i) => ({
+        kind: 'add' as const,
+        text: `+added line ${i}`,
+        newLine: i + 1,
+      })),
+    ];
+    const frame = renderDiffBlock(rows, {
+      added: 16,
+      removed: 0,
+      hidden: 0,
+      hiddenAdded: 0,
+      hiddenRemoved: 0,
+      useColor: false,
+    });
+    expect(frame).not.toContain('more line');
+    expect(frame).not.toContain('hidden');
+    // Every added line is present in the rendered output.
+    for (let i = 0; i < 16; i++) {
+      expect(frame).toContain(`added line ${i}`);
+    }
   });
 
   it('renders the + marker with bold styling (no-color fallback)', () => {
@@ -245,6 +285,35 @@ describe('<DiffBlock /> rendering', () => {
     expect(frame.replace(/\s+/g, ' ')).toContain(body);
     expect(frame).not.toContain('…');
     expect(frame).toMatch(/17 -/);
+  });
+
+  it('parseUnifiedDiff default cap is unbounded (Update tool renders every row)', () => {
+    // The default Update tool path (extractDiffPreview → parseUnifiedDiff)
+    // must surface every diff row, no matter how large, so a long edit is
+    // legible instead of silently truncated. Pin the contract: a 50-line
+    // add returns 50 rows (plus the leading hunk header — counted as a
+    // `hunk` row, not an add), hidden = 0, totals match. Also assert the
+    // exported `DIFF_MAX_LINES` constant itself, so a future refactor that
+    // accidentally re-introduces a cap fails this test loudly.
+    expect(Number.isFinite(DIFF_MAX_LINES)).toBe(false);
+
+    const lines = Array.from({ length: 50 }, (_, i) => `+added line ${i}`);
+    const diff = `@@ -0,0 +1,${lines.length} @@\n${lines.join('\n')}`;
+    const preview = parseUnifiedDiff(diff, DIFF_MAX_LINES);
+    // 1 hunk + 50 adds
+    expect(preview.rows.length).toBe(51);
+    expect(preview.hidden).toBe(0);
+    expect(preview.hiddenAdded).toBe(0);
+    expect(preview.hiddenRemoved).toBe(0);
+    expect(preview.added).toBe(50);
+    expect(preview.removed).toBe(0);
+
+    // Same path the Update tool takes. Output is non-empty so extractDiffPreview
+    // returns a DiffPreview (not undefined) and every line is in the rows.
+    const extracted = extractDiffPreview('edit', JSON.stringify({ diff }));
+    expect(extracted).toBeDefined();
+    expect(extracted?.rows.length).toBe(51);
+    expect(extracted?.hidden).toBe(0);
   });
 
   it('syntax highlighting is length-preserving — body text unchanged under lang=ts', () => {

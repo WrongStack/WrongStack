@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest';
 import {
-  MULTI_DIFF_SUMMARY_THRESHOLD,
   extractDiffPreview,
   extractMultiFileDiffs,
   extractReplaceDiffs,
@@ -9,6 +8,7 @@ import {
   formatToolArgs,
   formatToolOutput,
   formatToolVisualOutput,
+  MULTI_DIFF_SUMMARY_THRESHOLD,
   summarizeMultiFileDiffs,
 } from '../src/components/history.js';
 
@@ -626,16 +626,23 @@ describe('extractDiffPreview', () => {
     expect(out!.rows.some((r) => r.text.includes('replacements='))).toBe(false);
   });
 
-  it('caps long previews and reports the hidden remainder with add/remove stats', () => {
+  it('renders every row for a long preview (no truncation in default Update tool path)', () => {
+    // The default `DIFF_MAX_LINES` was raised to `Infinity` so the Update
+    // tool surfaces every diff row, no matter how large. A 30-line add
+    // is enough to prove "all rows present, hidden = 0, totals still
+    // accurate". The `hidden`/`hiddenAdded` fields stay populated for
+    // callers that explicitly opt into a cap by passing a smaller value
+    // to `parseUnifiedDiff` — this test only pins the default path.
     const many = ['@@ -1,20 +1,20 @@', ...Array.from({ length: 30 }, (_, i) => `+line ${i}`)].join(
       '\n',
     );
     const out = extractDiffPreview('edit', JSON.stringify({ diff: many }));
-    expect(out!.rows.length).toBeLessThan(31);
-    expect(out!.rows.length + out!.hidden).toBe(31);
-    expect(out!.hidden).toBeGreaterThan(0);
+    // 1 hunk header + 30 adds = 31 rows total.
+    expect(out!.rows.length).toBe(31);
+    expect(out!.hidden).toBe(0);
+    expect(out!.hiddenAdded).toBe(0);
+    expect(out!.hiddenRemoved).toBe(0);
     expect(out!.added).toBe(30);
-    expect(out!.hiddenAdded).toBeGreaterThan(0);
   });
 
   it('skips no-op edit sentinel diff', () => {
@@ -749,8 +756,9 @@ describe('extractReplaceDiffs', () => {
     );
     expect(out).toBeDefined();
     expect(out![0]!.preview.added).toBe(30);
-    expect(out![0]!.preview.hiddenAdded).toBeGreaterThan(0);
-    expect(out![0]!.preview.rows.length).toBeLessThan(31);
+    expect(out![0]!.preview.hiddenAdded).toBe(0);
+    // Default cap is unbounded: 1 hunk header + 30 adds = 31 rows total.
+    expect(out![0]!.preview.rows.length).toBe(31);
   });
 
   it('skips results without a diff field (e.g. unchanged files)', () => {
@@ -975,9 +983,10 @@ describe('extractMultiFileDiffs', () => {
       expect(out).toBeDefined();
       expect(out![0]!.preview.added).toBe(30);
       expect(out![1]!.preview.removed).toBe(40);
-      // Both previews are independently capped below their raw counts.
-      expect(out![0]!.preview.rows.length).toBeLessThan(31);
-      expect(out![1]!.preview.rows.length).toBeLessThan(41);
+      // Default cap is unbounded: every file surfaces its full diff.
+      // File A: 1 hunk + 30 adds = 31 rows. File B: 1 hunk + 40 dels = 41 rows.
+      expect(out![0]!.preview.rows.length).toBe(31);
+      expect(out![1]!.preview.rows.length).toBe(41);
     });
   });
 

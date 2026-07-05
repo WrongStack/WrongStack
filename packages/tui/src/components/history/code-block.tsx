@@ -44,7 +44,23 @@ export interface DiffFilePreview {
 
 /** Max code-block lines rendered before a "+N more" footer. */
 export const MAX_CODE_LINES = 80;
-const DIFF_MAX_LINES = 12;
+/**
+ * Default cap on rows surfaced by {@link parseUnifiedDiff} for the main
+ * Update tool diff view. Previously hardcoded to `12`, which silently
+ * truncated larger diffs and pushed the rest into a `… +N -M hidden`
+ * footer. The Update tool runs in a scrollable history surface, so a
+ * long diff is a legitimate read — let it render in full. Callers that
+ * still need a hard cap (e.g. the approval dialog's tighter box) pass
+ * their own number explicitly to `parseUnifiedDiff`; this default is
+ * for the unbounded read-everything path.
+ *
+ * Set to `Number.POSITIVE_INFINITY` so `parseUnifiedDiff`'s `if (all.length
+ * <= maxLines)` branch always matches and the slice/footer machinery
+ * becomes a no-op. The `DIFF_LINE_SAFETY_CAP` below still bounds
+ * individual row text length, which protects against pathological
+ * one-liners (minified bundles, huge JSON blobs).
+ */
+export const DIFF_MAX_LINES = Number.POSITIVE_INFINITY;
 /**
  * Safety cap on a single diff row's stored text. Diff rows render at full
  * length (wrapped onto continuation rows, never mid-line truncated), so this
