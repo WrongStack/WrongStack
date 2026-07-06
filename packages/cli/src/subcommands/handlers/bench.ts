@@ -5,6 +5,7 @@ import { toErrorMessage } from '@wrongstack/core/utils';
 import {
   type BenchReport,
   collectCellPredictions,
+  computeToolManifestHash,
   createPolyglotSuite,
   createSwebenchSuite,
   type GradeResult,
@@ -157,7 +158,9 @@ async function benchRun(_args: string[], deps: SubcommandDeps): Promise<number> 
     return 1;
   }
 
-  const toolNames = deps.toolRegistry?.list().map((t) => t.name) ?? [];
+  const tools = deps.toolRegistry?.list() ?? [];
+  const toolNames = tools.map((t) => t.name);
+  const toolManifestHash = computeToolManifestHash(tools);
   const wstackEntry = await resolveWstackEntry();
 
   deps.renderer.writeInfo(`Running ${suiteId} across ${config.cells.length} model(s)…`);
@@ -170,6 +173,7 @@ async function benchRun(_args: string[], deps: SubcommandDeps): Promise<number> 
       config,
       cliVersion: CLI_VERSION,
       toolNames,
+      toolManifestHash,
       nodeBin: process.execPath,
       wstackEntry,
       limit,
@@ -246,12 +250,14 @@ async function benchList(_args: string[], deps: SubcommandDeps): Promise<number>
           `  ${cell.label.padEnd(16)} ${color.dim(`${cell.provider}/${cell.model}`)}\n`,
         );
       }
+      const tools = deps.toolRegistry?.list() ?? [];
       const fp = reportHeaderLine({
         cliVersion: CLI_VERSION,
-        toolNames: deps.toolRegistry?.list().map((t) => t.name) ?? [],
+        toolNames: tools.map((t) => t.name),
         maxIterations: config.maxIterations,
         yolo: true,
         subsetId: '(computed at run time)',
+        toolManifestHash: computeToolManifestHash(tools),
         hash: '(computed at run time)',
       });
       deps.renderer.write('\n' + color.dim(`Harness: ${fp}`) + '\n');

@@ -27,8 +27,8 @@ beforeAll(async () => {
     { type: 'tool_call_end', name: 'edit', id: '2', ok: true },
     { type: 'tool_call_end', name: 'edit', id: '3', ok: false },
     { type: 'tool_call_end', name: 'write', id: '4', ok: true },
-    { type: 'provider_retry', attempt: 1 },
-    { type: 'provider_error', code: 429 },
+    { type: 'provider_retry', attempt: 1, status: 429 },
+    { type: 'provider_error', status: 429 },
     'this is not json', // tolerated
   ];
   const jsonl = events.map((e) => (typeof e === 'string' ? e : JSON.stringify(e))).join('\n');

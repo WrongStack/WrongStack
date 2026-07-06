@@ -15,10 +15,10 @@ Two invariants keep the report objective:
 
 1. **Deterministic grading.** Polyglot runs the exercise's hidden tests;
    SWE-bench runs `FAIL_TO_PASS` / `PASS_TO_PASS`. Exit code decides pass/fail.
-2. **Harness fingerprint.** Every report is stamped with
-   `sha256(cliVersion, toolNames, maxIterations, yolo, subsetId)`. Rows compare
-   only when the fingerprint matches; change the prompt/tools/version and old
-   numbers are marked stale.
+2. **Harness fingerprint.** Every report is stamped with a hash of the CLI
+   version, tool roster + tool manifest, iteration cap, yolo flag, task subset,
+   and any supplied prompt/config hashes. Rows compare only when the fingerprint
+   matches; change the prompt/tools/version and old numbers are marked stale.
 
 ## Suites
 

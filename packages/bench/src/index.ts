@@ -10,9 +10,17 @@
 export { aggregateAll, aggregateCell, median } from './aggregate.js';
 export { loadBenchConfig, parseBenchConfig } from './config.js';
 export { type ExecResult, execCommand } from './exec-command.js';
-export { computeHarnessFingerprint, fingerprintLabel } from './fingerprint.js';
+export {
+  computeHarnessFingerprint,
+  computeStableJsonHash,
+  computeTextHash,
+  computeToolManifestHash,
+  fingerprintLabel,
+  type ToolManifestFingerprintInput,
+} from './fingerprint.js';
 // Graders
 export { gradePolyglot } from './graders/polyglot-grader.js';
+export { gradeLocalManifest } from './graders/local-manifest-grader.js';
 export { gradeSwebench, type SwebenchExternalGrade } from './graders/swebench-grader.js';
 export {
   cleanupSandbox,
@@ -33,6 +41,14 @@ export {
 export { mapWithConcurrency, type RunWstackOptions, runWstack } from './runner.js';
 export { readToolMetrics } from './session-metrics.js';
 // Suites
+export {
+  createLocalManifestSuite,
+  DEFAULT_LOCAL_MANIFEST,
+  type LocalAssertion,
+  type LocalCommandGrader,
+  type LocalSuiteOptions,
+  type LocalTaskMeta,
+} from './suites/local-manifest.js';
 export { createPolyglotSuite, LANGUAGE_RUNNERS, type PolyglotMeta } from './suites/polyglot.js';
 export {
   createSwebenchSuite,

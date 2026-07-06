@@ -1,3 +1,4 @@
+import type { Dirent } from 'node:fs';
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 import { resolveWstackPaths } from '@wrongstack/core';
@@ -77,7 +78,10 @@ export async function readToolMetrics(opts: {
         metrics.editCalls++;
         if (event['ok'] === false) metrics.editErrors++;
       }
-    } else if (type === 'provider_retry' || type === 'provider_error') {
+    } else if (
+      (type === 'provider_retry' || type === 'provider_error') &&
+      event['status'] === 429
+    ) {
       metrics.rateLimitRetries++;
     }
   }
@@ -96,7 +100,7 @@ export async function readToolMetrics(opts: {
  * stays dependency-light and tolerant of incomplete/crashed runs.
  */
 async function newestJsonl(dir: string): Promise<string | undefined> {
-  let entries: import('node:fs').Dirent[];
+  let entries: Dirent[];
   try {
     entries = await fs.readdir(dir, { withFileTypes: true });
   } catch {
@@ -124,7 +128,7 @@ async function newestJsonl(dir: string): Promise<string | undefined> {
     }
     if (!entry.isDirectory()) continue;
 
-    let nested: import('node:fs').Dirent[];
+    let nested: Dirent[];
     try {
       nested = await fs.readdir(full, { withFileTypes: true });
     } catch {

@@ -53,7 +53,7 @@ export interface BenchTask {
   meta: Record<string, unknown>;
 }
 
-export type SuiteId = 'polyglot' | 'swebench';
+export type SuiteId = 'polyglot' | 'swebench' | 'local';
 
 /** A suite knows how to enumerate its tasks and grade a finished workdir. */
 export interface BenchSuite {
@@ -149,7 +149,13 @@ export interface HarnessFingerprint {
   yolo: boolean;
   /** Suite subset id (the exact task set). */
   subsetId: string;
-  /** sha256 hex (first 12 chars) of the above. */
+  /** Hash of tool names, descriptions, usage hints, schemas, and safety metadata. */
+  toolManifestHash?: string | undefined;
+  /** Hash of the built system prompt, when the caller can provide it. */
+  systemPromptHash?: string | undefined;
+  /** Hash of behavior-affecting harness config beyond maxIterations/yolo. */
+  configHash?: string | undefined;
+  /** sha256 hex (first 12 chars) of the comparable harness fields above. */
   hash: string;
 }
 

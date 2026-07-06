@@ -21,10 +21,11 @@ free-form answers with an LLM (model-*dependent*). Implemented in
 1. **Deterministic grading.** Pass/fail comes from the suite's own test suite, not
    a model. Polyglot runs the hidden tests; SWE-bench runs `FAIL_TO_PASS` /
    `PASS_TO_PASS` via the official harness.
-2. **Harness fingerprint.** Every report is stamped with
-   `sha256(cliVersion, toolNames, maxIterations, yolo, subsetId)`. Rows are only
-   comparable across reports that share a fingerprint; changing the prompt, the
-   tool roster, the iteration cap, or the task subset flips the hash and marks
+2. **Harness fingerprint.** Every report is stamped with a hash of the CLI
+   version, tool roster + tool manifest, iteration cap, yolo flag, task subset,
+   and any supplied prompt/config hashes. Rows are only comparable across
+   reports that share a fingerprint; changing the prompt, tool descriptions or
+   schemas, the iteration cap, or the task subset flips the hash and marks
    older numbers stale.
 
 ## How model-independence works

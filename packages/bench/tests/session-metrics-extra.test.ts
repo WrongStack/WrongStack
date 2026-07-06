@@ -54,8 +54,8 @@ describe('readToolMetrics edge cases', () => {
       JSON.stringify({ type: 'tool_call_end', name: 'edit', ok: true }),
       JSON.stringify({ type: 'tool_call_end', name: 'write', ok: false }),
       JSON.stringify({ type: 'tool_call_end' }), // no name
-      JSON.stringify({ type: 'provider_retry' }),
-      JSON.stringify({ type: 'provider_error' }),
+      JSON.stringify({ type: 'provider_retry', status: 429 }),
+      JSON.stringify({ type: 'provider_error', status: 429 }),
       JSON.stringify({ type: 'something_else' }),
       '{ corrupt line',
       '',
@@ -88,7 +88,7 @@ describe('readToolMetrics edge cases', () => {
       [
         JSON.stringify({ type: 'tool_call_end', name: 'read', ok: true }),
         JSON.stringify({ type: 'tool_call_end', name: 'patch', ok: false }),
-        JSON.stringify({ type: 'provider_retry' }),
+        JSON.stringify({ type: 'provider_retry', status: 429 }),
       ].join('\n'),
     );
 
@@ -109,11 +109,28 @@ describe('readToolMetrics edge cases', () => {
       [
         JSON.stringify({ type: 'tool_call_end', name: 'edit', ok: true }),
         JSON.stringify({ type: 'tool_call_end', name: 'edit', ok: true }),
-        JSON.stringify({ type: 'provider_error' }),
+        JSON.stringify({ type: 'provider_error', status: 429 }),
       ].join('\n'),
     );
 
     const m = await readToolMetrics({ homeDir, workdir });
     expect(m).toEqual({ totalCalls: 2, editCalls: 2, editErrors: 0, rateLimitRetries: 1 });
+  });
+
+  it('does not count non-429 provider failures as rate-limit retries', async () => {
+    const d = await sessionsDir();
+    await fs.mkdir(d, { recursive: true });
+    await fs.writeFile(
+      path.join(d, 'provider-errors.jsonl'),
+      [
+        JSON.stringify({ type: 'provider_retry', status: 500 }),
+        JSON.stringify({ type: 'provider_error', status: 503 }),
+        JSON.stringify({ type: 'provider_error' }),
+        JSON.stringify({ type: 'provider_retry', status: 429 }),
+      ].join('\n'),
+    );
+
+    const m = await readToolMetrics({ homeDir, workdir });
+    expect(m.rateLimitRetries).toBe(1);
   });
 });

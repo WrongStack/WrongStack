@@ -26,6 +26,12 @@ export interface RunBenchmarkOptions {
   cliVersion: string;
   /** Tool names available to the agent — folded into the fingerprint. */
   toolNames: string[];
+  /** Tool names + schemas/descriptions/usage hints hash, when available. */
+  toolManifestHash?: string | undefined;
+  /** Built system prompt hash, when available. */
+  systemPromptHash?: string | undefined;
+  /** Additional behavior-affecting config hash, when available. */
+  configHash?: string | undefined;
   /** Node executable. */
   nodeBin: string;
   /** Path to the wstack CLI entry. */
@@ -64,6 +70,9 @@ export async function runBenchmark(opts: RunBenchmarkOptions): Promise<BenchRepo
     maxIterations: opts.config.maxIterations,
     yolo: true,
     subsetId,
+    toolManifestHash: opts.toolManifestHash,
+    systemPromptHash: opts.systemPromptHash,
+    configHash: opts.configHash,
   });
 
   progress(
