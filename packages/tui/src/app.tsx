@@ -90,7 +90,10 @@ import { ModelPicker, type ProviderOption } from './components/model-picker.js';
 import { PhaseMonitor } from './components/phase-monitor.js';
 import { PhasePanel } from './components/phase-panel.js';
 import { PlanPanel } from './components/plan-panel.js';
+import { BrainPanel, type BrainRiskLevel } from './components/brain-panel.js';
+import { McpPicker, type McpPickerItem } from './components/mcp-picker.js';
 import { PluginPicker, type PluginPickerItem } from './components/plugin-picker.js';
+import { ToolsPicker, type ToolPickerItem } from './components/tools-picker.js';
 import { ProcessListMonitor } from './components/process-list.js';
 import { ProjectPicker } from './components/project-picker.js';
 import { filterPromptPicker, PromptPicker } from './components/prompt-picker.js';
@@ -514,6 +517,42 @@ export interface AppProps {
         message?: string | undefined;
         error?: string | undefined;
       }>)
+    | undefined;
+  /** Load MCP server rows for the interactive MCP picker. */
+  getMcpServers?: (() => McpPickerItem[]) | undefined;
+  /** Toggle one MCP server (enable/disable) from the interactive picker. */
+  onMcpToggle?:
+    | ((name: string) => Promise<{
+        items: McpPickerItem[];
+        message?: string | undefined;
+        error?: string | undefined;
+      }>)
+    | undefined;
+  /** Restart one MCP server from the interactive picker. */
+  onMcpRestart?:
+    | ((name: string) => Promise<{
+        items: McpPickerItem[];
+        message?: string | undefined;
+        error?: string | undefined;
+      }>)
+    | undefined;
+  /** Load tool rows for the interactive tool picker. */
+  getToolsItems?: (() => ToolPickerItem[]) | undefined;
+  /** Toggle one tool (enable/disable) from the interactive tool picker. */
+  onToolToggle?:
+    | ((name: string) => Promise<{
+        items: ToolPickerItem[];
+        message?: string | undefined;
+        error?: string | undefined;
+      }>)
+    | undefined;
+  /** Get current brain risk level and decision log. */
+  getBrainData?:
+    | (() => { riskLevel: BrainRiskLevel; log: Array<{ kind: string; question: string; outcome: string; age: string }> })
+    | undefined;
+  /** Set brain risk ceiling. */
+  onBrainRiskLevel?:
+    | ((level: BrainRiskLevel) => string | undefined)
     | undefined;
   /**
    * Host for the interactive `/auth` panel (provider/key management, OAuth
@@ -991,6 +1030,13 @@ export function App({
   saveSettings,
   getPluginItems,
   onPluginToggle,
+  getMcpServers,
+  onMcpToggle,
+  onMcpRestart,
+  getToolsItems,
+  onToolToggle,
+  getBrainData,
+  onBrainRiskLevel,
   authHost,
   predictNext,
   onSuggestionsParsed,
@@ -1231,6 +1277,33 @@ export function App({
 
   const { openModePicker } = useModePicker({ dispatch, getModes });
 
+  // ── Brain panel ────────────────────────────────────────────────
+  const openBrainPanel = React.useCallback(() => {
+    if (!getBrainData) return;
+    const data = getBrainData();
+    dispatch({ type: 'brainOpen', riskLevel: data.riskLevel, log: data.log });
+  }, [getBrainData]);
+
+  const changeBrainRisk = React.useCallback(
+    (delta: number) => {
+      dispatch({ type: 'brainRiskChange', delta });
+    },
+    [],
+  );
+
+  // Sync risk level to host whenever it changes via ←/→ in the panel.
+  const prevRiskRef = React.useRef(state.brainPanel.riskLevel);
+  React.useEffect(() => {
+    if (!state.brainPanel.open) return;
+    const current = state.brainPanel.riskLevel;
+    if (current !== prevRiskRef.current && onBrainRiskLevel) {
+      prevRiskRef.current = current;
+      const err = onBrainRiskLevel(current);
+      if (err) dispatch({ type: 'brainHint', text: err });
+      else dispatch({ type: 'brainHint', text: `Risk ceiling → ${current.toUpperCase()}` });
+    }
+  }, [state.brainPanel.riskLevel, state.brainPanel.open, onBrainRiskLevel]);
+
   useStatuslineHiddenSync({
     pickerOpen: state.statuslinePicker.open,
     pickerHidden: state.statuslinePicker.hiddenItems,
@@ -1415,6 +1488,10 @@ export function App({
     state.projectPicker.open ||
     state.slashPicker.open ||
     state.statuslinePicker.open ||
+    state.pluginPicker.open ||
+    state.mcpPicker.open ||
+    state.toolsPicker.open ||
+    state.brainPanel.open ||
     state.fKeyPicker.open ||
     state.authPanel.open ||
     state.picker.open;
@@ -2633,6 +2710,7 @@ export function App({
       openStatuslinePicker,
       openAuthPanel: authPanelController.openAuthPanel,
       openModePicker,
+      openBrainPanel,
     });
     onPanelOpen.current = dispatcher;
     return () => {
@@ -2645,6 +2723,7 @@ export function App({
     openStatuslinePicker,
     authPanelController.openAuthPanel,
     openModePicker,
+    openBrainPanel,
   ]);
   // Keep the F10 sessions panel live: refresh every 5s while open
   useEffect(() => {
@@ -2736,6 +2815,82 @@ export function App({
       });
     }
   }, [onPluginToggle]);
+
+  // ── MCP picker ─────────────────────────────────────────────────
+  const refreshMcpPicker = React.useCallback(() => {
+    if (!getMcpServers) return;
+    dispatch({ type: 'mcpPickerSetItems', items: getMcpServers() });
+  }, [getMcpServers]);
+
+  useEffect(() => {
+    if (!state.mcpPicker.open) return;
+    refreshMcpPicker();
+  }, [state.mcpPicker.open, refreshMcpPicker]);
+
+  const toggleSelectedMcpServer = React.useCallback(async () => {
+    if (!onMcpToggle) return;
+    const selected = stateRef.current.mcpPicker.items[stateRef.current.mcpPicker.selected];
+    if (!selected) return;
+    dispatch({ type: 'mcpPickerBusy', busy: true });
+    try {
+      const result = await onMcpToggle(selected.name);
+      dispatch({ type: 'mcpPickerSetItems', items: result.items });
+      dispatch({ type: 'mcpPickerHint', text: result.error ?? result.message });
+    } catch (err) {
+      dispatch({ type: 'mcpPickerBusy', busy: false });
+      dispatch({
+        type: 'mcpPickerHint',
+        text: `Failed to toggle ${selected.name}: ${toErrorMessage(err)}`,
+      });
+    }
+  }, [onMcpToggle]);
+
+  const restartSelectedMcpServer = React.useCallback(async () => {
+    if (!onMcpRestart) return;
+    const selected = stateRef.current.mcpPicker.items[stateRef.current.mcpPicker.selected];
+    if (!selected) return;
+    dispatch({ type: 'mcpPickerBusy', busy: true });
+    try {
+      const result = await onMcpRestart(selected.name);
+      dispatch({ type: 'mcpPickerSetItems', items: result.items });
+      dispatch({ type: 'mcpPickerHint', text: result.error ?? result.message });
+    } catch (err) {
+      dispatch({ type: 'mcpPickerBusy', busy: false });
+      dispatch({
+        type: 'mcpPickerHint',
+        text: `Failed to restart ${selected.name}: ${toErrorMessage(err)}`,
+      });
+    }
+  }, [onMcpRestart]);
+
+  // ── Tools picker ───────────────────────────────────────────────
+  const refreshToolsPicker = React.useCallback(() => {
+    if (!getToolsItems) return;
+    dispatch({ type: 'toolsPickerSetItems', items: getToolsItems() });
+  }, [getToolsItems]);
+
+  useEffect(() => {
+    if (!state.toolsPicker.open) return;
+    refreshToolsPicker();
+  }, [state.toolsPicker.open, refreshToolsPicker]);
+
+  const toggleSelectedTool = React.useCallback(async () => {
+    if (!onToolToggle) return;
+    const selected = stateRef.current.toolsPicker.items[stateRef.current.toolsPicker.selected];
+    if (!selected) return;
+    dispatch({ type: 'toolsPickerBusy', busy: true });
+    try {
+      const result = await onToolToggle(selected.name);
+      dispatch({ type: 'toolsPickerSetItems', items: result.items });
+      dispatch({ type: 'toolsPickerHint', text: result.error ?? result.message });
+    } catch (err) {
+      dispatch({ type: 'toolsPickerBusy', busy: false });
+      dispatch({
+        type: 'toolsPickerHint',
+        text: `Failed to toggle ${selected.name}: ${toErrorMessage(err)}`,
+      });
+    }
+  }, [onToolToggle]);
 
   // NOTE: there is deliberately NO local "auto-proceed countdown" timer here.
   // The StatusBar's "⏳ auto in Ns" chip is driven exclusively by real
@@ -4131,6 +4286,10 @@ export function App({
       }
     },
     onPluginPickerToggle: toggleSelectedPlugin,
+    onMcpPickerToggle: toggleSelectedMcpServer,
+    onMcpPickerRestart: restartSelectedMcpServer,
+    onToolsPickerToggle: toggleSelectedTool,
+    onBrainRiskChange: changeBrainRisk,
     onAuthEnter: authPanelController.onAuthEnter,
     onAuthBack: authPanelController.onAuthBack,
     onAuthShortcut: authPanelController.onAuthShortcut,
@@ -6619,6 +6778,31 @@ export function App({
               selected={state.pluginPicker.selected}
               busy={state.pluginPicker.busy}
               hint={state.pluginPicker.hint}
+            />
+          ) : null}
+          {state.mcpPicker.open ? (
+            <McpPicker
+              items={state.mcpPicker.items}
+              selected={state.mcpPicker.selected}
+              busy={state.mcpPicker.busy}
+              hint={state.mcpPicker.hint}
+            />
+          ) : null}
+          {state.toolsPicker.open ? (
+            <ToolsPicker
+              items={state.toolsPicker.items}
+              selected={state.toolsPicker.selected}
+              busy={state.toolsPicker.busy}
+              hint={state.toolsPicker.hint}
+              filter={state.toolsPicker.filter}
+            />
+          ) : null}
+          {state.brainPanel.open ? (
+            <BrainPanel
+              riskLevel={state.brainPanel.riskLevel}
+              log={state.brainPanel.log}
+              selected={state.brainPanel.selected}
+              hint={state.brainPanel.hint}
             />
           ) : null}
           {state.authPanel.open ? <AuthPanel panel={state.authPanel} /> : null}

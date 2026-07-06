@@ -172,6 +172,27 @@ type PluginPickerItem = {
   summary: string;
 };
 
+type McpPickerItem = {
+  name: string;
+  enabled: boolean;
+  status: string;
+  transport: string;
+  description?: string | undefined;
+  toolCount: number;
+  lazy?: boolean | undefined;
+};
+
+type ToolPickerItem = {
+  name: string;
+  owner: string;
+  category: string;
+  enabled: boolean;
+  mutating: boolean;
+  permission: string;
+  descMode: 'extend' | 'simple';
+  description: string;
+};
+
 export interface ExecutionDeps {
   agent: Agent;
   events: EventBus;
@@ -264,6 +285,42 @@ export interface ExecutionDeps {
         message?: string | undefined;
         error?: string | undefined;
       }>)
+    | undefined;
+  /** Load MCP server rows for the interactive TUI MCP picker. */
+  getMcpServers?: (() => McpPickerItem[]) | undefined;
+  /** Toggle one MCP server (enable/disable) from the interactive TUI MCP picker. */
+  onMcpToggle?:
+    | ((name: string) => Promise<{
+        items: McpPickerItem[];
+        message?: string | undefined;
+        error?: string | undefined;
+      }>)
+    | undefined;
+  /** Restart one MCP server from the interactive TUI MCP picker. */
+  onMcpRestart?:
+    | ((name: string) => Promise<{
+        items: McpPickerItem[];
+        message?: string | undefined;
+        error?: string | undefined;
+      }>)
+    | undefined;
+  /** Load tool rows for the interactive TUI tool picker. */
+  getToolsItems?: (() => ToolPickerItem[]) | undefined;
+  /** Toggle one tool (enable/disable) from the interactive TUI tool picker. */
+  onToolToggle?:
+    | ((name: string) => Promise<{
+        items: ToolPickerItem[];
+        message?: string | undefined;
+        error?: string | undefined;
+      }>)
+    | undefined;
+  /** Get current brain risk level and decision log for the Brain panel. */
+  getBrainData?:
+    | (() => { riskLevel: 'off' | 'low' | 'medium' | 'high' | 'all'; log: Array<{ kind: string; question: string; outcome: string; age: string }> })
+    | undefined;
+  /** Set brain risk ceiling from the Brain panel. Returns error string or undefined on success. */
+  onBrainRiskLevel?:
+    | ((level: 'off' | 'low' | 'medium' | 'high' | 'all') => string | undefined)
     | undefined;
   /** Host for the interactive TUI `/auth` panel (keys, OAuth, local adds). */
   authHost?: import('@wrongstack/tui').AuthPanelHost | undefined;
@@ -460,6 +517,13 @@ export async function execute(deps: ExecutionDeps): Promise<number> {
     saveStatuslineHiddenItems,
     getPluginItems,
     onPluginToggle,
+    getMcpServers,
+    onMcpToggle,
+    onMcpRestart,
+    getToolsItems,
+    onToolToggle,
+    getBrainData,
+    onBrainRiskLevel,
     authHost,
     agentsMonitorController,
     onPanelOpen,
@@ -1072,6 +1136,13 @@ export async function execute(deps: ExecutionDeps): Promise<number> {
           saveStatuslineHiddenItems,
           getPluginItems,
           onPluginToggle,
+          getMcpServers,
+          onMcpToggle,
+          onMcpRestart,
+          getToolsItems,
+          onToolToggle,
+          getBrainData,
+          onBrainRiskLevel,
           authHost,
           agentsMonitorController,
           getLiveSessions: () => getLiveSessions({ state }),

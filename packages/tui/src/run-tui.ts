@@ -30,7 +30,9 @@ import { randomUUID } from 'node:crypto';
 import * as path from 'node:path';
 import React from 'react';
 import { App } from './app.js';
+import type { McpPickerItem } from './components/mcp-picker.js';
 import type { PluginPickerItem } from './components/plugin-picker.js';
+import type { ToolPickerItem } from './components/tools-picker.js';
 import type { StatuslineItem } from './components/statusline-picker.js';
 import { MOUSE_OFF } from './mouse.js';
 import { startTerminalTitle } from './terminal-title.js';
@@ -355,6 +357,42 @@ export interface RunTuiOptions {
         message?: string | undefined;
         error?: string | undefined;
       }>)
+    | undefined;
+  /** Load MCP server rows for the interactive MCP picker. */
+  getMcpServers?: (() => McpPickerItem[]) | undefined;
+  /** Toggle one MCP server (enable/disable) from the interactive picker. */
+  onMcpToggle?:
+    | ((name: string) => Promise<{
+        items: McpPickerItem[];
+        message?: string | undefined;
+        error?: string | undefined;
+      }>)
+    | undefined;
+  /** Restart one MCP server from the interactive picker. */
+  onMcpRestart?:
+    | ((name: string) => Promise<{
+        items: McpPickerItem[];
+        message?: string | undefined;
+        error?: string | undefined;
+      }>)
+    | undefined;
+  /** Load tool rows for the interactive tool picker. */
+  getToolsItems?: (() => ToolPickerItem[]) | undefined;
+  /** Toggle one tool (enable/disable) from the interactive tool picker. */
+  onToolToggle?:
+    | ((name: string) => Promise<{
+        items: ToolPickerItem[];
+        message?: string | undefined;
+        error?: string | undefined;
+      }>)
+    | undefined;
+  /** Get current brain risk level and decision log for the Brain panel. */
+  getBrainData?:
+    | (() => { riskLevel: 'off' | 'low' | 'medium' | 'high' | 'all'; log: Array<{ kind: string; question: string; outcome: string; age: string }> })
+    | undefined;
+  /** Set brain risk ceiling from the Brain panel. */
+  onBrainRiskLevel?:
+    | ((level: 'off' | 'low' | 'medium' | 'high' | 'all') => string | undefined)
     | undefined;
   /**
    * Host for the interactive `/auth` panel (provider/key management, OAuth
@@ -1022,6 +1060,13 @@ export async function runTui(opts: RunTuiOptions): Promise<number> {
           saveSettings: opts.saveSettings,
           getPluginItems: opts.getPluginItems,
           onPluginToggle: opts.onPluginToggle,
+          getMcpServers: opts.getMcpServers,
+          onMcpToggle: opts.onMcpToggle,
+          onMcpRestart: opts.onMcpRestart,
+          getToolsItems: opts.getToolsItems,
+          onToolToggle: opts.onToolToggle,
+          getBrainData: opts.getBrainData,
+          onBrainRiskLevel: opts.onBrainRiskLevel,
           authHost: opts.authHost,
           predictNext: opts.predictNext,
           onSuggestionsParsed: opts.onSuggestionsParsed,

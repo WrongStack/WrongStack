@@ -9,8 +9,8 @@ export { parseMcpArgs, runMcpManagementCommand } from './mcp-utils.js';
  * /mcp slash command — manage MCP servers from the REPL.
  *
  * Usage:
- *   /mcp              — list all available and configured servers
- *   /mcp list         — same
+ *   /mcp              — open interactive server picker (TUI) or list servers
+ *   /mcp list         — list all available and configured servers
  *   /mcp add <name>   — add server preset to config (disabled by default)
  *   /mcp add <name> --enable  — add and immediately enable
  *   /mcp remove <name> — remove server from config
@@ -28,7 +28,7 @@ export function buildMcpSlashCommand(opts: SlashCommandContext): SlashCommand {
     argsHint: '[list|add <name>|remove <name>|enable <name>|disable <name>|restart <name>]',
     help: [
       'Usage:',
-      '  /mcp                      List available and configured servers.',
+      '  /mcp                      Open interactive server picker (TUI) or list servers.',
       '  /mcp list                 Same.',
       '  /mcp add <name>           Add server preset to config (disabled).',
       '  /mcp add <name> --enable  Add and immediately enable.',
@@ -44,10 +44,17 @@ export function buildMcpSlashCommand(opts: SlashCommandContext): SlashCommand {
       '  /mcp restart brave-search',
     ].join('\n'),
     async run(args) {
+      // TUI mode: bare /mcp or /mcp list opens the interactive picker.
+      const trimmed = args.trim();
+      if ((trimmed === '' || trimmed === 'list') && opts.onPanelOpen?.current) {
+        const opened = opts.onPanelOpen.current('mcpPickerOpen');
+        if (opened) return { message: '' };
+      }
+
       if (!opts.onMcp) {
         return { message: 'MCP management is not available in this session.' };
       }
-      const result = await opts.onMcp(args.trim());
+      const result = await opts.onMcp(trimmed);
       return { message: result };
     },
   };

@@ -47,6 +47,12 @@ export function buildBrainCommand(opts: SlashCommandContext): SlashCommand {
       const [sub, ...rest] = trimmed.split(/\s+/);
       const subcommand = (sub ?? '').toLowerCase();
 
+      // TUI mode: bare /brain or /brain status opens the interactive panel.
+      if ((subcommand === '' || subcommand === 'status') && opts.onPanelOpen?.current) {
+        const opened = opts.onPanelOpen.current('brainOpen');
+        if (opened) return { message: '' };
+      }
+
       if (subcommand === 'risk') {
         if (!opts.brainSettings) {
           const msg = 'Brain settings are not available in this session.';

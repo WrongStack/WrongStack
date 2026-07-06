@@ -20,6 +20,9 @@ import type { PluginPickerItem } from './components/plugin-picker.js';
  */
 export type PanelAction =
   | 'pluginPickerOpen'
+  | 'mcpPickerOpen'
+  | 'toolsPickerOpen'
+  | 'brainOpen'
   | 'projectPickerOpen'
   | 'statuslineOpen'
   | 'authOpen'
@@ -61,6 +64,11 @@ export interface PanelOpenDeps {
    * mode from the host and dispatches modePickerOpen with the populated list.
    */
   openModePicker?: (() => void | Promise<unknown>) | undefined;
+  /**
+   * Async opener for the Brain panel (`/brain`). Fetches current risk level
+   * and decision log from the host, then dispatches brainOpen.
+   */
+  openBrainPanel?: (() => void | Promise<unknown>) | undefined;
 }
 
 /**
@@ -86,6 +94,13 @@ export function createPanelOpenDispatcher(deps: PanelOpenDeps): (action: string)
         // so we just dispatch the open action.
         dispatch({ type: 'pluginPickerOpen' });
         return true;
+      case 'mcpPickerOpen':
+        // The picker self-loads via getMcpServers in its own refresh effect.
+        dispatch({ type: 'mcpPickerOpen' });
+        return true;
+      case 'toolsPickerOpen':
+        dispatch({ type: 'toolsPickerOpen' });
+        return true;
       case 'projectPickerOpen':
         // Items must be loaded from the host before opening — delegate to the
         // same async opener that F1 uses.
@@ -100,6 +115,12 @@ export function createPanelOpenDispatcher(deps: PanelOpenDeps): (action: string)
         // Async — fetches modes from the host, then dispatches open.
         if (deps.openModePicker) {
           void deps.openModePicker();
+          return true;
+        }
+        return false;
+      case 'brainOpen':
+        if (deps.openBrainPanel) {
+          void deps.openBrainPanel();
           return true;
         }
         return false;

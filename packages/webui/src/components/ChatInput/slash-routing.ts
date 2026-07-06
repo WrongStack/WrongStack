@@ -237,6 +237,10 @@ export function runChatSlashCommand(options: RunChatSlashCommandOptions): boolea
     case '/mcp':
       client?.send?.({ type: 'mcp.list' });
       openMainView('settings');
+      addMessage({
+        role: 'assistant',
+        content: '🖥️ **MCP Servers** — settings opened to the MCP tab.\n\nConfigure, enable/disable, or restart servers from the MCP section.',
+      });
       return true;
     case '/working-dir':
     case '/cwd': {

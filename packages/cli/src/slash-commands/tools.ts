@@ -29,6 +29,15 @@ export function buildToolsCommand(opts: SlashCommandContext): SlashCommand {
           )
         : allTools;
       const disabled = reg.listDisabled();
+
+      // TUI mode: bare /tools or /tools with a filter opens the interactive picker.
+      if (opts.onPanelOpen?.current) {
+        // In TUI mode, always open the picker (with or without a filter).
+        // The picker supports its own inline text filtering.
+        const opened = opts.onPanelOpen.current('toolsPickerOpen');
+        if (opened) return { message: '' };
+      }
+
       if (filter && all.length === 0) {
         const msg = `${color.bold('Tools')} — no tool name or owner matched "${filter}".`;
         opts.renderer.write(msg);

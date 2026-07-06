@@ -54,6 +54,10 @@ export interface PickerKeysHost {
   onSlashPickerEnter: (() => void) | undefined;
   onSettingsPickerEnter: (() => void) | undefined;
   onPluginPickerToggle: (() => Promise<void> | void) | undefined;
+  onMcpPickerToggle: (() => Promise<void> | void) | undefined;
+  onMcpPickerRestart: (() => Promise<void> | void) | undefined;
+  onToolsPickerToggle: (() => Promise<void> | void) | undefined;
+  onBrainRiskChange: ((delta: number) => void) | undefined;
   onFKeyPickerEnter: (() => void) | undefined;
   onPickerEnter: (() => Promise<void>) | undefined;
 
@@ -555,6 +559,105 @@ export function usePickerKeys(
         if (key.leftArrow || key.rightArrow || isEnter) {
           if (debouncedEnter(host)) return true;
           void host.onPluginPickerToggle?.();
+          return true;
+        }
+        return true;
+      }
+
+      // ── MCP server picker ──────────────────────────────────────
+      if (state.mcpPicker.open) {
+        if (key.escape) {
+          dispatch({ type: 'mcpPickerClose' });
+          return true;
+        }
+        if (key.mouse?.kind === 'wheel') {
+          dispatch({ type: 'mcpPickerMove', delta: key.mouse.wheel > 0 ? -1 : 1 });
+          return true;
+        }
+        if (key.upArrow) {
+          dispatch({ type: 'mcpPickerMove', delta: -1 });
+          return true;
+        }
+        if (key.downArrow) {
+          dispatch({ type: 'mcpPickerMove', delta: 1 });
+          return true;
+        }
+        if (input === 'r' || input === 'R') {
+          void host.onMcpPickerRestart?.();
+          return true;
+        }
+        if (key.leftArrow || key.rightArrow || isEnter) {
+          if (debouncedEnter(host)) return true;
+          void host.onMcpPickerToggle?.();
+          return true;
+        }
+        return true;
+      }
+
+      // ── Tools picker (filter, toggle enable/disable) ──────────
+      if (state.toolsPicker.open) {
+        if (key.escape) {
+          if (state.toolsPicker.filter) {
+            dispatch({ type: 'toolsPickerFilter', filter: '' });
+          } else {
+            dispatch({ type: 'toolsPickerClose' });
+          }
+          return true;
+        }
+        if (key.mouse?.kind === 'wheel') {
+          dispatch({ type: 'toolsPickerMove', delta: key.mouse.wheel > 0 ? -1 : 1 });
+          return true;
+        }
+        if (key.upArrow) {
+          dispatch({ type: 'toolsPickerMove', delta: -1 });
+          return true;
+        }
+        if (key.downArrow) {
+          dispatch({ type: 'toolsPickerMove', delta: 1 });
+          return true;
+        }
+        if (key.leftArrow || key.rightArrow || isEnter) {
+          if (debouncedEnter(host)) return true;
+          void host.onToolsPickerToggle?.();
+          return true;
+        }
+        // Printable chars → filter mode (like SettingsPicker slash search)
+        if (input && input.length === 1 && input.charCodeAt(0) >= 0x20 && input.charCodeAt(0) < 0x7f) {
+          dispatch({ type: 'toolsPickerFilter', filter: (state.toolsPicker.filter ?? '') + input });
+          return true;
+        }
+        if (key.backspace) {
+          const cur = state.toolsPicker.filter ?? '';
+          dispatch({ type: 'toolsPickerFilter', filter: cur.length > 0 ? cur.slice(0, -1) : '' });
+          return true;
+        }
+        return true;
+      }
+
+      // ── Brain panel (risk ceiling + decision log) ─────────────
+      if (state.brainPanel.open) {
+        if (key.escape) {
+          dispatch({ type: 'brainClose' });
+          return true;
+        }
+        if (key.mouse?.kind === 'wheel') {
+          dispatch({ type: 'brainMove', delta: key.mouse.wheel > 0 ? -1 : 1 });
+          return true;
+        }
+        if (key.upArrow) {
+          dispatch({ type: 'brainMove', delta: -1 });
+          return true;
+        }
+        if (key.downArrow) {
+          dispatch({ type: 'brainMove', delta: 1 });
+          return true;
+        }
+        if (key.leftArrow) {
+          host.onBrainRiskChange?.(-1);
+          return true;
+        }
+        if (key.rightArrow) {
+          host.onBrainRiskChange?.(1);
           return true;
         }
         return true;

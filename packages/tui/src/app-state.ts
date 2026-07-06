@@ -18,7 +18,10 @@ import type {
 import type { AutonomyOption } from './components/autonomy-picker.js';
 import type { HistoryEntry } from './components/history.js';
 import type { ProviderOption } from './components/model-picker.js';
+import type { BrainLogEntry, BrainRiskLevel } from './components/brain-panel.js';
+import type { McpPickerItem } from './components/mcp-picker.js';
 import type { PluginPickerItem } from './components/plugin-picker.js';
+import type { ToolPickerItem } from './components/tools-picker.js';
 import type { ProjectPickerItem } from './components/project-picker.js';
 import type { PromptPickEntry } from './components/prompt-picker.js';
 import type { SendMode } from './components/send-mode-picker.js';
@@ -420,6 +423,31 @@ export type State = {
     items: PluginPickerItem[];
     selected: number;
     busy: boolean;
+    hint?: string | undefined;
+  };
+  /** MCP server picker — opened by `/mcp`. */
+  mcpPicker: {
+    open: boolean;
+    items: McpPickerItem[];
+    selected: number;
+    busy: boolean;
+    hint?: string | undefined;
+  };
+  /** Tool picker — opened by `/tools`. */
+  toolsPicker: {
+    open: boolean;
+    items: ToolPickerItem[];
+    selected: number;
+    busy: boolean;
+    hint?: string | undefined;
+    filter?: string | undefined;
+  };
+  /** Brain panel — opened by `/brain`. */
+  brainPanel: {
+    open: boolean;
+    riskLevel: BrainRiskLevel;
+    log: BrainLogEntry[];
+    selected: number;
     hint?: string | undefined;
   };
   /** Interactive API-key / OAuth manager — opened by `/auth`. */
@@ -994,6 +1022,26 @@ export type Action =
   | { type: 'pluginPickerSetItems'; items: PluginPickerItem[] }
   | { type: 'pluginPickerBusy'; busy: boolean }
   | { type: 'pluginPickerHint'; text?: string | undefined }
+  | { type: 'mcpPickerOpen'; items?: McpPickerItem[] | undefined }
+  | { type: 'mcpPickerClose' }
+  | { type: 'mcpPickerMove'; delta: number }
+  | { type: 'mcpPickerSetItems'; items: McpPickerItem[] }
+  | { type: 'mcpPickerBusy'; busy: boolean }
+  | { type: 'mcpPickerHint'; text?: string | undefined }
+  | { type: 'toolsPickerOpen'; items?: ToolPickerItem[] | undefined }
+  | { type: 'toolsPickerClose' }
+  | { type: 'toolsPickerMove'; delta: number }
+  | { type: 'toolsPickerSetItems'; items: ToolPickerItem[] }
+  | { type: 'toolsPickerToggle' }
+  | { type: 'toolsPickerBusy'; busy: boolean }
+  | { type: 'toolsPickerHint'; text?: string | undefined }
+  | { type: 'toolsPickerFilter'; filter: string }
+  | { type: 'brainOpen'; riskLevel: BrainRiskLevel; log: BrainLogEntry[] }
+  | { type: 'brainClose' }
+  | { type: 'brainMove'; delta: number }
+  | { type: 'brainRiskChange'; delta: number }
+  | { type: 'brainSetLog'; log: BrainLogEntry[] }
+  | { type: 'brainHint'; text?: string | undefined }
   | {
       type: 'authOpen';
       view?: Extract<AuthPanelView, 'list' | 'oauth'> | undefined;

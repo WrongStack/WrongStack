@@ -19,6 +19,9 @@ type PanelResetState = Pick<
   | 'settingsPicker'
   | 'statuslinePicker'
   | 'pluginPicker'
+  | 'mcpPicker'
+  | 'toolsPicker'
+  | 'brainPanel'
   | 'authPanel'
   | 'projectPicker'
   | 'fKeyPicker'
@@ -44,6 +47,9 @@ export function closePanels(state: State): PanelResetState {
     settingsPicker: { ...state.settingsPicker, open: false },
     statuslinePicker: { ...state.statuslinePicker, open: false },
     pluginPicker: { ...state.pluginPicker, open: false },
+    mcpPicker: { ...state.mcpPicker, open: false },
+    toolsPicker: { ...state.toolsPicker, open: false },
+    brainPanel: { ...state.brainPanel, open: false },
     authPanel: { ...state.authPanel, open: false, busy: false },
     projectPicker: { ...state.projectPicker, open: false },
     fKeyPicker: { ...state.fKeyPicker, open: false },

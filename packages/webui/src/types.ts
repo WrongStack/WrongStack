@@ -403,7 +403,15 @@ export interface WSContextModeChanged {
 export interface WSToolsList {
   type: 'tools.list';
   payload: {
-    tools: Array<{ name: string; description: string; params: string[] }>;
+    tools: Array<{
+      name: string;
+      owner: string;
+      description: string;
+      params: string[];
+      disabled: boolean;
+      mutating: boolean;
+      permission: string;
+    }>;
   };
 }
 
@@ -1421,6 +1429,10 @@ export type WSClientMessage =
   | { type: 'terminal.input'; payload: { id: string; data: string } }
   | { type: 'terminal.resize'; payload: { id: string; cols: number; rows: number } }
   | { type: 'terminal.close'; payload: { id: string } }
+  // ── Tool management client messages ─────────────────────────────────────────
+  | { type: 'tools.list' }
+  | { type: 'tool.enable'; payload: { name: string } }
+  | { type: 'tool.disable'; payload: { name: string } }
   | { type: `kanban.${string}`; payload?: Record<string, unknown> | undefined }
   // ── Misc client messages ─────────────────────────────────────────────────────
   | { type: 'plan.template_use'; payload: { template: string } }
@@ -1770,6 +1782,8 @@ export type WSServerMessage =
       payload: { taskId: string; subagentId: string; status: string; durationMs: number };
     }
   | { type: 'task.failed'; payload: { taskId: string; subagentId: string; error: string } }
+  | { type: 'tool.disabled'; payload: { name: string; ok: boolean } }
+  | { type: 'tool.enabled'; payload: { name: string; ok: boolean } }
   // ── MCP server events ───────────────────────────────────────────────────────
   | {
       type: 'mcp.list';

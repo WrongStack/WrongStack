@@ -319,17 +319,54 @@ export function createMessageDispatcher(
 
       case 'tools.list': {
         // Full tool registry dump for the /tools inspect view.
-        const list = deps.toolRegistry.list().map((t) => {
+        const list = deps.toolRegistry.listWithOwner().map(({ tool, owner }) => {
           const schema =
-            (t as { inputSchema?: { properties?: Record<string, unknown> } }).inputSchema ?? {};
+            (tool as { inputSchema?: { properties?: Record<string, unknown> } }).inputSchema ?? {};
           const params = schema.properties ? Object.keys(schema.properties) : [];
           return {
-            name: t.name,
-            description: (t as { description?: string | undefined }).description ?? '',
+            name: tool.name,
+            owner,
+            description: (tool as { description?: string | undefined }).description ?? '',
             params,
+            disabled: deps.toolRegistry.isDisabled(tool.name),
+            mutating: tool.mutating,
+            permission: tool.permission,
           };
         });
         send(ws, { type: 'tools.list', payload: { tools: list } });
+        break;
+      }
+      case 'tool.disable': {
+        const name = ((msg as { payload?: { name?: string } }).payload ?? {}).name;
+        if (!name) {
+          send(ws, { type: 'error', payload: { message: 'tool.disable requires a name' } });
+          break;
+        }
+        const ok = deps.toolRegistry.disable(name);
+        // Persist the disabled list to config
+        const currentCfg = deps.configStore.get().tools ?? {};
+        const currentDisabled: string[] = (currentCfg as { disabledTools?: string[] }).disabledTools ?? [];
+        if (ok && !currentDisabled.includes(name)) {
+          deps.configStore.update({ tools: { ...currentCfg, disabledTools: [...currentDisabled, name] } });
+        }
+        send(ws, { type: 'tool.disabled', payload: { name, ok } });
+        break;
+      }
+      case 'tool.enable': {
+        const name = ((msg as { payload?: { name?: string } }).payload ?? {}).name;
+        if (!name) {
+          send(ws, { type: 'error', payload: { message: 'tool.enable requires a name' } });
+          break;
+        }
+        const ok = deps.toolRegistry.enable(name);
+        if (ok) {
+          const currentCfg = deps.configStore.get().tools ?? {};
+          const currentDisabled: string[] = (currentCfg as { disabledTools?: string[] }).disabledTools ?? [];
+          deps.configStore.update({
+            tools: { ...currentCfg, disabledTools: currentDisabled.filter((n: string) => n !== name) },
+          });
+        }
+        send(ws, { type: 'tool.enabled', payload: { name, ok } });
         break;
       }
 

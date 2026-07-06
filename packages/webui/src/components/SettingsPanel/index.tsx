@@ -16,6 +16,7 @@ import {
   Sun,
   X,
   Zap,
+  Wrench,
 } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 import { useShallow } from 'zustand/react/shallow';
@@ -40,6 +41,7 @@ import { Input } from '../ui/input';
 import { ScrollArea } from '../ui/scroll-area';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../ui/tabs';
 import { MCPSection } from './MCPSection';
+import { ToolsSection } from './ToolsSection';
 import { ModelSection } from './ModelSection';
 import { PreferenceSelect, PreferenceSlider } from './PreferenceControls';
 import { PreferenceToggle } from './PreferenceToggle';
@@ -524,6 +526,10 @@ export function SettingsPanel() {
               <TabsTrigger value="features" className="gap-1 text-xs">
                 <Puzzle className="h-3.5 w-3.5" />
                 {t('settings:tabs.features')}
+              </TabsTrigger>
+              <TabsTrigger value="tools" className="gap-1 text-xs">
+                <Wrench className="h-3.5 w-3.5" />
+                {t('settings:tabs.tools')}
               </TabsTrigger>
               <TabsTrigger value="mcp" className="gap-1 text-xs">
                 <Server className="h-3.5 w-3.5" />
@@ -1365,6 +1371,11 @@ export function SettingsPanel() {
                   onChange={(v) => syncPref('auditLevel', v)}
                 />
               </div>
+            </TabsContent>
+
+            {/* Tools Tab */}
+            <TabsContent value="tools" className="space-y-4">
+              <ToolsSection />
             </TabsContent>
 
             {/* MCP Servers Tab */}

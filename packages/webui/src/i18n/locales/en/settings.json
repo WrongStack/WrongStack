@@ -6,6 +6,7 @@
     "appearance": "Look",
     "agent": "Agent",
     "features": "Feat.",
+    "tools": "Tools",
     "mcp": "MCP"
   },
   "appearance": {

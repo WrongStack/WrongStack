@@ -1332,6 +1332,147 @@ export function reducer(state: State, action: Action): State {
       return { ...state, pluginPicker: { ...state.pluginPicker, busy: action.busy } };
     case 'pluginPickerHint':
       return { ...state, pluginPicker: { ...state.pluginPicker, hint: action.text } };
+    case 'mcpPickerOpen': {
+      const items = action.items ?? state.mcpPicker.items;
+      return {
+        ...state,
+        ...closePanels(state),
+        mcpPicker: {
+          open: true,
+          items,
+          selected: Math.min(state.mcpPicker.selected, Math.max(0, items.length - 1)),
+          busy: items.length === 0,
+          hint: undefined,
+        },
+      };
+    }
+    case 'mcpPickerClose':
+      return { ...state, mcpPicker: { ...state.mcpPicker, open: false, busy: false } };
+    case 'mcpPickerMove': {
+      const count = state.mcpPicker.items.length;
+      if (count === 0) return state;
+      return {
+        ...state,
+        mcpPicker: {
+          ...state.mcpPicker,
+          selected: (state.mcpPicker.selected + action.delta + count) % count,
+          hint: undefined,
+        },
+      };
+    }
+    case 'mcpPickerSetItems':
+      return {
+        ...state,
+        mcpPicker: {
+          ...state.mcpPicker,
+          items: action.items,
+          selected: Math.min(state.mcpPicker.selected, Math.max(0, action.items.length - 1)),
+          busy: false,
+        },
+      };
+    case 'mcpPickerBusy':
+      return { ...state, mcpPicker: { ...state.mcpPicker, busy: action.busy } };
+    case 'mcpPickerHint':
+      return { ...state, mcpPicker: { ...state.mcpPicker, hint: action.text } };
+    case 'toolsPickerOpen': {
+      const items = action.items ?? state.toolsPicker.items;
+      return {
+        ...state,
+        ...closePanels(state),
+        toolsPicker: {
+          open: true,
+          items,
+          selected: Math.min(state.toolsPicker.selected, Math.max(0, items.length - 1)),
+          busy: items.length === 0,
+          hint: undefined,
+          filter: undefined,
+        },
+      };
+    }
+    case 'toolsPickerClose':
+      return { ...state, toolsPicker: { ...state.toolsPicker, open: false, busy: false, filter: undefined } };
+    case 'toolsPickerMove': {
+      const count = state.toolsPicker.items.length;
+      if (count === 0) return state;
+      return {
+        ...state,
+        toolsPicker: {
+          ...state.toolsPicker,
+          selected: (state.toolsPicker.selected + action.delta + count) % count,
+          hint: undefined,
+        },
+      };
+    }
+    case 'toolsPickerSetItems':
+      return {
+        ...state,
+        toolsPicker: {
+          ...state.toolsPicker,
+          items: action.items,
+          selected: Math.min(state.toolsPicker.selected, Math.max(0, action.items.length - 1)),
+          busy: false,
+        },
+      };
+    case 'toolsPickerToggle':
+      // The toggle is handled by the host callback; this case just
+      // prevents the reducer from crashing on the action type.
+      return state;
+    case 'toolsPickerBusy':
+      return { ...state, toolsPicker: { ...state.toolsPicker, busy: action.busy } };
+    case 'toolsPickerHint':
+      return { ...state, toolsPicker: { ...state.toolsPicker, hint: action.text } };
+    case 'toolsPickerFilter':
+      return { ...state, toolsPicker: { ...state.toolsPicker, filter: action.filter } };
+    case 'brainOpen': {
+      return {
+        ...state,
+        ...closePanels(state),
+        brainPanel: {
+          open: true,
+          riskLevel: action.riskLevel,
+          log: action.log,
+          selected: 0,
+          hint: undefined,
+        },
+      };
+    }
+    case 'brainClose':
+      return { ...state, brainPanel: { ...state.brainPanel, open: false } };
+    case 'brainMove': {
+      const count = state.brainPanel.log.length;
+      if (count === 0) return state;
+      return {
+        ...state,
+        brainPanel: {
+          ...state.brainPanel,
+          selected: (state.brainPanel.selected + action.delta + count) % count,
+          hint: undefined,
+        },
+      };
+    }
+    case 'brainRiskChange': {
+      const levels = ['off', 'low', 'medium', 'high', 'all'] as const;
+      const cur = levels.indexOf(state.brainPanel.riskLevel as typeof levels[number]);
+      const next = (cur + action.delta + levels.length) % levels.length;
+      return {
+        ...state,
+        brainPanel: {
+          ...state.brainPanel,
+          riskLevel: levels[next] as typeof state.brainPanel.riskLevel,
+        },
+      };
+    }
+    case 'brainSetLog':
+      return {
+        ...state,
+        brainPanel: {
+          ...state.brainPanel,
+          log: action.log,
+          selected: Math.min(state.brainPanel.selected, Math.max(0, action.log.length - 1)),
+        },
+      };
+    case 'brainHint':
+      return { ...state, brainPanel: { ...state.brainPanel, hint: action.text } };
     case 'authOpen':
       return {
         ...state,

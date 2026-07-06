@@ -82,6 +82,7 @@ import {
   writeErr,
   writeOut,
   normalizeTokenSavingTier,
+  getToolDescriptionMode,
 } from '@wrongstack/core';
 import { MCPRegistry } from '@wrongstack/mcp';
 import { setOAuthTokenPersister } from '@wrongstack/providers';
@@ -3140,6 +3141,113 @@ export async function main(argv: string[]): Promise<number> {
     saveStatuslineHiddenItems,
     getPluginItems: getPluginPickerItems,
     onPluginToggle: togglePluginFromPicker,
+    getMcpServers: () => {
+      const servers = (config.mcpServers ?? {}) as Record<string, { name: string; transport: string; enabled?: boolean; description?: string; lazy?: boolean }>;
+      const liveStatus = mcpRegistry.list();
+      const liveMap = new Map(liveStatus.map((s) => [s.name, s]));
+      return Object.entries(servers).map(([name, cfg]) => {
+        const live = liveMap.get(name);
+        return {
+          name,
+          enabled: cfg.enabled !== false,
+          status: live ? live.state : 'stopped',
+          transport: cfg.transport ?? 'stdio',
+          description: cfg.description,
+          toolCount: live?.toolCount ?? 0,
+          lazy: cfg.lazy,
+        };
+      });
+    },
+    onMcpToggle: async (name: string) => {
+      const { enableMcp, disableMcp, listMcp } = await import('@wrongstack/mcp');
+      const deps = { configPath: wpaths.globalConfig, registry: mcpRegistry, presets: allServers() };
+      // Read fresh state from the live config file (enableMcp/disableMcp
+      // wrote to it), then determine toggle direction from the registry.
+      const live = mcpRegistry.list().find((s) => s.name === name);
+      const isCurrentlyEnabled = live !== undefined && live.state !== 'idle';
+      const result = isCurrentlyEnabled
+        ? await disableMcp(name, deps)
+        : await enableMcp(name, deps);
+      const items = await listMcp(deps);
+      return {
+        items: items.map((s) => ({ name: s.name, enabled: s.enabled, status: s.status, transport: s.transport, description: s.description, toolCount: s.tools.length, lazy: s.lazy })),
+        message: result.ok ? (result.server ? `${result.server.status === 'connected' ? '●' : '○'} ${name}` : result.message) : undefined,
+        error: result.ok ? undefined : result.message,
+      };
+    },
+    onMcpRestart: async (name: string) => {
+      const { listMcp } = await import('@wrongstack/mcp');
+      const deps = { configPath: wpaths.globalConfig, registry: mcpRegistry, presets: allServers() };
+      try {
+        await mcpRegistry.restart(name);
+      } catch (err) {
+        const message = err instanceof Error ? err.message : String(err);
+        const items = await listMcp(deps);
+        return { items: items.map((s) => ({ name: s.name, enabled: s.enabled, status: s.status, transport: s.transport, description: s.description, toolCount: s.tools.length, lazy: s.lazy })), message: undefined, error: message };
+      }
+      const items = await listMcp(deps);
+      return { items: items.map((s) => ({ name: s.name, enabled: s.enabled, status: s.status, transport: s.transport, description: s.description, toolCount: s.tools.length, lazy: s.lazy })), message: `Restarted "${name}".`, error: undefined };
+    },
+    getToolsItems: () => {
+      const all = toolRegistry.listWithOwner().map(({ tool, owner }) => {
+        const descMode = getToolDescriptionMode(toolRegistry, tool.name);
+        return {
+          name: tool.name,
+          owner,
+          category: tool.category ?? 'Other',
+          enabled: !toolRegistry.isDisabled(tool.name),
+          mutating: tool.mutating,
+          permission: tool.permission,
+          descMode: descMode as 'extend' | 'simple',
+          description: tool.description,
+        };
+      });
+      return all;
+    },
+    onToolToggle: async (name: string) => {
+      const disabled = new Set(config.tools?.disabledTools ?? []);
+      const isCurrentlyDisabled = toolRegistry.isDisabled(name);
+      if (isCurrentlyDisabled) {
+        toolRegistry.enable(name);
+        disabled.delete(name);
+      } else {
+        toolRegistry.disable(name);
+        disabled.add(name);
+      }
+      const nextTools = { ...(config.tools ?? {}), disabledTools: Array.from(disabled) };
+      config = patchConfig(config, { tools: nextTools });
+      configStore.update({ tools: nextTools });
+      const items = toolRegistry.listWithOwner().map(({ tool, owner }) => ({
+        name: tool.name,
+        owner,
+        category: tool.category ?? 'Other',
+        enabled: !toolRegistry.isDisabled(tool.name),
+        mutating: tool.mutating,
+        permission: tool.permission,
+        descMode: getToolDescriptionMode(toolRegistry, tool.name) as 'extend' | 'simple',
+        description: tool.description,
+      }));
+      return {
+        items,
+        message: isCurrentlyDisabled ? `Enabled "${name}".` : `Disabled "${name}".`,
+        error: undefined,
+      };
+    },
+    getBrainData: () => {
+      const ceiling = (brainSettings?.maxAutoRisk ?? 'medium') as 'off' | 'low' | 'medium' | 'high' | 'all';
+      const log = brainLog.slice(-20).map((entry: { kind: string; question: string; outcome: string; at: number }) => ({
+        kind: entry.kind,
+        question: entry.question,
+        outcome: entry.outcome,
+        age: typeof entry.at === 'number' ? (() => { const s = Math.max(0, Math.round((Date.now() - entry.at) / 1000)); if (s < 60) return `${s}s`; if (s < 3600) return `${Math.round(s / 60)}m`; return `${Math.round(s / 3600)}h`; })() : '',
+      }));
+      return { riskLevel: ceiling, log };
+    },
+    onBrainRiskLevel: (level: 'off' | 'low' | 'medium' | 'high' | 'all') => {
+      if (!brainSettings) return 'Brain settings not available.';
+      brainSettings.maxAutoRisk = level as BrainAutoRisk;
+      return undefined;
+    },
     // Interactive /auth panel host — provider/key CRUD, catalog/local adds
     // and OAuth sign-in, all executed CLI-side against the encrypted config
     // (secrets never enter the TUI; key values arrive pre-masked).
