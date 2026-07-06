@@ -5,7 +5,7 @@ describe('parseNextSteps (strict mode — assistant-message path)', () => {
   it('returns no steps when there is no heading and no XML tag', () => {
     // Regression test: the legacy webui parser fell back to treating any
     // "1. foo" line in the message body as a step. The TUI's parser must
-    // not — a canonical <next_steps> tag is required
+    // not — a canonical <nextsteps> tag is required
     // before items are recognised.
     const text = [
       'Here is my plan:',
@@ -26,15 +26,15 @@ describe('parseNextSteps (strict mode — assistant-message path)', () => {
     expect(stripped).toBe('1. foo');
   });
 
-  it('parses the <next_steps> XML tag block with closing tag', () => {
+  it('parses the <nextsteps> XML tag block with closing tag', () => {
     const text = [
       'Some preamble.',
       '',
-      '<next_steps>',
+      '<nextsteps>',
       '1. Run the smoke test',
       '2. Commit the change',
       '3. Push',
-      '</next_steps>',
+      '</nextsteps>',
       '',
       'Some postamble.',
     ].join('\n');
@@ -49,7 +49,7 @@ describe('parseNextSteps (strict mode — assistant-message path)', () => {
       'Commit the change',
       'Push',
     ]);
-    expect(stripped).not.toContain('<next_steps>');
+    expect(stripped).not.toContain('<nextsteps>');
     expect(stripped).not.toContain('1. Run the smoke test');
     expect(stripped).toContain('Some preamble.');
     expect(stripped).toContain('Some postamble.');
@@ -69,13 +69,13 @@ describe('parseNextSteps (strict mode — assistant-message path)', () => {
   });
 
   it('rejects the XML tag block when the closing tag is missing (strict mode)', () => {
-    // The webui subagent's fix also added this: a <next_steps> block
-    // without </next_steps> is malformed and should be rejected in strict
+    // The webui subagent's fix also added this: a <nextsteps> block
+    // without </nextsteps> is malformed and should be rejected in strict
     // mode. The TUI's parseNextSteps already enforces this.
     const text = [
       'Preamble.',
       '',
-      '<next_steps>',
+      '<nextsteps>',
       '1. First',
       '2. Second',
       '',
@@ -88,7 +88,7 @@ describe('parseNextSteps (strict mode — assistant-message path)', () => {
   });
 
   it('does not pick up numbered items from BEFORE the heading', () => {
-    // The bug: legacy parser treated the "1. " list above the <next_steps>
+    // The bug: legacy parser treated the "1. " list above the <nextsteps>
     // tag as the steps, ignoring the actual block. The TUI's parser matches
     // the heading first, then only items after it.
     const text = [
@@ -99,10 +99,10 @@ describe('parseNextSteps (strict mode — assistant-message path)', () => {
       '',
       'Conclusion:',
       '',
-      '<next_steps>',
+      '<nextsteps>',
       '1. Commit the change',
       '2. Push',
-      '</next_steps>',
+      '</nextsteps>',
     ].join('\n');
     const { steps, texts } = parseNextSteps(text, true);
     expect(texts).toEqual(['Commit the change', 'Push']);
@@ -110,22 +110,22 @@ describe('parseNextSteps (strict mode — assistant-message path)', () => {
   });
 
   it('caps at MAX_STEPS (6) items', () => {
-    const lines = ['<next_steps>'];
+    const lines = ['<nextsteps>'];
     for (let i = 1; i <= 10; i++) {
       lines.push(`${i}. Step number ${i}`);
     }
-    lines.push('</next_steps>');
+    lines.push('</nextsteps>');
     const { steps } = parseNextSteps(lines.join('\n'), true);
     expect(steps).toHaveLength(6);
   });
 
   it('honours the auto="true" attribute', () => {
     const text = [
-      '<next_steps>',
+      '<nextsteps>',
       '1. Run tests',
       '2. Commit auto="true"',
       '3. Push',
-      '</next_steps>',
+      '</nextsteps>',
     ].join('\n');
     const { steps, autoTexts } = parseNextSteps(text, true);
     expect(steps.map((s) => ({ text: s.text, auto: !!s.auto }))).toEqual([
@@ -151,7 +151,7 @@ describe('parseNextSteps (REPL store path)', () => {
       expect(stripped).toBe(text);
     }
 
-    const { texts } = parseNextSteps('<next_steps>\n1. First\n2. Second\n</next_steps>', false);
+    const { texts } = parseNextSteps('<nextsteps>\n1. First\n2. Second\n</nextsteps>', false);
     expect(texts).toEqual(['First', 'Second']);
   });
 });
@@ -174,27 +174,27 @@ describe('parseNextSteps (raw mode — /suggest subagent output)', () => {
 });
 
 describe('stripNextStepsBlock', () => {
-  it('removes a complete <next_steps>...</next_steps> block', () => {
+  it('removes a complete <nextsteps>...</nextsteps> block', () => {
     const text = [
       'Preamble.',
       '',
-      '<next_steps>',
+      '<nextsteps>',
       '1. Foo',
       '2. Bar',
-      '</next_steps>',
+      '</nextsteps>',
       '',
       'Postamble.',
     ].join('\n');
     expect(stripNextStepsBlock(text)).toBe('Preamble.\n\nPostamble.');
   });
 
-  it('removes a self-closing <next_steps/> tag', () => {
-    const text = 'Preamble.\n<next_steps/>\nPostamble.';
+  it('removes a self-closing <nextsteps/> tag', () => {
+    const text = 'Preamble.\n<nextsteps/>\nPostamble.';
     expect(stripNextStepsBlock(text)).toBe('Preamble.\n\nPostamble.');
   });
 
   it('removes attributes on the opening tag', () => {
-    const text = 'Pre.\n<next_steps auto="true">1. Foo</next_steps>\nPost.';
+    const text = 'Pre.\n<nextsteps auto="true">1. Foo</nextsteps>\nPost.';
     expect(stripNextStepsBlock(text)).toBe('Pre.\n\nPost.');
   });
 });

@@ -127,6 +127,7 @@ export async function serveMcpStdio(deps: SubcommandDeps): Promise<number> {
   const executor = new ToolExecutor(registry, {
     permissionPolicy,
     secretScrubber: new DefaultSecretScrubber(),
+    maxToolTimeoutMs: deps.config.tools?.maxToolTimeoutMs ?? 300_000,
     perIterationOutputCapBytes: 1_000_000,
   });
 

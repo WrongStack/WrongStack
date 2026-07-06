@@ -228,6 +228,8 @@ export interface ToolsConfig {
   defaultExecutionStrategy: 'parallel' | 'sequential' | 'smart';
   maxIterations: number;
   iterationTimeoutMs: number;
+  /** Hard upper bound for a single tool call timeout. Defaults to 5 minutes. */
+  maxToolTimeoutMs?: number | undefined;
   sessionTimeoutMs: number;
   perIterationOutputCapBytes: number;
   /**

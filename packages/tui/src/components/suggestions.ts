@@ -2,12 +2,12 @@
  * Unified next-steps suggestion parser.
  *
  * Three code paths feed into the suggestion store:
- *   1. TUI rendering  — entry.tsx parses only "<next_steps>" from assistant output
- *   2. REPL store     — repl.ts parses only "<next_steps>" from final agent output
+ *   1. TUI rendering  — entry.tsx parses only "<nextsteps>" from assistant output
+ *   2. REPL store     — repl.ts parses only "<nextsteps>" from final agent output
  *   3. /suggest output — suggest.ts parses LLM-generated numbered lists
  *
  * Heading mode (`requireHeading = true`):
- *   Assistant-output paths accept only balanced <next_steps>...</next_steps> blocks.
+ *   Assistant-output paths accept only balanced <nextsteps>...</nextsteps> blocks.
  *   Loose headings like "Next steps:" are intentionally ignored so `/next` only
  *   activates for the canonical machine-readable format.
  *
@@ -15,7 +15,7 @@
  *   Parses numbered/bullet items from anywhere in text (subagent /suggest output).
  *
  * Supported assistant-output format:
- *   <next_steps>      (canonical XML tag format)
+ *   <nextsteps>      (canonical XML tag format)
  */
 
 // ── Types ─────────────────────────────────────────────────────────────────
@@ -33,7 +33,7 @@ export interface ParseNextStepsResult {
   /** Flat string array — what gets stored in the suggestion store. */
   texts: string[];
   /**
-   * Content with the entire canonical "<next_steps>" block removed.
+   * Content with the entire canonical "<nextsteps>" block removed.
    * Used by entry.tsx to strip suggestions from the rendered message body.
    */
   stripped: string;
@@ -43,8 +43,8 @@ export interface ParseNextStepsResult {
 
 // ── Patterns ───────────────────────────────────────────────────────────────
 
-/** Matches the canonical <next_steps> tag before numbered items. */
-const NEXT_STEPS_TAG_RE = /<next_steps>\s*\n+/i;
+/** Matches the canonical <nextsteps> tag before numbered items. */
+const NEXT_STEPS_TAG_RE = /<nextsteps>\s*\n+/i;
 
 /** Matches an item line: "1. text", "1) text", "- text", "* text". */
 /** Also captures optional auto="true" attribute at the end. */
@@ -55,7 +55,7 @@ const MAX_STEPS = 6;
 // ── Core parser ─────────────────────────────────────────────────────────────
 
 /**
- * Parse canonical "<next_steps>" blocks from assistant output (or raw numbered lines).
+ * Parse canonical "<nextsteps>" blocks from assistant output (or raw numbered lines).
  *
  * @param content        — raw assistant message text or subagent output
  * @param strict         — retained for compatibility; assistant-output paths always require the canonical XML tag.
@@ -160,7 +160,7 @@ function parseWithHeading(content: string, _strict: boolean): ParseNextStepsResu
 
   // Require a closing tag. Malformed XML is rejected so raw text remains
   // visible instead of being partially consumed as automation input.
-  if (!afterHeading.includes('</next_steps>')) {
+  if (!afterHeading.includes('</nextsteps>')) {
     return { steps: [], texts: [], stripped: content, autoTexts: [] };
   }
 
@@ -182,7 +182,7 @@ function parseWithHeading(content: string, _strict: boolean): ParseNextStepsResu
 /**
  * Find the byte offset in `afterHeading` where the block ends.
  *
- * The block to strip is the items (one per line) plus the `</next_steps>`
+ * The block to strip is the items (one per line) plus the `</nextsteps>`
  * closing tag (and the trailing newline after it).
  *
  * Returns the byte offset of the first character AFTER the block. The
@@ -193,11 +193,11 @@ function parseWithHeading(content: string, _strict: boolean): ParseNextStepsResu
  * tag, or the end of the input — whichever comes first.
  */
 function findBlockEnd(afterHeading: string, stepCount: number): number {
-  // Fast path: if the block is the <next_steps> XML form, find the closing
+  // Fast path: if the block is the <nextsteps> XML form, find the closing
   // tag and return its end (consuming the tag + trailing newline).
-  const closeIdx = afterHeading.indexOf('</next_steps>');
+  const closeIdx = afterHeading.indexOf('</nextsteps>');
   if (closeIdx !== -1) {
-    let end = closeIdx + '</next_steps>'.length;
+    let end = closeIdx + '</nextsteps>'.length;
     if (afterHeading[end] === '\n') end += 1;
     return end;
   }
@@ -229,17 +229,17 @@ function findBlockEnd(afterHeading: string, stepCount: number): number {
 }
 
 /**
- * Strip <next_steps>...</next_steps> blocks from subagent output text.
+ * Strip <nextsteps>...</nextsteps> blocks from subagent output text.
  * Subagent results should not contain suggestion blocks — those belong to
  * the main assistant's output. This prevents raw XML tags from appearing
  * as literal text in the fleet panel.
  */
 export function stripNextStepsBlock(text: string): string {
-  // Match <next_steps>...</next_steps> or <next_steps/> (self-closing)
+  // Match <nextsteps>...</nextsteps> or <nextsteps/> (self-closing)
   // The block may span multiple lines.
   return text
-    .replace(/<next_steps\b[^>]*>[\s\S]*?<\/next_steps>/gi, '')
-    .replace(/<next_steps\b[^>]*\/?>/gi, '')
+    .replace(/<nextsteps\b[^>]*>[\s\S]*?<\/nextsteps>/gi, '')
+    .replace(/<nextsteps\b[^>]*\/?>/gi, '')
     .replace(/\n{3,}/g, '\n\n')
     .trim();
 }

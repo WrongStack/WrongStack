@@ -220,6 +220,8 @@ export function createAgent(params: {
     tools: {
       maxIterations: number;
       iterationTimeoutMs: number;
+      /** Hard upper bound for a single tool call timeout. Defaults to 5 minutes. */
+      maxToolTimeoutMs?: number | undefined;
       defaultExecutionStrategy: 'parallel' | 'sequential' | 'smart';
       perIterationOutputCapBytes: number;
     };
@@ -252,6 +254,7 @@ export function createAgent(params: {
     events: params.events,
     confirmAwaiter: params.confirmAwaiter,
     iterationTimeoutMs: params.config.tools.iterationTimeoutMs,
+    maxToolTimeoutMs: params.config.tools.maxToolTimeoutMs ?? 300_000,
     perIterationOutputCapBytes: params.config.tools.perIterationOutputCapBytes,
     tracer: params.tracer,
     logger,

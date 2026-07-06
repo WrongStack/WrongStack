@@ -65,6 +65,7 @@ const BEHAVIOR_DEFAULTS: Omit<Config, 'provider' | 'model'> = {
     defaultExecutionStrategy: DEFAULT_TOOLS_CONFIG.defaultExecutionStrategy,
     maxIterations: DEFAULT_TOOLS_CONFIG.maxIterations,
     iterationTimeoutMs: DEFAULT_TOOLS_CONFIG.iterationTimeoutMs,
+    maxToolTimeoutMs: DEFAULT_TOOLS_CONFIG.maxToolTimeoutMs,
     sessionTimeoutMs: DEFAULT_TOOLS_CONFIG.sessionTimeoutMs,
     perIterationOutputCapBytes: DEFAULT_TOOLS_CONFIG.perIterationOutputCapBytes,
     descriptionMode: DEFAULT_TOOLS_CONFIG.descriptionMode,

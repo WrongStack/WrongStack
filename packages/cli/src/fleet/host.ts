@@ -1049,6 +1049,7 @@ export class MultiAgentHost {
         events,
         confirmAwaiter: undefined,
         iterationTimeoutMs: config.tools?.iterationTimeoutMs ?? 120_000,
+        maxToolTimeoutMs: config.tools?.maxToolTimeoutMs ?? 300_000,
         perIterationOutputCapBytes: config.tools?.perIterationOutputCapBytes ?? 100_000,
         tracer: undefined,
       });

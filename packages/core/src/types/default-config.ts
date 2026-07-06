@@ -8,6 +8,7 @@ export const DEFAULT_TOOLS_CONFIG = Object.freeze({
   defaultExecutionStrategy: 'smart',
   maxIterations: 100,
   iterationTimeoutMs: 300_000,
+  maxToolTimeoutMs: 300_000,
   sessionTimeoutMs: 1_800_000,
   perIterationOutputCapBytes: 100_000,
   descriptionMode: Object.freeze({}) as Record<string, 'extend' | 'simple' | undefined>,
