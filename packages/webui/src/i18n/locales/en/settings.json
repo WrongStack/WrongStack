@@ -7,7 +7,9 @@
     "agent": "Agent",
     "features": "Feat.",
     "tools": "Tools",
-    "mcp": "MCP"
+    "mcp": "MCP",
+    "brain": "Brain",
+    "shadow": "Shadow"
   },
   "appearance": {
     "themeHeading": "Theme",

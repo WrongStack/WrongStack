@@ -17,6 +17,8 @@ import {
   X,
   Zap,
   Wrench,
+  Brain,
+  Eye,
 } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 import { useShallow } from 'zustand/react/shallow';
@@ -42,6 +44,8 @@ import { ScrollArea } from '../ui/scroll-area';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../ui/tabs';
 import { MCPSection } from './MCPSection';
 import { ToolsSection } from './ToolsSection';
+import { BrainSection } from './BrainSection';
+import { ShadowSection } from './ShadowSection';
 import { ModelSection } from './ModelSection';
 import { PreferenceSelect, PreferenceSlider } from './PreferenceControls';
 import { PreferenceToggle } from './PreferenceToggle';
@@ -506,7 +510,7 @@ export function SettingsPanel() {
       <ScrollArea className="min-h-0 flex-1">
         <div className="mx-auto max-w-2xl p-6">
           <Tabs defaultValue="provider">
-            <TabsList className="w-full justify-start mb-6 grid grid-cols-6">
+            <TabsList className="w-full justify-start mb-6 flex flex-wrap gap-1">
               <TabsTrigger value="provider" className="gap-1 text-xs">
                 <Network className="h-3.5 w-3.5" />
                 {t('settings:tabs.provider')}
@@ -534,6 +538,14 @@ export function SettingsPanel() {
               <TabsTrigger value="mcp" className="gap-1 text-xs">
                 <Server className="h-3.5 w-3.5" />
                 {t('settings:tabs.mcp')}
+              </TabsTrigger>
+              <TabsTrigger value="brain" className="gap-1 text-xs">
+                <Brain className="h-3.5 w-3.5" />
+                {t('settings:tabs.brain')}
+              </TabsTrigger>
+              <TabsTrigger value="shadow" className="gap-1 text-xs">
+                <Eye className="h-3.5 w-3.5" />
+                {t('settings:tabs.shadow')}
               </TabsTrigger>
             </TabsList>
 
@@ -1391,6 +1403,16 @@ export function SettingsPanel() {
               ) : (
                 <MCPSection />
               )}
+            </TabsContent>
+
+            {/* Brain Tab — risk ceiling + decision log */}
+            <TabsContent value="brain" className="space-y-4">
+              <BrainSection />
+            </TabsContent>
+
+            {/* Shadow Agent Tab — start/stop, status */}
+            <TabsContent value="shadow" className="space-y-4">
+              <ShadowSection />
             </TabsContent>
           </Tabs>
         </div>
