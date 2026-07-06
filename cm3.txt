@@ -1,0 +1,1 @@
+feat(tui): interactive HelpPanel (command palette) for /help

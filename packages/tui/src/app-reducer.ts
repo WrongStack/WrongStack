@@ -1473,6 +1473,30 @@ export function reducer(state: State, action: Action): State {
       };
     case 'brainHint':
       return { ...state, brainPanel: { ...state.brainPanel, hint: action.text } };
+    case 'helpOpen':
+      return {
+        ...state,
+        ...closePanels(state),
+        helpPanel: { open: true, entries: action.entries, selected: 0, filter: '', hint: undefined },
+      };
+    case 'helpClose':
+      return { ...state, helpPanel: { ...state.helpPanel, open: false, filter: '' } };
+    case 'helpMove': {
+      const count = state.helpPanel.entries.length;
+      if (count === 0) return state;
+      return {
+        ...state,
+        helpPanel: {
+          ...state.helpPanel,
+          selected: (state.helpPanel.selected + action.delta + count) % count,
+          hint: undefined,
+        },
+      };
+    }
+    case 'helpFilter':
+      return { ...state, helpPanel: { ...state.helpPanel, filter: action.filter, selected: 0 } };
+    case 'helpHint':
+      return { ...state, helpPanel: { ...state.helpPanel, hint: action.text } };
     case 'shadowOpen':
       return {
         ...state,

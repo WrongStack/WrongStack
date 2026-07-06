@@ -11,6 +11,8 @@ import type { ToolMetrics } from './types.js';
 const EDIT_TOOLS = new Set([
   'edit',
   'write',
+  'replace',
+  'patch',
   'multiedit',
   'multi_edit',
   'str_replace',
@@ -82,27 +84,55 @@ export async function readToolMetrics(opts: {
   return metrics;
 }
 
-/** Newest `*.jsonl` (by mtime) in a directory, or undefined if none. */
+/**
+ * Newest `*.jsonl` in the sessions directory, or undefined if none.
+ *
+ * WrongStack session ids are date-sharded in modern builds:
+ *
+ *   sessions/2026-06-11/sess_<id>.jsonl
+ *
+ * Legacy sessions may still live flat at `sessions/<id>.jsonl`, so scan both
+ * the root and one shard level. Keep this local to bench so the metric reader
+ * stays dependency-light and tolerant of incomplete/crashed runs.
+ */
 async function newestJsonl(dir: string): Promise<string | undefined> {
-  let entries: string[];
+  let entries: import('node:fs').Dirent[];
   try {
-    entries = await fs.readdir(dir);
+    entries = await fs.readdir(dir, { withFileTypes: true });
   } catch {
     return undefined;
   }
-  const jsonls = entries.filter((e) => e.endsWith('.jsonl'));
-  if (jsonls.length === 0) return undefined;
 
   let newest: { path: string; mtime: number } | undefined;
-  for (const name of jsonls) {
-    const full = path.join(dir, name);
+  const consider = async (full: string) => {
     try {
       const stat = await fs.stat(full);
+      if (!stat.isFile()) return;
       if (!newest || stat.mtimeMs > newest.mtime) {
         newest = { path: full, mtime: stat.mtimeMs };
       }
     } catch {
       // skip unreadable entry
+    }
+  };
+
+  for (const entry of entries) {
+    const full = path.join(dir, entry.name);
+    if (entry.name.endsWith('.jsonl')) {
+      await consider(full);
+      continue;
+    }
+    if (!entry.isDirectory()) continue;
+
+    let nested: import('node:fs').Dirent[];
+    try {
+      nested = await fs.readdir(full, { withFileTypes: true });
+    } catch {
+      continue;
+    }
+    for (const child of nested) {
+      if (!child.name.endsWith('.jsonl')) continue;
+      await consider(path.join(full, child.name));
     }
   }
   return newest?.path;

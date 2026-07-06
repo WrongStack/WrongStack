@@ -23,6 +23,7 @@ export type PanelAction =
   | 'mcpPickerOpen'
   | 'toolsPickerOpen'
   | 'brainOpen'
+  | 'helpOpen'
   | 'shadowOpen'
   | 'projectPickerOpen'
   | 'statuslineOpen'
@@ -75,6 +76,11 @@ export interface PanelOpenDeps {
    * from the host, then dispatches shadowOpen.
    */
   openShadowPanel?: (() => void | Promise<unknown>) | undefined;
+  /**
+   * Opener for the Help panel (`/help`). Builds entries from the slash
+   * command registry and dispatches helpOpen with the populated list.
+   */
+  openHelpPanel?: (() => void | Promise<unknown>) | undefined;
 }
 
 /**
@@ -133,6 +139,12 @@ export function createPanelOpenDispatcher(deps: PanelOpenDeps): (action: string)
       case 'shadowOpen':
         if (deps.openShadowPanel) {
           void deps.openShadowPanel();
+          return true;
+        }
+        return false;
+      case 'helpOpen':
+        if (deps.openHelpPanel) {
+          void deps.openHelpPanel();
           return true;
         }
         return false;

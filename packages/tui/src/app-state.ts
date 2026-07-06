@@ -18,6 +18,7 @@ import type {
 import type { AutonomyOption } from './components/autonomy-picker.js';
 import type { HistoryEntry } from './components/history.js';
 import type { ProviderOption } from './components/model-picker.js';
+import type { HelpEntry } from './components/help-panel.js';
 import type { BrainLogEntry, BrainRiskLevel } from './components/brain-panel.js';
 import type { McpPickerItem } from './components/mcp-picker.js';
 import type { PluginPickerItem } from './components/plugin-picker.js';
@@ -449,6 +450,14 @@ export type State = {
     riskLevel: BrainRiskLevel;
     log: BrainLogEntry[];
     selected: number;
+    hint?: string | undefined;
+  };
+  /** Help panel — opened by `/help`. */
+  helpPanel: {
+    open: boolean;
+    entries: HelpEntry[];
+    selected: number;
+    filter: string;
     hint?: string | undefined;
   };
   /** Shadow Agent panel — opened by `/shadow`. */
@@ -1049,6 +1058,11 @@ export type Action =
   | { type: 'brainRiskChange'; delta: number }
   | { type: 'brainSetLog'; log: BrainLogEntry[] }
   | { type: 'brainHint'; text?: string | undefined }
+  | { type: 'helpOpen'; entries: HelpEntry[] }
+  | { type: 'helpClose' }
+  | { type: 'helpMove'; delta: number }
+  | { type: 'helpFilter'; filter: string }
+  | { type: 'helpHint'; text?: string | undefined }
   | { type: 'shadowOpen'; shadow: ShadowState }
   | { type: 'shadowClose' }
   | { type: 'shadowUpdate'; shadow: ShadowState }

@@ -94,6 +94,7 @@ import { BrainPanel, type BrainRiskLevel } from './components/brain-panel.js';
 import { McpPicker, type McpPickerItem } from './components/mcp-picker.js';
 import { PluginPicker, type PluginPickerItem } from './components/plugin-picker.js';
 import { ToolsPicker, type ToolPickerItem } from './components/tools-picker.js';
+import { HelpPanel } from './components/help-panel.js';
 import { ShadowPanel } from './components/shadow-panel.js';
 import { ProcessListMonitor } from './components/process-list.js';
 import { ProjectPicker } from './components/project-picker.js';
@@ -1353,6 +1354,18 @@ export function App({
     }
   }, [onShadowStop, getShadowData]);
 
+  // ── Help panel ──────────────────────────────────────────────────
+  const openHelpPanel = React.useCallback(() => {
+    const entries = Array.from(slashRegistry.listWithOwner()).map(({ cmd, owner }) => ({
+      name: owner === 'core' ? cmd.name : `${owner}:${cmd.name}`,
+      description: cmd.description,
+      category: cmd.category ?? 'App',
+      aliases: cmd.aliases,
+      argsHint: cmd.argsHint,
+    }));
+    dispatch({ type: 'helpOpen', entries });
+  }, []);
+
   useStatuslineHiddenSync({
     pickerOpen: state.statuslinePicker.open,
     pickerHidden: state.statuslinePicker.hiddenItems,
@@ -1541,6 +1554,7 @@ export function App({
     state.mcpPicker.open ||
     state.toolsPicker.open ||
     state.brainPanel.open ||
+    state.helpPanel.open ||
     state.shadowPanel.open ||
     state.fKeyPicker.open ||
     state.authPanel.open ||
@@ -2762,6 +2776,7 @@ export function App({
       openModePicker,
       openBrainPanel,
       openShadowPanel,
+      openHelpPanel,
     });
     onPanelOpen.current = dispatcher;
     return () => {
@@ -2776,6 +2791,7 @@ export function App({
     openModePicker,
     openBrainPanel,
     openShadowPanel,
+    openHelpPanel,
   ]);
   // Keep the F10 sessions panel live: refresh every 5s while open
   useEffect(() => {
@@ -4341,6 +4357,12 @@ export function App({
     onMcpPickerToggle: toggleSelectedMcpServer,
     onMcpPickerRestart: restartSelectedMcpServer,
     onToolsPickerToggle: toggleSelectedTool,
+    onHelpPanelEnter: () => {
+      const entry = state.helpPanel.entries[state.helpPanel.selected];
+      if (!entry) return;
+      dispatch({ type: 'helpClose' });
+      submitRef.current(`/${entry.name}`);
+    },
     onBrainRiskChange: changeBrainRisk,
     onShadowStart: handleShadowStart,
     onShadowStop: handleShadowStop,
@@ -6857,6 +6879,14 @@ export function App({
               log={state.brainPanel.log}
               selected={state.brainPanel.selected}
               hint={state.brainPanel.hint}
+            />
+          ) : null}
+          {state.helpPanel.open ? (
+            <HelpPanel
+              entries={state.helpPanel.entries}
+              filter={state.helpPanel.filter}
+              selected={state.helpPanel.selected}
+              hint={state.helpPanel.hint}
             />
           ) : null}
           {state.shadowPanel.open ? (

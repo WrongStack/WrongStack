@@ -57,6 +57,7 @@ export interface PickerKeysHost {
   onMcpPickerToggle: (() => Promise<void> | void) | undefined;
   onMcpPickerRestart: (() => Promise<void> | void) | undefined;
   onToolsPickerToggle: (() => Promise<void> | void) | undefined;
+  onHelpPanelEnter: (() => void) | undefined;
   onBrainRiskChange: ((delta: number) => void) | undefined;
   onShadowStart: (() => Promise<void> | void) | undefined;
   onShadowStop: (() => Promise<void> | void) | undefined;
@@ -631,6 +632,41 @@ export function usePickerKeys(
         if (key.backspace) {
           const cur = state.toolsPicker.filter ?? '';
           dispatch({ type: 'toolsPickerFilter', filter: cur.length > 0 ? cur.slice(0, -1) : '' });
+          return true;
+        }
+        return true;
+      }
+
+      // ── Help panel (slash command browser) ─────────────────────
+      if (state.helpPanel.open) {
+        if (key.escape) {
+          dispatch({ type: 'helpClose' });
+          return true;
+        }
+        if (key.mouse?.kind === 'wheel') {
+          dispatch({ type: 'helpMove', delta: key.mouse.wheel > 0 ? -1 : 1 });
+          return true;
+        }
+        if (key.upArrow) {
+          dispatch({ type: 'helpMove', delta: -1 });
+          return true;
+        }
+        if (key.downArrow) {
+          dispatch({ type: 'helpMove', delta: 1 });
+          return true;
+        }
+        if (key.backspace && state.helpPanel.filter) {
+          dispatch({ type: 'helpFilter', filter: state.helpPanel.filter.slice(0, -1) });
+          return true;
+        }
+        // Printable chars → filter mode
+        if (input && input.length === 1 && input.charCodeAt(0) >= 0x20 && input.charCodeAt(0) < 0x7f) {
+          dispatch({ type: 'helpFilter', filter: state.helpPanel.filter + input });
+          return true;
+        }
+        if (isEnter) {
+          if (debouncedEnter(host)) return true;
+          host.onHelpPanelEnter?.();
           return true;
         }
         return true;

@@ -78,4 +78,42 @@ describe('readToolMetrics edge cases', () => {
     expect(m.totalCalls).toBe(2); // from new.jsonl
     expect(m.editCalls).toBe(2);
   });
+
+  it('reads modern date-sharded session logs', async () => {
+    const d = await sessionsDir();
+    const shard = path.join(d, '2026-07-06');
+    await fs.mkdir(shard, { recursive: true });
+    await fs.writeFile(
+      path.join(shard, 'sess_01.jsonl'),
+      [
+        JSON.stringify({ type: 'tool_call_end', name: 'read', ok: true }),
+        JSON.stringify({ type: 'tool_call_end', name: 'patch', ok: false }),
+        JSON.stringify({ type: 'provider_retry' }),
+      ].join('\n'),
+    );
+
+    const m = await readToolMetrics({ homeDir, workdir });
+    expect(m).toEqual({ totalCalls: 2, editCalls: 1, editErrors: 1, rateLimitRetries: 1 });
+  });
+
+  it('chooses the newest log across flat and sharded layouts', async () => {
+    const d = await sessionsDir();
+    await fs.mkdir(d, { recursive: true });
+    await fs.writeFile(path.join(d, 'legacy.jsonl'), JSON.stringify({ type: 'tool_call_end', name: 'read', ok: true }));
+
+    await new Promise((r) => setTimeout(r, 20));
+    const shard = path.join(d, '2026-07-06');
+    await fs.mkdir(shard, { recursive: true });
+    await fs.writeFile(
+      path.join(shard, 'sess_02.jsonl'),
+      [
+        JSON.stringify({ type: 'tool_call_end', name: 'edit', ok: true }),
+        JSON.stringify({ type: 'tool_call_end', name: 'edit', ok: true }),
+        JSON.stringify({ type: 'provider_error' }),
+      ].join('\n'),
+    );
+
+    const m = await readToolMetrics({ homeDir, workdir });
+    expect(m).toEqual({ totalCalls: 2, editCalls: 2, editErrors: 0, rateLimitRetries: 1 });
+  });
 });

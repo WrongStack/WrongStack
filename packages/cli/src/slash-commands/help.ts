@@ -18,6 +18,13 @@ export function buildHelpCommand(opts: SlashCommandContext): SlashCommand {
     ].join('\n'),
     async run(args) {
       const query = args.trim();
+
+      // TUI mode: bare /help opens the interactive help panel.
+      if (!query && opts.onPanelOpen?.current) {
+        opts.onPanelOpen.current('helpOpen');
+        return { message: '' };
+      }
+
       if (query) {
         const needle = query.startsWith('/') ? query.slice(1) : query;
         let match: { cmd: SlashCommand; owner: string; fullName: string } | undefined;
