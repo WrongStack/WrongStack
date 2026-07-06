@@ -297,36 +297,46 @@ export function rehydrateHistory(
     outputTokens: tc.outputTokens,
     outputLines: tc.outputLines,
   });
+  const pushAssistantText = (parts: string[]) => {
+    const text = parts.join('').trim();
+    if (text) entries.push({ id: nextId++, kind: 'assistant', text });
+    parts.length = 0;
+  };
 
   for (const msg of messages) {
     if (msg.role === 'system') continue;
-    const text = textOf(msg).trim();
     if (msg.role === 'user') {
+      const text = textOf(msg).trim();
       // Tool-result-only user turns carry no text — skip them (the tool
       // entries were already emitted alongside the assistant that called them).
       if (text) entries.push({ id: nextId++, kind: 'user', text });
       continue;
     }
     if (msg.role === 'assistant') {
-      // Push the prose entry ONLY when there is text — but never skip the
-      // message wholesale on empty text: a tool-calling turn frequently has
-      // no accompanying prose (the model just calls a tool), and its
-      // `tool_use` blocks MUST still be walked below. Skipping the whole
-      // message here is what dumped every text-less tool call into the
-      // end-of-timeline fallback bucket on resume/recovery.
-      if (text) entries.push({ id: nextId++, kind: 'assistant', text });
-      // Walk the assistant content for tool_use blocks and emit a tool entry
-      // for each, in the order the blocks appear. Skips text/thinking blocks
-      // — the body text was already pushed above.
-      if (Array.isArray(msg.content)) {
-        for (const block of msg.content as ContentBlock[]) {
-          if (block.type !== 'tool_use') continue;
-          const tc = toolCallsById.get(block.id);
-          if (!tc) continue;
-          entries.push(toolEntryFor(tc));
-          consumed.add(block.id);
-        }
+      // Replay assistant content block-by-block. Concatenating all text blocks
+      // first would move prose that originally appeared after a tool ahead of
+      // that tool on resume, which is the same class of bug as sorting messages
+      // by role instead of by timeline.
+      if (!Array.isArray(msg.content)) {
+        const text = textOf(msg).trim();
+        if (text) entries.push({ id: nextId++, kind: 'assistant', text });
+        continue;
       }
+
+      const textParts: string[] = [];
+      for (const block of msg.content as ContentBlock[]) {
+        if (block.type === 'text') {
+          textParts.push(block.text);
+          continue;
+        }
+        if (block.type !== 'tool_use') continue;
+        pushAssistantText(textParts);
+        const tc = toolCallsById.get(block.id);
+        if (!tc) continue;
+        entries.push(toolEntryFor(tc));
+        consumed.add(block.id);
+      }
+      pushAssistantText(textParts);
     }
   }
 
@@ -1492,6 +1502,15 @@ export function App({
   const streamSegmentsRef = useRef<Array<{ kind: 'assistant' | 'thinking'; text: string }>>([]);
   const pendingDeltaRef = useRef('');
   const flushTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Set synchronously by the `provider.response` listener whenever it commits
+  // an assistant text entry during the current run. `runBlocks` reads it after
+  // `agent.run()` returns to decide whether the `finalText` recovery path is
+  // still needed. A ref (not `stateRef`) is mandatory here: the per-iteration
+  // `addEntry` dispatch has NOT been flushed into `stateRef` by the time
+  // runBlocks resumes on the awaited continuation, so a state-based check reads
+  // a stale entry count and re-commits the final message (the "final reply
+  // shown twice" bug).
+  const assistantCommittedThisRunRef = useRef(false);
 
   // Latest state snapshot — async callbacks (the queue drainer, slash command
   // closures) read this instead of capturing `state` to avoid stale closures.
@@ -3863,14 +3882,19 @@ export function App({
       for (const seg of segments) {
         if (seg.text.trim()) {
           dispatch({ type: 'addEntry', entry: { kind: seg.kind, text: seg.text } });
+          // Only assistant prose counts as "the reply was shown" — a
+          // thinking-only turn must not suppress the finalText recovery.
+          if (seg.kind === 'assistant') assistantCommittedThisRunRef.current = true;
         }
       }
       // Fallback: if segments were empty but streamingTextRef had content
       // (legacy path / segments not populated), still commit as assistant.
       if (segments.length === 0 && text.trim()) {
         dispatch({ type: 'addEntry', entry: { kind: 'assistant', text } });
+        assistantCommittedThisRunRef.current = true;
       } else if (segments.length === 0 && fallbackText.trim()) {
         dispatch({ type: 'addEntry', entry: { kind: 'assistant', text: fallbackText } });
+        assistantCommittedThisRunRef.current = true;
       }
     });
     const offConfirmNeeded = events.on('tool.confirm_needed', (e) => {
@@ -5783,9 +5807,11 @@ export function App({
           },
         });
       }
-      const assistantEntriesBeforeRun = stateRef.current.entries.filter(
-        (entry) => entry.kind === 'assistant',
-      ).length;
+      // Reset the per-run "reply already committed" flag. The
+      // `provider.response` listener flips it synchronously as it commits each
+      // assistant entry, so we can tell — without racing React's render cycle —
+      // whether the finalText recovery below is still needed.
+      assistantCommittedThisRunRef.current = false;
       const result = await agent.run(routed.blocks, { signal: ctrl.signal });
 
       // Per-iteration assistant text is normally committed by the
@@ -5817,8 +5843,13 @@ export function App({
       } else if (
         result.status === 'done' &&
         result.finalText?.trim() &&
-        stateRef.current.entries.filter((entry) => entry.kind === 'assistant').length ===
-          assistantEntriesBeforeRun
+        // Only recover finalText when no assistant entry was committed by the
+        // per-iteration `provider.response` flush during this run. Checked via
+        // a synchronous ref, NOT `stateRef` — the flush's `addEntry` dispatch
+        // isn't reflected in `stateRef` yet when we resume here, so a
+        // state-based count would read stale and re-commit the final reply,
+        // rendering it twice.
+        !assistantCommittedThisRunRef.current
       ) {
         dispatch({ type: 'addEntry', entry: { kind: 'assistant', text: result.finalText } });
       }
