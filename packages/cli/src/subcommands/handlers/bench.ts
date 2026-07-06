@@ -4,11 +4,16 @@ import * as path from 'node:path';
 import { toErrorMessage } from '@wrongstack/core/utils';
 import {
   type BenchReport,
+  type BenchSuite,
   collectCellPredictions,
   computeToolManifestHash,
+  createLocalManifestSuite,
   createPolyglotSuite,
   createSwebenchSuite,
+  type BenchTask,
   type GradeResult,
+  type ModelCell,
+  gradeLocalManifest,
   gradePolyglot,
   gradeSwebench,
   loadBenchConfig,
@@ -24,8 +29,9 @@ import { CLI_VERSION } from '../../version.js';
 import type { SubcommandDeps, SubcommandHandler } from '../index.js';
 
 /**
- * `wstack bench` — run model-independent agentic benchmarks (Aider polyglot,
- * SWE-bench Verified) with deterministic graders and a harness fingerprint.
+ * `wstack bench` — run model-independent agentic benchmarks (local manifests,
+ * Aider polyglot, SWE-bench Verified) with deterministic graders and a harness
+ * fingerprint.
  *
  *   wstack bench run    --suite <id> --models <config> [...]
  *   wstack bench report <dir>
@@ -59,6 +65,9 @@ function printUsage(deps: SubcommandDeps): void {
       color.dim('Examples:'),
       color.dim(
         '  wstack bench run --suite polyglot --polyglot-dir ./polyglot --models bench.config.json --limit 5',
+      ),
+      color.dim(
+        '  wstack bench run --suite local --suite-dir ./evals --models bench.config.json',
       ),
       color.dim('  wstack bench report ./bench-results/2026-06-14T10-00-00'),
       '',
@@ -119,11 +128,11 @@ async function benchRun(_args: string[], deps: SubcommandDeps): Promise<number> 
   const predictionsDir = path.join(outDir, 'predictions');
 
   // Build suite + grader.
-  let suite: ReturnType<typeof createPolyglotSuite>;
+  let suite: BenchSuite;
   let grade: (a: {
     workdir: string;
-    task: import('@wrongstack/bench').BenchTask;
-    cell: import('@wrongstack/bench').ModelCell;
+    task: BenchTask;
+    cell: ModelCell;
     timeoutMs: number;
   }) => Promise<GradeResult>;
   let isSwebench = false;
@@ -153,8 +162,23 @@ async function benchRun(_args: string[], deps: SubcommandDeps): Promise<number> 
     // Inline Docker grading is not bundled (the official harness owns it); we
     // export conformant predictions. Pass an `externalGrade` here to grade live.
     grade = (a) => gradeSwebench({ ...a, predictionsDir });
+  } else if (suiteId === 'local' || suiteId === 'manifest') {
+    const suiteDirRaw = flagStr(deps, 'suite-dir');
+    const manifestRaw = flagStr(deps, 'manifest');
+    if (!suiteDirRaw && !manifestRaw) {
+      deps.renderer.writeError(
+        '--suite-dir <path> or --manifest <file> is required for the local suite.',
+      );
+      return 1;
+    }
+    const manifestFile = manifestRaw ? path.resolve(deps.cwd, manifestRaw) : undefined;
+    const suiteDir = suiteDirRaw
+      ? path.resolve(deps.cwd, suiteDirRaw)
+      : path.dirname(manifestFile!);
+    suite = createLocalManifestSuite({ suiteDir, manifestFile });
+    grade = (a) => gradeLocalManifest(a);
   } else {
-    deps.renderer.writeError(`unknown suite "${suiteId}" (expected: polyglot | swebench)`);
+    deps.renderer.writeError(`unknown suite "${suiteId}" (expected: polyglot | swebench | local)`);
     return 1;
   }
 
@@ -238,6 +262,9 @@ async function benchList(_args: string[], deps: SubcommandDeps): Promise<number>
   );
   deps.renderer.write(
     '  swebench  ' + color.dim('SWE-bench Verified (end-to-end) — Phase 2, Docker-gated\n'),
+  );
+  deps.renderer.write(
+    '  local     ' + color.dim('Project-defined manifest tasks with command/file graders\n'),
   );
 
   const modelsPath = flagStr(deps, 'models');

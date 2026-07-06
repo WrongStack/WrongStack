@@ -13,6 +13,7 @@ free-form answers with an LLM (model-*dependent*). Implemented in
 
 | Suite | Standard | What it measures | Grading |
 |---|---|---|---|
+| `local` | Project-defined manifest tasks | WrongStack-specific regressions | run manifest command and/or file assertions in the workdir |
 | `polyglot` | [Aider polyglot](https://github.com/Aider-AI/polyglot-benchmark) (225 Exercism exercises, 6 languages) | edit accuracy | run the exercise's hidden tests in the workdir (exit code) |
 | `swebench` | [SWE-bench Verified](https://www.swebench.com/) (fixed subset) | end-to-end issue resolution | export conformant predictions → official harness (or inline Docker hook) |
 
@@ -58,11 +59,13 @@ run robust to a model crashing, hanging (per-task timeout + tree-kill), or OOMin
 
 | Flag | Default | Meaning |
 |---|---|---|
-| `--suite <polyglot\|swebench>` | `polyglot` | Which suite to run |
+| `--suite <local\|polyglot\|swebench>` | `polyglot` | Which suite to run |
 | `--models <path>` | `bench.config.json` | Model matrix config (see below) |
 | `--limit <N>` | all | Cap the number of tasks (cheap smoke runs) |
 | `--concurrency <K>` | from config (4) | Cells run concurrently |
 | `--out <dir>` | `bench-results` | Output base directory (a timestamped subdir is created) |
+| `--suite-dir <path>` | — | **Required for local unless `--manifest` is set** — directory containing `bench.local.json` |
+| `--manifest <path>` | `<suite-dir>/bench.local.json` | Explicit local manifest path |
 | `--polyglot-dir <path>` | — | **Required for polyglot** — local checkout of polyglot-benchmark |
 | `--languages <a,b>` | all | Restrict polyglot languages (python, javascript, go, rust, cpp, java) |
 | `--dataset-dir <path>` | — | **Required for swebench** — materialized instances |
@@ -116,6 +119,42 @@ wstack bench run --suite polyglot --polyglot-dir /path/to/polyglot \
 Requires the language toolchains you want to grade (Python+pytest, Node+npm, Go,
 Rust, …). The `.meta/` reference solution is never copied into the agent's workdir.
 
+## Local
+
+Local evals are project-owned regression tests. A manifest describes the prompt,
+fixture directory, and deterministic grader signals:
+
+```json
+{
+  "tasks": [
+    {
+      "id": "add-banner",
+      "prompt": "Update README.md so it starts with the product banner. Do not modify package.json.",
+      "templateDir": "./fixtures/add-banner",
+      "grader": {
+        "type": "command",
+        "command": "node",
+        "args": ["test.mjs"],
+        "shell": false
+      },
+      "assertions": [
+        { "type": "file_contains", "path": "README.md", "text": "# WrongStack" },
+        { "type": "file_not_contains", "path": "README.md", "text": "TODO" }
+      ]
+    }
+  ]
+}
+```
+
+```bash
+wstack bench run --suite local --suite-dir ./evals --models bench.config.json
+wstack bench run --suite local --manifest ./evals/bench.local.json --models bench.config.json
+```
+
+Supported assertions: `file_exists`, `file_not_exists`, `file_contains`,
+`file_not_contains`. The local subset fingerprint includes task ids, prompts,
+grader/assertion definitions, excludes, and a hash of fixture content.
+
 ## SWE-bench
 
 `--dataset-dir <path>` must contain one directory per pinned instance id:
@@ -155,6 +194,7 @@ change it (changing the subset changes the fingerprint).
 | `isolation.ts` | Sandbox: isolated `WRONGSTACK_HOME` + per-cell workdirs (`.meta` excluded) |
 | `runner.ts` | Spawn the wstack subprocess, parse `--output-json`, tree-kill on timeout, `mapWithConcurrency` |
 | `session-metrics.ts` | Edit-apply % and 429 counts from the session JSONL |
+| `suites/local-manifest.ts`, `graders/local-manifest-grader.ts` | Local manifest loader + deterministic command/file grader |
 | `suites/polyglot.ts`, `graders/polyglot-grader.ts` | Polyglot loader + deterministic grader |
 | `suites/swebench.ts`, `suites/swebench-patch.ts`, `graders/swebench-grader.ts` | SWE-bench loader, patch extraction, grader |
 | `report/predictions.ts` | Official-format predictions export + resolved-id parsing |
