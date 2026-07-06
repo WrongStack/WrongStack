@@ -52,6 +52,42 @@ describe('buildRestoredEntries', () => {
     const entries = buildRestoredEntries(messages, toolCalls);
     expect(entries.map((entry) => entry.kind)).toEqual(['user', 'assistant', 'tool']);
   });
+
+  it('preserves assistant/tool block order within restored assistant messages', () => {
+    const messages: Message[] = [
+      userMsg('inspect and explain'),
+      {
+        role: 'assistant',
+        content: [
+          { type: 'text', text: 'I will inspect first. ' },
+          { type: 'tool_use', id: 'tu-1', name: 'read', input: { path: 'a.ts' } },
+          { type: 'text', text: 'The file shows the issue. ' },
+          { type: 'tool_use', id: 'tu-2', name: 'edit', input: { path: 'a.ts' } },
+          { type: 'text', text: 'Patch applied.' },
+        ],
+        ts: '2026-07-05T10:00:01.000Z',
+      },
+    ];
+    const toolCalls: RestoredToolCall[] = [
+      { id: 'tu-1', name: 'read', durationMs: 12, ok: true, outputBytes: 50, outputLines: 2 },
+      { id: 'tu-2', name: 'edit', durationMs: 20, ok: true, outputBytes: 75, outputLines: 3 },
+    ];
+
+    const entries = buildRestoredEntries(messages, toolCalls);
+    expect(entries.map((entry) => entry.kind)).toEqual([
+      'user',
+      'assistant',
+      'tool',
+      'assistant',
+      'tool',
+      'assistant',
+    ]);
+    expect(entries[1]).toMatchObject({ kind: 'assistant', text: 'I will inspect first.' });
+    expect(entries[2]).toMatchObject({ kind: 'tool', name: 'read' });
+    expect(entries[3]).toMatchObject({ kind: 'assistant', text: 'The file shows the issue.' });
+    expect(entries[4]).toMatchObject({ kind: 'tool', name: 'edit' });
+    expect(entries[5]).toMatchObject({ kind: 'assistant', text: 'Patch applied.' });
+  });
 });
 
 describe('createInitialState', () => {
