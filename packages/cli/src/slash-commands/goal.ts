@@ -55,6 +55,11 @@ export function buildGoalCommand(opts: SlashCommandContext): SlashCommand {
       'every iteration to decide what to do next.',
     ].join('\n'),
     async run(args) {
+      // TUI mode: bare /goal opens the goal panel.
+      if (!args.trim() && opts.onPanelOpen?.current) {
+        const opened = opts.onPanelOpen.current('toggleGoalPanel');
+        if (opened) return { message: '' };
+      }
       const trimmed = args.trim();
       const [verbRaw, ...rest] = trimmed.split(/\s+/);
       const verb = (verbRaw ?? '').toLowerCase();

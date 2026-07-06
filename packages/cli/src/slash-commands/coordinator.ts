@@ -132,6 +132,11 @@ export function buildCoordinatorCommand(opts: SlashCommandContext): SlashCommand
       }
 
       if (verb === 'status') {
+        // TUI mode: open the coordinator monitor panel.
+        if (opts.onPanelOpen?.current) {
+          const opened = opts.onPanelOpen.current('toggleCoordinatorMonitor');
+          if (opened) return { message: '' };
+        }
         const statusFn = getStatus();
         if (statusFn) {
           const stats = await statusFn();

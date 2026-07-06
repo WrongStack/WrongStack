@@ -37,6 +37,11 @@ export function buildAgentsCommand(opts: SlashCommandContext): SlashCommand {
     description:
       'Monitor subagent activity: /agents [stream on|off|status|list|show <id>]',
     async run(args) {
+      // TUI mode: bare /agents or /agents list opens the agents monitor.
+      if ((!args.trim() || args.trim() === 'list') && opts.onPanelOpen?.current) {
+        const opened = opts.onPanelOpen.current('toggleAgentsMonitor');
+        if (opened) return { message: '' };
+      }
       const monitor = (opts as unknown as Record<string, unknown>).agentMonitor as AgentMonitorService | undefined;
       const { cmd, rest } = parseSubcommand(args);
       const restJoined = rest.join(' ').trim();
