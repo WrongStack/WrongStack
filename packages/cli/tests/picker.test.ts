@@ -35,8 +35,8 @@ function mkRig() {
 
 function fakeModel(over: Partial<ModelsDevModel> = {}): ModelsDevModel {
   return {
-    id: 'claude-sonnet-4-20250514',
-    name: 'Claude Sonnet 4',
+    id: 'anthropic-test-model',
+    name: 'Anthropic Test Model',
     release_date: '2025-05-14',
     tool_call: true,
     limit: { context: 200000, output: 8192 },
@@ -103,7 +103,7 @@ describe('runPicker', () => {
 
     expect(result).toBeDefined();
     expect(result!.provider).toBe('anthropic');
-    expect(result!.model).toBe('claude-sonnet-4-20250514');
+    expect(result!.model).toBe('anthropic-test-model');
   });
 
   it('shows an OAuth-family provider that lives only in saved config (not the catalog)', async () => {
@@ -330,11 +330,11 @@ describe('runPicker', () => {
     const { renderer, err } = mkRig();
     const providers = [
       fakeProvider({
-        models: [fakeModel({ id: 'claude-opus-4' }), fakeModel({ id: 'claude-sonnet-4' })],
+        models: [fakeModel({ id: 'shared-model-alpha' }), fakeModel({ id: 'shared-model-beta' })],
       }),
     ];
-    // 'claude' matches both — should print an error and return undefined
-    const reader = fakeReader(['1', 'claude']);
+    // 'shared-model' matches both — should print an error and return undefined
+    const reader = fakeReader(['1', 'shared-model']);
     const registry = fakeRegistry(providers);
     const result = await runPicker({
       modelsRegistry: registry as never,

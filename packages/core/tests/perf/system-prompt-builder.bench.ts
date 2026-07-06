@@ -51,7 +51,7 @@ describe('DefaultSystemPromptBuilder.build', () => {
       projectRoot: '/tmp/project',
       tools,
       provider: 'anthropic',
-      model: 'claude-sonnet-4-6',
+      model: 'anthropic-test-model',
     });
   });
 
@@ -61,7 +61,7 @@ describe('DefaultSystemPromptBuilder.build', () => {
       projectRoot: '/tmp/project',
       tools: [],
       provider: 'anthropic',
-      model: 'claude-sonnet-4-6',
+      model: 'anthropic-test-model',
     });
   });
 });

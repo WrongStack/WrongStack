@@ -94,7 +94,7 @@ User Input
     ▼
 ┌──────────────┐  ┌──────────────┐  ┌──────────────┐
 │ Subagent A   │  │ Subagent B   │  │ Subagent C   │
-│ (Sonnet)     │  │ (Haiku)      │  │ (GPT-5)      │
+│ (Planner)    │  │ (Fast)       │  │ (Verifier)   │
 │ Own context  │  │ Own context  │  │ Own context  │
 │ Own session  │  │ Own session  │  │ Own session  │
 │ Own budget   │  │ Own budget   │  │ Own budget   │
@@ -218,7 +218,7 @@ Fleet artifacts are written. `wstack replay` exists for session-event replay, bu
 
 #### `DEFAULT_DIRECTOR_PREAMBLE` is not model-aware
 
-The preamble uses generic fleet rules. For Sonnet-class models, more explicit "think step by step before spawning" guidance could reduce premature spawning. For Haiku-class models, more directive "always decompose before spawning" rules could improve planning.
+The preamble uses generic fleet rules. For planner-class models, more explicit "think step by step before spawning" guidance could reduce premature spawning. For fast models, more directive "always decompose before spawning" rules could improve planning.
 
 #### Subagent baseline has no "stop early" signal
 

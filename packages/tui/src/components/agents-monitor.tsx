@@ -33,28 +33,20 @@ const STATUS: Record<FleetEntry['status'], { icon: string; color: string }> = {
   stopped: { icon: '⊘', color: 'gray' },
 };
 
-/**
- * An idle agent that hasn't produced any event for this long is considered
- * stale. F3 still shows stale agents, but calls them out in the summary.
- * `lastEventAt` is bumped on every tool / message / stream event.
- */
+/** Retained for callers/tests that tune the empty-state grace window. */
 export const IDLE_HIDE_MS = 60_000;
 export const EMPTY_AGENTS_CLOSE_DELAY_MS = 7_500;
-
-function isTerminalAgentStatus(status: FleetEntry['status']): boolean {
-  return status === 'success' || status === 'failed' || status === 'timeout' || status === 'stopped';
-}
 
 function isLeaderEntry(entry: FleetEntry): boolean {
   return entry.id === 'leader' || entry.name === 'LEADER';
 }
 
 /**
- * Select the agents the live monitor should render. Terminal subagents disappear
- * once their task closes. LEADER stays visible while any subagent is still active
- * (or while LEADER itself is running) so F3 always has a detail card fallback;
- * when everything is complete and LEADER is idle, the list becomes empty so the
- * overlay can close.
+ * Select the agents the live monitor should render. Only actively-running
+ * subagents are detail-worthy; idle workers are retained by the coordinator for
+ * reuse but should not keep the TUI crowded after their task closes. LEADER
+ * stays visible while a subagent is running (or while LEADER itself is running)
+ * so F3 always has a detail card fallback.
  */
 export function selectLiveAgents(
   all: FleetEntry[],
@@ -62,7 +54,7 @@ export function selectLiveAgents(
   _idleHideMs: number = IDLE_HIDE_MS,
 ): FleetEntry[] {
   const leader = all.find(isLeaderEntry);
-  const activeSubagents = all.filter((entry) => !isLeaderEntry(entry) && !isTerminalAgentStatus(entry.status));
+  const activeSubagents = all.filter((entry) => !isLeaderEntry(entry) && entry.status === 'running');
   const showLeader = leader !== undefined && (leader.status !== 'idle' || activeSubagents.length > 0);
   return all.filter((entry) => (isLeaderEntry(entry) ? showLeader : activeSubagents.some((active) => active.id === entry.id)));
 }
@@ -483,9 +475,6 @@ export function AgentsMonitor({
   const running = live.filter((e) => e.status === 'running').length;
   const totalDone = all.filter((e) => e.status === 'success').length;
   const totalFailed = all.filter((e) => e.status === 'failed' || e.status === 'timeout').length;
-  const staleIdle = all.filter(
-    (e) => e.status === 'idle' && nowTick - e.lastEventAt >= IDLE_HIDE_MS,
-  ).length;
   const hotAgent = selectHotAgent(live);
   const pressure = live.length > 0
     ? live.reduce((max, e) => Math.max(max, e.ctxPct ?? 0), 0)
@@ -571,7 +560,6 @@ export function AgentsMonitor({
         <Text dimColor>
           (leader ${leaderCost.toFixed(4)} · fleet ${totalCost.toFixed(4)})
         </Text>
-        {staleIdle > 0 ? <Text dimColor>· {staleIdle} idle stale</Text> : null}
       </Box>
 
       {live.length === 0 ? (

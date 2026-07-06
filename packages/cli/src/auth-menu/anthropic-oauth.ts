@@ -426,10 +426,12 @@ export async function runClaudeOAuthLogin(
     if (!saved) return 1;
 
     deps.renderer.write(color.green('\n  ✓ Signed in with Claude!\n'));
-    const modelHint = models.find((m) => m.includes('sonnet')) ?? models[0] ?? 'claude-sonnet-4-6';
+    const modelHint = models[0];
     deps.renderer.writeInfo(
       `  Saved as provider ${color.bold(providerId)}${models.length ? ` (${models.length} models)` : ''}.\n` +
-        `  Use: ${color.bold(`wstack --provider ${providerId} --model ${modelHint}`)} "<task>"\n` +
+        (modelHint
+          ? `  Use: ${color.bold(`wstack --provider ${providerId} --model ${modelHint}`)} "<task>"\n`
+          : `  No model list was discovered; choose a model before starting a run.\n`) +
         color.dim('  Tokens refresh automatically before they expire.\n'),
     );
     return 0;
@@ -469,8 +471,6 @@ async function saveClaudeTokens(
       p.family = 'anthropic-oauth';
       if (!p.baseUrl) p.baseUrl = CLAUDE_BASE_URL;
       if (models.length > 0) p.models = models;
-      else if (!p.models || p.models.length === 0)
-        p.models = ['claude-sonnet-4-6', 'claude-opus-4-8'];
       const keys = normalizeKeys(p).filter((k) => k.label !== entry.label);
       keys.push(entry);
       writeKeysBack(p, keys);

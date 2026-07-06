@@ -93,11 +93,11 @@ function CodeCopyButton({ text }: { text: string }) {
 
 
 export const markdownComponents = {
-  // NOTE: <next_steps> is parsed and rendered in MessageBubble/index.tsx
+  // NOTE: <nextsteps> is parsed and rendered in MessageBubble/index.tsx
   // (post-render, via parseNextSteps + NextStepsBar). We do NOT register a
   // custom component here for two reasons:
   //   1. react-markdown v10's micromark parser doesn't actually dispatch
-  //      <next_steps> (or any underscored tag) to the components map — they
+  //      <nextsteps> (or any underscored tag) to the components map — they
   //      fall through as raw HTML, which is exactly what the previous code
   //      was trying (and failing) to catch.
   //   2. The MessageBubble path strips the block before passing content to

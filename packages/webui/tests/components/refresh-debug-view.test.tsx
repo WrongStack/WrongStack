@@ -108,7 +108,7 @@ describe('RefreshDebugView — F5 resilience verifier', () => {
       id: 'demo-sess',
       startedAt: 1_700_000_000_000,
       provider: 'anthropic',
-      model: 'claude-sonnet-4-20250514',
+      model: 'anthropic-test-model',
       title: 'Demo run',
     });
     render(<RefreshDebugView />);
@@ -134,7 +134,7 @@ describe('RefreshDebugView — F5 resilience verifier', () => {
       id: 'sess-LIVE',
       startedAt: 1_700_000_000_000,
       provider: 'anthropic',
-      model: 'claude-sonnet-4-20250514',
+      model: 'anthropic-test-model',
     });
     useChatStore.getState().setBoundSessionId('sess-DIFFERENT');
     useChatStore.setState({
@@ -157,7 +157,7 @@ describe('RefreshDebugView — F5 resilience verifier', () => {
       id: 'sess-MATCH',
       startedAt: 1_700_000_000_000,
       provider: 'anthropic',
-      model: 'claude-sonnet-4-20250514',
+      model: 'anthropic-test-model',
     });
     useChatStore.getState().setBoundSessionId('sess-MATCH');
     useChatStore.setState({
@@ -179,7 +179,7 @@ describe('RefreshDebugView — F5 resilience verifier', () => {
       id: 'sess-PREVIEW',
       startedAt: 1_700_000_000_000,
       provider: 'anthropic',
-      model: 'claude-sonnet-4-20250514',
+      model: 'anthropic-test-model',
     });
     useChatStore.getState().setBoundSessionId('sess-PREVIEW');
     useChatStore.setState({

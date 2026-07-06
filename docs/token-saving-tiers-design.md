@@ -25,7 +25,7 @@ type TokenSavingTier =
 
 | Element | off | minimal | light | medium | aggressive |
 |---------|-----|---------|-------|--------|------------|
-| **Tools** | All 37 | TIER1 (10) | TIER1 (10) | TIER1+TIER2 (25) | TIER1+TIER2+TIER3 (35, minus `task`/`setWorkingDir`) |
+| **Tools** | All 38 | TIER1 (10) | TIER1 (10) | TIER1+TIER2 (26) | TIER1+TIER2+TIER3 (36, minus `task`/`setWorkingDir`) |
 | **Tool desc length** | 80 chars | 40 chars | 50 chars | 60 chars | 70 chars |
 | **Common patterns** | ✅ | ❌ | ✅ | ✅ | ❌ |
 | **Delegation guidance** | Full | ❌ | Minimal | Minimal | Minimal |
@@ -288,7 +288,7 @@ this function. They appear at every tier when `features.memory: true`.
 - Detected languages: JavaScript/TypeScript
 - Git status: branch=main, 3 modified, 0 staged
 - Today's date: 2026-06-19
-- Running on: anthropic/claude-sonnet-4-20250514
+- Running on: configured-provider/configured-model
 - Context window: 200,000 tokens max
 - Mode: default
 ```

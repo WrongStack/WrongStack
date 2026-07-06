@@ -90,7 +90,7 @@ describe('DefaultConfigLoader', () => {
       paths.globalConfig,
       JSON.stringify({
         provider: 'anthropic',
-        model: 'claude-sonnet-4-6',
+        model: 'anthropic-test-model',
         maxConcurrent: 12,
         autonomy: { defaultMode: 'auto' },
         modelRuntime: { parameters: { user: 'kept' } },
@@ -99,7 +99,7 @@ describe('DefaultConfigLoader', () => {
 
     const cfg = await l.load();
     expect(cfg.provider).toBe('anthropic');
-    expect(cfg.model).toBe('claude-sonnet-4-6');
+    expect(cfg.model).toBe('anthropic-test-model');
     expect(cfg.maxConcurrent).toBe(12);
     expect(cfg.autonomy?.defaultMode).toBe('auto');
     expect(cfg.autonomy?.autoProceedDelayMs).toBe(45_000);
@@ -108,7 +108,7 @@ describe('DefaultConfigLoader', () => {
 
     const written = JSON.parse(await fs.readFile(paths.globalConfig, 'utf8'));
     expect(written.provider).toBe('anthropic');
-    expect(written.model).toBe('claude-sonnet-4-6');
+    expect(written.model).toBe('anthropic-test-model');
     expect(written.maxConcurrent).toBe(12);
     expect(written.autonomy.defaultMode).toBe('auto');
     expect(written.autonomy.autoProceedDelayMs).toBe(45_000);
@@ -156,11 +156,11 @@ describe('DefaultConfigLoader', () => {
     await fs.mkdir(path.dirname(paths.globalConfig), { recursive: true });
     await fs.writeFile(
       paths.globalConfig,
-      JSON.stringify({ provider: 'anthropic', model: 'claude-sonnet-4-6' }),
+      JSON.stringify({ provider: 'anthropic', model: 'anthropic-test-model' }),
     );
     const cfg = await l.load();
     expect(cfg.provider).toBe('anthropic');
-    expect(cfg.model).toBe('claude-sonnet-4-6');
+    expect(cfg.model).toBe('anthropic-test-model');
   });
 
   it('memoizes file reads across repeated load() calls until mtime changes', async () => {

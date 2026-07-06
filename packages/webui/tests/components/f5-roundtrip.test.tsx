@@ -71,7 +71,7 @@ function stageBeforeF5(): void {
       id: 'sess-F5-PROBE',
       startedAt: 1_700_000_000_000,
       provider: 'anthropic',
-      model: 'claude-sonnet-4-20250514',
+      model: 'anthropic-test-model',
       title: 'Pre-refresh demo run',
     });
     useSessionStore.setState({
@@ -339,7 +339,7 @@ describe('F5 resilience — full round-trip via RefreshDebugView', () => {
         id: 'sess-ACTIVE',
         startedAt: 1_700_000_000_000,
         provider: 'anthropic',
-        model: 'claude-sonnet-4-20250514',
+        model: 'anthropic-test-model',
       });
       useChatStore.getState().setMessages([
         {

@@ -1,6 +1,6 @@
 # WrongStack Architecture
 
-This document is a repository-level architecture map for WrongStack as reviewed on 2026-06-22 (monorepo version 0.270.0). It is written for maintainers, plugin authors, and contributors who need to understand how the monorepo fits together before changing runtime behavior. Counts and package internals can drift; prefer source and tests when a detail disagrees.
+This document is a repository-level architecture map for WrongStack as reviewed on 2026-07-06 (monorepo version 0.282.1). It is written for maintainers, plugin authors, and contributors who need to understand how the monorepo fits together before changing runtime behavior. Counts and package internals can drift; prefer source and tests when a detail disagrees.
 
 WrongStack is a TypeScript/Node.js agent platform. The user-facing product is a terminal AI coding agent, but the implementation is deliberately split into reusable packages: a small core runtime, provider adapters, built-in tools, MCP integration, terminal and browser UIs, and an optional multi-agent director layer.
 
@@ -63,11 +63,11 @@ packages/
   runtime/          Default runtime implementations and host-level composition helpers.
   acp/              ACP (Agent Communication Protocol) integration: server transport,
                     protocol handler, client runner for spawning external ACP agents.
-  plugins/          Bundled plugin library: auto-doc, cost-tracker, cron, file-watcher,
-                    git-autocommit, json-path, semver-bump, shell-check, template-engine,
-                    web-search.
+  plugins/          Bundled plugin library: 63 official plugins including auto-doc,
+                    cost-tracker, cron, secret-scanner, todo-tracker, git-autocommit,
+                    and many more (see README.md for the full table).
   telegram/         Telegram bridge plugin: send messages, receive prompts, get notified.
-  skills/           Skill subpackages published as separate npm packages (git-flow, test-runner, etc.).
+  core/skills/      Skill subpackages published as separate npm packages (git-flow, test-runner, etc.).
 
 docs/
   architecture.md           Lower-level architecture notes.
@@ -78,7 +78,7 @@ docs/
   tool-author-guide.md      Tool authoring guide.
 ```
 
-The workspace is managed by `pnpm`, uses TypeScript 5.9, builds packages with `tsup`, tests with `vitest`, and formats/lints with Biome.
+The workspace is managed by `pnpm`, uses TypeScript 6.0, builds packages with `tsup`, tests with `vitest`, and formats/lints with Biome.
 
 ### Package Inventory
 
@@ -92,14 +92,14 @@ The workspace currently contains these package-level responsibilities. File coun
 | `@wrongstack/webui` | Browser UI and WebSocket backend. |
 | `@wrongstack/plug-lsp` | LSP runtime, tools, slash commands, server lifecycle. |
 | `@wrongstack/providers` | Provider adapters, streaming parsers, tool wire conversions. |
-| `@wrongstack/plugins` | Bundled plugin library: auto-doc, cost-tracker, cron, file-watcher, git-autocommit, json-path, semver-bump, shell-check, template-engine, web-search. |
+| `@wrongstack/plugins` | Bundled plugin library: 63 official plugins covering doc-sync, linting, security, versioning, notifications, and more. |
 | `@wrongstack/tui` | Ink terminal UI components and state rendering. |
 | `@wrongstack/mcp` | MCP client, registry, transports, wrapping. |
 | `@wrongstack/acp` | ACP server transport, protocol handler, ACP subagent runner. |
 | `@wrongstack/runtime` | Default runtime implementations, host composition, vision, clipboard. |
 | `@wrongstack/telegram` | Telegram bridge plugin with bot, tools, and slash commands. |
-| `@wrongstack/skills` | Umbrella for skill subpackages published as separate npm packages. |
 | `@wrongstack/bench` | Model-independent benchmark harness (polyglot + SWE-bench) with graders, reporters, and session metrics. |
+| `@wrongstack/webui-hq` | HQ Command Center dashboard: cross-machine session aggregation, fleet views, cost trends. |
 
 ## Dependency Topology
 

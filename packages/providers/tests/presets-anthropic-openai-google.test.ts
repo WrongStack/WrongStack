@@ -88,7 +88,7 @@ describe('Anthropic preset - buildHeaders', () => {
 describe('Anthropic preset - buildBody variants', () => {
   it('includes system, tools, temperature, topP, stopSequences, tool_choice', () => {
     const body = anthropicWireFormat.buildBody({
-      model: 'claude-3-5-sonnet',
+      model: 'anthropic-preset-test-model',
       maxTokens: 1024,
       messages: [{ role: 'user', content: 'hello' }],
       system: [{ text: 'you are helpful' }],
@@ -99,7 +99,7 @@ describe('Anthropic preset - buildBody variants', () => {
       toolChoice: 'auto',
     } as Parameters<typeof anthropicWireFormat.buildBody>[0]);
     expect(body).toMatchObject({
-      model: 'claude-3-5-sonnet',
+      model: 'anthropic-preset-test-model',
       max_tokens: 1024,
       stream: true,
       system: [{ text: 'you are helpful' }],
@@ -113,7 +113,7 @@ describe('Anthropic preset - buildBody variants', () => {
 
   it('maps system role to user in messages', () => {
     const body = anthropicWireFormat.buildBody({
-      model: 'claude-3-5-sonnet',
+      model: 'anthropic-preset-test-model',
       maxTokens: 100,
       messages: [{ role: 'system', content: 'be brief' }],
     } as Parameters<typeof anthropicWireFormat.buildBody>[0]);
@@ -122,7 +122,7 @@ describe('Anthropic preset - buildBody variants', () => {
 
   it('omits optional fields when not provided', () => {
     const body = anthropicWireFormat.buildBody({
-      model: 'claude-3-5-sonnet',
+      model: 'anthropic-preset-test-model',
       maxTokens: 100,
       messages: [{ role: 'user', content: 'hi' }],
     } as Parameters<typeof anthropicWireFormat.buildBody>[0]);

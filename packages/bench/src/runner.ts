@@ -198,7 +198,7 @@ function crashed(startedAt: number, _reason: string): RawRun {
  * pipes open; taskkill /T tears down the whole tree. POSIX gets SIGTERM then a
  * SIGKILL backstop.
  */
-function treeKill(child: ChildProcess): void {
+export function treeKill(child: ChildProcess): void {
   /* v8 ignore next -- a successfully-spawned child always has a pid; the guard is defensive. */
   if (child.pid === undefined) return;
   if (process.platform === 'win32') {

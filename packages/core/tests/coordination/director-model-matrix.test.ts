@@ -94,7 +94,7 @@ describe('Director model matrix', () => {
   });
 
   it('does not pre-apply the wildcard route to reviewer so the factory can diversify it', async () => {
-    const d = makeDirector({ '*': { provider: 'anthropic', model: 'claude-sonnet-4-6' } });
+    const d = makeDirector({ '*': { provider: 'anthropic', model: 'anthropic-test-model' } });
     director = d;
     const spawned = captureSpawned(d);
     await d.spawn({ name: 'Reviewer', role: 'reviewer' });

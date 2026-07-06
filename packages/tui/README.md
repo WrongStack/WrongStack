@@ -23,7 +23,7 @@ const exitCode = await runTui({
   slashRegistry,                  // SlashCommandRegistry
   attachments: new DefaultAttachmentStore(),
   events: new DefaultEventBus(),
-  model: 'claude-sonnet-4-6',
+  model: 'anthropic-test-model',
   banner: true,
   yolo: false,
   appVersion: '0.1.6',
@@ -40,7 +40,7 @@ process.exit(exitCode);
 
 ```
 ┌─ banner ─────────────────────────────────────────────┐
-│  wrongstack 0.1.6 — anthropic · claude-sonnet-4-6    │
+│  wrongstack 0.1.6 — anthropic · anthropic-test-model    │
 └──────────────────────────────────────────────────────┘
   user> refactor auth.ts to async/await
   ⠋ thinking (3 tools used · 4.2k tokens · 1.3s)

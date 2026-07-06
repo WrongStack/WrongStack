@@ -66,7 +66,7 @@ function fakeConfig(tier: string): Config {
   return {
     version: 1,
     provider: 'anthropic',
-    model: 'claude-sonnet-4-6',
+    model: 'anthropic-test-model',
     features: {
       mcp: true,
       plugins: true,
@@ -113,7 +113,7 @@ async function measureMemoryBlock(tier: string): Promise<{ tier: string; total: 
     toolRegistry,
     modelsRegistry: {
       getModel: async () => ({
-        id: 'claude-sonnet-4-6',
+        id: 'anthropic-test-model',
         capabilities: { maxContext: 200_000, tools: true, vision: false, reasoning: true },
       }),
     } as never,

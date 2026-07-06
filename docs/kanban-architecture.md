@@ -270,7 +270,7 @@ Recommended routing fields:
   "role": "implementer",
   "provider": "openai",
   "model": "gpt-5",
-  "fallbackModels": ["anthropic/claude-sonnet-4"],
+  "fallbackModels": ["anthropic/anthropic-test-model"],
   "tools": ["bash", "kanban"],
   "allowedCapabilities": ["fs.write"]
 }

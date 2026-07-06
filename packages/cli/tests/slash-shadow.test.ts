@@ -6,7 +6,7 @@ function ctx(): Context {
   return {} as never as Context;
 }
 
-function configStore(provider = 'anthropic', model = 'claude-sonnet-4-6') {
+function configStore(provider = 'anthropic', model = 'anthropic-test-model') {
   const live = { provider, model };
   return {
     live,
@@ -148,13 +148,13 @@ describe('buildShadowCommand', () => {
       shadowController: shadowController(),
     } as never);
 
-    await cmd.run('start --model=openrouter/anthropic/claude-sonnet-4', ctx());
+    await cmd.run('start --model=openrouter/anthropic/anthropic-test-model', ctx());
 
     expect(onSpawn).toHaveBeenCalledWith(
       expect.any(String),
       expect.objectContaining({
         provider: 'openrouter',
-        model: 'anthropic/claude-sonnet-4',
+        model: 'anthropic/anthropic-test-model',
       }),
     );
   });

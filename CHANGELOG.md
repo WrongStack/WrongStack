@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+- The configured max tool timeout is now passed to the tool executor in all CLI paths.
+- Tool calls now respect the
+
+
 _No unreleased changes yet._
 
 ## [0.282.0] — 2026-07-06
@@ -130,7 +135,7 @@ _No unreleased changes yet._
   them.
 - **AGENTS.md bundle skill list synced** — now lists all 23 bundled skills
   (was 16); notably `output-standards`, which almost every other skill
-  depends on for `<next_steps>` formatting.
+  depends on for `<nextsteps>` formatting.
 
 ### Added — Desktop Surface
 
@@ -461,7 +466,7 @@ _No notable changes — internal version bump._
   blocks on limited terminals.
 
 - **Autonomy next-step drift while todos are open.** REPL/TUI suggestion parsing
-  suppresses `<next_steps>` while live todos are still pending or in progress,
+  suppresses `<nextsteps>` while live todos are still pending or in progress,
   preventing `/next` and auto-suggest flows from pivoting away mid-task.
 
 - **Shadow-agent and fleet shutdown races.** Shadow passes now bail after
@@ -2137,7 +2142,7 @@ discoverable instead of implicit.
 - **Output-standards conventions enforced fleet-wide.** The `next_steps` system
   prompt conventions were codified and enforced across all skill files and mode
   prompts:
-  - **Leader only** — only the top-level session agent (leader) emits `<next_steps>`.
+  - **Leader only** — only the top-level session agent (leader) emits `<nextsteps>`.
     Subagents report findings only; the leader aggregates.
   - **Concrete actions only** — items must be directly executable commands or
     prompts. No declarations of intent or manual-review suggestions.

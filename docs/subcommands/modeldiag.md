@@ -26,7 +26,7 @@ built-in profile table (family, strengths, cost tier, speed tier).
 wstack modeldiag keys          # do my providers have keys?
 wstack modeldiag suggest       # what should each role use?
 wstack modeldiag bench coding "write a binary search in TS"
-wstack setmodel set coding anthropic/claude-sonnet-5   # pin the winner
+wstack setmodel set coding anthropic/anthropic-test-model   # pin the winner
 ```
 
 ## Notes

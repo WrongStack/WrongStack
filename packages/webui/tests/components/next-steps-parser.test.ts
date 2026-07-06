@@ -5,12 +5,12 @@ import {
 } from '../../src/components/NextStepsBar';
 
 /**
- * Tests for the canonical `<next_steps>` block parser that the
+ * Tests for the canonical `<nextsteps>` block parser that the
  * MessageBubble component uses to (1) extract clickable suggestion buttons
  * and (2) strip the raw block from the content fed to react-markdown.
  *
  * Background: react-markdown v10's micromark parser does not dispatch
- * `<next_steps>` (underscored tag) to the `components` map — it leaks
+ * `<nextsteps>` (underscored tag) to the `components` map — it leaks
  * through as raw HTML. The previous parser only matched the legacy `💡
  * Next steps` heading, so the new XML format was being printed verbatim
  * to the screen instead of being rendered as buttons. These tests pin the
@@ -18,15 +18,15 @@ import {
  */
 
 describe('parseNextSteps', () => {
-  describe('XML <next_steps> format (preferred)', () => {
-    it('extracts steps from a balanced <next_steps> block', () => {
+  describe('XML <nextsteps> format (preferred)', () => {
+    it('extracts steps from a balanced <nextsteps> block', () => {
       const content = `I made the changes you asked for.
 
-<next_steps>
+<nextsteps>
 1. Fix shell injection in tools/shell.ts:42
 2. Replace Math.random() with crypto.randomUUID() in 4 files
 3. Run pnpm typecheck to verify fixes
-</next_steps>`;
+</nextsteps>`;
 
       const { steps, stripped } = parseNextSteps(content);
 
@@ -36,19 +36,19 @@ describe('parseNextSteps', () => {
         { index: 3, text: 'Run pnpm typecheck to verify fixes' },
       ]);
       // The block must be stripped from the rendered content so the raw
-      // <next_steps>1- 2- 3- </next_steps> text never appears on screen.
-      expect(stripped).not.toContain('<next_steps>');
-      expect(stripped).not.toContain('</next_steps>');
+      // <nextsteps>1- 2- 3- </nextsteps> text never appears on screen.
+      expect(stripped).not.toContain('<nextsteps>');
+      expect(stripped).not.toContain('</nextsteps>');
       expect(stripped).not.toContain('1. Fix shell injection');
       // The preceding prose is preserved.
       expect(stripped).toContain('I made the changes you asked for.');
     });
 
     it('parses auto="true" attribute and removes it from the text', () => {
-      const content = `<next_steps>
+      const content = `<nextsteps>
 1. Continue to next phase auto="true"
 2. Review the diff
-</next_steps>`;
+</nextsteps>`;
 
       const { steps } = parseNextSteps(content);
 
@@ -59,7 +59,7 @@ describe('parseNextSteps', () => {
     });
 
     it('caps at 6 items', () => {
-      const content = `<next_steps>
+      const content = `<nextsteps>
 1. A
 2. B
 3. C
@@ -68,7 +68,7 @@ describe('parseNextSteps', () => {
 6. F
 7. G
 8. H
-</next_steps>`;
+</nextsteps>`;
 
       const { steps } = parseNextSteps(content);
       expect(steps).toHaveLength(6);
@@ -78,7 +78,7 @@ describe('parseNextSteps', () => {
     it('rejects an unbalanced block (no closing tag) in strict mode', () => {
       const content = `Some prose.
 
-<next_steps>
+<nextsteps>
 1. Fix the bug
 2. Run tests`;
 
@@ -128,26 +128,26 @@ describe('parseNextSteps', () => {
     it('preserves prose before and after the block', () => {
       const content = `Before prose.
 
-<next_steps>
+<nextsteps>
 1. Do thing
-</next_steps>
+</nextsteps>
 
 After prose.`;
 
       const { stripped } = parseNextSteps(content);
       expect(stripped).toContain('Before prose.');
       expect(stripped).toContain('After prose.');
-      expect(stripped).not.toContain('<next_steps>');
+      expect(stripped).not.toContain('<nextsteps>');
     });
 
     it('handles blank lines inside the block', () => {
-      const content = `<next_steps>
+      const content = `<nextsteps>
 
 1. First
 
 2. Second
 
-</next_steps>`;
+</nextsteps>`;
 
       const { steps } = parseNextSteps(content);
       expect(steps).toEqual([
@@ -157,11 +157,11 @@ After prose.`;
     });
 
     it('skips duplicate indices but keeps short valid text', () => {
-      const content = `<next_steps>
+      const content = `<nextsteps>
 1. First step
 1. Duplicate of first
 2. OK
-</next_steps>`;
+</nextsteps>`;
 
       const { steps } = parseNextSteps(content);
       expect(steps.map((s) => s.index)).toEqual([1, 2]);
@@ -172,9 +172,9 @@ After prose.`;
       const content = `Before.
 
 
-<next_steps>
+<nextsteps>
 1. A
-</next_steps>
+</nextsteps>
 
 
 
@@ -187,11 +187,11 @@ After.`;
 });
 
 describe('stripNextStepsBlock', () => {
-  it('removes a <next_steps>...</next_steps> block entirely', () => {
-    const text = 'Prose.\n<next_steps>\n1. A\n2. B\n</next_steps>\nMore prose.';
+  it('removes a <nextsteps>...</nextsteps> block entirely', () => {
+    const text = 'Prose.\n<nextsteps>\n1. A\n2. B\n</nextsteps>\nMore prose.';
     const out = stripNextStepsBlock(text);
-    expect(out).not.toContain('<next_steps>');
-    expect(out).not.toContain('</next_steps>');
+    expect(out).not.toContain('<nextsteps>');
+    expect(out).not.toContain('</nextsteps>');
     expect(out).toContain('Prose.');
     expect(out).toContain('More prose.');
   });

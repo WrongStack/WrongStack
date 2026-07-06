@@ -3,8 +3,8 @@ import { useConfigStore } from '../../src/stores/config-store';
 
 function resetStore() {
   useConfigStore.setState({
-    provider: 'anthropic',
-    model: 'claude-sonnet-4-20250514',
+    provider: '',
+    model: '',
     wsUrl: 'ws://127.0.0.1:3457',
     wsConnected: false,
     wsStatus: { state: 'connecting' },

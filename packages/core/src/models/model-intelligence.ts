@@ -15,7 +15,7 @@
 export interface ModelProfile {
   /** Provider id (e.g. "anthropic", "openai"). */
   provider: string;
-  /** Model id regex — matches partial ids (e.g. "claude-sonnet" matches "claude-sonnet-4-20250514"). */
+  /** Model id regex — matches partial ids for a model family. */
   pattern: RegExp;
   /** Human-readable model family name. */
   family: string;
@@ -68,15 +68,6 @@ export const MODEL_PROFILES: ModelProfile[] = [
     bestFor: ['planning', 'security', 'debugging', 'review'],
     costTier: 'premium',
     speedTier: 'slow',
-  },
-  {
-    provider: 'anthropic',
-    pattern: /claude-sonnet/i,
-    family: 'Claude Sonnet',
-    strengths: ['coding', 'balanced reasoning', 'tool use', 'fast iteration'],
-    bestFor: ['coding', 'refactoring', 'backend', 'general'],
-    costTier: 'standard',
-    speedTier: 'fast',
   },
   {
     provider: 'anthropic',

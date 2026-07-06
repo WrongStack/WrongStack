@@ -1,7 +1,7 @@
 # @wrongstack/plugins
 
 First-party plugin collection for [WrongStack](https://github.com/WrongStack/WrongStack).
-Sixty-two focused, single-purpose plugins ship in this package. Core safety
+Sixty-three focused, single-purpose plugins ship in this package. Core safety
 plugins load automatically for every `wstack` session; provider-wire plugins
 are opt-in because they can change model-call semantics.
 
@@ -153,7 +153,7 @@ the full lookup chain.
     "cost-tracker": {
       "pricingOverrides": {
         "gpt-4o": { "input": 7, output: 21 },
-        "claude-3-5-sonnet": { "input": 4, output: 20 }
+        "anthropic-test-model": { "input": 4, output: 20 }
       }
     }
   }

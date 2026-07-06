@@ -531,7 +531,7 @@ export interface AppProps {
     | undefined;
   /**
    * Called after each agent turn with the assistant's final output text.
-   * The host parses "<next_steps>" or "💡 Next steps" suggestions from the text and stores
+   * The host parses "<nextsteps>" or "💡 Next steps" suggestions from the text and stores
    * them in the shared suggestion store so `/next 1`, `/next 1 2 3` work.
    */
   onSuggestionsParsed?: ((finalText: string) => void) | undefined;
@@ -551,7 +551,7 @@ export interface AppProps {
   autonomyNextPrompt?: string | undefined;
   /**
    * Store suggestions in the shared suggestion store. Used by the Entry
-   * component after parsing "<next_steps>" or "💡 Next steps" from assistant output so the
+   * component after parsing "<nextsteps>" or "💡 Next steps" from assistant output so the
    * /next command and auto-submit countdown can access them.
    */
   setSuggestions?: ((steps: string[]) => void) | undefined;
@@ -1933,23 +1933,27 @@ export function App({
     // poll for ctx-side state.
   }, [nowTick, agent.ctx.todos]);
 
-  // Fleet breakdown for the status-bar chip. Derived from `state.fleet`,
-  // which the FleetBus event listeners already maintain — re-bucket
-  // into running / idle / pending / completed because that's the slice
-  // the user cares about at a glance. Recomputes on every state.fleet
-  // change (cheap — fleet usually has <10 entries).
+  // Fleet breakdown for the status-bar chip. The coordinator retains idle
+  // workers for reuse after a task closes, but the status bar is an active-work
+  // surface: only running subagents should keep it visible.
   const fleetCounts = useMemo(() => {
     const entries = Object.values(state.fleet);
     if (entries.length === 0) return undefined;
-    let running = 0;
-    let idle = 0;
-    let completed = 0;
-    for (const e of entries) {
-      if (e.status === 'running') running += 1;
-      else if (e.status === 'idle') idle += 1;
-      else completed += 1; // success/failed/timeout/stopped all count as "done"
+    const running = entries.filter((e) => e.status === 'running').length;
+    if (running === 0) return undefined;
+    return { running, idle: 0, pending: 0, completed: 0 };
+  }, [state.fleet]);
+
+  const visibleSubagentCount = fleetCounts?.running ?? 0;
+
+  // Historical fleet status is still held in `state.fleet` for accounting and
+  // explicit monitors, but the always-visible swarm should only appear while
+  // an agent is doing active work.
+  const hasVisibleFleetPanel = useMemo(() => {
+    for (const e of Object.values(state.fleet)) {
+      if (e.status === 'running') return true;
     }
-    return { running, idle, pending: 0, completed };
+    return false;
   }, [state.fleet]);
 
   // Synthesize LEADER as AGENT#0 and prepend to the live fleet so the
@@ -2710,8 +2714,8 @@ export function App({
     if (!onPluginToggle) return;
     const selected = stateRef.current.pluginPicker.items[stateRef.current.pluginPicker.selected];
     if (!selected) return;
-    // Lockable rows (core plugins + critical guards) cannot be toggled from
-    // the menu. Show a hint and bail instead of dispatching the toggle.
+    // Reserved for future rows that explicitly opt out of picker toggling.
+    // Current bundled audit rows are toggleable.
     if (selected.lockable === false) {
       dispatch({
         type: 'pluginPickerHint',
@@ -6845,7 +6849,7 @@ export function App({
               brain={state.brain}
               projectName={projectName}
               workingDir={workingDirChip}
-              subagentCount={Object.keys(state.fleet).length}
+              subagentCount={visibleSubagentCount}
               processCount={getProcessRegistry().activeCount}
               hiddenItems={hiddenItems}
               mode={liveStatuslineMode}
@@ -6947,7 +6951,7 @@ export function App({
                 onCoordinatorStop={onCoordinatorStop ?? undefined}
                 coordinatorRunning={coordinatorRunning}
               />
-            ) : director || Object.keys(state.fleet).length > 0 || state.collabSession ? (
+            ) : director || hasVisibleFleetPanel || state.collabSession ? (
               <FleetPanel
                 entries={entriesWithLeader}
                 totalCost={state.fleetCost}

@@ -6,17 +6,18 @@
  * - branch_guard_status : Show protected branches, mode, and counters.
  *
  * Hooks registered:
- * - PreToolUse with matcher `bash|git_autocommit`. Inspects the tool
- *   input for git commit / push / merge / rebase commands (bash) or
- *   the tool call itself (git_autocommit). If the current branch is
- *   protected, the call is blocked with a clear reason.
+ * - PreToolUse with matcher `bash|git|git_autocommit`. Inspects the tool
+ *   input for git commit / push / merge commands (bash), structured git
+ *   operations (git), or the tool call itself (git_autocommit). If the current
+ *   branch is protected, the call is blocked with a clear reason.
  *
  * Config (`config.extensions['branch-guard']`):
  *
  * ```jsonc
  * {
+ *   "enabled": true,               // set false to make the hook a no-op
  *   "branches": ["main", "master"],  // protected branch names
- *   "mode": "block",                 // "block" | "warn"
+ *   "mode": "block",                 // "block" | "warn" | "off"
  *   "blockMerge": true,              // also block merges into protected
  *   "blockPush": true,               // also block pushes from protected
  *   "blockCommit": true              // also block commits on protected
@@ -39,6 +40,7 @@ const state = {
   blockCount: 0,
   warnCount: 0,
   hookUnregister: null as null | (() => void),
+  configUnregister: null as null | (() => void),
   lastBlock: null as null | {
     tool: string;
     branch: string;
@@ -52,10 +54,12 @@ const state = {
 // ---------------------------------------------------------------------------
 
 interface BranchGuardConfig {
+  /** Set false to keep the plugin loaded but make the hook a no-op. */
+  enabled: boolean;
   /** Branch names that are protected (no commits/pushes/merges). */
   branches: string[];
-  /** Action: "block" refuses, "warn" injects context. */
-  mode: 'block' | 'warn';
+  /** Action: "block" refuses, "warn" injects context, "off" disables the hook. */
+  mode: 'block' | 'warn' | 'off';
   /** Block commits on protected branches. */
   blockCommit: boolean;
   /** Block pushes from protected branches. */
@@ -65,6 +69,7 @@ interface BranchGuardConfig {
 }
 
 const DEFAULTS: BranchGuardConfig = {
+  enabled: true,
   branches: ['main', 'master'],
   mode: 'block',
   blockCommit: true,
@@ -78,13 +83,40 @@ function readConfig(raw: unknown): BranchGuardConfig {
   const branches = Array.isArray(r['branches'])
     ? (r['branches'] as unknown[]).filter((b): b is string => typeof b === 'string')
     : DEFAULTS.branches;
+  const mode = r['mode'] === 'warn' ? 'warn' : r['mode'] === 'off' ? 'off' : 'block';
   return {
+    enabled: r['enabled'] !== false && mode !== 'off',
     branches: branches.length > 0 ? branches : DEFAULTS.branches,
-    mode: r['mode'] === 'warn' ? 'warn' : 'block',
+    mode,
     blockCommit: r['blockCommit'] !== false,
     blockPush: r['blockPush'] !== false,
     blockMerge: r['blockMerge'] !== false,
   };
+}
+
+function readHostConfig(raw: unknown): BranchGuardConfig {
+  const host = raw && typeof raw === 'object' ? (raw as Record<string, unknown>) : {};
+  const extensions = host['extensions'];
+  const branchGuardOptions =
+    extensions && typeof extensions === 'object'
+      ? (extensions as Record<string, unknown>)['branch-guard']
+      : undefined;
+  const cfg = readConfig(branchGuardOptions);
+  if (hasDisabledPluginEntry(host['plugins'])) {
+    return { ...cfg, enabled: false, mode: 'off' };
+  }
+  return cfg;
+}
+
+function hasDisabledPluginEntry(raw: unknown): boolean {
+  if (!Array.isArray(raw)) return false;
+  return raw.some((entry) => {
+    if (!entry || typeof entry !== 'object') return false;
+    const r = entry as Record<string, unknown>;
+    if (r['enabled'] !== false) return false;
+    const name = typeof r['name'] === 'string' ? r['name'] : '';
+    return name === 'branch-guard' || name === '@wrongstack/plugins/branch-guard';
+  });
 }
 
 // ---------------------------------------------------------------------------
@@ -157,6 +189,17 @@ function detectGitCommand(command: string): GitCommandMatch | null {
   return null;
 }
 
+function detectStructuredGitCommand(input: Record<string, unknown>): GitCommandMatch | null {
+  const command = input['command'];
+  if (command === 'commit') {
+    if (input['dry_run'] === true) return null;
+    return { type: 'commit', snippet: 'git commit' };
+  }
+  if (command === 'push') return { type: 'push', snippet: 'git push' };
+  if (command === 'merge') return { type: 'merge', snippet: 'git merge' };
+  return null;
+}
+
 /**
  * Check if a git operation type should be blocked based on config.
  */
@@ -218,11 +261,14 @@ const plugin: Plugin = {
     state.blockCount = 0;
     state.warnCount = 0;
     state.hookUnregister = null;
+    state.configUnregister = null;
     state.lastBlock = null;
 
-    const cfg = readConfig(api.config.extensions?.['branch-guard']);
+    let cfg = readHostConfig(api.config);
+    state.configUnregister = api.onConfigChange((next) => {
+      cfg = readHostConfig(next);
+    });
     const cwd = typeof process.cwd === 'function' ? process.cwd() : undefined;
-    const protectedSet = new Set(cfg.branches);
 
     const hook = (input: {
       toolName?: string | undefined;
@@ -235,6 +281,8 @@ const plugin: Plugin = {
       const toolName = input.toolName ?? '';
       const inp = (input.toolInput ?? {}) as Record<string, unknown>;
       state.invocationCount += 1;
+
+      if (!cfg.enabled || cfg.mode === 'off') return;
 
       // Determine the git operation from the tool call.
       let gitOp: GitCommandMatch | null = null;
@@ -250,6 +298,8 @@ const plugin: Plugin = {
         const command = inp['command'] as string | undefined;
         if (typeof command !== 'string') return;
         gitOp = detectGitCommand(command);
+      } else if (toolName === 'git') {
+        gitOp = detectStructuredGitCommand(inp);
       }
 
       if (!gitOp) return; // not a git commit/push/merge — let it through
@@ -258,6 +308,7 @@ const plugin: Plugin = {
       // Check current branch.
       const branch = getCurrentBranch(cwd);
       if (!branch) return; // can't determine branch — don't block
+      const protectedSet = new Set(cfg.branches);
       if (!protectedSet.has(branch)) return; // not protected — let it through
 
       // Protected branch + blocked operation → act.
@@ -319,7 +370,7 @@ const plugin: Plugin = {
       };
     };
 
-    state.hookUnregister = api.registerHook('PreToolUse', 'bash|git_autocommit', hook);
+    state.hookUnregister = api.registerHook('PreToolUse', 'bash|git|git_autocommit', hook);
 
     // --- branch_guard_status tool ---
     api.tools.register({
@@ -333,6 +384,7 @@ const plugin: Plugin = {
       async execute() {
         return {
           ok: true,
+          enabled: cfg.enabled,
           branches: cfg.branches,
           mode: cfg.mode,
           blockCommit: cfg.blockCommit,
@@ -350,12 +402,21 @@ const plugin: Plugin = {
 
     api.log.info('branch-guard plugin loaded', {
       version: '0.1.0',
+      enabled: cfg.enabled,
       branches: cfg.branches,
       mode: cfg.mode,
     });
   },
 
   teardown(api) {
+    if (state.configUnregister) {
+      try {
+        state.configUnregister();
+      } catch {
+        // best-effort
+      }
+      state.configUnregister = null;
+    }
     if (state.hookUnregister) {
       try {
         state.hookUnregister();

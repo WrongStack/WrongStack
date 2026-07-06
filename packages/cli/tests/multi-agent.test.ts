@@ -382,7 +382,7 @@ describe('MultiAgentHost', () => {
   });
 
   it('spawn() with per-subagent provider override builds that provider, not the leader', async () => {
-    // Director-mode: a single fleet should be able to use sonnet for the
+    // Director-mode: a single fleet should be able to use planner for the
     // editor + haiku for the researcher in the same run. Verifies the
     // factory looks up `config.providers[<overrideId>]` and passes the
     // right config to `makeProviderFromConfig`.
@@ -393,7 +393,7 @@ describe('MultiAgentHost', () => {
     const deps = makeDeps();
     (deps.configStore.get as ReturnType<typeof vi.fn>).mockReturnValue({
       provider: 'anthropic',
-      model: 'sonnet',
+      model: 'planner',
       apiKey: 'leader-key',
       providers: {
         anthropic: { type: 'anthropic', family: 'anthropic', apiKey: 'anthropic-key' },
@@ -402,7 +402,7 @@ describe('MultiAgentHost', () => {
     });
 
     const host = new MultiAgentHost(deps);
-    await host.spawn('rewrite README', { name: 'editor', provider: 'anthropic', model: 'sonnet' });
+    await host.spawn('rewrite README', { name: 'editor', provider: 'anthropic', model: 'planner' });
     await host.spawn('audit code', { name: 'auditor', provider: 'openai', model: 'gpt-5' });
     await host.stopAll();
 
@@ -427,7 +427,7 @@ describe('MultiAgentHost', () => {
     const deps = makeDeps();
     (deps.configStore.get as ReturnType<typeof vi.fn>).mockReturnValue({
       provider: 'anthropic',
-      model: 'sonnet',
+      model: 'planner',
       apiKey: 'leader-key',
       providers: {
         anthropic: { type: 'anthropic', family: 'anthropic', apiKey: 'anthropic-key' },

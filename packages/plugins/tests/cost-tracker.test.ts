@@ -200,15 +200,15 @@ describe('provider.response event handler', () => {
     ) as any[];
     const handler = responseCall[1] as Function;
 
-    handler({ usage: { input: 1000, output: 500 }, ctx: { model: 'claude-3-5-sonnet' } });
-    handler({ usage: { input: 2000, output: 1000 }, ctx: { model: 'claude-3-5-sonnet' } });
+    handler({ usage: { input: 1000, output: 500 }, ctx: { model: 'anthropic-test-model' } });
+    handler({ usage: { input: 2000, output: 1000 }, ctx: { model: 'anthropic-test-model' } });
 
     const summaryTool = api.tools.register.mock.calls.find(
       ([t]: any[]) => t.name === 'cost_summary',
     )?.[0] as any;
     const result = await summaryTool.execute({});
     expect(result.usage.totalRequests).toBe(2);
-    expect(result.usage.byModel['claude-3-5-sonnet'].requests).toBe(2);
+    expect(result.usage.byModel['anthropic-test-model'].requests).toBe(2);
   });
 
   it('records recentRequests (last 5)', async () => {
@@ -330,7 +330,7 @@ describe('pricingOverrides', () => {
 
   it('falls through to bundled PRICING when model is not in overrides', async () => {
     const api = makeApi();
-    // Override gpt-4o only; claude-3-5-sonnet must use bundled.
+    // Override gpt-4o only; gpt-4-turbo must use bundled.
     api.config.extensions['cost-tracker'] = {
       pricingOverrides: {
         'gpt-4o': { input: 999, output: 999 },
@@ -339,15 +339,15 @@ describe('pricingOverrides', () => {
     costTrackerPlugin.setup(api as any);
 
     const handler = getResponseHandler(api);
-    // claude-3-5-sonnet bundled: input=3.0, output=15.0
-    handler({ usage: { input: 1000, output: 500 }, ctx: { model: 'claude-3-5-sonnet' } });
+    // gpt-4-turbo bundled: input=10.0, output=30.0
+    handler({ usage: { input: 1000, output: 500 }, ctx: { model: 'gpt-4-turbo' } });
 
     const summaryTool = api.tools.register.mock.calls.find(
       ([t]: any[]) => t.name === 'cost_summary',
     )?.[0];
     const result = await summaryTool.execute({});
-    // Bundled rate: (1000/1e6)*3 + (500/1e6)*15 = 0.003 + 0.0075 = 0.0105
-    expect(result.usage.totalCostUsd).toBeCloseTo(0.0105, 7);
+    // Bundled rate: (1000/1e6)*10 + (500/1e6)*30 = 0.01 + 0.015 = 0.025
+    expect(result.usage.totalCostUsd).toBeCloseTo(0.025, 7);
   });
 
   it('falls through to DEFAULT_PRICING for unknown models', async () => {
@@ -564,14 +564,14 @@ describe('modelsRegistry hydration', () => {
     expect(result.registryCount).toBe(0);
 
     const handler = getResponseHandler(api);
-    handler({ usage: { input: 1000, output: 500 }, ctx: { model: 'claude-3-5-sonnet' } });
+    handler({ usage: { input: 1000, output: 500 }, ctx: { model: 'gpt-4-turbo' } });
     const summaryTool = api.tools.register.mock.calls.find(
       ([t]: any[]) => t.name === 'cost_summary',
     )?.[0];
     const summary = await summaryTool.execute({});
-    // Bundled claude-3-5-sonnet: input=3, output=15
-    // (1000/1e6)*3 + (500/1e6)*15 = 0.003 + 0.0075 = 0.0105
-    expect(summary.usage.totalCostUsd).toBeCloseTo(0.0105, 7);
+    // Bundled gpt-4-turbo: input=10, output=30
+    // (1000/1e6)*10 + (500/1e6)*30 = 0.01 + 0.015 = 0.025
+    expect(summary.usage.totalCostUsd).toBeCloseTo(0.025, 7);
   });
 
   it('teardown clears bundledFromRegistry (H1 pattern)', async () => {

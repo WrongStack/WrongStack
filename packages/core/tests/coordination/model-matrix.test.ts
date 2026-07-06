@@ -81,7 +81,7 @@ describe('resolveModelMatrix', () => {
 describe('resolveModelTargetFromEntry', () => {
   it('preserves runtime-only matrix entries', () => {
     const target = resolveModelTargetFromEntry(
-      { provider: 'anthropic', model: 'sonnet' } as never,
+      { provider: 'anthropic', model: 'planner' } as never,
       { modelRuntime: { reasoning: { effort: 'low' } } },
     );
     expect(target).toEqual({ modelRuntime: { reasoning: { effort: 'low' } } });
@@ -91,12 +91,12 @@ describe('resolveModelTargetFromEntry', () => {
 describe('resolveSubagentModelTarget', () => {
   const baseConfig = {
     provider: 'anthropic',
-    model: 'claude-sonnet-4-6',
+    model: 'anthropic-test-model',
     providers: {
       anthropic: {
         type: 'anthropic',
         apiKey: 'sk-ant',
-        models: ['claude-sonnet-4-6', 'claude-opus-4-8'],
+        models: ['anthropic-test-model', 'claude-opus-4-8'],
       },
       openai: {
         type: 'openai',
@@ -110,13 +110,13 @@ describe('resolveSubagentModelTarget', () => {
     const target = resolveSubagentModelTarget(
       {
         ...baseConfig,
-        modelMatrix: { reviewer: { provider: 'anthropic', model: 'claude-sonnet-4-6' } },
+        modelMatrix: { reviewer: { provider: 'anthropic', model: 'anthropic-test-model' } },
       } as never,
       'reviewer',
     );
     expect(target).toMatchObject({
       provider: 'anthropic',
-      model: 'claude-sonnet-4-6',
+      model: 'anthropic-test-model',
       source: 'matrix',
       matrixSource: 'role',
     });
@@ -126,7 +126,7 @@ describe('resolveSubagentModelTarget', () => {
     const target = resolveSubagentModelTarget(
       {
         ...baseConfig,
-        modelMatrix: { '*': { provider: 'anthropic', model: 'claude-sonnet-4-6' } },
+        modelMatrix: { '*': { provider: 'anthropic', model: 'anthropic-test-model' } },
       } as never,
       'reviewer',
     );

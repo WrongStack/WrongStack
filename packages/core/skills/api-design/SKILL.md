@@ -137,4 +137,4 @@ Body: { "status": "paused" }
 - `typescript-strict` — for type-safe request/response types
 - `security-scanner` — for scanning API implementations for injection, auth, and secrets
 - `testing` — for writing integration tests against API endpoints
-- `output-standards` — for standardized `<next_steps>` formatting
+- `output-standards` — for standardized `<nextsteps>` formatting

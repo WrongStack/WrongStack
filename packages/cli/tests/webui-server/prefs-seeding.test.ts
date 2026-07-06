@@ -16,12 +16,12 @@ describe('createPrefsSeeding', () => {
 
     await expect(
       persistPrefs({
-        fallbackProfiles: { default: ['anthropic/claude-sonnet-4'] },
+        fallbackProfiles: { default: ['anthropic/anthropic-test-model'] },
       }),
     ).resolves.toBeUndefined();
     expect((opts as { appConfig: unknown }).appConfig).not.toBe(frozenConfig);
     expect((opts as { appConfig: { fallbackProfiles?: unknown } }).appConfig.fallbackProfiles).toEqual({
-      default: ['anthropic/claude-sonnet-4'],
+      default: ['anthropic/anthropic-test-model'],
     });
     expect(Object.isExtensible(frozenConfig)).toBe(false);
   });

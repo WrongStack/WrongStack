@@ -49,7 +49,7 @@ describe('provider-config', () => {
       const configPath = path.join(tempDir, 'config.json');
       const configContent = {
         providers: {
-          anthropic: { apiKey: 'test-key', models: ['claude-3-5-sonnet'] },
+          anthropic: { apiKey: 'test-key', models: ['anthropic-test-model'] },
         },
       };
       fsSync.writeFileSync(configPath, JSON.stringify(configContent));
@@ -71,7 +71,7 @@ describe('provider-config', () => {
       fsSync.writeFileSync(configPath, JSON.stringify(existingConfig));
 
       const providers = {
-        anthropic: { apiKey: 'new-key', models: ['claude-3-5-sonnet'] },
+        anthropic: { apiKey: 'new-key', models: ['anthropic-test-model'] },
       };
 
       await saveProviders(configPath, providers);
@@ -79,7 +79,7 @@ describe('provider-config', () => {
       const saved = JSON.parse(fsSync.readFileSync(configPath, 'utf8'));
       // API keys are encrypted, so check structure
       expect(saved.providers.anthropic).toBeDefined();
-      expect(saved.providers.anthropic.models).toEqual(['claude-3-5-sonnet']);
+      expect(saved.providers.anthropic.models).toEqual(['anthropic-test-model']);
       expect(saved.otherField).toBe('value'); // other fields preserved
     });
 

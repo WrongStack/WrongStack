@@ -11,9 +11,9 @@ const SAMPLE: ModelsDevPayload = {
     env: ['ANTHROPIC_API_KEY'],
     npm: '@ai-sdk/anthropic',
     models: {
-      'claude-sonnet-4-6': {
-        id: 'claude-sonnet-4-6',
-        name: 'Claude Sonnet',
+      'anthropic-test-model': {
+        id: 'anthropic-test-model',
+        name: 'Anthropic Test Model',
         tool_call: true,
         modalities: { input: ['text', 'image'], output: ['text'] },
         limit: { context: 200_000, output: 64_000 },
@@ -61,11 +61,11 @@ function countingRegistry(): ModelsRegistry & {
     name: 'Anthropic',
     family: 'anthropic',
     envVars: ['ANTHROPIC_API_KEY'],
-    models: [SAMPLE.anthropic.models['claude-sonnet-4-6']],
+    models: [SAMPLE.anthropic.models['anthropic-test-model']],
   };
   const model = {
     providerId: 'anthropic',
-    modelId: 'claude-sonnet-4-6',
+    modelId: 'anthropic-test-model',
     capabilities: {
       tools: true,
       vision: true,
@@ -94,7 +94,7 @@ function countingRegistry(): ModelsRegistry & {
 
 describe('capabilitiesFor', () => {
   it('anthropic + claude has native cache control', async () => {
-    const c = await capabilitiesFor(reg(), 'anthropic', 'claude-sonnet-4-6');
+    const c = await capabilitiesFor(reg(), 'anthropic', 'anthropic-test-model');
     expect(c.cacheControl).toBe('native');
     expect(c.tools).toBe(true);
     expect(c.vision).toBe(true);
@@ -104,6 +104,64 @@ describe('capabilitiesFor', () => {
   it('google has 1M context default', async () => {
     const c = await capabilitiesFor(reg(), 'google', 'gemini-2.5-flash');
     expect(c.maxContext).toBe(1_000_000);
+  });
+
+  it('keeps openai-codex overlay models vision-capable when npm is absent', async () => {
+    const registry = new DefaultModelsRegistry({
+      cacheFile: path.join(os.tmpdir(), `wstack-cap-codex-${Date.now()}.json`),
+      seed: {
+        'openai-codex': {
+          id: 'openai-codex',
+          name: 'OpenAI Codex',
+          models: {
+            'gpt-5.5': {
+              id: 'gpt-5.5',
+              name: 'GPT-5.5',
+              reasoning: true,
+              tool_call: true,
+              modalities: { input: ['text', 'image'], output: ['text'] },
+              limit: { context: 1_050_000, output: 128_000 },
+            },
+          },
+        },
+      },
+    });
+
+    const c = await capabilitiesFor(registry, 'openai-codex', 'gpt-5.5');
+    expect(c.vision).toBe(true);
+    expect(c.tools).toBe(true);
+    expect(c.maxContext).toBe(1_050_000);
+    expect(c.promptCache).toBe(true);
+  });
+
+  it('uses the canonical openai catalog for openai-codex model facts when needed', async () => {
+    const registry = new DefaultModelsRegistry({
+      cacheFile: path.join(os.tmpdir(), `wstack-cap-codex-sibling-${Date.now()}.json`),
+      seed: {
+        openai: {
+          id: 'openai',
+          name: 'OpenAI',
+          npm: '@ai-sdk/openai',
+          models: {
+            'gpt-5.5': {
+              id: 'gpt-5.5',
+              name: 'GPT-5.5',
+              reasoning: true,
+              tool_call: true,
+              modalities: { input: ['text', 'image'], output: ['text'] },
+              limit: { context: 1_050_000, output: 128_000 },
+            },
+          },
+        },
+      },
+    });
+
+    const c = await capabilitiesFor(registry, 'openai-codex', 'gpt-5.5');
+    expect(c.vision).toBe(true);
+    expect(c.tools).toBe(true);
+    expect(c.maxContext).toBe(1_050_000);
+    expect(c.promptCache).toBe(true);
+    expect(c.jsonMode).toBe(false);
   });
 
   it('unknown model still returns family baseline', async () => {
@@ -117,7 +175,7 @@ describe('capabilitiesFor', () => {
   });
 
   it('model without explicit capabilities still returns family baseline', async () => {
-    const c = await capabilitiesFor(reg(), 'anthropic', 'claude-sonnet-4-6');
+    const c = await capabilitiesFor(reg(), 'anthropic', 'anthropic-test-model');
     expect(c.tools).toBe(true);
     expect(c.vision).toBe(true);
     expect(c.maxContext).toBe(200_000);
@@ -136,9 +194,9 @@ describe('capabilitiesFor', () => {
 
   it('custom model overrides maxContext on known model', async () => {
     const custom: Record<string, CustomModelDefinition> = {
-      'claude-sonnet-4-6': { capabilities: { maxContext: 500_000 } },
+      'anthropic-test-model': { capabilities: { maxContext: 500_000 } },
     };
-    const c = await capabilitiesFor(reg(), 'anthropic', 'claude-sonnet-4-6', custom);
+    const c = await capabilitiesFor(reg(), 'anthropic', 'anthropic-test-model', custom);
     expect(c.maxContext).toBe(500_000);
     // Non-overridden fields still come from catalog
     expect(c.tools).toBe(true);
@@ -148,9 +206,9 @@ describe('capabilitiesFor', () => {
 
   it('custom model overrides capabilities flags on known model', async () => {
     const custom: Record<string, CustomModelDefinition> = {
-      'claude-sonnet-4-6': { capabilities: { tools: false, vision: false } },
+      'anthropic-test-model': { capabilities: { tools: false, vision: false } },
     };
-    const c = await capabilitiesFor(reg(), 'anthropic', 'claude-sonnet-4-6', custom);
+    const c = await capabilitiesFor(reg(), 'anthropic', 'anthropic-test-model', custom);
     expect(c.tools).toBe(false);
     expect(c.vision).toBe(false);
     expect(c.cacheControl).toBe('native');
@@ -183,9 +241,9 @@ describe('capabilitiesFor', () => {
 
   it('custom model partial override merges with catalog', async () => {
     const custom: Record<string, CustomModelDefinition> = {
-      'claude-sonnet-4-6': { capabilities: { streaming: false } },
+      'anthropic-test-model': { capabilities: { streaming: false } },
     };
-    const c = await capabilitiesFor(reg(), 'anthropic', 'claude-sonnet-4-6', custom);
+    const c = await capabilitiesFor(reg(), 'anthropic', 'anthropic-test-model', custom);
     expect(c.streaming).toBe(false);
     // Rest unchanged
     expect(c.tools).toBe(true);
@@ -199,7 +257,7 @@ describe('capabilitiesFor', () => {
     // anymore — it must come from the catalog. If the model has
     // `limit.output`, capabilitiesFor propagates it; otherwise it's
     // undefined and the caller (agent-response) falls back to 8192.
-    const c = await capabilitiesFor(reg(), 'anthropic', 'claude-sonnet-4-6');
+    const c = await capabilitiesFor(reg(), 'anthropic', 'anthropic-test-model');
     expect(c.maxOutput).toBe(64_000);
   });
 
@@ -214,9 +272,9 @@ describe('capabilitiesFor', () => {
 
   it('custom model can override maxOutput independently of the catalog', async () => {
     const custom: Record<string, CustomModelDefinition> = {
-      'claude-sonnet-4-6': { capabilities: { maxOutput: 32_000 } },
+      'anthropic-test-model': { capabilities: { maxOutput: 32_000 } },
     };
-    const c = await capabilitiesFor(reg(), 'anthropic', 'claude-sonnet-4-6', custom);
+    const c = await capabilitiesFor(reg(), 'anthropic', 'anthropic-test-model', custom);
     // Custom wins over the catalog's 64_000
     expect(c.maxOutput).toBe(32_000);
   });
@@ -224,15 +282,15 @@ describe('capabilitiesFor', () => {
   it('memoizes per registry/provider/model and avoids repeated lookups until refresh', async () => {
     const registry = countingRegistry();
 
-    const first = await capabilitiesFor(registry, 'anthropic', 'claude-sonnet-4-6');
-    const second = await capabilitiesFor(registry, 'anthropic', 'claude-sonnet-4-6');
+    const first = await capabilitiesFor(registry, 'anthropic', 'anthropic-test-model');
+    const second = await capabilitiesFor(registry, 'anthropic', 'anthropic-test-model');
 
     expect(second).toBe(first);
     expect(registry.getProvider).toHaveBeenCalledTimes(1);
     expect(registry.getModel).toHaveBeenCalledTimes(1);
 
     await registry.refresh();
-    const third = await capabilitiesFor(registry, 'anthropic', 'claude-sonnet-4-6');
+    const third = await capabilitiesFor(registry, 'anthropic', 'anthropic-test-model');
 
     expect(third).not.toBe(first);
     expect(registry.getProvider).toHaveBeenCalledTimes(2);

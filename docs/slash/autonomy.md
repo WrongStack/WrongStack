@@ -55,7 +55,7 @@ The engine runs `sense → decide → execute → reflect → sleep → loop`:
 During `/autonomy eternal`, the TUI status bar shows the current phase in line 2 (after the `∞ ETERNITY` chip):
 
 ```
-● thinking…  │ anthropic/claude-3-5  │ ↑ 12k  ↓ 3k
+● thinking…  │ provider/configured-model  │ ↑ 12k  ↓ 3k
 ∞ ETERNITY │ ▶ execute(todo:fix-redirect-uri)  │ ⏱ 14:32
 todos ⌛2 ☐3 ✓1  │ 🌐 ▶2 ☐1 ·idle ✓1
 ```

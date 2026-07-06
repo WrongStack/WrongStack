@@ -177,12 +177,12 @@ describe('DefaultSystemPromptBuilder — edge cases', () => {
     expect(blocks.map((bl) => bl.text).join('\n')).not.toContain('Active plan');
   });
 
-  it('omits the leader after-task block (<next_steps>) for subagents but keeps it for the host', async () => {
+  it('omits the leader after-task block (<nextsteps>) for subagents but keeps it for the host', async () => {
     const b = new DefaultSystemPromptBuilder({ todayIso: '2026-06-15' });
     const host = await b.build({ cwd: tmp, projectRoot: tmp, tools: [] } as never);
     const sub = await b.build({ cwd: tmp, projectRoot: tmp, tools: [], subagent: true } as never);
-    expect(host.map((bl) => bl.text).join('\n')).toContain('<next_steps>');
-    expect(sub.map((bl) => bl.text).join('\n')).not.toContain('<next_steps>');
+    expect(host.map((bl) => bl.text).join('\n')).toContain('<nextsteps>');
+    expect(sub.map((bl) => bl.text).join('\n')).not.toContain('<nextsteps>');
   });
 
   it('returns no plan block for invalid, empty, or all-done plans', async () => {

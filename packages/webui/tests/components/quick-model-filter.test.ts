@@ -25,7 +25,7 @@ const saved: SavedProviderLite[] = [
 const models: Record<string, CatalogModelLite[]> = {
   anthropic: [
     { id: 'claude-opus-4-7', name: 'Claude Opus 4.7', contextWindow: 200000 },
-    { id: 'claude-sonnet-4-5', name: 'Claude Sonnet 4.5', contextWindow: 200000 },
+    { id: 'anthropic-test-model', name: 'Anthropic Test Model', contextWindow: 200000 },
   ],
   openai: [
     { id: 'gpt-5', name: 'GPT-5', contextWindow: 128000 },
@@ -97,9 +97,9 @@ describe('buildModelCandidates — filter (the user-reported bug surface)', () =
   });
 
   it('filters case-insensitively on model display name', () => {
-    const out = buildModelCandidates(saved, models, 'sonnet', undefined, undefined);
+    const out = buildModelCandidates(saved, models, 'planner', undefined, undefined);
     expect(out).toHaveLength(1);
-    expect(out[0]?.modelName).toBe('Claude Sonnet 4.5');
+    expect(out[0]?.modelName).toBe('Anthropic Test Model');
   });
 
   it('trims surrounding whitespace from the query', () => {
@@ -166,6 +166,6 @@ describe('buildModelCandidates — current-model flag + sort', () => {
     expect(out[0]?.isCurrent).toBe(true);
     expect(out[0]?.model).toBe('claude-opus-4-7');
     expect(out[1]?.isCurrent).toBe(false);
-    expect(out[1]?.model).toBe('claude-sonnet-4-5');
+    expect(out[1]?.model).toBe('anthropic-test-model');
   });
 });

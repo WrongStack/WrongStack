@@ -132,4 +132,4 @@ Every log should include:
 - `bug-hunter` — for finding bugs via error trace patterns
 - `security-scanner` — for ensuring no secrets leak into logs
 - `node-modern` — for async tracing patterns with AbortSignal
-- `output-standards` — for standardized `<next_steps>` formatting
+- `output-standards` — for standardized `<nextsteps>` formatting

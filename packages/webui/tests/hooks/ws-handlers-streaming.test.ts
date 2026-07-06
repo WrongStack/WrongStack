@@ -248,7 +248,7 @@ describe('streaming pipeline: text_delta → coalescer → chat-store', () => {
         iterations: 1,
         sessionId: 'sess_stream',
         finalText:
-          'Recovered assistant reply\n\n<next_steps>\n1. Continue investigating\n</next_steps>',
+          'Recovered assistant reply\n\n<nextsteps>\n1. Continue investigating\n</nextsteps>',
       },
     } as unknown as WSServerMessage);
 
@@ -256,7 +256,7 @@ describe('streaming pipeline: text_delta → coalescer → chat-store', () => {
     expect(messages.length).toBe(1);
     expect(messages[0]?.role).toBe('assistant');
     expect(messages[0]?.content).toContain('Recovered assistant reply');
-    expect(messages[0]?.content).toContain('<next_steps>');
+    expect(messages[0]?.content).toContain('<nextsteps>');
   });
 
   it('ignores deltas for a non-active session', async () => {

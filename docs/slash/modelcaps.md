@@ -25,7 +25,7 @@ Each provider shows a list of models with:
 Available Models — capacities + pricing
 
   ● anthropic        (Anthropic)
-    claude-3-5-sonnet-20241022  🟢 200k out 8k  in $3.00/M tok  out $15.00/M tok
+    anthropic-test-model  🟢 200k out 8k  in $3.00/M tok  out $15.00/M tok
     claude-3-opus-20240229      🟢 200k out 4k  in $15.00/M tok out $75.00/M tok
 
   ● openai            (OpenAI)

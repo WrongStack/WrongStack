@@ -43,7 +43,7 @@ describe('effectiveFallbackChain visibility filtering', () => {
       effectiveFallbackChain(cfg({
         provider: 'anthropic',
         model: 'opus',
-        fallbackModels: ['sonnet', 'openai/gpt-x'],
+        fallbackModels: ['planner', 'openai/gpt-x'],
         providers: {
           anthropic: { type: 'anthropic', models: ['haiku'] },
           openai: { type: 'openai', models: [] },
@@ -93,7 +93,7 @@ describe('createFallbackModelExtension', () => {
     const fired: unknown[] = [];
     events.on('provider.fallback', (p) => fired.push(p));
     const ext = createFallbackModelExtension({
-      getConfig: () => cfg({ fallbackModels: ['sonnet', 'haiku'] }),
+      getConfig: () => cfg({ fallbackModels: ['planner', 'haiku'] }),
       buildProvider: fakeProvider,
       events,
       logger,
@@ -349,12 +349,12 @@ describe('smartDefaultFallbackChain', () => {
       provider: 'anthropic',
       model: 'opus',
       providers: {
-        anthropic: { type: 'anthropic', apiKey: 'k', models: ['opus', 'sonnet', 'haiku'] },
+        anthropic: { type: 'anthropic', apiKey: 'k', models: ['opus', 'planner', 'haiku'] },
         openai: { type: 'openai', apiKey: 'k', models: ['gpt-4o'] },
       },
     } as never);
     expect(smartDefaultFallbackChain(config)).toEqual([
-      'anthropic/sonnet',
+      'anthropic/planner',
       'anthropic/haiku',
       'openai/gpt-4o',
     ]);
@@ -384,7 +384,7 @@ describe('smartDefaultFallbackChain', () => {
 
 describe('effectiveFallbackChain', () => {
   const providers = {
-    anthropic: { type: 'anthropic', apiKey: 'k', models: ['opus', 'sonnet'] },
+    anthropic: { type: 'anthropic', apiKey: 'k', models: ['opus', 'planner'] },
   };
 
   it('prefers an explicit list over the smart default', () => {
@@ -395,7 +395,7 @@ describe('effectiveFallbackChain', () => {
 
   it('uses the smart default when the explicit list is empty and auto is on', () => {
     expect(effectiveFallbackChain(cfg({ fallbackModels: [], providers } as never))).toEqual([
-      'anthropic/sonnet',
+      'anthropic/planner',
     ]);
   });
 

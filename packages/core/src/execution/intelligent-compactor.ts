@@ -37,7 +37,7 @@ export interface IntelligentCompactorOptions {
   /**
    * Model ID to use for summarization. When not set, the same model as the
    * agent is used (which risks cascading failure on context overflow). Set to
-   * a fast/cheap model like `claude-3-5-haiku-20240620` for resilience.
+   * a fast/cheap configured model for resilience.
    */
   summarizerModel?: string | undefined;
 }

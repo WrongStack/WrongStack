@@ -56,11 +56,11 @@ Write your report as a single message appended to the chat. Use this structure:
 - Findings: C critical, H high, M medium
 - Clean files: N
 
-<next_steps>
+<nextsteps>
 1. Fix null deref in path/file.ts:42
 2. Fix plaintext API key in path/config.ts:8
 3. Fix unsafe any cast in path/helper.ts:15
-</next_steps>
+</nextsteps>
 ```
 
 If you find **nothing** worth flagging: write a single line.
@@ -96,4 +96,4 @@ likely missed, not decisions it explicitly made.
 - `typescript-strict` — for TypeScript type safety rules
 - `api-design` — for API design review patterns
 - `testing` — for test coverage assessment
-- `output-standards` — for standardized `<next_steps>` formatting
+- `output-standards` — for standardized `<nextsteps>` formatting

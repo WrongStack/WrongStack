@@ -159,7 +159,7 @@ WrongStack ships with 23 bundled skills:
 | `multi-agent` | Leader/worker roles, task delegation, result aggregation, fleet management |
 | `node-modern` | Node.js ≥ 22 idioms: ESM-only, native fetch, AbortSignal patterns |
 | `observability` | Structured logging, traces, metrics, redaction, instrumentation |
-| `output-standards` | Output formatting standards, `<next_steps>` conventions |
+| `output-standards` | Output formatting standards, `<nextsteps>` conventions |
 | `plugin-author` | Creating, reviewing, or refactoring a WrongStack plugin |
 | `prompt-engineering` | System prompt design, tool descriptions, trigger sentences |
 | `react-modern` | React 19+ Server Components, useTransition, Suspense, the `use` hook |

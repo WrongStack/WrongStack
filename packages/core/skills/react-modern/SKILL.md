@@ -209,4 +209,4 @@ const inputRef = useRef<HTMLInputElement>(null);
 - `typescript-strict` — for TypeScript patterns
 - `node-modern` — for React server components with Node.js
 - `bug-hunter` — for React-specific bugs (stale closures, memory leaks)
-- `output-standards` — for standardized `<next_steps>` formatting
+- `output-standards` — for standardized `<nextsteps>` formatting

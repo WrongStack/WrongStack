@@ -27,7 +27,6 @@ const SCOPES =
   'org:create_api_key user:profile user:inference user:sessions:claude_code user:mcp_servers user:file_upload';
 export const CLAUDE_PROVIDER_ID = 'anthropic-oauth';
 const CLAUDE_BASE_URL = 'https://api.anthropic.com';
-const DEFAULT_CLAUDE_MODELS = ['claude-sonnet-4-6', 'claude-opus-4-8'];
 
 interface ClaudeTokens {
   access: string;
@@ -131,8 +130,7 @@ async function buildOutcome(
   tokens: ClaudeTokens,
   signal?: AbortSignal,
 ): Promise<OAuthLoginOutcome> {
-  const fetched = await fetchClaudeModels(tokens.access, signal);
-  const models = fetched.length > 0 ? fetched : DEFAULT_CLAUDE_MODELS;
+  const models = await fetchClaudeModels(tokens.access, signal);
   const apiKey: ProviderApiKey = {
     label: 'oauth-default',
     apiKey: tokens.access,

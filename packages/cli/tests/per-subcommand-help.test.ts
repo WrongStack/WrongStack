@@ -325,24 +325,23 @@ describe('plugin:add deep help', () => {
 });
 
 describe('plugin:report / plugin:toggle / plugin:menu deep help', () => {
-  it('plugin:report explains effective state and lock policy', () => {
+  it('plugin:report explains effective state and toggle policy', () => {
     const renderer = makeRenderer();
     renderDeepHelp('plugin:report', renderer);
     const out = capture(renderer);
     expect(out).toContain('wstack plugin report');
     expect(out).toContain('effective state');
-    expect(out).toContain('toggleable');
-    expect(out).toContain('locked');
+    expect(out).toContain('toggle policy');
   });
 
-  it('plugin:toggle mentions the audit-list name and locked rows', () => {
+  it('plugin:toggle mentions the audit-list name and toggleable rows', () => {
     const renderer = makeRenderer();
     renderDeepHelp('plugin:toggle', renderer);
     const out = capture(renderer);
     expect(out).toContain('wstack plugin toggle');
     expect(out).toContain('<name>');
     expect(out).toContain('format-on-save');
-    expect(out).toContain('Locked');
+    expect(out).toContain('toggleable');
   });
 
   it('plugin:menu documents the non-interactive report fallback', () => {

@@ -17,8 +17,7 @@ interface ChimeraConfig {
   /**
    * @deprecated Removed. The subagent's `Request.maxTokens` now defaults to
    * the provider's `capabilities.maxOutput`, so Chimera reports can run up
-   * to the model's native ceiling (e.g. 64K for Anthropic Sonnet/Opus,
-   * 16K for GPT-4.x/5). Kept on the config interface as an `unknown` sink
+   * to the selected model's native ceiling. Kept on the config interface as an `unknown` sink
    * so old config files don't crash — but it's no longer read.
    */
   maxTokens?: unknown;

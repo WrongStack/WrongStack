@@ -29,7 +29,7 @@ const coreResult = {
   userHome: '/home/testuser',
   wpaths: { globalConfig: '/home/testuser/.wrongstack/config.json' },
   pathResolver: {},
-  config: { version: 1, provider: 'anthropic', model: 'claude-sonnet-4-6', log: { level: 'info' } },
+  config: { version: 1, provider: 'anthropic', model: 'anthropic-test-model', log: { level: 'info' } },
   vault: {},
   logger: { level: 'info' },
   globalConfigPath: '/home/testuser/.wrongstack/config.json',

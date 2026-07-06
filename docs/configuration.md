@@ -293,14 +293,14 @@ overload extends the cooldown up to the cap.
   "provider": "anthropic",
   "model": "claude-opus-4-8",
   "fallbackModels": [
-    "claude-sonnet-4-6",      // same provider, bare model id
+    "anthropic-test-model",      // same provider, bare model id
     "openai/gpt-5.4",         // cross-provider (provider must have credentials)
     "groq llama-3.3-70b-versatile"
   ]
 }
 ```
 
-CLI override (comma-separated): `wrongstack --fallback-model "claude-sonnet-4-6,openai/gpt-5.4"`.
+CLI override (comma-separated): `wrongstack --fallback-model "anthropic-test-model,openai/gpt-5.4"`.
 
 A fallback entry whose provider has no resolvable credentials is skipped (with a
 warning) and the chain continues. Each switch emits a `provider.fallback` event.
@@ -450,18 +450,18 @@ full payload/outcome schema and the security model.
 
 | Tier | Tools | Tool descriptions | Measured savings |
 |------|-------|-----------------|------------------|
-| `off` | All 37 | 80 chars | 0 tokens (baseline) |
+| `off` | All 38 | 80 chars | 0 tokens (baseline) |
 | `minimal` | 10 (TIER1 only) | 40 chars | ~2.5–2.7k tokens |
 | `light` | 10 (TIER1 only) | 50 chars | ~2.3–2.4k tokens |
-| `medium` | 25 (TIER1 + TIER2) | 60 chars | ~1.4–1.5k tokens |
-| `aggressive` | 35 (TIER1 + TIER2 − task + TIER3 − setWorkingDir) | 70 chars | ~1.0k tokens |
+| `medium` | 26 (TIER1 + TIER2) | 60 chars | ~1.4–1.5k tokens |
+| `aggressive` | 36 (TIER1 + TIER2 − task + TIER3 − setWorkingDir) | 70 chars | ~1.0k tokens |
 
 The five tiers optimize along two different axes; pick the one that matches
 your use case rather than reading "savings" as monotonic:
 
 - **Fewer tools + lots of guidance trimmed** — `minimal` (~2.5k saved), `light` (~2.4k saved). TIER1 only (10 tools). Best for single-file edits, quick fixes, and tasks where the model already knows everything it needs.
-- **Fewer tools + full guidance** — `medium` (~1.4k saved). TIER1+TIER2 (25 tools). Best for standard development where the model benefits from explicit delegation/mailbox guidance.
-- **Many tools + compact guidance** — `aggressive` (~1k saved). TIER1+TIER2+most-TIER3 (35 tools). Best when the task needs a wider tool surface (lint/test/install/etc.) but prompt real estate is tight. Context Management and Commit Hygiene remain at full because they're most useful under context pressure.
+- **Fewer tools + full guidance** — `medium` (~1.4k saved). TIER1+TIER2 (26 tools). Best for standard development where the model benefits from explicit delegation/mailbox guidance.
+- **Many tools + compact guidance** — `aggressive` (~1k saved). TIER1+TIER2+most-TIER3 (36 tools). Best when the task needs a wider tool surface (lint/test/install/etc.) but prompt real estate is tight. Context Management and Commit Hygiene remain at full because they're most useful under context pressure.
 
 The original design doc estimated "~4-5k tokens saved at `aggressive`", but
 that estimate assumed a much smaller tool set (~22 tools). The current
@@ -894,7 +894,7 @@ export ANTHROPIC_API_KEY=sk-ant-...
 {
   "version": 1,
   "provider": "anthropic",
-  "model": "claude-sonnet-4-7",
+  "model": "anthropic-test-model",
   "context": {
     "mode": "frugal",
     "strategy": "intelligent"

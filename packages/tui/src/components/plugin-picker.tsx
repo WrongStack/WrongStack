@@ -8,10 +8,9 @@ export interface PluginPickerItem {
   summary: string;
   /**
    * When false the row is locked: the picker renders a 🔒 marker and ignores
-   * Enter/←/→ on it. Core plugins (security, prompts, skills, sync, git, …)
-   * and the critical guard plugins (secret-scanner, branch-guard) set this
-   * to false so they stay visible in the menu but cannot be toggled off —
-   * matching the rationale in `PLUGIN_AUDIT_ENTRIES`.
+   * Enter/←/→ on it. The current built-in audit list is fully toggleable, but
+   * the component keeps this marker for future or externally supplied locked
+   * rows.
    */
   lockable?: boolean | undefined;
 }
@@ -52,6 +51,7 @@ export function PluginPicker({
   const windowEnd = Math.min(windowStart + maxVisible, total);
   const above = windowStart;
   const below = total - windowEnd;
+  const hasLockedRows = items.some((item) => item.lockable === false);
 
   return (
     <Box flexDirection="column" borderStyle="round" borderColor="cyan" paddingX={1}>
@@ -59,7 +59,7 @@ export function PluginPicker({
         Plugin menu
       </Text>
       <Text dimColor>
-        ↑/↓ select · Enter/←/→ toggle · 🔒 = locked · Esc close
+        ↑/↓ select · Enter/←/→ toggle{hasLockedRows ? ' · 🔒 = locked' : ''} · Esc close
       </Text>
       <Box marginTop={1} flexDirection="column">
         {items.length === 0 ? (

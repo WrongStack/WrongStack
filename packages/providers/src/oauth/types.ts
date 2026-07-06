@@ -34,7 +34,7 @@ export interface OAuthLoginOutcome {
   family: string;
   /** Default base URL (only applied when the provider has none yet). */
   baseUrl: string;
-  /** Discovered model ids (live backend → catalog → fallback). */
+  /** Discovered model ids. Empty when the live backend lookup is unavailable. */
   models: string[];
   /** The credential to upsert (label `oauth-default`, `authMethod: 'oauth'`). */
   apiKey: ProviderApiKey;

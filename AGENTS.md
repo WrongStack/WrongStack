@@ -7,9 +7,9 @@
 
 ## Project brief
 
-WrongStack is a terminal AI coding agent built in TypeScript. It runs an LLM that reads code, edits files, runs shell commands, and reasons through bugs — with a permission policy that auto-approves trusted/YOLO-normal project work while gating clearly destructive or project-escaping calls unless explicitly overridden. The project is a monorepo of 14 packages.
+WrongStack is a terminal AI coding agent built in TypeScript. It runs an LLM that reads code, edits files, runs shell commands, and reasons through bugs — with a permission policy that auto-approves trusted/YOLO-normal project work while gating clearly destructive or project-escaping calls unless explicitly overridden. The monorepo spans 14 packages under `packages/` plus 2 apps under `apps/`.
 
-**Runtime:** CLI (REPL), optional TUI (React/Ink), optional WebUI (Vite/React)
+**Runtime:** CLI (REPL), optional TUI (React/Ink), optional WebUI (Vite/React), optional Desktop (Electron)
 **Primary users:** Individual developers, teams
 **Entry point:** `apps/wrongstack/src/main.ts` → `packages/cli/src/index.ts`
 

@@ -89,7 +89,7 @@ export const Entry = React.memo(function Entry({
   todos?: readonly TodoItem[] | undefined;
 }): React.ReactElement {
   // Whether the agent still has open (pending/in_progress) todos. While it
-  // does, finishing them takes priority over offering `<next_steps>` — both
+  // does, finishing them takes priority over offering `<nextsteps>` — both
   // the host callback (execution.ts → parseSuggestionsFromOutput) and this
   // render path gate on the same condition (b0970387) so they never disagree
   // about whether suggestions are available.
@@ -98,20 +98,20 @@ export const Entry = React.memo(function Entry({
   // Parse next steps from assistant text — computed once, used only in
   // the assistant case. Must live at the top level (hooks rules).
   // Always parse (even when todos are open) so `stripped` is available and
-  // the raw `<next_steps>` block never leaks into the message body; only the
+  // the raw `<nextsteps>` block never leaks into the message body; only the
   // panel rendering and the store write are gated below.
   const nextSteps = useMemo(() => {
     if (entry.kind !== 'assistant') return { steps: [] as ParsedNextStep[], stripped: '' };
-    // strict=true retained for compatibility; parser accepts canonical <next_steps> only.
+    // strict=true retained for compatibility; parser accepts canonical <nextsteps> only.
     return parseNextSteps(entry.text, true);
   }, [entry.kind, (entry as never as { text?: string }).text]);
 
   // Store parsed next steps in the shared suggestion store (for /next and
-  // auto-submit countdown). Strict=true accepts 💡 headings or <next_steps> XML tags
+  // auto-submit countdown). Strict=true accepts 💡 headings or <nextsteps> XML tags
   // (consistent with what the TUI renders in the message body).
   // Skipped while todos are open — mirrors parseSuggestionsFromOutput, so the
   // store isn't repopulated here right after the host callback cleared it.
-  // NOTE: Only assistant entries should have <next_steps> — subagents return
+  // NOTE: Only assistant entries should have <nextsteps> — subagents return
   // task results, not suggestions, so we skip parsing for subagent entries.
   useEffect(() => {
     if (!setSuggestions) return;

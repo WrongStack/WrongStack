@@ -126,12 +126,12 @@ const data: any = response.json();
 
 Total: 16 findings in 12 files
 
-<next_steps>
+<nextsteps>
 1. Fix the shell injection in tools/shell.ts:42
 2. Fix the hardcoded API key in lib/config.ts:8
 3. Fix the memory leak in tools/pool.ts:89
 4. Fix the unsafe any cast in core/agent.ts:103
-</next_steps>
+</nextsteps>
 ```
 
 ## Skills in scope
@@ -139,4 +139,4 @@ Total: 16 findings in 12 files
 - `security-scanner` — for hardcoded secrets and injection vectors
 - `refactor-planner` — for fixing findings across multiple files
 - `typescript-strict` — for TypeScript type safety rules
-- `output-standards` — for standardized `<next_steps>` formatting
+- `output-standards` — for standardized `<nextsteps>` formatting

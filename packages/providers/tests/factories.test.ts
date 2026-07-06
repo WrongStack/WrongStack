@@ -11,9 +11,9 @@ const SAMPLE: ModelsDevPayload = {
     env: ['ANTHROPIC_API_KEY'],
     npm: '@ai-sdk/anthropic',
     models: {
-      'claude-sonnet-4-6': {
-        id: 'claude-sonnet-4-6',
-        name: 'Claude Sonnet',
+      'anthropic-test-model': {
+        id: 'anthropic-test-model',
+        name: 'Anthropic Test Model',
         tool_call: true,
         limit: { context: 200_000 },
       },

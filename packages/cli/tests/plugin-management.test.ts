@@ -34,10 +34,18 @@ afterEach(async () => {
 describe('plugin management', () => {
   it('exports audit entries for the TUI plugin picker', () => {
     expect(PLUGIN_AUDIT_ENTRIES.length).toBeGreaterThan(0);
+    expect(PLUGIN_AUDIT_ENTRIES.every((entry) => entry.canDisable)).toBe(true);
     expect(PLUGIN_AUDIT_ENTRIES).toContainEqual(
       expect.objectContaining({
         name: 'secret-scanner',
-        canDisable: false,
+        canDisable: true,
+        defaultState: 'active',
+      }),
+    );
+    expect(PLUGIN_AUDIT_ENTRIES).toContainEqual(
+      expect.objectContaining({
+        name: 'branch-guard',
+        canDisable: true,
         defaultState: 'active',
       }),
     );
@@ -148,7 +156,7 @@ describe('plugin management', () => {
     });
   });
 
-  it('refuses to toggle locked audit entries', async () => {
+  it('toggles secret-scanner off by writing a disabled override', async () => {
     await fs.writeFile(configPath, JSON.stringify({ plugins: [] }));
 
     const result = await runPluginManagementCommand(['toggle', 'secret-scanner'], {
@@ -156,12 +164,63 @@ describe('plugin management', () => {
       configPath,
     });
 
-    expect(result.code).toBe(1);
-    expect(result.message).toContain('locked');
-    await expect(readConfig()).resolves.toEqual({ plugins: [] });
+    expect(result.code).toBe(0);
+    expect(result.patch?.plugins).toEqual([{ name: 'secret-scanner', enabled: false }]);
+    await expect(readConfig()).resolves.toMatchObject({
+      plugins: [{ name: 'secret-scanner', enabled: false }],
+      features: { plugins: true },
+    });
   });
 
-  it('renders a plugin audit report with effective state and lock policy', async () => {
+  it('toggles a default-active core plugin off by writing a disabled override', async () => {
+    await fs.writeFile(configPath, JSON.stringify({ plugins: [] }));
+
+    const result = await runPluginManagementCommand(['toggle', 'wstack-git'], {
+      config: config(),
+      configPath,
+    });
+
+    expect(result.code).toBe(0);
+    expect(result.patch?.plugins).toEqual([{ name: 'wstack-git', enabled: false }]);
+    await expect(readConfig()).resolves.toMatchObject({
+      plugins: [{ name: 'wstack-git', enabled: false }],
+      features: { plugins: true },
+    });
+  });
+
+  it('toggles branch-guard off by writing a disabled override', async () => {
+    await fs.writeFile(configPath, JSON.stringify({ features: { plugins: true } }));
+
+    const result = await runPluginManagementCommand(['toggle', 'branch-guard'], {
+      config: config(),
+      configPath,
+    });
+
+    expect(result.code).toBe(0);
+    expect(result.restartRequired).toBeUndefined();
+    expect(result.message).toContain('disable itself');
+    expect(result.patch?.plugins).toEqual([{ name: 'branch-guard', enabled: false }]);
+    await expect(readConfig()).resolves.toMatchObject({
+      plugins: [{ name: 'branch-guard', enabled: false }],
+      features: { plugins: true },
+    });
+  });
+
+  it('disables branch-guard without requiring restart', async () => {
+    await fs.writeFile(configPath, JSON.stringify({ features: { plugins: true } }));
+
+    const result = await runPluginManagementCommand(['disable', 'branch-guard'], {
+      config: config(),
+      configPath,
+    });
+
+    expect(result.code).toBe(0);
+    expect(result.restartRequired).toBeUndefined();
+    expect(result.message).toContain('disable itself');
+    expect(result.patch?.plugins).toEqual([{ name: 'branch-guard', enabled: false }]);
+  });
+
+  it('renders a plugin audit report with effective state and toggle policy', async () => {
     const result = await runPluginManagementCommand(['report'], {
       config: config({
         plugins: [{ name: 'format-on-save', enabled: false }, 'cost-tracker', 'external-plugin'],
@@ -172,7 +231,8 @@ describe('plugin management', () => {
     expect(result.code).toBe(0);
     expect(result.message).toContain('Plugin audit report');
     expect(result.message).toContain('secret-scanner');
-    expect(result.message).toContain('locked: safety guard');
+    expect(result.message).toContain('toggleable');
+    expect(result.message).not.toContain('locked: safety guard');
     expect(result.message).toContain('format-on-save');
     expect(result.message).toContain('disabled config');
     expect(result.message).toContain('cost-tracker');

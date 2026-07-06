@@ -377,7 +377,7 @@ describe('runRepl', () => {
         async (): Promise<RunResult> => ({
           status: 'done',
           iterations: 1,
-          finalText: '<next_steps>\n1. Run tests\n2. Review diff\n</next_steps>',
+          finalText: '<nextsteps>\n1. Run tests\n2. Review diff\n</nextsteps>',
         }),
       );
       const agent = makeFakeAgent({ run });
@@ -417,7 +417,7 @@ describe('runRepl', () => {
 
     it('auto mode with validation=true proceeds after countdown', async () => {
       const finalTexts = [
-        '<next_steps>\n1. Run pnpm test\n2. Commit changes\n</next_steps>',
+        '<nextsteps>\n1. Run pnpm test\n2. Commit changes\n</nextsteps>',
         '✅ Tests passed. Ready to commit.\n',
       ];
       let turn = 0;
@@ -464,7 +464,7 @@ describe('runRepl', () => {
         async (): Promise<RunResult> => ({
           status: 'done',
           iterations: 1,
-          finalText: '<next_steps>\n1. Risky migration\n2. Safe lint\n</next_steps>',
+          finalText: '<nextsteps>\n1. Risky migration\n2. Safe lint\n</nextsteps>',
         }),
       );
       const agent = makeFakeAgent({ run });
@@ -506,7 +506,7 @@ describe('runRepl', () => {
         async (): Promise<RunResult> => ({
           status: 'done',
           iterations: 1,
-          finalText: '<next_steps>\n1. Keep going\n</next_steps>',
+          finalText: '<nextsteps>\n1. Keep going\n</nextsteps>',
         }),
       );
       const agent = makeFakeAgent({ run });
@@ -544,7 +544,7 @@ describe('runRepl', () => {
 
     it('auto mode with no validator proceeds directly', async () => {
       const finalTexts = [
-        '<next_steps>\n1. Clean up\n</next_steps>',
+        '<nextsteps>\n1. Clean up\n</nextsteps>',
         'Done cleaning.\n',
       ];
       let turn = 0;
@@ -588,8 +588,8 @@ describe('runRepl', () => {
 
     it('auto mode loops until no more suggestions', async () => {
       const finalTexts = [
-        '<next_steps>\n1. Step one\n2. Step two\n</next_steps>',
-        '<next_steps>\n1. Step two\n</next_steps>',
+        '<nextsteps>\n1. Step one\n2. Step two\n</nextsteps>',
+        '<nextsteps>\n1. Step two\n</nextsteps>',
         'No pending actions — everything is up to date.\n',
       ];
       let turn = 0;
@@ -715,9 +715,9 @@ describe('runRepl', () => {
     });
   });
 
-  describe('open todos gate on <next_steps> handling', () => {
+  describe('open todos gate on <nextsteps> handling', () => {
     // The runtime gate on ctx.todos is the single source of truth for
-    // <next_steps> suppression: as long as any todo is pending or
+    // <nextsteps> suppression: as long as any todo is pending or
     // in_progress, the in-flight task list takes priority over new prompt
     // suggestions, regardless of autonomy mode.
 
@@ -731,12 +731,12 @@ describe('runRepl', () => {
       } as never as Agent;
     }
 
-    it('does not store parsed <next_steps> when ctx.todos has a pending item', async () => {
+    it('does not store parsed <nextsteps> when ctx.todos has a pending item', async () => {
       const run = vi.fn(
         async (): Promise<RunResult> => ({
           status: 'done',
           iterations: 1,
-          finalText: '<next_steps>\n1. Run tests\n2. Commit changes\n</next_steps>',
+          finalText: '<nextsteps>\n1. Run tests\n2. Commit changes\n</nextsteps>',
         }),
       );
       const agent = makeAgentWithTodos(run, [
@@ -769,12 +769,12 @@ describe('runRepl', () => {
       expect(stored).toEqual([]);
     });
 
-    it('stores parsed <next_steps> when ctx.todos is empty', async () => {
+    it('stores parsed <nextsteps> when ctx.todos is empty', async () => {
       const run = vi.fn(
         async (): Promise<RunResult> => ({
           status: 'done',
           iterations: 1,
-          finalText: '<next_steps>\n1. Run tests\n2. Commit changes\n</next_steps>',
+          finalText: '<nextsteps>\n1. Run tests\n2. Commit changes\n</nextsteps>',
         }),
       );
       const agent = makeAgentWithTodos(run, []);
@@ -800,12 +800,12 @@ describe('runRepl', () => {
       expect(stored).toEqual(['Run tests', 'Commit changes']);
     });
 
-    it('stores parsed <next_steps> when every todo is completed', async () => {
+    it('stores parsed <nextsteps> when every todo is completed', async () => {
       const run = vi.fn(
         async (): Promise<RunResult> => ({
           status: 'done',
           iterations: 1,
-          finalText: '<next_steps>\n1. Open PR\n</next_steps>',
+          finalText: '<nextsteps>\n1. Open PR\n</nextsteps>',
         }),
       );
       const agent = makeAgentWithTodos(run, [

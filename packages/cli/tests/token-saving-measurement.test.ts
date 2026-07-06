@@ -71,7 +71,7 @@ function fakeConfig(tier: string, overrides: Partial<Config> = {}): Config {
   return {
     version: 1,
     provider: 'anthropic',
-    model: 'claude-sonnet-4-6',
+    model: 'anthropic-test-model',
     features: {
       mcp: true,
       plugins: true,
@@ -95,7 +95,7 @@ function fakeConfig(tier: string, overrides: Partial<Config> = {}): Config {
 function makeModelsRegistry() {
   return {
     getModel: async () => ({
-      id: 'claude-sonnet-4-6',
+      id: 'anthropic-test-model',
       capabilities: { maxContext: 200_000, tools: true, vision: false, reasoning: true },
     }),
     getProvider: () => undefined,

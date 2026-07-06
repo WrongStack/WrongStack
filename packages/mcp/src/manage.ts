@@ -16,6 +16,7 @@
  *   - persistent : `~/.wrongstack/config.json` → `mcpServers`
  *   - live state : the in-process {@link MCPRegistry}
  */
+import { randomBytes } from 'node:crypto';
 import * as fs from 'node:fs/promises';
 import type { MCPServerConfig, Permission } from '@wrongstack/core';
 import type { MCPRegistry } from './registry.js';
@@ -90,9 +91,17 @@ async function readConfig(path: string): Promise<Record<string, unknown>> {
 
 async function writeConfig(path: string, cfg: Record<string, unknown>): Promise<void> {
   const raw = JSON.stringify(cfg, null, 2);
-  const tmp = `${path}.tmp`;
+  // Unique temp name (pid + random) so two concurrent writers (e.g. WebUI and
+  // REPL editing MCP config at once) don't clobber a shared `${path}.tmp` and
+  // corrupt the config. Clean up the temp file if the rename fails.
+  const tmp = `${path}.${process.pid}.${randomBytes(6).toString('hex')}.tmp`;
   await fs.writeFile(tmp, raw, 'utf8');
-  await fs.rename(tmp, path);
+  try {
+    await fs.rename(tmp, path);
+  } catch (err) {
+    await fs.rm(tmp, { force: true }).catch(() => undefined);
+    throw err;
+  }
 }
 
 function isMcpServerRecord(value: unknown): value is Record<string, MCPServerConfig> {

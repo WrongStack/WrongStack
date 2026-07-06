@@ -25,6 +25,7 @@ interface MockApi {
   log: { info: ReturnType<typeof vi.fn>; warn: ReturnType<typeof vi.fn>; error: ReturnType<typeof vi.fn> };
   metrics: { counter: ReturnType<typeof vi.fn>; histogram: ReturnType<typeof vi.fn>; gauge: ReturnType<typeof vi.fn> };
   registerHook: ReturnType<typeof vi.fn>;
+  onConfigChange: ReturnType<typeof vi.fn>;
   onEvent: ReturnType<typeof vi.fn>;
   emitCustom: ReturnType<typeof vi.fn>;
   session: { append: ReturnType<typeof vi.fn> };
@@ -37,6 +38,7 @@ function makeApi(overrides: { extensions?: Record<string, unknown> } = {}): Mock
     log: { info: vi.fn(), warn: vi.fn(), error: vi.fn() },
     metrics: { counter: vi.fn(), histogram: vi.fn(), gauge: vi.fn() },
     registerHook: vi.fn(() => vi.fn()),
+    onConfigChange: vi.fn(() => vi.fn()),
     onEvent: vi.fn(),
     emitCustom: vi.fn(),
     session: { append: vi.fn().mockResolvedValue(undefined) },

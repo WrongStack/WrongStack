@@ -298,7 +298,7 @@ is 15 s.
   skill that pairs with this one.
 - `node-modern` — for `AbortSignal.timeout` patterns the external agent
   should use when calling these routes.
-- `output-standards` — for the `<next_steps>` shape in the paired
+- `output-standards` — for the `<nextsteps>` shape in the paired
   external skill.
 - `security-scanner` — for confirming the bridge's bearer-token handling
   matches project security conventions.

@@ -81,8 +81,8 @@ describe('parseArgs', () => {
 
   it('parses --fallback-model as a value flag (comma list preserved)', () => {
     expect(BOOLEAN_FLAGS.has('fallback-model')).toBe(false);
-    const r = parseArgs(['--fallback-model', 'sonnet,haiku']);
-    expect(r.flags['fallback-model']).toBe('sonnet,haiku');
+    const r = parseArgs(['--fallback-model', 'planner,haiku']);
+    expect(r.flags['fallback-model']).toBe('planner,haiku');
   });
 
   it('stops parsing at "--" and collects rest as positional', () => {

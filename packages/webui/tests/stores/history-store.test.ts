@@ -6,7 +6,7 @@ function makeEntry(overrides: Partial<{ id: string; title: string; startedAt: st
     id: 'id-1',
     title: 'Test Session',
     startedAt: '2024-01-01T00:00:00.000Z',
-    model: 'claude-3-5-sonnet',
+    model: 'anthropic-test-model',
     provider: 'anthropic',
     ...overrides,
   };

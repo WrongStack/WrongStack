@@ -76,8 +76,8 @@ export interface SubagentConfig {
 
   /**
    * Provider registry id (e.g. `'anthropic'`, `'openai'`, `'google'`).
-   * Allows a director to mix providers across siblings — one subagent on
-   * Sonnet, another on GPT-5, another on Haiku. Falls back to the
+   * Allows a director to mix providers across siblings — for example, one
+   * subagent on a planner model and another on a verifier model. Falls back to the
    * factory's default provider when omitted, which is the legacy
    * single-provider behavior.
    */

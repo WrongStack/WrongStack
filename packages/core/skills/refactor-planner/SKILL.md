@@ -156,11 +156,11 @@ config.ts → logger.ts → path-resolver.ts
 - [ ] No circular deps in `src/core`
 - [ ] `Context` interface < 20 methods
 
-<next_steps>
+<nextsteps>
 1. Extract ToolExecutor interface in core/tool-executor.ts
 2. Decouple SessionStore from Agent in core/session-store.ts
 3. Break circular dep between Config and Logger in core/config.ts
-</next_steps>
+</nextsteps>
 ```
 
 ## Anti-patterns
@@ -176,4 +176,4 @@ config.ts → logger.ts → path-resolver.ts
 - `bug-hunter` — for finding bugs exposed by the refactor
 - `git-flow` — for committing each phase properly
 - `multi-agent` — for parallel analysis of multiple modules
-- `output-standards` — for standardized `<next_steps>` formatting
+- `output-standards` — for standardized `<nextsteps>` formatting

@@ -12,7 +12,7 @@ Switching providers and configuring custom OpenAI-compatible endpoints.
 ```bash
 # Anthropic
 wrongstack --provider anthropic --model claude-opus-4-7 "explain the agent loop"
-wrongstack --provider anthropic --model claude-sonnet-4-6 "explain the agent loop"
+wrongstack --provider anthropic --model anthropic-test-model "explain the agent loop"
 wrongstack --provider anthropic --model claude-haiku-4-5 "explain the agent loop"
 
 # OpenAI

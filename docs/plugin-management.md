@@ -26,8 +26,8 @@ wstack plugin remove @wrongstack/telegram
 `install` is an alias for `add`. `report` prints the built-in plugin audit
 table, including effective state, risk, and whether a row can be toggled.
 `menu` opens the TUI picker when available and otherwise prints the same report.
-`toggle <name>` flips a row in the safe audit list — see
-[Lockable rows](#lockable-rows--the-plugin-audit-table) below for the policy.
+`toggle <name>` flips a row in the built-in audit list — see
+[Toggle policy](#toggle-policy--the-plugin-audit-table) below for the policy.
 Official aliases currently include `telegram` -> `@wrongstack/telegram`
 and `lsp` -> `@wrongstack/plug-lsp`. `add`, `install`, and `enable` also set
 `features.plugins: true` in the global config.
@@ -36,36 +36,35 @@ Official plugins are bundled with the CLI package and published as regular
 public packages, so `install telegram` means "add the official plugin to config
 and enable plugin loading"; it does not shell out to npm.
 
-## Lockable rows — the plugin audit table
+## Toggle policy — the plugin audit table
 
-Every built-in plugin row has a `lockable` flag in `PLUGIN_AUDIT_ENTRIES`
+Every built-in plugin row has a `canDisable` flag in `PLUGIN_AUDIT_ENTRIES`
 (see `packages/cli/src/plugin-management.ts`):
 
-- **Toggleable** (`lockable: false`): safe to flip from `/plugin toggle`,
-  `/settings plugin toggle`, or the interactive picker — examples:
-  [`format-on-save`](packages/plugins/src/format-on-save), `diff-summary`,
-  `spec-linker`, `token-budget`, `auto-doc`, `git-autocommit`.
-- **Locked** (`lockable: true`): refuses toggle. Two examples today:
+- **Toggleable** (`canDisable: true`): can be flipped from `/plugin toggle`,
+  `/settings plugin toggle`, or the interactive picker. All current bundled
+  audit entries use this, including safety and guard plugins such as
   [`secret-scanner`](packages/plugins/src/secret-scanner) and
-  [`branch-guard`](packages/plugins/src/branch-guard) — both are
-  first-line defenses that the agent must not silently disable.
+  [`branch-guard`](packages/plugins/src/branch-guard).
+- **Locked** (`canDisable: false`): reserved for future rows that must be
+  visible in the audit table but cannot be toggled from the picker.
 
 UX behavior:
 
-| Surface | Locked-row UX |
+| Surface | UX |
 |---|---|
-| Interactive TUI picker | Row renders in yellow with a 🔒 marker; hint bar adds `🔒 = locked`; Enter / ← / → on a locked row prints `<name> is locked — see /plugin report` and does not toggle. |
-| REPL `/plugin toggle <locked>` | Same hint message, exit code 0, no state change. |
-| `/plugin report` | One row per plugin, including a `lockable: true/false` column so users see why a row refused. |
+| Interactive TUI picker | Current bundled rows toggle normally. If a future row sets `canDisable: false`, it renders in yellow with a 🔒 marker and Enter / ← / → shows `<name> is locked — see /plugin report`. |
+| REPL `/plugin toggle <locked>` | Returns a locked-row error and does not change config. |
+| `/plugin report` | One row per plugin, including the current toggle policy. |
 | `/plugin menu` fallback (no TUI) | Prints the audit report (same shape as `/plugin report`) instead of opening an overlay. |
 
 The picker lists **every** entry in `PLUGIN_AUDIT_ENTRIES`, not only the
-toggleable subset — locked rows are visible but non-toggleable, so the
-model and the user both understand the policy from a single screen.
+default-active subset, so the model and the user both understand the effective
+state and toggle policy from a single screen.
 
 The same audit surface is reachable as `/settings plugins`,
 `/settings plugin report`, and `/settings plugin toggle <name>` — they
-delegate to `plugin-management.ts` and share the lockable policy. See
+delegate to `plugin-management.ts` and share the toggle policy. See
 [`docs/slash/settings.md`](slash/settings.md#plugin-picker-settings-plugins)
 for the full verb table.
 

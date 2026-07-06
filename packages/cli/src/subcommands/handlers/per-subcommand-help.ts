@@ -811,13 +811,14 @@ const deepHelpTable: Record<string, PerSubcommandHelp> = {
     description:
       'Toggle one built-in audit-list plugin by its runtime name. Default-active ' +
       'plugins are disabled by writing `{ enabled: false }` overrides; enabling ' +
-      'them again removes that override. Locked safety and core rows are refused. ' +
+      'them again removes that override. All bundled audit-list rows are toggleable; ' +
+      'future non-toggleable rows are reported as locked. ' +
       'Requires a restart for loaded plugin code to change in the current session.',
     usage: 'wstack plugin toggle <name>',
     subcommands: [
       { name: '<name>', description: 'Audit-list runtime name, e.g. `format-on-save`.' },
     ],
-    seeAlso: 'wstack plugin report (see which rows are locked or toggleable)',
+    seeAlso: 'wstack plugin report (see effective state and toggle policy)',
   },
   'plugin:report': {
     name: 'plugin:report',
@@ -825,9 +826,9 @@ const deepHelpTable: Record<string, PerSubcommandHelp> = {
     description:
       'Print the built-in plugin audit table. Each row shows effective state, ' +
       'whether that state came from config or default boot behavior, risk, and ' +
-      'whether the row is toggleable or locked.',
+      'the toggle policy for that row.',
     usage: 'wstack plugin report (alias: wstack plugin audit)',
-    seeAlso: 'wstack plugin toggle <name> (toggle safe rows); wstack plugin list',
+    seeAlso: 'wstack plugin toggle <name> (toggle audit-list rows); wstack plugin list',
   },
   'plugin:menu': {
     name: 'plugin:menu',

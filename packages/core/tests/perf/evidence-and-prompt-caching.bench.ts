@@ -71,7 +71,7 @@ describe('B6 — buildToolUsage + renderOnlineAgents cache (fingerprint key)', (
         projectRoot: '/tmp/project',
         tools: BENCH_TOOLS,
         provider: 'anthropic',
-        model: 'claude-sonnet-4-6',
+        model: 'anthropic-test-model',
         onlineAgents: makeAgents(),
       } as never);
     }
@@ -81,7 +81,7 @@ describe('B6 — buildToolUsage + renderOnlineAgents cache (fingerprint key)', (
       projectRoot: '/tmp/project',
       tools: BENCH_TOOLS,
       provider: 'anthropic',
-      model: 'claude-sonnet-4-6',
+      model: 'anthropic-test-model',
       onlineAgents: makeAgents(), // fresh array, same content
     } as never);
   });
@@ -95,7 +95,7 @@ describe('B6 — buildToolUsage + renderOnlineAgents cache (fingerprint key)', (
       projectRoot: '/tmp/project',
       tools: BENCH_TOOLS,
       provider: 'anthropic',
-      model: 'claude-sonnet-4-6',
+      model: 'anthropic-test-model',
       onlineAgents: makeAgents(),
     } as never);
   });

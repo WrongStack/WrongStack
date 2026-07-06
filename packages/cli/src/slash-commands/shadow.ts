@@ -13,7 +13,6 @@ import type { Context, SlashCommand } from '@wrongstack/core';
 import { color, ToolValidationError } from '@wrongstack/core';
 import type { SlashCommandContext } from './index.js';
 
-const DEFAULT_SHADOW_PROVIDER = 'anthropic';
 const DEFAULT_SHADOW_INTERVAL_MS = 30_000;
 const MIN_SHADOW_INTERVAL_MS = 5_000;
 
@@ -59,12 +58,12 @@ export function buildShadowCommand(opts: SlashCommandContext): SlashCommand {
       '  • Uses deterministic host rules first; LLM only for manual/problem cases',
       '  • Does not post routine healthy reports',
       '',
-      'Model must be specified as provider/model, e.g. anthropic/claude-3-5-sonnet',
+      'Model must be specified as provider/model, e.g. provider/configured-model',
       'When omitted, Shadow uses the current leader provider/model.',
       '',
       'Examples:',
       '  /shadow start',
-      '  /shadow start --model=anthropic/claude-3-5-sonnet',
+      '  /shadow start --model=provider/configured-model',
       '  /shadow status                       Show all agent activity',
       '  /shadow hoop subagent-abc123        Stop agent and notify',
       '  /shadow hoop subagent-abc --reason=looping  Stop with reason',
@@ -90,6 +89,18 @@ export function buildShadowCommand(opts: SlashCommandContext): SlashCommand {
             return { message: `/shadow start: ${(e as Error).message}` };
           }
 
+          // Only one Shadow Agent allowed per session
+          if (opts.shadowController?.activeId != null) {
+            return {
+              message: [
+                `${color.yellow('⚠')} A Shadow Agent is already running (${opts.shadowController.activeId.slice(0, 8)}).`,
+                '',
+                'Only one Shadow Agent instance is allowed per session.',
+                'Use /shadow status to view the current instance.',
+              ].join('\n'),
+            };
+          }
+
           // Validate model format: must be provider/model
           const defaultModelRef = getDefaultModelRef(opts);
           let modelRef: ParsedModelRef;
@@ -102,16 +113,9 @@ export function buildShadowCommand(opts: SlashCommandContext): SlashCommand {
           } catch (e) {
             return { message: `/shadow start: ${(e as Error).message}` };
           }
-
-          // Only one Shadow Agent allowed per session
-          if (opts.shadowController?.activeId != null) {
+          if (!modelRef.provider || !modelRef.model) {
             return {
-              message: [
-                `${color.yellow('⚠')} A Shadow Agent is already running (${opts.shadowController.activeId.slice(0, 8)}).`,
-                '',
-                'Only one Shadow Agent instance is allowed per session.',
-                'Use /shadow status to view the current instance.',
-              ].join('\n'),
+              message: '/shadow start: no leader provider/model is configured; pass --model=provider/model',
             };
           }
 
@@ -268,7 +272,7 @@ function getDefaultModelRef(opts: SlashCommandContext): ParsedModelRef {
   const provider = shadowDefaults?.provider?.trim()
     || liveConfig?.provider?.trim()
     || opts.llmProvider?.id?.trim()
-    || DEFAULT_SHADOW_PROVIDER;
+    || '';
   const model = shadowDefaults?.model?.trim()
     || liveConfig?.model?.trim()
     || opts.llmModel?.trim()
@@ -287,7 +291,7 @@ function parseProviderModelRef(model: string, defaultRef: ParsedModelRef): Parse
   const slash = model.indexOf('/');
   if (slash <= 0 || slash === model.length - 1) {
     throw new ToolValidationError({
-      message: `Model must be in provider/model format (e.g. anthropic/claude-3-5-sonnet), got: "${model}"`,
+      message: `Model must be in provider/model format (e.g. provider/configured-model), got: "${model}"`,
       field: 'model',
       context: { received: model },
     });

@@ -372,8 +372,8 @@ Inside a live session, `/auth` opens the same interactive key manager as an Ink/
 Codex and Claude use a PKCE loopback flow; Copilot uses GitHub's device flow.
 Tokens self-refresh (near-expiry + once on `401`) and are AES-256-GCM encrypted
 at rest like any other secret. After login, select the provider/model from the
-`/model` picker or with `--provider … --model …` — modern Claude (Opus 4.8,
-Sonnet 4.6) serves its full **1M-token** context on this path automatically.
+`/model` picker or with `--provider … --model …` — eligible long-context
+models serve their full **1M-token** context on this path automatically.
 
 > ⚠️ **Using a subscription outside its official client is a ToS gray area and
 > can get your account rate-limited or banned.** The sanctioned path for

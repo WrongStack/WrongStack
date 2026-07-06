@@ -19,7 +19,7 @@ const fullDescription =
 const baseConfig: Config = {
   version: 1,
   provider: 'anthropic',
-  model: 'claude-sonnet-4-6',
+  model: 'anthropic-test-model',
   context: {
     warnThreshold: 0.6,
     softThreshold: 0.75,

@@ -52,7 +52,7 @@ describe('FleetManager', () => {
     return {
       name: 'test-subagent',
       provider: 'anthropic',
-      model: 'sonnet-4',
+      model: 'anthropic-test-model',
       ...overrides,
     };
   }
@@ -203,7 +203,7 @@ describe('FleetManager', () => {
 
     it('stores provider + model for usage attribution', () => {
       const fm = new FleetManager();
-      fm.recordSpawn('sub-x', makeConfig({ provider: 'anthropic', model: 'sonnet-4' }));
+      fm.recordSpawn('sub-x', makeConfig({ provider: 'anthropic', model: 'anthropic-test-model' }));
       // Usage entry is created on first provider.response event, not on recordSpawn.
       fm.fleet.emit({
         subagentId: 'sub-x',
@@ -214,7 +214,7 @@ describe('FleetManager', () => {
       const snap = fm.snapshot();
       expect(snap.perSubagent['sub-x']).toBeDefined();
       expect(snap.perSubagent['sub-x']!.provider).toBe('anthropic');
-      expect(snap.perSubagent['sub-x']!.model).toBe('sonnet-4');
+      expect(snap.perSubagent['sub-x']!.model).toBe('anthropic-test-model');
     });
   });
 
@@ -253,7 +253,7 @@ describe('FleetManager', () => {
       const manifestPath = path.join(tmpDir, 'fleet.json');
 
       const fm = new FleetManager({ manifestPath });
-      fm.recordSpawn('sub-1', makeConfig({ name: 'worker', role: 'researcher', provider: 'anthropic', model: 'sonnet-4' }));
+      fm.recordSpawn('sub-1', makeConfig({ name: 'worker', role: 'researcher', provider: 'anthropic', model: 'anthropic-test-model' }));
       fm.addTaskToSubagent('sub-1', 'task-1');
 
       const written = await fm.writeManifest();

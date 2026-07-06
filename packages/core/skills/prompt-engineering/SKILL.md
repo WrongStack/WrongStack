@@ -134,4 +134,4 @@ See `skill-creator` skill for the format. Key points:
 - `skill-creator` — for creating new skills (primary — prompt-engineering feeds into skill creation)
 - `typescript-strict` — for TypeScript-specific prompt typing
 - `react-modern` — for React component prompt conventions
-- `output-standards` — for standardized `<next_steps>` formatting
+- `output-standards` — for standardized `<nextsteps>` formatting

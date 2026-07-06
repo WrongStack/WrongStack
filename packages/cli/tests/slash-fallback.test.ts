@@ -86,10 +86,10 @@ describe('/fallback', () => {
   it('profile set stores a named fallback chain', async () => {
     const { ctx, readFile } = makeCtx();
     const cmd = buildFallbackCommand(ctx);
-    const res = await cmd.run('profile set fallback1 openai/gpt-5,anthropic/claude-sonnet');
+    const res = await cmd.run('profile set fallback1 openai/gpt-5,anthropic/anthropic-test-model');
     expect(stripAnsi(res?.message ?? '')).toContain('profile fallback1');
     expect(readFile().fallbackProfiles).toEqual({
-      fallback1: ['openai/gpt-5', 'anthropic/claude-sonnet'],
+      fallback1: ['openai/gpt-5', 'anthropic/anthropic-test-model'],
     });
   });
 

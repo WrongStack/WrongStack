@@ -114,7 +114,7 @@ export const MessageBubble = memo(function MessageBubble({
 
   /**
    * Parse the assistant output once and cache the result for both:
-   *   - the stripped content fed to react-markdown (so raw <next_steps> tags
+   *   - the stripped content fed to react-markdown (so raw <nextsteps> tags
    *     never leak into the rendered DOM)
    *   - the steps array fed to the <NextStepsBar> below.
    * Recomputes only when message.content changes.
@@ -337,7 +337,7 @@ export const MessageBubble = memo(function MessageBubble({
               </div>
             );
           })() : (() => {
-            // For assistant output, strip the canonical <next_steps> block
+            // For assistant output, strip the canonical <nextsteps> block
             // before passing to react-markdown — otherwise the raw tags leak
             // through as literal text. The parsed steps render as a separate
             // <NextStepsBar> below the bubble.
@@ -367,7 +367,7 @@ export const MessageBubble = memo(function MessageBubble({
           </span>
         )}
 
-        {/* Next steps — parse canonical <next_steps> from assistant output */}
+        {/* Next steps — parse canonical <nextsteps> from assistant output */}
         {nextStepsResult && nextStepsResult.steps.length > 0 && (
           <NextStepsBar
             steps={nextStepsResult.steps}

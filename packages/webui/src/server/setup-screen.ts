@@ -17,6 +17,41 @@ import { toErrorMessage } from '@wrongstack/core/utils';
 import type { Config } from '@wrongstack/core/types';
 import { makeProviderFromConfig } from '@wrongstack/providers';
 
+const UNCONFIGURED_CAPABILITIES: Provider['capabilities'] = {
+  tools: false,
+  parallelTools: false,
+  vision: false,
+  streaming: false,
+  promptCache: false,
+  systemPrompt: false,
+  jsonMode: false,
+  reasoning: false,
+  maxContext: 0,
+  cacheControl: 'none',
+  topK: false,
+  frequencyPenalty: false,
+  presencePenalty: false,
+  seed: false,
+  structuredOutput: false,
+  logprobs: false,
+  audio: false,
+  multipleCompletions: false,
+};
+
+function makeUnconfiguredProvider(): Provider {
+  const message = 'No provider configured. Complete setup before starting an agent run.';
+  return {
+    id: 'unconfigured',
+    capabilities: UNCONFIGURED_CAPABILITIES,
+    async *stream() {
+      throw new Error(message);
+    },
+    async complete() {
+      throw new Error(message);
+    },
+  };
+}
+
 export interface ResolveSetupProviderOptions {
   config: Config;
   /** True when neither provider nor model is set in config. */
@@ -52,7 +87,7 @@ function logCreateFailure(event: string, err: unknown): void {
  *   1. provider + model configured → build from the configured provider.
  *   2. no active provider but saved providers exist → build from the first
  *      saved provider (vault already decrypted its key).
- *   3. no providers at all → boot with a stub anthropic provider and signal
+ *   3. no providers at all → boot with an inert placeholder provider and signal
  *      `needsSetup` so the frontend shows the onboarding screen.
  *
  * Throws on provider-construction failure (same as the inline code).
@@ -103,14 +138,10 @@ export function resolveSetupProvider(
     }
   }
 
-  // Branch 3 — no providers at all. Boot with a stub so the agent
-  // initializes; the frontend shows the setup screen until the user
-  // picks a real provider/model.
+  // Branch 3 — no providers at all. Boot with an inert placeholder so
+  // the server initializes without smuggling in a real provider/model
+  // identity; the frontend shows setup until the user picks one.
   console.log('[WebUI] No providers configured — showing setup screen');
-  const provider = makeProviderFromConfig('anthropic', {
-    type: 'anthropic',
-    family: 'anthropic',
-    apiKey: 'stub-key-replaced-on-setup',
-  });
+  const provider = makeUnconfiguredProvider();
   return { provider, needsSetup: true };
 }

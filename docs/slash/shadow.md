@@ -33,7 +33,7 @@ The spawned agent gets the `fleet`, `mailbox`/`mail_inbox`/`mail_send`, and
 
 ## Model selection
 
-Models must be `provider/model` (e.g. `anthropic/claude-sonnet-5`);
+Models must be `provider/model` (e.g. `anthropic/anthropic-test-model`);
 `default` (or omitting `--model`) uses the current leader provider/model.
 Only one Shadow Agent instance is allowed per session.
 
@@ -41,7 +41,7 @@ Only one Shadow Agent instance is allowed per session.
 
 ```
 /shadow start
-/shadow start --model=anthropic/claude-sonnet-5
+/shadow start --model=anthropic/anthropic-test-model
 /shadow status
 /shadow hoop subagent-abc123 --reason=looping
 ```

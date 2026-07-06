@@ -168,4 +168,4 @@ coverageThreshold: {
 - `typescript-strict` — for type-safe test assertions
 - `node-modern` — for async/test patterns with AbortSignal
 - `git-flow` — for committing tests with the code they test
-- `output-standards` — for standardized `<next_steps>` formatting
+- `output-standards` — for standardized `<nextsteps>` formatting

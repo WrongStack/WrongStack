@@ -42,7 +42,6 @@ describe('inferTaskType', () => {
 describe('findModelProfile', () => {
   it('matches a provider + model id by pattern', () => {
     expect(findModelProfile('anthropic', 'claude-opus-4-8')?.family).toBe('Claude Opus');
-    expect(findModelProfile('anthropic', 'claude-sonnet-4-6')?.family).toBe('Claude Sonnet');
     expect(findModelProfile('openai', 'gpt-4o-mini')?.family).toMatch(/Mini|GPT-4/);
     expect(findModelProfile('google', 'gemini-2.5-pro')?.family).toBe('Gemini 2.5 / 3');
     expect(findModelProfile('deepseek', 'deepseek-r1')?.family).toContain('DeepSeek');
@@ -71,7 +70,7 @@ describe('findModelProfile', () => {
 describe('scoreModelForTask', () => {
   const opus = findModelProfile('anthropic', 'claude-opus-4-8');
   const haiku = findModelProfile('anthropic', 'claude-haiku-4-5');
-  const sonnet = findModelProfile('anthropic', 'claude-sonnet-4-6');
+  const standardFast = findModelProfile('openai', 'gpt-4o');
 
   it('returns a neutral score for an unknown model', () => {
     expect(scoreModelForTask(undefined, 'coding')).toBe(50);
@@ -91,13 +90,13 @@ describe('scoreModelForTask', () => {
   it('boosts budget/fast models for lightweight tasks', () => {
     // haiku is budget+fast but avoidFor doesn't include lightweight; it's bestFor lightweight → 90
     expect(scoreModelForTask(haiku, 'lightweight')).toBe(90);
-    // sonnet: lightweight not in bestFor/avoidFor → base 50 + standard(15) + fast(20) = 85
-    expect(scoreModelForTask(sonnet, 'lightweight')).toBe(85);
+    // standardFast: lightweight not in bestFor/avoidFor → base 50 + standard(15) + fast(20) = 85
+    expect(scoreModelForTask(standardFast, 'lightweight')).toBe(85);
   });
 
   it('boosts premium/slow models for planning and security via the cost path', () => {
-    // sonnet for 'security' is not bestFor/avoidFor → base 50, standard cost (+0), fast (+0) = 50
-    expect(scoreModelForTask(sonnet, 'security')).toBe(50);
+    // standardFast for 'security' is not bestFor/avoidFor → base 50, standard cost (+0), fast (+0) = 50
+    expect(scoreModelForTask(standardFast, 'security')).toBe(50);
     // A premium+slow model scored on an off-list task gets the premium/slow boosts.
     const premiumSlow = { ...opus!, bestFor: [], avoidFor: [] };
     expect(scoreModelForTask(premiumSlow, 'planning')).toBe(50 + 20 + 10);

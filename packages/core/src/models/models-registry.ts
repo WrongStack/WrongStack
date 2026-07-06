@@ -89,9 +89,20 @@ const FAMILY_BY_NPM: Record<string, WireFamily> = {
   '@ai-sdk/google': 'google',
 };
 
+const FAMILY_BY_PROVIDER_ID: Partial<Record<string, WireFamily>> = {
+  'anthropic-oauth': 'anthropic-oauth',
+  'github-copilot': 'github-copilot',
+  'openai-codex': 'openai-codex',
+};
+
 export function classifyFamily(npm: string | undefined): WireFamily {
   if (!npm) return 'unsupported';
   return FAMILY_BY_NPM[npm] ?? 'unsupported';
+}
+
+function classifyProviderFamily(p: ModelsDevProvider): WireFamily {
+  const byNpm = classifyFamily(p.npm);
+  return byNpm !== 'unsupported' ? byNpm : (FAMILY_BY_PROVIDER_ID[p.id] ?? 'unsupported');
 }
 
 export class DefaultModelsRegistry implements ModelsRegistry {
@@ -402,7 +413,7 @@ export class DefaultModelsRegistry implements ModelsRegistry {
     return {
       id: p.id,
       name: p.name,
-      family: classifyFamily(p.npm),
+      family: classifyProviderFamily(p),
       apiBase: p.api,
       envVars: p.env ?? [],
       doc: p.doc,

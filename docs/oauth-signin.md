@@ -106,10 +106,10 @@ wstack auth login claude
 - **Provider id:** `anthropic-oauth` · **Endpoint:** `https://api.anthropic.com`
   (Messages API, Bearer auth + Claude Code beta headers).
 - **Models:** fetched live from your account's `/v1/models` at login; falls back
-  to `claude-sonnet-4-6`, `claude-opus-4-8`.
+  to `anthropic-test-model`, `claude-opus-4-8`.
 - **Use:** `wstack --provider anthropic-oauth --model claude-opus-4-8 "<task>"`
 - **Requires** a Claude **Pro / Max** subscription. Modern Claude models
-  (Sonnet 4.6+, Opus 4.8) serve their full **1M-token** context window on this
+  eligible long-context models serve their full **1M-token** context window on this
   path with no extra flags (see [context windows](#context-windows) below).
 
 ## Sign in with GitHub Copilot

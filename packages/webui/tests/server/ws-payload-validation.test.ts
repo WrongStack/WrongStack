@@ -27,9 +27,9 @@ import {
 describe('WebUI WebSocket payload validation', () => {
   describe('validateModelSwitchPayload', () => {
     it('accepts non-empty provider and model strings', () => {
-      expect(validateModelSwitchPayload({ provider: 'anthropic', model: 'claude-sonnet' })).toEqual({
+      expect(validateModelSwitchPayload({ provider: 'anthropic', model: 'test-model' })).toEqual({
         ok: true,
-        value: { provider: 'anthropic', model: 'claude-sonnet' },
+        value: { provider: 'anthropic', model: 'test-model' },
       });
     });
 
@@ -38,11 +38,11 @@ describe('WebUI WebSocket payload validation', () => {
       null,
       [],
       {},
-      { provider: '', model: 'claude-sonnet' },
-      { provider: '   ', model: 'claude-sonnet' },
+      { provider: '', model: 'test-model' },
+      { provider: '   ', model: 'test-model' },
       { provider: 'anthropic', model: '' },
       { provider: 'anthropic', model: '   ' },
-      { provider: 123, model: 'claude-sonnet' },
+      { provider: 123, model: 'test-model' },
       { provider: 'anthropic', model: 123 },
     ])('rejects invalid model.switch payload %#', (payload) => {
       const result = validateModelSwitchPayload(payload);
@@ -224,13 +224,13 @@ describe('WebUI WebSocket payload validation', () => {
         tgLongToolMs: 30_000,
         fallbackModels: ['anthropic/claude-haiku-4-5', 'openai/gpt-5'],
         fallbackProfiles: {
-          default: ['anthropic/claude-sonnet', 'openai/gpt-5'],
+          default: ['anthropic/anthropic-test-model', 'openai/gpt-5'],
         },
-        favoriteModels: ['anthropic/claude-sonnet'],
+        favoriteModels: ['anthropic/anthropic-test-model'],
         favoriteModelsOnly: true,
         modelMatrix: {
           '*': { fallbackProfile: 'default' },
-          review: { provider: 'anthropic', model: 'claude-sonnet' },
+          review: { provider: 'anthropic', model: 'test-model' },
           planner: {
             modelRuntime: {
               reasoning: { mode: 'on', effort: 'low', preserve: false },

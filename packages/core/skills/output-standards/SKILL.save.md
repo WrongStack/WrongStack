@@ -1,11 +1,11 @@
 # Output Standards — WrongStack (Compact)
 
-Standardizes the format of agent output, particularly the `<next_steps>` section in final messages.
+Standardizes the format of agent output, particularly the `<nextsteps>` section in final messages.
 
 ## Rules
 
-1. Only the leader agent includes `<next_steps>` — subagents report findings only.
-2. Tags must be properly closed — `<next_steps>...</next_steps>`.
+1. Only the leader agent includes `<nextsteps>` — subagents report findings only.
+2. Tags must be properly closed — `<nextsteps>...</nextsteps>`.
 3. No markdown inside tags — plain text only, one action per line.
 4. Use imperative mood — "Fix X", not "Fixed X".
 5. Be specific — mention file paths, tool names, or exact commands.
@@ -15,8 +15,8 @@ Standardizes the format of agent output, particularly the `<next_steps>` section
 ## Format
 
 ```
-<next_steps>
+<nextsteps>
 1. [Priority] Action item with file:line reference
 2. [Priority] Second action item
-</next_steps>
+</nextsteps>
 ```

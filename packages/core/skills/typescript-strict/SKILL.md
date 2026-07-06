@@ -237,4 +237,4 @@ console.log(name!.toUpperCase());
 - `node-modern` — for TypeScript + ESM patterns
 - `react-modern` — for React + TypeScript patterns
 - `bug-hunter` — for type-related bugs like unsafe casts
-- `output-standards` — for standardized `<next_steps>` formatting
+- `output-standards` — for standardized `<nextsteps>` formatting

@@ -25,7 +25,7 @@
  * ```jsonc
  * {
  *   "enabled": false,
- *   "escalation": ["claude-sonnet-5", "claude-opus-4-8"],
+ *   "escalation": ["provider/model-standard", "provider/model-premium"],
  *   "retryablePatterns": ["overload", "rate.?limit", "429", "50[023]", "timeout", "ETIMEDOUT", "ECONNRESET"]
  * }
  * ```

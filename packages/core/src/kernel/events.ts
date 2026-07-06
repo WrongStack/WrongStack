@@ -193,7 +193,7 @@ export interface EventMap {
    * (after its own retries are exhausted) and the agent switches to the next
    * model in the configured `fallbackModels` chain. `providerSwitched` is true
    * when the fallback also changed the active provider (cross-provider). UIs
-   * render this as a notice: "⚠ opus overloaded — falling back to sonnet".
+   * render this as a notice: "⚠ opus overloaded — falling back to planner".
    */
   'provider.fallback': {
     sessionId?: string | undefined;

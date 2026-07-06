@@ -48,7 +48,7 @@ import { CLI_VERSION } from './version.js';
 import { setAutoSuggestions } from './slash-commands/suggestion-store.js';
 
 /**
- * Extract canonical "<next_steps>" suggestions from the agent's final output.
+ * Extract canonical "<nextsteps>" suggestions from the agent's final output.
  * Returns null when no suggestions are found.
  */
 /**
@@ -61,12 +61,12 @@ import { setAutoSuggestions } from './slash-commands/suggestion-store.js';
 const DEFAULT_MAX_CONSECUTIVE_AUTO_PROCEED = 50;
 
 /**
- * Extract canonical "<next_steps>" suggestions from the agent's final output.
+ * Extract canonical "<nextsteps>" suggestions from the agent's final output.
  * Loose "Next steps" prose is intentionally ignored; `/next` requires the tagged block.
  * Returns null when no suggestions are found.
  *
  * Gated on the live todo list: when the agent still has open todos
- * (`pending` or `in_progress`), we suppress `<next_steps>` entirely and clear
+ * (`pending` or `in_progress`), we suppress `<nextsteps>` entirely and clear
  * the auto-suggestion store. Surfacing suggestions mid-task would race the
  * todo loop — YOLO+auto could pick the top suggestion and pivot away from
  * the unfinished work, and `/next 1` would replace the next todo with an
@@ -84,7 +84,7 @@ export function parseSuggestionsFromOutput(
     setAutoSuggestions([]);
     return null;
   }
-  const { texts, autoTexts } = parseNextSteps(finalText, false); // assistant output: canonical <next_steps> only
+  const { texts, autoTexts } = parseNextSteps(finalText, false); // assistant output: canonical <nextsteps> only
   // Store auto suggestions in the shared store for YOLO+auto autonomy mode
   if (autoTexts.length > 0) {
     setAutoSuggestions(autoTexts);
@@ -97,7 +97,7 @@ export function parseSuggestionsFromOutput(
  * Used by YOLO+auto autonomy mode.
  */
 export function parseAutoSuggestionsFromOutput(finalText: string): string[] | null {
-  const { autoTexts } = parseNextSteps(finalText, false); // assistant output: canonical <next_steps> only
+  const { autoTexts } = parseNextSteps(finalText, false); // assistant output: canonical <nextsteps> only
   return autoTexts.length > 0 ? autoTexts : null;
 }
 
@@ -715,7 +715,7 @@ export async function runRepl(opts: ReplOptions): Promise<number> {
                 // parse "💡 Next steps" from the agent's output so
                 // subsequent /next 1 calls use the latest suggestions,
                 // not stale ones from a prior /suggest. The live todo
-                // list is passed through so we suppress <next_steps> while
+                // list is passed through so we suppress <nextsteps> while
                 // the in-flight todo loop is still in progress.
                 if (opts.onSuggestionsParsed) {
                   const parsed = parseSuggestionsFromOutput(
@@ -893,7 +893,7 @@ export async function runRepl(opts: ReplOptions): Promise<number> {
         // ── Suggestion auto-parsing ─────────────────────────────────────
         // Extract "💡 Next steps" from the agent's final output and store
         // them so the user can select with /next 1, /next 1 2 3. The live
-        // todo list is passed through so we suppress <next_steps> while
+        // todo list is passed through so we suppress <nextsteps> while
         // the in-flight todo loop is still in progress — finishing the
         // open todos comes before offering new prompt options.
         if (result.status === 'done' && result.finalText && opts.onSuggestionsParsed) {
@@ -961,7 +961,7 @@ export async function runRepl(opts: ReplOptions): Promise<number> {
             // Suggest mode: ask the agent what to do next, show to user.
             const suggestPrompt =
               'Based on what you just did, suggest 3 concrete next steps. ' +
-              'If you include suggestions, wrap them in a balanced <next_steps>...</next_steps> block, ' +
+              'If you include suggestions, wrap them in a balanced <nextsteps>...</nextsteps> block, ' +
               'with one numbered prompt per line and no explanation. ' +
               'If there is nothing meaningful left, say "No further steps needed."';
             const suggestBlocks = [{ type: 'text' as const, text: suggestPrompt }];
@@ -1249,7 +1249,7 @@ async function runAutoProceed(
       ).total,
     );
     // Parse suggestions from the auto-triggered turn. The live todo list
-    // is passed through so we suppress <next_steps> while the in-flight
+    // is passed through so we suppress <nextsteps> while the in-flight
     // todo loop is still in progress — finishing the open todos comes
     // before offering new prompt options.
     if (runResult.status === 'done' && runResult.finalText && opts.onSuggestionsParsed) {

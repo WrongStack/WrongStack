@@ -5,7 +5,7 @@ import { createDefaultContainer } from '../src/container.js';
 const mockConfig = {
   version: 1,
   provider: 'anthropic',
-  model: 'claude-sonnet-4-20250514',
+  model: 'anthropic-test-model',
   log: { level: 'info' as const },
   tools: {
     maxIterations: 100,

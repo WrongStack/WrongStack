@@ -65,7 +65,7 @@ const makeSession = (
   title: 'Test Session',
   startedAt: '2024-01-01T00:00:00.000Z',
   provider: 'anthropic',
-  model: 'claude-3-5-sonnet',
+  model: 'anthropic-test-model',
   ...overrides,
 });
 
@@ -384,7 +384,7 @@ describe('F5 resilience — persistence', () => {
           title: 'Round trip',
           startedAt: 1_700_000_000_000,
           provider: 'anthropic',
-          model: 'claude-sonnet-4-20250514',
+          model: 'anthropic-test-model',
         },
         projectName: 'persisted-project',
         projectRoot: '/tmp/persisted-project',

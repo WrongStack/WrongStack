@@ -188,4 +188,4 @@ while (true) {
 - `react-modern` — React Server Components with Node.js
 - `bug-hunter` — catching async/await bugs, unhandled rejections
 - `sdd` — for setting up new Node.js features with a spec first
-- `output-standards` — for standardized `<next_steps>` formatting
+- `output-standards` — for standardized `<nextsteps>` formatting

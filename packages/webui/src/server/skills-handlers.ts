@@ -347,7 +347,7 @@ export async function handleSkillsCreate(
       trigger ? `\n${trigger}\n` : '',
       '## Skills in scope',
       '- `bug-hunter` — for systematic bug detection patterns',
-      '- `output-standards` — for standardized `<next_steps>` formatting',
+      '- `output-standards` — for standardized `<nextsteps>` formatting',
     ].join('\n');
 
     await atomicWrite(path.join(targetDir, 'SKILL.md'), skillContent);

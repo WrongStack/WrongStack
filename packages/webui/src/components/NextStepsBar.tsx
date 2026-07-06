@@ -16,7 +16,7 @@ export interface ParseNextStepsResult {
   /** Matched steps with their original index and stripped text. */
   steps: NextStep[];
   /**
-   * The input content with the entire "<next_steps>" block removed.
+   * The input content with the entire "<nextsteps>" block removed.
    * Used by MessageBubble to feed react-markdown content that
    * contains no raw suggestion tags.
    */
@@ -25,8 +25,8 @@ export interface ParseNextStepsResult {
 
 // ── Patterns ───────────────────────────────────────────────────────────────
 
-/** Matches the canonical <next_steps> opening tag. */
-const NEXT_STEPS_TAG_RE = /<next_steps>\s*\n+/i;
+/** Matches the canonical <nextsteps> opening tag. */
+const NEXT_STEPS_TAG_RE = /<nextsteps>\s*\n+/i;
 
 /** Matches an item line: "1. text", "1) text", "- text", "* text". */
 /** Also captures optional auto="true" attribute at the end. */
@@ -37,14 +37,14 @@ const MAX_STEPS = 6;
 // ── Core parser ────────────────────────────────────────────────────────────
 
 /**
- * Parse a canonical "<next_steps>" block from assistant output.
+ * Parse a canonical "<nextsteps>" block from assistant output.
  *
  * Returns the parsed steps AND the content with the entire block stripped,
  * so the caller can render the body without leaking raw XML tags.
  *
  * @param content — raw assistant message text.
  * @param strict  — retained for compatibility; assistant output always requires
- *                  the canonical <next_steps> XML tag.
+ *                  the canonical <nextsteps> XML tag.
  */
 export function parseNextSteps(
   content: string,
@@ -68,7 +68,7 @@ export function parseNextSteps(
     const line = rawLine.trim();
 
     // XML closing tag — consume it and end the block.
-    if (line === '</next_steps>') {
+    if (line === '</nextsteps>') {
       consumed += rawLine.length + 1;
       break;
     }
@@ -113,7 +113,7 @@ export function parseNextSteps(
   // Require a matching closing tag — the agent should always emit a balanced
   // block, and we don't want to consume half of a malformed block that may
   // belong to user prose.
-  if (!afterHeading.includes('</next_steps>')) {
+  if (!afterHeading.includes('</nextsteps>')) {
     return { steps: [], stripped: content };
   }
 
@@ -130,13 +130,13 @@ export function parseNextSteps(
 }
 
 /**
- * Strip <next_steps>...</next_steps> blocks from subagent output text.
+ * Strip <nextsteps>...</nextsteps> blocks from subagent output text.
  * Subagent results should not contain suggestion blocks — those belong to
  * the main assistant's output. This prevents raw XML tags from appearing
  * as literal text in the fleet panel.
  */
 export function stripNextStepsBlock(text: string): string {
-  // Match <next_steps>...</next_steps> or <next_steps/> (self-closing)
+  // Match <nextsteps>...</nextsteps> or <next_steps/> (self-closing)
   // The block may span multiple lines.
   return text
     .replace(/<next_steps\b[^>]*>[\s\S]*?<\/next_steps>/gi, '')

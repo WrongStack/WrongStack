@@ -28,56 +28,56 @@ export const PLUGIN_AUDIT_ENTRIES: readonly PluginAuditEntry[] = [
     risk: 'medium',
     summary: 'Prompt library and prompt authoring commands.',
     defaultState: 'active',
-    canDisable: false,
+    canDisable: true,
   },
   {
     name: 'wstack-sync',
     risk: 'medium',
     summary: 'Cloud sync commands for prompts, skills, settings, memory, and history.',
     defaultState: 'active',
-    canDisable: false,
+    canDisable: true,
   },
   {
     name: 'wstack-git',
     risk: 'high',
     summary: 'Git commands for commit, status checks, and push.',
     defaultState: 'active',
-    canDisable: false,
+    canDisable: true,
   },
   {
     name: 'wstack-observability',
     risk: 'low',
     summary: 'Runtime metrics and health slash commands.',
     defaultState: 'active',
-    canDisable: false,
+    canDisable: true,
   },
   {
     name: 'wstack-security',
     risk: 'high',
     summary: 'Security scanning backend used by first-party security flows.',
     defaultState: 'active',
-    canDisable: false,
+    canDisable: true,
   },
   {
     name: 'wstack-chimera',
     risk: 'medium',
     summary: 'Post-session code quality review agent.',
     defaultState: 'active',
-    canDisable: false,
+    canDisable: true,
   },
   {
     name: 'wstack-skills',
     risk: 'medium',
     summary: 'Skill library, authoring, install, update, and uninstall commands.',
     defaultState: 'active',
-    canDisable: false,
+    canDisable: true,
   },
   {
     name: 'wstack-plan',
     risk: 'medium',
     summary: 'Strategic plan board slash command.',
     defaultState: 'active',
-    canDisable: false,
+    canDisable: true,
   },
   {
     name: 'agent-handoff',
@@ -161,7 +161,7 @@ export const PLUGIN_AUDIT_ENTRIES: readonly PluginAuditEntry[] = [
     risk: 'high',
     summary: 'Blocks or redacts credential leaks in tool input and output.',
     defaultState: 'active',
-    canDisable: false,
+    canDisable: true,
   },
   {
     name: 'todo-tracker',
@@ -189,7 +189,7 @@ export const PLUGIN_AUDIT_ENTRIES: readonly PluginAuditEntry[] = [
     risk: 'high',
     summary: 'Blocks commits, pushes, and merges on protected branches.',
     defaultState: 'active',
-    canDisable: false,
+    canDisable: true,
   },
   {
     name: 'diff-summary',
@@ -870,7 +870,7 @@ export function renderPluginAuditReport(config: Config): string {
   const lines = [
     'Plugin audit report:',
     '  State shows the effective boot state. Default-active plugins run unless disabled in config.',
-    '  Locked rows are visible in the menu but cannot be toggled there.',
+    '  Built-in audit rows are toggleable unless a future row explicitly marks itself locked.',
     '',
     '  Built-in audit entries:',
   ];
@@ -948,7 +948,7 @@ function effectiveAuditState(
 
 function lockedReason(entry: PluginAuditEntry): string {
   if (entry.canDisable) return 'toggleable';
-  if (entry.name === 'secret-scanner' || entry.name === 'branch-guard') {
+  if (entry.name === 'secret-scanner') {
     return 'locked: safety guard';
   }
   return 'locked: core surface';
@@ -1018,12 +1018,17 @@ async function togglePlugin(
   existing.plugins = nextPlugins;
   existing.features = features;
   await atomicWrite(deps.configPath, JSON.stringify(existing, null, 2), { mode: 0o600 });
+  const restartRequired = spec === 'branch-guard' && !nextEnabled ? undefined : true;
   return {
     code: 0,
     level: 'info',
-    message: `${nextEnabled ? 'Enabled' : 'Disabled'} "${spec}". Config written to ${deps.configPath}.`,
+    message:
+      `${nextEnabled ? 'Enabled' : 'Disabled'} "${spec}". Config written to ${deps.configPath}.` +
+      (spec === 'branch-guard' && !nextEnabled
+        ? ' The running branch-guard hook will disable itself on config update.'
+        : ''),
     patch: { plugins: nextPlugins, features },
-    restartRequired: true,
+    restartRequired,
   };
 }
 
@@ -1049,12 +1054,17 @@ async function upsertPlugin(
   existing.plugins = plugins;
   existing.features = features;
   await atomicWrite(deps.configPath, JSON.stringify(existing, null, 2), { mode: 0o600 });
+  const restartRequired = spec === 'branch-guard' && !opts.enabled ? undefined : true;
   return {
     code: 0,
     level: 'info',
-    message: `${verb} "${spec}" (${opts.enabled ? 'enabled' : 'disabled'}). Config written to ${deps.configPath}.`,
+    message:
+      `${verb} "${spec}" (${opts.enabled ? 'enabled' : 'disabled'}). Config written to ${deps.configPath}.` +
+      (spec === 'branch-guard' && !opts.enabled
+        ? ' The running branch-guard hook will disable itself on config update.'
+        : ''),
     patch: { plugins, features },
-    restartRequired: true,
+    restartRequired,
   };
 }
 

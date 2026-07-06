@@ -18,7 +18,7 @@ function sseBody(events: string): ReadableStream<Uint8Array> {
 
 const ANTHROPIC_SSE = [
   'event: message_start',
-  'data: {"type":"message_start","message":{"model":"claude-sonnet-4-6","usage":{"input_tokens":5,"output_tokens":0}}}',
+  'data: {"type":"message_start","message":{"model":"anthropic-test-model","usage":{"input_tokens":5,"output_tokens":0}}}',
   '',
   'event: content_block_start',
   'data: {"type":"content_block_start","index":0,"content_block":{"type":"text","text":""}}',
@@ -51,7 +51,7 @@ function capturingFetch(body: string, captured: Captured, status = 200): typeof 
 }
 
 const baseReq: Request = {
-  model: 'claude-sonnet-4-6',
+  model: 'anthropic-test-model',
   system: [{ type: 'text', text: 'Be terse.' }],
   messages: [{ role: 'user', content: 'hi' }],
   maxTokens: 100,
@@ -206,7 +206,7 @@ describe('AnthropicOAuthProvider Claude Code camouflage', () => {
     const captured: Captured = {};
     const toolSse = [
       'event: message_start',
-      'data: {"type":"message_start","message":{"model":"claude-sonnet-4-6","usage":{"input_tokens":5,"output_tokens":0}}}',
+      'data: {"type":"message_start","message":{"model":"anthropic-test-model","usage":{"input_tokens":5,"output_tokens":0}}}',
       '',
       'event: content_block_start',
       'data: {"type":"content_block_start","index":0,"content_block":{"type":"tool_use","id":"toolu_1","name":"Read","input":{}}}',
@@ -230,7 +230,7 @@ describe('AnthropicOAuthProvider Claude Code camouflage', () => {
       fetchImpl: capturingFetch(toolSse, captured),
     });
     const req: Request = {
-      model: 'claude-sonnet-4-6',
+      model: 'anthropic-test-model',
       messages: [{ role: 'user', content: 'read x' }],
       maxTokens: 100,
       tools: [{ name: 'read', description: 'read a file', inputSchema: { type: 'object' } }],

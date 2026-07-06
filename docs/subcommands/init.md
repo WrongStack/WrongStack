@@ -42,7 +42,7 @@ Written to `deps.paths.globalConfig` (`~/.wrongstack/config.json`):
 {
   "version": 1,
   "provider": "anthropic",
-  "model": "claude-sonnet-4-7",
+  "model": "anthropic-test-model",
   "apiKey": "<encrypted>"
 }
 ```

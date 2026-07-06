@@ -50,7 +50,6 @@ export interface TodoPreviewRow {
   dim?: boolean | undefined;
 }
 
-const TERMINAL_TTL_MS = 90_000;
 const METER_WIDTH = 10;
 
 function isLeaderEntry(entry: FleetEntry): boolean {
@@ -141,26 +140,23 @@ export function swarmColumnCount(width: number): number {
 
 export function selectSwarmEntries(
   entries: Record<string, FleetEntry>,
-  now: number,
-  opts: { includeLeader?: boolean | undefined; terminalTtlMs?: number | undefined } = {},
+  _now: number,
+  opts: { includeLeader?: boolean | undefined } = {},
 ): FleetEntry[] {
-  const terminalTtlMs = opts.terminalTtlMs ?? TERMINAL_TTL_MS;
   return Object.values(entries)
     .filter((entry) => {
       if (isLeaderEntry(entry) && !opts.includeLeader) return false;
-      if (entry.status === 'running' || entry.status === 'idle') return true;
-      return now - entry.lastEventAt <= terminalTtlMs;
+      if (isLeaderEntry(entry)) return true;
+      return entry.status === 'running';
     })
     .sort((a, b) => {
       const rank = (entry: FleetEntry): number => {
         if (entry.status === 'running') return 0;
-        if (entry.status === 'idle') return 1;
-        return 2;
+        return 1;
       };
       const ar = rank(a);
       const br = rank(b);
       if (ar !== br) return ar - br;
-      if (ar === 2) return b.lastEventAt - a.lastEventAt;
       return a.startedAt - b.startedAt;
     });
 }
@@ -309,17 +305,9 @@ export function FleetPanel({
   if (!hasSwarm && todoRows.length === 0 && !hasCollab) return null;
 
   const runningCount = subagents.filter((e) => e.status === 'running').length;
-  const idleCount = subagents.filter((e) => e.status === 'idle').length;
-  const doneCount = subagents.filter((e) => e.status === 'success').length;
-  const failedCount = subagents.filter(
-    (e) => e.status === 'failed' || e.status === 'timeout',
-  ).length;
 
   const summaryBits = [
-    runningCount > 0 ? `${runningCount} running` : 'idle',
-    idleCount > 0 ? `${idleCount} idle` : '',
-    doneCount > 0 ? `${doneCount} done` : '',
-    failedCount > 0 ? `${failedCount} failed` : '',
+    runningCount > 0 ? `${runningCount} running` : '',
     fmtCost(totalCost),
   ].filter(Boolean);
   const collabLabel =

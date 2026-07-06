@@ -358,7 +358,7 @@ describe('plugin teardown (H1 regression guard)', () => {
       // Second round: completely different override set
       api.config.extensions['cost-tracker'] = {
         pricingOverrides: {
-          'claude-3-5-sonnet': { input: 5, output: 15 },
+          'anthropic-test-model': { input: 5, output: 15 },
           'gemini-1.5-pro': { input: 1, output: 4 },
         },
       };

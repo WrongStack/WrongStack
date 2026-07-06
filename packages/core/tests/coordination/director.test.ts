@@ -253,10 +253,10 @@ describe('Director orchestration', () => {
   it('isolates subagents: per-id provider + model attribution', async () => {
     const { director: d } = buildDirector();
     _director = d;
-    const sonnetId = await spawnWithBus(d, {
+    const plannerId = await spawnWithBus(d, {
       name: 'editor',
       provider: 'anthropic',
-      model: 'claude-sonnet-4-6',
+      model: 'anthropic-test-model',
     });
     const haikuId = await spawnWithBus(d, {
       name: 'researcher',
@@ -269,7 +269,7 @@ describe('Director orchestration', () => {
       model: 'gpt-5',
     });
 
-    expect(sonnetId).not.toEqual(haikuId);
+    expect(plannerId).not.toEqual(haikuId);
     expect(haikuId).not.toEqual(gptId);
 
     const status = d.status();
@@ -284,7 +284,7 @@ describe('Director orchestration', () => {
     const editorId = await spawnWithBus(d, {
       name: 'editor',
       provider: 'anthropic',
-      model: 'sonnet',
+      model: 'planner',
     });
     const researcherId = await spawnWithBus(d, {
       name: 'researcher',
@@ -315,10 +315,10 @@ describe('Director orchestration', () => {
   it('rolls up usage across subagents with per-subagent pricing', async () => {
     const { director: d } = buildDirector();
     _director = d;
-    // Sonnet: $3/M in, $15/M out.
-    const sonnetId = await spawnWithBus(
+    // Planner: $3/M in, $15/M out.
+    const plannerId = await spawnWithBus(
       d,
-      { name: 'editor', provider: 'anthropic', model: 'sonnet' },
+      { name: 'editor', provider: 'anthropic', model: 'planner' },
       { input: 3, output: 15 },
     );
     // Haiku: $0.80/M in, $4/M out.
@@ -328,29 +328,29 @@ describe('Director orchestration', () => {
       { input: 0.8, output: 4 },
     );
 
-    const a = await d.assign({ id: 't-a', description: 'edit', subagentId: sonnetId });
+    const a = await d.assign({ id: 't-a', description: 'edit', subagentId: plannerId });
     const b = await d.assign({ id: 't-b', description: 'research', subagentId: haikuId });
     await d.awaitTasks([a, b]);
 
     const snap = d.snapshot();
 
     // Each subagent emitted one provider.response with 1000 in / 200 out.
-    // sonnet cost = 1000/1M * 3 + 200/1M * 15 = 0.003 + 0.003 = 0.006
+    // planner cost = 1000/1M * 3 + 200/1M * 15 = 0.003 + 0.003 = 0.006
     // haiku  cost = 1000/1M * 0.8 + 200/1M * 4 = 0.0008 + 0.0008 = 0.0016
-    expect(snap.perSubagent[sonnetId].cost).toBeCloseTo(0.006, 6);
+    expect(snap.perSubagent[plannerId].cost).toBeCloseTo(0.006, 6);
     expect(snap.perSubagent[haikuId].cost).toBeCloseTo(0.0016, 6);
     expect(snap.total.cost).toBeCloseTo(0.0076, 6);
     expect(snap.total.input).toBe(2000);
     expect(snap.total.output).toBe(400);
 
     // Tool calls + iterations attributed correctly.
-    expect(snap.perSubagent[sonnetId].toolCalls).toBe(1);
+    expect(snap.perSubagent[plannerId].toolCalls).toBe(1);
     expect(snap.perSubagent[haikuId].toolCalls).toBe(1);
-    expect(snap.perSubagent[sonnetId].iterations).toBe(1);
+    expect(snap.perSubagent[plannerId].iterations).toBe(1);
 
     // Provider metadata captured at spawn time, surfaced in snapshot.
-    expect(snap.perSubagent[sonnetId].provider).toBe('anthropic');
-    expect(snap.perSubagent[sonnetId].model).toBe('sonnet');
+    expect(snap.perSubagent[plannerId].provider).toBe('anthropic');
+    expect(snap.perSubagent[plannerId].model).toBe('planner');
     expect(snap.perSubagent[haikuId].model).toBe('haiku');
   });
 
@@ -587,7 +587,7 @@ describe('Director orchestration', () => {
     const editor = await spawnWithBus(d, {
       name: 'editor',
       provider: 'anthropic',
-      model: 'sonnet',
+      model: 'planner',
     });
     const researcher = await spawnWithBus(d, {
       name: 'researcher',
@@ -601,7 +601,7 @@ describe('Director orchestration', () => {
     const md = d.rollUp([a, b]);
     expect(md).toContain('### ' + editor);
     expect(md).toContain('### ' + researcher);
-    expect(md).toContain('anthropic/sonnet');
+    expect(md).toContain('anthropic/planner');
     expect(md).toContain('anthropic/haiku');
     // Marker strings from the mock runner appear in the rolled-up text.
     expect(md).toContain('editor@anthropic:edit X');
@@ -641,7 +641,7 @@ describe('Director orchestration', () => {
       const editor = await spawnWithBus(d, {
         name: 'editor',
         provider: 'anthropic',
-        model: 'sonnet',
+        model: 'planner',
       });
       const taskId = await d.assign({ id: 'm-1', description: 'rewrite', subagentId: editor });
       await d.awaitTasks([taskId]);
@@ -747,7 +747,7 @@ describe('Director orchestration', () => {
       const editor = await factory.createSubagentSession({
         subagentId: 'editor',
         provider: 'anthropic',
-        model: 'sonnet',
+        model: 'planner',
       });
       const researcher = await factory.createSubagentSession({
         subagentId: 'researcher',
@@ -1105,7 +1105,7 @@ describe('Director orchestration', () => {
   // ── spawn_subagent smart dispatch (description-based routing) ─────────────────
   describe('spawn_subagent smart dispatch (description-based routing)', () => {
     const stubRoster: Record<string, SubagentConfig> = {
-      explorer: { name: 'Explorer', role: 'explorer', provider: 'anthropic', model: 'sonnet' },
+      explorer: { name: 'Explorer', role: 'explorer', provider: 'anthropic', model: 'planner' },
       builder: { name: 'Builder', role: 'builder', provider: 'openai', model: 'gpt-5' },
     };
 

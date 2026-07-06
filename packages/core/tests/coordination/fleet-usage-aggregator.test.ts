@@ -20,12 +20,12 @@ describe('FleetUsageAggregator (M2 cost accuracy)', () => {
   it('disjoint buckets — cost equals sum of per-bucket products, no double count', () => {
     const bus = new FleetBus();
     // Realistic rates: $3/MT input, $15/MT output, $0.30/MT cacheRead,
-    // $3.75/MT cacheWrite (Claude Sonnet ballpark).
+    // $3.75/MT cacheWrite (representative Anthropic ballpark).
     const price = { input: 3, output: 15, cacheRead: 0.3, cacheWrite: 3.75 };
     const agg = new FleetUsageAggregator(
       bus,
       () => price,
-      () => ({ provider: 'anthropic', model: 'sonnet-test' }),
+      () => ({ provider: 'anthropic', model: 'anthropic-test-model' }),
     );
 
     // 1M fresh input, 100k output, 500k cacheRead, 200k cacheWrite —

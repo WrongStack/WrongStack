@@ -252,13 +252,13 @@ describe('task_completed', () => {
     expect(a.error).toEqual({ kind: 'rate_limit', message: '429' });
   });
 
-  it('strips <next_steps> blocks from finalText', () => {
+  it('strips <nextsteps> blocks from finalText', () => {
     fleet().applyEvent({ kind: 'spawned', subagentId: 'a1', name: 'Edsger' });
     fleet().applyEvent({
       kind: 'task_completed',
       subagentId: 'a1',
       status: 'success',
-      finalText: 'Result text<next_steps>Suggestion here</next_steps>More text',
+      finalText: 'Result text<nextsteps>Suggestion here</nextsteps>More text',
     });
     expect(get('a1')!.finalText).toBe('Result textMore text');
   });
@@ -274,13 +274,13 @@ describe('task_completed', () => {
     expect(get('a1')!.finalText).toBe('BeforeAfter');
   });
 
-  it('handles multi-line <next_steps> block', () => {
+  it('handles multi-line <nextsteps> block', () => {
     fleet().applyEvent({ kind: 'spawned', subagentId: 'a1', name: 'Edsger' });
     fleet().applyEvent({
       kind: 'task_completed',
       subagentId: 'a1',
       status: 'success',
-      finalText: 'Start\n<next_steps>\nStep 1\nStep 2\n</next_steps>\nEnd',
+      finalText: 'Start\n<nextsteps>\nStep 1\nStep 2\n</nextsteps>\nEnd',
     });
     expect(get('a1')!.finalText).toBe('Start\n\nEnd');
   });

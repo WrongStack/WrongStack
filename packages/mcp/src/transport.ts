@@ -770,32 +770,44 @@ export class SSETransport extends BaseHTTPTransport {
       signal: timeoutSignal.signal,
     };
     this.applyTlsAgent(fetchOpts);
-    const res = await fetch(this.url, fetchOpts);
-
-    if (!res.ok) {
-      throw new ToolError({
-        message: `HTTP ${res.status}: ${res.statusText}`,
-        code: 'TOOL_EXECUTION_FAILED',
-        toolName: method,
-        context: { transport: 'sse', url: this.url, status: res.status, statusText: res.statusText },
-      });
-    }
-
-    let data: unknown;
+    // dispose() clears the timeout timer and the parent-abort listener. It must
+    // run on EVERY exit path (fetch rejection, !res.ok, JSON parse error,
+    // mismatched result) — not just success — or the timer keeps ticking and the
+    // abort listener leaks for the full timeout on each failed request.
     try {
-      data = await res.json();
-    } catch (err) {
-      throw new ToolError({
-        message: `Invalid JSON-RPC response: ${err instanceof Error ? err.message : 'parse failed'}`,
-        code: 'TOOL_EXECUTION_FAILED',
-        toolName: method,
-        context: { transport: 'sse', url: this.url, phase: 'parse-json' },
-        cause: err,
-      });
+      const res = await fetch(this.url, fetchOpts);
+
+      if (!res.ok) {
+        throw new ToolError({
+          message: `HTTP ${res.status}: ${res.statusText}`,
+          code: 'TOOL_EXECUTION_FAILED',
+          toolName: method,
+          context: {
+            transport: 'sse',
+            url: this.url,
+            status: res.status,
+            statusText: res.statusText,
+          },
+        });
+      }
+
+      let data: unknown;
+      try {
+        data = await res.json();
+      } catch (err) {
+        throw new ToolError({
+          message: `Invalid JSON-RPC response: ${err instanceof Error ? err.message : 'parse failed'}`,
+          code: 'TOOL_EXECUTION_FAILED',
+          toolName: method,
+          context: { transport: 'sse', url: this.url, phase: 'parse-json' },
+          cause: err,
+        });
+      }
+      const result = assertMatchingJsonRpcResult(data, id, method);
+      return { jsonrpc: '2.0', id, result: result.result, error: result.error };
+    } finally {
+      timeoutSignal.dispose();
     }
-    const result = assertMatchingJsonRpcResult(data, id, method);
-    timeoutSignal.dispose();
-    return { jsonrpc: '2.0', id, result: result.result, error: result.error };
   }
 
   async close(): Promise<void> {

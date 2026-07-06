@@ -16,7 +16,7 @@ export interface BuildContext {
   tools: Tool[];
   /** Provider id (e.g. "anthropic", "minimax-coding-plan"). */
   provider?: string | undefined;
-  /** Model id (e.g. "claude-sonnet-4-6", "MiniMax-M2.7"). */
+  /** Model id (e.g. "configured-model", "MiniMax-M2.7"). */
   model?: string | undefined;
   /**
    * True when the prompt is being built for a SUBAGENT, not the host

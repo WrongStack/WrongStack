@@ -44,8 +44,8 @@ function fakeProvider(over: Partial<ResolvedProvider> = {}): ResolvedProvider {
     doc: 'https://docs.anthropic.com',
     models: [
       {
-        id: 'claude-sonnet-4-6',
-        name: 'Claude Sonnet 4.6',
+        id: 'anthropic-test-model',
+        name: 'Anthropic Test Model',
         tool_call: true,
         reasoning: false,
         modalities: { input: ['text', 'image'], output: ['text'] },
@@ -306,7 +306,7 @@ describe('subcommands', () => {
     });
     const config = {
       provider: 'anthropic',
-      model: 'claude-sonnet-4-6',
+      model: 'anthropic-test-model',
       providers: { anthropic: { envVars: ['ANTHROPIC_API_KEY'] } },
       log: { level: 'error' },
     } as never as Config;
@@ -355,7 +355,7 @@ describe('subcommands', () => {
     });
     const config = {
       provider: 'anthropic',
-      model: 'claude-sonnet-4-6',
+      model: 'anthropic-test-model',
       providers: { anthropic: { envVars: ['ANTHROPIC_API_KEY'] } },
       log: { level: 'error' },
     } as never as Config;
@@ -387,7 +387,7 @@ describe('subcommands', () => {
     });
     const config = {
       provider: 'anthropic',
-      model: 'claude-sonnet-4-6',
+      model: 'anthropic-test-model',
       providers: { anthropic: { envVars: ['ANTHROPIC_API_KEY'] } },
       log: { level: 'error' },
       mcpServers: {
@@ -913,7 +913,7 @@ describe('subcommands', () => {
       providers: {},
       log: { level: 'error' },
       provider: 'anthropic',
-      model: 'claude-sonnet-4-6',
+      model: 'anthropic-test-model',
     } as never as Config;
     const reg = fakeRegistry([fakeProvider()]);
     const code = await subcommands['models']!(
@@ -921,7 +921,7 @@ describe('subcommands', () => {
       mkDeps({ renderer: rig.renderer, modelsRegistry: reg, config }),
     );
     expect(code).toBe(0);
-    expect(stripAnsi(rig.out.buf)).toContain('claude-sonnet-4-6');
+    expect(stripAnsi(rig.out.buf)).toContain('anthropic-test-model');
   });
 
   it('models without args + no config provider returns usage error', async () => {

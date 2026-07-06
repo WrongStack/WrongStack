@@ -145,9 +145,9 @@ git rebase main && git merge --ff-only feature
 2. Commit changes with conventional commit format
 3. Open PR with description linking to issue
 
-<next_steps>
+<nextsteps>
 1. Create a branch fix/session-leak, commit the token refresh fix, and push it
-</next_steps>
+</nextsteps>
 
 Open a PR at GitHub linking to issue #123 with the commit message describing the fix.
 ```
@@ -157,4 +157,4 @@ Open a PR at GitHub linking to issue #123 with the commit message describing the
 - `refactor-planner` — when a refactor involves multiple git-managed changes
 - `multi-agent` — for fleet-wide version audits across packages
 - `bug-hunter` — for spotting bugs at commit time before they reach main
-- `output-standards` — for standardized `<next_steps>` formatting
+- `output-standards` — for standardized `<nextsteps>` formatting

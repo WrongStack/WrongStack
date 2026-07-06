@@ -334,7 +334,7 @@ describe('setupProvider', () => {
     const modelsRegistry = fakeModelsRegistry({ getModel });
 
     const { provider } = await setupProvider({
-      config: fakeConfig({ provider: 'anthropic', model: 'claude-sonnet-4-6' }),
+      config: fakeConfig({ provider: 'anthropic', model: 'anthropic-test-model' }),
       modelsRegistry,
       logger: fakeLogger(),
     });

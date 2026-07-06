@@ -76,7 +76,7 @@ export function useDirectorFleetBridge({
     let streamFlushTimer: ReturnType<typeof setTimeout> | null = null;
     const flushStreamBufs = () => {
       for (const [id, text] of streamBuf) {
-        // Strip <next_steps> blocks from subagent output — suggestions belong
+        // Strip <nextsteps> blocks from subagent output — suggestions belong
         // to the main assistant, not subagent results. This prevents raw XML
         // tags from appearing as literal text in the fleet panel.
         const cleaned = stripNextStepsBlock(text);

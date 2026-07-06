@@ -281,7 +281,7 @@ describe('thinking-mode round-trip', () => {
     // passed back to the API".
     const sse = [
       'event: message_start',
-      'data: {"type":"message_start","message":{"model":"claude-sonnet-test","usage":{"input_tokens":3}}}',
+      'data: {"type":"message_start","message":{"model":"anthropic-test-model","usage":{"input_tokens":3}}}',
       '',
       'event: content_block_start',
       'data: {"type":"content_block_start","index":0,"content_block":{"type":"thinking","thinking":""}}',

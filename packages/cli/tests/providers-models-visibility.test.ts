@@ -46,7 +46,7 @@ function makeDeps(cfg: Config, configPath: string, renderer: TerminalRenderer) {
         family: 'anthropic',
         envVars: ['ANTHROPIC_API_KEY'],
         models: [
-          { id: 'claude-sonnet-4-20250514', name: 'Claude Sonnet 4' },
+          { id: 'anthropic-test-model', name: 'Anthropic Test Model' },
           { id: 'claude-opus-4', name: 'Claude Opus 4' },
           { id: 'claude-haiku-4.5', name: 'Claude Haiku 4.5' },
         ],
@@ -102,7 +102,7 @@ describe('models visibility commands', () => {
     const cfg = {
       version: 1,
       provider: 'anthropic',
-      model: 'claude-sonnet-4-20250514',
+      model: 'anthropic-test-model',
       context: { warnThreshold: 0.7, softThreshold: 0.8, hardThreshold: 0.9, preserveK: 4, eliseThreshold: 0.95 },
       tools: {},
       log: { level: 'info' },
@@ -117,7 +117,7 @@ describe('models visibility commands', () => {
 
     expect(code).toBe(0);
     expect(readConfig().providers?.anthropic?.models).toEqual([
-      'claude-sonnet-4-20250514',
+      'anthropic-test-model',
       'claude-haiku-4.5',
     ]);
     expect(messages.join('\n')).toContain('Hidden anthropic/claude-opus-4');
@@ -127,12 +127,12 @@ describe('models visibility commands', () => {
     const cfg = {
       version: 1,
       provider: 'anthropic',
-      model: 'claude-sonnet-4-20250514',
+      model: 'anthropic-test-model',
       context: { warnThreshold: 0.7, softThreshold: 0.8, hardThreshold: 0.9, preserveK: 4, eliseThreshold: 0.95 },
       tools: {},
       log: { level: 'info' },
       features: { developerMode: false, mcp: true, plugins: true, memory: true, skills: true, modelsRegistry: true, tokenSavingMode: 'off', allowOutsideProjectRoot: false },
-      providers: { anthropic: { type: 'anthropic', models: ['claude-sonnet-4-20250514'], apiKeys: [{ label: 'default', apiKey: 'enc:x', createdAt: '' }], activeKey: 'default' } },
+      providers: { anthropic: { type: 'anthropic', models: ['anthropic-test-model'], apiKeys: [{ label: 'default', apiKey: 'enc:x', createdAt: '' }], activeKey: 'default' } },
     } as never as Config;
     writeConfig(cfg);
     const { renderer } = makeRenderer();
@@ -142,7 +142,7 @@ describe('models visibility commands', () => {
 
     expect(code).toBe(0);
     expect(readConfig().providers?.anthropic?.models).toEqual([
-      'claude-sonnet-4-20250514',
+      'anthropic-test-model',
       'claude-opus-4',
     ]);
   });
@@ -151,12 +151,12 @@ describe('models visibility commands', () => {
     const cfg = {
       version: 1,
       provider: 'anthropic',
-      model: 'claude-sonnet-4-20250514',
+      model: 'anthropic-test-model',
       context: { warnThreshold: 0.7, softThreshold: 0.8, hardThreshold: 0.9, preserveK: 4, eliseThreshold: 0.95 },
       tools: {},
       log: { level: 'info' },
       features: { developerMode: false, mcp: true, plugins: true, memory: true, skills: true, modelsRegistry: true, tokenSavingMode: 'off', allowOutsideProjectRoot: false },
-      providers: { anthropic: { type: 'anthropic', models: ['claude-sonnet-4-20250514'], apiKeys: [{ label: 'default', apiKey: 'enc:x', createdAt: '' }], activeKey: 'default' } },
+      providers: { anthropic: { type: 'anthropic', models: ['anthropic-test-model'], apiKeys: [{ label: 'default', apiKey: 'enc:x', createdAt: '' }], activeKey: 'default' } },
     } as never as Config;
     writeConfig(cfg);
     const { renderer, messages } = makeRenderer();
@@ -174,12 +174,12 @@ describe('models visibility commands', () => {
     const cfg = {
       version: 1,
       provider: 'anthropic',
-      model: 'claude-sonnet-4-20250514',
+      model: 'anthropic-test-model',
       context: { warnThreshold: 0.7, softThreshold: 0.8, hardThreshold: 0.9, preserveK: 4, eliseThreshold: 0.95 },
       tools: {},
       log: { level: 'info' },
       features: { developerMode: false, mcp: true, plugins: true, memory: true, skills: true, modelsRegistry: true, tokenSavingMode: 'off', allowOutsideProjectRoot: false },
-      providers: { anthropic: { type: 'anthropic', models: ['claude-sonnet-4-20250514'], apiKeys: [{ label: 'default', apiKey: 'enc:x', createdAt: '' }], activeKey: 'default' } },
+      providers: { anthropic: { type: 'anthropic', models: ['anthropic-test-model'], apiKeys: [{ label: 'default', apiKey: 'enc:x', createdAt: '' }], activeKey: 'default' } },
     } as never as Config;
     writeConfig(cfg);
     const { renderer } = makeRenderer();

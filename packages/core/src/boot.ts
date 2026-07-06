@@ -135,9 +135,9 @@ export async function bootConfig(options: BootConfigOptions = {}): Promise<BootC
       err instanceof Error &&
       err.message.includes('no provider configured')
     ) {
-      // --webui mode: boot without a configured provider. Patch in
-      // defaults so the CLI proceeds to the webui server, which will
-      // show the setup screen via needsSetup.
+      // --webui mode: boot without a configured provider. Do not inject
+      // a provider/model identity here; downstream setup state must stay
+      // visibly unconfigured until the user picks a real target.
       console.warn(
         JSON.stringify({
           level: 'warn',
@@ -147,18 +147,7 @@ export async function bootConfig(options: BootConfigOptions = {}): Promise<BootC
           timestamp: new Date().toISOString(),
         }),
       );
-      const defaults = await configLoader.load({
-        cliFlags: {
-          ...flagsToConfigPatch(flags),
-          provider: 'anthropic',
-          model: 'claude-sonnet-4-20250514',
-        },
-      });
-      config = Object.freeze({
-        ...defaults,
-        provider: 'anthropic',
-        model: 'claude-sonnet-4-20250514',
-      }) as Config;
+      config = await configLoader.load({ cliFlags: flagsToConfigPatch(flags) });
     } else {
       throw err;
     }

@@ -36,10 +36,10 @@ export function formatTodosList(todos: TodoItem[]): string {
 /**
  * True when the todos list still has at least one unfinished item — either
  * `pending` (not started) or `in_progress` (underway). The REPL and other
- * post-turn handlers call this to decide whether to surface `<next_steps>`
+ * post-turn handlers call this to decide whether to surface `<nextsteps>`
  * suggestions to the user: as long as the agent has open todos, finishing
  * them takes priority over offering new prompt options. Surfacing
- * `<next_steps>` mid-task is what causes YOLO+auto mode and the autonomy
+ * `<nextsteps>` mid-task is what causes YOLO+auto mode and the autonomy
  * 'auto' loop to prematurely pivot away from the in-flight todo list.
  *
  * Returns false for an empty / undefined list (nothing pending, nothing to

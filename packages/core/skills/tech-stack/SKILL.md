@@ -104,9 +104,9 @@ When APPROVED:
 **Install**: `<ecosystem install command>`
 **Note**: <any caveats about the version, semver range, or compatibility>
 
-<next_steps>
+<nextsteps>
 1. Add <package>@<version> to the project auto="true"
-</next_steps>
+</nextsteps>
 ```
 
 ## Skills in scope
@@ -116,4 +116,4 @@ When APPROVED:
 - `typescript-strict` — for TypeScript version alignment
 - `security-scanner` — for packages with known CVEs
 - `docker-deploy` — for base image version pinning
-- `output-standards` — for standardized `<next_steps>` formatting
+- `output-standards` — for standardized `<nextsteps>` formatting

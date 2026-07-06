@@ -177,7 +177,7 @@ export function ChatInput({
     if (id) setLoading(true);
   }
 
-  /** Parse canonical <next_steps> from the last assistant message and show them. */
+  /** Parse canonical <nextsteps> from the last assistant message and show them. */
   function handleNextList(): true {
     const all = useChatStore.getState().messages;
     let lastAssistant = '';
@@ -203,7 +203,7 @@ export function ChatInput({
     return true;
   }
 
-  /** Parse canonical <next_steps> and execute the selected item(s). */
+  /** Parse canonical <nextsteps> and execute the selected item(s). */
   function handleNextSelect(input: string): true {
     const steps = parseNextStepsFromLastAssistant();
     if (steps.length === 0) {

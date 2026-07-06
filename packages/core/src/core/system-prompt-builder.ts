@@ -348,10 +348,10 @@ export class DefaultSystemPromptBuilder implements SystemPromptBuilder {
       }
     }
 
-    // Leader-only after-task affordances (the `<next_steps>` block + post-task
+    // Leader-only after-task affordances (the `<nextsteps>` block + post-task
     // mailbox update). Host-only and appended last: subagents are headless
     // workers whose output is parsed (SDD spec/plan/task JSON) or rolled up by
-    // the parent, so a `<next_steps>` tag there is just noise that leaks into
+    // the parent, so a `<nextsteps>` tag there is just noise that leaks into
     // specs/plans. Lives outside layer1 so the host keeps it in EVERY mode while
     // no subagent ever receives it.
     if (!ctx.subagent) {

@@ -37,7 +37,7 @@ vi.mock('../src/storage/config-loader.js', () => ({
       .mockResolvedValue({
         version: 1,
         provider: 'anthropic',
-        model: 'claude-sonnet-4-6',
+        model: 'anthropic-test-model',
         log: { level: 'info' },
       });
     this.loadSyncConfig = vi.fn().mockResolvedValue(null);
@@ -132,8 +132,8 @@ describe('bootConfig (core)', () => {
 
 describe('flagsToConfigPatch — fallbackModels', () => {
   it('splits a comma list into a trimmed array', () => {
-    const patch = flagsToConfigPatch({ 'fallback-model': 'sonnet, haiku ,opus' });
-    expect(patch.fallbackModels).toEqual(['sonnet', 'haiku', 'opus']);
+    const patch = flagsToConfigPatch({ 'fallback-model': 'planner, haiku ,opus' });
+    expect(patch.fallbackModels).toEqual(['planner', 'haiku', 'opus']);
   });
 
   it('omits fallbackModels when the flag is absent or empty', () => {
@@ -183,16 +183,16 @@ describe('flagsToConfigPatch — all branches', () => {
 // ── bootConfig identity-validation catch + sync merge ────────────────
 
 describe('bootConfig identity + sync', () => {
-  it('skipIdentityValidation patches defaults on "no provider configured"', async () => {
+  it('skipIdentityValidation keeps provider/model unset on "no provider configured"', async () => {
     loaderMock.mockImplementationOnce(function (this: never) {
       this.load = vi.fn()
         .mockRejectedValueOnce(new Error('no provider configured'))
-        .mockResolvedValueOnce({ version: 1, provider: 'anthropic', model: 'claude-sonnet-4-6', log: { level: 'info' } });
+        .mockResolvedValueOnce({ version: 1, log: { level: 'info' } });
       this.loadSyncConfig = vi.fn().mockResolvedValue(null);
     });
     const result = await bootConfig({ skipIdentityValidation: true });
-    expect(result.config.provider).toBe('anthropic');
-    expect(result.config.model).toBe('claude-sonnet-4-20250514');
+    expect(result.config.provider).toBeUndefined();
+    expect(result.config.model).toBeUndefined();
   });
 
   it('rethrows non-identity errors', async () => {

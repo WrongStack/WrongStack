@@ -77,7 +77,7 @@ When running in the TUI with director mode active, a **Fleet Panel** renders bel
 
 ```
 Fleet │ 3 agents │ $0.042 · 2 active
-●  bug-hunter    anthropic/claude-3-5-sonnet · 12it  31tc · $0.012
+●  bug-hunter    anthropic/anthropic-test-model · 12it  31tc · $0.012
   → grep (230ms)
   tools: ok read (1.2KB 45L) | fail bash (89ms)
   msg: analyzing test file /app/src/utils.test.ts
@@ -85,7 +85,7 @@ Fleet │ 3 agents │ $0.042 · 2 active
   → Read 3 files
   msg: identifying components to extract
   log: ~/.wrongstack/sessions/abc123/subagents/run-1/abc456.jsonl
-✓  audit-log     anthropic/claude-3-5-haiku · 3it  9tc · $0.004
+✓  audit-log     anthropic/fast-model · 3it  9tc · $0.004
 ```
 
 Each row shows:

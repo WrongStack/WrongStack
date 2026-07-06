@@ -83,7 +83,7 @@ describe('token accumulation', () => {
     tokenBudgetPlugin.setup(api as never);
     const handler = getResponseHandler(api);
     handler({ usage: { input: 1000, output: 500 }, ctx: { model: 'gpt-4o' } });
-    handler({ usage: { input: 5000, output: 5000 }, ctx: { model: 'claude-3-5-sonnet' } });
+    handler({ usage: { input: 5000, output: 5000 }, ctx: { model: 'anthropic-test-model' } });
     const result = await getStatusTool(api).execute({});
     expect(result.consumed).toBe(1500);
   });
@@ -318,7 +318,7 @@ describe('model wildcard matching', () => {
     const handler = getResponseHandler(api);
 
     handler({ usage: { input: 1000, output: 500 }, ctx: { model: 'gpt-4o' } });
-    handler({ usage: { input: 5000, output: 5000 }, ctx: { model: 'claude-3-5-sonnet' } });
+    handler({ usage: { input: 5000, output: 5000 }, ctx: { model: 'anthropic-test-model' } });
 
     const result = await getStatusTool(api).execute({});
     // Only gpt-4o counted (1500), claude excluded
@@ -335,24 +335,24 @@ describe('model wildcard matching', () => {
     handler({ usage: { input: 2000, output: 0 }, ctx: { model: 'gpt-4o' } });
     handler({ usage: { input: 3000, output: 0 }, ctx: { model: 'gpt-4o-mini' } });
     // This should NOT match
-    handler({ usage: { input: 99999, output: 0 }, ctx: { model: 'claude-3-5-sonnet' } });
+    handler({ usage: { input: 99999, output: 0 }, ctx: { model: 'anthropic-test-model' } });
 
     const result = await getStatusTool(api).execute({});
     // 1000 + 2000 + 3000 = 6000
     expect(result.consumed).toBe(6000);
   });
 
-  it('matches with wildcard "claude-*"', async () => {
-    const api = makeApi({ extensions: { 'token-budget': { limit: 100000, model: 'claude-*' } } });
+  it('matches with a trailing wildcard model prefix', async () => {
+    const api = makeApi({ extensions: { 'token-budget': { limit: 100000, model: 'anthropic-*' } } });
     tokenBudgetPlugin.setup(api as never);
     const handler = getResponseHandler(api);
 
-    handler({ usage: { input: 1000, output: 0 }, ctx: { model: 'claude-3-5-sonnet' } });
-    handler({ usage: { input: 2000, output: 0 }, ctx: { model: 'claude-3-opus' } });
+    handler({ usage: { input: 1000, output: 0 }, ctx: { model: 'anthropic-test-model' } });
+    handler({ usage: { input: 2000, output: 0 }, ctx: { model: 'anthropic-other-model' } });
     handler({ usage: { input: 99999, output: 0 }, ctx: { model: 'gpt-4o' } });
 
     const result = await getStatusTool(api).execute({});
-    // Only claude models counted
+    // Only matching prefixed models counted
     expect(result.consumed).toBe(3000);
   });
 
@@ -374,7 +374,7 @@ describe('model wildcard matching', () => {
     const handler = getResponseHandler(api);
 
     handler({ usage: { input: 1000, output: 0 }, ctx: { model: 'gpt-4o' } });
-    handler({ usage: { input: 2000, output: 0 }, ctx: { model: 'claude-3-5-sonnet' } });
+    handler({ usage: { input: 2000, output: 0 }, ctx: { model: 'anthropic-test-model' } });
 
     const result = await getStatusTool(api).execute({});
     expect(result.consumed).toBe(3000);

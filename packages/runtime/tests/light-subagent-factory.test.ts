@@ -243,12 +243,12 @@ describe('makeLightSubagentFactory', () => {
   it('diversifies reviewer away from the implementation lane when no reviewer route is pinned', async () => {
     const deps = makeDeps(true, {
       provider: 'anthropic',
-      model: 'claude-sonnet-4-6',
+      model: 'anthropic-test-model',
       providers: {
         anthropic: {
           type: 'anthropic',
           apiKey: 'sk-ant',
-          models: ['claude-sonnet-4-6'],
+          models: ['anthropic-test-model'],
         },
         openai: {
           type: 'openai',
@@ -257,7 +257,7 @@ describe('makeLightSubagentFactory', () => {
         },
       },
       modelMatrix: {
-        '*': { provider: 'anthropic', model: 'claude-sonnet-4-6' },
+        '*': { provider: 'anthropic', model: 'anthropic-test-model' },
       },
     } as never);
     const factory = makeLightSubagentFactory(deps);
@@ -270,12 +270,12 @@ describe('makeLightSubagentFactory', () => {
   it('preserves an explicit reviewer model route', async () => {
     const deps = makeDeps(true, {
       provider: 'anthropic',
-      model: 'claude-sonnet-4-6',
+      model: 'anthropic-test-model',
       providers: {
         anthropic: {
           type: 'anthropic',
           apiKey: 'sk-ant',
-          models: ['claude-sonnet-4-6'],
+          models: ['anthropic-test-model'],
         },
         openai: {
           type: 'openai',
@@ -284,13 +284,13 @@ describe('makeLightSubagentFactory', () => {
         },
       },
       modelMatrix: {
-        reviewer: { provider: 'anthropic', model: 'claude-sonnet-4-6' },
+        reviewer: { provider: 'anthropic', model: 'anthropic-test-model' },
       },
     } as never);
     const factory = makeLightSubagentFactory(deps);
     const r = await factory({ id: 's1', role: 'reviewer' });
 
-    expect(r.agent.ctx.model).toBe('claude-sonnet-4-6');
+    expect(r.agent.ctx.model).toBe('anthropic-test-model');
     expect(r.agent.ctx.provider.id).toBe('anthropic');
   });
 });

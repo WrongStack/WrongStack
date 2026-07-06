@@ -132,4 +132,4 @@ Stage shown in real-time. Pause stops after current iteration completes.
 - `refactor-planner` — when the spec reveals a multi-file refactor
 - `bug-hunter` — when a bugfix spec needs a root cause analysis section
 - `multi-agent` — for executing parallel task groups
-- `output-standards` — for standardized `<next_steps>` formatting
+- `output-standards` — for standardized `<nextsteps>` formatting

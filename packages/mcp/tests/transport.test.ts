@@ -1160,3 +1160,39 @@ describe('SSETransport — mocked connect + callTool', () => {
     }
   });
 });
+
+describe('SSETransport.request timeout-signal cleanup on error', () => {
+  it('disposes the timeout timer even when the request fails (no leaked timer)', async () => {
+    const origFetch = globalThis.fetch;
+    vi.useFakeTimers();
+    try {
+      const t = new SSETransport({
+        name: 'leak-test',
+        url: 'https://mcp.example.com/',
+        requestTimeoutMs: 30_000,
+      });
+      // Give request() a parent signal to attach its abort listener to, and a
+      // fetch that fails with a non-ok status so the throw path runs.
+      (t as never as { abortController: AbortController }).abortController = new AbortController();
+      (globalThis as { fetch: typeof globalThis.fetch }).fetch = (() =>
+        Promise.resolve(
+          new Response('nope', { status: 500, statusText: 'Server Error' }),
+        )) as never as typeof globalThis.fetch;
+
+      await expect(
+        (
+          t as never as {
+            request: (m: string, p: unknown, ms?: number) => Promise<unknown>;
+          }
+        ).request('tools/list', {}, 30_000),
+      ).rejects.toThrow(/HTTP 500/);
+
+      // If dispose() ran in the finally block, the 30s timeout timer was
+      // cleared. Before the fix it stayed pending on the error path.
+      expect(vi.getTimerCount()).toBe(0);
+    } finally {
+      vi.useRealTimers();
+      (globalThis as { fetch: typeof globalThis.fetch }).fetch = origFetch;
+    }
+  });
+});

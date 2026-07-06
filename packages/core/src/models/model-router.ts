@@ -10,7 +10,7 @@
  * Usage:
  *   const router = new ModelRouter({ matrix, config, profiles: MODEL_PROFILES });
  *   const pick = router.pickForTask('security-scanner', 'Audit the auth module');
- *   // → { provider: 'anthropic', model: 'claude-sonnet-...', reason: 'best-for security' }
+ *   // → { provider: 'anthropic', model: 'matched-model', reason: 'best-for security' }
  */
 
 import type { ModelMatrixEntry, ProviderConfig } from '../types/config.js';
@@ -73,15 +73,6 @@ const DEFAULT_PROFILES: ModelIntelligenceEntry[] = [
     bestFor: ['planning', 'security', 'debugging'],
     costTier: 'premium',
     speedTier: 'slow',
-  },
-  {
-    provider: 'anthropic',
-    pattern: /claude-sonnet/i,
-    family: 'Claude Sonnet',
-    strengths: ['coding', 'balanced'],
-    bestFor: ['coding', 'general'],
-    costTier: 'standard',
-    speedTier: 'fast',
   },
   {
     provider: 'anthropic',

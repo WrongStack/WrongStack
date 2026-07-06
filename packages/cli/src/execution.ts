@@ -857,7 +857,7 @@ export async function execute(deps: ExecutionDeps): Promise<number> {
           // shared suggestion store so `/next 1`, `/next 1 2 3` work without
           // requiring `/suggest` first. Called unconditionally on every done
           // turn. The live todo list is passed through so we suppress
-          // <next_steps> while the in-flight todo loop is still in progress
+          // <nextsteps> while the in-flight todo loop is still in progress
           // — finishing the open todos comes before offering new prompt
           // options.
           onSuggestionsParsed: (finalText: string) => {

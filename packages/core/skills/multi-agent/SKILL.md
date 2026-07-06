@@ -126,11 +126,11 @@ When a leader synthesizes results from subagents:
 ### Unified Next Steps
 [Deduplicated and prioritized action items]
 
-<next_steps>
+<nextsteps>
 1. Fix critical issue in <file:line>
 2. Fix high-priority issue in <file:line>
 3. Fix remaining issue in <file:line>
-</next_steps>
+</nextsteps>
 ```
 
 ## Anti-patterns
@@ -151,7 +151,7 @@ Subagents share **nothing** — no memory, no session state, no variable scope. 
 - `security-scanner` — parallel security scans
 - `refactor-planner` — parallel module analysis
 - `audit-log` — aggregating multiple session analyses
-- `output-standards` — for standardized `<next_steps>` formatting
+- `output-standards` — for standardized `<nextsteps>` formatting
 
 ---
 

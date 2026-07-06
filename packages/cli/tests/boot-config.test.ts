@@ -73,10 +73,10 @@ describe('bootConfig', () => {
     const result = await bootConfig({
       cwd: projectDir,
       provider: 'anthropic',
-      model: 'claude-sonnet-4-6',
+      model: 'anthropic-test-model',
     });
     expect(result.config.provider).toBe('anthropic');
-    expect(result.config.model).toBe('claude-sonnet-4-6');
+    expect(result.config.model).toBe('anthropic-test-model');
   });
 
   it('--yolo flag sets yolo: true in config', async () => {

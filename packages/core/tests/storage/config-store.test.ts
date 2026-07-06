@@ -84,8 +84,8 @@ describe('DefaultConfigStore', () => {
   it('update produces a new frozen snapshot', () => {
     const store = new DefaultConfigStore(baseConfig);
     const before = store.get();
-    const after = store.update({ model: 'claude-sonnet-4-6' });
-    expect(after.model).toBe('claude-sonnet-4-6');
+    const after = store.update({ model: 'anthropic-test-model' });
+    expect(after.model).toBe('anthropic-test-model');
     expect(after).not.toBe(before);
     expect(Object.isFrozen(after)).toBe(true);
   });
@@ -95,11 +95,11 @@ describe('DefaultConfigStore', () => {
     const watcher = vi.fn();
     store.watch(watcher);
 
-    store.update({ model: 'claude-sonnet-4-6' });
+    store.update({ model: 'anthropic-test-model' });
 
     expect(watcher).toHaveBeenCalledTimes(1);
     const [next, prev] = watcher.mock.calls[0]!;
-    expect(next.model).toBe('claude-sonnet-4-6');
+    expect(next.model).toBe('anthropic-test-model');
     expect(prev.model).toBe('claude-opus-4-7');
   });
 

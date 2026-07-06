@@ -93,7 +93,7 @@ const provider = new AnthropicProvider({
 
 const stream = provider.stream(
   {
-    model: 'claude-sonnet-4-6',
+    model: 'anthropic-test-model',
     messages: [{ role: 'user', content: 'hello' }],
     maxTokens: 512,
     temperature: 0.7,

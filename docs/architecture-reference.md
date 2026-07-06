@@ -419,7 +419,7 @@ recordActualUsage(actualInputTokens, estimatedInputTokens, calibrationKey):
   cal.ratio = clamp(cal.ratio, 0.5, 1.5)  // sanity bound
 
 // Per-provider/model calibration buckets:
-calibrationKey = `${providerId}/${model}`  // e.g. "anthropic/claude-sonnet-4-6"
+calibrationKey = `${providerId}/${model}`  // e.g. "anthropic/anthropic-test-model"
 ```
 
 Calibration requires ≥3 samples before applying. Before that,

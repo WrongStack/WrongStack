@@ -200,7 +200,7 @@ export function Hero() {
             title={`wrongstack — v${META.version}`}
             right={
               <span className="flex items-center gap-1.5">
-                claude · sonnet
+                configured · model
                 <span className="size-1.5 rounded-full bg-brand shadow-[0_0_8px] shadow-brand/70" />
               </span>
             }

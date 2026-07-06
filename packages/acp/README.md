@@ -114,7 +114,7 @@ Gemini CLI, Codex CLI, etc.) as a subprocess or over a network transport.
 ```typescript
 const session = await ACPSession.start({
   command: 'claude',
-  args: ['--model', 'claude-sonnet-4'],
+  args: ['--model', 'anthropic-test-model'],
   env: { ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY },
   cwd: '/path/to/project',
   projectRoot: '/path/to/project',

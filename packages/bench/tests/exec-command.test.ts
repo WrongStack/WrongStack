@@ -88,4 +88,38 @@ describe('execCommand', () => {
     expect(res.exitCode).toBeNull();
     expect(res.stderr.length).toBeGreaterThan(0);
   });
+
+  it('truncates and kills a command that exceeds maxBufferBytes', async () => {
+    // Emit far more than the cap, then keep the process alive so it only ends
+    // because the buffer guard tree-kills it (not because it finished cleanly).
+    const res = await execCommand({
+      command: NODE,
+      args: [
+        '-e',
+        "process.stdout.write('x'.repeat(200000)); setTimeout(() => {}, 30000);",
+      ],
+      cwd: process.cwd(),
+      timeoutMs: 10_000,
+      shell: false,
+      maxBufferBytes: 1000,
+    });
+    expect(res.truncated).toBe(true);
+    // Capture stopped at the cap rather than buffering all 200k bytes.
+    expect(res.stdout.length).toBeLessThanOrEqual(1000);
+    // The guard killed the tree well before the 10s timeout, so timedOut stays false.
+    expect(res.timedOut).toBe(false);
+  });
+
+  it('does not flag truncated for small output under the cap', async () => {
+    const res = await execCommand({
+      command: NODE,
+      args: ['-e', "process.stdout.write('hi')"],
+      cwd: process.cwd(),
+      timeoutMs: 10_000,
+      shell: false,
+      maxBufferBytes: 1000,
+    });
+    expect(res.truncated).toBe(false);
+    expect(res.stdout).toBe('hi');
+  });
 });

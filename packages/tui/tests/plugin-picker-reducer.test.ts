@@ -262,7 +262,7 @@ describe('pluginPicker reducer — items / busy / hint', () => {
     expect(busy.pluginPicker.open).toBe(true);
   });
 
-  it('hint sets and clears the lockable hint text', () => {
+  it('hint sets and clears row guidance text', () => {
     const opened = reducer(
       initial() as never,
       {
@@ -289,14 +289,14 @@ describe('pluginPicker reducer — items / busy / hint', () => {
     expect(cleared.pluginPicker.hint).toBeUndefined();
   });
 
-  it('lockable rows survive a round-trip through setItems', () => {
+  it('locked-row metadata survives a round-trip through setItems', () => {
     const opened = reducer(
       initial() as never,
       {
         type: 'pluginPickerOpen',
       } as never,
     ) as unknown as State;
-    const coreRow = { ...item('wstack-git', false, false), name: 'wstack-git' };
+    const coreRow = { ...item('legacy-core', false, false), name: 'legacy-core' };
     const toggleable = item('format-on-save');
     const s = reducer(
       opened as never,
@@ -306,8 +306,8 @@ describe('pluginPicker reducer — items / busy / hint', () => {
       } as never,
     ) as unknown as { pluginPicker: { items: PluginPickerItem[] } };
     const items = s.pluginPicker.items;
-    const git = items.find((i) => i.name === 'wstack-git');
-    expect(git?.lockable).toBe(false);
+    const locked = items.find((i) => i.name === 'legacy-core');
+    expect(locked?.lockable).toBe(false);
     const format = items.find((i) => i.name === 'format-on-save');
     expect(format?.lockable).toBe(true);
   });

@@ -46,7 +46,7 @@ export const anthropicWireFormat = defineWireFormat<AnthropicStreamState>({
   buildBody: (req: Request, ctx: { capabilities: Capabilities }) => {
     // Anthropic's `max_tokens` is required. Pull from the caller's
     // Request when set, otherwise the per-model ceiling the catalog
-    // populates via `withCatalogCapabilities` (e.g. 64K for Sonnet/Opus).
+    // populates via `withCatalogCapabilities` for the selected model.
     // The 8192 floor is the same safety net the rest of the system uses
     // for unknown models.
     const maxOutput = req.maxTokens ?? ctx.capabilities.maxOutput ?? 8192;

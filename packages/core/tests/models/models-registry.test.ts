@@ -13,9 +13,9 @@ const SAMPLE: ModelsDevPayload = {
     npm: '@ai-sdk/anthropic',
     doc: 'https://docs.anthropic.com',
     models: {
-      'claude-sonnet-4-6': {
-        id: 'claude-sonnet-4-6',
-        name: 'Claude Sonnet 4.6',
+      'anthropic-test-model': {
+        id: 'anthropic-test-model',
+        name: 'Anthropic Test Model',
         release_date: '2025-09-01',
         tool_call: true,
         modalities: { input: ['text', 'image'], output: ['text'] },
@@ -107,9 +107,25 @@ describe('DefaultModelsRegistry', () => {
     expect(m?.family).toBe('openai-compatible');
   });
 
+  it('classifies bundled subscription providers by id when npm is absent', async () => {
+    const reg = new DefaultModelsRegistry({
+      cacheFile,
+      seed: {
+        ...SAMPLE,
+        'openai-codex': {
+          id: 'openai-codex',
+          name: 'OpenAI Codex',
+          models: {},
+        },
+      },
+    });
+    const p = await reg.getProvider('openai-codex');
+    expect(p?.family).toBe('openai-codex');
+  });
+
   it('getModel returns capabilities + cost', async () => {
     const reg = new DefaultModelsRegistry({ cacheFile, seed: SAMPLE });
-    const m = await reg.getModel('anthropic', 'claude-sonnet-4-6');
+    const m = await reg.getModel('anthropic', 'anthropic-test-model');
     expect(m?.capabilities.tools).toBe(true);
     expect(m?.capabilities.vision).toBe(true);
     expect(m?.capabilities.maxContext).toBe(200_000);
@@ -232,16 +248,16 @@ describe('DefaultModelsRegistry', () => {
           id: 'anthropic',
           name: 'Anthropic',
           models: {
-            'claude-sonnet-4-6': {
-              id: 'claude-sonnet-4-6',
-              name: 'Claude Sonnet 4.6',
+            'anthropic-test-model': {
+              id: 'anthropic-test-model',
+              name: 'Anthropic Test Model',
               limit: { context: 1_000_000 },
             },
           },
         },
       };
       const reg = new DefaultModelsRegistry({ cacheFile, fetchImpl, overlay });
-      const m = await reg.getModel('anthropic', 'claude-sonnet-4-6');
+      const m = await reg.getModel('anthropic', 'anthropic-test-model');
       expect(m?.capabilities.maxContext).toBe(1_000_000); // overridden
     });
 
@@ -273,9 +289,9 @@ describe('DefaultModelsRegistry', () => {
             id: 'anthropic',
             name: 'Anthropic',
             models: {
-              'claude-sonnet-4-6': {
-                id: 'claude-sonnet-4-6',
-                name: 'Claude Sonnet 4.6',
+              'anthropic-test-model': {
+                id: 'anthropic-test-model',
+                name: 'Anthropic Test Model',
                 limit: { context: 500_000 },
               },
             },
@@ -294,7 +310,7 @@ describe('DefaultModelsRegistry', () => {
         overlayFile,
         overlayCacheFile: path.join(cacheDir, 'overlay-cache.json'),
       });
-      const m = await reg.getModel('anthropic', 'claude-sonnet-4-6');
+      const m = await reg.getModel('anthropic', 'anthropic-test-model');
       expect(m?.capabilities.maxContext).toBe(500_000);
     });
 

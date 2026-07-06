@@ -153,9 +153,9 @@ When reading a session file:
 - Iteration 1-10: avg $0.04/iteration
 - Iteration 11-20: avg $0.11/iteration (context growth)
 
-<next_steps>
+<nextsteps>
 1. Run the session tests and the type checker
-</next_steps>
+</nextsteps>
 
 Investigate iterations 14–20 in the session log for the bash command timeout pattern. Review iteration 14's tool call count for loop behavior.
 ```
@@ -173,4 +173,4 @@ Investigate iterations 14–20 in the session log for the bash command timeout p
 - `bug-hunter` — for turning audit findings into concrete bugs to fix
 - `refactor-planner` — for addressing systemic issues found in logs
 - `security-scanner` — for security-adjacent findings (leaked keys, injection patterns in logs)
-- `output-standards` — for standardized `<next_steps>` formatting
+- `output-standards` — for standardized `<nextsteps>` formatting

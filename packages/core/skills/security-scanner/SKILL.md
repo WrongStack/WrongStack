@@ -157,11 +157,11 @@ element.textContent = userInput;
 - [ ] Use parameterized queries in `src/db/` files
 - [ ] Add rate limiting to `src/api/` routes
 
-<next_steps>
+<nextsteps>
 1. Fix the hardcoded API key in src/config.ts
 2. Fix the shell injection in src/auth/login.ts
 3. Fix the missing rate limiting in src/api/routes.ts
-</next_steps>
+</nextsteps>
 ```
 
 ## Skills in scope
@@ -169,4 +169,4 @@ element.textContent = userInput;
 - `bug-hunter` — for general code quality bugs found during security scan
 - `audit-log` — for dependency version audit trails
 - `git-flow` — for committing security patches properly
-- `output-standards` — for standardized `<next_steps>` formatting
+- `output-standards` — for standardized `<nextsteps>` formatting

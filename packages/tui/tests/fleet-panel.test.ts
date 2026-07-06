@@ -42,7 +42,7 @@ describe('FleetPanel swarm helpers', () => {
     expect(swarmColumnCount(240)).toBe(5);
   });
 
-  it('selects active agents first and prunes stale terminal agents', () => {
+  it('selects only active agents for the always-visible swarm', () => {
     const now = 200_000;
     const selected = selectSwarmEntries(
       {
@@ -55,7 +55,7 @@ describe('FleetPanel swarm helpers', () => {
       now,
       { includeLeader: false },
     );
-    expect(selected.map((e) => e.id)).toEqual(['run', 'idle', 'done']);
+    expect(selected.map((e) => e.id)).toEqual(['run']);
   });
 
   it('builds a bounded grid with an overflow cell', () => {

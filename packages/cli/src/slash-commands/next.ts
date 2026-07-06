@@ -143,7 +143,7 @@ function handleSelection(
   if (suggestions.length === 0) {
     return {
       message: color.amber(
-        'No suggestions available. Run /suggest to generate, or finish any open todos first — <next_steps> is suppressed while todos are pending.',
+        'No suggestions available. Run /suggest to generate, or finish any open todos first — <nextsteps> is suppressed while todos are pending.',
       ),
     };
   }

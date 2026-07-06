@@ -108,7 +108,7 @@ const DEFAULT_POPULAR_PROVIDERS: PopularProvider[] = [
   {
     id: 'anthropic',
     name: 'Anthropic',
-    description: 'Claude Opus, Sonnet, and Haiku',
+    description: 'Claude model access',
     icon: '🧠',
     color: 'from-amber-500/20 to-amber-500/5 border-amber-500/30 hover:border-amber-500/50',
     keyPlaceholder: 'sk-ant-...',

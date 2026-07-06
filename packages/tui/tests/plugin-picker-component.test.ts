@@ -5,10 +5,10 @@
 // In other words, the user-visible contract:
 //
 //   - "Plugin menu" heading appears
-//   - lockable rows show 🔒 + yellow
+//   - locked rows show 🔒 + yellow when a caller supplies lockable=false
 //   - enabled rows show ● on, disabled show ○ off
 //   - ↑/↓ change the focused row (via the `selected` prop)
-//   - the hint footer surfaces the locked-row message
+//   - the hint footer surfaces row-specific guidance
 //
 // If the highlight colours change, or the markers are wrong, this test
 // will catch it — which is what a user running /plugin menu would notice
@@ -21,9 +21,9 @@ import { PluginPicker, type PluginPickerItem } from '../src/components/plugin-pi
 
 const ROWS: PluginPickerItem[] = [
   { name: 'cost-tracker', enabled: true, risk: 'low', summary: 'Tracks cost', lockable: true },
-  { name: 'wstack-git', enabled: true, risk: 'high', summary: 'Core git', lockable: false },
+  { name: 'legacy-core', enabled: true, risk: 'high', summary: 'Synthetic locked row', lockable: false },
   { name: 'format-on-save', enabled: false, risk: 'low', summary: 'Auto-format', lockable: true },
-  { name: 'secret-scanner', enabled: true, risk: 'high', summary: 'Secret guard', lockable: false },
+  { name: 'external-guard', enabled: true, risk: 'high', summary: 'Synthetic guard', lockable: false },
 ];
 
 function frame(items: PluginPickerItem[], selected: number, hint?: string): string {
@@ -43,6 +43,12 @@ describe('<PluginPicker /> rendering', () => {
     expect(text).toMatch(/Esc close/);
   });
 
+  it('omits the lock hint when every row is toggleable', () => {
+    const rows = ROWS.map((row) => ({ ...row, lockable: true }));
+    const text = frame(rows, 0);
+    expect(text).not.toMatch(/🔒 = locked/);
+  });
+
   it('lists every row by name', () => {
     const text = frame(ROWS, 0);
     for (const row of ROWS) {
@@ -52,14 +58,14 @@ describe('<PluginPicker /> rendering', () => {
 
   it('renders the lock marker on rows where lockable=false', () => {
     const text = frame(ROWS, 0);
-    // 2 lockable rows in our fixture.
+    // 2 locked rows in our fixture.
     const lockMarkerCount = (text.match(/🔒/g) ?? []).length;
     expect(lockMarkerCount).toBeGreaterThanOrEqual(2);
   });
 
   it('renders the "on" marker for enabled rows and "off" for disabled', () => {
     const text = frame(ROWS, 0);
-    expect(text).toMatch(/● on/); // cost-tracker, wstack-git, secret-scanner are enabled
+    expect(text).toMatch(/● on/); // cost-tracker, legacy-core, external-guard are enabled
     expect(text).toMatch(/○ off/); // format-on-save is disabled
   });
 
@@ -93,10 +99,10 @@ describe('<PluginPicker /> rendering', () => {
     // Locked rows still show a uniform ●/○ state; the lock is a separate
     // column. "🔒 on" was the old in-column rendering — it must not return.
     expect(text).not.toMatch(/🔒 on/);
-    // wstack-git is locked AND enabled → its row has both ● on and 🔒.
-    const gitRow = text.split('\n').find((l) => l.includes('wstack-git')) ?? '';
-    expect(gitRow).toMatch(/● on/);
-    expect(gitRow).toMatch(/🔒/);
+    // legacy-core is locked AND enabled → its row has both ● on and 🔒.
+    const lockedRow = text.split('\n').find((l) => l.includes('legacy-core')) ?? '';
+    expect(lockedRow).toMatch(/● on/);
+    expect(lockedRow).toMatch(/🔒/);
   });
 
   it('windows long lists to the terminal height with ↑/↓ overflow indicators', () => {
@@ -125,15 +131,15 @@ describe('<PluginPicker /> rendering', () => {
     expect(bottom).toMatch(/plug-29/);
   });
 
-  it('renders the hint footer when busy or locked-row guidance is set', () => {
+  it('renders the hint footer when row guidance is set', () => {
     const text =
       render(
         React.createElement(PluginPicker, {
           items: ROWS,
-          selected: 1, // wstack-git, which is locked
-          hint: 'wstack-git is locked — see /plugin report',
+          selected: 1, // legacy-core, which is locked in this fixture
+          hint: 'legacy-core is locked — see /plugin report',
         }),
       ).lastFrame() ?? '';
-    expect(text).toMatch(/wstack-git is locked/);
+    expect(text).toMatch(/legacy-core is locked/);
   });
 });

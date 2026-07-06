@@ -3029,12 +3029,9 @@ export async function main(argv: string[]): Promise<number> {
   });
   process.once('exit', disposeIndexing);
 
-  // Every audit entry is exposed in the picker — both the curated toggleable
-  // subset AND the always-on/critical plugins. Lockable rows (canDisable=false)
-  // are rendered with a 🔒 marker and the picker ignores Enter/←/→ on them, so
-  // the user sees WHY a plugin cannot be disabled from the menu (risk=high core
-  // surface, secret-scanner guard, branch-guard, etc.) without losing the
-  // ability to inspect every plugin in one place.
+  // Every audit entry is exposed in the picker. Current bundled rows are all
+  // toggleable; canDisable=false remains available for future rows that need
+  // to be visible but not picker-toggleable.
   const getPluginPickerItems = (): PluginPickerItem[] =>
     PLUGIN_AUDIT_ENTRIES.map((entry) => {
       const configured = (config.plugins ?? []).find((plugin) =>

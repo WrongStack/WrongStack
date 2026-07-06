@@ -17,7 +17,7 @@ WrongStack diagnostics
   node:          v22.10.0
   os:            win32 10.0.19045
   provider:      anthropic
-  model:         claude-sonnet-4-7
+  model:         anthropic-test-model
   tools:         47
   plugins:       2
   mcpServers:    1
@@ -33,7 +33,7 @@ Runs a battery of checks and prints them with icons:
 WrongStack doctor
 
   ✓ provider               anthropic
-  ✓ model                  claude-sonnet-4-7
+  ✓ model                  anthropic-test-model
   ✓ api key                found in vault
   ✓ models cache           45m old
   ✓ secret vault           ~/.wrongstack/.key

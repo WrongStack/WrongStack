@@ -42,8 +42,8 @@ export interface ConfigState {
 export const useConfigStore = create<ConfigState>()(
   persist(
     (set) => ({
-      provider: 'anthropic',
-      model: 'claude-sonnet-4-20250514',
+      provider: '',
+      model: '',
       wsUrl: defaultWsUrl(),
       wsConnected: false,
       wsStatus: { state: 'connecting' },

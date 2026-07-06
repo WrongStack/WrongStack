@@ -13,7 +13,7 @@ function baseConfig(): Partial<Config> {
   return {
     version: 1,
     provider: 'anthropic',
-    model: 'claude-sonnet-4-6',
+    model: 'anthropic-test-model',
     providers: {
       anthropic: { type: 'anthropic', apiKey: 'sk-ant-x' },
       minimax: { type: 'minimax', apiKey: 'mm-y' },
@@ -66,7 +66,7 @@ describe('/setmodel slash command', () => {
   it('shows the leader model and an empty matrix hint with no args', async () => {
     const cmd = buildSetModelCommand(makeCtx(baseConfig()).ctx);
     const out = await cmd.run!('', undefined);
-    expect(out!.message).toContain('anthropic/claude-sonnet-4-6');
+    expect(out!.message).toContain('anthropic/anthropic-test-model');
     expect(out!.message).toMatch(/empty/);
   });
 
@@ -341,7 +341,7 @@ describe('/setmodel slash command', () => {
     // catches it and surfaces the message.
     fs.writeFileSync(globalConfigPath, '{not valid json');
     const cmd = buildSetModelCommand(makeCtx(baseConfig()).ctx);
-    const res = await cmd.run!('leader anthropic claude-sonnet-4', undefined);
+    const res = await cmd.run!('leader anthropic anthropic-test-model', undefined);
     expect(res?.message).toContain('not valid JSON');
     expect(res?.message).toContain(globalConfigPath);
   });

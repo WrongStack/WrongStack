@@ -1,5 +1,5 @@
 # WrongStack Codebase Analysis Report
-**Date:** 2026-06-07 | **Version:** 0.95.1 | **Scope:** All 13 packages (core, cli, tools, providers, mcp, webui, tui, plug-lsp, runtime, acp, plugins, telegram, skills)
+**Date:** 2026-07-06 | **Version:** 0.282.1 | **Scope:** 14 packages + 2 apps (core, cli, tools, providers, mcp, webui, tui, plug-lsp, runtime, acp, plugins, telegram, bench, webui-hq + apps/wrongstack, apps/desktop)
 
 ---
 

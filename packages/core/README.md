@@ -12,7 +12,7 @@ If you're just using WrongStack from the terminal, install [`wrongstack`](../../
 pnpm add @wrongstack/core
 ```
 
-Requires **Node.js ≥ 22.0.0**.
+Requires **Node.js ≥ 22.19.0**.
 
 ## What's in here
 

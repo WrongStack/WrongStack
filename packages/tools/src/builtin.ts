@@ -71,7 +71,7 @@ export const OPTIONAL_TOOLS: Tool[] = [
 /**
  * Tier 1 (Token Saving) tool set — the absolute minimum for useful work.
  * ~10 tools covering core file ops, shell, search, and utilities.
- * Saves ~4000-6000 tokens vs full mode by omitting 90+ tools.
+ * Saves ~4000-6000 tokens vs full mode by omitting 38 tools.
  *
  * Tier 1 tools:
  *   read, write, edit    — file operations
@@ -94,8 +94,8 @@ export const TIER1_TOOLS: Tool[] = [
 
 /**
  * Tier 2 tool set — standard development tools useful for non-trivial work.
- * Adds ~14 tools: replace, exec, fetch, git, tree, lint, format, typecheck,
- * test, todo, plan, task, install, audit.
+ * Adds 16 tools: replace, exec, fetch, git, tree, lint, format, typecheck,
+ * test, todo, plan, kanban, task, install, audit, design.
  *
  * These tools are used regularly during development but are not essential for
  * every turn. Omitting them in minimal/light tier saves ~900 tokens per prompt.
@@ -121,7 +121,7 @@ export const TIER2_TOOLS: Tool[] = [
 
 /**
  * Tier 3 tool set — specialized/optional tools for specific workflows.
- * Adds ~14 tools: outdated, logs, document, scaffold, toolSearch, toolUse,
+ * Adds 12 tools: outdated, logs, document, scaffold, toolSearch, toolUse,
  * batchToolUse, toolHelp, codebaseIndex, codebaseSearch, codebaseStats, setWorkingDir.
  *
  * These tools are rarely used in typical development (once-per-session,

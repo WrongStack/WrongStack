@@ -1,10 +1,26 @@
 import { spawn } from 'node:child_process';
+import { treeKill } from './runner.js';
+
+/**
+ * Default cap on captured stdout+stderr. A runaway benchmark command (an
+ * infinite log loop, a huge stack trace) would otherwise grow the captured
+ * strings without bound and OOM the runner. Mirrors the spirit of Node's
+ * child_process.exec `maxBuffer`, but instead of erroring we truncate, kill the
+ * process tree, and flag the result — keeping execCommand's never-reject contract.
+ */
+const DEFAULT_MAX_BUFFER_BYTES = 10 * 1024 * 1024; // 10 MiB
 
 export interface ExecResult {
   exitCode: number | null;
   stdout: string;
   stderr: string;
   timedOut: boolean;
+  /**
+   * True when combined stdout+stderr hit maxBufferBytes and capture was cut
+   * short. Optional so existing ExecResult literals (test mocks, graders that
+   * synthesise a result) stay valid; execCommand always sets it.
+   */
+  truncated?: boolean | undefined;
 }
 
 /**
@@ -28,8 +44,15 @@ export function execCommand(opts: {
    * — no metacharacter interpretation, no DEP0190, no injection surface.
    */
   shell?: boolean | undefined;
+  /**
+   * Max captured stdout+stderr in bytes before the process tree is killed and
+   * the result is flagged `truncated`. Defaults to {@link DEFAULT_MAX_BUFFER_BYTES}
+   * (10 MiB). Guards against a runaway command OOM-ing the runner.
+   */
+  maxBufferBytes?: number | undefined;
 }): Promise<ExecResult> {
   const useShell = opts.shell ?? true;
+  const maxBufferBytes = opts.maxBufferBytes ?? DEFAULT_MAX_BUFFER_BYTES;
   return new Promise<ExecResult>((resolve) => {
     let child: ReturnType<typeof spawn>;
     try {
@@ -60,6 +83,7 @@ export function execCommand(opts: {
         /* v8 ignore next -- spawn throws Error subclasses; the String(err) branch is defensive. */
         stderr: err instanceof Error ? err.message : String(err),
         timedOut: false,
+        truncated: false,
       });
       return;
     }
@@ -67,29 +91,47 @@ export function execCommand(opts: {
     let stdout = '';
     let stderr = '';
     let timedOut = false;
+    let truncated = false;
+    let bufferedBytes = 0;
     let settled = false;
 
     const timer = setTimeout(() => {
       timedOut = true;
-      try {
-        child.kill('SIGKILL');
-      } catch {
-        /* already gone */
-      }
+      // A naive child.kill() only signals the direct child — with shell:true
+      // that's the /bin/sh or cmd.exe wrapper, leaving the actual test process
+      // (npm/gradle/etc.) orphaned. treeKill tears down the whole process tree
+      // (taskkill /T on Windows, SIGTERM→SIGKILL on POSIX).
+      treeKill(child);
     }, opts.timeoutMs);
 
-    child.stdout?.on('data', (d: Buffer) => {
-      stdout += d.toString('utf8');
-    });
-    child.stderr?.on('data', (d: Buffer) => {
-      stderr += d.toString('utf8');
-    });
+    // Append a chunk to the target stream up to the shared byte budget. Once the
+    // combined stdout+stderr budget is exhausted, stop buffering and kill the
+    // process tree so a runaway command can't OOM the runner.
+    const appendCapped = (chunk: Buffer, append: (s: string) => void): void => {
+      if (truncated) return;
+      const remaining = maxBufferBytes - bufferedBytes;
+      if (chunk.length <= remaining) {
+        bufferedBytes += chunk.length;
+        append(chunk.toString('utf8'));
+        return;
+      }
+      // Keep only what fits, on a UTF-8 boundary, then cut the process off.
+      if (remaining > 0) {
+        append(chunk.subarray(0, remaining).toString('utf8'));
+        bufferedBytes = maxBufferBytes;
+      }
+      truncated = true;
+      treeKill(child);
+    };
+
+    child.stdout?.on('data', (d: Buffer) => appendCapped(d, (s) => (stdout += s)));
+    child.stderr?.on('data', (d: Buffer) => appendCapped(d, (s) => (stderr += s)));
 
     const done = (exitCode: number | null) => {
       if (settled) return;
       settled = true;
       clearTimeout(timer);
-      resolve({ exitCode, stdout, stderr, timedOut });
+      resolve({ exitCode, stdout, stderr, timedOut, truncated });
     };
 
     child.on('error', (err) => {

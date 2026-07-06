@@ -212,8 +212,14 @@ export class MCPClient {
         }
       }
     });
-    child.on('error', () => {
+    child.on('error', (err: Error) => {
       this.state = 'failed';
+      // Spawn/runtime errors (ENOENT, EACCES, ...) can fire *after* the child
+      // handle exists but often without a matching 'exit' event. Without
+      // failing in-flight requests here, callers awaiting the startup
+      // `initialize` (or any tools/call) hang until their timeout instead of
+      // rejecting promptly.
+      this.failPending(`MCP "${this.opts.name}" child error: ${toErrorMessage(err)}`);
     });
 
     const initialize = await this.request(
@@ -481,8 +487,19 @@ export class MCPClient {
         },
         timer,
       });
+      const stdin = this.child?.stdin;
+      if (!stdin || stdin.destroyed) {
+        // No writable stdin (child never spawned, already exited, or stream
+        // destroyed). Reject immediately instead of leaving the request
+        // pending until it times out.
+        const pending = this.pending.get(id);
+        this.pending.delete(id);
+        if (pending) clearTimeout(pending.timer);
+        reject(new Error(`MCP "${this.opts.name}" request "${method}": stdin not writable`));
+        return;
+      }
       try {
-        this.child?.stdin?.write(JSON.stringify(req) + '\n');
+        stdin.write(JSON.stringify(req) + '\n');
       } catch (err) {
         const pending = this.pending.get(id);
         this.pending.delete(id);
@@ -523,7 +540,14 @@ export class MCPClient {
         if (this._drainPending) {
           this._lastNotifySkipped = true;
           console.warn(
-            `[MCP] notify("${method}") skipped: stdin buffer backpressure (already waiting for drain)`,
+            JSON.stringify({
+              level: 'warn',
+              event: 'mcp.notify_skipped_backpressure',
+              server: this.opts.name,
+              method,
+              message: 'stdin buffer backpressure (already waiting for drain)',
+              timestamp: new Date().toISOString(),
+            }),
           );
           return;
         }

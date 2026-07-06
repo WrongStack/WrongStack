@@ -3,9 +3,9 @@ import { ModelRouter, type RouterConfig } from '../../src/models/model-router.js
 
 const cfg = (over: Partial<RouterConfig['config']> = {}): RouterConfig['config'] => ({
   provider: 'anthropic',
-  model: 'claude-sonnet-4-6',
+  model: 'anthropic-test-model',
   providers: {
-    anthropic: { apiKey: 'sk-ant', models: ['claude-opus-4-8', 'claude-sonnet-4-6', 'claude-haiku-4-5'] },
+    anthropic: { apiKey: 'sk-ant', models: ['claude-opus-4-8', 'anthropic-test-model', 'claude-haiku-4-5'] },
     openai: { apiKeys: [{ apiKey: 'sk-oai' }], models: ['gpt-5', 'gpt-4o-mini'] },
     google: { apiKey: '', models: ['gemini-2.5-pro'] }, // no key
   } as never,
@@ -88,7 +88,7 @@ describe('ModelRouter model selection internals', () => {
 
   it('treats the leader provider as keyed even without a providers entry', () => {
     const r = new ModelRouter({
-      config: { provider: 'anthropic', model: 'claude-sonnet-4-6' } as never,
+      config: { provider: 'anthropic', model: 'anthropic-test-model' } as never,
     });
     // No providers map, but provider==='anthropic' is treated as keyed; no models
     // configured → getProviderModels empty → findBestModel returns undefined → leader.

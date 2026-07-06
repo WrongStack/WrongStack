@@ -530,10 +530,10 @@ describe('AgentStatusTracker', () => {
     tracker.start();
     events.emit('iteration.started', { index: 1 }); // no ctx branch
     events.emit('provider.text_delta', {}); // no text → return
-    events.emit('provider.response', { ctx: { model: 'anthropic/claude-sonnet-5' } });
+    events.emit('provider.response', { ctx: { model: 'anthropic/anthropic-test-model' } });
     const call = registry.updateAgents.mock.calls.at(-1)?.[0] as AgentEntry[];
     const leader = call?.find((a: AgentEntry) => a.id === 'leader');
-    expect(leader?.model).toBe('anthropic/claude-sonnet-5');
+    expect(leader?.model).toBe('anthropic/anthropic-test-model');
   });
 
   it('ignores token.accounted with no payload and subagent events without a subagentId', () => {

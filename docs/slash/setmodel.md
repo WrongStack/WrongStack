@@ -56,7 +56,7 @@ Only providers that have an API key (stored key, key list, or a populated env va
 /setmodel reasoning bug-hunter on low        # keep its model, lower reasoning
 /setmodel reasoning-effort critic high       # override only reasoning effort
 /setmodel reasoning-preserve planner on      # preserve provider thinking state
-/setmodel leader anthropic claude-sonnet-4-6
+/setmodel leader anthropic anthropic-test-model
 /setmodel clear security-scanner
 ```
 

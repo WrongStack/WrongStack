@@ -36,7 +36,7 @@ function entry(over: Partial<FleetEntry> & Pick<FleetEntry, 'id' | 'status'>): F
 describe('selectLiveAgents', () => {
   const now = 1_000_000;
 
-  it('hides terminal subagents while keeping leader as the detail fallback', () => {
+  it('shows only running subagents while keeping leader as the detail fallback', () => {
     const agents = [
       entry({ id: 'leader', name: 'LEADER', status: 'idle' }),
       entry({ id: 'run', status: 'running' }),
@@ -47,12 +47,13 @@ describe('selectLiveAgents', () => {
       entry({ id: 'stop', status: 'stopped' }),
     ];
     const ids = selectLiveAgents(agents, now).map((e) => e.id);
-    expect(ids).toEqual(['leader', 'run', 'idle-worker']);
+    expect(ids).toEqual(['leader', 'run']);
   });
 
-  it('returns an empty list when only an idle leader and terminal subagents remain', () => {
+  it('returns an empty list when only an idle leader and inactive subagents remain', () => {
     const agents = [
       entry({ id: 'leader', name: 'LEADER', status: 'idle' }),
+      entry({ id: 'idle-worker', status: 'idle' }),
       entry({ id: 'ok', status: 'success' }),
       entry({ id: 'bad', status: 'failed' }),
     ];
@@ -67,17 +68,16 @@ describe('selectLiveAgents', () => {
     expect(selectLiveAgents(agents, now).map((e) => e.id)).toEqual(['leader']);
   });
 
-  it('keeps stale idle subagents instead of pruning them', () => {
+  it('hides idle subagents even when they are recent', () => {
     const agents = [
       entry({ id: 'leader', name: 'LEADER', status: 'idle' }),
       entry({ id: 'fresh', status: 'idle', lastEventAt: now - 5_000 }),
       entry({ id: 'stale', status: 'idle', lastEventAt: now - (IDLE_HIDE_MS + 1) }),
     ];
-    const ids = selectLiveAgents(agents, now).map((e) => e.id);
-    expect(ids).toEqual(['leader', 'fresh', 'stale']);
+    expect(selectLiveAgents(agents, now)).toEqual([]);
   });
 
-  it('preserves caller order instead of sorting by status/activity', () => {
+  it('preserves caller order for running subagents', () => {
     const agents = [
       entry({ id: 'leader', name: 'LEADER', status: 'idle' }),
       entry({ id: 'idle-old', status: 'idle', lastEventAt: now - 20_000 }),
@@ -85,13 +85,7 @@ describe('selectLiveAgents', () => {
       entry({ id: 'run-new', status: 'running', startedAt: now - 1_000, lastEventAt: now }),
       entry({ id: 'run-old', status: 'running', startedAt: now - 50_000, lastEventAt: now }),
     ];
-    expect(selectLiveAgents(agents, now).map((e) => e.id)).toEqual([
-      'leader',
-      'idle-old',
-      'idle-new',
-      'run-new',
-      'run-old',
-    ]);
+    expect(selectLiveAgents(agents, now).map((e) => e.id)).toEqual(['leader', 'run-new', 'run-old']);
   });
 
   it('falls back to leader details when the selected agent disappears', () => {
@@ -148,7 +142,7 @@ describe('agents-monitor formatting', () => {
           name: 'Bug Hunter',
           status: 'running',
           provider: 'anthropic',
-          model: 'claude-sonnet-4-6',
+          model: 'anthropic-test-model',
           ctxPct: 0.8,
         }),
       ),

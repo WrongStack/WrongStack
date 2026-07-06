@@ -9,7 +9,7 @@
  *   "warningThreshold": 80,       // percent of budget before warning
  *   "pricingOverrides": {         // user-supplied per-model rates (USD/1M tokens)
  *     "gpt-4o":              { "input": 5.0,  "output": 15.0 },
- *     "claude-3-5-sonnet":   { "input": 3.0,  "output": 15.0 }
+ *     "custom-model":        { "input": 3.0,  "output": 15.0 }
  *   }
  * }
  * ```
@@ -85,9 +85,6 @@ const PRICING: Record<string, ModelPricing> = {
   'gpt-4o': { input: 5.0, output: 15.0 },
   'gpt-4o-mini': { input: 0.15, output: 0.6 },
   'gpt-4-turbo': { input: 10.0, output: 30.0 },
-  'claude-3-5-sonnet': { input: 3.0, output: 15.0 },
-  'claude-3-5-haiku': { input: 0.8, output: 4.0 },
-  'claude-3-opus': { input: 15.0, output: 75.0 },
   'gemini-1.5-pro': { input: 3.5, output: 10.5 },
   'gemini-1.5-flash': { input: 0.075, output: 0.3 },
   default: { input: 5.0, output: 15.0 },
@@ -193,7 +190,7 @@ function readCostTrackerConfig(raw: Record<string, unknown> | undefined): CostTr
  *    used when none of the above recognize the model name.
  *
  * @param model - The provider-reported model identifier (e.g. `'gpt-4o'`,
- *   `'claude-3-5-sonnet'`). Case-insensitive — lowercased internally.
+ *   `'custom-model'`). Case-insensitive — lowercased internally.
  * @param promptTokens - Number of input/prompt tokens consumed.
  * @param completionTokens - Number of output/completion tokens generated.
  * @returns Estimated cost in USD.

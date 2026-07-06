@@ -71,7 +71,7 @@ const surfaces: Surface[] = [
     preview: (
       <div className="space-y-2">
         <div className="flex items-center justify-between text-xs text-zinc-500">
-          <span>model claude-sonnet · ctx 41%</span>
+          <span>model configured-model · ctx 41%</span>
           <span className="text-brand">⟳ EXECUTE</span>
         </div>
         <div className="space-y-0.5 rounded-md border border-white/10 bg-white/[0.03] p-2 text-xs">

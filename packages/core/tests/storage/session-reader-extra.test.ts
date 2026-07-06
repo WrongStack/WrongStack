@@ -38,7 +38,7 @@ describe('session-reader — extra coverage', () => {
       { id: 'old', title: 'old', startedAt: '2025-01-01T00:00:00Z', provider: 'anthropic', model: 'opus', tokenTotal: 500 },
       { id: 'future', title: 'future', startedAt: '2027-01-01T00:00:00Z', provider: 'anthropic', model: 'opus', tokenTotal: 500 },
       { id: 'wrongprov', title: 'wrongprov', startedAt: '2026-02-01T00:00:00Z', provider: 'openai', model: 'opus', tokenTotal: 500 },
-      { id: 'wrongmodel', title: 'wrongmodel', startedAt: '2026-02-01T00:00:00Z', provider: 'anthropic', model: 'sonnet', tokenTotal: 500 },
+      { id: 'wrongmodel', title: 'wrongmodel', startedAt: '2026-02-01T00:00:00Z', provider: 'anthropic', model: 'planner', tokenTotal: 500 },
       { id: 'lowtok', title: 'lowtok', startedAt: '2026-02-01T00:00:00Z', provider: 'anthropic', model: 'opus', tokenTotal: 1 },
       { id: 'wrongtitle', title: 'nope', startedAt: '2026-02-01T00:00:00Z', provider: 'anthropic', model: 'opus', tokenTotal: 500 },
     ];

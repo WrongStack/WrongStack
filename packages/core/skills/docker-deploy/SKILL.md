@@ -153,4 +153,4 @@ trivy image --exit-code 1 --ignore-unfixed --severity HIGH,CRITICAL wrongstack:$
 - `git-flow` — for tagging releases and managing Docker image versions
 - `node-modern` — for Node.js-specific containerization patterns
 - `observability` — for logging and tracing in containerized environments
-- `output-standards` — for standardized `<next_steps>` formatting
+- `output-standards` — for standardized `<nextsteps>` formatting

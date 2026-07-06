@@ -1,10 +1,28 @@
-import type { Capabilities, CustomModelDefinition, ModelsRegistry } from '@wrongstack/core';
+import type {
+  Capabilities,
+  CustomModelDefinition,
+  ModelsRegistry,
+  ResolvedProvider,
+  WireFamily,
+} from '@wrongstack/core';
 import { capabilitiesForFamily } from './family-capabilities.js';
 
 const REGISTRY_CAP_CACHE = new WeakMap<ModelsRegistry, Map<string, Capabilities>>();
 const CUSTOM_MODEL_IDS = new WeakMap<Record<string, CustomModelDefinition>, number>();
 const WRAPPED_REFRESH = new WeakSet<ModelsRegistry>();
 let nextCustomModelId = 1;
+
+const FAMILY_BY_PROVIDER_ID: Partial<Record<string, WireFamily>> = {
+  'anthropic-oauth': 'anthropic-oauth',
+  'github-copilot': 'github-copilot',
+  'openai-codex': 'openai-codex',
+};
+
+const SIBLING_CATALOG_BY_FAMILY: Partial<Record<WireFamily, string>> = {
+  'anthropic-oauth': 'anthropic',
+  'github-copilot': 'openai',
+  'openai-codex': 'openai',
+};
 
 function customCacheKey(customModels?: Record<string, CustomModelDefinition>): string {
   if (!customModels) return '';
@@ -64,8 +82,17 @@ export async function capabilitiesFor(
   }
 
   const provider = await registry.getProvider(providerId);
-  const model = await registry.getModel(providerId, modelId);
-  const base = capabilitiesForFamily(provider?.family ?? 'unsupported');
+  const knownFamily = provider?.family !== 'unsupported' ? provider?.family : undefined;
+  const family = knownFamily ?? FAMILY_BY_PROVIDER_ID[providerId] ?? 'unsupported';
+  const siblingProviderId = SIBLING_CATALOG_BY_FAMILY[family];
+  const siblingProvider =
+    siblingProviderId && (!provider || provider.family === 'unsupported')
+      ? await registry.getProvider(siblingProviderId)
+      : undefined;
+  const model =
+    (await registry.getModel(providerId, modelId)) ??
+    (siblingProviderId ? await registry.getModel(siblingProviderId, modelId) : undefined);
+  const base = capabilitiesForFamily(family);
 
   // User-defined custom model overrides take top priority when present.
   const customDef = customModels?.[modelId];
@@ -88,7 +115,8 @@ export async function capabilitiesFor(
   // driver for subagent `Request.maxTokens` (Chimera etc.) — keeping it
   // out of the family table means a fresh models.dev sync automatically
   // picks up new model ceilings without a code change.
-  const rawModel = provider?.models.find((m) => m.id === modelId);
+  const rawProvider = bestRawProvider(provider, siblingProvider);
+  const rawModel = rawProvider?.models.find((m) => m.id === modelId);
   const catalogMaxContext =
     model?.capabilities.maxContext ||
     rawModel?.limit?.context ||
@@ -134,4 +162,12 @@ export async function capabilitiesFor(
   };
   registryCache.set(key, value);
   return value;
+}
+
+function bestRawProvider(
+  provider: ResolvedProvider | undefined,
+  siblingProvider: ResolvedProvider | undefined,
+): ResolvedProvider | undefined {
+  if (provider && provider.family !== 'unsupported') return provider;
+  return siblingProvider ?? provider;
 }

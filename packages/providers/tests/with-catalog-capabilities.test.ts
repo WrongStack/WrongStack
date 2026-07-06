@@ -17,9 +17,9 @@ const SAMPLE: ModelsDevPayload = {
     env: ['ANTHROPIC_API_KEY'],
     npm: '@ai-sdk/anthropic',
     models: {
-      'claude-sonnet-4-6': {
-        id: 'claude-sonnet-4-6',
-        name: 'Claude Sonnet 4.6',
+      'anthropic-test-model': {
+        id: 'anthropic-test-model',
+        name: 'Anthropic Catalog Test',
         tool_call: true,
         modalities: { input: ['text', 'image'], output: ['text'] },
         limit: { context: 200_000, output: 64_000 },
@@ -59,7 +59,7 @@ describe('withCatalogCapabilities', () => {
       reg(),
       'anthropic',
       provider,
-      { type: 'anthropic', model: 'claude-sonnet-4-6' },
+      { type: 'anthropic', model: 'anthropic-test-model' },
     );
 
     expect(out.capabilities.maxOutput).toBe(64_000);
@@ -125,7 +125,7 @@ describe('withCatalogCapabilities', () => {
       reg(),
       'anthropic',
       provider,
-      { type: 'anthropic', model: 'claude-sonnet-4-6' },
+      { type: 'anthropic', model: 'anthropic-test-model' },
     );
 
     expect(out).toBe(provider);
@@ -152,9 +152,9 @@ describe('withCatalogCapabilities', () => {
       provider,
       {
         type: 'anthropic',
-        model: 'claude-sonnet-4-6',
+        model: 'anthropic-test-model',
         customModels: {
-          'claude-sonnet-4-6': { capabilities: { maxOutput: 32_000 } },
+          'anthropic-test-model': { capabilities: { maxOutput: 32_000 } },
         },
       },
     );

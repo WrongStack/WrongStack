@@ -347,4 +347,4 @@ For the H1 pattern, extend `tests/plugin-teardown.test.ts` with a
 - `typescript-strict` — for strict TypeScript patterns in plugin code
 - `node-modern` — for ESM imports, AbortSignal, and async patterns
 - `testing` — for vitest patterns and mock API construction
-- `output-standards` — for standardized `<next_steps>` formatting
+- `output-standards` — for standardized `<nextsteps>` formatting

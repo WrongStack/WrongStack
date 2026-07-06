@@ -53,7 +53,7 @@ Emitted when a new session begins.
 |-------|------|-------------|
 | `ts` | `string` | ISO 8601 timestamp |
 | `id` | `string` | Unique session identifier |
-| `model` | `string` | Model identifier (e.g. `claude-sonnet-4-20250514`) |
+| `model` | `string` | Model identifier (e.g. `configured-model`) |
 | `provider` | `string` | Provider name (e.g. `anthropic`) |
 
 ---

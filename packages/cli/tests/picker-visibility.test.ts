@@ -40,7 +40,7 @@ describe('runPicker respects visible model allowlists', () => {
       apiBase: 'https://api.anthropic.com',
       envVars: [],
       models: [
-        { id: 'claude-sonnet-4-20250514', name: 'Claude Sonnet 4' },
+        { id: 'anthropic-test-model', name: 'Anthropic Test Model' },
         { id: 'claude-opus-4', name: 'Claude Opus 4' },
       ],
     } as never;
@@ -56,12 +56,12 @@ describe('runPicker respects visible model allowlists', () => {
     const reader = makeReader(['1', 'q']);
     const config = {
       provider: 'anthropic',
-      model: 'claude-sonnet-4-20250514',
+      model: 'anthropic-test-model',
       providers: {
         anthropic: {
           type: 'anthropic',
           apiKey: 'x',
-          models: ['claude-sonnet-4-20250514'],
+          models: ['anthropic-test-model'],
         },
       },
     } as never as Config;
@@ -69,7 +69,7 @@ describe('runPicker respects visible model allowlists', () => {
     await runPicker({ modelsRegistry, renderer: renderer as never, reader: reader as never, config });
 
     const text = output.join('\n');
-    expect(text).toContain('claude-sonnet-4-20250514');
+    expect(text).toContain('anthropic-test-model');
     expect(text).not.toContain('claude-opus-4');
   });
 });

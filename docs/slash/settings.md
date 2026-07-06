@@ -27,8 +27,8 @@ command is argument-driven so it works in both the plain REPL and the Ink TUI.
 | `/settings cache-ttl 5m\|1h` | Set prompt cache TTL |
 | `/settings semver-part patch\|minor\|major\|auto` | Default part used by `/semver` and the `semver_bump` tool when no explicit part is given |
 | `/settings plugins` | Open the interactive plugin picker (TUI overlay) or print the audit report (REPL) — same surface as `/plugin menu` |
-| `/settings plugin report` | Print the audit report: each built-in plugin row's name, state, risk tier, lockable flag, and current toggle policy |
-| `/settings plugin toggle <name>` | Toggle a single safe audit-list plugin row; refuses to toggle `lockable: true` rows ([`secret-scanner`](../packages/plugins/src/secret-scanner), [`branch-guard`](../packages/plugins/src/branch-guard), etc.) with a hint pointing to `/plugin report` |
+| `/settings plugin report` | Print the audit report: each built-in plugin row's name, state, risk tier, and current toggle policy |
+| `/settings plugin toggle <name>` | Toggle a single built-in audit-list plugin row; current bundled rows are all toggleable, including guard plugins such as [`secret-scanner`](../packages/plugins/src/secret-scanner) and [`branch-guard`](../packages/plugins/src/branch-guard) |
 | `/settings defaults` | Show built-in defaults |
 
 Settings are persisted to the active config scope: global
@@ -60,13 +60,13 @@ verbs are:
 | Verb | Effect |
 |---|---|
 | `plugins` / `menu` | Open the interactive plugin picker (TUI overlay when available; otherwise the audit report in REPL). |
-| `plugin report` / `report` | Print a row-per-plugin audit: name, current state, risk tier, lockable flag, and the toggle policy in effect. |
-| `plugin toggle <name>` / `toggle <name>` | Toggle one plugin in the safe audit list. **Refuses** to toggle `lockable: true` rows ([`secret-scanner`](../packages/plugins/src/secret-scanner), [`branch-guard`](../packages/plugins/src/branch-guard), etc.) — the model returns a hint pointing to `/plugin report` for the rationale. |
+| `plugin report` / `report` | Print a row-per-plugin audit: name, current state, risk tier, and the toggle policy in effect. |
+| `plugin toggle <name>` / `toggle <name>` | Toggle one plugin in the built-in audit list. Current bundled rows are all toggleable; future non-toggleable rows are reported as locked. |
 
 The picker covers `PLUGIN_AUDIT_ENTRIES` in full — every entry is
-listed, not only the toggleable subset. `canDisable: false` entries
-appear with a 🔒 marker and a yellow row, and the hint bar carries
-"🔒 = locked" so users know why a row refuses to toggle.
+listed, not only the default-active subset. Current bundled rows toggle
+normally. If a future `canDisable: false` row exists, it appears with a 🔒
+marker and a yellow row so users know why it refuses to toggle.
 
 ## Token-Saving Tier
 

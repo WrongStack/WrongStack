@@ -368,7 +368,7 @@ export const useFleetStore = create<FleetState>()((set, get) => ({
           next.completedAt = now;
           next.failureReason = e.failureReason ?? next.failureReason;
           if (typeof e.finalText === 'string' && e.finalText) {
-            // Strip <next_steps> blocks from subagent output — suggestions belong
+            // Strip <nextsteps> blocks from subagent output — suggestions belong
             // to the main assistant, not subagent results.
             next.finalText = stripNextStepsBlock(e.finalText);
           }

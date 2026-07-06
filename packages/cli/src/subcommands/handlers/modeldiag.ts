@@ -40,15 +40,6 @@ const MODEL_PROFILES: ModelProfile[] = [
   },
   {
     provider: 'anthropic',
-    pattern: /claude-sonnet/i,
-    family: 'Claude Sonnet',
-    strengths: ['coding', 'balanced'],
-    bestFor: ['coding', 'general'],
-    costTier: 'standard',
-    speedTier: 'fast',
-  },
-  {
-    provider: 'anthropic',
     pattern: /claude-haiku/i,
     family: 'Claude Haiku',
     strengths: ['speed'],

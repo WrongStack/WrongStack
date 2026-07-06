@@ -104,6 +104,13 @@ describe('MCPClient', () => {
       command: 'noop',
       requestTimeoutMs: 20,
     });
+    // Inject a writable stdin that accepts the request but never produces a
+    // response. This drives the real timeout path — without it the request
+    // would be rejected synchronously by the "stdin not writable" guard and
+    // never reach the timer.
+    (c as never as { child: { stdin: { write: () => boolean; destroyed: boolean } } }).child = {
+      stdin: { write: () => true, destroyed: false },
+    };
     await expect(
       (c as never as { request: (method: string, params: unknown) => Promise<unknown> }).request(
         'tools/list',
@@ -602,6 +609,37 @@ describe('MCPClient', () => {
           {},
         ),
       ).rejects.toThrow(/notify.*failed/);
+    });
+  });
+
+  describe('stdio request error paths', () => {
+    it('rejects immediately when stdin is not writable (no child spawned)', async () => {
+      const c = new MCPClient({ name: 'no-stdin', transport: 'stdio', command: 'noop' });
+      // No connect() → this.child is undefined. Without the guard the request
+      // would sit pending until its timeout; the guard rejects synchronously.
+      await expect(
+        (
+          c as never as {
+            request: (m: string, p: unknown, t?: number) => Promise<unknown>;
+          }
+        ).request('tools/list', {}, 50_000),
+      ).rejects.toThrow(/stdin not writable/);
+    });
+
+    it('failPending rejects every in-flight request (child error/exit path)', async () => {
+      const c = new MCPClient({ name: 'fail-pending', transport: 'stdio', command: 'noop' });
+      const cAny = c as never as {
+        child: { stdin: { write: () => boolean; destroyed: boolean } };
+        request: (m: string, p: unknown, t?: number) => Promise<unknown>;
+        failPending: (reason: string) => void;
+      };
+      // Inject a writable stdin so request() enqueues a pending entry instead
+      // of rejecting via the not-writable guard.
+      cAny.child = { stdin: { write: () => true, destroyed: false } };
+      const inflight = cAny.request('tools/call', {}, 50_000);
+      // Simulate what child.on('error') / on('exit') do: fail all pending.
+      cAny.failPending('MCP "fail-pending" child error: boom');
+      await expect(inflight).rejects.toThrow(/child error: boom/);
     });
   });
 });

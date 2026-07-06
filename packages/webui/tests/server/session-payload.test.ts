@@ -10,7 +10,7 @@ describe('WebUI session.start payload contract', () => {
     const required = ['sessionId', 'model', 'provider', 'maxContext', 'projectName', 'cwd', 'mode', 'contextMode'];
     const sample = {
       sessionId: 'sess-123',
-      model: 'claude-sonnet',
+      model: 'test-model',
       provider: 'anthropic',
       maxContext: 200000,
       inputCost: 3,
@@ -30,7 +30,7 @@ describe('WebUI session.start payload contract', () => {
   it('does NOT include wsToken in payload (C-2 security fix)', () => {
     const payload = {
       sessionId: 'sess-123',
-      model: 'claude-sonnet',
+      model: 'test-model',
       provider: 'anthropic',
       maxContext: 200000,
       projectName: 'myproject',

@@ -53,7 +53,7 @@ function stubAgent(): Agent {
       todos: [] as TodoItem[],
       messages: [],
       projectRoot: '/test/project',
-      model: 'anthropic/claude-sonnet-4',
+      model: 'anthropic/anthropic-test-model',
       provider: {
         id: 'anthropic',
         capabilities: { maxContext: 200_000, supportsVision: true },
@@ -87,7 +87,7 @@ function freshProps(): AppProps {
     slashRegistry: stubSlashRegistry(),
     attachments: stubAttachmentStore(),
     events: stubEventBus(),
-    model: 'anthropic/claude-sonnet-4',
+    model: 'anthropic/anthropic-test-model',
     onExit: vi.fn(),
     director: null,
     statuslineHiddenItems: [] as StatuslineItem[],

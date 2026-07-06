@@ -5,7 +5,7 @@ import type { ModelsRegistry, ResolvedModel } from '../../src/index.js';
 
 const m1: ResolvedModel = {
   providerId: 'anthropic',
-  modelId: 'claude-sonnet-4-6',
+  modelId: 'anthropic-test-model',
   capabilities: { tools: true, vision: true, reasoning: false, maxContext: 200_000 },
   cost: { input: 3, output: 15, cache_read: 0.3, cache_write: 3.75 },
 } as ResolvedModel;
@@ -195,10 +195,10 @@ describe('DefaultTokenCounter', () => {
       ageSeconds: async () => 0,
     } as never as ModelsRegistry;
     const tc = new DefaultTokenCounter({ registry, providerId: 'anthropic' });
-    tc.account({ input: 1_000_000, output: 0 }, 'claude-sonnet-4-6');
+    tc.account({ input: 1_000_000, output: 0 }, 'anthropic-test-model');
     // wait for async price lookup
     await new Promise((r) => setTimeout(r, 5));
-    tc.account({ input: 1_000_000, output: 0 }, 'claude-sonnet-4-6');
+    tc.account({ input: 1_000_000, output: 0 }, 'anthropic-test-model');
     // First call's cost was applied after async resolve; second uses cache.
     expect(getModel).toHaveBeenCalledTimes(1);
     expect(tc.total().input).toBe(2_000_000);

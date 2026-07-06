@@ -136,7 +136,7 @@ describe('kanban storage and manager', () => {
       agentId: 'tester',
       provider: 'openai',
       model: 'gpt-5',
-      fallbackModels: ['anthropic/claude-sonnet-4'],
+      fallbackModels: ['anthropic/anthropic-test-model'],
       tools: ['kanban', 'bash'],
       allowedCapabilities: ['fs.write', 'shell.exec'],
     });
@@ -146,7 +146,7 @@ describe('kanban storage and manager', () => {
       agentId: 'tester',
       provider: 'openai',
       model: 'gpt-5',
-      fallbackModels: ['anthropic/claude-sonnet-4'],
+      fallbackModels: ['anthropic/anthropic-test-model'],
     });
 
     await updateTaskAssignment(tmpDir, board.id, added!.task.id, {
@@ -248,7 +248,7 @@ describe('kanban storage and manager', () => {
     await assignTask(tmpDir, board.id, task!.task.id, {
       role: 'implementer',
       provider: 'anthropic',
-      model: 'claude-sonnet-4',
+      model: 'anthropic-test-model',
       fallbackProfile: 'careful',
       fallbackModels: ['openai/gpt-5'],
       tools: ['bash'],
@@ -264,7 +264,7 @@ describe('kanban storage and manager', () => {
       agentId: 'worker-42',
       role: 'implementer',
       provider: 'anthropic',
-      model: 'claude-sonnet-4',
+      model: 'anthropic-test-model',
       fallbackProfile: 'careful',
       fallbackModels: ['openai/gpt-5'],
       tools: ['bash'],
@@ -1000,7 +1000,7 @@ describe('kanban websocket handler', () => {
         agentId: 'runner',
         provider: 'openai',
         model: 'gpt-5',
-        fallbackModels: ['anthropic/claude-sonnet-4'],
+        fallbackModels: ['anthropic/anthropic-test-model'],
         tools: ['kanban', 'bash'],
         allowedCapabilities: ['fs.write'],
       },
@@ -1010,7 +1010,7 @@ describe('kanban websocket handler', () => {
     expect(dispatched[0]?.opts).toMatchObject({
       provider: 'openai',
       model: 'gpt-5',
-      fallbackModels: ['anthropic/claude-sonnet-4'],
+      fallbackModels: ['anthropic/anthropic-test-model'],
       tools: ['kanban', 'bash'],
       allowedCapabilities: ['fs.write'],
     });
