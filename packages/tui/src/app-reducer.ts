@@ -1473,6 +1473,18 @@ export function reducer(state: State, action: Action): State {
       };
     case 'brainHint':
       return { ...state, brainPanel: { ...state.brainPanel, hint: action.text } };
+    case 'shadowOpen':
+      return {
+        ...state,
+        ...closePanels(state),
+        shadowPanel: { open: true, shadow: action.shadow, hint: undefined },
+      };
+    case 'shadowClose':
+      return { ...state, shadowPanel: { ...state.shadowPanel, open: false } };
+    case 'shadowUpdate':
+      return { ...state, shadowPanel: { ...state.shadowPanel, shadow: action.shadow } };
+    case 'shadowHint':
+      return { ...state, shadowPanel: { ...state.shadowPanel, hint: action.text } };
     case 'authOpen':
       return {
         ...state,

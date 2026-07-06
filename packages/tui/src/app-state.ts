@@ -22,6 +22,7 @@ import type { BrainLogEntry, BrainRiskLevel } from './components/brain-panel.js'
 import type { McpPickerItem } from './components/mcp-picker.js';
 import type { PluginPickerItem } from './components/plugin-picker.js';
 import type { ToolPickerItem } from './components/tools-picker.js';
+import type { ShadowState } from './components/shadow-panel.js';
 import type { ProjectPickerItem } from './components/project-picker.js';
 import type { PromptPickEntry } from './components/prompt-picker.js';
 import type { SendMode } from './components/send-mode-picker.js';
@@ -448,6 +449,12 @@ export type State = {
     riskLevel: BrainRiskLevel;
     log: BrainLogEntry[];
     selected: number;
+    hint?: string | undefined;
+  };
+  /** Shadow Agent panel — opened by `/shadow`. */
+  shadowPanel: {
+    open: boolean;
+    shadow: ShadowState;
     hint?: string | undefined;
   };
   /** Interactive API-key / OAuth manager — opened by `/auth`. */
@@ -1042,6 +1049,10 @@ export type Action =
   | { type: 'brainRiskChange'; delta: number }
   | { type: 'brainSetLog'; log: BrainLogEntry[] }
   | { type: 'brainHint'; text?: string | undefined }
+  | { type: 'shadowOpen'; shadow: ShadowState }
+  | { type: 'shadowClose' }
+  | { type: 'shadowUpdate'; shadow: ShadowState }
+  | { type: 'shadowHint'; text?: string | undefined }
   | {
       type: 'authOpen';
       view?: Extract<AuthPanelView, 'list' | 'oauth'> | undefined;

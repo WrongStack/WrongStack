@@ -72,6 +72,14 @@ export function buildShadowCommand(opts: SlashCommandContext): SlashCommand {
       const [action, ...rest] = args.trim().split(/\s+/);
 
       switch (action) {
+        case undefined:
+        case '':
+          // TUI mode: bare /shadow opens the interactive panel.
+          if (opts.onPanelOpen?.current) {
+            const opened = opts.onPanelOpen.current('shadowOpen');
+            if (opened) return { message: '' };
+          }
+          return { message: this.help ?? '/shadow — use /shadow help for usage' };
         case 'start': {
           if (!opts.onSpawn) {
             return { message: '/shadow requires a running director with subagent support.' };

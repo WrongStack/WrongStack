@@ -175,6 +175,7 @@ export function createInitialState(options: CreateInitialStateOptions): State {
     mcpPicker: { open: false, items: [], selected: 0, busy: false, hint: undefined },
     toolsPicker: { open: false, items: [], selected: 0, busy: false, hint: undefined, filter: undefined },
     brainPanel: { open: false, riskLevel: 'medium', log: [], selected: 0, hint: undefined },
+    shadowPanel: { open: false, shadow: { activeId: null, running: false, model: '', intervalMs: 30000 }, hint: undefined },
     authPanel: AUTH_PANEL_INITIAL,
     projectPicker: {
       open: false,

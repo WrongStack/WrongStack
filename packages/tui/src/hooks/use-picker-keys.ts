@@ -58,6 +58,8 @@ export interface PickerKeysHost {
   onMcpPickerRestart: (() => Promise<void> | void) | undefined;
   onToolsPickerToggle: (() => Promise<void> | void) | undefined;
   onBrainRiskChange: ((delta: number) => void) | undefined;
+  onShadowStart: (() => Promise<void> | void) | undefined;
+  onShadowStop: (() => Promise<void> | void) | undefined;
   onFKeyPickerEnter: (() => void) | undefined;
   onPickerEnter: (() => Promise<void>) | undefined;
 
@@ -658,6 +660,23 @@ export function usePickerKeys(
         }
         if (key.rightArrow) {
           host.onBrainRiskChange?.(1);
+          return true;
+        }
+        return true;
+      }
+
+      // ── Shadow Agent panel ────────────────────────────────────
+      if (state.shadowPanel.open) {
+        if (key.escape) {
+          dispatch({ type: 'shadowClose' });
+          return true;
+        }
+        if (input === 's' || input === 'S') {
+          void host.onShadowStart?.();
+          return true;
+        }
+        if (input === 't' || input === 'T') {
+          void host.onShadowStop?.();
           return true;
         }
         return true;

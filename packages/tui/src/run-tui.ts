@@ -394,6 +394,14 @@ export interface RunTuiOptions {
   onBrainRiskLevel?:
     | ((level: 'off' | 'low' | 'medium' | 'high' | 'all') => string | undefined)
     | undefined;
+  /** Get current Shadow Agent state. */
+  getShadowData?:
+    | (() => { activeId: string | null; running: boolean; model: string; intervalMs: number })
+    | undefined;
+  /** Start Shadow Agent. Returns message or error. */
+  onShadowStart?: (() => Promise<string | undefined>) | undefined;
+  /** Stop Shadow Agent. Returns message or error. */
+  onShadowStop?: (() => Promise<string | undefined>) | undefined;
   /**
    * Host for the interactive `/auth` panel (provider/key management, OAuth
    * sign-in, local-server add). The CLI builds this from its vault +
@@ -1067,6 +1075,9 @@ export async function runTui(opts: RunTuiOptions): Promise<number> {
           onToolToggle: opts.onToolToggle,
           getBrainData: opts.getBrainData,
           onBrainRiskLevel: opts.onBrainRiskLevel,
+          getShadowData: opts.getShadowData,
+          onShadowStart: opts.onShadowStart,
+          onShadowStop: opts.onShadowStop,
           authHost: opts.authHost,
           predictNext: opts.predictNext,
           onSuggestionsParsed: opts.onSuggestionsParsed,

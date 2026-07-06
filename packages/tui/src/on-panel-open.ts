@@ -23,6 +23,7 @@ export type PanelAction =
   | 'mcpPickerOpen'
   | 'toolsPickerOpen'
   | 'brainOpen'
+  | 'shadowOpen'
   | 'projectPickerOpen'
   | 'statuslineOpen'
   | 'authOpen'
@@ -69,6 +70,11 @@ export interface PanelOpenDeps {
    * and decision log from the host, then dispatches brainOpen.
    */
   openBrainPanel?: (() => void | Promise<unknown>) | undefined;
+  /**
+   * Async opener for the Shadow Agent panel (`/shadow`). Fetches shadow state
+   * from the host, then dispatches shadowOpen.
+   */
+  openShadowPanel?: (() => void | Promise<unknown>) | undefined;
 }
 
 /**
@@ -121,6 +127,12 @@ export function createPanelOpenDispatcher(deps: PanelOpenDeps): (action: string)
       case 'brainOpen':
         if (deps.openBrainPanel) {
           void deps.openBrainPanel();
+          return true;
+        }
+        return false;
+      case 'shadowOpen':
+        if (deps.openShadowPanel) {
+          void deps.openShadowPanel();
           return true;
         }
         return false;

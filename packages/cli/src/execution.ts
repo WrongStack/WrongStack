@@ -322,6 +322,14 @@ export interface ExecutionDeps {
   onBrainRiskLevel?:
     | ((level: 'off' | 'low' | 'medium' | 'high' | 'all') => string | undefined)
     | undefined;
+  /** Get current Shadow Agent state. */
+  getShadowData?:
+    | (() => { activeId: string | null; running: boolean; model: string; intervalMs: number })
+    | undefined;
+  /** Start Shadow Agent. Returns message or error. */
+  onShadowStart?: (() => Promise<string | undefined>) | undefined;
+  /** Stop Shadow Agent. Returns message or error. */
+  onShadowStop?: (() => Promise<string | undefined>) | undefined;
   /** Host for the interactive TUI `/auth` panel (keys, OAuth, local adds). */
   authHost?: import('@wrongstack/tui').AuthPanelHost | undefined;
   /** Agents monitor overlay controller (passed to TUI). */
@@ -524,6 +532,9 @@ export async function execute(deps: ExecutionDeps): Promise<number> {
     onToolToggle,
     getBrainData,
     onBrainRiskLevel,
+    getShadowData,
+    onShadowStart,
+    onShadowStop,
     authHost,
     agentsMonitorController,
     onPanelOpen,
@@ -1143,6 +1154,9 @@ export async function execute(deps: ExecutionDeps): Promise<number> {
           onToolToggle,
           getBrainData,
           onBrainRiskLevel,
+          getShadowData,
+          onShadowStart,
+          onShadowStop,
           authHost,
           agentsMonitorController,
           getLiveSessions: () => getLiveSessions({ state }),

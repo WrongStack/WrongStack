@@ -94,6 +94,7 @@ import { BrainPanel, type BrainRiskLevel } from './components/brain-panel.js';
 import { McpPicker, type McpPickerItem } from './components/mcp-picker.js';
 import { PluginPicker, type PluginPickerItem } from './components/plugin-picker.js';
 import { ToolsPicker, type ToolPickerItem } from './components/tools-picker.js';
+import { ShadowPanel } from './components/shadow-panel.js';
 import { ProcessListMonitor } from './components/process-list.js';
 import { ProjectPicker } from './components/project-picker.js';
 import { filterPromptPicker, PromptPicker } from './components/prompt-picker.js';
@@ -554,6 +555,14 @@ export interface AppProps {
   onBrainRiskLevel?:
     | ((level: BrainRiskLevel) => string | undefined)
     | undefined;
+  /** Get current Shadow Agent state. */
+  getShadowData?:
+    | (() => { activeId: string | null; running: boolean; model: string; intervalMs: number })
+    | undefined;
+  /** Start Shadow Agent. Returns message or error. */
+  onShadowStart?: (() => Promise<string | undefined>) | undefined;
+  /** Stop Shadow Agent. Returns message or error. */
+  onShadowStop?: (() => Promise<string | undefined>) | undefined;
   /**
    * Host for the interactive `/auth` panel (provider/key management, OAuth
    * sign-in, local-server add). Provided by the CLI; when absent, `/auth`
@@ -1037,6 +1046,9 @@ export function App({
   onToolToggle,
   getBrainData,
   onBrainRiskLevel,
+  getShadowData,
+  onShadowStart,
+  onShadowStop,
   authHost,
   predictNext,
   onSuggestionsParsed,
@@ -1304,6 +1316,43 @@ export function App({
     }
   }, [state.brainPanel.riskLevel, state.brainPanel.open, onBrainRiskLevel]);
 
+  // ── Shadow Agent panel ─────────────────────────────────────────
+  const openShadowPanel = React.useCallback(() => {
+    if (!getShadowData) return;
+    const data = getShadowData();
+    dispatch({ type: 'shadowOpen', shadow: data });
+  }, [getShadowData]);
+
+  const handleShadowStart = React.useCallback(async () => {
+    if (!onShadowStart) return;
+    dispatch({ type: 'shadowHint', text: 'Starting Shadow Agent…' });
+    try {
+      const err = await onShadowStart();
+      if (err) dispatch({ type: 'shadowHint', text: err });
+      else {
+        if (getShadowData) dispatch({ type: 'shadowUpdate', shadow: getShadowData() });
+        dispatch({ type: 'shadowHint', text: 'Shadow Agent started.' });
+      }
+    } catch (e) {
+      dispatch({ type: 'shadowHint', text: `Failed to start: ${toErrorMessage(e)}` });
+    }
+  }, [onShadowStart, getShadowData]);
+
+  const handleShadowStop = React.useCallback(async () => {
+    if (!onShadowStop) return;
+    dispatch({ type: 'shadowHint', text: 'Stopping Shadow Agent…' });
+    try {
+      const err = await onShadowStop();
+      if (err) dispatch({ type: 'shadowHint', text: err });
+      else {
+        if (getShadowData) dispatch({ type: 'shadowUpdate', shadow: getShadowData() });
+        dispatch({ type: 'shadowHint', text: 'Shadow Agent stopped.' });
+      }
+    } catch (e) {
+      dispatch({ type: 'shadowHint', text: `Failed to stop: ${toErrorMessage(e)}` });
+    }
+  }, [onShadowStop, getShadowData]);
+
   useStatuslineHiddenSync({
     pickerOpen: state.statuslinePicker.open,
     pickerHidden: state.statuslinePicker.hiddenItems,
@@ -1492,6 +1541,7 @@ export function App({
     state.mcpPicker.open ||
     state.toolsPicker.open ||
     state.brainPanel.open ||
+    state.shadowPanel.open ||
     state.fKeyPicker.open ||
     state.authPanel.open ||
     state.picker.open;
@@ -2711,6 +2761,7 @@ export function App({
       openAuthPanel: authPanelController.openAuthPanel,
       openModePicker,
       openBrainPanel,
+      openShadowPanel,
     });
     onPanelOpen.current = dispatcher;
     return () => {
@@ -2724,6 +2775,7 @@ export function App({
     authPanelController.openAuthPanel,
     openModePicker,
     openBrainPanel,
+    openShadowPanel,
   ]);
   // Keep the F10 sessions panel live: refresh every 5s while open
   useEffect(() => {
@@ -4290,6 +4342,8 @@ export function App({
     onMcpPickerRestart: restartSelectedMcpServer,
     onToolsPickerToggle: toggleSelectedTool,
     onBrainRiskChange: changeBrainRisk,
+    onShadowStart: handleShadowStart,
+    onShadowStop: handleShadowStop,
     onAuthEnter: authPanelController.onAuthEnter,
     onAuthBack: authPanelController.onAuthBack,
     onAuthShortcut: authPanelController.onAuthShortcut,
@@ -6803,6 +6857,12 @@ export function App({
               log={state.brainPanel.log}
               selected={state.brainPanel.selected}
               hint={state.brainPanel.hint}
+            />
+          ) : null}
+          {state.shadowPanel.open ? (
+            <ShadowPanel
+              shadow={state.shadowPanel.shadow}
+              hint={state.shadowPanel.hint}
             />
           ) : null}
           {state.authPanel.open ? <AuthPanel panel={state.authPanel} /> : null}
