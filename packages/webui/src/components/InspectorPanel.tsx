@@ -128,7 +128,7 @@ export function InspectorPanel() {
                 <span
                   className={cn(
                     'h-1.5 w-1.5 rounded-full',
-                    runningCount > 0 ? 'bg-emerald-500 animate-pulse' : 'bg-muted-foreground/50',
+                    runningCount > 0 ? 'bg-success animate-pulse' : 'bg-muted-foreground/50',
                   )}
                 />
                 <span className="tabular-nums">
@@ -151,7 +151,7 @@ export function InspectorPanel() {
                   setInspectorOpen(true);
                   setInspectorTab('sideEffects');
                 }}
-                className="flex items-center gap-1 text-yellow-500 hover:text-yellow-400 transition-colors"
+                className="flex items-center gap-1 text-warning hover:text-warning/85 transition-colors"
                 title={t('activity:inspector.openAudit')}
               >
                 <Activity className="h-3 w-3" />
@@ -280,7 +280,7 @@ function TabButton({
           className={cn(
             'tabular-nums text-[10px] px-1 rounded-full',
             running && running > 0
-              ? 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400'
+              ? 'bg-success/15 text-success'
               : 'bg-muted text-muted-foreground',
           )}
         >
@@ -325,7 +325,7 @@ function FleetTabContent({
       <div className="flex items-center gap-3 px-3 py-1.5 border-b text-[11px] text-muted-foreground shrink-0">
         <span className="flex items-center gap-1">
           {runningCount > 0 && (
-            <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
+            <span className="h-1.5 w-1.5 rounded-full bg-success animate-pulse" />
           )}
           <span className="tabular-nums">
             {t('activity:agents.runningCount', { count: runningCount })} · {t('activity:agents.totalCount', { count: fleetList.length })}
@@ -429,7 +429,7 @@ function AgentsTabContent({
                 className={cn(
                   'h-1.5 w-1.5 rounded-full shrink-0',
                   agent.status === 'running'
-                    ? 'bg-emerald-500 animate-pulse'
+                    ? 'bg-success animate-pulse'
                     : agent.status === 'failed'
                       ? 'bg-destructive'
                       : 'bg-muted-foreground/50',

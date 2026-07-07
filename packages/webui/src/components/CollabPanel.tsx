@@ -242,7 +242,7 @@ export function CollabPanel({ sessionId, className }: CollabPanelProps): React.R
           <button
             type="button"
             onClick={() => handleJoin('annotator')}
-            className="inline-flex items-center gap-1 text-xs px-2 py-1 rounded border border-amber-500/40 bg-amber-500/10 text-amber-700 dark:text-amber-300 hover:bg-amber-500/20 transition-colors"
+            className="inline-flex items-center gap-1 text-xs px-2 py-1 rounded border border-warning/40 bg-warning/10 text-warning hover:bg-warning/20 transition-colors"
             title={t('activity:collab.annotatorTitle')}
           >
             <MessageSquareWarning className="w-3 h-3" />
@@ -251,7 +251,7 @@ export function CollabPanel({ sessionId, className }: CollabPanelProps): React.R
           <button
             type="button"
             onClick={() => handleJoin('controller')}
-            className="inline-flex items-center gap-1 text-xs px-2 py-1 rounded border border-rose-500/40 bg-rose-500/10 text-rose-700 dark:text-rose-300 hover:bg-rose-500/20 transition-colors"
+            className="inline-flex items-center gap-1 text-xs px-2 py-1 rounded border border-destructive/40 bg-destructive/10 text-destructive hover:bg-destructive/20 transition-colors"
             title={t('activity:collab.controllerTitle')}
           >
             <Pause className="w-3 h-3" />
@@ -291,22 +291,22 @@ export function CollabPanel({ sessionId, className }: CollabPanelProps): React.R
   return (
     <div
       className={cn(
-        'relative flex items-center gap-2 px-3 py-2 rounded-md border border-emerald-500/40 bg-emerald-500/5',
+        'relative flex items-center gap-2 px-3 py-2 rounded-md border border-success/40 bg-success/5',
         className,
       )}
     >
       <span className="relative flex h-2 w-2" aria-label={t('common:status.live')}>
-        <span className="absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75 animate-ping" />
-        <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
+        <span className="absolute inline-flex h-full w-full rounded-full bg-success opacity-75 animate-ping" />
+        <span className="relative inline-flex rounded-full h-2 w-2 bg-success" />
       </span>
-      <Users className="w-4 h-4 text-emerald-700 dark:text-emerald-400" />
-      <span className="text-xs font-medium text-emerald-700 dark:text-emerald-300">
+      <Users className="w-4 h-4 text-success" />
+      <span className="text-xs font-medium text-success">
         {t('activity:collab.observers', { count: participants.length })}
       </span>
       {openAnnotationCount > 0 && (
         <span
           title={t('activity:collab.annotationsTitle', { count: openAnnotationCount })}
-          className="ml-2 inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-700 dark:text-amber-300 border border-amber-500/30"
+          className="ml-2 inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded bg-warning/15 text-warning border border-warning/30"
         >
           <MessageSquareWarning className="w-3 h-3" />
           {t('activity:collab.notes', { count: openAnnotationCount })}
@@ -315,7 +315,7 @@ export function CollabPanel({ sessionId, className }: CollabPanelProps): React.R
       {paused && (
         <span
           title={t('activity:collab.pausedTitle')}
-          className="ml-2 inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded bg-rose-500/15 text-rose-700 dark:text-rose-300 border border-rose-500/40"
+          className="ml-2 inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded bg-destructive/15 text-destructive border border-destructive/40"
         >
           <Pause className="w-3 h-3" />
           {t('activity:collab.paused')}
@@ -326,7 +326,7 @@ export function CollabPanel({ sessionId, className }: CollabPanelProps): React.R
           <span
             key={p.participantId}
             title={t('activity:collab.joinedTitle', { time: new Date(p.joinedAt).toLocaleTimeString() })}
-            className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-700 dark:text-emerald-300"
+            className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded bg-success/10 text-success"
           >
             <Eye className="w-3 h-3" />
             {p.role}
@@ -336,7 +336,7 @@ export function CollabPanel({ sessionId, className }: CollabPanelProps): React.R
                 type="button"
                 onClick={() => handleGrantControl(p.participantId)}
                 title={t('activity:collab.grantTitle')}
-                className="ml-0.5 inline-flex items-center rounded hover:bg-emerald-500/20 transition-colors"
+                className="ml-0.5 inline-flex items-center rounded hover:bg-success/20 transition-colors"
               >
                 <UserPlus className="w-3 h-3" />
               </button>
@@ -352,7 +352,7 @@ export function CollabPanel({ sessionId, className }: CollabPanelProps): React.R
           <button
             type="button"
             onClick={() => setInjectOpen((v) => !v)}
-            className="inline-flex items-center gap-1 text-xs px-2 py-1 rounded border border-sky-500/40 bg-sky-500/10 text-sky-700 dark:text-sky-300 hover:bg-sky-500/20 transition-colors"
+            className="inline-flex items-center gap-1 text-xs px-2 py-1 rounded border border-info/40 bg-info/10 text-info hover:bg-info/20 transition-colors"
             title={t('activity:collab.injectTitle')}
           >
             <Syringe className="w-3 h-3" />
@@ -362,7 +362,7 @@ export function CollabPanel({ sessionId, className }: CollabPanelProps): React.R
             <button
               type="button"
               onClick={handleResume}
-              className="inline-flex items-center gap-1 text-xs px-2 py-1 rounded border border-rose-500/40 bg-rose-500/10 text-rose-700 dark:text-rose-300 hover:bg-rose-500/20 transition-colors"
+              className="inline-flex items-center gap-1 text-xs px-2 py-1 rounded border border-destructive/40 bg-destructive/10 text-destructive hover:bg-destructive/20 transition-colors"
               title={t('activity:collab.resumeTitle')}
             >
               <Play className="w-3 h-3" />
@@ -372,7 +372,7 @@ export function CollabPanel({ sessionId, className }: CollabPanelProps): React.R
             <button
               type="button"
               onClick={handleRequestPause}
-              className="inline-flex items-center gap-1 text-xs px-2 py-1 rounded border border-amber-500/40 bg-amber-500/10 text-amber-700 dark:text-amber-300 hover:bg-amber-500/20 transition-colors"
+              className="inline-flex items-center gap-1 text-xs px-2 py-1 rounded border border-warning/40 bg-warning/10 text-warning hover:bg-warning/20 transition-colors"
               title={t('activity:collab.pauseTitle')}
             >
               <Pause className="w-3 h-3" />
@@ -395,9 +395,9 @@ export function CollabPanel({ sessionId, className }: CollabPanelProps): React.R
 
       {/* Phase 4 — controller-only inject-tool form (absolute popover below the bar). */}
       {isController && injectOpen && (
-        <div className="absolute top-full left-0 right-0 mt-1 z-50 flex flex-col gap-2 p-3 rounded-md border border-sky-500/40 bg-card shadow-lg text-xs">
+        <div className="absolute top-full left-0 right-0 mt-1 z-50 flex flex-col gap-2 p-3 rounded-md border border-info/40 bg-card shadow-lg text-xs">
           <div className="flex items-center gap-2">
-            <Syringe className="w-3.5 h-3.5 text-sky-600 dark:text-sky-400" />
+            <Syringe className="w-3.5 h-3.5 text-info" />
             <span className="font-medium">{t('activity:collab.injectToolResult')}</span>
             <button
               type="button"
@@ -467,7 +467,7 @@ export function CollabPanel({ sessionId, className }: CollabPanelProps): React.R
             type="button"
             onClick={handleInjectTool}
             disabled={!injectToolUseId}
-            className="self-end inline-flex items-center gap-1 text-xs px-3 py-1 rounded bg-sky-600 text-white hover:bg-sky-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            className="self-end inline-flex items-center gap-1 text-xs px-3 py-1 rounded bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
           >
             <Syringe className="w-3 h-3" />
             {t('activity:collab.queueInjection')}

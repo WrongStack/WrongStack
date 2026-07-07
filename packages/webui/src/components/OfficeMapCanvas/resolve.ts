@@ -153,10 +153,10 @@ export function resolveClients(
 
 /** Dot colour for a viz event, by kind prefix. */
 export function feedColor(kind: string): string {
-  if (kind.startsWith('tool')) return '#eab308';
-  if (kind.startsWith('mailbox')) return '#06b6d4';
-  if (kind.startsWith('provider')) return '#a855f7';
-  if (kind.startsWith('agent') || kind.startsWith('subagent')) return '#22c55e';
-  if (kind.includes('error')) return '#ef4444';
-  return '#6366f1';
+  if (kind.startsWith('tool')) return 'hsl(var(--warning))';
+  if (kind.startsWith('mailbox')) return 'hsl(var(--info))';
+  if (kind.startsWith('provider')) return 'hsl(var(--primary))';
+  if (kind.startsWith('agent') || kind.startsWith('subagent')) return 'hsl(var(--success))';
+  if (kind.includes('error')) return 'hsl(var(--destructive))';
+  return 'hsl(var(--primary))';
 }

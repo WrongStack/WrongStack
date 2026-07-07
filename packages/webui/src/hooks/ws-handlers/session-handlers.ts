@@ -35,6 +35,15 @@ function replayMessageId(index: number): string {
   return `replay_${Date.now()}_${index}`;
 }
 
+function isRoutePinnedView(): boolean {
+  if (typeof window === 'undefined') return false;
+  return (
+    window.location.pathname === '/debug' ||
+    window.location.pathname === '/analytics' ||
+    window.location.pathname === '/refresh-debug'
+  );
+}
+
 function contentToToolResult(content: unknown): string {
   return typeof content === 'string' ? content : JSON.stringify(content);
 }
@@ -214,7 +223,7 @@ export function handleSessionStart(msg: WSServerMessage) {
     model: payload.model,
   });
   if (isReset) {
-    if (!payload.needsSetup && isDesktopShell()) {
+    if (!payload.needsSetup && isDesktopShell() && !isRoutePinnedView()) {
       resetUiNavigationToHome({ sidebarOpen: false });
     }
     streamCoalescer.dropAll();
@@ -269,8 +278,10 @@ export function handleSessionStart(msg: WSServerMessage) {
       });
     }
     if (isReset && !payload.needsSetup) {
-      if (isDesktopShell()) resetUiNavigationToHome({ sidebarOpen: false });
-      else if (useUIStore.getState().currentView !== 'chat') showPanel('chat');
+      if (!isRoutePinnedView()) {
+        if (isDesktopShell()) resetUiNavigationToHome({ sidebarOpen: false });
+        else if (useUIStore.getState().currentView !== 'chat') showPanel('chat');
+      }
     }
     if (typeof window !== 'undefined' && window.matchMedia?.('(max-width: 768px)').matches) {
       useUIStore.getState().setSidebarOpen(false);

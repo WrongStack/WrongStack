@@ -497,10 +497,15 @@ export function SettingsPanel() {
   ).sort((a, b) => a.localeCompare(b));
 
   return (
-    <div className="flex h-full min-h-0 min-w-0 flex-col">
+    <div className="flex h-full min-h-0 min-w-0 flex-col bg-background/70">
       {/* Header */}
-      <header className="flex items-center justify-between px-4 py-3 border-b bg-card shrink-0">
-        <h1 className="text-lg font-semibold">{t('settings:title')}</h1>
+      <header className="flex items-center justify-between px-4 py-3 border-b border-border/70 bg-card/90 backdrop-blur-xl shrink-0 shadow-sm">
+        <div>
+          <h1 className="text-lg font-semibold">{t('settings:title')}</h1>
+          <p className="mt-0.5 text-xs text-muted-foreground">
+            {provider && activeModel ? `${provider} / ${activeModel}` : t('settings:tabs.provider')}
+          </p>
+        </div>
         <Button variant="ghost" size="icon" onClick={() => showPanel('chat')}>
           <X className="h-4 w-4" />
         </Button>
@@ -508,49 +513,54 @@ export function SettingsPanel() {
 
       {/* Content */}
       <ScrollArea className="min-h-0 flex-1">
-        <div className="mx-auto max-w-2xl p-6">
-          <Tabs defaultValue="provider">
-            <TabsList className="w-full justify-start mb-6 flex flex-wrap gap-1">
-              <TabsTrigger value="provider" className="gap-1 text-xs">
+        <div className="mx-auto max-w-6xl p-4 sm:p-6">
+          <Tabs defaultValue="provider" className="grid min-h-[calc(100dvh-9rem)] gap-3 lg:grid-cols-[13.5rem_minmax(0,1fr)] lg:gap-5">
+            <div className="relative min-w-0">
+              <TabsList className="flex h-auto w-full justify-start gap-1 overflow-x-scroll rounded-lg border border-border/70 bg-card/60 p-1 pb-2 shadow-sm [scrollbar-gutter:stable] lg:sticky lg:top-4 lg:flex-col lg:overflow-visible lg:rounded-xl lg:bg-card/65 lg:p-2">
+              <TabsTrigger value="provider" className="h-9 shrink-0 gap-2 rounded-md px-3 text-xs lg:w-full lg:justify-start">
                 <Network className="h-3.5 w-3.5" />
                 {t('settings:tabs.provider')}
               </TabsTrigger>
-              <TabsTrigger value="connection" className="gap-1 text-xs">
+              <TabsTrigger value="connection" className="h-9 shrink-0 gap-2 rounded-md px-3 text-xs lg:w-full lg:justify-start">
                 <Globe className="h-3.5 w-3.5" />
                 {t('settings:tabs.connection')}
               </TabsTrigger>
-              <TabsTrigger value="appearance" className="gap-1 text-xs">
+              <TabsTrigger value="appearance" className="h-9 shrink-0 gap-2 rounded-md px-3 text-xs lg:w-full lg:justify-start">
                 <Palette className="h-3.5 w-3.5" />
                 {t('settings:tabs.appearance')}
               </TabsTrigger>
-              <TabsTrigger value="agent" className="gap-1 text-xs">
+              <TabsTrigger value="agent" className="h-9 shrink-0 gap-2 rounded-md px-3 text-xs lg:w-full lg:justify-start">
                 <Bot className="h-3.5 w-3.5" />
                 {t('settings:tabs.agent')}
               </TabsTrigger>
-              <TabsTrigger value="features" className="gap-1 text-xs">
+              <TabsTrigger value="features" className="h-9 shrink-0 gap-2 rounded-md px-3 text-xs lg:w-full lg:justify-start">
                 <Puzzle className="h-3.5 w-3.5" />
                 {t('settings:tabs.features')}
               </TabsTrigger>
-              <TabsTrigger value="tools" className="gap-1 text-xs">
+              <TabsTrigger value="tools" className="h-9 shrink-0 gap-2 rounded-md px-3 text-xs lg:w-full lg:justify-start">
                 <Wrench className="h-3.5 w-3.5" />
                 {t('settings:tabs.tools')}
               </TabsTrigger>
-              <TabsTrigger value="mcp" className="gap-1 text-xs">
+              <TabsTrigger value="mcp" className="h-9 shrink-0 gap-2 rounded-md px-3 text-xs lg:w-full lg:justify-start">
                 <Server className="h-3.5 w-3.5" />
                 {t('settings:tabs.mcp')}
               </TabsTrigger>
-              <TabsTrigger value="brain" className="gap-1 text-xs">
+              <TabsTrigger value="brain" className="h-9 shrink-0 gap-2 rounded-md px-3 text-xs lg:w-full lg:justify-start">
                 <Brain className="h-3.5 w-3.5" />
                 {t('settings:tabs.brain')}
               </TabsTrigger>
-              <TabsTrigger value="shadow" className="gap-1 text-xs">
+              <TabsTrigger value="shadow" className="h-9 shrink-0 gap-2 rounded-md px-3 text-xs lg:w-full lg:justify-start">
                 <Eye className="h-3.5 w-3.5" />
                 {t('settings:tabs.shadow')}
               </TabsTrigger>
-            </TabsList>
+              </TabsList>
+              <div className="pointer-events-none absolute inset-y-1 left-0 z-10 w-8 rounded-l-lg bg-gradient-to-r from-background via-background/90 to-transparent lg:hidden" />
+              <div className="pointer-events-none absolute inset-y-1 right-0 z-10 w-8 rounded-r-lg bg-gradient-to-l from-background via-background/90 to-transparent lg:hidden" />
+            </div>
 
+            <div className="min-w-0 rounded-xl border border-border/70 bg-card/75 p-4 shadow-sm sm:p-5">
             {/* Provider & Model Tab — pick a provider, then its model */}
-            <TabsContent value="provider" className="space-y-4">
+            <TabsContent value="provider" className="mt-0 space-y-4">
               <ProviderSection
                 activeProvider={provider}
                 catalogProviders={catalogProviders}
@@ -588,7 +598,7 @@ export function SettingsPanel() {
             </TabsContent>
 
             {/* Connection Tab */}
-            <TabsContent value="connection" className="space-y-4">
+            <TabsContent value="connection" className="mt-0 space-y-4">
               <div className="space-y-3">
                 <label
                   htmlFor="websocket-url"
@@ -618,7 +628,7 @@ export function SettingsPanel() {
             </TabsContent>
 
             {/* Appearance Tab */}
-            <TabsContent value="appearance" className="space-y-4">
+            <TabsContent value="appearance" className="mt-0 space-y-4">
               <div>
                 <h3 className="text-sm font-semibold mb-3">{t('settings:appearance.themeHeading')}</h3>
                 <div className="grid grid-cols-3 gap-2 max-w-md">
@@ -685,7 +695,7 @@ export function SettingsPanel() {
             </TabsContent>
 
             {/* Agent Tab */}
-            <TabsContent value="agent" className="space-y-4">
+            <TabsContent value="agent" className="mt-0 space-y-4">
               <div>
                 <h3 className="text-sm font-semibold mb-3 flex items-center gap-2">
                   <Activity className="h-4 w-4 text-muted-foreground" />
@@ -1266,7 +1276,7 @@ export function SettingsPanel() {
             </TabsContent>
 
             {/* Features Tab */}
-            <TabsContent value="features" className="space-y-4">
+            <TabsContent value="features" className="mt-0 space-y-4">
               <div>
                 <h3 className="text-sm font-semibold mb-3 flex items-center gap-2">
                   <Puzzle className="h-4 w-4 text-muted-foreground" />
@@ -1386,12 +1396,12 @@ export function SettingsPanel() {
             </TabsContent>
 
             {/* Tools Tab */}
-            <TabsContent value="tools" className="space-y-4">
+            <TabsContent value="tools" className="mt-0 space-y-4">
               <ToolsSection />
             </TabsContent>
 
             {/* MCP Servers Tab */}
-            <TabsContent value="mcp" className="space-y-4">
+            <TabsContent value="mcp" className="mt-0 space-y-4">
               {!localPrefs.featureMcp ? (
                 <div className="text-center py-8 text-muted-foreground">
                   <Server className="w-10 h-10 mx-auto mb-2 opacity-50" />
@@ -1406,14 +1416,15 @@ export function SettingsPanel() {
             </TabsContent>
 
             {/* Brain Tab — risk ceiling + decision log */}
-            <TabsContent value="brain" className="space-y-4">
+            <TabsContent value="brain" className="mt-0 space-y-4">
               <BrainSection />
             </TabsContent>
 
             {/* Shadow Agent Tab — start/stop, status */}
-            <TabsContent value="shadow" className="space-y-4">
+            <TabsContent value="shadow" className="mt-0 space-y-4">
               <ShadowSection />
             </TabsContent>
+            </div>
           </Tabs>
         </div>
       </ScrollArea>

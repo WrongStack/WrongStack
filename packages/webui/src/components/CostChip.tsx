@@ -83,7 +83,7 @@ export function CostChip() {
         type="button"
         onClick={() => setOpen((v) => !v)}
         className={cn(
-          'font-medium text-green-600 dark:text-green-400 hover:underline tabular-nums',
+          'font-medium text-success hover:underline tabular-nums',
         )}
         title={t('activity:cost.clickTitle')}
       >
@@ -95,7 +95,7 @@ export function CostChip() {
             <span className="text-xs uppercase tracking-wider text-muted-foreground font-medium">
               {t('activity:cost.heading')}
             </span>
-            <span className="font-mono tabular-nums text-sm font-semibold text-green-600 dark:text-green-400">
+            <span className="font-mono tabular-nums text-sm font-semibold text-success">
               {fmt$(cost)}
             </span>
           </div>
@@ -144,7 +144,7 @@ export function CostChip() {
                     >
                       <div className="flex items-baseline justify-between gap-2">
                         <span className="text-xs truncate">{t.preview}</span>
-                        <span className="text-xs font-mono tabular-nums text-green-600 dark:text-green-400 shrink-0">
+                        <span className="text-xs font-mono tabular-nums text-success shrink-0">
                           {fmt$(t.cost)}
                         </span>
                       </div>

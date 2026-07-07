@@ -24,7 +24,7 @@ const PHASE_STATUS_BADGE: Record<PhaseItem['status'], string> = {
   pending: 'bg-muted text-muted-foreground',
   ready: 'bg-[hsl(var(--info)/0.15)] text-[hsl(var(--info))]',
   running: 'bg-primary/15 text-primary',
-  paused: 'bg-amber-500/15 text-amber-600 dark:text-amber-400',
+  paused: 'bg-warning/15 text-warning',
   completed: 'bg-[hsl(var(--success)/0.15)] text-[hsl(var(--success))]',
   failed: 'bg-destructive/15 text-destructive',
   skipped: 'bg-muted text-muted-foreground',

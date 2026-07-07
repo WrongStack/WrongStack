@@ -3,13 +3,13 @@ import { cn } from '@/lib/utils';
 import { useAppTranslation } from '@/i18n';
 
 const STATUS_META: Record<string, { icon: string; labelKey: string; tint: string; dot: string }> = {
-  allocating:    { icon: '○', labelKey: 'statusAllocating', tint: 'border-zinc-400/40', dot: 'bg-zinc-400' },
-  active:        { icon: '●', labelKey: 'statusActive',     tint: 'border-amber-400/40', dot: 'bg-amber-400 animate-pulse' },
-  committing:    { icon: '◐', labelKey: 'statusCommitting', tint: 'border-cyan-400/40', dot: 'bg-cyan-400 animate-pulse' },
-  merging:       { icon: '⇡', labelKey: 'statusMerging',    tint: 'border-blue-400/40', dot: 'bg-blue-400 animate-pulse' },
-  merged:        { icon: '✓', labelKey: 'statusMerged',     tint: 'border-emerald-400/40', dot: 'bg-emerald-400' },
-  'needs-review':{ icon: '⚠', labelKey: 'statusConflict',   tint: 'border-fuchsia-400/50', dot: 'bg-fuchsia-400' },
-  failed:        { icon: '✗', labelKey: 'statusFailed',     tint: 'border-rose-400/50', dot: 'bg-rose-400' },
+  allocating:    { icon: '○', labelKey: 'statusAllocating', tint: 'border-muted-foreground/40', dot: 'bg-muted-foreground' },
+  active:        { icon: '●', labelKey: 'statusActive',     tint: 'border-warning/40', dot: 'bg-warning animate-pulse' },
+  committing:    { icon: '◐', labelKey: 'statusCommitting', tint: 'border-primary/40', dot: 'bg-primary animate-pulse' },
+  merging:       { icon: '⇡', labelKey: 'statusMerging',    tint: 'border-info/40', dot: 'bg-info animate-pulse' },
+  merged:        { icon: '✓', labelKey: 'statusMerged',     tint: 'border-success/40', dot: 'bg-success' },
+  'needs-review':{ icon: '⚠', labelKey: 'statusConflict',   tint: 'border-destructive/50', dot: 'bg-destructive' },
+  failed:        { icon: '✗', labelKey: 'statusFailed',     tint: 'border-destructive/50', dot: 'bg-destructive' },
 };
 
 function meta(status: string) {
@@ -65,12 +65,12 @@ export function WorktreeLanes({
 
               {/* live diff-stat badge */}
               {conflict ? (
-                <span className="font-mono text-xs font-bold text-fuchsia-400">{t('activity:worktree.conflictBadge')}</span>
+                <span className="font-mono text-xs font-bold text-destructive">{t('activity:worktree.conflictBadge')}</span>
               ) : (
                 <span className="flex items-center gap-1 font-mono text-xs transition-all duration-500">
-                  <span className="text-emerald-500">+{w.insertions}</span>
+                  <span className="text-success">+{w.insertions}</span>
                   <span className="text-muted-foreground">·</span>
-                  <span className="text-rose-500">-{w.deletions}</span>
+                  <span className="text-destructive">-{w.deletions}</span>
                   <span className="ml-1 text-muted-foreground">{w.files}f</span>
                 </span>
               )}
@@ -78,7 +78,7 @@ export function WorktreeLanes({
               {/* magnitude bar */}
               <div className="ml-auto hidden h-1 w-24 overflow-hidden rounded-full bg-muted sm:block">
                 <div
-                  className="h-full bg-gradient-to-r from-emerald-500 to-rose-500 transition-all duration-700"
+                  className="h-full bg-gradient-to-r from-success to-destructive transition-all duration-700"
                   style={{ width: `${magnitude}%` }}
                 />
               </div>

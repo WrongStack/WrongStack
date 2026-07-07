@@ -32,20 +32,20 @@ const KIND_META: Record<
   thinking: {
     labelKey: 'kindThinking',
     icon: Brain,
-    tone: 'text-violet-500',
-    bubble: 'border-violet-500/20 bg-violet-500/5',
+    tone: 'text-primary',
+    bubble: 'border-primary/20 bg-primary/5',
   },
   tool_use: {
     labelKey: 'kindToolCall',
     icon: Wrench,
-    tone: 'text-amber-500',
-    bubble: 'border-amber-500/20 bg-amber-500/5',
+    tone: 'text-warning',
+    bubble: 'border-warning/20 bg-warning/5',
   },
   tool_result: {
     labelKey: 'kindToolResult',
     icon: Check,
-    tone: 'text-emerald-500',
-    bubble: 'border-emerald-500/20 bg-emerald-500/5',
+    tone: 'text-success',
+    bubble: 'border-success/20 bg-success/5',
   },
   error: {
     labelKey: 'kindError',
@@ -132,7 +132,7 @@ export function AgentTranscript({
             className="flex shrink-0 items-center gap-1 rounded px-1.5 py-0.5 text-[10px] text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:cursor-not-allowed disabled:opacity-40"
             title={t('activity:transcript.copyTitle')}
           >
-            {copied ? <Check className="h-3 w-3 text-emerald-500" /> : <Copy className="h-3 w-3" />}
+            {copied ? <Check className="h-3 w-3 text-success" /> : <Copy className="h-3 w-3" />}
             {copied ? t('common:action.copied') : t('common:action.copy')}
           </button>
         </div>

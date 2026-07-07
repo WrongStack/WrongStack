@@ -100,7 +100,7 @@ const DEFAULT_POPULAR_PROVIDERS: PopularProvider[] = [
     name: 'OpenAI',
     description: 'GPT, o-series, and Codex models',
     icon: '🤖',
-    color: 'from-emerald-500/20 to-emerald-500/5 border-emerald-500/30 hover:border-emerald-500/50',
+    color: 'from-success/12 to-success/5 border-success/30 hover:border-success/50',
     keyPlaceholder: 'sk-...',
     docsUrl: 'https://platform.openai.com/api-keys',
     family: 'openai',
@@ -110,7 +110,7 @@ const DEFAULT_POPULAR_PROVIDERS: PopularProvider[] = [
     name: 'Anthropic',
     description: 'Claude model access',
     icon: '🧠',
-    color: 'from-amber-500/20 to-amber-500/5 border-amber-500/30 hover:border-amber-500/50',
+    color: 'from-warning/12 to-warning/5 border-warning/30 hover:border-warning/50',
     keyPlaceholder: 'sk-ant-...',
     docsUrl: 'https://console.anthropic.com/settings/keys',
     family: 'anthropic',
@@ -120,7 +120,7 @@ const DEFAULT_POPULAR_PROVIDERS: PopularProvider[] = [
     name: 'Google',
     description: 'Gemini Pro, Flash, and Nano',
     icon: '✨',
-    color: 'from-blue-500/20 to-blue-500/5 border-blue-500/30 hover:border-blue-500/50',
+    color: 'from-info/12 to-info/5 border-info/30 hover:border-info/50',
     keyPlaceholder: 'AIza...',
     docsUrl: 'https://aistudio.google.com/apikey',
     family: 'google',
@@ -130,7 +130,7 @@ const DEFAULT_POPULAR_PROVIDERS: PopularProvider[] = [
     name: 'DeepSeek',
     description: 'High-performance reasoning at low cost',
     icon: '🐋',
-    color: 'from-sky-500/20 to-sky-500/5 border-sky-500/30 hover:border-sky-500/50',
+    color: 'from-primary/12 to-primary/5 border-primary/30 hover:border-primary/50',
     keyPlaceholder: 'sk-...',
     docsUrl: 'https://platform.deepseek.com/api_keys',
     family: 'openai-compatible',
@@ -140,7 +140,7 @@ const DEFAULT_POPULAR_PROVIDERS: PopularProvider[] = [
     name: 'OpenRouter',
     description: 'All models via one key',
     icon: '🔀',
-    color: 'from-violet-500/20 to-violet-500/5 border-violet-500/30 hover:border-violet-500/50',
+    color: 'from-primary/12 to-primary/5 border-primary/30 hover:border-primary/50',
     keyPlaceholder: 'sk-or-...',
     docsUrl: 'https://openrouter.ai/keys',
     family: 'openai-compatible',
@@ -150,7 +150,7 @@ const DEFAULT_POPULAR_PROVIDERS: PopularProvider[] = [
     name: 'MiniMax',
     description: 'Subscribe to one plan and unlock the latest models, including frontier coding capabilities, 1M ultra-long context, and native multimodality. Text, image, and speech models all share the same quota. Invite Friends, Win Together: Friends get 10% off plus Builder benefits when they subscribe, while referrers earn 10% cashback plus community perks.',
     icon: '🔮',
-    color: 'from-fuchsia-500/20 to-fuchsia-500/5 border-fuchsia-500/30 hover:border-fuchsia-500/50',
+    color: 'from-destructive/10 to-destructive/5 border-destructive/25 hover:border-destructive/45',
     keyPlaceholder: 'eyJ...',
     docsUrl: 'https://platform.minimax.io/subscribe/token-plan?code=JrA4R9QAEn&source=link',
     family: 'openai-compatible',
@@ -160,7 +160,7 @@ const DEFAULT_POPULAR_PROVIDERS: PopularProvider[] = [
     name: 'Kimi',
     description: 'Moonshot AI long-context models',
     icon: '🌙',
-    color: 'from-cyan-500/20 to-cyan-500/5 border-cyan-500/30 hover:border-cyan-500/50',
+    color: 'from-info/12 to-info/5 border-info/30 hover:border-info/50',
     keyPlaceholder: 'sk-...',
     docsUrl: 'https://www.kimi.com/membership/pricing',
     family: 'openai-compatible',
@@ -170,7 +170,7 @@ const DEFAULT_POPULAR_PROVIDERS: PopularProvider[] = [
     name: 'Z.ai (GLM)',
     description: "You've been invited to join the GLM Coding Plan! Enjoy full support for Claude Code, Cline, and 20+ top coding tools — starting at just $18/month. Subscribe now and grab the limited-time deal!",
     icon: '🔷',
-    color: 'from-indigo-500/20 to-indigo-500/5 border-indigo-500/30 hover:border-indigo-500/50',
+    color: 'from-primary/12 to-primary/5 border-primary/30 hover:border-primary/50',
     keyPlaceholder: '...',
     docsUrl: 'https://z.ai/subscribe?ic=JQZ7TPPRA6',
     family: 'openai-compatible',
@@ -180,7 +180,7 @@ const DEFAULT_POPULAR_PROVIDERS: PopularProvider[] = [
     name: 'OpenCode Go',
     description: 'Global hosted API for 75+ LLM providers — stable access from US, EU, and Singapore',
     icon: '🌍',
-    color: 'from-teal-500/20 to-teal-500/5 border-teal-500/30 hover:border-teal-500/50',
+    color: 'from-success/12 to-success/5 border-success/30 hover:border-success/50',
     keyPlaceholder: 'oc-...',
     docsUrl: 'https://opencode.ai/go?ref=6VZAER87H4',
     family: 'openai-compatible',
@@ -347,7 +347,7 @@ function ProviderKeyCard({
       className={cn(
         'rounded-xl border p-4 transition-all',
         saved
-          ? 'border-emerald-500/30 bg-emerald-500/5'
+          ? 'border-success/30 bg-success/5'
           : `bg-gradient-to-br ${popular.color}`,
       )}
     >
@@ -357,13 +357,13 @@ function ProviderKeyCard({
           <div className="flex items-center gap-2">
             <h3 className="text-sm font-semibold">{popular.name}</h3>
             {saved && (
-              <span className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+              <span className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded-full bg-success/10 text-success border border-success/20">
                 <Check className="h-2.5 w-2.5" />
                 {t('setup:screen.card.keySaved')}
               </span>
             )}
             {popular.referral && !saved && (
-              <span className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded-full bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20">
+              <span className="inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded-full bg-warning/10 text-warning border border-warning/20">
                 <Gift className="h-2.5 w-2.5" />
                 {t('setup:screen.card.referral')}
               </span>
@@ -371,7 +371,7 @@ function ProviderKeyCard({
           </div>
           <p className="text-xs text-muted-foreground mt-0.5">{popular.description}</p>
           {popular.referral && !saved && (
-            <p className="text-[11px] text-amber-600/80 dark:text-amber-400/80 mt-1">
+            <p className="text-[11px] text-warning/80 mt-1">
               🎁 {popular.referral!.reward}
             </p>
           )}
@@ -435,7 +435,7 @@ function ProviderKeyCard({
                   <button
                     type="button"
                     onClick={handleCopyReferral}
-                    className="inline-flex items-center gap-1 text-[11px] text-amber-600/80 dark:text-amber-400/80 hover:text-amber-700 dark:hover:text-amber-300 transition-colors"
+                    className="inline-flex items-center gap-1 text-[11px] text-warning/80 hover:text-warning transition-colors"
                   >
                     {copied ? (
                       <>
@@ -450,7 +450,7 @@ function ProviderKeyCard({
                   <button
                     type="button"
                     onClick={() => setShareModalOpen(true)}
-                    className="inline-flex items-center gap-1 text-[11px] text-amber-600/80 dark:text-amber-400/80 hover:text-amber-700 dark:hover:text-amber-300 transition-colors"
+                    className="inline-flex items-center gap-1 text-[11px] text-warning/80 hover:text-warning transition-colors"
                   >
                     <Share2 className="h-3 w-3" /> {t('setup:screen.card.share')}
                   </button>
@@ -479,7 +479,7 @@ function ProviderKeyCard({
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <Gift className="h-4 w-4 text-amber-500" />
+              <Gift className="h-4 w-4 text-warning" />
               {t('setup:screen.share.title', { name: popular.name })}
             </DialogTitle>
             <DialogDescription>
@@ -490,7 +490,7 @@ function ProviderKeyCard({
             {popular.referral && (
               <>
                 <div className="text-sm text-center">
-                  <p className="font-medium text-amber-600 dark:text-amber-400">
+                  <p className="font-medium text-warning">
                     🎁 {popular.referral!.reward}
                   </p>
                 </div>
@@ -527,7 +527,7 @@ function ProviderKeyCard({
                           metadata: { providerId: popular.id },
                         });
                       }}
-                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-900 text-white text-xs hover:bg-slate-800 transition-colors"
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-border bg-card text-xs text-foreground hover:bg-muted transition-colors"
                       title={t('setup:screen.share.twitter')}
                     >
                       <svg className="h-3.5 w-3.5" fill="currentColor" viewBox="0 0 24 24">
@@ -552,7 +552,7 @@ function ProviderKeyCard({
                           metadata: { providerId: popular.id },
                         });
                       }}
-                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#0A66C2] text-white text-xs hover:bg-[#0958a8] transition-colors"
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-border bg-card text-xs text-foreground hover:bg-muted transition-colors"
                       title={t('setup:screen.share.linkedin')}
                     >
                       <svg className="h-3.5 w-3.5" fill="currentColor" viewBox="0 0 24 24">
@@ -576,7 +576,7 @@ function ProviderKeyCard({
                           metadata: { providerId: popular.id },
                         });
                       }}
-                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#26A5E4] text-white text-xs hover:bg-[#1e96d1] transition-colors"
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-border bg-card text-xs text-foreground hover:bg-muted transition-colors"
                       title={t('setup:screen.share.telegram')}
                     >
                       <svg className="h-3.5 w-3.5" fill="currentColor" viewBox="0 0 24 24">
@@ -601,7 +601,7 @@ function ProviderKeyCard({
                           metadata: { providerId: popular.id },
                         });
                       }}
-                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#25D366] text-white text-xs hover:bg-[#1fb859] transition-colors"
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-border bg-card text-xs text-foreground hover:bg-muted transition-colors"
                       title={t('setup:screen.share.whatsapp')}
                     >
                       <svg className="h-3.5 w-3.5" fill="currentColor" viewBox="0 0 24 24">
@@ -626,7 +626,7 @@ function ProviderKeyCard({
                           metadata: { providerId: popular.id },
                         });
                       }}
-                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#FF4500] text-white text-xs hover:bg-[#e03d00] transition-colors"
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-border bg-card text-xs text-foreground hover:bg-muted transition-colors"
                       title={t('setup:screen.share.reddit')}
                     >
                       <svg className="h-3.5 w-3.5" fill="currentColor" viewBox="0 0 24 24">
@@ -651,7 +651,7 @@ function ProviderKeyCard({
                           metadata: { providerId: popular.id },
                         });
                       }}
-                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#1877F2] text-white text-xs hover:bg-[#166fe5] transition-colors"
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-border bg-card text-xs text-foreground hover:bg-muted transition-colors"
                       title={t('setup:screen.share.facebook')}
                     >
                       <svg className="h-3.5 w-3.5" fill="currentColor" viewBox="0 0 24 24">
@@ -1179,20 +1179,20 @@ export function SetupScreen() {
   return (
     <div className="flex h-full min-h-0 min-w-0 flex-col">
       {/* Header */}
-      <header className="flex items-center justify-between px-6 py-4 border-b bg-card shrink-0">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary via-primary to-primary/60 flex items-center justify-center">
+      <header className="flex shrink-0 flex-col gap-3 border-b bg-card px-4 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-6">
+        <div className="flex min-w-0 items-center gap-3">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-primary via-primary to-primary/60">
             <Zap className="h-5 w-5 text-primary-foreground" />
           </div>
-          <div>
-            <h1 className="text-lg font-semibold">{t('setup:screen.header.title')}</h1>
-            <p className="text-xs text-muted-foreground">
+          <div className="min-w-0">
+            <h1 className="truncate text-lg font-semibold">{t('setup:screen.header.title')}</h1>
+            <p className="text-xs text-muted-foreground sm:truncate">
               {t('setup:screen.header.subtitle')}
             </p>
           </div>
         </div>
         {hasAnyKey && (
-          <Button onClick={handleFinishSetup} size="sm">
+          <Button onClick={handleFinishSetup} size="sm" className="w-full sm:w-auto">
             {t('setup:screen.header.continue')}
             <ArrowRight className="h-4 w-4 ml-1.5" />
           </Button>
@@ -1202,20 +1202,20 @@ export function SetupScreen() {
       {/* Content */}
       <ScrollArea className="min-h-0 flex-1">
         {step === 'keys' ? (
-          <div className="p-6 max-w-3xl mx-auto space-y-8">
+          <div className="mx-auto max-w-3xl space-y-8 p-4 sm:p-6">
             {/* Progress steps */}
-            <div className="flex items-center gap-2 text-sm">
-              <div className="flex items-center gap-1.5 text-primary font-medium">
+            <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm">
+              <div className="flex min-w-0 items-center gap-1.5 text-primary font-medium">
                 <KeyRound className="h-4 w-4" />
                 <span>{t('setup:screen.steps.addKeys')}</span>
               </div>
-              <ChevronRight className="h-4 w-4 text-muted-foreground" />
-              <div className="flex items-center gap-1.5 text-muted-foreground">
+              <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
+              <div className="flex min-w-0 items-center gap-1.5 text-muted-foreground">
                 <Bot className="h-4 w-4" />
                 <span>{t('setup:screen.steps.pickModel')}</span>
               </div>
-              <ChevronRight className="h-4 w-4 text-muted-foreground" />
-              <div className="flex items-center gap-1.5 text-muted-foreground">
+              <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
+              <div className="flex min-w-0 items-center gap-1.5 text-muted-foreground">
                 <Sparkles className="h-4 w-4" />
                 <span>{t('setup:screen.steps.start')}</span>
               </div>
@@ -1254,11 +1254,11 @@ export function SetupScreen() {
             ) : (
               <>
                 <div className="space-y-3">
-                  <div className="flex items-center justify-between">
+                  <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                     <h2 className="text-sm font-medium text-muted-foreground uppercase tracking-wider">
                       {t('setup:screen.providers.popular')}
                     </h2>
-                    <div className="flex items-center gap-2">
+                    <div className="flex flex-wrap items-center gap-2">
                       {isLoadingPopular && (
                         <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground">
                           <Loader2 className="h-3 w-3 animate-spin" />
@@ -1314,7 +1314,7 @@ export function SetupScreen() {
                             description: t('setup:screen.providers.catalogDescription', { family: p.family, count: p.modelCount }),
                             icon: '🔗',
                             color:
-                              'from-slate-500/20 to-slate-500/5 border-slate-500/30 hover:border-slate-500/50',
+                              'from-muted/60 to-muted/20 border-border hover:border-primary/40',
                             keyPlaceholder: 'API key',
                             family: p.family,
                           }}
@@ -1345,7 +1345,7 @@ export function SetupScreen() {
 
             {/* Start button (sticky at bottom) */}
             {hasAnyKey && (
-              <div className="sticky bottom-0 bg-background/80 backdrop-blur-sm py-4 -mx-6 px-6 border-t">
+              <div className="sticky bottom-0 -mx-4 border-t bg-background/80 px-4 py-4 backdrop-blur-sm sm:-mx-6 sm:px-6">
                 <Button onClick={handleFinishSetup} className="w-full" size="lg">
                   <Bot className="h-4 w-4 mr-2" />
                   {t('setup:screen.start.pickAndStart')}
@@ -1356,20 +1356,20 @@ export function SetupScreen() {
           </div>
         ) : (
           /* Model Selection + Start */
-          <div className="p-6 max-w-2xl mx-auto space-y-8">
+          <div className="mx-auto max-w-2xl space-y-8 p-4 sm:p-6">
             {/* Progress steps */}
-            <div className="flex items-center gap-2 text-sm">
-              <div className="flex items-center gap-1.5 text-emerald-500">
+            <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm">
+              <div className="flex min-w-0 items-center gap-1.5 text-success">
                 <Check className="h-4 w-4" />
                 <span>{t('setup:screen.steps.keys')}</span>
               </div>
-              <ChevronRight className="h-4 w-4 text-muted-foreground" />
-              <div className="flex items-center gap-1.5 text-primary font-medium">
+              <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
+              <div className="flex min-w-0 items-center gap-1.5 text-primary font-medium">
                 <Bot className="h-4 w-4" />
                 <span>{t('setup:screen.steps.pickModel')}</span>
               </div>
-              <ChevronRight className="h-4 w-4 text-muted-foreground" />
-              <div className="flex items-center gap-1.5 text-muted-foreground">
+              <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
+              <div className="flex min-w-0 items-center gap-1.5 text-muted-foreground">
                 <Sparkles className="h-4 w-4" />
                 <span>{t('setup:screen.steps.start')}</span>
               </div>
@@ -1467,8 +1467,8 @@ export function SetupScreen() {
                               </div>
                             </div>
                             {selectedModel === m.id && (
-                              <div className="w-5 h-5 rounded-full bg-primary flex items-center justify-center shrink-0">
-                                <Check className="h-3 h-3 text-primary-foreground" />
+                              <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-primary">
+                                <Check className="h-3 w-3 text-primary-foreground" />
                               </div>
                             )}
                           </div>
@@ -1486,9 +1486,9 @@ export function SetupScreen() {
 
             {/* Start button */}
             {selectedProvider && selectedModel && (
-              <div className="sticky bottom-0 bg-background/80 backdrop-blur-sm py-4 -mx-6 px-6 border-t">
-                <div className="flex items-center justify-between text-sm text-muted-foreground mb-3">
-                  <span>
+              <div className="sticky bottom-0 -mx-4 border-t bg-background/80 px-4 py-4 backdrop-blur-sm sm:-mx-6 sm:px-6">
+                <div className="mb-3 flex min-w-0 items-center justify-between gap-2 text-sm text-muted-foreground">
+                  <span className="min-w-0 truncate">
                     {selectedProvider} / {selectedModel}
                   </span>
                 </div>

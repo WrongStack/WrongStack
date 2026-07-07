@@ -80,7 +80,7 @@ export function ContextModePicker() {
           onClick={() => setOpen((v) => !v)}
           className={cn(
             'flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium',
-            'bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-500/15 transition-colors border border-transparent hover:border-emerald-500/30',
+            'bg-success/10 text-success hover:bg-success/15 transition-colors border border-transparent hover:border-success/30',
           )}
           title={t('activity:ctxMode.triggerTitle')}
         >
@@ -113,7 +113,7 @@ export function ContextModePicker() {
                 onClick={() => compact(false)}
                 className="w-full text-left px-3 py-2 hover:bg-accent/40 flex items-center gap-2"
               >
-                <Zap className="h-3.5 w-3.5 shrink-0 text-amber-500" />
+                <Zap className="h-3.5 w-3.5 shrink-0 text-warning" />
                 <div>
                   <div className="text-xs">{t('activity:ctxMode.compactNow')}</div>
                   <div className="text-[10px] text-muted-foreground">{t('activity:ctxMode.compactNowDesc')}</div>
@@ -124,7 +124,7 @@ export function ContextModePicker() {
                 onClick={() => compact(true)}
                 className="w-full text-left px-3 py-2 hover:bg-accent/40 flex items-center gap-2"
               >
-                <Zap className="h-3.5 w-3.5 shrink-0 text-red-400" />
+                <Zap className="h-3.5 w-3.5 shrink-0 text-destructive" />
                 <div>
                   <div className="text-xs">{t('activity:ctxMode.compactAggressive')}</div>
                   <div className="text-[10px] text-muted-foreground">{t('activity:ctxMode.compactAggressiveDesc')}</div>
@@ -135,7 +135,7 @@ export function ContextModePicker() {
                 onClick={repair}
                 className="w-full text-left px-3 py-2 hover:bg-accent/40 flex items-center gap-2"
               >
-                <Wrench className="h-3.5 w-3.5 shrink-0 text-blue-400" />
+                <Wrench className="h-3.5 w-3.5 shrink-0 text-info" />
                 <div>
                   <div className="text-xs">{t('activity:ctxMode.repairContext')}</div>
                   <div className="text-[10px] text-muted-foreground">{t('activity:ctxMode.repairDesc')}</div>
@@ -153,7 +153,7 @@ export function ContextModePicker() {
                   }}
                   className="w-full text-left px-3 py-2 hover:bg-accent/40 flex items-center gap-2"
                 >
-                  <FileSearch className="h-3.5 w-3.5 shrink-0 text-green-400" />
+                  <FileSearch className="h-3.5 w-3.5 shrink-0 text-success" />
                   <div>
                     <div className="text-xs">{t('activity:ctxMode.debugContext')}</div>
                     <div className="text-[10px] text-muted-foreground">{t('activity:ctxMode.debugDesc')}</div>

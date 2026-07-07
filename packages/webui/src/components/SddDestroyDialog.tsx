@@ -57,10 +57,10 @@ export function SddDestroyDialog({
 
   return (
     <Dialog open={open} onOpenChange={(v) => !busy && onOpenChange(v)}>
-      <DialogContent className="sm:max-w-lg border-red-500/50">
+      <DialogContent className="sm:max-w-lg border-destructive/50">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <Trash2 className="h-5 w-5 text-red-500" />
+            <Trash2 className="h-5 w-5 text-destructive" />
             {t('activity:sdd.destroyTitle')}
           </DialogTitle>
           <DialogDescription>
@@ -71,7 +71,7 @@ export function SddDestroyDialog({
         <ul className="space-y-1.5 py-1 text-sm">
           {isActive && (
             <li className="flex items-start gap-2">
-              <span className="mt-0.5 text-red-500">■</span>
+              <span className="mt-0.5 text-destructive">■</span>
               <span>
                 {runningAgents > 0
                   ? t('activity:sdd.stopRunAgents', { count: runningAgents })
@@ -80,7 +80,7 @@ export function SddDestroyDialog({
             </li>
           )}
           <li className="flex items-start gap-2">
-            <span className="mt-0.5 text-red-500">■</span>
+            <span className="mt-0.5 text-destructive">■</span>
             <span>
               {worktreeCount > 0
                 ? t('activity:sdd.removeWorktreesCount', { count: worktreeCount })
@@ -88,18 +88,18 @@ export function SddDestroyDialog({
             </span>
           </li>
           <li className="flex items-start gap-2">
-            <span className="mt-0.5 text-red-500">■</span>
+            <span className="mt-0.5 text-destructive">■</span>
             <span>{t('activity:sdd.deleteArtifacts')}</span>
           </li>
         </ul>
 
         {mergedCount > 0 && (
-          <label className="flex cursor-pointer items-start gap-2 rounded-md border border-amber-500/30 bg-amber-500/5 p-2.5 text-sm">
+          <label className="flex cursor-pointer items-start gap-2 rounded-md border border-warning/30 bg-warning/5 p-2.5 text-sm">
             <input
               type="checkbox"
               checked={revertMerged}
               onChange={(e) => setRevertMerged(e.target.checked)}
-              className="mt-0.5 h-4 w-4 accent-amber-500"
+              className="mt-0.5 h-4 w-4 accent-warning"
             />
             <span>
               <span className="font-medium">{t('activity:sdd.revertMerged', { count: mergedCount })}</span>{' '}
@@ -112,7 +112,7 @@ export function SddDestroyDialog({
         )}
 
         <div className="flex items-start gap-2 rounded-md bg-muted/50 p-2 text-xs text-muted-foreground">
-          <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-amber-500" />
+          <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-warning" />
           {mergedCount > 0 && !revertMerged
             ? t('activity:sdd.noteLeaveMerged')
             : t('activity:sdd.noteAbandon')}
@@ -126,7 +126,7 @@ export function SddDestroyDialog({
             size="sm"
             disabled={busy}
             onClick={() => onConfirm(revertMerged)}
-            className="bg-red-600 text-white hover:bg-red-700"
+            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
           >
             {busy ? (
               <>

@@ -65,7 +65,7 @@ const STATUS_META: Record<SubagentView['status'], { led: string; pulse: boolean;
     timeout: {
       led: 'bg-[hsl(var(--warning))]',
       pulse: false,
-      badge: 'bg-amber-500/15 text-amber-500',
+      badge: 'bg-warning/15 text-warning',
     },
     stopped: { led: 'bg-muted-foreground', pulse: false, badge: 'bg-muted text-muted-foreground' },
   };
@@ -87,7 +87,7 @@ export function AgentCard({ agent, isLeader }: { agent: SubagentView; isLeader: 
       className={cn(
         'rounded-xl border p-4 space-y-3',
         active ? 'border-primary/20 bg-primary/[0.02]' : 'border-border bg-card',
-        isLeader && 'ring-2 ring-amber-500/30',
+        isLeader && 'ring-2 ring-warning/30',
       )}
     >
       {/* Card header */}
@@ -99,12 +99,12 @@ export function AgentCard({ agent, isLeader }: { agent: SubagentView; isLeader: 
               <span className="text-sm font-semibold">{agent.name}</span>
               {isLeader && (
                 <Crown
-                  className="h-3.5 w-3.5 text-amber-500"
+                  className="h-3.5 w-3.5 text-warning"
                   aria-label={t('activity:fleet.leader')}
                 />
               )}
               {agent.extensions > 0 && (
-                <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full bg-amber-500/15 text-[10px] text-amber-600 dark:text-amber-400 font-medium">
+                <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full bg-warning/15 text-[10px] text-warning font-medium">
                   <Zap className="h-2.5 w-2.5" />×{agent.extensions}
                 </span>
               )}
@@ -121,7 +121,7 @@ export function AgentCard({ agent, isLeader }: { agent: SubagentView; isLeader: 
         </div>
         <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
           {isLeader && (
-            <span className="text-[9px] bg-amber-500/15 text-amber-600 dark:text-amber-400 px-1.5 py-0.5 rounded">
+            <span className="text-[9px] bg-warning/15 text-warning px-1.5 py-0.5 rounded">
               {t('activity:agentsMonitor.leaderBadge')}
             </span>
           )}
@@ -137,9 +137,9 @@ export function AgentCard({ agent, isLeader }: { agent: SubagentView; isLeader: 
 
       {/* Budget warning */}
       {agent.budgetWarning && (
-        <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-amber-500/10 border border-amber-500/20 text-xs">
-          <Zap className="h-3.5 w-3.5 text-amber-500 shrink-0" />
-          <span className="text-amber-600 dark:text-amber-400">
+        <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-warning/10 border border-warning/25 text-xs">
+          <Zap className="h-3.5 w-3.5 text-warning shrink-0" />
+          <span className="text-warning">
             {t('activity:fleet.budgetWarning', {
               kind: agent.budgetWarning.kind,
               used: agent.budgetWarning.used,
@@ -419,7 +419,7 @@ export function AgentsMonitor({ onClose }: AgentsMonitorProps) {
                   />
                   <span>{agent.name}</span>
                   {agent.id === leaderId && (
-                    <Crown className="h-2.5 w-2.5 text-amber-500 shrink-0" />
+                    <Crown className="h-2.5 w-2.5 text-warning shrink-0" />
                   )}
                 </button>
               ))}

@@ -30,6 +30,19 @@ import { DesignStudioPanel } from './DesignStudioPanel';
 import { WorktreesPanel } from './WorktreesPanel';
 import { OfficeMapSettingsPanel } from '../OfficeMapSettingsPanel';
 
+const PANEL_DESCRIPTIONS: Record<string, string> = {
+  chat: 'Run state, model, context and quick controls',
+  agents: 'Fleet members, live status and routing',
+  history: 'Resume or inspect previous sessions',
+  files: 'Browse and open project files',
+  changes: 'Review source control changes',
+  mailbox: 'Cross-surface coordination messages',
+  skills: 'Installed skills and capability docs',
+  design: 'Design studio assets and previews',
+  worktrees: 'Parallel branches and worktree lanes',
+  officemap: 'Fleet map settings and filters',
+};
+
 export function SidePanel({ desktopShell = false }: { desktopShell?: boolean | undefined }) {
   const activeActivity = useUIStore((s) => s.activeActivity);
   const setSidebarOpen = useUIStore((s) => s.setSidebarOpen);
@@ -38,7 +51,9 @@ export function SidePanel({ desktopShell = false }: { desktopShell?: boolean | u
   const wsConnected = useConfigStore((s) => s.wsConnected);
   const { client } = useWebSocket();
   const { t } = useAppTranslation();
-  const effectiveWidth = desktopShell ? Math.min(sidebarWidth, 280) : sidebarWidth;
+  const panelWidth = desktopShell
+    ? `min(${Math.min(sidebarWidth, 280)}px, calc(100vw - 2.5rem))`
+    : `min(${sidebarWidth}px, calc(100vw - 3rem))`;
 
   // Load the file tree when the Files panel is shown.
   useEffect(() => {
@@ -70,7 +85,7 @@ export function SidePanel({ desktopShell = false }: { desktopShell?: boolean | u
     <>
       <div
         className={cn(
-          'fixed inset-y-0 right-0 z-30 bg-black/20 md:hidden',
+          'fixed inset-y-0 right-0 z-30 bg-black/35 backdrop-blur-[2px] md:hidden',
           desktopShell ? 'left-10' : 'left-12',
         )}
         onClick={() => setSidebarOpen(false)}
@@ -78,11 +93,10 @@ export function SidePanel({ desktopShell = false }: { desktopShell?: boolean | u
       />
       <aside
         style={{
-          width: `${effectiveWidth}px`,
-          maxWidth: desktopShell ? 'min(300px, calc(100vw - 2.5rem))' : 'calc(100vw - 3rem)',
+          width: panelWidth,
         }}
         className={cn(
-          'fixed inset-y-0 z-40 flex min-h-0 min-w-0 shrink-0 flex-col overflow-hidden border-r bg-card shadow-2xl animate-slide-in md:relative md:inset-auto md:z-auto md:shadow-none',
+          'fixed inset-y-0 z-40 flex min-h-0 min-w-0 shrink-0 flex-col overflow-hidden border-r border-border/70 bg-card/95 shadow-2xl backdrop-blur-xl animate-slide-in md:relative md:inset-auto md:z-auto md:shadow-none',
           desktopShell ? 'left-10' : 'left-12',
         )}
       >
@@ -93,23 +107,29 @@ export function SidePanel({ desktopShell = false }: { desktopShell?: boolean | u
         className="group/handle absolute top-0 right-0 h-full w-2 cursor-col-resize z-10 flex items-center justify-end"
         title={t('activity:sidePanel.dragHint')}
       >
-        <div className="h-full w-px bg-border group-hover/handle:bg-primary/60 group-hover/handle:w-0.5 transition-all" />
+        <div className="h-full w-px bg-border/70 group-hover/handle:bg-primary/70 group-hover/handle:w-0.5 transition-all" />
       </div>
 
       {/* Panel header — names the active panel */}
       <div
         className={cn(
           'flex items-center justify-between border-b shrink-0',
-          desktopShell ? 'px-2.5 py-2' : 'px-3 py-2.5',
+          'bg-muted/25',
+          desktopShell ? 'px-2.5 py-2' : 'px-3 py-3',
         )}
       >
-        <span className="text-xs font-semibold tracking-tight text-muted-foreground uppercase">
-          {t(`activity:nav.${activeActivity}`)}
-        </span>
+        <div className="min-w-0">
+          <div className="text-sm font-semibold text-foreground">
+            {t(`activity:nav.${activeActivity}`)}
+          </div>
+          <div className="mt-0.5 truncate text-[11px] text-muted-foreground">
+            {PANEL_DESCRIPTIONS[activeActivity]}
+          </div>
+        </div>
         <Button
           variant="ghost"
           size="icon"
-          className="h-6 w-6"
+          className="h-7 w-7 shrink-0"
           onClick={() => setSidebarOpen(false)}
           title={t('activity:sidePanel.collapse')}
         >

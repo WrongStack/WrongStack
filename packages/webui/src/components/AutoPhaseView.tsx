@@ -132,8 +132,8 @@ export function AutoPhaseView({ onClose }: { onClose: () => void }): React.React
   return (
     <div className="flex h-full min-h-0 min-w-0 flex-col bg-background">
       {/* Header */}
-      <header className="flex items-center justify-between px-4 py-2 border-b bg-card shrink-0">
-        <div className="flex items-center gap-2">
+      <header className="flex shrink-0 flex-col gap-2 border-b bg-card px-4 py-2 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex min-w-0 items-center gap-2">
           <Layers className="h-5 w-5 text-muted-foreground" />
           <div>
             <h1 className="text-lg font-semibold">
@@ -152,9 +152,9 @@ export function AutoPhaseView({ onClose }: { onClose: () => void }): React.React
                 status === 'failed'
                   ? 'border-destructive/40 bg-destructive/10 text-destructive'
                   : status === 'paused' || status === 'stopped'
-                    ? 'border-amber-500/40 bg-amber-500/10 text-amber-700 dark:text-amber-300'
+                    ? 'border-warning/40 bg-warning/10 text-warning'
                     : status === 'completed'
-                      ? 'border-green-500/40 bg-green-500/10 text-green-700 dark:text-green-300'
+                      ? 'border-success/40 bg-success/10 text-success'
                       : 'border-primary/30 bg-primary/10 text-primary',
               )}
               title={lastError ?? undefined}
@@ -163,7 +163,7 @@ export function AutoPhaseView({ onClose }: { onClose: () => void }): React.React
             </span>
           )}
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex min-w-0 flex-wrap items-center gap-2 sm:justify-end">
           {/* Board selector — every AutoPhase run is a persisted board (JSON on
               disk); switch between all boards saved for this project. */}
           {graphs.length > 0 && (
@@ -171,7 +171,7 @@ export function AutoPhaseView({ onClose }: { onClose: () => void }): React.React
               value={hasPhases ? (graphs.find((g) => g.title === title)?.id ?? '') : ''}
               onChange={(e) => handleSelectBoard(e.target.value)}
               title={t('activity:autoPhase.switchBoard')}
-              className="rounded border border-border bg-card px-2 py-1 text-xs text-foreground"
+              className="min-w-0 flex-1 rounded border border-border bg-card px-2 py-1 text-xs text-foreground sm:w-72 sm:flex-none"
             >
               <option value="" disabled>
                 {t('activity:autoPhase.boardsCount', { count: graphs.length })}
@@ -241,8 +241,8 @@ export function AutoPhaseView({ onClose }: { onClose: () => void }): React.React
                 <Plus className="h-3.5 w-3.5" /> {t('activity:autoPhase.newLabel')}
               </button>
               {confirmRevert ? (
-                <span className="inline-flex items-center gap-1 rounded border border-amber-500/40 bg-amber-500/10 px-1.5 py-0.5 text-xs">
-                  <span className="text-amber-700 dark:text-amber-300">
+                <span className="inline-flex items-center gap-1 rounded border border-warning/40 bg-warning/10 px-1.5 py-0.5 text-xs">
+                  <span className="text-warning">
                     {t('activity:autoPhase.revertConfirm')}
                   </span>
                   <button

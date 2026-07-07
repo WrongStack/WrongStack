@@ -91,9 +91,9 @@ export function TodosPanel(): React.ReactElement | null {
           'px-3 py-1.5 flex items-start gap-2 text-[13px] group transition-colors',
           isToggleable && 'cursor-pointer hover:bg-accent/40',
           isInProgress
-            ? 'bg-yellow-50/40 dark:bg-yellow-950/25'
+            ? 'bg-warning/8'
             : isCompleted
-              ? 'bg-emerald-50/20 dark:bg-emerald-950/10'
+              ? 'bg-success/5'
               : 'bg-background',
         )}
         role={isToggleable ? 'button' : undefined}
@@ -108,14 +108,14 @@ export function TodosPanel(): React.ReactElement | null {
       >
         <span className="mt-0.5 shrink-0">
           {isCompleted ? (
-            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
+            <CheckCircle2 className="w-3.5 h-3.5 text-success" />
           ) : isInProgress ? (
-            <Clock className="w-3.5 h-3.5 text-yellow-500 animate-spin" />
+            <Clock className="w-3.5 h-3.5 text-warning animate-spin" />
           ) : (
             <Circle
               className={cn(
                 'w-3.5 h-3.5 transition-colors',
-                'text-muted-foreground/40 group-hover:text-emerald-400',
+                'text-muted-foreground/40 group-hover:text-success',
               )}
             />
           )}
@@ -124,7 +124,7 @@ export function TodosPanel(): React.ReactElement | null {
           className={cn(
             'leading-snug flex-1 min-w-0',
             isInProgress
-              ? 'text-yellow-800 dark:text-yellow-200 font-medium'
+              ? 'text-warning font-medium'
               : isCompleted
                 ? 'text-muted-foreground line-through'
                 : 'text-foreground/80',

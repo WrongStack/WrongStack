@@ -34,7 +34,7 @@ export const TASK_STATUS_CONFIG: Record<
 
 export const PRIORITY_BADGE: Record<TaskItem['priority'], string> = {
   critical: 'bg-destructive/15 text-destructive',
-  high: 'bg-orange-500/15 text-orange-600 dark:text-orange-400',
+  high: 'bg-warning/15 text-warning',
   medium: 'bg-[hsl(var(--info)/0.15)] text-[hsl(var(--info))]',
   low: 'bg-muted text-muted-foreground',
 };
@@ -42,8 +42,8 @@ export const PRIORITY_BADGE: Record<TaskItem['priority'], string> = {
 export const TYPE_BADGE: Record<TaskItem['type'], string> = {
   feature: 'bg-[hsl(var(--success)/0.15)] text-[hsl(var(--success))]',
   bugfix: 'bg-destructive/15 text-destructive',
-  refactor: 'bg-violet-500/15 text-violet-600 dark:text-violet-400',
-  docs: 'bg-sky-500/15 text-sky-600 dark:text-sky-400',
+  refactor: 'bg-primary/15 text-primary',
+  docs: 'bg-info/15 text-info',
   test: 'bg-primary/15 text-primary',
   chore: 'bg-muted text-muted-foreground',
 };

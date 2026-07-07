@@ -14,7 +14,6 @@ import {
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useAppTranslation, i18n } from '@/i18n';
 import { confirmModal } from '../ConfirmModal';
-import { ScrollArea } from '../ui/scroll-area';
 
 interface SessionListProps {
   historyQuery: string;
@@ -208,7 +207,7 @@ export function SessionList({
       {historyError && (
         <div className="px-4 py-2 text-xs text-destructive bg-destructive/5 border-b">{historyError}</div>
       )}
-      <ScrollArea className="flex-1">
+      <div className="min-h-0 min-w-0 flex-1 overflow-y-auto overflow-x-hidden">
         {historyEntries.length === 0 && !historyLoading ? (
           <div className="text-center text-muted-foreground py-8 px-4">
             <History className="h-8 w-8 mx-auto mb-3 opacity-20" />
@@ -225,7 +224,7 @@ export function SessionList({
           <div className="p-2 space-y-3">
             {groupedHistory.map((group) => (
               <div key={group.label} className="space-y-1">
-                <div className={cn('sticky top-0 z-[1] px-1 pb-1 text-[10px] uppercase tracking-wider font-semibold bg-card/90 backdrop-blur-sm flex items-center gap-1', group.star ? 'text-amber-500' : 'text-muted-foreground/80')}>
+                <div className={cn('sticky top-0 z-[1] px-1 pb-1 text-[10px] uppercase tracking-wider font-semibold bg-card/90 backdrop-blur-sm flex items-center gap-1', group.star ? 'text-warning' : 'text-muted-foreground/80')}>
                   {group.star && <Star className="h-3 w-3 fill-current" />}
                   {t(`activity:sessions.group.${group.label}`)} <span className="text-muted-foreground/50 font-normal normal-case ml-1">({group.rows.length})</span>
                 </div>
@@ -270,7 +269,7 @@ export function SessionList({
                       </div>
                     </button>
                     <div className="absolute right-2 top-2 flex items-center gap-1">
-                      <button type="button" onClick={() => toggleFavoriteSession(entry.id)} className={cn('transition-opacity hover:text-amber-500', favoriteSessionIds.includes(entry.id) ? 'opacity-100 text-amber-500' : 'opacity-0 group-hover:opacity-100 text-muted-foreground')} title={favoriteSessionIds.includes(entry.id) ? t('activity:sessions.unfavorite') : t('activity:sessions.markFavorite')}>
+                      <button type="button" onClick={() => toggleFavoriteSession(entry.id)} className={cn('transition-opacity hover:text-warning', favoriteSessionIds.includes(entry.id) ? 'opacity-100 text-warning' : 'opacity-0 group-hover:opacity-100 text-muted-foreground')} title={favoriteSessionIds.includes(entry.id) ? t('activity:sessions.unfavorite') : t('activity:sessions.markFavorite')}>
                         <Star className={cn('h-3.5 w-3.5', favoriteSessionIds.includes(entry.id) && 'fill-current')} />
                       </button>
                       {renamingId !== entry.id && (
@@ -308,7 +307,7 @@ export function SessionList({
             ))}
           </div>
         )}
-      </ScrollArea>
+      </div>
     </>
   );
 }

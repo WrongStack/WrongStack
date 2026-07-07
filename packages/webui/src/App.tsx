@@ -1,4 +1,5 @@
 import { expectDefined } from '@wrongstack/core';
+import { Bot, Command, Cpu, Search, Settings, Sparkles, Zap } from 'lucide-react';
 import { lazy, Suspense, useEffect } from 'react';
 import { useWebSocketBootstrap } from '@/hooks/useWebSocket';
 import {
@@ -106,6 +107,114 @@ const SpecsView = lazy(() =>
 const TerminalPanel = lazy(() =>
   import('./components/TerminalPanel').then((m) => ({ default: m.TerminalPanel })),
 );
+
+function viewLabel(view: string): string {
+  return view
+    .split('-')
+    .map((part) => part.slice(0, 1).toUpperCase() + part.slice(1))
+    .join(' ');
+}
+
+function WorkbenchTopbar({
+  currentView,
+  projectName,
+  sessionLabel,
+  isLoading,
+  iteration,
+  onPalette,
+  onSearch,
+  onModel,
+  onSettings,
+}: {
+  currentView: string;
+  projectName?: string | undefined;
+  sessionLabel?: string | undefined;
+  isLoading: boolean;
+  iteration: { index: number; max: number } | null;
+  onPalette: () => void;
+  onSearch: () => void;
+  onModel: () => void;
+  onSettings: () => void;
+}) {
+  return (
+    <div className="hidden shrink-0 border-b border-border/70 bg-card/85 px-3 py-2 shadow-sm backdrop-blur-xl md:block">
+      <div className="flex min-w-0 items-center gap-3">
+        <div className="flex min-w-0 flex-1 items-center gap-3">
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground shadow-sm shadow-primary/20">
+            <Zap className="h-4 w-4" />
+          </div>
+          <div className="min-w-0">
+            <div className="flex min-w-0 items-center gap-2">
+              <span className="truncate text-sm font-semibold">
+                {projectName || 'WrongStack'}
+              </span>
+              <span className="rounded-md border border-border/70 bg-muted/50 px-1.5 py-0.5 text-[11px] text-muted-foreground">
+                {viewLabel(currentView)}
+              </span>
+              <span
+                className={cn(
+                  'inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[11px] font-medium',
+                  isLoading
+                    ? 'bg-primary/10 text-primary'
+                    : 'bg-muted text-muted-foreground',
+                )}
+              >
+                {isLoading ? <Bot className="h-3 w-3 animate-pulse" /> : <Sparkles className="h-3 w-3" />}
+                {isLoading ? 'Running' : 'Ready'}
+                {iteration ? (
+                  <span className="tabular">
+                    {iteration.index}
+                    {iteration.max > 0 ? `/${iteration.max}` : ''}
+                  </span>
+                ) : null}
+              </span>
+            </div>
+            <div className="mt-0.5 truncate text-[11px] text-muted-foreground">
+              {sessionLabel || 'No named session'}
+            </div>
+          </div>
+        </div>
+        <div className="flex shrink-0 items-center gap-1">
+          <button
+            type="button"
+            onClick={onSearch}
+            className="inline-flex h-8 items-center gap-1.5 rounded-md border border-border/70 bg-background/60 px-2 text-xs text-muted-foreground hover:bg-accent/60 hover:text-foreground"
+            title="Search chat"
+          >
+            <Search className="h-3.5 w-3.5" />
+            Search
+          </button>
+          <button
+            type="button"
+            onClick={onPalette}
+            className="inline-flex h-8 items-center gap-1.5 rounded-md border border-border/70 bg-background/60 px-2 text-xs text-muted-foreground hover:bg-accent/60 hover:text-foreground"
+            title="Command palette"
+          >
+            <Command className="h-3.5 w-3.5" />
+            Command
+          </button>
+          <button
+            type="button"
+            onClick={onModel}
+            className="inline-flex h-8 items-center gap-1.5 rounded-md border border-border/70 bg-background/60 px-2 text-xs text-muted-foreground hover:bg-accent/60 hover:text-foreground"
+            title="Switch model"
+          >
+            <Cpu className="h-3.5 w-3.5" />
+            Model
+          </button>
+          <button
+            type="button"
+            onClick={onSettings}
+            className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-border/70 bg-background/60 text-muted-foreground hover:bg-accent/60 hover:text-foreground"
+            title="Settings"
+          >
+            <Settings className="h-3.5 w-3.5" />
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 /** Suspense fallback for lazy-loaded views — a quiet centered spinner so the
  *  first open of the editor / terminal / office map doesn't look frozen. */
@@ -515,7 +624,13 @@ function AppInner() {
   // surface during normal work" — debug overlays should not auto-restore.
   useEffect(() => {
     if (typeof window === 'undefined') return;
-    if (window.location.pathname === '/refresh-debug') return;
+    if (
+      window.location.pathname === '/debug' ||
+      window.location.pathname === '/analytics' ||
+      window.location.pathname === '/refresh-debug'
+    ) {
+      return;
+    }
     const persistedView = useUIStore.getState().currentView;
     if (
       persistedView === 'debug' ||
@@ -806,7 +921,20 @@ function AppInner() {
       {sidebarOpen && currentView !== 'setup' && <SidePanel desktopShell={desktopShell} />}
 
       {/* ── Main area ── */}
-      <main className="flex-1 min-w-0 min-h-0 flex flex-col overflow-hidden">
+      <main className="flex-1 min-w-0 min-h-0 flex flex-col overflow-hidden bg-background/70">
+        {currentView !== 'setup' && (
+          <WorkbenchTopbar
+            currentView={currentView}
+            projectName={projectName}
+            sessionLabel={nickname || sessionTitle || sessionId || undefined}
+            isLoading={isLoading}
+            iteration={iteration ?? null}
+            onPalette={() => setPaletteOpen(true)}
+            onSearch={() => setSearchOpen(true)}
+            onModel={() => setModelSwitcherOpen(true)}
+            onSettings={() => openMainView('settings')}
+          />
+        )}
         {currentView !== 'setup' && <ConnectionBanner />}
         {currentView === 'chat' && (
           <>
@@ -821,7 +949,7 @@ function AppInner() {
             {sessionId && (
               <div
                 className={cn(
-                  'ws-workspace-dock-wrap px-4 pt-2 shrink-0 overflow-y-auto overscroll-contain',
+                  'ws-workspace-dock-wrap px-3 sm:px-4 pt-2 shrink-0 overflow-y-auto overscroll-contain',
                   terminalOpen ? 'max-h-[28dvh]' : 'max-h-[45dvh]',
                 )}
               >

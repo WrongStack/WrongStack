@@ -42,7 +42,7 @@ const CARDS: PromptCard[] = [
     icon: Search,
     title: 'Understand',
     hint: 'Explore and analyze the codebase',
-    tone: 'text-blue-600 dark:text-blue-400 bg-blue-500/10 border-blue-500/20',
+    tone: 'text-info bg-info/10 border-info/20',
     pool: [
       'Map out the structure of this codebase: what are the main modules or components, how do they depend on each other, and what are the key patterns used throughout?',
       'Find and document the public API surface — all exported interfaces, functions, and types that other parts of the system depend on.',
@@ -63,7 +63,7 @@ const CARDS: PromptCard[] = [
     icon: Lightbulb,
     title: 'Create',
     hint: 'Build new features and functionality',
-    tone: 'text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 border-emerald-500/20',
+    tone: 'text-success bg-success/10 border-success/20',
     pool: [
       'Add a new feature that covers the full stack: data model, business logic, and any UI or API layers. Follow existing patterns in this codebase.',
       'Write comprehensive tests for a module with low coverage. Include happy paths, edge cases, and error scenarios.',
@@ -84,7 +84,7 @@ const CARDS: PromptCard[] = [
     icon: Crosshair,
     title: 'Investigate',
     hint: 'Debug issues and find root causes',
-    tone: 'text-amber-600 dark:text-amber-400 bg-amber-500/10 border-amber-500/20',
+    tone: 'text-warning bg-warning/10 border-warning/20',
     pool: [
       "Something isn't working as expected — help me trace from the symptom to the root cause. Follow the code path and identify where behavior diverges from intent.",
       "There's a difference between how this works locally versus in production or CI. Check for environment differences, configuration issues, or hidden assumptions.",
@@ -105,7 +105,7 @@ const CARDS: PromptCard[] = [
     icon: Sparkles,
     title: 'Improve',
     hint: 'Refactor and optimize existing code',
-    tone: 'text-violet-600 dark:text-violet-400 bg-violet-500/10 border-violet-500/20',
+    tone: 'text-primary bg-primary/10 border-primary/20',
     pool: [
       'Find duplicated or similar logic that could be consolidated into shared utilities. Extract the common parts and update the call sites.',
       'Identify modules that have grown too large or handle too many responsibilities. Propose a cleaner separation that can be done incrementally.',
@@ -223,31 +223,32 @@ export function WelcomeScreen() {
   const shufflePrompts = useCallback(() => setVisiblePrompts(shuffleAllCards()), []);
 
   return (
-    <div className="flex flex-col gap-8 py-8 px-2 max-w-5xl mx-auto w-full">
-      {/* Hero */}
-      <div className="flex flex-col items-center text-center gap-3">
-        <div className="relative">
-          <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-primary via-primary to-primary/60 flex items-center justify-center shadow-lg shadow-primary/20">
+    <div className="flex flex-col gap-5 py-5 sm:py-7 max-w-6xl mx-auto w-full">
+      {/* Session start panel */}
+      <div className="ws-surface flex flex-col gap-4 rounded-lg p-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex min-w-0 items-center gap-3">
+          <div className="w-12 h-12 rounded-lg bg-primary flex shrink-0 items-center justify-center shadow-sm shadow-primary/20">
             <Zap className="h-7 w-7 text-primary-foreground" />
           </div>
-          <div className="absolute -inset-3 bg-gradient-to-r from-transparent via-primary/10 to-transparent animate-pulse rounded-full -z-10" />
+          <div className="min-w-0">
+            <h2 className="text-xl font-semibold">
+              {projectName
+                ? t('setup:welcome.heroTitleInProject', { name: projectName })
+                : t('setup:welcome.heroTitle')}
+            </h2>
+            <p className="mt-1 text-sm text-muted-foreground leading-relaxed">
+              {t('setup:welcome.heroSubtitle')}
+            </p>
+          </div>
         </div>
-        <div>
-          <h2 className="text-2xl font-semibold tracking-tight">
-            {projectName
-              ? t('setup:welcome.heroTitleInProject', { name: projectName })
-              : t('setup:welcome.heroTitle')}
-          </h2>
-          <p className="text-sm text-muted-foreground mt-2 max-w-2xl mx-auto leading-relaxed">
-            {t('setup:welcome.heroSubtitle')}
-          </p>
+        <div className="grid min-w-0 gap-1 text-left sm:text-right">
           {provider && model && (
-            <p className="text-xs text-muted-foreground/70 mt-2 font-mono">
+            <p className="truncate text-xs text-muted-foreground/80 font-mono">
               {provider} / {model}
             </p>
           )}
           {cwd && (
-            <p className="text-[11px] text-muted-foreground/50 mt-1 font-mono" title={cwd}>
+            <p className="truncate text-[11px] text-muted-foreground/60 font-mono" title={cwd}>
               {t('setup:welcome.workingDirectory', { cwd })}
             </p>
           )}
@@ -264,12 +265,12 @@ export function WelcomeScreen() {
           type="button"
           onClick={() => openMainView('settings')}
           className={cn(
-            'group rounded-xl border bg-gradient-to-br from-amber-500/10 via-amber-500/5 to-transparent',
-            'border-amber-500/30 hover:border-amber-500/50 transition-colors',
+            'group rounded-lg border bg-warning/5',
+            'border-warning/30 hover:border-warning/50 transition-colors shadow-sm',
             'p-4 flex items-center gap-4 text-left',
           )}
         >
-          <span className="flex items-center justify-center w-12 h-12 rounded-lg bg-amber-500/15 text-amber-600 dark:text-amber-400 shrink-0">
+          <span className="flex items-center justify-center w-11 h-11 rounded-lg bg-warning/15 text-warning shrink-0">
             <KeyRound className="h-6 w-6" />
           </span>
           <div className="flex-1 min-w-0">
@@ -278,41 +279,42 @@ export function WelcomeScreen() {
               {t('setup:welcome.noKeyBody')}
             </p>
           </div>
-          <span className="flex items-center gap-1 text-xs text-amber-600 dark:text-amber-400 font-medium shrink-0 group-hover:translate-x-0.5 transition-transform">
+          <span className="flex items-center gap-1 text-xs text-warning font-medium shrink-0 group-hover:translate-x-0.5 transition-transform">
             {t('setup:welcome.openSettings')} <ArrowRight className="h-3.5 w-3.5" />
           </span>
         </button>
       )}
 
+      <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_20rem]">
       {/* Prompt cards */}
-      <div className="flex flex-col gap-3">
+      <section className="min-w-0 flex flex-col gap-3">
         <div className="flex items-center justify-between px-1">
-          <span className="text-xs uppercase tracking-wider text-muted-foreground font-medium">
+          <span className="text-xs uppercase text-muted-foreground font-medium">
             {t('setup:welcome.startingPrompts')}
           </span>
           <button
             type="button"
             onClick={shufflePrompts}
-            className="group/shuffle flex items-center gap-1.5 rounded-lg border border-border/50 bg-background/60 px-2.5 py-1.5 text-xs text-muted-foreground hover:text-foreground hover:border-primary/40 hover:bg-accent/40 transition-colors"
+            className="group/shuffle flex items-center gap-1.5 rounded-md border border-border/60 bg-card/70 px-2.5 py-1.5 text-xs text-muted-foreground hover:text-foreground hover:border-primary/40 hover:bg-accent/50 transition-colors"
             title={t('setup:welcome.shufflePromptsHint')}
           >
             <RefreshCw className="h-3.5 w-3.5 transition-transform group-hover/shuffle:rotate-180 duration-300" />
             {t('setup:welcome.shufflePrompts')}
           </button>
         </div>
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 max-h-[calc(100dvh-16rem)] lg:max-h-none overflow-y-auto">
+        <div className="grid grid-cols-1 xl:grid-cols-2 gap-3 max-h-[calc(100dvh-17rem)] lg:max-h-none overflow-y-auto">
           {CARDS.map((card, ci) => {
           const Icon = card.icon;
           return (
             <div
               key={card.id}
-              className="rounded-xl border bg-card/40 backdrop-blur-sm p-4 flex flex-col gap-3 animate-message hover:border-primary/20 hover:shadow-sm transition-all"
+              className="rounded-lg border border-border/70 bg-card/75 p-4 flex flex-col gap-3 animate-message hover:border-primary/30 hover:shadow-sm transition-all"
               style={{ animationDelay: `${ci * 80}ms` }}
             >
               <div className="flex items-center gap-2">
                 <span
                   className={cn(
-                    'flex items-center justify-center w-8 h-8 rounded-lg border',
+                    'flex items-center justify-center w-8 h-8 rounded-md border',
                     card.tone,
                   )}
                 >
@@ -329,7 +331,7 @@ export function WelcomeScreen() {
                     key={p}
                     type="button"
                     onClick={() => fillTextarea(p)}
-                    className="text-left text-xs leading-relaxed text-foreground/80 hover:text-foreground border border-transparent hover:border-border/60 rounded-lg px-3 py-2 hover:bg-muted/40 transition-colors line-clamp-3"
+                    className="text-left text-xs leading-relaxed text-foreground/80 hover:text-foreground border border-transparent hover:border-border/60 rounded-md px-3 py-2 hover:bg-muted/45 transition-colors"
                     title={p}
                   >
                     {p}
@@ -340,27 +342,29 @@ export function WelcomeScreen() {
           );
           })}
         </div>
-      </div>
+      </section>
+
+      <aside className="min-w-0 space-y-3">
 
       {/* Recent sessions — one-click resume. We pull the most recent
           non-current sessions so the user can pick back up without leaving
           the welcome screen. Hidden when there's nothing to show (fresh
           install / first run). */}
       {recentSessions.length > 0 && (
-        <div className="rounded-xl border bg-muted/20 p-4">
+        <div className="rounded-lg border border-border/70 bg-card/65 p-4">
           <div className="flex items-center gap-2 mb-3">
             <ArchiveRestore className="h-4 w-4 text-muted-foreground" />
-            <span className="text-xs uppercase tracking-wider text-muted-foreground font-medium">
+            <span className="text-xs uppercase text-muted-foreground font-medium">
               {t('setup:welcome.pickBackUp')}
             </span>
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+          <div className="grid grid-cols-1 gap-2">
             {recentSessions.map((entry) => (
               <button
                 key={entry.id}
                 type="button"
                 onClick={() => resumeSession(entry.id)}
-                className="text-left rounded-lg border border-border/40 bg-background/60 hover:border-primary/40 hover:bg-accent/30 px-3 py-2 transition-colors group/sess"
+              className="text-left rounded-md border border-border/50 bg-background/60 hover:border-primary/40 hover:bg-accent/40 px-3 py-2 transition-colors group/sess"
                 title={entry.title}
               >
                 <div className="text-sm font-medium truncate text-foreground group-hover/sess:text-primary">
@@ -382,10 +386,10 @@ export function WelcomeScreen() {
           commands aren't included (the quick-commands block below handles
           those). Shows nothing until you've actually typed something. */}
       {recentPrompts.length > 0 && (
-        <div className="rounded-xl border bg-muted/20 p-4">
+        <div className="rounded-lg border border-border/70 bg-card/65 p-4">
           <div className="flex items-center gap-2 mb-3">
             <Clock className="h-4 w-4 text-muted-foreground" />
-            <span className="text-xs uppercase tracking-wider text-muted-foreground font-medium">
+            <span className="text-xs uppercase text-muted-foreground font-medium">
               {t('setup:welcome.recentPrompts')}
             </span>
           </div>
@@ -398,7 +402,7 @@ export function WelcomeScreen() {
                   key={i}
                   type="button"
                   onClick={() => fillTextarea(p)}
-                  className="text-left text-xs leading-relaxed text-muted-foreground hover:text-foreground border border-transparent hover:border-border/60 rounded-lg px-3 py-2 hover:bg-background/60 transition-colors line-clamp-2"
+                  className="text-left text-xs leading-relaxed text-muted-foreground hover:text-foreground border border-transparent hover:border-border/60 rounded-md px-3 py-2 hover:bg-background/60 transition-colors"
                   title={p}
                 >
                   {p}
@@ -409,26 +413,28 @@ export function WelcomeScreen() {
       )}
 
       {/* Slash command quick-ref */}
-      <div className="rounded-xl border bg-muted/20 p-4">
+      <div className="rounded-lg border border-border/70 bg-card/65 p-4">
         <div className="flex items-center gap-2 mb-3">
           <Keyboard className="h-4 w-4 text-muted-foreground" />
-          <span className="text-xs uppercase tracking-wider text-muted-foreground font-medium">
+          <span className="text-xs uppercase text-muted-foreground font-medium">
             {t('setup:welcome.quickCommands')}
           </span>
         </div>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+        <div className="grid grid-cols-2 gap-2">
           {SLASH_REFS.map((c) => (
             <button
               key={c.name}
               type="button"
               onClick={() => fillTextarea(c.name)}
-              className="text-left flex flex-col gap-0.5 rounded-md border border-border/40 bg-background/60 px-3 py-2 hover:border-primary/40 hover:bg-accent/40 transition-colors"
+              className="text-left flex flex-col gap-0.5 rounded-md border border-border/50 bg-background/60 px-3 py-2 hover:border-primary/40 hover:bg-accent/45 transition-colors"
             >
               <span className="font-mono text-xs text-foreground">{c.name}</span>
               <span className="text-[11px] text-muted-foreground truncate">{t(`setup:welcome.slashRef.${c.id}`)}</span>
             </button>
           ))}
         </div>
+      </div>
+      </aside>
       </div>
     </div>
   );

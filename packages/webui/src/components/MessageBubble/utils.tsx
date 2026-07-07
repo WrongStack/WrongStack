@@ -81,7 +81,7 @@ function CodeCopyButton({ text }: { text: string }) {
       className={cn(
         'inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[10px] transition-colors',
         'hover:bg-muted-foreground/10',
-        copied ? 'text-emerald-500' : 'text-muted-foreground hover:text-foreground',
+        copied ? 'text-success' : 'text-muted-foreground hover:text-foreground',
       )}
       title={copied ? t('common:action.copied') : t('common:action.copy')}
     >

@@ -31,7 +31,7 @@ export function ToolInputView({ input }: { input: unknown }) {
                 className={cn(
                   'text-foreground',
                   isLong ? 'whitespace-pre-wrap break-all bg-muted/40 rounded px-1.5 py-1' : 'truncate',
-                  typeof v === 'string' ? '' : 'text-amber-600 dark:text-amber-400',
+                  typeof v === 'string' ? '' : 'text-warning',
                 )}
                 title={typeof v === 'string' && !isLong ? display : undefined}
               >
@@ -53,7 +53,7 @@ export function ToolInputView({ input }: { input: unknown }) {
             >
               <span className="text-muted-foreground/60 text-[10px]">{open ? '▾' : '▸'}</span>
               <span className="text-muted-foreground">{k}:</span>
-              <span className="text-violet-600 dark:text-violet-400">{summary}</span>
+              <span className="text-primary">{summary}</span>
             </button>
             {open && (
               <pre className="ml-3 mt-1 whitespace-pre-wrap break-all text-[11px] bg-muted/40 rounded px-2 py-1.5">

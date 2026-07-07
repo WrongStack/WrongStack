@@ -276,21 +276,22 @@ function shallowEqual(a: Record<string, unknown> | null | undefined, b: Record<s
 }
 
 const NODE_COLORS: Record<string, string> = {
-  provider: 'hsl(180, 80%, 55%)',    // cyan
-  agent: 'hsl(280, 80%, 65%)',       // purple
-  tool: 'hsl(40, 90%, 55%)',         // amber
-  mailbox: 'hsl(140, 70%, 55%)',     // green
-  session: 'hsl(220, 80%, 60%)',     // blue
-  system: 'hsl(0, 0%, 60%)',         // gray
-  error: 'hsl(0, 80%, 55%)',         // red
+  provider: 'hsl(var(--info))',
+  agent: 'hsl(var(--primary))',
+  tool: 'hsl(var(--warning))',
+  mailbox: 'hsl(var(--success))',
+  session: 'hsl(var(--primary))',
+  system: 'hsl(var(--muted-foreground))',
+  success: 'hsl(var(--success))',
+  error: 'hsl(var(--destructive))',
 };
 
 const EDGE_COLORS: Record<string, string> = {
-  'provider:call': 'hsl(180, 80%, 55%)',
-  'provider:delta': 'hsl(180, 60%, 70%)',
-  'agent:tool': 'hsl(40, 90%, 55%)',
-  'mailbox:send': 'hsl(140, 70%, 55%)',
-  'default': 'hsl(0, 0%, 40%)',
+  'provider:call': 'hsl(var(--info))',
+  'provider:delta': 'hsl(var(--primary))',
+  'agent:tool': 'hsl(var(--warning))',
+  'mailbox:send': 'hsl(var(--success))',
+  default: 'hsl(var(--muted-foreground))',
 };
 
 // ── Store ─────────────────────────────────────────────────────────────
@@ -380,7 +381,7 @@ export const useVizStore = create<VizState>()((set, _get) => ({
         kind: event.kind as VizEdge['kind'],
         label: event.label,
         intensity: existingEdge ? Math.min(1, existingEdge.intensity + 0.3) : 0.7,
-        color: event.color ?? NODE_COLORS[inferKind(event)] ?? '#6366f1',
+        color: event.color ?? NODE_COLORS[inferKind(event)] ?? NODE_COLORS.agent,
         lastActiveAt: now,
         totalMagnitude: (existingEdge?.totalMagnitude ?? 0) + (event.magnitude ?? 0),
       };
@@ -650,7 +651,7 @@ export function wsToVizEvent(
             label: `${agentName} ${status}`,
             magnitude: 1,
             data: payload as Record<string, unknown>,
-            color: status === 'success' ? 'hsl(140, 70%, 55%)' : NODE_COLORS.error,
+            color: status === 'success' ? NODE_COLORS.success : NODE_COLORS.error,
             flowGroup: `agent:${agentId}`,
           };
         }
@@ -681,7 +682,7 @@ export function wsToVizEvent(
             label: `${agentName} extended budget`,
             magnitude: payload.totalExtensions as number ?? 1,
             data: payload as Record<string, unknown>,
-            color: 'hsl(40, 90%, 55%)',
+            color: NODE_COLORS.tool,
             flowGroup: `agent:${agentId}`,
           };
         case 'budget_warning':

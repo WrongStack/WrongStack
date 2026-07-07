@@ -50,10 +50,10 @@ export interface FleetMonitorProps {
 import { fmtCost, fmtTok, fmtElapsed } from './dashboard-primitives.js';
 
 const STATUS_META: Record<SubagentView['status'], { led: string; labelKey: string; pulse: boolean; color: string }> = {
-  running: { led: 'bg-emerald-500', labelKey: 'statusRunning', pulse: true, color: 'text-emerald-500' },
-  completed: { led: 'bg-emerald-500', labelKey: 'statusDone', pulse: false, color: 'text-emerald-500' },
+  running: { led: 'bg-success', labelKey: 'statusRunning', pulse: true, color: 'text-success' },
+  completed: { led: 'bg-success', labelKey: 'statusDone', pulse: false, color: 'text-success' },
   failed: { led: 'bg-destructive', labelKey: 'statusFailed', pulse: false, color: 'text-destructive' },
-  timeout: { led: 'bg-amber-500', labelKey: 'statusTimeout', pulse: false, color: 'text-amber-500' },
+  timeout: { led: 'bg-warning', labelKey: 'statusTimeout', pulse: false, color: 'text-warning' },
   stopped: { led: 'bg-muted-foreground', labelKey: 'statusStopped', pulse: false, color: 'text-muted-foreground' },
 };
 
@@ -111,7 +111,7 @@ function FleetAgentDetailPanel({
                 <span className={cn(
                   'px-2 py-0.5 rounded text-[10px] font-medium uppercase tracking-wider',
                   agent.status === 'running'
-                    ? 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400'
+                    ? 'bg-success/12 text-success'
                     : agent.status === 'failed' || agent.status === 'timeout'
                       ? 'bg-destructive/15 text-destructive'
                       : 'bg-muted text-muted-foreground'
@@ -140,7 +140,7 @@ function FleetAgentDetailPanel({
           <span className="text-[10px] text-muted-foreground uppercase tracking-wider">{t('activity:fleet.activity')}</span>
           <SparklineChart bins={agent.sparklineBins} className="font-mono text-[9px]" />
           {agent.budgetWarning && (
-            <span className="ml-auto flex items-center gap-1 text-[10px] text-amber-500">
+            <span className="ml-auto flex items-center gap-1 text-[10px] text-warning">
               <Zap className="h-3 w-3" />
               {t('activity:fleet.budgetWarning')}
             </span>
@@ -191,7 +191,7 @@ function FleetAgentDetailPanel({
             <div className="flex items-center gap-2 text-[9px] text-muted-foreground uppercase tracking-wider mb-2">
               <DollarSign className="h-3 w-3" /> {t('activity:fleet.cost')}
             </div>
-            <div className="text-lg font-mono font-bold text-emerald-500">
+            <div className="text-lg font-mono font-bold text-success">
               {fmtCost(agent.costUsd)}
             </div>
             <div className="text-[10px] text-muted-foreground mt-1">
@@ -214,8 +214,8 @@ function FleetAgentDetailPanel({
                     ctxPct >= 85
                       ? 'bg-destructive'
                       : ctxPct >= 70
-                        ? 'bg-amber-500'
-                        : 'bg-emerald-500',
+                        ? 'bg-warning'
+                        : 'bg-success',
                   )}
                   style={{ width: `${ctxPct}%` }}
                 />
@@ -258,7 +258,7 @@ function FleetAgentDetailPanel({
               <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-2">
                 {isStream ? (
                   <>
-                    <span className="w-2 h-2 rounded-full bg-blue-500 animate-pulse" />
+                    <span className="w-2 h-2 rounded-full bg-primary animate-pulse" />
                     {t('activity:fleet.liveOutput')}
                   </>
                 ) : (
@@ -289,13 +289,13 @@ function FleetAgentDetailPanel({
 
         {/* Budget warning */}
         {agent.budgetWarning && (
-          <div className="flex items-center gap-3 px-4 py-3 rounded-lg bg-amber-500/10 border border-amber-500/20">
-            <Zap className="h-5 w-5 text-amber-500 shrink-0" />
+          <div className="flex items-center gap-3 px-4 py-3 rounded-lg bg-warning/10 border border-warning/25">
+            <Zap className="h-5 w-5 text-warning shrink-0" />
             <div>
-              <span className="text-sm font-medium text-amber-600 dark:text-amber-400">
+              <span className="text-sm font-medium text-warning">
                 {t('activity:fleet.budgetWarningTitle')}
               </span>
-              <p className="text-[11px] text-amber-600/80 dark:text-amber-400/80 mt-0.5">
+              <p className="text-[11px] text-warning/80 mt-0.5">
                 {t('activity:fleet.hittingLimit', { kind: agent.budgetWarning.kind, used: agent.budgetWarning.used, limit: agent.budgetWarning.limit })}
               </p>
             </div>
@@ -304,8 +304,8 @@ function FleetAgentDetailPanel({
 
         {/* Extensions */}
         {agent.extensions > 0 && (
-          <div className="flex items-center gap-3 px-4 py-3 rounded-lg bg-amber-500/10 border border-amber-500/20">
-            <Zap className="h-5 w-5 text-amber-500 shrink-0" />
+          <div className="flex items-center gap-3 px-4 py-3 rounded-lg bg-warning/10 border border-warning/25">
+            <Zap className="h-5 w-5 text-warning shrink-0" />
             <div>
               <span className="text-sm font-medium">
                 {t('activity:fleet.budgetExt', { count: agent.extensions })}
@@ -363,7 +363,7 @@ function FleetAgentDetailPanel({
                       tl.ok ? 'bg-muted/30 hover:bg-muted/50' : 'bg-destructive/5 border border-destructive/20',
                     )}
                   >
-                    <span className={cn('led shrink-0', tl.ok ? 'bg-emerald-500' : 'bg-destructive')} />
+                    <span className={cn('led shrink-0', tl.ok ? 'bg-success' : 'bg-destructive')} />
                     <span className={cn('font-mono font-medium w-20 shrink-0', tl.ok ? 'text-foreground' : 'text-destructive')}>
                       {tl.name}
                     </span>
@@ -420,12 +420,12 @@ export function FleetAgentRow({
         <span className={cn('led shrink-0', meta.led, meta.pulse && 'led-pulse')} />
         <span className="truncate font-medium">{agent.name}</span>
         {isLeader && (
-          <Crown className="h-3 w-3 shrink-0 text-amber-500" aria-label={t('activity:fleet.leader')} />
+          <Crown className="h-3 w-3 shrink-0 text-warning" aria-label={t('activity:fleet.leader')} />
         )}
       </div>
 
       {/* Status */}
-      <span className={cn('text-[10px] tabular-nums', active ? 'text-emerald-500' : 'text-muted-foreground')}>
+      <span className={cn('text-[10px] tabular-nums', active ? 'text-success' : 'text-muted-foreground')}>
         {t(`activity:fleet.${meta.labelKey}`)}
       </span>
 
@@ -434,7 +434,7 @@ export function FleetAgentRow({
         <SparklineChart bins={agent.sparklineBins} className="font-mono text-[9px]" />
         {agent.budgetWarning && (
           <span title={t('activity:fleet.hittingLimitTitle', { kind: agent.budgetWarning.kind, used: agent.budgetWarning.used, limit: agent.budgetWarning.limit })}>
-            <Zap className="h-3 w-3 shrink-0 text-amber-500" aria-label={t('common:status.budgetWarning')} />
+            <Zap className="h-3 w-3 shrink-0 text-warning" aria-label={t('common:status.budgetWarning')} />
           </span>
         )}
       </div>
@@ -463,8 +463,8 @@ export function FleetAgentRow({
               ctxPct >= 85
                 ? 'bg-destructive'
                 : ctxPct >= 70
-                  ? 'bg-amber-500'
-                  : 'bg-emerald-500',
+                  ? 'bg-warning'
+                  : 'bg-success',
             )}
             style={{ width: `${ctxPct}%` }}
           />
@@ -587,8 +587,8 @@ export function FleetMonitor({
             <h2 className="text-sm font-semibold flex items-center gap-2">
               {t('activity:fleet.fleetMonitor')}
               {runningCount > 0 && (
-                <span className="flex items-center gap-1 text-[11px] text-emerald-500 font-normal">
-                  <span className="led led-pulse bg-emerald-500" />
+                <span className="flex items-center gap-1 text-[11px] text-success font-normal">
+                  <span className="led led-pulse bg-success" />
                   {t('activity:fleet.runningCount', { count: runningCount })}
                 </span>
               )}
@@ -689,7 +689,7 @@ export function FleetMonitor({
                   {fleetAgentTimeline.slice(0, 15).map((entry) => {
                     const iconMap: Record<string, string> = { text: '\u{1F4AC}', thinking: '\u{1F9E0}', tool_use: '\u{1F527}', tool_result: '\u{2705}', error: '\u{274C}', status: '\u{1F4AC}', system: '\u{25CF}' };
                     const icon = iconMap[entry.kind] ?? '\u{25CF}';
-                    const statusColor = entry.status === 'running' || entry.status === 'spawned' ? 'text-emerald-500'
+                    const statusColor = entry.status === 'running' || entry.status === 'spawned' ? 'text-success'
                       : entry.status === 'failed' || entry.status === 'timeout' ? 'text-destructive' : 'text-muted-foreground';
                     return (
                       <div key={entry.id} className="flex items-start gap-1.5 text-[10px] leading-tight">

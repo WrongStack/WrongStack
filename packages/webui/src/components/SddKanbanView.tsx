@@ -10,38 +10,38 @@ const COLUMNS: Array<{ key: BoardTaskStatus; labelKey: string; accent: string; h
   {
     key: 'pending',
     labelKey: 'kanbanBacklog',
-    accent: 'border-slate-600/40',
+    accent: 'border-border/70',
     head: 'text-muted-foreground',
   },
   {
     key: 'queued',
     labelKey: 'kanbanReady',
-    accent: 'border-cyan-500/40',
-    head: 'text-cyan-600 dark:text-cyan-300',
+    accent: 'border-primary/35',
+    head: 'text-primary',
   },
   {
     key: 'in_progress',
     labelKey: 'kanbanRunning',
-    accent: 'border-amber-400/50',
-    head: 'text-amber-600 dark:text-amber-300',
+    accent: 'border-[hsl(var(--warning)/0.45)]',
+    head: 'text-[hsl(var(--warning))]',
   },
   {
     key: 'review',
     labelKey: 'kanbanReview',
-    accent: 'border-sky-500/40',
-    head: 'text-sky-600 dark:text-sky-300',
+    accent: 'border-primary/35',
+    head: 'text-primary',
   },
   {
     key: 'failed',
     labelKey: 'kanbanFailed',
-    accent: 'border-red-500/40',
-    head: 'text-red-600 dark:text-red-300',
+    accent: 'border-destructive/35',
+    head: 'text-destructive',
   },
   {
     key: 'completed',
     labelKey: 'kanbanDone',
-    accent: 'border-emerald-500/40',
-    head: 'text-emerald-600 dark:text-emerald-300',
+    accent: 'border-[hsl(var(--success)/0.35)]',
+    head: 'text-[hsl(var(--success))]',
   },
 ];
 
@@ -128,17 +128,17 @@ function KanbanCard({
       type="button"
       onClick={onClick}
       className={cn(
-        'sdd-node-enter w-full rounded-lg border bg-card p-2 text-left transition hover:brightness-125',
-        selected ? 'border-violet-400/70 ring-1 ring-violet-400/40' : 'border-border',
+        'sdd-node-enter w-full rounded-lg border bg-card/85 p-2 text-left shadow-sm transition hover:border-primary/35 hover:bg-accent/35',
+        selected ? 'border-primary/55 ring-1 ring-primary/35' : 'border-border/70',
         running && 'sdd-node-running',
         task.displayStatus === 'completed' && 'sdd-node-complete',
         task.displayStatus === 'failed' && 'sdd-node-failed',
       )}
     >
       <div className="flex items-center gap-1.5">
-        {running && <Loader2 className="h-3 w-3 animate-spin text-amber-400" />}
-        {task.displayStatus === 'completed' && <Check className="h-3 w-3 text-emerald-400" />}
-        {task.displayStatus === 'failed' && <X className="h-3 w-3 text-red-400" />}
+        {running && <Loader2 className="h-3 w-3 animate-spin text-[hsl(var(--warning))]" />}
+        {task.displayStatus === 'completed' && <Check className="h-3 w-3 text-[hsl(var(--success))]" />}
+        {task.displayStatus === 'failed' && <X className="h-3 w-3 text-destructive" />}
         <span className="font-mono text-[10px] text-muted-foreground">{task.shortId}</span>
         <span
           className={cn(
@@ -157,7 +157,7 @@ function KanbanCard({
               <span
                 className={cn(
                   'flex h-4 w-4 items-center justify-center rounded-full text-[8px] font-bold text-white',
-                  running ? 'bg-amber-500 sdd-agent-live' : 'bg-slate-600',
+                  running ? 'bg-[hsl(var(--warning))] sdd-agent-live' : 'bg-muted-foreground',
                 )}
               >
                 {agentInitials(task.agentName)}
@@ -168,7 +168,7 @@ function KanbanCard({
             </span>
           )}
           {task.retries ? (
-            <span className="flex items-center gap-0.5 text-[9px] text-red-400">
+            <span className="flex items-center gap-0.5 text-[9px] text-destructive">
               <RotateCcw className="h-2.5 w-2.5" />
               {task.retries}
             </span>

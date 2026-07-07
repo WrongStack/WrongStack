@@ -104,7 +104,7 @@ export function MonacoDiffView({
           {saving ? (
             <Loader2 className="h-3.5 w-3.5 animate-spin" />
           ) : savedAt && !dirty ? (
-            <Check className="h-3.5 w-3.5 text-emerald-500" />
+            <Check className="h-3.5 w-3.5 text-success" />
           ) : (
             <Save className="h-3.5 w-3.5" />
           )}

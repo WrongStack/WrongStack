@@ -24,11 +24,11 @@ const RISK_ICONS: Record<string, typeof Terminal> = {
 };
 
 const RISK_COLORS: Record<string, string> = {
-  shell: 'text-orange-400',
-  package: 'text-blue-400',
-  network: 'text-green-400',
-  'fs.write': 'text-purple-400',
-  config: 'text-yellow-400',
+  shell: 'text-warning',
+  package: 'text-info',
+  network: 'text-success',
+  'fs.write': 'text-primary',
+  config: 'text-muted-foreground',
 };
 
 const RISK_FILTERS = ['all', 'shell', 'package', 'network', 'fs.write', 'config'] as const;
@@ -137,10 +137,10 @@ export function SideEffectTimeline() {
 
   if (sideEffects.length === 0 && !loading) {
     return (
-      <div className="flex flex-col items-center justify-center gap-2 py-8 text-zinc-500">
+      <div className="flex flex-col items-center justify-center gap-2 py-8 text-muted-foreground">
         <Activity className="h-8 w-8 opacity-40" />
         <p className="text-sm">{t('activity:sideEffects.empty')}</p>
-        <p className="text-xs text-zinc-600">
+        <p className="text-xs text-muted-foreground/75">
           {t('activity:sideEffects.emptyHint')}
         </p>
       </div>
@@ -155,15 +155,15 @@ export function SideEffectTimeline() {
   return (
     <div className="flex h-full min-h-0 min-w-0 flex-col">
       {/* Header: title + refresh */}
-      <div className="flex items-center justify-between border-b border-zinc-800 px-3 py-2">
-        <h3 className="text-xs font-semibold uppercase tracking-wide text-zinc-400">
+      <div className="flex items-center justify-between border-b border-border/70 bg-card/70 px-3 py-2">
+        <h3 className="text-xs font-semibold uppercase text-muted-foreground">
           {t('activity:sideEffects.heading')} ({filtered.length}{riskFilter !== 'all' ? `/${sideEffects.length}` : ''})
         </h3>
         <div className="flex items-center gap-1">
           <button
             onClick={() => exportCSV(filtered)}
             disabled={filtered.length === 0}
-            className="flex items-center gap-1 rounded px-2 py-1 text-xs text-zinc-500 hover:bg-zinc-800 hover:text-zinc-300 disabled:opacity-30 disabled:cursor-not-allowed"
+            className="flex items-center gap-1 rounded-md px-2 py-1 text-xs text-muted-foreground transition-colors hover:bg-muted/60 hover:text-foreground disabled:cursor-not-allowed disabled:opacity-30"
             title={t('activity:sideEffects.exportTitle')}
           >
             <Download className="h-3 w-3" />
@@ -171,7 +171,7 @@ export function SideEffectTimeline() {
           </button>
           <button
             onClick={refresh}
-            className="flex items-center gap-1 rounded px-2 py-1 text-xs text-zinc-500 hover:bg-zinc-800 hover:text-zinc-300"
+            className="flex items-center gap-1 rounded-md px-2 py-1 text-xs text-muted-foreground transition-colors hover:bg-muted/60 hover:text-foreground"
           >
             <RefreshCw className={cn('h-3 w-3', loading && 'animate-spin')} />
             {t('common:action.refresh')}
@@ -180,16 +180,16 @@ export function SideEffectTimeline() {
       </div>
 
       {/* Filter bar */}
-      <div className="flex items-center gap-1 border-b border-zinc-800/50 px-2 py-1">
+      <div className="flex items-center gap-1 border-b border-border/60 bg-muted/20 px-2 py-1">
         {RISK_FILTERS.map((risk) => (
           <button
             key={risk}
             onClick={() => setRiskFilter(risk)}
             className={cn(
-              'rounded px-2 py-0.5 text-[10px] font-medium uppercase transition-colors',
+              'rounded-md px-2 py-0.5 text-[10px] font-medium uppercase transition-colors',
               riskFilter === risk
-                ? 'bg-zinc-700 text-zinc-200'
-                : 'text-zinc-500 hover:bg-zinc-800 hover:text-zinc-400',
+                ? 'bg-primary/10 text-primary ring-1 ring-primary/20'
+                : 'text-muted-foreground hover:bg-muted/70 hover:text-foreground',
             )}
           >
             {risk === 'all' ? t('activity:sideEffects.all') : risk}
@@ -200,22 +200,22 @@ export function SideEffectTimeline() {
       {/* Table */}
       <div className="min-h-0 min-w-0 flex-1 overflow-y-auto">
         <table className="w-full text-xs">
-          <thead className="sticky top-0 bg-zinc-900 text-zinc-500">
+          <thead className="sticky top-0 bg-card/95 text-muted-foreground backdrop-blur">
             <tr>
               <th
-                className="cursor-pointer select-none px-2 py-1 text-left font-medium hover:text-zinc-300"
+                className="cursor-pointer select-none px-2 py-1 text-left font-medium hover:text-foreground"
                 onClick={() => toggleSort('time')}
               >
                 {t('activity:sideEffects.colTime')} <SortIcon column="time" />
               </th>
               <th
-                className="cursor-pointer select-none px-2 py-1 text-left font-medium hover:text-zinc-300"
+                className="cursor-pointer select-none px-2 py-1 text-left font-medium hover:text-foreground"
                 onClick={() => toggleSort('tool')}
               >
                 {t('activity:sideEffects.colTool')} <SortIcon column="tool" />
               </th>
               <th
-                className="cursor-pointer select-none px-2 py-1 text-left font-medium hover:text-zinc-300"
+                className="cursor-pointer select-none px-2 py-1 text-left font-medium hover:text-foreground"
                 onClick={() => toggleSort('risk')}
               >
                 {t('activity:sideEffects.colRisk')} <SortIcon column="risk" />
@@ -227,16 +227,16 @@ export function SideEffectTimeline() {
           <tbody>
             {filtered.map((se, i) => {
               const Icon = RISK_ICONS[se.risk] ?? Activity;
-              const colorClass = RISK_COLORS[se.risk] ?? 'text-zinc-400';
+              const colorClass = RISK_COLORS[se.risk] ?? 'text-muted-foreground';
               return (
                 <tr
                   key={`${se.toolUseId}-${i}`}
-                  className="border-b border-zinc-900 hover:bg-zinc-800/50"
+                  className="border-b border-border/45 hover:bg-muted/45"
                 >
-                  <td className="whitespace-nowrap px-2 py-1.5 text-zinc-500">
+                  <td className="whitespace-nowrap px-2 py-1.5 text-muted-foreground">
                     {formatTime(se.ts)}
                   </td>
-                  <td className="whitespace-nowrap px-2 py-1.5 font-medium text-zinc-300">
+                  <td className="whitespace-nowrap px-2 py-1.5 font-medium text-foreground">
                     {se.toolName}
                   </td>
                   <td className="whitespace-nowrap px-2 py-1.5">
@@ -245,10 +245,10 @@ export function SideEffectTimeline() {
                       {se.risk}
                     </span>
                   </td>
-                  <td className="max-w-xs truncate px-2 py-1.5 font-mono text-zinc-400">
+                  <td className="max-w-xs truncate px-2 py-1.5 font-mono text-muted-foreground">
                     {formatInput(se)}
                   </td>
-                  <td className="whitespace-nowrap px-2 py-1.5 text-zinc-500">
+                  <td className="whitespace-nowrap px-2 py-1.5 text-muted-foreground">
                     {se.outcome ?? ''}
                   </td>
                 </tr>

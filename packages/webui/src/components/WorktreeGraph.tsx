@@ -1,7 +1,25 @@
 import { expectDefined } from '@wrongstack/core';
 import { useAppTranslation } from '@/i18n';
 import type { WorktreeHandleView } from '@/types';
-const LANE_COLORS = ['#3b82f6', '#06b6d4', '#22c55e', '#eab308', '#f97316', '#a855f7', '#ec4899'];
+
+const TOKEN_COLOR = {
+  primary: 'hsl(var(--primary))',
+  info: 'hsl(var(--info))',
+  success: 'hsl(var(--success))',
+  warning: 'hsl(var(--warning))',
+  destructive: 'hsl(var(--destructive))',
+  muted: 'hsl(var(--muted-foreground))',
+  foreground: 'hsl(var(--foreground))',
+} as const;
+
+const LANE_COLORS = [
+  TOKEN_COLOR.primary,
+  TOKEN_COLOR.info,
+  TOKEN_COLOR.success,
+  TOKEN_COLOR.warning,
+  TOKEN_COLOR.destructive,
+  TOKEN_COLOR.muted,
+];
 
 const shortBranch = (b: string) => b.replace(/^wstack\/ap\//, '');
 
@@ -49,7 +67,7 @@ export function WorktreeGraph({
   const branchX = 220;
 
   return (
-    <div className="overflow-x-auto rounded-lg border border-[--color-border-dark] bg-[--color-card-dark]/40 p-3">
+    <div className="overflow-x-auto rounded-lg border border-border/70 bg-card/70 p-3">
       <svg
         width="100%"
         height={height}
@@ -60,9 +78,9 @@ export function WorktreeGraph({
       >
         <title>{t('activity:worktree.graphAria', { base: baseBranch || 'HEAD' })}</title>
         {/* trunk */}
-        <line x1={trunkX} y1={20} x2={trunkX} y2={height - 10} stroke="#F93951" strokeWidth={3} />
-        <text x={trunkX - 4} y={14} fontSize={11} fill="#9ca3af">{baseBranch || 'HEAD'}</text>
-        <circle cx={trunkX} cy={20} r={5} fill="#F93951" />
+        <line x1={trunkX} y1={20} x2={trunkX} y2={height - 10} stroke={TOKEN_COLOR.primary} strokeWidth={3} />
+        <text x={trunkX - 4} y={14} fontSize={11} fill={TOKEN_COLOR.muted}>{baseBranch || 'HEAD'}</text>
+        <circle cx={trunkX} cy={20} r={5} fill={TOKEN_COLOR.primary} />
 
         {nodes.map((n) => {
           const e = EDGE_STATE[n.handle.status] ?? expectDefined(EDGE_STATE.active);
@@ -84,16 +102,16 @@ export function WorktreeGraph({
                 <path
                   d={`M ${branchX} ${n.y} C ${branchX - 60} ${n.y + 20}, ${trunkX + 60} ${n.y + 24}, ${trunkX} ${n.y + 24}`}
                   fill="none"
-                  stroke="#34d399"
+                  stroke={TOKEN_COLOR.success}
                   strokeWidth={2}
                   opacity={0.9}
                 />
               ) : null}
-              <circle cx={branchX} cy={n.y} r={5} fill={conflict ? '#e879f9' : n.color} />
-              <text x={branchX + 12} y={n.y - 6} fontSize={12} fill="#e5e7eb" fontFamily="monospace">
+              <circle cx={branchX} cy={n.y} r={5} fill={conflict ? TOKEN_COLOR.destructive : n.color} />
+              <text x={branchX + 12} y={n.y - 6} fontSize={12} fill={TOKEN_COLOR.foreground} fontFamily="monospace">
                 {shortBranch(n.handle.branch)}
               </text>
-              <text x={branchX + 12} y={n.y + 10} fontSize={10} fill="#9ca3af">
+              <text x={branchX + 12} y={n.y + 10} fontSize={10} fill={TOKEN_COLOR.muted}>
                 {conflict
                   ? `⚠ ${n.handle.status}`
                   : merged

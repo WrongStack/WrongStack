@@ -111,25 +111,27 @@ export function RefreshDebugView() {
       : false;
 
   return (
-    <div className="h-full min-h-0 min-w-0 flex-1 overflow-y-auto bg-background p-6">
-      <div className="max-w-5xl mx-auto space-y-6">
-        <header className="flex items-start justify-between">
-          <div>
-            <h1 className="text-2xl font-bold flex items-center gap-2">
-              <RotateCw className="w-7 h-7 text-primary" />
-              {t('activity:refresh.heading')}
-            </h1>
-            <p className="text-sm text-muted-foreground mt-1">
-              {t('activity:refresh.subtitle')}
-            </p>
+    <div className="h-full min-h-0 min-w-0 flex-1 overflow-y-auto bg-[hsl(var(--surface-2)/0.45)] p-4 sm:p-6">
+      <div className="mx-auto max-w-5xl space-y-5 sm:space-y-6">
+        <header className="rounded-xl border border-border/70 bg-card/75 p-4 shadow-sm">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+            <div className="min-w-0">
+              <h1 className="flex min-w-0 items-center gap-2 text-xl font-bold sm:text-2xl">
+                <RotateCw className="h-6 w-6 shrink-0 text-primary sm:h-7 sm:w-7" />
+                {t('activity:refresh.heading')}
+              </h1>
+              <p className="mt-1 text-sm text-muted-foreground">
+                {t('activity:refresh.subtitle')}
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={simulateRefresh}
+              className="inline-flex h-9 w-full items-center justify-center rounded-md bg-primary px-3 text-sm font-medium text-primary-foreground shadow-sm shadow-primary/15 hover:bg-primary/90 sm:w-auto"
+            >
+              {t('activity:refresh.recordProbe')}
+            </button>
           </div>
-          <button
-            type="button"
-            onClick={simulateRefresh}
-            className="px-3 py-1.5 bg-primary text-primary-foreground rounded-lg text-sm font-medium hover:opacity-90"
-          >
-            {t('activity:refresh.recordProbe')}
-          </button>
         </header>
 
         {/* ── Session pointer ─────────────────────────────────────── */}
@@ -199,7 +201,7 @@ export function RefreshDebugView() {
             warn={bleed}
           />
           {messages.length > 0 && (
-            <div className="border rounded-lg p-3 bg-muted/40 text-xs font-mono space-y-1">
+            <div className="space-y-1 rounded-lg border border-border/70 bg-card/65 p-3 text-xs font-mono">
               <div>
                 <span className="text-muted-foreground">first:</span> {previewMessage(messages[0])}
               </div>
@@ -238,9 +240,9 @@ export function RefreshDebugView() {
               {probeLog.map((p, i) => (
                 <li key={`${p.ts}-${i}`} className="flex items-center gap-2">
                   {p.ok ? (
-                    <CheckCircle2 className="w-4 h-4 text-green-500 shrink-0" />
+                    <CheckCircle2 className="w-4 h-4 text-success shrink-0" />
                   ) : (
-                    <AlertTriangle className="w-4 h-4 text-amber-500 shrink-0" />
+                    <AlertTriangle className="w-4 h-4 text-warning shrink-0" />
                   )}
                   <span className="text-muted-foreground">
                     {new Date(p.ts).toLocaleTimeString()}
@@ -268,15 +270,15 @@ function CardRow({
   warn?: boolean;
 }): ReactElement {
   const tone = warn
-    ? 'border-amber-500/40 bg-amber-500/10 text-amber-700 dark:text-amber-300'
+    ? 'border-warning/40 bg-warning/10 text-warning'
     : ok
-      ? 'border-green-500/40 bg-green-500/10 text-green-700 dark:text-green-300'
+      ? 'border-success/40 bg-success/10 text-success'
       : 'border-border bg-muted/40 text-muted-foreground';
   return (
-    <div className={`border rounded-lg px-3 py-2 ${tone}`}>
-      <div className="text-xs font-medium flex items-center gap-2">
-        {ok && !warn ? <CheckCircle2 className="w-4 h-4" /> : <AlertTriangle className="w-4 h-4" />}
-        {label}
+    <div className={`rounded-lg border px-3 py-2 ${tone}`}>
+      <div className="flex min-w-0 items-center gap-2 text-xs font-medium">
+        {ok && !warn ? <CheckCircle2 className="h-4 w-4 shrink-0" /> : <AlertTriangle className="h-4 w-4 shrink-0" />}
+        <span className="min-w-0 break-words">{label}</span>
       </div>
       <div className="text-xs font-mono mt-1 break-all">{extra}</div>
     </div>
@@ -293,7 +295,7 @@ function DataTile({
   mono?: boolean;
 }): ReactElement {
   return (
-    <div className="border rounded-lg p-3 bg-card">
+    <div className="min-w-0 rounded-lg border border-border/70 bg-card/75 p-3 shadow-sm">
       <p className="text-xs uppercase tracking-wide text-muted-foreground">{label}</p>
       <p className={'mt-1 text-sm break-all ' + (mono ? 'font-mono' : 'font-medium')}>{value}</p>
     </div>

@@ -52,9 +52,9 @@ export function AgentDetail({
   }, []);
   const ctxTone =
     ctxPct >= 85
-      ? 'bg-red-500/15 text-red-600 dark:text-red-400'
+      ? 'bg-destructive/12 text-destructive'
       : ctxPct >= 70
-        ? 'bg-amber-500/15 text-amber-600 dark:text-amber-400'
+        ? 'bg-warning/12 text-warning'
         : 'bg-muted text-muted-foreground';
 
   return (
@@ -70,7 +70,7 @@ export function AgentDetail({
           <div className="flex items-center gap-2">
             <span className={cn('led', meta.led, meta.pulse && 'led-pulse')} />
             <h3 className="text-sm font-semibold">{agent.name}</h3>
-            {isLeader && <Crown className="h-3.5 w-3.5 text-amber-500 shrink-0" aria-label={t('activity:fleet.leader')} />}
+            {isLeader && <Crown className="h-3.5 w-3.5 text-warning shrink-0" aria-label={t('activity:fleet.leader')} />}
             <span className="text-[10px] uppercase tracking-wider text-muted-foreground">
               {t(`activity:fleet.status.${agent.status}`)}
             </span>
@@ -152,9 +152,9 @@ export function AgentDetail({
 
           {/* Budget warning */}
           {agent.budgetWarning && (
-            <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-amber-500/10 border border-amber-500/20 text-xs">
-              <Zap className="h-3.5 w-3.5 text-amber-500 shrink-0" />
-              <span className="text-amber-600 dark:text-amber-400">
+            <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-warning/10 border border-warning/25 text-xs">
+              <Zap className="h-3.5 w-3.5 text-warning shrink-0" />
+              <span className="text-warning">
                 {t('activity:fleet.budgetWarning', { kind: agent.budgetWarning.kind, used: agent.budgetWarning.used, limit: agent.budgetWarning.limit })}
               </span>
             </div>
@@ -236,7 +236,7 @@ export function AgentDetail({
                   className="flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
                   title={t('activity:fleet.copyOutput')}
                 >
-                  {copied ? <Check className="h-3 w-3 text-emerald-500" /> : <Copy className="h-3 w-3" />}
+                  {copied ? <Check className="h-3 w-3 text-success" /> : <Copy className="h-3 w-3" />}
                   {copied ? t('common:action.copied') : t('common:action.copy')}
                 </button>
               </div>
@@ -256,7 +256,7 @@ export function AgentDetail({
                   className="flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
                   title={t('activity:fleet.copyOutput')}
                 >
-                  {copied ? <Check className="h-3 w-3 text-emerald-500" /> : <Copy className="h-3 w-3" />}
+                  {copied ? <Check className="h-3 w-3 text-success" /> : <Copy className="h-3 w-3" />}
                   {copied ? t('common:action.copied') : t('common:action.copy')}
                 </button>
               </div>

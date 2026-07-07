@@ -83,7 +83,7 @@ export function ProcessMonitor({
         {/* Header */}
         <div className="flex items-center justify-between px-4 py-3 border-b shrink-0">
           <div className="flex items-center gap-2.5">
-            <span className="flex items-center justify-center w-8 h-8 rounded-lg bg-amber-500/10 text-amber-600 dark:text-amber-400">
+            <span className="flex items-center justify-center w-8 h-8 rounded-lg bg-warning/10 text-warning">
               <Terminal className="h-4 w-4" />
             </span>
             <div>
@@ -146,7 +146,7 @@ export function ProcessMonitor({
                           'led shrink-0',
                           proc.status === 'running'
                             ? isProtected
-                              ? 'text-blue-400'
+                              ? 'text-info'
                               : 'text-[hsl(var(--success))] led-pulse'
                             : 'text-muted-foreground',
                         )}
@@ -159,7 +159,7 @@ export function ProcessMonitor({
                           <span className="font-medium truncate">{proc.tool}</span>
                           {isProtected && (
                             <span
-                              className="inline-flex items-center gap-0.5 px-1 py-0.5 rounded text-[9px] bg-blue-500/10 text-blue-600 dark:text-blue-400 font-medium shrink-0"
+                              className="inline-flex items-center gap-0.5 px-1 py-0.5 rounded text-[9px] bg-info/10 text-info font-medium shrink-0"
                               title={t('activity:process.protectedTitle')}
                             >
                               <Shield className="h-2.5 w-2.5" />

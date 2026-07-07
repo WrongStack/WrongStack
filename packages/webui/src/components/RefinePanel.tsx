@@ -206,13 +206,13 @@ export function RefinePanel({
 
             {/* Refined (Original Language) */}
             <div className="space-y-1">
-              <div className="flex items-center gap-1 text-xs text-yellow-600 dark:text-yellow-400 font-medium uppercase tracking-wider">
+              <div className="flex items-center gap-1 text-xs text-warning font-medium uppercase tracking-wider">
                 {t('activity:refine.refined')} <span className="text-muted-foreground font-normal">{t('activity:refine.yourLanguage')}</span>
               </div>
               <div
                 className={cn(
-                  'text-sm bg-yellow-500/10 border border-yellow-500/20 rounded-md px-3 py-2 cursor-pointer',
-                  'hover:bg-yellow-500/20 transition-colors',
+                  'text-sm bg-warning/10 border border-warning/20 rounded-md px-3 py-2 cursor-pointer',
+                  'hover:bg-warning/20 transition-colors',
                 )}
                 onClick={() => handleDecision('refined')}
                 title={t('activity:refine.refinedTitle')}
@@ -223,14 +223,14 @@ export function RefinePanel({
 
             {/* English */}
             <div className="space-y-1">
-              <div className="flex items-center gap-1 text-xs text-blue-600 dark:text-blue-400 font-medium uppercase tracking-wider">
+              <div className="flex items-center gap-1 text-xs text-info font-medium uppercase tracking-wider">
                 <Globe className="h-3 w-3" />
                 {t('activity:refine.english')}
               </div>
               <div
                 className={cn(
-                  'text-sm bg-blue-500/10 border border-blue-500/20 rounded-md px-3 py-2 cursor-pointer',
-                  'hover:bg-blue-500/20 transition-colors',
+                  'text-sm bg-info/10 border border-info/20 rounded-md px-3 py-2 cursor-pointer',
+                  'hover:bg-info/20 transition-colors',
                 )}
                 onClick={() => handleDecision('english')}
                 title={t('activity:refine.englishTitle')}
@@ -277,7 +277,7 @@ export function RefinePanel({
             <Button
               size="sm"
               onClick={() => handleDecision('refined')}
-              className="text-xs bg-yellow-600 hover:bg-yellow-700 text-white"
+              className="text-xs bg-warning hover:bg-warning/90 text-primary-foreground"
             >
               <Check className="h-3 w-3 mr-1" />
               {t('activity:refine.useRefined')}

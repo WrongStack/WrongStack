@@ -55,19 +55,19 @@ export interface MCPServerConfig {
 function statusInfo(status: MCPServer['status']): { color: string } {
   switch (status) {
     case 'connected':
-      return { color: 'bg-green-500' };
+      return { color: 'bg-success' };
     case 'connecting':
-      return { color: 'bg-yellow-500' };
+      return { color: 'bg-warning animate-pulse' };
     case 'sleeping':
-      return { color: 'bg-blue-500' };
+      return { color: 'bg-info' };
     case 'discovering':
-      return { color: 'bg-purple-500' };
+      return { color: 'bg-primary animate-pulse' };
     case 'error':
-      return { color: 'bg-red-500' };
+      return { color: 'bg-destructive' };
     case 'stopped':
-      return { color: 'bg-gray-500' };
+      return { color: 'bg-muted-foreground' };
     default:
-      return { color: 'bg-gray-400' };
+      return { color: 'bg-muted-foreground/70' };
   }
 }
 
@@ -98,16 +98,16 @@ function ServerCard({
   const { t } = useAppTranslation();
 
   return (
-    <div className="border rounded-lg p-3 bg-card">
+    <div className="rounded-md border border-border/70 bg-card/70 p-3 transition-colors hover:bg-card">
       <div className="flex items-center justify-between">
         <button
-          className="flex items-center gap-2 flex-1 text-left"
+          className="flex min-w-0 flex-1 items-center gap-2 text-left"
           onClick={() => setExpanded(!expanded)}
         >
-          {expanded ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
+          {expanded ? <ChevronDown className="h-4 w-4 text-muted-foreground" /> : <ChevronRight className="h-4 w-4 text-muted-foreground" />}
           <StatusDot status={server.status} />
-          <span className="font-medium">{server.name}</span>
-          <span className="text-xs text-muted-foreground">{server.transport}</span>
+          <span className="min-w-0 truncate font-medium">{server.name}</span>
+          <span className="rounded bg-muted/60 px-1.5 py-0.5 text-xs text-muted-foreground">{server.transport}</span>
           {!server.enabled && (
             <Badge variant="outline" className="text-xs">
               {t('settings:mcp.disabled')}
@@ -146,8 +146,8 @@ function ServerCard({
       </div>
 
       {expanded && (
-        <div className="mt-3 pl-6 text-sm space-y-2">
-          <div className="grid grid-cols-2 gap-1">
+        <div className="mt-3 space-y-2 border-t border-border/60 pl-6 pt-3 text-sm">
+          <div className="grid grid-cols-[max-content_1fr] gap-x-3 gap-y-1">
             <span className="text-muted-foreground">{t('settings:mcp.statusLabel')}</span>
             <span className="flex items-center gap-1">
               <span className={`inline-block w-2 h-2 rounded-full ${color}`} />
@@ -438,7 +438,7 @@ function OfficialServerCard({
 }) {
   const { t } = useAppTranslation();
   return (
-    <div className="border rounded-lg p-3 bg-card flex items-start justify-between gap-3">
+    <div className="flex items-start justify-between gap-3 rounded-md border border-border/70 bg-card/70 p-3 transition-colors hover:bg-card">
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2 flex-wrap">
           <span className="font-medium text-sm">{server.name}</span>
@@ -453,7 +453,7 @@ function OfficialServerCard({
         </div>
         <p className="text-xs text-muted-foreground mt-1">{server.description}</p>
         {server.requiresEnvVars && server.requiresEnvVars.length > 0 && (
-          <p className="text-xs text-amber-600 dark:text-amber-400 mt-1">
+          <p className="mt-1 text-xs text-warning">
             {t('settings:mcp.requires', { vars: server.requiresEnvVars.join(', ') })}
           </p>
         )}
@@ -732,11 +732,13 @@ export function MCPSection(): ReactElement {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <Server className="w-5 h-5" />
-          <h2 className="text-lg font-semibold">{t('settings:mcp.heading')}</h2>
+        <div className="flex min-w-0 items-center gap-3">
+          <span className="flex h-9 w-9 items-center justify-center rounded-md border border-primary/20 bg-primary/10 text-primary">
+            <Server className="h-5 w-5" />
+          </span>
+          <h2 className="text-base font-semibold">{t('settings:mcp.heading')}</h2>
           {servers.length > 0 && (
-            <span className="text-sm text-muted-foreground">
+            <span className="rounded-md border border-border/60 bg-muted/30 px-2 py-1 text-xs text-muted-foreground">
               {t('settings:mcp.summary', { connected: connectedCount, sleeping: sleepingCount, total: servers.length })}
             </span>
           )}

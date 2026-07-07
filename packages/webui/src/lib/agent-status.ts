@@ -7,11 +7,9 @@
  * 'running'` active check. This module is the single source for that pure logic
  * so the surfaces stop drifting.
  *
- * Deliberately NOT here: the per-surface visual status maps. FleetMonitor uses
- * the tailwind palette (`bg-emerald-500`) while FleetPanel uses CSS-var tokens
- * (`text-[hsl(var(--success))]`); unifying those would change rendered colors,
- * so each surface keeps its own color map. Only the canonical short labels
- * (identical across surfaces) live here.
+ * Deliberately NOT here: the per-surface visual status maps. Presentation
+ * components now use shared CSS-var theme tokens, while this module stays pure
+ * and only owns canonical short labels plus activity sorting/counting.
  */
 
 import type { SubagentView } from '@/stores';

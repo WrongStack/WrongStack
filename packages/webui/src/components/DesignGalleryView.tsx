@@ -9,7 +9,7 @@
  * codebase's source of truth, not just a prompt hint.
  */
 
-import { Check, Download, Palette, ShieldCheck, X } from 'lucide-react';
+import { Check, Download, Palette, Search, ShieldCheck, X } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useAppTranslation, i18n } from '@/i18n';
 import { useWebSocket } from '@/hooks/useWebSocket';
@@ -63,10 +63,7 @@ function KitPreview({ t, label }: { t: Tokens; label: string }) {
   const shadow = t.shadow && t.shadow !== 'none' ? t.shadow : undefined;
 
   return (
-    <div
-      style={{ background: bg, color: fg, fontFamily: fontSans }}
-      className="p-3 flex flex-col gap-2 overflow-hidden"
-    >
+    <div style={{ background: bg, color: fg, fontFamily: fontSans }} className="flex min-w-0 flex-col gap-2 overflow-hidden p-3">
       <div className="text-[9px] uppercase tracking-wide" style={{ color: muted }}>
         {label}
       </div>
@@ -77,7 +74,7 @@ function KitPreview({ t, label }: { t: Tokens; label: string }) {
           borderRadius: radius,
           boxShadow: shadow,
         }}
-        className="p-3 flex flex-col gap-2"
+        className="flex min-w-0 flex-col gap-2 p-3"
       >
         <div style={{ fontFamily: fontDisplay }} className="text-base font-bold leading-tight">
           Aa Heading
@@ -85,22 +82,22 @@ function KitPreview({ t, label }: { t: Tokens; label: string }) {
         <div className="text-[11px] leading-snug" style={{ color: muted }}>
           The quick brown fox jumps over the lazy dog.
         </div>
-        <div className="flex items-center gap-1.5 mt-1">
+        <div className="mt-1 flex min-w-0 items-center gap-1.5">
           <span
             style={{ background: primary, color: bg, borderRadius: radius }}
-            className="text-[10px] font-semibold px-2.5 py-1"
+            className="shrink-0 px-2.5 py-1 text-[10px] font-semibold"
           >
             Primary
           </span>
           <span
             style={{ border: `1px solid ${border}`, color: fg, borderRadius: radius }}
-            className="text-[10px] px-2 py-1"
+            className="shrink-0 px-2 py-1 text-[10px]"
           >
             Ghost
           </span>
           <span
             style={{ background: accent, color: bg, borderRadius: '999px' }}
-            className="text-[9px] font-semibold px-2 py-0.5 ml-auto"
+            className="ml-auto shrink-0 px-2 py-0.5 text-[9px] font-semibold"
           >
             Badge
           </span>
@@ -155,7 +152,7 @@ function ColorEditor({
           return (
             <label
               key={tok}
-              className="flex flex-col items-center gap-0.5"
+          className="flex min-w-[2rem] flex-col items-center gap-0.5"
               title={`${tok}: ${merged[tok]}`}
             >
               <input
@@ -285,44 +282,68 @@ export function DesignGalleryView({ className }: { className?: string }) {
   }, [kits, q]);
 
   return (
-    <div className={cn('flex h-full min-h-0 min-w-0 flex-col', className)}>
-      <div className="flex min-w-0 items-center gap-2 px-4 py-3 border-b border-border/60">
-        <Palette className="w-5 h-5 text-muted-foreground" />
-        <h2 className="text-sm font-semibold">{t('activity:design.heading')}</h2>
-        <span className="text-xs text-muted-foreground">{t('activity:design.kitsCount', { count: filtered.length })}</span>
-        <input
-          value={q}
-          onChange={(e) => setQ(e.target.value)}
-          placeholder={t('activity:design.searchPlaceholder')}
-          className="ml-2 text-xs bg-transparent border border-border/60 rounded px-2 py-1 w-44"
-        />
-        <select
-          value={stack}
-          onChange={(e) => setStack(e.target.value)}
-          className="text-xs bg-transparent border border-border/60 rounded px-1.5 py-1"
-          title={t('activity:design.stackTitle')}
-        >
-          {STACKS.map((s) => (
-            <option key={s} value={s}>
-              {s}
-            </option>
-          ))}
-        </select>
-        {status && (
-          <span className="text-[11px] text-muted-foreground max-w-48 truncate">{status}</span>
-        )}
-        <button
-          type="button"
-          onClick={() => showPanel('chat')}
-          className="ml-auto p-1 rounded hover:bg-muted text-muted-foreground"
-          title={t('common:action.close')}
-        >
-          <X className="w-4 h-4" />
-        </button>
+    <div className={cn('flex h-full min-h-0 min-w-0 flex-col overflow-hidden bg-[hsl(var(--surface-2)/0.45)]', className)}>
+      <div className="border-b border-border/60 p-3">
+        <div className="rounded-xl border border-border/70 bg-card/75 p-3 shadow-sm">
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
+            <div className="flex min-w-0 items-center gap-2">
+              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                <Palette className="h-4 w-4" />
+              </span>
+              <div className="min-w-0">
+                <h2 className="truncate text-sm font-semibold">{t('activity:design.heading')}</h2>
+                <p className="text-xs text-muted-foreground">{t('activity:design.kitsCount', { count: filtered.length })}</p>
+              </div>
+            </div>
+            <div className="flex min-w-0 flex-1 flex-col gap-2 sm:flex-row sm:items-center lg:justify-end">
+              <label className="relative min-w-0 flex-1 sm:max-w-xs">
+                <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground/70" />
+                <input
+                  value={q}
+                  onChange={(e) => setQ(e.target.value)}
+                  placeholder={t('activity:design.searchPlaceholder')}
+                  className="h-9 w-full rounded-md border border-border/70 bg-background/70 pl-8 pr-3 text-sm shadow-sm outline-none transition focus:border-primary/40 focus:ring-2 focus:ring-ring/30"
+                />
+              </label>
+              <select
+                value={stack}
+                onChange={(e) => setStack(e.target.value)}
+                className="h-9 rounded-md border border-border/70 bg-background/70 px-2 text-sm shadow-sm"
+                title={t('activity:design.stackTitle')}
+              >
+                {STACKS.map((s) => (
+                  <option key={s} value={s}>
+                    {s}
+                  </option>
+                ))}
+              </select>
+              {status && (
+                <span className="min-w-0 truncate rounded-md border border-border/60 bg-muted/40 px-2 py-1 text-[11px] text-muted-foreground sm:max-w-56">
+                  {status}
+                </span>
+              )}
+              <button
+                type="button"
+                onClick={() => showPanel('chat')}
+                className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground"
+                title={t('common:action.close')}
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+          </div>
+        </div>
       </div>
 
-      <div className="min-h-0 min-w-0 flex-1 overflow-y-auto p-4">
-        <div className="grid gap-4 [grid-template-columns:repeat(auto-fill,minmax(300px,1fr))]">
+      <div className="min-h-0 min-w-0 flex-1 overflow-y-auto p-3 sm:p-4">
+        {filtered.length === 0 ? (
+          <div className="ws-surface mx-auto mt-8 flex max-w-md flex-col items-center gap-3 rounded-xl p-6 text-center text-muted-foreground">
+            <Palette className="h-8 w-8 text-primary/60" />
+            <p className="text-sm font-medium text-foreground">{t('activity:design.kitsCount', { count: 0 })}</p>
+            <p className="text-xs">{t('activity:design.searchPlaceholder')}</p>
+          </div>
+        ) : (
+        <div className="grid gap-4 [grid-template-columns:repeat(auto-fill,minmax(min(100%,20rem),1fr))]">
           {filtered.map((kit) => {
             const isActive = activeKit === kit.id;
             const ov = isActive ? overrides : {};
@@ -330,16 +351,16 @@ export function DesignGalleryView({ className }: { className?: string }) {
               <div
                 key={kit.id}
                 className={cn(
-                  'rounded-xl border overflow-hidden flex flex-col',
-                  isActive ? 'border-primary/60 ring-1 ring-primary/40' : 'border-border/60',
+                  'flex min-w-0 flex-col overflow-hidden rounded-xl border bg-card/75 shadow-sm',
+                  isActive ? 'border-primary/60 ring-1 ring-primary/30' : 'border-border/70',
                 )}
               >
                 {/* Live light + dark previews (override-applied for the active kit) */}
-                <div className="grid grid-cols-2">
+                <div className="grid min-h-[12rem] grid-cols-1 sm:grid-cols-2">
                   <KitPreview t={applyOv(kit.light, ov, 'light')} label={t('activity:designStudio.light')} />
                   <KitPreview t={applyOv(kit.dark, ov, 'dark')} label={t('activity:designStudio.dark')} />
                 </div>
-                <div className="p-3 border-t border-border/60 flex flex-col gap-1.5 bg-card">
+                <div className="flex min-w-0 flex-col gap-2 border-t border-border/60 bg-card p-3">
                   <div className="flex items-center gap-1.5">
                     <h3 className="text-sm font-semibold truncate">{kit.name}</h3>
                     <code className="text-[10px] text-muted-foreground">{kit.id}</code>
@@ -350,12 +371,12 @@ export function DesignGalleryView({ className }: { className?: string }) {
                     )}
                   </div>
                   <p className="text-[11px] text-muted-foreground leading-snug">{kit.aesthetic}</p>
-                  <div className="flex items-center gap-2 mt-1">
+                  <div className="mt-1 flex min-w-0 flex-wrap items-center gap-2">
                     <button
                       type="button"
                       onClick={() => useKit(kit.id)}
                       className={cn(
-                        'text-[11px] px-2.5 py-1 rounded font-medium',
+                        'rounded-md px-2.5 py-1 text-[11px] font-medium transition',
                         isActive
                           ? 'bg-primary/10 text-primary'
                           : 'bg-primary text-primary-foreground hover:opacity-90',
@@ -367,7 +388,7 @@ export function DesignGalleryView({ className }: { className?: string }) {
                       <button
                         type="button"
                         onClick={materialize}
-                        className="inline-flex items-center gap-1 text-[11px] px-2 py-1 rounded font-medium border border-border/60 hover:bg-muted"
+                        className="inline-flex items-center gap-1 rounded-md border border-border/60 px-2 py-1 text-[11px] font-medium hover:bg-muted"
                         title={t('activity:design.materializeTitle', { stack })}
                       >
                         <Download className="w-3 h-3" /> {t('activity:design.materialize')}
@@ -377,13 +398,13 @@ export function DesignGalleryView({ className }: { className?: string }) {
                       <button
                         type="button"
                         onClick={verify}
-                        className="inline-flex items-center gap-1 text-[11px] px-2 py-1 rounded font-medium border border-border/60 hover:bg-muted"
+                        className="inline-flex items-center gap-1 rounded-md border border-border/60 px-2 py-1 text-[11px] font-medium hover:bg-muted"
                         title={t('activity:design.verifyTitle')}
                       >
                         <ShieldCheck className="w-3 h-3" /> {t('activity:design.verify')}
                       </button>
                     )}
-                    <span className="text-[10px] text-muted-foreground truncate">
+                    <span className="min-w-0 flex-1 truncate text-[10px] text-muted-foreground">
                       {kit.bestFor}
                     </span>
                   </div>
@@ -393,6 +414,7 @@ export function DesignGalleryView({ className }: { className?: string }) {
             );
           })}
         </div>
+        )}
       </div>
     </div>
   );

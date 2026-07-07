@@ -46,27 +46,27 @@ import { WorktreeOrphans } from './WorktreeOrphans';
 
 const CHIP_TONES: Record<DockSection, { active: string; idle: string }> = {
   autophase: {
-    active: 'bg-primary/15 border-primary/40 text-primary',
+    active: 'bg-primary/12 border-primary/40 text-primary shadow-sm',
     idle: 'text-primary/80 hover:bg-primary/10',
   },
   goal: {
-    active: 'bg-rose-500/15 border-rose-500/40 text-rose-600 dark:text-rose-400',
-    idle: 'text-rose-600/80 dark:text-rose-400/80 hover:bg-rose-500/10',
+    active: 'bg-destructive/10 border-destructive/35 text-destructive shadow-sm',
+    idle: 'text-destructive/80 hover:bg-destructive/10',
   },
   fleet: {
-    active: 'bg-emerald-500/15 border-emerald-500/40 text-emerald-600 dark:text-emerald-400',
-    idle: 'text-emerald-600/80 dark:text-emerald-400/80 hover:bg-emerald-500/10',
+    active: 'bg-success/12 border-success/35 text-success shadow-sm',
+    idle: 'text-success/80 hover:bg-success/10',
   },
   work: {
-    active: 'bg-amber-500/15 border-amber-500/40 text-amber-600 dark:text-amber-400',
-    idle: 'text-amber-600/80 dark:text-amber-400/80 hover:bg-amber-500/10',
+    active: 'bg-warning/12 border-warning/35 text-warning shadow-sm',
+    idle: 'text-warning/80 hover:bg-warning/10',
   },
   worktrees: {
-    active: 'bg-violet-500/15 border-violet-500/40 text-violet-600 dark:text-violet-400',
-    idle: 'text-violet-600/80 dark:text-violet-400/80 hover:bg-violet-500/10',
+    active: 'bg-info/12 border-info/35 text-info shadow-sm',
+    idle: 'text-info/80 hover:bg-info/10',
   },
   collab: {
-    active: 'bg-cyan-500/15 border-cyan-500/40 text-cyan-600 dark:text-cyan-400',
+    active: 'bg-accent border-primary/25 text-accent-foreground shadow-sm',
     idle: 'text-muted-foreground hover:bg-muted/60',
   },
 };
@@ -107,7 +107,7 @@ function DockChip({
       onClick={onClick}
       title={active ? t('activity:dock.collapseChip', { label }) : t('activity:dock.expandChip', { label })}
       className={cn(
-        'flex items-center gap-2 h-7 px-2.5 rounded-full border text-xs font-medium shrink-0 transition-colors',
+        'flex items-center gap-2 h-7 px-2.5 rounded-md border text-xs font-medium shrink-0 transition-colors',
         active ? tone.active : cn('border-border/40', tone.idle),
       )}
     >
@@ -180,7 +180,7 @@ export function WorkspaceDock({ sessionId }: { sessionId: string }) {
   return (
     <div className="space-y-2">
       {/* ── Chip strip ── */}
-      <div className="flex flex-wrap items-center gap-1.5 rounded-lg border border-border/50 bg-muted/20 px-2 py-1.5">
+      <div className="flex flex-wrap items-center gap-1.5 rounded-lg border border-border/70 bg-card/70 px-2 py-1.5 shadow-sm">
         {visible.autophase && (
           <DockChip
             section="autophase"
@@ -244,27 +244,27 @@ export function WorkspaceDock({ sessionId }: { sessionId: string }) {
               // Toggle dock section to git if implemented; for now just
               // show the branch name and stats as a static info chip.
             }}
-            className="inline-flex items-center gap-1.5 h-7 px-2.5 rounded-full border border-border/40 text-xs font-mono hover:bg-muted/60 transition-colors"
+            className="inline-flex h-8 max-w-full min-w-0 items-center gap-1.5 rounded-md border border-border/50 px-2.5 text-xs font-mono transition-colors hover:bg-muted/60 sm:h-7"
           >
             <GitBranch className="h-3 w-3 shrink-0 text-muted-foreground" />
-            <span className="font-semibold text-foreground">{gitInfo.branch}</span>
+            <span className="min-w-0 truncate font-semibold text-foreground">{gitInfo.branch}</span>
             {gitInfo.ahead > 0 && (
-              <span className="text-emerald-600 dark:text-emerald-400" title={t('activity:dock.ahead', { count: gitInfo.ahead })}>
+              <span className="text-success" title={t('activity:dock.ahead', { count: gitInfo.ahead })}>
                 ↑{gitInfo.ahead}
               </span>
             )}
             {gitInfo.behind > 0 && (
-              <span className="text-amber-600 dark:text-amber-400" title={t('activity:dock.behind', { count: gitInfo.behind })}>
+              <span className="text-warning" title={t('activity:dock.behind', { count: gitInfo.behind })}>
                 ↓{gitInfo.behind}
               </span>
             )}
             {gitInfo.added > 0 && (
-              <span className="text-emerald-600 dark:text-emerald-400" title={t('activity:dock.linesAdded', { count: gitInfo.added })}>
+              <span className="text-success" title={t('activity:dock.linesAdded', { count: gitInfo.added })}>
                 +{gitInfo.added}
               </span>
             )}
             {gitInfo.deleted > 0 && (
-              <span className="text-red-600 dark:text-red-400" title={t('activity:dock.linesDeleted', { count: gitInfo.deleted })}>
+              <span className="text-destructive" title={t('activity:dock.linesDeleted', { count: gitInfo.deleted })}>
                 -{gitInfo.deleted}
               </span>
             )}
@@ -289,7 +289,7 @@ export function WorkspaceDock({ sessionId }: { sessionId: string }) {
             <button
               type="button"
               title={t('activity:dock.customizeTitle')}
-              className="ml-auto inline-flex items-center justify-center h-7 w-7 rounded-full border border-border/40 text-muted-foreground hover:bg-muted/60 transition-colors shrink-0"
+              className="ml-auto inline-flex items-center justify-center h-7 w-7 rounded-md border border-border/50 text-muted-foreground hover:bg-muted/60 transition-colors shrink-0"
             >
               <SlidersHorizontal className="h-3 w-3" />
             </button>
@@ -330,7 +330,7 @@ export function WorkspaceDock({ sessionId }: { sessionId: string }) {
                 type="button"
                 onClick={() => setWorktreeView(v)}
                 className={cn(
-                  'text-xs px-2.5 py-0.5 rounded-full border transition-colors capitalize',
+                  'text-xs px-2.5 py-0.5 rounded-md border transition-colors capitalize',
                   worktreeView === v
                     ? 'bg-primary/10 border-primary/30 text-primary'
                     : 'border-border text-muted-foreground hover:text-foreground',
@@ -367,7 +367,7 @@ function DockEmptyState({
   detail: string;
 }): React.ReactElement {
   return (
-    <div className="rounded-lg border border-border/50 bg-muted/20 px-3 py-2 text-xs">
+    <div className="rounded-lg border border-border/70 bg-muted/20 px-3 py-2 text-xs">
       <div className="font-medium text-foreground">{title}</div>
       <div className="mt-1 text-muted-foreground">{detail}</div>
     </div>

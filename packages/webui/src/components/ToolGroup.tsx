@@ -81,11 +81,11 @@ export const ToolGroup = memo(function ToolGroup({
             {t('activity:toolGroup.toolCalls', { count: tools.length })}
           </span>
           {running > 0 ? (
-            <Loader2 className="h-3 w-3 animate-spin text-amber-500" />
+            <Loader2 className="h-3 w-3 animate-spin text-warning" />
           ) : errored > 0 ? (
             <XCircle className="h-3 w-3 text-destructive" />
           ) : (
-            <CheckCircle2 className="h-3 w-3 text-green-500" />
+            <CheckCircle2 className="h-3 w-3 text-success" />
           )}
           {totalMs > 0 && (
             <span className="text-xs text-muted-foreground tabular-nums font-normal">

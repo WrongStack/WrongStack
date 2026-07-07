@@ -123,7 +123,7 @@ export function SddTaskDrawer({
   return (
     <div className="sdd-rise flex h-full min-h-0 min-w-0 flex-col">
       {/* header */}
-      <div className="flex items-center gap-2 border-b border-border px-3 py-2">
+      <div className="flex items-center gap-2 border-b border-border/70 bg-card/70 px-3 py-2">
         <button
           type="button"
           onClick={onClose}
@@ -150,11 +150,11 @@ export function SddTaskDrawer({
 
         {/* worker */}
         {task.agentName && (
-          <div className="flex items-center gap-2 rounded-md border border-border bg-muted p-2">
+          <div className="flex items-center gap-2 rounded-lg border border-border/70 bg-muted/45 p-2">
             <span
               className={cn(
                 'flex h-7 w-7 items-center justify-center rounded-full text-[10px] font-bold text-white',
-                running ? 'bg-amber-500 sdd-agent-live' : 'bg-slate-600',
+                running ? 'bg-[hsl(var(--warning))] sdd-agent-live' : 'bg-muted-foreground',
               )}
             >
               {agentInitials(task.agentName)}
@@ -186,7 +186,7 @@ export function SddTaskDrawer({
           )}
           {task.retries ? (
             <Meta label={t('activity:sddTask.metaRetries')}>
-              <span className="flex items-center gap-1 text-red-400">
+              <span className="flex items-center gap-1 text-destructive">
                 <RotateCcw className="h-3 w-3" />
                 {task.retries}
               </span>
@@ -345,12 +345,12 @@ export function SddTaskDrawer({
                     className={cn(
                       'absolute -left-[14px] top-1 h-1.5 w-1.5 rounded-full',
                       e.kind === 'completed'
-                        ? 'bg-emerald-400'
+                        ? 'bg-[hsl(var(--success))]'
                         : e.kind === 'failed'
-                          ? 'bg-red-400'
+                          ? 'bg-destructive'
                           : e.kind === 'retrying'
-                            ? 'bg-orange-400'
-                            : 'bg-amber-400',
+                            ? 'bg-[hsl(var(--warning))]'
+                            : 'bg-primary',
                     )}
                   />
                   {e.text}
@@ -392,13 +392,13 @@ export function SddTaskDrawer({
                 if (e.key === 'Escape') setReassigning(false);
               }}
               placeholder={t('activity:sddTask.newWorkerPlaceholder')}
-              className="min-w-0 flex-1 rounded-md border border-border bg-background px-2 py-1.5 text-xs outline-none focus:border-violet-500"
+              className="min-w-0 flex-1 rounded-md border border-border/70 bg-background px-2 py-1.5 text-xs outline-none focus:border-primary/60"
             />
             <button
               type="button"
               onClick={submitReassign}
               disabled={!reassignName.trim()}
-              className="rounded-md bg-violet-500/20 px-2 py-1.5 text-xs font-medium text-violet-700 dark:text-violet-200 hover:bg-violet-500/30 disabled:opacity-40"
+              className="rounded-md bg-primary/10 px-2 py-1.5 text-xs font-medium text-primary hover:bg-primary/15 disabled:opacity-40"
             >
               <Check className="h-3.5 w-3.5" />
             </button>
@@ -422,7 +422,7 @@ export function SddTaskDrawer({
                 else onDelete(task.id);
                 setConfirm(null);
               }}
-              className="inline-flex items-center gap-1 rounded-md bg-red-500/20 px-2.5 py-1.5 text-xs font-medium text-red-700 dark:text-red-200 hover:bg-red-500/30"
+              className="inline-flex items-center gap-1 rounded-md bg-destructive/10 px-2.5 py-1.5 text-xs font-medium text-destructive hover:bg-destructive/15"
             >
               <Check className="h-3.5 w-3.5" /> {confirm === 'stop' ? t('common:action.stop') : t('common:action.delete')}
             </button>
@@ -440,14 +440,14 @@ export function SddTaskDrawer({
               type="button"
               onClick={() => onRetry(task.id)}
               title={t('activity:sddTask.retryTitle')}
-              className="inline-flex flex-1 items-center justify-center gap-1 rounded-md bg-orange-500/15 py-1.5 text-xs font-medium text-orange-600 dark:text-orange-300 hover:bg-orange-500/25"
+              className="inline-flex flex-1 items-center justify-center gap-1 rounded-md bg-[hsl(var(--warning)/0.12)] py-1.5 text-xs font-medium text-[hsl(var(--warning))] hover:bg-[hsl(var(--warning)/0.18)]"
             >
               <RotateCcw className="h-3.5 w-3.5" /> {t('common:action.retry')}
             </button>
             <button
               type="button"
               onClick={() => setReassigning(true)}
-              className="inline-flex flex-1 items-center justify-center gap-1 rounded-md bg-violet-500/15 py-1.5 text-xs font-medium text-violet-600 dark:text-violet-300 hover:bg-violet-500/25"
+              className="inline-flex flex-1 items-center justify-center gap-1 rounded-md bg-primary/10 py-1.5 text-xs font-medium text-primary hover:bg-primary/15"
             >
               <UserCog className="h-3.5 w-3.5" /> {t('activity:sddTask.reassign')}
             </button>
@@ -456,7 +456,7 @@ export function SddTaskDrawer({
                 type="button"
                 onClick={() => setConfirm('stop')}
                 title={t('activity:sddTask.stopTitle')}
-                className="inline-flex flex-1 items-center justify-center gap-1 rounded-md bg-red-500/15 py-1.5 text-xs font-medium text-red-600 dark:text-red-300 hover:bg-red-500/25"
+                className="inline-flex flex-1 items-center justify-center gap-1 rounded-md bg-destructive/10 py-1.5 text-xs font-medium text-destructive hover:bg-destructive/15"
               >
                 <Square className="h-3.5 w-3.5" /> {t('common:action.stop')}
               </button>
@@ -466,7 +466,7 @@ export function SddTaskDrawer({
                 type="button"
                 onClick={() => setSplitting(true)}
                 title={t('activity:sddTask.splitTitle')}
-                className="inline-flex flex-1 items-center justify-center gap-1 rounded-md bg-sky-500/15 py-1.5 text-xs font-medium text-sky-600 dark:text-sky-300 hover:bg-sky-500/25"
+                className="inline-flex flex-1 items-center justify-center gap-1 rounded-md bg-primary/10 py-1.5 text-xs font-medium text-primary hover:bg-primary/15"
               >
                 <Split className="h-3.5 w-3.5" /> {t('activity:sddTask.split')}
               </button>
@@ -476,7 +476,7 @@ export function SddTaskDrawer({
                 type="button"
                 onClick={() => setConfirm('delete')}
                 title={t('activity:sddTask.deleteTitle')}
-                className="inline-flex flex-1 items-center justify-center gap-1 rounded-md bg-red-500/10 py-1.5 text-xs font-medium text-red-600 dark:text-red-300/90 hover:bg-red-500/20"
+                className="inline-flex flex-1 items-center justify-center gap-1 rounded-md bg-destructive/10 py-1.5 text-xs font-medium text-destructive hover:bg-destructive/15"
               >
                 <Trash2 className="h-3.5 w-3.5" /> {t('common:action.delete')}
               </button>
@@ -495,13 +495,13 @@ export function SddTaskDrawer({
               value={splitText}
               onChange={(e) => setSplitText(e.target.value)}
               placeholder={t('activity:sddTask.splitPlaceholder')}
-              className="w-full resize-y rounded-md border border-border bg-background px-2 py-1.5 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-sky-500"
+              className="w-full resize-y rounded-md border border-border/70 bg-background px-2 py-1.5 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
             />
             <div className="flex gap-2">
               <button
                 type="button"
                 onClick={submitSplit}
-                className="inline-flex flex-1 items-center justify-center gap-1 rounded-md bg-sky-500/20 py-1.5 text-xs font-medium text-sky-700 dark:text-sky-200 hover:bg-sky-500/30"
+                className="inline-flex flex-1 items-center justify-center gap-1 rounded-md bg-primary/10 py-1.5 text-xs font-medium text-primary hover:bg-primary/15"
               >
                 <Split className="h-3.5 w-3.5" /> {t('activity:sddTask.splitInto')}
               </button>

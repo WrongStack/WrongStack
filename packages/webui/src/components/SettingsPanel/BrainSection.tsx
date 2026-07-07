@@ -1,8 +1,9 @@
-import { Brain, ChevronDown, ChevronRight, Loader2 } from 'lucide-react';
+import { Brain, Loader2 } from 'lucide-react';
 import { type ReactElement, useCallback, useEffect, useState } from 'react';
 import { useAppTranslation } from '@/i18n';
 import { useWebSocket } from '@/hooks/useWebSocket';
 import type { WSServerMessage } from '@/types';
+import { cn } from '@/lib/utils';
 import { Badge } from '../ui/badge';
 import { Button } from '../ui/button';
 
@@ -10,15 +11,23 @@ const RISK_LEVELS = ['off', 'low', 'medium', 'high', 'all'] as const;
 type RiskLevel = (typeof RISK_LEVELS)[number];
 
 const RISK_COLORS: Record<RiskLevel, string> = {
-  off: 'bg-gray-500',
-  low: 'bg-green-500',
-  medium: 'bg-yellow-500',
-  high: 'bg-orange-500',
-  all: 'bg-red-500',
+  off: 'bg-muted-foreground',
+  low: 'bg-success',
+  medium: 'bg-warning',
+  high: 'bg-warning ring-2 ring-warning/25',
+  all: 'bg-destructive',
+};
+
+const RISK_COPY: Record<RiskLevel, string> = {
+  off: 'Human decides everything',
+  low: 'Auto-decide low risk only',
+  medium: 'Auto-decide up to medium risk',
+  high: 'Auto-decide up to high risk',
+  all: 'Auto-decide everything',
 };
 
 function RiskDot({ level }: { level: RiskLevel }) {
-  return <span className={`inline-block w-3 h-3 rounded-full ${RISK_COLORS[level]}`} />;
+  return <span className={cn('inline-block h-2.5 w-2.5 rounded-full', RISK_COLORS[level])} />;
 }
 
 export function BrainSection(): ReactElement {
@@ -74,14 +83,19 @@ export function BrainSection(): ReactElement {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center gap-2">
-        <Brain className="h-5 w-5 text-purple-500" />
-        <h3 className="text-lg font-semibold">Brain</h3>
-        {loading && <Loader2 className="h-4 w-4 animate-spin ml-2" />}
+      <div className="flex items-center gap-3">
+        <span className="flex h-9 w-9 items-center justify-center rounded-md border border-primary/20 bg-primary/10 text-primary">
+          <Brain className="h-5 w-5" />
+        </span>
+        <div className="min-w-0">
+          <h3 className="text-base font-semibold">Brain</h3>
+          <p className="text-xs text-muted-foreground">Decision routing and autonomous risk ceiling.</p>
+        </div>
+        {loading && <Loader2 className="ml-auto h-4 w-4 animate-spin text-muted-foreground" />}
       </div>
 
       {/* Risk ceiling */}
-      <div className="space-y-2">
+      <div className="space-y-2 rounded-md border border-border/70 bg-muted/20 p-3">
         <label className="text-sm font-medium">Autonomy ceiling</label>
         <div className="flex gap-2 flex-wrap">
           {RISK_LEVELS.map((level) => (
@@ -89,7 +103,10 @@ export function BrainSection(): ReactElement {
               key={level}
               variant={riskLevel === level ? 'default' : 'outline'}
               size="sm"
-              className="gap-1.5 text-xs"
+              className={cn(
+                'gap-1.5 text-xs',
+                riskLevel === level && 'shadow-sm',
+              )}
               disabled={busy}
               onClick={() => handleRiskChange(level)}
             >
@@ -99,23 +116,19 @@ export function BrainSection(): ReactElement {
           ))}
         </div>
         <p className="text-xs text-muted-foreground">
-          {riskLevel === 'off' && 'Human decides everything'}
-          {riskLevel === 'low' && 'Auto-decide low risk only'}
-          {riskLevel === 'medium' && 'Auto-decide up to medium risk'}
-          {riskLevel === 'high' && 'Auto-decide up to high risk'}
-          {riskLevel === 'all' && 'Auto-decide everything'}
+          {RISK_COPY[riskLevel]}
         </p>
       </div>
 
       {/* Recent decisions */}
-      <div className="space-y-2">
+      <div className="space-y-2 rounded-md border border-border/70 bg-card/70 p-3">
         <label className="text-sm font-medium">Recent decisions ({log.length})</label>
         <div className="space-y-1 max-h-[300px] overflow-y-auto">
           {log.length === 0 ? (
             <p className="text-xs text-muted-foreground py-2">No decisions recorded yet this session.</p>
           ) : (
             log.map((entry, i) => (
-              <div key={i} className="flex items-start gap-2 text-xs py-1 border-b border-border last:border-0">
+              <div key={i} className="flex items-start gap-2 rounded-md border border-border/50 bg-background/40 px-2 py-1.5 text-xs">
                 <span className="text-muted-foreground shrink-0 w-8">{entry.age}</span>
                 <Badge variant="outline" className="text-[10px] shrink-0">{entry.kind}</Badge>
                 <span className="flex-1 truncate">{entry.question}</span>

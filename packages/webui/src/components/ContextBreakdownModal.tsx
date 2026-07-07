@@ -185,17 +185,17 @@ export function ContextBreakdownModal({ open, onClose }: ContextBreakdownModalPr
                   {data.total > 0 && (
                     <>
                       <span
-                        className="h-full bg-blue-500/70 transition-all"
+                        className="h-full bg-info/70 transition-all"
                         style={{ width: `${(data.systemPrompt / data.total) * 100}%` }}
                         title={t('activity:context.systemTitle', { tokens: fmtTok(data.systemPrompt) })}
                       />
                       <span
-                        className="h-full bg-amber-500/70 transition-all"
+                        className="h-full bg-warning/70 transition-all"
                         style={{ width: `${(data.tools.total / data.total) * 100}%` }}
                         title={t('activity:context.toolsTitle', { tokens: fmtTok(data.tools.total) })}
                       />
                       <span
-                        className="h-full bg-emerald-500/70 transition-all"
+                        className="h-full bg-success/70 transition-all"
                         style={{ width: `${(data.messages.total / data.total) * 100}%` }}
                         title={t('activity:context.messagesTitle', { tokens: fmtTok(data.messages.total) })}
                       />
@@ -204,13 +204,13 @@ export function ContextBreakdownModal({ open, onClose }: ContextBreakdownModalPr
                 </div>
                 <div className="flex gap-3 mt-1 text-[10px] text-muted-foreground">
                   <span className="flex items-center gap-1">
-                    <span className="w-2 h-2 rounded-full bg-blue-500/70" /> {t('activity:context.system')}
+                    <span className="w-2 h-2 rounded-full bg-info/70" /> {t('activity:context.system')}
                   </span>
                   <span className="flex items-center gap-1">
-                    <span className="w-2 h-2 rounded-full bg-amber-500/70" /> {t('activity:context.tools')}
+                    <span className="w-2 h-2 rounded-full bg-warning/70" /> {t('activity:context.tools')}
                   </span>
                   <span className="flex items-center gap-1">
-                    <span className="w-2 h-2 rounded-full bg-emerald-500/70" /> {t('activity:context.messages')}
+                    <span className="w-2 h-2 rounded-full bg-success/70" /> {t('activity:context.messages')}
                   </span>
                 </div>
               </div>

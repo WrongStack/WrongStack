@@ -137,12 +137,12 @@ export function MailboxPanel({ className }: { className?: string }) {
         onClick={() => setCollapsed((v) => !v)}
         className="flex w-full items-center gap-2 px-3 py-2.5 text-left hover:bg-accent/40 rounded-t-lg transition-colors"
       >
-        <Mail className="h-4 w-4 text-cyan-500" />
+        <Mail className="h-4 w-4 text-primary" />
         <span className="text-xs font-semibold text-foreground flex-1 min-w-0 truncate">
           {t('activity:nav.mailbox')}
         </span>
         {unreadCount > 0 && (
-          <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-yellow-100 dark:bg-yellow-900/40 text-yellow-700 dark:text-yellow-400">
+          <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-warning/10 text-warning">
             {unreadCount}
           </span>
         )}
@@ -164,7 +164,7 @@ export function MailboxPanel({ className }: { className?: string }) {
                   type="button"
                   onClick={handleDeleteAll}
                   disabled={deleting}
-                  className="flex items-center gap-1 text-[10px] text-muted-foreground hover:text-red-500 disabled:opacity-40 transition-colors"
+                  className="flex items-center gap-1 text-[10px] text-muted-foreground hover:text-destructive disabled:opacity-40 transition-colors"
                   title={t('activity:mailbox.deleteAllTitle')}
                 >
                   <Trash2 className="h-3 w-3" />
@@ -174,7 +174,7 @@ export function MailboxPanel({ className }: { className?: string }) {
                   type="button"
                   onClick={handlePurge}
                   disabled={purging}
-                  className="flex items-center gap-1 text-[10px] text-muted-foreground hover:text-cyan-500 disabled:opacity-40 transition-colors"
+                  className="flex items-center gap-1 text-[10px] text-muted-foreground hover:text-primary disabled:opacity-40 transition-colors"
                   title={t('activity:mailbox.purgeTitle')}
                 >
                   <Sparkles className="h-3 w-3" />
@@ -192,18 +192,18 @@ export function MailboxPanel({ className }: { className?: string }) {
                     onClick={() => handleMessageClick(m)}
                     className={cn(
                       'flex items-start gap-2 px-2 py-1.5 rounded text-xs w-full text-left cursor-pointer transition-colors hover:bg-accent/60',
-                      !isRead && 'bg-yellow-50 dark:bg-yellow-950/20',
+                      !isRead && 'bg-warning/8',
                       isSelected && 'ring-1 ring-primary bg-primary/5',
                     )}
                   >
-                    <Icon className={cn('h-3.5 w-3.5 mt-0.5 shrink-0', isRead ? 'text-muted-foreground' : 'text-yellow-600')} />
+                    <Icon className={cn('h-3.5 w-3.5 mt-0.5 shrink-0', isRead ? 'text-muted-foreground' : 'text-warning')} />
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-1.5">
-                        <span className={cn('font-medium truncate', !isRead && 'text-yellow-800 dark:text-yellow-300')}>
+                        <span className={cn('font-medium truncate', !isRead && 'text-warning')}>
                           {m.from}
                         </span>
-                        {m.completed && <CheckCircle2 className="h-3 w-3 text-green-500 shrink-0" />}
-                        {!isRead && <span className="text-[9px] text-yellow-600 font-bold">{t('activity:mailbox.newLabel')}</span>}
+                        {m.completed && <CheckCircle2 className="h-3 w-3 text-success shrink-0" />}
+                        {!isRead && <span className="text-[9px] text-warning font-bold">{t('activity:mailbox.newLabel')}</span>}
                       </div>
                       <div className="text-muted-foreground truncate">{m.subject}</div>
                       <div className="text-[10px] text-muted-foreground/70 truncate">
@@ -238,11 +238,11 @@ export function MailboxPanel({ className }: { className?: string }) {
               </div>
               {agents.filter((a) => a.online).slice(0, 5).map((a) => (
                 <div key={a.agentId} className="flex items-center gap-1.5 text-[10px] text-muted-foreground py-0.5">
-                  <span className={cn('h-1.5 w-1.5 rounded-full', a.online ? 'bg-green-500' : 'bg-muted-foreground/30')} />
+                  <span className={cn('h-1.5 w-1.5 rounded-full', a.online ? 'bg-success' : 'bg-muted-foreground/30')} />
                   <span className="font-medium text-foreground/80">{a.name}</span>
                   {a.role && <span className="opacity-60">({a.role})</span>}
                   <span className="opacity-50">{a.status}</span>
-                  {a.currentTool && <span className="text-cyan-500">{a.currentTool}</span>}
+                  {a.currentTool && <span className="text-primary">{a.currentTool}</span>}
                   <span className="ml-auto opacity-50">{fmtTime(a.lastSeenAt)}</span>
                 </div>
               ))}

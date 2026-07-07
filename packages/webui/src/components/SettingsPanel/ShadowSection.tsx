@@ -39,11 +39,11 @@ export function ShadowSection(): ReactElement {
   return (
     <div className="space-y-4">
       <div className="flex items-center gap-2">
-        <Eye className="h-5 w-5 text-blue-500" />
+        <Eye className="h-5 w-5 text-info" />
         <h3 className="text-lg font-semibold">Shadow Agent</h3>
         {loading && <Loader2 className="h-4 w-4 animate-spin ml-2" />}
         {running ? (
-          <Badge className="bg-green-600 text-white text-[10px]">● running</Badge>
+          <Badge className="bg-success text-primary-foreground text-[10px]">● running</Badge>
         ) : (
           <Badge variant="outline" className="text-[10px]">○ stopped</Badge>
         )}

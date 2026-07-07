@@ -96,11 +96,15 @@ export function AgentsPanel() {
 
   if (fleetList.length === 0) {
     return (
-      <div className="flex-1 flex items-center justify-center p-4">
-        <div className="text-center text-muted-foreground">
-          <Bot className="h-8 w-8 mx-auto mb-3 opacity-20" />
-          <p className="text-sm font-medium">{t('activity:agents.empty')}</p>
-          <p className="text-xs mt-1">{t('activity:agents.emptyHint')}</p>
+      <div className="flex min-h-0 flex-1 items-center justify-center bg-[hsl(var(--surface-2)/0.35)] p-3">
+        <div className="ws-surface flex max-w-[15rem] flex-col items-center gap-3 rounded-xl p-5 text-center text-muted-foreground">
+          <span className="flex h-11 w-11 items-center justify-center rounded-lg bg-primary/10 text-primary">
+            <Bot className="h-5 w-5" />
+          </span>
+          <div>
+            <p className="text-sm font-semibold text-foreground">{t('activity:agents.empty')}</p>
+            <p className="mt-1 text-xs">{t('activity:agents.emptyHint')}</p>
+          </div>
         </div>
       </div>
     );
@@ -108,19 +112,19 @@ export function AgentsPanel() {
 
   return (
     <>
-      <div className="px-3 py-2 border-b text-[10px] text-muted-foreground flex items-center gap-2">
+      <div className="flex items-center gap-2 border-b border-border/70 bg-muted/20 px-3 py-2 text-[10px] text-muted-foreground">
         <span className="font-semibold uppercase tracking-wider">Fleet</span>
         <span className="ml-auto tabular-nums">
           {running > 0 ? <>{t('activity:agents.runningCount', { count: running })} · </> : null}
           {t('activity:agents.totalCount', { count: fleetList.length })}
         </span>
       </div>
-      <div className="min-h-0 min-w-0 flex-1 overflow-y-auto p-2 space-y-1.5">
+      <div className="min-h-0 min-w-0 flex-1 space-y-1.5 overflow-y-auto bg-[hsl(var(--surface-2)/0.35)] p-2">
         {fleetList.map((a) => (
           <AgentRow key={a.id} agent={a} onClick={() => setSelectedAgentId(a.id)} />
         ))}
       </div>
-      <div className="border-t px-3 py-2 shrink-0">
+      <div className="shrink-0 border-t border-border/70 bg-card/75 px-3 py-2">
         <button
           type="button"
           onClick={() => useUIStore.getState().setAgentsMonitorOpen(true)}

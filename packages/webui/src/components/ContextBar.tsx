@@ -95,10 +95,10 @@ export function ContextBar({
         onClick && 'cursor-pointer hover:ring-1 hover:ring-ring transition-shadow',
         getTextColor(clamped),
         clamped >= 75
-          ? 'bg-red-500/10'
+          ? 'bg-destructive/10'
           : clamped >= 60
-            ? 'bg-amber-500/10'
-            : 'bg-emerald-500/10',
+            ? 'bg-warning/10'
+            : 'bg-success/10',
         className,
       )}
       title={

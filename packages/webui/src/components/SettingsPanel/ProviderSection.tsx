@@ -1,11 +1,14 @@
 import {
   CheckCircle2,
+  Cpu,
   Eye,
   EyeOff,
   Globe,
   Key,
   Loader2,
   Plus,
+  Server,
+  ShieldCheck,
   Trash2,
   XCircle,
 } from 'lucide-react';
@@ -181,6 +184,17 @@ export function ProviderSection({
   >({});
 
   const savedIds = useMemo(() => new Set(savedProviders.map((s) => s.id)), [savedProviders]);
+  const savedProviderStats = useMemo(
+    () => ({
+      keys: savedProviders.reduce((sum, sp) => sum + sp.apiKeys.length, 0),
+      activeKeys: savedProviders.reduce(
+        (sum, sp) => sum + sp.apiKeys.filter((key) => key.isActive).length,
+        0,
+      ),
+      models: savedProviders.reduce((sum, sp) => sum + (sp.models?.length ?? 0), 0),
+    }),
+    [savedProviders],
+  );
 
   useEffect(() => {
     const off = ws.on('provider.probe', (msg: WSServerMessage) => {
@@ -338,7 +352,7 @@ export function ProviderSection({
                               </div>
                               <div className="flex items-center gap-2">
                                 {p.hasApiKey && (
-                                  <span className="text-xs bg-green-500/10 text-green-600 px-2 py-0.5 rounded">
+                                  <span className="text-xs bg-success/10 text-success px-2 py-0.5 rounded">
                                     <Key className="h-3 w-3 inline mr-1" />
                                     {t('settings:provider.configured')}
                                   </span>
@@ -348,7 +362,7 @@ export function ProviderSection({
                                     className={cn(
                                       'text-xs px-2 py-0.5 rounded inline-flex items-center gap-1',
                                       probe.ok
-                                        ? 'bg-green-500/10 text-green-600'
+                                        ? 'bg-success/10 text-success'
                                         : 'bg-destructive/10 text-destructive',
                                     )}
                                     title={probe.detail ?? probe.status}
@@ -446,10 +460,30 @@ export function ProviderSection({
       {/* Saved Providers View */}
       {providerTab === 'saved' && (
         <div className="space-y-4">
-          <div className="flex justify-between items-center">
-            <p className="text-sm text-muted-foreground">
-              {t('settings:provider.manageKeys')}
-            </p>
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="min-w-0">
+              <p className="text-sm font-medium text-foreground">
+                {t('settings:provider.manageKeys')}
+              </p>
+              <div className="mt-2 flex flex-wrap gap-2 text-xs text-muted-foreground">
+                <span className="inline-flex items-center gap-1 rounded-md border border-border/70 bg-muted/30 px-2 py-1">
+                  <Server className="h-3.5 w-3.5" />
+                  {t('settings:provider.savedProviderCount', { count: savedProviders.length })}
+                </span>
+                <span className="inline-flex items-center gap-1 rounded-md border border-border/70 bg-muted/30 px-2 py-1">
+                  <Key className="h-3.5 w-3.5" />
+                  {t('settings:provider.keyCount', { count: savedProviderStats.keys })}
+                </span>
+                <span className="inline-flex items-center gap-1 rounded-md border border-border/70 bg-muted/30 px-2 py-1">
+                  <ShieldCheck className="h-3.5 w-3.5" />
+                  {t('settings:provider.activeKeyCount', { count: savedProviderStats.activeKeys })}
+                </span>
+                <span className="inline-flex items-center gap-1 rounded-md border border-border/70 bg-muted/30 px-2 py-1">
+                  <Cpu className="h-3.5 w-3.5" />
+                  {t('settings:provider.modelCount', { count: savedProviderStats.models })}
+                </span>
+              </div>
+            </div>
             <Button
               size="sm"
               variant="outline"
@@ -536,140 +570,198 @@ export function ProviderSection({
             </div>
           ) : (
             savedProviders.map((sp) => (
-              <div key={sp.id} className="border rounded-lg p-4 space-y-3">
-                <div className="flex justify-between items-start">
-                  <div>
-                    <h4 className="font-medium">{sp.id}</h4>
-                    {sp.family && (
-                      <span className="text-xs text-muted-foreground">{sp.family}</span>
-                    )}
+              <div
+                key={sp.id}
+                className="rounded-lg border border-border/80 bg-card/70 p-4 shadow-sm shadow-black/[0.02]"
+              >
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                  <div className="min-w-0 space-y-2">
+                    <div className="flex min-w-0 flex-wrap items-center gap-2">
+                      <h4 className="min-w-0 truncate font-mono text-sm font-semibold text-foreground">
+                        {sp.id}
+                      </h4>
+                      {sp.family && (
+                        <span className="rounded-full border border-border/70 bg-muted/40 px-2 py-0.5 text-[11px] font-medium text-muted-foreground">
+                          {sp.family}
+                        </span>
+                      )}
+                      {sp.apiKeys.some((key) => key.isActive) && (
+                        <span className="inline-flex items-center gap-1 rounded-full bg-success/10 px-2 py-0.5 text-[11px] font-medium text-success">
+                          <ShieldCheck className="h-3 w-3" />
+                          {t('settings:provider.active')}
+                        </span>
+                      )}
+                    </div>
+                    <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
+                      {sp.baseUrl && (
+                        <span className="inline-flex max-w-full items-center gap-1 rounded-md border border-border/70 bg-background/60 px-2 py-1">
+                          <Globe className="h-3.5 w-3.5 shrink-0" />
+                          <span className="truncate">{sp.baseUrl}</span>
+                        </span>
+                      )}
+                      <span className="inline-flex items-center gap-1 rounded-md border border-border/70 bg-background/60 px-2 py-1">
+                        <Cpu className="h-3.5 w-3.5" />
+                        {t('settings:provider.modelCount', { count: sp.models?.length ?? 0 })}
+                      </span>
+                      <span className="inline-flex items-center gap-1 rounded-md border border-border/70 bg-background/60 px-2 py-1">
+                        <Key className="h-3.5 w-3.5" />
+                        {t('settings:provider.keyCount', { count: sp.apiKeys.length })}
+                      </span>
+                    </div>
                   </div>
-                  <div className="flex gap-2">
-                    <Button size="icon" variant="ghost" onClick={() => onRemoveProvider(sp.id)}>
+                  <div className="flex gap-2 sm:justify-end">
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      onClick={() => onRemoveProvider(sp.id)}
+                      aria-label={`Remove provider ${sp.id}`}
+                      title={`Remove provider ${sp.id}`}
+                      className="h-8 w-8 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+                    >
                       <Trash2 className="h-4 w-4 text-destructive" />
                     </Button>
                   </div>
                 </div>
 
-                {sp.baseUrl && (
-                  <div className="text-xs text-muted-foreground">
-                    <Globe className="h-3 w-3 inline mr-1" />
-                    {sp.baseUrl}
-                  </div>
-                )}
+                <div className="mt-4 grid gap-4 xl:grid-cols-[minmax(0,1.35fr)_minmax(280px,0.85fr)]">
+                  <ProviderModelsPanel
+                    providerId={sp.id}
+                    savedPickedModelId={sp.pickedModelId}
+                    savedModels={sp.models}
+                    ws={ws}
+                    onPickModel={onPickProviderModel}
+                  />
 
-                <ProviderModelsPanel
-                  providerId={sp.id}
-                  savedPickedModelId={sp.pickedModelId}
-                  savedModels={sp.models}
-                  ws={ws}
-                  onPickModel={onPickProviderModel}
-                />
-
-                {/* API Keys */}
-                <div className="space-y-2">
-                  <div className="flex justify-between items-center">
-                    <span className="text-sm font-medium">{t('settings:provider.apiKeysLabel')}</span>
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      onClick={() => setShowAddKeyForm(showAddKeyForm === sp.id ? null : sp.id)}
-                    >
-                      <Plus className="h-3 w-3 mr-1" />
-                      {t('settings:provider.addKey')}
-                    </Button>
-                  </div>
-
-                  {sp.apiKeys.length === 0 && !showAddKeyForm && (
-                    <p className="text-xs text-muted-foreground">{t('settings:provider.noKeys')}</p>
-                  )}
-
-                  {sp.apiKeys.map((key) => (
-                    <div
-                      key={key.label}
-                      className="flex items-center justify-between p-2 bg-muted/50 rounded"
-                    >
-                      <div>
-                        <span className="text-sm font-medium">{key.label}</span>
-                        {key.isActive && (
-                          <span className="ml-2 text-xs bg-green-500/10 text-green-600 px-1.5 py-0.5 rounded">
-                            {t('settings:provider.active')}
-                          </span>
-                        )}
-                        <div className="text-xs text-muted-foreground font-mono">
-                          {key.maskedKey}
-                        </div>
+                  {/* API Keys */}
+                  <div className="rounded-lg border border-border/70 bg-background/75 p-3 shadow-sm shadow-black/[0.02]">
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="min-w-0">
+                        <span className="text-sm font-semibold">{t('settings:provider.apiKeysLabel')}</span>
+                        <p className="mt-0.5 text-xs text-muted-foreground">
+                          {t('settings:provider.keyCount', { count: sp.apiKeys.length })}
+                        </p>
                       </div>
-                      <div className="flex gap-1">
-                        {!key.isActive && (
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => setShowAddKeyForm(showAddKeyForm === sp.id ? null : sp.id)}
+                        className="h-8 px-2 text-xs"
+                      >
+                        <Plus className="h-3.5 w-3.5" />
+                        {t('settings:provider.addKey')}
+                      </Button>
+                    </div>
+
+                    {sp.apiKeys.length === 0 && !showAddKeyForm && (
+                      <p className="mt-3 rounded-md border border-dashed border-border/70 bg-muted/20 px-3 py-2 text-xs text-muted-foreground">
+                        {t('settings:provider.noKeys')}
+                      </p>
+                    )}
+
+                    {sp.apiKeys.length > 0 && (
+                      <div className="mt-3 space-y-2">
+                        {sp.apiKeys.map((key) => (
+                          <div
+                            key={key.label}
+                            className="flex flex-col gap-2 rounded-lg border border-border/70 bg-muted/20 p-2.5 sm:flex-row sm:items-center sm:justify-between"
+                          >
+                            <div className="flex min-w-0 items-start gap-2">
+                              <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-border/70 bg-background text-muted-foreground">
+                                <Key className="h-3.5 w-3.5" />
+                              </span>
+                              <div className="min-w-0">
+                                <div className="flex min-w-0 flex-wrap items-center gap-2">
+                                  <span className="truncate text-sm font-medium">
+                                    {key.label}
+                                  </span>
+                                  {key.isActive && (
+                                    <span className="rounded-full bg-success/10 px-2 py-0.5 text-[11px] font-medium text-success">
+                                      {t('settings:provider.active')}
+                                    </span>
+                                  )}
+                                </div>
+                                <div className="mt-0.5 truncate font-mono text-xs text-muted-foreground">
+                                  {key.maskedKey}
+                                </div>
+                              </div>
+                            </div>
+                            <div className="flex shrink-0 items-center justify-end gap-1">
+                              {!key.isActive && (
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => onSetActiveKey(sp.id, key.label)}
+                                  className="h-8 px-2 text-xs"
+                                >
+                                  {t('settings:provider.setActive')}
+                                </Button>
+                              )}
+                              <Button
+                                size="icon"
+                                variant="ghost"
+                                onClick={() => onDeleteKey(sp.id, key.label)}
+                                aria-label={`Delete key ${key.label}`}
+                                title={`Delete key ${key.label}`}
+                                className="h-8 w-8 text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+                              >
+                                <Trash2 className="h-3.5 w-3.5 text-destructive" />
+                              </Button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* Add Key Form */}
+                    {showAddKeyForm === sp.id && (
+                      <div className="mt-3 space-y-2 rounded-lg border border-border/70 bg-background p-3">
+                        <Input
+                          placeholder={t('settings:provider.keyLabelPlaceholder')}
+                          value={newKeyLabel}
+                          onChange={(e) => setNewKeyLabel(e.target.value)}
+                        />
+                        <div className="flex gap-2">
+                          <Input
+                            type={showNewKeyValue ? 'text' : 'password'}
+                            placeholder={t('settings:provider.apiKeyPlaceholder')}
+                            value={newKeyValue}
+                            onChange={(e) => setNewKeyValue(e.target.value)}
+                          />
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            onClick={() => setShowNewKeyValue(!showNewKeyValue)}
+                          >
+                            {showNewKeyValue ? (
+                              <EyeOff className="h-4 w-4" />
+                            ) : (
+                              <Eye className="h-4 w-4" />
+                            )}
+                          </Button>
+                        </div>
+                        <div className="flex flex-wrap gap-2">
+                          <Button
+                            size="sm"
+                            onClick={() => handleAddKey(sp.id)}
+                            disabled={!newKeyLabel.trim() || !newKeyValue.trim()}
+                          >
+                            {t('settings:provider.saveKey')}
+                          </Button>
                           <Button
                             size="sm"
                             variant="ghost"
-                            onClick={() => onSetActiveKey(sp.id, key.label)}
+                            onClick={() => {
+                              setShowAddKeyForm(null);
+                              setNewKeyLabel('');
+                              setNewKeyValue('');
+                            }}
                           >
-                            {t('settings:provider.setActive')}
+                            {t('common:action.cancel')}
                           </Button>
-                        )}
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          onClick={() => onDeleteKey(sp.id, key.label)}
-                        >
-                          <Trash2 className="h-3 w-3 text-destructive" />
-                        </Button>
+                        </div>
                       </div>
-                    </div>
-                  ))}
-
-                  {/* Add Key Form */}
-                  {showAddKeyForm === sp.id && (
-                    <div className="p-3 border rounded space-y-2 bg-background">
-                      <Input
-                        placeholder={t('settings:provider.keyLabelPlaceholder')}
-                        value={newKeyLabel}
-                        onChange={(e) => setNewKeyLabel(e.target.value)}
-                      />
-                      <div className="flex gap-2">
-                        <Input
-                          type={showNewKeyValue ? 'text' : 'password'}
-                          placeholder={t('settings:provider.apiKeyPlaceholder')}
-                          value={newKeyValue}
-                          onChange={(e) => setNewKeyValue(e.target.value)}
-                        />
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          onClick={() => setShowNewKeyValue(!showNewKeyValue)}
-                        >
-                          {showNewKeyValue ? (
-                            <EyeOff className="h-4 w-4" />
-                          ) : (
-                            <Eye className="h-4 w-4" />
-                          )}
-                        </Button>
-                      </div>
-                      <div className="flex gap-2">
-                        <Button
-                          size="sm"
-                          onClick={() => handleAddKey(sp.id)}
-                          disabled={!newKeyLabel.trim() || !newKeyValue.trim()}
-                        >
-                          {t('settings:provider.saveKey')}
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          onClick={() => {
-                            setShowAddKeyForm(null);
-                            setNewKeyLabel('');
-                            setNewKeyValue('');
-                          }}
-                        >
-                          {t('common:action.cancel')}
-                        </Button>
-                      </div>
-                    </div>
-                  )}
+                    )}
+                  </div>
                 </div>
               </div>
             ))

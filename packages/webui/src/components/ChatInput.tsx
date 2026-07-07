@@ -575,8 +575,8 @@ export function ChatInput({
           className={cn(
             'rounded-md border px-2.5 py-1.5 text-xs flex items-center justify-between gap-2 animate-message',
             pasteHint.lang
-              ? 'border-emerald-500/30 bg-emerald-500/5 text-emerald-700 dark:text-emerald-300'
-              : 'border-amber-500/30 bg-amber-500/5 text-amber-700 dark:text-amber-300',
+              ? 'border-success/30 bg-success/5 text-success'
+              : 'border-warning/30 bg-warning/5 text-warning',
           )}
         >
           <span>
@@ -681,7 +681,7 @@ export function ChatInput({
       {/* File reference chips queued for the next message. */}
       {hasFileRefs && (
         <div className="flex flex-wrap items-center gap-2 px-1">
-          <span className="text-[10px] uppercase tracking-wider text-muted-foreground shrink-0">
+          <span className="text-[10px] uppercase text-muted-foreground shrink-0">
             {t('chat:input.referencesLabel')}
           </span>
           {fileRefs.map((ref) => (
@@ -708,7 +708,7 @@ export function ChatInput({
         onDragLeave={onDragLeave}
         onDrop={onDrop}
         className={cn(
-          'flex items-end gap-2 relative rounded-lg transition-colors',
+          'relative flex flex-col gap-2 rounded-xl border border-border/70 bg-background/85 p-2 shadow-lg shadow-black/5 transition-colors sm:flex-row sm:items-end',
           draggingOver && 'ring-2 ring-primary ring-offset-2 ring-offset-background bg-primary/5',
         )}
       >
@@ -717,7 +717,7 @@ export function ChatInput({
             Drop file{`(s)`} to attach as @-mention
           </div>
         )}
-        <div className="relative flex-1">
+        <div className="relative w-full flex-1">
           {/* @-mention file picker — takes priority over the slash popup
             since `@` and `/` can't both be active at the cursor. */}
           <FileMentionPicker
@@ -744,13 +744,13 @@ export function ChatInput({
               });
               const orderedCategories = SLASH_CATEGORY_ORDER.filter((c) => byCategory[c]?.length);
               return (
-                <div className="absolute bottom-full left-0 right-0 mb-2 rounded-lg border bg-popover shadow-md p-1 text-sm max-h-72 overflow-auto">
-                  <div className="px-3 py-1 text-[10px] uppercase tracking-wider text-muted-foreground border-b mb-1">
+                <div className="absolute bottom-full left-0 right-0 mb-2 rounded-lg border border-border/70 bg-popover shadow-xl p-1 text-sm max-h-72 overflow-auto">
+                  <div className="px-3 py-1 text-[10px] uppercase text-muted-foreground border-b mb-1">
                     ↑/↓ select · Tab complete · Enter dispatch · Esc dismiss
                   </div>
                   {orderedCategories.map((cat) => (
                     <div key={cat} className="mb-1">
-                      <div className="px-3 pt-1 pb-0.5 text-[10px] uppercase tracking-wider text-muted-foreground/70 font-semibold">
+                      <div className="px-3 pt-1 pb-0.5 text-[10px] uppercase text-muted-foreground/70 font-semibold">
                         {cat}
                       </div>
                       {byCategory[cat]?.map(({ cmd, idx }) => (
@@ -813,7 +813,7 @@ export function ChatInput({
                   : t('chat:inputPlaceholder')
             }
             className={cn(
-              'flex min-h-[44px] w-full resize-none rounded-lg border border-input bg-background px-4 py-3 pr-12',
+              'flex min-h-[64px] w-full resize-none overflow-y-hidden rounded-lg border border-input bg-card/80 px-4 py-3 pr-12 shadow-sm sm:min-h-[44px]',
               'text-sm ring-offset-background placeholder:text-muted-foreground',
               'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
               'disabled:cursor-not-allowed disabled:opacity-50',
@@ -840,10 +840,10 @@ export function ChatInput({
                 const projected = lastInputTokens + estTokens + 64;
                 const pct = (projected / maxContext) * 100;
                 if (pct >= 100) {
-                  tone = 'text-red-600 dark:text-red-400 font-medium';
+                  tone = 'text-destructive font-medium';
                   title = `Projected ${Math.round(pct)}% of ${maxContext.toLocaleString()} ctx — will likely error or compact.`;
                 } else if (pct >= 85) {
-                  tone = 'text-amber-600 dark:text-amber-400 font-medium';
+                  tone = 'text-warning font-medium';
                   title = `Projected ${Math.round(pct)}% of ${maxContext.toLocaleString()} ctx — getting tight.`;
                 } else {
                   title = `≈ ${estTokens.toLocaleString()} tokens · projected ${Math.round(pct)}% of ${maxContext.toLocaleString()} ctx.`;
@@ -867,7 +867,7 @@ export function ChatInput({
             })()}
         </div>
 
-        <div className="flex gap-1">
+        <div className="flex w-full justify-end gap-1 overflow-x-auto no-scrollbar sm:w-auto sm:overflow-visible">
           {isLoading && chatStarted ? (
             <>
               {/* Stop controls stay beside the new send-mode buttons so
@@ -878,7 +878,7 @@ export function ChatInput({
                 size="icon"
                 variant="outline"
                 onClick={handleStopAndEdit}
-                className="h-[44px] w-[44px] rounded-lg"
+                className="h-[44px] w-[44px] shrink-0 rounded-md"
                 title={t('chat:input.stopEditTitle')}
                 data-testid="stop-and-edit"
               >
@@ -889,7 +889,7 @@ export function ChatInput({
                 size="icon"
                 variant="destructive"
                 onClick={handleAbort}
-                className="h-[44px] w-[44px] rounded-lg"
+                className="h-[44px] w-[44px] shrink-0 rounded-md"
                 title={t('chat:input.abortTitle')}
                 data-testid="stop"
               >
@@ -904,9 +904,9 @@ export function ChatInput({
               disabled={!client?.isConnected}
               onClick={toggleRefineEnabled}
               className={cn(
-                'h-[44px] w-[44px] rounded-lg transition-colors',
+                'h-[44px] w-[44px] shrink-0 rounded-md transition-colors',
                 refineEnabled &&
-                  'bg-yellow-500/20 hover:bg-yellow-500/30 text-yellow-600 dark:text-yellow-400 border-yellow-500/50',
+                  'bg-warning/20 hover:bg-warning/30 text-warning border-warning/50',
               )}
               title={
                 refineEnabled
@@ -925,7 +925,7 @@ export function ChatInput({
             size="icon"
             variant="default"
             disabled={!input.trim() || !client?.isConnected}
-            className="h-[44px] w-[44px] rounded-lg bg-sky-600 hover:bg-sky-700 text-white dark:bg-sky-500 dark:hover:bg-sky-600"
+            className="h-[44px] w-[44px] shrink-0 rounded-md"
             title={t('chat:sendTitle')}
             data-testid="send-submit"
           >
@@ -945,7 +945,7 @@ export function ChatInput({
                 variant="default"
                 disabled={!input.trim() || !client?.isConnected}
                 onClick={handleBtw}
-                className="h-[44px] w-[44px] rounded-lg bg-sky-600 hover:bg-sky-700 text-white dark:bg-sky-500 dark:hover:bg-sky-600"
+                className="h-[44px] w-[44px] shrink-0 rounded-md"
                 title={
                   isLoading
                     ? t('chat:input.btwRunningTitle')
@@ -961,7 +961,7 @@ export function ChatInput({
                 variant="outline"
                 disabled={!input.trim() || !client?.isConnected}
                 onClick={handleSteer}
-                className="h-[44px] w-[44px] rounded-lg border-amber-500/50 text-amber-700 dark:text-amber-400 hover:bg-amber-500/10"
+                className="h-[44px] w-[44px] shrink-0 rounded-md border-warning/50 text-warning hover:bg-warning/10"
                 title={
                   isLoading
                     ? t('chat:input.steerRunningTitle')
@@ -977,7 +977,7 @@ export function ChatInput({
                 variant="outline"
                 disabled={!input.trim() || !client?.isConnected}
                 onClick={handleAddQueue}
-                className="h-[44px] w-[44px] rounded-lg border-indigo-500/50 text-indigo-700 dark:text-indigo-400 hover:bg-indigo-500/10"
+                className="h-[44px] w-[44px] shrink-0 rounded-md border-info/50 text-info hover:bg-info/10"
                 title={t('chat:input.addQueueTitle')}
                 data-testid="send-queue"
               >

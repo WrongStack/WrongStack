@@ -1,5 +1,5 @@
-import { Loader2, Power, PowerOff, Search, Wrench } from 'lucide-react';
-import { type ReactElement, useCallback, useEffect, useRef, useState } from 'react';
+import { ChevronDown, Loader2, Power, PowerOff, Search, Wrench } from 'lucide-react';
+import { type ReactElement, useCallback, useEffect, useState } from 'react';
 import { useAppTranslation } from '@/i18n';
 import { toast } from '@/components/Toaster';
 import { useWebSocket } from '@/hooks/useWebSocket';
@@ -21,11 +21,11 @@ export interface ToolInfo {
 /** Small indicator dot for tool status. */
 function StatusDot({ disabled, mutating }: { disabled: boolean; mutating: boolean }) {
   const color = disabled
-    ? 'bg-gray-400'
+    ? 'bg-muted-foreground'
     : mutating
-      ? 'bg-yellow-400'
-      : 'bg-green-500';
-  return <span className={`inline-block w-2 h-2 rounded-full ${color}`} title={disabled ? 'disabled' : mutating ? 'mutating' : 'read-only'} />;
+      ? 'bg-warning'
+      : 'bg-success';
+  return <span className={`inline-block h-2 w-2 shrink-0 rounded-full ${color}`} title={disabled ? 'disabled' : mutating ? 'mutating' : 'read-only'} />;
 }
 
 /** Individual tool row with toggle. */
@@ -41,66 +41,63 @@ function ToolRow({
   const [expanded, setExpanded] = useState(false);
 
   return (
-    <div className="border rounded-lg p-3 space-y-1">
-      <div className="flex items-center gap-2">
+    <div className="space-y-2 rounded-md border border-border/70 bg-card/70 p-3 transition-colors hover:bg-card">
+      <div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:items-start">
+        <div className="flex min-w-0 flex-1 items-start gap-2">
         <StatusDot disabled={tool.disabled} mutating={tool.mutating} />
-        <code className="text-sm font-mono font-semibold flex-1">{tool.name}</code>
-        <Badge variant="outline" className="text-[10px] px-1.5">
-          {tool.permission}
-        </Badge>
-        <Badge variant="outline" className="text-[10px] px-1.5">
-          {tool.mutating ? 'mut' : 'ro'}
-        </Badge>
-        <span className="text-[11px] text-muted-foreground">[{tool.owner}]</span>
-        <Button
-          variant={tool.disabled ? 'default' : 'secondary'}
-          size="sm"
-          className="h-7 px-2 text-xs gap-1"
-          onClick={onToggle}
-          disabled={busy}
-        >
-          {busy ? (
-            <Loader2 className="h-3 w-3 animate-spin" />
-          ) : tool.disabled ? (
-            <PowerOff className="h-3 w-3" />
-          ) : (
-            <Power className="h-3 w-3" />
-          )}
-          {tool.disabled ? 'Enable' : 'Disable'}
-        </Button>
-        <button
-          type="button"
-          className="text-muted-foreground hover:text-foreground p-0.5"
-          onClick={() => setExpanded(!expanded)}
-          aria-label={expanded ? 'Collapse' : 'Expand'}
-        >
-          <Chevron className={expanded ? 'rotate-180' : ''} />
-        </button>
+          <div className="min-w-0 flex-1">
+            <code className="block truncate text-sm font-mono font-semibold" title={tool.name}>
+              {tool.name}
+            </code>
+            <div className="mt-1 flex flex-wrap items-center gap-1.5">
+              <Badge variant="outline" className="px-1.5 text-[10px]">
+                {tool.permission}
+              </Badge>
+              <Badge variant="outline" className="px-1.5 text-[10px]">
+                {tool.mutating ? 'mutating' : 'read-only'}
+              </Badge>
+              <span className="truncate text-[11px] text-muted-foreground" title={tool.owner}>
+                {tool.owner}
+              </span>
+            </div>
+          </div>
+        </div>
+        <div className="flex shrink-0 items-center justify-end gap-1">
+          <Button
+            variant={tool.disabled ? 'default' : 'secondary'}
+            size="sm"
+            className="h-7 gap-1 px-2 text-xs"
+            onClick={onToggle}
+            disabled={busy}
+          >
+            {busy ? (
+              <Loader2 className="h-3 w-3 animate-spin" />
+            ) : tool.disabled ? (
+              <PowerOff className="h-3 w-3" />
+            ) : (
+              <Power className="h-3 w-3" />
+            )}
+            {tool.disabled ? 'Enable' : 'Disable'}
+          </Button>
+          <button
+            type="button"
+            className="rounded p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+            onClick={() => setExpanded(!expanded)}
+            aria-label={expanded ? 'Collapse' : 'Expand'}
+          >
+            <ChevronDown className={`h-4 w-4 transition-transform ${expanded ? 'rotate-180' : ''}`} />
+          </button>
+        </div>
       </div>
       {expanded && (
-        <div className="text-xs text-muted-foreground pl-6 pt-1 space-y-0.5">
+        <div className="space-y-1 border-t border-border/60 pt-2 text-xs text-muted-foreground sm:ml-4">
           <p>{tool.description}</p>
           {tool.params.length > 0 && (
-            <p>Params: <code className="font-mono">{tool.params.join(', ')}</code></p>
+            <p>Params: <code className="break-all font-mono">{tool.params.join(', ')}</code></p>
           )}
         </div>
       )}
     </div>
-  );
-}
-
-function Chevron({ className = '' }: { className?: string }) {
-  return (
-    <svg
-      className={`h-4 w-4 transition-transform ${className}`}
-      xmlns="http://www.w3.org/2000/svg"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth={2}
-    >
-      <path d="m6 9 6 6 6-6" />
-    </svg>
   );
 }
 
@@ -112,15 +109,15 @@ export function ToolsSection(): ReactElement {
   const [filter, setFilter] = useState('');
   const [busyMap, setBusyMap] = useState<Set<string>>(new Set());
 
-  // Listen for tool list and enable/disable responses
   useEffect(() => {
-    const handler = (msg: WSServerMessage) => {
-      if (msg.type === 'tools.list') {
-        const p = msg.payload as { tools: ToolInfo[] };
-        setTools(p.tools);
-        setLoading(false);
-      } else if (msg.type === 'tool.disabled' || msg.type === 'tool.enabled') {
-        const p = msg.payload as { name: string; ok: boolean };
+    const offTools = client.on('tools.list', (msg) => {
+      const p = msg.payload as { tools: ToolInfo[] };
+      setTools(p.tools);
+      setLoading(false);
+    });
+    const handleToggleResponse = (msg: WSServerMessage) => {
+      if (msg.type === 'tool.disabled' || msg.type === 'tool.enabled') {
+        const p = msg.payload;
         setBusyMap((prev) => {
           const next = new Set(prev);
           next.delete(p.name);
@@ -133,8 +130,13 @@ export function ToolsSection(): ReactElement {
         }
       }
     };
-    client.on('message', handler);
-    return () => client.off('message', handler);
+    const offDisabled = client.on('tool.disabled', handleToggleResponse);
+    const offEnabled = client.on('tool.enabled', handleToggleResponse);
+    return () => {
+      offTools();
+      offDisabled();
+      offEnabled();
+    };
   }, [client]);
 
   // Fetch tools on mount
@@ -146,7 +148,7 @@ export function ToolsSection(): ReactElement {
     (name: string, currentlyDisabled: boolean) => {
       setBusyMap((prev) => new Set(prev).add(name));
       client.send({
-        type: (currentlyDisabled ? 'tool.enable' : 'tool.disable') as WSMessageType,
+        type: (currentlyDisabled ? 'tool.enable' : 'tool.disable') as ToolToggleMessageType,
         payload: { name },
       });
     },
@@ -167,11 +169,15 @@ export function ToolsSection(): ReactElement {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center gap-2">
-        <Wrench className="h-5 w-5 text-primary" />
-        <h3 className="text-lg font-semibold">Tools</h3>
+      <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-center">
+        <div className="flex min-w-0 items-center gap-3">
+        <span className="flex h-9 w-9 items-center justify-center rounded-md border border-primary/20 bg-primary/10 text-primary">
+          <Wrench className="h-5 w-5" />
+        </span>
+        <h3 className="text-base font-semibold">Tools</h3>
+        </div>
         {!loading && (
-          <span className="text-xs text-muted-foreground ml-auto">
+          <span className="rounded-md border border-border/60 bg-muted/30 px-2 py-1 text-xs text-muted-foreground sm:ml-auto">
             {activeCount} active · {disabledCount} disabled · {tools.length} total
           </span>
         )}
@@ -197,19 +203,26 @@ export function ToolsSection(): ReactElement {
           {filter ? `No tools matching "${filter}".` : 'No tools registered.'}
         </p>
       ) : (
-        <div className="space-y-2 max-h-[500px] overflow-y-auto pr-1">
-          {filtered.map((tool) => (
-            <ToolRow
-              key={tool.name}
-              tool={tool}
-              onToggle={() => handleToggle(tool.name, tool.disabled)}
-              busy={busyMap.has(tool.name)}
-            />
-          ))}
+        <div className="relative overflow-hidden rounded-lg border border-border/70 bg-background/35 shadow-inner">
+          <div
+            className="max-h-[min(58dvh,660px)] space-y-2 overflow-y-scroll p-2 pr-3 [scrollbar-gutter:stable]"
+            aria-label="Tools list"
+          >
+            {filtered.map((tool) => (
+              <ToolRow
+                key={tool.name}
+                tool={tool}
+                onToggle={() => handleToggle(tool.name, tool.disabled)}
+                busy={busyMap.has(tool.name)}
+              />
+            ))}
+          </div>
+          <div className="pointer-events-none absolute inset-x-0 top-0 h-4 bg-gradient-to-b from-background/90 to-transparent" />
+          <div className="pointer-events-none absolute inset-x-0 bottom-0 h-8 bg-gradient-to-t from-background/95 to-transparent" />
         </div>
       )}
     </div>
   );
 }
 
-type WSMessageType = 'tools.list' | 'tool.enable' | 'tool.disable';
+type ToolToggleMessageType = 'tool.enable' | 'tool.disable';

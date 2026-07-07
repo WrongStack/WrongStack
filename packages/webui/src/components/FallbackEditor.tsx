@@ -76,7 +76,7 @@ export function FallbackEditor({
               <button
                 type="button"
                 onClick={() => remove(i)}
-                className="text-muted-foreground hover:text-red-400"
+                className="text-muted-foreground hover:text-destructive"
                 title={t('common:action.remove')}
               >
                 <X className="h-3 w-3" />

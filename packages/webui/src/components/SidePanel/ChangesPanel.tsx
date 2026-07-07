@@ -15,12 +15,12 @@ import { useAppTranslation } from '@/i18n';
 
 /** Visual treatment for each git status letter. */
 const STATUS_META: Record<string, { label: string; cls: string }> = {
-  M: { label: 'M', cls: 'text-amber-600 dark:text-amber-400' },
-  A: { label: 'A', cls: 'text-emerald-600 dark:text-emerald-400' },
-  D: { label: 'D', cls: 'text-rose-600 dark:text-rose-400' },
-  R: { label: 'R', cls: 'text-sky-600 dark:text-sky-400' },
-  C: { label: 'C', cls: 'text-sky-600 dark:text-sky-400' },
-  U: { label: 'U', cls: 'text-orange-600 dark:text-orange-400' },
+  M: { label: 'M', cls: 'text-warning' },
+  A: { label: 'A', cls: 'text-success' },
+  D: { label: 'D', cls: 'text-destructive' },
+  R: { label: 'R', cls: 'text-info' },
+  C: { label: 'C', cls: 'text-info' },
+  U: { label: 'U', cls: 'text-warning' },
   '?': { label: 'U', cls: 'text-muted-foreground' },
 };
 
@@ -55,14 +55,16 @@ function FileRow({
       <span className={cn('w-3 shrink-0 text-center font-mono font-bold', meta?.cls)}>
         {meta?.label}
       </span>
-      <span className="flex-1 min-w-0 truncate">
-        <span className={cn(file.status === 'D' && 'line-through opacity-70')}>{name}</span>
-        {dir && <span className="text-muted-foreground/60 ml-1 truncate">{dir}</span>}
+      <span className="flex min-w-0 flex-1 items-baseline gap-1 overflow-hidden">
+        <span className={cn('min-w-0 truncate', file.status === 'D' && 'line-through opacity-70')}>
+          {name}
+        </span>
+        {dir && <span className="min-w-0 flex-1 truncate text-muted-foreground/60">{dir}</span>}
       </span>
       <span className="shrink-0 font-mono text-[10px] tabular-nums">
-        {file.added > 0 && <span className="text-emerald-600 dark:text-emerald-400">+{file.added}</span>}
+        {file.added > 0 && <span className="text-success">+{file.added}</span>}
         {file.deleted > 0 && (
-          <span className="text-rose-600 dark:text-rose-400 ml-1">-{file.deleted}</span>
+          <span className="text-destructive ml-1">-{file.deleted}</span>
         )}
       </span>
     </button>
@@ -106,8 +108,8 @@ export function ChangesPanel() {
           {files.length > 0 && (
             <>
               {' · '}
-              <span className="text-emerald-600 dark:text-emerald-400">+{totalAdded}</span>{' '}
-              <span className="text-rose-600 dark:text-rose-400">-{totalDeleted}</span>
+              <span className="text-success">+{totalAdded}</span>{' '}
+              <span className="text-destructive">-{totalDeleted}</span>
             </>
           )}
         </span>

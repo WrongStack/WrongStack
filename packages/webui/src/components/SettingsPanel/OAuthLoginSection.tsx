@@ -133,86 +133,92 @@ export function OAuthLoginSection({ ws }: OAuthLoginSectionProps) {
 
   return (
     <div className="space-y-3">
-      <div className="rounded-md border border-amber-500/30 bg-amber-500/5 p-3">
-        <p className="text-xs text-amber-600 dark:text-amber-400">
+      <div className="rounded-md border border-warning/30 bg-warning/5 p-3">
+        <p className="text-xs leading-5 text-warning">
           {t('settings:oauth.termsWarning')}
         </p>
       </div>
 
-      {PROVIDERS.map((meta) => {
-        const st = states[meta.kind];
-        const busy = ACTIVE_PHASES.includes(st.phase);
-        return (
-          <div key={meta.kind} className="rounded-lg border border-border p-3">
-            <div className="flex items-center justify-between gap-3">
-              <div className="flex items-center gap-3 min-w-0">
-                <span className="text-muted-foreground">{meta.icon}</span>
-                <div className="min-w-0">
-                  <div className="font-medium">{meta.label}</div>
-                  <div className="text-xs text-muted-foreground truncate">{meta.subtitle}</div>
+      <div className="grid grid-cols-1 gap-2 lg:grid-cols-3">
+        {PROVIDERS.map((meta) => {
+          const st = states[meta.kind];
+          const busy = ACTIVE_PHASES.includes(st.phase);
+          return (
+            <div key={meta.kind} className="rounded-lg border border-border bg-background/70 p-3">
+              <div className="flex items-center justify-between gap-3 lg:flex-col lg:items-stretch">
+                <div className="flex min-w-0 items-center gap-3">
+                  <span className="text-muted-foreground">{meta.icon}</span>
+                  <div className="min-w-0">
+                    <div className="font-medium">{meta.label}</div>
+                    <div className="truncate text-xs text-muted-foreground">{meta.subtitle}</div>
+                  </div>
                 </div>
-              </div>
-              {!busy ? (
-                <Button size="sm" onClick={() => start(meta.kind)}>
-                  {t('settings:oauth.signIn')}
-                </Button>
-              ) : (
-                <Button size="sm" variant="ghost" onClick={() => cancel(meta.kind)}>
-                  {t('common:action.cancel')}
-                </Button>
-              )}
-            </div>
-
-            {/* Flow detail */}
-            {st.phase === 'awaiting_browser' && (
-              <div className="mt-3 space-y-2 border-t pt-3">
-                <div className="flex items-center gap-2 text-sm">
-                  <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
-                  <span>{t('settings:oauth.waitingBrowser')}</span>
-                </div>
-                {st.authorizeUrl && (
+                {!busy ? (
+                  <Button size="sm" onClick={() => start(meta.kind)} className="shrink-0 lg:w-full">
+                    {t('settings:oauth.signIn')}
+                  </Button>
+                ) : (
                   <Button
                     size="sm"
-                    variant="outline"
-                    onClick={() => window.open(st.authorizeUrl, '_blank', 'noopener,noreferrer')}
+                    variant="ghost"
+                    onClick={() => cancel(meta.kind)}
+                    className="shrink-0 lg:w-full"
                   >
-                    <ExternalLink className="h-3.5 w-3.5 mr-1" />
-                    {t('settings:oauth.openSignIn')}
+                    {t('common:action.cancel')}
                   </Button>
                 )}
-                <div>
-                  <button
-                    type="button"
-                    className="text-xs text-muted-foreground underline"
-                    onClick={() => setShowPaste(showPaste === meta.kind ? null : meta.kind)}
-                  >
-                    {st.bound === false
-                      ? t('settings:oauth.pasteLoopbackBusy')
-                      : t('settings:oauth.pasteCantReach')}
-                  </button>
-                  {showPaste === meta.kind && (
-                    <div className="mt-2 flex gap-2">
-                      <Input
-                        placeholder="http://localhost:.../callback?code=…"
-                        value={pasteValue}
-                        onChange={(e) => setPasteValue(e.target.value)}
-                        className="font-mono text-xs"
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter') submitPaste(meta.kind);
-                        }}
-                      />
-                      <Button
-                        size="sm"
-                        onClick={() => submitPaste(meta.kind)}
-                        disabled={!pasteValue.trim()}
-                      >
-                        {t('settings:oauth.submit')}
-                      </Button>
-                    </div>
-                  )}
-                </div>
               </div>
-            )}
+
+              {/* Flow detail */}
+              {st.phase === 'awaiting_browser' && (
+                <div className="mt-3 space-y-2 border-t pt-3">
+                  <div className="flex items-center gap-2 text-sm">
+                    <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                    <span>{t('settings:oauth.waitingBrowser')}</span>
+                  </div>
+                  {st.authorizeUrl && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => window.open(st.authorizeUrl, '_blank', 'noopener,noreferrer')}
+                    >
+                      <ExternalLink className="h-3.5 w-3.5 mr-1" />
+                      {t('settings:oauth.openSignIn')}
+                    </Button>
+                  )}
+                  <div>
+                    <button
+                      type="button"
+                      className="text-xs text-muted-foreground underline"
+                      onClick={() => setShowPaste(showPaste === meta.kind ? null : meta.kind)}
+                    >
+                      {st.bound === false
+                        ? t('settings:oauth.pasteLoopbackBusy')
+                        : t('settings:oauth.pasteCantReach')}
+                    </button>
+                    {showPaste === meta.kind && (
+                      <div className="mt-2 flex gap-2">
+                        <Input
+                          placeholder="http://localhost:.../callback?code=…"
+                          value={pasteValue}
+                          onChange={(e) => setPasteValue(e.target.value)}
+                          className="font-mono text-xs"
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') submitPaste(meta.kind);
+                          }}
+                        />
+                        <Button
+                          size="sm"
+                          onClick={() => submitPaste(meta.kind)}
+                          disabled={!pasteValue.trim()}
+                        >
+                          {t('settings:oauth.submit')}
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
 
             {st.phase === 'awaiting_code' && (
               <div className="mt-3 space-y-2 border-t pt-3">
@@ -247,7 +253,7 @@ export function OAuthLoginSection({ ws }: OAuthLoginSectionProps) {
             )}
 
             {st.phase === 'success' && (
-              <div className="mt-3 flex items-center gap-2 border-t pt-3 text-sm text-green-600">
+              <div className="mt-3 flex items-center gap-2 border-t pt-3 text-sm text-success">
                 <CheckCircle2 className="h-4 w-4" />
                 <span>{st.message ?? t('settings:oauth.signedIn')}</span>
               </div>
@@ -261,7 +267,8 @@ export function OAuthLoginSection({ ws }: OAuthLoginSectionProps) {
             )}
           </div>
         );
-      })}
+        })}
+      </div>
     </div>
   );
 }

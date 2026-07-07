@@ -134,8 +134,8 @@ export function KanbanView({ onClose }: { onClose?: (() => void) | undefined }) 
   };
 
   return (
-    <div className="flex h-full min-h-0 bg-background text-foreground">
-      <aside className="flex w-[280px] shrink-0 flex-col border-r bg-card/40">
+    <div className="flex h-full min-h-0 min-w-0 flex-col bg-background text-foreground md:flex-row">
+      <aside className="flex max-h-[45dvh] w-full shrink-0 flex-col border-b bg-card/40 md:max-h-none md:w-[280px] md:border-b-0 md:border-r">
         <div className="flex h-12 items-center gap-2 border-b px-3">
           <button
             type="button"
@@ -206,9 +206,9 @@ export function KanbanView({ onClose }: { onClose?: (() => void) | undefined }) 
         </div>
       </aside>
 
-      <main className="flex min-w-0 flex-1 flex-col">
-        <header className="flex h-12 shrink-0 items-center gap-2 border-b px-4">
-          <div className="min-w-0 flex-1">
+      <main className="flex min-h-0 min-w-0 flex-1 flex-col">
+        <header className="flex min-h-12 shrink-0 flex-wrap items-center gap-2 border-b px-3 py-2 sm:px-4">
+          <div className="w-full min-w-0 sm:w-auto sm:flex-1">
             <div className="truncate text-sm font-semibold">
               {activeBoard?.title ?? 'No board selected'}
             </div>
@@ -227,7 +227,7 @@ export function KanbanView({ onClose }: { onClose?: (() => void) | undefined }) 
                   if (e.key === 'Enter') createTask();
                 }}
                 placeholder="New task"
-                className="h-8 w-56 rounded-md border bg-background px-2 text-sm outline-none focus:border-primary"
+                className="h-8 w-[calc(100%-2.5rem)] min-w-0 flex-none rounded-md border bg-background px-2 text-sm outline-none focus:border-primary sm:w-56"
               />
               <button
                 type="button"
@@ -244,13 +244,13 @@ export function KanbanView({ onClose }: { onClose?: (() => void) | undefined }) 
                   if (e.key === 'Enter') createColumn();
                 }}
                 placeholder="New column"
-                className="h-8 w-44 rounded-md border bg-background px-2 text-sm outline-none focus:border-primary"
+                className="h-8 w-[calc(100%-2.5rem)] min-w-0 flex-none rounded-md border bg-background px-2 text-sm outline-none focus:border-primary sm:w-44"
               />
               <button
                 type="button"
                 title="Add column"
                 onClick={createColumn}
-                className="flex h-8 w-8 items-center justify-center rounded-md border text-muted-foreground hover:bg-muted hover:text-foreground"
+                className="hidden h-8 w-8 items-center justify-center rounded-md border text-muted-foreground hover:bg-muted hover:text-foreground sm:flex"
               >
                 <Columns3 size={16} />
               </button>
@@ -266,7 +266,7 @@ export function KanbanView({ onClose }: { onClose?: (() => void) | undefined }) 
                 type="button"
                 title="Delete board"
                 onClick={deleteBoard}
-                className="flex h-8 w-8 items-center justify-center rounded-md border text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
+                className="hidden h-8 w-8 items-center justify-center rounded-md border text-muted-foreground hover:bg-destructive/10 hover:text-destructive sm:flex"
               >
                 <Trash2 size={16} />
               </button>
@@ -288,47 +288,47 @@ export function KanbanView({ onClose }: { onClose?: (() => void) | undefined }) 
                 <div className="flex shrink-0 items-center gap-4 border-b px-4 py-2 text-xs text-muted-foreground">
                   <span className="font-medium text-foreground">Queue health</span>
                   {queueHealth.counts.ready > 0 && (
-                    <span title="Claimable tasks" className="inline-flex items-center gap-1 text-emerald-500">
+                    <span title="Claimable tasks" className="inline-flex items-center gap-1 text-success">
                       {queueHealth.counts.ready} ready
                     </span>
                   )}
                   {queueHealth.counts.running > 0 && (
-                    <span title="Running assignments" className="inline-flex items-center gap-1 text-amber-500">
+                    <span title="Running assignments" className="inline-flex items-center gap-1 text-warning">
                       {queueHealth.counts.running} running
                     </span>
                   )}
                   {queueHealth.counts.review > 0 && (
-                    <span title="In review" className="inline-flex items-center gap-1 text-violet-500">
+                    <span title="In review" className="inline-flex items-center gap-1 text-primary">
                       {queueHealth.counts.review} review
                     </span>
                   )}
                   {queueHealth.counts.blocked > 0 && (
-                    <span title="Manually blocked" className="inline-flex items-center gap-1 text-red-500">
+                    <span title="Manually blocked" className="inline-flex items-center gap-1 text-destructive">
                       {queueHealth.counts.blocked} blocked
                     </span>
                   )}
                   {queueHealth.counts.failed > 0 && (
-                    <span title="Failed tasks" className="inline-flex items-center gap-1 text-orange-500">
+                    <span title="Failed tasks" className="inline-flex items-center gap-1 text-destructive">
                       {queueHealth.counts.failed} failed
                     </span>
                   )}
                   {queueHealth.dependencyBlocked.count > 0 && (
-                    <span title="Ready/pending tasks blocked by dependencies" className="inline-flex items-center gap-1 rounded bg-yellow-500/10 px-1.5 py-0.5 text-yellow-600">
+                    <span title="Ready/pending tasks blocked by dependencies" className="inline-flex items-center gap-1 rounded bg-warning/10 px-1.5 py-0.5 text-warning">
                       {queueHealth.dependencyBlocked.count} blocked by deps
                     </span>
                   )}
                   {queueHealth.staleAssignments.count > 0 && (
-                    <span title="Expired lease assignments" className="inline-flex items-center gap-1 rounded bg-red-500/10 px-1.5 py-0.5 text-red-600">
+                    <span title="Expired lease assignments" className="inline-flex items-center gap-1 rounded bg-destructive/10 px-1.5 py-0.5 text-destructive">
                       {queueHealth.staleAssignments.count} stale
                     </span>
                   )}
                   {queueHealth.heartbeatDue.count === 0 &&
                     queueHealth.staleAssignments.count === 0 &&
                     queueHealth.dependencyBlocked.count === 0 && (
-                      <span className="text-emerald-600">healthy</span>
+                      <span className="text-success">healthy</span>
                     )}
                   {runningCostTotal > 0 && (
-                    <span title="Sum of costCeilingUsd for running/queued tasks" className="inline-flex items-center gap-1 text-cyan-600">
+                    <span title="Sum of costCeilingUsd for running/queued tasks" className="inline-flex items-center gap-1 text-info">
                       ~${runningCostTotal.toFixed(2)} running cost
                     </span>
                   )}
@@ -547,7 +547,12 @@ function TaskInspector({
   };
 
   return (
-    <aside className="flex w-[340px] shrink-0 flex-col border-l bg-card/40">
+    <aside
+      className={cn(
+        'w-full shrink-0 flex-col border-t bg-card/40 md:w-[340px] md:border-l md:border-t-0',
+        task ? 'flex max-h-[42dvh] md:max-h-none' : 'hidden md:flex',
+      )}
+    >
       <div className="flex h-12 items-center gap-2 border-b px-3">
         <div className="min-w-0 flex-1">
           <div className="truncate text-sm font-semibold">{task ? 'Task' : 'Selection'}</div>
@@ -669,7 +674,7 @@ function TaskInspector({
                     <Check
                       size={13}
                       className={
-                        check.status === 'passed' ? 'text-green-600' : 'text-muted-foreground'
+                        check.status === 'passed' ? 'text-success' : 'text-muted-foreground'
                       }
                     />
                     <span className="min-w-0 flex-1 truncate">{check.description}</span>
@@ -729,7 +734,7 @@ function splitCsv(value: string): string[] {
 function priorityClass(priority: KanbanTask['priority']): string {
   const base = 'rounded px-1.5 py-0.5';
   if (priority === 'critical') return `${base} bg-destructive/10 text-destructive`;
-  if (priority === 'high') return `${base} bg-amber-500/10 text-amber-700 dark:text-amber-300`;
+  if (priority === 'high') return `${base} bg-warning/10 text-warning`;
   if (priority === 'low') return `${base} bg-muted text-muted-foreground`;
-  return `${base} bg-blue-500/10 text-blue-700 dark:text-blue-300`;
+  return `${base} bg-info/10 text-info`;
 }

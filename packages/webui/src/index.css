@@ -1,9 +1,8 @@
 @import 'tailwindcss';
 
 /* ===========================================================================
-   WrongStack WebUI — "Engineering Instrument Deck"
-   IBM Plex typography · warm graphite (dark) / warm paper (light) ·
-   signal-amber accent · blueprint grid atmosphere · status LEDs.
+   WrongStack WebUI — Operations Console
+   IBM Plex typography · quiet neutral surfaces · clear status color.
    =========================================================================== */
 
 @theme {
@@ -42,76 +41,77 @@
 
 @layer base {
   :root {
-    /* — Light: warm paper — */
-    --background: 40 33% 97%;
-    --foreground: 222 24% 13%;
-    --card: 40 33% 99%;
-    --card-foreground: 222 24% 13%;
-    --popover: 40 33% 99%;
-    --popover-foreground: 222 24% 13%;
+    /* Light: crisp workstation neutral */
+    --background: 210 24% 97%;
+    --foreground: 225 22% 12%;
+    --card: 0 0% 100%;
+    --card-foreground: 225 22% 12%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 225 22% 12%;
 
-    --primary: 28 92% 46%;            /* deep signal amber for paper contrast */
-    --primary-foreground: 40 40% 99%;
-    --secondary: 40 22% 92%;
-    --secondary-foreground: 222 24% 16%;
-    --muted: 40 20% 92%;
+    --primary: 194 84% 38%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 214 22% 93%;
+    --secondary-foreground: 225 22% 14%;
+    --muted: 214 18% 92%;
     --muted-foreground: 222 10% 42%;
-    --accent: 40 24% 90%;
-    --accent-foreground: 28 92% 38%;
+    --accent: 166 36% 90%;
+    --accent-foreground: 180 64% 24%;
     --destructive: 0 72% 48%;
-    --destructive-foreground: 40 40% 99%;
+    --destructive-foreground: 0 0% 100%;
 
-    --border: 40 16% 85%;
-    --input: 40 16% 87%;
-    --ring: 28 92% 46%;
+    --border: 214 16% 84%;
+    --input: 214 16% 84%;
+    --ring: 194 84% 38%;
 
-    /* Semantic signals (shared names, theme-tuned) */
     --success: 150 58% 36%;
     --warning: 32 92% 44%;
     --info: 200 80% 40%;
-    --running: 28 92% 46%;
+    --running: 194 84% 38%;
 
-    --radius: 0.625rem;
+    --radius: 0.5rem;
     --font-sans: 'IBM Plex Sans Variable', ui-sans-serif, system-ui, sans-serif;
     --font-mono: 'IBM Plex Mono', ui-monospace, 'SF Mono', Menlo, monospace;
 
-    --grid-line: 222 24% 13%;
-    --grid-opacity: 0.05;
-    --shadow-color: 222 30% 30%;
+    --surface-1: 0 0% 100%;
+    --surface-2: 214 26% 96%;
+    --surface-3: 214 20% 91%;
+    --shadow-color: 218 26% 36%;
   }
 
   .dark {
-    /* — Dark (hero): warm graphite — */
-    --background: 225 17% 8%;
-    --foreground: 40 22% 92%;
-    --card: 225 15% 11%;
-    --card-foreground: 40 22% 92%;
-    --popover: 225 16% 10%;
-    --popover-foreground: 40 22% 92%;
+    /* Dark: neutral command center with distinct status accents */
+    --background: 240 5% 9%;
+    --foreground: 210 14% 92%;
+    --card: 240 5% 12%;
+    --card-foreground: 210 14% 92%;
+    --popover: 240 5% 11%;
+    --popover-foreground: 210 14% 92%;
 
-    --primary: 36 96% 56%;            /* CRT signal amber */
-    --primary-foreground: 28 60% 8%;
-    --secondary: 225 12% 16%;
-    --secondary-foreground: 40 22% 92%;
-    --muted: 225 12% 15%;
-    --muted-foreground: 225 9% 60%;
-    --accent: 225 13% 17%;
-    --accent-foreground: 36 96% 62%;
+    --primary: 190 86% 54%;
+    --primary-foreground: 240 7% 7%;
+    --secondary: 240 5% 17%;
+    --secondary-foreground: 210 14% 92%;
+    --muted: 240 5% 16%;
+    --muted-foreground: 220 8% 66%;
+    --accent: 164 36% 18%;
+    --accent-foreground: 164 72% 66%;
     --destructive: 0 70% 55%;
-    --destructive-foreground: 40 40% 96%;
+    --destructive-foreground: 0 0% 98%;
 
-    --border: 225 12% 18%;
-    --input: 225 12% 17%;
-    --ring: 36 96% 56%;
+    --border: 240 5% 22%;
+    --input: 240 5% 22%;
+    --ring: 190 86% 54%;
 
     --success: 150 64% 46%;
-    --warning: 36 96% 56%;
+    --warning: 38 94% 58%;
     --info: 198 82% 56%;
-    --running: 36 96% 56%;
+    --running: 190 86% 54%;
 
-    --grid-line: 40 22% 92%;
-    --grid-opacity: 0.045;
-    --shadow-color: 225 60% 2%;
+    --surface-1: 240 5% 12%;
+    --surface-2: 240 5% 15%;
+    --surface-3: 240 5% 19%;
+    --shadow-color: 240 16% 3%;
   }
 }
 
@@ -136,7 +136,7 @@
     font-feature-settings: 'liga' 1, 'calt' 1, 'ss03' 1;
   }
 
-  /* Content sits above the blueprint atmosphere. */
+  /* Content sits above the app surface. */
   #root {
     position: relative;
     z-index: 1;
@@ -151,6 +151,8 @@
     /* biome-ignore lint/suspicious/noDuplicateProperties: 100vh above is the fallback for browsers without dvh support */
     height: 100dvh;
     max-height: 100dvh;
+    background:
+      linear-gradient(180deg, hsl(var(--background)) 0%, hsl(var(--surface-2) / 0.74) 100%);
   }
 
   .ws-desktop-shell .ws-shortcut-hints {
@@ -185,24 +187,8 @@
     }
   }
 
-  /* Blueprint grid — a faint engineering substrate that fades from the top.
-     Theme-aware via --grid-line; fixed so it reads as the deck surface. */
-  body::before {
-    content: '';
-    position: fixed;
-    inset: 0;
-    z-index: 0;
-    pointer-events: none;
-    background-image:
-      linear-gradient(hsl(var(--grid-line) / var(--grid-opacity)) 1px, transparent 1px),
-      linear-gradient(90deg, hsl(var(--grid-line) / var(--grid-opacity)) 1px, transparent 1px);
-    background-size: 34px 34px;
-    mask-image: radial-gradient(140% 90% at 50% -10%, #000 30%, transparent 82%);
-    -webkit-mask-image: radial-gradient(140% 90% at 50% -10%, #000 30%, transparent 82%);
-  }
-
   ::selection {
-    background-color: hsl(var(--primary) / 0.28);
+    background-color: hsl(var(--primary) / 0.22);
     color: hsl(var(--foreground));
   }
 
@@ -210,12 +196,48 @@
   .tabular {
     font-family: var(--font-mono);
     font-variant-numeric: tabular-nums;
-    letter-spacing: -0.01em;
+    letter-spacing: 0;
+  }
+
+  [class*='tracking-'] {
+    letter-spacing: 0 !important;
+  }
+
+  :focus-visible {
+    outline: 2px solid hsl(var(--ring) / 0.85);
+    outline-offset: 2px;
   }
 }
 
-/* — Status LED: a glowing instrument dot. Color via `color:` (currentColor). — */
 @layer components {
+  .ws-surface {
+    background: hsl(var(--card) / 0.88);
+    border: 1px solid hsl(var(--border) / 0.72);
+    box-shadow: 0 14px 40px -30px hsl(var(--shadow-color) / 0.45);
+  }
+
+  .ws-surface-muted {
+    background: hsl(var(--surface-2) / 0.72);
+    border: 1px solid hsl(var(--border) / 0.62);
+  }
+
+  .ws-control {
+    border: 1px solid hsl(var(--border) / 0.72);
+    background: hsl(var(--card) / 0.72);
+    box-shadow: inset 0 1px 0 hsl(var(--foreground) / 0.04);
+  }
+
+  .ws-nav-button {
+    border: 1px solid transparent;
+    box-shadow: inset 0 1px 0 hsl(var(--foreground) / 0.03);
+  }
+
+  .ws-nav-button-active {
+    border-color: hsl(var(--primary) / 0.34);
+    background: hsl(var(--primary) / 0.12);
+    color: hsl(var(--primary));
+  }
+
   .led {
     @apply inline-block rounded-full;
     width: 0.5rem;
@@ -265,10 +287,10 @@
 
 /* — Message bubble depth — */
 .msg-bubble {
-  transition: box-shadow 0.2s ease, transform 0.15s ease;
+  transition: box-shadow 0.18s ease, transform 0.15s ease, background-color 0.18s ease;
 }
 .msg-bubble:hover {
-  box-shadow: 0 2px 12px -2px hsl(var(--shadow-color) / 0.08);
+  box-shadow: 0 10px 30px -24px hsl(var(--shadow-color) / 0.45);
 }
 
 /* — Chat turn separator — subtle horizontal divider between turns */
@@ -370,7 +392,8 @@
 .markdown-content li { @apply mb-1; }
 .markdown-content a { @apply text-primary underline underline-offset-2; }
 .markdown-content h1, .markdown-content h2, .markdown-content h3 {
-  @apply font-semibold mt-4 mb-2; letter-spacing: -0.01em;
+  @apply font-semibold mt-4 mb-2;
+  letter-spacing: 0;
 }
 .markdown-content blockquote {
   @apply border-l-2 border-primary pl-4 italic text-muted-foreground;

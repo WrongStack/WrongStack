@@ -258,7 +258,7 @@ export function SessionWatchPanel({
           <span
             className={cn(
               'h-1.5 w-1.5 rounded-full',
-              isRunning ? 'bg-green-500 animate-pulse' : 'bg-muted-foreground',
+              isRunning ? 'bg-success animate-pulse' : 'bg-muted-foreground',
             )}
           />
           {t('activity:sessionWatch.liveStream')}
@@ -348,9 +348,9 @@ export function SessionWatchPanel({
                     className={cn(
                       'ml-1.5 text-[9px]',
                       m.completed
-                        ? 'text-green-500'
+                        ? 'text-success'
                         : m.readByLeader
-                          ? 'text-cyan-500'
+                          ? 'text-primary'
                           : 'text-muted-foreground',
                     )}
                   >

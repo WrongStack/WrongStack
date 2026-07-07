@@ -35,13 +35,13 @@ interface Row {
 }
 
 const STATUS_TINT: Record<string, string> = {
-  active: 'text-amber-500',
-  committing: 'text-cyan-500',
-  merging: 'text-blue-500',
-  merged: 'text-emerald-500',
-  'needs-review': 'text-fuchsia-500',
-  failed: 'text-rose-500',
-  orphan: 'text-zinc-400',
+  active: 'text-warning',
+  committing: 'text-primary',
+  merging: 'text-info',
+  merged: 'text-success',
+  'needs-review': 'text-destructive',
+  failed: 'text-destructive',
+  orphan: 'text-muted-foreground',
 };
 
 /**
@@ -152,7 +152,7 @@ export function WorktreesPanel(): React.ReactElement {
               disabled={!canClean}
               onClick={() => send?.({ type: 'worktree.cleanup' })}
               title={canClean ? t('activity:worktrees.cleanOrphansTitle') : t('activity:worktrees.liveBusyTitle')}
-              className="inline-flex items-center gap-1 rounded bg-amber-600/90 px-1.5 py-0.5 text-[11px] font-medium text-white hover:bg-amber-700 disabled:opacity-50"
+              className="inline-flex items-center gap-1 rounded bg-warning px-1.5 py-0.5 text-[11px] font-medium text-primary-foreground hover:bg-warning/90 disabled:opacity-50"
             >
               <Eraser className="h-3 w-3" /> {t('activity:worktrees.cleanOrphans')}
             </button>
@@ -221,8 +221,8 @@ export function WorktreesPanel(): React.ReactElement {
                   {row.owner && <span className="truncate">{row.owner}</span>}
                   {(row.insertions > 0 || row.deletions > 0) && (
                     <span className="shrink-0">
-                      <span className="text-emerald-500">+{row.insertions}</span>{' '}
-                      <span className="text-rose-500">−{row.deletions}</span> · {row.files}f
+                      <span className="text-success">+{row.insertions}</span>{' '}
+                      <span className="text-destructive">−{row.deletions}</span> · {row.files}f
                     </span>
                   )}
                 </div>
@@ -244,7 +244,7 @@ export function WorktreesPanel(): React.ReactElement {
                   <Act title={t('activity:worktrees.actRemove')} danger disabled={row.live} onClick={() => onRemove(row)}>
                     <Trash2 className="h-3.5 w-3.5" />
                   </Act>
-                  {row.live && <span className="ml-1 text-[10px] text-amber-500">{t('activity:worktrees.live')}</span>}
+                  {row.live && <span className="ml-1 text-[10px] text-warning">{t('activity:worktrees.live')}</span>}
                 </div>
 
                 {/* Inline diff summary */}
@@ -264,13 +264,13 @@ export function WorktreesPanel(): React.ReactElement {
                           {diff.commits > 0
                             ? `${t('activity:worktrees.commitsAhead', { count: diff.commits })} · `
                             : ''}
-                          <span className="text-emerald-500">+{diff.insertions}</span>{' '}
-                          <span className="text-rose-500">−{diff.deletions}</span>
+                          <span className="text-success">+{diff.insertions}</span>{' '}
+                          <span className="text-destructive">−{diff.deletions}</span>
                         </div>
                         {diff.files.slice(0, 12).map((f) => (
                           <div key={f.path} className="truncate font-mono">
-                            <span className="text-emerald-500">+{f.insertions}</span>{' '}
-                            <span className="text-rose-500">−{f.deletions}</span> {f.path}
+                            <span className="text-success">+{f.insertions}</span>{' '}
+                            <span className="text-destructive">−{f.deletions}</span> {f.path}
                           </div>
                         ))}
                         {diff.files.length > 12 && (
@@ -312,7 +312,7 @@ function Act({
       onClick={onClick}
       className={cn(
         'rounded p-1 text-muted-foreground hover:bg-muted disabled:cursor-not-allowed disabled:opacity-30',
-        danger ? 'hover:text-rose-500' : 'hover:text-foreground',
+        danger ? 'hover:text-destructive' : 'hover:text-foreground',
       )}
     >
       {children}
@@ -326,8 +326,8 @@ function Banner({ ok, children }: { ok: boolean; children: React.ReactNode }) {
       className={cn(
         'flex items-start gap-1.5 border-y px-3 py-1.5 text-[11px]',
         ok
-          ? 'border-emerald-500/30 bg-emerald-500/5 text-emerald-600 dark:text-emerald-300'
-          : 'border-amber-500/30 bg-amber-500/5 text-amber-600 dark:text-amber-300',
+          ? 'border-success/30 bg-success/5 text-success'
+          : 'border-warning/30 bg-warning/5 text-warning',
       )}
     >
       {ok ? <CheckCircle2 className="mt-0.5 h-3.5 w-3.5 shrink-0" /> : <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />}

@@ -45,7 +45,7 @@ export interface SddStatusStyle {
   ring: string;
   /** Tailwind background class for a small status dot. */
   dot: string;
-  /** Raw hex (React Flow edges / minimap — they can't take Tailwind classes). */
+  /** CSS color string for React Flow edges/minimap, which cannot take Tailwind classes. */
   hex: string;
 }
 
@@ -53,67 +53,67 @@ export const SDD_STATUS: Record<SddStatus, SddStatusStyle> = {
   pending: {
     label: 'Pending',
     icon: CircleDot,
-    text: 'text-slate-500 dark:text-slate-400',
-    ring: 'border-slate-400/50 bg-slate-400/10 dark:border-slate-600/50 dark:bg-slate-700/20',
-    dot: 'bg-slate-500',
-    hex: '#64748b',
+    text: 'text-muted-foreground',
+    ring: 'border-border/70 bg-muted/45',
+    dot: 'bg-muted-foreground',
+    hex: 'hsl(var(--muted-foreground))',
   },
   queued: {
     label: 'Ready',
     icon: CircleDot,
-    text: 'text-cyan-600 dark:text-cyan-300',
-    ring: 'border-cyan-500/50 bg-cyan-500/10',
-    dot: 'bg-cyan-400',
-    hex: '#22d3ee',
+    text: 'text-primary',
+    ring: 'border-primary/35 bg-primary/10',
+    dot: 'bg-primary',
+    hex: 'hsl(var(--primary))',
   },
   in_progress: {
     label: 'Running',
     icon: Loader2,
     spin: true,
-    text: 'text-amber-600 dark:text-amber-300',
-    ring: 'border-amber-400/60 bg-amber-500/10',
-    dot: 'bg-amber-400',
-    hex: '#fbbf24',
+    text: 'text-[hsl(var(--warning))]',
+    ring: 'border-[hsl(var(--warning)/0.45)] bg-[hsl(var(--warning)/0.1)]',
+    dot: 'bg-[hsl(var(--warning))]',
+    hex: 'hsl(var(--warning))',
   },
   blocked: {
     label: 'Blocked',
     icon: CircleDot,
-    text: 'text-fuchsia-600 dark:text-fuchsia-300',
-    ring: 'border-fuchsia-500/50 bg-fuchsia-500/10',
-    dot: 'bg-fuchsia-400',
-    hex: '#e879f9',
+    text: 'text-destructive',
+    ring: 'border-destructive/30 bg-destructive/10',
+    dot: 'bg-destructive',
+    hex: 'hsl(var(--destructive))',
   },
   review: {
     label: 'Review',
     icon: CircleDot,
-    text: 'text-sky-600 dark:text-sky-300',
-    ring: 'border-sky-500/50 bg-sky-500/10',
-    dot: 'bg-sky-400',
-    hex: '#38bdf8',
+    text: 'text-primary',
+    ring: 'border-primary/35 bg-primary/10',
+    dot: 'bg-primary',
+    hex: 'hsl(var(--info))',
   },
   failed: {
     label: 'Failed',
     icon: X,
-    text: 'text-red-600 dark:text-red-300',
-    ring: 'border-red-500/60 bg-red-500/10',
-    dot: 'bg-red-400',
-    hex: '#f87171',
+    text: 'text-destructive',
+    ring: 'border-destructive/45 bg-destructive/10',
+    dot: 'bg-destructive',
+    hex: 'hsl(var(--destructive))',
   },
   completed: {
     label: 'Done',
     icon: Check,
-    text: 'text-emerald-600 dark:text-emerald-300',
-    ring: 'border-emerald-500/55 bg-emerald-500/10',
-    dot: 'bg-emerald-400',
-    hex: '#34d399',
+    text: 'text-[hsl(var(--success))]',
+    ring: 'border-[hsl(var(--success)/0.35)] bg-[hsl(var(--success)/0.1)]',
+    dot: 'bg-[hsl(var(--success))]',
+    hex: 'hsl(var(--success))',
   },
   cancelled: {
     label: 'Cancelled',
     icon: Ban,
-    text: 'text-slate-500 dark:text-slate-400',
-    ring: 'border-slate-400/50 bg-slate-400/10 dark:border-slate-500/50 dark:bg-slate-600/20',
-    dot: 'bg-slate-500',
-    hex: '#94a3b8',
+    text: 'text-muted-foreground',
+    ring: 'border-border/70 bg-muted/45',
+    dot: 'bg-muted-foreground',
+    hex: 'hsl(var(--muted-foreground))',
   },
 };
 
@@ -125,20 +125,20 @@ export type SddPriority = 'critical' | 'high' | 'medium' | 'low';
 
 export const SDD_PRIORITY: Record<SddPriority, { text: string; chip: string }> = {
   critical: {
-    text: 'text-red-600 dark:text-red-400',
-    chip: 'bg-red-500/20 text-red-600 dark:text-red-300',
+    text: 'text-destructive',
+    chip: 'bg-destructive/10 text-destructive',
   },
   high: {
-    text: 'text-amber-600 dark:text-amber-400',
-    chip: 'bg-amber-500/20 text-amber-600 dark:text-amber-300',
+    text: 'text-[hsl(var(--warning))]',
+    chip: 'bg-[hsl(var(--warning)/0.12)] text-[hsl(var(--warning))]',
   },
   medium: {
-    text: 'text-cyan-600 dark:text-cyan-400',
-    chip: 'bg-cyan-500/15 text-cyan-600 dark:text-cyan-300',
+    text: 'text-primary',
+    chip: 'bg-primary/10 text-primary',
   },
   low: {
-    text: 'text-slate-500 dark:text-slate-400',
-    chip: 'bg-slate-400/20 text-slate-600 dark:bg-slate-600/30 dark:text-slate-400',
+    text: 'text-muted-foreground',
+    chip: 'bg-muted text-muted-foreground',
   },
 };
 
@@ -148,38 +148,38 @@ export function priorityStyle(p: string) {
 
 /** Run-level status badge styles (board header). */
 export const SDD_RUN_STATUS: Record<string, string> = {
-  running: 'border-sky-500/40 bg-sky-500/10 text-sky-600 dark:text-sky-300',
-  paused: 'border-amber-500/40 bg-amber-500/10 text-amber-600 dark:text-amber-300',
-  stopped: 'border-zinc-500/40 bg-zinc-500/10 text-zinc-600 dark:text-zinc-300',
-  completed: 'border-emerald-500/40 bg-emerald-500/10 text-emerald-600 dark:text-emerald-300',
-  failed: 'border-red-500/40 bg-red-500/10 text-red-600 dark:text-red-300',
-  deadlocked: 'border-rose-500/40 bg-rose-500/10 text-rose-600 dark:text-rose-300',
+  running: 'border-primary/35 bg-primary/10 text-primary',
+  paused: 'border-[hsl(var(--warning)/0.35)] bg-[hsl(var(--warning)/0.1)] text-[hsl(var(--warning))]',
+  stopped: 'border-border/70 bg-muted text-muted-foreground',
+  completed: 'border-[hsl(var(--success)/0.35)] bg-[hsl(var(--success)/0.1)] text-[hsl(var(--success))]',
+  failed: 'border-destructive/35 bg-destructive/10 text-destructive',
+  deadlocked: 'border-destructive/35 bg-destructive/10 text-destructive',
   idle: 'border-border bg-muted text-muted-foreground',
 };
 
 /** Deterministic palette for agent avatars (indexed by roster position). */
 export const SDD_AGENT_COLORS = [
-  'bg-amber-500',
-  'bg-sky-500',
-  'bg-violet-500',
-  'bg-emerald-500',
-  'bg-rose-500',
-  'bg-cyan-500',
-  'bg-fuchsia-500',
+  'bg-[hsl(var(--warning))]',
+  'bg-primary',
+  'bg-[hsl(var(--success))]',
+  'bg-destructive',
+  'bg-secondary',
+  'bg-muted-foreground',
+  'bg-accent',
 ];
 
 /** Activity-feed entry kinds → icon + colour. */
 export const SDD_FEED_KIND: Record<string, { icon: LucideIcon; color: string }> = {
-  started: { icon: Play, color: 'text-amber-400' },
-  completed: { icon: Check, color: 'text-emerald-400' },
-  failed: { icon: X, color: 'text-red-400' },
-  retrying: { icon: RotateCcw, color: 'text-orange-400' },
-  wave: { icon: Layers, color: 'text-violet-400' },
-  deadlock: { icon: AlertTriangle, color: 'text-rose-400' },
-  verification_failed: { icon: ShieldAlert, color: 'text-red-400' },
-  conflict: { icon: GitMerge, color: 'text-amber-400' },
-  split: { icon: Split, color: 'text-sky-400' },
-  supervisor: { icon: Brain, color: 'text-fuchsia-400' },
+  started: { icon: Play, color: 'text-[hsl(var(--warning))]' },
+  completed: { icon: Check, color: 'text-[hsl(var(--success))]' },
+  failed: { icon: X, color: 'text-destructive' },
+  retrying: { icon: RotateCcw, color: 'text-[hsl(var(--warning))]' },
+  wave: { icon: Layers, color: 'text-primary' },
+  deadlock: { icon: AlertTriangle, color: 'text-destructive' },
+  verification_failed: { icon: ShieldAlert, color: 'text-destructive' },
+  conflict: { icon: GitMerge, color: 'text-[hsl(var(--warning))]' },
+  split: { icon: Split, color: 'text-primary' },
+  supervisor: { icon: Brain, color: 'text-primary' },
 };
 
 // ── formatters ────────────────────────────────────────────────────────────

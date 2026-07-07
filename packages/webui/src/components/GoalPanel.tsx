@@ -18,35 +18,35 @@ import { getWSClient } from '@/lib/ws-client';
 // ── Helpers ────────────────────────────────────────────────────────────────
 
 const TREND_ICON: Record<string, ReactNode> = {
-  up: <TrendingUp className="h-3.5 w-3.5 text-emerald-500" />,
-  down: <TrendingDown className="h-3.5 w-3.5 text-red-500" />,
-  stable: <Minus className="h-3.5 w-3.5 text-amber-500" />,
+  up: <TrendingUp className="h-3.5 w-3.5 text-success" />,
+  down: <TrendingDown className="h-3.5 w-3.5 text-destructive" />,
+  stable: <Minus className="h-3.5 w-3.5 text-warning" />,
 };
 
 const STATE_CONFIG: Record<GoalState['goalState'], { color: string; bg: string; labelKey: string }> = {
   active: {
-    color: 'text-emerald-600 dark:text-emerald-400',
-    bg: 'bg-emerald-100 dark:bg-emerald-900/40',
+    color: 'text-success',
+    bg: 'bg-success/10',
     labelKey: 'statusActive',
   },
   paused: {
-    color: 'text-amber-600 dark:text-amber-400',
-    bg: 'bg-amber-100 dark:bg-amber-900/40',
+    color: 'text-warning',
+    bg: 'bg-warning/10',
     labelKey: 'statusPaused',
   },
   completed: {
-    color: 'text-blue-600 dark:text-blue-400',
-    bg: 'bg-blue-100 dark:bg-blue-900/40',
+    color: 'text-info',
+    bg: 'bg-info/10',
     labelKey: 'statusDone',
   },
   failed: {
-    color: 'text-red-600 dark:text-red-400',
-    bg: 'bg-red-100 dark:bg-red-900/40',
+    color: 'text-destructive',
+    bg: 'bg-destructive/10',
     labelKey: 'statusFailed',
   },
   abandoned: {
-    color: 'text-stone-600 dark:text-stone-400',
-    bg: 'bg-stone-100 dark:bg-stone-900/40',
+    color: 'text-muted-foreground',
+    bg: 'bg-muted',
     labelKey: 'statusAbandoned',
   },
 };
@@ -101,7 +101,7 @@ export function GoalPanel({ goal, className }: GoalPanelProps): React.ReactEleme
         onClick={() => setCollapsed((v) => !v)}
         className="flex w-full items-center gap-2 px-3 py-2.5 text-left hover:bg-accent/40 rounded-t-lg transition-colors"
       >
-        <Target className="h-4 w-4 text-rose-500" />
+        <Target className="h-4 w-4 text-primary" />
         <span className="text-xs font-semibold text-foreground flex-1 min-w-0 truncate">
           {t('activity:goal.heading')}
         </span>
@@ -156,9 +156,9 @@ export function GoalPanel({ goal, className }: GoalPanelProps): React.ReactEleme
                 className={cn(
                   'h-full transition-all duration-700 rounded-full',
                   goal.progress >= 80
-                    ? 'bg-emerald-500'
+                    ? 'bg-success'
                     : goal.progress >= 50
-                      ? 'bg-amber-500'
+                      ? 'bg-warning'
                       : 'bg-primary',
                 )}
                 style={{ width: `${goal.progress > 0 ? Math.max(2, goal.progress) : 0}%` }}
@@ -191,7 +191,7 @@ export function GoalPanel({ goal, className }: GoalPanelProps): React.ReactEleme
                 {goal.deliverables?.map((d) => (
                   <li key={d.id} className="flex items-start gap-1.5 text-[11px]">
                     {d.status === 'done' ? (
-                      <CheckCircle2 className="h-3 w-3 text-emerald-500 mt-0.5 shrink-0" />
+                      <CheckCircle2 className="h-3 w-3 text-success mt-0.5 shrink-0" />
                     ) : (
                       <Circle className="h-3 w-3 text-muted-foreground/50 mt-0.5 shrink-0" />
                     )}

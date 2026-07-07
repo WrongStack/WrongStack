@@ -70,16 +70,16 @@ export function CheckpointTimeline({
   return (
     <Dialog open={open} onOpenChange={(v) => { if (!v) onClose(); }}>
       <DialogContent
-        className={cn('max-w-md gap-0 p-0 overflow-hidden flex flex-col max-h-[75dvh] pt-[10dvh]', className)}
+        className={cn('max-w-md gap-0 overflow-hidden border-border/80 bg-card p-0 pt-[10dvh] flex flex-col max-h-[75dvh]', className)}
       >
         <DialogTitle className="sr-only">{t('activity:checkpoint.heading')}</DialogTitle>
         <DialogDescription className="sr-only">
           {t('activity:checkpoint.countSuffix', { count: checkpoints.length })}
         </DialogDescription>
         {/* Header */}
-        <div className="flex items-center justify-between px-4 py-3 border-b shrink-0">
+        <div className="flex items-center justify-between border-b border-border/70 bg-card/95 px-4 py-3 shrink-0">
           <div className="flex items-center gap-2.5">
-            <span className="flex items-center justify-center w-8 h-8 rounded-lg bg-violet-500/10 text-violet-600 dark:text-violet-400">
+            <span className="flex items-center justify-center w-8 h-8 rounded-md border border-primary/20 bg-primary/10 text-primary">
               <History className="h-4 w-4" />
             </span>
             <div>
@@ -92,7 +92,7 @@ export function CheckpointTimeline({
         </div>
 
         {/* Description bar */}
-        <div className="px-4 py-2.5 border-b bg-muted/20 text-[10px] text-muted-foreground leading-relaxed">
+        <div className="border-b border-border/70 bg-muted/25 px-4 py-2.5 text-[10px] text-muted-foreground leading-relaxed">
           {t('activity:checkpoint.description')}
         </div>
 
@@ -161,7 +161,7 @@ export function CheckpointTimeline({
                     </div>
 
                     <span className="shrink-0 mt-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <Rewind className="h-4 w-4 text-violet-500" />
+                      <Rewind className="h-4 w-4 text-primary" />
                     </span>
                   </button>
                 );
@@ -171,7 +171,7 @@ export function CheckpointTimeline({
         </div>
 
         {/* Footer hint */}
-        <div className="border-t px-4 py-2 text-[10px] text-muted-foreground text-center shrink-0">
+        <div className="border-t border-border/70 bg-muted/20 px-4 py-2 text-[10px] text-muted-foreground text-center shrink-0">
           {t('activity:checkpoint.footerPre')} ·{' '}
           <kbd className="px-1 py-0.5 rounded bg-muted font-mono text-[9px]">Esc</kbd>{' '}
           {t('activity:checkpoint.footerPost')}

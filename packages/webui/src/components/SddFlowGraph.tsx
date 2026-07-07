@@ -61,14 +61,14 @@ const STATUS: Record<
   FlowStatus,
   { ring: string; chip: string; dot: string }
 > = {
-  pending: { ring: 'border-slate-600/50', chip: 'bg-slate-700/40 text-slate-400', dot: 'bg-slate-500' },
-  queued: { ring: 'border-cyan-500/50', chip: 'bg-cyan-500/15 text-cyan-300', dot: 'bg-cyan-400' },
-  in_progress: { ring: 'border-amber-400/70', chip: 'bg-amber-500/20 text-amber-300', dot: 'bg-amber-400' },
-  blocked: { ring: 'border-fuchsia-500/50', chip: 'bg-fuchsia-500/15 text-fuchsia-300', dot: 'bg-fuchsia-400' },
-  review: { ring: 'border-sky-500/50', chip: 'bg-sky-500/15 text-sky-300', dot: 'bg-sky-400' },
-  failed: { ring: 'border-red-500/60', chip: 'bg-red-500/15 text-red-300', dot: 'bg-red-400' },
-  completed: { ring: 'border-emerald-500/55', chip: 'bg-emerald-500/15 text-emerald-300', dot: 'bg-emerald-400' },
-  cancelled: { ring: 'border-slate-500/50', chip: 'bg-slate-600/25 text-slate-400', dot: 'bg-slate-500' },
+  pending: { ring: 'border-border/70', chip: 'bg-muted text-muted-foreground', dot: 'bg-muted-foreground' },
+  queued: { ring: 'border-primary/35', chip: 'bg-primary/10 text-primary', dot: 'bg-primary' },
+  in_progress: { ring: 'border-[hsl(var(--warning)/0.45)]', chip: 'bg-[hsl(var(--warning)/0.12)] text-[hsl(var(--warning))]', dot: 'bg-[hsl(var(--warning))]' },
+  blocked: { ring: 'border-destructive/30', chip: 'bg-destructive/10 text-destructive', dot: 'bg-destructive' },
+  review: { ring: 'border-primary/35', chip: 'bg-primary/10 text-primary', dot: 'bg-primary' },
+  failed: { ring: 'border-destructive/45', chip: 'bg-destructive/10 text-destructive', dot: 'bg-destructive' },
+  completed: { ring: 'border-[hsl(var(--success)/0.35)]', chip: 'bg-[hsl(var(--success)/0.12)] text-[hsl(var(--success))]', dot: 'bg-[hsl(var(--success))]' },
+  cancelled: { ring: 'border-border/70', chip: 'bg-muted text-muted-foreground', dot: 'bg-muted-foreground' },
 };
 
 interface TaskNodeData extends Record<string, unknown> {
@@ -94,7 +94,7 @@ function TaskNode({ data }: { data: TaskNodeData }) {
   return (
     <div
       className={cn(
-        'sdd-node-enter group relative rounded-lg border bg-[#0e1117]/95 px-2.5 py-2 text-left shadow-lg backdrop-blur',
+        'sdd-node-enter group relative rounded-lg border bg-card/95 px-2.5 py-2 text-left shadow-lg backdrop-blur',
         s.ring,
         running && 'sdd-node-running',
         t.displayStatus === 'completed' && 'sdd-node-complete',
@@ -106,15 +106,15 @@ function TaskNode({ data }: { data: TaskNodeData }) {
     >
       {/* Columns flow left→right (a task's deps sit in earlier/left columns),
           so edges enter on the Left and leave on the Right. */}
-      <Handle type="target" position={Position.Left} isConnectable={false} className="!h-1.5 !w-1.5 !border-0 !bg-slate-500" />
-      <Handle type="source" position={Position.Right} isConnectable={false} className="!h-1.5 !w-1.5 !border-0 !bg-slate-500" />
+      <Handle type="target" position={Position.Left} isConnectable={false} className="!h-1.5 !w-1.5 !border-0 !bg-border" />
+      <Handle type="source" position={Position.Right} isConnectable={false} className="!h-1.5 !w-1.5 !border-0 !bg-border" />
 
       {/* header row: status + short id + priority */}
       <div className="flex items-center gap-1.5">
         <StatusIcon
           className={cn('h-3.5 w-3.5', running && 'animate-spin', s.chip.split(' ').find((c) => c.startsWith('text')))}
         />
-        <span className="font-mono text-[10px] text-slate-500">{t.shortId}</span>
+        <span className="font-mono text-[10px] text-muted-foreground">{t.shortId}</span>
         <span className={cn('font-mono text-[10px] font-bold uppercase', priorityStyle(t.priority).text)}>
           {t.priority[0]}
         </span>
@@ -122,7 +122,7 @@ function TaskNode({ data }: { data: TaskNodeData }) {
       </div>
 
       {/* title */}
-      <p className="mt-1 line-clamp-2 text-[11px] leading-snug text-slate-200">{t.title}</p>
+      <p className="mt-1 line-clamp-2 text-[11px] leading-snug text-foreground">{t.title}</p>
 
       {/* live worker + worktree */}
       {(t.agentName || t.worktreeBranch) && (
@@ -132,22 +132,22 @@ function TaskNode({ data }: { data: TaskNodeData }) {
               <span
                 className={cn(
                   'flex h-4 w-4 items-center justify-center rounded-full text-[8px] font-bold text-white',
-                  running ? 'bg-amber-500 sdd-agent-live' : 'bg-slate-600',
+                  running ? 'bg-[hsl(var(--warning))] sdd-agent-live' : 'bg-muted-foreground',
                 )}
               >
                 {agentInitials(t.agentName)}
               </span>
-              <span className="max-w-[88px] truncate text-[10px] text-slate-300">{t.agentName}</span>
+              <span className="max-w-[88px] truncate text-[10px] text-muted-foreground">{t.agentName}</span>
             </span>
           )}
           {t.retries ? (
-            <span className="flex items-center gap-0.5 text-[9px] text-red-400">
+            <span className="flex items-center gap-0.5 text-[9px] text-destructive">
               <RotateCcw className="h-2.5 w-2.5" />
               {t.retries}
             </span>
           ) : null}
           {t.worktreeBranch && (
-            <span className="ml-auto flex items-center gap-0.5 text-[9px] text-slate-500" title={t.worktreeBranch}>
+            <span className="ml-auto flex items-center gap-0.5 text-[9px] text-muted-foreground" title={t.worktreeBranch}>
               <GitBranch className="h-2.5 w-2.5" />
               <span className="max-w-[70px] truncate">{t.worktreeBranch.replace(/^.*\//, '')}</span>
             </span>
@@ -161,7 +161,7 @@ function TaskNode({ data }: { data: TaskNodeData }) {
 /** Column header label (React Flow's built-in 'group' node does not render text). */
 function ColLabelNode({ data }: { data: { label: string } }) {
   return (
-    <div className="whitespace-nowrap text-[11px] font-bold uppercase tracking-wider text-slate-500">
+    <div className="whitespace-nowrap text-[11px] font-bold uppercase text-muted-foreground">
       {data.label}
     </div>
   );
@@ -262,19 +262,19 @@ function FlowInner({
       nodesConnectable={false}
       elementsSelectable={!!onTaskClick}
     >
-      <Background variant={BackgroundVariant.Dots} gap={22} size={1} color="#1e293b" />
+      <Background variant={BackgroundVariant.Dots} gap={22} size={1} color="hsl(var(--border))" />
       <Controls showInteractive={false} className="!bottom-2 !left-2" />
       <MiniMap
         pannable
         zoomable
         nodeStrokeWidth={2}
-        maskColor="rgba(2,6,23,0.65)"
+        maskColor="hsl(var(--background) / 0.65)"
         nodeColor={(n) => {
           const d = n.data as TaskNodeData;
           const st = d?.task?.displayStatus;
-          return st ? statusStyle(st).hex : '#334155';
+          return st ? statusStyle(st).hex : 'hsl(var(--muted-foreground))';
         }}
-        className="!bottom-2 !right-2 !h-24 !w-40 overflow-hidden rounded-md border border-white/10"
+        className="!bottom-2 !right-2 !h-24 !w-40 overflow-hidden rounded-md border border-border/70 bg-card"
       />
     </ReactFlow>
   );

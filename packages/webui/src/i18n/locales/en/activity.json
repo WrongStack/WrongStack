@@ -471,6 +471,9 @@
     "rawData": "Raw Data"
   },
   "providerModels": {
+    "allowlistTitle": "Model allowlist",
+    "modelCount_one": "{{count}} model",
+    "modelCount_other": "{{count}} models",
     "using": "Using",
     "noModelPicked": "(no model picked)",
     "clearAllowlist": "Clear allowlist",

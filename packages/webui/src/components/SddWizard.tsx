@@ -159,7 +159,7 @@ export function SddWizard({ onClose }: { onClose: () => void }): React.ReactElem
     <div className="flex h-full min-h-0 min-w-0 flex-col bg-background">
       <header className="sdd-sheen flex shrink-0 items-center justify-between border-b border-border px-4 py-2">
         <div className="flex items-center gap-2">
-          <Sparkles className="h-5 w-5 text-violet-400" />
+          <Sparkles className="h-5 w-5 text-primary" />
           <div>
             <h1 className="text-lg font-semibold">{snapshot?.title || t('activity:sddWizard.titleFallback')}</h1>
             {started && (
@@ -183,7 +183,7 @@ export function SddWizard({ onClose }: { onClose: () => void }): React.ReactElem
                 className={cn(
                   'inline-flex items-center gap-1 rounded-md border px-2 py-1 text-xs font-medium',
                   runModel || runFallbacks.length
-                    ? 'border-violet-500/40 bg-violet-500/10 text-violet-600 dark:text-violet-300'
+                    ? 'border-primary/40 bg-primary/10 text-primary'
                     : 'border-border bg-muted text-muted-foreground hover:text-foreground',
                 )}
               >
@@ -193,7 +193,7 @@ export function SddWizard({ onClose }: { onClose: () => void }): React.ReactElem
               <button
                 type="button"
                 onClick={startRun}
-                className="inline-flex items-center gap-1 rounded-md bg-emerald-500/15 px-2.5 py-1 text-xs font-medium text-emerald-700 hover:bg-emerald-500/25 dark:text-emerald-400"
+                className="inline-flex items-center gap-1 rounded-md bg-success/15 px-2.5 py-1 text-xs font-medium text-success hover:bg-success/25"
               >
                 <Rocket className="h-3.5 w-3.5" /> {t('activity:sddWizard.startRun')}
               </button>
@@ -249,7 +249,7 @@ export function SddWizard({ onClose }: { onClose: () => void }): React.ReactElem
                         const n = Number.parseInt(e.target.value, 10);
                         setRunSlots(Number.isFinite(n) ? Math.min(16, Math.max(1, n)) : 1);
                       }}
-                      className="w-16 rounded-md border border-border bg-background px-2 py-1 text-right text-xs outline-none focus:border-violet-500"
+                      className="w-16 rounded-md border border-border bg-background px-2 py-1 text-right text-xs outline-none focus:border-primary"
                     />
                   </div>
                   <label className="mt-2 flex cursor-pointer items-center justify-between gap-2">
@@ -260,7 +260,7 @@ export function SddWizard({ onClose }: { onClose: () => void }): React.ReactElem
                       type="checkbox"
                       checked={runWorktrees}
                       onChange={(e) => setRunWorktrees(e.target.checked)}
-                      className="h-3.5 w-3.5 accent-violet-500"
+                      className="h-3.5 w-3.5 accent-primary"
                     />
                   </label>
                   <p className="mt-1 text-[10px] text-muted-foreground">
@@ -290,9 +290,9 @@ export function SddWizard({ onClose }: { onClose: () => void }): React.ReactElem
                   className={cn(
                     'rounded-full px-2 py-0.5',
                     active
-                      ? 'bg-violet-500/20 text-violet-600 dark:text-violet-300'
+                      ? 'bg-primary/15 text-primary'
                       : done
-                        ? 'text-emerald-600 dark:text-emerald-400'
+                        ? 'text-success'
                         : 'text-muted-foreground',
                   )}
                 >
@@ -308,7 +308,7 @@ export function SddWizard({ onClose }: { onClose: () => void }): React.ReactElem
 
       <div className="min-h-0 flex-1 overflow-auto p-4">
         {error && (
-          <div className="mb-3 rounded-md border border-red-500/40 bg-red-500/5 p-2 text-xs text-red-300">
+          <div className="mb-3 rounded-md border border-destructive/40 bg-destructive/5 p-2 text-xs text-destructive">
             {error}
           </div>
         )}
@@ -328,7 +328,7 @@ export function SddWizard({ onClose }: { onClose: () => void }): React.ReactElem
               }}
               rows={4}
               placeholder={t('activity:sddWizard.goalPlaceholder')}
-              className="w-full resize-none rounded-md border border-border bg-card px-3 py-2 text-sm outline-none focus:border-violet-500"
+              className="w-full resize-none rounded-md border border-border bg-card px-3 py-2 text-sm outline-none focus:border-primary"
             />
             <Button className="mt-3" onClick={startGoal} disabled={!goal.trim() || submitting}>
               {submitting ? (
@@ -351,16 +351,16 @@ export function SddWizard({ onClose }: { onClose: () => void }): React.ReactElem
             {/* Decomposition reveal — the task graph as an animated DAG.
                 Collapsible + capped height so it never crowds out the transcript. */}
             {hasGraph && (
-              <div className="sdd-rise overflow-hidden rounded-lg border border-violet-500/20 bg-[#0a0d14]">
+              <div className="sdd-rise overflow-hidden rounded-lg border border-primary/20 bg-[hsl(var(--surface-2)/0.85)]">
                 <button
                   type="button"
                   onClick={() => setGraphOpen((o) => !o)}
-                  className="flex w-full items-center gap-1.5 border-b border-white/5 px-3 py-1.5 text-[11px] font-medium text-violet-300 hover:bg-white/5"
+                  className="flex w-full items-center gap-1.5 border-b border-border/60 px-3 py-1.5 text-[11px] font-medium text-primary hover:bg-muted/40"
                 >
                   {graphOpen ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
                   <Network className="h-3.5 w-3.5" />
                   {t('activity:sddWizard.taskGraphSummary', { count: snapshot?.taskCount ?? 0 })}
-                  <span className="ml-auto text-slate-500">{graphOpen ? t('activity:sddWizard.dragToExplore') : t('activity:sddWizard.show')}</span>
+                  <span className="ml-auto text-muted-foreground">{graphOpen ? t('activity:sddWizard.dragToExplore') : t('activity:sddWizard.show')}</span>
                 </button>
                 {graphOpen && (
                   <div className="h-[32dvh] min-h-[200px]">
@@ -408,7 +408,7 @@ export function SddWizard({ onClose }: { onClose: () => void }): React.ReactElem
               {snapshot?.spec && (
                 <div className="sdd-rise rounded-md border border-border bg-card p-3">
                   <div className="mb-1 flex items-center gap-1.5 text-sm font-semibold">
-                    <Sparkles className="h-3.5 w-3.5 text-violet-400" />
+                    <Sparkles className="h-3.5 w-3.5 text-primary" />
                     {snapshot.spec.title}
                   </div>
                   <p className="mb-2 text-xs text-muted-foreground">{snapshot.spec.overview}</p>
@@ -440,7 +440,7 @@ export function SddWizard({ onClose }: { onClose: () => void }): React.ReactElem
                     className="flex w-full items-center gap-1.5 border-b border-border/60 px-3 py-2 text-sm font-semibold hover:bg-muted/40"
                   >
                     {planOpen ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
-                    <Sparkles className="h-3.5 w-3.5 text-violet-400" /> {t('activity:sddWizard.implementationPlan')}
+                    <Sparkles className="h-3.5 w-3.5 text-primary" /> {t('activity:sddWizard.implementationPlan')}
                   </button>
                   {planOpen && (
                     <div className="max-h-[40dvh] overflow-auto px-3 py-2">
@@ -494,7 +494,7 @@ export function SddWizard({ onClose }: { onClose: () => void }): React.ReactElem
             rows={1}
             placeholder={phase === 'questioning' ? t('activity:sddWizard.answerPlaceholder') : t('activity:sddWizard.changePlaceholder')}
             disabled={busy}
-            className="max-h-32 flex-1 resize-none rounded-md border border-border bg-background px-3 py-2 text-sm outline-none focus:border-violet-500 disabled:opacity-50"
+            className="max-h-32 flex-1 resize-none rounded-md border border-border bg-background px-3 py-2 text-sm outline-none focus:border-primary disabled:opacity-50"
           />
           <Button size="icon" onClick={sendReply} disabled={busy || !reply.trim()}>
             <Send className="h-4 w-4" />
@@ -534,8 +534,8 @@ function ChatBubble({
         className={cn(
           'mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full',
           isUser
-            ? 'bg-sky-500/20 text-sky-600 dark:text-sky-300'
-            : 'bg-violet-500/20 text-violet-600 dark:text-violet-300',
+            ? 'bg-info/15 text-info'
+            : 'bg-primary/15 text-primary',
           (live || thinking) && 'sdd-agent-live',
         )}
       >
@@ -544,7 +544,7 @@ function ChatBubble({
       <div
         className={cn(
           'max-w-[80%] whitespace-pre-wrap rounded-2xl px-3 py-2 text-sm leading-relaxed text-foreground',
-          isUser ? 'rounded-tr-sm bg-sky-500/15' : 'rounded-tl-sm bg-muted',
+          isUser ? 'rounded-tr-sm bg-info/10' : 'rounded-tl-sm bg-muted',
         )}
       >
         {thinking ? (

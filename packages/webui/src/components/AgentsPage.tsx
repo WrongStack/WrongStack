@@ -177,7 +177,7 @@ function AgentDetailPanel({
                 <span className={cn(
                   'px-2 py-0.5 rounded text-[10px] font-medium uppercase tracking-wider',
                   STATUS_META[agent.status]?.color === 'text-[hsl(var(--success))]'
-                    ? 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400'
+                    ? 'bg-success/12 text-success'
                     : STATUS_META[agent.status]?.color === 'text-destructive'
                       ? 'bg-destructive/15 text-destructive'
                       : 'bg-muted text-muted-foreground'
@@ -290,7 +290,7 @@ function AgentDetailPanel({
               <span className="text-[9px] text-muted-foreground uppercase tracking-wider">{t('activity:agents.contextUsage')}</span>
               <span className={cn(
                 'text-[11px] font-mono font-medium',
-                ctxPct >= 85 ? 'text-destructive' : ctxPct >= 70 ? 'text-amber-500' : 'text-[hsl(var(--success))]'
+                ctxPct >= 85 ? 'text-destructive' : ctxPct >= 70 ? 'text-warning' : 'text-[hsl(var(--success))]'
               )}>
                 {ctxPct}%
               </span>
@@ -332,7 +332,7 @@ function AgentDetailPanel({
               <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-2">
                 {isStream ? (
                   <>
-                    <span className="w-2 h-2 rounded-full bg-blue-500 animate-pulse" />
+                    <span className="w-2 h-2 rounded-full bg-primary animate-pulse" />
                     {t('activity:fleet.liveOutput')}
                   </>
                 ) : (
@@ -347,7 +347,7 @@ function AgentDetailPanel({
                 onClick={() => handleCopy(outputText)}
                 className="flex items-center gap-1 px-2 py-1 rounded text-[10px] text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
               >
-                {copied ? <CheckCircle2 className="h-3 w-3 text-emerald-500" /> : <Copy className="h-3 w-3" />}
+                {copied ? <CheckCircle2 className="h-3 w-3 text-success" /> : <Copy className="h-3 w-3" />}
                 {copied ? t('common:action.copied') : t('common:action.copy')}
               </button>
             </div>
@@ -364,13 +364,13 @@ function AgentDetailPanel({
 
         {/* Budget warning */}
         {agent.budgetWarning && (
-          <div className="flex items-center gap-3 px-4 py-3 rounded-lg bg-amber-500/10 border border-amber-500/20">
-            <Zap className="h-5 w-5 text-amber-500 shrink-0" />
+          <div className="flex items-center gap-3 px-4 py-3 rounded-lg bg-warning/10 border border-warning/25">
+            <Zap className="h-5 w-5 text-warning shrink-0" />
             <div>
-              <span className="text-sm font-medium text-amber-600 dark:text-amber-400">
+              <span className="text-sm font-medium text-warning">
                 {t('activity:fleet.budgetWarningTitle')}
               </span>
-              <p className="text-[11px] text-amber-600/80 dark:text-amber-400/80 mt-0.5">
+              <p className="text-[11px] text-warning/80 mt-0.5">
                 {t('activity:fleet.hittingLimit', { kind: agent.budgetWarning.kind, used: agent.budgetWarning.used, limit: agent.budgetWarning.limit })}
               </p>
             </div>

@@ -471,6 +471,9 @@
     "rawData": "Ham Veri"
   },
   "providerModels": {
+    "allowlistTitle": "Model izin listesi",
+    "modelCount_one": "{{count}} model",
+    "modelCount_other": "{{count}} model",
     "using": "Kullanılan",
     "noModelPicked": "(model seçilmedi)",
     "clearAllowlist": "İzin listesini temizle",

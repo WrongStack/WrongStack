@@ -184,24 +184,29 @@ export const MessageBubble = memo(function MessageBubble({
         'group flex msg-bubble animate-message rounded-lg transition-shadow',
         compactMode ? 'gap-2' : 'gap-3',
         isUser ? 'flex-row-reverse' : 'flex-row',
-        isPinned && 'ring-1 ring-amber-500/30 bg-amber-500/[0.02] px-1 -mx-1',
+        isPinned && 'ring-1 ring-warning/30 bg-warning/[0.02] px-1 -mx-1',
       )}
     >
       {isContinuation ? (
         <div className="flex-shrink-0 w-8 h-8" aria-hidden />
       ) : (
         <div className={cn(
-          'flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center',
-          'ring-2 ring-offset-2 ring-offset-background',
-          isUser ? 'bg-primary text-primary-foreground ring-primary/20' : isTool ? 'bg-secondary text-secondary-foreground ring-secondary/20' : isThinkingLog ? 'bg-violet-500/10 text-violet-600 dark:text-violet-400 ring-violet-500/20' : 'bg-accent text-accent-foreground ring-accent/20',
+          'flex-shrink-0 w-8 h-8 rounded-lg flex items-center justify-center',
+          'ring-1 ring-offset-2 ring-offset-background',
+          isUser ? 'bg-primary text-primary-foreground ring-primary/20' : isTool ? 'bg-secondary text-secondary-foreground ring-secondary/20' : isThinkingLog ? 'bg-primary/10 text-primary ring-primary/20' : 'bg-accent text-accent-foreground ring-accent/20',
         )}>
           {isUser ? <User className="h-4 w-4" /> : isTool ? <Terminal className="h-4 w-4" /> : isThinkingLog ? <Brain className="h-4 w-4" /> : <Bot className="h-4 w-4" />}
         </div>
       )}
 
-      <div className={cn('flex flex-col gap-1.5 max-w-[85%]', isUser && 'items-end')}>
+      <div
+        className={cn(
+          'flex min-w-0 flex-1 flex-col gap-1.5 sm:max-w-[52rem]',
+          isUser && 'items-end sm:max-w-[44rem]',
+        )}
+      >
         {isFirst && !isContinuation && (
-          <span className={cn('text-xs font-medium px-1', isUser ? 'text-primary' : isTool ? 'text-secondary' : isThinkingLog ? 'text-violet-600 dark:text-violet-400' : 'text-muted-foreground')}>
+          <span className={cn('text-xs font-medium px-1', isUser ? 'text-primary' : isTool ? 'text-secondary' : isThinkingLog ? 'text-primary' : 'text-muted-foreground')}>
             {isUser ? t('activity:message.roleYou') : isTool ? t('activity:message.roleTool') : isThinkingLog ? t('activity:message.roleThinking') : t('activity:message.roleAssistant')}
           </span>
         )}
@@ -216,14 +221,14 @@ export const MessageBubble = memo(function MessageBubble({
             <span className="text-muted-foreground/50">{expandedTools[message.id] ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}</span>
             <ToolIcon className="h-3 w-3" style={{ color: toolColor }} />
             <span className="font-mono" style={{ color: toolColor }}>{message.toolName}</span>
-            {message.toolResult === undefined ? <span className="h-1.5 w-1.5 rounded-full bg-amber-500 animate-pulse" aria-hidden /> : message.isError ? <XCircle className="h-3 w-3 text-destructive" /> : <CheckCircle2 className="h-3 w-3 text-green-500" />}
+            {message.toolResult === undefined ? <span className="h-1.5 w-1.5 rounded-full bg-warning animate-pulse" aria-hidden /> : message.isError ? <XCircle className="h-3 w-3 text-destructive" /> : <CheckCircle2 className="h-3 w-3 text-success" />}
             {typeof message.toolDurationMs === 'number' && <span className="text-xs text-muted-foreground tabular-nums font-normal">{formatToolDuration(message.toolDurationMs)}</span>}
           </button>
           );
         })()}
 
-        <div className={cn('rounded-2xl', compactMode ? 'px-3 py-1.5' : 'px-4 py-3',
-          isUser ? 'bg-primary text-primary-foreground rounded-br-md' : isTool ? message.isError ? 'bg-destructive/5 border border-destructive/20 text-destructive' : 'bg-muted/80 text-foreground' : 'bg-card border text-foreground',
+        <div className={cn('max-w-full rounded-lg shadow-sm', compactMode ? 'px-3 py-1.5' : 'px-4 py-3',
+          isUser ? 'bg-primary text-primary-foreground rounded-br-sm' : isTool ? message.isError ? 'bg-destructive/5 border border-destructive/25 text-destructive' : 'bg-muted/70 border border-border/60 text-foreground' : 'bg-card border border-border/70 text-foreground',
           message.isError && !isTool && 'border-destructive/20',
           isUser && message.status === 'failed' && 'opacity-60 ring-1 ring-destructive/30')}>
           {isTool ? (() => {
@@ -234,7 +239,7 @@ export const MessageBubble = memo(function MessageBubble({
               <div className="space-y-1 tool-details">
                 {inputSummary && !expanded && <div className="text-xs text-muted-foreground font-mono truncate">{inputSummary}</div>}
                 {message.toolResult === undefined && message.progressLines && message.progressLines.length > 0 && (
-                  <div className="mt-1 rounded-md border border-amber-500/20 bg-amber-500/5 p-1.5 text-[11px] font-mono leading-snug max-h-32 overflow-auto">
+                  <div className="mt-1 rounded-md border border-warning/20 bg-warning/5 p-1.5 text-[11px] font-mono leading-snug max-h-32 overflow-auto">
                     {(() => {
                       const seen = new Map<string, number>();
                       return message.progressLines.slice(-6).map((line) => {
@@ -301,11 +306,11 @@ export const MessageBubble = memo(function MessageBubble({
             const durationLabel = log.replayed ? t('activity:message.replay') : `${seconds.toFixed(seconds < 10 ? 1 : 0)}s`;
             const preview = log.text.split('\n').slice(-4).join('\n').trim();
             return (
-              <div className="min-w-0 max-w-[min(720px,85vw)]">
+              <div className="min-w-0 max-w-full sm:max-w-[720px]">
                 <button
                   type="button"
                   onClick={() => setThinkingExpanded((v) => !v)}
-                  className="flex w-full flex-wrap items-center gap-x-2 gap-y-1 text-left text-sm font-medium text-violet-600 dark:text-violet-400"
+                  className="flex w-full flex-wrap items-center gap-x-2 gap-y-1 text-left text-sm font-medium text-primary"
                 >
                   <span className="text-muted-foreground/60">
                     {thinkingExpanded ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
@@ -317,7 +322,7 @@ export const MessageBubble = memo(function MessageBubble({
                   </span>
                 </button>
                 <pre className={cn(
-                  'mt-2 whitespace-pre-wrap break-words rounded-lg border border-violet-500/20 bg-violet-500/[0.04] p-3 font-mono text-xs leading-relaxed text-foreground/80',
+                  'mt-2 whitespace-pre-wrap break-words rounded-lg border border-primary/20 bg-primary/[0.04] p-3 font-mono text-xs leading-relaxed text-foreground/80',
                   thinkingExpanded ? 'max-h-[32rem] overflow-auto' : 'max-h-24 overflow-hidden',
                 )}>
                   {thinkingExpanded ? log.text : (preview || log.text)}
@@ -379,7 +384,7 @@ export const MessageBubble = memo(function MessageBubble({
           />
         )}
 
-        <div className={cn('flex items-center gap-2 px-1', isUser ? 'flex-row-reverse' : 'flex-row')}>
+        <div className={cn('flex max-w-full flex-wrap items-center gap-2 px-1', isUser ? 'flex-row-reverse' : 'flex-row')}>
           <span className="text-xs text-muted-foreground/50">{new Date(message.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
           {/* ── Separator ── */}
           <span className="w-px h-3 bg-border/60 shrink-0" aria-hidden />
@@ -415,7 +420,7 @@ export const MessageBubble = memo(function MessageBubble({
           )}
           {message.role === 'assistant' && message.content && !message.streaming && (
             <button type="button" onClick={() => togglePin(message.id)} title={isPinned ? t('activity:message.unpinTitle') : t('activity:message.pinTitle')}
-              className={cn('text-xs inline-flex items-center gap-1 transition-opacity', isPinned ? 'text-amber-500 hover:text-amber-600 opacity-100' : 'opacity-50 hover:opacity-100 text-muted-foreground hover:text-foreground')}>
+              className={cn('text-xs inline-flex items-center gap-1 transition-opacity', isPinned ? 'text-warning hover:text-warning/85 opacity-100' : 'opacity-50 hover:opacity-100 text-muted-foreground hover:text-foreground')}>
               {isPinned ? <PinOff className="h-3 w-3" /> : <Pin className="h-3 w-3" />}<span>{isPinned ? t('activity:message.pinnedLabel') : t('activity:message.pinLabel')}</span>
             </button>
           )}

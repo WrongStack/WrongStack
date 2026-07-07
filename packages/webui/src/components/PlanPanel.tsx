@@ -13,8 +13,8 @@ interface PlanItem {
 
 const STATUS_CONFIG: Record<PlanItem['status'], { icon: React.ReactNode; labelKey: string; color: string }> = {
   open: { icon: <Circle className="w-3.5 h-3.5" />, labelKey: 'statusOpen', color: 'text-muted-foreground/50' },
-  in_progress: { icon: <Clock className="w-3.5 h-3.5 animate-spin" />, labelKey: 'statusInProgress', color: 'text-yellow-500' },
-  done: { icon: <CheckCircle2 className="w-3.5 h-3.5" />, labelKey: 'statusDone', color: 'text-emerald-500' },
+  in_progress: { icon: <Clock className="w-3.5 h-3.5 animate-spin" />, labelKey: 'statusInProgress', color: 'text-warning' },
+  done: { icon: <CheckCircle2 className="w-3.5 h-3.5" />, labelKey: 'statusDone', color: 'text-success' },
 };
 
 /**
@@ -103,7 +103,7 @@ export function PlanPanel(): React.ReactElement | null {
                 key={it.id}
                 className={cn(
                   'px-3 py-1.5 flex items-start gap-2 text-[13px] group',
-                  it.status === 'in_progress' ? 'bg-yellow-50/40 dark:bg-yellow-950/25' : '',
+                  it.status === 'in_progress' ? 'bg-warning/8' : '',
                 )}
               >
                 <span className={cn('mt-0.5 shrink-0', cfg.color)}>{cfg.icon}</span>

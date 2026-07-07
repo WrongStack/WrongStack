@@ -60,7 +60,7 @@ const ChatRowView = memo(function ChatRowView({
   isFirstRow: boolean;
 }) {
   const wrap = cn(
-    'mx-auto max-w-5xl w-full px-4',
+    'mx-auto max-w-6xl w-full px-3 sm:px-5 lg:px-6',
     isFirstRow && 'pt-4',
     compactMode ? 'pb-3' : 'pb-6',
   );
@@ -218,9 +218,9 @@ export function ChatView() {
       : 0;
   const _ctxTone =
     ctxPct >= 85
-      ? 'bg-red-500/15 text-red-600 dark:text-red-400'
+      ? 'bg-destructive/12 text-destructive'
       : ctxPct >= 70
-        ? 'bg-amber-500/15 text-amber-600 dark:text-amber-400'
+        ? 'bg-warning/12 text-warning'
         : 'bg-muted text-muted-foreground';
 
   // Auto-scroll with "user is reading older messages" lock. Scroll metrics now
@@ -369,17 +369,17 @@ export function ChatView() {
     agentState === 'idle'
       ? 'bg-muted text-muted-foreground'
       : agentState === 'streaming'
-        ? 'bg-blue-500/10 text-blue-600 dark:text-blue-400'
-        : 'bg-amber-500/10 text-amber-600 dark:text-amber-400';
+        ? 'bg-primary/10 text-primary'
+        : 'bg-warning/10 text-warning';
 
   const hasStatusContent =
     (maxContext > 0 && lastInputTokens > 0) || totalTokens.input > 0 || !!startTime;
 
   return (
-    <div className="flex flex-col flex-1 min-h-0">
+    <div className="flex flex-col flex-1 min-h-0 bg-[hsl(var(--surface-2)/0.45)]">
       {/* Header */}
-      <header className="flex flex-col border-b bg-card/95 backdrop-blur-sm supports-[backdrop-filter]:bg-card/80 shrink-0 sticky top-0 z-20">
-        <div className="flex items-center justify-between gap-2 px-3 py-2">
+      <header className="flex flex-col border-b border-border/70 bg-card/90 backdrop-blur-xl supports-[backdrop-filter]:bg-card/80 shrink-0 sticky top-0 z-20 shadow-sm">
+        <div className="flex flex-wrap items-center gap-2 px-3 py-2 sm:px-4">
           {/* Static text chips live in the overflow-hidden group so long
               session titles clip cleanly on narrow viewports. The
               dropdown-bearing chips (model picker, mode/ctx pickers,
@@ -387,7 +387,7 @@ export function ChatView() {
               below — overflow-hidden would otherwise chop their
               `position: absolute` dropdown panels off at the row edge
               and the user sees no menu open. */}
-          <div className="flex items-center gap-1.5 min-w-0 flex-1 overflow-hidden">
+          <div className="flex min-w-0 flex-[1_1_18rem] items-center gap-1.5 overflow-hidden">
             {!sidebarOpen && (
               <Button
                 variant="ghost"
@@ -401,7 +401,7 @@ export function ChatView() {
             )}
             {!sidebarOpen && (
               <div className="flex items-center gap-1.5 shrink-0 mr-1">
-                <div className="w-5 h-5 rounded bg-primary flex items-center justify-center">
+                <div className="w-5 h-5 rounded-md bg-primary flex items-center justify-center">
                   <Zap className="h-3 w-3 text-primary-foreground" />
                 </div>
               </div>
@@ -411,7 +411,7 @@ export function ChatView() {
                 the Session panel owns project/cwd. Keeps this row narrow. */}
             <span
               className={cn(
-                'flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[11px] font-medium shrink-0 tabular-nums',
+                'flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[11px] font-medium shrink-0 tabular-nums',
                 stateTone,
               )}
               title={`Agent state: ${agentState}`}
@@ -430,14 +430,14 @@ export function ChatView() {
                   onBlur={() => { if (titleDraft.trim()) setSessionNickname(sessionId, titleDraft); setRenamingTitle(false); }}
                   onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); if (titleDraft.trim()) setSessionNickname(sessionId, titleDraft); setRenamingTitle(false); } else if (e.key === 'Escape') { e.preventDefault(); setRenamingTitle(false); } }}
                   placeholder={t('chat:sessionNamePlaceholder')}
-                  className="h-5 px-1.5 text-[11px] bg-background border border-primary/40 rounded focus:outline-none focus:ring-1 focus:ring-ring shrink-0 w-32"
+                  className="h-6 px-1.5 text-[11px] bg-background border border-primary/40 rounded-md focus:outline-none focus:ring-1 focus:ring-ring shrink-0 w-36"
                   autoFocus
                 />
               ) : (
                 <button
                   type="button"
                   onClick={() => { setTitleDraft(nickname || sessionTitle || ''); setRenamingTitle(true); }}
-                  className="flex items-center gap-1 text-[11px] font-medium text-foreground/80 hover:text-foreground truncate max-w-[12rem] shrink-0 px-1 -mx-1 rounded hover:bg-muted/50 transition-colors"
+                  className="flex items-center gap-1 text-[11px] font-medium text-foreground/80 hover:text-foreground truncate max-w-[12rem] shrink-0 px-1 -mx-1 rounded-md hover:bg-muted/50 transition-colors"
                   title={t('chat:header.renameTitle')}
                 >
                   <Pencil className="h-2.5 w-2.5 text-muted-foreground shrink-0" />
@@ -450,21 +450,21 @@ export function ChatView() {
               switcher, iter). No overflow-hidden so their absolutely
               positioned dropdowns can extend below the row. shrink-0 so
               they stay full-size when the header is narrow. */}
-          <div className="flex items-center gap-1.5 shrink-0">
+          <div className="flex min-w-0 flex-[0_1_auto] flex-wrap items-center justify-end gap-1.5">
             {/* Session switcher — quick dropdown to jump between recent sessions */}
             {historyEntries.length > 1 && (
               <div ref={switcherRef} className="relative shrink-0">
                 <button
                   type="button"
                   onClick={() => setSwitcherOpen((v) => !v)}
-                  className="flex items-center gap-0.5 px-1 py-0.5 rounded text-[10px] text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
+                  className="flex items-center gap-0.5 px-1 py-0.5 rounded-md text-[10px] text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
                   title={t('chat:switchSession')}
                 >
                   <History className="h-3 w-3" />
                   <ChevronDown className="h-2.5 w-2.5" />
                 </button>
                 {switcherOpen && (
-                  <div className="absolute left-0 top-full mt-1 z-40 w-64 rounded-md border bg-popover shadow-lg p-1 max-h-60 overflow-y-auto">
+                  <div className="absolute left-0 top-full mt-1 z-40 w-64 rounded-md border border-border/70 bg-popover shadow-xl p-1 max-h-60 overflow-y-auto">
                     {historyEntries.slice(0, 15).map((e) => (
                       <button
                         key={e.id}
@@ -486,7 +486,7 @@ export function ChatView() {
             <button
               type="button"
               onClick={() => useUIStore.getState().setModelSwitcherOpen(true)}
-              className="group hidden sm:flex items-center gap-1 px-2 py-0.5 rounded-md border bg-background/50 hover:bg-accent hover:border-primary/40 transition-colors text-[11px] min-w-0 shrink-0"
+              className="group hidden sm:flex items-center gap-1 px-2 py-0.5 rounded-md border border-border/70 bg-background/60 hover:bg-accent/70 hover:border-primary/40 transition-colors text-[11px] min-w-0 shrink-0"
               title={t('chat:header.changeModelTitle')}
             >
               <Cpu className="h-3 w-3 text-muted-foreground group-hover:text-foreground shrink-0" />
@@ -505,7 +505,7 @@ export function ChatView() {
             {iteration && (
               <button
                 type="button"
-                className="flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[11px] font-medium bg-primary/10 text-primary shrink-0 hover:bg-primary/20 transition-colors cursor-pointer"
+                className="flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[11px] font-medium bg-primary/10 text-primary shrink-0 hover:bg-primary/20 transition-colors cursor-pointer"
                 title={t('chat:header.iterationTitle')}
                 onClick={() => document.getElementById('chat-activity')?.scrollIntoView({ behavior: 'smooth', block: 'center' })}
               >
@@ -522,37 +522,37 @@ export function ChatView() {
           {/* Only the session-scoped tools stay here — palette, theme, help
               and settings are global app controls and live in the
               ActivityBar's bottom group now. */}
-          <div className="flex items-center gap-0.5 shrink-0">
+          <div className="ml-auto flex items-center gap-0.5 shrink-0">
             <Button
               variant={processOpen ? 'secondary' : 'ghost'}
               size="icon"
-              className={cn('h-7 w-7 relative', processOpen && 'bg-amber-500/10 text-amber-600 dark:text-amber-400')}
+              className={cn('h-7 w-7 relative', processOpen && 'bg-warning/10 text-warning')}
               onClick={() => setProcessOpen((v) => !v)}
               title={t('chat:header.runningProcessesTitle')}
             >
               <Terminal className="h-4 w-4" />
               {processOpen && (
-                <span className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-amber-500" />
+                <span className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-warning" />
               )}
             </Button>
             <Button
               variant={checkpointOpen ? 'secondary' : 'ghost'}
               size="icon"
-              className={cn('h-7 w-7 relative', checkpointOpen && 'bg-violet-500/10 text-violet-600 dark:text-violet-400')}
+              className={cn('h-7 w-7 relative', checkpointOpen && 'bg-primary/10 text-primary')}
               onClick={() => setCheckpointOpen((v) => !v)}
               title={t('chat:header.checkpointsTitle')}
             >
               <History className="h-4 w-4" />
               {checkpointOpen && (
-                <span className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-violet-500" />
+                <span className="absolute -bottom-0.5 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-primary" />
               )}
             </Button>
           </div>
         </div>
 
         {hasStatusContent && (
-          <div className="flex items-center justify-between gap-3 px-3 py-1 border-t bg-muted/20 text-[11px] text-muted-foreground">
-            <div className="flex items-center gap-3 min-w-0 flex-1 tabular-nums">
+          <div className="flex items-center justify-between gap-3 overflow-x-auto border-t border-border/60 bg-muted/20 px-3 py-1 text-[11px] text-muted-foreground sm:px-4">
+            <div className="flex min-w-max items-center gap-3 tabular-nums">
               {lastInputTokens > 0 && (
                 <ContextFillBar
                   pct={ctxPct}
@@ -605,7 +605,7 @@ export function ChatView() {
       </header>
 
       {/* Messages */}
-      <div className="relative min-h-0 min-w-0 flex-1 overflow-hidden">
+      <div className="relative mx-2 mt-2 min-h-0 min-w-0 flex-1 overflow-hidden rounded-xl border border-border/70 bg-card/55 shadow-sm sm:mx-3 lg:mx-4 lg:mt-3">
         <SearchOverlay />
         {!pinnedToBottom && (
           <button
@@ -613,7 +613,7 @@ export function ChatView() {
             onClick={scrollToBottom}
             className={cn(
               'absolute bottom-4 left-1/2 -translate-x-1/2 z-10 jump-bottom',
-              'flex items-center gap-2 px-4 py-2 rounded-full shadow-lg',
+              'flex items-center gap-2 px-4 py-2 rounded-md shadow-lg',
               'bg-primary text-primary-foreground text-xs font-medium',
               'hover:bg-primary/90 transition-colors animate-message',
             )}
@@ -631,7 +631,7 @@ export function ChatView() {
             title={t('chat:header.scrollTopTitle')}
             className={cn(
               'absolute top-3 right-3 z-10',
-              'flex items-center gap-1 px-2.5 py-1 rounded-full shadow-md border',
+              'flex items-center gap-1 px-2.5 py-1 rounded-md shadow-md border',
               'bg-background/90 backdrop-blur-sm text-[11px] text-muted-foreground',
               'hover:text-foreground hover:bg-background transition-colors animate-message',
             )}
@@ -642,7 +642,7 @@ export function ChatView() {
         )}
         {rows.length === 0 && !isLoading ? (
           <div className="h-full overflow-y-auto overscroll-contain">
-            <div className="mx-auto max-w-5xl w-full px-4 pt-4 pb-8">
+            <div className="mx-auto max-w-6xl w-full px-3 sm:px-5 lg:px-6 pt-4 pb-8">
               <WelcomeScreen />
             </div>
           </div>
@@ -663,7 +663,7 @@ export function ChatView() {
             <div
               key="__live"
               id="chat-activity"
-              className={cn('mx-auto max-w-5xl w-full px-4', compactMode ? 'pb-3' : 'pb-8')}
+              className={cn('mx-auto max-w-6xl w-full px-3 sm:px-5 lg:px-6', compactMode ? 'pb-3' : 'pb-8')}
             >
               <ThinkingBubble />
 
@@ -674,7 +674,7 @@ export function ChatView() {
                       <Bot className="h-4 w-4" />
                     </div>
                     <div className="flex flex-col gap-1.5">
-                      <div className="rounded-2xl px-4 py-3 bg-card border text-foreground">
+                      <div className="rounded-lg px-4 py-3 bg-card border border-border/70 text-foreground shadow-sm">
                         <div className="flex items-center gap-3 text-sm">
                           <span className="flex gap-1">
                             <span className="h-1.5 w-1.5 rounded-full bg-primary/70 animate-bounce [animation-delay:-0.3s]" />
@@ -707,9 +707,9 @@ export function ChatView() {
       </div>
 
       {/* Input */}
-      <div className="border-t bg-card/50 backdrop-blur supports-[backdrop-filter]:bg-card/50 shrink-0">
+      <div className="shrink-0 bg-[hsl(var(--surface-2)/0.45)] px-2 pb-2 pt-2 sm:px-3 lg:px-4 lg:pb-3">
         {/* Keyboard shortcut hints — subtle, always visible */}
-        <div className="ws-shortcut-hints max-w-5xl mx-auto px-4 pt-1.5 flex items-center gap-3 text-[10px] text-muted-foreground/50 select-none overflow-x-auto">
+        <div className="ws-shortcut-hints hidden max-w-6xl mx-auto px-2 pb-1 sm:flex items-center gap-3 text-[10px] text-muted-foreground/50 select-none overflow-x-auto">
           <span title="Enter" className="inline-flex items-center gap-1">
             <kbd>Enter</kbd> send
           </span>
@@ -746,8 +746,8 @@ export function ChatView() {
             <kbd>Ctrl+⇧D</kbd> density
           </span>
         </div>
-        <div className="ws-chat-input-wrap p-4">
-          <div className="max-w-5xl mx-auto">
+        <div className="ws-chat-input-wrap p-0">
+          <div className="max-w-6xl mx-auto">
             <ChatInput onOpenBreakdown={() => setBreakdownOpen(true)} />
           </div>
         </div>

@@ -52,11 +52,11 @@ function ScopeBadge({ source }: { source: string }) {
   return (
     <span
       className={cn(
-        'inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-semibold uppercase tracking-wide',
-        scope === 'project' && 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400',
-        scope === 'user' && 'bg-violet-100 text-violet-700 dark:bg-violet-950 dark:text-violet-400',
-        scope === 'bundled' && 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400',
-        scope === 'foreign' && 'bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-400',
+        'inline-flex items-center rounded-md border px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide',
+        scope === 'project' && 'border-[hsl(var(--success)/0.25)] bg-[hsl(var(--success)/0.08)] text-[hsl(var(--success))]',
+        scope === 'user' && 'border-primary/25 bg-primary/10 text-primary',
+        scope === 'bundled' && 'border-border/70 bg-muted/60 text-muted-foreground',
+        scope === 'foreign' && 'border-[hsl(var(--warning)/0.28)] bg-[hsl(var(--warning)/0.1)] text-[hsl(var(--warning))]',
       )}
     >
       {scopeLabelFor(t, scope)}
@@ -308,9 +308,9 @@ export function SkillsList({ className }: { className?: string }) {
   const selectedSkillName = skillsState.selectedSkill?.name;
 
   return (
-    <div className={cn('flex h-full min-h-0 min-w-0 flex-col overflow-hidden', className)}>
+    <div className={cn('flex h-full min-h-0 min-w-0 flex-col overflow-hidden bg-[hsl(var(--surface-2)/0.28)]', className)}>
       {/* Icon rail */}
-      <div className="w-full border-b flex items-center gap-1 px-2 py-2">
+      <div className="flex w-full items-center gap-1 border-b border-border/60 bg-card/65 px-2 py-2">
         <button
           type="button"
           onClick={() => {
@@ -320,7 +320,7 @@ export function SkillsList({ className }: { className?: string }) {
             setInstallGlobal(false);
             setInstallModalOpen(true);
           }}
-          className="flex items-center justify-center w-8 h-8 rounded-lg text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
+          className="flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
           title={t('activity:skillsList.installTitle')}
         >
           <Plus className="h-4 w-4" />
@@ -335,7 +335,7 @@ export function SkillsList({ className }: { className?: string }) {
             setCreateSuccess(null);
             setCreateModalOpen(true);
           }}
-          className="flex items-center justify-center w-8 h-8 rounded-lg text-muted-foreground hover:text-foreground hover:bg-accent transition-colors"
+          className="flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
           title={t('activity:skillsList.createTitle')}
         >
           <FileText className="h-4 w-4" />
@@ -344,7 +344,7 @@ export function SkillsList({ className }: { className?: string }) {
           type="button"
           onClick={handleExportAll}
           disabled={exportingAll || skills.length === 0}
-          className="flex items-center justify-center w-8 h-8 rounded-lg text-muted-foreground hover:text-foreground hover:bg-accent transition-colors disabled:opacity-40"
+          className="flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground disabled:opacity-40"
           title={t('activity:skillsList.exportTitle')}
         >
           {exportingAll ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
@@ -353,7 +353,7 @@ export function SkillsList({ className }: { className?: string }) {
           type="button"
           onClick={handleRefreshAll}
           disabled={checkingForUpdates}
-          className="flex items-center justify-center w-8 h-8 rounded-lg text-muted-foreground hover:text-foreground hover:bg-accent transition-colors disabled:opacity-40 relative"
+          className="relative flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground disabled:opacity-40"
           title={t('activity:skillsList.checkUpdatesTitle')}
         >
           {checkingForUpdates ? (
@@ -370,13 +370,13 @@ export function SkillsList({ className }: { className?: string }) {
       </div>
 
       {/* Search + filter */}
-      <div className="p-2 space-y-2 border-b shrink-0">
+      <div className="shrink-0 space-y-2 border-b border-border/60 bg-card/45 p-2">
         <input
           type="text"
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
           placeholder={t('activity:skillsList.searchPlaceholder')}
-          className="w-full px-2 py-1.5 text-xs rounded border border-border bg-background focus:outline-none focus:ring-1 focus:ring-ring"
+          className="w-full rounded-md border border-border/70 bg-background/70 px-2 py-1.5 text-xs shadow-sm focus:outline-none focus:ring-1 focus:ring-ring"
         />
         <div className="flex gap-1 flex-wrap">
           {(['all', 'project', 'user', 'foreign', 'bundled'] as ScopeFilter[]).map((scope) => {
@@ -387,10 +387,10 @@ export function SkillsList({ className }: { className?: string }) {
                 type="button"
                 onClick={() => setScopeFilter(scope)}
                 className={cn(
-                  'px-1.5 py-0.5 text-[10px] rounded transition-colors',
+                  'rounded-md px-1.5 py-0.5 text-[10px] transition-colors',
                   scopeFilter === scope
                     ? 'bg-primary text-primary-foreground'
-                    : 'bg-muted text-muted-foreground hover:bg-accent',
+                    : 'bg-background/60 text-muted-foreground hover:bg-accent',
                 )}
               >
                 {scope === 'all' ? t('common:action.all') : scopeLabelFor(t, scope)}
@@ -410,23 +410,23 @@ export function SkillsList({ className }: { className?: string }) {
       </div>
 
       {/* Skill list */}
-      <div className="min-h-0 min-w-0 flex-1 overflow-y-auto">
+      <div className="min-h-0 min-w-0 flex-1 overflow-y-auto p-2">
         {loading ? (
-          <div className="p-4 text-xs text-muted-foreground text-center">{t('activity:skillsList.loading')}</div>
+          <div className="rounded-lg border border-border/60 bg-card/55 p-4 text-center text-xs text-muted-foreground">{t('activity:skillsList.loading')}</div>
         ) : filteredSkills.length === 0 ? (
-          <div className="p-4 text-xs text-muted-foreground text-center">
+          <div className="rounded-lg border border-border/60 bg-card/55 p-4 text-center text-xs text-muted-foreground">
             {skills.length === 0
               ? t('activity:skillsList.noSkills')
               : t('activity:skillsList.noMatch')}
           </div>
         ) : (
-          <div className="py-1">
+          <div className="space-y-2">
             {(['project', 'user', 'foreign', 'bundled'] as const).map((scope) => {
               const group = groupedSkills[scope];
               if (group.length === 0) return null;
               return (
                 <div key={scope}>
-                  <div className="px-2 py-1 text-[10px] font-semibold text-muted-foreground uppercase tracking-wide flex items-center gap-1">
+                  <div className="flex items-center gap-1 px-1 py-1 text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
                     <ScopeBadge source={scope} />
                     <span className="ml-auto opacity-60">{group.length}</span>
                   </div>
@@ -436,10 +436,10 @@ export function SkillsList({ className }: { className?: string }) {
                       type="button"
                       onClick={() => handleSelectSkill(skill)}
                       className={cn(
-                        'w-full text-left px-2 py-1.5 text-xs transition-colors',
+                        'w-full rounded-lg border px-2.5 py-2 text-left text-xs transition-colors',
                         selectedSkillName === skill.name
-                          ? 'bg-primary/10 text-primary'
-                          : 'hover:bg-accent/50 text-foreground',
+                          ? 'border-primary/30 bg-primary/10 text-primary shadow-sm'
+                          : 'border-border/50 bg-card/55 text-foreground hover:border-border hover:bg-accent/50',
                       )}
                     >
                       <div className="font-medium truncate flex items-center gap-1">
@@ -461,13 +461,13 @@ export function SkillsList({ className }: { className?: string }) {
       {/* ── Install skill modal ── */}
       {installModalOpen && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 p-4 backdrop-blur-sm"
           onClick={(e) => {
             if (e.target === e.currentTarget) setInstallModalOpen(false);
           }}
         >
-          <div className="flex max-h-[calc(100dvh-2rem)] w-[420px] max-w-[90vw] flex-col overflow-hidden rounded-lg border bg-background shadow-xl">
-            <div className="flex shrink-0 items-center justify-between p-4 border-b">
+          <div className="flex max-h-[calc(100dvh-2rem)] w-[420px] max-w-[90vw] flex-col overflow-hidden rounded-xl border border-border/70 bg-card shadow-2xl">
+            <div className="flex shrink-0 items-center justify-between border-b border-border/70 p-4">
               <div className="flex items-center gap-2">
                 <Download className="h-4 w-4 text-primary" />
                 <span className="font-semibold text-sm">{t('activity:skillsList.installHeading')}</span>
@@ -475,7 +475,7 @@ export function SkillsList({ className }: { className?: string }) {
               <button
                 type="button"
                 onClick={() => setInstallModalOpen(false)}
-                className="p-1 rounded hover:bg-accent text-muted-foreground cursor-pointer"
+                className="rounded p-1 text-muted-foreground hover:bg-accent hover:text-foreground"
               >
                 ✕
               </button>
@@ -497,14 +497,14 @@ export function SkillsList({ className }: { className?: string }) {
                   if (e.key === 'Enter' && !installing) handleInstallSkill();
                 }}
                 placeholder={t('activity:skillsList.installPlaceholder')}
-                className="w-full px-3 py-2 text-xs rounded border border-border bg-background focus:outline-none focus:ring-1 focus:ring-ring"
+                className="w-full rounded-md border border-border/70 bg-background/70 px-3 py-2 text-xs shadow-sm focus:outline-none focus:ring-1 focus:ring-ring"
                 autoFocus
               />
 
               {/* Scope toggle */}
               <div className="flex items-center gap-2">
                 <label className="text-xs text-muted-foreground">{t('activity:skillsList.installScope')}</label>
-                <div className="flex rounded border border-border overflow-hidden">
+                <div className="flex overflow-hidden rounded-md border border-border/70">
                   <button
                     type="button"
                     onClick={() => setInstallGlobal(false)}
@@ -529,18 +529,18 @@ export function SkillsList({ className }: { className?: string }) {
               </div>
 
               {installError && (
-                <p className="text-xs text-destructive bg-destructive/10 rounded px-2 py-1">{installError}</p>
+                <p className="rounded-md bg-destructive/10 px-2 py-1 text-xs text-destructive">{installError}</p>
               )}
               {installSuccess && (
-                <p className="text-xs text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 rounded px-2 py-1">{installSuccess}</p>
+                <p className="rounded-md bg-[hsl(var(--success)/0.1)] px-2 py-1 text-xs text-[hsl(var(--success))]">{installSuccess}</p>
               )}
             </div>
 
-            <div className="flex shrink-0 justify-end gap-2 p-4 border-t bg-muted/20">
+            <div className="flex shrink-0 justify-end gap-2 border-t border-border/70 bg-muted/20 p-4">
               <button
                 type="button"
                 onClick={() => setInstallModalOpen(false)}
-                className="px-3 py-1.5 text-xs rounded border border-border hover:bg-accent transition-colors"
+                className="rounded-md border border-border/70 px-3 py-1.5 text-xs transition-colors hover:bg-accent"
               >
                 {installSuccess ? t('common:action.close') : t('common:action.cancel')}
               </button>
@@ -549,7 +549,7 @@ export function SkillsList({ className }: { className?: string }) {
                   type="button"
                   onClick={handleInstallSkill}
                   disabled={installing || !installRef.trim()}
-                  className="flex items-center gap-1.5 px-3 py-1.5 text-xs rounded bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  className="flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-xs text-primary-foreground transition-colors hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   {installing && <Loader2 className="h-3 w-3 animate-spin" />}
                   {t('activity:skillsList.installBtn')}
@@ -563,13 +563,13 @@ export function SkillsList({ className }: { className?: string }) {
       {/* ── Create skill modal ── */}
       {createModalOpen && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 p-4 backdrop-blur-sm"
           onClick={(e) => {
             if (e.target === e.currentTarget) setCreateModalOpen(false);
           }}
         >
-          <div className="flex max-h-[calc(100dvh-2rem)] w-[480px] max-w-[90vw] flex-col overflow-hidden rounded-lg border bg-background shadow-xl">
-            <div className="flex shrink-0 items-center justify-between p-4 border-b">
+          <div className="flex max-h-[calc(100dvh-2rem)] w-[480px] max-w-[90vw] flex-col overflow-hidden rounded-xl border border-border/70 bg-card shadow-2xl">
+            <div className="flex shrink-0 items-center justify-between border-b border-border/70 p-4">
               <div className="flex items-center gap-2">
                 <FileText className="h-4 w-4 text-primary" />
                 <span className="font-semibold text-sm">{t('activity:skillsList.createHeading')}</span>
@@ -577,7 +577,7 @@ export function SkillsList({ className }: { className?: string }) {
               <button
                 type="button"
                 onClick={() => setCreateModalOpen(false)}
-                className="p-1 rounded hover:bg-accent text-muted-foreground cursor-pointer"
+                className="rounded p-1 text-muted-foreground hover:bg-accent hover:text-foreground"
               >
                 ✕
               </button>
@@ -603,7 +603,7 @@ export function SkillsList({ className }: { className?: string }) {
                     setCreateSuccess(null);
                   }}
                   placeholder={t('activity:skillsList.namePlaceholder')}
-                  className="w-full px-3 py-2 text-xs rounded border border-border bg-background focus:outline-none focus:ring-1 focus:ring-ring font-mono"
+                  className="w-full rounded-md border border-border/70 bg-background/70 px-3 py-2 font-mono text-xs shadow-sm focus:outline-none focus:ring-1 focus:ring-ring"
                   autoFocus
                 />
               </div>
@@ -625,14 +625,14 @@ export function SkillsList({ className }: { className?: string }) {
                   }}
                   placeholder={t('activity:skillsList.descPlaceholder')}
                   rows={4}
-                  className="w-full px-3 py-2 text-xs rounded border border-border bg-background focus:outline-none focus:ring-1 focus:ring-ring resize-y"
+                  className="w-full resize-y rounded-md border border-border/70 bg-background/70 px-3 py-2 text-xs shadow-sm focus:outline-none focus:ring-1 focus:ring-ring"
                 />
               </div>
 
               {/* Scope toggle */}
               <div className="flex items-center gap-2">
                 <label className="text-xs text-muted-foreground">{t('activity:skillsList.saveIn')}</label>
-                <div className="flex rounded border border-border overflow-hidden">
+                <div className="flex overflow-hidden rounded-md border border-border/70">
                   <button
                     type="button"
                     onClick={() => setCreateScope('project')}
@@ -657,18 +657,18 @@ export function SkillsList({ className }: { className?: string }) {
               </div>
 
               {createError && (
-                <p className="text-xs text-destructive bg-destructive/10 rounded px-2 py-1">{createError}</p>
+                <p className="rounded-md bg-destructive/10 px-2 py-1 text-xs text-destructive">{createError}</p>
               )}
               {createSuccess && (
-                <p className="text-xs text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 rounded px-2 py-1">{createSuccess}</p>
+                <p className="rounded-md bg-[hsl(var(--success)/0.1)] px-2 py-1 text-xs text-[hsl(var(--success))]">{createSuccess}</p>
               )}
             </div>
 
-            <div className="flex shrink-0 justify-end gap-2 p-4 border-t bg-muted/20">
+            <div className="flex shrink-0 justify-end gap-2 border-t border-border/70 bg-muted/20 p-4">
               <button
                 type="button"
                 onClick={() => setCreateModalOpen(false)}
-                className="px-3 py-1.5 text-xs rounded border border-border hover:bg-accent transition-colors"
+                className="rounded-md border border-border/70 px-3 py-1.5 text-xs transition-colors hover:bg-accent"
               >
                 {createSuccess ? t('common:action.close') : t('common:action.cancel')}
               </button>
@@ -677,7 +677,7 @@ export function SkillsList({ className }: { className?: string }) {
                   type="button"
                   onClick={handleCreateSkill}
                   disabled={creating || !createName.trim() || !createDescription.trim()}
-                  className="flex items-center gap-1.5 px-3 py-1.5 text-xs rounded bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  className="flex items-center gap-1.5 rounded-md bg-primary px-3 py-1.5 text-xs text-primary-foreground transition-colors hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   {creating && <Loader2 className="h-3 w-3 animate-spin" />}
                   {t('activity:skillsList.createBtn')}

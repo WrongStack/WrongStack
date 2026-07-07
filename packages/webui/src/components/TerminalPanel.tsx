@@ -238,7 +238,7 @@ export function TerminalPanel({
       style={{ height }}
       data-shell={desktopShell ? 'desktop' : 'browser'}
       className={cn(
-        'z-30 flex min-h-0 shrink-0 flex-col border-t border-border bg-[#1e1e2e] shadow-2xl',
+        'z-30 flex min-h-0 shrink-0 flex-col border-t border-border/70 bg-card shadow-2xl',
         desktopShell && 'ws-terminal-desktop',
       )}
     >
@@ -247,18 +247,18 @@ export function TerminalPanel({
         aria-orientation="horizontal"
         title={t('activity:terminal.resize')}
         onPointerDown={startResize}
-        className="h-1.5 cursor-ns-resize bg-[#181825] hover:bg-primary/35 transition-colors"
+        className="h-1.5 cursor-ns-resize bg-muted/70 transition-colors hover:bg-primary/35"
       />
       <div
         className={cn(
-          'flex min-w-0 items-center justify-between gap-3 border-b border-border/40 bg-[#181825]',
+          'flex min-w-0 items-center justify-between gap-3 border-b border-border/70 bg-card/85',
           desktopShell ? 'px-2 py-1' : 'px-3 py-1.5',
         )}
       >
-        <div className="flex min-w-0 items-center gap-2 text-xs text-[#cdd6f4]">
-          <TerminalSquare className="h-3.5 w-3.5 shrink-0" />
+        <div className="flex min-w-0 items-center gap-2 text-xs text-foreground">
+          <TerminalSquare className="h-3.5 w-3.5 shrink-0 text-primary" />
           <span className="font-medium">{desktopShell ? t('activity:terminal.labelSingular') : t('activity:terminal.labelPlural')}</span>
-          <span className="min-w-0 truncate text-[#a6adc8]">
+          <span className="min-w-0 truncate text-muted-foreground">
             {projectName || cwd || t('activity:terminal.projectShell')}
           </span>
         </div>
@@ -272,7 +272,7 @@ export function TerminalPanel({
                 ? t('activity:terminal.maxTerminals', { count: MAX_TERMINALS })
                 : t('activity:terminal.newTerminal')
             }
-            className="inline-flex items-center justify-center h-6 w-6 rounded text-[#a6adc8] hover:bg-white/10 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+            className="inline-flex h-6 w-6 items-center justify-center rounded text-muted-foreground transition-colors hover:bg-accent hover:text-foreground disabled:cursor-not-allowed disabled:opacity-40"
           >
             <Plus className="h-4 w-4" />
           </button>
@@ -281,7 +281,7 @@ export function TerminalPanel({
             onClick={() => activeTab && restartTerminal(activeTab.id)}
             disabled={!activeTab}
             title={t('activity:terminal.restart')}
-            className="inline-flex items-center justify-center h-6 w-6 rounded text-[#a6adc8] hover:bg-white/10 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+            className="inline-flex h-6 w-6 items-center justify-center rounded text-muted-foreground transition-colors hover:bg-accent hover:text-foreground disabled:cursor-not-allowed disabled:opacity-40"
           >
             <RotateCcw className="h-3.5 w-3.5" />
           </button>
@@ -290,7 +290,7 @@ export function TerminalPanel({
             onClick={closeAllTerminals}
             disabled={tabs.length === 0}
             title={t('activity:terminal.closeAll')}
-            className="inline-flex items-center justify-center h-6 w-6 rounded text-[#a6adc8] hover:bg-white/10 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+            className="inline-flex h-6 w-6 items-center justify-center rounded text-muted-foreground transition-colors hover:bg-accent hover:text-foreground disabled:cursor-not-allowed disabled:opacity-40"
           >
             <Trash2 className="h-3.5 w-3.5" />
           </button>
@@ -298,7 +298,7 @@ export function TerminalPanel({
             type="button"
             onClick={onClose}
             title={t('activity:terminal.closeDock')}
-            className="inline-flex items-center justify-center h-6 w-6 rounded text-[#a6adc8] hover:bg-white/10 transition-colors"
+            className="inline-flex h-6 w-6 items-center justify-center rounded text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
           >
             <X className="h-4 w-4" />
           </button>
@@ -306,7 +306,7 @@ export function TerminalPanel({
       </div>
       <div
         className={cn(
-          'flex min-w-0 items-center gap-1 overflow-x-auto border-b border-border/40 bg-[#181825]',
+          'flex min-w-0 items-center gap-1 overflow-x-auto border-b border-border/70 bg-[hsl(var(--surface-2)/0.45)]',
           desktopShell ? 'px-1.5 py-0.5' : 'px-2 py-1',
         )}
       >
@@ -317,8 +317,8 @@ export function TerminalPanel({
               'group inline-flex items-center rounded border text-xs transition-colors',
               desktopShell ? 'h-6 min-w-[92px] max-w-[148px]' : 'h-7 min-w-[112px] max-w-[180px]',
               activeId === tab.id
-                ? 'border-[#89b4fa]/45 bg-[#313244] text-[#cdd6f4]'
-                : 'border-transparent bg-transparent text-[#a6adc8] hover:bg-white/10',
+                ? 'border-primary/35 bg-primary/10 text-primary'
+                : 'border-transparent bg-transparent text-muted-foreground hover:bg-accent hover:text-foreground',
             )}
           >
             <button
@@ -330,9 +330,9 @@ export function TerminalPanel({
               <span
                 className={cn(
                   'h-1.5 w-1.5 shrink-0 rounded-full',
-                  tab.status === 'running' && 'bg-[#a6e3a1]',
-                  tab.status === 'starting' && 'bg-[#89b4fa]',
-                  tab.status === 'exited' && 'bg-[#f38ba8]',
+                  tab.status === 'running' && 'bg-[hsl(var(--success))]',
+                  tab.status === 'starting' && 'bg-primary',
+                  tab.status === 'exited' && 'bg-destructive',
                 )}
               />
               <span className="min-w-0 flex-1 truncate">
@@ -348,7 +348,7 @@ export function TerminalPanel({
                 event.stopPropagation();
                 closeTerminal(tab.id);
               }}
-              className="mr-1 inline-flex h-4 w-4 shrink-0 items-center justify-center rounded text-[#a6adc8] opacity-70 hover:bg-white/10 hover:opacity-100"
+              className="mr-1 inline-flex h-4 w-4 shrink-0 items-center justify-center rounded text-muted-foreground opacity-70 hover:bg-accent hover:text-foreground hover:opacity-100"
               title={t('activity:terminal.closeTab', { name: tab.name })}
             >
               <X className="h-3 w-3" />
@@ -357,7 +357,7 @@ export function TerminalPanel({
         ))}
       </div>
       {cwd && !desktopShell && (
-        <div className="min-w-0 truncate border-b border-border/30 bg-[#181825] px-3 py-1 text-[11px] font-mono text-[#6c7086]">
+        <div className="min-w-0 truncate border-b border-border/60 bg-muted/30 px-3 py-1 text-[11px] font-mono text-muted-foreground">
           {cwd}
         </div>
       )}

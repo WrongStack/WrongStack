@@ -316,7 +316,7 @@ export function PromptLibraryModal() {
                   setRecentOnly(false);
                   setActiveCat(null);
                 }}
-                className={`rounded px-2 py-0.5 text-xs ${favoritesOnly ? 'bg-yellow-500 text-black' : 'bg-muted text-muted-foreground hover:bg-accent'}`}
+                className={`rounded px-2 py-0.5 text-xs ${favoritesOnly ? 'bg-warning text-primary-foreground' : 'bg-muted text-muted-foreground hover:bg-accent'}`}
               >
                 {t('activity:promptLib.favorites')}
               </button>
@@ -345,7 +345,7 @@ export function PromptLibraryModal() {
                 <div className="flex w-full items-center gap-1 text-sm">
                   <span>{SOURCE_GLYPH[p.source] ?? '•'}</span>
                   <span className="font-medium">{p.title}</span>
-                  {p.favorite && <span className="text-yellow-500">★</span>}
+                  {p.favorite && <span className="text-warning">★</span>}
                 </div>
                 <div className="line-clamp-1 text-xs text-muted-foreground">{p.description}</div>
               </button>
@@ -523,7 +523,7 @@ export function PromptLibraryModal() {
                 ))}
               </div>
               <div className="border-t border-border p-3">
-                {createError && <div className="mb-2 text-xs text-red-500">{createError}</div>}
+                {createError && <div className="mb-2 text-xs text-destructive">{createError}</div>}
                 <button
                   onClick={submitCreate}
                   disabled={!draft.title.trim() || !draft.content.trim()}

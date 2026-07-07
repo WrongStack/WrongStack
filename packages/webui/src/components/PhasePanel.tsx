@@ -42,20 +42,20 @@ const STATUS_CONFIG: Record<
   PhaseItem['status'],
   { icon: React.ReactNode; color: string; bg: string; label: string }
 > = {
-  pending: { icon: <Circle className="w-4 h-4" />, color: 'text-slate-400', bg: 'bg-slate-100 dark:bg-slate-800', label: 'Pending' },
-  ready: { icon: <Play className="w-4 h-4" />, color: 'text-blue-500', bg: 'bg-blue-50 dark:bg-blue-950', label: 'Ready' },
-  running: { icon: <Clock className="w-4 h-4 animate-spin" />, color: 'text-amber-500', bg: 'bg-amber-50 dark:bg-amber-950', label: 'Running' },
-  paused: { icon: <Pause className="w-4 h-4" />, color: 'text-orange-500', bg: 'bg-orange-50 dark:bg-orange-950', label: 'Paused' },
-  completed: { icon: <CheckCircle2 className="w-4 h-4" />, color: 'text-emerald-500', bg: 'bg-emerald-50 dark:bg-emerald-950', label: 'Completed' },
-  failed: { icon: <XCircle className="w-4 h-4" />, color: 'text-red-500', bg: 'bg-red-50 dark:bg-red-950', label: 'Failed' },
-  skipped: { icon: <SkipForward className="w-4 h-4" />, color: 'text-slate-400', bg: 'bg-slate-100 dark:bg-slate-800', label: 'Skipped' },
+  pending: { icon: <Circle className="w-4 h-4" />, color: 'text-muted-foreground', bg: 'bg-muted', label: 'Pending' },
+  ready: { icon: <Play className="w-4 h-4" />, color: 'text-primary', bg: 'bg-primary/10', label: 'Ready' },
+  running: { icon: <Clock className="w-4 h-4 animate-spin" />, color: 'text-[hsl(var(--warning))]', bg: 'bg-[hsl(var(--warning)/0.1)]', label: 'Running' },
+  paused: { icon: <Pause className="w-4 h-4" />, color: 'text-[hsl(var(--warning))]', bg: 'bg-[hsl(var(--warning)/0.1)]', label: 'Paused' },
+  completed: { icon: <CheckCircle2 className="w-4 h-4" />, color: 'text-[hsl(var(--success))]', bg: 'bg-[hsl(var(--success)/0.1)]', label: 'Completed' },
+  failed: { icon: <XCircle className="w-4 h-4" />, color: 'text-destructive', bg: 'bg-destructive/10', label: 'Failed' },
+  skipped: { icon: <SkipForward className="w-4 h-4" />, color: 'text-muted-foreground', bg: 'bg-muted', label: 'Skipped' },
 };
 
 const PRIORITY_DOT: Record<PhaseItem['priority'], string> = {
-  critical: 'bg-red-500',
-  high: 'bg-orange-500',
-  medium: 'bg-blue-500',
-  low: 'bg-slate-400',
+  critical: 'bg-destructive',
+  high: 'bg-destructive',
+  medium: 'bg-[hsl(var(--warning))]',
+  low: 'bg-[hsl(var(--success))]',
 };
 
 function formatDuration(ms?: number): string {
@@ -84,19 +84,19 @@ export function PhasePanel({
 }: PhasePanelProps): React.ReactElement {
   const { t } = useAppTranslation();
   return (
-    <div className={cn('flex h-full min-h-0 min-w-0 flex-col border-r border-border bg-card', className)}>
+    <div className={cn('flex h-full min-h-0 min-w-0 flex-col border-r border-border/70 bg-[hsl(var(--surface-2)/0.35)]', className)}>
       {/* Header */}
-      <div className="p-4 border-b border-border">
+      <div className="border-b border-border/70 bg-card/70 p-4">
         <div className="flex items-center justify-between mb-3">
           <h2 className="text-sm font-semibold text-foreground">{t('activity:phase.heading')}</h2>
           <button
             type="button"
             onClick={onToggleAutonomous}
             className={cn(
-              'px-2 py-1 text-xs rounded-full transition-colors',
+              'rounded-md border px-2 py-1 text-xs transition-colors',
               autonomous
-                ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900 dark:text-emerald-300'
-                : 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400',
+                ? 'border-[hsl(var(--success)/0.25)] bg-[hsl(var(--success)/0.1)] text-[hsl(var(--success))]'
+                : 'border-border/70 bg-muted/60 text-muted-foreground',
             )}
             title={autonomous ? t('activity:phase.autonomousOnTitle') : t('activity:phase.autonomousOffTitle')}
           >
@@ -112,7 +112,7 @@ export function PhasePanel({
           </div>
           <div className="h-2 bg-muted rounded-full overflow-hidden">
             <div
-              className="h-full bg-emerald-500 transition-all duration-500 rounded-full"
+              className="h-full rounded-full bg-[hsl(var(--success))] transition-all duration-500"
               style={{ width: `${overallPercent}%` }}
             />
           </div>
@@ -120,7 +120,7 @@ export function PhasePanel({
       </div>
 
       {/* Phase List */}
-      <div className="min-h-0 min-w-0 flex-1 overflow-y-auto p-3 space-y-2">
+      <div className="min-h-0 min-w-0 flex-1 space-y-2 overflow-y-auto p-3">
         {phases.map((phase) => {
           const status = STATUS_CONFIG[phase.status];
           const isActive = phase.id === activePhaseId;
@@ -131,10 +131,10 @@ export function PhasePanel({
               key={phase.id}
               onClick={() => onPhaseClick?.(phase.id)}
               className={cn(
-                'w-full text-left rounded-lg border p-3 transition-all hover:shadow-sm',
+                'w-full rounded-lg border p-3 text-left shadow-sm transition-all hover:shadow-md',
                 isActive
-                  ? 'border-amber-300 bg-amber-50/50 dark:bg-amber-950/30 ring-1 ring-amber-200'
-                  : 'border-border bg-card hover:bg-accent/50',
+                  ? 'border-[hsl(var(--warning)/0.35)] bg-[hsl(var(--warning)/0.08)] ring-1 ring-[hsl(var(--warning)/0.2)]'
+                  : 'border-border/70 bg-card/75 hover:bg-accent/50',
               )}
             >
               {/* Phase Header */}
@@ -164,10 +164,10 @@ export function PhasePanel({
                     className={cn(
                       'h-full transition-all duration-500 rounded-full',
                       phase.status === 'completed'
-                        ? 'bg-emerald-500'
+                        ? 'bg-[hsl(var(--success))]'
                         : phase.status === 'failed'
-                          ? 'bg-red-500'
-                          : 'bg-amber-500',
+                          ? 'bg-destructive'
+                          : 'bg-[hsl(var(--warning))]',
                     )}
                     style={{ width: `${phase.progressPercent}%` }}
                   />

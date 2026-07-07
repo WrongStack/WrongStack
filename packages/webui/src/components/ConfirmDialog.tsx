@@ -199,13 +199,13 @@ export function ConfirmDialog() {
   return (
     <Dialog open={showConfirmDialog} onOpenChange={handleOpenChange}>
       <DialogContent
-        className="sm:max-w-2xl max-h-[min(88dvh,760px)] overflow-hidden !flex flex-col border-yellow-500/50"
+        className="sm:max-w-2xl max-h-[min(88dvh,760px)] overflow-hidden !flex flex-col border-warning/50"
         ref={dialogRef}
         tabIndex={-1}
       >
         <DialogHeader className="shrink-0">
           <DialogTitle className="flex items-center gap-2">
-            <ShieldAlert className="h-5 w-5 text-yellow-500 animate-pulse" />
+            <ShieldAlert className="h-5 w-5 text-warning animate-pulse" />
             {t('confirm.title', { tool: confirmInfo.toolName })}
           </DialogTitle>
           <DialogDescription>
@@ -230,10 +230,10 @@ export function ConfirmDialog() {
           )}
 
           {confirmInfo.suggestedPattern && (
-            <div className="flex items-start gap-2 p-3 rounded-lg bg-yellow-500/10 border border-yellow-500/20">
-              <AlertTriangle className="h-4 w-4 text-yellow-600 mt-0.5 shrink-0" />
+            <div className="flex items-start gap-2 p-3 rounded-lg bg-warning/10 border border-warning/20">
+              <AlertTriangle className="h-4 w-4 text-warning mt-0.5 shrink-0" />
               <div className="text-sm min-w-0">
-                <div className="font-medium text-yellow-800 dark:text-yellow-200">
+                <div className="font-medium text-warning">
                   {t('confirm.trustSuggestionTitle')}
                 </div>
                 <div className="font-mono text-xs mt-1 break-all">

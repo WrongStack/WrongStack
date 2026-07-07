@@ -77,14 +77,14 @@ export function ClearAllowlistDialog({
   return (
     <Dialog open={open} onOpenChange={(next) => { if (!next) onCancel(); }}>
       <DialogContent
-        className="sm:max-w-md border-amber-500/50"
+        className="sm:max-w-md border-warning/50"
         ref={contentRef}
         tabIndex={-1}
         data-clear-allowlist-dialog
       >
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <AlertTriangle className="h-5 w-5 text-amber-500" />
+            <AlertTriangle className="h-5 w-5 text-warning" />
             {t('settings:allowlist.title')}
           </DialogTitle>
           <DialogDescription>

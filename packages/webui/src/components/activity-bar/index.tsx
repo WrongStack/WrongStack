@@ -225,14 +225,14 @@ export function ActivityBar({ desktopShell = false }: { desktopShell?: boolean |
   return (
     <div
       className={cn(
-        'flex h-full min-h-0 shrink-0 flex-col border-r bg-card/60',
+        'flex h-full min-h-0 shrink-0 flex-col border-r border-border/70 bg-card/75 backdrop-blur-xl',
         desktopShell ? 'w-10' : 'w-12',
       )}
     >
       {/* ── Branding — logo + project name (pinned top) ── */}
       <div
         className={cn(
-          'flex flex-col items-center border-b border-border/50 shrink-0',
+          'flex flex-col items-center border-b border-border/60 shrink-0',
           desktopShell ? 'pt-2 pb-1.5' : 'pt-2.5 pb-2',
         )}
       >
@@ -249,6 +249,7 @@ export function ActivityBar({ desktopShell = false }: { desktopShell?: boolean |
           }
           className={cn(
             'relative rounded-md bg-primary flex items-center justify-center shadow-[0_0_0_1px_hsl(var(--primary)/0.4),0_2px_8px_-2px_hsl(var(--primary)/0.5)] hover:shadow-[0_0_0_1px_hsl(var(--primary)/0.6),0_3px_12px_-2px_hsl(var(--primary)/0.6)] transition-shadow',
+            'ring-1 ring-primary/30',
             desktopShell ? 'w-7 h-7' : 'w-8 h-8',
           )}
         >
@@ -257,10 +258,10 @@ export function ActivityBar({ desktopShell = false }: { desktopShell?: boolean |
             strokeWidth={2.4}
           />
         </button>
-        {/* Project name — truncated to fit the 48px bar */}
+        {/* Project name — truncated to fit the narrow icon rail. */}
         {!desktopShell && (
           <span
-            className="mt-1.5 text-[8px] font-semibold tracking-tight text-muted-foreground text-center leading-tight w-10 truncate"
+            className="mt-1.5 w-10 truncate text-center text-[8px] font-semibold leading-tight text-muted-foreground"
             title={cwd || projectName || 'WrongStack'}
           >
             {projectName || 'WS'}
@@ -299,7 +300,9 @@ export function ActivityBar({ desktopShell = false }: { desktopShell?: boolean |
         ))}
 
         {/* Divider between panels and main-view switchers */}
-        {visibleViews.length > 0 && <div className="my-1.5 h-px w-6 bg-border/60 shrink-0" />}
+        {visibleViews.length > 0 && (
+          <div className="my-1.5 h-px w-6 shrink-0 bg-border/70" />
+        )}
 
         {/* Main-view icons */}
         {visibleViews.map((def) => (
@@ -318,7 +321,7 @@ export function ActivityBar({ desktopShell = false }: { desktopShell?: boolean |
             App-wide controls (palette, theme, shortcuts, Fleet/Agents
             monitors) collapsed into one popover so they never crowd the bar
             or overflow on short screens. */}
-      <div className="flex flex-col items-center shrink-0 pt-1 pb-2 border-t border-border/50">
+      <div className="flex flex-col items-center shrink-0 pt-1 pb-2 border-t border-border/60">
         <UtilitiesMenu
           compact={desktopShell}
           monitorOpen={inspectorOpen && (inspectorTab === 'fleet' || inspectorTab === 'agents')}
@@ -387,10 +390,10 @@ function UtilitiesMenu({
                 : t('activity:menu.moreFull')
           }
           className={cn(
-            'relative flex items-center justify-center rounded-lg transition-colors',
-            compact ? 'w-9 h-9' : 'w-10 h-10',
-            'text-muted-foreground hover:text-foreground hover:bg-muted/70',
-            'data-[state=open]:text-primary data-[state=open]:bg-primary/10',
+            'ws-nav-button relative flex items-center justify-center rounded-md transition-colors',
+            compact ? 'h-9 w-9' : 'h-10 w-10',
+            'text-muted-foreground hover:border-border/70 hover:text-foreground hover:bg-muted/60',
+            'data-[state=open]:text-primary data-[state=open]:bg-primary/10 data-[state=open]:border-primary/30',
             (monitorOpen || hiddenActive) && 'text-primary',
           )}
         >
@@ -400,7 +403,7 @@ function UtilitiesMenu({
           {hiddenItemCount > 0 && (
             <span
               className={cn(
-                'absolute -top-0.5 -right-0.5 min-w-[15px] h-[15px] flex items-center justify-center rounded-full px-1 text-[8px] font-bold leading-none tabular',
+                'absolute -top-0.5 -right-0.5 min-w-[15px] h-[15px] flex items-center justify-center rounded px-1 text-[8px] font-bold leading-none tabular',
                 hiddenActive
                   ? 'bg-primary text-primary-foreground'
                   : 'bg-muted-foreground text-background',
@@ -430,7 +433,7 @@ function UtilitiesMenu({
         {overflowPanels.length > 0 && (
           <>
             <DropdownMenuSeparator />
-            <DropdownMenuLabel className="text-[11px] uppercase tracking-wide text-muted-foreground">
+            <DropdownMenuLabel className="text-[11px] uppercase text-muted-foreground">
               {t('activity:menu.panels')}
             </DropdownMenuLabel>
             {overflowPanels.map((def) => (
@@ -450,7 +453,7 @@ function UtilitiesMenu({
         {overflowViews.length > 0 && (
           <>
             <DropdownMenuSeparator />
-            <DropdownMenuLabel className="text-[11px] uppercase tracking-wide text-muted-foreground">
+            <DropdownMenuLabel className="text-[11px] uppercase text-muted-foreground">
               {t('activity:menu.views')}
             </DropdownMenuLabel>
             {overflowViews.map((def) => (
@@ -466,7 +469,7 @@ function UtilitiesMenu({
         )}
 
         <DropdownMenuSeparator />
-        <DropdownMenuLabel className="text-[11px] uppercase tracking-wide text-muted-foreground">
+        <DropdownMenuLabel className="text-[11px] uppercase text-muted-foreground">
           {t('activity:menu.theme')}
         </DropdownMenuLabel>
         <DropdownMenuRadioGroup value={theme} onValueChange={(v) => setTheme(v as typeof theme)}>
@@ -485,7 +488,7 @@ function UtilitiesMenu({
         </DropdownMenuRadioGroup>
 
         <DropdownMenuSeparator />
-        <DropdownMenuLabel className="text-[11px] uppercase tracking-wide text-muted-foreground">
+        <DropdownMenuLabel className="text-[11px] uppercase text-muted-foreground">
           {t('activity:menu.monitors')}
         </DropdownMenuLabel>
         <DropdownMenuItem onSelect={() => toggleInspectorTab('fleet')}>
@@ -530,22 +533,23 @@ function ActivityIcon({
     <button
       type="button"
       onClick={onClick}
+      aria-label={label}
       title={label}
       className={cn(
-        'relative flex items-center justify-center rounded-lg transition-colors',
-        compact ? 'w-9 h-9' : 'w-10 h-10',
-        'text-muted-foreground hover:text-foreground hover:bg-muted/70',
-        active && 'text-primary bg-primary/10',
+        'ws-nav-button relative flex items-center justify-center rounded-md transition-colors',
+        compact ? 'h-9 w-9' : 'h-10 w-10',
+        'text-muted-foreground hover:border-border/70 hover:text-foreground hover:bg-muted/60',
+        active && 'ws-nav-button-active',
       )}
     >
       {/* Active indicator — left accent bar */}
       {active && (
         <span className="absolute left-0 top-1/2 -translate-y-1/2 w-0.5 h-6 rounded-r-full bg-primary" />
       )}
-      <span className="h-5 w-5">{icon}</span>
+      <span className="h-5 w-5 shrink-0">{icon}</span>
       {/* Badge count — top-right pill */}
       {badge !== undefined && badge > 0 && (
-        <span className="absolute -top-0.5 -right-0.5 min-w-[15px] h-[15px] flex items-center justify-center rounded-full bg-primary text-[8px] font-bold text-primary-foreground leading-none px-1 tabular">
+        <span className="absolute -top-0.5 -right-0.5 min-w-[15px] h-[15px] flex items-center justify-center rounded bg-primary text-[8px] font-bold text-primary-foreground leading-none px-1 tabular">
           {badge > 99 ? '99+' : badge}
         </span>
       )}

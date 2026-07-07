@@ -8,11 +8,11 @@
  * can coexist in the page (one per provider) and refresh
  * independently.
  *
- * No `@/components/ui` deps — this panel uses the same raw-span
- * pattern as the surrounding `ProviderSection` for visual consistency.
  */
+import { Check, ListChecks, Loader2, RefreshCw } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useAppTranslation } from '@/i18n';
+import { cn } from '@/lib/utils';
 import type { WrongStackWebSocketClient } from '../../lib/ws-client';
 import type { WSServerMessage } from '../../types';
 import { toast } from '../Toaster';
@@ -28,7 +28,6 @@ import {
   selectPickedModelId,
   shouldFireUndoToast,
   shouldOfferClear,
-  shouldOfferSave,
 } from './ProviderModelsPanel.filter';
 import { resolveUndoSend } from './undo-send-decision';
 
@@ -197,34 +196,59 @@ export function ProviderModelsPanel({
     [state, savedModels],
   );
   const formatted = useMemo(() => formatProbeResult(state), [state]);
-  const offerSave = useMemo(
-    () => shouldOfferSave(state, savedModels),
-    [state, savedModels],
-  );
   const offerClear = useMemo(
     () => shouldOfferClear(savedModels),
     [savedModels],
   );
+  const hasDenseModelList = modelList.length > 8;
 
   return (
     <div
-      className="rounded-md border border-border/60 bg-muted/30 px-3 py-2"
+      className="rounded-lg border border-border/70 bg-background/75 p-3 shadow-sm shadow-black/[0.02]"
       data-provider-models-panel={providerId}
     >
-      <div className="flex items-center justify-between gap-2">
-        <div className="flex items-center gap-2 min-w-0">
-          <span className="text-xs text-muted-foreground">{t('activity:providerModels.using')}</span>
-          {pickedId ? (
-            <span className="text-xs font-mono px-2 py-0.5 rounded bg-primary/10 text-primary">
-              {pickedId}
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div className="min-w-0 space-y-1">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+              <ListChecks className="h-3.5 w-3.5" />
+              {t('activity:providerModels.allowlistTitle')}
             </span>
-          ) : (
-            <span className="text-xs text-muted-foreground italic">
-              {t('activity:providerModels.noModelPicked')}
-            </span>
-          )}
+            {modelList.length > 0 && (
+              <span className="rounded-full border border-border/70 bg-muted/40 px-2 py-0.5 text-[11px] text-muted-foreground">
+                {t('activity:providerModels.modelCount', { count: modelList.length })}
+              </span>
+            )}
+          </div>
+          <div className="flex min-w-0 flex-wrap items-center gap-2">
+            <span className="text-xs text-muted-foreground">{t('activity:providerModels.using')}</span>
+            {pickedId ? (
+              <span className="max-w-full truncate rounded-md bg-primary/10 px-2 py-0.5 font-mono text-xs text-primary">
+                {pickedId}
+              </span>
+            ) : (
+              <span className="text-xs italic text-muted-foreground">
+                {t('activity:providerModels.noModelPicked')}
+              </span>
+            )}
+          </div>
         </div>
-        <div className="flex items-center gap-1">
+        <div className="flex flex-wrap items-center gap-1.5 sm:justify-end">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={onRefresh}
+            disabled={state.inFlight}
+            aria-label={t('activity:providerModels.refreshAria', { provider: providerId })}
+            className="h-8 px-2 text-xs"
+          >
+            {state.inFlight ? (
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            ) : (
+              <RefreshCw className="h-3.5 w-3.5" />
+            )}
+            {state.inFlight ? t('activity:providerModels.probing') : t('activity:providerModels.refresh')}
+          </Button>
           {offerClear && (
             <Button
               variant="ghost"
@@ -232,60 +256,60 @@ export function ProviderModelsPanel({
               onClick={requestClear}
               aria-label={t('activity:providerModels.clearAllowlistAria', { provider: providerId })}
               data-action="clear-models"
+              className="h-8 px-2 text-xs"
             >
               {t('activity:providerModels.clearAllowlist')}
             </Button>
           )}
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={onRefresh}
-            disabled={state.inFlight}
-            aria-label={t('activity:providerModels.refreshAria', { provider: providerId })}
-          >
-            {state.inFlight ? t('activity:providerModels.probing') : t('activity:providerModels.refresh')}
-          </Button>
         </div>
       </div>
 
       <ProbeResultLine formatted={formatted} />
 
       {modelList.length > 0 && (
-        <ul
-          className="mt-2 flex flex-wrap gap-1.5"
-          data-provider-models-list={providerId}
-        >
-          {modelList.map((id) => (
-            <li key={id} className="flex items-center gap-1">
-              <span
-                className={
-                  id === pickedId
-                    ? 'text-xs font-mono px-2 py-0.5 rounded bg-primary/10 text-primary'
-                    : 'text-xs font-mono px-2 py-0.5 rounded border border-border text-foreground/80'
-                }
-              >
-                {id}
-              </span>
-              {id !== pickedId && (
-                <Button
-                  variant="link"
-                  size="sm"
-                  onClick={() => onUseModel(id)}
-                  className="text-xs h-5 px-1"
-                  aria-label={t('activity:providerModels.useModelAria', { model: id, provider: providerId })}
-                >
-                  {t('activity:providerModels.use')}
-                </Button>
-              )}
-            </li>
-          ))}
-        </ul>
-      )}
-
-      {offerSave && (
-        <p className="mt-2 text-xs text-muted-foreground">
-          {t('activity:providerModels.differsHint', { command: 'wstack auth local --model first' })}
-        </p>
+        <div className="relative mt-3">
+          <ul
+            className={cn(
+              'flex flex-wrap gap-1.5 pr-1 [scrollbar-gutter:stable]',
+              hasDenseModelList && 'max-h-40 overflow-y-scroll pb-7',
+            )}
+            data-provider-models-list={providerId}
+          >
+            {modelList.map((id) => {
+              const selected = id === pickedId;
+              return (
+                <li key={id} className="max-w-full">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (!selected) onUseModel(id);
+                    }}
+                    disabled={selected}
+                    className={
+                      selected
+                        ? 'inline-flex max-w-full items-center gap-1.5 rounded-md border border-primary/25 bg-primary/10 px-2 py-1 text-left font-mono text-xs text-primary shadow-sm'
+                        : 'inline-flex max-w-full items-center gap-1.5 rounded-md border border-border/70 bg-muted/25 px-2 py-1 text-left font-mono text-xs text-foreground/85 transition-colors hover:border-primary/35 hover:bg-primary/5 hover:text-primary'
+                    }
+                    aria-label={selected
+                      ? undefined
+                      : t('activity:providerModels.useModelAria', { model: id, provider: providerId })}
+                  >
+                    {selected && <Check className="h-3.5 w-3.5 shrink-0" />}
+                    <span className="min-w-0 truncate">{id}</span>
+                    {!selected && (
+                      <span className="shrink-0 border-l border-border/70 pl-1.5 font-sans text-[10px] font-semibold uppercase tracking-wide text-primary">
+                        {t('activity:providerModels.use')}
+                      </span>
+                    )}
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+          {hasDenseModelList && (
+            <div className="pointer-events-none absolute inset-x-0 bottom-0 h-9 rounded-b-md bg-gradient-to-t from-background via-background/90 to-transparent" />
+          )}
+        </div>
       )}
 
       <ClearAllowlistDialog
@@ -306,18 +330,27 @@ function ProbeResultLine({
 }) {
   const toneClass =
     formatted.tone === 'success'
-      ? 'text-emerald-600 dark:text-emerald-400'
+      ? 'text-success'
       : formatted.tone === 'warning'
-        ? 'text-amber-600 dark:text-amber-400'
+        ? 'text-warning'
         : formatted.tone === 'error'
-          ? 'text-rose-600 dark:text-rose-400'
+          ? 'text-destructive'
           : 'text-muted-foreground';
+  const dotClass =
+    formatted.tone === 'success'
+      ? 'bg-success'
+      : formatted.tone === 'warning'
+        ? 'bg-warning'
+        : formatted.tone === 'error'
+          ? 'bg-destructive'
+          : 'bg-muted-foreground/60';
   return (
     <p
-      className={`mt-1 text-xs ${toneClass}`}
+      className={`mt-2 flex items-center gap-1.5 text-xs ${toneClass}`}
       data-probe-tone={formatted.tone}
     >
-      {formatted.text}
+      <span className={`h-1.5 w-1.5 rounded-full ${dotClass}`} />
+      <span className="min-w-0 truncate">{formatted.text}</span>
     </p>
   );
 }

@@ -43,9 +43,9 @@ const TYPE_ICONS: Record<string, typeof MessageSquare> = {
 };
 
 const PRIORITY_COLORS: Record<string, string> = {
-  high: 'text-red-600 bg-red-50 dark:bg-red-950/30',
-  normal: 'text-muted-foreground bg-muted',
-  low: 'text-slate-500 bg-slate-50 dark:bg-slate-950/20',
+  high: 'border-destructive/25 bg-destructive/10 text-destructive',
+  normal: 'border-border bg-muted text-muted-foreground',
+  low: 'border-primary/20 bg-primary/10 text-primary',
 };
 
 function fmtTime(iso: string): string {
@@ -68,11 +68,17 @@ function fmtRelative(iso: string): string {
 function EmptyState() {
   const { t } = useAppTranslation();
   return (
-    <div className="flex-1 flex flex-col items-center justify-center text-muted-foreground gap-3">
-      <Mail className="h-12 w-12 opacity-20" />
-      <div className="text-sm font-medium">{t('activity:mailbox.emptyDetail')}</div>
-      <div className="text-xs max-w-[260px] text-center opacity-60">
-        {t('activity:mailbox.emptyDetailHint')}
+    <div className="flex h-full min-h-0 flex-1 items-center justify-center bg-[hsl(var(--surface-2)/0.45)] p-4">
+      <div className="ws-surface flex max-w-md flex-col items-center gap-3 rounded-xl p-6 text-center text-muted-foreground">
+        <span className="flex h-12 w-12 items-center justify-center rounded-lg bg-primary/10 text-primary">
+          <Mail className="h-6 w-6" />
+        </span>
+        <div>
+          <div className="text-sm font-semibold text-foreground">{t('activity:mailbox.emptyDetail')}</div>
+          <div className="mt-1 text-xs">
+            {t('activity:mailbox.emptyDetailHint')}
+          </div>
+        </div>
       </div>
     </div>
   );
@@ -100,7 +106,7 @@ function ReadByList({ readBy }: { readBy: Record<string, string> }) {
         {entries.map(([agentId, timestamp]) => (
           <span
             key={agentId}
-            className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] bg-green-50 text-green-700 dark:bg-green-950/30 dark:text-green-400"
+            className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] bg-success/10 text-success"
             title={fmtTime(timestamp)}
           >
             <CheckCircle2 className="h-2.5 w-2.5" />
@@ -137,36 +143,45 @@ export function MailboxDetailView({ className }: { className?: string }) {
   const priorityClass = PRIORITY_COLORS[msg.priority] ?? PRIORITY_COLORS.normal;
 
   return (
-    <div className={cn('flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden', className)}>
+    <div
+      className={cn(
+        'flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-[hsl(var(--surface-2)/0.45)] p-3',
+        className,
+      )}
+    >
+      <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-border/70 bg-card/75 shadow-sm">
       {/* ── Header bar ── */}
-      <div className="flex items-center gap-3 px-4 py-2.5 border-b border-border bg-card/40 shrink-0">
+      <div className="flex items-center gap-3 border-b border-border/70 px-3 py-3 sm:px-4 shrink-0">
         <button
           type="button"
           onClick={handleClose}
-          className="flex items-center justify-center w-7 h-7 rounded-md hover:bg-accent text-muted-foreground hover:text-foreground transition-colors shrink-0"
+          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md border border-border/70 bg-background/60 text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
           title={t('activity:mailbox.backToChat')}
         >
           <ArrowLeft className="h-4 w-4" />
         </button>
 
-        <div className={cn('p-1.5 rounded-md shrink-0', msg.completed ? 'bg-green-100 dark:bg-green-950/40' : 'bg-amber-100 dark:bg-amber-950/40')}>
-          <Icon className={cn('h-4 w-4', msg.completed ? 'text-green-600 dark:text-green-400' : 'text-amber-600 dark:text-amber-400')} />
+        <div className={cn('flex h-9 w-9 shrink-0 items-center justify-center rounded-lg', msg.completed ? 'bg-[hsl(var(--success)/0.1)]' : 'bg-primary/10')}>
+          <Icon className={cn('h-4 w-4', msg.completed ? 'text-[hsl(var(--success))]' : 'text-primary')} />
         </div>
 
         <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-2">
+          <div className="flex min-w-0 flex-wrap items-center gap-2">
             <h2 className="text-sm font-semibold text-foreground truncate">{msg.subject}</h2>
             {msg.completed && (
-              <span className="inline-flex items-center gap-1 text-[10px] font-medium text-green-600 dark:text-green-400 shrink-0">
+              <span className="inline-flex shrink-0 items-center gap-1 rounded-md border border-[hsl(var(--success)/0.25)] bg-[hsl(var(--success)/0.08)] px-1.5 py-0.5 text-[10px] font-semibold text-[hsl(var(--success))]">
                 <CheckCircle2 className="h-3 w-3" />
                 {t('activity:mailbox.completed')}
               </span>
             )}
+            <span className={cn('rounded-md border px-1.5 py-0.5 text-[10px] font-semibold uppercase', priorityClass)}>
+              {msg.priority || 'normal'}
+            </span>
           </div>
-          <div className="flex items-center gap-2 text-[11px] text-muted-foreground mt-0.5">
-            <span className="font-medium text-foreground/80">{msg.from}</span>
+          <div className="mt-1 flex min-w-0 flex-wrap items-center gap-2 text-[11px] text-muted-foreground">
+            <span className="min-w-0 truncate font-medium text-foreground/80">{msg.from}</span>
             <span>→</span>
-            <span>{msg.to === '*' || msg.to === 'all' ? t('activity:mailbox.everyone') : msg.to}</span>
+            <span className="min-w-0 truncate">{msg.to === '*' || msg.to === 'all' ? t('activity:mailbox.everyone') : msg.to}</span>
             <span className="opacity-40">•</span>
             <span className="inline-flex items-center gap-1">
               <Clock className="h-3 w-3" />
@@ -178,7 +193,7 @@ export function MailboxDetailView({ className }: { className?: string }) {
         <button
           type="button"
           onClick={handleClose}
-          className="flex items-center justify-center w-7 h-7 rounded-md hover:bg-accent text-muted-foreground hover:text-foreground transition-colors shrink-0"
+          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
           title={t('activity:mailbox.closeTitle')}
         >
           <X className="h-4 w-4" />
@@ -187,7 +202,7 @@ export function MailboxDetailView({ className }: { className?: string }) {
 
       {/* ── Body ── */}
       <div className="min-h-0 min-w-0 flex-1 overflow-y-auto">
-        <div className="px-4 py-4">
+        <div className="mx-auto w-full max-w-4xl px-4 py-5">
           <div className="markdown-content prose prose-sm dark:prose-invert max-w-none text-sm leading-relaxed">
             <ReactMarkdown components={markdownComponents}>{msg.body}</ReactMarkdown>
           </div>
@@ -195,7 +210,7 @@ export function MailboxDetailView({ className }: { className?: string }) {
       </div>
 
       {/* ── Metadata footer ── */}
-      <div className="border-t border-border bg-card/30 px-4 py-3 shrink-0">
+      <div className="border-t border-border/70 bg-muted/20 px-4 py-3 shrink-0">
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-x-6 gap-y-2 text-xs">
           {/* Type */}
           <div className="flex items-center gap-1.5 text-muted-foreground">
@@ -205,7 +220,7 @@ export function MailboxDetailView({ className }: { className?: string }) {
 
           {/* Priority */}
           <div className="flex items-center gap-1.5">
-            <span className={cn('px-1.5 py-0.5 rounded text-[10px] font-semibold uppercase', priorityClass)}>
+            <span className={cn('rounded border px-1.5 py-0.5 text-[10px] font-semibold uppercase', priorityClass)}>
               {msg.priority || 'normal'}
             </span>
           </div>
@@ -233,7 +248,7 @@ export function MailboxDetailView({ className }: { className?: string }) {
           {/* Completed by */}
           {msg.completed && msg.completedBy && (
             <div className="flex items-center gap-1.5 text-muted-foreground col-span-2">
-              <CheckCircle2 className="h-3 w-3 shrink-0 text-green-500" />
+              <CheckCircle2 className="h-3 w-3 shrink-0 text-success" />
               <span>{msg.completedAt ? t('activity:mailbox.completedByAt', { name: msg.completedBy, time: fmtTime(msg.completedAt) }) : t('activity:mailbox.completedBy', { name: msg.completedBy })}</span>
             </div>
           )}
@@ -261,6 +276,7 @@ export function MailboxDetailView({ className }: { className?: string }) {
             <ReadByList readBy={msg.readBy} />
           </div>
         )}
+      </div>
       </div>
     </div>
   );

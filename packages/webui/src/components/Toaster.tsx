@@ -90,10 +90,10 @@ export const toast = {
 };
 
 function Icon({ variant }: { variant: ToastVariant }) {
-  if (variant === 'success') return <CheckCircle2 className="h-4 w-4 text-green-500" />;
+  if (variant === 'success') return <CheckCircle2 className="h-4 w-4 text-success" />;
   if (variant === 'error') return <XCircle className="h-4 w-4 text-destructive" />;
-  if (variant === 'warn') return <AlertTriangle className="h-4 w-4 text-amber-500" />;
-  return <Info className="h-4 w-4 text-blue-500" />;
+  if (variant === 'warn') return <AlertTriangle className="h-4 w-4 text-warning" />;
+  return <Info className="h-4 w-4 text-info" />;
 }
 
 function ToastItem({ entry }: { entry: ToastEntry }) {
@@ -109,8 +109,8 @@ function ToastItem({ entry }: { entry: ToastEntry }) {
         'flex items-start gap-2 rounded-lg border bg-popover shadow-lg px-3 py-2 text-sm max-w-sm',
         'animate-message',
         entry.variant === 'error' && 'border-destructive/40',
-        entry.variant === 'warn' && 'border-amber-500/40',
-        entry.variant === 'success' && 'border-green-500/40',
+        entry.variant === 'warn' && 'border-warning/40',
+        entry.variant === 'success' && 'border-success/40',
       )}
     >
       <Icon variant={entry.variant} />

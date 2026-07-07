@@ -12,17 +12,17 @@ const MODE_META: Record<QueueMode, { label: string; titleKey: string; tone: stri
   btw: {
     label: 'btw',
     titleKey: 'btwTitle',
-    tone: 'bg-sky-500/10 text-sky-700 dark:text-sky-300 border-sky-500/30',
+    tone: 'bg-primary/10 text-primary border-primary/30',
   },
   steer: {
     label: 'steer',
     titleKey: 'steerTitle',
-    tone: 'bg-amber-500/10 text-amber-700 dark:text-amber-300 border-amber-500/30',
+    tone: 'bg-warning/10 text-warning border-warning/35',
   },
   queue: {
     label: 'queue',
     titleKey: 'queueTitle',
-    tone: 'bg-indigo-500/10 text-indigo-700 dark:text-indigo-300 border-indigo-500/30',
+    tone: 'bg-info/10 text-info border-info/30',
   },
 };
 
@@ -74,7 +74,7 @@ export function QueuePanel({
   return (
     <Dialog open={open} onOpenChange={(v) => { if (!v) onClose(); }}>
       <DialogContent
-        className={cn('max-w-lg gap-0 p-0 overflow-hidden flex flex-col max-h-[70dvh] pt-[10dvh]', className)}
+        className={cn('max-w-lg gap-0 overflow-hidden border-border/80 bg-card p-0 pt-[10dvh] flex flex-col max-h-[70dvh]', className)}
         showCloseButton={false}
       >
         <DialogTitle className="sr-only">{t('activity:queue.heading')}</DialogTitle>
@@ -82,9 +82,9 @@ export function QueuePanel({
           {t('activity:queue.subtitle', { count: queue.length })}
         </DialogDescription>
         {/* Header */}
-        <div className="flex items-center justify-between px-4 py-3 border-b shrink-0">
+        <div className="flex items-center justify-between border-b border-border/70 bg-card/95 px-4 py-3 shrink-0">
           <div className="flex items-center gap-2.5">
-            <span className="flex items-center justify-center w-8 h-8 rounded-lg bg-indigo-500/10 text-indigo-600 dark:text-indigo-400">
+            <span className="flex items-center justify-center w-8 h-8 rounded-md border border-primary/20 bg-primary/10 text-primary">
               <ListOrdered className="h-4 w-4" />
             </span>
             <div>
@@ -140,7 +140,7 @@ export function QueuePanel({
               <p className="text-xs text-center max-w-xs">{t('activity:queue.emptyBody')}</p>
             </div>
           ) : (
-            <ul className="divide-y" data-testid="queue-list">
+            <ul className="divide-y divide-border/60" data-testid="queue-list">
               {sortedQueue.map(({ item, sourceIdx }, idx) => {
                 // sourceIdx was threaded through the sort so removal
                 // targets the correct entry in the underlying store.
@@ -148,7 +148,7 @@ export function QueuePanel({
                 return (
                   <li
                     key={`${item.addedAt}-${sourceIdx}`}
-                    className="flex items-start justify-between px-4 py-3 text-xs hover:bg-muted/30 transition-colors gap-3"
+                    className="flex items-start justify-between gap-3 px-4 py-3 text-xs transition-colors hover:bg-muted/35"
                     data-testid="queue-item"
                   >
                     <div className="flex items-start gap-3 min-w-0 flex-1">
@@ -157,7 +157,7 @@ export function QueuePanel({
                       </span>
                       <span
                         className={cn(
-                          'shrink-0 inline-flex items-center justify-center text-[10px] font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded border',
+                          'shrink-0 inline-flex items-center justify-center rounded border px-1.5 py-0.5 text-[10px] font-semibold uppercase',
                           meta.tone,
                         )}
                         title={t(`activity:queue.${meta.titleKey}`)}
@@ -187,7 +187,7 @@ export function QueuePanel({
 
         {/* Footer hint */}
         {queue.length > 0 && (
-          <div className="px-4 py-2.5 border-t shrink-0">
+          <div className="border-t border-border/70 bg-muted/20 px-4 py-2.5 shrink-0">
             <p className="text-[10px] text-muted-foreground text-center">{t('activity:queue.footer')}</p>
           </div>
         )}

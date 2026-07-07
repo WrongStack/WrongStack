@@ -109,7 +109,7 @@ function StatBox({
   sub?: string | undefined;
 }) {
   return (
-    <div className="flex flex-col p-2 rounded-lg bg-muted/40 border border-border/40 min-w-0">
+    <div className="flex min-w-0 flex-col rounded-lg border border-border/60 bg-card/65 p-2 shadow-sm">
       <span className="text-[10px] text-muted-foreground">{label}</span>
       <span className="text-sm font-semibold tabular-nums truncate">{value}</span>
       {sub && <span className="text-[9px] text-muted-foreground/70 truncate">{sub}</span>}
@@ -128,7 +128,7 @@ function SectionHeading({
 }) {
   return (
     <div className="flex items-center justify-between">
-      <span className="flex items-center gap-1.5 text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">
+      <span className="flex items-center gap-1.5 text-[10px] uppercase text-muted-foreground font-semibold">
         {icon}
         {label}
       </span>
@@ -240,9 +240,9 @@ export function SessionPanel() {
     getWSClient(wsUrl)?.send?.(msg);
 
   return (
-    <div className="min-h-0 min-w-0 flex-1 overflow-y-auto">
+    <div className="min-h-0 min-w-0 flex-1 overflow-y-auto bg-[hsl(var(--surface-2)/0.28)]">
       {/* ── Quick actions ── */}
-      <div className="px-3 py-2.5 border-b grid grid-cols-2 gap-1.5">
+      <div className="grid grid-cols-2 gap-1.5 border-b border-border/70 bg-card/55 px-3 py-2.5">
         {isLoading ? (
           <ActionButton
             icon={<Square className="h-3 w-3" />}
@@ -291,10 +291,10 @@ export function SessionPanel() {
       <button
         type="button"
         onClick={() => setModelSwitcherOpen(true)}
-        className="w-full px-4 py-2.5 border-b text-left hover:bg-muted/40 transition-colors"
+        className="w-full border-b border-border/70 bg-card/35 px-4 py-2.5 text-left transition-colors hover:bg-muted/40"
         title={t('activity:sessionPanel.modelTitle')}
       >
-        <div className="text-[10px] uppercase tracking-wider text-muted-foreground mb-0.5">
+        <div className="text-[10px] uppercase text-muted-foreground mb-0.5">
           {t('activity:sessionPanel.model')}
         </div>
         <div className="font-mono text-xs truncate">
@@ -306,7 +306,7 @@ export function SessionPanel() {
 
       {/* ── Context window ── */}
       {maxContext > 0 && (
-        <div className="px-4 py-2.5 border-b space-y-1.5">
+        <div className="space-y-1.5 border-b border-border/70 bg-card/35 px-4 py-2.5">
           <button
             type="button"
             onClick={() => setBreakdownOpen(true)}
@@ -340,7 +340,7 @@ export function SessionPanel() {
       )}
 
       {/* ── Live stats ── */}
-      <div className="px-3 py-2.5 border-b space-y-1.5">
+      <div className="space-y-1.5 border-b border-border/70 px-3 py-2.5">
         <SectionHeading icon={<Cpu className="h-3 w-3" />} label={t('activity:sessionPanel.sessionLabel')} />
         <div className="grid grid-cols-2 gap-1.5">
           <StatBox label={t('activity:sessionPanel.stats.messages')} value={messages.length} />
@@ -376,7 +376,7 @@ export function SessionPanel() {
           const pct = Math.round((done / todos.length) * 100);
           const allDone = done === todos.length;
           return (
-            <div className="px-3 py-2.5 border-b space-y-1.5">
+            <div className="space-y-1.5 border-b border-border/70 px-3 py-2.5">
               <SectionHeading
                 icon={<ListTodo className="h-3 w-3" />}
                 label={t('activity:sessionPanel.plan')}
@@ -444,9 +444,9 @@ export function SessionPanel() {
 
       {/* ── Pinned answers ── */}
       {pinnedRows.length > 0 && (
-        <div className="px-3 py-2.5 border-b space-y-1.5">
+      <div className="space-y-1.5 border-b border-border/70 px-3 py-2.5">
           <SectionHeading
-            icon={<Pin className="h-3 w-3 text-amber-500" />}
+            icon={<Pin className="h-3 w-3 text-warning" />}
             label={t('activity:sessionPanel.pinned')}
             right={
               <button
@@ -469,12 +469,12 @@ export function SessionPanel() {
                       const el = document.querySelector(`[data-message-id="${m.id}"]`);
                       if (!el) return;
                       el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                      el.classList.add('ring-2', 'ring-amber-500/60');
+                      el.classList.add('ring-2', 'ring-warning/60');
                       setTimeout(() => {
-                        el.classList.remove('ring-2', 'ring-amber-500/60');
+                        el.classList.remove('ring-2', 'ring-warning/60');
                       }, 1600);
                     }}
-                    className="w-full text-left text-xs px-2 py-1.5 rounded bg-muted/40 hover:bg-muted/70 border border-amber-500/20 leading-snug"
+                    className="w-full text-left text-xs px-2 py-1.5 rounded bg-muted/40 hover:bg-muted/70 border border-warning/20 leading-snug"
                     title={m.content.slice(0, 400)}
                   >
                     {preview}
@@ -488,7 +488,7 @@ export function SessionPanel() {
       )}
 
       {/* ── Quick settings — the mid-session knobs ── */}
-      <div className="px-3 py-2.5 border-b space-y-1">
+      <div className="space-y-1 border-b border-border/70 px-3 py-2.5">
         <SectionHeading icon={<SlidersHorizontal className="h-3 w-3" />} label={t('activity:sessionPanel.quickSettings')} />
         <div className="flex items-center justify-between gap-2 py-1">
           <span className="text-xs text-foreground/80">{t('activity:sessionPanel.autonomy')}</span>

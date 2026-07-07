@@ -64,10 +64,10 @@ function ScopeBadge({ source }: { source: string }) {
   return (
     <span
       className={cn(
-        'inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold uppercase tracking-wide',
-        scope === 'project' && 'bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400',
-        scope === 'user' && 'bg-violet-100 text-violet-700 dark:bg-violet-950 dark:text-violet-400',
-        scope === 'bundled' && 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400',
+        'inline-flex items-center rounded-md border px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide',
+        scope === 'project' && 'border-[hsl(var(--success)/0.25)] bg-[hsl(var(--success)/0.08)] text-[hsl(var(--success))]',
+        scope === 'user' && 'border-primary/25 bg-primary/10 text-primary',
+        scope === 'bundled' && 'border-border/70 bg-muted/60 text-muted-foreground',
       )}
     >
       {t(`activity:skillDetail.${labelKeys[scope]}`)}
@@ -447,32 +447,40 @@ export function SkillDetailView({ className }: { className?: string }) {
 
   if (!selectedSkill) {
     return (
-      <div className={cn('flex-1 flex flex-col items-center justify-center text-muted-foreground p-8', className)}>
-        <BookOpen className="h-12 w-12 mb-4 opacity-20" />
-        <p className="text-base font-medium">{t('activity:skillDetail.noSkillSelected')}</p>
-        <p className="text-sm mt-1 text-center max-w-[300px]">
-          {t('activity:skillDetail.selectSkillHint')}
-        </p>
-        <button
-          type="button"
-          onClick={handleClose}
-          className="mt-4 px-4 py-2 text-sm rounded-md border border-border hover:bg-accent transition-colors"
-        >
-          {t('activity:skillDetail.goToChat')}
-        </button>
+      <div className={cn('flex h-full min-h-0 flex-1 items-center justify-center bg-[hsl(var(--surface-2)/0.45)] p-4 text-muted-foreground', className)}>
+        <div className="ws-surface flex max-w-md flex-col items-center gap-3 rounded-xl p-6 text-center">
+          <span className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10 text-primary">
+            <BookOpen className="h-6 w-6" />
+          </span>
+          <div>
+            <p className="text-base font-medium text-foreground">{t('activity:skillDetail.noSkillSelected')}</p>
+            <p className="mt-1 text-sm">
+              {t('activity:skillDetail.selectSkillHint')}
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={handleClose}
+            className="mt-1 rounded-md border border-border/70 bg-card/70 px-4 py-2 text-sm text-foreground shadow-sm transition-colors hover:bg-accent"
+          >
+            {t('activity:skillDetail.goToChat')}
+          </button>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className={cn('flex h-full min-h-0 min-w-0 flex-col overflow-hidden bg-background', className)}>
+    <div className={cn('flex h-full min-h-0 min-w-0 flex-col gap-3 overflow-hidden bg-[hsl(var(--surface-2)/0.45)] p-3', className)}>
       {/* Header */}
-      <div className="px-4 py-3 border-b bg-card shrink-0">
-        <div className="flex items-start justify-between gap-3">
+      <div className="shrink-0 rounded-xl border border-border/70 bg-card/75 p-4 shadow-sm">
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
           <div className="min-w-0 flex-1">
-            <div className="flex items-center gap-2">
-              <Sparkles className="h-4 w-4 text-primary shrink-0" />
-              <h1 className="text-base font-semibold truncate">{selectedSkill.name}</h1>
+            <div className="flex min-w-0 flex-wrap items-center gap-2">
+              <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                <Sparkles className="h-4 w-4" />
+              </span>
+              <h1 className="min-w-0 truncate text-base font-semibold">{selectedSkill.name}</h1>
               {selectedSkill.version && (
                 <span className="text-xs text-muted-foreground">v{selectedSkill.version}</span>
               )}
@@ -484,12 +492,12 @@ export function SkillDetailView({ className }: { className?: string }) {
 
             {/* Source URL */}
             {selectedSkill.sourceUrl && (
-              <div className="flex items-center gap-1 mt-2">
+              <div className="mt-2 flex min-w-0 items-center gap-1">
                 <a
                   href={`https://${selectedSkill.sourceUrl.replace('github:', '')}`}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+                  className="flex min-w-0 items-center gap-1 text-xs text-muted-foreground transition-colors hover:text-foreground"
                   title={t('activity:skillDetail.openSourceRepo')}
                 >
                   <Globe className="h-3 w-3 shrink-0" />
@@ -498,10 +506,10 @@ export function SkillDetailView({ className }: { className?: string }) {
                 <button
                   type="button"
                   onClick={handleCopySourceUrl}
-                  className="flex items-center shrink-0 text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+                  className="flex shrink-0 items-center text-muted-foreground transition-colors hover:text-foreground"
                   title={t('activity:skillDetail.copySourceUrl')}
                 >
-                  {copiedSourceUrl ? <Check className="h-3 w-3 text-green-500" /> : <Copy className="h-3 w-3" />}
+                  {copiedSourceUrl ? <Check className="h-3 w-3 text-[hsl(var(--success))]" /> : <Copy className="h-3 w-3" />}
                 </button>
               </div>
             )}
@@ -521,7 +529,7 @@ export function SkillDetailView({ className }: { className?: string }) {
             {updateResult && (
               <div className="mt-2 text-xs space-y-1">
                 {updateResult.updated.length > 0 && (
-                  <div className="text-green-600">
+                  <div className="text-[hsl(var(--success))]">
                     {t('activity:skillDetail.updatedLabel', { list: updateResult.updated.map((u) => `${u.name} (${u.oldRef} → ${u.newRef})`).join(', ') })}
                   </div>
                 )}
@@ -538,14 +546,14 @@ export function SkillDetailView({ className }: { className?: string }) {
           </div>
 
           {/* Actions */}
-          <div className="flex items-center gap-1 ml-auto shrink-0">
+          <div className="flex flex-wrap items-center gap-1 lg:ml-auto lg:shrink-0 lg:justify-end">
             {/* Check for updates (WrongStack-managed installed skills only) */}
             {isWritableSkillSource(selectedSkill.source) && selectedSkill.sourceUrl && (
               <button
                 type="button"
                 onClick={handleCheckForUpdates}
                 disabled={checkingForUpdates}
-                className="flex items-center gap-1 px-2 py-1.5 text-xs rounded text-muted-foreground hover:text-foreground hover:bg-accent transition-colors cursor-pointer disabled:opacity-50"
+                className="flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground disabled:opacity-50"
                 title={t('activity:skillDetail.checkUpdatesTitle')}
               >
                 {checkingForUpdates ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <RefreshCw className="h-3.5 w-3.5" />}
@@ -557,7 +565,7 @@ export function SkillDetailView({ className }: { className?: string }) {
               <button
                 type="button"
                 onClick={handleExportSkill}
-                className="flex items-center gap-1 px-2 py-1.5 text-xs rounded text-muted-foreground hover:text-foreground hover:bg-accent transition-colors cursor-pointer"
+                className="flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
                 title={t('activity:skillDetail.exportTitle')}
               >
                 <Download className="h-3.5 w-3.5" />
@@ -568,7 +576,7 @@ export function SkillDetailView({ className }: { className?: string }) {
               <button
                 type="button"
                 onClick={handleStartEdit}
-                className="flex items-center gap-1 px-2 py-1.5 text-xs rounded text-muted-foreground hover:text-foreground hover:bg-accent transition-colors cursor-pointer"
+                className="flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
                 title={t('activity:skillDetail.editTitle')}
               >
                 <Pencil className="h-3.5 w-3.5" />
@@ -580,7 +588,7 @@ export function SkillDetailView({ className }: { className?: string }) {
               <button
                 type="button"
                 onClick={() => setUninstallConfirmSkill(selectedSkill)}
-                className="flex items-center gap-1 px-2 py-1.5 text-xs rounded text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors cursor-pointer"
+                className="flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive"
                 title={t('activity:skillDetail.uninstallTitle')}
               >
                 <Trash2 className="h-3.5 w-3.5" />
@@ -591,7 +599,7 @@ export function SkillDetailView({ className }: { className?: string }) {
             <button
               type="button"
               onClick={handleClose}
-              className="p-1.5 rounded hover:bg-accent text-muted-foreground cursor-pointer"
+              className="flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground"
               title={t('activity:skillDetail.closeTitle')}
             >
               <X className="h-4 w-4" />
@@ -601,13 +609,13 @@ export function SkillDetailView({ className }: { className?: string }) {
 
         {/* Breadcrumb navigation */}
         {navHistory.length > 1 && (
-          <div className="flex items-center gap-1 mt-2">
+          <div className="mt-3 flex min-w-0 items-center gap-1 rounded-lg border border-border/60 bg-muted/35 px-2 py-1">
             <button
               type="button"
               onClick={handleBreadcrumbBack}
               disabled={historyIndex <= 0}
               className={cn(
-                'p-1 rounded transition-colors',
+                'rounded p-1 transition-colors',
                 historyIndex <= 0
                   ? 'text-muted-foreground/40 cursor-not-allowed'
                   : 'hover:bg-accent text-muted-foreground cursor-pointer',
@@ -621,7 +629,7 @@ export function SkillDetailView({ className }: { className?: string }) {
               onClick={handleBreadcrumbForward}
               disabled={historyIndex >= navHistory.length - 1}
               className={cn(
-                'p-1 rounded transition-colors',
+                'rounded p-1 transition-colors',
                 historyIndex >= navHistory.length - 1
                   ? 'text-muted-foreground/40 cursor-not-allowed'
                   : 'hover:bg-accent text-muted-foreground cursor-pointer',
@@ -665,7 +673,7 @@ export function SkillDetailView({ className }: { className?: string }) {
 
       {/* Related files + References bar */}
       {skillContent && (skillContent.relatedFiles.length > 0 || skillContent.references.length > 0) && (
-        <div className="px-4 py-2 border-b bg-muted/30 shrink-0 space-y-2">
+        <div className="shrink-0 space-y-2 rounded-xl border border-border/70 bg-card/70 px-4 py-3 shadow-sm">
           {skillContent.relatedFiles.length > 0 && (
             <div className="flex items-center gap-2 flex-wrap">
               <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
@@ -680,14 +688,14 @@ export function SkillDetailView({ className }: { className?: string }) {
                     key={file}
                     type="button"
                     onClick={() => handleNavigateToSkill(derivedName!)}
-                    className="inline-flex items-center gap-1 px-1.5 py-0.5 text-[10px] rounded bg-background border border-border hover:border-primary hover:text-primary transition-colors cursor-pointer"
+                    className="inline-flex min-w-0 items-center gap-1 rounded-md border border-border/70 bg-background/60 px-1.5 py-0.5 text-[10px] transition-colors hover:border-primary/40 hover:text-primary"
                     title={t('activity:skillDetail.goToSkillTitle', { name: derivedName! })}
                   >
                     <ArrowUpRight className="h-2.5 w-2.5" />
                     {file}
                   </button>
                 ) : (
-                  <span key={file} className="px-1.5 py-0.5 text-[10px] rounded bg-background border border-border text-muted-foreground">
+                  <span key={file} className="rounded-md border border-border/70 bg-background/60 px-1.5 py-0.5 text-[10px] text-muted-foreground">
                     {file}
                   </span>
                 );
@@ -709,14 +717,14 @@ export function SkillDetailView({ className }: { className?: string }) {
                     key={ref}
                     type="button"
                     onClick={() => handleNavigateToSkill(derivedName)}
-                    className="inline-flex items-center gap-1 px-1.5 py-0.5 text-[10px] rounded bg-primary/5 border border-primary/20 text-primary hover:bg-primary/10 hover:border-primary/30 transition-colors cursor-pointer"
+                    className="inline-flex min-w-0 items-center gap-1 rounded-md border border-primary/20 bg-primary/5 px-1.5 py-0.5 text-[10px] text-primary transition-colors hover:border-primary/30 hover:bg-primary/10"
                     title={t('activity:skillDetail.goToSkillTitle', { name: derivedName })}
                   >
                     <ArrowUpRight className="h-2.5 w-2.5" />
                     {derivedName}
                   </button>
                 ) : (
-                  <span key={ref} className="px-1.5 py-0.5 text-[10px] rounded bg-muted text-muted-foreground">
+                  <span key={ref} className="rounded-md bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground">
                     {derivedName}
                   </span>
                 );
@@ -727,17 +735,17 @@ export function SkillDetailView({ className }: { className?: string }) {
       )}
 
       {/* Content */}
-      <div className="min-h-0 min-w-0 flex-1 overflow-y-auto">
+      <div className="min-h-0 min-w-0 flex-1 overflow-hidden rounded-xl border border-border/70 bg-card/70 shadow-sm">
         {contentLoading ? (
-          <div className="p-8 text-center text-muted-foreground">
-            <Loader2 className="h-6 w-6 animate-spin mx-auto mb-2" />
+          <div className="flex h-full min-h-[16rem] flex-col items-center justify-center p-8 text-center text-muted-foreground">
+            <Loader2 className="mx-auto mb-2 h-6 w-6 animate-spin text-primary" />
             <p>{t('activity:skillDetail.loadingContent')}</p>
           </div>
         ) : editMode ? (
           <div className="flex h-full min-h-0 min-w-0 flex-col">
             {/* Edit toolbar */}
-            <div className="px-4 py-2 border-b shrink-0 flex items-center justify-between gap-2">
-              <div className="flex items-center gap-3">
+            <div className="flex shrink-0 flex-col gap-2 border-b border-border/70 bg-muted/30 px-4 py-2 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1">
                 <span className="text-xs text-muted-foreground">
                   {t('activity:skillDetail.editingLabel', { name: selectedSkill.name })}
                 </span>
@@ -747,35 +755,35 @@ export function SkillDetailView({ className }: { className?: string }) {
                 {charsWarning && (
                   <span
                     className={`text-xs tabular-nums ${
-                      charsWarning.level === 'critical' ? 'text-red-500 font-medium' : 'text-amber-500'
+                      charsWarning.level === 'critical' ? 'font-medium text-destructive' : 'text-[hsl(var(--warning))]'
                     }`}
                   >
                     {t('activity:skillDetail.charsWarningFmt', { used: (charsWarning.used / (1024 * 1024)).toFixed(1), limit: (charsWarning.limit / (1024 * 1024)).toFixed(0) })}
                   </span>
                 )}
-                {draftSavedAt && <span className="text-xs text-green-500 animate-pulse">{t('activity:skillDetail.draftSaved')}</span>}
-                {draftRestored && <span className="text-xs text-amber-500 animate-pulse">{t('activity:skillDetail.draftRestored')}</span>}
+                {draftSavedAt && <span className="text-xs text-[hsl(var(--success))] animate-pulse">{t('activity:skillDetail.draftSaved')}</span>}
+                {draftRestored && <span className="animate-pulse text-xs text-[hsl(var(--warning))]">{t('activity:skillDetail.draftRestored')}</span>}
               </div>
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2">
                 {editError && <span className="text-xs text-destructive">{editError}</span>}
                 {draftRestored && (
                   <button
                     type="button"
                     onClick={handleDiscardDraft}
-                    className="px-2 py-1 text-[10px] rounded border border-amber-500/50 text-amber-600 dark:text-amber-400 hover:bg-amber-500/10 transition-colors cursor-pointer"
+                    className="rounded-md border border-[hsl(var(--warning)/0.35)] px-2 py-1 text-[10px] text-[hsl(var(--warning))] transition-colors hover:bg-[hsl(var(--warning)/0.1)]"
                   >
                     {t('activity:skillDetail.discardDraft')}
                   </button>
                 )}
-                <button type="button" onClick={handleCancelEdit} className="px-2 py-1 text-xs rounded border border-border hover:bg-accent transition-colors cursor-pointer">
+                <button type="button" onClick={handleCancelEdit} className="rounded-md border border-border/70 px-2 py-1 text-xs transition-colors hover:bg-accent">
                   {t('common:action.cancel')}
                 </button>
                 <button
                   type="button"
                   onClick={() => setSplitPreview((v) => !v)}
                   title={splitPreview ? t('activity:skillDetail.hidePreviewTitle') : t('activity:skillDetail.splitViewTitle')}
-                  className={`px-2 py-1 text-xs rounded border transition-colors cursor-pointer ${
-                    splitPreview ? 'border-primary bg-primary/10 text-primary' : 'border-border hover:bg-accent text-muted-foreground'
+                  className={`rounded-md border px-2 py-1 text-xs transition-colors ${
+                    splitPreview ? 'border-primary/40 bg-primary/10 text-primary' : 'border-border/70 text-muted-foreground hover:bg-accent'
                   }`}
                 >
                   <PanelRight className="h-3 w-3 inline" />
@@ -784,7 +792,7 @@ export function SkillDetailView({ className }: { className?: string }) {
                   type="button"
                   onClick={handleSaveEdit}
                   disabled={editSaving || !editContent.trim()}
-                  className="px-3 py-1 text-xs rounded bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50 transition-colors cursor-pointer"
+                  className="rounded-md bg-primary px-3 py-1 text-xs text-primary-foreground shadow-sm shadow-primary/15 transition-colors hover:bg-primary/90 disabled:opacity-50"
                 >
                   {editSaving ? <Loader2 className="h-3 w-3 animate-spin inline" /> : t('common:action.save')}
                 </button>
@@ -805,7 +813,7 @@ export function SkillDetailView({ className }: { className?: string }) {
                   />
                 </div>
                 <div className="w-px bg-border flex-shrink-0" />
-                <div className="min-h-0 min-w-0 flex-1 overflow-y-auto p-4 prose prose-sm dark:prose-invert max-w-none">
+                <div className="min-h-0 min-w-0 flex-1 overflow-y-auto bg-background/45 p-4 prose prose-sm dark:prose-invert max-w-none">
                   <ReactMarkdown rehypePlugins={[rehypeHighlight]} components={markdownComponents}>
                     {editContent}
                   </ReactMarkdown>
@@ -823,13 +831,13 @@ export function SkillDetailView({ className }: { className?: string }) {
             )}
           </div>
         ) : skillContent ? (
-          <div className="p-6 prose prose-sm dark:prose-invert max-w-none">
+          <div className="h-full min-h-0 overflow-y-auto p-5 sm:p-6 prose prose-sm dark:prose-invert max-w-none">
             <ReactMarkdown rehypePlugins={[rehypeHighlight]} components={markdownComponents}>
               {skillContent.body}
             </ReactMarkdown>
           </div>
         ) : contentError ? (
-          <div className="p-8 text-center">
+          <div className="flex h-full min-h-[16rem] flex-col items-center justify-center p-8 text-center">
             <p className="text-destructive mb-2">{t('activity:skillDetail.loadFailed')}</p>
             <p className="text-xs text-muted-foreground">{contentError}</p>
             <button
@@ -841,13 +849,13 @@ export function SkillDetailView({ className }: { className?: string }) {
                   client.send({ type: 'skills.content', payload: { name: selectedSkill.name, source: selectedSkill.source } });
                 }
               }}
-              className="mt-4 px-3 py-1.5 text-xs rounded border border-border hover:bg-accent transition-colors"
+              className="mt-4 rounded-md border border-border/70 px-3 py-1.5 text-xs transition-colors hover:bg-accent"
             >
               {t('common:action.retry')}
             </button>
           </div>
         ) : (
-          <div className="p-8 text-center text-muted-foreground">
+          <div className="flex h-full min-h-[16rem] items-center justify-center p-8 text-center text-muted-foreground">
             {t('activity:skillDetail.noContent')}
           </div>
         )}
@@ -856,22 +864,22 @@ export function SkillDetailView({ className }: { className?: string }) {
       {/* Uninstall confirmation modal */}
       {uninstallConfirmSkill && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/45 p-4 backdrop-blur-sm"
           onClick={(e) => {
             if (e.target === e.currentTarget) setUninstallConfirmSkill(null);
           }}
         >
-          <div className="flex max-h-[calc(100dvh-2rem)] w-[380px] max-w-[90vw] flex-col overflow-hidden rounded-lg border bg-background shadow-xl">
-            <div className="flex shrink-0 items-center justify-between p-4 border-b">
+          <div className="flex max-h-[calc(100dvh-2rem)] w-[380px] max-w-[90vw] flex-col overflow-hidden rounded-xl border border-border/70 bg-card shadow-2xl">
+            <div className="flex shrink-0 items-center justify-between border-b border-border/70 p-4">
               <div className="flex items-center gap-2">
                 <Trash2 className="h-4 w-4 text-destructive" />
                 <span className="font-semibold text-sm">{t('activity:skillDetail.uninstallSkillHeading')}</span>
               </div>
-              <button type="button" onClick={() => setUninstallConfirmSkill(null)} className="p-1 rounded hover:bg-accent text-muted-foreground cursor-pointer">
+              <button type="button" onClick={() => setUninstallConfirmSkill(null)} className="rounded p-1 text-muted-foreground hover:bg-accent hover:text-foreground">
                 <X className="h-4 w-4" />
               </button>
             </div>
-            <div className="min-h-0 flex-1 overflow-y-auto p-4 space-y-2">
+            <div className="min-h-0 flex-1 space-y-2 overflow-y-auto p-4">
               <p className="text-sm">{t('activity:skillDetail.uninstallConfirm', { name: uninstallConfirmSkill.name })}</p>
               <p className="text-xs text-muted-foreground">
                 {t('activity:skillDetail.uninstallRemovePath', {
@@ -879,12 +887,12 @@ export function SkillDetailView({ className }: { className?: string }) {
                 })}
               </p>
             </div>
-            <div className="flex shrink-0 justify-end gap-2 p-4 border-t bg-muted/20">
+            <div className="flex shrink-0 justify-end gap-2 border-t border-border/70 bg-muted/20 p-4">
               <button
                 type="button"
                 onClick={() => setUninstallConfirmSkill(null)}
                 disabled={uninstalling}
-                className="px-3 py-1.5 text-xs rounded border border-border hover:bg-accent transition-colors disabled:opacity-50"
+                className="rounded-md border border-border/70 px-3 py-1.5 text-xs transition-colors hover:bg-accent disabled:opacity-50"
               >
                 {t('common:action.cancel')}
               </button>
@@ -892,7 +900,7 @@ export function SkillDetailView({ className }: { className?: string }) {
                 type="button"
                 onClick={() => handleUninstallSkill(uninstallConfirmSkill)}
                 disabled={uninstalling}
-                className="flex items-center gap-1.5 px-3 py-1.5 text-xs rounded bg-destructive text-destructive-foreground hover:bg-destructive/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                className="flex items-center gap-1.5 rounded-md bg-destructive px-3 py-1.5 text-xs text-destructive-foreground transition-colors hover:bg-destructive/90 disabled:cursor-not-allowed disabled:opacity-50"
               >
                 {uninstalling && <Loader2 className="h-3 w-3 animate-spin" />}
                 {t('activity:skillDetail.uninstallAction')}

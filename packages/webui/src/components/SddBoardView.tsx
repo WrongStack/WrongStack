@@ -36,7 +36,7 @@ function ProgressRing({ pct }: { pct: number }): React.ReactElement {
   return (
     <div className="relative h-16 w-16 shrink-0">
       <svg viewBox="0 0 64 64" className="h-16 w-16 -rotate-90">
-        <circle cx="32" cy="32" r={r} fill="none" stroke="hsl(215 28% 22%)" strokeWidth="6" />
+        <circle cx="32" cy="32" r={r} fill="none" stroke="hsl(var(--muted))" strokeWidth="6" />
         <circle
           cx="32"
           cy="32"
@@ -51,8 +51,8 @@ function ProgressRing({ pct }: { pct: number }): React.ReactElement {
         />
         <defs>
           <linearGradient id="sddgrad" x1="0" y1="0" x2="1" y2="1">
-            <stop offset="0%" stopColor="#a78bfa" />
-            <stop offset="100%" stopColor="#22d3ee" />
+            <stop offset="0%" stopColor="hsl(var(--primary))" />
+            <stop offset="100%" stopColor="hsl(var(--info))" />
           </linearGradient>
         </defs>
       </svg>
@@ -238,7 +238,7 @@ export function SddBoardView({ onClose }: { onClose: () => void }): React.ReactE
       <header className="sdd-sheen shrink-0 border-b border-border px-4 pb-3 pt-2.5">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <Activity className="h-5 w-5 text-orange-400" />
+            <Activity className="h-5 w-5 text-warning" />
             <h1 className="text-lg font-semibold text-foreground">
               {snapshot?.title ?? t('activity:sddBoard.titleFallback')}
             </h1>
@@ -257,7 +257,7 @@ export function SddBoardView({ onClose }: { onClose: () => void }): React.ReactE
                 className="flex items-center gap-1 rounded-full border border-border bg-muted px-2 py-0.5 text-[10px] text-muted-foreground"
                 title={t('activity:sddBoard.defaultModelTitle')}
               >
-                <Cpu className="h-3 w-3 text-violet-400" />
+                <Cpu className="h-3 w-3 text-primary" />
                 {snapshot.defaultModel}
               </span>
             )}
@@ -274,7 +274,7 @@ export function SddBoardView({ onClose }: { onClose: () => void }): React.ReactE
                     className={cn(
                       'rounded px-2 py-0.5 capitalize transition',
                       viewMode === m
-                        ? 'bg-violet-500/25 text-violet-700 dark:text-violet-200'
+                        ? 'bg-primary/12 text-primary'
                         : 'text-muted-foreground hover:text-foreground',
                     )}
                   >
@@ -290,7 +290,7 @@ export function SddBoardView({ onClose }: { onClose: () => void }): React.ReactE
                 type="button"
                 onClick={onRetryAllFailed}
                 title={t('activity:sddBoard.retryAllTitle')}
-                className="inline-flex items-center gap-1 rounded-md bg-orange-500/15 px-2.5 py-1 text-xs font-medium text-orange-600 dark:text-orange-300 hover:bg-orange-500/25"
+                className="inline-flex items-center gap-1 rounded-md bg-warning/15 px-2.5 py-1 text-xs font-medium text-warning hover:bg-warning/25"
               >
                 <RotateCcw className="h-3.5 w-3.5" />{' '}
                 {t('activity:sddBoard.retryFailed', { count: p?.failed ?? 0 })}
@@ -302,7 +302,7 @@ export function SddBoardView({ onClose }: { onClose: () => void }): React.ReactE
                   <button
                     type="button"
                     onClick={() => send({ type: 'sdd.board.resume', payload: {} })}
-                    className="inline-flex items-center gap-1 rounded-md bg-sky-500/15 px-2.5 py-1 text-xs font-medium text-sky-600 dark:text-sky-300 hover:bg-sky-500/25"
+                    className="inline-flex items-center gap-1 rounded-md bg-success/15 px-2.5 py-1 text-xs font-medium text-success hover:bg-success/25"
                   >
                     <Play className="h-3.5 w-3.5" /> {t('activity:sddBoard.resume')}
                   </button>
@@ -310,7 +310,7 @@ export function SddBoardView({ onClose }: { onClose: () => void }): React.ReactE
                   <button
                     type="button"
                     onClick={() => send({ type: 'sdd.board.pause', payload: {} })}
-                    className="inline-flex items-center gap-1 rounded-md bg-amber-500/15 px-2.5 py-1 text-xs font-medium text-amber-600 dark:text-amber-300 hover:bg-amber-500/25"
+                  className="inline-flex items-center gap-1 rounded-md bg-warning/15 px-2.5 py-1 text-xs font-medium text-warning hover:bg-warning/25"
                   >
                     <Pause className="h-3.5 w-3.5" /> {t('activity:sddBoard.pause')}
                   </button>
@@ -318,7 +318,7 @@ export function SddBoardView({ onClose }: { onClose: () => void }): React.ReactE
                 <button
                   type="button"
                   onClick={() => send({ type: 'sdd.board.stop', payload: {} })}
-                  className="inline-flex items-center gap-1 rounded-md bg-red-500/15 px-2.5 py-1 text-xs font-medium text-red-600 dark:text-red-300 hover:bg-red-500/25"
+                  className="inline-flex items-center gap-1 rounded-md bg-destructive/15 px-2.5 py-1 text-xs font-medium text-destructive hover:bg-destructive/25"
                 >
                   <Square className="h-3.5 w-3.5" /> {t('activity:sddBoard.stop')}
                 </button>
@@ -333,7 +333,7 @@ export function SddBoardView({ onClose }: { onClose: () => void }): React.ReactE
                   type="button"
                   onClick={onCleanWorktrees}
                   title={t('activity:sddBoard.cleanTitle')}
-                  className="inline-flex items-center gap-1 rounded-md bg-slate-500/15 px-2.5 py-1 text-xs font-medium text-slate-600 dark:text-slate-300 hover:bg-slate-500/25"
+                  className="inline-flex items-center gap-1 rounded-md bg-muted px-2.5 py-1 text-xs font-medium text-muted-foreground hover:bg-muted/80"
                 >
                   <Eraser className="h-3.5 w-3.5" /> {t('activity:sddBoard.cleanWorktrees')}
                 </button>
@@ -345,7 +345,7 @@ export function SddBoardView({ onClose }: { onClose: () => void }): React.ReactE
                       count: snapshot.mergedCommits?.length ?? 0,
                       base: snapshot.baseBranch ?? t('activity:sdd.baseBranchFallback'),
                     })}
-                    className="inline-flex items-center gap-1 rounded-md bg-amber-500/15 px-2.5 py-1 text-xs font-medium text-amber-600 dark:text-amber-300 hover:bg-amber-500/25"
+                    className="inline-flex items-center gap-1 rounded-md bg-warning/15 px-2.5 py-1 text-xs font-medium text-warning hover:bg-warning/25"
                   >
                     <Undo2 className="h-3.5 w-3.5" />{' '}
                     {t('activity:sddBoard.rollback', {
@@ -359,7 +359,7 @@ export function SddBoardView({ onClose }: { onClose: () => void }): React.ReactE
                 board exists; opens a confirmation that auto-stops a live run first. */}
             {snapshot &&
               (destroying ? (
-                <span className="inline-flex items-center gap-1 rounded-md bg-red-500/15 px-2.5 py-1 text-xs font-medium text-red-600 dark:text-red-300">
+                <span className="inline-flex items-center gap-1 rounded-md bg-destructive/15 px-2.5 py-1 text-xs font-medium text-destructive">
                   <RotateCcw className="h-3.5 w-3.5 animate-spin" />{' '}
                   {active ? t('activity:sddBoard.stopping') : t('activity:sddBoard.destroying')}
                 </span>
@@ -368,7 +368,7 @@ export function SddBoardView({ onClose }: { onClose: () => void }): React.ReactE
                   type="button"
                   onClick={() => setDestroyOpen(true)}
                   title={t('activity:sddBoard.destroyTitle')}
-                  className="inline-flex items-center gap-1 rounded-md bg-red-600/90 px-2.5 py-1 text-xs font-medium text-white hover:bg-red-700"
+                  className="inline-flex items-center gap-1 rounded-md bg-destructive px-2.5 py-1 text-xs font-medium text-destructive-foreground hover:bg-destructive/90"
                 >
                   <Trash2 className="h-3.5 w-3.5" /> {t('activity:sddBoard.destroy')}
                 </button>
@@ -388,26 +388,26 @@ export function SddBoardView({ onClose }: { onClose: () => void }): React.ReactE
                 <Stat
                   label={t('activity:sddBoard.statDone')}
                   value={`${p.completed}/${p.total}`}
-                  color="text-emerald-600 dark:text-emerald-300"
+                  color="text-success"
                 />
                 {p.inProgress > 0 && (
                   <Stat
                     label={t('activity:sddBoard.statRunning')}
                     value={p.inProgress}
-                    color="text-amber-600 dark:text-amber-300"
+                    color="text-warning"
                   />
                 )}
                 {p.failed > 0 && (
                   <Stat
                     label={t('activity:sddBoard.statFailed')}
                     value={p.failed}
-                    color="text-red-600 dark:text-red-300"
+                    color="text-destructive"
                   />
                 )}
                 <Stat
                   label={t('activity:sddBoard.statWave')}
                   value={snapshot.wave + 1}
-                  color="text-violet-600 dark:text-violet-300"
+                  color="text-primary"
                 />
                 {active && snapshot.startedAt > 0 && (
                   <Stat
@@ -460,7 +460,7 @@ export function SddBoardView({ onClose }: { onClose: () => void }): React.ReactE
 
       {/* deadlock banner */}
       {chains.length > 0 && (
-        <div className="flex items-start gap-2 border-b border-rose-500/30 bg-rose-500/5 px-4 py-2 text-xs text-rose-600 dark:text-rose-300">
+        <div className="flex items-start gap-2 border-b border-destructive/30 bg-destructive/5 px-4 py-2 text-xs text-destructive">
           <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
           <div>
             <div className="font-semibold">{t('activity:sddBoard.deadlock')}</div>
@@ -478,7 +478,7 @@ export function SddBoardView({ onClose }: { onClose: () => void }): React.ReactE
         <div className="relative min-h-0 min-w-0 flex-1 overflow-hidden">
           {!snapshot ? (
             <div className="flex h-full flex-col items-center justify-center gap-3 text-sm text-muted-foreground">
-              <Zap className="h-10 w-10 text-violet-500/40" />
+              <Zap className="h-10 w-10 text-primary/40" />
               <p className="text-foreground">{t('activity:sddBoard.noRunTitle')}</p>
               <p className="max-w-sm text-center text-xs text-muted-foreground">
                 {t('activity:sddBoard.noRunBody')}
@@ -581,8 +581,8 @@ function LifecycleResultBanner({
       className={cn(
         'flex items-start gap-2 border-b px-4 py-2 text-xs',
         warn
-          ? 'border-amber-500/30 bg-amber-500/5 text-amber-700 dark:text-amber-300'
-          : 'border-emerald-500/30 bg-emerald-500/5 text-emerald-700 dark:text-emerald-300',
+          ? 'border-warning/30 bg-warning/5 text-warning'
+          : 'border-success/30 bg-success/5 text-success',
       )}
     >
       {warn ? (

@@ -82,7 +82,7 @@ export function SpecsView({ onClose }: { onClose: () => void }): React.ReactElem
     <div className="flex h-full min-h-0 min-w-0 flex-col bg-background">
       <header className="flex shrink-0 items-center justify-between border-b bg-card px-4 py-2">
         <div className="flex items-center gap-2">
-          <FileText className="h-5 w-5 text-orange-500" />
+          <FileText className="h-5 w-5 text-warning" />
           <div>
             <h1 className="text-lg font-semibold">{t('activity:specs.heading')}</h1>
             <p className="text-xs text-muted-foreground">
@@ -128,7 +128,7 @@ export function SpecsView({ onClose }: { onClose: () => void }): React.ReactElem
                       <div className="mt-2 flex items-center gap-2">
                         <div className="h-2 flex-1 overflow-hidden rounded-full bg-muted">
                           <div
-                            className="h-full rounded-full bg-emerald-500 transition-all"
+                            className="h-full rounded-full bg-success transition-all"
                             style={{ width: `${pct}%` }}
                           />
                         </div>
@@ -147,8 +147,8 @@ export function SpecsView({ onClose }: { onClose: () => void }): React.ReactElem
                           {t('activity:specs.tasks', { count: detail?.total ?? spec.total })}
                           {detail && (
                             <span className="ml-3 text-xs font-normal text-muted-foreground">
-                              <span className="text-emerald-500">{t('activity:specs.doneCount', { count: counts.done })}</span>{' '}
-                              <span className="text-sky-500">{t('activity:specs.runningCount', { count: counts.running })}</span>{' '}
+                              <span className="text-success">{t('activity:specs.doneCount', { count: counts.done })}</span>{' '}
+                              <span className="text-primary">{t('activity:specs.runningCount', { count: counts.running })}</span>{' '}
                               <span>{t('activity:specs.pendingCount', { count: counts.pending })}</span>
                             </span>
                           )}
@@ -159,7 +159,7 @@ export function SpecsView({ onClose }: { onClose: () => void }): React.ReactElem
                           disabled={!detail || detail.specId !== spec.id}
                           onClick={() => runSpec(spec)}
                           title={t('activity:specs.runTitle')}
-                          className="inline-flex items-center gap-1 rounded-md bg-orange-500/15 px-2.5 py-1 text-xs font-medium text-orange-500 transition-colors hover:bg-orange-500/25 disabled:opacity-40"
+                          className="inline-flex items-center gap-1 rounded-md bg-warning/15 px-2.5 py-1 text-xs font-medium text-warning transition-colors hover:bg-warning/25 disabled:opacity-40"
                         >
                           <Play className="h-3.5 w-3.5" /> {t('activity:specs.run')}
                         </button>

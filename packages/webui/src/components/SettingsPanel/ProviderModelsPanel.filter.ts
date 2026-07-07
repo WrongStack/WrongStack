@@ -105,12 +105,12 @@ export function formatProbeResult(state: RefreshState): {
   tone: 'success' | 'warning' | 'error' | 'muted';
 } {
   if (state.inFlight) {
-    return { text: 'Probing…', tone: 'muted' };
+    return { text: 'Checking model endpoint...', tone: 'muted' };
   }
   const last = state.last;
   if (!last) {
     return {
-      text: 'Click "Refresh from server" to re-probe /v1/models.',
+      text: 'Saved model list shown',
       tone: 'muted',
     };
   }
@@ -120,7 +120,7 @@ export function formatProbeResult(state: RefreshState): {
     case 'ok': {
       const count = last.modelCount ?? last.modelIds?.length ?? 0;
       return {
-        text: `ok — ${count} model${count === 1 ? '' : 's'}${elapsed}`,
+        text: `Server returned ${count} model${count === 1 ? '' : 's'}${elapsed}`,
         tone: 'success',
       };
     }
@@ -150,11 +150,11 @@ export function formatProbeResult(state: RefreshState): {
       };
     case 'no_provider':
       return {
-        text: 'no saved provider — the config may have been removed',
+        text: 'Provider is no longer saved',
         tone: 'error',
       };
     case 'no_base_url':
-      return { text: 'no baseUrl configured', tone: 'warning' };
+      return { text: 'No model endpoint configured', tone: 'warning' };
   }
 }
 

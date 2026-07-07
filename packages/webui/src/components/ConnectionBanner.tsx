@@ -57,8 +57,8 @@ export function ConnectionBanner() {
       className={cn(
         'flex items-center gap-3 px-4 py-2 border-b text-sm',
         isReconnecting
-          ? 'bg-orange-500/10 text-orange-700 dark:text-orange-300 border-orange-500/30'
-          : 'bg-red-500/10 text-red-700 dark:text-red-300 border-red-500/30',
+          ? 'bg-warning/10 text-warning border-warning/30'
+          : 'bg-destructive/10 text-destructive border-destructive/30',
       )}
     >
       {isReconnecting ? (
@@ -80,7 +80,7 @@ export function ConnectionBanner() {
         className={cn(
           'inline-flex items-center gap-1 px-2.5 py-1 rounded-md border text-xs font-medium',
           'hover:bg-background/30 transition-colors shrink-0',
-          isReconnecting ? 'border-orange-500/40' : 'border-red-500/40',
+          isReconnecting ? 'border-warning/40' : 'border-destructive/40',
         )}
         title={t('activity:connection.retryTitle')}
       >

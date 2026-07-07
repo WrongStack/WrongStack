@@ -9,17 +9,17 @@ type SortDir = 'oldest' | 'newest';
 const MODE_META: Record<QueueMode, { label: string; tone: string; titleKey: string }> = {
   btw: {
     label: 'btw',
-    tone: 'bg-sky-500/10 text-sky-700 dark:text-sky-300 border-sky-500/30',
+    tone: 'bg-primary/10 text-primary border-primary/30',
     titleKey: 'btwTitle',
   },
   steer: {
     label: 'steer',
-    tone: 'bg-amber-500/10 text-amber-700 dark:text-amber-300 border-amber-500/30',
+    tone: 'bg-warning/10 text-warning border-warning/30',
     titleKey: 'steerTitle',
   },
   queue: {
     label: 'queue',
-    tone: 'bg-indigo-500/10 text-indigo-700 dark:text-indigo-300 border-indigo-500/30',
+    tone: 'bg-info/10 text-info border-info/30',
     titleKey: 'queueTitle',
   },
 };

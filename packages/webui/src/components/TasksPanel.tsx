@@ -19,17 +19,17 @@ interface TaskItem {
 
 const STATUS_CONFIG: Record<TaskItem['status'], { icon: React.ReactNode; labelKey: string; color: string }> = {
   pending: { icon: <Circle className="w-3.5 h-3.5" />, labelKey: 'statusPending', color: 'text-muted-foreground/50' },
-  in_progress: { icon: <Clock className="w-3.5 h-3.5 animate-spin" />, labelKey: 'statusInProgress', color: 'text-yellow-500' },
-  blocked: { icon: <Pause className="w-3.5 h-3.5" />, labelKey: 'statusBlocked', color: 'text-orange-500' },
-  failed: { icon: <XCircle className="w-3.5 h-3.5" />, labelKey: 'statusFailed', color: 'text-red-500' },
-  review: { icon: <RotateCcw className="w-3.5 h-3.5" />, labelKey: 'statusReview', color: 'text-blue-500' },
-  completed: { icon: <CheckCircle2 className="w-3.5 h-3.5" />, labelKey: 'statusDone', color: 'text-emerald-500' },
+  in_progress: { icon: <Clock className="w-3.5 h-3.5 animate-spin" />, labelKey: 'statusInProgress', color: 'text-warning' },
+  blocked: { icon: <Pause className="w-3.5 h-3.5" />, labelKey: 'statusBlocked', color: 'text-warning' },
+  failed: { icon: <XCircle className="w-3.5 h-3.5" />, labelKey: 'statusFailed', color: 'text-destructive' },
+  review: { icon: <RotateCcw className="w-3.5 h-3.5" />, labelKey: 'statusReview', color: 'text-info' },
+  completed: { icon: <CheckCircle2 className="w-3.5 h-3.5" />, labelKey: 'statusDone', color: 'text-success' },
 };
 
 const PRIORITY_COLOR: Record<TaskItem['priority'], string> = {
-  critical: 'text-red-600 dark:text-red-400',
-  high: 'text-orange-600 dark:text-orange-400',
-  medium: 'text-yellow-600 dark:text-yellow-400',
+  critical: 'text-destructive',
+  high: 'text-warning',
+  medium: 'text-warning/85',
   low: 'text-muted-foreground',
 };
 
@@ -125,7 +125,7 @@ export function TasksPanel(): React.ReactElement | null {
                 key={task.id}
                 className={cn(
                   'px-3 py-1.5 flex items-start gap-2 text-[13px] group',
-                  task.status === 'in_progress' ? 'bg-yellow-50/40 dark:bg-yellow-950/25' : '',
+                  task.status === 'in_progress' ? 'bg-warning/8' : '',
                 )}
               >
                 <span className={cn('mt-0.5 shrink-0', cfg.color)}>{cfg.icon}</span>

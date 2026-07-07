@@ -49,9 +49,9 @@ export const DiffView = memo(function DiffView({ oldText, newText, caption, fill
       <div className="flex items-center justify-between px-3 py-1.5 border-b bg-muted/40 shrink-0">
         <span className="font-mono text-muted-foreground truncate">{caption ?? 'diff'}</span>
         <span className="font-mono shrink-0">
-          <span className="text-emerald-600 dark:text-emerald-400">+{adds}</span>
+          <span className="text-success">+{adds}</span>
           <span className="text-muted-foreground mx-1 opacity-50">·</span>
-          <span className="text-rose-600 dark:text-rose-400">-{dels}</span>
+          <span className="text-destructive">-{dels}</span>
         </span>
       </div>
       <div
@@ -62,15 +62,15 @@ export const DiffView = memo(function DiffView({ oldText, newText, caption, fill
             key={i}
             className={cn(
               'flex',
-              r.kind === 'add' && 'bg-emerald-500/10',
-              r.kind === 'del' && 'bg-rose-500/10',
+              r.kind === 'add' && 'bg-success/10',
+              r.kind === 'del' && 'bg-destructive/10',
             )}
           >
             <span
               className={cn(
                 'w-6 shrink-0 text-center select-none',
-                r.kind === 'add' && 'text-emerald-600 dark:text-emerald-400',
-                r.kind === 'del' && 'text-rose-600 dark:text-rose-400',
+                r.kind === 'add' && 'text-success',
+                r.kind === 'del' && 'text-destructive',
                 r.kind === 'ctx' && 'text-muted-foreground/40',
               )}
             >

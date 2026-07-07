@@ -59,21 +59,21 @@ export function statusColor(status: string): string {
   switch (status) {
     case 'running':
     case 'active':
-      return '#22c55e';
+      return 'hsl(var(--success))';
     case 'streaming':
-      return '#3b82f6';
+      return 'hsl(var(--primary))';
     case 'idle':
-      return '#9ca3af';
+      return 'hsl(var(--muted-foreground))';
     case 'completed':
-      return '#6b7280';
+      return 'hsl(var(--muted-foreground))';
     case 'failed':
     case 'error':
-      return '#ef4444';
+      return 'hsl(var(--destructive))';
     case 'stopped':
     case 'offline':
-      return '#4b5563';
+      return 'hsl(var(--muted-foreground))';
     default:
-      return '#9ca3af';
+      return 'hsl(var(--muted-foreground))';
   }
 }
 
