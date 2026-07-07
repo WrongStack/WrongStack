@@ -97,10 +97,6 @@ export function resolveContextWindowPolicy(
   const requested = overrideMode ?? config.mode ?? DEFAULT_CONTEXT_WINDOW_MODE_ID;
   const mode = getContextWindowMode(requested) ?? expectDefined(getContextWindowMode(DEFAULT_CONTEXT_WINDOW_MODE_ID));
 
-  if (mode.id !== DEFAULT_CONTEXT_WINDOW_MODE_ID) {
-    return mode;
-  }
-
   return {
     ...mode,
     thresholds: {

@@ -30,7 +30,7 @@ describe('context window modes', () => {
     expect(policy.eliseThreshold).toBe(1500);
   });
 
-  it('uses non-default mode policy as a preset', () => {
+  it('applies config overrides on top of non-default mode presets', () => {
     const policy = resolveContextWindowPolicy({
       mode: 'frugal',
       warnThreshold: 0.9,
@@ -39,8 +39,19 @@ describe('context window modes', () => {
       preserveK: 99,
       eliseThreshold: 99999,
     });
-    expect(policy.thresholds.warn).toBe(0.45);
-    expect(policy.preserveK).toBe(6);
+    expect(policy.id).toBe('frugal');
+    expect(policy.aggressiveOn).toBe('warn');
+    expect(policy.targetLoad).toBe(0.5);
+    expect(policy.thresholds).toEqual({ warn: 0.9, soft: 0.91, hard: 0.92 });
+    expect(policy.preserveK).toBe(99);
+    expect(policy.eliseThreshold).toBe(99999);
+  });
+
+  it('keeps non-default preset values when overrides are omitted', () => {
+    const policy = resolveContextWindowPolicy({ mode: 'deep' });
+    expect(policy.thresholds).toEqual({ warn: 0.72, soft: 0.86, hard: 0.96 });
+    expect(policy.preserveK).toBe(18);
+    expect(policy.eliseThreshold).toBe(5000);
   });
 
   it('formats the active mode marker', () => {
