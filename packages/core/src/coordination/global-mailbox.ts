@@ -134,6 +134,17 @@ export class GlobalMailbox implements Mailbox {
   private _messageCacheMtime = -1;
   /** Size of the file when `_messageCache` was populated (extra guard). */
   private _messageCacheSize = -1;
+  /**
+   * Serializes reads of the message file so overlapping concurrent
+   * `_readMessagesCached()` calls don't both enter the incremental "file
+   * only grew" branch against the same stale `_messageCacheSize` and
+   * each push the same tail bytes onto the cache (duplicating every
+   * appended message). The chain runs each read to completion before
+   * the next starts, in issue order — readers are read-only and never
+   * conflict with each other on content, only on the cache mutation
+   * that follows the read. Pattern mirrors `DefaultMemoryStore.runSerialized`.
+   */
+  private _readChain: Promise<MailboxMessage[]> = Promise.resolve([] as MailboxMessage[]);
 
   /**
    * @param projectDir — `~/.wrongstack/projects/<slug>/`
@@ -200,10 +211,15 @@ export class GlobalMailbox implements Mailbox {
     // lands. This file is shared ACROSS PROCESSES, so the window is real.
     await withFileLock(this.messagePath, async () => {
       await fsp.appendFile(this.messagePath, line, 'utf8');
+      // Capture the post-append stat INSIDE the lock so the cache trackers
+      // advance with the pushed content. A concurrent reader that lands
+      // after we release but before a future stat would otherwise see the
+      // file grew and re-append the just-sent tail, duplicating it.
+      const { mtimeMs, size } = await this._statMessageFile();
       // Refresh the in-memory cache from the message we just appended —
       // cheaper than re-reading the whole file, and correct because we
       // held the lock so nothing else changed underneath us.
-      this._pushToCache(msg);
+      this._pushToCache(msg, mtimeMs, size);
     });
 
     this.publishHqMailboxEvent({
@@ -268,7 +284,6 @@ export class GlobalMailbox implements Mailbox {
       byId.set(a.messageId, a);
     }
 
-    let cacheSnapshot: MailboxMessage[] | null = null;
     await withFileLock(this.messagePath, async () => {
       // Read fresh under the lock — the cache may be stale relative to
       // other processes that wrote since our last read.
@@ -305,14 +320,15 @@ export class GlobalMailbox implements Mailbox {
         const serialized = all.map((m) => JSON.stringify(m)).join(LINE_SEPARATOR) + LINE_SEPARATOR;
         await fsp.writeFile(this.messagePath, serialized, 'utf8');
       }
-      // We always hold the authoritative post-read snapshot (we read fresh
-      // under the lock), so adopt it as the cache regardless of whether we
-      // wrote — future queries skip both the stat and the parse.
-      cacheSnapshot = all;
+      // Promote the cache INSIDE the lock with the post-write (or
+      // post-read when unchanged) stat so the mtime/size trackers are set
+      // synchronously with the content — no race window where a concurrent
+      // reader sees fresh content but stale trackers and misclassifies a
+      // rewrite as a "file only grew" append.
+      const { mtimeMs, size } = await this._statMessageFile();
+      this._setMessageCache(all, mtimeMs, size);
     });
 
-    // Promote the freshly-read array to the cache without re-reading.
-    if (cacheSnapshot) this._setMessageCache(cacheSnapshot);
     for (const message of updated) {
       this.publishHqMailboxEvent({
         mailboxId: this.hqMailboxId,
@@ -343,7 +359,6 @@ export class GlobalMailbox implements Mailbox {
     // second case is a successful no-op: returns the message with
     // `deletedAt` unchanged).
     let updated: MailboxMessage | null = null;
-    let cacheSnapshot: MailboxMessage[] | null = null;
     await withFileLock(this.messagePath, async () => {
       const all = await this._readMessagesFresh();
       const now = new Date().toISOString();
@@ -361,9 +376,11 @@ export class GlobalMailbox implements Mailbox {
       }
       const serialized = all.map((m) => JSON.stringify(m)).join(LINE_SEPARATOR) + LINE_SEPARATOR;
       await fsp.writeFile(this.messagePath, serialized, 'utf8');
-      cacheSnapshot = all;
+      // Promote the cache inside the lock with the post-write stat so the
+      // mtime/size trackers are set synchronously with the content.
+      const { mtimeMs, size } = await this._statMessageFile();
+      this._setMessageCache(all, mtimeMs, size);
     });
-    if (cacheSnapshot) this._setMessageCache(cacheSnapshot);
     if (updated !== null) {
       this.publishHqMailboxEvent({
         mailboxId: this.hqMailboxId,
@@ -383,7 +400,6 @@ export class GlobalMailbox implements Mailbox {
     // (the duplicate-event cost is acceptable: the WebUI dedupes by
     // `mailId`).
     let updated: MailboxMessage | null = null;
-    let cacheSnapshot: MailboxMessage[] | null = null;
     await withFileLock(this.messagePath, async () => {
       const all = await this._readMessagesFresh();
       for (const m of all) {
@@ -394,9 +410,11 @@ export class GlobalMailbox implements Mailbox {
       }
       const serialized = all.map((m) => JSON.stringify(m)).join(LINE_SEPARATOR) + LINE_SEPARATOR;
       await fsp.writeFile(this.messagePath, serialized, 'utf8');
-      cacheSnapshot = all;
+      // Promote the cache inside the lock with the post-write stat so the
+      // mtime/size trackers are set synchronously with the content.
+      const { mtimeMs, size } = await this._statMessageFile();
+      this._setMessageCache(all, mtimeMs, size);
     });
-    if (cacheSnapshot) this._setMessageCache(cacheSnapshot);
     if (updated !== null) {
       this.publishHqMailboxEvent({
         mailboxId: this.hqMailboxId,
@@ -690,12 +708,15 @@ export class GlobalMailbox implements Mailbox {
   }
 
   async clearAll(): Promise<void> {
-    // Truncate the mailbox file under the same lock that protects append/ack.
+    // Truncate the mailbox file and promote the empty cache under the same
+    // lock, with the post-truncate stat captured synchronously so a
+    // concurrent reader doesn't misclassify the shrink as a "file only
+    // grew" append.
     await withFileLock(this.messagePath, async () => {
       await fsp.writeFile(this.messagePath, '', 'utf8');
+      const { mtimeMs, size } = await this._statMessageFile();
+      this._setMessageCache([], mtimeMs, size);
     });
-    // Reflect the empty mailbox in the cache without a re-read.
-    this._setMessageCache([]);
   }
 
   async purgeStale(opts?: PurgeOptions): Promise<PurgeResult> {
@@ -737,9 +758,12 @@ export class GlobalMailbox implements Mailbox {
         const content = kept.map((m) => JSON.stringify(m)).join(LINE_SEPARATOR) + LINE_SEPARATOR;
         await fsp.writeFile(this.messagePath, content, 'utf8');
       }
+      // Capture the post-write (or post-read when nothing purged) stat
+      // inside the lock so the cache trackers match the on-disk state.
+      const { mtimeMs, size } = await this._statMessageFile();
       // Either way we just read fresh under the lock, so adopt the kept
       // snapshot (== all when nothing was purged) as the cache.
-      this._setMessageCache(kept);
+      this._setMessageCache(kept, mtimeMs, size);
     });
 
     return {
@@ -841,15 +865,45 @@ export class GlobalMailbox implements Mailbox {
    * from writers that just took the file lock — the read reflects the
    * authoritative post-lock state and should be served to subsequent
    * queries without re-reading.
+   *
+   * The mtime/size are captured from the stat at read time so the cache
+   * trackers match exactly what was parsed. Writers that subsequently
+   * rewrite the file MUST re-stat after the write and re-promote with the
+   * post-write values (see ackMany / softDelete / restore / purgeStale /
+   * clearAll) — otherwise a concurrent reader misclassifies the rewrite
+   * as a "file only grew" append and corrupts the cache.
    */
   private async _readMessagesFresh(): Promise<MailboxMessage[]> {
     const all = await this._readMessages();
-    this._setMessageCache(all);
+    const { mtimeMs, size } = await this._statMessageFile();
+    this._setMessageCache(all, mtimeMs, size);
     return all;
   }
 
   /**
-   * Read messages, consulting the mtime-bounded in-memory cache first.
+   * Stat the message file, returning its mtimeMs and size. Returns
+   * `-1/-1` when the file does not yet exist (ENOENT) so callers can
+   * still promote a cache snapshot — the next read will re-stat and
+   * fall through to a full re-read. Call from inside the file lock so
+   * the result reflects the post-write on-disk state, not a later
+   * intermediate state from another process.
+   */
+  private async _statMessageFile(): Promise<{ mtimeMs: number; size: number }> {
+    try {
+      const st = await fsp.stat(this.messagePath);
+      return { mtimeMs: st.mtimeMs, size: st.size };
+    } catch (err) {
+      if ((err as NodeJS.ErrnoException).code === 'ENOENT') {
+        return { mtimeMs: -1, size: -1 };
+      }
+      throw err;
+    }
+  }
+
+  /**
+   * Read messages, consulting the mtime-bounded in-memory cache first,
+   * serialized so concurrent callers don't both mutate the cache.
+   *
    * The mailbox file is shared across processes; every `send`/`ack`/
    * `clearAll`/`purgeStale` takes the file lock, so writes are serialized
    * and a changed mtimeMs is a definitive freshness signal. When the
@@ -860,8 +914,33 @@ export class GlobalMailbox implements Mailbox {
    * When the file only grew (new messages appended by another process),
    * we read and parse just the tail bytes instead of the entire file.
    * This avoids re-parsing the full 10K-message history on every check.
+   *
+   * SERIALIZATION: the actual work is chained onto `_readChain` so two
+   * overlapping calls can't both pass the `st.size > _messageCacheSize`
+   * incremental check against the same stale tracker and each push the
+   * same tail bytes onto the cache (duplicating every appended message).
+   * Readers don't conflict on file content — only on the cache mutation
+   * that follows the read — so we run them one at a time in issue order.
+   * Errors in the chain are swallowed so a failed read never poisons
+   * subsequent reads; each caller observes and re-throws its own error.
    */
-  private async _readMessagesCached(): Promise<MailboxMessage[]> {
+  private _readMessagesCached(): Promise<MailboxMessage[]> {
+    // Chain this read after the prior one settles. Catch-and-swallow the
+    // prior's error so the chain stays alive for this call regardless.
+    const run = this._readChain
+      .catch(() => undefined as unknown as MailboxMessage[])
+      .then(() => this._readMessagesCachedWork());
+    this._readChain = run.catch(() => [] as MailboxMessage[]);
+    return run;
+  }
+
+  /**
+   * The un-serialized body of {@link _readMessagesCached}. Reads the
+   * message file with the mtime-bounded cache + incremental-tail
+   * optimization. Must only be called from `_readMessagesCached` so the
+   * cache mutations here don't race a sibling read.
+   */
+  private async _readMessagesCachedWork(): Promise<MailboxMessage[]> {
     try {
       const st = await fsp.stat(this.messagePath);
 
@@ -908,11 +987,21 @@ export class GlobalMailbox implements Mailbox {
   }
 
   /**
-   * Replace the in-memory cache. Caller is responsible for guaranteeing
-   * that `messages` reflects the current on-disk state (e.g. they just
-   * read or wrote it under the file lock).
+   * Replace the in-memory cache, setting the mtime/size trackers
+   * synchronously in the same step. Callers MUST pass the stat of the
+   * on-disk file state that produced `messages`.
+   *
+   * Why both are required (not fire-and-forget): `_readMessagesCached()`
+   * validates the cache against a fresh stat using these two trackers.
+   * If the cache array is updated but the trackers lag behind (e.g. via
+   * a deferred `stat().then(...)`), a concurrent reader landing in that
+   * window sees a mismatched mtime and falls into the incremental
+   * "file only grew" branch — parsing rewritten bytes as an appended
+   * tail and corrupting the cache with duplicates/garbage. So both
+   * values are captured under the file lock and applied synchronously
+   * here, matching the fix already shipped in DefaultMailbox.
    */
-  private _setMessageCache(messages: MailboxMessage[], mtime?: number, size?: number): void {
+  private _setMessageCache(messages: MailboxMessage[], mtime: number, size: number): void {
     // Bound the cache so a runaway mailbox can't balloon memory. The cap
     // is high enough that any realistic project mailbox fits; if it ever
     // exceeds the cap we just refuse to cache and the next read goes to
@@ -924,35 +1013,30 @@ export class GlobalMailbox implements Mailbox {
       return;
     }
     this._messageCache = messages;
-    // When the caller didn't supply an mtime (e.g. in-memory promotion
-    // after a write we already did), we re-stat to capture the post-write
-    // mtimeMs lazily so the next cached read validates against reality.
-    if (mtime !== undefined && size !== undefined) {
-      this._messageCacheMtime = mtime;
-      this._messageCacheSize = size;
-    } else {
-      // Fire-and-forget stat to refresh the mtime tracker. Failures just
-      // leave the previous values; the worst case is an extra cache miss.
-      void fsp
-        .stat(this.messagePath)
-        .then((st) => {
-          this._messageCacheMtime = st.mtimeMs;
-          this._messageCacheSize = st.size;
-        })
-        .catch(() => {
-          /* leave cache in place; next read will re-stat */
-        });
-    }
+    this._messageCacheMtime = mtime;
+    this._messageCacheSize = size;
   }
 
   /**
    * Append a single just-sent message to the in-memory cache without
    * re-reading the file. The caller must hold the file lock (or have
-   * just released it after a successful append) so the cache stays
-   * consistent with on-disk state.
+   * just released it after a successful append) and MUST pass the
+   * post-append stat so the mtime/size trackers advance in lock-step
+   * with the pushed content.
+   *
+   * Why the stat is required here: without it, `_messageCacheSize`
+   * stays at the pre-append value. A concurrent `_readMessagesCached()`
+   * then sees `st.size > _messageCacheSize` (the file did grow), takes
+   * the incremental branch, and re-reads the just-appended tail —
+   * pushing the same message onto the cache a second time. Setting the
+   * trackers here closes that window for the local-process append path.
    */
-  private _pushToCache(msg: MailboxMessage): void {
-    if (this._messageCache === null) return;
+  private _pushToCache(msg: MailboxMessage, mtime: number, size: number): void {
+    if (this._messageCache === null) {
+      // No cache to extend — leave trackers at -1 so the next read does
+      // a full re-read and rebuilds the cache from disk.
+      return;
+    }
     if (this._messageCache.length >= MESSAGE_CACHE_MAX_ENTRIES) {
       this._messageCache = null;
       this._messageCacheMtime = -1;
@@ -963,8 +1047,10 @@ export class GlobalMailbox implements Mailbox {
     // by storing the same reference. Callers of `query()` get defensive
     // copies, so this shared reference is safe.
     this._messageCache.push(msg);
-    // Defer the mtime refresh — the just-released lock will have advanced
-    // mtime, but we'll re-stat lazily on the next cache validation.
+    // Advance the trackers synchronously with the content push so a
+    // concurrent reader does not re-append this same message.
+    this._messageCacheMtime = mtime;
+    this._messageCacheSize = size;
   }
 
   private async _ensureRegistry(): Promise<void> {
