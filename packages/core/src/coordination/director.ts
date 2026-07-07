@@ -385,6 +385,16 @@ export class Director implements ICoordinator {
     return this.leaderContextPressure;
   }
 
+  /**
+   * Remaining USD budget for the entire fleet (when a cap is configured).
+   * Returns `undefined` when no cap was set (Infinity).
+   */
+  getRemainingBudgetUsd(): number | undefined {
+    if (this.maxFleetCostUsd === Number.POSITIVE_INFINITY) return undefined;
+    const totalCost = this.usage.snapshot().total?.cost ?? 0;
+    return Math.max(0, this.maxFleetCostUsd - totalCost);
+  }
+
   private resolveMaxContext(): number {
     const resolved = typeof this.maxContext === 'function' ? this.maxContext() : this.maxContext;
     return resolved && resolved > 0 ? resolved : 128_000;

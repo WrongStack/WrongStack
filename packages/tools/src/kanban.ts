@@ -1,9 +1,11 @@
 import type {
   AssignKanbanTaskInput,
   KanbanAgentAssignment,
+  KanbanEvent,
   KanbanAgentRunStatus,
   KanbanBoard,
   KanbanBoardSummary,
+  KanbanQueueHealth,
   KanbanOrchestrationSnapshot,
   KanbanSearchResult,
   KanbanTask,
@@ -30,13 +32,17 @@ import {
   generateBoardFromDescription,
   getBoard,
   getKanbanOrchestrationSnapshot,
+  getKanbanQueueHealth,
   getTask,
   getTaskChain,
+  heartbeatTaskAssignment,
+  listKanbanEvents,
   listReadyTasks,
   listBoards,
   mergeTasks,
   moveTask,
   parseLinesIntoTasks,
+  recoverStaleTaskAssignments,
   removeBoard,
   removeColumn,
   removeTask,
@@ -88,6 +94,10 @@ type KanbanAction =
   | 'release_task'
   | 'assign_task'
   | 'mark_assignment'
+  | 'heartbeat_assignment'
+  | 'recover_stale'
+  | 'events'
+  | 'queue_health'
   | 'add_dependency'
   | 'add_goal_metric'
   | 'update_goal_metric'
@@ -148,6 +158,15 @@ interface KanbanToolInput extends Omit<AssignKanbanTaskInput, 'status'> {
   includeCompletedTasks?: boolean | undefined;
   preserveAssignment?: boolean | undefined;
   preserveDependencies?: boolean | undefined;
+  leaseId?: string | undefined;
+  claimedAt?: string | undefined;
+  heartbeatAt?: string | undefined;
+  leaseExpiresAt?: string | undefined;
+  attempt?: number | undefined;
+  maxAttempts?: number | undefined;
+  costCeilingUsd?: number | undefined;
+  retryPolicy?: 'off' | 'incremental' | 'exponential' | undefined;
+  lastFailureKind?: string | undefined;
   subagentId?: string | undefined;
   runTaskId?: string | undefined;
   lastResult?: string | undefined;
@@ -156,6 +175,12 @@ interface KanbanToolInput extends Omit<AssignKanbanTaskInput, 'status'> {
   releaseStatus?: 'pending' | 'ready' | 'blocked' | undefined;
   releaseReason?: string | undefined;
   clearAssignee?: boolean | undefined;
+  recoveryMode?: 'auto' | 'release' | 'retry' | 'fail' | undefined;
+  recoveryNow?: string | undefined;
+  recoveryPolicyFailOnCostCeiling?: boolean | undefined;
+  recoveryPolicyReleaseOnFailureKinds?: string[] | undefined;
+  recoveryPolicyReleaseOnHeartbeatDue?: boolean | undefined;
+  recoveryPolicyRetryPolicyOverride?: 'off' | 'incremental' | 'exponential' | undefined;
   taskGraph?: unknown;
   graphId?: string | undefined;
   specId?: string | undefined;
@@ -174,6 +199,9 @@ interface KanbanToolOutput {
   boards?: KanbanBoardSummary[] | undefined;
   task?: KanbanTask | undefined;
   tasks?: KanbanSearchResult[] | undefined;
+  recoveredTasks?: KanbanTask[] | undefined;
+  events?: KanbanEvent[] | undefined;
+  queueHealth?: KanbanQueueHealth | undefined;
   children?: KanbanTask[] | undefined;
   chain?: KanbanTask[] | undefined;
   snapshot?: KanbanOrchestrationSnapshot | undefined;
@@ -230,6 +258,10 @@ export const kanbanTool: Tool<KanbanToolInput, KanbanToolOutput> = {
           'release_task',
           'assign_task',
           'mark_assignment',
+          'heartbeat_assignment',
+          'recover_stale',
+          'events',
+          'queue_health',
           'add_dependency',
           'add_goal_metric',
           'update_goal_metric',
@@ -276,6 +308,12 @@ export const kanbanTool: Tool<KanbanToolInput, KanbanToolOutput> = {
       fallbackModels: { type: 'array', items: { type: 'string' } },
       tools: { type: 'array', items: { type: 'string' } },
       allowedCapabilities: { type: 'array', items: { type: 'string' } },
+      leaseId: { type: 'string' },
+      claimedAt: { type: 'string' },
+      heartbeatAt: { type: 'string' },
+      leaseExpiresAt: { type: 'string' },
+      attempt: { type: 'number' },
+      maxAttempts: { type: 'number' },
       subagentId: { type: 'string' },
       runTaskId: { type: 'string' },
       lastResult: { type: 'string' },
@@ -287,6 +325,8 @@ export const kanbanTool: Tool<KanbanToolInput, KanbanToolOutput> = {
       releaseStatus: { type: 'string', enum: ['pending', 'ready', 'blocked'] },
       releaseReason: { type: 'string' },
       clearAssignee: { type: 'boolean' },
+      recoveryMode: { type: 'string', enum: ['release', 'retry', 'fail'] },
+      recoveryNow: { type: 'string' },
       taskGraph: { type: 'object' },
       graphId: { type: 'string' },
       specId: { type: 'string' },
@@ -766,8 +806,90 @@ export const kanbanTool: Tool<KanbanToolInput, KanbanToolOutput> = {
             ...(input.lastResult !== undefined ? { lastResult: input.lastResult } : {}),
             ...(input.error !== undefined ? { error: input.error } : {}),
             ...(input.agentId !== undefined ? { agentId: input.agentId } : {}),
+            ...(input.leaseId !== undefined ? { leaseId: input.leaseId } : {}),
+            ...(input.claimedAt !== undefined ? { claimedAt: input.claimedAt } : {}),
+            ...(input.heartbeatAt !== undefined ? { heartbeatAt: input.heartbeatAt } : {}),
+            ...(input.leaseExpiresAt !== undefined ? { leaseExpiresAt: input.leaseExpiresAt } : {}),
+            ...(input.attempt !== undefined ? { attempt: input.attempt } : {}),
+            ...(input.maxAttempts !== undefined ? { maxAttempts: input.maxAttempts } : {}),
           });
           return board ? okBoard(board, 'Assignment updated.') : fail('Task not found.');
+        }
+        case 'heartbeat_assignment': {
+          if (!input.boardId || !input.taskId) {
+            return fail('heartbeat_assignment requires boardId and taskId.');
+          }
+          const board = await heartbeatTaskAssignment(projectRoot, input.boardId, input.taskId, {
+            ...(input.heartbeatAt !== undefined ? { heartbeatAt: input.heartbeatAt } : {}),
+            ...(input.leaseExpiresAt !== undefined ? { leaseExpiresAt: input.leaseExpiresAt } : {}),
+          });
+          return board ? okBoard(board, 'Assignment heartbeat updated.') : fail('Task assignment not found.');
+        }
+        case 'recover_stale': {
+          if (!input.boardId) return fail('recover_stale requires boardId.');
+          const policyFields = [
+            input.recoveryPolicyFailOnCostCeiling !== undefined,
+            input.recoveryPolicyReleaseOnFailureKinds !== undefined,
+            input.recoveryPolicyReleaseOnHeartbeatDue !== undefined,
+            input.recoveryPolicyRetryPolicyOverride !== undefined,
+          ].some(Boolean);
+          const result = await recoverStaleTaskAssignments(projectRoot, input.boardId, {
+            ...(input.recoveryMode !== undefined ? { mode: input.recoveryMode } : {}),
+            ...(input.recoveryNow !== undefined ? { now: input.recoveryNow } : {}),
+            ...(input.releaseReason !== undefined ? { reason: input.releaseReason } : {}),
+            ...(input.clearAssignee !== undefined ? { clearAssignee: input.clearAssignee } : {}),
+            ...(policyFields
+              ? {
+                  policy: {
+                    ...(input.recoveryPolicyFailOnCostCeiling !== undefined
+                      ? { failWhenCostCeilingSet: input.recoveryPolicyFailOnCostCeiling }
+                      : {}),
+                    ...(input.recoveryPolicyReleaseOnFailureKinds !== undefined
+                      ? {
+                          releaseOnFailureKinds: input.recoveryPolicyReleaseOnFailureKinds,
+                        }
+                      : {}),
+                    ...(input.recoveryPolicyReleaseOnHeartbeatDue !== undefined
+                      ? {
+                          releaseOnHeartbeatDue: input.recoveryPolicyReleaseOnHeartbeatDue,
+                        }
+                      : {}),
+                    ...(input.recoveryPolicyRetryPolicyOverride !== undefined
+                      ? {
+                          retryPolicyOverride: input.recoveryPolicyRetryPolicyOverride,
+                        }
+                      : {}),
+                  },
+                }
+              : {}),
+          });
+          return result
+            ? {
+                ok: true,
+                message: `Recovered ${result.tasks.length} stale assignment(s).`,
+                board: result.board,
+                recoveredTasks: result.tasks,
+              }
+            : { ok: true, message: 'No stale assignment matched.', recoveredTasks: [] };
+        }
+        case 'events': {
+          if (!input.boardId) return fail('events requires boardId.');
+          const eventList = await listKanbanEvents(projectRoot, input.boardId);
+          return {
+            ok: true,
+            message: `${eventList.length} event(s).`,
+            events: eventList,
+          };
+        }
+        case 'queue_health': {
+          const health = await getKanbanQueueHealth(projectRoot, {
+            ...(input.boardId !== undefined ? { boardId: input.boardId } : {}),
+          });
+          return {
+            ok: true,
+            message: `Counts: ready=${health.counts.ready}, running=${health.counts.running}, stale=${health.staleAssignments.count}.`,
+            queueHealth: health,
+          };
         }
         case 'add_dependency': {
           if (!input.boardId || !input.taskId || !input.dependencyTaskId) {
@@ -937,6 +1059,15 @@ function assignmentInput(input: KanbanToolInput): AssignKanbanTaskInput {
     tools: input.tools,
     allowedCapabilities: input.allowedCapabilities,
     assignee: input.assignee,
+    leaseId: input.leaseId,
+    claimedAt: input.claimedAt,
+    heartbeatAt: input.heartbeatAt,
+    leaseExpiresAt: input.leaseExpiresAt,
+    attempt: input.attempt,
+    maxAttempts: input.maxAttempts,
+    costCeilingUsd: input.costCeilingUsd,
+    retryPolicy: input.retryPolicy,
+    lastFailureKind: input.lastFailureKind,
   };
 }
 
@@ -952,6 +1083,15 @@ function hasAssignmentInput(input: KanbanToolInput): boolean {
     input.tools !== undefined ||
     input.allowedCapabilities !== undefined ||
     input.assignee !== undefined ||
+    input.leaseId !== undefined ||
+    input.claimedAt !== undefined ||
+    input.heartbeatAt !== undefined ||
+    input.leaseExpiresAt !== undefined ||
+    input.attempt !== undefined ||
+    input.maxAttempts !== undefined ||
+    input.costCeilingUsd !== undefined ||
+    input.retryPolicy !== undefined ||
+    input.lastFailureKind !== undefined ||
     input.assignmentStatus !== undefined
   );
 }
@@ -969,6 +1109,19 @@ function assignmentForTaskCreate(input: KanbanToolInput): KanbanAgentAssignment 
     ...(input.tools !== undefined ? { tools: input.tools } : {}),
     ...(input.allowedCapabilities !== undefined
       ? { allowedCapabilities: input.allowedCapabilities }
+      : {}),
+    ...(input.leaseId !== undefined ? { leaseId: input.leaseId } : {}),
+    ...(input.claimedAt !== undefined ? { claimedAt: input.claimedAt } : {}),
+    ...(input.heartbeatAt !== undefined ? { heartbeatAt: input.heartbeatAt } : {}),
+    ...(input.leaseExpiresAt !== undefined ? { leaseExpiresAt: input.leaseExpiresAt } : {}),
+    ...(input.attempt !== undefined ? { attempt: input.attempt } : {}),
+    ...(input.maxAttempts !== undefined ? { maxAttempts: input.maxAttempts } : {}),
+    ...(input.costCeilingUsd !== undefined
+      ? { costCeilingUsd: input.costCeilingUsd }
+      : {}),
+    ...(input.retryPolicy !== undefined ? { retryPolicy: input.retryPolicy } : {}),
+    ...(input.lastFailureKind !== undefined
+      ? { lastFailureKind: input.lastFailureKind }
       : {}),
   };
 }

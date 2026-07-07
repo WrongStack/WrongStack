@@ -1,4 +1,4 @@
-import type { KanbanBoard, KanbanBoardSummary, KanbanColumn, KanbanTask } from '@wrongstack/core';
+import type { KanbanBoard, KanbanBoardSummary, KanbanColumn, KanbanQueueHealth, KanbanTask } from '@wrongstack/core';
 import { create } from 'zustand';
 
 export interface KanbanResultPayload {
@@ -13,9 +13,11 @@ interface KanbanState {
   activeBoard: KanbanBoard | null;
   loading: boolean;
   error: string | null;
+  queueHealth: KanbanQueueHealth | null;
   setLoading: (loading: boolean) => void;
   setActiveBoardId: (id: string | null) => void;
   setError: (error: string | null) => void;
+  setQueueHealth: (health: KanbanQueueHealth | null) => void;
   handleResult: (type: string, payload: KanbanResultPayload) => void;
 }
 
@@ -25,15 +27,21 @@ export const useKanbanStore = create<KanbanState>()((set, get) => ({
   activeBoard: null,
   loading: false,
   error: null,
+  queueHealth: null,
   setLoading: (loading) => set({ loading }),
   setActiveBoardId: (id) => set({ activeBoardId: id }),
   setError: (error) => set({ error }),
+  setQueueHealth: (health) => set({ queueHealth: health }),
   handleResult: (type, payload) => {
     if (!payload.success) {
       set({ loading: false, error: payload.error ?? 'Kanban request failed' });
       return;
     }
     const data = payload.data;
+    if (type === 'kanban.health' && payload.data) {
+      set({ queueHealth: payload.data as KanbanQueueHealth, loading: false, error: null });
+      return;
+    }
     if (type === 'kanban.list') {
       set({
         boards: Array.isArray(data) ? (data as KanbanBoardSummary[]) : [],

@@ -19,7 +19,7 @@ import { useConfigStore, useKanbanStore } from '@/stores';
 
 export function KanbanView({ onClose }: { onClose?: (() => void) | undefined }) {
   const wsUrl = useConfigStore((s) => s.wsUrl);
-  const { boards, activeBoardId, activeBoard, loading, error, setLoading, setActiveBoardId } =
+  const { boards, activeBoardId, activeBoard, loading, error, queueHealth, setLoading, setActiveBoardId } =
     useKanbanStore();
   const [newBoardTitle, setNewBoardTitle] = useState('');
   const [newTaskTitle, setNewTaskTitle] = useState('');
@@ -29,6 +29,16 @@ export function KanbanView({ onClose }: { onClose?: (() => void) | undefined }) 
 
   const ws = useMemo(() => getWSClient(wsUrl), [wsUrl]);
   const selectedTask = activeBoard?.tasks.find((task) => task.id === selectedTaskId) ?? null;
+
+  const runningCostTotal = useMemo(() => {
+    if (!activeBoard) return 0;
+    return activeBoard.tasks
+      .filter(
+        (t) =>
+          t.status === 'in_progress' || t.assignment?.status === 'running' || t.assignment?.status === 'queued',
+      )
+      .reduce((sum, t) => sum + (t.costCeilingUsd ?? 0), 0);
+  }, [activeBoard]);
 
   const sendKanban = (type: `kanban.${string}`, payload: Record<string, unknown> = {}) => {
     setLoading(true);
@@ -62,6 +72,10 @@ export function KanbanView({ onClose }: { onClose?: (() => void) | undefined }) 
       setSelectedTaskId(null);
     }
   }, [activeBoard, selectedTaskId]);
+
+  useEffect(() => {
+    if (activeBoardId) sendKanban('kanban.health', { boardId: activeBoardId });
+  }, [activeBoardId]);
 
   const createBoard = () => {
     const title = newBoardTitle.trim();
@@ -269,7 +283,58 @@ export function KanbanView({ onClose }: { onClose?: (() => void) | undefined }) 
 
         <div className="min-h-0 flex-1 overflow-x-auto overflow-y-hidden">
           {activeBoard ? (
-            <div className="flex h-full min-w-max gap-3 p-4">
+            <>
+              {queueHealth && (
+                <div className="flex shrink-0 items-center gap-4 border-b px-4 py-2 text-xs text-muted-foreground">
+                  <span className="font-medium text-foreground">Queue health</span>
+                  {queueHealth.counts.ready > 0 && (
+                    <span title="Claimable tasks" className="inline-flex items-center gap-1 text-emerald-500">
+                      {queueHealth.counts.ready} ready
+                    </span>
+                  )}
+                  {queueHealth.counts.running > 0 && (
+                    <span title="Running assignments" className="inline-flex items-center gap-1 text-amber-500">
+                      {queueHealth.counts.running} running
+                    </span>
+                  )}
+                  {queueHealth.counts.review > 0 && (
+                    <span title="In review" className="inline-flex items-center gap-1 text-violet-500">
+                      {queueHealth.counts.review} review
+                    </span>
+                  )}
+                  {queueHealth.counts.blocked > 0 && (
+                    <span title="Manually blocked" className="inline-flex items-center gap-1 text-red-500">
+                      {queueHealth.counts.blocked} blocked
+                    </span>
+                  )}
+                  {queueHealth.counts.failed > 0 && (
+                    <span title="Failed tasks" className="inline-flex items-center gap-1 text-orange-500">
+                      {queueHealth.counts.failed} failed
+                    </span>
+                  )}
+                  {queueHealth.dependencyBlocked.count > 0 && (
+                    <span title="Ready/pending tasks blocked by dependencies" className="inline-flex items-center gap-1 rounded bg-yellow-500/10 px-1.5 py-0.5 text-yellow-600">
+                      {queueHealth.dependencyBlocked.count} blocked by deps
+                    </span>
+                  )}
+                  {queueHealth.staleAssignments.count > 0 && (
+                    <span title="Expired lease assignments" className="inline-flex items-center gap-1 rounded bg-red-500/10 px-1.5 py-0.5 text-red-600">
+                      {queueHealth.staleAssignments.count} stale
+                    </span>
+                  )}
+                  {queueHealth.heartbeatDue.count === 0 &&
+                    queueHealth.staleAssignments.count === 0 &&
+                    queueHealth.dependencyBlocked.count === 0 && (
+                      <span className="text-emerald-600">healthy</span>
+                    )}
+                  {runningCostTotal > 0 && (
+                    <span title="Sum of costCeilingUsd for running/queued tasks" className="inline-flex items-center gap-1 text-cyan-600">
+                      ~${runningCostTotal.toFixed(2)} running cost
+                    </span>
+                  )}
+                </div>
+              )}
+              <div className="flex h-full min-w-max gap-3 p-4">
               {[...activeBoard.columns]
                 .sort((a, b) => a.order - b.order)
                 .map((column) => (
@@ -286,6 +351,7 @@ export function KanbanView({ onClose }: { onClose?: (() => void) | undefined }) 
                   />
                 ))}
             </div>
+            </>
           ) : (
             <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
               No kanban board selected.

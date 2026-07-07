@@ -1,10 +1,12 @@
 import { randomUUID } from 'node:crypto';
 import {
+  appendKanbanEvent,
   createBoardObject,
   deleteBoard,
   listBoardSummaries,
   mutateBoard,
   readBoard,
+  readKanbanEvents,
   summarizeBoard,
   writeBoard,
 } from './storage.js';
@@ -24,10 +26,13 @@ import {
   type KanbanCheck,
   type KanbanCheckStatus,
   type KanbanColumn,
+  type KanbanEvent,
   type KanbanGenerationInput,
+  type HeartbeatKanbanTaskAssignmentInput,
   type KanbanGoalMetric,
   type KanbanLink,
   type KanbanNote,
+  type KanbanQueueHealth,
   type KanbanOrchestrationSnapshot,
   type KanbanSearchInput,
   type KanbanSearchResult,
@@ -36,6 +41,10 @@ import {
   type KanbanTaskStatus,
   type MergeKanbanTasksInput,
   type RemoveKanbanColumnOptions,
+  type RecoverStaleKanbanAssignmentsInput,
+  type RecoverStaleKanbanAssignmentsResult,
+  type KanbanRecoveryMode,
+  type KanbanRecoveryPolicy,
   type ReleaseKanbanTaskClaimInput,
   type SetKanbanTaskChainInput,
   type SplitKanbanTaskInput,
@@ -403,18 +412,33 @@ export async function getTask(
   return board ? (findTask(board, taskId) ?? null) : null;
 }
 
+export async function listKanbanEvents(
+  projectRoot: string,
+  boardId: string,
+): Promise<KanbanEvent[]> {
+  return readKanbanEvents(projectRoot, boardId);
+}
+
 export async function assignTask(
   projectRoot: string,
   boardId: string,
   taskId: string,
   input: AssignKanbanTaskInput,
 ): Promise<KanbanBoard | null> {
-  const assignment = buildAssignment(input);
-  return updateTask(projectRoot, boardId, taskId, {
-    assignedAgent: assignment.agentId ?? assignment.role ?? assignment.name,
-    assignee: input.assignee ?? assignment.name ?? assignment.agentId,
-    assignment,
-  });
+  return mutateBoard(projectRoot, boardId, (board) => {
+    const task = findTask(board, taskId);
+    if (!task) return null;
+    const assignment = buildAssignment(input);
+    task.assignment = assignment;
+    task.assignedAgent = assignment.agentId ?? assignment.role ?? assignment.name;
+    task.assignee = input.assignee ?? assignment.name ?? assignment.agentId;
+    // Sprint 3: mirror policy fields from assignment to durable task level.
+    if (input.retryPolicy !== undefined) task.retryPolicy = input.retryPolicy;
+    if (input.costCeilingUsd !== undefined) task.costCeilingUsd = input.costCeilingUsd;
+    task.updatedAt = nowIso();
+    board.updatedAt = task.updatedAt;
+    return task;
+  }).then((updated) => (updated?.result ? updated.board : null));
 }
 
 export async function updateTaskAssignment(
@@ -423,9 +447,12 @@ export async function updateTaskAssignment(
   taskId: string,
   patch: Partial<KanbanAgentAssignment> & { status?: KanbanAgentRunStatus | undefined },
 ): Promise<KanbanBoard | null> {
+  let event: KanbanEvent | undefined;
   const updated = await mutateBoard(projectRoot, boardId, (board) => {
     const task = findTask(board, taskId);
     if (!task) return null;
+    const previousColumnId = task.columnId;
+    const beforeAssignment = task.assignment ? { ...task.assignment } : undefined;
     const nextAssignment: KanbanAgentAssignment = {
       ...(task.assignment ?? { status: 'assigned' as const }),
     };
@@ -465,11 +492,211 @@ export async function updateTaskAssignment(
       }
       delete task.completedAt;
     }
+    syncTaskColumnForStatus(board, task, previousColumnId);
     task.updatedAt = nowIso();
     board.updatedAt = task.updatedAt;
+    event = createKanbanEvent(board.id, task, assignmentEventType(task.assignment.status), {
+      before: beforeAssignment,
+      after: { ...task.assignment },
+      note: patch.error ?? patch.lastResult,
+    });
     return task;
   });
+  if (updated && event) await emitKanbanEvent(projectRoot, event);
   return updated?.result ? updated.board : null;
+}
+
+export async function heartbeatTaskAssignment(
+  projectRoot: string,
+  boardId: string,
+  taskId: string,
+  input: HeartbeatKanbanTaskAssignmentInput = {},
+): Promise<KanbanBoard | null> {
+  let event: KanbanEvent | undefined;
+  const updated = await mutateBoard(projectRoot, boardId, (board) => {
+    const task = findTask(board, taskId);
+    if (!task?.assignment) return null;
+    const beforeAssignment = { ...task.assignment };
+    const now = nowIso();
+    task.assignment.heartbeatAt = input.heartbeatAt ?? now;
+    if (input.leaseExpiresAt !== undefined) {
+      task.assignment.leaseExpiresAt = input.leaseExpiresAt;
+    }
+    task.updatedAt = now;
+    board.updatedAt = now;
+    event = createKanbanEvent(board.id, task, 'task.assignment.heartbeat', {
+      before: beforeAssignment,
+      after: { ...task.assignment },
+    });
+    return task;
+  });
+  if (updated && event) await emitKanbanEvent(projectRoot, event);
+  return updated?.result ? updated.board : null;
+}
+
+function isAssignmentHeartbeatDue(
+  assignment: KanbanAgentAssignment,
+  checkedAt: string,
+): boolean {
+  if (!assignment.heartbeatAt || !assignment.leaseExpiresAt) return false;
+  const lastHeartbeat = new Date(assignment.heartbeatAt).getTime();
+  const expiresAt = new Date(assignment.leaseExpiresAt).getTime();
+  const now = new Date(checkedAt).getTime();
+  // Roughly: the worker has not refreshed its heartbeat in at least half the
+  // lease window, signalling a probable lapse before the lease expires.
+  const lease = expiresAt - lastHeartbeat;
+  if (lease <= 0) return true;
+  return now - lastHeartbeat >= lease / 2;
+}
+
+/**
+ * Select a per-task recovery mode for the recovery loop.
+ *
+ * Rules (in this order; first match wins):
+ *   1. `assignment.retryPolicy === 'off'` -> `fail` (worker opted out).
+ *   2. `policy.releaseOnFailureKinds` includes `assignment.lastFailureKind` -> `release`.
+ *   3. `policy.failWhenCostCeilingSet && assignment.costCeilingUsd !== undefined` -> `fail`.
+ *   4. `policy.releaseOnHeartbeatDue && isHeartbeatDue` -> `release`.
+ *   5. `assignment.maxAttempts !== undefined && (attempt + 1) > maxAttempts` -> `fail`.
+ *   6. Default -> `retry`.
+ *
+ * Explicit `requested` modes short-circuit the policy entirely, preserving the
+ * historical `recover_stale` semantics.
+ */
+function selectRecoveryMode(args: {
+  requested: KanbanRecoveryMode;
+  task: KanbanTask;
+  isHeartbeatDue: boolean;
+  policy: KanbanRecoveryPolicy | undefined;
+}): KanbanRecoveryMode {
+  const { requested, task, isHeartbeatDue, policy } = args;
+  if (requested !== 'auto') return requested;
+  const assignment = task.assignment;
+  if (!assignment) return 'retry';
+  if (assignment.retryPolicy === 'off') return 'fail';
+  const failureKind = assignment.lastFailureKind;
+  if (
+    policy?.releaseOnFailureKinds !== undefined &&
+    failureKind !== undefined &&
+    policy.releaseOnFailureKinds.includes(failureKind)
+  ) {
+    return 'release';
+  }
+  if (policy?.failWhenCostCeilingSet && assignment.costCeilingUsd !== undefined) {
+    return 'fail';
+  }
+  if (policy?.releaseOnHeartbeatDue && isHeartbeatDue) {
+    return 'release';
+  }
+  if (
+    assignment.maxAttempts !== undefined &&
+    (assignment.attempt ?? 0) + 1 > assignment.maxAttempts
+  ) {
+    return 'fail';
+  }
+  return 'retry';
+}
+
+export async function recoverStaleTaskAssignments(
+  projectRoot: string,
+  boardId: string,
+  input: RecoverStaleKanbanAssignmentsInput = {},
+): Promise<RecoverStaleKanbanAssignmentsResult | null> {
+  const recoveredTasks: KanbanTask[] = [];
+  const events: KanbanEvent[] = [];
+  const requestedMode = input.mode ?? 'retry';
+  const checkedAt = input.now ?? nowIso();
+  const updated = await mutateBoard(projectRoot, boardId, (board) => {
+    for (const task of board.tasks) {
+      const assignment = task.assignment;
+      if (!assignment || (assignment.status !== 'queued' && assignment.status !== 'running')) {
+        continue;
+      }
+      if (!assignment.leaseExpiresAt || assignment.leaseExpiresAt > checkedAt) continue;
+      const previousColumnId = task.columnId;
+      const beforeAssignment = { ...assignment };
+      const isHeartbeatDueNow = isAssignmentHeartbeatDue(assignment, checkedAt);
+      const mode = selectRecoveryMode({
+        requested: requestedMode,
+        task,
+        isHeartbeatDue: isHeartbeatDueNow,
+        policy: input.policy,
+      });
+      const reason = input.reason ?? `Stale assignment recovered at ${checkedAt}`;
+      const now = nowIso();
+      task.notes = [
+        ...(task.notes ?? []),
+        {
+          id: randomUUID(),
+          author: 'system',
+          content: `Stale assignment recovered (${mode}): ${reason}`,
+          createdAt: now,
+        },
+      ];
+
+      if (mode === 'fail') {
+        assignment.status = 'failed';
+        assignment.error = reason;
+        delete assignment.completedAt;
+        task.status = 'failed';
+        delete task.completedAt;
+      } else if (mode === 'release') {
+        delete task.assignment;
+        if (input.clearAssignee !== false) {
+          delete task.assignedAgent;
+          delete task.assignee;
+        }
+        task.status = areDependenciesMet(board, task.id) ? 'ready' : 'blocked';
+        delete task.completedAt;
+      } else {
+        const nextAttempt = (assignment.attempt ?? 0) + 1;
+        if (assignment.maxAttempts !== undefined && nextAttempt > assignment.maxAttempts) {
+          assignment.status = 'failed';
+          assignment.error = `${reason}; max attempts exceeded (${assignment.maxAttempts})`;
+          delete assignment.completedAt;
+          task.status = 'failed';
+          delete task.completedAt;
+        } else {
+          task.assignment = {
+            ...assignment,
+            status: 'assigned',
+            attempt: nextAttempt,
+          };
+          delete task.assignment.subagentId;
+          delete task.assignment.runTaskId;
+          delete task.assignment.completedAt;
+          delete task.assignment.lastResult;
+          delete task.assignment.error;
+          delete task.assignment.leaseId;
+          delete task.assignment.heartbeatAt;
+          delete task.assignment.leaseExpiresAt;
+          if (input.clearAssignee !== false) {
+            delete task.assignedAgent;
+            delete task.assignee;
+          }
+          task.status = areDependenciesMet(board, task.id) ? 'ready' : 'blocked';
+          delete task.completedAt;
+        }
+      }
+
+      syncTaskColumnForStatus(board, task, previousColumnId);
+      task.updatedAt = now;
+      board.updatedAt = now;
+      recoveredTasks.push({ ...task, assignment: task.assignment ? { ...task.assignment } : undefined });
+      events.push(
+        createKanbanEvent(board.id, task, 'task.stale_recovered', {
+          before: beforeAssignment,
+          after: task.assignment ? { ...task.assignment } : undefined,
+          note: reason,
+        }),
+      );
+    }
+    return recoveredTasks.length ? recoveredTasks : null;
+  });
+  if (updated) {
+    for (const staleEvent of events) await emitKanbanEvent(projectRoot, staleEvent);
+  }
+  return updated?.result ? { board: updated.board, tasks: updated.result } : null;
 }
 
 export async function claimReadyTask(
@@ -490,9 +717,12 @@ export async function releaseTaskClaim(
   taskId: string,
   input: ReleaseKanbanTaskClaimInput = {},
 ): Promise<KanbanBoard | null> {
+  let event: KanbanEvent | undefined;
   const updated = await mutateBoard(projectRoot, boardId, (board) => {
     const task = findTask(board, taskId);
     if (!task) return null;
+    const previousColumnId = task.columnId;
+    const beforeAssignment = task.assignment ? { ...task.assignment } : undefined;
     delete task.assignment;
     if (input.clearAssignee !== false) {
       delete task.assignedAgent;
@@ -512,10 +742,17 @@ export async function releaseTaskClaim(
         },
       ];
     }
+    syncTaskColumnForStatus(board, task, previousColumnId);
     task.updatedAt = now;
     board.updatedAt = now;
+    event = createKanbanEvent(board.id, task, 'task.released', {
+      before: beforeAssignment,
+      after: undefined,
+      note: input.reason,
+    });
     return task;
   });
+  if (updated && event) await emitKanbanEvent(projectRoot, event);
   return updated?.result ? updated.board : null;
 }
 
@@ -563,6 +800,148 @@ export async function getKanbanOrchestrationSnapshot(
     }
   }
   return snapshot;
+}
+
+/**
+ * Operational health summary. See `KanbanQueueHealth` for the full contract.
+ *
+ * Implementation notes:
+ *   * Per-status counts are computed against the current state of every
+ *     queried board (the same source `getKanbanOrchestrationSnapshot`
+ *     consumes).
+ *   * `dependencyBlocked` deduplicates `counts.ready` — a task ready but
+ *     blocked by dependencies only appears in the blocked bucket.
+ *   * `staleAssignments` and `heartbeatDue` use `now ?? real-wall-clock`;
+ *     callers (notably the recovery loop) should pass an explicit
+ *     timestamp so time is deterministic.
+ *   * `lastDispatchedAt` / `lastStaleRecoveredAt` come from the append-only
+ *     event log so dashboards do not need to rescan tasks.
+ */
+export async function getKanbanQueueHealth(
+  projectRoot: string,
+  input: { boardId?: string; now?: string; heartbeatIntervalMs?: number } = {},
+): Promise<KanbanQueueHealth> {
+  const heartbeatIntervalMs = input.heartbeatIntervalMs ?? 60_000;
+  const now = input.now ?? nowIso();
+  const boards = await collectBoardsForHealth(projectRoot, input.boardId);
+  const boardIds = boards.map((board) => board.id);
+
+  const counts = {
+    ready: 0,
+    queued: 0,
+    running: 0,
+    review: 0,
+    failed: 0,
+    completed: 0,
+    pending: 0,
+    archived: 0,
+    blocked: 0,
+  };
+  const dependencyBlocked: KanbanSearchResult[] = [];
+  const staleAssignments: KanbanSearchResult[] = [];
+  const failedRetryable: KanbanSearchResult[] = [];
+  const heartbeatDue: KanbanSearchResult[] = [];
+
+  for (const board of boards) {
+    const summary = summarizeBoard(board);
+    for (const task of board.tasks) {
+      const assignment = task.assignment;
+      const dependencyUnmet = !areDependenciesMet(board, task.id);
+      const isRunning =
+        task.status === 'in_progress' ||
+        (assignment !== undefined && assignment.status === 'running');
+      const isQueued =
+        assignment !== undefined &&
+        (assignment.status === 'queued' || assignment.status === 'assigned');
+      if (task.status === 'ready' && !isRunning) {
+        counts.ready += 1;
+      } else {
+        counts[task.status as keyof typeof counts] += 1;
+      }
+      if (isRunning) counts.running += 1;
+      if (isQueued) counts.queued += 1;
+      const readyButBlocked = task.status === 'ready' && dependencyUnmet;
+      const pendingButBlocked = task.status === 'pending' && dependencyUnmet;
+      if (readyButBlocked || pendingButBlocked) {
+        dependencyBlocked.push({ board: summary, task });
+      }
+      const expiredLease =
+        assignment !== undefined &&
+        (assignment.status === 'queued' || assignment.status === 'running') &&
+        assignment.leaseExpiresAt !== undefined &&
+        assignment.leaseExpiresAt <= now;
+      if (expiredLease) {
+        staleAssignments.push({ board: summary, task });
+      }
+      if (
+        assignment &&
+        assignment.status === 'running' &&
+        assignment.leaseExpiresAt !== undefined &&
+        msUntilExpiry(assignment.leaseExpiresAt, now) <= heartbeatIntervalMs
+      ) {
+        heartbeatDue.push({ board: summary, task });
+      }
+      if (
+        task.status === 'failed' &&
+        assignment &&
+        assignment.maxAttempts !== undefined &&
+        (assignment.attempt ?? 0) < assignment.maxAttempts
+      ) {
+        failedRetryable.push({ board: summary, task });
+      }
+    }
+  }
+
+  let lastDispatchedAt: string | undefined;
+  let lastStaleRecoveredAt: string | undefined;
+  for (const boardId of boardIds) {
+    const events = await readKanbanEvents(projectRoot, boardId);
+    for (const event of events) {
+      if (event.type === 'task.assignment.running') {
+        lastDispatchedAt = later(lastDispatchedAt, event.ts);
+      } else if (event.type === 'task.stale_recovered') {
+        lastStaleRecoveredAt = later(lastStaleRecoveredAt, event.ts);
+      }
+    }
+  }
+
+  return {
+    generatedAt: now,
+    boardIds,
+    counts,
+    dependencyBlocked: { count: dependencyBlocked.length, tasks: dependencyBlocked },
+    staleAssignments: { count: staleAssignments.length, tasks: staleAssignments },
+    failedRetryable: { count: failedRetryable.length, tasks: failedRetryable },
+    heartbeatDue: { count: heartbeatDue.length, tasks: heartbeatDue },
+    ...(lastDispatchedAt !== undefined ? { lastDispatchedAt } : {}),
+    ...(lastStaleRecoveredAt !== undefined ? { lastStaleRecoveredAt } : {}),
+  };
+}
+
+function msUntilExpiry(leaseExpiresAt: string, nowIso: string): number {
+  return new Date(leaseExpiresAt).getTime() - new Date(nowIso).getTime();
+}
+
+function later(a: string | undefined, b: string): string {
+  if (a === undefined) return b;
+  return new Date(a).getTime() >= new Date(b).getTime() ? a : b;
+}
+
+async function collectBoardsForHealth(
+  projectRoot: string,
+  boardId: string | undefined,
+): Promise<KanbanBoard[]> {
+  if (boardId !== undefined) {
+    const board = await getBoard(projectRoot, boardId);
+    return board ? [board] : [];
+  }
+  const summaries = await listBoardSummaries(projectRoot);
+  const out: KanbanBoard[] = [];
+  for (const summary of summaries) {
+    const board = await getBoard(projectRoot, summary.id);
+    if (board) out.push(board);
+  }
+  return out;
 }
 
 export async function addDependency(
@@ -1317,6 +1696,13 @@ function createTaskObject(board: KanbanBoard, input: CreateKanbanTaskInput): Kan
     ...(input.goalMetrics !== undefined ? { goalMetrics: input.goalMetrics } : {}),
     ...(input.links !== undefined ? { links: input.links } : {}),
     ...(input.notes !== undefined ? { notes: input.notes } : {}),
+    // Sprint 3: mirror policy fields from assignment to durable task level.
+    ...(input.assignment?.retryPolicy !== undefined
+      ? { retryPolicy: input.assignment.retryPolicy }
+      : {}),
+    ...(input.assignment?.costCeilingUsd !== undefined
+      ? { costCeilingUsd: input.assignment.costCeilingUsd }
+      : {}),
   };
   applyCompletedAtForStatus(task, now);
   return task;
@@ -1490,6 +1876,17 @@ function buildAssignment(input: AssignKanbanTaskInput): KanbanAgentAssignment {
     ...(input.allowedCapabilities !== undefined
       ? { allowedCapabilities: input.allowedCapabilities }
       : {}),
+    ...(input.leaseId !== undefined ? { leaseId: input.leaseId } : {}),
+    ...(input.claimedAt !== undefined ? { claimedAt: input.claimedAt } : {}),
+    ...(input.heartbeatAt !== undefined ? { heartbeatAt: input.heartbeatAt } : {}),
+    ...(input.leaseExpiresAt !== undefined ? { leaseExpiresAt: input.leaseExpiresAt } : {}),
+    ...(input.attempt !== undefined ? { attempt: input.attempt } : {}),
+    ...(input.maxAttempts !== undefined ? { maxAttempts: input.maxAttempts } : {}),
+    ...(input.costCeilingUsd !== undefined ? { costCeilingUsd: input.costCeilingUsd } : {}),
+    ...(input.retryPolicy !== undefined ? { retryPolicy: input.retryPolicy } : {}),
+    ...(input.lastFailureKind !== undefined
+      ? { lastFailureKind: input.lastFailureKind }
+      : {}),
   };
 }
 
@@ -1498,12 +1895,14 @@ async function claimReadyTaskOnBoard(
   boardId: string,
   input: ClaimKanbanTaskInput,
 ): Promise<{ board: KanbanBoard; task: KanbanTask } | null> {
+  let event: KanbanEvent | undefined;
   const updated = await mutateBoard(projectRoot, boardId, (board) => {
     const candidates = input.taskId
       ? [findTask(board, input.taskId)].filter((task): task is KanbanTask => Boolean(task))
       : board.tasks.filter((task) => isTaskReadyForWork(board, task)).sort(compareTasksForWork);
     const task = candidates.find((candidate) => isTaskReadyForWork(board, candidate));
     if (!task) return null;
+    const previousColumnId = task.columnId;
     const current = task.assignment;
     const assignment = buildAssignment({
       ...(current?.agentId !== undefined ? { agentId: current.agentId } : {}),
@@ -1519,6 +1918,19 @@ async function claimReadyTaskOnBoard(
       ...(current?.allowedCapabilities !== undefined
         ? { allowedCapabilities: current.allowedCapabilities }
         : {}),
+      ...(current?.leaseId !== undefined ? { leaseId: current.leaseId } : {}),
+      ...(current?.claimedAt !== undefined ? { claimedAt: current.claimedAt } : {}),
+      ...(current?.heartbeatAt !== undefined ? { heartbeatAt: current.heartbeatAt } : {}),
+      ...(current?.leaseExpiresAt !== undefined ? { leaseExpiresAt: current.leaseExpiresAt } : {}),
+      ...(current?.attempt !== undefined ? { attempt: current.attempt } : {}),
+      ...(current?.maxAttempts !== undefined ? { maxAttempts: current.maxAttempts } : {}),
+      ...(current?.costCeilingUsd !== undefined
+        ? { costCeilingUsd: current.costCeilingUsd }
+        : {}),
+      ...(current?.retryPolicy !== undefined ? { retryPolicy: current.retryPolicy } : {}),
+      ...(current?.lastFailureKind !== undefined
+        ? { lastFailureKind: current.lastFailureKind }
+        : {}),
       ...(input.agentId !== undefined ? { agentId: input.agentId } : {}),
       ...(input.name !== undefined ? { name: input.name } : {}),
       ...(input.role !== undefined ? { role: input.role } : {}),
@@ -1530,10 +1942,24 @@ async function claimReadyTaskOnBoard(
       ...(input.allowedCapabilities !== undefined
         ? { allowedCapabilities: input.allowedCapabilities }
         : {}),
+      ...(input.leaseId !== undefined ? { leaseId: input.leaseId } : {}),
+      ...(input.claimedAt !== undefined ? { claimedAt: input.claimedAt } : {}),
+      ...(input.heartbeatAt !== undefined ? { heartbeatAt: input.heartbeatAt } : {}),
+      ...(input.leaseExpiresAt !== undefined ? { leaseExpiresAt: input.leaseExpiresAt } : {}),
+      ...(input.attempt !== undefined ? { attempt: input.attempt } : {}),
+      ...(input.maxAttempts !== undefined ? { maxAttempts: input.maxAttempts } : {}),
+      ...(input.costCeilingUsd !== undefined
+        ? { costCeilingUsd: input.costCeilingUsd }
+        : {}),
+      ...(input.retryPolicy !== undefined ? { retryPolicy: input.retryPolicy } : {}),
+      ...(input.lastFailureKind !== undefined
+        ? { lastFailureKind: input.lastFailureKind }
+        : {}),
       ...(input.assignee !== undefined ? { assignee: input.assignee } : {}),
       status: input.status ?? 'queued',
     });
-    assignment.dispatchedAt = assignment.dispatchedAt ?? nowIso();
+    assignment.claimedAt = assignment.claimedAt ?? nowIso();
+    assignment.dispatchedAt = assignment.dispatchedAt ?? assignment.claimedAt;
     task.assignment = assignment;
     if (assignment.agentId ?? assignment.role ?? assignment.name) {
       task.assignedAgent = assignment.agentId ?? assignment.role ?? assignment.name;
@@ -1543,10 +1969,16 @@ async function claimReadyTaskOnBoard(
     }
     task.status = assignment.status === 'running' ? 'in_progress' : 'ready';
     delete task.completedAt;
+    syncTaskColumnForStatus(board, task, previousColumnId);
     task.updatedAt = nowIso();
     board.updatedAt = task.updatedAt;
+    event = createKanbanEvent(board.id, task, 'task.claimed', {
+      before: current ? { ...current } : undefined,
+      after: { ...assignment },
+    });
     return task;
   });
+  if (updated && event) await emitKanbanEvent(projectRoot, event);
   return updated?.result ? { board: updated.board, task: updated.result } : null;
 }
 
@@ -2176,6 +2608,70 @@ function normalizeAllColumnTaskOrders(board: KanbanBoard): void {
   for (const column of board.columns) normalizeColumnTaskOrders(board, column.id);
 }
 
+function createKanbanEvent(
+  boardId: string,
+  task: KanbanTask,
+  type: string,
+  details: Partial<Omit<KanbanEvent, 'id' | 'boardId' | 'taskId' | 'type' | 'ts'>> = {},
+): KanbanEvent {
+  return {
+    id: randomUUID(),
+    boardId,
+    taskId: task.id,
+    type,
+    ts: nowIso(),
+    ...(task.assignment?.agentId !== undefined ? { actor: task.assignment.agentId } : {}),
+    ...(task.assignment?.subagentId !== undefined ? { subagentId: task.assignment.subagentId } : {}),
+    ...(task.assignment?.runTaskId !== undefined ? { runTaskId: task.assignment.runTaskId } : {}),
+    ...details,
+  };
+}
+
+async function emitKanbanEvent(projectRoot: string, event: KanbanEvent): Promise<void> {
+  try {
+    await appendKanbanEvent(projectRoot, event.boardId, event);
+  } catch {
+    // Event logging is observability-only; current board state must remain authoritative.
+  }
+}
+
+function assignmentEventType(status: KanbanAgentRunStatus): string {
+  return status === 'completed'
+    ? 'task.assignment.completed'
+    : status === 'failed'
+      ? 'task.assignment.failed'
+      : status === 'running'
+        ? 'task.assignment.running'
+        : status === 'cancelled'
+          ? 'task.assignment.cancelled'
+          : 'task.assignment.updated';
+}
+
+function columnIdForKanbanStatus(
+  board: KanbanBoard,
+  status: KanbanTaskStatus,
+): string | undefined {
+  const preferred =
+    status === 'completed'
+      ? ['done', 'completed']
+      : status === 'in_progress'
+        ? ['in-progress', 'progress', 'doing']
+        : status === 'review' || status === 'failed'
+          ? ['review']
+          : status === 'blocked'
+            ? ['blocked', 'backlog']
+            : status === 'ready'
+              ? ['todo', 'ready', 'backlog']
+              : status === 'archived'
+                ? ['done', 'archive', 'backlog']
+                : ['todo', 'backlog'];
+  for (const columnRef of preferred) {
+    const columnId = existingColumnId(board, columnRef);
+    if (columnId) return columnId;
+  }
+  return board.columns[0]?.id;
+}
+
 function normalizeColumnTaskOrders(board: KanbanBoard, columnId: string): void {
   board.tasks
     .filter((task) => task.columnId === columnId)
@@ -2183,6 +2679,18 @@ function normalizeColumnTaskOrders(board: KanbanBoard, columnId: string): void {
     .forEach((task, index) => {
       task.order = index;
     });
+}
+
+function syncTaskColumnForStatus(
+  board: KanbanBoard,
+  task: KanbanTask,
+  previousColumnId: string,
+): void {
+  const nextColumnId = columnIdForKanbanStatus(board, task.status);
+  if (!nextColumnId || nextColumnId === task.columnId) return;
+  task.columnId = nextColumnId;
+  normalizeColumnTaskOrders(board, previousColumnId);
+  placeTaskInColumn(board, task, nextColumnId, undefined);
 }
 
 function placeTaskInColumn(

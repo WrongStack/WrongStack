@@ -8,6 +8,7 @@ import {
   type KanbanBoard,
   type KanbanBoardMeta,
   type KanbanBoardSummary,
+  type KanbanEvent,
 } from './types.js';
 
 const KANBANS_DIR = 'kanbans';
@@ -21,6 +22,17 @@ export function getKanbanPath(projectRoot: string, boardId: string): string {
   assertValidBoardId(boardId);
   const dir = path.resolve(getKanbanDir(projectRoot));
   const resolved = path.resolve(dir, `${boardId}.json`);
+  const rel = path.relative(dir, resolved);
+  if (rel.startsWith('..') || path.isAbsolute(rel)) {
+    throw invalidBoardId(boardId);
+  }
+  return resolved;
+}
+
+export function getKanbanEventsPath(projectRoot: string, boardId: string): string {
+  assertValidBoardId(boardId);
+  const dir = path.resolve(getKanbanDir(projectRoot));
+  const resolved = path.resolve(dir, `${boardId}.events.jsonl`);
   const rel = path.relative(dir, resolved);
   if (rel.startsWith('..') || path.isAbsolute(rel)) {
     throw invalidBoardId(boardId);
@@ -115,6 +127,36 @@ export async function writeBoard(projectRoot: string, board: KanbanBoard): Promi
   });
 }
 
+export async function appendKanbanEvent(
+  projectRoot: string,
+  boardId: string,
+  event: KanbanEvent,
+): Promise<void> {
+  const filePath = getKanbanEventsPath(projectRoot, boardId);
+  await withFileLock(filePath, async () => {
+    await fs.mkdir(path.dirname(filePath), { recursive: true });
+    await fs.appendFile(filePath, `${JSON.stringify(event)}\n`, 'utf8');
+  });
+}
+
+export async function readKanbanEvents(
+  projectRoot: string,
+  boardRef: string,
+): Promise<KanbanEvent[]> {
+  const boardId = await resolveBoardRef(projectRoot, boardRef);
+  if (!boardId) return [];
+  try {
+    const raw = await fs.readFile(getKanbanEventsPath(projectRoot, boardId), 'utf8');
+    return raw
+      .split(/\r?\n/)
+      .filter(Boolean)
+      .map((line) => JSON.parse(line) as KanbanEvent);
+  } catch (err) {
+    if (isEnoent(err)) return [];
+    throw err;
+  }
+}
+
 export async function deleteBoard(projectRoot: string, boardRef: string): Promise<boolean> {
   const boardId = await resolveBoardRef(projectRoot, boardRef);
   if (!boardId) return false;
@@ -122,6 +164,11 @@ export async function deleteBoard(projectRoot: string, boardRef: string): Promis
   return withFileLock(filePath, async () => {
     try {
       await fs.unlink(filePath);
+      try {
+        await fs.unlink(getKanbanEventsPath(projectRoot, boardId));
+      } catch (eventsErr) {
+        if (!isEnoent(eventsErr)) throw eventsErr;
+      }
       return true;
     } catch (err) {
       if (isEnoent(err)) return false;

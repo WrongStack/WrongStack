@@ -16,12 +16,15 @@ import {
   getBoard,
   getKanbanPath,
   getTaskChain,
+  heartbeatTaskAssignment,
+  listKanbanEvents,
   listReadyTasks,
   makeKanbanQueueTool,
   type KanbanBoard,
   mergeTasks,
   moveTask,
   readBoard,
+  recoverStaleTaskAssignments,
   releaseTaskClaim,
   removeBoard,
   searchKanban,
@@ -162,6 +165,7 @@ describe('kanban storage and manager', () => {
     });
     loaded = await getBoard(tmpDir, board.id);
     expect(loaded?.tasks[0]?.status).toBe('completed');
+    expect(loaded?.tasks[0]?.columnId).toBe('done');
     expect(loaded?.tasks[0]?.assignment?.completedAt).toBeTruthy();
 
     const matches = await searchKanban(tmpDir, { assignedAgent: 'tester' });
@@ -224,6 +228,8 @@ describe('kanban storage and manager', () => {
       model: 'gpt-5',
       status: 'queued',
     });
+    expect(claimed?.task.assignment?.claimedAt).toBeTruthy();
+    expect(claimed?.task.assignment?.dispatchedAt).toBe(claimed?.task.assignment?.claimedAt);
 
     let ready = await listReadyTasks(tmpDir, { boardId: board.id });
     expect(ready.map((result) => result.task.title)).toEqual(['Normal work']);
@@ -253,6 +259,12 @@ describe('kanban storage and manager', () => {
       fallbackModels: ['openai/gpt-5'],
       tools: ['bash'],
       allowedCapabilities: ['fs.write'],
+      leaseId: 'lease-existing',
+      claimedAt: '2026-07-07T00:00:00.000Z',
+      heartbeatAt: '2026-07-07T00:01:00.000Z',
+      leaseExpiresAt: '2026-07-07T00:05:00.000Z',
+      attempt: 2,
+      maxAttempts: 3,
     });
 
     const claimed = await claimReadyTask(tmpDir, {
@@ -269,8 +281,218 @@ describe('kanban storage and manager', () => {
       fallbackModels: ['openai/gpt-5'],
       tools: ['bash'],
       allowedCapabilities: ['fs.write'],
+      leaseId: 'lease-existing',
+      claimedAt: '2026-07-07T00:00:00.000Z',
+      heartbeatAt: '2026-07-07T00:01:00.000Z',
+      leaseExpiresAt: '2026-07-07T00:05:00.000Z',
+      attempt: 2,
+      maxAttempts: 3,
       status: 'queued',
     });
+  });
+
+  it('refreshes assignment heartbeat leases without disturbing assignment ownership or results', async () => {
+    const board = await createBoard(tmpDir, { title: 'Heartbeat board' });
+    const task = await addTask(tmpDir, board.id, {
+      title: 'Long running work',
+      status: 'ready',
+    });
+    const claimed = await claimReadyTask(tmpDir, {
+      boardId: board.id,
+      taskId: task!.task.id,
+      agentId: 'worker-1',
+      status: 'running',
+      leaseId: 'lease-1',
+      leaseExpiresAt: '2026-07-07T00:05:00.000Z',
+    });
+    await updateTaskAssignment(tmpDir, board.id, claimed!.task.id, {
+      status: 'running',
+      subagentId: 'sub-1',
+      runTaskId: 'run-1',
+      lastResult: 'halfway done',
+    });
+
+    const heartbeat = await heartbeatTaskAssignment(tmpDir, board.id, claimed!.task.id, {
+      heartbeatAt: '2026-07-07T00:03:00.000Z',
+      leaseExpiresAt: '2026-07-07T00:08:00.000Z',
+    });
+
+    expect(heartbeat?.tasks[0]?.status).toBe('in_progress');
+    expect(heartbeat?.tasks[0]?.columnId).toBe('in-progress');
+    expect(heartbeat?.tasks[0]?.assignment).toMatchObject({
+      status: 'running',
+      agentId: 'worker-1',
+      subagentId: 'sub-1',
+      runTaskId: 'run-1',
+      lastResult: 'halfway done',
+      leaseId: 'lease-1',
+      heartbeatAt: '2026-07-07T00:03:00.000Z',
+      leaseExpiresAt: '2026-07-07T00:08:00.000Z',
+    });
+
+    const toolResult = await kanbanTool.execute(
+      {
+        action: 'heartbeat_assignment',
+        boardId: board.id,
+        taskId: claimed!.task.id,
+        heartbeatAt: '2026-07-07T00:04:00.000Z',
+      },
+      { projectRoot: tmpDir } as never,
+      { signal: new AbortController().signal },
+    );
+
+    expect(toolResult).toMatchObject({ ok: true });
+    const loaded = await getBoard(tmpDir, board.id);
+    expect(loaded?.tasks[0]?.assignment).toMatchObject({
+      agentId: 'worker-1',
+      lastResult: 'halfway done',
+      heartbeatAt: '2026-07-07T00:04:00.000Z',
+      leaseExpiresAt: '2026-07-07T00:08:00.000Z',
+    });
+  });
+
+  it('recovers stale queued and running assignment leases by retry, release, or fail mode', async () => {
+    const retryBoard = await createBoard(tmpDir, { title: 'Retry recovery board' });
+    const retryTask = await addTask(tmpDir, retryBoard.id, {
+      title: 'Retry stale work',
+      status: 'ready',
+    });
+    await claimReadyTask(tmpDir, {
+      boardId: retryBoard.id,
+      taskId: retryTask!.task.id,
+      agentId: 'worker-1',
+      status: 'running',
+      leaseId: 'lease-retry',
+      leaseExpiresAt: '2026-07-07T00:01:00.000Z',
+      attempt: 1,
+      maxAttempts: 3,
+    });
+
+    const retried = await recoverStaleTaskAssignments(tmpDir, retryBoard.id, {
+      mode: 'retry',
+      now: '2026-07-07T00:02:00.000Z',
+      reason: 'worker heartbeat expired',
+    });
+
+    expect(retried?.tasks).toHaveLength(1);
+    expect(retried?.tasks[0]).toMatchObject({ status: 'ready', columnId: 'todo' });
+    expect(retried?.tasks[0]?.assignment).toMatchObject({
+      status: 'assigned',
+      attempt: 2,
+      maxAttempts: 3,
+    });
+    expect(retried?.tasks[0]?.assignment?.leaseId).toBeUndefined();
+    expect(retried?.tasks[0]?.assignment?.runTaskId).toBeUndefined();
+
+    const releaseBoard = await createBoard(tmpDir, { title: 'Release recovery board' });
+    const releaseTask = await addTask(tmpDir, releaseBoard.id, {
+      title: 'Release stale work',
+      status: 'ready',
+    });
+    await claimReadyTask(tmpDir, {
+      boardId: releaseBoard.id,
+      taskId: releaseTask!.task.id,
+      agentId: 'worker-2',
+      status: 'running',
+      leaseExpiresAt: '2026-07-07T00:01:00.000Z',
+    });
+
+    const released = await kanbanTool.execute(
+      {
+        action: 'recover_stale',
+        boardId: releaseBoard.id,
+        recoveryMode: 'release',
+        recoveryNow: '2026-07-07T00:02:00.000Z',
+        releaseReason: 'worker unavailable',
+      },
+      { projectRoot: tmpDir } as never,
+      { signal: new AbortController().signal },
+    );
+
+    expect(released).toMatchObject({ ok: true, recoveredTasks: [{ status: 'ready' }] });
+    const releasedBoard = await getBoard(tmpDir, releaseBoard.id);
+    expect(releasedBoard?.tasks[0]?.assignment).toBeUndefined();
+    expect(releasedBoard?.tasks[0]?.notes?.[0]?.content).toContain('worker unavailable');
+
+    const failBoard = await createBoard(tmpDir, { title: 'Fail recovery board' });
+    const failTask = await addTask(tmpDir, failBoard.id, {
+      title: 'Fail stale work',
+      status: 'ready',
+    });
+    await claimReadyTask(tmpDir, {
+      boardId: failBoard.id,
+      taskId: failTask!.task.id,
+      agentId: 'worker-3',
+      status: 'running',
+      leaseExpiresAt: '2026-07-07T00:01:00.000Z',
+    });
+
+    const failed = await recoverStaleTaskAssignments(tmpDir, failBoard.id, {
+      mode: 'fail',
+      now: '2026-07-07T00:02:00.000Z',
+      reason: 'worker lost',
+    });
+
+    expect(failed?.tasks[0]).toMatchObject({ status: 'failed', columnId: 'review' });
+    expect(failed?.tasks[0]?.assignment).toMatchObject({
+      status: 'failed',
+      error: 'worker lost',
+    });
+  });
+
+  it('appends append-only Kanban assignment events for claim, running, completed, failed, and stale recovery transitions', async () => {
+    const board = await createBoard(tmpDir, { title: 'Events board' });
+    const task = await addTask(tmpDir, board.id, {
+      title: 'Track lifecycle events',
+      status: 'ready',
+    });
+
+    await claimReadyTask(tmpDir, {
+      boardId: board.id,
+      taskId: task!.task.id,
+      agentId: 'worker-events',
+      status: 'running',
+      leaseExpiresAt: '2026-07-07T00:01:00.000Z',
+    });
+
+    await updateTaskAssignment(tmpDir, board.id, task!.task.id, {
+      status: 'running',
+      subagentId: 'sub-events',
+      runTaskId: 'run-events',
+    });
+    await heartbeatTaskAssignment(tmpDir, board.id, task!.task.id, {
+      heartbeatAt: '2026-07-07T00:00:30.000Z',
+    });
+    await updateTaskAssignment(tmpDir, board.id, task!.task.id, {
+      status: 'completed',
+      lastResult: 'ok',
+    });
+
+    const events = await listKanbanEvents(tmpDir, board.id);
+
+    expect(events.map((event) => event.type)).toEqual([
+      'task.claimed',
+      'task.assignment.running',
+      'task.assignment.heartbeat',
+      'task.assignment.completed',
+    ]);
+
+    const completedEvent = events.find((event) => event.type === 'task.assignment.completed');
+    expect(completedEvent?.taskId).toBe(task!.task.id);
+    expect(completedEvent?.subagentId).toBe('sub-events');
+    expect(completedEvent?.runTaskId).toBe('run-events');
+    expect(completedEvent?.actor).toBe('worker-events');
+
+    const toolEvents = await kanbanTool.execute(
+      {
+        action: 'events',
+        boardId: board.id,
+      },
+      { projectRoot: tmpDir } as never,
+      { signal: new AbortController().signal },
+    );
+    expect(toolEvents).toMatchObject({ ok: true });
+    expect(toolEvents.events.length).toBe(events.length);
   });
 
   it('dispatches ready kanban work into the director fleet and writes completion back', async () => {
@@ -333,6 +555,9 @@ describe('kanban storage and manager', () => {
     });
     expect(spawns[0]?.tools).toEqual(['bash', 'kanban']);
     expect(assignments[0]?.description).toContain('Implement fleet bridge');
+    expect(assignments[0]?.description).toContain('Lease contract');
+    expect(assignments[0]?.description).toContain('heartbeat_assignment');
+    expect(assignments[0]?.description).toContain('recover_stale');
     expect(assignments[0]?.context).toMatchObject({
       kanban: { boardId: board.id, taskId: task!.task.id },
     });
@@ -346,6 +571,8 @@ describe('kanban storage and manager', () => {
       provider: 'openai',
       model: 'gpt-5',
     });
+    expect(loaded?.tasks[0]?.assignment?.leaseId).toBeTruthy();
+    expect(loaded?.tasks[0]?.assignment?.leaseExpiresAt).toBeTruthy();
     expect(loaded?.tasks[0]?.status).toBe('completed');
   });
 

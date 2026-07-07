@@ -42,6 +42,35 @@ export type KanbanAgentRunStatus =
 
 export type KanbanGoalMetricStatus = 'pending' | 'met' | 'missed' | 'waived';
 
+export type KanbanRetryPolicy = 'off' | 'incremental' | 'exponential';
+
+/**
+ * Sprint 2 recovery mode surface. `'auto'` defers per-task mode to
+ * `selectRecoveryMode` based on the configured `RecoverStaleKanbanAssignmentsInput.policy`.
+ * Explicit modes keep the historical semantics:
+ *   - `'release'` clears the assignment and returns the task to ready/blocked.
+ *   - `'retry'` increments attempt and re-queues unless `maxAttempts` is exhausted.
+ *   - `'fail'` marks the assignment failed (retry budget exhausted).
+ */
+export type KanbanRecoveryMode = 'auto' | 'release' | 'retry' | 'fail';
+
+/**
+ * Optional policy that biases per-task recovery decisions. When present and
+ * `RecoverStaleKanbanAssignmentsInput.mode === 'auto'`, each stale task gets
+ * a per-task mode derived from its assignment metadata, the queue health
+ * signal summary for the task's board, and the policy rules below.
+ */
+export interface KanbanRecoveryPolicy {
+  /** When true, prefer `fail` over `retry` for tasks whose `costCeilingUsd` is set. */
+  failWhenCostCeilingSet?: boolean | undefined;
+  /** When set, prefer `release` for tasks whose `lastFailureKind` matches any of these. */
+  releaseOnFailureKinds?: string[] | undefined;
+  /** When true, also `release` if the heartbeat-due signal mentions this task. Default: false. */
+  releaseOnHeartbeatDue?: boolean | undefined;
+  /** Incremental/exponential/off hint returned for cost boundary diagnostics. */
+  retryPolicyOverride?: KanbanRetryPolicy | undefined;
+}
+
 export interface KanbanAgentAssignment {
   agentId?: string | undefined;
   name?: string | undefined;
@@ -55,6 +84,18 @@ export interface KanbanAgentAssignment {
   status: KanbanAgentRunStatus;
   dispatchedAt?: string | undefined;
   completedAt?: string | undefined;
+  leaseId?: string | undefined;
+  claimedAt?: string | undefined;
+  heartbeatAt?: string | undefined;
+  leaseExpiresAt?: string | undefined;
+  attempt?: number | undefined;
+  maxAttempts?: number | undefined;
+  /** Sprint 2: cost ceiling for this assignment in USD; 0/undefined means unbounded. */
+  costCeilingUsd?: number | undefined;
+  /** Sprint 2: which retry strategy the recovery router should follow. */
+  retryPolicy?: KanbanRetryPolicy | undefined;
+  /** Sprint 2: last failure kind observed by the worker, used by routing hints. */
+  lastFailureKind?: string | undefined;
   subagentId?: string | undefined;
   runTaskId?: string | undefined;
   lastResult?: string | undefined;
@@ -82,6 +123,21 @@ export interface KanbanNote {
   author: string;
   content: string;
   createdAt: string;
+}
+
+export interface KanbanEvent {
+  id: string;
+  boardId: string;
+  type: string;
+  ts: string;
+  taskId?: string | undefined;
+  actor?: string | undefined;
+  before?: unknown;
+  after?: unknown;
+  correlationId?: string | undefined;
+  subagentId?: string | undefined;
+  runTaskId?: string | undefined;
+  note?: string | undefined;
 }
 
 export interface KanbanGoalMetric {
@@ -136,6 +192,16 @@ export interface KanbanTask {
   completedAt?: string | undefined;
   estimatedHours?: number | undefined;
   actualHours?: number | undefined;
+  /**
+   * Sprint 3: durable task-level retry policy that survives claim/release cycles.
+   * Set during assignTask, used as fallback when assignment.retryPolicy is absent.
+   */
+  retryPolicy?: KanbanRetryPolicy | undefined;
+  /**
+   * Sprint 3: durable task-level cost ceiling that survives claim/release cycles.
+   * Set during assignTask, used as fallback when assignment.costCeilingUsd is absent.
+   */
+  costCeilingUsd?: number | undefined;
   links?: KanbanLink[] | undefined;
   notes?: KanbanNote[] | undefined;
 }
@@ -301,6 +367,15 @@ export interface AssignKanbanTaskInput {
   tools?: string[] | undefined;
   allowedCapabilities?: string[] | undefined;
   assignee?: string | undefined;
+  leaseId?: string | undefined;
+  claimedAt?: string | undefined;
+  heartbeatAt?: string | undefined;
+  leaseExpiresAt?: string | undefined;
+  attempt?: number | undefined;
+  maxAttempts?: number | undefined;
+  costCeilingUsd?: number | undefined;
+  retryPolicy?: KanbanRetryPolicy | undefined;
+  lastFailureKind?: string | undefined;
   status?: KanbanAgentRunStatus | undefined;
 }
 
@@ -351,6 +426,84 @@ export interface ReleaseKanbanTaskClaimInput {
   status?: 'pending' | 'ready' | 'blocked' | undefined;
   reason?: string | undefined;
   clearAssignee?: boolean | undefined;
+}
+
+export interface HeartbeatKanbanTaskAssignmentInput {
+  heartbeatAt?: string | undefined;
+  leaseExpiresAt?: string | undefined;
+}
+
+export type RecoverStaleKanbanAssignmentMode = KanbanRecoveryMode;
+
+export interface RecoverStaleKanbanAssignmentsInput {
+  mode?: RecoverStaleKanbanAssignmentMode | undefined;
+  now?: string | undefined;
+  reason?: string | undefined;
+  clearAssignee?: boolean | undefined;
+  /** Optional policy biases `'auto'` mode and is ignored for explicit modes. */
+  policy?: KanbanRecoveryPolicy | undefined;
+}
+
+export interface RecoverStaleKanbanAssignmentsResult {
+  board: KanbanBoard;
+  tasks: KanbanTask[];
+}
+
+/**
+ * Operational health summary over a Kanban board (or the whole project).
+ *
+ * This is the single source of truth that recovery loops, dashboards and the
+ * `kanban` tool read from before making decisions. Counts are always computed
+ * against the *current* board state; signals are derived per-task.
+ *
+ * `dependencyBlocked` is intentionally separate from `blocked`. A task with
+ * `status === 'blocked'` has been explicitly failed or cancelled by a human;
+ * a task counted in `dependencyBlocked.tasks` is technically `ready` or
+ * `pending` but cannot proceed because of unmet dependencies. WebUI and
+ * recovery loops should treat these as distinct queues.
+ *
+ * `staleAssignments` and `heartbeatDue` are computed against an optional
+ * `now` (defaults to real wall clock). `lastDispatchedAt` and
+ * `lastStaleRecoveredAt` surface operational slack without requiring callers
+ * to scan the append-only event log themselves.
+ */
+export interface KanbanQueueHealth {
+  generatedAt: string;
+  boardIds: string[];
+  counts: {
+    ready: number;
+    queued: number;
+    running: number;
+    review: number;
+    failed: number;
+    completed: number;
+    pending: number;
+    archived: number;
+    blocked: number;
+  };
+  /** Tasks that are technically `ready` or `pending` but have unmet dependencies. */
+  dependencyBlocked: {
+    count: number;
+    tasks: KanbanSearchResult[];
+  };
+  /** Assignments with `leaseExpiresAt <= now` that are still `queued` or `running`. */
+  staleAssignments: {
+    count: number;
+    tasks: KanbanSearchResult[];
+  };
+  /** `failed` tasks whose `attempt < maxAttempts` and are therefore worth retrying. */
+  failedRetryable: {
+    count: number;
+    tasks: KanbanSearchResult[];
+  };
+  /** `running` tasks whose lease is about to lapse (within `heartbeatIntervalMs`). */
+  heartbeatDue: {
+    count: number;
+    tasks: KanbanSearchResult[];
+  };
+  /** Wall-clock timestamps of the most recent dispatch and most recent stale recovery. */
+  lastDispatchedAt?: string;
+  lastStaleRecoveredAt?: string;
 }
 
 export interface KanbanOrchestrationSnapshot {

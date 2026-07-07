@@ -12,6 +12,7 @@ import {
   generateBoardFromDescription,
   getBoard,
   getKanbanOrchestrationSnapshot,
+  getKanbanQueueHealth,
   getTask,
   getTaskChain,
   type KanbanColumn,
@@ -75,6 +76,15 @@ export async function handleKanbanRoute(
         }
         const board = await getBoard(ctx.projectRoot, boardId);
         board ? ok(ws, type, board) : fail(ws, type, `Board not found: ${boardId}`);
+        return true;
+      }
+      case 'kanban.health': {
+        const hBoardId = payload?.boardId as string | undefined;
+        if (!hBoardId) {
+          fail(ws, type, 'boardId required');
+          return true;
+        }
+        ok(ws, type, await getKanbanQueueHealth(ctx.projectRoot, { boardId: hBoardId }));
         return true;
       }
       case 'kanban.create': {

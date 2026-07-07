@@ -15,6 +15,10 @@ import type { CollabSessionOptions } from './collab-debug.js';
 import { type Director, FleetCostCapError, FleetSpawnBudgetError } from './director.js';
 import { dispatchAgent } from './dispatcher.js';
 
+function nowIso(): string {
+  return new Date().toISOString();
+}
+
 // ---------------------------------------------------------------------------
 // Director-facing tool factories.
 //
@@ -777,6 +781,8 @@ interface KanbanQueueInput {
   tools?: string[] | undefined;
   allowedCapabilities?: string[] | undefined;
   worktree?: SubagentConfig['worktree'] | undefined;
+  heartbeatIntervalMs?: number | undefined;
+  leaseTtlMs?: number | undefined;
 }
 
 export function makeKanbanQueueTool(
@@ -786,9 +792,9 @@ export function makeKanbanQueueTool(
   return {
     name: 'kanban_queue',
     description:
-      'Claim dependency-ready Kanban tasks and dispatch them into the Director fleet. Preserves per-task provider/model/role/tool routing metadata, assigns each claimed task to a spawned subagent, and can await results while writing completion back to Kanban.',
+      'Claim dependency-ready Kanban tasks and dispatch them into the Director fleet. Preserves per-task provider/model/role/tool routing metadata, seeds lease metadata (claimedAt, leaseExpiresAt, heartbeatAt), assigns each claimed task to a spawned subagent, instructs workers to call kanban heartbeat_assignment periodically, and can await results while writing completion back to Kanban.',
     usageHint:
-      'Use action:"dispatch_ready" with optional boardId/taskId/maxTasks. Set awaitCompletion:true when you want this call to update Kanban to completed/failed before returning; otherwise use await_tasks and kanban mark_assignment later.',
+      'Use action:"dispatch_ready" with optional boardId/taskId/maxTasks. Set heartbeatIntervalMs (default 60s) and leaseTtlMs (default 5m) to size stale-recovery windows. Set awaitCompletion:true when you want this call to update Kanban to completed/failed before returning; otherwise use await_tasks and kanban mark_assignment later.',
     permission: 'auto',
     mutating: true,
     capabilities: [ToolCapabilities.SUBAGENT_SPAWN, ToolCapabilities.FS_WRITE],
@@ -820,6 +826,18 @@ export function makeKanbanQueueTool(
           minimum: 1,
           description: 'Optional per-assigned-task tool-call cap.',
         },
+        heartbeatIntervalMs: {
+          type: 'number',
+          minimum: 1000,
+          description:
+            'Suggested heartbeat interval for the worker. Default 60000 (60s). Workers are instructed to call kanban heartbeat_assignment at this cadence.',
+        },
+        leaseTtlMs: {
+          type: 'number',
+          minimum: 1000,
+          description:
+            'Lease time-to-live seeded on dispatch. Default 300000 (5m). Workers should refresh via heartbeat_assignment before expiry.',
+        },
         agentId: { type: 'string' },
         name: { type: 'string' },
         role: { type: 'string' },
@@ -842,6 +860,19 @@ export function makeKanbanQueueTool(
       const projectRoot = ctx.projectRoot;
       if (!projectRoot) return { error: 'kanban_queue requires ctx.projectRoot.' };
       const maxTasks = Math.max(1, Math.min(20, Math.floor(i.maxTasks ?? 1)));
+      const leaseTtlMs = Math.max(1000, Math.floor(i.leaseTtlMs ?? 5 * 60 * 1000));
+      const claimedAt = nowIso();
+      const leaseSeeding: {
+        leaseId: string;
+        claimedAt: string;
+        heartbeatAt: string;
+        leaseExpiresAt: string;
+      } = {
+        leaseId: randomUUID(),
+        claimedAt,
+        heartbeatAt: claimedAt,
+        leaseExpiresAt: new Date(Date.now() + leaseTtlMs).toISOString(),
+      };
       const candidateTaskIds =
         i.taskId !== undefined
           ? [i.taskId]
@@ -888,6 +919,7 @@ export function makeKanbanQueueTool(
           ...(i.allowedCapabilities !== undefined
             ? { allowedCapabilities: i.allowedCapabilities }
             : {}),
+          ...(leaseSeeding !== undefined ? leaseSeeding : {}),
           status: 'queued',
         });
         if (!claim) {
@@ -896,13 +928,37 @@ export function makeKanbanQueueTool(
         }
         let subagentId: string | undefined;
         let runTaskId: string | undefined;
+
+        // Sprint 3: cost-ceiling budget check before spawning.
+        const costCeiling = claim.task.assignment?.costCeilingUsd;
+        if (costCeiling !== undefined) {
+          const remaining = director.getRemainingBudgetUsd();
+          if (remaining !== undefined && remaining < costCeiling) {
+            await updateTaskAssignment(projectRoot, claim.board.id, claim.task.id, {
+              status: 'failed',
+              error: `Cost ceiling ${costCeiling} exceeds remaining budget ${remaining.toFixed(4)}`,
+              lastResult: 'Skipped by kanban_queue cost gate (Sprint 3)',
+            });
+            errors.push({
+              taskId: claim.task.id,
+              error: `Cost ceiling ${costCeiling} exceeds remaining budget ${remaining.toFixed(4)}`,
+            });
+            continue;
+          }
+        }
+
         try {
           const config = buildKanbanSubagentConfig(claim.task, i, roster);
           subagentId = await director.spawn(config);
           runTaskId = await director.assign({
             id: randomUUID(),
             subagentId,
-            description: buildKanbanFleetTaskPrompt(claim.board, claim.task),
+            description: buildKanbanFleetTaskPrompt(claim.board, claim.task, {
+              heartbeatIntervalMs: i.heartbeatIntervalMs ?? 60_000,
+              leaseTtlMs,
+              leaseId: leaseSeeding.leaseId,
+              leaseExpiresAt: leaseSeeding.leaseExpiresAt,
+            }),
             ...(i.maxToolCalls !== undefined ? { maxToolCalls: i.maxToolCalls } : {}),
             ...(i.timeoutMs !== undefined ? { timeoutMs: i.timeoutMs } : {}),
             context: {
@@ -1009,6 +1065,9 @@ function normalizeKanbanQueueInput(input: unknown): KanbanQueueInput {
     tools: stringArray(raw.tools),
     allowedCapabilities: stringArray(raw.allowedCapabilities),
     worktree: normalizeWorktreeOverride(raw.worktree),
+    heartbeatIntervalMs:
+      typeof raw.heartbeatIntervalMs === 'number' ? raw.heartbeatIntervalMs : undefined,
+    leaseTtlMs: typeof raw.leaseTtlMs === 'number' ? raw.leaseTtlMs : undefined,
   };
 }
 
@@ -1046,6 +1105,9 @@ function buildKanbanSubagentConfig(
       ? { allowedCapabilities: input.allowedCapabilities ?? assignment?.allowedCapabilities }
       : {}),
     ...(input.worktree !== undefined ? { worktree: input.worktree } : {}),
+    ...(assignment?.costCeilingUsd !== undefined
+      ? { maxCostUsd: assignment.costCeilingUsd }
+      : {}),
   };
 }
 
@@ -1070,7 +1132,16 @@ function matchesKanbanQueueQuery(task: KanbanTask, query: string): boolean {
     .some((value) => String(value).toLowerCase().includes(normalized));
 }
 
-function buildKanbanFleetTaskPrompt(board: KanbanBoard, task: KanbanTask): string {
+function buildKanbanFleetTaskPrompt(
+  board: KanbanBoard,
+  task: KanbanTask,
+  lease: {
+    heartbeatIntervalMs: number;
+    leaseTtlMs: number;
+    leaseId: string;
+    leaseExpiresAt: string;
+  },
+): string {
   const dependencyLines = (task.dependsOn ?? [])
     .map((depId) => board.tasks.find((candidate) => candidate.id === depId))
     .filter((dep): dep is KanbanTask => Boolean(dep))
@@ -1126,9 +1197,24 @@ function buildKanbanFleetTaskPrompt(board: KanbanBoard, task: KanbanTask): strin
     checks ? `Success criteria:\n${checks}` : '',
     metrics ? `Goal metrics:\n${metrics}` : '',
     task.labels?.length ? `Labels: ${task.labels.join(', ')}` : '',
+    'Lease contract (Sprint 1):',
+    `- leaseId: ${lease.leaseId}`,
+    `- claimedAt: ${task.assignment?.claimedAt ?? '<unknown>'}`,
+    `- leaseExpiresAt: ${lease.leaseExpiresAt}`,
+    `- expected heartbeatIntervalMs: ${lease.heartbeatIntervalMs}`,
+    `- expected leaseTtlMs: ${lease.leaseTtlMs}`,
+    '',
+    'Retry policy:',
+    `- retryPolicy: ${task.assignment?.retryPolicy ?? task.retryPolicy ?? '<unset>'}`,
+    `- maxAttempts: ${task.assignment?.maxAttempts ?? '<unset>'}`,
+    `- costCeilingUsd: ${task.assignment?.costCeilingUsd ?? task.costCeilingUsd ?? '<unset>'}`,
     '',
     'Work this task end-to-end. If scope is too broad or too small, use the kanban tool to split_task or merge_tasks instead of losing traceability.',
-    `When you start or finish, call kanban with action "mark_assignment", boardId "${board.id}", taskId "${task.id}", and assignmentStatus "running", "completed", or "failed". Include lastResult or error when you finish.`,
+    `When you start, call kanban with action "mark_assignment", boardId "${board.id}", taskId "${task.id}", and assignmentStatus "running". Include subagentId and runTaskId when you have them.`,
+    `To stay alive in the queue, call kanban with action "heartbeat_assignment", boardId "${board.id}", taskId "${task.id}", and heartbeatAt set to the current time. Cadence must be <= heartbeatIntervalMs and well before leaseExpiresAt.`,
+    `When you finish, call kanban with action "mark_assignment", boardId "${board.id}", taskId "${task.id}", and assignmentStatus "completed" or "failed". Include lastResult or error.`,
+    `If you cannot finish in time, call kanban with action "heartbeat_assignment" to extend the lease, or with action "release_task" to release so another worker can claim. Do NOT silently abandon the assignment.`,
+    'On failure the host may call kanban with action "recover_stale" (mode: retry/release/fail); respect its decisions and do not duplicate work in parallel.',
     'When finished, report what changed, what you verified, and any remaining blockers.',
   ]
     .filter(Boolean)
