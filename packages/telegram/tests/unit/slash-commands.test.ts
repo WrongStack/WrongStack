@@ -5,7 +5,7 @@ import type { TelegramPluginConfig } from '../../src/config.js';
 import {
   tgChatIdCommand,
   tgSendCommand,
-  tgStatusCommand,
+  tgHealthCommand,
 } from '../../src/slash-commands/index.js';
 
 const log: Logger = {
@@ -47,10 +47,19 @@ function makeConfig(overrides?: Partial<TelegramPluginConfig>): TelegramPluginCo
 }
 
 // ---------------------------------------------------------------------------
-// /telegram:status
+// /telegram-health
 // ---------------------------------------------------------------------------
 
-describe('tgStatusCommand', () => {
+describe('tgHealthCommand', () => {
+  it('uses Telegram-specific slash names and plugin-name alias', () => {
+    const cmd = tgHealthCommand(makeBot(), makeConfig());
+
+    expect(cmd.name).toBe('telegram-health');
+    expect(cmd.aliases).toEqual(expect.arrayContaining(['telegram', 'tgstat', 'tgs']));
+    expect(cmd.help).toContain('/telegram-health');
+    expect(cmd.help).toContain('/telegram');
+  });
+
   // A single bot instance shared across tests so `bot.start()` (which
   // schedules a 60 s polling timer) is paired with `bot.stop()` in
   // afterEach — otherwise the timer keeps the test worker alive after
@@ -68,7 +77,7 @@ describe('tgStatusCommand', () => {
     // Mock health to return a healthy bot
     bot.health = vi.fn().mockResolvedValue({ ok: true, username: 'test_bot' });
 
-    const cmd = tgStatusCommand(bot, makeConfig());
+    const cmd = tgHealthCommand(bot, makeConfig());
     const res = await cmd.run('', null as never);
 
     expect(res?.message).toContain('✅ @test_bot');
@@ -84,7 +93,7 @@ describe('tgStatusCommand', () => {
     const bot = makeBot();
     bot.health = vi.fn().mockResolvedValue({ ok: false, error: 'Network error' });
 
-    const cmd = tgStatusCommand(bot, makeConfig());
+    const cmd = tgHealthCommand(bot, makeConfig());
     const res = await cmd.run('', null as never);
 
     expect(res?.message).toContain('❌ Network error');
@@ -95,7 +104,7 @@ describe('tgStatusCommand', () => {
     const bot = makeBot();
     bot.health = vi.fn().mockResolvedValue({ ok: false });
 
-    const cmd = tgStatusCommand(bot, makeConfig());
+    const cmd = tgHealthCommand(bot, makeConfig());
     const res = await cmd.run('', null as never);
 
     expect(res?.message).toContain('❌ offline');
@@ -105,7 +114,7 @@ describe('tgStatusCommand', () => {
     const bot = makeBot();
     bot.health = vi.fn().mockResolvedValue({ ok: true, username: 'b' });
 
-    const cmd = tgStatusCommand(bot, makeConfig());
+    const cmd = tgHealthCommand(bot, makeConfig());
     const res = await cmd.run('', null as never);
 
     expect(res?.message).toContain('Started:   N/A');
@@ -116,7 +125,7 @@ describe('tgStatusCommand', () => {
     bot.health = vi.fn().mockResolvedValue({ ok: true, username: 'b' });
 
     const cfg = makeConfig({ allowedUsers: [], allowedChats: [] });
-    const cmd = tgStatusCommand(bot, cfg);
+    const cmd = tgHealthCommand(bot, cfg);
     const res = await cmd.run('', null as never);
 
     expect(res?.message).toContain('everyone (users)');
@@ -128,7 +137,7 @@ describe('tgStatusCommand', () => {
     bot.health = vi.fn().mockResolvedValue({ ok: true, username: 'b' });
 
     const cfg = makeConfig({ notifyOnSessionEnd: false, longToolThresholdMs: 0 });
-    const cmd = tgStatusCommand(bot, cfg);
+    const cmd = tgHealthCommand(bot, cfg);
     const res = await cmd.run('', null as never);
 
     expect(res?.message).toContain('sessionEnd=false');
@@ -140,7 +149,7 @@ describe('tgStatusCommand', () => {
     bot.health = vi.fn().mockResolvedValue({ ok: true, username: 'b' });
 
     const cfg = makeConfig({ notifyOnSessionEnd: undefined, longToolThresholdMs: 0 });
-    const cmd = tgStatusCommand(bot, cfg);
+    const cmd = tgHealthCommand(bot, cfg);
     const res = await cmd.run('', null as never);
 
     expect(res?.message).toContain('sessionEnd=false');
@@ -150,7 +159,7 @@ describe('tgStatusCommand', () => {
     const bot = makeBot();
     bot.health = vi.fn().mockResolvedValue({ ok: true });
 
-    const cmd = tgStatusCommand(bot, makeConfig());
+    const cmd = tgHealthCommand(bot, makeConfig());
     const res = await cmd.run('', null as never);
 
     expect(res?.message).toContain('✅ @connected');
@@ -161,7 +170,7 @@ describe('tgStatusCommand', () => {
     bot.health = vi.fn().mockResolvedValue({ ok: true, username: 'b' });
 
     const cfg = makeConfig({ pollIntervalSec: undefined as never as number });
-    const cmd = tgStatusCommand(bot, cfg);
+    const cmd = tgHealthCommand(bot, cfg);
     const res = await cmd.run('', null as never);
 
     expect(res?.message).toContain('every 2s');
@@ -172,7 +181,7 @@ describe('tgStatusCommand', () => {
     bot.health = vi.fn().mockResolvedValue({ ok: true, username: 'b' });
 
     const cfg = makeConfig({ allowedUsers: undefined, allowedChats: undefined });
-    const cmd = tgStatusCommand(bot, cfg);
+    const cmd = tgHealthCommand(bot, cfg);
     const res = await cmd.run('', null as never);
 
     expect(res?.message).toContain('everyone (users)');

@@ -65,16 +65,26 @@ function makeApi(): PluginAPI {
     },
     slashCommands: {
       register(cmd: SlashCommand) {
+        commands.set(cmd.name, cmd);
         commands.set(`${PLUGIN_NAME}:${cmd.name}`, cmd);
+        for (const alias of cmd.aliases ?? []) {
+          commands.set(alias, cmd);
+          commands.set(`${PLUGIN_NAME}:${alias}`, cmd);
+        }
       },
       unregister(name: string) {
-        commands.delete(name);
+        const cmd = commands.get(name);
+        if (!cmd) return false;
+        for (const [key, value] of commands.entries()) {
+          if (value === cmd) commands.delete(key);
+        }
+        return true;
       },
       get(name: string) {
         return commands.get(name);
       },
       list() {
-        return Array.from(commands.values());
+        return Array.from(new Set(commands.values()));
       },
     },
     session: {
@@ -152,7 +162,13 @@ describe('plugin entry', () => {
 
     expect(api.tools.get('telegram_send')).toBeDefined();
     expect(api.tools.get('telegram_read')).toBeDefined();
-    expect(api.slashCommands.get(`${PLUGIN_NAME}:status`)).toBeDefined();
+    expect(api.slashCommands.get('telegram-health')).toBeDefined();
+    expect(api.slashCommands.get('telegram')).toBeDefined();
+    expect(api.slashCommands.get('health')).toBeUndefined();
+    expect(api.slashCommands.get('status')).toBeUndefined();
+    expect(api.slashCommands.get(`${PLUGIN_NAME}:telegram-health`)).toBeDefined();
+    expect(api.slashCommands.get(`${PLUGIN_NAME}:telegram`)).toBeDefined();
+    expect(api.slashCommands.get(`${PLUGIN_NAME}:status`)).toBeUndefined();
     expect(api.slashCommands.get(`${PLUGIN_NAME}:send`)).toBeDefined();
     expect(api.slashCommands.get(`${PLUGIN_NAME}:chatid`)).toBeDefined();
 
@@ -163,7 +179,9 @@ describe('plugin entry', () => {
 
     expect(api.tools.get('telegram_send')).toBeUndefined();
     expect(api.tools.get('telegram_read')).toBeUndefined();
-    expect(api.slashCommands.get(`${PLUGIN_NAME}:status`)).toBeUndefined();
+    expect(api.slashCommands.get('telegram-health')).toBeUndefined();
+    expect(api.slashCommands.get('telegram')).toBeUndefined();
+    expect(api.slashCommands.get(`${PLUGIN_NAME}:telegram-health`)).toBeUndefined();
   });
 
   it('emits telegram:message_received when bot receives a message', async () => {

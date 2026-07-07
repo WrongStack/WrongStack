@@ -176,7 +176,7 @@ export function buildTelegramSetupCommand(opts: SlashCommandContext): SlashComma
             `${color.amber('⚠')}  Restart WrongStack for the plugin to pick up the new config.`,
             '',
             'After restart, try:',
-            `  ${color.cyan('/telegram:status')}   — check bot connection`,
+            `  ${color.cyan('/telegram')}          — check bot connection`,
             `  ${color.cyan('/telegram:send')}     — send a test message`,
           ].join('\n'),
         };

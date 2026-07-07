@@ -8,7 +8,7 @@ Send messages, receive instructions, get notified when long tasks finish.
 - **`telegram_read`** — Agent reads incoming Telegram messages (newest first, filtered by chat, with ack support)
 - **`telegram_send`** — Agent sends messages via Telegram (HTML formatting, confirm permission)
 - **System prompt injection** — Unread messages appear in the agent's system prompt so it sees them naturally
-- **Slash commands** — `/telegram:status`, `/telegram:send`, `/telegram:chatid` in the TUI
+- **Slash commands** — `/telegram`, `/telegram-health`, `/telegram:send`, `/telegram:chatid` in the TUI
 - **Event notifications** — Session end summaries and long tool completions forwarded to Telegram
 - **Allowlist filtering** — Restrict which users/chats can interact with the bot
 - **Zero dependencies** — Uses Node.js native `fetch`, no third-party Telegram libraries
@@ -135,7 +135,8 @@ Message text supports Telegram HTML: `<b>bold</b>`, `<i>italic</i>`, `<code>mono
 
 | Command | Description |
 |---|---|
-| `/telegram:status` | Bot connection health, polling config, allowlist stats, notification settings |
+| `/telegram` | Plugin-name alias for Telegram bot health. |
+| `/telegram-health` | Explicit Telegram bot health command: connection, polling config, allowlist stats, notification settings. |
 | `/telegram:send [chat_id] <msg>` | Send a message from the terminal |
 | `/telegram:chatid` | Show the configured default chat ID |
 

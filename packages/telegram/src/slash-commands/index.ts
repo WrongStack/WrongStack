@@ -4,18 +4,19 @@ import type { TelegramBot } from '../bot.js';
 import type { TelegramPluginConfig } from '../config.js';
 
 // ---------------------------------------------------------------------------
-// /telegram:status
+// /telegram-health
 // ---------------------------------------------------------------------------
 
-export function tgStatusCommand(bot: TelegramBot, cfg: TelegramPluginConfig): SlashCommand {
+export function tgHealthCommand(bot: TelegramBot, cfg: TelegramPluginConfig): SlashCommand {
   return {
-    name: 'status',
-    aliases: ['tgstat', 'tgs'],
-    description: 'Show Telegram bot connection status and config',
-    help: `Usage: /telegram:status
+    name: 'telegram-health',
+    aliases: ['telegram', 'tgstat', 'tgs'],
+    description: 'Show Telegram bot connection health and config',
+    help: `Usage: /telegram-health
+Aliases: /telegram, /tgstat, /tgs
 
 Shows whether the bot is connected, its username, polling interval,
-allowlist status, and notification settings.`,
+allowlist health, and notification settings.`,
     async run(_args, _ctx) {
       const health = await bot.health();
       const lines = [
@@ -122,7 +123,7 @@ export function registerSlashCommands(
   cfg: TelegramPluginConfig,
 ): string[] {
   const cmds = [
-    tgStatusCommand(bot, cfg),
+    tgHealthCommand(bot, cfg),
     tgSendCommand(bot, cfg.notifyChatId),
     tgChatIdCommand(cfg.notifyChatId),
   ];
