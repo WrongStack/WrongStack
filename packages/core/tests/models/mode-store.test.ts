@@ -3,6 +3,7 @@ import * as os from 'node:os';
 import * as path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, } from 'vitest';
 import { DefaultModeStore, loadProjectModes, loadUserModes } from '../../src/models/mode-store.js';
+import { DEFAULT_MODES } from '../../src/types/mode.js';
 
 let tmpDir: string;
 
@@ -15,6 +16,45 @@ afterEach(async () => {
 });
 
 describe('DefaultModeStore', () => {
+  it('organizes built-in modes into token-saving lite and deep/full families', () => {
+    const ids = DEFAULT_MODES.map((mode) => mode.id);
+
+    expect(ids).toEqual(
+      expect.arrayContaining([
+        'brief',
+        'review-lite',
+        'audit-lite',
+        'plan-lite',
+        'debug-lite',
+        'test-lite',
+        'refactor-lite',
+        'research-lite',
+        'code-reviewer',
+        'code-auditor',
+        'architect',
+        'debugger',
+        'tester',
+        'refactorer',
+        'teach',
+        'research-web',
+      ]),
+    );
+    expect(DEFAULT_MODES.filter((mode) => mode.tags?.includes('lite')).length).toBeGreaterThanOrEqual(8);
+    expect(DEFAULT_MODES.filter((mode) => mode.tags?.includes('deep')).length).toBeGreaterThanOrEqual(8);
+    expect(DEFAULT_MODES.find((mode) => mode.id === 'review-lite')?.prompt).toContain('Token-saving');
+    expect(DEFAULT_MODES.find((mode) => mode.id === 'code-reviewer')?.name).toBe('Review Deep');
+  });
+
+  it('loads a non-empty prompt for every non-default built-in mode', () => {
+    const modesWithoutPrompts = DEFAULT_MODES.filter(
+      (mode) => mode.id !== 'default' && mode.prompt.trim().length === 0,
+    ).map((mode) => mode.id);
+
+    expect(modesWithoutPrompts).toEqual([]);
+    expect(DEFAULT_MODES.find((mode) => mode.id === 'audit-lite')?.prompt).toContain('Audit Lite Mode');
+    expect(DEFAULT_MODES.find((mode) => mode.id === 'research-lite')?.prompt).toContain('Research Lite Mode');
+  });
+
   it('has "default" active mode when no config file', async () => {
     const store = new DefaultModeStore({ directory: tmpDir });
     const mode = await store.getActiveMode();
