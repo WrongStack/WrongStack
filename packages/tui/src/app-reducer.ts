@@ -1695,6 +1695,10 @@ export function reducer(state: State, action: Action): State {
       return { ...state, confirmQueue: [...state.confirmQueue, action.info] };
     case 'confirmClose':
       return { ...state, confirmQueue: state.confirmQueue.slice(1) };
+    case 'shellCommandWarningOpen':
+      return { ...state, shellCommandWarning: action.info };
+    case 'shellCommandWarningClose':
+      return { ...state, shellCommandWarning: null };
     case 'enhanceOpen':
       return { ...state, enhance: action.info };
     case 'enhanceClose':
@@ -1703,6 +1707,10 @@ export function reducer(state: State, action: Action): State {
       return { ...state, enhanceEnabled: action.enabled };
     case 'enhanceBusy':
       return { ...state, enhanceBusy: action.on };
+    case 'continueConfirmOpen':
+      return { ...state, continueConfirm: action.info };
+    case 'continueConfirmClose':
+      return { ...state, continueConfirm: null };
     case 'escConfirmOpen':
       return { ...state, escConfirm: { snapshot: action.snapshot } };
     case 'escConfirmClose':

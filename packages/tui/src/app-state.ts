@@ -495,6 +495,15 @@ export type State = {
     destructive: boolean;
   }[];
   /**
+   * Active warning for the `!<command>` shell shortcut. It resolves before
+   * dispatching to `/dev`, so the existing /dev runner stays the single shell
+   * execution path.
+   */
+  shellCommandWarning: {
+    command: string;
+    resolve: (decision: 'yes' | 'no' | 'dont-show-again') => void;
+  } | null;
+  /**
    * Active prompt-refinement ("did you mean this?") panel. Set while the
    * EnhancePanel is shown after the refiner rewrites a user message; the
    * panel resolves to one of refined/original/edit and `submit()` continues.
@@ -512,6 +521,26 @@ export type State = {
   enhanceEnabled: boolean;
   /** True while the refiner LLM call is in flight (before the panel appears). Drives a "refining…" indicator. */
   enhanceBusy: boolean;
+  /**
+   * Active bare-"continue" confirmation panel. Set when the user typed a lone
+   * "continue"/"devam"/"go on" and the runtime resolved it to a concrete next
+   * step. Makes the resolution — and its drift risk — visible before it is
+   * sent: a grounded resolution (todo / suggestion) auto-proceeds after a
+   * short countdown; an `open` resolution (no queued task, model will pick the
+   * step itself) requires an explicit keypress. Resolves to
+   * proceed / edit / cancel and `submit()` continues. Null when none pending.
+   */
+  continueConfirm: {
+    /** One-line summary shown in the panel header (e.g. "▶ Continue → todo: …"). */
+    label: string;
+    /** The full instruction that will be injected in place of "continue". */
+    instruction: string;
+    /** Where the resolution came from — drives copy + risk styling. */
+    source: 'todo' | 'suggestion' | 'open';
+    /** True for todo/suggestion (low drift); false for the `open` guess. */
+    grounded: boolean;
+    resolve: (decision: 'proceed' | 'edit' | 'cancel') => void;
+  } | null;
   /**
    * Pending ESC-interrupt confirmation. Null when none is pending.
    * When `confirmExit` is enabled and Esc is pressed mid-iteration, the
@@ -822,6 +851,8 @@ export type Settings = {
   midRunSendPicker?: boolean | undefined;
   /** Raw SSE stream debugging — hex-dump every byte received from providers. */
   debugStream: boolean;
+  /** Skip the confirmation prompt for the `!<command>` shell shortcut. */
+  shellBangWarningDontShowAgain?: boolean | undefined;
   /** Statusline density mode. Defaults to detailed. */
   statuslineMode: StatuslineMode;
   /** Reasoning mode: auto (provider default) | on | off. */
@@ -1104,10 +1135,14 @@ export type Action =
   | { type: 'clearInputHistory' }
   | { type: 'confirmOpen'; info: State['confirmQueue'][0] }
   | { type: 'confirmClose' }
+  | { type: 'shellCommandWarningOpen'; info: NonNullable<State['shellCommandWarning']> }
+  | { type: 'shellCommandWarningClose' }
   | { type: 'enhanceOpen'; info: NonNullable<State['enhance']> }
   | { type: 'enhanceClose' }
   | { type: 'enhanceSet'; enabled: boolean }
   | { type: 'enhanceBusy'; on: boolean }
+  | { type: 'continueConfirmOpen'; info: NonNullable<State['continueConfirm']> }
+  | { type: 'continueConfirmClose' }
   /**
    * Open the ESC-interrupt confirmation dialog with a context snapshot.
    * Fired when Esc is pressed mid-iteration and `confirmExit` is enabled.

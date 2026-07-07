@@ -30,12 +30,17 @@ export function ModePicker({
   selected,
   hint,
 }: ModePickerProps): React.ReactElement {
+  const activeMode = modes.find((mode) => mode.isActive);
+  const modeMeta = `${modes.length} mode${modes.length === 1 ? '' : 's'}`;
+
   return (
     <Box flexDirection="column" borderStyle="round" borderColor="blue" paddingX={1}>
       <Text color="cyan" bold>
-        ━━ Mode Selection ━━
+        ━━ Mode Selection ━━ <Text dimColor>{modeMeta}</Text>
       </Text>
-      <Text dimColor>↑/↓ navigate · Enter select · Esc cancel</Text>
+      <Text dimColor>
+        Current: {activeMode ? activeMode.name : 'none'} · ↑/↓ navigate · Enter select · Esc cancel
+      </Text>
       {modes.length === 0 ? (
         <Text dimColor>No modes available.</Text>
       ) : (
@@ -49,7 +54,7 @@ export function ModePicker({
             <Text bold>{opt.name.padEnd(20)}</Text>
             <Text dimColor>{opt.description}</Text>
             {opt.isActive ? (
-              <Text color="green"> [active]</Text>
+              <Text color="green"> ● active</Text>
             ) : null}
           </Text>
         ))

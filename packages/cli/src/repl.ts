@@ -11,6 +11,7 @@ import type {
 } from '@wrongstack/core';
 import {
   color,
+  detectContinueIntent,
   estimateRequestTokensCalibrated,
   expectDefined,
   GlobalMailbox,
@@ -18,6 +19,7 @@ import {
   hasOpenTodos,
   InputBuilder,
   loadGoal,
+  resolveContinuation,
   resolveProjectDir,
   summarizeUsage,
   wstackGlobalRoot,
@@ -45,7 +47,7 @@ import {
 import { theme } from './theme.js';
 import { fmtTok } from './utils.js';
 import { CLI_VERSION } from './version.js';
-import { setAutoSuggestions } from './slash-commands/suggestion-store.js';
+import { getSuggestions, setAutoSuggestions } from './slash-commands/suggestion-store.js';
 
 /**
  * Extract canonical "<nextsteps>" suggestions from the agent's final output.
@@ -736,11 +738,51 @@ export async function runRepl(opts: ReplOptions): Promise<number> {
         continue;
       }
 
-      // Route through InputBuilder so big pastes collapse to placeholders.
-      const ph = await builder.appendPaste(raw);
-      if (ph) {
-        const lineCount = raw.split('\n').length;
-        opts.renderer.write(color.dim(`  ↳ ${ph} (${lineCount} lines)\n`));
+      // ── Bare "continue" → resolve against live plan state ────────────────
+      // A lone "continue" / "devam" / "go on" carries no instruction. Resolve
+      // it against what we already track — the next open todo, else the top
+      // stored suggestion, else an open continuation that keeps the agent
+      // working without fabricating busywork — and inject that concrete text
+      // in place of the bare word. Skips paste collapsing (the injected text
+      // is prose, not a paste).
+      if (detectContinueIntent(trimmed)) {
+        const resolved = resolveContinuation({
+          todos: opts.agent.ctx.todos,
+          suggestions: getSuggestions(),
+        });
+        // Make the resolution — and its drift risk — visible instead of
+        // silently guessing. A grounded resolution (todo/suggestion) prints
+        // its target and proceeds; the `open` guess warns that "continue" has
+        // no anchor and asks before letting the model pick a step itself.
+        if (resolved.source === 'open') {
+          opts.renderer.write(
+            `  ${color.amber('⚠')} ${color.bold("'continue' has no anchor")} ${color.dim('— no pending todo or suggestion.')}\n` +
+              color.dim("     If you proceed, I'll choose the next step from context; that can drift.\n"),
+          );
+          const ans = (
+            await opts.reader.readLine(color.dim('  Proceed anyway? [Y/n · e = type your own] '))
+          )
+            .trim()
+            .toLowerCase();
+          if (ans === 'n' || ans === 'no') {
+            opts.renderer.write(color.dim('  Cancelled — nothing sent.\n'));
+            continue;
+          }
+          if (ans === 'e' || ans === 'edit') {
+            opts.renderer.write(color.dim('  Okay — type what to continue with.\n'));
+            continue;
+          }
+        } else {
+          opts.renderer.write(color.dim(`  ${resolved.label}\n`));
+        }
+        builder.appendText(resolved.text);
+      } else {
+        // Route through InputBuilder so big pastes collapse to placeholders.
+        const ph = await builder.appendPaste(raw);
+        if (ph) {
+          const lineCount = raw.split('\n').length;
+          opts.renderer.write(color.dim(`  ↳ ${ph} (${lineCount} lines)\n`));
+        }
       }
       const blocks = await builder.submit();
 

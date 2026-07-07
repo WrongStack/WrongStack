@@ -555,6 +555,7 @@ import { buildSddCommand } from './sdd.js';
 import { buildExitCommand, buildLoadCommand, buildSaveCommand } from './session.js';
 import { buildSetModelCommand } from './setmodel.js';
 import { buildSuggestCommand } from './suggest.js';
+import { buildDesktopCommand, buildWebuiCommand } from './surfaces.js';
 
 // modeldiag is now a CLI subcommand (wstack modeldiag), not a slash command.
 
@@ -584,6 +585,8 @@ import { buildYoloCommand } from './yolo.js';
 export function buildBuiltinSlashCommands(opts: SlashCommandContext): SlashCommand[] {
   return [
     buildHelpCommand(opts),
+    buildDesktopCommand(),
+    buildWebuiCommand(),
     buildInitCommand(opts),
     buildClearCommand(opts),
     buildInterruptCommand(opts),

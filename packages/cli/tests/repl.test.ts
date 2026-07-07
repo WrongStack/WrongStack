@@ -12,6 +12,7 @@ import { describe, expect, it, vi } from 'vitest';
 import type { ReadlineInputReader } from '../src/input-reader.js';
 import type { TerminalRenderer } from '../src/renderer.js';
 import { runRepl } from '../src/repl.js';
+import { clearSuggestions } from '../src/slash-commands/suggestion-store.js';
 
 function makeFakeAgent(overrides: Partial<Agent> = {}): Agent {
   return {
@@ -150,6 +151,33 @@ describe('runRepl', () => {
     });
 
     expect(run).toHaveBeenCalled();
+  });
+
+  it('asks before sending an unanchored bare continue and cancels on no', async () => {
+    clearSuggestions();
+    const run = vi.fn();
+    const agent = makeFakeAgent({
+      run,
+      ctx: { todos: [] as TodoItem[] } as Context,
+    });
+    const renderer = makeFakeRenderer();
+    const reader = makeFakeReader(['continue\n', 'n\n', '/exit\n']);
+    const slashRegistry = makeFakeSlashRegistry();
+
+    await runRepl({
+      agent,
+      renderer,
+      reader,
+      slashRegistry,
+      attachments: makeFakeAttachmentStore(),
+      banner: false,
+    });
+
+    expect(run).not.toHaveBeenCalled();
+    expect(reader.readLine).toHaveBeenCalledWith(expect.stringContaining('Proceed anyway?'));
+    const writes = (renderer.write as ReturnType<typeof vi.fn>).mock.calls.map((c) => String(c[0] ?? ''));
+    expect(writes.join('')).toContain("'continue' has no anchor");
+    expect(writes.join('')).toContain('Cancelled');
   });
 
   it('uses the dynamic supportsVision resolver when routing image blocks', async () => {

@@ -18,7 +18,8 @@ import { mailboxSessionTag, resolveMailboxIdentity } from './coordination/mailbo
 import type { Mailbox, MailboxMessage } from './coordination/mailbox-types.js';
 import type { FleetConfig } from './types/config.js';
 import type { AgentInternals } from './core/agent-internals.js';
-import { createMailboxChecker } from './core/mailbox-loop.js';
+import { buildMailboxBtwAwarenessBlock, createMailboxChecker } from './core/mailbox-loop.js';
+import { setBtwNote } from './core/btw.js';
 import { buildFleetPulseBlock, fleetPulseSignature } from './core/fleet-pulse.js';
 
 export function attachMailboxChecker(
@@ -105,6 +106,7 @@ function attachMailboxCheckerInner(
       // Silently ignore - heartbeat failures are expected during shutdown
     });
   }, HEARTBEAT_INTERVAL_MS);
+  heartbeatTimer.unref?.();
 
   // Register cleanup to stop heartbeat on abort. Note: there's no unregisterAgent
   // method - agents are considered offline after their heartbeat expires (60s timeout).
@@ -115,11 +117,49 @@ function attachMailboxCheckerInner(
   // Receive on the unique id AND the bare base id (plus '*' broadcasts) —
   // "send to leader" reaches every live leader session on the project.
   // Getter form: each check re-derives identity from the CURRENT session.
-  return createMailboxChecker({
+  const mailboxCheckerOptions = {
     mailbox,
     agentId: () => ensureRegistered(),
     aliases: [baseIdOf()],
+  };
+  const checkMailbox = createMailboxChecker(mailboxCheckerOptions);
+  const checkMailboxAwareness = createMailboxChecker({
+    ...mailboxCheckerOptions,
+    include: (m) => m.type !== 'control',
+    ack: false,
   });
+
+  // Background mailbox awareness: poll while tools or long provider calls are
+  // in flight, but queue the result as a BTW note so the agent only consumes it
+  // at the next safe loop boundary. This is the important separation: polling
+  // is continuous, conversation mutation remains serialized by the agent loop.
+  const MAILBOX_AWARENESS_INTERVAL_MS = 5_000;
+  let pollInFlight = false;
+  let awarenessDisposed = false;
+  const pollMailboxAwareness = async () => {
+    if (awarenessDisposed || pollInFlight) return;
+    pollInFlight = true;
+    try {
+      const messages = await checkMailboxAwareness();
+      if (!awarenessDisposed && messages.length > 0) {
+        setBtwNote(a.ctx, buildMailboxBtwAwarenessBlock(messages).text);
+      }
+    } catch {
+      // Best-effort awareness only — a broken mailbox must not disturb work.
+    } finally {
+      pollInFlight = false;
+    }
+  };
+  const awarenessTimer = setInterval(() => {
+    void pollMailboxAwareness();
+  }, MAILBOX_AWARENESS_INTERVAL_MS);
+  awarenessTimer.unref?.();
+  a.ctx.registerAbortHook(() => {
+    awarenessDisposed = true;
+    clearInterval(awarenessTimer);
+  });
+
+  return checkMailbox;
 }
 
 /** Min interval between registry reads for the pulse — keeps the digest

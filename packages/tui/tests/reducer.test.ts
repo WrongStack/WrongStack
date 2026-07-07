@@ -44,6 +44,7 @@ function initial(over: Partial<State> = {}): State {
     enhance: null,
     enhanceEnabled: true,
     enhanceBusy: false,
+    continueConfirm: null,
     sendModePicker: null,
     contextChipVersion: 0,
     fleet: {},
@@ -108,6 +109,8 @@ function initial(over: Partial<State> = {}): State {
     statuslinePicker: { open: false, field: 0, hiddenItems: [], visibleChips: [] },
     projectPicker: { open: false, allItems: [], items: [], selected: 0, filter: '' },
     fKeyPicker: { open: false, selected: 0 },
+    confirmQueue: [],
+    shellCommandWarning: null,
     autoPhase: null,
     sddBoard: null,
     worktreeMonitorOpen: false,
@@ -657,6 +660,43 @@ describe('TUI reducer', () => {
     });
     s = reducer(s, { type: 'enhanceClose' });
     expect(s.enhance).toBeNull();
+  });
+
+  it('shellCommandWarningOpen sets the warning state and shellCommandWarningClose clears it', () => {
+    let s = initial();
+    const resolve = () => {};
+    s = reducer(s, {
+      type: 'shellCommandWarningOpen',
+      info: { command: 'git status', resolve },
+    });
+
+    expect(s.shellCommandWarning).toEqual({ command: 'git status', resolve });
+    s = reducer(s, { type: 'shellCommandWarningClose' });
+    expect(s.shellCommandWarning).toBeNull();
+  });
+
+  it('continueConfirmOpen sets the panel state and continueConfirmClose clears it', () => {
+    let s = initial();
+    const resolve = () => {};
+    s = reducer(s, {
+      type: 'continueConfirmOpen',
+      info: {
+        label: '▶ Continue → todo: Fix auth',
+        instruction: 'Continue with the plan. Resume work on the next open todo…',
+        source: 'todo',
+        grounded: true,
+        resolve,
+      },
+    });
+    expect(s.continueConfirm).toEqual({
+      label: '▶ Continue → todo: Fix auth',
+      instruction: 'Continue with the plan. Resume work on the next open todo…',
+      source: 'todo',
+      grounded: true,
+      resolve,
+    });
+    s = reducer(s, { type: 'continueConfirmClose' });
+    expect(s.continueConfirm).toBeNull();
   });
 
   it('enhanceSet toggles the enhanceEnabled flag', () => {

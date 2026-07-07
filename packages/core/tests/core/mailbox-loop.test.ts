@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import {
   buildMailboxBlock,
+  buildMailboxBtwAwarenessBlock,
   createMailboxChecker,
   injectPendingMailboxMessages,
 } from '../../src/index.js';
@@ -84,6 +85,30 @@ describe('injectPendingMailboxMessages', () => {
     );
     expect(res.interrupt).toBe(false);
     expect(fold).not.toHaveBeenCalled();
+  });
+});
+
+describe('buildMailboxBtwAwarenessBlock', () => {
+  it('renders a non-interrupting mailbox-system disclaimer', () => {
+    const text = buildMailboxBtwAwarenessBlock([msg({ type: 'broadcast', to: '*' })]).text;
+    expect(text).toContain('[MAILBOX BTW]');
+    expect(text).toContain('sent mail to everyone or to you');
+    expect(text).toContain('Do not stop your current work');
+    expect(text).toContain('only for awareness');
+    expect(text).toContain('WrongStack mailbox system');
+    expect(text).toContain('[END MAILBOX BTW]');
+  });
+
+  it('shows whether mail was broadcast or directly addressed', () => {
+    const text = buildMailboxBtwAwarenessBlock([
+      msg({ type: 'status', id: 'm_broadcast', to: '*', subject: 'all-hands' }),
+      msg({ type: 'note', id: 'm_direct', to: 'leader@abcd', subject: 'direct-note' }),
+    ]).text;
+    expect(text).toContain('broadcast to everyone');
+    expect(text).toContain('addressed to leader@abcd');
+    expect(text).toContain('Subject: all-hands');
+    expect(text).toContain('Subject: direct-note');
+    expect(text).not.toContain('Action required');
   });
 });
 
@@ -396,6 +421,37 @@ describe('createMailboxChecker', () => {
     const check = createMailboxChecker({ mailbox: mb, agentId: 'leader@a1b2' });
     const result = await check();
     expect(result.map((m) => m.id)).toEqual(['m_fresh']);
+  });
+
+  it('applies include filter before injection and read receipts', async () => {
+    const messages = [
+      msg({ type: 'control', id: 'm_control', subject: 'interrupt' }),
+      msg({ type: 'broadcast', id: 'm_broadcast', to: '*' }),
+    ];
+    const mb = fakeMailbox([messages]);
+    const check = createMailboxChecker({
+      mailbox: mb,
+      agentId: 'leader@a1b2',
+      include: (m) => m.type !== 'control',
+    });
+
+    const result = await check();
+
+    expect(result.map((m) => m.id)).toEqual(['m_broadcast']);
+    expect(mb.ackManyMock).toHaveBeenCalledTimes(1);
+    const call = mb.ackManyMock.mock.calls[0]![0] as { acks: Array<{ messageId: string }> };
+    expect(call.acks.map((a) => a.messageId)).toEqual(['m_broadcast']);
+  });
+
+  it('can peek without acking so background awareness does not consume normal delivery', async () => {
+    const messages = [msg({ type: 'ask', id: 'm_ask' })];
+    const mb = fakeMailbox([messages]);
+    const check = createMailboxChecker({ mailbox: mb, agentId: 'leader@a1b2', ack: false });
+
+    const result = await check();
+
+    expect(result.map((m) => m.id)).toEqual(['m_ask']);
+    expect(mb.ackManyMock).not.toHaveBeenCalled();
   });
 
   it('auto-acks injected messages in a single batched ackMany call', async () => {

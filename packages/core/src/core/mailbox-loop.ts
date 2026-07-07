@@ -31,6 +31,10 @@ export interface MailboxLoopOptions {
    * without knowing the session tag; every live leader session receives it.
    */
   aliases?: string[] | undefined;
+  /** Optional delivery predicate applied before dedup/read receipts. */
+  include?: ((message: MailboxMessage) => boolean) | undefined;
+  /** Mark returned messages as read. Defaults to true for normal delivery. */
+  ack?: boolean | undefined;
 }
 
 export function createMailboxChecker(
@@ -61,6 +65,7 @@ export function createMailboxChecker(
       for (const batch of batches) {
         for (const m of batch) {
           if (seen.has(m.id)) continue;
+          if (opts.include && !opts.include(m)) continue;
           seen.add(m.id);
           messages.push(m);
         }
@@ -80,7 +85,7 @@ export function createMailboxChecker(
       // call. The previous per-message ack() did a full read-modify-rewrite
       // of the mailbox file for every fresh message — N fresh messages
       // meant N full-file rewrites in a row on every iteration.
-      if (fresh.length > 0) {
+      if (fresh.length > 0 && opts.ack !== false) {
         void mailbox
           .ackMany({
             acks: fresh.map((m) => ({
@@ -119,6 +124,31 @@ const TYPE_LABEL: Partial<Record<MailboxMessage['type'], string>> = {
   result: '✅ RESULT',
   review: '🔍 REVIEW',
 };
+
+export function buildMailboxBtwAwarenessBlock(messages: MailboxMessage[]): { type: 'text'; text: string } {
+  if (messages.length === 0) throw new Error('buildMailboxBtwAwarenessBlock called with empty messages');
+
+  const parts: string[] = [];
+  parts.push('[MAILBOX BTW] Mailbox awareness update:');
+  parts.push('');
+  parts.push(
+    'Disclaimer: an agent just sent mail to everyone or to you. Do not stop your current work to look at it; this is only for awareness. This notification came from the WrongStack mailbox system.',
+  );
+  parts.push('');
+
+  for (const m of messages) {
+    const typeLabel = TYPE_LABEL[m.type] ?? `📨 ${m.type.toUpperCase()}`;
+    const scope = m.to === '*' ? 'broadcast to everyone' : `addressed to ${m.to}`;
+    parts.push(`--- ${typeLabel} from ${m.from} (${scope}) ---`);
+    parts.push(`Subject: ${m.subject}`);
+    parts.push('');
+    parts.push(m.body);
+    parts.push('');
+  }
+
+  parts.push('[END MAILBOX BTW]');
+  return { type: 'text', text: parts.join('\n') };
+}
 
 export function buildMailboxBlock(messages: MailboxMessage[]): { type: 'text'; text: string } {
   if (messages.length === 0) throw new Error('buildMailboxBlock called with empty messages');

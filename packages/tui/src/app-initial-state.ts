@@ -1,7 +1,7 @@
 import type { Message, TokenSavingTier } from '@wrongstack/core';
 import { AUTH_PANEL_INITIAL } from './components/auth-panel-model.js';
 import type { ContextMode, StatuslineMode } from './components/settings-picker.js';
-import { rehydrateHistory } from './app.js';
+import { rehydrateHistory } from './rehydrate-history.js';
 import type { State } from './app-state.js';
 
 export type RestoredToolCall = {
@@ -188,9 +188,11 @@ export function createInitialState(options: CreateInitialStateOptions): State {
     },
     fKeyPicker: { open: false, selected: 0 },
     confirmQueue: [],
+    shellCommandWarning: null,
     enhance: null,
     enhanceEnabled,
     enhanceBusy: false,
+    continueConfirm: null,
     escConfirm: null,
     sendModePicker: null,
     contextChipVersion: 0,

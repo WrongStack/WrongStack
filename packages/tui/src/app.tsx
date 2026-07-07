@@ -20,6 +20,7 @@ import {
   clearActiveKit,
   clearPersistedActiveKit,
   DefaultSessionRewinder,
+  detectContinueIntent,
   enhanceUserPrompt,
   expectDefined,
   formatTodosList,
@@ -34,6 +35,7 @@ import {
   projectSlug,
   recentTextTurns,
   recordOverrides,
+  resolveContinuation,
   resolveWstackPaths,
   setActiveKit,
   setBtwNote,
@@ -73,10 +75,15 @@ import { CheckpointTimeline } from './components/checkpoint-timeline.js';
 import { type ConfirmDecision, ConfirmPrompt } from './components/confirm-prompt.js';
 import { CoordinatorPanel } from './components/coordinator-panel.js';
 import { DesignPicker } from './components/design-picker.js';
+import { ContinueConfirmPanel } from './components/continue-confirm-panel.js';
 import { EnhancePanel } from './components/enhance-panel.js';
 import { EscConfirmPrompt } from './components/esc-confirm-prompt.js';
 import { F_KEY_ENTRIES, FKeyPicker } from './components/f-key-picker.js';
 import { FilePicker } from './components/file-picker.js';
+import {
+  type ShellCommandWarningDecision,
+  ShellCommandWarning,
+} from './components/shell-command-warning.js';
 import { FleetMonitor } from './components/fleet-monitor.js';
 import { FleetPanel } from './components/fleet-panel.js';
 import { GoalPanel } from './components/goal-panel.js';
@@ -213,144 +220,7 @@ export {
   previousInputWordStart,
 } from './input-editing.js';
 
-function contentBlocksText(content: unknown): string {
-  if (typeof content === 'string') return content;
-  if (!Array.isArray(content)) return '';
-  return content
-    .filter(
-      (block): block is { type: string; text: string } =>
-        !!block &&
-        typeof block === 'object' &&
-        (block as { type?: unknown }).type === 'text' &&
-        typeof (block as { text?: unknown }).text === 'string',
-    )
-    .map((block) => block.text)
-    .join('');
-}
-
-/**
- * Convert restored session messages into TUI history entries so a resumed
- * session renders its prior conversation visually, not just in the LLM context.
- *
- * Order MUST match what the user saw before the crash — assistant text and
- * tool executions are interleaved chronologically. The data path makes this
- * straightforward:
- *
- *  - `messages` carries user_input / llm_response / tool_result events in
- *    JSONL order (see DefaultSessionStore.load).
- *  - For assistant messages whose `content` is an array, tool_use blocks
- *    appear in JSONL order. Each has a stable `id`.
- *  - `toolCalls` is the JSONL-ordered list of `tool_call_end` events, each
- *    carrying the same `id` as the tool_use block it resolves.
- *
- * Algorithm:
- *  - System messages are skipped (not displayed).
- *  - User messages → `kind: 'user'`.
- *  - Assistant messages → `kind: 'assistant'` (text only; tool_use blocks
- *    are dropped from the body since the tool entry renders the execution).
- *  - After each assistant message, emit a `kind: 'tool'` entry for each
- *    tool_use id that appears in that assistant's content, looking up the
- *    matching tool_call_end by id. If the assistant has multiple tool_use
- *    blocks, the tool entries appear in the same order as those blocks.
- *  - Unmatched tool_call_ends (legacy / id drift) are appended at the end
- *    in their original JSONL order so they aren't silently dropped.
- */
-export function rehydrateHistory(
-  messages: Message[],
-  startId: number,
-  toolCalls?:
-    | Array<{
-        name: string;
-        id: string;
-        durationMs: number;
-        ok: boolean;
-        outputBytes?: number | undefined;
-        outputTokens?: number | undefined;
-        outputLines?: number | undefined;
-      }>
-    | undefined,
-): import('./components/history/types.js').HistoryEntry[] {
-  type ToolEntry = import('./components/history/types.js').HistoryEntry;
-  const entries: ToolEntry[] = [];
-  // Build a one-shot id → tool_call_end index. tool_call_end events are
-  // already in JSONL order (DefaultSessionStore.extractToolCallEnds walks
-  // events in file order); when two tool_use blocks share an id (shouldn't
-  // happen, but defensive) we keep the first end so the timeline stays sane.
-  const toolCallsById = new Map<string, NonNullable<typeof toolCalls>[number]>();
-  if (toolCalls) {
-    for (const tc of toolCalls) {
-      if (!toolCallsById.has(tc.id)) toolCallsById.set(tc.id, tc);
-    }
-  }
-  const consumed = new Set<string>();
-  const fallback: ToolEntry[] = [];
-
-  let nextId = startId;
-  const textOf = (msg: Message): string => contentBlocksText(msg.content);
-  const toolEntryFor = (tc: NonNullable<typeof toolCalls>[number]): ToolEntry => ({
-    id: nextId++,
-    kind: 'tool',
-    name: tc.name,
-    durationMs: tc.durationMs,
-    ok: tc.ok,
-    outputBytes: tc.outputBytes,
-    outputTokens: tc.outputTokens,
-    outputLines: tc.outputLines,
-  });
-  const pushAssistantText = (parts: string[]) => {
-    const text = parts.join('').trim();
-    if (text) entries.push({ id: nextId++, kind: 'assistant', text });
-    parts.length = 0;
-  };
-
-  for (const msg of messages) {
-    if (msg.role === 'system') continue;
-    if (msg.role === 'user') {
-      const text = textOf(msg).trim();
-      // Tool-result-only user turns carry no text — skip them (the tool
-      // entries were already emitted alongside the assistant that called them).
-      if (text) entries.push({ id: nextId++, kind: 'user', text });
-      continue;
-    }
-    if (msg.role === 'assistant') {
-      // Replay assistant content block-by-block. Concatenating all text blocks
-      // first would move prose that originally appeared after a tool ahead of
-      // that tool on resume, which is the same class of bug as sorting messages
-      // by role instead of by timeline.
-      if (!Array.isArray(msg.content)) {
-        const text = textOf(msg).trim();
-        if (text) entries.push({ id: nextId++, kind: 'assistant', text });
-        continue;
-      }
-
-      const textParts: string[] = [];
-      for (const block of msg.content as ContentBlock[]) {
-        if (block.type === 'text') {
-          textParts.push(block.text);
-          continue;
-        }
-        if (block.type !== 'tool_use') continue;
-        pushAssistantText(textParts);
-        const tc = toolCallsById.get(block.id);
-        if (!tc) continue;
-        entries.push(toolEntryFor(tc));
-        consumed.add(block.id);
-      }
-      pushAssistantText(textParts);
-    }
-  }
-
-  // Fallback: any tool_call_end we couldn't match to a tool_use block in
-  // an assistant message. Emit them in their original JSONL order so the
-  // user still sees the audit trail, but only at the end of the timeline.
-  if (toolCalls) {
-    for (const tc of toolCalls) {
-      if (!consumed.has(tc.id)) fallback.push(toolEntryFor(tc));
-    }
-  }
-  entries.push(...fallback);
-  return entries;
-}
+import { contentBlocksText } from './rehydrate-history.js';
 
 export interface AppProps {
   agent: Agent;
@@ -924,6 +794,14 @@ export interface AppProps {
 
 const PASTE_THRESHOLD_CHARS = 200;
 
+/**
+ * Auto-proceed countdown for a *grounded* bare-"continue" resolution
+ * (todo / suggestion). The user sees what "continue" resolved to and it sends
+ * itself after this delay unless they intervene. The `open` (unanchored) case
+ * ignores this — it never auto-proceeds.
+ */
+const CONTINUE_CONFIRM_DELAY_MS = 4000;
+
 /** Horizontal padding used by StatusBar line content (column where chips start). Must match the SB_PADX constant in status-bar.tsx. */
 const SB_PADX = 2;
 
@@ -1151,6 +1029,14 @@ export function App({
   // capturing a stale closure.
   const hiddenItemsRef = useRef(hiddenItems);
   hiddenItemsRef.current = hiddenItems;
+
+  // Keep the statusline tool chip aligned with live /tools toggles. Disabled
+  // tools stay visible in the picker as passive rows, but only enabled tools
+  // are exposed to the model-facing registry list.
+  const [liveToolCount, setLiveToolCount] = useState(toolCount);
+  useEffect(() => {
+    setLiveToolCount(toolCount);
+  }, [toolCount]);
 
   // Track previous git branch to detect switches
   const prevBranchRef = useRef<string | null>(null);
@@ -2319,6 +2205,7 @@ export function App({
       state.settingsPicker.open ||
       state.enhanceBusy ||
       state.enhance != null ||
+      state.continueConfirm != null ||
       state.coordinator.monitorOpen ||
       state.escConfirm != null ||
       state.sendModePicker != null ||
@@ -2342,6 +2229,7 @@ export function App({
     state.settingsPicker.open,
     state.enhanceBusy,
     state.enhance,
+    state.continueConfirm,
     state.coordinator.monitorOpen,
     state.escConfirm,
     state.sendModePicker,
@@ -2523,7 +2411,8 @@ export function App({
   // "clones" itself. Erase the stale region before every paint — no dep
   // array so this runs pre-flush on *every* render, not just state transitions.
   React.useLayoutEffect(() => {
-    if (state.enhanceBusy || state.enhance != null) eraseLiveRegion();
+    if (state.enhanceBusy || state.enhance != null || state.continueConfirm != null)
+      eraseLiveRegion();
   });
 
   // Detect an active `/<query>` token at the cursor and drive the slash picker.
@@ -2953,7 +2842,9 @@ export function App({
   // ── Tools picker ───────────────────────────────────────────────
   const refreshToolsPicker = React.useCallback(() => {
     if (!getToolsItems) return;
-    dispatch({ type: 'toolsPickerSetItems', items: getToolsItems() });
+    const items = getToolsItems();
+    dispatch({ type: 'toolsPickerSetItems', items });
+    setLiveToolCount(items.filter((item) => item.enabled).length);
   }, [getToolsItems]);
 
   useEffect(() => {
@@ -2969,6 +2860,7 @@ export function App({
     try {
       const result = await onToolToggle(selected.name);
       dispatch({ type: 'toolsPickerSetItems', items: result.items });
+      setLiveToolCount(result.items.filter((item) => item.enabled).length);
       dispatch({ type: 'toolsPickerHint', text: result.error ?? result.message });
     } catch (err) {
       dispatch({ type: 'toolsPickerBusy', busy: false });
@@ -3023,8 +2915,8 @@ export function App({
       return;
     }
 
-    // Don't start while enhance panel is active
-    if (state.enhance != null || state.enhanceBusy) {
+    // Don't start while enhance panel or a bare-continue confirm panel is active
+    if (state.enhance != null || state.enhanceBusy || state.continueConfirm != null) {
       return;
     }
 
@@ -3134,6 +3026,7 @@ export function App({
     autonomyLive,
     state.enhance,
     state.enhanceBusy,
+    state.continueConfirm,
     nextStepsRecheck,
     getSettings,
     getSuggestions,
@@ -4644,6 +4537,7 @@ export function App({
     // component handles y/n/a/d/escape/enter itself and Input's disabled prop
     // is not reliable when multiple useInput hooks are active.
     if (state.confirmQueue.length > 0) return;
+    if (state.shellCommandWarning) return;
     // While the refiner call is in flight, Esc cancels it (send original now);
     // all other keys are swallowed so nothing leaks into the input.
     if (state.enhanceBusy) {
@@ -4652,6 +4546,10 @@ export function App({
     }
     // The EnhancePanel owns Enter/Esc/e, so the main input stays out of the way.
     if (state.enhance) return;
+
+    // The ContinueConfirmPanel owns Enter/Esc/e while a bare-"continue"
+    // resolution is being confirmed — main input stays out of the way.
+    if (state.continueConfirm) return;
 
     // The ESC-interrupt confirmation dialog is modal — EscConfirmPrompt owns
     // y/n/Esc/Enter; all other keys are swallowed.
@@ -6158,6 +6056,36 @@ export function App({
       return;
     }
 
+    if (trimmed.startsWith('!')) {
+      const command = trimmed.slice(1).trim();
+      if (!command) {
+        dispatch({
+          type: 'addEntry',
+          entry: { kind: 'info', text: 'Usage: !<shell command>' },
+        });
+        return;
+      }
+
+      const settings = getSettings?.();
+      if (settings?.shellBangWarningDontShowAgain !== true) {
+        const decision = await new Promise<ShellCommandWarningDecision>((resolve) => {
+          dispatch({ type: 'shellCommandWarningOpen', info: { command, resolve } });
+        });
+        dispatch({ type: 'shellCommandWarningClose' });
+        if (decision === 'no') return;
+        if (decision === 'dont-show-again') {
+          if (settings && saveSettings) {
+            const err = await saveSettings({ ...settings, shellBangWarningDontShowAgain: true });
+            if (err) {
+              dispatch({ type: 'addEntry', entry: { kind: 'warn', text: err } });
+            }
+          }
+        }
+      }
+
+      return submit(`/dev ${command}`);
+    }
+
     // Bare `/prompt` opens the visual library picker (TUI-only). `/prompt <args>`
     // (search / insert) falls through to the plugin command below.
     if (trimmed === '/prompt' || trimmed === '/prompts-browse') {
@@ -6275,6 +6203,9 @@ export function App({
           const currentMode = getModeLabel();
           if (currentMode !== liveModeLabel) setLiveModeLabel(currentMode);
         }
+        if (getToolsItems) {
+          setLiveToolCount(getToolsItems().filter((item) => item.enabled).length);
+        }
         if (res?.exit) {
           exit();
           onExit(0);
@@ -6344,6 +6275,22 @@ export function App({
     // text so accountability stays with the human who triggered it.
     const steering = state.steeringPending;
 
+    // ── Bare "continue" → resolve against live plan state ──────────────
+    // A lone "continue" / "devam" / "go on" carries no new instruction and
+    // has nothing worth refining. Resolve it to the next open todo, else the
+    // top stored suggestion, else an open continuation that keeps the agent
+    // working without fabricating busywork. The full resolved instruction is
+    // injected as `effectiveText` (what the model sees); the user's chat
+    // bubble shows only the short `label`. Idle-only: a "continue" typed
+    // mid-run flows through the normal send-mode picker unchanged.
+    const continueResolved =
+      !steering && state.status === 'idle' && detectContinueIntent(trimmed)
+        ? resolveContinuation({
+            todos: agent.ctx.todos,
+            suggestions: getSuggestions?.() ?? [],
+          })
+        : null;
+
     // ── Prompt refinement ("did you mean this?") ───────────────────────
     // Before the main agent sees the message, run it through a separate
     // one-shot LLM call (its own system prompt, no history) that rewrites it
@@ -6383,6 +6330,7 @@ export function App({
       enhanceEnabledRef.current &&
       state.status === 'idle' &&
       !steering &&
+      !continueResolved &&
       shouldEnhance(cleanText)
     ) {
       dispatch({ type: 'enhanceBusy', on: true });
@@ -6463,6 +6411,40 @@ export function App({
       }
     }
 
+    // A resolved bare-continue is confirmed before it is sent — the panel makes
+    // the resolution *and its drift risk* visible instead of silently guessing.
+    // Grounded (todo / suggestion) auto-proceeds after a short countdown; the
+    // `open` guess waits for an explicit key. On proceed, the concrete
+    // instruction becomes what the model sees (the user's bubble shows only the
+    // short label). Cancel discards the turn; edit loads a seed to tweak.
+    if (continueResolved) {
+      const decision = await new Promise<'proceed' | 'edit' | 'cancel'>((resolve) => {
+        dispatch({
+          type: 'continueConfirmOpen',
+          info: {
+            label: continueResolved.label,
+            instruction: continueResolved.text,
+            source: continueResolved.source,
+            grounded: continueResolved.source !== 'open',
+            resolve,
+          },
+        });
+      });
+      dispatch({ type: 'continueConfirmClose' });
+      if (decision === 'cancel') {
+        clearDraft();
+        return;
+      }
+      if (decision === 'edit') {
+        // Grounded → seed the resolved instruction to tweak; open → empty prompt
+        // so the user states what to continue.
+        const seed = continueResolved.source === 'open' ? '' : continueResolved.text;
+        setDraft(seed, seed.length);
+        return;
+      }
+      effectiveText = continueResolved.text;
+    }
+
     // ── SDD Context Injection ──────────────────────────────────────────
     // When an SDD session is active, prepend the session context so the
     // model knows it's in a spec-building conversation.
@@ -6481,7 +6463,11 @@ export function App({
     // The user sees their original text + a visual ↯ marker when
     // steering, not the full preamble — keeps the chat readable while
     // the model still gets the explicit instruction.
-    const displayText = steering ? `↯ ${effectiveText}` : effectiveText;
+    const displayText = continueResolved
+      ? continueResolved.label
+      : steering
+        ? `↯ ${effectiveText}`
+        : effectiveText;
     // Build the history preview by scanning the message for inline chip tokens
     // and pulling each one's stored preview. Each chip becomes a label line
     // followed by an indented snippet of its collapsed content.
@@ -6688,7 +6674,11 @@ export function App({
   // The auth panel is also modal: it owns every keystroke (type-to-filter,
   // masked key entry, y/N confirms), so the chat input hides while it's open.
   const hideInput =
-    enhanceActive || state.helpOpen || state.processListOpen || state.authPanel.open;
+    enhanceActive ||
+    state.continueConfirm != null ||
+    state.helpOpen ||
+    state.processListOpen ||
+    state.authPanel.open;
 
   // F2–F9 panels should all occupy the same first row below the statusline.
   // Keep persistent background panels (fleet summary, phase/worktree strips)
@@ -7006,6 +6996,19 @@ export function App({
               />
             </Box>
           ) : null}
+          {state.shellCommandWarning
+            ? (() => {
+                const info = state.shellCommandWarning;
+                let resolved = false;
+                const onDecision = (decision: ShellCommandWarningDecision) => {
+                  if (resolved) return;
+                  resolved = true;
+                  info.resolve(decision);
+                  dispatch({ type: 'shellCommandWarningClose' });
+                };
+                return <ShellCommandWarning command={info.command} onDecision={onDecision} />;
+              })()
+            : null}
           {state.confirmQueue.length > 0 &&
             (() => {
               const head = expectDefined(state.confirmQueue[0]);
@@ -7139,6 +7142,27 @@ export function App({
                 );
               })()
             : null}
+          {state.continueConfirm
+            ? (() => {
+                const info = state.continueConfirm;
+                let resolved = false;
+                const onDecision = (decision: 'proceed' | 'edit' | 'cancel') => {
+                  if (resolved) return;
+                  resolved = true;
+                  info.resolve(decision);
+                };
+                return (
+                  <ContinueConfirmPanel
+                    label={info.label}
+                    instruction={info.instruction}
+                    source={info.source}
+                    grounded={info.grounded}
+                    delayMs={CONTINUE_CONFIRM_DELAY_MS}
+                    onDecision={onDecision}
+                  />
+                );
+              })()
+            : null}
           <Box ref={statusBarWrapRef} flexDirection="column" flexShrink={0}>
             <StatusBar
               model={`${liveProvider}/${liveModel}`}
@@ -7188,7 +7212,7 @@ export function App({
               sessionCount={sessionCount}
               mailbox={mailboxStatus}
               tokenSavingMode={liveSettings?.featureTokenSaving ?? tokenSavingMode}
-              toolCount={toolCount}
+              toolCount={liveToolCount}
               sideEffectCount={agent.ctx.sideEffects?.length ?? 0}
             />
           </Box>

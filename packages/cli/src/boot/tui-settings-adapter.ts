@@ -131,6 +131,7 @@ export function createSettingsAdapter(ctx: SettingsAdapterContext): SettingsAdap
         ((cfg.autonomy as Record<string, unknown> | undefined)
           ?.autoProceedMaxIterations as number) ?? 50,
       debugStream: cfg.debugStream ?? false,
+      shellBangWarningDontShowAgain: autonomy?.shellBangWarningDontShowAgain === true,
       statuslineMode: autonomy?.statuslineMode === 'minimum' ? 'minimum' : 'detailed',
       thinkingWord: normalizeTuiThinkingWord(autonomy?.thinkingWord),
       animationStyle: normalizeAnimationStyle(autonomy?.animationStyle),
@@ -197,6 +198,7 @@ export function createSettingsAdapter(ctx: SettingsAdapterContext): SettingsAdap
         s.restrictFsToRoot !== undefined ||
         s.nextPrediction !== undefined ||
         s.debugStream !== undefined ||
+        s.shellBangWarningDontShowAgain !== undefined ||
         s.configScope !== undefined ||
         s.enhanceDelayMs !== undefined ||
         s.enhanceEnabled !== undefined ||
@@ -245,6 +247,8 @@ export function createSettingsAdapter(ctx: SettingsAdapterContext): SettingsAdap
         if (s.enhanceEnabled !== undefined) autonomy.enhance = s.enhanceEnabled;
         if (s.enhanceLanguage !== undefined) autonomy.enhanceLanguage = s.enhanceLanguage;
         if (s.midRunSendPicker !== undefined) autonomy.midRunSendPicker = s.midRunSendPicker;
+        if (s.shellBangWarningDontShowAgain !== undefined)
+          autonomy.shellBangWarningDontShowAgain = s.shellBangWarningDontShowAgain;
         if (s.statuslineMode !== undefined) autonomy.statuslineMode = s.statuslineMode;
         if (s.thinkingWord !== undefined)
           autonomy.thinkingWord = normalizeTuiThinkingWord(s.thinkingWord);

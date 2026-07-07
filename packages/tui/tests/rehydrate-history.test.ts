@@ -1,6 +1,6 @@
 import type { Message } from '@wrongstack/core';
 import { describe, expect, it } from 'vitest';
-import { rehydrateHistory } from '../src/app.js';
+import { rehydrateHistory } from '../src/rehydrate-history.js';
 import type { HistoryEntry } from '../src/components/history/types.js';
 
 /**

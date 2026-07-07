@@ -283,6 +283,13 @@ export {
 } from './core/btw.js';
 export { Context, type ContextInit, type RunOptions, type TodoItem } from './core/context.js';
 export {
+  type ContinuationInput,
+  type ContinuationSource,
+  detectContinueIntent,
+  type ResolvedContinuation,
+  resolveContinuation,
+} from './core/continue-intent.js';
+export {
   type ContinueDirective,
   makeContinueToNextIterationTool,
   parseContinueDirective,
@@ -318,6 +325,7 @@ export {
 } from './core/instruction-bundle.js';
 export {
   buildMailboxBlock,
+  buildMailboxBtwAwarenessBlock,
   createMailboxChecker,
   injectPendingMailboxMessages,
   type MailboxLoopOptions,

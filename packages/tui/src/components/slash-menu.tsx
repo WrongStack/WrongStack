@@ -1,6 +1,6 @@
 import { Box, Text } from '../ink.js';
 import type React from 'react';
-import type { SlashCommandMatch } from '../app.js';
+import type { SlashCommandMatch } from '../app-state.js';
 
 export interface SlashMenuProps {
   query: string;
@@ -17,6 +17,7 @@ const MAX_VISIBLE_ITEMS = 8;
 
 export function SlashMenu({ query, matches, selected }: SlashMenuProps): React.ReactElement {
   const placeholder = query ? `/${query}` : '/';
+  const resultMeta = matches.length > 0 ? `${selected + 1}/${matches.length}` : 'no matches';
 
   // Build the flat row list (category headers interleaved with items) while
   // preserving the flat item ordering used for keyboard navigation.
@@ -42,10 +43,11 @@ export function SlashMenu({ query, matches, selected }: SlashMenuProps): React.R
   const hiddenBelow = rows.length - visible.end;
 
   return (
-    <Box flexDirection="column">
-      <Text dimColor>
-        {placeholder} {matches.length > 0 ? `(${selected + 1}/${matches.length})` : ''}
+    <Box flexDirection="column" borderStyle="round" borderColor="cyan" paddingX={1}>
+      <Text bold color="cyan">
+        ━━ Command palette ━━ <Text dimColor>{placeholder}</Text> <Text dimColor>({resultMeta})</Text>
       </Text>
+      <Text dimColor>Type to filter commands by name, alias, or description.</Text>
       {hiddenAbove > 0 && <Text dimColor>  ↑ {hiddenAbove} more</Text>}
       {visible.contextHeader && (
         <Text bold color="yellow" dimColor>

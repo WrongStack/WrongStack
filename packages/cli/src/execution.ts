@@ -143,6 +143,8 @@ export interface LiveSettingsInput {
   enhanceLanguage?: string | undefined;
   /** Mid-run send-mode picker (queue/btw/steer) toggle. Default on. */
   midRunSendPicker?: boolean | undefined;
+  /** Skip the confirmation prompt for the TUI `!<command>` shell shortcut. */
+  shellBangWarningDontShowAgain?: boolean | undefined;
   mouseMode?: boolean | undefined;
   autonomyNextPrompt?: string | undefined;
   /** Whether the process circuit breaker gates bash/exec. Default false. */

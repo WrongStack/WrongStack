@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { buildClearCommand } from '../src/slash-commands/clear.js';
 import { buildCompactCommand } from '../src/slash-commands/compact.js';
 import { buildHelpCommand } from '../src/slash-commands/help.js';
+import { buildDesktopCommand, buildWebuiCommand } from '../src/slash-commands/surfaces.js';
 import { SlashCommandRegistry, type Context } from '@wrongstack/core';
 
 function fakeCtx(): Context {
@@ -128,6 +129,29 @@ function makeRegistry(): SlashCommandRegistry {
   });
   return reg;
 }
+
+describe('surface access commands', () => {
+  it('explains the desktop app without launching a process', async () => {
+    const cmd = buildDesktopCommand();
+    const res = await cmd.run('', {} as never);
+    expect(res?.message ?? '').toContain('WrongStack Desktop');
+    expect(res?.message ?? '').toContain('only explains');
+  });
+
+  it('supports /webui and /web alias with informational guidance', async () => {
+    const reg = new SlashCommandRegistry();
+    reg.register(buildWebuiCommand());
+
+    const canonical = await reg.dispatch('/webui', {} as never);
+    const alias = await reg.dispatch('/web', {} as never);
+
+    expect(canonical?.message ?? '').toContain('WrongStack Web UI');
+    expect(alias?.message).toBe(canonical?.message);
+    expect(alias?.message ?? '').toContain('more reliable than guessing');
+  });
+});
+
+// ── /help ────────────────────────────────────────────────────────────────────
 
 describe('buildHelpCommand', () => {
   it('lists all commands when no arg given', async () => {

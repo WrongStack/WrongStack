@@ -53,10 +53,12 @@ describe('ModePicker', () => {
 
     const frame = lastFrame() ?? '';
     expect(frame).toContain('Mode Selection');
+    expect(frame).toContain('2 modes');
+    expect(frame).toContain('Current: Review');
     expect(frame).toContain('↑/↓ navigate · Enter select · Esc cancel');
     expect(frame).toContain('Default');
     expect(frame).toContain('Review');
-    expect(frame).toContain('[active]');
+    expect(frame).toContain('● active');
     expect(frame).toContain('Enter switches to the selected mode');
 
     unmount();
