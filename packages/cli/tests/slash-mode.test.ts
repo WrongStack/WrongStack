@@ -33,10 +33,14 @@ const makeCtx = (modeStore?: ModeStore): SlashCommandContext =>
   ({ modeStore, renderer: { write: vi.fn(), writeWarning: vi.fn() } }) as never;
 
 describe('/mode slash command', () => {
-  it('exposes metadata', () => {
+  it('exposes metadata and mode families', () => {
     const cmd = buildModeCommand(makeCtx());
     expect(cmd.name).toBe('mode');
     expect(cmd.help).toContain('/mode <id>');
+    expect(cmd.help).toContain('Token-saving');
+    expect(cmd.help).toContain('review-lite');
+    expect(cmd.help).toContain('Deep/full');
+    expect(cmd.help).toContain('code-reviewer');
   });
 
   it('reports unavailable when modeStore is missing', async () => {

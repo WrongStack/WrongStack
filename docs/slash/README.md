@@ -19,7 +19,7 @@ WrongStack's REPL supports core slash commands plus commands registered by built
 | `/memory` | `packages/cli/src/slash-commands/memory.ts` | Persistent memory: show, remember, forget, clear |
 | `/todos` | `packages/cli/src/slash-commands/todos.ts` | Session todo list |
 | `/tasks` | `packages/cli/src/slash-commands/tasks.ts` | Structured task management with dependencies and priorities |
-| `/mode` | `packages/cli/src/slash-commands/mode.ts` | Switch or view session mode |
+| `/mode` | `packages/cli/src/slash-commands/mode.ts` | Switch or view session mode; includes token-saving lite and deep/full mode families |
 | `/setmodel` | `packages/cli/src/slash-commands/setmodel.ts` | View or set leader model and per-task model matrix |
 | `/models` | `packages/cli/src/slash-commands/models.ts` | Manage custom model definitions |
 | `/modelcaps` | `packages/cli/src/slash-commands/modelcaps.ts` | Browse model capacities and pricing across providers |
