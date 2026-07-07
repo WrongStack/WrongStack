@@ -6,6 +6,7 @@ export interface ModeOption {
   id: string;
   name: string;
   description: string;
+  family: 'lite' | 'deep' | 'balanced' | 'custom';
   isActive: boolean;
 }
 
@@ -16,13 +17,47 @@ export interface ModePickerProps {
 }
 
 /** Build the display options from base modes + active id. */
+function modeFamily(mode: Mode): ModeOption['family'] {
+  if (mode.tags?.includes('lite')) return 'lite';
+  if (mode.tags?.includes('deep')) return 'deep';
+  if (mode.tags?.includes('balanced') || mode.id === 'default') return 'balanced';
+  return 'custom';
+}
+
 export function toModeOptions(modes: Mode[], activeId: string | null): ModeOption[] {
   return modes.map((m) => ({
     id: m.id,
     name: m.name,
     description: m.description,
+    family: modeFamily(m),
     isActive: m.id === activeId,
   }));
+}
+
+function familyLabel(family: ModeOption['family']): string {
+  switch (family) {
+    case 'lite':
+      return 'lite';
+    case 'deep':
+      return 'deep';
+    case 'balanced':
+      return 'base';
+    case 'custom':
+      return 'custom';
+  }
+}
+
+function familyColor(family: ModeOption['family']): 'green' | 'magenta' | 'blue' | 'yellow' {
+  switch (family) {
+    case 'lite':
+      return 'green';
+    case 'deep':
+      return 'magenta';
+    case 'balanced':
+      return 'blue';
+    case 'custom':
+      return 'yellow';
+  }
 }
 
 export function ModePicker({
@@ -51,8 +86,9 @@ export function ModePicker({
             {...(i === selected ? { color: 'cyan' } : {})}
           >
             {i === selected ? '› ' : '  '}
-            <Text bold>{opt.name.padEnd(20)}</Text>
-            <Text dimColor>{opt.description}</Text>
+            <Text bold>{opt.name.padEnd(18)}</Text>
+            <Text color={familyColor(opt.family)}>[{familyLabel(opt.family)}]</Text>
+            <Text dimColor> {opt.description}</Text>
             {opt.isActive ? (
               <Text color="green"> ● active</Text>
             ) : null}

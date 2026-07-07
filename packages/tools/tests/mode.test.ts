@@ -40,16 +40,43 @@ describe('createModeTool', () => {
     expect(result.currentMode).toBeUndefined();
   });
 
-  it('list action returns all modes', async () => {
+  it('list action returns all modes with family and tags metadata', async () => {
     const modes = [
-      { id: 'dev', name: 'Dev', description: 'Development' },
-      { id: 'prod', name: 'Prod', description: 'Production' },
+      { id: 'default', name: 'Default', description: 'Balanced', tags: ['balanced'] },
+      { id: 'review-lite', name: 'Review Lite', description: 'Narrow review', tags: ['lite', 'review'] },
+      { id: 'code-reviewer', name: 'Review Deep', description: 'Full review', tags: ['deep', 'review'] },
     ];
     const store = mockModeStore(modes, null);
     const tool = createModeTool(store);
     const result = await tool.execute({ action: 'list' }, {} as any, makeOpts());
-    expect(result.modes).toHaveLength(2);
+
+    expect(result.modes).toEqual([
+      {
+        id: 'default',
+        name: 'Default',
+        description: 'Balanced',
+        family: 'balanced',
+        tags: ['balanced'],
+      },
+      {
+        id: 'review-lite',
+        name: 'Review Lite',
+        description: 'Narrow review',
+        family: 'lite',
+        tags: ['lite', 'review'],
+      },
+      {
+        id: 'code-reviewer',
+        name: 'Review Deep',
+        description: 'Full review',
+        family: 'deep',
+        tags: ['deep', 'review'],
+      },
+    ]);
     expect(result.action).toBe('list');
+    expect(result.message).toMatch(/default\s+\[balanced\]/);
+    expect(result.message).toMatch(/review-lite\s+\[lite\]/);
+    expect(result.message).toMatch(/code-reviewer\s+\[deep\]/);
   });
 
   it('set action requires mode', async () => {

@@ -8,23 +8,33 @@ import { createPanelOpenDispatcher } from '../src/on-panel-open.js';
 describe('ModePicker', () => {
   it('maps core modes to display options and marks the active mode', () => {
     const modes: Mode[] = [
-      { id: 'default', name: 'Default', description: 'Balanced default mode' },
-      { id: 'review', name: 'Review', description: 'Review-oriented mode' },
+      { id: 'default', name: 'Default', description: 'Balanced default mode', tags: ['balanced'] },
+      { id: 'review-lite', name: 'Review Lite', description: 'Narrow review', tags: ['lite'] },
+      { id: 'code-reviewer', name: 'Review Deep', description: 'Full review', tags: ['deep'] },
     ];
 
-    const options = toModeOptions(modes, 'review');
+    const options = toModeOptions(modes, 'review-lite');
     expect(options).toEqual([
       {
         id: 'default',
         name: 'Default',
         description: 'Balanced default mode',
+        family: 'balanced',
         isActive: false,
       },
       {
-        id: 'review',
-        name: 'Review',
-        description: 'Review-oriented mode',
+        id: 'review-lite',
+        name: 'Review Lite',
+        description: 'Narrow review',
+        family: 'lite',
         isActive: true,
+      },
+      {
+        id: 'code-reviewer',
+        name: 'Review Deep',
+        description: 'Full review',
+        family: 'deep',
+        isActive: false,
       },
     ]);
   });
@@ -37,12 +47,14 @@ describe('ModePicker', () => {
             id: 'default',
             name: 'Default',
             description: 'Balanced default mode',
+            family: 'balanced',
             isActive: false,
           },
           {
-            id: 'review',
-            name: 'Review',
+            id: 'review-lite',
+            name: 'Review Lite',
             description: 'Review-oriented mode',
+            family: 'lite',
             isActive: true,
           },
         ],
@@ -54,10 +66,12 @@ describe('ModePicker', () => {
     const frame = lastFrame() ?? '';
     expect(frame).toContain('Mode Selection');
     expect(frame).toContain('2 modes');
-    expect(frame).toContain('Current: Review');
+    expect(frame).toContain('Current: Review Lite');
     expect(frame).toContain('↑/↓ navigate · Enter select · Esc cancel');
     expect(frame).toContain('Default');
-    expect(frame).toContain('Review');
+    expect(frame).toContain('Review Lite');
+    expect(frame).toContain('[base]');
+    expect(frame).toContain('[lite]');
     expect(frame).toContain('● active');
     expect(frame).toContain('Enter switches to the selected mode');
 

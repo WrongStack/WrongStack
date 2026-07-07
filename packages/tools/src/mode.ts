@@ -5,12 +5,27 @@ interface ModeInput {
   mode?: string | undefined;
 }
 
+type ModeFamily = 'lite' | 'deep' | 'balanced' | 'custom';
+
 interface ModeOutput {
   action: string;
   currentMode?: string | undefined;
-  modes?: { id: string | undefined; name: string; description: string }[];
+  modes?: {
+    id: string | undefined;
+    name: string;
+    description: string;
+    family: ModeFamily;
+    tags: string[];
+  }[];
   success: boolean;
   message: string;
+}
+
+function modeFamily(mode: { id?: string | undefined; tags?: string[] | undefined }): ModeFamily {
+  if (mode.tags?.includes('lite')) return 'lite';
+  if (mode.tags?.includes('deep')) return 'deep';
+  if (mode.tags?.includes('balanced') || mode.id === 'default') return 'balanced';
+  return 'custom';
 }
 
 export function createModeTool(modeStore: ModeStore): Tool<ModeInput, ModeOutput> {
@@ -62,11 +77,17 @@ export function createModeTool(modeStore: ModeStore): Tool<ModeInput, ModeOutput
         case 'list': {
           const modes = await modeStore.listModes();
           const lines = modes
-            .map((m) => `  ${m.id.padEnd(20)} ${m.name} — ${m.description}`)
+            .map((m) => `  ${m.id.padEnd(20)} [${modeFamily(m)}] ${m.name} — ${m.description}`)
             .join('\n');
           return {
             action: 'list',
-            modes: modes.map((m) => ({ id: m.id, name: m.name, description: m.description })),
+            modes: modes.map((m) => ({
+              id: m.id,
+              name: m.name,
+              description: m.description,
+              family: modeFamily(m),
+              tags: m.tags ?? [],
+            })),
             success: true,
             message: lines,
           };
