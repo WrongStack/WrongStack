@@ -117,9 +117,18 @@ export function selectClient(clientId: string | null): void {
 // ── API helpers ─────────────────────────────────────────────────────────────
 
 export async function fetchJson<T>(path: string): Promise<T> {
-  const res = await fetch(path);
+  let res: Response;
+  try {
+    res = await fetch(path);
+  } catch {
+    throw new Error(`Network error fetching ${path}`);
+  }
   if (!res.ok) throw new Error(`${res.status} ${res.statusText}`);
-  return (await res.json()) as T;
+  try {
+    return (await res.json()) as T;
+  } catch {
+    throw new Error(`Invalid JSON response from ${path}: ${res.status}`);
+  }
 }
 
 export async function postCommand(
@@ -127,14 +136,24 @@ export async function postCommand(
   type: string,
   payload: unknown,
 ): Promise<{ commandId: string; queued: boolean }> {
-  const res = await fetch('/api/command', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ clientId, type, payload }),
-  });
-  if (!res.ok) {
-    const body = await res.json().catch(() => ({ error: res.statusText }));
-    throw new Error(body.error ?? `${res.status}`);
+  let res: Response;
+  try {
+    res = await fetch('/api/command', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ clientId, type, payload }),
+    });
+  } catch {
+    throw new Error('Network error sending command');
   }
-  return (await res.json()) as { commandId: string; queued: boolean };
+  if (!res.ok) {
+    const body = await res.json().catch(() => null);
+    const msg = body?.error ?? (res.statusText || `HTTP ${res.status}`);
+    throw new Error(msg);
+  }
+  try {
+    return (await res.json()) as { commandId: string; queued: boolean };
+  } catch {
+    throw new Error('Invalid JSON response from command API');
+  }
 }
