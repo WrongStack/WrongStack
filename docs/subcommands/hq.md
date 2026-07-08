@@ -136,6 +136,103 @@ Consequences:
 | `/api/projects/:id` | GET | `application/json` (`ProjectDetail`) | Drilldown endpoint used by the project drawer |
 | `/ws/browser` | WS upgrade | Stream of `HqBrowserMessage` frames | Browser connects here. Receives the current snapshot immediately, then live updates |
 | `/ws/client` | WS upgrade | Stream of `HqClientMessage` / `HqServerMessage` frames (bidirectional) | Telemetry clients (TUI/REPL/WebUI) connect here. Protocol version mismatch → close `1008` |
+| `/api/command` | POST | `application/json` (`202` on accept) | **Control plane.** Enqueue a command to a **connected** client. Requires a browser token with `control.enqueue` (open mode allows any). Target client must advertise `control.receive`. See [Control plane](#control-plane) |
+| `/api/commands` | GET | `application/json` | Recent command audit entries (`?limit=`, default 200) |
+| `/api/mailbox-send` | POST | `application/json` (`202` on delivery) | **Direct mailbox write** — deliver a prompt even when **no client is connected**. Same auth as `/api/command`. See [Direct mailbox delivery](#direct-mailbox-delivery-apimailbox-send) |
+
+### Control plane
+
+The HQ dashboard can send prompts to running agents through the
+control plane. Two transports exist:
+
+1. **`POST /api/command`** — enqueues a typed command for a **connected**
+   client, drained when that client next polls (`client.command_poll`).
+   Requires a live client advertising `control.receive`.
+2. **`POST /api/mailbox-send`** — writes the prompt straight into the
+   project mailbox, so it lands **even with zero connected clients** (see
+   the next section).
+
+Both paths ultimately deliver a message into the project mailbox, so
+they inherit the agent's existing mailbox guardrails. **HQ prompts are
+raw** — they are directives injected into the agent loop and bypass
+prompt refinement.
+
+#### Send types
+
+The command `type` selects how the message reaches the target agent.
+The three prompt-carrying types are:
+
+| Type | Mailbox message type | Meaning for the receiving agent |
+|---|---|---|
+| `steer` | `steer` | **Change course now.** Adjust the current operation at the next stopping point. |
+| `btw` | `btw` | **FYI / context.** Absorbed as information; does *not* demand a course change. |
+| `queue` | `note` | **Waits its turn.** A plain note the agent picks up before its next step. |
+| `broadcast` | `broadcast` | Fan out to every agent on the target's project (`to: all`). |
+
+The full set of `HQ_COMMAND_TYPES` (see `packages/core/src/hq/commands.ts`)
+also includes `abort`, `spawn`, and the gated `run-command`. Only
+`steer` / `btw` / `queue` / `broadcast` write a prompt to the mailbox;
+the others route through the agent's decision loop.
+
+#### `/api/command` request
+
+```jsonc
+POST /api/command
+{
+  "clientId": "<connected client id>",  // required — target must be online
+  "type": "steer",                       // steer | btw | queue | broadcast | abort | spawn | run-command
+  "payload": {
+    "to": "leader",                      // agent address; omitted for broadcast
+    "subject": "HQ prompt",
+    "body": "switch to plan B",
+    "priority": "high"                   // low | normal | high (default normal)
+  }
+}
+```
+
+Responses: `202` `{ commandId, queued: true, clientId }` on accept;
+`401` (bad token), `403` (token lacks `control.enqueue`), `404`
+(client not connected), `409` (client lacks `control.receive`), `400`
+(malformed command).
+
+#### Direct mailbox delivery (`/api/mailbox-send`)
+
+`/api/command` needs a live client. When the HQ screen sends a prompt to
+a project that has **no connected agent** (e.g. a terminal open but no
+active leader run, or nothing running at all), the dashboard falls back
+to `POST /api/mailbox-send`. This writes the prompt directly into the
+project's `GlobalMailbox` on disk, where the next agent to run — or any
+open terminal/WebUI — picks it up.
+
+**Target resolution is server-side and path-safe.** The browser sends a
+`sessionId` (or `projectId`), never a filesystem path. The server
+resolves the `projectRoot` itself via the `SessionRegistry` (by
+`sessionId`, else by `projectSlug`), so the route cannot be used to
+write outside projects HQ already knows about.
+
+```jsonc
+POST /api/mailbox-send
+{
+  "sessionId": "<session id>",   // OR "projectId": "<project slug>"
+  "type": "steer",               // steer | btw | queue | broadcast
+  "to": "leader",                // agent address (default "leader"); ignored for broadcast
+  "subject": "HQ prompt",
+  "body": "continue please",
+  "priority": "high"
+}
+```
+
+Auth mirrors `/api/command` (browser token + `control.enqueue`).
+Responses:
+
+| Status | Meaning |
+|---|---|
+| `202` | Delivered. Body: `{ delivered: true, messageId, to, type }` (`type` is the emitted mailbox type — e.g. `queue` → `note`). |
+| `400` | Missing `type`/`body`, missing both `sessionId` and `projectId`, or an unrecognized/non-mailbox type. |
+| `401` | Missing/invalid browser token (token mode). |
+| `403` | Token lacks `control.enqueue`. |
+| `404` | Target project mailbox could not be resolved from the registry. |
+| `500` | Mailbox write failed. |
 
 ### `/api/snapshot` response shape — `HqSnapshot`
 

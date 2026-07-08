@@ -161,6 +161,39 @@ Every error response follows the WrongStack API convention:
 - No rate limiting at the bridge layer — assume the bearer token is the
   only credential and trust the loopback network.
 
+## The HQ dashboard writes to the same mailbox
+
+The HQ command center (`wstack --hq`) shares this exact `GlobalMailbox`.
+When an operator sends a prompt from the HQ screen, it lands in the same
+`_mailbox.jsonl` an external agent reads through `/mailbox/query` — so an
+external agent participating via this bridge sees HQ prompts too.
+
+HQ delivers a prompt one of two ways:
+
+- **`POST /api/command`** on the HQ server — routes to a *connected*
+  client, which then calls `GlobalMailbox.send`.
+- **`POST /api/mailbox-send`** on the HQ server — writes to the project
+  mailbox **directly**, so the prompt is delivered even when no agent is
+  connected. The HQ server resolves the target `projectRoot` from its
+  `SessionRegistry` (never a browser-supplied path).
+
+Either way, the resulting mailbox message carries one of the HQ **send
+types**, which map onto the mailbox `type` field an external agent will
+observe:
+
+| HQ send type | Mailbox `type` | Intent for the receiver |
+|--------------|----------------|-------------------------|
+| `steer`      | `steer`        | Change course now.       |
+| `btw`        | `btw`          | FYI / context — no course change demanded. |
+| `queue`      | `note`         | A queued prompt; handle before the next step. |
+| `broadcast`  | `broadcast`    | Sent to all agents on the project (`to: all`). |
+
+An external agent does not need to distinguish HQ-originated messages —
+they arrive with `from` set to `hq@<tag>` and are read, acked, and
+completed through the same `/mailbox/query` + `/mailbox/ack` routes as
+any other message. Filter on `from` if you want to treat HQ prompts
+specially.
+
 ## Pairing with the external-facing skill
 
 This internal skill describes how to run the server. The
