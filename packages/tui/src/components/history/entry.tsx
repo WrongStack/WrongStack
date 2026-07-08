@@ -14,8 +14,8 @@ import {
   formatMultiDiffSummary,
   summarizeMultiFileDiffs,
 } from './code-block.js';
-import { parseNextSteps } from '../suggestions.js';
-import type { ParsedNextStep } from '../suggestions.js';
+import { parseNextSteps } from '@wrongstack/tools/next-steps';
+import type { ParsedNextStep } from '@wrongstack/tools/next-steps';
 import type { HistoryEntry } from './types.js';
 import { AssistantBody, assistantContentWidth } from './assistant.js';
 import {

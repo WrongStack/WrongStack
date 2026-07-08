@@ -1,7 +1,7 @@
 import type { Director, FleetEvent } from '@wrongstack/core';
 import { useEffect, useRef } from 'react';
 import type { Action, State } from '../app-reducer.js';
-import { stripNextStepsBlock } from '../components/suggestions.js';
+import { stripNextStepsBlock } from '@wrongstack/tools/next-steps';
 
 const FLUSH_MS = 150;
 const STREAM_COLORS = ['cyan', 'magenta', 'yellow', 'green', 'blue'];
