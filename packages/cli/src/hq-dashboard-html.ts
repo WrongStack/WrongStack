@@ -1291,6 +1291,14 @@ async function boot(){
     // agent loop is actively running. HQ prompts are raw and bypass prompt
     // refinement — a steer/btw/queue is already a directive, not user input.
     var effectiveType = target && target.kind === 'broadcast' ? 'broadcast' : sendType;
+    // Derive the subject from the send-type so the two never drift (a steer
+    // must not carry a "queue"-flavored subject). Single source of truth,
+    // computed alongside effectiveType.
+    var effectiveSubject =
+      effectiveType === 'steer' ? 'HQ steer' :
+      effectiveType === 'btw' ? 'HQ note' :
+      effectiveType === 'broadcast' ? 'HQ broadcast' :
+      'HQ prompt'; // queue (and any future fallthrough)
     function submit(){
       if(!target || sending) return;
       var body = text.trim();
@@ -1304,11 +1312,11 @@ async function boot(){
       setStatus({ text: useDirect ? 'Delivering to mailbox…' : 'Queueing command…', cls: '' });
       var sendPromise;
       if(useDirect){
-        sendPromise = postHqMailboxSend(target, effectiveType, { subject: 'HQ prompt', body: body, priority: 'high' });
+        sendPromise = postHqMailboxSend(target, effectiveType, { subject: effectiveSubject, body: body, priority: 'high' });
       } else {
         var payload = target.kind === 'broadcast'
-          ? { subject: 'HQ prompt', body: body, priority: 'high' }
-          : { to: target.to, subject: 'HQ prompt', body: body, priority: 'high' };
+          ? { subject: effectiveSubject, body: body, priority: 'high' }
+          : { to: target.to, subject: effectiveSubject, body: body, priority: 'high' };
         sendPromise = postHqCommand(target.clientId, effectiveType, payload);
       }
       sendPromise
