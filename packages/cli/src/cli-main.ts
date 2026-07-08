@@ -46,10 +46,6 @@ import {
   FLEET_ROSTER,
   gatedEnhancerReasoning,
   GlobalMailbox,
-  HookRegistry,
-  HookRunner,
-  countShellHooks,
-  shellHooksEqual,
   HumanEscalatingBrainArbiter,
   isStdinTTY,
   loadDirectorState,
@@ -59,19 +55,16 @@ import {
   type LogLevel,
   SessionMemoryConsolidator,
   SddRunRegistry,
-  SlashCommandRegistry,
   type SystemPromptBuilder,
   TOKENS,
   ToolRegistry,
   watchProviderConfig,
   writeErr,
   writeOut,
-  normalizeTokenSavingTier,
   getToolDescriptionMode,
 } from '@wrongstack/core';
 import { wireSessionEvents } from './session-event-wiring.js';
 import { initializeCli } from './cli-context.js';
-import { MCPRegistry } from '@wrongstack/mcp';
 import { toErrorMessage } from '@wrongstack/core/utils/error';
 import { createAuthPanelHost } from './auth-menu/panel-service.js';
 import { createAutoPhaseHost } from './autophase-host.js';
@@ -80,13 +73,11 @@ import { launchEternalFromFlag } from './cli-eternal-flag.js';
 import { promptRecovery } from './cli-recovery-prompt.js';
 import { bindSystemPromptBuilder } from './boot/system-prompt-builder.js';
 import { subscribeBrainDecisionLog } from './boot/brain-decision-log.js';
-import { refreshRuntimeModelCatalog, resolveRuntimeMaxContext } from './context-limit.js';
+import { refreshRuntimeModelCatalog } from './context-limit.js';
 import { type ExecutionDeps, execute } from './execution.js';
 import { createFallbackModelExtension } from './fallback-model.js';
 import { createCliHqPublisher } from './hq-publisher.js';
-import { createLifecycleHooksExtension, createUserPromptSubmitMiddleware } from './hooks-wiring.js';
 import { MultiAgentHost } from './multi-agent.js';
-import { makeConfirmAwaiter } from './permission-prompt.js';
 import { PLUGIN_AUDIT_ENTRIES, runPluginManagementCommand } from './plugin-management.js';
 import { buildPickableProviders } from './provider-helpers.js';
 import { SessionStats } from './session-stats.js';
@@ -112,14 +103,13 @@ import { setupCodebaseIndexing } from './wiring/codebase-index.js';
 import { setupDepWatcherConsumers } from './wiring/dep-watcher.js';
 import { setupHqTelemetry } from './wiring/hq-telemetry.js';
 import { setupDirectorAndAutonomy } from './wiring/director-setup.js';
+import { setupLifecycleAndPlugins } from './wiring/lifecycle-plugins.js';
 import { setupMetrics } from './wiring/metrics.js';
-import { createAgent, setupCompaction, setupPipelines } from './wiring/pipeline.js';
-import { installDesignStudio } from './wiring/design-studio.js';
+import { setupPipelines } from './wiring/pipeline.js';
 import {
   buildProviderForId as buildProviderForIdRuntime,
   resolveProviderCfg as resolveProviderCfgRuntime,
 } from './wiring/provider-runtime.js';
-import { setupPlugins } from './wiring/plugins.js';
 import { setupSession } from './wiring/session.js';
 import { resolveModeAndCapabilities } from './boot/system-prompt.js';
 import { wireEventWiring } from './boot/event-wiring.js';
@@ -487,251 +477,44 @@ export async function main(argv: string[]): Promise<number> {
     },
   });
 
-  // ── Lifecycle hooks ──────────────────────────────────────────────────────
-  // `--no-hooks` disables everything (shell + in-process). Otherwise shell
-  // hooks are loaded from `config.hooks`; plugins add in-process hooks via
-  // `api.registerHook`. The runner is wired into the tool executor
-  // (PreToolUse/PostToolUse), the userInput pipeline (UserPromptSubmit), and an
-  // agent extension (SessionStart/Stop, registered after the agent is built).
-  const hooksEnabled = flags['no-hooks'] !== true;
-  const hookRegistry = new HookRegistry();
-  if (hooksEnabled) hookRegistry.loadShellHooks(config.hooks);
-  container.bind(TOKENS.HookRegistry, () => hookRegistry);
-  const hookRunner = new HookRunner({
-    registry: hookRegistry,
+  // ── Lifecycle hooks → compaction → agent → MCP → plugins ─────────────
+  // Extracted to wiring/lifecycle-plugins.ts.
+  const {
+    autoCompactor,
+    effectiveMaxContextRef,
+    applyMaxContext,
+    refreshMaxContext,
+    agent,
+    mcpRegistry,
+    slashRegistry,
+    hqPublisherRef,
+    brainMailbox,
+  } = await setupLifecycleAndPlugins({
+    flags,
+    config,
+    container,
+    pipelines,
     logger,
-    allowShell: hooksEnabled,
-    sessionId: () => session.id,
-  });
-  if (hooksEnabled) {
-    pipelines.userInput.use(createUserPromptSubmitMiddleware(hookRunner));
-
-    // Hot-reload shell hooks when `config.hooks` changes at runtime
-    // (via `/config` slash command, programmatic `configStore.update`,
-    // or external file edits that the config store picks up). We compare
-    // shallowly per event — `ShellHook[]` is reference-stable and its
-    // fields (command, matcher, timeoutMs) are primitives, so a per-event
-    // array comparison is sufficient and avoids re-running on unrelated
-    // config changes (model, log level, etc.).
-    configStore.watch((next, prev) => {
-      if (!shellHooksEqual(next.hooks, prev.hooks)) {
-        try {
-          hookRegistry.replaceShellHooks(next.hooks);
-          logger.info(
-            `Shell hooks reloaded (${countShellHooks(next.hooks)} entries across ${
-              Object.keys(next.hooks ?? {}).length
-            } events)`,
-          );
-        } catch (err) {
-          // A failed reload must not crash the config watcher — keep the
-          // existing hook set in place and log so the operator can see it.
-          logger.warn(`Hook hot-reload failed: ${toErrorMessage(err)}`);
-        }
-      }
-    });
-  }
-
-  // Design Studio — per-turn UI-intent detection + kit-menu injection. Installed
-  // after the live Context + pipelines exist; the `design` tool itself ships in
-  // the builtin pack independently of this.
-  installDesignStudio({ pipelines, context });
-
-  const compactor = container.resolve(TOKENS.Compactor);
-  const compactionSetup = await setupCompaction({
-    compactor,
+    session,
     events,
     modelsRegistry,
     context,
-    config,
     provider,
-    pipelines,
-    fullConfig: config as never as Parameters<typeof setupCompaction>[0]['fullConfig'],
-    sessionBridge, // share the same bridge for consistent audit logging (compaction + errors + future)
-  });
-  let effectiveMaxContext = compactionSetup.effectiveMaxContext;
-  context.provider.capabilities.maxContext = effectiveMaxContext;
-  modelCapabilitiesRef.current =
-    effectiveMaxContext > 0
-      ? {
-          maxContextTokens: effectiveMaxContext,
-          supportsTools: !!context.provider.capabilities.tools,
-          supportsVision: !!context.provider.capabilities.vision,
-          supportsReasoning: !!context.provider.capabilities.reasoning,
-        }
-      : undefined;
-  const { autoCompactor } = compactionSetup;
-
-  // Refresh the active model's context denominator when provider/model changes.
-  // This feeds auto-compaction, the leader context chip, and Director spawn guards.
-  let maxContextRefreshSeq = 0;
-  const applyMaxContext = (
-    providerId: string,
-    modelId: string,
-    mc: number,
-    seq?: number | undefined,
-  ): void => {
-    if (seq !== undefined && seq !== maxContextRefreshSeq) return;
-    effectiveMaxContext = mc;
-    context.provider.capabilities.maxContext = effectiveMaxContext; // may be 0 (unknown)
-    modelCapabilitiesRef.current =
-      effectiveMaxContext > 0
-        ? {
-            maxContextTokens: effectiveMaxContext,
-            supportsTools: !!context.provider.capabilities.tools,
-            supportsVision: !!context.provider.capabilities.vision,
-            supportsReasoning: !!context.provider.capabilities.reasoning,
-          }
-        : undefined;
-    if (effectiveMaxContext > 0) {
-      context.meta['effectiveMaxContext'] = effectiveMaxContext;
-      autoCompactor?.setMaxContext(effectiveMaxContext);
-      autoCompactor?.setEnabled(config.context.autoCompact !== false);
-    } else {
-      delete context.meta['effectiveMaxContext'];
-      autoCompactor?.setEnabled(false);
-    }
-    events.emit('ctx.max_context', {
-      sessionId: context.session.id,
-      providerId,
-      modelId,
-      maxContext: effectiveMaxContext,
-    });
-    eventWiring.setEffectiveMaxContext(effectiveMaxContext);
-  };
-
-  const refreshMaxContext = async (
-    providerId: string,
-    modelId: string,
-    runtimeProviderConfig?: import('@wrongstack/core').ProviderConfig | undefined,
-  ) => {
-    const seq = ++maxContextRefreshSeq;
-    const resolveAndApply = async (): Promise<void> => {
-      const mc = await resolveRuntimeMaxContext({
-        modelsRegistry,
-        config,
-        provider: context.provider,
-        runtimeProviderConfig,
-        providerId,
-        modelId,
-      });
-      applyMaxContext(providerId, modelId, mc, seq);
-    };
-
-    // Apply the best-known cached value immediately, then refresh the catalog
-    // and re-apply. Model metadata (especially context windows) changes after
-    // release; model switches should converge to current catalog data without
-    // blocking the TUI picker or fallback path.
-    await resolveAndApply();
-    const refreshed = await refreshRuntimeModelCatalog({
-      modelsRegistry,
-      logger,
-      reason: `${providerId}/${modelId}`,
-    });
-    if (refreshed) await resolveAndApply();
-  };
-
-  const agent = createAgent({
-    container,
-    tools: toolRegistry,
-    providers: providerRegistry,
-    events,
-    pipelines,
-    context,
-    config,
-    confirmAwaiter: makeConfirmAwaiter(reader),
-    hookRunner,
-    fullConfig: config,
-    source: 'cli',
-  });
-
-  // SessionStart / Stop lifecycle hooks (PreToolUse/PostToolUse live in the
-  // tool executor; UserPromptSubmit in the userInput pipeline above).
-  if (hooksEnabled) {
-    agent.extensions.register(createLifecycleHooksExtension(hookRunner));
-  }
-
-  // MCP servers — lazy mode in token-saving mode (connect but don't register tools)
-  const mcpRegistry = new MCPRegistry({
-    toolRegistry,
-    events,
-    log: logger,
-    lazyMode: normalizeTokenSavingTier(config.features.tokenSavingMode) !== 'off',
-    // Lazy-connect (per-server `lazy`) needs a manifest cache to register tools
-    // cold; idle auto-sleep uses the default timeout.
-    cacheDir: wpaths.cacheDir,
-  });
-  if (config.features.mcp) {
-    const presets = allServers();
-    for (const cfg of Object.values(config.mcpServers ?? {})) {
-      // Merge stored config with built-in preset so new fields (e.g.
-      // `passthroughEnv`) added to presets after the config was last saved
-      // are picked up automatically without requiring a manual config update.
-      const preset = presets[cfg.name];
-      const merged = preset ? { ...preset, ...cfg } : cfg;
-      try {
-        await mcpRegistry.start(merged);
-      } catch (err) {
-        logger.warn(`MCP server "${cfg.name}" failed to start`, err);
-      }
-    }
-  }
-
-  // Slash registry — created before plugins so plugins can register commands.
-  const slashRegistry = new SlashCommandRegistry();
-
-  // Project mailbox — created before setupPlugins so the new
-  // `api.mailbox` PluginAPI field is populated for plugins like
-  // `todo-listener` that publish cross-agent status updates.
-  // (Constructor is side-effect-free; the instance is harmless until
-  //  the first send/heartbeat call.)
-  // Mutable ref populated by setupHqTelemetry once the HQ connection
-  // establishes — brainMailbox reads it via closure for HQ publishing.
-  const hqPublisherRef: { current: any | undefined } = { current: undefined };
-  const brainMailbox = new GlobalMailbox(wpaths.projectDir, events, () => hqPublisherRef.current);
-
-  // Plugins — extracted to wiring/plugins.ts
-  await setupPlugins({
-    config,
-    container,
-    events,
-    pipelines,
+    modelCapabilitiesRef,
+    reader,
+    wpaths,
     toolRegistry,
     providerRegistry,
-    slashCommandRegistry: slashRegistry,
-    mcpRegistry,
-    log: logger,
-    agent: agent,
-    sessionWriter: context.session,
-    metricsSink,
-    modelsRegistry,
-    healthRegistry,
-    skillLoader: config.features.skills ? skillLoader : undefined,
-    promptLoader: config.features.prompts === false ? undefined : promptLoader,
     configStore,
+    sessionBridge,
+    eventWiring,
+    healthRegistry: healthRegistry as any,
+    skillLoader,
+    promptLoader,
     vault,
-    paths: {
-      globalRoot: wpaths.globalRoot,
-      globalConfig: wpaths.globalConfig,
-      globalSkills: wpaths.globalSkills,
-      globalPrompts: wpaths.globalPrompts,
-      globalMemory: wpaths.globalMemory,
-      historyFile: wpaths.historyFile,
-      syncConfig: wpaths.syncConfig,
-      projectDir: wpaths.projectDir,
-      projectGoal: wpaths.projectGoal,
-    },
-    hookRegistry,
-    mailbox: brainMailbox,
-    // api.llm — plugins get LLM access through the host's provider layer.
-    // Default = the session's live provider/model; a named override goes
-    // through buildProviderForId (same alias-safe path as /model switch).
-    // The model itself travels in each Request, so the factory ignores it.
-    llm: {
-      provider,
-      model: config.model,
-      createProvider: (name: string) =>
-        buildProviderForIdRuntime({ config, providerRegistry }, name),
-    },
+    metricsSink,
+    renderer,
+    buildProviderForIdRuntime,
   });
 
   // ── Dep-watcher bridge: wire file-watcher events into the mailbox ────
@@ -1064,7 +847,7 @@ export async function main(argv: string[]): Promise<number> {
       stateCheckpointPath,
       sessionWriter: session,
       maxConcurrent,
-      getLeaderMaxContext: () => effectiveMaxContext,
+      getLeaderMaxContext: () => effectiveMaxContextRef.current,
       brain,
       agentMonitor,
       traceId: sessResult.traceId,
@@ -1929,7 +1712,7 @@ export async function main(argv: string[]): Promise<number> {
     },
     onContextLimit: (tokens?: number) => {
       if (typeof tokens === 'number' && Number.isFinite(tokens) && tokens > 0) {
-        effectiveMaxContext = tokens;
+        effectiveMaxContextRef.current = tokens;
         context.provider.capabilities.maxContext = tokens;
         context.meta['effectiveMaxContext'] = tokens;
         autoCompactor?.setMaxContext(tokens);
@@ -1941,7 +1724,7 @@ export async function main(argv: string[]): Promise<number> {
         });
         eventWiring.setEffectiveMaxContext(tokens);
       }
-      return effectiveMaxContext;
+      return effectiveMaxContextRef.current;
     },
     onMcp: async (args) => {
       const parsed = parseMcpArgs(args);
@@ -2002,7 +1785,7 @@ export async function main(argv: string[]): Promise<number> {
             agent,
             projectRoot,
             compactor: container.resolve(TOKENS.Compactor) as import('@wrongstack/core').Compactor,
-            maxContextTokens: effectiveMaxContext > 0 ? effectiveMaxContext : undefined,
+            maxContextTokens: effectiveMaxContextRef.current > 0 ? effectiveMaxContextRef.current : undefined,
             onIteration: broadcastEternalIteration,
             onStage: broadcastAutonomyStage,
             // Real per-role factory: each dispatched slot runs as a fresh,
@@ -2020,7 +1803,7 @@ export async function main(argv: string[]): Promise<number> {
             agent,
             projectRoot,
             compactor: container.resolve(TOKENS.Compactor) as import('@wrongstack/core').Compactor,
-            maxContextTokens: effectiveMaxContext > 0 ? effectiveMaxContext : undefined,
+            maxContextTokens: effectiveMaxContextRef.current > 0 ? effectiveMaxContextRef.current : undefined,
             onIteration: broadcastEternalIteration,
             onStage: broadcastAutonomyStage,
             brain,
@@ -2409,7 +2192,7 @@ export async function main(argv: string[]): Promise<number> {
     container,
     renderer,
     broadcastEternalIteration,
-    effectiveMaxContext,
+    effectiveMaxContext: effectiveMaxContextRef.current,
     configRef,
     autonomyModeRef,
   });
@@ -2518,8 +2301,8 @@ export async function main(argv: string[]): Promise<number> {
     projectRoot,
     flags,
     positional,
-    effectiveMaxContext,
-    getEffectiveMaxContext: () => effectiveMaxContext,
+    effectiveMaxContext: effectiveMaxContextRef.current,
+    getEffectiveMaxContext: () => effectiveMaxContextRef.current,
     queueStore,
     context,
     stats,
