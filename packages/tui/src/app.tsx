@@ -31,7 +31,7 @@ import {
   loadGoal,
   materializeTokens,
   normalizedEqual,
-  PromptUsageStore,
+  type PromptUsageStore,
   projectSlug,
   recentTextTurns,
   recordOverrides,

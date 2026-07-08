@@ -43,6 +43,7 @@ function makeUnconfiguredProvider(): Provider {
   return {
     id: 'unconfigured',
     capabilities: UNCONFIGURED_CAPABILITIES,
+    // biome-ignore lint/correctness/useYield: Provider.stream must be an async generator; this unconfigured stub always throws before it can yield.
     async *stream() {
       throw new Error(message);
     },
