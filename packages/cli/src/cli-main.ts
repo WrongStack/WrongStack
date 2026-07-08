@@ -44,7 +44,6 @@ import {
   type Director,
   EternalAutonomyEngine,
   expectDefined,
-  type FileAuthorTrackerOptions,
   FLEET_ROSTER,
   gatedEnhancerReasoning,
   GlobalMailbox,
@@ -57,21 +56,12 @@ import {
   loadDirectorState,
   mailboxSessionTag,
   ObservableBrainArbiter,
-  type PackageAuthorTrackerOptions,
   ParallelEternalEngine,
   type LogLevel,
   SessionMemoryConsolidator,
   SddRunRegistry,
   SlashCommandRegistry,
-  startSessionTelemetryBridge,
-  startFleetTelemetryBridge,
-  startBrainTelemetryBridge,
-  startWorktreeTelemetryBridge,
-  startToolTelemetryBridge,
-  startCostTelemetryBridge,
   type SystemPromptBuilder,
-  startPackageOutdatedWatcher,
-  startTechStackConsumer,
   TOKENS,
   ToolRegistry,
   watchProviderConfig,
@@ -95,8 +85,7 @@ import { subscribeBrainDecisionLog } from './boot/brain-decision-log.js';
 import { refreshRuntimeModelCatalog, resolveRuntimeMaxContext } from './context-limit.js';
 import { type ExecutionDeps, execute } from './execution.js';
 import { createFallbackModelExtension } from './fallback-model.js';
-import { createCliHqPublisher, startCliHqConnection } from './hq-publisher.js';
-import { createHqCommandDispatcher, type HqCommandController } from './hq-command-controller.js';
+import { createCliHqPublisher } from './hq-publisher.js';
 import { createLifecycleHooksExtension, createUserPromptSubmitMiddleware } from './hooks-wiring.js';
 import { MultiAgentHost } from './multi-agent.js';
 import { createAgentMonitorService } from '@wrongstack/core/coordination';
@@ -123,6 +112,8 @@ import { getSuggestions, setSuggestions } from './slash-commands/suggestion-stor
 import { fmtTaskResultLine, patchConfig } from './utils.js';
 import { CLI_VERSION } from './version.js';
 import { setupCodebaseIndexing } from './wiring/codebase-index.js';
+import { setupDepWatcherConsumers } from './wiring/dep-watcher.js';
+import { setupHqTelemetry } from './wiring/hq-telemetry.js';
 import { setupMetrics } from './wiring/metrics.js';
 import { createAgent, setupCompaction, setupPipelines } from './wiring/pipeline.js';
 import { installDesignStudio } from './wiring/design-studio.js';
@@ -695,7 +686,10 @@ export async function main(argv: string[]): Promise<number> {
   // `todo-listener` that publish cross-agent status updates.
   // (Constructor is side-effect-free; the instance is harmless until
   //  the first send/heartbeat call.)
-  const brainMailbox = new GlobalMailbox(wpaths.projectDir, events, () => hqPublisher);
+  // Mutable ref populated by setupHqTelemetry once the HQ connection
+  // establishes — brainMailbox reads it via closure for HQ publishing.
+  const hqPublisherRef: { current: any | undefined } = { current: undefined };
+  const brainMailbox = new GlobalMailbox(wpaths.projectDir, events, () => hqPublisherRef.current);
 
   // Plugins — extracted to wiring/plugins.ts
   await setupPlugins({
@@ -1081,161 +1075,24 @@ export async function main(argv: string[]): Promise<number> {
   const { brainLog, dispose: disposeBrainLog } = subscribeBrainDecisionLog(events);
   teardownHandlers.push(disposeBrainLog);
 
-  // ── Brain self-activation — watch the bus, intervene via mailbox steer ──
-  // Tool-failure streaks and error storms engage the Brain proactively; a
-  // "steer" decision lands in THIS session's leader inbox and is injected
-  // before the agent's next step.
-  let hqPublisher: ReturnType<typeof createCliHqPublisher>;
-  let stopHqSessionBridge: (() => void) | undefined;
-  const stopHqAuxBridges: Array<() => void> = [];
-
-  // ── Phase 4 control plane — HQ command dispatch holder ──────────────────
-  // Mutable holder (mirrors the `interruptController` pattern): populated
-  // lazily as `director` comes online and `interruptController.abortLeader`
-  // is rebound by the REPL/TUI. The `onCommand` handler reads these at
-  // dispatch time so a command arriving before the director exists is
-  // cleanly rejected instead of crashing.
-  const hqCommandController: HqCommandController = {
-    steerMailbox: brainMailbox,
-    interruptLeader: () => false, // rebound when the REPL/TUI mounts
-    sessionTag: () => mailboxSessionTag(session.id),
-    allowRunCommand: () => flags['hq-allow-exec'] === true,
-  };
-  const hqOnCommand = createHqCommandDispatcher(hqCommandController);
-
-  const hqConnection = startCliHqConnection({
-    clientKind: tuiOwnsScreen ? 'tui' : 'cli',
+  // HQ command dispatch + telemetry bridges (WebSocket, session/fleet/brain/
+  // worktree/tool/cost telemetry, agent-monitor forwarding) — extracted to
+  // wiring/hq-telemetry.ts.
+  const { hqCommandController } = setupHqTelemetry({
+    events,
+    session,
+    config,
+    flags,
+    tuiOwnsScreen,
     projectRoot,
-    projectName: path.basename(projectRoot),
-    appConfig: config,
-    onCommand: hqOnCommand,
-    capabilities: ['telemetry.publish', 'mailbox.summary', 'fleet.summary', 'session.summary', 'control.receive'],
-    onConnect: (publisher) => {
-      hqPublisher = publisher;
-      stopHqSessionBridge?.();
-      stopHqSessionBridge = undefined;
-      // Drain any auxiliary bridges from a previous connection before
-      // re-establishing them, so a reconnect never double-subscribes.
-      for (const stop of stopHqAuxBridges) {
-        try {
-          stop();
-        } catch {
-          /* best-effort */
-        }
-      }
-      stopHqAuxBridges.length = 0;
-      try {
-        stopHqSessionBridge = startSessionTelemetryBridge({
-          publisher,
-          events,
-          sessionId: session.id,
-          projectRoot,
-          projectName: path.basename(projectRoot),
-          globalRoot: wpaths.globalRoot,
-          initialAgents: tracker?.getAgents(),
-          startedAt: new Date().toISOString(),
-        });
-      } catch {
-        // HQ session telemetry is optional.
-      }
-      // ── Auxiliary telemetry bridges — forward richer signals (fleet
-      // stats, brain decisions, worktree lifecycle, tool activity, cost)
-      // to HQ so the command center dashboard is fully populated. All are
-      // best-effort and never break the host on failure. The session id is
-      // the canonical runId (namespace-stable per session), used by the
-      // fleet bridge to identify this coordinator instance.
-      try {
-        stopHqAuxBridges.push(
-          startFleetTelemetryBridge({
-            events,
-            publisher,
-            runId: session.id,
-            sessionId: session.id,
-          }),
-        );
-      } catch {
-        /* optional */
-      }
-      try {
-        stopHqAuxBridges.push(
-          startBrainTelemetryBridge({ events, publisher, sessionId: session.id }),
-        );
-      } catch {
-        /* optional */
-      }
-      try {
-        stopHqAuxBridges.push(
-          startWorktreeTelemetryBridge({ events, publisher, sessionId: session.id }),
-        );
-      } catch {
-        /* optional */
-      }
-      try {
-        stopHqAuxBridges.push(
-          startToolTelemetryBridge({
-            events,
-            publisher,
-            projectRoot,
-            sessionId: session.id,
-          }),
-        );
-      } catch {
-        /* optional */
-      }
-      try {
-        stopHqAuxBridges.push(
-          startCostTelemetryBridge({ events, publisher, sessionId: session.id }),
-        );
-      } catch {
-        /* optional */
-      }
-    },
+    globalRoot: wpaths.globalRoot,
+    tracker,
+    agentMonitor,
+    brainMailbox,
+    teardownHandlers,
+    mailboxSessionTag,
+    hqPublisherRef,
   });
-  hqPublisher = hqConnection.getPublisher();
-  teardownHandlers.push(() => stopHqSessionBridge?.());
-  teardownHandlers.push(() => {
-    for (const stop of stopHqAuxBridges) {
-      try {
-        stop();
-      } catch {
-        /* best-effort */
-      }
-    }
-  });
-  teardownHandlers.push(() => hqConnection.stop());
-
-  // ── Agent Monitor → HQ Bridge ───────────────────────────────────
-  // Forward agent.timeline.message and agent.status_changed events to
-  // the HQ publisher so the HQ browser dashboard sees real-time agent
-  // conversations.
-  if (agentMonitor) {
-    const offMsg = events.on('agent.timeline.message', (payload) => {
-      try {
-        hqPublisher?.publishEvent({
-          type: 'agent.message' as never,
-          payload,
-          timestamp: payload.ts,
-        });
-      } catch {
-        /* best-effort */
-      }
-    });
-    const offStatus = events.on('agent.status_changed', (payload) => {
-      try {
-        hqPublisher?.publishEvent({
-          type: 'agent.status' as never,
-          payload,
-          timestamp: payload.ts,
-        });
-      } catch {
-        /* best-effort */
-      }
-    });
-    teardownHandlers.push(() => {
-      offMsg();
-      offStatus();
-    });
-  }
 
   // brainMailbox is created earlier (before setupPlugins) so the
   // `api.mailbox` PluginAPI field is populated for plugins like
@@ -1367,93 +1224,18 @@ export async function main(argv: string[]): Promise<number> {
     );
   }
 
-  // ── Tech-stack mailbox consumer: auto-spawn agent on dep-watcher messages ──
-  // When dep-watcher posts assign messages to the mailbox, this consumer
-  // polls for them and spawns a tech-stack subagent to audit versions.
-  let techStackConsumerDispose: (() => void) | undefined;
-  if (dwCfg?.['enabled'] === true) {
-    try {
-      const projectDir = path.join(wpaths.globalRoot, 'projects', wpaths.projectSlug);
-      const tsMailbox = new GlobalMailbox(projectDir, events);
-      const fileAuthorOpts: FileAuthorTrackerOptions = {
-        storageDir: projectDir,
-        projectRoot,
-      };
-      techStackConsumerDispose = startTechStackConsumer({
-        mailbox: tsMailbox,
-        onSpawn: async (task, name) => {
-          return multiAgentHost.spawn(task, { name, tools: ['read', 'fetch', 'mailbox'] });
-        },
-        targetAgent: (dwCfg['targetAgent'] as string) ?? 'tech-stack',
-        consumerAgentId: 'tech-stack-consumer',
-        pollIntervalMs: (dwCfg['pollIntervalMs'] as number) ?? 5000,
-        fileAuthorOpts,
-        sessionId: session.id,
-        currentAgentId: 'leader',
-        currentAgentName: 'Leader',
-        onLog: (msg) => logger.debug(msg),
-        onError: (err) =>
-          logger.warn(
-            `Tech-stack consumer error: ${err instanceof Error ? err.message : String(err)}`,
-          ),
-      });
-      logger.info(
-        'Tech-stack mailbox consumer started — will auto-spawn agents on dependency changes',
-      );
-    } catch (err) {
-      logger.warn(`Failed to start tech-stack consumer: ${err}`);
-    }
-  }
-
-  // ── Package outdated watcher: notify original authors when packages are outdated ──
-  // When the tech-stack agent posts outdated-package results to the mailbox,
-  // this watcher looks up who originally added each package and notifies them.
-  let pkgOutdatedDispose: (() => void) | undefined;
-  if (dwCfg?.['enabled'] === true) {
-    try {
-      const projectDir = path.join(wpaths.globalRoot, 'projects', wpaths.projectSlug);
-      const pkgMailbox = new GlobalMailbox(projectDir, events);
-      const pkgTrackerOpts: Pick<PackageAuthorTrackerOptions, 'storageDir' | 'projectRoot'> = {
-        storageDir: projectDir,
-        projectRoot,
-      };
-      pkgOutdatedDispose = startPackageOutdatedWatcher({
-        mailbox: pkgMailbox,
-        packageTrackerOpts: pkgTrackerOpts,
-        pollIntervalMs: (dwCfg['pollIntervalMs'] as number) ?? 60 * 60 * 1000, // 1 hour default
-        watcherAgentId: 'pkg-outdated-watcher',
-        onNotify: async (msg) => {
-          await pkgMailbox.send({
-            from: msg.from,
-            to: msg.to,
-            type: 'note',
-            subject: msg.subject,
-            body: msg.body,
-            priority: msg.priority,
-          });
-        },
-        onLog: (m) => logger.debug(m),
-        onError: (err) =>
-          logger.warn(
-            `Pkg-outdated-watcher error: ${err instanceof Error ? err.message : String(err)}`,
-          ),
-      });
-      logger.info(
-        'Package outdated watcher started — will notify agents when their added packages are outdated',
-      );
-    } catch (err) {
-      logger.warn(`Failed to start package outdated watcher: ${err}`);
-    }
-  }
-
-  if (pkgOutdatedDispose) {
-    teardownHandlers.push(pkgOutdatedDispose);
-  }
-
-  // Clean up tech-stack consumer on teardown
-  if (techStackConsumerDispose) {
-    teardownHandlers.push(techStackConsumerDispose);
-  }
+  // Dep-watcher consumers (tech-stack + package-outdated) — extracted to wiring/dep-watcher.ts
+  setupDepWatcherConsumers({
+    dwCfg,
+    globalRoot: wpaths.globalRoot,
+    projectSlug: wpaths.projectSlug,
+    events,
+    multiAgentHost,
+    sessionId: session.id,
+    logger,
+    teardownHandlers,
+    projectRoot,
+  });
 
   if (directorMode) {
     // Eagerly build the director so its LLM-callable orchestration
