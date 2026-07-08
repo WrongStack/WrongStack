@@ -41,7 +41,6 @@ import {
   createMcpControlTool,
   createTieredBrainArbiter,
   DefaultBrainArbiter,
-  type Director,
   EternalAutonomyEngine,
   expectDefined,
   FLEET_ROSTER,
@@ -73,7 +72,6 @@ import {
 import { wireSessionEvents } from './session-event-wiring.js';
 import { initializeCli } from './cli-context.js';
 import { MCPRegistry } from '@wrongstack/mcp';
-import { sessionScopedPath } from '@wrongstack/core/utils';
 import { toErrorMessage } from '@wrongstack/core/utils/error';
 import { createAuthPanelHost } from './auth-menu/panel-service.js';
 import { createAutoPhaseHost } from './autophase-host.js';
@@ -88,7 +86,6 @@ import { createFallbackModelExtension } from './fallback-model.js';
 import { createCliHqPublisher } from './hq-publisher.js';
 import { createLifecycleHooksExtension, createUserPromptSubmitMiddleware } from './hooks-wiring.js';
 import { MultiAgentHost } from './multi-agent.js';
-import { createAgentMonitorService } from '@wrongstack/core/coordination';
 import { makeConfirmAwaiter } from './permission-prompt.js';
 import { PLUGIN_AUDIT_ENTRIES, runPluginManagementCommand } from './plugin-management.js';
 import { buildPickableProviders } from './provider-helpers.js';
@@ -114,6 +111,7 @@ import { CLI_VERSION } from './version.js';
 import { setupCodebaseIndexing } from './wiring/codebase-index.js';
 import { setupDepWatcherConsumers } from './wiring/dep-watcher.js';
 import { setupHqTelemetry } from './wiring/hq-telemetry.js';
+import { setupDirectorAndAutonomy } from './wiring/director-setup.js';
 import { setupMetrics } from './wiring/metrics.js';
 import { createAgent, setupCompaction, setupPipelines } from './wiring/pipeline.js';
 import { installDesignStudio } from './wiring/design-studio.js';
@@ -903,134 +901,35 @@ export async function main(argv: string[]): Promise<number> {
     teardownHandlers.push(() => credentialWatcher.close());
   }
 
-  // L1-E: lazily-instantiated multi-agent host. Wired into /spawn and
-  // /agents slash commands; constructed on first invocation so users
-  // who never spawn subagents pay nothing.
-  //
-  // `--director` upgrades the host to Director mode — same external API,
-  // but task lifecycle flows through a `Director` so manifest writing
-  // works and the FleetBus is available for observability hooks. Manifest
-  // path defaults to `<projectSessions>/<date>/sess_<ULID>/fleet.json`; users can
-  // override via `WRONGSTACK_FLEET_MANIFEST` if they want a fixed path.
-  const directorMode = flags['director'] === true || typeof flags['resume'] === 'string';
-  // Concurrent subagent ceiling. Priority: CLI flag → env var → config → default (4).
-  // Caps how many delegated tasks the coordinator dispatches at once;
-  // extra tasks queue. Keeps the leader from spawning enough parallel
-  // subagents to trip provider rate limits. Persist a default in config.json
-  // via `maxConcurrent` or change live with /fleet concurrency <n>.
-  const maxConcurrentFromFlag =
-    typeof flags['max-concurrent'] === 'string'
-      ? Number.parseInt(flags['max-concurrent'], 10)
-      : undefined;
-  const maxConcurrentFromEnv =
-    typeof process.env['WRONGSTACK_MAX_CONCURRENT'] === 'string'
-      ? Number.parseInt(process.env['WRONGSTACK_MAX_CONCURRENT'], 10)
-      : undefined;
-  const maxConcurrentFromConfig =
-    typeof config.maxConcurrent === 'number' && config.maxConcurrent > 0
-      ? config.maxConcurrent
-      : undefined;
-  const maxConcurrent =
-    Number.isFinite(maxConcurrentFromFlag) && (maxConcurrentFromFlag as number) > 0
-      ? (maxConcurrentFromFlag as number)
-      : Number.isFinite(maxConcurrentFromEnv) && (maxConcurrentFromEnv as number) > 0
-        ? (maxConcurrentFromEnv as number)
-        : Number.isFinite(maxConcurrentFromConfig) && (maxConcurrentFromConfig as number) > 0
-          ? (maxConcurrentFromConfig as number)
-          : undefined;
-  let director: Director | null = null;
-  // Autonomy mode: 'off' (default), 'suggest' (show next steps), 'auto' (self-driving)
-  // Initial value can be pinned via the launch prompt (or `--autonomy <mode>`),
-  // which sets `flags['autonomy']` before we wire up. Keep the ref in sync
-  // so the autonomy prompt contributor sees the same value from turn 1.
-  let autonomyMode: import('./slash-commands/autonomy.js').AutonomyMode = (() => {
-    const v = flags['autonomy'];
-    if (v === 'auto' || v === 'suggest' || v === 'eternal' || v === 'eternal-parallel') return v;
-    // An explicit 'off' (e.g. --no-autonomy, or the non-interactive guard in
-    // boot.ts) is honored as a user/system opt-out. Only when the flag is
-    // genuinely unset do we fall back to the configured default mode (now
-    // 'auto'), so launches that don't pin a mode self-drive by default.
-    if (v === 'off') return 'off';
-    return (config.autonomy?.defaultMode ??
-      'off') as import('./slash-commands/autonomy.js').AutonomyMode;
-  })();
-  autonomyModeRef.current = autonomyMode;
-  // Next-task prediction toggle — persisted in config so it survives restarts.
-  // Read/written via `onNextPredict`, read by the REPL via `getNextPredict`.
-  let nextPredictEnabled = config.nextPrediction === true;
-  // Suggestion list for /next selection — ephemeral, cleared each cycle.
-  // Read/written via `onSuggestions`.
-  let currentSuggestions: string[] = [];
-  // Eternal-autonomy engine instance — lazy, created when /autonomy eternal is invoked.
-  // Lives at function scope so /autonomy stop and SIGINT handlers can reach it.
-  let eternalEngine: import('@wrongstack/core').EternalAutonomyEngine | null = null;
-  // Parallel-eternal engine instance — lazy, created when /autonomy parallel is invoked.
-  let parallelEngine: import('@wrongstack/core').ParallelEternalEngine | null = null;
-  // Listeners installed by the TUI / REPL to receive per-iteration events
-  // from the engine. We support a list (not a single callback) so both
-  // surfaces can subscribe without overwriting each other — TUI installs
-  // one on mount, but the underlying engine is owned at CLI scope.
-  const eternalListeners = new Set<(entry: import('@wrongstack/core').JournalEntry) => void>();
-  const broadcastEternalIteration = (entry: import('@wrongstack/core').JournalEntry): void => {
-    for (const fn of eternalListeners) {
-      try {
-        fn(entry);
-      } catch {
-        // listener failures must never break the engine — swallow
-      }
-    }
-  };
-  const stageListeners = new Set<(stage: AutonomyStage) => void>();
-  const broadcastAutonomyStage = (stage: AutonomyStage): void => {
-    for (const fn of stageListeners) {
-      try {
-        fn(stage);
-      } catch {
-        // listener failures must never break the engine — swallow
-      }
-    }
-  };
-  // Convention: director artifacts all live under the same fleet root —
-  //   <projectSessions>/<date>/sess_<ULID>/
-  //     ├─ fleet.json              (manifest)
-  //     ├─ shared/                 (cross-agent scratchpad)
-  //     └─ subagents/              (per-subagent JSONL transcripts)
-  // The user can override the manifest path with WRONGSTACK_FLEET_MANIFEST
-  // but the scratchpad + transcripts always sit relative to the session.
-  const fleetRoot = directorMode
-    ? sessionScopedPath(wpaths.projectSessions, session.id, '')
-    : undefined;
-  const manifestPath = directorMode
-    ? typeof process.env['WRONGSTACK_FLEET_MANIFEST'] === 'string'
-      ? process.env['WRONGSTACK_FLEET_MANIFEST']
-      : path.join(expectDefined(fleetRoot), 'fleet.json')
-    : undefined;
-  const sharedScratchpadPath = directorMode
-    ? path.join(expectDefined(fleetRoot), 'shared')
-    : undefined;
-  const subagentSessionsRoot = directorMode
-    ? path.join(expectDefined(fleetRoot), 'subagents')
-    : undefined;
-  // Live director state checkpoint — written incrementally to disk on
-  // every spawn/assign/complete event so a crashed director leaves a
-  // recoverable snapshot. Distinct from manifestPath (final record).
-  const stateCheckpointPath = directorMode
-    ? path.join(expectDefined(fleetRoot), 'director-state.json')
-    : undefined;
-  // Always derive a fleetRoot for runtime promotion — /director needs
-  // a base dir to write manifest + scratchpad + per-subagent JSONLs into.
-  const fleetRootForPromotion = sessionScopedPath(wpaths.projectSessions, session.id, '');
-
-  // ── Agent Monitor — subagent conversation tracking ─────────────────────
-  // Creates the AgentMonitorService that listens to FleetBus events and
-  // maintains per-subagent virtual chat history + JSONL transcripts.
-  // The transcripts dir sits alongside the director's subagent sessions.
-  const agentMonitor = createAgentMonitorService({
+  // Director / autonomy mode, fleet paths, eternal-engine scaffolding,
+  // Agent Monitor — extracted to wiring/director-setup.ts.
+  let {
+    director,
+    directorMode,
+    maxConcurrent,
+    autonomyMode,
+    nextPredictEnabled,
+    currentSuggestions,
+    eternalEngine,
+    parallelEngine,
+    eternalListeners,
+    broadcastEternalIteration,
+    stageListeners,
+    broadcastAutonomyStage,
+    fleetRoot,
+    manifestPath,
+    sharedScratchpadPath,
+    subagentSessionsRoot,
+    stateCheckpointPath,
+    fleetRootForPromotion,
+    agentMonitor,
+  } = setupDirectorAndAutonomy({
+    flags,
+    config,
+    wpaths,
+    session,
     events,
-    sessionId: session.id,
-    transcriptsDir: path.join(fleetRootForPromotion, 'subagents', 'transcripts'),
-    maxEntriesPerAgent: 500,
-    streamEnabled: false,
+    autonomyModeRef,
   });
 
   // ── Global Brain chain — policy → LLM → human ──────────────────────────
