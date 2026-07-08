@@ -112,6 +112,25 @@ describe('HQ dashboard document', () => {
     expect(script).toContain('tool-summary');
   });
 
+  it('injects the shared tool-output diff model and renders edit/write/patch diffs', async () => {
+    handle = await startServer();
+    const html = await (await fetch(`http://127.0.0.1:${handle.port}/`)).text();
+    const dom = new JSDOM(html);
+    const script = dom.window.document.querySelector('script[type="module"]')?.textContent ?? '';
+    // Diff model is INJECTED from @wrongstack/tools/tool-diff — placeholder gone.
+    expect(script).not.toContain('__TOOL_DIFF_SRC__');
+    expect(script).toContain('function diffFromToolInput');
+    expect(script).toContain('function computeLineDiff');
+    expect(script).toContain('function parseUnifiedDiff');
+    expect(script).toContain('function diffRowsFromToolInput');
+    // HQ-side renderer + its CSS hooks.
+    expect(script).toContain('function renderToolDiff');
+    // The diff CSS classes must be present in the served <style>.
+    expect(html).toContain('.tool-diff');
+    expect(html).toContain('.tdrow.add');
+    expect(html).toContain('.tdrow.del');
+  });
+
   it('preserves the browser token when wiring WS and fetch URLs', async () => {
     // Token mode on — the dashboard must thread ?token= through every call.
     await writeHqAuthFile(dataDir, {

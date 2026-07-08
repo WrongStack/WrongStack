@@ -48,6 +48,8 @@ export default defineConfig({
     'src/tool-icons.ts',
     // Pure tool-input summarizer (browser-safe; consumed by WebUI + HQ dashboard).
     'src/tool-summary.ts',
+    // Pure tool-output diff model (browser-safe; consumed by WebUI + HQ dashboard).
+    'src/tool-diff.ts',
     // Codebase index tools
     'src/codebase-index/index.ts',
     // Index worker thread — must be its own emitted file: the host spawns it

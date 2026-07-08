@@ -36,6 +36,10 @@
       "types": "./dist/tool-summary.d.ts",
       "import": "./dist/tool-summary.js"
     },
+    "./tool-diff": {
+      "types": "./dist/tool-diff.d.ts",
+      "import": "./dist/tool-diff.js"
+    },
     "./read": {
       "types": "./dist/read.d.ts",
       "import": "./dist/read.js"

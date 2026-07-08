@@ -29,7 +29,7 @@ import { memo, useEffect, useMemo, useState } from 'react';
 import { useAppTranslation } from '@/i18n';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { DiffView, diffFromToolInput } from '../DiffView';
+import { ToolDiffView, diffFromToolInput } from '../DiffView';
 import { ToolResult } from '../ToolResult';
 import { NextStepsBar, fillInput, parseNextSteps } from '../NextStepsBar';
 import { CopyButton } from './CopyButton.js';
@@ -251,8 +251,8 @@ export const MessageBubble = memo(function MessageBubble({
                   </div>
                 )}
                 {expanded && message.toolInput !== undefined && (() => {
-                  const diffArgs = diffFromToolInput(message.toolName, message.toolInput);
-                  if (diffArgs) return (<DiffView oldText={diffArgs.oldText} newText={diffArgs.newText} caption={diffArgs.caption} />);
+                  const diff = diffFromToolInput(message.toolName, message.toolInput);
+                  if (diff) return <ToolDiffView diff={diff} />;
                   return (<div className="p-3 bg-muted/50 rounded-lg overflow-x-auto"><div className="flex items-center gap-1 text-muted-foreground mb-2 text-xs"><Clock className="h-3 w-3" /><span>{t('activity:message.inputLabel')}</span></div><ToolInputView input={message.toolInput} /></div>);
                 })()}
                 {expanded && message.toolResult !== undefined && message.toolResult.length > 0 && (

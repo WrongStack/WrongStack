@@ -5,7 +5,7 @@ import { useUIStore } from '@/stores';
 import { AlertTriangle, FileEdit, Globe, ShieldAlert, Terminal, Wrench, Zap } from 'lucide-react';
 import { useEffect, useRef } from 'react';
 import { useShallow } from 'zustand/react/shallow';
-import { DiffView, diffFromToolInput } from './DiffView';
+import { ToolDiffView, diffFromToolInput } from './DiffView';
 import { Button } from './ui/button';
 import {
   Dialog,
@@ -40,15 +40,11 @@ function SmartInputPreview({
   input: unknown;
 }) {
   const { t } = useAppTranslation();
-  const diffArgs = diffFromToolInput(toolName, input);
-  if (diffArgs) {
+  const diff = diffFromToolInput(toolName, input);
+  if (diff) {
     return (
       <div className="rounded-lg overflow-hidden border">
-        <DiffView
-          oldText={diffArgs.oldText}
-          newText={diffArgs.newText}
-          caption={diffArgs.caption}
-        />
+        <ToolDiffView diff={diff} />
       </div>
     );
   }

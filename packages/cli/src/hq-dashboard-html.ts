@@ -21,6 +21,7 @@
  * @module hq-dashboard-html
  */
 import { SUMMARIZE_TOOL_INPUT_BROWSER_SRC } from '@wrongstack/tools/tool-summary';
+import { TOOL_DIFF_BROWSER_SRC } from '@wrongstack/tools/tool-diff';
 
 // The served document is one big template literal (see header note). The
 // tool-input summarizer is authored ONCE in @wrongstack/tools and injected via
@@ -327,6 +328,24 @@ const HQ_HTML_TEMPLATE = `<!DOCTYPE html>
   .tool-status { margin-left: auto; flex: 0 0 auto; font-size: 10px; text-transform: uppercase; letter-spacing: 0.6px; color: var(--green); font-weight: 800; }
   .tool-status.error { color: var(--red); }
   .tool-duration { flex: 0 0 auto; font-size: 10.5px; color: var(--dim); font-variant-numeric: tabular-nums; }
+  .tool-diff { border: 1px solid var(--border); border-radius: 8px; overflow: hidden; background: rgba(13,17,23,0.5); }
+  .tool-diff-head { display: flex; align-items: center; gap: 8px; padding: 5px 9px; border-bottom: 1px solid var(--border); background: var(--inset); font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 10.5px; }
+  .tool-diff-cap { color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .tool-diff-stat { margin-left: auto; display: flex; gap: 8px; flex: 0 0 auto; font-variant-numeric: tabular-nums; }
+  .tool-diff-stat .td-add { color: var(--green); font-weight: 700; }
+  .tool-diff-stat .td-del { color: var(--red); font-weight: 700; }
+  .tool-diff-body { max-height: 320px; overflow: auto; font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 11.5px; line-height: 1.5; }
+  .tool-diff-toolarge { padding: 8px 10px; color: var(--dim); font-style: italic; font-size: 11px; }
+  .tdrow { display: flex; align-items: flex-start; }
+  .tdrow.add { background: rgba(63,185,80,0.13); }
+  .tdrow.del { background: rgba(248,81,73,0.13); }
+  .tdrow.meta { background: rgba(88,166,255,0.10); }
+  .tdsign { flex: 0 0 auto; width: 16px; text-align: center; user-select: none; color: var(--dim); }
+  .tdrow.add .tdsign { color: var(--green); }
+  .tdrow.del .tdsign { color: var(--red); }
+  .tdrow.meta .tdsign { color: var(--accent); }
+  .tdtext { margin: 0; flex: 1 1 auto; min-width: 0; padding: 0 8px; white-space: pre-wrap; word-break: break-word; color: var(--text); }
+  .tdrow.ctx .tdtext, .tdrow.meta .tdtext { color: var(--muted); }
   .tool-group { margin: 0 0 14px 42px; max-width: 860px; border: 1px solid var(--border); border-radius: 12px; background: rgba(57,208,216,0.045); overflow: hidden; }
   .tool-group > summary { cursor: pointer; list-style: none; display: flex; align-items: center; gap: 8px; padding: 9px 11px; color: var(--text); user-select: none; }
   .tool-group > summary::-webkit-details-marker { display: none; }
@@ -1119,6 +1138,43 @@ async function boot(){
   // HQ's JSON string. See packages/tools/src/tool-summary.ts.
   /*__TOOL_SUMMARY_SRC__*/
 
+  // Tool-output diff model: authored once in @wrongstack/tools and injected here
+  // (same pattern as the summarizer). Defines diffFromToolInput / computeLineDiff
+  // / parseUnifiedDiff / diffRowsFromToolInput. See tool-diff.ts.
+  /*__TOOL_DIFF_SRC__*/
+
+  // Render a tool call's edit/write/patch diff as red/green rows, matching the
+  // WebUI DiffView. Returns null when the tool carries no diffable input.
+  function renderToolDiff(e){
+    var d = diffRowsFromToolInput(e.tool, e.toolInput);
+    if(!d) return null;
+    if(d.rows === null){
+      return h('div', { className: 'tool-diff' },
+        h('div', { className: 'tool-diff-head' }, d.caption || 'diff'),
+        h('div', { className: 'tool-diff-toolarge' }, 'diff too large to render')
+      );
+    }
+    var adds = 0, dels = 0;
+    for(var i=0;i<d.rows.length;i++){ if(d.rows[i].kind==='add') adds++; else if(d.rows[i].kind==='del') dels++; }
+    var rowEls = d.rows.map(function(r, idx){
+      var sign = r.kind==='add' ? '+' : (r.kind==='del' ? '-' : (r.kind==='meta' ? '@' : ' '));
+      return h('div', { key: idx, className: 'tdrow ' + r.kind },
+        h('span', { className: 'tdsign', 'aria-hidden': true }, sign),
+        h('pre', { className: 'tdtext' }, r.text || ' ')
+      );
+    });
+    return h('div', { className: 'tool-diff' },
+      h('div', { className: 'tool-diff-head' },
+        h('span', { className: 'tool-diff-cap' }, d.caption || 'diff'),
+        h('span', { className: 'tool-diff-stat' },
+          adds ? h('span', { className: 'td-add' }, '+' + adds) : null,
+          dels ? h('span', { className: 'td-del' }, '-' + dels) : null
+        )
+      ),
+      h('div', { className: 'tool-diff-body' }, rowEls)
+    );
+  }
+
   function fold(key, summary, content, preClass){
     return h('details', { key: key, className: 'bub-fold' },
       h('summary', null, summary),
@@ -1292,7 +1348,9 @@ async function boot(){
       headKids.push(h('span', { key:'st', className: 'tool-status ' + (failed ? 'error' : '') }, failed ? 'failed' : 'done'));
       if(e.durationMs != null){ headKids.push(h('span', { key:'du', className: 'tool-duration' }, e.durationMs + 'ms')); }
       bodyEls.push(h('div', { key: 'th', className: 'tool-head' }, headKids));
-      if(e.toolInput){ bodyEls.push(fold('a', 'Input · ' + e.toolInput.length + ' chars', e.toolInput, 'bub-argpre')); }
+      var toolDiffEl = e.toolInput ? renderToolDiff(e) : null;
+      if(toolDiffEl){ bodyEls.push(h('div', { key: 'd' }, toolDiffEl)); }
+      if(e.toolInput){ bodyEls.push(fold('a', (toolDiffEl ? 'Raw input' : 'Input') + ' · ' + e.toolInput.length + ' chars', e.toolInput, 'bub-argpre')); }
       if(e.text){ bodyEls.push(foldContent('o', (failed?'Error output':'Output') + ' · ' + countLines(e.text) + ' lines', renderToolOutput(e))); }
       if(!e.toolInput && !e.text){ bodyEls.push(h('div', { key:'n', className:'bub-sublabel' }, 'no output')); }
     } else {
@@ -2134,10 +2192,10 @@ boot();
 </html>`;
 
 // The served HQ document: HQ_HTML_TEMPLATE with the shared tool-input
-// summarizer injected at the placeholder. A replacer FUNCTION is used so any
-// dollar sign in the injected source is not treated as a String.replace
-// special replacement pattern.
+// summarizer and tool-output diff model injected at their placeholders. Replacer
+// FUNCTIONS are used so any dollar sign in the injected source is not treated as
+// a String.replace special replacement pattern.
 export const HQ_HTML: string = HQ_HTML_TEMPLATE.replace(
   '/*__TOOL_SUMMARY_SRC__*/',
   () => SUMMARIZE_TOOL_INPUT_BROWSER_SRC,
-);
+).replace('/*__TOOL_DIFF_SRC__*/', () => TOOL_DIFF_BROWSER_SRC);

@@ -1,7 +1,13 @@
-import { expectDefined } from '@wrongstack/core';
+import { type DiffRow, type ToolDiff, computeLineDiff, parseUnifiedDiff } from '@wrongstack/tools/tool-diff';
 import { cn } from '@/lib/utils';
 import { useAppTranslation } from '@/i18n';
 import { memo, useMemo } from 'react';
+
+// The diff MODEL (line-diff algorithm, unified-diff parser, and tool-input
+// extraction) is the single source of truth in @wrongstack/tools/tool-diff,
+// shared with the HQ dashboard. This module owns only the React RENDERING.
+export { diffFromToolInput } from '@wrongstack/tools/tool-diff';
+
 interface DiffViewProps {
   oldText: string;
   newText: string;
@@ -15,24 +21,47 @@ interface DiffViewProps {
 }
 
 /**
- * Tiny line-based diff renderer. Computes the longest-common-subsequence
- * between `oldText` and `newText` line arrays, then walks both sides
- * emitting `add`/`remove`/`context` rows. Context lines are de-emphasised
- * so the eye lands on the changes. Not as pretty as a Myers diff but it's
- * one short function with no deps and good enough for a chat preview.
+ * Line-based diff renderer. Delegates the actual line diff to the shared
+ * `computeLineDiff` (LCS) in @wrongstack/tools, then renders add/del/context
+ * rows. Context lines are de-emphasised so the eye lands on the changes.
  *
- * Limits: text > 5000 lines is shown without a diff (just a "too large"
- * note); that's a UI guard, not a hard limit on the underlying tool.
+ * Limits: text > 5000 lines is shown without a diff (just a "too large" note);
+ * that's a UI guard, not a hard limit on the underlying tool.
  */
 export const DiffView = memo(function DiffView({ oldText, newText, caption, fill }: DiffViewProps) {
+  const rows = useMemo(() => computeLineDiff(oldText, newText), [oldText, newText]);
+  return <DiffRows rows={rows} caption={caption} fill={fill} />;
+});
+
+/**
+ * Render an already-extracted {@link ToolDiff}. `lcs` mode runs the line diff;
+ * `unified` mode parses the tool's own patch hunks. Both share the same row
+ * rendering, so edit/write and patch look consistent. Returns the same "too
+ * large" guard as {@link DiffView} for oversized LCS inputs.
+ */
+export const ToolDiffView = memo(function ToolDiffView({ diff, fill }: { diff: ToolDiff; fill?: boolean }) {
+  const rows = useMemo(
+    () => (diff.mode === 'unified' ? parseUnifiedDiff(diff.patchText) : computeLineDiff(diff.oldText, diff.newText)),
+    [diff],
+  );
+  return <DiffRows rows={rows} caption={diff.caption} fill={fill} />;
+});
+
+/** Shared row renderer for both DiffView (lcs) and ToolDiffView (lcs|unified). */
+const DiffRows = memo(function DiffRows({
+  rows,
+  caption,
+  fill,
+}: {
+  rows: DiffRow[] | null;
+  caption?: string | undefined;
+  fill?: boolean | undefined;
+}) {
   const { t } = useAppTranslation();
-  const rows = useMemo(() => computeDiff(oldText, newText), [oldText, newText]);
 
   if (rows === null) {
     return (
-      <div className="text-xs text-muted-foreground italic px-3 py-2">
-        {t('activity:diff.tooLarge')}
-      </div>
+      <div className="text-xs text-muted-foreground italic px-3 py-2">{t('activity:diff.tooLarge')}</div>
     );
   }
 
@@ -43,46 +72,47 @@ export const DiffView = memo(function DiffView({ oldText, newText, caption, fill
     <div
       className={cn(
         'rounded-lg border bg-background/40 overflow-hidden text-xs',
-        fill && 'flex h-full min-h-0 min-w-0 flex-col',
+        fill && 'flex h-full min-h-0 flex-col',
       )}
     >
-      <div className="flex items-center justify-between px-3 py-1.5 border-b bg-muted/40 shrink-0">
-        <span className="font-mono text-muted-foreground truncate">{caption ?? 'diff'}</span>
-        <span className="font-mono shrink-0">
-          <span className="text-success">+{adds}</span>
-          <span className="text-muted-foreground mx-1 opacity-50">·</span>
-          <span className="text-destructive">-{dels}</span>
-        </span>
-      </div>
-      <div
-        className={cn('font-mono leading-relaxed overflow-auto', fill ? 'min-h-0 flex-1' : 'max-h-96')}
-      >
-        {rows.map((r, i) => (
+      {(caption || adds > 0 || dels > 0) && (
+        <div className="flex items-center gap-2 px-3 py-1.5 border-b bg-muted/40 font-mono text-[11px]">
+          {caption && <span className="text-muted-foreground truncate">{caption}</span>}
+          <span className="ml-auto flex items-center gap-2">
+            {adds > 0 && <span className="text-emerald-500">+{adds}</span>}
+            {dels > 0 && <span className="text-red-500">-{dels}</span>}
+          </span>
+        </div>
+      )}
+      <div className={cn('overflow-auto font-mono leading-relaxed', fill ? 'flex-1 min-h-0' : 'max-h-96')}>
+        {rows.map((r, idx) => (
           <div
-            key={i}
+            key={idx}
             className={cn(
-              'flex',
-              r.kind === 'add' && 'bg-success/10',
-              r.kind === 'del' && 'bg-destructive/10',
+              'flex items-start',
+              r.kind === 'add' && 'bg-emerald-500/10',
+              r.kind === 'del' && 'bg-red-500/10',
+              r.kind === 'meta' && 'bg-muted/60',
             )}
           >
             <span
+              aria-hidden
               className={cn(
-                'w-6 shrink-0 text-center select-none',
-                r.kind === 'add' && 'text-success',
-                r.kind === 'del' && 'text-destructive',
-                r.kind === 'ctx' && 'text-muted-foreground/40',
+                'select-none w-4 shrink-0 text-center',
+                r.kind === 'add' && 'text-emerald-500',
+                r.kind === 'del' && 'text-red-500',
+                (r.kind === 'ctx' || r.kind === 'meta') && 'text-muted-foreground/50',
               )}
             >
-              {r.kind === 'add' ? '+' : r.kind === 'del' ? '-' : ' '}
+              {r.kind === 'add' ? '+' : r.kind === 'del' ? '-' : r.kind === 'meta' ? '@' : ' '}
             </span>
             <pre
               className={cn(
                 'whitespace-pre-wrap break-all flex-1 px-2',
-                r.kind === 'ctx' && 'text-muted-foreground/70',
+                (r.kind === 'ctx' || r.kind === 'meta') && 'text-muted-foreground/70',
               )}
             >
-              {r.text || ' '}
+              {r.text || ' '}
             </pre>
           </div>
         ))}
@@ -90,86 +120,3 @@ export const DiffView = memo(function DiffView({ oldText, newText, caption, fill
     </div>
   );
 });
-
-interface DiffRow {
-  kind: 'add' | 'del' | 'ctx';
-  text: string;
-}
-
-const MAX_LINES = 5000;
-
-/**
- * Returns null when either side exceeds the line cap. Otherwise walks the
- * LCS table to produce a clean diff. LCS table is O(n*m) memory — fine for
- * a file edit (usually <500 lines), prohibitive for a full file rewrite of
- * a giant generated file (hence the cap).
- */
-function computeDiff(oldText: string, newText: string): DiffRow[] | null {
-  const a = oldText.split('\n');
-  const b = newText.split('\n');
-  if (a.length > MAX_LINES || b.length > MAX_LINES) return null;
-  const n = a.length;
-  const m = b.length;
-  // dp[i][j] = LCS length of a[i..] and b[j..]
-  const dp: number[][] = Array.from({ length: n + 1 }, () => new Array(m + 1).fill(0));
-  for (let i = n - 1; i >= 0; i--) {
-    for (let j = m - 1; j >= 0; j--) {
-      if (a[i] === b[j]) expectDefined(dp[i])[j] = expectDefined(dp[i + 1]?.[j + 1]) + 1;
-      else expectDefined(dp[i])[j] = Math.max(expectDefined(dp[i + 1]?.[j]), expectDefined(dp[i]?.[j + 1]));
-    }
-  }
-  const rows: DiffRow[] = [];
-  let i = 0;
-  let j = 0;
-  while (i < n && j < m) {
-    if (a[i] === b[j]) {
-      rows.push({ kind: 'ctx', text: expectDefined(a[i]) });
-      i++;
-      j++;
-    } else if (expectDefined(dp[i + 1]?.[j]) >= expectDefined(dp[i]?.[j + 1])) {
-      rows.push({ kind: 'del', text: expectDefined(a[i]) });
-      i++;
-    } else {
-      rows.push({ kind: 'add', text: expectDefined(b[j]) });
-      j++;
-    }
-  }
-  while (i < n) rows.push({ kind: 'del', text: expectDefined(a[i++]) });
-  while (j < m) rows.push({ kind: 'add', text: expectDefined(b[j++]) });
-  return rows;
-}
-
-/**
- * Recognise the WrongStack edit-family tools and pull a (oldText, newText,
- * caption) tuple out of their input. Returns null when the tool doesn't
- * carry diffable input. Caller uses this to decide whether to render the
- * DiffView at all.
- */
-export function diffFromToolInput(
-  toolName: string | undefined,
-  input: unknown,
-): { oldText: string; newText: string; caption: string } | null {
-  if (!toolName || typeof input !== 'object' || input === null) return null;
-  const obj = input as Record<string, unknown>;
-  const filePath = String(obj.file_path ?? obj.path ?? '');
-  switch (toolName) {
-    case 'edit':
-    case 'str_replace':
-    case 'edit_file': {
-      const oldText = typeof obj.old_string === 'string' ? obj.old_string : '';
-      const newText = typeof obj.new_string === 'string' ? obj.new_string : '';
-      if (!oldText && !newText) return null;
-      return { oldText, newText, caption: `edit ${filePath}` };
-    }
-    case 'write':
-    case 'write_file':
-    case 'create_file': {
-      const content = typeof obj.content === 'string' ? obj.content : '';
-      // For a fresh write there's no "old" — treat as additive so the
-      // viewer shows everything green.
-      return { oldText: '', newText: content, caption: `write ${filePath} (new)` };
-    }
-    default:
-      return null;
-  }
-}
