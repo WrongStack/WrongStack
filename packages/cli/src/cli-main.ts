@@ -541,7 +541,8 @@ export async function main(argv: string[]): Promise<number> {
     buildProviderForId,
     switchProviderAndModel,
   } = setupProviderRuntime({
-    config: { current: config },
+    config,
+    onConfigUpdate: (newConfig) => { config = newConfig; },
     configStore,
     providerRegistry,
     agent,

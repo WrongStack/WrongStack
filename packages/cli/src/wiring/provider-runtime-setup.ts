@@ -21,7 +21,9 @@ import { patchConfig } from '../utils.js';
 type AnyObj = any;
 
 export interface ProviderRuntimeDeps {
-  config: { current: Config };
+  config: Config;
+  /** Called whenever the function patches config, so the caller stays in sync. */
+  onConfigUpdate: (config: Config) => void;
   configStore: AnyObj;
   providerRegistry: ProviderRegistry;
   agent: AnyObj;
@@ -50,10 +52,15 @@ export interface ProviderRuntimeResult {
  * Wire runtime provider-config helpers, fallback model extension,
  * memory consolidation, the provider/model switch callback, and
  * the credential hot-reload watcher.
+ *
+ * Uses `onConfigUpdate` to propagate config patches back to the caller,
+ * avoiding the desync that a bare `{ current: Config }` ref would cause
+ * when the caller also mutates `config` directly.
  */
 export function setupProviderRuntime(deps: ProviderRuntimeDeps): ProviderRuntimeResult {
   const {
-    config,
+    config: initialConfig,
+    onConfigUpdate,
     configStore,
     providerRegistry,
     agent,
@@ -70,20 +77,26 @@ export function setupProviderRuntime(deps: ProviderRuntimeDeps): ProviderRuntime
     buildProviderForIdRuntime,
   } = deps;
 
+  // Local mutable config — seeded from deps, kept in sync via onConfigUpdate.
+  let cfg = initialConfig;
+  const sync = (next: Config): void => {
+    cfg = next;
+    onConfigUpdate(next);
+  };
+
   // ── Provider config helpers ────────────────────────────────────────────
-  const cfgRef = config;
   const resolveProviderCfg = (providerId: string) =>
-    resolveProviderCfgRuntime(cfgRef.current, providerId);
+    resolveProviderCfgRuntime(cfg, providerId);
 
   const buildProviderForId = (providerId: string): Provider =>
-    buildProviderForIdRuntime({ config: cfgRef.current, providerRegistry }, providerId);
+    buildProviderForIdRuntime({ config: cfg, providerRegistry }, providerId);
 
   const refreshMaxContextFor = async (
     providerId: string,
     modelId: string,
   ): Promise<void> => {
-    const { cfg } = resolveProviderCfg(providerId);
-    await refreshMaxContext(providerId, modelId, cfg);
+    const { cfg: resolvedCfg } = resolveProviderCfg(providerId);
+    await refreshMaxContext(providerId, modelId, resolvedCfg);
   };
 
   const refreshRuntimeModelStateFor = async (
@@ -97,7 +110,7 @@ export function setupProviderRuntime(deps: ProviderRuntimeDeps): ProviderRuntime
   // ── Fallback extension ─────────────────────────────────────────────────
   agent.extensions.register(
     createFallbackModelExtension({
-      getConfig: () => cfgRef.current,
+      getConfig: () => cfg,
       buildProvider: buildProviderForId,
       onModelSwitch: refreshRuntimeModelStateFor,
       events,
@@ -106,7 +119,7 @@ export function setupProviderRuntime(deps: ProviderRuntimeDeps): ProviderRuntime
   );
 
   // ── Session-end memory consolidation ───────────────────────────────────
-  if (cfgRef.current.features.memory && cfgRef.current.features.memoryConsolidation !== false) {
+  if (cfg.features.memory && cfg.features.memoryConsolidation !== false) {
     agent.extensions.register(
       new SessionMemoryConsolidator({
         memoryStore,
@@ -122,7 +135,7 @@ export function setupProviderRuntime(deps: ProviderRuntimeDeps): ProviderRuntime
     try {
       context.provider = buildProviderForId(providerId);
       context.model = modelId;
-      cfgRef.current = patchConfig(cfgRef.current, { provider: providerId, model: modelId });
+      sync(patchConfig(cfg, { provider: providerId, model: modelId }));
       configStore.update({ provider: providerId, model: modelId });
       await refreshMaxContextFor(providerId, modelId);
       await refreshActiveReasoningConfig(providerId, modelId);
@@ -138,13 +151,13 @@ export function setupProviderRuntime(deps: ProviderRuntimeDeps): ProviderRuntime
       wpaths.globalConfig,
       vault,
       (snapshot: AnyObj) => {
-        const activeId = cfgRef.current.provider;
+        const activeId = cfg.provider;
         const before = JSON.stringify(resolveProviderCfg(activeId).cfg);
-        cfgRef.current = patchConfig(cfgRef.current, {
+        sync(patchConfig(cfg, {
           providers: snapshot.providers,
           ...(snapshot.apiKey !== undefined ? { apiKey: snapshot.apiKey } : {}),
           ...(snapshot.baseUrl !== undefined ? { baseUrl: snapshot.baseUrl } : {}),
-        });
+        }));
         configStore.update({
           providers: snapshot.providers,
           ...(snapshot.apiKey !== undefined ? { apiKey: snapshot.apiKey } : {}),
