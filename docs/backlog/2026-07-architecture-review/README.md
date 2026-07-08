@@ -21,6 +21,7 @@ This folder splits the backlog generated from the 2026-07 end-to-end system revi
 15. [015-unify-shared-app-services.md](015-unify-shared-app-services.md)
 16. [016-temporary-architecture-exceptions-policy.md](016-temporary-architecture-exceptions-policy.md)
 17. [017-package-boundary-visualization.md](017-package-boundary-visualization.md)
+18. [018-modularity-audit-and-plan.md](018-modularity-audit-and-plan.md) — Read-only audit with file-size, import-fan-in, cross-package matrix; adds 3 new findings (CLI→TUI/WebUI utility leak, kanban/manager.ts façade pattern, TUI panels/ feature split) and 5 proposed architectural decisions
 
 ## Recommended initial working order
 
