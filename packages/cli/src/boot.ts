@@ -278,8 +278,10 @@ export async function boot(argv: string[]): Promise<BootContext | number> {
 
   const isSingleShot = positional.length > 0 || typeof flags['prompt'] === 'string';
   // Skip interactive TTY prompts when: single-shot, --webui, or --no-interactive
+  // --skip bypasses every interactive startup prompt (provider picker, launch
+  // mode, indexing question) and uses saved preferences or sensible defaults.
   const isInteractiveTTY =
-    isStdinTTY() && !isSingleShot && !flags['webui'] && !flags['no-interactive'];
+    isStdinTTY() && !isSingleShot && !flags['webui'] && !flags['no-interactive'] && !flags['skip'];
 
   if (isInteractiveTTY) {
     // If the current working directory has no .git repository, prompt the
@@ -468,9 +470,9 @@ export async function boot(argv: string[]): Promise<BootContext | number> {
     // Large codebases can take a while to index on first launch; let the
     // user skip it. The answer overrides config.indexing.onSessionStart
     // for this session only.
-    // --skip-index bypasses the question and skips indexing entirely.
+    // --skip-index / --skip bypasses the question and skips indexing entirely.
     let indexingAnswer: boolean | undefined;
-    if (flags['skip-index']) {
+    if (flags['skip-index'] || flags['skip']) {
       indexingAnswer = false;
     } else {
       indexingAnswer = await maybeAskAboutIndexing({
