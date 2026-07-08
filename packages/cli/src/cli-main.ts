@@ -30,27 +30,17 @@ import {
   AgentError,
   allServers,
   attachDepWatcherBridge,
-  type BrainAutoRisk,
-  BrainDecisionQueue,
-  BrainMonitor,
   type Config,
   color,
-  createAutonomyBrain,
   type AuditLevel,
-  createDelegateTool,
-  createMcpControlTool,
-  createTieredBrainArbiter,
-  DefaultBrainArbiter,
   EternalAutonomyEngine,
   expectDefined,
   FLEET_ROSTER,
   gatedEnhancerReasoning,
   GlobalMailbox,
-  HumanEscalatingBrainArbiter,
   isStdinTTY,
   loadDirectorState,
   mailboxSessionTag,
-  ObservableBrainArbiter,
   ParallelEternalEngine,
   type LogLevel,
   SessionMemoryConsolidator,
@@ -72,12 +62,10 @@ import { registerBuiltinTools } from './boot/tool-registry.js';
 import { launchEternalFromFlag } from './cli-eternal-flag.js';
 import { promptRecovery } from './cli-recovery-prompt.js';
 import { bindSystemPromptBuilder } from './boot/system-prompt-builder.js';
-import { subscribeBrainDecisionLog } from './boot/brain-decision-log.js';
 import { refreshRuntimeModelCatalog } from './context-limit.js';
 import { type ExecutionDeps, execute } from './execution.js';
 import { createFallbackModelExtension } from './fallback-model.js';
 import { createCliHqPublisher } from './hq-publisher.js';
-import { MultiAgentHost } from './multi-agent.js';
 import { PLUGIN_AUDIT_ENTRIES, runPluginManagementCommand } from './plugin-management.js';
 import { buildPickableProviders } from './provider-helpers.js';
 import { SessionStats } from './session-stats.js';
@@ -104,6 +92,7 @@ import { setupDepWatcherConsumers } from './wiring/dep-watcher.js';
 import { setupHqTelemetry } from './wiring/hq-telemetry.js';
 import { setupDirectorAndAutonomy } from './wiring/director-setup.js';
 import { setupLifecycleAndPlugins } from './wiring/lifecycle-plugins.js';
+import { setupBrainAndOrchestration } from './wiring/brain-and-orchestration.js';
 import { setupMetrics } from './wiring/metrics.js';
 import { setupPipelines } from './wiring/pipeline.js';
 import {
@@ -715,47 +704,47 @@ export async function main(argv: string[]): Promise<number> {
     autonomyModeRef,
   });
 
-  // ── Global Brain chain — policy → LLM → human ──────────────────────────
-  // Positioning: the Brain is the authority layer above the leader/director
-  // and below the human. One instance serves every consumer (director,
-  // autophase, eternal engine, BrainMonitor, /brain) via TOKENS.BrainArbiter.
-  //   1. DefaultBrainArbiter — deterministic policy (low-risk fast path)
-  //   2. createAutonomyBrain — LLM decision support within the live risk
-  //      ceiling (adjust at runtime with /brain risk <level>)
-  //   3. HumanEscalating + Observable — escalation prompt + UI events
-  const brainSettings: { maxAutoRisk: BrainAutoRisk } = {
-    maxAutoRisk: 'medium',
-  };
-  const brainQueue = new BrainDecisionQueue(events);
-  // Lazy wrapper so the LLM layer always sees the LIVE provider/model —
-  // `provider` and `config` are reassigned when the user switches models.
-  const autonomousBrain: import('@wrongstack/core').BrainArbiter = {
-    decide: (request) =>
-      createAutonomyBrain({
-        provider,
-        model: config.model,
-        maxAutoRisk: 'all', // the tiered ceiling gates risk — keep inner permissive
-      }).decide(request),
-  };
-  const brain = new ObservableBrainArbiter(
-    new HumanEscalatingBrainArbiter(
-      createTieredBrainArbiter({
-        policy: new DefaultBrainArbiter(),
-        autonomous: autonomousBrain,
-        getMaxAutoRisk: () => brainSettings.maxAutoRisk,
-      }),
-      brainQueue,
-    ),
+  // ── Global Brain chain → BrainMonitor → shadow → MultiAgentHost → tools ──
+  // Extracted to wiring/brain-and-orchestration.ts. NOTE: setupHqTelemetry()
+  // is called between brain chain and brain monitor — the extracted function
+  // handles both halves around that call.
+  const {
+    brain,
+    brainLog,
+    brainSettings,
+    multiAgentHost,
+    shadowController,
+  } = setupBrainAndOrchestration({
     events,
-  );
-  container.bind(TOKENS.BrainArbiter, () => brain);
-
-  // Decision log for /brain status — last 20 decisions across all sources.
-  // Pulled out into a dedicated module as part of PR 8 / Stage 1 of the
-  // cli-main split refactor (see `next-1.md`). `brainLog` is captured by
-  // the closures produced later (see `getBrainLog: () => brainLog`).
-  const { brainLog, dispose: disposeBrainLog } = subscribeBrainDecisionLog(events);
-  teardownHandlers.push(disposeBrainLog);
+    config,
+    container,
+    provider,
+    session,
+    context,
+    toolRegistry,
+    providerRegistry,
+    configStore,
+    modelsRegistry,
+    promptBuilder,
+    tokenCounter,
+    projectRoot,
+    cwd,
+    wpaths,
+    teardownHandlers,
+    mailboxSessionTag,
+    brainMailbox,
+    agentMonitor,
+    directorMode,
+    manifestPath,
+    sharedScratchpadPath,
+    subagentSessionsRoot,
+    stateCheckpointPath,
+    fleetRootForPromotion,
+    maxConcurrent,
+    effectiveMaxContextRef,
+    mcpRegistry,
+    sessResult,
+  });
 
   // HQ command dispatch + telemetry bridges (WebSocket, session/fleet/brain/
   // worktree/tool/cost telemetry, agent-monitor forwarding) — extracted to
@@ -775,136 +764,6 @@ export async function main(argv: string[]): Promise<number> {
     mailboxSessionTag,
     hqPublisherRef,
   });
-
-  // brainMailbox is created earlier (before setupPlugins) so the
-  // `api.mailbox` PluginAPI field is populated for plugins like
-  // `todo-listener`. Reuse the same instance here.
-  const brainMonitor = new BrainMonitor({
-    events,
-    brain,
-    sessionId: () => context.session?.id ?? session.id,
-    intervene: async ({ subject, body }) => {
-      const leaderUniqueId = `leader@${mailboxSessionTag(session.id)}`;
-      await brainMailbox.send({
-        from: `brain@${mailboxSessionTag(session.id)}`,
-        to: leaderUniqueId,
-        type: 'steer',
-        subject,
-        body,
-        priority: 'high',
-      });
-    },
-  });
-  brainMonitor.start();
-
-  // ── AutonomousCoordinator is initialized inside execution.ts ──
-  // The execution phase owns its lifecycle (it has access to the Director and
-  // the LLM provider). See execution.ts:onDirectorReady.
-
-  // Shadow controller — tracks the active shadow agent so /shadow commands can
-  // reject duplicate starts and stop the real background monitor.
-  let shadowDefaults: { intervalMs?: number; provider?: string; model?: string } = {};
-  const shadowController: NonNullable<
-    Parameters<typeof buildBuiltinSlashCommands>[0]['shadowController']
-  > = {
-    activeId: null,
-    register(id) {
-      this.activeId = id;
-    },
-    clear() {
-      this.activeId = null;
-    },
-    getDefaults() {
-      return { ...shadowDefaults };
-    },
-    setDefaults(defaults) {
-      shadowDefaults = { ...shadowDefaults, ...defaults };
-    },
-  };
-
-  const multiAgentHost = new MultiAgentHost(
-    {
-      container,
-      toolRegistry,
-      providerRegistry,
-      configStore,
-      modelsRegistry,
-      events,
-      systemPromptBuilder: promptBuilder,
-      session,
-      tokenCounter,
-      projectRoot,
-      cwd,
-      secretScrubber: container.resolve(TOKENS.SecretScrubber),
-    },
-    {
-      directorMode,
-      manifestPath,
-      sharedScratchpadPath,
-      sessionsRoot: subagentSessionsRoot,
-      directorRunId: session.id,
-      fleetRoot: fleetRootForPromotion,
-      stateCheckpointPath,
-      sessionWriter: session,
-      maxConcurrent,
-      getLeaderMaxContext: () => effectiveMaxContextRef.current,
-      brain,
-      agentMonitor,
-      traceId: sessResult.traceId,
-      onShadowAgentStarted: (subagentId) => shadowController.register(subagentId),
-      onShadowAgentStopped: (subagentId) => {
-        if (shadowController.activeId === subagentId) shadowController.clear();
-      },
-    },
-  );
-  // ALWAYS register the `delegate` tool, even in non-director mode. It
-  // auto-promotes the host to director mode on first call so the LLM
-  // never has to know upfront whether multi-agent is "on" — it just
-  // calls `delegate({ role, task })` when it judges a subtask warrants
-  // a dedicated subagent. The system-prompt builder picks up this tool
-  // and surfaces a "Delegation" section teaching the model when to use
-  // it; without that block, the tool sits idle.
-  toolRegistry.register(
-    createDelegateTool({
-      host: multiAgentHost,
-      roster: FLEET_ROSTER,
-      // Wire the per-subagent transcript location so the tool can
-      // extract partial output on timeout / budget exhaustion. Without
-      // this, a subagent that hit its iteration cap returns an empty
-      // result and the host LLM has no idea what work was done.
-      sessionsRoot: subagentSessionsRoot,
-      directorRunId: session.id,
-      // Host bus so `delegate` can emit start/finish events that the TUI,
-      // plain CLI, and Telegram bridge render as readable lines.
-      events,
-    }),
-  );
-
-  // `mcp_control` — LLM-driven MCP server lifecycle.
-  // The model uses this to autonomously enable/disable MCP servers
-  // without requiring a slash command or manual intervention.
-  toolRegistry.register(
-    createMcpControlTool({
-      getConfig: () => configStore.get(),
-      configPath: wpaths.globalConfig,
-      registry: mcpRegistry,
-    }),
-  );
-
-  // `mcp_use` — meta-tool for calling MCP tools in token-saving mode.
-  // Registers only when lazy mode is active so the model has a single
-  // call to invoke any MCP tool without the manual activate→use→deactivate
-  // dance. When lazy mode is off, MCP tools are always registered and
-  // the meta-tool is unnecessary.
-  if (config.features.tokenSavingMode) {
-    const { createMcpUseTool } = await import('@wrongstack/core');
-    toolRegistry.register(
-      createMcpUseTool({
-        registry: mcpRegistry,
-        toolRegistry,
-      }),
-    );
-  }
 
   // Dep-watcher consumers (tech-stack + package-outdated) — extracted to wiring/dep-watcher.ts
   setupDepWatcherConsumers({
@@ -1820,8 +1679,6 @@ export async function main(argv: string[]): Promise<number> {
     onExit: () => {
       for (const teardown of teardownHandlers) teardown();
       teardownHandlers.length = 0;
-      brainMonitor.stop();
-      brainQueue.dispose();
       void mcpRegistry.stopAll();
       multiAgentHost
         .dispose()
@@ -2417,7 +2274,7 @@ export async function main(argv: string[]): Promise<number> {
     },
     onBrainRiskLevel: (level: 'off' | 'low' | 'medium' | 'high' | 'all') => {
       if (!brainSettings) return 'Brain settings not available.';
-      brainSettings.maxAutoRisk = level as BrainAutoRisk;
+      brainSettings.maxAutoRisk = level as import('@wrongstack/core').BrainAutoRisk;
       return undefined;
     },
     // Interactive /auth panel host — provider/key CRUD, catalog/local adds
