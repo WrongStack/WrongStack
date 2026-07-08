@@ -9,9 +9,9 @@ import {
   writeOut,
 } from '@wrongstack/core';
 import { toErrorMessage } from '@wrongstack/core/utils';
+import { LOCAL_LLM_PRESETS } from './auth-menu/local-presets.js';
 import { appendHistory, backupCurrent } from './config-history.js';
 import type { ReadlineInputReader } from './input-reader.js';
-import { LOCAL_LLM_PRESETS } from './auth-menu/local-presets.js';
 import { hasApiKey, isKeylessLocalProvider, visibleModelIds } from './provider-helpers.js';
 import type { TerminalRenderer } from './renderer.js';
 
@@ -91,9 +91,7 @@ function boxDivider(): string {
  * separators. e.g. `↑↓ move · Enter select · Esc clear · Ctrl+C quit`.
  */
 function keyHints(pairs: Array<[string, string]>): string {
-  return pairs
-    .map(([k, label]) => `${theme.accent(k)} ${color.dim(label)}`)
-    .join(color.dim(' · '));
+  return pairs.map(([k, label]) => `${theme.accent(k)} ${color.dim(label)}`).join(color.dim(' · '));
 }
 
 /**
@@ -372,8 +370,7 @@ export function renderLiveModelList(
     const ctxRaw = m.limit?.context ? `${(m.limit.context / 1000).toFixed(0)}k` : '?';
     const ctx = theme.ctx(ctxRaw.padStart(6));
 
-    const costRaw =
-      m.cost?.input !== undefined ? `$${m.cost.input}/$${m.cost.output ?? '?'}` : '';
+    const costRaw = m.cost?.input !== undefined ? `$${m.cost.input}/$${m.cost.output ?? '?'}` : '';
     const cost = costRaw ? theme.cost(costRaw) : '';
 
     const capTags: string[] = [];
@@ -513,37 +510,37 @@ export interface PickerResult {
  * undefined on cancel. runPicker only calls this when stdin is a TTY; non-TTY
  * callers (CI, piped input, tests) fall through to the numbered readLine picker.
  */
-  // Marker used to locate the query line within the rendered (boxed) frame.
-  // renderLiveProviderList emits exactly one line containing this literal.
-  const QUERY_MARKER = 'Select provider:';
+// Marker used to locate the query line within the rendered (boxed) frame.
+// renderLiveProviderList emits exactly one line containing this literal.
+const QUERY_MARKER = 'Select provider:';
 
-  /**
-   * Park the terminal cursor at the end of the live query text inside the
-   * boxed frame. The frame is multi-line with a border, so we (1) find which
-   * physical line holds the query, (2) move up from the last line to it, then
-   * (3) move to the visible column just after the typed query. Visible width
-   * is measured with stripAnsi so the box border + accent colors don't offset
-   * the cursor.
-   */
-  function cursorToQuery(frame: string, query: string): void {
-    const rows = frame.split('\n');
-    const lastIdx = rows.length - 1;
-    const queryIdx = rows.findIndex((r) => r.includes(QUERY_MARKER));
-    if (queryIdx < 0) return; // frame shape changed unexpectedly — leave cursor
-    const up = lastIdx - queryIdx;
-    const queryLine = rows[queryIdx] ?? '';
-    // Everything on the query line up to and including the typed query, minus
-    // the query text itself, is the visible prefix. We locate the marker, then
-    // add the marker + separator + query length in visible columns.
-    const plain = stripAnsi(queryLine);
-    const markerAt = plain.indexOf(QUERY_MARKER);
-    // prefix = columns before the query text = markerAt + marker + ': ' gap.
-    const col = markerAt + QUERY_MARKER.length + 1 + query.length + 1;
-    if (up > 0) writeOut(`\x1b[${up}A`);
-    writeOut(`\x1b[${col}G`);
-  }
+/**
+ * Park the terminal cursor at the end of the live query text inside the
+ * boxed frame. The frame is multi-line with a border, so we (1) find which
+ * physical line holds the query, (2) move up from the last line to it, then
+ * (3) move to the visible column just after the typed query. Visible width
+ * is measured with stripAnsi so the box border + accent colors don't offset
+ * the cursor.
+ */
+function cursorToQuery(frame: string, query: string): void {
+  const rows = frame.split('\n');
+  const lastIdx = rows.length - 1;
+  const queryIdx = rows.findIndex((r) => r.includes(QUERY_MARKER));
+  if (queryIdx < 0) return; // frame shape changed unexpectedly — leave cursor
+  const up = lastIdx - queryIdx;
+  const queryLine = rows[queryIdx] ?? '';
+  // Everything on the query line up to and including the typed query, minus
+  // the query text itself, is the visible prefix. We locate the marker, then
+  // add the marker + separator + query length in visible columns.
+  const plain = stripAnsi(queryLine);
+  const markerAt = plain.indexOf(QUERY_MARKER);
+  // prefix = columns before the query text = markerAt + marker + ': ' gap.
+  const col = markerAt + QUERY_MARKER.length + 1 + query.length + 1;
+  if (up > 0) writeOut(`\x1b[${up}A`);
+  writeOut(`\x1b[${col}G`);
+}
 
-  export async function runLiveProviderPicker(
+export async function runLiveProviderPicker(
   displayList: ResolvedProvider[],
   savedSet?: Set<string>,
 ): Promise<ResolvedProvider | undefined> {
@@ -714,9 +711,7 @@ export async function runPicker(deps: {
   // install, no env vars set), fall back to the full list and prompt the
   // user to add a key — picking a keyless provider here is still useful
   // because the very next step (`wstack auth <prov>`) needs to know which.
-  const keyed = merged.filter(
-    (p) => hasApiKey(p, config) || isKeylessLocalProvider(p),
-  );
+  const keyed = merged.filter((p) => hasApiKey(p, config) || isKeylessLocalProvider(p));
   let displayList = keyed;
   let showingFallback = false;
   if (keyed.length === 0) {
@@ -783,13 +778,16 @@ export async function runPicker(deps: {
   let idx = 1;
   let defaultIdx: number | undefined;
   renderer.write('\n');
+  renderer.write(`${boxTop('Select a provider')}\n`);
   for (const fam of familyOrder) {
     // Sort within each family alphabetically (case-insensitive) by id.
     const list = [...(families.get(fam) ?? [])].sort((a, b) =>
       a.id.toLowerCase().localeCompare(b.id.toLowerCase()),
     );
     if (!list || list.length === 0) continue;
-    renderer.write(`  ${color.bold(fam)}\n`);
+    // Family section label — dim UPPERCASE with a leading accent tick, matching
+    // the live picker's grouping. `fam` (a lowercased id) stays contained.
+    renderer.write(`${boxRow(`${theme.accent('·')} ${color.dim(fam.toUpperCase())}`)}\n`);
     for (const p of list) {
       const envFound = p.envVars.some((v) => !!process.env[v]);
       const entry = config?.providers?.[p.id];
@@ -800,23 +798,25 @@ export async function runPicker(deps: {
       const marker = envFound ? color.green('●') : configKey ? color.cyan('◉') : color.dim('○');
       const isDefault = p.id === defaultProvider;
       if (isDefault) defaultIdx = idx;
-      const idLabel = isDefault ? color.bold(p.id) : p.id;
+      const idLabel = isDefault ? theme.accent(color.bold(p.id)) : p.id;
       const suffix = isDefault ? color.dim(' (default)') : '';
       renderer.write(
-        `  ${color.dim(`${idx}.`.padStart(4))} ${marker} ${idLabel.padEnd(22)} ${color.dim(p.name)}${suffix}\n`,
+        `${boxRow(`${color.dim(`${idx}.`.padStart(4))} ${marker} ${padVisible(idLabel, 22)} ${color.dim(p.name)}${suffix}`)}\n`,
       );
       ordered.push({ provider: p, index: idx });
       idx++;
     }
   }
 
+  renderer.write(`${boxDivider()}\n`);
   if (showingFallback) {
     renderer.write(
-      `\n  ${color.yellow('⚠ No API keys detected.')} ${color.dim('Pick a provider, then run `wstack auth <provider>` to add one.')}\n`,
+      `${boxRow(`${color.yellow('⚠ No API keys detected.')} ${color.dim('Run `wstack auth <provider>` after picking.')}`)}\n`,
     );
   } else {
-    renderer.write(`\n  ${color.dim('● = env key   ◉ = stored in config   ○ = no key')}\n`);
+    renderer.write(`${boxRow(color.dim('● env key   ◉ stored in config   ○ no key'))}\n`);
   }
+  renderer.write(`${boxBottom()}\n`);
 
   // Provider prompt. Enter on an empty line accepts the default when one
   // is present; otherwise we treat it as cancel.
@@ -969,7 +969,13 @@ async function pickModel(
   reader: ReadlineInputReader,
   defaultModel?: string | undefined,
 ): Promise<PickerResult | undefined> {
-  renderer.write(`\n  ${color.bold(provider.name)} ${color.dim(`(${provider.id})`)} models:\n\n`);
+  // Boxed header. The `<name> (<id>) models:` text is kept contiguous (a test
+  // asserts it verbatim, and colors are no-ops off-TTY).
+  renderer.write(`\n${boxTop('Select a model')}\n`);
+  renderer.write(
+    `${boxRow(`${color.bold(provider.name)} ${color.dim(`(${provider.id})`)} models:`)}\n`,
+  );
+  renderer.write(`${boxBottom()}\n`);
   // openai-codex picker mirrors the official Codex CLI header; only current
   // models are listed, but legacy ids remain usable via --model / config.json.
   // Uses the same helper as the live-TTY preamble so the two paths can't drift.
@@ -992,17 +998,13 @@ async function pickModel(
       ),
     );
     const typed = (
-      await reader.readLine(
-        `\n${color.amber('?')} Model id ${color.dim('(or Enter to cancel)')}: `,
-      )
+      await reader.readLine(`\n${color.amber('?')} Model id ${color.dim('(or Enter to cancel)')}: `)
     ).trim();
     if (!typed) {
       renderer.write(color.dim('Cancelled.\n'));
       return undefined;
     }
-    renderer.write(
-      `\n  ${color.green('✓')} ${color.bold(provider.id)} / ${color.bold(typed)}\n\n`,
-    );
+    renderer.write(`\n  ${color.green('✓')} ${color.bold(provider.id)} / ${color.bold(typed)}\n\n`);
     return { provider: provider.id, model: typed };
   }
 
@@ -1030,25 +1032,31 @@ async function pickModel(
 
   while (offset < models.length) {
     const page = models.slice(offset, offset + pageSize);
+    const pageFrom = offset + 1;
+    const pageTo = Math.min(offset + page.length, models.length);
+    // Each page is its own box so pagination prompts sit cleanly between boxes.
+    renderer.write(`${boxTop(`Models ${pageFrom}–${pageTo} of ${models.length}`)}\n`);
     for (let i = 0; i < page.length; i++) {
       const m = expectDefined(page[i]);
       const num = offset + i + 1;
-      const ctx = m.limit?.context
-        ? `${(m.limit.context / 1000).toFixed(0)}k`.padStart(6)
-        : '     ?';
+      const ctxRaw = m.limit?.context ? `${(m.limit.context / 1000).toFixed(0)}k` : '?';
+      const ctx = theme.ctx(ctxRaw.padStart(6));
       const cost = m.cost?.input !== undefined ? `$${m.cost.input}/$${m.cost.output ?? '?'}` : '';
-      const caps: string[] = [];
-      if (m.tool_call) caps.push('tools');
-      if (m.reasoning) caps.push('reason');
-      if (m.modalities?.input?.includes('image')) caps.push('vision');
-      const capStr = caps.length > 0 ? color.dim(caps.join(',')) : '';
+      const costCol = cost ? theme.cost(cost) : '';
+      const capTags: string[] = [];
+      if (m.tool_call) capTags.push('tools');
+      if (m.reasoning) capTags.push('reason');
+      if (m.modalities?.input?.includes('image')) capTags.push('vision');
+      const capStr = capTags.map((c) => theme.caps(c)).join(color.dim(' '));
       const isDefault = m.id === defaultModel;
-      const idLabel = isDefault ? color.bold(m.id) : m.id;
+      const idLabel = isDefault ? theme.accent(color.bold(m.id)) : m.id;
       const suffix = isDefault ? color.dim(' (default)') : '';
+      const num5 = color.dim(`${num}.`.padStart(5));
       renderer.write(
-        `  ${color.dim(`${num}.`.padStart(5))} ${idLabel.padEnd(44)} ${color.dim(ctx)}  ${color.dim(cost.padEnd(14))} ${capStr}${suffix}\n`,
+        `${boxRow(`${num5} ${padVisible(idLabel, 34)} ${ctx}  ${padVisible(costCol, 11)} ${capStr}${suffix}`)}\n`,
       );
     }
+    renderer.write(`${boxBottom()}\n`);
     offset += pageSize;
 
     if (offset < models.length) {
