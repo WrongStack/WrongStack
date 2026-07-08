@@ -1,6 +1,13 @@
 import os from 'node:os';
 import type { Config, ModelsDevModel, ModelsRegistry, ResolvedProvider } from '@wrongstack/core';
-import { color, expectDefined, setOutputLineGuard, setRawMode, writeOut } from '@wrongstack/core';
+import {
+  color,
+  expectDefined,
+  setOutputLineGuard,
+  setRawMode,
+  stripAnsi,
+  writeOut,
+} from '@wrongstack/core';
 import { toErrorMessage } from '@wrongstack/core/utils';
 import { appendHistory, backupCurrent } from './config-history.js';
 import type { ReadlineInputReader } from './input-reader.js';
@@ -8,8 +15,86 @@ import { LOCAL_LLM_PRESETS } from './auth-menu/local-presets.js';
 import { hasApiKey, isKeylessLocalProvider, visibleModelIds } from './provider-helpers.js';
 import type { TerminalRenderer } from './renderer.js';
 
-// Simple theme alias (avoids importing the full theme module just for one color)
-const theme = { primary: color.amber };
+// Picker theme — a small, self-contained palette so the launch model picker
+// looks intentional without pulling in the full theme module. The accent is
+// amber (WrongStack's brand color); chrome is drawn dim/gray so the content
+// carries the emphasis.
+const theme = {
+  accent: color.amber,
+  chrome: color.gray,
+  cursor: (s: string): string => color.amber(color.bold(s)),
+  ctx: color.cyan,
+  cost: color.green,
+  caps: color.magenta,
+};
+
+/** Box-drawing glyphs for the picker frame (rounded corners). */
+const BOX = {
+  tl: '╭',
+  tr: '╮',
+  bl: '╰',
+  br: '╯',
+  h: '─',
+  v: '│',
+} as const;
+
+/** Inner content width of the picker box, in columns. */
+const PICKER_WIDTH = 74;
+
+/** Visible width of a string, ignoring ANSI color escapes. */
+function visibleWidth(s: string): number {
+  return stripAnsi(s).length;
+}
+
+/**
+ * Right-pad a (possibly colorized) string to `width` visible columns. ANSI
+ * escapes have zero display width, so we measure with `visibleWidth` and add
+ * literal spaces after the (already-terminated) colored segment. Truncates
+ * with an ellipsis when the visible content is wider than `width`.
+ */
+function padVisible(s: string, width: number): string {
+  const w = visibleWidth(s);
+  if (w === width) return s;
+  if (w < width) return s + ' '.repeat(width - w);
+  // Too wide: truncate the plain text and re-emit (drops color on overflow,
+  // which only happens for pathologically long ids in a narrow terminal).
+  const plain = stripAnsi(s);
+  return `${plain.slice(0, Math.max(0, width - 1))}…`;
+}
+
+/** Top border with an embedded, accented title: `╭─ Title ───────╮`. */
+function boxTop(title: string): string {
+  const label = ` ${title} `;
+  const pad = Math.max(0, PICKER_WIDTH - visibleWidth(label) - 1);
+  return theme.chrome(
+    `${BOX.tl}${BOX.h}${theme.accent(color.bold(label))}${theme.chrome(BOX.h.repeat(pad))}${BOX.tr}`,
+  );
+}
+
+/** Bottom border. */
+function boxBottom(): string {
+  return theme.chrome(`${BOX.bl}${BOX.h.repeat(PICKER_WIDTH)}${BOX.br}`);
+}
+
+/** A content row wrapped in the box's vertical borders, padded to width. */
+function boxRow(content: string): string {
+  return `${theme.chrome(BOX.v)} ${padVisible(content, PICKER_WIDTH - 2)} ${theme.chrome(BOX.v)}`;
+}
+
+/** A full-width dim separator row inside the box. */
+function boxDivider(): string {
+  return theme.chrome(`${BOX.v}${BOX.h.repeat(PICKER_WIDTH)}${BOX.v}`);
+}
+
+/**
+ * Render a key-hint footer: keys in accent, descriptions dim, ` · ` dim
+ * separators. e.g. `↑↓ move · Enter select · Esc clear · Ctrl+C quit`.
+ */
+function keyHints(pairs: Array<[string, string]>): string {
+  return pairs
+    .map(([k, label]) => `${theme.accent(k)} ${color.dim(label)}`)
+    .join(color.dim(' · '));
+}
 
 /**
  * The ChatGPT sign-in provider. The openai-codex picker mirrors the official
@@ -180,33 +265,64 @@ export function renderLiveProviderList(
   const ordered = orderProvidersForDisplay(filtered);
   const scrollOffset = Math.max(0, selectedIdx - LIVE_PICKER_MAX_VISIBLE + 1);
   const visible = ordered.slice(scrollOffset, scrollOffset + LIVE_PICKER_MAX_VISIBLE);
-  let out = `? Select provider: ${query}\n`;
+
+  const lines: string[] = [];
+  lines.push(boxTop('Select a provider'));
+  // Search field. `Select provider: ${query}` is preserved verbatim (tests +
+  // the raw-loop cursor math both depend on it). The prompt glyph is accented;
+  // a blinking-style caret block trails the query.
+  const caret = query.length > 0 ? color.dim('▏') : theme.cursor('▏');
+  lines.push(boxRow(`${theme.accent('❯')} ${color.dim('Select provider:')} ${query}${caret}`));
+  lines.push(boxDivider());
+
   if (scrollOffset > 0) {
-    out += `  … ${scrollOffset} more ↑\n`;
+    lines.push(boxRow(color.dim(`  ${scrollOffset} more above ↑`)));
   }
+
   let flat = 0;
   let lastFamily = '';
   for (const p of visible) {
     if (p.family !== lastFamily) {
-      out += `  ${p.family}\n`;
+      // Family section label — dim, small-caps feel via a leading accent tick.
+      lines.push(boxRow(`${theme.accent('·')} ${color.dim(p.family.toUpperCase())}`));
       lastFamily = p.family;
     }
-    const sel = flat === selectedIdx - scrollOffset ? '▶' : ' ';
+    const selected = flat === selectedIdx - scrollOffset;
+    const sel = selected ? theme.cursor('▶') : ' ';
     let marker: string;
     if (savedSet) {
       const mark = savedSet.has(p.id) ? color.cyan('◉') : color.dim('○');
-      marker = `${sel} ${mark} `;
+      marker = `${sel} ${mark}`;
     } else {
-      marker = `${sel} `;
+      marker = `${sel}`;
     }
-    out += `${marker}${p.id.padEnd(24)} ${p.name}\n`;
+    const id = selected ? theme.accent(color.bold(p.id)) : p.id;
+    const name = selected ? p.name : color.dim(p.name);
+    lines.push(boxRow(`${marker} ${padVisible(id, 24)} ${name}`));
     flat++;
   }
+
   if (scrollOffset + LIVE_PICKER_MAX_VISIBLE < ordered.length) {
-    out += `  … ${ordered.length - scrollOffset - LIVE_PICKER_MAX_VISIBLE} more ↓\n`;
+    lines.push(
+      boxRow(
+        color.dim(`  ${ordered.length - scrollOffset - LIVE_PICKER_MAX_VISIBLE} more below ↓`),
+      ),
+    );
   }
-  out += '  ↑↓ scroll · Enter select · Esc clear · Ctrl+C quit';
-  return out;
+
+  lines.push(boxDivider());
+  lines.push(
+    boxRow(
+      keyHints([
+        ['↑↓', 'scroll'],
+        ['Enter', 'select'],
+        ['Esc', 'clear'],
+        ['Ctrl+C', 'quit'],
+      ]),
+    ),
+  );
+  lines.push(boxBottom());
+  return lines.join('\n');
 }
 
 /**
@@ -236,24 +352,63 @@ export function renderLiveModelList(
     (b.release_date ?? '').localeCompare(a.release_date ?? ''),
   );
   const visible = ordered.slice(0, LIVE_PICKER_MAX_VISIBLE);
-  let out = `  ${header}\n? Select model: ${query}\n`;
+
+  const lines: string[] = [];
+  lines.push(boxTop('Select a model'));
+  // The raw `header` is kept intact (tests assert it is contained verbatim);
+  // it is rendered dim as a context sub-label under the title.
+  lines.push(boxRow(color.dim(header)));
+  // Search field. The literal `Select model: ${query}` substring is preserved
+  // for tests; the visible prefix is the accented prompt glyph + label.
+  const caret = query.length > 0 ? color.dim('▏') : theme.cursor('▏');
+  lines.push(boxRow(`${theme.accent('❯')} ${color.dim('Select model:')} ${query}${caret}`));
+  lines.push(boxDivider());
+
   let flat = 0;
   for (const m of visible) {
-    const ctx = m.limit?.context ? `${(m.limit.context / 1000).toFixed(0)}k`.padStart(6) : '     ?';
-    const cost = m.cost?.input !== undefined ? `$${m.cost.input}/$${m.cost.output ?? '?'}` : '';
-    const caps: string[] = [];
-    if (m.tool_call) caps.push('tools');
-    if (m.reasoning) caps.push('reason');
-    if (m.modalities?.input?.includes('image')) caps.push('vision');
-    const marker = flat === selectedIdx ? '▶ ' : '  ';
-    out += `${marker}${m.id.padEnd(34)}${ctx}  ${cost.padEnd(12)} ${caps.join(',')}\n`;
+    const selected = flat === selectedIdx;
+    const marker = selected ? theme.cursor('▶') : ' ';
+
+    const ctxRaw = m.limit?.context ? `${(m.limit.context / 1000).toFixed(0)}k` : '?';
+    const ctx = theme.ctx(ctxRaw.padStart(6));
+
+    const costRaw =
+      m.cost?.input !== undefined ? `$${m.cost.input}/$${m.cost.output ?? '?'}` : '';
+    const cost = costRaw ? theme.cost(costRaw) : '';
+
+    const capTags: string[] = [];
+    if (m.tool_call) capTags.push('tools');
+    if (m.reasoning) capTags.push('reason');
+    if (m.modalities?.input?.includes('image')) capTags.push('vision');
+    const caps = capTags.map((c) => theme.caps(c)).join(color.dim(' '));
+
+    const id = selected ? theme.accent(color.bold(m.id)) : m.id;
+    // Columns: id (34) · ctx (6) · gap · cost (12) · caps. padVisible keeps
+    // alignment even though the colored segments carry zero-width ANSI codes.
+    const row = `${padVisible(id, 34)} ${ctx}  ${padVisible(cost, 12)} ${caps}`;
+    lines.push(boxRow(`${marker} ${row}`));
     flat++;
   }
+
   if (ordered.length > LIVE_PICKER_MAX_VISIBLE) {
-    out += `  … ${ordered.length - LIVE_PICKER_MAX_VISIBLE} more — type to filter\n`;
+    lines.push(
+      boxRow(color.dim(`  … ${ordered.length - LIVE_PICKER_MAX_VISIBLE} more — type to filter`)),
+    );
   }
-  out += '  ↑↓ move · Enter select · Esc clear · Ctrl+C quit';
-  return out;
+
+  lines.push(boxDivider());
+  lines.push(
+    boxRow(
+      keyHints([
+        ['↑↓', 'move'],
+        ['Enter', 'select'],
+        ['Esc', 'clear'],
+        ['Ctrl+C', 'quit'],
+      ]),
+    ),
+  );
+  lines.push(boxBottom());
+  return lines.join('\n');
 }
 
 /**
@@ -358,12 +513,34 @@ export interface PickerResult {
  * undefined on cancel. runPicker only calls this when stdin is a TTY; non-TTY
  * callers (CI, piped input, tests) fall through to the numbered readLine picker.
  */
-  const QUERY_PREFIX = '? Select provider: ';
+  // Marker used to locate the query line within the rendered (boxed) frame.
+  // renderLiveProviderList emits exactly one line containing this literal.
+  const QUERY_MARKER = 'Select provider:';
 
+  /**
+   * Park the terminal cursor at the end of the live query text inside the
+   * boxed frame. The frame is multi-line with a border, so we (1) find which
+   * physical line holds the query, (2) move up from the last line to it, then
+   * (3) move to the visible column just after the typed query. Visible width
+   * is measured with stripAnsi so the box border + accent colors don't offset
+   * the cursor.
+   */
   function cursorToQuery(frame: string, query: string): void {
-    const newlines = (frame.match(/\n/g) ?? []).length;
-    const col = QUERY_PREFIX.length + query.length + 1;
-    writeOut(`\x1b[${newlines}A\x1b[${col}G`);
+    const rows = frame.split('\n');
+    const lastIdx = rows.length - 1;
+    const queryIdx = rows.findIndex((r) => r.includes(QUERY_MARKER));
+    if (queryIdx < 0) return; // frame shape changed unexpectedly — leave cursor
+    const up = lastIdx - queryIdx;
+    const queryLine = rows[queryIdx] ?? '';
+    // Everything on the query line up to and including the typed query, minus
+    // the query text itself, is the visible prefix. We locate the marker, then
+    // add the marker + separator + query length in visible columns.
+    const plain = stripAnsi(queryLine);
+    const markerAt = plain.indexOf(QUERY_MARKER);
+    // prefix = columns before the query text = markerAt + marker + ': ' gap.
+    const col = markerAt + QUERY_MARKER.length + 1 + query.length + 1;
+    if (up > 0) writeOut(`\x1b[${up}A`);
+    writeOut(`\x1b[${col}G`);
   }
 
   export async function runLiveProviderPicker(
@@ -454,9 +631,9 @@ export async function runPicker(deps: {
   const { modelsRegistry, renderer, reader, config, defaultProvider, defaultModel } = deps;
 
   renderer.write(
-    `\n${color.bold(theme.primary('WrongStack') + color.dim(' — Provider & Model Selection'))}\n`,
+    `\n${theme.accent(color.bold('▌ WrongStack'))}  ${color.dim('Provider & Model Selection')}\n`,
   );
-  renderer.write(color.dim('Loading provider catalog…\n'));
+  renderer.write(color.dim(`${theme.chrome('·')} Loading provider catalog…\n`));
 
   let providers: ResolvedProvider[];
   try {
