@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   parseNextSteps,
   stripNextStepsBlock,
-} from '../../src/components/NextStepsBar';
+} from '@wrongstack/tools/next-steps';
 
 /**
  * Tests for the canonical `<nextsteps>` block parser that the

@@ -61,6 +61,7 @@ export default defineConfig({
       // of going through the package's "exports" field which points to dist/.
       '@wrongstack/core': path.resolve(__dirname, '../../packages/core/src'),
       '@wrongstack/tools/tool-icons': path.resolve(__dirname, '../../packages/tools/src/tool-icons.ts'),
+      '@wrongstack/tools/next-steps': path.resolve(__dirname, '../../packages/tools/src/next-steps.ts'),
     },
   },
 });

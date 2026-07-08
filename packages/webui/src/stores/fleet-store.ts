@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import type { AgentTranscriptEntry, AgentTranscriptKind, FleetTimelineEvent, SubagentView, SubagentEvent } from './types.js';
-import { stripNextStepsBlock } from '../components/NextStepsBar.js';
+import { stripNextStepsBlock } from '@wrongstack/tools/next-steps';
 
 // ── Fleet store (live subagent roster; not persisted) ───────────────────────
 

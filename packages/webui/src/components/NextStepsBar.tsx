@@ -2,148 +2,17 @@ import { ArrowRight, Lightbulb, MousePointerClick, Timer } from 'lucide-react';
 import type React from 'react';
 import { useEffect, useState } from 'react';
 import { useAppTranslation } from '@/i18n';
+import {
+  type ParseNextStepsResult,
+  type ParsedNextStep as NextStep,
+  parseNextSteps,
+  stripNextStepsBlock,
+} from '@wrongstack/tools/next-steps';
 
-/** A single next-step suggestion extracted from the agent's output. */
-export interface NextStep {
-  index: number;
-  text: string;
-  /** Whether this item has auto="true" attribute for YOLO+auto autonomy mode. */
-  auto?: boolean;
-}
-
-/** Result of parsing a next-steps block from assistant output. */
-export interface ParseNextStepsResult {
-  /** Matched steps with their original index and stripped text. */
-  steps: NextStep[];
-  /**
-   * The input content with the entire "<nextsteps>" block removed.
-   * Used by MessageBubble to feed react-markdown content that
-   * contains no raw suggestion tags.
-   */
-  stripped: string;
-}
-
-// ── Patterns ───────────────────────────────────────────────────────────────
-
-/** Matches the canonical <nextsteps> opening tag. */
-const NEXT_STEPS_TAG_RE = /<nextsteps>\s*\n+/i;
-
-/** Matches an item line: "1. text", "1) text", "- text", "* text". */
-/** Also captures optional auto="true" attribute at the end. */
-const ITEM_RE = /^(?:(\d+)[.)]\s*|[-*•]\s*)(.+?)(\s+auto="true")?$/;
-
-const MAX_STEPS = 6;
-
-// ── Core parser ────────────────────────────────────────────────────────────
-
-/**
- * Parse a canonical "<nextsteps>" block from assistant output.
- *
- * Returns the parsed steps AND the content with the entire block stripped,
- * so the caller can render the body without leaking raw XML tags.
- *
- * @param content — raw assistant message text.
- * @param strict  — retained for compatibility; assistant output always requires
- *                  the canonical <nextsteps> XML tag.
- */
-export function parseNextSteps(
-  content: string,
-  _strict = true,
-): ParseNextStepsResult {
-  const headingMatch = NEXT_STEPS_TAG_RE.exec(content);
-
-  if (!headingMatch) {
-    return { steps: [], stripped: content };
-  }
-
-  const headingEnd = headingMatch.index + headingMatch[0]!.length;
-  const afterHeading = content.slice(headingEnd);
-  const lines = afterHeading.split('\n');
-  const steps: NextStep[] = [];
-  const seenNumbers = new Set<number>();
-  let consumed = 0;
-  let found = 0;
-
-  for (const rawLine of lines) {
-    const line = rawLine.trim();
-
-    // XML closing tag — consume it and end the block.
-    if (line === '</nextsteps>') {
-      consumed += rawLine.length + 1;
-      break;
-    }
-
-    if (!line) {
-      consumed += rawLine.length + 1;
-      continue;
-    }
-
-    const m = ITEM_RE.exec(line);
-    if (!m) break; // non-item line — block ends
-
-    const numPart = m[1];
-    const text = m[2]!.trim();
-    const hasAuto = !!m[3];
-    const index =
-      numPart !== undefined
-        ? Number.parseInt(numPart, 10)
-        : steps.length + 1;
-
-    // Skip duplicates. (We don't filter by minimum text length — the
-    // ITEM_RE regex already requires 1+ characters of text, and the agent
-    // is free to emit short but valid steps like "1. OK".)
-    if (seenNumbers.has(index)) {
-      consumed += rawLine.length + 1;
-      continue;
-    }
-    seenNumbers.add(index);
-    // Only set the `auto` field when truthy — keeps step objects clean and
-    // makes toEqual() comparisons stable in tests.
-    steps.push(hasAuto ? { index, text, auto: true } : { index, text });
-
-    consumed += rawLine.length + 1;
-    found++;
-    if (found >= MAX_STEPS) break;
-  }
-
-  if (steps.length === 0) {
-    return { steps: [], stripped: content };
-  }
-
-  // Require a matching closing tag — the agent should always emit a balanced
-  // block, and we don't want to consume half of a malformed block that may
-  // belong to user prose.
-  if (!afterHeading.includes('</nextsteps>')) {
-    return { steps: [], stripped: content };
-  }
-
-  const blockStart = headingMatch.index;
-  // blockEnd is the absolute position in `content` where the block ends
-  // (heading + body + closing tag + trailing newlines). The slice call
-  // below uses it directly, not as an offset from blockStart.
-  const blockEnd = headingEnd + consumed;
-  const stripped = (content.slice(0, blockStart) + content.slice(blockEnd))
-    .replace(/\n{3,}/g, '\n\n')
-    .trim();
-
-  return { steps, stripped };
-}
-
-/**
- * Strip <nextsteps>...</nextsteps> blocks from subagent output text.
- * Subagent results should not contain suggestion blocks — those belong to
- * the main assistant's output. This prevents raw XML tags from appearing
- * as literal text in the fleet panel.
- */
-export function stripNextStepsBlock(text: string): string {
-  // Match canonical <nextsteps>...</nextsteps> plus the legacy
-  // <next_steps> spelling that older persisted subagent output may contain.
-  return text
-    .replace(/<next_?steps\b[^>]*>[\s\S]*?<\/next_?steps>/gi, '')
-    .replace(/<next_?steps\b[^>]*\/?>/gi, '')
-    .replace(/\n{3,}/g, '\n\n')
-    .trim();
-}
+// Re-export the shared parser functions and types for back-compat with
+// downstream consumers that import them from this file.
+export { parseNextSteps, stripNextStepsBlock };
+export type { NextStep, ParseNextStepsResult };
 
 /**
  * Fill the chat input textarea with the given text.
