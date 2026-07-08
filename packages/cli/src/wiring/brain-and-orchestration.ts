@@ -35,15 +35,10 @@ export interface BrainOrchestrationDeps {
   session: SessionWriter;
   context: AnyObj;
   toolRegistry: ToolRegistry;
-  // biome-ignore lint/suspicious/noExplicitAny: many providers/registries
   providerRegistry: AnyObj;
-  // biome-ignore lint/suspicious/noExplicitAny: config store
   configStore: AnyObj;
-  // biome-ignore lint/suspicious/noExplicitAny: models registry
   modelsRegistry: AnyObj;
-  // biome-ignore lint/suspicious/noExplicitAny: prompt builder
   promptBuilder: AnyObj;
-  // biome-ignore lint/suspicious/noExplicitAny: token counter
   tokenCounter: AnyObj;
   projectRoot: string;
   cwd: string;
@@ -61,7 +56,6 @@ export interface BrainOrchestrationDeps {
   maxConcurrent: number | undefined;
   effectiveMaxContextRef: { current: number };
   mcpRegistry: AnyObj;
-  // biome-ignore lint/suspicious/noExplicitAny: session result
   sessResult: AnyObj;
 }
 

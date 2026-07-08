@@ -2,7 +2,7 @@ import * as path from 'node:path';
 import {
   type Config,
   type EventBus,
-  GlobalMailbox,
+  type GlobalMailbox,
   type SessionWriter,
   startCostTelemetryBridge,
   startSessionTelemetryBridge,
@@ -29,7 +29,6 @@ export interface SetupHqTelemetryDeps {
   events: EventBus;
   session: SessionWriter;
   config: Config;
-  // biome-ignore lint/suspicious/noExplicitAny: flags bag from arg-parser
   flags: Record<string, string | boolean>;
   tuiOwnsScreen: boolean;
   projectRoot: string;
