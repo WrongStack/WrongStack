@@ -303,6 +303,25 @@ describe('<DiffBlock /> rendering', () => {
     }
   });
 
+  it('expands hard tabs in diff bodies to spaces (tab-indented files render without a wash gap)', () => {
+    // Regression: Go/Makefile/C sources indent with hard tabs. A literal \t
+    // inside the background-washed <Text> leaves the skipped cells unpainted
+    // (a colourless gap before the code) AND, counted as a single character
+    // while it occupies several columns, overshoots the wrap/pad budget so
+    // the row spills onto the next line. The renderer expands tabs up front.
+    const frame = renderDiffBlock([{ kind: 'add', text: '+\t\thttp.Error(w)', newLine: 116 }], {
+      useColor: true,
+      contentWidth: 120,
+      lang: 'plain',
+    });
+    // No raw tab survives into the rendered frame.
+    expect(frame).not.toContain('\t');
+    // The body is intact and preceded by expanded indentation (two tabs from
+    // column 0 → 16 spaces at 8-col tab stops), so there is real background
+    // to paint under the indent instead of a bare tab jump.
+    expect(frame).toMatch(/ {8,}http\.Error\(w\)/);
+  });
+
   it('parseUnifiedDiff default cap is unbounded (Update tool renders every row)', () => {
     // The default Update tool path (extractDiffPreview → parseUnifiedDiff)
     // must surface every diff row, no matter how large, so a long edit is

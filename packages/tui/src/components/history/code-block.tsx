@@ -6,29 +6,23 @@ import {
   langFromPath,
   type Token,
 } from '../../highlight.js';
+import {
+  type DiffLineKind,
+  type DiffLineRow,
+  type DiffPreview,
+  parseUnifiedDiffPreview,
+} from '@wrongstack/tools/tool-diff';
 import { Box, Text } from '../../ink.js';
 import { theme } from '../../theme.js';
-import { stringOf, truncMid, tryParseJson } from './utils.js';
+import { stringOf, tryParseJson } from './utils.js';
 
 // ── Types ──
 
-export type DiffLineKind = 'add' | 'del' | 'hunk' | 'ctx' | 'meta';
-
-export interface DiffLineRow {
-  kind: DiffLineKind;
-  text: string;
-  oldLine?: number | undefined;
-  newLine?: number | undefined;
-}
-
-export interface DiffPreview {
-  rows: DiffLineRow[];
-  hidden: number;
-  added: number;
-  removed: number;
-  hiddenAdded: number;
-  hiddenRemoved: number;
-}
+// The rich diff model (row shape + unified-diff parser) is now the single
+// source of truth in @wrongstack/tools/tool-diff, shared with the WebUI/HQ.
+// This file keeps only the TUI-specific rendering (ink/theme/wrap/tab-expand).
+// Imported for local use AND re-exported so this module's public API is intact.
+export type { DiffLineKind, DiffLineRow, DiffPreview };
 
 /**
  * A parsed diff paired with the file it belongs to. Used when a tool
@@ -62,19 +56,56 @@ export const MAX_CODE_LINES = 80;
  */
 export const DIFF_MAX_LINES = Number.POSITIVE_INFINITY;
 /**
- * Safety cap on a single diff row's stored text. Diff rows render at full
- * length (wrapped onto continuation rows, never mid-line truncated), so this
- * only guards against pathological one-line files (minified bundles, huge
- * JSON blobs) flooding the screen — never real code lines.
- */
-const DIFF_LINE_SAFETY_CAP = 4000;
-/**
  * Wrap budget when the caller doesn't supply `contentWidth` (e.g. the
  * approval dialog). Matches the historical per-row cap so the layout risk
  * on narrow terminals is unchanged — but the content wraps instead of
  * being cut off.
  */
 const DIFF_FALLBACK_WRAP_WIDTH = 100;
+/**
+ * Display width for a hard tab. Matches the near-universal terminal default
+ * (8-column tab stops), so a tab-indented file (Go, Makefiles, kernel C, …)
+ * shows the same indentation depth here as it does in `git diff` or the
+ * read view, and so the wrap + wash-padding math — which counts characters —
+ * agrees with the number of columns the terminal actually advances.
+ */
+const HARD_TAB_WIDTH = 8;
+
+/**
+ * Expand hard tabs to spaces at fixed tab stops, measured from column 0 of
+ * the passed text.
+ *
+ * A literal `\t` is doubly broken for the diff renderer:
+ *
+ * 1. Inside a background-washed `<Text>` the terminal does NOT paint the
+ *    cells a tab skips over — it just advances the cursor — so a tab-indented
+ *    add/del line shows a colourless gap before the code (the "no background
+ *    at the start of the line" artifact).
+ * 2. The wrap ({@link wrapTokens}) and wash-pad ({@link DiffBlock}) math count
+ *    a tab as a single character while it occupies up to `HARD_TAB_WIDTH`
+ *    columns on screen, so the trailing-space pad overshoots and the row
+ *    spills onto the next line.
+ *
+ * Converting tabs to real spaces up front makes the stored text, the wrap
+ * math, and the painted background all agree. A no-tab fast path keeps the
+ * common (space-indented) case allocation-free.
+ */
+function expandTabs(text: string, tabWidth: number = HARD_TAB_WIDTH): string {
+  if (!text.includes('\t')) return text;
+  let out = '';
+  let col = 0;
+  for (const ch of text) {
+    if (ch === '\t') {
+      const advance = tabWidth - (col % tabWidth);
+      out += ' '.repeat(advance);
+      col += advance;
+    } else {
+      out += ch;
+      col += 1;
+    }
+  }
+  return out;
+}
 
 // ── CodeBlock ──
 
@@ -104,7 +135,10 @@ export function CodeBlock({
   const maxW = Math.max(20, Math.min(boxWidth - 4 - gutterW - 1, 120));
   let carry: HLState = {};
   const rows = lines.map((raw) => {
-    const display = raw.length > maxW ? `${raw.slice(0, maxW - 1)}…` : raw;
+    // Expand hard tabs before measuring/truncating so a tab-indented line
+    // isn't under-counted (tab = 1 char but many columns) and made to wrap.
+    const expanded = expandTabs(raw);
+    const display = expanded.length > maxW ? `${expanded.slice(0, maxW - 1)}…` : expanded;
     const r = highlightLine(display, lang, carry);
     carry = r.carry;
     return r.tokens;
@@ -448,10 +482,13 @@ export function DiffBlock({
   };
 
   const textForDisplay = (row: DiffLineRow) => {
+    // Expand hard tabs to spaces so tab-indented lines (Go, Makefiles, …)
+    // render with painted background under their indentation and don't
+    // overshoot the wrap/pad budget — see {@link expandTabs}.
     if ((row.kind === 'add' || row.kind === 'del' || row.kind === 'ctx') && row.text.length > 0) {
-      return row.text.slice(1) || ' ';
+      return expandTabs(row.text.slice(1)) || ' ';
     }
-    return row.text || ' ';
+    return expandTabs(row.text) || ' ';
   };
 
   const stats = showStats ? formatDiffStats(added, removed) : null;
@@ -616,65 +653,14 @@ export function DiffBlock({
 
 // ── Diff parsing ──
 
+/**
+ * Parse a unified-diff string into a {@link DiffPreview}. Thin wrapper over the
+ * shared, single-source-of-truth `parseUnifiedDiffPreview` in
+ * @wrongstack/tools/tool-diff (which the WebUI and HQ also read). Kept as a
+ * local export so this module's many callers and tests are unchanged.
+ */
 export function parseUnifiedDiff(diff: string, maxLines: number): DiffPreview {
-  const all: DiffLineRow[] = [];
-  let oldLn = 0;
-  let newLn = 0;
-  for (const raw of diff.split('\n')) {
-    const line = raw.replace(/\r$/, '');
-    if (line.startsWith('+++') || line.startsWith('---')) continue;
-    if (line.startsWith('diff --git') || line.startsWith('index ')) continue;
-    if (line.startsWith('@@')) {
-      const m = line.match(/^@@\s+-(\d+)(?:,\d+)?\s+\+(\d+)(?:,\d+)?\s+@@/);
-      if (m) {
-        oldLn = Number.parseInt(m[1] ?? '0', 10) || 0;
-        newLn = Number.parseInt(m[2] ?? '0', 10) || 0;
-      }
-      all.push({ kind: 'hunk', text: truncMid(line, 60) });
-      continue;
-    }
-    if (line.startsWith('+')) {
-      all.push({ kind: 'add', text: truncMid(line, DIFF_LINE_SAFETY_CAP), newLine: newLn });
-      newLn++;
-      continue;
-    }
-    if (line.startsWith('-')) {
-      all.push({ kind: 'del', text: truncMid(line, DIFF_LINE_SAFETY_CAP), oldLine: oldLn });
-      oldLn++;
-      continue;
-    }
-    if (line.startsWith('\\ No newline')) {
-      all.push({ kind: 'meta', text: line });
-      continue;
-    }
-    if (line.length === 0) continue;
-    all.push({
-      kind: 'ctx',
-      text: truncMid(line, DIFF_LINE_SAFETY_CAP),
-      oldLine: oldLn,
-      newLine: newLn,
-    });
-    oldLn++;
-    newLn++;
-  }
-  const added = all.filter((row) => row.kind === 'add').length;
-  const removed = all.filter((row) => row.kind === 'del').length;
-  if (all.length === 0) {
-    return { rows: [], hidden: 0, added: 0, removed: 0, hiddenAdded: 0, hiddenRemoved: 0 };
-  }
-  if (all.length <= maxLines) {
-    return { rows: all, hidden: 0, added, removed, hiddenAdded: 0, hiddenRemoved: 0 };
-  }
-  const rows = all.slice(0, maxLines);
-  const hiddenRows = all.slice(maxLines);
-  return {
-    rows,
-    hidden: hiddenRows.length,
-    added,
-    removed,
-    hiddenAdded: hiddenRows.filter((row) => row.kind === 'add').length,
-    hiddenRemoved: hiddenRows.filter((row) => row.kind === 'del').length,
-  };
+  return parseUnifiedDiffPreview(diff, maxLines);
 }
 
 /**

@@ -1,10 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import {
+  DIFF_LINE_SAFETY_CAP,
   TOOL_DIFF_BROWSER_SRC,
   computeLineDiff,
   diffFromToolInput,
   diffRowsFromToolInput,
   parseUnifiedDiff,
+  parseUnifiedDiffPreview,
+  truncMid,
 } from '../src/tool-diff.js';
 
 describe('diffFromToolInput', () => {
@@ -144,5 +147,64 @@ describe('tool-diff parity (TS vs embedded browser source)', () => {
   it('parseUnifiedDiff parity', () => {
     const patch = 'diff --git a/x b/x\nindex 111..222\n--- a/x\n+++ b/x\n@@ -1,2 +1,2 @@\n ctx\n-old\n+new\n';
     expect(bs.parseUnifiedDiff(patch)).toEqual(parseUnifiedDiff(patch));
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Rich preview model — promoted from the TUI. These assertions pin the exact
+// behavior the TUI's code-block.tsx relied on (gutter line numbers, hunk kind,
+// hidden counts, maxLines cap) so the TUI delegating here can't regress.
+// ---------------------------------------------------------------------------
+describe('parseUnifiedDiffPreview (rich, TUI-promoted)', () => {
+  it('tracks old/new line gutters and a dedicated hunk kind', () => {
+    const p = parseUnifiedDiffPreview('@@ -10,2 +10,2 @@\n ctx\n-old\n+new', Number.POSITIVE_INFINITY);
+    // Note: context and +/- rows keep their raw leading marker/space (' ctx',
+    // '-old', '+new') — the terminal renderer strips/colours the marker itself.
+    expect(p.rows).toEqual([
+      { kind: 'hunk', text: '@@ -10,2 +10,2 @@' },
+      { kind: 'ctx', text: ' ctx', oldLine: 10, newLine: 10 },
+      { kind: 'del', text: '-old', oldLine: 11 },
+      { kind: 'add', text: '+new', newLine: 11 },
+    ]);
+    expect(p.added).toBe(1);
+    expect(p.removed).toBe(1);
+    expect(p.hidden).toBe(0);
+  });
+
+  it('drops +++/---/diff/index header lines', () => {
+    const p = parseUnifiedDiffPreview('diff --git a/x b/x\nindex 1..2\n--- a/x\n+++ b/x\n@@ -1 +1 @@\n-a\n+b', Number.POSITIVE_INFINITY);
+    expect(p.rows.map((r) => r.kind)).toEqual(['hunk', 'del', 'add']);
+  });
+
+  it('folds overflow into hidden counts at the maxLines cap', () => {
+    const diff = '@@ -1,4 +1,4 @@\n+a\n+b\n+c\n+d';
+    const p = parseUnifiedDiffPreview(diff, 3);
+    expect(p.rows).toHaveLength(3); // hunk + 2 adds
+    expect(p.hidden).toBe(2);
+    expect(p.added).toBe(4);
+    expect(p.hiddenAdded).toBe(2);
+  });
+
+  it('returns an empty preview for an empty diff', () => {
+    expect(parseUnifiedDiffPreview('', Number.POSITIVE_INFINITY)).toEqual({
+      rows: [],
+      hidden: 0,
+      added: 0,
+      removed: 0,
+      hiddenAdded: 0,
+      hiddenRemoved: 0,
+    });
+  });
+
+  it('truncMid caps a single row past the safety cap', () => {
+    const long = `+${'x'.repeat(DIFF_LINE_SAFETY_CAP + 50)}`;
+    const p = parseUnifiedDiffPreview(long, Number.POSITIVE_INFINITY);
+    expect(p.rows[0]!.text.length).toBe(DIFF_LINE_SAFETY_CAP);
+    expect(p.rows[0]!.text.endsWith('…')).toBe(true);
+  });
+
+  it('truncMid leaves short strings untouched', () => {
+    expect(truncMid('short', 100)).toBe('short');
+    expect(truncMid('abcdef', 4)).toBe('abc…');
   });
 });

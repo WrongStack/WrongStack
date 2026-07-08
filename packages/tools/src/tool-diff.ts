@@ -178,6 +178,122 @@ export function diffRowsFromToolInput(
   return { caption: d.caption, rows: computeLineDiff(d.oldText, d.newText) };
 }
 
+// ===========================================================================
+// Rich preview model (line-number gutters + maxLines cap + hidden counts).
+//
+// Promoted verbatim from the TUI's code-block.tsx so the terminal can consume
+// this instead of a third local copy. It is a SUPERSET of the flat DiffRow
+// model above: `DiffLineRow` carries per-row old/new line numbers and a `hunk`
+// kind, and `parseUnifiedDiffPreview` returns a `DiffPreview` with add/remove
+// totals plus a maxLines cap that folds the overflow into hidden counts.
+//
+// This is pure and browser-safe; the TUI-only rendering (ink/theme/wrap) stays
+// in code-block.tsx. Kept as separate names from the flat `parseUnifiedDiff`
+// above so WebUI/HQ callers are unaffected.
+// ===========================================================================
+
+/** Rich diff row: like DiffRow but with a dedicated `hunk` kind and gutters. */
+export type DiffLineKind = 'add' | 'del' | 'hunk' | 'ctx' | 'meta';
+export interface DiffLineRow {
+  kind: DiffLineKind;
+  text: string;
+  oldLine?: number | undefined;
+  newLine?: number | undefined;
+}
+
+/** A parsed unified-diff preview: rows plus visible/hidden tallies. */
+export interface DiffPreview {
+  rows: DiffLineRow[];
+  hidden: number;
+  added: number;
+  removed: number;
+  hiddenAdded: number;
+  hiddenRemoved: number;
+}
+
+/**
+ * Safety cap on a single diff row's stored text — guards against pathological
+ * one-line files (minified bundles, huge JSON) flooding a consumer. Real code
+ * lines are never truncated at this length.
+ */
+export const DIFF_LINE_SAFETY_CAP = 4000;
+
+/** Truncate the middle-out: keep the head, append an ellipsis, past `max`. */
+export function truncMid(s: string, max: number): string {
+  if (s.length <= max) return s;
+  return `${s.slice(0, max - 1)}…`;
+}
+
+/**
+ * Parse a unified-diff string into a {@link DiffPreview} with per-row line
+ * numbers and add/remove tallies. `maxLines` caps the visible rows; the rest
+ * fold into `hidden`/`hiddenAdded`/`hiddenRemoved`. Pass
+ * `Number.POSITIVE_INFINITY` to render everything.
+ *
+ * This is the richer sibling of {@link parseUnifiedDiff}: it keeps a dedicated
+ * `hunk` kind (rather than folding hunk headers into `meta`) and tracks old/new
+ * line gutters, which a terminal/gutter renderer needs.
+ */
+export function parseUnifiedDiffPreview(
+  diff: string,
+  maxLines: number,
+  lineCap: number = DIFF_LINE_SAFETY_CAP,
+): DiffPreview {
+  const all: DiffLineRow[] = [];
+  let oldLn = 0;
+  let newLn = 0;
+  for (const raw of diff.split('\n')) {
+    const line = raw.replace(/\r$/, '');
+    if (line.startsWith('+++') || line.startsWith('---')) continue;
+    if (line.startsWith('diff --git') || line.startsWith('index ')) continue;
+    if (line.startsWith('@@')) {
+      const m = line.match(/^@@\s+-(\d+)(?:,\d+)?\s+\+(\d+)(?:,\d+)?\s+@@/);
+      if (m) {
+        oldLn = Number.parseInt(m[1] ?? '0', 10) || 0;
+        newLn = Number.parseInt(m[2] ?? '0', 10) || 0;
+      }
+      all.push({ kind: 'hunk', text: truncMid(line, 60) });
+      continue;
+    }
+    if (line.startsWith('+')) {
+      all.push({ kind: 'add', text: truncMid(line, lineCap), newLine: newLn });
+      newLn++;
+      continue;
+    }
+    if (line.startsWith('-')) {
+      all.push({ kind: 'del', text: truncMid(line, lineCap), oldLine: oldLn });
+      oldLn++;
+      continue;
+    }
+    if (line.startsWith('\\ No newline')) {
+      all.push({ kind: 'meta', text: line });
+      continue;
+    }
+    if (line.length === 0) continue;
+    all.push({ kind: 'ctx', text: truncMid(line, lineCap), oldLine: oldLn, newLine: newLn });
+    oldLn++;
+    newLn++;
+  }
+  const added = all.filter((row) => row.kind === 'add').length;
+  const removed = all.filter((row) => row.kind === 'del').length;
+  if (all.length === 0) {
+    return { rows: [], hidden: 0, added: 0, removed: 0, hiddenAdded: 0, hiddenRemoved: 0 };
+  }
+  if (all.length <= maxLines) {
+    return { rows: all, hidden: 0, added, removed, hiddenAdded: 0, hiddenRemoved: 0 };
+  }
+  const rows = all.slice(0, maxLines);
+  const hiddenRows = all.slice(maxLines);
+  return {
+    rows,
+    hidden: hiddenRows.length,
+    added,
+    removed,
+    hiddenAdded: hiddenRows.filter((row) => row.kind === 'add').length,
+    hiddenRemoved: hiddenRows.filter((row) => row.kind === 'del').length,
+  };
+}
+
 // ---------------------------------------------------------------------------
 // Browser-JS transcriptions for HQ (served template literal, cannot import).
 // Authored with string concatenation only: NO backticks, NO ${...} — the HQ
