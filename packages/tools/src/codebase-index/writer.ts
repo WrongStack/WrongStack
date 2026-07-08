@@ -159,6 +159,26 @@ export class IndexStore {
   private ftsAvailable = false;
 
   /**
+   * Cache of prepared statements keyed by their SQL text. `DatabaseSync`
+   * compiles SQL on every `.prepare()` call; for the fixed-SQL methods
+   * (upsertFile, getFileMeta, deleteFile, insertRefs, …) that runs thousands
+   * of times during a full reindex. `StatementSync` objects are reusable
+   * across calls on the same connection, so we compile each distinct SQL once
+   * and reuse it. Cleared in {@link close} when the connection is torn down.
+   */
+  private readonly stmtCache = new Map<string, ReturnType<DatabaseSync['prepare']>>();
+
+  /** Prepare-once helper: compile `sql` on first use, reuse thereafter. */
+  private stmt(sql: string): ReturnType<DatabaseSync['prepare']> {
+    let s = this.stmtCache.get(sql);
+    if (s === undefined) {
+      s = this.db.prepare(sql);
+      this.stmtCache.set(sql, s);
+    }
+    return s;
+  }
+
+  /**
    * Execute a SQLite write operation with automatic retry on lock conflicts.
    *
    * When another wstack process is holding the write lock the statement first
@@ -368,11 +388,10 @@ export class IndexStore {
   deleteSymbolsForFile(file: string): void {
     this.runWithRetry(() => {
       if (this.ftsAvailable) {
-        this.db
-          .prepare('DELETE FROM symbols_fts WHERE rowid IN (SELECT id FROM symbols WHERE file_fk = ?)')
+        this.stmt('DELETE FROM symbols_fts WHERE rowid IN (SELECT id FROM symbols WHERE file_fk = ?)')
           .run(file);
       }
-      this.db.prepare('DELETE FROM symbols WHERE file_fk = ?').run(file);
+      this.stmt('DELETE FROM symbols WHERE file_fk = ?').run(file);
     });
   }
 
@@ -385,7 +404,7 @@ export class IndexStore {
     this.runWithRetry(() => {
       this.deleteRefsForFile(file);
       this.deleteSymbolsForFile(file);
-      this.db.prepare('DELETE FROM files WHERE file = ?').run(file);
+      this.stmt('DELETE FROM files WHERE file = ?').run(file);
     });
   }
 
@@ -393,7 +412,7 @@ export class IndexStore {
 
   upsertFile(meta: FileMeta): void {
     this.runWithRetry(() => {
-      this.db.prepare(
+      this.stmt(
         `INSERT INTO files(file, lang, mtime_ms, symbol_count, last_indexed)
          VALUES (?, ?, ?, ?, ?)
          ON CONFLICT(file) DO UPDATE SET
@@ -406,7 +425,7 @@ export class IndexStore {
   }
 
   getFileMeta(file: string): FileMeta | null {
-    const rows = this.db.prepare(
+    const rows = this.stmt(
       'SELECT file, lang, mtime_ms, symbol_count, last_indexed FROM files WHERE file = ?',
     ).all(file) as { file: string; lang: string; mtime_ms: number; symbol_count: number; last_indexed: number }[];
     if (!rows.length) return null;
@@ -692,7 +711,7 @@ export class IndexStore {
   insertRefs(fromId: number, refs: Ref[]): void {
     this.runWithRetry(() => {
       // Delete old refs from this symbol (handles re-index)
-      this.db.prepare('DELETE FROM refs WHERE from_id = ?').run(fromId);
+      this.stmt('DELETE FROM refs WHERE from_id = ?').run(fromId);
       if (refs.length === 0) return;
 
       const stmt = this.db.prepare(
@@ -923,6 +942,9 @@ export class IndexStore {
   }
 
   close(): void {
+    // Drop cached StatementSync references before closing; db.close() finalizes
+    // them, and keeping the map would retain handles to a dead connection.
+    this.stmtCache.clear();
     try { this.db.close(); } catch { /* already closed */ }
   }
 }
