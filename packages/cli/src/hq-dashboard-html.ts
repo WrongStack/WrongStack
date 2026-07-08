@@ -11,6 +11,13 @@
  * and contains NO backticks and NO `${` sequences, which would otherwise be
  * interpreted by the TypeScript template literal. Keep it that way.
  *
+ * For the same reason every backslash escape meant for the browser must be
+ * doubled here: write a double-backslash n, never a single one. A bare
+ * backslash-n is collapsed to a real newline by the outer template literal
+ * (=> "unescaped line break" SyntaxError in the served page); a bare
+ * backslash-s in a regex silently drops the backslash (=> a broken regex).
+ * Doubling makes the emitted browser JS carry the intended single backslash.
+ *
  * @module hq-dashboard-html
  */
 export const HQ_HTML = `<!DOCTYPE html>
@@ -163,7 +170,66 @@ export const HQ_HTML = `<!DOCTYPE html>
   .subbadge { font-size: 9px; text-transform: uppercase; letter-spacing: 0.5px; padding: 1px 6px; border-radius: 999px; background: rgba(163,113,247,0.18); color: var(--purple); font-weight: 700; }
   .chat-meta { margin-left: auto; font-size: 11px; color: var(--dim); }
   .chat-body { flex: 1; overflow-y: auto; padding: 16px 22px; }
-  .bub.live { border-color: rgba(63,185,80,0.5); box-shadow: 0 0 0 1px rgba(63,185,80,0.15); }
+  .cmd-dock { border-top: 1px solid var(--border); background: var(--bg2); padding: 10px 14px; display: grid; gap: 8px; }
+  .cmd-row { display: flex; gap: 8px; align-items: center; }
+  .cmd-target { min-width: 220px; max-width: 44%; flex: 0 1 360px; background: var(--inset); border: 1px solid var(--border); color: var(--text); border-radius: 7px; padding: 7px 9px; font-size: 12px; }
+  .cmd-type { flex: 0 0 auto; min-width: 84px; background: var(--inset); border: 1px solid var(--border); color: var(--text); border-radius: 7px; padding: 7px 9px; font-size: 12px; font-weight: 700; }
+  .cmd-type:disabled { opacity: 0.55; cursor: not-allowed; }
+  .cmd-text { flex: 1; min-height: 38px; max-height: 120px; resize: vertical; background: var(--inset); border: 1px solid var(--border); color: var(--text); border-radius: 7px; padding: 8px 10px; font: 12.5px/1.4 ui-sans-serif, system-ui, sans-serif; }
+  .cmd-target:focus, .cmd-type:focus, .cmd-text:focus { outline: none; border-color: var(--accent); }
+  .cmd-send { flex: 0 0 auto; background: var(--accent); color: #04121f; border: 1px solid var(--accent); border-radius: 7px; padding: 8px 12px; font-size: 12px; font-weight: 800; cursor: pointer; }
+  .cmd-send:disabled { opacity: 0.5; cursor: not-allowed; }
+  .cmd-status { font-size: 11px; color: var(--dim); min-height: 14px; }
+  .cmd-status.ok { color: var(--green); }
+  .cmd-status.err { color: var(--red); }
+  .cmd-history { border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); background: var(--panel); padding: 10px 18px; }
+  .cmd-hhead { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+  .cmd-htitle { font-size: 11px; font-weight: 800; color: var(--bright); text-transform: uppercase; letter-spacing: 0.6px; }
+  .cmd-hnote { font-size: 10.5px; color: var(--dim); }
+  .cmd-hrefresh { margin-left: auto; background: var(--inset); border: 1px solid var(--border); border-radius: 7px; color: var(--muted); cursor: pointer; font-size: 11px; padding: 5px 9px; }
+  .cmd-hrefresh:hover { border-color: var(--accent); color: var(--text); }
+  .cmd-hlist { display: grid; gap: 5px; }
+  .cmd-hrow { display: grid; grid-template-columns: 92px 82px minmax(0, 1fr) 88px; gap: 8px; align-items: center; font-size: 11.5px; color: var(--muted); background: var(--inset); border: 1px solid var(--border); border-radius: 7px; padding: 6px 8px; }
+  .cmd-htype { color: var(--bright); font-weight: 700; }
+  .cmd-hstatus { text-transform: uppercase; font-size: 9.5px; font-weight: 800; letter-spacing: 0.5px; color: var(--amber); }
+  .cmd-hstatus.acked { color: var(--green); }
+  .cmd-hstatus.delivered { color: var(--cyan); }
+  .cmd-hstatus.failed, .cmd-hstatus.rejected { color: var(--red); }
+  .cmd-hclient, .cmd-hmsg { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .cmd-history .side-empty { padding: 12px; font-size: 11.5px; }
+  .timeline-wrap { flex: 1; min-height: 0; display: flex; flex-direction: column; background: var(--bg2); }
+  .timeline-head { padding: 12px 18px; border-bottom: 1px solid var(--border); display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+  .timeline-title { font-size: 13px; font-weight: 800; color: var(--bright); }
+  .timeline-note { font-size: 11px; color: var(--dim); }
+  .timeline-filters { margin-left: auto; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .timeline-input, .timeline-select { background: var(--inset); border: 1px solid var(--border); color: var(--text); border-radius: 7px; padding: 6px 9px; font-size: 12px; }
+  .timeline-input { width: 260px; }
+  .timeline-input:focus, .timeline-select:focus { outline: none; border-color: var(--accent); }
+  .timeline-btn { background: var(--inset); border: 1px solid var(--border); color: var(--muted); border-radius: 7px; padding: 6px 10px; font-size: 12px; cursor: pointer; }
+  .timeline-btn:hover { color: var(--text); border-color: var(--accent); }
+  .timeline-list { flex: 1; min-height: 0; overflow-y: auto; padding: 12px 18px 18px; display: grid; gap: 8px; align-content: start; }
+  .timeline-row { display: grid; grid-template-columns: 34px 92px minmax(170px, 260px) minmax(0, 1fr); gap: 10px; border: 1px solid var(--border); border-radius: 10px; padding: 9px 10px; cursor: pointer; background: var(--panel); align-items: start; }
+  .timeline-row:hover { background: var(--panel2); border-color: var(--accent); }
+  .timeline-row.tool { border-color: rgba(57,208,216,0.22); background: rgba(57,208,216,0.045); }
+  .timeline-row.assistant { border-color: rgba(163,113,247,0.20); }
+  .timeline-row.error { border-color: rgba(248,81,73,0.32); background: rgba(248,81,73,0.06); }
+  .timeline-mark { width: 28px; height: 28px; border-radius: 9px; display: grid; place-items: center; background: var(--inset); border: 1px solid var(--border); color: var(--muted); font-size: 14px; }
+  .timeline-row.assistant .timeline-mark { color: var(--purple); border-color: rgba(163,113,247,0.35); background: rgba(163,113,247,0.12); }
+  .timeline-row.tool .timeline-mark { color: var(--cyan); border-color: rgba(57,208,216,0.35); background: rgba(57,208,216,0.11); }
+  .timeline-row.user .timeline-mark { color: var(--accent); border-color: rgba(88,166,255,0.35); background: rgba(88,166,255,0.11); }
+  .timeline-row.error .timeline-mark { color: var(--red); border-color: rgba(248,81,73,0.38); background: rgba(248,81,73,0.12); }
+  .timeline-time { color: var(--dim); font-size: 11px; font-variant-numeric: tabular-nums; }
+  .timeline-who { min-width: 0; }
+  .timeline-agent { color: var(--bright); font-weight: 700; font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .timeline-project { color: var(--muted); font-size: 10.5px; margin-top: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .timeline-msg { min-width: 0; color: var(--text); font-size: 12.5px; line-height: 1.45; white-space: pre-wrap; word-break: break-word; max-height: 86px; overflow: hidden; }
+  .timeline-role { display: inline-block; margin-right: 6px; color: var(--dim); text-transform: uppercase; font-size: 9.5px; letter-spacing: 0.5px; font-weight: 800; }
+  .timeline-role.user { color: var(--accent); }
+  .timeline-role.assistant { color: var(--purple); }
+  .timeline-role.tool { color: var(--cyan); }
+  .timeline-role.error { color: var(--red); }
+  .timeline-toolchip { display: inline-block; margin-right: 6px; border: 1px solid rgba(57,208,216,0.32); background: rgba(57,208,216,0.08); color: var(--cyan); border-radius: 999px; padding: 1px 7px; font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 10px; }
+  .bub.live .bub-card { border-color: rgba(63,185,80,0.5); box-shadow: 0 0 0 1px rgba(63,185,80,0.15); }
   .bub.live .live-dot { margin-left: auto; color: var(--green); font-size: 9px; animation: livepulse 1.4s ease-in-out infinite; }
   @keyframes livepulse { 0%,100% { opacity: 1; } 50% { opacity: 0.35; } }
   .caret { display: inline-block; width: 7px; height: 13px; margin-left: 2px; background: var(--green); vertical-align: text-bottom; animation: blink 1s steps(2, start) infinite; }
@@ -187,7 +253,9 @@ export const HQ_HTML = `<!DOCTYPE html>
   .fnode.terminal.k-repl { border-left-color: var(--amber); }
   .fnode.terminal.k-webui { border-left-color: var(--accent); }
   .fnode.terminal.k-cli { border-left-color: var(--cyan); }
-  .fnode.agent { width: 220px; }
+  .fnode.agent { width: 196px; padding: 9px 10px; }
+  .fnode.agent .fnode-sub { max-height: 30px; white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+  .fnode.agent .fnode-chips { max-height: 34px; overflow: hidden; }
   .fnode.agent.s-running, .fnode.agent.s-streaming { border-color: var(--green); box-shadow: 0 0 0 1px rgba(63,185,80,0.25), 0 10px 22px rgba(0,0,0,0.4); animation: pulse 1.8s ease-in-out infinite; }
   .fnode.agent.s-waiting_user { border-color: var(--amber); }
   .fnode.agent.s-error { border-color: var(--red); }
@@ -209,30 +277,82 @@ export const HQ_HTML = `<!DOCTYPE html>
   .side-close:hover { background: var(--panel); color: var(--text); }
   .side-body { flex: 1; overflow-y: auto; padding: 14px 16px; }
   .side-empty { margin: auto; color: var(--dim); font-style: italic; text-align: center; padding: 40px 24px; }
-  .bub { margin-bottom: 12px; border-radius: 10px; padding: 9px 12px; font-size: 12.5px; line-height: 1.5; border: 1px solid var(--border); }
-  .bub .bub-meta { font-size: 10px; color: var(--dim); margin-bottom: 4px; display: flex; gap: 8px; align-items: center; text-transform: uppercase; letter-spacing: 0.5px; }
-  .bub .bub-role { font-weight: 700; }
-  .bub.user { background: rgba(88,166,255,0.08); border-color: rgba(88,166,255,0.25); }
-  .bub.user .bub-role { color: var(--accent); }
-  .bub.assistant { background: var(--panel); }
+  .bub { margin-bottom: 14px; display: flex; gap: 10px; align-items: flex-start; font-size: 13px; line-height: 1.55; }
+  .bub.user { flex-direction: row-reverse; }
+  .bub-avatar { flex: 0 0 32px; width: 32px; height: 32px; border-radius: 10px; display: grid; place-items: center; font-size: 15px; border: 1px solid var(--border2); background: var(--panel); color: var(--muted); box-shadow: 0 0 0 3px rgba(13,17,23,0.65); }
+  .bub.assistant .bub-avatar { background: rgba(163,113,247,0.16); color: var(--purple); border-color: rgba(163,113,247,0.35); }
+  .bub.user .bub-avatar { background: var(--accent); color: #04121f; border-color: rgba(88,166,255,0.7); }
+  .bub.tool .bub-avatar { background: rgba(57,208,216,0.13); color: var(--cyan); border-color: rgba(57,208,216,0.35); }
+  .bub.error .bub-avatar { background: rgba(248,81,73,0.14); color: var(--red); border-color: rgba(248,81,73,0.4); }
+  .bub.system .bub-avatar { background: var(--inset); color: var(--dim); }
+  .bub-content { min-width: 0; flex: 1; max-width: 860px; display: flex; flex-direction: column; gap: 5px; }
+  .bub.user .bub-content { align-items: flex-end; }
+  .bub-head { display: flex; align-items: center; gap: 8px; padding: 0 2px; color: var(--dim); font-size: 10.5px; }
+  .bub-role { font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.6px; color: var(--muted); }
   .bub.assistant .bub-role { color: var(--purple); }
-  .bub.tool { background: rgba(57,208,216,0.05); border-color: rgba(57,208,216,0.18); }
+  .bub.user .bub-role { color: var(--accent); }
   .bub.tool .bub-role { color: var(--cyan); }
-  .bub.error { background: rgba(248,81,73,0.08); border-color: rgba(248,81,73,0.3); }
   .bub.error .bub-role { color: var(--red); }
-  .bub.system { background: transparent; border-style: dashed; color: var(--muted); }
-  .bub pre { margin: 0; white-space: pre-wrap; word-break: break-word; font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 11.5px; max-height: 320px; overflow: auto; }
+  .bub-card { width: fit-content; max-width: 100%; border: 1px solid var(--border); border-radius: 14px; padding: 10px 12px; background: var(--panel); color: var(--text); box-shadow: 0 8px 20px rgba(0,0,0,0.18); }
+  .bub.assistant .bub-card { background: var(--panel); border-color: var(--border2); border-bottom-left-radius: 5px; }
+  .bub.user .bub-card { background: rgba(88,166,255,0.16); border-color: rgba(88,166,255,0.35); border-bottom-right-radius: 5px; }
+  .bub.tool .bub-card { background: rgba(57,208,216,0.06); border-color: rgba(57,208,216,0.22); border-bottom-left-radius: 5px; }
+  .bub.error .bub-card { background: rgba(248,81,73,0.08); border-color: rgba(248,81,73,0.32); color: var(--text); }
+  .bub.system .bub-card { background: transparent; border-style: dashed; color: var(--muted); box-shadow: none; }
+  .bub pre { margin: 0; white-space: pre-wrap; word-break: break-word; font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 11.5px; max-height: 360px; overflow: auto; }
   .bub .txt { white-space: pre-wrap; word-break: break-word; }
+  .assistant-body, .txt { word-break: break-word; }
+  .msg-md { display: grid; gap: 8px; }
+  .msg-md p { margin: 0; white-space: pre-wrap; }
+  .md-heading { font-weight: 800; color: var(--bright); margin-top: 2px; }
+  .md-bullet { display: grid; grid-template-columns: 14px minmax(0, 1fr); gap: 6px; align-items: start; }
+  .md-bullet-dot { color: var(--accent); }
+  .md-inline { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 0.92em; padding: 1px 4px; border-radius: 5px; background: var(--inset); border: 1px solid var(--border); color: var(--cyan); }
+  .md-codewrap { border: 1px solid var(--border); border-radius: 9px; overflow: hidden; background: var(--bg2); }
+  .md-codelabel { display: flex; align-items: center; gap: 6px; padding: 5px 9px; border-bottom: 1px solid var(--border); color: var(--dim); font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 10px; text-transform: uppercase; letter-spacing: 0.5px; }
+  .md-code { margin: 0; padding: 10px 11px; max-height: 360px; overflow: auto; white-space: pre; font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 11.5px; line-height: 1.45; color: var(--text); }
+  .tool-card { display: grid; gap: 8px; min-width: min(520px, 100%); }
+  .tool-head { display: flex; align-items: center; gap: 8px; color: var(--text); }
+  .tool-name { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 12px; font-weight: 800; color: var(--cyan); }
+  .tool-status { margin-left: auto; font-size: 10px; text-transform: uppercase; letter-spacing: 0.6px; color: var(--green); font-weight: 800; }
+  .tool-status.error { color: var(--red); }
+  .tool-duration { font-size: 10.5px; color: var(--dim); font-variant-numeric: tabular-nums; }
+  .tool-group { margin: 0 0 14px 42px; max-width: 860px; border: 1px solid var(--border); border-radius: 12px; background: rgba(57,208,216,0.045); overflow: hidden; }
+  .tool-group > summary { cursor: pointer; list-style: none; display: flex; align-items: center; gap: 8px; padding: 9px 11px; color: var(--text); user-select: none; }
+  .tool-group > summary::-webkit-details-marker { display: none; }
+  .tool-group > summary::before { content: '▸'; color: var(--dim); font-size: 10px; }
+  .tool-group[open] > summary::before { content: '▾'; }
+  .tool-group-title { font-weight: 800; color: var(--cyan); font-size: 12px; }
+  .tool-group-meta { color: var(--muted); font-size: 11px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .tool-group-status { margin-left: auto; font-size: 10px; text-transform: uppercase; font-weight: 800; letter-spacing: 0.5px; color: var(--green); }
+  .tool-group-status.error { color: var(--red); }
+  .tool-group-body { padding: 10px 12px 2px; border-top: 1px solid var(--border); background: rgba(13,17,23,0.32); }
+  .tool-group-body .bub { margin-bottom: 10px; }
+  .tool-group-body .bub-content { max-width: 100%; }
+  .tool-group-body .bub-avatar { width: 26px; height: 26px; flex-basis: 26px; border-radius: 8px; font-size: 12px; }
   .bub-sublabel { font-size: 9px; text-transform: uppercase; letter-spacing: 0.6px; color: var(--dim); margin: 4px 0 2px; }
-  .bub-fold { margin-top: 6px; }
-  .bub-fold > summary { cursor: pointer; list-style: none; font-size: 11px; color: var(--cyan); padding: 4px 9px; background: var(--inset); border: 1px solid var(--border); border-radius: 6px; user-select: none; display: flex; align-items: center; gap: 6px; font-variant-numeric: tabular-nums; }
+  .bub-fold { margin-top: 0; }
+  .bub-fold > summary { cursor: pointer; list-style: none; font-size: 11px; color: var(--cyan); padding: 6px 9px; background: var(--inset); border: 1px solid var(--border); border-radius: 8px; user-select: none; display: flex; align-items: center; gap: 6px; font-variant-numeric: tabular-nums; }
   .bub-fold > summary::-webkit-details-marker { display: none; }
   .bub-fold > summary::before { content: '▸'; color: var(--dim); font-size: 9px; }
   .bub-fold[open] > summary::before { content: '▾'; }
   .bub-fold > summary:hover { border-color: var(--accent); color: var(--text); }
   .bub-fold[open] > summary { border-bottom-left-radius: 0; border-bottom-right-radius: 0; }
-  .bub-fold > pre { margin: 0; border: 1px solid var(--border); border-top: none; border-radius: 0 0 6px 6px; padding: 8px 9px; background: var(--bg2); }
+  .bub-fold > pre { margin: 0; border: 1px solid var(--border); border-top: none; border-radius: 0 0 8px 8px; padding: 9px 10px; background: var(--bg2); }
   .bub-argpre { color: var(--cyan); }
+  .tool-output { border: 1px solid var(--border); border-top: none; border-radius: 0 0 8px 8px; background: var(--bg2); overflow: hidden; }
+  .tool-output-head { display: flex; align-items: center; gap: 8px; padding: 6px 9px; border-bottom: 1px solid var(--border); color: var(--dim); font-size: 10px; text-transform: uppercase; letter-spacing: 0.5px; }
+  .tool-output-kind { color: var(--cyan); font-family: ui-monospace, "SF Mono", Menlo, monospace; font-weight: 800; }
+  .tool-output-meta { margin-left: auto; font-variant-numeric: tabular-nums; }
+  .tool-output pre { margin: 0; padding: 9px 10px; max-height: 380px; overflow: auto; font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 11.5px; line-height: 1.45; }
+  .tool-output.error pre { color: var(--red); }
+  .tool-output.bash pre { white-space: pre-wrap; word-break: break-word; }
+  .tool-output.json pre, .tool-output.numbered pre { white-space: pre; }
+  .tool-output-footer { display: flex; gap: 12px; border-top: 1px solid var(--border); padding: 5px 9px; background: rgba(255,255,255,0.02); color: var(--dim); font-size: 10.5px; font-variant-numeric: tabular-nums; }
+  .tool-output-footer.bad { color: var(--red); }
+  .line-view { display: flex; max-height: 380px; overflow: auto; }
+  .line-gutter { flex: 0 0 auto; min-width: 38px; padding: 9px 8px; border-right: 1px solid var(--border); background: rgba(255,255,255,0.025); color: var(--dim); text-align: right; user-select: none; font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 11.5px; line-height: 1.45; white-space: pre; }
+  .line-view pre { flex: 1; max-height: none; min-width: 0; }
   .loading { color: var(--muted); font-style: italic; padding: 20px 0; }
 
   /* Mailbox tab (demoted) */
@@ -258,7 +378,8 @@ export const HQ_HTML = `<!DOCTYPE html>
 /* shared data store (framework-agnostic) */
 var Store = {
   snapshot: null, connected: false, tab: 'console', theme: 'dark',
-  selected: null, transcripts: {}, agentMsgs: {}, listeners: new Set(),
+  selected: null, transcripts: {}, agentMsgs: {}, timeline: [], timelineSeen: {}, timelineLoaded: false,
+  commands: [], commandsLoaded: false, commandsLoading: false, listeners: new Set(),
   emit: function(){ this.listeners.forEach(function(l){ try { l(); } catch(e){} }); },
   subscribe: function(l){ this.listeners.add(l); var s=this; return function(){ s.listeners.delete(l); }; },
   set: function(p){ Object.assign(this, p); this.emit(); }
@@ -272,6 +393,106 @@ function fmtAgo(iso){ if(!iso) return ''; var d=new Date(iso).getTime(); if(isNa
 function fmtElapsed(iso){ if(!iso) return ''; var d=new Date(iso).getTime(); if(isNaN(d)) return ''; var s=Math.max(0,Math.floor((Date.now()-d)/1000)); if(s<60) return s+'s'; var m=Math.floor(s/60); if(m<60) return m+'m '+(s%60)+'s'; var h=Math.floor(m/60); if(h<24) return h+'h '+(m%60)+'m'; return Math.floor(h/24)+'d '+(h%24)+'h'; }
 function fmtNum(n){ n=Number(n)||0; if(n>=1e6) return (n/1e6).toFixed(1)+'M'; if(n>=1e3) return (n/1e3).toFixed(1)+'k'; return String(n); }
 function esc(s){ if(s==null) return ''; return String(s); }
+function cacheKey(agentId, projectId, clientId){ return (projectId||'') + '||' + (clientId||'') + '||' + agentId; }
+function findSession(snap, sessionId){ return ((snap && snap.liveSessions) || []).filter(function(s){ return s.sessionId === sessionId; })[0] || null; }
+function findAgent(session, agentId){ return session ? ((session.agents||[]).filter(function(a){ return a.id === agentId; })[0] || null) : null; }
+function clientIdForSession(snap, session){
+  if(!session) return '';
+  if(session.clientId) return session.clientId;
+  var clients = (snap && snap.clients) || [];
+  for(var i=0;i<clients.length;i++){
+    var c = clients[i];
+    if(c.projectId === session.projectId && c.machineId === session.machineId && c.kind === session.clientKind && (!session.pid || !c.pid || c.pid === session.pid)) return c.clientId || '';
+  }
+  return '';
+}
+
+function timelineKey(e){
+  return [e.source||'', e.projectId||'', e.clientId||'', e.sessionId||'', e.agentId||'', e.ts||'', e.role||'', e.tool||'', String(e.text||'').slice(0,80)].join('|');
+}
+function addTimelineEntries(entries){
+  if(!entries || !entries.length) return;
+  var changed = false;
+  for(var i=0;i<entries.length;i++){
+    var e = entries[i];
+    var key = timelineKey(e);
+    if(Store.timelineSeen[key]) continue;
+    Store.timelineSeen[key] = 1;
+    Store.timeline.push(e);
+    changed = true;
+  }
+  if(!changed) return;
+  Store.timeline.sort(function(a,b){ return (Date.parse(b.ts||'')||0) - (Date.parse(a.ts||'')||0); });
+  if(Store.timeline.length > 1500) Store.timeline = Store.timeline.slice(0, 1500);
+  Store.emit();
+}
+function timelineEntriesFromEvent(ev){
+  var out = [];
+  if(!ev || !ev.payload) return out;
+  if(ev.type === 'session.transcript' && ev.payload.sessionId && Array.isArray(ev.payload.entries)){
+    ev.payload.entries.forEach(function(entry){
+      out.push({
+        source: 'session', projectId: ev.projectId, clientId: ev.clientId, sessionId: ev.payload.sessionId,
+        agentId: entry.agentId || 'leader', agentName: entry.agentId || 'leader',
+        ts: entry.ts || ev.timestamp, role: entry.role || 'assistant', tool: entry.tool, text: entry.text || ''
+      });
+    });
+  } else if(ev.type === 'agent.message' && ev.payload.subagentId){
+    out.push({
+      source: 'agent', projectId: ev.projectId, clientId: ev.clientId, sessionId: ev.sessionId || null,
+      agentId: ev.payload.subagentId, agentName: ev.payload.agentName || ev.payload.subagentId,
+      ts: ev.payload.ts || ev.timestamp, role: agentMsgRole(ev.payload.kind), tool: ev.payload.toolName, text: ev.payload.content || ''
+    });
+  } else if(ev.type === 'agent.status' && ev.payload.subagentId){
+    out.push({
+      source: 'agent', projectId: ev.projectId, clientId: ev.clientId, sessionId: ev.sessionId || null,
+      agentId: ev.payload.subagentId, agentName: ev.payload.agentName || ev.payload.subagentId,
+      ts: ev.payload.ts || ev.timestamp, role: 'system', text: (ev.payload.status||'status') + (ev.payload.summary ? (': '+ev.payload.summary) : (ev.payload.task ? (': '+ev.payload.task) : ''))
+    });
+  }
+  return out;
+}
+function timelineAgentValue(projectId, clientId, agentId){ return [projectId||'', clientId||'', agentId||''].join('||'); }
+function parseTimelineAgentValue(value){
+  if(!value || value === 'all') return null;
+  var parts = String(value).split('||');
+  return { projectId: parts[0] || '', clientId: parts[1] || '', agentId: parts[2] || '' };
+}
+function timelineFilterQuery(filters){
+  var f = filters || {};
+  var q = [];
+  function add(k,v){ if(v && v !== 'all') q.push(encodeURIComponent(k) + '=' + encodeURIComponent(v)); }
+  add('projectId', f.projectId);
+  add('clientId', f.clientId);
+  add('agentId', f.agentId);
+  add('source', f.source);
+  add('role', f.role);
+  add('q', f.q);
+  return q.length ? ('&' + q.join('&')) : '';
+}
+function loadRecentTimeline(filters, force){
+  var f = typeof filters === 'string' ? { projectId: filters } : (filters || {});
+  if(Store.timelineLoaded && !force) return;
+  Store.timelineLoaded = true;
+  var path = '/api/timeline?limit=800' + timelineFilterQuery(f);
+  fetch(withTok(path))
+    .then(function(r){ return r.ok ? r.json() : null; })
+    .then(function(d){
+      if(d && Array.isArray(d.entries)){
+        addTimelineEntries(d.entries);
+        return;
+      }
+      return fetch(withTok('/api/events?limit=800'))
+        .then(function(r){ return r.ok ? r.json() : null; })
+        .then(function(fallback){
+          var events = fallback && Array.isArray(fallback.events) ? fallback.events : [];
+          var batch = [];
+          events.forEach(function(ev){ batch = batch.concat(timelineEntriesFromEvent(ev)); });
+          addTimelineEntries(batch);
+        });
+    })
+    .catch(function(){});
+}
 
 function loadTranscript(sessionId){
   if(!sessionId) return;
@@ -293,17 +514,24 @@ function applyThemeClass(t){ try { document.body.className = (t==='light'?'light
 function initTheme(){ var t='dark'; try { t = localStorage.getItem('hq.theme') || 'dark'; } catch(e){} Store.theme = t; applyThemeClass(t); }
 function toggleTheme(){ var t = (Store.theme==='light'?'dark':'light'); Store.theme = t; applyThemeClass(t); try { localStorage.setItem('hq.theme', t); } catch(e){} Store.emit(); }
 
-function loadAgentMessages(agentId){
+function loadAgentMessages(agentId, session){
   if(!agentId) return;
-  fetch(withTok('/api/agents/'+encodeURIComponent(agentId)+'/messages?full=1'))
+  var projectId = session && session.projectId ? session.projectId : '';
+  var clientId = clientIdForSession(Store.snapshot, session);
+  var key = cacheKey(agentId, projectId, clientId);
+  var url = '/api/agents/'+encodeURIComponent(agentId)+'/messages?full=1';
+  if(projectId) url += '&projectId=' + encodeURIComponent(projectId);
+  if(clientId) url += '&clientId=' + encodeURIComponent(clientId);
+  fetch(withTok(url))
     .then(function(r){ return r.ok ? r.json() : null; })
-    .then(function(d){ if(d && Array.isArray(d.entries)){ Store.agentMsgs[agentId] = d.entries; Store.emit(); } })
+    .then(function(d){ if(d && Array.isArray(d.entries)){ Store.agentMsgs[key] = d.entries; Store.emit(); } })
     .catch(function(){});
 }
 
 function selectSession(sessionId, agentId){
   Store.selected = { sessionId: sessionId, agentId: agentId || null };
-  if(agentId && agentId !== 'leader'){ loadAgentMessages(agentId); }
+  var session = findSession(Store.snapshot, sessionId);
+  if(agentId && agentId !== 'leader'){ loadAgentMessages(agentId, session); }
   else { loadTranscript(sessionId); }
   Store.emit();
 }
@@ -322,7 +550,7 @@ function connectWs(){
     if(reconnect){
       var sel = Store.selected;
       if(sel && sel.sessionId){
-        if(sel.agentId && sel.agentId !== 'leader') loadAgentMessages(sel.agentId);
+        if(sel.agentId && sel.agentId !== 'leader') loadAgentMessages(sel.agentId, findSession(Store.snapshot, sel.sessionId));
         else loadTranscript(sel.sessionId);
       }
     }
@@ -336,7 +564,7 @@ function connectWs(){
   ws.onerror = function(){ try { ws.close(); } catch(e){} };
 }
 
-function agentMsgRole(kind){ return kind==='tool_use'?'tool' : kind==='error'?'error' : kind==='status'?'system' : 'assistant'; }
+function agentMsgRole(kind){ return (kind==='tool_use'||kind==='tool_result')?'tool' : kind==='error'?'error' : kind==='status'?'system' : 'assistant'; }
 
 // Append streamed entries into a transcript cache, merging a tool RESULT
 // (toolUseId, no args) into the matching args entry so a tool's call + result
@@ -364,6 +592,7 @@ function appendEntries(cache, news){
 
 function handleEvent(ev){
   if(!ev) return;
+  addTimelineEntries(timelineEntriesFromEvent(ev));
   if(ev.type === 'session.transcript' && ev.payload && ev.payload.sessionId){
     var sid = ev.payload.sessionId;
     var c = Store.transcripts[sid];
@@ -377,15 +606,17 @@ function handleEvent(ev){
   // agent card id. Lets clicking a subagent show ITS own live history.
   if(ev.type === 'agent.message' && ev.payload && ev.payload.subagentId){
     var p = ev.payload;
-    var arr = Store.agentMsgs[p.subagentId] || (Store.agentMsgs[p.subagentId] = []);
+    var k = cacheKey(p.subagentId, ev.projectId, ev.clientId);
+    var arr = Store.agentMsgs[k] || (Store.agentMsgs[k] = []);
     arr.push({ ts: p.ts, role: agentMsgRole(p.kind), text: p.content || '', tool: p.toolName });
-    if(arr.length > 4000) Store.agentMsgs[p.subagentId] = arr.slice(-4000);
+    if(arr.length > 4000) Store.agentMsgs[k] = arr.slice(-4000);
     Store.emit();
     return;
   }
   if(ev.type === 'agent.status' && ev.payload && ev.payload.subagentId){
     var sp = ev.payload;
-    var a2 = Store.agentMsgs[sp.subagentId] || (Store.agentMsgs[sp.subagentId] = []);
+    var k2 = cacheKey(sp.subagentId, ev.projectId, ev.clientId);
+    var a2 = Store.agentMsgs[k2] || (Store.agentMsgs[k2] = []);
     a2.push({ ts: sp.ts, role: 'system', text: '— ' + (sp.status||'') + (sp.summary ? (': '+sp.summary) : (sp.task ? (': '+sp.task) : '')) });
     Store.emit();
     return;
@@ -398,6 +629,101 @@ function handleEvent(ev){
 function machineKey(hostname, machineId){
   var hn = hostname && String(hostname).trim();
   return hn ? ('host:' + hn.toLowerCase()) : ('mid:' + (machineId || 'local'));
+}
+
+function postHqCommand(clientId, type, payload){
+  return fetch(withTok('/api/command'), {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ clientId: clientId, type: type, payload: payload })
+  }).then(function(r){
+    return r.json().catch(function(){ return {}; }).then(function(body){
+      if(!r.ok){ throw new Error(body && body.error ? body.error : ('HTTP ' + r.status)); }
+      return body;
+    });
+  });
+}
+/* Direct mailbox write — used when the target has no live command-capable
+   client. The prompt lands in the project mailbox regardless of whether any
+   agent loop is running; the server resolves the projectRoot from sessionId/
+   projectId, so no filesystem path leaves the browser. */
+function postHqMailboxSend(target, type, opts){
+  return fetch(withTok('/api/mailbox-send'), {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      sessionId: target.sessionId, projectId: target.projectId,
+      type: type, to: target.to, subject: opts.subject, body: opts.body, priority: opts.priority
+    })
+  }).then(function(r){
+    return r.json().catch(function(){ return {}; }).then(function(body){
+      if(!r.ok){ throw new Error(body && body.error ? body.error : ('HTTP ' + r.status)); }
+      return body;
+    });
+  });
+}
+function loadCommands(force){
+  if(Store.commandsLoading) return;
+  if(Store.commandsLoaded && !force) return;
+  Store.commandsLoading = true;
+  fetch(withTok('/api/commands?limit=80'))
+    .then(function(r){ return r.ok ? r.json() : null; })
+    .then(function(d){
+      var commands = d && Array.isArray(d.commands) ? d.commands.slice() : [];
+      commands.sort(function(a,b){ return (Date.parse(b.enqueuedAt||'')||0) - (Date.parse(a.enqueuedAt||'')||0); });
+      Store.commands = commands;
+      Store.commandsLoaded = true;
+      Store.commandsLoading = false;
+      Store.emit();
+    })
+    .catch(function(){ Store.commandsLoading = false; Store.commandsLoaded = true; Store.emit(); });
+}
+
+function buildCommandTargets(snap){
+  var targets = [];
+  var seenProjects = {};
+  ((snap && snap.liveSessions) || []).forEach(function(s){
+    // A live client means the fast control-plane path (/api/command) is
+    // available. Without one, targets still work via the direct mailbox
+    // route (/api/mailbox-send) — the send simply lands in the project
+    // mailbox and is picked up whenever an agent next runs. direct=true
+    // marks those; the offline suffix hints at the fallback path.
+    var clientId = clientIdForSession(snap, s);
+    var direct = !clientId;
+    var projName = s.projectName || s.projectId;
+    var offlineSuffix = direct ? ' · (offline → mailbox)' : '';
+    var projectKey = s.projectId + '|' + (clientId || 'nocli');
+    if(!seenProjects[projectKey]){
+      seenProjects[projectKey] = 1;
+      targets.push({
+        value: 'project|' + projectKey, kind: 'broadcast', clientId: clientId || null, direct: direct,
+        to: 'all', sessionId: s.sessionId, projectId: s.projectId,
+        label: 'Broadcast project · ' + projName + offlineSuffix
+      });
+    }
+    targets.push({
+      value: s.sessionId + '|leader', kind: 'agent', clientId: clientId || null, direct: direct,
+      to: 'leader', sessionId: s.sessionId, projectId: s.projectId, agentId: 'leader',
+      label: projName + ' · ' + (s.clientKind||'cli').toUpperCase() + ' · leader' + offlineSuffix
+    });
+    (s.agents||[]).forEach(function(a){
+      if(a.id === 'leader') return;
+      targets.push({
+        value: s.sessionId + '|' + a.id, kind: 'agent', clientId: clientId || null, direct: direct,
+        to: a.id, sessionId: s.sessionId, projectId: s.projectId, agentId: a.id,
+        label: projName + ' · ' + (a.name || a.id) + offlineSuffix
+      });
+    });
+  });
+  return targets;
+}
+
+function selectedTargetValue(snap){
+  var sel = Store.selected;
+  if(!sel || !sel.sessionId) return '';
+  var session = findSession(snap, sel.sessionId);
+  if(!session) return '';
+  return sel.agentId ? (sel.sessionId + '|' + sel.agentId) : (sel.sessionId + '|leader');
 }
 
 /* fleet tree (shared) */
@@ -527,11 +853,13 @@ function projNode(id, p, machine){
 }
 function termNode(id, t, sel){
   var synthetic = !!t.synthetic;
+  var agentCount = t.agentCount || (t.agents ? t.agents.length : 0);
   return fleetNode(id, 'terminal', {
     termKind: t.clientKind, status: t.status, icon: kindIcon(t.clientKind),
     label: (t.clientKind||'cli').toUpperCase() + ' · ' + shortId(t.sessionId),
     sub: t.status + (t.pid ? (' · pid '+t.pid) : '') + (synthetic ? ' · waiting for session telemetry' : ''),
-    chips: synthetic ? ['connected', '0 agents'] : [ (t.agentCount||(t.agents?t.agents.length:0))+' agents' ],
+    agentCount: agentCount,
+    chips: synthetic ? ['connected', '0 agents'] : [ agentCount+' agents' ],
     clickable: !synthetic, selected: !synthetic && !!(sel && sel.sessionId === t.sessionId && !sel.agentId),
     onClick: synthetic ? undefined : function(){ selectSession(t.sessionId); }
   });
@@ -547,6 +875,7 @@ function agentNode(id, a, t, sel){
   chips.push((a.iterations||0)+' it');
   if(typeof a.costUsd === 'number' && a.costUsd > 0) chips.push('$'+a.costUsd.toFixed(2));
   return fleetNode(id, 'agent', {
+    parentTerminalId: 'terminal:' + t.sessionId,
     status: a.status, label: a.name || a.id,
     sub: a.status + (a.partialText ? (' · '+String(a.partialText).slice(0,44)) : ''),
     chips: chips, clickable: true,
@@ -557,21 +886,94 @@ function agentNode(id, a, t, sel){
 function kindIcon(k){ return k==='tui'?'🖳':k==='webui'?'🌐':k==='repl'?'⌨️':'▷'; }
 function miniColor(n){ var k=n.data&&n.data.kind; return k==='machine'?'#a371f7':k==='project'?'#58a6ff':k==='agent'?'#3fb950':'#39d0d8'; }
 
-// Node footprints (width × height) for dagre sizing.
-var NODE_SIZE = { machine: [220, 78], project: [220, 78], terminal: [220, 70], agent: [230, 92] };
-// Auto-layout the logical nodes into a clean tree using dagre.
+// Node footprints (width × height) for graph sizing. Agents are compact because
+// subagent fleets can be large; they are clustered around their terminal rather
+// than laid out as a long tree rank.
+var NODE_SIZE = { machine: [220, 78], project: [220, 78], terminal: [220, 70], agent: [196, 78] };
+function agentGrid(count, dir){
+  if(!count) return { cols: 0, rows: 0, width: 0, height: 0 };
+  var cols = dir === 'TB'
+    ? Math.min(4, Math.max(1, Math.ceil(Math.sqrt(count))))
+    : (count > 10 ? 4 : (count > 3 ? 2 : 1));
+  var rows = Math.ceil(count / cols);
+  var s = NODE_SIZE.agent;
+  return { cols: cols, rows: rows, width: cols*s[0] + Math.max(0, cols-1)*22, height: rows*s[1] + Math.max(0, rows-1)*18 };
+}
+function actualNodeSize(n){ return NODE_SIZE[n.data.kind] || [210, 64]; }
+function graphNodeSize(n, dir){
+  var base = actualNodeSize(n);
+  if(n.data.kind !== 'terminal') return base;
+  var count = n.data.agentCount || 0;
+  if(!count) return base;
+  var grid = agentGrid(count, dir);
+  if(dir === 'TB') return [Math.max(base[0], grid.width), base[1] + 58 + grid.height];
+  return [base[0] + 70 + grid.width, Math.max(base[1], grid.height)];
+}
+function terminalActualPosition(center, n, graphSize, actualSize, dir){
+  if(n.data.kind !== 'terminal' || !(n.data.agentCount > 0)){
+    return { x: center.x - actualSize[0]/2, y: center.y - actualSize[1]/2 };
+  }
+  if(dir === 'TB'){
+    return { x: center.x - actualSize[0]/2, y: center.y - graphSize[1]/2 };
+  }
+  return { x: center.x - graphSize[0]/2, y: center.y - actualSize[1]/2 };
+}
+function positionAgentsAroundTerminals(nodes, positioned, dir){
+  var byTerm = {};
+  nodes.forEach(function(n){
+    if(n.data.kind === 'agent' && n.data.parentTerminalId){
+      (byTerm[n.data.parentTerminalId] || (byTerm[n.data.parentTerminalId] = [])).push(n);
+    }
+  });
+  Object.keys(byTerm).forEach(function(termId){
+    var term = positioned[termId]; if(!term) return;
+    var agents = byTerm[termId];
+    var grid = agentGrid(agents.length, dir);
+    var termSize = actualNodeSize(term);
+    var agentSize = NODE_SIZE.agent;
+    var termCenter = { x: term.position.x + termSize[0]/2, y: term.position.y + termSize[1]/2 };
+    var startX, startY;
+    if(dir === 'TB'){
+      startX = termCenter.x - grid.width/2;
+      startY = term.position.y + termSize[1] + 58;
+    } else {
+      startX = term.position.x + termSize[0] + 70;
+      startY = termCenter.y - grid.height/2;
+    }
+    agents.forEach(function(agent, index){
+      var col = index % grid.cols;
+      var row = Math.floor(index / grid.cols);
+      positioned[agent.id] = Object.assign({}, agent, {
+        position: {
+          x: startX + col * (agentSize[0] + 22),
+          y: startY + row * (agentSize[1] + 18)
+        }
+      });
+    });
+  });
+}
+// Auto-layout the logical nodes into a clean spine, then cluster agents around
+// the terminal they belong to so large fleets stay readable.
 function layoutTree(nodes, edges, dir, dagre){
   if(!dagre || !nodes.length) return nodes;
   var g = new dagre.graphlib.Graph();
   g.setGraph({ rankdir: dir || 'LR', nodesep: 26, ranksep: 90, marginx: 30, marginy: 30, ranker: 'tight-tree' });
   g.setDefaultEdgeLabel(function(){ return {}; });
-  nodes.forEach(function(n){ var s = NODE_SIZE[n.data.kind] || [210, 64]; g.setNode(n.id, { width: s[0], height: s[1] }); });
-  edges.forEach(function(e){ if(g.hasNode(e.source) && g.hasNode(e.target)) g.setEdge(e.source, e.target); });
-  dagre.layout(g);
-  return nodes.map(function(n){
-    var p = g.node(n.id); if(!p) return n;
-    return Object.assign({}, n, { position: { x: p.x - p.width/2, y: p.y - p.height/2 } });
+  var spine = nodes.filter(function(n){ return n.data.kind !== 'agent'; });
+  spine.forEach(function(n){ var s = graphNodeSize(n, dir); g.setNode(n.id, { width: s[0], height: s[1] }); });
+  edges.forEach(function(e){
+    if(g.hasNode(e.source) && g.hasNode(e.target)) g.setEdge(e.source, e.target);
   });
+  dagre.layout(g);
+  var positioned = {};
+  spine.forEach(function(n){
+    var p = g.node(n.id); if(!p){ positioned[n.id] = n; return; }
+    var actual = actualNodeSize(n);
+    var graph = graphNodeSize(n, dir);
+    positioned[n.id] = Object.assign({}, n, { position: terminalActualPosition(p, n, graph, actual, dir) });
+  });
+  positionAgentsAroundTerminals(nodes, positioned, dir);
+  return nodes.map(function(n){ return positioned[n.id] || n; });
 }
 
 /* React app (preferred) */
@@ -659,24 +1061,497 @@ async function boot(){
       h('pre', { className: preClass || null }, content)
     );
   }
+  function foldContent(key, summary, child){
+    return h('details', { key: key, className: 'bub-fold' },
+      h('summary', null, summary),
+      child
+    );
+  }
+  function roleIcon(role){
+    if(role === 'user') return '👤';
+    if(role === 'tool') return '⌘';
+    if(role === 'error') return '!';
+    if(role === 'system') return 'i';
+    return '🤖';
+  }
+  function roleLabel(role){
+    if(role === 'user') return 'You';
+    if(role === 'tool') return 'Tool';
+    if(role === 'error') return 'Error';
+    if(role === 'system') return 'System';
+    return 'Assistant';
+  }
+  function countLines(text){
+    if(!text) return 0;
+    return String(text).split('\\n').length;
+  }
+  function toolSummary(e){
+    var parts = [];
+    if(e.toolInput) parts.push('input ' + e.toolInput.length + ' chars');
+    if(e.text) parts.push(countLines(e.text) + ' lines');
+    if(e.durationMs!=null) parts.push(e.durationMs + 'ms');
+    return parts.join(' · ');
+  }
+  function detectToolShape(tool, result){
+    var text = String(result || '');
+    var trimmed = text.trim();
+    function numberedLine(line){
+      var t = String(line || '').trim();
+      var arrow = t.indexOf('→');
+      if(arrow <= 0) return false;
+      var n = t.slice(0, arrow).trim();
+      if(!n) return false;
+      for(var i=0;i<n.length;i++){ var c = n.charCodeAt(i); if(c < 48 || c > 57) return false; }
+      return true;
+    }
+    if(text.split('\\n').slice(0, 8).some(numberedLine)) return { kind: 'numbered', text: text };
+    if((trimmed.indexOf('{') === 0 && trimmed.lastIndexOf('}') === trimmed.length - 1) || (trimmed.indexOf('[') === 0 && trimmed.lastIndexOf(']') === trimmed.length - 1)){
+      try { return { kind: 'json', text: JSON.stringify(JSON.parse(trimmed), null, 2) }; } catch(_e){}
+    }
+    var toolLower = String(tool || '').toLowerCase();
+    var isBash = ['bash','shell','exec','run','tsc','pnpm','npm','yarn'].some(function(prefix){ return toolLower.indexOf(prefix) === 0; });
+    var lines = text.split('\\n');
+    var last = lines.length ? String(lines[lines.length - 1] || '').trim().toLowerCase() : '';
+    var exitCode = null;
+    if(last.indexOf('exit') === 0 || last.indexOf('[exit') === 0){
+      var digits = '';
+      for(var j=0;j<last.length;j++){ var ch = last.charCodeAt(j); if(ch >= 48 && ch <= 57) digits += last[j]; }
+      if(digits) exitCode = Number(digits);
+    }
+    if(isBash || exitCode !== null){
+      return { kind: 'bash', text: exitCode !== null ? lines.slice(0, -1).join('\\n').trimEnd() : text, exitCode: exitCode };
+    }
+    return { kind: 'plain', text: text };
+  }
+  function renderLineView(text, numbered){
+    var lines = String(text || '').split('\\n');
+    if(!numbered) return h('pre', null, text || '');
+    return h('div', { className: 'line-view' },
+      h('pre', { className: 'line-gutter', 'aria-hidden': true }, lines.map(function(_l, i){ return String(i + 1); }).join('\\n')),
+      h('pre', null, text || '')
+    );
+  }
+  function renderToolOutput(e){
+    var shape = detectToolShape(e.tool, e.text);
+    var lineCount = countLines(shape.text);
+    var cls = 'tool-output ' + shape.kind + (e.isError || e.role === 'error' ? ' error' : '');
+    var footer = null;
+    if(shape.kind === 'bash' && (shape.exitCode !== null || e.durationMs != null)){
+      footer = h('div', { className: 'tool-output-footer ' + (shape.exitCode && shape.exitCode !== 0 ? 'bad' : '') },
+        shape.exitCode !== null ? h('span', null, 'exit code ', h('strong', null, String(shape.exitCode))) : null,
+        e.durationMs != null ? h('span', null, e.durationMs + 'ms') : null
+      );
+    }
+    return h('div', { className: cls },
+      h('div', { className: 'tool-output-head' },
+        h('span', { className: 'tool-output-kind' }, shape.kind === 'plain' ? 'output' : shape.kind),
+        h('span', { className: 'tool-output-meta' }, lineCount + ' lines')
+      ),
+      renderLineView(shape.text, shape.kind === 'numbered' || shape.kind === 'bash'),
+      footer
+    );
+  }
+  function renderInlineText(text, keyBase){
+    var s = String(text || '');
+    var bt = String.fromCharCode(96);
+    var out = [];
+    var pos = 0, n = 0;
+    while(pos < s.length){
+      var start = s.indexOf(bt, pos);
+      if(start < 0){ out.push(s.slice(pos)); break; }
+      var end = s.indexOf(bt, start + 1);
+      if(end < 0){ out.push(s.slice(pos)); break; }
+      if(start > pos) out.push(s.slice(pos, start));
+      out.push(h('code', { key: keyBase + '-ic-' + n++, className: 'md-inline' }, s.slice(start + 1, end)));
+      pos = end + 1;
+    }
+    return out.length ? out : s;
+  }
+  function renderMessageText(text, role){
+    var raw = String(text || '');
+    if(!raw) return h('div', { className: 'msg-md empty' }, '');
+    var fence = String.fromCharCode(96) + String.fromCharCode(96) + String.fromCharCode(96);
+    var lines = raw.split('\\n');
+    var blocks = [];
+    var para = [];
+    var code = [];
+    var lang = '';
+    var inCode = false;
+    function flushPara(){
+      if(!para.length) return;
+      var content = para.join(' ');
+      blocks.push(h('p', { key: 'p-' + blocks.length }, renderInlineText(content, 'p-' + blocks.length)));
+      para = [];
+    }
+    function flushCode(){
+      blocks.push(h('div', { key: 'c-' + blocks.length, className: 'md-codewrap' },
+        h('div', { className: 'md-codelabel' }, lang || 'code'),
+        h('pre', { className: 'md-code' }, code.join('\\n'))
+      ));
+      code = [];
+      lang = '';
+    }
+    for(var i=0;i<lines.length;i++){
+      var line = lines[i];
+      if(line.slice(0,3) === fence){
+        if(inCode){ flushCode(); inCode = false; }
+        else { flushPara(); inCode = true; lang = line.slice(3).trim(); code = []; }
+        continue;
+      }
+      if(inCode){ code.push(line); continue; }
+      if(!line.trim()){ flushPara(); continue; }
+      if(line.indexOf('- ') === 0 || line.indexOf('* ') === 0){
+        flushPara();
+        blocks.push(h('div', { key: 'b-' + blocks.length, className: 'md-bullet' },
+          h('span', { className: 'md-bullet-dot' }, '•'),
+          h('span', null, renderInlineText(line.slice(2).trim(), 'b-' + blocks.length))
+        ));
+        continue;
+      }
+      if(line.indexOf('# ') === 0 || line.indexOf('## ') === 0 || line.indexOf('### ') === 0){
+        flushPara();
+        blocks.push(h('div', { key: 'h-' + blocks.length, className: 'md-heading' }, line.replace(/^#+\\s*/, '')));
+        continue;
+      }
+      para.push(line);
+    }
+    if(inCode) flushCode();
+    flushPara();
+    return h('div', { className: (role === 'assistant' ? 'assistant-body ' : '') + 'msg-md' }, blocks);
+  }
   function Bubble(p){
     var e = p.e;
     var isToolish = e.role === 'tool' || e.role === 'error';
     var bodyEls = [];
     if(isToolish){
-      // Tool args + result are collapsed by default — click to expand.
-      if(e.toolInput){ bodyEls.push(fold('a', '→ args · ' + e.toolInput.length + ' chars', e.toolInput, 'bub-argpre')); }
-      if(e.text){ bodyEls.push(fold('o', (e.isError?'⚠ error':'← result') + ' · ' + e.text.length + ' chars' + (e.durationMs!=null?(' · '+e.durationMs+'ms'):''), e.text)); }
-      if(!e.toolInput && !e.text){ bodyEls.push(h('div', { key:'n', className:'bub-sublabel' }, '(no output)')); }
+      bodyEls.push(h('div', { key: 'th', className: 'tool-head' },
+        h('span', { className: 'tool-name' }, e.tool || 'tool'),
+        h('span', { className: 'tool-duration' }, toolSummary(e)),
+        h('span', { className: 'tool-status ' + (e.isError || e.role === 'error' ? 'error' : '') }, e.isError || e.role === 'error' ? 'failed' : 'done')
+      ));
+      if(e.toolInput){ bodyEls.push(fold('a', 'Input · ' + e.toolInput.length + ' chars', e.toolInput, 'bub-argpre')); }
+      if(e.text){ bodyEls.push(foldContent('o', (e.isError||e.role==='error'?'Error output':'Output') + ' · ' + countLines(e.text) + ' lines', renderToolOutput(e))); }
+      if(!e.toolInput && !e.text){ bodyEls.push(h('div', { key:'n', className:'bub-sublabel' }, 'no output')); }
     } else {
-      bodyEls.push(h('div', { key:'t', className: 'txt' }, e.text || ''));
+      bodyEls.push(h('div', { key:'t', className: 'txt' }, renderMessageText(e.text || '', e.role)));
     }
     return h('div', { className: 'bub ' + e.role },
-      h('div', { className: 'bub-meta' },
-        h('span', { className: 'bub-role' }, e.role + (e.tool ? (' · '+e.tool) : '')),
-        h('span', null, fmtTime(e.ts))
+      h('div', { className: 'bub-avatar' }, roleIcon(e.role)),
+      h('div', { className: 'bub-content' },
+        h('div', { className: 'bub-head' },
+          h('span', { className: 'bub-role' }, isToolish && e.tool ? e.tool : roleLabel(e.role)),
+          h('span', null, fmtTime(e.ts))
+        ),
+        h('div', { className: 'bub-card' },
+          isToolish ? h('div', { className: 'tool-card' }, bodyEls) : bodyEls
+        )
       ),
-      bodyEls
+    );
+  }
+  function isToolEntry(e){ return e && (e.role === 'tool' || e.role === 'error'); }
+  function ToolGroup(p){
+    var tools = p.tools || [];
+    var names = [];
+    var seen = {};
+    var errored = false;
+    var totalMs = 0;
+    tools.forEach(function(t){
+      if(t.tool && !seen[t.tool]){ seen[t.tool] = 1; names.push(t.tool); }
+      if(t.isError || t.role === 'error') errored = true;
+      if(typeof t.durationMs === 'number') totalMs += t.durationMs;
+    });
+    var preview = names.slice(0, 4).join(', ') + (names.length > 4 ? ' +' + (names.length - 4) : '');
+    var meta = preview || tools.map(function(t){ return t.role; }).join(', ');
+    if(totalMs > 0) meta += ' · ' + totalMs + 'ms';
+    return h('details', { className: 'tool-group', open: p.defaultOpen ? true : undefined },
+      h('summary', null,
+        h('span', { className: 'tool-group-title' }, tools.length + ' tool calls'),
+        h('span', { className: 'tool-group-meta' }, meta),
+        h('span', { className: 'tool-group-status ' + (errored ? 'error' : '') }, errored ? 'failed' : 'done')
+      ),
+      h('div', { className: 'tool-group-body' },
+        tools.map(function(t, i){ return h(Bubble, { key: i, e: t }); })
+      )
+    );
+  }
+
+  function PromptDock(p){
+    var targets = buildCommandTargets(p.snap);
+    var preferred = selectedTargetValue(p.snap) || (targets[0] && targets[0].value) || '';
+    var tvState = React.useState(preferred); var targetValue = tvState[0], setTargetValue = tvState[1];
+    var textState = React.useState(''); var text = textState[0], setText = textState[1];
+    var sendState = React.useState(false); var sending = sendState[0], setSending = sendState[1];
+    var stState = React.useState({ text: '', cls: '' }); var status = stState[0], setStatus = stState[1];
+    var typeState = React.useState('steer'); var sendType = typeState[0], setSendType = typeState[1];
+    React.useEffect(function(){ if(preferred) setTargetValue(preferred); }, [preferred]);
+    var target = targets.filter(function(t){ return t.value === targetValue; })[0] || targets[0] || null;
+    // Broadcast targets always fan out project-wide; agent targets use the
+    // selected send-type (steer / btw / queue). All types are written to the
+    // project mailbox by the client dispatcher, so they land even when no
+    // agent loop is actively running. HQ prompts are raw and bypass prompt
+    // refinement — a steer/btw/queue is already a directive, not user input.
+    var effectiveType = target && target.kind === 'broadcast' ? 'broadcast' : sendType;
+    function submit(){
+      if(!target || sending) return;
+      var body = text.trim();
+      if(!body){ setStatus({ text: 'Write a prompt or note first.', cls: 'err' }); return; }
+      setSending(true);
+      // When the target has a live command-capable client, go through the
+      // control plane (/api/command). Otherwise fall back to a direct mailbox
+      // write (/api/mailbox-send) so the prompt still goes out immediately —
+      // it lands in the project mailbox and the next agent to run picks it up.
+      var useDirect = target.direct || !target.clientId;
+      setStatus({ text: useDirect ? 'Delivering to mailbox…' : 'Queueing command…', cls: '' });
+      var sendPromise;
+      if(useDirect){
+        sendPromise = postHqMailboxSend(target, effectiveType, { subject: 'HQ prompt', body: body, priority: 'high' });
+      } else {
+        var payload = target.kind === 'broadcast'
+          ? { subject: 'HQ prompt', body: body, priority: 'high' }
+          : { to: target.to, subject: 'HQ prompt', body: body, priority: 'high' };
+        sendPromise = postHqCommand(target.clientId, effectiveType, payload);
+      }
+      sendPromise
+        .then(function(res){
+          setText('');
+          var okMsg = useDirect
+            ? 'Delivered to mailbox (' + (res.messageId ? shortId(res.messageId) : 'ok') + ') for ' + target.label
+            : 'Queued ' + (res.commandId ? shortId(res.commandId) : 'command') + ' for ' + target.label;
+          setStatus({ text: okMsg, cls: 'ok' });
+          loadCommands(true);
+          setTimeout(function(){ loadCommands(true); }, 2500);
+        })
+        .catch(function(err){ setStatus({ text: err && err.message ? err.message : String(err), cls: 'err' }); })
+        .finally(function(){ setSending(false); });
+    }
+    var isBroadcast = target && target.kind === 'broadcast';
+    var typeOptions = [
+      { value: 'steer', label: 'Steer' },
+      { value: 'btw', label: 'BTW' },
+      { value: 'queue', label: 'Queue' }
+    ];
+    var sendLabel = isBroadcast ? 'Broadcast'
+      : effectiveType === 'btw' ? 'Send BTW'
+      : effectiveType === 'queue' ? 'Queue'
+      : 'Send steer';
+    return h('div', { className: 'cmd-dock' },
+      h('div', { className: 'cmd-row' },
+        h('select', { className: 'cmd-target', value: target ? target.value : '', disabled: !targets.length || sending, onChange: function(e){ setTargetValue(e.target.value); } },
+          targets.length ? targets.map(function(t){ return h('option', { key: t.value, value: t.value }, t.label); }) : h('option', { value: '' }, 'No command-capable client')
+        ),
+        h('select', {
+          className: 'cmd-type',
+          value: isBroadcast ? 'broadcast' : sendType,
+          disabled: !target || sending || isBroadcast,
+          title: isBroadcast ? 'Broadcast fans out to the whole project' : 'How the prompt reaches the agent',
+          onChange: function(e){ setSendType(e.target.value); }
+        },
+          isBroadcast
+            ? h('option', { value: 'broadcast' }, 'Broadcast')
+            : typeOptions.map(function(o){ return h('option', { key: o.value, value: o.value }, o.label); })
+        ),
+        h('textarea', {
+          className: 'cmd-text',
+          value: text,
+          disabled: !target || sending,
+          placeholder: isBroadcast ? 'Broadcast a prompt to this project…' : 'Send a prompt to the selected agent…',
+          onChange: function(e){ setText(e.target.value); },
+          onKeyDown: function(e){ if((e.ctrlKey || e.metaKey) && e.key === 'Enter'){ e.preventDefault(); submit(); } }
+        }),
+        h('button', { className: 'cmd-send', disabled: !target || sending || !text.trim(), onClick: submit }, sending ? 'Sending…' : sendLabel)
+      ),
+      h('div', { className: 'cmd-status ' + (status.cls||'') }, status.text || 'Ctrl+Enter sends raw (no refine) via the project mailbox. Steer = change course now · BTW = FYI context · Queue = waits its turn.')
+    );
+  }
+
+  function clientLabelForCommand(snap, clientId){
+    var clients = (snap && snap.clients) || [];
+    for(var i=0;i<clients.length;i++){
+      var c = clients[i];
+      if(c.clientId === clientId){
+        var project = projectNameFor(snap, c.projectId);
+        return project + ' · ' + String(c.kind || 'cli').toUpperCase();
+      }
+    }
+    return shortId(clientId);
+  }
+  function commandStatus(c){
+    return c.ackStatus || c.status || 'queued';
+  }
+  function CommandHistory(p){
+    React.useEffect(function(){
+      loadCommands(false);
+      var id = setInterval(function(){ loadCommands(true); }, 4000);
+      return function(){ clearInterval(id); };
+    }, []);
+    var rows = (Store.commands || []).slice(0, 8);
+    return h('div', { className: 'cmd-history' },
+      h('div', { className: 'cmd-hhead' },
+        h('div', { className: 'cmd-htitle' }, 'Control Queue'),
+        h('div', { className: 'cmd-hnote' }, rows.length ? 'recent HQ commands and acknowledgements' : (Store.commandsLoading ? 'loading command audit' : 'no commands queued yet')),
+        h('button', { className: 'cmd-hrefresh', onClick: function(){ loadCommands(true); } }, 'Refresh')
+      ),
+      rows.length ? h('div', { className: 'cmd-hlist' },
+        rows.map(function(c){
+          var st = commandStatus(c);
+          return h('div', { key: c.commandId, className: 'cmd-hrow' },
+            h('div', { className: 'cmd-htype' }, c.type || 'command'),
+            h('div', { className: 'cmd-hstatus ' + st }, st),
+            h('div', { className: 'cmd-hclient' }, clientLabelForCommand(p.snap, c.clientId)),
+            h('div', { className: 'cmd-hmsg', title: c.ackMessage || c.commandId }, c.ackMessage || fmtAgo(c.ackedAt || c.enqueuedAt))
+          );
+        })
+      ) : h('div', { className: 'side-empty' }, Store.commandsLoading ? 'Loading command history…' : 'No HQ control commands have been queued in this server process.')
+    );
+  }
+
+  function projectNameFor(snap, projectId){
+    var p = ((snap && snap.projects) || []).filter(function(x){ return x.projectId === projectId; })[0];
+    if(p) return p.projectName || p.projectId;
+    var s = ((snap && snap.liveSessions) || []).filter(function(x){ return x.projectId === projectId; })[0];
+    return s ? (s.projectName || s.projectId) : (projectId || 'unknown');
+  }
+  function sessionForTimelineEntry(snap, e){
+    if(e.sessionId){
+      var exact = findSession(snap, e.sessionId);
+      if(exact) return exact;
+    }
+    var sessions = (snap && snap.liveSessions) || [];
+    for(var i=0;i<sessions.length;i++){
+      var s = sessions[i];
+      if(s.projectId === e.projectId && clientIdForSession(snap, s) === e.clientId){
+        if(!e.agentId || (s.agents||[]).some(function(a){ return a.id === e.agentId; })) return s;
+      }
+    }
+    return null;
+  }
+  function agentNameForEntry(snap, e){
+    var session = sessionForTimelineEntry(snap, e);
+    var ag = session && e.agentId ? findAgent(session, e.agentId) : null;
+    return (ag && (ag.name || ag.id)) || e.agentName || e.agentId || 'leader';
+  }
+  function timelinePreviewText(e){
+    var text = String(e.text || '');
+    if(e.role === 'tool'){
+      var lines = text.split('\\n');
+      return (lines[0] || 'tool output') + (lines.length > 1 ? (' +' + (lines.length - 1) + ' lines') : '');
+    }
+    return text;
+  }
+  function timelineAgentOptions(snap, project){
+    var opts = [];
+    var seen = {};
+    function add(projectId, clientId, agentId, label){
+      if(!agentId) return;
+      if(project !== 'all' && projectId !== project) return;
+      var value = timelineAgentValue(projectId, clientId, agentId);
+      if(seen[value]) return;
+      seen[value] = 1;
+      opts.push({ value: value, projectId: projectId, clientId: clientId, agentId: agentId, label: label });
+    }
+    ((snap && snap.liveSessions) || []).forEach(function(s){
+      var cid = clientIdForSession(snap, s);
+      add(s.projectId, cid, 'leader', (s.projectName || s.projectId) + ' · leader');
+      (s.agents||[]).forEach(function(a){
+        add(s.projectId, cid, a.id, (s.projectName || s.projectId) + ' · ' + (a.name || a.id));
+      });
+    });
+    Store.timeline.forEach(function(e){
+      add(e.projectId, e.clientId, e.agentId, projectNameFor(snap, e.projectId) + ' · ' + (e.agentName || e.agentId));
+    });
+    opts.sort(function(a,b){ return a.label.toLowerCase().localeCompare(b.label.toLowerCase()); });
+    return opts;
+  }
+
+  function GlobalTimelineView(p){
+    var qState = React.useState(''); var q = qState[0], setQ = qState[1];
+    var prState = React.useState('all'); var project = prState[0], setProject = prState[1];
+    var srcState = React.useState('all'); var source = srcState[0], setSource = srcState[1];
+    var roleState = React.useState('all'); var role = roleState[0], setRole = roleState[1];
+    var agState = React.useState('all'); var agent = agState[0], setAgent = agState[1];
+    var agentFilter = parseTimelineAgentValue(agent);
+    var requestFilters = {
+      projectId: project === 'all' ? '' : project,
+      source: source === 'all' ? '' : source,
+      role: role === 'all' ? '' : role,
+      clientId: agentFilter ? agentFilter.clientId : '',
+      agentId: agentFilter ? agentFilter.agentId : ''
+    };
+    React.useEffect(function(){ loadRecentTimeline(requestFilters, true); }, [project, source, role, agent]);
+    var ql = q.trim().toLowerCase();
+    var projects = (p.snap && p.snap.projects) || [];
+    var agents = timelineAgentOptions(p.snap, project);
+    var entries = Store.timeline.filter(function(e){
+      if(project !== 'all' && e.projectId !== project) return false;
+      if(source !== 'all' && e.source !== source) return false;
+      if(role !== 'all' && e.role !== role) return false;
+      if(agentFilter && (e.projectId !== agentFilter.projectId || e.clientId !== agentFilter.clientId || e.agentId !== agentFilter.agentId)) return false;
+      if(!ql) return true;
+      var hay = [e.text, e.role, e.tool, e.agentName, e.agentId, projectNameFor(p.snap, e.projectId)].join(' ').toLowerCase();
+      return hay.indexOf(ql) >= 0;
+    }).slice(0, 500);
+    function openEntry(e){
+      var session = sessionForTimelineEntry(p.snap, e);
+      if(!session) return;
+      selectSession(session.sessionId, e.agentId && e.agentId !== 'leader' ? e.agentId : null);
+      Store.set({ tab: 'console' });
+    }
+    return h('div', { className: 'timeline-wrap' },
+      h('div', { className: 'timeline-head' },
+        h('div', null,
+          h('div', { className: 'timeline-title' }, 'All Agent Timelines'),
+          h('div', { className: 'timeline-note' }, entries.length + ' visible events from recent HQ telemetry across projects')
+        ),
+        h('div', { className: 'timeline-filters' },
+          h('select', { className: 'timeline-select', value: project, onChange: function(e){ setProject(e.target.value); setAgent('all'); } },
+            h('option', { value: 'all' }, 'All projects'),
+            projects.map(function(pr){ return h('option', { key: pr.projectId, value: pr.projectId }, pr.projectName || pr.projectId); })
+          ),
+          h('select', { className: 'timeline-select', value: agent, onChange: function(e){ setAgent(e.target.value); } },
+            h('option', { value: 'all' }, 'All agents'),
+            agents.map(function(a){ return h('option', { key: a.value, value: a.value }, a.label); })
+          ),
+          h('select', { className: 'timeline-select', value: source, onChange: function(e){ setSource(e.target.value); } },
+            h('option', { value: 'all' }, 'All sources'),
+            h('option', { value: 'session' }, 'Leader/session'),
+            h('option', { value: 'agent' }, 'Subagent')
+          ),
+          h('select', { className: 'timeline-select', value: role, onChange: function(e){ setRole(e.target.value); } },
+            h('option', { value: 'all' }, 'All roles'),
+            h('option', { value: 'user' }, 'User'),
+            h('option', { value: 'assistant' }, 'Assistant'),
+            h('option', { value: 'tool' }, 'Tool'),
+            h('option', { value: 'system' }, 'System'),
+            h('option', { value: 'error' }, 'Error')
+          ),
+          h('input', { className: 'timeline-input', placeholder: 'Filter text / agent / tool…', value: q, onChange: function(e){ setQ(e.target.value); } }),
+          h('button', { className: 'timeline-btn', onClick: function(){
+            var rf = Object.assign({}, requestFilters, { q: q.trim() });
+            loadRecentTimeline(rf, true);
+          } }, 'Refresh')
+        )
+      ),
+      h(PromptDock, { snap: p.snap }),
+      h(CommandHistory, { snap: p.snap }),
+      h('div', { className: 'timeline-list' },
+        entries.length ? entries.map(function(e, i){
+          var pn = projectNameFor(p.snap, e.projectId);
+          var an = agentNameForEntry(p.snap, e);
+          return h('div', { key: i, className: 'timeline-row ' + (e.role || '') + ' ' + (e.source || ''), onClick: function(){ openEntry(e); } },
+            h('div', { className: 'timeline-mark' }, roleIcon(e.role)),
+            h('div', { className: 'timeline-time' }, fmtTime(e.ts), h('div', null, fmtAgo(e.ts))),
+            h('div', { className: 'timeline-who' },
+              h('div', { className: 'timeline-agent' }, an),
+              h('div', { className: 'timeline-project' }, pn + (e.source ? (' · ' + e.source) : ''))
+            ),
+            h('div', { className: 'timeline-msg' },
+              h('span', { className: 'timeline-role ' + (e.role||'') }, e.role || 'event'),
+              e.tool ? h('span', { className: 'timeline-toolchip' }, e.tool) : null,
+              timelinePreviewText(e)
+            )
+          );
+        }) : h('div', { className: 'side-empty' }, Store.timelineLoaded ? 'No timeline events yet.' : 'Loading recent HQ timeline…')
+      )
     );
   }
 
@@ -763,15 +1638,15 @@ async function boot(){
 
     var toolbar = h('div', { className: 'gtoolbar' },
       h('div', { className: 'tgroup' },
-        h(ToolBtn, { label: '⬌ LR', title: 'Left → right tree', active: dir==='LR', onClick: function(){ setDir('LR'); } }),
-        h(ToolBtn, { label: '⬍ TB', title: 'Top → bottom tree', active: dir==='TB', onClick: function(){ setDir('TB'); } })
+        h(ToolBtn, { label: '⬌ LR', title: 'Left → right clustered layout', active: dir==='LR', onClick: function(){ setDir('LR'); } }),
+        h(ToolBtn, { label: '⬍ TB', title: 'Top → bottom clustered layout', active: dir==='TB', onClick: function(){ setDir('TB'); } })
       ),
       h('div', { className: 'tgroup' },
         h(ToolBtn, { label: '🖥️ Machine', title: 'Group under the machine', active: groupBy==='machine', onClick: function(){ setGroupBy('machine'); } }),
         h(ToolBtn, { label: '📁 Project', title: 'Group by project', active: groupBy==='project', onClick: function(){ setGroupBy('project'); } })
       ),
       h('div', { className: 'tgroup' },
-        h(ToolBtn, { label: '✨ Auto-arrange', title: 'Re-arrange the tree', onClick: function(){ applyLayout(nodes, edges); } }),
+        h(ToolBtn, { label: '✨ Auto-arrange', title: 'Re-arrange with terminal-centered agent clusters', onClick: function(){ applyLayout(nodes, edges); } }),
         h(ToolBtn, { label: '⊡ Fit', title: 'Fit to screen', onClick: function(){ if(rfRef.current) rfRef.current.fitView({ padding: 0.18, duration: 400 }); } })
       ),
       h('div', { className: 'glegend' },
@@ -961,11 +1836,16 @@ async function boot(){
 
   function LiveBubble(p){
     return h('div', { className: 'bub assistant live', key: 'live' },
-      h('div', { className: 'bub-meta' },
-        h('span', { className: 'bub-role' }, p.tool ? ('tool · '+p.tool) : 'assistant'),
-        h('span', { className: 'live-dot' }, '● streaming')
-      ),
-      h('div', { className: 'txt' }, p.text, h('span', { className: 'caret' }))
+      h('div', { className: 'bub-avatar' }, p.tool ? '⌘' : '🤖'),
+      h('div', { className: 'bub-content' },
+        h('div', { className: 'bub-head' },
+          h('span', { className: 'bub-role' }, p.tool ? p.tool : 'Assistant'),
+          h('span', { className: 'live-dot' }, '● streaming')
+        ),
+        h('div', { className: 'bub-card' },
+          h('div', { className: 'assistant-body' }, renderMessageText(p.text || '', 'assistant'), h('span', { className: 'caret' }))
+        )
+      )
     );
   }
 
@@ -973,14 +1853,14 @@ async function boot(){
     var sel = Store.selected;
     var bodyRef = React.useRef(null);
     var stickRef = React.useRef(true);
-    // A non-leader agent is a subagent (shadow) — show ITS own buffered stream,
-    // keyed by subagentId (== agent card id). The leader / a bare terminal show
-    // the session's full on-disk transcript.
+    // A non-leader agent is a subagent (shadow) — show ITS own buffered stream.
+    // The leader / a bare terminal show the session's full on-disk transcript.
+    var session = (p.snap && p.snap.liveSessions || []).filter(function(s){ return s.sessionId===sel.sessionId; })[0];
     var isSub = !!(sel && sel.agentId && sel.agentId !== 'leader');
-    var subMsgs = isSub ? (Store.agentMsgs[sel.agentId] || []) : null;
+    var subKey = isSub ? cacheKey(sel.agentId, session && session.projectId, clientIdForSession(p.snap, session)) : '';
+    var subMsgs = isSub ? (Store.agentMsgs[subKey] || Store.agentMsgs[sel.agentId] || []) : null;
     var tc = (sel && !isSub) ? Store.transcripts[sel.sessionId] : null;
     var entries = isSub ? subMsgs : (tc ? tc.entries : []);
-    var session = (p.snap && p.snap.liveSessions || []).filter(function(s){ return s.sessionId===sel.sessionId; })[0];
     var agentsList = session ? (session.agents||[]) : [];
     var ag = sel.agentId ? agentsList.filter(function(a){ return a.id===sel.agentId; })[0]
                          : (agentsList.filter(function(a){ return a.id==='leader'; })[0] || agentsList[0]);
@@ -1006,7 +1886,17 @@ async function boot(){
     if(!isSub && tc && tc.loading && !entries.length && !liveText){ bodyEls.push(h('div', { key:'l', className: 'loading' }, 'Loading full chat history…')); }
     else if(!entries.length && !liveText){ bodyEls.push(h('div', { key:'e', className: 'side-empty' }, isSub ? ('No messages from ' + (ag?ag.name:'this subagent') + ' yet — its conversation streams here live as it works.') : ((tc&&tc.error)?'Could not load history.':'No transcript yet for this terminal.'))); }
     else {
-      for(var i=0;i<entries.length;i++){ bodyEls.push(h(Bubble, { key: i, e: entries[i] })); }
+      for(var i=0;i<entries.length;i++){
+        if(isToolEntry(entries[i])){
+          var group = [], start = i;
+          while(i < entries.length && isToolEntry(entries[i])){ group.push(entries[i]); i++; }
+          if(group.length > 1) bodyEls.push(h(ToolGroup, { key: 'tg-' + start, tools: group, defaultOpen: i >= entries.length }));
+          else bodyEls.push(h(Bubble, { key: start, e: group[0] }));
+          i--;
+        } else {
+          bodyEls.push(h(Bubble, { key: i, e: entries[i] }));
+        }
+      }
       if(liveText || (streaming && !isSub && liveTool)){ bodyEls.push(h(LiveBubble, { text: liveText, tool: liveTool })); }
     }
     return h('div', { className: 'chatview' },
@@ -1016,7 +1906,8 @@ async function boot(){
         ag ? h('span', { className: 'chat-agent' }, h('span', { className: 'dot '+(ag.status||'idle') }), ag.name || ag.id, isSub ? h('span', { className: 'subbadge' }, 'subagent') : null) : null,
         h('span', { className: 'chat-meta' }, metaText)
       ),
-      h('div', { className: 'chat-body', ref: bodyRef, onScroll: onScroll }, bodyEls)
+      h('div', { className: 'chat-body', ref: bodyRef, onScroll: onScroll }, bodyEls),
+      h(PromptDock, { snap: p.snap })
     );
   }
 
@@ -1050,11 +1941,13 @@ async function boot(){
       h(TopBar, { snap: snap, connected: s.connected }),
       h('div', { className: 'hq-tabs' },
         tabBtn('console', '🛰️ Console'),
+        tabBtn('timeline', '🧾 Timeline'),
         tabBtn('map', '🧭 Map'),
         h('div', { className: 'hq-tab' + (tab==='mailbox'?' active':''), onClick: function(){ Store.set({ tab:'mailbox' }); } }, '📬 Mailbox', unread? h('span', { className:'badge' }, unread):null)
       ),
       h('div', { className: 'hq-body' },
         tab==='map' ? h(FleetView, { snap: snap }) :
+        tab==='timeline' ? h(GlobalTimelineView, { snap: snap }) :
         tab==='mailbox' ? h(MailboxView, { snap: snap }) :
         h(ConsoleView, { snap: snap })
       )
@@ -1068,6 +1961,8 @@ async function boot(){
   });
   connectWs();
   primeSnapshot();
+  loadRecentTimeline();
+  loadCommands();
 }
 
 function primeSnapshot(){
@@ -1121,14 +2016,15 @@ function renderFallback(){
       if(tc.loading && !tc.entries.length){ html += '<div class="loading">Loading full chat history…</div>'; }
       else if(!tc.entries.length){ html += '<div class="side-empty">No transcript yet.</div>'; }
       else { tc.entries.forEach(function(e){
-        var head = '<div class="bub '+escAttr(e.role)+'"><div class="bub-meta"><span class="bub-role">'+escAttr(e.role)+(e.tool?(' · '+escAttr(e.tool)):'')+'</span><span>'+fmtTime(e.ts)+'</span></div>';
+        var head = '<div class="bub '+escAttr(e.role)+'"><div class="bub-avatar">'+escAttr(roleIcon(e.role))+'</div><div class="bub-content"><div class="bub-head"><span class="bub-role">'+escAttr((e.role==='tool'||e.role==='error')&&e.tool?e.tool:roleLabel(e.role))+'</span><span>'+fmtTime(e.ts)+'</span></div><div class="bub-card">';
         var body;
         if(e.role==='tool' || e.role==='error'){
-          body = '';
-          if(e.toolInput) body += '<details class="bub-fold"><summary>→ args · '+e.toolInput.length+' chars</summary><pre class="bub-argpre">'+escAttr(e.toolInput)+'</pre></details>';
-          if(e.text) body += '<details class="bub-fold"><summary>'+(e.isError?'⚠ error':'← result')+' · '+e.text.length+' chars</summary><pre>'+escAttr(e.text)+'</pre></details>';
-        } else { body = '<div class="txt">'+escAttr(e.text||'')+'</div>'; }
-        html += head + body + '</div>';
+          body = '<div class="tool-card"><div class="tool-head"><span class="tool-name">'+escAttr(e.tool||'tool')+'</span><span class="tool-duration">'+escAttr(toolSummary(e))+'</span><span class="tool-status '+escAttr(e.isError||e.role==='error'?'error':'')+'">'+escAttr(e.isError||e.role==='error'?'failed':'done')+'</span></div>';
+          if(e.toolInput) body += '<details class="bub-fold"><summary>Input · '+e.toolInput.length+' chars</summary><pre class="bub-argpre">'+escAttr(e.toolInput)+'</pre></details>';
+          if(e.text) body += '<details class="bub-fold"><summary>'+(e.isError?'Error output':'Output')+' · '+countLines(e.text)+' lines</summary><pre>'+escAttr(e.text)+'</pre></details>';
+          body += '</div>';
+        } else { body = '<div class="'+escAttr(e.role==='assistant'?'assistant-body':'txt')+'">'+escAttr(e.text||'')+'</div>'; }
+        html += head + body + '</div></div></div>';
       }); }
       html += '</div></div>';
     }
