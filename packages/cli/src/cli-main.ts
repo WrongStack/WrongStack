@@ -43,19 +43,16 @@ import {
   mailboxSessionTag,
   ParallelEternalEngine,
   type LogLevel,
-  SessionMemoryConsolidator,
   SddRunRegistry,
   type SystemPromptBuilder,
   TOKENS,
   ToolRegistry,
-  watchProviderConfig,
   writeErr,
   writeOut,
   getToolDescriptionMode,
 } from '@wrongstack/core';
 import { wireSessionEvents } from './session-event-wiring.js';
 import { initializeCli } from './cli-context.js';
-import { toErrorMessage } from '@wrongstack/core/utils/error';
 import { createAuthPanelHost } from './auth-menu/panel-service.js';
 import { createAutoPhaseHost } from './autophase-host.js';
 import { registerBuiltinTools } from './boot/tool-registry.js';
@@ -64,7 +61,6 @@ import { promptRecovery } from './cli-recovery-prompt.js';
 import { bindSystemPromptBuilder } from './boot/system-prompt-builder.js';
 import { refreshRuntimeModelCatalog } from './context-limit.js';
 import { type ExecutionDeps, execute } from './execution.js';
-import { createFallbackModelExtension } from './fallback-model.js';
 import { createCliHqPublisher } from './hq-publisher.js';
 import { PLUGIN_AUDIT_ENTRIES, runPluginManagementCommand } from './plugin-management.js';
 import { buildPickableProviders } from './provider-helpers.js';
@@ -93,6 +89,7 @@ import { setupHqTelemetry } from './wiring/hq-telemetry.js';
 import { setupDirectorAndAutonomy } from './wiring/director-setup.js';
 import { setupLifecycleAndPlugins } from './wiring/lifecycle-plugins.js';
 import { setupBrainAndOrchestration } from './wiring/brain-and-orchestration.js';
+import { setupProviderRuntime } from './wiring/provider-runtime-setup.js';
 import { setupMetrics } from './wiring/metrics.js';
 import { setupPipelines } from './wiring/pipeline.js';
 import {
@@ -538,140 +535,28 @@ export async function main(argv: string[]): Promise<number> {
     teardownHandlers.push(depWatcherDispose);
   }
 
-  // Resolve a provider id (alias-resolved via `providers[id].type`) to the
-  // concrete provider id + the runtime ProviderConfig used to build it and to
-  // refresh the context-window denominator. Single source of truth so the
-  // `/model` switch and the fallback extension can't drift apart.
-  //
-  // The actual logic lives in `./wiring/provider-runtime.js` so it can be
-  // unit-tested directly without spinning up the full CLI. Bug-fix history:
-  // prior to this refactor, `resolveProviderCfg` collapsed `savedCfg.type`
-  // into the returned id, so `buildProviderForId('minimax-coding-plan')`
-  // (where the saved config has `type: 'anthropic'`) produced a Provider
-  // with `id === 'anthropic'` instead of the user's chosen id. The startup
-  // path in `wiring/provider.ts` already does the right thing; this
-  // runtime path now mirrors it.
-  const resolveProviderCfg = (providerId: string) => resolveProviderCfgRuntime(config, providerId);
-
-  // Construct a credential-resolved Provider for a provider id, WITHOUT
-  // persisting anything. Shared by the `/model` switch and the fallback
-  // extension. The returned Provider's `id` is always the user-visible
-  // `providerId`.
-  const buildProviderForId = (providerId: string): import('@wrongstack/core').Provider =>
-    buildProviderForIdRuntime({ config, providerRegistry }, providerId);
-
-  // Refresh the auto-compaction / context-chip denominator for a (provider,
-  // model) pair. Used by both the `/model` switch and the fallback extension so
-  // a switch to a smaller-window model recomputes thresholds.
-  const refreshMaxContextFor = async (providerId: string, modelId: string): Promise<void> => {
-    const { cfg } = resolveProviderCfg(providerId);
-    await refreshMaxContext(providerId, modelId, cfg);
-  };
-  const refreshRuntimeModelStateFor = async (
-    providerId: string,
-    modelId: string,
-  ): Promise<void> => {
-    await refreshMaxContextFor(providerId, modelId);
-    await refreshActiveReasoningConfig(providerId, modelId);
-  };
-
-  // Cross-provider fallback: switch to the next configured model when the
-  // primary is overloaded (429/529/5xx). Registered unconditionally — the
-  // effective chain (explicit `fallbackModels` or the smart default) is
-  // recomputed every turn, so a chain populated at runtime via `/fallback`
-  // takes effect without a restart. An empty chain makes it a no-op.
-  agent.extensions.register(
-    createFallbackModelExtension({
-      getConfig: () => config,
-      buildProvider: buildProviderForId,
-      onModelSwitch: refreshRuntimeModelStateFor,
-      events,
-      logger,
-    }),
-  );
-
-  // Session-end memory consolidation — extracts key learnings from the
-  // completed session and persists them as memory entries.
-  if (config.features.memory && config.features.memoryConsolidation !== false) {
-    agent.extensions.register(
-      new SessionMemoryConsolidator({
-        memoryStore,
-      }),
-    );
-  }
-
-  // Build provider+model switch as a single callback. The TUI picker
-  // calls this after the user confirms a (provider, model) pair; we
-  // construct a fresh Provider instance, swap it onto the live context,
-  // and rebuild the frozen config so other consumers see the new ids.
-  const switchProviderAndModel = async (
-    providerId: string,
-    modelId: string,
-  ): Promise<string | null> => {
-    try {
-      context.provider = buildProviderForId(providerId);
-      context.model = modelId;
-      config = patchConfig(config, { provider: providerId, model: modelId });
-      // L1-B: propagate the change to the ConfigStore so any subsystem
-      // that subscribed via .watch() re-renders. Crucially, /diag now
-      // reads the live provider via the store.
-      configStore.update({ provider: providerId, model: modelId });
-      // Refresh AutoCompactionMiddleware denominator for the new model's
-      // maxContext so threshold triggers (warn/soft/hard) use the correct denominator.
-      await refreshMaxContextFor(providerId, modelId);
-      // Re-resolve the new model's reasoning capability so the model-runtime
-      // middleware stops gating on a stale (or missing) profile. Without this,
-      // a switch to a model that isn't in the registry leaves the warning
-      // "reasoning capabilities are unknown" firing on every subsequent
-      // request until restart.
-      await refreshActiveReasoningConfig(providerId, modelId);
-      return null;
-    } catch (err) {
-      return err instanceof Error ? err.message : String(err);
-    }
-  };
-
-  // Hot-reload provider credentials: when `config.json`'s providers/apiKey/
-  // baseUrl slice changes on disk (from another terminal's `wstack auth`, a
-  // WebUI provider panel, or a manual edit), re-read it and rebuild the active
-  // provider live so a running session picks up the new key without restart.
-  // The watcher's own no-op guard suppresses self-induced writes (our `/model`
-  // switch, key edits in this same process), so there is no rebuild storm.
-  // Escape hatch: WRONGSTACK_DISABLE_CONFIG_WATCH=1 (unreliable network FS).
-  if (process.env['WRONGSTACK_DISABLE_CONFIG_WATCH'] !== '1') {
-    const credentialWatcher = watchProviderConfig(
-      wpaths.globalConfig,
-      vault,
-      (snapshot) => {
-        // Capture the active provider's resolved cfg before the merge so we
-        // only rebuild when *its* credentials actually changed.
-        const activeId = config.provider;
-        const before = JSON.stringify(resolveProviderCfg(activeId).cfg);
-        config = patchConfig(config, {
-          providers: snapshot.providers,
-          ...(snapshot.apiKey !== undefined ? { apiKey: snapshot.apiKey } : {}),
-          ...(snapshot.baseUrl !== undefined ? { baseUrl: snapshot.baseUrl } : {}),
-        });
-        // Propagate to the ConfigStore so `.watch()` subscribers re-render.
-        configStore.update({
-          providers: snapshot.providers,
-          ...(snapshot.apiKey !== undefined ? { apiKey: snapshot.apiKey } : {}),
-          ...(snapshot.baseUrl !== undefined ? { baseUrl: snapshot.baseUrl } : {}),
-        });
-        const after = JSON.stringify(resolveProviderCfg(activeId).cfg);
-        if (after === before) return; // active provider's creds unchanged
-        try {
-          context.provider = buildProviderForId(activeId);
-          logger.info(`Provider credentials reloaded from config.json (${activeId})`);
-        } catch (err) {
-          // Keep the existing provider on a bad rebuild (e.g. removed family).
-          logger.warn(`Credential hot-reload failed for ${activeId}: ${toErrorMessage(err)}`);
-        }
-      },
-      { warn: (msg) => logger.warn(`Config watcher: ${msg}`) },
-    );
-    teardownHandlers.push(() => credentialWatcher.close());
-  }
+  // ── Provider runtime helpers + fallback + switch + credential watcher ──
+  // Extracted to wiring/provider-runtime-setup.ts.
+  const {
+    buildProviderForId,
+    switchProviderAndModel,
+  } = setupProviderRuntime({
+    config: { current: config },
+    configStore,
+    providerRegistry,
+    agent,
+    memoryStore,
+    refreshMaxContext,
+    refreshActiveReasoningConfig,
+    wpaths,
+    vault,
+    logger,
+    teardownHandlers,
+    context,
+    events,
+    resolveProviderCfgRuntime,
+    buildProviderForIdRuntime,
+  });
 
   // Director / autonomy mode, fleet paths, eternal-engine scaffolding,
   // Agent Monitor — extracted to wiring/director-setup.ts.
