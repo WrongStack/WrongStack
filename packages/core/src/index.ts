@@ -176,6 +176,13 @@ export {
   type SupervisorLogEntry,
 } from './coordination/fleet-supervisor.js';
 export { GlobalMailbox, resolveProjectDir } from './coordination/global-mailbox.js';
+export {
+  SessionRegistry,
+  getSessionRegistry,
+  hasSessionRegistry,
+  type SessionRegistryEntry,
+  type SessionLiveStatus,
+} from './session-registry.js';
 export * from './coordination/index.js';
 export {
   type MailToolsOptions,

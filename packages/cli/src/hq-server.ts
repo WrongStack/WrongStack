@@ -550,6 +550,9 @@ function startHqServerWithAuth(
     // the broadcaster checkpoints into the snapshot store on each serialize.
     const persistence = createHqPersistence(dataDir);
     const auditLog = new HqCommandAuditLog();
+    // Stable mailbox identity for direct HQ writes (/api/mailbox-send). Lets
+    // recipients attribute a zero-client HQ prompt to this server instance.
+    const hqSessionTag = randomUUID().slice(0, 8);
     // ── Alerting (Phase 6) — evaluates the live snapshot against rules and
     // broadcasts `hq.alert` to browsers when a threshold is crossed.
     const alertEngine = new HqAlertEngine({
@@ -800,6 +803,140 @@ function startHqServerWithAuth(
 
         res.writeHead(202, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ commandId, queued: true, clientId: target.clientId }));
+        return;
+      }
+
+      // ── Direct mailbox write (Phase 4 — zero-client delivery) ────────────
+      // POST /api/mailbox-send — write an HQ prompt straight into a project's
+      // GlobalMailbox, bypassing the connected-client control plane. This is
+      // the "send even when no active agent" path: the message lands in the
+      // project mailbox file so the next agent to run (or any terminal/webui)
+      // picks it up. The target project is identified by `sessionId` (or
+      // `projectId`) and resolved to a `projectRoot` SERVER-SIDE via the
+      // SessionRegistry — the browser never supplies a raw filesystem path,
+      // so this cannot be abused to write outside known projects.
+      if (url.pathname === '/api/mailbox-send' && req.method === 'POST') {
+        // Auth mirrors /api/command: browser token + control.enqueue.
+        const suppliedToken = extractBrowserToken(req, url);
+        const inBrowserTokenMode = mutableAuth.browserTokens.size > 0;
+        if (inBrowserTokenMode && (!suppliedToken || !mutableAuth.browserTokens.has(suppliedToken))) {
+          res.writeHead(401, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ error: 'unauthorized' }));
+          return;
+        }
+        const tokenObj = suppliedToken !== undefined ? mutableAuth.browserTokenObjs.get(suppliedToken) : undefined;
+        const canEnqueue =
+          !inBrowserTokenMode ||
+          tokenObj?.capabilities === undefined ||
+          tokenObj.capabilities.includes('control.enqueue');
+        if (!canEnqueue) {
+          res.writeHead(403, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ error: 'forbidden: token lacks control.enqueue capability' }));
+          return;
+        }
+
+        let mbody: {
+          sessionId?: string;
+          projectId?: string;
+          type?: string;
+          to?: string;
+          subject?: string;
+          body?: string;
+          priority?: string;
+        };
+        try {
+          mbody = JSON.parse(await readRequestBody(req));
+        } catch {
+          res.writeHead(400, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ error: 'invalid json body' }));
+          return;
+        }
+        if (typeof mbody.type !== 'string' || typeof mbody.body !== 'string') {
+          res.writeHead(400, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ error: 'missing type or body' }));
+          return;
+        }
+        if (typeof mbody.sessionId !== 'string' && typeof mbody.projectId !== 'string') {
+          res.writeHead(400, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ error: 'missing sessionId or projectId' }));
+          return;
+        }
+
+        // Resolve projectRoot from the SessionRegistry — authoritative, so we
+        // never trust a browser-supplied path. Prefer sessionId; fall back to
+        // the newest live session in the given projectId.
+        const { SessionRegistry } = await import('@wrongstack/core');
+        // Derive the global root from THIS server's dataDir (honors
+        // --data-dir / WRONGSTACK_HQ_DATA_DIR), not the default resolver, so
+        // the mailbox and registry line up with the running instance.
+        const mbGlobalRoot = path.dirname(dataDir);
+        let projectRoot: string | undefined;
+        try {
+          const registry = new SessionRegistry(mbGlobalRoot);
+          if (typeof mbody.sessionId === 'string') {
+            const entry = await registry.get(mbody.sessionId).catch(() => null);
+            projectRoot = entry?.projectRoot;
+          }
+          if (projectRoot === undefined && typeof mbody.projectId === 'string') {
+            const all = await registry.list().catch(() => []);
+            // HQ `projectId` maps to the registry `projectSlug`.
+            const match = all.find((e) => e.projectSlug === mbody.projectId);
+            projectRoot = match?.projectRoot;
+          }
+        } catch {
+          projectRoot = undefined;
+        }
+        if (typeof projectRoot !== 'string' || projectRoot.length === 0) {
+          res.writeHead(404, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ error: 'could not resolve target project mailbox' }));
+          return;
+        }
+
+        // Validate the mailbox message shape by reusing the command guard.
+        const to = typeof mbody.to === 'string' ? mbody.to : 'leader';
+        const subject = typeof mbody.subject === 'string' ? mbody.subject : 'HQ prompt';
+        const priority = mbody.priority === 'high' ? 'high' : mbody.priority === 'low' ? 'low' : 'normal';
+        const validated = validateHqCommand({
+          commandId: randomUUID(),
+          type: mbody.type,
+          createdAt: new Date().toISOString(),
+          payload: { to, subject, body: mbody.body, priority },
+          requiresAck: false,
+        });
+        // Only the mailbox-writing command types are valid here.
+        const mailboxType =
+          validated?.type === 'steer' || validated?.type === 'btw'
+            ? validated.type
+            : validated?.type === 'queue'
+              ? 'note'
+              : validated?.type === 'broadcast'
+                ? 'broadcast'
+                : undefined;
+        if (mailboxType === undefined) {
+          res.writeHead(400, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ error: 'unrecognized or malformed mailbox message', type: mbody.type }));
+          return;
+        }
+
+        try {
+          const { GlobalMailbox, resolveProjectDir } = await import('@wrongstack/core');
+          const projectDir = resolveProjectDir(projectRoot, mbGlobalRoot);
+          const mailbox = new GlobalMailbox(projectDir);
+          const from = `hq@${hqSessionTag}`;
+          const sent = await mailbox.send({
+            from,
+            to: mailboxType === 'broadcast' ? 'all' : to,
+            type: mailboxType,
+            subject,
+            body: mbody.body,
+            priority,
+          });
+          res.writeHead(202, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ delivered: true, messageId: sent?.id, to, type: mailboxType }));
+        } catch (err) {
+          res.writeHead(500, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ error: 'mailbox write failed', detail: String(err) }));
+        }
         return;
       }
 

@@ -20,6 +20,8 @@ import type { HqQueuedCommand } from './protocol.js';
 /** HQ_COMMAND_TYPES — the full set of recognized command `type` strings. */
 export const HQ_COMMAND_TYPES = [
   'steer',
+  'btw',
+  'queue',
   'abort',
   'spawn',
   'broadcast',
@@ -31,6 +33,34 @@ export type HqCommandType = (typeof HQ_COMMAND_TYPES)[number];
 /** Inject a steer text into a target agent's conversation. */
 export interface HqSteerCommand {
   type: 'steer';
+  /** Target agent address: a unique id (`leader@<tag>`), an alias (`leader`), or `*` for all. */
+  to: string;
+  subject: string;
+  body: string;
+  priority?: 'low' | 'normal' | 'high';
+}
+
+/**
+ * Post a non-urgent FYI (`btw`) into a target agent's mailbox. Unlike a steer,
+ * a btw is absorbed as context — it does not demand the agent change course.
+ * Same wire shape as steer; only the emitted mailbox `type` differs.
+ */
+export interface HqBtwCommand {
+  type: 'btw';
+  /** Target agent address: a unique id (`leader@<tag>`), an alias (`leader`), or `*` for all. */
+  to: string;
+  subject: string;
+  body: string;
+  priority?: 'low' | 'normal' | 'high';
+}
+
+/**
+ * Queue a prompt/note (`queue`) for a target agent. Delivered as a plain
+ * `note` mailbox message the agent picks up before its next step — used when
+ * the prompt should wait its turn rather than steer the current operation.
+ */
+export interface HqQueueCommand {
+  type: 'queue';
   /** Target agent address: a unique id (`leader@<tag>`), an alias (`leader`), or `*` for all. */
   to: string;
   subject: string;
@@ -72,6 +102,8 @@ export interface HqRunCommandCommand {
 
 export type HqCommand =
   | HqSteerCommand
+  | HqBtwCommand
+  | HqQueueCommand
   | HqAbortCommand
   | HqSpawnCommand
   | HqBroadcastCommand
@@ -100,6 +132,26 @@ export function validateHqCommand(queued: HqQueuedCommand): HqCommand | null {
         return null;
       }
       const result: HqSteerCommand = { type: 'steer', to: p['to'], subject: p['subject'], body: p['body'] };
+      if (p['priority'] === 'low' || p['priority'] === 'normal' || p['priority'] === 'high') {
+        result.priority = p['priority'];
+      }
+      return result;
+    }
+    case 'btw': {
+      if (typeof p['to'] !== 'string' || typeof p['subject'] !== 'string' || typeof p['body'] !== 'string') {
+        return null;
+      }
+      const result: HqBtwCommand = { type: 'btw', to: p['to'], subject: p['subject'], body: p['body'] };
+      if (p['priority'] === 'low' || p['priority'] === 'normal' || p['priority'] === 'high') {
+        result.priority = p['priority'];
+      }
+      return result;
+    }
+    case 'queue': {
+      if (typeof p['to'] !== 'string' || typeof p['subject'] !== 'string' || typeof p['body'] !== 'string') {
+        return null;
+      }
+      const result: HqQueueCommand = { type: 'queue', to: p['to'], subject: p['subject'], body: p['body'] };
       if (p['priority'] === 'low' || p['priority'] === 'normal' || p['priority'] === 'high') {
         result.priority = p['priority'];
       }

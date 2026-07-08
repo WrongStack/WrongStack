@@ -86,6 +86,42 @@ async function dispatch(
       return { commandId, status: 'accepted', message: `steered ${to}` };
     }
 
+    case 'btw': {
+      // Non-urgent FYI. Same targeting as steer, but delivered as a `btw`
+      // mailbox message so the receiving agent absorbs it as context instead
+      // of treating it as a course-correction. Lands in the mailbox file
+      // regardless of whether a loop is currently running.
+      const mailbox = controller.steerMailbox;
+      if (mailbox === undefined) {
+        return { commandId, status: 'rejected', message: 'no mailbox available' };
+      }
+      const to = typeof payload['to'] === 'string' ? payload['to'] : 'leader';
+      const subject = typeof payload['subject'] === 'string' ? payload['subject'] : 'HQ note';
+      const body = typeof payload['body'] === 'string' ? payload['body'] : '';
+      const priority = payload['priority'] === 'high' ? 'high' : payload['priority'] === 'low' ? 'low' : 'normal';
+      const from = `hq@${controller.sessionTag()}`;
+      await mailbox.send({ from, to, type: 'btw', subject, body, priority });
+      return { commandId, status: 'accepted', message: `noted ${to}` };
+    }
+
+    case 'queue': {
+      // Queue a prompt/note for the target. Delivered as a plain `note` the
+      // agent picks up before its next step — used when the prompt should
+      // wait its turn rather than steer the current operation. Like steer/btw,
+      // this only writes to the mailbox; no live loop is required.
+      const mailbox = controller.steerMailbox;
+      if (mailbox === undefined) {
+        return { commandId, status: 'rejected', message: 'no mailbox available' };
+      }
+      const to = typeof payload['to'] === 'string' ? payload['to'] : 'leader';
+      const subject = typeof payload['subject'] === 'string' ? payload['subject'] : 'HQ prompt';
+      const body = typeof payload['body'] === 'string' ? payload['body'] : '';
+      const priority = payload['priority'] === 'high' ? 'high' : payload['priority'] === 'low' ? 'low' : 'normal';
+      const from = `hq@${controller.sessionTag()}`;
+      await mailbox.send({ from, to, type: 'note', subject, body, priority });
+      return { commandId, status: 'accepted', message: `queued for ${to}` };
+    }
+
     case 'broadcast': {
       const mailbox = controller.steerMailbox;
       if (mailbox === undefined) {

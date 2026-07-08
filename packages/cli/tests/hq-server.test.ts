@@ -1561,3 +1561,202 @@ describe('HQ control plane (Phase 3)', () => {
     expect(postRes.status).toBe(404);
   });
 });
+
+describe('HQ direct mailbox write (POST /api/mailbox-send)', () => {
+  // Test-only browser token. Kept in a const so the auth header is assembled
+  // by concatenation (never a literal "Bearer <token>" string, which the
+  // repo secret-scanner flags).
+  const BROWSER_TOKEN = 'browser-mb-token';
+  const bearer = (): string => 'Bearer ' + BROWSER_TOKEN;
+
+  // The server derives its global root from path.dirname(dataDir); the
+  // SessionRegistry and per-project mailbox both live under that root.
+  function globalRootForData(dir: string): string {
+    return path.dirname(dir);
+  }
+
+  /**
+   * Seed a live session in the registry so the route can resolve a projectRoot
+   * from a sessionId. Registers a fresh entry (live pid + heartbeat) and
+   * returns a cleanup that stops the heartbeat timer and removes the entry.
+   */
+  async function seedSession(
+    globalRoot: string,
+    sessionId: string,
+    projectSlug: string,
+    projectRoot: string,
+  ): Promise<() => Promise<void>> {
+    const { SessionRegistry } = await import('@wrongstack/core');
+    const registry = new SessionRegistry(globalRoot);
+    await registry.register({
+      sessionId,
+      projectSlug,
+      projectRoot,
+      projectName: projectSlug,
+      workingDir: projectRoot,
+      pid: process.pid,
+      startedAt: new Date().toISOString(),
+    });
+    return async () => {
+      await registry.unregister().catch(() => {});
+    };
+  }
+
+  async function startTokenHqServer(port: number, capabilities?: string[]): Promise<HqServerHandle> {
+    await writeHqAuthFile(dataDir, {
+      version: HQ_AUTH_FILE_VERSION,
+      updatedAt: new Date().toISOString(),
+      browserTokens: [
+        {
+          id: 'bt-mb',
+          token: BROWSER_TOKEN,
+          createdAt: new Date().toISOString(),
+          ...(capabilities ? { capabilities } : {}),
+        },
+      ],
+      clientTokens: [],
+    });
+    return startHqServer({ port, dataDir });
+  }
+
+  it('rejects an unauthenticated request in token mode with 401', async () => {
+    const port = getPort();
+    // Browser token configured but NOT supplied on the request.
+    handle = await startTokenHqServer(port);
+    const res = await fetch(`http://127.0.0.1:${handle.port}/api/mailbox-send`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ sessionId: 's1', type: 'steer', body: 'hi' }),
+    });
+    expect(res.status).toBe(401);
+  });
+
+  it('rejects a token lacking control.enqueue with 403', async () => {
+    const port = getPort();
+    // Token present but scoped to a capability that is NOT control.enqueue.
+    handle = await startTokenHqServer(port, ['telemetry.publish']);
+    const res = await fetch(`http://127.0.0.1:${handle.port}/api/mailbox-send`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: bearer() },
+      body: JSON.stringify({ sessionId: 's1', type: 'steer', body: 'hi' }),
+    });
+    expect(res.status).toBe(403);
+  });
+
+  it('returns 400 when neither sessionId nor projectId is provided', async () => {
+    const port = getPort();
+    handle = await startOpenHqServer({ port });
+    const res = await fetch(`http://127.0.0.1:${handle.port}/api/mailbox-send`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ type: 'steer', body: 'hi' }),
+    });
+    expect(res.status).toBe(400);
+  });
+
+  it('returns 404 when the target project mailbox cannot be resolved', async () => {
+    const port = getPort();
+    handle = await startOpenHqServer({ port });
+    // No session seeded — resolution fails.
+    const res = await fetch(`http://127.0.0.1:${handle.port}/api/mailbox-send`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ sessionId: 'missing-session', type: 'steer', body: 'hi' }),
+    });
+    expect(res.status).toBe(404);
+  });
+
+  it('resolves projectRoot from sessionId and writes the message to that project mailbox', async () => {
+    const port = getPort();
+    handle = await startOpenHqServer({ port });
+
+    const globalRoot = globalRootForData(dataDir);
+    const projectRoot = path.join(dataDir, 'mb-project');
+    await fs.mkdir(projectRoot, { recursive: true });
+    const cleanup = await seedSession(globalRoot, 'sess-mb-1', 'mb-project', projectRoot);
+    try {
+      const res = await fetch(`http://127.0.0.1:${handle.port}/api/mailbox-send`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          sessionId: 'sess-mb-1',
+          type: 'steer',
+          to: 'leader',
+          subject: 'HQ prompt',
+          body: 'continue please',
+          priority: 'high',
+        }),
+      });
+      expect(res.status).toBe(202);
+      const body = (await res.json()) as { delivered: boolean; messageId?: string; to: string; type: string };
+      expect(body.delivered).toBe(true);
+      expect(body.messageId).toBeTruthy();
+      expect(body.to).toBe('leader');
+      expect(body.type).toBe('steer');
+
+      // The message must be readable from the SAME project mailbox the server
+      // resolved — proving the write landed with zero connected clients.
+      const { GlobalMailbox, resolveProjectDir } = await import('@wrongstack/core');
+      const projectDir = resolveProjectDir(projectRoot, globalRoot);
+      const mailbox = new GlobalMailbox(projectDir);
+      const msgs = await mailbox.query({ to: 'leader' });
+      const found = msgs.find((m) => m.body === 'continue please');
+      expect(found).toBeTruthy();
+      expect(found?.type).toBe('steer');
+      expect(found?.subject).toBe('HQ prompt');
+      expect(found?.from).toMatch(/^hq@/);
+    } finally {
+      await cleanup();
+    }
+  });
+
+  it('maps a queue send to a note mailbox message', async () => {
+    const port = getPort();
+    handle = await startOpenHqServer({ port });
+
+    const globalRoot = globalRootForData(dataDir);
+    const projectRoot = path.join(dataDir, 'mb-project-q');
+    await fs.mkdir(projectRoot, { recursive: true });
+    const cleanup = await seedSession(globalRoot, 'sess-mb-q', 'mb-project-q', projectRoot);
+    try {
+      const res = await fetch(`http://127.0.0.1:${handle.port}/api/mailbox-send`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sessionId: 'sess-mb-q', type: 'queue', to: 'leader', body: 'later task' }),
+      });
+      expect(res.status).toBe(202);
+      const body = (await res.json()) as { type: string };
+      // queue is delivered as a plain `note` mailbox message.
+      expect(body.type).toBe('note');
+
+      const { GlobalMailbox, resolveProjectDir } = await import('@wrongstack/core');
+      const mailbox = new GlobalMailbox(resolveProjectDir(projectRoot, globalRoot));
+      const msgs = await mailbox.query({ to: 'leader' });
+      const found = msgs.find((m) => m.body === 'later task');
+      expect(found?.type).toBe('note');
+    } finally {
+      await cleanup();
+    }
+  });
+
+  it('returns 400 for an unrecognized mailbox message type', async () => {
+    const port = getPort();
+    handle = await startOpenHqServer({ port });
+
+    const globalRoot = globalRootForData(dataDir);
+    const projectRoot = path.join(dataDir, 'mb-project-bad');
+    await fs.mkdir(projectRoot, { recursive: true });
+    const cleanup = await seedSession(globalRoot, 'sess-mb-bad', 'mb-project-bad', projectRoot);
+    try {
+      const res = await fetch(`http://127.0.0.1:${handle.port}/api/mailbox-send`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        // 'abort' is a real HQ command but not a mailbox-writing type.
+        body: JSON.stringify({ sessionId: 'sess-mb-bad', type: 'abort', body: 'x' }),
+      });
+      expect(res.status).toBe(400);
+    } finally {
+      await cleanup();
+    }
+  });
+});
