@@ -646,7 +646,7 @@ describe('maybeAskAboutIndexing', () => {
     expect(reader.readLine).toHaveBeenCalledTimes(1);
   });
 
-  it('returns true on empty input (defaults to yes)', async () => {
+  it('returns false on empty input (defaults to skip)', async () => {
     const root = '/proj';
     const reader = makeReader(['']);
 
@@ -662,7 +662,7 @@ describe('maybeAskAboutIndexing', () => {
       indexingConfigured: true,
     });
 
-    expect(result).toBe(true);
+    expect(result).toBe(false);
   });
 
   it('counts recursively across nested directories', async () => {

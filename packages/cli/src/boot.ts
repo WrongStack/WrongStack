@@ -313,7 +313,8 @@ export async function boot(argv: string[]): Promise<BootContext | number> {
         );
         const answer = (
           await reader.readLine(
-            `  ${color.amber('?')} Continue with these? ${color.dim('[Y/n/q]')} `,
+            `  ${color.amber('?')} Continue with these? ${color.dim('[Y/n/q]')} ${color.dim('(auto Y in 5s)')} `,
+            { timeoutMs: 5000, defaultAnswer: 'y' },
           )
         )
           .trim()

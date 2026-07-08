@@ -252,7 +252,10 @@ export async function runLaunchPrompts(opts: {
     );
 
     const answer = (
-      await reader.readLine(`  ${color.amber('?')} Continue with these? ${color.dim('[Y/n/q]')} `)
+      await reader.readLine(
+        `  ${color.amber('?')} Continue with these? ${color.dim('[Y/n/q]')} ${color.dim('(auto Y in 5s)')} `,
+        { timeoutMs: 5000, defaultAnswer: 'y' },
+      )
     )
       .trim()
       .toLowerCase();
@@ -526,10 +529,14 @@ export async function maybeAskAboutIndexing(opts: {
   renderer.write(
     `\n  ${color.dim('○')} Large codebase detected ${color.dim(`(~${fileCount}+ indexable files)`)}\n`,
   );
+  renderer.write(
+    `  ${color.amber('⚠')} ${color.dim('Codebase search requires indexing — skipped by default.')}\n`,
+  );
 
   const answer = (
     await reader.readLine(
-      `  ${color.amber('?')} Run codebase indexing now? ${color.dim('(needed for codebase-search) [Y/n/q]')} `,
+      `  ${color.amber('?')} Run codebase indexing now? ${color.dim('[n/Y/q]')} ${color.dim('(auto n in 5s)')} `,
+      { timeoutMs: 5000, defaultAnswer: 'n' },
     )
   )
     .trim()
@@ -541,11 +548,12 @@ export async function maybeAskAboutIndexing(opts: {
     return false;
   }
 
-  if (answer === 'n' || answer === 'no') {
+  // Default on timeout or explicit 'n': skip.
+  if (answer === 'n' || answer === 'no' || answer === '') {
     renderer.write(color.dim('  Skipping indexing for this session.\n'));
     return false;
   }
 
-  // Default: yes (empty input, 'y', 'yes', or anything else).
+  // 'y' or 'yes' means yes.
   return true;
 }

@@ -55,7 +55,10 @@ export class ReadlineInputReader implements InputReader {
     return this.rl;
   }
 
-  async readLine(prompt?: string): Promise<string> {
+  async readLine(
+    prompt?: string,
+    timeoutOpts?: { timeoutMs: number; defaultAnswer: string } | undefined,
+  ): Promise<string> {
     if (this.history.length === 0) await this.loadHistory();
     while (this.pending) {
       // Wait for the current read to settle before accepting another.
@@ -90,12 +93,29 @@ export class ReadlineInputReader implements InputReader {
       this.installPromptGuard(fresh);
       return new Promise<string>((resolve) => {
         let settled = false;
+        let timeoutHandle: ReturnType<typeof setTimeout> | undefined;
+
         const settle = (line: string): void => {
           if (settled) return;
           settled = true;
+          if (timeoutHandle) clearTimeout(timeoutHandle);
           setOutputLineGuard(null);
           resolve(line);
         };
+
+        // When a timeout is configured, auto-feed the default answer
+        // after `timeoutMs` milliseconds.  `fresh.write()` programmatically
+        // feeds the readline parser as if the user typed it — the question
+        // callback fires naturally and the default text appears on screen
+        // so the user sees what happened.
+        if (timeoutOpts) {
+          timeoutHandle = setTimeout(() => {
+            if (!settled) {
+              fresh.write(`${timeoutOpts.defaultAnswer}\n`);
+            }
+          }, timeoutOpts.timeoutMs);
+        }
+
         fresh.question(prompt ?? '> ', (line) => {
           if (line.trim()) {
             this.history.push(line);
