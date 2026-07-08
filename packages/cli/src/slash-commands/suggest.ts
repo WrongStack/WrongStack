@@ -3,7 +3,7 @@ import { existsSync } from 'node:fs';
 import * as path from 'node:path';
 import type { Context, SlashCommand } from '@wrongstack/core';
 import { color } from '@wrongstack/core';
-import { parseNextSteps } from '@wrongstack/tui';
+import { parseNextSteps } from '@wrongstack/tools/next-steps';
 import type { SlashCommandContext } from './index.js';
 import { setSuggestions } from './suggestion-store.js';
 import { toErrorMessage } from '@wrongstack/core/utils';

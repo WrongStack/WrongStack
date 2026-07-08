@@ -25,7 +25,7 @@ import {
   wstackGlobalRoot,
 } from '@wrongstack/core';
 import { readClipboardImage, routeImagesForModel, type VisionAdapters } from '@wrongstack/runtime';
-import { parseNextSteps } from '@wrongstack/tui';
+import { parseNextSteps } from '@wrongstack/tools/next-steps';
 import { contextOverflowHint } from './context-overflow-diagnostic.js';
 import { startCliHqConnection } from './hq-publisher.js';
 import type { ReadlineInputReader } from './input-reader.js';
