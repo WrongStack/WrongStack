@@ -50,6 +50,8 @@ export default defineConfig({
     'src/tool-summary.ts',
     // Pure tool-output diff model (browser-safe; consumed by WebUI + HQ dashboard).
     'src/tool-diff.ts',
+    // Pure <nextsteps> block parser (browser-safe; consumed by WebUI, TUI, CLI).
+    'src/next-steps.ts',
     // Codebase index tools
     'src/codebase-index/index.ts',
     // Index worker thread — must be its own emitted file: the host spawns it

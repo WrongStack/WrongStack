@@ -40,6 +40,10 @@
       "types": "./dist/tool-diff.d.ts",
       "import": "./dist/tool-diff.js"
     },
+    "./next-steps": {
+      "types": "./dist/next-steps.d.ts",
+      "import": "./dist/next-steps.js"
+    },
     "./read": {
       "types": "./dist/read.d.ts",
       "import": "./dist/read.js"
