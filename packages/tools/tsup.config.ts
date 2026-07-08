@@ -46,6 +46,8 @@ export default defineConfig({
     'src/circuit-breaker.ts',
     // Pure-data tool icon identity (browser-safe; consumed by WebUI + TUI).
     'src/tool-icons.ts',
+    // Pure tool-input summarizer (browser-safe; consumed by WebUI + HQ dashboard).
+    'src/tool-summary.ts',
     // Codebase index tools
     'src/codebase-index/index.ts',
     // Index worker thread — must be its own emitted file: the host spawns it

@@ -32,6 +32,10 @@
       "types": "./dist/tool-icons.d.ts",
       "import": "./dist/tool-icons.js"
     },
+    "./tool-summary": {
+      "types": "./dist/tool-summary.d.ts",
+      "import": "./dist/tool-summary.js"
+    },
     "./read": {
       "types": "./dist/read.d.ts",
       "import": "./dist/read.js"

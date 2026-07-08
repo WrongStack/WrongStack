@@ -20,7 +20,15 @@
  *
  * @module hq-dashboard-html
  */
-export const HQ_HTML = `<!DOCTYPE html>
+import { SUMMARIZE_TOOL_INPUT_BROWSER_SRC } from '@wrongstack/tools/tool-summary';
+
+// The served document is one big template literal (see header note). The
+// tool-input summarizer is authored ONCE in @wrongstack/tools and injected via
+// a post-.replace() on the placeholder comment below, so HQ and the WebUI share
+// one implementation even though HQ cannot import at browser runtime. A replacer
+// FUNCTION is used so any dollar-sign in the source is not treated as a
+// String.prototype.replace special pattern.
+const HQ_HTML_TEMPLATE = `<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8" />
@@ -312,11 +320,13 @@ export const HQ_HTML = `<!DOCTYPE html>
   .md-codelabel { display: flex; align-items: center; gap: 6px; padding: 5px 9px; border-bottom: 1px solid var(--border); color: var(--dim); font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 10px; text-transform: uppercase; letter-spacing: 0.5px; }
   .md-code { margin: 0; padding: 10px 11px; max-height: 360px; overflow: auto; white-space: pre; font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 11.5px; line-height: 1.45; color: var(--text); }
   .tool-card { display: grid; gap: 8px; min-width: min(520px, 100%); }
-  .tool-head { display: flex; align-items: center; gap: 8px; color: var(--text); }
-  .tool-name { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 12px; font-weight: 800; color: var(--cyan); }
-  .tool-status { margin-left: auto; font-size: 10px; text-transform: uppercase; letter-spacing: 0.6px; color: var(--green); font-weight: 800; }
+  .tool-head { display: flex; align-items: center; gap: 8px; color: var(--text); min-width: 0; }
+  .tool-name { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 12px; font-weight: 800; color: var(--cyan); flex: 0 0 auto; }
+  .tool-cat { font-size: 9px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--dim); flex: 0 0 auto; padding: 1px 6px; border: 1px solid var(--border); border-radius: 999px; background: var(--inset); }
+  .tool-summary { margin-left: 6px; flex: 1 1 auto; min-width: 0; font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 11px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .tool-status { margin-left: auto; flex: 0 0 auto; font-size: 10px; text-transform: uppercase; letter-spacing: 0.6px; color: var(--green); font-weight: 800; }
   .tool-status.error { color: var(--red); }
-  .tool-duration { font-size: 10.5px; color: var(--dim); font-variant-numeric: tabular-nums; }
+  .tool-duration { flex: 0 0 auto; font-size: 10.5px; color: var(--dim); font-variant-numeric: tabular-nums; }
   .tool-group { margin: 0 0 14px 42px; max-width: 860px; border: 1px solid var(--border); border-radius: 12px; background: rgba(57,208,216,0.045); overflow: hidden; }
   .tool-group > summary { cursor: pointer; list-style: none; display: flex; align-items: center; gap: 8px; padding: 9px 11px; color: var(--text); user-select: none; }
   .tool-group > summary::-webkit-details-marker { display: none; }
@@ -1055,6 +1065,60 @@ async function boot(){
     );
   }
 
+  // Per-tool visual identity, mirroring @wrongstack/tools/tool-icons so HQ's
+  // chat history matches the WebUI. This SPA is a served string with no imports,
+  // so the data is embedded inline: name -> icon id, id -> { glyph, color, label }.
+  var TOOL_ICON_MAP = {
+    read:'file', cat:'file', view:'file', write:'file', create:'file',
+    edit:'edit', replace:'edit', str_replace:'edit', multi_edit:'edit', patch:'diff',
+    grep:'search', search:'search', rg:'search', ripgrep:'search', glob:'search', find:'search',
+    folder:'folder', ls:'folder', list:'folder', set_working_dir:'folder', tree:'tree',
+    bash:'terminal', shell:'terminal', sh:'terminal', exec:'terminal', run:'terminal', command:'terminal',
+    fetch:'web', web_fetch:'web', web_search:'web',
+    git:'git', diff:'diff',
+    lint:'code', format:'settings', typecheck:'code', test:'test',
+    install:'package', outdated:'package', audit:'package',
+    document:'document', scaffold:'scaffold',
+    todo:'todo', plan:'plan', task:'task',
+    json:'json', index:'index', logs:'logs', settings:'settings',
+    remember:'brain', recall:'brain', memory:'brain'
+  };
+  var TOOL_ICON_INFO = {
+    file:{ g:'📄', c:'#60a5fa', l:'file read/write' },
+    edit:{ g:'✏️', c:'#fbbf24', l:'file editing' },
+    search:{ g:'🔍', c:'#a78bfa', l:'search & grep' },
+    folder:{ g:'📁', c:'#38bdf8', l:'folder navigation' },
+    terminal:{ g:'▚', c:'#67e8f9', l:'shell commands' },
+    web:{ g:'🌐', c:'#34d399', l:'web fetch' },
+    git:{ g:'⎇', c:'#a3e635', l:'git operations' },
+    tree:{ g:'🌲', c:'#22d3ee', l:'directory tree' },
+    code:{ g:'{}', c:'#818cf8', l:'code quality' },
+    test:{ g:'🧪', c:'#4ade80', l:'testing' },
+    package:{ g:'📦', c:'#f472b6', l:'package management' },
+    document:{ g:'📜', c:'#94a3b8', l:'documentation' },
+    scaffold:{ g:'🔨', c:'#c084fc', l:'project scaffolding' },
+    todo:{ g:'☑', c:'#facc15', l:'todo tracking' },
+    plan:{ g:'📋', c:'#2dd4bf', l:'planning' },
+    task:{ g:'✔', c:'#5eead4', l:'task management' },
+    meta:{ g:'🔧', c:'#cbd5e1', l:'tool orchestration' },
+    index:{ g:'🗄', c:'#06b6d4', l:'code indexing' },
+    json:{ g:'{}', c:'#eab308', l:'JSON data' },
+    diff:{ g:'±', c:'#93c5fd', l:'diff & patch' },
+    logs:{ g:'#', c:'#a3a3a3', l:'log viewing' },
+    settings:{ g:'⚙', c:'#9ca3af', l:'configuration' },
+    brain:{ g:'🧠', c:'#e879f9', l:'memory' },
+    fallback:{ g:'🔧', c:'#9ca3af', l:'external tool' }
+  };
+  function toolIconInfo(name){
+    var id = TOOL_ICON_MAP[String(name||'').toLowerCase()] || 'fallback';
+    return TOOL_ICON_INFO[id] || TOOL_ICON_INFO.fallback;
+  }
+  // Tool-input summarizer: authored once in @wrongstack/tools and injected here
+  // via a post-.replace() on this placeholder, so HQ and the WebUI share one
+  // implementation. Defines toolInputSummary(name, rawInput) where rawInput is
+  // HQ's JSON string. See packages/tools/src/tool-summary.ts.
+  /*__TOOL_SUMMARY_SRC__*/
+
   function fold(key, summary, content, preClass){
     return h('details', { key: key, className: 'bub-fold' },
       h('summary', null, summary),
@@ -1084,13 +1148,6 @@ async function boot(){
   function countLines(text){
     if(!text) return 0;
     return String(text).split('\\n').length;
-  }
-  function toolSummary(e){
-    var parts = [];
-    if(e.toolInput) parts.push('input ' + e.toolInput.length + ' chars');
-    if(e.text) parts.push(countLines(e.text) + ' lines');
-    if(e.durationMs!=null) parts.push(e.durationMs + 'ms');
-    return parts.join(' · ');
   }
   function detectToolShape(tool, result){
     var text = String(result || '');
@@ -1222,21 +1279,34 @@ async function boot(){
   function Bubble(p){
     var e = p.e;
     var isToolish = e.role === 'tool' || e.role === 'error';
+    var failed = e.isError || e.role === 'error';
+    var tinfo = isToolish ? toolIconInfo(e.tool) : null;
+    var inputSummary = isToolish ? toolInputSummary(e.tool, e.toolInput) : '';
     var bodyEls = [];
     if(isToolish){
-      bodyEls.push(h('div', { key: 'th', className: 'tool-head' },
-        h('span', { className: 'tool-name' }, e.tool || 'tool'),
-        h('span', { className: 'tool-duration' }, toolSummary(e)),
-        h('span', { className: 'tool-status ' + (e.isError || e.role === 'error' ? 'error' : '') }, e.isError || e.role === 'error' ? 'failed' : 'done')
-      ));
+      var headKids = [
+        h('span', { key:'nm', className: 'tool-name' }, e.tool || 'tool'),
+        h('span', { key:'cat', className: 'tool-cat' }, tinfo.l)
+      ];
+      if(inputSummary){ headKids.push(h('span', { key:'sm', className: 'tool-summary', title: inputSummary }, inputSummary)); }
+      headKids.push(h('span', { key:'st', className: 'tool-status ' + (failed ? 'error' : '') }, failed ? 'failed' : 'done'));
+      if(e.durationMs != null){ headKids.push(h('span', { key:'du', className: 'tool-duration' }, e.durationMs + 'ms')); }
+      bodyEls.push(h('div', { key: 'th', className: 'tool-head' }, headKids));
       if(e.toolInput){ bodyEls.push(fold('a', 'Input · ' + e.toolInput.length + ' chars', e.toolInput, 'bub-argpre')); }
-      if(e.text){ bodyEls.push(foldContent('o', (e.isError||e.role==='error'?'Error output':'Output') + ' · ' + countLines(e.text) + ' lines', renderToolOutput(e))); }
+      if(e.text){ bodyEls.push(foldContent('o', (failed?'Error output':'Output') + ' · ' + countLines(e.text) + ' lines', renderToolOutput(e))); }
       if(!e.toolInput && !e.text){ bodyEls.push(h('div', { key:'n', className:'bub-sublabel' }, 'no output')); }
     } else {
       bodyEls.push(h('div', { key:'t', className: 'txt' }, renderMessageText(e.text || '', e.role)));
     }
+    var avatar = isToolish
+      ? h('div', {
+          className: 'bub-avatar tool' + (failed ? ' error' : ''),
+          title: (e.tool || 'tool') + ' — ' + tinfo.l,
+          style: failed ? null : { color: tinfo.c, borderColor: tinfo.c, background: 'color-mix(in srgb, ' + tinfo.c + ' 14%, transparent)' }
+        }, tinfo.g)
+      : h('div', { className: 'bub-avatar' }, roleIcon(e.role));
     return h('div', { className: 'bub ' + e.role },
-      h('div', { className: 'bub-avatar' }, roleIcon(e.role)),
+      avatar,
       h('div', { className: 'bub-content' },
         h('div', { className: 'bub-head' },
           h('span', { className: 'bub-role' }, isToolish && e.tool ? e.tool : roleLabel(e.role)),
@@ -2024,10 +2094,17 @@ function renderFallback(){
       if(tc.loading && !tc.entries.length){ html += '<div class="loading">Loading full chat history…</div>'; }
       else if(!tc.entries.length){ html += '<div class="side-empty">No transcript yet.</div>'; }
       else { tc.entries.forEach(function(e){
-        var head = '<div class="bub '+escAttr(e.role)+'"><div class="bub-avatar">'+escAttr(roleIcon(e.role))+'</div><div class="bub-content"><div class="bub-head"><span class="bub-role">'+escAttr((e.role==='tool'||e.role==='error')&&e.tool?e.tool:roleLabel(e.role))+'</span><span>'+fmtTime(e.ts)+'</span></div><div class="bub-card">';
+        var fbTool = (e.role==='tool'||e.role==='error');
+        var fbFailed = e.isError||e.role==='error';
+        var fbInfo = fbTool ? toolIconInfo(e.tool) : null;
+        var fbAvatar = fbTool
+          ? '<div class="bub-avatar tool'+(fbFailed?' error':'')+'" title="'+escAttr((e.tool||'tool')+' — '+fbInfo.l)+'"'+(fbFailed?'':' style="color:'+fbInfo.c+';border-color:'+fbInfo.c+'"')+'>'+escAttr(fbInfo.g)+'</div>'
+          : '<div class="bub-avatar">'+escAttr(roleIcon(e.role))+'</div>';
+        var head = '<div class="bub '+escAttr(e.role)+'">'+fbAvatar+'<div class="bub-content"><div class="bub-head"><span class="bub-role">'+escAttr(fbTool&&e.tool?e.tool:roleLabel(e.role))+'</span><span>'+fmtTime(e.ts)+'</span></div><div class="bub-card">';
         var body;
-        if(e.role==='tool' || e.role==='error'){
-          body = '<div class="tool-card"><div class="tool-head"><span class="tool-name">'+escAttr(e.tool||'tool')+'</span><span class="tool-duration">'+escAttr(toolSummary(e))+'</span><span class="tool-status '+escAttr(e.isError||e.role==='error'?'error':'')+'">'+escAttr(e.isError||e.role==='error'?'failed':'done')+'</span></div>';
+        if(fbTool){
+          var fbSum = toolInputSummary(e.tool, e.toolInput);
+          body = '<div class="tool-card"><div class="tool-head"><span class="tool-name">'+escAttr(e.tool||'tool')+'</span><span class="tool-cat">'+escAttr(fbInfo.l)+'</span>'+(fbSum?'<span class="tool-summary" title="'+escAttr(fbSum)+'">'+escAttr(fbSum)+'</span>':'')+'<span class="tool-status '+escAttr(fbFailed?'error':'')+'">'+escAttr(fbFailed?'failed':'done')+'</span>'+(e.durationMs!=null?'<span class="tool-duration">'+e.durationMs+'ms</span>':'')+'</div>';
           if(e.toolInput) body += '<details class="bub-fold"><summary>Input · '+e.toolInput.length+' chars</summary><pre class="bub-argpre">'+escAttr(e.toolInput)+'</pre></details>';
           if(e.text) body += '<details class="bub-fold"><summary>'+(e.isError?'Error output':'Output')+' · '+countLines(e.text)+' lines</summary><pre>'+escAttr(e.text)+'</pre></details>';
           body += '</div>';
@@ -2055,3 +2132,12 @@ boot();
 </script>
 </body>
 </html>`;
+
+// The served HQ document: HQ_HTML_TEMPLATE with the shared tool-input
+// summarizer injected at the placeholder. A replacer FUNCTION is used so any
+// dollar sign in the injected source is not treated as a String.replace
+// special replacement pattern.
+export const HQ_HTML: string = HQ_HTML_TEMPLATE.replace(
+  '/*__TOOL_SUMMARY_SRC__*/',
+  () => SUMMARIZE_TOOL_INPUT_BROWSER_SRC,
+);

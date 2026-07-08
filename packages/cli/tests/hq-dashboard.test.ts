@@ -89,6 +89,29 @@ describe('HQ dashboard document', () => {
     expect(script).toContain('session.transcript');
   });
 
+  it('wires the per-tool chat-history view (icon + input summary, WebUI-style)', async () => {
+    handle = await startServer();
+    const html = await (await fetch(`http://127.0.0.1:${handle.port}/`)).text();
+    const dom = new JSDOM(html);
+    const script = dom.window.document.querySelector('script[type="module"]')?.textContent ?? '';
+    // Per-tool visual identity (mirrors @wrongstack/tools/tool-icons).
+    expect(script).toContain('TOOL_ICON_MAP');
+    expect(script).toContain('TOOL_ICON_INFO');
+    expect(script).toContain('function toolIconInfo');
+    // Human-readable input summary is INJECTED from @wrongstack/tools (shared
+    // with the WebUI) — the placeholder must be gone and the real function in.
+    expect(script).not.toContain('__TOOL_SUMMARY_SRC__');
+    expect(script).toContain('function toolInputSummary');
+    // A signature line unique to the shared browser transcription.
+    expect(script).toContain('function __clip(');
+    // A couple of canonical name->id mappings must survive minification-free embed.
+    expect(script).toContain("read:'file'");
+    expect(script).toContain("bash:'terminal'");
+    // The new head classes the CSS + renderer rely on.
+    expect(script).toContain('tool-cat');
+    expect(script).toContain('tool-summary');
+  });
+
   it('preserves the browser token when wiring WS and fetch URLs', async () => {
     // Token mode on — the dashboard must thread ?token= through every call.
     await writeHqAuthFile(dataDir, {
