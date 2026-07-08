@@ -39,7 +39,6 @@ import {
   type AuditLevel,
   createDelegateTool,
   createMcpControlTool,
-  createSessionEventBridge,
   createTieredBrainArbiter,
   DefaultBrainArbiter,
   type Director,
@@ -60,10 +59,7 @@ import {
   ObservableBrainArbiter,
   type PackageAuthorTrackerOptions,
   ParallelEternalEngine,
-  recordFileAction,
-  resolveSessionLoggingConfig,
   type LogLevel,
-  type SessionEventBridge,
   SessionMemoryConsolidator,
   SddRunRegistry,
   SlashCommandRegistry,
@@ -84,25 +80,18 @@ import {
   normalizeTokenSavingTier,
   getToolDescriptionMode,
 } from '@wrongstack/core';
+import { wireSessionEvents } from './session-event-wiring.js';
+import { initializeCli } from './cli-context.js';
 import { MCPRegistry } from '@wrongstack/mcp';
-import { setOAuthTokenPersister } from '@wrongstack/providers';
 import { sessionScopedPath } from '@wrongstack/core/utils';
 import { toErrorMessage } from '@wrongstack/core/utils/error';
-import { mutateConfigProviders, normalizeKeys, writeKeysBack } from './provider-config-utils.js';
 import { createAuthPanelHost } from './auth-menu/panel-service.js';
 import { createAutoPhaseHost } from './autophase-host.js';
-import { boot } from './boot.js';
 import { registerBuiltinTools } from './boot/tool-registry.js';
-import { parseArgs } from './arg-parser.js';
 import { launchEternalFromFlag } from './cli-eternal-flag.js';
 import { promptRecovery } from './cli-recovery-prompt.js';
-import { applyNodeEnvDefault, applySessionShellDefault, runPreflight } from './preflight.js';
-import { wireContainer } from './boot/container-wiring.js';
 import { bindSystemPromptBuilder } from './boot/system-prompt-builder.js';
 import { subscribeBrainDecisionLog } from './boot/brain-decision-log.js';
-import { handleHelpVersionShortCircuit } from './boot/short-circuit-flags.js';
-import { handleDesktopShortCircuit } from './boot/short-circuit-desktop.js';
-import { handleHqShortCircuit } from './boot/short-circuit-hq.js';
 import { refreshRuntimeModelCatalog, resolveRuntimeMaxContext } from './context-limit.js';
 import { type ExecutionDeps, execute } from './execution.js';
 import { createFallbackModelExtension } from './fallback-model.js';
@@ -142,7 +131,6 @@ import {
   resolveProviderCfg as resolveProviderCfgRuntime,
 } from './wiring/provider-runtime.js';
 import { setupPlugins } from './wiring/plugins.js';
-import { bindReplayToContainer } from './wiring/replay.js';
 import { setupSession } from './wiring/session.js';
 import { resolveModeAndCapabilities } from './boot/system-prompt.js';
 import { wireEventWiring } from './boot/event-wiring.js';
@@ -161,62 +149,11 @@ type PluginPickerItem = {
 };
 
 export async function main(argv: string[]): Promise<number> {
-  // PR 2 of Issue #29 extracted the three pre-boot side effects
-  // (NODE_ENV defaulting, update-notice quick-check, debug-stream
-  // seed) into `preflight.ts`. The order is documented there; the
-  // orchestrator runs `applyNodeEnvDefault()` synchronously
-  // *before* the lazy `--tui` import evaluates ink/react (see the
-  // preflight module docstring for the long rationale). We *don't*
-  // call `runPreflight` here at the top of main() because the
-  // `--help` / `--version` short-circuit below needs to fire
-  // without paying for the 2-second update-notice network call.
-  applyNodeEnvDefault();
-  // Pin one stable shell for the session on Windows (PowerShell by default)
-  // via WRONGSTACK_SHELL, so the bash tool and the system-prompt Environment
-  // block agree on a single target the model writes syntax for. No-op on POSIX
-  // / when the user already set WRONGSTACK_SHELL. Cheap (a couple of PATH
-  // probes); safe to run before the --help short-circuit.
-  applySessionShellDefault();
+  // Issue #29 cli-main PR 7 — the first ~150 lines of boot/wiring
+  // have been consolidated into `initializeCli()` in cli-context.ts.
+  const cliCtx = await initializeCli(argv);
+  if (typeof cliCtx === 'number') return cliCtx;
 
-  // --help / --version short-circuit (PR 1 of Issue #29):
-  //
-  // The baseline boot-shape integration test (PR 0, merged as #36) showed
-  // that `wstack --help` previously returned exit 2 with a
-  // "No provider or model configured" notice on stderr — the help
-  // subcommand was *registered*, but `boot()` only reached it after
-  // `bootConfig()` had read/written the global config and warned
-  // about the missing provider, so the user-visible exit code wasn't
-  // 0. For a one-line flag like `--help` that should print text and
-  // exit, the bare flag should bypass config I/O entirely.
-  //
-  // We re-parse argv here with the same `parseArgs` shape `boot()`
-  // uses (so the flag-name matrix stays in lockstep) and dispatch to
-  // the existing `helpCmd` / `versionCmd` handlers directly. The
-  // handler closure is set up in `boot()`'s `subcommands` map; we
-  // import it here so we don't have to duplicate the help/version
-  // strings. The renderer is a stub because the help text is plain
-  // `write` calls — we don't need a TTY-aware renderer for `--help`
-  // to `wstack --help` on stdout.
-  const earlyFlags = parseArgs(argv).flags;
-  const earlyExit = await handleHelpVersionShortCircuit(argv);
-  if (earlyExit !== null) return earlyExit;
-
-  // --desktop starts the Electron shell and owns its own project/session
-  // runtime management. Short-circuit before boot() so it does not require a
-  // configured provider or current project.
-  const desktopExit = await handleDesktopShortCircuit(earlyFlags, argv);
-  if (desktopExit !== null) return desktopExit;
-
-  // --hq starts the HQ command center server (no project root, no agent).
-  // Short-circuit before boot() — HQ is project-independent.
-  const hqExit = await handleHqShortCircuit(earlyFlags);
-  if (hqExit !== null) return hqExit;
-
-  const ctx = await boot(argv);
-  // `wrongstack quick` sets flags.quick = true in boot() and removes 'quick' from
-  // positional, so boot() returns BootContext (not a number). Proceed to execute().
-  if (typeof ctx === 'number') return ctx;
-  // At this point TypeScript knows ctx is BootContext. Proceed with execute().
   let {
     config,
     vault,
@@ -229,84 +166,11 @@ export async function main(argv: string[]): Promise<number> {
     renderer,
     reader,
     logger,
-    updateInfo,
     needsSetup,
-  } = ctx;
-
-  // PR 2 of Issue #29: pre-boot side effects (update-notice
-  // quick-check, debug-stream seed) are now in `runPreflight()`. The
-  // NODE_ENV defaulting is already applied at the top of main() via
-  // `applyNodeEnvDefault()` — it must fire *before* the lazy `--tui`
-  // import and also before the --help / --version short-circuit. The
-  // second `applyNodeEnvDefault()` call inside `runPreflight()` is a
-  // no-op (NODE_ENV is already set). Everything else runs after `boot()`
-  // returns the BootContext and the early-return short-circuit has
-  // been ruled out.
-  const { updateInfo: refreshedUpdateInfo } = await runPreflight(config, updateInfo);
-  updateInfo = refreshedUpdateInfo;
-
-  // Persist rotated `openai-codex` (Sign in with ChatGPT) OAuth tokens back to
-  // the encrypted config. Auth0 rotates the refresh token on every refresh, so
-  // dropping the new pair would break the NEXT session's login. Installed once;
-  // covers every provider-construction site via the providers-module hook.
-  setOAuthTokenPersister((providerId, creds) => {
-    void mutateConfigProviders(wpaths.globalConfig, vault, (all) => {
-      const p = all[providerId];
-      if (!p) return;
-      const keys = normalizeKeys(p);
-      const active = p.activeKey ? keys.find((k) => k.label === p.activeKey) : keys[0];
-      if (!active) return;
-      active.apiKey = creds.accessToken;
-      active.refreshToken = creds.refreshToken;
-      active.expiresAt = new Date(creds.expiresAt).toISOString();
-      if (creds.accountId) active.accountId = creds.accountId;
-      writeKeysBack(p, keys);
-    }).catch(() => {
-      // Best-effort: a failed persist still leaves the in-memory token valid
-      // for this session; the next session will refresh from the prior token.
-    });
-  });
-
-  // PR 3 of Issue #29: PathResolver + EventBus + container
-  // setup is now in `wireContainer()`. The function returns
-  // the PathResolver, the new EventBus, and the container;
-  // main() resolves the bootstrap-level services out of the
-  // container below. Replay wiring (next block) still lives
-  // here because it gates on CLI flags and isn't a
-  // container-binding step.
-  const { events, container } = wireContainer({
-    config,
-    wpaths,
-    cwd,
-    logger,
-    reader,
-    renderer,
-    modelsRegistry,
-    yoloDestructive: flags['yolo-destructive'] === true || flags['force-all-yolo'] === true,
-    confirmDestructive: true,
-  });
-
-  // Replay wiring (idea #2). When `--replay <sessionId>` is set, every
-  // provider call is served from the recorded log; `--record` writes
-  // a fresh log; `--replay=auto <sessionId>` does both. The
-  // ReplayProviderRunner is bound under TOKENS.ProviderRunner so the
-  // agent picks it up transparently.
-  const replayFlag = flags['replay'];
-  const recordFlag = flags['record'];
-  if (typeof replayFlag === 'string' || recordFlag === true) {
-    const sessionId = typeof replayFlag === 'string' ? replayFlag : `record-${Date.now()}`;
-    const mode = recordFlag === true ? 'record' : 'replay';
-    bindReplayToContainer({
-      container,
-      wpaths,
-      sessionId,
-      mode,
-      logger,
-    });
-    logger.info(`replay: ProviderRunner bound in '${mode}' mode for session ${sessionId}`);
-  }
-
-  const configStore = container.resolve(TOKENS.ConfigStore);
+    events,
+    container,
+    configStore,
+  } = cliCtx;
 
   // PR 4 of Issue #29: mode + provider + modelCapabilities
   // resolution is now in `resolveModeAndCapabilities()`. The
@@ -592,168 +456,20 @@ export async function main(argv: string[]): Promise<number> {
     // Non-critical — session tracking degrades gracefully
   }
 
-  // Central SessionEventBridge — used for compaction, errors, and future audit events.
-  // This ensures consistent auditLevel behavior and a single writer.
-  // Sampling configuration (especially for tool_progress) is now read from config.
-  const sessionConfig = resolveSessionLoggingConfig(
-    config as never as Parameters<typeof resolveSessionLoggingConfig>[0],
-  );
-  // Resolve the CURRENT writer on every append (getter form): when the user
-  // resumes another session mid-run, agent.ctx.session is swapped to the
-  // resumed writer — audit events must follow the swap instead of being
-  // dropped into the old, closed writer.
-  const sessionBridge: SessionEventBridge = createSessionEventBridge(
-    () => context.session ?? session,
-    sessionConfig.auditLevel,
-    {
-      sampling: sessionConfig.sampling,
-    },
-  );
-  const currentSessionId = (): string =>
-    context.session?.id ?? sessionRef.current?.id ?? session.id;
-  const isCurrentSession = (sessionId?: string | undefined): boolean =>
-    !sessionId || sessionId === currentSessionId();
-  const appendSessionEvent = (
-    sessionId: string | undefined,
-    event: Parameters<SessionEventBridge['append']>[0],
-  ): void => {
-    if (!isCurrentSession(sessionId)) return;
-    sessionBridge.append(event).catch(() => {
-      // best-effort, never block on session logging
-    });
-  };
+  // SessionEventBridge + audit events (extracted to session-event-wiring.ts).
+  const { errorRing, sessionBridge } = wireSessionEvents({
+    evOn,
+    config: config as unknown as Record<string, unknown>,
+    context: context as unknown as Record<string, unknown>,
+    session,
+    sessionRef,
+    wpaths,
+    projectRoot,
+    renderer,
+    tuiOwnsScreen,
+  });
 
   const stats = new SessionStats(events, tokenCounter);
-
-  // Last-N error ring buffer surfaced by /diag.
-  const errorRing: { ts: string; phase: string; code: string; message: string }[] = [];
-  evOn('error', (e) => {
-    const err = e.err as unknown;
-    const code =
-      err &&
-      typeof err === 'object' &&
-      'code' in err &&
-      typeof (err as { code: unknown }).code === 'string'
-        ? (err as { code: string }).code
-        : 'UNKNOWN';
-    const message = e.err instanceof Error ? e.err.message : String(e.err);
-    const ts = new Date().toISOString();
-
-    errorRing.push({ ts, phase: e.phase, code, message });
-    if (errorRing.length > 5) errorRing.shift();
-
-    // Also persist to the session log via the central bridge (respects auditLevel).
-    // This gives us error history in the JSONL for forensics / post-mortems.
-    appendSessionEvent(e.sessionId, {
-      type: 'error',
-      ts,
-      message,
-      phase: e.phase,
-    });
-  });
-
-  // Persist tool execution start/end to the session log for audit + timing forensics.
-  // Uses the same central bridge (respects auditLevel).
-  evOn('tool.started', (e) => {
-    appendSessionEvent(e.sessionId, {
-      type: 'tool_call_start',
-      ts: new Date().toISOString(),
-      name: e.name,
-      id: e.id,
-      input: e.input,
-    });
-  });
-
-  evOn('tool.executed', (e) => {
-    appendSessionEvent(e.sessionId, {
-      type: 'tool_call_end',
-      ts: new Date().toISOString(),
-      name: e.name,
-      id: e.id ?? '',
-      durationMs: e.durationMs,
-      outputSize: e.outputBytes ?? 0,
-      ok: e.ok,
-      outputBytes: e.outputBytes,
-      outputTokens: e.outputTokens,
-      outputLines: e.outputLines,
-    });
-
-    // ── File-author tracking: record which agent wrote/edited files ──
-    if (
-      e.ok &&
-      (e.name === 'write' || e.name === 'edit' || e.name === 'replace' || e.name === 'patch')
-    ) {
-      const filePath = (e.input as Record<string, unknown>)?.path as string | undefined;
-      if (filePath) {
-        const projectDir = path.join(wpaths.globalRoot, 'projects', wpaths.projectSlug);
-        void recordFileAction(
-          { storageDir: projectDir, projectRoot },
-          {
-            filePath,
-            action: e.name === 'write' ? 'create' : 'edit',
-            agentId: 'leader',
-            agentName: 'Leader',
-            // Live writer id — after an in-app resume the active session is
-            // context.session, not the startup writer.
-            sessionId: context.session?.id ?? session.id,
-          },
-        ).catch(() => {
-          // best-effort tracking
-        });
-      }
-    }
-  });
-
-  // Humanized `delegate` lifecycle lines for the plain (non-TUI) CLI. The
-  // Ink TUI renders its own delegate history entries, so skip these when it
-  // owns the screen to avoid double-printing.
-  if (!tuiOwnsScreen) {
-    evOn('delegate.started', (e) => {
-      const task = e.task.length > 100 ? `${e.task.slice(0, 99)}…` : e.task;
-      renderer.writeInfo(`🤝 Delegating → ${e.target}: ${task}`);
-    });
-    evOn('delegate.completed', (e) => {
-      const cost = e.costUsd && e.costUsd > 0 ? ` · $${e.costUsd.toFixed(4)}` : '';
-      renderer.writeInfo(`${e.ok ? '✅' : '❌'} ${e.summary}${cost}`);
-    });
-  }
-
-  // Forward tool progress events.
-  // Sampling + "full" level filtering is now handled inside the SessionEventBridge
-  // for consistency and reusability across CLI / TUI / WebUI etc.
-  evOn('tool.progress', (e) => {
-    appendSessionEvent(e.sessionId, {
-      type: 'tool_progress',
-      ts: new Date().toISOString(),
-      name: e.name,
-      id: e.id,
-      event: { type: e.event.type, text: e.event.text, data: e.event.data },
-    });
-  });
-
-  // Provider visibility — very valuable for debugging retry storms and provider failures.
-  evOn('provider.retry', (e) => {
-    appendSessionEvent(e.sessionId, {
-      type: 'provider_retry',
-      ts: new Date().toISOString(),
-      providerId: e.providerId,
-      attempt: e.attempt,
-      delayMs: e.delayMs,
-      status: e.status,
-      description: e.description,
-    });
-  });
-
-  evOn('provider.error', (e) => {
-    appendSessionEvent(e.sessionId, {
-      type: 'provider_error',
-      ts: new Date().toISOString(),
-      providerId: e.providerId,
-      status: e.status,
-      description: e.description,
-      retryable: e.retryable,
-    });
-  });
 
   // Live view of the active model's reasoning capabilities. Refreshed whenever
   // the provider/model changes so the model-runtime middleware can gate

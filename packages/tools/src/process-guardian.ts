@@ -24,6 +24,15 @@ export interface ProcessGuardianConfig {
   maxResurrectionAttempts?: number;
   /** Custom protection patterns */
   protectedPatterns?: string[];
+  /**
+   * How many SIGTERM signals to tolerate before exiting.
+   * The first N-1 are ignored to protect against accidental `kill` from the
+   * AI agent; the Nth triggers graceful shutdown via `stop()` + `process.exit(0)`.
+   * Default 3 — balances AI guardrail vs container orchestration (Docker,
+   * systemd repeat SIGTERM up to StopTimeout ~10s, then SIGKILL).
+   * Set to 0 to always exit on the first SIGTERM, or Infinity to never exit.
+   */
+  sigtermThreshold?: number;
 }
 
 interface ProtectedProcess {
@@ -43,6 +52,7 @@ export class ProcessGuardian {
   private heartbeatTimer: ReturnType<typeof setInterval> | null = null;
   private isRunning = false;
   private instanceId: string;
+  private sigtermCount = 0;
 
   constructor(config: ProcessGuardianConfig = {}) {
     this.registry = getPersistentProcessRegistry();
@@ -51,6 +61,7 @@ export class ProcessGuardian {
       autoResurrect: config.autoResurrect ?? false, // Disabled by default
       maxResurrectionAttempts: config.maxResurrectionAttempts ?? 3,
       protectedPatterns: config.protectedPatterns ?? ['node', 'wrongstack'],
+      sigtermThreshold: config.sigtermThreshold ?? 3,
     };
     this.instanceId = this.registry.getInstanceId();
   }
@@ -239,17 +250,49 @@ export class ProcessGuardian {
       process.exit(1);
     });
 
-    // Prevent accidental termination via SIGTERM
-    process.on('SIGTERM', (origin) => {
-      // Don't exit - log and ignore
+    // Guardrail against accidental termination via SIGTERM:
+    //   - The first N-1 signals protect against a rogue `kill` command from
+    //     the AI (accidental single-shot SIGTERM is silently absorbed).
+    //   - The Nth signal triggers graceful shutdown so container orchestration
+    //     (Docker, systemd) eventually succeeds before the SIGKILL fallback.
+    //   - When sigtermThreshold is 0 the process exits immediately.
+    process.on('SIGTERM', () => {
+      this.sigtermCount++;
+      const threshold = this.config.sigtermThreshold;
+      if (threshold === Infinity) {
+        console.log(JSON.stringify({
+          level: 'warn',
+          event: 'process_guardian.sigterm_ignored',
+          pid: process.pid,
+          instanceId: this.instanceId,
+          sigtermCount: this.sigtermCount,
+          message: 'SIGTERM received but sigtermThreshold is Infinity — ignoring (use graceful shutdown instead)',
+        }));
+        return;
+      }
+      if (this.sigtermCount < threshold) {
+        console.log(JSON.stringify({
+          level: 'warn',
+          event: 'process_guardian.sigterm_deferred',
+          pid: process.pid,
+          instanceId: this.instanceId,
+          sigtermCount: this.sigtermCount,
+          threshold,
+          message: `SIGTERM received (${this.sigtermCount}/${threshold}) — ignoring until threshold is reached`,
+        }));
+        return;
+      }
       console.log(JSON.stringify({
         level: 'warn',
-        event: 'process_guardian.sigterm_received',
-        origin,
+        event: 'process_guardian.sigterm_exiting',
         pid: process.pid,
         instanceId: this.instanceId,
-        message: 'SIGTERM received but ignored - use graceful shutdown instead',
+        sigtermCount: this.sigtermCount,
+        threshold,
+        message: `SIGTERM threshold (${threshold}) reached — shutting down gracefully`,
       }));
+      this.stop();
+      process.exit(0);
     });
 
     // Handle SIGHUP (hangup) - commonly sent by terminal close

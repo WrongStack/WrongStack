@@ -1023,7 +1023,7 @@ async function boot(){
     dagre = dmod && dmod.default && dmod.default.graphlib ? dmod.default : dmod;
     if(!React || !createRoot || !RF){ throw new Error('cdn-incomplete'); }
   } catch(e){
-    try { console.error(e); } catch(_e){}
+    console.error(e);
     renderFallback();
     connectWs();
     primeSnapshot();
