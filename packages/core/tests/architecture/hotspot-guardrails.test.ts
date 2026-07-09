@@ -71,6 +71,9 @@ const TEMPORARY_SLASH_COMMAND_IMPORT_ALLOWLIST = new Set<string>([
   'packages/cli/src/boot/tui-project-picker-callback.ts',
   'packages/cli/src/boot/tui-sdd-callback.ts',
   'packages/cli/src/next-task-predictor.ts',
+  // Extracted from cli-main.ts (Phase D, PR #241) — carries the same slash-command
+  // imports as cli-main.ts itself (which is already on the allowlist above).
+  'packages/cli/src/wiring/director-setup.ts',
 ]);
 
 /**
