@@ -1486,6 +1486,13 @@ export async function main(argv: string[]): Promise<number> {
         allServerPresets: allServers(),
       });
     },
+    mcpStatus: () =>
+      mcpRegistry.describe().map((s) => ({
+        name: s.name,
+        state: s.state,
+        enabled: s.enabled,
+        toolCount: s.toolCount,
+      })),
     onYolo: setYoloMode,
     onNextPredict: (setTo?: boolean) => {
       if (setTo !== undefined) {

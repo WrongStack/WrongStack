@@ -352,6 +352,14 @@ export interface SlashCommandContext {
   /** Manage MCP servers: add, remove, enable, disable, restart. */
   onMcp?: ((args: string) => Promise<string>) | undefined;
   /**
+   * Structured MCP server status for diagnostics (e.g. /tuneup). Backed by
+   * `mcpRegistry.describe()` — includes disabled + failed servers, unlike the
+   * rendered string `onMcp` returns. Undefined when no registry is wired.
+   */
+  mcpStatus?:
+    | (() => Array<{ name: string; state: string; enabled: boolean; toolCount: number }>)
+    | undefined;
+  /**
    * Fix a reported error or bug. Pass the error message or problem description.
    * Returns a structured diagnosis + fix plan, and sets up the next agent turn
    * with the appropriate skill (bug-hunter, typescript-strict, security-scanner).
@@ -575,6 +583,7 @@ import { buildTasksCommand } from './tasks.js';
 import { buildTechStackCommand } from './techstack.js';
 import { buildTelegramSettingsCommand } from './telegram-settings.js';
 import { buildTelegramSetupCommand } from './telegram-setup.js';
+import { buildTuneupCommand } from './tuneup.js';
 import { buildTodosCommand } from './todos.js';
 import { buildToolCommand } from './tool.js';
 import { buildToolsCommand } from './tools.js';
@@ -596,6 +605,7 @@ export function buildBuiltinSlashCommands(opts: SlashCommandContext): SlashComma
     buildDelegateCommand(opts),
     buildDevCommand(opts),
     buildDoctorCommand(opts),
+    buildTuneupCommand(opts),
     buildCodebaseReindexCommand(opts),
     buildTechStackCommand(opts),
     buildToolCommand(opts),
