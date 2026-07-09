@@ -52,6 +52,7 @@ Options:
   --host <host>             Bind host/interface (default: 127.0.0.1)
   --port <port>             HTTP frontend port (default: 3456)
   --ws-port <port>          WebSocket backend port (default: 3457)
+  --dist-dir <dir>          Path to the built WebUI frontend assets (default: resolve @wrongstack/webui)
   --token <token>           Fixed access token/password (default: random per process)
   --public-url <url>        Browser-facing HTTP URL for tunnels/proxies
   --public-ws-url <url>     Browser-facing ws:// or wss:// URL for tunnels/proxies
@@ -89,6 +90,7 @@ if (argv.includes('--help') || argv.includes('-h')) {
   let accessToken: string | undefined;
   let publicUrl: string | undefined;
   let publicWsUrl: string | undefined;
+  let distDir: string | undefined;
   try {
     wsHost =
       readArg(['--host']) ??
@@ -107,6 +109,7 @@ if (argv.includes('--help') || argv.includes('-h')) {
       process.env['WEBUI_AUTH_TOKEN'];
     publicUrl = readArg(['--public-url']) ?? process.env['WEBUI_PUBLIC_URL'];
     publicWsUrl = readArg(['--public-ws-url']) ?? process.env['WEBUI_PUBLIC_WS_URL'];
+    distDir = readArg(['--dist-dir']) ?? process.env['WEBUI_DIST_DIR'];
   } catch (err) {
     console.error(err instanceof Error ? err.message : String(err));
     process.exit(1);
@@ -126,6 +129,7 @@ if (argv.includes('--help') || argv.includes('-h')) {
     publicWsUrl,
     requireToken,
     open,
+    distDir,
   }).catch((err) => {
     console.error(JSON.stringify({
       level: 'fatal',

@@ -2,6 +2,7 @@ import { type ChildProcess, spawn } from 'node:child_process';
 import { randomBytes } from 'node:crypto';
 import { EventEmitter } from 'node:events';
 import * as fs from 'node:fs/promises';
+import { existsSync } from 'node:fs';
 import * as http from 'node:http';
 import { createRequire } from 'node:module';
 import * as net from 'node:net';
@@ -246,6 +247,7 @@ export class DesktopRuntimeManager extends EventEmitter {
 
     try {
       const entry = resolveWebUiEntry();
+      const distDir = resolveWebUiDistDir();
       const child = spawn(
         process.execPath,
         [
@@ -256,6 +258,8 @@ export class DesktopRuntimeManager extends EventEmitter {
           String(httpPort),
           '--ws-port',
           String(wsPort),
+          '--dist-dir',
+          distDir,
           '--token',
           token,
           '--require-token',
@@ -286,14 +290,22 @@ export class DesktopRuntimeManager extends EventEmitter {
         this.scheduleLogChanged(runtime);
         process.stderr.write(`[desktop:${runtime.id}] ${text}`);
       });
+      child.once('error', (err) => {
+        runtime.status = 'error';
+        runtime.error = toErrorMessage(err);
+        runtime.child = null;
+        if (this.activeRuntimeId === runtime.id) {
+          this.activeRuntimeId = firstRunningRuntimeId(this.runtimes);
+        }
+        this.emitChanged();
+      });
       child.once('exit', (code, signal) => {
-        runtime.status = runtime.status === 'error' ? 'error' : 'stopped';
+        if (runtime.status === 'error') return;
+        runtime.status = 'stopped';
         runtime.error =
-          runtime.status === 'error'
-            ? runtime.error
-            : code === 0
-              ? undefined
-              : `Exited with ${signal ?? `code ${code ?? 'unknown'}`}`;
+          code === 0
+            ? undefined
+            : `Exited with ${signal ?? `code ${code ?? 'unknown'}`}`;
         runtime.child = null;
         if (this.activeRuntimeId === runtime.id) {
           this.activeRuntimeId = firstRunningRuntimeId(this.runtimes);
@@ -302,15 +314,26 @@ export class DesktopRuntimeManager extends EventEmitter {
       });
 
       await waitForHttpReady(runtime.url, token, START_TIMEOUT_MS);
+      if (runtime.status !== 'starting') {
+        // The child exited or hit a spawn error while we were waiting.
+        throw new Error(runtime.error ?? 'WebUI process exited during startup');
+      }
       runtime.status = 'running';
       await this.persistWorkspaceState();
       this.emitChanged();
       return publicRuntime(runtime);
     } catch (err) {
-      runtime.status = 'error';
-      runtime.error = toErrorMessage(err);
+      if (runtime.status !== 'stopped' && runtime.status !== 'error') {
+        runtime.status = 'error';
+      }
+      if (runtime.error === undefined) {
+        runtime.error = toErrorMessage(err);
+      }
       await terminateProcessTree(runtime.child);
       runtime.child = null;
+      if (this.activeRuntimeId === runtime.id) {
+        this.activeRuntimeId = firstRunningRuntimeId(this.runtimes);
+      }
       this.emitChanged();
       throw err;
     }
@@ -742,14 +765,31 @@ function resolveWebUiEntry(): string {
   }
   const require = createRequire(import.meta.url);
   // After PR #018b, the server entry lives in @wrongstack/webui-server.
-  // Try the new package first; fall back to the legacy path for older builds.
+  // Try the new package first; fall back to the legacy path for older builds
+  // or when the new package is not yet built.
   try {
     const serverPkgPath = require.resolve('@wrongstack/webui-server/package.json');
-    return path.join(path.dirname(serverPkgPath), 'dist', 'server', 'entry.js');
+    const candidate = path.join(path.dirname(serverPkgPath), 'dist', 'server', 'entry.js');
+    if (existsSync(candidate)) return candidate;
   } catch {
-    const serverIndex = require.resolve('@wrongstack/webui/server');
-    return path.join(path.dirname(serverIndex), 'entry.js');
+    // fall through to legacy path
   }
+  const serverIndex = require.resolve('@wrongstack/webui/server');
+  return path.join(path.dirname(serverIndex), 'entry.js');
+}
+
+function resolveWebUiDistDir(): string {
+  if (process.env['WRONGSTACK_WEBUI_DIST']) {
+    return path.resolve(process.env['WRONGSTACK_WEBUI_DIST']);
+  }
+  const require = createRequire(import.meta.url);
+  // The built React frontend assets live in @wrongstack/webui/dist.
+  const serverIndex = require.resolve('@wrongstack/webui/server');
+  const candidate = path.resolve(path.dirname(serverIndex), '..');
+  if (existsSync(candidate)) return candidate;
+  throw new Error(
+    `WebUI frontend assets not found at ${candidate}. Build @wrongstack/webui or set WRONGSTACK_WEBUI_DIST.`,
+  );
 }
 
 async function readGlobalProjectManifest(): Promise<DesktopProjectEntry[]> {

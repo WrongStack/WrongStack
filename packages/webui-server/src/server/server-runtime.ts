@@ -11,6 +11,8 @@
  * behind four focused entry points.
  */
 import * as path from 'node:path';
+import { createRequire } from 'node:module';
+import { fileURLToPath } from 'node:url';
 import type { Config, ModelsRegistry } from '@wrongstack/core';
 import { WebSocketServer, type WebSocket } from 'ws';
 import { verifyClient as verifyWsClient } from './ws-auth.js';
@@ -281,6 +283,32 @@ export function armEvents(
 
 // ── HTTP server + shutdown ──────────────────────────────────────────────
 
+/**
+ * Resolve the directory containing the built WebUI frontend assets.
+ *
+ * The standalone webui-server package does not bundle the React frontend;
+ * it lives in the separate `@wrongstack/webui` package. Callers can pass an
+ * explicit `distDir`; when they don't, we try to resolve the frontend package
+ * relative to the server entry that is asking. This lets the standalone
+ * `wstackui` binary serve the webui assets when both packages are installed,
+ * while also allowing embedded callers (e.g. the desktop app) to pass an exact
+ * path so they don't depend on module-resolution layout.
+ */
+export function resolveWebuiDistDir(fromUrl: string, explicitDistDir?: string | undefined): string {
+  if (explicitDistDir) return path.resolve(explicitDistDir);
+  try {
+    const requireFromHere = createRequire(fromUrl);
+    const serverEntry = requireFromHere.resolve('@wrongstack/webui/server');
+    return path.resolve(path.dirname(serverEntry), '..'); // .../dist
+  } catch {
+    // Legacy fallback: assume the webui dist is co-located with the server
+    // runtime (the pre-extraction layout). This path is wrong for the
+    // extracted @wrongstack/webui-server package, but keeping it preserves
+    // any bespoke/test setups that still lay out files that way.
+    return path.resolve(path.dirname(fileURLToPath(fromUrl)), '..', '..', 'dist');
+  }
+}
+
 export function startHttpServer(opts: {
   wsHost: string;
   httpPort: number;
@@ -295,10 +323,11 @@ export function startHttpServer(opts: {
   openBrowser: boolean;
   watcherMetrics: FileWatcherMetrics;
   onFleetPing: () => void;
+  distDir?: string | undefined;
 }): import('node:http').Server {
   const httpServer = createHttpServer({
     host: opts.wsHost,
-    distDir: path.resolve(import.meta.dirname, '../../dist'),
+    distDir: resolveWebuiDistDir(import.meta.url, opts.distDir),
     wsPort: opts.wsPort,
     publicWsUrl: opts.publicWsUrl,
     globalRoot: opts.globalRoot,

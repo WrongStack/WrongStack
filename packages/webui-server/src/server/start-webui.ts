@@ -576,6 +576,7 @@ export async function startWebUI(
     globalRoot: wpaths.globalRoot, globalConfigPath, projectRoot,
     openBrowser: !!opts.open, watcherMetrics: watcherMetricsRef,
     onFleetPing: () => { void eventArming.getFleetBroadcast()?.(); },
+    distDir: opts.distDir,
   });
 
   registerShutdown({
