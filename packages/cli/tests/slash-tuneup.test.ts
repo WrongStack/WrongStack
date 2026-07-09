@@ -6,13 +6,18 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { SlashCommandContext } from '../src/slash-commands/index.js';
 import { buildTuneupCommand } from '../src/slash-commands/tuneup.js';
 import {
+  buildDeepPrompt,
   checkAutonomy,
+  checkConfigDoctor,
   checkHooks,
   checkMcp,
   checkMemoryDedup,
   checkMemorySize,
+  checkPerformance,
   checkPermissions,
   checkPlugins,
+  checkPowerProfile,
+  checkReliability,
   checkSkills,
   isReadOnlyCommand,
   runTuneup,
@@ -58,7 +63,8 @@ describe('checkAutonomy', () => {
       baseInput({ config: { autonomy: { defaultMode: 'off' } } as TuneupInput['config'] }),
     );
     expect(finding.severity).toBe('info');
-    expect(finding.action).toEqual({ kind: 'set-autonomy-auto' });
+    // Power-gated: a plain tune-up recommends but does not write autonomy.
+    expect(finding.action).toBeUndefined();
   });
 
   it('reports ok when auto is already the default', () => {
@@ -219,6 +225,96 @@ describe('checkPermissions', () => {
   });
 });
 
+describe('checkPerformance', () => {
+  it('flags disabled auto-fallback with a fix action', () => {
+    const findings = checkPerformance(
+      baseInput({
+        config: { fallbackAuto: false, fallbackModels: [] } as TuneupInput['config'],
+      }),
+    );
+    const fb = findings.find((f) => f.problem.includes('Automatic fallback is off'));
+    expect(fb?.action).toMatchObject({ kind: 'set-config', path: ['fallbackAuto'], value: true });
+  });
+
+  it('always offers an adaptive-concurrency enable action when off', () => {
+    const findings = checkPerformance(baseInput());
+    expect(
+      findings.some(
+        (f) =>
+          f.action?.kind === 'set-config' &&
+          f.action.path.join('.') === 'adaptiveConcurrency.enabled',
+      ),
+    ).toBe(true);
+  });
+
+  it('flags oversubscribed maxConcurrent against CPU count', () => {
+    const findings = checkPerformance(
+      baseInput({ config: { maxConcurrent: 40 } as TuneupInput['config'], env: { cpuCount: 8 } }),
+    );
+    expect(findings.some((f) => f.problem.includes('oversubscribed'))).toBe(true);
+  });
+});
+
+describe('checkReliability', () => {
+  it('flags minimal audit level, unhardened vault, and large session logs', () => {
+    const findings = checkReliability(
+      baseInput({
+        config: { session: { auditLevel: 'minimal' } } as TuneupInput['config'],
+        env: { vaultHardened: false, sessionBytes: 200 * 1024 * 1024 },
+      }),
+    );
+    expect(findings.some((f) => f.problem.includes('audit level'))).toBe(true);
+    expect(findings.some((f) => f.problem.includes('vault'))).toBe(true);
+    expect(findings.some((f) => f.problem.includes('Session logs'))).toBe(true);
+  });
+});
+
+describe('checkPowerProfile', () => {
+  it('emits yolo + director actions only under power', () => {
+    expect(checkPowerProfile(baseInput())).toEqual([]);
+    const findings = checkPowerProfile(baseInput({ power: true }));
+    expect(
+      findings.some((f) => f.action?.kind === 'set-config' && f.problem.includes('YOLO')),
+    ).toBe(true);
+    expect(findings.some((f) => f.problem.includes('Director'))).toBe(true);
+  });
+});
+
+describe('checkAutonomy power-gating', () => {
+  it('has no action without power, and an action with power', () => {
+    const off = checkAutonomy(
+      baseInput({ config: { autonomy: { defaultMode: 'off' } } as TuneupInput['config'] }),
+    );
+    expect(off[0].action).toBeUndefined();
+    const on = checkAutonomy(
+      baseInput({
+        config: { autonomy: { defaultMode: 'off' } } as TuneupInput['config'],
+        power: true,
+      }),
+    );
+    expect(on[0].action).toMatchObject({ kind: 'set-config', path: ['autonomy', 'defaultMode'] });
+  });
+});
+
+describe('checkConfigDoctor', () => {
+  it('surfaces a doctor pointer when config issues exist', () => {
+    expect(checkConfigDoctor(baseInput({ configIssues: 0 }))).toEqual([]);
+    const [finding] = checkConfigDoctor(baseInput({ configIssues: 3 }));
+    expect(finding.suggestion).toContain('/doctor fix');
+  });
+});
+
+describe('buildDeepPrompt', () => {
+  it('embeds non-ok findings and asks for a plan', () => {
+    const report = runTuneup(
+      baseInput({ config: { fallbackAuto: false, fallbackModels: [] } as TuneupInput['config'] }),
+    );
+    const prompt = buildDeepPrompt(report);
+    expect(prompt).toContain('optimization');
+    expect(prompt).toContain('[performance]');
+  });
+});
+
 describe('runTuneup', () => {
   it('composes findings and an agent hand-off from fuzzy items', () => {
     const report = runTuneup(
@@ -290,17 +386,43 @@ describe('/tuneup slash command', () => {
     expect(readFileSync(globalConfig, 'utf8')).toBe(before); // untouched
   });
 
-  it('fix mode enables auto mode, backs up, and updates the store', async () => {
+  it('plain fix applies safe knobs and never touches autonomy', async () => {
     const { ctx, globalConfig, update } = makeCtx({ autonomy: { defaultMode: 'off' } });
     const res = await buildTuneupCommand(ctx).run!('fix');
-    expect(stripAnsi(res!.message!)).toContain('auto mode is now the startup default');
+    const written = JSON.parse(readFileSync(globalConfig, 'utf8'));
+    // A safe performance knob is written…
+    expect(written.adaptiveConcurrency.enabled).toBe(true);
+    // …but a plain tune-up must NOT flip autonomy (power-gated).
+    expect(written.autonomy.defaultMode).toBe('off');
+    expect(existsSync(`${globalConfig}.last`)).toBe(true);
+    expect(update).toHaveBeenCalled();
+    expect(stripAnsi(res!.message!)).toContain('adaptive concurrency enabled');
+  });
 
+  it('fix --power enables autonomy, yolo, and director (live-applied)', async () => {
+    const { ctx, globalConfig } = makeCtx({ autonomy: { defaultMode: 'off' } });
+    const onYolo = vi.fn();
+    const onAutonomy = vi.fn();
+    (ctx as { onYolo: unknown }).onYolo = onYolo;
+    (ctx as { onAutonomy: unknown }).onAutonomy = onAutonomy;
+
+    const res = await buildTuneupCommand(ctx).run!('fix --power');
     const written = JSON.parse(readFileSync(globalConfig, 'utf8'));
     expect(written.autonomy.defaultMode).toBe('auto');
-    expect(existsSync(`${globalConfig}.last`)).toBe(true);
-    expect(update).toHaveBeenCalledWith(
-      expect.objectContaining({ autonomy: expect.objectContaining({ defaultMode: 'auto' }) }),
-    );
+    expect(written.yolo).toBe(true);
+    expect(written.launch.director).toBe(true);
+    // Live-applied through the runtime controllers.
+    expect(onYolo).toHaveBeenCalledWith(true);
+    expect(onAutonomy).toHaveBeenCalledWith('auto');
+    expect(stripAnsi(res!.message!)).toContain('YOLO mode enabled');
+  });
+
+  it('deep mode hands a tailored-plan prompt to the agent', async () => {
+    const { ctx, globalConfig } = makeCtx({ autonomy: { defaultMode: 'off' } });
+    const before = readFileSync(globalConfig, 'utf8');
+    const res = await buildTuneupCommand(ctx).run!('deep');
+    expect(res!.runText).toContain('optimization');
+    expect(readFileSync(globalConfig, 'utf8')).toBe(before); // deep never writes
   });
 
   it('fix mode hands fuzzy instruction-file items to the agent via runText', async () => {

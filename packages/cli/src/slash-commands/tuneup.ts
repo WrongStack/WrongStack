@@ -89,9 +89,7 @@ export function buildTuneupCommand(opts: SlashCommandContext): SlashCommand {
       }
 
       // Fix mode: collect actions (optionally confirm each), apply, hand off fuzzy items.
-      let actions = report.findings
-        .map((f) => f.action)
-        .filter((a): a is TuneupAction => !!a);
+      let actions = report.findings.map((f) => f.action).filter((a): a is TuneupAction => !!a);
 
       if (parsed.pick && opts.confirm) {
         const chosen: TuneupAction[] = [];
@@ -492,7 +490,9 @@ function summaryLine(
   handoffs: number,
   power: boolean,
 ): string {
-  const warnings = findings.filter((f) => f.severity === 'warning' || f.severity === 'error').length;
+  const warnings = findings.filter(
+    (f) => f.severity === 'warning' || f.severity === 'error',
+  ).length;
   if (warnings === 0 && fixable === 0 && handoffs === 0) {
     return `${color.green('✓')} everything looks healthy`;
   }

@@ -634,7 +634,8 @@ export function checkReliability(input: TuneupInput): TuneupFinding[] {
     findings.push({
       category: 'reliability',
       severity: 'info',
-      problem: 'Session audit level is "minimal" — tool timing, retries, and errors are not logged.',
+      problem:
+        'Session audit level is "minimal" — tool timing, retries, and errors are not logged.',
       suggestion: 'Use "standard" (the default) if you want richer post-hoc diagnostics.',
     });
   }
