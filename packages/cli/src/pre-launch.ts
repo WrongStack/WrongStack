@@ -324,7 +324,7 @@ export async function runLaunchPrompts(opts: {
   }
 
   let yolo: boolean;
-  if (yoloPinned !== undefined) {
+  if (yoloPinned !== undefined && yoloPinned === lastChoices?.yolo) {
     yolo = yoloPinned;
   } else {
     const answer = (
@@ -342,7 +342,7 @@ export async function runLaunchPrompts(opts: {
   }
 
   let director: boolean;
-  if (directorPinned !== undefined) {
+  if (directorPinned !== undefined && directorPinned === lastChoices?.director) {
     director = directorPinned;
   } else {
     const answer = (
@@ -360,7 +360,7 @@ export async function runLaunchPrompts(opts: {
   }
 
   let autonomy: 'off' | 'auto';
-  if (autonomyPinned !== undefined) {
+  if (autonomyPinned !== undefined && autonomyPinned === lastChoices?.autonomy) {
     autonomy = autonomyPinned;
   } else {
     const answer = (
