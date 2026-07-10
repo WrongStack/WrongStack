@@ -45,9 +45,11 @@
  * Public surface: `runWebUI` plus the `WSServerMessage` / `WSClientMessage`
  * message shapes. Everything else is internal to the run.
  */
+import { existsSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import * as os from 'node:os';
 import * as path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import type {
   Agent,
   BrainArbiter,
@@ -376,26 +378,74 @@ export async function runWebUI(opts: CliWebUIOptions): Promise<void> {
   // is an optional dependency of @wrongstack/webui (where the prebuilds
   // live), so under pnpm it is NOT resolvable from the handler's own module
   // — resolve it through the webui package instead and hand the loader in.
+  //
+  // Three resolution strategies, in order:
+  //   1. `@wrongstack/webui/package.json` via createRequire — this gives a
+  //      filesystem path to webui's package dir, then we walk into its
+  //      `node_modules/node-pty` symlink. Avoids `ERR_PACKAGE_PATH_NOT_EXPORTED`
+  //      (Node 16+ refuses `./package.json` subpath unless the package's
+  //      `exports` field lists it).
+  //   2. Direct `require('node-pty')` from the CLI's own resolution root
+  //      (works when node-pty is hoisted or symlinked into cli's deps).
+  //   3. Workspace-root `node_modules/node-pty` (the pnpm `.pnpm/node-pty@*`
+  //      store path resolved via the monorepo's workspace root).
   const requireFromCli = createRequire(import.meta.url);
   let cachedNodePty: unknown;
   const loadNodePtyViaWebui = () => {
     if (cachedNodePty !== undefined) return cachedNodePty as never;
+    // Strategy 1: resolve webui via its main export, then walk to package.json.
     try {
-      const webuiPkg = requireFromCli.resolve('@wrongstack/webui/package.json');
-      cachedNodePty = createRequire(webuiPkg)('node-pty');
-    } catch {
-      try {
-        cachedNodePty = requireFromCli('node-pty');
-      } catch {
-        cachedNodePty = null;
+      const webuiEntry = requireFromCli.resolve('@wrongstack/webui');
+      // webuiEntry is the dist path (e.g. dist/index.js). Walk up to package.json.
+      const webuiDir = webuiEntry.replace(/[\\/]dist.*$/, '');
+      const webuiPkgJson = path.join(webuiDir, 'package.json');
+      cachedNodePty = createRequire(webuiPkgJson)('node-pty');
+      if (cachedNodePty) {
+        consoleLogger.debug?.(`[terminal] node-pty loaded via webui package (${webuiDir})`);
+        return cachedNodePty as never;
       }
+    } catch (err) {
+      consoleLogger.debug?.(`[terminal] webui-route failed: ${(err as Error).message}`);
     }
+    // Strategy 2: direct require from CLI's own resolution root.
+    try {
+      cachedNodePty = requireFromCli('node-pty');
+      consoleLogger.debug?.('[terminal] node-pty loaded via direct requireFromCli');
+      return cachedNodePty as never;
+    } catch (err) {
+      consoleLogger.debug?.(`[terminal] direct require failed: ${(err as Error).message}`);
+    }
+    // Strategy 3: workspace root node_modules/node-pty.
+    try {
+      // @wrongstack/cli is the package we're currently inside; use
+      // import.meta.url to find our own package.json (avoids the same
+      // ERR_PACKAGE_PATH_NOT_EXPORTED issue the webui route had).
+      const cliPkgJson = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'package.json');
+      let dir = path.dirname(cliPkgJson);
+      for (let i = 0; i < 6; i++) {
+        const candidate = path.join(dir, 'node_modules', 'node-pty');
+        if (existsSync(candidate)) {
+          cachedNodePty = createRequire(candidate)('node-pty');
+          if (cachedNodePty) {
+            consoleLogger.debug?.(`[terminal] node-pty loaded via workspace root (${candidate})`);
+            return cachedNodePty as never;
+          }
+        }
+        const parent = path.dirname(dir);
+        if (parent === dir) break;
+        dir = parent;
+      }
+    } catch (err) {
+      consoleLogger.debug?.(`[terminal] workspace-root walk failed: ${(err as Error).message}`);
+    }
+    cachedNodePty = null;
+    consoleLogger.debug?.('[terminal] node-pty resolution failed; terminal panel will report "unavailable"');
     return cachedNodePty as never;
   };
   const terminalHandler = new TerminalWebSocketHandler(
     () => (opts.agent.ctx as Context).cwd ?? opts.projectRoot ?? process.cwd(),
     consoleLogger,
-    loadNodePtyViaWebui,
+    loadNodePtyViaWebui as ConstructorParameters<typeof TerminalWebSocketHandler>[2],
   );
 
   // Specs handler — FORGE-style dependency board over the shared per-project
