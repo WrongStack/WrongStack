@@ -70,8 +70,8 @@ export function ModePicker() {
         <ChevronDown className="h-3 w-3 opacity-60" />
       </button>
       {open && (
-        <div className="absolute top-full left-0 mt-1 w-64 rounded-md border bg-popover shadow-lg z-30 py-1">
-          <div className="px-3 py-1.5 text-[10px] uppercase tracking-wider text-muted-foreground border-b">
+        <div className="absolute top-full left-0 z-30 mt-1 max-h-[min(24rem,calc(100vh-6rem))] w-64 overflow-y-auto rounded-md border bg-popover py-1 shadow-lg">
+          <div className="sticky top-0 z-10 border-b bg-popover px-3 py-1.5 text-[10px] uppercase tracking-wider text-muted-foreground">
             {t('activity:mode.heading')}
           </div>
           {items.map((m) => (
