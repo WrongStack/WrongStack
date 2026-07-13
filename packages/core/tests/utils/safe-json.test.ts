@@ -21,6 +21,16 @@ describe('safe-json', () => {
     const r = safeParse('x'.repeat(100), 10);
     expect(r.ok).toBe(false);
   });
+  it('safeParse maxBytes uses byte length, not char length', () => {
+    // '€' is 3 bytes in UTF-8, so 4 of them = 12 bytes > 10-byte limit
+    const r = safeParse('€€€€', 10);
+    expect(r.ok).toBe(false);
+  });
+  it('safeParse allows input when byte length is within limit', () => {
+    // 4 chars * 1 byte each = 4 bytes < 10-byte limit
+    const r = safeParse('"abc"', 10);
+    expect(r.ok).toBe(true);
+  });
   it('safeStringify handles circular refs', () => {
     const obj: Record<string, unknown> = { a: 1 };
     obj.self = obj;
@@ -34,6 +44,11 @@ describe('safe-json', () => {
   it('safeStringify handles Error', () => {
     const out = safeStringify({ err: new Error('boom') });
     expect(out).toContain('boom');
+  });
+  it('safeStringify survives non-extensible objects', () => {
+    const obj = Object.preventExtensions({ a: 1 });
+    const out = safeStringify(obj);
+    expect(JSON.parse(out)).toEqual({ a: 1 });
   });
   it('sanitizeJsonString strips trailing commas', () => {
     expect(sanitizeJsonString('{"a":1,}')).toBe('{"a":1}');
@@ -59,6 +74,47 @@ describe('safe-json', () => {
     const raw = '{"code":"line1\\nline2"}';
     expect(JSON.parse(sanitizeJsonString(raw)!)).toEqual({ code: 'line1\nline2' });
   });
+  it('sanitizeJsonString strips single-line JSON5 comments', () => {
+    const raw = `{
+  // this is a comment
+  "a": 1,
+  "b": 2 // trailing comment
+}`;
+    const fixed = sanitizeJsonString(raw);
+    expect(fixed).not.toBe(null);
+    expect(JSON.parse(fixed!)).toEqual({ a: 1, b: 2 });
+  });
+
+  it('sanitizeJsonString strips block comments outside strings', () => {
+    const raw = `{
+  /* multi-line
+     block comment */
+  "a": 1,
+  /* another one */ "b": 2
+}`;
+    const fixed = sanitizeJsonString(raw);
+    expect(fixed).not.toBe(null);
+    expect(JSON.parse(fixed!)).toEqual({ a: 1, b: 2 });
+  });
+
+  it('sanitizeJsonString does not strip // or /* inside string values', () => {
+    const raw = '{"url":"https://example.com","code":"/* not a comment */"}';
+    const fixed = sanitizeJsonString(raw);
+    expect(fixed).not.toBe(null);
+    expect(JSON.parse(fixed!)).toEqual({
+      url: 'https://example.com',
+      code: '/* not a comment */',
+    });
+  });
+
+  it('sanitizeJsonString handles unterminated block comment gracefully', () => {
+    // Unterminated /* ... consumes rest — over-stripping is safer than leaking
+    const raw = '{"a":1,/* unterminated\n"b":2}';
+    const fixed = sanitizeJsonString(raw);
+    // With /* consumed to end, "b":2 never appears → can't be valid JSON
+    expect(fixed).toBe(null);
+  });
+
   it('sanitizeJsonString does not touch insignificant whitespace outside strings', () => {
     const raw = '{\n  "a": 1,\n  "b": 2\n}';
     expect(JSON.parse(sanitizeJsonString(raw)!)).toEqual({ a: 1, b: 2 });

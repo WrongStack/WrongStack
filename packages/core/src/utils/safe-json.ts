@@ -7,7 +7,7 @@ export interface SafeParseResult<T> {
 }
 
 export function safeParse<T = unknown>(input: string, maxBytes = 5_000_000): SafeParseResult<T> {
-  if (input.length > maxBytes) {
+  if (Buffer.byteLength(input, 'utf8') > maxBytes) {
     return { ok: false, error: `Input exceeds limit (${maxBytes} bytes)` };
   }
   try {
@@ -29,7 +29,9 @@ export function safeStringify(value: unknown, pretty = false): string {
     }
     if (typeof v === 'object' && v !== null) {
       if (seen.has(v as object)) return '[Circular]';
-      seen.add(v as object);
+      // WeakSet.add can throw for non-extensible objects or proxies —
+      // skip cycle tracking for that value rather than failing entirely.
+      try { seen.add(v as object); } catch { /* skip cycle guard */ }
     }
     return v;
   };
@@ -48,9 +50,10 @@ export function safeStringify(value: unknown, pretty = false): string {
  * that are common in provider output.
  *
  * Returns the sanitized string if it parses successfully as JSON,
- * or `null` if the input cannot be made valid. Callers use this to
- * decide whether to proceed with the parsed result or fall back to
- * raw handling.
+ * or `null` if the input cannot be made valid. Callers that get
+ * `null` should try `repairJson()` (from json-repair.ts) as a
+ * second pass — sanitisation handles comments/commas/control-chars,
+ * repair handles structure. If both fail, fall back to raw handling.
  */
 export function sanitizeJsonString(s: string): string | null {
   let out = s.trim();
@@ -60,6 +63,12 @@ export function sanitizeJsonString(s: string): string | null {
   // are preserved because we only strip // when preceded by a char that
   // strongly suggests we're not in a string (quote count modulo 2 is even).
   out = stripSingleLineComments(out);
+
+  // Stage 1b: strip block comments (/* ... */) that appear outside of
+  // string values. LLMs increasingly emit JSON5, and block comments are
+  // the second most common non-standard extension after trailing commas.
+  // Uses the same inString heuristic as single-line comments.
+  out = stripBlockComments(out);
 
   // Stage 2: strip trailing commas before } or ]
   out = out.replace(/,(\s*[}\]])/g, '$1');
@@ -162,6 +171,36 @@ function stripSingleLineComments(s: string): string {
     } else if (c === '/' && s.charAt(i + 1) === '/' && !inString) {
       // skip to end of line
       while (i < s.length && s.charAt(i) !== '\n') i++;
+    } else {
+      chars.push(c);
+    }
+    i++;
+  }
+  return chars.join('');
+}
+
+function stripBlockComments(s: string): string {
+  let inString = false;
+  const chars: string[] = [];
+  let i = 0;
+  while (i < s.length) {
+    const c = s.charAt(i);
+    if (c === '"' && (i === 0 || s.charAt(i - 1) !== '\\')) {
+      inString = !inString;
+      chars.push(c);
+    } else if (c === '/' && s.charAt(i + 1) === '*' && !inString) {
+      // skip to after the closing */
+      i += 2; // skip /*
+      while (i < s.length - 1) {
+        if (s.charAt(i) === '*' && s.charAt(i + 1) === '/') {
+          i += 2; // skip */
+          break;
+        }
+        i++;
+      }
+      // If we hit end-of-string without closing */, the comment is
+      // unterminated — consume everything (safer to over-strip than
+      // leak comment text into parsed output).
     } else {
       chars.push(c);
     }

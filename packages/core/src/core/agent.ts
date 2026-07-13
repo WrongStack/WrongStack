@@ -234,14 +234,7 @@ export class Agent {
       span?.setAttribute('agent.status', result.status);
       span?.setAttribute('agent.iterations', result.iterations);
       await this.extensions.runAfterRun(this.ctx, result);
-      this.events.emit('agent.run.completed', {
-        sessionId,
-        ctx: this.ctx,
-        status: result.status,
-        iterations: result.iterations,
-        at: new Date().toISOString(),
-        durationMs: Date.now() - runStartedAt,
-      });
+      this._emitRunCompleted(result, sessionId, runStartedAt);
       return result;
     } catch (err) {
       const wse = err instanceof AgentError ? err : toWrongStackError(err);
@@ -262,6 +255,8 @@ export class Agent {
         error: wse,
         abortReason: signal.aborted ? signalAbortReason(signal) : undefined,
       };
+      // runAfterRun must fire before agent.run.error so extensions see the
+      // failed result before the error event is emitted to other listeners.
       await this.extensions.runAfterRun(this.ctx, result);
       if (result.status === 'failed') {
         this.events.emit('agent.run.error', {
@@ -272,20 +267,33 @@ export class Agent {
           durationMs: Date.now() - runStartedAt,
         });
       }
-      this.events.emit('agent.run.completed', {
-        sessionId,
-        ctx: this.ctx,
-        status: result.status,
-        iterations: result.iterations,
-        at: new Date().toISOString(),
-        durationMs: Date.now() - runStartedAt,
-      });
+      this._emitRunCompleted(result, sessionId, runStartedAt);
       return result;
     } finally {
       this._runInProgress = false;
       span?.end();
       await controller.dispose();
     }
+  }
+
+  /**
+   * Emit the terminal `agent.run.completed` event. Extracted to eliminate
+   * duplication between the try and catch blocks — adding a new field to
+   * the event payload only needs one edit.
+   */
+  private _emitRunCompleted(
+    result: RunResult,
+    sessionId: string,
+    runStartedAt: number,
+  ): void {
+    this.events.emit('agent.run.completed', {
+      sessionId,
+      ctx: this.ctx,
+      status: result.status,
+      iterations: result.iterations,
+      at: new Date().toISOString(),
+      durationMs: Date.now() - runStartedAt,
+    });
   }
 
   // ── Tool + response execution handled by AgentToolHandler / AgentResponseHandler ──

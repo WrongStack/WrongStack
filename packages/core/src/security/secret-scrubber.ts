@@ -188,6 +188,11 @@ function hasCredentialAnchors(text: string): boolean {
     // with a recognisable prefix (sk-, ghp_, etc.), so we anchor on common
     // key names. The `"` prefix avoids matching prose that happens to mention
     // these words — JSON serialisation always quotes string keys.
+    // NOTE: `high_entropy_env` (below) only captures alphanumeric + `_/+=-`
+    // value chars. This deliberately excludes `!@#$%^&*()` etc to keep the
+    // false-positive rate low — generated secrets containing those characters
+    // may not be redacted by this pattern. The other 16 patterns still catch
+    // them if they have recognisable prefixes (e.g. `sk-`, `Bearer `, etc.).
     text.includes('"apiKey"') ||
     text.includes('"api_key"') ||
     text.includes('"token"') ||
@@ -251,8 +256,9 @@ export class DefaultSecretScrubber implements SecretScrubber {
   }
 
   private scrubOne(text: string): string {
-    // Redundant guard: if we reached scrubOne via the chunked path, the
-    // chunk may have been small enough to anchor-skip independently.
+    // The caller (scrub) already ran hasCredentialAnchors on the full
+    // text. For the chunked path, the chunk may have been small enough
+    // to anchor-skip independently — the re-check here is cheap.
     if (!hasCredentialAnchors(text)) return text;
 
     // Pass 1: combined single-pass regex for all simple patterns. Each

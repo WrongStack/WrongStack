@@ -26,22 +26,21 @@ export class LruCache<K, V> {
   }
 
   get(key: K): V | undefined {
+    if (!this.store.has(key)) return undefined;
     const value = this.store.get(key);
-    if (value === undefined) return undefined;
     // Re-insert so this key becomes the most-recently-used (moves to end).
     this.store.delete(key);
-    this.store.set(key, value);
+    this.store.set(key, value as V);
     return value;
   }
 
   set(key: K, value: V): void {
     if (this.store.has(key)) this.store.delete(key);
     this.store.set(key, value);
-    // Evict the oldest (least-recently-used) entry while over capacity.
-    while (this.store.size > this.capacity) {
+    // Evict the oldest (least-recently-used) entry if over capacity.
+    if (this.store.size > this.capacity) {
       const oldest = this.store.keys().next();
-      if (oldest.done) break;
-      this.store.delete(oldest.value);
+      if (!oldest.done) this.store.delete(oldest.value);
     }
   }
 

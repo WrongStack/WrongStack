@@ -102,4 +102,28 @@ describe('LruCache — minimal LRU eviction (P3 #17)', () => {
     expect(cache.get(0)).toBeUndefined();
     expect(cache.get(100)).toBeUndefined();
   });
+
+  it('handles undefined as a stored value', () => {
+    // get() must distinguish "key not found" from "value is undefined"
+    const cache = new LruCache<string, number | undefined>(3);
+    cache.set('x', undefined);
+    expect(cache.has('x')).toBe(true);
+    expect(cache.get('x')).toBeUndefined();
+    // LRU semantics: reading 'x' promotes it, so 'a' (oldest) gets evicted
+    cache.set('a', 1);
+    cache.set('b', 2);
+    cache.get('x'); // promote x to MRU
+    cache.set('c', 3); // evicts the oldest (a), not x
+    expect(cache.has('a')).toBe(false);
+    expect(cache.has('x')).toBe(true);
+    expect(cache.has('b')).toBe(true);
+    expect(cache.has('c')).toBe(true);
+  });
+
+  it('returns undefined for missing keys even after storing undefined', () => {
+    const cache = new LruCache<string, number | undefined>(5);
+    cache.set('x', undefined);
+    expect(cache.get('missing')).toBeUndefined();
+    expect(cache.has('x')).toBe(true); // miss didn't disturb it
+  });
 });
