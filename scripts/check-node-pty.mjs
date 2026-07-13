@@ -31,8 +31,9 @@ const NODE = process.version;
 const MODULES_VERSION = process.versions.modules;
 
 // Pick a shell that always exists on each platform and exits quickly.
-// /bin/sh on POSIX, cmd.exe on Windows. Avoids /bin/bash which is
-// sometimes missing on stripped CI images.
+// /bin/sh on POSIX, cmd.exe on Windows. /bin/sh is POSIX-guaranteed
+// (even on Fedora 43 minimal/container images that lack /bin/bash).
+// This avoids test failures on headless CI images where /bin/bash is absent.
 const SHELL = PLATFORM === 'win32' ? process.env.COMSPEC || 'cmd.exe' : '/bin/sh';
 // A command that produces a single, distinctive line of output and
 // exits. /c on cmd.exe means "run this command then exit". On POSIX,

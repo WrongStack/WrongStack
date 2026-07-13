@@ -35,6 +35,7 @@
     "check:browser:smoke": "node scripts/check-browser-runtime.mjs --smoke",
     "install:browser": "node scripts/check-browser-runtime.mjs --install",
     "check:node-pty": "node scripts/check-node-pty.mjs",
+    "install:fedora-deps": "sudo bash scripts/install-fedora-deps.sh",
     "release:check": "pnpm audit --audit-level=moderate && pnpm build && node scripts/check-package-contracts.mjs && pnpm check:node-pty && pnpm lint:i18n && pnpm typecheck && pnpm test",
     "release:dry": "pnpm publish -r --dry-run --no-git-checks --force",
     "release": "pnpm release:check && pnpm publish -r --access public --no-git-checks",

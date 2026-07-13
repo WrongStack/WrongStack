@@ -95,7 +95,8 @@ async function installChromium(withDeps) {
 }
 
 async function smokeTest(chromium) {
-  const browser = await chromium.launch({ headless: true, timeout: 20_000 });
+  const args = process.platform === 'linux' ? ['--disable-gpu'] : [];
+  const browser = await chromium.launch({ headless: true, timeout: 20_000, args });
   try {
     const page = await browser.newPage();
     await page.setContent(

@@ -536,6 +536,22 @@ async function terminateProcessTree(child: ChildProcess | null): Promise<void> {
   if (!child || child.killed || !child.pid) return;
   if (process.platform !== 'win32') {
     child.kill('SIGTERM');
+    // Linux SIGKILL fallback: some processes (notably Electron child
+    // renderers under Mutter/Wayland) can ignore SIGTERM because the
+    // compositor holds a busy render buffer. After 2s of no exit,
+    // escalate to SIGKILL so the runtime doesn't zombie forever.
+    await new Promise<void>((resolve) => {
+      const grace = setTimeout(() => {
+        if (!child.killed) {
+          try { child.kill('SIGKILL'); } catch { /* already dead */ }
+        }
+        resolve();
+      }, 2000);
+      child.once('exit', () => {
+        clearTimeout(grace);
+        resolve();
+      });
+    });
     return;
   }
 

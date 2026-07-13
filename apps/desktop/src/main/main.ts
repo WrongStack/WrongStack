@@ -61,9 +61,30 @@ const MAX_PENDING_WEBUI_COMMANDS = 50;
 const MAX_PENDING_FLUSH_ATTEMPTS = 80;
 const WEBUI_COMMAND_FALLBACK_MS = 350;
 const WEBUI_COMMAND_ACK_TIMEOUT_MS = 2_000;
+// Mutter/Wayland can fire 60+ resize events per second during a
+// single drag — every event triggers a full layoutViews() pass
+// (two setBounds calls per WebContentsView). Debounce to a 30 fps
+// ceiling (33 ms) so we only re-layout ~30 times/sec max.
+const LAYOUT_DEBOUNCE_MS = 33;
 
 app.setAppUserModelId('com.wrongstack.desktop');
 app.setPath('userData', path.join(wstackGlobalRoot(), 'desktop', 'electron-profile'));
+
+// ── Wayland support (Fedora 43 / Mutter) ────────────────────────
+// Electron on Linux defaults to XWayland, which causes rendering
+// glitches, HiDPI scaling issues, and resize flicker under Mutter.
+// 'auto' prefers native Wayland when available, falls back to X11
+// gracefully (headless, SSH, older desktops). Wayland support in
+// Electron requires chromium >= 125 (Electron 31+); we target 43.
+app.commandLine.appendSwitch('ozone-platform-hint', 'auto');
+// Mutter's compositor vsync and Electron's in-process GPU
+// compositing interact poorly with resize/layout loops. Disabling
+// hardware acceleration on Linux avoids visual tearing without
+// meaningfully impacting performance (the app's view layer is DOM,
+// not WebGL). A user can override with --enable-gpu if desired.
+if (process.platform === 'linux') {
+  app.commandLine.appendSwitch('disable-gpu');
+}
 
 // ============================================================================
 // Application State
@@ -100,6 +121,7 @@ let webuiCommandSequence = 0;
 let shellSidebarCollapsed = false;
 const pendingWebuiCommandAcks = new Map<string, PendingWebuiCommandAck>();
 let saveWindowStateTimer: ReturnType<typeof setTimeout> | null = null;
+let layoutDebounceTimer: ReturnType<typeof setTimeout> | null = null;
 let quittingAfterCleanup = false;
 
 // ============================================================================
@@ -975,7 +997,13 @@ async function boot(): Promise<void> {
 
   configureApplicationMenu();
 
-  mainWindow.on('resize', layoutViews);
+  mainWindow.on('resize', () => {
+    if (layoutDebounceTimer) return;
+    layoutDebounceTimer = setTimeout(() => {
+      layoutDebounceTimer = null;
+      layoutViews();
+    }, LAYOUT_DEBOUNCE_MS);
+  });
 
   bridge.on('changed', (conversation) => {
     if (!shellView || shellView.webContents.isDestroyed()) return;

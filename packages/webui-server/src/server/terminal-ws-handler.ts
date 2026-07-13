@@ -1,4 +1,5 @@
 import { spawn as spawnChild } from 'node:child_process';
+import { existsSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import type { WebSocket } from 'ws';
 import type { Logger } from '@wrongstack/core';
@@ -118,7 +119,7 @@ export class TerminalWebSocketHandler {
     const shell =
       process.platform === 'win32'
         ? process.env.COMSPEC || 'cmd.exe'
-        : process.env.SHELL || '/bin/bash';
+        : process.env.SHELL || firstExistingLinuxShell();
 
     const nodePty = this.loadNodePty();
     if (!nodePty) {
@@ -274,4 +275,17 @@ function isPositivePid(value: unknown): value is number {
 function clampDim(value: number | undefined, fallback: number): number {
   if (typeof value !== 'number' || !Number.isFinite(value)) return fallback;
   return Math.max(1, Math.min(1000, Math.floor(value)));
+}
+
+/**
+ * Resolve the first available Linux shell. Fedora 43 minimal / container
+ * installations ship /bin/sh but not /bin/bash. Probe in priority order:
+ * /bin/bash → /bin/sh (POSIX-guaranteed).
+ */
+const LINUX_SHELL_CANDIDATES = ['/bin/bash', '/bin/sh'] as const;
+function firstExistingLinuxShell(): string {
+  for (const candidate of LINUX_SHELL_CANDIDATES) {
+    if (existsSync(candidate)) return candidate;
+  }
+  return '/bin/sh'; // POSIX guarantee — always present
 }

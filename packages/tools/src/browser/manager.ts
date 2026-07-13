@@ -480,7 +480,13 @@ export class BrowserSessionManager {
 async function defaultLauncher(headless: boolean): Promise<Browser> {
   try {
     const { chromium } = await import('@playwright/test');
-    return await chromium.launch({ headless });
+    // Under Wayland/Mutter (Fedora 43), Chromium's GPU compositing
+    // can crash the render process on first paint. --disable-gpu tells
+    // Chromium to skip the in-process GPU path — headless renders via
+    // software (swiftshader) which is functionally identical and avoids
+    // the wayland-egl / gbm dependency dance entirely.
+    const args = process.platform === 'linux' ? ['--disable-gpu'] : [];
+    return await chromium.launch({ headless, args });
   } catch (err) {
     const detail = err instanceof Error ? err.message : String(err);
     throw new Error(
