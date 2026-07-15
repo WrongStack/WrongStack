@@ -1,6 +1,6 @@
 import type { TodoItem, Tool } from '@wrongstack/core';
-import { loadPlan, savePlan, setPlanItemStatus } from '@wrongstack/core';
-import { loadTasks, saveTasks } from '@wrongstack/core';
+import { loadPlan, loadTasks, savePlan, saveTasks, setPlanItemStatus } from '@wrongstack/core';
+import { projectSessionTodosToKanban } from './session-kanban.js';
 
 interface TodoInput {
   todos: TodoItem[];
@@ -28,7 +28,7 @@ export const todoTool: Tool<TodoInput, TodoOutput> = {
     'This tool is extremely valuable for maintaining focus and giving the user visibility into your plan.',
   permission: 'auto',
   mutating: false, // mutates only conversation state (ctx.todos), not external state — no confirmation needed
-  timeoutMs: 1_000,
+  timeoutMs: 5_000,
   capabilities: ['session.todo'],
   icon: 'todo',
   inputSchema: {
@@ -54,7 +54,8 @@ export const todoTool: Tool<TodoInput, TodoOutput> = {
             },
             activeForm: {
               type: 'string',
-              description: 'Optional present-tense form shown while the task is active (e.g. "Fixing auth bug").',
+              description:
+                'Optional present-tense form shown while the task is active (e.g. "Fixing auth bug").',
             },
           },
           required: ['id', 'content', 'status'],
@@ -82,6 +83,11 @@ export const todoTool: Tool<TodoInput, TodoOutput> = {
     }
     ctx.state.replaceTodos(items);
 
+    // Kanban is the session work surface. Mirror the requested list (rather
+    // than ctx.todos) so the final all-completed snapshot reaches Done even
+    // though ConversationState auto-clears an all-done tactical todo list.
+    await projectSessionTodosToKanban(ctx.projectRoot, items, ctx.session?.id ?? 'session');
+
     // Auto-complete parent plan items / tasks when all their promoted
     // todos are done. Runs after state mutation so the UI sees the new
     // todo list before we touch the plan/task files.
@@ -92,10 +98,14 @@ export const todoTool: Tool<TodoInput, TodoOutput> = {
 
     for (const item of items) {
       if (item.promotedFromPlan) {
-        (item.status === 'completed' ? completedPlanIds : pendingPlanIds).add(item.promotedFromPlan);
+        (item.status === 'completed' ? completedPlanIds : pendingPlanIds).add(
+          item.promotedFromPlan,
+        );
       }
       if (item.promotedFromTask) {
-        (item.status === 'completed' ? completedTaskIds : pendingTaskIds).add(item.promotedFromTask);
+        (item.status === 'completed' ? completedTaskIds : pendingTaskIds).add(
+          item.promotedFromTask,
+        );
       }
     }
 
@@ -110,7 +120,9 @@ export const todoTool: Tool<TodoInput, TodoOutput> = {
           const updated = setPlanItemStatus(plan, planId, 'done');
           await savePlan(planPath, updated);
         }
-      } catch { /* best-effort */ }
+      } catch {
+        /* best-effort */
+      }
     }
 
     // Mark fully-completed tasks as completed
@@ -128,7 +140,9 @@ export const todoTool: Tool<TodoInput, TodoOutput> = {
             await saveTasks(taskPath, file);
           }
         }
-      } catch { /* best-effort */ }
+      } catch {
+        /* best-effort */
+      }
     }
 
     return {

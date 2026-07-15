@@ -1,24 +1,23 @@
 import { randomUUID } from 'node:crypto';
 import { mutateBoard, readKanbanEvents, summarizeBoard } from '../storage.js';
-import {
-  type AssignKanbanTaskInput,
-  type ClaimKanbanTaskInput,
-  type HeartbeatKanbanTaskAssignmentInput,
-  type KanbanAgentAssignment,
-  type KanbanAgentRunStatus,
-  type KanbanBoard,
-  type KanbanEvent,
-  type KanbanOrchestrationSnapshot,
-  type KanbanQueueHealth,
-  type KanbanSearchInput,
-  type KanbanSearchResult,
-  type KanbanTask,
-  type RecoverStaleKanbanAssignmentsInput,
-  type RecoverStaleKanbanAssignmentsResult,
-  type ReleaseKanbanTaskClaimInput,
+import type {
+  AssignKanbanTaskInput,
+  ClaimKanbanTaskInput,
+  HeartbeatKanbanTaskAssignmentInput,
+  KanbanAgentAssignment,
+  KanbanAgentRunStatus,
+  KanbanBoard,
+  KanbanEvent,
+  KanbanOrchestrationSnapshot,
+  KanbanQueueHealth,
+  KanbanSearchInput,
+  KanbanSearchResult,
+  KanbanTask,
+  ReconcileKanbanBoardResult,
+  RecoverStaleKanbanAssignmentsInput,
+  RecoverStaleKanbanAssignmentsResult,
+  ReleaseKanbanTaskClaimInput,
 } from '../types.js';
-import { getBoard, listBoards } from './boards.js';
-import { areDependenciesMet } from './dependencies.js';
 import {
   assignmentEventType,
   buildAssignment,
@@ -36,6 +35,79 @@ import {
   selectRecoveryMode,
   syncTaskColumnForStatus,
 } from './_internal.js';
+import { getBoard, listBoards } from './boards.js';
+import { areDependenciesMet } from './dependencies.js';
+
+/**
+ * Deterministically repair task/assignment/column drift.
+ *
+ * Worker completion is not trusted as the final board transition: unfinished
+ * checks land in review, failed checks fail the card, and only a fully verified
+ * task reaches completed. This is intentionally LLM-free so a quiet supervisor
+ * can run frequently without cost or provider ambiguity.
+ */
+export async function reconcileKanbanBoard(
+  projectRoot: string,
+  boardId: string,
+): Promise<ReconcileKanbanBoardResult | null> {
+  const reconciled: KanbanTask[] = [];
+  const events: KanbanEvent[] = [];
+  const updated = await mutateBoard(projectRoot, boardId, (board) => {
+    for (const task of board.tasks) {
+      const assignment = task.assignment;
+      const beforeStatus = task.status;
+      const beforeColumnId = task.columnId;
+      let desiredStatus = task.status;
+      if (assignment?.status === 'running') desiredStatus = 'in_progress';
+      else if (assignment?.status === 'failed') desiredStatus = 'failed';
+      else if (assignment?.status === 'cancelled') desiredStatus = 'blocked';
+      else if (assignment?.status === 'completed') {
+        const checks = task.successCriteria ?? [];
+        if (checks.some((check) => check.status === 'failed')) desiredStatus = 'failed';
+        else if (checks.some((check) => check.status === 'pending')) desiredStatus = 'review';
+        else desiredStatus = 'completed';
+      } else if (
+        assignment !== undefined &&
+        (assignment.status === 'queued' || assignment.status === 'assigned') &&
+        (task.status === 'completed' || task.status === 'failed')
+      ) {
+        desiredStatus = areDependenciesMet(board, task.id) ? 'ready' : 'blocked';
+      }
+
+      task.status = desiredStatus;
+      applyReconciledCompletion(task);
+      syncTaskColumnForStatus(board, task, beforeColumnId);
+      if (task.status === beforeStatus && task.columnId === beforeColumnId) continue;
+      const now = nowIso();
+      task.updatedAt = now;
+      board.updatedAt = now;
+      reconciled.push({
+        ...task,
+        assignment: task.assignment ? { ...task.assignment } : undefined,
+      });
+      events.push(
+        createKanbanEvent(board.id, task, 'task.reconciled', {
+          before: { status: beforeStatus, columnId: beforeColumnId },
+          after: { status: task.status, columnId: task.columnId },
+          note: 'Kanban supervisor repaired task/assignment drift.',
+        }),
+      );
+    }
+    return reconciled.length ? reconciled : null;
+  });
+  if (updated?.result) {
+    for (const event of events) await emitKanbanEvent(projectRoot, event);
+  }
+  return updated?.result ? { board: updated.board, tasks: updated.result } : null;
+}
+
+function applyReconciledCompletion(task: KanbanTask): void {
+  if (task.status === 'completed') {
+    task.completedAt = task.assignment?.completedAt ?? task.completedAt ?? nowIso();
+  } else {
+    delete task.completedAt;
+  }
+}
 
 export async function assignTask(
   projectRoot: string,
@@ -251,7 +323,10 @@ export async function recoverStaleTaskAssignments(
       syncTaskColumnForStatus(board, task, previousColumnId);
       task.updatedAt = now;
       board.updatedAt = now;
-      recoveredTasks.push({ ...task, assignment: task.assignment ? { ...task.assignment } : undefined });
+      recoveredTasks.push({
+        ...task,
+        assignment: task.assignment ? { ...task.assignment } : undefined,
+      });
       events.push(
         createKanbanEvent(board.id, task, 'task.stale_recovered', {
           before: beforeAssignment,

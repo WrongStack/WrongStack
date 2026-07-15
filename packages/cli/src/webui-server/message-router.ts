@@ -21,6 +21,7 @@ import { PhaseGraphBuilder, resolveWstackPaths } from '@wrongstack/core';
 import { exportBoardToTaskGraph } from '@wrongstack/kanban';
 import { startSddRunFromGraph } from '@wrongstack/webui-server';
 import type { KanbanRunMirror } from './kanban-run-mirror.js';
+import type { KanbanSupervisor } from './kanban-supervisor.js';
 import type {
   AutoPhaseWebSocketHandler,
   DesignContext,
@@ -213,6 +214,8 @@ export interface MessageRouterDeps {
   terminalHandler: TerminalWebSocketHandler;
   /** Live run↔kanban mirror; used by kanban.run.start to bind a launched run's board. */
   kanbanRunMirror?: KanbanRunMirror | undefined;
+  /** Quiet deterministic/agentic Kanban health custodian. */
+  kanbanSupervisor?: KanbanSupervisor | undefined;
 }
 
 export type MessageRouter = (
@@ -625,21 +628,62 @@ export function createMessageRouter(deps: MessageRouterDeps): MessageRouter {
     // ── Kanban inspector metadata (quiet — unlike tools.list it does NOT
     //    print to chat). Feeds the task inspector's real tool picker and the
     //    live session provider/model so nothing has to be typed by hand. ──
-    'kanban.meta': (_msg, ws) => {
+    'kanban.meta': async (_msg, ws) => {
       const tools = (opts.agent.ctx.tools ?? []).map((tool) => ({
         name: tool.name,
         description: (tool as { description?: string }).description ?? '',
       }));
+      const skills = opts.skillLoader
+        ? (await opts.skillLoader.list()).map((skill) => ({
+            name: skill.name,
+            description: skill.description,
+            source: skill.source,
+          }))
+        : [];
       send(ws, {
         type: 'kanban.meta',
         payload: {
           success: true,
           data: {
             tools,
+            skills,
+            fallbackProfiles: opts.appConfig?.fallbackProfiles ?? {},
             sessionProvider: opts.agent.ctx.provider,
             sessionModel: opts.agent.ctx.model,
           },
         },
+      });
+    },
+    'kanban.supervisor.status': async (msg, ws) => {
+      const boardId = (msg.payload as { boardId?: string } | undefined)?.boardId;
+      if (!boardId || !deps.kanbanSupervisor) {
+        send(ws, {
+          type: 'kanban.supervisor.status',
+          payload: { success: false, error: 'Kanban supervisor is unavailable.' },
+        });
+        return;
+      }
+      const snapshot =
+        deps.kanbanSupervisor.getSnapshot(boardId) ??
+        (await deps.kanbanSupervisor.auditNow(boardId))[0];
+      send(ws, {
+        type: 'kanban.supervisor.status',
+        payload: { success: true, data: snapshot ?? null },
+      });
+    },
+    'kanban.supervisor.audit': async (msg, ws) => {
+      const boardId = (msg.payload as { boardId?: string } | undefined)?.boardId;
+      if (!deps.kanbanSupervisor) {
+        send(ws, {
+          type: 'kanban.supervisor.audit',
+          payload: { success: false, error: 'Kanban supervisor is unavailable.' },
+        });
+        return;
+      }
+      const snapshots = await deps.kanbanSupervisor.auditNow(boardId);
+      send(ws, {
+        type: 'kanban.supervisor.audit',
+        payload: { success: true, data: boardId ? (snapshots[0] ?? null) : snapshots },
       });
     },
 
@@ -948,6 +992,7 @@ export function createMessageRouter(deps: MessageRouterDeps): MessageRouter {
         broadcast: deps.wsCommon?.broadcast ?? (() => {}),
         log: (msg: string) => consoleLogger.info(msg),
         projectRoot: deps.opts.projectRoot ?? '',
+        sessionContext: deps.worklistCtx.agent.ctx,
         ...(deps.opts.onKanbanDispatch ? { dispatchTask: deps.opts.onKanbanDispatch } : {}),
       };
       await handleKanbanMessage(

@@ -79,6 +79,10 @@ import {
   rememberTool,
   searchMemoryTool,
 } from '@wrongstack/tools';
+import {
+  attachSessionKanbanMirror,
+  hydrateSessionKanban,
+} from '@wrongstack/tools/session-kanban';
 import type { WstackPaths } from '@wrongstack/core/utils';
 import { sessionScopedPath, toErrorMessage } from '@wrongstack/core/utils';
 import type { WebUIOptions } from './types.js';
@@ -415,6 +419,8 @@ export async function createPreContextServices(
     'task.path',
     sessionScopedPath(wpaths.projectSessions, session.id, '.tasks.json'),
   );
+  await hydrateSessionKanban(context);
+  attachSessionKanbanMirror(context);
   seedContextMeta(config, context);
 
   return {

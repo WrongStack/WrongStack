@@ -127,10 +127,24 @@ export function createKanbanRunMirror(deps: KanbanRunMirrorDeps): KanbanRunMirro
     key: string,
     title: string,
     tags: string[],
+    matchTags?: string[],
   ): Promise<string> {
     const k = mapKey(engine, key);
     const existing = boards.get(k);
     if (existing) return existing;
+    // Reclaim a board written on a previous mirror lifetime (restart-during-run):
+    // scan disk for one carrying every distinguishing tag before minting a new
+    // one. Matters more now that AutoPhase fans out to one board PER PHASE — a
+    // restart would otherwise duplicate every phase board.
+    if (matchTags?.length) {
+      const found = (await listBoards(projectRoot)).find((b) =>
+        matchTags.every((t) => b.tags?.includes(t)),
+      );
+      if (found) {
+        boards.set(k, found.id);
+        return found.id;
+      }
+    }
     const board = await createBoard(projectRoot, { title, tags });
     boards.set(k, board.id);
     return board.id;
@@ -195,7 +209,9 @@ export function createKanbanRunMirror(deps: KanbanRunMirrorDeps): KanbanRunMirro
     stamps.set(k, stamp);
 
     const tags = ['sdd', `run:${runId}`, `graph:${snapshot.graphId}`];
-    const boardId = await resolveBoardId('sdd', runId, snapshot.title || `SDD ${runId}`, tags);
+    const boardId = await resolveBoardId('sdd', runId, snapshot.title || `SDD ${runId}`, tags, [
+      `run:${runId}`,
+    ]);
     const graph = buildTaskGraphFromSddSnapshot(snapshot);
     const board = await syncGraph(boardId, graph, 'sdd', tags);
 
@@ -209,33 +225,47 @@ export function createKanbanRunMirror(deps: KanbanRunMirrorDeps): KanbanRunMirro
   }
 
   // ── AutoPhase ──────────────────────────────────────────────────────────
+  // Phased work spreads across ONE board PER PHASE — never a single crowded
+  // board. All phase boards share a `run:<graphId>` tag (so the frontend groups
+  // them under one run) and each carries its own `phase:<phaseId>` tag + a
+  // "<run> — <phase>" title. Control (pause/resume/stop, per-task retry/reassign)
+  // is run-level, so it works identically from any phase board.
   async function projectAutophase(graphId: string, state: AutophaseState): Promise<void> {
     const k = mapKey('autophase', graphId);
     const stamp = autophaseStamp(state);
     if (stamps.get(k) === stamp) return;
     stamps.set(k, stamp);
 
-    const tags = ['autophase', `graph:${graphId}`];
-    const title = state.title || `AutoPhase ${graphId}`;
-    // Consume a one-shot launch binding so a board-launched run reuses its board.
-    if (!boards.has(mapKey('autophase', graphId)) && pendingAutophaseBoardId) {
-      boards.set(mapKey('autophase', graphId), pendingAutophaseBoardId);
-      pendingAutophaseBoardId = undefined;
-    }
-    const boardId = await resolveBoardId('autophase', graphId, title, tags);
+    const runTitle = state.title || `AutoPhase ${graphId}`;
+    const phases = state.phases ?? [];
 
-    let board: KanbanBoard | null = null;
-    const live: Array<{ taskId: string; phaseId: string; assignment: DesiredAssignment }> = [];
-    for (const phase of state.phases ?? []) {
+    for (let i = 0; i < phases.length; i++) {
+      const phase = phases[i];
+      if (!phase) continue;
+      const phaseKey = `${graphId}:${phase.id}`;
+      const phaseName = phase.name || `Phase ${i + 1}`;
+      const tags = ['autophase', `run:${graphId}`, `graph:${graphId}`, `phase:${phase.id}`];
+      const title = `${runTitle} — ${phaseName}`;
+      // A board-launched run's one-shot binding attaches to the FIRST phase.
+      if (i === 0 && !boards.has(mapKey('autophase', phaseKey)) && pendingAutophaseBoardId) {
+        boards.set(mapKey('autophase', phaseKey), pendingAutophaseBoardId);
+        pendingAutophaseBoardId = undefined;
+      }
+      const boardId = await resolveBoardId('autophase', phaseKey, title, tags, [
+        `graph:${graphId}`,
+        `phase:${phase.id}`,
+      ]);
       const graph = buildTaskGraphFromAutophasePhase(graphId, title, phase);
-      board = await syncGraph(boardId, graph, 'autophase', tags, phase.id);
+      const board = await syncGraph(boardId, graph, 'autophase', tags, phase.id);
+
+      const live: Array<{ taskId: string; phaseId: string; assignment: DesiredAssignment }> = [];
       for (const t of phase.tasks ?? []) {
         const a = desiredAssignmentFromAutophase(t);
         if (a) live.push({ taskId: t.id, phaseId: phase.id, assignment: a });
       }
+      const final = await overlayAssignments(boardId, live, board);
+      await publish(final);
     }
-    const final = await overlayAssignments(boardId, live, board);
-    await publish(final);
   }
 
   // ── Wiring ───────────────────────────────────────────────────────────────

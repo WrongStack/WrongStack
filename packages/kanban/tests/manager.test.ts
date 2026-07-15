@@ -29,6 +29,7 @@ import {
   mergeTasks,
   moveTask,
   parseLinesIntoTasks,
+  reconcileKanbanBoard,
   recoverStaleTaskAssignments,
   releaseTaskClaim,
   removeBoard,
@@ -692,6 +693,27 @@ describe('setTaskChain', () => {
       expect(task.chain?.chainId).toBe('chain-1');
     }
   });
+
+  it('removes a task from a chain and normalizes the remaining links', async () => {
+    const board = await createBoard(tmpDir, {
+      title: 'Editable chain',
+      tasks: [{ title: 'Step 1' }, { title: 'Step 2' }, { title: 'Step 3' }],
+    });
+    const [first, middle, last] = board.tasks;
+    await setTaskChain(tmpDir, board.id, {
+      taskIds: board.tasks.map((task) => task.id),
+      chainId: 'editable-chain',
+    });
+
+    const updated = await updateTask(tmpDir, board.id, middle!.id, { chain: null });
+
+    expect(updated?.tasks.find((task) => task.id === middle!.id)?.chain).toBeUndefined();
+    expect(updated?.tasks.find((task) => task.id === first!.id)?.chain?.nextTaskId).toBe(last!.id);
+    expect(updated?.tasks.find((task) => task.id === last!.id)?.chain).toMatchObject({
+      order: 1,
+      previousTaskId: first!.id,
+    });
+  });
 });
 
 describe('splitTask', () => {
@@ -913,34 +935,42 @@ describe('createBoardFromTaskGraph', () => {
       specId: 'spec-1',
       title: 'Test Graph',
       nodes: new Map([
-        ['node-1', {
-          id: 'node-1',
-          title: 'Task from graph',
-          description: 'Created from task graph',
-          type: 'feature' as const,
-          priority: 'high' as const,
-          status: 'pending' as const,
-          createdAt: Date.now(),
-          updatedAt: Date.now(),
-        }],
-        ['node-2', {
-          id: 'node-2',
-          title: 'Second task',
-          description: 'Dependent task',
-          type: 'feature' as const,
-          priority: 'medium' as const,
-          status: 'completed' as const,
-          createdAt: Date.now(),
-          updatedAt: Date.now(),
-          completedAt: Date.now(),
-        }],
+        [
+          'node-1',
+          {
+            id: 'node-1',
+            title: 'Task from graph',
+            description: 'Created from task graph',
+            type: 'feature' as const,
+            priority: 'high' as const,
+            status: 'pending' as const,
+            createdAt: Date.now(),
+            updatedAt: Date.now(),
+          },
+        ],
+        [
+          'node-2',
+          {
+            id: 'node-2',
+            title: 'Second task',
+            description: 'Dependent task',
+            type: 'feature' as const,
+            priority: 'medium' as const,
+            status: 'completed' as const,
+            createdAt: Date.now(),
+            updatedAt: Date.now(),
+            completedAt: Date.now(),
+          },
+        ],
       ]),
-      edges: [{
-        id: 'edge-1',
-        from: 'node-1',
-        to: 'node-2',
-        type: 'depends_on' as const,
-      }],
+      edges: [
+        {
+          id: 'edge-1',
+          from: 'node-1',
+          to: 'node-2',
+          type: 'depends_on' as const,
+        },
+      ],
       rootNodes: ['node-1'],
       createdAt: Date.now(),
       updatedAt: Date.now(),
@@ -957,27 +987,33 @@ describe('createBoardFromTaskGraph', () => {
       specId: 'spec-2',
       title: 'Filtered Graph',
       nodes: new Map([
-        ['node-a', {
-          id: 'node-a',
-          title: 'Active task',
-          description: '',
-          type: 'feature' as const,
-          priority: 'high' as const,
-          status: 'pending' as const,
-          createdAt: Date.now(),
-          updatedAt: Date.now(),
-        }],
-        ['node-b', {
-          id: 'node-b',
-          title: 'Done task',
-          description: '',
-          type: 'bugfix' as const,
-          priority: 'medium' as const,
-          status: 'completed' as const,
-          createdAt: Date.now(),
-          updatedAt: Date.now(),
-          completedAt: Date.now(),
-        }],
+        [
+          'node-a',
+          {
+            id: 'node-a',
+            title: 'Active task',
+            description: '',
+            type: 'feature' as const,
+            priority: 'high' as const,
+            status: 'pending' as const,
+            createdAt: Date.now(),
+            updatedAt: Date.now(),
+          },
+        ],
+        [
+          'node-b',
+          {
+            id: 'node-b',
+            title: 'Done task',
+            description: '',
+            type: 'bugfix' as const,
+            priority: 'medium' as const,
+            status: 'completed' as const,
+            createdAt: Date.now(),
+            updatedAt: Date.now(),
+            completedAt: Date.now(),
+          },
+        ],
       ]),
       edges: [],
       rootNodes: ['node-a'],
@@ -1066,6 +1102,53 @@ describe('updateTaskAssignment', () => {
   });
 });
 
+describe('reconcileKanbanBoard', () => {
+  it('moves source tasks to the column matching their status even without an assignment', async () => {
+    const board = await makeBoard();
+    const task = await addTask(tmpDir, board.id, { title: 'Drifted todo' });
+    const drifted = await updateTask(tmpDir, board.id, task!.task.id, {
+      status: 'in_progress',
+      columnId: 'backlog',
+    });
+    expect(drifted?.tasks.find((item) => item.id === task!.task.id)?.columnId).toBe('backlog');
+
+    const result = await reconcileKanbanBoard(tmpDir, board.id);
+
+    expect(result?.tasks).toHaveLength(1);
+    expect(result?.board.tasks.find((item) => item.id === task!.task.id)?.columnId).toBe(
+      'in-progress',
+    );
+  });
+
+  it('holds completed workers in review until every completion check passes', async () => {
+    const board = await makeBoard();
+    const task = await addTask(tmpDir, board.id, { title: 'Verify me' });
+    await addCheckToTask(tmpDir, board.id, task!.task.id, {
+      description: 'Tests pass',
+      type: 'test',
+    });
+    await assignTask(tmpDir, board.id, task!.task.id, {
+      agentId: 'worker',
+      modelRouting: 'session',
+      skills: ['testing'],
+    });
+    await updateTaskAssignment(tmpDir, board.id, task!.task.id, { status: 'completed' });
+
+    const pending = await reconcileKanbanBoard(tmpDir, board.id);
+    expect(pending?.board.tasks.find((item) => item.id === task!.task.id)?.status).toBe('review');
+
+    const reviewBoard = await getBoard(tmpDir, board.id);
+    const checkId = reviewBoard?.tasks.find((item) => item.id === task!.task.id)
+      ?.successCriteria?.[0]?.id;
+    await updateCheckOnTask(tmpDir, board.id, task!.task.id, checkId!, { status: 'passed' });
+    const completed = await reconcileKanbanBoard(tmpDir, board.id);
+    const finalTask = completed?.board.tasks.find((item) => item.id === task!.task.id);
+    expect(finalTask?.status).toBe('completed');
+    expect(finalTask?.columnId).toBe('done');
+    expect(finalTask?.assignment?.skills).toEqual(['testing']);
+  });
+});
+
 // ── heartbeatTaskAssignment ────────────────────────────────────────
 
 describe('heartbeatTaskAssignment', () => {
@@ -1103,6 +1186,27 @@ describe('claimReadyTask', () => {
     expect(result).not.toBeNull();
     expect(result!.task.assignment?.agentId).toBe('worker-1');
     expect(result!.task.status).toBe('ready');
+  });
+
+  it('preserves explicit model routing and skills when a configured task is claimed', async () => {
+    const board = await createBoard(tmpDir, {
+      title: 'Configured claim',
+      tasks: [{ title: 'Use configured worker', status: 'ready' }],
+    });
+    await assignTask(tmpDir, board.id, board.tasks[0]!.id, {
+      modelRouting: 'fallback_profile',
+      fallbackProfile: 'careful',
+      skills: ['testing', 'code-review'],
+    });
+
+    const result = await claimReadyTask(tmpDir, { boardId: board.id, agentId: 'worker-1' });
+
+    expect(result?.task.assignment).toMatchObject({
+      agentId: 'worker-1',
+      modelRouting: 'fallback_profile',
+      fallbackProfile: 'careful',
+      skills: ['testing', 'code-review'],
+    });
   });
 
   it('returns null when no ready tasks', async () => {

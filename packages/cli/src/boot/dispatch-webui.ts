@@ -84,6 +84,8 @@ export interface WebUIDispatchContext {
           provider?: string | undefined;
           model?: string | undefined;
           fallbackModels?: string[] | undefined;
+          fallbackProfile?: string | undefined;
+          skills?: string[] | undefined;
           tools?: string[] | undefined;
           name?: string | undefined;
           allowedCapabilities?: readonly string[] | undefined;
@@ -261,6 +263,9 @@ export async function runWebUIDispatch(ctx: WebUIDispatchContext): Promise<numbe
         .clear()
         .then(() => activeRecoveryLock.write(newSessionId))
         .catch(() => undefined);
+      void import('@wrongstack/tools/session-kanban').then(({ hydrateSessionKanban }) =>
+        hydrateSessionKanban(agent.ctx),
+      );
     },
     onModelContextResolved,
     memoryStore,

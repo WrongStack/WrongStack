@@ -39,8 +39,10 @@ import {
   type ChimeraReviewNeededPayload,
   type CoordinatorEvent,
   type FleetChatVerbosity,
+  fallbackProfileChain,
   mergeCustomModelDefs,
   normalizeTokenSavingTier,
+  parseModelRef,
   type SubagentConfig,
   setQueuedMessagesSnapshot,
   type TokenSavingTier,
@@ -50,6 +52,7 @@ import { capabilitiesFor } from '@wrongstack/providers';
 import { createToolVisionAdapters } from '@wrongstack/runtime/vision';
 import { runSingleShotDispatch } from './boot/dispatch-singleshot.js';
 import { runWebUIDispatch } from './boot/dispatch-webui.js';
+import { createKanbanRunMirror } from './webui-server/kanban-run-mirror.js';
 import { wireAutoPhase } from './boot/tui-autophase-wiring.js';
 import { setupAutonomousCoordinator } from './boot/tui-coordinator-setup.js';
 import { registerDebugStreamCallback, restoreDebugStreamCallback } from './boot/tui-debug-stream.js';
@@ -1000,23 +1003,47 @@ export async function execute(deps: ExecuteDeps): Promise<number> {
                 const subagentId = `kanban-${randomUUID().slice(0, 8)}`;
                 const taskId = randomUUID();
                 const name = spawnOpts?.name ?? 'kanban-agent';
+                let resolvedProvider = spawnOpts?.provider;
+                let resolvedModel = spawnOpts?.model;
+                let resolvedFallbackModels = spawnOpts?.fallbackModels;
+                if (spawnOpts?.fallbackProfile) {
+                  const chain = fallbackProfileChain(config, spawnOpts.fallbackProfile);
+                  const primary = chain[0] ? parseModelRef(chain[0]) : undefined;
+                  if (primary?.model) {
+                    resolvedProvider = primary.provider ?? config.provider;
+                    resolvedModel = primary.model;
+                    resolvedFallbackModels = spawnOpts.fallbackModels ?? chain.slice(1);
+                  }
+                }
+                let agentDescription = description;
+                if (spawnOpts?.skills?.length && skillLoader) {
+                  const loaded = await Promise.all(
+                    spawnOpts.skills.map(async (skillName) => {
+                      const manifest = await skillLoader.find(skillName);
+                      if (!manifest) throw new Error(`Kanban skill not found: ${skillName}`);
+                      const body = await skillLoader.readBody(skillName);
+                      return `## Required skill: ${skillName}\n\n${body}`;
+                    }),
+                  );
+                  agentDescription = `${description}\n\n# Required agentic skill instructions\n\n${loaded.join('\n\n')}`;
+                }
                 void (async () => {
                   const built = await sddSubagentFactory({
                     id: subagentId,
                     name,
                     role: 'kanban-agent',
-                    prompt: description,
+                    prompt: agentDescription,
                     allowedCapabilities:
                       spawnOpts?.allowedCapabilities ?? WIDE_SUBAGENT_CAPABILITIES,
-                    ...(spawnOpts?.provider ? { provider: spawnOpts.provider } : {}),
-                    ...(spawnOpts?.model ? { model: spawnOpts.model } : {}),
-                    ...(spawnOpts?.fallbackModels
-                      ? { fallbackModels: spawnOpts.fallbackModels }
+                    ...(resolvedProvider ? { provider: resolvedProvider } : {}),
+                    ...(resolvedModel ? { model: resolvedModel } : {}),
+                    ...(resolvedFallbackModels
+                      ? { fallbackModels: resolvedFallbackModels }
                       : {}),
                     ...(spawnOpts?.tools ? { tools: spawnOpts.tools } : {}),
                   });
                   try {
-                    const result = await built.agent.run(description);
+                    const result = await built.agent.run(agentDescription);
                     await spawnOpts?.onDone?.({
                       status: result.status === 'done' ? 'completed' : 'failed',
                       result: result.finalText,
@@ -1040,11 +1067,13 @@ export async function execute(deps: ExecuteDeps): Promise<number> {
                   });
                 });
                 const tags: string[] = [];
-                if (spawnOpts?.provider) tags.push(spawnOpts.provider);
-                if (spawnOpts?.model) tags.push(spawnOpts.model);
-                if (spawnOpts?.fallbackModels?.length) {
-                  tags.push(`fallback=${spawnOpts.fallbackModels.join(',')}`);
+                if (resolvedProvider) tags.push(resolvedProvider);
+                if (resolvedModel) tags.push(resolvedModel);
+                if (resolvedFallbackModels?.length) {
+                  tags.push(`fallback=${resolvedFallbackModels.join(',')}`);
                 }
+                if (spawnOpts?.fallbackProfile) tags.push(`profile=${spawnOpts.fallbackProfile}`);
+                if (spawnOpts?.skills?.length) tags.push(`skills=${spawnOpts.skills.join(',')}`);
                 if (spawnOpts?.name) tags.push(`"${spawnOpts.name}"`);
                 const tag = tags.length > 0 ? ` (${tags.join(' / ')})` : '';
                 return `Spawned subagent ${subagentId}${tag} for task ${taskId}.`;
@@ -1053,6 +1082,20 @@ export async function execute(deps: ExecuteDeps): Promise<number> {
           : {}),
       });
     } else {
+      // Headless run→kanban mirror: an SDD run started via `/sdd parallel` in
+      // the REPL (no webui attached) still projects live into a kanban board on
+      // disk (subscribes to sdd.board.snapshot on the shared bus). Broadcast is a
+      // no-op — no browser here. The webui path has its own mirror, and the two
+      // branches are mutually exclusive, so there is no double-mirror.
+      const headlessKanbanMirror = projectRoot
+        ? createKanbanRunMirror({
+            projectRoot,
+            events,
+            broadcast: () => {},
+            log: (m) => console.log(m),
+          })
+        : null;
+      try {
       code = await runRepl({
         agent,
         renderer,
@@ -1114,6 +1157,9 @@ export async function execute(deps: ExecuteDeps): Promise<number> {
         onCountdownTick,
         onDestroy,
       });
+      } finally {
+        headlessKanbanMirror?.dispose();
+      }
     }
   } finally {
     offStorageRead();

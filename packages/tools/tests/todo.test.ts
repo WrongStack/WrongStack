@@ -1,15 +1,15 @@
 import * as path from 'node:path';
 import {
-  type PlanFile,
-  type TaskFile,
   loadPlan,
   loadTasks,
+  type PlanFile,
   savePlan,
   saveTasks,
+  type TaskFile,
 } from '@wrongstack/core';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { todoTool } from '../src/todo.js';
-import { type Sandbox, mkSandbox, newSignal } from './fixtures.js';
+import { mkSandbox, newSignal, type Sandbox } from './fixtures.js';
 
 const now = '2026-06-15T00:00:00.000Z';
 const mkPlan = (status: PlanFile['items'][number]['status']): PlanFile => ({
@@ -38,9 +38,11 @@ const mkTasks = (status: TaskFile['tasks'][number]['status']): TaskFile => ({
 describe('todo tool', () => {
   let sb: Sandbox;
   beforeEach(async () => {
+    process.env.WRONGSTACK_KANBAN_TASK_MIRROR = '0';
     sb = await mkSandbox();
   });
   afterEach(async () => {
+    delete process.env.WRONGSTACK_KANBAN_TASK_MIRROR;
     await sb.cleanup();
   });
 
@@ -203,5 +205,40 @@ describe('todo tool', () => {
       { signal: newSignal() },
     );
     expect(out.count).toBe(1);
+  });
+
+  it('mirrors todo status through Todo, Running, Preview, and Done session columns', async () => {
+    delete process.env.WRONGSTACK_KANBAN_TASK_MIRROR;
+    const { projectSessionTodosToKanban } = await import('../src/session-kanban.js');
+
+    let board = await projectSessionTodosToKanban(
+      sb.dir,
+      [
+        { id: 'todo-1', content: 'Inspect', status: 'pending' },
+        { id: 'todo-2', content: 'Implement', status: 'in_progress' },
+        { id: 'todo-3', content: 'Ship', status: 'completed' },
+      ],
+      'sess',
+    );
+
+    expect(board?.tags).toContain('session:sess');
+    expect(board?.columns.map((column) => column.title)).toEqual([
+      'Todo',
+      'Running',
+      'Preview',
+      'Done',
+    ]);
+    expect(board?.tasks.find((task) => task.origin?.taskId === 'todo-1')?.columnId).toBe('todo');
+    expect(board?.tasks.find((task) => task.origin?.taskId === 'todo-2')?.columnId).toBe(
+      'in-progress',
+    );
+    expect(board?.tasks.find((task) => task.origin?.taskId === 'todo-3')?.columnId).toBe('done');
+
+    board = await projectSessionTodosToKanban(
+      sb.dir,
+      [{ id: 'todo-1', content: 'Inspect', status: 'completed' }],
+      'sess',
+    );
+    expect(board?.tasks.find((task) => task.origin?.taskId === 'todo-1')?.columnId).toBe('done');
   });
 });

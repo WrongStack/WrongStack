@@ -1,4 +1,11 @@
-import type { KanbanBoard, KanbanBoardSummary, KanbanColumn, KanbanQueueHealth, KanbanTask } from '@wrongstack/kanban';
+import type {
+  KanbanBoard,
+  KanbanBoardSummary,
+  KanbanColumn,
+  KanbanQueueHealth,
+  KanbanSupervisorSnapshot,
+  KanbanTask,
+} from '@wrongstack/kanban';
 import { create } from 'zustand';
 
 export interface KanbanResultPayload {
@@ -14,6 +21,7 @@ interface KanbanState {
   loading: boolean;
   error: string | null;
   queueHealth: KanbanQueueHealth | null;
+  supervisorSnapshot: KanbanSupervisorSnapshot | null;
   setLoading: (loading: boolean) => void;
   setActiveBoardId: (id: string | null) => void;
   setError: (error: string | null) => void;
@@ -28,8 +36,9 @@ export const useKanbanStore = create<KanbanState>()((set, get) => ({
   loading: false,
   error: null,
   queueHealth: null,
+  supervisorSnapshot: null,
   setLoading: (loading) => set({ loading }),
-  setActiveBoardId: (id) => set({ activeBoardId: id }),
+  setActiveBoardId: (id) => set({ activeBoardId: id, queueHealth: null, supervisorSnapshot: null }),
   setError: (error) => set({ error }),
   setQueueHealth: (health) => set({ queueHealth: health }),
   handleResult: (type, payload) => {
@@ -38,6 +47,14 @@ export const useKanbanStore = create<KanbanState>()((set, get) => ({
       return;
     }
     const data = payload.data;
+    if ((type === 'kanban.supervisor.status' || type === 'kanban.supervisor.audit') && data) {
+      set({
+        supervisorSnapshot: data as KanbanSupervisorSnapshot,
+        loading: false,
+        error: null,
+      });
+      return;
+    }
     if (type === 'kanban.health' && payload.data) {
       set({ queueHealth: payload.data as KanbanQueueHealth, loading: false, error: null });
       return;

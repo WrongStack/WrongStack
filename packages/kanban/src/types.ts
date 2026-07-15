@@ -48,6 +48,59 @@ export type KanbanGoalMetricStatus = 'pending' | 'met' | 'missed' | 'waived';
 
 export type KanbanRetryPolicy = 'off' | 'incremental' | 'exponential';
 
+/** How an agent assigned to a task obtains its primary model. */
+export type KanbanModelRoutingMode = 'session' | 'fixed' | 'fallback_profile';
+
+/**
+ * Persisted, inspectable execution route. Keeping the mode explicit avoids the
+ * old ambiguity where an empty provider/model could mean either "use session"
+ * or "configuration was forgotten".
+ */
+export interface KanbanExecutionRouting {
+  mode: KanbanModelRoutingMode;
+  provider?: string | undefined;
+  model?: string | undefined;
+  fallbackProfile?: string | undefined;
+  fallbackModels?: string[] | undefined;
+}
+
+export type KanbanSupervisorMode = 'deterministic' | 'agentic';
+
+/** Board-level policy for the quiet Kanban supervisor. */
+export interface KanbanSupervisorConfig {
+  /** Undefined config is treated as enabled deterministic supervision. */
+  enabled: boolean;
+  /** Deterministic reconciliation is always performed; agentic adds an LLM anomaly review. */
+  mode: KanbanSupervisorMode;
+  /** Audit cadence. Hosts clamp this to a safe minimum. */
+  intervalMs?: number | undefined;
+  /** Minimum delay between agentic anomaly reviews. */
+  agentCooldownMs?: number | undefined;
+  /** What to do with expired assignment leases. */
+  recoveryMode?: KanbanRecoveryMode | undefined;
+  /** Explicit model source for an agentic review. */
+  routing?: KanbanExecutionRouting | undefined;
+  /** Agent skills whose instructions must be injected into an agentic review. */
+  skills?: string[] | undefined;
+}
+
+export type KanbanSupervisorStatus = 'disabled' | 'healthy' | 'attention' | 'running' | 'error';
+
+/** Ephemeral runtime snapshot returned by the hosting surface. */
+export interface KanbanSupervisorSnapshot {
+  boardId: string;
+  status: KanbanSupervisorStatus;
+  mode: KanbanSupervisorMode;
+  lastAuditAt?: string | undefined;
+  lastAgentRunAt?: string | undefined;
+  nextAuditAt?: string | undefined;
+  reconciledTaskIds: string[];
+  staleRecoveredTaskIds: string[];
+  anomalyCount: number;
+  summary?: string | undefined;
+  error?: string | undefined;
+}
+
 /**
  * Sprint 2 recovery mode surface. `'auto'` defers per-task mode to
  * `selectRecoveryMode` based on the configured `RecoverStaleKanbanAssignmentsInput.policy`.
@@ -81,8 +134,12 @@ export interface KanbanAgentAssignment {
   role?: string | undefined;
   provider?: string | undefined;
   model?: string | undefined;
+  /** Explicit source used to resolve provider/model for this run. */
+  modelRouting?: KanbanModelRoutingMode | undefined;
   fallbackProfile?: string | undefined;
   fallbackModels?: string[] | undefined;
+  /** Agentic skills that are force-loaded into the worker prompt. */
+  skills?: string[] | undefined;
   tools?: string[] | undefined;
   allowedCapabilities?: string[] | undefined;
   status: KanbanAgentRunStatus;
@@ -232,6 +289,8 @@ export interface KanbanBoard {
   updatedAt: string;
   completedAt?: string | undefined;
   generatedBy?: string | undefined;
+  /** Quiet health/reconciliation policy for this board. */
+  supervisor?: KanbanSupervisorConfig | undefined;
   version: number;
 }
 
@@ -265,6 +324,7 @@ export interface CreateKanbanBoardInput {
   columns?: KanbanColumn[] | undefined;
   tasks?: Array<Partial<KanbanTask> & Pick<KanbanTask, 'title'>> | undefined;
   generatedBy?: string | undefined;
+  supervisor?: KanbanSupervisorConfig | undefined;
 }
 
 export interface UpdateKanbanBoardInput {
@@ -273,6 +333,7 @@ export interface UpdateKanbanBoardInput {
   tags?: string[] | undefined;
   columns?: KanbanColumn[] | undefined;
   completedAt?: string | null | undefined;
+  supervisor?: KanbanSupervisorConfig | null | undefined;
 }
 
 export interface DuplicateKanbanBoardInput {
@@ -325,6 +386,8 @@ export interface CreateKanbanTaskInput {
   labels?: string[] | undefined;
   estimatedHours?: number | undefined;
   actualHours?: number | undefined;
+  retryPolicy?: KanbanRetryPolicy | undefined;
+  costCeilingUsd?: number | undefined;
   successCriteria?: KanbanCheck[] | undefined;
   goalMetrics?: KanbanGoalMetric[] | undefined;
   links?: KanbanLink[] | undefined;
@@ -352,6 +415,8 @@ export interface UpdateKanbanTaskInput {
   labels?: string[] | undefined;
   estimatedHours?: number | undefined;
   actualHours?: number | undefined;
+  retryPolicy?: KanbanRetryPolicy | null | undefined;
+  costCeilingUsd?: number | null | undefined;
   successCriteria?: KanbanCheck[] | undefined;
   goalMetrics?: KanbanGoalMetric[] | undefined;
   links?: KanbanLink[] | undefined;
@@ -370,8 +435,10 @@ export interface AssignKanbanTaskInput {
   role?: string | undefined;
   provider?: string | undefined;
   model?: string | undefined;
+  modelRouting?: KanbanModelRoutingMode | undefined;
   fallbackProfile?: string | undefined;
   fallbackModels?: string[] | undefined;
+  skills?: string[] | undefined;
   tools?: string[] | undefined;
   allowedCapabilities?: string[] | undefined;
   assignee?: string | undefined;
@@ -453,6 +520,11 @@ export interface RecoverStaleKanbanAssignmentsInput {
 }
 
 export interface RecoverStaleKanbanAssignmentsResult {
+  board: KanbanBoard;
+  tasks: KanbanTask[];
+}
+
+export interface ReconcileKanbanBoardResult {
   board: KanbanBoard;
   tasks: KanbanTask[];
 }

@@ -2,7 +2,7 @@
 // @wrongstack/kanban package; only the Tool contract and the task-graph
 // serialization types still come from core.
 import type { SerializableTaskGraph, SerializedTaskGraph, Tool } from '@wrongstack/core';
-import { deserializeTaskGraph, serializeTaskGraph } from '@wrongstack/core';
+import { deserializeTaskGraph, loadTasks, serializeTaskGraph } from '@wrongstack/core';
 import type {
   AssignKanbanTaskInput,
   KanbanAgentAssignment,
@@ -64,6 +64,7 @@ import {
   updateTask,
   updateTaskAssignment,
 } from '@wrongstack/kanban';
+import { taskFileToSerializedGraph } from './session-kanban.js';
 
 type KanbanAction =
   | 'list_boards'
@@ -77,6 +78,7 @@ type KanbanAction =
   | 'export_task_graph'
   | 'sync_task_graph'
   | 'create_from_graph'
+  | 'import_session_tasks'
   | 'search_tasks'
   | 'ready_tasks'
   | 'snapshot'
@@ -247,6 +249,7 @@ export const kanbanTool: Tool<KanbanToolInput, KanbanToolOutput> = {
           'export_task_graph',
           'sync_task_graph',
           'create_from_graph',
+          'import_session_tasks',
           'search_tasks',
           'ready_tasks',
           'snapshot',
@@ -551,6 +554,48 @@ export const kanbanTool: Tool<KanbanToolInput, KanbanToolOutput> = {
           return {
             ok: true,
             message: `Created board "${board.title}" from task graph with ${board.tasks.length} tasks.`,
+            board,
+          };
+        }
+        case 'import_session_tasks': {
+          // One-way projection: mirror this session's `.tasks.json` (the `task`
+          // tool's list) into a kanban board so session work shows up on a board
+          // without swapping the task tool's storage. Origin-keyed + re-runnable.
+          const taskPath = (ctx.meta as Record<string, unknown>)?.['task.path'] as
+            | string
+            | undefined;
+          if (!taskPath) return fail('No session task file for this session.');
+          const file = await loadTasks(taskPath);
+          if (!file || file.tasks.length === 0) return fail('No session tasks to import.');
+          const sessionId = ctx.session?.id ?? file.sessionId ?? 'session';
+          const graph = deserializeTaskGraph(taskFileToSerializedGraph(file.tasks, sessionId));
+          const tags = ['session', `session:${sessionId}`];
+          const existing = (await listBoards(projectRoot)).find((b) =>
+            b.tags?.includes(`session:${sessionId}`),
+          );
+          if (existing) {
+            const result = await syncBoardFromTaskGraph(projectRoot, existing.id, graph, {
+              sourceSystem: 'session',
+              tags,
+              archiveMissingTasks: true,
+              includeCompletedTasks: true,
+            });
+            return result
+              ? {
+                  ok: true,
+                  message: `Synced ${file.tasks.length} session tasks into board "${result.board.title}".`,
+                  board: result.board,
+                }
+              : fail('Session board vanished mid-sync.');
+          }
+          const { board } = await createBoardFromTaskGraph(projectRoot, graph, {
+            title: `Session tasks (${sessionId.slice(0, 8)})`,
+            sourceSystem: 'session',
+            tags,
+          });
+          return {
+            ok: true,
+            message: `Imported ${file.tasks.length} session tasks into new board "${board.title}".`,
             board,
           };
         }

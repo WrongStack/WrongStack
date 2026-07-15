@@ -42,9 +42,15 @@ async function readTasksOnDisk(taskPath: string): Promise<Array<{ id: string; ti
 describe('taskTool', () => {
   let sb: TaskSandbox;
   beforeEach(async () => {
+    // The task tool live-mirrors the list onto a kanban board (fire-and-forget).
+    // These unit tests exercise the task tool in isolation, and the async board
+    // write would race the recursive tmp-dir teardown (ENOTEMPTY on Windows), so
+    // disable the mirror by default — the mirror gets its own explicit test.
+    process.env.WRONGSTACK_KANBAN_TASK_MIRROR = '0';
     sb = await mkTaskSandbox();
   });
   afterEach(async () => {
+    delete process.env.WRONGSTACK_KANBAN_TASK_MIRROR;
     await sb.cleanup();
   });
 
@@ -461,5 +467,41 @@ describe('taskTool', () => {
     await taskTool.execute({ action: 'promote', target: 't1' }, sb.ctx, { signal: newSignal() });
     const onDisk = await readTasksOnDisk(sb.taskPath);
     expect(onDisk[0]?.status).toBe('completed'); // not flipped to in_progress
+  });
+
+  // -------------------------------------------------------------------
+  // kanban live mirror
+  // -------------------------------------------------------------------
+  it('mirrors the task list onto a session:<id> kanban board when enabled', async () => {
+    // Opt back IN for this test (beforeEach disabled it) and drive the mirror
+    // directly so we can await the projection rather than the fire-and-forget
+    // path (which would race the assertion).
+    delete process.env.WRONGSTACK_KANBAN_TASK_MIRROR;
+    const { projectSessionTasksToKanban } = await import('../src/session-kanban.js');
+    const { listBoards } = await import('@wrongstack/kanban');
+
+    await taskTool.execute(
+      {
+        action: 'replace',
+        tasks: [
+          { id: 't1', title: 'First', type: 'feature', priority: 'high', status: 'pending' },
+          { id: 't2', title: 'Second', type: 'bugfix', priority: 'low', status: 'pending', dependsOn: ['t1'] },
+        ],
+      },
+      sb.ctx,
+      { signal: newSignal() },
+    );
+
+    const file = JSON.parse(await fs.readFile(sb.taskPath, 'utf8')) as { tasks: unknown[] };
+    const board = await projectSessionTasksToKanban(sb.dir, file.tasks as never, 'sess');
+    expect(board).not.toBeNull();
+    expect(board?.tags).toContain('session:sess');
+    expect(board?.tasks.length).toBe(2);
+
+    // Re-running is idempotent — same board, not a duplicate.
+    const boardsBefore = await listBoards(sb.dir);
+    await projectSessionTasksToKanban(sb.dir, file.tasks as never, 'sess');
+    const boardsAfter = await listBoards(sb.dir);
+    expect(boardsAfter.length).toBe(boardsBefore.length);
   });
 });

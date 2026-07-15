@@ -3,8 +3,8 @@ import * as os from 'node:os';
 import * as path from 'node:path';
 import {
   makeKanbanQueueTool,
-  serializeTaskGraph,
   type SubagentConfig,
+  serializeTaskGraph,
   type TaskGraph,
   type TaskResult,
   type TaskSpec,
@@ -20,14 +20,14 @@ import {
   createBoardFromTaskGraph,
   duplicateBoard,
   exportBoardToTaskGraph,
-  getKanbanOrchestrationSnapshot,
   getBoard,
+  getKanbanOrchestrationSnapshot,
   getKanbanPath,
   getTaskChain,
   heartbeatTaskAssignment,
+  type KanbanBoard,
   listKanbanEvents,
   listReadyTasks,
-  type KanbanBoard,
   mergeTasks,
   moveTask,
   readBoard,
@@ -1140,6 +1140,43 @@ describe('kanban websocket handler', () => {
     expect(failed.error).toContain('No ready');
   });
 
+  it('persists the complete worker contract through websocket assignment', async () => {
+    const { ctx, sent } = wsRig();
+    const board = await createBoard(tmpDir, { title: 'WS assignment board' });
+    const task = await addTask(tmpDir, board.id, { title: 'Configured work' });
+
+    await handleKanbanMessage(ctx, FAKE_WS, {
+      type: 'kanban.task.assign',
+      payload: {
+        boardId: board.id,
+        taskId: task!.task.id,
+        modelRouting: 'fallback_profile',
+        fallbackProfile: 'careful',
+        fallbackModels: ['anthropic/backup'],
+        skills: ['testing'],
+        tools: ['kanban'],
+        maxAttempts: 4,
+        costCeilingUsd: 1.5,
+        retryPolicy: 'exponential',
+      },
+    });
+
+    const assigned = lastPayload<{
+      success: true;
+      data: { assignment?: Record<string, unknown> };
+    }>(sent, 'kanban.task.assign');
+    expect(assigned.data.assignment).toMatchObject({
+      modelRouting: 'fallback_profile',
+      fallbackProfile: 'careful',
+      fallbackModels: ['anthropic/backup'],
+      skills: ['testing'],
+      tools: ['kanban'],
+      maxAttempts: 4,
+      costCeilingUsd: 1.5,
+      retryPolicy: 'exponential',
+    });
+  });
+
   it('exports and syncs task graphs through websocket messages', async () => {
     const { ctx, sent } = wsRig();
     const board = await createBoard(tmpDir, { title: 'WS graph bridge' });
@@ -1231,6 +1268,7 @@ describe('kanban websocket handler', () => {
         provider: 'openai',
         model: 'gpt-5',
         fallbackModels: ['anthropic/anthropic-test-model'],
+        skills: ['testing'],
         tools: ['kanban', 'bash'],
         allowedCapabilities: ['fs.write'],
       },
@@ -1241,6 +1279,7 @@ describe('kanban websocket handler', () => {
       provider: 'openai',
       model: 'gpt-5',
       fallbackModels: ['anthropic/anthropic-test-model'],
+      skills: ['testing'],
       tools: ['kanban', 'bash'],
       allowedCapabilities: ['fs.write'],
     });

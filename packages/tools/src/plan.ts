@@ -16,6 +16,7 @@ import {
 } from '@wrongstack/core';
 import { randomUUID } from 'node:crypto';
 import type { Tool } from '@wrongstack/core';
+import { projectSessionPlanToKanban } from './session-kanban.js';
 
 /**
  * `planTool` — the LLM-callable counterpart to the `/plan` slash command.
@@ -321,6 +322,10 @@ export const planTool: Tool<PlanInput, PlanOutput> = {
         open: 0,
       };
     }
+
+    // A successful plan mutation includes its projection onto the unified
+    // session board; callers never observe plan state ahead of Kanban state.
+    await projectSessionPlanToKanban(ctx.projectRoot, plan.items, sessionId);
 
     // If the callback set an early-return result, use it
     if (early) return early;

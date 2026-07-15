@@ -1,7 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { appendKanbanEvent, listBoardSummaries, mutateBoard } from '../storage.js';
-import { getBoard } from './boards.js';
-import { areDependenciesMet } from './dependencies.js';
+import type { TaskEdge, TaskGraph, TaskNode, TaskStatus, TaskType } from '../types/task-graph.js';
 import {
   type AssignKanbanTaskInput,
   type ClaimKanbanTaskInput,
@@ -23,7 +22,8 @@ import {
   type KanbanTaskStatus,
   type UpdateKanbanTaskInput,
 } from '../types.js';
-import type { TaskEdge, TaskGraph, TaskNode, TaskStatus, TaskType } from '../types/task-graph.js';
+import { getBoard } from './boards.js';
+import { areDependenciesMet } from './dependencies.js';
 import type { CreateKanbanBoardFromTaskGraphOptions } from './task-graph-bridge.js';
 
 export function isAssignmentHeartbeatDue(
@@ -165,15 +165,17 @@ export function createTaskObject(board: KanbanBoard, input: CreateKanbanTaskInpu
     ...(input.labels !== undefined ? { labels: input.labels } : {}),
     ...(input.estimatedHours !== undefined ? { estimatedHours: input.estimatedHours } : {}),
     ...(input.actualHours !== undefined ? { actualHours: input.actualHours } : {}),
+    ...(input.retryPolicy !== undefined ? { retryPolicy: input.retryPolicy } : {}),
+    ...(input.costCeilingUsd !== undefined ? { costCeilingUsd: input.costCeilingUsd } : {}),
     ...(input.successCriteria !== undefined ? { successCriteria: input.successCriteria } : {}),
     ...(input.goalMetrics !== undefined ? { goalMetrics: input.goalMetrics } : {}),
     ...(input.links !== undefined ? { links: input.links } : {}),
     ...(input.notes !== undefined ? { notes: input.notes } : {}),
     // Sprint 3: mirror policy fields from assignment to durable task level.
-    ...(input.assignment?.retryPolicy !== undefined
+    ...(input.retryPolicy === undefined && input.assignment?.retryPolicy !== undefined
       ? { retryPolicy: input.assignment.retryPolicy }
       : {}),
-    ...(input.assignment?.costCeilingUsd !== undefined
+    ...(input.costCeilingUsd === undefined && input.assignment?.costCeilingUsd !== undefined
       ? { costCeilingUsd: input.assignment.costCeilingUsd }
       : {}),
   };
@@ -237,6 +239,8 @@ export function cloneTaskForBoard(
     ...(source.labels !== undefined ? { labels: [...source.labels] } : {}),
     ...(source.estimatedHours !== undefined ? { estimatedHours: source.estimatedHours } : {}),
     ...(source.actualHours !== undefined ? { actualHours: source.actualHours } : {}),
+    ...(source.retryPolicy !== undefined ? { retryPolicy: source.retryPolicy } : {}),
+    ...(source.costCeilingUsd !== undefined ? { costCeilingUsd: source.costCeilingUsd } : {}),
     ...(source.successCriteria !== undefined
       ? { successCriteria: source.successCriteria.map((check) => ({ ...check, id: randomUUID() })) }
       : {}),
@@ -256,9 +260,14 @@ export function cloneTaskForBoard(
   return task;
 }
 
-export function applyTaskPatch(board: KanbanBoard, task: KanbanTask, input: UpdateKanbanTaskInput): void {
+export function applyTaskPatch(
+  board: KanbanBoard,
+  task: KanbanTask,
+  input: UpdateKanbanTaskInput,
+): void {
   const now = nowIso();
   const previousColumnId = task.columnId;
+  const previousChainId = task.chain?.chainId;
   let shouldReorder = false;
   if (input.title !== undefined) task.title = requireNonBlank(input.title, 'Kanban task title');
   if (input.description !== undefined) task.description = input.description;
@@ -279,6 +288,10 @@ export function applyTaskPatch(board: KanbanBoard, task: KanbanTask, input: Upda
   if (input.type !== undefined) task.type = input.type;
   if (input.status !== undefined) {
     task.status = input.status;
+    if (input.columnId === undefined) {
+      syncTaskColumnForStatus(board, task, previousColumnId);
+      shouldReorder = false;
+    }
   }
   applyCompletedAtForStatus(task, now);
   if (input.assignedAgent !== undefined) {
@@ -301,6 +314,10 @@ export function applyTaskPatch(board: KanbanBoard, task: KanbanTask, input: Upda
   if (input.chain !== undefined) {
     if (input.chain === null) delete task.chain;
     else task.chain = { ...input.chain };
+    if (previousChainId && previousChainId !== task.chain?.chainId) {
+      normalizeChainMetadata(board, previousChainId);
+    }
+    if (task.chain?.chainId) normalizeChainMetadata(board, task.chain.chainId);
   }
   if (input.parentTaskId !== undefined) {
     if (input.parentTaskId === null) delete task.parentTaskId;
@@ -325,6 +342,14 @@ export function applyTaskPatch(board: KanbanBoard, task: KanbanTask, input: Upda
   if (input.labels !== undefined) task.labels = input.labels;
   if (input.estimatedHours !== undefined) task.estimatedHours = input.estimatedHours;
   if (input.actualHours !== undefined) task.actualHours = input.actualHours;
+  if (input.retryPolicy !== undefined) {
+    if (input.retryPolicy === null) delete task.retryPolicy;
+    else task.retryPolicy = input.retryPolicy;
+  }
+  if (input.costCeilingUsd !== undefined) {
+    if (input.costCeilingUsd === null) delete task.costCeilingUsd;
+    else task.costCeilingUsd = input.costCeilingUsd;
+  }
   if (input.successCriteria !== undefined) task.successCriteria = input.successCriteria;
   if (input.goalMetrics !== undefined) task.goalMetrics = input.goalMetrics;
   if (input.links !== undefined) task.links = input.links;
@@ -344,8 +369,10 @@ export function buildAssignment(input: AssignKanbanTaskInput): KanbanAgentAssign
     ...(input.role !== undefined ? { role: input.role } : {}),
     ...(input.provider !== undefined ? { provider: input.provider } : {}),
     ...(input.model !== undefined ? { model: input.model } : {}),
+    ...(input.modelRouting !== undefined ? { modelRouting: input.modelRouting } : {}),
     ...(input.fallbackProfile !== undefined ? { fallbackProfile: input.fallbackProfile } : {}),
     ...(input.fallbackModels !== undefined ? { fallbackModels: input.fallbackModels } : {}),
+    ...(input.skills !== undefined ? { skills: input.skills } : {}),
     ...(input.tools !== undefined ? { tools: input.tools } : {}),
     ...(input.allowedCapabilities !== undefined
       ? { allowedCapabilities: input.allowedCapabilities }
@@ -358,9 +385,7 @@ export function buildAssignment(input: AssignKanbanTaskInput): KanbanAgentAssign
     ...(input.maxAttempts !== undefined ? { maxAttempts: input.maxAttempts } : {}),
     ...(input.costCeilingUsd !== undefined ? { costCeilingUsd: input.costCeilingUsd } : {}),
     ...(input.retryPolicy !== undefined ? { retryPolicy: input.retryPolicy } : {}),
-    ...(input.lastFailureKind !== undefined
-      ? { lastFailureKind: input.lastFailureKind }
-      : {}),
+    ...(input.lastFailureKind !== undefined ? { lastFailureKind: input.lastFailureKind } : {}),
   };
 }
 
@@ -384,10 +409,12 @@ export async function claimReadyTaskOnBoard(
       ...(current?.role !== undefined ? { role: current.role } : {}),
       ...(current?.provider !== undefined ? { provider: current.provider } : {}),
       ...(current?.model !== undefined ? { model: current.model } : {}),
+      ...(current?.modelRouting !== undefined ? { modelRouting: current.modelRouting } : {}),
       ...(current?.fallbackProfile !== undefined
         ? { fallbackProfile: current.fallbackProfile }
         : {}),
       ...(current?.fallbackModels !== undefined ? { fallbackModels: current.fallbackModels } : {}),
+      ...(current?.skills !== undefined ? { skills: current.skills } : {}),
       ...(current?.tools !== undefined ? { tools: current.tools } : {}),
       ...(current?.allowedCapabilities !== undefined
         ? { allowedCapabilities: current.allowedCapabilities }
@@ -398,9 +425,7 @@ export async function claimReadyTaskOnBoard(
       ...(current?.leaseExpiresAt !== undefined ? { leaseExpiresAt: current.leaseExpiresAt } : {}),
       ...(current?.attempt !== undefined ? { attempt: current.attempt } : {}),
       ...(current?.maxAttempts !== undefined ? { maxAttempts: current.maxAttempts } : {}),
-      ...(current?.costCeilingUsd !== undefined
-        ? { costCeilingUsd: current.costCeilingUsd }
-        : {}),
+      ...(current?.costCeilingUsd !== undefined ? { costCeilingUsd: current.costCeilingUsd } : {}),
       ...(current?.retryPolicy !== undefined ? { retryPolicy: current.retryPolicy } : {}),
       ...(current?.lastFailureKind !== undefined
         ? { lastFailureKind: current.lastFailureKind }
@@ -410,8 +435,10 @@ export async function claimReadyTaskOnBoard(
       ...(input.role !== undefined ? { role: input.role } : {}),
       ...(input.provider !== undefined ? { provider: input.provider } : {}),
       ...(input.model !== undefined ? { model: input.model } : {}),
+      ...(input.modelRouting !== undefined ? { modelRouting: input.modelRouting } : {}),
       ...(input.fallbackProfile !== undefined ? { fallbackProfile: input.fallbackProfile } : {}),
       ...(input.fallbackModels !== undefined ? { fallbackModels: input.fallbackModels } : {}),
+      ...(input.skills !== undefined ? { skills: input.skills } : {}),
       ...(input.tools !== undefined ? { tools: input.tools } : {}),
       ...(input.allowedCapabilities !== undefined
         ? { allowedCapabilities: input.allowedCapabilities }
@@ -422,13 +449,9 @@ export async function claimReadyTaskOnBoard(
       ...(input.leaseExpiresAt !== undefined ? { leaseExpiresAt: input.leaseExpiresAt } : {}),
       ...(input.attempt !== undefined ? { attempt: input.attempt } : {}),
       ...(input.maxAttempts !== undefined ? { maxAttempts: input.maxAttempts } : {}),
-      ...(input.costCeilingUsd !== undefined
-        ? { costCeilingUsd: input.costCeilingUsd }
-        : {}),
+      ...(input.costCeilingUsd !== undefined ? { costCeilingUsd: input.costCeilingUsd } : {}),
       ...(input.retryPolicy !== undefined ? { retryPolicy: input.retryPolicy } : {}),
-      ...(input.lastFailureKind !== undefined
-        ? { lastFailureKind: input.lastFailureKind }
-        : {}),
+      ...(input.lastFailureKind !== undefined ? { lastFailureKind: input.lastFailureKind } : {}),
       ...(input.assignee !== undefined ? { assignee: input.assignee } : {}),
       status: input.status ?? 'queued',
     });
@@ -535,7 +558,11 @@ export function findGoalMetric(
   return matches[0];
 }
 
-export function addDependencyToTask(board: KanbanBoard, task: KanbanTask, dependency: KanbanTask): void {
+export function addDependencyToTask(
+  board: KanbanBoard,
+  task: KanbanTask,
+  dependency: KanbanTask,
+): void {
   if (task.id === dependency.id) throw new Error('A kanban task cannot depend on itself.');
   if (hasDependencyPath(board, dependency.id, task.id)) {
     throw new Error(`Adding dependency ${dependency.id} would create a dependency cycle.`);
@@ -645,7 +672,10 @@ export function remapTaskReferences(
   }
 }
 
-export function remapIdList(ids: string[] | undefined, idMap: Map<string, string>): string[] | undefined {
+export function remapIdList(
+  ids: string[] | undefined,
+  idMap: Map<string, string>,
+): string[] | undefined {
   const remapped = (ids ?? []).map((id) => idMap.get(id)).filter((id): id is string => Boolean(id));
   return remapped.length ? remapped : undefined;
 }
@@ -682,7 +712,10 @@ export function assertNoDependencyCycles(board: KanbanBoard): void {
   for (const task of board.tasks) visit(task.id);
 }
 
-export function existingColumnId(board: KanbanBoard, columnId: string | undefined): string | undefined {
+export function existingColumnId(
+  board: KanbanBoard,
+  columnId: string | undefined,
+): string | undefined {
   if (!columnId) return undefined;
   const exact = board.columns.find((column) => column.id === columnId);
   if (exact) return exact.id;
@@ -931,7 +964,10 @@ export function applyTaskGraphRelationships(
   }
 }
 
-export function buildTaskGraphMetadata(board: KanbanBoard, task: KanbanTask): Record<string, unknown> {
+export function buildTaskGraphMetadata(
+  board: KanbanBoard,
+  task: KanbanTask,
+): Record<string, unknown> {
   const kanban: Record<string, unknown> = {
     boardId: board.id,
     taskId: task.id,
@@ -1042,7 +1078,11 @@ export function findTaskByOrigin(
   );
 }
 
-export function isTaskFromGraph(task: KanbanTask, graphId: string, phaseId: string | undefined): boolean {
+export function isTaskFromGraph(
+  task: KanbanTask,
+  graphId: string,
+  phaseId: string | undefined,
+): boolean {
   return (
     task.origin?.graphId === graphId && (phaseId === undefined || task.origin.phaseId === phaseId)
   );
@@ -1097,7 +1137,9 @@ export function createKanbanEvent(
     type,
     ts: nowIso(),
     ...(task.assignment?.agentId !== undefined ? { actor: task.assignment.agentId } : {}),
-    ...(task.assignment?.subagentId !== undefined ? { subagentId: task.assignment.subagentId } : {}),
+    ...(task.assignment?.subagentId !== undefined
+      ? { subagentId: task.assignment.subagentId }
+      : {}),
     ...(task.assignment?.runTaskId !== undefined ? { runTaskId: task.assignment.runTaskId } : {}),
     ...details,
   };

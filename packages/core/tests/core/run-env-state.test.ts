@@ -177,6 +177,23 @@ describe('ConversationState — write API and onChange', () => {
     expect((cb.mock.calls[0]![0] as { kind: string }).kind).toBe('todos_replaced');
   });
 
+  it('preserves the final completed snapshot when the active todo list auto-clears', () => {
+    const ctx = mkContext();
+    const state = wrapAsState(ctx);
+    const cb = vi.fn();
+    state.onChange(cb);
+    const completed = [{ id: 'a', content: 'A', status: 'completed' as const }];
+
+    state.replaceTodos(completed);
+
+    expect(ctx.todos).toEqual([]);
+    expect(cb.mock.calls[0]?.[0]).toMatchObject({
+      kind: 'todos_replaced',
+      todos: [],
+      completedSnapshot: completed,
+    });
+  });
+
   it('setMeta sets the value and emits meta_set', () => {
     const ctx = mkContext();
     const state = wrapAsState(ctx);

@@ -1,6 +1,5 @@
-import * as path from 'node:path';
 import { randomBytes } from 'node:crypto';
-import { sessionScopedPath, toErrorMessage } from '@wrongstack/core/utils';
+import * as path from 'node:path';
 import {
   // createSessionEventBridge,
   // resolveAuditLevel,
@@ -19,6 +18,8 @@ import {
   type SessionWriter,
   type WstackPaths,
 } from '@wrongstack/core';
+import { sessionScopedPath, toErrorMessage } from '@wrongstack/core/utils';
+import { attachSessionKanbanMirror, hydrateSessionKanban } from '@wrongstack/tools/session-kanban';
 export interface SessionResult {
   session: SessionWriter;
   sessionRef: { current?: SessionWriter | undefined };
@@ -204,11 +205,7 @@ export async function setupSession(params: {
   const todosCheckpointPath = sessionScopedPath(wpaths.projectSessions, sessionId, '.todos.json');
   if (resumeId) {
     try {
-      const restoredTodos = await loadTodosCheckpoint(
-        todosCheckpointPath,
-        eventsBus,
-        traceId,
-      );
+      const restoredTodos = await loadTodosCheckpoint(todosCheckpointPath, eventsBus, traceId);
       if (restoredTodos && restoredTodos.length > 0) {
         context.state.replaceTodos(restoredTodos);
         renderer.writeInfo(
@@ -219,13 +216,13 @@ export async function setupSession(params: {
       /* best-effort */
     }
   }
-  const detachTodosCheckpoint = attachTodosCheckpoint(
+  const detachTodosCheckpointOnly = attachTodosCheckpoint(
     context.state,
     todosCheckpointPath,
     sessionId,
     eventsBus,
     traceId,
-    loggerParam ? ((msg: string) => loggerParam.warn(msg)) : undefined,
+    loggerParam ? (msg: string) => loggerParam.warn(msg) : undefined,
   );
 
   const planPath = sessionScopedPath(wpaths.projectSessions, sessionId, '.plan.json');
@@ -233,6 +230,16 @@ export async function setupSession(params: {
 
   const taskPath = sessionScopedPath(wpaths.projectSessions, sessionId, '.tasks.json');
   context.state.setMeta('task.path', taskPath);
+
+  // A session is born with its Kanban board. The binding observes every todo
+  // replacement and both plan/task sidecars, including mutations made from
+  // slash commands, WebUI, TUI, plugins, and tools.
+  await hydrateSessionKanban(context);
+  const detachSessionKanbanMirror = attachSessionKanbanMirror(context);
+  const detachTodosCheckpoint = async () => {
+    detachSessionKanbanMirror();
+    await detachTodosCheckpointOnly();
+  };
 
   let dirState;
   if (resumeId) {

@@ -8,9 +8,19 @@ export interface KanbanToolOption {
   description?: string | undefined;
 }
 
+export interface KanbanSkillOption {
+  name: string;
+  description?: string | undefined;
+  source?: string | undefined;
+}
+
 export interface KanbanMeta {
   /** Real registered tools from the live agent runtime (not hardcoded). */
   tools: KanbanToolOption[];
+  /** Installed skills available for explicit task-level force loading. */
+  skills: KanbanSkillOption[];
+  /** Real named fallback chains from the active config. */
+  fallbackProfiles: Record<string, string[]>;
   /** The current session's provider — the dispatch fallback when a task has none. */
   sessionProvider: string;
   /** The current session's model — the dispatch fallback when a task has none. */
@@ -31,6 +41,8 @@ export function useKanbanMeta(active: boolean): KanbanMeta {
   const cfgProvider = useConfigStore((s) => s.provider);
   const cfgModel = useConfigStore((s) => s.model);
   const [tools, setTools] = useState<KanbanToolOption[]>([]);
+  const [skills, setSkills] = useState<KanbanSkillOption[]>([]);
+  const [fallbackProfiles, setFallbackProfiles] = useState<Record<string, string[]>>({});
   const [sessionProvider, setSessionProvider] = useState('');
   const [sessionModel, setSessionModel] = useState('');
 
@@ -40,12 +52,16 @@ export function useKanbanMeta(active: boolean): KanbanMeta {
       const p = (msg.payload as { data?: unknown } | undefined)?.data as
         | {
             tools?: KanbanToolOption[];
+            skills?: KanbanSkillOption[];
+            fallbackProfiles?: Record<string, string[]>;
             sessionProvider?: string;
             sessionModel?: string;
           }
         | undefined;
       if (!p) return;
       setTools(p.tools ?? []);
+      setSkills(p.skills ?? []);
+      setFallbackProfiles(p.fallbackProfiles ?? {});
       if (p.sessionProvider) setSessionProvider(p.sessionProvider);
       if (p.sessionModel) setSessionModel(p.sessionModel);
     });
@@ -58,6 +74,8 @@ export function useKanbanMeta(active: boolean): KanbanMeta {
 
   return {
     tools,
+    skills,
+    fallbackProfiles,
     sessionProvider: sessionProvider || cfgProvider,
     sessionModel: sessionModel || cfgModel,
   };

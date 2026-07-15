@@ -461,7 +461,11 @@ export async function startWebUI(
 
   const cb: WebuiCallbacks = {
     sessionStartPayload,
-    onSessionSwapped: (sessionId) => sessionIdentity.activate(sessionId),
+    onSessionSwapped: async (sessionId) => {
+      await sessionIdentity.activate(sessionId);
+      const { hydrateSessionKanban } = await import('@wrongstack/tools/session-kanban');
+      await hydrateSessionKanban(deps.context);
+    },
     updateAutoCompactionMaxContext,
     updateGlobalConfig,
     persistPrefsToConfig,

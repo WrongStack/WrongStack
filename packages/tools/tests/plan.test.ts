@@ -34,9 +34,14 @@ async function mkPlanSandbox(): Promise<PlanSandbox> {
 describe('planTool', () => {
   let sb: PlanSandbox;
   beforeEach(async () => {
+    // The plan tool live-mirrors items onto a kanban board (fire-and-forget);
+    // disable it so the async board write can't race the recursive tmp-dir
+    // teardown (ENOTEMPTY on Windows). See task.test.ts for the same guard.
+    process.env.WRONGSTACK_KANBAN_TASK_MIRROR = '0';
     sb = await mkPlanSandbox();
   });
   afterEach(async () => {
+    delete process.env.WRONGSTACK_KANBAN_TASK_MIRROR;
     await sb.cleanup();
   });
 
@@ -49,11 +54,9 @@ describe('planTool', () => {
   });
 
   it('add persists items to disk', async () => {
-    await planTool.execute(
-      { action: 'add', title: 'audit schema' },
-      sb.ctx,
-      { signal: newSignal() },
-    );
+    await planTool.execute({ action: 'add', title: 'audit schema' }, sb.ctx, {
+      signal: newSignal(),
+    });
     const raw = JSON.parse(await fs.readFile(sb.planPath, 'utf8')) as {
       items: Array<{ title: string; status: string }>;
     };
@@ -71,11 +74,9 @@ describe('planTool', () => {
     };
     expect(afterStart.items[0]?.status).toBe('in_progress');
 
-    const out = await planTool.execute(
-      { action: 'done', target: '1' },
-      sb.ctx,
-      { signal: newSignal() },
-    );
+    const out = await planTool.execute({ action: 'done', target: '1' }, sb.ctx, {
+      signal: newSignal(),
+    });
     expect(out.open).toBe(1); // item 2 still open
     expect(out.count).toBe(2);
   });
@@ -106,11 +107,9 @@ describe('planTool', () => {
   });
 
   it('template_use applies a template', async () => {
-    const out = await planTool.execute(
-      { action: 'template_use', template: 'bug-fix' },
-      sb.ctx,
-      { signal: newSignal() },
-    );
+    const out = await planTool.execute({ action: 'template_use', template: 'bug-fix' }, sb.ctx, {
+      signal: newSignal(),
+    });
     expect(out.ok).toBe(true);
     expect(out.count).toBeGreaterThan(0);
     expect(out.message).toContain('bug-fix');
@@ -141,7 +140,9 @@ describe('planTool', () => {
       },
     } as never as Context['state'];
 
-    await planTool.execute({ action: 'add', title: 'Build feature' }, sb.ctx, { signal: newSignal() });
+    await planTool.execute({ action: 'add', title: 'Build feature' }, sb.ctx, {
+      signal: newSignal(),
+    });
     const out = await planTool.execute(
       { action: 'promote', target: '1', subtasks: ['Write tests', 'Implement'] },
       sb.ctx,
@@ -157,9 +158,15 @@ describe('planTool', () => {
   // taskify (plan → task)
   // -------------------------------------------------------------------
   it('taskify converts a plan item to a task', async () => {
-    await planTool.execute({ action: 'add', title: 'Implement auth', details: 'Add OAuth flow' }, sb.ctx, { signal: newSignal() });
+    await planTool.execute(
+      { action: 'add', title: 'Implement auth', details: 'Add OAuth flow' },
+      sb.ctx,
+      { signal: newSignal() },
+    );
 
-    const out = await planTool.execute({ action: 'taskify', target: '1' }, sb.ctx, { signal: newSignal() });
+    const out = await planTool.execute({ action: 'taskify', target: '1' }, sb.ctx, {
+      signal: newSignal(),
+    });
     expect(out.ok).toBe(true);
     expect(out.message).toMatch(/taskify ok/i);
     expect(out.message).toContain('Implement auth');
@@ -167,7 +174,13 @@ describe('planTool', () => {
     // Verify the task file was written
     const taskPath = (sb.ctx.meta as Record<string, unknown>)['task.path'] as string;
     const raw = JSON.parse(await fs.readFile(taskPath, 'utf8')) as {
-      tasks: Array<{ title: string; description: string; type: string; priority: string; status: string }>;
+      tasks: Array<{
+        title: string;
+        description: string;
+        type: string;
+        priority: string;
+        status: string;
+      }>;
     };
     expect(raw.tasks).toHaveLength(1);
     expect(raw.tasks[0]?.title).toBe('Implement auth');
@@ -181,5 +194,34 @@ describe('planTool', () => {
     const out = await planTool.execute({ action: 'taskify' }, sb.ctx, { signal: newSignal() });
     expect(out.ok).toBe(false);
     expect(out.message).toMatch(/target/i);
+  });
+
+  it('mirrors plan items onto the unified session kanban board when enabled', async () => {
+    // Drive the projection directly (awaitable) rather than the fire-and-forget
+    // path, which would race the assertion.
+    delete process.env.WRONGSTACK_KANBAN_TASK_MIRROR;
+    const { projectSessionPlanToKanban } = await import('../src/session-kanban.js');
+    const { listBoards } = await import('@wrongstack/kanban');
+
+    await planTool.execute({ action: 'add', title: 'design' }, sb.ctx, { signal: newSignal() });
+    await planTool.execute({ action: 'add', title: 'build' }, sb.ctx, { signal: newSignal() });
+
+    const file = JSON.parse(await fs.readFile(sb.planPath, 'utf8')) as { items: unknown[] };
+    const board = await projectSessionPlanToKanban(sb.dir, file.items as never, 'sess');
+    expect(board).not.toBeNull();
+    expect(board?.tags).toContain('session:sess');
+    expect(board?.columns.map((column) => column.title)).toEqual([
+      'Todo',
+      'Running',
+      'Preview',
+      'Done',
+    ]);
+    expect(board?.tasks.length).toBe(2);
+
+    // Idempotent: re-projecting reuses the same board.
+    const before = await listBoards(sb.dir);
+    await projectSessionPlanToKanban(sb.dir, file.items as never, 'sess');
+    const after = await listBoards(sb.dir);
+    expect(after.length).toBe(before.length);
   });
 });

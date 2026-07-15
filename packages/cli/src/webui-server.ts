@@ -78,6 +78,7 @@ import { toErrorMessage } from '@wrongstack/core/utils/error';
 import type { MCPRegistry } from '@wrongstack/mcp';
 import { makeProviderFromConfig } from '@wrongstack/providers';
 import { createKanbanRunMirror } from './webui-server/kanban-run-mirror.js';
+import { createKanbanSupervisor } from './webui-server/kanban-supervisor.js';
 import {
   AutoPhaseWebSocketHandler,
   buildSddWizardDeps,
@@ -299,6 +300,8 @@ export interface CliWebUIOptions {
           provider?: string | undefined;
           model?: string | undefined;
           fallbackModels?: string[] | undefined;
+          fallbackProfile?: string | undefined;
+          skills?: string[] | undefined;
           tools?: string[] | undefined;
           name?: string | undefined;
           allowedCapabilities?: readonly string[] | undefined;
@@ -385,6 +388,14 @@ export async function runWebUI(opts: CliWebUIOptions): Promise<void> {
         events: opts.events,
         broadcast,
         log: (m) => consoleLogger.info(m),
+      })
+    : null;
+  const kanbanSupervisor = opts.projectRoot
+    ? createKanbanSupervisor({
+        projectRoot: opts.projectRoot,
+        broadcast,
+        ...(opts.onKanbanDispatch ? { dispatchTask: opts.onKanbanDispatch } : {}),
+        log: (message) => consoleLogger.info(message),
       })
     : null;
   const autoPhaseHandler = new AutoPhaseWebSocketHandler(
@@ -999,6 +1010,7 @@ export async function runWebUI(opts: CliWebUIOptions): Promise<void> {
     worktreeHandler,
     terminalHandler,
     kanbanRunMirror: kanbanRunMirror ?? undefined,
+    kanbanSupervisor: kanbanSupervisor ?? undefined,
   });
 
   const stopped = new Promise<void>((resolve) => {
@@ -1127,6 +1139,7 @@ export async function runWebUI(opts: CliWebUIOptions): Promise<void> {
     worktreeHandler.dispose();
     terminalHandler.dispose();
     kanbanRunMirror?.dispose();
+    kanbanSupervisor?.dispose();
     unregisterWebuiClient();
     httpServer?.server.close();
     opts.onExit?.();

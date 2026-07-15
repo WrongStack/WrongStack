@@ -18,13 +18,16 @@
  */
 
 import {
+  type Context,
   deserializeTaskGraph,
   type SerializableTaskGraph,
   serializeTaskGraph,
 } from '@wrongstack/core';
 import {
+  addCheckToTask,
   addColumn,
   addGoalMetricToTask,
+  addNoteToTask,
   addTask,
   assignTask,
   claimReadyTask,
@@ -37,39 +40,47 @@ import {
   getKanbanOrchestrationSnapshot,
   getTask,
   getTaskChain,
+  type KanbanBoard,
   type KanbanColumn,
   type KanbanTask,
   type KanbanTaskPriority,
   type KanbanTaskStatus,
-  listReadyTasks,
   listBoards,
+  listReadyTasks,
   mergeTasks,
   moveTask,
   parseLinesIntoTasks,
+  reconcileKanbanBoard,
+  releaseTaskClaim,
   removeBoard,
   removeColumn,
   removeTask,
-  releaseTaskClaim,
   setTaskChain,
   splitTask,
   syncBoardFromTaskGraph,
   transferTaskToBoard,
   updateBoard as updateBoardManager,
+  updateCheckOnTask,
   updateGoalMetricOnTask,
   updateTask,
   updateTaskAssignment,
 } from '@wrongstack/kanban';
+import { applySessionKanbanTaskToSource } from '@wrongstack/tools/session-kanban';
 import type { WebSocket } from 'ws';
 import type { WsCommon } from './index.js';
 
 export interface KanbanContext extends WsCommon {
   projectRoot: string;
+  /** Live session state used for Kanban -> todo/task/plan write-back. */
+  sessionContext?: Context | undefined;
   dispatchTask?: (
     description: string,
     opts?: {
       provider?: string | undefined;
       model?: string | undefined;
       fallbackModels?: string[] | undefined;
+      fallbackProfile?: string | undefined;
+      skills?: string[] | undefined;
       tools?: string[] | undefined;
       name?: string | undefined;
       allowedCapabilities?: readonly string[] | undefined;
@@ -84,6 +95,25 @@ export interface KanbanContext extends WsCommon {
   ) => Promise<string>;
 }
 
+async function syncSessionSource(
+  ctx: KanbanContext,
+  task: KanbanTask,
+  remove = false,
+): Promise<void> {
+  if (!ctx.sessionContext) return;
+  const update = await applySessionKanbanTaskToSource(ctx.sessionContext, task, { remove });
+  const sessionId = ctx.sessionContext.session?.id ?? '';
+  if (update.todos) {
+    ctx.broadcast({ type: 'todos.updated', payload: { sessionId, todos: update.todos } });
+  }
+  if (update.tasks) {
+    ctx.broadcast({ type: 'tasks.updated', payload: { sessionId, tasks: update.tasks.tasks } });
+  }
+  if (update.plan) {
+    ctx.broadcast({ type: 'plan.updated', payload: { sessionId, plan: update.plan } });
+  }
+}
+
 function send(ctx: KanbanContext, ws: WebSocket, type: string, payload: unknown): void {
   ctx.send(ws, { type, payload });
 }
@@ -94,6 +124,10 @@ function ok(ctx: KanbanContext, ws: WebSocket, type: string, data?: unknown): vo
 
 function fail(ctx: KanbanContext, ws: WebSocket, type: string, message: string): void {
   send(ctx, ws, type, { success: false, error: message });
+}
+
+function has(payload: Record<string, unknown> | undefined, key: string): boolean {
+  return payload !== undefined && Object.hasOwn(payload, key);
 }
 
 // ── Route handler ───────────────────────────────────────────────────────
@@ -149,6 +183,9 @@ export async function handleKanbanMessage(
           ...(payload?.description ? { description: payload.description as string } : {}),
           ...(payload?.tags ? { tags: payload.tags as string[] } : {}),
           ...(payload?.columns ? { columns: payload.columns as KanbanColumn[] } : {}),
+          ...(payload?.supervisor
+            ? { supervisor: payload.supervisor as NonNullable<KanbanBoard['supervisor']> }
+            : {}),
         });
         ok(ctx, ws, 'kanban.create', board);
         return;
@@ -166,6 +203,12 @@ export async function handleKanbanMessage(
           ...(payload?.description ? { description: payload.description as string } : {}),
           ...(payload?.tags ? { tags: payload.tags as string[] } : {}),
           ...(payload?.columns ? { columns: payload.columns as KanbanColumn[] } : {}),
+          ...(has(payload, 'supervisor')
+            ? {
+                supervisor:
+                  (payload?.supervisor as KanbanBoard['supervisor'] | null | undefined) ?? null,
+              }
+            : {}),
         });
         if (!board) {
           fail(ctx, ws, type, `Board not found: ${id}`);
@@ -210,6 +253,11 @@ export async function handleKanbanMessage(
           return;
         }
         const board = await getBoard(projectRoot, id);
+        const activeSessionId = ctx.sessionContext?.session?.id;
+        if (activeSessionId && board?.tags?.includes(`session:${activeSessionId}`)) {
+          fail(ctx, ws, type, 'The active session Kanban board cannot be deleted.');
+          return;
+        }
         const removed = board ? await removeBoard(projectRoot, board.id) : false;
         ok(ctx, ws, 'kanban.delete', { removed, boardId: board?.id ?? id });
         return;
@@ -350,9 +398,20 @@ export async function handleKanbanMessage(
           columnId: (payload?.columnId as string) ?? 'backlog',
           ...(payload?.description ? { description: payload.description as string } : {}),
           ...(payload?.priority ? { priority: payload.priority as KanbanTaskPriority } : {}),
+          ...(payload?.type ? { type: payload.type as NonNullable<KanbanTask['type']> } : {}),
+          ...(payload?.status ? { status: payload.status as KanbanTaskStatus } : {}),
           ...(payload?.assignedAgent ? { assignedAgent: payload.assignedAgent as string } : {}),
           ...(payload?.dependsOn ? { dependsOn: payload.dependsOn as string[] } : {}),
           ...(payload?.labels ? { labels: payload.labels as string[] } : {}),
+          ...(typeof payload?.estimatedHours === 'number'
+            ? { estimatedHours: payload.estimatedHours }
+            : {}),
+          ...(payload?.retryPolicy
+            ? { retryPolicy: payload.retryPolicy as NonNullable<KanbanTask['retryPolicy']> }
+            : {}),
+          ...(typeof payload?.costCeilingUsd === 'number'
+            ? { costCeilingUsd: payload.costCeilingUsd }
+            : {}),
         });
         if (!result) {
           fail(ctx, ws, type, `Board not found: ${boardId}`);
@@ -450,20 +509,61 @@ export async function handleKanbanMessage(
           return;
         }
         const board = await updateTask(projectRoot, boardId, taskId, {
-          ...(payload?.title ? { title: payload.title as string } : {}),
-          ...(payload?.description ? { description: payload.description as string } : {}),
-          ...(payload?.columnId ? { columnId: payload.columnId as string } : {}),
-          ...(payload?.priority ? { priority: payload.priority as KanbanTaskPriority } : {}),
-          ...(payload?.status ? { status: payload.status as KanbanTaskStatus } : {}),
-          ...(payload?.assignedAgent ? { assignedAgent: payload.assignedAgent as string } : {}),
-          ...(payload?.dependsOn ? { dependsOn: payload.dependsOn as string[] } : {}),
-          ...(payload?.labels ? { labels: payload.labels as string[] } : {}),
+          ...(has(payload, 'title') ? { title: payload?.title as string } : {}),
+          ...(has(payload, 'description')
+            ? { description: (payload?.description as string | undefined) ?? '' }
+            : {}),
+          ...(has(payload, 'columnId') ? { columnId: payload?.columnId as string } : {}),
+          ...(has(payload, 'priority')
+            ? { priority: payload?.priority as KanbanTaskPriority }
+            : {}),
+          ...(has(payload, 'type')
+            ? { type: payload?.type as NonNullable<KanbanTask['type']> }
+            : {}),
+          ...(has(payload, 'status') ? { status: payload?.status as KanbanTaskStatus } : {}),
+          ...(has(payload, 'assignedAgent')
+            ? { assignedAgent: (payload?.assignedAgent as string | null | undefined) ?? null }
+            : {}),
+          ...(has(payload, 'assignee')
+            ? { assignee: (payload?.assignee as string | null | undefined) ?? null }
+            : {}),
+          ...(has(payload, 'dependsOn')
+            ? { dependsOn: (payload?.dependsOn as string[] | undefined) ?? [] }
+            : {}),
+          ...(has(payload, 'chain')
+            ? { chain: (payload?.chain as KanbanTask['chain'] | null | undefined) ?? null }
+            : {}),
+          ...(has(payload, 'labels')
+            ? { labels: (payload?.labels as string[] | undefined) ?? [] }
+            : {}),
+          ...(has(payload, 'estimatedHours')
+            ? { estimatedHours: Number(payload?.estimatedHours ?? 0) }
+            : {}),
+          ...(has(payload, 'actualHours')
+            ? { actualHours: Number(payload?.actualHours ?? 0) }
+            : {}),
+          ...(has(payload, 'retryPolicy')
+            ? {
+                retryPolicy:
+                  (payload?.retryPolicy as KanbanTask['retryPolicy'] | null | undefined) ?? null,
+              }
+            : {}),
+          ...(has(payload, 'costCeilingUsd')
+            ? {
+                costCeilingUsd:
+                  payload?.costCeilingUsd === null || payload?.costCeilingUsd === ''
+                    ? null
+                    : Number(payload?.costCeilingUsd),
+              }
+            : {}),
         });
         if (!board) {
           fail(ctx, ws, type, 'Board or task not found');
           return;
         }
-        ok(ctx, ws, 'kanban.task.update', findTask(board.tasks, taskId));
+        const task = findTask(board.tasks, taskId);
+        if (task) await syncSessionSource(ctx, task);
+        ok(ctx, ws, 'kanban.task.update', task);
         return;
       }
 
@@ -487,7 +587,9 @@ export async function handleKanbanMessage(
           fail(ctx, ws, type, 'Move failed');
           return;
         }
-        ok(ctx, ws, 'kanban.task.move', findTask(board.tasks, tId));
+        const task = findTask(board.tasks, tId);
+        if (task) await syncSessionSource(ctx, task);
+        ok(ctx, ws, 'kanban.task.move', task);
         return;
       }
 
@@ -591,17 +693,28 @@ export async function handleKanbanMessage(
           ...(payload?.role ? { role: payload.role as string } : {}),
           ...(payload?.provider ? { provider: payload.provider as string } : {}),
           ...(payload?.model ? { model: payload.model as string } : {}),
+          ...(payload?.modelRouting
+            ? { modelRouting: payload.modelRouting as 'session' | 'fixed' | 'fallback_profile' }
+            : {}),
           ...(payload?.fallbackProfile
             ? { fallbackProfile: payload.fallbackProfile as string }
             : {}),
           ...(payload?.fallbackModels
             ? { fallbackModels: payload.fallbackModels as string[] }
             : {}),
+          ...(payload?.skills ? { skills: payload.skills as string[] } : {}),
           ...(payload?.tools ? { tools: payload.tools as string[] } : {}),
           ...(payload?.allowedCapabilities
             ? { allowedCapabilities: payload.allowedCapabilities as string[] }
             : {}),
           ...(payload?.assignee ? { assignee: payload.assignee as string } : {}),
+          ...(typeof payload?.maxAttempts === 'number' ? { maxAttempts: payload.maxAttempts } : {}),
+          ...(typeof payload?.costCeilingUsd === 'number'
+            ? { costCeilingUsd: payload.costCeilingUsd }
+            : {}),
+          ...(payload?.retryPolicy
+            ? { retryPolicy: payload.retryPolicy as NonNullable<KanbanTask['retryPolicy']> }
+            : {}),
           status:
             (payload?.assignmentStatus as 'assigned' | 'queued' | 'running' | undefined) ??
             'queued',
@@ -694,17 +807,30 @@ export async function handleKanbanMessage(
           ...(payload?.role ? { role: payload.role as string } : {}),
           ...(payload?.provider ? { provider: payload.provider as string } : {}),
           ...(payload?.model ? { model: payload.model as string } : {}),
+          ...(payload?.modelRouting
+            ? { modelRouting: payload.modelRouting as 'session' | 'fixed' | 'fallback_profile' }
+            : {}),
           ...(payload?.fallbackProfile
             ? { fallbackProfile: payload.fallbackProfile as string }
             : {}),
           ...(payload?.fallbackModels
             ? { fallbackModels: payload.fallbackModels as string[] }
             : {}),
+          ...(payload?.skills ? { skills: payload.skills as string[] } : {}),
           ...(payload?.tools ? { tools: payload.tools as string[] } : {}),
           ...(payload?.allowedCapabilities
             ? { allowedCapabilities: payload.allowedCapabilities as string[] }
             : {}),
           ...(payload?.assignee ? { assignee: payload.assignee as string } : {}),
+          ...(payload?.maxAttempts !== undefined
+            ? { maxAttempts: Number(payload.maxAttempts) }
+            : {}),
+          ...(payload?.costCeilingUsd !== undefined
+            ? { costCeilingUsd: Number(payload.costCeilingUsd) }
+            : {}),
+          ...(payload?.retryPolicy
+            ? { retryPolicy: payload.retryPolicy as NonNullable<KanbanTask['retryPolicy']> }
+            : {}),
         });
         if (!board) {
           fail(ctx, ws, type, 'Board or task not found');
@@ -736,6 +862,16 @@ export async function handleKanbanMessage(
           fail(ctx, ws, type, 'Board or task not found');
           return;
         }
+        const modelRouting =
+          (payload?.modelRouting as 'session' | 'fixed' | 'fallback_profile' | undefined) ??
+          task.assignment?.modelRouting ??
+          (payload?.provider ||
+          payload?.model ||
+          task.assignment?.provider ||
+          task.assignment?.model
+            ? 'fixed'
+            : 'session');
+        const useSessionModel = modelRouting === 'session';
         const assignment = {
           agentId:
             (payload?.agentId as string | undefined) ??
@@ -744,16 +880,34 @@ export async function handleKanbanMessage(
           name:
             (payload?.name as string | undefined) ?? task.assignment?.name ?? task.assignedAgent,
           role: (payload?.role as string | undefined) ?? task.assignment?.role,
-          provider: (payload?.provider as string | undefined) ?? task.assignment?.provider,
-          model: (payload?.model as string | undefined) ?? task.assignment?.model,
+          modelRouting,
+          provider: useSessionModel
+            ? undefined
+            : ((payload?.provider as string | undefined) ?? task.assignment?.provider),
+          model: useSessionModel
+            ? undefined
+            : ((payload?.model as string | undefined) ?? task.assignment?.model),
           fallbackProfile:
-            (payload?.fallbackProfile as string | undefined) ?? task.assignment?.fallbackProfile,
+            modelRouting === 'fallback_profile'
+              ? ((payload?.fallbackProfile as string | undefined) ??
+                task.assignment?.fallbackProfile)
+              : undefined,
           fallbackModels:
             (payload?.fallbackModels as string[] | undefined) ?? task.assignment?.fallbackModels,
+          skills: (payload?.skills as string[] | undefined) ?? task.assignment?.skills,
           tools: (payload?.tools as string[] | undefined) ?? task.assignment?.tools,
           allowedCapabilities:
             (payload?.allowedCapabilities as string[] | undefined) ??
             task.assignment?.allowedCapabilities,
+          maxAttempts: (payload?.maxAttempts as number | undefined) ?? task.assignment?.maxAttempts,
+          costCeilingUsd:
+            (payload?.costCeilingUsd as number | undefined) ??
+            task.assignment?.costCeilingUsd ??
+            task.costCeilingUsd,
+          retryPolicy:
+            (payload?.retryPolicy as KanbanTask['retryPolicy'] | undefined) ??
+            task.assignment?.retryPolicy ??
+            task.retryPolicy,
           status: 'queued' as const,
           dispatchedAt: new Date().toISOString(),
         };
@@ -763,18 +917,22 @@ export async function handleKanbanMessage(
             ...(assignment.provider ? { provider: assignment.provider } : {}),
             ...(assignment.model ? { model: assignment.model } : {}),
             ...(assignment.fallbackModels ? { fallbackModels: assignment.fallbackModels } : {}),
+            ...(assignment.fallbackProfile ? { fallbackProfile: assignment.fallbackProfile } : {}),
+            ...(assignment.skills ? { skills: assignment.skills } : {}),
             ...(assignment.tools ? { tools: assignment.tools } : {}),
             ...(assignment.name ? { name: assignment.name } : {}),
             ...(assignment.allowedCapabilities
               ? { allowedCapabilities: assignment.allowedCapabilities }
               : {}),
             onDone: async (result) => {
-              const completed = await updateTaskAssignment(projectRoot, bId, task.id, {
+              await updateTaskAssignment(projectRoot, bId, task.id, {
                 ...assignment,
                 status: result.status,
                 ...(result.result !== undefined ? { lastResult: result.result } : {}),
                 ...(result.error !== undefined ? { error: result.error } : {}),
               });
+              const reconciled = await reconcileKanbanBoard(projectRoot, bId);
+              const completed = reconciled?.board ?? (await getBoard(projectRoot, bId));
               const completedTask =
                 completed?.tasks.find((candidate) => candidate.id === task.id) ?? task;
               ctx.broadcast({
@@ -830,6 +988,63 @@ export async function handleKanbanMessage(
         return;
       }
 
+      case 'kanban.task.check.add': {
+        const boardId = payload?.boardId as string | undefined;
+        const taskId = payload?.taskId as string | undefined;
+        const description = payload?.description as string | undefined;
+        if (!boardId || !taskId || !description) {
+          fail(ctx, ws, type, 'boardId, taskId, and description required');
+          return;
+        }
+        const board = await addCheckToTask(projectRoot, boardId, taskId, {
+          description,
+          type: (payload?.checkType as 'manual' | 'auto' | 'agent' | 'test' | 'review') ?? 'manual',
+          status: (payload?.status as 'pending' | 'passed' | 'failed' | 'skipped') ?? 'pending',
+        });
+        board ? ok(ctx, ws, type, board) : fail(ctx, ws, type, 'Board or task not found');
+        return;
+      }
+
+      case 'kanban.task.check.update': {
+        const boardId = payload?.boardId as string | undefined;
+        const taskId = payload?.taskId as string | undefined;
+        const checkId = payload?.checkId as string | undefined;
+        if (!boardId || !taskId || !checkId) {
+          fail(ctx, ws, type, 'boardId, taskId, and checkId required');
+          return;
+        }
+        const board = await updateCheckOnTask(projectRoot, boardId, taskId, checkId, {
+          ...(has(payload, 'description') ? { description: payload?.description as string } : {}),
+          ...(has(payload, 'status')
+            ? { status: payload?.status as 'pending' | 'passed' | 'failed' | 'skipped' }
+            : {}),
+          ...(has(payload, 'notes') ? { notes: payload?.notes as string } : {}),
+        });
+        if (!board) {
+          fail(ctx, ws, type, 'Check not found');
+          return;
+        }
+        const reconciled = await reconcileKanbanBoard(projectRoot, boardId);
+        ok(ctx, ws, type, reconciled?.board ?? board);
+        return;
+      }
+
+      case 'kanban.task.note.add': {
+        const boardId = payload?.boardId as string | undefined;
+        const taskId = payload?.taskId as string | undefined;
+        const content = payload?.content as string | undefined;
+        if (!boardId || !taskId || !content) {
+          fail(ctx, ws, type, 'boardId, taskId, and content required');
+          return;
+        }
+        const board = await addNoteToTask(projectRoot, boardId, taskId, {
+          author: (payload?.author as string | undefined) ?? 'webui',
+          content,
+        });
+        board ? ok(ctx, ws, type, board) : fail(ctx, ws, type, 'Board or task not found');
+        return;
+      }
+
       // ── Task remove ──
       case 'kanban.task.remove': {
         const rmBoardId = payload?.boardId as string | undefined;
@@ -848,6 +1063,7 @@ export async function handleKanbanMessage(
           fail(ctx, ws, type, 'Board or task not found');
           return;
         }
+        await syncSessionSource(ctx, task, true);
         ok(ctx, ws, 'kanban.task.remove', {
           removed: true,
           boardId: board.id,
@@ -958,12 +1174,14 @@ function buildKanbanAgentPrompt(
     : '';
   const routing = [
     assignment?.role ? `role: ${assignment.role}` : '',
+    assignment?.modelRouting ? `modelRouting: ${assignment.modelRouting}` : '',
     assignment?.provider ? `provider: ${assignment.provider}` : '',
     assignment?.model ? `model: ${assignment.model}` : '',
     assignment?.fallbackProfile ? `fallbackProfile: ${assignment.fallbackProfile}` : '',
     assignment?.fallbackModels?.length
       ? `fallbackModels: ${assignment.fallbackModels.join(', ')}`
       : '',
+    assignment?.skills?.length ? `skills: ${assignment.skills.join(', ')}` : '',
   ].filter(Boolean);
   return [
     'You are processing a WrongStack kanban task.',

@@ -19,7 +19,16 @@ export type StateChange =
   | { kind: 'message_appended'; message: Message }
   | { kind: 'messages_replaced'; messages: readonly Message[] }
   | { kind: 'message_updated'; index: number; message: Message }
-  | { kind: 'todos_replaced'; todos: readonly TodoItem[] }
+  | {
+      kind: 'todos_replaced';
+      todos: readonly TodoItem[];
+      /**
+       * Final all-completed snapshot when the tactical list auto-clears.
+       * Observational mirrors use this to move cards to Done instead of
+       * interpreting the empty active list as "the work vanished".
+       */
+      completedSnapshot?: readonly TodoItem[] | undefined;
+    }
   | { kind: 'meta_set'; key: string; value: unknown }
   | { kind: 'meta_deleted'; key: string }
   | { kind: 'meta_cleared' };
@@ -182,7 +191,11 @@ export class ConversationState {
 
     this.ctx.todos.length = 0;
     this.ctx.todos.splice(0, 0, ...effective);
-    this.emit({ kind: 'todos_replaced', todos: [...effective] });
+    this.emit({
+      kind: 'todos_replaced',
+      todos: [...effective],
+      ...(allDone ? { completedSnapshot: [...todos] } : {}),
+    });
   }
 
   setMeta(key: string, value: unknown): void {

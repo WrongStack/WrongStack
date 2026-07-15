@@ -118,6 +118,19 @@ export { readTool } from './read.js';
 export { replaceTool } from './replace.js';
 export { scaffoldTool } from './scaffold.js';
 export { searchTool } from './search.js';
+export {
+  applySessionKanbanTaskToSource,
+  attachSessionKanbanMirror,
+  ensureSessionKanbanBoard,
+  hydrateSessionKanban,
+  mirrorSessionPlanToKanban,
+  mirrorSessionTasksToKanban,
+  mirrorSessionTodosToKanban,
+  projectSessionPlanToKanban,
+  projectSessionTasksToKanban,
+  projectSessionTodosToKanban,
+  SESSION_KANBAN_COLUMNS,
+} from './session-kanban.js';
 export { makeSkillTool } from './skill.js';
 export { testTool } from './test.js';
 export { todoTool } from './todo.js';

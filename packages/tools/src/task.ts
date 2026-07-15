@@ -15,6 +15,7 @@ import {
 } from '@wrongstack/core';
 import { randomUUID } from 'node:crypto';
 import type { Tool } from '@wrongstack/core';
+import { projectSessionTasksToKanban } from './session-kanban.js';
 
 // ---------------------------------------------------------------------------
 // Task tool — structured work items with dependencies, types, and priorities.
@@ -443,6 +444,10 @@ export const taskTool: Tool<TaskInput, TaskOutput> = {
     // Apply todo replacements after the task file mutation succeeds so that
     // on error the state is rolled back cleanly.
     if (todosToReplace) ctx.state.replaceTodos(todosToReplace);
+
+    // A successful task mutation includes its Kanban projection. Awaiting this
+    // keeps the session board authoritative at tool-return time.
+    await projectSessionTasksToKanban(ctx.projectRoot, file.tasks, sessionId);
 
     // If the callback set an early-return result, use it
     if (early) return early;

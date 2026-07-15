@@ -1,8 +1,41 @@
+import * as fs from 'node:fs/promises';
+import * as os from 'node:os';
+import * as path from 'node:path';
+import { listBoards } from '@wrongstack/kanban';
 import { describe, expect, it } from 'vitest';
 import {
   buildTaskGraphFromAutophasePhase,
   buildTaskGraphFromSddSnapshot,
+  createKanbanRunMirror,
 } from '../src/webui-server/kanban-run-mirror.js';
+
+const settle = () => new Promise((r) => setTimeout(r, 500)); // > DEBOUNCE_MS (300)
+
+function autophaseState(over: { statusA?: string } = {}) {
+  return {
+    title: 'Feature X',
+    phases: [
+      {
+        id: 'p1',
+        name: 'Design',
+        tasks: [
+          {
+            id: 'a',
+            title: 'A',
+            status: over.statusA ?? 'pending',
+            priority: 'medium',
+            type: 'feature',
+          },
+        ],
+      },
+      {
+        id: 'p2',
+        name: 'Build',
+        tasks: [{ id: 'b', title: 'B', status: 'pending', priority: 'medium', type: 'feature' }],
+      },
+    ],
+  };
+}
 
 // Minimal SddBoardTask factory (only the fields the normalizer reads).
 function sddTask(over: Record<string, unknown>) {
@@ -107,5 +140,54 @@ describe('buildTaskGraphFromAutophasePhase', () => {
     expect(n.tags).toEqual(['Design']);
     expect(n.assignee).toBe('Bohr');
     expect(n.status).toBe('in_progress');
+  });
+});
+
+describe('KanbanRunMirror AutoPhase → one board per phase', () => {
+  it('creates a separate board per phase, grouped by run tag', async () => {
+    const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'wstack-mirror-ap-'));
+    const mirror = createKanbanRunMirror({ projectRoot: dir, broadcast: () => {}, log: () => {} });
+    try {
+      // biome-ignore lint/suspicious/noExplicitAny: loose buildState() fixture
+      mirror.onAutophaseState('g-run', autophaseState() as any);
+      await settle();
+
+      const ap = (await listBoards(dir)).filter((b) => b.tags?.includes('autophase'));
+      expect(ap.length).toBe(2); // one board PER PHASE, not one crowded board
+      // All phase boards group under the same run.
+      expect(ap.every((b) => b.tags?.includes('run:g-run'))).toBe(true);
+      // Each carries its own phase tag + a "<run> — <phase>" title.
+      expect(ap.map((b) => b.tags?.find((t) => t.startsWith('phase:'))).sort()).toEqual([
+        'phase:p1',
+        'phase:p2',
+      ]);
+      expect(ap.every((b) => b.title.startsWith('Feature X — '))).toBe(true);
+    } finally {
+      mirror.dispose();
+      await fs.rm(dir, { recursive: true, force: true });
+    }
+  });
+
+  it('reclaims existing phase boards across a mirror restart (no duplicates)', async () => {
+    const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'wstack-mirror-ap2-'));
+    const m1 = createKanbanRunMirror({ projectRoot: dir, broadcast: () => {}, log: () => {} });
+    try {
+      // biome-ignore lint/suspicious/noExplicitAny: fixture
+      m1.onAutophaseState('g-run', autophaseState() as any);
+      await settle();
+      const first = (await listBoards(dir)).length;
+      m1.dispose();
+
+      // Fresh mirror (empty in-memory map), same dir, a CHANGED state (new stamp
+      // so it actually re-projects) → must reclaim the 2 boards via disk scan.
+      const m2 = createKanbanRunMirror({ projectRoot: dir, broadcast: () => {}, log: () => {} });
+      // biome-ignore lint/suspicious/noExplicitAny: fixture
+      m2.onAutophaseState('g-run', autophaseState({ statusA: 'in_progress' }) as any);
+      await settle();
+      expect((await listBoards(dir)).length).toBe(first); // reclaimed, not duplicated
+      m2.dispose();
+    } finally {
+      await fs.rm(dir, { recursive: true, force: true });
+    }
   });
 });

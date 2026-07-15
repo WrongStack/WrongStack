@@ -44,6 +44,7 @@ export async function createBoard(
     ...(input.description !== undefined ? { description: input.description } : {}),
     ...(input.tags !== undefined ? { tags: input.tags } : {}),
     ...(input.generatedBy !== undefined ? { generatedBy: input.generatedBy } : {}),
+    ...(input.supervisor !== undefined ? { supervisor: input.supervisor } : {}),
   });
 
   if (input.tasks?.length) {
@@ -87,6 +88,10 @@ export async function updateBoard(
       if (input.completedAt === null) delete board.completedAt;
       else board.completedAt = input.completedAt;
     }
+    if (input.supervisor !== undefined) {
+      if (input.supervisor === null) delete board.supervisor;
+      else board.supervisor = { ...input.supervisor };
+    }
     normalizeAllColumnTaskOrders(board);
     board.updatedAt = now;
     return board;
@@ -111,6 +116,7 @@ export async function duplicateBoard(
     ...(source.tags !== undefined ? { tags: [...source.tags] } : {}),
     columns: source.columns.map((column) => ({ ...column })),
     generatedBy: input.generatedBy ?? `duplicate:${source.id}`,
+    ...(source.supervisor !== undefined ? { supervisor: { ...source.supervisor } } : {}),
   });
 
   if (input.includeTasks !== false) {

@@ -204,7 +204,14 @@ export function createMessageDispatcher(
     if (await handleSpecsRoute(ws, msg, routes.specsRoutes)) return;
     if (await handleSddBoardRoute(ws, msg, routes.sddBoardRoutes)) return;
     if (await handleSddWizardRoute(ws, msg, routes.sddWizardRoutes)) return;
-    if (await handleKanbanRoute(ws, msg, { projectRoot: state.getProjectRoot() })) return;
+    if (
+      await handleKanbanRoute(ws, msg, {
+        projectRoot: state.getProjectRoot(),
+        context: deps.context,
+        broadcast: (message) => broadcast(state.getClients(), message),
+      })
+    )
+      return;
     if (
       msg.type.startsWith('worktree.') &&
       (await deps.worktreeHandler.handleMessage(
