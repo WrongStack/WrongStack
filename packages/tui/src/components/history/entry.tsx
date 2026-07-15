@@ -21,7 +21,6 @@ import { AssistantBody, assistantContentWidth } from './assistant.js';
 import { ToolCard } from './tool-card.js';
 import {
   fmtBytes,
-  fmtDuration,
   fmtTok,
   formatToolArgs,
   formatToolOutput,
@@ -358,7 +357,7 @@ export const Entry = React.memo(function Entry({
             glyph={glyph}
             color={color}
             title={`${mutation.verb}(${shortenPath(mutation.target, targetBudget)})`}
-            meta={fmtDuration(entry.durationMs)}
+            meta={`${entry.durationMs}ms`}
             ok={entry.ok}
             termWidth={termWidth}
             hasBody
@@ -425,7 +424,7 @@ export const Entry = React.memo(function Entry({
           color={color}
           title={entry.name}
           detail={argSummary || undefined}
-          meta={[fmtDuration(entry.durationMs), sizeChip].filter(Boolean).join(' · ')}
+          meta={[`${entry.durationMs}ms`, sizeChip].filter(Boolean).join(' · ')}
           ok={entry.ok}
           termWidth={termWidth}
           hasBody={hasToolBody}
@@ -547,15 +546,13 @@ export const Entry = React.memo(function Entry({
         <Box
           marginX={0}
           borderStyle="single"
-          borderTop={false}
-          borderRight={false}
-          borderBottom={false}
           borderColor={theme.textMuted}
-          paddingLeft={1}
+          backgroundColor={theme.surfaceRaised}
+          paddingX={1}
         >
           <Text>
-            <Text dimColor>{'📋 '}</Text>
-            <Text dimColor>{entry.text}</Text>
+            <Text color={theme.brandPrimary}>{'📋 '}</Text>
+            <Text color={theme.textSecondary}>{entry.text}</Text>
           </Text>
         </Box>
       );

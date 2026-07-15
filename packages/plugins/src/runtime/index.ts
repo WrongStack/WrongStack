@@ -428,6 +428,20 @@ export async function probeRunner(
 }
 
 /**
+ * Check whether a file path is inside the project root. Uses
+ * `process.cwd()` as the project boundary. Returns `true` for valid
+ * paths inside the project, `false` for empty, too-long, outside,
+ * or absolute paths that escape.
+ *
+ * This is the canonical sandbox check that every file-mutating or
+ * file-reading plugin should call before touching a path supplied
+ * by tool input. It replaces 27 identical copies across plugins.
+ */
+export function withinProject(p: string): boolean {
+  return withinProjectPath(process.cwd(), p) || relative(process.cwd(), p) === '.';
+}
+
+/**
  * Convenience: locate the runner binary on disk inside the project.
  * Returns the absolute path or `null`.
  */

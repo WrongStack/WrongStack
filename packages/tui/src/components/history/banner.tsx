@@ -2,199 +2,265 @@ import type React from 'react';
 import { Box, Text } from '../../ink.js';
 import type { HistoryEntry } from './types.js';
 import { shortenPath } from './utils.js';
+import { mixHex } from '../animation-style.js';
+import { catppuccin, theme } from '../../theme.js';
 
-// ── Brand palette (from website/public/wrongstack.svg) ────────────────
-const O = '#FD9F02'; // orange primary
-const P = '#FE2E5F'; // pink accent
+// ── Brand palette (Catppuccin Mocha) ─────────────────────────────
+// Peach (#fab387) → pink (#f5c2e7) — Catppuccin warm accent gradient.
+// The FIGlet wordmark below interpolates from peach on the left to
+// pink on the right so the full banner reads as one continuous brand
+// gradient.
+const O = catppuccin.peach;
+const PINK = catppuccin.pink;
+const BORDER = catppuccin.surface1;
+const MUTED = catppuccin.gray;
+const TEXT = catppuccin.white;
 
-// ── SVG-inspired "W" logo sign ────────────────────────────────────────
-// The SVG has 4 orange blocks (cols 0,2,3,4 at y=170) and 1 pink block
-// (col 1 at y=200, shifted 30px down) forming an asymmetric "W".
-//
-// ASCII: 3 rows × 5 columns. Each block = '██', gap = ' '.
-//   ██    ██ ██ ██    ← orange (top: cols 0,2,3,4)
-//   ██ ██ ██ ██ ██    ← all 5 (mid: orange + pink)
-//     ██              ← pink only (bottom: col 1)
-const LOGO_COLS = Object.freeze([
-  { c: O, r: Object.freeze([true, true, false]) }, // col 0 — orange, rows 0-1
-  { c: P, r: Object.freeze([false, true, true]) }, // col 1 — pink, rows 1-2
-  { c: O, r: Object.freeze([true, true, false]) }, // col 2 — orange, rows 0-1
-  { c: O, r: Object.freeze([true, true, false]) }, // col 3 — orange, rows 0-1
-  { c: O, r: Object.freeze([true, true, false]) }, // col 4 — orange, rows 0-1
-]) satisfies ReadonlyArray<{
-  c: string;
-  r: ReadonlyArray<boolean>;
-}>;
+// ── FIGlet "WRONGSTACK" wordmark ─────────────────────────────────
+// Classic FIGlet standard-font rendering of "WRONGSTACK".  5 rows,
+// ~68 columns wide.  Rendered with a per-character orange→pink
+// gradient so no two characters on the same row share a colour.
+const FIGLET_ROWS = [
+  ' _       ______  ____  _   ______________________   ________ __',
+  '| |     / / __ \\/ __ \\/ | / / ____/ ___/_  __/   | / ____/ //_/',
+  '| | /| / / /_/ / / / /  |/ / / __ \\__ \\ / / / /| |/ /   / ,<   ',
+  '| |/ |/ / _, _/ /_/ / /|  / /_/ /___/ // / / ___ / /___/ /| |  ',
+  '|__/|__/_/ |_|\\____/_/ |_/\\____//____//_/ /_/  |_\\____/_/ |_|  ',
+];
 
-function LogoSymbol(): React.ReactElement {
+// ── Gradient FIGlet logo ─────────────────────────────────────────
+// Walks every non-space glyph in the wordmark, assigns each a colour
+// on the orange→pink ramp based on its linear position in the full
+// character run.  Ink flattens the nested <Text> children into
+// correctly-coloured spans on one output line per row.
+const GRADIENT_CHAR_CACHE = new Map<string, string>();
+
+function buildGradientCache(): void {
+  if (GRADIENT_CHAR_CACHE.size > 0) return;
+  const positions: Array<{ r: number; c: number }> = [];
+  for (let r = 0; r < FIGLET_ROWS.length; r++) {
+    const row = FIGLET_ROWS[r]!;
+    for (let c = 0; c < row.length; c++) {
+      if (row[c] !== ' ') positions.push({ r, c });
+    }
+  }
+  const total = positions.length;
+  for (let i = 0; i < positions.length; i++) {
+    const { r, c } = positions[i]!;
+    const t = total > 1 ? i / (total - 1) : 0.5;
+    GRADIENT_CHAR_CACHE.set(`${r},${c}`, mixHex(O, PINK, t));
+  }
+}
+
+function GradientFiglet(): React.ReactElement {
+  buildGradientCache();
   return (
-    <Box flexDirection="column" alignSelf="flex-start">
-      {[0, 1, 2].map((ri) => (
-        <Text key={ri} bold>
-          {LOGO_COLS.map((col, ci) => (
-            <Text key={ci}>
-              <Text color={col.r[ri] ? col.c : undefined}>
-                {col.r[ri] ? '██' : '  '}
+    <Box flexDirection="column" alignItems="center">
+      {FIGLET_ROWS.map((row, r) => {
+        const segs: React.ReactNode[] = [];
+        for (let c = 0; c < row.length; c++) {
+          const ch = row[c]!;
+          if (ch === ' ') {
+            segs.push(' ');
+          } else {
+            const color = GRADIENT_CHAR_CACHE.get(`${r},${c}`) ?? O;
+            segs.push(
+              <Text key={`${r}-${c}`} color={color}>
+                {ch}
+              </Text>,
+            );
+          }
+        }
+        return <Text key={r}>{segs}</Text>;
+      })}
+    </Box>
+  );
+}
+
+// ── Utilities ────────────────────────────────────────────────────
+function trunc(s: string, w: number): string {
+  if (w <= 0 || !s) return '';
+  if (s.length <= w) return s;
+  return w === 1 ? '…' : s.slice(0, w - 1) + '…';
+}
+
+const DEFAULT_TERM_WIDTH = 80;
+
+// ── Banner component ─────────────────────────────────────────────
+export function Banner({
+  entry,
+  termWidth = DEFAULT_TERM_WIDTH,
+}: {
+  entry: Extract<HistoryEntry, { kind: 'banner' }>;
+  termWidth?: number;
+}): React.ReactElement {
+  const pw = Math.max(20, Math.floor(termWidth));
+  // Full layout ≥60 columns — shows the FIGlet wordmark + gradient.
+  // Compact layout <60 columns — shows a simple orange chip + facts.
+  const compact = pw < 60;
+  const px = compact ? 1 : 2;
+  const cw = Math.max(1, pw - px * 2 - 2);
+  const cwd = shortenPath(entry.cwd, Math.max(1, Math.floor(cw * 0.5)));
+  const ver = trunc(entry.version, Math.max(1, cw - 9));
+  // Half-width for side-by-side family/key values in full layout
+  const halfVw = Math.max(1, Math.floor((cw - 28) / 2));
+
+  // Shared link block — shown in both layouts
+  const links = (
+    <Box flexDirection="column" marginTop={1} marginBottom={1}>
+      <Text>
+        <Text color={O}>★ </Text>
+        <Text dimColor>github.com/wrongstack/wrongstack</Text>
+        <Text dimColor> — don&apos;t forget to star!</Text>
+      </Text>
+      <Text>
+        <Text color={PINK}>◆ </Text>
+        <Text dimColor>wrongstack.com</Text>
+      </Text>
+    </Box>
+  );
+
+  return (
+    <Box
+      width={pw}
+      flexDirection="column"
+      borderStyle="round"
+      borderColor={BORDER}
+      paddingX={px}
+      paddingY={0}
+    >
+      {compact ? (
+        /* ── Compact layout (narrow terminal) ──────────────────── */
+        <>
+          {/* Version chip — top-right */}
+          <Box justifyContent="flex-end" marginTop={1}>
+            <Text dimColor>v{ver}</Text>
+          </Box>
+
+          {/* Badge + subtitle */}
+          <Box marginTop={1} flexDirection="column">
+            <Text>
+              <Text backgroundColor={O} color={theme.surfaceRaised} bold>
+                {' WrongStack '}
               </Text>
-              {ci < LOGO_COLS.length - 1 ? ' ' : null}
+              <Text dimColor>{' // TERMINAL AI ENGINE'}</Text>
             </Text>
-          ))}
-        </Text>
-      ))}
+          </Box>
+
+          {/* Single-column info */}
+          <Box marginTop={1} flexDirection="column">
+            <InfoRow
+              icon="◆"
+              label="route  "
+              value={`${entry.provider} › ${entry.model}`}
+              valueWidth={Math.max(1, cw - 16)}
+              accent
+            />
+            {entry.family ? (
+              <InfoRow
+                icon="◇"
+                label="family "
+                value={entry.family}
+                valueWidth={Math.max(1, cw - 16)}
+              />
+            ) : null}
+            {entry.keyTail ? (
+              <InfoRow
+                icon="◈"
+                label="key    "
+                value={`•••• ${entry.keyTail}`}
+                valueWidth={Math.max(1, cw - 16)}
+              />
+            ) : null}
+            <InfoRow
+              icon="⌁"
+              label="workspc"
+              value={cwd}
+              valueWidth={Math.max(1, cw - 16)}
+            />
+          </Box>
+
+          {links}
+        </>
+      ) : (
+        /* ── Full layout ──────────────────────────────────────── */
+        <>
+          {/* Version — top-right corner */}
+          <Box justifyContent="flex-end" marginTop={1}>
+            <Text dimColor>v{ver}</Text>
+          </Box>
+
+          {/* Centred gradient FIGlet wordmark */}
+          <Box marginTop={1} alignItems="center">
+            <GradientFiglet />
+          </Box>
+
+          {/* Tagline — centered below the wordmark */}
+          <Box marginTop={1} alignItems="center">
+            <Text color={MUTED} italic>
+              BUILT ON THE WRONG STACK. SHIPPED ANYWAY.
+            </Text>
+          </Box>
+
+          {/* ── Route ──────────────────────────────────────────── */}
+          <Box marginTop={1}>
+            <Text>
+              <Text color={O}>◆</Text>
+              <Text color={MUTED} bold>
+                {' route  '}
+              </Text>
+              <Text color={TEXT}>
+                {trunc(
+                  `${entry.provider} › ${entry.model}`,
+                  Math.max(1, cw - 16),
+                )}
+              </Text>
+            </Text>
+          </Box>
+
+          {/* ── Family + key (side-by-side when both present) ──── */}
+          {(entry.family ?? entry.keyTail) ? (
+            <Box flexDirection="row">
+              {entry.family ? (
+                <InfoRow
+                  icon="◇"
+                  label="family "
+                  value={entry.family}
+                  valueWidth={halfVw}
+                />
+              ) : null}
+              {entry.family && entry.keyTail ? <Text>  </Text> : null}
+              {entry.keyTail ? (
+                <InfoRow
+                  icon="◈"
+                  label="key    "
+                  value={`•••• ${entry.keyTail}`}
+                  valueWidth={halfVw}
+                />
+              ) : null}
+            </Box>
+          ) : null}
+
+          {/* ── Workspace ──────────────────────────────────────── */}
+          <Box>
+            <Text>
+              <Text color={MUTED}>⌁</Text>
+              <Text color={MUTED} bold>
+                {' workspace  '}
+              </Text>
+              <Text>{cwd}</Text>
+            </Text>
+          </Box>
+
+          {links}
+        </>
+      )}
     </Box>
   );
 }
 
-// ── "WRONGSTACK" wordmark (7-row block glyphs) ────────────────────────
-const WORDMARK_LETTERS: Record<
-  string,
-  ReadonlyArray<string>
-> = Object.freeze({
-  W: Object.freeze([
-    '█   █',
-    '█   █',
-    '█ █ █',
-    '█ █ █',
-    '█ █ █',
-    '█ █ █',
-    '█   █',
-  ]),
-  R: Object.freeze([
-    '████ ',
-    '█   █',
-    '█   █',
-    '████ ',
-    '█ █  ',
-    '█  █ ',
-    '█   █',
-  ]),
-  O: Object.freeze([
-    ' ███ ',
-    '█   █',
-    '█   █',
-    '█   █',
-    '█   █',
-    '█   █',
-    ' ███ ',
-  ]),
-  N: Object.freeze([
-    '█   █',
-    '██  █',
-    '██ ██',
-    '█ █ █',
-    '█  ██',
-    '█  ██',
-    '█   █',
-  ]),
-  G: Object.freeze([
-    ' ███ ',
-    '█    ',
-    '█    ',
-    '█  ██',
-    '█   █',
-    '█   █',
-    ' ███ ',
-  ]),
-  S: Object.freeze([
-    ' ███ ',
-    '█    ',
-    '█    ',
-    ' ███ ',
-    '    █',
-    '█   █',
-    ' ███ ',
-  ]),
-  T: Object.freeze([
-    '█████',
-    '  █  ',
-    '  █  ',
-    '  █  ',
-    '  █  ',
-    '  █  ',
-    '  █  ',
-  ]),
-  A: Object.freeze([
-    ' ███ ',
-    '█   █',
-    '█   █',
-    '█████',
-    '█   █',
-    '█   █',
-    '█   █',
-  ]),
-  C: Object.freeze([
-    ' ███ ',
-    '█    ',
-    '█    ',
-    '█    ',
-    '█    ',
-    '█    ',
-    ' ███ ',
-  ]),
-  K: Object.freeze([
-    '█   █',
-    '█  █ ',
-    '█ █  ',
-    '███  ',
-    '█ █  ',
-    '█  █ ',
-    '█   █',
-  ]),
-});
-
-const WRD = 'WRONGSTACK';
-const WRD_ROWS = 7;
-
-/** Gradient: orange → pink across the 10 letters */
-const WRD_COLORS = Object.freeze([
-  O, // W
-  O, // R
-  '#F48433', // O
-  '#F4644A', // N
-  '#F45454', // G
-  '#F53E5D', // S
-  P, // T
-  P, // A
-  P, // C
-  P, // K
-]);
-
-function Wordmark(): React.ReactElement {
-  return (
-    <Box flexDirection="column">
-      {Array.from({ length: WRD_ROWS }, (_, ri) => (
-        <Text key={ri} bold>
-          {[...WRD].map((ch, ci) => (
-            <Text key={ci} color={WRD_COLORS[ci]}>
-              {WORDMARK_LETTERS[ch]?.[ri] ?? '     '}
-              {ci < WRD.length - 1 ? ' ' : null}
-            </Text>
-          ))}
-        </Text>
-      ))}
-    </Box>
-  );
-}
-
-// ── Separator line (orange→pink gradient ─) ──────────────────────────
-function SeparatorLine({ w }: { w: number }): React.ReactElement {
-  const n = Math.max(2, Math.floor(w * 0.35));
-  const grad = [O, '#F48433', '#F45454', P];
-  const sl = Math.max(1, Math.floor(n / grad.length));
-  const tail = n - sl * grad.length;
-  return (
-    <>
-      {grad.map((c, i) => (
-        <Text key={c} color={c}>
-          {'─'.repeat(sl + (i === 0 ? tail : 0))}
-        </Text>
-      ))}
-    </>
-  );
-}
-
-// ── Fact row ─────────────────────────────────────────────────────────
-function Fact({
+// ── Fact row ─────────────────────────────────────────────────────
+function InfoRow({
   icon,
   label,
   value,
@@ -207,207 +273,11 @@ function Fact({
   valueWidth: number;
   accent?: boolean;
 }): React.ReactElement {
-  const lc = accent ? O : P;
   return (
     <Text>
-      <Text color={lc}>{icon}</Text>
-      <Text color={lc} bold>{` ${label.padEnd(9)} `}</Text>
-      <Text color={accent ? '#fff' : '#cdd6f4'}>
-        {trunc(value, valueWidth)}
-      </Text>
+      <Text color={accent ? O : MUTED}>{icon}</Text>
+      <Text color={accent ? O : MUTED} bold>{` ${label}`}</Text>
+      <Text color={accent ? '#fff' : TEXT}>{trunc(value, valueWidth)}</Text>
     </Text>
-  );
-}
-
-// ── Utilities ────────────────────────────────────────────────────────
-function trunc(s: string, w: number): string {
-  if (w <= 0 || !s) return '';
-  if (s.length <= w) return s;
-  return w === 1 ? '…' : s.slice(0, w - 1) + '…';
-}
-
-const DEFAULT_TERM_WIDTH = 80;
-
-// ── Banner component ─────────────────────────────────────────────────
-export function Banner({
-  entry,
-  termWidth = DEFAULT_TERM_WIDTH,
-}: {
-  entry: Extract<HistoryEntry, { kind: 'banner' }>;
-  termWidth?: number;
-}): React.ReactElement {
-  const pw = Math.max(20, Math.floor(termWidth)); // panel width
-  const compact = pw < 56;
-  const px = compact ? 1 : 2; // horizontal padding
-  const cw = Math.max(1, pw - px * 2 - 2); // inner content width
-  const fvw = Math.max(1, Math.floor(cw * 0.5) - 14); // 2-col fact value width
-  const cwd = shortenPath(entry.cwd, fvw);
-  const help = compact
-    ? '/help · F1 · F10 · /exit'
-    : '/help · F1 projects · F10 sessions · /exit';
-  const tagline = trunc(
-    compact
-      ? ' WRONG STACK. RIGHT RESULTS.'
-      : ' BUILT ON THE WRONG STACK. SHIPPED ANYWAY.',
-    Math.max(1, cw - 10),
-  );
-  const ver = trunc(entry.version, Math.max(1, cw - 9));
-  const showWordmark = cw >= 56; // need room for the full wordmark
-
-  // Outer content width: all rows use same start column so the W logo
-  // and the wordmark are left-aligned.
-  return (
-    <Box
-      width={pw}
-      flexDirection="column"
-      borderStyle="round"
-      borderColor={O}
-      paddingX={px}
-      paddingY={0}
-    >
-      {compact ? (
-        /* ── Compact layout (narrow terminal) ────────────────────── */
-        <>
-          <Text>
-            <Text backgroundColor={O} color="#121210" bold>
-              {' WrongStack '}
-            </Text>
-            <Text dimColor>{' // TERMINAL AI ENGINE'}</Text>
-          </Text>
-          <Text>
-            <Text color="#a6e3a1">●</Text>
-            <Text color="#a6e3a1"> READY </Text>
-            <Text dimColor>v</Text>
-            <Text bold>{ver}</Text>
-          </Text>
-          <Text color={O} bold>
-            WRONG<Text color={P}>STACK</Text>
-          </Text>
-          <Box marginTop={1} flexDirection="column">
-            <Fact
-              icon="◆"
-              label="ROUTE"
-              value={`${entry.provider} › ${entry.model}`}
-              valueWidth={cw - 12}
-              accent
-            />
-            {entry.family ? (
-              <Fact
-                icon="◇"
-                label="FAMILY"
-                value={entry.family}
-                valueWidth={cw - 12}
-              />
-            ) : null}
-            {entry.keyTail ? (
-              <Fact
-                icon="◈"
-                label="KEY"
-                value={`•••• ${entry.keyTail}`}
-                valueWidth={cw - 12}
-              />
-            ) : null}
-            <Fact
-              icon="⌁"
-              label="WORKSPACE"
-              value={cwd}
-              valueWidth={cw - 12}
-            />
-            <Fact
-              icon="⌘"
-              label="COMMANDS"
-              value={help}
-              valueWidth={cw - 12}
-            />
-          </Box>
-        </>
-      ) : (
-        /* ── Full layout ─────────────────────────────────────────── */
-        <>
-          {/* ── Header: logo + info sidebar ── */}
-          <Box flexDirection="row" marginTop={1}>
-            {/* Logo zone: 14 cols wide */}
-            <LogoSymbol />
-            {/* Info zone: title, subtitle + version, route */}
-            <Box flexDirection="column" marginLeft={2}>
-              <Text bold color={O}>
-                {trunc('WRONGSTACK', cw - 16)}
-              </Text>
-              <Text>
-                <Text dimColor>
-                  {trunc('TERMINAL AI ENGINE', Math.floor(cw * 0.5))}{' '}
-                </Text>
-                <Text color="#a6e3a1">●</Text>
-                <Text color="#a6e3a1"> READY </Text>
-                <Text dimColor>v</Text>
-                <Text bold>{ver}</Text>
-              </Text>
-              <Text>
-                <Text color={O}>◆</Text>
-                <Text color={O} bold>
-                  {' '}
-                  ROUTE{' '}
-                </Text>
-                <Text color="#cdd6f4">
-                  {trunc(
-                    `${entry.provider} › ${entry.model}`,
-                    cw - 22,
-                  )}
-                </Text>
-              </Text>
-            </Box>
-          </Box>
-
-          {/* ── Wordmark (ASCII art "WRONGSTACK") ── */}
-          {showWordmark && (
-            <Box marginTop={1} alignSelf="flex-start">
-              <Wordmark />
-            </Box>
-          )}
-
-          {/* ── Separator + tagline ── */}
-          <Text>
-            <SeparatorLine w={cw} />
-            <Text dimColor>{tagline}</Text>
-          </Text>
-
-          {/* ── Facts in 2 columns ── */}
-          <Box flexDirection="row" marginTop={1}>
-            <Box flexDirection="column" flexGrow={1}>
-              {entry.family ? (
-                <Fact
-                  icon="◇"
-                  label="FAMILY"
-                  value={entry.family}
-                  valueWidth={fvw}
-                />
-              ) : null}
-              {entry.keyTail ? (
-                <Fact
-                  icon="◈"
-                  label="KEY"
-                  value={`•••• ${entry.keyTail}`}
-                  valueWidth={fvw}
-                />
-              ) : null}
-            </Box>
-            <Box flexDirection="column" flexGrow={1} marginLeft={2}>
-              <Fact
-                icon="⌁"
-                label="WORKSPACE"
-                value={cwd}
-                valueWidth={fvw}
-              />
-              <Fact
-                icon="⌘"
-                label="COMMANDS"
-                value={help}
-                valueWidth={fvw}
-              />
-            </Box>
-          </Box>
-        </>
-      )}
-    </Box>
   );
 }

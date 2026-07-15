@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   displayWidth,
   frameRule,
+  frameRuleParts,
   padDisplayEnd,
   stripAnsi,
   truncateDisplay,
@@ -29,5 +30,40 @@ describe('terminal column helpers', () => {
     expect(displayWidth(bottom)).toBe(48);
     expect(stripAnsi(top)).toMatch(/^╭─ ◆ ASK WRONGSTACK .* READY ─╮$/);
     expect(bottom).toMatch(/^╰─ Enter send · \/ commands .*╯$/);
+  });
+
+  it('splits a top rail into head/tail that reserve an exact-width chip slot', () => {
+    // Invariant: head + reserved-gap + tail === full width, for any reserve.
+    for (const width of [48, 60, 80, 120]) {
+      for (const reserved of [4, 7, 11, 20]) {
+        const { head, tail } = frameRuleParts(width, '◆ ASK WRONGSTACK', reserved, 'top');
+        expect(displayWidth(head) + reserved + displayWidth(tail)).toBe(width);
+        expect(stripAnsi(head)).toMatch(/^╭─ ◆ ASK WRONGSTACK /);
+        expect(stripAnsi(tail)).toBe(' ─╮');
+      }
+    }
+  });
+
+  it('reserve width is independent of the chip content that fills it', () => {
+    // idle ("idle" = 4 cols) vs a wider working word must not change geometry —
+    // the caller pads the chip to the reserved width, so head/tail are stable.
+    const narrow = frameRuleParts(80, '◆ ASK WRONGSTACK', 4, 'top');
+    const wide = frameRuleParts(80, '◆ ASK WRONGSTACK', 16, 'top');
+    expect(displayWidth(narrow.head) + 4 + displayWidth(narrow.tail)).toBe(80);
+    expect(displayWidth(wide.head) + 16 + displayWidth(wide.tail)).toBe(80);
+    // Wider reserve ⇒ shorter fill ⇒ shorter head.
+    expect(displayWidth(wide.head)).toBeLessThan(displayWidth(narrow.head));
+  });
+
+  it('emits a bottom rail with the mirrored corners', () => {
+    const { head, tail } = frameRuleParts(48, 'title', 6, 'bottom');
+    expect(stripAnsi(head).startsWith('╰')).toBe(true);
+    expect(stripAnsi(tail)).toBe(' ─╯');
+  });
+
+  it('degrades without a reserved slot like frameRule with an empty right label', () => {
+    const { head, tail } = frameRuleParts(48, '◆ ASK WRONGSTACK', 0, 'top');
+    expect(displayWidth(head) + displayWidth(tail)).toBe(48);
+    expect(stripAnsi(tail)).toBe('╮');
   });
 });

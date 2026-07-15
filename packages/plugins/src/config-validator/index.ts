@@ -400,7 +400,7 @@ const plugin: Plugin = {
       };
     };
 
-    state.hookUnregister = api.registerHook('PostToolUse', 'write|edit', hook as never);
+    state.hookUnregister = api.registerHook('PostToolUse', 'write|edit', hook as never, { background: true });
 
     // ── config_validator_status tool ──────────────────────────────────
     api.tools.register({

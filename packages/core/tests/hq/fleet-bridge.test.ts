@@ -100,4 +100,45 @@ describe('startFleetTelemetryBridge', () => {
     });
     expect(spy.mock.calls[0]![0].subagents[0].status).toBe('idle');
   });
+
+  it('forwards totalCostUsd and enriched per-subagent fields', () => {
+    const events = new EventBus();
+    const spy = vi.fn();
+    const publisher = fakePublisher(spy);
+    startFleetTelemetryBridge({ events, publisher, runId: 'run-1' });
+    events.emit('coordinator.stats', {
+      ...baseStats,
+      totalCostUsd: 0.42,
+      subagentStatuses: [
+        {
+          subagentId: 's1',
+          taskId: 't1',
+          status: 'running',
+          assigned: true,
+          model: 'claude-sonnet-4',
+          costUsd: 0.12,
+          runtimeMs: 45_000,
+          lastActivityAt: '2026-07-14T10:00:00.000Z',
+          iterations: 5,
+          toolCalls: 8,
+        },
+      ],
+    });
+    const payload = spy.mock.calls[0]![0];
+    expect(payload.totalCostUsd).toBe(0.42);
+    const sub = payload.subagents[0];
+    expect(sub.model).toBe('claude-sonnet-4');
+    expect(sub.costUsd).toBe(0.12);
+    expect(sub.runtimeMs).toBe(45_000);
+    expect(sub.lastActivityAt).toBe('2026-07-14T10:00:00.000Z');
+  });
+
+  it('omits totalCostUsd when the source carries none', () => {
+    const events = new EventBus();
+    const spy = vi.fn();
+    const publisher = fakePublisher(spy);
+    startFleetTelemetryBridge({ events, publisher, runId: 'run-1' });
+    events.emit('coordinator.stats', baseStats);
+    expect(spy.mock.calls[0]![0].totalCostUsd).toBeUndefined();
+  });
 });

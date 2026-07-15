@@ -4,11 +4,13 @@ import { isTextBlock } from '../types/blocks.js';
 import type { CompactReport, Compactor } from '../types/compactor.js';
 import type { Message } from '../types/messages.js';
 import type { Provider, Request } from '../types/provider.js';
+import type { OneShotOrchestrator } from './one-shot-llm.js';
 import { estimateRequestTokens } from '../utils/token-estimate.js';
 import { repairToolUseAdjacency } from '../utils/message-invariants.js';
 import { readBundledInstructionText } from '../utils/instruction-file.js';
 import {
   buildLosslessDigest,
+  buildSmartDigest,
   eliseOldToolResults,
   estimateMessages,
   findSafeBoundary,
@@ -20,26 +22,33 @@ import {
 export interface IntelligentCompactorOptions {
   /** Provider to use for LLM-assisted summarization. Required. */
   provider: Provider;
-  /** Fraction of maxContext that triggers a warning (default 0.6). */
+  /** Fraction of maxContext that triggers a warning (default 0.5). */
   warnThreshold?: number | undefined;
-  /** Fraction of maxContext that triggers soft compaction (default 0.75). */
+  /** Fraction of maxContext that triggers soft compaction (default 0.65). */
   softThreshold?: number | undefined;
-  /** Fraction of maxContext that triggers hard compaction (default 0.9). */
+  /** Fraction of maxContext that triggers hard compaction (default 0.8). */
   hardThreshold?: number | undefined;
   /** Max context window in tokens (used only for threshold fraction math). */
   maxContext?: number | undefined;
   /** How many recent (user+assistant) pairs to always preserve (default 4). */
   preserveK?: number | undefined;
-  /** Token threshold below which tool results are not elided (default 500). */
+  /** Token threshold below which tool results are not elided (default 300). */
   eliseThreshold?: number | undefined;
   /** System prompt for the summarizer sub-LLM. */
   summarizerPrompt?: string | undefined;
   /**
-   * Model ID to use for summarization. When not set, the same model as the
-   * agent is used (which risks cascading failure on context overflow). Set to
-   * a fast/cheap configured model for resilience.
+   * Model ID to use for summarization. When not set, falls back to
+   * "deepseek-chat" when a OneShotOrchestrator is wired, or the agent's
+   * own model otherwise. Set to a fast/cheap configured model for
+   * resilience and cost efficiency.
    */
   summarizerModel?: string | undefined;
+  /**
+   * OneShotOrchestrator for LLM-assisted summarization. When set,
+   * `callSummarizer` uses it instead of the direct provider.complete()
+   * path, gaining fallback chain support and cheap-model defaulting.
+   */
+  oneShotOrchestrator?: OneShotOrchestrator | undefined;
 }
 
 /**
@@ -75,19 +84,21 @@ export class IntelligentCompactor implements Compactor {
   private readonly eliseThreshold: number;
   private readonly summarizerPrompt: string;
   private readonly summarizerModel?: string | undefined;
+  private readonly oneShotOrchestrator?: OneShotOrchestrator | undefined;
 
   constructor(opts: IntelligentCompactorOptions) {
     this.provider = opts.provider;
-    this.warnThreshold = opts.warnThreshold ?? 0.6;
-    this.softThreshold = opts.softThreshold ?? 0.75;
-    this.hardThreshold = opts.hardThreshold ?? 0.9;
+    this.warnThreshold = opts.warnThreshold ?? 0.5;
+    this.softThreshold = opts.softThreshold ?? 0.65;
+    this.hardThreshold = opts.hardThreshold ?? 0.8;
     this.maxContext = opts.maxContext ?? 128_000;
     this.preserveK = opts.preserveK ?? 4;
-    this.eliseThreshold = opts.eliseThreshold ?? 500;
+    this.eliseThreshold = opts.eliseThreshold ?? 300;
     this.summarizerPrompt =
       opts.summarizerPrompt ??
       readBundledInstructionText('llm/intelligent-compactor-summarizer.md');
     this.summarizerModel = opts.summarizerModel;
+    this.oneShotOrchestrator = opts.oneShotOrchestrator;
   }
 
   async compact(ctx: Context, opts: { aggressive?: boolean | undefined } = {}): Promise<CompactReport> {
@@ -110,7 +121,10 @@ export class IntelligentCompactor implements Compactor {
     let collapsedDigest: string | undefined;
     if (aggressive) {
       const phase2 = await this.summarizeAncientTurns(ctx);
-      if (phase2.saved > 0) reductions.push({ phase: 'summary', saved: phase2.saved });
+      // Always record summary phase — even with 0 token savings the
+      // enrichment (buildSmartDigest critical-content preservation) is
+      // valuable for maintaining decision continuity across compaction.
+      reductions.push({ phase: 'summary', saved: Math.max(0, phase2.saved) });
       collapsedDigest = phase2.digest;
     } else if (load >= this.warnThreshold) {
       // Non-aggressive: lightweight elision only.
@@ -177,15 +191,23 @@ export class IntelligentCompactor implements Compactor {
       summaryText = await this.callSummarizer(toSummarize, ctx);
     } catch {
       // Fallback: lossless rule-based digest (text preserved, tool I/O dropped).
-      // Cannot fail and preserves the semantic content the summarizer would have.
       summaryText =
         buildLosslessDigest(toSummarize) ||
         `${toSummarize.length} earlier turns (semantic content preserved)`;
     }
 
+    // ── Type-aware enrichment ──────────────────────────────────────
+    // Run buildSmartDigest on the same messages to extract critical
+    // content (score-5: decisions, errors, corrections) verbatim.
+    // Merge it with the LLM summary so important facts survive compaction.
+    const smartDigest = buildSmartDigest(toSummarize);
+    const enriched = smartDigest
+      ? `[CRITICAL]\n${smartDigest}\n\n[SUMMARY]\n${summaryText}`
+      : summaryText;
+
     const summaryMsg: Message = {
       role: 'system',
-      content: `[prior_turns_summary: ${summaryText}]`,
+      content: `[prior_turns_summary: ${enriched}]`,
     };
     const summaryTokens = estimateMessages([summaryMsg]);
 
@@ -196,40 +218,54 @@ export class IntelligentCompactor implements Compactor {
   }
 
   private async callSummarizer(messages: Message[], ctx: Context): Promise<string> {
-    const prompt: TextBlock[] = [
-      { type: 'text', text: this.summarizerPrompt },
-      { type: 'text', text: '\n\nConversation to summarize:\n' },
-      ...this.messagesToText(messages),
-    ];
+    // When a OneShotOrchestrator is wired, use it with a cheap default model
+    // and fallback support. Otherwise fall back to direct provider.complete().
+    if (this.oneShotOrchestrator) {
+      const result = await this.oneShotOrchestrator.call({
+        system: this.summarizerPrompt,
+        messages: [{ role: 'user', content: this.messagesToSummary(messages) }],
+        model: this.summarizerModel ?? 'deepseek-chat',
+        timeoutMs: 30_000,
+        maxTokens: 1024,
+        signal: ctx.signal,
+        fallbackProfile: 'summary',
+      });
+      if (result.text && !result.error) return result.text;
+      // OneShotLLM failed — fall through to lossless digest below.
+    } else {
+      // Legacy path: direct provider.complete().
+      const prompt: TextBlock[] = [
+        { type: 'text', text: this.summarizerPrompt },
+        { type: 'text', text: '\n\nConversation to summarize:\n' },
+        ...this.messagesToText(messages),
+      ];
 
-    const req: Request = {
-      model: this.summarizerModel ?? ctx.model,
-      system: prompt,
-      messages: [],
-      maxTokens: 1024,
-    };
+      const req: Request = {
+        model: this.summarizerModel ?? ctx.model,
+        system: prompt,
+        messages: [],
+        maxTokens: 1024,
+      };
 
-    // Use abort signal from context if available.
-    // Fall back to a fresh controller only if ctx.signal is absent — this
-    // avoids leaking AbortControllers on every summarizer call (the original
-    // `?? new AbortController().signal` created a controller that was never
-    // connected to anything, making cancellation a no-op).
-    const ac = ctx.signal ? undefined : new AbortController();
-    const signal = ctx.signal ?? ac?.signal;
-    let res;
-    try {
-      res = await this.provider.complete(req, { signal });
-    } finally {
-      ac?.abort();
+      const ac = ctx.signal ? undefined : new AbortController();
+      const signal = ctx.signal ?? ac?.signal;
+      let res;
+      try {
+        res = await this.provider.complete(req, { signal });
+      } finally {
+        ac?.abort();
+      }
+
+      const textBlocks = res.content.filter(isTextBlock);
+      return (
+        textBlocks
+          .map((b) => b.text)
+          .join('\n')
+          .trim() || '(empty summary)'
+      );
     }
 
-    const textBlocks = res.content.filter(isTextBlock);
-    return (
-      textBlocks
-        .map((b) => b.text)
-        .join('\n')
-        .trim() || '(empty summary)'
-    );
+    return '(empty summary)';
   }
 
   private messagesToText(messages: Message[]): TextBlock[] {
@@ -246,5 +282,22 @@ export class IntelligentCompactor implements Compactor {
       }
     }
     return [{ type: 'text', text: lines.join('\n') }];
+  }
+
+  /** Compact string summary of messages (no TextBlock wrapper). */
+  private messagesToSummary(messages: Message[]): string {
+    const lines: string[] = [];
+    for (const m of messages) {
+      const role = m.role.padEnd(10, ' ');
+      if (typeof m.content === 'string') {
+        lines.push(`[${role}]: ${m.content.slice(0, 500)}`);
+      } else if (Array.isArray(m.content)) {
+        const textParts = m.content.filter(isTextBlock).map((b) => b.text);
+        if (textParts.length > 0) {
+          lines.push(`[${role}]: ${textParts.join(' ').slice(0, 500)}`);
+        }
+      }
+    }
+    return lines.join('\n');
   }
 }

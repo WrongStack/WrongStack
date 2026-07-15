@@ -6,15 +6,15 @@ import {
   readBoard,
   writeBoard,
 } from '../storage.js';
-import {
-  type CreateKanbanBoardInput,
-  type CreateKanbanColumnInput,
-  type DuplicateKanbanBoardInput,
-  type KanbanBoard,
-  type KanbanColumn,
-  type RemoveKanbanColumnOptions,
-  type UpdateKanbanBoardInput,
-  type UpdateKanbanColumnInput,
+import type {
+  CreateKanbanBoardInput,
+  CreateKanbanColumnInput,
+  DuplicateKanbanBoardInput,
+  KanbanBoard,
+  KanbanColumn,
+  RemoveKanbanColumnOptions,
+  UpdateKanbanBoardInput,
+  UpdateKanbanColumnInput,
 } from '../types.js';
 import {
   applyCompletedAtForStatus,

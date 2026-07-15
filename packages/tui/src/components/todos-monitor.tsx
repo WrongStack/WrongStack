@@ -1,6 +1,18 @@
 import type { TodoItem } from '@wrongstack/core';
-import { Box, Text, useStdout } from '../ink.js';
+import { Box, Text, useInput } from '../ink.js';
 import type React from 'react';
+import { useEffect, useState } from 'react';
+import { theme } from '../theme.js';
+import { glyphs } from '../ui-glyphs.js';
+import {
+  EmptyPanelState,
+  KeyCap,
+  MonitorShell,
+  panelWindow,
+  truncatePanelText,
+  useMonitorSize,
+} from './monitor-shell.js';
+import { renderProgress } from './status-bar.js';
 
 /**
  * Full-screen Todos monitor overlay (F6 to open, F6 to close).
@@ -10,113 +22,135 @@ import type React from 'react';
  * in the bottom region.
  */
 export function TodosMonitor({ todos }: { todos: TodoItem[] }): React.ReactElement {
-  const { stdout } = useStdout();
+  const size = useMonitorSize();
+  const [selected, setSelected] = useState(0);
 
   const done = todos.filter((t) => t.status === 'completed').length;
   const inProgress = todos.filter((t) => t.status === 'in_progress').length;
   const pending = todos.filter((t) => t.status === 'pending').length;
 
-  // Pick a layout strategy based on available width.
-  // Below 100 cols: single column; 100+ cols: two-column.
-  const w = stdout?.columns ?? 80;
-  const twoCols = w >= 100;
-  const mid = Math.ceil(todos.length / 2);
+  const twoCols = size.columns >= 104;
+  const colWidth = twoCols ? Math.floor((size.contentWidth - 3) / 2) : size.contentWidth;
+  const ordered = [...todos].sort((a, b) => {
+    const rank = (status: TodoItem['status']) =>
+      status === 'in_progress' ? 0 : status === 'pending' ? 1 : 2;
+    return rank(a.status) - rank(b.status);
+  });
+  const rowsPerColumn = Math.max(2, size.contentRows - 3);
+  const capacity = rowsPerColumn * (twoCols ? 2 : 1);
+  const window = panelWindow(ordered.length, selected, capacity);
+  const visible = ordered.slice(window.start, window.end);
+  const overflow = window.above + window.below;
+  const mid = twoCols ? Math.ceil(visible.length / 2) : visible.length;
 
-  // Width for each column in two-column mode (account for gap + border padding).
-  const colWidth = twoCols ? Math.floor((w - 8) / 2) : w - 6;
-
-  /** Truncate `text` to fit within `maxLen` cols, appending "…" if cut. */
-  const trunc = (text: string, maxLen: number): string => {
-    if (text.length <= maxLen) return text;
-    return text.slice(0, maxLen - 1) + '\u2026';
-  };
+  useEffect(() => {
+    setSelected((value) => Math.min(value, Math.max(0, ordered.length - 1)));
+  }, [ordered.length]);
+  useInput((_input, key) => {
+    if (key.upArrow) setSelected((value) => Math.max(0, value - 1));
+    else if (key.downArrow) {
+      setSelected((value) => Math.min(Math.max(0, ordered.length - 1), value + 1));
+    }
+  });
 
   /** Render a single todo row with marker + label. */
   const renderRow = (t: TodoItem, idx: number): React.ReactElement => {
-    const num = String(idx + 1).padStart(2);
+    const isSelected = window.start + idx === selected;
+    const marker = isSelected ? '› ' : '  ';
+    const num = String(todos.indexOf(t) + 1).padStart(2);
     const label = t.status === 'in_progress' && t.activeForm ? t.activeForm : t.content;
-    const display = trunc(label, colWidth - 8); // 8 chars: " NN. [X] "
+    const display = truncatePanelText(label, Math.max(8, colWidth - 9));
 
     if (t.status === 'completed') {
       return (
-        <Text key={t.id} dimColor>
-          {'  '}
-          <Text dimColor>{num}.</Text> <Text color="green">[x]</Text> {display}
+        <Text key={`${t.id}-${idx}`} color={theme.textMuted}>
+          <Text color={isSelected ? theme.warn : theme.textMuted}>{marker}</Text>
+          <Text color={theme.textMuted}>{num}.</Text> <Text color={theme.success}>[x]</Text>{' '}
+          {display}
         </Text>
       );
     }
     if (t.status === 'in_progress') {
       return (
         <Text key={t.id}>
-          {'  '}
-          <Text dimColor>{num}.</Text>{' '}
-          <Text color="yellow" bold>
+          <Text color={isSelected ? theme.warn : theme.textMuted}>{marker}</Text>
+          <Text color={theme.textMuted}>{num}.</Text>{' '}
+          <Text color={theme.warn} bold>
             [~]
           </Text>{' '}
-          <Text color="yellow">{display}</Text>
+          <Text color={theme.warn}>{display}</Text>
         </Text>
       );
     }
     // pending
     return (
       <Text key={t.id}>
-        {'  '}
-        <Text dimColor>{num}.</Text> <Text dimColor>[ ]</Text> {display}
+        <Text color={isSelected ? theme.warn : theme.textMuted}>{marker}</Text>
+        <Text color={theme.textMuted}>{num}.</Text> <Text color={theme.textMuted}>[ ]</Text>{' '}
+        <Text color={theme.textSecondary}>{display}</Text>
       </Text>
     );
   };
 
   return (
-    <Box flexDirection="column" borderStyle="round" borderColor="yellow" paddingX={1}>
-      {/* Header */}
-      <Box flexDirection="row" gap={1} marginBottom={1}>
-        <Text bold color="yellow">
-          TODOS
+    <MonitorShell
+      accent={theme.warn}
+      icon={glyphs.task}
+      title="TODOS"
+      kicker={size.columns >= 90 ? 'execution board' : undefined}
+      right={
+        <Text>
+          <Text color={theme.warn}>↻ {inProgress}</Text>
+          <Text color={theme.textMuted}> □ {pending}</Text>
+          <Text color={theme.success}> ✓ {done}</Text>
         </Text>
-        <Text dimColor>│</Text>
-        <Text dimColor>
-          {done}/{todos.length} done
+      }
+      footer={
+        <Box gap={2}>
+          <KeyCap keyName="↑↓" label="inspect" color={theme.warn} />
+          <KeyCap keyName="F6" label="close" color={theme.warn} />
+          {overflow > 0 ? (
+            <Text color={theme.textMuted}>
+              {window.above > 0 ? `↑${window.above} ` : ''}
+              {window.below > 0 ? `↓${window.below}` : ''}
+            </Text>
+          ) : null}
+        </Box>
+      }
+    >
+      <Box marginTop={1} gap={1}>
+        <Text color={theme.textMuted}>PROGRESS</Text>
+        <Text color={done === todos.length && todos.length > 0 ? theme.success : theme.warn}>
+          [
+          {renderProgress(todos.length > 0 ? done / todos.length : 0, size.columns >= 90 ? 18 : 10)}
+          ]
         </Text>
-        {inProgress > 0 ? (
-          <>
-            <Text dimColor>·</Text>
-            <Text color="yellow">⌛{inProgress}</Text>
-          </>
-        ) : null}
-        {pending > 0 ? (
-          <>
-            <Text dimColor>·</Text>
-            <Text dimColor>☐{pending}</Text>
-          </>
-        ) : null}
-        {done > 0 ? (
-          <>
-            <Text dimColor>·</Text>
-            <Text color="green">✓{done}</Text>
-          </>
-        ) : null}
-        <Text dimColor>│ F6 to close</Text>
+        <Text color={theme.textSecondary}>
+          {done}/{todos.length}
+        </Text>
       </Box>
 
       {todos.length === 0 ? (
-        <Box marginY={1}>
-          <Text dimColor>No todos. The agent will create them as it plans work.</Text>
-        </Box>
+        <EmptyPanelState
+          icon="◇"
+          title="Board is clear"
+          detail="Todos will appear as the agent plans work."
+          accent={theme.warn}
+        />
       ) : twoCols ? (
-        /* Two-column layout: split the list in half, render side-by-side.
-           Pass the absolute position so numbering is continuous across columns. */
-        <Box flexDirection="row" gap={2}>
+        <Box flexDirection="row" gap={3} marginTop={1}>
           <Box flexDirection="column" width={colWidth}>
-            {todos.slice(0, mid).map((t, i) => renderRow(t, i))}
+            {visible.slice(0, mid).map((t, i) => renderRow(t, i))}
           </Box>
           <Box flexDirection="column" width={colWidth}>
-            {todos.slice(mid).map((t, i) => renderRow(t, mid + i))}
+            {visible.slice(mid).map((t, i) => renderRow(t, mid + i))}
           </Box>
         </Box>
       ) : (
-        /* Single column layout */
-        <Box flexDirection="column">{todos.map(renderRow)}</Box>
+        <Box flexDirection="column" marginTop={1}>
+          {visible.map(renderRow)}
+        </Box>
       )}
-    </Box>
+    </MonitorShell>
   );
 }

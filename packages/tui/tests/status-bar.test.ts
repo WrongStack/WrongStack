@@ -9,18 +9,13 @@ import {
   hasTokenDisplay,
   tokenDisplayTotals,
 } from '../src/components/status-bar.js';
+import { theme } from '../src/theme.js';
 
 describe('statusBarModelSpan (hit-test geometry)', () => {
   it('places the model chip after the state chip (no version)', () => {
     const span = statusBarModelSpan({ state: 'idle', model: 'anthropic/claude' });
     // cap(1) + segment padding(1) + "● idle"(6) + transition(1) + padding(1) = 10
     expect(span).toEqual({ start: 11, len: 'anthropic/claude'.length });
-  });
-
-  it('accounts for the leading WS version chip', () => {
-    const span = statusBarModelSpan({ version: '0.10.0', state: 'idle', model: 'x/y' });
-    // A leading version segment adds content + two pads + one transition.
-    expect(span.start).toBe(26);
   });
 
   it('widens the offset for the longer "thinking…" state label', () => {
@@ -35,6 +30,23 @@ describe('statusBarModelSpan (hit-test geometry)', () => {
     const busy = statusBarModelSpan({ state: 'running', thinkingWord: 'working', model: 'm' });
     // "working…"(8) vs "idle"(4) → +4
     expect(busy.start - idle.start).toBe(4);
+  });
+
+  it('drops the state-chip term when the state chip is hidden', () => {
+    // The composer top-rail chip now owns the state indicator, so the statusline
+    // hides its own `state` chip and the model chip shifts left by the whole
+    // "● {label}" segment (content + two pads + one transition).
+    const shown = statusBarModelSpan({ state: 'running', thinkingWord: 'working', model: 'm' });
+    const hidden = statusBarModelSpan({
+      state: 'running',
+      thinkingWord: 'working',
+      stateHidden: true,
+      model: 'm',
+    });
+    // "● working…"(10) + pad(1) + pad(1) + transition(1) = 13 removed.
+    expect(shown.start - hidden.start).toBe(13);
+    // With no version and no state chip, the model sits right after the cap.
+    expect(hidden.start).toBe(2);
   });
 });
 
@@ -85,29 +97,29 @@ describe('fmtElapsed', () => {
 
 describe('stateChip', () => {
   it('shows plain idle when no background agents are running', () => {
-    expect(stateChip('idle', 0)).toEqual({ label: 'idle', color: 'cyan' });
+    expect(stateChip('idle', 0)).toEqual({ label: 'idle', color: theme.accent });
   });
 
   it('surfaces the live agent count when idle but background agents run', () => {
-    expect(stateChip('idle', 1)).toEqual({ label: 'agents ▶1', color: 'magenta' });
-    expect(stateChip('idle', 3)).toEqual({ label: 'agents ▶3', color: 'magenta' });
+    expect(stateChip('idle', 1)).toEqual({ label: 'agents ▶1', color: theme.monitor.agents });
+    expect(stateChip('idle', 3)).toEqual({ label: 'agents ▶3', color: theme.monitor.agents });
   });
 
   it('keeps foreground states regardless of fleet count', () => {
     // A running/streaming foreground already implies activity — the chip
     // reflects the foreground, not the background fleet.
-    expect(stateChip('running', 5)).toEqual({ label: 'thinking…', color: 'green' });
-    expect(stateChip('streaming', 5)).toEqual({ label: 'thinking…', color: 'green' });
-    expect(stateChip('aborting', 5)).toEqual({ label: 'aborting…', color: 'yellow' });
+    expect(stateChip('running', 5)).toEqual({ label: 'thinking…', color: theme.success });
+    expect(stateChip('streaming', 5)).toEqual({ label: 'thinking…', color: theme.success });
+    expect(stateChip('aborting', 5)).toEqual({ label: 'aborting…', color: theme.warn });
   });
 
   it('uses a configured single-word foreground label', () => {
-    expect(stateChip('running', 0, 'working')).toEqual({ label: 'working…', color: 'green' });
+    expect(stateChip('running', 0, 'working')).toEqual({ label: 'working…', color: theme.success });
   });
 
   it('falls back to thinking for invalid configured words', () => {
-    expect(stateChip('running', 0, 'two words')).toEqual({ label: 'thinking…', color: 'green' });
-    expect(stateChip('running', 0, 'x'.repeat(17))).toEqual({ label: 'thinking…', color: 'green' });
+    expect(stateChip('running', 0, 'two words')).toEqual({ label: 'thinking…', color: theme.success });
+    expect(stateChip('running', 0, 'x'.repeat(17))).toEqual({ label: 'thinking…', color: theme.success });
   });
 });
 
@@ -142,31 +154,28 @@ describe('renderProgress', () => {
   });
 });
 
-describe('renderMeter (sub-cell precision)', () => {
+describe('renderMeter (bracket-style)', () => {
   it('is empty at 0 and full at 1', () => {
-    expect(renderMeter(0, 10)).toBe('░░░░░░░░░░');
-    expect(renderMeter(1, 10)).toBe('██████████');
+    expect(renderMeter(0, 10)).toBe('[o.........]');
+    expect(renderMeter(1, 10)).toBe('[0000000000]');
   });
 
   it('keeps total visual width stable across all ratios', () => {
     for (let i = 0; i <= 24; i++) {
-      // Each cell is exactly one character (full block, one-eighth block, or
-      // empty track), so the rendered string is always `width` chars.
-      expect([...renderMeter(i / 24, 12)].length).toBe(12);
+      // Brackets add 2 chars: `[` + width cells + `]`
+      expect([...renderMeter(i / 24, 12)].length).toBe(14);
     }
   });
 
   it('renders a fractional leading cell instead of jumping a whole cell', () => {
-    // 1/12 of the bar = a partial block in the first cell, rest empty track.
-    const bar = renderMeter(1 / 12 / 2, 12); // half a cell
-    expect(bar[0]).not.toBe('█');
-    expect(bar[0]).not.toBe('░');
-    expect(bar.slice(1)).toBe('░'.repeat(11));
+    // 1/24 × 12 cells = 0.5 → rounded to 1 filled cell
+    const bar = renderMeter(1 / 12 / 2, 12);
+    expect(bar).toBe('[0o..........]');
   });
 
   it('clamps out-of-range ratios', () => {
-    expect(renderMeter(-1, 8)).toBe('░░░░░░░░');
-    expect(renderMeter(2, 8)).toBe('████████');
+    expect(renderMeter(-1, 8)).toBe('[o.......]');
+    expect(renderMeter(2, 8)).toBe('[00000000]');
   });
 });
 

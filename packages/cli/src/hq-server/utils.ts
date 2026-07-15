@@ -224,18 +224,30 @@ export function hqMachineKey(hostname: string | undefined, machineId: string | u
 
 /**
  * Fold a cost/tool signal from an event envelope into the timeseries store.
- * Recognizes `session.usage` (cost/tokens) and `tool.completed` (tool call).
- * Best-effort, never throws.
+ * Recognizes `session.usage` (cost/tokens, plus model/provider/cache
+ * dimensions) and `tool.completed` (tool call). Best-effort, never throws.
  */
 export function recordTimeseriesSignal(persistence: HqPersistence, event: HqEventEnvelope): void {
   try {
     if (event.type === 'session.usage') {
-      const p = event.payload as { costUsd?: number; inputTokens?: number; outputTokens?: number };
+      const p = event.payload as {
+        costUsd?: number;
+        inputTokens?: number;
+        outputTokens?: number;
+        model?: string;
+        provider?: string;
+        cacheRead?: number;
+        cacheWrite?: number;
+      };
       persistence.timeseries.record({
         ts: Date.parse(event.timestamp) || Date.now(),
         ...(typeof p.costUsd === 'number' ? { costUsd: p.costUsd } : {}),
         ...(typeof p.inputTokens === 'number' ? { inputTokens: p.inputTokens } : {}),
         ...(typeof p.outputTokens === 'number' ? { outputTokens: p.outputTokens } : {}),
+        ...(typeof p.model === 'string' && p.model.length > 0 ? { model: p.model } : {}),
+        ...(typeof p.provider === 'string' && p.provider.length > 0 ? { provider: p.provider } : {}),
+        ...(typeof p.cacheRead === 'number' ? { cacheRead: p.cacheRead } : {}),
+        ...(typeof p.cacheWrite === 'number' ? { cacheWrite: p.cacheWrite } : {}),
       });
     } else if (event.type === 'tool.completed') {
       persistence.timeseries.record({
@@ -246,4 +258,29 @@ export function recordTimeseriesSignal(persistence: HqPersistence, event: HqEven
   } catch {
     /* best-effort */
   }
+}
+
+// ── API error sanitization ─────────────────────────────────────────────────
+
+/**
+ * Coerce a thrown error into a safe, opaque message for HTTP/JSON API
+ * responses. Raw error strings (file paths, environment details, stack
+ * fragments) are never forwarded to the browser — only a stable category.
+ * The original error is logged server-side by the caller.
+ */
+export function sanitizeApiError(err: unknown): string {
+  const message = err instanceof Error ? err.message : String(err);
+  // Classify a few well-known shapes without echoing their text verbatim.
+  const lower = message.toLowerCase();
+  if (lower.includes('enoent') || lower.includes('no such file')) {
+    return 'resource not found';
+  }
+  if (lower.includes('eacces') || lower.includes('permission')) {
+    return 'permission denied';
+  }
+  if (lower.includes('json') && (lower.includes('parse') || lower.includes('unexpected'))) {
+    return 'malformed data';
+  }
+  // Default: a generic label — the detail stays server-side.
+  return 'internal error';
 }

@@ -9,6 +9,7 @@ import type {
   Request,
 } from '../types/provider.js';
 import { toErrorMessage } from '../utils/error.js';
+import type { OneShotOrchestrator } from './one-shot-llm.js';
 import { readBundledInstructionText } from '../utils/instruction-file.js';
 
 /**
@@ -127,6 +128,17 @@ export interface EnhanceResult {
   english: string;
 }
 
+/**
+ * Why a refine attempt fell through. Callers use this to decide the recovery
+ * path: `timeout` is a transient capacity/latency failure worth an automatic
+ * retry with a longer window (the model was reachable, just slow); `empty` and
+ * `provider_error` mean the attempt produced nothing useful, so the caller
+ * should surface the recovery options (retry, switch model, send as-is) rather
+ * than silently retry. User-initiated cancellation is NOT reported here (it
+ * returns `null` with no `onError` call).
+ */
+export type EnhanceFailureKind = 'timeout' | 'empty' | 'provider_error';
+
 export interface EnhanceUserPromptOptions {
   provider: Provider;
   model: string;
@@ -156,11 +168,19 @@ export interface EnhanceUserPromptOptions {
    */
   reasoning?: ReasoningRequest | undefined;
   /**
-   * Called with a short reason when refinement fails (provider error, timeout,
-   * empty response). NOT called when the caller cancels via `signal`. Lets the
-   * UI surface *why* a refine fell through instead of a generic message.
+   * Called with a short reason and a machine-readable `kind` when refinement
+   * fails (provider error, timeout, empty response). NOT called when the caller
+   * cancels via `signal`. The `kind` lets the UI drive recovery: `timeout` is
+   * eligible for an automatic longer-window retry; `empty` / `provider_error`
+   * surface the recovery options instead. The second argument is optional so
+   * existing callers that only read the reason keep compiling.
    */
-  onError?: ((reason: string) => void) | undefined;
+  onError?: ((reason: string, kind?: EnhanceFailureKind) => void) | undefined;
+  /**
+   * OneShotOrchestrator for the refiner LLM call. When set, uses it instead
+   * of direct provider.complete(), gaining fallback chain support.
+   */
+  oneShotOrchestrator?: OneShotOrchestrator | undefined;
 }
 
 /**
@@ -222,14 +242,32 @@ export async function enhanceUserPrompt(
   const signal = opts.signal ? AbortSignal.any([opts.signal, timer.signal]) : timer.signal;
 
   try {
-    const res = await provider.complete(req, { signal });
-    const raw = res.content
-      .filter(isTextBlock)
-      .map((b) => b.text)
-      .join('\n')
-      .trim();
+    let raw: string;
+    if (opts.oneShotOrchestrator) {
+      const result = await opts.oneShotOrchestrator.call({
+        system: ENHANCER_SYSTEM_PROMPT,
+        messages: [
+          { role: 'user', content: buildRefinerInput(text, opts.history) },
+        ],
+        maxTokens,
+        timeoutMs,
+        signal: opts.signal,
+      });
+      if (result.error) {
+        opts.onError?.(result.error, 'provider_error');
+        return null;
+      }
+      raw = result.text;
+    } else {
+      const res = await provider.complete(req, { signal });
+      raw = res.content
+        .filter(isTextBlock)
+        .map((b) => b.text)
+        .join('\n')
+        .trim();
+    }
     if (!raw) {
-      opts.onError?.('model returned no text');
+      opts.onError?.('model returned no text', 'empty');
       return null;
     }
 
@@ -247,7 +285,7 @@ export async function enhanceUserPrompt(
     const refined = raw.slice(0, sepIdx).trim();
     const english = raw.slice(sepIdx + 5).trim(); // skip "\n---\n"
     if (!refined || !english) {
-      opts.onError?.('one or both versions empty');
+      opts.onError?.('one or both versions empty', 'empty');
       return null;
     }
     return { refined, english };
@@ -255,10 +293,10 @@ export async function enhanceUserPrompt(
     // User-initiated cancel → stay silent (they chose to send the original).
     if (opts.signal?.aborted) return null;
     if (timer.signal.aborted) {
-      opts.onError?.(`timed out after ${Math.round(timeoutMs / 1000)}s`);
+      opts.onError?.(`timed out after ${Math.round(timeoutMs / 1000)}s`, 'timeout');
       return null;
     }
-    opts.onError?.(toErrorMessage(err));
+    opts.onError?.(toErrorMessage(err), 'provider_error');
     return null;
   } finally {
     // Idempotent — abort() after signal already fired is a no-op, so this is

@@ -443,6 +443,49 @@ export {
   createCouncilBrainArbiter,
 } from './execution/council-brain.js';
 export {
+  BUILTIN_COUNCIL_PERSONAS,
+  CouncilPersonaRegistry,
+  createCouncilPersonaRegistry,
+  DEFAULT_COUNCIL_PERSONA_REGISTRY,
+} from './execution/council-personas.js';
+export {
+  BUILTIN_COUNCIL_PROFILES,
+  CouncilProfileRegistry,
+  createCouncilProfileRegistry,
+  DEFAULT_COUNCIL_APPROVAL_FRACTION,
+  DEFAULT_COUNCIL_JUDGE_MAX_TOKENS,
+  DEFAULT_COUNCIL_OVERALL_TIMEOUT_MS,
+  DEFAULT_COUNCIL_PER_CALL_TIMEOUT_MS,
+  DEFAULT_COUNCIL_PROFILE_REGISTRY,
+  DEFAULT_COUNCIL_QUORUM_FRACTION,
+  DEFAULT_COUNCIL_VOTER_MAX_TOKENS,
+  normalizeCouncilProfile,
+  resolveCouncilProfile,
+} from './execution/council-profiles.js';
+export {
+  buildCouncilJudgeSystemPrompt,
+  buildCouncilJudgeUserPrompt,
+  buildCouncilQuestionPrompt,
+  buildCouncilVoterSystemPrompt,
+  buildCouncilVoterUserPrompt,
+  COUNCIL_JUDGE_PROMPT_PATH,
+  COUNCIL_VOTER_PROMPT_PATH,
+} from './execution/council-prompts.js';
+export {
+  COUNCIL_REFUSAL_OPTION_ID,
+  CouncilOrchestrator,
+  type CouncilOrchestratorOptions,
+  DEFAULT_COUNCIL_MAX_CONCURRENCY,
+  MAX_COUNCIL_CONCURRENCY,
+} from './execution/council-orchestrator.js';
+export {
+  type CouncilResolution,
+  type CouncilResolutionInput,
+  type CouncilResolutionSeat,
+  type CouncilResolutionVote,
+  resolveCouncilVotes,
+} from './execution/council-resolution.js';
+export {
   buildLosslessDigest,
   buildSmartDigest,
   type ContentScore,
@@ -464,8 +507,15 @@ export {
   resolveReasoningForRequest,
 } from './execution/model-runtime.js';
 export {
+  ENHANCE_BASE_TIMEOUT_MS,
+  ENHANCE_MIN_RETRY_TIMEOUT_MS,
+  nextEnhanceTimeout,
+  resolveEnhanceFallbackRef,
+} from './execution/enhance-recovery.js';
+export {
   type ConversationTurn,
   ENHANCER_SYSTEM_PROMPT,
+  type EnhanceFailureKind,
   type EnhanceResult,
   type EnhanceUserPromptOptions,
   enhanceUserPrompt,
@@ -578,6 +628,17 @@ export {
 } from './storage/session-event-bridge.js';
 export { createMcpControlTool, type MCPRegistryHandle } from './tools/mcp-control.js';
 export { createMcpUseTool } from './tools/mcp-use.js';
+export {
+  COUNCIL_TOOL_NAME,
+  type CouncilToolInput,
+  type CreateCouncilToolOptions,
+  createCouncilTool,
+  MAX_COUNCIL_CONTEXT_CHARS,
+  MAX_COUNCIL_QUESTION_CHARS,
+  MAX_COUNCIL_TOOL_OPTIONS,
+} from './tools/council-tool.js';
+export { createOneShotLLMTool, ONE_SHOT_LLM_TOOL_NAME, type CreateOneShotLLMToolOptions } from './tools/one-shot-llm-tool.js';
+export { OneShotOrchestrator } from './execution/one-shot-llm.js';
 export type { Compactor, CompactReport } from './types/compactor.js';
 export {
   CONTEXT_WINDOW_MODES,

@@ -272,6 +272,10 @@ export function setupBrainAndOrchestration(
     fileChurnWindowMs: brainCfg?.monitor?.fileChurnWindowMs,
     cooldownMs: brainCfg?.monitor?.cooldownMs,
     sessionId: () => context.session?.id ?? session.id,
+    // Filter out subagent events so the BrainMonitor only monitors the
+    // leader's own activity — subagent tool failures or stalls must not
+    // trigger corrective steers to the leader agent.
+    leaderSessionId: () => context.session?.id ?? session.id,
     intervene: async ({ subject, body }: { subject: string; body: string }) => {
       const leaderUniqueId = `leader@${mailboxSessionTag(session.id)}`;
       await brainMailbox.send({

@@ -458,7 +458,7 @@ export function SuperMemoryPage() {
               <span className="text-zinc-600">: </span>
               <span className="text-emerald-400">true</span>
               <span className="text-zinc-600">,</span>
-              <span className="text-zinc-700"> // toggle the entire subsystem</span>
+              <span className="text-zinc-700">{' // toggle the entire subsystem'}</span>
               <br />
               <span className="text-zinc-600">    </span>
               <span className="text-zinc-500">"storage"</span>
@@ -469,7 +469,7 @@ export function SuperMemoryPage() {
               <span className="text-zinc-600">: </span>
               <span className="text-emerald-400">true</span>
               <span className="text-zinc-600">,</span>
-              <span className="text-zinc-700"> // store inside .wrongstack/memories</span>
+              <span className="text-zinc-700">{' // store inside .wrongstack/memories'}</span>
               <br />
               <span className="text-zinc-600">      </span>
               <span className="text-zinc-500">"directory"</span>
@@ -487,14 +487,14 @@ export function SuperMemoryPage() {
               <span className="text-zinc-600">: </span>
               <span className="text-emerald-400">true</span>
               <span className="text-zinc-600">,</span>
-              <span className="text-zinc-700"> // inject top 8 into every turn</span>
+              <span className="text-zinc-700">{' // inject top 8 into every turn'}</span>
               <br />
               <span className="text-zinc-600">      </span>
               <span className="text-zinc-500">"toolResults"</span>
               <span className="text-zinc-600">: </span>
               <span className="text-emerald-400">true</span>
               <span className="text-zinc-600">,</span>
-              <span className="text-zinc-700"> // append hints to read/grep/tree output</span>
+              <span className="text-zinc-700">{' // append hints to read/grep/tree output'}</span>
               <br />
               <span className="text-zinc-600">      </span>
               <span className="text-zinc-500">"maxHintsPerTool"</span>

@@ -1455,7 +1455,17 @@ export type WSClientMessage =
   | { type: 'brain.ask'; payload: { question: string } }
   | { type: 'brain.config.get' }
   | { type: 'brain.config.set'; payload: { patch: BrainConfigPatchWire } }
-  | { type: 'model.refine'; payload: { text: string } }
+  | {
+      type: 'model.refine';
+      payload: {
+        text: string;
+        /** Retry window override (ms). Set on the auto-retry after a timeout. */
+        timeoutMs?: number | undefined;
+        /** Refine on this provider/model instead of the session's — ephemeral, no session switch. */
+        provider?: string | undefined;
+        model?: string | undefined;
+      };
+    }
   | { type: 'skills.list' }
   | { type: 'skills.content'; payload: { name: string; source: string } }
   | { type: 'skills.install'; payload: { ref: string; global?: boolean } }
@@ -1833,7 +1843,19 @@ export type WSServerMessage =
     }
   | {
       type: 'model.refine_result';
-      payload: { refined: string; english: string; error?: string | undefined };
+      payload: {
+        refined: string;
+        english: string;
+        error?: string | undefined;
+        /** Machine-readable failure class driving client recovery (undefined on success). */
+        errorKind?: 'timeout' | 'empty' | 'provider_error' | undefined;
+        /** Suggested window (ms) for a retry after a timeout. */
+        retryTimeoutMs?: number | undefined;
+        /** One-key "retry with another model" offer (provider/model), if any. */
+        fallbackRef?: string | undefined;
+        /** The provider/model that produced this result (echoes an ephemeral retry). */
+        refinedWith?: { provider: string; model: string } | undefined;
+      };
     }
   // ── Coordinator / autonomous fleet events ──────────────────────────────
   | {

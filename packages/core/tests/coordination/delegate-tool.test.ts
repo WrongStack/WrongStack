@@ -248,17 +248,18 @@ describe('createDelegateTool', () => {
     await director.shutdown();
   });
 
-  it('exposes roster ids on the input schema enum', () => {
+  it('mentions common roster roles in the role description', () => {
     const tool = createDelegateTool({
       host: buildHost(null),
       roster: FLEET_ROSTER,
     });
     const schema = tool.inputSchema as {
-      properties?: { role?: { enum?: string[] } };
+      properties?: { role?: { description?: string } };
     };
-    expect(schema.properties?.role?.enum).toEqual(
-      expect.arrayContaining(Object.keys(FLEET_ROSTER)),
-    );
+    const desc = schema.properties?.role?.description ?? '';
+    expect(desc).toContain('bug-hunter');
+    expect(desc).toContain('security-scanner');
+    expect(desc).not.toContain(Object.keys(FLEET_ROSTER).join(','));
   });
 
   // ─────────────────────────────────────────────────────────────────

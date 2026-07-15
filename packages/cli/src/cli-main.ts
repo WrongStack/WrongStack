@@ -39,6 +39,7 @@ import {
   gatedEnhancerReasoning,
   GlobalMailbox,
   isStdinTTY,
+  resolveEnhanceFallbackRef,
   loadDirectorState,
   mailboxSessionTag,
   ParallelEternalEngine,
@@ -50,6 +51,9 @@ import {
   writeErr,
   writeOut,
   getToolDescriptionMode,
+  createCouncilTool,
+  createOneShotLLMTool,
+  OneShotOrchestrator,
 } from '@wrongstack/core';
 import { SddRunRegistry } from '@wrongstack/sdd';
 import { wireSessionEvents } from './session-event-wiring.js';
@@ -120,6 +124,7 @@ type PluginPickerItem = {
   enabled: boolean;
   risk: 'low' | 'medium' | 'high';
   summary: string;
+  lockable?: boolean | undefined;
 };
 
 export async function main(argv: string[]): Promise<number> {
@@ -566,6 +571,65 @@ export async function main(argv: string[]): Promise<number> {
     resolveProviderCfgRuntime,
     buildProviderForIdRuntime,
   });
+
+  // Register the `llm` tool — one-shot LLM invocations with provider
+  // resolution and fallback chain. buildProviderForId is now available.
+  const llmTool = createOneShotLLMTool({
+    buildProvider: buildProviderForId,
+    getConfig: () => config,
+    defaultProvider: config.provider,
+    defaultModel: config.model,
+  });
+  try {
+    toolRegistry.register(llmTool);
+  } catch {
+    toolRegistry.override('llm', llmTool);
+  }
+
+  // Register the provider-neutral Council tool with the same OneShot runtime.
+  const councilTool = createCouncilTool({
+    caller: new OneShotOrchestrator({
+      buildProvider: buildProviderForId,
+      getConfig: () => config,
+    }),
+  });
+  try {
+    toolRegistry.register(councilTool);
+  } catch {
+    toolRegistry.override('council', councilTool);
+  }
+
+  // Wire a summarizer to the context_manager tool using the llm tool.
+  try {
+    const { createContextManagerTool } = await import('@wrongstack/core');
+    // Create a simple summarizer that calls deepseek-chat (or fallback)
+    // for context_manager summary actions.
+    const { OneShotOrchestrator } = await import('@wrongstack/core');
+    if (OneShotOrchestrator) {
+      const summarizer = new OneShotOrchestrator({
+        buildProvider: buildProviderForId,
+        getConfig: () => config,
+      });
+      toolRegistry.override(
+        'context_manager',
+        createContextManagerTool({
+          compactor: container.resolve(TOKENS.Compactor) as never,
+          summarizer: async (messages) => {
+            const r = await summarizer.call({
+              system: 'Summarize concisely. Keep decisions and key facts.',
+              messages,
+              model: 'deepseek-chat',
+              maxTokens: 1024,
+              timeoutMs: 30_000,
+            });
+            return r.text || '(summary unavailable)';
+          },
+        }),
+      );
+    }
+  } catch {
+    // Best-effort — summarizer enhancement is optional.
+  }
 
   // Director / autonomy mode, fleet paths, eternal-engine scaffolding,
   // Agent Monitor — extracted to wiring/director-setup.ts.
@@ -2123,6 +2187,27 @@ export async function main(argv: string[]): Promise<number> {
     interruptController,
     enhanceController,
     getEnhancerReasoning: () => gatedEnhancerReasoning(activeReasoningConfig),
+    // Build an ephemeral provider for retrying a failed refinement on another
+    // model — reuses the same non-persisting builder as the fallback chain, so
+    // the session provider/model is never mutated.
+    buildEnhancerProvider: async (providerId: string, _modelId: string) => {
+      // The provider only needs to reach `providerId`'s API — the specific
+      // model is passed to `enhanceUserPrompt` directly, not baked into the
+      // Provider — so `_modelId` is accepted for interface symmetry but unused.
+      try {
+        return buildProviderForId(providerId);
+      } catch {
+        return undefined;
+      }
+    },
+    // Resolve the one-key "retry with another model" offer against the LIVE
+    // provider/model so the active model is never offered as its own fallback.
+    getEnhanceFallbackRef: () =>
+      resolveEnhanceFallbackRef({
+        ...configRef.current,
+        provider: context.provider.id,
+        model: context.model,
+      }),
     statuslineHiddenItems,
     setStatuslineHiddenItems,
     saveStatuslineHiddenItems,

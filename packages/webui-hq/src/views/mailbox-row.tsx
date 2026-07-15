@@ -1,6 +1,7 @@
 /** Shared mailbox message row used by grouped and live mailbox views. */
 import type React from 'react';
 import { useState } from 'react';
+import { Mail } from 'lucide-react';
 import { MessageActions } from './mailbox-actions.js';
 import type { FlatMessage } from './mailbox-grouping.js';
 import { formatMailboxTime, shortMailboxId } from './mailbox-time.js';
@@ -23,14 +24,15 @@ export function MessageRow({ flat, defaultExpanded }: MessageRowProps): React.Re
   const [open, setOpen] = useState(Boolean(defaultExpanded));
   const m = flat.message;
   const hasBody = m.hasBody || (m.bodyPreview !== undefined && m.bodyPreview.length > 0);
-  const typeMeta = MAILBOX_TYPE_LABEL[m.type] ?? { icon: '✉️', tone: 'info' };
+  const typeMeta = MAILBOX_TYPE_LABEL[m.type] ?? { icon: Mail, tone: 'info' as const };
+  const TypeIcon = typeMeta.icon;
   const fromTo = `${m.from} → ${m.to}`;
 
   return (
     <div className={'hq-msg' + (m.completed ? ' done' : '')}>
       <div className="hq-msg-head">
         <span className="hq-msg-icon" title={m.type}>
-          {typeMeta.icon}
+          <TypeIcon size={13} />
         </span>
         <span className={'hq-pill ' + typeMeta.tone}>{m.type}</span>
         {m.priority === 'high' && <span className="hq-pill error">high</span>}
@@ -65,7 +67,7 @@ export function MessageRow({ flat, defaultExpanded }: MessageRowProps): React.Re
           {m.bodyPreview !== undefined && m.bodyPreview.length > 0 ? (
             <pre className="hq-msg-pre">{m.bodyPreview}</pre>
           ) : (
-            <div className="hq-empty" style={{ padding: 8, fontSize: 12 }}>
+            <div className="hq-empty hq-pad-sm">
               (empty body)
             </div>
           )}

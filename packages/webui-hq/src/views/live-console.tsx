@@ -51,7 +51,7 @@ export function LiveConsoleView(): React.ReactElement {
       <div className="hq-console">
         <div className="hq-chat-header">
           <MessageSquareText size={15} className="hq-chat-header-icon" />
-          <span className="hq-card-title" style={{ margin: 0 }}>
+          <span className="hq-card-title hq-title-inline">
             Console
           </span>
           {viewingAgent && (

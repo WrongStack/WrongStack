@@ -214,11 +214,9 @@ export function handleClient(
       clients.set(ws, client);
       registered = true;
 
-      // Phase 1 server-to-client acknowledgement: the client learns which
-      // capabilities the server accepted and the active redaction policy.
-      // Phase 2 will also use this socket to push `HqServerCommandBatchMessage`
-      // frames via `client.command_poll`, but for now the welcome is a
-      // one-shot handshake reply with no command queue attached.
+      // Server-to-client acknowledgement: the client learns which capabilities
+      // the server accepted and the active redaction policy. Command delivery
+      // happens later over `client.command_poll` frames on this same socket.
       const welcome: HqWelcomePayload = {
         type: 'hq.welcome',
         protocolVersion: HQ_PROTOCOL_VERSION,

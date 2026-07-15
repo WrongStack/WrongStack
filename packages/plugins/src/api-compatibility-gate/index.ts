@@ -433,7 +433,7 @@ const plugin: Plugin = {
       return { additionalContext: message };
     };
 
-    state.hookUnregister = api.registerHook('PostToolUse', 'write|edit', hook);
+    state.hookUnregister = api.registerHook('PostToolUse', 'write|edit', hook, { background: true });
 
     // --- api_compat_status tool ---
     api.tools.register({

@@ -773,8 +773,8 @@ function resolveWebUiEntry(): string {
   } catch {
     // fall through to legacy path
   }
-  const serverIndex = require.resolve('@wrongstack/webui/server');
-  return path.join(path.dirname(serverIndex), 'entry.js');
+  const serverIndex = require.resolve('@wrongstack/webui-server');
+  return path.join(path.dirname(serverIndex), 'server', 'entry.js');
 }
 
 function resolveWebUiDistDir(): string {
@@ -783,8 +783,8 @@ function resolveWebUiDistDir(): string {
   }
   const require = createRequire(import.meta.url);
   // The built React frontend assets live in @wrongstack/webui/dist.
-  const serverIndex = require.resolve('@wrongstack/webui/server');
-  const candidate = path.resolve(path.dirname(serverIndex), '..');
+  const serverEntry = require.resolve('@wrongstack/webui');
+  const candidate = path.dirname(serverEntry);
   if (existsSync(candidate)) return candidate;
   throw new Error(
     `WebUI frontend assets not found at ${candidate}. Build @wrongstack/webui or set WRONGSTACK_WEBUI_DIST.`,

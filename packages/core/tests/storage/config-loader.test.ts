@@ -60,7 +60,7 @@ describe('DefaultConfigLoader', () => {
     const cfg = await l.load();
     expect(cfg.provider).toBeUndefined();
     expect(cfg.model).toBeUndefined();
-    expect(cfg.context.mode).toBe('balanced');
+    expect(cfg.context.mode).toBe('frugal');
     expect(cfg.context.softThreshold).toBe(0.75);
     expect(cfg.tools.maxIterations).toBe(100);
     expect(cfg.features.mcp).toBe(true);
@@ -72,7 +72,7 @@ describe('DefaultConfigLoader', () => {
     expect(written.version).toBe(1);
     expect(written.configScope).toBe('global');
     expect(written.maxConcurrent).toBe(4);
-    expect(written.context.mode).toBe('balanced');
+    expect(written.context.mode).toBe('frugal');
     expect(written.context.strategy).toBe('hybrid');
     expect(written.autonomy.defaultMode).toBe('auto');
     expect(written.autonomy.autoProceedDelayMs).toBe(45_000);
@@ -285,7 +285,7 @@ describe('DefaultConfigLoader', () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
     try {
       const cfg = await l.load();
-      expect(cfg.context.mode).toBe('balanced');
+      expect(cfg.context.mode).toBe('frugal');
     } finally {
       warn.mockRestore();
     }
@@ -498,7 +498,7 @@ describe('DefaultConfigLoader', () => {
     try {
       const cfg = await l.load();
       // Unknown mode must not brick the CLI — it is replaced by the default.
-      expect(cfg.context.mode).toBe('balanced');
+      expect(cfg.context.mode).toBe('frugal');
       expect(warn).toHaveBeenCalledWith(expect.stringContaining('lightning-fast'));
     } finally {
       warn.mockRestore();

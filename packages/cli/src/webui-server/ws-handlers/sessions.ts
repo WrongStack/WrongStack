@@ -7,7 +7,7 @@ import {
   type SessionWriter,
 } from '@wrongstack/core';
 import { DefaultSessionStore } from '@wrongstack/core/storage';
-import { toErrorMessage } from '@wrongstack/core/utils';
+import { sessionScopedPath, toErrorMessage } from '@wrongstack/core/utils';
 import { toSessionHistoryEntries } from '@wrongstack/webui-server';
 import type { WebSocket } from 'ws';
 import type { WsCommon } from './index.js';
@@ -127,6 +127,16 @@ export async function handleSessionNew(ctx: SessionsContext, _ws: WebSocket): Pr
         provider: (actx.provider as { id?: string }).id ?? '',
       });
       actx.session = fresh;
+      if (opts.sessionsDir) {
+        actx.state.setMeta(
+          'plan.path',
+          sessionScopedPath(opts.sessionsDir, fresh.id, '.plan.json'),
+        );
+        actx.state.setMeta(
+          'task.path',
+          sessionScopedPath(opts.sessionsDir, fresh.id, '.tasks.json'),
+        );
+      }
       opts.onSessionSwapped?.(fresh.id);
       actx.tokenCounter.reset();
     } catch (err) {
@@ -289,6 +299,16 @@ export async function handleSessionResume(
       })();
     }
     actx.session = resumed.writer;
+    if (opts.sessionsDir) {
+      actx.state.setMeta(
+        'plan.path',
+        sessionScopedPath(opts.sessionsDir, resumed.writer.id, '.plan.json'),
+      );
+      actx.state.setMeta(
+        'task.path',
+        sessionScopedPath(opts.sessionsDir, resumed.writer.id, '.tasks.json'),
+      );
+    }
     opts.onSessionSwapped?.(resumed.writer.id);
     // Hydrate the context with the old session's messages.
     actx.state.replaceMessages(resumed.data.messages);

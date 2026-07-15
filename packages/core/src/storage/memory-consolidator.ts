@@ -3,6 +3,7 @@ import type { Context } from '../core/context.js';
 import type { AfterRunHook, AgentExtension } from '../extension/extension-points.js';
 import type { MemoryEntry, MemoryStore } from '../types/memory.js';
 import type { Provider } from '../types/provider.js';
+import type { OneShotOrchestrator } from '../execution/one-shot-llm.js';
 import {
   readBundledInstructionText,
   renderInstructionTemplate,
@@ -38,7 +39,7 @@ export interface MemoryConsolidatorOptions {
   provider?: Provider | undefined;
   /**
    * Model override for the consolidation call. Uses the session's model
-   * by default. A smaller/faster model is recommended (e.g. haiku, flash).
+   * by default. A smaller/faster model is recommended (e.g. deepseek-chat, haiku, flash).
    */
   model?: string | undefined;
   /**
@@ -50,6 +51,12 @@ export interface MemoryConsolidatorOptions {
    * Maximum memory entries to include in the prompt as context.
    */
   maxExistingEntries?: number | undefined;
+  /**
+   * OneShotOrchestrator for the consolidation LLM call. When set, uses
+   * it instead of the direct provider.complete() path, gaining fallback
+   * chain support and cheap-model defaulting.
+   */
+  oneShotOrchestrator?: OneShotOrchestrator | undefined;
 }
 
 // ── Prompt ──────────────────────────────────────────────────────────────
@@ -84,6 +91,7 @@ export class SessionMemoryConsolidator implements AgentExtension {
   private readonly model?: string | undefined;
   private readonly minIterations: number;
   private readonly maxExistingEntries: number;
+  private readonly oneShotOrchestrator?: OneShotOrchestrator | undefined;
 
   constructor(opts: MemoryConsolidatorOptions) {
     this.memoryStore = opts.memoryStore;
@@ -91,6 +99,7 @@ export class SessionMemoryConsolidator implements AgentExtension {
     this.model = opts.model;
     this.minIterations = opts.minIterations ?? 2;
     this.maxExistingEntries = opts.maxExistingEntries ?? 15;
+    this.oneShotOrchestrator = opts.oneShotOrchestrator;
   }
 
   afterRun: AfterRunHook = (ctx: Context, result: RunResult) => {
@@ -121,24 +130,37 @@ export class SessionMemoryConsolidator implements AgentExtension {
         );
 
         // Call the LLM with a focused, one-shot prompt
-        const signal = AbortSignal.timeout(15_000);
-        const response = await provider.complete(
-          {
-            model: _model,
-            system: [{ type: 'text', text: prompt }],
-            messages: [
-              { role: 'user', content: 'Review the session and return memory operations as JSON.' },
-            ],
+        let text: string;
+        if (this.oneShotOrchestrator) {
+          const oneShotResult = await this.oneShotOrchestrator.call({
+            system: prompt,
+            userPrompt: 'Review the session and return memory operations as JSON.',
+            model: _model ?? 'deepseek-chat',
             maxTokens: 500,
-          },
-          { signal },
-        );
-
-        const text = response.content
-          .filter((b): b is { type: 'text'; text: string } => b.type === 'text')
-          .map((b) => b.text)
-          .join('')
-          .trim();
+            timeoutMs: 15_000,
+            fallbackProfile: 'memory',
+          });
+          text = oneShotResult.text;
+        } else {
+          // Legacy path: direct provider.complete()
+          const signal = AbortSignal.timeout(15_000);
+          const response = await provider.complete(
+            {
+              model: _model,
+              system: [{ type: 'text', text: prompt }],
+              messages: [
+                { role: 'user', content: 'Review the session and return memory operations as JSON.' },
+              ],
+              maxTokens: 500,
+            },
+            { signal },
+          );
+          text = response.content
+            .filter((b): b is { type: 'text'; text: string } => b.type === 'text')
+            .map((b) => b.text)
+            .join('')
+            .trim();
+        }
         if (!text) return;
 
         // Extract JSON from possible markdown wrapper

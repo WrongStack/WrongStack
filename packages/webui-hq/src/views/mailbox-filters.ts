@@ -1,14 +1,10 @@
 /**
- * Live feed filter state + reducer (skeleton).
+ * Live feed filter state + reducer for the Mailbox live-feed view.
  *
- * Phase 1 skeleton: declares the `MailboxLiveFilterState` shape and
- * the action types. Phase 3+ will wire this into a React reducer
- * (or `useState` + helpers) and feed it to
- * {@link buildLiveFeedFromHq}.
- *
- * Keeping the state shape here — separate from the React component —
- * means we can unit-test the reducer logic without jsdom, mirroring
- * the pattern set by `mailbox-grouping.test.ts`.
+ * Declares the `MailboxLiveFilterState` shape, the action union, and the pure
+ * reducer. Kept here — separate from the React component — so the reducer
+ * logic can be unit-tested without jsdom, mirroring the pattern set by
+ * `mailbox-grouping.test.ts`. Consumed by `mailbox-live-view.tsx`.
  */
 import type { HqMailboxMessageType, HqMailboxPriority } from '@wrongstack/core';
 
@@ -48,10 +44,8 @@ export type MailboxLiveFilterAction =
   | { type: 'clear-all' };
 
 /**
- * Pure reducer. Skeleton — body is intentionally minimal so the
- * Phase 1 commit stays a refactor-free, drop-in module. The full
- * transition table (with immutable Set updates) lands in Phase 3
- * when the UI is wired up.
+ * Pure reducer. Each Set-backed field is copied (not mutated) so React's
+ * reference-equality check fires correctly on a state change.
  */
 export function mailboxLiveFilterReducer(
   state: MailboxLiveFilterState,

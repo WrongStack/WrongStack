@@ -422,7 +422,15 @@
     "langEnglish": "English",
     "languageTitle": "Switch default refine language — Original vs English",
     "yolo": "YOLO",
-    "yoloTitle": "Bypass tool confirmation prompts"
+    "yoloTitle": "Bypass tool confirmation prompts",
+    "refining": "Refining…",
+    "sendAsIs": "Send as-is",
+    "failedHeader": "Refinement failed",
+    "retry": "Retry (more time)",
+    "retryFallback": "Retry with {{model}}",
+    "pickModel": "Another model…",
+    "pickModelTitle": "Retry refinement with another model",
+    "pickModelHint": "Pick a provider/model to re-run this refinement on. Your session model stays unchanged."
   },
   "specs": {
     "heading": "Specifiche",

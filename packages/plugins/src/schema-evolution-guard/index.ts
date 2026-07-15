@@ -36,8 +36,9 @@
  */
 
 import { readFileSync } from 'node:fs';
-import { basename, isAbsolute, relative, resolve } from 'node:path';
+import { basename } from 'node:path';
 import type { Plugin } from '@wrongstack/core';
+import { withinProject } from '../runtime/index.js';
 
 const API_VERSION = '^0.1.10';
 
@@ -138,16 +139,7 @@ function fileKind(fileName: string): FileKind | null {
   return null;
 }
 
-function withinProject(p: string): boolean {
-  if (typeof p !== 'string' || p.length === 0 || p.length > 4096) return false;
-  const root = process.cwd();
-  const resolved = isAbsolute(p) ? resolve(p) : resolve(root, p);
-  const rel = relative(root, resolved);
-  if (rel === '' || rel === '.') return true;
-  if (rel.startsWith('..')) return false;
-  if (isAbsolute(rel)) return false;
-  return true;
-}
+// withinProject() imported from ../runtime/index.js
 
 // ---------------------------------------------------------------------------
 // Destructive-pattern detection
@@ -375,7 +367,7 @@ const plugin: Plugin = {
       return { additionalContext: message };
     };
 
-    state.hookUnregister = api.registerHook('PostToolUse', 'write|edit', hook);
+    state.hookUnregister = api.registerHook('PostToolUse', 'write|edit', hook, { background: true });
 
     // --- schema_evolution_status tool ---
     api.tools.register({

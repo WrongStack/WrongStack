@@ -31,18 +31,18 @@ export interface ContextWindowConfigLike {
   eliseThreshold?: number | undefined;
 }
 
-export const DEFAULT_CONTEXT_WINDOW_MODE_ID: ContextWindowModeId = 'balanced';
+export const DEFAULT_CONTEXT_WINDOW_MODE_ID: ContextWindowModeId = 'frugal';
 
 export const CONTEXT_WINDOW_MODES: readonly ContextWindowMode[] = Object.freeze([
   {
     id: 'balanced',
     name: 'Balanced',
     description: 'Default rolling compaction: recent work stays verbatim, old tool output is trimmed.',
-    thresholds: { warn: 0.6, soft: 0.75, hard: 0.9 },
+    thresholds: { warn: 0.5, soft: 0.65, hard: 0.8 },
     aggressiveOn: 'soft',
-    preserveK: 10,
-    eliseThreshold: 2000,
-    targetLoad: 0.65,
+    preserveK: 8,
+    eliseThreshold: 1000,
+    targetLoad: 0.55,
   },
   {
     id: 'frugal',

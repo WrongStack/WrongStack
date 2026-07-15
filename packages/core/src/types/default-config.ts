@@ -32,8 +32,8 @@ export const DEFAULT_TOOLS_CONFIG = Object.freeze({
 
 /** Default context config — mirrors BEHAVIOR_DEFAULTS.context. */
 export const DEFAULT_CONTEXT_CONFIG = Object.freeze({
-  preserveK: 10,
-  eliseThreshold: 2000,
+  preserveK: 8,
+  eliseThreshold: 1000,
 });
 
 /** Default autonomy config — auto-proceed delay etc. */

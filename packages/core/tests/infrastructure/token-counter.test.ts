@@ -48,6 +48,31 @@ describe('DefaultTokenCounter', () => {
     expect(seen).toEqual([{ input: 1000, output: 500, cacheRead: 250, cacheWrite: 125 }]);
   });
 
+  it('includes provider and model on token.accounted when known', () => {
+    const events = new EventBus();
+    const seen: Array<{ provider?: string; model?: string }> = [];
+    events.on('token.accounted', (e) => seen.push({ provider: e.provider, model: e.model }));
+    const tc = new DefaultTokenCounter({ events, providerId: 'anthropic' });
+
+    // Cached-price path: price is known, so emission is synchronous with model.
+    tc.accountWithModel({ input: 100, output: 50 }, m1);
+
+    expect(seen).toHaveLength(1);
+    expect(seen[0]).toEqual({ provider: 'anthropic', model: 'anthropic-test-model' });
+  });
+
+  it('omits provider/model when neither is configured', () => {
+    const events = new EventBus();
+    const seen: Array<{ provider?: string; model?: string }> = [];
+    events.on('token.accounted', (e) => seen.push({ provider: e.provider, model: e.model }));
+    const tc = new DefaultTokenCounter({ events });
+
+    tc.account({ input: 10, output: 5 });
+
+    expect(seen).toHaveLength(1);
+    expect(seen[0]).toEqual({});
+  });
+
   it('emits session id from a live session getter', () => {
     const events = new EventBus();
     const seen: Array<string | undefined> = [];

@@ -53,6 +53,19 @@ export interface BrainMonitorOptions {
   /** Active host session id, read lazily so resume/new-session switches are reflected. */
   sessionId?: (() => string | undefined) | undefined;
   /**
+   * Leader session id used to filter out subagent events. The BrainMonitor
+   * subscribes to global events (tool.executed, agent.run.*, error, etc.)
+   * which fire for BOTH the leader agent and subagents. Without this filter,
+   * a subagent's tool failures or stalls incorrectly trigger a steer to the
+   * leader — disrupting the leader's work for problems it didn't cause.
+   *
+   * When set, any event whose `sessionId` differs from this value is skipped.
+   * Events without a `sessionId` field are always passed through (backward
+   * compatibility). Pass a **lazy getter** when the session id may change
+   * at runtime (session resume), or a string for static sessions.
+   */
+  leaderSessionId?: string | (() => string | undefined) | undefined;
+  /**
    * Deliver a corrective steer to the working agent(s). Hosts typically
    * send a `steer` mail to this session's leader via the project
    * GlobalMailbox — the agent loop injects it before the next LLM call.
@@ -110,6 +123,12 @@ export class BrainMonitor {
   private readonly fileChurnWindowMs: number;
   private readonly cooldownMs: number;
 
+  /** Resolve the leader's own session id for event filtering. */
+  private resolveLeaderSessionId(): string | undefined {
+    const id = this.opts.leaderSessionId;
+    return typeof id === 'function' ? id() : id;
+  }
+
   constructor(private readonly opts: BrainMonitorOptions) {
     this.toolFailureStreak = opts.toolFailureStreak ?? 3;
     this.errorStormCount = opts.errorStormCount ?? 4;
@@ -124,6 +143,10 @@ export class BrainMonitor {
   start(): void {
     this.unsubscribers.push(
       this.opts.events.on('tool.executed', (e) => {
+        // Ignore subagent tool events — only respond to the leader's own tool activity
+        const leaderSid = this.resolveLeaderSessionId();
+        if (leaderSid && e.sessionId && e.sessionId !== leaderSid) return;
+
         this.lastProgressAt = Date.now();
         this.trackFileChurn(e.name, e.ok, e.input);
         if (e.ok) {
@@ -151,17 +174,26 @@ export class BrainMonitor {
     // ── Agent-stall watchdog ─────────────────────────────────────────────
     if (this.stallMs > 0) {
       this.unsubscribers.push(
-        this.opts.events.on('agent.run.started', () => {
+        this.opts.events.on('agent.run.started', (e) => {
+          // Ignore subagent run events — only track the leader's runs
+          const lsid = this.resolveLeaderSessionId();
+          if (lsid && e.sessionId && e.sessionId !== lsid) return;
           this.activeRuns += 1;
           this.lastProgressAt = Date.now();
         }),
-        this.opts.events.on('agent.run.completed', () => {
+        this.opts.events.on('agent.run.completed', (e) => {
+          const lsid = this.resolveLeaderSessionId();
+          if (lsid && e.sessionId && e.sessionId !== lsid) return;
           this.activeRuns = Math.max(0, this.activeRuns - 1);
         }),
-        this.opts.events.on('agent.run.error', () => {
+        this.opts.events.on('agent.run.error', (e) => {
+          const lsid = this.resolveLeaderSessionId();
+          if (lsid && e.sessionId && e.sessionId !== lsid) return;
           this.activeRuns = Math.max(0, this.activeRuns - 1);
         }),
-        this.opts.events.on('iteration.started', () => {
+        this.opts.events.on('iteration.started', (e) => {
+          const lsid = this.resolveLeaderSessionId();
+          if (lsid && e.sessionId && e.sessionId !== lsid) return;
           this.lastProgressAt = Date.now();
         }),
       );
@@ -186,6 +218,10 @@ export class BrainMonitor {
 
     this.unsubscribers.push(
       this.opts.events.on('error', (e) => {
+        // Ignore subagent errors — only respond to the leader's own errors
+        const lsid = this.resolveLeaderSessionId();
+        if (lsid && e.sessionId && e.sessionId !== lsid) return;
+
         const now = Date.now();
         this.errorTimestamps.push(now);
         this.errorTimestamps = this.errorTimestamps.filter(

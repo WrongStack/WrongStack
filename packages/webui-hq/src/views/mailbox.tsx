@@ -127,7 +127,7 @@ function ProjectSection({ group }: ProjectSectionProps): React.ReactElement {
 
   return (
     <div className="hq-card">
-      <div className="hq-row" style={{ alignItems: 'baseline' }}>
+      <div className="hq-row hq-row-baseline">
         <button
           type="button"
           className="hq-toggle"
@@ -136,18 +136,18 @@ function ProjectSection({ group }: ProjectSectionProps): React.ReactElement {
         >
           {expanded ? '▾' : '▸'}
         </button>
-        <span style={{ fontWeight: 700 }}>{group.projectId}</span>
+        <span className="hq-text-bright">{group.projectId}</span>
         {group.scope !== undefined && <span className="hq-pill info">{group.scope}</span>}
         {group.mailboxId !== undefined && (
-          <span className="hq-mono" style={{ color: 'var(--dim)' }}>
+          <span className="hq-mono hq-text-dim">
             {group.mailboxId}
           </span>
         )}
-        <span className="hq-mono" style={{ color: 'var(--dim)', marginLeft: 'auto' }}>
+        <span className="hq-mono hq-text-dim hq-ml-auto">
           {group.messages.length} message{group.messages.length === 1 ? '' : 's'}
         </span>
       </div>
-      <div className="hq-grid" style={{ gridTemplateColumns: 'repeat(5,1fr)', marginTop: 8 }}>
+      <div className="hq-grid hq-mt-8" style={{ gridTemplateColumns: 'repeat(5,1fr)' }}>
         <Count label="messages" value={group.messages.length} />
         <Count
           label="unread"
@@ -171,14 +171,14 @@ function ProjectSection({ group }: ProjectSectionProps): React.ReactElement {
         />
       </div>
       {expanded && group.messages.length > 0 && (
-        <div className="hq-msg-list" style={{ marginTop: 12 }}>
+        <div className="hq-msg-list hq-mt-12">
           {group.messages.map((m) => (
             <MessageRow key={m.key} flat={m} />
           ))}
         </div>
       )}
       {expanded && group.messages.length === 0 && (
-        <div className="hq-empty" style={{ padding: 16, fontSize: 12 }}>
+        <div className="hq-empty hq-cockpit-empty">
           Snapshot counters reported for this project, but no detailed mailbox events have streamed
           yet.
         </div>
@@ -205,7 +205,7 @@ function Count({
           ? 'var(--green)'
           : 'var(--text)';
   return (
-    <div style={{ textAlign: 'center' }}>
+    <div className="hq-text-center">
       <div className="hq-stat-num" style={{ color }}>
         {value}
       </div>

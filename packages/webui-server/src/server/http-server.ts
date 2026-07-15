@@ -192,21 +192,27 @@ function cspSourceFromUrl(rawUrl: string): string | undefined {
 }
 
 /**
- * Inline-script hashes allow-listed in the production CSP.
+ * Extra `script-src` sources beyond `'self'`.
  *
- * `script-src 'self'` blocks every inline `<script>`, including those Chrome
- * extensions inject as their content-script bootstrap (the browser reports
- * them from `content.js:74:196`). The hash list reported in the CSP violation
- * message is exactly the script bytes Chrome computed — adding those hashes
- * as `'sha256-…'` sources lets only those two extension bootstraps through
- * (and any future hash we add here), without re-enabling `'unsafe-inline'`
- * for the whole app. The WrongStack frontend itself ships no inline scripts,
- * so the policy stays strict for our own code.
+ * The WrongStack frontend is a Vite build that ships **zero** inline scripts —
+ * every script is an external `.js` file covered by `'self'`. So `script-src`
+ * stays strict: no `'unsafe-inline'`, and no per-extension `'sha256-…'` hashes.
+ *
+ * Browser extensions (password managers, dark-mode readers, dev helpers) that
+ * page-inject an inline bootstrap will trip a CSP violation in the console
+ * (reported from `content.js:…` with a sha256 of the extension's bytes). That
+ * noise is harmless: it blocks only the extension's own injection, never our
+ * app, and the hashes are per-extension + change on every extension update — so
+ * we deliberately do NOT chase them here.
+ *
+ * `'wasm-unsafe-eval'` is required for `shiki` (used by `rehype-pretty-code`
+ * for code-block syntax highlighting in chat messages) — its oniguruma
+ * grammar engine is compiled to WebAssembly. Without this source, every
+ * markdown render that encounters a code block throws:
+ *   `CompileError: call to WebAssembly.instantiate() blocked by CSP`
+ *   `Error: \`runSync\` finished async. Use \`run\` instead`
  */
-const ALLOWED_INLINE_SCRIPT_HASHES: readonly string[] = [
-  "'sha256-6PXDy0zrpXa6mvYOl11bZ8nubNUL7ushPUhGDZtaexg='",
-  "'sha256-6sIdwbEBx7jj0drqSHHm7MqvmoYD3CQ4lp8Zp8blcb0='",
-];
+const EXTRA_SCRIPT_SOURCES: readonly string[] = ["'wasm-unsafe-eval'"];
 
 /** Build the Content-Security-Policy value for the given WS port. */
 export function buildCspHeader(
@@ -226,7 +232,7 @@ export function buildCspHeader(
   }
   const publicWsSource = publicWsUrl ? cspSourceFromUrl(publicWsUrl) : undefined;
   if (publicWsSource) connect.add(publicWsSource);
-  const scriptSrc = ["'self'", ...ALLOWED_INLINE_SCRIPT_HASHES].join(' ');
+  const scriptSrc = ["'self'", ...EXTRA_SCRIPT_SOURCES].join(' ');
   return (
     `default-src 'self'; script-src ${scriptSrc}; style-src 'self' 'unsafe-inline'; ` +
     `connect-src ${Array.from(connect).join(' ')}; ` +

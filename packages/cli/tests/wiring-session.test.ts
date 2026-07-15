@@ -1,9 +1,9 @@
-import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
 import * as fs from 'node:fs/promises';
-import * as path from 'node:path';
 import * as os from 'node:os';
-import { setupSession } from '../src/wiring/session.js';
+import * as path from 'node:path';
 import type { Message, SessionStore, SessionWriter, WstackPaths } from '@wrongstack/core';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { setupSession } from '../src/wiring/session.js';
 
 let tmp: string;
 
@@ -89,10 +89,18 @@ describe('setupSession', () => {
     expect(result.attachments).toBeDefined();
     expect(result.queueStore).toBeDefined();
     expect(result.recoveryLock).toBeDefined();
+    const { listBoards } = await import('@wrongstack/kanban');
+    const boards = await listBoards(tmp);
+    expect(boards).toHaveLength(1);
+    expect(boards[0]?.tags).toContain('session:sess-new');
+    await result.detachTodosCheckpoint();
   });
 
   it('resumes when --resume flag provided', async () => {
-    const restoredMsg: Message = { role: 'user', content: [{ type: 'text', text: 'hi' }] } as Message;
+    const restoredMsg: Message = {
+      role: 'user',
+      content: [{ type: 'text', text: 'hi' }],
+    } as Message;
     const sessionStore = makeSessionStore({
       resume: vi.fn().mockResolvedValue({
         writer: makeSessionWriter('resumed-1'),
@@ -243,7 +251,10 @@ describe('setupSession', () => {
         version: 1,
         directorId: 'd1',
         subagents: [{ id: 's1', status: 'idle' }],
-        tasks: [{ id: 't1', status: 'pending' }, { id: 't2', status: 'completed' }],
+        tasks: [
+          { id: 't1', status: 'pending' },
+          { id: 't2', status: 'completed' },
+        ],
       }),
     );
     const result = await setupSession({

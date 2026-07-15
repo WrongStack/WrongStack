@@ -219,7 +219,7 @@ export function CockpitView(): React.ReactElement {
     cta: 'open alerts',
     body:
       liveAlerts.length === 0 ? (
-        <div className="hq-empty" style={{ padding: 14, fontSize: 12 }}>
+        <div className="hq-empty hq-cockpit-empty">
           No alerts in the last few minutes.
         </div>
       ) : (
@@ -232,7 +232,7 @@ export function CockpitView(): React.ReactElement {
               <span className={'hq-pill ' + alertTone(alert.severity)}>{alert.severity}</span>
               <span className="hq-mono">{alert.ruleId}</span>
               <span className="hq-cockpit-alert-msg">{alert.message}</span>
-              <span className="hq-mono" style={{ color: 'var(--dim)', marginLeft: 'auto' }}>
+              <span className="hq-mono hq-text-dim hq-ml-auto">
                 {formatTime(alert.timestamp)}
               </span>
             </div>
@@ -247,7 +247,7 @@ export function CockpitView(): React.ReactElement {
     cta: 'open cost',
     body:
       topProjects.length === 0 ? (
-        <div className="hq-empty" style={{ padding: 14, fontSize: 12 }}>
+        <div className="hq-empty hq-cockpit-empty">
           No cost data yet — connect some clients.
         </div>
       ) : (
@@ -261,13 +261,13 @@ export function CockpitView(): React.ReactElement {
               <div key={project.projectId} className="hq-cockpit-cost-row">
                 <div className="hq-cockpit-cost-line">
                   <span className="hq-cockpit-cost-name">{project.projectName}</span>
-                  <span className="hq-mono" style={{ color: 'var(--dim)' }}>
+                  <span className="hq-mono hq-text-dim">
                     {project.projectId}
                   </span>
-                  <span className="hq-mono" style={{ color: 'var(--green)', marginLeft: 'auto' }}>
+                  <span className="hq-mono hq-cockpit-cost-amount hq-ml-auto">
                     ${project.totalCostUsd.toFixed(4)}
                   </span>
-                  <span className="hq-mono" style={{ color: 'var(--dim)' }}>
+                  <span className="hq-mono hq-text-dim">
                     {pct.toFixed(1)}%
                   </span>
                 </div>
@@ -309,8 +309,7 @@ export function CockpitView(): React.ReactElement {
           {alertsError !== null && <span className="hq-pill error">{alertsError}</span>}
           <button
             type="button"
-            className="hq-btn secondary"
-            style={{ marginLeft: 'auto' }}
+            className="hq-btn secondary hq-ml-auto"
             onClick={() => useHqStore.getState().setActiveView('fleet')}
           >
             Open Fleet
@@ -318,7 +317,7 @@ export function CockpitView(): React.ReactElement {
         </div>
         <section className="hq-cockpit-actions" aria-label="Cockpit quick actions">
           <div className="hq-cockpit-actions-copy">
-            <span className="hq-card-title" style={{ margin: 0 }}>
+            <span className="hq-cockpit-section-title">
               Quick Actions
             </span>
             <span className="hq-mono">
@@ -360,13 +359,12 @@ export function CockpitView(): React.ReactElement {
       {[...fleetSections, alertSection, costSection].map((section) => (
         <div key={section.title} className="hq-card hq-cockpit-section">
           <div className="hq-row">
-            <span className="hq-card-title" style={{ margin: 0 }}>
+            <span className="hq-cockpit-section-title">
               {section.title}
             </span>
             <button
               type="button"
-              className="hq-btn secondary"
-              style={{ marginLeft: 'auto' }}
+              className="hq-btn secondary hq-ml-auto"
               onClick={() => useHqStore.getState().setActiveView(section.view)}
             >
               {section.cta}

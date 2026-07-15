@@ -157,8 +157,8 @@ describe('DefaultSystemPromptBuilder — commit hygiene', () => {
     const blocks = await b.build({ cwd: tmp, projectRoot: tmp, tools: [mkTool('git')] } as never);
     const all = blocks.map((bl) => bl.text).join('\n');
     expect(all).toContain('Commit hygiene (shared working tree)');
-    expect(all).toContain('Never blind-stage the whole tree');
-    expect(all).toContain('Scope to what you changed');
+    expect(all).toContain('Never blindly stage everything');
+    expect(all).toContain('pass explicit `files` to `git`');
   });
 
   it('omits commit guidance when no git tool is available', async () => {

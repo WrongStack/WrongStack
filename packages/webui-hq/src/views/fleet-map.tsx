@@ -236,7 +236,7 @@ export function FleetMapView(): React.ReactElement {
     <div className="hq-flow-shell">
       <div className="hq-flow-toolbar">
         <div>
-          <div className="hq-card-title" style={{ margin: 0 }}>
+          <div className="hq-card-title hq-title-inline">
             Fleet Topology
           </div>
           <div className="hq-row-subtle">

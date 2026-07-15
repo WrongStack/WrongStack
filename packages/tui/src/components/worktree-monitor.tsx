@@ -1,6 +1,16 @@
 import { Box, Text, useInput } from '../ink.js';
 import type React from 'react';
+import { useEffect, useState } from 'react';
+import { theme } from '../theme.js';
 import type { WorktreeRow } from './worktree-panel.js';
+import {
+  EmptyPanelState,
+  KeyCap,
+  MonitorShell,
+  panelWindow,
+  truncatePanelText,
+  useMonitorSize,
+} from './monitor-shell.js';
 
 const fmtElapsed = (ms: number): string => {
   const s = Math.floor(ms / 1000);
@@ -51,8 +61,14 @@ export function WorktreeMonitor({
   nowTick: number;
   onClose: () => void;
 }): React.ReactElement {
+  const size = useMonitorSize();
+  const [selected, setSelected] = useState(0);
   useInput((input, key) => {
     if (isWorktreeMonitorCloseKey(input, key)) onClose();
+    else if (key.upArrow) setSelected((value) => Math.max(0, value - 1));
+    else if (key.downArrow) {
+      setSelected((value) => Math.min(Math.max(0, recent.length - 1), value + 1));
+    }
   });
 
   /** Terminal worktrees older than this are pruned from the view. */
@@ -61,81 +77,126 @@ export function WorktreeMonitor({
   const list = Object.values(worktrees);
 
   // Show live worktrees + recently-terminated ones only.
-  const recent = list.filter((w) => {
-    if (['active', 'committing', 'merging', 'needs-review'].includes(w.status)) return true;
-    return nowTick - (w.allocatedAt ?? nowTick) < TERMINAL_TTL_MS;
-  });
+  const recent = list
+    .filter((w) => {
+      if (['active', 'committing', 'merging', 'needs-review'].includes(w.status)) return true;
+      return nowTick - (w.allocatedAt ?? nowTick) < TERMINAL_TTL_MS;
+    })
+    .sort((a, b) => {
+      const rank = (status: string) =>
+        status === 'needs-review'
+          ? 0
+          : ['active', 'committing', 'merging'].includes(status)
+            ? 1
+            : 2;
+      return rank(a.status) - rank(b.status) || (b.allocatedAt ?? 0) - (a.allocatedAt ?? 0);
+    });
 
   // Counts from ALL entries (accurate), display from recent only.
   const active = list.filter((w) => ['active', 'committing', 'merging'].includes(w.status)).length;
   const merged = list.filter((w) => w.status === 'merged').length;
   const failed = list.filter((w) => w.status === 'failed' || w.status === 'needs-review').length;
   const staleTerminal = list.length - recent.length;
+  useEffect(() => {
+    setSelected((value) => Math.min(value, Math.max(0, recent.length - 1)));
+  }, [recent.length]);
+
+  const cardRows = size.columns >= 92 ? 3 : 4;
+  const limit = Math.max(1, Math.floor((size.contentRows - 3) / cardRows));
+  const window = panelWindow(recent.length, selected, limit);
+  const visible = recent.slice(window.start, window.end);
+  const compact = size.columns < 92;
 
   return (
-    <Box flexDirection="column" borderStyle="round" borderColor="green" paddingX={1}>
-      <Box flexDirection="row" gap={1} marginBottom={1}>
-        <Text bold color="green">
-          WORKTREE MONITOR
+    <MonitorShell
+      accent={theme.monitor.worktree}
+      icon="⑂"
+      title="WORKTREES"
+      kicker={compact ? undefined : 'isolated changes'}
+      right={
+        <Text>
+          <Text color={theme.warn}>● {active}</Text>
+          <Text color={theme.textMuted}> </Text>
+          <Text color={theme.success}>✓ {merged}</Text>
+          {failed > 0 ? <Text color={theme.error}> ⚠ {failed}</Text> : null}
         </Text>
-        <Text dimColor>│</Text>
-        {baseBranch ? <Text dimColor>base {baseBranch}</Text> : null}
-        <Text dimColor>│</Text>
-        <Text color="yellow">▶{active}</Text>
-        <Text dimColor>·</Text>
-        <Text color="green">✓{merged}</Text>
-        {failed > 0 ? (
-          <>
-            <Text dimColor>·</Text>
-            <Text color="red">✗{failed}</Text>
-          </>
-        ) : null}
-        <Text dimColor>│ Esc / F4 to close</Text>
+      }
+      footer={
+        <Box gap={2}>
+          <KeyCap keyName="↑↓" label="inspect" color={theme.monitor.worktree} />
+          <KeyCap keyName="F4" label="close" color={theme.monitor.worktree} />
+          <Text color={theme.textMuted}>/worktree merge &lt;branch&gt;</Text>
+          {staleTerminal > 0 ? <Text color={theme.textMuted}>{staleTerminal} archived</Text> : null}
+        </Box>
+      }
+    >
+      <Box marginTop={1}>
+        <Text color={theme.textMuted}>
+          BASE <Text color={theme.textSecondary}>{baseBranch ?? 'project default'}</Text>
+          {'  ·  '}showing {visible.length}/{recent.length || 0}
+        </Text>
       </Box>
 
       {recent.length === 0 ? (
-        <Text dimColor>No worktrees. They appear when AutoPhase runs with isolation on.</Text>
+        <EmptyPanelState
+          icon="◇"
+          title="No isolated worktrees"
+          detail="They will appear when AutoPhase runs with worktree isolation enabled."
+          accent={theme.monitor.worktree}
+        />
       ) : (
-        recent.map((w) => {
+        visible.map((w, visibleIndex) => {
           const s = fmt(w.status);
           const short = w.branch.replace(/^wstack\/ap\//, '');
           const elapsed = w.allocatedAt ? fmtElapsed(nowTick - w.allocatedAt) : '—';
+          const conflictWidth = Math.max(18, size.contentWidth - 15);
+          const isSelected = window.start + visibleIndex === selected;
           return (
-            <Box key={w.branch} flexDirection="column" marginTop={1}>
-              <Box flexDirection="row" gap={1}>
+            <Box key={w.branch} flexDirection="column" marginTop={1} paddingX={1}>
+              <Box>
+                <Text color={isSelected ? theme.monitor.worktree : theme.textMuted}>
+                  {isSelected ? '› ' : '  '}
+                </Text>
                 <Text color={s.color} bold>
-                  {s.icon}
+                  {s.icon} {s.label.toUpperCase().padEnd(12)}
                 </Text>
-                <Text bold>{short}</Text>
-                <Text dimColor>·</Text>
-                <Text color={s.color}>{s.label}</Text>
-                <Text dimColor>· elapsed {elapsed}</Text>
-              </Box>
-              <Box flexDirection="row" gap={1} marginLeft={2}>
-                <Text dimColor>
-                  {w.baseBranch ?? baseBranch ?? 'base'} → {short}
+                <Text color={theme.textPrimary} bold>
+                  {truncatePanelText(short, compact ? 24 : 42)}
                 </Text>
-                <Text dimColor>· owner: {w.ownerLabel}</Text>
+                <Box flexGrow={1} />
+                <Text color={theme.textMuted}>{elapsed}</Text>
               </Box>
-              <Box flexDirection="row" gap={1} marginLeft={2}>
-                <Text color="green">+{w.insertions}</Text>
-                <Text color="red">-{w.deletions}</Text>
-                <Text dimColor>· {w.files} files</Text>
+              <Box marginLeft={2}>
+                <Text color={theme.textMuted}>
+                  {truncatePanelText(
+                    `${w.baseBranch ?? baseBranch ?? 'base'} → ${short}`,
+                    compact ? 38 : 58,
+                  )}
+                </Text>
+                {!compact ? <Text color={theme.textMuted}> owner {w.ownerLabel}</Text> : null}
+                <Box flexGrow={1} />
+                <Text color={theme.success}>+{w.insertions}</Text>
+                <Text color={theme.error}> -{w.deletions}</Text>
+                <Text color={theme.textMuted}> {w.files} files</Text>
               </Box>
+              {compact ? <Text color={theme.textMuted}> owner {w.ownerLabel}</Text> : null}
               {w.conflictFiles && w.conflictFiles.length > 0 ? (
                 <Box marginLeft={2}>
-                  <Text color="magenta">conflicts: {w.conflictFiles.join(', ')}</Text>
+                  <Text color={theme.warn} bold>
+                    ⚠ conflicts{' '}
+                  </Text>
+                  <Text color={theme.textSecondary}>
+                    {truncatePanelText(w.conflictFiles.join(', '), conflictWidth)}
+                  </Text>
                 </Box>
               ) : null}
             </Box>
           );
         })
       )}
-
-      <Box marginTop={1}>
-        <Text dimColor>Esc / F4 to close · merge conflicts with /worktree merge &lt;branch&gt;</Text>
-        {staleTerminal > 0 ? <Text dimColor>{` · ${staleTerminal} terminal pruned`}</Text> : null}
-      </Box>
-    </Box>
+      {window.below > 0 ? (
+        <Text color={theme.textMuted}> ↓ {window.below} more worktrees</Text>
+      ) : null}
+    </MonitorShell>
   );
 }

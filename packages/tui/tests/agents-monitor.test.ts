@@ -351,11 +351,13 @@ describe('transcriptRowsForTerminal', () => {
   });
 
   it('fullscreen lifts the 24-row cap but keeps the 6-row floor', () => {
-    // chrome for roster=3: 4 + 2 + 3 + 3 + 8 = 20 → 200 rows leaves 180.
-    expect(transcriptRowsForTerminal(200, 3, true)).toBe(180);
+    // New Mission Control chrome: 2 (dash) + 1 (models) + (3-1) (cards) + 3 (detail header) + 6 (footer) = 14
+    // 200 rows leaves 186 for transcript.
+    expect(transcriptRowsForTerminal(200, 3, true)).toBe(186);
     // Small terminals still clamp to the readable minimum.
     expect(transcriptRowsForTerminal(10, 3, true)).toBe(6);
-    // Below the cap, fullscreen and inline agree.
-    expect(transcriptRowsForTerminal(40, 3, true)).toBe(transcriptRowsForTerminal(40, 3));
+    // 40 rows: chrome=14, available=26. Inline caps at 24; fullscreen uses all 26.
+    expect(transcriptRowsForTerminal(40, 3, true)).toBe(26);
+    expect(transcriptRowsForTerminal(40, 3)).toBe(24);
   });
 });

@@ -17,6 +17,16 @@ export interface SessionInfo {
   maxContext: number;
 }
 
+export interface SimpleSessionSummary {
+  id: string;
+  title: string;
+  name?: string | undefined;
+  startedAt: string;
+  model: string;
+  provider: string;
+  isCurrent: boolean;
+}
+
 export interface ContextInfo {
   load: number;
   tokens: number;
@@ -48,6 +58,16 @@ export interface PendingConfirm {
   toolName: string;
   input: unknown;
   riskTier?: string | undefined;
+}
+
+export interface ToolCallInfo {
+  id: string;
+  name: string;
+  input: unknown;
+  status: 'running' | 'done' | 'error';
+  output?: string | undefined;
+  durationMs?: number | undefined;
+  ok?: boolean | undefined;
 }
 
 export interface ServerMessage {

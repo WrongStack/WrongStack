@@ -95,3 +95,51 @@ export function frameRule(
   const fill = '─'.repeat(Math.max(0, available - displayWidth(prefix) - displayWidth(suffix)));
   return `${leftCorner}${prefix}${fill}${suffix}${rightCorner}`;
 }
+
+/**
+ * Structural split of a top/bottom frame rule that reserves — but does not
+ * render — the right-hand label slot. Unlike {@link frameRule} (which bakes the
+ * right label into a single string), this returns the rule as `head` + `tail`
+ * with a fixed-width gap of `reservedRightWidth` columns between them, so a
+ * caller can render an animated / per-glyph-colored chip into that gap while
+ * keeping the total rule width identical to `frameRule`.
+ *
+ * Geometry mirrors `frameRule` exactly:
+ *   `head` = `╭─ {left} ` + fill + one leading space of the suffix
+ *   gap    = `reservedRightWidth` columns (caller fills these)
+ *   `tail` = ` ─` + right corner
+ *
+ * Invariant: `displayWidth(head) + reservedRightWidth + displayWidth(tail) === width`
+ * for any `width ≥ 2` and any reserved width (the chip's live content — spinner,
+ * rolling word, growing dots — must be padded to exactly `reservedRightWidth` by
+ * the caller so the right corner never jitters).
+ */
+export function frameRuleParts(
+  width: number,
+  leftLabel: string,
+  reservedRightWidth: number,
+  edge: 'top' | 'bottom' = 'top',
+): { head: string; tail: string } {
+  const leftCorner = edge === 'top' ? '╭' : '╰';
+  const rightCorner = edge === 'top' ? '╮' : '╯';
+  if (width <= 2) {
+    // Degenerate: no room for a gap. Emit just the corners, no reserved slot.
+    return { head: `${leftCorner}${rightCorner}`.slice(0, Math.max(0, width)), tail: '' };
+  }
+
+  const available = width - 2;
+  const reserved = Math.max(0, reservedRightWidth);
+  const left = truncateDisplay(leftLabel.trim(), Math.max(1, Math.floor(available * 0.62)));
+  const prefix = left ? `─ ${left} ` : '';
+  // Suffix shape when a slot is reserved: ` {reserved} ─` → width reserved + 3.
+  const suffixWidth = reserved > 0 ? reserved + 3 : 0;
+  const fill = '─'.repeat(Math.max(0, available - displayWidth(prefix) - suffixWidth));
+  if (reserved <= 0) {
+    // No reserved slot — behaves like frameRule with an empty right label.
+    return { head: `${leftCorner}${prefix}${fill}`, tail: `${rightCorner}` };
+  }
+  return {
+    head: `${leftCorner}${prefix}${fill} `,
+    tail: ` ─${rightCorner}`,
+  };
+}

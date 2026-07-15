@@ -28,6 +28,7 @@ export * from './models-registry.js';
 export * from './mode.js';
 export * from './context-window.js';
 export * from './context-evidence.js';
+export * from './council.js';
 export * from './multi-agent.js';
 export * from './spec.js';
 export * from './task-graph.js';

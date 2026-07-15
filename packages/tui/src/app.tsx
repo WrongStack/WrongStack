@@ -22,6 +22,7 @@ import {
   clearPersistedActiveKit,
   DefaultSessionRewinder,
   detectContinueIntent,
+  type EnhanceFailureKind,
   enhanceUserPrompt,
   expectDefined,
   formatTodosList,
@@ -31,9 +32,13 @@ import {
   loadActiveKit,
   loadGoal,
   materializeTokens,
+  nextEnhanceTimeout,
   normalizedEqual,
+  parseModelRef,
   type PromptUsageStore,
+  type Provider,
   projectSlug,
+  type ReasoningRequest,
   recentTextTurns,
   recordOverrides,
   resolveContinuation,
@@ -66,7 +71,11 @@ import {
   type SlashCommandMatch,
   type State,
 } from './app-reducer.js';
-import { AgentsMonitor, leaderTimelineFromEntries, type AgentTranscriptReader } from './components/agents-monitor.js';
+import {
+  AgentsMonitor,
+  leaderTimelineFromEntries,
+  type AgentTranscriptReader,
+} from './components/agents-monitor.js';
 import { AuditPanel } from './components/audit-panel.js';
 import { AuthPanel } from './components/auth-panel.js';
 import type { AuthPanelHost } from './components/auth-panel-model.js';
@@ -78,7 +87,12 @@ import { type ConfirmDecision, ConfirmPrompt } from './components/confirm-prompt
 import { CoordinatorPanel } from './components/coordinator-panel.js';
 import { DesignPicker } from './components/design-picker.js';
 import { ContinueConfirmPanel } from './components/continue-confirm-panel.js';
-import { EnhancePanel } from './components/enhance-panel.js';
+import { EnhancePanel, RefiningPanel } from './components/enhance-panel.js';
+import {
+  type RefineFailureDecision,
+  type RefineFailureModel,
+  RefineFailurePanel,
+} from './components/refine-failure-panel.js';
 import { EscConfirmPrompt } from './components/esc-confirm-prompt.js';
 import { F_KEY_ENTRIES, FKeyPicker } from './components/f-key-picker.js';
 import { FilePicker } from './components/file-picker.js';
@@ -90,8 +104,14 @@ import { FleetMonitor } from './components/fleet-monitor.js';
 import { FleetPanel } from './components/fleet-panel.js';
 import { GoalPanel } from './components/goal-panel.js';
 import { HelpOverlay } from './components/help-overlay.js';
-import { History, type HistoryEntry } from './components/history.js';
-import { composerStatusLabel, DEFAULT_INPUT_PROMPT, Input, inputContentWidth, type KeyEvent } from './components/input.js';
+import { fmtTok, History, type HistoryEntry } from './components/history.js';
+import {
+  DEFAULT_INPUT_PROMPT,
+  Input,
+  inputContentWidth,
+  type KeyEvent,
+} from './components/input.js';
+import { composerStatusFromState } from './components/composer-status-chip.js';
 import { KanbanPanel } from './components/kanban-panel.js';
 import { KeyHintBar, type KeyHintContext } from './components/key-hint-bar.js';
 import { MailboxPanel } from './components/mailbox-panel.js';
@@ -136,7 +156,11 @@ import {
   statusBarModelSpan,
   statusBarTodosSpan,
 } from './components/status-bar.js';
-import { STATUSLINE_ITEMS, type StatuslineItem, StatuslinePicker } from './components/statusline-picker.js';
+import {
+  STATUSLINE_ITEMS,
+  type StatuslineItem,
+  StatuslinePicker,
+} from './components/statusline-picker.js';
 import { TodosMonitor } from './components/todos-monitor.js';
 import { WorktreeMonitor } from './components/worktree-monitor.js';
 import { WorktreePanel } from './components/worktree-panel.js';
@@ -161,7 +185,7 @@ import { useWorkingDirChip } from './hooks/use-working-dir-chip.js';
 import { useStatuslineState } from './hooks/use-statusline-state.js';
 import { useTuiControllers } from './hooks/use-tui-controllers.js';
 import { useTuiEventBridge } from './hooks/use-tui-event-bridge.js';
-import { Box, type DOMElement, measureElement, Text, useApp, useStdout } from './ink.js';
+import { Box, type DOMElement, measureElement, useApp, useStdout } from './ink.js';
 import {
   deleteTokenBackward,
   INLINE_TOKEN_SRC,
@@ -175,6 +199,8 @@ import { createPanelOpenDispatcher } from './on-panel-open.js';
 import { shouldPushSubmittedHistory } from './submit-history.js';
 import { feedPaste } from './paste-accumulator.js';
 import { createPsSlashCommand } from './ps-slash.js';
+import { createMemorySlashCommand } from './memory-slash.js';
+import { renderRunningTools } from './running-tools.js';
 import { buildSlashCommandMatches } from './slash-command-search.js';
 import { sddLifecycleEntry } from './sdd-lifecycle-entry.js';
 import { buildSteeringPreamble } from './steering-preamble.js';
@@ -190,6 +216,7 @@ export {
   type SlashCommandMatch,
   type State,
 } from './app-reducer.js';
+export { renderRunningTools } from './running-tools.js';
 
 /** Input prompt — mirrors the <Input> default so click-to-position-cursor maps
  *  columns the same way the input renders them. */
@@ -309,6 +336,25 @@ export interface AppProps {
     | (() => import('@wrongstack/core').ReasoningRequest | undefined)
     | undefined;
   /**
+   * Build a Provider for a (providerId, modelId) pair WITHOUT switching the
+   * session — used to retry a failed refinement on the fallback/another model
+   * ephemerally. Returns undefined when the host can't build the provider
+   * (missing key, unknown id), in which case that recovery option is skipped.
+   */
+  buildEnhancerProvider?:
+    | ((
+        providerId: string,
+        modelId: string,
+      ) => Promise<import('@wrongstack/core').Provider | undefined>)
+    | undefined;
+  /**
+   * Resolve the one-key "retry with another model" fallback ref
+   * (`provider/model`) offered on a refine failure, or undefined when none is
+   * configured/derivable. Recomputed per call so `/fallback` and `/model`
+   * changes are reflected.
+   */
+  getEnhanceFallbackRef?: (() => string | undefined) | undefined;
+  /**
    * Query the live YOLO state from the permission policy. Called after
    * every slash-command dispatch so `/yolo off` (which mutates the
    * policy inside the CLI) is immediately reflected in the status bar.
@@ -327,10 +373,12 @@ export interface AppProps {
    * their names, descriptions, and the currently active one. Used by the
    * `/mode` picker to populate the interactive selection list.
    */
-  getModes?: (() => Promise<{
-    modes: import('@wrongstack/core').Mode[];
-    activeId: string | null;
-  }>) | undefined;
+  getModes?:
+    | (() => Promise<{
+        modes: import('@wrongstack/core').Mode[];
+        activeId: string | null;
+      }>)
+    | undefined;
   /** Switch to a different agent mode by id (e.g. "teach", "brief"). */
   switchMode?: ((modeId: string) => Promise<string | null>) | undefined;
   /**
@@ -435,12 +483,13 @@ export interface AppProps {
     | undefined;
   /** Get current brain risk level and decision log. */
   getBrainData?:
-    | (() => { riskLevel: BrainRiskLevel; log: Array<{ kind: string; question: string; outcome: string; age: string }> })
+    | (() => {
+        riskLevel: BrainRiskLevel;
+        log: Array<{ kind: string; question: string; outcome: string; age: string }>;
+      })
     | undefined;
   /** Set brain risk ceiling. */
-  onBrainRiskLevel?:
-    | ((level: BrainRiskLevel) => string | undefined)
-    | undefined;
+  onBrainRiskLevel?: ((level: BrainRiskLevel) => string | undefined) | undefined;
   /** Full Brain settings editor bridge (live apply + persist). */
   brainPanelHost?: import('./components/brain-panel-model.js').BrainPanelHost | undefined;
   /** Get current Shadow Agent state. */
@@ -815,6 +864,8 @@ export interface AppProps {
    * the App skips status emission.
    */
   clientId?: string | undefined;
+  /** Access the persistent memory store for listing and inspecting memories. */
+  memoryStore?: import('@wrongstack/core').MemoryStore | undefined;
 }
 
 const PASTE_THRESHOLD_CHARS = 200;
@@ -863,6 +914,8 @@ export function App({
   midRunSendPicker = true,
   enhanceDelayMs = 15_000,
   getEnhancerReasoning,
+  buildEnhancerProvider,
+  getEnhanceFallbackRef,
   getYolo,
   onYolo,
   getAutonomy,
@@ -946,6 +999,7 @@ export function App({
   onCoordinatorClaim: _onCoordinatorClaim,
   coordinatorRunning = false,
   clientId,
+  memoryStore,
 }: AppProps): React.ReactElement {
   const { exit } = useApp();
   const { stdout } = useStdout();
@@ -1150,16 +1204,17 @@ export function App({
   const { openModePicker } = useModePicker({ dispatch, getModes });
 
   // ── Brain panel + shared /model overlay in generic 'pick' mode ─
-  const { requestModelPick, handleModelPicked } = useModelPickRequest({ dispatch, getPickableProviders, pickerOpen: state.modelPicker.open });
+  const { requestModelPick, handleModelPicked } = useModelPickRequest({
+    dispatch,
+    getPickableProviders,
+    pickerOpen: state.modelPicker.open,
+  });
   const brainCtl = useBrainPanel({ dispatch, getBrainData, brainPanelHost, requestModelPick });
   const openBrainPanel = brainCtl.openBrainPanel;
 
-  const changeBrainRisk = React.useCallback(
-    (delta: number) => {
-      dispatch({ type: 'brainRiskChange', delta });
-    },
-    [],
-  );
+  const changeBrainRisk = React.useCallback((delta: number) => {
+    dispatch({ type: 'brainRiskChange', delta });
+  }, []);
 
   // Sync risk level to host whenever it changes via ←/→ in the panel.
   const prevRiskRef = React.useRef(state.brainPanel.riskLevel);
@@ -1365,6 +1420,13 @@ export function App({
   stateRef.current = state;
   const draftRef = useRef({ buffer: state.buffer, cursor: state.cursor });
   draftRef.current = { buffer: state.buffer, cursor: state.cursor };
+
+  // Stable onMeasure for ScrollableHistory — must not be an inline function
+  // or it breaks React.memo on every parent render, causing freeze/lag.
+  const onMeasureRef = useRef<(totalLines: number) => void>((totalLines) =>
+    dispatch({ type: 'setMeasuredLines', totalLines }),
+  );
+  onMeasureRef.current = (totalLines) => dispatch({ type: 'setMeasuredLines', totalLines });
 
   // Live director accessor. The static `director` prop is captured at boot
   // and stays null when the fleet host builds its director LAZILY (first
@@ -1597,12 +1659,12 @@ export function App({
     refreshGoalSummary();
   }, [nowTick, refreshGoalSummary]);
 
-  // Animated dot indicator for the refine-in-progress bar. Cycles 0..3
-  // while `enhanceBusy` is true so the user sees a live "still working" cue.
+  // Animated scanner for the refiner panel. This is activity, not fake
+  // completion progress; the panel separately displays the real elapsed time.
   const [enhanceDots, setEnhanceDots] = useState(0);
   useEffect(() => {
     if (!state.enhanceBusy) return;
-    const t = setInterval(() => setEnhanceDots((n) => (n + 1) % 4), 400);
+    const t = setInterval(() => setEnhanceDots((n) => (n + 1) % 36), 400);
     return () => clearInterval(t);
   }, [state.enhanceBusy]);
 
@@ -1944,9 +2006,7 @@ export function App({
   const currentCacheWrite =
     (currentRequestTokens as { cacheWrite?: number } | undefined)?.cacheWrite ?? 0;
   const currentContextTokens =
-    (currentRequestTokens?.input ?? 0) +
-    (currentRequestTokens?.cacheRead ?? 0) +
-    currentCacheWrite;
+    (currentRequestTokens?.input ?? 0) + (currentRequestTokens?.cacheRead ?? 0) + currentCacheWrite;
 
   const contextWindow = useMemo(() => {
     void state.contextChipVersion;
@@ -2197,6 +2257,7 @@ export function App({
       state.settingsPicker.open ||
       state.enhanceBusy ||
       state.enhance != null ||
+      state.refineFailure != null ||
       state.continueConfirm != null ||
       state.coordinator.monitorOpen ||
       state.escConfirm != null ||
@@ -2221,6 +2282,7 @@ export function App({
     state.settingsPicker.open,
     state.enhanceBusy,
     state.enhance,
+    state.refineFailure,
     state.continueConfirm,
     state.coordinator.monitorOpen,
     state.escConfirm,
@@ -2285,8 +2347,8 @@ export function App({
       };
 
       // Close all open panels so the live region shrinks to input+statusbar.
-      if (stateRef.current.settingsPicker.open) dispatch({ type: 'settingsClose' });
-      if (stateRef.current.projectPicker.open) dispatch({ type: 'projectPickerClose' });
+      dispatch({ type: 'closeAllPanels' });
+      // Close secondary overlays that closeAllPanels doesn't cover.
       if (stateRef.current.modelPicker.open) dispatch({ type: 'modelPickerClose' });
       if (stateRef.current.autonomyPicker.open) dispatch({ type: 'autonomyPickerClose' });
       if (stateRef.current.designPicker.open) dispatch({ type: 'designPickerClose' });
@@ -2295,17 +2357,6 @@ export function App({
       if (stateRef.current.slashPicker.open) dispatch({ type: 'slashPickerClose' });
       if (stateRef.current.picker.open) dispatch({ type: 'pickerClose' });
       if (stateRef.current.rewindOverlay) dispatch({ type: 'rewindOverlayClose' });
-      if (stateRef.current.helpOpen) dispatch({ type: 'toggleHelp' });
-      if (stateRef.current.monitorOpen) dispatch({ type: 'toggleMonitor' });
-      if (stateRef.current.agentsMonitorOpen) dispatch({ type: 'toggleAgentsMonitor' });
-      if (stateRef.current.worktreeMonitorOpen) dispatch({ type: 'worktreeMonitorToggle' });
-      if (stateRef.current.todosMonitorOpen) dispatch({ type: 'toggleTodosMonitor' });
-      if (stateRef.current.queuePanelOpen) dispatch({ type: 'toggleQueuePanel' });
-      if (stateRef.current.processListOpen) dispatch({ type: 'toggleProcessList' });
-      if (stateRef.current.planPanelOpen) dispatch({ type: 'togglePlanPanel' });
-      if (stateRef.current.kanbanPanelOpen) dispatch({ type: 'toggleKanbanPanel' });
-      if (stateRef.current.goalPanelOpen) dispatch({ type: 'toggleGoalPanel' });
-      if (stateRef.current.sessionsPanelOpen) dispatch({ type: 'toggleSessionsPanel' });
 
       eraseLiveRegion();
 
@@ -2405,7 +2456,12 @@ export function App({
   // "clones" itself. Erase the stale region before every paint — no dep
   // array so this runs pre-flush on *every* render, not just state transitions.
   React.useLayoutEffect(() => {
-    if (state.enhanceBusy || state.enhance != null || state.continueConfirm != null)
+    if (
+      state.enhanceBusy ||
+      state.enhance != null ||
+      state.refineFailure != null ||
+      state.continueConfirm != null
+    )
       eraseLiveRegion();
   });
 
@@ -2447,15 +2503,22 @@ export function App({
     dispatch({ type: 'slashPickerClose' });
   };
 
-  // Register /kill (list/kill tracked bash/exec processes) and /ps (list only).
+  // Register /kill (list/kill tracked bash/exec processes), /ps (list only)
+  // and /memory (list stored memories).
   useEffect(() => {
     slashRegistry.register(createKillSlashCommand());
     slashRegistry.register(createPsSlashCommand());
+    if (memoryStore) {
+      slashRegistry.register(createMemorySlashCommand({ memoryStore }));
+    }
     return () => {
       slashRegistry.unregister('kill');
       slashRegistry.unregister('ps');
+      if (memoryStore) {
+        slashRegistry.unregister('memory');
+      }
     };
-  }, [slashRegistry]);
+  }, [slashRegistry, memoryStore]);
 
   // Kill all tracked bash/exec processes when the TUI unmounts.
   // This fires on natural exit, Ctrl+C, and any other unmount path,
@@ -2916,7 +2979,12 @@ export function App({
     }
 
     // Don't start while enhance panel or a bare-continue confirm panel is active
-    if (state.enhance != null || state.enhanceBusy || state.continueConfirm != null) {
+    if (
+      state.enhance != null ||
+      state.enhanceBusy ||
+      state.refineFailure != null ||
+      state.continueConfirm != null
+    ) {
       return;
     }
 
@@ -2927,6 +2995,27 @@ export function App({
 
     const suggestions = getSuggestions?.() ?? [];
     if (suggestions.length === 0) {
+      // No parsed <nextsteps> — check for open todos to continue with.
+      // The resolveContinuation function picks the next open todo as the
+      // strongest anchor (todos → suggestions → open continuation).
+      // This prevents the session from sitting idle after a turn completes
+      // with unfinished todos and no suggestions (suggestions are suppressed
+      // while todos are pending — see parseSuggestionsFromOutput).
+      const todos = agent?.ctx?.todos ?? [];
+      if (todos.some((t) => t.status === 'pending' || t.status === 'in_progress')) {
+        const resolved = resolveContinuation({ todos, suggestions: [] });
+        if (resolved.source === 'todo') {
+          // Feed the resolved todo instruction as a synthetic suggestion so
+          // the existing countdown + auto-submit flow picks it up below.
+          setSuggestions?.([resolved.text]);
+          // Bump the recheck counter to re-run this effect immediately — the
+          // module-level suggestion store has updated, and the effect needs
+          // to re-evaluate with the new synthetic suggestion available.
+          setNextStepsRecheck((t) => t + 1);
+          return () => undefined;
+        }
+      }
+
       // Suggestions can arrive while we sit idle (e.g. /suggest, a fleet
       // turn finishing) without any dep of this effect changing. Re-check
       // on a slow poll instead of waiting for the next status transition.
@@ -3873,15 +3962,24 @@ export function App({
       });
     });
     const offMemoryStale = events.on('memory.staled', (e) => {
-      dispatch({ type: 'addEntry', entry: { kind: 'warn', text: `Super Memory stale: ${e.memoryId} — ${e.reason}` } });
+      dispatch({
+        type: 'addEntry',
+        entry: { kind: 'warn', text: `Super Memory stale: ${e.memoryId} — ${e.reason}` },
+      });
     });
     const offMemoryContradicted = events.on('memory.contradicted', (e) => {
-      dispatch({ type: 'addEntry', entry: { kind: 'warn', text: `Super Memory contradicted: ${e.memoryId}` } });
+      dispatch({
+        type: 'addEntry',
+        entry: { kind: 'warn', text: `Super Memory contradicted: ${e.memoryId}` },
+      });
     });
     const offMemoryHygiene = events.on('memory.hygiene_completed', (e) => {
       dispatch({
         type: 'addEntry',
-        entry: { kind: 'info', text: `Super Memory hygiene: ${e.examined} examined, ${e.deduplicated} deduplicated, ${e.staled} stale, ${e.archived} archived.` },
+        entry: {
+          kind: 'info',
+          text: `Super Memory hygiene: ${e.examined} examined, ${e.deduplicated} deduplicated, ${e.staled} stale, ${e.archived} archived.`,
+        },
       });
     });
     return () => {
@@ -4011,8 +4109,13 @@ export function App({
   // submit()'s busy branch, which can't see the latest value via its closure.
   const midRunSendPickerRef = useRef(midRunSendPicker);
   // Abort handle for the in-flight refiner call, so Esc can cancel a slow
-  // "refining..." and send the original immediately.
+  // "refining..." without sending anything — the user is returned to the
+  // input to edit/retry.
   const enhanceAbortRef = useRef<AbortController | null>(null);
+  // Set to true when Esc is pressed during the "refining…" state so the
+  // submit() function knows to load the original text back instead of sending
+  // it. Reset after handling.
+  const enhanceCancelledRef = useRef(false);
 
   // ── Paste handling ──────────────────────────────────────────────────
   const {
@@ -4045,6 +4148,11 @@ export function App({
   // out of EnhancePanel so the statusline can display it — panel re-renders
   // during the countdown were causing blank entries in chat scrollback.
   const [enhanceCountdown, setEnhanceCountdown] = useState<number | null>(null);
+  // Timing for the refiner request itself. `startedAt` drives the live elapsed
+  // label; `durationMs` survives the busy → preview transition so the result
+  // panel can report exactly how long the rewrite took.
+  const [enhanceStartedAt, setEnhanceStartedAt] = useState<number | null>(null);
+  const [enhanceDurationMs, setEnhanceDurationMs] = useState<number | null>(null);
 
   // Next-steps auto-submit countdown state: seconds remaining and the suggestion text.
   // When autonomy is 'auto' and suggestions exist, this countdown auto-submits the first suggestion.
@@ -4156,6 +4264,10 @@ export function App({
   // Track double-Esc for input buffer clearing.
   const lastEscAtRef = useRef(0);
   const ESC_DOUBLE_PRESS_MS = 1000;
+  // Tracks when EscConfirmPrompt was last dismissed so the main handler
+  // doesn't immediately re-open it on the same keystroke.
+  const dismissedEscAtRef = useRef(0);
+  const ESC_DISMISS_COOLDOWN_MS = 300;
 
   useDirectorFleetBridge({
     director,
@@ -4370,9 +4482,12 @@ export function App({
       submitRef.current(`/${entry.name}`);
     },
     onBrainRiskChange: changeBrainRisk,
-    onBrainAdjust: brainCtl.handleBrainAdjust, onBrainEnter: brainCtl.handleBrainEnter,
-    onBrainDelete: brainCtl.handleBrainDelete, onBrainVoterMod: brainCtl.handleBrainVoterMod,
-    onModelPicked: handleModelPicked, onShadowStart: handleShadowStart,
+    onBrainAdjust: brainCtl.handleBrainAdjust,
+    onBrainEnter: brainCtl.handleBrainEnter,
+    onBrainDelete: brainCtl.handleBrainDelete,
+    onBrainVoterMod: brainCtl.handleBrainVoterMod,
+    onModelPicked: handleModelPicked,
+    onShadowStart: handleShadowStart,
     onShadowStop: handleShadowStop,
     onAuthEnter: authPanelController.onAuthEnter,
     onAuthBack: authPanelController.onAuthBack,
@@ -4421,232 +4536,243 @@ export function App({
   // so without the key-data route the whole ladder is unreachable from the
   // keyboard there.
   const runInterruptLadder = useCallback(() => {
-      const current = stateRef.current;
-      const pressCount = interruptsSyncRef.current + 1;
-      interruptsSyncRef.current = pressCount;
-      // Second (or later) Ctrl+C — exit no matter what. Status may be
-      // 'aborting', 'running', or 'streaming'; the user has clearly
-      // decided they want out. Try Ink's graceful exit first, then
-      // hard-exit on a short timer in case the React tree is wedged.
-      if (pressCount >= 2) {
-        // Second (or later) Ctrl+C — the user wants out. Force-kill tracked
-        // processes regardless of state.
-        getProcessRegistry().killAll({ force: true });
-        // If we already asked Ink to unmount and the user pressed again, the
-        // React tree is wedged — hard-exit immediately. Drain the session
-        // writer synchronously first so the aborted run's last events
-        // survive on disk (process.exit skips every async teardown path).
-        if (exitRequestedRef.current) {
-          try {
-            agent.ctx.session.flushSync?.();
-          } catch {
-            /* best-effort — exiting either way */
-          }
-          process.exit(130);
+    const current = stateRef.current;
+    const pressCount = interruptsSyncRef.current + 1;
+    interruptsSyncRef.current = pressCount;
+    // Second (or later) Ctrl+C — exit no matter what. Status may be
+    // 'aborting', 'running', or 'streaming'; the user has clearly
+    // decided they want out. Try Ink's graceful exit first, then
+    // hard-exit on a short timer in case the React tree is wedged.
+    if (pressCount >= 2) {
+      // Second (or later) Ctrl+C — the user wants out. Force-kill tracked
+      // processes regardless of state.
+      getProcessRegistry().killAll({ force: true });
+      // If we already asked Ink to unmount and the user pressed again, the
+      // React tree is wedged — hard-exit immediately. Drain the session
+      // writer synchronously first so the aborted run's last events
+      // survive on disk (process.exit skips every async teardown path).
+      if (exitRequestedRef.current) {
+        try {
+          agent.ctx.session.flushSync?.();
+        } catch {
+          /* best-effort — exiting either way */
         }
-        exitRequestedRef.current = true;
-        dispatch({ type: 'interrupt' });
-        // Terminate any lingering fleet so subagents don't outlive the TUI.
-        {
-          const dir = liveDirector();
-          if (dir) void dir.terminateAll().catch(() => undefined);
-        }
-        // Graceful Ink unmount first: it restores the terminal (raw mode off,
-        // cursor shown) and routes the 130 exit code
-        // through run-tui's settle(). A bare process.exit() here would skip
-        // that and can leave the terminal in raw mode — the "exit feels
-        // broken" symptom. Fall back to a hard exit if Ink never unmounts.
-        onExit(130);
-        exit();
-        const hardExit = setTimeout(() => {
-          try {
-            agent.ctx.session.flushSync?.();
-          } catch {
-            /* best-effort — exiting either way */
-          }
-          process.exit(130);
-        }, 400);
-        hardExit.unref?.();
-        return;
+        process.exit(130);
       }
+      exitRequestedRef.current = true;
       dispatch({ type: 'interrupt' });
-
-      // Pickers are safe to cancel outright — closing the overlay
-      // restores the previous state cleanly with no side-effects.
-      // Do this first so a single Ctrl+C from the model picker or
-      // slash picker exits gracefully instead of doing nothing.
-      if (current.authPanel.open) {
-        // Closing the panel flips state.authPanel.open, which the
-        // useAuthPanel close-effect observes to abort any in-flight flow
-        // (OAuth loopback server, pending prompt) — no orphaned work.
-        dispatch({ type: 'authClose' });
-        dispatch({
-          type: 'addEntry',
-          entry: { kind: 'warn', text: 'Auth panel cancelled.' },
-        });
-        return;
+      // Terminate any lingering fleet so subagents don't outlive the TUI.
+      {
+        const dir = liveDirector();
+        if (dir) void dir.terminateAll().catch(() => undefined);
       }
-      if (current.modelPicker.open) {
-        dispatch({ type: 'modelPickerClose' });
-        dispatch({
-          type: 'addEntry',
-          entry: { kind: 'warn', text: 'Model picker cancelled.' },
-        });
-        return;
-      }
-      if (current.settingsPicker.open) {
-        dispatch({ type: 'settingsClose' });
-        dispatch({
-          type: 'addEntry',
-          entry: { kind: 'warn', text: 'Settings cancelled.' },
-        });
-        return;
-      }
-      if (current.slashPicker.open) {
-        dispatch({ type: 'slashPickerClose' });
-        dispatch({
-          type: 'addEntry',
-          entry: { kind: 'warn', text: 'Cancelled.' },
-        });
-        return;
-      }
-
-      if (activeCtrlRef.current) {
-        activeCtrlRef.current.abort('user interrupt (Ctrl+C)');
-        clearPendingConfirms();
-        dispatch({ type: 'status', status: 'aborting' });
-        // Halt any autonomy driver / SDD run too, so it can't kick off the
-        // NEXT iteration after this one aborts. Mirrors /interrupt's
-        // abortLeader — a foreground run and background drivers can
-        // coexist (e.g. a run submitted while an SDD run drains).
-        {
-          const eEng = getEternalEngine?.();
-          const pEng = getParallelEngine?.();
-          const autonomyRunning =
-            eternalLoopRunningRef.current ||
-            parallelLoopRunningRef.current ||
-            eEng?.currentState === 'running' ||
-            pEng?.currentState === 'running';
-          if (autonomyRunning) {
-            eEng?.stop();
-            pEng?.stop();
-            switchAutonomy?.('off');
-          }
-          const sdd = getSddRun?.();
-          if (sdd?.isRunning()) sdd.stop();
+      // Graceful Ink unmount first: it restores the terminal (raw mode off,
+      // cursor shown) and routes the 130 exit code
+      // through run-tui's settle(). A bare process.exit() here would skip
+      // that and can leave the terminal in raw mode — the "exit feels
+      // broken" symptom. Fall back to a hard exit if Ink never unmounts.
+      onExit(130);
+      exit();
+      const hardExit = setTimeout(() => {
+        try {
+          agent.ctx.session.flushSync?.();
+        } catch {
+          /* best-effort — exiting either way */
         }
-        // Kill every running subagent on the first interrupt — without
-        // this the parent agent.run() stays parked in `await delegate
-        // → director.awaitTasks` forever and the "press again to exit"
-        // hint becomes a lie.
-        //
-        // We `await` terminateAll AND race a 1500ms cap so a stuck
-        // bridge or hung tool can't trap us in cleanup — the user
-        // pressed Ctrl+C; their patience is finite. The second
-        // Ctrl+C still forces exit immediately via the path above,
-        // so this race only matters for the polite-shutdown window.
-        const ctrlCDir = liveDirector();
-        if (ctrlCDir) {
+        process.exit(130);
+      }, 400);
+      hardExit.unref?.();
+      return;
+    }
+    dispatch({ type: 'interrupt' });
+
+    // Pickers are safe to cancel outright — closing the overlay
+    // restores the previous state cleanly with no side-effects.
+    // Do this first so a single Ctrl+C from the model picker or
+    // slash picker exits gracefully instead of doing nothing.
+    if (current.authPanel.open) {
+      // Closing the panel flips state.authPanel.open, which the
+      // useAuthPanel close-effect observes to abort any in-flight flow
+      // (OAuth loopback server, pending prompt) — no orphaned work.
+      dispatch({ type: 'authClose' });
+      dispatch({
+        type: 'addEntry',
+        entry: { kind: 'warn', text: 'Auth panel cancelled.' },
+      });
+      return;
+    }
+    if (current.modelPicker.open) {
+      dispatch({ type: 'modelPickerClose' });
+      dispatch({
+        type: 'addEntry',
+        entry: { kind: 'warn', text: 'Model picker cancelled.' },
+      });
+      return;
+    }
+    if (current.settingsPicker.open) {
+      dispatch({ type: 'settingsClose' });
+      dispatch({
+        type: 'addEntry',
+        entry: { kind: 'warn', text: 'Settings cancelled.' },
+      });
+      return;
+    }
+    if (current.slashPicker.open) {
+      dispatch({ type: 'slashPickerClose' });
+      dispatch({
+        type: 'addEntry',
+        entry: { kind: 'warn', text: 'Cancelled.' },
+      });
+      return;
+    }
+
+    if (activeCtrlRef.current) {
+      activeCtrlRef.current.abort('user interrupt (Ctrl+C)');
+      clearPendingConfirms();
+      dispatch({ type: 'status', status: 'aborting' });
+      // Halt any autonomy driver / SDD run too, so it can't kick off the
+      // NEXT iteration after this one aborts. Mirrors /interrupt's
+      // abortLeader — a foreground run and background drivers can
+      // coexist (e.g. a run submitted while an SDD run drains).
+      {
+        const eEng = getEternalEngine?.();
+        const pEng = getParallelEngine?.();
+        const autonomyRunning =
+          eternalLoopRunningRef.current ||
+          parallelLoopRunningRef.current ||
+          eEng?.currentState === 'running' ||
+          pEng?.currentState === 'running';
+        if (autonomyRunning) {
+          eEng?.stop();
+          pEng?.stop();
+          switchAutonomy?.('off');
+        }
+        const sdd = getSddRun?.();
+        if (sdd?.isRunning()) sdd.stop();
+      }
+      // Kill every running subagent on the first interrupt — without
+      // this the parent agent.run() stays parked in `await delegate
+      // → director.awaitTasks` forever and the "press again to exit"
+      // hint becomes a lie.
+      //
+      // We `await` terminateAll AND race a 1500ms cap so a stuck
+      // bridge or hung tool can't trap us in cleanup — the user
+      // pressed Ctrl+C; their patience is finite. The second
+      // Ctrl+C still forces exit immediately via the path above,
+      // so this race only matters for the polite-shutdown window.
+      const ctrlCDir = liveDirector();
+      if (ctrlCDir) {
+        const cap = new Promise<void>((resolve) => {
+          const t = setTimeout(resolve, 1500);
+          t.unref?.();
+        });
+        void Promise.race([ctrlCDir.terminateAll().catch(() => undefined), cap]);
+      }
+      // Kill all tracked bash/exec processes from the process registry.
+      // This ensures runaway child processes (including background bashes
+      // that outlive the agent iteration) are cleaned up on Ctrl+C.
+      const killed = getProcessRegistry().killAll();
+      const procTag =
+        killed.length > 0
+          ? ` + killed ${killed.length} process${killed.length === 1 ? '' : 'es'}`
+          : '';
+      const droppedCount = stateRef.current.queue.length;
+      if (droppedCount > 0) {
+        dispatch({ type: 'queueClear' });
+        dispatch({
+          type: 'addEntry',
+          entry: {
+            kind: 'warn',
+            text: `Iteration cancelled${ctrlCDir ? ' + fleet terminated' : ''}${procTag}. Dropped ${droppedCount} queued message${droppedCount === 1 ? '' : 's'}. ${confirmExitRef.current ? 'Press Ctrl+C again to confirm exit.' : 'Press Ctrl+C again to exit.'}`,
+          },
+        });
+      } else {
+        dispatch({
+          type: 'addEntry',
+          entry: {
+            kind: 'warn',
+            text: `Iteration cancelled${ctrlCDir ? ' + fleet terminated' : ''}${procTag}. ${confirmExitRef.current ? 'Press Ctrl+C again to confirm exit.' : 'Press Ctrl+C again to exit.'}`,
+          },
+        });
+      }
+    } else {
+      // No foreground (runBlocks) controller. We may still have background
+      // work with no AbortController of its own: an autonomy engine driving
+      // iterations, or a fleet of subagents. Eternal/parallel loops never
+      // set activeCtrlRef, so this branch is the ONLY place their Ctrl+C is
+      // handled — the first press must actually stop that work (and return
+      // to the prompt), not merely announce "press again to exit".
+      const fleetRunning = Object.values(current.fleet).filter(
+        (e) => e.status === 'running',
+      ).length;
+      const autonomyRunning =
+        eternalLoopRunningRef.current ||
+        parallelLoopRunningRef.current ||
+        getEternalEngine?.()?.currentState === 'running' ||
+        getParallelEngine?.()?.currentState === 'running';
+      // A `/sdd parallel` run drives its own coordinator (not the autonomy
+      // engines / director fleet), so it must be stopped explicitly here — it's
+      // the only Ctrl+C path while the run blocks the prompt.
+      const sddRun = getSddRun?.();
+      const sddRunning = sddRun?.isRunning() ?? false;
+      if (autonomyRunning || fleetRunning > 0 || sddRunning) {
+        // Halt the engines first — eternal's stop() aborts the in-flight
+        // iteration; both flip their persisted state to 'stopped'. Then
+        // flip autonomy off so the driver loop won't start another
+        // iteration, and terminate the fleet + tracked processes.
+        getEternalEngine?.()?.stop();
+        getParallelEngine?.()?.stop();
+        if (sddRunning) sddRun?.stop();
+        if (autonomyRunning) switchAutonomy?.('off');
+        const bgDir = liveDirector();
+        if (bgDir) {
           const cap = new Promise<void>((resolve) => {
             const t = setTimeout(resolve, 1500);
             t.unref?.();
           });
-          void Promise.race([ctrlCDir.terminateAll().catch(() => undefined), cap]);
+          void Promise.race([bgDir.terminateAll().catch(() => undefined), cap]);
         }
-        // Kill all tracked bash/exec processes from the process registry.
-        // This ensures runaway child processes (including background bashes
-        // that outlive the agent iteration) are cleaned up on Ctrl+C.
         const killed = getProcessRegistry().killAll();
-        const procTag =
-          killed.length > 0
-            ? ` + killed ${killed.length} process${killed.length === 1 ? '' : 'es'}`
-            : '';
-        const droppedCount = stateRef.current.queue.length;
-        if (droppedCount > 0) {
-          dispatch({ type: 'queueClear' });
-          dispatch({
-            type: 'addEntry',
-            entry: {
-              kind: 'warn',
-              text: `Iteration cancelled${ctrlCDir ? ' + fleet terminated' : ''}${procTag}. Dropped ${droppedCount} queued message${droppedCount === 1 ? '' : 's'}. ${confirmExitRef.current ? 'Press Ctrl+C again to confirm exit.' : 'Press Ctrl+C again to exit.'}`,
-            },
-          });
-        } else {
-          dispatch({
-            type: 'addEntry',
-            entry: {
-              kind: 'warn',
-              text: `Iteration cancelled${ctrlCDir ? ' + fleet terminated' : ''}${procTag}. ${confirmExitRef.current ? 'Press Ctrl+C again to confirm exit.' : 'Press Ctrl+C again to exit.'}`,
-            },
-          });
-        }
-      } else {
-        // No foreground (runBlocks) controller. We may still have background
-        // work with no AbortController of its own: an autonomy engine driving
-        // iterations, or a fleet of subagents. Eternal/parallel loops never
-        // set activeCtrlRef, so this branch is the ONLY place their Ctrl+C is
-        // handled — the first press must actually stop that work (and return
-        // to the prompt), not merely announce "press again to exit".
-        const fleetRunning = Object.values(current.fleet).filter(
-          (e) => e.status === 'running',
-        ).length;
-        const autonomyRunning =
-          eternalLoopRunningRef.current ||
-          parallelLoopRunningRef.current ||
-          getEternalEngine?.()?.currentState === 'running' ||
-          getParallelEngine?.()?.currentState === 'running';
-        // A `/sdd parallel` run drives its own coordinator (not the autonomy
-        // engines / director fleet), so it must be stopped explicitly here — it's
-        // the only Ctrl+C path while the run blocks the prompt.
-        const sddRun = getSddRun?.();
-        const sddRunning = sddRun?.isRunning() ?? false;
-        if (autonomyRunning || fleetRunning > 0 || sddRunning) {
-          // Halt the engines first — eternal's stop() aborts the in-flight
-          // iteration; both flip their persisted state to 'stopped'. Then
-          // flip autonomy off so the driver loop won't start another
-          // iteration, and terminate the fleet + tracked processes.
-          getEternalEngine?.()?.stop();
-          getParallelEngine?.()?.stop();
-          if (sddRunning) sddRun?.stop();
-          if (autonomyRunning) switchAutonomy?.('off');
-          const bgDir = liveDirector();
-          if (bgDir) {
-            const cap = new Promise<void>((resolve) => {
-              const t = setTimeout(resolve, 1500);
-              t.unref?.();
-            });
-            void Promise.race([bgDir.terminateAll().catch(() => undefined), cap]);
-          }
-          const killed = getProcessRegistry().killAll();
-          const bits: string[] = [];
-          if (autonomyRunning) bits.push('autonomy stopped');
-          if (sddRunning) bits.push('SDD run stopped');
-          if (fleetRunning > 0)
-            bits.push(`${fleetRunning} agent${fleetRunning === 1 ? '' : 's'} terminated`);
-          if (killed.length > 0)
-            bits.push(`${killed.length} process${killed.length === 1 ? '' : 'es'} killed`);
-          dispatch({
-            type: 'addEntry',
-            entry: {
-              kind: 'warn',
-              text: `${bits.join(' + ') || 'Background work stopped'}. ${confirmExitRef.current ? 'Press Ctrl+C again to confirm exit.' : 'Press Ctrl+C again to exit.'}`,
-            },
-          });
-          return;
-        }
-        // Truly idle — nothing running. Kill any lingering processes and arm
-        // the second-press exit.
-        const killed = getProcessRegistry().killAll();
-        const procTag =
-          killed.length > 0
-            ? ` Killed ${killed.length} process${killed.length === 1 ? '' : 'es'}.`
-            : '';
+        const bits: string[] = [];
+        if (autonomyRunning) bits.push('autonomy stopped');
+        if (sddRunning) bits.push('SDD run stopped');
+        if (fleetRunning > 0)
+          bits.push(`${fleetRunning} agent${fleetRunning === 1 ? '' : 's'} terminated`);
+        if (killed.length > 0)
+          bits.push(`${killed.length} process${killed.length === 1 ? '' : 'es'} killed`);
         dispatch({
           type: 'addEntry',
-          entry: { kind: 'warn', text: `Press Ctrl+C again to exit.${procTag}` },
+          entry: {
+            kind: 'warn',
+            text: `${bits.join(' + ') || 'Background work stopped'}. ${confirmExitRef.current ? 'Press Ctrl+C again to confirm exit.' : 'Press Ctrl+C again to exit.'}`,
+          },
         });
+        return;
       }
-  }, [agent, liveDirector, clearPendingConfirms, dispatch, getEternalEngine, getParallelEngine, getSddRun, switchAutonomy, onExit, exit]);
+      // Truly idle — nothing running. Kill any lingering processes and arm
+      // the second-press exit.
+      const killed = getProcessRegistry().killAll();
+      const procTag =
+        killed.length > 0
+          ? ` Killed ${killed.length} process${killed.length === 1 ? '' : 'es'}.`
+          : '';
+      dispatch({
+        type: 'addEntry',
+        entry: { kind: 'warn', text: `Press Ctrl+C again to exit.${procTag}` },
+      });
+    }
+  }, [
+    agent,
+    liveDirector,
+    clearPendingConfirms,
+    dispatch,
+    getEternalEngine,
+    getParallelEngine,
+    getSddRun,
+    switchAutonomy,
+    onExit,
+    exit,
+  ]);
 
   // Route real SIGINTs (external kill, terminals that deliver Ctrl+C as a
   // signal) into the ladder. Keyboard Ctrl+C on raw-mode terminals arrives
@@ -4687,14 +4813,21 @@ export function App({
     // is not reliable when multiple useInput hooks are active.
     if (state.confirmQueue.length > 0) return;
     if (state.shellCommandWarning) return;
-    // While the refiner call is in flight, Esc cancels it (send original now);
-    // all other keys are swallowed so nothing leaks into the input.
+    // While the refiner call is in flight, Esc cancels it and returns the user
+    // to the input (nothing sent).
     if (state.enhanceBusy) {
-      if (key.escape) enhanceAbortRef.current?.abort();
+      if (key.escape) {
+        enhanceCancelledRef.current = true;
+        enhanceAbortRef.current?.abort();
+      }
       return;
     }
     // The EnhancePanel owns Enter/Esc/e, so the main input stays out of the way.
     if (state.enhance) return;
+
+    // The RefineFailurePanel owns its own keys (retry/fallback/pick/edit/Esc)
+    // while a failed refinement is being recovered — main input stays out.
+    if (state.refineFailure) return;
 
     // The ContinueConfirmPanel owns Enter/Esc/e while a bare-"continue"
     // resolution is being confirmed — main input stays out of the way.
@@ -4864,7 +4997,15 @@ export function App({
     // dialog ("Are you sure?") so the user doesn't accidentally
     // interrupt a long-running task. The dialog is dismissed with
     // y/Enter to confirm or n/Esc to cancel.
-    if (key.escape && state.status !== 'idle' && state.confirmQueue.length === 0) {
+    //
+    // A cooldown prevents re-opening the dialog on the same Esc
+    // keystroke that dismissed it (child useInput fires before parent).
+    if (
+      key.escape &&
+      state.status !== 'idle' &&
+      state.confirmQueue.length === 0 &&
+      Date.now() - dismissedEscAtRef.current > ESC_DISMISS_COOLDOWN_MS
+    ) {
       // Snapshot context BEFORE we mutate anything. The submit handler
       // replays this into the model prompt so the model isn't guessing.
       const runningTools = Array.from(state.runningTools.values()).map((t) => t.name);
@@ -4887,18 +5028,6 @@ export function App({
       // ── confirmExit gate: show confirmation dialog ──────────────────
       if (confirmExitRef.current) {
         dispatch({ type: 'escConfirmOpen', snapshot });
-        dispatch({
-          type: 'addEntry',
-          entry: {
-            kind: 'warn',
-            text:
-              `⏸ Interrupt? [y]es — stop and steer  ·  [n]o / Esc — keep running` +
-              (subagentsTerminated > 0
-                ? `  (${subagentsTerminated} subagent${subagentsTerminated === 1 ? '' : 's'})`
-                : ''),
-          },
-        });
-        return;
       }
 
       // ── Immediate interrupt (confirmExit is off) ────────────────────
@@ -4947,79 +5076,19 @@ export function App({
     // reserve them can still use /f or the slash-command alternatives.
     // All toggles are allowed even while aborting, so the user can check
     // subagent state mid-steer.
-    const toggleFleetOverlay = () => {
-      if (state.monitorOpen) {
-        dispatch({ type: 'toggleMonitor' });
-        return;
-      }
-      // Opening: close all other overlays/panels first.
-      if (state.agentsMonitorOpen) dispatch({ type: 'toggleAgentsMonitor' });
-      if (state.worktreeMonitorOpen) dispatch({ type: 'worktreeMonitorToggle' });
-      if (state.todosMonitorOpen) dispatch({ type: 'toggleTodosMonitor' });
-      if (state.autoPhase?.monitorOpen) dispatch({ type: 'autoPhaseMonitorToggle' });
-      if (state.settingsPicker.open) dispatch({ type: 'settingsClose' });
-      if (state.queuePanelOpen) dispatch({ type: 'toggleQueuePanel' });
-      if (state.helpOpen) dispatch({ type: 'toggleHelp' });
-      dispatch({ type: 'toggleMonitor' });
-    };
-    const toggleAgentsOverlay = () => {
-      if (state.agentsMonitorOpen) {
-        dispatch({ type: 'toggleAgentsMonitor' });
-        return;
-      }
-      // Opening: close all other overlays/panels first.
-      if (state.monitorOpen) dispatch({ type: 'toggleMonitor' });
-      if (state.worktreeMonitorOpen) dispatch({ type: 'worktreeMonitorToggle' });
-      if (state.todosMonitorOpen) dispatch({ type: 'toggleTodosMonitor' });
-      if (state.autoPhase?.monitorOpen) dispatch({ type: 'autoPhaseMonitorToggle' });
-      if (state.settingsPicker.open) dispatch({ type: 'settingsClose' });
-      if (state.queuePanelOpen) dispatch({ type: 'toggleQueuePanel' });
-      if (state.helpOpen) dispatch({ type: 'toggleHelp' });
-      dispatch({ type: 'toggleAgentsMonitor' });
-    };
-    const toggleWorktreeOverlay = () => {
-      if (state.worktreeMonitorOpen) {
-        dispatch({ type: 'worktreeMonitorToggle' });
-        return;
-      }
-      if (state.agentsMonitorOpen) dispatch({ type: 'toggleAgentsMonitor' });
-      if (state.monitorOpen) dispatch({ type: 'toggleMonitor' });
-      if (state.autoPhase?.monitorOpen) dispatch({ type: 'autoPhaseMonitorToggle' });
-      if (state.todosMonitorOpen) dispatch({ type: 'toggleTodosMonitor' });
-      if (state.settingsPicker.open) dispatch({ type: 'settingsClose' });
-      if (state.queuePanelOpen) dispatch({ type: 'toggleQueuePanel' });
-      if (state.helpOpen) dispatch({ type: 'toggleHelp' });
-      dispatch({ type: 'worktreeMonitorToggle' });
-    };
-    const toggleTodosOverlay = () => {
-      if (state.todosMonitorOpen) {
-        dispatch({ type: 'toggleTodosMonitor' });
-        return;
-      }
-      if (state.agentsMonitorOpen) dispatch({ type: 'toggleAgentsMonitor' });
-      if (state.monitorOpen) dispatch({ type: 'toggleMonitor' });
-      if (state.worktreeMonitorOpen) dispatch({ type: 'worktreeMonitorToggle' });
-      if (state.autoPhase?.monitorOpen) dispatch({ type: 'autoPhaseMonitorToggle' });
-      if (state.settingsPicker.open) dispatch({ type: 'settingsClose' });
-      if (state.queuePanelOpen) dispatch({ type: 'toggleQueuePanel' });
-      if (state.helpOpen) dispatch({ type: 'toggleHelp' });
-      dispatch({ type: 'toggleTodosMonitor' });
-    };
+    // Opening actions are mutually exclusive in the reducer via closePanels().
+    // Keep the keyboard layer declarative so a newly-added panel cannot be
+    // forgotten in a hand-maintained cascade of close dispatches.
+    const toggleFleetOverlay = () => dispatch({ type: 'toggleMonitor' });
+    const toggleAgentsOverlay = () => dispatch({ type: 'toggleAgentsMonitor' });
+    const toggleWorktreeOverlay = () => dispatch({ type: 'worktreeMonitorToggle' });
+    const toggleTodosOverlay = () => dispatch({ type: 'toggleTodosMonitor' });
     // F1 → project switcher panel. Opening closes any other overlay or panel.
     if (key.fn === 1) {
       if (state.projectPicker.open) {
         dispatch({ type: 'projectPickerClose' });
       } else {
-        if (state.agentsMonitorOpen) dispatch({ type: 'toggleAgentsMonitor' });
-        if (state.monitorOpen) dispatch({ type: 'toggleMonitor' });
-        if (state.worktreeMonitorOpen) dispatch({ type: 'worktreeMonitorToggle' });
-        if (state.todosMonitorOpen) dispatch({ type: 'toggleTodosMonitor' });
-        if (state.autoPhase?.monitorOpen) dispatch({ type: 'autoPhaseMonitorToggle' });
-        if (state.settingsPicker.open) dispatch({ type: 'settingsClose' });
-        if (state.queuePanelOpen) dispatch({ type: 'toggleQueuePanel' });
-        if (state.processListOpen) dispatch({ type: 'toggleProcessList' });
-        if (state.goalPanelOpen) dispatch({ type: 'toggleGoalPanel' });
-        if (state.helpOpen) dispatch({ type: 'toggleHelp' });
+        dispatch({ type: 'closeAllPanels' });
         // Load project items from the manifest
         openProjectPicker();
       }
@@ -5090,18 +5159,7 @@ export function App({
     }
     // F5 → plan panel overlay. Opening closes any other overlay or panel.
     if (key.fn === 5) {
-      if (state.planPanelOpen) {
-        dispatch({ type: 'togglePlanPanel' });
-      } else {
-        if (state.agentsMonitorOpen) dispatch({ type: 'toggleAgentsMonitor' });
-        if (state.monitorOpen) dispatch({ type: 'toggleMonitor' });
-        if (state.worktreeMonitorOpen) dispatch({ type: 'worktreeMonitorToggle' });
-        if (state.todosMonitorOpen) dispatch({ type: 'toggleTodosMonitor' });
-        if (state.autoPhase?.monitorOpen) dispatch({ type: 'autoPhaseMonitorToggle' });
-        if (state.settingsPicker.open) dispatch({ type: 'settingsClose' });
-        if (state.helpOpen) dispatch({ type: 'toggleHelp' });
-        dispatch({ type: 'togglePlanPanel' });
-      }
+      dispatch({ type: 'togglePlanPanel' });
       return;
     }
     // F6 → full-screen todos monitor overlay.
@@ -5111,54 +5169,17 @@ export function App({
     }
     // F7 → queue panel. Opening closes any other overlay or panel.
     if (key.fn === 7) {
-      if (state.queuePanelOpen) {
-        dispatch({ type: 'toggleQueuePanel' });
-      } else {
-        // Close all other overlays/panels first.
-        if (state.agentsMonitorOpen) dispatch({ type: 'toggleAgentsMonitor' });
-        if (state.monitorOpen) dispatch({ type: 'toggleMonitor' });
-        if (state.worktreeMonitorOpen) dispatch({ type: 'worktreeMonitorToggle' });
-        if (state.todosMonitorOpen) dispatch({ type: 'toggleTodosMonitor' });
-        if (state.autoPhase?.monitorOpen) dispatch({ type: 'autoPhaseMonitorToggle' });
-        if (state.settingsPicker.open) dispatch({ type: 'settingsClose' });
-        if (state.helpOpen) dispatch({ type: 'toggleHelp' });
-        dispatch({ type: 'toggleQueuePanel' });
-      }
+      dispatch({ type: 'toggleQueuePanel' });
       return;
     }
     // F8 → process list overlay. Opening closes any other overlay or panel.
     if (key.fn === 8) {
-      if (state.processListOpen) {
-        dispatch({ type: 'toggleProcessList' });
-      } else {
-        if (state.agentsMonitorOpen) dispatch({ type: 'toggleAgentsMonitor' });
-        if (state.monitorOpen) dispatch({ type: 'toggleMonitor' });
-        if (state.worktreeMonitorOpen) dispatch({ type: 'worktreeMonitorToggle' });
-        if (state.todosMonitorOpen) dispatch({ type: 'toggleTodosMonitor' });
-        if (state.autoPhase?.monitorOpen) dispatch({ type: 'autoPhaseMonitorToggle' });
-        if (state.settingsPicker.open) dispatch({ type: 'settingsClose' });
-        if (state.queuePanelOpen) dispatch({ type: 'toggleQueuePanel' });
-        if (state.helpOpen) dispatch({ type: 'toggleHelp' });
-        dispatch({ type: 'toggleProcessList' });
-      }
+      dispatch({ type: 'toggleProcessList' });
       return;
     }
     // F9 → goal panel. Opening closes any other overlay or panel.
     if (key.fn === 9) {
-      if (state.goalPanelOpen) {
-        dispatch({ type: 'toggleGoalPanel' });
-      } else {
-        if (state.agentsMonitorOpen) dispatch({ type: 'toggleAgentsMonitor' });
-        if (state.monitorOpen) dispatch({ type: 'toggleMonitor' });
-        if (state.worktreeMonitorOpen) dispatch({ type: 'worktreeMonitorToggle' });
-        if (state.todosMonitorOpen) dispatch({ type: 'toggleTodosMonitor' });
-        if (state.autoPhase?.monitorOpen) dispatch({ type: 'autoPhaseMonitorToggle' });
-        if (state.settingsPicker.open) dispatch({ type: 'settingsClose' });
-        if (state.queuePanelOpen) dispatch({ type: 'toggleQueuePanel' });
-        if (state.processListOpen) dispatch({ type: 'toggleProcessList' });
-        if (state.helpOpen) dispatch({ type: 'toggleHelp' });
-        dispatch({ type: 'toggleGoalPanel' });
-      }
+      dispatch({ type: 'toggleGoalPanel' });
       return;
     }
     // F10 → live sessions panel. Opening closes any other overlay or panel.
@@ -5169,16 +5190,6 @@ export function App({
       if (state.sessionsPanelOpen) {
         dispatch({ type: 'toggleSessionsPanel' });
       } else {
-        if (state.agentsMonitorOpen) dispatch({ type: 'toggleAgentsMonitor' });
-        if (state.monitorOpen) dispatch({ type: 'toggleMonitor' });
-        if (state.worktreeMonitorOpen) dispatch({ type: 'worktreeMonitorToggle' });
-        if (state.todosMonitorOpen) dispatch({ type: 'toggleTodosMonitor' });
-        if (state.autoPhase?.monitorOpen) dispatch({ type: 'autoPhaseMonitorToggle' });
-        if (state.settingsPicker.open) dispatch({ type: 'settingsClose' });
-        if (state.queuePanelOpen) dispatch({ type: 'toggleQueuePanel' });
-        if (state.processListOpen) dispatch({ type: 'toggleProcessList' });
-        if (state.goalPanelOpen) dispatch({ type: 'toggleGoalPanel' });
-        if (state.helpOpen) dispatch({ type: 'toggleHelp' });
         dispatch({ type: 'toggleSessionsPanel' });
         // Load sessions from the registry
         loadLiveSessions();
@@ -5235,14 +5246,7 @@ export function App({
       if (state.settingsPicker.open) {
         dispatch({ type: 'settingsClose' });
       } else if (getSettings && saveSettings) {
-        // Close all other overlays/panels first.
-        if (state.agentsMonitorOpen) dispatch({ type: 'toggleAgentsMonitor' });
-        if (state.monitorOpen) dispatch({ type: 'toggleMonitor' });
-        if (state.worktreeMonitorOpen) dispatch({ type: 'worktreeMonitorToggle' });
-        if (state.todosMonitorOpen) dispatch({ type: 'toggleTodosMonitor' });
-        if (state.autoPhase?.monitorOpen) dispatch({ type: 'autoPhaseMonitorToggle' });
-        if (state.queuePanelOpen) dispatch({ type: 'toggleQueuePanel' });
-        if (state.helpOpen) dispatch({ type: 'toggleHelp' });
+        dispatch({ type: 'closeAllPanels' });
         const cfg = getSettings();
         dispatch({
           type: 'settingsOpen',
@@ -5360,6 +5364,8 @@ export function App({
       state.monitorOpen ||
       state.agentsMonitorOpen ||
       state.worktreeMonitorOpen ||
+      state.planPanelOpen ||
+      state.kanbanPanelOpen ||
       state.todosMonitorOpen ||
       state.queuePanelOpen ||
       state.processListOpen ||
@@ -5389,6 +5395,7 @@ export function App({
         const { buffer, cursor } = draftRef.current;
         const next = buffer.slice(0, cursor) + '\n' + buffer.slice(cursor);
         setDraft(next, cursor + 1);
+        lastEnterAtRef.current = Date.now(); // prevent duplicate from \r
         return;
       }
 
@@ -5659,13 +5666,15 @@ export function App({
         // mode (cols < COMPACT_THRESHOLD) lays line 1 out differently.
         if (cols >= COMPACT_THRESHOLD && my === rowFor(0)) {
           const span = statusBarModelSpan({
-            version: appVersion,
             state: state.status,
             fleetRunning: fleetCounts?.running ?? 0,
             // Must match the rendered state label width — while streaming the bar
             // shows the configured thinking word, so the span shifts with it.
             // Omitting this made the model chip un-clickable mid-stream.
             thinkingWord: displayThinkingWordRef.current,
+            // The `state` chip is always hidden now (owned by the composer rail),
+            // so the model chip sits one segment further left.
+            stateHidden: true,
             model: `${liveProvider}/${liveModel}`,
           });
           if (inSpan(span)) {
@@ -6519,57 +6528,198 @@ export function App({
       !continueResolved &&
       shouldEnhance(cleanText)
     ) {
-      dispatch({ type: 'enhanceBusy', on: true });
-      // Let the user bail out of a slow refine (reasoning models can take many
-      // seconds) by pressing Esc while "refining…" shows — handleKey aborts
-      // this controller, the call rejects → null → we send the original.
+      const refineStartedAt = Date.now();
+      let refineDurationMs = 0;
+      setEnhanceStartedAt(refineStartedAt);
+      setEnhanceDurationMs(null);
+      // One abort controller for EVERY attempt this submit — pressing Esc while
+      // "refining…" shows aborts the in-flight call (handleKey calls
+      // enhanceAbortRef.current.abort()), after which we send the original.
       const ac = new AbortController();
-      enhanceAbortRef.current = ac;
-      let result: { refined: string; english: string } | null = null;
-      let enhanceErr: string | null = null;
-      // Refinement is a shallow rewrite — ask the model to spend minimal
-      // reasoning (gated to what the model accepts). undefined → no reasoning
-      // field is sent, exactly as before.
-      const enhanceReasoning = getEnhancerReasoning?.();
-      try {
-        result = (await enhanceUserPrompt({
-          provider: agent.ctx.provider,
-          model: agent.ctx.model,
-          text: cleanText,
-          signal: ac.signal,
-          onError: (reason) => {
-            enhanceErr = reason;
-          },
-          // Feed recent conversation so follow-ups ("do the same", "that file")
-          // resolve against context instead of being refined blind.
-          history: recentTextTurns(agent.ctx.messages),
-          ...(enhanceReasoning ? { reasoning: enhanceReasoning } : {}),
-        })) as { refined: string; english: string } | null;
-      } finally {
-        enhanceAbortRef.current = null;
-        dispatch({ type: 'enhanceBusy', on: false });
+      const baseTimeoutMs = 90_000;
+
+      type RefineOutcome = {
+        result: { refined: string; english: string } | null;
+        kind: EnhanceFailureKind | undefined;
+        reason: string | null;
+      };
+      // Run ONE refine attempt on a given provider/model. Drives the
+      // "refining…" indicator for its duration and accumulates elapsed time.
+      const runAttempt = async (
+        provider: Provider,
+        model: string,
+        timeoutMs: number,
+        reasoning: ReasoningRequest | undefined,
+      ): Promise<RefineOutcome> => {
+        let kind: EnhanceFailureKind | undefined;
+        let reason: string | null = null;
+        setEnhanceDurationMs(null);
+        enhanceAbortRef.current = ac;
+        dispatch({ type: 'enhanceBusy', on: true });
+        let out: { refined: string; english: string } | null = null;
+        try {
+          out = (await enhanceUserPrompt({
+            provider,
+            model,
+            text: cleanText,
+            signal: ac.signal,
+            timeoutMs,
+            onError: (r, k) => {
+              reason = r;
+              kind = k;
+            },
+            // Feed recent conversation so follow-ups ("do the same", "that
+            // file") resolve against context instead of being refined blind.
+            history: recentTextTurns(agent.ctx.messages),
+            ...(reasoning ? { reasoning } : {}),
+          })) as { refined: string; english: string } | null;
+        } finally {
+          refineDurationMs = Math.max(0, Date.now() - refineStartedAt);
+          setEnhanceDurationMs(refineDurationMs);
+          enhanceAbortRef.current = null;
+          dispatch({ type: 'enhanceBusy', on: false });
+        }
+        return { result: out, kind, reason };
+      };
+
+      // First attempt: the session provider/model with a gated low-effort hint.
+      let outcome = await runAttempt(
+        agent.ctx.provider,
+        agent.ctx.model,
+        baseTimeoutMs,
+        getEnhancerReasoning?.(),
+      );
+
+      // Auto-retry ONCE on a timeout with a longer window — the model was
+      // reachable, just slow. Any other failure goes straight to the panel.
+      if (outcome.result === null && outcome.kind === 'timeout' && !ac.signal.aborted) {
+        outcome = await runAttempt(
+          agent.ctx.provider,
+          agent.ctx.model,
+          nextEnhanceTimeout(baseTimeoutMs, undefined),
+          getEnhancerReasoning?.(),
+        );
       }
-      // Surface WHY a refine fell through (provider rejected it, timed out, no
-      // text) — otherwise "refining…" vanishing with no panel is confusing.
-      // Skipped when the user cancelled it themselves.
-      if (result === null && !ac.signal.aborted) {
-        dispatch({
-          type: 'addEntry',
-          entry: {
-            kind: 'info',
-            text: enhanceErr
-              ? `✨ refinement unavailable (${enhanceErr}) — sent your message as-is`
-              : '✨ refinement unavailable — sent your message as-is',
-          },
+
+      // Recovery loop: while the refine keeps failing (and the user hasn't
+      // aborted with Esc), ask how to recover — retry with more time, retry on
+      // the fallback/another model (ephemerally, no session switch), send the
+      // message as-is, or edit it.
+      let sendOriginal = false;
+      let editLoad = false;
+      while (outcome.result === null && !ac.signal.aborted) {
+        const fallbackRef = getEnhanceFallbackRef?.();
+        // "Pick another model" candidates — only offered when the host can
+        // build an ephemeral provider for the chosen pair.
+        const models: RefineFailureModel[] = buildEnhancerProvider
+          ? await (async () => {
+              try {
+                const providers = (await getPickableProviders?.()) ?? [];
+                const flat: RefineFailureModel[] = [];
+                for (const p of providers) {
+                  for (const m of p.models) {
+                    if (p.id === agent.ctx.provider.id && m === agent.ctx.model) continue;
+                    flat.push({ providerId: p.id, model: m, label: p.family });
+                    if (flat.length >= 200) return flat;
+                  }
+                }
+                return flat;
+              } catch {
+                return [];
+              }
+            })()
+          : [];
+        const decision = await new Promise<RefineFailureDecision>((resolve) => {
+          dispatch({
+            type: 'refineFailureOpen',
+            info: {
+              original: trimmed,
+              ...(outcome.reason ? { error: outcome.reason } : {}),
+              elapsedMs: refineDurationMs,
+              ...(fallbackRef && buildEnhancerProvider ? { fallbackRef } : {}),
+              models,
+              resolve,
+            },
+          });
         });
+        dispatch({ type: 'refineFailureClose' });
+        if (decision.kind === 'original') {
+          sendOriginal = true;
+          break;
+        }
+        if (decision.kind === 'edit') {
+          editLoad = true;
+          break;
+        }
+        const retryTimeout = nextEnhanceTimeout(baseTimeoutMs, undefined);
+        if (decision.kind === 'retry') {
+          outcome = await runAttempt(
+            agent.ctx.provider,
+            agent.ctx.model,
+            retryTimeout,
+            getEnhancerReasoning?.(),
+          );
+          continue;
+        }
+        // fallback / pick → build an ephemeral provider (session model stays
+        // put) and refine on it. No reasoning hint: the gated hint is bound to
+        // the session model, not this one, so omitting it is the safe choice.
+        const ref =
+          decision.kind === 'fallback'
+            ? parseModelRef(fallbackRef ?? '')
+            : { provider: decision.providerId, model: decision.model };
+        const targetProvider = ref.provider ?? agent.ctx.provider.id;
+        const targetModel = ref.model;
+        let built: Provider | undefined;
+        try {
+          built = await buildEnhancerProvider?.(targetProvider, targetModel);
+        } catch {
+          built = undefined;
+        }
+        if (!built || !targetModel) {
+          dispatch({
+            type: 'addEntry',
+            entry: {
+              kind: 'warn',
+              text: `✨ couldn't use ${targetProvider}/${targetModel} for refinement`,
+            },
+          });
+          outcome = {
+            result: null,
+            kind: 'provider_error',
+            reason: `couldn't build ${targetProvider}/${targetModel}`,
+          };
+          continue;
+        }
+        outcome = await runAttempt(built, targetModel, retryTimeout, undefined);
       }
-      if (result && !normalizedEqual(result.refined, cleanText)) {
-        // Re-attach chips that were stripped before refinement so file/image
-        // references survive the rewrite. Chips are appended at the end.
+
+      setEnhanceStartedAt(null);
+      setEnhanceDurationMs(null);
+
+      const result = outcome.result;
+      if (editLoad) {
+        // Load the message back into the input for hand-editing; send nothing.
+        setDraft(trimmed, trimmed.length);
+        return;
+      }
+      // Esc during "refining…" → cancel the send and return to the input
+      // with the original text preserved for editing.
+      if (enhanceCancelledRef.current) {
+        enhanceCancelledRef.current = false;
+        setDraft(trimmed, trimmed.length);
+        return;
+      }
+      if (sendOriginal || result === null) {
+        // Send as-is (declined recovery).
+        effectiveText = trimmed;
+      } else if (!normalizedEqual(result.refined, cleanText)) {
+        // Re-attach chips stripped before refinement so file/image references
+        // survive the rewrite. Chips are appended at the end.
         const chipSuffix = chips.length > 0 ? ` ${chips.join(' ')}` : '';
         const refinedWithChips = result.refined + chipSuffix;
         const englishWithChips = result.english + chipSuffix;
-        const decision = await new Promise<'refined' | 'english' | 'original' | 'edit'>(
+        const decision = await new Promise<'refined' | 'english' | 'original' | 'edit' | 'cancel'>(
           (resolve) => {
             dispatch({
               type: 'enhanceOpen',
@@ -6583,6 +6733,14 @@ export function App({
           },
         );
         dispatch({ type: 'enhanceClose' });
+        setEnhanceStartedAt(null);
+        setEnhanceDurationMs(null);
+        if (decision === 'cancel') {
+          // Esc — load the original message back into the input so the user
+          // can edit it and re-submit. Nothing is sent this round.
+          setDraft(trimmed, trimmed.length);
+          return;
+        }
         if (decision === 'edit') {
           // Load the refined text back into the input so the user can tweak
           // it and re-submit. Nothing is sent this round.
@@ -6830,11 +6988,19 @@ export function App({
     return '';
   }, [state.buffer, state.status, state.picker.open]);
 
-  const inputStatusLabel = composerStatusLabel(
-    state.status,
-    state.confirmQueue.length,
-    state.queue.length,
-  );
+  // Live status descriptor for the composer top-rail chip. Carries the same
+  // `agents ▶N` idle fallback as the statusline state chip (which we now hide,
+  // since this chip supersedes it) plus the animated thinking word while busy.
+  const composerStatus = composerStatusFromState({
+    status: state.status,
+    confirmCount: state.confirmQueue.length,
+    queueCount: state.queue.length,
+    thinkingWord: displayThinkingWord,
+    fleetRunning: fleetCounts?.running ?? 0,
+  });
+  const composerAnimationStyle = state.settingsPicker.open
+    ? state.settingsPicker.animationStyle
+    : liveAnimationStyle;
 
   // True while a prompt-refinement call is in flight or its preview panel is
   // open. Used to blank the live input row (so the un-cleared draft can't bleed
@@ -6855,7 +7021,10 @@ export function App({
 
   // The chat input stays LIVE underneath the read-only monitor panels (fleet,
   // agents, worktree, todos, queue, goal) so the user can keep typing and
-  // submitting while watching them. Only three states hide the input:
+  // submitting while watching them. All F1–F10 panels hide the input anyway
+  // so the bottom area stays clean — the input stays mounted (keeping
+  // handleKey, F-key parsing, and Esc listeners alive) but renders as a
+  // fixed-height placeholder while any function-key panel is open.
   //   • enhance — the EnhancePanel owns the input area
   //   • help    — modal `?` overlay (handleKey swallows all but Esc/?/q)
   //   • process list — its single-key kill actions (Enter/Del/a/A/r) own the
@@ -6867,12 +7036,22 @@ export function App({
   // masked key entry, y/N confirms), so the chat input hides while it's open.
   const hideInput =
     enhanceActive ||
+    state.refineFailure != null ||
     state.continueConfirm != null ||
     state.helpOpen ||
+    state.projectPicker.open ||
+    state.monitorOpen ||
+    state.agentsMonitorOpen ||
+    state.worktreeMonitorOpen ||
+    state.planPanelOpen ||
+    state.todosMonitorOpen ||
+    state.queuePanelOpen ||
     state.processListOpen ||
+    state.goalPanelOpen ||
+    state.sessionsPanelOpen ||
     state.authPanel.open;
 
-  // F2–F9 panels should all occupy the same first row below the statusline.
+  // F2–F10 panels should all occupy the same first row below the statusline.
   // Keep persistent background panels (fleet summary, phase/worktree strips)
   // out of this slot while a function-key panel is open; otherwise F5/F7/F8/F9
   // start one panel lower than F2/F3/F4/F6.
@@ -6886,18 +7065,12 @@ export function App({
     state.todosMonitorOpen ||
     state.queuePanelOpen ||
     state.processListOpen ||
-    state.goalPanelOpen;
+    state.goalPanelOpen ||
+    state.sessionsPanelOpen;
 
-  // F3 agents monitor is FULLSCREEN: the chat history leaves the screen and
-  // the live region is padded to the full terminal height, so the visible
-  // viewport is just input + statusline + monitor. Implementation per mode:
-  //   • non-mouse — <History> must STAY MOUNTED (remounting <Static> would
-  //     re-commit every entry into scrollback as duplicates); its only live
-  //     part is the streaming tail, which we suppress via streamingText=''.
-  //     The anchor <Box flexGrow> inside History absorbs the minHeight slack.
-  //   • mouse — ScrollableHistory is fully live (no <Static>), so it simply
-  //     unmounts and a flexGrow filler takes its place.
-  const agentsFullscreen = state.agentsMonitorOpen;
+  // F3 agents monitor uses a split layout (agent list left, content right).
+  // It renders below the status bar as a regular panel, so history stays
+  // visible above it. No fullscreen minHeight hack needed.
 
   return (
     <Box flexDirection="column">
@@ -6905,32 +7078,31 @@ export function App({
         flexDirection="column"
         flexGrow={1}
         flexShrink={0}
-        {...(agentsFullscreen ? { minHeight: termRows } : {})}
       >
         {mouseMode ? (
-          agentsFullscreen ? (
-            <Box flexGrow={1} />
-          ) : (
-            <ScrollableHistory
-              entries={state.entries}
-              streamingText={state.streamingText}
-              toolStream={state.toolStream}
-              scrollOffset={state.scrollOffset}
-              viewportRows={state.viewportRows}
-              totalLines={state.totalLines}
-              onMeasure={(totalLines) => dispatch({ type: 'setMeasuredLines', totalLines })}
-              setSuggestions={setSuggestions}
-              autonomyMode={autonomyLive}
-              multiDiffSummaryThreshold={state.settingsPicker.multiDiffSummaryThreshold}
-              todos={agent.ctx.todos}
-            />
-          )
+          <ScrollableHistory
+            entries={state.entries}
+            streamingText={state.streamingText}
+            toolStream={state.toolStream}
+            scrollOffset={state.scrollOffset}
+            viewportRows={state.viewportRows}
+            totalLines={state.totalLines}
+            onMeasure={onMeasureRef.current}
+            setSuggestions={setSuggestions}
+            autonomyMode={autonomyLive}
+            multiDiffSummaryThreshold={state.settingsPicker.multiDiffSummaryThreshold}
+            todos={agent.ctx.todos}
+          />
         ) : (
           <History
             entries={state.entries}
             generation={state.historyGen}
-            streamingText={agentsFullscreen ? '' : state.streamingText}
-            toolStream={state.toolStream}
+            streamingText={state.streamingText}
+            // Inline mode: History does NOT render the live tool-stream box
+            // (see the `void toolStream` in history/index.tsx). By passing
+            // null we avoid breaking React.memo on every tool.progress event,
+            // which previously caused freeze/lag and unresponsive input.
+            toolStream={null}
             setSuggestions={setSuggestions}
             autonomyMode={autonomyLive}
             multiDiffSummaryThreshold={state.settingsPicker.multiDiffSummaryThreshold}
@@ -6963,7 +7135,9 @@ export function App({
             prompt={INPUT_PROMPT}
             value={state.buffer}
             cursor={state.cursor}
-            statusLabel={inputStatusLabel}
+            title={`WRONGSTACK${appVersion ? ` v${appVersion}` : ''}`}
+            status={composerStatus}
+            animationStyle={composerAnimationStyle}
             hidden={hideInput}
             placeholderHeight={inputHeight}
             disabled={
@@ -7124,7 +7298,9 @@ export function App({
               filter={state.toolsPicker.filter}
             />
           ) : null}
-          {state.brainPanel.open && !state.modelPicker.open ? <BrainPanel {...state.brainPanel} /> : null}
+          {state.brainPanel.open && !state.modelPicker.open ? (
+            <BrainPanel {...state.brainPanel} />
+          ) : null}
           {state.helpPanel.open ? (
             <HelpPanel
               entries={state.helpPanel.entries}
@@ -7134,10 +7310,7 @@ export function App({
             />
           ) : null}
           {state.shadowPanel.open ? (
-            <ShadowPanel
-              shadow={state.shadowPanel.shadow}
-              hint={state.shadowPanel.hint}
-            />
+            <ShadowPanel shadow={state.shadowPanel.shadow} hint={state.shadowPanel.hint} />
           ) : null}
           {state.authPanel.open ? <AuthPanel panel={state.authPanel} /> : null}
           {state.projectPicker.open ? (
@@ -7149,19 +7322,6 @@ export function App({
             />
           ) : null}
           {state.fKeyPicker.open ? <FKeyPicker selected={state.fKeyPicker.selected} /> : null}
-          {state.sessionsPanelOpen ? (
-            <SessionsPanel
-              sessions={state.sessionsPanel.sessions}
-              busy={state.sessionsPanel.busy}
-              selected={state.sessionsPanel.selected}
-              resumeConfirm={
-                state.sessionResumeConfirm
-                  ? { sessionName: state.sessionResumeConfirm.sessionName }
-                  : undefined
-              }
-              currentSessionId={agent.ctx.session?.id}
-            />
-          ) : null}
           {state.coordinator.monitorOpen ? (
             <CoordinatorPanel
               coordinator={state.coordinator}
@@ -7293,6 +7453,7 @@ export function App({
                   dispatch({ type: 'escConfirmClose' });
                 }}
                 onCancel={() => {
+                  dismissedEscAtRef.current = Date.now();
                   dispatch({ type: 'escConfirmClose' });
                 }}
               />
@@ -7318,21 +7479,17 @@ export function App({
               })()
             : null}
           {state.enhanceBusy && !state.enhance ? (
-            <Box paddingX={1}>
-              <Text dimColor>
-                ✨ refining{' '}
-                <Text color="cyan">
-                  {state.buffer.length > 100 ? `${state.buffer.slice(0, 97)}…` : state.buffer}
-                </Text>
-                <Text color="cyan"> {'.'.repeat(enhanceDots) || '\u00A0'}</Text>
-              </Text>
-            </Box>
+            <RefiningPanel
+              original={state.buffer}
+              elapsedMs={enhanceStartedAt === null ? 0 : Math.max(0, Date.now() - enhanceStartedAt)}
+              pulseFrame={enhanceDots}
+            />
           ) : null}
           {state.enhance
             ? (() => {
                 const info = state.enhance;
                 let resolved = false;
-                const onDecision = (decision: 'refined' | 'english' | 'original' | 'edit') => {
+                const onDecision = (decision: Parameters<typeof info.resolve>[0]) => {
                   if (resolved) return;
                   resolved = true;
                   setEnhanceCountdown(null);
@@ -7343,9 +7500,32 @@ export function App({
                     original={info.original}
                     refined={info.refined}
                     english={info.english}
+                    durationMs={enhanceDurationMs ?? 0}
                     delayMs={enhanceDelayMs}
+                    enhanceLanguage={state.settingsPicker.enhanceLanguage}
                     onDecision={onDecision}
                     onTick={(r) => setEnhanceCountdown(r > 0 ? r : null)}
+                  />
+                );
+              })()
+            : null}
+          {state.refineFailure
+            ? (() => {
+                const info = state.refineFailure;
+                let resolved = false;
+                const onDecision = (decision: Parameters<typeof info.resolve>[0]) => {
+                  if (resolved) return;
+                  resolved = true;
+                  info.resolve(decision);
+                };
+                return (
+                  <RefineFailurePanel
+                    original={info.original}
+                    error={info.error}
+                    elapsedMs={info.elapsedMs}
+                    fallbackRef={info.fallbackRef}
+                    models={info.models}
+                    onDecision={onDecision}
                   />
                 );
               })()
@@ -7402,7 +7582,17 @@ export function App({
               workingDir={workingDirChip}
               subagentCount={visibleSubagentCount}
               processCount={getProcessRegistry().activeCount}
-              hiddenItems={hiddenItems}
+              // The composer top-rail chip now owns the working/idle indicator,
+              // so hide the statusline's duplicate `state` chip. Kept in
+              // STATUSLINE_ITEMS (mouse hit-test indices depend on its order) —
+              // only render-suppressed here.
+              hiddenItems={
+                (hiddenItems.includes('state') && hiddenItems.includes('model')
+                  ? hiddenItems
+                  : [
+                      ...new Set([...hiddenItems, 'state' as const, 'model' as const]),
+                    ]) as StatuslineItem[]
+              }
               mode={liveStatuslineMode}
               visibleChips={state.statuslinePicker.visibleChips}
               events={events}
@@ -7451,7 +7641,6 @@ export function App({
                 onClose={() => dispatch({ type: 'toggleAgentsMonitor' })}
                 transcripts={agentTranscripts}
                 leaderTranscript={getLeaderTranscript}
-                fullscreen
               />
             ) : state.autoPhase?.monitorOpen ? (
               <PhaseMonitor
@@ -7492,6 +7681,8 @@ export function App({
             ) : state.kanbanPanelOpen ? (
               <KanbanPanel
                 projectRoot={agent.ctx.projectRoot}
+                sessionId={agent.ctx.session?.id ?? null}
+                sessionContext={agent.ctx}
                 onClose={() => dispatch({ type: 'toggleKanbanPanel' })}
               />
             ) : state.queuePanelOpen ? (
@@ -7504,6 +7695,18 @@ export function App({
                 onCoordinatorStart={onCoordinatorStart ?? undefined}
                 onCoordinatorStop={onCoordinatorStop ?? undefined}
                 coordinatorRunning={coordinatorRunning}
+              />
+            ) : state.sessionsPanelOpen ? (
+              <SessionsPanel
+                sessions={state.sessionsPanel.sessions}
+                busy={state.sessionsPanel.busy}
+                selected={state.sessionsPanel.selected}
+                resumeConfirm={
+                  state.sessionResumeConfirm
+                    ? { sessionName: state.sessionResumeConfirm.sessionName }
+                    : undefined
+                }
+                currentSessionId={agent.ctx.session?.id}
               />
             ) : director || hasVisibleFleetPanel || state.collabSession ? (
               <FleetPanel
@@ -7569,28 +7772,4 @@ export function App({
       </Box>
     </Box>
   );
-}
-
-/**
- * Render an at-a-glance "running: …" hint for the status bar. Shows the
- * oldest in-flight tool by name; if more than one, appends "(+N)".
- */
-export function renderRunningTools(
-  running: ReadonlyMap<string, { name: string; startedAt: number }>,
-): string {
-  if (running.size === 0) return '';
-  let oldest: { name: string; startedAt: number } | null = null;
-  for (const info of running.values()) {
-    if (!oldest || info.startedAt < oldest.startedAt) oldest = info;
-  }
-  if (!oldest) return '';
-  const elapsedSec = ((Date.now() - oldest.startedAt) / 1000).toFixed(1);
-  const more = running.size > 1 ? ` (+${running.size - 1})` : '';
-  return `running: ${oldest.name} ${elapsedSec}s${more}`;
-}
-
-function fmtTok(n: number): string {
-  if (n < 1000) return String(n);
-  if (n < 1_000_000) return `${(n / 1000).toFixed(n < 10_000 ? 1 : 0)}k`;
-  return `${(n / 1_000_000).toFixed(1)}M`;
 }

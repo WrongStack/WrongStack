@@ -48,12 +48,28 @@ export function startFleetTelemetryBridge(opts: FleetTelemetryBridgeOptions): ()
     inFlight: number;
     pending: number;
     completed: number;
-    subagentStatuses: { subagentId: string; taskId: string; status: string; assigned: boolean }[];
+    totalCostUsd?: number | undefined;
+    subagentStatuses: {
+      subagentId: string;
+      taskId: string;
+      status: string;
+      assigned: boolean;
+      model?: string | undefined;
+      costUsd?: number | undefined;
+      runtimeMs?: number | undefined;
+      lastActivityAt?: string | undefined;
+      iterations?: number | undefined;
+      toolCalls?: number | undefined;
+    }[];
   }): HqFleetSnapshotPayload {
     const subagents: HqSubagentSummary[] = stats.subagentStatuses.map((s) => ({
       subagentId: s.subagentId,
       ...(s.taskId ? { task: s.taskId } : {}),
       status: normalizeSubagentStatus(s.status),
+      ...(s.model !== undefined ? { model: s.model } : {}),
+      ...(s.costUsd !== undefined ? { costUsd: s.costUsd } : {}),
+      ...(s.runtimeMs !== undefined ? { runtimeMs: s.runtimeMs } : {}),
+      ...(s.lastActivityAt !== undefined ? { lastActivityAt: s.lastActivityAt } : {}),
     }));
     return {
       runId,
@@ -61,6 +77,7 @@ export function startFleetTelemetryBridge(opts: FleetTelemetryBridgeOptions): ()
       queuedTasks: stats.pending,
       completedTasks: stats.completed,
       failedTasks: stats.stopped,
+      ...(stats.totalCostUsd !== undefined ? { totalCostUsd: stats.totalCostUsd } : {}),
       subagents,
     };
   }

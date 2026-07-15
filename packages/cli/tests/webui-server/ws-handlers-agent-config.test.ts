@@ -187,7 +187,7 @@ describe('handleModelSwitch', () => {
 describe('handleModelRefine', () => {
   it('rejects empty text without calling the provider', async () => {
     const { ctx, sent } = makeCtx();
-    await handleModelRefine(ctx, FAKE_WS, '   ');
+    await handleModelRefine(ctx, FAKE_WS, { text: '   ' });
     expect(lastOf(sent, 'model.refine_result')?.payload).toMatchObject({ error: 'Empty text' });
   });
 
@@ -223,12 +223,67 @@ describe('handleModelRefine', () => {
     const { ctx, sent, agentCtx } = makeCtx({ modelsRegistry });
     agentCtx.provider = provider;
     agentCtx.model = 'gpt-x';
-    await handleModelRefine(ctx, FAKE_WS, 'please refine this text');
+    await handleModelRefine(ctx, FAKE_WS, { text: 'please refine this text' });
     expect(captured?.reasoning).toEqual({ effort: 'low' });
     expect(lastOf(sent, 'model.refine_result')?.payload).toMatchObject({
       refined: 'Refined.',
       english: 'Refined.',
     });
+  });
+
+  it('reports the failure kind and offers a fallback ref on a provider error', async () => {
+    const provider = {
+      id: 'openai',
+      capabilities: { reasoning: true } as never,
+      stream: () => (async function* () {})(),
+      complete: async () => {
+        throw new Error('upstream 500');
+      },
+    };
+    const { ctx, sent, agentCtx } = makeCtx({
+      getConfig: () =>
+        ({
+          provider: 'openai',
+          model: 'gpt-x',
+          providers: {},
+          fallbackModels: ['anthropic/claude-haiku-4-5'],
+        }) as never,
+    });
+    agentCtx.provider = provider;
+    agentCtx.model = 'gpt-x';
+    await handleModelRefine(ctx, FAKE_WS, { text: 'please refine this text' });
+    expect(lastOf(sent, 'model.refine_result')?.payload).toMatchObject({
+      refined: 'please refine this text',
+      english: 'please refine this text',
+      errorKind: 'provider_error',
+      fallbackRef: 'anthropic/claude-haiku-4-5',
+    });
+  });
+
+  it('never offers the live model as its own fallback ref', async () => {
+    const provider = {
+      id: 'openai',
+      capabilities: { reasoning: true } as never,
+      stream: () => (async function* () {})(),
+      complete: async () => {
+        throw new Error('nope');
+      },
+    };
+    const { ctx, sent, agentCtx } = makeCtx({
+      // The only configured fallback IS the active model → must resolve to none.
+      getConfig: () =>
+        ({
+          provider: 'openai',
+          model: 'gpt-x',
+          providers: {},
+          fallbackModels: ['openai/gpt-x'],
+        }) as never,
+    });
+    agentCtx.provider = provider;
+    agentCtx.model = 'gpt-x';
+    await handleModelRefine(ctx, FAKE_WS, { text: 'please refine this text' });
+    const payload = lastOf(sent, 'model.refine_result')?.payload as { fallbackRef?: string };
+    expect(payload.fallbackRef).toBeUndefined();
   });
 
   it('sends no reasoning field when no registry is wired', async () => {
@@ -249,7 +304,7 @@ describe('handleModelRefine', () => {
     };
     const { ctx, agentCtx } = makeCtx(); // no modelsRegistry
     agentCtx.provider = provider;
-    await handleModelRefine(ctx, FAKE_WS, 'please refine this text');
+    await handleModelRefine(ctx, FAKE_WS, { text: 'please refine this text' });
     expect(captured?.reasoning).toBeUndefined();
   });
 });

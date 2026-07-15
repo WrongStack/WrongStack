@@ -1,10 +1,9 @@
-@import "tailwindcss";
-
 :root {
   color-scheme: dark;
   font-family: "Manrope Variable", "Segoe UI", sans-serif;
   font-synthesis: none;
   text-rendering: optimizeLegibility;
+  transition: background 200ms ease, color 200ms ease;
   --bg: #0b0a0d;
   --surface: #111014;
   --surface-2: #17151a;
@@ -33,6 +32,7 @@
 
 :root[data-theme="light"] {
   color-scheme: light;
+  transition: background 200ms ease, color 200ms ease;
   --bg: #f6f4f7;
   --surface: #ffffff;
   --surface-2: #eeeaf0;
@@ -92,7 +92,6 @@ a:focus-visible {
 }
 
 .app-shell {
-  height: 100vh;
   height: 100dvh;
   min-height: 0;
   display: grid;
@@ -101,7 +100,7 @@ a:focus-visible {
     "agents"
     "chat"
     "composer";
-  grid-template-rows: 64px auto minmax(0, 1fr) auto;
+  grid-template-rows: 56px auto minmax(0, 1fr) auto;
   overflow: hidden;
   background:
     linear-gradient(var(--grid-line) 1px, transparent 1px),
@@ -114,7 +113,7 @@ a:focus-visible {
   z-index: 10;
   min-width: 0;
   display: grid;
-  grid-template-columns: minmax(260px, 1fr) minmax(240px, 420px) minmax(280px, 1fr);
+  grid-template-columns: minmax(240px, 1fr) minmax(220px, 400px) minmax(250px, 1fr);
   align-items: stretch;
   border-bottom: 1px solid var(--line);
   background: var(--topbar-bg);
@@ -129,8 +128,8 @@ a:focus-visible {
 }
 
 .brand-mark {
-  width: 64px;
-  height: 63px;
+  width: 56px;
+  height: 55px;
   display: grid;
   place-items: center;
   flex: none;
@@ -151,12 +150,14 @@ a:focus-visible {
 
 .project-copy {
   min-width: 0;
+  flex: 1;
   display: flex;
   flex-direction: column;
   gap: 2px;
+  padding-right: 10px;
 }
 
-.project-copy strong {
+.project-copy > strong {
   overflow: hidden;
   color: var(--text);
   font-size: 13px;
@@ -166,19 +167,178 @@ a:focus-visible {
   white-space: nowrap;
 }
 
-.project-copy span {
-  overflow: hidden;
+.session-switcher {
+  position: relative;
+  min-width: 0;
+}
+
+.session-trigger {
+  min-width: 0;
+  max-width: 100%;
+  height: 16px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0;
+  border: 0;
+  background: transparent;
   color: var(--muted);
   font-family: "IBM Plex Mono", monospace;
   font-size: 10px;
+  cursor: pointer;
+}
+
+.session-trigger span {
+  min-width: 0;
+  overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.session-trigger svg {
+  flex: none;
+}
+
+.session-trigger:disabled {
+  cursor: default;
+  opacity: 0.7;
+}
+
+.session-menu {
+  position: absolute;
+  top: calc(100% + 9px);
+  left: 0;
+  z-index: 40;
+  width: min(350px, calc(100vw - 24px));
+  border: 1px solid var(--line-strong);
+  background: var(--surface);
+  box-shadow: 0 16px 46px var(--shadow);
+}
+
+.session-menu-heading {
+  height: 34px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 9px 0 11px;
+  border-bottom: 1px solid var(--line);
+  color: var(--subtle);
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+}
+
+.session-menu-heading button {
+  height: 24px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0 7px;
+  border: 1px solid var(--line);
+  background: transparent;
+  color: var(--text);
+  font-size: 9px;
+  font-weight: 750;
+  cursor: pointer;
+}
+
+.session-menu-heading button:hover:not(:disabled) {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.session-menu-heading button:disabled {
+  cursor: default;
+  opacity: 0.5;
+}
+
+.session-menu-list {
+  max-height: 288px;
+  overflow-y: auto;
+}
+
+.session-menu-list > button {
+  width: 100%;
+  min-height: 46px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 7px 10px;
+  border: 0;
+  border-bottom: 1px solid var(--line);
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+}
+
+.session-menu-list > button:last-child {
+  border-bottom: 0;
+}
+
+.session-menu-list > button:hover:not(:disabled),
+.session-menu-list > button.active {
+  background: color-mix(in srgb, var(--surface-2) 82%, var(--accent) 18%);
+}
+
+.session-menu-list > button:disabled {
+  cursor: default;
+}
+
+.session-menu-main {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.session-menu-main > svg {
+  flex: none;
+  color: var(--accent);
+}
+
+.session-menu-copy {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.session-menu-copy b,
+.session-menu-copy small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.session-menu-copy b {
+  color: var(--text);
+  font-size: 11px;
+  font-weight: 650;
+}
+
+.session-menu-copy small,
+.session-menu-list time {
+  color: var(--muted);
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 9px;
+}
+
+.session-menu-list time {
+  flex: none;
+}
+
+.session-menu-empty {
+  padding: 18px 11px;
+  color: var(--muted);
+  font-size: 11px;
 }
 
 .model-control {
   position: relative;
   align-self: center;
-  height: 38px;
+  height: 34px;
   border: 1px solid var(--line);
   background: var(--surface);
   color: var(--muted);
@@ -216,8 +376,8 @@ a:focus-visible {
 
 .topbar-right {
   justify-content: flex-end;
-  gap: 22px;
-  padding: 0 18px 0 24px;
+  gap: 14px;
+  padding: 0 14px 0 18px;
 }
 
 .context-meter {
@@ -300,7 +460,7 @@ a:focus-visible {
 .agent-strip {
   grid-area: agents;
   min-width: 0;
-  height: 42px;
+  height: 36px;
   display: flex;
   align-items: stretch;
   border-bottom: 1px solid var(--line);
@@ -387,7 +547,7 @@ a:focus-visible {
   width: min(100%, 960px);
   min-height: 100%;
   margin: 0 auto;
-  padding: 54px 32px 64px;
+  padding: 34px 24px 42px;
 }
 
 .empty-state {
@@ -427,9 +587,9 @@ a:focus-visible {
 
 .message {
   display: grid;
-  grid-template-columns: 94px minmax(0, 1fr);
+  grid-template-columns: 82px minmax(0, 1fr);
   border-top: 1px solid var(--line);
-  padding: 24px 0 28px;
+  padding: 18px 0 20px;
 }
 
 .message:last-of-type {
@@ -437,12 +597,53 @@ a:focus-visible {
 }
 
 .message-label {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 7px;
   padding-top: 4px;
   color: var(--muted);
   font-family: "IBM Plex Mono", monospace;
   font-size: 9px;
   font-weight: 500;
   letter-spacing: 0.1em;
+}
+
+.message-copy {
+  width: 24px;
+  height: 24px;
+  display: grid;
+  place-items: center;
+  border: 1px solid transparent;
+  padding: 0;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  opacity: 0.55;
+  transition:
+    opacity 120ms ease,
+    color 120ms ease,
+    border-color 120ms ease;
+}
+
+.message-copy:hover {
+  border-color: var(--line);
+  color: var(--text);
+}
+
+.message-copy.copied {
+  color: var(--success);
+  opacity: 1;
+}
+
+@media (hover: hover) {
+  .message-copy:not(:focus-visible, .copied) {
+    opacity: 0;
+  }
+
+  .message:hover .message-copy {
+    opacity: 1;
+  }
 }
 
 .message.user .message-label {
@@ -546,7 +747,7 @@ a:focus-visible {
   display: flex;
   align-items: center;
   gap: 9px;
-  padding: 17px 0 0 94px;
+  padding: 14px 0 0 82px;
   color: var(--muted);
   font-family: "IBM Plex Mono", monospace;
   font-size: 10px;
@@ -556,8 +757,36 @@ a:focus-visible {
   color: var(--accent);
 }
 
+.jump-to-latest {
+  grid-area: chat;
+  z-index: 7;
+  min-width: 76px;
+  height: 30px;
+  align-self: end;
+  justify-self: end;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  margin: 0 max(18px, calc((100vw - 960px) / 2 + 24px)) 14px 0;
+  border: 1px solid var(--line-strong);
+  background: var(--surface);
+  box-shadow: 0 8px 24px var(--shadow);
+  color: var(--text);
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  cursor: pointer;
+}
+
+.jump-to-latest:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
 .next-steps {
-  margin-top: 20px;
+  margin-top: 14px;
   border: 1px solid var(--line);
   border-left: 2px solid var(--accent);
   background: color-mix(in srgb, var(--surface) 90%, var(--accent) 10%);
@@ -646,7 +875,7 @@ a:focus-visible {
 .composer-inner {
   width: min(100%, 960px);
   margin: 0 auto;
-  padding: 16px 32px 12px;
+  padding: 10px 24px 8px;
 }
 
 .permission-bar {
@@ -720,8 +949,9 @@ a:focus-visible {
 }
 
 .composer {
+  position: relative;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 54px;
+  grid-template-columns: minmax(0, 1fr) 48px;
   border: 1px solid var(--line-strong);
   background: var(--surface);
 }
@@ -731,13 +961,142 @@ a:focus-visible {
   box-shadow: inset 2px 0 0 var(--accent);
 }
 
+.file-picker {
+  position: absolute;
+  right: 0;
+  bottom: calc(100% + 7px);
+  left: 0;
+  z-index: 20;
+  overflow: hidden;
+  border: 1px solid var(--line-strong);
+  background: var(--surface);
+  box-shadow: 0 -12px 36px var(--shadow);
+}
+
+.file-picker-heading {
+  min-height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 0 10px;
+  border-bottom: 1px solid var(--line);
+  color: var(--muted);
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 8px;
+  letter-spacing: 0.08em;
+}
+
+.file-picker-list {
+  max-height: min(260px, 42vh);
+  overflow-y: auto;
+}
+
+.file-picker-list > button {
+  width: 100%;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border: 0;
+  border-bottom: 1px solid var(--line);
+  padding: 8px 10px;
+  background: transparent;
+  color: var(--text-secondary);
+  text-align: left;
+  cursor: pointer;
+}
+
+.file-picker-list > button:last-child {
+  border-bottom: 0;
+}
+
+.file-picker-list > button:hover,
+.file-picker-list > button.active {
+  background: color-mix(in srgb, var(--surface-2) 76%, var(--accent) 24%);
+  color: var(--text);
+}
+
+.file-picker-list > button svg {
+  flex: none;
+  color: var(--accent);
+}
+
+.file-picker-list > button span {
+  overflow: hidden;
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 10px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.file-picker-empty {
+  padding: 12px 10px;
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.file-references {
+  grid-column: 1 / -1;
+  min-width: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin: 0;
+  border: 0;
+  border-bottom: 1px solid var(--line);
+  padding: 7px 8px;
+}
+
+.file-reference {
+  min-width: 0;
+  max-width: 220px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  border: 1px solid var(--line);
+  padding: 3px 4px 3px 6px;
+  background: var(--surface-2);
+  color: var(--text-secondary);
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 9px;
+}
+
+.file-reference > span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.file-reference > svg {
+  flex: none;
+  color: var(--accent);
+}
+
+.file-reference button {
+  width: 18px;
+  height: 18px;
+  display: grid;
+  place-items: center;
+  flex: none;
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.file-reference button:hover {
+  background: var(--line);
+  color: var(--text);
+}
+
 .composer textarea {
   width: 100%;
-  min-height: 54px;
-  max-height: 220px;
+  min-height: 48px;
+  max-height: 180px;
   resize: none;
   border: 0;
-  padding: 16px 16px 14px;
+  padding: 13px 14px 12px;
   overflow-y: auto;
   background: transparent;
   color: var(--text);
@@ -754,8 +1113,8 @@ a:focus-visible {
 }
 
 .send-button {
-  width: 54px;
-  min-height: 54px;
+  width: 48px;
+  min-height: 48px;
   display: grid;
   place-items: center;
   border: 0;
@@ -783,11 +1142,26 @@ a:focus-visible {
   display: flex;
   justify-content: space-between;
   gap: 16px;
-  padding-top: 7px;
+  padding-top: 5px;
   color: var(--subtle);
   font-family: "IBM Plex Mono", monospace;
   font-size: 8px;
   letter-spacing: 0.05em;
+}
+
+.composer-meta span:first-child {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.composer-notice.warning {
+  color: var(--warning);
+}
+
+.composer-notice.error {
+  color: var(--danger);
 }
 
 .composer-meta span:last-child {
@@ -812,6 +1186,145 @@ a:focus-visible {
   }
 }
 
+/* ErrorBoundary fallback */
+.error-boundary-fallback {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 16px;
+  color: var(--muted);
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 11px;
+}
+
+.error-boundary-icon {
+  font-size: 16px;
+  flex: none;
+}
+
+.error-boundary-text {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.error-boundary-retry {
+  flex: none;
+  height: 26px;
+  border: 1px solid var(--line);
+  padding: 0 10px;
+  background: transparent;
+  color: var(--text);
+  font-family: inherit;
+  font-size: 9px;
+  cursor: pointer;
+}
+
+.error-boundary-retry:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+/* Tool calls accordion */
+
+.tool-calls {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 6px 0 6px 82px;
+}
+
+.tool-call {
+  border: 1px solid var(--line);
+  overflow: hidden;
+}
+
+.tool-call-header {
+  width: 100%;
+  min-height: 28px;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 4px 9px;
+  border: 0;
+  background: var(--surface);
+  color: var(--text-secondary);
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 10px;
+  cursor: pointer;
+  text-align: left;
+  transition: background 100ms ease;
+}
+
+.tool-call-header:hover {
+  background: color-mix(in srgb, var(--surface-2) 82%, var(--accent) 18%);
+}
+
+.tool-call-name {
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.tool-call-ok {
+  color: var(--success);
+  flex: none;
+}
+
+.tool-call-err {
+  color: var(--danger);
+  flex: none;
+}
+
+.tool-call-status {
+  color: var(--subtle);
+  font-size: 9px;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+}
+
+.tool-call-detail {
+  border-top: 1px solid var(--line);
+  background: var(--code-bg);
+}
+
+.tool-call-section {
+  padding: 8px 10px;
+}
+
+.tool-call-section + .tool-call-section {
+  border-top: 1px solid var(--line);
+}
+
+.tool-call-section-label {
+  display: block;
+  margin-bottom: 5px;
+  color: var(--subtle);
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 8px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.tool-call-pre {
+  margin: 0;
+  overflow-x: auto;
+  color: var(--code-text);
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 11px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+@media (max-width: 560px) {
+  .tool-calls {
+    padding-left: 0;
+  }
+}
+
 @media (max-width: 850px) {
   .app-shell {
     grid-template-rows: auto auto minmax(0, 1fr) auto;
@@ -819,23 +1332,23 @@ a:focus-visible {
 
   .topbar {
     grid-template-columns: minmax(0, 1fr) auto;
-    min-height: 116px;
+    min-height: 104px;
   }
 
   .project-block {
-    height: 58px;
+    height: 52px;
   }
 
   .brand-mark {
-    width: 52px;
-    height: 57px;
+    width: 48px;
+    height: 51px;
   }
 
   .model-control {
     grid-column: 1 / -1;
     grid-row: 2;
     width: auto;
-    margin: 0 12px 12px;
+    margin: 0 12px 10px;
   }
 
   .topbar-right {
@@ -857,8 +1370,11 @@ a:focus-visible {
 @media (max-width: 560px) {
   .project-icon,
   .connection span,
-  .context-meter small,
-  .composer-meta span:first-child {
+  .context-meter small {
+    display: none;
+  }
+
+  .composer-meta span:first-child:not(.composer-notice) {
     display: none;
   }
 
@@ -868,6 +1384,10 @@ a:focus-visible {
 
   .context-meter {
     width: 86px;
+  }
+
+  .session-menu {
+    left: -36px;
   }
 
   .agent-strip-label {
@@ -885,6 +1405,12 @@ a:focus-visible {
     grid-template-columns: 1fr;
     gap: 9px;
     padding: 20px 0 22px;
+  }
+
+  .message-label {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
   }
 
   .activity-line {

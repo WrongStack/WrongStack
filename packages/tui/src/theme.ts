@@ -18,6 +18,10 @@
 // Keys are the Ink/ANSI color names a component might pass; values are the
 // pastel hex they resolve to. `softColor` maps name → hex and passes anything
 // already-hex (or unknown, e.g. 'dim') through untouched.
+//
+// The extra Catppuccin-named exports below (peach, pink, surface0, etc.) let
+// semantic theme tokens and components reference the palette directly without
+// hardcoding hex values.
 export const pastel = Object.freeze({
   // Base 8
   black: '#11111b',
@@ -40,7 +44,21 @@ export const pastel = Object.freeze({
   magentaBright: '#b4befe',
   cyanBright: '#99e6da',
   whiteBright: '#ffffff',
+  // Extended Catppuccin Mocha — semantic palette entries so theme tokens
+  // and components can reference them by name.
+  peach: '#fab387',
+  pink: '#f5c2e7',
+  surface0: '#313244',
+  surface1: '#45475a',
+  subtext0: '#a6adc8',
+  flamingo: '#f2cdcd',
 } as const);
+
+/**
+ * Convenience re-export of individual Catppuccin hex values so themed
+ * components (e.g. banner, auth panel) can import them without hardcoding.
+ */
+export const catppuccin = pastel;
 
 /**
  * Resolve a color value to its pastel equivalent. Known ANSI names map to the
@@ -89,9 +107,9 @@ export interface Theme {
   textSecondary: string;
   /** Quiet metadata foreground that remains readable without ANSI dim quirks. */
   textMuted: string;
-  /** WrongStack's warm brand orange, shared with the startup wordmark. */
+  /** Catppuccin peach — warm brand accent, shared with the startup wordmark. */
   brandPrimary: string;
-  /** WrongStack's hot-pink companion accent. */
+  /** Catppuccin pink — brand companion accent. */
   brandAccent: string;
   /** Low-contrast panel surface (used only when background support is safe). */
   surface: string;
@@ -150,8 +168,8 @@ export const theme: Theme = Object.freeze({
   textPrimary: pastel.white,
   textSecondary: '#bac2de',
   textMuted: '#6c7086',
-  brandPrimary: '#FD9F02',
-  brandAccent: '#FE2E5F',
+  brandPrimary: pastel.peach,
+  brandAccent: pastel.pink,
   surface: '#181825',
   surfaceRaised: '#1e1e2e',
   accent: pastel.cyan,

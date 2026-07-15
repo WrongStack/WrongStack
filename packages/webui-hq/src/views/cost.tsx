@@ -62,7 +62,7 @@ export function CostView(): React.ReactElement {
         return (
           <div key={p.projectId} className="hq-card">
             <div className="hq-row">
-              <span style={{ fontWeight: 700 }}>{p.projectName}</span>
+              <span className="hq-text-bright">{p.projectName}</span>
               <span className="hq-mono hq-row-subtle">{p.projectId}</span>
               <span className="hq-cost-amount">${p.totalCostUsd.toFixed(4)}</span>
               <span className="hq-mono hq-row-subtle">{pct.toFixed(1)}%</span>
@@ -70,7 +70,7 @@ export function CostView(): React.ReactElement {
             <div className="hq-share-track">
               <div className="hq-share-fill" style={{ width: `${pct}%` }} />
             </div>
-            <div className="hq-row" style={{ marginTop: 4 }}>
+            <div className="hq-row hq-row-detail">
               <span className="hq-pill info">{p.activeSessions} sessions</span>
               <span className="hq-pill active">{p.activeSubagents} subagents</span>
               <span className="hq-pill idle">{p.activeClients} clients</span>
@@ -94,7 +94,7 @@ export function CostView(): React.ReactElement {
                 }}
                 title="Open in Console"
               >
-                <span style={{ fontWeight: 600 }}>{s.projectName}</span>
+                <span className="hq-text-bright">{s.projectName}</span>
                 <span className="hq-pill idle">{s.clientKind}</span>
                 {models.map((m) => (
                   <span key={m} className="hq-pill info">

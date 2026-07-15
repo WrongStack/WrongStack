@@ -13,6 +13,7 @@
  */
 import type React from 'react';
 import { useState } from 'react';
+import { MailPlus } from 'lucide-react';
 import { type MailboxSendInput, type MailboxSendResult, postMailboxSend } from '../store.js';
 
 export interface ComposerProject {
@@ -88,7 +89,7 @@ export function MailboxComposer({ projects, sender }: MailboxComposerProps): Rea
           }
           onClick={() => setOpen(true)}
         >
-          ✉️ Compose
+          <MailPlus size={13} /> Compose
         </button>
         {state.phase === 'sent' && (
           <span className="hq-composer-status ok">
@@ -101,8 +102,8 @@ export function MailboxComposer({ projects, sender }: MailboxComposerProps): Rea
 
   return (
     <div className="hq-card hq-composer">
-      <div className="hq-row" style={{ alignItems: 'baseline' }}>
-        <span className="hq-card-title" style={{ margin: 0 }}>
+      <div className="hq-row hq-row-baseline">
+        <span className="hq-card-title hq-title-inline">
           Send to project mailbox
         </span>
         <span className="hq-composer-hint">
@@ -110,8 +111,7 @@ export function MailboxComposer({ projects, sender }: MailboxComposerProps): Rea
         </span>
         <button
           type="button"
-          className="hq-toggle"
-          style={{ marginLeft: 'auto' }}
+          className="hq-toggle hq-ml-auto"
           aria-label="Collapse composer"
           onClick={() => setOpen(false)}
         >

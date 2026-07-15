@@ -28,6 +28,7 @@
 import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
 import { isAbsolute, relative, resolve } from 'node:path';
 import type { Plugin } from '@wrongstack/core';
+import { withinProject } from '../runtime/index.js';
 
 const API_VERSION = '^0.1.10';
 
@@ -114,16 +115,7 @@ function readConfig(raw: unknown): AccessibilityAuditorConfig {
 // Path helpers
 // ---------------------------------------------------------------------------
 
-function withinProject(p: string): boolean {
-  if (typeof p !== 'string' || p.length === 0 || p.length > 4096) return false;
-  const root = process.cwd();
-  const resolved = isAbsolute(p) ? resolve(p) : resolve(root, p);
-  const rel = relative(root, resolved);
-  if (rel === '' || rel === '.') return true;
-  if (rel.startsWith('..')) return false;
-  if (isAbsolute(rel)) return false;
-  return true;
-}
+// withinProject() imported from ../runtime/index.js
 
 function normalizeExtensions(exts: string[]): string[] {
   return exts.map((e) => (e.startsWith('.') ? e.toLowerCase() : `.${e.toLowerCase()}`));
@@ -438,7 +430,7 @@ const plugin: Plugin = {
       return { additionalContext: summary };
     };
 
-    state.hookUnregister = api.registerHook('PostToolUse', 'write|edit', hook);
+    state.hookUnregister = api.registerHook('PostToolUse', 'write|edit', hook, { background: true });
 
     // --- a11y_audit tool ---
     api.tools.register({

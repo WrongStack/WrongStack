@@ -123,7 +123,7 @@ export function FleetNav({
   if (machines.length === 0) {
     return (
       <div className="hq-fleetnav">
-        <div className="hq-empty" style={{ padding: 16, fontSize: 12 }}>
+        <div className="hq-empty hq-pad-md">
           No live sessions. Open a WrongStack CLI/TUI/WebUI connected to HQ.
         </div>
       </div>

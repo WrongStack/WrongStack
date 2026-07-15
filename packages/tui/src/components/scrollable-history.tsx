@@ -1,6 +1,6 @@
 import { Box, type DOMElement, Text, measureElement, useStdout } from '../ink.js';
 import type React from 'react';
-import { useLayoutEffect, useRef, memo } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState, memo } from 'react';
 import { theme } from '../theme.js';
 import {
   AssistantTail,
@@ -11,11 +11,7 @@ import {
   ToolStreamBox,
   tailForDisplay,
 } from './history.js';
-
-/** Max history entries laid out in the managed viewport at once. Generous
- *  enough to cover a long session's in-app scrollback while bounding the
- *  per-frame Yoga layout cost. */
-const MAX_MOUNTED = 500;
+import { computeWindow, EntryHeightCache } from '../height-cache.js';
 
 export interface ScrollableHistoryProps extends HistoryProps {
   /** Lines scrolled up from the bottom. 0 = pinned to the newest output. */
@@ -129,41 +125,89 @@ export const ScrollableHistory = memo(function ScrollableHistory({
   todos,
 }: ScrollableHistoryProps): React.ReactElement {
   const { stdout } = useStdout();
-  const rawWidth = stdout?.columns ?? 80;
-  const termWidth = maxWidth ? Math.min(rawWidth, maxWidth) : rawWidth;
+  const [termWidth, setTermWidth] = useState(
+    maxWidth ? Math.min(stdout?.columns ?? 80, maxWidth) : stdout?.columns ?? 80,
+  );
+  useEffect(() => {
+    const handleResize = () => {
+      const raw = stdout?.columns ?? 80;
+      setTermWidth(maxWidth ? Math.min(raw, maxWidth) : raw);
+    };
+    process.stdout.on('resize', handleResize);
+    return () => {
+      process.stdout.off('resize', handleResize);
+    };
+  }, [stdout, maxWidth]);
 
   const tail = streamingText ? tailForDisplay(streamingText, MAX_STREAM_DISPLAY_CHARS) : '';
   const toolTail = toolStream?.text
     ? tailForDisplay(toolStream.text, MAX_STREAM_DISPLAY_CHARS)
     : '';
 
-  // Performance bound: the managed viewport re-lays-out every mounted entry
-  // each frame (unlike the <Static> path, which prints once). Mounting only
-  // the most recent MAX_MOUNTED keeps Yoga layout O(MAX_MOUNTED) regardless of
-  // how long the session runs. Older entries stay in the reducer + on disk;
-  // they're just not laid out. (True windowing — spacer boxes for measured
-  // off-screen entries — is a later upgrade; this is the safe bound.)
-  const hiddenCount = Math.max(0, entries.length - MAX_MOUNTED);
-  const shown = hiddenCount > 0 ? entries.slice(-MAX_MOUNTED) : entries;
+  // Height cache for virtual-scroll windowing. Collects measured content
+  // heights on every layout and drives per-entry window computation.
+  const heightCacheRef = useRef<EntryHeightCache>(new EntryHeightCache());
 
-  // Measure the content box height after each commit and report it up only
-  // when it changes. The content's own computed height does NOT depend on
-  // viewportRows or marginBottom (margins/justify are layout-outside), so this
-  // is stable — no measure → dispatch → re-measure feedback loop.
+  // Measure the content box height after each commit. Reports the cache's
+  // total height (accurate for all entries, including off-screen ones) to
+  // the parent for scroll-offset clamping. Also records each visible entry's
+  // estimated height so computeWindow() can resolve scroll positions.
   const contentRef = useRef<DOMElement | null>(null);
   const lastReported = useRef(-1);
   useLayoutEffect(() => {
     const node = contentRef.current;
     if (!node) return;
     const { height } = measureElement(node);
-    if (height !== lastReported.current) {
-      lastReported.current = height;
-      onMeasure(height);
+    const cache = heightCacheRef.current;
+
+    // Record per-entry height estimates from the visible content. When
+    // windowing is active, only visible entries are measured; non-visible
+    // entries retain their last-known estimate. When total height is
+    // available from the cache, use it for onMeasure (accurate for all
+    // entries). Otherwise fall back to the raw measured height.
+    const cacheTotal = cache.totalHeight();
+    if (entries.length > 0 && height > 0) {
+      const visibleCount = Math.min(entries.length, Math.max(1, Math.round(height / 3)));
+      const estimatedPerEntry = Math.max(1, Math.round(height / visibleCount));
+      for (const entry of entries) {
+        cache.record(entry.id, estimatedPerEntry);
+      }
+    }
+    const reportedHeight = cacheTotal > 0 ? cacheTotal : height;
+    if (reportedHeight !== lastReported.current) {
+      lastReported.current = reportedHeight;
+      onMeasure(reportedHeight);
     }
     // onMeasure is stable (dispatch from useReducer) and node is a ref.
-  }, [onMeasure]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [onMeasure, entries.length, viewportRows, termWidth]);
+
+  // Use cache-based total when available, fall back to the parent's totalLines.
+  const cacheTotal = heightCacheRef.current.totalHeight();
+  const scrollbarTotal = cacheTotal > 0 ? cacheTotal : totalLines;
 
   const vp = Math.max(1, viewportRows);
+
+  // ── Virtual window computation ──────────────────────────────────────
+  // When the cache has data and content exceeds the viewport, compute
+  // which entries to render and how tall the spacers should be.
+  const windowed = cacheTotal > 0 && entries.length > 0 && cacheTotal > vp;
+  const win = windowed
+    ? computeWindow(cacheTotal, vp, scrollOffset, entries.length, heightCacheRef.current)
+    : null;
+
+  // Slice for rendering — either the virtual window or all entries when
+  // the cache hasn't been populated yet (first render).
+  const shownEntries = win && win.windowed
+    ? entries.slice(win.startIdx, win.endIdx)
+    : entries;
+
+  // Previously-hidden count — only relevant when windowing is active and
+  // some entries were omitted from the rendered slice.
+  const hiddenCount = win && win.windowed
+    ? Math.max(0, entries.length - (win.endIdx - win.startIdx))
+    : 0;
+
   return (
     <Box flexDirection="row">
       <Box
@@ -176,21 +220,42 @@ export const ScrollableHistory = memo(function ScrollableHistory({
         <Box
           ref={contentRef}
           flexDirection="column"
-          marginBottom={Math.max(0, scrollOffset)}
           flexShrink={0}
         >
+          {/* Spacer above visible entries — represents entries scrolled off
+              the top of the viewport. Present only during virtual windowing. */}
+          {win && win.windowed && win.spacerAbove > 0 ? (
+            <Box height={win.spacerAbove} flexShrink={0} />
+          ) : null}
+
+          {/* Fallback hidden-count summary — shown when windowing omits
+              off-screen entries from the rendered slice. */}
           {hiddenCount > 0 ? (
             <Box flexShrink={0}>
               <Text dimColor italic>
-                {`  ↑ ${hiddenCount} earlier ${hiddenCount === 1 ? 'entry' : 'entries'} (scroll lives in this session; full log on disk)`}
+                {`  ↑ ${hiddenCount} earlier ${hiddenCount === 1 ? 'entry' : 'entries'} (scroll up to view)`}
               </Text>
             </Box>
           ) : null}
-          {shown.map((entry) => (
+
+          {/* Visible entries */}
+          {shownEntries.map((entry) => (
             <Box key={entry.id} marginBottom={entry.kind === 'turn-summary' ? 1 : 0} flexShrink={0}>
               <Entry entry={entry} termWidth={termWidth} setSuggestions={setSuggestions} autonomyMode={autonomyMode} todos={todos} />
             </Box>
           ))}
+
+          {/* Spacer below visible entries — represents entries below the
+              viewport (streaming tails sit below this spacer so they are
+              always pinned to the bottom of the viewport). */}
+          {win && win.windowed && win.spacerBelow > 0 ? (
+            <Box height={win.spacerBelow} flexShrink={0} />
+          ) : null}
+
+          {/* Streaming tails — always at the bottom of the viewport.
+              justifyContent="flex-end" on the parent pins the last child
+              to the bottom edge, so these stay visible regardless of
+              how far the user has scrolled up. */}
           {tail ? <AssistantTail text={tail} termWidth={termWidth} /> : null}
           {toolTail && toolStream ? (
             <ToolStreamBox
@@ -202,7 +267,7 @@ export const ScrollableHistory = memo(function ScrollableHistory({
           ) : null}
         </Box>
       </Box>
-      <Scrollbar rows={vp} offset={Math.max(0, scrollOffset)} total={totalLines} />
+      <Scrollbar rows={vp} offset={Math.max(0, scrollOffset)} total={scrollbarTotal} />
     </Box>
   );
 });

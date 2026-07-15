@@ -240,30 +240,58 @@ describe('enhanceUserPrompt', () => {
     const provider = makeProvider(async () => {
       throw new Error('boom');
     });
-    const out = await enhanceUserPrompt({ provider, model: 'm', text: 'fix the bug here' });
+    const onError = vi.fn();
+    const out = await enhanceUserPrompt({ provider, model: 'm', text: 'fix the bug here', onError });
     expect(out).toBeNull();
+    expect(onError).toHaveBeenCalledWith(expect.any(String), 'provider_error');
   });
 
   it('returns null when the provider yields empty text', async () => {
     const provider = makeProvider(async () => textResponse('   '));
-    const out = await enhanceUserPrompt({ provider, model: 'm', text: 'fix the bug here' });
+    const onError = vi.fn();
+    const out = await enhanceUserPrompt({ provider, model: 'm', text: 'fix the bug here', onError });
     expect(out).toBeNull();
+    expect(onError).toHaveBeenCalledWith(expect.any(String), 'empty');
   });
 
-  it('returns null on timeout', async () => {
+  it('returns null on timeout and reports the timeout kind', async () => {
     const provider = makeProvider(
       (_req, { signal }) =>
         new Promise<Response>((_resolve, reject) => {
           signal.addEventListener('abort', () => reject(new Error('aborted')));
         }),
     );
+    const onError = vi.fn();
     const out = await enhanceUserPrompt({
       provider,
       model: 'm',
       text: 'fix the bug here',
       timeoutMs: 20,
+      onError,
     });
     expect(out).toBeNull();
+    expect(onError).toHaveBeenCalledWith(expect.any(String), 'timeout');
+  });
+
+  it('stays silent (no onError) when the caller aborts', async () => {
+    const controller = new AbortController();
+    const provider = makeProvider(
+      (_req, { signal }) =>
+        new Promise<Response>((_resolve, reject) => {
+          signal.addEventListener('abort', () => reject(new Error('aborted')));
+        }),
+    );
+    const onError = vi.fn();
+    const p = enhanceUserPrompt({
+      provider,
+      model: 'm',
+      text: 'fix the bug here',
+      signal: controller.signal,
+      onError,
+    });
+    controller.abort();
+    expect(await p).toBeNull();
+    expect(onError).not.toHaveBeenCalled();
   });
 });
 

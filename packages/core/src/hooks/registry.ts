@@ -19,7 +19,7 @@ function entryControls(
   fallbackName: string,
   options: HookRegistrationOptions,
   legacyStage: 'mutate' | 'validate',
-): Pick<HookEntry, 'name' | 'timeoutMs' | 'failurePolicy' | 'stage' | 'policy'> {
+): Pick<HookEntry, 'name' | 'timeoutMs' | 'failurePolicy' | 'stage' | 'policy' | 'background'> {
   return {
     name: options.name?.trim() || fallbackName,
     timeoutMs: options.timeoutMs,
@@ -28,6 +28,8 @@ function entryControls(
     // behavior unless the registration explicitly opts into final validation.
     stage: event === 'PreToolUse' ? (options.stage ?? legacyStage) : 'validate',
     policy: options.policy === true,
+    // `background` only applies to PostToolUse — PreToolUse hooks always block.
+    background: event === 'PostToolUse' && options.background === true,
   };
 }
 

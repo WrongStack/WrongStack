@@ -382,7 +382,7 @@ export function ControlView(): React.ReactElement {
           {CMD_META[cmdType].desc}
         </div>
 
-        <div style={{ marginTop: 12 }}>
+        <div className="hq-mt-12">
           {(cmdType === 'steer' || cmdType === 'btw' || cmdType === 'queue') && (
             <div className="hq-card">
               <label className="hq-label" htmlFor="hq-control-recipient">
@@ -399,7 +399,7 @@ export function ControlView(): React.ReactElement {
                 }}
                 placeholder="leader"
               />
-              <label className="hq-label" htmlFor="hq-control-subject" style={{ marginTop: 8 }}>
+              <label className="hq-label hq-mt-8" htmlFor="hq-control-subject">
                 Subject
               </label>
               <input
@@ -411,7 +411,7 @@ export function ControlView(): React.ReactElement {
                   setHqControlPrefs({ steerSubject: e.target.value });
                 }}
               />
-              <label className="hq-label" htmlFor="hq-control-body" style={{ marginTop: 8 }}>
+              <label className="hq-label hq-mt-8" htmlFor="hq-control-body">
                 Body
               </label>
               <textarea
@@ -470,7 +470,7 @@ export function ControlView(): React.ReactElement {
                 <option value="security-scanner">security-scanner</option>
                 <option value="code-reviewer">code-reviewer</option>
               </select>
-              <label className="hq-label" htmlFor="hq-control-spawn-task" style={{ marginTop: 8 }}>
+              <label className="hq-label hq-mt-8" htmlFor="hq-control-spawn-task">
                 Task (optional)
               </label>
               <textarea
@@ -498,7 +498,7 @@ export function ControlView(): React.ReactElement {
                 onChange={(e) => setRunCommand(e.target.value)}
                 placeholder="pnpm test"
               />
-              <label className="hq-label" htmlFor="hq-control-run-cwd" style={{ marginTop: 8 }}>
+              <label className="hq-label hq-mt-8" htmlFor="hq-control-run-cwd">
                 Working directory (optional — defaults to the agent's project root)
               </label>
               <input
@@ -531,9 +531,8 @@ export function ControlView(): React.ReactElement {
                 }}
               />
               <label
-                className="hq-label"
+                className="hq-label hq-mt-8"
                 htmlFor="hq-control-broadcast-body"
-                style={{ marginTop: 8 }}
               >
                 Body
               </label>
@@ -578,9 +577,8 @@ export function ControlView(): React.ReactElement {
               {confirmRequired && (
                 <>
                   <label
-                    className="hq-label"
+                    className="hq-label hq-mt-12"
                     htmlFor="hq-control-confirm"
-                    style={{ marginTop: 12 }}
                   >
                     Confirm destructive dispatch
                   </label>
@@ -593,7 +591,7 @@ export function ControlView(): React.ReactElement {
                   />
                 </>
               )}
-              <div className="hq-row" style={{ marginTop: 12 }}>
+              <div className="hq-row hq-mt-12">
                 <button
                   type="button"
                   className="hq-btn"
@@ -631,12 +629,12 @@ export function ControlView(): React.ReactElement {
         </div>
 
         {status && (
-          <div className="hq-pill active" style={{ marginTop: 12 }}>
+          <div className="hq-pill active hq-mt-12">
             {status}
           </div>
         )}
         {error && (
-          <div className="hq-pill error" style={{ marginTop: 12 }}>
+          <div className="hq-pill error hq-mt-12">
             {error}
           </div>
         )}
@@ -651,15 +649,14 @@ export function ControlView(): React.ReactElement {
             {auditError !== null && <span className="hq-pill error">{auditError}</span>}
             <button
               type="button"
-              className="hq-btn secondary"
-              style={{ marginLeft: 'auto' }}
+              className="hq-btn secondary hq-ml-auto"
               onClick={() => void loadAudit()}
             >
               Refresh
             </button>
           </div>
           {auditEntries.length === 0 ? (
-            <div className="hq-empty" style={{ padding: 16, fontSize: 12 }}>
+            <div className="hq-empty hq-cockpit-empty">
               No command audit entries yet.
             </div>
           ) : (

@@ -38,6 +38,8 @@ import {
   HqCommandAuditLog,
   HqAlertEngine,
   toAlertMessage,
+  type HqAlertRuleConfig,
+  type HqAlert,
   type HqCommand,
   type HqCommandAuditEntry,
   type HqQueuedCommand,
@@ -448,8 +450,9 @@ async function handleApiSessions(res: http.ServerResponse): Promise<void> {
     res.writeHead(200, { 'Content-Type': 'application/json' });
     res.end(JSON.stringify(result));
   } catch (err) {
+    console.warn(JSON.stringify({ level: 'warn', event: 'hq.api_error', route: '/api/sessions', detail: String(err), timestamp: new Date().toISOString() }));
     res.writeHead(500, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ error: String(err) }));
+    res.end(JSON.stringify({ error: HqServerUtils.sanitizeApiError(err) }));
   }
 }
 
@@ -530,8 +533,9 @@ async function handleApiSessionEvents(
       }),
     );
   } catch (err) {
+    console.warn(JSON.stringify({ level: 'warn', event: 'hq.api_error', route: '/api/sessions/:id/events', detail: String(err), timestamp: new Date().toISOString() }));
     res.writeHead(500, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ error: String(err) }));
+    res.end(JSON.stringify({ error: HqServerUtils.sanitizeApiError(err) }));
   }
 }
 
@@ -579,6 +583,8 @@ function startHqServerWithAuth(
     clientTokenObjs: Map<string, HqToken>;
     passwordHash?: string | undefined;
     cookieSecret?: string | undefined;
+    /** Operator-configured alert-rule thresholds, live-reloaded. */
+    alertRules: HqAlertRuleConfig | undefined;
   } = {
     operatorPolicy: {
       ...DEFAULT_HQ_REDACTION_POLICY,
@@ -593,6 +599,7 @@ function startHqServerWithAuth(
     clientTokenObjs: new Map((authFile.clientTokens ?? []).map((token) => [token.token, token])),
     passwordHash: authFile.passwordHash,
     cookieSecret: authFile.cookieSecret,
+    alertRules: authFile.alertRules,
   };
 
   // Surface the resolved data directory + whether an operator override
@@ -630,7 +637,12 @@ function startHqServerWithAuth(
     // history immediately. Declared before the snapshot broadcaster because
     // the broadcaster checkpoints into the snapshot store on each serialize.
     const persistence = createHqPersistence(dataDir);
-    const auditLog = new HqCommandAuditLog();
+    // Command audit ring + durable sink. Every record/update persists the
+    // latest entry snapshot to commands.jsonl so history survives restarts.
+    const auditLog = new HqCommandAuditLog(
+      1000,
+      (entry) => persistence.commandLog.append(entry),
+    );
 
     // Presence files predate HQ and may contain records from processes that
     // died days ago. Sweep every project once at startup so this upgrade
@@ -654,8 +666,9 @@ function startHqServerWithAuth(
     // Stable mailbox identity for direct HQ writes (/api/mailbox-send). Lets
     // recipients attribute a zero-client HQ prompt to this server instance.
     const hqSessionTag = randomUUID().slice(0, 8);
-    // ── Alerting (Phase 6) — evaluates the live snapshot against rules and
-    // broadcasts `hq.alert` to browsers when a threshold is crossed.
+    // ── Alerting — evaluates the live snapshot against rules and broadcasts
+    // `hq.alert` to browsers when a threshold is crossed. Fired alerts are also
+    // persisted to alerts.jsonl so history survives restarts.
     const alertEngine = new HqAlertEngine({
       onAlert: (alert) => {
         const msg = toAlertMessage(alert);
@@ -664,6 +677,7 @@ function startHqServerWithAuth(
           if (ws.readyState === WebSocket.OPEN) ws.send(data);
         }
       },
+      onPersist: (alert) => persistence.alertLog.append(alert),
     });
     void persistence.eventLog.hydrate();
     void persistence.timeseries.load();
@@ -672,6 +686,14 @@ function startHqServerWithAuth(
     persistence.eventLog.recent(MAX_EVENT_LOG).then((prior) => {
       // Newest-first from recent(); push oldest-first into the in-memory ring.
       for (let i = prior.length - 1; i >= 0; i--) eventLog.push(prior[i]!);
+    }).catch(() => { /* best-effort */ });
+    // Seed alert history + command audit from their durable logs so the
+    // dashboard keeps its past after an HQ restart.
+    persistence.alertLog.readAll().then((prior) => {
+      alertEngine.seed(prior as readonly HqAlert[]);
+    }).catch(() => { /* best-effort */ });
+    persistence.commandLog.readAll().then((prior) => {
+      auditLog.seed(prior as readonly HqCommandAuditEntry[]);
     }).catch(() => { /* best-effort */ });
 
     // Flush the timeseries store every 60s so buckets reach disk periodically
@@ -689,9 +711,11 @@ function startHqServerWithAuth(
     // Start periodic alert evaluation against the latest snapshot. The engine
     // reads the snapshot fresh on each tick (15s, unref'd) so alerts reflect
     // current state. Dedup prevents alert storms — only transitions emit.
+    // Rule thresholds are read from auth.json's `alertRules` on each tick so
+    // an operator editing the file sees the change without a restart.
     const stopAlertEngine = alertEngine.startPeriodic(
       () => buildSnapshot(clients),
-      undefined,
+      (): HqAlertRuleConfig | undefined => mutableAuth.alertRules,
     );
     // Stale-client cleanup: periodically evict clients that have gone silent.
     // This catches crash / network-drop disconnects where the remote never
@@ -904,6 +928,9 @@ function startHqServerWithAuth(
       }
 
       // ── Fleet tree (machines → projects → terminals → agents) ──────
+      // Alias of /api/snapshot — the full snapshot already carries fleets[],
+      // machines[], and the session→agent tree. Kept for backward-compat with
+      // existing dashboards/tests; prefer /api/snapshot for new consumers.
       if (url.pathname === '/api/fleet' && req.method === 'GET') {
         res.writeHead(200, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify(buildSnapshot(clients)));
@@ -1259,8 +1286,9 @@ function startHqServerWithAuth(
           res.writeHead(200, { 'Content-Type': 'application/json' });
           res.end(JSON.stringify({ action, mailId, message: null, changed: true }));
         } catch (err) {
+          console.warn(JSON.stringify({ level: 'warn', event: 'hq.api_error', route: '/api/mailbox/messages/:id/action', detail: String(err), timestamp: new Date().toISOString() }));
           res.writeHead(500, { 'Content-Type': 'application/json' });
-          res.end(JSON.stringify({ error: 'mailbox action failed', detail: String(err) }));
+          res.end(JSON.stringify({ error: 'mailbox action failed', detail: HqServerUtils.sanitizeApiError(err) }));
         }
         return;
       }
@@ -1497,6 +1525,7 @@ function startHqServerWithAuth(
         );
         mutableAuth.passwordHash = next.passwordHash;
         mutableAuth.cookieSecret = next.cookieSecret;
+        mutableAuth.alertRules = next.alertRules;
         console.warn(JSON.stringify({
           level: 'info',
           event: 'hq.auth.reloaded',
@@ -1504,6 +1533,7 @@ function startHqServerWithAuth(
           browserTokenCount: mutableAuth.browserTokens.size,
           clientTokenCount: mutableAuth.clientTokens.size,
           passwordMode: mutableAuth.passwordHash !== undefined,
+          alertRulesActive: mutableAuth.alertRules !== undefined,
           timestamp: new Date().toISOString(),
         }));
       },
@@ -1607,16 +1637,6 @@ function startHqServerWithAuth(
 
 const handleBrowser = HqServerWs.handleBrowser;
 const handleClient = HqServerWs.handleClient;
-/**
- * Stable per-machine key. Prefers hostname so the same physical computer maps
- * to one machine even when clients report different per-process machineIds
- * (older builds hashed `hostname:pid`). Falls back to machineId.
- */
-/**
- * Fold a cost/tool signal from an event envelope into the timeseries store.
- * Recognizes `session.usage` (cost/tokens) and `tool.completed` (tool call).
- * Best-effort, never throws.
- */
 const buildSnapshot = HqServerSnapshot.buildSnapshot;
 const createSnapshotBroadcaster = HqServerSnapshot.createSnapshotBroadcaster;
 const buildProjectDetail = HqServerSnapshot.buildProjectDetail;

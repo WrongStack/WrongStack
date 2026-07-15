@@ -398,7 +398,7 @@ const plugin: Plugin = {
           `${lines}${overflowNote}`,
       };
     };
-    state.postHookUnregister = api.registerHook('PostToolUse', 'write|edit', postHook as never);
+    state.postHookUnregister = api.registerHook('PostToolUse', 'write|edit', postHook as never, { background: true });
 
     // ── PreToolUse: auto-fix on `write` only ─────────────────────────
     if (cfg.autoFix) {

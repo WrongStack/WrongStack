@@ -501,7 +501,11 @@ export function KanbanLiveDemo() {
     const liveAgentIds = new Set<string>();
     for (const task of tasks) {
       if (task.stage >= 1 && task.stage < 4) liveAgentIds.add(task.agentId);
-      if (task.stage === 3) task.crewIds.forEach((id) => liveAgentIds.add(id));
+      if (task.stage === 3) {
+        task.crewIds.forEach((id) => {
+          liveAgentIds.add(id);
+        });
+      }
     }
     return { running, reviewing, done, agents: liveAgentIds.size };
   }, [tasks]);

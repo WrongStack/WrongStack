@@ -3,6 +3,7 @@ import {
   compactDescription,
   compactSchemaDescriptions,
   compactToolDefinitionForWire,
+  findSemanticBoundary,
 } from '../../src/utils/tool-wire-compact.js';
 
 describe('compactDescription', () => {
@@ -112,6 +113,97 @@ describe('compactDescription', () => {
     // Internal whitespace collapse — independent of the cap.
     const out = compactDescription('a\t\tb\n\nc   d', 100);
     expect(out).toBe('a b c d');
+  });
+});
+
+describe('findSemanticBoundary', () => {
+  // The boundary finder implements a 3-tier hierarchy:
+  //   punctuation (. ; :) > comma (,) > space ( )
+  // Each tier has a proportional threshold of the limit:
+  //   punctuation >= floor(limit * 0.45)
+  //   comma     >= floor(limit * 0.60)
+  //   space     >= floor(limit * 0.60)
+  // When no boundary meets its threshold, the function returns `limit`.
+
+  it('cuts at the last period-space within limit when above the 45% threshold', () => {
+    // "First. Second. Third." has periods at 5, 13. limit=18 →
+    //   floor(18 * 0.45) = 8. lastIndexOf('. ', 18) = 13. 13 >= 8 → return 14.
+    expect(findSemanticBoundary('First. Second. Third.', 18)).toBe(14);
+  });
+
+  it('cuts at semicolon-space within limit when above the 45% threshold', () => {
+    // "First; Second; Third" has semicolons at 5, 13. limit=18 →
+    //   floor(18 * 0.45) = 8. lastIndexOf('; ', 18) = 13. 13 >= 8 → return 14.
+    expect(findSemanticBoundary('First; Second; Third', 18)).toBe(14);
+  });
+
+  it('cuts at colon-space within limit when above the 45% threshold', () => {
+    // "First: Second: Third" has colons at 5, 13. limit=18 →
+    //   floor(18 * 0.45) = 8. lastIndexOf(': ', 18) = 13. 13 >= 8 → return 14.
+    expect(findSemanticBoundary('First: Second: Third', 18)).toBe(14);
+  });
+
+  it('prefers the LAST punctuation boundary within the limit', () => {
+    // "A. B. C. D." has `'. '` at positions 1, 4, 7. limit=12 →
+    //   floor(12 * 0.45) = 5. lastIndexOf('. ', 12) = 7 (after C).
+    //   7 >= 5 → return 8 (past the period, before the trailing space).
+    expect(findSemanticBoundary('A. B. C. D.', 12)).toBe(8);
+  });
+
+  it('prefers punctuation over comma when both are present and above threshold', () => {
+    // "Do this. Then, do that." Period at 7, comma at 13. limit=20 →
+    //   floor(20 * 0.45) = 9. lastIndexOf('. ', 20) = 7. 7 < 9 → falls through.
+    //   Comma path: lastIndexOf(', ', 20) = 13. floor(20 * 0.6) = 12. 13 >= 12 → return 14.
+    // After the period fails its threshold, the comma is used.
+    expect(findSemanticBoundary('Do this. Then, do that.', 20)).toBe(14);
+  });
+
+  it('falls back to comma-space when punctuation is below the 45% threshold', () => {
+    // "Short. A, B, C, D, E" Period at 6. limit=20 →
+    //   floor(20 * 0.45) = 9. lastIndexOf('. ', 20) = 6. 6 < 9 → falls through.
+    //   Commas at 8, 11, 14, 17. lastIndexOf(', ', 20) = 17.
+    //   floor(20 * 0.6) = 12. 17 >= 12 → return 18.
+    expect(findSemanticBoundary('Short. A, B, C, D, E', 20)).toBe(18);
+  });
+
+  it('falls back to space when no punctuation or comma meets its threshold', () => {
+    // "abcde fghij klmno pqrst" Spaces at 5, 11, 17. limit=12 →
+    //   Punctuation: none → skip.
+    //   Commas: none → skip.
+    //   Space: lastIndexOf(' ', 12) = 11. floor(12 * 0.6) = 7. 11 >= 7 → return 11.
+    expect(findSemanticBoundary('abcde fghij klmno pqrst', 12)).toBe(11);
+  });
+
+  it('returns limit when no space boundary meets the 60% threshold', () => {
+    // "abcdefghijk lmnop" Space at 11. limit=10 →
+    //   No punctuation, no commas. lastIndexOf(' ', 10) = -1 (no space in [0..10]).
+    //   -1 < floor(10 * 0.6) = 6 → falls through. Returns limit=10.
+    expect(findSemanticBoundary('abcdefghijk lmnop', 10)).toBe(10);
+  });
+
+  it('returns limit when the only space is before the 60% threshold', () => {
+    // "short longstringhere" Space at 5. limit=20 →
+    //   No punctuation, no commas. lastIndexOf(' ', 20) = 5.
+    //   floor(20 * 0.6) = 12. 5 < 12 → falls through. Returns limit=20.
+    expect(findSemanticBoundary('short longstringhere', 20)).toBe(20);
+  });
+
+  it('handles empty text by returning limit', () => {
+    // Empty string: all lastIndexOf calls return -1. All thresholds fail.
+    // Returns limit=15.
+    expect(findSemanticBoundary('', 15)).toBe(15);
+  });
+
+  it('handles limit=0 by returning 0', () => {
+    // limit=0: all lastIndexOf(..., 0) check only position 0.
+    // No punctuation/comma/space at 0 on "hello". Returns limit=0.
+    expect(findSemanticBoundary('hello world', 0)).toBe(0);
+  });
+
+  it('returns the position past a period at the very threshold boundary', () => {
+    // "X. Y" has period at 1. limit=3 → floor(3 * 0.45) = 1.
+    // lastIndexOf('. ', 3) = 1. 1 >= 1 → return 2 (past the period+space).
+    expect(findSemanticBoundary('X. Y', 3)).toBe(2);
   });
 });
 

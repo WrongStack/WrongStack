@@ -144,8 +144,9 @@ describe('LLMSelector', () => {
       const messages = Array(10)
         .fill(null)
         .map((_, _i) => makeMessage('user', 'x'.repeat(100)));
-      await selector.select(messages, 1000);
-      // The effective budget should be min(maxToKeep, maxContextTokens) = min(1000, 5000) = 1000
+      const result = await selector.select(messages, 1000);
+      // effective budget = min(1000, 5000) = 1000 → all 10 messages fit
+      expect(result.kept).toBeDefined();
     });
 
     it('maps importance string to typed importance', async () => {
@@ -197,8 +198,8 @@ describe('LLMSelector', () => {
       const messages = Array(5)
         .fill(null)
         .map((_, _i) => makeMessage('user', 'x'.repeat(200)));
-      const _result = await selector.select(messages, 10); // tiny budget
-      // If budget is tiny, even 1 message might not fit
+      const result = await selector.select(messages, 10); // tiny budget → all collapsed
+      expect(Array.isArray(result.kept)).toBe(true);
     });
 
     it('keeps all when budget is large enough', async () => {
@@ -290,5 +291,83 @@ describe('LLMSelector', () => {
       const result = await selector.select(messages, 1000);
       expect(result.kept[0].importance).toBe('medium');
     });
+  });
+});
+
+describe('LLMSelector with OneShotOrchestrator', () => {
+  function makeMessages(n = 5): Message[] {
+    return Array(n).fill(null).map((_, i) => ({
+      role: 'user' as const,
+      content: `msg ${i}`,
+    }));
+  }
+
+  it('calls orchestrator.call() when oneShotOrchestrator is set', async () => {
+    const call = vi.fn(async () => ({
+      text: '{"kept":[{"from":0,"to":2}],"collapsed":[{"from":3,"to":4}]}',
+      model: 'test',
+      provider: 'test',
+      tokens: { input: 50, output: 25, total: 75 },
+      durationMs: 100,
+      fromFallback: false,
+    }));
+    const selector = new LLMSelector({
+      provider: {} as Provider,
+      oneShotOrchestrator: { call } as never,
+    });
+    const result = await selector.select(makeMessages(), 1000);
+    expect(call).toHaveBeenCalledTimes(1);
+    const input = call.mock.calls[0][0];
+    expect(input).toHaveProperty('system');
+    expect(input).toHaveProperty('userPrompt');
+    expect(input).toHaveProperty('maxTokens');
+    expect(input).toHaveProperty('timeoutMs');
+    expect(result.kept).toHaveLength(1);
+    expect(result.collapsed).toHaveLength(1);
+  });
+
+  it('falls back to fallbackSelect when orchestrator returns an error', async () => {
+    const call = vi.fn(async () => ({
+      text: '',
+      model: '',
+      provider: '',
+      tokens: { input: 0, output: 0, total: 0 },
+      durationMs: 0,
+      fromFallback: false,
+      error: 'provider overloaded',
+    }));
+    const selector = new LLMSelector({
+      provider: {} as Provider,
+      oneShotOrchestrator: { call } as never,
+    });
+    const result = await selector.select(makeMessages(3), 10);
+    // With tiny budget, fallbackSelect keeps nothing.
+    expect(call).toHaveBeenCalledTimes(1);
+    expect(Array.isArray(result.kept)).toBe(true);
+    expect(Array.isArray(result.collapsed)).toBe(true);
+  });
+
+  it('parses orchestrator response text via parseSelectorOutput', async () => {
+    const text = JSON.stringify({
+      kept: [{ from: 0, to: 1, importance: 'high' }],
+      collapsed: [{ from: 2, to: 4 }],
+      reasoning: 'compact older turns',
+    });
+    const call = vi.fn(async () => ({
+      text,
+      model: 'test',
+      provider: 'test',
+      tokens: { input: 50, output: 25, total: 75 },
+      durationMs: 100,
+      fromFallback: false,
+    }));
+    const selector = new LLMSelector({
+      provider: {} as Provider,
+      oneShotOrchestrator: { call } as never,
+    });
+    const result = await selector.select(makeMessages(), 1000);
+    expect(result.kept[0].importance).toBe('high');
+    expect(result.collapsed[0].from).toBe(2);
+    expect(result.reasoning).toBe('compact older turns');
   });
 });

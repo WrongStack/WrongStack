@@ -1,13 +1,25 @@
 import { normalizedEqual } from '@wrongstack/core';
+import type { PhaseItem } from '@/components/PhasePanel';
 import { toast } from '@/components/Toaster';
 import { getWSClient } from '@/lib/ws-client';
 import { isActiveSessionMessage } from '@/lib/ws-client-utils';
-import type { PhaseItem } from '@/components/PhasePanel';
-import { useAutoPhaseStore, useChatStore, useFileStore, useGitChangesStore, useGitInfoStore, useGoalStore, useSessionStore, useUIStore, useVizStore } from '@/stores';
+import {
+  useAutoPhaseStore,
+  useChatStore,
+  useFileStore,
+  useGitChangesStore,
+  useGitInfoStore,
+  useGoalStore,
+  useSessionStore,
+  useUIStore,
+  useVizStore,
+} from '@/stores';
 import { useLocalPrefs } from '@/stores/local-prefs';
 import type { WSServerMessage } from '@/types';
 
-function deriveAutoPhaseStatus(phases: PhaseItem[] | undefined): 'running' | 'paused' | 'completed' | 'failed' | undefined {
+function deriveAutoPhaseStatus(
+  phases: PhaseItem[] | undefined,
+): 'running' | 'paused' | 'completed' | 'failed' | undefined {
   if (!phases || phases.length === 0) return undefined;
   const statuses = phases.map((p) => (p as unknown as { status?: string }).status);
   if (statuses.some((s) => s === 'failed')) return 'failed';
@@ -44,7 +56,8 @@ export function handleAutoPhaseProgress(msg: WSServerMessage) {
   };
   useAutoPhaseStore.getState().setState({
     progress,
-    overallPercent: typeof p.percentComplete === 'number' ? Math.round(p.percentComplete) : undefined,
+    overallPercent:
+      typeof p.percentComplete === 'number' ? Math.round(p.percentComplete) : undefined,
     status: progress.failed > 0 || progress.failedTasks > 0 ? 'failed' : 'running',
     lastEvent: 'progress',
   });
@@ -56,17 +69,23 @@ export function handleAutoPhaseLifecycle(msg: WSServerMessage) {
   const error = typeof p.error === 'string' && p.error ? p.error : undefined;
 
   if (msg.type === 'autophase.paused') {
-    useAutoPhaseStore.getState().setState({ status: 'paused', autonomous: false, lastEvent: 'paused' });
+    useAutoPhaseStore
+      .getState()
+      .setState({ status: 'paused', autonomous: false, lastEvent: 'paused' });
     toast.info('AutoPhase paused');
     return;
   }
   if (msg.type === 'autophase.resumed') {
-    useAutoPhaseStore.getState().setState({ status: 'running', autonomous: true, lastEvent: 'resumed' });
+    useAutoPhaseStore
+      .getState()
+      .setState({ status: 'running', autonomous: true, lastEvent: 'resumed' });
     toast.info('AutoPhase resumed');
     return;
   }
   if (msg.type === 'autophase.stopped') {
-    useAutoPhaseStore.getState().setState({ status: 'stopped', autonomous: false, lastEvent: 'stopped' });
+    useAutoPhaseStore
+      .getState()
+      .setState({ status: 'stopped', autonomous: false, lastEvent: 'stopped' });
     toast.warn('AutoPhase stopped');
     return;
   }
@@ -80,7 +99,11 @@ export function handleAutoPhaseLifecycle(msg: WSServerMessage) {
     const reverted = typeof p.reverted === 'number' ? p.reverted : 0;
     const reason = typeof p.reason === 'string' ? p.reason : undefined;
     if (ok) {
-      toast.success(reverted > 0 ? `Reverted ${reverted} commit${reverted === 1 ? '' : 's'}` : 'Nothing to revert');
+      toast.success(
+        reverted > 0
+          ? `Reverted ${reverted} commit${reverted === 1 ? '' : 's'}`
+          : 'Nothing to revert',
+      );
     } else {
       toast.error(`Revert failed: ${reason ?? 'unknown error'}`);
     }
@@ -93,13 +116,21 @@ export function handleAutoPhaseLifecycle(msg: WSServerMessage) {
     return;
   }
   if (msg.type === 'autophase.completed') {
-    useAutoPhaseStore.getState().setState({ status: 'completed', autonomous: false, overallPercent: 100, lastEvent: 'completed', lastError: null });
+    useAutoPhaseStore.getState().setState({
+      status: 'completed',
+      autonomous: false,
+      overallPercent: 100,
+      lastEvent: 'completed',
+      lastError: null,
+    });
     toast.success(`${title} completed`);
     return;
   }
   if (msg.type === 'autophase.failed' || msg.type === 'autophase.error') {
     const message = error ?? (typeof p.message === 'string' ? p.message : `${title} failed`);
-    useAutoPhaseStore.getState().setState({ status: 'failed', autonomous: false, lastEvent: 'failed', lastError: message });
+    useAutoPhaseStore
+      .getState()
+      .setState({ status: 'failed', autonomous: false, lastEvent: 'failed', lastError: message });
     toast.error(message);
   }
 }
@@ -147,9 +178,16 @@ export function handleBrainStatus(msg: WSServerMessage) {
     lines.push('', `Recent decisions (${p.log.length}):`);
     for (const entry of p.log.slice(-10)) {
       const ago = Math.max(0, Math.round((Date.now() - entry.at) / 1000));
-      const age = ago < 60 ? `${ago}s` : ago < 3600 ? `${Math.round(ago / 60)}m` : `${Math.round(ago / 3600)}h`;
+      const age =
+        ago < 60
+          ? `${ago}s`
+          : ago < 3600
+            ? `${Math.round(ago / 60)}m`
+            : `${Math.round(ago / 3600)}h`;
       const q = entry.question.length > 70 ? `${entry.question.slice(0, 67)}…` : entry.question;
-      lines.push(`- \`${age} ago\` **${entry.kind}** — ${q}${entry.outcome ? ` → _${entry.outcome}_` : ''}`);
+      lines.push(
+        `- \`${age} ago\` **${entry.kind}** — ${q}${entry.outcome ? ` → _${entry.outcome}_` : ''}`,
+      );
     }
   }
   useChatStore.getState().addMessage({ role: 'assistant', content: lines.join('\n') });
@@ -182,7 +220,13 @@ export function handleBrainEvent(msg: WSServerMessage) {
     event: string;
     intervened?: boolean;
     request?: { question?: string; source?: string; risk?: string };
-    decision?: { type?: string; optionId?: string; text?: string; reason?: string; rationale?: string };
+    decision?: {
+      type?: string;
+      optionId?: string;
+      text?: string;
+      reason?: string;
+      rationale?: string;
+    };
   };
   if (p.event === 'brain.intervention') {
     const guidance = p.decision?.rationale ?? p.decision?.text ?? '';
@@ -215,19 +259,18 @@ export function handleMemoryEvent(msg: WSServerMessage) {
     color: '#a78bfa',
     flowGroup: 'memory',
   });
-  if (payload.event === 'memory.staled') toast.warn(`Memory became stale: ${String(payload['memoryId'] ?? '')}`);
-  else if (payload.event === 'memory.contradicted') toast.warn(`Memory contradicted: ${String(payload['memoryId'] ?? '')}`);
-  else if (payload.event === 'memory.hygiene_completed') toast.info('Super Memory hygiene completed');
+  if (payload.event === 'memory.staled')
+    toast.warn(`Memory became stale: ${String(payload['memoryId'] ?? '')}`);
+  else if (payload.event === 'memory.contradicted')
+    toast.warn(`Memory contradicted: ${String(payload['memoryId'] ?? '')}`);
+  else if (payload.event === 'memory.hygiene_completed')
+    toast.info('Super Memory hygiene completed');
 }
 
 export function handleCollabEvent(msg: WSServerMessage) {
   const p = msg.payload as Record<string, unknown>;
   const label =
-    typeof p.kind === 'string'
-      ? p.kind
-      : typeof p.event === 'string'
-        ? p.event
-        : 'collab.event';
+    typeof p.kind === 'string' ? p.kind : typeof p.event === 'string' ? p.event : 'collab.event';
   useVizStore.getState().pushEvent({
     id: `collab_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
     kind: 'collab:event',
@@ -297,16 +340,38 @@ export function handleWorkingDirChanged(msg: WSServerMessage) {
 }
 
 export function handleModelRefineResult(msg: WSServerMessage) {
-  const p = msg.payload as { refined: string; english: string; error?: string | undefined };
+  const p = msg.payload as {
+    refined: string;
+    english: string;
+    error?: string | undefined;
+    errorKind?: 'timeout' | 'empty' | 'provider_error' | undefined;
+    retryTimeoutMs?: number | undefined;
+    fallbackRef?: string | undefined;
+  };
   const refinePanel = useUIStore.getState().refinePanel;
   if (!refinePanel) return;
   if (p.error) {
-    toast.error(`Refinement failed: ${p.error}`);
-    const { original } = refinePanel;
-    useUIStore.getState().setRefinePanel(null);
-    useChatStore.getState().addMessage({ role: 'user', content: original });
-    useChatStore.getState().setLoading(true);
-    getWSClient().sendMessage(original);
+    // Auto-retry ONCE on a timeout with the server-suggested longer window —
+    // the model was reachable, just slow. Everything else (or a second
+    // timeout) surfaces the recovery panel so the user decides.
+    if (p.errorKind === 'timeout' && !refinePanel.retried && p.retryTimeoutMs) {
+      useUIStore.getState().setRefinePanel({
+        ...refinePanel,
+        status: 'refining',
+        retried: true,
+      });
+      getWSClient().refineModel(refinePanel.original, { timeoutMs: p.retryTimeoutMs });
+      return;
+    }
+    // Surface the failure with recovery options instead of silently sending
+    // the original — the user can retry, switch model, edit, or send as-is.
+    useUIStore.getState().setRefinePanel({
+      ...refinePanel,
+      status: 'failed',
+      error: p.error,
+      errorKind: p.errorKind,
+      fallbackRef: p.fallbackRef,
+    });
     return;
   }
   const original = refinePanel.original;
@@ -319,13 +384,24 @@ export function handleModelRefineResult(msg: WSServerMessage) {
   }
   useUIStore.getState().setRefinePanel({
     ...refinePanel,
+    status: 'ready',
     refined: p.refined,
     english: p.english,
+    // Clear any stale failure state from a prior retry round.
+    error: undefined,
+    errorKind: undefined,
   });
 }
 
 export function handleGitInfo(msg: WSServerMessage) {
-  const p = msg.payload as { branch: string; added: number; deleted: number; untracked: number; behind: number; ahead: number };
+  const p = msg.payload as {
+    branch: string;
+    added: number;
+    deleted: number;
+    untracked: number;
+    behind: number;
+    ahead: number;
+  };
   useGitInfoStore.getState().setInfo({ ...p, fetchedAt: Date.now() });
 }
 

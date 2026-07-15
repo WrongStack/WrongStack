@@ -1805,6 +1805,10 @@ export function reducer(state: State, action: Action): State {
       return { ...state, enhanceEnabled: action.enabled };
     case 'enhanceBusy':
       return { ...state, enhanceBusy: action.on };
+    case 'refineFailureOpen':
+      return { ...state, refineFailure: action.info };
+    case 'refineFailureClose':
+      return { ...state, refineFailure: null };
     case 'continueConfirmOpen':
       return { ...state, continueConfirm: action.info };
     case 'continueConfirmClose':
@@ -1898,6 +1902,8 @@ export function reducer(state: State, action: Action): State {
         ? { ...state, ...closePanels(state), planPanelOpen: true }
         : { ...state, planPanelOpen: false };
     }
+    case 'closeAllPanels':
+      return { ...state, ...closePanels(state) };
     case 'toggleKanbanPanel': {
       const opening = !state.kanbanPanelOpen;
       return opening

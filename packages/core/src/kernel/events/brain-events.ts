@@ -79,6 +79,10 @@ export interface BrainEventMap {
     sessionId?: string | undefined;
     usage: Usage;
     cost: { input: number; output: number; total: number };
+    /** Provider id that produced this usage (e.g. 'anthropic'), when known. */
+    provider?: string | undefined;
+    /** Model id the cost was priced against, when known. */
+    model?: string | undefined;
   };
   /**
    * Fired when the subagent budget hits a soft limit and the coordinator
@@ -130,7 +134,26 @@ export interface BrainEventMap {
     inFlight: number;
     pending: number;
     completed: number;
-    subagentStatuses: { subagentId: string; taskId: string; status: string; assigned: boolean }[];
+    /** Optional fleet-wide cost total (USD) — set by the host bridge when known. */
+    totalCostUsd?: number | undefined;
+    subagentStatuses: {
+      subagentId: string;
+      taskId: string;
+      status: string;
+      assigned: boolean;
+      /** Human label / role, when the host bridge joins Director usage data. */
+      name?: string | undefined;
+      role?: string | undefined;
+      model?: string | undefined;
+      /** Cumulative spend on this subagent (USD), when known. */
+      costUsd?: number | undefined;
+      /** Wall-clock runtime so far, in ms. */
+      runtimeMs?: number | undefined;
+      /** ISO timestamp of the most recent activity, when known. */
+      lastActivityAt?: string | undefined;
+      iterations?: number | undefined;
+      toolCalls?: number | undefined;
+    }[];
   };
   /**
    * The coordinator's max-concurrent subagent ceiling was changed at runtime

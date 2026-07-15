@@ -169,6 +169,7 @@ export async function execute(deps: ExecuteDeps): Promise<number> {
     },
     controllers: {
       interruptController, enhanceController, getEnhancerReasoning,
+      buildEnhancerProvider, getEnhanceFallbackRef,
       statuslineHiddenItems, setStatuslineHiddenItems, saveStatuslineHiddenItems,
       getYolo, onYolo, getAutonomy, onAutonomy, getNextPredict,
       applyLiveSettings, onCountdownTick,
@@ -263,14 +264,19 @@ export async function execute(deps: ExecuteDeps): Promise<number> {
           'security problems, and produce a structured review report.',
         ].join('\n');
 
+        // Role-based model matrix resolution: the Director.spawn() resolves
+        // provider/model from the model matrix by role (→ phase → * → leader)
+        // when no explicit model is set. This lets `/setmodel set reviewer <p>/<m>`
+        // control the review model. Budget is generous because reviews regularly
+        // need 15–19 iterations, 21+ tools, and 2+ minutes of wall time for
+        // deep multi-file reading + git cross-referencing.
         const cfg: SubagentConfig = {
           name: 'chimera-review',
-          provider: p.config.provider,
-          model: p.config.model,
+          role: 'reviewer',
           systemPromptOverride: CHIMERA_REVIEW_PROMPT,
-          maxIterations: 10,
-          maxToolCalls: 60,
-          timeoutMs: 300_000,
+          maxIterations: 50,
+          maxToolCalls: 250,
+          timeoutMs: 900_000,
         };
 
         const subagentId = await dir.spawn(cfg);
@@ -374,13 +380,17 @@ export async function execute(deps: ExecuteDeps): Promise<number> {
             ].join('\n');
 
             try {
+              // Role-based model matrix resolution for the fix subagent too.
+              // Falls through to the * default or leader model when no matrix
+              // entry exists for the 'fixer' role. Generous budget because
+              // auto-fixing may need to read, edit, lint, and verify across
+              // multiple files in succession.
               const fixCfg: SubagentConfig = {
                 name: 'chimera-fix',
-                provider: p.config.provider,
-                model: p.config.model,
-                maxIterations: 25,
-                maxToolCalls: 120,
-                timeoutMs: 600_000,
+                role: 'fixer',
+                maxIterations: 60,
+                maxToolCalls: 350,
+                timeoutMs: 1_200_000,
               };
               const fixSubagentId = await dir.spawn(fixCfg);
               const fixTaskId = (await import('node:crypto')).randomUUID();
@@ -870,6 +880,8 @@ export async function execute(deps: ExecuteDeps): Promise<number> {
           interruptController,
           enhanceController,
           getEnhancerReasoning,
+          buildEnhancerProvider,
+          getEnhanceFallbackRef,
           statuslineHiddenItems,
           setStatuslineHiddenItems,
           saveStatuslineHiddenItems,
@@ -952,6 +964,7 @@ export async function execute(deps: ExecuteDeps): Promise<number> {
           tokenSavingMode: normalizeTokenSavingTier(config.features.tokenSavingMode),
           toolCount: agent.tools.list().length,
           onPanelOpen,
+          memoryStore,
         } as never as import('@wrongstack/tui').RunTuiOptions);
 
         // After TUI exits with PROJECT_SWITCH_EXIT_CODE, spawn wstack in the new project.

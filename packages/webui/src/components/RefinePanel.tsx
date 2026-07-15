@@ -5,7 +5,7 @@ import { useLocalPrefs } from '@/stores/local-prefs';
 import { cn } from '@/lib/utils';
 import { useWebSocket } from '@/hooks/useWebSocket';
 import { Button } from './ui/button';
-import { Check, Edit3, Globe, X, Zap } from 'lucide-react';
+import { AlertTriangle, Check, Edit3, Globe, Loader2, RotateCw, Sparkles, X, Zap } from 'lucide-react';
 
 export type RefineDecision = 'refined' | 'english' | 'original' | 'edit';
 
@@ -16,6 +16,22 @@ interface RefinePanelProps {
   onDecision: (decision: RefineDecision) => void;
   /** Auto-send countdown in ms. Default 0 (no auto-send). */
   autoSendDelayMs?: number;
+  /**
+   * Lifecycle of the refine round-trip. 'ready' (or undefined) shows the
+   * comparison; 'refining' shows an in-flight indicator; 'failed' shows the
+   * recovery options.
+   */
+  status?: 'refining' | 'ready' | 'failed' | undefined;
+  /** Failure reason shown in the recovery state. */
+  error?: string | undefined;
+  /** One-key "retry with another model" offer (provider/model), if any. */
+  fallbackRef?: string | undefined;
+  /** Retry on the same model with more time. */
+  onRetry?: (() => void) | undefined;
+  /** Retry on the configured fallback model ref. */
+  onRetryFallback?: ((ref: string) => void) | undefined;
+  /** Open the model picker to retry on a chosen provider/model. */
+  onPickModel?: (() => void) | undefined;
 }
 
 /**
@@ -36,6 +52,12 @@ export function RefinePanel({
   english,
   onDecision,
   autoSendDelayMs = 0,
+  status = 'ready',
+  error,
+  fallbackRef,
+  onRetry,
+  onRetryFallback,
+  onPickModel,
 }: RefinePanelProps) {
   const setRefinePanel = useUIStore((s) => s.setRefinePanel);
   const { t } = useAppTranslation();
@@ -62,7 +84,7 @@ export function RefinePanel({
 
   // Auto-send countdown
   useEffect(() => {
-    if (autoSendDelayMs <= 0 || isEditing) return;
+    if (autoSendDelayMs <= 0 || isEditing || status !== 'ready') return;
 
     countdownRef.current = setInterval(() => {
       setCountdown((prev) => {
@@ -78,10 +100,13 @@ export function RefinePanel({
     return () => {
       if (countdownRef.current) clearInterval(countdownRef.current);
     };
-  }, [autoSendDelayMs, isEditing, onDecision]);
+  }, [autoSendDelayMs, isEditing, onDecision, status]);
 
-  // Keyboard shortcuts
+  // Keyboard shortcuts — only the comparison ('ready') state binds the
+  // send/English/edit keys; the refining and failed states have their own
+  // affordances so they must not hijack Enter/e/o/t.
   useEffect(() => {
+    if (status !== 'ready') return;
     const handleKeyDown = (e: KeyboardEvent) => {
       // Don't steal keys from inputs outside the panel
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
@@ -129,7 +154,7 @@ export function RefinePanel({
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isEditing, onDecision, refined, setRefinePanel]);
+  }, [isEditing, onDecision, refined, setRefinePanel, status]);
 
   // Focus the edit textarea when switching to edit mode
   useEffect(() => {
@@ -150,6 +175,110 @@ export function RefinePanel({
       handleDecision('edit');
     }
   };
+
+  // ── In-flight state ────────────────────────────────────────────────────
+  // Shown while a first attempt or an extended retry is running. Keeps the
+  // user's message visible (it lives only in the panel) and lets them bail out.
+  if (status === 'refining') {
+    return (
+      <div className="rounded-lg border bg-card text-card-foreground shadow-sm overflow-hidden animate-message">
+        <div className="flex items-center justify-between px-4 py-2 border-b bg-muted/30">
+          <div className="flex items-center gap-2">
+            <Loader2 className="h-4 w-4 animate-spin text-primary" />
+            <span className="text-sm font-medium">{t('activity:refine.refining')}</span>
+          </div>
+          <button
+            type="button"
+            onClick={() => handleDecision('original')}
+            className="text-muted-foreground hover:text-foreground transition-colors"
+            title={t('activity:refine.cancelTitle')}
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+        <div className="p-4">
+          <div className="text-sm text-muted-foreground bg-muted/30 rounded-md px-3 py-2">
+            {original.length > 200 ? original.slice(0, 200) + '…' : original}
+          </div>
+        </div>
+        <div className="flex justify-end px-4 py-2 border-t bg-muted/20">
+          <Button variant="ghost" size="sm" onClick={() => handleDecision('original')} className="text-xs">
+            {t('activity:refine.sendAsIs')}
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  // ── Failure / recovery state ───────────────────────────────────────────
+  if (status === 'failed') {
+    return (
+      <div className="rounded-lg border border-destructive/40 bg-card text-card-foreground shadow-sm overflow-hidden animate-message">
+        <div className="flex items-center justify-between px-4 py-2 border-b bg-destructive/10">
+          <div className="flex items-center gap-2">
+            <AlertTriangle className="h-4 w-4 text-destructive" />
+            <span className="text-sm font-medium">{t('activity:refine.failedHeader')}</span>
+          </div>
+          <button
+            type="button"
+            onClick={() => handleDecision('original')}
+            className="text-muted-foreground hover:text-foreground transition-colors"
+            title={t('activity:refine.cancelTitle')}
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+        <div className="p-4 space-y-3">
+          {error && (
+            <div className="text-xs text-destructive/90 bg-destructive/5 rounded-md px-3 py-2 break-words">
+              {error}
+            </div>
+          )}
+          <div className="space-y-1">
+            <div className="text-xs text-muted-foreground font-medium uppercase tracking-wider">
+              {t('activity:refine.original')}
+            </div>
+            <div className="text-sm text-muted-foreground bg-muted/30 rounded-md px-3 py-2">
+              {original.length > 200 ? original.slice(0, 200) + '…' : original}
+            </div>
+          </div>
+        </div>
+        <div className="flex flex-wrap items-center justify-end gap-2 px-4 py-3 border-t bg-muted/20">
+          <Button variant="ghost" size="sm" onClick={() => handleDecision('original')} className="text-xs">
+            {t('activity:refine.sendAsIs')}
+          </Button>
+          <Button variant="outline" size="sm" onClick={() => handleDecision('edit')} className="text-xs">
+            <Edit3 className="h-3 w-3 mr-1" />
+            {t('activity:refine.edit')}
+          </Button>
+          {onPickModel && (
+            <Button variant="outline" size="sm" onClick={onPickModel} className="text-xs">
+              <Sparkles className="h-3 w-3 mr-1" />
+              {t('activity:refine.pickModel')}
+            </Button>
+          )}
+          {fallbackRef && onRetryFallback && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => onRetryFallback(fallbackRef)}
+              className="text-xs"
+              title={fallbackRef}
+            >
+              <RotateCw className="h-3 w-3 mr-1" />
+              {t('activity:refine.retryFallback', { model: fallbackRef })}
+            </Button>
+          )}
+          {onRetry && (
+            <Button size="sm" onClick={onRetry} className="text-xs">
+              <RotateCw className="h-3 w-3 mr-1" />
+              {t('activity:refine.retry')}
+            </Button>
+          )}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div

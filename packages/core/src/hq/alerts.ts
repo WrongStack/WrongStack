@@ -122,10 +122,17 @@ export class HqAlertEngine {
   private readonly maxHistory: number;
   private timer: ReturnType<typeof setInterval> | null = null;
   private readonly onAlert: (alert: HqAlert) => void;
+  private readonly onPersist?: ((alert: HqAlert) => void) | undefined;
 
-  constructor(opts: { onAlert: (alert: HqAlert) => void; maxHistory?: number }) {
+  constructor(opts: {
+    onAlert: (alert: HqAlert) => void;
+    maxHistory?: number;
+    /** Optional durable sink — fires when an alert transitions to firing. */
+    onPersist?: ((alert: HqAlert) => void) | undefined;
+  }) {
     this.onAlert = opts.onAlert;
     this.maxHistory = opts.maxHistory ?? 500;
+    this.onPersist = opts.onPersist;
   }
 
   /**
@@ -158,6 +165,7 @@ export class HqAlertEngine {
           if (this.history.length > this.maxHistory) this.history.splice(0, this.history.length - this.maxHistory);
           fired.push(alert);
           this.onAlert(alert);
+          this.onPersist?.(alert);
         } else {
           // Already firing — refresh timestamp, don't re-emit.
           existing.lastFiredAt = now;
@@ -183,6 +191,16 @@ export class HqAlertEngine {
   /** Historical alerts (newest-last), capped at maxHistory. */
   recentAlerts(limit = 100): HqAlert[] {
     return this.history.slice(-limit);
+  }
+
+  /** Seed the history from a durable store on boot (no alert callbacks fired). */
+  seed(alerts: readonly HqAlert[]): void {
+    for (const alert of alerts) {
+      this.history.push(alert);
+    }
+    if (this.history.length > this.maxHistory) {
+      this.history.splice(0, this.history.length - this.maxHistory);
+    }
   }
 
   /**

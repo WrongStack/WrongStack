@@ -284,17 +284,14 @@ export function createMessageDispatcher(
           let input: string | ContentBlock[] = content;
           const imageBlocks = parseIncomingImages(userPayload.images, userPayload.imageBase64);
           if (imageBlocks.length > 0) {
-            const routed = await routeImagesForModel(
-              buildUserContentBlocks(content, imageBlocks),
-              {
-                supportsVision: deps.agent.ctx.provider.capabilities.vision,
-                adapters: () => createToolVisionAdapters(deps.agent.tools),
-                ctx: deps.agent.ctx,
-                signal: thisRun.signal,
-                providerId: deps.agent.ctx.provider.id,
-                model: deps.agent.ctx.model,
-              },
-            );
+            const routed = await routeImagesForModel(buildUserContentBlocks(content, imageBlocks), {
+              supportsVision: deps.agent.ctx.provider.capabilities.vision,
+              adapters: () => createToolVisionAdapters(deps.agent.tools),
+              ctx: deps.agent.ctx,
+              signal: thisRun.signal,
+              providerId: deps.agent.ctx.provider.id,
+              model: deps.agent.ctx.model,
+            });
             input = routed.blocks;
           }
 
@@ -414,9 +411,12 @@ export function createMessageDispatcher(
         const ok = deps.toolRegistry.disable(name);
         // Persist the disabled list to config
         const currentCfg = deps.configStore.get().tools ?? {};
-        const currentDisabled: string[] = (currentCfg as { disabledTools?: string[] }).disabledTools ?? [];
+        const currentDisabled: string[] =
+          (currentCfg as { disabledTools?: string[] }).disabledTools ?? [];
         if (ok && !currentDisabled.includes(name)) {
-          deps.configStore.update({ tools: { ...currentCfg, disabledTools: [...currentDisabled, name] } });
+          deps.configStore.update({
+            tools: { ...currentCfg, disabledTools: [...currentDisabled, name] },
+          });
         }
         send(ws, { type: 'tool.disabled', payload: { name, ok } });
         break;
@@ -430,9 +430,13 @@ export function createMessageDispatcher(
         const ok = deps.toolRegistry.enable(name);
         if (ok) {
           const currentCfg = deps.configStore.get().tools ?? {};
-          const currentDisabled: string[] = (currentCfg as { disabledTools?: string[] }).disabledTools ?? [];
+          const currentDisabled: string[] =
+            (currentCfg as { disabledTools?: string[] }).disabledTools ?? [];
           deps.configStore.update({
-            tools: { ...currentCfg, disabledTools: currentDisabled.filter((n: string) => n !== name) },
+            tools: {
+              ...currentCfg,
+              disabledTools: currentDisabled.filter((n: string) => n !== name),
+            },
           });
         }
         send(ws, { type: 'tool.enabled', payload: { name, ok } });

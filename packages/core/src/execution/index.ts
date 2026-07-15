@@ -61,6 +61,49 @@ export {
   createCouncilBrainArbiter,
 } from './council-brain.js';
 export {
+  type CouncilResolution,
+  type CouncilResolutionInput,
+  type CouncilResolutionSeat,
+  type CouncilResolutionVote,
+  resolveCouncilVotes,
+} from './council-resolution.js';
+export {
+  BUILTIN_COUNCIL_PERSONAS,
+  CouncilPersonaRegistry,
+  createCouncilPersonaRegistry,
+  DEFAULT_COUNCIL_PERSONA_REGISTRY,
+} from './council-personas.js';
+export {
+  BUILTIN_COUNCIL_PROFILES,
+  CouncilProfileRegistry,
+  createCouncilProfileRegistry,
+  DEFAULT_COUNCIL_APPROVAL_FRACTION,
+  DEFAULT_COUNCIL_JUDGE_MAX_TOKENS,
+  DEFAULT_COUNCIL_OVERALL_TIMEOUT_MS,
+  DEFAULT_COUNCIL_PER_CALL_TIMEOUT_MS,
+  DEFAULT_COUNCIL_PROFILE_REGISTRY,
+  DEFAULT_COUNCIL_QUORUM_FRACTION,
+  DEFAULT_COUNCIL_VOTER_MAX_TOKENS,
+  normalizeCouncilProfile,
+  resolveCouncilProfile,
+} from './council-profiles.js';
+export {
+  buildCouncilJudgeSystemPrompt,
+  buildCouncilJudgeUserPrompt,
+  buildCouncilQuestionPrompt,
+  buildCouncilVoterSystemPrompt,
+  buildCouncilVoterUserPrompt,
+  COUNCIL_JUDGE_PROMPT_PATH,
+  COUNCIL_VOTER_PROMPT_PATH,
+} from './council-prompts.js';
+export {
+  COUNCIL_REFUSAL_OPTION_ID,
+  CouncilOrchestrator,
+  type CouncilOrchestratorOptions,
+  DEFAULT_COUNCIL_MAX_CONCURRENCY,
+  MAX_COUNCIL_CONCURRENCY,
+} from './council-orchestrator.js';
+export {
   type AutonomyPromptContributorOptions,
   makeAutonomyPromptContributor,
 } from './autonomy-prompt-contributor.js';
@@ -134,3 +177,4 @@ export {
   type StrategyCompactorOptions,
 } from './strategy-compactor.js';
 export { ToolExecutor } from './tool-executor.js';
+export { OneShotOrchestrator } from './one-shot-llm.js';

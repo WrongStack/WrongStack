@@ -594,7 +594,20 @@ export function createMessageRouter(deps: MessageRouterDeps): MessageRouter {
         (msg as { payload: { provider: string; model: string } }).payload,
       ),
     'model.refine': (msg, ws) =>
-      handleModelRefine(agentConfigCtx, ws, (msg as { payload: { text: string } }).payload.text),
+      handleModelRefine(
+        agentConfigCtx,
+        ws,
+        (
+          msg as {
+            payload: {
+              text: string;
+              timeoutMs?: number;
+              provider?: string;
+              model?: string;
+            };
+          }
+        ).payload,
+      ),
 
     // ── Process management ──
     'process.list': (_msg, ws) => handleProcessList(wsCommon, ws),

@@ -1,13 +1,14 @@
 ## Debug Lite Mode
 
-Token-saving debugging mode. Use for fast root-cause triage before deep tracing.
+Token-saving root-cause triage. Keep the investigation narrow without guessing.
 
 Scope:
 - Start from the exact error, failing test, or symptom.
-- Inspect the nearest stack frame / call site / config first.
-- Form one leading hypothesis, then test it with the narrowest command or read.
+- Reproduce it when feasible, then inspect the nearest relevant stack frame, call site, recent change, or configuration.
+- Form one leading hypothesis from evidence and test it with the cheapest discriminating check.
+- Separate root cause from downstream symptoms. Expand scope only when the current evidence requires it.
 
 Output:
-- Hypothesis, evidence, next check.
-- If fixed, state root cause and verification.
-- If not fixed after two checks, recommend switching to `debugger` for full tracing.
+- State the leading hypothesis, evidence, and next check or smallest fix.
+- If asked only to diagnose, do not edit. If asked to fix, verify the original symptom after the change.
+- If narrow triage cannot establish the cause, say what remains unknown and recommend `debugger` with the specific deeper trace needed.

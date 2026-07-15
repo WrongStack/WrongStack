@@ -1,14 +1,14 @@
 import { randomUUID } from 'node:crypto';
 import { mutateBoard, readBoard } from '../storage.js';
-import {
-  type KanbanBoard,
-  type KanbanEvent,
-  type KanbanSearchInput,
-  type KanbanSearchResult,
-  type KanbanTask,
-  type MergeKanbanTasksInput,
-  type SetKanbanTaskChainInput,
-  type SplitKanbanTaskInput,
+import type {
+  KanbanBoard,
+  KanbanEvent,
+  KanbanSearchInput,
+  KanbanSearchResult,
+  KanbanTask,
+  MergeKanbanTasksInput,
+  SetKanbanTaskChainInput,
+  SplitKanbanTaskInput,
 } from '../types.js';
 import { searchKanban } from './serialization.js';
 import {

@@ -99,30 +99,60 @@ export function findLadderMatches(fileLf: string, oldLf: string): LadderResult |
   if (needleLines.length > fileLines.length) return undefined;
   const offsets = lineOffsets(fileLines);
 
+  // Pre-trim file lines ONCE so the sliding window doesn't call trimEnd()/
+  // trim() on every (fileLine × needleLine) pair — avoiding O(n·m) string
+  // allocations for every tier. For a 10 000-line × 10-line needle that
+  // saves ~200 000 trim() calls per tier.
+  const fileTrimEnd = fileLines.map((l) => l.trimEnd());
+  const needleTrimEnd = needleLines.map((l) => l.trimEnd());
+
   const trailing = windowScan(
-    fileLines,
-    needleLines,
+    fileTrimEnd,
+    needleTrimEnd,
     offsets,
-    (a, b) => a.trimEnd() === b.trimEnd(),
+    fileLines,
+    (a, b) => a === b,
   );
   if (trailing.length > 0) return { tier: 'trailing-whitespace', matches: trailing };
 
-  const normalizedLen = needleLines.reduce((n, l) => n + l.trim().length, 0);
+  const normalizedLen = needleTrimEnd.reduce((n, l) => n + l.trimStart().length, 0);
   if (normalizedLen < MIN_NORMALIZED_NEEDLE_CHARS) return undefined;
 
-  const normalized = windowScan(fileLines, needleLines, offsets, (a, b) => a.trim() === b.trim());
+  const fileTrimmed = fileTrimEnd.map((l) => l.trimStart());
+  const needleTrimmed = needleTrimEnd.map((l) => l.trimStart());
+  const normalized = windowScan(
+    fileTrimmed,
+    needleTrimmed,
+    offsets,
+    fileLines,
+    (a, b) => a === b,
+  );
   if (normalized.length > 0) return { tier: 'whitespace-normalized', matches: normalized };
 
   return fuzzyScan(fileLines, needleLines, offsets);
 }
 
-/** 1-based line number containing char offset `pos`. */
+/** 1-based line number containing char offset `pos`.
+ *  Uses indexOf('\n') for O(log n) instead of scanning char-by-char.
+ *  For small pos (< 512 chars) the simple loop is faster, so we keep that
+ *  fast path for the common case (single-line needles, small files). */
 function lineAt(text: string, pos: number): number {
-  let line = 1;
-  for (let i = 0; i < pos; i++) {
-    if (text.charCodeAt(i) === 0x0a) line++;
+  if (pos < 512) {
+    let line = 1;
+    for (let i = 0; i < pos; i++) {
+      if (text.charCodeAt(i) === 0x0a) line++;
+    }
+    return line;
   }
-  return line;
+  // For large offsets, binary-search through newline positions.
+  let line = 1;
+  let search = 0;
+  while (true) {
+    const idx = text.indexOf('\n', search);
+    if (idx === -1 || idx >= pos) return line;
+    search = idx + 1;
+    line++;
+  }
 }
 
 /** Start char offset of each line in the LF-normalized text. */
@@ -153,23 +183,24 @@ function windowToMatch(
 /** Slide a needle-sized window over the file lines with a per-line comparator.
  *  Matched windows never overlap (scan resumes after the window). */
 function windowScan(
-  fileLines: string[],
+  comparisonLines: string[],
   needleLines: string[],
   offsets: number[],
+  originalLines: string[],
   eq: (fileLine: string, needleLine: string) => boolean,
 ): LadderMatch[] {
   const n = needleLines.length;
   const out: LadderMatch[] = [];
-  for (let i = 0; i + n <= fileLines.length; i++) {
+  for (let i = 0; i + n <= comparisonLines.length; i++) {
     let all = true;
     for (let j = 0; j < n; j++) {
-      if (!eq(fileLines[i + j] as string, needleLines[j] as string)) {
+      if (!eq(comparisonLines[i + j] as string, needleLines[j] as string)) {
         all = false;
         break;
       }
     }
     if (all) {
-      out.push(windowToMatch(fileLines, offsets, i, n));
+      out.push(windowToMatch(originalLines, offsets, i, n));
       i += n - 1; // no overlapping windows
     }
   }

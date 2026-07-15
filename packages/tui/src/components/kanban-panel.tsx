@@ -1,3 +1,4 @@
+import type { Context } from '@wrongstack/core';
 import {
   addTask,
   copyTaskToBoard,
@@ -13,6 +14,7 @@ import {
   transferTaskToBoard,
   updateTask,
 } from '@wrongstack/kanban';
+import { applySessionKanbanTaskToSource } from '@wrongstack/tools/session-kanban';
 import type React from 'react';
 import { useEffect, useMemo, useState } from 'react';
 import { Box, Text, useInput } from '../ink.js';
@@ -20,6 +22,8 @@ import { theme } from '../theme.js';
 
 export interface KanbanPanelProps {
   projectRoot: string;
+  sessionId?: string | null | undefined;
+  sessionContext?: Context | undefined;
   onClose: () => void;
 }
 
@@ -28,7 +32,12 @@ type PromptMode =
   | { kind: 'addTask'; buffer: string }
   | { kind: 'confirmDeleteTask'; task: KanbanTask };
 
-export function KanbanPanel({ projectRoot, onClose }: KanbanPanelProps): React.ReactElement {
+export function KanbanPanel({
+  projectRoot,
+  sessionId,
+  sessionContext,
+  onClose,
+}: KanbanPanelProps): React.ReactElement {
   const [boards, setBoards] = useState<KanbanBoardSummary[]>([]);
   const [selectedBoard, setSelectedBoard] = useState(0);
   const [selectedTask, setSelectedTask] = useState(0);
@@ -51,13 +60,29 @@ export function KanbanPanel({ projectRoot, onClose }: KanbanPanelProps): React.R
   const activeTask = visibleTasks[selectedTask] ?? null;
   const transferTarget = nextBoard(boards, board?.id);
 
-  async function load(nextBoardIndex = selectedBoard, nextTaskIndex = selectedTask) {
-    setLoading(true);
+  async function load(
+    nextBoardIndex = selectedBoard,
+    nextTaskIndex = selectedTask,
+    options: {
+      preferSession?: boolean | undefined;
+      quiet?: boolean | undefined;
+      boardId?: string | undefined;
+    } = {},
+  ) {
+    if (!options.quiet) setLoading(true);
     setError(null);
     try {
       const summaries = await listBoards(projectRoot);
       setBoards(summaries);
-      const clampedBoard = clamp(nextBoardIndex, 0, Math.max(0, summaries.length - 1));
+      const preferredIndex = options.boardId
+        ? summaries.findIndex((candidate) => candidate.id === options.boardId)
+        : options.preferSession && sessionId
+          ? summaries.findIndex((candidate) => candidate.tags?.includes(`session:${sessionId}`))
+          : -1;
+      const clampedBoard =
+        preferredIndex >= 0
+          ? preferredIndex
+          : clamp(nextBoardIndex, 0, Math.max(0, summaries.length - 1));
       setSelectedBoard(clampedBoard);
       const active = summaries[clampedBoard];
       const loaded = active ? await getBoard(projectRoot, active.id) : null;
@@ -67,8 +92,19 @@ export function KanbanPanel({ projectRoot, onClose }: KanbanPanelProps): React.R
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
     } finally {
-      setLoading(false);
+      if (!options.quiet) setLoading(false);
     }
+  }
+
+  async function syncSource(
+    nextBoard: KanbanBoard | null,
+    taskId: string,
+    remove = false,
+    fallbackTask: KanbanTask | null = activeTask,
+  ) {
+    if (!sessionContext) return;
+    const task = nextBoard?.tasks.find((candidate) => candidate.id === taskId) ?? fallbackTask;
+    if (task) await applySessionKanbanTaskToSource(sessionContext, task, { remove });
   }
 
   async function runMutation(
@@ -94,7 +130,8 @@ export function KanbanPanel({ projectRoot, onClose }: KanbanPanelProps): React.R
       setPrompt(null);
       await runMutation(async () => {
         if (!board) return null;
-        await removeTask(projectRoot, board.id, prompt.task.id);
+        const nextBoard = await removeTask(projectRoot, board.id, prompt.task.id);
+        await syncSource(nextBoard, prompt.task.id, true, prompt.task);
         return `Deleted task: ${prompt.task.title}`;
       });
       return;
@@ -121,9 +158,23 @@ export function KanbanPanel({ projectRoot, onClose }: KanbanPanelProps): React.R
   }
 
   useEffect(() => {
-    void load(0, 0);
+    void load(0, 0, { preferSession: true });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [projectRoot]);
+  }, [projectRoot, sessionId]);
+
+  // Todo/task/plan mirrors write directly to the shared board file. Keep the
+  // TUI panel live without requiring the user to press R after every tool call.
+  useEffect(() => {
+    const interval = setInterval(() => {
+      void load(selectedBoard, selectedTask, {
+        quiet: true,
+        boardId: board?.id,
+        preferSession: !board,
+      });
+    }, 1_500);
+    return () => clearInterval(interval);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [projectRoot, sessionId, board?.id, selectedBoard, selectedTask]);
 
   useInput((input, key) => {
     if (prompt) {
@@ -186,7 +237,8 @@ export function KanbanPanel({ projectRoot, onClose }: KanbanPanelProps): React.R
       const nextColumn = adjacentColumn(sortedColumns, activeTask.columnId, 1);
       if (nextColumn) {
         void runMutation(async () => {
-          await moveTask(projectRoot, board.id, activeTask.id, nextColumn.id);
+          const nextBoard = await moveTask(projectRoot, board.id, activeTask.id, nextColumn.id);
+          await syncSource(nextBoard, activeTask.id);
           return `Moved to ${nextColumn.title}`;
         });
       }
@@ -196,7 +248,8 @@ export function KanbanPanel({ projectRoot, onClose }: KanbanPanelProps): React.R
       const prevColumn = adjacentColumn(sortedColumns, activeTask.columnId, -1);
       if (prevColumn) {
         void runMutation(async () => {
-          await moveTask(projectRoot, board.id, activeTask.id, prevColumn.id);
+          const nextBoard = await moveTask(projectRoot, board.id, activeTask.id, prevColumn.id);
+          await syncSource(nextBoard, activeTask.id);
           return `Moved to ${prevColumn.title}`;
         });
       }
@@ -204,17 +257,21 @@ export function KanbanPanel({ projectRoot, onClose }: KanbanPanelProps): React.R
     }
     if ((input === ' ' || input === 'D') && board && activeTask) {
       void runMutation(async () => {
-        await updateTask(projectRoot, board.id, activeTask.id, {
+        const nextBoard = await updateTask(projectRoot, board.id, activeTask.id, {
           status: 'completed',
           columnId: doneColumnId(board) ?? activeTask.columnId,
         });
+        await syncSource(nextBoard, activeTask.id);
         return `Completed task: ${activeTask.title}`;
       });
       return;
     }
     if (input === 'b' && board && activeTask) {
       void runMutation(async () => {
-        await updateTask(projectRoot, board.id, activeTask.id, { status: 'blocked' });
+        const nextBoard = await updateTask(projectRoot, board.id, activeTask.id, {
+          status: 'blocked',
+        });
+        await syncSource(nextBoard, activeTask.id);
         return `Blocked task: ${activeTask.title}`;
       });
       return;

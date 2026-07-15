@@ -616,6 +616,44 @@ export class MultiAgentHost {
             assigned: boolean;
           }[];
         };
+        // Enrich each subagent with cumulative cost/runtime/model data joined
+        // from the Director's FleetUsage aggregator — the coordinator itself
+        // does not track spend or timing. Falls back to the skeletal shape when
+        // the Director snapshot is unavailable (defensive; never throws).
+        let usage: { total?: { cost?: number }; perSubagent?: Record<string, unknown> } | null =
+          null;
+        if (this.director) {
+          try {
+            usage = this.director.snapshot();
+          } catch {
+            usage = null;
+          }
+        }
+        const perSubagent = usage?.perSubagent ?? {};
+        const subagentStatuses = payload.subagentStatuses.map((s) => {
+          const u = perSubagent[s.subagentId] as
+            | {
+                model?: string | undefined;
+                cost?: number | undefined;
+                startedAt?: number | undefined;
+                lastEventAt?: number | undefined;
+                iterations?: number | undefined;
+                toolCalls?: number | undefined;
+              }
+            | undefined;
+          if (u === undefined) return s;
+          return {
+            ...s,
+            ...(u.model !== undefined ? { model: u.model } : {}),
+            ...(u.cost !== undefined ? { costUsd: u.cost } : {}),
+            ...(u.startedAt !== undefined ? { runtimeMs: Date.now() - u.startedAt } : {}),
+            ...(u.lastEventAt !== undefined
+              ? { lastActivityAt: new Date(u.lastEventAt).toISOString() }
+              : {}),
+            ...(u.iterations !== undefined ? { iterations: u.iterations } : {}),
+            ...(u.toolCalls !== undefined ? { toolCalls: u.toolCalls } : {}),
+          };
+        });
         this.deps.events.emit('coordinator.stats', {
           sessionId: this.deps.session.id,
           total: payload.total,
@@ -625,7 +663,8 @@ export class MultiAgentHost {
           inFlight: payload.inFlight,
           pending: payload.pending,
           completed: payload.completed,
-          subagentStatuses: payload.subagentStatuses,
+          ...(usage?.total?.cost !== undefined ? { totalCostUsd: usage.total.cost } : {}),
+          subagentStatuses,
         });
       }),
     );

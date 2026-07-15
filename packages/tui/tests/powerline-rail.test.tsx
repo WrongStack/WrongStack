@@ -17,7 +17,7 @@ describe('PowerlineRail', () => {
         segments: [segment('● READY'), segment('Opus 4.8'), segment('ctx 57%')],
       }),
     );
-    expect(stripAnsi(view.lastFrame() ?? '')).toBe('◖ ● READY ▶ Opus 4.8 ▶ ctx 57% ◗');
+    expect(stripAnsi(view.lastFrame() ?? '')).toBe('◖ ● READY  ▶  Opus 4.8  ▶  ctx 57% ◗');
     view.unmount();
   });
 

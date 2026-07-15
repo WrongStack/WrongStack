@@ -422,7 +422,15 @@
     "langEnglish": "English",
     "languageTitle": "Switch default refine language — Original vs English",
     "yolo": "YOLO",
-    "yoloTitle": "Bypass tool confirmation prompts"
+    "yoloTitle": "Bypass tool confirmation prompts",
+    "refining": "İyileştiriliyor…",
+    "sendAsIs": "Olduğu gibi gönder",
+    "failedHeader": "İyileştirme başarısız",
+    "retry": "Yeniden dene (ek süre)",
+    "retryFallback": "{{model}} ile yeniden dene",
+    "pickModel": "Başka model…",
+    "pickModelTitle": "İyileştirmeyi başka bir modelle yeniden dene",
+    "pickModelHint": "Bu iyileştirmenin yeniden çalıştırılacağı sağlayıcı/modeli seçin. Oturum modeliniz değişmez."
   },
   "specs": {
     "heading": "Spesifikasyonlar",

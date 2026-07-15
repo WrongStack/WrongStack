@@ -2,6 +2,22 @@ import { Box, Text, useInput } from '../ink.js';
 import { useEffect, useState } from 'react';
 import type React from 'react';
 import { getProcessRegistry } from '@wrongstack/tools';
+import { theme } from '../theme.js';
+import { glyphs } from '../ui-glyphs.js';
+import {
+  EmptyPanelState,
+  KeyCap,
+  MonitorShell,
+  panelWindow,
+  truncatePanelText,
+  useMonitorSize,
+} from './monitor-shell.js';
+
+type PendingProcessAction =
+  | { kind: 'kill'; pid: number; label: string }
+  | { kind: 'force'; pid: number; label: string }
+  | { kind: 'all'; label: string }
+  | { kind: 'all-force'; label: string };
 
 /**
  * F8 — Process List Monitor.
@@ -15,8 +31,10 @@ import { getProcessRegistry } from '@wrongstack/tools';
  * everything else — keeps the input field completely unaffected.
  */
 export function ProcessListMonitor(): React.ReactElement {
+  const size = useMonitorSize();
   const [, setTick] = useState(0);
   const [selectedIndex, setSelectedIndex] = useState(0);
+  const [pendingAction, setPendingAction] = useState<PendingProcessAction | null>(null);
 
   // Force a re-render every second so elapsed times stay live.
   useEffect(() => {
@@ -33,10 +51,10 @@ export function ProcessListMonitor(): React.ReactElement {
   // Without this, safeIndex fixes the render but selectedIndex stays stale,
   // causing a jump when a new process appears later.
   const safeIndex = Math.min(selectedIndex, Math.max(0, all.length - 1));
-  if (safeIndex !== selectedIndex) {
-    // Eagerly sync so the next keystroke works from the correct position.
-    setSelectedIndex(safeIndex);
-  }
+  useEffect(
+    () => setSelectedIndex((value) => Math.min(value, Math.max(0, all.length - 1))),
+    [all.length],
+  );
   const selected = all[safeIndex];
 
   const now = Date.now();
@@ -44,16 +62,30 @@ export function ProcessListMonitor(): React.ReactElement {
 
   // Circuit breaker state label
   const b = stats.breaker;
-  const breakerState =
-    b.state === 'closed'
-      ? '🟢 closed'
-      : b.state === 'half-open'
-        ? '🟡 half-open'
-        : '🔴 open';
+  const breakerColor =
+    b.state === 'closed' ? theme.success : b.state === 'half-open' ? theme.warn : theme.error;
 
-  const pageSize = Math.max(1, Math.floor(all.length / 2));
+  const visibleLimit = Math.max(2, size.contentRows - (pendingAction ? 5 : 4));
+  const window = panelWindow(all.length, safeIndex, visibleLimit);
+  const visible = all.slice(window.start, window.end);
+  const pageSize = visibleLimit;
+
+  const runPendingAction = () => {
+    if (!pendingAction) return;
+    const liveRegistry = getProcessRegistry();
+    if (pendingAction.kind === 'kill') liveRegistry.kill(pendingAction.pid);
+    else if (pendingAction.kind === 'force') liveRegistry.kill(pendingAction.pid, { force: true });
+    else if (pendingAction.kind === 'all') liveRegistry.killAll();
+    else liveRegistry.killAll({ force: true });
+    setPendingAction(null);
+  };
 
   useInput((input, key) => {
+    if (pendingAction) {
+      if (key.return || input.toLowerCase() === 'y') runPendingAction();
+      else if (input.toLowerCase() === 'n' || key.escape) setPendingAction(null);
+      return;
+    }
     // Navigation — these NEVER touch the chat input buffer
     if (key.upArrow) {
       setSelectedIndex((prev) => Math.max(0, prev - 1));
@@ -70,13 +102,21 @@ export function ProcessListMonitor(): React.ReactElement {
     }
     // Actions — also NEVER touch the chat input buffer
     else if (key.return && selected) {
-      getProcessRegistry().kill(selected.pid);
+      setPendingAction({
+        kind: 'kill',
+        pid: selected.pid,
+        label: `stop PID ${selected.pid} (${selected.name})`,
+      });
     } else if (key.delete && selected) {
-      getProcessRegistry().kill(selected.pid, { force: true });
+      setPendingAction({
+        kind: 'force',
+        pid: selected.pid,
+        label: `force-stop PID ${selected.pid} (${selected.name})`,
+      });
     } else if (input === 'a' && !key.ctrl) {
-      getProcessRegistry().killAll();
+      setPendingAction({ kind: 'all', label: `stop all ${running} running processes` });
     } else if (input === 'A') {
-      getProcessRegistry().killAll({ force: true });
+      setPendingAction({ kind: 'all-force', label: `force-stop all ${running} running processes` });
     } else if (input === 'r') {
       getProcessRegistry().forceBreakerReset();
     }
@@ -86,67 +126,101 @@ export function ProcessListMonitor(): React.ReactElement {
   });
 
   return (
-    <Box flexDirection="column" borderStyle="round" borderColor="red" paddingX={1}>
-      {/* Header */}
-      <Box flexDirection="row" gap={1}>
-        <Text bold color="red">
-          PROCESS LIST
+    <MonitorShell
+      accent={theme.error}
+      icon={glyphs.process}
+      title="PROCESSES"
+      kicker={size.columns >= 90 ? 'background execution' : undefined}
+      right={
+        <Text>
+          <Text color={running > 0 ? theme.warn : theme.success} bold>
+            ● {running}
+          </Text>
+          <Text color={theme.textMuted}> / {all.length} tracked</Text>
         </Text>
-        <Text dimColor>│</Text>
-        <Text color={running > 0 ? 'yellow' : 'green'}>●{running}</Text>
-        <Text dimColor>/</Text>
-        <Text dimColor>{all.length} tracked</Text>
-        <Text dimColor>│</Text>
-        <Text dimColor>
-          breaker {breakerState}
-          {b.state !== 'closed' ? ` fail=${b.consecutiveFailures}/5 slow=${b.slowCallsInWindow}/3` : ''}
+      }
+      footer={
+        <Box gap={2}>
+          <KeyCap keyName="↑↓" label="select" color={theme.error} />
+          <KeyCap keyName="Enter" label="stop" color={theme.warn} />
+          <KeyCap keyName="Del" label="force" color={theme.error} />
+          <KeyCap keyName="F8" label="close" color={theme.error} />
+        </Box>
+      }
+    >
+      <Box marginTop={1}>
+        <Text color={theme.textMuted}>CIRCUIT BREAKER </Text>
+        <Text color={breakerColor} bold>
+          ● {b.state.toUpperCase()}
         </Text>
-        <Text dimColor>│ F8 to close</Text>
+        {b.state !== 'closed' ? (
+          <Text color={theme.textMuted}>
+            {' '}
+            failures {b.consecutiveFailures}/5 · slow {b.slowCallsInWindow}/3
+          </Text>
+        ) : null}
+        <Box flexGrow={1} />
+        <KeyCap keyName="R" label="reset" color={breakerColor} />
       </Box>
 
-      {all.length === 0 ? (
-        <Text dimColor>No active processes. Bash/exec spawns appear here.</Text>
+      {pendingAction ? (
+        <Box borderStyle="single" borderColor={theme.warn} paddingX={1} marginTop={1}>
+          <Text color={theme.warn} bold>
+            ⚠ {pendingAction.label}?
+          </Text>
+          <Box flexGrow={1} />
+          <KeyCap keyName="Y/Enter" label="confirm" color={theme.error} />
+          <Text> </Text>
+          <KeyCap keyName="N" label="cancel" color={theme.success} />
+        </Box>
       ) : null}
 
-      {/* Process rows */}
-      {all.map((p, i) => {
+      {all.length === 0 ? (
+        <EmptyPanelState
+          icon="◇"
+          title="No tracked processes"
+          detail="Background bash and exec jobs will appear here."
+          accent={theme.error}
+        />
+      ) : null}
+
+      {window.above > 0 ? (
+        <Text color={theme.textMuted}> ↑ {window.above} earlier processes</Text>
+      ) : null}
+      {visible.map((p, i) => {
         const age = ((now - p.startedAt) / 1000).toFixed(1);
-        const isSelected = i === safeIndex;
-        const cmd = p.command.length > 90 ? `${p.command.slice(0, 87)}…` : p.command;
+        const isSelected = window.start + i === safeIndex;
+        const cmd = truncatePanelText(p.command, Math.max(12, size.contentWidth - 31));
 
         return (
-          <Box key={p.pid} flexDirection="row" gap={1}>
-            <Text color={isSelected ? 'red' : 'gray'}>{isSelected ? '▶' : ' '}</Text>
-            <Text dimColor>{String(p.pid).padEnd(7)}</Text>
-            <Text dimColor>{p.name.padEnd(6)}</Text>
-            <Text dimColor>{`${age}s`.padEnd(7)}</Text>
-            <Text {...(isSelected ? { color: 'red' } : {})} bold={isSelected}>
+          <Box key={p.pid} flexDirection="row">
+            <Text color={isSelected ? theme.error : theme.textMuted}>
+              {isSelected ? '› ' : '  '}
+            </Text>
+            <Text color={theme.textMuted}>{String(p.pid).padEnd(7)}</Text>
+            <Text color={theme.textMuted}>{truncatePanelText(p.name, 8).padEnd(9)}</Text>
+            <Text color={theme.textMuted}>{`${age}s`.padEnd(8)}</Text>
+            <Text color={isSelected ? theme.textPrimary : theme.textSecondary} bold={isSelected}>
               {cmd}
             </Text>
-            {p.killed ? <Text color="red">[killed]</Text> : null}
+            <Box flexGrow={1} />
+            {p.killed ? (
+              <Text color={theme.error}>STOPPED</Text>
+            ) : (
+              <Text color={theme.success}>RUNNING</Text>
+            )}
           </Box>
         );
       })}
-
-      {/* Keyboard hints */}
-      <Box flexDirection="row" gap={1} marginTop={1}>
-        <Text dimColor>↑↓ nav</Text>
-        <Text dimColor>·</Text>
-        <Text dimColor>PgUp/PgDn page</Text>
-        <Text dimColor>·</Text>
-        <Text dimColor>Home/Ctrl+A/g first</Text>
-        <Text dimColor>·</Text>
-        <Text dimColor>End/Ctrl+E/G last</Text>
-      </Box>
-      <Box flexDirection="row" gap={1}>
-        <Text dimColor>Enter kill (SIGTERM)</Text>
-        <Text dimColor>·</Text>
-        <Text dimColor>Del force kill (SIGKILL)</Text>
-        <Text dimColor>·</Text>
-        <Text dimColor>a kill all</Text>
-        <Text dimColor>·</Text>
-        <Text dimColor>r reset breaker</Text>
-      </Box>
-    </Box>
+      {window.below > 0 ? (
+        <Text color={theme.textMuted}> ↓ {window.below} more processes</Text>
+      ) : null}
+      {all.length > 0 && !pendingAction ? (
+        <Text color={theme.textMuted}>
+          {' '}
+          A stop all · Shift+A force all · PgUp/PgDn page · Home/End jump
+        </Text>
+      ) : null}
+    </MonitorShell>
   );
 }

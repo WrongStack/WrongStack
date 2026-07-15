@@ -21,17 +21,17 @@ export interface SelectiveCompactorOptions {
   provider: Provider;
   /** Selector for LLM-driven importance analysis. */
   selector?: MessageSelector | undefined;
-  /** Fraction of maxContext that triggers a warning (default 0.6). */
+  /** Fraction of maxContext that triggers a warning (default 0.5). */
   warnThreshold?: number | undefined;
-  /** Fraction of maxContext that triggers soft compaction (default 0.75). */
+  /** Fraction of maxContext that triggers soft compaction (default 0.65). */
   softThreshold?: number | undefined;
-  /** Fraction of maxContext that triggers hard compaction (default 0.9). */
+  /** Fraction of maxContext that triggers hard compaction (default 0.8). */
   hardThreshold?: number | undefined;
   /** Max context window in tokens (used for threshold fraction math). */
   maxContext?: number | undefined;
   /** How many recent (user+assistant) pairs to always preserve (default 4). */
   preserveK?: number | undefined;
-  /** Token threshold below which tool results are not elided (default 500). */
+  /** Token threshold below which tool results are not elided (default 300). */
   eliseThreshold?: number | undefined;
   /** Model for selector LLM calls (default: same as provider default). */
   selectorModel?: string | undefined;
@@ -68,12 +68,12 @@ export class SelectiveCompactor implements Compactor {
     this.provider = opts.provider;
     this.selector =
       opts.selector ?? new LLMSelector({ provider: opts.provider, model: opts.selectorModel, maxOutputTokens: opts.selectorMaxOutputTokens });
-    this.warnThreshold = opts.warnThreshold ?? 0.6;
-    this.softThreshold = opts.softThreshold ?? 0.75;
-    this.hardThreshold = opts.hardThreshold ?? 0.9;
+    this.warnThreshold = opts.warnThreshold ?? 0.5;
+    this.softThreshold = opts.softThreshold ?? 0.65;
+    this.hardThreshold = opts.hardThreshold ?? 0.8;
     this.maxContext = opts.maxContext ?? 128_000;
     this.preserveK = opts.preserveK ?? 4;
-    this.eliseThreshold = opts.eliseThreshold ?? 500;
+    this.eliseThreshold = opts.eliseThreshold ?? 300;
     // Leave undefined when unset so summarizeRange() can fall back to the
     // live ctx.model (mirrors IntelligentCompactor). Never send a 'unknown'
     // sentinel to the provider — that yields a 400 in non-dev deployments

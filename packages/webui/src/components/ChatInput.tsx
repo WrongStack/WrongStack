@@ -23,6 +23,7 @@ import {
 import { runChatSlashCommand } from './ChatInput/slash-routing.js';
 import { usePasteDrop } from './ChatInput/use-paste-drop.js';
 import { FileReferenceChip } from './FileReferenceChip.js';
+import { ModelPickDialog } from './ModelPickDialog.js';
 import { parseNextSteps } from './NextStepsBar.js';
 import { PromptLibraryModal } from './PromptLibraryModal.js';
 import { RefinePanel } from './RefinePanel.js';
@@ -72,16 +73,19 @@ export function ChatInput({
   /** Auto-submit streak reset — called on every manual submit to re-arm the cap. */
   const { reset: resetAutoSubmitStreak } = useAutoSubmitStreak();
 
-  // Refine fallback: while the panel shows its placeholder (refined ===
-  // original, i.e. no model.refined reply yet), the user's message exists
-  // NOWHERE but the panel. If the refine backend never answers, close the
-  // panel and send the original text so the message can't silently vanish.
+  // Refine fallback: while a request is in flight the user's message exists
+  // NOWHERE but the panel. If the backend NEVER answers (dead socket, not a
+  // reported failure — those now surface the recovery panel), close the panel
+  // and send the original so the message can't silently vanish. The window
+  // must exceed the server's own refine timeout (90s, or the extended retry
+  // window) so a slow-but-working refine is never cut short.
   useEffect(() => {
-    if (!refinePanel || refinePanel.refined !== refinePanel.original) return;
+    if (!refinePanel || (refinePanel.status ?? 'refining') !== 'refining') return;
+    const window = refinePanel.retried ? 210_000 : 105_000;
     const timer = setTimeout(() => {
       const current = useUIStore.getState().refinePanel;
       // Re-check: a reply may have landed (or the user decided) meanwhile.
-      if (!current || current.refined !== current.original) return;
+      if (!current || (current.status ?? 'refining') !== 'refining') return;
       setRefinePanel(null);
       toast.info(t('chat:input.refineTimeoutFallback'));
       if (client?.isConnected) {
@@ -92,7 +96,7 @@ export function ChatInput({
         setInput(current.original);
         toast.error(t('chat:input.notConnectedDraftKept'));
       }
-    }, 12_000);
+    }, window);
     return () => clearTimeout(timer);
   }, [refinePanel, client, addMessage, setLoading, sendMessage, setRefinePanel, t]);
   /** Live context-budget signals — drive the token-estimate chip beside
@@ -112,6 +116,8 @@ export function ChatInput({
    *  `@` in the textarea so on pick we can replace the partial token
    *  (`@compa`) with the chosen path. Null = closed. */
   const [atMention, setAtMention] = useState<FileMentionState | null>(null);
+  /** Open state for the "retry refinement with another model" picker. */
+  const [refinePickOpen, setRefinePickOpen] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileRefs = useFileReferenceStore((s) => s.refs);
   const { removeRef, clearRefs } = useFileReferenceStore.getState();
@@ -457,6 +463,7 @@ export function ChatInput({
               original: combined,
               refined: combined, // Will be replaced when backend responds
               english: combined,
+              status: 'refining',
               resolve: (_decision) => {
                 // This is called when the refine panel is decided
               },
@@ -829,6 +836,25 @@ export function ChatInput({
           original={refinePanel.original}
           refined={refinePanel.refined}
           english={refinePanel.english}
+          status={refinePanel.status}
+          error={refinePanel.error}
+          fallbackRef={refinePanel.fallbackRef}
+          onRetry={() => {
+            // Retry on the SAME model with an extended window (the server
+            // resolves the exact ms). Back into 'refining'; keep `retried` so
+            // a fresh timeout surfaces the panel rather than auto-looping.
+            setRefinePanel({ ...refinePanel, status: 'refining', retried: true });
+            refineModel?.(refinePanel.original, { timeoutMs: 180_000 });
+          }}
+          onRetryFallback={(ref) => {
+            const slash = ref.indexOf('/');
+            const provider = slash === -1 ? undefined : ref.slice(0, slash);
+            const model = slash === -1 ? ref : ref.slice(slash + 1);
+            if (!provider || !model) return;
+            setRefinePanel({ ...refinePanel, status: 'refining', retried: true });
+            refineModel?.(refinePanel.original, { timeoutMs: 180_000, provider, model });
+          }}
+          onPickModel={() => setRefinePickOpen(true)}
           onDecision={(decision) => {
             const { original, refined, english } = refinePanel;
             let text = original;
@@ -840,6 +866,7 @@ export function ChatInput({
             if (decision === 'edit') {
               // For edit, the panel handles it differently — set input to refined text
               setInput(refined);
+              setRefinePanel(null);
               return;
             }
 
@@ -857,6 +884,26 @@ export function ChatInput({
           }}
         />
       )}
+
+      {/* "Retry refinement with another model" picker (ephemeral — does NOT
+          switch the session model). */}
+      <ModelPickDialog
+        open={refinePickOpen}
+        title={t('activity:refine.pickModelTitle')}
+        hint={t('activity:refine.pickModelHint')}
+        onClose={() => setRefinePickOpen(false)}
+        onPick={(candidate) => {
+          setRefinePickOpen(false);
+          const current = useUIStore.getState().refinePanel;
+          if (!current) return;
+          setRefinePanel({ ...current, status: 'refining', retried: true });
+          refineModel?.(current.original, {
+            timeoutMs: 180_000,
+            provider: candidate.provider,
+            model: candidate.model,
+          });
+        }}
+      />
 
       {/* Prompt library trigger — opens the browse/insert modal */}
       <div className="flex items-center gap-2 px-1">

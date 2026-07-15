@@ -19,8 +19,8 @@ export interface CompactWireToolDefinition {
   inputSchema: Record<string, unknown>;
 }
 
-const TOOL_DESCRIPTION_MAX_CHARS = 640;
-const SCHEMA_DESCRIPTION_MAX_CHARS = 180;
+const TOOL_DESCRIPTION_MAX_CHARS = 400;
+const SCHEMA_DESCRIPTION_MAX_CHARS = 120;
 
 const compactCache = new WeakMap<object, CompactWireToolDefinition>();
 
@@ -97,7 +97,7 @@ export function compactDescription(text: string, maxChars: number): string {
   return `${head} ...`;
 }
 
-function findSemanticBoundary(text: string, limit: number): number {
+export function findSemanticBoundary(text: string, limit: number): number {
   const punctuation = Math.max(
     text.lastIndexOf('. ', limit),
     text.lastIndexOf('; ', limit),

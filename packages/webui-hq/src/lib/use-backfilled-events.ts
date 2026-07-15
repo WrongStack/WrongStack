@@ -4,8 +4,8 @@
  * A freshly-connected browser has an empty in-memory event ring, so views fed
  * purely by `hq.event` (Brain, Worktrees) used to render blank until NEW
  * events arrived. This hook seeds them from `GET /api/events?type=…` (the
- * JSONL-backed persistence added in Phase 2) and folds in live envelopes as
- * they stream, deduped by envelope id, newest last.
+ * JSONL-backed persistence layer) and folds in live envelopes as they stream,
+ * deduped by envelope id, newest last.
  *
  * @module lib/use-backfilled-events
  */

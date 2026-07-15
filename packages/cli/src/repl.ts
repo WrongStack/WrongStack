@@ -589,41 +589,57 @@ export async function runRepl(opts: ReplOptions): Promise<number> {
         }
 
         // ── 'auto' mode: brief cooldown → feed directly ────────────
-        if (mode === 'auto' && suggestions.length > 0) {
-          // The cap pauses the loop but NEVER flips autonomy off — the mode
-          // is the user's setting; only the user changes it.
-          const maxAuto = opts.autoProceedMaxIterations ?? DEFAULT_MAX_CONSECUTIVE_AUTO_PROCEED;
-          if (maxAuto > 0 && autoIterCount >= maxAuto) {
-            if (!autoCapWarned) {
-              autoCapWarned = true;
-              opts.renderer.writeWarning(
-                `Auto-proceed paused after ${maxAuto} consecutive automatic turns — ` +
-                  'enter input to continue (resets the counter). Autonomy stays on.',
-              );
-            }
-            // Fall through to the input read below instead of looping.
-          } else {
-            // YOLO+auto mode: use auto suggestions (items with auto="true" attribute)
-            // and apply the autonomy_next prompt template
+        if (mode === 'auto') {
+          // Resolve the next auto-feed target: first from suggestions, then
+          // from open todos (suggestions are suppressed while todos are
+          // pending — see parseSuggestionsFromOutput — so skipping to todos
+          // prevents the session from idling after a turn with no nextsteps).
+          let top: string;
+          if (suggestions.length > 0) {
             const isYolo = opts.getYolo?.() ?? false;
             const autoSuggestions = opts.getAutoSuggestions?.() ?? [];
             const useAutoSuggestions = isYolo && autoSuggestions.length > 0;
+            top = useAutoSuggestions ? autoSuggestions[0] ?? '' : suggestions[0] ?? '';
+          } else {
+            const todos = opts.agent.ctx.todos ?? [];
+            const resolved = resolveContinuation({ todos, suggestions: [] });
+            top = resolved.source === 'todo' ? resolved.text : '';
+          }
 
-            const top = useAutoSuggestions ? autoSuggestions[0] ?? '' : suggestions[0] ?? '';
-            const delay = opts.autoProceedDelayMs ?? 1_000;
-            const ctrl = new AbortController();
-            activeCtrl = ctrl;
-            try {
-              autoIterCount++;
-              // For YOLO+auto, apply the autonomy_next prompt template
-              const promptToFeed = useAutoSuggestions && opts.autonomyNextPrompt
-                ? opts.autonomyNextPrompt.replace('{{suggestion}}', top)
-                : top;
-              await runAutoProceed(opts, promptToFeed, delay, ctrl);
-            } finally {
-              activeCtrl = undefined;
+          if (!top) {
+            // Fall through to the input read below — nothing to auto-feed.
+          } else {
+            // The cap pauses the loop but NEVER flips autonomy off — the mode
+            // is the user's setting; only the user changes it.
+            const maxAuto = opts.autoProceedMaxIterations ?? DEFAULT_MAX_CONSECUTIVE_AUTO_PROCEED;
+            if (maxAuto > 0 && autoIterCount >= maxAuto) {
+              if (!autoCapWarned) {
+                autoCapWarned = true;
+                opts.renderer.writeWarning(
+                  `Auto-proceed paused after ${maxAuto} consecutive automatic turns — ` +
+                    'enter input to continue (resets the counter). Autonomy stays on.',
+                );
+              }
+              // Fall through to the input read below instead of looping.
+            } else {
+              const delay = opts.autoProceedDelayMs ?? 1_000;
+              const ctrl = new AbortController();
+              activeCtrl = ctrl;
+              try {
+                autoIterCount++;
+                // For YOLO+auto, apply the autonomy_next prompt template
+                const isYolo = opts.getYolo?.() ?? false;
+                const autoSuggestions = opts.getAutoSuggestions?.() ?? [];
+                const useAutoSuggestions = isYolo && autoSuggestions.length > 0;
+                const promptToFeed = useAutoSuggestions && opts.autonomyNextPrompt
+                  ? opts.autonomyNextPrompt.replace('{{suggestion}}', top)
+                  : top;
+                await runAutoProceed(opts, promptToFeed, delay, ctrl);
+              } finally {
+                activeCtrl = undefined;
+              }
+              continue;
             }
-            continue;
           }
         }
       }

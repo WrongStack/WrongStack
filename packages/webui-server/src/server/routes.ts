@@ -20,51 +20,56 @@
  * this file fulfils.
  */
 import path from 'node:path';
-
-import type { WebSocket, WebSocketServer } from 'ws';
-
 import type {
   Agent,
   AgentPipelines,
-  Context,
-  MemoryStore,
-  DefaultModeStore,
-  EventBus,
-  ModelsRegistry,
-  ObservableBrainArbiter,
-  PermissionPolicy,
-  Provider,
-  ProviderConfig,
-  ProviderRegistry,
-  SkillInstaller,
-  SkillLoader,
-  ToolRegistry,
-} from '@wrongstack/core';
-import type { DefaultTokenCounter } from '@wrongstack/core/infrastructure';
-import {
-  enhanceUserPrompt,
-  gatedEnhancerReasoning,
-  recentTextTurns,
-  resolveProviderModelList,
-} from '@wrongstack/core';
-import type {
   AutoCompactionMiddleware,
   BrainAutoRisk,
   BrainConfigPatch,
   BrainRuntime,
   Compactor,
   ConfigStore,
+  Context,
+  DefaultModeStore,
+  EventBus,
   Logger,
+  MemoryStore,
+  ModelsRegistry,
+  ObservableBrainArbiter,
+  PermissionPolicy,
+  Provider,
+  ProviderConfig,
+  ProviderRegistry,
   SecretVault,
+  SessionStore,
+  SkillInstaller,
+  SkillLoader,
+  ToolRegistry,
 } from '@wrongstack/core';
-import type { SessionStore } from '@wrongstack/core';
+import {
+  type EnhanceFailureKind,
+  enhanceUserPrompt,
+  gatedEnhancerReasoning,
+  nextEnhanceTimeout,
+  recentTextTurns,
+  resolveEnhanceFallbackRef,
+  resolveProviderModelList,
+} from '@wrongstack/core';
+import type { DefaultTokenCounter } from '@wrongstack/core/infrastructure';
+import type { WebSocket, WebSocketServer } from 'ws';
+
 type Session = Awaited<ReturnType<SessionStore['create']>>;
+
 import type { Config } from '@wrongstack/core/types';
 import type { MCPRegistry } from '@wrongstack/mcp';
 import { makeProviderFromConfig } from '@wrongstack/providers';
-
+import type { AutoPhaseRouteHandlers } from './autophase-routes.js';
+import type { AutoPhaseWebSocketHandler } from './autophase-ws-handler.js';
+import { patchConfig } from './boot.js';
+import type { BrainRouteHandlers } from './brain-routes.js';
+import type { CollaborationWebSocketHandler } from './collaboration-ws-handler.js';
+import type { CustomModeStore } from './custom-context-modes.js';
 import { handleGitChanges, handleGitDiff, handleGitInfo } from './git-handlers.js';
-import { handleShellOpen, type ShellOpenRequest, type ShellOpenResult } from './shell-open.js';
 import {
   handleMailboxAgents,
   handleMailboxClear,
@@ -72,6 +77,7 @@ import {
   handleMailboxMessages,
   handleMailboxPurge,
 } from './mailbox-handlers.js';
+import type { MailboxRouteHandlers } from './mailbox-routes.js';
 import {
   handleMcpAdd,
   handleMcpDisable,
@@ -88,6 +94,37 @@ import {
   handleMcpUpdate,
   handleMcpWake,
 } from './mcp-handlers.js';
+import type { McpRouteHandlers } from './mcp-routes.js';
+import { createModeHandlers } from './mode-handlers.js';
+import type { ModeRouteHandlers } from './mode-routes.js';
+import {
+  resolveProviderCatalogForModels,
+  resolveProviderModelMetadata,
+  SIBLING_CATALOG,
+} from './model-catalog.js';
+import { type PendingConfirm, resolveYoloEligiblePendingConfirms } from './pending-confirms.js';
+import type { PrefsRouteHandlers } from './prefs-routes.js';
+import { createProjectHandlers } from './project-handlers.js';
+import type { ProjectRouteHandlers } from './project-routes.js';
+import {
+  createProviderHandlers,
+  probeModelDescriptors,
+  projectSavedProviders,
+} from './provider-handlers.js';
+import type { ProviderRouteHandlers } from './provider-routes.js';
+import type { SddBoardRouteHandlers } from './sdd-board-routes.js';
+import type { SddBoardWebSocketHandler } from './sdd-board-ws-handler.js';
+import type { SddWizardRouteHandlers } from './sdd-wizard-routes.js';
+import type { SddWizardWebSocketHandler } from './sdd-wizard-ws-handler.js';
+import { createSessionHandlers } from './session-handlers.js';
+import type { SessionRouteHandlers } from './session-routes.js';
+import type { ShellGitRouteHandlers } from './shell-git-routes.js';
+import { handleShellOpen, type ShellOpenRequest, type ShellOpenResult } from './shell-open.js';
+import type { SpecsRouteHandlers } from './specs-routes.js';
+import type { SpecsWebSocketHandler } from './specs-ws-handler.js';
+import type { TerminalWebSocketHandler } from './terminal-ws-handler.js';
+import type { ConnectedClient } from './types.js';
+import type { WorktreeWebSocketHandler } from './worktree-ws-handler.js';
 import {
   validateBrainAskPayload,
   validateBrainConfigSetPayload,
@@ -100,41 +137,7 @@ import {
   validatePrefsUpdatePayload,
   validateShellOpenPayload,
 } from './ws-payload-validation.js';
-import type { AutoPhaseWebSocketHandler } from './autophase-ws-handler.js';
-import type { SpecsWebSocketHandler } from './specs-ws-handler.js';
-import type { SddBoardWebSocketHandler } from './sdd-board-ws-handler.js';
-import type { SddWizardWebSocketHandler } from './sdd-wizard-ws-handler.js';
-import type { WorktreeWebSocketHandler } from './worktree-ws-handler.js';
-import type { CollaborationWebSocketHandler } from './collaboration-ws-handler.js';
-import type { TerminalWebSocketHandler } from './terminal-ws-handler.js';
 import { broadcast, errMessage, send, sendResult } from './ws-utils.js';
-import {
-  createProviderHandlers,
-  probeModelDescriptors,
-  projectSavedProviders,
-} from './provider-handlers.js';
-import { createModeHandlers } from './mode-handlers.js';
-import { createProjectHandlers } from './project-handlers.js';
-import { createSessionHandlers } from './session-handlers.js';
-import type { ProviderRouteHandlers } from './provider-routes.js';
-import type { SessionRouteHandlers } from './session-routes.js';
-import type { ProjectRouteHandlers } from './project-routes.js';
-import type { ModeRouteHandlers } from './mode-routes.js';
-import type { PrefsRouteHandlers } from './prefs-routes.js';
-import type { ShellGitRouteHandlers } from './shell-git-routes.js';
-import type { MailboxRouteHandlers } from './mailbox-routes.js';
-import type { McpRouteHandlers } from './mcp-routes.js';
-import type { BrainRouteHandlers } from './brain-routes.js';
-import type { AutoPhaseRouteHandlers } from './autophase-routes.js';
-import type { SpecsRouteHandlers } from './specs-routes.js';
-import type { SddBoardRouteHandlers } from './sdd-board-routes.js';
-import type { SddWizardRouteHandlers } from './sdd-wizard-routes.js';
-
-import { patchConfig } from './boot.js';
-import type { ConnectedClient } from './types.js';
-import type { CustomModeStore } from './custom-context-modes.js';
-import { resolveYoloEligiblePendingConfirms, type PendingConfirm } from './pending-confirms.js';
-import { resolveProviderCatalogForModels, resolveProviderModelMetadata, SIBLING_CATALOG } from './model-catalog.js';
 
 type ProviderModelDescriptor = ReturnType<typeof resolveProviderModelList>[number];
 
@@ -505,41 +508,98 @@ export function buildRoutes(
       }
     },
     refineModel: async (ws, msg) => {
-      const { text } = (msg as { payload: { text: string } }).payload;
+      const payload = (
+        msg as {
+          payload: {
+            text: string;
+            timeoutMs?: number;
+            provider?: string;
+            model?: string;
+          };
+        }
+      ).payload;
+      const { text } = payload;
       if (!text?.trim()) {
         send(ws, {
           type: 'model.refine_result',
-          payload: { refined: '', english: '', error: 'Empty text' },
+          payload: { refined: '', english: '', error: 'Empty text', errorKind: 'provider_error' },
         });
         return;
       }
+      const cfg = state.getConfig();
+      // Resolve the one-key "retry with another model" offer against the live
+      // provider/model so the active model is never offered as its own fallback.
+      const fallbackRef = resolveEnhanceFallbackRef({
+        ...cfg,
+        provider: cfg.provider ?? '',
+        model: cfg.model ?? '',
+      });
+
+      // Refine on the picked provider/model (ephemeral, no session switch) when
+      // supplied; otherwise use the live session provider/model.
+      let provider = deps.context.provider;
+      let providerId = cfg.provider ?? '';
+      let model = deps.context.model;
+      if (payload.provider && payload.model) {
+        try {
+          const providerCfg: ProviderConfig = cfg.providers?.[payload.provider] ?? {
+            type: payload.provider,
+          };
+          provider = deps.providerRegistry.has(payload.provider)
+            ? deps.providerRegistry.create({ ...providerCfg, type: payload.provider } as never)
+            : makeProviderFromConfig(payload.provider, providerCfg);
+          providerId = payload.provider;
+          model = payload.model;
+        } catch (err) {
+          send(ws, {
+            type: 'model.refine_result',
+            payload: {
+              refined: text,
+              english: text,
+              error: `Cannot use ${payload.provider}/${payload.model}: ${errMessage(err)}`,
+              errorKind: 'provider_error',
+              ...(fallbackRef ? { fallbackRef } : {}),
+            },
+          });
+          return;
+        }
+      }
+
+      const baseTimeout = 90000;
+      const timeoutMs =
+        typeof payload.timeoutMs === 'number' && payload.timeoutMs > 0
+          ? payload.timeoutMs
+          : baseTimeout;
       try {
         const history = recentTextTurns(deps.context.messages);
-        // Gate a low-effort reasoning hint to the active model's capabilities
-        // (config is patched live on model.switch). Refinement is a shallow
-        // rewrite, so this trims wasted thinking on reasoning models; resolves
-        // to undefined → no reasoning field, as before.
-        const cfg = state.getConfig();
+        // Gate a low-effort reasoning hint to the chosen model's capabilities.
+        // Refinement is a shallow rewrite, so this trims wasted thinking on
+        // reasoning models; resolves to undefined → no reasoning field.
         const resolved = await resolveProviderModelMetadata(
           deps.modelsRegistry,
-          cfg.provider ?? '',
-          cfg.model ?? '',
-          cfg.providers?.[cfg.provider ?? ''],
+          providerId,
+          model,
+          cfg.providers?.[providerId],
         ).catch(() => undefined);
         const reasoning = gatedEnhancerReasoning(resolved?.capabilities?.reasoningConfig as never);
+        let failureKind: EnhanceFailureKind | undefined;
         const result = await enhanceUserPrompt({
-          provider: deps.context.provider,
-          model: deps.context.model,
+          provider,
+          model,
           text,
           history,
-          timeoutMs: 90000,
+          timeoutMs,
           ...(reasoning ? { reasoning } : {}),
-          onError: (reason: unknown) => {
+          onError: (reason: unknown, kind?: EnhanceFailureKind) => {
+            failureKind = kind;
             console.warn(
               JSON.stringify({
                 level: 'warn',
                 event: 'model.refine_failed',
                 reason,
+                kind,
+                provider: providerId,
+                model,
                 timestamp: new Date().toISOString(),
               }),
             );
@@ -548,12 +608,25 @@ export function buildRoutes(
         if (result) {
           send(ws, {
             type: 'model.refine_result',
-            payload: { refined: result.refined, english: result.english },
+            payload: {
+              refined: result.refined,
+              english: result.english,
+              refinedWith: { provider: providerId, model },
+            },
           });
         } else {
           send(ws, {
             type: 'model.refine_result',
-            payload: { refined: text, english: text, error: 'Refinement returned no result' },
+            payload: {
+              refined: text,
+              english: text,
+              error: 'Refinement returned no result',
+              errorKind: failureKind ?? 'empty',
+              ...(failureKind === 'timeout'
+                ? { retryTimeoutMs: nextEnhanceTimeout(timeoutMs, cfg.autonomy) }
+                : {}),
+              ...(fallbackRef ? { fallbackRef } : {}),
+            },
           });
         }
       } catch (err) {
@@ -567,7 +640,13 @@ export function buildRoutes(
         );
         send(ws, {
           type: 'model.refine_result',
-          payload: { refined: text, english: text, error: errMessage(err) },
+          payload: {
+            refined: text,
+            english: text,
+            error: errMessage(err),
+            errorKind: 'provider_error',
+            ...(fallbackRef ? { fallbackRef } : {}),
+          },
         });
       }
     },

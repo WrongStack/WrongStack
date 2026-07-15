@@ -210,7 +210,17 @@ export function useWebSocket() {
   const repairContext = useCallback(() => client.repairContext(), [client]);
 
   // Model refine
-  const refineModel = useCallback((text: string) => client.refineModel(text), [client]);
+  const refineModel = useCallback(
+    (
+      text: string,
+      opts?: {
+        timeoutMs?: number | undefined;
+        provider?: string | undefined;
+        model?: string | undefined;
+      },
+    ) => client.refineModel(text, opts),
+    [client],
+  );
 
   // Autonomy / Preferences
   const switchAutonomy = useCallback((mode: string) => client.switchAutonomy(mode), [client]);

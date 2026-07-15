@@ -79,19 +79,16 @@ export const FLEET_ROSTER: Record<string, SubagentConfig> = {
 };
 
 // ---------------------------------------------------------------------------
-// Default per-role budgets.
+// Default per-role budgets — tuned for token cost efficiency.
 //
-// MASSIVELY RAISED from earlier values. User requested x5–x10 multiplier
-// to prevent any timeout or budget exhaustion on long-running tasks
-// like monorepo audits, deep refactors, and security scans.
+// Reduced from x10 to ~x5 to prevent runaway costs while keeping enough
+// headroom for productive multi-step tasks. A subagent that needs more
+// can explicitly set `timeoutMs`/`maxIterations`/`maxToolCalls` via the
+// delegate tool or the per-task `budget` field in spawn.
 //
-// x10 values (realistic upper bound for a single subagent task):
-//   audit-log:        7.5 hours, 5000 iterations, 15000 tool calls
-//   bug-hunter:       10 hours,  8000 iterations, 20000 tool calls
-//   refactor-planner: 7.5 hours, 6000 iterations, 18000 tool calls
-//   security-scanner: 10 hours,  8000 iterations, 20000 tool calls
-//
-// These can be overridden per-call via delegate tool parameters.
+// Shrinking defaults means each subagent consumes fewer iterations and
+// tool calls before budget renegotiation kicks in, and a runaway agent
+// hits its ceiling sooner.
 // ---------------------------------------------------------------------------
 export interface FleetRosterBudget {
   timeoutMs?: number | undefined;
@@ -104,26 +101,25 @@ export interface FleetRosterBudget {
 }
 
 /**
- * Default idle window for delegated subagents: reap only after this long with
+ * Default idle window for delegated subagents: reap after 10 min with
  * NO activity (no iteration / tool call / streamed progress). An actively-
  * working agent resets this clock continuously, so it runs until its task
- * naturally ends — no more wall-clock kills of productive runs. Power users
- * can still impose a hard `timeoutMs` per delegate.
+ * naturally ends. Power users can still impose a hard `timeoutMs` per delegate.
  */
-export const DEFAULT_IDLE_TIMEOUT_MS = 15 * 60 * 1000;
+export const DEFAULT_IDLE_TIMEOUT_MS = 10 * 60 * 1000;
 
 export const FLEET_ROSTER_BUDGETS: Record<string, FleetRosterBudget> = {
-  'audit-log': { timeoutMs: 7.5 * 60 * 60 * 1000, maxIterations: 5000, maxToolCalls: 15000 },
-  'bug-hunter': { timeoutMs: 10 * 60 * 60 * 1000, maxIterations: 8000, maxToolCalls: 20000 },
-  'refactor-planner': { timeoutMs: 7.5 * 60 * 60 * 1000, maxIterations: 6000, maxToolCalls: 18000 },
-  'security-scanner': { timeoutMs: 10 * 60 * 60 * 1000, maxIterations: 8000, maxToolCalls: 20000 },
-  critic: { timeoutMs: 5 * 60 * 60 * 1000, maxIterations: 4000, maxToolCalls: 12000 },
+  'audit-log': { timeoutMs: 3 * 60 * 60 * 1000, maxIterations: 2500, maxToolCalls: 7500 },
+  'bug-hunter': { timeoutMs: 5 * 60 * 60 * 1000, maxIterations: 4000, maxToolCalls: 10000 },
+  'refactor-planner': { timeoutMs: 4 * 60 * 60 * 1000, maxIterations: 3000, maxToolCalls: 9000 },
+  'security-scanner': { timeoutMs: 5 * 60 * 60 * 1000, maxIterations: 4000, maxToolCalls: 10000 },
+  critic: { timeoutMs: 3 * 60 * 60 * 1000, maxIterations: 2000, maxToolCalls: 6000 },
   'shadow-agent': {
     idleTimeoutMs: DEFAULT_IDLE_TIMEOUT_MS,
-    maxIterations: 2000,
-    maxToolCalls: 5000,
-    maxTokens: 60_000,
-    maxCostUsd: 1,
+    maxIterations: 1000,
+    maxToolCalls: 2500,
+    maxTokens: 30_000,
+    maxCostUsd: 0.5,
   },
   ...Object.fromEntries(
     ALL_AGENT_DEFINITIONS.map((d) => [d.config.role as string, d.budget] as const),
@@ -141,8 +137,8 @@ export const FLEET_ROSTER_BUDGETS: Record<string, FleetRosterBudget> = {
 // remain as a runaway backstop.
 const GENERIC_SUBAGENT_BUDGET: FleetRosterBudget = {
   idleTimeoutMs: DEFAULT_IDLE_TIMEOUT_MS,
-  maxIterations: 5000,
-  maxToolCalls: 15000,
+  maxIterations: 2500,
+  maxToolCalls: 7500,
 };
 
 export function applyRosterBudget(cfg: SubagentConfig): SubagentConfig {

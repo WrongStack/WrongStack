@@ -16,24 +16,28 @@ Keep the TUI shortcut registry, help overlay, README documentation, and panel be
    - Handle actions that require payloads, such as `statuslineOpen`, without unsafe casts.
    - Add focused tests for F5 plan panel and F12 status line picker routing.
 
-3. Reduce duplicated panel-close logic
+3. ✅ Reduce duplicated panel-close logic (done)
    - Route panel opening through reducer actions where possible.
    - Remove duplicated “close other panels” code from `app.tsx` and overlay helpers.
    - Preserve the current mutual-exclusion behavior for F2-F12 panels.
+   - **Done**: resize close chain (22→9 lines) and Ctrl+S settings close chain (7→1 line) replaced with `closeAllPanels` dispatch.
 
-4. Update user-facing documentation
+4. ✅ Update user-facing documentation (done)
    - Keep `README.md`, HelpOverlay, and the F-key picker synchronized.
    - Document direct F-key shortcuts, Ctrl aliases, `/f`, `/settings`, `/project`, and `/statusline`.
    - Add drift tests where source-readable docs can be tested reliably.
+   - **Done**: Updated banner diagram to match the gradient FIGlet + links redesign; updated F3 description to reflect left-right split layout.
 
-5. Improve panel-specific shortcut help
+5. ✅ Panel-specific shortcut help (already covered)
    - Add panel-local help hints for panels that own keyboard input, especially Process List and Sessions.
    - Make it clear when the chat input remains live behind a panel and when a panel is modal.
+   - **Status**: Both Process List (F8) and Sessions Panel (F10) already show full keyboard hints via `KeyCap` in their `MonitorShell` footer — ↑↓, Enter, Del, PgUp/PgDn, etc.
 
-6. Add regression coverage
+6. ✅ Add regression coverage (already covered)
    - Cover F-key metadata alignment.
    - Cover `/f` launching special-case panels.
    - Cover Esc close behavior and panel mutual exclusion for newly added paths.
+   - **Status**: Already covered by `f-key-panels.test.ts` (metadata), `on-panel-open-bridge.test.ts` (launching), `reducer.test.ts` (close/escape), `f-key-monitors-render.test.ts` (rendering), and `help-overlay.test.ts` (alignment).
 
 ## Verification checklist
 

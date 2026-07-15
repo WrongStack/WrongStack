@@ -43,6 +43,19 @@ export interface HookRegistrationOptions {
    * ordinary automation hooks do not.
    */
   policy?: boolean | undefined;
+  /**
+   * PostToolUse only: when true, the hook runs fire-and-forget in the
+   * background. The tool executor returns immediately without waiting for
+   * the hook to complete. The hook's `additionalContext` is discarded —
+   * use this for purely advisory hooks (format-on-save, code-metrics,
+   * etc.) where the LLM doesn't need same-turn feedback.
+   *
+   * PreToolUse hooks ignore this flag — they must complete before the
+   * tool runs for correctness and security.
+   *
+   * Default: false (hooks block the tool result).
+   */
+  background?: boolean | undefined;
 }
 
 /** Deadline/cancellation context passed to in-process hooks. */
@@ -160,6 +173,7 @@ interface HookEntryBase {
   failurePolicy: HookFailurePolicy;
   stage: PreToolUseStage;
   policy: boolean;
+  background: boolean;
 }
 
 /** A registered hook entry, discriminated by transport. */

@@ -811,6 +811,19 @@ export interface AutonomyConfig {
   enhanceDelayMs?: number | undefined;
   /** Prompt-refinement language mode. Default: "original". */
   enhanceLanguage?: 'original' | 'english' | undefined;
+  /**
+   * `provider/model` ref used for the one-key "retry with another model" action
+   * offered when a refinement fails. When unset, the recovery UI falls back to
+   * the first entry of the effective fallback chain (see
+   * `resolveEnhanceFallbackRef`). Default: unset.
+   */
+  enhanceFallbackModel?: string | undefined;
+  /**
+   * Timeout (ms) used when RETRYING a refinement after the first attempt timed
+   * out — the "extra time" retry. When unset, the retry uses
+   * `max(baseTimeout * 2, 180000)`. Default: unset.
+   */
+  enhanceRetryTimeoutMs?: number | undefined;
   /** TUI statusline density. Default: "detailed". */
   statuslineMode?: 'minimum' | 'detailed' | 'no-color' | undefined;
   /** Single short word shown in the TUI rainbow working-state chip. Default: "thinking". */

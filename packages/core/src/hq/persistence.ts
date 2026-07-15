@@ -215,6 +215,23 @@ export interface HqTimeseriesSample {
   toolCalls: number;
   /** Snapshot of active agents at bucket close (last-write per bucket). */
   activeAgents?: number;
+  /** Per-dimension cost/token breakdowns for richer trend charts. */
+  byModel?: Record<string, HqTimeseriesBreakdownEntry>;
+  byProvider?: Record<string, HqTimeseriesBreakdownEntry>;
+}
+
+/**
+ * One row of a per-dimension breakdown inside a {@link HqTimeseriesSample}
+ * (e.g. the cost + tokens attributed to a single model or provider within the
+ * bucket). Sums of these across a dimension equal the bucket's totals when
+ * every cost signal carried that dimension.
+ */
+export interface HqTimeseriesBreakdownEntry {
+  costUsd: number;
+  inputTokens: number;
+  outputTokens: number;
+  cacheRead?: number | undefined;
+  cacheWrite?: number | undefined;
 }
 
 export interface HqTimeseriesStoreOptions {
@@ -259,6 +276,12 @@ export class HqTimeseriesStore {
     outputTokens?: number;
     toolCalls?: number;
     activeAgents?: number;
+    /** When present, this signal is also attributed to a model dimension. */
+    model?: string;
+    /** When present, this signal is also attributed to a provider dimension. */
+    provider?: string;
+    cacheRead?: number;
+    cacheWrite?: number;
   }): void {
     const start = this.bucketStart(signal.ts ?? Date.now());
     let bucket = this.buckets.get(start);
@@ -271,6 +294,23 @@ export class HqTimeseriesStore {
     if (signal.outputTokens !== undefined) bucket.outputTokens += signal.outputTokens;
     if (signal.toolCalls !== undefined) bucket.toolCalls += signal.toolCalls;
     if (signal.activeAgents !== undefined) bucket.activeAgents = signal.activeAgents;
+    // Attribute this cost signal to its model / provider dimension when known,
+    // so trend charts can break spend down without scraping the event log.
+    if (signal.model !== undefined || signal.provider !== undefined) {
+      const entry: HqTimeseriesBreakdownEntry = {
+        costUsd: signal.costUsd ?? 0,
+        inputTokens: signal.inputTokens ?? 0,
+        outputTokens: signal.outputTokens ?? 0,
+        ...(signal.cacheRead !== undefined ? { cacheRead: signal.cacheRead } : {}),
+        ...(signal.cacheWrite !== undefined ? { cacheWrite: signal.cacheWrite } : {}),
+      };
+      if (signal.model !== undefined) {
+        bucket.byModel = foldBreakdown(bucket.byModel, signal.model, entry);
+      }
+      if (signal.provider !== undefined) {
+        bucket.byProvider = foldBreakdown(bucket.byProvider, signal.provider, entry);
+      }
+    }
     // Prune in-memory buckets beyond retention so a long-lived HQ doesn't
     // accumulate unbounded history. Keep the most-recent maxBuckets.
     if (this.buckets.size > this.maxBuckets) {
@@ -354,12 +394,101 @@ export class HqTimeseriesStore {
   }
 }
 
+/**
+ * Fold a breakdown entry into a per-dimension map (model or provider), summing
+ * cost/token fields and merging cache counts. Returns a new map so the caller
+ * can assign it back immutably.
+ */
+function foldBreakdown(
+  map: Record<string, HqTimeseriesBreakdownEntry> | undefined,
+  key: string,
+  entry: HqTimeseriesBreakdownEntry,
+): Record<string, HqTimeseriesBreakdownEntry> {
+  const next: Record<string, HqTimeseriesBreakdownEntry> = { ...map };
+  const existing = next[key];
+  if (existing === undefined) {
+    next[key] = { ...entry };
+  } else {
+    next[key] = {
+      costUsd: existing.costUsd + entry.costUsd,
+      inputTokens: existing.inputTokens + entry.inputTokens,
+      outputTokens: existing.outputTokens + entry.outputTokens,
+      cacheRead:
+        existing.cacheRead !== undefined || entry.cacheRead !== undefined
+          ? (existing.cacheRead ?? 0) + (entry.cacheRead ?? 0)
+          : undefined,
+      cacheWrite:
+        existing.cacheWrite !== undefined || entry.cacheWrite !== undefined
+          ? (existing.cacheWrite ?? 0) + (entry.cacheWrite ?? 0)
+          : undefined,
+    };
+  }
+  return next;
+}
+
+// ── HqSimpleLog (generic append-only JSONL for audit/alert records) ──────────
+
+/**
+ * A minimal append-only JSONL log used for records that don't need rotation
+ * compaction — command-audit entries and fired alerts. Each record is one
+ * JSON line appended under a FIFO write chain; {@link readAll} parses them
+ * oldest-first. Best-effort: a rejected append resolves (never rejects) so the
+ * HQ server hot path is never broken.
+ */
+export class HqSimpleLog<T> {
+  private readonly filePath: string;
+  private writeChain: Promise<void> = Promise.resolve();
+
+  constructor(dataDir: string, filename: string) {
+    this.filePath = path.join(dataDir, filename);
+  }
+
+  /** Append one record as a JSON line. Best-effort, never rejects. */
+  append(record: T): void {
+    this.writeChain = this.writeChain
+      .then(() => fs.appendFile(this.filePath, `${JSON.stringify(record)}\n`, { encoding: 'utf8' }))
+      .catch(() => {
+        /* best-effort: a failed append must not break the write chain */
+      });
+  }
+
+  /** Resolves once all queued appends have settled. For tests. */
+  async drain(): Promise<void> {
+    await this.writeChain.catch(() => {
+      /* best-effort */
+    });
+  }
+
+  /** Read all records oldest-first. Returns `[]` if the file doesn't exist. */
+  async readAll(): Promise<T[]> {
+    let content: string;
+    try {
+      content = await fs.readFile(this.filePath, 'utf8');
+    } catch {
+      return [];
+    }
+    const out: T[] = [];
+    for (const line of content.split('\n')) {
+      const trimmed = line.trim();
+      if (!trimmed) continue;
+      try {
+        out.push(JSON.parse(trimmed) as T);
+      } catch {
+        /* skip malformed lines */
+      }
+    }
+    return out;
+  }
+}
+
 // ── Aggregate persistence facade ─────────────────────────────────────────────
 
 export interface HqPersistence {
   eventLog: HqEventLog;
   snapshotStore: HqSnapshotStore;
   timeseries: HqTimeseriesStore;
+  commandLog: HqSimpleLog<unknown>;
+  alertLog: HqSimpleLog<unknown>;
 }
 
 export function createHqPersistence(dataDir: string): HqPersistence {
@@ -367,5 +496,7 @@ export function createHqPersistence(dataDir: string): HqPersistence {
     eventLog: new HqEventLog({ dataDir }),
     snapshotStore: new HqSnapshotStore({ dataDir }),
     timeseries: new HqTimeseriesStore({ dataDir }),
+    commandLog: new HqSimpleLog(dataDir, 'commands.jsonl'),
+    alertLog: new HqSimpleLog(dataDir, 'alerts.jsonl'),
   };
 }

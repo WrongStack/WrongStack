@@ -68,7 +68,7 @@ export class DefaultTokenCounter implements TokenCounter {
     const price = model ? this.priceCache.get(model) : undefined;
     if (price) {
       this.applyPrice(usage, price);
-      this.emitAccounted(eventSessionId);
+      this.emitAccounted(eventSessionId, model);
       return;
     }
 
@@ -90,7 +90,7 @@ export class DefaultTokenCounter implements TokenCounter {
           // Token totals are authoritative even when pricing is unresolved.
           // Emit after the lookup settles so live UIs update for unknown models
           // without double-emitting when pricing is resolved.
-          this.emitAccounted(eventSessionId);
+          this.emitAccounted(eventSessionId, model);
         })
         .catch(() => {
           // Emit so observability tooling can detect unknown models.
@@ -98,7 +98,7 @@ export class DefaultTokenCounter implements TokenCounter {
             ...(eventSessionId ? { sessionId: eventSessionId } : {}),
             model: model ?? '<unknown>',
           });
-          this.emitAccounted(eventSessionId);
+          this.emitAccounted(eventSessionId, model);
           return undefined;
         });
       return;
@@ -106,7 +106,7 @@ export class DefaultTokenCounter implements TokenCounter {
 
     // No pricing source exists. Still emit token totals so live UIs do not stay
     // at 0 just because cost cannot be estimated.
-    this.emitAccounted(eventSessionId);
+    this.emitAccounted(eventSessionId, model);
   }
 
   /** Synchronous variant for code paths that have already resolved the model. */
@@ -123,11 +123,11 @@ export class DefaultTokenCounter implements TokenCounter {
     const price = priceFromModel(resolved);
     if (this.priceCache.size >= PRICE_CACHE_MAX_SIZE) {
       const keys = [...this.priceCache.keys()];
-        this.priceCache.delete(keys[0] ?? '');
+      this.priceCache.delete(keys[0] ?? '');
     }
     this.priceCache.set(resolved.modelId, price);
     this.applyPrice(usage, price);
-    this.emitAccounted(eventSessionId);
+    this.emitAccounted(eventSessionId, resolved.modelId);
   }
 
   total(): Usage {
@@ -175,11 +175,13 @@ export class DefaultTokenCounter implements TokenCounter {
     this.priceCache.clear();
   }
 
-  private emitAccounted(sessionId = this.currentSessionId()): void {
+  private emitAccounted(sessionId = this.currentSessionId(), model?: string): void {
     this.events?.emit('token.accounted', {
       ...(sessionId ? { sessionId } : {}),
       usage: this.total(),
       cost: { input: this.costInput, output: this.costOutput, total: this.costInput + this.costOutput },
+      ...(this.providerId ? { provider: this.providerId } : {}),
+      ...(model ? { model } : {}),
     });
   }
 

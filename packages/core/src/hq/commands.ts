@@ -203,16 +203,19 @@ export interface HqCommandAuditEntry {
 }
 
 /**
- * In-memory command audit ring. Capped; the Phase 2 persistence layer can
- * sink entries to disk when wired (future). For now this gives the server a
- * queryable history for `/api/commands` and snapshot enrichment.
+ * In-memory command audit ring. Capped for cheap reads. When an `onPersist`
+ * callback is wired, every record/update also sinks a snapshot of the entry to
+ * the caller's durable store (e.g. HQ's `commands.jsonl`) so history survives
+ * restarts. The ring remains the read path for `/api/commands`.
  */
 export class HqCommandAuditLog {
   private readonly entries: HqCommandAuditEntry[] = [];
   private readonly max: number;
+  private readonly onPersist?: ((entry: HqCommandAuditEntry) => void) | undefined;
 
-  constructor(max = 1000) {
+  constructor(max = 1000, onPersist?: ((entry: HqCommandAuditEntry) => void) | undefined) {
     this.max = max;
+    this.onPersist = onPersist;
   }
 
   record(entry: HqCommandAuditEntry): void {
@@ -220,11 +223,15 @@ export class HqCommandAuditLog {
     if (this.entries.length > this.max) {
       this.entries.splice(0, this.entries.length - this.max);
     }
+    this.onPersist?.(entry);
   }
 
   update(commandId: string, patch: Partial<HqCommandAuditEntry>): void {
     const entry = this.entries.find((e) => e.commandId === commandId);
-    if (entry) Object.assign(entry, patch);
+    if (entry) {
+      Object.assign(entry, patch);
+      this.onPersist?.(entry);
+    }
   }
 
   /** Update only when the command belongs to the authenticated client. */
@@ -238,7 +245,18 @@ export class HqCommandAuditLog {
     );
     if (!entry) return false;
     Object.assign(entry, patch);
+    this.onPersist?.(entry);
     return true;
+  }
+
+  /** Seed the ring from a durable store on boot (no persist callback fired). */
+  seed(entries: readonly HqCommandAuditEntry[]): void {
+    for (const entry of entries) {
+      this.entries.push(entry);
+    }
+    if (this.entries.length > this.max) {
+      this.entries.splice(0, this.entries.length - this.max);
+    }
   }
 
   recent(limit = 200): HqCommandAuditEntry[] {

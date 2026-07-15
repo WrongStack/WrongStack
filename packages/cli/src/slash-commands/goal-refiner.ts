@@ -2,6 +2,7 @@ import {
   readBundledInstructionText,
   renderInstructionTemplate,
   type Config,
+  type OneShotOrchestrator,
   type Provider,
 } from '@wrongstack/core';
 
@@ -30,6 +31,12 @@ export interface GoalRefinerOptions {
   refinerProvider?: Provider | undefined;
   /** Model on the refiner provider. Ignored when `refinerProvider` is unset. */
   refinerModel?: string | undefined;
+  /**
+   * OneShotOrchestrator for LLM refinement. When set, uses it instead
+   * of direct provider.complete() for the LLM call, gaining fallback
+   * chain support and cheap-model defaulting.
+   */
+  oneShotOrchestrator?: OneShotOrchestrator | undefined;
 }
 
 // ---------------------------------------------------------------------------
@@ -81,8 +88,8 @@ export function resolveRefinerTarget(
   // ── Tier 1: fallback profile ──
   const refinerFallback = cfg.autonomy?.refinerFallbackProfile;
   if (refinerFallback) {
-    const profileChain = (cfg.fallbackProfiles ?? {})[refinerFallback];
-    if (profileChain && profileChain.length > 0 && profileChain[0]) {
+    const profileChain = cfg.fallbackProfiles?.[refinerFallback];
+    if (profileChain?.[0]) {
       const resolved = resolveProfileEntry(profileChain[0], cfg, createProvider, activeProviderId, activeModel);
       if (resolved) return resolved;
     }
@@ -190,27 +197,39 @@ export async function refineGoal(
   rawGoal: string,
   provider: Provider,
   model: string,
+  oneShotOrchestrator?: OneShotOrchestrator | undefined,
 ): Promise<RefinedGoal | null> {
   const prompt = buildRefinementPrompt(rawGoal);
 
   try {
-    const signal = AbortSignal.timeout(30_000);
-    const response = await provider.complete(
-      {
-        model,
-        system: [{ type: 'text', text: prompt }],
-        messages: [{ role: 'user', content: 'Produce the refined goal.' }],
+    let raw: string;
+    if (oneShotOrchestrator) {
+      const result = await oneShotOrchestrator.call({
+        system: prompt,
+        userPrompt: 'Produce the refined goal.',
+        model: 'deepseek-chat',
         maxTokens: 1000,
-      },
-      { signal },
-    );
+        timeoutMs: 30_000,
+      });
+      if (result.error) return null;
+      raw = result.text;
+    } else {
+      const signal = AbortSignal.timeout(30_000);
+      const response = await provider.complete(
+        {
+          model,
+          system: [{ type: 'text', text: prompt }],
+          messages: [{ role: 'user', content: 'Produce the refined goal.' }],
+          maxTokens: 1000,
+        },
+        { signal },
+      );
+      raw = extractText(response) ?? '';
+    }
 
-    const text = extractText(response);
-    if (!text) return null;
-
-    return parseRefinement(text, rawGoal);
+    if (!raw) return null;
+    return parseRefinement(raw, rawGoal);
   } catch {
-    // LLM unavailable — use the raw goal as-is
     return null;
   }
 }

@@ -1,10 +1,15 @@
 import {
   type Agent,
+  type Config,
+  type EnhanceFailureKind,
   enhanceUserPrompt,
   gatedEnhancerReasoning,
   type ModelsRegistry,
   type ModeStore,
+  nextEnhanceTimeout,
+  type Provider,
   recentTextTurns,
+  resolveEnhanceFallbackRef,
   ToolValidationError,
 } from '@wrongstack/core';
 import { toErrorMessage } from '@wrongstack/core/utils';
@@ -41,6 +46,13 @@ export interface AgentConfigContext extends WsCommon {
    * absent the refiner sends no reasoning field (unchanged behavior).
    */
   modelsRegistry?: ModelsRegistry | undefined;
+  /**
+   * Live app config accessor — used by the refine handler to resolve the
+   * one-key "retry with another model" fallback ref (see
+   * `resolveEnhanceFallbackRef`). Optional: when absent no fallback ref is
+   * offered (the user can still pick a model explicitly).
+   */
+  getConfig?: (() => Config | undefined) | undefined;
   onMaxContextResolved?:
     | ((providerId: string, modelId: string, maxContext: number) => void)
     | undefined;
@@ -173,7 +185,12 @@ export async function applyModelSwitch(
     else delete actx.meta['effectiveMaxContext'];
     ctx.broadcast({
       type: 'ctx.max_context',
-      payload: { sessionId: actx.session.id, providerId: newProvider, modelId: newModel, maxContext },
+      payload: {
+        sessionId: actx.session.id,
+        providerId: newProvider,
+        modelId: newModel,
+        maxContext,
+      },
     });
   }
   const payloadOut = await ctx.buildSessionStart();
@@ -194,42 +211,108 @@ export async function handleModelSwitch(
   }
 }
 
+/**
+ * Build a provider for `providerId` from saved config WITHOUT mutating the
+ * live agent — used to refine on a user-picked model ("retry with another
+ * model") while leaving the session's own provider/model untouched.
+ */
+async function buildEphemeralProvider(
+  ctx: AgentConfigContext,
+  providerId: string,
+): Promise<Provider> {
+  const saved = await loadSavedProviders(ctx.globalConfigPath);
+  const providerCfg = saved[providerId] ?? { type: providerId };
+  return makeProviderFromConfig(providerId, providerCfg);
+}
+
+export interface ModelRefinePayload {
+  text: string;
+  /** Retry window override (ms) — set on the auto-retry after a timeout. */
+  timeoutMs?: number | undefined;
+  /** Refine on this provider/model instead of the session's (ephemeral). */
+  provider?: string | undefined;
+  model?: string | undefined;
+}
+
 export async function handleModelRefine(
   ctx: AgentConfigContext,
   ws: WebSocket,
-  text: string,
+  payload: ModelRefinePayload,
 ): Promise<void> {
+  const { text } = payload;
   if (!text?.trim()) {
     ctx.send(ws, {
       type: 'model.refine_result',
-      payload: { refined: '', english: '', error: 'Empty text' },
+      payload: { refined: '', english: '', error: 'Empty text', errorKind: 'provider_error' },
     });
     return;
   }
+  const actx = ctx.agent.ctx;
+  const cfg = ctx.getConfig?.();
+  // Compute the one-key fallback ref against the LIVE provider/model so the
+  // active model is never offered as its own fallback.
+  const liveProviderId = (actx.provider as { id: string }).id;
+  const fallbackRef =
+    cfg !== undefined
+      ? resolveEnhanceFallbackRef({ ...cfg, provider: liveProviderId, model: actx.model })
+      : undefined;
+
+  // When the client picked another provider/model, refine ephemerally on it;
+  // otherwise use the live session provider/model.
+  let provider = actx.provider;
+  let providerId = liveProviderId;
+  let model = actx.model;
+  if (payload.provider && payload.model) {
+    try {
+      provider = await buildEphemeralProvider(ctx, payload.provider);
+      providerId = payload.provider;
+      model = payload.model;
+    } catch (err) {
+      ctx.send(ws, {
+        type: 'model.refine_result',
+        payload: {
+          refined: text,
+          english: text,
+          error: `Cannot use ${payload.provider}/${payload.model}: ${toErrorMessage(err)}`,
+          errorKind: 'provider_error',
+          ...(fallbackRef ? { fallbackRef } : {}),
+        },
+      });
+      return;
+    }
+  }
+
+  const baseTimeout = 90000;
+  const timeoutMs =
+    typeof payload.timeoutMs === 'number' && payload.timeoutMs > 0
+      ? payload.timeoutMs
+      : baseTimeout;
   try {
-    const actx = ctx.agent.ctx;
     const history = recentTextTurns(actx.messages);
-    // Gate a low-effort reasoning hint to the active model so the refiner does
+    // Gate a low-effort reasoning hint to the chosen model so the refiner does
     // not waste thinking on this shallow rewrite. Resolves to undefined (→ no
     // reasoning field, unchanged behavior) when the registry is absent, the
     // lookup fails, or the model can't safely reduce reasoning.
-    const resolved = await ctx.modelsRegistry
-      ?.getModel((actx.provider as { id: string }).id, actx.model)
-      .catch(() => undefined);
+    const resolved = await ctx.modelsRegistry?.getModel(providerId, model).catch(() => undefined);
     const reasoning = gatedEnhancerReasoning(resolved?.capabilities.reasoningConfig);
+    let failureKind: EnhanceFailureKind | undefined;
     const result = await enhanceUserPrompt({
-      provider: actx.provider,
-      model: actx.model,
+      provider,
+      model,
       text,
       history,
-      timeoutMs: 90000,
+      timeoutMs,
       ...(reasoning ? { reasoning } : {}),
-      onError: (reason) => {
+      onError: (reason, kind) => {
+        failureKind = kind;
         ctx.log(
           JSON.stringify({
             level: 'warn',
             event: 'model.refine_failed',
             reason,
+            kind,
+            provider: providerId,
+            model,
             timestamp: new Date().toISOString(),
           }),
         );
@@ -238,12 +321,25 @@ export async function handleModelRefine(
     if (result) {
       ctx.send(ws, {
         type: 'model.refine_result',
-        payload: { refined: result.refined, english: result.english },
+        payload: {
+          refined: result.refined,
+          english: result.english,
+          refinedWith: { provider: providerId, model },
+        },
       });
     } else {
       ctx.send(ws, {
         type: 'model.refine_result',
-        payload: { refined: text, english: text, error: 'Refinement returned no result' },
+        payload: {
+          refined: text,
+          english: text,
+          error: 'Refinement returned no result',
+          errorKind: failureKind ?? 'empty',
+          ...(failureKind === 'timeout'
+            ? { retryTimeoutMs: nextEnhanceTimeout(timeoutMs, cfg?.autonomy) }
+            : {}),
+          ...(fallbackRef ? { fallbackRef } : {}),
+        },
       });
     }
   } catch (err) {
@@ -253,6 +349,8 @@ export async function handleModelRefine(
         refined: text,
         english: text,
         error: toErrorMessage(err),
+        errorKind: 'provider_error',
+        ...(fallbackRef ? { fallbackRef } : {}),
       },
     });
   }

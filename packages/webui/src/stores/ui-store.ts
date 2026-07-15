@@ -232,6 +232,22 @@ interface UIState {
     refined: string;
     english: string;
     resolve: (decision: 'refined' | 'english' | 'original' | 'edit') => void;
+    /**
+     * Lifecycle of the refine round-trip:
+     *  - 'refining': request in flight (first attempt or an extended retry);
+     *  - 'ready': a usable refinement arrived (comparison UI shown);
+     *  - 'failed': the attempt failed and the recovery UI is shown.
+     * Absent → treated as 'refining' (back-compat with the placeholder check).
+     */
+    status?: 'refining' | 'ready' | 'failed' | undefined;
+    /** Human-readable failure reason (status === 'failed'). */
+    error?: string | undefined;
+    /** Machine-readable failure class driving the recovery options. */
+    errorKind?: 'timeout' | 'empty' | 'provider_error' | undefined;
+    /** One-key "retry with another model" offer (provider/model), if the server resolved one. */
+    fallbackRef?: string | undefined;
+    /** True once the automatic timeout retry has been spent (so we don't loop). */
+    retried?: boolean | undefined;
   } | null;
 
   /** Prompt library modal (browse/search/insert prompts) open state. */

@@ -6,10 +6,12 @@
  *
  * Source: the `token.accounted` EventBus event, emitted by the TokenCounter
  * (`infrastructure/token-counter.ts`) after every provider call. The payload
- * is plain serializable data (usage counts + a cost breakdown) — no closures.
+ * is plain serializable data (usage counts + a cost breakdown, plus the
+ * provider/model that priced it and cache token counts) — no closures.
  *
- * This is the high-frequency cost feed; HQ's persistence layer (Phase 2)
- * time-buckets these into trend series.
+ * This is the high-frequency cost feed; HQ's persistence layer time-buckets
+ * these into trend series (per-bucket totals + per-model/per-provider
+ * breakdowns).
  *
  * @module hq/cost-bridge
  */
@@ -33,6 +35,10 @@ interface TokenAccountedEvent {
   sessionId?: string | undefined;
   usage: Usage;
   cost: { input: number; output: number; total: number };
+  /** Provider id that produced this usage (e.g. 'anthropic'), when known. */
+  provider?: string | undefined;
+  /** Model id the cost was priced against, when known. */
+  model?: string | undefined;
 }
 
 /**
@@ -51,6 +57,12 @@ export function startCostTelemetryBridge(opts: CostTelemetryBridgeOptions): () =
         totalTokens: p.usage.input + p.usage.output,
         costUsd: p.cost.total,
       };
+      // Forward the dimensions HQ needs for per-model/per-provider cost charts
+      // and cache-hit-ratio cards. All optional — older counters omit them.
+      if (p.provider !== undefined) payload.provider = p.provider;
+      if (p.model !== undefined) payload.model = p.model;
+      if (p.usage.cacheRead !== undefined) payload.cacheRead = p.usage.cacheRead;
+      if (p.usage.cacheWrite !== undefined) payload.cacheWrite = p.usage.cacheWrite;
       const sessionId = opts.sessionId ?? p.sessionId;
       publisher.publishEvent({
         type: 'session.usage',

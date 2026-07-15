@@ -14,6 +14,7 @@ import {
   OAUTH_KIND_COLORS,
   UI_COLORS,
 } from './provider-colors.js';
+import { catppuccin } from '../theme.js';
 
 export interface AuthPanelProps {
   panel: AuthPanelState;
@@ -129,7 +130,7 @@ function renderRow(row: AuthPanelRow, focused: boolean, i: number): React.ReactE
       return (
         <Text key={`l-${p.id}`} color={rowColor} wrap="truncate-end">
           {marker}{' '}
-          <Text bold color={focused ? undefined : '#fab387'}>
+          <Text bold color={focused ? undefined : catppuccin.peach}>
             {p.label.padEnd(12)}
           </Text>{' '}
           <Text dimColor>{p.defaultBaseUrl.padEnd(28)}</Text>{' '}

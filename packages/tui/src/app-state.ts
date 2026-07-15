@@ -19,6 +19,10 @@ import type {
 import type { AutonomyOption } from './components/autonomy-picker.js';
 import type { HistoryEntry } from './components/history.js';
 import type { ProviderOption } from './components/model-picker.js';
+import type {
+  RefineFailureDecision,
+  RefineFailureModel,
+} from './components/refine-failure-panel.js';
 import type { HelpEntry } from './components/help-panel.js';
 import type { BrainLogEntry, BrainRiskLevel } from './components/brain-panel.js';
 import type { BrainPanelSettings } from './components/brain-panel-model.js';
@@ -537,12 +541,27 @@ export type State = {
     refined: string;
     /** Refined in English. */
     english: string;
-    resolve: (decision: 'refined' | 'english' | 'original' | 'edit') => void;
+    resolve: (decision: 'refined' | 'english' | 'original' | 'edit' | 'cancel') => void;
   } | null;
   /** When true, free-text submits are run through the prompt refiner first. Toggled by `/enhance`. */
   enhanceEnabled: boolean;
   /** True while the refiner LLM call is in flight (before the panel appears). Drives a "refining…" indicator. */
   enhanceBusy: boolean;
+  /**
+   * Active refinement-failure recovery panel. Set when a refine attempt (and
+   * its automatic timeout retry) failed and the user must choose how to
+   * recover: retry with more time, retry on the fallback/another model, send
+   * the message as-is, or edit it. Resolves back into `submit()`. Null when no
+   * failure is pending.
+   */
+  refineFailure: {
+    original: string;
+    error?: string | undefined;
+    elapsedMs: number;
+    fallbackRef?: string | undefined;
+    models: RefineFailureModel[];
+    resolve: (decision: RefineFailureDecision) => void;
+  } | null;
   /**
    * Active bare-"continue" confirmation panel. Set when the user typed a lone
    * "continue"/"devam"/"go on" and the runtime resolved it to a concrete next
@@ -1173,6 +1192,8 @@ export type Action =
   | { type: 'enhanceClose' }
   | { type: 'enhanceSet'; enabled: boolean }
   | { type: 'enhanceBusy'; on: boolean }
+  | { type: 'refineFailureOpen'; info: NonNullable<State['refineFailure']> }
+  | { type: 'refineFailureClose' }
   | { type: 'continueConfirmOpen'; info: NonNullable<State['continueConfirm']> }
   | { type: 'continueConfirmClose' }
   /**
@@ -1386,6 +1407,8 @@ export type Action =
   | { type: 'toggleAuditPanel' }
   /** Toggle the plan panel (F5). */
   | { type: 'togglePlanPanel' }
+  /** Close every open panel/monitor/overlay at once. */
+  | { type: 'closeAllPanels' }
   | { type: 'toggleKanbanPanel' }
   | { type: 'toggleGoalPanel' }
   | { type: 'toggleSessionsPanel' }

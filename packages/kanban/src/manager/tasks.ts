@@ -1,19 +1,19 @@
 import { randomUUID } from 'node:crypto';
 import { mutateBoard, readBoard, readKanbanEvents } from '../storage.js';
-import {
-  type AddKanbanGoalMetricInput,
-  type CopyKanbanTaskOptions,
-  type CreateKanbanTaskInput,
-  type KanbanBoard,
-  type KanbanCheck,
-  type KanbanCheckStatus,
-  type KanbanEvent,
-  type KanbanGoalMetric,
-  type KanbanLink,
-  type KanbanNote,
-  type KanbanTask,
-  type UpdateKanbanGoalMetricInput,
-  type UpdateKanbanTaskInput,
+import type {
+  AddKanbanGoalMetricInput,
+  CopyKanbanTaskOptions,
+  CreateKanbanTaskInput,
+  KanbanBoard,
+  KanbanCheck,
+  KanbanCheckStatus,
+  KanbanEvent,
+  KanbanGoalMetric,
+  KanbanLink,
+  KanbanNote,
+  KanbanTask,
+  UpdateKanbanGoalMetricInput,
+  UpdateKanbanTaskInput,
 } from '../types.js';
 import {
   applyTaskPatch,

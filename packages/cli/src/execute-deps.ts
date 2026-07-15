@@ -202,6 +202,12 @@ export interface ControllerDeps {
     setEnabled: (enabled: boolean) => void;
   } | undefined;
   getEnhancerReasoning?: (() => import('@wrongstack/core').ReasoningRequest | undefined) | undefined;
+  /** Build an ephemeral Provider for retrying a failed refinement on another model (no session switch). */
+  buildEnhancerProvider?:
+    | ((providerId: string, modelId: string) => Promise<import('@wrongstack/core').Provider | undefined>)
+    | undefined;
+  /** Resolve the one-key "retry with another model" fallback ref for refinement failures. */
+  getEnhanceFallbackRef?: (() => string | undefined) | undefined;
   statuslineHiddenItems: StatuslineConfigKey[];
   setStatuslineHiddenItems: (items: StatuslineConfigKey[]) => void;
   saveStatuslineHiddenItems: (items: StatuslineConfigKey[]) => Promise<void>;

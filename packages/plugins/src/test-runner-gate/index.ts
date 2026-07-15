@@ -30,10 +30,11 @@
  * @public
  */
 
-import { execFileSync, execSync } from 'node:child_process';
-import { existsSync } from 'node:fs';
-import { basename, dirname, isAbsolute, join, relative, resolve } from 'node:path';
+import { execFile } from 'node:child_process';
+import { access } from 'node:fs/promises';
+import { basename, dirname, isAbsolute, join } from 'node:path';
 import type { Plugin } from '@wrongstack/core';
+import { withinProject } from '../runtime/index.js';
 
 const API_VERSION = '^0.1.10';
 
@@ -189,16 +190,7 @@ const lastPassedHash = new Map<string, number>();
 // runs on every write/edit; an attacker who can write to the plugin
 // config can already pivot to test-runner-gate to run any process.
 // ---------------------------------------------------------------------------
-function withinProject(p: string): boolean {
-  if (typeof p !== 'string' || p.length === 0 || p.length > 4096) return false;
-  const root = process.cwd();
-  const resolved = isAbsolute(p) ? resolve(p) : resolve(root, p);
-  const rel = relative(root, resolved);
-  if (rel === '' || rel === '.') return true;
-  if (rel.startsWith('..')) return false;
-  if (isAbsolute(rel)) return false;
-  return true;
-}
+// withinProject() imported from ../runtime/index.js
 
 // Allowlist for custom test commands. The first token of `command` must
 // resolve to one of these binaries. Without this, a config-supplied
@@ -272,10 +264,15 @@ function resolveTestFiles(sourcePath: string, patterns: string[]): string[] {
 /**
  * Find the first test file that exists on disk.
  */
-function findTestFile(sourcePath: string, patterns: string[]): string | null {
+async function findTestFile(sourcePath: string, patterns: string[]): Promise<string | null> {
   const candidates = resolveTestFiles(sourcePath, patterns);
   for (const candidate of candidates) {
-    if (existsSync(candidate)) return candidate;
+    try {
+      await access(candidate);
+      return candidate;
+    } catch {
+      // not found — try next candidate
+    }
   }
   return null;
 }
@@ -298,7 +295,7 @@ interface RunnerConfig {
  * jest, then mocha. Returns the resolved runner + command prefix.
  * Uses `npx <runner> --version` to check availability.
  */
-function detectRunner(requested: Runner): RunnerConfig | null {
+async function detectRunner(requested: Runner): Promise<RunnerConfig | null> {
   const candidates: RunnerConfig[] = [
     { name: 'vitest', command: 'npx vitest run', jsonFlags: '--reporter=json' },
     { name: 'jest', command: 'npx jest', jsonFlags: '--json' },
@@ -310,11 +307,12 @@ function detectRunner(requested: Runner): RunnerConfig | null {
     const match = candidates.find((c) => c.name === requested);
     if (!match) return null;
     try {
-      execSync(`npx ${match.name} --version`, {
-        encoding: 'utf-8',
-        timeout: 5_000,
-        cwd: process.cwd(),
-        stdio: ['pipe', 'pipe', 'pipe'],
+      await new Promise<void>((resolve, reject) => {
+        execFile('npx', [`${match.name}`, '--version'], {
+          encoding: 'utf-8',
+          timeout: 5_000,
+          cwd: process.cwd(),
+        }, (err) => (err ? reject(err) : resolve()));
       });
       return match;
     } catch {
@@ -325,11 +323,12 @@ function detectRunner(requested: Runner): RunnerConfig | null {
   // Auto: try each in order.
   for (const candidate of candidates) {
     try {
-      execSync(`npx ${candidate.name} --version`, {
-        encoding: 'utf-8',
-        timeout: 5_000,
-        cwd: process.cwd(),
-        stdio: ['pipe', 'pipe', 'pipe'],
+      await new Promise<void>((resolve, reject) => {
+        execFile('npx', [`${candidate.name}`, '--version'], {
+          encoding: 'utf-8',
+          timeout: 5_000,
+          cwd: process.cwd(),
+        }, (err) => (err ? reject(err) : resolve()));
       });
       return candidate;
     } catch {
@@ -383,17 +382,17 @@ function resolveAllowedCommand(customCommand: string): { cmd: string; args: stri
  * Returns null if the runner itself failed (timeout, crash, not found,
  * or the custom command failed the allowlist).
  */
-function runTests(
+async function runTests(
   testFile: string,
   runner: RunnerConfig,
   customCommand: string,
   timeoutMs: number,
-): TestRunResult | null {
+): Promise<TestRunResult | null> {
   // Sandbox: refuse to run tests for paths outside the project root.
   if (!withinProject(testFile)) return null;
 
   // Use custom command if provided, otherwise use the runner's default.
-  // execFileSync argv-form — no shell interpolation. testFile goes in as
+  // execFile argv-form — no shell interpolation. testFile goes in as
   // its own argv element so quotes/spaces in names cannot escape.
   let cmd: string;
   let cmdArgs: string[];
@@ -413,19 +412,23 @@ function runTests(
     trailingFlag = runner.jsonFlags;
   }
   // trailingFlag is a single space-delimited string from the runner
-  // table (e.g. "--reporter=json"). execFileSync wants its own argv
+  // table (e.g. "--reporter=json"). execFile wants its own argv
   // element — split spaces too.
   const trailing = trailingFlag.split(/\s+/).filter(Boolean);
   const fullArgs = [...cmdArgs, ...trailing];
   let stdout = '';
   try {
-    stdout = execFileSync(cmd, fullArgs, {
-      encoding: 'utf-8',
-      timeout: timeoutMs,
-      cwd: process.cwd(),
-      stdio: ['pipe', 'pipe', 'pipe'],
-      shell: false,
-    });
+    const { stdout: out } = await new Promise<{ stdout: string; stderr: string }>(
+      (resolve, reject) => {
+        execFile(cmd, fullArgs, { encoding: 'utf-8', timeout: timeoutMs, cwd: process.cwd() },
+          (err, out, stderr) => {
+            if (err) reject(Object.assign(err, { stdout: out, stderr }));
+            else resolve({ stdout: out, stderr });
+          },
+        );
+      },
+    );
+    stdout = out;
   } catch (err: unknown) {
     const e = err as { stdout?: string; killed?: boolean };
     if (e.killed) return null; // timeout
@@ -545,7 +548,7 @@ const plugin: Plugin = {
     },
   },
 
-  setup(api) {
+  async setup(api) {
     // Idempotent re-init (H1 pattern).
     state.invocationCount = 0;
     state.runCount = 0;
@@ -562,7 +565,7 @@ const plugin: Plugin = {
     const cfg = readConfig(api.config.extensions?.['test-runner-gate']);
 
     // Detect runner at setup time.
-    const runner = detectRunner(cfg.runner);
+    const runner = await detectRunner(cfg.runner);
     if (!runner) {
       api.log.warn(
         'test-runner-gate: no test runner found (vitest, jest, mocha) — hook will be a no-op',
@@ -574,11 +577,11 @@ const plugin: Plugin = {
       api.log.info('test-runner-gate: detected runner', { name: runner.name });
     }
 
-    const hook = (input: {
+    const hook = async (input: {
       toolName?: string | undefined;
       toolInput?: unknown;
       toolResult?: { content: string; isError: boolean } | undefined;
-    }): { additionalContext?: string | undefined } | void => {
+    }): Promise<{ additionalContext?: string | undefined } | void> => {
       if (!cfg.enabled || !runner) return;
 
       // Skip if the write/edit itself errored.
@@ -643,14 +646,14 @@ const plugin: Plugin = {
       }
 
       // Find the corresponding test file.
-      const testFile = findTestFile(sourcePath, cfg.testFilePatterns);
+      const testFile = await findTestFile(sourcePath, cfg.testFilePatterns);
       if (!testFile) {
         state.noTestCount += 1;
         return; // no test file found — silent
       }
 
       // Run the tests.
-      const result = runTests(testFile, runner, cfg.command, cfg.timeoutMs);
+      const result = await runTests(testFile, runner, cfg.command, cfg.timeoutMs);
       if (!result) {
         state.errorCount += 1;
         return; // runner failed — silent
@@ -707,7 +710,7 @@ const plugin: Plugin = {
       };
     };
 
-    state.hookUnregister = api.registerHook('PostToolUse', 'write|edit', hook);
+    state.hookUnregister = api.registerHook('PostToolUse', 'write|edit', hook, { background: true });
 
     // --- test_gate_status tool ---
     api.tools.register({

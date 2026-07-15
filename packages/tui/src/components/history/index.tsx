@@ -102,7 +102,7 @@ export const History = memo(function History({ entries, generation, streamingTex
 
   return (
     <>
-      <Static key={generation ?? 0} items={entries}>
+      <Static key={`${generation ?? 0}-w${termWidth}`} items={entries}>
         {(entry) => (
           <Box key={entry.id} marginBottom={entry.kind === 'turn-summary' ? 1 : 0}>
             <Entry entry={entry} termWidth={termWidth} setSuggestions={setSuggestions} autonomyMode={autonomyMode} multiDiffSummaryThreshold={multiDiffSummaryThreshold} todos={todos} />

@@ -39,6 +39,7 @@ import type {
   BrainDecisionRequest,
 } from '../coordination/brain.js';
 import { readBundledInstructionText } from '../utils/instruction-file.js';
+import { resolveCouncilVotes } from './council-resolution.js';
 import {
   type BrainLlmTarget,
   buildBrainUserMessage,
@@ -109,6 +110,7 @@ const BUILTIN_PERSONAS: Record<string, string> = {
 };
 
 interface CastVote {
+  seatId: string;
   voter: CouncilVoter;
   optionId: string;
   rationale: string | undefined;
@@ -185,7 +187,12 @@ export function createCouncilBrainArbiter(opts: CouncilBrainOptions): BrainArbit
       if (!voter || result.status !== 'fulfilled') return;
       const parsed = parseOptionDecision(result.value, ballot);
       if (parsed?.type !== 'answer' || !parsed.optionId) return;
-      votes.push({ voter, optionId: parsed.optionId, rationale: parsed.rationale });
+      votes.push({
+        seatId: String(i),
+        voter,
+        optionId: parsed.optionId,
+        rationale: parsed.rationale,
+      });
     });
     return votes;
   }
@@ -299,15 +306,33 @@ export function createCouncilBrainArbiter(opts: CouncilBrainOptions): BrainArbit
       const ballot = ballotOptions(request);
       const votes = await collectVotes(request, ballot, digest);
 
-      if (votes.length / opts.voters.length < quorumFraction) {
-        return finish(request, abstain(request, `quorum not met (${votes.length}/${opts.voters.length} votes)`));
+      const resolution = resolveCouncilVotes({
+        seats: opts.voters.map((voter, i) => ({
+          id: String(i),
+          weight: voter.weight,
+          veto: voter.veto,
+        })),
+        votes: votes.map((vote) => ({ seatId: vote.seatId, optionId: vote.optionId })),
+        refusalOptionId: COUNCIL_REFUSE_OPTION_ID,
+        quorumFraction,
+        approvalFraction,
+      });
+
+      if (resolution.status === 'abstained') {
+        return finish(
+          request,
+          abstain(
+            request,
+            `quorum not met (${resolution.validVoteCount}/${resolution.seatCount} votes)`,
+          ),
+        );
       }
 
-      // Veto — an empowered skeptic refusing outright is final.
-      const vetoRefusal = votes.find(
-        (v) => v.voter.veto === true && v.optionId === COUNCIL_REFUSE_OPTION_ID,
-      );
-      if (vetoRefusal) {
+      if (resolution.status === 'denied' && resolution.method === 'veto') {
+        const vetoRefusal = votes.find((vote) => vote.seatId === resolution.seatId);
+        if (!vetoRefusal) {
+          return finish(request, abstain(request, 'veto ballot could not be resolved'));
+        }
         return finish(request, {
           type: 'deny',
           reason:
@@ -316,36 +341,17 @@ export function createCouncilBrainArbiter(opts: CouncilBrainOptions): BrainArbit
         });
       }
 
-      // Weighted tally.
-      const weightByOption = new Map<string, number>();
-      let castWeight = 0;
-      for (const v of votes) {
-        const w = v.voter.weight ?? 1;
-        castWeight += w;
-        weightByOption.set(v.optionId, (weightByOption.get(v.optionId) ?? 0) + w);
-      }
-      let winner: { optionId: string; weight: number } | null = null;
-      let contested = false;
-      for (const [optionId, weight] of weightByOption) {
-        if (!winner || weight > winner.weight) {
-          winner = { optionId, weight };
-          contested = false;
-        } else if (weight === winner.weight) {
-          contested = true;
-        }
-      }
-
-      const decisive =
-        winner !== null && !contested && winner.weight > approvalFraction * castWeight;
-
-      let finalOptionId: string | null = decisive && winner ? winner.optionId : null;
+      let finalOptionId =
+        resolution.status === 'decided' || resolution.status === 'denied'
+          ? resolution.optionId
+          : null;
       let viaJudge = false;
-      if (!finalOptionId) {
+      if (resolution.status === 'needs_judge') {
         const judged = await judgeRound(
           request,
           ballot,
           votes,
-          contested ? 'tie' : 'no option cleared the approval threshold',
+          resolution.reason === 'tie' ? 'tie' : 'no option cleared the approval threshold',
         );
         if (judged?.type === 'answer' && judged.optionId) {
           finalOptionId = judged.optionId;

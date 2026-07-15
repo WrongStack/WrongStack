@@ -188,9 +188,12 @@ export const editTool: Tool<EditInput, EditOutput> = {
       };
     }
 
+    // Check abort signal before entering potentially slow matching logic
+    opts?.signal?.throwIfAborted();
     const ladder = findLadderMatches(fileLf, oldLf);
 
     if (!ladder) {
+      opts?.signal?.throwIfAborted();
       const hint = nearestMatchHint(fileLf, oldLf);
       throw new ToolValidationError({
         message: `edit: no match for old_string in "${input.path}".${
@@ -299,6 +302,8 @@ export const editTool: Tool<EditInput, EditOutput> = {
       after: newFile,
     });
 
+    // Check abort before diff generation (can be slow on large files)
+    opts?.signal?.throwIfAborted();
     const diff = unifiedDiff(original, newFile, {
       fromFile: input.path,
       toFile: input.path,

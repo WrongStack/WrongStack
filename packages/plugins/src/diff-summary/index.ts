@@ -30,8 +30,8 @@
  */
 
 import { execFileSync } from 'node:child_process';
-import { isAbsolute, relative, resolve } from 'node:path';
 import type { Plugin } from '@wrongstack/core';
+import { withinProject } from '../runtime/index.js';
 
 const API_VERSION = '^0.1.10';
 
@@ -45,16 +45,7 @@ const API_VERSION = '^0.1.10';
 // filenames with spaces, double quotes, or shell metacharacters cannot
 // escape the command.
 // ---------------------------------------------------------------------------
-function withinProject(p: string): boolean {
-  if (typeof p !== 'string' || p.length === 0 || p.length > 4096) return false;
-  const root = process.cwd();
-  const resolved = isAbsolute(p) ? resolve(p) : resolve(root, p);
-  const rel = relative(root, resolved);
-  if (rel === '' || rel === '.') return true;
-  if (rel.startsWith('..')) return false;
-  if (isAbsolute(rel)) return false;
-  return true;
-}
+// withinProject() imported from ../runtime/index.js
 
 // ---------------------------------------------------------------------------
 // Module-scope state (H1 audit pattern)
@@ -457,7 +448,7 @@ const plugin: Plugin = {
       };
     };
 
-    state.hookUnregister = api.registerHook('PostToolUse', 'write|edit', hook);
+    state.hookUnregister = api.registerHook('PostToolUse', 'write|edit', hook, { background: true });
 
     // --- diff_summary_status tool ---
     api.tools.register({

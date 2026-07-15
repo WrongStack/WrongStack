@@ -9,7 +9,7 @@ import { repairToolUseAdjacency } from '../utils/message-invariants.js';
 import { buildCompletedWorkLedgerBlock, markAssistantReferencedEvidence } from '../utils/context-evidence.js';
 import { toErrorMessage } from '../utils/error.js';
 import { parseContinueDirective, type ContinueDirective } from './continue-to-next-iteration.js';
-import type { RunOptions } from './context.js';
+import type { Context, RunOptions } from './context.js';
 import type { AgentInternals } from './agent-internals.js';
 
 export interface ProcessResponseResult {
@@ -22,6 +22,65 @@ export interface ProcessResponseResult {
 export interface AgentResponseHandler {
   buildAndRunRequestPipeline(opts: RunOptions): Promise<Request>;
   processResponse(raw: Response, req: Request): Promise<ProcessResponseResult>;
+}
+
+const MAX_TODO_SNAPSHOT_ITEMS = 10;
+const MAX_TODO_SNAPSHOT_CONTENT = 180;
+
+/**
+ * Build the leader-only, per-request decision gate for `<nextsteps>`.
+ *
+ * The base system prompt is intentionally frozen for provider caching, while
+ * todos change during tool execution. Keeping this block volatile makes the
+ * final-response contract follow the live todo state on every iteration.
+ */
+export function buildLiveNextStepsGateBlock(
+  ctx: Pick<Context, 'agentId' | 'todos'>,
+): TextBlock | undefined {
+  if (ctx.agentId !== 'leader') return undefined;
+
+  const openTodos = ctx.todos.filter(
+    (todo) => todo.status === 'pending' || todo.status === 'in_progress',
+  );
+
+  if (openTodos.length === 0) {
+    return {
+      type: 'text',
+      text: [
+        '[nextsteps_gate]',
+        'Authoritative live state for this request: open todos = 0.',
+        'On the final response, you MUST take exactly one branch:',
+        '1. If at least one genuinely useful follow-on action exists, include a balanced <nextsteps> block containing 1-4 concrete prompts the user can type.',
+        '2. If no useful follow-on action truly exists, omit <nextsteps> and explicitly tell the user in normal prose that no further steps are needed for this task.',
+        'Silently omitting both is invalid. Do not decide by chance, tone, or response length, and do not invent filler suggestions.',
+        '[/nextsteps_gate]',
+      ].join('\n'),
+      cache_control: { type: 'ephemeral' },
+    };
+  }
+
+  const todoSnapshot = openTodos.slice(0, MAX_TODO_SNAPSHOT_ITEMS).map((todo) => {
+    const normalized = todo.content.replace(/\s+/g, ' ').trim();
+    const content = normalized.length > MAX_TODO_SNAPSHOT_CONTENT
+      ? `${normalized.slice(0, MAX_TODO_SNAPSHOT_CONTENT - 1)}…`
+      : normalized;
+    return `- [${todo.status}] ${content}`;
+  });
+  const omitted = openTodos.length - todoSnapshot.length;
+  if (omitted > 0) todoSnapshot.push(`- …and ${omitted} more open todo(s)`);
+
+  return {
+    type: 'text',
+    text: [
+      '[nextsteps_gate]',
+      `Authoritative live state for this request: open todos = ${openTodos.length}.`,
+      'You MUST omit <nextsteps> entirely while these todos remain open. Continue or finish the tracked work; do not propose unrelated follow-on work.',
+      'Open todo snapshot:',
+      ...todoSnapshot,
+      '[/nextsteps_gate]',
+    ].join('\n'),
+    cache_control: { type: 'ephemeral' },
+  };
 }
 
 export function createAgentResponseHandler(a: AgentInternals): AgentResponseHandler {
@@ -66,8 +125,12 @@ export function createAgentResponseHandler(a: AgentInternals): AgentResponseHand
     }
     stabilizePromptEpoch();
     const volatileLedger = buildCompletedWorkLedgerBlock(a.ctx);
-    const system = volatileLedger
-      ? [...a.ctx.systemPrompt, volatileLedger]
+    const liveNextStepsGate = buildLiveNextStepsGateBlock(a.ctx);
+    const volatileBlocks = [volatileLedger, liveNextStepsGate].filter(
+      (block): block is TextBlock => block !== undefined,
+    );
+    const system = volatileBlocks.length > 0
+      ? [...a.ctx.systemPrompt, ...volatileBlocks]
       : a.ctx.systemPrompt;
     const baseReq: Request = {
       model: opts.model ?? a.ctx.model,

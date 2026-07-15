@@ -115,11 +115,14 @@ export class SimpleSocket {
         // Ignore malformed server frames; the next valid frame keeps the UI alive.
       }
     });
-    socket.addEventListener('close', () => {
+    socket.addEventListener('close', (event) => {
       if (this.socket === socket) this.socket = null;
       if (this.stopped) return;
+      if (event.code === 1000) return; // intentional shutdown — don't reconnect
       this.options.onState('closed');
-      const delay = Math.min(10_000, 750 * 2 ** this.reconnectAttempt++);
+      const baseDelay = Math.min(15_000, 750 * 2 ** this.reconnectAttempt++);
+      const jitter = Math.random() * 1000;
+      const delay = baseDelay + jitter;
       this.timer = setTimeout(() => void this.connect(), delay);
     });
     socket.addEventListener('error', () => socket.close());
@@ -131,7 +134,17 @@ export class SimpleSocket {
       this.socket.send(serialized);
       return;
     }
-    if (this.queue.length >= 100) this.queue.shift();
+    if (this.queue.length >= 100) {
+      console.warn(
+        JSON.stringify({
+          level: 'warn',
+          event: 'simple_socket.send_queue_overflow',
+          message: 'Send queue reached 100 messages; dropping the oldest message',
+          timestamp: new Date().toISOString(),
+        }),
+      );
+      this.queue.shift();
+    }
     this.queue.push(serialized);
   }
 

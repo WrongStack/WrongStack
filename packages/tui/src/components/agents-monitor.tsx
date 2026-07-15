@@ -5,9 +5,19 @@ import type { AgentTimelineEntry } from '@wrongstack/core/coordination';
 import type { FleetEntry } from '../app.js';
 import type { HistoryEntry } from './history/types.js';
 import { theme } from '../theme.js';
-import { bucketActivity, fmtModelLabel, sparkline } from './fleet-monitor.js';
+import { fmtModelLabel } from './fleet-monitor.js';
 import { fmtElapsed } from './status-bar.js';
 import { getToolVisual } from '../tool-glyph.js';
+import { glyphs } from '../ui-glyphs.js';
+import {
+  EmptyPanelState,
+  KeyCap,
+  MonitorShell,
+  panelWindow,
+  truncatePanelText,
+} from './monitor-shell.js';
+
+// ─── Types & Interfaces ───────────────────────────────────────────────
 
 /**
  * Narrow read-only view of per-subagent transcripts. AgentMonitorService
@@ -21,41 +31,17 @@ export interface AgentTranscriptReader {
 
 export interface AgentsMonitorProps {
   entries: Record<string, FleetEntry>;
-  /** Fleet (subagents) accumulated cost — excludes the leader/main session. */
   totalCost: number;
-  /**
-   * Leader (main session) cost — the same figure the statusline shows. Added
-   * to `totalCost` for a trustworthy grand total. Optional for callers that
-   * don't track it (defaults to 0).
-   */
   leaderCost?: number | undefined;
-  /** Fleet-wide token totals, when available. */
   totalTokens?: { input: number; output: number };
-  /** 1s clock tick so elapsed times + sparklines stay live. */
   nowTick: number;
-  /** Called when there are no active/detail-worthy agents left to show. */
   onClose?: (() => void) | undefined;
-  /**
-   * Optional transcript reader — when provided, the selected agent's
-   * detail card renders a scrollable full-transcript pane (PgUp/PgDn)
-   * with a CONSTANT-height layout, so switching agents never changes the
-   * panel height (no scrollback churn). Falls back to the streaming-tail
-   * snippet when absent.
-   */
   transcripts?: AgentTranscriptReader | undefined;
-  /**
-   * Optional leader history source (oldest first) — the main chat's own
-   * entries mapped to timeline shape, WITHOUT subagent lines, so selecting
-   * LEADER shows a clean per-agent view just like the subagents.
-   */
   leaderTranscript?: (() => AgentTimelineEntry[]) | undefined;
-  /**
-   * Fullscreen mode: the App hides the chat history while this monitor is
-   * open, so the transcript pane may claim every row the chrome doesn't
-   * need (the usual 24-row cap is lifted).
-   */
   fullscreen?: boolean | undefined;
 }
+
+// ─── Constants ────────────────────────────────────────────────────────
 
 const STATUS: Record<FleetEntry['status'], { icon: string; color: string }> = {
   idle: { icon: '○', color: theme.textMuted },
@@ -69,6 +55,14 @@ const STATUS: Record<FleetEntry['status'], { icon: string; color: string }> = {
 /** Retained for callers/tests that tune the empty-state grace window. */
 export const IDLE_HIDE_MS = 60_000;
 export const EMPTY_AGENTS_CLOSE_DELAY_MS = 7_500;
+
+/** Fallback rows of transcript content when terminal height is unknown. */
+export const TRANSCRIPT_ROWS = 10;
+
+/** Full in-memory transcript depth to fetch (AgentMonitorService ring size). */
+export const TRANSCRIPT_FETCH_LIMIT = 500;
+
+// ─── Pure Helpers ─────────────────────────────────────────────────────
 
 function isLeaderEntry(entry: FleetEntry): boolean {
   return entry.id === 'leader' || entry.name === 'LEADER';
@@ -87,9 +81,14 @@ export function selectLiveAgents(
   _idleHideMs: number = IDLE_HIDE_MS,
 ): FleetEntry[] {
   const leader = all.find(isLeaderEntry);
-  const activeSubagents = all.filter((entry) => !isLeaderEntry(entry) && entry.status === 'running');
-  const showLeader = leader !== undefined && (leader.status !== 'idle' || activeSubagents.length > 0);
-  return all.filter((entry) => (isLeaderEntry(entry) ? showLeader : activeSubagents.some((active) => active.id === entry.id)));
+  const activeSubagents = all.filter(
+    (entry) => !isLeaderEntry(entry) && entry.status === 'running',
+  );
+  const showLeader =
+    leader !== undefined && (leader.status !== 'idle' || activeSubagents.length > 0);
+  return all.filter((entry) =>
+    isLeaderEntry(entry) ? showLeader : activeSubagents.some((active) => active.id === entry.id),
+  );
 }
 
 function fmtTokens(n: number): string {
@@ -120,11 +119,6 @@ function fmtSignedTokens(n: number): string {
   return n <= 0 ? '0' : fmtTokens(n);
 }
 
-function fmtOptionalTimestamp(ms?: number): string {
-  if (!ms || ms <= 0) return 'unknown';
-  return new Date(ms).toLocaleTimeString('en-US', { hour12: false });
-}
-
 export function formatContextRunway(tokens?: number, maxTokens?: number): string {
   if (!tokens || !maxTokens || maxTokens <= 0) return 'ctx unknown';
   const left = Math.max(0, maxTokens - tokens);
@@ -133,9 +127,14 @@ export function formatContextRunway(tokens?: number, maxTokens?: number): string
 
 export function formatRecentToolChip(tool: FleetEntry['recentTools'][number]): string {
   const status = tool.ok === false ? '✗' : '✓';
-  const duration = typeof tool.durationMs === 'number' ? ` ${fmtShortDuration(tool.durationMs)}` : '';
-  const lines = typeof tool.outputLines === 'number' && tool.outputLines > 0 ? ` ${tool.outputLines}L` : '';
-  const bytes = typeof tool.outputBytes === 'number' && tool.outputBytes > 0 ? ` ${fmtTokens(tool.outputBytes)}B` : '';
+  const duration =
+    typeof tool.durationMs === 'number' ? ` ${fmtShortDuration(tool.durationMs)}` : '';
+  const lines =
+    typeof tool.outputLines === 'number' && tool.outputLines > 0 ? ` ${tool.outputLines}L` : '';
+  const bytes =
+    typeof tool.outputBytes === 'number' && tool.outputBytes > 0
+      ? ` ${fmtTokens(tool.outputBytes)}B`
+      : '';
   return `${status} ${tool.name}${duration}${lines}${bytes}`;
 }
 
@@ -143,7 +142,9 @@ export function formatAgentDetailHeader(entry: FleetEntry): string {
   return entry.name || entry.id;
 }
 
-export function agentRisk(entry: FleetEntry): 'calm' | 'busy' | 'hot' | 'critical' {
+export function agentRisk(
+  entry: FleetEntry,
+): 'calm' | 'busy' | 'hot' | 'critical' {
   const pct = entry.ctxPct ?? 0;
   if (entry.budgetWarning || entry.failureReason || pct >= 0.9) return 'critical';
   if (pct >= 0.75 || (entry.extensions ?? 0) > 0) return 'hot';
@@ -151,7 +152,11 @@ export function agentRisk(entry: FleetEntry): 'calm' | 'busy' | 'hot' | 'critica
   return 'calm';
 }
 
-function riskMeta(risk: ReturnType<typeof agentRisk>): { icon: string; color: string; label: string } {
+function riskMeta(risk: ReturnType<typeof agentRisk>): {
+  icon: string;
+  color: string;
+  label: string;
+} {
   switch (risk) {
     case 'critical':
       return { icon: '◆', color: theme.error, label: 'critical' };
@@ -165,7 +170,8 @@ function riskMeta(risk: ReturnType<typeof agentRisk>): { icon: string; color: st
 }
 
 function currentAction(entry: FleetEntry, now: number): string {
-  if (entry.currentTool) return `→ ${entry.currentTool.name} ${fmtShortDuration(now - entry.currentTool.startedAt)}`;
+  if (entry.currentTool)
+    return `→ ${entry.currentTool.name} ${fmtShortDuration(now - entry.currentTool.startedAt)}`;
   if (entry.status === 'running') return 'thinking';
   const last = entry.recentTools[entry.recentTools.length - 1];
   if (last) return `last ${last.name}`;
@@ -174,7 +180,10 @@ function currentAction(entry: FleetEntry, now: number): string {
   return 'standing by';
 }
 
-export function selectAgentDetail(live: FleetEntry[], selectedId?: string): FleetEntry | undefined {
+export function selectAgentDetail(
+  live: FleetEntry[],
+  selectedId?: string,
+): FleetEntry | undefined {
   return live.find((entry) => entry.id === selectedId) ?? live.find(isLeaderEntry) ?? live[0];
 }
 
@@ -212,108 +221,12 @@ function selectHotAgent(entries: FleetEntry[]): FleetEntry | undefined {
     .at(0);
 }
 
-/** Colored context-window fill bar: ████░░░░░░ 67% */
-function ContextBar({
-  pct,
-  tokens,
-  maxTokens,
-}: {
-  pct: number;
-  tokens?: number | undefined;
-  maxTokens?: number | undefined;
-}): React.ReactElement {
-  const clamped = Math.max(0, Math.min(1, pct)); // cap visual at 100%
-  const totalBars = 10;
-  const filled = Math.round(clamped * totalBars);
-  const empty = totalBars - filled;
-  const color = clamped < 0.6 ? theme.success : clamped < 0.75 ? theme.warn : theme.error;
-  // Display pct capped at 100% since compact mode manages over-budget scenarios.
-  const pctText = `${Math.min(Math.round(pct * 100), 100)}%`;
-  const tokenText = tokens ? ` ${fmtTokens(tokens)}/${fmtTokens(maxTokens ?? 200_000)}` : '';
-  return (
-    <Text color={color}>
-      {'█'.repeat(filled)}
-      {'░'.repeat(Math.max(0, empty))} {pctText}
-      {tokenText}
-    </Text>
-  );
-}
-
 function pctTextFromRatio(pct: number | undefined): string {
   if (typeof pct !== 'number' || !Number.isFinite(pct)) return '0%';
   return `${Math.min(100, Math.max(0, Math.round(pct * 100)))}%`;
 }
 
-/**
- * Compact single-line agent row. All the essential info in one line:
- * status icon, name, model, iterations/tools, context bar, cost.
- */
-function AgentRow({
-  entry,
-  now,
-  selected,
-}: {
-  entry: FleetEntry;
-  now: number;
-  selected: boolean;
-}): React.ReactElement {
-  const s = STATUS[entry.status];
-  const elapsed =
-    entry.status === 'running' ? fmtElapsed(Math.max(0, now - entry.startedAt)) : entry.status;
-  const modelLabel = fmtModelLabel(entry.provider, entry.model);
-  const activity = sparkline(bucketActivity(entry.recentTools, now, 10, 3000));
-  const risk = riskMeta(agentRisk(entry));
-  const ctxCostStr = entry.ctxCost !== undefined && entry.ctxCost > 0
-    ? ` ctx ${entry.ctxCost.toFixed(4)}`
-    : '';
-
-  return (
-    <Box flexDirection="row" gap={1}>
-      {/* Selection indicator */}
-      <Text color={selected ? theme.monitor.agents : theme.textMuted}>{selected ? '▶' : ' '}</Text>
-      {/* Status icon */}
-      <Text color={s.color} bold>
-        {s.icon}
-      </Text>
-      <Text color={risk.color}>{risk.icon}</Text>
-      {/* Name */}
-      <Text bold={selected} {...(selected ? { color: theme.monitor.agents } : {})}>
-        {entry.name}
-      </Text>
-      {/* Provider / Model — fmtModelLabel handles all cases (including undefined model) */}
-      {modelLabel ? <Text dimColor>{modelLabel}</Text> : null}
-      {/* Iterations / tool calls */}
-      <Text dimColor>
-        L{entry.iterations} {entry.toolCalls}t
-      </Text>
-      {activity ? <Text color={theme.success}>{activity}</Text> : null}
-      {/* Context bar */}
-      {entry.ctxPct !== undefined ? (
-        <ContextBar pct={entry.ctxPct} tokens={entry.ctxTokens} maxTokens={entry.ctxMaxTokens} />
-      ) : null}
-      {/* Context cost */}
-      {ctxCostStr ? <Text color={theme.warn}>{ctxCostStr}</Text> : null}
-      {/* Current activity (inline) */}
-      <Text color={entry.currentTool ? theme.accent : theme.textMuted}>{currentAction(entry, now)}</Text>
-      {/* Elapsed */}
-      <Text dimColor>{elapsed}</Text>
-      {/* Extensions badge */}
-      {entry.extensions && entry.extensions > 0 ? (
-        <Text color={theme.warn}>⚡×{entry.extensions}</Text>
-      ) : null}
-      {/* Cost */}
-      {entry.cost > 0 ? <Text color={theme.success}>${entry.cost.toFixed(4)}</Text> : null}
-    </Box>
-  );
-}
-
-// ── Transcript pane (F3 detail) ──────────────────────────────────────
-
-/** Fallback rows of transcript content when terminal height is unknown. */
-export const TRANSCRIPT_ROWS = 10;
-
-/** Full in-memory transcript depth to fetch (AgentMonitorService ring size). */
-export const TRANSCRIPT_FETCH_LIMIT = 500;
+// ─── Transcript Helpers ───────────────────────────────────────────────
 
 /**
  * Rows of transcript content for the current terminal. Constant for a
@@ -328,9 +241,13 @@ export function transcriptRowsForTerminal(
   rosterCount: number,
   fullscreen = false,
 ): number {
-  // Chrome above/below the pane: monitor header (4 rows) + roster lines +
-  // detail chrome (3 rows) + pane border/header (3) + input/status margin (~8).
-  const chrome = 4 + Math.max(0, rosterCount - 1) + 3 + 3 + 8;
+  // Chrome above/below the pane:
+  //   Dashboard header: 2 rows
+  //   Models row: 1 row
+  //   Card rows: rosterCount
+  //   Detail header: 3 rows
+  //   Footer + border interior: 6 rows
+  const chrome = 2 + 1 + Math.max(0, rosterCount - 1) + 3 + 6;
   const available = (termRows ?? 30) - chrome;
   return Math.max(6, fullscreen ? available : Math.min(24, available));
 }
@@ -347,8 +264,6 @@ const TRANSCRIPT_GLYPHS: Record<AgentTimelineEntry['kind'], string> = {
 
 /** One transcript entry as a single display line: `HH:MM:SS L3 🔧 …`. */
 export function formatTranscriptLine(e: AgentTimelineEntry, maxWidth = 110): string {
-  // Leader entries synthesized from chat history carry no timestamp /
-  // iteration — omit those segments instead of printing placeholders.
   const time = e.ts
     ? (() => {
         const d = new Date(e.ts);
@@ -357,17 +272,17 @@ export function formatTranscriptLine(e: AgentTimelineEntry, maxWidth = 110): str
     : '';
   const iter = e.iteration > 0 ? `L${e.iteration} ` : '';
   const glyph = TRANSCRIPT_GLYPHS[e.kind] ?? '·';
-  // tool_result content can be huge (up to ~20KB) — first line only, then snippet.
   const lines = e.content.split('\n');
   const firstLine = (lines[0] ?? '').trim();
-  // The content's first line usually already names the tool ("glob({…})",
-  // "Completed read (2ms)") — repeating the bare toolName produced noise
-  // like "glob glob". Only prefix it when the content doesn't carry it.
-  const tool = e.toolName && !firstLine.includes(e.toolName)
-    ? `${e.toolName}${e.toolOk === false ? ' ✗' : ''} `
-    : e.toolName && e.toolOk === false && !firstLine.includes('✗') && !firstLine.startsWith('Failed')
-      ? '✗ '
-      : '';
+  const tool =
+    e.toolName && !firstLine.includes(e.toolName)
+      ? `${e.toolName}${e.toolOk === false ? ' ✗' : ''} `
+      : e.toolName &&
+          e.toolOk === false &&
+          !firstLine.includes('✗') &&
+          !firstLine.startsWith('Failed')
+        ? '✗ '
+        : '';
   const extraLines = lines.length - 1;
   const tail = extraLines > 0 ? ` (+${extraLines})` : '';
   const head = `${time}${iter}${glyph} ${tool}`;
@@ -381,10 +296,18 @@ export function formatTranscriptLine(e: AgentTimelineEntry, maxWidth = 110): str
  * interleaved) is the whole point of the per-agent view. Banners and
  * confirm prompts are UI chrome, not history, and are skipped too.
  */
-export function leaderTimelineFromEntries(entries: readonly HistoryEntry[]): AgentTimelineEntry[] {
+export function leaderTimelineFromEntries(
+  entries: readonly HistoryEntry[],
+): AgentTimelineEntry[] {
   const out: AgentTimelineEntry[] = [];
   for (const e of entries) {
-    const base = { id: `h${e.id}`, subagentId: 'leader', agentName: 'LEADER', ts: '', iteration: 0 } as const;
+    const base = {
+      id: `h${e.id}`,
+      subagentId: 'leader',
+      agentName: 'LEADER',
+      ts: '',
+      iteration: 0,
+    } as const;
     switch (e.kind) {
       case 'user':
         out.push({ ...base, kind: 'status', content: `❯ ${e.text}` });
@@ -399,7 +322,9 @@ export function leaderTimelineFromEntries(entries: readonly HistoryEntry[]): Age
         const meta = [
           e.durationMs > 0 ? `${e.durationMs}ms` : '',
           typeof e.outputLines === 'number' && e.outputLines > 0 ? `${e.outputLines}L` : '',
-        ].filter(Boolean).join(' · ');
+        ]
+          .filter(Boolean)
+          .join(' · ');
         out.push({ ...base, kind: 'tool_use', toolName: e.name, toolOk: e.ok, content: meta });
         break;
       }
@@ -414,9 +339,12 @@ export function leaderTimelineFromEntries(entries: readonly HistoryEntry[]): Age
         out.push({ ...base, kind: 'system', content: e.text });
         break;
       case 'brain':
-        out.push({ ...base, kind: 'system', content: `🧠 ${e.question}${e.decision ? ` → ${e.decision}` : ''}` });
+        out.push({
+          ...base,
+          kind: 'system',
+          content: `🧠 ${e.question}${e.decision ? ` → ${e.decision}` : ''}`,
+        });
         break;
-      // banner / confirm / subagent: intentionally skipped.
       default:
         break;
     }
@@ -443,35 +371,363 @@ export function selectTranscriptWindow(
   return { slice: entries.slice(start, end), above: start, below: offset };
 }
 
+// ─── Visual Components (Redesigned for left-right split) ──────────────
+
+/**
+ * Dashboard header — structured metrics strip.
+ * Shows running/success/failed counts, max context pressure, and total cost.
+ */
+function DashboardHeader({
+  running,
+  totalDone,
+  totalFailed,
+  pressure,
+  grandCost,
+  leaderCost,
+  totalCost,
+  totalTokens,
+  hotAgent,
+  hotRisk,
+}: {
+  running: number;
+  totalDone: number;
+  totalFailed: number;
+  pressure: number;
+  grandCost: number;
+  leaderCost: number;
+  totalCost: number;
+  totalTokens?: { input: number; output: number } | undefined;
+  hotAgent?: FleetEntry | undefined;
+  hotRisk?: { icon: string; color: string; label: string } | undefined;
+}): React.ReactElement {
+  return (
+    <Box flexDirection="row" gap={1} marginTop={1}>
+      {/* Active count */}
+      <Text bold color={theme.warn}>
+        {glyphs.running} {running}
+      </Text>
+      <Text dimColor>active</Text>
+
+      {/* Done count */}
+      {totalDone > 0 ? (
+        <>
+          <Text color={theme.textMuted}>·</Text>
+          <Text bold color={theme.success}>
+            {glyphs.success} {totalDone}
+          </Text>
+          <Text dimColor>done</Text>
+        </>
+      ) : null}
+
+      {/* Failed count */}
+      {totalFailed > 0 ? (
+        <>
+          <Text color={theme.textMuted}>·</Text>
+          <Text bold color={theme.error}>
+            {glyphs.failure} {totalFailed}
+          </Text>
+          <Text dimColor>failed</Text>
+        </>
+      ) : null}
+
+      {/* Separator */}
+      <Text color={theme.textMuted}>│</Text>
+
+      {/* Context pressure */}
+      <Text dimColor>ctx</Text>
+      <Text
+        color={
+          pressure >= 0.9 ? theme.error : pressure >= 0.75 ? theme.warn : theme.success
+        }
+      >
+        {pctTextFromRatio(pressure)}
+      </Text>
+
+      {/* Hot agent */}
+      {hotAgent && hotRisk ? (
+        <>
+          <Text color={theme.textMuted}>·</Text>
+          <Text color={hotRisk.color}>{hotRisk.icon}</Text>
+          <Text dimColor>{truncatePanelText(hotAgent.name, 16)}</Text>
+        </>
+      ) : null}
+
+      {/* Separator */}
+      <Text color={theme.textMuted}>│</Text>
+
+      {/* Total cost */}
+      <Text bold color={theme.success}>
+        ${grandCost.toFixed(4)}
+      </Text>
+      <Text dimColor>total</Text>
+
+      {/* Token usage — compact */}
+      {totalTokens ? (
+        <>
+          <Text color={theme.textMuted}>·</Text>
+          <Text dimColor>
+            {fmtTokens(totalTokens.input)}↑ {fmtTokens(totalTokens.output)}↓
+          </Text>
+        </>
+      ) : null}
+
+      {/* Leader/fleet cost breakdown */}
+      {leaderCost > 0 || totalCost > 0 ? (
+        <Text dimColor>
+          (L ${leaderCost.toFixed(4)} · F ${totalCost.toFixed(4)})
+        </Text>
+      ) : null}
+    </Box>
+  );
+}
+
+/**
+ * Agent card — compact sidebar row for one agent.
+ * Sized for the narrow left column: selection, status, risk, name, elapsed.
+ */
+function AgentCard({
+  entry,
+  now,
+  selected,
+  width,
+}: {
+  entry: FleetEntry;
+  now: number;
+  selected: boolean;
+  width: number;
+}): React.ReactElement {
+  const s = STATUS[entry.status];
+  const risk = riskMeta(agentRisk(entry));
+  const elapsed = entry.status === 'running' ? fmtElapsed(Math.max(0, now - entry.startedAt)) : '';
+
+  // Reserve space for: selection(1) + gap(1) + status(1) + gap(1) + risk(1) + gap(1) + ctx(4) + gap(1) + elapsed(~6) = 17
+  const nameW = Math.max(4, width - 17);
+
+  return (
+    <Box flexDirection="row" gap={1} height={1}>
+      {/* Selection indicator */}
+      <Text color={selected ? theme.monitor.agents : 'transparent'}>
+        {selected ? '▶' : ' '}
+      </Text>
+
+      {/* Status icon */}
+      <Text color={s.color} bold>
+        {s.icon}
+      </Text>
+
+      {/* Risk icon */}
+      <Text color={risk.color}>{risk.icon}</Text>
+
+      {/* Agent name — bold when selected */}
+      <Text
+        bold={selected}
+        color={selected ? theme.monitor.agents : theme.textPrimary}
+      >
+        {truncatePanelText(entry.name || entry.id, nameW)}
+      </Text>
+
+      {/* Context bar — 3 dots */}
+      {entry.ctxPct !== undefined ? (
+        (() => {
+          const clamped = Math.max(0, Math.min(1, entry.ctxPct));
+          const bars = 3;
+          const filled = Math.round(clamped * bars);
+          const barColor =
+            clamped < 0.6 ? theme.success : clamped < 0.75 ? theme.warn : theme.error;
+          return (
+            <Text color={barColor}>
+              {'█'.repeat(filled)}
+              {'░'.repeat(Math.max(0, bars - filled))}
+            </Text>
+          );
+        })()
+      ) : null}
+
+      {/* Extensions badge */}
+      {entry.extensions && entry.extensions > 0 ? (
+        <Text color={theme.warn}>⚡</Text>
+      ) : null}
+
+      <Box flexGrow={1} />
+
+      {/* Elapsed time */}
+      {elapsed ? <Text dimColor>{elapsed}</Text> : null}
+    </Box>
+  );
+}
+
+/**
+ * Detail panel — full-width content area in the right column.
+ * Shows agent summary, live activity, recent tools, and (when available)
+ * a scrollable transcript pane.
+ */
+function AgentDetailPanel({
+  entry,
+  now,
+  transcript,
+  transcriptScroll,
+  transcriptRows: rows,
+  width,
+}: {
+  entry: FleetEntry;
+  now: number;
+  transcript?: AgentTimelineEntry[] | undefined;
+  transcriptScroll?: number | undefined;
+  transcriptRows?: number | undefined;
+  width: number;
+}): React.ReactElement {
+  const s = STATUS[entry.status];
+  const modelLabel = fmtModelLabel(entry.provider, entry.model);
+  const streamTail = entry.streamingText
+    ? snippet(entry.streamingText.slice(-160), Math.max(16, width - 10))
+    : '';
+  const lastMessage = entry.recentMessages[entry.recentMessages.length - 1];
+
+  // Alert line: failure > budget > streaming tail > current action
+  const alert =
+    entry.failureReason && entry.status !== 'success'
+      ? { color: theme.error, text: `✗ ${snippet(entry.failureReason, Math.max(16, width - 8))}` }
+      : entry.budgetWarning
+        ? {
+            color: theme.warn,
+            text: `⚡ ${entry.budgetWarning.kind} ${entry.budgetWarning.used}/${entry.budgetWarning.limit}${entry.extensions ? ` ×${entry.extensions}` : ''}`,
+          }
+        : streamTail
+          ? { color: theme.textMuted, text: `∴ …${streamTail}` }
+          : {
+              color: entry.currentTool ? theme.accent : theme.textMuted,
+              text: currentAction(entry, now),
+            };
+
+  // Determine if there's room for tools row
+  const wide = width >= 56;
+
+  return (
+    <Box flexDirection="column" width="100%" flexGrow={1}>
+      {/* Row 1: Agent header — name, status, model */}
+      <Box flexDirection="row" gap={1} height={1}>
+        <Text color={theme.monitor.agents} bold>
+          {truncatePanelText(
+            formatAgentDetailHeader(entry),
+            Math.max(12, Math.floor(width * 0.35)),
+          )}
+        </Text>
+        {modelLabel && width >= 48 ? (
+          <Text color={theme.accent}>{truncatePanelText(modelLabel, 24)}</Text>
+        ) : null}
+        <Box flexGrow={1} />
+        <Text color={s.color}>
+          {s.icon} {entry.status}
+        </Text>
+      </Box>
+
+      {/* Row 2: Runtime / throughput / context / cost */}
+      <Box flexDirection="row" gap={1} height={1}>
+        <Text dimColor>⚙</Text>
+        <Text>
+          L{entry.iterations} · {entry.toolCalls}t
+        </Text>
+        <Text dimColor>ctx</Text>
+        <Text>{formatContextRunway(entry.ctxTokens, entry.ctxMaxTokens)}</Text>
+        <Text color={theme.success}>${entry.cost.toFixed(4)}</Text>
+        <Text dimColor>· {fmtElapsed(Math.max(0, now - entry.startedAt))}</Text>
+      </Box>
+
+      {/* Row 3: Alert / live activity */}
+      {alert.text ? (
+        <Box flexDirection="row" gap={1} height={1}>
+          <Text color={alert.color}>{alert.text}</Text>
+        </Box>
+      ) : null}
+
+      {/* Recent tools row (compact chips) */}
+      {entry.recentTools.length > 0 && wide ? (
+        <Box flexDirection="row" gap={1} height={1}>
+          <Text dimColor>tools</Text>
+          {entry.recentTools.slice(-4).map((tool, i) => {
+            const visual = getToolVisual(tool.name);
+            return (
+              <Text
+                key={`${tool.name}-${tool.at}-${i}`}
+                color={tool.ok === false ? theme.error : visual.color}
+              >
+                {`‹${visual.glyph} ${formatRecentToolChip(tool)}›`}
+              </Text>
+            );
+          })}
+        </Box>
+      ) : null}
+
+      {/* Streaming tail or last message (when no transcript) */}
+      {!transcript && entry.status === 'running' && streamTail ? (
+        <Box height={1}>
+          <Text dimColor>{'>'} {streamTail}</Text>
+        </Box>
+      ) : null}
+
+      {/* Latest message snippet (when no stream tail) */}
+      {!transcript && (entry.status !== 'running' || !streamTail) && lastMessage ? (
+        <Box height={1}>
+          <Text dimColor>msg: {snippet(lastMessage.text)}</Text>
+        </Box>
+      ) : null}
+
+      {/* Transcript pane — renders below the agent summary */}
+      {transcript ? (
+        <TranscriptPane
+          entries={transcript}
+          scrollOffset={transcriptScroll ?? 0}
+          rows={rows ?? TRANSCRIPT_ROWS}
+          width={width}
+        />
+      ) : null}
+    </Box>
+  );
+}
+
 /**
  * Fixed-height transcript pane. Constant row count in every state so the
- * surrounding inline-Ink layout never grows/shrinks while streaming
- * (growth at the bottom edge leaks rows into native scrollback).
+ * surrounding layout never grows/shrinks while streaming.
  */
 function TranscriptPane({
   entries,
   scrollOffset,
   rows = TRANSCRIPT_ROWS,
+  width = 100,
 }: {
   entries: readonly AgentTimelineEntry[];
   scrollOffset: number;
   rows?: number | undefined;
+  width?: number | undefined;
 }): React.ReactElement {
   const { slice, above, below } = selectTranscriptWindow(entries, scrollOffset, rows);
   const padding = Math.max(0, rows - slice.length);
   return (
-    <Box flexDirection="column" borderStyle="single" borderColor={theme.textMuted} paddingX={1}>
-      <Box flexDirection="row" gap={1}>
-        <Text dimColor bold>transcript</Text>
+    <Box
+      flexDirection="column"
+      borderStyle="single"
+      borderColor={theme.textMuted}
+      paddingX={1}
+      marginTop={1}
+    >
+      <Box flexDirection="row" gap={1} height={1}>
+        <Text dimColor bold>
+          transcript
+        </Text>
         <Text dimColor>
-          {entries.length} entries · PgUp/PgDn scroll
-          {above > 0 ? ` · ↑ ${above} earlier` : ''}
-          {below > 0 ? ` · ↓ ${below} newer` : ''}
+          {truncatePanelText(
+            `${entries.length} entries · PgUp/PgDn scroll${above > 0 ? ` · ↑ ${above} earlier` : ''}${below > 0 ? ` · ↓ ${below} newer` : ''}`,
+            Math.max(12, width - 16),
+          )}
         </Text>
       </Box>
       {slice.map((e) => (
-        <Text key={e.id} dimColor={e.kind === 'thinking' || e.kind === 'system'} color={e.kind === 'error' ? theme.error : undefined}>
-          {formatTranscriptLine(e)}
+        <Text
+          key={e.id}
+          dimColor={e.kind === 'thinking' || e.kind === 'system'}
+          color={e.kind === 'error' ? theme.error : undefined}
+        >
+          {formatTranscriptLine(e, Math.max(24, width - 6))}
         </Text>
       ))}
       {Array.from({ length: padding }, (_, i) => (
@@ -481,228 +737,26 @@ function TranscriptPane({
   );
 }
 
-/**
- * Expanded detail card for the selected agent — shows sparkline, last tool,
- * streaming text, budget warnings, and failure reason.
- */
-function AgentDetail({
-  entry,
-  now,
-  transcript,
-  transcriptScroll = 0,
-  transcriptRows = TRANSCRIPT_ROWS,
-}: {
-  entry: FleetEntry;
-  now: number;
-  /** Full transcript, OLDEST first. Undefined = no reader wired (fallback UI). */
-  transcript?: AgentTimelineEntry[] | undefined;
-  transcriptScroll?: number | undefined;
-  transcriptRows?: number | undefined;
-}): React.ReactElement {
-  // Transcript mode: a CONSTANT-height card — exactly 3 chrome rows plus the
-  // fixed transcript pane, with no conditional rows. Switching agents (or an
-  // agent picking up budget warnings / costs mid-run) must never change the
-  // card height: in inline Ink a growing bottom region leaks rows into the
-  // native scrollback and yanks the user's scroll position.
-  if (transcript) {
-    const modelLbl = fmtModelLabel(entry.provider, entry.model) || [entry.provider, entry.model].filter(Boolean).join('/');
-    const statusMeta = STATUS[entry.status];
-    // Row 3 is a single always-present line: the most urgent of
-    // failure > budget pressure > live stream tail > current activity.
-    // The stream tail is the one place that updates in-place word by word —
-    // the transcript pane below shows whole segments, not a delta ticker.
-    const liveTail = entry.status === 'running' && entry.streamingText
-      ? snippet(entry.streamingText.slice(-160), 110)
-      : '';
-    const alert = entry.failureReason && entry.status !== 'success'
-      ? { color: theme.error, text: `✗ ${snippet(entry.failureReason, 90)}` }
-      : entry.budgetWarning
-        ? { color: theme.warn, text: `⚡ ${entry.budgetWarning.kind} ${entry.budgetWarning.used}/${entry.budgetWarning.limit}${entry.extensions ? ` ×${entry.extensions}` : ''}` }
-        : liveTail
-          ? { color: theme.textMuted, text: `∴ …${liveTail}` }
-          : { color: entry.currentTool ? theme.accent : theme.textMuted, text: currentAction(entry, now) };
-    return (
-      <Box alignSelf="stretch" flexDirection="column" width="100%" flexGrow={1}>
-        <Box
-          alignSelf="stretch"
-          flexDirection="column"
-          width="100%"
-          flexGrow={1}
-          paddingX={1}
-          borderStyle="single"
-          borderColor={theme.monitor.agents}
-        >
-          <Box flexDirection="row" gap={1}>
-            <Text color={theme.monitor.agents} bold>{formatAgentDetailHeader(entry)}</Text>
-            <Text dimColor>{entry.id}</Text>
-            {modelLbl ? <Text color={theme.accent}>{modelLbl}</Text> : <Text dimColor>·</Text>}
-            <Text color={statusMeta.color}>{statusMeta.icon} {entry.status}</Text>
-          </Box>
-          <Box flexDirection="row" gap={1}>
-            <Text dimColor>runtime</Text>
-            <Text>{fmtElapsed(Math.max(0, now - entry.startedAt))}</Text>
-            <Text color={theme.accent}>L{entry.iterations} {entry.toolCalls}t</Text>
-            <Text dimColor>ctx</Text>
-            <Text>{formatContextRunway(entry.ctxTokens, entry.ctxMaxTokens)}</Text>
-            <Text color={theme.success}>${entry.cost.toFixed(4)}</Text>
-          </Box>
-          <Box flexDirection="row" gap={1}>
-            <Text color={alert.color}>{alert.text}</Text>
-          </Box>
-          <TranscriptPane entries={transcript} scrollOffset={transcriptScroll} rows={transcriptRows} />
-        </Box>
-      </Box>
-    );
-  }
-
-  const spark = sparkline(bucketActivity(entry.recentTools, now));
-  const lastTool = entry.recentTools[entry.recentTools.length - 1];
-  const lastMessage = entry.recentMessages[entry.recentMessages.length - 1];
-  const streamTail = entry.streamingText ? snippet(entry.streamingText.slice(-160)) : '';
-  const risk = riskMeta(agentRisk(entry));
-  const ctxLine = formatContextRunway(entry.ctxTokens, entry.ctxMaxTokens);
-  const modelLabel = fmtModelLabel(entry.provider, entry.model) || [entry.provider, entry.model].filter(Boolean).join('/');
-
-  return (
-    <Box alignSelf="stretch" flexDirection="column" width="100%" flexGrow={1}>
-      <Box
-        alignSelf="stretch"
-        flexDirection="column"
-        width="100%"
-        flexGrow={1}
-        paddingX={1}
-        borderStyle="single"
-        borderColor={theme.monitor.agents}
-      >
-        <Box flexDirection="row" gap={1}>
-          <Text color={theme.monitor.agents} bold>
-            {formatAgentDetailHeader(entry)}
-          </Text>
-        </Box>
-        <Box flexDirection="row" gap={1}>
-          <Text dimColor>id</Text>
-          <Text>{entry.id}</Text>
-          {modelLabel ? (
-            <>
-              <Text dimColor>· model</Text>
-              <Text color={theme.accent}>{modelLabel}</Text>
-            </>
-          ) : null}
-          <Text dimColor>· status</Text>
-          <Text color={STATUS[entry.status].color}>{STATUS[entry.status].icon} {entry.status}</Text>
-        </Box>
-        <Box flexDirection="row" gap={1}>
-          <Text dimColor>runtime</Text>
-          <Text>{fmtElapsed(Math.max(0, now - entry.startedAt))}</Text>
-          <Text dimColor>· started</Text>
-          <Text>{fmtOptionalTimestamp(entry.startedAt)}</Text>
-          <Text dimColor>· last event</Text>
-          <Text>{fmtShortDuration(Math.max(0, now - entry.lastEventAt))} ago</Text>
-          {entry.extensions && entry.extensions > 0 ? <Text color={theme.warn}>· extensions ⚡×{entry.extensions}</Text> : null}
-        </Box>
-        <Box flexDirection="row" gap={1}>
-          <Text dimColor>throughput</Text>
-          <Text color={theme.accent}>{entry.iterations} iterations</Text>
-          <Text dimColor>·</Text>
-          <Text color={theme.accent}>{entry.toolCalls} tools</Text>
-          <Text dimColor>· current</Text>
-          <Text color={entry.currentTool ? theme.accent : theme.textMuted}>{currentAction(entry, now)}</Text>
-        </Box>
-      {/* Activity sparkline + last completed tool */}
-      {spark || lastTool ? (
-        <Box flexDirection="row" gap={1}>
-          <Text color={theme.success}>{spark || ''}</Text>
-          {lastTool ? (
-            <Text dimColor>
-              last: {lastTool.name}
-              {typeof lastTool.durationMs === 'number' ? ` ${lastTool.durationMs}ms` : ''}
-              {lastTool.ok === false ? ' ✗' : ''}
-            </Text>
-          ) : null}
-        </Box>
-      ) : null}
-
-      <Box flexDirection="row" gap={1}>
-        <Text color={risk.color}>{risk.icon} {risk.label}</Text>
-        <Text dimColor>ctx</Text>
-        <Text color={risk.color}>{ctxLine}</Text>
-        <Text dimColor>idle {fmtShortDuration(Math.max(0, now - entry.lastEventAt))}</Text>
-      </Box>
-
-      {/* Cost breakdown */}
-      {(entry.cost > 0 || (entry.ctxCost && entry.ctxCost > 0)) ? (
-        <Box>
-          <Text dimColor>cost: </Text>
-          {entry.cost > 0 ? <Text color={theme.success}>${entry.cost.toFixed(4)} total</Text> : null}
-          {entry.cost > 0 && entry.ctxCost && entry.ctxCost > 0 ? <Text dimColor>  ·  </Text> : null}
-          {entry.ctxCost && entry.ctxCost > 0 ? (
-            <Text color={theme.warn}>${entry.ctxCost.toFixed(4)} ctx</Text>
-          ) : null}
-        </Box>
-      ) : null}
-
-      {entry.transcriptPath ? (
-        <Box>
-          <Text dimColor>transcript: {snippet(entry.transcriptPath, 120)}</Text>
-        </Box>
-      ) : null}
-
-      {entry.recentTools.length > 0 ? (
-        <Box flexDirection="row" gap={1}>
-          <Text dimColor>recent</Text>
-          {entry.recentTools.slice(-4).map((tool, i) => {
-            const visual = getToolVisual(tool.name);
-            return (
-              <Text key={`${tool.name}-${tool.at}-${i}`} color={tool.ok === false ? theme.error : visual.color}>
-                {`‹${visual.glyph} ${formatRecentToolChip(tool)}›`}
-              </Text>
-            );
-          })}
-        </Box>
-      ) : null}
-
-      {/* Live streaming tail */}
-      {entry.status === 'running' && streamTail ? (
-        <Box>
-          <Text dimColor>
-            {'>'} {streamTail}
-          </Text>
-        </Box>
-      ) : null}
-
-      {/* Latest finished-message snippet */}
-      {(entry.status !== 'running' || !streamTail) && lastMessage ? (
-        <Box>
-          <Text dimColor>msg: {snippet(lastMessage.text)}</Text>
-        </Box>
-      ) : null}
-
-      {/* Budget pressure */}
-      {entry.budgetWarning ? (
-        <Box>
-          <Text color={theme.warn}>
-            ⚡ {entry.budgetWarning.kind} {entry.budgetWarning.used}/{entry.budgetWarning.limit} —
-            extending
-          </Text>
-        </Box>
-      ) : null}
-
-      {/* Failure reason */}
-      {entry.failureReason && entry.status !== 'success' ? (
-        <Box>
-          <Text color={theme.error}>✗ {entry.failureReason}</Text>
-        </Box>
-      ) : null}
-      </Box>
-    </Box>
-  );
-}
+// ─── Main Component (F3 — Agents Panel with Sidebar Layout) ──────────
 
 /**
- * Live per-agent monitor (Ctrl+G / F3). Hybrid compact view:
- * - All agents, including LEADER, are available via ↑↓ navigation.
- * - Non-selected agents render as single-line rows.
- * - The selected agent expands in place into a titled detail rectangle.
+ * Agents panel — the redesigned F3 view.
+ *
+ * Layout:
+ * ┌─────────────────────────────────────────────────────────┐
+ * │ ◇ AGENTS / live ops            ▶ 2 ✓ 5  $0.1234        │  ← DashboardHeader
+ * ├──────────────────────┬──────────────────────────────────┤
+ * │ agents (4)           │ AgentName   model   status      │  ← Right detail
+ * │ ▶ agent1  ██░  12s  │ runtime 5m · L42 892t          │
+ * │ ○ agent2  █░░  5m   │ ctx 45k/100k · 55k free         │
+ * │ ○ agent3  ░░░  2m   │ active: → read foo.ts 1.2s      │
+ * │                      │ ┌──────────────────────────┐   │
+ * │                      │ │ transcript   74 entries   │   │
+ * │                      │ │ L3 🔧 read foo.ts        │   │
+ * │                      │ └──────────────────────────┘   │
+ * ├──────────────────────┴──────────────────────────────────┤
+ * │ ↑↓ agent  PgUp/Dn transcript  F3 close                 │
+ * └─────────────────────────────────────────────────────────┘
  */
 export function AgentsMonitor({
   entries,
@@ -713,17 +767,24 @@ export function AgentsMonitor({
   onClose,
   transcripts,
   leaderTranscript,
-  fullscreen = false,
+  fullscreen: _fullscreen = false,
 }: AgentsMonitorProps): React.ReactElement {
   const all = Object.values(entries);
   const grandCost = leaderCost + totalCost;
 
   const live = useMemo(() => selectLiveAgents(all, nowTick), [all, nowTick]);
   const [selectedId, setSelectedId] = useState<string | undefined>(undefined);
-  const [emptyAgentsCloseStartedAt, setEmptyAgentsCloseStartedAt] = useState<number | undefined>(undefined);
+  const [emptyAgentsCloseStartedAt, setEmptyAgentsCloseStartedAt] = useState<number | undefined>(
+    undefined,
+  );
 
+  // Auto-close when empty
   useEffect(() => {
-    const nextStartedAt = nextEmptyAgentsCloseStartedAt(live.length, nowTick, emptyAgentsCloseStartedAt);
+    const nextStartedAt = nextEmptyAgentsCloseStartedAt(
+      live.length,
+      nowTick,
+      emptyAgentsCloseStartedAt,
+    );
     if (nextStartedAt !== emptyAgentsCloseStartedAt) setEmptyAgentsCloseStartedAt(nextStartedAt);
     if (shouldCloseEmptyAgentsMonitor(live.length, nowTick, nextStartedAt)) onClose?.();
   }, [emptyAgentsCloseStartedAt, live.length, nowTick, onClose]);
@@ -731,12 +792,7 @@ export function AgentsMonitor({
   const selected = selectAgentDetail(live, selectedId);
   const selectedIndex = selected ? live.findIndex((entry) => entry.id === selected.id) : -1;
 
-  // Selected agent's full transcript, refreshed on the 1s nowTick (poll —
-  // AgentMonitorService's per-delta events would re-render per token).
-  // Subagents: getTranscript returns newest-first, the pane wants oldest-
-  // first. LEADER: the main chat's own entries (already oldest-first),
-  // supplied by the App WITHOUT subagent lines, so every agent — leader
-  // included — gets its own clean, separate history.
+  // Selected agent's full transcript, refreshed on the 1s nowTick
   const [transcriptScroll, setTranscriptScroll] = useState(0);
   const selectedTranscriptId = selected?.id;
   const transcript = useMemo(() => {
@@ -747,22 +803,42 @@ export function AgentsMonitor({
     return transcripts
       ? transcripts.getTranscript(selected.id, TRANSCRIPT_FETCH_LIMIT).slice().reverse()
       : undefined;
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- nowTick drives the 1 Hz refresh
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [transcripts, leaderTranscript, selectedTranscriptId, nowTick]);
-  // Re-pin to the newest entries when the selection changes.
+
+  // Re-pin transcript scroll to newest on selection change
   useEffect(() => {
     setTranscriptScroll(0);
   }, [selectedTranscriptId]);
 
-  // Pane height: constant for a given terminal size + roster size, so
-  // ↑↓ agent switches never change the overall panel height.
+  // Terminal dimensions
   const { stdout } = useStdout();
-  const paneRows = transcriptRowsForTerminal(stdout?.rows, live.length, fullscreen);
+  const terminalRows = stdout?.rows ?? 30;
+  const terminalColumns = stdout?.columns ?? 90;
+  const contentWidth = Math.max(24, terminalColumns - 4);
 
-  // Keyboard navigation. Arrow keys ONLY — the chat input stays live beneath
-  // this panel, so j/k are left free to type into the message buffer rather
-  // than being captured here as navigation. PgUp/PgDn scroll the transcript
-  // pane (safe: the composer skips PgUp/PgDn while an overlay is open).
+  // Column widths for left-right split layout.
+  // Left sidebar gets ~32% of width (min 26, max 42 chars for readability).
+  const leftColWidth = Math.max(26, Math.min(Math.floor(contentWidth * 0.32), 42));
+  const rightColWidth = contentWidth - leftColWidth - 2; // gap
+
+  // Transcript rows fill the available vertical space in the right column.
+  // Chrome: top border(1) + title row(1) + dashboard(1) + right detail header(3)
+  //         + footer(1) + bottom border(1) = 8 + 2 buffer = 10
+  // Also subtract the left column header row.
+  const detailRows = transcript
+    ? Math.max(6, terminalRows - 10)
+    : 4;
+
+  // Left-column roster windowing.
+  // The left column header takes 1 row + padding.
+  const leftHeaderRows = 2;
+  const leftAvailableRows = terminalRows - leftHeaderRows - 6; // 6 for shell chrome
+  const rosterLimit = Math.max(1, Math.min(live.length, leftAvailableRows));
+  const rosterWindow = panelWindow(live.length, Math.max(0, selectedIndex), rosterLimit);
+  const visibleLive = live.slice(rosterWindow.start, rosterWindow.end);
+
+  // Keyboard navigation
   useInput((_input, key) => {
     if (live.length === 0) return;
     if (key.upArrow) {
@@ -772,122 +848,133 @@ export function AgentsMonitor({
       const next = Math.min(live.length - 1, selectedIndex + 1);
       setSelectedId(live[next]?.id);
     } else if (key.pageUp && transcript) {
-      const maxOffset = Math.max(0, transcript.length - paneRows);
-      setTranscriptScroll((s) => Math.min(maxOffset, s + paneRows));
+      const maxOffset = Math.max(0, transcript.length - detailRows);
+      setTranscriptScroll((s) => Math.min(maxOffset, s + detailRows));
     } else if (key.pageDown && transcript) {
-      setTranscriptScroll((s) => Math.max(0, s - paneRows));
+      setTranscriptScroll((s) => Math.max(0, s - detailRows));
     }
   });
 
+  // Derived metrics
   const running = live.filter((e) => e.status === 'running').length;
   const totalDone = all.filter((e) => e.status === 'success').length;
   const totalFailed = all.filter((e) => e.status === 'failed' || e.status === 'timeout').length;
   const hotAgent = selectHotAgent(live);
-  const pressure = live.length > 0
-    ? live.reduce((max, e) => Math.max(max, e.ctxPct ?? 0), 0)
-    : 0;
-  const toolCalls = live.reduce((sum, e) => sum + e.toolCalls, 0);
-  const iterations = live.reduce((sum, e) => sum + e.iterations, 0);
-
+  const hotRisk = hotAgent ? riskMeta(agentRisk(hotAgent)) : undefined;
+  const pressure = live.length > 0 ? live.reduce((max, e) => Math.max(max, e.ctxPct ?? 0), 0) : 0;
+  const wide = terminalColumns >= 96;
 
   return (
-    <Box
-      alignSelf="stretch"
-      flexDirection="column"
-      width="100%"
-      borderStyle="round"
-      borderColor={theme.monitor.agents}
-      paddingX={1}
-      flexGrow={1}
-    >
-      {/* Header */}
-      <Box flexDirection="row" gap={1}>
-        <Text bold color={theme.monitor.agents}>
-          AGENTS · LIVE
+    <MonitorShell
+      accent={theme.monitor.agents}
+      icon={glyphs.peers}
+      title="AGENTS"
+      kicker={wide ? 'live operations' : undefined}
+      grow
+      right={
+        <Text>
+          <Text color={theme.warn}>{glyphs.running} {running}</Text>
+          <Text color={theme.success}> {glyphs.success} {totalDone}</Text>
+          {totalFailed > 0 ? <Text color={theme.error}> {glyphs.failure} {totalFailed}</Text> : null}
         </Text>
-        <Text dimColor>│</Text>
-        <Text color={theme.warn}>▶{running}</Text>
-        <Text dimColor>─────────────────</Text>
-        <Text dimColor>done</Text>
-        <Text color={theme.success}>✓{totalDone}</Text>
-        <Text dimColor>·</Text>
-        <Text dimColor>failed</Text>
-        {totalFailed > 0 ? <Text color={theme.error}>✗{totalFailed}</Text> : null}
-        <Text dimColor>· ↑↓ nav{transcripts ? ' · PgUp/PgDn transcript' : ''} · Esc / Ctrl+G / F3 close</Text>
-      </Box>
-
-      {/* Mission-control pulse: pressure, hottest agent, total throughput. */}
-      <Box flexDirection="row" gap={1}>
-        <Text dimColor>pulse</Text>
-        <Text color={pressure >= 0.9 ? theme.error : pressure >= 0.75 ? theme.warn : theme.success}>
-          max ctx {pctTextFromRatio(pressure)}
-        </Text>
-        <Text dimColor>· hot</Text>
-        {hotAgent ? (
-          <Text color={riskMeta(agentRisk(hotAgent)).color}>
-            {hotAgent.name} {hotAgent.ctxPct !== undefined ? pctTextFromRatio(hotAgent.ctxPct) : ''}
-          </Text>
-        ) : (
-          <Text dimColor>none</Text>
-        )}
-        <Text dimColor>· throughput</Text>
-        <Text color={theme.accent}>{iterations}L/{toolCalls}t</Text>
-      </Box>
-
-      {/* Agent-type → model mapping (compact one-liner) */}
-      {live.length > 0 ? (
-        <Box flexDirection="row" gap={1}>
-          <Text dimColor>models</Text>
-          {(() => {
-            const seen = new Map<string, string>();
-            for (const e of live) {
-              if (e.model) seen.set(e.name ?? e.id, `${e.provider ?? '?'}/${e.model}`);
-            }
-            return [...seen.entries()].slice(0, 4).map(([name, mod]) => (
-              <Text key={name} dimColor>{name}:{mod}</Text>
-            ));
-          })()}
+      }
+      footer={
+        <Box gap={2}>
+          <KeyCap keyName="↑↓" label="agent" color={theme.monitor.agents} />
+          {selected && transcripts ? (
+            <KeyCap keyName="PgUp/Dn" label="transcript" color={theme.monitor.agents} />
+          ) : null}
+          <KeyCap keyName="F3" label="close" color={theme.monitor.agents} />
         </Box>
-      ) : null}
+      }
+    >
+      {/* ── Dashboard header ───────────────────────────────────────────── */}
+      <DashboardHeader
+        running={running}
+        totalDone={totalDone}
+        totalFailed={totalFailed}
+        pressure={pressure}
+        grandCost={grandCost}
+        leaderCost={leaderCost}
+        totalCost={totalCost}
+        totalTokens={totalTokens}
+        hotAgent={hotAgent}
+        hotRisk={hotRisk}
+      />
 
-      {/* Token + cost row */}
-      <Box flexDirection="row" gap={1}>
-        <Text dimColor>shown</Text>
-        <Text color={theme.monitor.agents}>{live.length}</Text>
-        {totalTokens ? (
-          <Text dimColor>
-            {' '}
-            {fmtTokens(totalTokens.input)}↑ {fmtTokens(totalTokens.output)}↓
-          </Text>
-        ) : null}
-        <Text dimColor>total</Text>
-        <Text color={theme.success} bold>
-          ${grandCost.toFixed(4)}
-        </Text>
-        <Text dimColor>
-          (leader ${leaderCost.toFixed(4)} · fleet ${totalCost.toFixed(4)})
-        </Text>
-      </Box>
-
+      {/* ── Left-right split layout ────────────────────────────────────── */}
       {live.length === 0 ? (
-        <Text dimColor>No live agents — spawn with /spawn or /fleet dispatch.</Text>
-      ) : null}
+        <EmptyPanelState
+          icon="◇"
+          title="No live agents"
+          detail="Start one with /spawn or hand off work with /fleet dispatch."
+          accent={theme.monitor.agents}
+        />
+      ) : (
+        <Box flexDirection="row" gap={1} flexGrow={1} marginTop={1}>
+          {/* ═══ Left sidebar: agent list ═══ */}
+          <Box flexDirection="column" width={leftColWidth}>
+            {/* Column header */}
+            <Box flexDirection="row" gap={1} height={1}>
+              <Text dimColor bold>
+                agents
+              </Text>
+              <Text dimColor>{live.length}</Text>
+              {rosterWindow.above > 0 ? (
+                <Text color={theme.textMuted} dimColor>
+                  ↑{rosterWindow.above}
+                </Text>
+              ) : null}
+              {rosterWindow.below > 0 ? (
+                <Text color={theme.textMuted} dimColor>
+                  ↓{rosterWindow.below}
+                </Text>
+              ) : null}
+            </Box>
 
-      {/* Agent rows: only the selected entry expands in-place. */}
-      {live.map((e) => (
-        e.id === selected?.id ? (
-          <AgentDetail
-            key={e.id}
-            entry={e}
-            now={nowTick}
-            transcript={transcript}
-            transcriptScroll={transcriptScroll}
-            transcriptRows={paneRows}
-          />
-        ) : (
-          <AgentRow key={e.id} entry={e} now={nowTick} selected={false} />
-        )
-      ))}
-    </Box>
+            {/* Agent cards */}
+            {visibleLive.map((e) => (
+              <AgentCard
+                key={e.id}
+                entry={e}
+                now={nowTick}
+                selected={e.id === selected?.id}
+                width={leftColWidth}
+              />
+            ))}
+          </Box>
+
+          {/* ═══ Vertical separator ═══ */}
+
+          {/* ═══ Right panel: agent detail + transcript ═══ */}
+          <Box
+            flexDirection="column"
+            flexGrow={1}
+            borderStyle="single"
+            borderColor={theme.textMuted}
+            paddingX={1}
+            minWidth={36}
+          >
+            {selected ? (
+              <AgentDetailPanel
+                entry={selected}
+                now={nowTick}
+                transcript={transcript}
+                transcriptScroll={transcriptScroll}
+                transcriptRows={detailRows}
+                width={rightColWidth}
+              />
+            ) : (
+              <EmptyPanelState
+                icon="◈"
+                title="Select an agent"
+                detail="Use ↑↓ to browse agents. Esc to close."
+                accent={theme.monitor.agents}
+              />
+            )}
+          </Box>
+        </Box>
+      )}
+    </MonitorShell>
   );
 }

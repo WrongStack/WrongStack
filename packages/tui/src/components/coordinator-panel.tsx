@@ -1,18 +1,19 @@
-/**
- * CoordinatorPanel — AutonomousCoordinator live view.
- *
- * Shows project-level coordination activity across all sessions:
- * - Active goals with progress
- * - Task dependency DAG status
- * - Shared knowledge facts
- * - Consensus decisions
- *
- * Rendered as an overlay when the coordinator monitor is open (Ctrl+Shift+C).
- */
+/** F11 — project-level AutonomousCoordinator monitor. */
 import { Box, Text, useInput } from '../ink.js';
-import { useCallback } from 'react';
+import { useEffect, useState } from 'react';
 import type React from 'react';
 import type { State } from '../app.js';
+import { theme } from '../theme.js';
+import { glyphs } from '../ui-glyphs.js';
+import {
+  EmptyPanelState,
+  KeyCap,
+  MonitorShell,
+  panelWindow,
+  truncatePanelText,
+  useMonitorSize,
+} from './monitor-shell.js';
+import { renderProgress } from './status-bar.js';
 
 export interface CoordinatorPanelProps {
   coordinator: State['coordinator'];
@@ -23,71 +24,33 @@ export interface CoordinatorPanelProps {
 }
 
 const KIND_COLOR: Record<string, string> = {
-  goal: 'cyan',
-  task: 'yellow',
-  knowledge: 'green',
-  consensus: 'magenta',
-  deadlock: 'red',
+  goal: theme.accent,
+  task: theme.warn,
+  knowledge: theme.success,
+  consensus: theme.brand,
+  deadlock: theme.error,
+};
+
+const GOAL_VISUAL: Record<string, { icon: string; color: string }> = {
+  active: { icon: '▶', color: theme.success },
+  paused: { icon: 'Ⅱ', color: theme.warn },
+  completed: { icon: '✓', color: theme.success },
+  failed: { icon: '✗', color: theme.error },
+};
+
+const TASK_VISUAL: Record<string, { icon: string; color: string }> = {
+  pending: { icon: '○', color: theme.textMuted },
+  running: { icon: '▶', color: theme.warn },
+  done: { icon: '✓', color: theme.success },
+  failed: { icon: '✗', color: theme.error },
 };
 
 function fmtElapsed(at: number, nowTick: number): string {
-  const s = Math.floor((nowTick - at) / 1000);
-  if (s < 60) return `${s}s ago`;
-  const m = Math.floor(s / 60);
-  if (m < 60) return `${m}m ago`;
-  return `${Math.floor(m / 60)}h ago`;
-}
-
-function GoalRow({
-  goal,
-}: {
-  goal: State['coordinator']['goals'][0];
-}): React.ReactElement {
-  const statusColor: Record<string, string> = {
-    active: 'green',
-    paused: 'yellow',
-    completed: 'gray',
-    failed: 'red',
-  };
-  const color = statusColor[goal.status] ?? 'gray';
-  return (
-    <Box key={goal.id} flexDirection="column" paddingLeft={2} marginBottom={1}>
-      <Box>
-        <Text color={color} bold>
-          {goal.status === 'active' ? '▶' : goal.status === 'paused' ? '⏸' : goal.status === 'completed' ? '✓' : '✗'}{' '}
-          {goal.title || '(unnamed goal)'}
-        </Text>
-      </Box>
-      {goal.tasks.length > 0 && (
-        <Box flexDirection="column" paddingLeft={2}>
-          {goal.tasks.map((task) => {
-            const taskColor: Record<string, string> = {
-              pending: 'gray',
-              running: 'yellow',
-              done: 'green',
-              failed: 'red',
-            };
-            return (
-              <Box key={task.id}>
-                <Text color={taskColor[task.status] ?? 'gray'}>
-                  {task.status === 'pending' ? '○' : task.status === 'running' ? '▶' : task.status === 'done' ? '✓' : '✗'}{' '}
-                  {task.title}
-                  {task.assignedTo ? <Text dimColor> → {task.assignedTo}</Text> : null}
-                </Text>
-              </Box>
-            );
-          })}
-        </Box>
-      )}
-      {goal.participants.length > 0 && (
-        <Box paddingLeft={2}>
-          <Text dimColor>
-            participants: {goal.participants.join(', ')}
-          </Text>
-        </Box>
-      )}
-    </Box>
-  );
+  const seconds = Math.max(0, Math.floor((nowTick - at) / 1000));
+  if (seconds < 60) return `${seconds}s`;
+  const minutes = Math.floor(seconds / 60);
+  if (minutes < 60) return `${minutes}m`;
+  return `${Math.floor(minutes / 60)}h`;
 }
 
 export function CoordinatorPanel({
@@ -95,76 +58,168 @@ export function CoordinatorPanel({
   nowTick,
   onClose,
 }: CoordinatorPanelProps): React.ReactElement {
-  const handleInput = useCallback(
-    (input: string, _key: { escape?: boolean }) => {
-      if (input === 'q' || input === 'Q' || input === '\x1b') {
-        onClose();
-      }
-    },
-    [onClose],
-  );
-
-  useInput(handleInput);
-
+  const size = useMonitorSize();
+  const [selectedGoal, setSelectedGoal] = useState(0);
   const { goals, timeline, knowledgeCount, healthy } = coordinator;
 
-  return (
-    <Box
-      flexDirection="column"
-      borderStyle="round"
-      borderColor="cyan"
-      paddingX={1}
-      height={Math.min(30, Math.max(10, goals.length * 4 + timeline.length + 8))}
-      width={80}
-    >
-      {/* Header */}
-      <Box borderStyle="bold" borderColor="cyan" paddingX={1} marginBottom={1}>
-        <Text bold color="cyan">🤖 AutonomousCoordinator</Text>
-        <Box flexGrow={1} />
-        <Text dimColor={!healthy} color={healthy ? 'green' : 'red'}>
-          {healthy ? '● connected' : '○ disconnected'}
-        </Text>
-        <Text dimColor> · q/esc to close</Text>
-      </Box>
+  useEffect(() => {
+    setSelectedGoal((value) => Math.min(value, Math.max(0, goals.length - 1)));
+  }, [goals.length]);
 
-      {/* Goals section */}
-      {goals.length > 0 && (
-        <Box flexDirection="column" marginBottom={1}>
-          <Text bold>Goals ({goals.length})</Text>
-          {goals.map((goal) => (
-            <GoalRow key={goal.id} goal={goal} />
-          ))}
+  useInput((input, key) => {
+    if (input === 'q' || input === 'Q' || key.escape) onClose();
+    else if (key.upArrow) setSelectedGoal((value) => Math.max(0, value - 1));
+    else if (key.downArrow) {
+      setSelectedGoal((value) => Math.min(Math.max(0, goals.length - 1), value + 1));
+    }
+  });
+
+  const selected = goals[selectedGoal];
+  const taskLimit = Math.max(1, Math.min(5, Math.floor(size.contentRows * 0.35)));
+  const visibleTasks = selected?.tasks.slice(0, taskLimit) ?? [];
+  const goalLimit = Math.max(1, Math.min(5, size.contentRows - taskLimit - 7));
+  const goalWindow = panelWindow(goals.length, selectedGoal, goalLimit);
+  const visibleGoals = goals.slice(goalWindow.start, goalWindow.end);
+  const timelineLimit = Math.max(
+    0,
+    Math.min(5, size.contentRows - visibleGoals.length - visibleTasks.length - 7),
+  );
+  const visibleTimeline = timeline.slice(0, timelineLimit);
+  const activeGoals = goals.filter((goal) => goal.status === 'active').length;
+  const runningTasks = goals.reduce(
+    (sum, goal) => sum + goal.tasks.filter((task) => task.status === 'running').length,
+    0,
+  );
+
+  return (
+    <MonitorShell
+      accent={theme.accent}
+      icon={glyphs.auto}
+      title="COORDINATOR"
+      kicker={size.columns >= 90 ? 'cross-session control' : undefined}
+      right={
+        <Text>
+          <Text color={healthy ? theme.success : theme.error} bold>
+            ● {healthy ? 'CONNECTED' : 'OFFLINE'}
+          </Text>
+          <Text color={theme.textMuted}>
+            {' '}
+            {activeGoals} goals · {runningTasks} running
+          </Text>
+        </Text>
+      }
+      footer={
+        <Box gap={2}>
+          <KeyCap keyName="↑↓" label="inspect goal" color={theme.accent} />
+          <KeyCap keyName="F11/Q" label="close" color={theme.error} />
+          <Text color={theme.textMuted}>{knowledgeCount} shared facts</Text>
+        </Box>
+      }
+    >
+      {goals.length === 0 ? (
+        <EmptyPanelState
+          icon="◇"
+          title="No coordinated goals"
+          detail="Cross-session goals and their dependency work will appear here."
+          accent={theme.accent}
+        />
+      ) : (
+        <Box flexDirection="column" marginTop={1}>
+          <Text color={theme.textMuted} bold>
+            GOALS {goals.length}
+          </Text>
+          {goalWindow.above > 0 ? (
+            <Text color={theme.textMuted}> ↑ {goalWindow.above} goals</Text>
+          ) : null}
+          {visibleGoals.map((goal, localIndex) => {
+            const absoluteIndex = goalWindow.start + localIndex;
+            const isSelected = absoluteIndex === selectedGoal;
+            const visual = GOAL_VISUAL[goal.status] ?? { icon: '?', color: theme.textMuted };
+            const done = goal.tasks.filter((task) => task.status === 'done').length;
+            const ratio =
+              typeof goal.progress === 'number'
+                ? Math.max(0, Math.min(1, goal.progress > 1 ? goal.progress / 100 : goal.progress))
+                : goal.tasks.length > 0
+                  ? done / goal.tasks.length
+                  : 0;
+            return (
+              <Box key={goal.id}>
+                <Text color={isSelected ? theme.accent : theme.textMuted}>
+                  {isSelected ? '› ' : '  '}
+                </Text>
+                <Text color={visual.color} bold>
+                  {visual.icon}{' '}
+                </Text>
+                <Text
+                  color={isSelected ? theme.textPrimary : theme.textSecondary}
+                  bold={isSelected}
+                >
+                  {truncatePanelText(
+                    goal.title || '(unnamed goal)',
+                    Math.max(14, size.contentWidth - 38),
+                  )}
+                </Text>
+                <Box flexGrow={1} />
+                <Text color={visual.color}>[{renderProgress(ratio, 8)}]</Text>
+                <Text color={theme.textMuted}>
+                  {' '}
+                  {done}/{goal.tasks.length}
+                </Text>
+              </Box>
+            );
+          })}
+          {goalWindow.below > 0 ? (
+            <Text color={theme.textMuted}> ↓ {goalWindow.below} goals</Text>
+          ) : null}
         </Box>
       )}
 
-      {/* Knowledge section */}
-      <Box marginBottom={1}>
-        <Text bold>Knowledge </Text>
-        <Text color="green">{knowledgeCount}</Text>
-        <Text dimColor> shared facts</Text>
-      </Box>
+      {selected && selected.tasks.length > 0 ? (
+        <Box flexDirection="column" marginTop={1} paddingX={1}>
+          <Text color={theme.textMuted} bold>
+            TASKS {visibleTasks.length}/{selected.tasks.length}
+          </Text>
+          {visibleTasks.map((task) => {
+            const visual = TASK_VISUAL[task.status] ?? { icon: '?', color: theme.textMuted };
+            return (
+              <Box key={task.id}>
+                <Text color={visual.color}>{visual.icon} </Text>
+                <Text color={task.status === 'done' ? theme.textMuted : theme.textSecondary}>
+                  {truncatePanelText(task.title, Math.max(14, size.contentWidth - 28))}
+                </Text>
+                <Box flexGrow={1} />
+                {task.assignedTo ? (
+                  <Text color={theme.accent}>{truncatePanelText(task.assignedTo, 18)}</Text>
+                ) : null}
+              </Box>
+            );
+          })}
+          {selected.tasks.length > visibleTasks.length ? (
+            <Text color={theme.textMuted}>
+              {' '}
+              +{selected.tasks.length - visibleTasks.length} more tasks
+            </Text>
+          ) : null}
+        </Box>
+      ) : null}
 
-      {/* Timeline section */}
-      <Box flexDirection="column" flexGrow={1}>
-        <Text bold>Activity</Text>
-        {timeline.length === 0 ? (
-          <Text dimColor>  No activity yet</Text>
-        ) : (
-          timeline.slice(0, 10).map((entry, i) => (
-            <Box key={i} alignItems="flex-start">
-              <Text color={KIND_COLOR[entry.kind] ?? 'gray'} dimColor={i > 2}>
-                {entry.icon}
+      {visibleTimeline.length > 0 ? (
+        <Box flexDirection="column" marginTop={1}>
+          <Text color={theme.textMuted} bold>
+            RECENT ACTIVITY
+          </Text>
+          {visibleTimeline.map((entry, index) => (
+            <Box key={`${entry.at}-${index}`}>
+              <Text color={KIND_COLOR[entry.kind] ?? theme.textMuted}>{entry.icon} </Text>
+              <Text color={theme.textMuted}>
+                {truncatePanelText(entry.text, Math.max(12, size.contentWidth - 12))}
               </Text>
-              <Box flexGrow={1} marginLeft={1}>
-                <Text dimColor={i > 2}>{entry.text}</Text>
-              </Box>
-              <Box marginLeft={1}>
-                <Text dimColor>{fmtElapsed(entry.at, nowTick)}</Text>
-              </Box>
+              <Box flexGrow={1} />
+              <Text color={theme.textMuted}>{fmtElapsed(entry.at, nowTick)}</Text>
             </Box>
-          ))
-        )}
-      </Box>
-    </Box>
+          ))}
+        </Box>
+      ) : null}
+    </MonitorShell>
   );
 }

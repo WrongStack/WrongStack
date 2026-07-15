@@ -199,6 +199,7 @@ export function createInitialState(options: CreateInitialStateOptions): State {
     enhance: null,
     enhanceEnabled,
     enhanceBusy: false,
+    refineFailure: null,
     continueConfirm: null,
     escConfirm: null,
     sendModePicker: null,

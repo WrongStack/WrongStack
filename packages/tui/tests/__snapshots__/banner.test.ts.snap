@@ -1,0 +1,41 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`<Banner /> snapshot — full rendered output > matches the snapshot at 44 columns (compact layout, no wordmark) 1`] = `
+"╭──────────────────────────────────────────╮
+│                                          │
+│                                   v1.2.3 │
+│                                          │
+│  WrongStack  // TERMINAL AI ENGINE       │
+│                                          │
+│ ◆ route  openai › gpt-4o                 │
+│ ⌁ workspc…orkspace/my-project            │
+│                                          │
+│ ★ github.com/wrongstack/wrongstack —     │
+│ don't forget to star!                    │
+│ ◆ wrongstack.com                         │
+│                                          │
+╰──────────────────────────────────────────╯"
+`;
+
+exports[`<Banner /> snapshot — full rendered output > matches the snapshot at 80 columns (full layout with wordmark) 1`] = `
+"╭──────────────────────────────────────────────────────────────────────────────╮
+│                                                                              │
+│                                                                    v0.287.0  │
+│                                                                              │
+│   _       ______  ____  _   ______________________   ________ __             │
+│  | |     / / __ \\/ __ \\/ | / / ____/ ___/_  __/   | / ____/ //_/             │
+│  | | /| / / /_/ / / / /  |/ / / __ \\__ \\ / / / /| |/ /   / ,<                │
+│  | |/ |/ / _, _/ /_/ / /|  / /_/ /___/ // / / ___ / /___/ /| |               │
+│  |__/|__/_/ |_|\\____/_/ |_/\\____//____//_/ /_/  |_\\____/_/ |_|               │
+│                                                                              │
+│  BUILT ON THE WRONG STACK. SHIPPED ANYWAY.                                   │
+│                                                                              │
+│  ◆ route  anthropic › claude-opus-4                                          │
+│  ◇ family claude  ◈ key    •••• ABC                                          │
+│  ⌁ workspace  /workspace/wrongstack                                          │
+│                                                                              │
+│  ★ github.com/wrongstack/wrongstack — don't forget to star!                  │
+│  ◆ wrongstack.com                                                            │
+│                                                                              │
+╰──────────────────────────────────────────────────────────────────────────────╯"
+`;

@@ -5,6 +5,7 @@ import type { Message } from '../types/messages.js';
 import { toErrorMessage } from '../utils/index.js';
 import { HybridCompactor } from './compactor.js';
 import { IntelligentCompactor } from './intelligent-compactor.js';
+import type { OneShotOrchestrator } from './one-shot-llm.js';
 import { SelectiveCompactor } from './selective-compactor.js';
 
 export type CompactorStrategy = 'hybrid' | 'intelligent' | 'selective';
@@ -34,6 +35,12 @@ export interface StrategyCompactorOptions {
    * An explicit `strategy` always wins.
    */
   llmSelector?: boolean | undefined;
+  /**
+   * OneShotOrchestrator for LLM-backed compaction summarization. When set,
+   * the intelligent/selective compactor uses it instead of direct provider
+   * calls, gaining fallback chain support and a cheap default model.
+   */
+  oneShotOrchestrator?: OneShotOrchestrator | undefined;
 }
 
 /**
@@ -174,6 +181,7 @@ class ProviderBackedCompactor implements Compactor {
     return new IntelligentCompactor({
       ...common,
       summarizerModel: this.opts.summarizerModel,
+      oneShotOrchestrator: this.opts.oneShotOrchestrator,
     });
   }
 }

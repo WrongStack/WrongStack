@@ -39,10 +39,10 @@ export const HUE_WHEEL = [
 
 // Single base color used by `wave` / `pulse` / `breathe`. Stays inside the
 // theme so it pairs with the rest of the status chip.
-const ACCENT = '#fab387'; // peach — matches Catppuccin peach
+const ACCENT = '#fab387'; // Catppuccin peach
 
 // Dim/highlight stops for the brightness sweep styles.
-const DIM = '#3b3b4f'; // slightly lighter than Catppuccin surface0
+const DIM = '#313244'; // Catppuccin surface0
 
 // Braille spinner frames used by `breathe` and by the leading statePrefix
 // glyph.

@@ -36,6 +36,40 @@ describe('startCostTelemetryBridge', () => {
     stop();
   });
 
+  it('forwards model/provider/cache dimensions onto the payload', () => {
+    const events = new EventBus();
+    const spy = vi.fn();
+    const publisher = fakePublisher(spy);
+    startCostTelemetryBridge({ events, publisher });
+    events.emit('token.accounted', {
+      usage: { input: 100, output: 50, cacheRead: 80, cacheWrite: 20 },
+      cost: { input: 0.001, output: 0.002, total: 0.003 },
+      provider: 'anthropic',
+      model: 'claude-sonnet-4',
+    });
+    const payload: HqUsagePayload = spy.mock.calls[0]![0].payload;
+    expect(payload.provider).toBe('anthropic');
+    expect(payload.model).toBe('claude-sonnet-4');
+    expect(payload.cacheRead).toBe(80);
+    expect(payload.cacheWrite).toBe(20);
+  });
+
+  it('omits model/provider/cache when the event carries none', () => {
+    const events = new EventBus();
+    const spy = vi.fn();
+    const publisher = fakePublisher(spy);
+    startCostTelemetryBridge({ events, publisher });
+    events.emit('token.accounted', {
+      usage: { input: 100, output: 50 },
+      cost: { input: 0.001, output: 0.002, total: 0.003 },
+    });
+    const payload: HqUsagePayload = spy.mock.calls[0]![0].payload;
+    expect(payload.provider).toBeUndefined();
+    expect(payload.model).toBeUndefined();
+    expect(payload.cacheRead).toBeUndefined();
+    expect(payload.cacheWrite).toBeUndefined();
+  });
+
   it('uses the event sessionId when no override is set', () => {
     const events = new EventBus();
     const spy = vi.fn();

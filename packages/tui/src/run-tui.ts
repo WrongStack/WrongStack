@@ -286,6 +286,19 @@ export interface RunTuiOptions {
         setEnabled: (enabled: boolean) => void;
       }
     | undefined;
+  /** Capability-gated low-effort reasoning hint for the prompt refiner. */
+  getEnhancerReasoning?:
+    | (() => import('@wrongstack/core').ReasoningRequest | undefined)
+    | undefined;
+  /** Build an ephemeral Provider for retrying a failed refinement on another model (no session switch). */
+  buildEnhancerProvider?:
+    | ((
+        providerId: string,
+        modelId: string,
+      ) => Promise<import('@wrongstack/core').Provider | undefined>)
+    | undefined;
+  /** Resolve the one-key "retry with another model" fallback ref on a refine failure. */
+  getEnhanceFallbackRef?: (() => string | undefined) | undefined;
   /**
    * Controller for status bar hidden items. App installs a dispatch-backed
    * setter on mount so the /statusline slash command can update the TUI's
@@ -585,6 +598,8 @@ export interface RunTuiOptions {
         auction: { pending: number; inProgress: number };
       } | null>)
     | undefined;
+  /** Access the persistent memory store for listing and inspecting memories. */
+  memoryStore?: import('@wrongstack/core').MemoryStore | undefined;
 }
 
 // Bracketed paste mode wraps any pasted text with these markers, letting us
@@ -1185,6 +1200,9 @@ export async function runTui(opts: RunTuiOptions): Promise<number> {
           interruptController: opts.interruptController,
           enhanceController: opts.enhanceController,
           enhanceEnabled: opts.enhanceController?.enabled ?? true,
+          getEnhancerReasoning: opts.getEnhancerReasoning,
+          buildEnhancerProvider: opts.buildEnhancerProvider,
+          getEnhanceFallbackRef: opts.getEnhanceFallbackRef,
           midRunSendPicker: opts.getSettings?.().midRunSendPicker ?? true,
           statuslineHiddenItems: opts.statuslineHiddenItems,
           setStatuslineHiddenItems: opts.setStatuslineHiddenItems,
@@ -1249,6 +1267,7 @@ export async function runTui(opts: RunTuiOptions): Promise<number> {
           onCoordinatorComplete: opts.onCoordinatorComplete,
           onCoordinatorFail: opts.onCoordinatorFail,
           onCoordinatorStatus: opts.onCoordinatorStatus,
+          memoryStore: opts.memoryStore,
         }),
         { exitOnCtrlC: false, stdin: inkStdin },
       );

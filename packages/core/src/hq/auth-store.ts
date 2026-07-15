@@ -1,17 +1,18 @@
 /**
  * HQ auth-store — persistent `auth.json` for the HQ command center.
  *
- * Phase 4 scope:
+ * Holds:
  * - Operator-configured redaction policy override (applied server-side
  *   even when a publisher claims rawContent:true).
- * - Browser tokens (Phase 3) + client tokens (Phase 4). Separate lists so
- *   a browser-only token cannot be replayed on /ws/client and vice versa.
+ * - Browser tokens + client tokens. Separate lists so a browser-only token
+ *   cannot be replayed on /ws/client and vice versa.
+ * - Operator-configured alert-rule thresholds (`alertRules`), live-reloaded.
  * - Live reload hook: callers can `watchHqAuthFile()` to re-read on change.
  *
  * Storage layout (under the HQ data directory, default `~/.wrongstack/hq/`):
- *   <dataDir>/auth.json   — this file (atomic write, mode 0o600)
- *   <dataDir>/events.jsonl — reserved for future persistent event log
- *   <dataDir>/snapshot.json — reserved for future persisted snapshot
+ *   <dataDir>/auth.json    — this file (atomic write, mode 0o600)
+ *   <dataDir>/events.jsonl — persistent event log (rotated)
+ *   <dataDir>/snapshot.json — persisted latest snapshot (cache)
  *
  * The file is written atomically (tmp + rename) with mode 0o600 so a
  * shared host cannot read issued tokens or the redaction policy. Reads
@@ -27,6 +28,7 @@ import * as path from 'node:path';
 
 import { atomicWrite } from '../utils/atomic-write.js';
 import { wstackGlobalRoot } from '../utils/wstack-paths.js';
+import type { HqAlertRuleConfig } from './alerts.js';
 import type { HqRedactionPolicy } from './protocol.js';
 
 /** Current auth-file schema version. Bump on breaking shape changes. */
@@ -123,6 +125,12 @@ export interface HqAuthFile {
   passwordHash?: string;
   /** Secret used to sign browser session cookies. */
   cookieSecret?: string;
+  /**
+   * Operator-configured alert-rule thresholds. When present, these override
+   * the built-in defaults for the alert engine (cost ceiling, stale-machine
+   * window, concurrency limit). Live-reloaded with the rest of the file.
+   */
+  alertRules?: HqAlertRuleConfig;
 }
 
 /** An empty auth file — what a brand-new HQ install starts with. */

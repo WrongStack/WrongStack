@@ -19,17 +19,11 @@ export const DEFAULT_INPUT_PROMPT = `${glyphs.prompt} `;
 const COMPOSER_ACTIVITY_FRAMES = ['.', 'o', 'O', 'o'] as const;
 const COMPOSER_ACTIVITY_INTERVAL_MS = 250;
 
-/** Minimum width reserved for the yellow separator between model and status. */
-const YELLOW_SEP_W = 4; // ' ─── '
-
 /** Exact-width composer top rail with an isolated activity-icon timer.
  *
- * Layout (when modelLabel is present):
- *   ╭─ icon TITLE ──── provider/model ──── status ─╮
- *                        ^centered^
- * The model label is placed at the visual center of the available space
- * between the title prefix and the status suffix, so the line reads
- * balanced regardless of terminal width.
+ * Layout:
+ *   ╭─ icon TITLE ──────── status ─╮
+ * The provider/model is shown in the status bar instead.
  */
 function ComposerTopRail({
   width,
@@ -37,14 +31,12 @@ function ComposerTopRail({
   status,
   animationStyle,
   disabled,
-  modelLabel,
 }: {
   width: number;
   title: string;
   status: ComposerStatus;
   animationStyle: AnimationStyle | 'cycle';
   disabled: boolean;
-  modelLabel?: string | undefined;
 }): React.ReactElement {
   const active = status.kind === 'working';
   const [frame, setFrame] = useState(0);
@@ -74,36 +66,14 @@ function ComposerTopRail({
   const titlePrefix = title ? titlePrefixRaw : '';
   const titleW = displayWidth(titlePrefix);
 
-  // — 3. Model section (center) —
-  const modelW = modelLabel ? displayWidth(modelLabel) + 2 : 0; // ' ' + label + ' '
-  const showModel = Boolean(modelLabel && title);
-
-  // — 4. Yellow separator between model and status —
-  const showSep = showModel && statusWidth > 0;
-  const sepW = showSep ? YELLOW_SEP_W : 0;
-
-  // — 5. Fill — split remaining space evenly around the model,
-  //     with the yellow separator between model and status
-  const remaining = Math.max(0, available - titleW - modelW - sepW - statusSectionW);
-  const leftFill = Math.floor(remaining / 2);
-  const rightFill = remaining - leftFill;
+  // — 3. Fill — remaining space between title and status
+  const remaining = Math.max(0, available - titleW - statusSectionW);
 
   return (
     <Text bold color={disabled ? theme.error : theme.brandPrimary}>
       {'╭'}
       {titlePrefix}
-      {leftFill > 0 ? '─'.repeat(leftFill) : null}
-      {showModel ? (
-        <Text color={theme.accent} bold>
-          {' '}{modelLabel}{' '}
-        </Text>
-      ) : null}
-      {showSep ? (
-        <Text color={theme.warn}>
-          {' ─── '}
-        </Text>
-      ) : null}
-      {rightFill > 0 ? '─'.repeat(rightFill) : null}
+      {remaining > 0 ? '─'.repeat(remaining) : null}
       {statusPrefix}
       {statusWidth > 0 ? (
         <ComposerStatusChip
@@ -153,11 +123,6 @@ export interface InputProps {
   hidden?: boolean | undefined;
   /** Row count for the hidden placeholder so the bottom region never resizes. */
   placeholderHeight?: number | undefined;
-  /**
-   * Short model label shown in the composer's top rail (e.g. "deepseek-chat").
-   * Appears dimmed after the title when provided.
-   */
-  modelLabel?: string | undefined;
   onKey: (input: string, key: KeyEvent) => void;
 }
 
@@ -317,7 +282,6 @@ export const Input = memo(function Input({
   footerHint = 'Enter send · Shift+Enter newline · @ file · / commands',
   hidden,
   placeholderHeight,
-  modelLabel,
   onKey,
 }: InputProps): React.ReactElement {
   // Suppress duplicate key events: when our raw-stdin handler catches a key
@@ -564,7 +528,6 @@ export const Input = memo(function Input({
         status={railStatus}
         animationStyle={animationStyle}
         disabled={disabled ?? false}
-        modelLabel={modelLabel}
       />
       {rows.map((row, i) => {
         const rowWidth = displayWidth(row.map((cell) => cell.ch).join(''));

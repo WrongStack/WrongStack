@@ -1,6 +1,6 @@
 /**
  * Alerts view — live alert feed + active alerts.
- * Fed by `hq.alert` WS messages (Phase 6) + /api/alerts history.
+ * Fed by `hq.alert` WS messages + /api/alerts history.
  */
 
 import type { HqAlert } from '@wrongstack/core';
@@ -51,15 +51,15 @@ export function AlertsView(): React.ReactElement {
         <>
           <div className="hq-card-title">Active Alerts ({apiActive.length})</div>
           {apiActive.map((a) => (
-            <div key={a.id} className="hq-card" style={{ borderColor: 'var(--red)' }}>
+            <div key={a.id} className={'hq-card hq-card-severity ' + a.severity}>
               <div className="hq-row">
                 <span className={'hq-pill ' + a.severity}>{a.severity}</span>
-                <span style={{ fontWeight: 700 }}>{a.ruleId}</span>
-                <span className="hq-mono" style={{ marginLeft: 'auto', color: 'var(--dim)' }}>
+                <span className="hq-text-bright">{a.ruleId}</span>
+                <span className="hq-mono hq-ml-auto hq-text-dim">
                   since {new Date(a.firstFiredAt).toLocaleTimeString()}
                 </span>
               </div>
-              <div style={{ marginTop: 4 }}>{a.message}</div>
+              <div className="hq-row-detail">{a.message}</div>
             </div>
           ))}
         </>
@@ -75,11 +75,11 @@ export function AlertsView(): React.ReactElement {
           <div key={i} className="hq-card">
             <div className="hq-row">
               <span className={'hq-pill ' + a.severity}>{a.severity}</span>
-              <span className="hq-mono" style={{ marginLeft: 'auto', color: 'var(--dim)' }}>
+              <span className="hq-mono hq-ml-auto hq-text-dim">
                 {new Date(a.timestamp).toLocaleTimeString()}
               </span>
             </div>
-            <div style={{ marginTop: 4 }}>{a.message}</div>
+            <div className="hq-row-detail">{a.message}</div>
           </div>
         ))
       )}
@@ -96,8 +96,8 @@ export function AlertsView(): React.ReactElement {
               <div key={i} className="hq-row">
                 <span className={'hq-pill ' + a.severity}>{a.severity}</span>
                 <span className="hq-mono">{a.ruleId}</span>
-                <span style={{ color: 'var(--muted)' }}>{a.message}</span>
-                <span className="hq-mono" style={{ marginLeft: 'auto', color: 'var(--dim)' }}>
+                <span className="hq-text-muted">{a.message}</span>
+                <span className="hq-mono hq-ml-auto hq-text-dim">
                   {new Date(a.lastFiredAt).toLocaleTimeString()}
                 </span>
               </div>

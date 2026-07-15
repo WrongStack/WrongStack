@@ -17,6 +17,36 @@ export function contentToText(content: unknown): string {
   return blockText(content);
 }
 
+/**
+ * Extract only text content from replay message content blocks, filtering out
+ * tool_use, tool_result, thinking, and image blocks that should not appear as
+ * visible assistant text in the conversation.
+ *
+ * During session replay, assistant messages may have mixed ContentBlock[]
+ * where tool_use and tool_result blocks are interleaved with text blocks.
+ * This function keeps only blocks where `type === 'text'`, aligning replay
+ * rendering with the live streaming path (where tool calls are tracked
+ * separately in `toolCalls` state and rendered as a grouped accordion at
+ * the bottom of the conversation).
+ */
+function replayTextContent(content: unknown): string {
+  if (typeof content === 'string') return content.trim();
+  if (Array.isArray(content)) {
+    return content
+      .filter(
+        (block): block is { type: 'text'; text: string } =>
+          typeof block === 'object' &&
+          block !== null &&
+          (block as Record<string, unknown>)['type'] === 'text' &&
+          typeof (block as Record<string, unknown>)['text'] === 'string',
+      )
+      .map((block) => block.text)
+      .join('\n\n')
+      .trim();
+  }
+  return '';
+}
+
 export function replayToMessages(replay: unknown): ChatMessage[] {
   if (!Array.isArray(replay)) return [];
   return replay.flatMap((entry, index) => {
@@ -24,7 +54,7 @@ export function replayToMessages(replay: unknown): ChatMessage[] {
     const value = entry as Record<string, unknown>;
     const role = value['role'];
     if (role !== 'user' && role !== 'assistant' && role !== 'system') return [];
-    const text = contentToText(value['content']).trim();
+    const text = replayTextContent(value['content']);
     if (!text) return [];
     return [
       {

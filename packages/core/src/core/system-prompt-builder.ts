@@ -239,15 +239,15 @@ export class DefaultSystemPromptBuilder implements SystemPromptBuilder {
   private toolDescLimit(): number {
     switch (this.tier) {
       case 'minimal':
-        return 40;
+        return 30;
       case 'light':
-        return 50;
+        return 40;
       case 'medium':
-        return 60;
+        return 50;
       case 'aggressive':
-        return 70;
+        return 60;
       default:
-        return 80;
+        return 70;
     }
   }
 
@@ -889,8 +889,8 @@ export class DefaultSystemPromptBuilder implements SystemPromptBuilder {
 
   private async buildMemoryAndSkills(): Promise<string> {
     const parts: string[] = [];
-    // Memory injection count per tier: off=8, minimal=3, light=5, medium=8, aggressive=8
-    const memoryCount = this.tier === 'minimal' ? 3 : this.tier === 'light' ? 5 : 8;
+    // Memory injection count per tier: off=5, minimal=3, light=5, medium=5, aggressive=5
+    const memoryCount = this.tier === 'minimal' || this.tier === 'light' ? 3 : 5;
     const compactMemory = this.tier === 'minimal'; // compact = text only, no badges/tags
     if (this.opts.memoryStore) {
       try {

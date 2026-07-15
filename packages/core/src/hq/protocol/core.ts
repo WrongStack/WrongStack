@@ -99,6 +99,14 @@ export interface HqUsagePayload {
   totalTokens?: number;
   costUsd?: number;
   durationMs?: number;
+  /** Provider id that produced this usage (e.g. 'anthropic'), when known. */
+  provider?: string;
+  /** Model id the cost was priced against, when known. */
+  model?: string;
+  /** Cache-read (prompt-cache hit) tokens, when reported. */
+  cacheRead?: number;
+  /** Cache-write tokens, when reported. */
+  cacheWrite?: number;
 }
 
 /** A physical machine, aggregated by HQ from connected clients' machineId. */

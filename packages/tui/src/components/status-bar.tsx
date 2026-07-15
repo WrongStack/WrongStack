@@ -608,23 +608,6 @@ export function StatusBar({
     return () => clearInterval(t);
   }, [startedAt, elapsedHidden]);
 
-  // Current wall-clock time — formatted as HH:MM, updated every 30 s.
-  // Rendered as a live clock chip on line 1; refreshes infrequently to
-  // avoid churn since it doesn't need second-level precision.
-  const timeHidden = hiddenSet.has('time');
-  const [now, setNow] = useState(Date.now());
-  useEffect(() => {
-    if (timeHidden) return;
-    setNow(Date.now()); // snapshot immediately on (re)enable
-    const t = setInterval(() => setNow(Date.now()), 30_000);
-    return () => clearInterval(t);
-  }, [timeHidden]);
-  const timeStr = new Date(now).toLocaleTimeString('en-US', {
-    hour: '2-digit',
-    minute: '2-digit',
-    hour12: false,
-  });
-
   // Animated braille spinner — cycles while the agent is thinking/streaming.
   // Stops when idle so the interval doesn't drive unnecessary re-renders.
   const [spinnerIdx, setSpinnerIdx] = useState(0);
@@ -780,43 +763,55 @@ export function StatusBar({
         {showChip('state') ? ` ${model}` : model}
       </Text>
     ) : null,
-    context && showChip('context')
+    // Combined context bar: meter · tokens · cost
+    (context || showTokenDisplay || (cost?.total ?? 0) > 0) &&
+    (showChip('context') || showChip('tokens') || showChip('cost'))
       ? (() => {
-          const ratio = context.used / context.max;
-          const clampedRatio = Math.min(ratio, 1);
-          const pctText = `${Math.min(Math.round(ratio * 100), 100)}%`;
+          const ratio = context ? Math.min(context.used / context.max, 1) : 0;
+          const pctText = context ? `${Math.min(Math.round(ratio * 100), 100)}%` : '';
+          const barColor = isNoColor ? undefined : ratio < 0.6 ? theme.success : ratio < 0.75 ? theme.warn : theme.error;
+          const hasTokens = showTokenDisplay && showChip('tokens');
+          const hasCost = cost && cost.total > 0 && showChip('cost');
+          const segments: string[] = [];
+          if (context) segments.push('meter');
+          if (hasTokens) segments.push('tokens');
+          if (hasCost) segments.push('cost');
+          const sep = segments.length > 1;
           return (
-            <Text
-              color={
-                isNoColor
-                  ? undefined
-                  : clampedRatio < 0.6
-                    ? theme.success
-                    : clampedRatio < 0.75
-                      ? theme.warn
-                      : theme.error
-              }
-            >
-              {glyphs.context} {renderMeter(clampedRatio, 8)} {pctText}/{fmtTok(context.max)}
-              {contextStrategy ? <Text dimColor={!isNoColor}> [{contextStrategy}]</Text> : null}
+            <Text>
+              {context ? (
+                <Text color={barColor}>
+                  {renderMeter(ratio, 8)} {pctText}/{fmtTok(context.max)}
+                  {contextStrategy ? (
+                    <Text dimColor={!isNoColor}>{` [${contextStrategy}]`}</Text>
+                  ) : null}
+                </Text>
+              ) : null}
+              {sep && context ? <Text dimColor={!isNoColor}>{' · '}</Text> : null}
+              {hasTokens ? (
+                <Text>
+                  <Text
+                    color={isNoColor ? undefined : theme.textSecondary}
+                  >{'↑'}</Text>
+                  <Text color={isNoColor ? undefined : theme.accent}>{fmtTok(displayTokens.input)}</Text>
+                  <Text
+                    color={isNoColor ? undefined : theme.textSecondary}
+                  >{' ↓'}</Text>
+                  <Text color={isNoColor ? undefined : theme.accent}>{fmtTok(displayTokens.output)}</Text>
+                </Text>
+              ) : null}
+              {sep && hasCost && (context || hasTokens) ? <Text dimColor={!isNoColor}>{' · '}</Text> : null}
+              {hasCost ? (
+                <Text color={isNoColor ? undefined : theme.warn}>
+                  {glyphs.cost}{cost.total.toFixed(4)}
+                </Text>
+              ) : null}
             </Text>
           );
         })()
       : null,
-    showTokenDisplay && showChip('tokens') ? (
-      <Text>
-        ↑ <Text color={isNoColor ? undefined : theme.accent}>{fmtTok(displayTokens.input)}</Text> ↓{' '}
-        <Text color={isNoColor ? undefined : theme.accent}>{fmtTok(displayTokens.output)}</Text>
-      </Text>
-    ) : null,
     cache && cache.hitRatio > 0 && isComfortable && showChip('cache') ? (
       <Text dimColor={!isNoColor}>cache {(cache.hitRatio * 100).toFixed(0)}%</Text>
-    ) : null,
-    cost && cost.total > 0 && showChip('cost') ? (
-      <Text color={isNoColor ? undefined : theme.warn}>
-        {glyphs.cost}
-        {cost.total.toFixed(4)}
-      </Text>
     ) : null,
     queueCount > 0 && showChip('queue') ? (
       <Text color={isNoColor ? undefined : theme.accent}>
@@ -872,11 +867,6 @@ export function StatusBar({
         {isNoColor ? autonomy.toUpperCase() : `∞ ${autonomy.toUpperCase()}`}
       </Text>
     ) : null,
-    showChip('time') ? (
-      <Text dimColor={!isNoColor}>
-        {isNoColor ? timeStr : `${glyphs.clock} ${timeStr}`}
-      </Text>
-    ) : null,
     projectName && showChip('project') ? (
       <Text color={chipColor(theme.accent, isNoColor)}>
         {isNoColor
@@ -917,15 +907,25 @@ export function StatusBar({
     showChip('model') ? (
       <Text color={chipColor(theme.monitor.agents, isNoColor)}>{model}</Text>
     ) : null,
-    // Context meter (compact: 6 blocks instead of 8)
-    context && showChip('context')
+    // Context bar (compact: 6 blocks, optional tokens)
+    (context || showTokenDisplay) && showChip('context')
       ? (() => {
-          const ratio = Math.min(context.used / context.max, 1);
-          const pct = `${Math.min(Math.round(ratio * 100), 100)}%`;
-          const c = ratio < 0.6 ? theme.success : ratio < 0.75 ? theme.warn : theme.error;
+          const ratio = context ? Math.min(context.used / context.max, 1) : 0;
+          const pct = context ? `${Math.min(Math.round(ratio * 100), 100)}%` : '';
+          const c = context ? (ratio < 0.6 ? theme.success : ratio < 0.75 ? theme.warn : theme.error) : theme.textSecondary;
+          const hasTokens = showTokenDisplay && showChip('tokens');
           return (
-            <Text color={chipColor(c, isNoColor)}>
-              {glyphs.context} {renderMeter(ratio, 6)} {pct}
+            <Text>
+              <Text color={chipColor(c, isNoColor)}>
+                {context ? renderMeter(ratio, 6) : ''} {pct}
+              </Text>
+              {hasTokens && context ? <Text dimColor={!isNoColor}>{' · '}</Text> : null}
+              {hasTokens ? (
+                <Text color={chipColor(theme.textSecondary, isNoColor)}>
+                  ↑<Text color={chipColor(theme.accent, isNoColor)}>{fmtTok(displayTokens.input)}</Text>
+                  {' '}↓<Text color={chipColor(theme.accent, isNoColor)}>{fmtTok(displayTokens.output)}</Text>
+                </Text>
+              ) : null}
             </Text>
           );
         })()
@@ -1316,7 +1316,7 @@ export function StatusBar({
               </Text>
             ) : null,
             ...detailChips,
-          ] as React.ReactElement[]}
+          ].filter((c): c is React.ReactElement => c !== null)}
           budget={Math.max(12, termWidth)}
           monochrome={isNoColor}
           fillBg={LINE_BG_COLORS[2]}
@@ -1421,24 +1421,29 @@ export function renderProgress(ratio: number, width: number): string {
 // Sub-cell-precise meter: each cell is 1/8 resolution via Unicode block
 // fractions, so the bar grows smoothly token-by-token instead of jumping a
 // whole cell. Empty track stays '░'. Total width is always `width` chars.
-const EIGHTHS = ['', '▏', '▎', '▍', '▌', '▋', '▊', '▉'];
 
+/**
+ * Bracket-style context meter, e.g. `[00o.......]`.
+ *
+ * Renders a fixed-width progress bar inside square brackets. `0` marks filled
+ * cells, `o` is the boundary marker at the edge of used space, and `.` marks
+ * remaining cells. The marker disappears at 0% (bar is all `.`) and at 100%
+ * (bar is all `0`).
+ */
 export function renderMeter(ratio: number, width: number): string {
   const clamped = Math.max(0, Math.min(1, ratio));
-  let remaining = Math.round(clamped * width * 8);
-  let out = '';
+  const filled = Math.round(clamped * width);
+  let bar = '';
   for (let i = 0; i < width; i++) {
-    if (remaining >= 8) {
-      out += FILLED;
-      remaining -= 8;
-    } else if (remaining > 0) {
-      out += EIGHTHS[remaining];
-      remaining = 0;
+    if (i < filled) {
+      bar += '0';
+    } else if (i === filled && filled < width) {
+      bar += 'o';
     } else {
-      out += EMPTY;
+      bar += '.';
     }
   }
-  return out;
+  return '[' + bar + ']';
 }
 
 function fmtTok(n: number): string {

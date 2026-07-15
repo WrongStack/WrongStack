@@ -1,13 +1,12 @@
 import {
+  ArrowDown,
   Bot,
+  Check,
   ChevronDown,
-  CircleStop,
   FolderCode,
-  LoaderCircle,
-  ListChecks,
+  History,
   Moon,
-  Send,
-  ShieldAlert,
+  Plus,
   Sparkles,
   Sun,
   Users,
@@ -15,11 +14,24 @@ import {
   WifiOff,
 } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import ReactMarkdown from 'react-markdown';
-import remarkGfm from 'remark-gfm';
+import { ChatMessageList } from './chat-message-list.js';
+import { Composer } from './composer.js';
 import { contentToText, replayToMessages, updateSubagents } from './lib/chat-model.js';
-import { projectAssistantMessage } from './lib/message-projection.js';
+import { copyText } from './lib/clipboard.js';
+import { clearComposerDraft, readComposerDraft, writeComposerDraft } from './lib/composer-draft.js';
+import {
+  composePromptWithFileReferences,
+  type FileMention,
+  removeFileMention,
+} from './lib/file-mention.js';
+import {
+  parseSessionSummaries,
+  relativeSessionTime,
+  sessionDisplayName,
+} from './lib/session-model.js';
+import { projectStatusNotice, type StatusNoticeProjection } from './lib/status-notice.js';
 import { SimpleSocket } from './lib/ws.js';
+import { ErrorBoundary } from './error-boundary.js';
 import type {
   ChatMessage,
   ConnectionState,
@@ -28,7 +40,9 @@ import type {
   PendingConfirm,
   ServerMessage,
   SessionInfo,
+  SimpleSessionSummary,
   SimpleSubagent,
+  ToolCallInfo,
 } from './types.js';
 
 const EMPTY_CONTEXT: ContextInfo = { load: 0, tokens: 0, maxContext: 0 };
@@ -74,6 +88,8 @@ export function App() {
   const [theme, setTheme] = useState<Theme>(initialTheme);
   const [connection, setConnection] = useState<ConnectionState>('connecting');
   const [session, setSession] = useState<SessionInfo | null>(null);
+  const [sessions, setSessions] = useState<SimpleSessionSummary[]>([]);
+  const [sessionMenuOpen, setSessionMenuOpen] = useState(false);
   const [context, setContext] = useState<ContextInfo>(EMPTY_CONTEXT);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [models, setModels] = useState<Record<string, ModelDescriptor[]>>({});
@@ -81,13 +97,31 @@ export function App() {
   const [subagents, setSubagents] = useState<SimpleSubagent[]>([]);
   const [pendingConfirm, setPendingConfirm] = useState<PendingConfirm | null>(null);
   const [draft, setDraft] = useState('');
+  const [fileRefs, setFileRefs] = useState<string[]>([]);
+  const [fileMention, setFileMention] = useState<FileMention | null>(null);
+  const [fileMatches, setFileMatches] = useState<string[]>([]);
+  const [filePickerIndex, setFilePickerIndex] = useState(0);
+  const [fileSearching, setFileSearching] = useState(false);
   const [running, setRunning] = useState(false);
   const [activity, setActivity] = useState('');
+  const [notice, setNotice] = useState<(StatusNoticeProjection & { id: string }) | null>(null);
+  const [copiedMessageId, setCopiedMessageId] = useState<string | null>(null);
+  const [toolCalls, setToolCalls] = useState<ToolCallInfo[]>([]);
+  const [expandedToolCalls, setExpandedToolCalls] = useState<string[]>([]);
+  const [showJumpToLatest, setShowJumpToLatest] = useState(false);
   const socketRef = useRef<SimpleSocket | null>(null);
   const sessionIdRef = useRef<string | null>(null);
   const activeModelRef = useRef<{ provider: string; model: string } | null>(null);
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
+  const sessionMenuRef = useRef<HTMLDivElement | null>(null);
+  const stickToBottomRef = useRef(true);
+  const draftRef = useRef('');
+  const fileRefsRef = useRef<string[]>([]);
+  const runningRef = useRef(false);
+  draftRef.current = draft;
+  fileRefsRef.current = fileRefs;
+  runningRef.current = running;
 
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
@@ -99,14 +133,76 @@ export function App() {
     }
   }, [theme]);
 
+  useEffect(() => {
+    if (!sessionMenuOpen) return;
+    const closeOnOutsideClick = (event: PointerEvent) => {
+      if (!sessionMenuRef.current?.contains(event.target as Node)) setSessionMenuOpen(false);
+    };
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setSessionMenuOpen(false);
+    };
+    document.addEventListener('pointerdown', closeOnOutsideClick);
+    document.addEventListener('keydown', closeOnEscape);
+    return () => {
+      document.removeEventListener('pointerdown', closeOnOutsideClick);
+      document.removeEventListener('keydown', closeOnEscape);
+    };
+  }, [sessionMenuOpen]);
+
+  // Global keyboard shortcuts
+  useEffect(() => {
+    const handleGlobalKey = (event: KeyboardEvent) => {
+      if (event.key === 'l' && (event.ctrlKey || event.metaKey) && !event.shiftKey) {
+        event.preventDefault();
+        if (!runningRef.current && sessionIdRef.current) {
+          socketRef.current?.send('session.new', { sessionId: sessionIdRef.current });
+        }
+        return;
+      }
+    };
+    document.addEventListener('keydown', handleGlobalKey);
+    return () => document.removeEventListener('keydown', handleGlobalKey);
+  }, []);
+
+  useEffect(() => {
+    if (!notice) return;
+    const timer = setTimeout(() => {
+      setNotice((current) => (current?.id === notice.id ? null : current));
+    }, 5_000);
+    return () => clearTimeout(timer);
+  }, [notice]);
+
+  useEffect(() => {
+    if (!copiedMessageId) return;
+    const timer = setTimeout(() => setCopiedMessageId(null), 1_800);
+    return () => clearTimeout(timer);
+  }, [copiedMessageId]);
+
   const handleServerMessage = useCallback((message: ServerMessage) => {
     const payload = message.payload ?? {};
+    const projectedNotice = projectStatusNotice(message);
+    if (projectedNotice) {
+      setNotice({ ...projectedNotice, id: messageId('notice') });
+    }
     switch (message.type) {
       case 'session.start': {
         const id = typeof payload['sessionId'] === 'string' ? payload['sessionId'] : '';
         const provider = typeof payload['provider'] === 'string' ? payload['provider'] : '';
         const model = typeof payload['model'] === 'string' ? payload['model'] : '';
         const maxContext = finiteNumber(payload['maxContext']);
+        const previousId = sessionIdRef.current;
+        const switchedSession = Boolean(previousId && id && previousId !== id);
+        const resetSessionState = switchedSession || payload['reset'] === true;
+        if (switchedSession && previousId) {
+          writeComposerDraft(previousId, {
+            text: draftRef.current,
+            fileRefs: fileRefsRef.current,
+          });
+        }
+        if (!previousId || resetSessionState) {
+          stickToBottomRef.current = true;
+          setShowJumpToLatest(false);
+        }
         sessionIdRef.current = id || null;
         activeModelRef.current = provider && model ? { provider, model } : null;
         setSession({
@@ -126,21 +222,57 @@ export function App() {
         }));
         if (Array.isArray(payload['replayMessages'])) {
           setMessages(replayToMessages(payload['replayMessages']));
-        } else if (payload['reset'] === true) {
+        } else if (resetSessionState) {
           setMessages([]);
         }
+        if (!previousId || switchedSession) {
+          const savedDraft = readComposerDraft(id);
+          draftRef.current = savedDraft.text;
+          fileRefsRef.current = savedDraft.fileRefs;
+          setDraft(savedDraft.text);
+          setFileRefs(savedDraft.fileRefs);
+          setFileMention(null);
+        } else if (payload['reset'] === true) {
+          clearComposerDraft(id);
+          draftRef.current = '';
+          fileRefsRef.current = [];
+          setDraft('');
+          setFileRefs([]);
+          setFileMention(null);
+        }
+        if (resetSessionState) {
+          setPendingConfirm(null);
+          setRunning(false);
+          setActivity('');
+          setToolCalls([]);
+        }
+        setSessionMenuOpen(false);
         const replayUsage = payload['replayUsage'];
         const replayInput =
           replayUsage && typeof replayUsage === 'object'
             ? finiteNumber((replayUsage as Record<string, unknown>)['input'])
             : 0;
         setContext((current) => ({
-          load:
-            current.maxContext > 0 ? current.load : maxContext > 0 ? replayInput / maxContext : 0,
-          tokens: current.tokens || replayInput,
+          load: resetSessionState
+            ? maxContext > 0
+              ? replayInput / maxContext
+              : 0
+            : current.maxContext > 0
+              ? current.load
+              : maxContext > 0
+                ? replayInput / maxContext
+                : 0,
+          tokens: resetSessionState ? replayInput : current.tokens || replayInput,
           maxContext: maxContext || current.maxContext,
         }));
         if (provider) socketRef.current?.send('provider.models', { providerId: provider });
+        socketRef.current?.send('sessions.list', { sessionId: id, limit: 12 });
+        break;
+      }
+      case 'sessions.list': {
+        if (typeof payload['error'] !== 'string') {
+          setSessions(parseSessionSummaries(payload['sessions']));
+        }
         break;
       }
       case 'providers.saved': {
@@ -192,6 +324,15 @@ export function App() {
         }
         break;
       }
+      case 'files.list': {
+        const files = Array.isArray(payload['files'])
+          ? payload['files'].filter((file): file is string => typeof file === 'string')
+          : [];
+        setFileMatches(files);
+        setFilePickerIndex(0);
+        setFileSearching(false);
+        break;
+      }
       case 'provider.text_delta': {
         const text = typeof payload['text'] === 'string' ? payload['text'] : '';
         if (!text) break;
@@ -227,14 +368,43 @@ export function App() {
         setActivity('Working');
         break;
       }
+      case 'provider.retry':
+        setRunning(true);
+        setActivity(
+          `Retrying ${typeof payload['providerId'] === 'string' ? payload['providerId'] : 'provider'}`,
+        );
+        break;
+      case 'provider.fallback': {
+        const target =
+          payload['to'] && typeof payload['to'] === 'object'
+            ? (payload['to'] as Record<string, unknown>)
+            : undefined;
+        const fallbackModel = typeof target?.['model'] === 'string' ? target['model'] : '';
+        setRunning(true);
+        setActivity(fallbackModel ? `Fallback · ${fallbackModel}` : 'Switching fallback model');
+        break;
+      }
+      case 'context.compacted':
+        setActivity('Context compacted');
+        break;
+      case 'tool.loop_detected':
+        setActivity('Stopping repeated tool loop');
+        break;
       case 'iteration.started':
         setRunning(true);
         setActivity('Thinking');
         break;
-      case 'tool.started':
+      case 'tool.started': {
+        const name = typeof payload['name'] === 'string' ? payload['name'] : 'tool';
+        const id = typeof payload['id'] === 'string' ? payload['id'] : `${name}-${Date.now()}`;
         setRunning(true);
-        setActivity(`Running ${typeof payload['name'] === 'string' ? payload['name'] : 'tool'}`);
+        setActivity(`Running ${name}`);
+        setToolCalls((current) => [
+          ...current,
+          { id, name, input: payload['input'], status: 'running' },
+        ]);
         break;
+      }
       case 'tool.progress': {
         const event = payload['event'];
         const text =
@@ -245,9 +415,32 @@ export function App() {
           setActivity(text.trim().split('\n')[0] ?? 'Working');
         break;
       }
-      case 'tool.executed':
+      case 'tool.executed': {
+        const execId = typeof payload['id'] === 'string' ? payload['id'] : '';
+        const execName = typeof payload['name'] === 'string' ? payload['name'] : '';
         setActivity('Thinking');
+        if (execId || execName) {
+          setToolCalls((current) =>
+            current.map((tc) => {
+              if (
+                (execId && tc.id === execId) ||
+                (!execId && tc.name === execName && tc.status === 'running')
+              ) {
+                return {
+                  ...tc,
+                  status: payload['ok'] === false ? 'error' : 'done',
+                  output: typeof payload['output'] === 'string' ? payload['output'] : undefined,
+                  durationMs:
+                    typeof payload['durationMs'] === 'number' ? payload['durationMs'] : undefined,
+                  ok: payload['ok'] !== false,
+                };
+              }
+              return tc;
+            }),
+          );
+        }
         break;
+      }
       case 'run.result':
         setRunning(false);
         setActivity('');
@@ -340,6 +533,14 @@ export function App() {
         if (state === 'open') {
           socket.send('providers.saved');
           socket.send('providers.list');
+          if (sessionIdRef.current) {
+            socket.send('sessions.list', { sessionId: sessionIdRef.current, limit: 12 });
+          }
+        } else {
+          setSessionMenuOpen(false);
+          setFileMention(null);
+          setFileMatches([]);
+          setFileSearching(false);
         }
       },
     });
@@ -352,38 +553,174 @@ export function App() {
   }, [handleServerMessage]);
 
   useEffect(() => {
-    scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' });
+    const element = scrollRef.current;
+    if (!element || !stickToBottomRef.current) return;
+    const frame = requestAnimationFrame(() => {
+      element.scrollTo({ top: element.scrollHeight, behavior: 'auto' });
+    });
+    return () => cancelAnimationFrame(frame);
   }, [messages, activity, pendingConfirm]);
 
   useEffect(() => {
     const element = textareaRef.current;
     if (!element) return;
     element.style.height = '0px';
-    element.style.height = `${Math.min(220, Math.max(54, element.scrollHeight))}px`;
+    element.style.height = `${Math.min(180, Math.max(48, element.scrollHeight))}px`;
   }, [draft]);
+
+  useEffect(() => {
+    if (!session?.id) return;
+    const timer = setTimeout(() => {
+      writeComposerDraft(session.id, { text: draft, fileRefs });
+    }, 250);
+    return () => clearTimeout(timer);
+  }, [draft, fileRefs, session?.id]);
+
+  useEffect(() => {
+    const flushDraft = () => {
+      if (!sessionIdRef.current) return;
+      writeComposerDraft(sessionIdRef.current, {
+        text: draftRef.current,
+        fileRefs: fileRefsRef.current,
+      });
+    };
+    window.addEventListener('pagehide', flushDraft);
+    return () => {
+      window.removeEventListener('pagehide', flushDraft);
+      flushDraft();
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!fileMention) {
+      setFileSearching(false);
+      return;
+    }
+    setFileSearching(true);
+    setFilePickerIndex(0);
+    const timer = setTimeout(() => {
+      socketRef.current?.send('files.list', { query: fileMention.query, limit: 12 });
+    }, 80);
+    return () => clearTimeout(timer);
+  }, [fileMention]);
 
   const groupedModels = useMemo(
     () => Object.entries(models).filter(([, entries]) => entries.length > 0),
     [models],
   );
+  const currentSessionSummary = useMemo(
+    () => sessions.find((item) => item.id === session?.id),
+    [session?.id, sessions],
+  );
+  const currentSessionName = sessionDisplayName(currentSessionSummary, session?.id);
   const selectedModel = session ? `${session.provider}\t${session.model}` : '';
   const load = Math.max(0, Math.min(1, context.load));
-  const latestAssistantId = useMemo(
-    () => messages.findLast((message) => message.role === 'assistant')?.id,
-    [messages],
-  );
+  const latestAssistantId = useMemo(() => {
+    for (let index = messages.length - 1; index >= 0; index--) {
+      const message = messages[index];
+      if (message?.role === 'assistant') return message.id;
+    }
+    return undefined;
+  }, [messages]);
+
+  type TimelineItem =
+    | { kind: 'message'; message: ChatMessage }
+    | { kind: 'tool_calls'; calls: ToolCallInfo[] };
+
+  /**
+   * Merge messages and tool calls into a single chronologically-ordered
+   * timeline for rendering. Tool calls that arrive during an assistant's
+   * turn are placed before that assistant's message, matching the natural
+   * conversation sequence: user → tools → assistant response.
+   */
+  const timelineItems = useMemo((): TimelineItem[] => {
+    const items: TimelineItem[] = [];
+    let nextToolIndex = 0;
+
+    for (const message of messages) {
+      if (message.role === 'assistant' && nextToolIndex < toolCalls.length) {
+        const unplaced = toolCalls.slice(nextToolIndex);
+        if (unplaced.length > 0) {
+          items.push({ kind: 'tool_calls', calls: unplaced });
+          nextToolIndex = toolCalls.length;
+        }
+      }
+      items.push({ kind: 'message', message });
+    }
+
+    if (nextToolIndex < toolCalls.length) {
+      items.push({ kind: 'tool_calls', calls: toolCalls.slice(nextToolIndex) });
+    }
+
+    return items;
+  }, [messages, toolCalls]);
 
   const selectNextStep = (text: string) => {
     setDraft(text);
     requestAnimationFrame(() => textareaRef.current?.focus());
   };
 
+  const copyAssistantMessage = async (id: string, text: string) => {
+    if (await copyText(text)) {
+      setCopiedMessageId(id);
+      return;
+    }
+    setNotice({
+      id: messageId('notice'),
+      text: 'Could not copy response',
+      tone: 'error',
+    });
+  };
+
+  const jumpToLatest = () => {
+    stickToBottomRef.current = true;
+    setShowJumpToLatest(false);
+    const element = scrollRef.current;
+    if (!element) return;
+    const reducedMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
+    element.scrollTo({ top: element.scrollHeight, behavior: reducedMotion ? 'auto' : 'smooth' });
+  };
+
+  const selectFile = (path: string) => {
+    if (!fileMention) return;
+    const cursor = fileMention.start;
+    setDraft((current) => removeFileMention(current, fileMention));
+    setFileRefs((current) => (current.includes(path) ? current : [...current, path]));
+    setFileMention(null);
+    setFileMatches([]);
+    requestAnimationFrame(() => {
+      const textarea = textareaRef.current;
+      textarea?.focus();
+      textarea?.setSelectionRange(cursor, cursor);
+    });
+  };
+
+  const createSession = () => {
+    if (running || !sessionIdRef.current) return;
+    socketRef.current?.send('session.new', { sessionId: sessionIdRef.current });
+    setSessionMenuOpen(false);
+  };
+
+  const resumeSession = (id: string) => {
+    if (running || !sessionIdRef.current || id === sessionIdRef.current) return;
+    socketRef.current?.send('session.resume', { sessionId: sessionIdRef.current, id });
+    setSessionMenuOpen(false);
+  };
+
   const sendPrompt = () => {
-    const content = draft.trim();
+    const content = composePromptWithFileReferences(draft, fileRefs);
     if (!content || connection !== 'open' || !sessionIdRef.current || running) return;
+    stickToBottomRef.current = true;
+    setShowJumpToLatest(false);
+    clearComposerDraft(sessionIdRef.current);
+    draftRef.current = '';
+    fileRefsRef.current = [];
     setMessages((current) => [...current, { id: messageId('user'), role: 'user', text: content }]);
     setDraft('');
+    setFileRefs([]);
+    setFileMention(null);
     setRunning(true);
+    setToolCalls([]);
     setActivity('Thinking');
     socketRef.current?.send('user_message', {
       sessionId: sessionIdRef.current,
@@ -418,9 +755,78 @@ export function App() {
           <div className="project-icon">
             <FolderCode size={17} />
           </div>
-          <div className="project-copy">
+          <div className="project-copy" title={session?.cwd}>
             <strong>{session?.projectName ?? 'WrongStack'}</strong>
-            <span title={session?.cwd}>{session?.cwd || 'Connecting to project…'}</span>
+            <div className="session-switcher" ref={sessionMenuRef}>
+              <button
+                type="button"
+                className="session-trigger"
+                disabled={!session || running}
+                aria-expanded={sessionMenuOpen}
+                aria-haspopup="dialog"
+                onClick={() => {
+                  if (!sessionMenuOpen && sessionIdRef.current) {
+                    socketRef.current?.send('sessions.list', {
+                      sessionId: sessionIdRef.current,
+                      limit: 12,
+                    });
+                  }
+                  setSessionMenuOpen((open) => !open);
+                }}
+              >
+                <History size={11} aria-hidden="true" />
+                <span>{session ? currentSessionName : 'Connecting…'}</span>
+                <ChevronDown size={11} aria-hidden="true" />
+              </button>
+
+              {sessionMenuOpen && (
+                <section className="session-menu" role="dialog" aria-label="Recent sessions">
+                  <div className="session-menu-heading">
+                    <span>RECENT SESSIONS</span>
+                    <button type="button" disabled={running} onClick={createSession}>
+                      <Plus size={11} aria-hidden="true" />
+                      NEW
+                    </button>
+                  </div>
+                  <div className="session-menu-list">
+                    {sessions.length === 0 ? (
+                      <div className="session-menu-empty">No saved sessions yet</div>
+                    ) : (
+                      sessions.slice(0, 12).map((item) => {
+                        const active = item.isCurrent || item.id === session?.id;
+                        return (
+                          <button
+                            type="button"
+                            className={active ? 'active' : undefined}
+                            aria-current={active ? 'page' : undefined}
+                            disabled={active || running}
+                            key={item.id}
+                            onClick={() => resumeSession(item.id)}
+                          >
+                            <span className="session-menu-main">
+                              {active ? (
+                                <Check size={12} aria-hidden="true" />
+                              ) : (
+                                <History size={12} aria-hidden="true" />
+                              )}
+                              <span className="session-menu-copy">
+                                <b>{sessionDisplayName(item)}</b>
+                                <small>
+                                  {[item.provider, item.model].filter(Boolean).join(' · ')}
+                                </small>
+                              </span>
+                            </span>
+                            <time dateTime={item.startedAt}>
+                              {relativeSessionTime(item.startedAt)}
+                            </time>
+                          </button>
+                        );
+                      })
+                    )}
+                  </div>
+                </section>
+              )}
+            </div>
           </div>
         </div>
 
@@ -457,7 +863,17 @@ export function App() {
               <strong>{Math.round(load * 100)}%</strong>
             </div>
             <div className="context-track">
-              <span style={{ width: `${load * 100}%` }} />
+              <span
+                style={{
+                  width: `${load * 100}%`,
+                  background:
+                    load > 0.9
+                      ? 'var(--danger)'
+                      : load > 0.7
+                        ? 'var(--warning)'
+                        : 'var(--accent)',
+                }}
+              />
             </div>
             <small>
               {compactTokens(context.tokens)} / {compactTokens(context.maxContext)}
@@ -497,160 +913,76 @@ export function App() {
         </section>
       )}
 
-      <main className="chat-scroll" ref={scrollRef}>
-        <div className="conversation">
-          {messages.length === 0 ? (
+      <ErrorBoundary>
+      <main
+        className="chat-scroll"
+        ref={scrollRef}
+        onScroll={(event) => {
+          const element = event.currentTarget;
+          const nearBottom = element.scrollHeight - element.scrollTop - element.clientHeight <= 120;
+          stickToBottomRef.current = nearBottom;
+          setShowJumpToLatest(!nearBottom);
+        }}
+      >
+        <ChatMessageList
+          timelineItems={timelineItems}
+          expandedToolCalls={expandedToolCalls}
+          latestAssistantId={latestAssistantId}
+          copiedMessageId={copiedMessageId}
+          running={running}
+          activity={activity}
+          emptyState={
             <div className="empty-state">
               <Sparkles size={25} strokeWidth={1.5} />
               <span>READY IN</span>
               <h1>{session?.projectName ?? 'your project'}</h1>
               <p>Describe the job. WrongStack will handle the rest.</p>
             </div>
-          ) : (
-            messages.map((message) => {
-              const projection =
-                message.role === 'assistant'
-                  ? projectAssistantMessage(message.text)
-                  : { text: message.text, nextSteps: [] };
-              const nextSteps =
-                message.id === latestAssistantId && !message.streaming
-                  ? projection.nextSteps
-                  : [];
-
-              return (
-                <article className={`message ${message.role}`} key={message.id}>
-                  <div className="message-label">
-                    {message.role === 'user'
-                      ? 'YOU'
-                      : message.role === 'assistant'
-                        ? 'WRONGSTACK'
-                        : 'SYSTEM'}
-                  </div>
-                  <div className="message-body">
-                    {projection.text && (
-                      <ReactMarkdown
-                        remarkPlugins={[remarkGfm]}
-                        components={{
-                          a: ({ children, ...props }) => (
-                            <a {...props} target="_blank" rel="noreferrer">
-                              {children}
-                            </a>
-                          ),
-                        }}
-                      >
-                        {projection.text}
-                      </ReactMarkdown>
-                    )}
-                    {message.streaming && (
-                      <span className="stream-caret" role="status" aria-label="Streaming" />
-                    )}
-                    {nextSteps.length > 0 && (
-                      <section className="next-steps" aria-label="Suggested next steps">
-                        <div className="next-steps-heading">
-                          <ListChecks size={14} aria-hidden="true" />
-                          <span>NEXT STEPS</span>
-                        </div>
-                        <div className="next-steps-list">
-                          {nextSteps.map((step) => (
-                            <button
-                              type="button"
-                              className="next-step"
-                              key={`${step.index}:${step.text}`}
-                              onClick={() => selectNextStep(step.text)}
-                            >
-                              <span className="next-step-index">{step.index}</span>
-                              <span className="next-step-text">{step.text}</span>
-                              {step.auto && <span className="next-step-auto">AUTO</span>}
-                            </button>
-                          ))}
-                        </div>
-                      </section>
-                    )}
-                  </div>
-                </article>
-              );
-            })
-          )}
-          {running && activity && (
-            <div className="activity-line">
-              <LoaderCircle size={14} className="spin" />
-              <span>{activity}</span>
-            </div>
-          )}
-        </div>
+          }
+          onToggleToolCall={(id) =>
+            setExpandedToolCalls((current) =>
+              current.includes(id) ? current.filter((x) => x !== id) : [...current, id],
+            )
+          }
+          onCopyMessage={copyAssistantMessage}
+          onSelectNextStep={selectNextStep}
+        />
       </main>
+      </ErrorBoundary>
 
+      {showJumpToLatest && (
+        <button type="button" className="jump-to-latest" onClick={jumpToLatest}>
+          <ArrowDown size={13} aria-hidden="true" />
+          LATEST
+        </button>
+      )}
+
+      <ErrorBoundary>
       <footer className="composer-wrap">
-        <div className="composer-inner">
-          {pendingConfirm && (
-            <div className={`permission-bar ${pendingConfirm.riskTier ?? 'standard'}`}>
-              <ShieldAlert size={17} />
-              <div className="permission-copy">
-                <strong>Allow {pendingConfirm.toolName}?</strong>
-                <span>{safeLine(pendingConfirm.input)}</span>
-              </div>
-              <div className="permission-actions">
-                <button type="button" onClick={() => decideConfirm('no')}>
-                  Deny
-                </button>
-                <button type="button" onClick={() => decideConfirm('always')}>
-                  Always
-                </button>
-                <button type="button" className="primary" onClick={() => decideConfirm('yes')}>
-                  Allow
-                </button>
-              </div>
-            </div>
-          )}
-          <form
-            className="composer"
-            onSubmit={(event) => {
-              event.preventDefault();
-              sendPrompt();
-            }}
-          >
-            <textarea
-              ref={textareaRef}
-              aria-label="Message"
-              value={draft}
-              placeholder={
-                connection === 'open' ? 'Tell WrongStack what to do…' : 'Waiting for connection…'
-              }
-              disabled={connection !== 'open'}
-              onChange={(event) => setDraft(event.target.value)}
-              onKeyDown={(event) => {
-                if (event.key === 'Enter' && !event.shiftKey) {
-                  event.preventDefault();
-                  sendPrompt();
-                }
-              }}
-            />
-            {running ? (
-              <button
-                type="button"
-                className="send-button stop"
-                onClick={abort}
-                aria-label="Stop run"
-              >
-                <CircleStop size={18} />
-              </button>
-            ) : (
-              <button
-                type="submit"
-                className="send-button"
-                disabled={!draft.trim() || connection !== 'open'}
-                aria-label="Send message"
-              >
-                <Send size={18} />
-              </button>
-            )}
-          </form>
-          <div className="composer-meta">
-            <span>ENTER TO SEND · SHIFT + ENTER FOR NEW LINE</span>
-            <span>{session?.model ?? 'NO MODEL'}</span>
-          </div>
-        </div>
+        <Composer
+          draft={draft}
+          setDraft={setDraft}
+          fileRefs={fileRefs}
+          setFileRefs={setFileRefs}
+          fileMention={fileMention}
+          setFileMention={setFileMention}
+          fileMatches={fileMatches}
+          filePickerIndex={filePickerIndex}
+          setFilePickerIndex={setFilePickerIndex}
+          fileSearching={fileSearching}
+          running={running}
+          connection={connection}
+          session={session}
+          pendingConfirm={pendingConfirm}
+          notice={notice}
+          textareaRef={textareaRef}
+          sendPrompt={sendPrompt}
+          abort={abort}
+          decideConfirm={decideConfirm}
+          selectFile={selectFile}
+        />
       </footer>
+      </ErrorBoundary>
     </div>
   );
 }

@@ -25,7 +25,7 @@ function EventLine({ e }: { e: HqEventEnvelope }): React.ReactElement {
   return (
     <div className="hq-row">
       <meta.Icon size={14} className={`hq-kind-icon ${meta.cls}`} />
-      <span style={{ fontWeight: 700 }}>{p.kind}</span>
+      <span className="hq-text-bright">{p.kind}</span>
       {p.branch !== undefined && <span className="hq-pill info">{p.branch}</span>}
       {p.kind === 'committed' && (
         <span className="hq-mono hq-diffstat">
@@ -80,7 +80,7 @@ export function WorktreeView(): React.ReactElement {
         return (
           <div key={owner} className="hq-card">
             <div className="hq-row hq-lane-head">
-              <span className="hq-mono" style={{ fontWeight: 700 }}>
+              <span className="hq-mono hq-text-bright">
                 {owner}
               </span>
               <span className={`hq-pill ${lastMeta.cls}`}>{last.kind}</span>

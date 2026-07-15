@@ -194,6 +194,87 @@ describe('TUI reducer', () => {
     expect(out.coordinator.monitorOpen).toBe(false);
   });
 
+  it('closeAllPanels closes every panel in a single dispatch', () => {
+    const s = {
+      ...initial(),
+      monitorOpen: true,
+      agentsMonitorOpen: true,
+      helpOpen: true,
+      todosMonitorOpen: true,
+      queuePanelOpen: true,
+      processListOpen: true,
+      planPanelOpen: true,
+      kanbanPanelOpen: true,
+      goalPanelOpen: true,
+      sessionsPanelOpen: true,
+      settingsPicker: { ...initial().settingsPicker, open: true },
+      statuslinePicker: { ...initial().statuslinePicker, open: true },
+      pluginPicker: { ...initial().pluginPicker, open: true, items: [], selected: 0 },
+      mcpPicker: { ...initial().mcpPicker, open: true, items: [], selected: 0 },
+      toolsPicker: { ...initial().toolsPicker, open: true, items: [], selected: 0 },
+      brainPanel: { ...initial().brainPanel, open: true },
+      helpPanel: { ...initial().helpPanel, open: true, entries: [], selected: 0 },
+      shadowPanel: { ...initial().shadowPanel, open: true, shadow: { activeId: null, running: false, model: '', intervalMs: 30000 } },
+      authPanel: { ...initial().authPanel, open: true },
+      projectPicker: { ...initial().projectPicker, open: true, allItems: [], items: [], filter: '' },
+      fKeyPicker: { open: true, selected: 0 },
+      autoPhase: {
+        title: 'Plan',
+        phases: {},
+        runningPhaseIds: [],
+        elapsedMs: 0,
+        monitorOpen: true,
+      },
+      sddBoard: { monitorOpen: true, snapshot: null as never, focusColumn: null },
+      worktreeMonitorOpen: true,
+      coordinator: { ...initial().coordinator, monitorOpen: true },
+    };
+
+    const out = reducer(s, { type: 'closeAllPanels' });
+
+    // Every panel/monitor/overlay is closed
+    expect(out.monitorOpen).toBe(false);
+    expect(out.agentsMonitorOpen).toBe(false);
+    expect(out.helpOpen).toBe(false);
+    expect(out.todosMonitorOpen).toBe(false);
+    expect(out.queuePanelOpen).toBe(false);
+    expect(out.processListOpen).toBe(false);
+    expect(out.planPanelOpen).toBe(false);
+    expect(out.kanbanPanelOpen).toBe(false);
+    expect(out.goalPanelOpen).toBe(false);
+    expect(out.sessionsPanelOpen).toBe(false);
+    expect(out.settingsPicker.open).toBe(false);
+    expect(out.statuslinePicker.open).toBe(false);
+    expect(out.pluginPicker.open).toBe(false);
+    expect(out.mcpPicker.open).toBe(false);
+    expect(out.toolsPicker.open).toBe(false);
+    expect(out.brainPanel.open).toBe(false);
+    expect(out.helpPanel.open).toBe(false);
+    expect(out.shadowPanel.open).toBe(false);
+    expect(out.projectPicker.open).toBe(false);
+    expect(out.fKeyPicker.open).toBe(false);
+    expect(out.autoPhase?.monitorOpen).toBe(false);
+    expect(out.sddBoard?.monitorOpen).toBe(false);
+    expect(out.worktreeMonitorOpen).toBe(false);
+    expect(out.coordinator.monitorOpen).toBe(false);
+    // No new panel was opened
+    expect(out.planPanelOpen).toBe(false);
+  });
+
+  it('closeAllPanels is a no-op when all panels are already closed', () => {
+    const base = initial();
+    const out = reducer(base, { type: 'closeAllPanels' });
+    // State is unchanged — no panels were toggled open
+    expect(out.monitorOpen).toBe(false);
+    expect(out.agentsMonitorOpen).toBe(false);
+    expect(out.planPanelOpen).toBe(false);
+    expect(out.settingsPicker.open).toBe(false);
+    // Core fields preserved
+    expect(out.buffer).toBe(base.buffer);
+    expect(out.entries).toBe(base.entries);
+    expect(out.status).toBe(base.status);
+  });
+
   it('sddBoardSnapshot stores the snapshot and stays closed on first arrival', () => {
     const out = reducer(initial(), { type: 'sddBoardSnapshot', snapshot: sampleSnapshot() as never });
     expect(out.sddBoard?.snapshot.runId).toBe('r1');
@@ -676,6 +757,32 @@ describe('TUI reducer', () => {
     });
     s = reducer(s, { type: 'enhanceClose' });
     expect(s.enhance).toBeNull();
+  });
+
+  it('refineFailureOpen sets the recovery panel and refineFailureClose clears it', () => {
+    let s = initial();
+    const resolve = () => {};
+    s = reducer(s, {
+      type: 'refineFailureOpen',
+      info: {
+        original: 'fix the bug in the parser',
+        error: 'timed out after 90s',
+        elapsedMs: 91_000,
+        fallbackRef: 'anthropic/claude-haiku-4-5',
+        models: [{ providerId: 'openai', model: 'gpt-5', label: 'openai' }],
+        resolve,
+      },
+    });
+    expect(s.refineFailure).toEqual({
+      original: 'fix the bug in the parser',
+      error: 'timed out after 90s',
+      elapsedMs: 91_000,
+      fallbackRef: 'anthropic/claude-haiku-4-5',
+      models: [{ providerId: 'openai', model: 'gpt-5', label: 'openai' }],
+      resolve,
+    });
+    s = reducer(s, { type: 'refineFailureClose' });
+    expect(s.refineFailure).toBeNull();
   });
 
   it('shellCommandWarningOpen sets the warning state and shellCommandWarningClose clears it', () => {

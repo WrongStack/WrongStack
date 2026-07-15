@@ -2705,3 +2705,119 @@ a {
   color: var(--error, #ff6b6b);
   font-size: 13px;
 }
+
+/* ── Severity + stat helpers (polish: replace inline styles) ─────────────── */
+
+/* Card whose left border + tint encode alert/issue severity. */
+.hq-card-severity {
+  border-left: 3px solid var(--border);
+}
+.hq-card-severity.warn {
+  border-left-color: var(--amber);
+}
+.hq-card-severity.error,
+.hq-card-severity.critical {
+  border-left-color: var(--red);
+}
+.hq-card-severity.info {
+  border-left-color: var(--primary);
+}
+
+/* A label/value pair inside a stat row (Cost, Trends, Cockpit). */
+.hq-stat-block {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 10px 14px;
+  background: var(--panel2);
+  border: 1px solid var(--border);
+  min-width: 0;
+}
+.hq-stat-block-label {
+  font-size: 10.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--dim);
+}
+.hq-stat-block-value {
+  font-size: 18px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--bright);
+}
+.hq-stat-block-value.accent-cost {
+  color: var(--chart-1);
+}
+.hq-stat-block-value.accent-tokens {
+  color: var(--chart-2);
+}
+.hq-stat-block-value.accent-tools {
+  color: var(--chart-3);
+}
+.hq-stat-block-sub {
+  font-size: 11px;
+  color: var(--dim);
+  font-variant-numeric: tabular-nums;
+}
+
+/* A horizontal row of stat blocks with even spacing. */
+.hq-stat-row {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+/* Secondary text muted to dim, commonly used for "since …" / timestamps. */
+.hq-text-dim {
+  color: var(--dim);
+}
+.hq-text-muted {
+  color: var(--muted);
+}
+.hq-text-bright {
+  color: var(--bright);
+  font-weight: 700;
+}
+.hq-ml-auto {
+  margin-left: auto;
+}
+.hq-mt-8 {
+  margin-top: 8px;
+}
+.hq-mt-12 {
+  margin-top: 12px;
+}
+.hq-row-baseline {
+  align-items: baseline;
+}
+.hq-text-center {
+  text-align: center;
+}
+/* Card-title with no surrounding margins (inline inside a row). */
+.hq-card-title.hq-title-inline,
+.hq-title-inline {
+  margin: 0;
+}
+.hq-empty.hq-pad-sm {
+  padding: 8px;
+  font-size: 12px;
+}
+.hq-empty.hq-pad-md {
+  padding: 16px;
+  font-size: 12px;
+}
+
+/* Cockpit helpers (inline-style replacements). */
+.hq-cockpit-empty {
+  padding: 14px;
+  font-size: 12px;
+}
+.hq-cockpit-section-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--bright);
+  margin: 0;
+}
+.hq-cockpit-cost-amount {
+  color: var(--green);
+}

@@ -128,7 +128,7 @@ AGENTS.md
 /test_output.*
 /test-output.*
 /vitest_*.txt
-/coverage_output.txt
+/coverage_*.txt
 /test-results/
 /vtest_*.txt
 /vt*.txt
@@ -159,7 +159,9 @@ AGENTS.md
 .antigravitycli/
 .scratch/
 
-before-release.md
+/_[a-z]*.ps1
+/_*-*.ps1
+/before-release.md
 
 
 *.tmp

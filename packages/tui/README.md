@@ -43,27 +43,30 @@ process.exit(exitCode);
 
 ```
 ╭──────────────────────────────────────────────────────────────────────────────╮
-│  WrongStack  // TERMINAL AI ENGINE                         ● READY v0.287.0  │
+│                                                                    v0.287.0  │
 │                                                                              │
-│          █   █ ████   ███  █   █  ████  ████ █████  ███   ████ █   █         │
-│          █   █ █   █ █   █ ██  █ █     █       █   █   █ █     █  █          │
-│          █ █ █ ████  █   █ █ █ █ █  ██  ███    █   █████ █     ███           │
-│          █ █ █ █  █  █   █ █  ██ █   █     █   █   █   █ █     █  █          │
-│           █ █  █   █  ███  █   █  ███  ████    █   █   █  ████ █   █         │
+│          _       ______  ____  _   ______________________   ________ __       │
+│         | |     / / __ \/ __ \/ | / / ____/ ___/_  __/   | / ____/ //_/      │
+│         | | /| / / /_/ / / / /  |/ / / __ \__ \ / / / /| |/ /   / ,<        │
+│         | |/ |/ / _, _/ /_/ / /|  / /_/ /___/ // / / ___ / /___/ /| |       │
+│         |__/|__/_/ |_|\____/_/ |_/\____//____//_/ /_/  |_|\____/_/ |_|       │
 │                                                                              │
-│  ━━━━━━━━━━ BUILT ON THE WRONG STACK. SHIPPED ANYWAY.                        │
+│                     BUILT ON THE WRONG STACK. SHIPPED ANYWAY.                │
 │                                                                              │
-│  ◆ ROUTE     anthropic › anthropic-test-model                                │
-│  ◇ FAMILY    anthropic                                                       │
-│  ⌁ WORKSPACE /workspace/wrongstack                                           │
-│  ⌘ COMMANDS  /help · F1 projects · F10 sessions · /exit                      │
+│  ◆ route   anthropic › anthropic-test-model                                  │
+│  ◇ family  anthropic    ◈ key    •••• ABC                                    │
+│  ⌁ workspace  /workspace/wrongstack                                          │
+│                                                                              │
+│  ★ github.com/wrongstack/wrongstack — don't forget to star!                  │
+│  ◆ wrongstack.com                                                            │
 ╰──────────────────────────────────────────────────────────────────────────────╯
   user> refactor auth.ts to async/await
-  ⠋ thinking (3 tools used · 4.2k tokens · 1.3s)
-  …
+ ⠋ thinking (3 tools used · 4.2k tokens · 1.3s)
   > █                                              ⚠ YOLO
-  ─────────────────────────────────────────────  ctx 47%
+ ─────────────────────────────────────────────  ctx 47%
 ```
+
+The wordmark and route label render in the brand gradient (orange → pink).
 
 - **History pane** — assistant text, tool calls, tool results, errors, turn summaries
 - **Streaming text** — partial deltas render live; on abort, partial response is preserved
@@ -110,7 +113,7 @@ not silently install or change system fonts.
 | `?` (empty prompt) | Keyboard shortcuts help overlay |
 | `F1` | Project switcher (also `/project`) |
 | `Ctrl+F` / `F2` | Toggle fleet orchestration monitor |
-| `Ctrl+G` / `F3` | Toggle agents live monitor |
+| `Ctrl+G` / `F3` | Toggle agents panel — left-right split: agent list + live transcript |
 | `Ctrl+T` / `F4` | Toggle worktree monitor |
 | `F5` | Toggle plan panel |
 | `F6` | Toggle todos monitor overlay |

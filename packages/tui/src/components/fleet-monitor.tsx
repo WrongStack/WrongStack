@@ -2,6 +2,15 @@ import { Box, Text } from '../ink.js';
 import type React from 'react';
 import type { FleetEntry } from '../app.js';
 import { theme } from '../theme.js';
+import { glyphs } from '../ui-glyphs.js';
+import {
+  EmptyPanelState,
+  KeyCap,
+  MonitorShell,
+  SectionLabel,
+  truncatePanelText,
+  useMonitorSize,
+} from './monitor-shell.js';
 import { fmtElapsed, renderProgress } from './status-bar.js';
 
 function shortSessionId(sessionId: string): string {
@@ -123,6 +132,8 @@ export function FleetMonitor({
   nowTick,
   collabSession,
 }: FleetMonitorProps): React.ReactElement {
+  const size = useMonitorSize();
+  const wide = size.columns >= 100;
   /** Terminal agents older than this are excluded from table + timeline. */
   const TERMINAL_TTL_MS = 5 * 60_000; // 5 minutes
 
@@ -151,7 +162,12 @@ export function FleetMonitor({
     if (ra === 2) return b.lastEventAt - a.lastEventAt;
     return a.startedAt - b.startedAt;
   });
-  const shown = ordered.slice(0, 12);
+  const collabRows = collabSession ? 3 + Math.min(3, collabSession.timeline.length) : 0;
+  const agentLimit = Math.max(
+    1,
+    Math.min(8, Math.floor((size.contentRows - collabRows - 6) / (wide ? 1 : 2))),
+  );
+  const shown = ordered.slice(0, agentLimit);
   const overflow = ordered.length - shown.length;
 
   // Stale terminal count for the user so they know we pruned.
@@ -181,7 +197,11 @@ export function FleetMonitor({
     }
   }
   events.sort((a, b) => b.at - a.at);
-  const timeline = events.slice(0, 20);
+  const timelineLimit = Math.max(
+    0,
+    Math.min(5, size.contentRows - collabRows - shown.length * (wide ? 1 : 2) - 7),
+  );
+  const timeline = events.slice(0, timelineLimit);
 
   // Collab verdict chip color
   const VERDICT_COLOR: Record<string, string> = {
@@ -191,55 +211,78 @@ export function FleetMonitor({
   };
 
   return (
-    <Box flexDirection="column" borderStyle="round" borderColor={theme.monitor.fleet} paddingX={1}>
-      {/* Header — orchestration identity, distinct from AGENTS · LIVE */}
-      <Box flexDirection="row" gap={1}>
-        <Text bold color={theme.monitor.fleet}>
-          FLEET · ORCHESTRATION
+    <MonitorShell
+      accent={theme.monitor.fleet}
+      icon={glyphs.fleet}
+      title="FLEET CONTROL"
+      kicker={wide ? 'orchestration overview' : undefined}
+      right={
+        <Text>
+          <Text color={theme.warn}>▶ {running.length}</Text>
+          <Text color={theme.textMuted}> ○ {idle}</Text>
+          <Text color={theme.success}> ✓ {done}</Text>
+          {failed > 0 ? <Text color={theme.error}> ✗ {failed}</Text> : null}
         </Text>
-        <Text dimColor>│</Text>
-        <Text color={theme.warn}>▶{running.length}</Text>
-        <Text dimColor>○{idle}</Text>
-        <Text color={theme.success}>✓{done}</Text>
-        {failed > 0 ? <Text color={theme.error}>✗{failed}</Text> : null}
-        <Text dimColor>· Ctrl+F / F2 to close</Text>
+      }
+      footer={
+        <Box gap={2}>
+          <KeyCap keyName="F2" label="close" color={theme.monitor.fleet} />
+          <Text color={theme.textMuted}>/fleet dispatch · /fleet status</Text>
+          {staleTerminal > 0 ? <Text color={theme.textMuted}>{staleTerminal} archived</Text> : null}
+        </Box>
+      }
+    >
+      <Box marginTop={1} gap={1}>
+        <Text color={theme.textMuted}>CAPACITY</Text>
+        <Text color={theme.monitor.fleet}>
+          [{renderProgress(concurrencyRatio, wide ? 16 : 10)}]
+        </Text>
+        <Text color={theme.textSecondary}>
+          {running.length}/{maxConcurrent}
+        </Text>
+        {totalTokens ? (
+          <Text color={theme.textMuted}>
+            {'  '}
+            {fmtTokens(totalTokens.input)}↑ {fmtTokens(totalTokens.output)}↓
+          </Text>
+        ) : null}
+        <Box flexGrow={1} />
+        <Text color={theme.success} bold>
+          {fmtCost(totalCost)}
+        </Text>
       </Box>
 
-      {/* Collab session banner — shown when a session is active or completed */}
       {collabSession ? (
-        <Box flexDirection="column" marginTop={1}>
-          <Box flexDirection="row" gap={1}>
+        <Box flexDirection="column" marginTop={1} paddingX={1}>
+          <Box gap={1}>
             <Text bold color={theme.monitor.agents}>
-              ⚡ COLLAB SESSION
+              ⚡ COLLAB
             </Text>
             {collabSession.sessionId ? (
-              <Text dimColor>{shortSessionId(collabSession.sessionId)}</Text>
+              <Text color={theme.textMuted}>{shortSessionId(collabSession.sessionId)}</Text>
             ) : null}
-            <Text dimColor>│</Text>
-            <Text color={theme.error}>🐛{collabSession.bugCount}</Text>
-            <Text dimColor>│</Text>
-            <Text color={theme.warn}>📐{collabSession.planCount}</Text>
-            <Text dimColor>│</Text>
-            <Text color={theme.accent}>⚖️{collabSession.evalCount}</Text>
+            <Box flexGrow={1} />
+            <Text color={theme.error}>bugs {collabSession.bugCount}</Text>
+            <Text color={theme.warn}> plans {collabSession.planCount}</Text>
+            <Text color={theme.accent}> reviews {collabSession.evalCount}</Text>
             {collabSession.overallVerdict ? (
-              <>
-                <Text dimColor>│</Text>
-                <Text bold color={VERDICT_COLOR[collabSession.overallVerdict] ?? 'white'}>
-                  {collabSession.overallVerdict}
-                </Text>
-              </>
+              <Text bold color={VERDICT_COLOR[collabSession.overallVerdict] ?? theme.textPrimary}>
+                {'  '}
+                {collabSession.overallVerdict.replace('_', ' ').toUpperCase()}
+              </Text>
             ) : null}
           </Box>
-          {/* Inline collab timeline — first 6 entries */}
           {collabSession.timeline.length > 0 ? (
-            <Box flexDirection="column" marginTop={0}>
-              {collabSession.timeline.slice(0, 6).map((ev, i) => (
-                <Box key={i} flexDirection="row" gap={1}>
-                  <Text dimColor>
-                    {`${fmtElapsed(Math.max(0, nowTick - ev.at))} ago`.padEnd(10)}
+            <Box flexDirection="column">
+              {collabSession.timeline.slice(0, 3).map((ev, i) => (
+                <Box key={`${ev.at}-${i}`} gap={1}>
+                  <Text color={theme.textMuted}>
+                    {`${fmtElapsed(Math.max(0, nowTick - ev.at))} ago`.padEnd(9)}
                   </Text>
                   <Text {...(ev.color ? { color: ev.color } : {})}>{ev.icon}</Text>
-                  <Text dimColor>{ev.text}</Text>
+                  <Text color={theme.textMuted}>
+                    {truncatePanelText(ev.text, size.contentWidth - 16)}
+                  </Text>
                 </Box>
               ))}
             </Box>
@@ -247,38 +290,20 @@ export function FleetMonitor({
         </Box>
       ) : null}
 
-      {/* Concurrency + totals gauge */}
-      <Box flexDirection="row" gap={1}>
-        <Text dimColor>concurrency</Text>
-        <Text color={theme.accent}>[{renderProgress(concurrencyRatio, 12)}]</Text>
-        <Text dimColor>
-          {running.length}/{maxConcurrent}
-        </Text>
-        {totalTokens ? (
-          <Text dimColor>
-            {'  '}
-            {fmtTokens(totalTokens.input)}↑ {fmtTokens(totalTokens.output)}↓
-          </Text>
-        ) : null}
-        <Text color={theme.success}>{`  ${totalCost.toFixed(4)}`}</Text>
-      </Box>
-
       {shown.length === 0 ? (
-        <Text dimColor>No subagents yet — spawn with /fleet spawn or /fleet dispatch.</Text>
+        <EmptyPanelState
+          icon="◇"
+          title="Fleet is ready"
+          detail="Dispatch a task with /fleet dispatch or create a worker with /fleet spawn."
+          accent={theme.monitor.fleet}
+        />
       ) : null}
 
-      {/* Compact one-line-per-agent table */}
       {shown.length > 0 ? (
         <Box flexDirection="column" marginTop={1}>
-          <Box flexDirection="row" gap={1}>
-            <Text dimColor>{'  '}</Text>
-            <Text dimColor>{'name'.padEnd(14)}</Text>
-            <Text dimColor>{'model'.padEnd(18)}</Text>
-            <Text dimColor>{'status'.padEnd(9)}</Text>
-            <Text dimColor>{'L/t·ctx'.padEnd(12)}</Text>
-            <Text dimColor>{'elapsed'.padEnd(8)}</Text>
-            <Text dimColor>cost</Text>
-          </Box>
+          <SectionLabel>
+            WORKERS {shown.length}/{ordered.length}
+          </SectionLabel>
           {shown.map((e) => {
             const s = STATUS[e.status];
             const elapsed =
@@ -291,38 +316,53 @@ export function FleetMonitor({
                 ? `L${e.iterations} ${e.toolCalls}t ${Math.min(100, Math.max(0, Math.round(e.ctxPct * 100)))}%`
                 : `L${e.iterations} ${e.toolCalls}t`;
             return (
-              <Box key={e.id} flexDirection="row" gap={1}>
-                <Text color={s.color}>{s.icon}</Text>
-                <Text>{e.name.padEnd(14).slice(0, 14)}</Text>
-                <Text dimColor>{model.padEnd(18).slice(0, 18)}</Text>
-                <Text color={s.color}>{e.status.padEnd(9)}</Text>
-                <Text dimColor>{ltCtx.padEnd(12).slice(0, 12)}</Text>
-                <Text dimColor>{elapsed.padEnd(8).slice(0, 8)}</Text>
-                <Text color={theme.warn}>{fmtCost(e.cost)}</Text>
-                {e.extensions && e.extensions > 0 ? (
-                  <Text color={theme.warn}> ⚡×{e.extensions}</Text>
+              <Box key={e.id} flexDirection="column">
+                <Box>
+                  <Text color={s.color} bold>
+                    {s.icon} {truncatePanelText(e.name, wide ? 16 : 20).padEnd(wide ? 16 : 20)}
+                  </Text>
+                  {wide ? (
+                    <Text color={theme.textMuted}>{truncatePanelText(model, 18).padEnd(18)}</Text>
+                  ) : null}
+                  <Text color={s.color}>{e.status.padEnd(9)}</Text>
+                  <Text color={theme.textMuted}>
+                    {ltCtx.padEnd(12).slice(0, 12)} {elapsed}
+                  </Text>
+                  <Box flexGrow={1} />
+                  <Text color={theme.warn}>{fmtCost(e.cost)}</Text>
+                  {e.extensions && e.extensions > 0 ? (
+                    <Text color={theme.warn}> ⚡×{e.extensions}</Text>
+                  ) : null}
+                </Box>
+                {!wide ? (
+                  <Text color={theme.textMuted}>
+                    {' '}
+                    {model} · {elapsed}
+                  </Text>
                 ) : null}
               </Box>
             );
           })}
-          {overflow > 0 ? <Text dimColor>{`  … +${overflow} more`}</Text> : null}
-          {staleTerminal > 0 ? <Text dimColor>{`  · ${staleTerminal} terminal pruned`}</Text> : null}
+          {overflow > 0 ? <Text color={theme.textMuted}> ↓ {overflow} more workers</Text> : null}
         </Box>
       ) : null}
 
-      {/* Timeline */}
       {timeline.length > 0 ? (
         <Box flexDirection="column" marginTop={1}>
-          <Text dimColor>timeline</Text>
+          <SectionLabel>RECENT SIGNALS</SectionLabel>
           {timeline.map((ev, i) => (
-            <Box key={i} flexDirection="row" gap={1}>
-              <Text dimColor>{`${fmtElapsed(Math.max(0, nowTick - ev.at))} ago`.padEnd(10)}</Text>
+            <Box key={`${ev.at}-${i}`} gap={1}>
+              <Text color={theme.textMuted}>
+                {`${fmtElapsed(Math.max(0, nowTick - ev.at))} ago`.padEnd(9)}
+              </Text>
               <Text color={ev.color}>{ev.icon}</Text>
-              <Text dimColor>{ev.text}</Text>
+              <Text color={theme.textMuted}>
+                {truncatePanelText(ev.text, size.contentWidth - 16)}
+              </Text>
             </Box>
           ))}
         </Box>
       ) : null}
-    </Box>
+    </MonitorShell>
   );
 }

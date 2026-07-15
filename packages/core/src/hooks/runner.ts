@@ -177,8 +177,26 @@ export class HookRunner {
     };
     const entries = this.matching('PostToolUse', toolName);
     if (entries.length === 0) return {};
+
+    // Background hooks run fire-and-forget — the tool executor returns
+    // immediately without collecting their additionalContext. Use this for
+    // purely advisory hooks (format-on-save, code-metrics, dead-code scans,
+    // etc.) where same-turn feedback is not required.
+    const foreground: HookEntry[] = [];
+    for (const entry of entries) {
+      if (entry.background) {
+        // Fire-and-forget: invoke without await, swallow errors.
+        this.invoke(entry, payload, env).catch(() => {});
+      } else {
+        foreground.push(entry);
+      }
+    }
+
+    // No foreground hooks — return immediately, don't wait for background.
+    if (foreground.length === 0) return {};
+
     const results = await Promise.allSettled(
-      entries.map((entry) => this.invoke(entry, payload, env)),
+      foreground.map((entry) => this.invoke(entry, payload, env)),
     );
     const parts: string[] = [];
     let separate = false;

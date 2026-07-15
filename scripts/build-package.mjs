@@ -7,13 +7,7 @@
  * declaration-bundler dependency on TypeScript's private compiler API.
  */
 import { spawnSync } from 'node:child_process';
-import {
-  existsSync,
-  mkdirSync,
-  readFileSync,
-  rmSync,
-  writeFileSync,
-} from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { dirname, extname, join, relative } from 'node:path';
 import { build } from 'esbuild';
@@ -113,6 +107,7 @@ const toolEntries = entryMap([
   'src/ps-slash.ts',
   'src/skill.ts',
   'src/task.ts',
+  'src/session-kanban.ts',
   'src/process-registry.ts',
   'src/circuit-breaker.ts',
   'src/tool-icons.ts',
@@ -194,12 +189,7 @@ const profiles = {
   '@wrongstack/telegram': standard(['@wrongstack/core']),
   '@wrongstack/tools': {
     entries: toolEntries,
-    external: [
-      '@typescript/typescript6',
-      '@wrongstack/core',
-      '@wrongstack/kanban',
-      'node:sqlite',
-    ],
+    external: ['@typescript/typescript6', '@wrongstack/core', '@wrongstack/kanban', 'node:sqlite'],
   },
   '@wrongstack/tui': {
     ...standard(['ink', 'react']),
@@ -346,11 +336,7 @@ async function bundle(config, defaults) {
     // Match package-builder semantics: published runtime dependencies stay
     // external and are resolved through the package manager. This also avoids
     // duplicating workspace singletons and embedding native/CJS dependencies.
-    external: [
-      ...packageExternals,
-      ...(defaults.external ?? []),
-      ...(config.external ?? []),
-    ],
+    external: [...packageExternals, ...(defaults.external ?? []), ...(config.external ?? [])],
     plugins:
       config.workspaceExternal || defaults.workspaceExternal ? [workspaceExternalPlugin] : [],
     banner: config.banner || defaults.banner ? { js: config.banner ?? defaults.banner } : undefined,

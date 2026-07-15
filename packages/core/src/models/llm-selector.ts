@@ -1,9 +1,11 @@
 import { expectDefined } from '../utils/expect-defined.js';
 import { estimateMessageTokens, estimateTextTokens } from '../utils/token-estimate.js';
 import { isTextBlock } from '../types/blocks.js';
+import type { ContentBlock } from '../types/blocks.js';
 import type { Message } from '../types/messages.js';
 import type { Provider, Request } from '../types/provider.js';
 import type { MessageSelector, SelectorResult } from '../types/selector.js';
+import type { OneShotOrchestrator } from '../execution/one-shot-llm.js';
 import { readBundledInstructionText } from '../utils/instruction-file.js';
 export interface LLMSelectorOptions {
   /** Provider used for the selector LLM call. Required. */
@@ -26,6 +28,11 @@ export interface LLMSelectorOptions {
    * history text budget calculation (default: 1024).
    */
   maxOutputTokens?: number | undefined;
+  /**
+   * OneShotOrchestrator for the selector LLM call. When set, uses it
+   * instead of direct provider.complete(), gaining fallback chain support.
+   */
+  oneShotOrchestrator?: OneShotOrchestrator | undefined;
 }
 
 const DEFAULT_SYSTEM_PROMPT = readBundledInstructionText('llm/llm-selector.md');
@@ -45,7 +52,7 @@ function formatMessages(messages: Message[], maxTokens = 2048): string {
     if (typeof m.content === 'string') {
       text = m.content.slice(0, 500);
     } else {
-      const content = m.content as import('../types/blocks.js').ContentBlock[];
+      const content = m.content as ContentBlock[];
       text = content
         .filter(isTextBlock)
         .map((b) => b.text)
@@ -76,6 +83,7 @@ export class LLMSelector implements MessageSelector {
   private readonly maxContextTokens: number;
   private readonly systemPrompt: string;
   private readonly maxOutputTokens: number;
+  private readonly oneShotOrchestrator?: OneShotOrchestrator | undefined;
 
   constructor(opts: LLMSelectorOptions) {
     this.provider = opts.provider;
@@ -91,6 +99,7 @@ export class LLMSelector implements MessageSelector {
     this.maxContextTokens = opts.maxContextTokens ?? 40_000;
     this.systemPrompt = opts.systemPrompt ?? DEFAULT_SYSTEM_PROMPT;
     this.maxOutputTokens = opts.maxOutputTokens ?? 1024;
+    this.oneShotOrchestrator = opts.oneShotOrchestrator;
   }
 
   async select(messages: Message[], maxToKeep: number): Promise<SelectorResult> {
@@ -122,16 +131,27 @@ export class LLMSelector implements MessageSelector {
     let raw: string;
     const ac = new AbortController();
     try {
-      // 30-second timeout so a stuck selector LLM call can't hang the compactor.
-      const timeoutSignal = AbortSignal.timeout(30_000);
-      const res = await this.provider.complete(req, {
-        signal: AbortSignal.any([ac.signal, timeoutSignal]),
-      });
-      const textBlocks = res.content.filter(isTextBlock);
-      raw = textBlocks
-        .map((b) => b.text)
-        .join('\n')
-        .trim();
+      if (this.oneShotOrchestrator) {
+        const result = await this.oneShotOrchestrator.call({
+          system: systemText + budgetInstruction,
+          userPrompt: historyText,
+          maxTokens: this.maxOutputTokens,
+          timeoutMs: 30_000,
+        });
+        if (result.error) throw new Error(result.error);
+        raw = result.text;
+      } else {
+        // 30-second timeout so a stuck selector LLM call can't hang the compactor.
+        const timeoutSignal = AbortSignal.timeout(30_000);
+        const res = await this.provider.complete(req, {
+          signal: AbortSignal.any([ac.signal, timeoutSignal]),
+        });
+        const textBlocks = res.content.filter(isTextBlock);
+        raw = textBlocks
+          .map((b) => b.text)
+          .join('\n')
+          .trim();
+      }
     } catch (err) {
       if (err instanceof Error) {
         console.warn(

@@ -45,6 +45,12 @@ export interface AutoCompactionOptions {
   > | null | undefined;
   /** Optional bridge for writing compaction events into the persistent session log. */
   sessionBridge?: SessionEventBridge | undefined;
+  /**
+   * Optional callback fired after successful compaction with the report.
+   * Receives the CompactReport so callers can feed the collapsed digest
+   * to memory consolidation, logging, or other side effects.
+   */
+  onCompact?: ((report: CompactReport) => void) | undefined;
 }
 
 /**
@@ -78,6 +84,7 @@ export class AutoCompactionMiddleware {
   private readonly failureMode: CompactionFailureMode;
   private readonly policyProvider?: AutoCompactionOptions['policyProvider'] | undefined;
   private readonly sessionBridge?: SessionEventBridge | undefined;
+  private readonly onCompact?: ((report: CompactReport) => void) | undefined;
 
   /**
    * Once a compaction attempt reduces nothing (preserveK protects everything,
@@ -138,6 +145,7 @@ export class AutoCompactionMiddleware {
     this.failureMode = opts.failureMode ?? 'throw_on_hard';
     this.policyProvider = opts.policyProvider;
     this.sessionBridge = opts.sessionBridge;
+    this.onCompact = opts.onCompact;
   }
 
   /** Allow callers (e.g. model-switch in WebUI) to update the context window
@@ -336,6 +344,7 @@ export class AutoCompactionMiddleware {
     try {
       const report = await this.compactor.compact(ctx, { aggressive });
       this.recordAttempt(pressure.level, pressure.tokens, report);
+      this.onCompact?.(report);
       this.events?.emit('compaction.fired', {
         sessionId: ctx.session.id,
         level: pressure.level,

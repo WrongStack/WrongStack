@@ -42,7 +42,7 @@ export function BrainView(): React.ReactElement {
           <div key={e.id} className="hq-card">
             <div className="hq-row">
               <meta.Icon size={15} className={`hq-kind-icon ${meta.cls}`} />
-              <span style={{ fontWeight: 700 }}>{meta.label}</span>
+              <span className="hq-text-bright">{meta.label}</span>
               {p.source !== undefined && <span className="hq-pill info">{p.source}</span>}
               {p.risk !== undefined && (
                 <span
@@ -55,13 +55,13 @@ export function BrainView(): React.ReactElement {
             </div>
             {p.question !== undefined && <div className="hq-mono hq-row-detail">{p.question}</div>}
             {p.decision !== undefined && (
-              <div className="hq-row" style={{ marginTop: 4 }}>
+              <div className="hq-row hq-row-detail">
                 <span className="hq-pill active">→ {p.decision}</span>
               </div>
             )}
             {p.detail !== undefined && <div className="hq-mono hq-row-subtle">{p.detail}</div>}
             {p.kind === 'intervention' && (
-              <div className="hq-row" style={{ marginTop: 4 }}>
+              <div className="hq-row hq-row-detail">
                 <span className="hq-pill warn">{p.interventionKind}</span>
                 <span className="hq-pill">{p.intervened ? 'steered' : 'observed'}</span>
               </div>

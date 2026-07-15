@@ -111,75 +111,74 @@ export function createDelegateTool(opts: CreateDelegateToolOptions): Tool {
       task: {
         type: 'string',
         description:
-          'What the subagent should do — natural language, complete sentence(s). The subagent has its own tool slice, its own LLM call, and returns when its task is done.',
+          'What the subagent should do — natural language, complete sentence(s).',
       },
       role: {
         type: 'string',
         description:
           rosterIds.length > 0
-            ? `Roster role (preferred). One of: ${rosterIds.join(', ')}. Picks a pre-tuned config (prompt, budgets, tools) for that role.`
-            : 'No roster is configured — pass `name` instead.',
-        enum: rosterIds.length > 0 ? rosterIds : undefined,
+            ? 'Roster role id. Common: bug-hunter, security-scanner, refactor-planner, critic, audit-log, executor, shadow-agent, architect.'
+            : 'No roster configured — pass `name` instead.',
       },
       name: {
         type: 'string',
         description:
-          'Display name for free-form subagents (not using a roster role). The subagent gets a large default budget (3h, 5000 iter, 15000 tool calls). Required when `role` is omitted.',
+          'Display name for free-form subagents (no roster role). Required when `role` is omitted.',
       },
       provider: {
         type: 'string',
         description:
-          'Provider id (e.g. "anthropic", "openai"). Defaults to the host provider when omitted.',
+          'Provider id (e.g. "anthropic", "openai"). Defaults to host provider.',
       },
       model: {
         type: 'string',
-        description: 'Model id within the provider. Defaults to the host model when omitted.',
+        description: 'Model id within the provider. Defaults to host model.',
       },
       systemPromptOverride: {
         type: 'string',
-        description: 'Optional extra prompt text appended to the role baseline.',
+        description: 'Extra prompt text appended to the role baseline.',
       },
       timeoutMs: {
         type: 'number',
         minimum: 1,
-        description: `Wall-clock budget for this delegate in milliseconds. No hard cap — set as high as the task realistically needs (a monorepo audit can take hours, a single-file lint takes seconds). Default ${Math.round(defaultTimeoutMs / 1000 / 60)} minutes.`,
+        description: `Wall-clock budget in ms (default ${Math.round(defaultTimeoutMs / 1000 / 60)} min). No hard cap — set as high as the task needs.`,
       },
       maxIterations: {
         type: 'number',
         minimum: 1,
         description:
-          'Maximum LLM iterations the subagent may take. Unset = use the role/coordinator default. Raise this for tasks with many tool-think-tool cycles (deep code analysis, multi-file refactors).',
+          'Maximum LLM iterations. Unset = role default. Raise for deep multi-step tasks.',
       },
       maxToolCalls: {
         type: 'number',
         minimum: 1,
         description:
-          'Maximum number of tool invocations the subagent may make. Unset = use the role/coordinator default. Raise this for tasks that touch many files (large grep + read + report).',
+          'Maximum tool invocations. Unset = role default. Raise for file-heavy tasks.',
       },
       idleTimeoutMs: {
         type: 'number',
         minimum: 1,
         description:
-          'Idle timeout in ms: reap the subagent after this long with no activity. Resets on every iteration/tool call. Unset = use the role/coordinator default.',
+          'Idle timeout in ms. Resets on activity. Unset = role default.',
       },
       maxTokens: {
         type: 'number',
         minimum: 1,
         description:
-          'Maximum total tokens (input + output) the subagent may use. Unset = use the role/coordinator default.',
+          'Max total tokens (input+output). Unset = role default.',
       },
       maxCostUsd: {
         type: 'number',
         minimum: 0,
         description:
-          'Maximum estimated USD cost the subagent may incur. Unset = use the role/coordinator default.',
+          'Max estimated USD cost. Unset = role default.',
       },
       maxHandoffs: {
         type: 'number',
         minimum: 0,
         maximum: 8,
         description:
-          'Maximum fresh-worker continuations after partial completion or budget exhaustion. Default 1; set 0 to disable. Each successor receives the prior structured/partial report and is told to continue only the remaining work.',
+          'Max fresh-worker continuations after budget exhaustion. Default 1. Each gets the prior partial report.',
       },
     },
     required: ['task'],
@@ -188,9 +187,9 @@ export function createDelegateTool(opts: CreateDelegateToolOptions): Tool {
   return {
     name: 'delegate',
     description:
-      "Hand a discrete piece of work to a dedicated subagent and wait for its result. The subagent has its own context, its own LLM call, and a generous, auto-extending budget. If it reports explicit partial completion or still exhausts a recoverable budget, delegate can continue the remaining work with a fresh subagent (bounded by `maxHandoffs`, default 1). Workers may ask the leader to spawn a parallel helper through the mailbox, but cannot recursively spawn agents themselves. Use specialized roster roles when possible; otherwise pass `name` + `task`. Call multiple delegates in parallel through the provider's parallel-tool-call surface for independent work.",
+      "Hand a piece of work to a subagent and wait for its result. Has own context, LLM call, auto-extending budget. Can continue remaining work with a fresh subagent on partial completion (maxHandoffs, default 1). Workers cannot recursively spawn. Use roster roles when possible; otherwise pass `name` + `task`.",
     usageHint:
-      "Set `task` to a complete instruction. Either pick `role` from the roster or pass `name` for a free-form coding agent. Defaults are intentionally generous; override `timeoutMs`, `maxIterations`, `maxToolCalls`, or `maxHandoffs` only when the task warrants it. Returns the final TaskResult plus a `handoffs` history when fresh workers continued partial work. Requires Director mode in normal CLI sessions.",
+      "Set `task` to a complete instruction. Pick `role` from roster or pass `name` for free-form. Override `timeoutMs`/`maxIterations`/`maxToolCalls` only when needed.",
     permission: 'auto',
     mutating: false,
     managesOwnTimeout: true,

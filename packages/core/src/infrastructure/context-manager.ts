@@ -107,10 +107,10 @@ export function createContextManagerTool(
   opts: ContextManagerToolOptions = {},
 ): Tool<ContextManagerInput, ContextManagerResult> {
   const minCompactThreshold = opts.minCompactThreshold ?? 0;
-  const noopRetryDeltaTokens = opts.noopRetryDeltaTokens ?? 2_000;
+  const noopRetryDeltaTokens = opts.noopRetryDeltaTokens ?? 1_000;
   /** Hard override for maxContext. When absent, the runtime value from ctx.provider is used. */
   const configuredMaxContext = opts.maxContext;
-  const compactThresholdFraction = opts.compactThresholdFraction ?? 0.5;
+  const compactThresholdFraction = opts.compactThresholdFraction ?? 0.4;
 
   // Tracks the most recent NOOP attempt so we can skip retry until context grows.
   let lastNoopTokens = 0;

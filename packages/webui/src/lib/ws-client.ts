@@ -870,8 +870,23 @@ export class WrongStackWebSocketClient {
     this.send({ type: 'ping' });
   }
 
-  refineModel(text: string) {
-    this.send({ type: 'model.refine', payload: { text } });
+  refineModel(
+    text: string,
+    opts?: {
+      timeoutMs?: number | undefined;
+      provider?: string | undefined;
+      model?: string | undefined;
+    },
+  ) {
+    this.send({
+      type: 'model.refine',
+      payload: {
+        text,
+        ...(opts?.timeoutMs !== undefined ? { timeoutMs: opts.timeoutMs } : {}),
+        ...(opts?.provider !== undefined ? { provider: opts.provider } : {}),
+        ...(opts?.model !== undefined ? { model: opts.model } : {}),
+      },
+    });
   }
 
   disconnect() {

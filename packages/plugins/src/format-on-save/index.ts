@@ -30,8 +30,8 @@
 
 import { execFileSync, execSync } from 'node:child_process';
 import { existsSync, statSync } from 'node:fs';
-import { isAbsolute, relative, resolve } from 'node:path';
 import type { Plugin } from '@wrongstack/core';
+import { withinProject } from '../runtime/index.js';
 
 const API_VERSION = '^0.1.10';
 
@@ -43,16 +43,7 @@ const API_VERSION = '^0.1.10';
 // interpolated into a shell — quoting is brittle and Windows quotes can
 // be escaped.
 // ---------------------------------------------------------------------------
-function withinProject(p: string): boolean {
-  if (typeof p !== 'string' || p.length === 0 || p.length > 4096) return false;
-  const root = process.cwd();
-  const resolved = isAbsolute(p) ? resolve(p) : resolve(root, p);
-  const rel = relative(root, resolved);
-  if (rel === '' || rel === '.') return true;
-  if (rel.startsWith('..')) return false;
-  if (isAbsolute(rel)) return false;
-  return true;
-}
+// withinProject() imported from ../runtime/index.js
 
 // ---------------------------------------------------------------------------
 // Module-scope state (H1 audit pattern)
@@ -398,7 +389,7 @@ const plugin: Plugin = {
       return;
     };
 
-    state.hookUnregister = api.registerHook('PostToolUse', 'write|edit', hook);
+    state.hookUnregister = api.registerHook('PostToolUse', 'write|edit', hook, { background: true });
 
     // Cross-plugin listener: import-organizer announces each
     // successful linter run via `import-organizer:done`. We cache the
