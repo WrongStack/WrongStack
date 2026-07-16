@@ -49,7 +49,7 @@
     "smoke": "pnpm build && node --experimental-strip-types ../../scripts/acp-smoke-test.mts"
   },
   "dependencies": {
-    "@agentclientprotocol/sdk": "^1.0.0",
+    "@agentclientprotocol/sdk": "^1.2.1",
     "@wrongstack/core": "workspace:*"
   },
   "devDependencies": {

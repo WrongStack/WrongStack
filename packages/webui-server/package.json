@@ -47,7 +47,7 @@
     "@wrongstack/sdd": "workspace:*",
     "@wrongstack/super-memory": "workspace:*",
     "@wrongstack/tools": "workspace:*",
-    "ws": "^8.21.0"
+    "ws": "^8.21.1"
   },
   "devDependencies": {
     "@types/node": "^26.0.1",

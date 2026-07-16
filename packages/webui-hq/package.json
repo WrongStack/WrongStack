@@ -20,14 +20,14 @@
     "@fontsource/ibm-plex-mono": "^5.2.7",
     "@wrongstack/core": "workspace:*",
     "@wrongstack/tools": "workspace:*",
-    "@xyflow/react": "^12.11.1",
+    "@xyflow/react": "^12.11.2",
     "lucide-react": "^1.24.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "react-markdown": "^10.1.0",
     "rehype-highlight": "^7.0.2",
     "remark-gfm": "^4.0.1",
-    "virtua": "^0.49.1",
+    "virtua": "^0.49.3",
     "zustand": "5.0.14"
   },
   "devDependencies": {
@@ -35,7 +35,7 @@
     "@types/react-dom": "^19.0.0",
     "@vitejs/plugin-react": "^6.0.0",
     "typescript": "^7.0.2",
-    "vite": "^8.1.0",
+    "vite": "^8.1.5",
     "vitest": "4.1.10"
   },
   "files": [
