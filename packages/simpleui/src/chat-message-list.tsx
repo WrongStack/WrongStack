@@ -47,7 +47,7 @@ const MessageItem = memo(function MessageItem({
           {message.role === 'user'
             ? 'YOU'
             : message.role === 'thinking'
-              ? 'THINKING'
+              ? 'MODEL REASONING'
               : message.role === 'assistant'
                 ? 'WRONGSTACK'
                 : 'SYSTEM'}

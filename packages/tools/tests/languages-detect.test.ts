@@ -160,6 +160,28 @@ describe('detectLanguageWorkspaces', () => {
     }
   });
 
+  it('skips caller-provided ignoredDirectories by basename, but never the root', async () => {
+    await file('package.json', '{}');
+    await file('tests/fixtures/fake-app/package.json', '{"dependencies":{"zod":"^3.23.0"}}');
+    await file('tests/fixtures/fake-app/src/index.ts', 'export {};');
+
+    const result = await detectLanguageWorkspaces({
+      projectRoot: root,
+      ignoredDirectories: ['fixtures'],
+    });
+    const roots = result.workspaces.map((item) => item.root);
+    expect(roots).toContain(root);
+    expect(roots).not.toContain(path.join(root, 'tests', 'fixtures', 'fake-app'));
+
+    // Scanning the ignored directory's subtree directly still works — only
+    // child entries are name-checked, never the project root itself.
+    const direct = await detectLanguageWorkspaces({
+      projectRoot: path.join(root, 'tests', 'fixtures'),
+      ignoredDirectories: ['fixtures'],
+    });
+    expect(direct.workspaces.length).toBeGreaterThanOrEqual(1);
+  });
+
   it('does not guess a package manager when lockfiles conflict', async () => {
     await file('package.json', '{}');
     await file('pnpm-lock.yaml');

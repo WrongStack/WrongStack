@@ -205,6 +205,15 @@ export function createKanbanSupervisor(deps: KanbanSupervisorDeps): KanbanSuperv
   /** Compute the soonest `nextDue` across all boards and schedule the next tick. */
   const scheduleNext = () => {
     if (disposed) return;
+    // Clear any timer already armed before overwriting `nextTimer`. Without
+    // this, an `auditNow()` call (or a status request that reschedules) that
+    // races the background tick chain would orphan the previously-armed timer,
+    // which keeps firing as an independent, self-perpetuating chain that
+    // `dispose` can no longer see — one duplicate chain per such call.
+    if (nextTimer !== undefined) {
+      clearTimeout(nextTimer);
+      nextTimer = undefined;
+    }
     const now = Date.now();
     let minDue = Infinity;
     for (const due of nextDue.values()) {

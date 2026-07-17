@@ -10,14 +10,39 @@ import {
   Route,
   Sparkles,
 } from 'lucide-react';
+import { useState } from 'react';
 import { ExternalDoc, PageHero, PageNext, SectionIntro } from '@/components/site/primitives';
 import {
+  type CuratedProvider,
   curatedProviders,
   familyLabels,
   localProviders,
   oauthProviders,
 } from '@/data/providers';
 import { Link } from '@/lib/router';
+
+/** Real vendor logo with a monogram fallback when the asset cannot load. */
+function ProviderLogo({ provider }: { provider: CuratedProvider }) {
+  const [failed, setFailed] = useState(false);
+  return (
+    <span className="grid size-11 shrink-0 place-items-center overflow-hidden rounded-xl border border-line bg-white p-2 shadow-sm">
+      {failed ? (
+        <span className="font-mono text-xs font-black uppercase tracking-[-0.06em] text-ink">
+          {provider.vendor.slice(0, 2)}
+        </span>
+      ) : (
+        <img
+          src={provider.logoUrl}
+          alt={provider.logoAlt}
+          className="size-full object-contain"
+          loading="lazy"
+          referrerPolicy="no-referrer"
+          onError={() => setFailed(true)}
+        />
+      )}
+    </span>
+  );
+}
 
 const familyBadge: Record<string, string> = {
   anthropic: 'border-amber-500/25 bg-amber-500/10 text-amber-500',
@@ -104,17 +129,12 @@ export function ProvidersPage() {
           />
           <div className="mt-12 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {curatedProviders.map((provider) => (
-              <a
+              <article
                 key={provider.id}
-                href={provider.docsUrl}
-                target="_blank"
-                rel="noreferrer"
-                className="group flex flex-col rounded-2xl border border-line bg-card p-6 transition-all hover:-translate-y-0.5 hover:border-brand/45"
+                className="flex flex-col rounded-2xl border border-line bg-card p-6"
               >
                 <div className="flex items-start justify-between gap-3">
-                  <span className="grid size-11 place-items-center rounded-xl border border-line bg-bg text-xl">
-                    {provider.icon}
-                  </span>
+                  <ProviderLogo provider={provider} />
                   <span
                     className={`rounded-full border px-2.5 py-1 font-mono text-xs font-black uppercase tracking-[0.08em] ${familyBadge[provider.family]}`}
                   >
@@ -125,12 +145,19 @@ export function ProvidersPage() {
                 <p className="mt-2 flex-1 text-sm leading-6 text-muted">{provider.description}</p>
                 <div className="mt-5 flex items-center justify-between border-t border-line pt-4">
                   <code className="font-mono text-xs text-faint">{provider.keyPlaceholder}</code>
-                  <span className="inline-flex items-center gap-1 font-mono text-xs font-black uppercase tracking-[0.1em] text-brand">
-                    Get key
-                    <ArrowUpRight className="size-3 transition-transform group-hover:-translate-y-0.5 group-hover:translate-x-0.5" />
-                  </span>
+                  {provider.signupUrl && (
+                    <a
+                      href={provider.signupUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="group inline-flex items-center gap-1 font-mono text-xs font-black uppercase tracking-[0.1em] text-brand hover:underline"
+                    >
+                      Get key
+                      <ArrowUpRight className="size-3 transition-transform group-hover:-translate-y-0.5 group-hover:translate-x-0.5" />
+                    </a>
+                  )}
                 </div>
-              </a>
+              </article>
             ))}
           </div>
 

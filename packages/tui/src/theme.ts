@@ -190,12 +190,14 @@ export const theme: Theme = Object.freeze({
     worktree: pastel.green,
     phase: pastel.cyan,
   },
-  // Diff rows render light (pastel) text on a dark wash (see DiffBlock):
-  // deep green for additions, deep maroon for deletions — the Claude Code
-  // diff palette. Values are deliberately NOT from the `pastel` map: they
-  // must stay dark enough for white/syntax-colored foregrounds to read.
-  diffAddBg: '#1e4620',
-  diffDelBg: '#5a1e1e',
+  // Diff rows render Catppuccin text on a dark Catppuccin-tinted wash (see
+  // DiffBlock): blend the Catppuccin green/red accent into the Mocha base
+  // (#1e1e2e) at ≈12 % so each row carries a subtle colour cue without the
+  // harshness of a full-saturation tint. The foreground stays readable at
+  // full contrast on top — see applyWashTokens for the comment-promotion
+  // logic that keeps dim/gray tokens visible on these backgrounds.
+  diffAddBg: '#2e363c',
+  diffDelBg: '#382b3d',
   // Whether the host terminal can render truecolor backgrounds. Diff blocks
   // downgrade to marker-only rendering when this is false (e.g. `TERM=xterm`,
   // `NO_COLOR=1`, captured/piped output).

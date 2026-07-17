@@ -25,7 +25,17 @@ export function buildClearCommand(opts: SlashCommandContext): SlashCommand {
       // the user first so a stray `/clear` can't silently kill active work.
       // The gate is skipped when nothing is running, or when no confirm hook is
       // wired (plain/non-TTY surfaces), preserving the previous behavior.
-      const operationActive = opts.interruptController?.isRunning?.() ?? false;
+      //
+      // `isRunning()` only covers the leader run / autonomy / SDD — it does NOT
+      // know about the fleet. `interruptAll()` below unconditionally kills every
+      // subagent, so without this extra check a `/clear` at an idle prompt would
+      // silently kill running subagents. Match the set `onFleetKill` reaps
+      // (running | idle) so the confirm fires whenever there's fleet work to lose.
+      const leaderActive = opts.interruptController?.isRunning?.() ?? false;
+      const fleetActive = (opts.onFleetStatus?.()?.subagents ?? []).some(
+        (sa) => sa.status === 'running' || sa.status === 'idle',
+      );
+      const operationActive = leaderActive || fleetActive;
       if (operationActive && opts.confirm) {
         const proceed = await opts.confirm(
           'An operation is still running. Clear anyway? This will stop it and reset the session.',

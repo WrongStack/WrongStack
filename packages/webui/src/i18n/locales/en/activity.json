@@ -1132,7 +1132,7 @@
     "showDetailsLines_other": "Show details ({{count}} lines)",
     "editHint": "⌘/Ctrl+Enter to save · Esc to cancel",
     "saveResend": "Save & resend",
-    "thinkingProcess": "Thinking process",
+    "thinkingProcess": "Model Reasoning",
     "thinkingMeta": "iter {{iter}} · {{dur}} · {{lines}}",
     "replay": "replay",
     "linesSuffix_one": "{{count}} line",

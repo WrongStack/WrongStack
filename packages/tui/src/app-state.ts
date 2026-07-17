@@ -399,6 +399,12 @@ export type State = {
     thinkingWordEditing: boolean;
     /** In-progress text buffer while `thinkingWordEditing`. */
     thinkingWordDraft: string;
+    /**
+     * Show the "Model Reasoning" collapsible blocks in chat history.
+     * Separate from thinkingWord (status-bar chip) and reasoningMode
+     * (API-level provisioning). Default: true.
+     */
+    showModelReasoning: boolean;
     /** Prompt cache TTL. */
     cacheTtl: CacheTtl;
     /** Where to persist settings: 'global' or 'project'. */
@@ -912,6 +918,11 @@ export type Settings = {
   reasoningPreserve: boolean;
   /** Single word shown in the TUI rainbow working-state chip. */
   thinkingWord: string;
+  /**
+   * Show the "Model Reasoning" collapsible blocks in chat history.
+   * Default: true.
+   */
+  showModelReasoning: boolean;
   /** Prompt cache TTL. */
   cacheTtl: CacheTtl;
   /** Where to persist settings: 'global' or 'project'. */
@@ -1064,6 +1075,7 @@ export type Action =
       configScope: 'global' | 'project';
       breakerEnabled: boolean;
       breakerAutoKillResetMs: number;
+      showModelReasoning: boolean;
     }
   | { type: 'settingsClose' }
   | { type: 'settingsFieldMove'; delta: number }

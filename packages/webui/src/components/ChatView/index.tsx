@@ -774,9 +774,9 @@ export function ChatView() {
             giving the user quick control over thinking-log visibility and
             tool-call grouping without diving into Settings. */}
         <div className="ws-display-toggles hidden max-w-6xl mx-auto px-2 pb-1.5 sm:flex items-center gap-4 text-[11px] text-muted-foreground/75 select-none overflow-x-auto">
-          {/* Show Thinking toggle */}
+          {/* Show Model Reasoning toggle */}
           <ToggleSwitch
-            label="🧠 Thinking"
+            label="🧠 Model Reasoning"
             value={showThinkingLogs}
             onChange={() => {
               useLocalPrefs.getState().set({ showThinkingLogs: !useLocalPrefs.getState().showThinkingLogs });

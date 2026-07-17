@@ -15,6 +15,7 @@
  * file logic be unit-tested in isolation.
  */
 import { randomBytes } from 'node:crypto';
+import { realpathSync } from 'node:fs';
 import * as fsp from 'node:fs/promises';
 import * as path from 'node:path';
 
@@ -249,7 +250,6 @@ function mapFsError(err: unknown, p: string): FsError {
  */
 function safeRealpathSync(p: string): string {
   try {
-    const { realpathSync } = require('node:fs') as typeof import('node:fs');
     return realpathSync(p);
   } catch {
     return p;

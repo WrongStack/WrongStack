@@ -237,6 +237,13 @@ export interface DetectLanguageOptions {
   profiles?: readonly LanguageProfile[] | undefined;
   limits?: Partial<DetectionLimits> | undefined;
   signal?: AbortSignal | undefined;
+  /**
+   * Extra directory names (basename matches, not paths) to skip during the
+   * scan, on top of the built-in global ignores and each profile's
+   * `ignoredDirectories`. The project root itself is never skipped even if
+   * its basename matches.
+   */
+  ignoredDirectories?: readonly string[] | undefined;
 }
 
 export interface DetectionResult {

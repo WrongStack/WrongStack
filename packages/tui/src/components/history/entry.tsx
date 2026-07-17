@@ -73,6 +73,7 @@ export const Entry = React.memo(function Entry({
   autonomyMode,
   multiDiffSummaryThreshold,
   todos,
+  showModelReasoning,
 }: {
   entry: HistoryEntry;
   termWidth: number;
@@ -87,6 +88,11 @@ export const Entry = React.memo(function Entry({
    *  panel is hidden and the store is not written — same rule as the host
    *  callback (b0970387), so the two paths agree. */
   todos?: readonly TodoItem[] | undefined;
+  /**
+   * Show the "Model Reasoning" blocks in chat history. When false,
+   * `kind: 'thinking'` entries render as an empty fragment. Default: true.
+   */
+  showModelReasoning?: boolean | undefined;
 }): React.ReactElement {
   // Whether the agent still has open (pending/in_progress) todos. While it
   // does, finishing them takes priority over offering `<nextsteps>` — both
@@ -154,6 +160,8 @@ export const Entry = React.memo(function Entry({
         </Box>
       );
     case 'thinking': {
+      // Hidden when the user disables model reasoning display.
+      if (showModelReasoning === false) return <></>;
       const contentWidth = assistantContentWidth(termWidth);
       return (
         <Box
@@ -164,17 +172,17 @@ export const Entry = React.memo(function Entry({
           borderTop={false}
           borderRight={false}
           borderBottom={false}
-          borderColor={theme.textMuted}
+          borderColor={theme.textSecondary}
           paddingLeft={1}
         >
           <Box flexDirection="row">
-            <Text color={theme.textMuted}>{'⟳ THINKING'}</Text>
-            <Text color={theme.textMuted} dimColor>
+            <Text bold color={theme.textSecondary}>{'⟳ Model Reasoning'}</Text>
+            <Text color={theme.textSecondary}>
               {'  (model reasoning…)'}
             </Text>
           </Box>
           <Box width={contentWidth}>
-            <Text color={theme.textMuted} dimColor>
+            <Text color={theme.textSecondary}>
               {entry.text}
             </Text>
           </Box>

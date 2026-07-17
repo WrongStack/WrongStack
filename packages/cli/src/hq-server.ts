@@ -1008,11 +1008,12 @@ function startHqServerWithAuth(
           res.end(JSON.stringify({ error: { code: 'PASSWORD_NOT_CONFIGURED', message: 'Password login is not enabled on this HQ server.' } }));
           return;
         }
-        // Rate limiting with exponential backoff per client IP.
-        const forwardedFor = req.headers['x-forwarded-for'];
-        const forwardedValue = Array.isArray(forwardedFor) ? forwardedFor[0] : forwardedFor;
-        const clientIp =
-          forwardedValue?.split(',')[0]?.trim() ?? req.socket.remoteAddress ?? 'unknown';
+        // Rate limiting with exponential backoff per client IP. Key on the real
+        // socket peer only — HQ speaks plain HTTP directly with no trusted-proxy
+        // gate, so honouring the client-supplied `X-Forwarded-For` here would let
+        // an attacker send a fresh fabricated IP per request and never accumulate
+        // backoff (and, conversely, pre-block a legitimate user's IP).
+        const clientIp = req.socket.remoteAddress ?? 'unknown';
         const existing = loginAttempts.get(clientIp);
         if (existing && existing.blockedUntil > Date.now()) {
           const retryAfter = Math.ceil((existing.blockedUntil - Date.now()) / 1000);
@@ -1830,6 +1831,7 @@ function startHqServerWithAuth(
               clearInterval(browserHeartbeatTimer);
               clearInterval(timeseriesFlushTimer);
               clearInterval(mailboxGatewayRateLimitCleanup);
+              clearInterval(sessionCleanupTimer);
               stopAlertEngine();
               authWatcher.close();
               snapshotBroadcaster.close();

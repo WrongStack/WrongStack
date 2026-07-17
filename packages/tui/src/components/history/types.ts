@@ -114,6 +114,11 @@ export interface HistoryProps {
    * whether suggestions are available.
    */
   todos?: readonly TodoItem[] | undefined;
+  /**
+   * Show the "Model Reasoning" blocks in chat history. When false,
+   * `kind: 'thinking'` entries are hidden. Default: true.
+   */
+  showModelReasoning?: boolean | undefined;
 }
 
 export interface BodySegment {

@@ -652,6 +652,15 @@ export function App() {
         setRunning(false);
         setActivity('');
         setMessages((current) => [...current, { id: messageId('error'), role: 'system', text }]);
+        // An errored turn is still a turn boundary — drain one held message so a
+        // failure doesn't strand the queue forever (the `run.result` path drains
+        // on success; without this, any error leaves queued messages unsent).
+        const { item, rest } = dequeueItem(queueRef.current);
+        if (item) {
+          queueRef.current = rest;
+          setQueue(rest);
+          dispatchUserMessage(item.text);
+        }
         break;
       }
       case 'ctx.pct': {

@@ -67,6 +67,7 @@ export async function detectLanguageWorkspaces(
     .slice()
     .sort((a, b) => a.id.localeCompare(b.id));
   const limits = normalizeLimits(options.limits);
+  const extraIgnores = new Set(options.ignoredDirectories ?? []);
   const state: ScanState = {
     entries: 0,
     truncated: false,
@@ -74,7 +75,7 @@ export async function detectLanguageWorkspaces(
     candidates: new Map(),
   };
 
-  await scanDirectory(projectRoot, 0, profiles, limits, state, options.signal);
+  await scanDirectory(projectRoot, 0, profiles, limits, state, extraIgnores, options.signal);
   addSourceFallbacks(projectRoot, profiles, state);
   if (target) addTargetEvidence(target, projectRoot, profiles, state);
 
@@ -96,6 +97,7 @@ async function scanDirectory(
   profiles: readonly LanguageProfile[],
   limits: DetectionLimits,
   state: ScanState,
+  extraIgnores: ReadonlySet<string>,
   signal?: AbortSignal,
 ): Promise<void> {
   signal?.throwIfAborted();
@@ -120,12 +122,12 @@ async function scanDirectory(
     const fullPath = path.join(directory, entry.name);
     if (entry.isSymbolicLink()) continue;
     if (entry.isDirectory()) {
-      if (shouldIgnoreDirectory(entry.name, profiles)) continue;
+      if (shouldIgnoreDirectory(entry.name, profiles, extraIgnores)) continue;
       if (depth >= limits.maxDepth) {
         state.truncated = true;
         continue;
       }
-      await scanDirectory(fullPath, depth + 1, profiles, limits, state, signal);
+      await scanDirectory(fullPath, depth + 1, profiles, limits, state, extraIgnores, signal);
       continue;
     }
     if (!entry.isFile()) continue;
@@ -308,8 +310,12 @@ function getCandidate(state: ScanState, profile: LanguageProfile, root: string):
   return candidate;
 }
 
-function shouldIgnoreDirectory(name: string, profiles: readonly LanguageProfile[]): boolean {
-  if (GLOBAL_IGNORES.has(name) || name.startsWith('.')) return true;
+function shouldIgnoreDirectory(
+  name: string,
+  profiles: readonly LanguageProfile[],
+  extraIgnores: ReadonlySet<string>,
+): boolean {
+  if (GLOBAL_IGNORES.has(name) || extraIgnores.has(name) || name.startsWith('.')) return true;
   return profiles.some((profile) => profile.ignoredDirectories.includes(name));
 }
 

@@ -13,6 +13,7 @@ import {
 
 import { startHqServer, type HqServerHandle } from '../src/hq-server.js';
 
+let tempRoot: string;
 let dataDir: string;
 let handle: HqServerHandle | null = null;
 
@@ -158,7 +159,15 @@ const restartServer = async (capabilities?: string[]): Promise<void> => {
 };
 
 beforeEach(async () => {
-  dataDir = await fs.mkdtemp(path.join(os.tmpdir(), 'hq-mailbox-mut-'));
+  // Keep the HQ data dir one level below a per-test global root. The server
+  // resolves the SessionRegistry from dirname(dataDir); placing dataDir
+  // directly in os.tmpdir made every parallel test worker share the same
+  // os.tmpdir/session-registry.json file, where a concurrent worker's
+  // registry write can drop this test's seeded session (gateway 404s under
+  // full-suite load).
+  tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'hq-mailbox-mut-'));
+  dataDir = path.join(tempRoot, 'hq');
+  await fs.mkdir(dataDir, {recursive: true});
   await restartServer(['control.enqueue']);
 }, 30_000);
 
@@ -174,7 +183,7 @@ afterEach(async () => {
       });
     });
   }
-  await fs.rm(dataDir, {recursive: true, force: true, maxRetries: 10, retryDelay: 100});
+  await fs.rm(tempRoot, {recursive: true, force: true, maxRetries: 10, retryDelay: 100});
 });
 
 describe('HQ mailbox — /mailbox/send validator mutations', () => {

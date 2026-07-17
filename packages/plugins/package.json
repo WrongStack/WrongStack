@@ -1,6 +1,6 @@
 {
   "name": "@wrongstack/plugins",
-  "version": "0.288.0",
+  "version": "0.289.0",
   "description": "Official WrongStack plugin collection — 63 focused, single-purpose plugins for code quality, security, observability, planning, and agent coordination",
   "license": "MIT",
   "author": "ECOSTACK TECHNOLOGY OÜ",

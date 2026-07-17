@@ -729,6 +729,7 @@ export function reducer(state: State, action: Action): State {
           animationStyle: action.animationStyle,
           breakerEnabled: action.breakerEnabled,
           breakerAutoKillResetMs: action.breakerAutoKillResetMs,
+          showModelReasoning: action.showModelReasoning,
           hint: undefined,
         },
       };
@@ -1196,6 +1197,13 @@ export function reducer(state: State, action: Action): State {
           },
         };
       }
+      // ── Display ──────────────────────────────────────────────────────────────
+      // Field 39: show model reasoning blocks in chat history (boolean toggle)
+      if (f === 39)
+        return {
+          ...state,
+          settingsPicker: { ...sp, showModelReasoning: !sp.showModelReasoning, hint: undefined },
+        };
       return state;
     }
     case 'settingsValueSet': {

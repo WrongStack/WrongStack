@@ -320,6 +320,40 @@ describe('discovery — discoverWorkspaces against real fixtures', () => {
     }
   });
 
+  it('excludes test-fixture directories from discovery', async () => {
+    const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'techstack-fixture-skip-'));
+    try {
+      await fs.mkdir(path.join(dir, 'tests', 'fixtures', 'fake-app', 'src'), { recursive: true });
+      await fs.writeFile(
+        path.join(dir, 'package.json'),
+        JSON.stringify({ name: 'real-app', dependencies: { zod: '^4.4.3' } }),
+      );
+      await fs.writeFile(
+        path.join(dir, 'tests', 'fixtures', 'fake-app', 'package.json'),
+        JSON.stringify({ name: 'fake-app', dependencies: { zod: '^3.23.0' } }),
+      );
+      await fs.writeFile(
+        path.join(dir, 'tests', 'fixtures', 'fake-app', 'src', 'index.ts'),
+        'export {};',
+      );
+      const workspaces = await discoverWorkspaces(dir);
+      // The root manifest may surface as multiple language profiles (js + ts),
+      // but every discovered workspace must be the root — never the fixture.
+      expect(workspaces.length).toBeGreaterThanOrEqual(1);
+      expect(new Set(workspaces.map((ws) => ws.relativeRoot))).toEqual(new Set(['.']));
+    } finally {
+      await fs.rm(dir, { recursive: true, force: true });
+    }
+  });
+
+  it('still discovers a fixture tree when it is the project root itself', async () => {
+    // The techstack test suite scans tests/fixtures/* roots directly — the
+    // fixture-name exclusion must only apply to child directories.
+    const root = path.resolve(__dirname, 'fixtures/monorepo-mixed');
+    const workspaces = await discoverWorkspaces(root);
+    expect(workspaces.length).toBeGreaterThanOrEqual(1);
+  });
+
   it('handles an empty temp directory without throwing', async () => {
     const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'techstack-empty-'));
     try {

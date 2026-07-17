@@ -170,6 +170,7 @@ export function createSettingsAdapter(ctx: SettingsAdapterContext): SettingsAdap
           : 'default',
       breakerEnabled: cfg.circuitBreaker?.enabled === true,
       breakerAutoKillResetMs: cfg.circuitBreaker?.autoKillResetMs ?? 60_000,
+      showModelReasoning: autonomy?.showModelReasoning ?? true,
     };
   }
 
@@ -222,7 +223,8 @@ export function createSettingsAdapter(ctx: SettingsAdapterContext): SettingsAdap
         s.reasoningPreserve !== undefined ||
         s.cacheTtl !== undefined ||
         s.breakerEnabled !== undefined ||
-        s.breakerAutoKillResetMs !== undefined
+        s.breakerAutoKillResetMs !== undefined ||
+        s.showModelReasoning !== undefined
       ) {
         const configScope = s.configScope ?? configStore.get().configScope ?? 'global';
         const targetPath =
@@ -272,6 +274,7 @@ export function createSettingsAdapter(ctx: SettingsAdapterContext): SettingsAdap
         if (s.thinkingWord !== undefined)
           autonomy.thinkingWord = normalizeTuiThinkingWord(s.thinkingWord);
         if (s.animationStyle !== undefined) autonomy.animationStyle = s.animationStyle;
+        if (s.showModelReasoning !== undefined) autonomy.showModelReasoning = s.showModelReasoning;
         if (s.autonomyNextPrompt !== undefined) autonomy.autonomyNextPrompt = s.autonomyNextPrompt;
         if (s.autoProceedMaxIterations !== undefined)
           autonomy.autoProceedMaxIterations = s.autoProceedMaxIterations;

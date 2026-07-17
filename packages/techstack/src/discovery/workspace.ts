@@ -142,6 +142,22 @@ export function mapDetectedWorkspace(
 }
 
 /**
+ * Directory names whose manifests are test scaffolding, not real project
+ * dependencies. A `package.json` under `tests/fixtures/` describes a fake
+ * project used to exercise a scanner — inventorying it would surface
+ * deliberately-outdated pins (e.g. a fixture pinning `zod@^3`) as findings
+ * against the real project. Matched by basename anywhere in the tree;
+ * merged with any caller-provided `ignoredDirectories`.
+ */
+const TEST_FIXTURE_DIRECTORIES: readonly string[] = [
+  'fixtures',
+  '__fixtures__',
+  'test-fixtures',
+  'testdata',
+  '__mocks__',
+];
+
+/**
  * Discover all TechStack workspaces under `projectRoot` by delegating to
  * `detectLanguageWorkspaces` and mapping each detected workspace.
  *
@@ -149,6 +165,10 @@ export function mapDetectedWorkspace(
  * silently dropped (e.g. `deno`, `shell`) — they cannot be inventoried and
  * would only inflate coverage counts with `unsupported` entries that add no
  * value at the inventory-engine boundary.
+ *
+ * Test-fixture directories (`fixtures`, `testdata`, …) are skipped so fake
+ * fixture manifests never enter the inventory; the project root itself is
+ * never skipped, so scanning a fixture directly (as tests do) still works.
  *
  * Results are sorted by `(ecosystem, relativeRoot, id)` for stable display.
  */
@@ -159,6 +179,7 @@ export async function discoverWorkspaces(
   const result = await detectLanguageWorkspaces({
     ...(options ?? {}),
     projectRoot,
+    ignoredDirectories: [...TEST_FIXTURE_DIRECTORIES, ...(options?.ignoredDirectories ?? [])],
   });
   const mapped: Workspace[] = [];
   for (const detected of result.workspaces) {

@@ -88,7 +88,13 @@ export function setupWebUICodebaseIndexing(deps: WebUICodebaseIndexingDeps): Web
             at: now,
           });
         }
-        enqueueFile(abs);
+        // Only reindex on external filesystem changes when the user opted into
+        // it. The watcher itself always runs (codemap telemetry above needs the
+        // `file.activity` stream), but with `watchExternal:false` a user who
+        // asked to index only their own edits must not have build tools, git
+        // checkouts, or other agents trigger continuous reindex churn. The
+        // editor-write path below stays gated on `onEdit` separately.
+        if (idx?.watchExternal) enqueueFile(abs);
       });
       watcher.on('error', (err) => deps.logger.debug(`webui codebase index watcher error: ${err}`));
       watcher.unref?.();

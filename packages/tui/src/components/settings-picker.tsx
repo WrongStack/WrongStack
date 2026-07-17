@@ -210,6 +210,9 @@ export interface SettingsPickerProps {
   breakerEnabled: boolean;
   /** Auto kill/reset delay (ms) when the breaker trips. 0 = manual recovery. */
   breakerAutoKillResetMs: number;
+  // ── Display ──
+  /** Show the "Model Reasoning" blocks in chat history. Default: true. */
+  showModelReasoning: boolean;
   // ── Debug ──
   /** Raw SSE stream debugging toggle — hex-dump every byte received from providers. */
   debugStream: boolean;
@@ -233,7 +236,7 @@ export interface SettingsPickerProps {
 }
 
 /** Total number of settings rows (used for wrap-around navigation). */
-export const SETTINGS_FIELD_COUNT = 39;
+export const SETTINGS_FIELD_COUNT = 40;
 
 /**
  * Field index of the "Thinking word" row. The reducer's per-field switch and
@@ -514,6 +517,7 @@ export type SettingsPickerPatch = Partial<{
   animationStyle: AnimationStyleChoice;
   breakerEnabled: boolean;
   breakerAutoKillResetMs: number;
+  showModelReasoning: boolean;
 }>;
 
 /**
@@ -561,6 +565,7 @@ export const SETTINGS_FIELD_LABELS: readonly string[] = [
   'Animation', // 36
   'Circuit breaker', // 37
   'Breaker timeout', // 38
+  'Show model reasoning', // 39
 ];
 
 /**
@@ -594,6 +599,7 @@ export function resolveSettingsFieldValue(
     [12, 'featureModelsRegistry'], [14, 'allowOutsideProjectRoot'],
     [18, 'enhanceEnabled'], [20, 'indexOnStart'], [25, 'reasoningPreserve'],
     [27, 'contextAutoCompact'], [33, 'debugStream'], [37, 'breakerEnabled'],
+    [39, 'showModelReasoning'],
   ]);
   const boolKey = BOOL_FIELDS.get(field);
   if (boolKey) {
@@ -739,6 +745,7 @@ export function getSettingsFieldValue(
     [12, 'featureModelsRegistry'], [14, 'allowOutsideProjectRoot'],
     [18, 'enhanceEnabled'], [20, 'indexOnStart'], [25, 'reasoningPreserve'],
     [27, 'contextAutoCompact'], [33, 'debugStream'], [37, 'breakerEnabled'],
+    [39, 'showModelReasoning'],
   ];
   for (const [f, key] of BOOL_KEYS) {
     if (field !== f) continue;
@@ -828,6 +835,10 @@ const SETTINGS_SECTIONS: ReadonlyArray<{ name: string; fields: readonly number[]
     name: 'Safety',
     fields: [37, 38],
   },
+  {
+    name: 'Display',
+    fields: [39],
+  },
 ];
 
 /**
@@ -909,6 +920,7 @@ export const SETTINGS_DEFAULTS: Readonly<SettingsPickerValues> = Object.freeze({
   animationStyle: 'rainbow',
   breakerEnabled: false,
   breakerAutoKillResetMs: 60_000,
+  showModelReasoning: true,
 } as const);
 
 /**
@@ -946,7 +958,7 @@ function buildResetPatch(field: number): SettingsPickerPatch | null {
     [27, 'contextAutoCompact'], [28, 'contextStrategy'], [29, 'contextMode'],
     [30, 'maxConcurrent'], [31, 'logLevel'], [32, 'auditLevel'], [33, 'debugStream'],
     [34, 'statuslineMode'], [35, 'configScope'], [36, 'animationStyle'],
-    [37, 'breakerEnabled'], [38, 'breakerAutoKillResetMs'],
+    [37, 'breakerEnabled'], [38, 'breakerAutoKillResetMs'], [39, 'showModelReasoning'],
   ];
   for (const [f, key] of KEY_MAP) {
     if (f === field) {
@@ -1000,6 +1012,7 @@ export function SettingsPicker({
   animationStyle,
   breakerEnabled,
   breakerAutoKillResetMs,
+  showModelReasoning,
   hint,
 }: SettingsPickerProps): React.ReactElement {
   const boolVal = (v: boolean) => (v ? 'on' : 'off');
@@ -1225,6 +1238,13 @@ export function SettingsPicker({
       label: 'Breaker timeout',
       value: formatBreakerTimeout(breakerAutoKillResetMs),
       detail: 'Auto kill/reset delay when tripped (manual = /kill reset)',
+    },
+    // ── Display ──
+    { section: 'Display' },
+    {
+      label: 'Show model reasoning',
+      value: boolVal(showModelReasoning),
+      detail: 'Show LLM reasoning blocks in chat history',
     },
   ];
 

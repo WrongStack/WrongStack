@@ -137,6 +137,8 @@ export interface LiveSettingsInput {
   reasoningPreserve?: boolean | undefined;
   /** Prompt-cache TTL, or default to clear the explicit override. */
   cacheTtl?: 'default' | '5m' | '1h' | undefined;
+  /** Show "Model Reasoning" blocks in chat history. Default: true. */
+  showModelReasoning?: boolean | undefined;
 }
 
 export type { ExecuteDeps, PluginPickerItem, McpPickerItem, ToolPickerItem, BrainData, BrainLogEntry, RestoredToolCall } from './execute-deps.js';

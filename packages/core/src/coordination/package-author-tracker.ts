@@ -16,6 +16,8 @@
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 
+import { atomicWrite } from '../utils/atomic-write.js';
+
 export interface PackageAuthorEntry {
   /** Absolute or relative path to the manifest (package.json, go.mod, etc.). */
   manifestPath: string;
@@ -81,10 +83,10 @@ async function loadLog(storageDir: string, projectRoot: string): Promise<Package
 }
 
 async function saveLog(storageDir: string, log: PackageAuthorLog): Promise<void> {
-  await fs.mkdir(storageDir, { recursive: true });
-  const tmp = `${logPath(storageDir)}.tmp.${Date.now()}`;
-  await fs.writeFile(tmp, JSON.stringify(log, null, 2) + '\n', 'utf-8');
-  await fs.rename(tmp, logPath(storageDir));
+  // atomicWrite retries transient Windows rename failures (EPERM/EBUSY from
+  // antivirus or indexer handles on the destination) that a bare fs.rename
+  // surfaces as a hard error.
+  await atomicWrite(logPath(storageDir), `${JSON.stringify(log, null, 2)}\n`);
 }
 
 /**

@@ -1,6 +1,6 @@
 {
   "name": "@wrongstack/super-memory",
-  "version": "0.288.0",
+  "version": "0.289.0",
   "license": "MIT",
   "description": "WrongStack Super Memory: project-local JSONL memory, graph-ready anchors, retrieval, and hygiene primitives.",
   "repository": {

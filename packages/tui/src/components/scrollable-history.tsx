@@ -123,6 +123,7 @@ export const ScrollableHistory = memo(function ScrollableHistory({
   setSuggestions,
   autonomyMode,
   todos,
+  showModelReasoning,
 }: ScrollableHistoryProps): React.ReactElement {
   const { stdout } = useStdout();
   const [termWidth, setTermWidth] = useState(
@@ -241,7 +242,7 @@ export const ScrollableHistory = memo(function ScrollableHistory({
           {/* Visible entries */}
           {shownEntries.map((entry) => (
             <Box key={entry.id} marginBottom={entry.kind === 'turn-summary' ? 1 : 0} flexShrink={0}>
-              <Entry entry={entry} termWidth={termWidth} setSuggestions={setSuggestions} autonomyMode={autonomyMode} todos={todos} />
+              <Entry entry={entry} termWidth={termWidth} setSuggestions={setSuggestions} autonomyMode={autonomyMode} todos={todos} showModelReasoning={showModelReasoning} />
             </Box>
           ))}
 

@@ -214,8 +214,8 @@ describe('resolveSettingsFieldValue', () => {
       if (!r.ok) expect(r.error).toContain('99');
     });
 
-    it('SETTINGS_FIELD_LABELS has 39 entries', () => {
-      expect(SETTINGS_FIELD_LABELS.length).toBe(39);
+    it('SETTINGS_FIELD_LABELS has 40 entries', () => {
+      expect(SETTINGS_FIELD_LABELS.length).toBe(40);
     });
 
     it('trims whitespace from input', () => {
@@ -437,20 +437,21 @@ describe('formatAllSettingsSummary', () => {
     animationStyle: 'rainbow',
     breakerEnabled: false,
     breakerAutoKillResetMs: 60_000,
+    showModelReasoning: true,
   };
 
-  it('contains all 10 section headings', () => {
+  it('contains all 11 section headings', () => {
     const out = formatAllSettingsSummary(testValues);
-    const sections = ['Autonomy', 'UX', 'Features', 'Tools', 'Reasoning', 'Context', 'Fleet', 'Logging', 'Debug', 'Safety'];
+    const sections = ['Autonomy', 'UX', 'Features', 'Tools', 'Reasoning', 'Context', 'Fleet', 'Logging', 'Debug', 'Safety', 'Display'];
     for (const s of sections) {
       expect(out).toContain(`── ${s} ──`);
     }
   });
 
-  it('renders exactly 39 value lines (one per field)', () => {
+  it('renders exactly 40 value lines (one per field)', () => {
     const out = formatAllSettingsSummary(testValues);
     const fieldLines = out.split('\n').filter((l) => l.startsWith('  ') && l.trim().length > 0);
-    expect(fieldLines).toHaveLength(39);
+    expect(fieldLines).toHaveLength(40);
   });
 
   it('includes the thinking word value', () => {
@@ -519,8 +520,8 @@ describe('resetSettingsFieldValue', () => {
     if (!r.ok) expect(r.error).toContain('99');
   });
 
-  it('SETTINGS_DEFAULTS has all 39 keys', () => {
-    expect(Object.keys(SETTINGS_DEFAULTS)).toHaveLength(39);
+  it('SETTINGS_DEFAULTS has all 40 keys', () => {
+    expect(Object.keys(SETTINGS_DEFAULTS)).toHaveLength(40);
   });
 
   it('every field 0-38 can be reset', () => {

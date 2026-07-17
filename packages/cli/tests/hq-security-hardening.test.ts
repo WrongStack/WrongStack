@@ -473,8 +473,13 @@ describe('HQ security and control-plane hardening', () => {
   });
 
   it('keeps a silent client connected when it sends application heartbeats', async () => {
+    // TTL must be generous relative to the 100ms heartbeat interval: under
+    // full-suite load a fork worker's event loop can stall long enough that a
+    // 700ms TTL evicts the client between two heartbeats (observed flake).
+    // 3s keeps the property under test (heartbeats refresh lastSeenAt past
+    // the TTL) while tolerating multi-second scheduler stalls.
     const server = await start(authFile(), {
-      clientTtlMs: 700,
+      clientTtlMs: 3_000,
       clientCleanupIntervalMs: 20,
       browserHeartbeatIntervalMs: 1_000,
     });
@@ -503,7 +508,8 @@ describe('HQ security and control-plane hardening', () => {
       );
     }, 100);
     try {
-      await new Promise((resolve) => setTimeout(resolve, 950));
+      // Wait past the TTL so survival proves the heartbeats refreshed it.
+      await new Promise((resolve) => setTimeout(resolve, 3_600));
       const snapshot = await fetch(`http://127.0.0.1:${server.port}/api/snapshot`).then(
         (res) => res.json() as Promise<{ totals: { activeClients: number } }>,
       );

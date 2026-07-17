@@ -2341,6 +2341,7 @@ export function App({
             animationStyle: sp.animationStyle,
             breakerEnabled: sp.breakerEnabled,
             breakerAutoKillResetMs: sp.breakerAutoKillResetMs,
+            showModelReasoning: sp.showModelReasoning,
           });
         }
         if (prev.projectPicker) {
@@ -2803,6 +2804,7 @@ export function App({
       animationStyle: s.animationStyle ?? 'rainbow',
       breakerEnabled: s.breakerEnabled ?? false,
       breakerAutoKillResetMs: s.breakerAutoKillResetMs ?? 60_000,
+      showModelReasoning: s.showModelReasoning ?? true,
     });
   }, [getSettings]);
 
@@ -3186,6 +3188,7 @@ export function App({
         animationStyle: sp.animationStyle,
         breakerEnabled: sp.breakerEnabled,
         breakerAutoKillResetMs: sp.breakerAutoKillResetMs,
+        showModelReasoning: sp.showModelReasoning,
       }),
     ).then((err: string | null) => {
       if (err) dispatch({ type: 'settingsHint', text: err });
@@ -3230,6 +3233,7 @@ export function App({
     state.settingsPicker.animationStyle,
     state.settingsPicker.breakerEnabled,
     state.settingsPicker.breakerAutoKillResetMs,
+    state.settingsPicker.showModelReasoning,
     saveSettings,
   ]);
 
@@ -5244,6 +5248,7 @@ export function App({
           animationStyle: cfg.animationStyle ?? 'rainbow',
           breakerEnabled: cfg.breakerEnabled ?? false,
           breakerAutoKillResetMs: cfg.breakerAutoKillResetMs ?? 60_000,
+          showModelReasoning: cfg.showModelReasoning ?? true,
         });
       }
       return;
@@ -7085,6 +7090,7 @@ export function App({
             autonomyMode={autonomyLive}
             multiDiffSummaryThreshold={state.settingsPicker.multiDiffSummaryThreshold}
             todos={liveTodos}
+            showModelReasoning={state.settingsPicker.showModelReasoning}
           />
         ) : (
           <History
@@ -7100,6 +7106,7 @@ export function App({
             autonomyMode={autonomyLive}
             multiDiffSummaryThreshold={state.settingsPicker.multiDiffSummaryThreshold}
             todos={liveTodos}
+            showModelReasoning={state.settingsPicker.showModelReasoning}
           />
         )}
         <Box flexDirection="column" flexShrink={0} ref={bottomRegionRef}>
@@ -7255,6 +7262,7 @@ export function App({
               animationStyle={state.settingsPicker.animationStyle}
               breakerEnabled={state.settingsPicker.breakerEnabled}
               breakerAutoKillResetMs={state.settingsPicker.breakerAutoKillResetMs}
+              showModelReasoning={state.settingsPicker.showModelReasoning}
               filter={state.settingsPicker.filter}
               hint={state.settingsPicker.hint}
             />

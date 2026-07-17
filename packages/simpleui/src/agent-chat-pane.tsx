@@ -23,7 +23,7 @@ const CONVERSATION_KINDS = new Set<AgentTranscriptEntry['kind']>([
 
 const KIND_META = {
   text: { label: 'ASSISTANT', icon: Bot, className: 'text' },
-  thinking: { label: 'THINKING', icon: Brain, className: 'thinking' },
+  thinking: { label: 'MODEL REASONING', icon: Brain, className: 'thinking' },
   error: { label: 'ERROR', icon: TriangleAlert, className: 'error' },
   status: { label: 'STATUS', icon: Info, className: 'status' },
   system: { label: 'SYSTEM', icon: CircleDot, className: 'system' },

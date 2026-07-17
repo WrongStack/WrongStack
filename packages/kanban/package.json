@@ -1,6 +1,6 @@
 {
   "name": "@wrongstack/kanban",
-  "version": "0.288.0",
+  "version": "0.289.0",
   "license": "MIT",
   "description": "WrongStack kanban board manager — standalone package extracted from @wrongstack/core. Provides the deterministic file-based multi-kanban data model with CRUD, assignment, recovery, and queue health monitoring.",
   "repository": {

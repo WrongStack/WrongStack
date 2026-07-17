@@ -213,6 +213,7 @@ export function createInitialState(options: CreateInitialStateOptions): State {
       animationStyle: 'rainbow',
       breakerEnabled: false,
       breakerAutoKillResetMs: 60_000,
+      showModelReasoning: true,
     },
     statuslinePicker: {
       open: false,

@@ -853,6 +853,13 @@ export interface AutonomyConfig {
   /** Single short word shown in the TUI rainbow working-state chip. Default: "thinking". */
   thinkingWord?: string | undefined;
   /**
+   * Show the "Model Reasoning" collapsible blocks in chat history that display
+   * the LLM's structured reasoning / COT output. Separate from the `thinkingWord`
+   * status-bar chip and from model-provisioning `reasoning` settings.
+   * Default: true.
+   */
+  showModelReasoning?: boolean | undefined;
+  /**
    * Persist the TUI prompt input history to disk per project so Up/Down
    * navigation recalls prompts across sessions. Secrets are scrubbed before
    * they reach disk. Default: enabled, 100 entries.

@@ -57,6 +57,11 @@ export const BOOLEAN_FLAGS = new Set([
   'pnpm',
   'yarn',
   'bun',
+  // `wstack acp` booleans. Without these, parseArgs treats the value after
+  // `--fs`/`--echo` as the flag's value and eats a following positional
+  // (e.g. the agent list in `acp bench --fs gemini-cli,codex-cli`).
+  'echo',
+  'fs',
 ]);
 
 // ------------------------------------------------------------------ main args

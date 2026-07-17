@@ -14,10 +14,18 @@ import { HQ_HTML, type HqServerHandle, startHqServer } from '../src/hq-server.js
 import { createCliHqPublisher } from '../src/hq-publisher.js';
 
 let handle: HqServerHandle | null = null;
+let tempRoot: string;
 let dataDir: string;
 
 beforeEach(async () => {
-  dataDir = await fs.mkdtemp(path.join(os.tmpdir(), 'hq-server-'));
+  // Keep the HQ data dir one level below a per-test global root. The server
+  // resolves the SessionRegistry from dirname(dataDir); placing dataDir
+  // directly in os.tmpdir made every parallel test worker share the same
+  // os.tmpdir/session-registry.json file, where a concurrent worker's
+  // registry write can drop this test's seeded session under load.
+  tempRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'hq-server-'));
+  dataDir = path.join(tempRoot, 'hq');
+  await fs.mkdir(dataDir, { recursive: true });
 });
 
 afterEach(async () => {
@@ -25,7 +33,7 @@ afterEach(async () => {
     await handle.close();
     handle = null;
   }
-  await fs.rm(dataDir, { recursive: true, force: true });
+  await fs.rm(tempRoot, { recursive: true, force: true });
 });
 
 async function startOpenHqServer(options: Omit<Parameters<typeof startHqServer>[0], 'dataDir'> = {}): Promise<HqServerHandle> {
