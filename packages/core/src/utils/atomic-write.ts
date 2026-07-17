@@ -109,6 +109,15 @@ export async function withFileLock<T>(
       await handle.writeFile(`${process.pid}:${Date.now()}`);
       break;
     } catch (err) {
+      // If fs.open succeeded but handle.writeFile threw (e.g. ENOSPC, EIO),
+      // `handle` owns an open exclusive lock file. Close the handle and remove
+      // the orphan lock so the next iteration (or a peer) can acquire it
+      // without timing out on the stale-lock window or dead-looping on EEXIST.
+      if (handle) {
+        await handle.close().catch(() => {});
+        await fs.unlink(lockPath).catch(() => {});
+        handle = undefined;
+      }
       const code = (err as NodeJS.ErrnoException).code;
       // ENOENT means the directory was deleted (e.g. by concurrent cleanup).
       // Recreate it and retry acquiring the lock.
