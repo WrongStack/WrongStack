@@ -43,7 +43,7 @@ jobs:
 
       # The website is a standalone npm project (its own package-lock.json), not
       # part of the pnpm workspace — so it builds with npm, cached on its lockfile.
-      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4 (resolved 2026-05-29)
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v4 (resolved 2026-05-29)
         with:
           node-version: 22
           cache: npm
