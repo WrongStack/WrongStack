@@ -123,7 +123,36 @@ function mapContent(
   return { ...msg, content: next };
 }
 
+/**
+ * True when a message content payload carries meaningful information for
+ * the provider: non-whitespace text, a tool call/result, thinking with
+ * text or a signature, or any other block type.
+ *
+ * False for empty strings/arrays and for arrays whose only blocks are
+ * empty or whitespace-only text — the shape persisted when a stream is
+ * interrupted before the first meaningful delta (issue #271). Strict
+ * providers reject such assistant turns, so repair and replay paths must
+ * treat them as empty.
+ */
+export function hasMeaningfulContent(content: Message['content']): boolean {
+  if (typeof content === 'string') return content.trim().length > 0;
+  for (const block of content) {
+    if (block.type === 'text') {
+      if (block.text.trim().length > 0) return true;
+      continue;
+    }
+    if (block.type === 'thinking') {
+      // Signature-only thinking blocks are valid and required for replay;
+      // blocks with neither text nor signature are provider-rejected noise.
+      if (block.thinking.trim().length > 0 || block.signature) return true;
+      continue;
+    }
+    // tool_use, tool_result, image, redacted_thinking, … — always meaningful.
+    return true;
+  }
+  return false;
+}
+
 function isEmptyMessage(msg: Message): boolean {
-  if (typeof msg.content === 'string') return msg.content.trim().length === 0;
-  return msg.content.length === 0;
+  return !hasMeaningfulContent(msg.content);
 }

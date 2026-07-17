@@ -11,7 +11,7 @@ import {
   markAssistantReferencedEvidence,
 } from '../utils/context-evidence.js';
 import { toErrorMessage } from '../utils/error.js';
-import { repairToolUseAdjacency } from '../utils/message-invariants.js';
+import { hasMeaningfulContent, repairToolUseAdjacency } from '../utils/message-invariants.js';
 import type { AgentInternals } from './agent-internals.js';
 import type { Context, RunOptions } from './context.js';
 import { type ContinueDirective, parseContinueDirective } from './continue-to-next-iteration.js';
@@ -166,33 +166,47 @@ export function createAgentResponseHandler(a: AgentInternals): AgentResponseHand
     });
     a.ctx.tokenCounter.account(res.usage, req.model);
 
-    a.ctx.state.appendMessage({ role: 'assistant', content: res.content });
-    // If the assistant emitted tool_use blocks, mark the message adjacency
-    // as potentially needing repair before the next provider request.
-    if (!a.ctx.toolAdjacencyDirty) {
-      for (const block of res.content) {
-        if (block.type === 'tool_use') {
-          a.ctx.toolAdjacencyDirty = true;
-          break;
+    // Issue #271: never append or persist a semantically empty assistant
+    // response (e.g. a stream interrupted before the first meaningful delta,
+    // which the response builders represent as a single empty text block).
+    // Strict providers reject empty assistant turns on the next request, and
+    // once journaled, the malformed turn survived every repair path. Partial
+    // text, tool calls, and thinking content remain meaningful and are kept.
+    if (hasMeaningfulContent(res.content)) {
+      a.ctx.state.appendMessage({ role: 'assistant', content: res.content });
+      // If the assistant emitted tool_use blocks, mark the message adjacency
+      // as potentially needing repair before the next provider request.
+      if (!a.ctx.toolAdjacencyDirty) {
+        for (const block of res.content) {
+          if (block.type === 'tool_use') {
+            a.ctx.toolAdjacencyDirty = true;
+            break;
+          }
         }
       }
-    }
-    await a.ctx.session.append({
-      type: 'llm_response',
-      ts: new Date().toISOString(),
-      content: res.content,
-      stopReason: res.stopReason,
-      usage: res.usage,
-    });
-    // Tool execution is a side-effect boundary: ensure the response containing
-    // its tool_use blocks has reached the session writer before any tool runs.
-    // FileSessionWriter keeps failed batches queued for retry; alternate
-    // writers may reject, which is logged without masking the provider result.
-    try {
-      await a.ctx.flushConversationJournal();
-      await a.ctx.session.flush();
-    } catch (err) {
-      (a.logger.debug ?? a.logger.warn)?.(`LLM response flush failed: ${toErrorMessage(err)}`);
+      await a.ctx.session.append({
+        type: 'llm_response',
+        ts: new Date().toISOString(),
+        content: res.content,
+        stopReason: res.stopReason,
+        usage: res.usage,
+      });
+      // Tool execution is a side-effect boundary: ensure the response containing
+      // its tool_use blocks has reached the session writer before any tool runs.
+      // FileSessionWriter keeps failed batches queued for retry; alternate
+      // writers may reject, which is logged without masking the provider result.
+      try {
+        await a.ctx.flushConversationJournal();
+        await a.ctx.session.flush();
+      } catch (err) {
+        (a.logger.debug ?? a.logger.warn)?.(`LLM response flush failed: ${toErrorMessage(err)}`);
+      }
+    } else {
+      a.logger.warn('Empty assistant response — not appended to context or session', {
+        model: req.model,
+        stopReason: res.stopReason,
+        aborted: a.ctx.signal.aborted,
+      });
     }
 
     if (a.ctx.signal.aborted) {

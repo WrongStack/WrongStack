@@ -52,6 +52,7 @@ export { mergeModelsPayload } from './merge-models-payload.js';
 export {
   type MessageRepairReport,
   type MessageRepairResult,
+  hasMeaningfulContent,
   repairToolUseAdjacency,
 } from './message-invariants.js';
 export * from './newline-normalize.js';
