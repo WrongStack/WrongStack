@@ -61,7 +61,7 @@ export interface ToolEventMap {
    * Fired when an executor-level hard guard denies a valid tool call before
    * the permission policy runs. Raw tool input is deliberately excluded.
    */
-  'permission.bypassed': {
+  'permission.boundary_denied': {
     sessionId?: string | undefined;
     traceId?: string | undefined;
     agentId?: string | undefined;
@@ -69,7 +69,7 @@ export interface ToolEventMap {
     id: string;
     inputHash: string;
     effectiveDecision: 'deny';
-    bypassSource: 'kanban';
+    boundarySource: 'kanban';
     reason?: string | undefined;
     riskTier?: RiskTier | undefined;
   };

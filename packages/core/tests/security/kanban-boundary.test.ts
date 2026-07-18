@@ -158,8 +158,8 @@ describe('tool Kanban boundary integration', () => {
       execute,
     } as Tool;
     const events = new EventBus();
-    const bypassed: EventMap['permission.bypassed'][] = [];
-    events.on('permission.bypassed', (event) => bypassed.push(event));
+    const denials: EventMap['permission.boundary_denied'][] = [];
+    events.on('permission.boundary_denied', (event) => denials.push(event));
     const permissionEvaluate = vi.fn(async () => ({ permission: 'auto', source: 'yolo' }));
     const executor = new ToolExecutor(
       { get: (name) => (name === tool.name ? tool : undefined), list: () => [tool] },
@@ -207,16 +207,16 @@ describe('tool Kanban boundary integration', () => {
     );
     expect(execute).not.toHaveBeenCalled();
     expect(permissionEvaluate).not.toHaveBeenCalled();
-    expect(bypassed[0]).toMatchObject({
+    expect(denials[0]).toMatchObject({
       sessionId: 'boundary-test',
       agentId: 'worker',
       name: 'write',
       id: 'write-outside',
       effectiveDecision: 'deny',
-      bypassSource: 'kanban',
+      boundarySource: 'kanban',
     });
-    expect(bypassed[0]?.inputHash).toMatch(/^[a-f0-9]{64}$/);
-    expect(JSON.stringify(bypassed[0])).not.toContain('nope');
+    expect(denials[0]?.inputHash).toMatch(/^[a-f0-9]{64}$/);
+    expect(JSON.stringify(denials[0])).not.toContain('nope');
   });
 
   it('records a boundary-forced confirmation as the effective decision', async () => {

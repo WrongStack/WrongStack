@@ -28,15 +28,15 @@ export function wireToolsToChronicle(options: ChronicleToolAdapterOptions): () =
         },
       });
     }),
-    options.events.on('permission.bypassed', (event) => {
+    options.events.on('permission.boundary_denied', (event) => {
       persist(options, event, {
-        eventType: 'permission.bypassed',
+        eventType: 'permission.boundary_denied',
         outcome: 'denied',
         attributes: {
           toolName: event.name,
           inputHash: event.inputHash,
           effectiveDecision: event.effectiveDecision,
-          bypassSource: event.bypassSource,
+          boundarySource: event.boundarySource,
           reason: event.reason ? options.scrubber.scrub(event.reason) : undefined,
           riskTier: event.riskTier,
         },

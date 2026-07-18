@@ -340,7 +340,7 @@ export class ToolExecutor {
       // take effect during an already-running agent assignment.
       const boundary = await evaluateToolKanbanBoundary(tool, use.input, ctx);
       if (boundary.decision === 'block') {
-        this.opts.events?.emit('permission.bypassed', {
+        this.opts.events?.emit('permission.boundary_denied', {
           sessionId: ctx.session.id,
           ...(ctx.traceId ? { traceId: ctx.traceId } : {}),
           ...(ctx.agentId ? { agentId: ctx.agentId } : {}),
@@ -348,7 +348,7 @@ export class ToolExecutor {
           id: use.id,
           inputHash: hashPermissionInput(use.input, this.opts.secretScrubber),
           effectiveDecision: 'deny',
-          bypassSource: 'kanban',
+          boundarySource: 'kanban',
           ...(boundary.reason ? { reason: boundary.reason } : {}),
           ...(tool.riskTier ? { riskTier: tool.riskTier } : {}),
         });
