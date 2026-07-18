@@ -45,6 +45,7 @@ describe('DefaultSessionStore — basic lifecycle', () => {
   });
 
   it('replay excludes empty assistant turns persisted by interrupted streams (#271)', async () => {
+    const store = new DefaultSessionStore({ dir: tmpDir });
     const w = await store.create({ id: 'poisoned', model: 'm', provider: 'p' });
     await w.append({
       type: 'user_input',
@@ -101,6 +102,7 @@ describe('DefaultSessionStore — basic lifecycle', () => {
   });
 
   it('loads and replays user_input + llm_response events', async () => {
+    const store = new DefaultSessionStore({ dir: tmpDir });
     const w = await store.create({ id: 's1', model: 'm', provider: 'p' });
     await w.append({
       type: 'user_input',
