@@ -198,6 +198,14 @@ export function shouldPrintYoloNotice(
   return !lastChoices && yoloPinned === undefined && yolo;
 }
 
+export function shouldRejectNonInteractiveTui(
+  flags: Readonly<Record<string, string | boolean>>,
+  stdinIsTty: boolean,
+  stdoutIsTty: boolean,
+): boolean {
+  return flags['tui'] === true && (!stdinIsTty || !stdoutIsTty);
+}
+
 /**
  * Boot the CLI: parse args, load config, handle subcommand dispatch
  * (early exit), run interactive prompts (project check, provider picker,
@@ -257,6 +265,17 @@ export async function boot(argv: string[]): Promise<BootContext | number> {
         console.debug(`[wrongstack:quick] plugin: ${name}${enabled}`);
       }
     }
+  }
+
+  // Reject an explicit TUI request before provider discovery or validation.
+  // Otherwise piped invocations can fail for unrelated configuration reasons
+  // before runTui() reaches its own terminal guard.
+  if (shouldRejectNonInteractiveTui(flags, isStdinTTY(), process.stdout.isTTY === true)) {
+    writeErr(
+      'wstack: --tui requires an interactive terminal on both stdin and stdout.\n' +
+        '       Drop the flag (use the plain REPL) or run wstack directly without piping.\n',
+    );
+    return 2;
   }
 
   const logger = new DefaultLogger({
