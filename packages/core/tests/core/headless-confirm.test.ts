@@ -10,7 +10,7 @@ import { ToolExecutor } from '../../src/execution/tool-executor.js';
 import { DefaultLogger } from '../../src/infrastructure/logger.js';
 import { DefaultTokenCounter } from '../../src/infrastructure/token-counter.js';
 import { Container } from '../../src/kernel/container.js';
-import { EventBus } from '../../src/kernel/events.js';
+import { EventBus, type EventMap } from '../../src/kernel/events.js';
 import { TOKENS } from '../../src/kernel/tokens.js';
 import { ProviderRegistry } from '../../src/registry/provider-registry.js';
 import { ToolRegistry } from '../../src/registry/tool-registry.js';
@@ -128,6 +128,8 @@ describe('Headless confirm fallback (P1 #4)', () => {
       { content: [{ type: 'text', text: 'recovered after denial' }], stopReason: 'end_turn' },
     ]);
     const { agent, events, tmp } = await buildHeadlessAgent(provider, [danger]);
+    const resolutions: EventMap['permission.confirmation_resolved'][] = [];
+    events.on('permission.confirmation_resolved', (event) => resolutions.push(event));
     cleanupDirs.push(tmp);
 
     // Headless precondition: no listener for tool.confirm_needed.
@@ -140,6 +142,15 @@ describe('Headless confirm fallback (P1 #4)', () => {
 
     // The tool was never executed (denied before execute()).
     expect(provider.calls).toBe(2);
+    expect(resolutions).toEqual([
+      expect.objectContaining({
+        name: 'danger',
+        id: 'u1',
+        choice: 'deny',
+        resolution: 'denied',
+        resolver: 'headless',
+      }),
+    ]);
   }, 10_000);
 
   it('still resolves via the event when a listener IS attached (regression guard)', async () => {
@@ -163,6 +174,8 @@ describe('Headless confirm fallback (P1 #4)', () => {
     ]);
     const { agent, events, tmp } = await buildHeadlessAgent(provider, [danger]);
     cleanupDirs.push(tmp);
+    const resolutions: EventMap['permission.confirmation_resolved'][] = [];
+    events.on('permission.confirmation_resolved', (event) => resolutions.push(event));
 
     // Attach a listener that approves — simulates a TUI/WebUI confirm handler.
     events.on('tool.confirm_needed', (e: { resolve: (d: 'yes' | 'no' | 'always' | 'deny') => void }) =>
@@ -174,6 +187,15 @@ describe('Headless confirm fallback (P1 #4)', () => {
     expect(result.status).toBe('done');
     // Tool executed because the listener approved.
     expect(result.finalText).toBe('ok');
+    expect(resolutions).toEqual([
+      expect.objectContaining({
+        name: 'danger',
+        id: 'u1',
+        choice: 'yes',
+        resolution: 'approved',
+        resolver: 'user',
+      }),
+    ]);
   }, 10_000);
 
   it('unblocks a pending confirm when the run is aborted (/interrupt path)', async () => {
@@ -204,8 +226,14 @@ describe('Headless confirm fallback (P1 #4)', () => {
     // screen" while the user reaches for /interrupt instead. Before the
     // abort-awareness fix in waitForConfirm this awaited forever.
     let sawConfirm = false;
-    events.on('tool.confirm_needed', () => {
+    let lateResolve:
+      | ((decision: 'yes' | 'no' | 'always' | 'deny') => void)
+      | undefined;
+    const resolutions: EventMap['permission.confirmation_resolved'][] = [];
+    events.on('permission.confirmation_resolved', (event) => resolutions.push(event));
+    events.on('tool.confirm_needed', (event) => {
       sawConfirm = true;
+      lateResolve = event.resolve;
     });
 
     const ctrl = new AbortController();
@@ -217,5 +245,15 @@ describe('Headless confirm fallback (P1 #4)', () => {
     expect(result.status).toBe('aborted');
     // The tool must never have executed — the confirm was aborted, not approved.
     expect(executed).toBe(false);
+    lateResolve?.('yes');
+    expect(resolutions).toEqual([
+      expect.objectContaining({
+        name: 'danger',
+        id: 'u1',
+        choice: 'abort',
+        resolution: 'cancelled',
+        resolver: 'abort',
+      }),
+    ]);
   }, 10_000);
 });

@@ -340,6 +340,18 @@ export class ToolExecutor {
       // take effect during an already-running agent assignment.
       const boundary = await evaluateToolKanbanBoundary(tool, use.input, ctx);
       if (boundary.decision === 'block') {
+        this.opts.events?.emit('permission.bypassed', {
+          sessionId: ctx.session.id,
+          ...(ctx.traceId ? { traceId: ctx.traceId } : {}),
+          ...(ctx.agentId ? { agentId: ctx.agentId } : {}),
+          name: tool.name,
+          id: use.id,
+          inputHash: hashPermissionInput(use.input, this.opts.secretScrubber),
+          effectiveDecision: 'deny',
+          bypassSource: 'kanban',
+          ...(boundary.reason ? { reason: boundary.reason } : {}),
+          ...(tool.riskTier ? { riskTier: tool.riskTier } : {}),
+        });
         const result = {
           type: 'tool_result' as const,
           tool_use_id: use.id,
@@ -454,6 +466,26 @@ export class ToolExecutor {
               );
             },
           );
+          this.opts.events?.emit('permission.confirmation_resolved', {
+            sessionId: ctx.session.id,
+            ...(ctx.traceId ? { traceId: ctx.traceId } : {}),
+            ...(ctx.agentId ? { agentId: ctx.agentId } : {}),
+            name: tool.name,
+            id: use.id,
+            choice,
+            resolution:
+              choice === 'yes' || choice === 'always'
+                ? 'approved'
+                : choice === 'abort'
+                  ? 'cancelled'
+                  : 'denied',
+            resolver: choice === 'abort' ? 'abort' : 'user',
+            decisionSource: decision.source,
+            ...(decision.riskTier ?? tool.riskTier
+              ? { riskTier: decision.riskTier ?? tool.riskTier }
+              : {}),
+            ...(boundary.reason ? { boundaryReason: boundary.reason } : {}),
+          });
           if (choice !== 'yes' && choice !== 'always') {
             const result = {
               type: 'tool_result' as const,

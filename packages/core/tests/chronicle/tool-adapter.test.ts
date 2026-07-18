@@ -151,13 +151,44 @@ describe('wireToolsToChronicle', () => {
       boundaryReason: 'SECRET boundary',
       capabilityDowngraded: true,
     });
+    events.emit('permission.bypassed', {
+      sessionId: 'session',
+      traceId: 'trace',
+      agentId: 'leader',
+      name: 'write',
+      id: 'tool-bypassed',
+      inputHash: 'b'.repeat(64),
+      effectiveDecision: 'deny',
+      bypassSource: 'kanban',
+      reason: 'SECRET boundary blocked',
+      riskTier: 'destructive',
+    });
+    events.emit('permission.confirmation_resolved', {
+      sessionId: 'session',
+      traceId: 'trace',
+      agentId: 'leader',
+      name: 'bash',
+      id: 'tool-permission',
+      choice: 'deny',
+      resolution: 'denied',
+      resolver: 'user',
+      decisionSource: 'trust',
+      riskTier: 'destructive',
+      boundaryReason: 'SECRET boundary',
+    });
 
     const recorded = await journal.readAll();
     const query = await ChronicleQueryEngine.fromDirectory(dir);
-    const summary = (await query.query({ eventTypes: ['permission.evaluated'] })).summary;
+    const summary = (await query.query({
+      eventTypes: [
+        'permission.evaluated',
+        'permission.bypassed',
+        'permission.confirmation_resolved',
+      ],
+    })).summary;
     unsubscribe();
 
-    expect(recorded).toHaveLength(1);
+    expect(recorded).toHaveLength(3);
     expect(recorded[0]).toMatchObject({
       eventType: 'permission.evaluated',
       outcome: 'success',
@@ -176,7 +207,34 @@ describe('wireToolsToChronicle', () => {
         capabilityDowngraded: true,
       },
     });
-    expect(JSON.stringify(recorded[0])).not.toContain('SECRET');
-    expect(summary.families.decision).toBe(1);
+    expect(recorded[1]).toMatchObject({
+      eventType: 'permission.bypassed',
+      outcome: 'denied',
+      correlation: { toolCallId: 'tool-bypassed' },
+      attributes: {
+        toolName: 'write',
+        inputHash: 'b'.repeat(64),
+        effectiveDecision: 'deny',
+        bypassSource: 'kanban',
+        reason: '[REDACTED] boundary blocked',
+        riskTier: 'destructive',
+      },
+    });
+    expect(recorded[2]).toMatchObject({
+      eventType: 'permission.confirmation_resolved',
+      outcome: 'denied',
+      correlation: { toolCallId: 'tool-permission' },
+      attributes: {
+        toolName: 'bash',
+        choice: 'deny',
+        resolution: 'denied',
+        resolver: 'user',
+        decisionSource: 'trust',
+        riskTier: 'destructive',
+        boundaryReason: '[REDACTED] boundary',
+      },
+    });
+    expect(JSON.stringify(recorded)).not.toContain('SECRET');
+    expect(summary.families.decision).toBe(3);
   });
 });
