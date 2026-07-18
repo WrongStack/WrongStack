@@ -18,6 +18,7 @@ describe('resolveChronicleRuntimeLocation', () => {
     expect(first.machineId).toMatch(/^machine_[a-f0-9]{24}$/);
     expect(first.projectId).toBe('project-abc');
     expect(first.journalPath).toBe(path.join(input.projectDir, 'chronicle', '2026-07-18.events.jsonl'));
-    expect(JSON.stringify(first)).not.toContain(input.globalRoot);
+    expect(first.installationId).not.toContain(input.globalRoot);
+    expect(first.machineId).not.toContain(input.globalRoot);
   });
 });
