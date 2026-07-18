@@ -365,6 +365,49 @@ describe('WorktreeManager (stubbed git)', () => {
     expect(calls.some((c) => c.args[0] === 'reset' && c.args.includes('--hard'))).toBe(true);
   });
 
+  it('merge() scans branch paths when Git reports no conflict files', async () => {
+    const projectRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'wm-marker-fallback-'));
+    try {
+      await fs.writeFile(
+        path.join(projectRoot, 'seed.txt'),
+        '<<<<<<< HEAD\nBASE\n=======\nWORKTREE\n>>>>>>> topic\n',
+      );
+      const { calls, run } = stubRunner((args) => {
+        if (args[0] === 'rev-parse') {
+          return { code: 0, stdout: 'main\n', stderr: '' };
+        }
+        if (args[0] === 'merge') {
+          return { code: 1, stdout: 'Automatic merge failed\n', stderr: '' };
+        }
+        if (args[0] === 'diff' && args.includes('--diff-filter=U')) {
+          return { code: 0, stdout: '', stderr: '' };
+        }
+        if (args[0] === 'diff' && args.includes('-z')) {
+          return { code: 0, stdout: 'seed.txt\0', stderr: '' };
+        }
+        return { code: 0, stdout: '', stderr: '' };
+      });
+      const wm = new WorktreeManager({ projectRoot, run });
+      const h = await wm.allocate('p', { slugHint: 'marker-fallback' });
+
+      const res = await wm.merge(h, { squash: true, resolve: async () => true });
+
+      expect(res.ok).toBe(false);
+      expect(res.conflict).toBe(true);
+      expect(h.status).toBe('needs-review');
+      expect(
+        calls.some(
+          ({ args }) =>
+            args[0] === 'diff' &&
+            args.includes('-z') &&
+            args.includes(`${h.baseBranch}...${h.branch}`),
+        ),
+      ).toBe(true);
+    } finally {
+      await fs.rm(projectRoot, { recursive: true, force: true });
+    }
+  });
+
   it('diffSummary() parses numstat + commit count', async () => {
     const { run } = stubRunner((args) => {
       if (args[0] === 'diff' && args.includes('--numstat')) {
@@ -643,8 +686,19 @@ describe.skipIf(!gitAvailable)('WorktreeManager (real repo)', () => {
         env: GIT_ENV,
       });
 
-      // Resolver claims success but leaves the conflict markers in place.
-      const m = await wm.merge(h, { squash: true, resolve: async () => true });
+      // Re-create unresolved content explicitly. Git versions differ in how a
+      // failed squash merge materializes the worktree file, so a no-op callback
+      // does not reliably mean that marker lines remain.
+      const m = await wm.merge(h, {
+        squash: true,
+        resolve: async ({ cwd }) => {
+          await fs.writeFile(
+            path.join(cwd, 'seed.txt'),
+            '<<<<<<< HEAD\nBASE\n=======\nWORKTREE\n>>>>>>> topic\n',
+          );
+          return true;
+        },
+      });
 
       expect(m.ok).toBe(false);
       expect(m.conflict).toBe(true);
