@@ -28,6 +28,20 @@ export function wireToolsToChronicle(options: ChronicleToolAdapterOptions): () =
         },
       });
     }),
+    options.events.on('permission.boundary_denied', (event) => {
+      persist(options, event, {
+        eventType: 'permission.boundary_denied',
+        outcome: 'denied',
+        attributes: {
+          toolName: event.name,
+          inputHash: event.inputHash,
+          effectiveDecision: event.effectiveDecision,
+          boundarySource: event.boundarySource,
+          reason: event.reason ? options.scrubber.scrub(event.reason) : undefined,
+          riskTier: event.riskTier,
+        },
+      });
+    }),
     options.events.on('permission.evaluated', (event) => {
       persist(options, event, {
         eventType: 'permission.evaluated',
@@ -46,6 +60,28 @@ export function wireToolsToChronicle(options: ChronicleToolAdapterOptions): () =
             ? options.scrubber.scrub(event.boundaryReason)
             : undefined,
           capabilityDowngraded: event.capabilityDowngraded,
+        },
+      });
+    }),
+    options.events.on('permission.confirmation_resolved', (event) => {
+      persist(options, event, {
+        eventType: 'permission.confirmation_resolved',
+        outcome:
+          event.resolution === 'approved'
+            ? 'success'
+            : event.resolution === 'cancelled'
+              ? 'cancelled'
+              : 'denied',
+        attributes: {
+          toolName: event.name,
+          choice: event.choice,
+          resolution: event.resolution,
+          resolver: event.resolver,
+          decisionSource: event.decisionSource,
+          riskTier: event.riskTier,
+          boundaryReason: event.boundaryReason
+            ? options.scrubber.scrub(event.boundaryReason)
+            : undefined,
         },
       });
     }),

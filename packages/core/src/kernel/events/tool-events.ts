@@ -58,6 +58,22 @@ export interface ToolEventMap {
     event: ToolProgressEvent;
   };
   /**
+   * Fired when an executor-level hard guard denies a valid tool call before
+   * the permission policy runs. Raw tool input is deliberately excluded.
+   */
+  'permission.boundary_denied': {
+    sessionId?: string | undefined;
+    traceId?: string | undefined;
+    agentId?: string | undefined;
+    name: string;
+    id: string;
+    inputHash: string;
+    effectiveDecision: 'deny';
+    boundarySource: 'kanban';
+    reason?: string | undefined;
+    riskTier?: RiskTier | undefined;
+  };
+  /**
    * Fired once the permission policy and executor-level safety ceilings have
    * produced the effective authorization decision for a valid tool call.
    * Raw tool input is deliberately excluded; inputHash is computed after
@@ -80,6 +96,23 @@ export interface ToolEventMap {
     boundaryDecision?: 'allow' | 'confirm' | 'block' | undefined;
     boundaryReason?: string | undefined;
     capabilityDowngraded: boolean;
+  };
+  /**
+   * Fired exactly once when a pending confirmation is approved, denied, or
+   * cancelled. Raw tool input and the suggested trust pattern are excluded.
+   */
+  'permission.confirmation_resolved': {
+    sessionId?: string | undefined;
+    traceId?: string | undefined;
+    agentId?: string | undefined;
+    name: string;
+    id: string;
+    choice: 'yes' | 'no' | 'always' | 'deny' | 'abort';
+    resolution: 'approved' | 'denied' | 'cancelled';
+    resolver: 'user' | 'headless' | 'abort';
+    decisionSource?: PermissionDecision['source'] | undefined;
+    riskTier?: RiskTier | undefined;
+    boundaryReason?: string | undefined;
   };
   /**
    * Fired when a tool call needs confirmation

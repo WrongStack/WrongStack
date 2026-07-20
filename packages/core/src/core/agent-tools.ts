@@ -4,8 +4,9 @@
  * pipeline/session/event emission.
  */
 import type { ContentBlock, ToolResultBlock, ToolUseBlock } from '../types/blocks.js';
+import type { PermissionDecision } from '../types/permission.js';
 import type { SessionEvent } from '../types/session.js';
-import type { Tool } from '../types/tool.js';
+import type { RiskTier, Tool } from '../types/tool.js';
 import { recordToolOutputEvidence } from '../utils/context-evidence.js';
 import { toErrorMessage } from '../utils/error.js';
 import { sizeSignals, truncateForEvent } from '../utils/tool-output-serializer.js';
@@ -22,6 +23,18 @@ import type { AgentInternals } from './agent-internals.js';
  */
 const DIFF_TOOL_NAMES = new Set(['edit', 'write', 'replace', 'patch', 'diff']);
 const DIFF_TOOL_EVENT_PREVIEW_MAX = 16_000;
+
+type ConfirmationChoice = 'yes' | 'no' | 'always' | 'deny' | 'abort';
+type ConfirmationResolver = 'user' | 'headless' | 'abort';
+interface PendingConfirmationInfo {
+  tool: Tool;
+  input: unknown;
+  toolUseId: string;
+  suggestedPattern: string;
+  decisionSource?: PermissionDecision['source'] | undefined;
+  riskTier?: RiskTier | undefined;
+  boundaryReason?: string | undefined;
+}
 
 export interface AgentToolHandler {
   executeTools(toolUses: ToolUseBlock[]): Promise<ToolResultBlock[]>;
@@ -73,15 +86,32 @@ export function createAgentToolHandler(a: AgentInternals): AgentToolHandler {
     }
   }
 
-  function waitForConfirm(info: {
-    tool: Tool;
-    input: unknown;
-    toolUseId: string;
-    suggestedPattern: string;
-    decisionSource?: import('../types/permission.js').PermissionDecision['source'] | undefined;
-    riskTier?: import('../types/tool.js').RiskTier | undefined;
-    boundaryReason?: string | undefined;
-  }): Promise<'yes' | 'no' | 'always' | 'deny' | 'abort'> {
+  function emitConfirmationResolved(
+    info: PendingConfirmationInfo,
+    choice: ConfirmationChoice,
+    resolver: ConfirmationResolver,
+  ): void {
+    a.events.emit('permission.confirmation_resolved', {
+      sessionId: a.ctx.session.id,
+      ...(a.ctx.traceId ? { traceId: a.ctx.traceId } : {}),
+      ...(a.ctx.agentId ? { agentId: a.ctx.agentId } : {}),
+      name: info.tool.name,
+      id: info.toolUseId,
+      choice,
+      resolution:
+        choice === 'yes' || choice === 'always'
+          ? 'approved'
+          : choice === 'abort'
+            ? 'cancelled'
+            : 'denied',
+      resolver,
+      decisionSource: info.decisionSource,
+      riskTier: info.riskTier,
+      boundaryReason: info.boundaryReason,
+    });
+  }
+
+  function waitForConfirm(info: PendingConfirmationInfo): Promise<ConfirmationChoice> {
     // Headless deadlock guard (P1 #4, before-release.md): if no UI layer has
     // subscribed to `tool.confirm_needed`, emitting the event leaves the
     // resolver promise pending forever — the tool neither executes nor fails
@@ -102,19 +132,28 @@ export function createAgentToolHandler(a: AgentInternals): AgentToolHandler {
           message: `No tool.confirm_needed listener — auto-denying "${info.tool.name}" to avoid headless deadlock.`,
         }),
       );
+      emitConfirmationResolved(info, 'deny', 'headless');
       return Promise.resolve('deny' as const);
     }
-    return new Promise((resolve) => {
+    return new Promise<ConfirmationChoice>((resolve) => {
       // Abort-awareness: /interrupt, Esc, or a parent abort must not leave the
       // run blocked on a confirmation nobody will answer. Resolve as 'abort'
       // — NOT 'no' — so the caller skips the denyOnce side effect (a
       // session-scoped deny minted by an interrupt would silently block this
-      // tool+pattern for the rest of the session). Resolving twice is a
-      // harmless no-op, so a late UI answer after abort is safely ignored.
+      // tool+pattern for the rest of the session). The settlement guard also
+      // prevents a late UI answer from emitting a second resolution event.
       const signal = a.ctx.signal;
-      const onAbort = () => resolve('abort');
+      let settled = false;
+      const settle = (choice: ConfirmationChoice, resolver: ConfirmationResolver): void => {
+        if (settled) return;
+        settled = true;
+        signal.removeEventListener('abort', onAbort);
+        emitConfirmationResolved(info, choice, resolver);
+        resolve(choice);
+      };
+      const onAbort = () => settle('abort', 'abort');
       if (signal.aborted) {
-        resolve('abort');
+        settle('abort', 'abort');
         return;
       }
       signal.addEventListener('abort', onAbort, { once: true });
@@ -127,10 +166,7 @@ export function createAgentToolHandler(a: AgentInternals): AgentToolHandler {
         decisionSource: info.decisionSource,
         riskTier: info.riskTier,
         boundaryReason: info.boundaryReason,
-        resolve: (choice) => {
-          signal.removeEventListener('abort', onAbort);
-          resolve(choice);
-        },
+        resolve: (choice) => settle(choice, 'user'),
       });
     });
   }

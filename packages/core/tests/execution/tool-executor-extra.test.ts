@@ -457,6 +457,8 @@ describe('ToolExecutor — additional coverage', () => {
       const events = new EventBus();
       const decisions: EventMap['permission.evaluated'][] = [];
       events.on('permission.evaluated', (event) => decisions.push(event));
+      const resolutions: EventMap['permission.confirmation_resolved'][] = [];
+      events.on('permission.confirmation_resolved', (event) => resolutions.push(event));
       const input = { command: 'echo SECRET' };
       const permissionPolicy = {
         evaluate: vi.fn().mockResolvedValue({
@@ -504,9 +506,62 @@ describe('ToolExecutor — additional coverage', () => {
         }),
       ]);
       expect(JSON.stringify(decisions[0])).not.toContain('SECRET');
+      expect(resolutions).toEqual([
+        expect.objectContaining({
+          name: 'bash',
+          id: 'id_bash',
+          choice: 'yes',
+          resolution: 'approved',
+          resolver: 'user',
+          decisionSource: 'trust',
+          riskTier: 'destructive',
+        }),
+      ]);
       expect(confirmAwaiter).toHaveBeenCalledOnce();
       expect(tool.execute).toHaveBeenCalledOnce();
     });
+
+    it.each([
+      ['no', 'denied', false],
+      ['always', 'approved', true],
+      ['deny', 'denied', false],
+    ] as const)(
+      'records the final %s confirmation outcome',
+      async (choice, resolution, shouldExecute) => {
+        policy.evaluate.mockResolvedValue({ permission: 'confirm', source: 'trust' });
+        const events = new EventBus();
+        const resolutions: EventMap['permission.confirmation_resolved'][] = [];
+        events.on('permission.confirmation_resolved', (event) => resolutions.push(event));
+        const tool = makeTool({ name: 'write' });
+        const executor = makeExecutor([tool], {
+          events,
+          confirmAwaiter: vi.fn().mockResolvedValue(choice),
+        });
+
+        await executor.executeBatch(
+          [makeUse('write', { path: 'SECRET-path' })],
+          makeCtx(),
+          'sequential',
+        );
+
+        expect(resolutions).toEqual([
+          expect.objectContaining({
+            name: 'write',
+            id: 'id_write',
+            choice,
+            resolution,
+            resolver: 'user',
+            decisionSource: 'trust',
+          }),
+        ]);
+        expect(JSON.stringify(resolutions[0])).not.toContain('SECRET-path');
+        if (shouldExecute) {
+          expect(tool.execute).toHaveBeenCalledOnce();
+        } else {
+          expect(tool.execute).not.toHaveBeenCalled();
+        }
+      },
+    );
 
     it('preserves authoritative YOLO auto-approval for dangerous capabilities', async () => {
       const events = new EventBus();
@@ -557,11 +612,19 @@ describe('ToolExecutor — additional coverage', () => {
       const awaiter = vi.fn<(...args: unknown[]) => Promise<string>>().mockImplementation(
         () => new Promise(() => {}), // never resolves
       );
-      const executor = makeExecutor([tool], { confirmAwaiter: awaiter });
+      const events = new EventBus();
+      const resolutions: EventMap['permission.confirmation_resolved'][] = [];
+      events.on('permission.confirmation_resolved', (event) => resolutions.push(event));
+      const executor = makeExecutor([tool], { confirmAwaiter: awaiter, events });
       const promise = executor.executeBatch([makeUse('bash', { command: 'echo' })], ctx, 'sequential');
       ctrl.abort('user interrupt');
       const result = await promise;
       expect((result.outputs[0]!.result as ToolResultBlock).content).toContain('aborted');
+      expect(resolutions[0]).toMatchObject({
+        choice: 'abort',
+        resolution: 'cancelled',
+        resolver: 'abort',
+      });
     });
 
     it('handles aborted signal before confirm awaiter starts', async () => {

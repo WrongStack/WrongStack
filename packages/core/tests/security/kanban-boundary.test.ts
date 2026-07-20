@@ -157,13 +157,18 @@ describe('tool Kanban boundary integration', () => {
       },
       execute,
     } as Tool;
+    const events = new EventBus();
+    const denials: EventMap['permission.boundary_denied'][] = [];
+    events.on('permission.boundary_denied', (event) => denials.push(event));
+    const permissionEvaluate = vi.fn(async () => ({ permission: 'auto', source: 'yolo' }));
     const executor = new ToolExecutor(
       { get: (name) => (name === tool.name ? tool : undefined), list: () => [tool] },
       {
         permissionPolicy: {
-          evaluate: async () => ({ permission: 'auto', source: 'yolo' }),
+          evaluate: permissionEvaluate,
         },
         secretScrubber: { scrub: (value: string) => value },
+        events,
       } as never,
     );
     const ctx = {
@@ -201,6 +206,17 @@ describe('tool Kanban boundary integration', () => {
       'blocked by Kanban boundary',
     );
     expect(execute).not.toHaveBeenCalled();
+    expect(permissionEvaluate).not.toHaveBeenCalled();
+    expect(denials[0]).toMatchObject({
+      sessionId: 'boundary-test',
+      agentId: 'worker',
+      name: 'write',
+      id: 'write-outside',
+      effectiveDecision: 'deny',
+      boundarySource: 'kanban',
+    });
+    expect(denials[0]?.inputHash).toMatch(/^[a-f0-9]{64}$/);
+    expect(JSON.stringify(denials[0])).not.toContain('nope');
   });
 
   it('records a boundary-forced confirmation as the effective decision', async () => {
