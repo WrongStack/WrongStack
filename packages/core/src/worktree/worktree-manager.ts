@@ -1,9 +1,11 @@
 import { spawn } from 'node:child_process';
-import { mkdir } from 'node:fs/promises';
+import { mkdir, readFile } from 'node:fs/promises';
 import { join, resolve, sep } from 'node:path';
 import type { EventBus } from '../kernel/events.js';
 import { buildChildEnv } from '../utils/child-env.js';
 import { toErrorMessage } from '../utils/error.js';
+
+const CONFLICT_MARKER_LINE = /^(?:<{7,}(?: .*)?|={7,}|>{7,}(?: .*)?|\|{7,}(?: .*)?)\r?$/m;
 
 /**
  * Lifecycle of a single worktree handle.
@@ -708,10 +710,13 @@ export class WorktreeManager {
     }
     if (!resolved) return null;
 
-    // Stage the resolver's edits, then refuse to commit if any conflict marker
-    // survived (a half-resolved file is worse than a clean abort).
+    // Git can report an empty unmerged-file list after a failed squash merge.
+    // In that case, the branch delta is the deterministic set of files the
+    // merge could have marked.
+    const markerFiles =
+      conflictFiles.length > 0 ? conflictFiles : await this.branchChangedFiles(handle);
     await this.runGit(['add', '-A'], this.projectRoot);
-    if (await this.hasConflictMarkers(conflictFiles)) return null;
+    if (await this.hasConflictMarkers(markerFiles)) return null;
 
     const idArgs = await this.identityArgs(this.projectRoot);
     const msg = opts.message ?? `merge ${handle.branch} (squash, conflict resolved)`;
@@ -733,21 +738,29 @@ export class WorktreeManager {
   }
 
   /**
-   * True when staged content still carries conflict markers.
+   * True when resolved or staged content still carries conflict markers.
    *
-   * Primary probe: `git grep --cached` scans the STAGED blobs directly for a
-   * full marker line (`<<<<<<< `, `=======`, `>>>>>>> `, `||||||| `) — exit 0
-   * means found. This is byte-level and independent of git version, locale,
-   * and human-output phrasing. When the caller knows which files conflicted,
-   * the scan is restricted to them so an unrelated `=======` underline in
-   * some document can't false-positive.
+   * Primary probe: read the files Git reported as conflicted and inspect their
+   * working-tree content directly. This remains reliable when a newer Git
+   * version accepts `git add` but its cached grep/check probes miss the staged
+   * marker lines.
    *
-   * Fallback probe: `git diff --cached --check` prints a "leftover conflict
-   * marker" line per survivor. Kept as belt-and-braces — it was the original
-   * sole probe, but CI runners were observed to miss markers through it
-   * (output parsing), which let a half-resolved merge commit.
+   * Fallback probes inspect the staged blobs with `git grep --cached` and
+   * `git diff --cached --check`. When the caller knows which files conflicted,
+   * grep stays restricted to them so an unrelated `=======` underline in some
+   * document cannot false-positive.
    */
   private async hasConflictMarkers(files?: string[]): Promise<boolean> {
+    for (const file of files ?? []) {
+      try {
+        const content = await readFile(resolve(this.projectRoot, file), 'utf8');
+        if (CONFLICT_MARKER_LINE.test(content)) return true;
+      } catch {
+        // A resolver may legitimately delete a conflicted file. The staged
+        // probes below remain authoritative for every surviving path.
+      }
+    }
+
     const pathspec = files && files.length > 0 ? ['--', ...files] : [];
     const grep = await this.runGit(
       ['grep', '--cached', '-q', '-E', '^(<{7} |={7}$|>{7} |\\|{7} )', ...pathspec],
@@ -863,6 +876,15 @@ export class WorktreeManager {
       .split('\n')
       .map((s) => s.trim())
       .filter(Boolean);
+  }
+
+  private async branchChangedFiles(handle: WorktreeHandle): Promise<string[]> {
+    const res = await this.runGit(
+      ['diff', '--name-only', '-z', `${handle.baseBranch}...${handle.branch}`],
+      this.projectRoot,
+    );
+    if (res.code !== 0) return [];
+    return res.stdout.split('\0').filter((file) => file.length > 0);
   }
 
   private emitCommitted(handle: WorktreeHandle, committed: boolean): void {

@@ -62,6 +62,11 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      # Internal packages publish declarations from dist/. A fresh checkout has
+      # no workspace declarations until the topological build completes.
+      - name: Build workspace declarations
+        run: pnpm build
+
       # Workspace typecheck, serially to avoid tsc buildinfo contention.
       # Matches the root package.json script exactly.
       - name: TypeCheck
@@ -108,6 +113,20 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      # Vitest resolves internal package exports through dist/ in a clean clone.
+      - name: Build workspace packages
+        run: pnpm build
+
+      # BrowserSessionManager integration tests launch real Chromium.
+      - name: Cache Playwright browsers
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
+
+      - name: Install Playwright browsers
+        run: pnpm exec playwright install --with-deps chromium
+
       # The root vitest run excludes webui (jsdom/globals environment)
       # and hq-dashboard (jsdom via forks pool) — those have their own
       # vitest configs and are tested separately below.
@@ -127,7 +146,7 @@ jobs:
       # hq-dashboard needs jsdom which the root forks pool can't resolve.
       # Run it from its package context so its own vitest config applies.
       - name: Test (hq-dashboard)
-        run: pnpm --filter @wrongstack/cli exec vitest run tests/hq-dashboard.test.ts
+        run: pnpm --filter @wrongstack/cli exec vitest run --config vitest.hqdash.config.ts
         env:
           NODE_OPTIONS: --max-old-space-size=4096
 
@@ -159,7 +178,7 @@ jobs:
 
       # Playwright browsers are cached to avoid re-downloading on every run.
       - name: Cache Playwright browsers
-        uses: actions/cache@d4323d4df104b026a6aa6f6dfbed53dea3b2dfa3 # v4
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
         with:
           path: ~/.cache/ms-playwright
           key: playwright-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
