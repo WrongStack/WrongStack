@@ -9,6 +9,64 @@ Generated: 2026-07-24T21:49:32.105Z
 - Preserved: all existing exclusions in `vitest.config.ts` (barrels, interactive entry points, type-only files, live-LSP parsers, and other documented exceptions).
 - `packages/webui-server` remains in scope because it is backend/server code.
 
+## Executive findings
+
+- **Seven files have confirmed 0% line coverage** in completed V8 reports. Add these tests first:
+  1. `packages/sage/tests/embeddings/hashing.test.ts` for `packages/sage/src/embeddings/hashing.ts`.
+  2. `packages/tools/tests/tool-tier.test.ts` for `packages/tools/src/tool-tier.ts`.
+  3. `packages/sage/tests/embeddings/provider.test.ts` for `packages/sage/src/embeddings/provider.ts`.
+  4. `packages/kanban/tests/verification/plugins/agent.test.ts` for `packages/kanban/src/verification/plugins/agent.ts`.
+  5. `packages/kanban/tests/verification/plugins/council.test.ts` for `packages/kanban/src/verification/plugins/council.ts`.
+  6. Extend `packages/plugins/tests/index-exports.test.ts` for `packages/plugins/src/factories/index.ts`.
+  7. Extend `packages/plugins/tests/index-exports.test.ts` for `packages/plugins/src/audit/index.ts`.
+- **Thirteen additional files are below 25% line coverage.** The highest-impact additions are the Kanban verifier plugins, provider OAuth flows, `packages/tools/src/kanban.ts`, language-profile adapters, persistent process registry, and TechStack research search. Exact lines, functions, branches, and target test files are listed below.
+- **Branch coverage is the limiting metric:** 78.44% across completed reports, leaving 6,589 uncovered branches. Tools (66.75%), TechStack (65.25%), providers (73.65%), Kanban (74.10%), and plugins (77.65%) need explicit error, fallback, boundary, and platform-path tests.
+- **Five completed packages are at 100% in all metrics:** bench, persistence, plug-lsp, runtime, and SDD. Security Scanner, Telegram, and Sage are close but still have exact residual gaps below.
+- **Five packages need a dedicated idle-machine coverage rerun:** CLI, core, MCP, TUI, and webui-server. Their JSON reporters did not complete within bounded runs; 389 conservative no-direct-test candidates are listed instead (core 131, CLI 116, TUI 74, webui-server 65, MCP 3).
+
+## Priority queue
+
+### P0 — confirmed zero-coverage files
+
+Implement the seven test additions listed above. Their exact uncovered statements, functions, and branches start in the first seven entries of the V8 appendix.
+
+### P1 — confirmed files below 25% lines
+
+| Source file | Lines | Branches | Add or extend tests in |
+|---|---:|---:|---|
+| `packages/kanban/src/verification/plugins/git-diff.ts` | 7.89% | 0% | `packages/kanban/tests/verification/plugins/git-diff.test.ts` |
+| `packages/kanban/src/verification/evidence-validator.ts` | 9.52% | 0% | `packages/kanban/tests/verification/evidence-validator.test.ts` |
+| `packages/tools/src/kanban.ts` | 11.02% | 6.70% | `packages/tools/tests/kanban-completion-gate.test.ts` and related Kanban tool tests |
+| `packages/kanban/src/verification/plugins/file-matches.ts` | 12.00% | 0% | `packages/kanban/tests/verification/plugins/file-matches.test.ts` |
+| `packages/tools/src/languages/profiles/additional.ts` | 13.86% | 1.28% | `packages/tools/tests/languages/profiles/additional.test.ts` |
+| `packages/providers/src/oauth/index.ts` | 14.28% | 0% | `packages/providers/tests/oauth/index.test.ts` |
+| `packages/providers/src/oauth/shared.ts` | 15.55% | 16.27% | `packages/providers/tests/oauth/shared.test.ts` |
+| `packages/kanban/src/verification/plugins/metric.ts` | 15.78% | 0% | `packages/kanban/tests/verification/plugins/metric.test.ts` |
+| `packages/kanban/src/verification/plugins/test.ts` | 16.66% | 0% | `packages/kanban/tests/verification/plugins/test.test.ts` |
+| `packages/providers/src/oauth/copilot.ts` | 21.25% | 20.96% | `packages/providers/tests/github-copilot.test.ts` |
+| `packages/techstack/src/research/search.ts` | 22.22% | 0% | `packages/techstack/tests/research/search.test.ts` |
+| `packages/tools/src/process-registry-persistent.ts` | 23.47% | 11.45% | `packages/tools/tests/process-registry-persistent.test.ts` |
+| `packages/providers/src/oauth/claude.ts` | 24.48% | 0% | `packages/providers/tests/oauth/claude.test.ts` |
+
+### P2 — rerun incomplete packages, then replace static candidates with V8 evidence
+
+Run one package at a time on an idle machine. Start with the largest conservative no-direct-test candidates:
+
+- Core: `coordination/agents/project-agent-identity.ts`, `tools/fallback-manage-tools.ts`, and `coordination/mailbox-types.ts`.
+- CLI: `execution.ts`, `slash-commands/memory.ts`, `hq-server/routes.ts`, and `subcommands/handlers/modeldiag.ts`.
+- TUI: `components/history/utils.tsx`, `components/settings-picker.tsx`, `app-state.ts`, `components/history/code-block.tsx`, and `hooks/use-picker-keys.ts`.
+- webui-server: `server/kanban-routes.ts`, `server/start-webui.ts`, `server/memory-handlers.ts`, `server/goal-ws-handler.ts`, and `server/backend-services.ts`.
+- MCP: all three candidates in the static appendix.
+
+## Method and limitations
+
+- The monolithic root coverage command exceeded the 30-minute execution window and emitted no final JSON. Coverage was therefore rerun as package-scoped V8 shards with the same root config and source exclusions.
+- Fourteen package reporters produced valid `coverage-final.json` and `coverage-summary.json`; their results are exact for those shard runs. CLI, core, MCP, TUI, and webui-server did not produce complete reports within their 15–20 minute bounds.
+- Package sharding can **understate** coverage from tests in another package. A line shown uncovered here may be exercised only by a cross-package integration test that was not part of that package's shard. It cannot overstate an uncovered line within the completed shard.
+- The static appendix is a conservative source-to-test filename/path match. “No direct test” does **not** prove 0% runtime coverage; integration tests can execute the source indirectly.
+- The checkout was heavily and concurrently modified during this audit. Results describe the working-tree snapshot used by each shard on 2026-07-24, not a clean immutable commit. Re-run after the shared tree settles before enforcing 100% thresholds.
+- Existing exclusions from `vitest.config.ts` remain excluded. Reaching “100%” means 100% of that declared denominator, not every repository line.
+
 ## Completed V8 shard aggregate
 
 | Metric | Covered / total | Coverage | Remaining |

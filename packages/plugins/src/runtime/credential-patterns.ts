@@ -134,8 +134,11 @@ export const CREDENTIAL_PATTERNS: readonly CredentialPattern[] = [
   { type: 'mongodb_uri', regex: /mongodb(?:\+srv)?:\/\/[^\s:/@"'`]*:[^\s/@"'`]+@[^\s"'`]+/g },
   {
     type: 'postgres_uri',
+    // Query parsers decode percent-encoded parameter names. Recognize each
+    // encoded character in `password` so mixed forms such as `pass%77ord`
+    // cannot bypass detection while keeping the scan strictly bounded.
     regex:
-      /postgres(?:ql)?:\/\/(?:[^\s:/@"'`]*:[^\s/@"'`]+@[^\s"'`]+|[^\s?"'`#]{1,2048}\?(?:(?!password=)[^&\s#"'`]{1,256}&){0,32}password=[^&\s#"'`]{1,4096})/g,
+      /postgres(?:ql)?:\/\/(?:[^\s:/@"'`]*:[^\s/@"'`]+@[^\s"'`]+|[^&\s?"'`#]{1,2048}\?(?:(?!(?:p|%70)(?:a|%61)(?:s|%73)(?:s|%73)(?:w|%77)(?:o|%6[fF])(?:r|%72)(?:d|%64)=)[^&\s#"'`]{1,256}&){0,32}(?:p|%70)(?:a|%61)(?:s|%73)(?:s|%73)(?:w|%77)(?:o|%6[fF])(?:r|%72)(?:d|%64)=[^&\s#"'`]{1,4096})/g,
   },
   { type: 'mysql_uri', regex: /mysql:\/\/[^\s:/@"'`]*:[^\s/@"'`]+@[^\s"'`]+/g },
   { type: 'redis_uri', regex: /redis:\/\/[^\s:/@"'`]*:[^\s/@"'`]+@[^\s"'`]+/g },
