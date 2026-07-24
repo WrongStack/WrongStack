@@ -93,7 +93,11 @@ function extractPathInputs(input: unknown): string[] {
   for (const key of PATH_KEYS) {
     const value = obj[key];
     if (typeof value === 'string' && value.length > 0) {
-      paths.push(value);
+      const values = key === 'paths' || key === 'files' ? value.split(',') : [value];
+      for (const item of values) {
+        const trimmed = item.trim();
+        if (trimmed.length > 0) paths.push(trimmed);
+      }
       continue;
     }
     if (Array.isArray(value)) {

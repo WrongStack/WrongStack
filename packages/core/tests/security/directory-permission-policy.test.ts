@@ -443,6 +443,26 @@ describe('DirectoryPermissionPolicy', () => {
     expect(filesTrace.steps.filter((step) => step.rule === 'target path')).toHaveLength(2);
   });
 
+  it('enforces comma-separated plural path strings', async () => {
+    const wrapper = new DirectoryPermissionPolicy(allowInner(), {
+      policy: policy([{ directory: 'infra/**', denyTools: ['write'] }]),
+    });
+    const input = {
+      files: [
+        path.join(projectRoot, 'docs', 'README.md'),
+        path.join(projectRoot, 'infra', 'main.tf'),
+      ].join(','),
+    };
+
+    const result = await wrapper.evaluate(writeTool, input, makeCtx(projectRoot));
+    const trace = await wrapper.explain(writeTool, input, makeCtx(projectRoot));
+
+    expect(result.permission).toBe('deny');
+    expect(trace.decision).toEqual(result);
+    expect(trace.subject).toBe('infra/main.tf');
+    expect(trace.steps.filter((step) => step.rule === 'target path')).toHaveLength(2);
+  });
+
   it('enforces secondary scalar source and destination paths', async () => {
     const wrapper = new DirectoryPermissionPolicy(allowInner(), {
       policy: policy([{ directory: 'infra/**', denyTools: ['write'] }]),

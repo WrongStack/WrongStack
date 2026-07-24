@@ -67,6 +67,15 @@ Run one package at a time on an idle machine. Start with the largest conservativ
 - The checkout was heavily and concurrently modified during this audit. Results describe the working-tree snapshot used by each shard on 2026-07-24, not a clean immutable commit. Re-run after the shared tree settles before enforcing 100% thresholds.
 - Existing exclusions from `vitest.config.ts` remain excluded. Reaching “100%” means 100% of that declared denominator, not every repository line.
 
+## Audit-side hardening completed
+
+Mandatory review during the audit identified two security regressions in concurrently modified code. They were fixed and verified before this report was finalized:
+
+- Directory permission rules now evaluate every array, comma-separated plural, source, and destination path; a protected secondary target can no longer hide behind an allowed first target. `evaluate()` and `explain()` return matching denial decisions and subjects.
+- PostgreSQL credential detection now covers bounded literal and percent-encoded `password` query-parameter names in first, middle, and last positions across secret-scanner and prompt-firewall paths.
+
+Verification: 117 focused tests passed across four files; `@wrongstack/core` and `@wrongstack/plugins` typechecks passed; scoped Biome lint and format checks passed.
+
 ## Completed V8 shard aggregate
 
 | Metric | Covered / total | Coverage | Remaining |
