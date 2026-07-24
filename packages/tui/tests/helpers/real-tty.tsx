@@ -55,6 +55,8 @@ export interface RealTtyView {
   /** Latest frame split into lines (ANSI stripped). */
   lines(): string[];
   rerender(element: ReactElement): void;
+  /** Change the fake terminal size and emit 'resize' like a real TTY. */
+  resize(columns: number, rows: number): void;
   unmount(): void;
   stdout: FakeStdout;
 }
@@ -76,6 +78,11 @@ export function renderRealTty(
     lastFrame: () => cleanFrame(stdout.frames.at(-1) ?? ''),
     lines: () => cleanFrame(stdout.frames.at(-1) ?? '').split('\n'),
     rerender: (next) => instance.rerender(next),
+    resize: (columns, rows) => {
+      stdout.columns = columns;
+      stdout.rows = rows;
+      stdout.emit('resize');
+    },
     unmount: () => instance.unmount(),
     stdout,
   };

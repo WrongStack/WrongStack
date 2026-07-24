@@ -149,7 +149,12 @@ function Scrollbar({
   );
 }
 
-/** Extra rows mounted per underfill-correction step. */
+/** Minimum extra rows mounted per underfill-correction step. The effective
+ *  step is `max(UNDERFILL_BUMP_ROWS, viewportRows)`: the deficit the step must
+ *  cover scales with the viewport (estimate error is roughly proportional to
+ *  the rows planned), so a fixed 16-row step that heals a 30-row terminal in
+ *  one pass starves a 150-row terminal for many frames — the reported
+ *  blank-band symptom on tall terminals. */
 const UNDERFILL_BUMP_ROWS = 16;
 /** Cap on underfill-correction steps per anchor position (loop guard). */
 const MAX_UNDERFILL_BUMPS = 8;
@@ -319,6 +324,15 @@ export const ScrollableHistory = memo(function ScrollableHistory({
     prevTermWidthRef.current = termWidth;
     setMountBump(0);
   }
+  // Reset mountBump when the viewport HEIGHT changes too: a height-resize
+  // changes the correction target (viewportRows) under a possibly-saturated
+  // counter, and the underfill loop must re-converge against the new height
+  // from a clean slate — mirroring the width-change reset above.
+  const prevVpRef = useRef(viewportRows);
+  if (prevVpRef.current !== viewportRows) {
+    prevVpRef.current = viewportRows;
+    setMountBump(0);
+  }
   // Re-render nudge when a measurement changed a cached height but no other
   // state transition will re-render this memoized component (thumb geometry
   // and mount planning read the cache during render). Value is never read.
@@ -415,9 +429,16 @@ export const ScrollableHistory = memo(function ScrollableHistory({
   }, [scrolled]);
 
   // ── Mount planning ──────────────────────────────────────────────────
+  // Each underfill-correction step mounts at least one viewport's worth of
+  // extra estimated rows: estimate error is roughly proportional to the
+  // planned row budget, so a fixed step heals a 30-row terminal but starves
+  // a 150-row one (the blank-band symptom on tall terminals). Scaling to
+  // `vp` means even a 4:1 estimate overestimation fills the viewport in 2-3
+  // correction cycles rather than exhausting the 8-step cap.
+  const bumpStep = Math.max(UNDERFILL_BUMP_ROWS, vp);
   const plan = effectiveAnchor
-    ? planFromAnchor(geometry, effectiveAnchor, mountBump * UNDERFILL_BUMP_ROWS)
-    : planPinned(geometry, mountBump * UNDERFILL_BUMP_ROWS);
+    ? planFromAnchor(geometry, effectiveAnchor, mountBump * bumpStep)
+    : planPinned(geometry, mountBump * bumpStep);
   const renderGroups = groupedEntries.slice(plan.startIdx, plan.endIdx);
   const clip = effectiveAnchor?.clip ?? 0;
 
@@ -560,7 +581,7 @@ export const ScrollableHistory = memo(function ScrollableHistory({
             if (group.type === 'tool-group') {
               return (
                 <Box key={`tool-group-${gid}`} ref={setNode} flexShrink={0}>
-                  <EntryErrorBoundary label="tool group">
+                  <EntryErrorBoundary label="tool group" resetKey={group.data.entries.length}>
                     <ToolGroup data={group.data} termWidth={termWidth} />
                   </EntryErrorBoundary>
                 </Box>
@@ -574,7 +595,10 @@ export const ScrollableHistory = memo(function ScrollableHistory({
                 marginBottom={entry.kind === 'turn-summary' ? 1 : 0}
                 flexShrink={0}
               >
-                <EntryErrorBoundary label={entry.kind}>
+                <EntryErrorBoundary
+                  label={entry.kind}
+                  resetKey={entry.kind === 'tool' ? (entry.output?.length ?? 0) : 'text' in entry ? entry.text.length : 0}
+                >
                   <Entry
                     entry={entry}
                     termWidth={termWidth}
