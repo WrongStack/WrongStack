@@ -309,7 +309,7 @@ describe('credential pattern regressions', () => {
     async (type, scheme) => {
       const api = makeApi();
       secretScannerPlugin.setup(api as Any);
-      expect(await matchedTypes(api, `${scheme}://${'localhost'}/db`)).not.toContain(type);
+      expect(await matchedTypes(api, `${scheme}://localhost/db`)).not.toContain(type);
       secretScannerPlugin.teardown?.(api as Any);
     },
   );
@@ -317,7 +317,7 @@ describe('credential pattern regressions', () => {
   it.each(databaseUris)('detects a password-bearing %s', async (type, scheme) => {
     const api = makeApi();
     secretScannerPlugin.setup(api as Any);
-    const sample = `${scheme}://${'user'}:${'password'}@${'localhost'}/db`;
+    const sample = `${scheme}://user:password@localhost/db`;
     expect(await matchedTypes(api, sample)).toContain(type);
     secretScannerPlugin.teardown?.(api as Any);
   });
@@ -325,23 +325,28 @@ describe('credential pattern regressions', () => {
   it.each(databaseUris)('detects a password-bearing %s with an empty username', async (type, scheme) => {
     const api = makeApi();
     secretScannerPlugin.setup(api as Any);
-    const sample = `${scheme}://${''}:${'password'}@${'localhost'}/db`;
+    const sample = `${scheme}://:password@localhost/db`;
     expect(await matchedTypes(api, sample)).toContain(type);
     secretScannerPlugin.teardown?.(api as Any);
   });
 
-  const postgresQueryPasswords = [
-    ['first', ['password=', 'first-secret', '&sslmode=require'].join('')],
-    ['middle', ['sslmode=require&password=', 'middle-secret', '&connect_timeout=5'].join('')],
-    ['last', ['sslmode=require&password=', 'last-secret'].join('')],
-  ].map(([position, query]) => [
+  const postgresUrisWithPasswordParam = [
+    ['first', 'first-secret', ['password=', 'first-secret', '&sslmode=require'].join('')],
+    [
+      'middle',
+      'middle-secret',
+      ['sslmode=require&password=', 'middle-secret', '&connect_timeout=5'].join(''),
+    ],
+    ['last', 'last-secret', ['sslmode=require&password=', 'last-secret'].join('')],
+  ].map(([position, password, query]) => [
     position,
+    password,
     ['postgresql', '://', 'localhost', '/app?', query].join(''),
   ] as const);
 
-  it.each(postgresQueryPasswords)(
+  it.each(postgresUrisWithPasswordParam)(
     'blocks a PostgreSQL URI with a %s password query parameter',
-    (_position, sample) => {
+    (_position, _password, sample) => {
       const api = makeApi();
       secretScannerPlugin.setup(api as Any);
       const result = getPreHook(api)({
@@ -356,9 +361,9 @@ describe('credential pattern regressions', () => {
     },
   );
 
-  it.each(postgresQueryPasswords)(
+  it.each(postgresUrisWithPasswordParam)(
     'redacts a PostgreSQL URI with a %s password query parameter',
-    (_position, sample) => {
+    (_position, password, sample) => {
       const api = makeApi({
         extensions: { 'secret-scanner': { mode: 'redact' } },
       });
@@ -372,10 +377,36 @@ describe('credential pattern regressions', () => {
       expect(result?.decision).toBe('allow');
       const modified = result?.modifiedInput as { content: string } | undefined;
       expect(modified?.content).toMatch(/^\[REDACTED:postgres_uri\](?:&.*)?$/);
-      expect(modified?.content).not.toContain('secret');
+      expect(JSON.stringify(modified)).not.toContain(password);
       secretScannerPlugin.teardown?.(api as Any);
     },
   );
+
+  it('blocks an oversized PostgreSQL URI input instead of returning it unredacted', () => {
+    const api = makeApi({
+      extensions: { 'secret-scanner': { mode: 'redact' } },
+    });
+    secretScannerPlugin.setup(api as Any);
+    const postgresUri = [
+      'postgresql',
+      '://',
+      'localhost',
+      '/app?sslmode=require&password=',
+      'oversized-secret',
+    ].join('');
+    const content = `${postgresUri}\n${'x'.repeat(100_000 - postgresUri.length)}`;
+    const result = getPreHook(api)({
+      event: 'PreToolUse',
+      toolName: 'write',
+      toolInput: { path: 'oversized-database.txt', content },
+      cwd: '/tmp',
+    });
+    expect(content).toHaveLength(100_001);
+    expect(result?.decision).toBe('block');
+    expect(result?.modifiedInput).toBeUndefined();
+    expect(result?.reason).toContain('safe scan limit');
+    secretScannerPlugin.teardown?.(api as Any);
+  });
 });
 
 describe('expanded credential coverage', () => {

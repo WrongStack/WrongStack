@@ -146,20 +146,26 @@ describe('prompt-firewall plugin', () => {
 
   const postgresQueryPassword =
     ['postgresql', '://', 'db', '/app?', 'user=alice&', 'password=', 'query-secret'].join('');
+  const encodedPostgresQueryPassword =
+    ['postgresql', '://', 'db', '/app?', 'user=alice&', 'pass%77ord=', 'query-secret'].join('');
 
-  it('block mode rejects a PostgreSQL URI with a password query parameter', async () => {
+  it.each([
+    ['literal', postgresQueryPassword],
+    ['percent-encoded', encodedPostgresQueryPassword],
+  ] as const)('block mode rejects a PostgreSQL URI with a %s password query parameter', async (_label, uri) => {
     const api = setup({ enabled: true, mode: 'block' });
     const inner = vi.fn().mockResolvedValue(resp('clean'));
-    await expect(api._wrap!(null, req(postgresQueryPassword), inner)).rejects.toThrow(
-      /postgres_uri/,
-    );
+    await expect(api._wrap!(null, req(uri), inner)).rejects.toThrow(/postgres_uri/);
     expect(inner).not.toHaveBeenCalled();
   });
 
-  it('redact mode strips a PostgreSQL URI with a password query parameter', async () => {
+  it.each([
+    ['literal', postgresQueryPassword],
+    ['percent-encoded', encodedPostgresQueryPassword],
+  ] as const)('redact mode strips a PostgreSQL URI with a %s password query parameter', async (_label, uri) => {
     const api = setup({ enabled: true, mode: 'redact' });
     const inner = vi.fn().mockResolvedValue(resp('clean'));
-    await api._wrap!(null, req(postgresQueryPassword), inner);
+    await api._wrap!(null, req(uri), inner);
     const sent = JSON.stringify(inner.mock.calls[0]![1]);
     expect(sent).not.toContain('query-secret');
     expect(sent).toContain('[REDACTED:postgres_uri]');

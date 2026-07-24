@@ -3,7 +3,10 @@ import { execFileSync } from 'node:child_process';
 import * as fsp from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
-import { buildReviewContext } from '../../src/plugins/review-context-builder.js';
+import {
+  buildReviewContext,
+  parsePorcelainStatusZ,
+} from '../../src/plugins/review-context-builder.js';
 import type { ResolvedChimeraConfig } from '../../src/plugins/chimera-plugin.js';
 import { createBoard } from '@wrongstack/kanban';
 
@@ -118,7 +121,7 @@ describe('buildReviewContext', () => {
   });
 
   it('preserves raw special-character paths and uses the destination of renames', async () => {
-    const unicodePath = 'src/naïve "quote" \\ file.ts';
+    const unicodePath = 'src/naïve file.ts';
     const oldPath = 'old name.ts';
     const renamedPath = 'renamed → file.ts';
     await fsp.mkdir(path.join(tmpDir, 'src'), { recursive: true });
@@ -137,6 +140,17 @@ describe('buildReviewContext', () => {
     expect(paths).toContain(unicodePath);
     expect(paths).toContain(renamedPath);
     expect(paths).not.toContain(oldPath);
+  });
+
+  it('parses NUL-delimited paths without decoding quotes or backslashes', () => {
+    const parsed = parsePorcelainStatusZ(
+      '?? src/naïve "quote" \\ file.ts\0R  renamed → file.ts\0old name.ts\0',
+    );
+
+    expect(parsed).toEqual([
+      { status: '??', path: 'src/naïve "quote" \\ file.ts' },
+      { status: 'R', path: 'renamed → file.ts' },
+    ]);
   });
 
   it('collects recent commits', async () => {

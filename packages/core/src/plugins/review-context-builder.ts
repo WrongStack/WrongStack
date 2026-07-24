@@ -62,12 +62,10 @@ async function getFileDiff(cwd: string, filePath: string): Promise<string | unde
  * C-style quoted/escaped names. Rename and copy entries contain an additional
  * source-path record; the first record is the destination path we review.
  */
-async function getAllChangedFiles(
-  cwd: string,
-): Promise<Array<{ path: string; status: string }>> {
-  const r = await runGit(['status', '--porcelain', '-z'], cwd);
-  if (r.code !== 0) return [];
-  const records = r.stdout.split('\0');
+export function parsePorcelainStatusZ(
+  stdout: string,
+): Array<{ path: string; status: string }> {
+  const records = stdout.split('\0');
   const out: Array<{ path: string; status: string }> = [];
   for (let index = 0; index < records.length; index++) {
     const record = records[index];
@@ -78,6 +76,13 @@ async function getAllChangedFiles(
     if (statusCode.includes('R') || statusCode.includes('C')) index++;
   }
   return out;
+}
+
+async function getAllChangedFiles(
+  cwd: string,
+): Promise<Array<{ path: string; status: string }>> {
+  const r = await runGit(['status', '--porcelain', '-z'], cwd);
+  return r.code === 0 ? parsePorcelainStatusZ(r.stdout) : [];
 }
 
 /**
@@ -188,7 +193,7 @@ export async function buildReviewContext(
   const cascadeDepth = opts.cascadeDepth ?? undefined;
   const maxCascadeDepth = opts.maxCascadeDepth ?? undefined;
 
-  // ── Kanban card (P1: find in_progress task across all boards) ──
+  // ── Kanban card (P1: find active running/review task across all boards) ──
   let kanbanCard: ReviewContextBundle['kanbanCard'];
   try {
     kanbanCard = await findActiveKanbanCard(cwd);
@@ -226,9 +231,10 @@ export async function buildReviewContext(
 // ---------------------------------------------------------------------------
 
 /**
- * Find the active (in_progress / running-stage) kanban task across all
- * boards. Enrichment is safe only when exactly one card is active; concurrent
- * active cards are ambiguous and could attach another task's criteria.
+ * Find the active (in_progress/review status or running/review lifecycle stage)
+ * kanban task across all boards. Enrichment is safe only when exactly one card
+ * is active; concurrent active cards are ambiguous and could attach another
+ * task's criteria.
  *
  * Uses dynamic import so the builder doesn't hard-depend on @wrongstack/kanban
  * (which may not be installed in all contexts). Best-effort: returns
@@ -254,6 +260,7 @@ async function findActiveKanbanCard(
       ...data.tasks.filter(
         (task) =>
           task.status === 'in_progress' ||
+          task.status === 'review' ||
           task.lifecycle?.currentStage === 'running' ||
           task.lifecycle?.currentStage === 'review',
       ),
