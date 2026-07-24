@@ -251,12 +251,37 @@ export function resolveContinuation(input: ContinuationInput): ResolvedContinuat
       const done = todos.filter((t) => t.status === 'completed').length;
       const item =
         next.status === 'in_progress' && next.activeForm ? next.activeForm : next.content;
+      // Embed the full board snapshot (not just the next item). Two reasons:
+      //   - the model gets the complete plan state every continuation instead
+      //     of a single line, so multi-turn work stays grounded;
+      //   - the continuation text changes whenever ANY board state changes,
+      //     so the auto-proceed repetition guard only sees identical prompts
+      //     when the board is genuinely frozen across whole turns — real
+      //     progress (items completed, added, re-ordered, re-statused) never
+      //     trips it.
+      // Cap displayed rows so the prompt doesn't balloon. 20 rows keeps the
+      // board readable for both small and large todo lists without crowding
+      // the continuation prompt with hundreds of items.
+      const BOARD_MAX_ROWS = 20;
+      const board = todos.slice(0, BOARD_MAX_ROWS).map((t) => {
+        const mark = t.status === 'completed' ? '[x]' : t.status === 'in_progress' ? '[~]' : '[ ]';
+        // Flatten newlines so multi-line todo content doesn't break the
+        // board's structured layout — each row is exactly one line.
+        const flatContent = t.content.replace(/\n|\r/g, ' ');
+        return `  ${mark} ${flatContent}`;
+      });
+      if (todos.length > BOARD_MAX_ROWS) {
+        board.push(`  … ${todos.length - BOARD_MAX_ROWS} more`);
+      }
       const text = [
         'Continue with the plan. Resume work on the next open todo:',
         '',
         `  ${item}`,
         '',
-        `(${done}/${total} todos complete.) If this item is already done, mark it complete and move to the next open todo. When every todo is complete, stop and give a short summary — do not invent new work.`,
+        `Current todo board (${done}/${total} todos complete.):`,
+        ...board,
+        '',
+        'If this item is already done, mark it complete and move to the next open todo. Keep the board honest as you work — mark finished items completed and split items that need more than one turn. When every todo is complete, stop and give a short summary — do not invent new work.',
       ].join('\n');
       return { source: 'todo', text, label: `▶ Continue → todo: ${ellipsize(item)}` };
     }

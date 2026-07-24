@@ -1,6 +1,6 @@
-import { buildChildEnv } from '@wrongstack/core/utils';
 import { spawn } from 'node:child_process';
 import * as path from 'node:path';
+import { buildChildEnv } from '@wrongstack/core/utils';
 import { commandExistsOnPath, resolveServerCommand } from '../utils/command-resolver.js';
 
 export interface LanguageServerConfig {
@@ -144,11 +144,24 @@ export async function installLang(
     const installCmd = `${command} ${args.join(' ')}`;
 
     if (dryRun) {
-      return { language, binary: server.binary, alreadyInstalled: false, dryRun: true, installCommand: installCmd };
+      return {
+        language,
+        binary: server.binary,
+        alreadyInstalled: false,
+        dryRun: true,
+        installCommand: installCmd,
+      };
     }
 
     await runCommand(command, args, cwd, label);
-    return { language, binary: server.binary, alreadyInstalled: false, dryRun: false, packageManager: 'system', installCommand: installCmd };
+    return {
+      language,
+      binary: server.binary,
+      alreadyInstalled: false,
+      dryRun: false,
+      packageManager: 'system',
+      installCommand: installCmd,
+    };
   }
 
   // npm-based install
@@ -157,12 +170,24 @@ export async function installLang(
     const installCmd = `${command} ${args.join(' ')}`;
 
     if (dryRun) {
-      return { language, binary: server.binary, alreadyInstalled: false, dryRun: true, installCommand: installCmd };
+      return {
+        language,
+        binary: server.binary,
+        alreadyInstalled: false,
+        dryRun: true,
+        installCommand: installCmd,
+      };
     }
 
     try {
       await runCommand(command, args, cwd, `Installing ${language} LSP server via npm`);
-      return { language, binary: server.binary, alreadyInstalled: false, dryRun: false, installCommand: installCmd };
+      return {
+        language,
+        binary: server.binary,
+        alreadyInstalled: false,
+        dryRun: false,
+        installCommand: installCmd,
+      };
     } catch (err) {
       return {
         language,
@@ -198,7 +223,8 @@ function npmInstallCommand(packages: string[], cwd: string): { command: string; 
 function detectPackageManagerSync(cwd: string): PackageManager {
   // Heuristic only — async version checks actual files
   if (existsSync(path.join(cwd, 'pnpm-lock.yaml'))) return 'pnpm';
-  if (existsSync(path.join(cwd, 'bun.lockb')) || existsSync(path.join(cwd, 'bun.lock'))) return 'bun';
+  if (existsSync(path.join(cwd, 'bun.lockb')) || existsSync(path.join(cwd, 'bun.lock')))
+    return 'bun';
   if (existsSync(path.join(cwd, 'yarn.lock'))) return 'yarn';
   return 'npm';
 }

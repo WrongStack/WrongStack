@@ -101,4 +101,32 @@ export interface SddEventMap {
    * DAG); consumers cast it back. The producer (SddBoardProjector) is typed.
    */
   'sdd.board.snapshot': { sessionId?: string | undefined; runId: string; snapshot: unknown };
+  /** A task was scored by the deterministic atomicity rule set. */
+  'sdd.task.atomicity_assessed': {
+    sessionId?: string | undefined;
+    runId?: string | undefined;
+    graphId: string;
+    taskId: string;
+    verdict: 'atomic' | 'borderline' | 'needs_decomposition' | 'composite';
+    score: number;
+    reasons: string[];
+  };
+  /** A task was proactively decomposed (planning pass) or an approved proposal applied. */
+  'sdd.task.decomposed': {
+    sessionId?: string | undefined;
+    runId?: string | undefined;
+    graphId: string;
+    taskId: string;
+    subtaskIds: string[];
+    mode: 'auto' | 'approved';
+    phase: 'planning' | 'reactive';
+  };
+  /** The planning decomposer produced sub-tasks awaiting approval (propose mode). */
+  'sdd.decomposition.proposed': {
+    sessionId?: string | undefined;
+    graphId: string;
+    taskId: string;
+    subtasks: Array<{ title: string; description: string; successCriterion?: string | undefined }>;
+    reasons: string[];
+  };
 }

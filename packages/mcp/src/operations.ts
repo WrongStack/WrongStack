@@ -175,7 +175,10 @@ export function evaluateHealthThresholds(
   if (!thresholds) return [];
   const checks: MCPHealthCheckResult[] = [];
   if (thresholds.connectionLatencyP95Ms !== undefined && operations.connectionSamples.length > 0) {
-    const value = percentile([...operations.connectionSamples].sort((a, b) => a - b), 0.95);
+    const value = percentile(
+      [...operations.connectionSamples].sort((a, b) => a - b),
+      0.95,
+    );
     checks.push({
       name: 'connection-latency-p95',
       passed: value <= thresholds.connectionLatencyP95Ms,
@@ -184,7 +187,10 @@ export function evaluateHealthThresholds(
     });
   }
   if (thresholds.discoveryLatencyP95Ms !== undefined && operations.discoverySamples.length > 0) {
-    const value = percentile([...operations.discoverySamples].sort((a, b) => a - b), 0.95);
+    const value = percentile(
+      [...operations.discoverySamples].sort((a, b) => a - b),
+      0.95,
+    );
     checks.push({
       name: 'discovery-latency-p95',
       passed: value <= thresholds.discoveryLatencyP95Ms,
@@ -193,7 +199,10 @@ export function evaluateHealthThresholds(
     });
   }
   if (thresholds.callLatencyP95Ms !== undefined && operations.callSamples.length > 0) {
-    const value = percentile([...operations.callSamples].sort((a, b) => a - b), 0.95);
+    const value = percentile(
+      [...operations.callSamples].sort((a, b) => a - b),
+      0.95,
+    );
     checks.push({
       name: 'call-latency-p95',
       passed: value <= thresholds.callLatencyP95Ms,

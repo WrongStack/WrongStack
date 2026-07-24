@@ -111,8 +111,7 @@ function normalizeForHash(value: unknown): unknown {
   const out: Record<string, unknown> = {};
   const record = value as Record<string, unknown>;
   for (const key of Object.keys(record).sort((a, b) => a.localeCompare(b))) {
-    const normalized = normalizeForHash(record[key]);
-    if (normalized !== undefined) out[key] = normalized;
+    out[key] = normalizeForHash(record[key]);
   }
   return out;
 }

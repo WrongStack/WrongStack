@@ -7,7 +7,7 @@ import {
   resolveSendPlan,
   type QueuedItem,
 } from '../lib/queue-model.js';
-import { resolveRefineText, type RefineDecision, type RefineState } from '../lib/refine-model.js';
+import { parseFallbackRef, resolveRefineText, type RefineDecision, type RefineState } from '../lib/refine-model.js';
 import type { SimpleSocket } from '../lib/ws.js';
 import { clearComposerDraft } from '../lib/composer-draft.js';
 
@@ -17,6 +17,7 @@ export interface UseComposerActionsOptions {
   draftRef: React.RefObject<string>;
   fileRefsRef: React.RefObject<string[]>;
   refineStateRef: React.RefObject<RefineState | null>;
+  refineEpochRef: React.RefObject<number>;
   draft: string;
   fileRefs: string[];
   running: boolean;
@@ -34,6 +35,7 @@ export interface UseComposerActionsOptions {
   setAttachedImages: React.Dispatch<
     React.SetStateAction<{ id: string; data: string; mime: string; name: string }[]>
   >;
+  attachedImagesRef: React.RefObject<{ data: string; mime: string; name: string; id: string }[]>;
   setRefineState: React.Dispatch<React.SetStateAction<RefineState | null>>;
 }
 
@@ -77,6 +79,7 @@ export function useComposerActions(options: UseComposerActionsOptions): UseCompo
     draftRef,
     fileRefsRef,
     refineStateRef,
+    refineEpochRef,
     draft,
     fileRefs,
     running,
@@ -86,6 +89,7 @@ export function useComposerActions(options: UseComposerActionsOptions): UseCompo
     setDraft,
     setFileRefs,
     setAttachedImages,
+    attachedImagesRef,
     setRefineState,
   } = options;
 
@@ -115,6 +119,10 @@ export function useComposerActions(options: UseComposerActionsOptions): UseCompo
       const now = Date.now();
 
       if (plan === 'send') {
+        const currentImages = attachedImagesRef.current.map((img) => ({
+          data: img.data,
+          mime: img.mime,
+        }));
         setDraft('');
         setFileRefs([]);
         setAttachedImages([]);
@@ -123,7 +131,7 @@ export function useComposerActions(options: UseComposerActionsOptions): UseCompo
           draftRef.current = '';
           fileRefsRef.current = [];
         }
-        startSend(content);
+        startSend(content, currentImages);
         return;
       }
 
@@ -175,12 +183,18 @@ export function useComposerActions(options: UseComposerActionsOptions): UseCompo
       const refineState = refineStateRef.current;
       if (!refineState) return;
       const text = resolveRefineText(refineState, decision);
+      // Null the ref synchronously so a same-tick startSend flush (which
+      // reads refineStateRef.current before the commit) cannot dispatch
+      // the original a second time.
+      refineStateRef.current = null;
       setRefineState(null);
       // Use dispatchUserMessage (not startSend) so a panel decision sends
       // the resolved text immediately. startSend would re-enter the refine
-      // pipeline and loop back into 'refining'.
-      if (text && decision !== 'edit') {
-        dispatchUserMessage(text);
+      // pipeline and loop back into 'refining'. Forward the images captured
+      // with the original message so attachments survive the refine detour.
+      if (text) {
+        if (refineState.images?.length) dispatchUserMessage(text, refineState.images);
+        else dispatchUserMessage(text);
       }
     },
     [refineStateRef, setRefineState, dispatchUserMessage],
@@ -189,23 +203,60 @@ export function useComposerActions(options: UseComposerActionsOptions): UseCompo
   const refineRetry = useCallback(() => {
     const refineState = refineStateRef.current;
     if (!refineState) return;
+    // Flip back to the in-flight face so the user sees the retry running
+    // instead of a stale failed/ready panel.
+    // Increment the epoch so any late model.refine_result from the
+    // previous attempt is recognised as stale by the message handler's
+    // Guard 1 (epoch-mismatch check).
+    refineEpochRef.current++;
+    setRefineState({
+      ...refineState,
+      status: 'refining',
+      error: undefined,
+      errorKind: undefined,
+      epoch: refineEpochRef.current,
+    });
     socketRef.current?.send('model.refine', {
       text: refineState.original,
+      ...(refineState.status === 'ready'
+        ? {
+            // "Try again better": give the refiner the previous round so it
+            // can improve on it rather than restart from scratch.
+            previousRefined: refineState.refined,
+            previousEnglish: refineState.english,
+          }
+        : {}),
     });
-  }, [refineStateRef, socketRef]);
+  }, [refineStateRef, refineEpochRef, setRefineState, socketRef]);
 
   const refineRetryFallback = useCallback(
     (ref: string) => {
-      const slash = ref.indexOf('/');
-      if (slash === -1) return;
+      const parsed = parseFallbackRef(ref);
+      if (!parsed) return;
+      const refineState = refineStateRef.current;
+      if (!refineState) return;
+      const { provider, model } = parsed;
+      // Reflect the fallback model on the in-flight face immediately.
+      // Increment the epoch so any late model.refine_result from the
+      // previous attempt is recognised as stale.
+      refineEpochRef.current++;
+      setRefineState({
+        ...refineState,
+        status: 'refining',
+        error: undefined,
+        errorKind: undefined,
+        provider,
+        model,
+        epoch: refineEpochRef.current,
+      });
       socketRef.current?.send('model.refine', {
-        text: refineStateRef.current?.original ?? '',
-        provider: ref.slice(0, slash),
-        model: ref.slice(slash + 1),
+        text: refineState.original,
+        provider,
+        model,
         timeoutMs: 180_000,
       });
     },
-    [refineStateRef, socketRef],
+    [refineStateRef, refineEpochRef, setRefineState, socketRef],
   );
 
   const abort = useCallback(() => {

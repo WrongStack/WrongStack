@@ -10,9 +10,12 @@
  * catalog's `probe` commands on a developer's machine. Skipped by default
  * to keep CI deterministic.
  */
+import { EventEmitter } from 'node:events';
+import { PassThrough } from 'node:stream';
+import type { ChildProcess, spawn } from 'node:child_process';
 import { describe, expect, it, vi } from 'vitest';
 import { AGENTS_CATALOG, findAgentDescriptor } from '../src/registry/agents.catalog.js';
-import { EnsembleRegistry } from '../src/registry/ensemble-registry.js';
+import { defaultProbe, EnsembleRegistry } from '../src/registry/ensemble-registry.js';
 import type { ACPAgentDescriptor, DetectedAgent } from '../src/registry/ensemble-registry.js';
 
 const CLAUDE: ACPAgentDescriptor = {
@@ -37,10 +40,34 @@ const GEMINI: ACPAgentDescriptor = {
 
 const FAKE_CATALOG: readonly ACPAgentDescriptor[] = [CLAUDE, GEMINI];
 
+function fakeChild(exitCode: number | null = 0): ChildProcess {
+  return Object.assign(new EventEmitter(), {
+    stdout: new PassThrough(),
+    stderr: new PassThrough(),
+    exitCode,
+    signalCode: null,
+  }) as unknown as ChildProcess;
+}
+
+function fakeSpawn(
+  action: (child: ChildProcess) => void,
+  exitCode: number | null = 0,
+): typeof spawn {
+  return vi.fn(() => {
+    const child = fakeChild(exitCode);
+    queueMicrotask(() => action(child));
+    return child;
+  }) as unknown as typeof spawn;
+}
+
 describe('EnsembleRegistry', () => {
   it('listAll returns the catalog in declaration order', () => {
     const reg = new EnsembleRegistry({ catalog: FAKE_CATALOG });
     expect(reg.listAll().map((a) => a.id)).toEqual(['claude-code', 'gemini-cli']);
+  });
+
+  it('uses the bundled catalog when no options are supplied', () => {
+    expect(new EnsembleRegistry().listAll()).toBe(AGENTS_CATALOG);
   });
 
   it('detect() marks an agent installed when the probe reports success', async () => {
@@ -186,6 +213,85 @@ describe('defaultProbe timeout', () => {
     const result = await reg.detect(noOutputEntry);
     expect(result.installed).toBe(false);
     expect(result.reason).toMatch(/exit code/);
+  });
+});
+
+describe('defaultProbe event handling', () => {
+  it.each([
+    new Error('synchronous failure'),
+    'non-error failure',
+  ])('turns a synchronous spawn throw into data', async (thrown) => {
+    const spawnProcess = vi.fn(() => {
+      throw thrown;
+    }) as unknown as typeof spawn;
+
+    const result = await defaultProbe(CLAUDE, 100, spawnProcess, 'linux');
+    expect(result).toMatchObject({
+      ok: false,
+      reason: `spawn failed: ${thrown instanceof Error ? thrown.message : thrown}`,
+    });
+  });
+
+  it('handles the child error event', async () => {
+    const result = await defaultProbe(
+      CLAUDE,
+      100,
+      fakeSpawn((child) => child.emit('error', new Error('ENOENT'))),
+      'linux',
+    );
+    expect(result).toMatchObject({ ok: false, reason: 'binary not found: ENOENT' });
+  });
+
+  it('combines stderr output and accepts a probe without args', async () => {
+    const descriptor = { ...CLAUDE, probe: { command: 'agent' } };
+    const spawnProcess = fakeSpawn((child) => {
+      child.stderr?.emit('data', 'agent 2.0\nextra');
+      child.emit('close', 7);
+    });
+    const result = await defaultProbe(descriptor, 100, spawnProcess, 'linux');
+    expect(result).toMatchObject({
+      ok: true,
+      version: 'agent 2.0',
+      path: 'agent',
+    });
+    expect(spawnProcess).toHaveBeenCalledWith('agent', [], expect.any(Object));
+  });
+
+  it('recognizes the Windows command-shell missing-binary message', async () => {
+    const result = await defaultProbe(
+      CLAUDE,
+      100,
+      fakeSpawn((child) => {
+        child.stdout?.emit('data', "'claude' is not recognized");
+        child.emit('close', 1);
+      }),
+      'win32',
+    );
+    expect(result).toMatchObject({ ok: false, reason: 'binary not found' });
+  });
+
+  it('reports a null exit code when a probe closes without output', async () => {
+    const result = await defaultProbe(
+      CLAUDE,
+      100,
+      fakeSpawn((child) => child.emit('close', null)),
+      'linux',
+    );
+    expect(result).toMatchObject({ ok: false, reason: 'exit code null; no output' });
+  });
+
+  it('ignores a late close event after the timeout settled the result', async () => {
+    vi.useFakeTimers();
+    try {
+      const child = fakeChild(0);
+      const spawnProcess = vi.fn(() => child) as unknown as typeof spawn;
+      const pending = defaultProbe(CLAUDE, 10, spawnProcess, 'linux');
+      await vi.advanceTimersByTimeAsync(10);
+      await expect(pending).resolves.toMatchObject({ ok: false, reason: 'probe timed out' });
+      child.emit('close', 0);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });
 

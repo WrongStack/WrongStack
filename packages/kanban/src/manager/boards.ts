@@ -50,6 +50,8 @@ export async function createBoard(
     ...(input.supervisor !== undefined ? { supervisor: input.supervisor } : {}),
     ...(input.lifecycle !== undefined ? { lifecycle: input.lifecycle } : {}),
     ...(input.boundary !== undefined ? { boundary: input.boundary } : {}),
+    ...(input.atomicity !== undefined ? { atomicity: input.atomicity } : {}),
+    ...(input.completionGate !== undefined ? { completionGate: input.completionGate } : {}),
   });
 
   const policyIssues = validateManagedLifecyclePolicy(board);
@@ -119,6 +121,18 @@ export async function updateBoard(
       if (input.boundary === null) delete board.boundary;
       else board.boundary = normalizeKanbanBoundaryPolicy(input.boundary);
     }
+    if (input.atomicity !== undefined) {
+      if (input.atomicity === null) delete board.atomicity;
+      else
+        board.atomicity = {
+          ...input.atomicity,
+          ...(input.atomicity.config ? { config: { ...input.atomicity.config } } : {}),
+        };
+    }
+    if (input.completionGate !== undefined) {
+      if (input.completionGate === null) delete board.completionGate;
+      else board.completionGate = { ...input.completionGate };
+    }
     const policyIssues = validateManagedLifecyclePolicy(board);
     if (policyIssues.length) throw new Error(policyIssues[0]!.message);
     normalizeAllColumnTaskOrders(board);
@@ -150,6 +164,8 @@ export async function duplicateBoard(
       ? { lifecycle: { ...source.lifecycle, columns: { ...source.lifecycle.columns } } }
       : {}),
     ...(source.boundary !== undefined ? { boundary: { ...source.boundary } } : {}),
+    ...(source.atomicity !== undefined ? { atomicity: { ...source.atomicity } } : {}),
+    ...(source.completionGate !== undefined ? { completionGate: { ...source.completionGate } } : {}),
   });
 
   if (input.includeTasks !== false) {

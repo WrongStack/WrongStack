@@ -1,8 +1,8 @@
 /**
  * Unit tests for promiseWithTimeout — promise timeout with AbortSignal support.
  */
-import { describe, it, expect } from 'vitest';
-import { promiseWithTimeout } from '../../src/utils/timeout.js';
+import { describe, expect, it } from 'vitest';
+import { promiseWithTimeout, timeoutCoverage } from '../../src/utils/timeout.js';
 
 describe('promiseWithTimeout', () => {
   it('resolves with the promise value when promise completes before timeout', async () => {
@@ -11,9 +11,9 @@ describe('promiseWithTimeout', () => {
   });
 
   it('rejects with the promise error when promise rejects before timeout', async () => {
-    await expect(
-      promiseWithTimeout(Promise.reject(new Error('fail')), 1000),
-    ).rejects.toThrow('fail');
+    await expect(promiseWithTimeout(Promise.reject(new Error('fail')), 1000)).rejects.toThrow(
+      'fail',
+    );
   });
 
   it('rejects with timeout error when promise does not complete in time', async () => {
@@ -24,9 +24,9 @@ describe('promiseWithTimeout', () => {
   it('rejects immediately when signal is already aborted', async () => {
     const ac = new AbortController();
     ac.abort();
-    await expect(
-      promiseWithTimeout(Promise.resolve('never'), 1000, ac.signal),
-    ).rejects.toThrow('aborted');
+    await expect(promiseWithTimeout(Promise.resolve('never'), 1000, ac.signal)).rejects.toThrow(
+      'aborted',
+    );
   });
 
   it('rejects with signal reason when aborted during wait', async () => {
@@ -51,9 +51,9 @@ describe('promiseWithTimeout', () => {
   });
 
   it('cleans up timer when promise rejects', async () => {
-    await expect(
-      promiseWithTimeout(Promise.reject(new Error('fast-fail')), 100),
-    ).rejects.toThrow('fast-fail');
+    await expect(promiseWithTimeout(Promise.reject(new Error('fast-fail')), 100)).rejects.toThrow(
+      'fast-fail',
+    );
   });
 
   it('cleans up abort listener when promise resolves', async () => {
@@ -67,5 +67,11 @@ describe('promiseWithTimeout', () => {
   it('works without AbortSignal', async () => {
     const result = await promiseWithTimeout(Promise.resolve('no-signal'), 100);
     expect(result).toBe('no-signal');
+  });
+
+  it('normalizes a non-Error abort reason', () => {
+    expect(timeoutCoverage.abortError({ reason: 'cancelled' } as AbortSignal)).toEqual(
+      new Error('aborted'),
+    );
   });
 });

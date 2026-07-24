@@ -159,6 +159,38 @@ function checkKeyFilePermissions(
 }
 
 /**
+ * Crash-atomic synchronous key-file write: temp (0o600) + fsync + rename.
+ * A plain writeFileSync torn by a crash would leave a corrupt key file —
+ * and a corrupt key file means every secret in the vault is unrecoverable.
+ * Sync because the vault's rotate/migrate paths are synchronous; these run
+ * rarely (rotation, at-rest upgrade), never on a hot path.
+ */
+function writeKeyFileAtomicSync(keyFile: string, content: Buffer): void {
+  const tmp = `${keyFile}.${randomBytes(4).toString('hex')}.tmp`;
+  const fd = fs.openSync(tmp, 'w', 0o600);
+  try {
+    fs.writeFileSync(fd, content);
+    try {
+      fs.fsyncSync(fd);
+    } catch {
+      // Best-effort fsync — matches the async atomicWrite primitive.
+    }
+  } finally {
+    fs.closeSync(fd);
+  }
+  try {
+    fs.renameSync(tmp, keyFile);
+  } catch (err) {
+    try {
+      fs.unlinkSync(tmp);
+    } catch {
+      /* best-effort cleanup */
+    }
+    throw err;
+  }
+}
+
+/**
  * Default vault: AES-256-GCM with a key stored at `keyFile` (mode 0o600).
  * The key is loaded lazily on first encrypt/decrypt; if it does not exist,
  * a fresh one is generated. Decryption of plaintext values is a no-op so
@@ -273,14 +305,14 @@ export class DefaultSecretVault implements RotatableSecretVault {
     if (passphrase) {
       // Keep the rotated key passphrase-wrapped (v3) so rotation never
       // downgrades a protected key file to plaintext.
-      fs.writeFileSync(this.keyFile, wrapDataKey(newKey, newVersion, passphrase), { mode: 0o600 });
+      writeKeyFileAtomicSync(this.keyFile, wrapDataKey(newKey, newVersion, passphrase));
     } else {
       // Write versioned key file: WSKV + version byte + key
       const keyFileBuf = Buffer.alloc(VERSIONED_KEY_FILE_SIZE);
       KEY_FILE_MAGIC.copy(keyFileBuf, 0);
       keyFileBuf[KEY_FILE_MAGIC.length] = newVersion;
       newKey.copy(keyFileBuf, KEY_FILE_MAGIC.length + 1);
-      fs.writeFileSync(this.keyFile, keyFileBuf, { mode: 0o600 });
+      writeKeyFileAtomicSync(this.keyFile, keyFileBuf);
     }
     checkKeyFilePermissions(this.keyFile, { warn: (msg) => this.logWarn(msg) });
 
@@ -300,9 +332,7 @@ export class DefaultSecretVault implements RotatableSecretVault {
     const passphrase = getVaultPassphrase();
     if (!passphrase || !this.key) return;
     try {
-      fs.writeFileSync(this.keyFile, wrapDataKey(this.key, this._keyVersion, passphrase), {
-        mode: 0o600,
-      });
+      writeKeyFileAtomicSync(this.keyFile, wrapDataKey(this.key, this._keyVersion, passphrase));
       checkKeyFilePermissions(this.keyFile, { warn: (msg) => this.logWarn(msg) });
     } catch {
       // Non-fatal: the at-rest upgrade failed, but the loaded key is valid.

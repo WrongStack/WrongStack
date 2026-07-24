@@ -1,6 +1,5 @@
 import { type ChildProcess, spawn } from 'node:child_process';
-import { buildChildEnv } from '@wrongstack/core/utils';
-import { toErrorMessage } from '@wrongstack/core/utils';
+import { buildChildEnv, toErrorMessage } from '@wrongstack/core/utils';
 import type { MCPAuthorizationProvider } from './authorization.js';
 import { MCP_CONSTANTS } from './constants.js';
 import {
@@ -19,6 +18,7 @@ import {
 } from './protocol.js';
 import { normalizeMCPTools } from './tool-schema.js';
 import { type HttpTransportOptions, SSETransport, StreamableHTTPTransport } from './transport.js';
+import { isJsonRpcResult } from './transport-jsonrpc.js';
 
 export type Transport = 'stdio' | 'sse' | 'streamable-http';
 
@@ -94,26 +94,6 @@ type JsonRpcServerRequest = {
   params?: unknown | undefined;
 };
 
-function isJsonRpcResponse(value: unknown): value is JsonRpcResponse {
-  if (typeof value !== 'object' || value === null) return false;
-  const response = value as Record<string, unknown>;
-  if (response['jsonrpc'] !== '2.0' || typeof response['id'] !== 'number') return false;
-  if (Object.hasOwn(response, 'method')) return false;
-
-  const hasResult = Object.hasOwn(response, 'result');
-  const hasError = Object.hasOwn(response, 'error');
-  if (hasResult === hasError) return false;
-  if (!hasError) return true;
-
-  const error = response['error'];
-  return (
-    typeof error === 'object' &&
-    error !== null &&
-    typeof (error as Record<string, unknown>)['code'] === 'number' &&
-    typeof (error as Record<string, unknown>)['message'] === 'string'
-  );
-}
-
 type ExitListener = (name: string, code: number | null, signal: string | null) => void;
 /**
  * Fired when the server sends `notifications/tools/list_changed`. The
@@ -130,7 +110,7 @@ export type MCPListChangedListener = (name: string) => void;
  * signals only the wrapper and orphans the server, which then accumulates across
  * every close / restart / idle-sleep. `taskkill /T /F` tears down the whole tree.
  */
-function forceKillTree(child: ChildProcess): void {
+export function forceKillTree(child: ChildProcess): void {
   if (child.pid === undefined) {
     try {
       child.kill('SIGKILL');
@@ -963,11 +943,12 @@ export class MCPClient {
       return;
     }
 
-    if (!isJsonRpcResponse(msg)) return;
-    if (this.pending.has(msg.id)) {
-      const entry = this.pending.get(msg.id);
-      this.pending.delete(msg.id);
-      entry?.resolve(msg);
+    if (!isJsonRpcResult(msg)) return;
+    const response = msg as JsonRpcResponse;
+    if (this.pending.has(response.id)) {
+      const entry = this.pending.get(response.id);
+      this.pending.delete(response.id);
+      entry?.resolve(response);
     }
   }
 

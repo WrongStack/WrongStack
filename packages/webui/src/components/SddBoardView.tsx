@@ -21,48 +21,20 @@ import { useWebSocket } from '@/hooks/useWebSocket';
 import { agentInitials, fmtDuration, SDD_AGENT_COLORS, SDD_RUN_STATUS } from '@/lib/sdd-theme';
 import { cn } from '@/lib/utils';
 import { i18n, useAppTranslation } from '@/i18n';
-import { type BoardTaskItem, type SddLifecycleResultUI, useSddBoardStore } from '@/stores';
+import {
+  type BoardTaskItem,
+  type SddLifecycleResultUI,
+  useKanbanStore,
+  useSddBoardStore,
+  useUIStore,
+} from '@/stores';
 import { SddActivityFeed } from './SddActivityFeed';
 import { SddDestroyDialog } from './SddDestroyDialog';
 import { type FlowTask, SddFlowGraph } from './SddFlowGraph';
 import { SddKanbanView } from './SddKanbanView';
 import { SddTaskDrawer } from './SddTaskDrawer';
 import { Button } from './ui/button';
-
-/** Circular progress ring. */
-function ProgressRing({ pct }: { pct: number }): React.ReactElement {
-  const r = 26;
-  const c = 2 * Math.PI * r;
-  const off = c - (Math.max(0, Math.min(100, pct)) / 100) * c;
-  return (
-    <div className="relative h-16 w-16 shrink-0">
-      <svg viewBox="0 0 64 64" className="h-16 w-16 -rotate-90" role="img" aria-label="Progress">
-        <circle cx="32" cy="32" r={r} fill="none" stroke="hsl(var(--muted))" strokeWidth="6" />
-        <circle
-          cx="32"
-          cy="32"
-          r={r}
-          fill="none"
-          stroke="url(#sddgrad)"
-          strokeWidth="6"
-          strokeLinecap="round"
-          strokeDasharray={c}
-          strokeDashoffset={off}
-          style={{ transition: 'stroke-dashoffset 0.6s cubic-bezier(0.16,1,0.3,1)' }}
-        />
-        <defs>
-          <linearGradient id="sddgrad" x1="0" y1="0" x2="1" y2="1">
-            <stop offset="0%" stopColor="hsl(var(--primary))" />
-            <stop offset="100%" stopColor="hsl(var(--info))" />
-          </linearGradient>
-        </defs>
-      </svg>
-      <div className="absolute inset-0 flex items-center justify-center text-sm font-bold text-foreground">
-        {Math.round(pct)}%
-      </div>
-    </div>
-  );
-}
+import { ProgressRing } from './ui/progress-ring';
 
 /**
  * SddBoardView — the live multi-agent execution show. Renders the run as an
@@ -272,6 +244,24 @@ export function SddBoardView({ onClose }: { onClose: () => void }): React.ReactE
             )}
           </div>
           <div className="flex items-center gap-2">
+            {/* Deep link: open this run's mirrored kanban board. */}
+            {snapshot && (
+              <button
+                type="button"
+                title="Open the mirrored kanban board for this run"
+                onClick={() => {
+                  const runTag = `run:${snapshot.runId}`;
+                  const mirrored = useKanbanStore
+                    .getState()
+                    .boards.find((summary) => summary.tags?.includes(runTag));
+                  if (mirrored) useKanbanStore.getState().setActiveBoardId(mirrored.id);
+                  useUIStore.getState().setCurrentView('kanban');
+                }}
+                className="inline-flex items-center gap-1 rounded-md border border-border px-2.5 py-1 text-xs font-medium text-muted-foreground hover:bg-muted"
+              >
+                <Activity className="h-3.5 w-3.5" /> Kanban board
+              </button>
+            )}
             {/* Graph ↔ Kanban view toggle */}
             {snapshot && (
               <div className="flex items-center rounded-md border border-border bg-muted p-0.5 text-[11px]">

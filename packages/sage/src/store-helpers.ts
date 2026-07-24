@@ -267,8 +267,7 @@ export function validateRememberInput(input: RememberSageInput): void {
     if (
       (anchor.path?.length ?? 0) > 4_096 ||
       (anchor.symbol?.length ?? 0) > 1_024 ||
-      (anchor.command?.length ?? 0) > 8_192 ||
-      (anchor.role?.length ?? 0) > 96
+      (anchor.command?.length ?? 0) > 8_192
     ) {
       throw new Error(
         'SAGE anchor strings are too long (path ≤ 4096, symbol ≤ 1024, command ≤ 8192, role ≤ 96 characters).',
@@ -278,7 +277,16 @@ export function validateRememberInput(input: RememberSageInput): void {
   for (const source of input.sources ?? []) {
     if (
       !source ||
-      !['user', 'session', 'tool_result', 'file', 'git', 'command'].includes(source.type)
+      ![
+        'user',
+        'session',
+        'tool_result',
+        'project_instruction',
+        'file',
+        'test',
+        'command',
+        'legacy_memory',
+      ].includes(source.type)
     ) {
       throw new Error('Invalid SAGE source type.');
     }

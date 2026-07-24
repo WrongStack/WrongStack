@@ -153,7 +153,7 @@ export async function writeCapabilityManifest(
       await fs.rename(tmp, file);
     } catch (err) {
       // Clean up our own temp file on failure; a unique name is never reused.
-      await fs.rm(tmp, { force: true }).catch(() => {});
+      await fs.rm(tmp, { force: true });
       throw err;
     }
   } catch {

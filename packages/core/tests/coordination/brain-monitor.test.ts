@@ -231,6 +231,62 @@ describe('BrainMonitor', () => {
     expect(emitted[0]?.intervened).toBe(true);
     m.stop();
   });
+
+  it('offers no recommended option — interrupting the agent has no safe default', async () => {
+    const brain: BrainArbiter = { decide: vi.fn(async () => CONTINUE) };
+    const emitted: EventMap['brain.intervention'][] = [];
+    events.on('brain.intervention', (e) => emitted.push(e));
+    const m = monitor(brain);
+    for (let i = 0; i < 3; i++) events.emit('tool.executed', failedTool('edit'));
+    await settle();
+
+    const request = emitted[0]?.request;
+    expect(request?.options?.map((o) => o.id)).toEqual(['steer', 'continue']);
+    // A recommended option here would (a) be auto-accepted by the headless
+    // terminal policy at medium risk, turning a dead provider into a canned
+    // steer on every signal, and (b) render "★ recommended" into the prompt of
+    // the very judgement the model is being asked to make.
+    expect(request?.options?.some((o) => o.recommended)).toBe(false);
+    m.stop();
+  });
+
+  it('is observe-only when the escalation resolves without a model', async () => {
+    // The real headless path: the policy tier escalates (fallback ask_human),
+    // no LLM is reachable, and the terminal policy has no recommended option
+    // to fall back on — so it denies, which must NOT reach the agent.
+    const deadPool: BrainArbiter = {
+      decide: vi.fn(async () => ({ type: 'deny', reason: 'pool unavailable' }) as BrainDecision),
+    };
+    const tiered = createTieredBrainArbiter({
+      policy: new DefaultBrainArbiter(),
+      autonomous: deadPool,
+      getMaxAutoRisk: () => 'all',
+    });
+    const escalated: BrainDecision[] = [];
+    const headless: BrainArbiter = {
+      async decide(request) {
+        const d = await tiered.decide(request);
+        if (d.type !== 'ask_human') return d;
+        const { terminalPolicyDecision } = await import('../../src/coordination/brain.js');
+        const terminal = terminalPolicyDecision(request);
+        escalated.push(terminal);
+        return terminal;
+      },
+    };
+
+    const emitted: EventMap['brain.intervention'][] = [];
+    events.on('brain.intervention', (e) => emitted.push(e));
+    const m = monitor(headless);
+    for (let i = 0; i < 3; i++) events.emit('tool.executed', failedTool('edit'));
+    await settle();
+
+    expect(escalated[0]).toMatchObject({ type: 'deny' });
+    expect(interventions).toHaveLength(0);
+    expect(emitted).toHaveLength(1);
+    // The signal is still recorded for the surfaces — only the steer is withheld.
+    expect(emitted[0]?.intervened).toBe(false);
+    m.stop();
+  });
 });
 
 describe('BrainMonitor — deterministic policies and kill switches', () => {

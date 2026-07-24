@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { readBodyCapped } from '../src/read-body.js';
 
 function streamOf(chunks: Uint8Array[]): ReadableStream<Uint8Array> {
@@ -30,5 +30,35 @@ describe('readBodyCapped', () => {
 
   it('falls back to res.text() when the body is not a web stream', async () => {
     expect(await readBodyCapped({ body: null, text: async () => 'fallback' })).toBe('fallback');
+  });
+
+  it('ignores an empty stream chunk', async () => {
+    const reader = {
+      read: vi
+        .fn()
+        .mockResolvedValueOnce({ done: false, value: undefined })
+        .mockResolvedValueOnce({ done: true, value: undefined }),
+    };
+    const response = {
+      body: { getReader: () => reader },
+      text: async () => 'unused',
+    };
+
+    await expect(readBodyCapped(response as never, 10)).resolves.toBe('');
+  });
+
+  it('still rejects an oversized body when cancelling the reader fails', async () => {
+    const reader = {
+      read: vi.fn(async () => ({ done: false, value: new Uint8Array(11) })),
+      cancel: vi.fn(async () => {
+        throw new Error('cancel failed');
+      }),
+    };
+    const response = {
+      body: { getReader: () => reader },
+      text: async () => 'unused',
+    };
+
+    await expect(readBodyCapped(response as never, 10)).rejects.toThrow(/exceeded/i);
   });
 });

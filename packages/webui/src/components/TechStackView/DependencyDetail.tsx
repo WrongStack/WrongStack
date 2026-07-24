@@ -13,6 +13,8 @@ import { cn } from '@/lib/utils';
 import {
   ACTION_LABELS,
   Badge,
+  coverageMeta,
+  ecosystemMeta,
   installedVersion,
   isInterpretation,
   SEVERITY_META,
@@ -26,6 +28,7 @@ export interface DependencyDetailProps {
   deepDive: { status: 'idle' | 'loading' | 'error'; error: string | null };
   onDeepDive: (dependency: TechStackDependency) => void;
   onBack: () => void;
+  coverage?: string | undefined;
 }
 
 export function DependencyDetail({
@@ -34,10 +37,12 @@ export function DependencyDetail({
   deepDive,
   onDeepDive,
   onBack,
+  coverage,
 }: DependencyDetailProps) {
   const meta = statusMeta(dependency.status);
   const installed = installedVersion(dependency);
   const drift = versionDrift(dependency);
+  const depCoverageNote = coverage ? coverageMeta(coverage).note : undefined;
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
@@ -60,8 +65,15 @@ export function DependencyDetail({
               <Badge className={meta.badge}>{meta.label}</Badge>
             </div>
             <p className="mt-0.5 truncate text-[10px] text-muted-foreground">
-              {dependency.ecosystem} · {dependency.direct ? 'direct' : 'transitive'} ·{' '}
-              {dependency.scope} · {dependency.sourceType}
+              {ecosystemMeta(dependency.ecosystem).label} ·{' '}
+              {dependency.direct ? 'direct' : 'transitive'} · {dependency.scope} ·{' '}
+              {dependency.sourceType}
+              {depCoverageNote && (
+                <>
+                  <span aria-hidden="true"> · </span>
+                  <span className="text-warning">{depCoverageNote}</span>
+                </>
+              )}
             </p>
           </div>
         </div>

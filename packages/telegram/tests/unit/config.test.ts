@@ -3,10 +3,19 @@ import {
   DEFAULT_CONFIG,
   PLUGIN_NAME,
   readTelegramConfig,
+  readTelegramConfigFromConfig,
   telegramConfigSchema,
 } from '../../src/config.js';
 
 describe('telegram config', () => {
+  it('reads directly from a raw config snapshot', () => {
+    expect(
+      readTelegramConfigFromConfig({
+        plugins: { telegram: { botToken: 'token', inboundMode: 'disabled' } },
+      } as never),
+    ).toMatchObject({ botToken: 'token', inboundMode: 'disabled' });
+  });
+
   it('returns defaults when no plugin options are set', () => {
     const api = { config: {} };
     const cfg = readTelegramConfig(api as Parameters<typeof readTelegramConfig>[0]);

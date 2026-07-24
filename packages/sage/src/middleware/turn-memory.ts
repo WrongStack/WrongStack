@@ -1,5 +1,5 @@
-import type { Message, Request, TextBlock } from '@wrongstack/core/types';
 import type { Middleware } from '@wrongstack/core/kernel';
+import type { Message, Request, TextBlock } from '@wrongstack/core/types';
 import { formatMemoryHintsDetailed } from '../retrieval/format.js';
 import { memoryQueryRelevance } from '../retrieval/relevance.js';
 import { normalizeTextKey, tokenize } from '../store-helpers.js';
@@ -31,9 +31,7 @@ export interface SageTurnMiddlewareOptions {
   getSessionId?: (() => string | undefined) | undefined;
 }
 
-export function createSageTurnMiddleware(
-  opts: SageTurnMiddlewareOptions,
-): Middleware<Request> {
+export function createSageTurnMiddleware(opts: SageTurnMiddlewareOptions): Middleware<Request> {
   const tracker = opts.tracker ?? new InjectionTracker();
   // Per-instance cached system-prompt normalizer. The factory owns its
   // closure-local cache state, which preserves test isolation and prevents
@@ -265,7 +263,7 @@ function makeNormalizedSystemFn(): (system: ReadonlyArray<TextBlock> | undefined
     let hash = 0x811c9dc5;
     for (let i = 0; i < system.length; i++) {
       const block = system[i];
-      if (!block || block.type !== 'text' || !block.text) continue;
+      if (block?.type !== 'text' || !block.text) continue;
       const text = block.text;
       textBlocks++;
       shape += `${text.length},`;
@@ -300,9 +298,15 @@ function makeNormalizedSystemFn(): (system: ReadonlyArray<TextBlock> | undefined
     // `existingSystem.includes(textKey)` dedup invariant for the same
     // fingerprint on cache hit vs miss.
     lastNormalizedSystem = system
-      .filter((block) => block.type === 'text' && block.text)
+      .filter((block) => block?.type === 'text' && block.text)
       .map((block) => normalizeTextKey(block.text))
       .join('\n');
     return lastNormalizedSystem;
   };
 }
+
+/** Direct-module test seam; intentionally not re-exported by the package barrel. */
+export const turnMemoryCoverage = {
+  makeNormalizedSystemFn,
+  lastMessageTextByRole,
+};

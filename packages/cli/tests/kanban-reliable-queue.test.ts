@@ -315,6 +315,7 @@ describe('Kanban reliable queue semantics (Sprint 1 focused package)', () => {
       'task.assignment.running',
       'task.assignment.heartbeat',
       'task.assignment.completed',
+      'task.completion.gate_pending',
     ]);
 
     const completedEvent = events.find(
@@ -523,6 +524,8 @@ describe('Kanban reliable queue semantics (Sprint 1 focused package)', () => {
       'task.claimed',
       'task.assignment.running',
       'task.assignment.completed',
+      'task.completion.gate_pending',
+      'task.verified',
     ]);
     expect(spawns[0]?.tools).toEqual(['bash', 'kanban']);
   });

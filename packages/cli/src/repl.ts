@@ -40,6 +40,7 @@ import {
 import {
   type AutoProceedLoopGuard,
   createAutoProceedLoopGuard,
+  GROUNDED_NO_PROGRESS_STEER,
 } from '@wrongstack/tools/auto-proceed-loop-guard';
 
 /**
@@ -591,6 +592,7 @@ export async function runRepl(opts: ReplOptions): Promise<number> {
           // pending — see parseSuggestionsFromOutput — so skipping to todos
           // prevents the session from idling after a turn with no nextsteps).
           let top: string;
+          let groundedTodo = false;
           if (suggestions.length > 0) {
             const isYolo = opts.getYolo?.() ?? false;
             const autoSuggestions = opts.getAutoSuggestions?.() ?? [];
@@ -600,6 +602,7 @@ export async function runRepl(opts: ReplOptions): Promise<number> {
             const todos = opts.agent.ctx.todos ?? [];
             const resolved = resolveContinuation({ todos, suggestions: [] });
             top = resolved.source === 'todo' ? resolved.text : '';
+            groundedTodo = top !== '';
           }
 
           if (!top) {
@@ -635,6 +638,7 @@ export async function runRepl(opts: ReplOptions): Promise<number> {
                   delay,
                   ctrl,
                   autoProceedLoopGuard,
+                  groundedTodo,
                 );
                 if (submitted) {
                   autoIterCount++;
@@ -1260,6 +1264,14 @@ async function runAutoProceed(
   delayMs: number,
   ctrl: AbortController,
   loopGuard: AutoProceedLoopGuard,
+  /**
+   * True when `suggestion` was synthesized from the durable todo board rather
+   * than parsed from model output. Grounded prompts go through the guard's
+   * steer-then-halt path: the first identical re-feed appends an explicit
+   * "the board has not moved — update it" note instead of halting, and the
+   * halt only fires if the board stays frozen after that steer.
+   */
+  grounded = false,
 ): Promise<boolean> {
   const truncated = suggestion.length > 80 ? `${suggestion.slice(0, 77)}…` : suggestion;
   console.log(
@@ -1301,7 +1313,7 @@ async function runAutoProceed(
     // Record at the authoritative submission boundary: cancelled countdowns
     // and autonomy changes above never count as feeds because no prompt left
     // the client. A repeated prompt halts before `agent.run()`.
-    const repetition = loopGuard.record(suggestion);
+    const repetition = grounded ? loopGuard.recordGrounded(suggestion) : loopGuard.record(suggestion);
     if (repetition.shouldHalt) {
       setSuggestions([]);
       setAutoSuggestions([]);
@@ -1316,7 +1328,18 @@ async function runAutoProceed(
     }
 
     // ── Feed the suggestion as if it were runText ──────────────────
-    const runBlocks = [{ type: 'text' as const, text: suggestion }];
+    const steered = 'action' in repetition && repetition.action === 'steer';
+    if (steered) {
+      opts.renderer.writeWarning(
+        'Todo board unchanged since the last automatic turn — steering the agent to update the board before continuing.',
+      );
+    }
+    const runBlocks = [
+      {
+        type: 'text' as const,
+        text: steered ? `${suggestion}\n\n${GROUNDED_NO_PROGRESS_STEER}` : suggestion,
+      },
+    ];
     const runResult = await opts.agent.run(runBlocks, { signal: ctrl.signal });
     console.log(
       JSON.stringify({

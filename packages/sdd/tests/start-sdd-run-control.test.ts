@@ -1,14 +1,14 @@
-import { describe, expect, it } from 'vitest';
-import * as path from 'node:path';
 import * as os from 'node:os';
-import { startSddRun } from '../src/start-sdd-run.js';
-import { SddBoardStore } from '../src/sdd-board-store.js';
-import { SddRunRegistry } from '../src/sdd-run-registry.js';
-import { TaskTracker } from '../src/task-tracker.js';
-import { EventBus } from '@wrongstack/core/kernel/events.js';
-import type { Agent } from '../../src/core/agent.js';
+import * as path from 'node:path';
 import type { AgentFactory } from '@wrongstack/core/coordination/agent-subagent-runner.js';
+import { EventBus } from '@wrongstack/core/kernel/events.js';
 import type { TaskGraph, TaskStore } from '@wrongstack/core/types/task-graph.js';
+import { describe, expect, it, vi } from 'vitest';
+import type { Agent } from '../../src/core/agent.js';
+import { SddBoardStore } from '../src/sdd-board-store.js';
+import type { SddParallelRun } from '../src/sdd-parallel-run.js';
+import { applySddControlCommand, startSddRun } from '../src/start-sdd-run.js';
+import { TaskTracker } from '../src/task-tracker.js';
 
 function tmp(): string {
   return path.join(os.tmpdir(), `sdd-ctrl-${Date.now()}-${Math.random().toString(36).slice(2)}`);
@@ -31,7 +31,11 @@ function makeFakeStore(): TaskStore {
       return g ? clone(g) : null;
     },
     async listGraphs() {
-      return [...graphs.values()].map((g) => ({ id: g.id, title: g.title, updatedAt: g.updatedAt }));
+      return [...graphs.values()].map((g) => ({
+        id: g.id,
+        title: g.title,
+        updatedAt: g.updatedAt,
+      }));
     },
     async deleteGraph(id) {
       graphs.delete(id);
@@ -39,7 +43,8 @@ function makeFakeStore(): TaskStore {
   };
 }
 
-const fakeLeader = (): Agent => ({ events: new EventBus(), run: async () => ({}) }) as never as Agent;
+const fakeLeader = (): Agent =>
+  ({ events: new EventBus(), run: async () => ({}) }) as never as Agent;
 
 async function makeGraph(nodeCount: number) {
   const tracker = new TaskTracker({ store: makeFakeStore() });
@@ -74,6 +79,76 @@ function gatedFactory(gate: Promise<void>): AgentFactory {
 }
 
 describe('startSddRun — control-drain branches', () => {
+  it('applies every control command and safely ignores incomplete commands', async () => {
+    const run = {
+      pause: vi.fn(),
+      resume: vi.fn(),
+      stop: vi.fn(),
+      retryTask: vi.fn(),
+      retryAllFailed: vi.fn(),
+      reassignTask: vi.fn(),
+      setTaskModel: vi.fn(),
+      setTaskFallbacks: vi.fn(),
+      setTaskVerification: vi.fn(),
+      cancelTask: vi.fn().mockRejectedValue(new Error('cancel failed')),
+      deleteTask: vi.fn(),
+      splitTask: vi.fn(),
+      cleanupWorktrees: vi.fn().mockRejectedValue(new Error('cleanup failed')),
+      rollback: vi.fn().mockRejectedValue(new Error('rollback failed')),
+    } as unknown as SddParallelRun;
+
+    applySddControlCommand(run, { type: 'pause' });
+    applySddControlCommand(run, { type: 'resume' });
+    applySddControlCommand(run, { type: 'stop' });
+    applySddControlCommand(run, { type: 'retry' });
+    applySddControlCommand(run, { type: 'retry', payload: { taskId: 't1' } });
+    applySddControlCommand(run, { type: 'retry_all_failed' });
+    applySddControlCommand(run, { type: 'reassign' });
+    applySddControlCommand(run, { type: 'reassign', payload: { taskId: 't1' } });
+    applySddControlCommand(run, {
+      type: 'reassign',
+      payload: { taskId: 't2', agentName: 'agent-2' },
+    });
+    applySddControlCommand(run, { type: 'set_task_model' });
+    applySddControlCommand(run, {
+      type: 'set_task_model',
+      payload: { taskId: 't1', model: 'model', provider: 'provider' },
+    });
+    applySddControlCommand(run, { type: 'set_task_fallbacks' });
+    applySddControlCommand(run, {
+      type: 'set_task_fallbacks',
+      payload: { taskId: 't1', fallbackModels: ['fallback'] },
+    });
+    applySddControlCommand(run, { type: 'set_task_verification' });
+    applySddControlCommand(run, {
+      type: 'set_task_verification',
+      payload: { taskId: 't1', verificationCommand: 'pnpm test' },
+    });
+    applySddControlCommand(run, { type: 'cancel_task' });
+    applySddControlCommand(run, { type: 'cancel_task', payload: { taskId: 't1' } });
+    applySddControlCommand(run, { type: 'delete_task' });
+    applySddControlCommand(run, { type: 'delete_task', payload: { taskId: 't1' } });
+    applySddControlCommand(run, { type: 'split_task' });
+    applySddControlCommand(run, { type: 'split_task', payload: { taskId: 't1' } });
+    applySddControlCommand(run, {
+      type: 'split_task',
+      payload: { taskId: 't1', subtasks: [] },
+    });
+    applySddControlCommand(run, {
+      type: 'split_task',
+      payload: { taskId: 't1', subtasks: [{ title: 'child', description: 'work' }] },
+    });
+    applySddControlCommand(run, { type: 'cleanup_worktrees' });
+    applySddControlCommand(run, { type: 'rollback' });
+    applySddControlCommand(run, { type: 'unknown' });
+    await Promise.resolve();
+
+    expect(run.pause).toHaveBeenCalledOnce();
+    expect(run.reassignTask).toHaveBeenCalledWith('t1', '');
+    expect(run.reassignTask).toHaveBeenCalledWith('t2', 'agent-2');
+    expect(run.splitTask).toHaveBeenCalledOnce();
+  });
+
   it('drains pause/resume control commands', async () => {
     const { tracker, graph } = await makeGraph(2);
     const events = new EventBus();
@@ -98,7 +173,9 @@ describe('startSddRun — control-drain branches', () => {
 
     // Wait for t1 to be running
     const t1 = tracker.getAllNodes().sort((a, b) => a.createdAt - b.createdAt)[0]!;
-    await expect.poll(() => tracker.getNode(t1.id)?.status === 'in_progress', { timeout: 3000 }).toBe(true);
+    await expect
+      .poll(() => tracker.getNode(t1.id)?.status === 'in_progress', { timeout: 3000 })
+      .toBe(true);
 
     // Inject pause then resume
     await boardStore.appendControl(handle.runId, { ts: 1, type: 'pause' });
@@ -133,7 +210,9 @@ describe('startSddRun — control-drain branches', () => {
     });
 
     const t1 = tracker.getAllNodes().sort((a, b) => a.createdAt - b.createdAt)[0]!;
-    await expect.poll(() => tracker.getNode(t1.id)?.status === 'in_progress', { timeout: 3000 }).toBe(true);
+    await expect
+      .poll(() => tracker.getNode(t1.id)?.status === 'in_progress', { timeout: 3000 })
+      .toBe(true);
 
     await boardStore.appendControl(handle.runId, { ts: 1, type: 'stop' });
 
@@ -170,14 +249,18 @@ describe('startSddRun — control-drain branches', () => {
       .sort((a, b) => a.createdAt - b.createdAt)
       .map((n) => n.id) as [string, string];
 
-    await expect.poll(() => tracker.getNode(t1)?.status === 'in_progress', { timeout: 3000 }).toBe(true);
+    await expect
+      .poll(() => tracker.getNode(t1)?.status === 'in_progress', { timeout: 3000 })
+      .toBe(true);
 
     // Mark t2 as failed, then retry it via control channel
     tracker.updateNodeStatus(t2, 'failed', 'test failure');
     await boardStore.appendControl(handle.runId, { ts: 1, type: 'retry', payload: { taskId: t2 } });
 
     // The drain calls run.retryTask(t2) → t2 returns to pending
-    await expect.poll(() => tracker.getNode(t2)?.status === 'pending', { timeout: 3000 }).toBe(true);
+    await expect
+      .poll(() => tracker.getNode(t2)?.status === 'pending', { timeout: 3000 })
+      .toBe(true);
 
     release();
     const result = await handle.completion;
@@ -212,7 +295,9 @@ describe('startSddRun — control-drain branches', () => {
       .sort((a, b) => a.createdAt - b.createdAt)
       .map((n) => n.id) as [string, string];
 
-    await expect.poll(() => tracker.getNode(t1)?.status === 'in_progress', { timeout: 3000 }).toBe(true);
+    await expect
+      .poll(() => tracker.getNode(t1)?.status === 'in_progress', { timeout: 3000 })
+      .toBe(true);
 
     // Reassign t2 to a different agent (sets assignee field, not assignedAgent)
     await boardStore.appendControl(handle.runId, {
@@ -222,7 +307,9 @@ describe('startSddRun — control-drain branches', () => {
     });
 
     // reassign sets the node's assignee field
-    await expect.poll(() => tracker.getNode(t2)?.assignee === 'bug-hunter', { timeout: 3000 }).toBe(true);
+    await expect
+      .poll(() => tracker.getNode(t2)?.assignee === 'bug-hunter', { timeout: 3000 })
+      .toBe(true);
 
     release();
     await handle.completion;
@@ -255,7 +342,9 @@ describe('startSddRun — control-drain branches', () => {
       .sort((a, b) => a.createdAt - b.createdAt)
       .map((n) => n.id) as [string, string];
 
-    await expect.poll(() => tracker.getNode(t1)?.status === 'in_progress', { timeout: 3000 }).toBe(true);
+    await expect
+      .poll(() => tracker.getNode(t1)?.status === 'in_progress', { timeout: 3000 })
+      .toBe(true);
 
     const fallbacks = ['anthropic/claude-haiku', 'openai/gpt-4o-mini'];
     await boardStore.appendControl(handle.runId, {
@@ -264,10 +353,9 @@ describe('startSddRun — control-drain branches', () => {
       payload: { taskId: t2, fallbackModels: fallbacks },
     });
 
-    await expect.poll(
-      () => tracker.getNode(t2)?.metadata?.fallbackModels,
-      { timeout: 3000 },
-    ).toEqual(fallbacks);
+    await expect
+      .poll(() => tracker.getNode(t2)?.metadata?.fallbackModels, { timeout: 3000 })
+      .toEqual(fallbacks);
 
     release();
     await handle.completion;
@@ -307,7 +395,9 @@ describe('startSddRun — control-drain branches', () => {
       controlDrainMs: 15,
     });
 
-    await expect.poll(() => tracker.getNode(t1)?.status === 'in_progress', { timeout: 3000 }).toBe(true);
+    await expect
+      .poll(() => tracker.getNode(t1)?.status === 'in_progress', { timeout: 3000 })
+      .toBe(true);
 
     // Split t2 into two subtasks — t2 is guaranteed pending (blocked by t1)
     await boardStore.appendControl(handle.runId, {
@@ -323,7 +413,9 @@ describe('startSddRun — control-drain branches', () => {
     });
 
     // splitTask marks the parent as completed and adds children as pending leaves
-    await expect.poll(() => tracker.getNode(t2)?.status === 'completed', { timeout: 3000 }).toBe(true);
+    await expect
+      .poll(() => tracker.getNode(t2)?.status === 'completed', { timeout: 3000 })
+      .toBe(true);
 
     release();
     await handle.completion;
@@ -352,7 +444,9 @@ describe('startSddRun — control-drain branches', () => {
     });
 
     const t1 = tracker.getAllNodes()[0]!;
-    await expect.poll(() => tracker.getNode(t1.id)?.status === 'in_progress', { timeout: 3000 }).toBe(true);
+    await expect
+      .poll(() => tracker.getNode(t1.id)?.status === 'in_progress', { timeout: 3000 })
+      .toBe(true);
 
     // cleanup_worktrees is a no-op when no worktree manager is configured
     await boardStore.appendControl(handle.runId, { ts: 1, type: 'cleanup_worktrees' });
@@ -385,7 +479,9 @@ describe('startSddRun — control-drain branches', () => {
     });
 
     const t1 = tracker.getAllNodes()[0]!;
-    await expect.poll(() => tracker.getNode(t1.id)?.status === 'in_progress', { timeout: 3000 }).toBe(true);
+    await expect
+      .poll(() => tracker.getNode(t1.id)?.status === 'in_progress', { timeout: 3000 })
+      .toBe(true);
 
     // rollback is a no-op when no commits have been made
     await boardStore.appendControl(handle.runId, { ts: 1, type: 'rollback' });

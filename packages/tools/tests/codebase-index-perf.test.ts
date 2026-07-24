@@ -183,6 +183,106 @@ describe('IndexStore performance paths', () => {
     );
   });
 
+  it('getFileGraph and getSymbolGraph stay within soft budgets on dense packages', () => {
+    const pkg = 'core';
+    const files: string[] = [];
+    const entries = [];
+    for (let f = 0; f < 25; f++) {
+      const file = path.join(tmpDir, 'packages', pkg, `mod${f}.ts`);
+      files.push(file);
+      const symbols = Array.from({ length: 40 }, (_, i) =>
+        sym({ name: `fn_${f}_${i}`, file, line: i + 1 }),
+      );
+      entries.push({
+        file,
+        lang: 'ts' as const,
+        symbols,
+        refs: [],
+        mtimeMs: Date.now(),
+        symbolCount: symbols.length,
+      });
+    }
+    store.commitBatch(entries);
+
+    const all = store.search('');
+    const byFile = new Map<string, typeof all>();
+    for (const s of all) {
+      const list = byFile.get(s.file) ?? [];
+      list.push(s);
+      byFile.set(s.file, list);
+    }
+    // Cross-file call mesh: each file's first symbol calls the next file's first.
+    const refBatch: Array<{
+      fromId: number;
+      toName: string;
+      toId: number;
+      callType: 'call';
+      line: number;
+    }> = [];
+    for (let f = 0; f < files.length - 1; f++) {
+      const from = byFile.get(files[f]!)?.[0];
+      const to = byFile.get(files[f + 1]!)?.[0];
+      if (!from || !to) continue;
+      // Duplicate identical call edges to exercise SQL GROUP BY aggregation.
+      for (let d = 0; d < 5; d++) {
+        refBatch.push({
+          fromId: from.id,
+          toName: to.name,
+          toId: to.id,
+          callType: 'call',
+          line: d + 1,
+        });
+      }
+    }
+    // Intra-file fan-out for symbol graph density.
+    const denseFile = files[0]!;
+    const denseSyms = byFile.get(denseFile) ?? [];
+    for (let i = 1; i < Math.min(20, denseSyms.length); i++) {
+      const from = denseSyms[0]!;
+      const to = denseSyms[i]!;
+      for (let d = 0; d < 3; d++) {
+        refBatch.push({
+          fromId: from.id,
+          toName: to.name,
+          toId: to.id,
+          callType: 'call',
+          line: 100 + i * 3 + d,
+        });
+      }
+    }
+    store.insertRefsBatch(refBatch);
+
+    const tFile = process.hrtime.bigint();
+    const fileGraph = store.getFileGraph('@wrongstack/core');
+    const fileMs = elapsedMs(tFile);
+    expect(fileGraph.nodes.length).toBeGreaterThanOrEqual(25);
+    expect(fileGraph.edges.length).toBeGreaterThan(0);
+    // Aggregated edge weight should collapse 5 duplicate refs into weight 5.
+    const bridge = fileGraph.edges.find(
+      (edge) =>
+        edge.source === `file:${files[0]}` && edge.target === `file:${files[1]}`,
+    );
+    expect(bridge?.weight).toBe(5);
+    expect(fileMs).toBeLessThan(1_000);
+    // eslint-disable-next-line no-console
+    console.log(
+      `[codebase-index-perf] getFileGraph nodes=${fileGraph.nodes.length} edges=${fileGraph.edges.length} in ${fileMs.toFixed(1)}ms`,
+    );
+
+    const tSym = process.hrtime.bigint();
+    const symbolGraph = store.getSymbolGraph(denseFile);
+    const symMs = elapsedMs(tSym);
+    expect(symbolGraph.nodes.length).toBeGreaterThan(1);
+    expect(symbolGraph.edges.length).toBeGreaterThan(0);
+    const fan = symbolGraph.edges.find((edge) => edge.source.startsWith('sym:'));
+    expect(fan?.weight).toBeGreaterThanOrEqual(3);
+    expect(symMs).toBeLessThan(1_000);
+    // eslint-disable-next-line no-console
+    console.log(
+      `[codebase-index-perf] getSymbolGraph nodes=${symbolGraph.nodes.length} edges=${symbolGraph.edges.length} in ${symMs.toFixed(1)}ms`,
+    );
+  });
+
   it('replaceEmptyFile clears stale symbols in one transaction', () => {
     const file = path.join(tmpDir, 'empty-later.ts');
     store.insertSymbols([sym({ name: 'WillVanish', file })]);

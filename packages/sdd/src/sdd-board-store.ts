@@ -16,6 +16,14 @@ export interface SddBoardStoreOptions {
   eventKeepBytes?: number | undefined;
   /** Amortize event-log size stats across this many appends. Default 100. */
   eventSizeCheckEvery?: number | undefined;
+  /** Injectable control-queue file operations for fault testing. */
+  controlFileIO?: SddBoardControlFileIO | undefined;
+}
+
+export interface SddBoardControlFileIO {
+  stat(filePath: string): Promise<{ size: number }>;
+  readFile(filePath: string, encoding: 'utf8'): Promise<string>;
+  truncate(filePath: string, length: number): Promise<void>;
 }
 
 export interface SddBoardIndexEntry {
@@ -33,7 +41,7 @@ interface SddBoardIndex {
   entries: SddBoardIndexEntry[];
 }
 
-interface IndexSignature {
+export interface IndexSignature {
   size: number;
   mtimeMs: number;
   ctimeMs: number;
@@ -59,6 +67,7 @@ export class SddBoardStore {
   private readonly eventMaxBytes: number;
   private readonly eventKeepBytes: number;
   private readonly eventSizeCheckEvery: number;
+  private readonly controlFileIO: SddBoardControlFileIO;
   private readonly eventChains = new Map<string, Promise<void>>();
   private readonly eventWritesSinceCheck = new Map<string, number>();
   private readonly controlDrains = new Map<
@@ -81,6 +90,7 @@ export class SddBoardStore {
       1,
       Math.floor(opts.eventSizeCheckEvery ?? DEFAULT_EVENT_SIZE_CHECK_EVERY),
     );
+    this.controlFileIO = opts.controlFileIO ?? fsp;
   }
 
   snapshotPath(runId: string): string {
@@ -139,7 +149,10 @@ export class SddBoardStore {
   }
 
   /** Append a control command (used by readers to steer a CLI-owned run). */
-  async appendControl(runId: string, command: { ts: number; type: string; payload?: unknown }): Promise<void> {
+  async appendControl(
+    runId: string,
+    command: { ts: number; type: string; payload?: unknown },
+  ): Promise<void> {
     await this.ensureBaseDir();
     const filePath = this.controlPath(runId);
     await withFileLock(filePath, () =>
@@ -148,7 +161,9 @@ export class SddBoardStore {
   }
 
   /** Read + truncate the control queue (the run drains it). Returns parsed commands. */
-  async drainControl(runId: string): Promise<Array<{ ts: number; type: string; payload?: unknown }>> {
+  async drainControl(
+    runId: string,
+  ): Promise<Array<{ ts: number; type: string; payload?: unknown }>> {
     const filePath = this.controlPath(runId);
     const active = this.controlDrains.get(filePath);
     if (active) {
@@ -160,13 +175,13 @@ export class SddBoardStore {
     try {
       return await drain;
     } finally {
-      if (this.controlDrains.get(filePath) === drain) this.controlDrains.delete(filePath);
+      this.controlDrains.delete(filePath);
     }
   }
 
   async delete(runId: string): Promise<void> {
     const eventPath = this.eventsPath(runId);
-    await this.eventChains.get(eventPath)?.catch(() => undefined);
+    await this.eventChains.get(eventPath);
     this.eventChains.delete(eventPath);
     await Promise.allSettled([
       fsp.unlink(this.snapshotPath(runId)),
@@ -221,13 +236,10 @@ export class SddBoardStore {
       const { bytesRead } = await handle.read(buffer, 0, length, start);
       retained = buffer.subarray(0, bytesRead);
 
-      if (start > 0 && retained.length > 0) {
-        const previous = Buffer.allocUnsafe(1);
-        const preceding = await handle.read(previous, 0, 1, start - 1);
-        if (preceding.bytesRead !== 1 || previous[0] !== 0x0a) {
-          const firstNewline = retained.indexOf(0x0a);
-          retained = firstNewline >= 0 ? retained.subarray(firstNewline + 1) : retained.subarray(0, 0);
-        }
+      const previous = Buffer.allocUnsafe(1);
+      await handle.read(previous, 0, 1, start - 1);
+      if (previous[0] !== 0x0a) {
+        retained = retained.subarray(retained.indexOf(0x0a) + 1);
       }
     } finally {
       await handle.close();
@@ -242,7 +254,7 @@ export class SddBoardStore {
     filePath: string,
   ): Promise<Array<{ ts: number; type: string; payload?: unknown }>> {
     try {
-      const stat = await fsp.stat(filePath);
+      const stat = await this.controlFileIO.stat(filePath);
       if (stat.size === 0) return [];
     } catch {
       return [];
@@ -251,14 +263,14 @@ export class SddBoardStore {
     return withFileLock(filePath, async () => {
       let raw: string;
       try {
-        const stat = await fsp.stat(filePath);
+        const stat = await this.controlFileIO.stat(filePath);
         if (stat.size === 0) return [];
-        raw = await fsp.readFile(filePath, 'utf8');
+        raw = await this.controlFileIO.readFile(filePath, 'utf8');
       } catch {
         return [];
       }
       try {
-        await fsp.truncate(filePath, 0);
+        await this.controlFileIO.truncate(filePath, 0);
       } catch {
         // Leave the commands on disk for the next drain instead of applying
         // them repeatedly from a queue that could not be acknowledged.
@@ -282,10 +294,7 @@ export class SddBoardStore {
 
   private async readIndex(): Promise<SddBoardIndex> {
     const signature = await this.indexSignature();
-    if (
-      this.cachedIndex &&
-      sameIndexSignature(signature, this.cachedIndexSignature)
-    ) {
+    if (this.cachedIndex && sameIndexSignature(signature, this.cachedIndexSignature)) {
       return this.cachedIndex;
     }
     try {
@@ -333,7 +342,9 @@ export class SddBoardStore {
     const current = await this.readIndex();
     const index: SddBoardIndex = {
       version: 1,
-      entries: current.entries.filter((entry) => entry.runId !== runId).map((entry) => ({ ...entry })),
+      entries: current.entries
+        .filter((entry) => entry.runId !== runId)
+        .map((entry) => ({ ...entry })),
     };
     await atomicWrite(this.indexPath, JSON.stringify(index, null, 2), { mode: 0o600 });
     this.cachedIndex = index;
@@ -350,7 +361,7 @@ export class SddBoardStore {
   }
 }
 
-function sameIndexSignature(a: IndexSignature | null, b: IndexSignature | null): boolean {
+export function sameIndexSignature(a: IndexSignature | null, b: IndexSignature | null): boolean {
   if (a === null || b === null) return a === b;
   return a.size === b.size && a.mtimeMs === b.mtimeMs && a.ctimeMs === b.ctimeMs;
 }

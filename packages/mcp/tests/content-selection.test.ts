@@ -36,6 +36,9 @@ describe('MCP explicit content selection', () => {
       prepareResourceInsertion('docs', 'https://user:pass@example.test/a', { contents: [] }),
     ).toThrow(/must not contain credentials/);
     expect(() =>
+      prepareResourceInsertion('docs', 'https://:pass@example.test/a', { contents: [] }),
+    ).toThrow(/must not contain credentials/);
+    expect(() =>
       prepareResourceInsertion('docs', 'mem://one', {
         contents: [{ uri: 'mem://one', blob: 'not base64' }],
       }),
@@ -102,18 +105,18 @@ describe('MCP explicit content selection', () => {
   });
 
   it('rejects empty and huge URIs', () => {
-    expect(() =>
-      prepareResourceInsertion('docs', '', { contents: [] }),
-    ).toThrow(/must contain 1–8192 characters/);
+    expect(() => prepareResourceInsertion('docs', '', { contents: [] })).toThrow(
+      /must contain 1–8192 characters/,
+    );
     expect(() =>
       prepareResourceInsertion('docs', 'file:' + 'a'.repeat(8193), { contents: [] }),
     ).toThrow(/must contain 1–8192 characters/);
   });
 
   it('rejects non-absolute URIs', () => {
-    expect(() =>
-      prepareResourceInsertion('docs', 'not-a-valid-url', { contents: [] }),
-    ).toThrow(/must be absolute/);
+    expect(() => prepareResourceInsertion('docs', 'not-a-valid-url', { contents: [] })).toThrow(
+      /must be absolute/,
+    );
   });
 
   it('rejects maxBytes that is not a positive safe integer', () => {
@@ -136,27 +139,21 @@ describe('MCP explicit content selection', () => {
   });
 
   it('rejects server names and prompt names outside 1-256 characters', () => {
+    expect(() => prepareResourceInsertion('', 'mem://one', { contents: [] })).toThrow(
+      /must contain 1–256 characters/,
+    );
+    expect(() => prepareResourceInsertion('x'.repeat(257), 'mem://one', { contents: [] })).toThrow(
+      /must contain 1–256 characters/,
+    );
     expect(() =>
-      prepareResourceInsertion('', 'mem://one', { contents: [] }),
-    ).toThrow(/must contain 1–256 characters/);
-    expect(() =>
-      prepareResourceInsertion('x'.repeat(257), 'mem://one', { contents: [] }),
-    ).toThrow(/must contain 1–256 characters/);
-    expect(() =>
-      preparePromptInsertion(
-        '',
-        'prompt',
-        undefined,
-        { messages: [{ role: 'user', content: { type: 'text', text: 'hi' } }] },
-      ),
+      preparePromptInsertion('', 'prompt', undefined, {
+        messages: [{ role: 'user', content: { type: 'text', text: 'hi' } }],
+      }),
     ).toThrow(/server name/);
     expect(() =>
-      preparePromptInsertion(
-        'server',
-        '',
-        undefined,
-        { messages: [{ role: 'user', content: { type: 'text', text: 'hi' } }] },
-      ),
+      preparePromptInsertion('server', '', undefined, {
+        messages: [{ role: 'user', content: { type: 'text', text: 'hi' } }],
+      }),
     ).toThrow(/prompt name/);
   });
 
@@ -165,9 +162,9 @@ describe('MCP explicit content selection', () => {
       uri: 'mem://one',
       text: `block ${i}`,
     }));
-    expect(() =>
-      prepareResourceInsertion('docs', 'mem://one', { contents }),
-    ).toThrow(/exceeds the limit of 64 content blocks/);
+    expect(() => prepareResourceInsertion('docs', 'mem://one', { contents })).toThrow(
+      /exceeds the limit of 64 content blocks/,
+    );
   });
 
   it('rejects prompt insertion with more than 128 messages', () => {
@@ -175,9 +172,9 @@ describe('MCP explicit content selection', () => {
       role: 'user' as const,
       content: { type: 'text', text: `msg ${i}` },
     }));
-    expect(() =>
-      preparePromptInsertion('server', 'big', undefined, { messages }),
-    ).toThrow(/exceeds the limit of 128 messages/);
+    expect(() => preparePromptInsertion('server', 'big', undefined, { messages })).toThrow(
+      /exceeds the limit of 128 messages/,
+    );
   });
 
   it('rejects prompt content with non-serializable values', () => {
@@ -217,6 +214,28 @@ describe('MCP explicit content selection', () => {
         ],
       }),
     ).toThrow(/scheme "javascript" is not allowed/);
+
+    expect(
+      preparePromptInsertion('server', 'arr', undefined, {
+        messages: [
+          {
+            role: 'user',
+            content: [{ uri: 'mem://safe' }, { type: 'text', text: 'ok' }],
+          },
+        ],
+      }).messages[0]?.content,
+    ).toHaveLength(2);
+  });
+
+  it('counts base64 padding variants exactly', () => {
+    const insertion = prepareResourceInsertion('docs', 'mem://one', {
+      contents: [
+        { uri: 'mem://one', blob: 'TQ==' },
+        { uri: 'mem://two', blob: 'TWFu' },
+      ],
+    });
+
+    expect(insertion.byteSize).toBe(4);
   });
 
   it('rejects oversized and deeply nested prompt content', () => {

@@ -33,6 +33,7 @@ import { createRequire } from 'node:module';
 import { tmpdir } from 'node:os';
 import { dirname, isAbsolute, join, relative, resolve, sep } from 'node:path';
 import type { Plugin } from '@wrongstack/core/types';
+import { BoundedMap } from '../runtime/index.js';
 
 const API_VERSION = '^0.1.10';
 
@@ -140,7 +141,7 @@ const LINTER_PACKAGES = {
  *
  * @internal
  */
-const linterCache = new Map<string, ResolvedLinter | null>();
+const linterCache = new BoundedMap<string, ResolvedLinter | null>({ max: 32, ttlMs: 300_000 });
 
 function isInside(parent: string, candidate: string): boolean {
   const rel = relative(parent, candidate);

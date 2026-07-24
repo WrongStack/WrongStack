@@ -165,7 +165,7 @@ export function isMailboxMessageVisibleTo(
  * Semantic category a mail type belongs to — determines its handling
  * priority, delivery guarantees, and interaction with the agent loop.
  */
-export type MailboxTypeCategory =
+type MailboxTypeCategory =
   /** Requires a substantive response from the recipient. */
   | 'actionable'
   /** Consumed for context; no action required. */
@@ -307,32 +307,7 @@ export const MAILBOX_TYPE_PROPERTIES: Record<MailboxMessageType, {
   },
 };
 
-/**
- * The set of types that are escalated in background delivery mode.
- * Defined here for import reuse so every dispatch site agrees.
- */
-export const ACTIONABLE_BACKGROUND_TYPES = new Set<MailboxMessage['type']>([
-  'steer',
-  'ask',
-  'assign',
-  'result',
-  'review',
-]);
-
-/**
- * Return the semantic category for the given type. Every valid
- * `MailboxMessageType` maps to exactly one category.
- */
-export function mailboxTypeCategory(type: MailboxMessageType): MailboxTypeCategory {
-  return MAILBOX_TYPE_PROPERTIES[type].category;
-}
-
-/**
- * Is this type an action item that requires a substantive response?
- */
-export function mailboxTypeExpectsReply(type: MailboxMessageType): boolean {
-  return MAILBOX_TYPE_PROPERTIES[type].expectsReply;
-}
+/** Category + expectsReply are provided by MAILBOX_TYPE_PROPERTIES directly. */
 
 /**
  * Validate that a given (type, to) pair is internally consistent.

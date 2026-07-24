@@ -21,8 +21,18 @@ import type { HqAlert } from '@wrongstack/core/hq';
 let root: Root | null = null;
 let container: HTMLDivElement | null = null;
 
+const SYSTEM_HEALTH = {
+  status: 'healthy',
+  uptime: { serverTime: '2026-07-24T00:00:00.000Z', eventLogSize: 0 },
+  stores: { events: 'ok', timeseries: 'ok', kanban: 'ok' },
+  connections: { total: 0, active: 0, stale: 0 },
+};
+
 beforeEach(() => {
   fetchJsonMock.mockReset();
+  fetchJsonMock.mockImplementation((url: string) =>
+    Promise.resolve(url === '/api/system/health' ? SYSTEM_HEALTH : { active: [], history: [] }),
+  );
   // Reset the store between tests so apiActive hydration starts clean.
   useHqStore.setState({
     snapshot: null,
@@ -55,11 +65,15 @@ function mountCockpit(): Promise<void> {
 }
 
 function respondToAlerts(payload: { active: HqAlert[]; history: HqAlert[] }): void {
-  fetchJsonMock.mockResolvedValueOnce(payload);
+  fetchJsonMock.mockImplementation((url: string) =>
+    Promise.resolve(url === '/api/system/health' ? SYSTEM_HEALTH : payload),
+  );
 }
 
 function rejectAlerts(err: unknown): void {
-  fetchJsonMock.mockRejectedValueOnce(err);
+  fetchJsonMock.mockImplementation((url: string) =>
+    url === '/api/system/health' ? Promise.resolve(SYSTEM_HEALTH) : Promise.reject(err),
+  );
 }
 
 /**

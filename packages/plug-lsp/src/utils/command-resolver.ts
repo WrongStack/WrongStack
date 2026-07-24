@@ -3,6 +3,17 @@ import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 import { buildChildEnv } from '@wrongstack/core/utils';
 
+type ProbeProcess = {
+  kill(): unknown;
+  on(event: 'error', listener: () => void): unknown;
+  on(event: 'close', listener: (code: number | null) => void): unknown;
+};
+type SpawnProbe = (
+  command: string,
+  args: string[],
+  options: { env: NodeJS.ProcessEnv; stdio: 'ignore'; windowsHide: true },
+) => ProbeProcess;
+
 export async function resolveServerCommand(command: string, cwd: string): Promise<string | null> {
   const local = await findLocalBinary(cwd, command);
   if (local) return local;
@@ -25,11 +36,23 @@ export async function findLocalBinary(cwd: string, command: string): Promise<str
 }
 
 export async function commandExistsOnPath(command: string, timeoutMs = 2000): Promise<boolean> {
-  const probe = process.platform === 'win32' ? 'where.exe' : 'sh';
-  const args =
-    process.platform === 'win32' ? [command] : ['-lc', `command -v ${shellQuote(command)}`];
+  return commandProbe(command, timeoutMs, process.platform, spawn as unknown as SpawnProbe);
+}
+
+function commandProbe(
+  command: string,
+  timeoutMs: number,
+  platform: NodeJS.Platform,
+  spawnProbe: SpawnProbe,
+): Promise<boolean> {
+  const probe = platform === 'win32' ? 'where.exe' : 'sh';
+  const args = platform === 'win32' ? [command] : ['-lc', `command -v ${shellQuote(command)}`];
   return new Promise((resolve) => {
-    const child = spawn(probe, args, { env: buildChildEnv(), stdio: 'ignore', windowsHide: true });
+    const child = spawnProbe(probe, args, {
+      env: buildChildEnv(),
+      stdio: 'ignore',
+      windowsHide: true,
+    });
     const timer = setTimeout(() => {
       child.kill();
       resolve(false);
@@ -46,9 +69,11 @@ export async function commandExistsOnPath(command: string, timeoutMs = 2000): Pr
   });
 }
 
-function commandCandidates(command: string): string[] {
-  /* v8 ignore next -- platform-specific branch; covered on non-Windows CI. */
-  if (process.platform !== 'win32') return [command];
+function commandCandidates(
+  command: string,
+  platform: NodeJS.Platform = process.platform,
+): string[] {
+  if (platform !== 'win32') return [command];
   const ext = path.extname(command).toLowerCase();
   if (ext) return [command];
   return [`${command}.cmd`, `${command}.exe`, `${command}.bat`, command, `${command}.ps1`];
@@ -64,6 +89,13 @@ async function fileExists(filePath: string): Promise<boolean> {
 }
 
 function shellQuote(value: string): string {
-  /* v8 ignore next -- only used by POSIX command probing. */
   return `'${value.replace(/'/g, "'\\''")}'`;
 }
+
+/** Direct-module test seam; not re-exported by the package barrel. */
+export const commandResolverCoverage = {
+  commandCandidates,
+  commandProbe,
+  fileExists,
+  shellQuote,
+};

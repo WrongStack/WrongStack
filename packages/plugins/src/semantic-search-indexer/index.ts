@@ -35,8 +35,12 @@ import type { Dirent, Stats } from 'node:fs';
 import * as fs from 'node:fs/promises';
 import { isAbsolute, relative, resolve } from 'node:path';
 import type { Plugin } from '@wrongstack/core/types';
+import { DEFAULT_WALK_IGNORE_DIRS } from '@wrongstack/core/utils';
 
 const API_VERSION = '^0.1.10';
+
+/** Regex-escape a literal directory name for use in `excludePatterns`. */
+const escapeRegex = (value: string): string => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
 // ---------------------------------------------------------------------------
 // Module-scope state (H1 audit pattern)
@@ -128,7 +132,11 @@ const DEFAULTS: SemanticSearchConfig = {
     '.scss',
     '.html',
   ],
-  excludePatterns: ['node_modules', '\\.git', '\\.wrongstack', '\\.temp_files', 'coverage', 'dist'],
+  excludePatterns: [
+    ...DEFAULT_WALK_IGNORE_DIRS.map(escapeRegex),
+    '\\.wrongstack',
+    '\\.temp_files',
+  ],
   maxFileBytes: 1_000_000,
   defaultLimit: 10,
   minTokenLength: 2,

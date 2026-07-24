@@ -249,22 +249,43 @@ function detectSmells(filePath: string, content: string, rules: RefactorRules): 
 async function scanPath(
   rawPath: string,
   cfg: RefactorSuggesterConfig,
-): Promise<{ suggestions: RefactorSuggestion[]; scannedFiles: number }> {
+): Promise<{
+  suggestions: RefactorSuggestion[];
+  scannedFiles: number;
+  /** Files discovered by the walk, whether or not they were opened. */
+  discoveredFiles: number;
+  /** True when `maxSuggestions` stopped the walk before every file was read. */
+  truncated: boolean;
+}> {
   const root = process.cwd();
   const resolved = isAbsolute(rawPath) ? resolve(rawPath) : resolve(root, rawPath);
   const exts = normalizeExtensions(cfg.extensions);
   const files = await collectSourceFilesAsync(resolved, { extensions: exts });
   const suggestions: RefactorSuggestion[] = [];
+  // Count what was actually opened. Reporting the discovered total as
+  // `scannedFiles` claimed credit for files the walk never reached once
+  // the suggestions cap cut it short.
+  let scannedFiles = 0;
+  let truncated = false;
   for (const p of files) {
     try {
       const content = await readFile(p, 'utf-8');
+      scannedFiles += 1;
       suggestions.push(...detectSmells(p, content, cfg.rules));
-      if (suggestions.length >= cfg.maxSuggestions) break;
+      if (suggestions.length >= cfg.maxSuggestions) {
+        truncated = scannedFiles < files.length;
+        break;
+      }
     } catch {
       // skip unreadable
     }
   }
-  return { suggestions: suggestions.slice(0, cfg.maxSuggestions), scannedFiles: files.length };
+  return {
+    suggestions: suggestions.slice(0, cfg.maxSuggestions),
+    scannedFiles,
+    discoveredFiles: files.length,
+    truncated,
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -407,7 +428,7 @@ const plugin: Plugin = {
         }
 
         state.scanCount += 1;
-        let result: { suggestions: RefactorSuggestion[]; scannedFiles: number };
+        let result: Awaited<ReturnType<typeof scanPath>>;
         try {
           result = await scanPath(rawPath, cfg);
         } catch (err) {
@@ -420,6 +441,10 @@ const plugin: Plugin = {
           ok: true,
           path: relativePath(resolve(process.cwd(), rawPath)),
           scannedFiles: result.scannedFiles,
+          discoveredFiles: result.discoveredFiles,
+          // Say so when the cap stopped the walk early: a partial scan
+          // that reports few findings must not read as a clean result.
+          truncated: result.truncated,
           suggestions: result.suggestions,
           rules: cfg.rules,
         };

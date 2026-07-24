@@ -433,6 +433,14 @@ export interface KanbanTask {
    * Once populated, it is the single source of truth for this task's verification.
    */
   verificationReport?: KanbanVerificationReport | undefined;
+  /**
+   * Latest deterministic atomicity assessment. Advisory metadata: it never
+   * changes the `atomic` flag's meaning and is only enforced when the board's
+   * atomicity policy mode is 'enforce'.
+   */
+  atomicityAssessment?: KanbanAtomicityAssessment | undefined;
+  /** Latest decomposition proposal lifecycle for this task. */
+  decomposition?: KanbanDecompositionProposal | undefined;
 }
 
 /** Expected file operation for a task's verification scope. */
@@ -522,6 +530,85 @@ export interface KanbanVerificationAttachment {
   path?: string | undefined;
 }
 
+/**
+ * Verdict produced by the deterministic atomicity rule set.
+ *   - 'atomic': small enough to work directly; no decomposition needed.
+ *   - 'borderline': between thresholds; treated as atomic unless enforced.
+ *   - 'needs_decomposition': too large/vague; should be split before dispatch.
+ *   - 'composite': already has children; verified via subtask aggregation,
+ *     never worked directly.
+ */
+export type AtomicityVerdict = 'atomic' | 'borderline' | 'needs_decomposition' | 'composite';
+
+/** Per-criterion outcome inside an atomicity assessment. Score 1 = fully atomic on this axis. */
+export interface KanbanAtomicityCriterionResult {
+  id: string;
+  score: number;
+  weight: number;
+  reason: string;
+}
+
+/**
+ * Result of scoring a task against the atomicity rule set.
+ * Stamped by addTask/splitTask (board policy mode !== 'off') and by the
+ * assess_atomicity tool action; purely advisory unless board mode is 'enforce'.
+ */
+export interface KanbanAtomicityAssessment {
+  verdict: AtomicityVerdict;
+  /** Weighted aggregate in [0, 1]; 1 = clearly atomic. */
+  score: number;
+  criteria: KanbanAtomicityCriterionResult[];
+  assessedAt: string;
+  assessedBy: 'rules' | 'agent' | 'human';
+  /** Hash of the rule-set config so stale assessments are detectable after config changes. */
+  configHash?: string | undefined;
+}
+
+/** Thresholds and weights for the deterministic atomicity rule set. */
+export interface AtomicityRuleSetConfig {
+  /** A task estimated above this is penalized on the effort axis. Default 4. */
+  maxEstimatedHours?: number | undefined;
+  /** Expected file changes above this count are penalized. Default 5. */
+  maxExpectedFileChanges?: number | undefined;
+  /** Dependency fan-in above this count is penalized. Default 3. */
+  maxDependencies?: number | undefined;
+  /** Conjunction/enumeration markers in title+description above this are penalized. Default 2. */
+  maxScopeMarkers?: number | undefined;
+  /** Aggregate score at or above this is 'atomic'. Default 0.7. */
+  atomicThreshold?: number | undefined;
+  /** Aggregate score below this is 'needs_decomposition'. Default 0.45. */
+  decomposeThreshold?: number | undefined;
+  /** Per-criterion weight overrides; unknown ids are ignored. */
+  weights?: Partial<Record<string, number>> | undefined;
+}
+
+/**
+ * Completion-gate enforcement for a board.
+ *   - 'strict': completion is blocked unless verification passes (managed default).
+ *   - 'soft': verification runs and its report/warning events persist, but
+ *     completion is never blocked (legacy default).
+ *   - 'off': the gate is skipped entirely (mirror boards whose source system
+ *     already verified, e.g. SDD runs).
+ */
+export type KanbanCompletionGateEnforcement = 'strict' | 'soft' | 'off';
+
+export interface KanbanCompletionGatePolicy {
+  enforcement: KanbanCompletionGateEnforcement;
+}
+
+/** Board-level atomicity policy: whether/how tasks are assessed and decomposed. */
+export interface KanbanBoardAtomicityPolicy {
+  /**
+   * 'off' = never assess; 'assess' (default) = annotate only;
+   * 'enforce' = additionally, childless needs_decomposition leaves are not
+   * ready for claim/dispatch until split.
+   */
+  mode: 'off' | 'assess' | 'enforce';
+  /** 'auto' = apply proposed splits immediately; 'propose' = park for approval. */
+  decomposition: 'auto' | 'propose';
+  config?: AtomicityRuleSetConfig | undefined;
+}
+
 export interface KanbanColumn {
   id: string;
   title: string;
@@ -563,6 +650,10 @@ export interface KanbanBoard {
   lifecycle?: KanbanBoardLifecyclePolicy | undefined;
   /** Project-resource ceiling applied to every task agent on this board. */
   boundary?: KanbanBoundaryPolicy | undefined;
+  /** Atomicity assessment/decomposition policy for tasks on this board. */
+  atomicity?: KanbanBoardAtomicityPolicy | undefined;
+  /** Completion-gate policy; defaults resolved by resolveGateEnforcement(). */
+  completionGate?: KanbanCompletionGatePolicy | undefined;
   /** Sessions and agents that recently read or mutated this board. */
   presence?: KanbanBoardPresence[] | undefined;
   version: number;
@@ -616,6 +707,8 @@ export interface CreateKanbanBoardInput {
   supervisor?: KanbanSupervisorConfig | undefined;
   lifecycle?: KanbanBoardLifecyclePolicy | undefined;
   boundary?: KanbanBoundaryPolicy | undefined;
+  atomicity?: KanbanBoardAtomicityPolicy | undefined;
+  completionGate?: KanbanCompletionGatePolicy | undefined;
 }
 
 export interface UpdateKanbanBoardInput {
@@ -627,6 +720,8 @@ export interface UpdateKanbanBoardInput {
   supervisor?: KanbanSupervisorConfig | null | undefined;
   lifecycle?: KanbanBoardLifecyclePolicy | null | undefined;
   boundary?: KanbanBoundaryPolicy | null | undefined;
+  atomicity?: KanbanBoardAtomicityPolicy | null | undefined;
+  completionGate?: KanbanCompletionGatePolicy | null | undefined;
 }
 
 export interface DuplicateKanbanBoardInput {
@@ -691,6 +786,8 @@ export interface CreateKanbanTaskInput {
   atomic?: boolean | undefined;
   expectedFileChanges?: KanbanExpectedFileChange[] | undefined;
   verificationReport?: KanbanVerificationReport | undefined;
+  atomicityAssessment?: KanbanAtomicityAssessment | undefined;
+  decomposition?: KanbanDecompositionProposal | undefined;
 }
 
 export interface UpdateKanbanTaskInput {
@@ -725,6 +822,8 @@ export interface UpdateKanbanTaskInput {
   atomic?: boolean | null | undefined;
   expectedFileChanges?: KanbanExpectedFileChange[] | null | undefined;
   verificationReport?: KanbanVerificationReport | null | undefined;
+  atomicityAssessment?: KanbanAtomicityAssessment | null | undefined;
+  decomposition?: KanbanDecompositionProposal | null | undefined;
 }
 
 export interface KanbanTaskTransitionInput {
@@ -799,6 +898,51 @@ export interface SplitKanbanTaskInput {
   rewireDependents?: boolean | undefined;
   /** When true, set `parent.atomic = true` atomically inside the split mutation. */
   atomic?: boolean | undefined;
+  /**
+   * Optional per-child detail aligned with `titles` by index. Entries may be
+   * sparse; each present entry overrides the inherited description and/or adds
+   * child-specific success criteria and expected file changes.
+   */
+  childSpecs?:
+    | Array<
+        | {
+            description?: string | undefined;
+            successCriteria?: KanbanCheck[] | undefined;
+            expectedFileChanges?: KanbanExpectedFileChange[] | undefined;
+          }
+        | undefined
+      >
+    | undefined;
+}
+
+/** One proposed subtask inside a decomposition proposal. */
+export interface KanbanDecompositionSubtask {
+  title: string;
+  description?: string | undefined;
+  /** Free-text success criteria; mapped to KanbanCheck[] on apply. */
+  successCriteria?: string[] | undefined;
+  expectedFileChanges?: KanbanExpectedFileChange[] | undefined;
+  /** Intra-proposal DAG edges: indexes of proposal subtasks this one depends on. */
+  dependsOnIndex?: number[] | undefined;
+}
+
+/**
+ * Latest decomposition proposal for a task, persisted ON the task so every
+ * `{board}` broadcast carries the full approval state for the WebUI.
+ */
+export interface KanbanDecompositionProposal {
+  id: string;
+  taskId: string;
+  status: 'proposed' | 'approved' | 'rejected' | 'applied';
+  mode: 'auto' | 'approval';
+  proposedSubtasks: KanbanDecompositionSubtask[];
+  rationale?: string | undefined;
+  proposedAt: string;
+  proposedBy?: string | undefined;
+  resolvedAt?: string | undefined;
+  resolvedBy?: string | undefined;
+  resolutionReason?: string | undefined;
+  appliedChildTaskIds?: string[] | undefined;
 }
 
 export interface MergeKanbanTasksInput {

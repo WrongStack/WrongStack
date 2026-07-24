@@ -342,6 +342,67 @@ describe('CLI Kanban HQ synchronization', () => {
     expect((await readBoard(root, local.id))?.title).toBe('Remote');
     sync.stop();
   });
+
+  it('coalesces remote snapshots that arrive while an apply is pending', async () => {
+    const root = await tempProject();
+    const sync = createKanbanHqSync(root, 'coalesce-project');
+    const board = createBoardObject({ title: 'Seed' });
+
+    const payload = (revision: number, title: string): HqKanbanSnapshotPayload => ({
+      projectId: 'coalesce-project',
+      generatedAt: `2026-07-22T12:0${revision}:00Z`,
+      boards: [
+        {
+          boardId: board.id,
+          revision,
+          updatedAt: `2026-07-22T12:0${revision}:00Z`,
+          board: { ...board, revision, title, updatedAt: `2026-07-22T12:0${revision}:00Z` },
+        },
+      ],
+      tombstones: [],
+    });
+
+    // Fire both before either apply pass runs: the second snapshot must fold
+    // into the pending batch (highest revision wins) instead of chaining a
+    // second apply — the unbounded chain is what used to retain every
+    // full-project payload in memory during broadcast bursts.
+    atomicWriteFs.rename.mockClear();
+    const first = sync.handleRemote(payload(2, 'Stale'));
+    const second = sync.handleRemote(payload(4, 'Remote'));
+    await Promise.all([first, second]);
+
+    expect((await readBoard(root, board.id))?.title).toBe('Remote');
+    // Exactly one write of the board file: the rev-2 record was superseded
+    // before the (single) apply pass ran, so it never touched disk.
+    const boardWrites = atomicWriteFs.rename.mock.calls.filter(([, target]) =>
+      String(target).includes(board.id),
+    );
+    expect(boardWrites).toHaveLength(1);
+    sync.stop();
+  });
+
+  it('ignores remote snapshots for other projects', async () => {
+    const root = await tempProject();
+    const sync = createKanbanHqSync(root, 'this-project');
+    const board = createBoardObject({ title: 'Foreign' });
+
+    await sync.handleRemote({
+      projectId: 'other-project',
+      generatedAt: '2026-07-22T12:00:00Z',
+      boards: [
+        {
+          boardId: board.id,
+          revision: 1,
+          updatedAt: '2026-07-22T12:00:00Z',
+          board: { ...board, revision: 1 },
+        },
+      ],
+      tombstones: [],
+    });
+
+    expect(await readBoard(root, board.id)).toBeNull();
+    sync.stop();
+  });
 });
 
 function projectId(root: string): string {

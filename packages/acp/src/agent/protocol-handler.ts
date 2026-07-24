@@ -142,7 +142,7 @@ export class ACPProtocolHandler {
     this.seedFor = opts.seedFor;
     this.disposeFor = opts.disposeFor;
     this.maxSessions =
-      Number.isFinite(opts.maxSessions) && (opts.maxSessions ?? 0) > 0
+      Number.isFinite(opts.maxSessions) && (opts.maxSessions as number) > 0
         ? Math.floor(opts.maxSessions as number)
         : DEFAULT_MAX_SESSIONS;
     this.store = opts.store;
@@ -489,7 +489,7 @@ export class ACPProtocolHandler {
       existing.updatedAt = new Date().toISOString();
       // Replay the recorded conversation history (user/agent message
       // chunks) so the reconnecting client sees the prior turns.
-      const replay = sessionId ? this.replayFor?.(sessionId) : undefined;
+      const replay = this.replayFor?.(sessionId!);
       if (replay) {
         for (const update of replay) {
           await this.sendNotification({ sessionId, update });
@@ -563,10 +563,8 @@ export class ACPProtocolHandler {
 
     // Abort any in-flight turn and remove the session.
     session.abort.abort();
-    if (sessionId) {
-      this.sessions.delete(sessionId);
-      this.disposeSession(sessionId);
-    }
+    this.sessions.delete(sessionId!);
+    this.disposeSession(sessionId!);
 
     await this.transport.send(toWire({
       jsonrpc: '2.0',
@@ -929,3 +927,6 @@ function errorToJsonRpc(err: unknown): { code: number; message: string; data?: u
   const message = err instanceof Error ? err.message : String(err);
   return { code: -32603, message };
 }
+
+/** Internal deterministic seam used by the per-file coverage suite. */
+export const protocolHandlerCoverage = { errorToJsonRpc };

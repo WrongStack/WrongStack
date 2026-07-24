@@ -477,7 +477,15 @@ export function createBrainRuntime(opts: BrainRuntimeOptions): BrainRuntime {
       getMaxAutoRisk: () => cfg.maxAutoRisk ?? 'medium',
       council: tiers.council,
       getCouncilMinRisk: tiers.getCouncilMinRisk,
-      getDenyIsTerminal: () => cfg.llm?.denyIsTerminal ?? 'never',
+      // Product default 'when-decided', not the bare-API 'never': the tier
+      // distinguishes a model that CONSIDERED the question and refused from a
+      // pool that was never reached (`readLlmDenyKind`), and with 'never' that
+      // distinction is unreachable — every refusal is discarded, so the LLM
+      // tier can express agreement but never disagreement. Infrastructure
+      // failures (unavailable / unparseable) still fall through untouched.
+      // Same split as `maxAutoRisk`: the raw arbiter stays conservative for
+      // callers that wire it directly; the product default lives here.
+      getDenyIsTerminal: () => cfg.llm?.denyIsTerminal ?? 'when-decided',
       events: opts.events,
     });
 
@@ -857,7 +865,7 @@ export function createBrainRuntime(opts: BrainRuntimeOptions): BrainRuntime {
         maxTokens: cfg.llm?.maxTokens ?? DEFAULT_BRAIN_MAX_TOKENS,
         rejectUncertain: cfg.llm?.rejectUncertain ?? true,
         minConfidence: cfg.llm?.minConfidence ?? 0,
-        denyIsTerminal: cfg.llm?.denyIsTerminal ?? 'never',
+        denyIsTerminal: cfg.llm?.denyIsTerminal ?? 'when-decided',
       },
       trace: {
         enabled: cfg.trace?.enabled === true,

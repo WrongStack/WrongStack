@@ -37,10 +37,10 @@ describe('tool Kanban boundary integration', () => {
       currentKanbanTaskId: task.id,
       meta: {},
     } as unknown as Context;
-    const writeTool = { name: 'write', capabilities: ['fs.write'] } as Tool;
-    const bashTool = { name: 'bash', capabilities: ['shell.arbitrary'] } as Tool;
-    const planTool = { name: 'plan', capabilities: ['fs.write'] } as Tool;
-    const designTool = { name: 'design', capabilities: ['fs.write'] } as Tool;
+    const writeTool = { name: 'write', capabilities: ['fs.write'] } as unknown as Tool;
+    const bashTool = { name: 'bash', capabilities: ['shell.arbitrary'] } as unknown as Tool;
+    const planTool = { name: 'plan', capabilities: ['fs.write'] } as unknown as Tool;
+    const designTool = { name: 'design', capabilities: ['fs.write'] } as unknown as Tool;
 
     await expect(
       evaluateToolKanbanBoundary(writeTool, { path: 'packages/webui/src/new.ts' }, ctx),
@@ -87,7 +87,7 @@ describe('tool Kanban boundary integration', () => {
       workingDir: worktreeRoot,
       meta: { kanban: { boardId: board.id, taskId: task.id, projectRoot: policyRoot } },
     } as unknown as Context;
-    const writeTool = { name: 'write', capabilities: ['fs.write'] } as Tool;
+    const writeTool = { name: 'write', capabilities: ['fs.write'] } as unknown as Tool;
 
     await expect(
       evaluateToolKanbanBoundary(writeTool, { path: 'packages/core/src/index.ts' }, ctx),
@@ -124,7 +124,7 @@ describe('tool Kanban boundary integration', () => {
 
     await expect(
       evaluateToolKanbanBoundary(
-        { name: 'write', capabilities: ['fs.write'] } as Tool,
+        { name: 'write', capabilities: ['fs.write'] } as unknown as Tool,
         { path: 'packages/webui/escape/index.ts' },
         ctx,
       ),
@@ -156,7 +156,7 @@ describe('tool Kanban boundary integration', () => {
         required: ['path', 'content'],
       },
       execute,
-    } as Tool;
+    } as unknown as Tool;
     const executor = new ToolExecutor(
       { get: (name) => (name === tool.name ? tool : undefined), list: () => [tool] },
       {
@@ -229,7 +229,7 @@ describe('tool Kanban boundary integration', () => {
         required: ['command'],
       },
       execute,
-    } as Tool;
+    } as unknown as Tool;
     const events = new EventBus();
     const decisions: EventMap['permission.evaluated'][] = [];
     events.on('permission.evaluated', (event) => decisions.push(event));
@@ -314,7 +314,7 @@ describe('tool Kanban boundary integration', () => {
           },
         },
       } as unknown as Context;
-      const writeTool = { name: 'write', capabilities: ['fs.write'] } as Tool;
+      const writeTool = { name: 'write', capabilities: ['fs.write'] } as unknown as Tool;
 
       const result = await evaluateToolKanbanBoundary(
         writeTool,
@@ -356,7 +356,7 @@ describe('tool Kanban boundary integration', () => {
           },
         },
       } as unknown as Context;
-      const writeTool = { name: 'write', capabilities: ['fs.write'] } as Tool;
+      const writeTool = { name: 'write', capabilities: ['fs.write'] } as unknown as Tool;
 
       const result = await evaluateToolKanbanBoundary(
         writeTool,
@@ -394,7 +394,7 @@ describe('tool Kanban boundary integration', () => {
           },
         },
       } as unknown as Context;
-      const kanbanTool = { name: 'kanban', capabilities: ['fs.write'] } as Tool;
+      const kanbanTool = { name: 'kanban', capabilities: ['fs.write'] } as unknown as Tool;
 
       const result = await evaluateToolKanbanBoundary(
         kanbanTool,
@@ -428,7 +428,7 @@ describe('tool Kanban boundary integration', () => {
         currentKanbanTaskId: task.id,
         meta: {},
       } as unknown as Context;
-      const writeTool = { name: 'write', capabilities: ['fs.write'] } as Tool;
+      const writeTool = { name: 'write', capabilities: ['fs.write'] } as unknown as Tool;
 
       const result = await evaluateToolKanbanBoundary(
         writeTool,

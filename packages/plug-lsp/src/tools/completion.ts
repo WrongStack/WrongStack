@@ -6,11 +6,11 @@ import { supportsCompletion } from '../server/capabilities.js';
 import { LSPError, LSPErrorCode } from '../types.js';
 import { pathToUri } from '../utils/uri.js';
 import {
-  type ToolDeps,
   readDocumentContent,
   requireServer,
   resolveInputPath,
   stringifyToolError,
+  type ToolDeps,
 } from './shared.js';
 
 interface CompletionInput {
@@ -56,9 +56,10 @@ export function createCompletionTool(deps: ToolDeps): Tool<CompletionInput, stri
             `Server "${server.name}" does not support completion`,
           );
         }
-        const content = typeof input.content === 'string'
-          ? input.content
-          : await readDocumentContent(file, deps.tracker);
+        const content =
+          typeof input.content === 'string'
+            ? input.content
+            : await readDocumentContent(file, deps.tracker);
         await deps.tracker.open(file, content);
         const position = humanToLSP(content, { line: input.line, character: input.character });
         const result = await server.completion(
@@ -162,3 +163,15 @@ function completionKindName(kind: number): string {
   };
   return names[kind] ?? `Kind ${kind}`;
 }
+
+/**
+ * Package-private coverage seam for the pure completion formatting helpers.
+ * This is intentionally not re-exported from the package barrel.
+ */
+export const completionCoverage = {
+  collectCompletionItems,
+  formatCompletionItems,
+  documentationText,
+  compact,
+  completionKindName,
+};

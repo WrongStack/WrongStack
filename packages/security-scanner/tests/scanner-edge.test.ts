@@ -40,6 +40,47 @@ describe('SecurityScanner - edge coverage', () => {
     projectPath: '/test',
   });
 
+  it('covers depth selection and defensive extension/confidence fallbacks', async () => {
+    const emptySkill = createMockSkill([]);
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), 'wstack-sc-depth-'));
+    await new SecurityScanner({ depth: 'quick' }).scan(root, emptySkill, createMockTechStack());
+    await new SecurityScanner({ depth: 'deep' }).scan(root, emptySkill, createMockTechStack());
+
+    const internals = new SecurityScanner() as never as {
+      getTargetExtensions(skill: GeneratedSkill, stack: TechStackInfo): string[];
+      getConfidence(
+        pattern: SecurityPattern,
+        confidence: number,
+        file: string,
+        line: string,
+      ): string;
+    };
+    expect(
+      internals.getTargetExtensions(
+        createMockSkill([
+          {
+            fileExtensions: ['ts'],
+            patterns: [],
+            falsePositiveMarkers: [],
+          } as never,
+        ]),
+        createMockTechStack(),
+      ),
+    ).toEqual([]);
+    const pattern = { confidence: undefined } as never;
+    expect(internals.getConfidence(pattern, 0.7, 'src/a.ts', 'normal')).toBe('medium');
+    expect(internals.getConfidence(pattern, 0.4, 'src/a.ts', 'normal')).toBe('low');
+    expect(
+      internals.getConfidence(
+        { confidence: 'unexpected' } as never,
+        0.9,
+        'src/a.ts',
+        'normal',
+      ),
+    ).toBe('medium');
+    await fs.rm(root, { recursive: true, force: true });
+  });
+
   // ── matchesCategory: injection pattern-id branch ───────────────────────────
   it('matches patterns with injection id when includeInjection=true', async () => {
     const s = new SecurityScanner({
@@ -236,6 +277,27 @@ describe('SecurityScanner - edge coverage', () => {
     // Since includeSecrets is false and the pattern id contains 'secret',
     // matchesCategory returns false and the pattern is skipped
     expect(result.findings).toHaveLength(0);
+    await fs.rm(tmpDir, { recursive: true, force: true });
+  });
+
+  it('skips matching lines that carry a configured false-positive marker', async () => {
+    const s = new SecurityScanner();
+    const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'wstack-sc-fp-'));
+    await fs.writeFile(path.join(tmpDir, 'fixture.ts'), 'danger(); // safe-example\n');
+    const skill = createMockSkill([
+      {
+        id: 'command-injection',
+        name: 'Danger',
+        severity: 'high',
+        description: 'Dangerous call',
+        patterns: [/danger\(\)/g],
+        fileExtensions: ['.ts'],
+        falsePositiveMarkers: ['safe-example'],
+        remediation: 'Remove it',
+      },
+    ]);
+    const result = await s.scan(tmpDir, skill, createMockTechStack());
+    expect(result.findings).toEqual([]);
     await fs.rm(tmpDir, { recursive: true, force: true });
   });
 

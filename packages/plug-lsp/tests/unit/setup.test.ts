@@ -3,12 +3,12 @@ import * as os from 'node:os';
 import * as path from 'node:path';
 import { describe, expect, it, vi } from 'vitest';
 import {
-  type SetupDeps,
   detectPackageManager,
   installCommand,
   parseArgs,
   runCommand,
   runSetup,
+  type SetupDeps,
 } from '../../src/setup.js';
 
 describe('wrongstack-lsp-setup', () => {

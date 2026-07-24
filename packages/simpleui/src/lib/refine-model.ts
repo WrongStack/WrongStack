@@ -12,7 +12,7 @@
 
 export type RefineDecision = 'refined' | 'english' | 'original' | 'edit';
 
-export type RefineStatus = 'refining' | 'ready' | 'failed';
+export type RefineStatus = 'countdown' | 'refining' | 'ready' | 'failed';
 
 export type RefineErrorKind = 'timeout' | 'empty' | 'provider_error';
 
@@ -31,6 +31,14 @@ export interface RefineState {
   provider?: string | undefined;
   /** Model name running the refinement (e.g. "gpt-4o"). */
   model?: string | undefined;
+  /** Monotonically increasing epoch counter used to detect stale
+   *  `model.refine_result` messages that arrived after the user flushed
+   *  the panel and started a new refine round-trip. */
+  epoch?: number | undefined;
+  /** Images attached to the original message. Forwarded on flush so
+   *  image attachments are not silently dropped when a pending refine
+   *  is superseded by a new send. */
+  images?: { data: string; mime: string }[] | undefined;
 }
 
 export interface RefineResultPayload {
@@ -139,8 +147,23 @@ export function parseFallbackRef(ref: string): { provider: string; model: string
   return provider && model ? { provider, model } : null;
 }
 
-/** Resolve which text a panel decision sends. `edit` sends nothing — it
- *  hands the text back to the composer. */
+/** Resolve what Escape should restore into the composer when it closes the
+ *  refine panel.
+ *
+ *  The composer was cleared when the send started, so the original text
+ *  would otherwise be lost. But if the user already typed something new
+ *  after the panel opened, that in-progress draft wins — returning `null`
+ *  means "leave the composer untouched". */
+export function resolveEscapeRestore(
+  state: RefineState | null,
+  currentDraft: string,
+): string | null {
+  if (!state) return null;
+  if (currentDraft.trim()) return null;
+  return state.original || null;
+}
+
+/** Resolve which text a panel decision sends. */
 export function resolveRefineText(state: RefineState, decision: RefineDecision): string | null {
   switch (decision) {
     case 'refined':
@@ -149,7 +172,7 @@ export function resolveRefineText(state: RefineState, decision: RefineDecision):
       return state.english;
     case 'original':
       return state.original;
-    case 'edit':
+    default:
       return null;
   }
 }

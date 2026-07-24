@@ -3,11 +3,11 @@
  * `ACPProtocolHandler` — including a live permission round-trip (the thing a
  * full-duplex WS connection enables that HTTP cannot).
  */
-import { describe, expect, it, } from 'vitest';
-import type { ACPMessage } from '../src/types/acp-messages.js';
+import { describe, expect, it } from 'vitest';
+import { ACPProtocolHandler, type RunTurn } from '../src/agent/protocol-handler.js';
 import type { AgentServerTransport } from '../src/agent/stdio-transport.js';
 import { WsBridgeTransport } from '../src/agent/ws-bridge-transport.js';
-import { ACPProtocolHandler, type RunTurn } from '../src/agent/protocol-handler.js';
+import type { ACPMessage } from '../src/types/acp-messages.js';
 
 describe('WsBridgeTransport', () => {
   it('writes outbound to the sink and routes inbound to onMessage handlers', async () => {
@@ -40,6 +40,26 @@ describe('WsBridgeTransport', () => {
     expect(sink).toHaveLength(0);
   });
 
+  it('ignores closed sends, sink failures, faulty consumers, and unsubscriptions', async () => {
+    const broken = new WsBridgeTransport(() => {
+      throw new Error('socket closed');
+    });
+    await expect(broken.send({ id: 1 } as ACPMessage)).resolves.toBeUndefined();
+
+    const seen: ACPMessage[] = [];
+    const transport = new WsBridgeTransport(() => {});
+    transport.onMessage(() => {
+      throw new Error('consumer failed');
+    });
+    const unsubscribe = transport.onMessage((message) => seen.push(message));
+    unsubscribe();
+    transport.receive({ id: 2 } as ACPMessage);
+    expect(seen).toEqual([]);
+
+    transport.close();
+    await expect(transport.send({ id: 3 } as ACPMessage)).resolves.toBeUndefined();
+  });
+
   it('drives a full prompt turn with a live permission round-trip over the bridge', async () => {
     const sink: ACPMessage[] = [];
     const t = new WsBridgeTransport((m) => sink.push(m));
@@ -66,12 +86,14 @@ describe('WsBridgeTransport', () => {
 
     await feed({ id: 1, method: 'initialize', params: { protocolVersion: 1 } });
     await feed({ id: 2, method: 'session/new', params: { cwd: '/test' } });
-    const sessionId = (sink[sink.length - 1] as { result?: { sessionId?: string } }).result?.sessionId!;
+    const sessionId = (sink[sink.length - 1] as { result?: { sessionId?: string } }).result
+      ?.sessionId!;
     sink.length = 0;
 
     // Start the turn without awaiting — it parks on requestPermission.
     const turnDone = feed({
-      id: 3, method: 'session/prompt',
+      id: 3,
+      method: 'session/prompt',
       params: { sessionId, prompt: [{ type: 'text', text: 'edit' }] },
     });
     await new Promise((r) => setImmediate(r));
@@ -82,7 +104,10 @@ describe('WsBridgeTransport', () => {
     expect(req).toBeDefined();
 
     // Client answers over the same socket (full-duplex).
-    await feed({ id: req!.id, result: { outcome: { outcome: 'selected', optionId: 'allow_once' } } });
+    await feed({
+      id: req!.id,
+      result: { outcome: { outcome: 'selected', optionId: 'allow_once' } },
+    });
     await turnDone;
 
     expect(outcome).toEqual({ outcome: 'selected', optionId: 'allow_once' });

@@ -10,20 +10,20 @@
 
 import type { Agent } from '@wrongstack/core/agent';
 import type { AgentFactory } from '@wrongstack/core/coordination';
-import { TOKENS } from '@wrongstack/core/kernel';
 import type { EventBus } from '@wrongstack/core/kernel';
-import type { SecretScrubber, TaskGraph } from '@wrongstack/core/types';
+import { TOKENS } from '@wrongstack/core/kernel';
 import type { TaskTracker } from '@wrongstack/core/tasking';
+import type { SecretScrubber, TaskGraph } from '@wrongstack/core/types';
 import type { WorktreeManager } from '@wrongstack/core/worktree';
 import { SddBoardProjector } from './sdd-board-projector.js';
 import type { SddBoardStore } from './sdd-board-store.js';
-import type { SddRunRegistry } from './sdd-run-registry.js';
 import {
-  SddParallelRun,
   type RunResult,
-  type SddProgress,
+  SddParallelRun,
   type SddParallelRunOptions,
+  type SddProgress,
 } from './sdd-parallel-run.js';
+import type { SddRunRegistry } from './sdd-run-registry.js';
 
 export interface StartSddRunOptions {
   tracker: TaskTracker;
@@ -77,6 +77,44 @@ export interface SddRunHandle {
   stop(): void;
 }
 
+export interface SddControlCommand {
+  type: string;
+  payload?: unknown;
+}
+
+/** Apply one command drained from the cross-process board control channel. */
+export function applySddControlCommand(run: SddParallelRun, command: SddControlCommand): void {
+  const payload = (command.payload ?? {}) as {
+    taskId?: string;
+    agentName?: string;
+    model?: string;
+    provider?: string;
+    fallbackModels?: string[];
+    verificationCommand?: string;
+    subtasks?: import('./sdd-parallel-run.js').SddSubtaskSpec[];
+  };
+  if (command.type === 'pause') run.pause();
+  else if (command.type === 'resume') run.resume();
+  else if (command.type === 'stop') run.stop();
+  else if (command.type === 'retry' && payload.taskId) run.retryTask(payload.taskId);
+  else if (command.type === 'retry_all_failed') run.retryAllFailed();
+  else if (command.type === 'reassign' && payload.taskId)
+    run.reassignTask(payload.taskId, payload.agentName ?? '');
+  else if (command.type === 'set_task_model' && payload.taskId)
+    run.setTaskModel(payload.taskId, payload.model, payload.provider);
+  else if (command.type === 'set_task_fallbacks' && payload.taskId)
+    run.setTaskFallbacks(payload.taskId, payload.fallbackModels);
+  else if (command.type === 'set_task_verification' && payload.taskId)
+    run.setTaskVerification(payload.taskId, payload.verificationCommand);
+  else if (command.type === 'cancel_task' && payload.taskId)
+    void run.cancelTask(payload.taskId).catch(() => {});
+  else if (command.type === 'delete_task' && payload.taskId) run.deleteTask(payload.taskId);
+  else if (command.type === 'split_task' && payload.taskId && payload.subtasks?.length)
+    run.splitTask(payload.taskId, payload.subtasks);
+  else if (command.type === 'cleanup_worktrees') void run.cleanupWorktrees().catch(() => {});
+  else if (command.type === 'rollback') void run.rollback().catch(() => {});
+}
+
 /**
  * Wire up and start an SDD parallel run. Returns immediately with a handle whose
  * `completion` promise resolves once the run finishes and teardown is complete.
@@ -122,7 +160,9 @@ export function startSddRun(opts: StartSddRunOptions): SddRunHandle {
     defaultModel: opts.defaultModel,
     defaultProvider: opts.defaultProvider,
     fallbackModels: opts.fallbackModels,
-    secretScrubber: opts.agent.container?.safeResolve(TOKENS.SecretScrubber) as SecretScrubber | undefined,
+    secretScrubber: opts.agent.container?.safeResolve(TOKENS.SecretScrubber) as
+      | SecretScrubber
+      | undefined,
   });
 
   opts.registry?.register({
@@ -153,37 +193,14 @@ export function startSddRun(opts: StartSddRunOptions): SddRunHandle {
   // apply it here so this run stays the single driver.
   const drainMs = opts.controlDrainMs ?? 500;
   const controlTimer = setInterval(() => {
-    void opts.boardStore.drainControl(run.runId).then((cmds) => {
-      for (const c of cmds) {
-        const p = (c.payload ?? {}) as {
-          taskId?: string;
-          agentName?: string;
-          model?: string;
-          provider?: string;
-          fallbackModels?: string[];
-          verificationCommand?: string;
-          subtasks?: import('./sdd-parallel-run.js').SddSubtaskSpec[];
-        };
-        if (c.type === 'pause') run.pause();
-        else if (c.type === 'resume') run.resume();
-        else if (c.type === 'stop') run.stop();
-        else if (c.type === 'retry' && p.taskId) run.retryTask(p.taskId);
-        else if (c.type === 'retry_all_failed') run.retryAllFailed();
-        else if (c.type === 'reassign' && p.taskId) run.reassignTask(p.taskId, p.agentName ?? '');
-        else if (c.type === 'set_task_model' && p.taskId) run.setTaskModel(p.taskId, p.model, p.provider);
-        else if (c.type === 'set_task_fallbacks' && p.taskId) run.setTaskFallbacks(p.taskId, p.fallbackModels);
-        else if (c.type === 'set_task_verification' && p.taskId)
-          run.setTaskVerification(p.taskId, p.verificationCommand);
-        else if (c.type === 'cancel_task' && p.taskId) void run.cancelTask(p.taskId).catch(() => {});
-        else if (c.type === 'delete_task' && p.taskId) run.deleteTask(p.taskId);
-        else if (c.type === 'split_task' && p.taskId && p.subtasks?.length) run.splitTask(p.taskId, p.subtasks);
-        // Lifecycle: stop the run first, then sweep worktrees / revert commits.
-        // (Both are no-ops while the run is still live — the user pairs them with
-        // a prior `stop`.)
-        else if (c.type === 'cleanup_worktrees') void run.cleanupWorktrees().catch(() => {});
-        else if (c.type === 'rollback') void run.rollback().catch(() => {});
-      }
-    }).catch(() => {});
+    void opts.boardStore
+      .drainControl(run.runId)
+      .then((cmds) => {
+        for (const c of cmds) {
+          applySddControlCommand(run, c);
+        }
+      })
+      .catch(() => {});
   }, drainMs);
   // Best-effort: don't keep the event loop alive solely for the drain timer.
   (controlTimer as { unref?: () => void }).unref?.();

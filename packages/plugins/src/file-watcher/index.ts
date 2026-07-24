@@ -149,13 +149,14 @@ const plugin: Plugin = {
     function debounceEvent(key: string, fn: () => void, ms: number): void {
       const existing = debounceTimers.get(key);
       if (existing) clearTimeout(existing);
-      debounceTimers.set(
-        key,
-        setTimeout(() => {
-          debounceTimers.delete(key);
-          fn();
-        }, ms),
-      );
+      const timer = setTimeout(() => {
+        debounceTimers.delete(key);
+        fn();
+      }, ms);
+      // A pending debounce must not hold the process open on shutdown —
+      // the watcher is a background observer, never a reason to stay alive.
+      timer.unref?.();
+      debounceTimers.set(key, timer);
     }
 
     const autoIndex =

@@ -143,10 +143,9 @@ export function retryAfterMsFromBody(body: ProviderErrorBody): number | undefine
   // 1. Absolute date-time: "...reset at YYYY-MM-DD HH:mm:ss..."
   //    Many Chinese providers (Z.AI, Moonshot) embed the reset time in the
   //    body instead of sending an HTTP Retry-After header. The timestamp
-  //    is timezone-naive. We try UTC first (the standard API convention)
-  //    and fall back to local interpretation so a Beijing-time (UTC+8)
-  //    stamp doesn't produce a negative delta — which would silently drop
-  //    the hint and fall through to exponential backoff.
+  //    is timezone-naive. parseTzAwareDelta computes both UTC and local-time
+  //    interpretations and returns the smallest positive delta (i.e.
+  //    min(utcDelta, localDelta)) — see its doc comment for the rationale.
   const dateTimeRe =
     /(?:reset|renew|available)(?:s|ed|s)?\s*(?:at|on)\s*(\d{4}[-/]\d{1,2}[-/]\d{1,2})[T\s](\d{1,2}:\d{2}(?::\d{2})?)/i;
   const dateMatch = dateTimeRe.exec(text);
@@ -202,10 +201,27 @@ function stringOf(v: unknown): string | undefined {
  * into a positive ms-delta from now. Returns `undefined` when no
  * interpretation yields a future timestamp.
  *
- * Strategy: try UTC first (the standard API convention), then fall back
- * to local time. Without this, a Beijing-time (UTC+8) timestamp parsed
- * as local time on a UTC machine would appear 8 hours in the past and
- * the hint would be silently dropped.
+ * Strategy: compute both UTC and local-time interpretations and return
+ * the **smallest** positive delta. Rate-limit reset timestamps are always
+ * in the near future (seconds to minutes), so the correct interpretation
+ * yields a smaller delta than the wrong one.
+ *
+ * Why not UTC-first-and-return: a Beijing-time (UTC+8) stamp of `20:30`
+ * parsed as UTC on a UTC machine gives +8.5 h — but the actual reset is
+ * 30 min away (12:30 UTC). The UTC-first approach returns the overshoot
+ * immediately and never tries local. On a UTC+8 machine the local
+ * interpretation recovers the correct 30 min, but only if the function
+ * gets there. Taking the minimum of both positive deltas picks the
+ * closest interpretation in every case:
+ *
+ *   Machine TZ | UTC δ  | Local δ | min → returned
+ *   -----------+--------+---------+----------------
+ *   UTC        | +8.5 h | +8.5 h  | 8.5 h (same — clamped downstream)
+ *   UTC+8      | +8.5 h | +30 min | 30 min ← correct
+ *
+ * On a UTC machine both interpretations are identical, so the overshoot
+ * persists — but `DefaultRetryPolicy.delayMs` clamps to 60 s and the
+ * status tracker should apply its own cap (currently a separate gap).
  */
 function parseTzAwareDelta(base: string): number | undefined {
   // Normalise date separators: Z.AI uses `2026-07-24` but some providers
@@ -213,19 +229,21 @@ function parseTzAwareDelta(base: string): number | undefined {
   const iso = base.replace(/\//g, '-');
   const now = Date.now();
 
-  // Try UTC first.
+  let best: number | undefined;
+
+  // UTC interpretation.
   const utcMs = Date.parse(`${iso}Z`);
   if (!Number.isNaN(utcMs)) {
     const delta = utcMs - now;
-    if (delta > 0) return delta;
+    if (delta > 0) best = delta;
   }
 
-  // Fall back to local time interpretation.
+  // Local-time interpretation — prefer the smaller positive delta.
   const localMs = Date.parse(iso);
   if (!Number.isNaN(localMs)) {
     const delta = localMs - now;
-    if (delta > 0) return delta;
+    if (delta > 0 && (best === undefined || delta < best)) best = delta;
   }
 
-  return undefined;
+  return best;
 }

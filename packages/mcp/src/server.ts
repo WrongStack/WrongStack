@@ -1,6 +1,6 @@
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http';
-import { expectDefined } from '@wrongstack/core/utils';
-import { toErrorMessage } from '@wrongstack/core/utils';
+import type { AddressInfo } from 'node:net';
+import { expectDefined, toErrorMessage } from '@wrongstack/core/utils';
 import { MCP_CONSTANTS } from './constants.js';
 import type { MCPPromptArgument, MCPPromptMessage, MCPResourceContents } from './protocol.js';
 /**
@@ -532,8 +532,7 @@ export function serveHttp(
     httpServer.once('error', reject);
     httpServer.listen(port, host, () => {
       httpServer.removeListener('error', reject);
-      const addr = httpServer.address();
-      const boundPort = typeof addr === 'object' && addr ? addr.port : port;
+      const boundPort = (httpServer.address() as AddressInfo).port;
       const displayHost = host === '::1' ? '[::1]' : host;
       resolve({
         port: boundPort,
@@ -576,18 +575,14 @@ async function handleHttpRequest(
   }
 
   let body = '';
-  let tooLarge = false;
   req.on('data', (chunk: Buffer) => {
-    if (tooLarge) return;
     body += chunk.toString('utf8');
     if (body.length > HTTP_BODY_CAP) {
-      tooLarge = true;
       send(413, JSON.stringify({ error: 'payload too large' }));
       req.destroy();
     }
   });
   req.on('end', () => {
-    if (tooLarge) return;
     void server
       .handleMessage(body)
       .then((out) => {

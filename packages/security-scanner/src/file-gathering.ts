@@ -1,14 +1,8 @@
 import { readdir } from 'node:fs/promises';
 import { join, relative } from 'node:path';
+import { DEFAULT_WALK_IGNORE_DIRS } from '@wrongstack/core/utils';
 
-export const DEFAULT_EXCLUDE_PATTERNS = [
-  'node_modules',
-  'dist',
-  'build',
-  '.git',
-  'coverage',
-  'target',
-];
+export const DEFAULT_EXCLUDE_PATTERNS = [...DEFAULT_WALK_IGNORE_DIRS];
 
 export interface GatherFilesOptions {
   root: string;
@@ -42,7 +36,7 @@ function globToRegex(pattern: string): RegExp {
     } else if (char === '?') {
       source += '[^/]';
     } else {
-      source += escapeRegex(char ?? '');
+      source += escapeRegex(char!);
     }
   }
   return new RegExp(`^(?:${source})$`);

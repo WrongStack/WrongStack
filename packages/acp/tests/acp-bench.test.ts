@@ -19,6 +19,7 @@ vi.mock('../src/client/acp-session.js', () => ({
 }));
 
 import { renderAcpBenchText, runAcpBench } from '../src/index.js';
+import { acpBenchCoverage } from '../src/integration/acp-bench.js';
 
 const MARKER = 'ACP_OK_TEST';
 const cmdFor = (id: string) => ({ command: id, args: [], role: id });
@@ -32,7 +33,14 @@ function sessionOk() {
 }
 
 function promptReply(text: string) {
-  return { text, hasText: text.length > 0, stopReason: 'end_turn', toolCalls: [], diffs: [], thoughts: '' };
+  return {
+    text,
+    hasText: text.length > 0,
+    stopReason: 'end_turn',
+    toolCalls: [],
+    diffs: [],
+    thoughts: '',
+  };
 }
 
 beforeEach(() => {
@@ -207,5 +215,151 @@ describe('runAcpBench progress and abort', () => {
     expect(res.results[0]?.status).toBe('skipped');
     expect(res.results[0]?.reason).toBe('aborted');
     expect(startMock).not.toHaveBeenCalled();
+  });
+});
+
+describe('ACP bench completion coverage', () => {
+  it('covers default options, absent metadata, refusal, and close failures', async () => {
+    getAgentInfoMock.mockReturnValueOnce(null as never);
+    closeMock.mockRejectedValueOnce(new Error('already closed'));
+    startMock.mockResolvedValueOnce({
+      getAgentInfo: getAgentInfoMock,
+      prompt: promptMock,
+      close: closeMock,
+    });
+    promptMock.mockResolvedValueOnce({
+      ...promptReply(`\n${'x'.repeat(130)}`),
+      stopReason: 'refusal',
+    });
+    const result = await runAcpBench({
+      agentIds: [' default '],
+      resolveCmd: () => ({ command: 'agent', env: { MODE: 'test' } }),
+    });
+    expect(result.results[0]).toMatchObject({ status: 'partial' });
+    expect(result.results[0]!.sample).toBe(`${'x'.repeat(117)}…`);
+  });
+
+  it('normalizes non-Error handshake and prompt failures', async () => {
+    startMock.mockRejectedValueOnce('spawn text failure');
+    expect(
+      (
+        await runAcpBench({
+          agentIds: ['handshake'],
+          resolveCmd: cmdFor,
+          marker: MARKER,
+        })
+      ).results[0]!.reason,
+    ).toBe('spawn text failure');
+
+    sessionOk();
+    promptMock.mockRejectedValueOnce('prompt text failure');
+    expect(
+      (
+        await runAcpBench({
+          agentIds: ['prompt'],
+          resolveCmd: cmdFor,
+          marker: MARKER,
+        })
+      ).results[0]!.reason,
+    ).toBe('prompt text failure');
+  });
+
+  it('grades failed and throwing filesystem checks', async () => {
+    const dir = await fsp.mkdtemp(path.join(os.tmpdir(), 'acp-bench-fs-'));
+    try {
+      sessionOk();
+      promptMock
+        .mockResolvedValueOnce(promptReply(MARKER))
+        .mockResolvedValueOnce(promptReply('wrong contents'));
+      const missing = await runAcpBench({
+        agentIds: ['missing'],
+        resolveCmd: cmdFor,
+        projectRoot: dir,
+        checkFs: true,
+        marker: MARKER,
+      });
+      expect(missing.results[0]!.checks.at(-1)).toMatchObject({ name: 'fs', ok: false });
+
+      sessionOk();
+      promptMock.mockResolvedValueOnce(promptReply(MARKER)).mockRejectedValueOnce('fs failure');
+      const failed = await runAcpBench({
+        agentIds: ['failed'],
+        resolveCmd: cmdFor,
+        projectRoot: dir,
+        checkFs: true,
+        marker: MARKER,
+      });
+      expect(failed.results[0]!.checks.at(-1)).toMatchObject({
+        name: 'fs',
+        detail: 'fs failure',
+      });
+
+      sessionOk();
+      promptMock
+        .mockResolvedValueOnce(promptReply(MARKER))
+        .mockRejectedValueOnce(new Error('fs Error failure'));
+      const errored = await runAcpBench({
+        agentIds: ['errored'],
+        resolveCmd: cmdFor,
+        projectRoot: dir,
+        checkFs: true,
+        marker: MARKER,
+      });
+      expect(errored.results[0]!.checks.at(-1)).toMatchObject({
+        name: 'fs',
+        detail: 'fs Error failure',
+      });
+    } finally {
+      await fsp.rm(dir, { recursive: true, force: true });
+    }
+  });
+
+  it('covers pure formatting and best-effort cleanup helpers', async () => {
+    expect(acpBenchCoverage.firstLine('\n \n')).toBe('');
+    expect(acpBenchCoverage.randomMarker()).toMatch(/^ACP_OK_[A-Z0-9]+$/);
+    await expect(
+      acpBenchCoverage.removeBenchFile('/missing', async () => {
+        throw new Error('remove failed');
+      }),
+    ).resolves.toBeUndefined();
+
+    const rendered = renderAcpBenchText({
+      results: [
+        {
+          agentId: 'partial',
+          status: 'partial',
+          checks: [{ name: 'prompt', ok: false }],
+          handshakeMs: 1,
+          durationMs: 1,
+        },
+        { agentId: 'skipped', status: 'skipped', checks: [], durationMs: 0 },
+        {
+          agentId: 'failed',
+          status: 'fail',
+          checks: [],
+          reason: 'spawn failed',
+          durationMs: 2,
+        },
+      ],
+      summary: { pass: 0, partial: 1, fail: 1, skipped: 1 },
+      totalDurationMs: 3,
+    });
+    expect(rendered).toContain('◐');
+    expect(rendered).toContain('–');
+    expect(rendered).toContain('✗');
+    expect(rendered).toContain('reason: spawn failed');
+  });
+
+  it('forwards a live abort signal into a running bench', async () => {
+    sessionOk();
+    promptMock.mockResolvedValueOnce(promptReply(MARKER));
+    const controller = new AbortController();
+    const result = await runAcpBench({
+      agentIds: ['signal'],
+      resolveCmd: cmdFor,
+      marker: MARKER,
+      signal: controller.signal,
+    });
+    expect(result.summary.pass).toBe(1);
   });
 });

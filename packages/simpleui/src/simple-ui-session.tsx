@@ -26,8 +26,8 @@ import { useFileMention } from './hooks/use-file-mention.js';
 import { useImageAttachments } from './hooks/use-image-attachments.js';
 import { useModelCatalog } from './hooks/use-model-catalog.js';
 import { useServerOutage } from './hooks/use-server-outage.js';
-import { useSimpleSocket } from './hooks/use-simple-socket.js';
 import { useSimpleSessionState } from './hooks/use-simple-session-state.js';
+import { useSimpleSocket } from './hooks/use-simple-socket.js';
 import { useStatusNotice } from './hooks/use-status-notice.js';
 import { useStickyScroll } from './hooks/use-sticky-scroll.js';
 import { useTheme } from './hooks/use-theme.js';
@@ -35,29 +35,13 @@ import { resetAgentNameCache } from './lib/agent-model.js';
 import { playChime } from './lib/chime.js';
 import { copyText } from './lib/clipboard.js';
 import { clearComposerDraft, readComposerDraft, writeComposerDraft } from './lib/composer-draft.js';
-import {
-  composePromptWithFileReferences,
-  type FileMention,
-  removeFileMention,
-} from './lib/file-mention.js';
+import { removeFileMention } from './lib/file-mention.js';
 import type { MessageHandlerDeps } from './lib/message-handler.js';
 import { createMessageHandler } from './lib/message-handler.js';
 import { isVisionModel } from './lib/model-capabilities.js';
 import { type AutonomyMode, DEFAULT_PREFS, type SimplePrefs } from './lib/prefs-model.js';
-import {
-  enqueueFront,
-  enqueueItem,
-  type QueuedItem,
-  type QueueMode,
-  removeQueuedAt,
-  resolveSendPlan,
-} from './lib/queue-model.js';
-import {
-  parseFallbackRef,
-  type RefineDecision,
-  type RefineState,
-  resolveRefineText,
-} from './lib/refine-model.js';
+import { type QueuedItem, removeQueuedAt } from './lib/queue-model.js';
+import { type RefineState, resolveEscapeRestore } from './lib/refine-model.js';
 import { sessionDisplayName } from './lib/session-model.js';
 import { aggregateFileEdits } from './lib/timeline-model.js';
 import { agentTranscriptToToolCalls } from './lib/tool-model.js';
@@ -84,9 +68,6 @@ import type {
   PendingConfirm,
   ToolCallInfo,
 } from './types.js';
-
-const REFINE_RETRY_FEEDBACK =
-  'Make another pass that is sharper and more self-contained. Use the provided project memory, current session context, and recent conversation only to resolve references and preserve project vocabulary; keep the original scope unchanged.';
 
 function compactTokens(value: number): string {
   if (!value) return '0';
@@ -141,8 +122,28 @@ export function SimpleUiSession() {
   // paths it triggers read live state through refs rather than closing over
   // a stale render.
   const refineStateRef = useRef<RefineState | null>(null);
+  /** Monotonically increasing epoch attached to each `model.refine` request
+   *  so the handler can detect and drop stale results that arrive after the
+   *  user flushed the panel and started a new round-trip. */
+  const refineEpochRef = useRef(0);
+  /** Stash the original text when kicking off a refine round-trip so the
+   *  socket send can happen post-commit in a useEffect, decoupling the
+   *  send from the setRefineState updater and preventing a race where the
+   *  status flips to 'refining' without a request in flight. */
+  const pendingSendRef = useRef<string | null>(null);
+  /** One-shot guard for refineStartNow. The RefinePanel's `countdownFiredRef`
+   *  only protects the timer-path effect; a click racing the timer (or
+   *  StrictMode double-invoke) can call refineStartNow twice in the same
+   *  batch, and `refineStateRef.current` does not update between those two
+   *  calls. Without this guard the second call would bump the epoch again
+   *  (making the eventual result look stale → spinner stuck forever) and
+   *  re-stash `pendingSendRef` after the effect already consumed it
+   *  (leaking a duplicate `model.refine` on the next unrelated refineState
+   *  change). Reset at the start of every countdown round by startSend. */
+  const refineStartFiredRef = useRef(false);
   const prefsRef = useRef<SimplePrefs>(DEFAULT_PREFS);
   const queueRef = useRef<QueuedItem[]>([]);
+  const attachedImagesRef = useRef<{ data: string; mime: string; name: string; id: string }[]>([]);
   draftRef.current = draft;
   fileRefsRef.current = fileRefs;
   runningRef.current = running;
@@ -193,6 +194,30 @@ export function SimpleUiSession() {
   /** Open the refine round-trip, or send straight through when refine is off. */
   const startSend = useCallback(
     (content: string, images?: { data: string; mime: string }[]) => {
+      // Flush any pending refine state before starting a new one.  If a
+      // previous send is still in countdown/refining, dispatch its original
+      // immediately so the user's first message isn't silently dropped.
+      // Increment the epoch so any in-flight model.refine result is
+      // recognised as stale and dropped by the message handler.
+      // Note: auto-dispatch is restricted to countdown/refining — for
+      // 'ready'/'failed' the user has already seen the panel and may be
+      // reviewing or deciding what to do, so we must not silently
+      // re-send the unrefined original.
+      const pending = refineStateRef.current;
+      if (pending && (pending.status === 'countdown' || pending.status === 'refining')) {
+        refineEpochRef.current++;
+        // Null the ref synchronously — refineStateRef.current is otherwise
+        // only refreshed on commit, so between here and the setRefineState
+        // commit a same-tick Escape/decision handler would still see the
+        // flushed state and could dispatch the original a second time.
+        refineStateRef.current = null;
+        setRefineState(null);
+        dispatchUserMessage(pending.original, pending.images);
+      }
+      // Reset the one-shot refineStartNow guard so the new countdown round
+      // can fire once on timer-zero / "Refine now" click.
+      refineStartFiredRef.current = false;
+
       if (!prefsRef.current.enhanceEnabled) {
         dispatchUserMessage(content, images);
         return;
@@ -212,18 +237,61 @@ export function SimpleUiSession() {
           ? profileRef.slice(slash + 1)
           : profileRef
         : prefsRef.current.refinerModel || active?.model;
+      // Reset the one-shot guard so the new countdown round can fire
+      // refineStartNow. Without this, a second startSend while a previous
+      // refine is still in-flight would leave refineStartFiredRef=true and
+      // the new message would never be refined.
+      refineStartFiredRef.current = false;
+      // Open with a 3-2-1 grace countdown (mirrors the WebUI): the refine
+      // request itself is deferred until the countdown elapses or the user
+      // clicks "Refine now" — refineStartNow fires it.
       setRefineState({
         original: content,
         refined: content,
         english: content,
-        status: 'refining',
+        status: 'countdown',
         provider: displayedProvider,
         model: displayedModel,
+        images,
       });
-      socketRef.current?.send('model.refine', { text: content });
     },
     [dispatchUserMessage],
   );
+
+  /** Countdown elapsed (or "Refine now") — kick off the refine round-trip. */
+  const refineStartNow = useCallback(() => {
+    const cur = refineStateRef.current;
+    if (cur?.status !== 'countdown' || !cur.original) return;
+    if (refineStartFiredRef.current) return;
+    refineStartFiredRef.current = true;
+    refineEpochRef.current++;
+    pendingSendRef.current = cur.original;
+    setRefineState((prev) =>
+      prev?.status === 'countdown' ? { ...prev, status: 'refining', epoch: refineEpochRef.current } : prev,
+    );
+  }, []);
+
+  /** Send a user-edited version of the refined text straight through. */
+  const refineSendEdited = useCallback(
+    (text: string) => {
+      if (!text) return;
+      setRefineState(null);
+      dispatchUserMessage(text);
+    },
+    [dispatchUserMessage],
+  );
+
+  /** Post-commit: fire the model.refine send when the status transitions
+   *  to 'refining'. The original text is stashed in pendingSendRef by
+   *  refineStartNow so the send is driven by the committed state, not by
+   *  a side effect inside the setState updater. */
+  useEffect(() => {
+    const text = pendingSendRef.current;
+    if (text) {
+      pendingSendRef.current = null;
+      socketRef.current?.send('model.refine', { text });
+    }
+  }, [refineState]);
 
   // ── Global keyboard shortcuts ──────────────────────────────────
   useEffect(() => {
@@ -242,7 +310,43 @@ export function SimpleUiSession() {
         }
         if (refineStateRef.current) {
           event.preventDefault();
+          // Don't drop the user's text or images — the composer was cleared
+          // when the send started (submitWith flushes draft+fileRefs+images),
+          // so hand the original back for another edit pass.
+          // Guard: never clobber text the user typed after the panel opened
+          // (resolveEscapeRestore returns null in that case).
+          const images = refineStateRef.current.images;
+          // Bump the epoch so any in-flight model.refine result that
+          // arrives after Escape (e.g., a slow 180s refineRetryFallback
+          // window) is recognised as stale and dropped by the handler
+          // — the wire protocol carries no request id, so a slow orphan
+          // could otherwise match by epoch coincidence and corrupt a
+          // later send.
+          refineEpochRef.current++;
+          refineStartFiredRef.current = false;
+          const restore = resolveEscapeRestore(refineStateRef.current, draftRef.current);
+          // Null the ref synchronously so a same-tick startSend flush or
+          // panel decision cannot observe the dismissed state and dispatch.
+          refineStateRef.current = null;
           setRefineState(null);
+          if (restore !== null) {
+            setDraft(restore);
+            draftRef.current = restore;
+          }
+          // Restore attached images that were part of the original send.
+          // Without this, a re-submit silently drops the images because
+          // submitWith clears them before startSend.
+          if (images && images.length > 0) {
+            setAttachedImages(
+              images.map((img, i) => ({
+                id: `restored-${Date.now()}-${i}`,
+                name: `restored-${i}`,
+                data: img.data,
+                mime: img.mime,
+              })),
+            );
+          }
+          requestAnimationFrame(() => textareaRef.current?.focus());
           return;
         }
         return;
@@ -359,15 +463,10 @@ export function SimpleUiSession() {
     setFilePickerIndex,
     fileSearching,
     setFileSearching,
-    selectFile: selectFileRaw,
   } = useFileMention({ socketRef });
 
-  const {
-    attachedImages,
-    attachImages,
-    removeImage,
-    setAttachedImages,
-  } = useImageAttachments();
+  const { attachedImages, attachImages, removeImage, setAttachedImages } = useImageAttachments();
+  attachedImagesRef.current = attachedImages;
 
   const {
     scrollRef,
@@ -378,29 +477,26 @@ export function SimpleUiSession() {
     stickToBottomRef,
   } = useStickyScroll({ messages, activity, pendingConfirm });
 
-  const {
-    submitWith,
-    refineDecision,
-    refineRetry,
-    refineRetryFallback,
-    abort,
-  } = useComposerActions({
-    sessionIdRef,
-    socketRef,
-    draftRef,
-    fileRefsRef,
-    refineStateRef,
-    draft,
-    fileRefs,
-    running,
-    startSend,
-    dispatchUserMessage,
-    setQueue,
-    setDraft,
-    setFileRefs,
-    setAttachedImages,
-    setRefineState,
-  });
+  const { submitWith, refineDecision, refineRetry, refineRetryFallback, abort } =
+    useComposerActions({
+      sessionIdRef,
+      socketRef,
+      draftRef,
+      fileRefsRef,
+      refineStateRef,
+      refineEpochRef,
+      draft,
+      fileRefs,
+      running,
+      startSend,
+      dispatchUserMessage,
+      setQueue,
+      setDraft,
+      setFileRefs,
+      setAttachedImages,
+      attachedImagesRef,
+      setRefineState,
+    });
 
   const handlerDeps: MessageHandlerDeps = {
     prefsRef,
@@ -412,6 +508,7 @@ export function SimpleUiSession() {
     activeModelRef,
     runningRef,
     refineStateRef,
+    refineEpochRef,
     socketRef,
     requestedModelsRef,
     stickToBottomRef,
@@ -470,7 +567,11 @@ export function SimpleUiSession() {
       setFileSearching(false);
     },
   });
-  const { outage, dismissed: outageDismissed, dismiss: dismissOutage } = useServerOutage(connection);
+  const {
+    outage,
+    dismissed: outageDismissed,
+    dismiss: dismissOutage,
+  } = useServerOutage(connection);
 
   useEffect(() => {
     const element = textareaRef.current;
@@ -897,6 +998,8 @@ export function SimpleUiSession() {
               onRefineDecision={refineDecision}
               onRefineRetry={refineRetry}
               onRefineRetryFallback={refineRetryFallback}
+              onRefineStartNow={refineStartNow}
+              onRefineSendEdited={refineSendEdited}
               attachedImages={attachedImages}
               onAttachImages={attachImages}
               onRemoveImage={removeImage}

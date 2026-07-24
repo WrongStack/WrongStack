@@ -134,11 +134,17 @@ describe('runtime helpers', () => {
     await tracker.handleToolExecuted({ name: 'read', ok: true, input: {} } as never);
     tracker.setCwd(root);
     await tracker.open(path.join(root, 'README.md'));
+    await tracker.fileWritten(path.join(root, 'README.md'));
+    expect(tracker.get(path.join(root, 'not-tracked.ts'))).toBeNull();
     await tracker.fileWritten(path.join(root, 'missing.ts'));
     // #91: a tracked read whose path is missing from the tracker cwd must not
     // crash the process — handleToolExecuted resolves cleanly instead.
     await expect(
-      tracker.handleToolExecuted({ name: 'read', ok: true, input: { path: 'missing.ts' } } as never),
+      tracker.handleToolExecuted({
+        name: 'read',
+        ok: true,
+        input: { path: 'missing.ts' },
+      } as never),
     ).resolves.toBeUndefined();
     await tracker.handleToolExecuted({ name: 'read', ok: true, input: { path: 'a.ts' } } as never);
     expect(opened).toHaveBeenCalledOnce();

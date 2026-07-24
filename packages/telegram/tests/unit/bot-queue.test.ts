@@ -1,7 +1,7 @@
 import type { Logger } from '@wrongstack/core/types';
 import { describe, expect, it, vi } from 'vitest';
-import { TelegramBotOutbound } from '../../src/bot-queue.js';
 import type { TelegramBot } from '../../src/bot.js';
+import { TelegramBotOutbound } from '../../src/bot-queue.js';
 
 const silentLog: Logger = {
   level: 'debug',
@@ -21,6 +21,62 @@ const makeBot = (sendImpl: ReturnType<typeof vi.fn>) =>
   }) as unknown as TelegramBot;
 
 describe('TelegramBotOutbound', () => {
+  it('exposes stats and rejects sends after stop', async () => {
+    const queue = new TelegramBotOutbound({
+      bot: makeBot(vi.fn()),
+      log: silentLog,
+    });
+    expect(queue.stats()).toMatchObject({ pending: 0 });
+    await queue.stop();
+    await expect(queue.sendManual(1, 'late')).rejects.toThrow('queue is stopped');
+    queue.enqueueNotification(1, 'ignored');
+    expect(silentLog.debug).toHaveBeenCalledWith(expect.stringContaining('ignored notification'));
+  });
+
+  it('surfaces Telegram ok=false responses', async () => {
+    const queue = new TelegramBotOutbound({
+      bot: makeBot(vi.fn().mockResolvedValue({ ok: false })),
+      log: silentLog,
+    });
+    await expect(queue.sendManual(9, 'failure')).rejects.toThrow('ok=false');
+    await queue.stop();
+  });
+
+  it('sweeps only fully-refilled idle buckets', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(0);
+    try {
+      const rate = vi.fn().mockReturnValue(1);
+      const burst = vi.fn().mockReturnValue(1);
+      const send = vi.fn().mockResolvedValue({ ok: true, result: { message_id: 1 } });
+      const queue = new TelegramBotOutbound({
+        bot: makeBot(send),
+        log: silentLog,
+        getRateLimitTokensPerSecond: rate,
+        getRateLimitBurst: burst,
+      });
+      await queue.sendManual(1, 'first');
+      await vi.advanceTimersByTimeAsync(60_000);
+      await queue.sendManual(1, 'second');
+      expect(rate).toHaveBeenCalledTimes(2);
+      await queue.stop();
+
+      const slowRate = vi.fn().mockReturnValue(0.0001);
+      const slow = new TelegramBotOutbound({
+        bot: makeBot(send),
+        log: silentLog,
+        getRateLimitTokensPerSecond: slowRate,
+        getRateLimitBurst: () => 1,
+      });
+      await slow.sendManual(2, 'first');
+      await vi.advanceTimersByTimeAsync(60_000);
+      expect(slowRate).toHaveBeenCalledOnce();
+      await slow.stop();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it('routes manual sends through the queue and resolves with the bot result', async () => {
     const send = vi.fn(async () => ({
       ok: true as const,

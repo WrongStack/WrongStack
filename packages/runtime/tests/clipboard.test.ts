@@ -5,12 +5,26 @@ import * as path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const spawnMock = vi.hoisted(() => ({ spawn: vi.fn() }));
+const fsFailures = vi.hoisted(() => ({ unlink: false, writeFile: false }));
 
 vi.mock('node:child_process', async (orig) => {
   const actual = (await orig()) as Record<string, unknown>;
   return {
     ...actual,
     spawn: (...args: unknown[]) => spawnMock.spawn(...args),
+  };
+});
+
+vi.mock('node:fs/promises', async (orig) => {
+  const actual = (await orig()) as typeof import('node:fs/promises');
+  return {
+    ...actual,
+    unlink: (...args: Parameters<typeof actual.unlink>) =>
+      fsFailures.unlink ? Promise.reject(new Error('unlink failed')) : actual.unlink(...args),
+    writeFile: (...args: Parameters<typeof actual.writeFile>) =>
+      fsFailures.writeFile
+        ? Promise.reject(new Error('write failed'))
+        : actual.writeFile(...args),
   };
 });
 
@@ -21,6 +35,7 @@ const PNG_MAGIC = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
 class FakeChild extends EventEmitter {
   stdout = new EventEmitter();
   stderr = new EventEmitter();
+  kill = vi.fn();
 }
 
 let tmpDir: string;
@@ -29,6 +44,8 @@ let realPlatform: NodeJS.Platform;
 beforeEach(async () => {
   tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'clip-test-'));
   spawnMock.spawn.mockReset();
+  fsFailures.unlink = false;
+  fsFailures.writeFile = false;
   realPlatform = process.platform;
 });
 
@@ -129,6 +146,11 @@ describe('readClipboardImage', () => {
 
     it('returns null when child exits non-zero', async () => {
       spawnMock.spawn.mockReturnValue(mkChildEmittingStdout('', 1));
+      expect(await readClipboardImage()).toBeNull();
+    });
+
+    it('returns null when PowerShell reports success but creates no file', async () => {
+      spawnMock.spawn.mockReturnValue(mkChildEmittingStdout('OK'));
       expect(await readClipboardImage()).toBeNull();
     });
   });
@@ -249,6 +271,27 @@ describe('readClipboardImage', () => {
       });
       expect(await readClipboardImage()).toBeNull();
     });
+
+    it('ignores cleanup failures after reading empty, invalid, oversized, and valid files', async () => {
+      fsFailures.unlink = true;
+      const contents = [
+        Buffer.alloc(0),
+        Buffer.from('not-png'),
+        Buffer.concat([PNG_MAGIC, Buffer.alloc(11 * 1024 * 1024)]),
+        Buffer.concat([PNG_MAGIC, Buffer.from('valid')]),
+      ];
+      spawnMock.spawn.mockImplementation((_cmd: string, args: string[]) => {
+        const psCmd = (args[args.length - 1] as string) || '';
+        const filePath =
+          psCmd.match(/\$img\.Save\('([^']+)'/)?.[1]?.replace(/\\\\/g, '\\') ?? '';
+        return mkChildSavingFile(() => filePath, contents.shift()!, 0, 'OK');
+      });
+
+      expect(await readClipboardImage()).toBeNull();
+      expect(await readClipboardImage()).toBeNull();
+      await expect(readClipboardImage()).rejects.toThrow(/exceeds.*MB limit/);
+      expect(await readClipboardImage()).not.toBeNull();
+    });
   });
 });
 
@@ -285,6 +328,44 @@ describe('readClipboardText', () => {
     it('returns null when spawn errors', async () => {
       spawnMock.spawn.mockReturnValue(mkErrorChild());
       expect(await readClipboardText()).toBeNull();
+    });
+
+    it('settles once when a child emits both error and exit', async () => {
+      const child = new FakeChild();
+      spawnMock.spawn.mockReturnValue(child);
+      const result = readClipboardText();
+      child.emit('error', new Error('failed'));
+      child.emit('exit', 0);
+      await expect(result).resolves.toBeNull();
+    });
+
+    it('kills a stalled command and accepts its eventual exit', async () => {
+      vi.useFakeTimers();
+      try {
+        const child = new FakeChild();
+        spawnMock.spawn.mockReturnValue(child);
+        const result = readClipboardText();
+        await vi.advanceTimersByTimeAsync(5_000);
+        expect(child.kill).toHaveBeenCalledWith('SIGTERM');
+        child.emit('exit', 0);
+        await expect(result).resolves.toBeNull();
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it('uses the hard safety cap when a stalled command ignores SIGTERM', async () => {
+      vi.useFakeTimers();
+      try {
+        const child = new FakeChild();
+        spawnMock.spawn.mockReturnValue(child);
+        const result = readClipboardText();
+        await vi.advanceTimersByTimeAsync(7_000);
+        await expect(result).resolves.toBeNull();
+        child.emit('error', new Error('late error'));
+      } finally {
+        vi.useRealTimers();
+      }
     });
   });
 
@@ -324,5 +405,67 @@ describe('readClipboardText', () => {
       spawnMock.spawn.mockImplementation(() => mkChildEmittingStdout('', 1));
       expect(await readClipboardText()).toBeNull();
     });
+  });
+});
+
+describe('clipboard image subprocess failures', () => {
+  beforeEach(() => setPlatform('linux'));
+
+  it('returns null when writing captured image bytes fails', async () => {
+    fsFailures.writeFile = true;
+    spawnMock.spawn.mockImplementation(() => {
+      const child = new FakeChild();
+      setImmediate(() => {
+        child.stdout.emit('data', PNG_MAGIC);
+        child.emit('exit', 0);
+      });
+      return child;
+    });
+    expect(await readClipboardImage()).toBeNull();
+  });
+
+  it('tries the next image command when spawning throws synchronously', async () => {
+    spawnMock.spawn.mockImplementation(() => {
+      throw new Error('spawn unavailable');
+    });
+    expect(await readClipboardImage()).toBeNull();
+    expect(spawnMock.spawn).toHaveBeenCalledTimes(2);
+  });
+
+  it('settles each capture once when error and exit are both emitted', async () => {
+    spawnMock.spawn.mockImplementation(() => {
+      const child = new FakeChild();
+      setImmediate(() => {
+        child.emit('error', new Error('failed'));
+        child.emit('exit', 0);
+      });
+      return child;
+    });
+    expect(await readClipboardImage()).toBeNull();
+  });
+
+  it('kills stalled image commands before resolving the safe default', async () => {
+    vi.useFakeTimers();
+    try {
+      const children: FakeChild[] = [];
+      spawnMock.spawn.mockImplementation(() => {
+        const child = new FakeChild();
+        children.push(child);
+        return child;
+      });
+      const result = readClipboardImage();
+
+      await vi.advanceTimersByTimeAsync(5_000);
+      expect(children[0]?.kill).toHaveBeenCalledWith('SIGTERM');
+      children[0]?.emit('exit', 0);
+      await vi.advanceTimersByTimeAsync(0);
+      await vi.advanceTimersByTimeAsync(7_000);
+
+      await expect(result).resolves.toBeNull();
+      expect(children[1]?.kill).toHaveBeenCalledWith('SIGTERM');
+      children[1]?.emit('error', new Error('late error'));
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

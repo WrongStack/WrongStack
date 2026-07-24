@@ -1,6 +1,6 @@
-import { expectDefined } from '@wrongstack/core/utils';
-import type { TaskGraph } from '@wrongstack/core/types';
 import { topologicalSort } from '@wrongstack/core/tasking';
+import type { TaskGraph } from '@wrongstack/core/types';
+import { expectDefined } from '@wrongstack/core/utils';
 /**
  * Enhanced critical path analysis with bottleneck detection,
  * parallel execution groups, and time estimation.
@@ -104,8 +104,7 @@ export function analyzeCriticalPath(graph: TaskGraph): CriticalPathAnalysis {
 
   // Total hours on critical path
   const totalHours = criticalPath.reduce((sum, id) => {
-    const n = graph.nodes.get(id);
-    return sum + (n?.estimateHours ?? 0);
+    return sum + (graph.nodes.get(id)!.estimateHours ?? 0);
   }, 0);
 
   // Parallel execution groups
@@ -193,7 +192,7 @@ function computeCriticalPath(
       const blocked = blocksMap.get(id);
       if (!blocked) continue;
       for (const blockedId of blocked) {
-        const candidateDist = (dist.get(id) ?? 0) + (graph.nodes.get(blockedId)?.estimateHours ?? 1);
+        const candidateDist = dist.get(id)! + (graph.nodes.get(blockedId)?.estimateHours ?? 1);
         if (candidateDist > (dist.get(blockedId) ?? 0)) {
           dist.set(blockedId, candidateDist);
           prev.set(blockedId, id);
@@ -208,7 +207,7 @@ function computeCriticalPath(
   let maxDist = 0;
   let maxId = expectDefined(allIds[0]);
   for (const id of allIds) {
-    const d = dist.get(id) ?? 0;
+    const d = dist.get(id)!;
     if (d > maxDist) {
       maxDist = d;
       maxId = id;
@@ -260,8 +259,7 @@ function computeParallelGroups(
     if (group.length === 0) {
       // Circular dependency or all remaining are blocked by non-completed
       // Just take the first remaining
-      const first = Array.from(remaining)[0];
-      if (first) group.push(first);
+      group.push(expectDefined(Array.from(remaining)[0]));
     }
 
     for (const id of group) {

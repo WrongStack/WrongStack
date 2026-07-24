@@ -43,9 +43,7 @@ export class LSPRegistry {
       await Promise.all(
         this.list()
           .filter((s) => s.config.languages.some((lang) => languages.has(lang)))
-          .map((s) =>
-            s.start().catch((err) => this.ctx.log.warn(`LSP ${s.name} failed to start`, err)),
-          ),
+          .map((s) => startServerSafely(s, this.ctx.log)),
       );
     }
   }
@@ -206,3 +204,10 @@ async function detectProjectLanguages(root: string): Promise<Set<string>> {
   await visit(root, 0);
   return found;
 }
+
+async function startServerSafely(server: LSPServer, log: Logger): Promise<void> {
+  await server.start().catch((err) => log.warn(`LSP ${server.name} failed to start`, err));
+}
+
+/** Direct-module test seam; not re-exported by the package barrel. */
+export const registryCoverage = { detectProjectLanguages, startServerSafely };

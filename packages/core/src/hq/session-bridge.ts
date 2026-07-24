@@ -44,8 +44,16 @@ export interface SessionTelemetryBridgeOptions {
   startedAt?: string | undefined;
   /** Snapshot republish interval (also refreshes lastActivity). Default 2500ms. */
   snapshotIntervalMs?: number | undefined;
-  /** Transcript tail poll interval. Default 1200ms. */
+  /**
+   * Transcript tail poll interval. Default 500ms. Passing this explicitly
+   * pins the poll to a fixed cadence; with the default, the poll relaxes to
+   * {@link transcriptFallbackIntervalMs} while the per-file watcher is live
+   * (the watcher streams changes within milliseconds — the poll is only a
+   * safety net, and a 500ms stat loop per bridged session adds up).
+   */
   transcriptIntervalMs?: number | undefined;
+  /** Poll interval while the transcript fs.watch is healthy. Default 5000ms. */
+  transcriptFallbackIntervalMs?: number | undefined;
   now?: (() => string) | undefined;
 }
 
@@ -281,10 +289,29 @@ export function startSessionTelemetryBridge(opts: SessionTelemetryBridgeOptions)
   }
 
   const snapshotTimer = setInterval(() => publishSnapshot(true), opts.snapshotIntervalMs ?? 2500);
-  const tailTimer = setInterval(() => void tail(), opts.transcriptIntervalMs ?? 500);
   snapshotTimer.unref?.();
-  tailTimer.unref?.();
-  void tail();
+
+  // Adaptive tail poll: while the per-file watcher is live it delivers changes
+  // within ~25ms, so the poll only needs to catch watcher gaps — run it at the
+  // relaxed fallback cadence. Without a watcher (file not yet created, or the
+  // watcher errored) poll at the fast cadence. An explicit
+  // `transcriptIntervalMs` pins both cadences (test determinism / opt-out).
+  const fastTailMs = opts.transcriptIntervalMs ?? 500;
+  const relaxedTailMs =
+    opts.transcriptFallbackIntervalMs ??
+    (opts.transcriptIntervalMs !== undefined ? opts.transcriptIntervalMs : 5_000);
+  let tailTimer: ReturnType<typeof setTimeout> | null = null;
+  function scheduleTail(): void {
+    if (disposed) return;
+    tailTimer = setTimeout(
+      () => {
+        void tail().finally(scheduleTail);
+      },
+      watcher ? relaxedTailMs : fastTailMs,
+    );
+    tailTimer.unref?.();
+  }
+  void tail().finally(scheduleTail);
 
   return () => {
     if (disposed) return;
@@ -299,7 +326,10 @@ export function startSessionTelemetryBridge(opts: SessionTelemetryBridgeOptions)
       watcher = null;
     }
     clearInterval(snapshotTimer);
-    clearInterval(tailTimer);
+    if (tailTimer) {
+      clearTimeout(tailTimer);
+      tailTimer = null;
+    }
     try {
       publisher.publishSessionEnded({ sessionId: opts.sessionId, endedAt: now() });
     } catch {

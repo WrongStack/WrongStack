@@ -1,23 +1,34 @@
+import { EventBus } from '@wrongstack/core/kernel/events.js';
+import type { TaskResult } from '@wrongstack/core/types/multi-agent.js';
+import type { TaskGraph, TaskNode, TaskStore } from '@wrongstack/core/types/task-graph.js';
 import { describe, expect, it, vi } from 'vitest';
+import type { Agent } from '../../src/core/agent.js';
 import { SddParallelRun } from '../src/sdd-parallel-run.js';
 import { TaskTracker } from '../src/task-tracker.js';
-import { EventBus } from '@wrongstack/core/kernel/events.js';
-import type { Agent } from '../../src/core/agent.js';
-import type { TaskGraph, TaskNode, TaskStore } from '@wrongstack/core/types/task-graph.js';
-import type { TaskResult } from '@wrongstack/core/types/multi-agent.js';
 
 function makeFakeStore(): TaskStore {
   const graphs = new Map<string, TaskGraph>();
   return {
     async saveGraph(graph: TaskGraph) {
-      graphs.set(graph.id, { ...graph, nodes: new Map(graph.nodes), edges: [...graph.edges], rootNodes: [...graph.rootNodes] });
+      graphs.set(graph.id, {
+        ...graph,
+        nodes: new Map(graph.nodes),
+        edges: [...graph.edges],
+        rootNodes: [...graph.rootNodes],
+      });
     },
     async loadGraph(id: string) {
       const g = graphs.get(id);
-      return g ? { ...g, nodes: new Map(g.nodes), edges: [...g.edges], rootNodes: [...g.rootNodes] } : null;
+      return g
+        ? { ...g, nodes: new Map(g.nodes), edges: [...g.edges], rootNodes: [...g.rootNodes] }
+        : null;
     },
     async listGraphs() {
-      return Array.from(graphs.values()).map((g) => ({ id: g.id, title: g.title, updatedAt: g.updatedAt }));
+      return Array.from(graphs.values()).map((g) => ({
+        id: g.id,
+        title: g.title,
+        updatedAt: g.updatedAt,
+      }));
     },
     async deleteGraph(id: string) {
       graphs.delete(id);
@@ -32,15 +43,46 @@ function fakeAgent(): Agent {
 async function makeHarness(overrides: Record<string, unknown> = {}) {
   const tracker = new TaskTracker({ store: makeFakeStore() });
   const graph = await tracker.createGraph('spec-1', 'Parallel Graph');
-  const t1 = tracker.addNode({ title: 'T1', description: 'do one', type: 'feature', priority: 'high', status: 'pending' } as never);
-  const t2 = tracker.addNode({ title: 'T2', description: 'do two', type: 'chore', priority: 'medium', status: 'pending' } as never);
-  const run = new SddParallelRun({ tracker, graph, agent: fakeAgent(), projectRoot: '/proj', ...overrides });
+  const t1 = tracker.addNode({
+    title: 'T1',
+    description: 'do one',
+    type: 'feature',
+    priority: 'high',
+    status: 'pending',
+  } as never);
+  const t2 = tracker.addNode({
+    title: 'T2',
+    description: 'do two',
+    type: 'chore',
+    priority: 'medium',
+    status: 'pending',
+  } as never);
+  const run = new SddParallelRun({
+    tracker,
+    graph,
+    agent: fakeAgent(),
+    projectRoot: '/proj',
+    ...overrides,
+  });
   return { run, tracker, graph, t1, t2 };
 }
 
-const okResult = (taskId: string): TaskResult => ({ subagentId: 's', taskId, status: 'success', iterations: 1, toolCalls: 1, durationMs: 1 });
+const okResult = (taskId: string): TaskResult => ({
+  subagentId: 's',
+  taskId,
+  status: 'success',
+  iterations: 1,
+  toolCalls: 1,
+  durationMs: 1,
+});
 const failResult = (taskId: string, error?: TaskResult['error']): TaskResult => ({
-  subagentId: 's', taskId, status: 'failed', error, iterations: 1, toolCalls: 0, durationMs: 1,
+  subagentId: 's',
+  taskId,
+  status: 'failed',
+  error,
+  iterations: 1,
+  toolCalls: 0,
+  durationMs: 1,
 });
 
 function fakeCoordinator(over: Partial<Record<string, unknown>> = {}) {
@@ -75,7 +117,12 @@ describe('SddParallelRun.executeWave', () => {
     const { run, tracker, t1, t2 } = await makeHarness();
     const coord = fakeCoordinator();
     (run as never as { coordinator: unknown }).coordinator = coord;
-    const wave = await run.executeWave({ wave: 0, tasks: [t1, t2], deadlocked: false, allDone: false } as never);
+    const wave = await run.executeWave({
+      wave: 0,
+      tasks: [t1, t2],
+      deadlocked: false,
+      allDone: false,
+    } as never);
     expect(wave.successCount).toBe(2);
     expect(wave.failCount).toBe(0);
     expect(coord.spawn).toHaveBeenCalledTimes(2);
@@ -95,7 +142,9 @@ describe('SddParallelRun.executeWave', () => {
   it('re-queues a failed task for retry while retries remain', async () => {
     const { run, tracker, t1 } = await makeHarness({ maxRetries: 2 });
     const coord = fakeCoordinator({
-      awaitTasks: vi.fn(async (ids: string[]) => ids.map((id) => failResult(id, { kind: 'unknown', message: 'boom', retryable: true }))),
+      awaitTasks: vi.fn(async (ids: string[]) =>
+        ids.map((id) => failResult(id, { kind: 'unknown', message: 'boom', retryable: true })),
+      ),
     });
     (run as never as { coordinator: unknown }).coordinator = coord;
     await run.executeWave({ wave: 0, tasks: [t1], deadlocked: false, allDone: false } as never);
@@ -160,7 +209,9 @@ describe('SddParallelRun.executeWave', () => {
   it('marks a task failed once retries are exhausted, formatting the error', async () => {
     const { run, tracker, t1 } = await makeHarness({ maxRetries: 0 });
     const coord = fakeCoordinator({
-      awaitTasks: vi.fn(async (ids: string[]) => ids.map((id) => failResult(id, { kind: 'timeout', message: 'too slow', retryable: false }))),
+      awaitTasks: vi.fn(async (ids: string[]) =>
+        ids.map((id) => failResult(id, { kind: 'timeout', message: 'too slow', retryable: false })),
+      ),
     });
     (run as never as { coordinator: unknown }).coordinator = coord;
     await run.executeWave({ wave: 0, tasks: [t1], deadlocked: false, allDone: false } as never);
@@ -172,12 +223,21 @@ describe('SddParallelRun.executeWave', () => {
     const nodes = tracker.getAllNodes();
     const coord = fakeCoordinator({
       awaitTasks: vi.fn(async (ids: string[]) => [
-        failResult(ids[0]!, { kind: undefined as never, message: 'just a message', retryable: false }),
+        failResult(ids[0]!, {
+          kind: undefined as never,
+          message: 'just a message',
+          retryable: false,
+        }),
         failResult(ids[1]!, undefined),
       ]),
     });
     (run as never as { coordinator: unknown }).coordinator = coord;
-    const wave = await run.executeWave({ wave: 0, tasks: nodes, deadlocked: false, allDone: false } as never);
+    const wave = await run.executeWave({
+      wave: 0,
+      tasks: nodes,
+      deadlocked: false,
+      allDone: false,
+    } as never);
     expect(wave.failCount).toBe(2);
   });
 
@@ -186,15 +246,24 @@ describe('SddParallelRun.executeWave', () => {
     (run as never as { coordinator: unknown }).coordinator = fakeCoordinator({
       spawn: vi.fn(async () => ({ subagentId: '' })),
     });
-    await expect(run.executeWave({ wave: 0, tasks: [t1], deadlocked: false, allDone: false } as never)).rejects.toThrow(/spawns failed/);
+    await expect(
+      run.executeWave({ wave: 0, tasks: [t1], deadlocked: false, allDone: false } as never),
+    ).rejects.toThrow(/spawns failed/);
   });
 
   it('synthesizes failed results when awaitTasks throws', async () => {
     const { run, tracker, t1 } = await makeHarness({ maxRetries: 0 });
     (run as never as { coordinator: unknown }).coordinator = fakeCoordinator({
-      awaitTasks: vi.fn(async () => { throw new Error('await exploded'); }),
+      awaitTasks: vi.fn(async () => {
+        throw new Error('await exploded');
+      }),
     });
-    const wave = await run.executeWave({ wave: 0, tasks: [t1], deadlocked: false, allDone: false } as never);
+    const wave = await run.executeWave({
+      wave: 0,
+      tasks: [t1],
+      deadlocked: false,
+      allDone: false,
+    } as never);
     expect(wave.failCount).toBe(1);
     expect(tracker.getAllNodes({ status: ['failed'] })).toHaveLength(1);
   });
@@ -202,7 +271,9 @@ describe('SddParallelRun.executeWave', () => {
   it('throws when no coordinator has been built', async () => {
     const { run, t1 } = await makeHarness();
     (run as never as { coordinator: unknown }).coordinator = null;
-    await expect(run.executeWave({ wave: 0, tasks: [t1], deadlocked: false, allDone: false } as never)).rejects.toThrow(/requires a coordinator/);
+    await expect(
+      run.executeWave({ wave: 0, tasks: [t1], deadlocked: false, allDone: false } as never),
+    ).rejects.toThrow(/requires a coordinator/);
   });
 });
 
@@ -246,7 +317,9 @@ function stubExecuteOne(
   tracker: TaskTracker,
   fn?: (task: TaskNode) => void | Promise<void>,
 ) {
-  vi.spyOn(run as never as { buildCoordinator: () => void }, 'buildCoordinator').mockImplementation(() => {});
+  vi.spyOn(run as never as { buildCoordinator: () => void }, 'buildCoordinator').mockImplementation(
+    () => {},
+  );
   return vi.spyOn(run, 'executeOne').mockImplementation(async (task: TaskNode) => {
     await fn?.(task);
     tracker.updateNodeStatus(task.id, 'completed');
@@ -332,7 +405,9 @@ describe('SddParallelRun — coordinator + helpers', () => {
     const { run } = await makeHarness();
     (run as never as { buildCoordinator: () => void }).buildCoordinator();
     expect((run as never as { coordinator: unknown }).coordinator).not.toBeNull();
-    const factory = (run as never as { defaultFactory: () => (c: unknown) => Promise<unknown> }).defaultFactory();
+    const factory = (
+      run as never as { defaultFactory: () => (c: unknown) => Promise<unknown> }
+    ).defaultFactory();
     const made = await factory({ id: 'x', name: 'x', role: 'executor' });
     expect(made).toHaveProperty('agent');
     expect(made).toHaveProperty('events');
@@ -447,7 +522,9 @@ describe('SddParallelRun — Layer 2: worktree isolation', () => {
     const seen: string[] = [];
     events.on('sdd.task.conflict', () => seen.push('conflict'));
     events.on('sdd.task.completed', () => seen.push('completed'));
-    const wt = fakeWorktrees({ merge: () => ({ ok: false, conflict: true, conflictFiles: ['src/x.ts'] }) });
+    const wt = fakeWorktrees({
+      merge: () => ({ ok: false, conflict: true, conflictFiles: ['src/x.ts'] }),
+    });
     const { run, tracker, t1 } = await makeHarness({ worktrees: wt.wm, maxRetries: 0, events });
     (run as never as { coordinator: unknown }).coordinator = fakeCoordinator();
     await run.executeWave({ wave: 0, tasks: [t1], deadlocked: false, allDone: false } as never);
@@ -457,7 +534,9 @@ describe('SddParallelRun — Layer 2: worktree isolation', () => {
   });
 
   it('a merge conflict with retries left requeues to pending (fresh-base retry)', async () => {
-    const wt = fakeWorktrees({ merge: () => ({ ok: false, conflict: true, conflictFiles: ['x'] }) });
+    const wt = fakeWorktrees({
+      merge: () => ({ ok: false, conflict: true, conflictFiles: ['x'] }),
+    });
     const { run, tracker, t1 } = await makeHarness({ worktrees: wt.wm, maxRetries: 2 });
     (run as never as { coordinator: unknown }).coordinator = fakeCoordinator();
     await run.executeWave({ wave: 0, tasks: [t1], deadlocked: false, allDone: false } as never);
@@ -467,7 +546,9 @@ describe('SddParallelRun — Layer 2: worktree isolation', () => {
   it('discards a failed task worktree (no merge, no pile-up)', async () => {
     const wt = fakeWorktrees();
     const { run, t1 } = await makeHarness({ worktrees: wt.wm, maxRetries: 0 });
-    const coord = fakeCoordinator({ awaitTasks: vi.fn(async (ids: string[]) => ids.map((id) => failResult(id))) });
+    const coord = fakeCoordinator({
+      awaitTasks: vi.fn(async (ids: string[]) => ids.map((id) => failResult(id))),
+    });
     (run as never as { coordinator: unknown }).coordinator = coord;
     await run.executeWave({ wave: 0, tasks: [t1], deadlocked: false, allDone: false } as never);
     // Failed checkout is discarded (keep:false) so worktrees don't accumulate;
@@ -546,7 +627,9 @@ describe('SddParallelRun — Layer 2: robustness', () => {
     tracker.addEdge(t1.id, t2.id, 'depends_on'); // t1 blocks t2
     tracker.updateNodeStatus(t1.id, 'failed');
     tracker.updateNodeStatus(t2.id, 'blocked');
-    const recovered = (run as never as { recoverFailedBlockers: () => boolean }).recoverFailedBlockers();
+    const recovered = (
+      run as never as { recoverFailedBlockers: () => boolean }
+    ).recoverFailedBlockers();
     expect(recovered).toBe(true);
     expect(tracker.getNode(t1.id)?.status).toBe('pending');
   });
@@ -561,7 +644,10 @@ describe('SddParallelRun — Layer 2: robustness', () => {
 
   it('the dispatch backstop guarantees termination when a task never settles', async () => {
     const { run, tracker } = await makeHarness({ maxTotalWaves: 3, maxRetries: 100 });
-    vi.spyOn(run as never as { buildCoordinator: () => void }, 'buildCoordinator').mockImplementation(() => {});
+    vi.spyOn(
+      run as never as { buildCoordinator: () => void },
+      'buildCoordinator',
+    ).mockImplementation(() => {});
     // Re-queues itself forever — only the dispatch backstop can end the run.
     vi.spyOn(run, 'executeOne').mockImplementation(async (task: TaskNode) => {
       tracker.updateNodeStatus(task.id, 'pending');
@@ -657,7 +743,10 @@ describe('SddParallelRun — failed-task retry', () => {
     verdict: (task: TaskNode, attempt: number) => 'pass' | 'fail',
   ) {
     const attempts = new Map<string, number>();
-    vi.spyOn(run as never as { buildCoordinator: () => void }, 'buildCoordinator').mockImplementation(() => {});
+    vi.spyOn(
+      run as never as { buildCoordinator: () => void },
+      'buildCoordinator',
+    ).mockImplementation(() => {});
     return vi.spyOn(run, 'executeOne').mockImplementation(async (task: TaskNode) => {
       const n = (attempts.get(task.id) ?? 0) + 1;
       attempts.set(task.id, n);
@@ -719,7 +808,9 @@ describe('SddParallelRun — failed-task retry', () => {
     const { run, tracker, t1 } = await makeHarness();
     tracker.updateNodeStatus(t1.id, 'failed', 'cancelled');
     tracker.patchMetadata(t1.id, { cancelled: true });
-    const n = (run as never as { requeueFailedTasks: (reason?: string) => number }).requeueFailedTasks();
+    const n = (
+      run as never as { requeueFailedTasks: (reason?: string) => number }
+    ).requeueFailedTasks();
     expect(n).toBe(0);
     expect(tracker.getNode(t1.id)?.status).toBe('failed');
   });
@@ -787,7 +878,7 @@ describe('SddParallelRun — splitTask', () => {
     }
   });
 
-  it('leaves inherit the parent\'s blockers', async () => {
+  it("leaves inherit the parent's blockers", async () => {
     const { run, tracker, t1, t2 } = await makeHarness();
     tracker.addDependency(t1.id, t2.id); // t2 depends on t1
     const leaves = run.splitTask(t2.id, [{ title: 'L', description: 'd' }]);
@@ -808,11 +899,9 @@ describe('SddParallelRun — failure supervisor', () => {
     return makeHarness({ maxRetries: 0, ...overrides });
   }
   const callFailure = (run: SddParallelRun, taskId: string) =>
-    (run as never as { applyTaskFailure: (id: string, sid: string, msg: string) => Promise<void> }).applyTaskFailure(
-      taskId,
-      'sub',
-      'boom',
-    );
+    (
+      run as never as { applyTaskFailure: (id: string, sid: string, msg: string) => Promise<void> }
+    ).applyTaskFailure(taskId, 'sub', 'boom');
 
   it('a retry verdict requeues the task instead of failing it', async () => {
     const superviseFailure = vi.fn(async () => ({ action: 'retry' as const }));
@@ -823,7 +912,10 @@ describe('SddParallelRun — failure supervisor', () => {
   });
 
   it('a reassign verdict swaps the model and requeues', async () => {
-    const superviseFailure = vi.fn(async () => ({ action: 'reassign' as const, model: 'claude-haiku-4-5' }));
+    const superviseFailure = vi.fn(async () => ({
+      action: 'reassign' as const,
+      model: 'claude-haiku-4-5',
+    }));
     const { run, tracker, t1 } = await makeFailing({ superviseFailure });
     await callFailure(run, t1.id);
     expect(tracker.getNode(t1.id)?.status).toBe('pending');
@@ -833,7 +925,10 @@ describe('SddParallelRun — failure supervisor', () => {
   it('a split verdict splits the task (parent completed)', async () => {
     const superviseFailure = vi.fn(async () => ({
       action: 'split' as const,
-      subtasks: [{ title: 'A', description: 'a' }, { title: 'B', description: 'b' }],
+      subtasks: [
+        { title: 'A', description: 'a' },
+        { title: 'B', description: 'b' },
+      ],
     }));
     const { run, tracker, t1 } = await makeFailing({ superviseFailure });
     await callFailure(run, t1.id);
@@ -850,7 +945,10 @@ describe('SddParallelRun — failure supervisor', () => {
 
   it('bounds supervisor rescues per task (maxSupervisorEscalations) so it cannot loop forever', async () => {
     const superviseFailure = vi.fn(async () => ({ action: 'retry' as const }));
-    const { run, tracker, t1 } = await makeFailing({ superviseFailure, maxSupervisorEscalations: 1 });
+    const { run, tracker, t1 } = await makeFailing({
+      superviseFailure,
+      maxSupervisorEscalations: 1,
+    });
     await callFailure(run, t1.id); // rescue #1 → pending
     expect(tracker.getNode(t1.id)?.status).toBe('pending');
     await callFailure(run, t1.id); // cap reached → terminal fail
@@ -862,5 +960,674 @@ describe('SddParallelRun — failure supervisor', () => {
     const { run, tracker, t1 } = await makeFailing();
     await callFailure(run, t1.id);
     expect(tracker.getNode(t1.id)?.status).toBe('failed');
+  });
+});
+
+describe('SddParallelRun — coverage edge paths', () => {
+  it('reports pause state and exits a paused run when stopped', async () => {
+    const { run } = await makeHarness();
+    run.pause();
+    expect(run.isPaused()).toBe(true);
+    setTimeout(() => run.stop(), 0);
+
+    const result = await run.run();
+
+    expect(result.stopRequested).toBe(true);
+    expect(run.isPaused()).toBe(false);
+  });
+
+  it('waits while paused and resumes without stopping', async () => {
+    const { run } = await makeHarness();
+    run.pause();
+    setTimeout(() => run.resume(), 0);
+
+    await (run as never as { waitWhilePaused: () => Promise<void> }).waitWhilePaused();
+
+    expect(run.isPaused()).toBe(false);
+  });
+
+  it('handles absent worktrees, release failures, and rollback without a base', async () => {
+    const plain = await makeHarness();
+    plain.run.stop();
+    await expect(plain.run.cleanupWorktrees()).resolves.toBe(0);
+    await expect(plain.run.rollback()).resolves.toMatchObject({
+      ok: false,
+      reason: 'no worktree run to roll back',
+    });
+
+    const release = vi.fn(async () => {
+      throw new Error('release failed');
+    });
+    const cleanupAllManaged = vi.fn(async () => ({ removed: 3 }));
+    const withWorktrees = await makeHarness({
+      worktrees: { release, cleanupAllManaged },
+    });
+    withWorktrees.run.stop();
+    const internals = withWorktrees.run as never as {
+      taskWorktrees: Map<string, unknown>;
+      baseBranch?: string;
+    };
+    internals.taskWorktrees.set(withWorktrees.t1.id, { ownerId: withWorktrees.t1.id });
+
+    await expect(withWorktrees.run.cleanupWorktrees()).resolves.toBe(3);
+    await expect(withWorktrees.run.rollback()).resolves.toMatchObject({
+      ok: false,
+      reason: 'no worktree run to roll back',
+    });
+  });
+
+  it('captures or tolerates the current base and honors the wall-clock backstop', async () => {
+    const rejected = await makeHarness({
+      maxWallClockMs: -1,
+      worktrees: {
+        currentBase: vi.fn(async () => {
+          throw new Error('git failed');
+        }),
+      },
+    });
+    await expect(rejected.run.run()).resolves.toMatchObject({ totalCompleted: 0 });
+    expect(rejected.run.getBaseBranch()).toBeUndefined();
+
+    const captured = await makeHarness({
+      maxWallClockMs: -1,
+      worktrees: {
+        currentBase: vi.fn(async () => ({ branch: 'main', sha: 'base' })),
+      },
+    });
+    await captured.run.run();
+    expect(captured.run.getBaseBranch()).toBe('main');
+  });
+
+  it('turns a dispatch-time exception into a terminal task failure', async () => {
+    const { run, tracker } = await makeHarness({ maxFailedRetrySweeps: 0 });
+    vi.spyOn(
+      run as never as { buildCoordinator: () => void },
+      'buildCoordinator',
+    ).mockImplementation(() => {});
+    vi.spyOn(run, 'executeOne').mockRejectedValue(new Error('dispatch exploded'));
+
+    const result = await run.run();
+
+    expect(result.totalFailed).toBe(2);
+    expect(tracker.getAllNodes({ status: ['failed'] })).toHaveLength(2);
+  });
+
+  it('performs a scheduler deadlock recovery round', async () => {
+    const { run, tracker, t1, t2 } = await makeHarness({
+      maxRecoveryRounds: 1,
+      maxFailedRetrySweeps: 0,
+    });
+    tracker.addDependency(t1.id, t2.id);
+    tracker.updateNodeStatus(t1.id, 'failed');
+    tracker.updateNodeStatus(t2.id, 'blocked');
+    vi.spyOn(
+      run as never as { buildCoordinator: () => void },
+      'buildCoordinator',
+    ).mockImplementation(() => {});
+    vi.spyOn(run, 'executeOne').mockImplementation(async (task) => {
+      tracker.updateNodeStatus(task.id, 'completed');
+      if (task.id === t1.id) tracker.updateNodeStatus(t2.id, 'pending');
+      return { taskId: task.id, success: true };
+    });
+
+    const result = await run.run();
+
+    expect(result.totalCompleted).toBe(2);
+    expect((run as never as { recoveryRounds: number }).recoveryRounds).toBe(1);
+  });
+
+  it('tears down interrupted tasks and retained worktrees after stop', async () => {
+    const release = vi.fn(async () => {
+      throw new Error('release failed');
+    });
+    const { run, tracker, t1 } = await makeHarness({ worktrees: { release } });
+    tracker.updateNodeStatus(t1.id, 'in_progress');
+    (run as never as { taskWorktrees: Map<string, unknown> }).taskWorktrees.set(t1.id, {
+      ownerId: t1.id,
+    });
+
+    await (run as never as { teardown: () => Promise<void> }).teardown();
+
+    expect(tracker.getNode(t1.id)?.status).toBe('pending');
+    expect(release).toHaveBeenCalledWith(expect.anything(), { keep: true });
+  });
+
+  it('handles cancellation after a worker has already returned', async () => {
+    const { run, tracker, t1 } = await makeHarness();
+    (run as never as { coordinator: unknown }).coordinator = fakeCoordinator();
+    (run as never as { cancelledTasks: Set<string> }).cancelledTasks.add(t1.id);
+
+    const outcome = await run.executeOne(t1);
+
+    expect(outcome.success).toBe(false);
+    expect(tracker.getNode(t1.id)?.status).toBe('in_progress');
+  });
+
+  it('handles verifier exceptions, default rejection reasons, and verifiable success', async () => {
+    const thrown = await makeHarness({
+      maxRetries: 0,
+      verifyTask: vi.fn(async () => {
+        throw new Error('verifier exploded');
+      }),
+    });
+    (thrown.run as never as { coordinator: unknown }).coordinator = fakeCoordinator();
+    await thrown.run.executeOne(thrown.t1);
+    expect(thrown.tracker.getNode(thrown.t1.id)?.status).toBe('failed');
+
+    const rejected = await makeHarness({
+      maxRetries: 0,
+      verifyTask: vi.fn(async () => ({ ok: false })),
+    });
+    (rejected.run as never as { coordinator: unknown }).coordinator = fakeCoordinator();
+    await rejected.run.executeOne(rejected.t1);
+    expect(rejected.tracker.getNode(rejected.t1.id)?.status).toBe('failed');
+
+    const passed = await makeHarness({
+      verifyTask: vi.fn(async () => ({ ok: true })),
+    });
+    passed.tracker.patchMetadata(passed.t1.id, { verificationCommand: 'pnpm test' });
+    (passed.run as never as { coordinator: unknown }).coordinator = fakeCoordinator();
+    await passed.run.executeOne(passed.t1);
+    expect(passed.tracker.getNode(passed.t1.id)?.metadata?.verificationState).toBe('passed');
+  });
+
+  it('covers supervisor absence, failure, default reassignment, and refused split', async () => {
+    const missing = await makeHarness({
+      maxRetries: 0,
+      superviseFailure: vi.fn(async () => ({ action: 'retry' as const })),
+    });
+    expect(
+      await (
+        missing.run as never as {
+          trySupervisorRescue: (id: string, error: string) => Promise<boolean>;
+        }
+      ).trySupervisorRescue('missing', 'boom'),
+    ).toBe(false);
+
+    const throws = await makeHarness({
+      maxRetries: 0,
+      superviseFailure: vi.fn(async () => {
+        throw new Error('supervisor failed');
+      }),
+    });
+    expect(
+      await (
+        throws.run as never as {
+          trySupervisorRescue: (id: string, error: string) => Promise<boolean>;
+        }
+      ).trySupervisorRescue(throws.t1.id, 'boom'),
+    ).toBe(false);
+
+    const defaults = await makeHarness({
+      maxRetries: 0,
+      superviseFailure: vi.fn(async () => ({ action: 'reassign' as const })),
+    });
+    expect(
+      await (
+        defaults.run as never as {
+          trySupervisorRescue: (id: string, error: string) => Promise<boolean>;
+        }
+      ).trySupervisorRescue(defaults.t1.id, 'boom'),
+    ).toBe(true);
+
+    const refused = await makeHarness({
+      maxRetries: 0,
+      superviseFailure: vi.fn(async () => ({ action: 'split' as const, subtasks: [] })),
+    });
+    expect(
+      await (
+        refused.run as never as {
+          trySupervisorRescue: (id: string, error: string) => Promise<boolean>;
+        }
+      ).trySupervisorRescue(refused.t1.id, 'boom'),
+    ).toBe(false);
+  });
+
+  it('integrates resolver success defensively when post-merge verification throws', async () => {
+    const release = vi.fn(async () => {
+      throw new Error('release failed');
+    });
+    const revertBaseTo = vi.fn(async () => {
+      throw new Error('revert failed');
+    });
+    const merge = vi.fn(
+      async (
+        _handle: unknown,
+        options: { resolve?: (info: { conflictFiles: string[]; cwd: string }) => Promise<boolean> },
+      ) => {
+        await options.resolve?.({ conflictFiles: ['x.ts'], cwd: '/wt' });
+        return { ok: true, resolved: true };
+      },
+    );
+    const worktrees = {
+      commitAll: vi.fn(async () => {}),
+      baseHead: vi.fn(async () => 'before'),
+      merge,
+      revertBaseTo,
+      release,
+    };
+    const conflictResolver = vi.fn(async () => true);
+    const { run, t1 } = await makeHarness({
+      worktrees,
+      conflictResolver,
+      verifyTask: vi.fn(async () => {
+        throw new Error('integrated verification failed');
+      }),
+    });
+    (run as never as { taskWorktrees: Map<string, unknown> }).taskWorktrees.set(t1.id, {
+      ownerId: t1.id,
+    });
+
+    const result = await (
+      run as never as {
+        integrateWorktree: (task: TaskNode) => Promise<{ ok: boolean; reason?: string }>;
+      }
+    ).integrateWorktree(t1);
+
+    expect(result.ok).toBe(false);
+    expect(result.reason).toContain('verification error after conflict resolution');
+    expect(conflictResolver).toHaveBeenCalled();
+    expect(revertBaseTo).toHaveBeenCalled();
+  });
+
+  it('handles missing handles, unresolved conflicts, merge hiccups, and no-op merges', async () => {
+    const noHandle = await makeHarness({
+      worktrees: { commitAll: vi.fn() },
+    });
+    await expect(
+      (
+        noHandle.run as never as {
+          integrateWorktree: (task: TaskNode) => Promise<{ ok: boolean }>;
+        }
+      ).integrateWorktree(noHandle.t1),
+    ).resolves.toEqual({ ok: true });
+
+    const conflictRelease = vi.fn(async () => {
+      throw new Error('release failed');
+    });
+    const conflict = await makeHarness({
+      worktrees: {
+        commitAll: vi.fn(async () => {}),
+        baseHead: vi.fn(async () => 'same'),
+        merge: vi.fn(async () => ({ ok: false })),
+        release: conflictRelease,
+      },
+    });
+    (conflict.run as never as { taskWorktrees: Map<string, unknown> }).taskWorktrees.set(
+      conflict.t1.id,
+      { ownerId: conflict.t1.id },
+    );
+    await expect(
+      (
+        conflict.run as never as {
+          integrateWorktree: (task: TaskNode) => Promise<{ ok: boolean; conflictFiles?: string[] }>;
+        }
+      ).integrateWorktree(conflict.t1),
+    ).resolves.toEqual({ ok: false, conflictFiles: [] });
+
+    const hiccup = await makeHarness({
+      worktrees: {
+        commitAll: vi.fn(async () => {
+          throw new Error('commit failed');
+        }),
+      },
+    });
+    (hiccup.run as never as { taskWorktrees: Map<string, unknown> }).taskWorktrees.set(
+      hiccup.t1.id,
+      { ownerId: hiccup.t1.id },
+    );
+    await expect(
+      (
+        hiccup.run as never as {
+          integrateWorktree: (task: TaskNode) => Promise<{ ok: boolean; conflictFiles?: string[] }>;
+        }
+      ).integrateWorktree(hiccup.t1),
+    ).resolves.toEqual({ ok: false, conflictFiles: [] });
+
+    const noOp = await makeHarness({
+      worktrees: {
+        commitAll: vi.fn(async () => {}),
+        baseHead: vi.fn(async () => 'same'),
+        merge: vi.fn(async () => ({ ok: true })),
+        release: vi.fn(async () => {}),
+      },
+    });
+    (noOp.run as never as { taskWorktrees: Map<string, unknown> }).taskWorktrees.set(noOp.t1.id, {
+      ownerId: noOp.t1.id,
+    });
+    await expect(
+      (
+        noOp.run as never as {
+          integrateWorktree: (task: TaskNode) => Promise<{ ok: boolean }>;
+        }
+      ).integrateWorktree(noOp.t1),
+    ).resolves.toEqual({ ok: true });
+    expect(noOp.run.getMergedCommits()).toEqual([]);
+  });
+
+  it('allocates active worktrees while skipping existing, inactive, missing, and failed allocations', async () => {
+    const allocate = vi.fn(async (ownerId: string, options: { ownerLabel?: string }) => {
+      if (options.ownerLabel?.includes('error')) throw new Error('allocate failed');
+      return {
+        ownerId,
+        status: options.ownerLabel?.includes('inactive') ? 'needs-review' : 'active',
+        dir: `/wt/${ownerId}`,
+        branch: `branch-${ownerId}`,
+      };
+    });
+    const { run, tracker, t1, t2 } = await makeHarness({ worktrees: { allocate } });
+    const inactive = tracker.addNode({
+      title: 'inactive',
+      description: '',
+      type: 'chore',
+      priority: 'low',
+      status: 'pending',
+    } as never);
+    const error = tracker.addNode({
+      title: 'error',
+      description: '',
+      type: 'chore',
+      priority: 'low',
+      status: 'pending',
+    } as never);
+    const missing = {
+      ...t2,
+      id: 'missing',
+      title: 'active missing',
+    };
+    const internals = run as never as {
+      taskWorktrees: Map<string, unknown>;
+      allocateWorktrees: (tasks: TaskNode[]) => Promise<void>;
+    };
+    internals.taskWorktrees.set(t1.id, { ownerId: t1.id });
+
+    await internals.allocateWorktrees([t1, t2, inactive, error, missing]);
+
+    expect(allocate).toHaveBeenCalledTimes(4);
+    expect(internals.taskWorktrees.has(t2.id)).toBe(true);
+    expect(internals.taskWorktrees.has(inactive.id)).toBe(false);
+    expect(internals.taskWorktrees.has(error.id)).toBe(false);
+    expect(internals.taskWorktrees.has('missing')).toBe(true);
+  });
+
+  it('resolves cancelled, completed, failed, pending, absent, and throwing worktrees', async () => {
+    const calls: string[] = [];
+    let throwingId = '';
+    const worktrees = {
+      commitAll: vi.fn(async (handle: { ownerId: string }) => {
+        if (handle.ownerId === throwingId) throw new Error('commit failed');
+        calls.push(`commit:${handle.ownerId}`);
+      }),
+      merge: vi.fn(async (handle: { ownerId: string }) => {
+        calls.push(`merge:${handle.ownerId}`);
+        return { ok: true };
+      }),
+      release: vi.fn(async (handle: { ownerId: string }) => {
+        calls.push(`release:${handle.ownerId}`);
+      }),
+    };
+    const { run, tracker, t1, t2 } = await makeHarness({ worktrees });
+    tracker.updateNodeStatus(t1.id, 'failed');
+    tracker.patchMetadata(t1.id, { cancelled: true });
+    tracker.updateNodeStatus(t2.id, 'completed');
+    const failed = tracker.addNode({
+      id: 'failed',
+      title: 'failed',
+      description: '',
+      type: 'chore',
+      priority: 'low',
+      status: 'failed',
+    } as never);
+    const pending = tracker.addNode({
+      id: 'pending',
+      title: 'pending',
+      description: '',
+      type: 'chore',
+      priority: 'low',
+      status: 'pending',
+    } as never);
+    const throwing = tracker.addNode({
+      id: 'throwing',
+      title: 'throwing',
+      description: '',
+      type: 'chore',
+      priority: 'low',
+      status: 'completed',
+    } as never);
+    throwingId = throwing.id;
+    const absent = { ...pending, id: 'absent' };
+    const internals = run as never as {
+      taskWorktrees: Map<string, unknown>;
+      resolveWorktrees: (tasks: TaskNode[]) => Promise<void>;
+      persistRetries: (id: string, retries: number) => void;
+      buildProgress: () => { deadlocked: boolean };
+    };
+    for (const task of [t1, t2, failed, pending, throwing]) {
+      internals.taskWorktrees.set(task.id, { ownerId: task.id });
+    }
+
+    await internals.resolveWorktrees([absent, t1, t2, failed, pending, throwing]);
+    internals.persistRetries('missing', 1);
+    tracker.addDependency(failed.id, pending.id);
+    tracker.updateNodeStatus(pending.id, 'blocked');
+    expect(internals.buildProgress().deadlocked).toBe(true);
+
+    expect(calls).toContain(`release:${t1.id}`);
+    expect(calls).toContain(`commit:${t2.id}`);
+    expect(calls).toContain(`release:${failed.id}`);
+    expect(calls).toContain(`release:${pending.id}`);
+    expect(internals.taskWorktrees.size).toBe(0);
+  });
+
+  it('covers public control refusals and session-id emission variants', async () => {
+    const events = new EventBus();
+    const sessionIds: Array<string | undefined> = [];
+    events.on('sdd.wave', (event: { sessionId?: string }) => sessionIds.push(event.sessionId));
+    const staticSession = await makeHarness({ events, sessionId: 'session-static' });
+
+    expect(await staticSession.run.cleanupWorktrees()).toBe(0);
+    expect(staticSession.run.retryTask('missing')).toBe(false);
+    expect(staticSession.run.reassignTask('missing', 'agent')).toBe(false);
+    expect(staticSession.run.reassignTask(staticSession.t1.id, 'agent')).toBe(true);
+    expect(staticSession.run.setTaskFallbacks('missing', [])).toBe(false);
+    expect(staticSession.run.deleteTask('missing')).toBe(false);
+    (
+      staticSession.run as never as {
+        emit: (
+          event: 'sdd.wave',
+          payload: { runId: string; wave: number; batchSize: number },
+        ) => void;
+      }
+    ).emit('sdd.wave', { runId: staticSession.run.runId, wave: 0, batchSize: 1 });
+
+    const emptyFunction = await makeHarness({ events, sessionId: () => '' });
+    (
+      emptyFunction.run as never as {
+        emit: (
+          event: 'sdd.wave',
+          payload: { runId: string; wave: number; batchSize: number },
+        ) => void;
+      }
+    ).emit('sdd.wave', { runId: emptyFunction.run.runId, wave: 1, batchSize: 1 });
+
+    expect(sessionIds).toEqual(['session-static', undefined]);
+  });
+
+  it('builds a coordinator budget with an opted-in timeout', async () => {
+    const { run } = await makeHarness({ taskTimeoutMs: 123 });
+    (run as never as { buildCoordinator: () => void }).buildCoordinator();
+    expect((run as never as { coordinator: unknown }).coordinator).toBeDefined();
+  });
+
+  it('fills slots, breaks before a third ready task, and handles an unchained blocked node', async () => {
+    const parallel = await makeHarness({ parallelSlots: 2 });
+    parallel.tracker.addNode({
+      title: 'T3',
+      description: '',
+      type: 'chore',
+      priority: 'low',
+      status: 'pending',
+    } as never);
+    vi.spyOn(
+      parallel.run as never as { buildCoordinator: () => void },
+      'buildCoordinator',
+    ).mockImplementation(() => {});
+    vi.spyOn(parallel.run, 'executeOne').mockImplementation(async (task) => {
+      parallel.tracker.updateNodeStatus(task.id, 'completed');
+      return { taskId: task.id, success: true };
+    });
+    await expect(parallel.run.run()).resolves.toMatchObject({ totalCompleted: 3 });
+
+    const blocked = await makeHarness({ maxFailedRetrySweeps: 0 });
+    blocked.tracker.updateNodeStatus(blocked.t1.id, 'blocked');
+    blocked.tracker.updateNodeStatus(blocked.t2.id, 'completed');
+    vi.spyOn(
+      blocked.run as never as { buildCoordinator: () => void },
+      'buildCoordinator',
+    ).mockImplementation(() => {});
+    await expect(blocked.run.run()).resolves.toMatchObject({ deadlocked: false });
+  });
+
+  it('uses assigned agents and per-task or default model configuration', async () => {
+    const configured = await makeHarness();
+    configured.tracker.updateNode(configured.t1.id, { assignee: 'Assigned' });
+    configured.tracker.patchMetadata(configured.t1.id, {
+      model: 'task-model',
+      provider: 'task-provider',
+      fallbackModels: ['task-fallback'],
+    });
+    const taskSpawn = vi.fn(async (config: Record<string, unknown>) => ({
+      subagentId: String(config.id),
+    }));
+    (configured.run as never as { coordinator: unknown }).coordinator = fakeCoordinator({
+      spawn: taskSpawn,
+    });
+    await configured.run.executeOne(configured.t1);
+    expect(taskSpawn).toHaveBeenCalledWith(
+      expect.objectContaining({
+        name: 'Assigned',
+        model: 'task-model',
+        provider: 'task-provider',
+        fallbackModels: ['task-fallback'],
+      }),
+    );
+
+    const defaults = await makeHarness({
+      defaultModel: 'default-model',
+      defaultProvider: 'default-provider',
+      fallbackModels: ['default-fallback'],
+    });
+    defaults.tracker.patchMetadata(defaults.t1.id, {
+      model: 123,
+      provider: false,
+      fallbackModels: 'invalid',
+    });
+    const defaultSpawn = vi.fn(async (config: Record<string, unknown>) => ({
+      subagentId: String(config.id),
+    }));
+    (defaults.run as never as { coordinator: unknown }).coordinator = fakeCoordinator({
+      spawn: defaultSpawn,
+    });
+    await defaults.run.executeOne(defaults.t1);
+    expect(defaultSpawn).toHaveBeenCalledWith(
+      expect.objectContaining({
+        model: 'default-model',
+        provider: 'default-provider',
+        fallbackModels: ['default-fallback'],
+      }),
+    );
+  });
+
+  it('handles an integrate result with omitted conflict files', async () => {
+    const { run, tracker, t1 } = await makeHarness({ maxRetries: 0 });
+    (run as never as { coordinator: unknown }).coordinator = fakeCoordinator();
+    vi.spyOn(
+      run as never as {
+        integrateWorktree: (task: TaskNode, result?: TaskResult) => Promise<{ ok: boolean }>;
+      },
+      'integrateWorktree',
+    ).mockResolvedValue({ ok: false });
+
+    await run.executeOne(t1);
+
+    expect(tracker.getNode(t1.id)?.status).toBe('failed');
+  });
+
+  it('accepts resolved integration verification and supplies its default failure reason', async () => {
+    const makeResolved = async (verdict: { ok: boolean; reason?: string }) => {
+      const worktrees = {
+        commitAll: vi.fn(async () => {}),
+        baseHead: vi
+          .fn<() => Promise<string>>()
+          .mockResolvedValueOnce('before')
+          .mockResolvedValueOnce('after'),
+        merge: vi.fn(async () => ({ ok: true, resolved: true })),
+        revertBaseTo: vi.fn(async () => true),
+        release: vi.fn(async () => {}),
+      };
+      const harness = await makeHarness({
+        worktrees,
+        conflictResolver: vi.fn(async () => true),
+        verifyTask: vi.fn(async () => verdict),
+      });
+      (harness.run as never as { taskWorktrees: Map<string, unknown> }).taskWorktrees.set(
+        harness.t1.id,
+        { ownerId: harness.t1.id },
+      );
+      return {
+        ...harness,
+        result: await (
+          harness.run as never as {
+            integrateWorktree: (
+              task: TaskNode,
+              result: TaskResult,
+            ) => Promise<{ ok: boolean; reason?: string }>;
+          }
+        ).integrateWorktree(harness.t1, okResult(harness.t1.id)),
+      };
+    };
+
+    expect((await makeResolved({ ok: true })).result).toEqual({ ok: true });
+    expect((await makeResolved({ ok: false })).result.reason).toBe(
+      'verification failed after conflict resolution',
+    );
+  });
+
+  it('recovers a failed blocker whose dependent edge is dangling', async () => {
+    const { run, tracker, graph, t1 } = await makeHarness();
+    tracker.updateNodeStatus(t1.id, 'failed');
+    graph.edges.push({
+      id: 'dangling',
+      from: t1.id,
+      to: 'missing-dependent',
+      type: 'depends_on',
+    });
+
+    expect((run as never as { recoverFailedBlockers: () => boolean }).recoverFailedBlockers()).toBe(
+      true,
+    );
+  });
+
+  it('tolerates a coordinator rejection while cancelling a live task', async () => {
+    const { run, t1 } = await makeHarness();
+    (run as never as { coordinator: unknown }).coordinator = {
+      stop: vi.fn(async () => {
+        throw new Error('stop failed');
+      }),
+    };
+    (run as never as { taskSubagents: Map<string, string> }).taskSubagents.set(t1.id, 'subagent');
+
+    await expect(run.cancelTask(t1.id)).resolves.toBe(true);
+  });
+
+  it('does not recover a failed blocker when all dependents are terminal', async () => {
+    const { run, tracker, t1, t2 } = await makeHarness();
+    tracker.addDependency(t1.id, t2.id);
+    tracker.updateNodeStatus(t1.id, 'failed');
+    tracker.updateNodeStatus(t2.id, 'failed');
+
+    expect((run as never as { recoverFailedBlockers: () => boolean }).recoverFailedBlockers()).toBe(
+      false,
+    );
   });
 });

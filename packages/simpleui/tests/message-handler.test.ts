@@ -180,6 +180,7 @@ function createHarness(overrides: Partial<MessageHandlerDeps> = {}): Harness {
   const activeModelRef = makeRef<{ provider: string; model: string } | null>(null);
   const runningRef = makeRef<boolean>(false);
   const refineStateRef = makeRef<RefineState | null>(null);
+  const refineEpochRef = makeRef<number>(0);
   const requestedModelsRef = makeRef<Set<string>>(new Set<string>());
   const stickToBottomRef = makeRef<boolean>(true);
 
@@ -211,6 +212,7 @@ function createHarness(overrides: Partial<MessageHandlerDeps> = {}): Harness {
     activeModelRef,
     runningRef,
     refineStateRef,
+    refineEpochRef,
     socketRef: makeRef(socket),
     requestedModelsRef,
     stickToBottomRef,

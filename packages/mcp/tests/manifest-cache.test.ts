@@ -135,4 +135,16 @@ describe('readManifest / writeManifest', () => {
     // Stored under a sanitized file name; read finds it by the same name.
     expect(await readManifest(tmp, 'we/ird:name', hash)).toEqual(tools);
   });
+
+  it('cleans up its temporary file when the atomic rename fails', async () => {
+    const destination = path.join(tmp, 'mcp-tools', 'blocked.json');
+    await fs.mkdir(destination, { recursive: true });
+
+    await expect(
+      writeCapabilityManifest(tmp, 'blocked', 'hash', { tools }),
+    ).resolves.toBeUndefined();
+
+    const files = await fs.readdir(path.dirname(destination));
+    expect(files).toEqual(['blocked.json']);
+  });
 });

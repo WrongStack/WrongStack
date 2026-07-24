@@ -52,7 +52,11 @@ import {
   updateCheckOnTask,
   updateGoalMetricOnTask,
   updateTask,
+  resolveDecompositionProposal,
+  verifyTaskCompletion,
+  type KanbanDecompositionSubtask,
 } from '@wrongstack/kanban';
+import { recordKanbanVerificationEvidence } from '@wrongstack/tools';
 import { applySessionKanbanTaskToSource } from '@wrongstack/tools/session-kanban';
 import type { WebSocket } from 'ws';
 import type { WSClientMessage, WSServerMessage } from './types.js';
@@ -65,6 +69,59 @@ export interface KanbanRouteContext {
   broadcast?: ((msg: WSServerMessage) => void) | undefined;
   dispatchTask?: KanbanTaskDispatcher | undefined;
 }
+
+/**
+ * Every client→server kanban message type handled by handleKanbanRoute.
+ * Pinned by tests: each entry must be dispatched by the switch (never reach
+ * the "Unknown kanban message type" default). Both servers consume this
+ * single switch (standalone dispatcher + CLI embedded router), so this list
+ * IS the protocol surface — update it together with the switch.
+ */
+export const KANBAN_CLIENT_MESSAGE_TYPES = [
+  'kanban.capabilities',
+  'kanban.column.add',
+  'kanban.column.remove',
+  'kanban.create',
+  'kanban.decomposition.approve',
+  'kanban.decomposition.reject',
+  'kanban.delete',
+  'kanban.duplicate',
+  'kanban.generate',
+  'kanban.get',
+  'kanban.health',
+  'kanban.list',
+  'kanban.snapshot',
+  'kanban.supervisor.audit',
+  'kanban.supervisor.status',
+  'kanban.task.activity',
+  'kanban.task.activity.add',
+  'kanban.task.add',
+  'kanban.task.assign',
+  'kanban.task.chain',
+  'kanban.task.chain.get',
+  'kanban.task.check.add',
+  'kanban.task.check.update',
+  'kanban.task.claim',
+  'kanban.task.copy',
+  'kanban.task.dispatch',
+  'kanban.task.get',
+  'kanban.task.merge',
+  'kanban.task.metric.add',
+  'kanban.task.metric.update',
+  'kanban.task.move',
+  'kanban.task.note.add',
+  'kanban.task.ready',
+  'kanban.task.release',
+  'kanban.task.remove',
+  'kanban.task.split',
+  'kanban.task.transfer',
+  'kanban.task.transition',
+  'kanban.task.update',
+  'kanban.task.verify',
+  'kanban.taskgraph.export',
+  'kanban.taskgraph.sync',
+  'kanban.update',
+] as const;
 
 export interface KanbanBoardPage {
   items: KanbanBoardSummary[];
@@ -1140,6 +1197,118 @@ export async function handleKanbanRoute(
         board
           ? ok(ws, type, { removed: true, boardId: board.id, columnId, board })
           : fail(ws, type, `Column not found: ${columnId}`);
+        return true;
+      }
+      case 'kanban.decomposition.approve':
+      case 'kanban.decomposition.reject': {
+        const boardId = payload?.boardId as string | undefined;
+        const taskId = payload?.taskId as string | undefined;
+        const proposalId = payload?.proposalId as string | undefined;
+        if (!boardId || !taskId || !proposalId) {
+          fail(ws, type, 'boardId, taskId, and proposalId required');
+          return true;
+        }
+        const action = type === 'kanban.decomposition.approve' ? 'approve' : 'reject';
+        // Validate each edit element has at least a string `title` before
+        // forwarding — malformed objects would corrupt the proposal/board.
+        let edits: KanbanDecompositionSubtask[] | undefined;
+        if (Array.isArray(payload?.edits)) {
+          const rawEdits = payload.edits as unknown[];
+          const valid = rawEdits.every(
+            (e): e is KanbanDecompositionSubtask =>
+              e !== null && typeof e === 'object' && typeof (e as Record<string, unknown>).title === 'string',
+          );
+          if (!valid) {
+            fail(ws, type, 'Each edit must be an object with a string "title"');
+            return true;
+          }
+          edits = rawEdits;
+        }
+        const resolved = await resolveDecompositionProposal(
+          ctx.projectRoot,
+          boardId,
+          taskId,
+          proposalId,
+          {
+            action,
+            ...(typeof payload?.reason === 'string' ? { reason: payload.reason } : {}),
+            ...(edits ? { editedSubtasks: edits } : {}),
+            resolvedBy: 'webui',
+          },
+        );
+        if (!resolved) {
+          fail(ws, type, `Proposal not found or already resolved: ${proposalId}`);
+          return true;
+        }
+        ok(ws, type, { boardId, task: resolved.task });
+        // Approval applies a structural split — broadcast the full board (the
+        // {board} envelope) plus the refreshed list, mirroring the dispatch
+        // completion pattern. Rejection only touches the task.
+        if (action === 'approve') {
+          ctx.broadcast?.({
+            type: 'kanban.decomposition.applied',
+            payload: { success: true, data: { board: resolved.board } },
+          });
+          ctx.broadcast?.({
+            type: 'kanban.get',
+            payload: { success: true, data: { board: resolved.board } },
+          });
+          ctx.broadcast?.({
+            type: 'kanban.list',
+            payload: { success: true, data: await listBoards(ctx.projectRoot) },
+          });
+        } else {
+          ctx.broadcast?.({
+            type: 'kanban.decomposition.resolved',
+            payload: { success: true, data: { boardId, task: resolved.task } },
+          });
+        }
+        return true;
+      }
+      case 'kanban.task.verify': {
+        const boardId = payload?.boardId as string | undefined;
+        const taskId = payload?.taskId as string | undefined;
+        if (!boardId || !taskId) {
+          fail(ws, type, 'boardId and taskId required');
+          return true;
+        }
+        ctx.broadcast?.({
+          type: 'kanban.task.verification_started',
+          payload: { success: true, data: { boardId, taskId } },
+        });
+        try {
+          const verResult = await verifyTaskCompletion(ctx.projectRoot, boardId, taskId);
+          const persisted = await updateTask(ctx.projectRoot, boardId, taskId, {
+            verificationReport: verResult.report,
+            successCriteria: verResult.task.successCriteria,
+          });
+          const freshTask =
+            persisted?.tasks.find((candidate) => candidate.id === verResult.task.id) ??
+            verResult.task;
+          if (ctx.context) recordKanbanVerificationEvidence(ctx.context, verResult.report);
+          ok(ws, type, { boardId, task: freshTask });
+          ctx.broadcast?.({
+            type: 'kanban.task.verification_completed',
+            payload: { success: true, data: { boardId, task: freshTask } },
+          });
+          if (persisted) {
+            ctx.broadcast?.({
+              type: 'kanban.get',
+              payload: { success: true, data: { board: persisted } },
+            });
+          }
+        } catch (err) {
+          // Clear the spinner on failure so the task doesn't look stuck.
+          ctx.broadcast?.({
+            type: 'kanban.task.verification_completed',
+            payload: {
+              success: false,
+              error: err instanceof Error ? err.message : String(err),
+              data: { boardId, taskId },
+            },
+          });
+          fail(ws, type, err instanceof Error ? err.message : String(err));
+        }
         return true;
       }
       default:

@@ -1325,6 +1325,97 @@ describe('HQ server Kanban synchronization', () => {
     expect(snapshot.type).toBe('hq.kanban_snapshot');
     second.close();
   });
+
+  it('broadcasts only the boards a delta touched, never the full merged set', async () => {
+    handle = await startOpenHqServer({ port: getPort() });
+    const ws = new WebSocket(`ws://127.0.0.1:${handle.port}/ws/client`);
+    await waitForOpen(ws);
+    const snapshots: Array<{ boards: Array<{ boardId: string }> }> = [];
+    ws.on('message', (data) => {
+      const message = JSON.parse(String(data)) as {
+        type?: string;
+        payload?: { boards: Array<{ boardId: string }> };
+      };
+      if (message.type === 'hq.kanban_snapshot' && message.payload) {
+        snapshots.push(message.payload);
+      }
+    });
+    ws.send(
+      JSON.stringify({
+        type: 'client.hello',
+        payload: {
+          protocolVersion: HQ_PROTOCOL_VERSION,
+          client: {
+            clientId: 'kanban-delta-client',
+            kind: 'cli',
+            machineId: 'machine-1',
+            startedAt: new Date().toISOString(),
+          },
+          project: {
+            projectId: 'project-kanban-delta',
+            projectRoot: '/repo',
+            projectName: 'repo',
+            machineId: 'machine-1',
+            workspaceKind: 'git',
+          },
+          capabilities: ['telemetry.publish'],
+          redactionPolicy: { rawContent: true, toolArgs: 'summary', paths: 'project-relative' },
+        },
+      }),
+    );
+    const kanbanEvent = (seq: number, boardId: string): string =>
+      JSON.stringify({
+        type: 'client.event',
+        event: {
+          id: `kanban-delta-event-${seq}`,
+          type: 'kanban.snapshot',
+          schemaVersion: HQ_PROTOCOL_VERSION,
+          timestamp: '2026-07-22T12:00:00Z',
+          clientId: 'kanban-delta-client',
+          projectId: 'project-kanban-delta',
+          seq,
+          payload: {
+            projectId: 'project-kanban-delta',
+            generatedAt: '2026-07-22T12:00:00Z',
+            boards: [
+              {
+                boardId,
+                revision: 1,
+                updatedAt: '2026-07-22T12:00:00Z',
+                board: { id: boardId, title: `Board ${boardId}` },
+              },
+            ],
+            tombstones: [],
+          },
+        },
+      });
+    await new Promise((resolve) => setTimeout(resolve, 40));
+    ws.send(kanbanEvent(1, 'board-a'));
+    await new Promise((resolve) => setTimeout(resolve, 60));
+    ws.send(kanbanEvent(2, 'board-b'));
+    const deadline = Date.now() + 2_000;
+    while (
+      !snapshots.some((s) => s.boards.some((b) => b.boardId === 'board-b')) &&
+      Date.now() < deadline
+    ) {
+      await new Promise((resolve) => setTimeout(resolve, 10));
+    }
+
+    // The broadcast for the board-b delta must NOT drag board-a along: with
+    // thousands of accumulated boards the old full-set re-broadcast was a
+    // multi-MB message per delta per client.
+    const deltaBroadcast = snapshots.find((s) => s.boards.some((b) => b.boardId === 'board-b'));
+    expect(deltaBroadcast).toBeDefined();
+    expect(deltaBroadcast!.boards.map((b) => b.boardId)).toEqual(['board-b']);
+
+    // The full merged set stays available through the REST snapshot API.
+    const response = await fetch(
+      `http://127.0.0.1:${handle.port}/api/projects/project-kanban-delta/kanban`,
+    );
+    const kanbanPayload = (await response.json()) as { boards: Array<{ boardId: string }> };
+    expect(kanbanPayload.boards.map((b) => b.boardId).sort()).toEqual(['board-a', 'board-b']);
+    ws.close();
+  });
 });
 
 describe('HQ server fleet telemetry', () => {

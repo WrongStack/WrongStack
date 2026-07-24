@@ -31,7 +31,7 @@
 
 import { execFile } from 'node:child_process';
 import type { Plugin } from '@wrongstack/core/types';
-import { withinProject } from '../runtime/index.js';
+import { BoundedMap, withinProject } from '../runtime/index.js';
 
 const API_VERSION = '^0.1.10';
 
@@ -164,7 +164,11 @@ interface PathMemo {
   hash: number;
   lastInjectedAt: number;
 }
-const pathMemo = new Map<string, PathMemo>();
+/**
+ * Per-path diff memo. Bounded: one entry per file touched in a long
+ * session over a large repository added up to an unbounded retain.
+ */
+const pathMemo = new BoundedMap<string, PathMemo>({ max: 512 });
 
 // ---------------------------------------------------------------------------
 // Git helpers

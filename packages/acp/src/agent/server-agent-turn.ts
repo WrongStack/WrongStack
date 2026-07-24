@@ -143,7 +143,7 @@ export function makeACPServerAgentTurn(
       // agent's context so the MODEL resumes (not just the client UI).
       if (pendingSeed.has(input.sessionId)) {
         pendingSeed.delete(input.sessionId);
-        seedAgentContext(agent, history.get(input.sessionId) ?? []);
+        seedAgentContext(agent, history.get(input.sessionId)!);
       }
     }
 
@@ -323,7 +323,9 @@ export function makeACPServerAgentTurn(
 }
 
 function finitePositiveLimit(value: number | undefined, fallback: number): number {
-  return Number.isFinite(value) && (value ?? 0) > 0 ? Math.floor(value as number) : fallback;
+  return Number.isFinite(value) && (value as number) > 0
+    ? Math.floor(value as number)
+    : fallback;
 }
 
 function trimHistory(
@@ -368,7 +370,12 @@ function toolNameToKind(name: string): ToolKind {
   const n = name.toLowerCase();
   if (n.includes('read') || n.includes('cat')) return 'read';
   if (n.includes('write') || n.includes('edit') || n.includes('apply') || n.includes('patch')) return 'edit';
-  if (n.includes('delete') || n.includes('rm')) return 'delete';
+  if (
+    n.includes('delete') ||
+    n === 'rm' ||
+    n.startsWith('rm_') ||
+    n.endsWith('_rm')
+  ) return 'delete';
   if (n.includes('move') || n.includes('rename') || n.includes('mv')) return 'move';
   if (n.includes('grep') || n.includes('glob') || n.includes('search') || n.includes('find')) return 'search';
   if (n.includes('bash') || n.includes('shell') || n.includes('exec') || n.includes('run') || n.includes('terminal')) return 'execute';
@@ -556,3 +563,20 @@ function extractUsage(
   }
   return null;
 }
+
+/** Internal deterministic seams used by the per-file coverage suite. */
+export const serverAgentTurnCoverage = {
+  finitePositiveLimit,
+  trimHistory,
+  replayEntryBytes,
+  seedAgentContext,
+  toolNameToKind,
+  toolTitle,
+  isRecord,
+  promptToAgentInput,
+  promptToText,
+  extractText,
+  pickStopReason,
+  extractPlan,
+  extractUsage,
+};

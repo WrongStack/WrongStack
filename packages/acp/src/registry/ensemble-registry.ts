@@ -151,9 +151,11 @@ async function probeWithBound<T, R>(
  * a structured result rather than throwing — a failed probe is data, not
  * an error.
  */
-async function defaultProbe(
+export async function defaultProbe(
   desc: ACPAgentDescriptor,
   timeoutMs: number,
+  spawnProcess: typeof spawn = spawn,
+  platform: NodeJS.Platform = process.platform,
 ): Promise<ProbeResult> {
   const start = Date.now();
   return new Promise((resolve) => {
@@ -184,10 +186,10 @@ async function defaultProbe(
     let child: ChildProcess;
     try {
       const probeArgs = [...(desc.probe.args ?? [])];
-      const shim = process.platform === 'win32'
+      const shim = platform === 'win32'
         ? buildWin32CmdShimInvocation(desc.probe.command, probeArgs)
         : null;
-      child = spawn(shim?.command ?? desc.probe.command, shim?.args ?? probeArgs, {
+      child = spawnProcess(shim?.command ?? desc.probe.command, shim?.args ?? probeArgs, {
         stdio: ['ignore', 'pipe', 'pipe'],
         windowsHide: true,
         ...(shim ? { windowsVerbatimArguments: shim.windowsVerbatimArguments } : {}),
@@ -231,7 +233,7 @@ async function defaultProbe(
       // as not-installed. The literal string is locale-stable for
       // Windows cmd.exe English (the only locale we ship in CI).
       const isWindowsShellMiss =
-        process.platform === 'win32' &&
+        platform === 'win32' &&
         out.toLowerCase().includes('is not recognized');
 
       if (isWindowsShellMiss) {
@@ -250,7 +252,7 @@ async function defaultProbe(
         // binary is installed.
         finish({
           ok: true,
-          version: out.split('\n')[0]?.trim() ?? '',
+          version: out.split('\n')[0]!.trim(),
           path: desc.probe.command,
           durationMs,
         });

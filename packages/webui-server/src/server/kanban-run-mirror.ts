@@ -21,15 +21,11 @@
  */
 
 import type { EventBus } from '@wrongstack/core/kernel';
+import { deserializeTaskGraph } from '@wrongstack/core/tasking';
+import type { SerializedTaskGraph, TaskEdge, TaskNode } from '@wrongstack/core/types';
 import {
-  deserializeTaskGraph,
-} from '@wrongstack/core/tasking';
-import type {
-  SerializedTaskGraph,
-  TaskEdge,
-  TaskNode,
-} from '@wrongstack/core/types';
-import {
+  attachVerificationReport,
+  buildVerificationReport,
   createBoard,
   getBoard,
   type KanbanAgentRunStatus,
@@ -146,7 +142,14 @@ export function createKanbanRunMirror(deps: KanbanRunMirrorDeps): KanbanRunMirro
         return found.id;
       }
     }
-    const board = await createBoard(projectRoot, { title, tags });
+    // Mirror boards reflect an external run whose engine already verifies
+    // completions (SDD verify-before-merge / goal gates) — the kanban
+    // completion gate must not re-park mirrored terminal writes in review.
+    const board = await createBoard(projectRoot, {
+      title,
+      tags,
+      completionGate: { enforcement: 'off' },
+    });
     boards.set(k, board.id);
     return board.id;
   }
@@ -221,7 +224,57 @@ export function createKanbanRunMirror(deps: KanbanRunMirrorDeps): KanbanRunMirro
       const a = desiredAssignmentFromSdd(t);
       if (a) live.push({ taskId: t.id, assignment: a });
     }
-    const final = await overlayAssignments(boardId, live, board);
+    let final = await overlayAssignments(boardId, live, board);
+
+    // Verification flows into the mirrored board: translate the run engine's
+    // completion-gate outcome into a minimal KanbanVerificationReport so the
+    // WebUI's verification surfaces light up for SDD-mirrored tasks instead of
+    // showing "unverified". attachVerificationReport is idempotent and never
+    // touches task status (sync owns it). Kanban-local fields on mirrored
+    // tasks are otherwise NEVER written by sync ticks.
+    const withReports = final ?? (await getBoard(projectRoot, boardId));
+    if (withReports) {
+      const byOrigin = new Map<string, KanbanTask>();
+      for (const kt of withReports.tasks) {
+        if (kt.origin?.taskId) byOrigin.set(kt.origin.taskId, kt);
+      }
+      for (const t of snapshot.tasks) {
+        if (!t.verificationState) continue;
+        const kt = byOrigin.get(t.id);
+        if (!kt) continue;
+        const verdict = t.verificationState === 'passed' ? 'passed' : 'failed';
+        if (kt.verificationReport?.verdict === verdict) continue;
+        const attached = await attachVerificationReport(
+          projectRoot,
+          boardId,
+          kt.id,
+          buildVerificationReport({
+            taskId: kt.id,
+            taskTitle: kt.title,
+            boardId,
+            checks: [
+              {
+                checkId: `sdd-gate-${t.id}`,
+                description: t.verificationCommand
+                  ? `SDD completion gate: ${t.verificationCommand}`
+                  : 'SDD completion gate (command / acceptance-criteria verification)',
+                type: 'command',
+                status: verdict,
+                evidence: {
+                  source: 'sdd-run',
+                  runId: snapshot.runId,
+                  ...(t.verificationDetail ? { detail: t.verificationDetail } : {}),
+                },
+                ...(verdict === 'failed' && t.verificationDetail
+                  ? { error: t.verificationDetail }
+                  : {}),
+              },
+            ],
+          }),
+        );
+        if (attached) final = attached;
+      }
+    }
     await publish(final);
   }
 
@@ -324,6 +377,8 @@ export function buildTaskGraphFromSddSnapshot(snapshot: SddBoardSnapshot): Seria
       retries: t.retries,
       cancelled: t.displayStatus === 'cancelled',
       verificationCommand: t.verificationCommand,
+      verificationState: t.verificationState,
+      verificationDetail: t.verificationDetail,
     },
   }));
   const edges: TaskEdge[] = [];
@@ -405,6 +460,11 @@ function desiredAssignmentFromSdd(t: SddBoardTask): DesiredAssignment | null {
     ...(t.retries ? { attempt: t.retries } : {}),
     ...(t.startedAt !== undefined ? { dispatchedAt: new Date(t.startedAt).toISOString() } : {}),
     ...(t.completedAt !== undefined ? { completedAt: new Date(t.completedAt).toISOString() } : {}),
+    // Surface the run engine's completion-gate outcome on the assignment.
+    ...(t.verificationState === 'failed' && t.verificationDetail
+      ? { error: t.verificationDetail }
+      : {}),
+    ...(t.verificationState === 'passed' ? { lastResult: 'verification passed' } : {}),
     status: status ?? 'assigned',
   };
 }
@@ -457,6 +517,8 @@ function assignmentUnchanged(
     'attempt',
     'dispatchedAt',
     'completedAt',
+    'error',
+    'lastResult',
   ]) {
     if (cur[k] !== des[k]) return false;
   }
@@ -469,7 +531,10 @@ function assignmentUnchanged(
 
 function sddStamp(s: SddBoardSnapshot): string {
   return s.tasks
-    .map((t) => `${t.id}:${t.displayStatus}:${t.agentName ?? ''}:${t.retries}:${t.model ?? ''}`)
+    .map(
+      (t) =>
+        `${t.id}:${t.displayStatus}:${t.agentName ?? ''}:${t.retries}:${t.model ?? ''}:${t.verificationState ?? ''}:${t.verificationDetail ?? ''}:${t.verificationCommand ?? ''}`,
+    )
     .join('|');
 }
 

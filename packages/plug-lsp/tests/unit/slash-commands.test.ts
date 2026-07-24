@@ -50,6 +50,9 @@ describe('slash commands', () => {
     const message = (await diagnosticsCommand({ list: () => [srv] } as never).run('', ctx()))
       .message;
     expect(message).toContain('bad');
+    expect(
+      (await diagnosticsCommand({ list: () => [] } as never).run('', undefined as never))?.message,
+    ).toBe('No LSP diagnostics.');
   });
 
   it('registers command set and returns bare names', () => {

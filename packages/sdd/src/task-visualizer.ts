@@ -1,7 +1,6 @@
-import type { TaskGraph, TaskNode, TaskProgress } from '@wrongstack/core/types';
 import { computeTaskProgress } from '@wrongstack/core/tasking';
-import type { Specification } from '@wrongstack/core/types';
-import { truncate } from '@wrongstack/core/utils';
+import type { Specification, TaskGraph, TaskNode, TaskProgress } from '@wrongstack/core/types';
+import { expectDefined, truncate } from '@wrongstack/core/utils';
 
 const STATUS_ICON: Record<TaskNode['status'], string> = {
   pending: '○',
@@ -31,13 +30,18 @@ const TYPE_ICON: Record<TaskNode['type'], string> = {
 /**
  * Render a task graph as ASCII art for terminal display.
  */
-export function renderTaskGraph(graph: TaskGraph, opts?: { compact?: boolean | undefined }): string {
+export function renderTaskGraph(
+  graph: TaskGraph,
+  opts?: { compact?: boolean | undefined },
+): string {
   const lines: string[] = [];
   const compact = opts?.compact ?? false;
 
   // Header
   lines.push(`╭─ Task Graph: ${graph.title} ─╮`);
-  lines.push(`│ Spec: ${graph.specId.slice(0, 8)}... │ Nodes: ${graph.nodes.size} │ Edges: ${graph.edges.length} │`);
+  lines.push(
+    `│ Spec: ${graph.specId.slice(0, 8)}... │ Nodes: ${graph.nodes.size} │ Edges: ${graph.edges.length} │`,
+  );
   lines.push('╰' + '─'.repeat(Math.max(50, graph.title.length + 30)) + '╯');
   lines.push('');
 
@@ -62,12 +66,13 @@ export function renderTaskGraph(graph: TaskGraph, opts?: { compact?: boolean | u
   const rootNodes = graph.rootNodes.filter((id) => graph.nodes.has(id));
 
   // If no root nodes, use all nodes
-  const startNodes = rootNodes.length > 0
-    ? rootNodes
-    : Array.from(graph.nodes.keys()).filter((id) => {
-        const deps = childrenMap.get(id);
-        return !deps || deps.length === 0;
-      });
+  const startNodes =
+    rootNodes.length > 0
+      ? rootNodes
+      : Array.from(graph.nodes.keys()).filter((id) => {
+          const deps = childrenMap.get(id);
+          return !deps || deps.length === 0;
+        });
 
   for (const rootId of startNodes) {
     renderNode(graph, rootId, lines, rendered, childrenMap, compact, '');
@@ -99,8 +104,7 @@ function renderNode(
   if (rendered.has(nodeId)) return;
   rendered.add(nodeId);
 
-  const node = graph.nodes.get(nodeId);
-  if (!node) return;
+  const node = expectDefined(graph.nodes.get(nodeId));
 
   const icon = STATUS_ICON[node.status];
   const prioIcon = PRIORITY_ICON[node.priority];
@@ -108,9 +112,10 @@ function renderNode(
   const title = compact ? truncate(node.title, 40) : node.title;
 
   const blockedBy = childrenMap.get(nodeId) ?? [];
-  const depsStr = blockedBy.length > 0
-    ? ` ← [${blockedBy.map((d) => graph.nodes.get(d)?.title?.slice(0, 12) ?? '?').join(', ')}]`
-    : '';
+  const depsStr =
+    blockedBy.length > 0
+      ? ` ← [${blockedBy.map((d) => graph.nodes.get(d)?.title?.slice(0, 12) ?? '?').join(', ')}]`
+      : '';
 
   lines.push(`${prefix}${icon} ${typeIcon} ${prioIcon} ${title}${depsStr}`);
 
@@ -155,7 +160,7 @@ export function renderTaskList(graph: TaskGraph): string {
   const nodes = Array.from(graph.nodes.values());
 
   // Group by status
-  const groups: Record<string, TaskNode[]> = {
+  const groups: Record<TaskNode['status'], TaskNode[]> = {
     in_progress: [],
     pending: [],
     blocked: [],
@@ -165,7 +170,7 @@ export function renderTaskList(graph: TaskGraph): string {
   };
 
   for (const node of nodes) {
-    groups[node.status]?.push(node);
+    groups[node.status].push(node);
   }
 
   for (const [status, group] of Object.entries(groups)) {

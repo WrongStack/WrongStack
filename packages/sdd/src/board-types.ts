@@ -9,8 +9,8 @@
  * same shape.
  */
 
-import type { TaskGraph, TaskNode, TaskProgress } from '@wrongstack/core/types';
 import { computeTaskProgress } from '@wrongstack/core/tasking';
+import type { TaskGraph, TaskNode, TaskProgress } from '@wrongstack/core/types';
 
 export type SddBoardStatus =
   | 'idle'
@@ -56,6 +56,10 @@ export interface SddBoardTask {
   fallbackModels?: string[] | undefined;
   /** Per-task completion-gate verification command, if set. */
   verificationCommand?: string | undefined;
+  /** Completion-gate outcome for the last worker attempt, if verification ran. */
+  verificationState?: 'passed' | 'failed' | undefined;
+  /** Failure reason when verificationState is 'failed'. */
+  verificationDetail?: string | undefined;
 }
 
 /** A topological column: tasks whose deepest dependency chain is `depth`. */
@@ -187,7 +191,7 @@ export function buildBoardTasks(graph: TaskGraph): {
   };
 
   const toTask = (n: TaskNode): SddBoardTask => {
-    const deps = blockers.get(n.id) ?? [];
+    const deps = blockers.get(n.id)!;
     const allDepsDone = deps.every((b) => statusOf(b) === 'completed');
     const meta = (n.metadata ?? {}) as Record<string, unknown>;
     const cancelled = Boolean(meta['cancelled']);
@@ -198,7 +202,7 @@ export function buildBoardTasks(graph: TaskGraph): {
         : n.status;
     return {
       id: n.id,
-      shortId: shortId.get(n.id) ?? n.id.slice(0, 6),
+      shortId: shortId.get(n.id)!,
       title: n.title,
       description: n.description,
       status: n.status,
@@ -207,15 +211,28 @@ export function buildBoardTasks(graph: TaskGraph): {
       type: n.type,
       deps: deps.map((b) => shortId.get(b) ?? b.slice(0, 6)),
       agentName: n.assignee,
-      worktreeBranch: typeof meta['worktreeBranch'] === 'string' ? (meta['worktreeBranch'] as string) : undefined,
+      worktreeBranch:
+        typeof meta['worktreeBranch'] === 'string' ? (meta['worktreeBranch'] as string) : undefined,
       startedAt: n.startedAt,
       completedAt: n.completedAt,
       retries: typeof meta['retries'] === 'number' ? (meta['retries'] as number) : 0,
       model: typeof meta['model'] === 'string' ? (meta['model'] as string) : undefined,
       provider: typeof meta['provider'] === 'string' ? (meta['provider'] as string) : undefined,
-      fallbackModels: Array.isArray(meta['fallbackModels']) ? (meta['fallbackModels'] as string[]) : undefined,
+      fallbackModels: Array.isArray(meta['fallbackModels'])
+        ? (meta['fallbackModels'] as string[])
+        : undefined,
       verificationCommand:
-        typeof meta['verificationCommand'] === 'string' ? (meta['verificationCommand'] as string) : undefined,
+        typeof meta['verificationCommand'] === 'string'
+          ? (meta['verificationCommand'] as string)
+          : undefined,
+      verificationState:
+        meta['verificationState'] === 'passed' || meta['verificationState'] === 'failed'
+          ? (meta['verificationState'] as 'passed' | 'failed')
+          : undefined,
+      verificationDetail:
+        typeof meta['verificationDetail'] === 'string'
+          ? (meta['verificationDetail'] as string)
+          : undefined,
     };
   };
 
@@ -225,11 +242,11 @@ export function buildBoardTasks(graph: TaskGraph): {
   for (const n of nodes) {
     const d = depthOf(n.id);
     if (!byDepth.has(d)) byDepth.set(d, []);
-    byDepth.get(d)?.push(shortId.get(n.id) ?? n.id.slice(0, 6));
+    byDepth.get(d)!.push(shortId.get(n.id)!);
   }
   const columns: SddBoardColumn[] = [...byDepth.keys()]
     .sort((a, b) => a - b)
-    .map((d) => ({ label: d === 0 ? 'Start' : `Phase ${d}`, taskIds: byDepth.get(d) ?? [] }));
+    .map((d) => ({ label: d === 0 ? 'Start' : `Phase ${d}`, taskIds: byDepth.get(d)! }));
 
   return { tasks, columns };
 }

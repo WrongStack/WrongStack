@@ -300,11 +300,8 @@ export class MCPRegistry {
    * cache yet, do a one-time cold discovery connect to learn + cache the tools.
    */
   private async startLazy(slot: ServerSlot): Promise<void> {
-    const cacheDir = this.cacheDir;
-    if (!cacheDir) {
-      await this.attemptConnect(slot);
-      return;
-    }
+    // start() only marks a slot lazy when a cache directory is configured.
+    const cacheDir = expectDefined(this.cacheDir);
     const hash = manifestConfigHash(slot.cfg);
     const cached = await readCapabilityManifest(cacheDir, slot.cfg.name, hash);
     if (cached) {

@@ -20,7 +20,7 @@
 import type { Logger } from '@wrongstack/core/types';
 import type { TelegramApiMessage } from './api-client.js';
 import type { TelegramBot, TelegramBotResponse } from './bot.js';
-import { OutboundQueue, type OutboundEntry } from './outbound-queue.js';
+import { type OutboundEntry, OutboundQueue } from './outbound-queue.js';
 import { createTokenBucket, type TokenBucket } from './rate-limiter.js';
 
 export interface BotOutboundOptions {
@@ -144,11 +144,9 @@ export class TelegramBotOutbound {
       return;
     }
     const entry: OutboundEntry = { chatId, text, kind: 'notification' };
-    this.#queue.enqueue(entry).catch((err) => {
-      this.#log.debug(
-        `Telegram outbound notification enqueue rejected for chat ${chatId}: ${(err as Error).message}`,
-      );
-    });
+    // Notifications are accepted or dropped without rejection. The outer
+    // stopped guard prevents the only rejecting state of the inner queue.
+    void this.#queue.enqueue(entry);
   }
 
   stats() {

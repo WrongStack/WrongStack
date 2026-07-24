@@ -24,8 +24,9 @@
  * marker can be enabled for older internal harnesses with
  * `legacyStartupMarker`, but ACP clients should rely on v1 initialize.
  */
-import { fileURLToPath } from 'node:url';
+
 import { createServer, type Server } from 'node:http';
+import { fileURLToPath } from 'node:url';
 import { writeErr } from '@wrongstack/core/utils';
 import type { ACPMessage } from '../types/acp-messages.js';
 import {
@@ -62,12 +63,16 @@ export interface WrongStackACPServerOptions {
    * `makeACPServerAgentTurn(...).replay` here so a reconnecting client
    * gets prior turns streamed back.
    */
-  replayFor?: ((sessionId: string) => Array<{ sessionUpdate: string; content: unknown }>) | undefined;
+  replayFor?:
+    | ((sessionId: string) => Array<{ sessionUpdate: string; content: unknown }>)
+    | undefined;
   /**
    * Cold-load seed hook. Pass `makeACPServerAgentTurn(...).seed` so a
    * restored session's Agent resumes the model context, not just the UI.
    */
-  seedFor?: ((sessionId: string, history: Array<{ sessionUpdate: string; content: unknown }>) => void) | undefined;
+  seedFor?:
+    | ((sessionId: string, history: Array<{ sessionUpdate: string; content: unknown }>) => void)
+    | undefined;
   /** Per-session cleanup hook, normally `makeACPServerAgentTurn(...).dispose`. */
   disposeFor?: ((sessionId: string) => void) | undefined;
   /**
@@ -150,12 +155,9 @@ export class WrongStackACPServer {
       // Accept `Authorization: Bearer <token>` header or `?token=<token>`
       // query parameter (the latter for browser clients).
       if (authToken) {
-        const url = new URL(req.url ?? '/', `http://${host}:${port}`);
+        const url = new URL(requestPath(req.url), `http://${host}:${port}`);
         const queryToken = url.searchParams.get('token');
-        const authHeader = req.headers['authorization'];
-        const bearerToken = Array.isArray(authHeader)
-          ? authHeader[0]?.replace(/^Bearer\s+/i, '')
-          : authHeader?.replace(/^Bearer\s+/i, '');
+        const bearerToken = headerValue(req.headers.authorization)?.replace(/^Bearer\s+/i, '');
         const supplied = queryToken ?? bearerToken ?? '';
         if (supplied !== authToken) {
           res.writeHead(401, { 'Content-Type': 'application/json' });
@@ -170,9 +172,7 @@ export class WrongStackACPServer {
       // malicious web page the user visits cannot reach this agent and
       // drive it (a real `runTurn` executes tools/commands — i.e. RCE).
       const selfOrigin = `http://${host}:${port}`;
-      const reqOrigin = Array.isArray(req.headers.origin)
-        ? req.headers.origin[0]
-        : req.headers.origin;
+      const reqOrigin = headerValue(req.headers.origin);
       if (reqOrigin && reqOrigin !== selfOrigin) {
         res.writeHead(403);
         res.end(JSON.stringify({ error: 'cross-origin request forbidden' }));
@@ -268,9 +268,7 @@ export class WrongStackACPServer {
 
         res.writeHead(200, { 'Content-Type': 'application/json' });
         const responseBody =
-          response !== null
-            ? { ...(response as ACPMessage), notifications }
-            : { notifications };
+          response !== null ? { ...(response as ACPMessage), notifications } : { notifications };
         res.end(JSON.stringify(responseBody));
       });
 
@@ -282,8 +280,8 @@ export class WrongStackACPServer {
       try {
         await requestPromise;
       } catch {
-        // Response already ended or an error occurred after res.end.
-        // The chain's catch ensures httpChain doesn't stay rejected.
+        res.writeHead(500, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: { code: -32603, message: 'Internal error' } }));
       }
     });
 
@@ -318,6 +316,17 @@ export class WrongStackACPServer {
 const defaultEchoRunTurn: RunTurn = async (_input, _emit): Promise<RunTurnResult> => {
   return { stopReason: 'end_turn' };
 };
+
+function headerValue(value: string | string[] | undefined): string | undefined {
+  return Array.isArray(value) ? value[0] : value;
+}
+
+function requestPath(value: string | undefined): string {
+  return value ?? '/';
+}
+
+/** Direct-module test seam; not re-exported by the package barrel. */
+export const wrongStackACPServerCoverage = { defaultEchoRunTurn, headerValue, requestPath };
 
 /**
  * Bootstrap function for `node dist/agent/wrongstack-acp-agent.js`.

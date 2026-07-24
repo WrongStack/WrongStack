@@ -14,26 +14,13 @@
  *   formatGoalKanbanChoicePrompt()                      → string (selection screen)
  */
 
-import {
-  addColumn,
-  addTask,
-  createBoard,
-  getBoard,
-  listBoards,
-  removeBoard,
-} from '@wrongstack/kanban';
+import { addTask, createBoard, getBoard, listBoards, removeBoard } from '@wrongstack/kanban';
 import { color } from '../utils/color.js';
 import type { GoalFile } from './goal-store.js';
 
 // ── Constants ───────────────────────────────────────────────────────────────
 
 const GOAL_BOARD_TAG_PREFIX = 'goal:';
-
-const DEFAULT_COLUMNS = [
-  { title: 'Backlog', order: 0 },
-  { title: 'In Progress', order: 1 },
-  { title: 'Done', order: 2 },
-] as const;
 
 // ── Public API ──────────────────────────────────────────────────────────────
 
@@ -68,25 +55,13 @@ export async function createGoalKanbanBoard(
     title: `🎯 ${titleSuffix}`,
     description: `Kanban board auto-created for goal: ${displayGoal}`,
     tags: [goalTag(goalFile)],
+    // Goal boards mirror an engine-driven run; the goal coordinator owns
+    // completion semantics, so the kanban completion gate stays out of the way.
+    completionGate: { enforcement: 'off' },
   });
 
-  // Add the three columns if the board was created with a default column
-  // (kanban createBoard normally provides 'backlog' as the starter column).
-  // We rename/replace by adding our own columns, then removing the starter.
-  const backlogCol = board.columns.find((c) =>
-    ['backlog', 'todo', 'open'].includes(c.id.toLowerCase()),
-  );
-  const existingColumnIds = new Set(board.columns.map((c) => c.id));
-
-  for (const col of DEFAULT_COLUMNS) {
-    if (!existingColumnIds.has(col.title.toLowerCase().replace(/\s+/g, '-'))) {
-      const result = await addColumn(projectRoot, board.id, { title: col.title });
-      if (result?.column && backlogCol) {
-        // Move column to correct order — addColumn appends, so we re-order
-        // by setting order directly. This is best-effort.
-      }
-    }
-  }
+  // The board is created with the kanban package's default columns (Backlog,
+  // To Do, In Progress, Review, Done) which already cover the goal workflow.
 
   // Add one task per deliverable, each tagged with origin
   // so refreshGoalKanban() can match by stable ID instead of title text.

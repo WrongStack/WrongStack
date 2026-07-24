@@ -126,9 +126,26 @@ function relativePath(p: string): string {
 // Flag detection
 // ---------------------------------------------------------------------------
 
+/**
+ * Compile the built-in and user-supplied flag patterns.
+ *
+ * Invalid patterns are skipped rather than thrown. `patterns` comes from
+ * user config, so a single typo ("flags.(" ) used to throw out of
+ * `compilePatterns` and take the entire scan down — including the
+ * built-in patterns, which are fine. Sibling plugins that accept regex
+ * config (`prompt-firewall`, `semantic-search-indexer`) already skip;
+ * this brings the third into line.
+ */
 function compilePatterns(patterns: string[]): RegExp[] {
-  const sources = [...DEFAULT_PATTERNS, ...patterns];
-  return sources.map((src) => new RegExp(src, 'g'));
+  const out: RegExp[] = [];
+  for (const src of [...DEFAULT_PATTERNS, ...patterns]) {
+    try {
+      out.push(new RegExp(src, 'g'));
+    } catch {
+      // skip invalid pattern
+    }
+  }
+  return out;
 }
 
 function scanFile(filePath: string, content: string, patterns: RegExp[], maxFindings: number): FeatureFlagUsage[] {
@@ -159,23 +176,44 @@ function scanFile(filePath: string, content: string, patterns: RegExp[], maxFind
 async function scanPath(
   rawPath: string,
   cfg: FeatureFlagTrackerConfig,
-): Promise<{ usages: FeatureFlagUsage[]; scannedFiles: number }> {
+): Promise<{
+  usages: FeatureFlagUsage[];
+  scannedFiles: number;
+  /** Files discovered by the walk, whether or not they were opened. */
+  discoveredFiles: number;
+  /** True when `maxFindings` stopped the walk before every file was read. */
+  truncated: boolean;
+}> {
   const root = process.cwd();
   const resolved = isAbsolute(rawPath) ? resolve(rawPath) : resolve(root, rawPath);
   const exts = normalizeExtensions(cfg.extensions);
   const files = await collectSourceFilesAsync(resolved, { extensions: exts });
   const patterns = compilePatterns(cfg.patterns);
   const usages: FeatureFlagUsage[] = [];
+  // Count what was actually opened. Reporting the discovered total as
+  // `scannedFiles` claimed credit for files the walk never reached once
+  // the findings cap cut it short.
+  let scannedFiles = 0;
+  let truncated = false;
   for (const p of files) {
     try {
       const content = await readFile(p, 'utf-8');
+      scannedFiles += 1;
       usages.push(...scanFile(p, content, patterns, cfg.maxFindings));
-      if (usages.length >= cfg.maxFindings) break;
+      if (usages.length >= cfg.maxFindings) {
+        truncated = scannedFiles < files.length;
+        break;
+      }
     } catch {
       // skip unreadable
     }
   }
-  return { usages: usages.slice(0, cfg.maxFindings), scannedFiles: files.length };
+  return {
+    usages: usages.slice(0, cfg.maxFindings),
+    scannedFiles,
+    discoveredFiles: files.length,
+    truncated,
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -299,7 +337,7 @@ const plugin: Plugin = {
         }
 
         state.scanCount += 1;
-        let result: { usages: FeatureFlagUsage[]; scannedFiles: number };
+        let result: Awaited<ReturnType<typeof scanPath>>;
         try {
           result = await scanPath(rawPath, cfg);
         } catch (err) {
@@ -312,6 +350,10 @@ const plugin: Plugin = {
           ok: true,
           path: relativePath(resolve(process.cwd(), rawPath)),
           scannedFiles: result.scannedFiles,
+          discoveredFiles: result.discoveredFiles,
+          // Say so when the cap stopped the walk early: a partial scan
+          // that reports few findings must not read as a clean result.
+          truncated: result.truncated,
           usages: result.usages,
         };
       },

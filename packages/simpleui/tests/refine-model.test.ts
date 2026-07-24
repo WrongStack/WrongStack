@@ -4,6 +4,7 @@ import {
   parseFallbackRef,
   projectRefineResult,
   type RefineState,
+  resolveEscapeRestore,
   resolveRefineText,
 } from '../src/lib/refine-model.js';
 
@@ -102,9 +103,6 @@ describe('resolveRefineText', () => {
     expect(resolveRefineText(ready, 'original')).toBe('fix the bug');
   });
 
-  it('sends nothing for edit — the text goes back to the composer', () => {
-    expect(resolveRefineText(ready, 'edit')).toBeNull();
-  });
 });
 
 describe('parseFallbackRef', () => {
@@ -130,5 +128,27 @@ describe('normalizedEqual', () => {
   it('ignores case and whitespace runs', () => {
     expect(normalizedEqual('Fix  the BUG', 'fix the bug')).toBe(true);
     expect(normalizedEqual('fix the bug', 'fix the typo')).toBe(false);
+  });
+});
+
+describe('resolveEscapeRestore', () => {
+  it('restores the original into an empty composer', () => {
+    expect(resolveEscapeRestore(state(), '')).toBe('fix the bug');
+  });
+
+  it('treats a whitespace-only draft as empty and restores', () => {
+    expect(resolveEscapeRestore(state(), '   \n\t ')).toBe('fix the bug');
+  });
+
+  it('never clobbers text the user typed after the panel opened', () => {
+    expect(resolveEscapeRestore(state(), 'a brand new prompt')).toBeNull();
+  });
+
+  it('leaves the composer untouched when no panel is open', () => {
+    expect(resolveEscapeRestore(null, '')).toBeNull();
+  });
+
+  it('returns null for an empty original', () => {
+    expect(resolveEscapeRestore(state({ original: '' }), '')).toBeNull();
   });
 });

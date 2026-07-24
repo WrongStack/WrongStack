@@ -739,3 +739,66 @@ describe('SessionRegistry lifecycle edges', () => {
     expect(await reg.list()).toEqual([]);
   });
 });
+
+describe('updateAgents write coalescing', () => {
+  async function registeredRegistry(): Promise<{ reg: SessionRegistry; root: string }> {
+    const root = await freshRoot();
+    const reg = new SessionRegistry(root);
+    await reg.register({
+      sessionId: 'sess-throttle', projectSlug: 'ws', projectRoot: '/ws', projectName: 'WS',
+      workingDir: '/ws', pid: process.pid, startedAt: new Date().toISOString(),
+    });
+    return { reg, root };
+  }
+
+  it('collapses a burst of updateAgents calls into one trailing write with the newest snapshot', async () => {
+    const { reg } = await registeredRegistry();
+    const internal = reg as unknown as {
+      atomicUpdate(mut: (r: Record<string, unknown>) => void): Promise<void>;
+    };
+    const atomicSpy = vi.spyOn(internal, 'atomicUpdate');
+
+    // Leading edge: first call in a quiet window writes immediately.
+    await reg.updateAgents([makeAgent({ id: 'leader', toolCalls: 1 })]);
+    const afterLeading = atomicSpy.mock.calls.length;
+    expect(afterLeading).toBe(1);
+
+    // Burst within the throttle window: none writes immediately, all settle
+    // on one trailing write that carries the newest snapshot.
+    const burst = Promise.all([
+      reg.updateAgents([makeAgent({ id: 'leader', toolCalls: 2 })]),
+      reg.updateAgents([makeAgent({ id: 'leader', toolCalls: 3 })]),
+      reg.updateAgents([makeAgent({ id: 'leader', toolCalls: 4 })]),
+    ]);
+    expect(atomicSpy.mock.calls.length).toBe(afterLeading);
+    await burst;
+    expect(atomicSpy.mock.calls.length).toBe(afterLeading + 1);
+
+    const entry = await reg.get('sess-throttle');
+    expect(entry?.agents[0]?.toolCalls).toBe(4);
+    await reg.unregister();
+  });
+
+  it('unregister cancels a pending trailing write so the entry stays deleted', async () => {
+    const { reg } = await registeredRegistry();
+    await reg.updateAgents([makeAgent({ id: 'leader', toolCalls: 1 })]);
+    // Second call lands inside the throttle window → scheduled, not written.
+    const pending = reg.updateAgents([makeAgent({ id: 'leader', toolCalls: 2 })]);
+    await reg.unregister();
+    await pending; // resolves via cancellation, not a write
+    await new Promise((resolve) => setTimeout(resolve, 400));
+    expect(await reg.get('sess-throttle')).toBeUndefined();
+  });
+
+  it('markClosing folds the pending snapshot into its final write', async () => {
+    const { reg } = await registeredRegistry();
+    await reg.updateAgents([makeAgent({ id: 'leader', toolCalls: 1 })]);
+    const pending = reg.updateAgents([makeAgent({ id: 'leader', toolCalls: 7 })]);
+    await reg.markClosing();
+    await pending;
+    const entry = await reg.get('sess-throttle');
+    expect(entry?.status).toBe('closing');
+    expect(entry?.agents[0]?.toolCalls).toBe(7);
+    await reg.unregister();
+  });
+});

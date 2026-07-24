@@ -188,41 +188,69 @@ describe('retryAfterMsFromBody', () => {
 
   it('falls back to local time when UTC interpretation is in the past', () => {
     vi.useFakeTimers();
-    // System clock at 12:00 UTC — a Beijing-time (UTC+8) stamp of 20:00
-    // is actually 12:00 UTC, i.e. "now". A stamp of 20:30 Beijing =
-    // 12:30 UTC = 30 min from now. But as a bare string interpreted as
-    // UTC it's 20:30 UTC = 8.5 hours ahead, so it still works under UTC.
-    // The real problem case: stamp says 13:00 (Beijing = 05:00 UTC, in
-    // the past under UTC), but as local time on a UTC+8 machine it's 1h
-    // ahead. Simulate by setting system time ahead of the UTC reading.
+    // System clock at 14:00 UTC. A reset stamp of 13:00 interpreted as
+    // UTC is 1 hour in the past. The UTC reading is rejected (negative
+    // delta). On a non-UTC machine whose local clock is ahead of the
+    // stamp (e.g. UTC+8 where local "13:00" = 05:00Z, still past), the
+    // local reading is also past and the function returns undefined.
+    // On a machine whose local interpretation puts the stamp in the
+    // future, a positive local delta is returned instead. Either way,
+    // the contract is: no crash and no bogus negative value.
     vi.setSystemTime(new Date('2026-07-24T14:00:00Z'));
     const body: ProviderErrorBody = {
       message: 'Your limit will reset at 2026-07-24 13:00:00',
     };
-    // As UTC: 13:00Z minus 14:00Z = negative → fall through.
-    // As local time (system TZ is UTC in the test env): same → negative.
-    // This returns undefined; the retry policy falls through to backoff.
-    // We assert it doesn't throw or return a bogus negative.
     const result = retryAfterMsFromBody(body);
-    // In the default UTC test env, both interpretations are past → undefined.
-    // If the test runner is in a positive-offset TZ (e.g. UTC+8), the local
-    // interpretation would yield a positive delta. Accept either — the point
-    // is no crash and no negative value.
+    // Must never be negative. On a UTC runner it's undefined (both past);
+    // on a positive-offset TZ it may be positive. Accept either.
     if (result !== undefined) expect(result).toBeGreaterThan(0);
   });
 
-  it('parses a future Beijing-time stamp correctly from a UTC test env', () => {
+  it('returns the smallest positive delta (UTC + local)', () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date('2026-07-24T04:00:00Z'));
-    // Beijing is UTC+8, so 13:00 Beijing = 05:00 UTC = 1 hour from now.
-    // As a UTC string, 13:00Z is 9 hours ahead — also valid and larger.
-    // The parser returns the UTC interpretation (first match), which is
-    // always >= the correct delta, so the clamp in retry-policy handles it.
+    // On a non-UTC machine (this CI/dev host is UTC+3), the local
+    // interpretation of "13:00" is 10:00Z = 6 h from 04:00Z, while the UTC
+    // interpretation is 9 h. The fix returns the smaller (correct) value.
+    // The old UTC-first code would have returned 32_400_000 (9 h).
     const body: ProviderErrorBody = {
       message: 'Usage limit reached. Your limit will reset at 2026-07-24 13:00:00',
     };
     const result = retryAfterMsFromBody(body);
-    expect(result).toBeGreaterThan(0);
+    // Must be the minimum of the two positive interpretations.
+    const utcDelta = Date.parse('2026-07-24T13:00:00Z') - Date.parse('2026-07-24T04:00:00Z');
+    const localDelta = Date.parse('2026-07-24T13:00:00') - Date.parse('2026-07-24T04:00:00Z');
+    const expected = Math.min(
+      utcDelta > 0 ? utcDelta : Infinity,
+      localDelta > 0 ? localDelta : Infinity,
+    );
+    expect(result).toBe(expected);
+  });
+
+  it('does not overshoot when local-time interpretation is closer', () => {
+    // Regression for the chimera-review High finding: the old UTC-first-and-return
+    // strategy returned the larger UTC delta and never tried local. On a non-UTC
+    // machine this caused an 8-hour overshoot for Beijing-time stamps.
+    //
+    // We cannot change the TZ inside vitest, so we verify the contract indirectly:
+    // when both interpretations yield a future timestamp, the returned delta must
+    // be the minimum — not the first. On a UTC machine both are equal; on a UTC+8
+    // machine the local delta is 8 h smaller and must win.
+    //
+    // This test documents the invariant: parseTzAwareDelta is min(utcDelta,
+    // localDelta), not utcDelta-if-positive-else-localDelta.
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-07-24T12:00:00Z'));
+    const body: ProviderErrorBody = {
+      message: 'Resets at 2026-07-24 12:30:00',
+    };
+    const result = retryAfterMsFromBody(body);
+    // On any TZ, 12:30 is 30 min from 12:00.
+    // UTC: 12:30Z − 12:00Z = 1_800_000 ms.
+    // Local on UTC+8: 12:30 local = 04:30Z → negative → not counted.
+    // Local on UTC: same as UTC → 1_800_000 ms.
+    // Either way min returns 1_800_000.
+    expect(result).toBe(1_800_000);
   });
 
   it('handles slash-separated dates', () => {

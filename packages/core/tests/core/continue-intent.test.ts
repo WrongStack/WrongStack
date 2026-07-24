@@ -97,6 +97,42 @@ describe('resolveContinuation', () => {
     expect(r.label).toContain('todo:');
   });
 
+  it('ladder step 1: embeds the full board snapshot so progress changes the text', () => {
+    const board = [
+      todo('First task', 'completed'),
+      todo('Second task', 'in_progress'),
+      todo('Third task', 'pending'),
+    ];
+    const r = resolveContinuation({ todos: board });
+    // Every board row is present with its status marker — the model gets the
+    // whole plan, and the auto-proceed repetition guard only sees identical
+    // prompts when the board is genuinely frozen.
+    expect(r.text).toContain('[x] First task');
+    expect(r.text).toContain('[~] Second task');
+    expect(r.text).toContain('[ ] Third task');
+
+    // Any board movement changes the continuation text.
+    const progressed = resolveContinuation({
+      todos: [
+        todo('First task', 'completed'),
+        todo('Second task', 'completed'),
+        todo('Third task', 'in_progress'),
+      ],
+    });
+    expect(progressed.text).not.toBe(r.text);
+  });
+
+  it('ladder step 1: caps the embedded board at 20 rows', () => {
+    const many = Array.from({ length: 25 }, (_, i) =>
+      todo(`Task ${i + 1}`, i === 0 ? 'in_progress' : 'pending'),
+    );
+    const r = resolveContinuation({ todos: many });
+    expect(r.text).toContain('[~] Task 1');
+    expect(r.text).toContain('Task 20');
+    expect(r.text).not.toContain('[ ] Task 21');
+    expect(r.text).toContain('… 5 more');
+  });
+
   it('ladder step 1: falls to the first pending when nothing is in-progress', () => {
     const r = resolveContinuation({
       todos: [todo('Done', 'completed'), todo('Next up', 'pending'), todo('Later', 'pending')],

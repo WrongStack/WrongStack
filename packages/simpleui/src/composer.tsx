@@ -45,6 +45,8 @@ interface ComposerProps {
   onRefineDecision: (decision: RefineDecision) => void;
   onRefineRetry: () => void;
   onRefineRetryFallback: (ref: string) => void;
+  onRefineStartNow: () => void;
+  onRefineSendEdited: (text: string) => void;
   // Image attachment
   attachedImages: { id: string; data: string; mime: string; name: string }[];
   onAttachImages: () => void;
@@ -89,6 +91,8 @@ export function Composer({
   onRefineDecision,
   onRefineRetry,
   onRefineRetryFallback,
+  onRefineStartNow,
+  onRefineSendEdited,
   attachedImages,
   onAttachImages,
   onRemoveImage,
@@ -129,6 +133,8 @@ export function Composer({
           onDecision={onRefineDecision}
           onRetry={onRefineRetry}
           onRetryFallback={onRefineRetryFallback}
+          onStartRefine={onRefineStartNow}
+          onSendEdited={onRefineSendEdited}
         />
       )}
 

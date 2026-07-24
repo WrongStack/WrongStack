@@ -25,21 +25,19 @@
  *  - Idempotent cleanup: each agent's `stop()` is called in a
  *    `finally`, so a throw in the body still tears the child down.
  */
-import { EnsembleRegistry, type DetectedAgent } from '../registry/ensemble-registry.js';
+
 import { SubagentBudget } from '@wrongstack/core/coordination';
-import {
-  makeACPSubagentRunnerWithStop,
-  resolveAcpAgentCommand,
-  type ACPSubagentRunnerOptions,
-} from './acp-subagent-runner.js';
 import type { ACPProgressEvent } from '../client/acp-session.js';
 import { defaultPermissionPolicy } from '../client/permission.js';
+import { type DetectedAgent, EnsembleRegistry } from '../registry/ensemble-registry.js';
+import {
+  type ACPSubagentRunnerOptions,
+  makeACPSubagentRunnerWithStop,
+  resolveAcpAgentCommand,
+} from './acp-subagent-runner.js';
 
 /** Live per-agent progress callback for an ensemble run. */
-export type EnsembleProgressHandler = (
-  agentId: string,
-  event: ACPProgressEvent,
-) => void;
+export type EnsembleProgressHandler = (agentId: string, event: ACPProgressEvent) => void;
 
 /**
  * Per-agent outcome from an ensemble run.
@@ -174,8 +172,7 @@ async function mapBound<T, R>(
  * catalog's corrected invocations win over the stale legacy map (the legacy
  * map is now only a last-resort fallback). Returns `null` for unknown ids.
  */
-export const defaultEnsembleCmdResolver: EnsembleCmdResolver = (id) =>
-  resolveAcpAgentCommand(id);
+export const defaultEnsembleCmdResolver: EnsembleCmdResolver = (id) => resolveAcpAgentCommand(id);
 
 /**
  * Update one result in-place. Keeps the array order stable so callers
@@ -266,8 +263,7 @@ async function runOne(
       status: isAbort ? 'cancelled' : 'failed',
       error: {
         kind: e?.kind ?? (isAbort ? 'aborted' : 'unknown'),
-        message:
-          e?.message ?? (err instanceof Error ? err.message : String(err)),
+        message: e?.message ?? (err instanceof Error ? err.message : String(err)),
       },
       durationMs: Date.now() - startedAt,
       iterations: 0,
@@ -355,10 +351,7 @@ export async function runEnsemble(opts: EnsembleRunnerOptions): Promise<Ensemble
   //    resolves, so `Promise.all` semantics are correct here —
   //    identical to the original `Promise.allSettled` contract because
   //    no worker ever rejects.
-  const concurrency = Math.max(
-    1,
-    opts.maxConcurrency ?? DEFAULT_MAX_CONCURRENCY,
-  );
+  const concurrency = Math.max(1, opts.maxConcurrency ?? DEFAULT_MAX_CONCURRENCY);
   await mapBound(
     runnable,
     async ({ id, cmd }) => {
@@ -418,15 +411,11 @@ export function renderEnsembleText(result: EnsembleResult): string {
         );
         break;
       case 'failed':
-        lines.push(
-          `[${r.error?.kind ?? 'unknown'}] ${r.error?.message ?? 'failed'}`,
-        );
+        lines.push(`[${r.error?.kind ?? 'unknown'}] ${r.error?.message ?? 'failed'}`);
         lines.push(`[${r.agentId}] failed  ${r.durationMs}ms`);
         break;
       case 'cancelled':
-        lines.push(
-          `[${r.error?.kind ?? 'aborted'}] ${r.error?.message ?? 'cancelled'}`,
-        );
+        lines.push(`[${r.error?.kind ?? 'aborted'}] ${r.error?.message ?? 'cancelled'}`);
         lines.push(`[${r.agentId}] cancelled  ${r.durationMs}ms`);
         break;
       case 'skipped':
@@ -440,3 +429,6 @@ export function renderEnsembleText(result: EnsembleResult): string {
   );
   return lines.join('\n');
 }
+
+/** Direct-module test seam; not re-exported by the package barrel. */
+export const ensembleRunnerCoverage = { mapBound, setResult };

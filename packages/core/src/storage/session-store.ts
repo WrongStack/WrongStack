@@ -1834,7 +1834,7 @@ export class DefaultSessionStore implements SessionStore {
       model: 'unknown',
       provider: 'unknown',
     })}\n`;
-    await fsp.writeFile(file, record, 'utf8');
+    await atomicWrite(file, record);
     await fsp.unlink(meta).catch(() => undefined);
   }
 

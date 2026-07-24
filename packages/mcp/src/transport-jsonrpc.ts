@@ -1,8 +1,8 @@
 import { ToolError } from '@wrongstack/core/types';
 
 export type JsonRpcResult = {
-  jsonrpc: string;
-  id?: number | undefined;
+  jsonrpc: '2.0';
+  id: number;
   result?: unknown | undefined;
   error?: { code: number | undefined; message: string; data?: unknown | undefined } | undefined;
 };

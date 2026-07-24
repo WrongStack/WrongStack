@@ -68,5 +68,5 @@ function buildLineStarts(text: string): number[] {
 }
 
 function offsetOf(pos: { line: number; character: number }, lineStarts: number[]): number {
-  return (lineStarts[pos.line] ?? lineStarts[lineStarts.length - 1] ?? 0) + pos.character;
+  return (lineStarts[pos.line] ?? lineStarts[lineStarts.length - 1]!) + pos.character;
 }

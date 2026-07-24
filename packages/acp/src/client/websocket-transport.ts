@@ -73,7 +73,6 @@ export class WebSocketClientTransport implements ACPClientTransport {
       const ws = new WS(this.opts.url, this.opts.protocols);
       this.ws = ws;
       const timer = setTimeout(() => {
-        if (settled) return;
         settled = true;
         try {
           ws.close();
@@ -118,7 +117,9 @@ export class WebSocketClientTransport implements ACPClientTransport {
     }
     try {
       const serialized = JSON.stringify(msg);
-      const buffered = Number.isFinite(this.ws.bufferedAmount) ? this.ws.bufferedAmount ?? 0 : 0;
+      const buffered = Number.isFinite(this.ws.bufferedAmount)
+        ? (this.ws.bufferedAmount as number)
+        : 0;
       if (buffered + Buffer.byteLength(serialized, 'utf8') > this.maxBufferedBytes) {
         this.stop();
         return Promise.reject(new Error('WebSocket transport send buffer limit exceeded'));
@@ -192,5 +193,5 @@ export class WebSocketClientTransport implements ACPClientTransport {
 }
 
 function finitePositiveLimit(value: number | undefined, fallback: number): number {
-  return Number.isFinite(value) && (value ?? 0) > 0 ? Math.floor(value as number) : fallback;
+  return value !== undefined && Number.isFinite(value) && value > 0 ? Math.floor(value) : fallback;
 }

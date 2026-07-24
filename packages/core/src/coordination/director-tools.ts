@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto';
 import {
   claimReadyTask,
   describeKanbanBoundary,
+  finalizeTaskCompletion,
   getBoard,
   heartbeatTaskAssignment,
   type KanbanBoard,
@@ -1312,7 +1313,7 @@ export function makeKanbanQueueTool(
           // recovered and reassigned the task while we were awaiting results,
           // the terminal write is a no-op rather than a TOCTOU gap that could
           // overwrite the successor's state with stale data.
-          await updateTaskAssignment(
+          const terminalWrite = await updateTaskAssignment(
             projectRoot,
             dispatch.boardId,
             dispatch.taskId,
@@ -1326,6 +1327,26 @@ export function makeKanbanQueueTool(
             },
             { expectedLeaseId: ourLeaseId },
           );
+          // Universal completion gate: a completed assignment is parked in
+          // review by updateTaskAssignment on gated boards; finalize runs the
+          // verifier and applies the final status. Best-effort — a gate
+          // failure must not turn a successful dispatch batch into an error.
+          if (result.status === 'success' && terminalWrite) {
+            try {
+              await finalizeTaskCompletion(projectRoot, dispatch.boardId, dispatch.taskId, {
+                eventContext: { actor: 'kanban-queue' },
+              });
+            } catch (error) {
+              // Surface as a result failure so callers see the gate error
+              // without failing the already-dispatched batch write.
+              resultFailures.push({
+                taskId: dispatch.taskId,
+                runTaskId: result.taskId,
+                status: 'failed',
+                error: `completion gate failed: ${toErrorMessage(error)}`,
+              });
+            }
+          }
           if (result.status !== 'success') {
             resultFailures.push({
               taskId: dispatch.taskId,

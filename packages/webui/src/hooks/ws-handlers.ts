@@ -16,6 +16,7 @@ import {
   extractActivitiesFromMessage,
   useCodemapActivityStore,
 } from '@/stores';
+import { useCodemapIndexStore } from '@/stores/codemap-index-store';
 import type { WSServerMessage } from '@/types';
 
 // Chat domain handlers extracted to chat-handlers.ts
@@ -624,6 +625,13 @@ export const WS_HANDLERS: Partial<Record<WSServerMessage['type'], (msg: WSServer
     'kanban.run.start': handleKanbanResult,
     'kanban.supervisor.status': handleKanbanResult,
     'kanban.supervisor.audit': handleKanbanResult,
+    'kanban.task.verify': handleKanbanResult,
+    'kanban.task.verification_started': handleKanbanResult,
+    'kanban.task.verification_completed': handleKanbanResult,
+    'kanban.decomposition.approve': handleKanbanResult,
+    'kanban.decomposition.reject': handleKanbanResult,
+    'kanban.decomposition.resolved': handleKanbanResult,
+    'kanban.decomposition.applied': handleKanbanResult,
     'tools.list': handleToolsList,
     'memory.list': handleMemoryList,
     'memory.sage.list': handleMemorySageList,
@@ -783,6 +791,10 @@ export const WS_HANDLERS: Partial<Record<WSServerMessage['type'], (msg: WSServer
       const activities = extractActivitiesFromMessage(msg);
       const store = useCodemapActivityStore.getState();
       for (const activity of activities) store.recordFileEvent(activity);
+    },
+    'codemap.index_updated': (msg: WSServerMessage) => {
+      const payload = msg.payload as { at?: number } | undefined;
+      useCodemapIndexStore.getState().notifyIndexUpdated(payload?.at);
     },
     'file.saved': (msg: WSServerMessage) => {
       const activities = extractActivitiesFromMessage(msg);

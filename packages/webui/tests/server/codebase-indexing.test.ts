@@ -5,12 +5,14 @@ const {
   cancelPendingReindexes,
   enqueueReindex,
   isIndexableFile,
+  onIndexStateChange,
   runStartupIndex,
   shutdownCodebaseIndexHost,
 } = vi.hoisted(() => ({
   cancelPendingReindexes: vi.fn(),
   enqueueReindex: vi.fn(),
   isIndexableFile: vi.fn((filePath: string) => filePath.endsWith('.ts')),
+  onIndexStateChange: vi.fn(() => vi.fn()),
   runStartupIndex: vi.fn(async () => ({
     filesIndexed: 1,
     symbolsIndexed: 2,
@@ -23,6 +25,7 @@ vi.mock('@wrongstack/tools', () => ({
   cancelPendingReindexes,
   enqueueReindex,
   isIndexableFile,
+  onIndexStateChange,
   runStartupIndex,
   shutdownCodebaseIndexHost,
 }));

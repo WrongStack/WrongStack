@@ -4,6 +4,21 @@
  * @see docs/specs/techstack-sdd.md §6
  */
 
+import type { ComponentType } from 'react';
+import {
+  Archive,
+  Box,
+  Code,
+  Code2,
+  Component,
+  Gem,
+  Monitor,
+  Package,
+  Rocket,
+  Shield,
+  Terminal,
+  Zap,
+} from 'lucide-react';
 import type {
   TechStackCoverage,
   TechStackDependency,
@@ -124,6 +139,63 @@ export function statusMeta(status: string): StatusMeta {
   return STATUS_META[status] ?? FALLBACK_STATUS;
 }
 
+// ── Ecosystem presentation ───────────────────────────────────────────────
+
+export interface EcosystemMeta {
+  /** Human-readable display name for the ecosystem. */
+  readonly label: string;
+  /** Optional lucide-react icon component for visual identification. */
+  readonly icon?: ComponentType<{ className?: string }> | undefined;
+}
+
+/**
+ * One entry per `EcosystemId` in the TechStack type system.
+ *
+ * Every label is an explicit literal — computed at read-time from the
+ * ecosystem string received from the server, so adding a new ecosystem
+ * to `packages/techstack/src/types.ts` requires a matching entry here
+ * for the UI to display a human-readable label.
+ */
+export const ECOSYSTEM_META: Record<string, EcosystemMeta> = {
+  npm:     { label: 'npm / Node.js', icon: Package },
+  python:  { label: 'Python',        icon: Code2 },
+  rust:    { label: 'Rust',          icon: Shield },
+  go:      { label: 'Go',            icon: Rocket },
+  dotnet:  { label: '.NET',          icon: Monitor },
+  php:     { label: 'PHP',           icon: Terminal },
+  dart:    { label: 'Dart / Flutter',icon: Component },
+  maven:   { label: 'Maven',         icon: Archive },
+  gradle:  { label: 'Gradle',        icon: Box },
+  ruby:    { label: 'Ruby',          icon: Gem },
+  swift:   { label: 'Swift',         icon: Zap },
+  elixir:  { label: 'Elixir',        icon: Terminal },
+  cpp:     { label: 'C / C++',       icon: Code },
+};
+
+const FALLBACK_ECOSYSTEM: EcosystemMeta = { label: 'Unknown' };
+
+export function ecosystemMeta(ecosystem: string): EcosystemMeta {
+  return ECOSYSTEM_META[ecosystem] ?? FALLBACK_ECOSYSTEM;
+}
+
+/**
+ * Renders the ecosystem icon if one is registered, or nothing.
+ * Use in list rows, detail headers, and dropdown options where
+ * space permits a small visual cue.
+ */
+export function EcosystemIcon({
+  ecosystem,
+  className = 'size-3.5 shrink-0',
+}: {
+  ecosystem: string;
+  className?: string;
+}) {
+  const meta = ecosystemMeta(ecosystem);
+  if (!meta.icon) return null;
+  const Icon = meta.icon;
+  return <Icon className={className} />;
+}
+
 /** Statuses that mean "someone should look at this". Drives the metrics strip. */
 export function needsAttention(dep: TechStackDependency): boolean {
   return statusMeta(dep.status).weight >= 50;
@@ -159,11 +231,31 @@ export const ACTION_LABELS: Record<string, string> = {
 
 // ── Coverage ──────────────────────────────────────────────────────────────
 
-export const COVERAGE_META: Record<TechStackCoverage, { label: string; badge: string }> = {
-  full: { label: 'Full', badge: 'border-success/35 bg-success/10 text-success' },
-  partial: { label: 'Partial', badge: 'border-warning/35 bg-warning/10 text-warning' },
-  unsupported: { label: 'Unsupported', badge: 'border-border/70 bg-muted text-muted-foreground' },
+export interface CoverageMeta {
+  readonly label: string;
+  readonly badge: string;
+  /** Short inline text for the dependency row subtitle (e.g. "limited", "best-effort"). */
+  readonly note: string | undefined;
+}
+
+export const COVERAGE_META: Record<TechStackCoverage, CoverageMeta> = {
+  full: { label: 'Full', badge: 'border-success/35 bg-success/10 text-success', note: undefined },
+  partial: {
+    label: 'Partial',
+    badge: 'border-warning/35 bg-warning/10 text-warning',
+    note: 'limited',
+  },
+  unsupported: {
+    label: 'Unsupported',
+    badge: 'border-border/70 bg-muted text-muted-foreground',
+    note: 'best-effort',
+  },
 };
+
+/** Lookup helper that returns the FALLBACK for unknown coverage strings. */
+export function coverageMeta(coverage: string): CoverageMeta {
+  return COVERAGE_META[coverage as TechStackCoverage] ?? COVERAGE_META.unsupported;
+}
 
 // ── Version drift ─────────────────────────────────────────────────────────
 

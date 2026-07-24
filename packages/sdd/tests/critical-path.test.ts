@@ -1,6 +1,6 @@
+import type { TaskGraph, TaskNode } from '@wrongstack/core/types/task-graph.js';
 import { describe, expect, it } from 'vitest';
 import { analyzeCriticalPath } from '../src/critical-path.js';
-import type { TaskGraph, TaskNode } from '@wrongstack/core/types/task-graph.js';
 
 function makeNode(id: string, overrides: Partial<TaskNode> = {}): TaskNode {
   return {
@@ -70,12 +70,7 @@ describe('Critical Path Analysis', () => {
 
   it('detects bottlenecks', () => {
     const graph = makeGraph({
-      nodes: [
-        makeNode('a'),
-        makeNode('b'),
-        makeNode('c'),
-        makeNode('d'),
-      ],
+      nodes: [makeNode('a'), makeNode('b'), makeNode('c'), makeNode('d')],
       edges: [
         { from: 'b', to: 'a' },
         { from: 'c', to: 'a' },
@@ -104,10 +99,7 @@ describe('Critical Path Analysis', () => {
 
   it('skips completed tasks in ready list', () => {
     const graph = makeGraph({
-      nodes: [
-        makeNode('a', { status: 'completed' }),
-        makeNode('b'),
-      ],
+      nodes: [makeNode('a', { status: 'completed' }), makeNode('b')],
     });
     const result = analyzeCriticalPath(graph);
     expect(result.readyTasks).not.toContain('a');
@@ -116,7 +108,11 @@ describe('Critical Path Analysis', () => {
 
   it('handles linear dependency chain', () => {
     const graph = makeGraph({
-      nodes: [makeNode('a', { estimateHours: 2 }), makeNode('b', { estimateHours: 3 }), makeNode('c', { estimateHours: 1 })],
+      nodes: [
+        makeNode('a', { estimateHours: 2 }),
+        makeNode('b', { estimateHours: 3 }),
+        makeNode('c', { estimateHours: 1 }),
+      ],
       edges: [
         { from: 'b', to: 'a' },
         { from: 'c', to: 'b' },
@@ -125,5 +121,46 @@ describe('Critical Path Analysis', () => {
     const result = analyzeCriticalPath(graph);
     expect(result.criticalPath).toEqual(['a', 'b', 'c']);
     expect(result.totalHours).toBe(6);
+  });
+
+  it('marks a task ready when every blocker is completed', () => {
+    const graph = makeGraph({
+      nodes: [makeNode('a', { status: 'completed' }), makeNode('b')],
+      edges: [{ from: 'b', to: 'a' }],
+    });
+    const result = analyzeCriticalPath(graph);
+    expect(result.readyTasks).toContain('b');
+    expect(result.blockedTasks).not.toContain('b');
+  });
+
+  it('breaks circular dependencies into bounded parallel groups', () => {
+    const graph = makeGraph({
+      nodes: [makeNode('a'), makeNode('b')],
+      edges: [
+        { from: 'a', to: 'b' },
+        { from: 'b', to: 'a' },
+      ],
+    });
+    const result = analyzeCriticalPath(graph);
+    expect(result.parallelGroups.flat().sort()).toEqual(['a', 'b']);
+  });
+
+  it('tolerates unrelated and dangling edges with missing estimates', () => {
+    const graph = makeGraph({
+      nodes: [
+        makeNode('a', { estimateHours: undefined }),
+        makeNode('b', { estimateHours: undefined }),
+        makeNode('c'),
+      ],
+    });
+    graph.edges.push(
+      { id: 'related', from: 'a', to: 'b', type: 'related_to' },
+      { id: 'dangling-task', from: 'missing', to: 'a', type: 'depends_on' },
+      { id: 'dangling-blocker', from: 'b', to: 'absent', type: 'depends_on' },
+      { id: 'second-blocker', from: 'b', to: 'c', type: 'depends_on' },
+    );
+    const result = analyzeCriticalPath(graph);
+    expect(result.bottlenecks.find((item) => item.taskId === 'a')?.blockedHours).toBe(0);
+    expect(result.totalHours).toBeGreaterThanOrEqual(0);
   });
 });

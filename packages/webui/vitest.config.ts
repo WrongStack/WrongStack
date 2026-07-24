@@ -27,7 +27,8 @@ export default defineConfig({
     hookTimeout: 30_000,
     coverage: {
       provider: 'v8',
-      reporter: ['text', 'json', 'html'],
+      reporter: ['text', 'json', 'json-summary', 'html'],
+      reportOnFailure: true,
       // Enforce coverage across the whole WebUI source, not just src/lib.
       include: ['src/**/*.{ts,tsx}'],
       exclude: [
@@ -38,34 +39,13 @@ export default defineConfig({
         'src/lib/core-browser-shim.ts', // side-effect polyfill shim
         'src/server/entry.ts', // process/bootstrap entry — exercised at runtime
       ],
-      // ── Coverage gate (ratchet) ────────────────────────────────────────────
-      // Goal: 100% across the WebUI. Baseline measured 2026-06-17:
-      //   stmts 15.55% · branches 13.05% · funcs 11.75% · lines 16.21%.
-      // Updated 2026-06-17 (after ui-store + chat-store 100%):
-      //   stmts 16.86% · branches 14.06% · funcs 15.07% · lines n/a (v8).
-      // Updated 2026-06-17 (after file/history/session/config-store tests):
-      //   stmts 17.55% · branches 14.54% · funcs 16.84% · lines 18.13%.
-      // Updated 2026-06-17 (after code-detect, slash-commands, fleet-store tests):
-      //   stmts 19.21% · branches 16.87% · funcs 17.81% · lines 19.83%.
-      // fleet-store: 71.68% → 91.15% stmts (new tests: 13 → 38).
-      // code-detect.ts: 8.16% → 100% (52 new tests).
-      // slash-commands.ts: 89.47% → 100% (19 new tests).
-      // Stores at 100%: goal-store, file-store, history-store, session-store,
-      // viz-store, fleet-store, code-detect, slash-commands.
-      // local-prefs at 31.25% (zustand/persist migration — hard to unit test).
-      // Biggest gaps: server/index.ts (3.6k LOC), SkillsPanel/AgentFlowCanvas.
-      //
-      // RATECHET POLICY: Every new store/utility test file landed must increase
-      // these thresholds by +1. This is enforced by CI. Update the comment above
-      // with the new measured values when thresholds are raised.
+      // Aggregate WebUI ratchet. Per-file 100% is not yet representative of the
+      // existing component inventory; keep the measured floor non-regressing.
       thresholds: {
         statements: 19,
         branches: 16,
         functions: 17,
         lines: 19,
-        // Don't fail the gate on a single untouched file — the aggregate
-        // ratchet above is what we enforce. Tighten per-file once each area
-        // is brought up.
         perFile: false,
       },
     },

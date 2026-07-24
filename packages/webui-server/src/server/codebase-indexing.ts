@@ -4,24 +4,20 @@ import type { Context } from '@wrongstack/core/agent';
 import type { EventBus } from '@wrongstack/core/kernel';
 import type { IndexingConfig, Logger } from '@wrongstack/core/types';
 import {
+  DEFAULT_WALK_IGNORE_SET,
+  type ProjectWatchSubscription,
+  watchProjectTree,
+} from '@wrongstack/core/utils';
+import {
   cancelPendingReindexes,
   enqueueReindex,
   isIndexableFile,
+  onIndexStateChange,
   runStartupIndex,
   shutdownCodebaseIndexHost,
 } from '@wrongstack/tools';
+import { clearCodemapGraphCache } from './codemap-cache.js';
 
-const IGNORE_DIRS = new Set([
-  'node_modules',
-  '.git',
-  'dist',
-  'build',
-  '.next',
-  'coverage',
-  '.turbo',
-  '__snapshots__',
-  '.nyc_output',
-]);
 const WATCHER_DEDUP_TTL_MS = 60_000;
 const WATCHER_DEDUP_MAX_PATHS = 4_096;
 
@@ -71,60 +67,74 @@ export function setupWebUICodebaseIndexing(deps: WebUICodebaseIndexingDeps): Web
       });
   }
 
-  let watcher: fs.FSWatcher | undefined;
+  let watcher: ProjectWatchSubscription | undefined;
   const lastWatcherEvent = new Map<string, number>();
   if (idx?.watchExternal || deps.events) {
     try {
-      watcher = fs.watch(deps.projectRoot, { recursive: true }, async (eventType, filename) => {
-        if (!filename) return;
-        const rel = filename.toString();
-        if (isIgnored(rel)) return;
-        const abs = path.resolve(deps.projectRoot, rel);
-        if (!isInside(deps.projectRoot, abs) || !isIndexableFile(abs)) return;
-        const now = Date.now();
-        const previousEventAt = lastWatcherEvent.get(abs) ?? 0;
-        if (now - previousEventAt > 75) {
-          // Treat the map as a small LRU and opportunistically evict expired
-          // paths. Generated files can otherwise leave one permanent entry per
-          // unique filename in a long-running WebUI process.
-          lastWatcherEvent.delete(abs);
-          lastWatcherEvent.set(abs, now);
-          if (lastWatcherEvent.size > WATCHER_DEDUP_MAX_PATHS) {
-            for (const [cachedPath, seenAt] of lastWatcherEvent) {
-              if (now - seenAt > WATCHER_DEDUP_TTL_MS) lastWatcherEvent.delete(cachedPath);
-            }
-            while (lastWatcherEvent.size > WATCHER_DEDUP_MAX_PATHS) {
-              const oldest = lastWatcherEvent.keys().next().value;
-              if (oldest === undefined) break;
-              lastWatcherEvent.delete(oldest);
-            }
+      // Shares the process-wide recursive watcher with any other subscriber
+      // on the same root instead of opening a second OS-level tree watch.
+      // Emitted async: a rename needs an access() probe to tell delete from edit.
+      const emitActivity = async (
+        abs: string,
+        eventType: 'rename' | 'change',
+        now: number,
+      ): Promise<void> => {
+        let operation: 'delete' | 'edit' = 'edit';
+        if (eventType === 'rename') {
+          try {
+            await fs.promises.access(abs);
+          } catch {
+            operation = 'delete';
           }
-          let operation: 'delete' | 'edit' = 'edit';
-          if (eventType === 'rename') {
-            try {
-              await fs.promises.access(abs);
-            } catch {
-              operation = 'delete';
-            }
-          }
-          deps.events?.emit('file.activity', {
-            filePath: path.normalize(abs),
-            operation,
-            phase: 'changed',
-            source: 'watcher',
-            at: now,
-          });
         }
-        // Only reindex on external filesystem changes when the user opted into
-        // it. The watcher itself always runs (codemap telemetry above needs the
-        // `file.activity` stream), but with `watchExternal:false` a user who
-        // asked to index only their own edits must not have build tools, git
-        // checkouts, or other agents trigger continuous reindex churn. The
-        // editor-write path below stays gated on `onEdit` separately.
-        if (idx?.watchExternal) enqueueFile(abs);
-      });
-      watcher.on('error', (err) => deps.logger.debug(`webui codebase index watcher error: ${err}`));
-      watcher.unref?.();
+        deps.events?.emit('file.activity', {
+          filePath: path.normalize(abs),
+          operation,
+          phase: 'changed',
+          source: 'watcher',
+          at: now,
+        });
+      };
+      watcher = watchProjectTree(
+        deps.projectRoot,
+        ({ eventType, filename }) => {
+          if (!filename) return;
+          const rel = filename;
+          if (isIgnored(rel)) return;
+          const abs = path.resolve(deps.projectRoot, rel);
+          if (!isInside(deps.projectRoot, abs) || !isIndexableFile(abs)) return;
+          const now = Date.now();
+          const previousEventAt = lastWatcherEvent.get(abs) ?? 0;
+          if (now - previousEventAt > 75) {
+            // Treat the map as a small LRU and opportunistically evict expired
+            // paths. Generated files can otherwise leave one permanent entry per
+            // unique filename in a long-running WebUI process.
+            lastWatcherEvent.delete(abs);
+            lastWatcherEvent.set(abs, now);
+            if (lastWatcherEvent.size > WATCHER_DEDUP_MAX_PATHS) {
+              for (const [cachedPath, seenAt] of lastWatcherEvent) {
+                if (now - seenAt > WATCHER_DEDUP_TTL_MS) lastWatcherEvent.delete(cachedPath);
+              }
+              while (lastWatcherEvent.size > WATCHER_DEDUP_MAX_PATHS) {
+                const oldest = lastWatcherEvent.keys().next().value;
+                if (oldest === undefined) break;
+                lastWatcherEvent.delete(oldest);
+              }
+            }
+            void emitActivity(abs, eventType, now).catch((err) =>
+              deps.logger.debug(`webui codebase index watcher error: ${err}`),
+            );
+          }
+          // Only reindex on external filesystem changes when the user opted into
+          // it. The watcher itself always runs (codemap telemetry above needs the
+          // `file.activity` stream), but with `watchExternal:false` a user who
+          // asked to index only their own edits must not have build tools, git
+          // checkouts, or other agents trigger continuous reindex churn. The
+          // editor-write path below stays gated on `onEdit` separately.
+          if (idx?.watchExternal) enqueueFile(abs);
+        },
+        { onError: (err) => deps.logger.debug(`webui codebase index watcher error: ${err}`) },
+      );
     } catch (err) {
       deps.logger.debug(
         `webui codebase index watcher unavailable: ${err instanceof Error ? err.message : String(err)}`,
@@ -148,6 +158,25 @@ export function setupWebUICodebaseIndexing(deps: WebUICodebaseIndexingDeps): Web
     });
   }
 
+  // Drop CodeMap graph cache + notify clients when an index run finishes so
+  // package/file/symbol maps pick up new symbols without a process restart.
+  // mtime-versioned cache is the safety net; this is the proactive path.
+  let wasIndexing = false;
+  const unsubscribeIndexState = onIndexStateChange((state) => {
+    if (wasIndexing && !state.indexing) {
+      clearCodemapGraphCache();
+      deps.events?.emit('codemap.index_updated', {
+        at: Date.now(),
+        ready: state.ready,
+        reason: 'index_complete',
+      });
+      deps.logger.debug(
+        `webui codemap cache invalidated after index run (ready=${state.ready})`,
+      );
+    }
+    wasIndexing = state.indexing;
+  });
+
   return {
     onFileWritten(filePath) {
       const abs = path.isAbsolute(filePath)
@@ -166,6 +195,7 @@ export function setupWebUICodebaseIndexing(deps: WebUICodebaseIndexingDeps): Web
       if (idx?.onEdit) enqueueFile(abs);
     },
     dispose() {
+      unsubscribeIndexState();
       lastWatcherEvent.clear();
       try {
         watcher?.close();
@@ -181,7 +211,7 @@ export function setupWebUICodebaseIndexing(deps: WebUICodebaseIndexingDeps): Web
 }
 
 function isIgnored(rel: string): boolean {
-  return rel.split(/[/\\]/).some((seg) => IGNORE_DIRS.has(seg));
+  return rel.split(/[/\\]/).some((seg) => DEFAULT_WALK_IGNORE_SET.has(seg));
 }
 
 function isInside(root: string, target: string): boolean {

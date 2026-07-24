@@ -102,8 +102,8 @@ export class OutboundQueue {
   >();
 
   constructor(opts: OutboundQueueOptions) {
-    const maxPerChat = opts.maxPerChat ?? DEFAULT_MAX_PER_CHAT;
-    const maxConcurrency = opts.maxConcurrency ?? DEFAULT_MAX_CONCURRENCY;
+    const maxPerChat = Math.max(1, opts.maxPerChat ?? DEFAULT_MAX_PER_CHAT);
+    const maxConcurrency = Math.max(1, opts.maxConcurrency ?? DEFAULT_MAX_CONCURRENCY);
     this.#opts = {
       maxPerChat,
       maxConcurrency,
@@ -132,21 +132,24 @@ export class OutboundQueue {
     }
     if (entry.kind === 'notification') {
       if (lane.pending.length >= this.#opts.maxPerChat) {
-        const dropped = lane.pending.shift();
-        if (dropped) {
+        // Only drop notification entries — never displace a pending manual.
+        // Manuals register a completion resolver; dropping one without
+        // settling it would hang the caller forever (and leak the resolver).
+        const dropIndex = lane.pending.findIndex((e) => e.kind === 'notification');
+        if (dropIndex === -1) {
+          // All pending entries are manuals; drop the incoming best-effort
+          // notification instead of displacing a manual send.
           this.#dropped += 1;
-          const droppedResolver = this.#resolvers.get(dropped.id);
-          if (droppedResolver) {
-            this.#resolvers.delete(dropped.id);
-            // Settle the orphaned promise so the fire-and-forget caller
-            // (which already moved on past the enqueue promise) doesn't
-            // leak a permanently-pending resolver.
-            droppedResolver.resolve(undefined);
-          }
           this.#opts.log?.debug(
-            `Telegram outbound queue dropped a notification for chat ${dropped.chatId} (per-chat limit ${this.#opts.maxPerChat})`,
+            `Telegram outbound queue dropped an incoming notification for chat ${entry.chatId} (per-chat limit ${this.#opts.maxPerChat}; only manual entries pending)`,
           );
+          return Promise.resolve(undefined);
         }
+        const dropped = lane.pending.splice(dropIndex, 1)[0]!;
+        this.#dropped += 1;
+        this.#opts.log?.debug(
+          `Telegram outbound queue dropped a notification for chat ${dropped.chatId} (per-chat limit ${this.#opts.maxPerChat})`,
+        );
       }
     } else if (lane.pending.length + (lane.running ? 1 : 0) >= this.#opts.maxPerChat) {
       // Manual overflow: surface a real error instead of silently dropping.
@@ -264,18 +267,9 @@ export class OutboundQueue {
 
   async #run(entry: InternalEntry): Promise<void> {
     const key = String(entry.chatId);
-    const lane = this.#lanes.get(key);
-    if (!lane) {
-      // The lane vanished (queue stopped mid-flight); settle the resolver so
-      // the caller doesn't hang on a promise that will never see completion.
-      const resolver = this.#resolvers.get(entry.id);
-      if (resolver) {
-        this.#resolvers.delete(entry.id);
-        resolver.resolve(undefined);
-      }
-      this.#active -= 1;
-      return;
-    }
+    // #nextReady marks and returns an entry from this lane; the lane remains
+    // registered until this method's finally block prunes it.
+    const lane = this.#lanes.get(key)!;
     try {
       const result = await this.#opts.send(entry.chatId, entry.text);
       this.#sent += 1;
@@ -292,9 +286,10 @@ export class OutboundQueue {
         // Only manual entries retain a completion resolver. Notification
         // promises settle on acceptance, before transport work begins.
         resolver.reject(err);
-      } else if (entry.kind === 'notification') {
+      } else {
         // Best-effort notification failures are observable through logs and
         // stats without becoming unhandled promise rejections at call sites.
+        // Manual entries always have a resolver until their send settles.
         this.#opts.log?.debug(
           `Telegram outbound queue notification failed for chat ${entry.chatId}: ${(err as Error).message}`,
         );

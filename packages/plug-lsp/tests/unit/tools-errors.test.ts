@@ -7,9 +7,9 @@ import { createDefinitionTool } from '../../src/tools/definition.js';
 import { createDiagnosticsTool } from '../../src/tools/diagnostics.js';
 import { createRenameTool } from '../../src/tools/rename.js';
 import {
-  type ToolDeps,
   resolveInputPath,
   stringifyToolError,
+  type ToolDeps,
   textDocumentPosition,
 } from '../../src/tools/shared.js';
 import { applyWorkspaceEdit } from '../../src/tools/workspace-edit.js';
@@ -94,6 +94,20 @@ describe('tool error and edge paths', () => {
         opts,
       ),
     ).toBe('Rename produced no edits.');
+
+    server.capabilities = {};
+    expect(
+      await createRenameTool(deps).execute(
+        { path: file, line: 1, character: 1, new_name: 'b' },
+        ctx,
+        opts,
+      ),
+    ).toContain('does not support rename');
+
+    const missingDeps = makeDeps(null, [{ path: file, uri }]);
+    expect(await createDiagnosticsTool(missingDeps).execute({}, ctx, opts)).toBe(
+      'No LSP diagnostics.',
+    );
   });
 
   it('uses provided unsaved content for completion requests', async () => {
@@ -105,6 +119,7 @@ describe('tool error and edge paths', () => {
       capabilities: { completionProvider: {} },
       completion: vi.fn(async () => [
         { label: 'unsaved', kind: 6, detail: 'const unsaved: number' },
+        { label: 'plain' },
       ]),
     });
     const deps = makeDeps(server);
@@ -135,6 +150,37 @@ describe('tool error and edge paths', () => {
       kind: 'Variable',
       detail: 'const unsaved: number',
     });
+  });
+
+  it('reads saved content and formats triggered completion lists as text', async () => {
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), 'plug-lsp-completion-'));
+    const file = path.join(root, 'a.ts');
+    await fs.writeFile(file, 'object.');
+    const server = fakeServer({
+      capabilities: { completionProvider: { triggerCharacters: ['.'] } },
+      completion: vi.fn(async () => ({
+        isIncomplete: true,
+        items: [{ label: 'property' }],
+      })),
+    });
+    const deps = makeDeps(server);
+    const ctx = { cwd: root } as never;
+    const opts = { signal: new AbortController().signal };
+
+    const output = await createCompletionTool(deps).execute(
+      { path: file, line: 1, character: 8, trigger_character: '.' },
+      ctx,
+      opts,
+    );
+
+    expect(output).toContain('property');
+    expect(server.completion).toHaveBeenCalledWith(
+      expect.objectContaining({
+        context: { triggerKind: 2, triggerCharacter: '.' },
+      }),
+      expect.any(Number),
+      opts.signal,
+    );
   });
 
   it('rolls back failed workspace edits', async () => {
@@ -171,7 +217,10 @@ describe('tool error and edge paths', () => {
   });
 });
 
-function makeDeps(server: unknown, docs: Array<{ path: string; uri: string }> = []): ToolDeps & {
+function makeDeps(
+  server: unknown,
+  docs: Array<{ path: string; uri: string }> = [],
+): ToolDeps & {
   tracker: {
     get: ReturnType<typeof vi.fn>;
     list: ReturnType<typeof vi.fn>;

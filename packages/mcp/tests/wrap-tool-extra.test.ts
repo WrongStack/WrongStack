@@ -25,14 +25,21 @@ describe('wrapMCPTool - extra coverage', () => {
         isError: true,
       }),
     } as never as MCPClient;
-    const wrapped = wrapMCPTool('s', { name: 'failing', inputSchema: { type: 'object' } }, errClient);
+    const wrapped = wrapMCPTool(
+      's',
+      { name: 'failing', inputSchema: { type: 'object' } },
+      errClient,
+    );
     await expect(wrapped.execute({}, ctx, opts)).rejects.toThrow('something broke');
   });
 
   it('detects mutating via inputSchema property names', () => {
     const wrapped = wrapMCPTool(
       'db',
-      { name: 'query', inputSchema: { type: 'object', properties: { deleteTable: { type: 'string' } } } },
+      {
+        name: 'query',
+        inputSchema: { type: 'object', properties: { deleteTable: { type: 'string' } } },
+      },
       mkClient(async () => 'ok'),
     );
     expect(wrapped.mutating).toBe(true);
@@ -41,7 +48,10 @@ describe('wrapMCPTool - extra coverage', () => {
   it('detects non-mutating via inputSchema property names', () => {
     const wrapped = wrapMCPTool(
       'db',
-      { name: 'query', inputSchema: { type: 'object', properties: { selectFrom: { type: 'string' } } } },
+      {
+        name: 'query',
+        inputSchema: { type: 'object', properties: { selectFrom: { type: 'string' } } },
+      },
       mkClient(async () => 'ok'),
     );
     expect(wrapped.mutating).toBe(false);
@@ -75,14 +85,18 @@ describe('wrapMCPTool - extra coverage', () => {
   it('uses qualified name as description when description is missing', () => {
     const mcpTool: MCPTool = { name: 'bare-tool', inputSchema: { type: 'object' } };
     delete (mcpTool as any).description;
-    const wrapped = wrapMCPTool('server', mcpTool, mkClient(async () => 'ok'));
+    const wrapped = wrapMCPTool(
+      'server',
+      mcpTool,
+      mkClient(async () => 'ok'),
+    );
     expect(wrapped.description).toContain('mcp__server__bare-tool');
   });
 
   it('resolves lazy client function', async () => {
-    const lazyClient = vi.fn().mockResolvedValue(
-      mkClient(async () => 'lazy-result') as never as MCPClient,
-    );
+    const lazyClient = vi
+      .fn()
+      .mockResolvedValue(mkClient(async () => 'lazy-result') as never as MCPClient);
     const wrapped = wrapMCPTool('s', { name: 'lazy', inputSchema: { type: 'object' } }, lazyClient);
     const out = await wrapped.execute({}, ctx, opts);
     expect(out).toBe('lazy-result');
@@ -124,9 +138,7 @@ describe('wrapMCPTool - extra coverage', () => {
     const wrapped = wrapMCPTool(
       's',
       { name: 'raw', inputSchema: { type: 'object' } },
-      mkClient(async () => [
-        { data: 'value', count: 42 },
-      ]),
+      mkClient(async () => [{ data: 'value', count: 42 }]),
     );
     const out = await wrapped.execute({}, ctx, opts);
     expect(out).toContain('value');
@@ -136,9 +148,7 @@ describe('wrapMCPTool - extra coverage', () => {
     const wrapped = wrapMCPTool(
       's',
       { name: 'empty-text', inputSchema: { type: 'object' } },
-      mkClient(async () => [
-        { type: 'text' },
-      ]),
+      mkClient(async () => [{ type: 'text' }]),
     );
     const out = await wrapped.execute({}, ctx, opts);
     expect(out).toBe('');

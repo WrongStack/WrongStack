@@ -14,7 +14,17 @@ export interface TrustPolicy {
 export interface PermissionDecision {
   permission: Permission;
   reason?: string | undefined;
-  source: 'default' | 'trust' | 'yolo' | 'yolo_destructive' | 'user' | 'deny' | 'context' | 'subagent_guard' | 'readonly_mode';
+  source:
+    | 'default'
+    | 'trust'
+    | 'yolo'
+    | 'yolo_destructive'
+    | 'user'
+    | 'deny'
+    | 'context'
+    | 'subagent_guard'
+    | 'readonly_mode'
+    | 'directory_rules';
   /** Risk tier of the tool, if classified. */
   riskTier?: 'safe' | 'standard' | 'destructive' | undefined;
 }
@@ -51,6 +61,70 @@ export interface PermissionTrace {
   winnerIndex: number;
   /** The final effective permission decision. */
   decision: PermissionDecision;
+}
+
+/**
+ * A single directory-scoped rule entry.
+ *
+ * A directory rule binds a directory glob (matched against the tool
+ * call's resolved path) to a set of restrictions. Multiple rules may
+ * apply to a single path; the wrapper merges them with deny-beats-allow
+ * precedence (see `DirectoryPermissionPolicy`).
+ *
+ * Why this exists: the existing `TrustPolicy` is keyed by *tool name*
+ * and has no notion of location. A user may want to ban `bash` for any
+ * file under `infra/terraform/` or ban the `openai` provider when
+ * working in `clients/acme/`. `DirectoryRule` is the shape that
+ * captures these per-directory constraints.
+ */
+export interface DirectoryRule {
+  /**
+   * Glob pattern matched against the directory portion of the resolved
+   * absolute path. Forward slashes, normalized via `path.resolve`.
+   * Example patterns: `infra/**`, `clients/acme/**`, secrets star-star.
+   */
+  directory: string;
+  /**
+   * Tool names that are blocked when the input path matches this rule.
+   * Matched by exact name AND by namespace wildcard (e.g.
+   * `mcp__server__*` blocks every tool from that MCP server).
+   */
+  denyTools?: string[];
+  /**
+   * Provider ids blocked when the active provider matches. Read off
+   * `ctx.provider.id`. A model under a denied provider causes the
+   * tool call to be denied (this is the only "soft" rule — provider
+   * itself is not a tool so this is enforced at tool-call time).
+   */
+  denyProviders?: string[];
+  /**
+   * If non-empty, ONLY these tools are allowed when the input path
+   * matches this rule. Any tool not in the list is denied. This is
+   * stricter than `denyTools` because it cannot be widened by an
+   * inner-policy allow.
+   */
+  allowOnlyTools?: string[];
+  /**
+   * Optional human-readable description surfaced in the denial reason
+   * and in explainer output.
+   */
+  description?: string;
+}
+
+/**
+ * The full directory permission policy — the on-disk shape of
+ * `.wrongstack/directory-rules.json`.
+ *
+ * Rules are evaluated in array order; the most specific pattern
+ * conventionally appears first, but the wrapper does not require
+ * ordering — it computes the longest matching pattern and lets
+ * deny-beats-allow resolve conflicts.
+ */
+export interface DirectoryPolicy {
+  /** Schema version. Always 1 for now. */
+  schemaVersion: 1;
+  /** Ordered list of rules. */
+  rules: DirectoryRule[];
 }
 
 export interface PermissionPolicy {

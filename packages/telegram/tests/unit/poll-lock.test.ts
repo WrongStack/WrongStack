@@ -85,6 +85,33 @@ describe('PollLock', () => {
     first.release();
   });
 
+  it('does not remove a lock file that changed owners before release', () => {
+    setup();
+    const lock = makeLock();
+    lock.tryAcquire();
+    const lockPath = join(dir, 'nested', 'poll.lock');
+    writeFileSync(
+      lockPath,
+      JSON.stringify({
+        id: 'replacement',
+        pid: process.pid,
+        acquiredAt: Date.now(),
+        heartbeatAt: Date.now(),
+      }),
+    );
+    lock.release();
+    expect(readFileSync(lockPath, 'utf8')).toContain('replacement');
+  });
+
+  it('rejects structurally invalid lock payloads', () => {
+    setup();
+    const lock = makeLock();
+    const lockPath = join(dir, 'nested', 'poll.lock');
+    writeFileSync(lockPath, JSON.stringify({ id: 123, pid: 'bad', heartbeatAt: Date.now() }));
+    const readLock = (lock as never as { readLock(): unknown }).readLock();
+    expect(readLock).toBeNull();
+  });
+
   it('steals a lock with a stale heartbeat', () => {
     setup();
     const lock = makeLock({ staleMs: 50 });

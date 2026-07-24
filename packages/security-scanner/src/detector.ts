@@ -3,24 +3,12 @@ import { join } from 'node:path';
 import { parseNodeDependencies } from './manifest-parser.js';
 import type { DetectionResult, PackageManager, TechStack, TechStackInfo } from './types.js';
 
-type SignatureMatcher = (files: string[], dirs: string[]) => boolean;
-
 interface StackSignature {
   stack: TechStack;
   packageManager: PackageManager;
   manifestFiles: string[];
   lockFiles: string[];
-  secondarySignatures?: SignatureMatcher | undefined;
 }
-
-const MATCHERS = {
-  pnpmWorkspace: (files: string[]) => files.includes('pnpm-workspace.yaml'),
-  gradlew: (_files: string[], dirs: string[]) => dirs.includes('gradlew'),
-  mavenWrapper: (_files: string[], dirs: string[]) => dirs.includes('.mvn'),
-  dotnetSdk: (files: string[]) => files.some((f) => f.endsWith('.csproj') || f.endsWith('.fsproj')),
-  yarnConfig: (files: string[]) => files.includes('.yarnrc') || files.includes('yarn.config.js'),
-  notPoetryLock: (files: string[]) => !files.includes('poetry.lock'),
-};
 
 const STACK_SIGNATURES: StackSignature[] = [
   // Node.js variants - checked in order, first match wins
@@ -29,7 +17,6 @@ const STACK_SIGNATURES: StackSignature[] = [
     packageManager: 'pnpm',
     manifestFiles: ['package.json'],
     lockFiles: ['pnpm-lock.yaml'],
-    secondarySignatures: (f) => MATCHERS.pnpmWorkspace(f),
   },
   {
     stack: 'nodejs',
@@ -42,7 +29,6 @@ const STACK_SIGNATURES: StackSignature[] = [
     packageManager: 'yarn',
     manifestFiles: ['package.json'],
     lockFiles: ['yarn.lock'],
-    secondarySignatures: (f) => MATCHERS.yarnConfig(f),
   },
   {
     stack: 'nodejs',
@@ -68,7 +54,6 @@ const STACK_SIGNATURES: StackSignature[] = [
     packageManager: 'pip',
     manifestFiles: ['pyproject.toml'],
     lockFiles: [],
-    secondarySignatures: (f) => MATCHERS.notPoetryLock(f),
   },
   // Rust
   {
@@ -90,14 +75,12 @@ const STACK_SIGNATURES: StackSignature[] = [
     packageManager: 'gradle',
     manifestFiles: ['build.gradle', 'build.gradle.kts', 'settings.gradle', 'settings.gradle.kts'],
     lockFiles: [],
-    secondarySignatures: (_f, d) => MATCHERS.gradlew(_f, d),
   },
   {
     stack: 'java',
     packageManager: 'maven',
     manifestFiles: ['pom.xml'],
     lockFiles: [],
-    secondarySignatures: (_f, d) => MATCHERS.mavenWrapper(_f, d),
   },
   // .NET
   {
@@ -105,14 +88,12 @@ const STACK_SIGNATURES: StackSignature[] = [
     packageManager: 'nuget',
     manifestFiles: ['Directory.Build.props', 'Directory.Packages.props'],
     lockFiles: ['packages.lock.json'],
-    secondarySignatures: (f) => MATCHERS.dotnetSdk(f),
   },
   {
     stack: 'dotnet',
     packageManager: 'nuget',
     manifestFiles: ['*.csproj', '*.fsproj', '*.xproj'],
     lockFiles: [],
-    secondarySignatures: (f) => MATCHERS.dotnetSdk(f),
   },
   // PHP
   {
@@ -134,7 +115,6 @@ const STACK_SIGNATURES: StackSignature[] = [
     packageManager: 'cmake',
     manifestFiles: ['CMakeLists.txt'],
     lockFiles: [],
-    secondarySignatures: (f) => f.includes('CMakeCache.txt') || f.includes('CMakePresets.json'),
   },
   // Swift
   {
@@ -236,13 +216,7 @@ export class TechStackDetector {
     // This disambiguates pnpm/yarn/bun from npm (which uses package-lock.json)
     // For other ecosystems, the manifest alone is sufficient
     if (signature.lockFiles.length > 0 && signature.stack === 'nodejs') {
-      const hasLockFile = signature.lockFiles.some((lock) => {
-        if (lock.includes('*')) {
-          const regex = new RegExp('^' + lock.replace('*', '.*') + '$');
-          return files.some((f) => regex.test(f));
-        }
-        return files.includes(lock);
-      });
+      const hasLockFile = signature.lockFiles.some((lock) => files.includes(lock));
       // npm is the fallback PM when no specific lock file is present
       if (!hasLockFile && signature.packageManager !== 'npm') {
         return null;

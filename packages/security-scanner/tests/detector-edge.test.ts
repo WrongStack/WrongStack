@@ -239,4 +239,17 @@ describe('TechStackDetector - remaining uncovered paths', () => {
     const poetryStack = result.detectedStacks.find((s) => s.stack === 'python');
     expect(poetryStack?.packageManager).toBe('poetry');
   });
+
+  it('ignores an unexpected package manager while collecting workspace configs', () => {
+    const internals = detector as never as {
+      findWorkspaceConfigs(
+        stacks: Array<{ packageManager: string }>,
+        dirs: string[],
+        files: string[],
+      ): string[];
+    };
+    expect(
+      internals.findWorkspaceConfigs([{ packageManager: 'future-pm' }], [], []),
+    ).toEqual([]);
+  });
 });

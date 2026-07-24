@@ -17,7 +17,7 @@ const DEFAULT_MAX_FRAME_CHARS = 20 * 1024 * 1024;
 const DEFAULT_MAX_QUEUED_MESSAGES = 1_000;
 
 function positiveLimit(value: number | undefined, fallback: number): number {
-  return Number.isFinite(value) && (value ?? 0) > 0 ? Math.floor(value as number) : fallback;
+  return value !== undefined && Number.isFinite(value) && value > 0 ? Math.floor(value) : fallback;
 }
 
 export interface AgentServerTransport {
@@ -55,10 +55,7 @@ export class StdioTransport implements AgentServerTransport {
 
   constructor(opts: { maxFrameChars?: number; maxQueuedMessages?: number } = {}) {
     this.maxFrameChars = positiveLimit(opts.maxFrameChars, DEFAULT_MAX_FRAME_CHARS);
-    this.maxQueuedMessages = positiveLimit(
-      opts.maxQueuedMessages,
-      DEFAULT_MAX_QUEUED_MESSAGES,
-    );
+    this.maxQueuedMessages = positiveLimit(opts.maxQueuedMessages, DEFAULT_MAX_QUEUED_MESSAGES);
     this.stdin.resume();
     this.stdin.setEncoding('utf8');
     this.stdin.on('data', (chunk: string) => this.onData(chunk));
@@ -83,7 +80,8 @@ export class StdioTransport implements AgentServerTransport {
   }
 
   read(): Promise<ACPMessage | null> {
-    if (this.messageQueue.length > 0) return Promise.resolve(expectDefined(this.messageQueue.shift()));
+    if (this.messageQueue.length > 0)
+      return Promise.resolve(expectDefined(this.messageQueue.shift()));
     if (this.closed) return Promise.resolve(null);
     return new Promise((resolve) => {
       this.resolveRead = resolve;
@@ -223,10 +221,7 @@ export class ClientTransport implements ACPClientTransport {
       ...options,
     };
     this.maxFrameChars = positiveLimit(options.maxFrameChars, DEFAULT_MAX_FRAME_CHARS);
-    this.maxQueuedMessages = positiveLimit(
-      options.maxQueuedMessages,
-      DEFAULT_MAX_QUEUED_MESSAGES,
-    );
+    this.maxQueuedMessages = positiveLimit(options.maxQueuedMessages, DEFAULT_MAX_QUEUED_MESSAGES);
   }
 
   async start(): Promise<void> {
@@ -254,15 +249,13 @@ export class ClientTransport implements ACPClientTransport {
 
       try {
         const childArgs = this.opts.args ?? [];
-        const shim = process.platform === 'win32'
-          ? buildWin32CmdShimInvocation(this.opts.command, childArgs)
-          : null;
-        this.child = spawn(shim?.command ?? this.opts.command, shim?.args ?? childArgs, {
+        const invocation = spawnInvocation(this.opts.command, childArgs, process.platform);
+        this.child = spawn(invocation.command, invocation.args, {
           env: { ...buildChildEnv(), ...this.opts.env },
           cwd: spawnCwd,
           stdio: ['pipe', 'pipe', 'pipe'],
           windowsHide: true,
-          ...(shim ? { windowsVerbatimArguments: shim.windowsVerbatimArguments } : {}),
+          ...verbatimOptions(invocation),
         }) as never as ACPChildProcess;
         /* v8 ignore start -- spawn() throwing synchronously is a defensive guard (e.g. argv0 type errors); the realistic async failure path is the child 'error' event, covered by tests. */
       } catch (err) {
@@ -348,7 +341,8 @@ export class ClientTransport implements ACPClientTransport {
   }
 
   read(): Promise<ACPMessage | null> {
-    if (this.messageQueue.length > 0) return Promise.resolve(expectDefined(this.messageQueue.shift()));
+    if (this.messageQueue.length > 0)
+      return Promise.resolve(expectDefined(this.messageQueue.shift()));
     if (this.closed) return Promise.resolve(null);
     return new Promise((resolve) => {
       this.resolveRead = resolve;
@@ -439,3 +433,27 @@ export class ClientTransport implements ACPClientTransport {
     }
   }
 }
+
+function spawnInvocation(
+  command: string,
+  args: string[],
+  platform: NodeJS.Platform,
+): {
+  command: string;
+  args: string[];
+  windowsVerbatimArguments?: true;
+} {
+  if (platform !== 'win32') return { command, args };
+  return buildWin32CmdShimInvocation(command, args);
+}
+
+function verbatimOptions(invocation: { windowsVerbatimArguments?: true }): {
+  windowsVerbatimArguments?: true;
+} {
+  return invocation.windowsVerbatimArguments
+    ? { windowsVerbatimArguments: invocation.windowsVerbatimArguments }
+    : {};
+}
+
+/** Direct-module test seam; not re-exported by the package barrel. */
+export const stdioTransportCoverage = { positiveLimit, spawnInvocation, verbatimOptions };

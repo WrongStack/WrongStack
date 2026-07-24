@@ -81,8 +81,7 @@ function formatPrimaryAnchor(memory: Sage): string {
   if (anchor.path) return anchor.path;
   if (anchor.symbol) return anchor.symbol;
   if (anchor.command) return anchor.command;
-  if (anchor.role) return `agent:${anchor.role}`;
-  return '';
+  return `agent:${anchor.role}`;
 }
 
 function formatPrimaryRelation(memory: Sage): string {
@@ -131,3 +130,10 @@ function escapeFenceText(value: string): string {
     .replace(/\u2028/g, '\\u2028')
     .replace(/\u2029/g, '\\u2029');
 }
+
+/** Direct-module test seam; intentionally not re-exported by the package barrel. */
+export const memoryFormatCoverage = {
+  formatPrimaryAnchor,
+  formatPrimaryRelation,
+  escapeFenceText,
+};

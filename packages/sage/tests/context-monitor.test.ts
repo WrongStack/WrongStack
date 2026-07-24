@@ -2,7 +2,7 @@ import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { EventBus } from '@wrongstack/core/kernel';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { createSageContextMonitorMiddleware } from '../src/middleware/context-monitor.js';
 import { InjectionTracker } from '../src/middleware/injection-tracker.js';
 import {
@@ -26,6 +26,40 @@ function asRetriever(store: SageStore): SageRetrieverLike {
 }
 
 describe('SAGE provider-context monitor', () => {
+  it('uses default time/session values and extracts every textual request block', async () => {
+    const events = new EventBus();
+    const tracker = new InjectionTracker();
+    const snapshot = vi.spyOn(tracker, 'snapshotContextParts').mockReturnValue({
+      activeMemoryIds: [],
+      enteredMemoryIds: [],
+      exitedMemoryIds: [],
+    });
+    const middleware = createSageContextMonitorMiddleware({ tracker, events });
+    const request = {
+      model: 'test',
+      system: [{ text: 'system text' }],
+      messages: [
+        { role: 'user', content: 'plain text' },
+        {
+          role: 'user',
+          content: [
+            { type: 'text', text: 'block text' },
+            { type: 'tool_result', tool_use_id: 'tool', content: 'tool text' },
+            { type: 'image', source: { type: 'base64', media_type: 'image/png', data: '' } },
+          ],
+        },
+      ],
+    };
+
+    await expect(middleware.handler(request as never, async (value) => value)).resolves.toBe(
+      request,
+    );
+    const [parts, sessionId, timestamp] = snapshot.mock.calls[0]!;
+    expect([...parts]).toEqual(['system text', 'plain text', 'block text', 'tool text']);
+    expect(sessionId).toBeUndefined();
+    expect(timestamp).toEqual(expect.any(Number));
+  });
+
   it('emits the exact active/entered/exited memory ids around provider requests', async () => {
     const events = new EventBus();
     const tracker = new InjectionTracker();

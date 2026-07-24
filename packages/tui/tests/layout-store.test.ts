@@ -64,6 +64,16 @@ describe('LayoutStore (ephemeral mode)', () => {
     expect(store.get(1)?.rows).toBe(5);
   });
 
+  it('markMeasured updates termWidth after a resize', () => {
+    store.setTermWidth(80);
+    store.set(1, computeLayout(1, 'user', 'hello', 80));
+    // Resize to 120 cols and measure at the new width.
+    store.markMeasured(1, 5, 120);
+    expect(store.get(1)?.kind).toBe('measured');
+    expect(store.get(1)?.rows).toBe(5);
+    expect(store.get(1)?.termWidth).toBe(120);
+  });
+
   it('allMeasured returns false when some entries are estimated', () => {
     store.set(1, computeLayout(1, 'user', 'a', 80)); // estimated
     store.set(2, { ...computeLayout(2, 'user', 'b', 80), kind: 'measured' });

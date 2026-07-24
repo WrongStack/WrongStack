@@ -51,6 +51,14 @@ function isPathInsideDirectory(filePath: string | null, directoryPath: string): 
   return file.startsWith(`${directory}/`);
 }
 
+function nodeOrDescendantMatches(node: FileNode, filterLower: string): boolean {
+  if (node.name.toLowerCase().includes(filterLower)) return true;
+  if (node.children) {
+    return node.children.some((child) => nodeOrDescendantMatches(child, filterLower));
+  }
+  return false;
+}
+
 function FileTreeNode({
   node,
   depth,
@@ -88,14 +96,11 @@ function FileTreeNode({
     return null;
   }
 
-  const nameMatch = filter && node.name.toLowerCase().includes(filter.toLowerCase());
+  const filterLower = filter.toLowerCase();
+  const nameMatch = filter && node.name.toLowerCase().includes(filterLower);
   const childMatch =
     filter &&
-    node.children?.some(
-      (c) =>
-        c.name.toLowerCase().includes(filter.toLowerCase()) ||
-        (c.children && c.children.length > 0),
-    );
+    node.children?.some((c) => nodeOrDescendantMatches(c, filterLower));
 
   if (filter && !nameMatch && !childMatch && depth > 0) return null;
 
@@ -181,12 +186,14 @@ export function FileExplorer({ socketRef }: FileExplorerProps) {
   const pendingTreeRef = useRef<(() => void) | null>(null);
   const pendingContentRef = useRef<(() => void) | null>(null);
   const pendingSaveRef = useRef<(() => void) | null>(null);
+  const savedBadgeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(
     () => () => {
       pendingTreeRef.current?.();
       pendingContentRef.current?.();
       pendingSaveRef.current?.();
+      if (savedBadgeTimerRef.current) clearTimeout(savedBadgeTimerRef.current);
     },
     [],
   );
@@ -227,6 +234,7 @@ export function FileExplorer({ socketRef }: FileExplorerProps) {
     };
     const handler = (msg: { type: string; payload?: unknown }) => {
       if (msg.type !== 'files.tree') return;
+      if (pendingTreeRef.current !== finish) return;
       const payload = msg.payload as Record<string, unknown> | undefined;
       if (Array.isArray(payload?.['tree'])) {
         setTree(payload['tree'] as FileNode[]);
@@ -267,6 +275,7 @@ export function FileExplorer({ socketRef }: FileExplorerProps) {
     };
     const handler = (msg: { type: string; payload?: unknown }) => {
       if (msg.type !== 'files.read') return;
+      if (pendingContentRef.current !== finish) return;
       const payload = msg.payload as Record<string, unknown> | undefined;
       const returnedPath = typeof payload?.['filePath'] === 'string' ? payload['filePath'] : '';
       // Only accept the response for the file we requested
@@ -304,6 +313,10 @@ export function FileExplorer({ socketRef }: FileExplorerProps) {
     const socket = socketRef.current;
     if (!socket) { setSaving(false); return; }
 
+    if (savedBadgeTimerRef.current) {
+      clearTimeout(savedBadgeTimerRef.current);
+      savedBadgeTimerRef.current = null;
+    }
     pendingSaveRef.current?.();
     let settled = false;
     let unsub: (() => void) | undefined;
@@ -317,6 +330,7 @@ export function FileExplorer({ socketRef }: FileExplorerProps) {
     };
     const handler = (msg: { type: string; payload?: unknown }) => {
       if (msg.type !== 'files.written') return;
+      if (pendingSaveRef.current !== finish) return;
       const payload = msg.payload as Record<string, unknown> | undefined;
       const returnedPath = typeof payload?.['filePath'] === 'string' ? payload['filePath'] : '';
       if (returnedPath !== selectedPath) return;
@@ -326,7 +340,10 @@ export function FileExplorer({ socketRef }: FileExplorerProps) {
         setEditedContent(null);
         setIsEditing(false);
         setSaved(true);
-        setTimeout(() => setSaved(false), 2000);
+        savedBadgeTimerRef.current = setTimeout(() => {
+          setSaved(false);
+          savedBadgeTimerRef.current = null;
+        }, 2000);
       } else {
         setError(payload?.['error'] ? String(payload['error']) : 'Failed to save file.');
       }
@@ -380,10 +397,9 @@ export function FileExplorer({ socketRef }: FileExplorerProps) {
             <button
               type="button"
               onClick={() => {
-                setFileListOpen((visible) => {
-                  if (!visible) setTimeout(() => searchRef.current?.focus(), 0);
-                  return !visible;
-                });
+                const next = !fileListOpen;
+                if (next) setTimeout(() => searchRef.current?.focus(), 0);
+                setFileListOpen(next);
               }}
               aria-label={fileListOpen ? 'Collapse file list' : 'Expand file list'}
               title={fileListOpen ? 'Collapse file list' : 'Expand file list'}

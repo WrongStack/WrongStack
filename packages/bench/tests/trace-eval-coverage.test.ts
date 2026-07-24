@@ -114,4 +114,31 @@ describe('evaluateTraceEval — edge cases', () => {
     });
     expect(result.retrievalPassed).toBe(true);
   });
+
+  it('ignores malformed trace events and treats an edit without an end as unapplied', async () => {
+    const dirs = await writeSession([
+      { type: 'tool_use', name: 'read', input: {} },
+      { type: 'tool_use', id: 'missing-name', input: {} },
+      { type: 'tool_call_end', ok: true },
+      { type: 'tool_result', content: 'orphan' },
+      { type: 'tool_result', id: 'unknown', content: 'orphan' },
+      { type: 'unrelated' },
+      { type: 'tool_use', id: 'edit-no-end', name: 'edit', input: 'expected path' },
+    ]);
+
+    const result = await evaluateTraceEval({
+      ...dirs,
+      spec: {
+        ...spec,
+        retrieval: [],
+        recall: { toolNames: ['edit'], inputContains: ['expected path'] },
+      },
+    });
+
+    expect(result).toMatchObject({
+      retrievalPassed: true,
+      recallPassed: true,
+      editApplicationPassed: false,
+    });
+  });
 });

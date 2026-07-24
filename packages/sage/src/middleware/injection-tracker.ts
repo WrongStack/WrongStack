@@ -131,14 +131,12 @@ export class InjectionTracker {
         active.add(entry.memoryId);
       }
     }
-    const previous =
-      this.activeContextBySession.get(sessionKey)?.memoryIds ?? new Set<string>();
+    const previous = this.activeContextBySession.get(sessionKey)?.memoryIds ?? new Set<string>();
     const enteredMemoryIds = [...active].filter((id) => !previous.has(id));
     const exitedMemoryIds = [...previous].filter((id) => !active.has(id));
     this.activeContextBySession.set(sessionKey, { memoryIds: active, at: now });
     while (this.activeContextBySession.size > this.maxEntries) {
-      const oldest = this.activeContextBySession.keys().next().value as string | undefined;
-      if (oldest === undefined) break;
+      const oldest = this.activeContextBySession.keys().next().value as string;
       this.activeContextBySession.delete(oldest);
     }
     return {

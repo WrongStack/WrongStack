@@ -13,18 +13,18 @@
 import { DISCOVERY_AGENTS } from './phase1-discovery.js';
 import { PLANNING_AGENTS } from './phase2-planning.js';
 import { BUILD_AGENTS } from './phase3-build.js';
-import { WAVE1_AGENTS, WAVE1_ROLE_METAS, WAVE1_ROLES } from './phase3-wave1-platform.js';
-import { WAVE2_AGENTS, WAVE2_ROLE_METAS, WAVE2_ROLES } from './phase3-wave2-meta.js';
+import { WAVE1_AGENTS } from './phase3-wave1-platform.js';
+import { WAVE2_AGENTS } from './phase3-wave2-meta.js';
 import { VERIFY_AGENTS } from './phase4-verify.js';
 import { REVIEW_AGENTS } from './phase5-review.js';
 import { DOMAIN_AGENTS } from './phase6-domain.js';
 import { KNOWLEDGE_AGENTS } from './phase7-knowledge.js';
 import { DELIVERY_AGENTS } from './phase8-delivery.js';
-import { WAVE3_AGENTS, WAVE3_ROLE_METAS, WAVE3_ROLES } from './phase8-wave3-products.js';
+import { WAVE3_AGENTS } from './phase8-wave3-products.js';
 import { META_AGENTS } from './phase9-meta.js';
-import { WAVE4_AGENTS, WAVE4_ROLE_METAS, WAVE4_ROLES } from './phase9-wave4-platform-meta.js';
+import { WAVE4_AGENTS } from './phase9-wave4-platform-meta.js';
 import { ROLE_SKILL_SETS, SHADOW_AGENT_SKILLS, assignSkillsToAgents } from './role-skills.js';
-import type { AgentDefinition, AgentPhase, RoleDispatcherSignal } from './types.js';
+import type { AgentDefinition, AgentPhase } from './types.js';
 
 export * from './role-skills.js';
 export * from './types.js';
@@ -48,26 +48,6 @@ export {
   WAVE3_AGENTS,
   WAVE4_AGENTS,
 };
-
-/**
- * Combined role-dispatcher metadata for every wave-added role. The
- * heuristic dispatcher and the LLM classifier both consult this table
- * to make the "why this role wins" rationale auditable.
- */
-export const ROLE_DISPATCHER_METAS: Record<string, RoleDispatcherSignal> = {
-  ...WAVE1_ROLE_METAS,
-  ...WAVE2_ROLE_METAS,
-  ...WAVE3_ROLE_METAS,
-  ...WAVE4_ROLE_METAS,
-};
-
-/** Set of every catalog role id added by the four waves. */
-export const WAVE_ROLE_IDS: ReadonlySet<string> = new Set<string>([
-  ...WAVE1_ROLES,
-  ...WAVE2_ROLES,
-  ...WAVE3_ROLES,
-  ...WAVE4_ROLES,
-]);
 
 /** Every catalog agent, in phase order, enriched with its curated skills. */
 export const ALL_AGENT_DEFINITIONS: AgentDefinition[] = assignSkillsToAgents([

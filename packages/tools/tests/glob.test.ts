@@ -86,6 +86,25 @@ describe('glob tool', () => {
     expect(out.files.some((f) => f.includes('ignored'))).toBe(false);
   });
 
+  it('applies full .gitignore semantics: globs, anchored dirs, and nested paths', async () => {
+    await fs.writeFile(
+      path.join(sb.dir, '.gitignore'),
+      '*.generated.ts\n/artifacts/\nsrc/tmp/\n',
+    );
+    await fs.mkdir(path.join(sb.dir, 'artifacts'));
+    await fs.writeFile(path.join(sb.dir, 'artifacts', 'bundle.ts'), '');
+    await fs.mkdir(path.join(sb.dir, 'src', 'tmp'), { recursive: true });
+    await fs.writeFile(path.join(sb.dir, 'src', 'tmp', 'scratch.ts'), '');
+    await fs.writeFile(path.join(sb.dir, 'src', 'api.generated.ts'), '');
+    await fs.writeFile(path.join(sb.dir, 'src', 'api.ts'), '');
+    const out = await globTool.execute({ pattern: '**/*.ts' }, sb.ctx, { signal: newSignal() });
+    const names = out.files.map((f) => f.replaceAll('\\', '/'));
+    expect(names.some((f) => f.endsWith('src/api.ts'))).toBe(true);
+    expect(names.some((f) => f.includes('artifacts/'))).toBe(false);
+    expect(names.some((f) => f.includes('src/tmp/'))).toBe(false);
+    expect(names.some((f) => f.endsWith('api.generated.ts'))).toBe(false);
+  });
+
   it('hits limit and truncates', async () => {
     // Create more files than the default limit of 1000
     for (let i = 0; i < 50; i++) {

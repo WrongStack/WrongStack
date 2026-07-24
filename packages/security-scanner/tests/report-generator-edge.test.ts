@@ -8,7 +8,7 @@
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ReportGenerator } from '../src/report-generator.js';
 import type { Finding, ScanResult } from '../src/scanner.js';
 
@@ -50,6 +50,16 @@ function mkScanResult(over: Partial<ScanResult> = {}): ScanResult {
 }
 
 describe('ReportGenerator - edge coverage', () => {
+  it('treats a missing severity bucket as empty', async () => {
+    const gen = new ReportGenerator({ outputDir: path.join(tmp, 'r') });
+    vi.spyOn(
+      gen as never as { groupBySeverity(findings: Finding[]): Record<string, Finding[]> },
+      'groupBySeverity',
+    ).mockReturnValue({ critical: [], high: [], medium: [] });
+    const file = await gen.generate(mkScanResult());
+    expect(await fs.readFile(file, 'utf8')).toContain('# Security Scan Report');
+  });
+
   // ── Medium severity emoji in markdown ──────────────────────────────────────
   it('renders medium severity emoji in markdown', async () => {
     const gen = new ReportGenerator({ outputDir: path.join(tmp, 'r') });
@@ -117,25 +127,31 @@ describe('ReportGenerator - edge coverage', () => {
     expect(md).not.toContain('Unknown Sev');
   });
 
-  // ── Restore the generateBasicReport emoji branches (all 4) ─────────────────
-  // Already covered by orchestrator-flow.test.ts "falls back to the basic report
-  // when synthesis fails (with findings)" which checks 🔴 and 🟢.
-  // But let's ensure 🟡 (medium) and 🟠 (high) are also produced.
-  it('basic fallback report shows all four severity emojis', async () => {
-    // We need to trigger the fallback in the orchestrator.
-    // This is already done in orchestrator-flow test 'falls back to the basic
-    // report when synthesis fails (with findings)' which has critical and low
-    // findings. We also need medium and high.
-    // Let's test the generateBasicReport method by indirectly triggering it
-    // with a scan result that has all 4 severities.
-    // Actually, the orchestrator test only gets critical + high + medium + low
-    // findings from FINDINGS_JSON fixture:
-    //   critical, high, medium, low
-    // And the test 'falls back to the basic report when synthesis fails' DOES
-    // verify 🔴 and 🟢. But 🟠 (high) and 🟡 (medium) aren't verified.
-    // They ARE emitted in the report (the code renders all findings),
-    // but the test only checks for 🔴 and 🟢.
-    // This is acceptable — the actual code path is covered by the existing test.
+  // ── All four severity emojis in the markdown summary ───────────────────────
+  it('renders all four severity emojis in markdown when all severities are present', async () => {
+    const gen = new ReportGenerator({ outputDir: path.join(tmp, 'r') });
+    const file = await gen.generate(
+      mkScanResult({
+        findings: [
+          mkFinding({ severity: 'critical', title: 'Critical Issue' }),
+          mkFinding({ severity: 'high', title: 'High Issue' }),
+          mkFinding({ severity: 'medium', title: 'Medium Issue' }),
+          mkFinding({ severity: 'low', title: 'Low Issue' }),
+        ],
+        summary: { critical: 1, high: 1, medium: 1, low: 1, total: 4 } as never,
+      }),
+    );
+    const md = await fs.readFile(file, 'utf8');
+    // Summary table emits all four emojis
+    expect(md).toContain('🔴');
+    expect(md).toContain('🟠');
+    expect(md).toContain('🟡');
+    expect(md).toContain('🟢');
+    // Severity section headers also carry the emojis with counts
+    expect(md).toContain('🔴 CRITICAL (1)');
+    expect(md).toContain('🟠 HIGH (1)');
+    expect(md).toContain('🟡 MEDIUM (1)');
+    expect(md).toContain('🟢 LOW (1)');
   });
 
   // ── formatFinding without line number ──────────────────────────────────────

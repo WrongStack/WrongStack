@@ -1,21 +1,11 @@
-import { expectDefined } from '@wrongstack/core/utils';
+import { DEFAULT_WALK_IGNORE_DIRS, expectDefined } from '@wrongstack/core/utils';
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 import type { Tool, ToolProgressEvent, ToolStreamEvent } from '@wrongstack/core/types';
 import { safeResolve } from './_util.js';
-const DEFAULT_IGNORE = [
-  'node_modules',
-  '.git',
-  'dist',
-  'build',
-  '.next',
-  'coverage',
-  '__pycache__',
-  '.wrongstack',
-  '.ssh',
-  '.gnupg',
-  '.aws',
-];
+// Shared artifact/dependency dirs, plus tree-specific privacy dirs — tree can
+// be pointed at $HOME, where listing key material is never wanted.
+const DEFAULT_IGNORE = [...DEFAULT_WALK_IGNORE_DIRS, '.wrongstack', '.ssh', '.gnupg', '.aws'];
 
 interface TreeInput {
   path?: string | undefined;

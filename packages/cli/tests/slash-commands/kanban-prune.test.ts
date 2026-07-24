@@ -25,6 +25,12 @@ function commandFor(projectRoot: string) {
   } as unknown as SlashCommandContext);
 }
 
+async function runPrune(root: string, argsText: string): Promise<{ message?: string | undefined }> {
+  const result = await commandFor(root).run!(argsText);
+  if (!result) throw new Error('expected /kanban prune to return a result');
+  return result;
+}
+
 const OLD = '2026-01-01T00:00:00.000Z';
 
 async function seedBoards(root: string): Promise<{ oldEmpty: string; oldUnfinished: string; fresh: string }> {
@@ -59,7 +65,7 @@ describe('/kanban prune', () => {
     const root = await tempProject();
     await seedBoards(root);
 
-    const result = await commandFor(root).run!('prune 7');
+    const result = await runPrune(root, 'prune 7');
 
     expect(result.message).toContain('Would prune 1 of 3 boards');
     expect((await listBoards(root)).length).toBe(3);
@@ -69,7 +75,7 @@ describe('/kanban prune', () => {
     const root = await tempProject();
     const ids = await seedBoards(root);
 
-    const result = await commandFor(root).run!('prune 7 --yes');
+    const result = await runPrune(root, 'prune 7 --yes');
 
     expect(result.message).toContain('Pruned 1 board');
     const remaining = (await listBoards(root)).map((b) => b.id).sort();
@@ -80,7 +86,7 @@ describe('/kanban prune', () => {
     const root = await tempProject();
     const ids = await seedBoards(root);
 
-    const result = await commandFor(root).run!('prune 7 --all --yes');
+    const result = await runPrune(root, 'prune 7 --all --yes');
 
     expect(result.message).toContain('Pruned 2 boards');
     const remaining = (await listBoards(root)).map((b) => b.id);
@@ -89,7 +95,7 @@ describe('/kanban prune', () => {
 
   it('rejects a negative day count', async () => {
     const root = await tempProject();
-    const result = await commandFor(root).run!('prune -3');
+    const result = await runPrune(root, 'prune -3');
     expect(result.message).toContain('Usage: /kanban prune');
   });
 
@@ -97,7 +103,7 @@ describe('/kanban prune', () => {
     const root = await tempProject();
     const ids = await seedBoards(root);
 
-    const result = await commandFor(root).run!('prune 7 -y');
+    const result = await runPrune(root, 'prune 7 -y');
 
     expect(result.message).toContain('Pruned 1 board');
     const remaining = (await listBoards(root)).map((b) => b.id).sort();

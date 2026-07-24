@@ -48,6 +48,10 @@ export interface BoardTaskItem {
   fallbackModels?: string[] | undefined;
   /** Per-task completion-gate verification command, if set. */
   verificationCommand?: string | undefined;
+  /** Completion-gate outcome for the last worker attempt, if verification ran. */
+  verificationState?: 'passed' | 'failed' | undefined;
+  /** Failure reason when verificationState is 'failed'. */
+  verificationDetail?: string | undefined;
 }
 
 export interface SpecColumn {

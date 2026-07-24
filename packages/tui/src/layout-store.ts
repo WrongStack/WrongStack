@@ -153,16 +153,30 @@ export class LayoutStore {
   /**
    * Promote a layout from 'estimated' to 'measured' once the real component
    * has been mounted and its actual height is known.
+   *
+   * Also updates the stored `termWidth` to the current terminal width: after a
+   * resize, entries are re-seeded with the new width as estimates, and the
+   * post-render measurement pass needs to stamp the actual width so the store
+   * is consistent. Without this, a subsequent render sees `stored.termWidth`
+   * mismatch the current width and re-seeds estimates, discarding the
+   * measurement and corrupting the virtual scroll viewport.
    */
-  markMeasured(id: number, actualRows: number): void {
+  markMeasured(id: number, actualRows: number, termWidth = this.currentTermWidth): void {
     const existing = this.layouts.get(id);
     if (!existing) return;
-    if (existing.kind === 'measured' && existing.rows === actualRows) return;
+    if (
+      existing.kind === 'measured' &&
+      existing.rows === actualRows &&
+      existing.termWidth === termWidth
+    ) {
+      return;
+    }
 
     this.layouts.set(id, {
       ...existing,
       rows: Math.max(1, actualRows),
       kind: 'measured',
+      termWidth,
     });
     this.dirty = true;
     this.scheduleFlush();

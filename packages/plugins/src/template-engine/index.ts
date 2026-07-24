@@ -10,6 +10,7 @@
 import type { Plugin } from '@wrongstack/core/types';
 import { readFile, writeFile } from 'node:fs/promises';
 import { isAbsolute } from 'node:path';
+import { withinProject } from '../runtime/index.js';
 
 const API_VERSION = '^0.1.10';
 
@@ -117,6 +118,14 @@ function validateRelativeTemplatePath(field: string, value: string): string | nu
   // sandboxing; plugin-local fs access needs defense in depth.
   if (isAbsolute(value) || value.split(/[\\/]+/).includes('..')) {
     return `${field} must be a relative path without ".." components`;
+  }
+  // The string checks above are necessary but not sufficient. On Windows a
+  // *drive-relative* path such as `C:out.txt` is NOT reported as absolute
+  // by `isAbsolute`, yet it resolves against the current directory of that
+  // drive — i.e. straight out of the project. Verify where the path
+  // actually lands, which also covers spellings the string checks miss.
+  if (!withinProject(value)) {
+    return `${field} must resolve inside the project directory`;
   }
   return null;
 }

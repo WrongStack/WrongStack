@@ -1,8 +1,9 @@
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
-import { compileGlob } from '@wrongstack/core/utils';
+import { compileGlob, DEFAULT_WALK_IGNORE_DIRS } from '@wrongstack/core/utils';
 import type { Tool } from '@wrongstack/core/types';
 import { mapWithConcurrency } from './_concurrency.js';
+import { loadGitignoreMatcher } from './codebase-index/gitignore.js';
 import { assertRealInsideRoot, safeResolveReal } from './_util.js';
 
 interface GlobInput {
@@ -16,7 +17,7 @@ interface GlobOutput {
   truncated: boolean;
 }
 
-const DEFAULT_IGNORE = ['node_modules', '.git', 'dist', 'build', '.next', 'coverage', '.turbo'];
+const DEFAULT_IGNORE = DEFAULT_WALK_IGNORE_DIRS;
 const WALK_CONCURRENCY = 16;
 
 export const globTool: Tool<GlobInput, GlobOutput> = {
@@ -68,7 +69,10 @@ export const globTool: Tool<GlobInput, GlobOutput> = {
     const base = input.path ? await safeResolveReal(input.path, ctx) : ctx.cwd;
     const limit = Math.max(1, Math.min(input.limit ?? 1000, 5000));
 
-    const ignored = await readGitignore(base);
+    // Full gitignore semantics (globs, anchors, negation, dir-only rules)
+    // rooted at the walk base — a project whose build output isn't in the
+    // static DEFAULT_IGNORE list would otherwise be walked in full.
+    const isGitIgnored = await loadGitignoreMatcher(base);
     const re = compileGlob(input.pattern);
 
     const results: { rel: string; mtime: number }[] = [];
@@ -118,12 +122,13 @@ export const globTool: Tool<GlobInput, GlobOutput> = {
       for (const e of entries) {
         const name = e.name;
         if (DEFAULT_IGNORE.includes(name)) continue;
-        if (ignored.includes(name)) continue;
         const rel = relPrefix ? `${relPrefix}/${name}` : name;
         const full = path.join(dir, name);
         if (e.isDirectory()) {
+          if (isGitIgnored(rel, true)) continue;
           subdirs.push({ full, rel });
         } else if (e.isFile()) {
+          if (isGitIgnored(rel, false)) continue;
           re.lastIndex = 0;
           const relMatch = re.test(rel);
           re.lastIndex = 0;
@@ -135,6 +140,7 @@ export const globTool: Tool<GlobInput, GlobOutput> = {
           try {
             const st = await fs.stat(full);
             if (st.isDirectory()) {
+              if (isGitIgnored(rel, true)) continue;
               // CWE-59 containment: a symlink inside the workspace can point
               // outside it. Before recursing into it (or including the
               // resolved file in results), realpath the symlink and verify
@@ -145,6 +151,7 @@ export const globTool: Tool<GlobInput, GlobOutput> = {
               await assertRealInsideRoot(real, ctx);
               subdirs.push({ full, rel });
             } else if (st.isFile()) {
+              if (isGitIgnored(rel, false)) continue;
               const real = await fs.realpath(full);
               await assertRealInsideRoot(real, ctx);
               re.lastIndex = 0;
@@ -173,15 +180,3 @@ export const globTool: Tool<GlobInput, GlobOutput> = {
     return { files: results.map((r) => r.rel), truncated };
   },
 };
-
-async function readGitignore(dir: string): Promise<string[]> {
-  try {
-    const raw = await fs.readFile(path.join(dir, '.gitignore'), 'utf8');
-    return raw
-      .split('\n')
-      .map((l) => l.trim())
-      .filter((l) => l && !l.startsWith('#'));
-  } catch {
-    return [];
-  }
-}

@@ -2,9 +2,11 @@ import { createRequire } from 'node:module';
 
 const require = createRequire(import.meta.url);
 
-function readPackageVersion(): string {
+function readPackageVersion(
+  load: () => { version?: unknown } = () => require('../package.json') as { version?: unknown },
+): string {
   try {
-    const packageJson = require('../package.json') as { version?: unknown };
+    const packageJson = load();
     if (typeof packageJson.version === 'string' && packageJson.version.length > 0) {
       return packageJson.version;
     }
@@ -15,3 +17,6 @@ function readPackageVersion(): string {
 }
 
 export const ACP_PACKAGE_VERSION = readPackageVersion();
+
+/** Direct-module test seam; not re-exported by the package barrel. */
+export const versionCoverage = { readPackageVersion };

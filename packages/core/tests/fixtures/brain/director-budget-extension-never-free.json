@@ -1,0 +1,37 @@
+{
+  "version": 1,
+  "id": "director-budget-extension-never-free",
+  "description": "A director cost-budget extension is medium risk and frequent, but spending money is still a judgement call — no deterministic tier may grant it for free. The policy tier must fall through to the caller's declared continue fallback WITHOUT selecting the recommended 'extend' option.",
+  "request": {
+    "id": "fx-director-budget",
+    "source": "director",
+    "question": "Should the director extend the cost budget for subagent worker-3?",
+    "context": "Task id: task-11\nUsed: 4.9\nLimit: 5\nPrior extensions for this kind: 2",
+    "risk": "medium",
+    "fallback": "continue",
+    "options": [
+      {
+        "id": "extend",
+        "label": "Grant the director default budget extension",
+        "consequence": "The subagent continues with a larger cost budget.",
+        "risk": "medium",
+        "recommended": true
+      },
+      {
+        "id": "stop",
+        "label": "Stop this subagent at the current budget limit",
+        "consequence": "The current task will fail or stop due to budget pressure.",
+        "risk": "low"
+      }
+    ]
+  },
+  "expectations": {
+    "allowedDecisionTypes": [
+      "answer"
+    ],
+    "unsafeOptionIds": [
+      "extend"
+    ]
+  },
+  "expectTier": "policy"
+}

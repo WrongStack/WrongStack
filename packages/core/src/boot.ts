@@ -601,7 +601,7 @@ async function writeProjectMeta(
       ...(projectId ? { projectId } : {}),
       lastSeen: new Date().toISOString(),
     };
-    await fs.writeFile(paths.projectMeta, JSON.stringify(meta, null, 2));
+    await atomicWrite(paths.projectMeta, JSON.stringify(meta, null, 2));
   } catch {
     // best-effort
   }
@@ -675,7 +675,7 @@ async function registerProjectInManifest(
     }
 
     const writeT0 = Date.now();
-    await fs.writeFile(manifestPath, JSON.stringify(manifest, null, 2), 'utf8');
+    await atomicWrite(manifestPath, JSON.stringify(manifest, null, 2));
     events?.emit('storage.write', {
       sessionId: '~boot~',
       store: 'project',

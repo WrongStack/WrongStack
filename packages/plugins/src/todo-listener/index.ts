@@ -32,6 +32,7 @@
 import type { TodoItem } from '@wrongstack/core/agent';
 import type { Mailbox, MailboxMessage, MailboxSendInput } from '@wrongstack/core/coordination';
 import type { Plugin } from '@wrongstack/core/types';
+import { safeJsonStringify } from '../runtime/index.js';
 
 // ---------------------------------------------------------------------------
 // Module-scope state (H1 audit pattern)
@@ -233,7 +234,9 @@ const plugin: Plugin = {
         0,
         200,
       );
-      const body = JSON.stringify(payload, null, 2);
+      // The bus payload is not ours; a circular reference must not turn a
+      // status broadcast into a thrown listener.
+      const body = safeJsonStringify(payload, 2);
 
       const sendInput: MailboxSendInput = {
         from: `plugin:todo-listener`,

@@ -9,7 +9,8 @@ import type {
 } from '@wrongstack/core/kernel';
 import type { SessionEventBridge } from '@wrongstack/core/storage';
 import type { WstackPaths } from '@wrongstack/core/utils';
-import { getBoard, getKanbanDir, recordTaskFileActivity } from '@wrongstack/kanban';
+import { recordTaskFileActivity } from '@wrongstack/kanban';
+import { watchKanbanBoards } from './kanban-board-watcher.js';
 import type { WebSocket } from 'ws';
 import { extractCodeMapFileTargets, normalizeCodeMapFileTarget } from './codemap-telemetry.js';
 import type { PendingConfirm } from './pending-confirms.js';
@@ -108,43 +109,11 @@ export function setupEvents(deps: SetupEventsDeps): () => void {
   // When any board JSON changes on disk (external agent, another process),
   // push the updated board to every connected WebUI client so KanbanView
   // renders the live state without waiting for the next polling tick.
-  let kanbanWatcher: ReturnType<typeof fsWatch> | null = null;
-  let kanbanDebounce: ReturnType<typeof setTimeout> | null = null;
+  // Extracted to kanban-board-watcher.ts so the CLI embedded server shares
+  // the same liveness path (kanban events never reach the EventBus).
   const projectRoot = context.projectRoot;
   if (projectRoot) {
-    try {
-      const kanbanDir = getKanbanDir(projectRoot);
-      kanbanWatcher = fsWatch(kanbanDir, { persistent: false }, (_eventType, filename) => {
-        const name = filename?.toString();
-        if (!name?.endsWith('.json')) return;
-        const boardId = name.slice(0, -5);
-        if (kanbanDebounce) clearTimeout(kanbanDebounce);
-        kanbanDebounce = setTimeout(async () => {
-          try {
-            const board = await getBoard(projectRoot, boardId);
-            if (board) {
-              broadcast(clients, {
-                type: 'kanban.get',
-                // Wrap in the { board } envelope like every other kanban
-                // broadcast so the client's isBoardEnvelope path handles it
-                // without hijacking another tab's activeBoardId.
-                payload: { success: true, data: { board } },
-              });
-            }
-          } catch {
-            // best-effort: the next polling tick will catch transient errors
-          }
-        }, 60);
-      });
-      kanbanWatcher.on('error', () => kanbanWatcher?.close());
-      disposers.push(() => {
-        if (kanbanDebounce) clearTimeout(kanbanDebounce);
-        kanbanWatcher?.close();
-        kanbanWatcher = null;
-      });
-    } catch {
-      // Kanban directory may not exist yet
-    }
+    disposers.push(watchKanbanBoards(projectRoot, (message) => broadcast(clients, message)));
   }
   const currentSessionId = (): string => context.session?.id ?? '';
   const sessionPayload = <T extends Record<string, unknown>>(
@@ -416,6 +385,10 @@ export function setupEvents(deps: SetupEventsDeps): () => void {
 
   on('file.activity', (e) => {
     broadcast(clients, { type: 'codemap.file_event', payload: e });
+  });
+
+  on('codemap.index_updated', (e) => {
+    broadcast(clients, { type: 'codemap.index_updated', payload: e });
   });
 
   on('file.event', (e) => {
@@ -1412,10 +1385,26 @@ export function setupEvents(deps: SetupEventsDeps): () => void {
     // Hand the broadcaster to the HTTP layer for push-on-write (/api/fleet/ping).
     onFleetBroadcaster?.(broadcastSessions);
 
-    // Fallback poll (also prunes stale entries on read).
-    const statusInterval = setInterval(() => void broadcastSessions(), 5_000);
-    if (statusInterval.unref) statusInterval.unref();
-    disposers.push(() => clearInterval(statusInterval));
+    // Fallback poll (also prunes stale entries on read). While the registry
+    // watcher below is live, changes arrive in ~150ms and the poll only has
+    // to reap stale entries — relax it. Without a watcher (unsupported
+    // platform, or the watcher errored) fall back to the 5s cadence.
+    let regWatchLive = false;
+    let statusTimer: ReturnType<typeof setTimeout> | undefined;
+    const scheduleStatusPoll = (): void => {
+      if (disposed) return;
+      statusTimer = setTimeout(
+        () => {
+          void broadcastSessions();
+          scheduleStatusPoll();
+        },
+        regWatchLive ? 30_000 : 5_000,
+      );
+      if (statusTimer.unref) statusTimer.unref();
+    };
+    disposers.push(() => {
+      if (statusTimer) clearTimeout(statusTimer);
+    });
 
     // Event-driven: watch the registry file so a TUI/REPL agent's write reaches
     // the map in ~150ms. Atomic writes go via `<file>.<uuid>.tmp` → rename, so
@@ -1428,6 +1417,18 @@ export function setupEvents(deps: SetupEventsDeps): () => void {
         if (regDebounce) clearTimeout(regDebounce);
         regDebounce = setTimeout(() => void broadcastSessions(), 150);
       });
+      // Without a listener an FSWatcher 'error' event is an uncaught
+      // exception. Windows surfaces transient EPERMs here; degrade to the
+      // fast poll instead of crashing the server.
+      regWatcher.on('error', () => {
+        regWatchLive = false;
+        try {
+          regWatcher.close();
+        } catch {
+          /* already closed */
+        }
+      });
+      regWatchLive = true;
       disposers.push(() => {
         if (regDebounce) clearTimeout(regDebounce);
         regWatcher.close();
@@ -1435,6 +1436,7 @@ export function setupEvents(deps: SetupEventsDeps): () => void {
     } catch {
       // Watch unsupported on this platform — the 5s poll still covers it.
     }
+    scheduleStatusPoll();
 
     // Push an immediate snapshot so a freshly-connected client doesn't wait.
     void broadcastSessions();

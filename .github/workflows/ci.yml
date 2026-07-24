@@ -116,7 +116,7 @@ jobs:
           retention-days: 1
 
   test:
-    name: Test (Vitest)
+    name: Test (Vitest + 100% coverage)
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
@@ -135,19 +135,10 @@ jobs:
       - name: Architecture and runtime-test inventory
         run: pnpm check:architecture && pnpm check:test-inventory && pnpm check:test-skips
 
-      # The root vitest run excludes webui (jsdom/globals environment)
-      # and hq-dashboard (jsdom via forks pool) — those have their own
-      # vitest configs and are tested separately below.
-      #
-      # NODE_OPTIONS mirrors vitest.config.ts env so child processes
-      # spawned by tests also get the 4 GB heap.
-      - name: Test (root suite)
-        run: pnpm vitest run
-        env:
-          NODE_OPTIONS: --max-old-space-size=4096
-
-      - name: Test (webui)
-        run: pnpm --filter webui test
+      # Runs Node-package coverage first and WebUI's dedicated jsdom coverage
+      # second. Both configs enforce 100% per production file.
+      - name: Test with 100% coverage gate
+        run: pnpm test:coverage
         env:
           NODE_OPTIONS: --max-old-space-size=4096
 

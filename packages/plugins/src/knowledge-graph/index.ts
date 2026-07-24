@@ -29,7 +29,7 @@
  * @public
  */
 
-import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { mkdirSync, readFileSync, renameSync, unlinkSync, writeFileSync } from 'node:fs';
 import { dirname, isAbsolute, relative, resolve } from 'node:path';
 import type { Plugin } from '@wrongstack/core/types';
 
@@ -153,14 +153,20 @@ function loadFacts(filePath: string): { facts: Fact[]; nextId: number } {
 
 function persistFacts(filePath: string): boolean {
   if (!filePath) return true;
+  const tmp = `${filePath}.${process.pid}.tmp`;
   try {
     mkdirSync(dirname(filePath), { recursive: true });
-    writeFileSync(
-      filePath,
-      JSON.stringify({ facts: state.facts, nextId: state.nextId }, null, 2),
-    );
+    // Atomic tmp+rename so a crash mid-write can't tear the fact store.
+    writeFileSync(tmp, JSON.stringify({ facts: state.facts, nextId: state.nextId }, null, 2));
+    renameSync(tmp, filePath);
     return true;
   } catch {
+    // Best-effort cleanup: unlink orphaned tmp if write succeeded but rename failed.
+    try {
+      unlinkSync(tmp);
+    } catch {
+      // tmp may not exist if writeFileSync itself failed
+    }
     state.persistErrors += 1;
     return false;
   }

@@ -1,17 +1,17 @@
-import { expectDefined, toErrorMessage } from '@wrongstack/core/utils';
 import type { Specification, SpecRequirement, SpecSection } from '@wrongstack/core/types';
+import { ERROR_CODES, SddError } from '@wrongstack/core/types';
+import { expectDefined, toErrorMessage } from '@wrongstack/core/utils';
 import type { SpecStore } from './spec-store.js';
-import { SddError, ERROR_CODES } from '@wrongstack/core/types';
 
 // ─── Session Types ────────────────────────────────────────────────────────────
 
 export type AISpecPhase =
-  | 'questioning'     // AI is asking questions
-  | 'spec_review'     // Spec generated, waiting for user approval
-  | 'implementation'  // Implementation plan phase
-  | 'task_review'     // Tasks generated, waiting for execution
-  | 'executing'       // Running tasks
-  | 'done';           // Everything complete
+  | 'questioning' // AI is asking questions
+  | 'spec_review' // Spec generated, waiting for user approval
+  | 'implementation' // Implementation plan phase
+  | 'task_review' // Tasks generated, waiting for execution
+  | 'executing' // Running tasks
+  | 'done'; // Everything complete
 
 export interface CollectedAnswer {
   question: string;
@@ -134,9 +134,7 @@ function buildSpecReviewPrompt(session: AISpecSession): string {
   const spec = session.spec;
   if (!spec) return 'No spec generated yet.';
 
-  const reqSummary = spec.requirements
-    .map((r) => `  [${r.priority}] ${r.description}`)
-    .join('\n');
+  const reqSummary = spec.requirements.map((r) => `  [${r.priority}] ${r.description}`).join('\n');
 
   return [
     `═══ Spec Review ═══`,
@@ -159,9 +157,7 @@ function buildImplementationPrompt(session: AISpecSession): string {
   const spec = session.spec;
   if (!spec) return 'No spec to implement.';
 
-  const reqList = spec.requirements
-    .map((r) => `  - [${r.priority}] ${r.description}`)
-    .join('\n');
+  const reqList = spec.requirements.map((r) => `  - [${r.priority}] ${r.description}`).join('\n');
 
   return [
     `═══ Implementation Planning ═══`,
@@ -341,17 +337,9 @@ export class AISpecBuilder {
     }
   }
 
-  /** Auto-save helper — calls saveSession() but never throws.
-   *  Failures are surfaced via process.emitWarning so a persistent
-   *  ENOSPC / EACCES doesn't silently strand session edits in memory. */
+  /** Auto-save helper. saveSession() already handles best-effort persistence. */
   private autoSave(): void {
-    this.saveSession().catch((err) => {
-      const detail = toErrorMessage(err);
-      process.emitWarning(
-        `SpecBuilder autoSave failed: ${detail}`,
-        'SpecBuilderWarning',
-      );
-    });
+    void this.saveSession();
   }
 
   // ── Session Lifecycle ─────────────────────────────────────────────────────
@@ -546,7 +534,7 @@ export class AISpecBuilder {
         message: 'Invalid JSON for spec',
         code: ERROR_CODES.SDD_PARSE_FAILED,
         cause: e,
-        context: { detail: e instanceof Error ? e.message : 'parse error' },
+        context: { detail: toErrorMessage(e) },
       });
     }
 
@@ -561,7 +549,7 @@ export class AISpecBuilder {
     const raw = parsed as Record<string, unknown>;
     const now = Date.now();
 
-    const title = String(raw.title ?? this.session.title ?? 'Untitled');
+    const title = String(raw.title ?? this.session.title);
     const overview = String(raw.overview ?? '');
 
     // Validate overview is not empty
@@ -577,8 +565,17 @@ export class AISpecBuilder {
     const sections: SpecSection[] = rawSections
       .filter((s: unknown) => s && typeof s === 'object')
       .map((s: Record<string, unknown>) => ({
-        type: (['overview', 'requirements', 'architecture', 'api', 'data', 'security', 'acceptance']
-          .includes(String(s.type)) ? String(s.type) : 'overview') as SpecSection['type'],
+        type: ([
+          'overview',
+          'requirements',
+          'architecture',
+          'api',
+          'data',
+          'security',
+          'acceptance',
+        ].includes(String(s.type))
+          ? String(s.type)
+          : 'overview') as SpecSection['type'],
         title: String(s.title ?? ''),
         content: String(s.content ?? ''),
         level: Number(s.level) || 1,
@@ -589,15 +586,19 @@ export class AISpecBuilder {
       .filter((r: unknown) => r && typeof r === 'object')
       .map((r: Record<string, unknown>, i: number) => ({
         id: String(r.id ?? `REQ-${i + 1}`),
-        type: (['functional', 'non-functional', 'security', 'performance', 'ux']
-          .includes(String(r.type)) ? String(r.type) : 'functional') as SpecRequirement['type'],
-        priority: (['critical', 'high', 'medium', 'low']
-          .includes(String(r.priority)) ? String(r.priority) : 'medium') as SpecRequirement['priority'],
+        type: (['functional', 'non-functional', 'security', 'performance', 'ux'].includes(
+          String(r.type),
+        )
+          ? String(r.type)
+          : 'functional') as SpecRequirement['type'],
+        priority: (['critical', 'high', 'medium', 'low'].includes(String(r.priority))
+          ? String(r.priority)
+          : 'medium') as SpecRequirement['priority'],
         description: String(r.description ?? ''),
         acceptanceCriteria: Array.isArray(r.acceptanceCriteria)
           ? r.acceptanceCriteria.map(String)
-        : [],
-    }));
+          : [],
+      }));
 
     const spec: Specification = {
       id: crypto.randomUUID(),

@@ -1474,6 +1474,13 @@
     "gitToBuffer": "Git HEAD → tampon Monaco actuel",
     "savedToBuffer": "Dernière version enregistrée → tampon Monaco actuel",
     "unsaved": "tampon non enregistré",
+    "lifetimeTitle": "Tout l’historique",
+    "lifetimeChanges": "modifications",
+    "lifetimeSessions": "sessions",
+    "lifetimeTasks": "tâches",
+    "lifetimeBoards": "tableaux",
+    "lifetimeSince": "depuis {{date}}",
+    "lifetimeTools": "via {{tools}}",
     "level": {
       "quiet": "stable",
       "active": "actif",

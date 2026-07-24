@@ -1,0 +1,38 @@
+{
+  "version": 1,
+  "id": "critical-conflict-resolution-never-free",
+  "description": "Automatic merge-conflict resolution lets an agent edit files in the BASE working tree — the one irreversible Brain decision in the system. No deterministic tier may authorise it, even though the request carries a recommended option: 'review' is recommended precisely because it is the safe side, and a free tier that started picking recommended options at critical risk would eventually pick the destructive one elsewhere.",
+  "request": {
+    "id": "fx-goal-conflict",
+    "source": "goal",
+    "question": "Should Goal try to resolve merge conflicts for phase \"api-surface\" automatically?",
+    "context": "Phase id: phase-4\nConflicted files: src/router.ts, src/types.ts\nBase working tree: /repo",
+    "risk": "critical",
+    "fallback": "ask_human",
+    "options": [
+      {
+        "id": "resolve",
+        "label": "Try the configured conflict resolver",
+        "consequence": "A resolver agent may edit conflicted files in the base working tree.",
+        "risk": "critical"
+      },
+      {
+        "id": "review",
+        "label": "Keep the worktree for human review",
+        "consequence": "No automatic conflict resolution is attempted.",
+        "risk": "low",
+        "recommended": true
+      }
+    ]
+  },
+  "expectations": {
+    "allowedDecisionTypes": [
+      "ask_human"
+    ],
+    "allowEscalation": true,
+    "unsafeOptionIds": [
+      "resolve"
+    ]
+  },
+  "expectTier": "policy"
+}

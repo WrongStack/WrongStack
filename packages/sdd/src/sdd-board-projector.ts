@@ -12,8 +12,9 @@
  * on the nodes (the run mutates them through the tracker), so the projector
  * mostly re-derives the snapshot and only tracks run-level status/wave/deadlock.
  */
-import { DefaultSecretScrubber } from '@wrongstack/core/security';
+
 import type { EventBus, EventMap } from '@wrongstack/core/kernel';
+import { DefaultSecretScrubber } from '@wrongstack/core/security';
 import type { TaskTracker } from '@wrongstack/core/tasking';
 import type { SecretScrubber, TaskGraph } from '@wrongstack/core/types';
 import {
@@ -100,7 +101,6 @@ export class SddBoardProjector {
   /** Base branch reported by the run at start (overrides the constructor option). */
   private runBaseBranch: string | undefined;
 
-  private dirty = false;
   private timer: ReturnType<typeof setTimeout> | null = null;
   private readonly unsubs: Array<() => void> = [];
   /** Latest snapshot waiting behind an in-flight disk write. */
@@ -134,7 +134,11 @@ export class SddBoardProjector {
     });
     this.onRun('sdd.wave', (e) => {
       this.wave = e.wave;
-      this.pushFeed({ ts: this.now(), kind: 'wave', text: `Wave ${e.wave + 1} started · ${e.batchSize} task(s) in parallel` });
+      this.pushFeed({
+        ts: this.now(),
+        kind: 'wave',
+        text: `Wave ${e.wave + 1} started · ${e.batchSize} task(s) in parallel`,
+      });
       this.markDirty();
     });
     this.onRun('sdd.deadlock', (e) => {
@@ -142,7 +146,11 @@ export class SddBoardProjector {
         blocked: this.shortId.get(c.blocked) ?? c.blocked.slice(0, 6),
         blockedBy: c.blockedBy.map((b) => this.shortId.get(b) ?? b.slice(0, 6)),
       }));
-      this.pushFeed({ ts: this.now(), kind: 'deadlock', text: `Deadlock — ${e.chains.length} task(s) blocked by failed work` });
+      this.pushFeed({
+        ts: this.now(),
+        kind: 'deadlock',
+        text: `Deadlock — ${e.chains.length} task(s) blocked by failed work`,
+      });
       this.markDirty();
     });
     // Task lifecycle → live activity feed (task STATE comes from the tracker,
@@ -332,7 +340,8 @@ export class SddBoardProjector {
 
   private pushFeed(entry: SddBoardFeedEntry): void {
     this.feed.unshift(entry);
-    if (this.feed.length > SddBoardProjector.FEED_CAP) this.feed.length = SddBoardProjector.FEED_CAP;
+    if (this.feed.length > SddBoardProjector.FEED_CAP)
+      this.feed.length = SddBoardProjector.FEED_CAP;
     if (entry.taskId) {
       const taskFeed = this.taskEvents.get(entry.taskId) ?? [];
       taskFeed.unshift(entry);
@@ -361,12 +370,7 @@ export class SddBoardProjector {
 
   /** Resolve once all in-flight snapshot persistence has settled. */
   async drain(): Promise<void> {
-    for (;;) {
-      const observed = this.saveLoop;
-      if (!observed) return;
-      await observed;
-      if (observed === this.saveLoop && !this.pendingSnapshot) return;
-    }
+    while (this.saveLoop) await this.saveLoop;
   }
 
   /** Stop projecting and release subscriptions. */
@@ -446,16 +450,14 @@ export class SddBoardProjector {
   }
 
   private markDirty(): void {
-    this.dirty = true;
     if (this.timer || this.finished) return;
     this.timer = setTimeout(() => {
       this.timer = null;
-      if (this.dirty) this.flush();
+      this.flush();
     }, this.throttleMs);
   }
 
   private flush(): void {
-    this.dirty = false;
     if (this.timer) {
       clearTimeout(this.timer);
       this.timer = null;
@@ -481,9 +483,7 @@ export class SddBoardProjector {
     const loop = this.persistPendingSnapshots(store);
     this.saveLoop = loop;
     void loop.finally(() => {
-      if (this.saveLoop !== loop) return;
       this.saveLoop = undefined;
-      if (this.pendingSnapshot) this.startSaveLoop(store);
     });
   }
 
@@ -496,10 +496,7 @@ export class SddBoardProjector {
   }
 
   private currentSessionId(): string | undefined {
-    const value =
-      typeof this.o.sessionId === 'function'
-        ? this.o.sessionId()
-        : this.o.sessionId;
+    const value = typeof this.o.sessionId === 'function' ? this.o.sessionId() : this.o.sessionId;
     return typeof value === 'string' && value.length > 0 ? value : undefined;
   }
 }

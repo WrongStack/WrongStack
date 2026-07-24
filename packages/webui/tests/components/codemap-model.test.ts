@@ -5,6 +5,9 @@ import {
   type GraphEdgeData,
   type GraphNodeData,
   layoutGraph,
+  SMART_CANVAS_EDGE_LIMIT,
+  SMART_CANVAS_NODE_LIMIT,
+  smartCanvasGraph,
 } from '../../src/components/codemap-model';
 
 function graphNode(index: number): GraphNodeData {
@@ -87,5 +90,63 @@ describe('codemap model', () => {
     expect(second).toBe(first);
     expect(first.directories[0]?.name).toBe('src');
     expect(first.directories[0]?.directories[0]?.name).toBe('nested');
+  });
+
+  it('smartCanvasGraph caps nodes and edges while preserving the selection neighbourhood', () => {
+    const nodes = Array.from({ length: 200 }, (_, index) => graphNode(index));
+    const edges: GraphEdgeData[] = [];
+    for (let i = 0; i < nodes.length; i++) {
+      for (let j = 1; j <= 3 && i + j < nodes.length; j++) {
+        edges.push({
+          source: nodes[i]!.id,
+          target: nodes[i + j]!.id,
+          weight: 4 - j,
+          refType: 'call',
+        });
+      }
+    }
+    // Dense hub around node 0 so selection neighbourhood is non-trivial.
+    for (let i = 1; i < 40; i++) {
+      edges.push({
+        source: nodes[0]!.id,
+        target: nodes[i]!.id,
+        weight: 10,
+        refType: 'import',
+      });
+    }
+
+    const smart = smartCanvasGraph({ nodes, edges }, nodes[0]!.id, 'smart');
+    expect(smart.nodes.length).toBeLessThanOrEqual(SMART_CANVAS_NODE_LIMIT);
+    expect(smart.edges.length).toBeLessThanOrEqual(SMART_CANVAS_EDGE_LIMIT);
+    expect(smart.nodes.some((node) => node.id === nodes[0]!.id)).toBe(true);
+    // Focused edges for the selection should not be dropped by the edge budget.
+    expect(
+      smart.edges.some((edge) => edge.source === nodes[0]!.id || edge.target === nodes[0]!.id),
+    ).toBe(true);
+
+    const all = smartCanvasGraph({ nodes, edges }, nodes[0]!.id, 'all');
+    expect(all.nodes).toHaveLength(nodes.length);
+    expect(all.edges).toHaveLength(edges.length);
+  });
+
+  it('smartCanvasGraph culls edges even when node count is already under the limit', () => {
+    const nodes = Array.from({ length: 20 }, (_, index) => graphNode(index));
+    const edges: GraphEdgeData[] = [];
+    for (let i = 0; i < nodes.length; i++) {
+      for (let j = 0; j < nodes.length; j++) {
+        if (i === j) continue;
+        edges.push({
+          source: nodes[i]!.id,
+          target: nodes[j]!.id,
+          weight: (i + j) % 7,
+          refType: 'call',
+        });
+      }
+    }
+    expect(edges.length).toBeGreaterThan(SMART_CANVAS_EDGE_LIMIT);
+
+    const smart = smartCanvasGraph({ nodes, edges }, null, 'smart');
+    expect(smart.nodes).toHaveLength(nodes.length);
+    expect(smart.edges.length).toBeLessThanOrEqual(SMART_CANVAS_EDGE_LIMIT);
   });
 });

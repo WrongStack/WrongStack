@@ -8,6 +8,7 @@
 export * from './clipboard.js';
 export * from './container.js';
 export {
+  abortLightSubagent,
   type LightSubagentFactoryDeps,
   makeLightSubagentFactory,
 } from './fleet/light-subagent-factory.js';

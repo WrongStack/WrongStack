@@ -9,6 +9,7 @@ import type {
   KanbanTaskStatus,
   KanbanTaskTransitionInput,
   KanbanTaskTransitionResult,
+  KanbanVerificationReport,
 } from '../types.js';
 import { applyTaskPatch, findTask, nowIso } from './_internal.js';
 
@@ -334,38 +335,61 @@ function validateReviewEvidence(
   }
 }
 
-function validateDoneEvidence(
+/**
+ * The Definition-of-Done rules shared by the managed lifecycle gate
+ * (`validateDoneEvidence`) and the universal completion gate
+ * (`verification/completion-gate.ts`). Reviewer-attachment requirements stay
+ * in `validateDoneEvidence` because they only exist on managed transitions.
+ *
+ * `report` overrides `task.verificationReport` so a freshly computed (not yet
+ * persisted) report can be evaluated. `requireCriteria` (default true) demands
+ * at least one acceptance criterion; the soft completion gate relaxes it so
+ * criterion-less legacy tasks complete quietly.
+ */
+export function validateDefinitionOfDone(
   task: KanbanTask,
-  input: KanbanTaskTransitionInput,
-  issues: KanbanLifecycleValidationIssue[],
-): void {
+  report?: KanbanVerificationReport,
+  options: { requireCriteria?: boolean | undefined } = {},
+): KanbanLifecycleValidationIssue[] {
+  const issues: KanbanLifecycleValidationIssue[] = [];
+  const requireCriteria = options.requireCriteria !== false;
   const checks = task.successCriteria ?? [];
-  if (!checks.length || checks.some((check) => check.status !== 'passed')) {
+  if ((requireCriteria && !checks.length) || checks.some((check) => check.status !== 'passed')) {
     issues.push({
       code: 'acceptance-criteria-incomplete',
       field: 'successCriteria',
       message: 'Done requires every acceptance criterion to be explicitly passed.',
     });
   }
-  if (!hasAttachmentUrl(input.attachment) || !hasText(input.action)) {
-    issues.push({
-      code: 'review-evidence-missing',
-      message: 'Done requires reviewer action text and a persisted review attachment.',
-    });
-  }
+  const effectiveReport = report ?? task.verificationReport;
   // Atomic tasks must have a completed verification report before Done.
-  if (task.atomic && !task.verificationReport) {
+  if (task.atomic && !effectiveReport) {
     issues.push({
       code: 'review-evidence-missing',
       field: 'verificationReport',
       message: 'Atomic tasks require a completed verification report (run verify_completion) before Done.',
     });
   }
-  if (task.atomic && task.verificationReport?.verdict !== 'passed') {
+  if (task.atomic && effectiveReport?.verdict !== 'passed') {
     issues.push({
       code: 'acceptance-criteria-incomplete',
       field: 'verificationReport',
-      message: `Atomic task verification verdict is "${task.verificationReport?.verdict ?? 'missing'}". Only "passed" allows Done.`,
+      message: `Atomic task verification verdict is "${effectiveReport?.verdict ?? 'missing'}". Only "passed" allows Done.`,
+    });
+  }
+  return issues;
+}
+
+function validateDoneEvidence(
+  task: KanbanTask,
+  input: KanbanTaskTransitionInput,
+  issues: KanbanLifecycleValidationIssue[],
+): void {
+  issues.push(...validateDefinitionOfDone(task, task.verificationReport));
+  if (!hasAttachmentUrl(input.attachment) || !hasText(input.action)) {
+    issues.push({
+      code: 'review-evidence-missing',
+      message: 'Done requires reviewer action text and a persisted review attachment.',
     });
   }
 }

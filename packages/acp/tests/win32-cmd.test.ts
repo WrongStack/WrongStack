@@ -13,6 +13,17 @@ describe('buildWin32CmdShimInvocation', () => {
     expect(result.windowsVerbatimArguments).toBe(true);
   });
 
+  it('falls back to cmd.exe when COMSPEC is absent', () => {
+    const original = process.env.COMSPEC;
+    delete process.env.COMSPEC;
+    try {
+      expect(buildWin32CmdShimInvocation('node').command).toBe('cmd.exe');
+    } finally {
+      if (original === undefined) delete process.env.COMSPEC;
+      else process.env.COMSPEC = original;
+    }
+  });
+
   it('throws on args containing shell metacharacters', () => {
     // The & character is a shell metacharacter in cmd.exe
     expect(() => buildWin32CmdShimInvocation('node', ['arg&'])).toThrow('metacharacter');

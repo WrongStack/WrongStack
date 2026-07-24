@@ -4,9 +4,9 @@
   "rootImportFiles": 0,
   "bySpecifier": {
     "@wrongstack/core/agent": {
-      "files": 191,
-      "typeOnly": 155,
-      "runtimeOrMixed": 52
+      "files": 195,
+      "typeOnly": 159,
+      "runtimeOrMixed": 53
     },
     "@wrongstack/core/agent-catalog": {
       "files": 6,
@@ -19,9 +19,9 @@
       "runtimeOrMixed": 3
     },
     "@wrongstack/core/coordination": {
-      "files": 121,
+      "files": 122,
       "typeOnly": 54,
-      "runtimeOrMixed": 125
+      "runtimeOrMixed": 126
     },
     "@wrongstack/core/coordination/agent-subagent-runner.js": {
       "files": 2,
@@ -64,9 +64,9 @@
       "runtimeOrMixed": 3
     },
     "@wrongstack/core/hq": {
-      "files": 85,
-      "typeOnly": 65,
-      "runtimeOrMixed": 42
+      "files": 86,
+      "typeOnly": 66,
+      "runtimeOrMixed": 43
     },
     "@wrongstack/core/infrastructure": {
       "files": 35,
@@ -74,9 +74,9 @@
       "runtimeOrMixed": 36
     },
     "@wrongstack/core/kernel": {
-      "files": 152,
+      "files": 157,
       "typeOnly": 77,
-      "runtimeOrMixed": 91
+      "runtimeOrMixed": 96
     },
     "@wrongstack/core/kernel/events.js": {
       "files": 6,
@@ -116,7 +116,7 @@
     "@wrongstack/core/security": {
       "files": 92,
       "typeOnly": 14,
-      "runtimeOrMixed": 82
+      "runtimeOrMixed": 81
     },
     "@wrongstack/core/skills": {
       "files": 6,
@@ -129,9 +129,9 @@
       "runtimeOrMixed": 87
     },
     "@wrongstack/core/tasking": {
-      "files": 23,
-      "typeOnly": 6,
-      "runtimeOrMixed": 17
+      "files": 27,
+      "typeOnly": 8,
+      "runtimeOrMixed": 19
     },
     "@wrongstack/core/tools": {
       "files": 3,
@@ -139,9 +139,9 @@
       "runtimeOrMixed": 3
     },
     "@wrongstack/core/types": {
-      "files": 703,
+      "files": 714,
       "typeOnly": 687,
-      "runtimeOrMixed": 189
+      "runtimeOrMixed": 192
     },
     "@wrongstack/core/types/multi-agent.js": {
       "files": 2,
@@ -159,9 +159,9 @@
       "runtimeOrMixed": 1
     },
     "@wrongstack/core/utils": {
-      "files": 392,
+      "files": 400,
       "typeOnly": 36,
-      "runtimeOrMixed": 424
+      "runtimeOrMixed": 429
     },
     "@wrongstack/core/utils/error": {
       "files": 4,
@@ -172,6 +172,11 @@
       "files": 13,
       "typeOnly": 0,
       "runtimeOrMixed": 13
+    },
+    "@wrongstack/core/utils/tree-kill": {
+      "files": 3,
+      "typeOnly": 0,
+      "runtimeOrMixed": 3
     },
     "@wrongstack/core/worktree": {
       "files": 9,
@@ -760,7 +765,7 @@
       "specifier": "@wrongstack/core/agent",
       "file": "packages/runtime/tests/light-subagent-factory.test.ts",
       "typeOnly": 1,
-      "runtimeOrMixed": 0
+      "runtimeOrMixed": 1
     },
     {
       "specifier": "@wrongstack/core/agent",
@@ -777,6 +782,12 @@
     {
       "specifier": "@wrongstack/core/agent",
       "file": "packages/sage/src/middleware/tool-call-memory.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/agent",
+      "file": "packages/sage/tests/tool-call-memory-helpers-coverage.test.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
     },
@@ -878,6 +889,12 @@
     },
     {
       "specifier": "@wrongstack/core/agent",
+      "file": "packages/tools/src/kanban-evidence-bridge.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/agent",
       "file": "packages/tools/src/read.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 3
@@ -963,6 +980,18 @@
     {
       "specifier": "@wrongstack/core/agent",
       "file": "packages/tools/tests/fixtures.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/agent",
+      "file": "packages/tools/tests/kanban-completion-gate.test.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/agent",
+      "file": "packages/tools/tests/kanban-evidence-bridge.test.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
     },
@@ -1701,6 +1730,12 @@
     {
       "specifier": "@wrongstack/core/coordination",
       "file": "packages/cli/src/wiring/tools.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/coordination",
+      "file": "packages/cli/tests/chimera-lifecycle-deregister.test.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },
@@ -2684,6 +2719,12 @@
     },
     {
       "specifier": "@wrongstack/core/hq",
+      "file": "packages/cli/src/hq-server/routes/system-handlers.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/hq",
       "file": "packages/cli/src/hq-server/snapshot.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
@@ -3662,6 +3703,12 @@
     },
     {
       "specifier": "@wrongstack/core/kernel",
+      "file": "packages/cli/tests/chimera-lifecycle-deregister.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/kernel",
       "file": "packages/cli/tests/chimera-session-close.test.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
@@ -3830,6 +3877,12 @@
     },
     {
       "specifier": "@wrongstack/core/kernel",
+      "file": "packages/mcp/tests/registry-coverage.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/kernel",
       "file": "packages/mcp/tests/registry-lazy.test.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
@@ -3903,6 +3956,18 @@
     {
       "specifier": "@wrongstack/core/kernel",
       "file": "packages/plug-lsp/tests/unit/config.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/kernel",
+      "file": "packages/plug-lsp/tests/unit/lsp-server-coverage.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/kernel",
+      "file": "packages/plug-lsp/tests/unit/registry-coverage.test.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },
@@ -4095,6 +4160,12 @@
     {
       "specifier": "@wrongstack/core/kernel",
       "file": "packages/tui/tests/use-brain-events.test.tsx",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/kernel",
+      "file": "packages/tui/tests/use-provider-event-bridge.test.tsx",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },
@@ -5476,7 +5547,7 @@
       "specifier": "@wrongstack/core/security",
       "file": "packages/mcp/tests/token-store.test.ts",
       "typeOnly": 0,
-      "runtimeOrMixed": 2
+      "runtimeOrMixed": 1
     },
     {
       "specifier": "@wrongstack/core/security",
@@ -6200,9 +6271,21 @@
     },
     {
       "specifier": "@wrongstack/core/tasking",
+      "file": "packages/sdd/src/graph-split.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/tasking",
       "file": "packages/sdd/src/index.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/tasking",
+      "file": "packages/sdd/src/plan-decompose.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
     },
     {
       "specifier": "@wrongstack/core/tasking",
@@ -6261,6 +6344,18 @@
     {
       "specifier": "@wrongstack/core/tasking",
       "file": "packages/sdd/tests/auto-executor.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/tasking",
+      "file": "packages/sdd/tests/coverage-completion.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/tasking",
+      "file": "packages/sdd/tests/plan-decompose.test.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },
@@ -7574,6 +7669,12 @@
     },
     {
       "specifier": "@wrongstack/core/types",
+      "file": "packages/cli/tests/chimera-lifecycle-deregister.test.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/types",
       "file": "packages/cli/tests/chimera-session-close.test.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
@@ -7898,6 +7999,12 @@
     },
     {
       "specifier": "@wrongstack/core/types",
+      "file": "packages/mcp/src/read-body.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/types",
       "file": "packages/mcp/src/registry.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
@@ -7959,6 +8066,12 @@
     {
       "specifier": "@wrongstack/core/types",
       "file": "packages/mcp/tests/manage.test.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/types",
+      "file": "packages/mcp/tests/registry-coverage.test.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
     },
@@ -8655,8 +8768,8 @@
     {
       "specifier": "@wrongstack/core/types",
       "file": "packages/providers/src/openai.ts",
-      "typeOnly": 2,
-      "runtimeOrMixed": 0
+      "typeOnly": 1,
+      "runtimeOrMixed": 1
     },
     {
       "specifier": "@wrongstack/core/types",
@@ -8781,7 +8894,7 @@
     {
       "specifier": "@wrongstack/core/types",
       "file": "packages/providers/tests/error-parse.test.ts",
-      "typeOnly": 0,
+      "typeOnly": 1,
       "runtimeOrMixed": 1
     },
     {
@@ -8930,6 +9043,12 @@
     },
     {
       "specifier": "@wrongstack/core/types",
+      "file": "packages/runtime/tests/container.test.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/types",
       "file": "packages/runtime/tests/host.test.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
@@ -9026,6 +9145,12 @@
     },
     {
       "specifier": "@wrongstack/core/types",
+      "file": "packages/sage/tests/memory-port-coverage.test.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/types",
       "file": "packages/sage/tests/memory-port.test.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
@@ -9033,7 +9158,7 @@
     {
       "specifier": "@wrongstack/core/types",
       "file": "packages/sdd/src/auto-executor.ts",
-      "typeOnly": 2,
+      "typeOnly": 1,
       "runtimeOrMixed": 0
     },
     {
@@ -9062,6 +9187,12 @@
     },
     {
       "specifier": "@wrongstack/core/types",
+      "file": "packages/sdd/src/plan-decompose.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/types",
       "file": "packages/sdd/src/sdd-board-projector.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
@@ -9069,13 +9200,13 @@
     {
       "specifier": "@wrongstack/core/types",
       "file": "packages/sdd/src/sdd-interview-driver.ts",
-      "typeOnly": 2,
+      "typeOnly": 1,
       "runtimeOrMixed": 0
     },
     {
       "specifier": "@wrongstack/core/types",
       "file": "packages/sdd/src/sdd-parallel-run.ts",
-      "typeOnly": 3,
+      "typeOnly": 1,
       "runtimeOrMixed": 1
     },
     {
@@ -9117,7 +9248,7 @@
     {
       "specifier": "@wrongstack/core/types",
       "file": "packages/sdd/src/spec-versioning.ts",
-      "typeOnly": 2,
+      "typeOnly": 1,
       "runtimeOrMixed": 0
     },
     {
@@ -9129,13 +9260,13 @@
     {
       "specifier": "@wrongstack/core/types",
       "file": "packages/sdd/src/task-flow.ts",
-      "typeOnly": 3,
+      "typeOnly": 1,
       "runtimeOrMixed": 1
     },
     {
       "specifier": "@wrongstack/core/types",
       "file": "packages/sdd/src/task-generator.ts",
-      "typeOnly": 2,
+      "typeOnly": 1,
       "runtimeOrMixed": 0
     },
     {
@@ -9147,13 +9278,19 @@
     {
       "specifier": "@wrongstack/core/types",
       "file": "packages/sdd/src/task-visualizer.ts",
-      "typeOnly": 2,
+      "typeOnly": 1,
       "runtimeOrMixed": 0
     },
     {
       "specifier": "@wrongstack/core/types",
       "file": "packages/sdd/src/verify-task.ts",
-      "typeOnly": 2,
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/types",
+      "file": "packages/sdd/tests/coverage-completion.test.ts",
+      "typeOnly": 1,
       "runtimeOrMixed": 0
     },
     {
@@ -9171,6 +9308,12 @@
     {
       "specifier": "@wrongstack/core/types",
       "file": "packages/security-scanner/src/slash-command.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/types",
+      "file": "packages/security-scanner/tests/orchestrator-coverage-completion.test.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
     },
@@ -9296,6 +9439,12 @@
     },
     {
       "specifier": "@wrongstack/core/types",
+      "file": "packages/telegram/tests/unit/bot-coverage-completion.test.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/types",
       "file": "packages/telegram/tests/unit/bot-queue.test.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
@@ -9308,7 +9457,19 @@
     },
     {
       "specifier": "@wrongstack/core/types",
+      "file": "packages/telegram/tests/unit/notification-channel.test.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/types",
       "file": "packages/telegram/tests/unit/outbound-queue.test.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/types",
+      "file": "packages/telegram/tests/unit/poll-lock-write-failures.test.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
     },
@@ -11192,6 +11353,12 @@
     },
     {
       "specifier": "@wrongstack/core/utils",
+      "file": "packages/cli/src/services/project-facts.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/utils",
       "file": "packages/cli/src/services/project-manifest.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
@@ -11780,6 +11947,12 @@
     },
     {
       "specifier": "@wrongstack/core/utils",
+      "file": "packages/cli/src/wiring/codebase-index.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/utils",
       "file": "packages/cli/src/wiring/command-host-adapters.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
@@ -12082,7 +12255,7 @@
       "specifier": "@wrongstack/core/utils",
       "file": "packages/mcp/src/client.ts",
       "typeOnly": 0,
-      "runtimeOrMixed": 2
+      "runtimeOrMixed": 1
     },
     {
       "specifier": "@wrongstack/core/utils",
@@ -12094,7 +12267,7 @@
       "specifier": "@wrongstack/core/utils",
       "file": "packages/mcp/src/server.ts",
       "typeOnly": 0,
-      "runtimeOrMixed": 2
+      "runtimeOrMixed": 1
     },
     {
       "specifier": "@wrongstack/core/utils",
@@ -12118,7 +12291,7 @@
       "specifier": "@wrongstack/core/utils",
       "file": "packages/plug-lsp/src/setup.ts",
       "typeOnly": 0,
-      "runtimeOrMixed": 2
+      "runtimeOrMixed": 1
     },
     {
       "specifier": "@wrongstack/core/utils",
@@ -12147,6 +12320,12 @@
     {
       "specifier": "@wrongstack/core/utils",
       "file": "packages/plugins/src/cost-tracker/index.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/utils",
+      "file": "packages/plugins/src/semantic-search-indexer/index.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },
@@ -12302,6 +12481,12 @@
     },
     {
       "specifier": "@wrongstack/core/utils",
+      "file": "packages/sdd/src/sdd-lifecycle.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/utils",
       "file": "packages/sdd/src/sdd-parallel-run.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
@@ -12326,6 +12511,12 @@
     },
     {
       "specifier": "@wrongstack/core/utils",
+      "file": "packages/sdd/src/task-flow.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/utils",
       "file": "packages/sdd/src/task-graph-store.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
@@ -12333,6 +12524,12 @@
     {
       "specifier": "@wrongstack/core/utils",
       "file": "packages/sdd/src/task-visualizer.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/utils",
+      "file": "packages/security-scanner/src/file-gathering.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },
@@ -12513,6 +12710,12 @@
     {
       "specifier": "@wrongstack/core/utils",
       "file": "packages/tools/src/json.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/utils",
+      "file": "packages/tools/src/kanban-evidence-bridge.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },
@@ -12831,6 +13034,12 @@
     {
       "specifier": "@wrongstack/core/utils",
       "file": "packages/webui-server/src/server/client-presence.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/utils",
+      "file": "packages/webui-server/src/server/codebase-indexing.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },
@@ -13161,6 +13370,24 @@
     {
       "specifier": "@wrongstack/core/utils/expect-defined",
       "file": "packages/webui/src/stores/chat-store.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/utils/tree-kill",
+      "file": "packages/acp/src/agent/stdio-transport.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/utils/tree-kill",
+      "file": "packages/acp/src/registry/ensemble-registry.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/utils/tree-kill",
+      "file": "packages/plug-lsp/src/server/lsp-server.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },

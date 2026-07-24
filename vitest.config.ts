@@ -98,7 +98,8 @@ export default defineConfig({
     coverage: {
       provider: 'v8',
       reporter: ['text', 'json', 'json-summary', 'html'],
-      include: ['packages/*/src/**/*.ts'],
+      reportOnFailure: true,
+      include: ['packages/*/src/**/*.{ts,tsx}'],
       exclude: [
         '**/*.test.ts',
         '**/*.bench.ts',
@@ -118,32 +119,16 @@ export default defineConfig({
         'packages/cli/src/input-reader.ts',
         'packages/cli/src/repl.ts',
         'packages/cli/src/spinner.ts',
-        // React/ink components — require DOM/ink-testing-library
-        'packages/tui/src/app.tsx',
-        'packages/tui/src/components/**/*.tsx',
-        'packages/tui/src/hooks/**/*.ts',
-        // TUI app state — state machine with side effects; integration-tested end-to-end
-        'packages/tui/src/app-reducer.ts',
         // TUI entry/runtime — Ink render-tree wiring, exercised end-to-end
         'packages/tui/src/run-tui.ts',
         // Clipboard — depends on OS-level pasteboards (xsel/pbcopy/clip.exe)
         'packages/tui/src/clipboard.ts',
         // Runtime pack.ts is a pure TypeScript interface file — no runnable code
         'packages/runtime/src/pack.ts',
-        // WebUI browser-only modules — require jsdom/jsdom-like environment
-        'packages/webui/src/lib/chime.ts',
-        'packages/webui/src/lib/favicon.ts',
-        'packages/webui/src/lib/notify.ts',
-        'packages/webui/src/lib/utils.ts',
-        'packages/webui/src/lib/ws-client.ts',
-        // WebUI React components
-        'packages/webui/src/components/**/*.tsx',
-        'packages/webui/src/hooks/**/*.ts',
-        'packages/webui/src/stores/**/*.ts',
-        // WebUI server entry points (require WebSocket/binding).
-        // The server was extracted to @wrongstack/webui-server; the remaining
-        // packages/webui/src/server/index.ts is a thin back-compat shim.
-        'packages/webui/src/server/index.ts',
+        // WebUI has a dedicated jsdom coverage run in packages/webui. Excluding
+        // it here prevents the Node run from reporting the same files as 0%.
+        'packages/webui/src/**',
+        // WebUI server entry points require process/WebSocket binding.
         'packages/webui-server/src/server/index.ts',
         'packages/webui-server/src/server/entry.ts',
         // LSP search — requires a live language server; integration-tested separately
@@ -160,26 +145,14 @@ export default defineConfig({
         'packages/plug-lsp/src/auto-doc/py-parser.ts',
         'packages/plug-lsp/src/auto-doc/sh-parser.ts',
       ],
-      // Coverage thresholds — calibrated to achievable coverage.
-      //
-      // Achievable coverage analysis (after exclusions above):
-      //   - core, cli, providers, plugins: ~85–90% with effort (complex streaming,
-      //     runtime config, pipeline hooks)
-      //   - tools: ~78% (tools/src/shim excluded, grep.ts excluded)
-      //   - plug-lsp: ~70% (LSP tools and index excluded from unit coverage)
-      //
-      // Global: 72% lines is achievable with targeted tests.
-      // 100% requires DOM/jsdom for webui/tui and LSP stubs for plug-lsp.
+      // Aggregate ratchet: keep the expanded TS/TSX inventory covered without
+      // pretending the existing workspace is already at 100% per file.
       thresholds: {
-        // Floor — must not regress.
-        // Raised after ~470+ new coverage tests added across kanban (95%),
-        // techstack (84%), sage (82%), sdd (90%), plug-lsp (84%).
-        // Measured repo-wide (2026-07-17): 74.62% lines, 73.99% funcs,
-        // 64.02% branches, 73.12% stmts. Set at floor-below-measured.
         lines: 74,
         functions: 73,
         branches: 64,
         statements: 73,
+        perFile: false,
       },
     },
   },

@@ -540,14 +540,29 @@ export class PhaseOrchestrator {
         `Conflicted files: ${info.conflictFiles.join(', ') || '(unknown)'}`,
         `Base working tree: ${info.cwd}`,
       ].join('\n'),
-      risk: 'high',
+      // 'critical', not 'high': choosing `resolve` lets a resolver agent EDIT
+      // FILES IN THE BASE WORKING TREE. That is the one Brain decision in the
+      // system whose wrong answer is not recoverable by simply continuing —
+      // unlike a budget grant (bounded, capped) or a goal-done verdict (the
+      // run can be restarted).
+      //
+      // Consequences of the level, both intended:
+      //   - it is at or above the council floor, so a multi-LLM panel decides
+      //     it whenever one can convene;
+      //   - with no council (a single-model install resolves the autonomy
+      //     ceiling to 'high'), it exceeds the ceiling and never reaches an
+      //     unchecked single model. The policy tier's `ask_human` then routes
+      //     to the terminal policy, which refuses a recommended option at
+      //     critical risk and denies — i.e. the worktree is kept for human
+      //     review, which is exactly the safe outcome.
+      risk: 'critical',
       fallback: 'ask_human',
       options: [
         {
           id: 'resolve',
           label: 'Try the configured conflict resolver',
           consequence: 'A resolver agent may edit conflicted files in the base working tree.',
-          risk: 'medium',
+          risk: 'critical',
         },
         {
           id: 'review',

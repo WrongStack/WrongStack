@@ -17,7 +17,11 @@ import type { Agent } from '@wrongstack/core/agent';
 
 import type { AgentServerTransport } from '../src/agent/stdio-transport.js';
 import { ACPProtocolHandler } from '../src/agent/protocol-handler.js';
-import { makeACPServerAgentTurn } from '../src/agent/server-agent-turn.js';
+import {
+  disposeACPServerAgentTurn,
+  makeACPServerAgentTurn,
+  serverAgentTurnCoverage,
+} from '../src/agent/server-agent-turn.js';
 import { ACPSessionStore } from '../src/agent/session-store.js';
 
 interface FakeAgent {
@@ -669,5 +673,296 @@ describe('makeACPServerAgentTurn', () => {
 
     expect(hungAgent.run).toHaveBeenCalledTimes(1);
     expect(result.stopReason).toBe('cancelled');
+  });
+
+  it('reacts when the parent aborts after a turn has started', async () => {
+    const agent = {
+      run: vi.fn(
+        (_input: unknown, { signal }: { signal: AbortSignal }) =>
+          new Promise((resolve) => {
+            signal.addEventListener('abort', () => resolve({}), { once: true });
+          }),
+      ),
+      teardown: vi.fn(),
+    };
+    const turn = makeACPServerAgentTurn({
+      agentFor: async () => agent as never as Agent,
+    });
+    const controller = new AbortController();
+    const pending = turn(
+      { sessionId: 'parent-abort', prompt: [], signal: controller.signal },
+      () => {},
+    );
+    await new Promise((resolve) => setImmediate(resolve));
+    controller.abort();
+    await expect(pending).resolves.toMatchObject({ stopReason: 'cancelled' });
+    expect(turn.replay('parent-abort')).toEqual([]);
+  });
+
+  it('starts with an already-aborted parent signal', async () => {
+    const controller = new AbortController();
+    controller.abort();
+    const turn = makeACPServerAgentTurn({
+      agentFor: async () => ({
+        run: vi.fn(async () => ({})),
+        teardown: vi.fn(),
+      }) as never as Agent,
+    });
+    await expect(turn(
+      { sessionId: 'already-aborted', prompt: [], signal: controller.signal },
+      () => {},
+    )).resolves.toMatchObject({ stopReason: 'cancelled' });
+  });
+
+  it('covers empty seeds and clears an active timer on dispose', async () => {
+    let finish!: (value: unknown) => void;
+    const agent = {
+      run: vi.fn(() => new Promise((resolve) => {
+        finish = resolve;
+      })),
+      teardown: vi.fn(),
+    };
+    const turn = makeACPServerAgentTurn({
+      agentFor: async () => agent as never as Agent,
+      timeoutMs: 10_000,
+    });
+    turn.seed('empty', []);
+    const pending = turn(
+      { sessionId: 'active', prompt: [], signal: new AbortController().signal },
+      () => {},
+    );
+    await new Promise((resolve) => setImmediate(resolve));
+    turn.dispose('active');
+    finish({});
+    await pending;
+  });
+
+  it('streams failed tool updates without output or structured input', async () => {
+    const handlers: Record<string, (event: never) => void> = {};
+    const agent = {
+      events: {
+        on: (name: string, handler: (event: never) => void) => {
+          handlers[name] = handler;
+          return () => delete handlers[name];
+        },
+      },
+      run: vi.fn(async () => {
+        handlers['tool.started']?.({ id: 'one', name: 'mystery', input: 'raw' } as never);
+        handlers['tool.executed']?.({ name: 'mystery', ok: false } as never);
+        return {};
+      }),
+      teardown: vi.fn(),
+    };
+    const emitted: unknown[] = [];
+    const turn = makeACPServerAgentTurn({
+      agentFor: async () => agent as never as Agent,
+    });
+    await turn(
+      { sessionId: 'tools', prompt: [], signal: new AbortController().signal },
+      (update) => emitted.push(update),
+    );
+    expect(emitted).toEqual(expect.arrayContaining([
+      expect.objectContaining({ status: 'in_progress', kind: 'other' }),
+      expect.objectContaining({ status: 'failed', toolCallId: 'mystery' }),
+    ]));
+  });
+});
+
+describe('serverAgentTurn deterministic helpers', () => {
+  const h = serverAgentTurnCoverage;
+
+  it('normalizes finite positive history limits', () => {
+    expect(h.finitePositiveLimit(undefined, 7)).toBe(7);
+    expect(h.finitePositiveLimit(Number.NaN, 7)).toBe(7);
+    expect(h.finitePositiveLimit(0, 7)).toBe(7);
+    expect(h.finitePositiveLimit(-1, 7)).toBe(7);
+    expect(h.finitePositiveLimit(2.9, 7)).toBe(2);
+  });
+
+  it('trims history by count/bytes and handles an inconsistent byte count', () => {
+    const first = { sessionUpdate: 'user_message_chunk', content: { text: 'a' } };
+    const second = { sessionUpdate: 'agent_message_chunk', content: { text: 'b' } };
+    const entries = [first, second] as never[];
+    const bytes = entries.reduce((sum, entry) => sum + h.replayEntryBytes(entry as never), 0);
+    expect(h.trimHistory(entries as never, bytes, 1, bytes)).toBe(
+      h.replayEntryBytes(second as never),
+    );
+    expect(entries).toEqual([second]);
+    expect(h.trimHistory([], 10, 1, 1)).toBe(10);
+    expect(h.trimHistory([first] as never, 0, 0, 0)).toBe(0);
+  });
+
+  it('seeds only valid text messages into an available agent state', () => {
+    h.seedAgentContext({} as Agent, []);
+    const appendMessage = vi.fn();
+    h.seedAgentContext(
+      { ctx: { state: { appendMessage } } } as never as Agent,
+      [
+        { sessionUpdate: 'user_message_chunk', content: { text: 'question' } },
+        { sessionUpdate: 'agent_message_chunk', content: { text: 'answer' } },
+        { sessionUpdate: 'agent_message_chunk', content: { text: '' } },
+        { sessionUpdate: 'agent_message_chunk', content: { text: 42 } },
+        { sessionUpdate: 'agent_message_chunk', content: undefined },
+      ],
+    );
+    expect(appendMessage).toHaveBeenNthCalledWith(1, {
+      role: 'user',
+      content: 'question',
+    });
+    expect(appendMessage).toHaveBeenNthCalledWith(2, {
+      role: 'assistant',
+      content: 'answer',
+    });
+  });
+
+  it.each([
+    ['read_file', 'read'],
+    ['cat_file', 'read'],
+    ['write_file', 'edit'],
+    ['edit_file', 'edit'],
+    ['apply_change', 'edit'],
+    ['patch_file', 'edit'],
+    ['delete_file', 'delete'],
+    ['rm_file', 'delete'],
+    ['move_file', 'move'],
+    ['rename_file', 'move'],
+    ['mv_file', 'move'],
+    ['grep_code', 'search'],
+    ['glob_code', 'search'],
+    ['search_code', 'search'],
+    ['find_code', 'search'],
+    ['bash_cmd', 'execute'],
+    ['shell_cmd', 'execute'],
+    ['exec_cmd', 'execute'],
+    ['run_cmd', 'execute'],
+    ['terminal_cmd', 'execute'],
+    ['fetch_url', 'fetch'],
+    ['http_get', 'fetch'],
+    ['web_get', 'fetch'],
+    ['url_get', 'fetch'],
+    ['think_hard', 'think'],
+    ['plan_work', 'think'],
+    ['unknown', 'other'],
+  ])('maps tool %s to %s', (name, kind) => {
+    expect(h.toolNameToKind(name)).toBe(kind);
+  });
+
+  it('builds concise tool titles from every supported input key', () => {
+    expect(h.toolTitle('tool', null)).toBe('tool');
+    expect(h.toolTitle('tool', [])).toBe('tool');
+    expect(h.toolTitle('tool', { path: 42 })).toBe('tool');
+    expect(h.toolTitle('tool', { path: '' })).toBe('tool');
+    expect(h.toolTitle('tool', { path: 'a' })).toBe('tool: a');
+    expect(h.toolTitle('tool', { file: 'b' })).toBe('tool: b');
+    expect(h.toolTitle('tool', { filePath: 'c' })).toBe('tool: c');
+    expect(h.toolTitle('tool', { pattern: 'd' })).toBe('tool: d');
+    expect(h.toolTitle('tool', { command: 'e' })).toBe('tool: e');
+    expect(h.toolTitle('tool', { path: 'x'.repeat(81) })).toBe(
+      `tool: ${'x'.repeat(77)}…`,
+    );
+    expect(h.isRecord({})).toBe(true);
+    expect(h.isRecord(null)).toBe(false);
+    expect(h.isRecord([])).toBe(false);
+    expect(h.isRecord('x')).toBe(false);
+  });
+
+  it('converts all prompt block variants', () => {
+    expect(h.promptToText([
+      { type: 'text', text: 'text' },
+      { type: 'image', mimeType: 'image/png', data: 'x' },
+      { type: 'audio', mimeType: 'audio/wav', data: 'x' },
+      { type: 'resource', resource: { uri: 'file:///a' } as never },
+      { type: 'resource_link', uri: 'https://a', name: 'a' },
+      { type: 'unknown' } as never,
+    ])).toContain('[image: image/png]');
+
+    const multimodal = h.promptToAgentInput([
+      { type: 'image', mimeType: 'image/png', data: 'x' },
+      { type: 'text', text: 'text' },
+      { type: 'audio', mimeType: 'audio/wav', data: 'x' },
+      { type: 'resource', resource: { uri: 'file:///a', text: 'embedded' } },
+      { type: 'resource', resource: { uri: 'file:///b' } as never },
+      { type: 'resource', resource: { uri: 'file:///c', text: 3 } as never },
+      { type: 'resource_link', uri: 'https://a', name: 'a' },
+      { type: 'unknown' } as never,
+    ]);
+    expect(multimodal).toEqual(expect.arrayContaining([
+      { type: 'text', text: 'embedded' },
+      { type: 'text', text: '[embedded resource: file:///b]' },
+      { type: 'text', text: '[resource link: https://a]' },
+    ]));
+  });
+
+  it('extracts legacy text and defensive empty shapes', () => {
+    expect(h.extractText(null)).toBe('');
+    expect(h.extractText('text')).toBe('');
+    expect(h.extractText({ text: 'direct' })).toBe('direct');
+    expect(h.extractText({
+      content: [
+        { type: 'text', text: 'a' },
+        { type: 'image', text: 'ignored' },
+        { type: 'text', text: 3 },
+        null,
+        'primitive',
+      ],
+    })).toBe('a');
+    expect(h.extractText({})).toBe('');
+  });
+
+  it('maps every stop-reason shape', () => {
+    const aborted = new AbortController();
+    aborted.abort();
+    expect(h.pickStopReason({}, aborted.signal)).toBe('cancelled');
+    const signal = new AbortController().signal;
+    expect(h.pickStopReason(null, signal)).toBe('end_turn');
+    expect(h.pickStopReason('value', signal)).toBe('end_turn');
+    expect(h.pickStopReason({ error: 'failed' }, signal)).toBe('end_turn');
+    expect(h.pickStopReason({ stopReason: 'max_tokens' }, signal)).toBe('max_tokens');
+    expect(h.pickStopReason({ stopReason: '' }, signal)).toBe('end_turn');
+    expect(h.pickStopReason({}, signal)).toBe('end_turn');
+  });
+
+  it('filters plans and validates usage including cost', () => {
+    expect(h.extractPlan(null)).toEqual([]);
+    expect(h.extractPlan('value')).toEqual([]);
+    expect(h.extractPlan({ plan: 'no' })).toEqual([]);
+    expect(h.extractPlan({
+      plan: [{ content: 'yes' }, { content: 2 }, null, 'bad'],
+    })).toEqual([{ content: 'yes' }]);
+
+    expect(h.extractUsage(null)).toBeNull();
+    expect(h.extractUsage('value')).toBeNull();
+    expect(h.extractUsage({})).toBeNull();
+    expect(h.extractUsage({ usage: null })).toBeNull();
+    expect(h.extractUsage({ usage: { used: '1', size: 2 } })).toBeNull();
+    expect(h.extractUsage({ usage: { used: 1, size: '2' } })).toBeNull();
+    expect(h.extractUsage({ usage: { used: 1, size: 2, cost: null } })).toEqual({
+      used: 1,
+      size: 2,
+    });
+    expect(h.extractUsage({ usage: { used: 1, size: 2, cost: 3 } })).toEqual({
+      used: 1,
+      size: 2,
+    });
+    expect(h.extractUsage({ usage: { used: 1, size: 2, cost: { amount: 1 } } })).toEqual({
+      used: 1,
+      size: 2,
+      cost: { amount: 1 },
+    });
+  });
+
+  it('settles teardown for every registered agent', async () => {
+    const first = { teardown: vi.fn(async () => {}) };
+    const second = { teardown: vi.fn(async () => {
+      throw new Error('ignored');
+    }) };
+    await expect(disposeACPServerAgentTurn({
+      agents: new Map([
+        ['first', first as never as Agent],
+        ['second', second as never as Agent],
+      ]),
+    })).resolves.toBeUndefined();
+    expect(first.teardown).toHaveBeenCalledOnce();
+    expect(second.teardown).toHaveBeenCalledOnce();
   });
 });

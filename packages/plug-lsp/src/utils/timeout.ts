@@ -9,12 +9,12 @@ export async function promiseWithTimeout<T>(
   let timer: NodeJS.Timeout | undefined;
   return await new Promise<T>((resolve, reject) => {
     const cleanup = () => {
-      if (timer) clearTimeout(timer);
+      clearTimeout(timer!);
       signal?.removeEventListener('abort', onAbort);
     };
     const onAbort = () => {
       cleanup();
-      reject(abortError(signal));
+      reject(abortError(signal!));
     };
     timer = setTimeout(() => {
       cleanup();
@@ -34,6 +34,9 @@ export async function promiseWithTimeout<T>(
   });
 }
 
-function abortError(signal?: AbortSignal): Error {
-  return signal?.reason instanceof Error ? signal.reason : new Error('aborted');
+function abortError(signal: AbortSignal): Error {
+  return signal.reason instanceof Error ? signal.reason : new Error('aborted');
 }
+
+/** Direct-module test seam; not re-exported by the package barrel. */
+export const timeoutCoverage = { abortError };

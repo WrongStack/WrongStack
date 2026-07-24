@@ -1,6 +1,8 @@
 import type { Context } from '@wrongstack/core/agent';
 import { ToolRegistry } from '@wrongstack/core/registry';
 import type { Tool } from '@wrongstack/core/types';
+import * as fs from 'node:fs/promises';
+import * as path from 'node:path';
 import { describe, expect, it } from 'vitest';
 import {
   createToolVisionAdapters,
@@ -17,6 +19,17 @@ const image = {
 const ctx = {} as Context;
 
 describe('vision routing', () => {
+  it('returns the none route when there are no images', async () => {
+    const blocks = [{ type: 'text' as const, text: 'plain text' }];
+    await expect(
+      routeImagesForModel(blocks, {
+        supportsVision: false,
+        ctx,
+        signal: new AbortController().signal,
+      }),
+    ).resolves.toEqual({ blocks, route: 'none', convertedImages: 0 });
+  });
+
   it('keeps image blocks intact when the model supports native vision', async () => {
     const result = await routeImagesForModel([{ type: 'text', text: 'look' }, image], {
       supportsVision: true,
@@ -66,6 +79,29 @@ describe('vision routing', () => {
         model: 'text-only',
       }),
     ).rejects.toBeInstanceOf(ImageInputUnsupportedError);
+  });
+
+  it('describes the current model and plural images when no target is named', async () => {
+    await expect(
+      routeImagesForModel([image, image], {
+        supportsVision: false,
+        ctx,
+        signal: new AbortController().signal,
+      }),
+    ).rejects.toThrow(/current model.*2 images/);
+  });
+
+  it('reports malformed native image URLs as unresolvable', async () => {
+    await expect(
+      routeImagesForModel(
+        [{ type: 'image', source: { type: 'url', url: 'not a url' } } as never],
+        {
+          supportsVision: true,
+          ctx,
+          signal: new AbortController().signal,
+        },
+      ),
+    ).rejects.toThrow(/unresolvable host/);
   });
 
   it('converts images through a vision adapter for text-only models', async () => {
@@ -120,6 +156,67 @@ describe('vision routing', () => {
         text: '[Image 1 analyzed via late-vision]\nlate MCP tool saw the image',
       },
     ]);
+  });
+
+  it('tries later adapters after failures and reports terminal adapter errors', async () => {
+    const good = {
+      name: 'good',
+      async describe() {
+        return 'worked';
+      },
+    };
+    const result = await routeImagesForModel([image], {
+      supportsVision: false,
+      ctx,
+      signal: new AbortController().signal,
+      adapters: [
+        {
+          name: 'broken',
+          async describe() {
+            throw new Error('first failed');
+          },
+        },
+        good,
+      ],
+    });
+    expect(result.adapterName).toBe('good');
+
+    await expect(
+      routeImagesForModel([image], {
+        supportsVision: false,
+        ctx,
+        signal: new AbortController().signal,
+        adapters: [{ name: 'blank', async describe() { return '   '; } }],
+      }),
+    ).rejects.toThrow('No image-understanding adapter could process an image.');
+
+    await expect(
+      routeImagesForModel([image], {
+        supportsVision: false,
+        ctx,
+        signal: new AbortController().signal,
+        adapters: [{ name: 'broken', async describe() { throw new Error('details'); } }],
+      }),
+    ).rejects.toThrow('Last error: details');
+
+    await expect(
+      routeImagesForModel([image], {
+        supportsVision: false,
+        ctx,
+        signal: new AbortController().signal,
+        adapters: [{ name: 'broken', async describe() { throw 'non-error'; } }],
+      }),
+    ).rejects.toThrow('No image-understanding adapter could process an image.');
+  });
+
+  it('uses the generic adapter label when an adapter has no runtime name', async () => {
+    const result = await routeImagesForModel([image], {
+      supportsVision: false,
+      ctx,
+      signal: new AbortController().signal,
+      adapters: [{ name: undefined, async describe() { return 'worked'; } } as never],
+    });
+    expect((result.blocks[0] as { text: string }).text).toContain('via vision adapter');
   });
 
   it('discovers safe auto image-understanding tools as adapters', async () => {
@@ -180,6 +277,23 @@ describe('vision routing', () => {
     ).resolves.toBe('fresh tool');
   });
 
+  it('rejects an adapter whose tool was unregistered', async () => {
+    const registry = new ToolRegistry();
+    registry.register({
+      name: 'vision_read',
+      description: 'Describe image',
+      inputSchema: { type: 'object', properties: { image: { type: 'object' } } },
+      permission: 'auto',
+      mutating: false,
+      async execute() { return 'unused'; },
+    });
+    const adapters = createToolVisionAdapters(registry);
+    registry.unregister('vision_read');
+    await expect(
+      adapters[0]!.describe({ image, ctx, signal: new AbortController().signal }),
+    ).rejects.toThrow('is no longer registered');
+  });
+
   it('supports path-based MCP vision tools by writing a temporary image file', async () => {
     const registry = new ToolRegistry();
     const tool: Tool<Record<string, unknown>, string> = {
@@ -206,6 +320,35 @@ describe('vision routing', () => {
     await expect(
       adapters[0]!.describe({ image, ctx, signal: new AbortController().signal }),
     ).resolves.toBe('zai saw a screenshot');
+  });
+
+  it('uses a jpeg temp suffix and tolerates files already removed by the tool', async () => {
+    const registry = new ToolRegistry();
+    registry.register({
+      name: 'vision_jpeg_path',
+      description: 'Analyze image path',
+      inputSchema: { type: 'object', properties: { path: { type: 'string' } } },
+      permission: 'auto',
+      mutating: false,
+      async execute(input) {
+        const file = String((input as Record<string, unknown>).path);
+        expect(file).toMatch(/image\.jpg$/);
+        await fs.unlink(file);
+        await fs.rm(path.dirname(file), { recursive: true, force: true });
+        return 'removed';
+      },
+    });
+    const adapters = createToolVisionAdapters(registry);
+    await expect(
+      adapters[0]!.describe({
+        image: {
+          type: 'image',
+          source: { type: 'base64', media_type: 'image/jpeg', data: 'AAAA' },
+        },
+        ctx,
+        signal: new AbortController().signal,
+      }),
+    ).resolves.toBe('removed');
   });
 
   it('routes a base64 image through a `base64` schema property', async () => {
@@ -286,6 +429,32 @@ describe('vision routing', () => {
       adapters[0]!.describe({ image: urlImage, ctx, signal: new AbortController().signal }),
     ).resolves.toBe('url-described');
     expect(receivedUrl).toBe('https://example.com/a.png');
+  });
+
+  it('routes a URL through a generic image property and defaults its media type', async () => {
+    const registry = new ToolRegistry();
+    let captured: unknown;
+    registry.register({
+      name: 'vision_generic_image',
+      description: 'Analyze image',
+      inputSchema: { type: 'object', properties: { image: { type: 'object' } } },
+      permission: 'auto',
+      mutating: false,
+      async execute(input) {
+        captured = (input as Record<string, unknown>).image;
+        return 'ok';
+      },
+    });
+    const adapters = createToolVisionAdapters(registry);
+    await adapters[0]!.describe({
+      image: {
+        type: 'image',
+        source: { type: 'url', url: 'https://example.com/default.png' },
+      } as never,
+      ctx,
+      signal: new AbortController().signal,
+    });
+    expect(captured).toEqual({ type: 'url', url: 'https://example.com/default.png' });
   });
 
   it('routes a URL image through `imageUrl` (camelCase variant)', async () => {
@@ -400,6 +569,35 @@ describe('vision routing', () => {
     expect(out).toContain('line2');
   });
 
+  it('stringifies missing text values in array and object results', async () => {
+    const makeAdapter = (result: unknown) => {
+      const registry = new ToolRegistry();
+      registry.register({
+        name: 'vision_result',
+        description: 'Describe image',
+        inputSchema: { type: 'object', properties: { image: { type: 'object' } } },
+        permission: 'auto',
+        mutating: false,
+        async execute() { return result as never; },
+      });
+      return createToolVisionAdapters(registry)[0]!;
+    };
+    await expect(
+      makeAdapter([{ text: undefined }]).describe({
+        image,
+        ctx,
+        signal: new AbortController().signal,
+      }),
+    ).resolves.toBe('');
+    await expect(
+      makeAdapter({ text: undefined }).describe({
+        image,
+        ctx,
+        signal: new AbortController().signal,
+      }),
+    ).resolves.toBe('');
+  });
+
   it('handles tool results returned as a {text: ...} object', async () => {
     const registry = new ToolRegistry();
     const tool: Tool<Record<string, unknown>, unknown> = {
@@ -505,6 +703,41 @@ describe('vision routing', () => {
     expect(adapters).toHaveLength(0);
   });
 
+  it('filters unsafe, generative, unrelated, and malformed tool declarations', () => {
+    const registry = new ToolRegistry();
+    const base = {
+      description: 'Analyze image',
+      inputSchema: { type: 'object', properties: { image: { type: 'object' } } },
+      permission: 'auto' as const,
+      mutating: false,
+      async execute() { return 'unused'; },
+    };
+    registry.register({ ...base, name: 'manual_vision', permission: 'confirm' });
+    registry.register({ ...base, name: 'mutating_vision', mutating: true });
+    registry.register({ ...base, name: 'generate_image' });
+    registry.register({
+      ...base,
+      name: 'plain_reader',
+      description: undefined,
+      usageHint: undefined,
+    } as never);
+
+    expect(createToolVisionAdapters(registry)).toEqual([]);
+
+    const malformedRegistry = {
+      list: () => [
+        { ...base, name: 'vision_missing_schema', inputSchema: undefined },
+        {
+          ...base,
+          name: 'vision_bad_properties',
+          inputSchema: { type: 'object', properties: 'bad' },
+        },
+      ],
+      get: () => undefined,
+    };
+    expect(createToolVisionAdapters(malformedRegistry as never)).toEqual([]);
+  });
+
   it('stringifies a non-string non-array non-text tool result via JSON.stringify', async () => {
     const registry = new ToolRegistry();
     const tool: Tool<Record<string, unknown>, unknown> = {
@@ -596,6 +829,19 @@ describe('vision routing', () => {
           signal: new AbortController().signal,
         }),
       ).rejects.toBeInstanceOf(VisionUrlBlockedError);
+    });
+
+    it('reports malformed adapter URLs as unresolvable', async () => {
+      const registry = new ToolRegistry();
+      registry.register(urlTool('mcp__vision__url_malformed', 'url'));
+      const adapters = createToolVisionAdapters(registry);
+      await expect(
+        adapters[0]!.describe({
+          image: urlImage('not a url'),
+          ctx,
+          signal: new AbortController().signal,
+        }),
+      ).rejects.toThrow(/unresolvable host/);
     });
 
     it('allows a public URL (no false positive on a clean target)', async () => {

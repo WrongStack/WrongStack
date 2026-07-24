@@ -92,6 +92,8 @@ export interface BrainTraceCouncilResolution {
         durationMs: number;
       }
     | undefined;
+  /** Panel-integrity warnings (distinctness). Structural — never content-gated. */
+  warnings?: string[] | undefined;
   reason?: string | undefined;
   at: number;
 }
@@ -324,6 +326,7 @@ export class BrainTraceRecorder {
           distinctTargetCount: e.distinctTargetCount,
           judgeUsed: e.judgeUsed,
           usage: e.usage,
+          warnings: e.warnings,
           reason: applyContentMode(e.reason, this.content),
           at: e.at,
         };

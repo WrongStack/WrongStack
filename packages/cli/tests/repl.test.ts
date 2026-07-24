@@ -988,7 +988,7 @@ describe('runRepl', () => {
       expect(writes.some((w) => w.includes('Suggested next steps'))).toBe(false);
     });
 
-    it('autonomy auto mode uses the guarded todo driver exactly once per state', async () => {
+    it('autonomy auto mode steers once before halting an unchanged todo state', async () => {
       const run = vi.fn(
         async (): Promise<RunResult> => ({
           status: 'done',
@@ -1016,17 +1016,19 @@ describe('runRepl', () => {
         getSuggestions: () => [],
       });
 
-      // One todo-grounded automatic turn. The identical second attempt is
-      // stopped by the repetition guard before the exit input is read.
-      expect(run.mock.calls.length).toBe(1);
-      const autoPrompt = (
+      // The first todo-grounded turn is fed normally. One unchanged repeat is
+      // steered explicitly; a third identical state is halted.
+      expect(run.mock.calls.length).toBe(2);
+      const prompts = (
         run.mock.calls as unknown as Array<[Array<{ text?: string }>]>
-      )[0]?.[0]?.[0]?.text ?? '';
-      expect(autoPrompt).toContain('finish refactor');
-      // The halt is surfaced, not silent: the user sees why auto-proceed stopped.
+      ).map((call) => call[0]?.[0]?.text ?? '');
+      expect(prompts[0]).toContain('finish refactor');
+      expect(prompts[1]).toContain('todo board has not changed');
+      // Both the steer and eventual halt are surfaced to the user.
       const warns = (renderer.writeWarning as ReturnType<typeof vi.fn>).mock.calls.map((c) =>
         String(c[0] ?? ''),
       );
+      expect(warns.some((w) => w.includes('Todo board unchanged'))).toBe(true);
       expect(warns.some((w) => w.includes('Auto-proceed halted'))).toBe(true);
     });
   });

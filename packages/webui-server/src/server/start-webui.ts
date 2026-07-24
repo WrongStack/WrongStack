@@ -9,6 +9,7 @@
  */
 
 import { randomUUID } from 'node:crypto';
+import * as http from 'node:http';
 import * as path from 'node:path';
 import {
   createDefaultPipelines,
@@ -500,21 +501,33 @@ export async function startWebUI(
     wsHost === '0.0.0.0' || wsHost === undefined ? '::' :
     wsHost === '::' || wsHost === '[::]' ? '0.0.0.0' :
     null;
+  let companionServer: http.Server | null = null;
   if (companion) {
     const companionLabel = companion.includes(':') ? `[${companion}]` : companion;
-    httpServer
-      .listen(httpPort, companion, () => {
-        console.log(`[WebUI] HTTP server running on http://${companionLabel}:${httpPort}`);
-      })
-      .on('error', (err: NodeJS.ErrnoException) => {
-        if (
-          err.code !== 'EAFNOSUPPORT' &&
-          err.code !== 'EADDRNOTAVAIL' &&
-          err.code !== 'EADDRINUSE'
-        ) {
-          throw err;
-        }
-      });
+    // A single http.Server cannot bind two addresses. Calling .listen() a
+    // second time either throws ERR_SERVER_ALREADY_LISTEN (when the first
+    // bind has completed) or silently overwrites the first (when both
+    // calls run in the same synchronous tick — which is exactly this case).
+    // Create a separate server that shares the request handler, and forward
+    // 'upgrade' events so the WebSocketServer on the primary also serves WS
+    // connections arriving on the companion address.
+    companionServer = http.createServer();
+    companionServer.on('request', (req, res) => httpServer.emit('request', req, res));
+    companionServer.on('upgrade', (req, socket, head) =>
+      httpServer.emit('upgrade', req, socket, head),
+    );
+    companionServer.on('error', (err: NodeJS.ErrnoException) => {
+      if (
+        err.code !== 'EAFNOSUPPORT' &&
+        err.code !== 'EADDRNOTAVAIL' &&
+        err.code !== 'EADDRINUSE'
+      ) {
+        throw err;
+      }
+    });
+    companionServer.listen(httpPort, companion, () => {
+      console.log(`[WebUI] HTTP server running on http://${companionLabel}:${httpPort}`);
+    });
   }
 
   // ── Project manifest helpers ──────────────────────────────────────────
@@ -819,7 +832,12 @@ export async function startWebUI(
       await session.close();
     },
     clients: () => clients.keys(),
-    servers: [httpServer, wssPrimary, ...(wssSecondary ? [wssSecondary] : [])],
+    servers: [
+      httpServer,
+      ...(companionServer ? [companionServer] : []),
+      wssPrimary,
+      ...(wssSecondary ? [wssSecondary] : []),
+    ],
     onShutdown: async () => {
       credentialWatcherClose?.();
       brainMonitor.stop();

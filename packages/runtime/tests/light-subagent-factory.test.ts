@@ -1,3 +1,4 @@
+import { FallbackProfileManager } from '@wrongstack/core/agent';
 import { Container, TOKENS } from '@wrongstack/core/kernel';
 import { ProviderRegistry, ToolRegistry } from '@wrongstack/core/registry';
 import { DefaultSecretScrubber } from '@wrongstack/core/security';
@@ -7,11 +8,25 @@ import {
   type Provider,
   ProviderError,
   type SessionWriter,
+  type SubagentConfig,
   type Tool,
 } from '@wrongstack/core/types';
 import type { UserInputPayload } from '@wrongstack/core/agent';
-import { describe, expect, it } from 'vitest';
-import { makeLightSubagentFactory } from '../src/index.js';
+import { describe, expect, it, vi } from 'vitest';
+import {
+  abortLightSubagent,
+  makeLightSubagentFactory as createLightSubagentFactory,
+} from '../src/index.js';
+
+type TestAgentFactory = (
+  config: Partial<SubagentConfig>,
+) => ReturnType<ReturnType<typeof createLightSubagentFactory>>;
+
+function makeLightSubagentFactory(
+  ...args: Parameters<typeof createLightSubagentFactory>
+): TestAgentFactory {
+  return createLightSubagentFactory(...args) as TestAgentFactory;
+}
 
 const reasoningCaps = {
   default: 'enabled',
@@ -115,6 +130,7 @@ function sessionShim(): SessionWriter {
 
 function makeDeps(providerRegistered = true, configOverride: Partial<Config> = {}) {
   const config = {
+    version: 1,
     provider: 'noop',
     model: 'noop',
     providers: { noop: { type: 'noop' } },
@@ -196,6 +212,12 @@ describe('makeLightSubagentFactory', () => {
     expect(r.agent.ctx.cwd).toBe('/proj');
   });
 
+  it('prefers the dependency cwd when the task does not pin one', async () => {
+    const deps = { ...makeDeps(), cwd: '/proj/default-worktree' };
+    const r = await makeLightSubagentFactory(deps)({ id: 's1' });
+    expect(r.agent.ctx.cwd).toBe('/proj/default-worktree');
+  });
+
   it('scopes tools to the SubagentConfig allowlist (isolated registry)', async () => {
     const deps = makeDeps();
     const factory = makeLightSubagentFactory(deps);
@@ -216,6 +238,26 @@ describe('makeLightSubagentFactory', () => {
     await expect(factory({ id: 's1' })).rejects.toThrow(/No provider factory registered/);
   });
 
+  it('falls back to the configured provider when an explicit target is unavailable', async () => {
+    const r = await makeLightSubagentFactory(makeDeps())({
+      id: 's1',
+      provider: 'missing',
+      model: 'missing-model',
+    });
+    expect(r.agent.ctx.provider.id).toBe('noop');
+    expect(r.agent.ctx.model).toBe('noop');
+  });
+
+  it('builds a provider from legacy top-level credentials when no provider block exists', async () => {
+    const deps = makeDeps(true, {
+      providers: undefined,
+      apiKey: 'legacy-key',
+      baseUrl: 'https://example.test',
+    } as never);
+    const r = await makeLightSubagentFactory(deps)({ id: 's1' });
+    expect(r.agent.ctx.provider.id).toBe('noop');
+  });
+
   it('forwards traceId between the subagent session shim and the parent writer', async () => {
     const deps = makeDeps();
     const factory = makeLightSubagentFactory(deps);
@@ -223,6 +265,119 @@ describe('makeLightSubagentFactory', () => {
     expect(r.agent.ctx.session.traceId).toBe('parent-trace');
     r.agent.ctx.session.traceId = 'child-trace';
     expect(deps.session.traceId).toBe('child-trace');
+  });
+
+  it('forwards only append lifecycle calls through the guarded session shim', async () => {
+    const parent = sessionShim();
+    parent.append = vi.fn();
+    parent.appendBatch = vi.fn();
+    parent.flush = vi.fn();
+    const deps = { ...makeDeps(), session: parent };
+    const r = await makeLightSubagentFactory(deps)({ id: 's1' });
+    const child = r.agent.ctx.session;
+    const event = { type: 'message', timestamp: new Date().toISOString() } as never;
+
+    expect(child.pendingToolUses).toEqual([]);
+    child.append(event);
+    child.appendBatch([event]);
+    child.flush();
+    await child.close();
+    child.recordFileChange({
+      path: '/tmp/a',
+      action: 'modified',
+      before: 'before',
+      after: 'after',
+    });
+    child.recordSideEffect({
+      toolUseId: 'tool-1',
+      toolName: 'noop',
+      input: {},
+      risk: 'fs.write',
+    });
+    await child.writeCheckpoint(1, 'preview');
+    await child.writeFileSnapshot(1, []);
+    await expect(child.truncateToCheckpoint(1)).resolves.toBe(0);
+    await child.clearSession();
+    await child.writeInFlightMarker('coverage');
+    await child.clearInFlightMarker('clean');
+
+    expect(parent.append).toHaveBeenCalledWith(event);
+    expect(parent.appendBatch).toHaveBeenCalledWith([event]);
+    expect(parent.flush).toHaveBeenCalledOnce();
+  });
+
+  it('aborts its private signal and tolerates agents without a stored controller', async () => {
+    const r = await makeLightSubagentFactory(makeDeps())({ id: 's1' });
+    expect(r.agent.ctx.signal.aborted).toBe(false);
+    abortLightSubagent(r.agent);
+    expect(r.agent.ctx.signal.aborted).toBe(true);
+    abortLightSubagent(r.agent);
+
+    abortLightSubagent({ ctx: { meta: {} } } as never);
+  });
+
+  it('supports prompt, capability, tool-limit, root restriction, and generated-name overrides', async () => {
+    const deps = makeDeps(true, {
+      features: { allowOutsideProjectRoot: false },
+      tools: {
+        restrictToProjectRoot: true,
+        iterationTimeoutMs: 321,
+        perIterationOutputCapBytes: 654,
+      },
+    } as never);
+    const r = await makeLightSubagentFactory(deps)({
+      tools: [],
+      allowedCapabilities: [],
+      systemPromptOverride: 'extra worker rule',
+    } as never);
+
+    expect(r.agent.ctx.agentName).toMatch(/^sub_[0-9a-f-]{8}$/);
+    expect(r.agent.ctx.systemPrompt.at(-1)).toEqual({
+      type: 'text',
+      text: 'extra worker rule',
+    });
+    expect(r.agent.ctx.meta.agentRole).toBeUndefined();
+    expect(r.agent.tools.list()).toHaveLength(2);
+    expect(r.agent.ctx.allowOutsideProjectRoot).toBe(false);
+  });
+
+  it('uses a shared fallback manager without attaching another config watcher', async () => {
+    const deps = makeDeps();
+    const configStore = deps.container.resolve(TOKENS.ConfigStore);
+    const manager = new FallbackProfileManager(configStore.get() as Config);
+    deps.container.bind(TOKENS.FallbackProfileManager, () => manager);
+    const watch = vi.spyOn(configStore, 'watch');
+
+    await makeLightSubagentFactory(deps)({ id: 's1' });
+    expect(watch).not.toHaveBeenCalled();
+  });
+
+  it('reloads its private fallback manager when configuration changes', () => {
+    const deps = makeDeps();
+    const configStore = deps.container.resolve(TOKENS.ConfigStore);
+    const watch = vi.spyOn(configStore, 'watch');
+    makeLightSubagentFactory(deps);
+
+    expect(watch).toHaveBeenCalledOnce();
+    expect(() => configStore.update({ model: 'updated-model' })).not.toThrow();
+  });
+
+  it('resolves the models registry from the container and tolerates lookup errors', async () => {
+    const deps = makeDeps();
+    deps.modelsRegistry = undefined as never;
+    const getModel = vi.fn().mockRejectedValue('catalog offline');
+    deps.container.bind(TOKENS.ModelsRegistry, () => ({ getModel }) as never);
+
+    const r = await makeLightSubagentFactory(deps)({ id: 's1' });
+    expect(getModel).toHaveBeenCalledWith('noop', 'noop');
+    expect(r.agent).toBeDefined();
+  });
+
+  it('works without any models registry', async () => {
+    const deps = makeDeps();
+    deps.modelsRegistry = undefined as never;
+    const r = await makeLightSubagentFactory(deps)({ id: 's1' });
+    expect(r.agent).toBeDefined();
   });
 
   it('applies role-specific reasoning runtime from the model matrix', async () => {

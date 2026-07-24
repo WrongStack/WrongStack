@@ -29,9 +29,17 @@
  */
 
 import { execFile } from 'node:child_process';
-import { access, stat } from 'node:fs/promises';
+import { createHash } from 'node:crypto';
+import { access, readFile, stat } from 'node:fs/promises';
 import type { Plugin } from '@wrongstack/core/types';
-import { withinProject } from '../runtime/index.js';
+import {
+  BoundedMap,
+  clearLocalBinCache,
+  findOnPath,
+  resolveExecInvocation,
+  resolveFirstNodeBin,
+  withinProject,
+} from '../runtime/index.js';
 
 const API_VERSION = '^0.1.10';
 
@@ -135,7 +143,7 @@ function readConfig(raw: unknown): FormatOnSaveConfig {
  * hook to skip a redundant `biome format --write` pass while the
  * path is still "recent" (TTL-controlled).
  */
-const recentlyCovered = new Map<string, number>();
+const recentlyCovered = new BoundedMap<string, number>({ max: 256 });
 
 function clearRegistrations(): void {
   if (state.hookUnregister) {
@@ -183,10 +191,108 @@ interface FormatResult {
  * hook returns immediately and the formatter runs without blocking other
  * tool results / messages from interleaving.
  */
+/**
+ * Formatters this plugin knows how to drive, in preference order. Each is
+ * resolved as a project-local Node CLI (`node <bin-entry> …`) — never
+ * through `npx`, which does not exist as a spawnable binary on Windows,
+ * re-resolves the package on every invocation, and can reach the network
+ * on a hook that fires after every single write.
+ */
+const FORMATTERS: readonly {
+  packageName: string;
+  binName: string;
+  /** Args placed before the file path to format in place. */
+  writeArgs: readonly string[];
+  label: string;
+}[] = [
+  {
+    packageName: '@biomejs/biome',
+    binName: 'biome',
+    writeArgs: ['format', '--write'],
+    label: 'biome',
+  },
+  { packageName: 'prettier', binName: 'prettier', writeArgs: ['--write'], label: 'prettier' },
+  { packageName: 'dprint', binName: 'dprint', writeArgs: ['fmt'], label: 'dprint' },
+];
+
+/**
+ * Which formatter this project has, resolved once and reused. `undefined`
+ * means "not yet probed"; `null` means "probed, none installed".
+ */
+let activeFormatter: { cmd: string; args: string[]; label: string } | null | undefined;
+
+/** Reset the memoised formatter. Called from setup() and teardown(). */
+function resetFormatter(): void {
+  activeFormatter = undefined;
+  clearLocalBinCache();
+}
+
+/**
+ * Resolve the project's formatter to a directly-spawnable invocation.
+ *
+ * Falls back to a PATH lookup (platform-adjusted, so a Windows `.cmd`
+ * shim still launches) when the tool is installed globally rather than as
+ * a project dependency.
+ */
+function resolveFormatter(): { cmd: string; args: string[]; label: string } | null {
+  if (activeFormatter !== undefined) return activeFormatter;
+  const cwd = process.cwd();
+  for (const f of FORMATTERS) {
+    const local = resolveNodeBinFor(f, cwd);
+    if (local) {
+      activeFormatter = local;
+      return local;
+    }
+  }
+  // PATH fallback: when no formatter is installed as a project dependency,
+  // try resolving from the system PATH (handles global npm/pnpm/yarn
+  // installs). resolveExecInvocation uses resolveWin32Command internally,
+  // which does a platform-adjusted PATH lookup (where.exe on Windows,
+  // which on POSIX) and handles .cmd shims on Windows.
+  for (const f of FORMATTERS) {
+    // `findOnPath` — not `resolveExecInvocation` — because the latter hands
+    // back its input unchanged when nothing matches. Accepting that
+    // passthrough as a hit would make the FIRST candidate always "resolve":
+    // the plugin would report biome as available on a machine with no
+    // formatter at all, never fall through to prettier or dprint, and fail
+    // every format silently while `formatterAvailable` stayed true.
+    const onPath = findOnPath(f.binName);
+    if (!onPath) continue;
+    activeFormatter = { cmd: onPath, args: [...f.writeArgs], label: f.label };
+    return activeFormatter;
+  }
+  activeFormatter = null;
+  return null;
+}
+
+function resolveNodeBinFor(
+  f: (typeof FORMATTERS)[number],
+  cwd: string,
+): { cmd: string; args: string[]; label: string } | null {
+  const hit = resolveFirstNodeBin([{ packageName: f.packageName, binName: f.binName }], cwd);
+  if (!hit) return null;
+  return { cmd: hit.cmd, args: [...hit.args, ...f.writeArgs], label: f.label };
+}
+
+/** Which formatter is currently in use — surfaced by health()/status. */
+export function activeFormatterLabel(): string | null {
+  return activeFormatter?.label ?? null;
+}
+
+async function sha256File(filePath: string): Promise<string | null> {
+  try {
+    return createHash('sha256')
+      .update(await readFile(filePath))
+      .digest('hex');
+  } catch {
+    return null;
+  }
+}
+
 async function formatFile(filePath: string, timeoutMs: number): Promise<FormatResult | null> {
   // Sandbox: refuse to format files outside the project root before we
-  // spawn biome. Without this guard a host-FS file could be written or
-  // diffed through the formatter call.
+  // spawn the formatter. Without this guard a host-FS file could be
+  // written or diffed through the formatter call.
   if (!withinProject(filePath)) return null;
   try {
     await access(filePath);
@@ -194,35 +300,51 @@ async function formatFile(filePath: string, timeoutMs: number): Promise<FormatRe
     return null;
   }
 
+  const formatter = resolveFormatter();
+  if (!formatter) return null;
+
   let bytesBefore: number;
   try {
     bytesBefore = (await stat(filePath)).size;
   } catch {
     return null;
   }
+  // Hash before formatting so a same-size reformat (whitespace shuffled,
+  // quotes swapped) is still reported as a change. The previous code ran
+  // the formatter a SECOND time in check mode to answer this question,
+  // doubling the subprocess cost of every single write.
+  const hashBefore = await sha256File(filePath);
+
+  let invocation: { cmd: string; args: string[]; windowsVerbatimArguments: boolean };
+  try {
+    invocation = resolveExecInvocation(formatter.cmd, [...formatter.args, filePath]);
+  } catch {
+    // Windows shim path rejected an argument as unsafe — skip, never run.
+    return null;
+  }
 
   try {
     await new Promise<void>((resolve, reject) => {
       execFile(
-        'npx',
-        ['biome', 'format', '--write', filePath],
+        invocation.cmd,
+        invocation.args,
         {
           encoding: 'utf-8',
           timeout: timeoutMs,
           cwd: process.cwd(),
           windowsHide: true,
           maxBuffer: 16 * 1024 * 1024,
+          ...(invocation.windowsVerbatimArguments ? { windowsVerbatimArguments: true } : {}),
         },
         (err) => {
           if (err) {
             const e = err as NodeJS.ErrnoException & { killed?: boolean };
-            // Biome exits 0 on success even when it reformats. Non-zero exit
-            // usually means a parse error or the file is not formattable.
-            // A killed process means timeout.
+            // Formatters exit 0 on success even when they rewrite the file.
+            // A killed process means timeout — that is a real failure.
             if (e.killed) return reject(err);
-            // Some non-zero exits still format the file (e.g. exit code 1
-            // when there are diagnostics alongside formatting). Fall through
-            // and let the byte-size delta detect whether formatting landed.
+            // Some non-zero exits still format the file (e.g. exit 1 with
+            // diagnostics alongside formatting). Fall through and let the
+            // content hash decide whether formatting actually landed.
           }
           resolve();
         },
@@ -239,41 +361,18 @@ async function formatFile(filePath: string, timeoutMs: number): Promise<FormatRe
     return null;
   }
 
-  // Detect change by size first (fast), then by content if sizes match
-  // (biome might rearrange whitespace without changing length).
   if (bytesAfter !== bytesBefore) {
     return { changed: true, bytesBefore, bytesAfter };
   }
 
-  // Sizes are equal — read both versions to check if content changed.
-  // We can't compare pre/post without a snapshot, so we re-run biome
-  // in check mode: if it exits 0, the file is already formatted.
-  try {
-    await new Promise<void>((resolve, reject) => {
-      execFile(
-        'npx',
-        ['biome', 'format', filePath],
-        {
-          encoding: 'utf-8',
-          timeout: timeoutMs,
-          cwd: process.cwd(),
-          windowsHide: true,
-          maxBuffer: 16 * 1024 * 1024,
-        },
-        (err) => {
-          if (err) return reject(err);
-          resolve();
-        },
-      );
-    });
-    // Exit 0 = already formatted
+  // Same size — compare content hashes. One extra read beats one extra
+  // process spawn, and it answers the question exactly rather than
+  // inferring it from an exit code.
+  const hashAfter = await sha256File(filePath);
+  if (hashBefore === null || hashAfter === null) {
     return { changed: false, bytesBefore, bytesAfter };
-  } catch {
-    // Non-zero exit = still has formatting issues — but we already
-    // ran --write above. This means biome couldn't fix everything
-    // (e.g. parse error). Treat as "changed" optimistically.
-    return { changed: true, bytesBefore, bytesAfter };
   }
+  return { changed: hashBefore !== hashAfter, bytesBefore, bytesAfter };
 }
 
 // ---------------------------------------------------------------------------
@@ -332,32 +431,20 @@ const plugin: Plugin = {
 
     const cfg = readConfig(api.config.extensions?.['format-on-save']);
 
-    // Detect biome at setup time. Uses async execFile so plugin init does
-    // not block the event loop for the full 5s timeout on a slow PATH
-    // lookup or Windows antivirus scan.
-    let biomeAvailable = false;
-    try {
-      await new Promise<void>((resolve, reject) => {
-        execFile(
-          'npx',
-          ['biome', '--version'],
-          {
-            encoding: 'utf-8',
-            timeout: 5_000,
-            cwd: process.cwd(),
-            windowsHide: true,
-          },
-          (err) => {
-            if (err) reject(err);
-            else resolve();
-          },
-        );
-      });
-      biomeAvailable = true;
-      api.log.info('format-on-save: biome detected');
-    } catch {
-      biomeAvailable = false;
-      api.log.warn('format-on-save: biome not found — hook will be a no-op');
+    // Detect the project's formatter at setup time. This is now a pure
+    // module-resolution walk (no subprocess at all), so init cannot stall
+    // on a slow PATH lookup or a Windows antivirus scan — the previous
+    // `npx biome --version` probe cost up to 5s and, on Windows, always
+    // failed ENOENT, permanently disabling the hook there.
+    resetFormatter();
+    const formatter = resolveFormatter();
+    const formatterAvailable = formatter !== null;
+    if (formatter) {
+      api.log.info(`format-on-save: ${formatter.label} detected`);
+    } else {
+      api.log.warn(
+        'format-on-save: no formatter found (biome, prettier, dprint) — hook will be a no-op',
+      );
     }
 
     const hook = async (input: {
@@ -365,7 +452,7 @@ const plugin: Plugin = {
       toolInput?: unknown;
       toolResult?: { content: string; isError: boolean } | undefined;
     }): Promise<{ additionalContext?: string | undefined } | void> => {
-      if (!cfg.enabled || !biomeAvailable) return;
+      if (!cfg.enabled || !formatterAvailable) return;
 
       // Skip if the tool errored — the file may not have been written.
       if (input.toolResult?.isError) return;
@@ -457,7 +544,7 @@ const plugin: Plugin = {
     api.tools.register({
       name: 'format_on_save_status',
       description:
-        'Reports format-on-save state: biome availability, and per-session formatted/clean/error/skipped counters.',
+        'Reports format-on-save state: which formatter is active, and per-session formatted/clean/error/skipped counters.',
       inputSchema: { type: 'object', properties: {} },
       permission: 'auto',
       category: 'Code Quality',
@@ -466,7 +553,14 @@ const plugin: Plugin = {
         return {
           ok: true,
           enabled: cfg.enabled,
-          biomeAvailable,
+          formatterAvailable,
+          formatter: activeFormatterLabel(),
+          /**
+           * Back-compat alias for the pre-multi-formatter status shape.
+           * Now accurate rather than assumed: true only when the resolved
+           * formatter really is biome.
+           */
+          biomeAvailable: activeFormatterLabel() === 'biome',
           timeoutMs: cfg.timeoutMs,
           skipWhenCoveredBy: cfg.skipWhenCoveredBy,
           skipTtlMs: cfg.skipTtlMs,
@@ -485,12 +579,16 @@ const plugin: Plugin = {
     api.log.info('format-on-save plugin loaded', {
       version: '0.1.0',
       enabled: cfg.enabled,
-      biomeAvailable,
+      formatterAvailable,
+      formatter: activeFormatterLabel(),
     });
   },
 
   teardown(api) {
     clearRegistrations();
+    // Drop the memoised formatter + local-bin cache so a plugin reload
+    // re-probes instead of reusing a possibly-uninstalled binary.
+    resetFormatter();
     const final = {
       invocations: state.invocationCount,
       formatted: state.formattedCount,

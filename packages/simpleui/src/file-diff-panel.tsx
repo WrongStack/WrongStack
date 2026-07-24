@@ -1,6 +1,6 @@
 import { FileText, X } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import type { FileEditMeta } from './types.js';
+import type { FileEditMeta, ServerMessage } from './types.js';
 import type { SimpleSocket } from './lib/ws.js';
 
 interface FileDiffPanelProps {
@@ -17,7 +17,7 @@ function diffLines(diff: string): { kind: 'add' | 'remove' | 'context'; text: st
   const start = diff.indexOf('@@');
   if (start === -1) return [{ kind: 'context', text: diff }];
   const lines: { kind: 'add' | 'remove' | 'context'; text: string }[] = [];
-  for (const line of diff.slice(start).split('\n')) {
+  for (const line of diff.slice(start).replace(/\r\n/g, '\n').split('\n')) {
     if (line.startsWith('+') && !line.startsWith('+++')) lines.push({ kind: 'add', text: line });
     else if (line.startsWith('-') && !line.startsWith('---')) lines.push({ kind: 'remove', text: line });
     else lines.push({ kind: 'context', text: line });
@@ -26,7 +26,9 @@ function diffLines(diff: string): { kind: 'add' | 'remove' | 'context'; text: st
 }
 
 export function FileDiffPanel({ files, initialIndex = 0, socketRef, onClose }: FileDiffPanelProps) {
-  const [activeIndex, setActiveIndex] = useState(initialIndex);
+  const [activeIndex, setActiveIndex] = useState(
+    () => (files.length === 0 ? 0 : Math.min(initialIndex, files.length - 1)),
+  );
   const [loadedContent, setLoadedContent] = useState<string | null>(null);
   const [contentLoading, setContentLoading] = useState(false);
   const closeRef = useRef<HTMLButtonElement | null>(null);
@@ -57,9 +59,9 @@ export function FileDiffPanel({ files, initialIndex = 0, socketRef, onClose }: F
       unsub?.();
       if (pendingLoadRef.current === finish) pendingLoadRef.current = null;
     };
-    const handler = (msg: { type: string; payload?: unknown }) => {
+    const handler = (msg: ServerMessage) => {
       if (msg.type !== 'files.read') return;
-      const payload = msg.payload as Record<string, unknown> | undefined;
+      const payload = msg.payload;
       const returnedPath = typeof payload?.['filePath'] === 'string' ? payload['filePath'] : '';
       if (returnedPath !== filePath) return;
       if (typeof payload?.['content'] === 'string') {
@@ -76,6 +78,11 @@ export function FileDiffPanel({ files, initialIndex = 0, socketRef, onClose }: F
     socket.send('files.read', { filePath });
     timer = setTimeout(() => { setContentLoading(false); finish(); }, 8000);
   }, [socketRef]);
+
+  // Sync active index when the parent passes a new initialIndex after mount.
+  useEffect(() => {
+    setActiveIndex(files.length === 0 ? 0 : Math.min(initialIndex, files.length - 1));
+  }, [initialIndex, files.length]);
 
   // Cancel any in-flight load on unmount so its timeout can't fire against a
   // dead component.

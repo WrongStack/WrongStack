@@ -139,12 +139,21 @@ function loadPins(filePath: string): { pins: Pin[]; nextId: number } {
 
 function persistPins(filePath: string): boolean {
   if (!filePath) return true;
+  const tmp = `${filePath}.${process.pid}.tmp`;
   try {
     fs.mkdirSync(dirname(filePath), { recursive: true });
-    fs.writeFileSync(filePath, JSON.stringify({ pins: state.pins, nextId: state.nextId }, null, 2));
+    // Atomic tmp+rename so a crash mid-write can't tear the pin state.
+    fs.writeFileSync(tmp, JSON.stringify({ pins: state.pins, nextId: state.nextId }, null, 2));
+    fs.renameSync(tmp, filePath);
     return true;
   } catch {
     /* v8 ignore start */
+    // Best-effort cleanup: unlink orphaned tmp if write succeeded but rename failed.
+    try {
+      fs.unlinkSync(tmp);
+    } catch {
+      // tmp may not exist if writeFileSync itself failed
+    }
     state.persistErrors += 1;
     return false;
     /* v8 ignore stop */

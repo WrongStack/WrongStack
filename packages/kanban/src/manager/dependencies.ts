@@ -31,6 +31,7 @@ import {
   resolveTaskRefs,
   rewireDependents,
   setChainMetadata,
+  stampAtomicityAssessment,
   tasksInChain,
   uniqueStrings,
 } from './_internal.js';
@@ -79,13 +80,22 @@ export async function splitTask(
     for (let index = 0; index < titles.length; index++) {
       const title = titles[index];
       if (!title) continue;
+      const spec = input.childSpecs?.[index];
       const child = createTaskObject(board, {
         title,
         columnId,
         order: startOrder + index,
         priority: parent.priority,
         parentTaskId: parent.id,
-        ...(parent.description !== undefined ? { description: parent.description } : {}),
+        ...(spec?.description !== undefined
+          ? { description: spec.description }
+          : parent.description !== undefined
+            ? { description: parent.description }
+            : {}),
+        ...(spec?.successCriteria !== undefined ? { successCriteria: spec.successCriteria } : {}),
+        ...(spec?.expectedFileChanges !== undefined
+          ? { expectedFileChanges: spec.expectedFileChanges }
+          : {}),
         ...(input.inheritAssignment === true && parent.assignedAgent !== undefined
           ? { assignedAgent: parent.assignedAgent }
           : {}),
@@ -101,7 +111,9 @@ export async function splitTask(
         ...(input.inheritDependencies !== false && parent.dependsOn?.length
           ? { dependsOn: [...parent.dependsOn] }
           : {}),
-        ...(input.inheritSuccessCriteria === true && parent.successCriteria !== undefined
+        ...(input.inheritSuccessCriteria === true &&
+        parent.successCriteria !== undefined &&
+        spec?.successCriteria === undefined
           ? { successCriteria: cloneChecks(parent.successCriteria) }
           : {}),
         ...(input.inheritGoalMetrics === true && parent.goalMetrics !== undefined
@@ -122,6 +134,9 @@ export async function splitTask(
     const now = nowIso();
     parent.updatedAt = now;
     if (input.atomic === true) parent.atomic = true;
+    for (const child of children) stampAtomicityAssessment(board, child);
+    // The parent just became (or stayed) a container: refresh to 'composite'.
+    stampAtomicityAssessment(board, parent);
     if (input.rewireDependents !== false) {
       rewireDependents(
         board,

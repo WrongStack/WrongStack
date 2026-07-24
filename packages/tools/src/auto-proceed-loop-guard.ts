@@ -92,6 +92,37 @@ export interface RepetitionSignal {
   shouldHalt: boolean;
 }
 
+/**
+ * Steer text appended (once) to a grounded todo continuation when the board
+ * has not moved between two consecutive automatic turns. Grounded prompts are
+ * synthesized from durable todo state, so an identical re-feed means the whole
+ * previous turn produced zero board movement — usually the model worked but
+ * forgot to update the board. One explicit steer fixes that far more often
+ * than halting; the halt only fires if the board stays frozen AFTER the steer.
+ */
+export const GROUNDED_NO_PROGRESS_STEER = [
+  'NOTE: The todo board has not changed since the previous automatic continuation — this exact instruction is being repeated.',
+  'Before anything else, bring the board up to date so the loop stays grounded:',
+  '- mark work that is actually finished as completed,',
+  '- split the current item into smaller concrete sub-items if it needs more than one turn,',
+  '- remove or reword items that no longer apply.',
+  'Then continue the work. If you are blocked, state exactly what is blocking you instead of repeating the same turn.',
+].join('\n');
+
+export type GroundedRepetitionAction = 'feed' | 'steer' | 'halt';
+
+export interface GroundedRepetitionSignal extends RepetitionSignal {
+  /**
+   * What the caller should do with this grounded (todo-sourced) prompt:
+   *   - `feed`  — no repetition; feed the prompt as-is.
+   *   - `steer` — first repetition; feed the prompt with
+   *     {@link GROUNDED_NO_PROGRESS_STEER} appended instead of halting.
+   *   - `halt`  — the board stayed frozen even after a steer; break the loop
+   *     exactly like a `shouldHalt` from {@link AutoProceedLoopGuard.record}.
+   */
+  action: GroundedRepetitionAction;
+}
+
 export interface AutoProceedLoopGuard {
   /**
    * Record a prompt that is about to be auto-fed. Returns the repetition
@@ -100,6 +131,16 @@ export interface AutoProceedLoopGuard {
    * the loop must be broken instead.
    */
   record(prompt: string): RepetitionSignal;
+  /**
+   * Record a GROUNDED prompt — one synthesized from durable state (the todo
+   * board) rather than echoed from model output. Repetition of a grounded
+   * prompt is a "no board progress" signal, not necessarily an echo loop, so
+   * the first repetition asks the caller to steer (append
+   * {@link GROUNDED_NO_PROGRESS_STEER} to the fed text) and only a repetition
+   * that survives the steer halts. The steer state resets whenever a
+   * different prompt is recorded (board moved) or on {@link reset}.
+   */
+  recordGrounded(prompt: string): GroundedRepetitionSignal;
   /**
    * Drop the history. Call this on any manual user input so a fresh run
    * starts with no memory of the prior cycle.
@@ -149,6 +190,9 @@ export function createAutoProceedLoopGuard(options: LoopGuardOptions = {}): Auto
   const repeatThreshold = Math.max(2, safeIntegerOption(options.repeatThreshold, 2));
   const windowSize = Math.max(repeatThreshold, safeIntegerOption(options.windowSize, 3));
   let buffer: string[] = [];
+  // Normalized grounded prompt we already steered for; a halt only fires for
+  // a grounded prompt that repeats again AFTER its steer.
+  let steeredFor: string | null = null;
 
   function record(prompt: string): RepetitionSignal {
     const normalized = normalizeForRepetition(prompt);
@@ -169,8 +213,23 @@ export function createAutoProceedLoopGuard(options: LoopGuardOptions = {}): Auto
     };
   }
 
+  function recordGrounded(prompt: string): GroundedRepetitionSignal {
+    const signal = record(prompt);
+    if (!signal.shouldHalt) {
+      // The board moved (different prompt) — clear any pending steer state.
+      steeredFor = null;
+      return { ...signal, shouldHalt: false, action: 'feed' };
+    }
+    if (steeredFor === signal.normalized) {
+      return { ...signal, action: 'halt' };
+    }
+    steeredFor = signal.normalized;
+    return { ...signal, shouldHalt: false, action: 'steer' };
+  }
+
   function reset(): void {
     buffer = [];
+    steeredFor = null;
   }
 
   function history(): readonly string[] {
@@ -181,5 +240,5 @@ export function createAutoProceedLoopGuard(options: LoopGuardOptions = {}): Auto
     return buffer.length;
   }
 
-  return { record, reset, history, size };
+  return { record, recordGrounded, reset, history, size };
 }

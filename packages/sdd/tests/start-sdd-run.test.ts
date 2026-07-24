@@ -1,18 +1,21 @@
-import { describe, expect, it } from 'vitest';
-import * as path from 'node:path';
 import * as os from 'node:os';
-import { startSddRun } from '../src/start-sdd-run.js';
-import { makeCommandVerifier } from '../src/verify-task.js';
+import * as path from 'node:path';
+import type { AgentFactory } from '@wrongstack/core/coordination/agent-subagent-runner.js';
+import { EventBus } from '@wrongstack/core/kernel/events.js';
+import type { TaskGraph, TaskStore } from '@wrongstack/core/types/task-graph.js';
+import { describe, expect, it, vi } from 'vitest';
+import type { Agent } from '../../src/core/agent.js';
 import { SddBoardStore } from '../src/sdd-board-store.js';
 import { SddRunRegistry } from '../src/sdd-run-registry.js';
+import { startSddRun } from '../src/start-sdd-run.js';
 import { TaskTracker } from '../src/task-tracker.js';
-import { EventBus } from '@wrongstack/core/kernel/events.js';
-import type { Agent } from '../../src/core/agent.js';
-import type { AgentFactory } from '@wrongstack/core/coordination/agent-subagent-runner.js';
-import type { TaskGraph, TaskStore } from '@wrongstack/core/types/task-graph.js';
+import { makeCommandVerifier } from '../src/verify-task.js';
 
 function tmp(): string {
-  return path.join(os.tmpdir(), `start-sdd-run-${Date.now()}-${Math.random().toString(36).slice(2)}`);
+  return path.join(
+    os.tmpdir(),
+    `start-sdd-run-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+  );
 }
 
 function makeFakeStore(): TaskStore {
@@ -32,7 +35,11 @@ function makeFakeStore(): TaskStore {
       return g ? clone(g) : null;
     },
     async listGraphs() {
-      return [...graphs.values()].map((g) => ({ id: g.id, title: g.title, updatedAt: g.updatedAt }));
+      return [...graphs.values()].map((g) => ({
+        id: g.id,
+        title: g.title,
+        updatedAt: g.updatedAt,
+      }));
     },
     async deleteGraph(id) {
       graphs.delete(id);
@@ -40,7 +47,8 @@ function makeFakeStore(): TaskStore {
   };
 }
 
-const fakeLeader = (): Agent => ({ events: new EventBus(), run: async () => ({}) }) as never as Agent;
+const fakeLeader = (): Agent =>
+  ({ events: new EventBus(), run: async () => ({}) }) as never as Agent;
 
 /** A factory whose agents always succeed (status 'done' → task marked completed). */
 function successFactory(calls: { count: number }): AgentFactory {
@@ -51,6 +59,22 @@ function successFactory(calls: { count: number }): AgentFactory {
       agent: {
         events: bus,
         run: async () => ({ status: 'done', iterations: 1, toolCalls: 0, finalText: 'done' }),
+      } as never as Agent,
+      events: bus,
+    };
+  };
+}
+
+function gatedFactoryForTest(gate: Promise<void>): AgentFactory {
+  return async () => {
+    const bus = new EventBus();
+    return {
+      agent: {
+        events: bus,
+        run: async () => {
+          await gate;
+          return { status: 'done', iterations: 1, toolCalls: 0, finalText: 'done' };
+        },
       } as never as Agent,
       events: bus,
     };
@@ -73,6 +97,91 @@ async function makeGraph(nodeCount: number) {
 }
 
 describe('startSddRun (integration — real SddParallelRun + coordinator)', () => {
+  it('tolerates control-drain and projector-drain failures during teardown', async () => {
+    const { tracker, graph } = await makeGraph(1);
+    const boardStore = new SddBoardStore({ baseDir: tmp() });
+    const drainControl = vi
+      .spyOn(boardStore, 'drainControl')
+      .mockRejectedValue(new Error('control drain failed'));
+    let release!: () => void;
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+
+    const handle = startSddRun({
+      tracker,
+      graph,
+      agent: fakeLeader(),
+      projectRoot: '/proj',
+      events: new EventBus(),
+      subagentFactory: gatedFactoryForTest(gate),
+      boardStore,
+      controlDrainMs: 5,
+    });
+    vi.spyOn(handle.projector, 'drain').mockRejectedValueOnce(new Error('projector drain failed'));
+
+    await expect.poll(() => drainControl.mock.calls.length > 0).toBe(true);
+    release();
+    await expect(handle.completion).resolves.toBeDefined();
+  });
+
+  it('exposes every in-process registry control and the handle stop control', async () => {
+    const { tracker, graph } = await makeGraph(1);
+    const events = new EventBus();
+    const registry = new SddRunRegistry();
+    let release!: () => void;
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+
+    const handle = startSddRun({
+      tracker,
+      graph,
+      agent: fakeLeader(),
+      projectRoot: '/proj',
+      events,
+      subagentFactory: async () => {
+        const bus = new EventBus();
+        return {
+          agent: {
+            events: bus,
+            run: async () => {
+              await gate;
+              return { status: 'done', iterations: 1, toolCalls: 0, finalText: 'done' };
+            },
+          } as never as Agent,
+          events: bus,
+        };
+      },
+      boardStore: new SddBoardStore({ baseDir: tmp() }),
+      registry,
+    });
+    const control = registry.getActive()!;
+
+    control.pause();
+    control.resume();
+    expect(control.retryTask('missing')).toBe(false);
+    expect(control.retryAllFailed()).toBe(0);
+    expect(control.reassignTask('missing', 'agent')).toBe(false);
+    expect(control.setTaskModel('missing', 'model', 'provider')).toBe(false);
+    expect(control.setTaskFallbacks('missing', ['fallback'])).toBe(false);
+    expect(control.setTaskVerification('missing', 'pnpm test')).toBe(false);
+    await expect(control.cancelTask('missing')).resolves.toBe(false);
+    expect(control.deleteTask('missing')).toBe(false);
+    expect(control.splitTask('missing', [{ title: 'child', description: 'work' }])).toEqual([]);
+    await expect(control.cleanupWorktrees()).resolves.toBe(0);
+    await expect(control.rollback()).resolves.toMatchObject({ ok: false, reverted: 0 });
+    expect(control.getBaseBranch()).toBeUndefined();
+    expect(control.getMergedCommits()).toEqual([]);
+    expect(control.snapshot().runId).toBe(handle.runId);
+    expect(control.isRunning()).toBe(true);
+
+    control.stop();
+    handle.stop();
+    release();
+    await handle.completion;
+  });
+
   it('drives every task to completion via the injected factory', async () => {
     const { tracker, graph } = await makeGraph(3);
     const events = new EventBus();
@@ -161,8 +270,16 @@ describe('startSddRun (integration — real SddParallelRun + coordinator)', () =
       type: 'set_task_verification',
       payload: { taskId: t2, verificationCommand: 'pnpm vitest run t2' },
     });
-    await boardStore.appendControl(handle.runId, { ts: 3, type: 'cancel_task', payload: { taskId: t3 } });
-    await boardStore.appendControl(handle.runId, { ts: 4, type: 'delete_task', payload: { taskId: t4 } });
+    await boardStore.appendControl(handle.runId, {
+      ts: 3,
+      type: 'cancel_task',
+      payload: { taskId: t3 },
+    });
+    await boardStore.appendControl(handle.runId, {
+      ts: 4,
+      type: 'delete_task',
+      payload: { taskId: t4 },
+    });
 
     // Wait for the drain to apply (poll, no fixed sleep) — t4 removal is the marker.
     await expect.poll(() => tracker.getNode(t4) === undefined, { timeout: 3000 }).toBe(true);
@@ -221,12 +338,16 @@ describe('startSddRun (integration — real SddParallelRun + coordinator)', () =
       controlDrainMs: 15,
     });
 
-    await expect.poll(() => tracker.getNode(t1)?.status === 'in_progress', { timeout: 3000 }).toBe(true);
+    await expect
+      .poll(() => tracker.getNode(t1)?.status === 'in_progress', { timeout: 3000 })
+      .toBe(true);
     tracker.updateNodeStatus(t2, 'failed', 'boom');
     await boardStore.appendControl(handle.runId, { ts: 1, type: 'retry_all_failed' });
 
     // The drain calls run.retryAllFailed() → t2 returns to pending.
-    await expect.poll(() => tracker.getNode(t2)?.status === 'pending', { timeout: 3000 }).toBe(true);
+    await expect
+      .poll(() => tracker.getNode(t2)?.status === 'pending', { timeout: 3000 })
+      .toBe(true);
 
     release();
     const result = await handle.completion;

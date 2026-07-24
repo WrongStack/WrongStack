@@ -1,14 +1,14 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import type { LSPRegistry } from '../../src/registry.js';
 import { createCodebaseLspSearchTool } from '../../src/tools/codebase-lsp-search.js';
 import type { ToolDeps } from '../../src/tools/shared.js';
-import type { LSPRegistry } from '../../src/registry.js';
 
 // Mock the codebase-index import so searchIndex doesn't hit SQLite
 vi.mock('@wrongstack/tools/codebase-index/index', () => ({
   searchCodebaseIndex: vi.fn(async () => ({ results: [], total: 0 })),
   codebaseIndexDirOverride: vi.fn(() => undefined),
-  internalKindToLspKind: vi.fn((k: string) => k === 'function' ? 12 : 0),
-  lspKindToInternalKind: vi.fn((k: number) => k === 12 ? 'function' : 'symbol'),
+  internalKindToLspKind: vi.fn((k: string) => (k === 'function' ? 12 : 0)),
+  lspKindToInternalKind: vi.fn((k: number) => (k === 12 ? 'function' : 'symbol')),
 }));
 
 function makeMockServer(opts: {
@@ -65,7 +65,14 @@ describe('createCodebaseLspSearchTool', () => {
 
   it('queries LSP servers when preferLsp is true', async () => {
     const wsSymbol = vi.fn(async () => [
-      { name: 'myFunc', kind: 12, location: { uri: 'file:///proj/src.ts', range: { start: { line: 5, character: 0 }, end: { line: 5, character: 10 } } } },
+      {
+        name: 'myFunc',
+        kind: 12,
+        location: {
+          uri: 'file:///proj/src.ts',
+          range: { start: { line: 5, character: 0 }, end: { line: 5, character: 10 } },
+        },
+      },
     ]);
     const server = makeMockServer({ name: 'ts', workspaceSymbol: wsSymbol });
     const tool = createCodebaseLspSearchTool(makeDeps([server]));
@@ -94,7 +101,9 @@ describe('createCodebaseLspSearchTool', () => {
   });
 
   it('handles individual LSP server errors gracefully', async () => {
-    const wsSymbol = vi.fn(async () => { throw new Error('LSP crashed'); });
+    const wsSymbol = vi.fn(async () => {
+      throw new Error('LSP crashed');
+    });
     const server = makeMockServer({ name: 'ts', workspaceSymbol: wsSymbol });
     const tool = createCodebaseLspSearchTool(makeDeps([server]));
 
@@ -111,7 +120,10 @@ describe('createCodebaseLspSearchTool', () => {
     const symbols = Array.from({ length: 50 }, (_, i) => ({
       name: `func${i}`,
       kind: 12,
-      location: { uri: 'file:///proj/src.ts', range: { start: { line: i, character: 0 }, end: { line: i, character: 10 } } },
+      location: {
+        uri: 'file:///proj/src.ts',
+        range: { start: { line: i, character: 0 }, end: { line: i, character: 10 } },
+      },
     }));
     const wsSymbol = vi.fn(async () => symbols);
     const server = makeMockServer({ name: 'ts', workspaceSymbol: wsSymbol });
@@ -128,7 +140,14 @@ describe('createCodebaseLspSearchTool', () => {
 
   it('strips file:// prefix from URIs', async () => {
     const wsSymbol = vi.fn(async () => [
-      { name: 'test', kind: 12, location: { uri: 'file:///proj/deep/src.ts', range: { start: { line: 0, character: 0 }, end: { line: 0, character: 4 } } } },
+      {
+        name: 'test',
+        kind: 12,
+        location: {
+          uri: 'file:///proj/deep/src.ts',
+          range: { start: { line: 0, character: 0 }, end: { line: 0, character: 4 } },
+        },
+      },
     ]);
     const server = makeMockServer({ name: 'ts', workspaceSymbol: wsSymbol });
     const tool = createCodebaseLspSearchTool(makeDeps([server]));
@@ -144,7 +163,14 @@ describe('createCodebaseLspSearchTool', () => {
 
   it('converts 0-based LSP line numbers to 1-based', async () => {
     const wsSymbol = vi.fn(async () => [
-      { name: 'test', kind: 12, location: { uri: 'file:///proj/src.ts', range: { start: { line: 9, character: 0 }, end: { line: 9, character: 4 } } } },
+      {
+        name: 'test',
+        kind: 12,
+        location: {
+          uri: 'file:///proj/src.ts',
+          range: { start: { line: 9, character: 0 }, end: { line: 9, character: 4 } },
+        },
+      },
     ]);
     const server = makeMockServer({ name: 'ts', workspaceSymbol: wsSymbol });
     const tool = createCodebaseLspSearchTool(makeDeps([server]));
@@ -160,9 +186,20 @@ describe('createCodebaseLspSearchTool', () => {
 
   it('infers server name from file extension', async () => {
     const wsSymbol = vi.fn(async () => [
-      { name: 'test', kind: 12, location: { uri: 'file:///proj/src.ts', range: { start: { line: 0, character: 0 }, end: { line: 0, character: 4 } } } },
+      {
+        name: 'test',
+        kind: 12,
+        location: {
+          uri: 'file:///proj/src.ts',
+          range: { start: { line: 0, character: 0 }, end: { line: 0, character: 4 } },
+        },
+      },
     ]);
-    const tsServer = makeMockServer({ name: 'tsserver', languages: ['typescript'], workspaceSymbol: wsSymbol });
+    const tsServer = makeMockServer({
+      name: 'tsserver',
+      languages: ['typescript'],
+      workspaceSymbol: wsSymbol,
+    });
     const tool = createCodebaseLspSearchTool(makeDeps([tsServer]));
 
     const result = await tool.execute(

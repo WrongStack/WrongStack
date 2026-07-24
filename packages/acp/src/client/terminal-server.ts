@@ -75,7 +75,6 @@ export class TerminalServer {
     this.outputByteLimit = opts.outputByteLimit ?? 1024 * 1024;
     this.maxOutputByteLimit = opts.maxOutputByteLimit ?? 16 * 1024 * 1024;
     this.maxTerminals = this.clampFiniteInt(opts.maxTerminals, 32);
-    if (this.maxTerminals < 1) throw new RangeError('maxTerminals must be at least 1');
     this.abortSignal = opts.signal;
     if (opts.signal) {
       opts.signal.addEventListener('abort', this.abortHandler, { once: true });
@@ -215,7 +214,11 @@ export class TerminalServer {
   }
 
   /** Return captured output and (if available) the exit status. */
-  output(terminalId: string): { output: string; truncated: boolean; exitStatus?: { exitCode: number | null; signal: string | null } } {
+  output(terminalId: string): {
+    output: string;
+    truncated: boolean;
+    exitStatus?: { exitCode: number | null; signal: string | null };
+  } {
     const state = this.terminals.get(terminalId);
     if (!state) throw new Error(`unknown terminal: ${terminalId}`);
     return {
@@ -229,7 +232,9 @@ export class TerminalServer {
   }
 
   /** Block until the process exits. Resolves with the exit status. */
-  async waitForExit(terminalId: string): Promise<{ exitCode: number | null; signal: string | null }> {
+  async waitForExit(
+    terminalId: string,
+  ): Promise<{ exitCode: number | null; signal: string | null }> {
     const state = this.terminals.get(terminalId);
     if (!state) throw new Error(`unknown terminal: ${terminalId}`);
     return state.exitPromise;
@@ -294,9 +299,7 @@ export class TerminalServer {
     }
   }
 
-  private buildEnv(
-    agentEnv?: { name: string; value: string }[],
-  ): NodeJS.ProcessEnv {
+  private buildEnv(agentEnv?: { name: string; value: string }[]): NodeJS.ProcessEnv {
     // Use the sanitized child env from @wrongstack/core instead of raw
     // process.env. This strips API keys, tokens, and other credentials from
     // the host environment so a compromised ACP agent cannot exfiltrate them
@@ -324,10 +327,7 @@ export class TerminalServer {
    * negative, NaN, or Infinity values from disabling output caps or causing
    * unbounded memory growth.
    */
-  private clampFiniteInt(
-    value: number | undefined,
-    defaultValue: number,
-  ): number {
+  private clampFiniteInt(value: number | undefined, defaultValue: number): number {
     if (value === undefined || !Number.isFinite(value) || value < 1) {
       return defaultValue;
     }

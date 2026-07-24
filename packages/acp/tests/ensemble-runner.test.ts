@@ -28,7 +28,11 @@ vi.mock('../src/integration/acp-subagent-runner.js', () => ({
   resolveAcpAgentCommand: (id: string) => ({ command: id, args: [], role: id }),
 }));
 
-import { runEnsemble, renderEnsembleText } from '../src/integration/ensemble-runner.js';
+import {
+  ensembleRunnerCoverage,
+  renderEnsembleText,
+  runEnsemble,
+} from '../src/integration/ensemble-runner.js';
 
 function fakeCmd(id: string) {
   return { command: id, args: [], role: id };
@@ -202,8 +206,22 @@ describe('renderEnsembleText', () => {
       task: 't',
       requested: ['a', 'b'],
       results: [
-        { agentId: 'a', status: 'success', result: 'hello', durationMs: 12, iterations: 1, toolCalls: 0 },
-        { agentId: 'b', status: 'skipped', reason: 'binary not found', durationMs: 0, iterations: 0, toolCalls: 0 },
+        {
+          agentId: 'a',
+          status: 'success',
+          result: 'hello',
+          durationMs: 12,
+          iterations: 1,
+          toolCalls: 0,
+        },
+        {
+          agentId: 'b',
+          status: 'skipped',
+          reason: 'binary not found',
+          durationMs: 0,
+          iterations: 0,
+          toolCalls: 0,
+        },
       ],
       summary: { succeeded: 1, failed: 0, skipped: 1, cancelled: 0 },
       totalDurationMs: 12,
@@ -247,5 +265,130 @@ describe('renderEnsembleText', () => {
       totalDurationMs: 0,
     });
     expect(text).toBe('No agent ids provided.');
+  });
+});
+
+describe('ensemble runner completion coverage', () => {
+  it('covers empty bounded maps and missing result updates', async () => {
+    await expect(ensembleRunnerCoverage.mapBound([], async () => 1, 0)).resolves.toEqual([]);
+    const results = [
+      {
+        agentId: 'present',
+        status: 'skipped' as const,
+        durationMs: 0,
+        iterations: 0,
+        toolCalls: 0,
+      },
+    ];
+    ensembleRunnerCoverage.setResult(results, 'missing', { status: 'failed' });
+    expect(results[0]!.status).toBe('skipped');
+  });
+
+  it('forwards progress, signals, null results, and throwing cleanup', async () => {
+    mockList.mockResolvedValue([{ id: 'a', installed: true }]);
+    const stop = vi.fn(() => {
+      throw new Error('already stopped');
+    });
+    makeACPSubagentRunnerWithStop.mockImplementation(async (options) => {
+      options.onProgress({ type: 'status' });
+      return {
+        runner: async () => ({ result: null, iterations: 1, toolCalls: 2 }),
+        stop,
+      };
+    });
+    const onProgress = vi.fn();
+    const controller = new AbortController();
+    const result = await runEnsemble({
+      agentIds: 'a',
+      task: 't',
+      resolveCmd: fakeCmd,
+      signal: controller.signal,
+      onProgress,
+      maxConcurrency: 0,
+    });
+    expect(result.results[0]).toMatchObject({ status: 'success', result: '' });
+    expect(onProgress).toHaveBeenCalledWith('a', { type: 'status' });
+  });
+
+  it.each([
+    [{ kind: 'aborted' }, 'cancelled'],
+    [{ kind: 'aborted_by_parent' }, 'cancelled'],
+    [{ message: 'operation ABORTED now' }, 'cancelled'],
+    [
+      Object.defineProperty(new Error(), 'message', {
+        value: undefined,
+        configurable: true,
+      }),
+      'failed',
+    ],
+    [null, 'failed'],
+  ])('classifies failure variant %#', async (failure, status) => {
+    mockList.mockResolvedValue([{ id: 'a', installed: true }]);
+    makeACPSubagentRunnerWithStop.mockResolvedValue({
+      runner: async () => {
+        throw failure;
+      },
+      stop: () => undefined,
+    });
+    const result = await runEnsemble({
+      agentIds: 'a',
+      task: 't',
+      resolveCmd: fakeCmd,
+    });
+    expect(result.results[0]!.status).toBe(status);
+  });
+
+  it('uses a fallback skip reason for uncatalogued agents', async () => {
+    mockList.mockResolvedValue([]);
+    const result = await runEnsemble({
+      agentIds: 'missing',
+      task: 't',
+      resolveCmd: fakeCmd,
+    });
+    expect(result.results[0]!.reason).toBe('not in catalog');
+  });
+
+  it('renders every status fallback', () => {
+    const text = renderEnsembleText({
+      task: 't',
+      requested: ['empty', 'failed', 'cancelled', 'skipped'],
+      results: [
+        {
+          agentId: 'empty',
+          status: 'success',
+          result: '',
+          durationMs: 0,
+          iterations: 0,
+          toolCalls: 0,
+        },
+        {
+          agentId: 'failed',
+          status: 'failed',
+          durationMs: 0,
+          iterations: 0,
+          toolCalls: 0,
+        },
+        {
+          agentId: 'cancelled',
+          status: 'cancelled',
+          durationMs: 0,
+          iterations: 0,
+          toolCalls: 0,
+        },
+        {
+          agentId: 'skipped',
+          status: 'skipped',
+          durationMs: 0,
+          iterations: 0,
+          toolCalls: 0,
+        },
+      ],
+      summary: { succeeded: 1, failed: 1, skipped: 1, cancelled: 1 },
+      totalDurationMs: 0,
+    });
+    expect(text).toContain('(no result)');
+    expect(text).toContain('[unknown] failed');
+    expect(text).toContain('[aborted] cancelled');
+    expect(text).toContain('skipped — not installed');
   });
 });

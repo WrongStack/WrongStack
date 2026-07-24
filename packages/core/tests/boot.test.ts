@@ -11,10 +11,11 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
  * boot-config.test.ts (which runs the real core against a temp HOME).
  */
 
-const { canonicalRootMock, mkdirMock, writeFileMock, mockWpaths } = vi.hoisted(() => ({
+const { canonicalRootMock, mkdirMock, writeFileMock, renameMock, mockWpaths } = vi.hoisted(() => ({
   canonicalRootMock: vi.fn((root: string) => root),
   mkdirMock: vi.fn().mockResolvedValue(undefined),
   writeFileMock: vi.fn().mockResolvedValue(undefined),
+  renameMock: vi.fn().mockResolvedValue(undefined),
   mockWpaths: {
     globalRoot: '/home/testuser/.wrongstack',
     projectDir: '/tmp/test/.wrongstack',
@@ -39,7 +40,15 @@ const { canonicalRootMock, mkdirMock, writeFileMock, mockWpaths } = vi.hoisted((
 }));
 
 vi.mock('node:os', () => ({ homedir: () => '/home/testuser' }));
-vi.mock('node:fs/promises', () => ({ mkdir: mkdirMock, writeFile: writeFileMock }));
+// The project-meta write goes through atomicWrite (temp + rename); the
+// mock needs rename/unlink too, while the best-effort open/stat/chmod
+// steps inside atomicWrite tolerate being absent (they throw, are caught).
+vi.mock('node:fs/promises', () => ({
+  mkdir: mkdirMock,
+  writeFile: writeFileMock,
+  rename: renameMock,
+  unlink: vi.fn().mockResolvedValue(undefined),
+}));
 
 vi.mock('../src/storage/config-loader.js', () => ({
   DefaultConfigLoader: vi.fn().mockImplementation(function (this: any) {
@@ -93,6 +102,7 @@ describe('bootConfig (core)', () => {
     canonicalRootMock.mockReset();
     canonicalRootMock.mockImplementation((root: string) => root);
     mkdirMock.mockClear();
+    renameMock.mockClear();
     writeFileMock.mockClear();
     migrateMock.mockReset();
     migrateMock.mockResolvedValue({ migrated: 0, file: '' });
@@ -118,11 +128,16 @@ describe('bootConfig (core)', () => {
     expect(mkdirMock).toHaveBeenCalledWith('/tmp/test/.wrongstack/sessions', { recursive: true });
   });
 
-  it('writes the project meta file', async () => {
+  it('writes the project meta file atomically (temp write + rename)', async () => {
     await bootConfig();
     expect(writeFileMock).toHaveBeenCalledWith(
-      '/tmp/test/.wrongstack/meta.json',
+      expect.stringContaining('meta.json'),
       expect.stringContaining('"hash": "abc123"'),
+      expect.objectContaining({ flag: 'wx' }),
+    );
+    expect(renameMock).toHaveBeenCalledWith(
+      expect.stringContaining('meta.json'),
+      '/tmp/test/.wrongstack/meta.json',
     );
   });
 
@@ -130,8 +145,9 @@ describe('bootConfig (core)', () => {
     canonicalRootMock.mockReturnValue('/tmp/main-checkout');
     await bootConfig();
     expect(writeFileMock).toHaveBeenCalledWith(
-      '/tmp/test/.wrongstack/meta.json',
+      expect.stringContaining('meta.json'),
       expect.stringContaining('"root": "/tmp/main-checkout"'),
+      expect.objectContaining({ flag: 'wx' }),
     );
   });
 

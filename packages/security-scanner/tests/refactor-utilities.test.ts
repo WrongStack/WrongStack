@@ -5,6 +5,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 import { gatherFiles, shouldExcludeDir } from '../src/file-gathering.js';
 import { extractJsonBlock } from '../src/json-extractor.js';
 import { parseNodeDependencies } from '../src/manifest-parser.js';
+import { runRedactionDiagnostic } from '../src/redaction-diagnostic.js';
 
 const temporaryDirectories: string[] = [];
 
@@ -47,6 +48,9 @@ describe('shared file gathering', () => {
       'src/index.ts',
     ]);
     expect(shouldExcludeDir('dist', 'packages/a/dist', ['dist'])).toBe(true);
+    expect(shouldExcludeDir('cache', 'packages/cache', ['packages/*'])).toBe(true);
+    expect(shouldExcludeDir('foo1', 'foo1', ['foo?'])).toBe(true);
+    expect(shouldExcludeDir('src', 'src', ['', './'])).toBe(false);
   });
 });
 
@@ -60,6 +64,22 @@ describe('LLM JSON extraction', () => {
   it('extracts an array containing nested objects and bracket characters', () => {
     const text = 'prefix [{"value":"]","nested":{"ok":true}}] suffix [not-json]';
     expect(extractJsonBlock(text, 'array')).toBe('[{"value":"]","nested":{"ok":true}}]');
+  });
+
+  it('handles escaped quotes and falls back across malformed fenced blocks', () => {
+    const valid = String.raw`{"quoted":"a \" brace","ok":true}`;
+    const text = [
+      '```json',
+      '{"unfinished": true',
+      '```',
+      `then ${valid}`,
+    ].join('\n');
+    expect(extractJsonBlock(text, 'object')).toBe(valid);
+  });
+
+  it('returns null when no balanced container exists', () => {
+    expect(extractJsonBlock('prefix { "open": [1, 2]', 'object')).toBeNull();
+    expect(extractJsonBlock('plain text', 'array')).toBeNull();
   });
 });
 
@@ -82,5 +102,33 @@ describe('Node manifest parsing', () => {
 
   it('returns an empty list for malformed manifests', () => {
     expect(parseNodeDependencies('{bad json')).toEqual([]);
+  });
+
+  it('ignores non-object manifests and malformed dependency entries', () => {
+    expect(parseNodeDependencies('null')).toEqual([]);
+    expect(parseNodeDependencies('[]')).toEqual([]);
+    expect(
+      parseNodeDependencies(
+        JSON.stringify({
+          devDependencies: null,
+          peerDependencies: {
+            '': '1.0.0',
+            '   ': '1.0.0',
+            valid: 123,
+          },
+          dependencies: { runtime: '2.0.0' },
+        }),
+      ),
+    ).toEqual([{ name: 'runtime', version: '2.0.0', isDev: false }]);
+  });
+});
+
+describe('redaction diagnostic', () => {
+  it('reports only field paths and distinguishes safe text', () => {
+    const result = runRedactionDiagnostic();
+    expect(result.redactedFields).toContain('$.apiKey');
+    expect(result.redactedFields).toContain('$.githubToken');
+    expect(result.unchangedFields).toContain('$.normal');
+    expect(JSON.stringify(result)).not.toContain('sk-1234567890');
   });
 });

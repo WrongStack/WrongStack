@@ -1,10 +1,10 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { EventBus } from '@wrongstack/core/kernel/events.js';
-import { SpecDrivenDev, TaskFlow } from '../src/task-flow.js';
 import { DefaultTaskStore } from '@wrongstack/core/tasking';
-import { TaskTracker } from '../src/task-tracker.js';
 import type { Specification } from '@wrongstack/core/types/spec.js';
 import type { TaskNode } from '@wrongstack/core/types/task-graph.js';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { SpecDrivenDev, TaskFlow } from '../src/task-flow.js';
+import { TaskTracker } from '../src/task-tracker.js';
 
 function _makeSpec(overrides: Partial<Specification> = {}): Specification {
   return {
@@ -195,7 +195,13 @@ describe('TaskFlow', () => {
       const specContent = `# Title\n\n## Overview\nContent\n\n## Requirements\n[high] Feature A\n\n## Acceptance\n\nDone`;
       await flow.fromSpec(specContent);
       // fromSpec creates an empty graph; add a task manually so execute has work
-      tracker.addNode({ title: 'Manual Task', description: 'd', type: 'feature', priority: 'high', status: 'pending' });
+      tracker.addNode({
+        title: 'Manual Task',
+        description: 'd',
+        type: 'feature',
+        priority: 'high',
+        status: 'pending',
+      });
 
       let startedCount = 0;
       events.on('task.started' as any, () => startedCount++);
@@ -209,7 +215,13 @@ describe('TaskFlow', () => {
       const { flow, tracker, events } = createFlow();
       const specContent = `# Title\n\n## Overview\nContent\n\n## Requirements\n[high] Feature\n\n## Acceptance\n\nDone`;
       await flow.fromSpec(specContent);
-      tracker.addNode({ title: 'Manual Task', description: 'd', type: 'feature', priority: 'high', status: 'pending' });
+      tracker.addNode({
+        title: 'Manual Task',
+        description: 'd',
+        type: 'feature',
+        priority: 'high',
+        status: 'pending',
+      });
 
       let completedCount = 0;
       events.on('task.completed' as any, () => completedCount++);
@@ -241,9 +253,17 @@ describe('TaskFlow', () => {
 
     it('marks task as completed when approved', async () => {
       const { flow, tracker, events } = createFlow();
-      await flow.fromSpec(`# Title\n\n## Overview\nContent\n\n## Requirements\n[high] Feature\n\n## Acceptance\n\nDone`);
+      await flow.fromSpec(
+        `# Title\n\n## Overview\nContent\n\n## Requirements\n[high] Feature\n\n## Acceptance\n\nDone`,
+      );
       // fromSpec creates an empty graph; add a task manually
-      tracker.addNode({ title: 'Task', description: 'd', type: 'feature', priority: 'high', status: 'pending' });
+      tracker.addNode({
+        title: 'Task',
+        description: 'd',
+        type: 'feature',
+        priority: 'high',
+        status: 'pending',
+      });
       const firstTaskId = tracker.getAllNodes()[0]!.id;
 
       await flow.reviewTask(firstTaskId, true);
@@ -254,8 +274,16 @@ describe('TaskFlow', () => {
 
     it('marks task as in_progress when rejected', async () => {
       const { flow, tracker, events } = createFlow();
-      await flow.fromSpec(`# Title\n\n## Overview\nContent\n\n## Requirements\n[high] Feature\n\n## Acceptance\n\nDone`);
-      tracker.addNode({ title: 'Task', description: 'd', type: 'feature', priority: 'high', status: 'pending' });
+      await flow.fromSpec(
+        `# Title\n\n## Overview\nContent\n\n## Requirements\n[high] Feature\n\n## Acceptance\n\nDone`,
+      );
+      tracker.addNode({
+        title: 'Task',
+        description: 'd',
+        type: 'feature',
+        priority: 'high',
+        status: 'pending',
+      });
       const firstTaskId = tracker.getAllNodes()[0]!.id;
 
       await flow.reviewTask(firstTaskId, false);
@@ -266,8 +294,16 @@ describe('TaskFlow', () => {
 
     it('emits task.completed when approved', async () => {
       const { flow, tracker, events } = createFlow();
-      await flow.fromSpec(`# Title\n\n## Overview\nContent\n\n## Requirements\n[high] Feature\n\n## Acceptance\n\nDone`);
-      tracker.addNode({ title: 'Task', description: 'd', type: 'feature', priority: 'high', status: 'pending' });
+      await flow.fromSpec(
+        `# Title\n\n## Overview\nContent\n\n## Requirements\n[high] Feature\n\n## Acceptance\n\nDone`,
+      );
+      tracker.addNode({
+        title: 'Task',
+        description: 'd',
+        type: 'feature',
+        priority: 'high',
+        status: 'pending',
+      });
       const firstTaskId = tracker.getAllNodes()[0]!.id;
 
       let eventFired = false;
@@ -282,8 +318,16 @@ describe('TaskFlow', () => {
 
     it('emits task.review when rejected', async () => {
       const { flow, tracker, events } = createFlow();
-      await flow.fromSpec(`# Title\n\n## Overview\nContent\n\n## Requirements\n[high] Feature\n\n## Acceptance\n\nDone`);
-      tracker.addNode({ title: 'Task', description: 'd', type: 'feature', priority: 'high', status: 'pending' });
+      await flow.fromSpec(
+        `# Title\n\n## Overview\nContent\n\n## Requirements\n[high] Feature\n\n## Acceptance\n\nDone`,
+      );
+      tracker.addNode({
+        title: 'Task',
+        description: 'd',
+        type: 'feature',
+        priority: 'high',
+        status: 'pending',
+      });
       const firstTaskId = tracker.getAllNodes()[0]!.id;
 
       let eventFired = false;
@@ -313,6 +357,145 @@ describe('TaskFlow', () => {
 
       expect(executedCount).toBeGreaterThanOrEqual(0);
     });
+
+    it('marks the flow stopped', async () => {
+      const store = new DefaultTaskStore();
+      const tracker = new TaskTracker({ store });
+      const events = new EventBus();
+      const flow = new TaskFlow({ tracker, events, maxConcurrent: 1 });
+      await flow.fromSpec(
+        `# Title\n\n## Overview\nContent\n\n## Requirements\n[high] Feature\n\n## Acceptance\n\nDone`,
+      );
+      tracker.addNode({
+        title: 'A',
+        description: 'd',
+        type: 'feature',
+        priority: 'high',
+        status: 'pending',
+      });
+      tracker.addNode({
+        title: 'B',
+        description: 'd',
+        type: 'feature',
+        priority: 'high',
+        status: 'pending',
+      });
+
+      // Observe the observable effect: a stop() invoked mid-run prevents the
+      // loop from picking up the next batch. With maxConcurrent: 1, the first
+      // task runs, stop() flips the loop guard, and B is never executed.
+      let executed = 0;
+      await flow.execute({
+        executeTask: async () => {
+          executed++;
+          flow.stop();
+          return 'done';
+        },
+      });
+      expect(executed).toBe(1);
+    });
+  });
+
+  it('covers done-condition variants and unknown priorities', async () => {
+    const store = new DefaultTaskStore();
+    const tracker = new TaskTracker({ store });
+    const events = new EventBus();
+    await tracker.createGraph('spec', 'Graph');
+
+    // checkDoneCondition is a private method, but its inputs are observable:
+    // - no doneCondition  → tracker.getProgress().percentComplete === 100
+    // - { type: 'all_tasks_done' } → tracker.getProgress().pending === 0 && inProgress === 0
+    // - { type: 'iterations' | 'tool_calls' | 'output_match' } → always false (the outer
+    //   multi-agent runner is responsible for those gates). We confirm execute() does
+    //   not break early under them.
+    // With no nodes, all_tasks_done reports done.
+    expect(tracker.getProgress().pending).toBe(0);
+    expect(tracker.getProgress().inProgress).toBe(0);
+
+    // Add two pending tasks with deliberately out-of-range priority strings to
+    // exercise the `?? 4` fallback in the sort comparator. The `addNode` API
+    // takes a strict TaskPriority union, so we go through the lower-level
+    // updateNode path and use `@ts-expect-error` to make the deliberate type
+    // violation auditable: if the union is ever widened/enum'd, the unused
+    // directive surfaces in CI rather than silently passing.
+    tracker.addNode({
+      title: 'Pending',
+      description: '',
+      type: 'feature',
+      priority: 'low',
+      status: 'pending',
+    });
+    tracker.addNode({
+      title: 'Pending 2',
+      description: '',
+      type: 'feature',
+      priority: 'low',
+      status: 'pending',
+    });
+    for (const node of tracker.getAllNodes()) {
+      // @ts-expect-error — deliberately out-of-range priority to exercise the `?? 4` fallback
+      tracker.updateNode(node.id, { priority: 'unknown-or-undefined' });
+    }
+    expect(tracker.getProgress().pending).toBe(2);
+    expect(tracker.getProgress().inProgress).toBe(0);
+
+    for (const item of tracker.getAllNodes()) {
+      tracker.updateNodeStatus(item.id, 'in_progress');
+    }
+    expect(tracker.getProgress().pending).toBe(0);
+    expect(tracker.getProgress().inProgress).toBe(2);
+
+    // Outer-runner-only conditions must not stop TaskFlow early. Build a flow
+    // for each one and verify it makes forward progress (execute reaches the
+    // 'done' phase once tasks complete).
+    for (const condition of [
+      { type: 'iterations' as const, maxIterations: 1 },
+      { type: 'tool_calls' as const, maxToolCalls: 1 },
+      { type: 'output_match' as const, pattern: 'done' },
+    ]) {
+      const flow = new TaskFlow({ tracker, events, doneCondition: condition });
+      await flow.fromSpec(
+        `# Title\n\n## Overview\nContent\n\n## Requirements\n[high] Feature\n\n## Acceptance\n\nDone`,
+      );
+      await flow.execute({ executeTask: async () => 'ok' });
+      expect(flow.getPhase()).toBe('done');
+    }
+
+    // `all_tasks_done` exits execute() once no pending/in-progress tasks remain.
+    for (const item of tracker.getAllNodes()) {
+      tracker.updateNodeStatus(item.id, 'pending');
+    }
+    const allTasksDoneFlow = new TaskFlow({
+      tracker,
+      events,
+      doneCondition: { type: 'all_tasks_done' },
+    });
+    await allTasksDoneFlow.fromSpec(
+      `# Title\n\n## Overview\nContent\n\n## Requirements\n[high] Feature\n\n## Acceptance\n\nDone`,
+    );
+    await allTasksDoneFlow.execute({ executeTask: async () => 'ok' });
+    expect(allTasksDoneFlow.getPhase()).toBe('done');
+
+    // The `?? 4` fallback in the unknown-priority sort comparator is exercised
+    // above: the `updateNode` call injects values outside the valid priority
+    // union, and the subsequent `getAllNodes()` / `execute()` calls sort those
+    // nodes without throwing.
+  });
+
+  it('reports an unknown rejection reason', async () => {
+    const { flow, tracker } = createFlow();
+    await flow.fromSpec(
+      '# Title\n\n## Overview\nContent\n\n## Requirements\n[high] Feature\n\n## Acceptance\nDone',
+    );
+    tracker.addNode({
+      title: 'Reject',
+      description: '',
+      type: 'feature',
+      priority: 'high',
+      status: 'pending',
+    });
+    await flow.execute({ executeTask: async () => Promise.reject(undefined) });
+    expect(tracker.getAllNodes().find((task) => task.title === 'Reject')?.status).toBe('failed');
   });
 
   describe('getPhase', () => {
@@ -409,5 +592,16 @@ describe('SpecDrivenDev', () => {
     expect(flows).toHaveLength(2);
     expect(flows[0].title).toBeTruthy();
     expect(flows[1].title).toBeTruthy();
+  });
+
+  it('uses an Untitled fallback for a flow without a graph', () => {
+    const sdd = new SpecDrivenDev({ workingDirectory: '/tmp', events });
+    const flow = new TaskFlow({ tracker: sdd.getTracker(), events });
+    (
+      sdd as unknown as {
+        flows: Map<string, TaskFlow>;
+      }
+    ).flows.set('manual', flow);
+    expect(sdd.listFlows()).toEqual([{ id: 'manual', title: 'Untitled', phase: 'idle' }]);
   });
 });

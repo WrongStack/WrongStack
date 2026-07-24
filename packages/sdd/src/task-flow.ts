@@ -1,11 +1,16 @@
 import type { EventBus } from '@wrongstack/core/kernel';
-import type { DoneCondition } from '@wrongstack/core/types';
-import type { SpecAnalysis, Specification } from '@wrongstack/core/types';
-import type { TaskGraph, TaskNode } from '@wrongstack/core/types';
-import { SddError, ERROR_CODES } from '@wrongstack/core/types';
+import { DefaultTaskStore, TaskTracker } from '@wrongstack/core/tasking';
+import type {
+  DoneCondition,
+  SpecAnalysis,
+  Specification,
+  TaskGraph,
+  TaskNode,
+} from '@wrongstack/core/types';
+import { ERROR_CODES, SddError } from '@wrongstack/core/types';
+import { expectDefined } from '@wrongstack/core/utils';
 import { SpecParser } from './spec-parser.js';
 import { TaskGenerator } from './task-generator.js';
-import { DefaultTaskStore, TaskTracker } from '@wrongstack/core/tasking';
 
 /**
  * Extended event map used internally by TaskFlow and multi-agent components.
@@ -96,11 +101,12 @@ export class TaskFlow {
   }
 
   async execute(ctx: TaskFlowExecutionContext): Promise<TaskGraph> {
-    if (!this.graph) throw new SddError({
-      message: 'No graph loaded. Call fromSpec first.',
-      code: ERROR_CODES.SDD_INVALID_STATE,
-      context: { phase: this.phase },
-    });
+    if (!this.graph)
+      throw new SddError({
+        message: 'No graph loaded. Call fromSpec first.',
+        code: ERROR_CODES.SDD_INVALID_STATE,
+        context: { phase: this.phase },
+      });
 
     this.setPhase('executing');
     this.stopped = false;
@@ -115,10 +121,8 @@ export class TaskFlow {
       );
 
       for (let i = 0; i < results.length; i++) {
-        const result = results[i];
-        const task = batch[i];
-
-        if (!result || !task) continue;
+        const result = expectDefined(results[i]);
+        const task = expectDefined(batch[i]);
 
         if (result.status === 'rejected') {
           const reason = result.reason as Error | undefined;
@@ -154,11 +158,12 @@ export class TaskFlow {
 
   async reviewTask(taskId: string, approved: boolean, comment?: string): Promise<void> {
     const task = this.opts.tracker.getNode(taskId);
-    if (!task) throw new SddError({
-      message: `Task ${taskId} not found`,
-      code: ERROR_CODES.SDD_NOT_READY,
-      context: { taskId },
-    });
+    if (!task)
+      throw new SddError({
+        message: `Task ${taskId} not found`,
+        code: ERROR_CODES.SDD_NOT_READY,
+        context: { taskId },
+      });
 
     if (approved) {
       this.opts.tracker.updateNodeStatus(taskId, 'completed', comment);
@@ -197,7 +202,7 @@ export class TaskFlow {
       .filter((n) => n.status === 'pending' && this.opts.tracker.canStart(n.id))
       .sort((a, b) => {
         const priorityOrder = { critical: 0, high: 1, medium: 2, low: 3 };
-        return (priorityOrder[a.priority] ?? 4) - (priorityOrder[b.priority] ?? 4);
+        return priorityOrder[a.priority] - priorityOrder[b.priority];
       });
   }
 

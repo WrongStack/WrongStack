@@ -543,7 +543,7 @@ describe('project agent self-learning lifecycle', () => {
       );
       const entries = parseStructuredLearnedEntries('executor', projectRoot);
       expect(entries).toHaveLength(1);
-      expect(entries[0].category).toBe('convention');
+      expect(entries[0]!.category).toBe('convention');
     });
 
     it('does not persist purely-narrative LEARNED blocks (session-log rejection)', () => {
@@ -568,7 +568,7 @@ describe('project agent self-learning lifecycle', () => {
       expect(result.status).toBe('captured');
       const entries = parseStructuredLearnedEntries('executor', projectRoot);
       expect(entries).toHaveLength(1);
-      const directive = entries[0].what;
+      const directive = entries[0]!.what;
       // Ephemeral anchors gone, directive substance present.
       expect(directive).not.toMatch(/9c7682b84/);
       expect(directive).not.toMatch(/2026-07-22/);
@@ -590,7 +590,7 @@ describe('project agent self-learning lifecycle', () => {
       expect(result.skipped).toBe(1);
       const entries = parseStructuredLearnedEntries('reviewer', projectRoot);
       expect(entries).toHaveLength(1);
-      expect(entries[0].what).toMatch(/JWT/);
+      expect(entries[0]!.what).toMatch(/JWT/);
     });
 
     it('dedupes against normalized text so stripping ephemeral anchors does not bypass dedup', () => {
@@ -728,8 +728,8 @@ describe('project agent self-learning lifecycle', () => {
       });
       expect(different).toHaveLength(2);
       // Sorted warning-first.
-      expect(different[0].category).toBe('warning');
-      expect(different[1].category).toBe('convention');
+      expect(different[0]!.category).toBe('warning');
+      expect(different[1]!.category).toBe('convention');
     });
 
     it('preserves historical entries through a re-capture (merge, not replace)', () => {

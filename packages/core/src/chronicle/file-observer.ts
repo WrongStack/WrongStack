@@ -1,9 +1,10 @@
 import { createHash } from 'node:crypto';
-import * as fs from 'node:fs';
 import * as fsp from 'node:fs/promises';
 import * as path from 'node:path';
 import type { EventBus } from '../kernel/events.js';
 import { mapWithConcurrency } from '../storage/storage-concurrency.js';
+import { type ProjectWatchSubscription, watchProjectTree } from '../utils/project-watch.js';
+import { DEFAULT_WALK_IGNORE_DIRS } from '../utils/walk-ignore.js';
 import type { ChronicleContext } from './context.js';
 import type { ChronicleJournal } from './journal.js';
 import type { ChronicleEventInput } from './types.js';
@@ -29,6 +30,8 @@ export interface ChronicleFileObserverOptions {
   debounceMs?: number | undefined;
   maxHashBytes?: number | undefined;
   excludedDirectories?: readonly string[] | undefined;
+  /** Min gap between full-project rescans triggered by null-filename events. */
+  minFullRescanIntervalMs?: number | undefined;
   onError?: ((error: unknown) => void) | undefined;
 }
 
@@ -37,8 +40,13 @@ export interface ChronicleFileObserver {
   readonly watchedFiles: number;
 }
 
-const DEFAULT_EXCLUDED = ['.git', '.wrongstack', 'node_modules', 'dist', 'coverage', '.temp_files'];
+const DEFAULT_EXCLUDED = [...DEFAULT_WALK_IGNORE_DIRS, '.wrongstack', '.temp_files'];
 const SCAN_HASH_CONCURRENCY = 32;
+// Platforms that omit the filename (common on Windows recursive watch) can
+// emit null-filename events in bursts. Each one used to trigger a full
+// project walk — bound rescans to this floor; a queued rescan is deferred,
+// never dropped, so no external mutation is lost.
+const DEFAULT_FULL_RESCAN_MIN_INTERVAL_MS = 30_000;
 
 /** Observe editor/user/external process mutations that bypass WrongStack tools. */
 export async function startChronicleFileObserver(
@@ -68,18 +76,14 @@ export async function startChronicleFileObserver(
   let timer: ReturnType<typeof setTimeout> | undefined;
   let closed = false;
   let flushTail: Promise<void> | null = null;
+  const minFullRescanIntervalMs =
+    options.minFullRescanIntervalMs ?? DEFAULT_FULL_RESCAN_MIN_INTERVAL_MS;
+  // The startup scan just ran — the first watcher-triggered full rescan also
+  // waits out the interval instead of immediately repeating that work.
+  let lastFullScanAt = Date.now();
+  let fullRescanTimer: ReturnType<typeof setTimeout> | undefined;
 
-  const schedule = (filename: string | Buffer | null): void => {
-    if (closed) return;
-    if (filename === null) {
-      // Some platforms omit the filename. A bounded full rescan recovers the
-      // facts instead of silently losing an external mutation.
-      pending.add('*');
-    } else {
-      const relative = normalizeRelative(String(filename));
-      if (!relative || isExcluded(relative, excluded)) return;
-      pending.add(relative);
-    }
+  const bumpDebounce = (): void => {
     if (timer) clearTimeout(timer);
     timer = setTimeout(() => {
       timer = undefined;
@@ -87,9 +91,45 @@ export async function startChronicleFileObserver(
     }, debounceMs);
   };
 
+  // Some platforms omit the filename. A bounded full rescan recovers the
+  // facts instead of silently losing an external mutation — but rescans walk
+  // (and stat) the whole tree, so they are rate-limited: within the interval
+  // the request is queued for the earliest allowed time, not dropped.
+  const requestFullRescan = (): void => {
+    if (closed) return;
+    const since = Date.now() - lastFullScanAt;
+    if (since >= minFullRescanIntervalMs) {
+      pending.add('*');
+      bumpDebounce();
+      return;
+    }
+    if (fullRescanTimer) return;
+    fullRescanTimer = setTimeout(() => {
+      fullRescanTimer = undefined;
+      if (closed) return;
+      pending.add('*');
+      bumpDebounce();
+    }, minFullRescanIntervalMs - since);
+    if (typeof fullRescanTimer.unref === 'function') fullRescanTimer.unref();
+  };
+
+  const schedule = (filename: string | Buffer | null): void => {
+    if (closed) return;
+    if (filename === null) {
+      requestFullRescan();
+      return;
+    }
+    const relative = normalizeRelative(String(filename));
+    if (!relative || isExcluded(relative, excluded)) return;
+    pending.add(relative);
+    bumpDebounce();
+  };
+
   const reconcile = async (changedPaths: string[]): Promise<void> => {
-    const fullScan = changedPaths.includes('*')
-      ? await scanProject(root, excluded, maxHashBytes, options.onError)
+    const wantsFullScan = changedPaths.includes('*');
+    if (wantsFullScan) lastFullScanAt = Date.now();
+    const fullScan = wantsFullScan
+      ? await scanProject(root, excluded, maxHashBytes, options.onError, known)
       : undefined;
     const candidates = fullScan ? unionKeys(known, fullScan.files) : changedPaths;
     const changes: Array<{
@@ -223,16 +263,15 @@ export async function startChronicleFileObserver(
     return drain;
   };
 
-  let watcher: fs.FSWatcher;
+  let watcher: ProjectWatchSubscription;
   try {
-    watcher = fs.watch(root, { recursive: true, persistent: false }, (_eventType, filename) =>
-      schedule(filename),
-    );
+    watcher = watchProjectTree(root, (event) => schedule(event.filename), {
+      onError: (error) => options.onError?.(error),
+    });
   } catch (error) {
     options.onError?.(error);
     throw error;
   }
-  watcher.on('error', (error) => options.onError?.(error));
 
   return {
     get watchedFiles() {
@@ -246,6 +285,10 @@ export async function startChronicleFileObserver(
       if (timer) {
         clearTimeout(timer);
         timer = undefined;
+      }
+      if (fullRescanTimer) {
+        clearTimeout(fullRescanTimer);
+        fullRescanTimer = undefined;
       }
       if (pending.size > 0) drainPending();
       await flushTail;
@@ -316,6 +359,7 @@ async function scanProject(
   excluded: ReadonlySet<string>,
   maxHashBytes: number,
   onError?: ((error: unknown) => void) | undefined,
+  previous?: ReadonlyMap<string, FileFingerprint> | undefined,
 ): Promise<{ files: Map<string, FileFingerprint>; complete: boolean }> {
   const result = new Map<string, FileFingerprint>();
   const dirs = [''];
@@ -338,7 +382,11 @@ async function scanProject(
         SCAN_HASH_CONCURRENCY,
         async (relative): Promise<[string, FileFingerprint] | null> => {
           try {
-            const value = await fingerprint(path.join(root, relative), maxHashBytes);
+            const value = await fingerprint(
+              path.join(root, relative),
+              maxHashBytes,
+              previous?.get(relative),
+            );
             return value ? [relative, value] : null;
           } catch (error) {
             complete = false;
@@ -361,11 +409,18 @@ async function scanProject(
 async function fingerprint(
   filePath: string,
   maxHashBytes: number,
+  previous?: FileFingerprint | undefined,
 ): Promise<FileFingerprint | undefined> {
   try {
     const stat = await fsp.stat(filePath);
     if (!stat.isFile()) return undefined;
     const base: FileFingerprint = { size: stat.size, mtimeMs: stat.mtimeMs };
+    // Unchanged size+mtime → reuse the known content hash instead of
+    // re-reading the file. Full rescans over a quiet tree become stat-only.
+    if (previous?.hash !== undefined && previous.size === stat.size && previous.mtimeMs === stat.mtimeMs) {
+      base.hash = previous.hash;
+      return base;
+    }
     if (stat.size <= maxHashBytes) {
       base.hash = createHash('sha256')
         .update(await fsp.readFile(filePath))

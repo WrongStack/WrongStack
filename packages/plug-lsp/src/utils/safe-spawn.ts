@@ -1,11 +1,10 @@
 import { type ChildProcessWithoutNullStreams, spawn } from 'node:child_process';
-import type { ServerConfig } from '../types.js';
 import { buildChildEnv } from '@wrongstack/core/utils';
+import type { ServerConfig } from '../types.js';
 
 export function safeSpawn(cfg: ServerConfig, cwd: string): ChildProcessWithoutNullStreams {
-  /* v8 ignore next -- platform-specific branch differs between Windows and POSIX. */
-  const shell = process.platform === 'win32' && /\.(cmd|bat)$/i.test(cfg.command);
-  return spawn(cfg.command, cfg.args ?? [], {
+  const shell = shouldUseShell(cfg.command, process.platform);
+  return spawn(cfg.command, serverArgs(cfg.args), {
     cwd,
     env: buildChildEnv({ extra: cfg.env }),
     stdio: ['pipe', 'pipe', 'pipe'],
@@ -13,3 +12,14 @@ export function safeSpawn(cfg: ServerConfig, cwd: string): ChildProcessWithoutNu
     windowsHide: true,
   });
 }
+
+function shouldUseShell(command: string, platform: NodeJS.Platform): boolean {
+  return platform === 'win32' && /\.(cmd|bat)$/i.test(command);
+}
+
+function serverArgs(args: string[] | undefined): string[] {
+  return args ?? [];
+}
+
+/** Direct-module test seam; not re-exported by the package barrel. */
+export const safeSpawnCoverage = { serverArgs, shouldUseShell };

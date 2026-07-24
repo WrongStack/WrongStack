@@ -1,17 +1,17 @@
 import type { Tool } from '@wrongstack/core/types';
+import { LSP_CONSTANTS } from '../constants.js';
 import { formatLocations } from '../formatters/location.js';
 import { humanToLSP } from '../position.js';
 import { supportsDefinition } from '../server/capabilities.js';
 import { LSPError, LSPErrorCode } from '../types.js';
 import { pathToUri } from '../utils/uri.js';
 import {
-  type ToolDeps,
   readDocumentContent,
   requireServer,
   resolveInputPath,
   stringifyToolError,
+  type ToolDeps,
 } from './shared.js';
-import { LSP_CONSTANTS } from '../constants.js';
 
 interface PositionInput {
   path: string;

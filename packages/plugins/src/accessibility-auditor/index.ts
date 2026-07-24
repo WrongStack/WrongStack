@@ -262,21 +262,38 @@ async function auditFile(filePath: string, projectRoot: string): Promise<A11yFin
 async function auditPath(
   rawPath: string,
   cfg: AccessibilityAuditorConfig,
-): Promise<{ path: string; findings: A11yFinding[]; fileCount: number }> {
+): Promise<{
+  path: string;
+  findings: A11yFinding[];
+  fileCount: number;
+  /** Files actually opened. Lower than `fileCount` when the cap was hit. */
+  scannedFiles: number;
+  /** True when `maxFindings` stopped the walk before every file was read. */
+  truncated: boolean;
+}> {
   const root = process.cwd();
   const resolved = isAbsolute(rawPath) ? resolve(rawPath) : resolve(root, rawPath);
   const exts = normalizeExtensions(cfg.includeExtensions);
   const files = await collectSourceFilesAsync(resolved, { extensions: exts });
   const findings: A11yFinding[] = [];
+  let scannedFiles = 0;
+  let truncated = false;
   for (const file of files) {
     const fileFindings = await auditFile(file, root);
+    scannedFiles += 1;
     findings.push(...fileFindings);
-    if (findings.length >= cfg.maxFindings) break;
+    if (findings.length >= cfg.maxFindings) {
+      // Only a real truncation if files remain unexamined.
+      truncated = scannedFiles < files.length;
+      break;
+    }
   }
   return {
     path: relative(root, resolved),
     findings: findings.slice(0, cfg.maxFindings),
     fileCount: files.length,
+    scannedFiles,
+    truncated,
   };
 }
 
@@ -435,6 +452,10 @@ const plugin: Plugin = {
           ok: true,
           path: result.path,
           fileCount: result.fileCount,
+          scannedFiles: result.scannedFiles,
+          // Say so when the cap stopped the walk early: a partial scan
+          // that reports few findings must not read as a clean result.
+          truncated: result.truncated,
           findingCount: result.findings.length,
           findings: result.findings,
         };

@@ -67,13 +67,30 @@ export class VerifierRegistry {
 
     const plugin = this.resolve(effectiveType);
     if (!plugin) {
+      // Checks without a plugin (manual/review/...) carry a human-set status
+      // that the verifier must respect, not overwrite: an explicitly passed or
+      // failed manual check flows through as-is; anything unresolved is
+      // 'skipped' so the report stays honest about what was actually verified.
+      const passThrough =
+        check.status === 'passed' ? ('passed' as const)
+        : check.status === 'failed' ? ('failed' as const)
+        : ('skipped' as const);
       return {
         checkId: check.id,
         description: check.description,
         type: check.type,
-        status: 'skipped',
-        evidence: {},
-        error: `No verifier plugin registered for check type "${check.type}".`,
+        status: passThrough,
+        evidence:
+          passThrough === 'skipped'
+            ? {}
+            : {
+                manual: true,
+                ...(check.checkedBy !== undefined ? { checkedBy: check.checkedBy } : {}),
+                ...(check.checkedAt !== undefined ? { checkedAt: check.checkedAt } : {}),
+              },
+        ...(passThrough === 'skipped'
+          ? { error: `No verifier plugin registered for check type "${check.type}".` }
+          : {}),
       };
     }
 

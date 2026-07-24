@@ -278,4 +278,110 @@ describe('runtime host composition', () => {
     ).rejects.toThrow('third-boom');
     expect(order).toEqual(['first-setup', 'second-setup', 'second-teardown', 'first-teardown']);
   });
+
+  it('rolls back every resource registered by the pack whose setup fails', async () => {
+    const host = hostParts();
+    const pack: WrongStackPack = {
+      name: 'transactional',
+      tools: [noopTool],
+      providers: [{ type: 'noop', family: 'openai-compatible', create: () => noopProvider }],
+      slashCommands: [
+        {
+          name: 'hello',
+          description: 'Hello',
+          async run() {
+            return { message: 'hello' };
+          },
+        },
+      ],
+      extensions: [{ name: 'transactional-extension' }],
+      setup() {
+        throw new Error('setup failed');
+      },
+    };
+
+    await expect(applyWrongStackPack(host, pack, { api: {} as never })).rejects.toThrow(
+      'setup failed',
+    );
+    expect(host.tools.get('noop')).toBeUndefined();
+    expect(host.providers.has('noop')).toBe(false);
+    expect(host.slashCommands.get('transactional:hello')).toBeUndefined();
+    expect(host.extensions.list()).toEqual([]);
+  });
+
+  it('requires PluginAPI only when a declared teardown actually runs', async () => {
+    const applied = await applyWrongStackPack(hostParts(), {
+      name: 'teardown-api',
+      teardown() {},
+    });
+
+    await expect(applied.teardown()).rejects.toThrow('no PluginAPI');
+  });
+
+  it('stringifies a non-Error rollback teardown failure', async () => {
+    const host = hostParts();
+    const warnings: string[] = [];
+    const originalEmit = process.emitWarning;
+    process.emitWarning = ((message: string) => {
+      warnings.push(String(message));
+    }) as typeof process.emitWarning;
+    try {
+      await expect(
+        applyWrongStackPacks(
+          host,
+          [
+            {
+              name: 'string-failure',
+              teardown() {
+                throw 'plain teardown failure';
+              },
+            },
+            {
+              name: 'breaker',
+              setup() {
+                throw new Error('break');
+              },
+            },
+          ],
+          { api: {} as never },
+        ),
+      ).rejects.toThrow('break');
+    } finally {
+      process.emitWarning = originalEmit;
+    }
+    expect(warnings).toContainEqual(expect.stringContaining('plain teardown failure'));
+  });
+
+  it('registers core slash commands without an owner prefix', async () => {
+    const host = hostParts();
+    const applied = await applyWrongStackPack(
+      host,
+      {
+        name: 'core-pack',
+        slashCommands: [
+          {
+            name: 'core-command',
+            description: 'Core',
+            async run() {
+              return { message: 'core' };
+            },
+          },
+        ],
+      },
+      { owner: 'core' },
+    );
+
+    expect(host.slashCommands.get('core-command')).toBeDefined();
+    await applied.teardown();
+    expect(host.slashCommands.get('core-command')).toBeUndefined();
+  });
+
+  it('returns every successfully applied pack', async () => {
+    const applied = await applyWrongStackPacks(hostParts(), [
+      { name: 'first-success' },
+      { name: 'second-success' },
+    ]);
+
+    expect(applied.map((entry) => entry.owner)).toEqual(['first-success', 'second-success']);
+  });
 });

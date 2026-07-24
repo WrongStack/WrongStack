@@ -72,7 +72,9 @@ export interface AcpBenchOptions {
   /** Cancellation. Aborts the in-flight agent and skips the rest. */
   signal?: AbortSignal | undefined;
   /** Live per-agent status callback for the UI. */
-  onProgress?: ((agentId: string, phase: 'start' | 'done', result?: AcpBenchAgentResult) => void) | undefined;
+  onProgress?:
+    | ((agentId: string, phase: 'start' | 'done', result?: AcpBenchAgentResult) => void)
+    | undefined;
   /** Marker token override (tests). Default is a random per-run token. */
   marker?: string | undefined;
   /** Clock injection (tests). Defaults to `Date.now`. */
@@ -80,7 +82,11 @@ export interface AcpBenchOptions {
 }
 
 function firstLine(s: string): string {
-  const line = s.split('\n').map((l) => l.trim()).find((l) => l.length > 0) ?? '';
+  const line =
+    s
+      .split('\n')
+      .map((l) => l.trim())
+      .find((l) => l.length > 0) ?? '';
   return line.length > 120 ? `${line.slice(0, 117)}…` : line;
 }
 
@@ -185,11 +191,12 @@ async function benchOne(
           signal,
         );
         fsOk = fsRes.text.includes(fileToken);
-        if (!fsOk) fsDetail = 'agent did not return the file contents (may not have used a read tool)';
+        if (!fsOk)
+          fsDetail = 'agent did not return the file contents (may not have used a read tool)';
       } catch (err) {
         fsDetail = err instanceof Error ? err.message : String(err);
       } finally {
-        await fsp.rm(filePath, { force: true }).catch(() => {});
+        await removeBenchFile(filePath);
       }
       checks.push({ name: 'fs', ok: fsOk, detail: fsDetail });
     }
@@ -207,8 +214,9 @@ async function benchOne(
   // Grade: required = handshake + prompt + marker (+ fs when requested).
   const required = checks.filter((c) => c.name !== 'fs' || opts.checkFs);
   const allReq = required.every((c) => c.ok);
-  const handshakeOk = checks.find((c) => c.name === 'handshake')?.ok === true;
-  const status: AcpBenchStatus = allReq ? 'pass' : handshakeOk ? 'partial' : 'fail';
+  // A handshake failure returns above, so every result graded here has a
+  // successful handshake and can only be pass or partial.
+  const status: AcpBenchStatus = allReq ? 'pass' : 'partial';
 
   return {
     agentId,
@@ -315,14 +323,14 @@ export function renderAcpBenchText(result: AcpBenchResult): string {
     return lines.join('\n');
   }
   for (const r of result.results) {
-    const checks = r.checks
-      .map((c) => `${c.ok ? '✓' : '✗'}${c.name}`)
-      .join(' ');
+    const checks = r.checks.map((c) => `${c.ok ? '✓' : '✗'}${c.name}`).join(' ');
     const timing =
       r.handshakeMs !== undefined
         ? `  hs=${r.handshakeMs}ms${r.promptMs !== undefined ? ` prompt=${r.promptMs}ms` : ''}`
         : '';
-    lines.push(`  ${icon(r.status)} ${r.agentId.padEnd(16)} ${r.status.toUpperCase().padEnd(7)} ${checks}${timing}`);
+    lines.push(
+      `  ${icon(r.status)} ${r.agentId.padEnd(16)} ${r.status.toUpperCase().padEnd(7)} ${checks}${timing}`,
+    );
     if (r.agentInfo) lines.push(`      agent: ${r.agentInfo.name} ${r.agentInfo.version}`);
     if (r.sample) lines.push(`      reply: ${r.sample}`);
     if (r.reason) lines.push(`      reason: ${r.reason}`);
@@ -334,3 +342,10 @@ export function renderAcpBenchText(result: AcpBenchResult): string {
   );
   return lines.join('\n');
 }
+
+async function removeBenchFile(filePath: string, remove: typeof fsp.rm = fsp.rm): Promise<void> {
+  await remove(filePath, { force: true }).catch(() => undefined);
+}
+
+/** Direct-module test seam; not re-exported by the package barrel. */
+export const acpBenchCoverage = { firstLine, randomMarker, removeBenchFile };

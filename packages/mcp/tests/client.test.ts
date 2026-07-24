@@ -576,7 +576,9 @@ describe('MCPClient', () => {
       // via connect()). But we need to replace stdin with a throwing one.
       // Directly set child to a mock process with a throwing stdin.write.
       const mockStdin = {
-        write: () => { throw new Error('EPIPE broken pipe'); },
+        write: () => {
+          throw new Error('EPIPE broken pipe');
+        },
         on: () => {},
         removeListener: () => {},
       };
@@ -631,8 +633,16 @@ describe('MCPClient', () => {
         kill: () => {},
       };
       const cAny = c as never as Record<string, unknown>;
-      Object.defineProperty(cAny, 'child', { value: mockChild, writable: true, configurable: true });
-      Object.defineProperty(cAny, '_drainPending', { value: false, writable: true, configurable: true });
+      Object.defineProperty(cAny, 'child', {
+        value: mockChild,
+        writable: true,
+        configurable: true,
+      });
+      Object.defineProperty(cAny, '_drainPending', {
+        value: false,
+        writable: true,
+        configurable: true,
+      });
       const request = (
         c as never as {
           request: (
@@ -727,7 +737,10 @@ describe('MCPClient', () => {
       });
       // Set _drainPending = false so write() is called; write returns false to trigger
       // the drain-wait path, but stdin.once never fires 'drain' so the timeout fires.
-      Object.defineProperty(c as never as Record<string, unknown>, '_drainPending', { value: false, configurable: true });
+      Object.defineProperty(c as never as Record<string, unknown>, '_drainPending', {
+        value: false,
+        configurable: true,
+      });
       const cAny = c as never as Record<string, unknown>;
       Object.defineProperty(cAny, 'child', {
         value: {
@@ -778,9 +791,10 @@ describe('MCPClient', () => {
         configurable: true,
       });
       Object.defineProperty(cAny, '_drainPending', { value: false, configurable: true });
-      const promise = (
-        c as never as { notify: (m: string, p: unknown) => Promise<void> }
-      ).notify('test', {});
+      const promise = (c as never as { notify: (m: string, p: unknown) => Promise<void> }).notify(
+        'test',
+        {},
+      );
       errorHandler?.(new Error('stdin error event'));
       await expect(promise).rejects.toThrow(/stdin error event/);
     });
@@ -813,10 +827,7 @@ describe('MCPClient', () => {
       Object.defineProperty(cAny, '_drainPending', { value: false, configurable: true });
       // First call hits backpressure, second throws
       await expect(
-        (c as never as { notify: (m: string, p: unknown) => Promise<void> }).notify(
-          'test',
-          {},
-        ),
+        (c as never as { notify: (m: string, p: unknown) => Promise<void> }).notify('test', {}),
       ).rejects.toThrow(/notify.*failed/);
     });
   });

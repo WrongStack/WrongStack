@@ -23,6 +23,9 @@ import * as HqServerAuth from './auth.js';
 import * as HqServerSnapshot from './snapshot.js';
 import * as HqServerUtils from './utils.js';
 import { authorizeHqCommand } from './trust-boundary.js';
+import {
+  handleApiSystemHealth,
+} from './routes/system-handlers.js';
 
 // ── Re-exports for hq-server.ts backward compat ────────────────────────────
 
@@ -128,6 +131,7 @@ export function createHqRouter(deps: HqRouterDeps): (req: http.IncomingMessage, 
     loginAttempts,
     clients,
     browsers,
+    eventLog,
     transcripts,
     agentMessages,
     alertEngine,
@@ -228,6 +232,11 @@ export function createHqRouter(deps: HqRouterDeps): (req: http.IncomingMessage, 
 
       if (url.pathname === '/api/system/update' && req.method === 'GET') {
         await handleApiSystemUpdate(res);
+        return;
+      }
+
+      if (url.pathname === '/api/system/health' && req.method === 'GET') {
+        await handleApiSystemHealth(res, clients, persistence, eventLog);
         return;
       }
 

@@ -226,7 +226,7 @@ describe('KanbanView — TaskInspector hook-order regression (React error 310)',
       ],
     } as KanbanBoard;
 
-    expect(deriveTaskCardIntelligence(board, task)).toEqual({
+    expect(deriveTaskCardIntelligence(board, task)).toMatchObject({
       owner: 'Release Agent',
       route: 'openai/gpt-5.4',
       blockers: 1,

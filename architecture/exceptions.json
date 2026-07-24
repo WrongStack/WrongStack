@@ -22,6 +22,7 @@
         "packages/cli/src/acp-server-agent.ts",
         "packages/cli/src/hq-server.ts",
         "packages/cli/src/hq-server/routes.ts",
+        "packages/cli/src/hq-server/routes/system-handlers.ts",
         "packages/cli/src/mcp-serve.ts",
         "packages/cli/src/subcommands/handlers/acp.ts",
         "packages/cli/src/subcommands/handlers/audit.ts",
@@ -49,7 +50,7 @@
         "packages/cli/src/subcommands/index.ts"
       ],
       "owner": "architecture-refactor",
-      "reason": "Pre-existing type-level module SCC captured by the 2026-07-21 G1 baseline; no new members are allowed.",
+      "reason": "Pre-existing type-level module SCC captured by the 2026-07-21 G1 baseline; membership updated 2026-07-24 to include routes/system-handlers.ts (routes.ts grew a routes/system-handlers.ts submodule). No further new members are allowed.",
       "introduced": "2026-07-21",
       "reviewBy": "2026-09-15",
       "removeWhen": "CLI phase and subcommand contracts are leaf modules with one-way dependencies.",
@@ -247,6 +248,20 @@
       "reviewBy": "2026-09-15",
       "removeWhen": "Tech-stack adapter contracts and path helpers have one-way type dependencies.",
       "canonicalTask": "G1"
+    },
+    {
+      "id": "ARCH-CYCLE-TYPE-25",
+      "kind": "type-module-cycle",
+      "members": [
+        "packages/sdd/src/graph-split.ts",
+        "packages/sdd/src/sdd-parallel-run.ts"
+      ],
+      "owner": "architecture-refactor",
+      "reason": "Type-level SCC: graph-split.ts imports SddSubtaskSpec (type-only) from sdd-parallel-run.ts; sdd-parallel-run.ts imports splitGraphNode (runtime) from graph-split.ts. Runtime direction is one-way; the type edge creates the cycle.",
+      "introduced": "2026-07-24",
+      "reviewBy": "2026-09-15",
+      "removeWhen": "SddSubtaskSpec is moved to a shared types module so both files import from a common contract.",
+      "canonicalTask": "S1"
     }
   ]
 }

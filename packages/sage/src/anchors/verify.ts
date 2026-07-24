@@ -75,7 +75,7 @@ async function verifyAnchor(
     return { anchor, status: 'stale', reason: 'Anchored path no longer exists.' };
   }
 
-  const realRoot = await fs.realpath(projectRoot).catch(() => path.resolve(projectRoot));
+  const realRoot = await resolveRealRoot(projectRoot);
   if (!isInside(realRoot, realPath)) {
     return {
       anchor,
@@ -168,3 +168,16 @@ function isInside(root: string, target: string): boolean {
   const relative = path.relative(path.resolve(root), target);
   return relative === '' || (!relative.startsWith('..') && !path.isAbsolute(relative));
 }
+
+async function resolveRealRoot(projectRoot: string): Promise<string> {
+  return fs.realpath(projectRoot).catch(() => path.resolve(projectRoot));
+}
+
+/** Direct-module test seam; intentionally not re-exported by the package barrel. */
+export const anchorVerificationCoverage = {
+  verifyAnchor,
+  containsSymbol,
+  aggregateStatus,
+  isInside,
+  resolveRealRoot,
+};

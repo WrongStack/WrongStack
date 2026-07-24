@@ -96,9 +96,9 @@ describe('verifyClient (WebSocket auth)', () => {
     ).toBe(true);
   });
 
-  it('denies a LAN non-browser client on a public (0.0.0.0) bind, even with a token', () => {
-    // The 0.0.0.0 branch denies a non-loopback peer outright — a token does not
-    // rescue it. Documents the stricter-than-it-looks policy.
+  it('requires a token for a LAN non-browser client on a public (0.0.0.0) bind', () => {
+    // Public binds reject tokenless LAN peers, while a valid operator token
+    // authenticates scripts and automation running elsewhere on the LAN.
     expect(
       verifyClient({
         url: '/',
@@ -114,7 +114,7 @@ describe('verifyClient (WebSocket auth)', () => {
         wsHost: '0.0.0.0',
         expectedToken: TOKEN,
       }),
-    ).toBe(false);
+    ).toBe(true);
   });
 
   it('allows a loopback-peer non-browser client on a public bind only with a token', () => {
@@ -246,12 +246,11 @@ describe('isWildcardBind (IPv4 + IPv6 wildcard parity)', () => {
 });
 
 describe('verifyClient — IPv6 wildcard (::) bind parity with 0.0.0.0', () => {
-  // Regression for the LAN-deny guard that previously string-matched only
-  // '0.0.0.0', letting a `::` (all-IPv6-interfaces) bind skip the deny.
-  it('denies a non-loopback peer (no origin) on a :: bind, even with a token', () => {
+  // IPv6 wildcard binds enforce the same token policy as IPv4 wildcard binds.
+  it('requires a token for a non-loopback peer (no origin) on a :: bind', () => {
     const base = { remoteAddress: 'fd00::1234', wsHost: '::', expectedToken: TOKEN } as const;
     expect(verifyClient({ url: '/', ...base })).toBe(false);
-    expect(verifyClient({ url: `/?token=${TOKEN}`, ...base })).toBe(false);
+    expect(verifyClient({ url: `/?token=${TOKEN}`, ...base })).toBe(true);
   });
 
   it('still admits a loopback peer on a :: bind with the correct token', () => {
@@ -462,10 +461,9 @@ describe('verifyClient — cookie auth (C-2 path)', () => {
     ).toBe(true);
   });
 
-  it('denies a LAN peer on a public bind, even with a valid cookie', () => {
-    // A non-loopback peer (e.g. 192.168.1.20) on a 0.0.0.0 bind is
-    // denied outright regardless of token source — the LAN exposure
-    // policy. Token in URL or cookie does not bypass.
+  it('allows a LAN non-browser peer on a public bind with a valid cookie', () => {
+    // Non-browser automation may authenticate with either supported token
+    // source; browser-origin requests still follow the stricter cookie path.
     expect(
       verifyClient({
         url: '/',
@@ -475,7 +473,7 @@ describe('verifyClient — cookie auth (C-2 path)', () => {
         expectedToken: TOKEN,
         cookieHeader: `ws_token=${TOKEN}`,
       }),
-    ).toBe(false);
+    ).toBe(true);
   });
 });
 

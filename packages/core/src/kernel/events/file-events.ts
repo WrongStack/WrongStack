@@ -61,4 +61,13 @@ export interface FileEventMap {
     /** Bytes transferred */
     bytes?: number | undefined;
   };
+  /**
+   * Codebase index finished a run (startup or incremental). WebUI clears
+   * CodeMap graph caches and may force-refresh the open atlas scope.
+   */
+  'codemap.index_updated': {
+    at: number;
+    ready: boolean;
+    reason: 'index_complete';
+  };
 }

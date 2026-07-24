@@ -390,10 +390,36 @@ const plugin: Plugin = {
           try { await access(p); changed.push(p); } catch { /* absent */ }
         }
       } else {
+        // Two-phase: parse and re-serialise EVERY manifest before writing
+        // any of them. The previous single loop wrote as it went, so a
+        // malformed or unreadable package.json partway through left the
+        // repo half-bumped — some packages on the new version, some on the
+        // old, and no record of which. A version bump has to be all or
+        // nothing; the parse step is where it can still be abandoned safely.
+        const pending: { path: string; contents: string }[] = [];
         for (const manifest of changed) {
-          const pkgData = JSON.parse(await readFile(manifest, 'utf-8'));
+          let pkgData: { version?: string };
+          try {
+            pkgData = JSON.parse(await readFile(manifest, 'utf-8')) as { version?: string };
+          } catch (err: unknown) {
+            return {
+              ok: false,
+              error:
+                `cannot bump: ${manifest} is not readable as JSON (${toErrorMessage(err)}). ` +
+                'No manifests were modified.',
+            };
+          }
+          if (!pkgData || typeof pkgData !== 'object') {
+            return {
+              ok: false,
+              error: `cannot bump: ${manifest} does not contain a JSON object. No manifests were modified.`,
+            };
+          }
           pkgData.version = newVersion;
-          await writeFile(manifest, JSON.stringify(pkgData, null, 2) + '\n', 'utf-8');
+          pending.push({ path: manifest, contents: `${JSON.stringify(pkgData, null, 2)}\n` });
+        }
+        for (const { path, contents } of pending) {
+          await writeFile(path, contents, 'utf-8');
         }
       }
 

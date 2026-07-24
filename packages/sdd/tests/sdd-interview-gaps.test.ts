@@ -1,9 +1,9 @@
-import { describe, expect, it } from 'vitest';
-import * as path from 'node:path';
 import * as os from 'node:os';
+import * as path from 'node:path';
+import { describe, expect, it } from 'vitest';
+import { isExplanatoryText, SddInterviewDriver } from '../src/sdd-interview-driver.js';
 import { SpecStore } from '../src/spec-store.js';
 import { TaskGraphStore } from '../src/task-graph-store.js';
-import { SddInterviewDriver, isExplanatoryText } from '../src/sdd-interview-driver.js';
 
 function tmp(prefix: string): string {
   return path.join(os.tmpdir(), `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2)}`);
@@ -30,8 +30,20 @@ const SPEC_OUTPUT = [
     overview: 'Add OAuth-based login with session management.',
     sections: [{ type: 'overview', title: 'Overview', content: 'OAuth login flow', level: 1 }],
     requirements: [
-      { id: 'REQ-1', type: 'security', priority: 'critical', description: 'Verify OAuth tokens', acceptanceCriteria: ['tokens validated'] },
-      { id: 'REQ-2', type: 'functional', priority: 'high', description: 'Persist sessions', acceptanceCriteria: [] },
+      {
+        id: 'REQ-1',
+        type: 'security',
+        priority: 'critical',
+        description: 'Verify OAuth tokens',
+        acceptanceCriteria: ['tokens validated'],
+      },
+      {
+        id: 'REQ-2',
+        type: 'functional',
+        priority: 'high',
+        description: 'Persist sessions',
+        acceptanceCriteria: [],
+      },
     ],
   }),
   '```',
@@ -59,8 +71,16 @@ describe('SddInterviewDriver — gap coverage', () => {
     });
 
     it('returns false for structured plan text', () => {
-      expect(isExplanatoryText('Step 1: Create the auth middleware.\nStep 2: Add tests.\nStep 3: Deploy.')).toBe(false);
-      expect(isExplanatoryText('The implementation plan involves creating a middleware layer that intercepts requests.')).toBe(false);
+      expect(
+        isExplanatoryText(
+          'Step 1: Create the auth middleware.\nStep 2: Add tests.\nStep 3: Deploy.',
+        ),
+      ).toBe(false);
+      expect(
+        isExplanatoryText(
+          'The implementation plan involves creating a middleware layer that intercepts requests.',
+        ),
+      ).toBe(false);
     });
   });
 
@@ -76,7 +96,9 @@ describe('SddInterviewDriver — gap coverage', () => {
         'We will build a middleware layer that handles JWT verification and session persistence.',
         'The middleware sits between the router and the controller, validating tokens on each request.',
         '```json',
-        JSON.stringify([{ title: 'Create middleware', description: 'JWT', type: 'feature', priority: 'high' }]),
+        JSON.stringify([
+          { title: 'Create middleware', description: 'JWT', type: 'feature', priority: 'high' },
+        ]),
         '```',
       ].join('\n');
       const res = await driver.ingestAgentOutput(implText);
@@ -102,7 +124,9 @@ describe('SddInterviewDriver — gap coverage', () => {
       driver.start('Feature');
       await driver.ingestAgentOutput(SPEC_OUTPUT);
       await driver.approve(); // → implementation
-      const res = await driver.ingestAgentOutput("I'll start working on this now. Let me check the code.");
+      const res = await driver.ingestAgentOutput(
+        "I'll start working on this now. Let me check the code.",
+      );
       expect(res.implementationDetected).toBe(false);
     });
 
@@ -204,6 +228,44 @@ describe('SddInterviewDriver — gap coverage', () => {
         '```json\n' + JSON.stringify([{ title: '', description: 'bad' }]) + '\n```',
       );
       expect(res.tasksDetected).toBe(false);
+    });
+
+    it('ignores syntactically invalid task arrays', async () => {
+      const { driver } = makeDriver();
+      driver.start('OAuth');
+      await driver.ingestAgentOutput(SPEC_OUTPUT);
+      expect(driver.currentPrompt()).toBeTypeOf('string');
+      const res = await driver.ingestAgentOutput('```json\n[invalid]\n```');
+      expect(res.tasksDetected).toBe(false);
+    });
+
+    it('normalizes missing and unknown task fields and ignores stale dependencies', async () => {
+      const { driver } = makeDriver();
+      driver.start('OAuth');
+      await driver.ingestAgentOutput(SPEC_OUTPUT);
+      const res = await driver.ingestAgentOutput(
+        `\`\`\`json
+${JSON.stringify([
+  {
+    id: 'odd',
+    title: 'Odd task',
+    type: 'unknown',
+    priority: 'urgent',
+    estimateHours: 0,
+    tags: ['one', 2],
+    dependsOn: ['missing', 'odd'],
+  },
+])}
+\`\`\``,
+      );
+      expect(res.tasksDetected).toBe(true);
+      expect(driver.getTracker()?.getAllNodes()[0]).toMatchObject({
+        description: '',
+        type: 'feature',
+        priority: 'medium',
+        estimateHours: 2,
+        tags: ['one', '2'],
+      });
     });
 
     it('does not re-detect the spec once already set', async () => {

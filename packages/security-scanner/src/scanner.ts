@@ -103,7 +103,7 @@ export class SecurityScanner {
           findings.push(...result.value);
           scannedFiles++;
         } else {
-          errors.push(`Failed to read ${batch[batchIndex] ?? 'unknown file'}: ${result.reason}`);
+          errors.push(`Failed to read ${batch[batchIndex]!}: ${result.reason}`);
         }
       });
     }

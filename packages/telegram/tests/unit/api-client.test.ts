@@ -1,13 +1,13 @@
 import { describe, expect, it, vi } from 'vitest';
 import {
+  abortableSleep,
   buildTelegramBotApiBaseUrl,
+  classifyRetry,
   TelegramApiClient,
   TelegramBotApiError,
   TelegramHttpError,
   TelegramNetworkError,
   TelegramResponseParseError,
-  abortableSleep,
-  classifyRetry,
 } from '../../src/api-client.js';
 
 const TOKEN = '123456:super-secret-token';
@@ -21,6 +21,22 @@ function jsonResponse(body: unknown, init?: ResponseInit): Response {
 }
 
 describe('TelegramApiClient', () => {
+  it('uses global fetch when no override is provided', async () => {
+    const original = globalThis.fetch;
+    globalThis.fetch = vi
+      .fn()
+      .mockResolvedValue(
+        jsonResponse({ ok: true, result: { id: 1, is_bot: true, first_name: 'Bot' } }),
+      );
+    try {
+      await expect(new TelegramApiClient({ token: TOKEN }).getMe()).resolves.toMatchObject({
+        id: 1,
+      });
+    } finally {
+      globalThis.fetch = original;
+    }
+  });
+
   it('builds one canonical Bot API base URL and exposes only its redacted form', () => {
     expect(buildTelegramBotApiBaseUrl(TOKEN, 'https://telegram.test///')).toBe(
       `https://telegram.test/bot${TOKEN}`,
@@ -71,6 +87,51 @@ describe('TelegramApiClient', () => {
     });
   });
 
+  it('adds parse mode, keyboard payloads, callback answers, and composed signals', async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(jsonResponse({ ok: true, result: { message_id: 1 } }))
+      .mockResolvedValueOnce(jsonResponse({ ok: true, result: { message_id: 2 } }))
+      .mockResolvedValueOnce(jsonResponse({ ok: true, result: true }))
+      .mockResolvedValueOnce(jsonResponse({ ok: true, result: [] }))
+      .mockResolvedValueOnce(jsonResponse({ ok: true, result: [] }));
+    const client = new TelegramApiClient({ token: TOKEN, fetch: fetchMock });
+    const controller = new AbortController();
+
+    await client.sendMessage(1, 'formatted', { parseMode: 'HTML', signal: controller.signal });
+    await client.sendMessageWithKeyboard(1, 'choose', [{ text: 'Yes', callback_data: 'yes' }], {
+      parseMode: 'MarkdownV2',
+      signal: controller.signal,
+    });
+    await client.answerCallbackQuery('callback', 'done', false, { signal: controller.signal });
+    await client.getUpdates({
+      offset: 0,
+      timeoutSeconds: 1,
+      signal: controller.signal,
+      deadlineMs: 1_000,
+    });
+    await client.getUpdates({ offset: 0, timeoutSeconds: 1, deadlineMs: 1_000 });
+
+    expect(JSON.parse(String(fetchMock.mock.calls[0]?.[1]?.body))).toMatchObject({
+      parse_mode: 'HTML',
+    });
+    expect(JSON.parse(String(fetchMock.mock.calls[1]?.[1]?.body))).toMatchObject({
+      parse_mode: 'MarkdownV2',
+      reply_markup: { inline_keyboard: [[{ text: 'Yes', callback_data: 'yes' }]] },
+    });
+    expect(JSON.parse(String(fetchMock.mock.calls[2]?.[1]?.body))).toMatchObject({
+      callback_query_id: 'callback',
+    });
+    expect(fetchMock.mock.calls[3]?.[1]?.signal).toBeDefined();
+    expect(fetchMock.mock.calls[4]?.[1]?.signal).toBeDefined();
+
+    const plainKeyboard = new TelegramApiClient({
+      token: TOKEN,
+      fetch: vi.fn().mockResolvedValue(jsonResponse({ ok: true, result: { message_id: 3 } })),
+    });
+    await plainKeyboard.sendMessageWithKeyboard(1, 'plain', []);
+  });
+
   it('distinguishes an HTTP failure without exposing the token', async () => {
     const fetchMock = vi
       .fn()
@@ -104,6 +165,39 @@ describe('TelegramApiClient', () => {
       fetch: vi.fn().mockResolvedValue(jsonResponse({ result: {} })),
     });
     await expect(malformedEnvelope.getMe()).rejects.toBeInstanceOf(TelegramResponseParseError);
+  });
+
+  it('classifies malformed and contradictory non-OK envelopes', async () => {
+    const invalidEnvelope = new TelegramApiClient({
+      token: TOKEN,
+      fetch: vi.fn().mockResolvedValue(jsonResponse([], { status: 500 })),
+    });
+    await expect(invalidEnvelope.getMe()).rejects.toBeInstanceOf(TelegramHttpError);
+
+    const contradictory = new TelegramApiClient({
+      token: TOKEN,
+      fetch: vi.fn().mockResolvedValue(jsonResponse({ ok: true, result: {} }, { status: 500 })),
+    });
+    await expect(contradictory.getMe()).rejects.toBeInstanceOf(TelegramHttpError);
+
+    for (const result of [undefined, null]) {
+      const missingResult = new TelegramApiClient({
+        token: TOKEN,
+        fetch: vi.fn().mockResolvedValue(jsonResponse({ ok: true, result })),
+      });
+      await expect(missingResult.getMe()).rejects.toBeInstanceOf(TelegramResponseParseError);
+    }
+  });
+
+  it('uses default API error descriptions and supports unknown error codes', async () => {
+    const client = new TelegramApiClient({
+      token: TOKEN,
+      fetch: vi.fn().mockResolvedValue(jsonResponse({ ok: false })),
+    });
+    const error = await client.getMe().catch((caught: unknown) => caught);
+    expect(error).toBeInstanceOf(TelegramBotApiError);
+    expect((error as TelegramBotApiError).description).toBe('Unknown Bot API error');
+    expect((error as Error).message).toContain('unknown');
   });
 
   it('preserves typed Bot API metadata while redacting its description', async () => {
@@ -163,9 +257,40 @@ describe('TelegramApiClient', () => {
       detail: 'aborted [REDACTED]',
     });
   });
+
+  it('stringifies non-Error network failures', async () => {
+    const client = new TelegramApiClient({
+      token: TOKEN,
+      fetch: vi.fn().mockRejectedValue('offline'),
+    });
+    await expect(client.getMe()).rejects.toMatchObject({ detail: 'offline', aborted: false });
+  });
 });
 
 describe('abortableSleep', () => {
+  it('sleeps without a signal and rejects an already-aborted signal', async () => {
+    vi.useFakeTimers();
+    try {
+      const sleep = abortableSleep(10);
+      await vi.advanceTimersByTimeAsync(10);
+      await expect(sleep).resolves.toBeUndefined();
+    } finally {
+      vi.useRealTimers();
+    }
+    const controller = new AbortController();
+    controller.abort();
+    await expect(abortableSleep(10, controller.signal)).rejects.toMatchObject({
+      name: 'AbortError',
+    });
+  });
+
+  it('cancels an active sleep when its signal aborts', async () => {
+    const controller = new AbortController();
+    const sleep = abortableSleep(10_000, controller.signal);
+    controller.abort();
+    await expect(sleep).rejects.toMatchObject({ name: 'AbortError' });
+  });
+
   it('removes its abort listener after resolving normally', async () => {
     const listeners = new Set<EventListenerOrEventListenerObject>();
     const signal = {
@@ -185,6 +310,27 @@ describe('abortableSleep', () => {
 });
 
 describe('classifyRetry', () => {
+  it('formats errors without optional status text and retries unknown API codes', () => {
+    expect(new TelegramHttpError('getMe', 500).message).toBe(
+      'Telegram HTTP error during getMe: 500',
+    );
+    expect(
+      classifyRetry(new TelegramBotApiError('getMe', { description: 'unknown code' }), 1).retry,
+    ).toBe(true);
+    expect(
+      classifyRetry(
+        new TelegramBotApiError('getMe', { errorCode: 409, description: 'conflict' }),
+        1,
+      ).retry,
+    ).toBe(true);
+    expect(
+      classifyRetry(
+        new TelegramBotApiError('getMe', { errorCode: 300, description: 'redirect' }),
+        1,
+      ).retry,
+    ).toBe(true);
+  });
+
   it('does not retry when attempt >= 3', () => {
     expect(classifyRetry(new Error('any'), 3)).toEqual({ retry: false, delayMs: 0 });
     expect(classifyRetry(new Error('any'), 4)).toEqual({ retry: false, delayMs: 0 });

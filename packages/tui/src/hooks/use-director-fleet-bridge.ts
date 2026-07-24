@@ -311,14 +311,40 @@ export function useDirectorFleetBridge({
           break;
         }
         case 'provider.error': {
+          // Emitted by the INNER provider runner when one model's own retries
+          // are exhausted — the fallback extension may still rescue the turn
+          // by hopping models (a `provider.fallback` event follows if so).
+          // Phrase it as a model failure, not a terminal subagent failure.
           const payload = event.payload as { description?: string | undefined };
           enqueue({
             type: 'addEntry',
             entry: {
               kind: 'error',
-              text: `subagent error${payload?.description ? `: ${payload.description}` : ''}`,
+              text: `subagent model failed${payload?.description ? `: ${payload.description}` : ''}`,
             },
           });
+          break;
+        }
+        case 'provider.fallback': {
+          // The fallback extension hopped this worker to the next model in
+          // its chain. Surface it so a preceding model-failure entry reads as
+          // "recovered", not as a dead worker.
+          const payload = event.payload as {
+            from?: { providerId?: string; model?: string } | undefined;
+            to?: { providerId?: string; model?: string } | undefined;
+          };
+          const from = payload?.from;
+          const to = payload?.to;
+          if (to?.providerId && to.model) {
+            const fromLabel = from?.providerId && from.model ? `${from.providerId}/${from.model} ` : '';
+            enqueue({
+              type: 'addEntry',
+              entry: {
+                kind: 'info',
+                text: `subagent fallback: ${fromLabel}→ ${to.providerId}/${to.model}`,
+              },
+            });
+          }
           break;
         }
         case 'tool.started': {

@@ -102,6 +102,8 @@ export class AgentMonitorService {
    */
   private readonly _writeQueue: Array<{ subagentId: string; line: string; bytes: number }> = [];
   private _writeQueueBytes = 0;
+  /** Transcript dirs already created — avoids a mkdir syscall per append. */
+  private readonly _ensuredDirs = new Set<string>();
   private _writeDrain: Promise<void> | null = null;
   private static readonly _MAX_QUEUED_WRITES = 1_000;
   private static readonly _MAX_QUEUED_WRITE_BYTES = 8 * 1024 * 1024;
@@ -603,9 +605,20 @@ export class AgentMonitorService {
 
   private async _appendToFile(subagentId: string, line: string): Promise<void> {
     const dir = path.join(this._transcriptsDir, subagentId);
-    await fs.mkdir(dir, { recursive: true });
+    // One mkdir per subagent dir, not per append. If the dir is removed
+    // mid-session the append's ENOENT clears the cache entry so the next
+    // append recreates it.
+    if (!this._ensuredDirs.has(dir)) {
+      await fs.mkdir(dir, { recursive: true });
+      this._ensuredDirs.add(dir);
+    }
     const filePath = path.join(dir, 'transcript.jsonl');
-    await fs.appendFile(filePath, line, { encoding: 'utf8' });
+    try {
+      await fs.appendFile(filePath, line, { encoding: 'utf8' });
+    } catch (error) {
+      this._ensuredDirs.delete(dir);
+      throw error;
+    }
   }
 
   private _uid(): string {

@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto';
+import { assessAtomicity, candidateFromKanbanTask } from '../atomicity/assess.js';
 import { normalizeKanbanBoundaryPolicy } from '../boundary.js';
 import { appendKanbanEvent, mutateBoard } from '../storage.js';
 import type { TaskEdge, TaskGraph, TaskNode, TaskStatus, TaskType } from '../types/task-graph.js';
@@ -168,6 +169,10 @@ export function createTaskObject(board: KanbanBoard, input: CreateKanbanTaskInpu
     ...(input.verificationReport !== undefined
       ? { verificationReport: input.verificationReport }
       : {}),
+    ...(input.atomicityAssessment !== undefined
+      ? { atomicityAssessment: input.atomicityAssessment }
+      : {}),
+    ...(input.decomposition !== undefined ? { decomposition: input.decomposition } : {}),
     // Sprint 3: mirror policy fields from assignment to durable task level.
     ...(input.retryPolicy === undefined && input.assignment?.retryPolicy !== undefined
       ? { retryPolicy: input.assignment.retryPolicy }
@@ -270,6 +275,10 @@ export function cloneTaskForBoard(
     ...(source.verificationReport !== undefined
       ? { verificationReport: { ...source.verificationReport } }
       : {}),
+    ...(source.atomicityAssessment !== undefined
+      ? { atomicityAssessment: { ...source.atomicityAssessment } }
+      : {}),
+    ...(source.decomposition !== undefined ? { decomposition: { ...source.decomposition } } : {}),
   };
   if (source.completedAt !== undefined && task.status === 'completed') {
     task.completedAt = source.completedAt;
@@ -403,6 +412,14 @@ export function applyTaskPatch(
   if (input.verificationReport !== undefined) {
     if (input.verificationReport === null) delete task.verificationReport;
     else task.verificationReport = { ...input.verificationReport };
+  }
+  if (input.atomicityAssessment !== undefined) {
+    if (input.atomicityAssessment === null) delete task.atomicityAssessment;
+    else task.atomicityAssessment = { ...input.atomicityAssessment };
+  }
+  if (input.decomposition !== undefined) {
+    if (input.decomposition === null) delete task.decomposition;
+    else task.decomposition = { ...input.decomposition };
   }
   if (shouldReorder) {
     if (previousColumnId !== task.columnId) normalizeColumnTaskOrders(board, previousColumnId);
@@ -862,7 +879,29 @@ export function isTaskReadyForWork(board: KanbanBoard, task: KanbanTask): boolea
   if (task.assignment && ['queued', 'running'].includes(task.assignment.status)) return false;
   if (task.mergedIntoTaskId) return false;
   if (!areDependenciesMet(board, task.id)) return false;
+  // Enforced atomicity: a childless leaf judged too large must be split
+  // before it can be claimed or dispatched.
+  if (
+    board.atomicity?.mode === 'enforce' &&
+    !task.childTaskIds?.length &&
+    task.atomicityAssessment?.verdict === 'needs_decomposition'
+  ) {
+    return false;
+  }
   return true;
+}
+
+/**
+ * Stamp (or refresh) the deterministic atomicity assessment on a task.
+ * No-op when the board policy mode is 'off'. Mutates in place — callers run
+ * inside a `mutateBoard` closure.
+ */
+export function stampAtomicityAssessment(board: KanbanBoard, task: KanbanTask): void {
+  if (board.atomicity?.mode === 'off') return;
+  task.atomicityAssessment = assessAtomicity(
+    candidateFromKanbanTask(task),
+    board.atomicity?.config,
+  );
 }
 
 export function taskGraphStatusToKanbanStatus(status: TaskStatus): KanbanTaskStatus {

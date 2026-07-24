@@ -1,7 +1,7 @@
 /**
  * Tests for tool-schema — normalizeMCPTools.
  */
-import { describe, it, expect } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import { normalizeMCPTools } from '../src/tool-schema.js';
 
 describe('normalizeMCPTools', () => {
@@ -33,9 +33,7 @@ describe('normalizeMCPTools', () => {
   });
 
   it('uses empty object schema when inputSchema is missing', () => {
-    const result = normalizeMCPTools([
-      { name: 'test-tool' },
-    ]);
+    const result = normalizeMCPTools([{ name: 'test-tool' }]);
     expect(result).toHaveLength(1);
     expect(result[0]!.name).toBe('test-tool');
     expect(result[0]!.inputSchema).toEqual({ type: 'object', properties: {} });
@@ -43,9 +41,7 @@ describe('normalizeMCPTools', () => {
 
   it('uses provided inputSchema when valid', () => {
     const schema = { type: 'object', properties: { key: { type: 'string' } } };
-    const result = normalizeMCPTools([
-      { name: 'valid-tool', inputSchema: schema },
-    ]);
+    const result = normalizeMCPTools([{ name: 'valid-tool', inputSchema: schema }]);
     expect(result[0]!.inputSchema).toBe(schema);
   });
 
@@ -57,9 +53,7 @@ describe('normalizeMCPTools', () => {
   });
 
   it('includes description when present', () => {
-    const result = normalizeMCPTools([
-      { name: 'tool-with-desc', description: 'Does something' },
-    ]);
+    const result = normalizeMCPTools([{ name: 'tool-with-desc', description: 'Does something' }]);
     expect(result[0]!.description).toBe('Does something');
   });
 

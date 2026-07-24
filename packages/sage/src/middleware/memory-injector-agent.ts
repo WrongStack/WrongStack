@@ -142,3 +142,11 @@ function uniqueTerms(text: string, maxChars: number): string {
   }
   return terms.join(' ');
 }
+
+/** Direct-module test seam; intentionally not re-exported by the package barrel. */
+export const memoryInjectorAgentCoverage = {
+  collectTaskSignals,
+  collectKanbanSignals,
+  readContextPressure,
+  uniqueTerms,
+};

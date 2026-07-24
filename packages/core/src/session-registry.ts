@@ -188,6 +188,11 @@ const AGENT_STALE_MS = 5 * 60_000;
 const STALE_LOCK_MS = 10_000;
 const STALE_TMP_MS = 60_000;
 const MAX_STALE_TMP_FILES = 20;
+// Agent snapshots arrive on every tool boundary — a busy agent can cross
+// several boundaries per second, and each write is a full temp+fsync+rename
+// under the advisory lock. Coalesce to at most one write per window; the
+// first call in a quiet window still writes immediately so status stays live.
+const AGENTS_WRITE_THROTTLE_MS = 300;
 // Directory enumeration and per-file stats are substantially more expensive
 // than the tiny registry write itself on networked/antivirus-scanned homes.
 // Temp files cannot become stale faster than STALE_TMP_MS, so scanning once in
@@ -223,6 +228,14 @@ function parseRegistry(raw: string): Record<string, SessionRegistryEntry> {
   return {};
 }
 
+/** Derive the session-level status from the agent collective. */
+function deriveSessionStatus(agents: AgentEntry[]): SessionLiveStatus {
+  const hasRunning = agents.some((a) => a.status === 'running' || a.status === 'streaming');
+  const hasWaiting = agents.some((a) => a.status === 'waiting_user');
+  const hasError = agents.some((a) => a.status === 'error');
+  return hasRunning || hasWaiting || hasError ? 'active' : 'idle';
+}
+
 // ── Registry class ────────────────────────────────────────────────────────
 
 export class SessionRegistry {
@@ -231,6 +244,13 @@ export class SessionRegistry {
   private currentSessionId: string | null = null;
   private lastTempPruneAt = 0;
   private tempPrunePromise: Promise<void> | null = null;
+  /** Latest agent snapshot not yet written; superseded by newer calls. */
+  private pendingAgents: AgentEntry[] | null = null;
+  /** Shared settle promise for all updateAgents calls coalesced into one trailing write. */
+  private pendingAgentsFlush: Promise<void> | null = null;
+  private pendingAgentsResolve: (() => void) | null = null;
+  private agentsFlushTimer: ReturnType<typeof setTimeout> | null = null;
+  private lastAgentsWriteAt = 0;
   /**
    * Last full entry this process registered. Kept so the heartbeat can
    * re-create our entry if it ever goes missing — e.g. our initial register()
@@ -305,38 +325,90 @@ export class SessionRegistry {
   /**
    * Update agent status for the current session. Call on every
    * significant status change (agent start, tool start, user wait, error).
+   *
+   * Writes are coalesced: the first call in a quiet window writes
+   * immediately; calls arriving within {@link AGENTS_WRITE_THROTTLE_MS} of
+   * the last write collapse into one trailing write carrying the newest
+   * snapshot. The in-memory cache ({@link lastEntry}) is always updated
+   * synchronously, so heartbeat re-inserts never carry stale agents.
    */
   async updateAgents(agents: AgentEntry[]): Promise<void> {
     if (!this.currentSessionId) return;
-    // Derive session status from the agent collective.
-    const hasRunning = agents.some((a) => a.status === 'running' || a.status === 'streaming');
-    const hasWaiting = agents.some((a) => a.status === 'waiting_user');
-    const hasError = agents.some((a) => a.status === 'error');
-    const status: SessionLiveStatus = hasRunning || hasWaiting || hasError ? 'active' : 'idle';
-    const nowIso = new Date().toISOString();
+    this.pendingAgents = agents;
 
     // Keep the cached entry current so a heartbeat re-insert carries live agents.
     if (this.lastEntry) {
       this.lastEntry.agents = agents;
       this.lastEntry.agentCount = agents.length;
-      this.lastEntry.status = status;
-      this.lastEntry.lastHeartbeatAt = nowIso;
+      this.lastEntry.status = deriveSessionStatus(agents);
+      this.lastEntry.lastHeartbeatAt = new Date().toISOString();
     }
 
+    const sinceLastWrite = Date.now() - this.lastAgentsWriteAt;
+    if (!this.agentsFlushTimer && sinceLastWrite >= AGENTS_WRITE_THROTTLE_MS) {
+      await this.writeAgentsSnapshot();
+      return;
+    }
+
+    if (!this.agentsFlushTimer) {
+      const delay = Math.max(0, AGENTS_WRITE_THROTTLE_MS - sinceLastWrite);
+      this.pendingAgentsFlush = new Promise<void>((resolve, reject) => {
+        this.pendingAgentsResolve = resolve;
+        const timer = setTimeout(() => {
+          this.agentsFlushTimer = null;
+          this.pendingAgentsFlush = null;
+          this.pendingAgentsResolve = null;
+          this.writeAgentsSnapshot().then(resolve, reject);
+        }, delay);
+        if (typeof timer.unref === 'function') timer.unref();
+        this.agentsFlushTimer = timer;
+      });
+    }
+    await this.pendingAgentsFlush;
+  }
+
+  /** Write the newest pending agent snapshot to the registry file. */
+  private async writeAgentsSnapshot(): Promise<void> {
+    const agents = this.pendingAgents;
+    const sessionId = this.currentSessionId;
+    if (!agents || !sessionId) return;
+    this.pendingAgents = null;
+    this.lastAgentsWriteAt = Date.now();
+    const status = deriveSessionStatus(agents);
+    const nowIso = new Date().toISOString();
+
     await this.atomicUpdate((registry) => {
-      let entry = registry[this.currentSessionId!];
+      let entry = registry[sessionId];
       if (!entry) {
         // Our entry vanished (dropped write / reset / pruned) — re-create it.
         /* v8 ignore next -- unreachable: register() sets lastEntry before any updateAgents */
         if (!this.lastEntry) return;
         entry = { ...this.lastEntry };
-        registry[this.currentSessionId!] = entry;
+        registry[sessionId] = entry;
       }
       entry.agents = agents;
       entry.agentCount = agents.length;
       entry.status = status;
       entry.lastHeartbeatAt = nowIso;
     });
+  }
+
+  /**
+   * Cancel a scheduled trailing agents write (releasing any waiters). Used on
+   * shutdown so a late timer can't resurrect an entry that markClosing() /
+   * unregister() is about to finalize. Returns the snapshot that was pending.
+   */
+  private cancelPendingAgentsFlush(): AgentEntry[] | null {
+    if (this.agentsFlushTimer) {
+      clearTimeout(this.agentsFlushTimer);
+      this.agentsFlushTimer = null;
+    }
+    this.pendingAgentsResolve?.();
+    this.pendingAgentsResolve = null;
+    this.pendingAgentsFlush = null;
+    const pending = this.pendingAgents;
+    this.pendingAgents = null;
+    return pending;
   }
 
   /**
@@ -349,9 +421,16 @@ export class SessionRegistry {
       this.heartbeatTimer = null;
     }
     if (!this.currentSessionId) return;
+    // Fold any coalesced-but-unwritten agent snapshot into this final write so
+    // the trailing timer can't fire later and flip us back to active.
+    const pendingAgents = this.cancelPendingAgentsFlush();
     await this.atomicUpdate((registry) => {
       const entry = registry[this.currentSessionId!];
       if (!entry) return;
+      if (pendingAgents) {
+        entry.agents = pendingAgents;
+        entry.agentCount = pendingAgents.length;
+      }
       entry.status = 'closing';
       entry.lastHeartbeatAt = new Date().toISOString();
     });
@@ -366,6 +445,9 @@ export class SessionRegistry {
       this.heartbeatTimer = null;
     }
     if (!this.currentSessionId) return;
+    // Drop any coalesced agent snapshot — the entry is being deleted, and a
+    // late trailing write would resurrect it from lastEntry.
+    this.cancelPendingAgentsFlush();
     const sid = this.currentSessionId;
     this.currentSessionId = null;
     await this.atomicUpdate((registry) => {

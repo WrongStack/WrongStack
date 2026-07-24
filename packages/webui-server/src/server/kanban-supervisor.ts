@@ -1,4 +1,5 @@
 import {
+  finalizeTaskCompletion,
   getBoard,
   getKanbanQueueHealth,
   type KanbanBoard,
@@ -9,6 +10,7 @@ import {
   listBoards,
   reconcileKanbanBoard,
   recoverStaleTaskAssignments,
+  resolveGateEnforcement,
 } from '@wrongstack/kanban';
 
 export interface KanbanSupervisorDispatchOptions {
@@ -108,6 +110,11 @@ export function createKanbanSupervisor(deps: KanbanSupervisorDeps): KanbanSuperv
     }
 
     const reconciled = await reconcileKanbanBoard(deps.projectRoot, board.id);
+    // Completion-gate sweep: catch tasks whose worker marked its assignment
+    // completed through a path that never called finalizeTaskCompletion
+    // (third-party board writers). They are parked in review by
+    // updateTaskAssignment; run the gate so they reach a final state.
+    const gateSwept = await sweepGateParkedTasks(deps, reconciled?.board ?? board);
     let health = await getKanbanQueueHealth(deps.projectRoot, { boardId: board.id });
     const recovered = health.staleAssignments.count
       ? await recoverStaleTaskAssignments(deps.projectRoot, board.id, {
@@ -131,7 +138,7 @@ export function createKanbanSupervisor(deps: KanbanSupervisorDeps): KanbanSuperv
     };
     publish(snapshot);
 
-    const changedBoard = recovered?.board ?? reconciled?.board;
+    const changedBoard = recovered?.board ?? gateSwept ?? reconciled?.board;
     if (changedBoard) {
       deps.broadcast({
         type: 'kanban.get',
@@ -163,6 +170,14 @@ export function createKanbanSupervisor(deps: KanbanSupervisorDeps): KanbanSuperv
     if (Date.now() - (agentLastRun.get(board.id) ?? 0) < cooldownMs) return;
     agentRunning.add(board.id);
     agentLastRun.set(board.id, Date.now());
+    // Watchdog: if the spawned task crashes or is killed without invoking
+    // onDone, clear the lock after a bounded duration so the board isn't
+    // permanently blocked from future agentic runs.
+    const watchdog = setTimeout(
+      () => agentRunning.delete(board.id),
+      Math.max(cooldownMs * 2, DEFAULT_AGENT_COOLDOWN_MS * 2),
+    );
+    watchdog.unref?.();
     publish({
       ...snapshot,
       status: 'running',
@@ -181,6 +196,7 @@ export function createKanbanSupervisor(deps: KanbanSupervisorDeps): KanbanSuperv
         // runs have no taskId, so only boardId is propagated.
         context: { kanban: { boardId: board.id, projectRoot: deps.projectRoot } },
         onDone: async (result) => {
+          clearTimeout(watchdog);
           agentRunning.delete(board.id);
           const current = snapshots.get(board.id) ?? snapshot;
           publish({
@@ -196,6 +212,7 @@ export function createKanbanSupervisor(deps: KanbanSupervisorDeps): KanbanSuperv
       const current = snapshots.get(board.id) ?? snapshot;
       publish({ ...current, status: 'running', summary: spawnSummary });
     } catch (error) {
+      clearTimeout(watchdog);
       agentRunning.delete(board.id);
       const message = error instanceof Error ? error.message : String(error);
       deps.log?.(`[KanbanSupervisor] ${board.id}: ${message}`);
@@ -287,6 +304,38 @@ export function createKanbanSupervisor(deps: KanbanSupervisorDeps): KanbanSuperv
 
 function effectiveConfig(board: KanbanBoard): KanbanSupervisorConfig {
   return { ...DEFAULT_CONFIG, ...(board.supervisor ?? {}) };
+}
+
+/**
+ * Finalize tasks that a third-party writer completed without calling the gate:
+ * assignment says completed, the card is parked in review, and no verification
+ * report has been produced yet. Returns the last mutated board, or undefined.
+ */
+async function sweepGateParkedTasks(
+  deps: KanbanSupervisorDeps,
+  board: KanbanBoard,
+): Promise<KanbanBoard | undefined> {
+  if (resolveGateEnforcement(board) === 'off') return undefined;
+  const parked = board.tasks.filter(
+    (task) =>
+      task.status === 'review' &&
+      task.assignment?.status === 'completed' &&
+      !task.verificationReport,
+  );
+  let lastBoard: KanbanBoard | undefined;
+  for (const task of parked) {
+    try {
+      const finalized = await finalizeTaskCompletion(deps.projectRoot, board.id, task.id, {
+        eventContext: { actor: 'kanban-supervisor' },
+      });
+      if (finalized) lastBoard = finalized.board;
+    } catch (error) {
+      deps.log?.(
+        `[KanbanSupervisor] completion gate sweep failed for ${task.id}: ${error instanceof Error ? error.message : String(error)}`,
+      );
+    }
+  }
+  return lastBoard;
 }
 
 function dispatchRoute(routing: KanbanExecutionRouting): KanbanSupervisorDispatchOptions {

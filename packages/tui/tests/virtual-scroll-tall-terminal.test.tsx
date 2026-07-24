@@ -21,9 +21,6 @@ import { describe, expect, it } from 'vitest';
 import { EntryHeightCache } from '../src/height-cache.js';
 import {
   anchorAtTopRow,
-  contentRows,
-  maxTopRow,
-  OVERSCAN_ROWS,
   planFromAnchor,
   planPinned,
   type ScrollGeometry,

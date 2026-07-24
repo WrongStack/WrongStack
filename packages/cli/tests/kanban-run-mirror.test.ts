@@ -186,3 +186,142 @@ describe('KanbanRunMirror Goal → one board per phase', () => {
     }
   });
 });
+
+describe('KanbanRunMirror SDD verification + field preservation', () => {
+  function fakeEvents() {
+    const handlers = new Map<string, Array<(p: unknown) => void>>();
+    return {
+      on(name: string, fn: (p: unknown) => void) {
+        const list = handlers.get(name) ?? [];
+        list.push(fn);
+        handlers.set(name, list);
+        return () => {};
+      },
+      emit(name: string, payload: unknown) {
+        for (const fn of handlers.get(name) ?? []) fn(payload);
+      },
+    };
+  }
+
+  it('maps run verification into a minimal report and preserves kanban-local fields across sync ticks', async () => {
+    const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'wstack-mirror-verify-'));
+    const events = fakeEvents();
+    const mirror = createKanbanRunMirror({
+      projectRoot: dir,
+      events: events as never,
+      broadcast: () => {},
+      log: () => {},
+    });
+    try {
+      // Tick 1: one completed task whose run verification passed.
+      events.emit('sdd.board.snapshot', {
+        runId: 'sdd-v1',
+        snapshot: snapshot([
+          sddTask({
+            id: 'n1',
+            shortId: 't01',
+            title: 'Verified work',
+            status: 'completed',
+            displayStatus: 'completed',
+            completedAt: 100,
+            verificationCommand: 'pnpm test x',
+            verificationState: 'passed',
+          }),
+        ]),
+      });
+      await settle();
+
+      const { getBoard, listBoards: list, updateTask } = await import('@wrongstack/kanban');
+      const summary = (await list(dir)).find((b) => b.tags?.includes('run:sdd-v1'));
+      expect(summary).toBeDefined();
+      let board = await getBoard(dir, summary!.id);
+      // Mirror boards are created with the completion gate off.
+      expect(board!.completionGate?.enforcement).toBe('off');
+      const mirrored = board!.tasks.find((t) => t.origin?.taskId === 'n1');
+      expect(mirrored?.verificationReport?.verdict).toBe('passed');
+      expect(mirrored?.status).toBe('completed');
+
+      // Seed kanban-local fields the sync must never clobber.
+      await updateTask(dir, board!.id, mirrored!.id, {
+        atomic: true,
+        decomposition: {
+          id: 'prop-x',
+          taskId: mirrored!.id,
+          status: 'proposed',
+          mode: 'approval',
+          proposedSubtasks: [
+            { title: 'A', description: 'a' },
+            { title: 'B', description: 'b' },
+          ],
+          proposedAt: new Date().toISOString(),
+        },
+      });
+
+      // Tick 2: changed snapshot (new stamp) re-syncs the same graph.
+      events.emit('sdd.board.snapshot', {
+        runId: 'sdd-v1',
+        snapshot: snapshot([
+          sddTask({
+            id: 'n1',
+            shortId: 't01',
+            title: 'Verified work',
+            status: 'completed',
+            displayStatus: 'completed',
+            completedAt: 200,
+            verificationCommand: 'pnpm test x',
+            verificationState: 'passed',
+          }),
+        ]),
+      });
+      await settle();
+
+      board = await getBoard(dir, summary!.id);
+      const after = board!.tasks.find((t) => t.origin?.taskId === 'n1');
+      // One-directional rule: kanban-local fields survive sync ticks.
+      expect(after?.atomic).toBe(true);
+      expect(after?.decomposition?.status).toBe('proposed');
+      expect(after?.verificationReport?.verdict).toBe('passed');
+    } finally {
+      mirror.dispose();
+      await fs.rm(dir, { recursive: true, force: true });
+    }
+  });
+
+  it('maps a failed run verification into a failed report with the reason', async () => {
+    const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'wstack-mirror-vfail-'));
+    const events = fakeEvents();
+    const mirror = createKanbanRunMirror({
+      projectRoot: dir,
+      events: events as never,
+      broadcast: () => {},
+      log: () => {},
+    });
+    try {
+      events.emit('sdd.board.snapshot', {
+        runId: 'sdd-v2',
+        snapshot: snapshot([
+          sddTask({
+            id: 'n1',
+            shortId: 't01',
+            title: 'Rejected work',
+            status: 'failed',
+            displayStatus: 'failed',
+            verificationState: 'failed',
+            verificationDetail: 'verification failed: exit 1',
+          }),
+        ]),
+      });
+      await settle();
+
+      const { getBoard, listBoards: list } = await import('@wrongstack/kanban');
+      const summary = (await list(dir)).find((b) => b.tags?.includes('run:sdd-v2'));
+      const board = await getBoard(dir, summary!.id);
+      const mirrored = board!.tasks.find((t) => t.origin?.taskId === 'n1');
+      expect(mirrored?.verificationReport?.verdict).toBe('failed');
+      expect(mirrored?.verificationReport?.checks[0]?.error).toContain('exit 1');
+    } finally {
+      mirror.dispose();
+      await fs.rm(dir, { recursive: true, force: true });
+    }
+  });
+});

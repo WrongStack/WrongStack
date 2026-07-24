@@ -527,4 +527,81 @@ describe('ACPSession', () => {
 
     await session.close();
   });
+
+  it('covers the advertised lifecycle and provider APIs', async () => {
+    const session = await startSession({
+      protocolVersion: 1,
+      agentCapabilities: {
+        loadSession: true,
+        auth: { logout: true },
+        sessionCapabilities: {
+          close: {},
+          resume: {},
+          list: {},
+          delete: {},
+          fork: {},
+        },
+      },
+      authMethods: [{ id: 'token', name: 'Token' }],
+      agentInfo: { name: 'agent', version: '1.0' },
+    });
+    const t = lastTransport();
+    const reply = async <T>(
+      method: string,
+      action: Promise<T>,
+      result: unknown = {},
+    ): Promise<T> => {
+      await new Promise((resolve) => setImmediate(resolve));
+      const request = t.sent.findLast((message) => message.method === method);
+      expect(request, method).toBeDefined();
+      t.respond(request!.id!, method, result);
+      return action;
+    };
+
+    expect(session.getNegotiatedVersion()).toBe(1);
+    expect(session.getCapabilities().loadSession).toBe(true);
+    expect(session.getAuthMethods()).toHaveLength(1);
+    expect(session.getAgentInfo()).toMatchObject({ name: 'agent' });
+    expect(session.requiresAuth()).toBe(true);
+    expect(session.getSessionId()).toBeNull();
+
+    await reply('authenticate', session.authenticate('token'));
+    await reply('logout', session.logout());
+    await reply('session/load', session.loadSession('loaded' as never));
+    expect(session.getSessionId()).toBe('loaded');
+    await reply('session/delete', session.deleteSession('loaded' as never));
+    expect(session.getSessionId()).toBeNull();
+    await reply('session/resume', session.resumeSession('resumed' as never));
+    await reply('session/delete', session.deleteSession('resumed' as never));
+
+    await expect(reply(
+      'session/list',
+      session.listSessions('cursor', '/cwd'),
+      { sessions: [{ sessionId: 'one', cwd: '/cwd' }], nextCursor: 'next' },
+    )).resolves.toMatchObject({ nextCursor: 'next' });
+    await expect(reply(
+      'session/fork',
+      session.forkSession('one' as never, '/fork'),
+      { sessionId: 'forked' },
+    )).resolves.toBe('forked');
+    await reply('session/set_mode', session.setMode('one' as never, 'code'));
+    await reply(
+      'session/set_config_option',
+      session.setConfigOption('one' as never, 'model', 'large'),
+    );
+    await expect(reply(
+      'providers/list',
+      session.listProviders(),
+      { providers: ['provider'], currentProviderId: 'provider' },
+    )).resolves.toEqual({ providers: ['provider'], currentProviderId: 'provider' });
+    await expect(reply(
+      'mcp/message',
+      session.mcpMessage('connection', { jsonrpc: '2.0' }),
+      { accepted: true },
+    )).resolves.toEqual({ accepted: true });
+    await reply('providers/set', session.setProvider('provider', { key: 'value' }));
+    await reply('providers/disable', session.disableProvider());
+    await session.close();
+    await session.close();
+  });
 });

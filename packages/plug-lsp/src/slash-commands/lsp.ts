@@ -1,8 +1,8 @@
-import type { SlashCommand } from '@wrongstack/core/types';
 import * as path from 'node:path';
-import type { LSPRegistry } from '../registry.js';
+import type { SlashCommand } from '@wrongstack/core/types';
 import type { DocumentTracker } from '../document-tracker.js';
 import { formatDiagnostics } from '../formatters/diagnostics.js';
+import type { LSPRegistry } from '../registry.js';
 import type { PlugLSPConfig } from '../types.js';
 import { LANGUAGE_SERVERS, SUPPORTED_LANGUAGES } from './install.js';
 
@@ -24,7 +24,6 @@ type LspSubcommand =
   | { type: 'stop'; name?: string | undefined }
   | { type: 'restart'; name?: string | undefined }
   | { type: 'diagnostics'; file?: string | undefined }
-  | { type: 'add'; name: string; command: string; args?: string[]; languages: string[]; rootPatterns?: string[] }
   | { type: 'remove'; name: string }
   | { type: 'enable'; name: string }
   | { type: 'disable'; name: string }
@@ -129,21 +128,35 @@ export function buildLspCommand(ctx: LspContext): SlashCommand {
       const sub = parseArgs(args);
 
       switch (sub.type) {
-        case 'list': return runListCommand(ctx);
-        case 'status': return runStatusCommand(ctx);
-        case 'install': return runInstallCommand(ctx, sub.language);
-        case 'start': return runStartCommand(ctx, sub.name);
-        case 'stop': return runStopCommand(ctx, sub.name);
-        case 'restart': return runRestartCommand(ctx, sub.name);
-        case 'diagnostics': return runDiagnosticsCommand(ctx, sub.file);
-        case 'add':
-          return { message: 'To add a custom server, edit your config and add an entry under\n`extensions["@wrongstack/plug-lsp"].servers`. Run `/lsp help` for usage.' };
+        case 'list':
+          return runListCommand(ctx);
+        case 'status':
+          return runStatusCommand(ctx);
+        case 'install':
+          return runInstallCommand(ctx, sub.language);
+        case 'start':
+          return runStartCommand(ctx, sub.name);
+        case 'stop':
+          return runStopCommand(ctx, sub.name);
+        case 'restart':
+          return runRestartCommand(ctx, sub.name);
+        case 'diagnostics':
+          return runDiagnosticsCommand(ctx, sub.file);
         case 'remove':
-          return { message: 'To remove a server, remove its entry from `extensions["@wrongstack/plug-lsp"].servers`\nin your WrongStack config, then restart.' };
+          return {
+            message:
+              'To remove a server, remove its entry from `extensions["@wrongstack/plug-lsp"].servers`\nin your WrongStack config, then restart.',
+          };
         case 'enable':
-          return { message: 'To enable a server, ensure `enabled: true` is set (or absent — it defaults to true)\nin its config entry, then run `/lsp start <name>`.' };
+          return {
+            message:
+              'To enable a server, ensure `enabled: true` is set (or absent — it defaults to true)\nin its config entry, then run `/lsp start <name>`.',
+          };
         case 'disable':
-          return { message: 'To disable a server, set `enabled: false` in its config entry,\nthen run `/lsp stop <name>` to stop it.' };
+          return {
+            message:
+              'To disable a server, set `enabled: false` in its config entry,\nthen run `/lsp stop <name>` to stop it.',
+          };
         default:
           return { message: this.help ?? this.description };
       }
@@ -175,7 +188,14 @@ function runListCommand(ctx: LspContext): { message: string } {
     const state = srv.state;
     const enabled = srv.config.enabled ?? true;
 
-    const stateColor = state === 'ready' ? 'green' : state === 'failed' ? 'red' : state === 'disabled' ? 'dim' : 'yellow';
+    const stateColor =
+      state === 'ready'
+        ? 'green'
+        : state === 'failed'
+          ? 'red'
+          : state === 'disabled'
+            ? 'dim'
+            : 'yellow';
     const stateLabel = `[${state.toUpperCase()}]`;
     const enabledLabel = enabled ? '' : colorize(' (disabled)', 'dim');
 
@@ -184,7 +204,9 @@ function runListCommand(ctx: LspContext): { message: string } {
       `  ${colorize(srv.name, 'cyan')}  ${colorize(stateLabel, stateColor)}${enabledLabel}`,
     );
     lines.push(`    ${colorize('Languages:', 'dim')} ${langs}`);
-    lines.push(`    ${colorize('Command:', 'dim')} ${srv.config.command} ${(srv.config.args ?? []).join(' ')}`);
+    lines.push(
+      `    ${colorize('Command:', 'dim')} ${srv.config.command} ${(srv.config.args ?? []).join(' ')}`,
+    );
     lines.push('');
   }
 
@@ -198,7 +220,9 @@ function runStatusCommand(ctx: LspContext): { message: string } {
   const servers = ctx.registry.list();
   const ready = servers.filter((s) => s.state === 'ready').length;
   const failed = servers.filter((s) => s.state === 'failed').length;
-  const starting = servers.filter((s) => s.state === 'starting' || s.state === 'initializing').length;
+  const starting = servers.filter(
+    (s) => s.state === 'starting' || s.state === 'initializing',
+  ).length;
 
   const lines: string[] = [
     `${colorize('LSP Status Report', 'bold')}`,
@@ -368,7 +392,10 @@ async function runStartCommand(ctx: LspContext, name?: string): Promise<{ messag
 
   for (const srv of allServers) {
     if (!srv.config.enabled) continue;
-    if (srv.state === 'ready') { started.push(srv.name); continue; }
+    if (srv.state === 'ready') {
+      started.push(srv.name);
+      continue;
+    }
     if (srv.state === 'disabled') continue;
     try {
       await ctx.registry.start(srv.name);
@@ -406,7 +433,9 @@ async function runStopCommand(ctx: LspContext, name?: string): Promise<{ message
     ctx.registry.stop(srv.name);
   }
 
-  return { message: `${colorize('Stopped', 'yellow')} ${allServers.length} server(s): ${allServers.map((s) => s.name).join(', ')}` };
+  return {
+    message: `${colorize('Stopped', 'yellow')} ${allServers.length} server(s): ${allServers.map((s) => s.name).join(', ')}`,
+  };
 }
 
 async function runRestartCommand(ctx: LspContext, name?: string): Promise<{ message: string }> {
@@ -444,8 +473,10 @@ async function runRestartCommand(ctx: LspContext, name?: string): Promise<{ mess
   }
 
   const lines: string[] = [];
-  if (restarted.length > 0) lines.push(`${colorize('Restarted:', 'green')} ${restarted.join(', ')}`);
-  if (failed.length > 0) lines.push(`${colorize('Failed to restart:', 'red')} ${failed.join(', ')}`);
+  if (restarted.length > 0)
+    lines.push(`${colorize('Restarted:', 'green')} ${restarted.join(', ')}`);
+  if (failed.length > 0)
+    lines.push(`${colorize('Failed to restart:', 'red')} ${failed.join(', ')}`);
 
   return { message: lines.join('\n') };
 }
@@ -464,12 +495,14 @@ async function runDiagnosticsCommand(ctx: LspContext, file?: string): Promise<{ 
     }
     lines.push(`File: ${resolved}`);
     const diagMap = new Map([[resolved, fileDiags]]);
-    lines.push(formatDiagnostics(diagMap, {
-      cwd: ctx.cwd,
-      severityFilter: ctx.cfg.severityFilter,
-      maxPerFile: ctx.cfg.maxDiagnosticsPerFile,
-      maxTotal: ctx.cfg.maxDiagnosticsTotal,
-    }));
+    lines.push(
+      formatDiagnostics(diagMap, {
+        cwd: ctx.cwd,
+        severityFilter: ctx.cfg.severityFilter,
+        maxPerFile: ctx.cfg.maxDiagnosticsPerFile,
+        maxTotal: ctx.cfg.maxDiagnosticsTotal,
+      }),
+    );
     return { message: lines.join('\n') };
   }
 
@@ -489,12 +522,14 @@ async function runDiagnosticsCommand(ctx: LspContext, file?: string): Promise<{ 
   for (const [fpath, diags] of allDiags) {
     lines.push(`${colorize(fpath, 'cyan')}`);
     const fdiagMap = new Map([[fpath, diags]]);
-    lines.push(formatDiagnostics(fdiagMap, {
-      cwd: ctx.cwd,
-      severityFilter: ctx.cfg.severityFilter,
-      maxPerFile: ctx.cfg.maxDiagnosticsPerFile,
-      maxTotal: ctx.cfg.maxDiagnosticsTotal,
-    }));
+    lines.push(
+      formatDiagnostics(fdiagMap, {
+        cwd: ctx.cwd,
+        severityFilter: ctx.cfg.severityFilter,
+        maxPerFile: ctx.cfg.maxDiagnosticsPerFile,
+        maxTotal: ctx.cfg.maxDiagnosticsTotal,
+      }),
+    );
     lines.push('');
   }
 
@@ -502,7 +537,9 @@ async function runDiagnosticsCommand(ctx: LspContext, file?: string): Promise<{ 
 }
 
 /** Collect diagnostics from all ready LSP servers, keyed by file path. */
-function collectServerDiagnostics(registry: LSPRegistry): Map<string, import('vscode-languageserver-protocol').Diagnostic[]> {
+function collectServerDiagnostics(
+  registry: LSPRegistry,
+): Map<string, import('vscode-languageserver-protocol').Diagnostic[]> {
   const result = new Map<string, import('vscode-languageserver-protocol').Diagnostic[]>();
   for (const srv of registry.list()) {
     if (srv.state !== 'ready') continue;
@@ -515,3 +552,6 @@ function collectServerDiagnostics(registry: LSPRegistry): Map<string, import('vs
   }
   return result;
 }
+
+/** Direct-module test seam; not re-exported by the package barrel. */
+export const lspCommandCoverage = { colorize, collectServerDiagnostics, parseArgs };

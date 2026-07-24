@@ -1,9 +1,9 @@
 import type {
   SpecAnalysis,
+  Specification,
   SpecRequirement,
   SpecSection,
   SpecValidationResult,
-  Specification,
 } from '@wrongstack/core/types';
 
 export class SpecParser {
@@ -73,13 +73,13 @@ export class SpecParser {
       if (h2) {
         if (currentSection && currentLines.length > 0) {
           sections.push({
-            type: this.mapSectionType(currentSection.title ?? 'unknown'),
-            title: currentSection.title ?? 'Unknown',
+            type: this.mapSectionType(currentSection.title!),
+            title: currentSection.title!,
             level: depth,
             content: currentLines.join('\n').trim(),
           });
         }
-        currentSection = { title: h2[1] ?? 'Unknown' };
+        currentSection = { title: h2[1]! };
         currentLines = [];
         depth = 2;
         continue;
@@ -97,8 +97,8 @@ export class SpecParser {
 
     if (currentSection && currentLines.length > 0) {
       sections.push({
-        type: this.mapSectionType(currentSection.title ?? 'unknown'),
-        title: currentSection.title ?? 'Unknown',
+        type: this.mapSectionType(currentSection.title!),
+        title: currentSection.title!,
         level: depth,
         content: currentLines.join('\n').trim(),
       });

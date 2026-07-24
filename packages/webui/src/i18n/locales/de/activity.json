@@ -1474,6 +1474,13 @@
     "gitToBuffer": "Git HEAD → aktueller Monaco-Puffer",
     "savedToBuffer": "Zuletzt gespeichert → aktueller Monaco-Puffer",
     "unsaved": "ungespeicherter Puffer",
+    "lifetimeTitle": "Gesamter Verlauf",
+    "lifetimeChanges": "Änderungen",
+    "lifetimeSessions": "Sitzungen",
+    "lifetimeTasks": "Aufgaben",
+    "lifetimeBoards": "Boards",
+    "lifetimeSince": "seit {{date}}",
+    "lifetimeTools": "über {{tools}}",
     "level": {
       "quiet": "ruhig",
       "active": "aktiv",

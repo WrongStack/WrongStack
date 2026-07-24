@@ -149,8 +149,16 @@ export function reduceConversation(state: State, action: ConversationAction): St
     case 'status':
       // Going idle means the stream has finished — clear any lingering
       // debug-stream stats so the statusline doesn't show stale "🐛 stream".
+      // Also drop running-tool entries: tools cancelled mid-flight (steering,
+      // Esc interrupt, provider errors) never emit `tool.executed`, and their
+      // orphaned entries otherwise accumulate for the whole session.
       if (action.status === 'idle') {
-        return { ...state, status: 'idle', debugStreamStats: null };
+        return {
+          ...state,
+          status: 'idle',
+          debugStreamStats: null,
+          ...(state.runningTools.size > 0 ? { runningTools: new Map() } : {}),
+        };
       }
       return { ...state, status: action.status };
     case 'interrupt':

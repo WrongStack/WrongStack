@@ -266,6 +266,7 @@ describe('Sprint 2 reliable queue (consolidated)', () => {
       'task.assignment.running',
       'task.assignment.heartbeat',
       'task.assignment.completed',
+      'task.completion.gate_pending',
     ]);
   });
 

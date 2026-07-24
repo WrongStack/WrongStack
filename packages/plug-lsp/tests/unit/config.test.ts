@@ -1,8 +1,8 @@
 import { TOKENS } from '@wrongstack/core/kernel';
 import { describe, expect, it } from 'vitest';
 import {
-  PLUGIN_NAME,
   mergeConfig,
+  PLUGIN_NAME,
   readPlugLSPConfig,
   withPresetFallbacks,
 } from '../../src/config.js';

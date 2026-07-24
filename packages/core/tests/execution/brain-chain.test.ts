@@ -115,4 +115,54 @@ describe('assembleBrainTiers', () => {
     expect(tiers.councilLabels).toEqual(['a/x (executor)', 'b/y (security, veto)']);
     expect(tiers.getCouncilMinRisk()).toBe('critical');
   });
+
+  describe('judge independence', () => {
+    // The judge only runs to break a tie or synthesize a split panel. If it is
+    // one of the seats that produced the tie, it re-states its own vote with
+    // the deciding weight — an expensive way to let voter #1 win.
+    it('derives the judge from a pool target that is NOT seated', () => {
+      const tiers = assembleBrainTiers({
+        ...baseOpts({ models: ['a/x', 'b/y', 'c/z', 'd/w'] }, fakeProvider('s')),
+        resolveProvider: () => fakeProvider('ok'),
+      });
+      // Seats take the first three pool entries; the judge must not be one.
+      expect(tiers.councilLabels).toEqual([
+        'a/x (executor)',
+        'b/y (skeptic, veto)',
+        'c/z (auditor)',
+      ]);
+      expect(tiers.judgeLabel).toBe('d/w');
+    });
+
+    it('honours an explicitly configured judge even when it is also a voter', () => {
+      const tiers = assembleBrainTiers({
+        ...baseOpts(
+          { models: ['a/x', 'b/y', 'c/z', 'd/w'], council: { judge: 'a/x' } },
+          fakeProvider('s'),
+        ),
+        resolveProvider: () => fakeProvider('ok'),
+      });
+      expect(tiers.judgeLabel).toBe('a/x');
+    });
+
+    it('falls back to the first pool target when every target is seated', () => {
+      // Pool size == seat count leaves nothing independent to promote. The
+      // panel is still correlated, but that is now reported through the
+      // council distinctness warnings rather than silently accepted here.
+      const tiers = assembleBrainTiers({
+        ...baseOpts({ models: ['a/x', 'b/y', 'c/z'] }, fakeProvider('s')),
+        resolveProvider: () => fakeProvider('ok'),
+      });
+      expect(tiers.judgeLabel).toBe('a/x');
+    });
+
+    it('reports no judge when no council is wired', () => {
+      const tiers = assembleBrainTiers({
+        ...baseOpts({ models: ['a/x'] }, fakeProvider('s')),
+        resolveProvider: () => fakeProvider('ok'),
+      });
+      expect(tiers.council).toBeUndefined();
+      expect(tiers.judgeLabel).toBeUndefined();
+    });
+  });
 });

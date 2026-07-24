@@ -310,16 +310,10 @@ function isRetryable(kind: SubagentErrorKind): boolean {
   // retryable as-is (they need config or a re-install). Timeouts and
   // prompt failures might be — the parent's classifier will branch on
   // `kind` and decide.
-  switch (kind) {
-    case 'provider_5xx':
-    case 'provider_rate_limit':
-    case 'provider_timeout':
-    case 'tool_threw':
-    case 'budget_timeout':
-      return true;
-    default:
-      return false;
-  }
+  // None of the ACP error kinds currently map to a retryable coordinator
+  // kind. Keep the parameter so this policy remains explicit at the callsite.
+  void kind;
+  return false;
 }
 
 // ─────────────────────────────────────────────────────────────────────────
@@ -608,5 +602,5 @@ export async function probeAcpAgents(
   await runPhase(pkg, 2, pkgTimeout);
 
   // Preserve the caller's input order.
-  return ids.map((id) => byId.get(id) ?? { id, ok: false, ms: 0, error: 'not probed' });
+  return ids.map((id) => byId.get(id)!);
 }

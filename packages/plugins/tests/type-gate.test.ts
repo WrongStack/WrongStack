@@ -5,6 +5,7 @@ vi.mock('node:child_process', () => ({ execFile: cp.execFile }));
 
 const execFileSync = cp.result;
 const typeGatePlugin = (await import('../src/type-gate')).default;
+const { expectedInvocation } = await import('./helpers/exec-invocation.js');
 
 interface MockApi {
   tools: { register: ReturnType<typeof vi.fn> };
@@ -237,10 +238,13 @@ describe('type-gate plugin', () => {
       toolResult: { content: '', isError: false },
     });
     // Helper returns the launcher as `cmd` and the runner+flags as `args`
-    // for bare-launcher spellings; the plugin concatenates verbatim.
+    // for bare-launcher spellings; the plugin concatenates verbatim. On
+    // Windows `pnpm` is a .cmd shim, so the invocation is routed through
+    // cmd.exe — assert the platform-resolved form, not the raw spelling.
+    const pnpmTsc = expectedInvocation('pnpm', ['exec', 'tsc', '--noEmit', '--pretty']);
     expect(execFileSync).toHaveBeenCalledWith(
-      'pnpm',
-      ['exec', 'tsc', '--noEmit', '--pretty'],
+      pnpmTsc.cmd,
+      pnpmTsc.args,
       expect.objectContaining({ shell: false }),
     );
   });

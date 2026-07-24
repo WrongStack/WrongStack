@@ -42,17 +42,30 @@ import { useScrollPosition } from '@/hooks/useScrollPosition';
 import { type ModelCandidate, useProviderModels } from '@/hooks/useProviderModels';
 import { auditKanbanBoard } from '@/lib/kanban-cleaner';
 import { kanbanMetadataText } from '@/lib/kanban-metadata';
+import { verificationStateOf, type TaskVerificationState } from '@/lib/kanban-verification';
 import { cn } from '@/lib/utils';
 import { getWSClient } from '@/lib/ws-client';
-import { useConfigStore, useFleetStore, useKanbanStore, useSessionStore } from '@/stores';
+import {
+  useConfigStore,
+  useFleetStore,
+  useKanbanStore,
+  useSessionStore,
+  useUIStore,
+} from '@/stores';
 import { ChipMultiSelect, type ChipOption } from './ChipMultiSelect';
 import { KanbanCleanerAlert } from './KanbanCleanerAlert';
 import { KanbanBoundaryEditor } from './KanbanBoundaryEditor';
+import {
+  KanbanDecompositionApprovalCard,
+  KanbanDecompositionPanel,
+} from './KanbanDecompositionPanel';
+import { KanbanTaskTree } from './KanbanTaskTree';
+import { KanbanVerificationDashboard } from './KanbanVerificationDashboard';
 import { ModelPicker } from './ModelPicker';
 import { TaskActivityTimeline } from './TaskActivityTimeline';
 import { TaskExecutionAttempts } from './TaskExecutionAttempts';
 import { TaskIntelligencePanel } from './TaskIntelligencePanel';
-import { VerificationReportPanel } from './VerificationReportPanel';
+import { TaskVerificationSection } from './TaskVerificationSection';
 import { analyzeTaskRisk, TaskRiskPanel } from './TaskRiskPanel';
 import { Pagination } from './ui/pagination';
 
@@ -354,6 +367,7 @@ export function KanbanView({ onClose }: { onClose?: (() => void) | undefined }) 
   const [taskActivityError, setTaskActivityError] = useState<string | null>(null);
   const [taskActivityRefresh, setTaskActivityRefresh] = useState(0);
   const [dragTaskId, setDragTaskId] = useState<string | null>(null);
+  const [viewMode, setViewMode] = useState<'board' | 'tree' | 'dashboard'>('board');
   const autoSelectedSessionRef = useRef<string | null>(null);
 
   const ws = useMemo(() => getWSClient(wsUrl), [wsUrl]);
@@ -887,6 +901,38 @@ export function KanbanView({ onClose }: { onClose?: (() => void) | undefined }) 
         {boardAudit && (
           <KanbanCleanerAlert audit={boardAudit} onSelectTask={setSelectedTaskId} />
         )}
+        {activeBoard && (
+          <KanbanDecompositionApprovalCard
+            board={activeBoard}
+            sendKanban={sendKanban}
+            onSelectTask={setSelectedTaskId}
+          />
+        )}
+        {activeBoard && (
+          <div className="flex shrink-0 items-center gap-1 border-b px-4 py-1.5">
+            {(
+              [
+                ['board', 'Board'],
+                ['tree', 'Tree'],
+                ['dashboard', 'Verification'],
+              ] as const
+            ).map(([mode, label]) => (
+              <button
+                key={mode}
+                type="button"
+                onClick={() => setViewMode(mode)}
+                className={cn(
+                  'rounded-md px-2.5 py-1 text-[11px] font-medium transition-colors',
+                  viewMode === mode
+                    ? 'bg-primary/10 text-primary'
+                    : 'text-muted-foreground hover:bg-muted',
+                )}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        )}
 
         {error && (
           <div className="flex h-9 shrink-0 items-center gap-2 border-b border-destructive/30 bg-destructive/10 px-4 text-sm text-destructive">
@@ -969,23 +1015,36 @@ export function KanbanView({ onClose }: { onClose?: (() => void) | undefined }) 
                   )}
                 </div>
               )}
-              <div className="flex h-full min-w-max gap-3 p-4">
-                {[...activeBoard.columns]
-                  .sort((a, b) => a.order - b.order)
-                  .map((column) => (
-                    <KanbanColumnView
-                      key={column.id}
-                      board={activeBoard}
-                      column={column}
-                      selectedTaskId={selectedTaskId}
-                      dragTaskId={dragTaskId}
-                      setDragTaskId={setDragTaskId}
-                      onSelectTask={setSelectedTaskId}
-                      onDeleteTask={deleteTask}
-                      onMoveTask={moveTask}
-                    />
-                  ))}
-              </div>
+              {viewMode === 'tree' ? (
+                <KanbanTaskTree
+                  board={activeBoard}
+                  selectedTaskId={selectedTaskId}
+                  onSelectTask={setSelectedTaskId}
+                />
+              ) : viewMode === 'dashboard' ? (
+                <KanbanVerificationDashboard
+                  board={activeBoard}
+                  onSelectTask={setSelectedTaskId}
+                />
+              ) : (
+                <div className="flex h-full min-w-max gap-3 p-4">
+                  {[...activeBoard.columns]
+                    .sort((a, b) => a.order - b.order)
+                    .map((column) => (
+                      <KanbanColumnView
+                        key={column.id}
+                        board={activeBoard}
+                        column={column}
+                        selectedTaskId={selectedTaskId}
+                        dragTaskId={dragTaskId}
+                        setDragTaskId={setDragTaskId}
+                        onSelectTask={setSelectedTaskId}
+                        onDeleteTask={deleteTask}
+                        onMoveTask={moveTask}
+                      />
+                    ))}
+                </div>
+              )}
             </>
           ) : (
             <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
@@ -1001,6 +1060,7 @@ export function KanbanView({ onClose }: { onClose?: (() => void) | undefined }) 
         task={selectedTask}
         runLink={runLink}
         onClose={() => setSelectedTaskId(null)}
+        onSelectTask={setSelectedTaskId}
         sendKanban={sendKanban}
         sendRaw={sendRaw}
         refreshBoard={refreshBoard}
@@ -1024,6 +1084,7 @@ function RunControlBar({
 }) {
   const isSdd = runLink.engine === 'sdd';
   const pfx = isSdd ? 'sdd.board' : 'goal';
+  const setCurrentView = useUIStore((s) => s.setCurrentView);
   const btn =
     'inline-flex items-center gap-1 rounded-md border px-2 py-1 text-[11px] font-medium hover:bg-muted';
   return (
@@ -1032,6 +1093,16 @@ function RunControlBar({
         <Rocket size={11} /> {runLink.engine}
       </span>
       <span className="text-[11px] text-muted-foreground">Live run — steer it from here</span>
+      {isSdd && (
+        <button
+          type="button"
+          className={btn}
+          title="Open the live run view (SDD Hub)"
+          onClick={() => setCurrentView('sddhub')}
+        >
+          <Rocket size={12} /> Open live run
+        </button>
+      )}
       <div className="ml-auto flex items-center gap-1">
         <button type="button" className={btn} onClick={() => sendRaw(`${pfx}.pause`)}>
           <Pause size={12} /> Pause
@@ -1211,11 +1282,22 @@ export interface TaskCardIntelligence {
   failed: boolean;
   criticalRisks: number;
   warningRisks: number;
+  /** Verification display state derived from the persisted report. */
+  verification: TaskVerificationState;
+  /** Completed/total resolved child tasks, or null for leaf tasks. */
+  subtaskCounts: { done: number; total: number } | null;
+  /** Atomicity verdict when an assessment exists. */
+  atomicityVerdict: 'atomic' | 'borderline' | 'needs_decomposition' | 'composite' | null;
+  /** Evidence attachments on the verification report. */
+  evidenceCount: number;
+  /** A decomposition proposal awaiting approval. */
+  pendingDecomposition: boolean;
 }
 
 export function deriveTaskCardIntelligence(
   board: KanbanBoard,
   task: KanbanTask,
+  verificationActivity?: Record<string, { startedAt: number }>,
 ): TaskCardIntelligence {
   const assignment = task.assignment;
   const operationalFindings = analyzeTaskRisk(board, task, []).findings.filter(
@@ -1252,6 +1334,27 @@ export function deriveTaskCardIntelligence(
     failed: task.status === 'failed' || assignment?.status === 'failed' || !!assignment?.error,
     criticalRisks: operationalFindings.filter((finding) => finding.severity === 'critical').length,
     warningRisks: operationalFindings.filter((finding) => finding.severity === 'warning').length,
+    verification: verificationStateOf(
+      task,
+      verificationActivity?.[`${board.id}:${task.id}`],
+    ),
+    subtaskCounts: (() => {
+      const childIds = task.childTaskIds ?? [];
+      if (!childIds.length) return null;
+      const children = childIds
+        .map((childId) => board.tasks.find((candidate) => candidate.id === childId))
+        .filter((child): child is KanbanTask => Boolean(child));
+      if (!children.length) return null;
+      return {
+        done: children.filter((child) =>
+          ['completed', 'review', 'archived'].includes(child.status),
+        ).length,
+        total: children.length,
+      };
+    })(),
+    atomicityVerdict: task.atomicityAssessment?.verdict ?? null,
+    evidenceCount: task.verificationReport?.attachments.length ?? 0,
+    pendingDecomposition: task.decomposition?.status === 'proposed',
   };
 }
 
@@ -1274,6 +1377,7 @@ function KanbanColumnView({
   onDeleteTask: (task: KanbanTask) => void;
   onMoveTask: (taskId: string, columnId: string) => void;
 }) {
+  const verificationActivity = useKanbanStore((state) => state.verificationActivity);
   const tasks = board.tasks
     .filter((task) => task.columnId === column.id)
     .sort((a, b) => a.order - b.order);
@@ -1307,7 +1411,7 @@ function KanbanColumnView({
         }}
       >
         {tasks.map((task) => {
-          const intelligence = deriveTaskCardIntelligence(board, task);
+          const intelligence = deriveTaskCardIntelligence(board, task, verificationActivity);
           return (
             <li
             key={task.id}
@@ -1330,9 +1434,31 @@ function KanbanColumnView({
             <div className="pointer-events-none relative flex items-start gap-2">
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-1.5">
-                  {task.atomic && (
-                    <span className="shrink-0 rounded bg-warning/15 px-1 py-0.5 text-[10px] font-medium text-warning">
-                      atomic
+                  {(task.atomic || intelligence.atomicityVerdict) && (
+                    <span
+                      className={cn(
+                        'shrink-0 rounded px-1 py-0.5 text-[10px] font-medium',
+                        intelligence.atomicityVerdict === 'needs_decomposition'
+                          ? 'bg-destructive/15 text-destructive'
+                          : intelligence.atomicityVerdict === 'composite'
+                            ? 'bg-info/15 text-info'
+                            : intelligence.atomicityVerdict === 'borderline'
+                              ? 'bg-warning/15 text-warning'
+                              : task.atomic
+                                ? 'bg-warning/15 text-warning'
+                                : 'bg-muted text-muted-foreground',
+                      )}
+                      title={
+                        intelligence.atomicityVerdict
+                          ? `Atomicity: ${intelligence.atomicityVerdict}`
+                          : 'Atomic task (subtree verification required)'
+                      }
+                    >
+                      {task.atomic
+                        ? 'atomic'
+                        : intelligence.atomicityVerdict === 'needs_decomposition'
+                          ? 'split me'
+                          : intelligence.atomicityVerdict}
                     </span>
                   )}
                   <span className="line-clamp-2 text-sm font-medium leading-5">{task.title}</span>
@@ -1413,6 +1539,35 @@ function KanbanColumnView({
                   {task.assignment.skills.length} skills
                 </span>
               ) : null}
+              {intelligence.verification !== 'unverified' && (
+                <span
+                  className={cn(
+                    'rounded px-1.5 py-0.5',
+                    intelligence.verification === 'passed'
+                      ? 'bg-success/10 text-success'
+                      : intelligence.verification === 'failed'
+                        ? 'bg-destructive/10 text-destructive'
+                        : 'bg-warning/10 text-warning',
+                  )}
+                >
+                  ✓ {intelligence.verification}
+                </span>
+              )}
+              {intelligence.subtaskCounts && (
+                <span className="rounded bg-info/10 px-1.5 py-0.5 text-info">
+                  {intelligence.subtaskCounts.done}/{intelligence.subtaskCounts.total} subtasks
+                </span>
+              )}
+              {intelligence.evidenceCount > 0 && (
+                <span className="rounded bg-muted px-1.5 py-0.5 text-muted-foreground">
+                  {intelligence.evidenceCount} evidence
+                </span>
+              )}
+              {intelligence.pendingDecomposition && (
+                <span className="rounded bg-warning/10 px-1.5 py-0.5 text-warning">
+                  split pending approval
+                </span>
+              )}
             </div>
             </li>
           );
@@ -1471,6 +1626,7 @@ function TaskInspector({
   task,
   runLink,
   onClose,
+  onSelectTask,
   sendKanban,
   sendRaw,
   refreshBoard,
@@ -1486,6 +1642,7 @@ function TaskInspector({
   task: KanbanTask | null;
   runLink: RunLink | null;
   onClose: () => void;
+  onSelectTask: (id: string) => void;
   sendKanban: (type: `kanban.${string}`, payload?: Record<string, unknown>) => void;
   sendRaw: (type: string, payload?: Record<string, unknown>) => void;
   refreshBoard: (boardId?: string | null) => void;
@@ -2276,8 +2433,17 @@ function TaskInspector({
             </div>
           </div>
 
-          {task.verificationReport && (
-            <VerificationReportPanel report={task.verificationReport} />
+          {board && (
+            <TaskVerificationSection boardId={board.id} task={task} sendKanban={sendKanban} />
+          )}
+
+          {board && (
+            <KanbanDecompositionPanel
+              board={board}
+              task={task}
+              sendKanban={sendKanban}
+              onSelectTask={onSelectTask}
+            />
           )}
 
           <TaskActivityTimeline

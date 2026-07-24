@@ -1443,11 +1443,18 @@ export interface BrainConfig {
          * refused. Historically all three fell through to the escalation
          * tier, so a genuine refusal could never be terminal.
          *
-         * - 'never'        — always fall through (default; legacy behaviour)
-         * - 'when-decided' — a real refusal is terminal, infrastructure
-         *                    failures still fall through
+         * - 'never'        — always fall through (legacy behaviour; the LLM
+         *                    tier can then agree but never disagree)
+         * - 'when-decided' — DEFAULT. A real refusal is terminal;
+         *                    infrastructure failures (dead pool, unparseable
+         *                    response) still fall through to the next tier.
          * - 'always'       — any deny is terminal (strict; a dead pool then
          *                    denies the request instead of escalating)
+         *
+         * NOTE the default is resolved in `createBrainRuntime`, not in
+         * `createTieredBrainArbiter` — the raw arbiter stays at 'never' for
+         * callers that wire it directly, exactly as it stays at 'medium' for
+         * `maxAutoRisk` while the product resolves that adaptively.
          */
         denyIsTerminal?: 'never' | 'when-decided' | 'always' | undefined;
         /**

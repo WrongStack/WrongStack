@@ -226,6 +226,8 @@ describe('Kanban recovery E2E (file-backed dispatch + recover_stale + retry)', (
       'task.claimed',
       'task.assignment.running',
       'task.assignment.completed',
+      'task.completion.gate_pending',
+      'task.verified',
     ]);
 
     const recoveryEvent = events.find((event) => event.type === 'task.stale_recovered');

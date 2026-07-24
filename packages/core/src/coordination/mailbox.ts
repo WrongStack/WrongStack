@@ -13,7 +13,7 @@
 import { randomUUID } from 'node:crypto';
 import * as fsp from 'node:fs/promises';
 import * as path from 'node:path';
-import { withFileLock } from '../utils/atomic-write.js';
+import { atomicWrite, withFileLock } from '../utils/atomic-write.js';
 import type { Logger } from '../types/logger.js';
 import { normalizeMailboxMessageType, parseMailboxMessageLine } from './mailbox-message-codec.js';
 import type {
@@ -262,7 +262,10 @@ export class DefaultMailbox implements Mailbox {
       }
       if (changed) {
         const serialized = all.map((m) => JSON.stringify(m)).join(LINE_SEPARATOR) + LINE_SEPARATOR;
-        await fsp.writeFile(this.filePath, serialized, 'utf8');
+        // Atomic temp+rename: a crash mid-rewrite must not tear the mailbox
+        // (the codec skips corrupt lines, so a torn write silently DROPS
+        // messages rather than failing loudly).
+        await atomicWrite(this.filePath, serialized);
       }
       // Stat synchronously under the same file lock that protected the
       // write above. The cache metadata must reflect the file we just
@@ -357,7 +360,7 @@ export class DefaultMailbox implements Mailbox {
     // Truncate the mailbox file under the same lock that protects
     // append/ack so a concurrent send can't be half-erased.
     await withFileLock(this.filePath, async () => {
-      await fsp.writeFile(this.filePath, '', 'utf8');
+      await atomicWrite(this.filePath, '');
       // Stat under the same lock so the cache metadata reflects exactly
       // the truncated file. mtime is the post-truncate timestamp; size
       // is 0 (or 1 on some platforms that leave a trailing newline).
@@ -401,7 +404,7 @@ export class DefaultMailbox implements Mailbox {
       remaining = kept.length;
       if (kept.length < all.length) {
         const content = kept.map((m) => JSON.stringify(m)).join(LINE_SEPARATOR) + LINE_SEPARATOR;
-        await fsp.writeFile(this.filePath, content, 'utf8');
+        await atomicWrite(this.filePath, content);
       }
       // Stat under the same file lock that protected the (possible)
       // write above. The cache metadata must reflect the file's current

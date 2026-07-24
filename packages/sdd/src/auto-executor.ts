@@ -1,7 +1,6 @@
-import type { TaskGraph, TaskNode } from '@wrongstack/core/types';
-import type { Specification } from '@wrongstack/core/types';
 import type { EventBus } from '@wrongstack/core/kernel';
 import type { TaskTracker } from '@wrongstack/core/tasking';
+import type { Specification, TaskGraph, TaskNode } from '@wrongstack/core/types';
 import { analyzeCriticalPath } from './critical-path.js';
 
 export interface AutoExecutorOptions {
@@ -14,13 +13,13 @@ export interface AutoExecutorOptions {
   /** Custom task executor function. */
   executeTask: (task: TaskNode, context: TaskExecutionContext) => Promise<TaskExecutionResult>;
   /** Called before each task starts. */
-  onTaskStart?: (((task: TaskNode) => void)) | undefined;
+  onTaskStart?: ((task: TaskNode) => void) | undefined;
   /** Called after each task completes. */
   onTaskComplete?: (task: TaskNode, result: TaskExecutionResult) => void;
   /** Called when a task fails. */
   onTaskFail?: (task: TaskNode, error: Error, retryCount: number) => void;
   /** Called when all tasks are done or no more can execute. */
-  onDone?: (((summary: ExecutionSummary) => void)) | undefined;
+  onDone?: ((summary: ExecutionSummary) => void) | undefined;
 }
 
 export interface TaskExecutionContext {
@@ -108,9 +107,8 @@ export class AutoExecutor {
       );
 
       for (let i = 0; i < results.length; i++) {
-        const result = results[i];
-        const task = batch[i];
-        if (!result || !task) continue;
+        const result = results[i]!;
+        const task = batch[i]!;
 
         if (result.status === 'fulfilled') {
           const { result: execResult, retries } = result.value;
@@ -175,7 +173,7 @@ export class AutoExecutor {
 
     // Sort by priority
     const priorityOrder = { critical: 0, high: 1, medium: 2, low: 3 };
-    ready.sort((a, b) => (priorityOrder[a.priority] ?? 4) - (priorityOrder[b.priority] ?? 4));
+    ready.sort((a, b) => priorityOrder[a.priority] - priorityOrder[b.priority]);
 
     return ready;
   }
@@ -189,7 +187,7 @@ export class AutoExecutor {
     const maxRetries = this.opts.maxRetries ?? 2;
     let retryCount = this.retryMap.get(task.id) ?? 0;
 
-    while (retryCount <= maxRetries) {
+    while (true) {
       this.opts.tracker.updateNodeStatus(task.id, 'in_progress');
       this.opts.onTaskStart?.(task);
 
@@ -240,8 +238,6 @@ export class AutoExecutor {
         };
       }
     }
-
-    return { result: { success: false, error: 'Max retries exceeded' }, retries: retryCount };
   }
 
   /** Get tasks that this task depends on. */

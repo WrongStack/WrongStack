@@ -1,6 +1,7 @@
 import type { ChildProcessWithoutNullStreams } from 'node:child_process';
 import type { EventBus } from '@wrongstack/core/kernel';
 import type { Logger } from '@wrongstack/core/types';
+import { treeKill } from '@wrongstack/core/utils/tree-kill';
 import type {
   CodeAction,
   CodeActionParams,
@@ -29,7 +30,6 @@ import type {
 import type { ServerConfig, ServerState } from '../types.js';
 import { LSPError, LSPErrorCode } from '../types.js';
 import { safeSpawn } from '../utils/safe-spawn.js';
-import { treeKill } from '@wrongstack/core/utils/tree-kill';
 import { pathToUri, uriToPath } from '../utils/uri.js';
 import { Connection } from './connection.js';
 import { initializeServer } from './initialize.js';
@@ -147,7 +147,7 @@ export class LSPServer {
       startup.cancel();
       this.state = 'failed';
       this.connection?.close();
-      if (this.child) treeKill(this.child);
+      treeKill(child);
       this.processReachedReady = false;
       throw err;
     }
@@ -223,7 +223,9 @@ export class LSPServer {
     timeoutMs: number,
     signal: AbortSignal,
   ): Promise<
-    { range: unknown; placeholder?: string | undefined } | import('vscode-languageserver-protocol').Range | null
+    | { range: unknown; placeholder?: string | undefined }
+    | import('vscode-languageserver-protocol').Range
+    | null
   > {
     return await this.request('textDocument/prepareRename', params, timeoutMs, signal);
   }
@@ -324,29 +326,33 @@ function startupFailure(child: ChildProcessWithoutNullStreams): {
   promise: Promise<never>;
   cancel: () => void;
 } {
-  let cleanup = () => undefined;
+  let rejectStartup!: (reason: unknown) => void;
   const promise = new Promise<never>((_, reject) => {
-    const onError = (err: Error) => {
-      cleanup();
-      reject(
-        new LSPError(LSPErrorCode.ServerFailed, `LSP server failed to start: ${err.message}`, err),
-      );
-    };
-    const onExit = (code: number | null, signal: NodeJS.Signals | null) => {
-      cleanup();
-      reject(
-        new LSPError(
-          LSPErrorCode.ServerFailed,
-          `LSP server exited during startup code=${code ?? 'null'} signal=${signal ?? 'null'}`,
-        ),
-      );
-    };
-    cleanup = () => {
-      child.off('error', onError);
-      child.off('exit', onExit);
-    };
-    child.once('error', onError);
-    child.once('exit', onExit);
+    rejectStartup = reject;
   });
+  const cleanup = () => {
+    child.off('error', onError);
+    child.off('exit', onExit);
+  };
+  const onError = (err: Error) => {
+    cleanup();
+    rejectStartup(
+      new LSPError(LSPErrorCode.ServerFailed, `LSP server failed to start: ${err.message}`, err),
+    );
+  };
+  const onExit = (code: number | null, signal: NodeJS.Signals | null) => {
+    cleanup();
+    rejectStartup(
+      new LSPError(
+        LSPErrorCode.ServerFailed,
+        `LSP server exited during startup code=${code ?? 'null'} signal=${signal ?? 'null'}`,
+      ),
+    );
+  };
+  child.once('error', onError);
+  child.once('exit', onExit);
   return { promise, cancel: cleanup };
 }
+
+/** Direct-module test seam; not re-exported by the package barrel. */
+export const lspServerCoverage = { startupFailure };

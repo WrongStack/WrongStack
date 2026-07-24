@@ -32,6 +32,7 @@
 
 import type { Mailbox, MailboxSendInput } from '@wrongstack/core/coordination';
 import type { Plugin } from '@wrongstack/core/types';
+import { safeJsonStringify } from '../runtime/index.js';
 
 const API_VERSION = '^0.1.10';
 
@@ -139,7 +140,9 @@ function buildBody(payload: HandoffPayload, cfg: AgentHandoffConfig): string {
   if (cfg.includeResult && payload.result !== undefined) {
     lines.push('## Result');
     lines.push('```json');
-    lines.push(JSON.stringify(payload.result, null, 2));
+    // Handoff results come from another agent, so they are arbitrary
+    // values — a circular one must degrade to a marker, not throw.
+    lines.push(safeJsonStringify(payload.result, 2));
     lines.push('```');
     lines.push('');
   }

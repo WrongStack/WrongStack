@@ -28,7 +28,7 @@ import {
 import { DependencyDetail } from './DependencyDetail';
 import { DependencyTable } from './DependencyTable';
 import { FindingsPanel } from './FindingsPanel';
-import { COVERAGE_META, MetricCard, needsAttention, statusMeta, versionDrift } from './shared';
+import { COVERAGE_META, ECOSYSTEM_META, EcosystemIcon, ecosystemMeta, MetricCard, needsAttention, statusMeta, versionDrift } from './shared';
 import { type DependencySort, TechStackToolbar } from './TechStackToolbar';
 
 interface SnapshotResponse {
@@ -89,6 +89,13 @@ const TABS: ReadonlyArray<{ id: MainTab; label: string }> = [
   { id: 'remediation', label: 'Remediation' },
 ];
 
+/**
+ * Ecosystems the backend can auto-execute upgrades for.
+ *
+ * Mirrors `EXECUTABLE_ECOSYSTEMS` in `packages/techstack/src/remediation.ts`.
+ * When adding a new ecosystem to that set, add it here too so the UI
+ * unblocks its auto-apply checkbox in the Remediation tab.
+ */
 const AUTOMATED_REMEDIATION_ECOSYSTEMS = new Set(['npm', 'python', 'rust', 'go', 'php', 'dotnet']);
 
 export function TechStackView() {
@@ -251,6 +258,11 @@ export function TechStackView() {
 
   const ecosystems = useMemo(() => tally(dependencies.map((dep) => dep.ecosystem)), [dependencies]);
   const statuses = useMemo(() => tally(dependencies.map((dep) => dep.status)), [dependencies]);
+
+  const coverageByWorkspaceId = useMemo(
+    () => new Map(snapshot?.workspaces.map((w) => [w.id, w.coverage]) ?? []),
+    [snapshot],
+  );
 
   const visible = useMemo(() => {
     const query = searchQuery.trim().toLowerCase();
@@ -506,6 +518,7 @@ export function TechStackView() {
                   dependencies={visible}
                   selectedId={selectedId}
                   hasDependencies={dependencies.length > 0}
+                  coverageByWorkspaceId={coverageByWorkspaceId}
                   onSelect={(dep) => setSelectedId(dep.id)}
                 />
               </section>
@@ -520,6 +533,7 @@ export function TechStackView() {
                     deepDive={deepDive}
                     onDeepDive={runDeepDive}
                     onBack={() => setSelectedId(null)}
+                    coverage={coverageByWorkspaceId.get(selected.workspaceId)}
                   />
                 ) : (
                   <div className="flex flex-1 items-center justify-center p-8 text-center">
@@ -691,10 +705,12 @@ function WorkspaceList({ snapshot }: { snapshot: TechStackSnapshot }) {
                   <p className="truncate font-mono text-xs text-foreground">
                     {workspace.relativeRoot}
                   </p>
-                  <p className="mt-0.5 truncate text-[10px] text-muted-foreground">
-                    {workspace.ecosystem}
-                    {workspace.packageManager ? ` · ${workspace.packageManager}` : ''}
-                    {` · ${counts.get(workspace.id) ?? 0} deps`}
+                  <p className="mt-0.5 flex items-center gap-1 truncate text-[10px] text-muted-foreground">
+                    <EcosystemIcon ecosystem={workspace.ecosystem} />
+                    <span>{ecosystemMeta(workspace.ecosystem).label}</span>
+                    {workspace.packageManager ? <><span aria-hidden="true">·</span><span>{workspace.packageManager}</span></> : null}
+                    <span aria-hidden="true">·</span>
+                    <span>{counts.get(workspace.id) ?? 0} deps</span>
                   </p>
                 </div>
                 <span
@@ -740,6 +756,14 @@ function LoadingState() {
 }
 
 function EmptyState({ onScan, disabled }: { onScan: () => void; disabled: boolean }) {
+  const ecosystemList = useMemo(
+    () =>
+      Object.values(ECOSYSTEM_META)
+        .map((meta) => meta.label)
+        .join(', '),
+    [],
+  );
+
   return (
     <div className="flex flex-1 items-center justify-center p-8">
       <div className="flex max-w-md flex-col items-center gap-3 text-center">
@@ -748,9 +772,8 @@ function EmptyState({ onScan, disabled }: { onScan: () => void; disabled: boolea
         </div>
         <h2 className="text-sm font-semibold">No inventory yet</h2>
         <p className="text-xs leading-relaxed text-muted-foreground">
-          TechStack reads every manifest and lockfile in the open project — npm, Python, Rust, Go,
-          .NET, PHP, Dart, Maven, Ruby, Elixir — and compares what you have against the upstream
-          registries.
+          TechStack reads every manifest and lockfile in the open project — {ecosystemList} — and
+          compares what you have against the upstream registries.
         </p>
         <Button size="sm" onClick={onScan} disabled={disabled}>
           <RefreshCw className={cn('size-3.5', disabled && 'animate-spin')} />

@@ -23,6 +23,18 @@ let container: HTMLDivElement | null = null;
 
 beforeEach(() => {
   fetchJsonMock.mockReset();
+  fetchJsonMock.mockImplementation((url: string) =>
+    Promise.resolve(
+      url === '/api/system/health'
+        ? {
+            status: 'healthy',
+            uptime: { serverTime: '2026-07-24T00:00:00.000Z', eventLogSize: 0 },
+            stores: { events: 'ok', timeseries: 'ok', kanban: 'ok' },
+            connections: { total: 0, active: 0, stale: 0 },
+          }
+        : { active: [], history: [] },
+    ),
+  );
   useHqStore.setState({
     snapshot: null,
     alerts: [],
@@ -106,7 +118,6 @@ function findTokenStatsEntries(): { label: string; value: string; accent: string
 
 describe('Cockpit — Auth Tokens (tokenStats) KPA card', () => {
   it('renders the browser/client/total/expired/expiring-soon stats when tokenStats is present', async () => {
-    fetchJsonMock.mockResolvedValue({ active: [], history: [] });
     useHqStore.setState({
       snapshot: snapshotWithTokenStats({
         browserTotal: 3,
@@ -122,7 +133,6 @@ describe('Cockpit — Auth Tokens (tokenStats) KPA card', () => {
   });
 
   it('sums browser + client into the total stat', async () => {
-    fetchJsonMock.mockResolvedValue({ active: [], history: [] });
     useHqStore.setState({
       snapshot: snapshotWithTokenStats({
         browserTotal: 7,
@@ -140,7 +150,6 @@ describe('Cockpit — Auth Tokens (tokenStats) KPA card', () => {
   });
 
   it('accents the expired stat with the error tone when > 0', async () => {
-    fetchJsonMock.mockResolvedValue({ active: [], history: [] });
     useHqStore.setState({
       snapshot: snapshotWithTokenStats({
         browserTotal: 2,
@@ -158,7 +167,6 @@ describe('Cockpit — Auth Tokens (tokenStats) KPA card', () => {
   });
 
   it('accents the expiring-soon stat with the warn tone when > 0', async () => {
-    fetchJsonMock.mockResolvedValue({ active: [], history: [] });
     useHqStore.setState({
       snapshot: snapshotWithTokenStats({
         browserTotal: 1,
@@ -176,7 +184,6 @@ describe('Cockpit — Auth Tokens (tokenStats) KPA card', () => {
   });
 
   it('leaves the expired/expiring-soon stats unaccented when zero', async () => {
-    fetchJsonMock.mockResolvedValue({ active: [], history: [] });
     useHqStore.setState({
       snapshot: snapshotWithTokenStats({
         browserTotal: 1,
@@ -193,7 +200,6 @@ describe('Cockpit — Auth Tokens (tokenStats) KPA card', () => {
   });
 
   it('renders the unavailable placeholder when the HQ version omits tokenStats', async () => {
-    fetchJsonMock.mockResolvedValue({ active: [], history: [] });
     useHqStore.setState({
       // tokenStats intentionally undefined — older HQ versions don't populate it.
       snapshot: snapshotWithTokenStats(undefined),
@@ -210,7 +216,6 @@ describe('Cockpit — Auth Tokens (tokenStats) KPA card', () => {
   });
 
   it('propagates tokenStats end-to-end through _onSnapshot (WS path) and re-renders on update', async () => {
-    fetchJsonMock.mockResolvedValue({ active: [], history: [] });
     // Start with no snapshot at all — the card body hasn't rendered yet.
     useHqStore.setState({ snapshot: null });
     await mountCockpit();

@@ -9,7 +9,8 @@ import type { MCPClient } from '../src/client.js';
 import { MCPRegistry } from '../src/registry.js';
 
 function getClient(reg: MCPRegistry, name: string): MCPClient | undefined {
-  return (reg as unknown as { servers: Map<string, { client?: MCPClient }> }).servers.get(name)?.client;
+  return (reg as unknown as { servers: Map<string, { client?: MCPClient }> }).servers.get(name)
+    ?.client;
 }
 
 const silentLog: Logger = {
@@ -58,7 +59,10 @@ rl.createInterface({ input: process.stdin, terminal: false }).on('line', (line) 
   }
 });
 `;
-  const p = path.join(os.tmpdir(), `mcp-faulty-stdio-${Date.now()}-${Math.random().toString(36).slice(2)}.js`);
+  const p = path.join(
+    os.tmpdir(),
+    `mcp-faulty-stdio-${Date.now()}-${Math.random().toString(36).slice(2)}.js`,
+  );
   fs.writeFileSync(p, script, 'utf8');
   return p;
 }
@@ -92,73 +96,70 @@ describe('MCP stdio fault-injection soak', () => {
     }
   });
 
-  it(
-    'survives repeated child process crashes without a tight reconnect loop',
-    { timeout: 60_000 },
-    async () => {
-      // Each spawned process handles 2 tool calls and then exits with code 1.
-      // The registry should reconnect several times. Because every reconnect
-      // succeeds, the slot should not get permanently stuck in `failed`.
-      scriptPath = writeFaultyServerScript(2);
-      const reg = new MCPRegistry({ toolRegistry: toolReg, events, log: silentLog });
-      await reg.start(stdioCfg('soak', scriptPath));
+  it('survives repeated child process crashes without a tight reconnect loop', {
+    timeout: 60_000,
+  }, async () => {
+    // Each spawned process handles 2 tool calls and then exits with code 1.
+    // The registry should reconnect several times. Because every reconnect
+    // succeeds, the slot should not get permanently stuck in `failed`.
+    scriptPath = writeFaultyServerScript(2);
+    const reg = new MCPRegistry({ toolRegistry: toolReg, events, log: silentLog });
+    await reg.start(stdioCfg('soak', scriptPath));
 
-      // Wait for the first healthy connection.
-      await expect
-        .poll(() => reg.list()[0]?.state, { timeout: 5000, interval: 100 })
-        .toBe('connected');
+    // Wait for the first healthy connection.
+    await expect
+      .poll(() => reg.list()[0]?.state, { timeout: 5000, interval: 100 })
+      .toBe('connected');
 
-      let successes = 0;
-      let _failures = 0;
-      const start = Date.now();
-      while (Date.now() - start < 25_000) {
-        const client = getClient(reg, 'soak');
-        const health = reg.health()[0];
-        if (!client || (health && !health.alive)) {
-          await new Promise((r) => setTimeout(r, 100));
-          continue;
-        }
-        try {
-          const res = await client.callTool('ping', {});
-          if (typeof res.content === 'string' && res.content.startsWith('pong-')) {
-            successes++;
-          }
-        } catch {
-          _failures++;
-        }
-        // Pace calls so the child reliably reaches its 2-call crash limit.
-        await new Promise((r) => setTimeout(r, 250));
+    let successes = 0;
+    let _failures = 0;
+    const start = Date.now();
+    while (Date.now() - start < 25_000) {
+      const client = getClient(reg, 'soak');
+      const health = reg.health()[0];
+      if (!client || (health && !health.alive)) {
+        await new Promise((r) => setTimeout(r, 100));
+        continue;
       }
+      try {
+        const res = await client.callTool('ping', {});
+        if (typeof res.content === 'string' && res.content.startsWith('pong-')) {
+          successes++;
+        }
+      } catch {
+        _failures++;
+      }
+      // Pace calls so the child reliably reaches its 2-call crash limit.
+      await new Promise((r) => setTimeout(r, 250));
+    }
 
-      // The server keeps crashing but always reconnects successfully, so it
-      // should stay out of the permanent `failed` state while still logging
-      // transport failures and reconnects. It may be mid-reconnect when the
-      // test window closes.
-      const op = reg.operationalHealth()[0];
-      expect(op).toBeDefined();
-      if (!op) throw new Error('operationalHealth missing');
-      expect(op.healthState).not.toBe('failed');
-      expect(op.restartCount + op.reconnectCount).toBeGreaterThanOrEqual(2);
-      expect(op.failures.transport).toBeGreaterThan(0);
+    // The server keeps crashing but always reconnects successfully, so it
+    // should stay out of the permanent `failed` state while still logging
+    // transport failures and reconnects. It may be mid-reconnect when the
+    // test window closes.
+    const op = reg.operationalHealth()[0];
+    expect(op).toBeDefined();
+    if (!op) throw new Error('operationalHealth missing');
+    expect(op.healthState).not.toBe('failed');
+    expect(op.restartCount + op.reconnectCount).toBeGreaterThanOrEqual(2);
+    expect(op.failures.transport).toBeGreaterThan(0);
 
-      // Must have observed some successful calls across process restarts.
-      expect(successes).toBeGreaterThan(0);
+    // Must have observed some successful calls across process restarts.
+    expect(successes).toBeGreaterThan(0);
 
-      // Sanity: there should not be hundreds of restarts (tight loop guard).
-      // With exponential backoff between reconnect cycles we expect < 20.
-      expect(op.restartCount + op.reconnectCount).toBeLessThan(20);
+    // Sanity: there should not be hundreds of restarts (tight loop guard).
+    // With exponential backoff between reconnect cycles we expect < 20.
+    expect(op.restartCount + op.reconnectCount).toBeLessThan(20);
 
-      await reg.stopAll();
-    },
-  );
+    await reg.stopAll();
+  });
 
-  it(
-    'recovers when the child process stabilizes after intermittent crashes',
-    { timeout: 45_000 },
-    async () => {
-      // Use a script that crashes once after 1 call, then stays healthy.
-      // We simulate this by writing a script that reads an env var to decide.
-      const script = `'use strict';
+  it('recovers when the child process stabilizes after intermittent crashes', {
+    timeout: 45_000,
+  }, async () => {
+    // Use a script that crashes once after 1 call, then stays healthy.
+    // We simulate this by writing a script that reads an env var to decide.
+    const script = `'use strict';
 const rl = require('readline');
 let calls = 0;
 const crashAfter = parseInt(process.env.MCP_CRASH_AFTER || '9999', 10);
@@ -185,51 +186,55 @@ rl.createInterface({ input: process.stdin, terminal: false }).on('line', (line) 
   }
 });
 `;
-      scriptPath = path.join(os.tmpdir(), `mcp-recover-stdio-${Date.now()}-${Math.random().toString(36).slice(2)}.js`);
-      fs.writeFileSync(scriptPath, script, 'utf8');
+    scriptPath = path.join(
+      os.tmpdir(),
+      `mcp-recover-stdio-${Date.now()}-${Math.random().toString(36).slice(2)}.js`,
+    );
+    fs.writeFileSync(scriptPath, script, 'utf8');
 
-      const reg = new MCPRegistry({ toolRegistry: toolReg, events, log: silentLog });
-      await reg.start({
-        ...stdioCfg('recover', scriptPath),
-        env: { MCP_CRASH_AFTER: '1' },
-      });
+    const reg = new MCPRegistry({ toolRegistry: toolReg, events, log: silentLog });
+    await reg.start({
+      ...stdioCfg('recover', scriptPath),
+      env: { MCP_CRASH_AFTER: '1' },
+    });
 
-      // First process dies after 1 call; wait for reconnect.
-      await expect
-        .poll(() => reg.list()[0]?.state, { timeout: 8000, interval: 100 })
-        .toBe('connected');
+    // First process dies after 1 call; wait for reconnect.
+    await expect
+      .poll(() => reg.list()[0]?.state, { timeout: 8000, interval: 100 })
+      .toBe('connected');
 
-      // Update env so subsequent processes do not crash.
-      const slot = (reg as unknown as { servers: Map<string, { cfg: MCPServerConfig }> }).servers.get('recover');
-      if (slot) slot.cfg.env = { MCP_CRASH_AFTER: '9999' };
+    // Update env so subsequent processes do not crash.
+    const slot = (reg as unknown as { servers: Map<string, { cfg: MCPServerConfig }> }).servers.get(
+      'recover',
+    );
+    if (slot) slot.cfg.env = { MCP_CRASH_AFTER: '9999' };
 
-      let successes = 0;
-      for (let i = 0; i < 30; i++) {
-        const client = getClient(reg, 'recover');
-        if (!client) {
-          await new Promise((r) => setTimeout(r, 100));
-          continue;
-        }
-        try {
-          const res = await client.callTool('ping', {});
-          if (typeof res.content === 'string' && res.content.startsWith('ok-')) {
-            successes++;
-          }
-        } catch {
-          /* ignore transient */
-        }
-        await new Promise((r) => setTimeout(r, 200));
+    let successes = 0;
+    for (let i = 0; i < 30; i++) {
+      const client = getClient(reg, 'recover');
+      if (!client) {
+        await new Promise((r) => setTimeout(r, 100));
+        continue;
       }
+      try {
+        const res = await client.callTool('ping', {});
+        if (typeof res.content === 'string' && res.content.startsWith('ok-')) {
+          successes++;
+        }
+      } catch {
+        /* ignore transient */
+      }
+      await new Promise((r) => setTimeout(r, 200));
+    }
 
-      // Should see a healthy state and multiple consecutive successes after recovery.
-      expect(successes).toBeGreaterThanOrEqual(3);
-      const op = reg.operationalHealth()[0];
-      expect(op).toBeDefined();
-      if (!op) throw new Error('operationalHealth missing');
-      expect(op.healthState).toBeOneOf(['healthy', 'degraded']);
-      expect(op.consecutiveFailures).toBe(0);
+    // Should see a healthy state and multiple consecutive successes after recovery.
+    expect(successes).toBeGreaterThanOrEqual(3);
+    const op = reg.operationalHealth()[0];
+    expect(op).toBeDefined();
+    if (!op) throw new Error('operationalHealth missing');
+    expect(op.healthState).toBeOneOf(['healthy', 'degraded']);
+    expect(op.consecutiveFailures).toBe(0);
 
-      await reg.stopAll();
-    },
-  );
+    await reg.stopAll();
+  });
 });

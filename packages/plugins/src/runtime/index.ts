@@ -41,6 +41,22 @@ export {
   type OptionalLlmResult,
 } from './llm.js';
 
+import { resolveExecInvocation, type ExecInvocation } from './local-bin.js';
+
+export { BoundedMap, type BoundedMapOptions } from './bounded-map.js';
+export { UNSERIALIZABLE, safeJsonStringify } from './safe-json.js';
+
+export {
+  clearLocalBinCache,
+  findOnPath,
+  resolveExecInvocation,
+  resolveFirstNodeBin,
+  resolveNodeBin,
+  resolveWin32Command,
+  type ExecInvocation,
+  type ResolvedNodeBin,
+} from './local-bin.js';
+
 export type LanguageId =
   | 'typescript'
   | 'javascript'
@@ -324,10 +340,30 @@ export function runRunnerCommand(
     const onAbort = () => {
       timedOut = true;
     };
+    // Adjust the invocation for the host platform BEFORE spawning. Without
+    // this, `argv[0]` values like `npx`/`pnpm`/`tsc` — which are `.cmd`
+    // shims on Windows — fail ENOENT, and callers misread that as "the tool
+    // is not installed". Every runtime-helper consumer was silently
+    // no-opping on Windows.
+    let invocation: ExecInvocation;
+    try {
+      invocation = resolveExecInvocation(argv[0]!, argv.slice(1) as string[]);
+    } catch (err) {
+      // Only thrown on the Windows shim path, for an argument carrying a
+      // cmd.exe metacharacter. Refuse to run rather than risk injection.
+      resolvePromise({
+        code: null,
+        stdout: '',
+        stderr: `runtime helper: ${err instanceof Error ? err.message : String(err)}`,
+        timedOut: false,
+        spawnError: true,
+      });
+      return;
+    }
     options.signal?.addEventListener('abort', onAbort, { once: true });
     const child = execFile(
-      argv[0]!,
-      argv.slice(1) as string[],
+      invocation.cmd,
+      invocation.args,
       {
         cwd: trimmedCwd,
         timeout: options.timeoutMs,
@@ -335,6 +371,7 @@ export function runRunnerCommand(
         maxBuffer: MAX_BUFFER_BYTES,
         windowsHide: true,
         shell: false,
+        ...(invocation.windowsVerbatimArguments ? { windowsVerbatimArguments: true } : {}),
       },
       (err) => {
         // Drop the abort listener on every completion path. Without this, a

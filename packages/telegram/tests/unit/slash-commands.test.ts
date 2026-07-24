@@ -2,7 +2,12 @@ import type { Logger } from '@wrongstack/core/types';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { TelegramBot } from '../../src/bot.js';
 import type { TelegramPluginConfig } from '../../src/config.js';
-import { tgChatIdCommand, tgHealthCommand, tgSendCommand } from '../../src/slash-commands/index.js';
+import {
+  registerSlashCommands,
+  tgChatIdCommand,
+  tgHealthCommand,
+  tgSendCommand,
+} from '../../src/slash-commands/index.js';
 
 const log: Logger = {
   level: 'debug',
@@ -199,6 +204,27 @@ describe('tgHealthCommand', () => {
 // ---------------------------------------------------------------------------
 
 describe('tgSendCommand', () => {
+  it('uses the queue-backed sender when supplied', async () => {
+    const outbound = {
+      sendManual: vi.fn().mockResolvedValue({ ok: true, result: { message_id: 55 } }),
+    };
+    const command = tgSendCommand(
+      makeBot(),
+      {
+        getDefaultChatId: () => '999',
+        getMaxMessageLength: () => 20,
+      },
+      outbound as never,
+    );
+    const result = await command.run('x'.repeat(100), null as never);
+    expect(outbound.sendManual).toHaveBeenCalledWith('999', expect.stringMatching(/^x+…$/));
+    expect(result?.message).toContain('msg_id=55');
+
+    outbound.sendManual.mockResolvedValueOnce({ ok: true, result: undefined });
+    const withoutId = await command.run('again', null as never);
+    expect(withoutId?.message).toContain('msg_id=?');
+  });
+
   it('shows usage when no args', async () => {
     const bot = makeBot();
     const cmd = tgSendCommand(bot, '999');
@@ -334,5 +360,32 @@ describe('tgChatIdCommand', () => {
     const cmd = tgChatIdCommand(undefined);
     const res = await cmd.run('', null as never);
     expect(res?.message).toContain('No notifyChatId configured');
+  });
+});
+
+describe('registerSlashCommands', () => {
+  it('registers all commands and resolves live config through policy callbacks', async () => {
+    const registered: Array<{ name: string; run: (...args: never[]) => Promise<unknown> }> = [];
+    const api = {
+      slashCommands: {
+        register(command: (typeof registered)[number]) {
+          registered.push(command);
+        },
+      },
+    };
+    const bot = makeBot();
+    bot.sendMessage = vi.fn().mockResolvedValue({ ok: true, result: { message_id: 1 } });
+    const names = registerSlashCommands(
+      api as never,
+      bot,
+      makeConfig({
+        allowedOutboundChats: undefined,
+        maxMessageLength: undefined,
+      }),
+    );
+    expect(names).toEqual(['telegram-health', 'send', 'chatid']);
+    const send = registered.find((command) => command.name === 'send')!;
+    await send.run('registered message' as never, null as never);
+    expect(bot.sendMessage).toHaveBeenCalled();
   });
 });

@@ -110,7 +110,6 @@ export function createSddHandlers(deps: Record<string, any>): Record<string, (..
     }
 
     const boardStore = new sddApi.SddBoardStore({ baseDir: wpaths.projectSddBoards });
-    const verifyTask = sddApi.makeCommandVerifier();
 
     const sddSupervisor = new sddApi.SddSupervisor({
       brain,
@@ -118,6 +117,31 @@ export function createSddHandlers(deps: Record<string, any>): Record<string, (..
     });
 
     const sddSubagentFactory = multiAgentHost.makeSubagentFactory(config);
+
+    // Composite completion gate: deterministic command check + LLM
+    // acceptance-criteria judge (isolated read-only turn; degrades open on
+    // judge errors so a flaky judge can never wedge the run).
+    let verifySeq = 0;
+    const verifyTask = sddApi.makeCompositeVerifier([
+      sddApi.makeCommandVerifier(),
+      sddApi.makeAcceptanceCriteriaVerifier({
+        run: async (prompt: string): Promise<string> => {
+          const r = await sddSubagentFactory({
+            id: `sdd-acceptance-${verifySeq++}`,
+            role: 'executor',
+            name: 'Acceptance Reviewer',
+            disabledTools: ['delegate', 'write', 'edit', 'patch', 'bash', 'exec'],
+            allowedCapabilities: ['fs.read'],
+          });
+          try {
+            const res = await r.agent.run([{ type: 'text', text: prompt }]);
+            return res.finalText ?? '';
+          } finally {
+            await r.dispose?.();
+          }
+        },
+      }),
+    ]);
 
     const conflictMode = process.env['WRONGSTACK_SDD_CONFLICT_RESOLVER'];
     const conflictResolver =

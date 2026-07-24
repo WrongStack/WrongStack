@@ -20,8 +20,6 @@ import {
   Shrink,
   SlidersHorizontal,
   Square,
-  Wifi,
-  WifiOff,
 } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useWebSocket } from '@/hooks/useWebSocket';
@@ -565,20 +563,8 @@ export function SessionPanel() {
         />
       </div>
 
-      {/* ── Connection footer ── */}
+      {/* ── Session ID footer ── */}
       <div className="px-4 py-2.5">
-        <div
-          className={cn(
-            'flex items-center gap-2 text-[11px]',
-            wsConnected ? 'text-success' : 'text-warning',
-          )}
-        >
-          {wsConnected ? <Wifi className="h-3.5 w-3.5" /> : <WifiOff className="h-3.5 w-3.5" />}
-          <span className="font-medium">{wsConnected ? t('common:status.connected') : t('common:status.disconnected')}</span>
-          <span className="text-muted-foreground font-mono truncate ml-auto" title={wsUrl}>
-            {wsUrl}
-          </span>
-        </div>
         {session && (
           <div
             className="text-[10px] text-muted-foreground font-mono mt-1 truncate"

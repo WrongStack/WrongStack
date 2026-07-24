@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import type { Diagnostic, DiagnosticSeverity } from 'vscode-languageserver-protocol';
 import { formatDiagnostics } from '../../src/formatters/diagnostics.js';
 import { formatLocations } from '../../src/formatters/location.js';
 
@@ -11,7 +12,7 @@ describe('formatters', () => {
   it('formats diagnostics with sorting, filtering, truncation, and fallback severity', () => {
     const file = `${cwd}/src.ts`;
     const out = formatDiagnostics(
-      new Map([
+      new Map<string, Diagnostic[]>([
         [
           file,
           [
@@ -35,6 +36,35 @@ describe('formatters', () => {
     expect(
       formatDiagnostics(new Map(), { cwd, severityFilter: ['error'], maxPerFile: 1, maxTotal: 1 }),
     ).toBe('No LSP diagnostics.');
+  });
+
+  it('formats missing severity, markup messages, sources without codes, and empty files', () => {
+    const file = `${cwd}/fallback.ts`;
+    const out = formatDiagnostics(
+      new Map<string, Diagnostic[]>([
+        [`${cwd}/empty.ts`, [diagnostic(0, 0, 2, 'filtered')]],
+        [
+          file,
+          [
+            {
+              range: range(1, 2),
+              message: { kind: 'markdown', value: 'markup\nmessage' },
+              source: 'server',
+            } as never,
+            diagnostic(1, 1, 1, 'same line earlier'),
+            diagnostic(1, 3, 1, 'same line later'),
+          ],
+        ],
+      ]),
+      {
+        cwd,
+        severityFilter: ['error'],
+        maxPerFile: 10,
+        maxTotal: 10,
+      },
+    );
+    expect(out).toContain('ERROR server: markup | message');
+    expect(out.indexOf('same line earlier')).toBeLessThan(out.indexOf('same line later'));
   });
 
   it('formats locations and symbols', () => {
@@ -67,6 +97,16 @@ describe('formatters', () => {
     ).toHaveLength(1);
     expect(summarizeWorkspaceEdit(edit, cwd)).toContain('Total: 1 edits across 1 files.');
     expect(summarizeWorkspaceEdit({}, cwd)).toBe('WorkspaceEdit contains no text edits.');
+    const mixed = editsByPath({
+      documentChanges: [
+        { kind: 'create', uri },
+        {
+          textDocument: { uri, version: 1 },
+          edits: [{ range: range(0, 0), newText: 'text' }, { annotationId: 'meta' }],
+        },
+      ],
+    } as never);
+    expect([...mixed.values()][0]).toHaveLength(1);
   });
 });
 
@@ -77,8 +117,14 @@ function diagnostic(
   message: string,
   source?: string,
   code?: number,
-) {
-  return { range: range(line, character), severity, message, source, code };
+): Diagnostic {
+  return {
+    range: range(line, character),
+    severity: severity as DiagnosticSeverity,
+    message,
+    ...(source === undefined ? {} : { source }),
+    ...(code === undefined ? {} : { code }),
+  };
 }
 
 function range(line: number, character: number) {

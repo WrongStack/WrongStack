@@ -105,7 +105,7 @@ async function writeConfig(path: string, cfg: Record<string, unknown>): Promise<
   try {
     await fs.rename(tmp, path);
   } catch (err) {
-    await fs.rm(tmp, { force: true }).catch(() => undefined);
+    await fs.rm(tmp, { force: true });
     throw err;
   }
 }

@@ -1,5 +1,4 @@
-import type { Specification, SpecRequirement } from '@wrongstack/core/types';
-import type { TaskGraph, TaskNode } from '@wrongstack/core/types';
+import type { Specification, SpecRequirement, TaskGraph, TaskNode } from '@wrongstack/core/types';
 import { assertNever } from '@wrongstack/core/utils';
 
 export interface SpecVersion {

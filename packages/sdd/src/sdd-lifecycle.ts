@@ -10,6 +10,7 @@
 // the run already settled, or `/sdd destroy` to wipe the project).
 
 import * as fsp from 'node:fs/promises';
+import { toErrorMessage } from '@wrongstack/core/utils';
 import { WorktreeManager } from '@wrongstack/core/worktree';
 import { SddBoardStore } from './sdd-board-store.js';
 
@@ -27,7 +28,9 @@ export async function cleanupSddWorktrees(projectRoot: string): Promise<{ remove
  *
  * P2 #B6 (sprint2 audit).
  */
-export async function cleanupStaleWorktrees(projectRoot: string): Promise<{ removed: number; detected: number }> {
+export async function cleanupStaleWorktrees(
+  projectRoot: string,
+): Promise<{ removed: number; detected: number }> {
   const wt = new WorktreeManager({ projectRoot });
   return wt.cleanupStale();
 }
@@ -68,20 +71,21 @@ export async function cleanupStaleSddWorktrees(
   opts: CleanupStaleSddOptions,
 ): Promise<CleanupStaleSddResult> {
   const now = opts.now?.() ?? Date.now();
-  try {
-    const store = new SddBoardStore({ baseDir: opts.boardsDir });
-    const latest = (await store.list())[0];
-    if (latest) {
-      const age = now - latest.updatedAt;
-      if (latest.status === 'running' && age < (opts.runningLiveMs ?? 120_000)) {
-        return { swept: false, removed: 0, detected: 0, skippedReason: 'a run appears live (running)' };
-      }
-      if (latest.status === 'paused' && age < (opts.pausedLiveMs ?? 1_800_000)) {
-        return { swept: false, removed: 0, detected: 0, skippedReason: 'a run is paused' };
-      }
+  const store = new SddBoardStore({ baseDir: opts.boardsDir });
+  const latest = (await store.list())[0];
+  if (latest) {
+    const age = now - latest.updatedAt;
+    if (latest.status === 'running' && age < (opts.runningLiveMs ?? 120_000)) {
+      return {
+        swept: false,
+        removed: 0,
+        detected: 0,
+        skippedReason: 'a run appears live (running)',
+      };
     }
-  } catch {
-    // No/unreadable board → nothing claims the worktrees; safe to sweep.
+    if (latest.status === 'paused' && age < (opts.pausedLiveMs ?? 1_800_000)) {
+      return { swept: false, removed: 0, detected: 0, skippedReason: 'a run is paused' };
+    }
   }
   try {
     const wt = new WorktreeManager({ projectRoot: opts.projectRoot });
@@ -117,7 +121,11 @@ export async function rollbackSddRunFromDisk(
   const snap = await store.load(runId);
   if (!snap) return { ok: false, reverted: 0, reason: `board "${runId}" not found` };
   if (!snap.baseBranch) {
-    return { ok: false, reverted: 0, reason: 'this run did not record a base branch (no worktree run)' };
+    return {
+      ok: false,
+      reverted: 0,
+      reason: 'this run did not record a base branch (no worktree run)',
+    };
   }
   const shas = (snap.mergedCommits ?? []).map((c) => c.sha);
   if (shas.length === 0) {
@@ -182,7 +190,7 @@ export async function destroySddProject(
       projectRoot: opts.projectRoot,
       boardsDir: opts.paths.projectSddBoards,
       runId: opts.runId,
-    }).catch((err) => ({ ok: false, reverted: 0, reason: toReason(err) }));
+    }).catch((err) => ({ ok: false, reverted: 0, reason: toErrorMessage(err) }));
     reverted = r.reverted;
     revertOk = r.ok;
     revertReason = r.reason;
@@ -216,10 +224,6 @@ export async function destroySddProject(
   await rmDir(opts.paths.projectSddBoards, 'boards');
 
   return { worktreesRemoved: removed, deleted, reverted, revertOk, revertReason };
-}
-
-function toReason(err: unknown): string {
-  return err instanceof Error ? err.message : String(err);
 }
 
 /** Lifecycle operation kinds shared by every surface (WebUI / TUI / CLI). */
@@ -297,6 +301,6 @@ export async function applySddLifecycle(
       reason: r.revertOk === false ? r.revertReason : undefined,
     };
   } catch (err) {
-    return { op, ok: false, reason: toReason(err) };
+    return { op, ok: false, reason: toErrorMessage(err) };
   }
 }

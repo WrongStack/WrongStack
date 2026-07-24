@@ -3,6 +3,12 @@
  *
  * The explorer never disappears while the user moves package → file → symbol.
  * A graph click focuses relationships; explicit open actions change scope.
+ *
+ * Performance notes:
+ * - Activity store is subscribed via selectors (not the whole store).
+ * - React Flow rebuilds are immediate for structural changes and throttled for
+ *   telemetry-only updates (see FLOW_ACTIVITY_THROTTLE_MS).
+ * - SMART mode caps canvas nodes; MiniMap is gated by node count.
  */
 
 import {
@@ -22,7 +28,15 @@ import {
   useNodesState,
   useReactFlow,
 } from '@xyflow/react';
-import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import {
+  memo,
+  useCallback,
+  useDeferredValue,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 import '@xyflow/react/dist/style.css';
 import {
   Activity as ActivityIcon,
@@ -49,6 +63,7 @@ import {
   Target,
   X,
 } from 'lucide-react';
+import { useShallow } from 'zustand/react/shallow';
 import { cn } from '@/lib/utils';
 import {
   type ActivityType,
@@ -58,6 +73,8 @@ import {
   type LiveAgentPresence,
   useCodemapActivityStore,
 } from '@/stores/codemap-activity-store';
+import { useCodemapIndexStore } from '@/stores/codemap-index-store';
+import { useVirtualizer } from '@tanstack/react-virtual';
 import {
   buildDirectoryTree,
   type CodeMapGraphResponse,
@@ -68,14 +85,71 @@ import {
   type GraphNodeData,
   type GraphRefType,
   layoutGraph,
+  relativeFilePath,
   type RelationItem,
   relationItems,
-  relativeFilePath,
   scopeKey,
   scopeUrl,
+  smartCanvasGraph,
 } from './codemap-model';
 
 const EMPTY_GRAPH: CodeMapGraphResponse = { nodes: [], edges: [] };
+
+/** Hide MiniMap when the canvas is dense; it re-paints every node update. */
+const MINIMAP_NODE_LIMIT = 48;
+/** Virtualize search hits above this count. */
+const SEARCH_VIRTUALIZE_THRESHOLD = 40;
+/** Max animated SVG edges (live + trail). Animated paths are expensive. */
+const MAX_ANIMATED_EDGES = 6;
+/** Cap how many agents contribute temporal trail edges. */
+const MAX_TRAIL_AGENTS = 4;
+/** Cap hops per agent trail (N activities → N-1 edges). */
+const MAX_TRAIL_HOPS = 6;
+/** Telemetry-only React Flow rebuilds are coalesced to this cadence. */
+const FLOW_ACTIVITY_THROTTLE_MS = 120;
+/** Concurrent symbol-graph fetches for unresolved live tool ops. */
+const MAX_SYMBOL_RESOLVE_INFLIGHT = 2;
+/** Soft cap on client-side scope graphs (package/file/symbol). */
+const MAX_CLIENT_GRAPH_CACHE = 48;
+/** Debounce free-text search so typing does not re-scan every cached graph. */
+const SEARCH_DEBOUNCE_MS = 150;
+/** Cap tree rows per directory/file before a "show more" control. */
+const MAX_TREE_FILES_VISIBLE = 80;
+const MAX_TREE_SYMBOLS_VISIBLE = 40;
+
+/** Stable, allocation-light fingerprint for fitView — avoids joining every id. */
+function hashGraphStructure(graph: CodeMapGraphResponse): string {
+  let h = 2166136261;
+  const mix = (value: string): void => {
+    for (let i = 0; i < value.length; i++) {
+      h ^= value.charCodeAt(i);
+      h = Math.imul(h, 16777619);
+    }
+  };
+  for (const node of graph.nodes) mix(node.id);
+  for (const edge of graph.edges) {
+    mix(edge.source);
+    mix(edge.target);
+    mix(edge.refType);
+    h ^= edge.weight | 0;
+    h = Math.imul(h, 16777619);
+  }
+  return `${graph.nodes.length}:${graph.edges.length}:${h >>> 0}`;
+}
+
+function touchClientGraphCache(
+  cache: Map<string, CodeMapGraphResponse>,
+  key: string,
+  graph: CodeMapGraphResponse,
+): void {
+  if (cache.has(key)) cache.delete(key);
+  cache.set(key, graph);
+  while (cache.size > MAX_CLIENT_GRAPH_CACHE) {
+    const oldest = cache.keys().next().value;
+    if (oldest === undefined) break;
+    cache.delete(oldest);
+  }
+}
 
 const NODE_STYLE: Record<
   GraphNodeData['kind'],
@@ -155,6 +229,80 @@ function activityMatchesNode(activity: FileActivity, node: GraphNodeData): boole
   return activity.symbol?.id === node.id;
 }
 
+function groupActivitiesByNormalizedPath(
+  activities: FileActivity[],
+): Map<string, FileActivity[]> {
+  const map = new Map<string, FileActivity[]>();
+  for (const activity of activities) {
+    const key = normalizedPath(activity.filePath);
+    const list = map.get(key);
+    if (list) list.push(activity);
+    else map.set(key, [activity]);
+  }
+  return map;
+}
+
+/**
+ * Map node id → matching live activities without O(nodes × activities) path
+ * scans on every rebuild. Exact path hits are O(1); package nodes and path
+ * suffix mismatches fall back to a smaller scan.
+ */
+function indexActivitiesByNode(
+  nodes: GraphNodeData[],
+  activities: FileActivity[],
+): Map<string, FileActivity[]> {
+  const result = new Map<string, FileActivity[]>();
+  if (activities.length === 0 || nodes.length === 0) return result;
+
+  const byPath = groupActivitiesByNormalizedPath(activities);
+  const packageCache = new Map<string, FileActivity[]>();
+
+  for (const node of nodes) {
+    let matched: FileActivity[];
+    if (node.kind === 'package') {
+      const pkg = node.package ?? node.label;
+      let cached = packageCache.get(pkg);
+      if (!cached) {
+        cached = activities.filter(
+          (activity) => packageForFile(activity.filePath) === pkg,
+        );
+        packageCache.set(pkg, cached);
+      }
+      matched = cached;
+    } else if (node.file) {
+      const nodeNorm = normalizedPath(node.file);
+      let fileActs = byPath.get(nodeNorm);
+      if (!fileActs) {
+        fileActs = [];
+        for (const [path, acts] of byPath) {
+          if (path.endsWith(`/${nodeNorm}`) || nodeNorm.endsWith(`/${path}`)) {
+            fileActs.push(...acts);
+          }
+        }
+      }
+      matched =
+        node.kind === 'symbol'
+          ? fileActs.filter((activity) => activity.symbol?.id === node.id)
+          : fileActs;
+    } else {
+      matched = [];
+    }
+    if (matched.length > 0) result.set(node.id, matched);
+  }
+  return result;
+}
+
+function activityFingerprint(activities: FileActivity[]): string {
+  if (activities.length === 0) return '';
+  // Stable, cheap signature for throttle decisions — not a full deep hash.
+  let out = `${activities.length}`;
+  for (let i = 0; i < activities.length; i++) {
+    const a = activities[i]!;
+    out += `|${a.id ?? ''}:${a.toolUseId ?? ''}:${a.filePath}:${a.type}:${a.status ?? ''}:${a.symbol?.id ?? ''}:${a.timestamp}`;
+  }
+  return out;
+}
+
 function agentInitials(name: string): string {
   const parts = name
     .trim()
@@ -215,60 +363,6 @@ function resolveSymbolForActivity(
   );
 }
 
-const SMART_CANVAS_NODE_LIMIT = 160;
-
-function smartCanvasGraph(
-  graph: CodeMapGraphResponse,
-  selectedId: string | null,
-  mode: 'smart' | 'all',
-): CodeMapGraphResponse {
-  if (mode === 'all' || graph.nodes.length <= SMART_CANVAS_NODE_LIMIT) return graph;
-  const byId = new Map(graph.nodes.map((node) => [node.id, node]));
-  const scores = new Map<string, number>();
-  for (const edge of graph.edges) {
-    scores.set(edge.source, (scores.get(edge.source) ?? 0) + edge.weight);
-    scores.set(edge.target, (scores.get(edge.target) ?? 0) + edge.weight);
-  }
-  const ranked = [...graph.nodes].sort(
-    (left, right) =>
-      (scores.get(right.id) ?? 0) - (scores.get(left.id) ?? 0) ||
-      left.label.localeCompare(right.label),
-  );
-  const retained = new Set<string>();
-  const add = (id: string): void => {
-    if (byId.has(id) && retained.size < SMART_CANVAS_NODE_LIMIT) retained.add(id);
-  };
-
-  if (selectedId && byId.has(selectedId)) {
-    add(selectedId);
-    const directEdges = graph.edges
-      .filter((edge) => edge.source === selectedId || edge.target === selectedId)
-      .sort((left, right) => right.weight - left.weight);
-    for (const edge of directEdges) {
-      add(edge.source);
-      add(edge.target);
-    }
-    const directNodes = new Set(retained);
-    const secondDegree = graph.edges
-      .filter((edge) => directNodes.has(edge.source) || directNodes.has(edge.target))
-      .sort((left, right) => right.weight - left.weight);
-    for (const edge of secondDegree) {
-      add(edge.source);
-      add(edge.target);
-    }
-  } else {
-    const local = ranked.filter((node) => !node.external).slice(0, 124);
-    const external = ranked.filter((node) => node.external).slice(0, 36);
-    for (const node of [...local, ...external]) add(node.id);
-  }
-  for (const node of ranked) add(node.id);
-
-  return {
-    nodes: graph.nodes.filter((node) => retained.has(node.id)),
-    edges: graph.edges.filter((edge) => retained.has(edge.source) && retained.has(edge.target)),
-  };
-}
-
 interface CodeMapNodeData extends Record<string, unknown> {
   graphNode: GraphNodeData;
   selected: boolean;
@@ -307,7 +401,8 @@ function CodeMapNodeView({ data }: { data: CodeMapNodeData }): React.ReactElemen
   return (
     <div
       className={cn(
-        'group relative w-[236px] border border-l-[3px] bg-card text-card-foreground shadow-[0_8px_24px_hsl(var(--shadow-color)/0.08)] transition-[opacity,filter,box-shadow,border-color,background-color]',
+        // Avoid animating `filter` (grayscale) — composite cost on large graphs.
+        'group relative w-[236px] border border-l-[3px] bg-card text-card-foreground shadow-[0_8px_24px_hsl(var(--shadow-color)/0.08)] transition-[opacity,box-shadow,border-color,background-color]',
         style.accent,
         selected &&
           'border-primary bg-primary/5 shadow-[0_0_0_2px_hsl(var(--primary)/0.18),0_16px_36px_hsl(var(--shadow-color)/0.18)]',
@@ -510,10 +605,26 @@ interface DirectoryBranchProps {
   onOpenFile: (node: GraphNodeData) => void;
   onSelectSymbol: (node: GraphNodeData) => void;
   selectedId: string | null;
-  activeOperations: FileActivity[];
+  /** Normalized paths with live ops — avoids per-row activity filter scans. */
+  activeFileNorms: Set<string>;
+  activeSymbolIds: Set<string>;
+  revealAllKeys: Set<string>;
+  onRevealAll: (key: string) => void;
 }
 
-function DirectoryBranch(props: DirectoryBranchProps): React.ReactElement {
+function filePathIsLive(filePath: string | undefined, activeFileNorms: Set<string>): boolean {
+  if (!filePath || activeFileNorms.size === 0) return false;
+  const nodeNorm = normalizedPath(filePath);
+  if (activeFileNorms.has(nodeNorm)) return true;
+  for (const active of activeFileNorms) {
+    if (active.endsWith(`/${nodeNorm}`) || nodeNorm.endsWith(`/${active}`)) return true;
+  }
+  return false;
+}
+
+const DirectoryBranch = memo(function DirectoryBranch(
+  props: DirectoryBranchProps,
+): React.ReactElement {
   const {
     directory,
     packageName,
@@ -528,8 +639,18 @@ function DirectoryBranch(props: DirectoryBranchProps): React.ReactElement {
     onOpenFile,
     onSelectSymbol,
     selectedId,
-    activeOperations,
+    activeFileNorms,
+    activeSymbolIds,
+    revealAllKeys,
+    onRevealAll,
   } = props;
+  const filesRevealKey = `files:${packageName}:${directory.path || '.'}`;
+  const showAllFiles = revealAllKeys.has(filesRevealKey);
+  const visibleFiles = showAllFiles
+    ? directory.files
+    : directory.files.slice(0, MAX_TREE_FILES_VISIBLE);
+  const hiddenFileCount = directory.files.length - visibleFiles.length;
+
   return (
     <>
       {directory.directories.map((child) => {
@@ -559,7 +680,7 @@ function DirectoryBranch(props: DirectoryBranchProps): React.ReactElement {
           </div>
         );
       })}
-      {directory.files.map((file) => {
+      {visibleFiles.map((file) => {
         const expanded = expandedFiles.has(file.file ?? file.id);
         const branchKey = scopeKey({ level: 'symbols', file: file.file ?? file.label });
         const symbolGraph = file.file ? graphForFile(file.file) : undefined;
@@ -567,9 +688,13 @@ function DirectoryBranch(props: DirectoryBranchProps): React.ReactElement {
           symbolGraph?.nodes.filter(
             (node) => node.kind === 'symbol' && node.file === file.file && !node.external,
           ) ?? [];
-        const fileActivities = activeOperations.filter((activity) =>
-          sameFile(activity.filePath, file.file),
-        );
+        const symbolsRevealKey = `symbols:${file.file ?? file.id}`;
+        const showAllSymbols = revealAllKeys.has(symbolsRevealKey);
+        const visibleSymbols = showAllSymbols
+          ? symbols
+          : symbols.slice(0, MAX_TREE_SYMBOLS_VISIBLE);
+        const hiddenSymbolCount = symbols.length - visibleSymbols.length;
+        const fileLive = filePathIsLive(file.file, activeFileNorms);
         return (
           <div key={file.id}>
             <div
@@ -600,10 +725,10 @@ function DirectoryBranch(props: DirectoryBranchProps): React.ReactElement {
                 onDoubleClick={() => onOpenFile(file)}
               >
                 <FileCode className="h-3.5 w-3.5 shrink-0 text-info" />
-                {fileActivities.length > 0 && (
+                {fileLive && (
                   <span
                     className="h-1.5 w-1.5 shrink-0 animate-pulse bg-success"
-                    title={`${fileActivities.length} live operation(s)`}
+                    title="Live operation"
                   />
                 )}
                 <span className="truncate font-mono" title={file.file}>
@@ -624,7 +749,7 @@ function DirectoryBranch(props: DirectoryBranchProps): React.ReactElement {
               </button>
             </div>
             {expanded &&
-              symbols.map((symbol) => (
+              visibleSymbols.map((symbol) => (
                 <button
                   type="button"
                   key={symbol.id}
@@ -638,7 +763,7 @@ function DirectoryBranch(props: DirectoryBranchProps): React.ReactElement {
                   onClick={() => onSelectSymbol(symbol)}
                 >
                   <Box className="h-3 w-3 shrink-0 text-success" />
-                  {activeOperations.some((activity) => activity.symbol?.id === symbol.id) && (
+                  {activeSymbolIds.has(symbol.id) && (
                     <Radio className="h-3 w-3 shrink-0 animate-pulse text-success" />
                   )}
                   <span className="truncate font-mono">{symbol.label}</span>
@@ -647,12 +772,32 @@ function DirectoryBranch(props: DirectoryBranchProps): React.ReactElement {
                   )}
                 </button>
               ))}
+            {expanded && hiddenSymbolCount > 0 && (
+              <button
+                type="button"
+                className="flex h-7 w-full items-center text-left font-mono text-[9px] text-primary hover:bg-muted"
+                style={{ paddingLeft: 38 + depth * 12 }}
+                onClick={() => onRevealAll(symbolsRevealKey)}
+              >
+                Show {hiddenSymbolCount} more symbols
+              </button>
+            )}
           </div>
         );
       })}
+      {hiddenFileCount > 0 && (
+        <button
+          type="button"
+          className="flex h-7 w-full items-center text-left font-mono text-[9px] text-primary hover:bg-muted"
+          style={{ paddingLeft: 8 + depth * 12 }}
+          onClick={() => onRevealAll(filesRevealKey)}
+        >
+          Show {hiddenFileCount} more files
+        </button>
+      )}
     </>
   );
-}
+});
 
 interface RelationSectionProps {
   title: string;
@@ -998,11 +1143,13 @@ function CodeMapInner(): React.ReactElement {
   const [layout, setLayout] = useState<CodeMapLayout>('layers');
   const [canvasMode, setCanvasMode] = useState<'smart' | 'all'>('smart');
   const [edgeFilter, setEdgeFilter] = useState<'all' | GraphRefType>('all');
+  const [searchInput, setSearchInput] = useState('');
   const [search, setSearch] = useState('');
   const [expandedPackages, setExpandedPackages] = useState<Set<string>>(new Set());
   const [expandedDirectories, setExpandedDirectories] = useState<Set<string>>(new Set());
   const [expandedFiles, setExpandedFiles] = useState<Set<string>>(new Set());
   const [expandedRelations, setExpandedRelations] = useState<Set<string>>(new Set());
+  const [revealAllKeys, setRevealAllKeys] = useState<Set<string>>(new Set());
   const [loadingBranches, setLoadingBranches] = useState<Set<string>>(new Set());
   const [cacheRevision, setCacheRevision] = useState(0);
   const [historyFile, setHistoryFile] = useState<string | null>(null);
@@ -1015,28 +1162,51 @@ function CodeMapInner(): React.ReactElement {
   const pendingSelection = useRef<string | null>(null);
   const lastFollowedActivity = useRef<string | null>(null);
   const lastFitSignature = useRef('');
-  const activityState = useCodemapActivityStore();
+  const lastFlowStructuralKey = useRef('');
+  const flowRebuildTimer = useRef<number | null>(null);
+  const symbolResolveInflight = useRef(new Set<string>());
+  // Selective store slice — bare useCodemapActivityStore() re-renders on every
+  // method-stable set(); selectors keep App-style isolation for telemetry maps.
+  const {
+    history: activityHistory,
+    pulses: activityPulses,
+    activeOperationsMap,
+    activityTotalCount,
+    resolveActivitySymbol,
+    getActivityForFile,
+    sweepActivity,
+  } = useCodemapActivityStore(
+    useShallow((state) => ({
+      history: state.history,
+      pulses: state.pulses,
+      activeOperationsMap: state.activeOperations,
+      activityTotalCount: state.totalCount,
+      resolveActivitySymbol: state.resolveActivitySymbol,
+      getActivityForFile: state.getActivityForFile,
+      sweepActivity: state._sweep,
+    })),
+  );
   const activeOperations = useMemo(
-    () => [...activityState.activeOperations.values()].flat(),
-    [activityState.activeOperations],
+    () => [...activeOperationsMap.values()].flat(),
+    [activeOperationsMap],
   );
   const pulseActivities = useMemo(
     () =>
-      [...activityState.pulses.keys()]
-        .map((filePath) => activityState.history.get(filePath)?.[0])
+      [...activityPulses.keys()]
+        .map((filePath) => activityHistory.get(filePath)?.[0])
         .filter((activity): activity is FileActivity => Boolean(activity)),
-    [activityState.history, activityState.pulses],
+    [activityHistory, activityPulses],
   );
   const recentActivities = useMemo(() => {
     const candidates: FileActivity[] = [];
-    for (const history of activityState.history.values()) {
+    for (const history of activityHistory.values()) {
       // Each per-file history is newest-first. A single file cannot
       // contribute more than the global result size, so avoid sorting the
       // entire (potentially 100k-entry) telemetry archive on every event.
       candidates.push(...history.slice(0, 16));
     }
     return candidates.sort((left, right) => right.timestamp - left.timestamp).slice(0, 16);
-  }, [activityState.history]);
+  }, [activityHistory]);
   const allKnownAgents = useMemo(
     () => groupAgentPresences([...activeOperations, ...recentActivities]),
     [activeOperations, recentActivities],
@@ -1053,6 +1223,11 @@ function CodeMapInner(): React.ReactElement {
       ? source
       : source.filter((activity) => activityAgentKey(activity) === agentFilter);
   }, [agentFilter, pausedRecent, recentActivities]);
+  // Defer telemetry-driven canvas work under React concurrent rendering so
+  // selection / navigation stays snappy while agents spam tools.
+  const deferredActiveOperations = useDeferredValue(displayedActiveOperations);
+  const deferredRecentActivities = useDeferredValue(displayedRecentActivities);
+  const deferredPulseActivities = useDeferredValue(pulseActivities);
   const agentPresences = useMemo(
     () => groupAgentPresences(displayedActiveOperations),
     [displayedActiveOperations],
@@ -1065,14 +1240,18 @@ function CodeMapInner(): React.ReactElement {
     async (targetScope: CodeMapScope, force = false): Promise<CodeMapGraphResponse> => {
       const key = scopeKey(targetScope);
       const existing = cache.current.get(key);
-      if (existing && !force) return existing;
+      if (existing && !force) {
+        // LRU touch on hit so hot scopes survive eviction.
+        touchClientGraphCache(cache.current, key, existing);
+        return existing;
+      }
       const response = await fetch(scopeUrl(targetScope));
       if (!response.ok) {
         const body = await response.json().catch(() => ({ error: response.statusText }));
         throw new Error(body.error ?? `HTTP ${response.status}`);
       }
       const nextGraph = (await response.json()) as CodeMapGraphResponse;
-      cache.current.set(key, nextGraph);
+      touchClientGraphCache(cache.current, key, nextGraph);
       setCacheRevision((revision) => revision + 1);
       return nextGraph;
     },
@@ -1080,18 +1259,43 @@ function CodeMapInner(): React.ReactElement {
   );
 
   useEffect(() => {
+    const timer = window.setTimeout(() => setSearch(searchInput), SEARCH_DEBOUNCE_MS);
+    return () => window.clearTimeout(timer);
+  }, [searchInput]);
+
+  const indexGeneration = useCodemapIndexStore((state) => state.generation);
+  const lastSeenIndexGeneration = useRef(0);
+  const treeScrollRef = useRef<HTMLDivElement | null>(null);
+
+  // Single load path for scope changes and index invalidation — avoids racing
+  // two parallel fetches that both call setGraph when an index run finishes.
+  useEffect(() => {
     let cancelled = false;
+    const forceRefresh = indexGeneration > lastSeenIndexGeneration.current;
+    if (forceRefresh) {
+      lastSeenIndexGeneration.current = indexGeneration;
+      cache.current.clear();
+      setCacheRevision((revision) => revision + 1);
+      setExpandedPackages(new Set());
+      setExpandedDirectories(new Set());
+      setExpandedFiles(new Set());
+      setRevealAllKeys(new Set());
+    }
     setLoading(true);
     setError(null);
-    void fetchGraph(scope)
+    void fetchGraph(scope, forceRefresh)
       .then((nextGraph) => {
         if (cancelled) return;
         setGraph(nextGraph);
-        const requested = pendingSelection.current;
-        pendingSelection.current = null;
-        setSelectedId(
-          requested && nextGraph.nodes.some((node) => node.id === requested) ? requested : null,
-        );
+        if (!forceRefresh) {
+          const requested = pendingSelection.current;
+          pendingSelection.current = null;
+          setSelectedId(
+            requested && nextGraph.nodes.some((node) => node.id === requested)
+              ? requested
+              : null,
+          );
+        }
         setLoading(false);
       })
       .catch((cause: unknown) => {
@@ -1103,7 +1307,7 @@ function CodeMapInner(): React.ReactElement {
     return () => {
       cancelled = true;
     };
-  }, [currentScopeKey, fetchGraph]);
+  }, [currentScopeKey, fetchGraph, indexGeneration, scope]);
 
   const navigate = useCallback(
     (nextScope: CodeMapScope, preferredSelection?: string): void => {
@@ -1138,26 +1342,35 @@ function CodeMapInner(): React.ReactElement {
 
   useEffect(() => {
     let cancelled = false;
+    let started = 0;
     for (const activity of activeOperations) {
+      if (started >= MAX_SYMBOL_RESOLVE_INFLIGHT) break;
       if (activity.symbol || !activity.toolUseId || activity.filePath.startsWith('(')) continue;
-      void fetchGraph({ level: 'symbols', file: activity.filePath })
+      const filePath = activity.filePath;
+      if (symbolResolveInflight.current.has(filePath)) continue;
+      symbolResolveInflight.current.add(filePath);
+      started += 1;
+      void fetchGraph({ level: 'symbols', file: filePath })
         .then((symbolGraph) => {
           if (cancelled) return;
           const symbol = resolveSymbolForActivity(activity, symbolGraph.nodes);
           if (!symbol) return;
-          activityState.resolveActivitySymbol(activity.toolUseId!, activity.filePath, {
+          resolveActivitySymbol(activity.toolUseId!, filePath, {
             id: symbol.id,
             name: symbol.label,
             ...(symbol.symbolKind ? { kind: symbol.symbolKind } : {}),
             ...(symbol.line ? { line: symbol.line } : {}),
           });
         })
-        .catch(() => undefined);
+        .catch(() => undefined)
+        .finally(() => {
+          symbolResolveInflight.current.delete(filePath);
+        });
     }
     return () => {
       cancelled = true;
     };
-  }, [activeOperations, activityState.resolveActivitySymbol, fetchGraph]);
+  }, [activeOperations, fetchGraph, resolveActivitySymbol]);
 
   const filteredGraph = useMemo<CodeMapGraphResponse>(
     () => ({
@@ -1198,10 +1411,7 @@ function CodeMapInner(): React.ReactElement {
         currentScopeKey,
         layout,
         layout === 'orbit' ? (selectedId ?? '') : '',
-        canvasGraph.nodes.map((node) => node.id).join('\u001f'),
-        canvasGraph.edges
-          .map((edge) => `${edge.source}>${edge.target}:${edge.refType}`)
-          .join('\u001f'),
+        hashGraphStructure(canvasGraph),
       ].join('\u001e'),
     [canvasGraph, currentScopeKey, layout, selectedId],
   );
@@ -1220,135 +1430,219 @@ function CodeMapInner(): React.ReactElement {
     [navigate],
   );
 
+  const activityFlowKey = useMemo(
+    () =>
+      [
+        activityFingerprint(deferredActiveOperations),
+        activityFingerprint(deferredPulseActivities),
+        activityFingerprint(deferredRecentActivities),
+      ].join('\u001e'),
+    [deferredActiveOperations, deferredPulseActivities, deferredRecentActivities],
+  );
+
+  const activeFileNorms = useMemo(() => {
+    const norms = new Set<string>();
+    for (const activity of displayedActiveOperations) {
+      norms.add(normalizedPath(activity.filePath));
+    }
+    return norms;
+  }, [displayedActiveOperations]);
+
+  const activeSymbolIds = useMemo(() => {
+    const ids = new Set<string>();
+    for (const activity of displayedActiveOperations) {
+      if (activity.symbol?.id) ids.add(activity.symbol.id);
+    }
+    return ids;
+  }, [displayedActiveOperations]);
+
   useEffect(() => {
-    const activeNodeIds = new Set(
-      positionedNodes
-        .filter(({ node }) =>
-          displayedActiveOperations.some((activity) => activityMatchesNode(activity, node)),
-        )
-        .map(({ node }) => node.id),
-    );
-    const nextFlowNodes = positionedNodes.map(({ node, position }) => {
-      const matchingActive = displayedActiveOperations.filter((activity) =>
-        activityMatchesNode(activity, node),
-      );
-      const pulse =
-        matchingActive[0] ??
-        pulseActivities.find((activity) => activityMatchesNode(activity, node));
-      return {
-        id: node.id,
-        type: 'codemap',
-        position,
-        data: {
-          graphNode: node,
-          selected: node.id === selectedId,
-          dimmed: Boolean(selectedId) && !connected.has(node.id),
-          incoming: incomingCounts.get(node.id) ?? 0,
-          outgoing: outgoingCounts.get(node.id) ?? 0,
-          isActive: Boolean(pulse),
-          ...(pulse ? { activityType: pulse.type } : {}),
-          activeOperations: matchingActive,
-          onSelect: handleSelectNode,
-          onOpen: handleOpenNode,
-          onShowHistory: setHistoryFile,
-        } satisfies CodeMapNodeData,
-      };
-    });
-    setFlowNodes((current) => preserveFlowNodes(current, nextFlowNodes));
-    const codeEdges = canvasGraph.edges.map((edge, index) => {
-      const focused =
-        Boolean(selectedId) && (edge.source === selectedId || edge.target === selectedId);
-      const live = activeNodeIds.has(edge.source) || activeNodeIds.has(edge.target);
-      const color = EDGE_COLOR[edge.refType] ?? 'hsl(var(--muted-foreground))';
-      return {
-        id: `edge:${edge.source}:${edge.target}:${index}`,
-        source: edge.source,
-        target: edge.target,
-        type: 'smoothstep',
-        animated: live,
-        label: focused ? `${edge.refType}${edge.weight > 1 ? ` ×${edge.weight}` : ''}` : undefined,
-        markerEnd: { type: MarkerType.ArrowClosed, color, width: 14, height: 14 },
-        style: {
-          stroke: color,
-          strokeWidth: live
-            ? Math.min(2.5 + Math.log2(edge.weight + 1) * 0.65, 5)
-            : focused
-              ? Math.min(1.25 + Math.log2(edge.weight + 1) * 0.65, 4)
-              : 1,
-          opacity: live ? 1 : selectedId ? (focused ? 0.88 : 0.08) : 0.52,
-        },
-        labelStyle: {
-          fontSize: 9,
-          fontFamily: 'var(--font-mono)',
-          fill: 'hsl(var(--muted-foreground))',
-        },
-        labelBgStyle: { fill: 'hsl(var(--card))', fillOpacity: 0.92 },
-        labelBgPadding: [4, 2],
-        zIndex: live ? 4 : focused ? 2 : 0,
-        data: {
-          renderKey: `${edge.refType}:${edge.weight}:${selectedId ? (focused ? 'focused' : 'dimmed') : 'idle'}:${live ? 'live' : 'still'}`,
-        },
-      } satisfies Edge;
-    });
-    const recentByAgent = new Map<string, FileActivity[]>();
-    const liveAgentKeys = new Set(displayedActiveOperations.map(activityAgentKey));
-    for (const activity of [...displayedRecentActivities].sort(
-      (left, right) => left.timestamp - right.timestamp,
-    )) {
-      const key = activityAgentKey(activity);
-      recentByAgent.set(key, [...(recentByAgent.get(key) ?? []), activity]);
-    }
-    const trailEdges: Edge[] = [];
-    for (const [agentKey, activities] of recentByAgent) {
-      const trailIsLive = liveAgentKeys.has(agentKey);
-      const nodeTrail = activities
-        .map((activity) => ({
-          activity,
-          node: canvasGraph.nodes.find((node) => activityMatchesNode(activity, node)),
-        }))
-        .filter((entry): entry is { activity: FileActivity; node: GraphNodeData } =>
-          Boolean(entry.node),
-        )
-        .filter((entry, index, all) => index === 0 || entry.node.id !== all[index - 1]?.node.id);
-      const color = agentTrailColor(agentKey);
-      for (let index = 1; index < nodeTrail.length; index++) {
-        const previous = nodeTrail[index - 1]!;
-        const current = nodeTrail[index]!;
-        trailEdges.push({
-          id: `trail:${agentKey}:${previous.activity.timestamp}:${current.activity.timestamp}`,
-          source: previous.node.id,
-          target: current.node.id,
-          type: 'smoothstep',
-          animated: trailIsLive,
-          label:
-            index === nodeTrail.length - 1
-              ? `${agentInitials(current.activity.agentName ?? current.activity.agent ?? 'agent')} TRAIL`
-              : undefined,
-          markerEnd: { type: MarkerType.ArrowClosed, color, width: 13, height: 13 },
-          style: { stroke: color, strokeWidth: 2.5, strokeDasharray: '7 5', opacity: 0.9 },
-          labelStyle: { fontSize: 8, fontWeight: 700, fill: color },
-          labelBgStyle: { fill: 'hsl(var(--card))', fillOpacity: 0.94 },
-          labelBgPadding: [4, 2],
-          zIndex: 6,
+    const rebuildFlow = (): void => {
+      const nodes = positionedNodes.map(({ node }) => node);
+      const activeByNode = indexActivitiesByNode(nodes, deferredActiveOperations);
+      const pulseByNode = indexActivitiesByNode(nodes, deferredPulseActivities);
+      const activeNodeIds = new Set(activeByNode.keys());
+
+      const nextFlowNodes = positionedNodes.map(({ node, position }) => {
+        const matchingActive = activeByNode.get(node.id) ?? [];
+        const pulse = matchingActive[0] ?? pulseByNode.get(node.id)?.[0];
+        return {
+          id: node.id,
+          type: 'codemap',
+          position,
           data: {
-            renderKey: `${color}:${index === nodeTrail.length - 1 ? 'label' : 'plain'}:${trailIsLive ? 'live' : 'still'}`,
+            graphNode: node,
+            selected: node.id === selectedId,
+            dimmed: Boolean(selectedId) && !connected.has(node.id),
+            incoming: incomingCounts.get(node.id) ?? 0,
+            outgoing: outgoingCounts.get(node.id) ?? 0,
+            isActive: Boolean(pulse),
+            ...(pulse ? { activityType: pulse.type } : {}),
+            activeOperations: matchingActive,
+            onSelect: handleSelectNode,
+            onOpen: handleOpenNode,
+            onShowHistory: setHistoryFile,
+          } satisfies CodeMapNodeData,
+        };
+      });
+      setFlowNodes((current) => preserveFlowNodes(current, nextFlowNodes));
+
+      let animatedBudget = MAX_ANIMATED_EDGES;
+      const codeEdges = canvasGraph.edges.map((edge, index) => {
+        const focused =
+          Boolean(selectedId) && (edge.source === selectedId || edge.target === selectedId);
+        const live = activeNodeIds.has(edge.source) || activeNodeIds.has(edge.target);
+        // Prefer animating focused live edges; otherwise spend a small budget.
+        const animate = live && (focused || animatedBudget > 0);
+        if (animate) animatedBudget -= 1;
+        const color = EDGE_COLOR[edge.refType] ?? 'hsl(var(--muted-foreground))';
+        // Dimmed edges use cheaper bezier; focused/live keep smoothstep readability.
+        const edgeType = focused || live ? 'smoothstep' : 'default';
+        return {
+          id: `edge:${edge.source}:${edge.target}:${index}`,
+          source: edge.source,
+          target: edge.target,
+          type: edgeType,
+          animated: animate,
+          label: focused
+            ? `${edge.refType}${edge.weight > 1 ? ` ×${edge.weight}` : ''}`
+            : undefined,
+          markerEnd: { type: MarkerType.ArrowClosed, color, width: 14, height: 14 },
+          style: {
+            stroke: color,
+            strokeWidth: live
+              ? Math.min(2.5 + Math.log2(edge.weight + 1) * 0.65, 5)
+              : focused
+                ? Math.min(1.25 + Math.log2(edge.weight + 1) * 0.65, 4)
+                : 1,
+            opacity: live ? 1 : selectedId ? (focused ? 0.88 : 0.08) : 0.52,
           },
-        });
+          labelStyle: {
+            fontSize: 9,
+            fontFamily: 'var(--font-mono)',
+            fill: 'hsl(var(--muted-foreground))',
+          },
+          labelBgStyle: { fill: 'hsl(var(--card))', fillOpacity: 0.92 },
+          labelBgPadding: [4, 2] as [number, number],
+          zIndex: live ? 4 : focused ? 2 : 0,
+          data: {
+            renderKey: `${edge.refType}:${edge.weight}:${selectedId ? (focused ? 'focused' : 'dimmed') : 'idle'}:${live ? 'live' : 'still'}:${animate ? 'anim' : 'still'}:${edgeType}`,
+          },
+        } satisfies Edge;
+      });
+
+      const recentByAgent = new Map<string, FileActivity[]>();
+      const liveAgentKeys = new Set(deferredActiveOperations.map(activityAgentKey));
+      for (const activity of [...deferredRecentActivities].sort(
+        (left, right) => left.timestamp - right.timestamp,
+      )) {
+        const key = activityAgentKey(activity);
+        const list = recentByAgent.get(key);
+        if (list) list.push(activity);
+        else recentByAgent.set(key, [activity]);
       }
+      // Prefer live agents, then newest, then cap — trails are visual sugar.
+      const rankedAgents = [...recentByAgent.entries()]
+        .map(([agentKey, activities]) => ({
+          agentKey,
+          activities,
+          live: liveAgentKeys.has(agentKey),
+          latest: activities[activities.length - 1]?.timestamp ?? 0,
+        }))
+        .sort(
+          (left, right) =>
+            Number(right.live) - Number(left.live) || right.latest - left.latest,
+        )
+        .slice(0, MAX_TRAIL_AGENTS);
+
+      const trailEdges: Edge[] = [];
+      for (const { agentKey, activities, live: trailIsLive } of rankedAgents) {
+        // Keep the newest hops only so long agent sessions don't spam edges.
+        const recentSlice = activities.slice(-(MAX_TRAIL_HOPS + 1));
+        const nodeTrail = recentSlice
+          .map((activity) => ({
+            activity,
+            node: canvasGraph.nodes.find((node) => activityMatchesNode(activity, node)),
+          }))
+          .filter((entry): entry is { activity: FileActivity; node: GraphNodeData } =>
+            Boolean(entry.node),
+          )
+          .filter((entry, index, all) => index === 0 || entry.node.id !== all[index - 1]?.node.id);
+        const color = agentTrailColor(agentKey);
+        for (let index = 1; index < nodeTrail.length; index++) {
+          const previous = nodeTrail[index - 1]!;
+          const current = nodeTrail[index]!;
+          const animateTrail = trailIsLive && animatedBudget > 0;
+          if (animateTrail) animatedBudget -= 1;
+          trailEdges.push({
+            id: `trail:${agentKey}:${previous.activity.timestamp}:${current.activity.timestamp}`,
+            source: previous.node.id,
+            target: current.node.id,
+            type: 'smoothstep',
+            animated: animateTrail,
+            label:
+              index === nodeTrail.length - 1
+                ? `${agentInitials(current.activity.agentName ?? current.activity.agent ?? 'agent')} TRAIL`
+                : undefined,
+            markerEnd: { type: MarkerType.ArrowClosed, color, width: 13, height: 13 },
+            style: { stroke: color, strokeWidth: 2.5, strokeDasharray: '7 5', opacity: 0.9 },
+            labelStyle: { fontSize: 8, fontWeight: 700, fill: color },
+            labelBgStyle: { fill: 'hsl(var(--card))', fillOpacity: 0.94 },
+            labelBgPadding: [4, 2] as [number, number],
+            zIndex: 6,
+            data: {
+              renderKey: `${color}:${index === nodeTrail.length - 1 ? 'label' : 'plain'}:${trailIsLive ? 'live' : 'still'}:${animateTrail ? 'anim' : 'still'}`,
+            },
+          });
+        }
+      }
+      setAgentTrailCount(trailEdges.length);
+      setFlowEdges((current) => preserveFlowEdges(current, [...codeEdges, ...trailEdges]));
+    };
+
+    const structuralKey = fitSignature;
+    const structuralChanged = lastFlowStructuralKey.current !== structuralKey;
+    lastFlowStructuralKey.current = structuralKey;
+
+    if (flowRebuildTimer.current !== null) {
+      window.clearTimeout(flowRebuildTimer.current);
+      flowRebuildTimer.current = null;
     }
-    setAgentTrailCount(trailEdges.length);
-    setFlowEdges((current) => preserveFlowEdges(current, [...codeEdges, ...trailEdges]));
-    if (lastFitSignature.current === fitSignature) return undefined;
-    const timer = window.setTimeout(() => {
-      lastFitSignature.current = fitSignature;
-      void fitView({ padding: 0.2, duration: 240, maxZoom: 1.25 });
-    }, 20);
-    return () => window.clearTimeout(timer);
+
+    if (structuralChanged) {
+      rebuildFlow();
+    } else {
+      // Telemetry-only: coalesce rapid tool/watcher pulses.
+      flowRebuildTimer.current = window.setTimeout(() => {
+        flowRebuildTimer.current = null;
+        rebuildFlow();
+      }, FLOW_ACTIVITY_THROTTLE_MS);
+    }
+
+    let fitTimer: number | undefined;
+    if (lastFitSignature.current !== fitSignature) {
+      fitTimer = window.setTimeout(() => {
+        lastFitSignature.current = fitSignature;
+        // Dense canvases skip animated fit — less main-thread work mid-session.
+        const duration = canvasGraph.nodes.length > 48 ? 0 : 240;
+        void fitView({ padding: 0.2, duration, maxZoom: 1.25 });
+      }, 20);
+    }
+
+    return () => {
+      if (flowRebuildTimer.current !== null) {
+        window.clearTimeout(flowRebuildTimer.current);
+        flowRebuildTimer.current = null;
+      }
+      if (fitTimer !== undefined) window.clearTimeout(fitTimer);
+    };
   }, [
+    activityFlowKey,
     canvasGraph,
     selectedId,
-    displayedActiveOperations,
-    displayedRecentActivities,
+    deferredActiveOperations,
+    deferredRecentActivities,
+    deferredPulseActivities,
     fitSignature,
     connected,
     fitView,
@@ -1357,7 +1651,6 @@ function CodeMapInner(): React.ReactElement {
     incomingCounts,
     outgoingCounts,
     positionedNodes,
-    pulseActivities,
     setFlowEdges,
     setFlowNodes,
   ]);
@@ -1365,10 +1658,10 @@ function CodeMapInner(): React.ReactElement {
   // Expire activity pulses without requiring another WebSocket event.
   useEffect(() => {
     const interval = window.setInterval(() => {
-      activityState._sweep();
+      sweepActivity();
     }, 2_000);
     return () => window.clearInterval(interval);
-  }, [activityState._sweep]);
+  }, [sweepActivity]);
 
   const rootGraph =
     cache.current.get('packages') ?? (scope.level === 'packages' ? graph : EMPTY_GRAPH);
@@ -1484,6 +1777,10 @@ function CodeMapInner(): React.ReactElement {
     });
   }, []);
 
+  const revealAllTree = useCallback((key: string): void => {
+    setRevealAllKeys((current) => new Set(current).add(key));
+  }, []);
+
   const selectFileFromTree = useCallback(
     (node: GraphNodeData): void => {
       navigate({ level: 'files', package: node.package ?? '(root)' }, node.id);
@@ -1513,6 +1810,15 @@ function CodeMapInner(): React.ReactElement {
       .sort((a, b) => a.kind.localeCompare(b.kind) || a.label.localeCompare(b.label))
       .slice(0, 80);
   }, [search, cacheRevision]);
+
+  const virtualizeSearch = searchResults.length > SEARCH_VIRTUALIZE_THRESHOLD;
+  const searchVirtualizer = useVirtualizer({
+    count: searchResults.length,
+    getScrollElement: () => treeScrollRef.current,
+    estimateSize: () => 40,
+    overscan: 8,
+    enabled: virtualizeSearch,
+  });
 
   const selectSearchResult = useCallback(
     (node: GraphNodeData): void => {
@@ -1545,9 +1851,7 @@ function CodeMapInner(): React.ReactElement {
   const selectedActivities = selectedNode
     ? displayedActiveOperations.filter((activity) => activityMatchesNode(activity, selectedNode))
     : [];
-  const fileHistory: FileActivity[] = historyFile
-    ? activityState.getActivityForFile(historyFile)
-    : [];
+  const fileHistory: FileActivity[] = historyFile ? getActivityForFile(historyFile) : [];
 
   return (
     <div className="flex h-full min-h-0 flex-col bg-background">
@@ -1666,60 +1970,115 @@ function CodeMapInner(): React.ReactElement {
               <Search className="h-3.5 w-3.5 text-muted-foreground" />
               <input
                 className="min-w-0 flex-1 bg-transparent font-mono text-[10px] outline-none placeholder:text-muted-foreground"
-                value={search}
-                onChange={(event) => setSearch(event.target.value)}
+                value={searchInput}
+                onChange={(event) => setSearchInput(event.target.value)}
                 placeholder="Find package, file, symbol…"
               />
-              {search && (
-                <button type="button" onClick={() => setSearch('')} aria-label="Clear search">
+              {searchInput && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSearchInput('');
+                    setSearch('');
+                  }}
+                  aria-label="Clear search"
+                >
                   <X className="h-3 w-3 text-muted-foreground" />
                 </button>
               )}
             </label>
           </div>
-          <div className="min-h-0 flex-1 overflow-y-auto py-2">
+          <div ref={treeScrollRef} className="min-h-0 flex-1 overflow-y-auto py-2">
             {search.trim() ? (
               <div>
                 <div className="px-3 pb-2 text-[9px] text-muted-foreground">
                   {searchResults.length} loaded-map results
                 </div>
-                {searchResults.map((node) => {
-                  const Icon = NODE_STYLE[node.kind].icon;
-                  return (
-                    <button
-                      type="button"
-                      key={node.id}
-                      className="flex min-h-8 w-full items-center gap-2 px-3 py-1 text-left hover:bg-muted"
-                      onClick={() => selectSearchResult(node)}
-                    >
-                      <Icon
-                        className={cn(
-                          'h-3.5 w-3.5 shrink-0',
-                          node.kind === 'package'
-                            ? 'text-primary'
-                            : node.kind === 'file'
-                              ? 'text-info'
-                              : 'text-success',
-                        )}
-                      />
-                      <span className="min-w-0 flex-1">
-                        <span className="block truncate font-mono text-[10px]">{node.label}</span>
-                        <span className="block truncate text-[8px] text-muted-foreground">
-                          {node.file ?? node.package ?? node.symbolKind}
-                        </span>
-                      </span>
-                      <span className="text-[8px] uppercase text-muted-foreground">
-                        {node.kind.slice(0, 3)}
-                      </span>
-                    </button>
-                  );
-                })}
-                {searchResults.length === 0 && (
+                {searchResults.length === 0 ? (
                   <p className="px-3 py-8 text-center text-[10px] text-muted-foreground">
                     No match in loaded branches.
                     <br />
                     Expand a package to search its files.
                   </p>
+                ) : virtualizeSearch ? (
+                  <div
+                    style={{
+                      height: `${searchVirtualizer.getTotalSize()}px`,
+                      width: '100%',
+                      position: 'relative',
+                    }}
+                  >
+                    {searchVirtualizer.getVirtualItems().map((virtualRow) => {
+                      const node = searchResults[virtualRow.index];
+                      if (!node) return null;
+                      const Icon = NODE_STYLE[node.kind].icon;
+                      return (
+                        <button
+                          type="button"
+                          key={node.id}
+                          data-index={virtualRow.index}
+                          ref={searchVirtualizer.measureElement}
+                          className="absolute left-0 flex min-h-8 w-full items-center gap-2 px-3 py-1 text-left hover:bg-muted"
+                          style={{ transform: `translateY(${virtualRow.start}px)` }}
+                          onClick={() => selectSearchResult(node)}
+                        >
+                          <Icon
+                            className={cn(
+                              'h-3.5 w-3.5 shrink-0',
+                              node.kind === 'package'
+                                ? 'text-primary'
+                                : node.kind === 'file'
+                                  ? 'text-info'
+                                  : 'text-success',
+                            )}
+                          />
+                          <span className="min-w-0 flex-1">
+                            <span className="block truncate font-mono text-[10px]">
+                              {node.label}
+                            </span>
+                            <span className="block truncate text-[8px] text-muted-foreground">
+                              {node.file ?? node.package ?? node.symbolKind}
+                            </span>
+                          </span>
+                          <span className="text-[8px] uppercase text-muted-foreground">
+                            {node.kind.slice(0, 3)}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  searchResults.map((node) => {
+                    const Icon = NODE_STYLE[node.kind].icon;
+                    return (
+                      <button
+                        type="button"
+                        key={node.id}
+                        className="flex min-h-8 w-full items-center gap-2 px-3 py-1 text-left hover:bg-muted"
+                        onClick={() => selectSearchResult(node)}
+                      >
+                        <Icon
+                          className={cn(
+                            'h-3.5 w-3.5 shrink-0',
+                            node.kind === 'package'
+                              ? 'text-primary'
+                              : node.kind === 'file'
+                                ? 'text-info'
+                                : 'text-success',
+                          )}
+                        />
+                        <span className="min-w-0 flex-1">
+                          <span className="block truncate font-mono text-[10px]">{node.label}</span>
+                          <span className="block truncate text-[8px] text-muted-foreground">
+                            {node.file ?? node.package ?? node.symbolKind}
+                          </span>
+                        </span>
+                        <span className="text-[8px] uppercase text-muted-foreground">
+                          {node.kind.slice(0, 3)}
+                        </span>
+                      </button>
+                    );
+                  })
                 )}
               </div>
             ) : (
@@ -1790,7 +2149,10 @@ function CodeMapInner(): React.ReactElement {
                         onOpenFile={handleOpenNode}
                         onSelectSymbol={selectSymbolFromTree}
                         selectedId={selectedId}
-                        activeOperations={displayedActiveOperations}
+                        activeFileNorms={activeFileNorms}
+                        activeSymbolIds={activeSymbolIds}
+                        revealAllKeys={revealAllKeys}
+                        onRevealAll={revealAllTree}
                       />
                     )}
                   </div>
@@ -1945,14 +2307,15 @@ function CodeMapInner(): React.ReactElement {
               nodesDraggable={false}
               edgesFocusable={false}
               elementsSelectable={false}
-              onlyRenderVisibleElements={canvasGraph.nodes.length > 30}
+              onlyRenderVisibleElements
               minZoom={0.08}
               maxZoom={2.2}
               proOptions={{ hideAttribution: true }}
             >
               <Background
                 variant={BackgroundVariant.Dots}
-                gap={22}
+                // Wider gap on dense canvases — fewer SVG dots to paint.
+                gap={canvasGraph.nodes.length > 60 ? 32 : 22}
                 size={1}
                 color="hsl(var(--muted-foreground))"
                 className="!opacity-25"
@@ -1962,21 +2325,23 @@ function CodeMapInner(): React.ReactElement {
                 showInteractive={false}
                 className="!border !border-border !bg-card !shadow-md [&>button]:!border-border [&>button]:!bg-card [&>button]:!fill-foreground"
               />
-              <MiniMap
-                position="bottom-right"
-                pannable
-                zoomable
-                className="!h-[112px] !w-[180px] !border !border-border !bg-card !shadow-md"
-                maskColor="hsl(var(--background) / 0.72)"
-                nodeColor={(node) => {
-                  const kind = (node.data as CodeMapNodeData | undefined)?.graphNode.kind;
-                  return kind === 'package'
-                    ? 'hsl(var(--primary))'
-                    : kind === 'file'
-                      ? 'hsl(var(--info))'
-                      : 'hsl(var(--success))';
-                }}
-              />
+              {canvasGraph.nodes.length <= MINIMAP_NODE_LIMIT && (
+                <MiniMap
+                  position="bottom-right"
+                  pannable
+                  zoomable
+                  className="!h-[112px] !w-[180px] !border !border-border !bg-card !shadow-md"
+                  maskColor="hsl(var(--background) / 0.72)"
+                  nodeColor={(node) => {
+                    const kind = (node.data as CodeMapNodeData | undefined)?.graphNode.kind;
+                    return kind === 'package'
+                      ? 'hsl(var(--primary))'
+                      : kind === 'file'
+                        ? 'hsl(var(--info))'
+                        : 'hsl(var(--success))';
+                  }}
+                />
+              )}
             </ReactFlow>
           )}
           <div className="pointer-events-none absolute bottom-3 left-1/2 z-10 flex -translate-x-1/2 items-center gap-3 border bg-card/90 px-3 py-1.5 font-mono text-[8px] text-muted-foreground shadow backdrop-blur">
@@ -2035,7 +2400,7 @@ function CodeMapInner(): React.ReactElement {
                   <ActivityIcon className="h-3 w-3 text-muted-foreground" />
                   <h3 className="text-[9px] font-bold uppercase tracking-[0.16em]">Event stream</h3>
                   <span className="ml-auto font-mono text-[8px] text-muted-foreground">
-                    {activityState.totalCount} total
+                    {activityTotalCount} total
                   </span>
                 </div>
                 {displayedRecentActivities.length > 0 ? (

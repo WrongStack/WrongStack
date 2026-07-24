@@ -17,7 +17,7 @@ import type { DispatchClassifier } from './dispatcher.js';
 import type { FleetBus, FleetUsage } from './fleet-bus.js';
 import type { IFleetManager } from './ifleet-manager.js';
 
-export interface DirectorSpawnPort {
+interface DirectorSpawnPort {
   spawn(config: SubagentConfig): Promise<string>;
 }
 
@@ -26,7 +26,7 @@ export interface DirectorAdmissionPort extends DirectorSpawnPort {
   readonly dispatchClassifier?: DispatchClassifier | undefined;
 }
 
-export interface DirectorBudgetPort {
+interface DirectorBudgetPort {
   getRemainingBudgetUsd(): number | undefined;
 }
 

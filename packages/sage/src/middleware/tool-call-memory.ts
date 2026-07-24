@@ -224,12 +224,12 @@ export function createSageToolCallMiddleware(
             candidates: memories.length,
             eligible: eligible.length,
             rejected: { ...rejectedBase, budget: fresh.length },
-            activated: selected
-              .map((memory) => {
-                const item = eligibleItems.find((candidate) => candidate.memory.id === memory.id);
-                return item ? toTraceMemory(item, plan) : undefined;
-              })
-              .filter((item): item is InjectorTraceMemory => item !== undefined),
+            activated: selected.map((memory) =>
+              toTraceMemory(
+                eligibleItems.find((candidate) => candidate.memory.id === memory.id)!,
+                plan,
+              ),
+            ),
             injected: [],
             injectedChars: 0,
           });
@@ -248,10 +248,8 @@ export function createSageToolCallMiddleware(
         if (opts.tracker) {
           const injectedById = new Map(selected.map((memory) => [memory.id, memory]));
           for (const memoryId of rendered.memoryIds) {
-            const memory = injectedById.get(memoryId);
-            if (memory) {
-              opts.tracker.record(memoryId, memory.text, now, sessionId, rendered.text);
-            }
+            const memory = injectedById.get(memoryId)!;
+            opts.tracker.record(memoryId, memory.text, now, sessionId, rendered.text);
           }
         }
         let auditError: string | undefined;
@@ -282,12 +280,10 @@ export function createSageToolCallMiddleware(
             budget: Math.max(0, fresh.length - rendered.memoryIds.length),
           },
           activated: selected.flatMap((memory) => {
-            const item = selectedById.get(memory.id);
-            return item ? [toTraceMemory(item, plan)] : [];
+            return [toTraceMemory(selectedById.get(memory.id)!, plan)];
           }),
           injected: rendered.memoryIds.flatMap((id) => {
-            const item = selectedById.get(id);
-            return item ? [toTraceMemory(item, plan)] : [];
+            return [toTraceMemory(selectedById.get(id)!, plan)];
           }),
           injectedChars: rendered.text.length,
           error: auditError,
@@ -915,3 +911,32 @@ function availableHintChars(payload: ToolCallPipelinePayload, configured: number
   // A conservative char budget keeps UTF-8 hints inside the tool's byte cap.
   return Math.max(0, Math.min(wanted, Math.floor(remainingBytes / 3)));
 }
+
+/** Direct-module test seam; intentionally not re-exported by the package barrel. */
+export const toolCallMemoryCoverage = {
+  emitInjectorTrace,
+  toTraceMemory,
+  formatTraceAnchor,
+  boundedText,
+  retrieveTriggeredMemories,
+  applyCooldown,
+  cooldownKey,
+  pruneCooldowns,
+  scoreForInjection,
+  normalizedInjectionScore,
+  contextualInjectionScore,
+  durableMemoryKind,
+  isMutationTrigger,
+  didMutate,
+  extractTrigger,
+  stringValues,
+  isString,
+  splitFileList,
+  extractPatchPaths,
+  extractResultPaths,
+  resolveTriggerPaths,
+  visibleContextText,
+  dedupeRetrievedByText,
+  selectDiverseMemories,
+  availableHintChars,
+};

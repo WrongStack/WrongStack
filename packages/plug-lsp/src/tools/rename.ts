@@ -5,11 +5,11 @@ import { supportsRename } from '../server/capabilities.js';
 import { LSPError, LSPErrorCode } from '../types.js';
 import { pathToUri } from '../utils/uri.js';
 import {
-  type ToolDeps,
   readDocumentContent,
   requireServer,
   resolveInputPath,
   stringifyToolError,
+  type ToolDeps,
 } from './shared.js';
 import { applyWorkspaceEdit } from './workspace-edit.js';
 

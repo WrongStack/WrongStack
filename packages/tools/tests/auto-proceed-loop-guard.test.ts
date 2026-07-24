@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   createAutoProceedLoopGuard,
+  GROUNDED_NO_PROGRESS_STEER,
   normalizeForRepetition,
 } from '../src/auto-proceed-loop-guard.js';
 
@@ -220,5 +221,52 @@ describe('createAutoProceedLoopGuard — the user-reported scenario', () => {
       'investigate the failing tests',
       'investigate the failing tests',
     ]);
+  });
+});
+
+describe('createAutoProceedLoopGuard — grounded (todo-sourced) prompts', () => {
+  // Grounded prompts are synthesized from the durable todo board, so an
+  // identical re-feed means "the whole previous turn moved nothing on the
+  // board" — usually a model that worked but forgot to update it. The guard
+  // steers once (caller appends GROUNDED_NO_PROGRESS_STEER) and only halts
+  // when the board stays frozen after the steer.
+  it('feed → steer → halt on a frozen board', () => {
+    const guard = createAutoProceedLoopGuard();
+    const first = guard.recordGrounded('Continue with the plan: todo X');
+    expect(first.action).toBe('feed');
+    expect(first.shouldHalt).toBe(false);
+
+    const second = guard.recordGrounded('Continue with the plan: todo X');
+    expect(second.action).toBe('steer');
+    expect(second.shouldHalt).toBe(false);
+
+    const third = guard.recordGrounded('Continue with the plan: todo X');
+    expect(third.action).toBe('halt');
+    expect(third.shouldHalt).toBe(true);
+  });
+
+  it('board progress (a different prompt) clears the steer state', () => {
+    const guard = createAutoProceedLoopGuard();
+    guard.recordGrounded('Continue: todo X');
+    expect(guard.recordGrounded('Continue: todo X').action).toBe('steer');
+    // The steer worked — the board moved, so the next continuation differs.
+    expect(guard.recordGrounded('Continue: todo Y').action).toBe('feed');
+    // A later stall on Y gets its own steer before any halt.
+    expect(guard.recordGrounded('Continue: todo Y').action).toBe('steer');
+    expect(guard.recordGrounded('Continue: todo Y').action).toBe('halt');
+  });
+
+  it('reset() clears the steer state along with the history', () => {
+    const guard = createAutoProceedLoopGuard();
+    guard.recordGrounded('Continue: todo X');
+    expect(guard.recordGrounded('Continue: todo X').action).toBe('steer');
+    guard.reset();
+    expect(guard.recordGrounded('Continue: todo X').action).toBe('feed');
+    expect(guard.recordGrounded('Continue: todo X').action).toBe('steer');
+  });
+
+  it('exports a non-empty steer text that mentions the todo board', () => {
+    expect(GROUNDED_NO_PROGRESS_STEER.length).toBeGreaterThan(0);
+    expect(GROUNDED_NO_PROGRESS_STEER).toContain('todo board');
   });
 });

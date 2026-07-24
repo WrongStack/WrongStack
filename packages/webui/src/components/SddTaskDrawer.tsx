@@ -325,6 +325,18 @@ export function SddTaskDrawer({
             </div>
           ) : task.verificationCommand ? (
             <div className="flex items-center gap-1">
+              {task.verificationState && (
+                <span
+                  title={task.verificationDetail}
+                  className={
+                    task.verificationState === 'passed'
+                      ? 'rounded bg-success/10 px-1.5 py-0.5 text-[10px] text-success'
+                      : 'rounded bg-destructive/10 px-1.5 py-0.5 text-[10px] text-destructive'
+                  }
+                >
+                  {task.verificationState === 'passed' ? '✓ verified' : '✗ failed'}
+                </span>
+              )}
               <code className="flex-1 truncate rounded bg-muted px-1.5 py-0.5 font-mono text-[10px] text-foreground">
                 {task.verificationCommand}
               </code>

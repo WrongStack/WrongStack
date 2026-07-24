@@ -244,3 +244,64 @@ describe('kanban-store', () => {
     expect(state.activeBoard?.tasks.map((item) => item.title)).toEqual(['Fresh task']);
   });
 });
+
+describe('kanban-store — verification activity', () => {
+  beforeEach(() => {
+    useKanbanStore.setState({
+      boards: [],
+      activeBoardId: null,
+      activeBoard: null,
+      loading: false,
+      error: null,
+      verificationActivity: {},
+    });
+  });
+
+  it('tracks verification_started and clears on verification_completed', () => {
+    const active = board('b1', [task('t1', 'Verify me')]);
+    useKanbanStore.setState({ activeBoardId: active.id, activeBoard: active });
+
+    useKanbanStore.getState().handleResult('kanban.task.verification_started', {
+      success: true,
+      data: { boardId: 'b1', taskId: 't1' },
+    });
+    expect(useKanbanStore.getState().verificationActivity['b1:t1']).toBeDefined();
+
+    const verified: KanbanTask = {
+      ...task('t1', 'Verify me'),
+      verificationReport: {
+        taskId: 't1',
+        taskTitle: 'Verify me',
+        boardId: 'b1',
+        startedAt: now,
+        completedAt: now,
+        verdict: 'passed',
+        checks: [],
+        markdownSummary: '',
+        attachments: [],
+      },
+    };
+    useKanbanStore.getState().handleResult('kanban.task.verification_completed', {
+      success: true,
+      data: { boardId: 'b1', task: verified },
+    });
+    const state = useKanbanStore.getState();
+    expect(state.verificationActivity['b1:t1']).toBeUndefined();
+    expect(state.activeBoard?.tasks[0]?.verificationReport?.verdict).toBe('passed');
+  });
+
+  it('a decomposition.applied {board} broadcast never hijacks another active board', () => {
+    const active = board('b1', [task('t1', 'Mine')]);
+    useKanbanStore.setState({ activeBoardId: active.id, activeBoard: active });
+
+    useKanbanStore.getState().handleResult('kanban.decomposition.applied', {
+      success: true,
+      data: { board: board('b2', [task('t2', 'Other board task')]) },
+    });
+    const state = useKanbanStore.getState();
+    expect(state.activeBoardId).toBe('b1');
+    expect(state.activeBoard?.id).toBe('b1');
+    // The other board's summary is still tracked.
+    expect(state.boards.some((summary) => summary.id === 'b2')).toBe(true);
+  });
+});

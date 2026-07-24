@@ -12,12 +12,27 @@
 import * as fsp from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { FileServer, FsError } from '../src/client/file-server.js';
+import type { FileServerOperations } from '../src/client/file-server.js';
 
 let projectRoot: string;
 let server: FileServer;
+
+function fakeOperations(
+  overrides: Partial<FileServerOperations> = {},
+): FileServerOperations {
+  return {
+    stat: async () => ({ size: 0 }),
+    readFile: async () => '',
+    writeFile: async () => {},
+    realpath: async (file) => file,
+    rename: async () => {},
+    unlink: async () => {},
+    ...overrides,
+  };
+}
 
 beforeEach(async () => {
   projectRoot = await fsp.mkdtemp(path.join(os.tmpdir(), 'wstack-fs-'));
@@ -142,5 +157,160 @@ describe('FileServer', () => {
     // The .tmp file should not be left behind
     const entries = await fsp.readdir(projectRoot);
     expect(entries.filter((e) => e.endsWith('.tmp'))).toEqual([]);
+  });
+
+  it('falls back to the given root when its synchronous realpath fails', () => {
+    const missingRoot = path.join(projectRoot, 'not-created');
+    expect(() => new FileServer({ projectRoot: missingRoot })).not.toThrow();
+  });
+
+  it('accepts the filesystem root without a sibling-prefix false positive', async () => {
+    const filesystemRoot = path.parse(projectRoot).root;
+    const rootServer = new FileServer({
+      projectRoot: filesystemRoot,
+      operations: fakeOperations(),
+    });
+    await expect(
+      rootServer.readTextFile({ sessionId: 's1', path: filesystemRoot }),
+    ).resolves.toEqual({ content: '' });
+  });
+
+  it.each(['EACCES', 'EPERM'])('maps stat %s failures to EACCES', async (code) => {
+    const denied = new FileServer({
+      projectRoot,
+      operations: fakeOperations({
+        stat: async () => Promise.reject(Object.assign(new Error('denied'), { code })),
+      }),
+    });
+    await expect(
+      denied.readTextFile({ sessionId: 's1', path: path.join(projectRoot, 'file') }),
+    ).rejects.toMatchObject({ code: 'EACCES' });
+  });
+
+  it('maps a non-Error read failure to INVALID_PATH', async () => {
+    const broken = new FileServer({
+      projectRoot,
+      operations: fakeOperations({
+        readFile: async () => Promise.reject('broken read'),
+      }),
+    });
+    await expect(
+      broken.readTextFile({ sessionId: 's1', path: path.join(projectRoot, 'file') }),
+    ).rejects.toMatchObject({ code: 'INVALID_PATH', message: 'broken read' });
+  });
+
+  it('times out a stalled read', async () => {
+    vi.useFakeTimers();
+    try {
+      const stalled = new FileServer({
+        projectRoot,
+        timeoutMs: 10,
+        operations: fakeOperations({
+          readFile: async (_file, { signal }) =>
+            new Promise((_resolve, reject) => {
+              signal.addEventListener('abort', () => reject(new Error('aborted')));
+            }),
+        }),
+      });
+      const pending = stalled.readTextFile({
+        sessionId: 's1',
+        path: path.join(projectRoot, 'file'),
+      });
+      const rejection = expect(pending).rejects.toMatchObject({ code: 'TIMEOUT' });
+      await vi.advanceTimersByTimeAsync(10);
+      await rejection;
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('cleans up and preserves an FsError raised during an atomic write', async () => {
+    const unlink = vi.fn(async () => {
+      throw new Error('cleanup failed');
+    });
+    const guarded = new FileServer({
+      projectRoot,
+      operations: fakeOperations({
+        realpath: async (file) => {
+          if (file.endsWith('.tmp')) {
+            return path.join(path.dirname(projectRoot), 'outside', 'file');
+          }
+          return file;
+        },
+        unlink,
+      }),
+    });
+    await expect(
+      guarded.writeTextFile({
+        sessionId: 's1',
+        path: path.join(projectRoot, 'file'),
+        content: 'data',
+      }),
+    ).rejects.toMatchObject({ code: 'OUTSIDE_ROOT' });
+    expect(unlink).toHaveBeenCalledOnce();
+  });
+
+  it('maps a failed write after successful cleanup', async () => {
+    const unlink = vi.fn(async () => {});
+    const broken = new FileServer({
+      projectRoot,
+      operations: fakeOperations({
+        writeFile: async () => {
+          throw new Error('disk failed');
+        },
+        unlink,
+      }),
+    });
+    await expect(
+      broken.writeTextFile({
+        sessionId: 's1',
+        path: path.join(projectRoot, 'file'),
+        content: 'data',
+      }),
+    ).rejects.toMatchObject({ code: 'INVALID_PATH', message: 'disk failed' });
+    expect(unlink).toHaveBeenCalledOnce();
+  });
+
+  it('times out a stalled write and tolerates a missing temp file', async () => {
+    vi.useFakeTimers();
+    try {
+      const stalled = new FileServer({
+        projectRoot,
+        timeoutMs: 10,
+        operations: fakeOperations({
+          writeFile: async (_file, _content, { signal }) =>
+            new Promise((_resolve, reject) => {
+              signal.addEventListener('abort', () => reject(new Error('aborted')));
+            }),
+          unlink: async () => {
+            throw new Error('missing');
+          },
+        }),
+      });
+      const pending = stalled.writeTextFile({
+        sessionId: 's1',
+        path: path.join(projectRoot, 'file'),
+        content: 'data',
+      });
+      const rejection = expect(pending).rejects.toMatchObject({ code: 'TIMEOUT' });
+      await vi.advanceTimersByTimeAsync(10);
+      await rejection;
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('rejects a path when no ancestor can be resolved', async () => {
+    const root = path.parse(projectRoot).root;
+    const missing = new FileServer({
+      projectRoot: root,
+      operations: fakeOperations({
+        realpath: async () =>
+          Promise.reject(Object.assign(new Error('missing'), { code: 'ENOENT' })),
+      }),
+    });
+    await expect(
+      missing.readTextFile({ sessionId: 's1', path: path.join(root, 'never', 'exists') }),
+    ).rejects.toMatchObject({ code: 'ENOENT' });
   });
 });

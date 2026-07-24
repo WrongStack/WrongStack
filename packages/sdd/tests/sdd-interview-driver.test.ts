@@ -1,9 +1,9 @@
-import { describe, expect, it, beforeEach } from 'vitest';
-import * as path from 'node:path';
 import * as os from 'node:os';
+import * as path from 'node:path';
+import { beforeEach, describe, expect, it } from 'vitest';
+import { SddInterviewDriver } from '../src/sdd-interview-driver.js';
 import { SpecStore } from '../src/spec-store.js';
 import { TaskGraphStore } from '../src/task-graph-store.js';
-import { SddInterviewDriver } from '../src/sdd-interview-driver.js';
 
 function tmp(prefix: string): string {
   return path.join(os.tmpdir(), `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2)}`);
@@ -31,8 +31,20 @@ const SPEC_OUTPUT = [
     overview: 'Add OAuth-based login with session management.',
     sections: [{ type: 'overview', title: 'Overview', content: 'OAuth login flow', level: 1 }],
     requirements: [
-      { id: 'REQ-1', type: 'security', priority: 'critical', description: 'Verify OAuth tokens', acceptanceCriteria: ['tokens validated'] },
-      { id: 'REQ-2', type: 'functional', priority: 'high', description: 'Persist sessions', acceptanceCriteria: [] },
+      {
+        id: 'REQ-1',
+        type: 'security',
+        priority: 'critical',
+        description: 'Verify OAuth tokens',
+        acceptanceCriteria: ['tokens validated'],
+      },
+      {
+        id: 'REQ-2',
+        type: 'functional',
+        priority: 'high',
+        description: 'Persist sessions',
+        acceptanceCriteria: [],
+      },
     ],
   }),
   '```',
@@ -42,7 +54,12 @@ const TASKS_OUTPUT = [
   'Implementation plan: build the middleware first.',
   '```json',
   JSON.stringify([
-    { title: 'Create auth middleware', description: 'JWT verify', type: 'feature', priority: 'critical' },
+    {
+      title: 'Create auth middleware',
+      description: 'JWT verify',
+      type: 'feature',
+      priority: 'critical',
+    },
     { title: 'Write auth tests', description: 'tests', type: 'test', priority: 'high' },
   ]),
   '```',
@@ -100,8 +117,22 @@ describe('SddInterviewDriver', () => {
       'Plan:',
       '```json',
       JSON.stringify([
-        { id: 't1', title: 'Create auth middleware', description: 'JWT verify', type: 'feature', priority: 'critical', dependsOn: [] },
-        { id: 't2', title: 'Write auth tests', description: 'tests', type: 'test', priority: 'high', dependsOn: ['t1'] },
+        {
+          id: 't1',
+          title: 'Create auth middleware',
+          description: 'JWT verify',
+          type: 'feature',
+          priority: 'critical',
+          dependsOn: [],
+        },
+        {
+          id: 't2',
+          title: 'Write auth tests',
+          description: 'tests',
+          type: 'test',
+          priority: 'high',
+          dependsOn: ['t1'],
+        },
       ]),
       '```',
     ].join('\n');
@@ -126,8 +157,22 @@ describe('SddInterviewDriver', () => {
     const CYCLIC = [
       '```json',
       JSON.stringify([
-        { id: 'a', title: 'Task A', description: 'a', type: 'feature', priority: 'high', dependsOn: ['b'] },
-        { id: 'b', title: 'Task B', description: 'b', type: 'feature', priority: 'high', dependsOn: ['a'] },
+        {
+          id: 'a',
+          title: 'Task A',
+          description: 'a',
+          type: 'feature',
+          priority: 'high',
+          dependsOn: ['b'],
+        },
+        {
+          id: 'b',
+          title: 'Task B',
+          description: 'b',
+          type: 'feature',
+          priority: 'high',
+          dependsOn: ['a'],
+        },
       ]),
       '```',
     ].join('\n');
@@ -157,7 +202,7 @@ describe('SddInterviewDriver', () => {
     const graph = h.driver.getGraph();
     expect(graph).not.toBeNull();
     // TaskGenerator emits at least one task per requirement + tests/docs.
-    expect((graph?.nodes.size ?? 0)).toBeGreaterThanOrEqual(2);
+    expect(graph?.nodes.size ?? 0).toBeGreaterThanOrEqual(2);
   });
 
   it('ignores malformed agent output without throwing', async () => {
@@ -186,5 +231,51 @@ describe('SddInterviewDriver', () => {
     expect(loaded).toBe(true);
     expect(b.phase()).toBe('spec_review');
     expect(b.getGraph()?.id).toBe(graphId);
+  });
+
+  it('resumes sessions without a graph and tolerates a missing persisted graph', async () => {
+    const noGraphPath = path.join(h.dir, 'session-no-graph.json');
+    const noGraph = makeDriver({ sessionPath: noGraphPath });
+    noGraph.driver.start('No graph');
+    await noGraph.driver.ingestAgentOutput(SPEC_OUTPUT);
+    await noGraph.driver.builder.saveSession();
+    const resumedWithoutGraph = new SddInterviewDriver({
+      specStore: noGraph.specStore,
+      graphStore: noGraph.graphStore,
+      sessionPath: noGraphPath,
+    });
+    expect(await resumedWithoutGraph.loadExisting()).toBe(true);
+    expect(resumedWithoutGraph.getGraph()).toBeNull();
+
+    const missingGraphPath = path.join(h.dir, 'session-missing-graph.json');
+    const missingGraph = makeDriver({ sessionPath: missingGraphPath });
+    missingGraph.driver.start('Missing graph');
+    await missingGraph.driver.ingestAgentOutput(SPEC_OUTPUT);
+    const built = await missingGraph.driver.ingestAgentOutput(TASKS_OUTPUT);
+    await missingGraph.driver.builder.saveSession();
+    await missingGraph.graphStore.delete(built.graphId!);
+    const resumedMissingGraph = new SddInterviewDriver({
+      specStore: missingGraph.specStore,
+      graphStore: missingGraph.graphStore,
+      sessionPath: missingGraphPath,
+    });
+    expect(await resumedMissingGraph.loadExisting()).toBe(true);
+    expect(resumedMissingGraph.getGraph()).toBeNull();
+  });
+
+  it('keeps an existing tracker and rejects a too-short plan before task JSON', async () => {
+    h.driver.start('OAuth login');
+    await h.driver.ingestAgentOutput(SPEC_OUTPUT);
+    await h.driver.approve();
+    const shortPlanAndTasks = `Short plan
+\`\`\`json
+[{"title":"Third","description":"d"}]
+\`\`\``;
+    const first = await h.driver.ingestAgentOutput(shortPlanAndTasks);
+    expect(first.implementationDetected).toBe(false);
+    const firstGraph = h.driver.getGraph();
+    const second = await h.driver.ingestAgentOutput(TASKS_OUTPUT);
+    expect(second.tasksDetected).toBe(true);
+    expect(h.driver.getGraph()).toBe(firstGraph);
   });
 });

@@ -161,7 +161,36 @@ function estimateRequestTokens(request: Record<string, unknown>, charsPerToken: 
   return Math.ceil(chars / charsPerToken);
 }
 
-const sleep = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms));
+/**
+ * Wait `ms`, but give up early if `signal` aborts.
+ *
+ * A plain `setTimeout` sleep made a throttled request uninterruptible:
+ * pressing Ctrl+C during a throttle window did nothing until the full
+ * delay (up to `maxDelayMs`) had elapsed, because nothing was listening
+ * for the cancellation. The timer is also `unref`'d so a pending throttle
+ * is never the reason the process stays alive.
+ *
+ * Resolves rather than rejects on abort — the caller re-checks the signal
+ * and lets the provider layer own the cancellation error.
+ */
+function sleep(ms: number, signal?: AbortSignal): Promise<void> {
+  if (signal?.aborted) return Promise.resolve();
+  return new Promise((resolve) => {
+    const timer = setTimeout(() => {
+      signal?.removeEventListener('abort', onAbort);
+      resolve();
+    }, ms);
+    timer.unref?.();
+    function onAbort(): void {
+      clearTimeout(timer);
+      resolve();
+    }
+    // `{ once: true }` fires only on abort; the timeout path removes the
+    // listener explicitly so a reused signal does not accumulate one
+    // listener per throttled request.
+    signal?.addEventListener('abort', onAbort, { once: true });
+  });
+}
 
 // ---------------------------------------------------------------------------
 // Plugin
@@ -239,6 +268,7 @@ const plugin: Plugin = {
           request: unknown,
           inner: (c: unknown, r: unknown) => Promise<unknown>,
         ) {
+          const signal = (_ctx as { signal?: AbortSignal } | undefined)?.signal;
           const req = (request ?? {}) as Record<string, unknown>;
           state.invocations += 1;
           const now = Date.now();
@@ -252,7 +282,7 @@ const plugin: Plugin = {
             api.metrics.counter('throttled');
             api.metrics.histogram('delay_ms', delay);
             api.log.info('token-throttle: delaying provider call', { delayMs: delay, projected });
-            await sleep(delay);
+            await sleep(delay, signal);
           }
 
           const response = (await inner(_ctx, request)) as {

@@ -1668,15 +1668,16 @@ export class IndexStore {
       }
     }
 
-    // Cross-package edges: resolve packages via JOIN instead of a full
-    // symbol-id → package map in JS.
+    // Cross-package edges: aggregate in SQL first (file×file×type) so monorepos
+    // with tens of thousands of symbol refs ship far fewer rows into JS.
     const refRows = this.stmt(
-      `SELECT r.call_type, sf.file AS from_file, st.file AS to_file
+      `SELECT r.call_type, sf.file AS from_file, st.file AS to_file, COUNT(*) AS n
        FROM refs r
        JOIN symbols sf ON sf.id = r.from_id
        JOIN symbols st ON st.id = r.to_id
-       WHERE r.to_id IS NOT NULL AND r.call_type != 'import'`,
-    ).all() as Array<{ call_type: string; from_file: string; to_file: string }>;
+       WHERE r.to_id IS NOT NULL AND r.call_type != 'import'
+       GROUP BY r.call_type, sf.file, st.file`,
+    ).all() as Array<{ call_type: string; from_file: string; to_file: string; n: number }>;
 
     const edgeMap = new Map<string, { weight: number; types: Map<string, number> }>();
     for (const r of refRows) {
@@ -1689,19 +1690,21 @@ export class IndexStore {
         e = { weight: 0, types: new Map() };
         edgeMap.set(key, e);
       }
-      e.weight++;
-      e.types.set(r.call_type, (e.types.get(r.call_type) ?? 0) + 1);
+      const n = Number(r.n) || 0;
+      e.weight += n;
+      e.types.set(r.call_type, (e.types.get(r.call_type) ?? 0) + n);
     }
 
     // Module imports are path/package references, not symbol names. They must
     // bypass symbol resolution or aliases/barrels leave the architecture with
     // isolated boxes even though source imports are explicit.
     const importRows = this.stmt(
-      `SELECT r.to_name, s.file AS from_file
+      `SELECT r.to_name, s.file AS from_file, COUNT(*) AS n
        FROM refs r
        JOIN symbols s ON s.id = r.from_id
-       WHERE r.call_type = 'import'`,
-    ).all() as Array<{ to_name: string; from_file: string }>;
+       WHERE r.call_type = 'import'
+       GROUP BY r.to_name, s.file`,
+    ).all() as Array<{ to_name: string; from_file: string; n: number }>;
     for (const r of importRows) {
       const fromPkg = fileToPkg.get(r.from_file) ?? IndexStore.derivePackage(r.from_file) ?? '(root)';
       const toPkg = IndexStore.packageFromImport(r.to_name);
@@ -1712,8 +1715,9 @@ export class IndexStore {
         edge = { weight: 0, types: new Map() };
         edgeMap.set(key, edge);
       }
-      edge.weight++;
-      edge.types.set('import', (edge.types.get('import') ?? 0) + 1);
+      const n = Number(r.n) || 0;
+      edge.weight += n;
+      edge.types.set('import', (edge.types.get('import') ?? 0) + n);
     }
 
     const edges: GraphEdge[] = [];
@@ -1806,18 +1810,20 @@ export class IndexStore {
     const indexedFiles = new Set(allFiles.map((f) => f.file));
 
     // Phase 3: Restrict refs to those involving the target package's symbols
-    // instead of scanning every ref row in the project.
+    // and aggregate identical edges in SQL before shipping to JS.
     const refRows = this.stmt(
-        `SELECT r.from_id, r.to_id, r.call_type
+        `SELECT r.from_id, r.to_id, r.call_type, COUNT(*) AS n
        FROM refs r
        WHERE (r.from_id IN (SELECT id FROM symbols WHERE file IN (${filePlaceholders}))
            OR r.to_id IN (SELECT id FROM symbols WHERE file IN (${filePlaceholders})))
-         AND r.to_id IS NOT NULL`,
+         AND r.to_id IS NOT NULL
+       GROUP BY r.from_id, r.to_id, r.call_type`,
       )
       .all(...pkgFilePaths, ...pkgFilePaths) as {
       from_id: number;
       to_id: number;
       call_type: string;
+      n: number;
     }[];
 
     // Collect symbol ids referenced across packages for lazy fetch
@@ -1856,17 +1862,19 @@ export class IndexStore {
         e = { weight: 0, types: new Map() };
         edgeMap.set(key, e);
       }
-      e.weight++;
-      e.types.set(r.call_type, (e.types.get(r.call_type) ?? 0) + 1);
+      const n = Number(r.n) || 0;
+      e.weight += n;
+      e.types.set(r.call_type, (e.types.get(r.call_type) ?? 0) + n);
     }
 
     const importRows = this.stmt(
-        `SELECT r.from_id, r.to_name
+        `SELECT r.from_id, r.to_name, COUNT(*) AS n
        FROM refs r
        WHERE r.call_type = 'import'
-         AND r.from_id IN (SELECT id FROM symbols WHERE file IN (${filePlaceholders}))`,
+         AND r.from_id IN (SELECT id FROM symbols WHERE file IN (${filePlaceholders}))
+       GROUP BY r.from_id, r.to_name`,
       )
-      .all(...pkgFilePaths) as { from_id: number; to_name: string }[];
+      .all(...pkgFilePaths) as { from_id: number; to_name: string; n: number }[];
     for (const r of importRows) {
       const fromFile = symToFile.get(r.from_id);
       if (!fromFile || !localFiles.has(fromFile)) continue;
@@ -1880,8 +1888,9 @@ export class IndexStore {
         edge = { weight: 0, types: new Map() };
         edgeMap.set(key, edge);
       }
-      edge.weight++;
-      edge.types.set('import', (edge.types.get('import') ?? 0) + 1);
+      const n = Number(r.n) || 0;
+      edge.weight += n;
+      edge.types.set('import', (edge.types.get('import') ?? 0) + n);
     }
 
     const edges: GraphEdge[] = [];
@@ -1951,47 +1960,42 @@ export class IndexStore {
 
     // Collect refs FROM symbols in this file (outgoing) and TO symbols in this
     // file (incoming), so the graph shows both callers and callees.
-    const symIds = new Set(syms.map((s) => s.id));
-    // Two index-friendly JOINs (outgoing + incoming) UNIONed together.
-    // The previous `from_id IN (SELECT … WHERE file = ?) OR to_id IN (SELECT
-    // … WHERE file = ?)` form could not be flattened by the SQLite planner and
-    // degenerated to a sequential scan over `refs` for every graph render.
+    //
+    // Two index-friendly JOINs are UNIONed (dedup on the physical ref tuple),
+    // then aggregated by (from_id, to_id, call_type) so dense call graphs
+    // ship far fewer rows into JS. The outer COUNT preserves the same edge
+    // weights as walking every raw ref row.
     // Each JOIN drives off `idx_s_file` (symbols.file) and probes `refs` via
-    // `idx_r_from` / `idx_r_to_id`. UNION (not UNION ALL) deduplicates on the
-    // projection tuple `(from_id, to_id, to_name, call_type, line)`. A row
-    // whose both endpoints are in the file would in principle appear once in
-    // each branch and collapse to one; distinct physical rows have distinct
-    // `(from_id, to_id, to_name, call_type, line)` tuples under the `refs`
-    // schema, so dedup is a no-op in practice and the row set matches the
-    // original OR query exactly. `r.id` is intentionally NOT projected: it
-    // would be dead (never read by the consumer) and would slightly widen
-    // the dedup tuple without changing correctness. If a non-PK column is
-    // ever added to the projection, revisit this comment — it can re-introduce
-    // real duplicates that UNION would silently drop.
+    // `idx_r_from` / `idx_r_to_id`. Avoid `from_id IN (…) OR to_id IN (…)` —
+    // that form cannot be flattened by the SQLite planner and degenerates to
+    // a sequential scan over `refs` for every graph render.
     const refRows = this.stmt(
-        `SELECT r.from_id, r.to_id, r.to_name, r.call_type, r.line
-       FROM refs r
-       JOIN symbols s ON s.id = r.from_id
-       WHERE s.file = ?
-       UNION
-       SELECT r.from_id, r.to_id, r.to_name, r.call_type, r.line
-       FROM refs r
-       JOIN symbols s ON s.id = r.to_id
-       WHERE s.file = ?`,
+        `SELECT from_id, to_id, call_type, COUNT(*) AS n
+       FROM (
+         SELECT r.from_id, r.to_id, r.to_name, r.call_type, r.line
+         FROM refs r
+         JOIN symbols s ON s.id = r.from_id
+         WHERE s.file = ?
+         UNION
+         SELECT r.from_id, r.to_id, r.to_name, r.call_type, r.line
+         FROM refs r
+         JOIN symbols s ON s.id = r.to_id
+         WHERE s.file = ?
+       )
+       WHERE to_id IS NOT NULL
+       GROUP BY from_id, to_id, call_type`,
       )
       .all(fileFilter, fileFilter) as {
       from_id: number;
-      to_id: number | null;
-      to_name: string;
+      to_id: number;
       call_type: string;
-      line: number;
+      n: number;
     }[];
 
     const edgeMap = new Map<string, { weight: number; types: Map<string, number> }>();
     for (const r of refRows) {
-      if (r.to_id === null) continue;
-      // Only include edges where at least one endpoint is in our file
-      if (!symIds.has(r.from_id) && !symIds.has(r.to_id)) continue;
+      // Aggregated query only returns resolved endpoints; still guard.
+      if (r.to_id == null) continue;
       relatedIds.add(r.from_id);
       relatedIds.add(r.to_id);
       const key = `${r.from_id}\u0000${r.to_id}`;
@@ -2000,8 +2004,9 @@ export class IndexStore {
         e = { weight: 0, types: new Map() };
         edgeMap.set(key, e);
       }
-      e.weight++;
-      e.types.set(r.call_type, (e.types.get(r.call_type) ?? 0) + 1);
+      const n = Number(r.n) || 0;
+      e.weight += n;
+      e.types.set(r.call_type, (e.types.get(r.call_type) ?? 0) + n);
     }
 
     const edges: GraphEdge[] = [];

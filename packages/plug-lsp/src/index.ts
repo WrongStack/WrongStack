@@ -6,6 +6,7 @@ import { DocumentTracker } from './document-tracker.js';
 import { LSPRegistry } from './registry.js';
 import { registerSlashCommands } from './slash-commands/index.js';
 import { makeLSPTools } from './tools/index.js';
+
 export type {
   AutoStartMode,
   DiagnosticsAfterEdit,
@@ -39,7 +40,12 @@ const plugin: Plugin = {
       cfg.servers = await autoDiscoverServers(cfg.servers, cwd);
     }
     const holder: { registry?: LSPRegistry | undefined } = {};
-    const tracker = new DocumentTracker(() => expectDefined(holder.registry), api.log, cwd, api.events);
+    const tracker = new DocumentTracker(
+      () => expectDefined(holder.registry),
+      api.log,
+      cwd,
+      api.events,
+    );
     const registry = new LSPRegistry(cfg, tracker, { cwd, log: api.log, events: api.events });
     holder.registry = registry;
     await registry.bind(cwd, cfg.autoStart);

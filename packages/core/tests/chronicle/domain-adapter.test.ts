@@ -94,7 +94,7 @@ describe('domain lifecycle bridge', () => {
     };
     events.emit('file.event', { ...base, operation: 'update', filePath: 'src/app.ts', toolName: 'edit' });
     events.emit('file.event', { ...base, operation: 'read', filePath: 'src/other.ts', toolName: 'read' });
-    events.emit('kanban.task_moved', { sessionId: 's', taskId: 'task-9', boardId: 'board-3', from: 'doing', to: 'done' } as never);
+    events.emit('kanban.task_moved' as never, { sessionId: 's', taskId: 'task-9', boardId: 'board-3', from: 'doing', to: 'done' } as never);
     const recorded = await journal.readAll(); off();
     expect(recorded.map((event) => event.eventType)).toEqual(['file.event', 'kanban.task_moved']);
     expect(recorded[0]).toMatchObject({

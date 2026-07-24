@@ -35,7 +35,7 @@ import { access } from 'node:fs/promises';
 import { basename, dirname, isAbsolute, join } from 'node:path';
 import type { Plugin } from '@wrongstack/core/types';
 import { buildWin32CmdShimInvocation, resolveWin32Command } from '@wrongstack/tools/win32';
-import { withinProject } from '../runtime/index.js';
+import { BoundedMap, withinProject } from '../runtime/index.js';
 
 /**
  * Resolve a (command, args) pair for execFile so Windows .cmd shims launch
@@ -208,7 +208,12 @@ function pathContentHash(content: string): number {
  * We only cache PASSES because caching failures would freeze broken
  * state — the model needs to see the failure so it knows to fix.
  */
-const lastPassedHash = new Map<string, number>();
+/**
+ * Content hash of each source file whose tests last passed. Bounded:
+ * over a long session on a large repository this grew one entry per
+ * source file touched and was only ever released at teardown.
+ */
+const lastPassedHash = new BoundedMap<string, number>({ max: 1_024 });
 
 // ---------------------------------------------------------------------------
 // Sandbox: reject paths outside the project root, and lock down the

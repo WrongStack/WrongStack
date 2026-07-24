@@ -246,6 +246,71 @@ describe('council trace emission', () => {
     });
   });
 
+  it('reports a correlated panel through resolution warnings', async () => {
+    // A council whose seats all resolve to the SAME model is an expensive way
+    // to ask one model three times: the votes are correlated, so the majority
+    // it produces is not the independent agreement the panel is meant to buy.
+    // The orchestrator detects this, but the Brain adapter used to drop the
+    // warnings, so the verdict looked indistinguishable from a real panel's.
+    const events = new EventBus();
+    const resolutions: Array<{ warnings?: string[]; distinctTargetCount?: number }> = [];
+    events.on('brain.council_resolved', (e) => resolutions.push(e as never));
+
+    const arbiter = createCouncilBrainArbiter({
+      voters: [
+        { provider: fakeProvider(vote('go')), model: 'same-model', persona: 'executor' },
+        { provider: fakeProvider(vote('go')), model: 'same-model', persona: 'skeptic' },
+      ],
+      distinctness: 'model',
+      events,
+    });
+    const d = await arbiter.decide({
+      id: 'req-correlated',
+      source: 'director',
+      question: 'Proceed?',
+      risk: 'high',
+      fallback: 'deny',
+      options: [
+        { id: 'go', label: 'Go' },
+        { id: 'stop', label: 'Stop' },
+      ],
+    });
+
+    // The decision itself is unaffected — this is an observability signal,
+    // not a gate. Silently denying here would strand anyone with a
+    // single-provider pool.
+    expect(d).toMatchObject({ type: 'answer', optionId: 'go' });
+    expect(resolutions).toHaveLength(1);
+    expect(resolutions[0]?.distinctTargetCount).toBe(1);
+    expect(resolutions[0]?.warnings?.join(' ')).toContain('distinctness');
+  });
+
+  it('emits no warnings for a genuinely distinct panel', async () => {
+    const events = new EventBus();
+    const resolutions: Array<{ warnings?: string[] }> = [];
+    events.on('brain.council_resolved', (e) => resolutions.push(e as never));
+
+    const arbiter = createCouncilBrainArbiter({
+      voters: [
+        { provider: fakeProvider(vote('go')), model: 'model-a', persona: 'executor' },
+        { provider: fakeProvider(vote('go')), model: 'model-b', persona: 'skeptic' },
+      ],
+      distinctness: 'model',
+      events,
+    });
+    await arbiter.decide({
+      id: 'req-distinct',
+      source: 'director',
+      question: 'Proceed?',
+      risk: 'high',
+      fallback: 'deny',
+      options: [{ id: 'go', label: 'Go' }],
+    });
+
+    expect(resolutions).toHaveLength(1);
+    expect(resolutions[0]?.warnings).toBeUndefined();
+  });
+
   it('omits vote rationales when trace content is off', async () => {
     const events = new EventBus();
     const votes: Array<{ rationale?: string }> = [];

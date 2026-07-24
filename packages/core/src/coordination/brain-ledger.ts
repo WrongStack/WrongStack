@@ -30,7 +30,7 @@
  */
 
 import { createReadStream } from 'node:fs';
-import { access, appendFile, mkdir } from 'node:fs/promises';
+import { access, appendFile, mkdir, rename, stat } from 'node:fs/promises';
 import { dirname } from 'node:path';
 import { createInterface } from 'node:readline';
 import type { EventBus } from '../kernel/events.js';
@@ -156,6 +156,11 @@ export class BrainDecisionLedger {
   private pendingWriteBytes = 0;
   private static readonly MAX_PENDING_WRITES = 1_000;
   private static readonly MAX_PENDING_WRITE_BYTES = 8 * 1024 * 1024;
+  /** Rotate the JSONL to `.1` past this size so it can't grow unbounded. */
+  private static readonly MAX_FILE_BYTES = 5 * 1024 * 1024;
+  /** Stat the file for rotation only once per this many writes. */
+  private static readonly ROTATE_CHECK_EVERY = 100;
+  private writesSinceRotateCheck = 0;
   private dirReady = false;
 
   private readonly maxMemoryEntries: number;
@@ -430,6 +435,7 @@ export class BrainDecisionLedger {
           await mkdir(dirname(this.opts.filePath), { recursive: true });
           this.dirReady = true;
         }
+        await this.maybeRotate();
         await appendFile(this.opts.filePath, line, 'utf8');
       })
       .catch(() => {
@@ -439,6 +445,26 @@ export class BrainDecisionLedger {
         this.pendingWriteCount = Math.max(0, this.pendingWriteCount - 1);
         this.pendingWriteBytes = Math.max(0, this.pendingWriteBytes - bytes);
       });
+  }
+
+  /**
+   * Size-bounded rotation: past {@link MAX_FILE_BYTES} the file moves to a
+   * single `.1` sibling (previous `.1` is overwritten), bounding disk to
+   * ~2× the cap. Checked once per {@link ROTATE_CHECK_EVERY} writes; runs on
+   * the write chain, so it never races an append. The ring `load()` reads
+   * only the tail, so rotation never costs queryable history.
+   */
+  private async maybeRotate(): Promise<void> {
+    this.writesSinceRotateCheck += 1;
+    if (this.writesSinceRotateCheck < BrainDecisionLedger.ROTATE_CHECK_EVERY) return;
+    this.writesSinceRotateCheck = 0;
+    try {
+      const info = await stat(this.opts.filePath);
+      if (info.size < BrainDecisionLedger.MAX_FILE_BYTES) return;
+      await rename(this.opts.filePath, `${this.opts.filePath}.1`);
+    } catch {
+      // Missing file or a locked rename — rotation retries on a later check.
+    }
   }
 
   /** Seed the in-memory ring from the JSONL tail (cross-session learning). */

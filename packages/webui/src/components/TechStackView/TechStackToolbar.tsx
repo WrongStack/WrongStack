@@ -8,7 +8,7 @@ import { FilterX, Search, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
-import { statusMeta } from './shared';
+import { ecosystemMeta, statusMeta } from './shared';
 
 export type DependencySort = 'attention' | 'name' | 'drift';
 
@@ -110,7 +110,7 @@ export function TechStackToolbar({
             <option value="all">All ecosystems</option>
             {ecosystems.map(([ecosystem, count]) => (
               <option key={ecosystem} value={ecosystem}>
-                {ecosystem} · {count}
+                {ecosystemMeta(ecosystem).label} · {count}
               </option>
             ))}
           </select>

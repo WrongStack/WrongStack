@@ -1474,6 +1474,13 @@
     "gitToBuffer": "Git HEAD → buffer atual do Monaco",
     "savedToBuffer": "Última versão salva → buffer atual do Monaco",
     "unsaved": "buffer não salvo",
+    "lifetimeTitle": "Todo o histórico",
+    "lifetimeChanges": "alterações",
+    "lifetimeSessions": "sessões",
+    "lifetimeTasks": "tarefas",
+    "lifetimeBoards": "quadros",
+    "lifetimeSince": "desde {{date}}",
+    "lifetimeTools": "via {{tools}}",
     "level": {
       "quiet": "estável",
       "active": "ativo",

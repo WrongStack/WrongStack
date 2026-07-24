@@ -169,9 +169,9 @@ describe('MCP resources and prompts protocol parsing', () => {
   });
 
   it('throws for templates list with non-array resourceTemplates', () => {
-    expect(() =>
-      parseListResourceTemplatesResult({ resourceTemplates: 'not-array' }),
-    ).toThrow(/resourceTemplates must be an array/);
+    expect(() => parseListResourceTemplatesResult({ resourceTemplates: 'not-array' })).toThrow(
+      /resourceTemplates must be an array/,
+    );
   });
 
   it('throws when optional string field receives a non-string, non-undefined value', () => {

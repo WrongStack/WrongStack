@@ -101,10 +101,8 @@ function mockSpawnOk(stdout = '', stderr = '', exitCode = 0, mutateFile?: (path:
   vi.mocked(spawn).mockImplementationOnce(() => child as never);
   setImmediate(() => {
     if (mutateFile) {
-      // File path is the last arg of the spawn call.
-      const last = vi.mocked(spawn).mock.calls[vi.mocked(spawn).mock.calls.length - 1];
-      const args = last?.[1] as string[] | undefined;
-      const filePath = args?.[args.length - 1];
+      // File path is the last logical arg of the spawn call.
+      const filePath = lastSpawnFileArg();
       if (filePath) mutateFile(filePath);
     }
     if (stdout) child.stdout.emit('data', Buffer.from(stdout));
@@ -112,6 +110,39 @@ function mockSpawnOk(stdout = '', stderr = '', exitCode = 0, mutateFile?: (path:
     child.emit('close', exitCode);
   });
   return child;
+}
+
+
+/**
+ * Unwrap a spawn invocation back to the logical `(command, args)` the
+ * plugin asked for.
+ *
+ * On Windows the plugin routes `.cmd` shims (npx, pnpm, biome…) through
+ * `cmd.exe /d /c call "shim" "arg" …` — without that indirection `spawn`
+ * fails ENOENT and the plugin never runs on Windows at all. These tests
+ * assert the *logical* invocation so they hold on every platform.
+ */
+function logicalSpawnCall(index: number): { cmd: string; args: string[] } {
+  const call = vi.mocked(spawn).mock.calls[index];
+  const rawCmd = (call?.[0] as string) ?? '';
+  const rawArgs = ((call?.[1] as string[] | undefined) ?? []).slice();
+  const isCmdShim = /cmd\.exe$/i.test(rawCmd);
+  if (!isCmdShim) return { cmd: rawCmd, args: rawArgs };
+  // ['/d', '/c', 'call "cmd" "a" "b"'] -> split the quoted command line.
+  const line = rawArgs[rawArgs.length - 1] ?? '';
+  const parts = [...line.matchAll(/"([^"]*)"/g)].map((m) => m[1] as string);
+  const [shimPath, ...rest] = parts;
+  // Reduce the resolved shim path back to its bare command name.
+  const base = (shimPath ?? '').split(/[\\/]/).pop() ?? '';
+  return { cmd: base.replace(/\.(cmd|bat|exe)$/i, ''), args: rest };
+}
+
+/** The file path the linter was pointed at (always the final argument). */
+function lastSpawnFileArg(index = -1): string | undefined {
+  const calls = vi.mocked(spawn).mock.calls;
+  const i = index < 0 ? calls.length + index : index;
+  const { args } = logicalSpawnCall(i);
+  return args[args.length - 1];
 }
 
 /** Simulate `command not found` (e.g. biome not on PATH). */
@@ -335,11 +366,10 @@ describe('import-organizer plugin', () => {
       });
 
       expect(spawn).toHaveBeenCalledTimes(1);
-      const cmd = vi.mocked(spawn).mock.calls[0]?.[0] as string;
-      const args = vi.mocked(spawn).mock.calls[0]?.[1] as string[] | undefined;
+      const { cmd, args } = logicalSpawnCall(0);
       expect(cmd).toBe('npx');
       expect(args).toContain('@biomejs/biome');
-      expect(args?.[args.length - 1]).toBe(filePath);
+      expect(args[args.length - 1]).toBe(filePath);
     });
 
     it('runs the linter on the file when tool is edit', async () => {
@@ -358,8 +388,7 @@ describe('import-organizer plugin', () => {
       });
 
       expect(spawn).toHaveBeenCalledTimes(1);
-      const args = vi.mocked(spawn).mock.calls[0]?.[1] as string[] | undefined;
-      expect(args?.[args.length - 1]).toBe(filePath);
+      expect(lastSpawnFileArg(0)).toBe(filePath);
     });
 
     it('falls back to eslint --fix when the primary command is not found', async () => {
@@ -382,14 +411,12 @@ describe('import-organizer plugin', () => {
       });
 
       expect(spawn).toHaveBeenCalledTimes(2);
-      const firstCmd = vi.mocked(spawn).mock.calls[0]?.[0] as string;
-      const firstArgs = vi.mocked(spawn).mock.calls[0]?.[1] as string[] | undefined;
-      const secondCmd = vi.mocked(spawn).mock.calls[1]?.[0] as string;
-      const secondArgs = vi.mocked(spawn).mock.calls[1]?.[1] as string[] | undefined;
-      expect(firstCmd).toBe('npx');
-      expect(firstArgs).toContain('@biomejs/biome');
-      expect(secondCmd).toBe('npx');
-      expect(secondArgs).toContain('eslint');
+      const first = logicalSpawnCall(0);
+      const second = logicalSpawnCall(1);
+      expect(first.cmd).toBe('npx');
+      expect(first.args).toContain('@biomejs/biome');
+      expect(second.cmd).toBe('npx');
+      expect(second.args).toContain('eslint');
     });
 
     it('returns additionalContext when the file size changes (imports were reorganized)', async () => {

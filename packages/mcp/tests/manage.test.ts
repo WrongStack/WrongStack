@@ -147,7 +147,7 @@ describe('addMcp', () => {
   });
 
   it('rejects a name-only add when no presets are registered at all', async () => {
-    const r = await addMcp({ name: 'anything' }, deps(makeRegistry()));
+    const r = await addMcp({ name: 'anything' }, { configPath, registry: makeRegistry() });
     expect(r.ok).toBe(false);
     expect(r.message).toContain('No configuration provided');
   });
@@ -286,10 +286,7 @@ describe('restart / discover', () => {
 
   it('addMcp with enabled config starts via registry.start when not alreadyRegistered', async () => {
     const registry = makeRegistry({ list: () => [] });
-    await addMcp(
-      { name: 'github', enabled: true },
-      deps(registry, { github: githubPreset }),
-    );
+    await addMcp({ name: 'github', enabled: true }, deps(registry, { github: githubPreset }));
     expect((registry as { start: ReturnType<typeof vi.fn> }).start).toHaveBeenCalledWith(
       expect.objectContaining({ name: 'github', enabled: true }),
     );
@@ -297,7 +294,10 @@ describe('restart / discover', () => {
 
   it('enableMcp calls restart on registry for already-registered server', async () => {
     // Add disabled server first (writes to config)
-    await addMcp({ name: 'github', enabled: false }, deps(makeRegistry(), { github: githubPreset }));
+    await addMcp(
+      { name: 'github', enabled: false },
+      deps(makeRegistry(), { github: githubPreset }),
+    );
     // Now enable it with a registry that lists it as registered
     const registry = makeRegistry({
       list: () => [{ name: 'github', state: 'connected', toolCount: 2, tools: ['a', 'b'] }],
@@ -305,16 +305,15 @@ describe('restart / discover', () => {
     });
     const r = await enableMcp('github', deps(registry));
     expect(r.ok).toBe(true);
-    expect((registry as { restart: ReturnType<typeof vi.fn> }).restart).toHaveBeenCalledWith('github');
+    expect((registry as { restart: ReturnType<typeof vi.fn> }).restart).toHaveBeenCalledWith(
+      'github',
+    );
   });
 
   it('updateMcp with disabled server stops it', async () => {
     await addMcp({ name: 'github', enabled: true }, deps(makeRegistry(), { github: githubPreset }));
     const registry = makeRegistry({ list: () => [] });
-    const r = await updateMcp(
-      { name: 'github', enabled: false },
-      deps(registry),
-    );
+    const r = await updateMcp({ name: 'github', enabled: false }, deps(registry));
     expect(r.ok).toBe(true);
     const servers = await readServers();
     expect(servers.github?.enabled).toBe(false);
@@ -341,5 +340,149 @@ describe('listMcp', () => {
     const list = await listMcp(deps(makeRegistry()));
     expect(list[0]?.status).toBe('stopped');
     expect(list[0]?.tools).toEqual([]);
+  });
+
+  it('treats unreadable or malformed config as empty', async () => {
+    await fs.writeFile(configPath, '{invalid');
+    await expect(listMcp(deps(makeRegistry()))).resolves.toEqual([]);
+    await fs.writeFile(configPath, JSON.stringify({ mcpServers: [] }));
+    await expect(listMcp(deps(makeRegistry()))).resolves.toEqual([]);
+  });
+
+  it('projects every optional server field and transport variant', async () => {
+    const registry = makeRegistry({ markDisabled: vi.fn() });
+    await addMcp(
+      {
+        name: 'complete',
+        transport: 'sse',
+        description: 'complete config',
+        command: 'node',
+        args: ['server.js'],
+        env: { TOKEN: 'value' },
+        url: 'https://example.test',
+        headers: { 'X-Test': 'yes' },
+        allowedTools: ['one'],
+        permission: 'confirm',
+        enabled: false,
+        lazy: false,
+        passthroughEnv: ['HOME'],
+        health: { thresholds: { inFlightCalls: 2 } },
+      },
+      deps(registry),
+    );
+    const [server] = await listMcp(deps(registry));
+    expect(server).toMatchObject({
+      transport: 'sse',
+      description: 'complete config',
+      command: 'node',
+      args: ['server.js'],
+      env: { TOKEN: 'value' },
+      url: 'https://example.test',
+      lazy: false,
+    });
+    expect(
+      (registry as { markDisabled: ReturnType<typeof vi.fn> }).markDisabled,
+    ).toHaveBeenCalled();
+
+    await addMcp(
+      { name: 'stdio', transport: 'unknown', command: 'cmd', enabled: false },
+      deps(registry),
+    );
+    expect((await readServers()).stdio?.transport).toBe('stdio');
+  });
+});
+
+describe('management edge cases', () => {
+  it('rejects missing names for every operation', async () => {
+    const d = deps(makeRegistry());
+    await expect(addMcp({ name: '' }, d)).resolves.toMatchObject({ ok: false });
+    await expect(updateMcp({ name: '' }, d)).resolves.toMatchObject({ ok: false });
+    await expect(removeMcp('', d)).resolves.toMatchObject({ ok: false });
+    await expect(enableMcp('', d)).resolves.toMatchObject({ ok: false });
+    await expect(disableMcp('', d)).resolves.toMatchObject({ ok: false });
+    await expect(restartMcp('', d)).resolves.toMatchObject({ ok: false });
+    await expect(discoverMcp('', d)).resolves.toMatchObject({ ok: false });
+  });
+
+  it('reports missing enable and disable targets', async () => {
+    const d = deps(makeRegistry());
+    await expect(enableMcp('missing', d)).resolves.toMatchObject({ ok: false });
+    await expect(disableMcp('missing', d)).resolves.toMatchObject({ ok: false });
+  });
+
+  it('restarts an enabled update and an already tracked add', async () => {
+    await addMcp({ name: 'github', enabled: true }, deps(makeRegistry(), { github: githubPreset }));
+    const updateRegistry = makeRegistry({
+      list: () => [{ name: 'github', state: 'connected', tools: [] }],
+    });
+    await expect(
+      updateMcp({ name: 'github', description: 'updated' }, deps(updateRegistry)),
+    ).resolves.toMatchObject({ ok: true });
+    expect((updateRegistry as { restart: ReturnType<typeof vi.fn> }).restart).toHaveBeenCalledWith(
+      'github',
+    );
+
+    const addRegistry = makeRegistry({
+      list: () => [{ name: 'tracked', state: 'stopped', tools: [] }],
+    });
+    await addMcp(
+      { name: 'tracked', transport: 'stdio', command: 'cmd', enabled: true },
+      deps(addRegistry),
+    );
+    expect((addRegistry as { restart: ReturnType<typeof vi.fn> }).restart).toHaveBeenCalledWith(
+      'tracked',
+    );
+  });
+
+  it('swallows stop failures and forgets removed registry state', async () => {
+    const forget = vi.fn();
+    const registry = makeRegistry({
+      stop: vi.fn().mockRejectedValue(new Error('not running')),
+      forget,
+      markDisabled: vi.fn(),
+    });
+    await addMcp({ name: 'github', enabled: false }, deps(registry, { github: githubPreset }));
+    await expect(removeMcp('github', deps(registry))).resolves.toMatchObject({ ok: true });
+    expect(forget).toHaveBeenCalledWith('github');
+  });
+
+  it('formats non-Error registry failures and plural discovery results', async () => {
+    const failing = makeRegistry({
+      list: () => [{ name: 'registered', state: 'failed', tools: [] }],
+      restart: vi.fn().mockRejectedValue('plain failure'),
+    });
+    await expect(restartMcp('registered', deps(failing))).resolves.toMatchObject({
+      ok: false,
+      message: expect.stringContaining('plain failure'),
+    });
+
+    const discoveryRegistry = makeRegistry({
+      list: () => [{ name: 'registered', state: 'connected', tools: ['one', 'two'] }],
+    });
+    await expect(discoverMcp('registered', deps(discoveryRegistry))).resolves.toMatchObject({
+      message: expect.stringContaining('2 tools'),
+    });
+  });
+
+  it('cleans up the temporary file when atomic rename fails', async () => {
+    await fs.rm(configPath);
+    await fs.mkdir(configPath);
+    await expect(
+      addMcp(
+        { name: 'server', transport: 'stdio', command: 'cmd', enabled: false },
+        deps(makeRegistry()),
+      ),
+    ).rejects.toThrow();
+    const leftovers = (await fs.readdir(tmp)).filter((name) => name.endsWith('.tmp'));
+    expect(leftovers).toEqual([]);
+  });
+
+  it('treats a URL by itself as explicit configuration', async () => {
+    await expect(
+      addMcp(
+        { name: 'url-only', url: 'https://example.test', enabled: false },
+        { configPath, registry: makeRegistry() },
+      ),
+    ).resolves.toMatchObject({ ok: true });
   });
 });

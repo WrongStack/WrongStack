@@ -29,6 +29,7 @@
 
 import { execFile } from 'node:child_process';
 import type { Plugin } from '@wrongstack/core/types';
+import { BoundedMap } from '../runtime/index.js';
 
 const API_VERSION = '^0.1.10';
 
@@ -132,7 +133,12 @@ function hasDisabledPluginEntry(raw: unknown): boolean {
  * avoid redundant git subprocess spawns on repeated hook invocations.
  * The cache is invalidated on setup() reload.
  */
-const branchCache = new Map<string, string | null>();
+/**
+ * Branch lookups keyed by cwd. Bounded: a session that walks many
+ * worktrees would otherwise retain one entry per directory forever.
+ * The TTL also means a branch switch is picked up without a reload.
+ */
+const branchCache = new BoundedMap<string, string | null>({ max: 64, ttlMs: 30_000 });
 
 function runGit(args: string[], cwd: string | undefined, signal: AbortSignal): Promise<string> {
   return new Promise((resolve, reject) => {

@@ -92,6 +92,20 @@ describe('grep tool', () => {
     expect(out.matches.some((m) => m.includes('top.txt'))).toBe(true);
   });
 
+  it('skips gitignored directories (both rg and native honor .gitignore)', async () => {
+    await fs.writeFile(path.join(sb.dir, '.gitignore'), 'logs/\n');
+    await fs.mkdir(path.join(sb.dir, 'logs'), { recursive: true });
+    await fs.writeFile(path.join(sb.dir, 'logs', 'run.txt'), 'needle here');
+    await fs.writeFile(path.join(sb.dir, 'kept.txt'), 'needle here');
+    const out = await grepTool.execute(
+      { pattern: 'needle', output_mode: 'files_with_matches' },
+      sb.ctx,
+      { signal: newSignal() },
+    );
+    expect(out.matches.some((m) => m.includes('kept.txt'))).toBe(true);
+    expect(out.matches.some((m) => m.includes('logs'))).toBe(false);
+  });
+
   it('hits limit and truncates in native mode', async () => {
     // Write enough files to potentially hit limit
     for (let i = 0; i < 50; i++) {

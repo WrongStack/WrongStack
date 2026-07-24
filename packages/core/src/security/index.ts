@@ -34,6 +34,20 @@ export {
   ReadOnlyPermissionPolicy,
 } from './readonly-permission-policy.js';
 export {
+  DirectoryPermissionPolicy,
+  matchRule,
+  resolveTargetPath,
+  type DirectoryPermissionPolicyOptions,
+} from './directory-permission-policy.js';
+export {
+  DIRECTORY_POLICY_LIMITS,
+  DIRECTORY_POLICY_SCHEMA_VERSION,
+  type DirectoryPolicyDiagnostic,
+  type DirectoryPolicyDiagnosticCode,
+  type DirectoryPolicyValidationResult,
+  validateDirectoryPolicy,
+} from './directory-policy-schema.js';
+export {
   DefaultSecretVault,
   migratePlaintextSecrets,
   rewriteConfigEncrypted,

@@ -1317,7 +1317,41 @@ describe('formatToolVisualOutput', () => {
     expect(bad?.[0]).toMatchObject({ kind: 'error', marker: 'x ' });
   });
 
+  it('todo: renders the full board from the call input inside the tool card', () => {
+    const rows = formatToolVisualOutput(
+      'todo',
+      JSON.stringify({ count: 3, in_progress: 1 }),
+      true,
+      {
+        todos: [
+          { id: '1', content: 'Fix auth bug', status: 'completed' },
+          { id: '2', content: 'Add tests', status: 'in_progress', activeForm: 'Adding tests' },
+          { id: '3', content: 'Update docs', status: 'pending' },
+        ],
+      },
+    );
+    expect(rows).toEqual([
+      { kind: 'ok', marker: '[x] ', text: 'Fix auth bug' },
+      { kind: 'warn', marker: '[~] ', text: 'Adding tests' },
+      { kind: 'meta', marker: '[ ] ', text: 'Update docs' },
+    ]);
+  });
+
+  it('todo: caps the board at 10 rows with an overflow line', () => {
+    const rows = formatToolVisualOutput('todo', JSON.stringify({ count: 12, in_progress: 0 }), true, {
+      todos: Array.from({ length: 12 }, (_, i) => ({
+        id: String(i + 1),
+        content: `Item ${i + 1}`,
+        status: 'pending',
+      })),
+    });
+    expect(rows).toHaveLength(11);
+    expect(rows?.[10]).toMatchObject({ kind: 'meta', text: '… 2 more' });
+  });
+
   it('renders todo, plan, and task summaries', () => {
+    // Without the call input (e.g. entries missing args), the todo card
+    // falls back to the count summary from the tool output.
     expect(
       formatToolVisualOutput('todo', JSON.stringify({ count: 3, in_progress: 1 }), true)?.[0],
     ).toMatchObject({ kind: 'ok', marker: 'ok ', text: '3 todos · 1 in progress' });

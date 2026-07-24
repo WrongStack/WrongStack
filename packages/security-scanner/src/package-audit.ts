@@ -246,7 +246,7 @@ export class PackageAuditRunner {
         skipped: false,
       };
     } catch (error) {
-      const parseError = error instanceof Error ? error.message : String(error);
+      const parseError = (error as Error).message;
       return {
         packageManager,
         command: `${packageManager} audit --json`,
@@ -255,7 +255,7 @@ export class PackageAuditRunner {
         exitCode: execution.exitCode,
         success: false,
         skipped: false,
-        error: execution.stderr.trim() || parseError || execution.error?.message,
+        error: execution.stderr.trim() || parseError,
       };
     }
   }

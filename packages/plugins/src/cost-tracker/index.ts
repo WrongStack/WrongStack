@@ -31,6 +31,7 @@
  * @public
  */
 import type { Plugin } from '@wrongstack/core/types';
+import { BoundedMap } from '../runtime/index.js';
 import { expectDefined } from '@wrongstack/core/utils';
 
 const API_VERSION = '^0.1.10';
@@ -208,7 +209,10 @@ function readCostTrackerConfig(raw: Record<string, unknown> | undefined): CostTr
  *
  * @public
  */
-const modelKeyCache = new Map<string, string>();
+/** Model-id normalisation memo. Bounded — model ids come from provider
+ * responses, so a misbehaving or proxying provider could otherwise mint
+ * unbounded distinct keys. */
+const modelKeyCache = new BoundedMap<string, string>({ max: 256 });
 
 function estimateCost(model: string, promptTokens: number, completionTokens: number): number {
   // Cache the lowercased key to avoid redundant .toLowerCase() calls.

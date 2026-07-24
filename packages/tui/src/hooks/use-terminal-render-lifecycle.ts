@@ -49,13 +49,22 @@ export function useTerminalRenderLifecycle(state: State): void {
       // stdout might be detached during shutdown — ignore.
     }
   }, []);
-  // useLayoutEffect fires synchronously in the commit phase, BEFORE Ink
-  // flushes the new tree to the terminal. This means \x1b[J cleans the old
-  // live region BEFORE new Static items are written — preventing stale
-  // input/statusbar content from bleeding into scrollback.
+  // Cursor save-restore bracket across the Ink paint cycle:
+  //
+  //   useInsertionEffect → DECSC (\x1b7)   — save cursor before Ink writes
+  //                        ← Ink writes new frame to stdout
+  //   useLayoutEffect    → DECRC (\x1b8)   — restore cursor after Ink
+  //                        ← optional \x1b[J erase at the correct position
+  //
+  // Without the bracket, Ink's own cursor movements between insertion and
+  // layout effects shift the cursor, so \x1b[J erases a wrong region.
   // useEffect (async microtask) was too late: the terminal had already
   // scrolled the old content into scrollback by the time it fired.
   React.useLayoutEffect(() => {
+    // Restore cursor saved by DECSC in useInsertionEffect above. Ink may
+    // have moved the cursor while writing the new frame; DECRC returns it
+    // to the pre-paint position so \x1b[J erase targets the correct region.
+    try { writeOut('\x1b8'); } catch { /* stdout detached during shutdown */ }
     if (!hasMounted.current) {
       // Seed the refs from current state so the NEXT render has a real
       // baseline to diff against, then bail without writing.
@@ -174,6 +183,10 @@ export function useTerminalRenderLifecycle(state: State): void {
   // (the previous terminal state is whatever the user saw before the app
   // started — there's no live region to clean yet, only committed scrollback).
   useInsertionEffect(() => {
+    // Save cursor before Ink processes the React tree. The matching DECRC
+    // in useLayoutEffect restores the cursor AFTER Ink's paint, so the
+    // erase-below-cursor calls below target the correct live region.
+    try { writeOut('\x1b7'); } catch { /* stdout detached during shutdown */ }
     if (!hasMounted.current) return;
     if (
       state.enhanceBusy ||

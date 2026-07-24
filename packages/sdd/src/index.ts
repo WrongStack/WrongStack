@@ -5,6 +5,7 @@ export { SpecParser } from './spec-parser.js';
 export {
   TaskGenerator,
   extractVerificationCommand,
+  assessGeneratedTaskAtomicity,
   type TaskGeneratorOptions,
   type GeneratedTask,
 } from './task-generator.js';
@@ -142,8 +143,29 @@ export {
   type SddSupervisorVerdict,
 } from './sdd-parallel-run.js';
 export { SddSupervisor, type SddSupervisorOptions } from './sdd-supervisor.js';
-export { makeCommandVerifier, type CommandVerifierOptions } from './verify-task.js';
-export { makeLlmSubtaskGenerator, type SubtaskGeneratorOptions } from './decompose-task.js';
+export {
+  makeAcceptanceCriteriaVerifier,
+  makeCommandVerifier,
+  makeCompositeVerifier,
+  type AcceptanceCriteriaVerifierOptions,
+  type CommandVerifierOptions,
+  type SddVerifyTask,
+} from './verify-task.js';
+export {
+  makeLlmSubtaskGenerator,
+  makePlanningDecomposer,
+  type PlanningDecomposer,
+  type PlanningDecomposerOptions,
+  type SubtaskGeneratorOptions,
+} from './decompose-task.js';
+export { splitGraphNode, type SplitGraphNodeOptions } from './graph-split.js';
+export {
+  assessTaskNodeAtomicity,
+  decomposeNonAtomicTasks,
+  type DecompositionProposal,
+  type PlanDecomposeOptions,
+  type PlanDecomposeResult,
+} from './plan-decompose.js';
 export {
   makePreferSideConflictResolver,
   makeLlmConflictResolver,

@@ -62,6 +62,18 @@ describe('WrongStackACPServer', () => {
     expect(() => new WrongStackACPServer({ agentName: 'acme' })).not.toThrow();
   });
 
+  it('forwards every optional lifecycle hook to the handler', () => {
+    expect(
+      () =>
+        new WrongStackACPServer({
+          replayFor: () => [],
+          seedFor: () => undefined,
+          disposeFor: () => undefined,
+          store: {} as never,
+        }),
+    ).not.toThrow();
+  });
+
   it('start dispatches messages and stops at EOF', async () => {
     const server = new WrongStackACPServer();
     const t = lastTransport();

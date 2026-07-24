@@ -2861,6 +2861,14 @@ export type WSServerMessage =
         endLine?: number | undefined;
       };
     }
+  | {
+      type: 'codemap.index_updated';
+      payload: {
+        at: number;
+        ready: boolean;
+        reason: 'index_complete';
+      };
+    }
   | { type: 'session.damaged'; payload: { sessionId: string; detail: string } }
   | {
       type: 'session.rewound';

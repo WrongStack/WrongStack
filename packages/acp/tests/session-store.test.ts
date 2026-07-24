@@ -164,6 +164,39 @@ describe('ACPSessionStore', () => {
     expect(list).toHaveLength(1);
   });
 
+  it('filters malformed index entries', async () => {
+    await fsp.writeFile(
+      path.join(dir, 'index.json'),
+      JSON.stringify([
+        null,
+        { id: 1, updatedAt: 'bad' },
+        { id: 'valid', updatedAt: '2026-01-01T00:00:00.000Z' },
+      ]),
+      'utf8',
+    );
+    expect(await store.list()).toEqual([{ id: 'valid', updatedAt: '2026-01-01T00:00:00.000Z' }]);
+  });
+
+  it('sorts scanned sessions and defaults a missing updatedAt', async () => {
+    await fsp.writeFile(path.join(dir, 'one.json'), JSON.stringify({ id: 'one' }), 'utf8');
+    await fsp.writeFile(
+      path.join(dir, 'two.json'),
+      JSON.stringify({ id: 'two', updatedAt: '2026-01-02T00:00:00.000Z' }),
+      'utf8',
+    );
+    expect(await store.list()).toEqual([
+      { id: 'two', updatedAt: '2026-01-02T00:00:00.000Z' },
+      { id: 'one', updatedAt: '' },
+    ]);
+  });
+
+  it('leaves an index unchanged when deleting an absent id', async () => {
+    const index = [{ id: 'keep', updatedAt: '2026-01-01T00:00:00.000Z' }];
+    await fsp.writeFile(path.join(dir, 'index.json'), JSON.stringify(index), 'utf8');
+    await store.delete('absent');
+    expect(JSON.parse(await fsp.readFile(path.join(dir, 'index.json'), 'utf8'))).toEqual(index);
+  });
+
   it('handles corrupted session file by skipping it', async () => {
     await store.save(fakeState({ id: 'sess_ok' }));
     // Write a corrupted file

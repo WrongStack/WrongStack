@@ -64,6 +64,24 @@ describe('createBrainRuntime', () => {
     expect(poolProvider.complete).toHaveBeenCalled();
   });
 
+  it('defaults llm.denyIsTerminal to when-decided so a real refusal can stand', () => {
+    // With 'never' the LLM tier could agree but never disagree: every deny was
+    // discarded, which made the refused/unavailable/unparseable distinction
+    // (`readLlmDenyKind`) unreachable in the shipped product.
+    const rt = createBrainRuntime(baseOpts(undefined));
+    expect(rt.getSnapshot().llm.denyIsTerminal).toBe('when-decided');
+  });
+
+  it('lets an explicit denyIsTerminal override the product default', () => {
+    const rt = createBrainRuntime(baseOpts({ llm: { denyIsTerminal: 'never' } }));
+    expect(rt.getSnapshot().llm.denyIsTerminal).toBe('never');
+    const { snapshot } = rt.apply({ llm: { denyIsTerminal: 'always' } }, { persist: false });
+    expect(snapshot.llm.denyIsTerminal).toBe('always');
+    // …and it must survive the wholesale getConfig() persist (see the
+    // brain-config-roundtrip guard).
+    expect(rt.getConfig().llm?.denyIsTerminal).toBe('always');
+  });
+
   it('normalizes string refs and reports resolved pool labels', () => {
     const rt = createBrainRuntime(baseOpts(undefined));
     const { snapshot } = rt.apply(

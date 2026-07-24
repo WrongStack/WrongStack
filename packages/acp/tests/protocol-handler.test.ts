@@ -9,6 +9,7 @@ import { describe, expect, it, vi } from 'vitest';
 import packageJson from '../package.json' with { type: 'json' };
 import {
   ACPProtocolHandler,
+  protocolHandlerCoverage,
   type RunTurn,
   type RunTurnResult,
   WRONGSTACK_VERSION,
@@ -814,6 +815,532 @@ describe('ACPProtocolHandler', () => {
 
       expect(content).toBe('file body');
       expect(caps).toMatchObject({ fs: { readTextFile: true }, terminal: true });
+    });
+
+    it('exercises every client callback and its defensive fallbacks', async () => {
+      let onMsg: ((message: unknown) => void) | undefined;
+      const sent: unknown[] = [];
+      let terminalCreates = 0;
+      let terminalWaits = 0;
+      const transport = {
+        sent,
+        onMessage: (handler: (message: unknown) => void) => {
+          onMsg = handler;
+          return () => {};
+        },
+        send: vi.fn(async (message: unknown) => {
+          sent.push(message);
+          const request = message as { id?: string; method?: string };
+          if (typeof request.id !== 'string') return;
+          let result: unknown = {};
+          if (request.method === 'terminal/create') {
+            terminalCreates++;
+            result = terminalCreates === 1 ? {} : { terminalId: 'term_1' };
+          } else if (request.method === 'terminal/wait_for_exit') {
+            terminalWaits++;
+            result = { exitCode: terminalWaits === 1 ? 'not-a-number' : 0 };
+          } else if (request.method === 'terminal/output') {
+            result = {};
+          }
+          queueMicrotask(() => {
+            if (request.method === 'terminal/release') {
+              onMsg?.({ id: request.id, error: {} });
+            } else {
+              onMsg?.({ id: request.id, result });
+            }
+          });
+        }),
+      };
+      const observed: unknown[] = [];
+      const runTurn: RunTurn = async (_input, _emit, api) => {
+        observed.push(await api!.requestPermission({ toolCall: {} as never, options: [] }));
+        observed.push(await api!.readTextFile({ path: '/missing' }));
+        await api!.writeTextFile({ path: '/file', content: 'x' });
+        observed.push(await api!.runTerminal({ command: 'first' }));
+        observed.push(await api!.runTerminal({
+          command: 'second',
+          args: [],
+          cwd: '/work',
+        }));
+        observed.push(await api!.runTerminal({ command: 'third' }));
+        return { stopReason: 'end_turn' };
+      };
+      const handler = new ACPProtocolHandler({
+        transport: transport as never,
+        defaultCwd: '/test',
+        runTurn,
+      });
+      await handler.handleMessage({ id: 1, method: 'initialize' });
+      await handler.handleMessage({ id: 2, method: 'session/new' });
+      const sessionId = (sent.at(-1) as { result: { sessionId: string } }).result.sessionId;
+      await handler.handleMessage({
+        id: 3,
+        method: 'session/prompt',
+        params: { sessionId, prompt: [] },
+      });
+      expect(observed).toEqual([
+        { outcome: 'cancelled' },
+        '',
+        { output: '', exitCode: null },
+        { output: '', exitCode: null },
+        { output: '', exitCode: 0 },
+      ]);
+    });
+  });
+
+  describe('remaining v1 request surfaces', () => {
+    it('uses the default mode when an explicitly empty mode list is configured', async () => {
+      const transport = fakeTransport();
+      const handler = new ACPProtocolHandler({
+        transport: transport as never,
+        defaultCwd: '/test',
+        runTurn: PASSON_RUN_TURN,
+        modes: [],
+      });
+      await handler.handleMessage({ id: 1, method: 'initialize' });
+      await handler.handleMessage({ id: 2, method: 'session/new' });
+      expect(transport.sent).toEqual(expect.arrayContaining([
+        expect.objectContaining({
+          method: 'session/update',
+          params: expect.objectContaining({
+            update: { sessionUpdate: 'current_mode_update', modeId: 'code' },
+          }),
+        }),
+      ]));
+    });
+
+    it('handles null params across session request and notification surfaces', async () => {
+      const { handler, transport } = makeHandler();
+      await handler.handleMessage({ id: 1, method: 'initialize' });
+      for (const method of [
+        'session/load',
+        'session/resume',
+        'session/close',
+        'session/delete',
+        'session/fork',
+        'session/set_mode',
+        'session/set_config_option',
+      ]) {
+        await handler.handleMessage({ id: 2, method, params: null });
+        expect(transport.sent.at(-1)).toHaveProperty('error');
+      }
+      await expect(
+        handler.handleMessage({ method: 'session/cancel', params: null }),
+      ).resolves.toBe(false);
+      await handler.handleMessage({ id: 3, method: 'session/prompt', params: null });
+      expect(transport.sent.at(-1)).toHaveProperty('error');
+    });
+
+    it('maps exceptions thrown by request handlers through the outer guard', async () => {
+      const transport = fakeTransport();
+      const handler = new ACPProtocolHandler({
+        transport: transport as never,
+        defaultCwd: '/test',
+        runTurn: PASSON_RUN_TURN,
+        onSessionNew: () => {
+          throw { code: -32042, message: 'hook failed', data: 'detail' };
+        },
+      });
+      await handler.handleMessage({ id: 1, method: 'initialize' });
+      await handler.handleMessage({ id: 2, method: 'session/new' });
+      expect(transport.sent.at(-1)).toMatchObject({
+        id: 2,
+        error: { code: -32042, message: 'hook failed', data: 'detail' },
+      });
+    });
+
+    it('cold-loads persisted history, seeds the turn engine, and lists its title', async () => {
+      const transport = fakeTransport();
+      const seedFor = vi.fn();
+      const history = [{
+        sessionUpdate: 'user_message_chunk',
+        content: { type: 'text', text: 'remember' },
+      }];
+      const store = {
+        load: vi.fn(async () => ({
+          id: 'persisted',
+          cwd: '/saved',
+          modeId: 'code',
+          createdAt: '2020-01-01T00:00:00.000Z',
+          updatedAt: '2020-01-01T00:00:00.000Z',
+          title: 'Saved session',
+          history,
+        })),
+        save: vi.fn(async () => {}),
+      };
+      const handler = new ACPProtocolHandler({
+        transport: transport as never,
+        defaultCwd: '/test',
+        runTurn: PASSON_RUN_TURN,
+        store: store as never,
+        seedFor,
+      });
+      await handler.handleMessage({ id: 1, method: 'initialize' });
+      await handler.handleMessage({
+        id: 2,
+        method: 'session/load',
+        params: { sessionId: 'persisted' },
+      });
+      expect(seedFor).toHaveBeenCalledWith('persisted', history);
+      expect(transport.sent).toEqual(expect.arrayContaining([
+        expect.objectContaining({ method: 'session/update' }),
+        expect.objectContaining({ id: 2, result: expect.any(Object) }),
+      ]));
+      await handler.handleMessage({ id: 3, method: 'session/list' });
+      expect(transport.sent.at(-1)).toMatchObject({
+        result: {
+          sessions: [expect.objectContaining({ title: 'Saved session' })],
+        },
+      });
+      await handler.handleMessage({
+        id: 4,
+        method: 'session/fork',
+        params: { sessionId: 'persisted', cwd: '/forked' },
+      });
+      expect(transport.sent.at(-1)).toMatchObject({
+        result: { sessionId: expect.any(String) },
+      });
+    });
+
+    it('enforces the cap while cold-loading persisted sessions', async () => {
+      const transport = fakeTransport();
+      const handler = new ACPProtocolHandler({
+        transport: transport as never,
+        defaultCwd: '/test',
+        runTurn: PASSON_RUN_TURN,
+        maxSessions: 1,
+        store: {
+          load: vi.fn(async () => ({ id: 'cold', history: [] })),
+          save: vi.fn(async () => {}),
+        } as never,
+      });
+      await handler.handleMessage({ id: 1, method: 'initialize' });
+      await handler.handleMessage({ id: 2, method: 'session/new' });
+      await handler.handleMessage({
+        id: 3,
+        method: 'session/load',
+        params: { sessionId: 'cold' },
+      });
+      expect(transport.sent.at(-1)).toHaveProperty('error');
+    });
+
+    it('uses load-time/default fallbacks for sparse persisted records', async () => {
+      for (const [id, params, expectedCwd] of [
+        ['with-load-cwd', { sessionId: 'with-load-cwd', cwd: '/load' }, '/load'],
+        ['with-default', { sessionId: 'with-default' }, '/test'],
+      ] as const) {
+        const transport = fakeTransport();
+        const seedFor = vi.fn();
+        const handler = new ACPProtocolHandler({
+          transport: transport as never,
+          defaultCwd: '/test',
+          runTurn: PASSON_RUN_TURN,
+          seedFor,
+          store: {
+            load: vi.fn(async () => ({ id })),
+            save: vi.fn(async () => {}),
+          } as never,
+        });
+        await handler.handleMessage({ id: 1, method: 'initialize' });
+        await handler.handleMessage({ id: 2, method: 'session/load', params });
+        await handler.handleMessage({ id: 3, method: 'session/list' });
+        expect(transport.sent.at(-1)).toMatchObject({
+          result: { sessions: [expect.objectContaining({ cwd: expectedCwd })] },
+        });
+        expect(seedFor).toHaveBeenCalledWith(id, []);
+      }
+    });
+
+    it('falls through when a persistence store has no requested session', async () => {
+      const transport = fakeTransport();
+      const handler = new ACPProtocolHandler({
+        transport: transport as never,
+        defaultCwd: '/test',
+        runTurn: PASSON_RUN_TURN,
+        store: {
+          load: vi.fn(async () => null),
+          save: vi.fn(async () => {}),
+        } as never,
+      });
+      await handler.handleMessage({ id: 1, method: 'initialize' });
+      await handler.handleMessage({
+        id: 2,
+        method: 'session/load',
+        params: { sessionId: 'absent' },
+      });
+      expect(transport.sent.at(-1)).toHaveProperty('error');
+    });
+
+    it('replays in-memory history during load', async () => {
+      const transport = fakeTransport();
+      const replay = [{
+        sessionUpdate: 'agent_message_chunk',
+        content: { type: 'text', text: 'answer' },
+      }];
+      const handler = new ACPProtocolHandler({
+        transport: transport as never,
+        defaultCwd: '/test',
+        runTurn: PASSON_RUN_TURN,
+        replayFor: () => replay,
+      });
+      await handler.handleMessage({ id: 1, method: 'initialize' });
+      await handler.handleMessage({ id: 2, method: 'session/new' });
+      const sessionId = (transport.sent.at(-1) as { result: { sessionId: string } }).result.sessionId;
+      transport.sent.length = 0;
+      await handler.handleMessage({
+        id: 3,
+        method: 'session/load',
+        params: { sessionId },
+      });
+      expect(transport.sent).toEqual(expect.arrayContaining([
+        expect.objectContaining({
+          method: 'session/update',
+          params: expect.objectContaining({ update: replay[0] }),
+        }),
+      ]));
+    });
+
+    it('handles provider and MCP methods', async () => {
+      const { handler, transport } = makeHandler();
+      await handler.handleMessage({ id: 1, method: 'initialize' });
+      for (const [id, method] of [
+        [2, 'providers/list'],
+        [3, 'providers/set'],
+        [4, 'providers/disable'],
+        [5, 'mcp/message'],
+      ] as const) {
+        await handler.handleMessage({ id, method, params: {} });
+      }
+      expect(transport.sent.find((m) => (m as { id?: number }).id === 2)).toMatchObject({
+        result: { providers: [], currentProviderId: null },
+      });
+      expect(transport.sent.find((m) => (m as { id?: number }).id === 3)).toHaveProperty('error');
+      expect(transport.sent.find((m) => (m as { id?: number }).id === 4)).toMatchObject({
+        result: {},
+      });
+      expect(transport.sent.find((m) => (m as { id?: number }).id === 5)).toHaveProperty('error');
+    });
+
+    it('validates and updates config options', async () => {
+      const transport = fakeTransport();
+      const handler = new ACPProtocolHandler({
+        transport: transport as never,
+        defaultCwd: '/test',
+        runTurn: PASSON_RUN_TURN,
+        configOptions: [{
+          id: 'model',
+          name: 'Model',
+          type: 'select',
+          currentValue: 'small',
+          options: [
+            { value: 'small', name: 'Small' },
+            { value: 'large', name: 'Large' },
+          ],
+        }],
+      });
+      await handler.handleMessage({ id: 1, method: 'initialize' });
+      await handler.handleMessage({ id: 2, method: 'session/new' });
+      const sessionId = (transport.sent.at(-1) as { result: { sessionId: string } }).result.sessionId;
+      await handler.handleMessage({
+        id: 3,
+        method: 'session/set_config_option',
+        params: { sessionId, configId: 'model', value: 'large' },
+      });
+      expect(transport.sent.at(-1)).toMatchObject({
+        result: { configOptions: [expect.objectContaining({ currentValue: 'large' })] },
+      });
+      for (const params of [
+        {},
+        { sessionId, value: 'large' },
+        { sessionId, configId: 'missing', value: 'large' },
+        { sessionId, configId: 'model', value: 1 },
+        { sessionId, configId: 'model', value: 'missing' },
+      ]) {
+        await handler.handleMessage({
+          id: 4,
+          method: 'session/set_config_option',
+          params,
+        });
+        expect(transport.sent.at(-1)).toHaveProperty('error');
+      }
+    });
+
+    it('validates prompt and delete requests and recreates a cancelled session signal', async () => {
+      const { handler, transport } = makeHandler();
+      await handler.handleMessage({ id: 1, method: 'initialize' });
+      await handler.handleMessage({ id: 2, method: 'session/new' });
+      const sessionId = (transport.sent.at(-1) as { result: { sessionId: string } }).result.sessionId;
+      await handler.handleMessage({
+        id: 3,
+        method: 'session/prompt',
+        params: { sessionId, prompt: 'invalid' },
+      });
+      expect(transport.sent.at(-1)).toHaveProperty('error');
+      await handler.handleMessage({ method: 'session/cancel', params: { sessionId } });
+      await handler.handleMessage({
+        id: 4,
+        method: 'session/prompt',
+        params: { sessionId, prompt: [] },
+      });
+      await handler.handleMessage({ id: 5, method: 'session/delete', params: {} });
+      expect(transport.sent.at(-1)).toHaveProperty('error');
+      await handler.handleMessage({
+        id: 6,
+        method: 'session/delete',
+        params: { sessionId: 'absent' },
+      });
+      expect(transport.sent.at(-1)).toMatchObject({ result: { configOptions: [] } });
+      expect(await handler.handleMessage({})).toBe(false);
+    });
+
+    it('rejects a fork when the active-session cap is reached', async () => {
+      const transport = fakeTransport();
+      const handler = new ACPProtocolHandler({
+        transport: transport as never,
+        defaultCwd: '/test',
+        runTurn: PASSON_RUN_TURN,
+        maxSessions: 1,
+      });
+      await handler.handleMessage({ id: 1, method: 'initialize' });
+      await handler.handleMessage({ id: 2, method: 'session/new' });
+      const sessionId = (transport.sent.at(-1) as { result: { sessionId: string } }).result.sessionId;
+      await handler.handleMessage({
+        id: 3,
+        method: 'session/fork',
+        params: { sessionId },
+      });
+      expect(transport.sent.at(-1)).toHaveProperty('error');
+    });
+
+    it('forks with the source cwd when no override is supplied', async () => {
+      const { handler, transport } = makeHandler({ defaultCwd: '/source' });
+      await handler.handleMessage({ id: 1, method: 'initialize' });
+      await handler.handleMessage({ id: 2, method: 'session/new' });
+      const sessionId = (transport.sent.at(-1) as { result: { sessionId: string } }).result.sessionId;
+      await handler.handleMessage({
+        id: 3,
+        method: 'session/fork',
+        params: { sessionId },
+      });
+      await handler.handleMessage({ id: 4, method: 'session/list' });
+      expect(transport.sent.at(-1)).toMatchObject({
+        result: {
+          sessions: expect.arrayContaining([
+            expect.objectContaining({ cwd: '/source' }),
+          ]),
+        },
+      });
+    });
+
+    it.each([new Error('send failed'), 'non-error send failure'])(
+      'maps outbound transport failures: %s',
+      async (failure) => {
+        let onMsg: ((message: unknown) => void) | undefined;
+        const transport = {
+          onMessage: (handler: (message: unknown) => void) => {
+            onMsg = handler;
+            return () => {};
+          },
+          send: vi.fn(async (message: unknown) => {
+            if ((message as { method?: string }).method === 'session/request_permission') {
+              throw failure;
+            }
+          }),
+        };
+        const handler = new ACPProtocolHandler({
+          transport: transport as never,
+          defaultCwd: '/test',
+          runTurn: async (_input, _emit, api) => {
+            await api!.requestPermission({ toolCall: {} as never, options: [] });
+            return { stopReason: 'end_turn' };
+          },
+        });
+        expect(onMsg).toBeTypeOf('function');
+        await handler.handleMessage({ id: 1, method: 'initialize' });
+        await handler.handleMessage({ id: 2, method: 'session/new' });
+        const newResponse = transport.send.mock.calls
+          .map((call) => call[0] as { result?: { sessionId?: string } })
+          .find((message) => message.result?.sessionId);
+        await handler.handleMessage({
+          id: 3,
+          method: 'session/prompt',
+          params: { sessionId: newResponse!.result!.sessionId, prompt: [] },
+        });
+        expect(transport.send.mock.calls.at(-1)?.[0]).toHaveProperty('error');
+      },
+    );
+
+    it('times out and closes pending client requests', async () => {
+      vi.useFakeTimers();
+      try {
+        let onMsg: ((message: unknown) => void) | undefined;
+        const sent: unknown[] = [];
+        const transport = {
+          sent,
+          onMessage: (handler: (message: unknown) => void) => {
+            onMsg = handler;
+            return () => {};
+          },
+          send: vi.fn(async (message: unknown) => {
+            sent.push(message);
+          }),
+        };
+        const handler = new ACPProtocolHandler({
+          transport: transport as never,
+          defaultCwd: '/test',
+          runTurn: async (_input, _emit, api) => {
+            await api!.requestPermission({ toolCall: {} as never, options: [] });
+            return { stopReason: 'end_turn' };
+          },
+        });
+        await handler.handleMessage({ id: 1, method: 'initialize' });
+        await handler.handleMessage({ id: 2, method: 'session/new' });
+        const sessionId = (sent.at(-1) as { result: { sessionId: string } }).result.sessionId;
+        const timedOut = handler.handleMessage({
+          id: 3,
+          method: 'session/prompt',
+          params: { sessionId, prompt: [] },
+        });
+        await vi.advanceTimersByTimeAsync(60_000);
+        await timedOut;
+
+        const pending = handler.handleMessage({
+          id: 4,
+          method: 'session/prompt',
+          params: { sessionId, prompt: [] },
+        });
+        await vi.advanceTimersByTimeAsync(0);
+        handler.close();
+        await pending;
+        onMsg?.({ id: 42, result: {} });
+        onMsg?.({ id: 'missing', result: {} });
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+  });
+
+  describe('protocol helper coverage', () => {
+    it('maps every JSON-RPC error shape', () => {
+      const map = protocolHandlerCoverage.errorToJsonRpc;
+      expect(map(null)).toEqual({ code: -32603, message: 'null' });
+      expect(map({})).toEqual({ code: -32603, message: '[object Object]' });
+      expect(map({ code: 'bad', message: 'x' })).toEqual({
+        code: -32603,
+        message: '[object Object]',
+      });
+      expect(map({ code: 1, message: 2 })).toEqual({
+        code: -32603,
+        message: '[object Object]',
+      });
+      expect(map({ code: 1, message: 'x' })).toEqual({ code: 1, message: 'x' });
+      expect(map({ code: 1, message: 'x', data: 0 })).toEqual({
+        code: 1,
+        message: 'x',
+        data: 0,
+      });
+      expect(map(new Error('boom'))).toEqual({ code: -32603, message: 'boom' });
+      expect(map('boom')).toEqual({ code: -32603, message: 'boom' });
     });
   });
 });

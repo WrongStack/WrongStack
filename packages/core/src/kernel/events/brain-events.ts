@@ -150,6 +150,18 @@ export interface BrainEventMap {
           durationMs: number;
         }
       | undefined;
+    /**
+     * Panel-integrity warnings from the orchestrator — today the distinctness
+     * policy ("N distinct target(s) served M valid vote(s)").
+     *
+     * NOT content-gated: these strings are structural metadata about the panel
+     * itself and carry no decision content. They are also the only signal that
+     * a council was CORRELATED — several seats resolving to the same model or
+     * provider makes a panel an expensive way to ask one model twice, and the
+     * adapter used to compute this and then drop it, so the degradation was
+     * invisible at every surface.
+     */
+    warnings?: string[] | undefined;
     /** Abstain/failure reason. Content-gated. */
     reason?: string | undefined;
     at: number;

@@ -25,6 +25,8 @@ interface KanbanState {
   error: string | null;
   queueHealth: KanbanQueueHealth | null;
   supervisorSnapshot: KanbanSupervisorSnapshot | null;
+  /** Live verification runs keyed by `${boardId}:${taskId}` (spinner state). */
+  verificationActivity: Record<string, { startedAt: number }>;
   setLoading: (loading: boolean) => void;
   setActiveBoardId: (id: string | null) => void;
   setError: (error: string | null) => void;
@@ -43,6 +45,7 @@ export const useKanbanStore = create<KanbanState>()((set, get) => ({
   error: null,
   queueHealth: null,
   supervisorSnapshot: null,
+  verificationActivity: {},
   setLoading: (loading) => set({ loading }),
   setActiveBoardId: (id) => set({ activeBoardId: id, queueHealth: null, supervisorSnapshot: null }),
   setError: (error) => set({ error }),
@@ -151,6 +154,40 @@ export const useKanbanStore = create<KanbanState>()((set, get) => ({
         }));
         return;
       }
+    }
+    if (type === 'kanban.task.verification_started') {
+      // Ephemeral spinner state; the payload has no task envelope (and no
+      // title), so an explicit branch is required — the catch-all would
+      // otherwise swallow it.
+      const ref = data as { boardId?: string; taskId?: string } | null;
+      if (ref?.boardId && ref.taskId) {
+        const key = `${ref.boardId}:${ref.taskId}`;
+        set((state) => ({
+          verificationActivity: { ...state.verificationActivity, [key]: { startedAt: Date.now() } },
+          loading: false,
+          error: null,
+        }));
+      }
+      return;
+    }
+    if (type === 'kanban.task.verification_completed' && isTaskEnvelope(data)) {
+      const key = `${data.boardId}:${data.task.id}`;
+      set((state) => {
+        const verificationActivity = { ...state.verificationActivity };
+        delete verificationActivity[key];
+        if (state.activeBoard && state.activeBoard.id === data.boardId) {
+          const activeBoard = upsertTask(state.activeBoard, data.task);
+          return {
+            verificationActivity,
+            boards: upsertSummary(state.boards, summarize(activeBoard)),
+            activeBoard,
+            loading: false,
+            error: null,
+          };
+        }
+        return { verificationActivity, loading: false, error: null };
+      });
+      return;
     }
     if (isBoardEnvelope(data)) {
       const board = data.board;

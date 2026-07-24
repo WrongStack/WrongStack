@@ -1,19 +1,62 @@
-import { describe, expect, it, vi } from 'vitest';
-import { AISpecBuilder } from '../src/spec-builder.js';
-import type { SpecStore } from '../src/spec-store.js';
+import { mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import type { Specification } from '@wrongstack/core/types/spec.js';
+import { describe, expect, it, vi } from 'vitest';
+import { AISpecBuilder, type AISpecPhase } from '../src/spec-builder.js';
+import type { SpecStore } from '../src/spec-store.js';
 
 function mockStore(): SpecStore {
   const saved = new Map<string, Specification>();
   return {
-    save: vi.fn(async (spec: Specification) => { saved.set(spec.id, spec); }),
+    save: vi.fn(async (spec: Specification) => {
+      saved.set(spec.id, spec);
+    }),
     load: vi.fn(async (id: string) => saved.get(id) ?? null),
     list: vi.fn(async () => []),
     delete: vi.fn(async () => true),
     exists: vi.fn(async () => false),
-    createDraft: vi.fn(async () => ({ id: 'draft', title: '', version: '0.1.0', status: 'draft' as const, overview: '', sections: [], requirements: [], createdAt: 0, updatedAt: 0 })),
+    createDraft: vi.fn(async () => ({
+      id: 'draft',
+      title: '',
+      version: '0.1.0',
+      status: 'draft' as const,
+      overview: '',
+      sections: [],
+      requirements: [],
+      createdAt: 0,
+      updatedAt: 0,
+    })),
     update: vi.fn(async () => null),
   };
+}
+
+async function persistedBuilder(
+  phase: AISpecPhase,
+  overrides: Record<string, unknown> = {},
+): Promise<{ builder: AISpecBuilder; directory: string; sessionPath: string }> {
+  const directory = await mkdtemp(join(tmpdir(), 'wrongstack-spec-builder-'));
+  const sessionPath = join(directory, 'session.json');
+  await writeFile(
+    sessionPath,
+    JSON.stringify({
+      id: 'persisted-session',
+      phase,
+      title: 'Persisted session',
+      userIntent: 'intent',
+      projectContext: '',
+      answers: [],
+      questionCount: 0,
+      approved: false,
+      createdAt: 1,
+      updatedAt: 1,
+      ...overrides,
+    }),
+  );
+
+  const builder = new AISpecBuilder({ store: mockStore(), sessionPath });
+  expect(await builder.loadSession()).toBe(true);
+  return { builder, directory, sessionPath };
 }
 
 describe('AISpecBuilder', () => {
@@ -29,6 +72,7 @@ describe('AISpecBuilder', () => {
     expect(session.title).toBe('Auth System');
     expect(session.userIntent).toBe('Add OAuth2 login');
     expect(session.phase).toBe('questioning');
+    expect(builder.getAIPrompt()).toContain('Intent: Add OAuth2 login');
   });
 
   it('getAIPrompt returns questioning prompt with budget info', () => {
@@ -40,6 +84,16 @@ describe('AISpecBuilder', () => {
     expect(prompt).toContain('Questioning');
     expect(prompt).toContain('remaining budget');
     expect(prompt).toContain('**Minimum required:** 3');
+  });
+
+  it('forces spec generation when the question budget is exhausted', () => {
+    const builder = new AISpecBuilder({ store: mockStore(), minQuestions: 1, maxQuestions: 1 });
+    builder.startSession('Test Feature');
+    builder.addAnswer('Question?', 'Answer');
+
+    expect(builder.getAIPrompt()).toContain(
+      'You have reached the maximum question budget. Generate the spec NOW.',
+    );
   });
 
   it('addAnswer increments question count', () => {
@@ -122,6 +176,122 @@ describe('AISpecBuilder', () => {
     expect(() => builder.approve()).toThrow('Cannot approve: no spec generated yet.');
   });
 
+  it('supports every approve transition, including restored sessions', async () => {
+    const spec = {
+      id: 'restored-spec',
+      title: 'Restored',
+      version: '0.1.0',
+      status: 'draft',
+      overview: 'Overview',
+      sections: [],
+      requirements: [],
+      createdAt: 1,
+      updatedAt: 1,
+    } satisfies Specification;
+    const restored = await persistedBuilder('questioning', { spec });
+    vi.spyOn(restored.builder, 'saveSession').mockResolvedValue();
+
+    try {
+      expect(restored.builder.approve()).toBe('spec_review');
+      expect(restored.builder.approve()).toBe('implementation');
+      expect(restored.builder.approve()).toBe('task_review');
+      expect(restored.builder.approve()).toBe('executing');
+      expect(restored.builder.getAIPrompt()).toContain('Task Execution');
+      expect(restored.builder.approve()).toBe('done');
+      expect(restored.builder.approve()).toBe('done');
+    } finally {
+      await rm(restored.directory, { recursive: true, force: true });
+    }
+  });
+
+  it.each([
+    ['spec_review', 'No spec generated yet.'],
+    ['implementation', 'No spec to implement.'],
+  ] as const)(
+    'renders the %s fallback when a restored session has no spec',
+    async (phase, text) => {
+      const restored = await persistedBuilder(phase);
+
+      try {
+        expect(restored.builder.getAIPrompt()).toBe(text);
+      } finally {
+        await rm(restored.directory, { recursive: true, force: true });
+      }
+    },
+  );
+
+  it('renders execution using the session title when a restored session has no spec', async () => {
+    const restored = await persistedBuilder('executing');
+
+    try {
+      expect(restored.builder.getAIPrompt()).toContain('Feature: "Persisted session"');
+    } finally {
+      await rm(restored.directory, { recursive: true, force: true });
+    }
+  });
+
+  it('renders task review without an implementation plan for a restored session', async () => {
+    const restored = await persistedBuilder('task_review');
+
+    try {
+      expect(restored.builder.getAIPrompt()).toContain('No implementation plan yet.');
+    } finally {
+      await rm(restored.directory, { recursive: true, force: true });
+    }
+  });
+
+  it('persists, loads, and deletes session state', async () => {
+    const directory = await mkdtemp(join(tmpdir(), 'wrongstack-spec-builder-'));
+    const sessionPath = join(directory, 'nested', 'session.json');
+
+    try {
+      const builder = new AISpecBuilder({ store: mockStore(), sessionPath });
+      builder.startSession('Saved', 'Intent');
+      builder.setTaskGraphId('graph-1');
+      await builder.saveSession();
+
+      const restored = new AISpecBuilder({ store: mockStore(), sessionPath });
+      expect(await restored.loadSession()).toBe(true);
+      expect(restored.getSession().title).toBe('Saved');
+      expect(restored.getTaskGraphId()).toBe('graph-1');
+
+      await restored.deleteSession();
+      expect(await restored.loadSession()).toBe(false);
+      await restored.deleteSession();
+    } finally {
+      await rm(directory, { recursive: true, force: true });
+    }
+  });
+
+  it('treats missing paths, invalid sessions, and persistence failures as best effort', async () => {
+    const noPath = new AISpecBuilder({ store: mockStore() });
+    await expect(noPath.saveSession()).resolves.toBeUndefined();
+    expect(await noPath.loadSession()).toBe(false);
+    await expect(noPath.deleteSession()).resolves.toBeUndefined();
+
+    const directory = await mkdtemp(join(tmpdir(), 'wrongstack-spec-builder-'));
+    const invalidPath = join(directory, 'invalid.json');
+    const blockingFile = join(directory, 'file-parent');
+    await writeFile(invalidPath, '{"title":""}');
+    await writeFile(blockingFile, 'not a directory');
+
+    try {
+      const invalid = new AISpecBuilder({ store: mockStore(), sessionPath: invalidPath });
+      expect(await invalid.loadSession()).toBe(false);
+
+      await writeFile(invalidPath, 'not-json');
+      expect(await invalid.loadSession()).toBe(false);
+
+      const unwritable = new AISpecBuilder({
+        store: mockStore(),
+        sessionPath: join(blockingFile, 'session.json'),
+      });
+      await expect(unwritable.saveSession()).resolves.toBeUndefined();
+    } finally {
+      await rm(directory, { recursive: true, force: true });
+    }
+  });
+
   it('saveSpec persists to store', async () => {
     const store = mockStore();
     const builder = new AISpecBuilder({ store });
@@ -133,7 +303,15 @@ describe('AISpecBuilder', () => {
       status: 'draft',
       overview: 'Test overview',
       sections: [],
-      requirements: [],
+      requirements: [
+        {
+          id: 'REQ-1',
+          type: 'functional',
+          priority: 'high',
+          description: 'Implement the feature',
+          acceptanceCriteria: [],
+        },
+      ],
       createdAt: Date.now(),
       updatedAt: Date.now(),
     };
@@ -249,7 +427,13 @@ describe('AISpecBuilder', () => {
       overview: 'Auth system',
       sections: [],
       requirements: [
-        { id: 'REQ-1', type: 'functional', priority: 'critical', description: 'Login', acceptanceCriteria: [] },
+        {
+          id: 'REQ-1',
+          type: 'functional',
+          priority: 'critical',
+          description: 'Login',
+          acceptanceCriteria: [],
+        },
       ],
       createdAt: Date.now(),
       updatedAt: Date.now(),
@@ -271,7 +455,15 @@ describe('AISpecBuilder', () => {
       status: 'draft',
       overview: 'Test',
       sections: [],
-      requirements: [],
+      requirements: [
+        {
+          id: 'REQ-1',
+          type: 'functional',
+          priority: 'high',
+          description: 'Implement the feature',
+          acceptanceCriteria: [],
+        },
+      ],
       createdAt: Date.now(),
       updatedAt: Date.now(),
     };
@@ -280,6 +472,9 @@ describe('AISpecBuilder', () => {
     const prompt = builder.getAIPrompt();
     expect(prompt).toContain('Implementation Planning');
     expect(prompt).toContain('Architecture decisions');
+
+    builder.setImplementation('Implement it');
+    expect(builder.getAIPrompt()).toContain('Feature: "Test"');
   });
 
   it('projectContext is included in questioning prompt', () => {
@@ -299,6 +494,7 @@ describe('AISpecBuilder', () => {
     builder.setImplementation('Step 1: do stuff\nStep 2: more stuff');
     expect(builder.getPhase()).toBe('task_review');
     expect(builder.getSession().implementation).toContain('Step 1');
+    expect(builder.getAIPrompt()).toContain('Step 1');
   });
 
   it('markDone moves to done phase', () => {
@@ -418,6 +614,42 @@ describe('AISpecBuilder', () => {
     expect(spec.requirements[0].priority).toBe('medium');
   });
 
+  it('parseSpecFromJSON normalizes omitted section and requirement fields', () => {
+    const builder = new AISpecBuilder({ store: mockStore() });
+    const spec = builder.parseSpecFromJSON(
+      JSON.stringify({
+        title: 'Defaults',
+        overview: 'ok',
+        sections: [{}],
+        requirements: [{}],
+      }),
+    );
+
+    expect(spec.sections[0]).toMatchObject({
+      type: 'overview',
+      title: '',
+      content: '',
+      level: 1,
+    });
+    expect(spec.requirements[0]).toMatchObject({
+      id: 'REQ-1',
+      type: 'functional',
+      priority: 'medium',
+      description: '',
+      acceptanceCriteria: [],
+    });
+  });
+
+  it('parseSpecFromJSON ignores non-array sections and requirements', () => {
+    const builder = new AISpecBuilder({ store: mockStore() });
+    const spec = builder.parseSpecFromJSON(
+      JSON.stringify({ title: 'No arrays', overview: 'ok', sections: {}, requirements: {} }),
+    );
+
+    expect(spec.sections).toEqual([]);
+    expect(spec.requirements).toEqual([]);
+  });
+
   it('parseSpecFromJSON uses session.title when payload omits title', () => {
     const builder = new AISpecBuilder({ store: mockStore() });
     builder.startSession('Session Title');
@@ -467,9 +699,7 @@ describe('AISpecBuilder', () => {
     const store = mockStore();
     const builder = new AISpecBuilder({ store });
     builder.startSession('y');
-    builder.setSpec(
-      builder.parseSpecFromJSON(JSON.stringify({ title: 'T', overview: 'O' })),
-    );
+    builder.setSpec(builder.parseSpecFromJSON(JSON.stringify({ title: 'T', overview: 'O' })));
     await builder.saveSpec();
     expect(store.save).toHaveBeenCalledOnce();
   });

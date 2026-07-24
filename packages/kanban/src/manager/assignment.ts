@@ -38,6 +38,7 @@ import {
 import { collectBoardsForHealth } from './board-health.js';
 import { getBoard, listBoards } from './boards.js';
 import { areDependenciesMet } from './dependencies.js';
+import { resolveGateEnforcement } from '../verification/completion-gate.js';
 
 /**
  * Deterministically repair task/assignment/column drift.
@@ -69,7 +70,17 @@ export async function reconcileKanbanBoard(
         const checks = task.successCriteria ?? [];
         if (checks.some((check) => check.status === 'failed')) desiredStatus = 'failed';
         else if (checks.some((check) => check.status === 'pending')) desiredStatus = 'review';
-        else desiredStatus = 'completed';
+        else if (
+          resolveGateEnforcement(board) === 'strict' &&
+          task.status !== 'completed' &&
+          task.verificationReport?.verdict !== 'passed'
+        ) {
+          // Strict boards: reconcile promotes at most to review; only
+          // finalizeTaskCompletion (or an already-passed report) completes.
+          // Soft boards keep the historical check-flag behavior so the
+          // deterministic supervisor never blocks.
+          desiredStatus = 'review';
+        } else desiredStatus = 'completed';
       } else if (
         assignment !== undefined &&
         (assignment.status === 'queued' || assignment.status === 'assigned') &&
@@ -155,6 +166,7 @@ export async function updateTaskAssignment(
   eventContext: KanbanEventContext = {},
 ): Promise<KanbanBoard | null> {
   let event: KanbanEvent | undefined;
+  let gatePending = false;
   const updated = await mutateBoard(projectRoot, boardId, (board) => {
     const task = findTask(board, taskId);
     if (!task) return null;
@@ -213,9 +225,20 @@ export async function updateTaskAssignment(
     }
     if (task.assignment.status === 'completed') {
       task.assignment.completedAt = task.assignment.completedAt ?? nowIso();
-      task.status = 'completed';
-      task.completedAt = task.assignment.completedAt;
       if (patch.error === undefined) delete task.assignment.error;
+      if (resolveGateEnforcement(board) !== 'off') {
+        // Universal completion gate: a worker's "completed" is a claim, not a
+        // final state. Park in review; finalizeTaskCompletion() (async — the
+        // verifier cannot run inside this synchronous mutation) verifies and
+        // applies the final status. Callers: tools mark_assignment, WebUI
+        // dispatch onDone, and the supervisor sweep for third-party writers.
+        task.status = 'review';
+        delete task.completedAt;
+        gatePending = true;
+      } else {
+        task.status = 'completed';
+        task.completedAt = task.assignment.completedAt;
+      }
     } else if (task.assignment.status === 'running') {
       // A dispatch that goes straight to `running` (mark_assignment, not via
       // claim) must still stamp when work started — otherwise the run panel and
@@ -237,7 +260,9 @@ export async function updateTaskAssignment(
     } else if (task.assignment.status === 'queued' || task.assignment.status === 'assigned') {
       delete task.assignment.completedAt;
       if (patch.error === undefined) delete task.assignment.error;
-      if (task.status === 'completed' || task.status === 'failed') {
+      // 'review' included: a gate-parked completion being re-queued must
+      // return to the work queue, not linger in review.
+      if (task.status === 'completed' || task.status === 'failed' || task.status === 'review') {
         task.status = task.assignment.status === 'queued' ? 'ready' : 'pending';
       }
       delete task.completedAt;
@@ -255,6 +280,15 @@ export async function updateTaskAssignment(
     return task;
   });
   if (updated && event) await emitKanbanEvent(projectRoot, event);
+  if (updated?.result && gatePending) {
+    await emitKanbanEvent(
+      projectRoot,
+      createKanbanEvent(updated.board.id, updated.result, 'task.completion.gate_pending', {
+        ...eventContext,
+        after: { assignmentStatus: 'completed' },
+      }),
+    );
+  }
   return updated?.result ? updated.board : null;
 }
 

@@ -445,6 +445,19 @@
       ]
     },
     {
+      "subpath": "./utils/tree-kill",
+      "target": {
+        "types": "./dist/utils/tree-kill.d.ts",
+        "import": "./dist/utils/tree-kill.js"
+      },
+      "source": "packages/core/src/utils/tree-kill.ts",
+      "declarations": [
+        "export function treeKill",
+        "export interface KillableChild",
+        "export interface TreeKillOptions"
+      ]
+    },
+    {
       "subpath": "./execution",
       "target": {
         "types": "./dist/execution/index.d.ts",
@@ -969,14 +982,14 @@
       "classification": "storage/repository implementation",
       "intendedOwner": "focused repository or runtime subsystem",
       "sourceFiles": 17,
-      "sourceLines": 3603
+      "sourceLines": 3727
     },
     {
       "directory": "coordination",
       "classification": "coordination implementation",
       "intendedOwner": "Core subpath until physical extraction is justified",
       "sourceFiles": 99,
-      "sourceLines": 38112
+      "sourceLines": 38185
     },
     {
       "directory": "core",
@@ -1004,7 +1017,7 @@
       "classification": "concrete runtime default",
       "intendedOwner": "Runtime pilot candidate after R2/R3",
       "sourceFiles": 43,
-      "sourceLines": 16356
+      "sourceLines": 16393
     },
     {
       "directory": "extension",
@@ -1018,7 +1031,7 @@
       "classification": "storage/repository implementation",
       "intendedOwner": "repository behind persistence primitive",
       "sourceFiles": 8,
-      "sourceLines": 2851
+      "sourceLines": 2866
     },
     {
       "directory": "hooks",
@@ -1046,7 +1059,7 @@
       "classification": "kernel primitive",
       "intendedOwner": "Core",
       "sourceFiles": 18,
-      "sourceLines": 3163
+      "sourceLines": 3184
     },
     {
       "directory": "middleware",
@@ -1151,14 +1164,14 @@
       "classification": "agent-domain contract",
       "intendedOwner": "Core type-only subpaths",
       "sourceFiles": 54,
-      "sourceLines": 8764
+      "sourceLines": 8771
     },
     {
       "directory": "utils",
       "classification": "kernel primitive",
       "intendedOwner": "split dependency-free primitives from concrete helpers",
-      "sourceFiles": 52,
-      "sourceLines": 7836
+      "sourceFiles": 53,
+      "sourceLines": 7927
     },
     {
       "directory": "worktree",

@@ -20,6 +20,8 @@ class FakeWS {
   readonly sent: string[] = [];
   bufferedAmount = 0;
   closed = false;
+  sendError: unknown;
+  closeError: unknown;
   constructor(url: string) {
     this.url = url;
     FakeWS.instances.push(this);
@@ -30,9 +32,11 @@ class FakeWS {
     this.listeners[type] = list;
   }
   send(data: string): void {
+    if (this.sendError !== undefined) throw this.sendError;
     this.sent.push(data);
   }
   close(): void {
+    if (this.closeError !== undefined) throw this.closeError;
     this.closed = true;
     this.fire('close');
   }
@@ -123,8 +127,10 @@ describe('WebSocketClientTransport', () => {
 
     // Simulate a message that contains two JSON objects separated by newline
     last().fire('message', {
-      data: JSON.stringify({ jsonrpc: '2.0', id: 1, result: { first: true } }) + '\n' +
-            JSON.stringify({ jsonrpc: '2.0', id: 2, result: { second: true } }),
+      data:
+        JSON.stringify({ jsonrpc: '2.0', id: 1, result: { first: true } }) +
+        '\n' +
+        JSON.stringify({ jsonrpc: '2.0', id: 2, result: { second: true } }),
     });
 
     expect(received).toHaveLength(2);
@@ -142,7 +148,9 @@ describe('WebSocketClientTransport', () => {
     t.onMessage((m) => received.push(m));
 
     // Send a mix of valid and invalid JSON
-    last().fire('message', { data: 'invalid\n{"jsonrpc":"2.0","id":1,"result":{}}\nstill invalid' });
+    last().fire('message', {
+      data: 'invalid\n\n{"jsonrpc":"2.0","id":1,"result":{}}\nstill invalid',
+    });
 
     // Only the valid JSON should be dispatched
     expect(received).toHaveLength(1);
@@ -186,6 +194,66 @@ describe('WebSocketClientTransport', () => {
     await startP;
     ws.fire('message', { data: '123456789' });
     expect(ws.closed).toBe(true);
+  });
+
+  it('covers late opens, generic connection errors, and close failures', async () => {
+    const errored = new WebSocketClientTransport({ url: 'ws://agent.test' });
+    const errorStart = errored.start();
+    const errorSocket = last();
+    errorSocket.fire('error', null);
+    errorSocket.fire('open');
+    await expect(errorStart).rejects.toThrow('WebSocket error');
+
+    const stopped = new WebSocketClientTransport({ url: 'ws://agent.test' });
+    stopped.stop();
+
+    const closing = new WebSocketClientTransport({ url: 'ws://agent.test' });
+    const closingStart = closing.start();
+    const closingSocket = last();
+    closingSocket.fire('open');
+    await closingStart;
+    closingSocket.closeError = new Error('close failed');
+    expect(() => closing.stop()).not.toThrow();
+  });
+
+  it('normalizes buffers, array buffers, other data, whitespace, and faulty handlers', async () => {
+    const t = new WebSocketClientTransport({
+      url: 'ws://agent.test',
+      maxBufferedBytes: Number.NaN,
+      maxMessageChars: -1,
+    });
+    const start = t.start();
+    const ws = last();
+    ws.fire('open');
+    await start;
+    const received: ACPMessage[] = [];
+    t.onMessage(() => {
+      throw new Error('consumer failed');
+    });
+    t.onMessage((message) => received.push(message));
+    const json = JSON.stringify({ id: 1 });
+    ws.fire('message', { data: Buffer.from(json) });
+    ws.fire('message', { data: Uint8Array.from(Buffer.from(json)).buffer });
+    ws.fire('message', { data: '   ' });
+    ws.fire('message', { data: 42 });
+    expect(received).toHaveLength(3);
+  });
+
+  it('normalizes send failures and missing or invalid buffered amounts', async () => {
+    const t = new WebSocketClientTransport({ url: 'ws://agent.test' });
+    const start = t.start();
+    const ws = last();
+    ws.fire('open');
+    await start;
+
+    ws.bufferedAmount = Number.NaN;
+    await expect(t.send({ id: 1 } as ACPMessage)).resolves.toBeUndefined();
+    Object.defineProperty(ws, 'bufferedAmount', { value: undefined, configurable: true });
+    await expect(t.send({ id: 2 } as ACPMessage)).resolves.toBeUndefined();
+    ws.sendError = new Error('send failed');
+    await expect(t.send({ id: 3 } as ACPMessage)).rejects.toThrow('send failed');
+    ws.sendError = 'string failure';
+    await expect(t.send({ id: 4 } as ACPMessage)).rejects.toThrow('string failure');
   });
 });
 

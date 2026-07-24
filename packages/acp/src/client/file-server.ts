@@ -35,7 +35,34 @@ export interface FileServerOptions {
    * `writeTextFile` call. Default 5 MiB.
    */
   maxWriteBytes?: number;
+  /** Filesystem implementation override for deterministic tests. */
+  operations?: FileServerOperations;
 }
+
+export interface FileServerOperations {
+  stat(file: string): Promise<{ size: number }>;
+  readFile(
+    file: string,
+    options: { encoding: 'utf8'; signal: AbortSignal },
+  ): Promise<string>;
+  writeFile(
+    file: string,
+    content: string,
+    options: { encoding: 'utf8'; signal: AbortSignal },
+  ): Promise<void>;
+  realpath(file: string): Promise<string>;
+  rename(from: string, to: string): Promise<void>;
+  unlink(file: string): Promise<void>;
+}
+
+const DEFAULT_FILE_OPERATIONS: FileServerOperations = {
+  stat: fsp.stat,
+  readFile: fsp.readFile,
+  writeFile: fsp.writeFile,
+  realpath: fsp.realpath,
+  rename: fsp.rename,
+  unlink: fsp.unlink,
+};
 
 export interface ReadFileParams {
   sessionId: string;
@@ -80,6 +107,7 @@ export class FileServer {
   private readonly timeoutMs: number;
   private readonly maxReadBytes: number;
   private readonly maxWriteBytes: number;
+  private readonly operations: FileServerOperations;
 
   constructor(opts: FileServerOptions) {
     this.root = path.resolve(opts.projectRoot);
@@ -92,6 +120,7 @@ export class FileServer {
     this.timeoutMs = opts.timeoutMs ?? 30_000;
     this.maxReadBytes = opts.maxReadBytes ?? DEFAULT_MAX_READ_BYTES;
     this.maxWriteBytes = opts.maxWriteBytes ?? DEFAULT_MAX_WRITE_BYTES;
+    this.operations = opts.operations ?? DEFAULT_FILE_OPERATIONS;
   }
 
   /** Read a text file. Returns the content as a string. */
@@ -101,7 +130,7 @@ export class FileServer {
     const timer = setTimeout(() => controller.abort(), this.timeoutMs);
     try {
       // Size check before reading to prevent loading a huge file.
-      const stat = await fsp.stat(safe).catch((err) => {
+      const stat = await this.operations.stat(safe).catch((err) => {
         throw mapFsError(err, safe);
       });
       if (stat.size > this.maxReadBytes) {
@@ -111,7 +140,7 @@ export class FileServer {
           `file is ${stat.size} bytes, max read is ${this.maxReadBytes} bytes`,
         );
       }
-      const content = await fsp.readFile(safe, {
+      const content = await this.operations.readFile(safe, {
         encoding: 'utf8',
         signal: controller.signal,
       });
@@ -143,7 +172,7 @@ export class FileServer {
     const timer = setTimeout(() => controller.abort(), this.timeoutMs);
     const tmp = `${safe}.${randomBytes(6).toString('hex')}.tmp`;
     try {
-      await fsp.writeFile(tmp, params.content, {
+      await this.operations.writeFile(tmp, params.content, {
         encoding: 'utf8',
         signal: controller.signal,
       });
@@ -152,16 +181,16 @@ export class FileServer {
       // symlink at the destination's parent between resolveInside and rename.
       await this.assertRealInside(tmp);
       await this.assertRealInside(path.dirname(safe));
-      await fsp.rename(tmp, safe);
+      await this.operations.rename(tmp, safe);
     } catch (err) {
       if (err instanceof FsError) {
         // Best-effort cleanup of the tmp file
-        await fsp.unlink(tmp).catch(() => undefined);
+        await this.operations.unlink(tmp).catch(() => undefined);
         throw err;
       }
       // Best-effort cleanup of the tmp file
       try {
-        await fsp.unlink(tmp);
+        await this.operations.unlink(tmp);
       } catch {
         // tmp didn't exist; ignore
       }
@@ -211,12 +240,14 @@ export class FileServer {
     for (;;) {
       let real: string;
       try {
-        real = await fsp.realpath(probe);
+        real = await this.operations.realpath(probe);
       } catch (err) {
         const code = (err as NodeJS.ErrnoException).code;
         if (code === 'ENOENT') {
           const parent = path.dirname(probe);
-          if (parent === probe) return; // reached fs root without escaping
+          if (parent === probe) {
+            throw new FsError('ENOENT', resolvedPath, `no existing ancestor: ${resolvedPath}`);
+          }
           probe = parent;
           continue;
         }

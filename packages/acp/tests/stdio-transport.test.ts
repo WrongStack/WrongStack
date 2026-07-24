@@ -1,6 +1,6 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { EventEmitter } from 'node:events';
 import * as os from 'node:os';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { ACPMessage } from '../src/types/acp-messages.js';
 
 // ── spawn mock for ClientTransport ──────────────────────────────────────────
@@ -10,7 +10,11 @@ vi.mock('node:child_process', async (importOriginal) => {
   return { ...actual, spawn: (...a: unknown[]) => spawnMock.fn(...a) };
 });
 
-import { ClientTransport, StdioTransport } from '../src/agent/stdio-transport.js';
+import {
+  ClientTransport,
+  StdioTransport,
+  stdioTransportCoverage,
+} from '../src/agent/stdio-transport.js';
 
 // ── fakes ───────────────────────────────────────────────────────────────────
 class FakeStdin extends EventEmitter {
@@ -129,6 +133,19 @@ describe('StdioTransport', () => {
     expect(stdin.pause).not.toHaveBeenCalled();
   });
 
+  it('closes on an oversized complete frame and a full message queue', async () => {
+    const oversized = new StdioTransport({ maxFrameChars: 8 });
+    stdin.emit('data', '{"method":"too-long"}\n');
+    expect(await oversized.read()).toBeNull();
+
+    stdin = new FakeStdin();
+    Object.defineProperty(process, 'stdin', { value: stdin, configurable: true });
+    const queued = new StdioTransport({ maxQueuedMessages: 1 });
+    stdin.emit('data', '{"id":1}\n{"id":2}\n');
+    expect(await queued.read()).toBeNull();
+    expect(stderr.written.some((entry) => entry.includes('queue error'))).toBe(true);
+  });
+
   it('writes a parse error to stderr for malformed JSON', () => {
     const t = new StdioTransport();
     void t;
@@ -155,7 +172,9 @@ describe('StdioTransport', () => {
 
   it('isolates a throwing handler and logs to stderr', () => {
     const t = new StdioTransport();
-    t.onMessage(() => { throw new Error('handler boom'); });
+    t.onMessage(() => {
+      throw new Error('handler boom');
+    });
     expect(() => stdin.emit('data', JSON.stringify({ method: 'x' }) + '\n')).not.toThrow();
     expect(stderr.written.some((s) => s.includes('handler error'))).toBe(true);
   });
@@ -206,7 +225,12 @@ class FakeChild extends EventEmitter {
 async function startedTransport(): Promise<{ transport: ClientTransport; child: FakeChild }> {
   const child = new FakeChild();
   spawnMock.fn.mockReturnValue(child);
-  const transport = new ClientTransport({ command: 'agent', args: ['--x'], env: { K: 'v' }, cwd: '/w' });
+  const transport = new ClientTransport({
+    command: 'agent',
+    args: ['--x'],
+    env: { K: 'v' },
+    cwd: '/w',
+  });
   const p = transport.start();
   await vi.waitFor(() => expect(spawnMock.fn).toHaveBeenCalled());
   child.stdout.emit('data', '[wstack-acp]\n');
@@ -220,7 +244,11 @@ describe('ClientTransport', () => {
   it('start spawns the child with merged env, cwd and windowsHide, resolving on the marker', async () => {
     const { child } = await startedTransport();
     expect(spawnMock.fn).toHaveBeenCalledTimes(1);
-    const [cmd, args, opts] = spawnMock.fn.mock.calls[0] as [string, string[], Record<string, unknown>];
+    const [cmd, args, opts] = spawnMock.fn.mock.calls[0] as [
+      string,
+      string[],
+      Record<string, unknown>,
+    ];
     if (process.platform === 'win32') {
       expect(cmd.toLowerCase()).toMatch(/cmd\.exe$/);
       expect(args).toEqual(['/d', '/c', 'call "agent" "--x"']);
@@ -261,6 +289,7 @@ describe('ClientTransport', () => {
     await vi.waitFor(() => expect(spawnMock.fn).toHaveBeenCalled());
     child.stdout.emit('error', new Error('stdout broke'));
     await expect(p).rejects.toThrow('stdout broke');
+    child.stdout.emit('data', '[wstack-acp]\n');
   });
 
   it('start rejects when the child emits an error before the marker', async () => {
@@ -281,6 +310,9 @@ describe('ClientTransport', () => {
     await vi.waitFor(() => expect(spawnMock.fn).toHaveBeenCalled());
     child.emit('spawn');
     await expect(p).resolves.toBeUndefined();
+    child.stdout.emit('data', '{"id":1}\n');
+    child.stderr.emit('data', 'log');
+    child.emit('close', null);
   });
 
   it('skip-marker: rejects on a spawn error instead of crashing with an unhandled "error"', async () => {
@@ -295,6 +327,7 @@ describe('ClientTransport', () => {
     const err = Object.assign(new Error('spawn missing-bin ENOENT'), { code: 'ENOENT' });
     child.emit('error', err);
     await expect(p).rejects.toThrow('ENOENT');
+    child.emit('spawn');
   });
 
   it('spawns npx/uvx package launchers from a neutral home dir (avoids repo dep-override EOVERRIDE)', async () => {
@@ -428,6 +461,37 @@ describe('ClientTransport', () => {
     expect(child.kill).not.toHaveBeenCalled();
   });
 
+  it('stops on an oversized complete child frame and a full child queue', async () => {
+    const complete = new FakeChild();
+    spawnMock.fn.mockReturnValueOnce(complete);
+    const oversized = new ClientTransport({
+      command: 'agent',
+      skipHandshakeMarker: true,
+      maxFrameChars: 8,
+    });
+    const started = oversized.start();
+    await vi.waitFor(() => expect(spawnMock.fn).toHaveBeenCalled());
+    complete.emit('spawn');
+    await started;
+    complete.stdout.emit('data', '{"method":"too-long"}\n');
+    expect(complete.kill).toHaveBeenCalled();
+
+    const full = new FakeChild();
+    const queued = new ClientTransport({
+      command: 'agent',
+      skipHandshakeMarker: true,
+      maxQueuedMessages: 1,
+    });
+    const internal = queued as unknown as {
+      child: FakeChild;
+      dispatch(message: ACPMessage): void;
+    };
+    internal.child = full;
+    internal.dispatch({ id: 1, method: 'queue.test' });
+    internal.dispatch({ id: 2, method: 'queue.test' });
+    expect(full.kill).toHaveBeenCalled();
+  });
+
   it('queues child messages with no pending read', async () => {
     const { transport, child } = await startedTransport();
     child.stdout.emit('data', JSON.stringify({ method: 'q' }) + '\n');
@@ -450,7 +514,9 @@ describe('ClientTransport', () => {
 
   it('isolates a throwing onMessage handler', async () => {
     const { transport, child } = await startedTransport();
-    transport.onMessage(() => { throw new Error('boom'); });
+    transport.onMessage(() => {
+      throw new Error('boom');
+    });
     expect(() => child.stdout.emit('data', JSON.stringify({ method: 'x' }) + '\n')).not.toThrow();
   });
 
@@ -484,7 +550,28 @@ describe('ClientTransport', () => {
 
   it('stop swallows a throwing kill', async () => {
     const { transport, child } = await startedTransport();
-    child.kill.mockImplementation(() => { throw new Error('already dead'); });
+    child.kill.mockImplementation(() => {
+      throw new Error('already dead');
+    });
     expect(() => transport.stop()).not.toThrow();
+  });
+
+  it('normalizes limits and platform-specific spawn invocations', () => {
+    expect(stdioTransportCoverage.positiveLimit(undefined, 10)).toBe(10);
+    expect(stdioTransportCoverage.positiveLimit(Number.NaN, 10)).toBe(10);
+    expect(stdioTransportCoverage.positiveLimit(-1, 10)).toBe(10);
+    expect(stdioTransportCoverage.positiveLimit(3.9, 10)).toBe(3);
+    expect(stdioTransportCoverage.spawnInvocation('agent', ['--x'], 'linux')).toEqual({
+      command: 'agent',
+      args: ['--x'],
+    });
+    expect(stdioTransportCoverage.spawnInvocation('agent', ['--x'], 'win32')).toMatchObject({
+      args: ['/d', '/c', 'call "agent" "--x"'],
+      windowsVerbatimArguments: true,
+    });
+    expect(stdioTransportCoverage.verbatimOptions({})).toEqual({});
+    expect(stdioTransportCoverage.verbatimOptions({ windowsVerbatimArguments: true })).toEqual({
+      windowsVerbatimArguments: true,
+    });
   });
 });

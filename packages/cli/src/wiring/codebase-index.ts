@@ -16,11 +16,15 @@
  * concurrent runs would risk `SQLITE_BUSY`) and debounces per file.
  */
 
-import * as fs from 'node:fs';
 import * as path from 'node:path';
 import type { AgentPipelines, Context } from '@wrongstack/core/agent';
 import type { IndexingConfig, Logger } from '@wrongstack/core/types';
 import type { ToolCallPipelinePayload } from '@wrongstack/core/agent';
+import {
+  DEFAULT_WALK_IGNORE_SET,
+  type ProjectWatchSubscription,
+  watchProjectTree,
+} from '@wrongstack/core/utils';
 import {
   cancelPendingReindexes,
   enqueueReindex,
@@ -32,21 +36,8 @@ import {
 /** Mutating builtin tools whose input carries a single `path`. */
 const FILE_EDIT_TOOLS = new Set(['write', 'edit']);
 
-/** Directories never worth watching/indexing (mirrors the indexer's own ignore set). */
-const IGNORE_DIRS = new Set([
-  'node_modules',
-  '.git',
-  'dist',
-  'build',
-  '.next',
-  'coverage',
-  '.turbo',
-  '__snapshots__',
-  '.nyc_output',
-]);
-
 function isIgnored(rel: string): boolean {
-  return rel.split(/[/\\]/).some((seg) => IGNORE_DIRS.has(seg));
+  return rel.split(/[/\\]/).some((seg) => DEFAULT_WALK_IGNORE_SET.has(seg));
 }
 
 export interface CodebaseIndexingDeps {
@@ -124,21 +115,24 @@ export async function setupCodebaseIndexing(deps: CodebaseIndexingDeps): Promise
     });
   }
 
-  // 3. Watch the project root for external editor changes.
-  let watcher: fs.FSWatcher | undefined;
+  // 3. Watch the project root for external editor changes. Shares the
+  //    process-wide recursive watcher (chronicle/WebUI mirror use the same
+  //    one) instead of opening another OS-level whole-tree watch.
+  let watcher: ProjectWatchSubscription | undefined;
   if (idx.watchExternal) {
     try {
-      watcher = fs.watch(projectRoot, { recursive: true }, (_event, filename) => {
-        if (!filename) return;
-        const rel = filename.toString();
-        if (isIgnored(rel)) return;
-        const abs = path.resolve(projectRoot, rel);
-        if (!isIndexableFile(abs)) return;
-        enqueueReindex({ projectRoot, files: [abs], debounceMs, onError });
-      });
-      watcher.on('error', (err) => logger.debug(`codebase index watcher error: ${err}`));
-      // Don't keep the process alive solely for the watcher.
-      (watcher as never as { unref?: () => void }).unref?.();
+      watcher = watchProjectTree(
+        projectRoot,
+        (event) => {
+          if (!event.filename) return;
+          const rel = event.filename;
+          if (isIgnored(rel)) return;
+          const abs = path.resolve(projectRoot, rel);
+          if (!isIndexableFile(abs)) return;
+          enqueueReindex({ projectRoot, files: [abs], debounceMs, onError });
+        },
+        { onError: (err) => logger.debug(`codebase index watcher error: ${err}`) },
+      );
     } catch (err) {
       // Recursive watch is unsupported on some platforms — degrade gracefully.
       logger.debug(

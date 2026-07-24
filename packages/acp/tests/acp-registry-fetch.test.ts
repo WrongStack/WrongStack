@@ -7,6 +7,16 @@ import {
   mapRegistryEntry,
   resolveAcpAgentCommand,
 } from '../src/index.js';
+import { currentPlatformKey } from '../src/registry/acp-registry-fetch.js';
+
+describe('currentPlatformKey', () => {
+  it('normalizes every supported OS and architecture spelling', () => {
+    expect(currentPlatformKey('win32', 'x64')).toBe('windows-x86_64');
+    expect(currentPlatformKey('darwin', 'arm64')).toBe('darwin-aarch64');
+    expect(currentPlatformKey('linux', 'riscv64')).toBe('linux-riscv64');
+    expect(currentPlatformKey()).toMatch(/^(windows|darwin|linux)-/);
+  });
+});
 
 describe('mapRegistryEntry', () => {
   it('maps an npx distribution to `npx -y <pkg> <args>`', () => {
@@ -63,12 +73,68 @@ describe('mapRegistryEntry', () => {
         ?.vendor,
     ).toBe('anthropic');
   });
+
+  it.each([
+    ['gemini-agent', undefined, ['Google'], 'google'],
+    ['codex-agent', undefined, ['OpenAI'], 'openai'],
+    ['copilot-agent', undefined, ['GitHub'], 'github'],
+    ['kimi-agent', undefined, ['Moonshot'], 'moonshot'],
+    ['independent', undefined, undefined, 'community'],
+  ] as const)('infers the vendor for %s', (id, name, authors, vendor) => {
+    expect(
+      mapRegistryEntry({
+        id,
+        ...(name === undefined ? {} : { name }),
+        ...(authors === undefined ? {} : { authors: [...authors] }),
+        distribution: { npx: { package: 'agent' } },
+      })?.vendor,
+    ).toBe(vendor);
+  });
+
+  it('covers optional distribution metadata and fallback fields', () => {
+    const uvx = mapRegistryEntry({
+      id: 'uvx-minimal',
+      website: 'https://example.test',
+      distribution: { uvx: { package: 'agent' } },
+    });
+    expect(uvx?.displayName).toBe('uvx-minimal');
+    expect(uvx?.acp.args).toEqual(['agent']);
+    expect(uvx?.docs).toBe('https://example.test');
+
+    const binary = mapRegistryEntry(
+      {
+        id: 'binary',
+        distribution: {
+          binary: {
+            host: { cmd: String.raw`folder\agent.exe`, env: { TOKEN: 'test' } },
+          },
+        },
+      },
+      'host',
+    );
+    expect(binary?.acp).toEqual({
+      command: 'agent.exe',
+      args: [],
+      env: { TOKEN: 'test' },
+    });
+
+    expect(mapRegistryEntry(null as never)).toBeNull();
+    expect(mapRegistryEntry({ id: 42 } as never)).toBeNull();
+    expect(mapRegistryEntry({ id: 'no-distribution' })).toBeNull();
+    expect(
+      mapRegistryEntry(
+        { id: 'empty-command', distribution: { binary: { host: { cmd: '' } } } },
+        'host',
+      ),
+    ).toBeNull();
+  });
 });
 
 describe('fetchAcpRegistry', () => {
   const realFetch = globalThis.fetch;
   afterEach(() => {
     globalThis.fetch = realFetch;
+    vi.useRealTimers();
   });
 
   it('fetches, maps, and drops unrunnable entries', async () => {
@@ -133,6 +199,32 @@ describe('fetchAcpRegistry', () => {
     // Abort from the parent
     ac.abort();
     await expect(fetchP).rejects.toThrow('The operation was aborted');
+  });
+
+  it('accepts a top-level array and supplies default timestamp and platform', async () => {
+    globalThis.fetch = vi.fn(async () => ({
+      ok: true,
+      json: async () => [
+        { id: 'minimal', distribution: { npx: { package: 'minimal' } } },
+      ],
+    })) as never;
+
+    const result = await fetchAcpRegistry();
+    expect(result.fetchedAt).toMatch(/^\d{4}-\d\d-\d\dT/);
+    expect(result.agents).toHaveLength(1);
+  });
+
+  it('aborts a fetch when its timeout elapses', async () => {
+    vi.useFakeTimers();
+    globalThis.fetch = vi.fn(async (_url: string, opts: { signal: AbortSignal }) =>
+      new Promise((_resolve, reject) => {
+        opts.signal.addEventListener('abort', () => reject(new Error('timed out')));
+      })) as never;
+
+    const pending = fetchAcpRegistry({ timeoutMs: 25 });
+    const rejection = expect(pending).rejects.toThrow('timed out');
+    await vi.advanceTimersByTimeAsync(25);
+    await rejection;
   });
 });
 

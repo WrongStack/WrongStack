@@ -21,7 +21,10 @@ export function editsByPath(edit: WorkspaceEdit): Map<string, TextEdit[]> {
   }
   for (const change of edit.documentChanges ?? []) {
     if ('textDocument' in change && Array.isArray(change.edits)) {
-      out.set(uriToPath(change.textDocument.uri), change.edits.filter((e): e is TextEdit => 'newText' in e));
+      out.set(
+        uriToPath(change.textDocument.uri),
+        change.edits.filter((e): e is TextEdit => 'newText' in e),
+      );
     }
   }
   return out;

@@ -541,3 +541,60 @@ describe('TaskGenerator — verificationFromAcceptance (opt-in)', () => {
     expect(node?.metadata?.verificationCommand).toBeUndefined();
   });
 });
+
+describe('TaskGenerator — atomicity annotation (opt-in)', () => {
+  function run(atomicity: boolean, requirement: SpecRequirement) {
+    const trk = new TaskTracker({ store: makeFakeStore() });
+    const gen = new TaskGenerator({
+      taskTracker: trk,
+      ...(atomicity ? { atomicity: {} } : {}),
+    });
+    return gen
+      .generateFromSpec(makeSpec({ requirements: [requirement] }))
+      .then(() => trk.getAllNodes());
+  }
+
+  it('is OFF by default — no metadata.atomicity', async () => {
+    const nodes = await run(false, makeRequirement());
+    expect(nodes.every((n) => n.metadata?.atomicity === undefined)).toBe(true);
+  });
+
+  it('stamps verdict/score/reasons on generated nodes when enabled', async () => {
+    const nodes = await run(
+      true,
+      makeRequirement({
+        id: 'REQ-A',
+        priority: 'medium',
+        description: 'Small verifiable requirement',
+        acceptanceCriteria: ['verify: pnpm test small'],
+      }),
+    );
+    const reqNode = nodes.find((n) => n.specRequirementId === 'REQ-A');
+    const atomicity = reqNode?.metadata?.atomicity as
+      | { verdict: string; score: number; reasons: string[] }
+      | undefined;
+    expect(atomicity).toBeDefined();
+    expect(typeof atomicity!.score).toBe('number');
+    expect(['atomic', 'borderline', 'needs_decomposition']).toContain(atomicity!.verdict);
+    // Closing tasks are annotated too.
+    const testsNode = nodes.find((n) => n.title === 'Write Tests');
+    expect(testsNode?.metadata?.atomicity).toBeDefined();
+  });
+
+  it('marks an oversized critical requirement as needs_decomposition', async () => {
+    const nodes = await run(
+      true,
+      makeRequirement({
+        id: 'REQ-B',
+        priority: 'critical',
+        description:
+          'Build auth and then billing; also migrate the database and then update all docs',
+        acceptanceCriteria: [],
+      }),
+    );
+    const reqNode = nodes.find((n) => n.specRequirementId === 'REQ-B');
+    const atomicity = reqNode?.metadata?.atomicity as { verdict: string; reasons: string[] };
+    expect(atomicity.verdict).toBe('needs_decomposition');
+    expect(atomicity.reasons.length).toBeGreaterThan(0);
+  });
+});

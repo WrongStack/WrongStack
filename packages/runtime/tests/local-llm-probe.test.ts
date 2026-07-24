@@ -227,4 +227,46 @@ describe('probeLocalLlm', () => {
     });
     expect(result.detail).toBeUndefined();
   });
+
+  it('uses global fetch when no implementation is injected', async () => {
+    const fetchSpy = vi.spyOn(globalThis, 'fetch').mockResolvedValue(jsonResponse({ models: [] }));
+
+    const result = await probeLocalLlm({
+      baseUrl: 'http://localhost:11434/v1',
+      apiKey: undefined,
+      noAuth: true,
+      scrubber,
+    });
+
+    expect(fetchSpy).toHaveBeenCalledOnce();
+    expect(result.ok).toBe(true);
+    fetchSpy.mockRestore();
+  });
+
+  it('stringifies non-Error fetch failures', async () => {
+    const result = await probeLocalLlm({
+      baseUrl: 'http://localhost:11434/v1',
+      apiKey: undefined,
+      noAuth: true,
+      scrubber,
+      fetchImpl: vi.fn<typeof fetch>().mockRejectedValue('plain failure'),
+    });
+
+    expect(result.detail).toBe('plain failure');
+  });
+
+  it('uses the parse fallback for a non-Error JSON rejection', async () => {
+    const response = new Response('', { status: 200 });
+    vi.spyOn(response, 'json').mockRejectedValue('plain failure');
+
+    const result = await probeLocalLlm({
+      baseUrl: 'http://localhost:11434/v1',
+      apiKey: undefined,
+      noAuth: true,
+      scrubber,
+      fetchImpl: vi.fn<typeof fetch>().mockResolvedValue(response),
+    });
+
+    expect(result.detail).toBe('parse failed');
+  });
 });

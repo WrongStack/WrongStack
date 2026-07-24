@@ -7,10 +7,18 @@
  */
 
 import type { HqAlert, HqSnapshot } from '@wrongstack/core/hq';
+import { Server } from 'lucide-react';
 import type React from 'react';
 import { useEffect, useMemo, useState } from 'react';
 import { useShallow } from 'zustand/react/shallow';
 import { fetchJson, postCommand, useHqStore, type ViewId } from '../store.js';
+
+interface SystemHealth {
+  status: 'healthy' | 'degraded';
+  uptime: { serverTime: string; eventLogSize: number };
+  stores: { events: string; timeseries: string; kanban: string };
+  connections: { total: number; active: number; stale: number };
+}
 
 interface CockpitAlertEntry {
   severity: 'info' | 'warn' | 'error' | 'critical' | string;
@@ -64,6 +72,24 @@ export function CockpitView(): React.ReactElement {
   const [quickActionBusy, setQuickActionBusy] = useState<CockpitQuickAction | null>(null);
   const [quickActionStatus, setQuickActionStatus] = useState<string | null>(null);
   const [quickActionError, setQuickActionError] = useState<string | null>(null);
+  const [systemHealth, setSystemHealth] = useState<SystemHealth | null>(null);
+  const [systemHealthError, setSystemHealthError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    const loadHealth = (): void => {
+      fetchJson<SystemHealth>('/api/system/health')
+        .then((data) => {
+          if (!cancelled) { setSystemHealth(data); setSystemHealthError(null); }
+        })
+        .catch((err: unknown) => {
+          if (!cancelled) setSystemHealthError(err instanceof Error ? err.message : String(err));
+        });
+    };
+    loadHealth();
+    const healthTimer = setInterval(loadHealth, 30_000);
+    return () => { cancelled = true; clearInterval(healthTimer); };
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -362,6 +388,47 @@ export function CockpitView(): React.ReactElement {
           {quickActionError !== null && <span className="hq-pill error">{quickActionError}</span>}
         </section>
       </div>
+
+      {systemHealth !== null || systemHealthError !== null ? (
+        <div className="hq-card hq-cockpit-section">
+          <div className="hq-row">
+            <span className="hq-cockpit-section-title">
+              <Server size={14} style={{ marginRight: '0.375rem' }} />
+              System Health
+            </span>
+            <button
+              type="button"
+              className="hq-btn secondary hq-ml-auto"
+              onClick={() => useHqStore.getState().setActiveView('settings')}
+            >
+              open settings
+            </button>
+          </div>
+          {systemHealthError !== null ? (
+            <div className="hq-empty hq-cockpit-empty">{systemHealthError}</div>
+          ) : systemHealth !== null ? (
+            <div className="hq-cockpit-grid">
+              <Stat
+                label="status"
+                value={systemHealth.status}
+                accent={systemHealth.status === 'healthy' ? 'green' : 'error'}
+              />
+              <Stat label="event log" value={systemHealth.uptime.eventLogSize} />
+              <Stat label="connections" value={systemHealth.connections.total} />
+              <Stat
+                label="active"
+                value={systemHealth.connections.active}
+                accent={systemHealth.connections.active > 0 ? 'green' : undefined}
+              />
+              <Stat
+                label="stale"
+                value={systemHealth.connections.stale}
+                accent={systemHealth.connections.stale > 3 ? 'warn' : undefined}
+              />
+            </div>
+          ) : null}
+        </div>
+      ) : null}
 
       {[...fleetSections, tokenStatsSection, alertSection, costSection].map((section) => (
         <div key={section.title} className="hq-card hq-cockpit-section">

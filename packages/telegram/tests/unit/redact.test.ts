@@ -12,28 +12,33 @@ const ENV_VALUE = 'CANARY_ENV_VALUE_DDD';
 describe('redactSecrets', () => {
   describe('long flags', () => {
     it('redacts --token=value', () => {
-      expect(redactSecrets(`curl --token=${TOKEN_VALUE} https://api.example.com`))
-        .toBe(`curl --token=[REDACTED] https://api.example.com`);
+      expect(redactSecrets(`curl --token=${TOKEN_VALUE} https://api.example.com`)).toBe(
+        `curl --token=[REDACTED] https://api.example.com`,
+      );
     });
 
     it('redacts --token value (space separator)', () => {
-      expect(redactSecrets(`curl --token ${TOKEN_VALUE} https://api.example.com`))
-        .toBe(`curl --token [REDACTED] https://api.example.com`);
+      expect(redactSecrets(`curl --token ${TOKEN_VALUE} https://api.example.com`)).toBe(
+        `curl --token [REDACTED] https://api.example.com`,
+      );
     });
 
     it('redacts --api-key=value', () => {
-      expect(redactSecrets(`foo --api-key=${APIKEY_VALUE} https://x`))
-        .toBe(`foo --api-key=[REDACTED] https://x`);
+      expect(redactSecrets(`foo --api-key=${APIKEY_VALUE} https://x`)).toBe(
+        `foo --api-key=[REDACTED] https://x`,
+      );
     });
 
     it('redacts --password=value', () => {
-      expect(redactSecrets(`mysql -u root --password=${PASSWORD_VALUE} db`))
-        .toBe(`mysql -u root --password=[REDACTED] db`);
+      expect(redactSecrets(`mysql -u root --password=${PASSWORD_VALUE} db`)).toBe(
+        `mysql -u root --password=[REDACTED] db`,
+      );
     });
 
     it('redacts --password value (space separator)', () => {
-      expect(redactSecrets(`mysql -u root --password ${PASSWORD_VALUE} db`))
-        .toBe(`mysql -u root --password [REDACTED] db`);
+      expect(redactSecrets(`mysql -u root --password ${PASSWORD_VALUE} db`)).toBe(
+        `mysql -u root --password [REDACTED] db`,
+      );
     });
   });
 
@@ -61,18 +66,19 @@ describe('redactSecrets', () => {
 
   describe('env-var style secrets', () => {
     it('redacts TOKEN=x', () => {
-      expect(redactSecrets(`TOKEN=${ENV_VALUE} node app.js`))
-        .toBe('TOKEN=[REDACTED] node app.js');
+      expect(redactSecrets(`TOKEN=${ENV_VALUE} node app.js`)).toBe('TOKEN=[REDACTED] node app.js');
     });
 
     it('redacts API_KEY=value', () => {
-      expect(redactSecrets(`API_KEY=${ENV_VALUE} node app.js`))
-        .toBe('API_KEY=[REDACTED] node app.js');
+      expect(redactSecrets(`API_KEY=${ENV_VALUE} node app.js`)).toBe(
+        'API_KEY=[REDACTED] node app.js',
+      );
     });
 
     it('preserves surrounding text', () => {
-      expect(redactSecrets(`prefix TOKEN=${ENV_VALUE} suffix`))
-        .toBe('prefix TOKEN=[REDACTED] suffix');
+      expect(redactSecrets(`prefix TOKEN=${ENV_VALUE} suffix`)).toBe(
+        'prefix TOKEN=[REDACTED] suffix',
+      );
     });
   });
 
@@ -87,6 +93,10 @@ describe('redactSecrets', () => {
       const input = 'pnpm test --reporter=spec';
       expect(redactSecrets(input)).toBe(input);
     });
+  });
+
+  it('fully replaces a sensitive flag that has no separable value', () => {
+    expect(redactSecrets('run --token')).toBe('run **redacted**');
   });
 
   describe('real-world tool output patterns', () => {

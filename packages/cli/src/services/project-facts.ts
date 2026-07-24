@@ -1,5 +1,6 @@
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
+import { DEFAULT_WALK_IGNORE_DIRS } from '@wrongstack/core/utils';
 import {
   detectLanguageWorkspaces,
   languageProfileRegistry,
@@ -150,28 +151,16 @@ const EXT_LANG: Record<string, string> = {
   '.svelte': 'Svelte',
 };
 
-/** Directories the scan never descends into — VCS, deps, build output, caches. */
+/** Directories the scan never descends into — the shared walker list plus fingerprint-only extras. */
 const SCAN_IGNORE_DIRS = new Set([
-  '.git',
-  'node_modules',
-  'dist',
-  'build',
+  ...DEFAULT_WALK_IGNORE_DIRS,
   'out',
-  'target',
   'vendor',
-  '.venv',
-  'venv',
   'env',
-  '__pycache__',
-  '.next',
-  '.nuxt',
-  '.cache',
-  'coverage',
   '.wrongstack',
   '.idea',
   '.vscode',
   'obj',
-  '.gradle',
   '.dart_tool',
   'Pods',
 ]);

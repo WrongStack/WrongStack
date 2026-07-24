@@ -35,7 +35,7 @@ function extractBalanced(text: string, container: JsonContainer): string | null 
 export function extractJsonBlock(text: string, container: JsonContainer): string | null {
   const fencedBlocks = [...text.matchAll(/```(?:json)?\s*\r?\n([\s\S]*?)\r?\n```/gi)];
   for (const match of fencedBlocks) {
-    const extracted = extractBalanced(match[1] ?? '', container);
+    const extracted = extractBalanced(match[1]!, container);
     if (extracted) return extracted;
   }
   return extractBalanced(text, container);

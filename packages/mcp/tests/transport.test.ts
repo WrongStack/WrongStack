@@ -5,6 +5,7 @@ import {
   SSETransport,
   StreamableHTTPTransport,
 } from '../src/transport.js';
+import { validateTransportUrl } from '../src/transport-security.js';
 
 const originalUnsafeMcpTls = process.env['WRONGSTACK_UNSAFE_MCP_TLS'];
 const originalCi = process.env['CI'];
@@ -122,6 +123,7 @@ describe('SSEReader', () => {
     const cb = vi.fn();
     const off = r.onMessage(cb);
     r.feed('data: {"id":1}\n\n');
+    off();
     off();
     r.feed('data: {"id":2}\n\n');
     expect(cb).toHaveBeenCalledTimes(1);
@@ -599,7 +601,7 @@ describe('StreamableHTTPTransport — connect/callTool with mocked fetch', () =>
     const seen: unknown[] = [];
     r.onMessage((m) => seen.push(m));
     // comment lines, blank lines, other prefixes
-    r.feed('# comment line\n');
+    r.feed(': comment line\n');
     r.feed('\n');
     r.feed('other: something\n');
     r.feed('data: {"id":1}\n\n');
@@ -617,12 +619,27 @@ describe('StreamableHTTPTransport — connect/callTool with mocked fetch', () =>
     expect((seen[0] as { id: number }).id).toBe(2);
   });
 
+  it('SSEReader discards whitespace-only events', () => {
+    const r = new SSEReader();
+    const seen: unknown[] = [];
+    r.onMessage((m) => seen.push(m));
+    r.feed('data:   \n\n');
+    expect(seen).toHaveLength(0);
+  });
+
   it('SSEReader throws when buffer exceeds SSE_READER_MAX_BUFFER', () => {
     const r = new SSEReader();
     r.onMessage(() => {});
     // Feed enough data to exceed 256KB limit
     const large = 'x'.repeat(257 * 1024);
     expect(() => r.feed(large)).toThrow(/exceeds max buffer/);
+  });
+
+  it('SSEReader caps data accumulated across chunks', () => {
+    const r = new SSEReader();
+    const chunk = 'x'.repeat(140 * 1024);
+    r.feed(chunk);
+    expect(() => r.feed(chunk)).toThrow(/pending line exceeds 262144 bytes/);
   });
 
   it('SSEReader dispatches events from multiple feeds in order', () => {
@@ -650,6 +667,24 @@ describe('StreamableHTTPTransport — connect/callTool with mocked fetch', () =>
     expect(sseUrl).toContain('example.test');
     expect(sseUrl).toContain('session=');
   });
+});
+
+describe('validateTransportUrl', () => {
+  it('rejects malformed URLs and unsupported protocols', () => {
+    expect(() => validateTransportUrl('not a url')).toThrow(/invalid URL/);
+    expect(() => validateTransportUrl('ftp://example.test')).toThrow(/unsupported protocol/);
+  });
+
+  it('rejects plaintext remote hosts', () => {
+    expect(() => validateTransportUrl('http://example.test')).toThrow(/only allowed for loopback/);
+  });
+
+  it.each(['http://localhost', 'http://127.0.0.1', 'http://[::1]', 'https://example.test'])(
+    'allows safe transport URL %s',
+    (url) => {
+      expect(() => validateTransportUrl(url)).not.toThrow();
+    },
+  );
 });
 
 describe('SSETransport — mocked connect + callTool', () => {

@@ -81,6 +81,15 @@ export interface BrainTierAssembly {
   poolLabels: string[];
   /** Human-readable council seat labels; empty = council disabled. */
   councilLabels: string[];
+  /**
+   * EFFECTIVE judge label — undefined when no council is wired.
+   *
+   * Distinct from the CONFIGURED judge (`council.judge`), which is usually
+   * absent: the judge is then derived, and whether the derived one is
+   * independent of the seated voters is not something any surface could
+   * previously observe.
+   */
+  judgeLabel: string | undefined;
 }
 
 /** Assemble the LLM tiers of the Brain chain from `Config.brain`. */
@@ -177,7 +186,22 @@ export function assembleBrainTiers(opts: BrainTierAssemblyOptions): BrainTierAss
       ? toEntry(councilCfg.judge)
       : councilCfg.judge
     : undefined;
-  const judge = (judgeEntry ? buildTarget(judgeEntry) : null) ?? poolTargets[0] ?? voters[0];
+  // An explicitly configured judge always wins. Otherwise prefer a pool target
+  // that is NOT already seated: the judge only runs to break a tie or
+  // synthesize a split panel, and a "tie-breaker" that already cast one of the
+  // tied votes is not an independent opinion — it re-states its own position
+  // with the deciding weight. `poolTargets[0]` was the previous default and is
+  // exactly the model that becomes voter #1 whenever seats are derived from
+  // the pool, so the old default made the judge a seated voter in every
+  // auto-derived council. With no unseated target left (pool size == seat
+  // count) it still falls back to the old behaviour, and the distinctness
+  // warning now reports the correlation instead of hiding it.
+  const seatedLabels = new Set(voters.map((v) => v.label ?? v.model));
+  const judge =
+    (judgeEntry ? buildTarget(judgeEntry) : null) ??
+    poolTargets.find((t) => !seatedLabels.has(t.label ?? t.model)) ??
+    poolTargets[0] ??
+    voters[0];
   const councilEnabled = councilCfg?.enabled ?? voters.length >= 2;
   const council =
     councilEnabled && voters.length >= 2
@@ -204,5 +228,6 @@ export function assembleBrainTiers(opts: BrainTierAssemblyOptions): BrainTierAss
     councilLabels: council
       ? voters.map((v) => `${v.label ?? v.model} (${v.persona ?? 'voter'}${v.veto ? ', veto' : ''})`)
       : [],
+    judgeLabel: council ? (judge?.label ?? judge?.model) : undefined,
   };
 }

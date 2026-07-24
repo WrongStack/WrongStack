@@ -54,8 +54,12 @@ export class ACPSessionStore {
    */
   async save(state: SessionState, history?: PersistedHistoryUpdate[]): Promise<string> {
     await this.init();
+    // Atomic tmp+rename (same pattern as writeIndex): a crash mid-save must
+    // not tear the session file — it carries replayable history.
+    const target = path.join(this.dir, `${state.id}.json`);
+    const tmp = `${target}.${process.pid}.${Date.now()}.tmp`;
     await fsp.writeFile(
-      path.join(this.dir, `${state.id}.json`),
+      tmp,
       JSON.stringify({
         id: state.id,
         cwd: state.cwd,
@@ -67,6 +71,7 @@ export class ACPSessionStore {
       }),
       'utf8',
     );
+    await fsp.rename(tmp, target);
     await this.updateIndex(state.id, state.updatedAt);
     return state.id;
   }

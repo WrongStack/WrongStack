@@ -1,6 +1,7 @@
 export const SERVER_WORKSPACE_MESSAGE_TYPES = [
   'checkpoint.written',
   'codemap.file_event',
+  'codemap.index_updated',
   'codemap.tool_executed',
   'codemap.tool_started',
   'file.saved',

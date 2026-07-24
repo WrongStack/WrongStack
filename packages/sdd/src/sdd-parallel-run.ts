@@ -21,15 +21,26 @@ import { expectDefined } from '@wrongstack/core/utils';
 
 import { randomUUID } from 'node:crypto';
 import type { Agent } from '@wrongstack/core/agent';
-import type { SubagentConfig, TaskResult } from '@wrongstack/core/types';
 import type { AgentFactory } from '@wrongstack/core/coordination';
-import { assignNickname, makeAgentSubagentRunner, withDisabledToolFiltering, DefaultMultiAgentCoordinator } from '@wrongstack/core/coordination';
+import {
+  assignNickname,
+  DefaultMultiAgentCoordinator,
+  makeAgentSubagentRunner,
+  withDisabledToolFiltering,
+} from '@wrongstack/core/coordination';
 import type { EventBus } from '@wrongstack/core/kernel';
-import type { WorktreeHandle, WorktreeManager } from '@wrongstack/core/worktree';
-import type { MultiAgentConfig } from '@wrongstack/core/types';
-import type { TaskGraph, TaskNode, TaskProgress } from '@wrongstack/core/types';
 import type { TaskTracker } from '@wrongstack/core/tasking';
-import { SddError, ERROR_CODES } from '@wrongstack/core/types';
+import type {
+  MultiAgentConfig,
+  SubagentConfig,
+  TaskGraph,
+  TaskNode,
+  TaskProgress,
+  TaskResult,
+} from '@wrongstack/core/types';
+import { ERROR_CODES, SddError } from '@wrongstack/core/types';
+import type { WorktreeHandle, WorktreeManager } from '@wrongstack/core/worktree';
+import { splitGraphNode } from './graph-split.js';
 import { SddTaskDecomposer, type TaskBatch } from './sdd-task-decomposer.js';
 /** A sub-task produced by splitting a parent task (see `splitTask`). */
 export interface SddSubtaskSpec {
@@ -37,6 +48,13 @@ export interface SddSubtaskSpec {
   description: string;
   type?: TaskNode['type'] | undefined;
   priority?: TaskNode['priority'] | undefined;
+  /**
+   * One verifiable success criterion for this sub-task (planning decomposer).
+   * A runnable-command marker (`$ cmd`, `run:`/`verify:`/`cmd:`) becomes the
+   * leaf's `metadata.verificationCommand`; free text is appended to the
+   * description as an explicit acceptance criterion.
+   */
+  successCriterion?: string | undefined;
 }
 
 /**
@@ -118,7 +136,11 @@ export interface SddParallelRunOptions {
    * normal failure path (retry while attempts remain, else terminal-fail).
    */
   verifyTask?:
-    | ((info: { task: TaskNode; result: TaskResult; cwd: string }) => Promise<{ ok: boolean; reason?: string }>)
+    | ((info: {
+        task: TaskNode;
+        result: TaskResult;
+        cwd: string;
+      }) => Promise<{ ok: boolean; reason?: string }>)
     | undefined;
   /**
    * Optional merge-conflict resolver, forwarded to `WorktreeManager.merge`. Given
@@ -138,7 +160,11 @@ export interface SddParallelRunOptions {
    * task can be rescued at most `maxSupervisorEscalations` times (loop guard).
    */
   superviseFailure?:
-    | ((info: { task: TaskNode; error: string; attempts: number }) => Promise<SddSupervisorVerdict | undefined>)
+    | ((info: {
+        task: TaskNode;
+        error: string;
+        attempts: number;
+      }) => Promise<SddSupervisorVerdict | undefined>)
     | undefined;
   /** Max times the supervisor may rescue a single task before it must fail. Default 2. */
   maxSupervisorEscalations?: number | undefined;
@@ -277,11 +303,12 @@ export class SddParallelRun {
     this.sessionIdSource = opts.sessionId;
     // Backstop: even with retries + recovery the loop must terminate. Derive a
     // generous ceiling from the graph size unless the caller pins one.
-    this.maxTotalWaves =
-      opts.maxTotalWaves ?? opts.graph.nodes.size * (this.maxRetries + 2) + 10;
+    this.maxTotalWaves = opts.maxTotalWaves ?? opts.graph.nodes.size * (this.maxRetries + 2) + 10;
     this.maxWallClockMs = opts.maxWallClockMs;
     this.maxRecoveryRounds = Math.max(0, opts.maxRecoveryRounds ?? 0);
-    this.decomposer = new SddTaskDecomposer(opts.tracker, opts.graph, { parallelSlots: this.slots });
+    this.decomposer = new SddTaskDecomposer(opts.tracker, opts.graph, {
+      parallelSlots: this.slots,
+    });
   }
 
   /** Type-safe emit on the optional EventBus (no-op when unwired). */
@@ -292,15 +319,15 @@ export class SddParallelRun {
     const sessionId = this.currentSessionId();
     this.events?.emit(
       event,
-      (sessionId ? { ...payload, sessionId } : payload) as import('@wrongstack/core/kernel').EventMap[K],
+      (sessionId
+        ? { ...payload, sessionId }
+        : payload) as import('@wrongstack/core/kernel').EventMap[K],
     );
   }
 
   private currentSessionId(): string | undefined {
     const value =
-      typeof this.sessionIdSource === 'function'
-        ? this.sessionIdSource()
-        : this.sessionIdSource;
+      typeof this.sessionIdSource === 'function' ? this.sessionIdSource() : this.sessionIdSource;
     return typeof value === 'string' && value.length > 0 ? value : undefined;
   }
 
@@ -366,7 +393,8 @@ export class SddParallelRun {
    * revert outcome; a dirty tree or revert conflict surfaces as `ok:false`.
    */
   async rollback(): Promise<{ ok: boolean; reverted: number; reason?: string }> {
-    if (this.isRunning()) return { ok: false, reverted: 0, reason: 'run still active — stop it first' };
+    if (this.isRunning())
+      return { ok: false, reverted: 0, reason: 'run still active — stop it first' };
     const wt = this.opts.worktrees;
     if (!wt || !this.baseBranch) {
       return { ok: false, reverted: 0, reason: 'no worktree run to roll back' };
@@ -403,7 +431,10 @@ export class SddParallelRun {
    */
   setTaskModel(taskId: string, model: string | undefined, provider?: string | undefined): boolean {
     if (!this.opts.tracker.getNode(taskId)) return false;
-    this.opts.tracker.patchMetadata(taskId, { model, ...(provider !== undefined ? { provider } : {}) });
+    this.opts.tracker.patchMetadata(taskId, {
+      model,
+      ...(provider !== undefined ? { provider } : {}),
+    });
     return true;
   }
 
@@ -440,7 +471,12 @@ export class SddParallelRun {
     // the marker drives the "Cancelled" board look and blocks retry/auto-redispatch.
     this.opts.tracker.patchMetadata(taskId, { cancelled: true });
     this.opts.tracker.updateNodeStatus(taskId, 'failed', 'cancelled by user');
-    this.emit('sdd.task.failed', { runId: this.runId, taskId, subagentId: '', error: 'cancelled by user' });
+    this.emit('sdd.task.failed', {
+      runId: this.runId,
+      taskId,
+      subagentId: '',
+      error: 'cancelled by user',
+    });
     const subagentId = this.taskSubagents.get(taskId);
     if (subagentId && this.coordinator) {
       await this.coordinator.stop(subagentId).catch(() => {});
@@ -472,39 +508,12 @@ export class SddParallelRun {
    * The scheduler picks the new pending leaves up on its next dispatch pass.
    */
   splitTask(taskId: string, subtasks: SddSubtaskSpec[]): string[] {
-    const tracker = this.opts.tracker;
-    const node = tracker.getNode(taskId);
-    if (!node) return [];
-    if (node.status === 'in_progress' || this.taskSubagents.has(taskId)) return [];
-    if (!subtasks.length) return [];
-
-    const blockers = tracker.getBlockers(taskId);
-    const dependents = tracker.getDependents(taskId);
-
-    const leafIds = subtasks.map(
-      (s) =>
-        tracker.addNode({
-          title: s.title,
-          description: s.description,
-          type: s.type ?? node.type,
-          priority: s.priority ?? node.priority,
-          status: 'pending',
-          parentId: taskId,
-        } as never).id,
-    );
-
-    for (const leaf of leafIds) {
-      // Each leaf inherits the parent's dependencies…
-      for (const b of blockers) tracker.addDependency(b, leaf);
-      // …and every prior dependent of the parent now waits on every leaf.
-      for (const dep of dependents) tracker.addDependency(leaf, dep);
-    }
-
-    // The parent is now just a grouping node — mark it completed so the graph
-    // can settle (its real work lives in the leaves).
+    const leafIds = splitGraphNode(this.opts.tracker, taskId, subtasks, {
+      isRunning: (id) => this.taskSubagents.has(id),
+    });
+    if (!leafIds.length) return [];
     this.retryMap.delete(taskId);
     this.persistRetries(taskId, 0);
-    tracker.updateNodeStatus(taskId, 'completed', `split into ${leafIds.length} subtasks`);
     this.emit('sdd.task.split', { runId: this.runId, taskId, subtaskIds: leafIds });
     return leafIds;
   }
@@ -564,7 +573,12 @@ export class SddParallelRun {
           // A dispatch-time throw must not wedge the scheduler: mark the node
           // terminally failed (frees its dependents per failed-blocker rules).
           this.opts.tracker.updateNodeStatus(task.id, 'failed', `dispatch error: ${String(err)}`);
-          this.emit('sdd.task.failed', { runId: this.runId, taskId: task.id, subagentId: '', error: String(err) });
+          this.emit('sdd.task.failed', {
+            runId: this.runId,
+            taskId: task.id,
+            subagentId: '',
+            error: String(err),
+          });
           return { taskId: task.id, success: false };
         } finally {
           running.delete(task.id);
@@ -583,16 +597,18 @@ export class SddParallelRun {
 
       // Fill free slots with ready (dependency-satisfied) tasks not already running.
       let dispatchedThisRound = 0;
-      if (running.size < this.slots) {
-        const ready = this.decomposer.readyNodes().filter((t) => !running.has(t.id));
-        for (const task of ready) {
-          if (running.size >= this.slots) break;
-          dispatch(task);
-          dispatchedThisRound++;
-        }
+      const ready = this.decomposer.readyNodes().filter((t) => !running.has(t.id));
+      for (const task of ready) {
+        if (running.size >= this.slots) break;
+        dispatch(task);
+        dispatchedThisRound++;
       }
       if (dispatchedThisRound > 0) {
-        this.emit('sdd.wave', { runId: this.runId, wave: this.round, batchSize: dispatchedThisRound });
+        this.emit('sdd.wave', {
+          runId: this.runId,
+          wave: this.round,
+          batchSize: dispatchedThisRound,
+        });
         this.round++;
       }
 
@@ -605,7 +621,11 @@ export class SddParallelRun {
           // (no progress) so a hopeless task can't spin the loop forever.
           const completed = this.opts.tracker.getProgress().completed;
           const madeProgress = this.failedSweeps === 0 || completed > this.lastSweepCompleted;
-          if (this.failedSweeps < this.maxFailedSweeps && madeProgress && this.requeueFailedTasks() > 0) {
+          if (
+            this.failedSweeps < this.maxFailedSweeps &&
+            madeProgress &&
+            this.requeueFailedTasks() > 0
+          ) {
             this.lastSweepCompleted = completed;
             this.failedSweeps++;
             continue;
@@ -634,9 +654,6 @@ export class SddParallelRun {
         this.opts.onProgress?.(this.buildProgress());
       }
     }
-
-    // Drain any still-running tasks so the run never returns with live workers.
-    if (running.size > 0) await Promise.allSettled(running.values());
 
     // Clean teardown on stop: interrupted tasks reset, worktrees released.
     if (this.stopRequested) await this.teardown();
@@ -861,10 +878,11 @@ export class SddParallelRun {
     // (which already holds every dependency's merged work).
     await this.allocateWorktrees([task]);
 
-    if (!this.coordinator) throw new SddError({
-      message: 'SDD parallel runner requires a coordinator',
-      code: ERROR_CODES.SDD_INVALID_STATE,
-    });
+    if (!this.coordinator)
+      throw new SddError({
+        message: 'SDD parallel runner requires a coordinator',
+        code: ERROR_CODES.SDD_INVALID_STATE,
+      });
     const coordinator = this.coordinator;
 
     const subagentId = `sdd-d${this.dispatchSeq++}`;
@@ -873,7 +891,8 @@ export class SddParallelRun {
     // Per-task model / provider / fallback resolution: the node's own assignment
     // (set per-task in the WebUI) wins, else the run-level default.
     const meta = (task.metadata ?? {}) as Record<string, unknown>;
-    const model = (typeof meta.model === 'string' ? meta.model : undefined) ?? this.opts.defaultModel;
+    const model =
+      (typeof meta.model === 'string' ? meta.model : undefined) ?? this.opts.defaultModel;
     const provider =
       (typeof meta.provider === 'string' ? meta.provider : undefined) ?? this.opts.defaultProvider;
     const fallbackModels = Array.isArray(meta.fallbackModels)
@@ -882,7 +901,7 @@ export class SddParallelRun {
 
     const spawnResult = await coordinator.spawn({
       id: subagentId,
-      name: agentName ?? subagentId,
+      name: agentName,
       role: 'executor',
       // Idle reaper is always on; the hard wall-clock cap only when opted in.
       idleTimeoutMs: this.idleTimeoutMs,
@@ -906,7 +925,7 @@ export class SddParallelRun {
       runId: this.runId,
       taskId,
       subagentId,
-      agentName: agentName ?? '',
+      agentName,
       worktreeBranch: this.taskBranches.get(taskId),
     });
 
@@ -982,11 +1001,26 @@ export class SddParallelRun {
       } catch (err) {
         verificationFailReason = `verification error: ${String(err)}`;
       }
+      // Durable per-task verification telemetry: the board projector and the
+      // kanban run mirror read these to render verification state. 'passed' is
+      // only stamped when the task actually declared something verifiable.
+      const hadVerifiable =
+        typeof task.metadata?.['verificationCommand'] === 'string' ||
+        task.description.includes('**Acceptance Criteria:**');
       if (verificationFailReason) {
+        this.opts.tracker.patchMetadata(taskId, {
+          verificationState: 'failed',
+          verificationDetail: verificationFailReason,
+        });
         this.emit('sdd.task.verification_failed', {
           runId: this.runId,
           taskId,
           reason: verificationFailReason,
+        });
+      } else if (hadVerifiable) {
+        this.opts.tracker.patchMetadata(taskId, {
+          verificationState: 'passed',
+          verificationDetail: undefined,
         });
       }
     }
@@ -1020,12 +1054,13 @@ export class SddParallelRun {
         });
         await this.applyTaskFailure(taskId, subagentId, merged.reason);
       } else {
+        const conflictFiles = merged.conflictFiles ?? [];
         this.emit('sdd.task.conflict', {
           runId: this.runId,
           taskId,
-          conflictFiles: merged.conflictFiles ?? [],
+          conflictFiles,
         });
-        const reason = `merge conflict${merged.conflictFiles?.length ? `: ${merged.conflictFiles.join(', ')}` : ''}`;
+        const reason = `merge conflict${conflictFiles.length ? `: ${conflictFiles.join(', ')}` : ''}`;
         await this.applyTaskFailure(taskId, subagentId, reason);
       }
     } else {
@@ -1033,7 +1068,7 @@ export class SddParallelRun {
         verificationFailReason ??
         (result.error?.kind
           ? `${result.error.kind}: ${result.error.message}`
-          : result.error?.message ?? 'unknown error');
+          : (result.error?.message ?? 'unknown error'));
       await this.applyTaskFailure(taskId, subagentId, errMsg);
       // Resolve the worktree for the non-success path (failed → keep, retry → discard).
       await this.resolveWorktrees([task]);
@@ -1049,7 +1084,11 @@ export class SddParallelRun {
    * worker-failure, verification-gate, and merge-conflict paths so all three
    * negotiate the same retry budget and emit the same events.
    */
-  private async applyTaskFailure(taskId: string, subagentId: string, errMsg: string): Promise<void> {
+  private async applyTaskFailure(
+    taskId: string,
+    subagentId: string,
+    errMsg: string,
+  ): Promise<void> {
     const currentRetries = this.retryMap.get(taskId) ?? 0;
     if (currentRetries < this.maxRetries) {
       this.retryMap.set(taskId, currentRetries + 1);
@@ -1154,7 +1193,11 @@ export class SddParallelRun {
         ...(this.opts.conflictResolver
           ? {
               resolve: (info: { conflictFiles: string[]; cwd: string }) =>
-                this.opts.conflictResolver!({ task, conflictFiles: info.conflictFiles, cwd: info.cwd }),
+                this.opts.conflictResolver!({
+                  task,
+                  conflictFiles: info.conflictFiles,
+                  cwd: info.cwd,
+                }),
             }
           : {}),
       });
@@ -1171,7 +1214,8 @@ export class SddParallelRun {
               result: result ?? ({} as TaskResult),
               cwd: this.opts.projectRoot,
             });
-            if (!verdict.ok) regressed = verdict.reason ?? 'verification failed after conflict resolution';
+            if (!verdict.ok)
+              regressed = verdict.reason ?? 'verification failed after conflict resolution';
           } catch (err) {
             regressed = `verification error after conflict resolution: ${String(err)}`;
           }
@@ -1287,8 +1331,7 @@ export class SddParallelRun {
 
   private buildProgress(): SddProgress {
     const gp = this.opts.tracker.getProgress();
-    const isDeadlocked = !this.decomposer.isDone() &&
-      this.decomposer.nextBatch().deadlocked;
+    const isDeadlocked = !this.decomposer.isDone() && this.decomposer.nextBatch().deadlocked;
     return {
       wave: this.decomposer.getWaveCount(),
       total: gp.total,

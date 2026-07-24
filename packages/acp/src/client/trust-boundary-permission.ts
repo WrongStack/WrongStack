@@ -121,3 +121,12 @@ export function makeTrustBoundaryPermissionPolicy(
     return pickOption(request.options, isAllowed(decision));
   };
 }
+
+/** Direct-module test seam; not re-exported by the package barrel. */
+export const trustBoundaryPermissionCoverage = {
+  pickOption,
+  riskFor,
+  capabilityFor,
+  subjectFor,
+  isAllowed,
+};

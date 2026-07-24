@@ -31,6 +31,7 @@ import {
   nowIso,
   placeTaskInColumn,
   requireNonBlank,
+  stampAtomicityAssessment,
 } from './_internal.js';
 import { assertManagedTaskPatchAllowed, initializeManagedTaskLifecycle } from './lifecycle.js';
 
@@ -94,6 +95,7 @@ export async function addTask(
   const updated = await mutateBoard(projectRoot, boardId, (board) => {
     const task = createTaskObject(board, input);
     initializeManagedTaskLifecycle(board, task);
+    if (input.atomicityAssessment === undefined) stampAtomicityAssessment(board, task);
     board.tasks.push(task);
     placeTaskInColumn(board, task, task.columnId, task.order);
     board.updatedAt = nowIso();

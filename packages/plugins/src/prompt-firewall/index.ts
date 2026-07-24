@@ -39,6 +39,7 @@
  * @public
  */
 import type { Plugin, PluginAPI } from '@wrongstack/core/types';
+import { cloneCredentialPatterns } from '../runtime/credential-patterns.js';
 
 // ---------------------------------------------------------------------------
 // Secret patterns — high-confidence only, to keep false positives low.
@@ -49,24 +50,67 @@ interface SecretPattern {
   re: RegExp;
 }
 
-const PATTERNS: SecretPattern[] = [
-  { kind: 'aws-access-key', re: /\bAKIA[0-9A-Z]{16}\b/g },
+/**
+ * Legacy `kind` names for the shapes this plugin already reported, so the
+ * canonical `type` ids from the shared table keep their existing spelling
+ * in logs, metrics and the status tool. Anything not listed here is
+ * reported under its canonical id.
+ */
+const KIND_ALIASES: Readonly<Record<string, string>> = {
+  aws_access_key: 'aws-access-key',
+  private_key: 'private-key-block',
+  github_pat: 'github-token',
+  github_oauth_token: 'github-token',
+  openai_key: 'openai-key',
+  anthropic_key: 'anthropic-key',
+  slack_token: 'slack-token',
+  gcp_key: 'google-api-key',
+  bearer_token: 'bearer-token',
+};
+
+/**
+ * Patterns unique to this surface.
+ *
+ * The shared table covers credentials with a distinctive prefix. These
+ * two are shape-and-context heuristics that only make sense for an
+ * outgoing request (where a false positive costs a redaction, not a
+ * blocked write), so they stay local.
+ */
+const EXTRA_PATTERNS: SecretPattern[] = [
   {
+    // AWS secret access keys have no prefix — only a 40-char base64-ish
+    // shape — so they need a nearby `aws`/`secret` mention to be worth
+    // acting on.
+    //
+    // The previous spelling required the word "aws" to appear AFTER the
+    // key and wrapped the run in `\b`. Both are wrong: the real layout is
+    // `AWS_SECRET_ACCESS_KEY=<key>` (context first), and a `\b` cannot
+    // hold next to the `+` or `/` that base64 keys routinely end with. The
+    // pattern therefore never fired on a real key. Anchor on the context
+    // token instead and let the key follow it.
     kind: 'aws-secret-key',
-    re: /\b(?<![A-Za-z0-9/+])[A-Za-z0-9/+]{40}(?![A-Za-z0-9/+])\b(?=.*aws)/gi,
+    re: /(?:aws|amazon)[A-Za-z0-9_-]*(?:secret|key)[A-Za-z0-9_-]*\s*[:=]\s*['"]?([A-Za-z0-9/+]{40})(?![A-Za-z0-9/+])/gi,
   },
-  { kind: 'private-key-block', re: /-----BEGIN (?:RSA |EC |OPENSSH |DSA |PGP )?PRIVATE KEY-----/g },
-  { kind: 'github-token', re: /\bgh[pousr]_[A-Za-z0-9]{36,}\b/g },
-  { kind: 'openai-key', re: /\bsk-(?:proj-)?[A-Za-z0-9_-]{20,}\b/g },
-  { kind: 'anthropic-key', re: /\bsk-ant-[A-Za-z0-9_-]{20,}\b/g },
-  { kind: 'slack-token', re: /\bxox[baprs]-[A-Za-z0-9-]{10,}\b/g },
-  { kind: 'google-api-key', re: /\bAIza[0-9A-Za-z_-]{35}\b/g },
-  { kind: 'jwt', re: /\beyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\b/g },
-  { kind: 'bearer-token', re: /\bBearer\s+[A-Za-z0-9._-]{20,}\b/g },
   {
     kind: 'generic-secret-assignment',
     re: /\b(?:api[_-]?key|secret|password|passwd|token)\s*[:=]\s*['"]?[A-Za-z0-9._/+-]{12,}['"]?/gi,
   },
+];
+
+/**
+ * Effective pattern set: every shape the canonical table knows about,
+ * plus this plugin's own heuristics.
+ *
+ * Sharing the table with `secret-scanner` is the point — the two lists
+ * had drifted, so whether a credential was caught depended on which side
+ * of the pipeline it crossed.
+ */
+const PATTERNS: SecretPattern[] = [
+  ...cloneCredentialPatterns().map((p) => ({
+    kind: KIND_ALIASES[p.type] ?? p.type,
+    re: p.regex,
+  })),
+  ...EXTRA_PATTERNS,
 ];
 
 export interface Detection {

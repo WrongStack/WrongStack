@@ -17,6 +17,21 @@ afterEach(async () => {
 });
 
 describe('MCPAuthorizationManager', () => {
+  it('rejects invalid pending TTL values', async () => {
+    const fixture = await createFixture();
+
+    expect(() => new MCPAuthorizationManager({ store: fixture.store, pendingTtlMs: 0 })).toThrow(
+      /positive finite/,
+    );
+    expect(
+      () =>
+        new MCPAuthorizationManager({
+          store: fixture.store,
+          pendingTtlMs: Number.POSITIVE_INFINITY,
+        }),
+    ).toThrow(/positive finite/);
+  });
+
   it('keeps PKCE state in memory, completes once, and exposes only safe status', async () => {
     const fixture = await createFixture();
     const resource = 'https://mcp.example.com/team';
@@ -124,6 +139,124 @@ describe('MCPAuthorizationManager', () => {
     await expect(manager.status('remote', resource)).resolves.toMatchObject({
       state: 'not_authorized',
     });
+  });
+
+  it('bounds pending sessions while allowing an existing session to restart', async () => {
+    const fixture = await createFixture();
+    const resource = 'https://mcp.example.com/mcp';
+    const manager = new MCPAuthorizationManager({
+      store: fixture.store,
+      discover: async () => discovery(resource),
+    });
+    const input = {
+      resource,
+      clientId: 'client',
+      redirectUri: 'http://127.0.0.1:43123/callback',
+    };
+
+    for (let index = 0; index < 32; index++) {
+      await manager.begin({ ...input, serverName: `remote-${index}` });
+    }
+    await expect(manager.begin({ ...input, serverName: 'remote-0' })).resolves.toMatchObject({
+      serverName: 'remote-0',
+    });
+    await expect(manager.begin({ ...input, serverName: 'overflow' })).rejects.toThrow(
+      /Too many pending/,
+    );
+  });
+
+  it('validates server names and reports a no-op disconnect', async () => {
+    const fixture = await createFixture();
+    const onStateChange = vi.fn();
+    const manager = new MCPAuthorizationManager({ store: fixture.store, onStateChange });
+
+    await expect(manager.status('', 'https://mcp.example.com')).rejects.toThrow(
+      /server name is invalid/,
+    );
+    await expect(manager.status('x'.repeat(257), 'https://mcp.example.com')).rejects.toThrow(
+      /server name is invalid/,
+    );
+    await expect(manager.status('bad\nname', 'https://mcp.example.com')).rejects.toThrow(
+      /server name is invalid/,
+    );
+    await expect(manager.disconnect('missing', 'https://mcp.example.com')).resolves.toBe(false);
+    expect(onStateChange).not.toHaveBeenCalled();
+  });
+
+  it('reports expired and non-expiring stored credentials', async () => {
+    const fixture = await createFixture();
+    const resource = 'https://mcp.example.com/mcp';
+    const manager = new MCPAuthorizationManager({
+      store: fixture.store,
+      now: () => 1_000,
+    });
+    const stored = {
+      serverName: 'remote',
+      resource,
+      clientId: 'client',
+      authorizationServer: discovery(resource).authorizationServer,
+      updatedAt: new Date(0).toISOString(),
+    };
+
+    await fixture.store.save({
+      ...stored,
+      tokenSet: {
+        accessToken: 'expired',
+        tokenType: 'Bearer',
+        resource,
+        expiresAt: 999,
+      },
+    });
+    await expect(manager.status('remote', resource)).resolves.toMatchObject({
+      state: 'expired',
+      scopes: [],
+      canRefresh: false,
+    });
+
+    await fixture.store.save({
+      ...stored,
+      tokenSet: {
+        accessToken: 'non-expiring',
+        tokenType: 'Bearer',
+        resource,
+      },
+    });
+    await expect(manager.status('remote', resource)).resolves.toMatchObject({
+      state: 'authorized',
+      scopes: [],
+      canRefresh: false,
+    });
+  });
+
+  it('normalizes missing token scopes from a host store and state event', async () => {
+    const resource = 'https://mcp.example.com/mcp';
+    const stored = {
+      serverName: 'remote',
+      resource,
+      clientId: 'client',
+      authorizationServer: discovery(resource).authorizationServer,
+      tokenSet: {
+        accessToken: 'token',
+        tokenType: 'Bearer',
+        resource,
+      },
+      updatedAt: new Date(0).toISOString(),
+    };
+    const store = {
+      load: vi.fn(async () => stored),
+      save: vi.fn(),
+      remove: vi.fn(),
+    } as unknown as MCPVaultTokenStore;
+    const onStateChange = vi.fn();
+    const manager = new MCPAuthorizationManager({ store, onStateChange });
+
+    await expect(manager.status('remote', resource)).resolves.toMatchObject({ scopes: [] });
+    (
+      manager as never as {
+        emit: (state: 'authorized', value: typeof stored) => void;
+      }
+    ).emit('authorized', stored);
+    expect(onStateChange).toHaveBeenCalledWith(expect.objectContaining({ scopes: [] }));
   });
 });
 

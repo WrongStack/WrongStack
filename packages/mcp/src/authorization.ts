@@ -177,7 +177,7 @@ export function parseMcpBearerChallenge(
   if (!header) return challenge;
   const bearer = /(?:^|,)\s*Bearer(?:\s+|$)/i.exec(header);
   if (!bearer) return challenge;
-  const parameters = header.slice((bearer.index ?? 0) + bearer[0].length);
+  const parameters = header.slice(bearer.index + bearer[0].length);
   const resourceMetadata = challengeParameter(parameters, 'resource_metadata');
   if (resourceMetadata) {
     const metadataUrl = validateMetadataUrl(resourceMetadata);
@@ -613,7 +613,9 @@ async function requestPinnedJson(
     };
     const requestFn = url.protocol === 'https:' ? https.request : http.request;
     const request = requestFn(requestOptions, (response) => {
-      const status = response.statusCode ?? 0;
+      // Node only invokes the HTTP response callback after a status line has
+      // been parsed, so statusCode is present here.
+      const status = response.statusCode!;
       if (status === 404 || status === 410) {
         response.resume();
         finish(undefined, undefined);

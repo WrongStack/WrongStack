@@ -70,7 +70,15 @@ import {
   updateTask,
   updateTaskAssignment,
   verifyTaskCompletion,
+  finalizeTaskCompletion,
+  assessTaskAtomicity,
+  proposeTaskDecomposition,
 } from '@wrongstack/kanban';
+import type {
+  KanbanCompletionGateEnforcement,
+  KanbanDecompositionSubtask,
+} from '@wrongstack/kanban';
+import { recordKanbanVerificationEvidence } from './kanban-evidence-bridge.js';
 import { taskFileToSerializedGraph } from './session-kanban.js';
 
 type KanbanAction =
@@ -120,7 +128,9 @@ type KanbanAction =
   | 'add_note'
   | 'add_link'
   | 'verify_completion'
-  | 'split_atomic';
+  | 'split_atomic'
+  | 'assess_atomicity'
+  | 'propose_decomposition';
 
 interface KanbanToolInput extends Omit<AssignKanbanTaskInput, 'status'> {
   action: KanbanAction;
@@ -230,11 +240,28 @@ interface KanbanToolInput extends Omit<AssignKanbanTaskInput, 'status'> {
   estimatedHours?: number | undefined;
   /** Actual effort in hours for add_task/update_task. */
   actualHours?: number | undefined;
+  /** create_board/update_board: atomicity policy mode. */
+  atomicityMode?: 'off' | 'assess' | 'enforce' | undefined;
+  /** create_board/update_board: how proposed decompositions are applied. */
+  atomicityDecomposition?: 'auto' | 'propose' | undefined;
+  /** create_board/update_board: completion-gate enforcement. */
+  gateEnforcement?: KanbanCompletionGateEnforcement | undefined;
+  /** propose_decomposition: 2+ proposed subtasks. */
+  subtasks?: KanbanDecompositionSubtask[] | undefined;
 }
 
 interface KanbanToolOutput {
   ok: boolean;
   verdict?: KanbanVerificationReport['verdict'] | undefined;
+  /** Completion-gate outcome when a completion path ran the universal gate. */
+  gate?:
+    | {
+        enforcement: KanbanCompletionGateEnforcement;
+        allowed: boolean;
+        verdict: KanbanVerificationReport['verdict'] | 'skipped';
+        issues: string[];
+      }
+    | undefined;
   message: string;
   board?: KanbanBoard | undefined;
   boards?: KanbanBoardSummary[] | undefined;
@@ -315,6 +342,8 @@ export const kanbanTool: Tool<KanbanToolInput, KanbanToolOutput> = {
           'add_link',
           'verify_completion',
           'split_atomic',
+          'assess_atomicity',
+          'propose_decomposition',
         ],
       },
       boardId: { type: 'string' },
@@ -451,6 +480,23 @@ export const kanbanTool: Tool<KanbanToolInput, KanbanToolOutput> = {
       preserveAssignment: { type: 'boolean' },
       preserveDependencies: { type: 'boolean' },
       moveTasksToColumnId: { type: 'string' },
+      atomicityMode: { type: 'string', enum: ['off', 'assess', 'enforce'] },
+      atomicityDecomposition: { type: 'string', enum: ['auto', 'propose'] },
+      gateEnforcement: { type: 'string', enum: ['strict', 'soft', 'off'] },
+      subtasks: {
+        type: 'array',
+        minItems: 2,
+        items: {
+          type: 'object',
+          properties: {
+            title: { type: 'string' },
+            description: { type: 'string' },
+            successCriteria: { type: 'array', items: { type: 'string' } },
+            dependsOnIndex: { type: 'array', items: { type: 'number' } },
+          },
+          required: ['title'],
+        },
+      },
     },
     required: ['action'],
   },
@@ -495,6 +541,17 @@ export const kanbanTool: Tool<KanbanToolInput, KanbanToolOutput> = {
             ...(input.description !== undefined ? { description: input.description } : {}),
             ...(input.tags !== undefined ? { tags: input.tags } : {}),
             ...(input.generatedBy !== undefined ? { generatedBy: input.generatedBy } : {}),
+            ...(input.atomicityMode !== undefined
+              ? {
+                  atomicity: {
+                    mode: input.atomicityMode,
+                    decomposition: input.atomicityDecomposition ?? 'propose',
+                  },
+                }
+              : {}),
+            ...(input.gateEnforcement !== undefined
+              ? { completionGate: { enforcement: input.gateEnforcement } }
+              : {}),
           });
           return { ok: true, message: `Board created: ${board.title}`, board };
         }
@@ -504,6 +561,17 @@ export const kanbanTool: Tool<KanbanToolInput, KanbanToolOutput> = {
             ...(input.title !== undefined ? { title: input.title } : {}),
             ...(input.description !== undefined ? { description: input.description } : {}),
             ...(input.tags !== undefined ? { tags: input.tags } : {}),
+            ...(input.atomicityMode !== undefined
+              ? {
+                  atomicity: {
+                    mode: input.atomicityMode,
+                    decomposition: input.atomicityDecomposition ?? 'propose',
+                  },
+                }
+              : {}),
+            ...(input.gateEnforcement !== undefined
+              ? { completionGate: { enforcement: input.gateEnforcement } }
+              : {}),
           });
           return board ? okBoard(board, 'Board updated.') : fail('Board not found.');
         }
@@ -736,9 +804,12 @@ export const kanbanTool: Tool<KanbanToolInput, KanbanToolOutput> = {
         case 'add_task': {
           if (!input.boardId || !input.title) return fail('add_task requires boardId and title.');
           const result = await addTask(projectRoot, input.boardId, taskInput(input));
-          return result
-            ? okTask(result.board, result.task, 'Task added.')
-            : fail('Board not found.');
+          if (!result) return fail('Board not found.');
+          return okTask(
+            result.board,
+            result.task,
+            `Task added.${atomicityNudge(result.task)}`,
+          );
         }
         case 'split_task': {
           if (!input.boardId || !input.taskId || !input.childTitles?.length) {
@@ -846,6 +917,31 @@ export const kanbanTool: Tool<KanbanToolInput, KanbanToolOutput> = {
               'transition_task requires boardId, taskId, lifecycleStage, author, and transitionComment.',
             );
           }
+          // Pre-gate for Done: transitionTask's validateDoneEvidence trusts a
+          // persisted verificationReport but never runs the verifier itself.
+          // When the target is done and the task lacks a report, run the
+          // verifier and persist report + refreshed criteria first so the
+          // transition is judged on fresh evidence.
+          if (input.lifecycleStage === 'done') {
+            const boardBefore = await getBoard(projectRoot, input.boardId);
+            const taskBefore = boardBefore
+              ? await getTask(projectRoot, input.boardId, input.taskId)
+              : null;
+            if (
+              boardBefore &&
+              taskBefore &&
+              !taskBefore.verificationReport &&
+              (taskBefore.atomic || Boolean(taskBefore.successCriteria?.length))
+            ) {
+              const preGate = await verifyTaskCompletion(projectRoot, input.boardId, taskBefore.id, {
+                persist: false,
+              });
+              await updateTask(projectRoot, input.boardId, taskBefore.id, {
+                verificationReport: preGate.report,
+                successCriteria: preGate.task.successCriteria,
+              });
+            }
+          }
           const result = await transitionTask(projectRoot, input.boardId, input.taskId, {
             to: input.lifecycleStage,
             actor: input.author,
@@ -866,6 +962,9 @@ export const kanbanTool: Tool<KanbanToolInput, KanbanToolOutput> = {
               : {}),
             patch: taskPatch(input),
           });
+          if (result && input.lifecycleStage === 'done' && result.task.verificationReport) {
+            recordKanbanVerificationEvidence(ctx, result.task.verificationReport);
+          }
           return result
             ? okTask(result.board, result.task, `Task advanced to ${result.transition.to}.`)
             : fail('Board or task not found.');
@@ -993,7 +1092,42 @@ export const kanbanTool: Tool<KanbanToolInput, KanbanToolOutput> = {
               ? { expectedLeaseId: input.expectedLeaseId }
               : {},
           );
-          return board ? okBoard(board, 'Assignment updated.') : fail('Task not found.');
+          if (!board) return fail('Task not found.');
+          // Universal completion gate: a completed assignment was parked in
+          // review by updateTaskAssignment; finalize runs the verifier and
+          // applies the final status (async — cannot happen inside the board
+          // mutation). Env fallback applies only when the board carries no
+          // explicit completionGate policy; the kanban package never reads env.
+          if (assignmentStatus === 'completed') {
+            const envGate = readEnvGateEnforcement();
+            const finalized = await finalizeTaskCompletion(projectRoot, board.id, input.taskId, {
+              ...(board.completionGate === undefined && envGate !== undefined
+                ? { enforcement: envGate }
+                : {}),
+              ...(ctx.agentId !== undefined ? { eventContext: { actor: ctx.agentId } } : {}),
+            });
+            if (finalized) {
+              if (finalized.gate.report) {
+                recordKanbanVerificationEvidence(ctx, finalized.gate.report);
+              }
+              const gateSummary = {
+                enforcement: finalized.gate.enforcement,
+                allowed: finalized.gate.allowed,
+                verdict: finalized.gate.verdict,
+                issues: finalized.gate.issues.map((issue) => issue.message),
+              };
+              const gateMessage = finalized.gate.allowed
+                ? `Completion gate ${finalized.gate.verdict === 'skipped' ? 'skipped' : 'passed'}; task completed.`
+                : finalized.gate.enforcement === 'strict'
+                  ? `Completion gate BLOCKED (verdict: ${finalized.gate.verdict}); task parked in review. Issues: ${gateSummary.issues.join(' | ')}`
+                  : `Completion gate failed softly (verdict: ${finalized.gate.verdict}); task completed with warnings. Issues: ${gateSummary.issues.join(' | ')}`;
+              return {
+                ...okTask(finalized.board, finalized.task, `Assignment updated. ${gateMessage}`),
+                gate: gateSummary,
+              };
+            }
+          }
+          return okBoard(board, 'Assignment updated.');
         }
         case 'heartbeat_assignment': {
           if (!input.boardId || !input.taskId) {
@@ -1175,6 +1309,59 @@ export const kanbanTool: Tool<KanbanToolInput, KanbanToolOutput> = {
           });
           return board ? okBoard(board, 'Link added.') : fail('Task not found.');
         }
+        case 'assess_atomicity': {
+          if (!input.boardId || !input.taskId) {
+            return fail('assess_atomicity requires boardId and taskId.');
+          }
+          const result = await assessTaskAtomicity(projectRoot, input.boardId, input.taskId, {
+            assessedBy: 'agent',
+            ...(ctx.agentId !== undefined ? { eventContext: { actor: ctx.agentId } } : {}),
+          });
+          if (!result) return fail('Task not found.');
+          const failing = result.assessment.criteria
+            .filter((entry) => entry.score < 1)
+            .map((entry) => entry.reason);
+          const guidance =
+            result.assessment.verdict === 'needs_decomposition'
+              ? ` This task should be split before dispatch — call propose_decomposition with 2+ subtasks (each with one verifiable success criterion). Reasons: ${failing.join(' | ')}`
+              : result.assessment.verdict === 'composite'
+                ? ' Container task: work happens in its children; it is verified via subtask aggregation.'
+                : '';
+          return okTask(
+            result.board,
+            result.task,
+            `Atomicity verdict: ${result.assessment.verdict} (score ${result.assessment.score}).${guidance}`,
+          );
+        }
+        case 'propose_decomposition': {
+          if (!input.boardId || !input.taskId || !input.subtasks?.length) {
+            return fail('propose_decomposition requires boardId, taskId, and subtasks (2+).');
+          }
+          if (input.subtasks.length < 2) {
+            return fail('propose_decomposition requires at least two subtasks.');
+          }
+          const invalid = input.subtasks.find(
+            (subtask) => typeof subtask?.title !== 'string' || !subtask.title.trim(),
+          );
+          if (invalid) return fail('Every proposed subtask needs a non-blank title.');
+          const result = await proposeTaskDecomposition(
+            projectRoot,
+            input.boardId,
+            input.taskId,
+            {
+              subtasks: input.subtasks,
+              ...(input.note !== undefined ? { rationale: input.note } : {}),
+              ...(ctx.agentId !== undefined ? { proposedBy: ctx.agentId } : {}),
+            },
+            ctx.agentId !== undefined ? { actor: ctx.agentId } : {},
+          );
+          if (!result) return fail('Task not found.');
+          const message =
+            result.proposal.status === 'applied'
+              ? `Decomposition applied: ${result.proposal.appliedChildTaskIds?.length ?? 0} child tasks created (parent marked atomic).`
+              : 'Decomposition proposal recorded — awaiting approval (board policy is "propose"). It can be approved from the WebUI or via update_task.';
+          return okTask(result.board, result.task, message);
+        }
         case 'verify_completion': {
           if (!input.boardId || !input.taskId) {
             return fail('verify_completion requires boardId and taskId.');
@@ -1202,6 +1389,7 @@ export const kanbanTool: Tool<KanbanToolInput, KanbanToolOutput> = {
               board: verResult.board,
             };
           }
+          recordKanbanVerificationEvidence(ctx, verResult.report);
           const freshTask = persistedBoard.tasks?.find((t: KanbanTask) => t.id === input.taskId);
           // ok is true whenever the verifier produced a deterministic verdict
           // (passed/failed/needs_human/incomplete). Callers should inspect the
@@ -1232,6 +1420,26 @@ export const kanbanTool: Tool<KanbanToolInput, KanbanToolOutput> = {
     }
   },
 };
+
+/** One-line guidance appended when a freshly created task should be split. */
+function atomicityNudge(task: KanbanTask): string {
+  if (task.atomicityAssessment?.verdict !== 'needs_decomposition') return '';
+  const reasons = task.atomicityAssessment.criteria
+    .filter((entry) => entry.score < 1)
+    .map((entry) => entry.reason)
+    .join(' | ');
+  return ` Atomicity: needs_decomposition (score ${task.atomicityAssessment.score}) — call propose_decomposition with 2+ subtasks before dispatch. Reasons: ${reasons}`;
+}
+
+/**
+ * Host-level completion-gate fallback. The kanban package stays env-free;
+ * only hosting surfaces (tools, webui-server) read WRONGSTACK_KANBAN_GATE,
+ * and only when the board carries no explicit completionGate policy.
+ */
+function readEnvGateEnforcement(): KanbanCompletionGateEnforcement | undefined {
+  const raw = process.env['WRONGSTACK_KANBAN_GATE']?.trim().toLowerCase();
+  return raw === 'strict' || raw === 'soft' || raw === 'off' ? raw : undefined;
+}
 
 function fail(message: string): KanbanToolOutput {
   return { ok: false, message };

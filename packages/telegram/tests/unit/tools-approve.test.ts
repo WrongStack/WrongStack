@@ -38,6 +38,13 @@ function makeTool(bot: TelegramBot, chatId = '999', userIds: string[] = [chatId]
   });
 }
 
+function runApprove(
+  tool: ReturnType<typeof makeTelegramApproveTool>,
+  input: Parameters<(typeof tool)['execute']>[0],
+) {
+  return tool.execute(input, undefined as never, { signal: new AbortController().signal });
+}
+
 describe('telegram_approve tool', () => {
   let _originalFetch: typeof globalThis.fetch;
   let sentBodies: string[];
@@ -66,6 +73,33 @@ describe('telegram_approve tool', () => {
     expect(tool.mutating).toBe(true);
     expect(tool.riskTier).toBe('standard');
     expect(tool.capabilities).toEqual([TELEGRAM_APPROVAL_CAPABILITY]);
+  });
+
+  it('defaults private-chat approval identity to the target when no user resolver exists', async () => {
+    const awaitApproval = vi.fn().mockResolvedValue({
+      approved: false,
+      fromUserId: undefined,
+      fromUser: 'timeout',
+    });
+    const bot = {
+      awaitApproval,
+      sendMessageWithKeyboard: vi.fn().mockResolvedValue({ ok: true, result: { message_id: 7 } }),
+      bindApprovalPrompt: vi.fn().mockReturnValue(true),
+      cancelApproval: vi.fn(),
+    } as never;
+    const tool = makeTelegramApproveTool({
+      bot,
+      getDefaultChatId: () => '999',
+      maxMessageLength: 4000,
+      log,
+    });
+    await expect(runApprove(tool, { prompt: 'Private?' })).resolves.toMatchObject({
+      approved: false,
+      prompt_message_id: 7,
+    });
+    expect(awaitApproval).toHaveBeenCalledWith(
+      expect.objectContaining({ expectedUserIds: ['999'] }),
+    );
   });
 
   it('returns approved=false and fromUser=timeout when no callback arrives', async () => {
@@ -99,6 +133,33 @@ describe('telegram_approve tool', () => {
       'send failed',
     );
     expect(Date.now() - start).toBeLessThan(500);
+    expect((bot as unknown as { callbackWaiters: Map<string, unknown> }).callbackWaiters.size).toBe(
+      0,
+    );
+  });
+
+  it('rejects a prompt response without a message id', async () => {
+    const bot = makeBot();
+    const tool = makeTool(bot);
+    vi.spyOn(bot, 'sendMessageWithKeyboard').mockResolvedValue({
+      ok: true,
+      result: undefined,
+    } as never);
+    await expect(runApprove(tool, { prompt: 'Missing id', timeout_ms: 5_000 })).rejects.toThrow(
+      'did not include a message ID',
+    );
+    expect((bot as unknown as { callbackWaiters: Map<string, unknown> }).callbackWaiters.size).toBe(
+      0,
+    );
+  });
+
+  it('rejects when the approval ends before its prompt can bind', async () => {
+    const bot = makeBot();
+    const tool = makeTool(bot);
+    vi.spyOn(bot, 'bindApprovalPrompt').mockReturnValue(false);
+    await expect(runApprove(tool, { prompt: 'Ended early', timeout_ms: 5_000 })).rejects.toThrow(
+      'ended before its prompt could be bound',
+    );
     expect((bot as unknown as { callbackWaiters: Map<string, unknown> }).callbackWaiters.size).toBe(
       0,
     );

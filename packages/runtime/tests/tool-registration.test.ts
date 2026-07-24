@@ -74,4 +74,36 @@ describe('canonical host tool registration', () => {
     expect(result.memoryBackend).toBe('disabled');
     expect(registry.get('remember')).toBeUndefined();
   });
+
+  it('registers context and SAGE tools while defaulting optional tool lists', () => {
+    const registry = new ToolRegistry();
+    const sagePort = {
+      getCapability: () => ({
+        remember: async () => undefined,
+        forget: async () => 0,
+        search: async () => [],
+        related: async () => [],
+      }),
+    } as never;
+
+    const result = registerCanonicalHostTools({
+      registry,
+      tier: 'minimal',
+      contextTool: coordinationTool,
+      memory: { enabled: true, store: sagePort },
+    });
+
+    expect(result.memoryBackend).toBe('sage');
+    expect(registry.get('coordination-test')).toBe(coordinationTool);
+  });
+
+  it('keeps memory disabled when enabled without a store', () => {
+    const result = registerCanonicalHostTools({
+      registry: new ToolRegistry(),
+      tier: 'minimal',
+      memory: { enabled: true, store: null },
+    });
+
+    expect(result.memoryBackend).toBe('disabled');
+  });
 });

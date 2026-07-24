@@ -473,7 +473,13 @@ export async function main(argv: string[]): Promise<number> {
   // the provider/model changes so the model-runtime middleware can gate
   // reasoning/effort settings on what the model actually accepts.
   let activeReasoningConfig: import('@wrongstack/core/types').ReasoningConfig | undefined;
+  // Suppressed-setting warnings repeat on every request (the resolver runs in
+  // the request pipeline); log each distinct message once per model. The set
+  // resets on model change so a new model's incompatibilities still surface,
+  // and a changed effort value produces a new message text so it re-warns.
+  const warnedRuntimeMessages = new Set<string>();
   const refreshActiveReasoningConfig = async (providerId: string, modelId: string) => {
+    warnedRuntimeMessages.clear();
     try {
       const resolved = await modelsRegistry.getModel(providerId, modelId);
       activeReasoningConfig = resolved?.capabilities.reasoningConfig;
@@ -491,6 +497,8 @@ export async function main(argv: string[]): Promise<number> {
       getReasoningConfig: () => activeReasoningConfig,
       getCapabilities: () => provider.capabilities,
       onWarning: (message) => {
+        if (warnedRuntimeMessages.has(message)) return;
+        warnedRuntimeMessages.add(message);
         logger.warn(`model-runtime: ${message}`);
       },
     },

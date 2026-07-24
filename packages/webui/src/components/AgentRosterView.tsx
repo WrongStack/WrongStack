@@ -42,6 +42,7 @@ import { AgentRuntimePolicyEditor } from '@/components/AgentRuntimePolicyEditor'
 import { sendRosterMessage } from '@/lib/roster-ws';
 import { cn } from '@/lib/utils';
 import { getWSClient } from '@/lib/ws-client';
+import { toast } from '@/components/Toaster';
 import type { SubagentView } from '@/stores';
 import { useChatStore, useFleetStore, useUIStore } from '@/stores';
 
@@ -1073,11 +1074,13 @@ function SelfLearningTab({
         ui.setSidebarOpen(false);
         ui.setCurrentView('chat');
         setTeachFeedback({ ok: true, msg: 'Optimization sent to agent. Check chat for progress.' });
+        toast.info('Optimization sent. Refresh the roster after the agent finishes to see the consolidated result.');
       } catch (err) {
         setTeachFeedback({
           ok: false,
           msg: err instanceof Error ? err.message : 'Optimization failed',
         });
+        toast.error(err instanceof Error ? err.message : 'Optimization failed');
       } finally {
         setOptimizing(false);
       }
@@ -1132,11 +1135,16 @@ function SelfLearningTab({
           ok: true,
           msg: `Bulk optimization sent for ${valid.length} agent${valid.length > 1 ? 's' : ''}. Check chat for progress.`,
         });
+        toast.success(
+          `Bulk optimization sent for ${valid.length} agent${valid.length > 1 ? 's' : ''}.\nRefresh the roster after the agent finishes to see consolidated results.`,
+          6000,
+        );
       } catch (err) {
         setTeachFeedback({
           ok: false,
           msg: err instanceof Error ? err.message : 'Bulk optimization failed',
         });
+        toast.error(err instanceof Error ? err.message : 'Bulk optimization failed');
       } finally {
         setBulkOptimizing(false);
       }

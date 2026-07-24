@@ -68,12 +68,18 @@ interface InterfaceContractGuardConfig {
   enabled: boolean;
   extensions: string[];
   maxFindings: number;
+  /**
+   * Upper bound on files read per scan. Without a cap, a scan of a large
+   * monorepo read every matching file and held them all in memory at once.
+   */
+  maxFiles: number;
 }
 
 const DEFAULTS: InterfaceContractGuardConfig = {
   enabled: false,
   extensions: ['.ts', '.tsx'],
   maxFindings: 50,
+  maxFiles: 2_000,
 };
 
 function readConfig(raw: unknown): InterfaceContractGuardConfig {
@@ -88,6 +94,10 @@ function readConfig(raw: unknown): InterfaceContractGuardConfig {
       typeof r['maxFindings'] === 'number' && r['maxFindings'] >= 1 && r['maxFindings'] <= 500
         ? r['maxFindings']
         : DEFAULTS.maxFindings,
+    maxFiles:
+      typeof r['maxFiles'] === 'number' && r['maxFiles'] >= 1 && r['maxFiles'] <= 50_000
+        ? Math.floor(r['maxFiles'])
+        : DEFAULTS.maxFiles,
   };
 }
 
@@ -118,18 +128,41 @@ const INTERFACE_RE = /(?:export\s+)?interface\s+([A-Za-z_$][A-Za-z0-9_$]*)/g;
 function extractInterfaceNames(content: string): Array<{ name: string; line: number }> {
   const names: Array<{ name: string; line: number }> = [];
   INTERFACE_RE.lastIndex = 0;
+  // Line numbers are derived from a single forward scan. The previous
+  // spelling did `content.slice(0, m.index).split(/\r?\n/).length` per
+  // match, allocating a copy of everything before each hit — quadratic in
+  // file size once a file declares more than a handful of interfaces.
+  let searchedUpTo = 0;
+  let line = 1;
   for (const m of content.matchAll(INTERFACE_RE)) {
-    names.push({ name: m[1]!, line: content.slice(0, m.index).split(/\r?\n/).length });
+    const index = m.index ?? 0;
+    for (let i = searchedUpTo; i < index; i++) {
+      if (content.charCodeAt(i) === 10 /* \n */) line += 1;
+    }
+    searchedUpTo = index;
+    names.push({ name: m[1]!, line });
   }
   return names;
 }
 
-function hasImplementer(name: string, contents: string[]): boolean {
-  const implRe = new RegExp(`(?:implements|satisfies|\\bas)\\s+${name}\\b`, 'g');
-  for (const content of contents) {
-    if (implRe.test(content)) return true;
+/**
+ * Every type name that something in the scanned set implements, satisfies,
+ * or asserts to.
+ *
+ * Built once, in a single pass over the corpus. The previous approach ran
+ * a freshly-compiled regex across every file's full text for *every*
+ * interface name — O(interfaces x files x file size), which on a monorepo
+ * with a few hundred interfaces meant re-reading the entire corpus a few
+ * hundred times. Membership is now an O(1) set lookup.
+ */
+const IMPLEMENTER_RE = /(?:implements|satisfies|\bas)\s+([A-Za-z_$][A-Za-z0-9_$]*)/g;
+
+function collectImplementedNames(content: string, into: Set<string>): void {
+  IMPLEMENTER_RE.lastIndex = 0;
+  for (const m of content.matchAll(IMPLEMENTER_RE)) {
+    const name = m[1];
+    if (name) into.add(name);
   }
-  return false;
 }
 
 async function scanPath(
@@ -138,38 +171,50 @@ async function scanPath(
 ): Promise<{
   findings: InterfaceContractFinding[];
   scannedFiles: number;
+  /** True when `maxFiles` cut the corpus short — the scan is partial. */
+  truncated: boolean;
 }> {
   const root = process.cwd();
   const resolved = isAbsolute(rawPath) ? resolve(rawPath) : resolve(root, rawPath);
   const exts = normalizeExtensions(cfg.extensions);
-  const files = await collectSourceFilesAsync(resolved, { extensions: exts });
-  const contents: { path: string; content: string }[] = [];
+  const allFiles = await collectSourceFilesAsync(resolved, { extensions: exts });
+  // Cap the corpus. Without one, a scan of a large monorepo held every
+  // matching file's full text in memory simultaneously.
+  const files = allFiles.slice(0, cfg.maxFiles);
+
+  // Two passes, each streaming: the first records what is implemented, the
+  // second records where interfaces are declared. Only the (small) name
+  // sets are retained between them, not the file contents.
+  const implemented = new Set<string>();
+  const declarations: Array<{ name: string; line: number; file: string }> = [];
+  let scannedFiles = 0;
   for (const p of files) {
+    let content: string;
     try {
-      contents.push({ path: p, content: await readFile(p, 'utf-8') });
+      content = await readFile(p, 'utf-8');
     } catch {
-      // skip unreadable
+      continue; // skip unreadable
+    }
+    scannedFiles += 1;
+    collectImplementedNames(content, implemented);
+    for (const { name, line } of extractInterfaceNames(content)) {
+      declarations.push({ name, line, file: p });
     }
   }
 
-  const allContentStrings = contents.map((c) => c.content);
   const findings: InterfaceContractFinding[] = [];
-  for (const { path, content } of contents) {
-    for (const { name, line } of extractInterfaceNames(content)) {
-      if (!hasImplementer(name, allContentStrings)) {
-        findings.push({
-          interfaceName: name,
-          file: relativePath(path),
-          line,
-          message: `interface "${name}" is declared but has no visible implementer`,
-        });
-        if (findings.length >= cfg.maxFindings) break;
-      }
-    }
+  for (const { name, line, file } of declarations) {
+    if (implemented.has(name)) continue;
+    findings.push({
+      interfaceName: name,
+      file: relativePath(file),
+      line,
+      message: `interface "${name}" is declared but has no visible implementer`,
+    });
     if (findings.length >= cfg.maxFindings) break;
   }
 
-  return { findings, scannedFiles: contents.length };
+  return { findings, scannedFiles, truncated: allFiles.length > files.length };
 }
 
 // ---------------------------------------------------------------------------
@@ -192,6 +237,13 @@ const plugin: Plugin = {
         items: { type: 'string' },
         default: ['.ts', '.tsx'],
         description: 'File extensions to scan.',
+      },
+      maxFiles: {
+        type: 'number',
+        minimum: 1,
+        maximum: 50000,
+        default: 2000,
+        description: 'Upper bound on files read per scan.',
       },
       maxFindings: {
         type: 'number',
@@ -287,7 +339,7 @@ const plugin: Plugin = {
         }
 
         state.scanCount += 1;
-        let result: { findings: InterfaceContractFinding[]; scannedFiles: number };
+        let result: Awaited<ReturnType<typeof scanPath>>;
         try {
           result = await scanPath(rawPath, cfg);
         } catch (err) {
@@ -301,6 +353,17 @@ const plugin: Plugin = {
           path: relativePath(resolve(process.cwd(), rawPath)),
           scannedFiles: result.scannedFiles,
           findings: result.findings,
+          // Say so when the corpus was cut short. A partial scan that
+          // reports "no findings" is not the same as a clean result, and
+          // the caller has no other way to tell the difference.
+          truncated: result.truncated,
+          ...(result.truncated
+            ? {
+                note:
+                  `Scan stopped at the maxFiles limit (${cfg.maxFiles}); results are partial. ` +
+                  'Raise `maxFiles` or scan a narrower path for full coverage.',
+              }
+            : {}),
         };
       },
     });

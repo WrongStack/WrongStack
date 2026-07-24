@@ -53,7 +53,7 @@ export function redactSecrets(text: string): string {
         delim = '=';
         delimIdx = eq;
       } else if (sp !== -1) {
-        delim = match[sp] ?? null;
+        delim = match[sp]!;
         delimIdx = sp;
       }
       if (delim !== null && delimIdx >= 0) {

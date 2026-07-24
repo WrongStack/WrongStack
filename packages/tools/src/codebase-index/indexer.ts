@@ -15,7 +15,7 @@ import * as path from 'node:path';
 import { availableParallelism } from 'node:os';
 import type { Dirent, Stats } from 'node:fs';
 import type { Context } from '@wrongstack/core/agent';
-import { indexParallelBatchSize, isFrugalPerf } from '@wrongstack/core/utils';
+import { DEFAULT_WALK_IGNORE_DIRS, indexParallelBatchSize, isFrugalPerf } from '@wrongstack/core/utils';
 import type { FileMeta, IndexResult, Ref, Symbol as IndexSymbol, SymbolLang } from './schema.js';
 import { IndexStore } from './writer.js';
 import { parseSymbols as parseTs } from './ts-parser.js';
@@ -63,17 +63,7 @@ function isAbortError(err: unknown): boolean {
   return err instanceof DOMException && err.name === 'AbortError';
 }
 
-const DEFAULT_IGNORE = [
-  'node_modules',
-  '.git',
-  'dist',
-  'build',
-  '.next',
-  'coverage',
-  '.turbo',
-  '__snapshots__',
-  '.nyc_output',
-];
+const DEFAULT_IGNORE = DEFAULT_WALK_IGNORE_DIRS;
 const DEFAULT_IGNORE_FILES = new Set(['package-lock.json', 'pnpm-lock.yaml', 'pnpm-lock.yml']);
 const MAX_INDEX_FILE_BYTES = 5 * 1024 * 1024;
 

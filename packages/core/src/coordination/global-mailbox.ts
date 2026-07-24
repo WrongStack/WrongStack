@@ -22,7 +22,7 @@ import * as fsp from 'node:fs/promises';
 import * as path from 'node:path';
 import type { HqPublisher } from '../hq/publisher.js';
 import type { EventBus } from '../kernel/events.js';
-import { withFileLock } from '../utils/atomic-write.js';
+import { atomicWrite, withFileLock } from '../utils/atomic-write.js';
 import { projectSlug } from '../utils/wstack-paths.js';
 import {
   AGENT_STALE_MS,
@@ -1098,7 +1098,7 @@ export class GlobalMailbox implements Mailbox {
     // concurrent reader doesn't misclassify the shrink as a "file only
     // grew" append.
     await withFileLock(this.messagePath, async () => {
-      await fsp.writeFile(this.messagePath, '', 'utf8');
+      await atomicWrite(this.messagePath, '');
       const { mtimeMs, size } = await this._statMessageFile();
       this._setMessageCache([], mtimeMs, size);
     });
@@ -1141,7 +1141,8 @@ export class GlobalMailbox implements Mailbox {
       // Rewrite only if something changed
       if (kept.length < all.length) {
         const content = kept.map((m) => JSON.stringify(m)).join(LINE_SEPARATOR) + LINE_SEPARATOR;
-        await fsp.writeFile(this.messagePath, content, 'utf8');
+        // Atomic temp+rename — a torn compact would silently drop messages.
+        await atomicWrite(this.messagePath, content);
       }
       // Capture the post-write (or post-read when nothing purged) stat
       // inside the lock so the cache trackers match the on-disk state.
@@ -1249,7 +1250,8 @@ export class GlobalMailbox implements Mailbox {
 
       if (kept.length < all.length) {
         const content = kept.map((m) => JSON.stringify(m)).join(LINE_SEPARATOR) + LINE_SEPARATOR;
-        await fsp.writeFile(this.messagePath, content, 'utf8');
+        // Atomic temp+rename — a torn compact would silently drop messages.
+        await atomicWrite(this.messagePath, content);
       }
       const { mtimeMs, size } = await this._statMessageFile();
       this._setMessageCache(kept, mtimeMs, size);

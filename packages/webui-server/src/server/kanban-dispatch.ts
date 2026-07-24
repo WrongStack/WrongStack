@@ -3,6 +3,7 @@ import type { Context } from '@wrongstack/core/agent';
 import {
   areDependenciesMet,
   assignTask,
+  finalizeTaskCompletion,
   getBoard,
   type KanbanBoard,
   type KanbanEventContext,
@@ -11,6 +12,7 @@ import {
   reconcileKanbanBoard,
   updateTaskAssignment,
 } from '@wrongstack/kanban';
+import { recordKanbanVerificationEvidence } from '@wrongstack/tools';
 import type { WebSocket } from 'ws';
 import type { WSServerMessage } from './types.js';
 import { send } from './ws-utils.js';
@@ -123,6 +125,23 @@ export async function handleKanbanTaskDispatch(
     return;
   }
 
+  // Enforced atomicity: a childless leaf judged too large must be decomposed
+  // before dispatch. Distinct error text so the WebUI can render a
+  // "decompose" call-to-action instead of a generic failure.
+  if (
+    board.atomicity?.mode === 'enforce' &&
+    !task.childTaskIds?.length &&
+    task.atomicityAssessment?.verdict === 'needs_decomposition'
+  ) {
+    reply(
+      ws,
+      'kanban.task.dispatch',
+      false,
+      `Task "${task.title}" needs decomposition before dispatch (board enforces atomicity). Split it into smaller subtasks first.`,
+    );
+    return;
+  }
+
   const modelRouting =
     (payload?.modelRouting as 'session' | 'fixed' | 'fallback_profile' | undefined) ??
     task.assignment?.modelRouting ??
@@ -210,7 +229,7 @@ export async function handleKanbanTaskDispatch(
         : {}),
       context: { kanban: { boardId, taskId: task.id, projectRoot: ctx.projectRoot, leaseId } },
       onDone: async (result) => {
-        await updateTaskAssignment(
+        const terminalWrite = await updateTaskAssignment(
           ctx.projectRoot,
           boardId,
           task.id,
@@ -222,6 +241,25 @@ export async function handleKanbanTaskDispatch(
           },
           activityContext(ctx, undefined, leaseId),
         );
+        // Universal completion gate: updateTaskAssignment parks a completed
+        // worker in review on gated boards; finalize verifies and applies the
+        // final status before the board is reconciled + broadcast.
+        if (result.status === 'completed' && terminalWrite) {
+          try {
+            const finalized = await finalizeTaskCompletion(ctx.projectRoot, boardId, task.id, {
+              eventContext: activityContext(ctx, undefined, leaseId),
+            });
+            // Evidence bridge: link the verification report into the session's
+            // completed-work ledger when this server runs inside a session.
+            if (finalized?.gate.report && ctx.context) {
+              recordKanbanVerificationEvidence(ctx.context, finalized.gate.report);
+            }
+          } catch (error) {
+            console.warn(
+              `[kanban-dispatch] completion gate failed for task ${task.id}: ${error instanceof Error ? error.message : String(error)}`,
+            );
+          }
+        }
         const reconciled = await reconcileKanbanBoard(ctx.projectRoot, boardId);
         const completed = reconciled?.board ?? (await getBoard(ctx.projectRoot, boardId));
         const completedTask =

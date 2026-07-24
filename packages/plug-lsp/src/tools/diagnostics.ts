@@ -1,9 +1,9 @@
-import { LSP_CONSTANTS } from '../constants.js';
 import type { Tool } from '@wrongstack/core/types';
+import { LSP_CONSTANTS } from '../constants.js';
 import { formatDiagnostics } from '../formatters/diagnostics.js';
 import { supportsPullDiagnostics } from '../server/capabilities.js';
 import { pathToUri, uriToPath } from '../utils/uri.js';
-import { type ToolDeps, requireServer, resolveInputPath, stringifyToolError } from './shared.js';
+import { requireServer, resolveInputPath, stringifyToolError, type ToolDeps } from './shared.js';
 
 interface DiagnosticsInput {
   path?: string | undefined;

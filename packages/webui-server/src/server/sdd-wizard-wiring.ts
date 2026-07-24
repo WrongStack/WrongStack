@@ -14,8 +14,12 @@ import { ToolValidationError } from '@wrongstack/core/types';
 import { WorktreeManager } from '@wrongstack/core/worktree';
 import {
   cleanupStaleSddWorktrees,
+  decomposeNonAtomicTasks,
+  makeAcceptanceCriteriaVerifier,
   makeCommandVerifier,
+  makeCompositeVerifier,
   makeLlmSubtaskGenerator,
+  makePlanningDecomposer,
   SddBoardStore,
   type SddRunHandle,
   SddInterviewDriver,
@@ -36,6 +40,12 @@ export interface StartSddRunFromGraphConfig {
   fallbackModels?: string[] | undefined;
   /** Per-run git-worktree isolation. Omit → env default (WRONGSTACK_SDD_WORKTREES). */
   worktrees?: boolean | undefined;
+  /**
+   * Planning-time proactive decomposition of `needs_decomposition` leaves
+   * before the run starts. Omit → env default (WRONGSTACK_SDD_PLAN_DECOMPOSE,
+   * off unless set to '1'). Requires deps.runIsolatedTurn.
+   */
+  planDecompose?: boolean | undefined;
 }
 
 export interface StartSddRunFromGraphDeps {
@@ -88,6 +98,36 @@ export async function startSddRunFromGraph(
     });
   }
 
+  // Proactive planning-time decomposition: split leaves the atomicity engine
+  // judged too large BEFORE dispatch, using the same graph surgery as run-time
+  // splits. Auto mode — the wizard plan was already human-approved. Guarded by
+  // config/env and bounded inside decomposeNonAtomicTasks (max 10 per graph).
+  const planDecomposeEnabled =
+    config.planDecompose ?? process.env['WRONGSTACK_SDD_PLAN_DECOMPOSE'] === '1';
+  if (planDecomposeEnabled && deps.runIsolatedTurn) {
+    try {
+      const decomposition = await decomposeNonAtomicTasks({
+        tracker: runTracker,
+        decompose: makePlanningDecomposer({
+          run: (prompt) => deps.runIsolatedTurn!(prompt, 'Task Splitter'),
+        }),
+        mode: 'auto',
+      });
+      for (const applied of decomposition.applied) {
+        deps.events.emit('sdd.task.decomposed', {
+          graphId: graph.id,
+          taskId: applied.nodeId,
+          subtaskIds: applied.subtaskIds,
+          mode: 'auto',
+          phase: 'planning',
+        });
+      }
+    } catch {
+      // Planning decomposition is best-effort — a failed splitter turn must
+      // never block starting the run.
+    }
+  }
+
   const superviseFailure =
     deps.brain && deps.runIsolatedTurn
       ? new SddSupervisor({
@@ -116,7 +156,17 @@ export async function startSddRunFromGraph(
     subagentFactory: deps.subagentFactory,
     boardStore: new SddBoardStore({ baseDir: deps.projectSddBoards }),
     registry: deps.registry ?? new SddRunRegistry(),
-    verifyTask: makeCommandVerifier(),
+    // Composite completion gate: the deterministic command check always runs;
+    // the LLM acceptance-criteria judge is added only when an isolated-turn
+    // runner exists (it degrades open on judge errors, so it can't wedge runs).
+    verifyTask: deps.runIsolatedTurn
+      ? makeCompositeVerifier([
+          makeCommandVerifier(),
+          makeAcceptanceCriteriaVerifier({
+            run: (prompt) => deps.runIsolatedTurn!(prompt, 'Acceptance Reviewer'),
+          }),
+        ])
+      : makeCommandVerifier(),
     ...(superviseFailure ? { superviseFailure } : {}),
     ...(config.parallelSlots !== undefined ? { parallelSlots: config.parallelSlots } : {}),
     ...(config.defaultModel !== undefined ? { defaultModel: config.defaultModel } : {}),

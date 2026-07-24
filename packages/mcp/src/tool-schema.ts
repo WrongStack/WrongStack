@@ -5,7 +5,11 @@ export function normalizeMCPTools(value: unknown): MCPTool[] {
   const tools: MCPTool[] = [];
   for (const raw of value) {
     if (!raw || typeof raw !== 'object') continue;
-    const t = raw as { name?: unknown | undefined; description?: unknown | undefined; inputSchema?: unknown | undefined };
+    const t = raw as {
+      name?: unknown | undefined;
+      description?: unknown | undefined;
+      inputSchema?: unknown | undefined;
+    };
     if (typeof t.name !== 'string' || t.name.trim().length === 0) continue;
     const inputSchema =
       t.inputSchema && typeof t.inputSchema === 'object' && !Array.isArray(t.inputSchema)
@@ -15,13 +19,15 @@ export function normalizeMCPTools(value: unknown): MCPTool[] {
     // broken, misbehaving, or (if the server is untrusted) adversarial MCP
     // server trying to confuse the LLM with misleading type info.
     if (!t.inputSchema || typeof t.inputSchema !== 'object' || Array.isArray(t.inputSchema)) {
-      console.warn(JSON.stringify({
-        level: 'warn',
-        event: 'mcp.tool_schema_invalid',
-        tool: t.name,
-        message: 'no/invalid inputSchema — defaulting to empty object',
-        timestamp: new Date().toISOString(),
-      }));
+      console.warn(
+        JSON.stringify({
+          level: 'warn',
+          event: 'mcp.tool_schema_invalid',
+          tool: t.name,
+          message: 'no/invalid inputSchema — defaulting to empty object',
+          timestamp: new Date().toISOString(),
+        }),
+      );
     }
     tools.push({
       name: t.name,

@@ -15,6 +15,7 @@ import {
   parseProtectedResourceMetadata,
   protectedResourceMetadataUrls,
   refreshMcpAccessToken,
+  validateMcpAuthorizationServerMetadata,
 } from '../src/authorization.js';
 import { StreamableHTTPTransport } from '../src/transport.js';
 
@@ -25,6 +26,17 @@ const INIT_RESULT = {
 };
 
 describe('MCP authorization primitives', () => {
+  it('rejects invalid authorization resource URLs', () => {
+    expect(() => canonicalMcpResource('not a url')).toThrow(/absolute URL/);
+    expect(() => canonicalMcpResource('http://example.com/mcp')).toThrow(/must use HTTPS/);
+    expect(() => canonicalMcpResource('https://user@example.com/mcp')).toThrow(
+      /must not contain credentials/,
+    );
+    expect(() => canonicalMcpResource('https://example.com/mcp#fragment')).toThrow(
+      /must not contain credentials/,
+    );
+  });
+
   it('builds a canonical resource and enforces token audience binding', () => {
     expect(canonicalMcpResource('https://MCP.Example.com/')).toBe('https://mcp.example.com');
     expect(canonicalMcpResource('https://mcp.example.com/team/mcp')).toBe(
@@ -85,6 +97,22 @@ describe('MCP authorization primitives', () => {
         'https://mcp.example.com/mcp',
       ).resourceMetadataUrl,
     ).toBeUndefined();
+    const basicChallenge = parseMcpBearerChallenge(
+      'Basic realm="example"',
+      'https://mcp.example.com/mcp',
+    );
+    expect(basicChallenge.scopes).toEqual([]);
+    expect(basicChallenge).not.toHaveProperty('resourceMetadataUrl');
+    expect(
+      parseMcpBearerChallenge('Bearer resource_metadata="not a url"', 'https://mcp.example.com/mcp')
+        .resourceMetadataUrl,
+    ).toBeUndefined();
+    expect(
+      parseMcpBearerChallenge(
+        'Bearer resource_metadata="https://user@example.com/meta"',
+        'https://mcp.example.com/mcp',
+      ).resourceMetadataUrl,
+    ).toBeUndefined();
   });
 
   it('constructs protected-resource and authorization-server discovery order', () => {
@@ -96,6 +124,13 @@ describe('MCP authorization primitives', () => {
       'https://auth.example.com/.well-known/oauth-authorization-server/tenant1',
       'https://auth.example.com/.well-known/openid-configuration/tenant1',
       'https://auth.example.com/tenant1/.well-known/openid-configuration',
+    ]);
+    expect(protectedResourceMetadataUrls('https://mcp.example.com')).toEqual([
+      'https://mcp.example.com/.well-known/oauth-protected-resource',
+    ]);
+    expect(authorizationServerMetadataUrls('https://auth.example.com')).toEqual([
+      'https://auth.example.com/.well-known/oauth-authorization-server',
+      'https://auth.example.com/.well-known/openid-configuration',
     ]);
   });
 
@@ -150,6 +185,111 @@ describe('MCP authorization primitives', () => {
         'https://auth.example.com',
       ),
     ).toThrow(/PKCE S256/);
+
+    expect(() =>
+      parseProtectedResourceMetadata(
+        {
+          resource: 'https://mcp.example.com',
+          authorization_servers: [],
+        },
+        'https://mcp.example.com',
+      ),
+    ).toThrow(/must declare an authorization server/);
+    expect(() =>
+      parseAuthorizationServerMetadata(
+        {
+          issuer: 'https://other.example.com',
+          authorization_endpoint: 'https://auth.example.com/authorize',
+          token_endpoint: 'https://auth.example.com/token',
+          code_challenge_methods_supported: ['S256'],
+        },
+        'https://auth.example.com',
+      ),
+    ).toThrow(/issuer mismatch/);
+  });
+
+  it('rejects malformed authorization metadata fields and URLs', () => {
+    expect(() => parseProtectedResourceMetadata(null, 'https://mcp.example.com')).toThrow(
+      /must be an object/,
+    );
+    expect(() =>
+      parseProtectedResourceMetadata(
+        { resource: '', authorization_servers: [] },
+        'https://mcp.example.com',
+      ),
+    ).toThrow(/bounded non-empty string/);
+    expect(() =>
+      parseProtectedResourceMetadata(
+        {
+          resource: 'https://mcp.example.com',
+          authorization_servers: {},
+        },
+        'https://mcp.example.com',
+      ),
+    ).toThrow(/must be an array/);
+    expect(() =>
+      parseProtectedResourceMetadata(
+        {
+          resource: 'https://mcp.example.com',
+          authorization_servers: Array.from({ length: 9 }, () => 'https://auth.example.com'),
+        },
+        'https://mcp.example.com',
+      ),
+    ).toThrow(/at most 8/);
+    expect(() =>
+      parseAuthorizationServerMetadata(
+        {
+          issuer: 'not a url',
+          authorization_endpoint: 'https://auth.example.com/authorize',
+          token_endpoint: 'https://auth.example.com/token',
+          code_challenge_methods_supported: ['S256'],
+        },
+        'https://auth.example.com',
+      ),
+    ).toThrow(/absolute URL/);
+    expect(() =>
+      parseAuthorizationServerMetadata(
+        {
+          issuer: 'http://auth.example.com',
+          authorization_endpoint: 'https://auth.example.com/authorize',
+          token_endpoint: 'https://auth.example.com/token',
+          code_challenge_methods_supported: ['S256'],
+        },
+        'http://auth.example.com',
+      ),
+    ).toThrow(/must use HTTPS/);
+    expect(() =>
+      parseAuthorizationServerMetadata(
+        {
+          issuer: 'https://auth.example.com?query=yes',
+          authorization_endpoint: 'https://auth.example.com/authorize',
+          token_endpoint: 'https://auth.example.com/token',
+          code_challenge_methods_supported: ['S256'],
+        },
+        'https://auth.example.com?query=yes',
+      ),
+    ).toThrow(/must not contain credentials/);
+
+    expect(
+      parseAuthorizationServerMetadata(
+        {
+          issuer: 'https://auth.example.com',
+          authorization_endpoint: 'https://auth.example.com/authorize',
+          token_endpoint: 'https://auth.example.com/token',
+          registration_endpoint: 'https://auth.example.com/register',
+          code_challenge_methods_supported: ['S256'],
+        },
+        'https://auth.example.com',
+      ).registrationEndpoint,
+    ).toBe('https://auth.example.com/register');
+    expect(
+      validateMcpAuthorizationServerMetadata({
+        issuer: 'https://auth.example.com',
+        authorizationEndpoint: 'https://auth.example.com/authorize',
+        tokenEndpoint: 'https://auth.example.com/token',
+        registrationEndpoint: 'https://auth.example.com/register',
+      }).registrationEndpoint,
+    ).toBe('https://auth.example.com/register');
   });
 
   it('orchestrates RFC 9728 then RFC 8414/OIDC fallback order', async () => {
@@ -205,6 +345,14 @@ describe('MCP authorization primitives', () => {
       }),
     ).rejects.toThrow(/protected resource metadata discovery failed/);
     expect(requested).toEqual(['https://mcp.example.com/custom-metadata']);
+  });
+
+  it('records non-Error discovery failures', async () => {
+    await expect(
+      discoverMcpAuthorization('https://mcp.example.com/mcp', {
+        fetchJson: async () => Promise.reject('plain failure'),
+      }),
+    ).rejects.toThrow(/plain failure/);
   });
 
   it('performs pinned loopback discovery for local development', async () => {
@@ -314,6 +462,78 @@ describe('MCP authorization primitives', () => {
         session,
       ),
     ).toThrow(/state mismatch/);
+
+    expect(() => parseMcpAuthorizationCallback('not a url', session)).toThrow(/absolute URL/);
+    expect(() =>
+      parseMcpAuthorizationCallback(
+        `http://127.0.0.1:43124/callback?code=auth-code&state=${session.state}`,
+        session,
+      ),
+    ).toThrow(/redirect URI does not match/);
+    expect(() =>
+      parseMcpAuthorizationCallback(
+        `http://127.0.0.1:43123/callback?error=access_denied&state=${session.state}`,
+        session,
+      ),
+    ).toThrow(/access_denied/);
+    expect(() =>
+      parseMcpAuthorizationCallback(
+        `http://127.0.0.1:43123/callback?error=${encodeURIComponent('bad error!')}&state=${session.state}`,
+        session,
+      ),
+    ).toThrow(/invalid_error/);
+    expect(() =>
+      parseMcpAuthorizationCallback(
+        `http://127.0.0.1:43123/callback?state=${session.state}`,
+        session,
+      ),
+    ).toThrow(/authorization code is empty/);
+    expect(() =>
+      parseMcpAuthorizationCallback('http://127.0.0.1:43123/callback?code=auth-code', session),
+    ).toThrow(/state mismatch/);
+  });
+
+  it('validates redirect URIs, scopes, and PKCE inputs', () => {
+    const authorizationServer = {
+      issuer: 'https://auth.example.com',
+      authorizationEndpoint: 'https://auth.example.com/authorize',
+      tokenEndpoint: 'https://auth.example.com/token',
+      scopesSupported: ['tools:read'],
+    };
+    const create = (redirectUri: string, scopes: string[] = []) =>
+      createMcpAuthorizationRequest({
+        authorizationServer,
+        clientId: 'client',
+        redirectUri,
+        resource: 'https://mcp.example.com/mcp',
+        scopes,
+      });
+
+    expect(() => create('not a url')).toThrow(/redirect URI must be an absolute/);
+    expect(() => create('http://example.com/callback')).toThrow(/must use HTTPS/);
+    expect(() => create('https://user@example.com/callback')).toThrow(
+      /must not contain credentials/,
+    );
+    expect(() => create('https://example.com/callback?query=yes')).toThrow(
+      /must not contain credentials/,
+    );
+    expect(() =>
+      create(
+        'https://example.com/callback',
+        Array.from({ length: 129 }, () => 'scope'),
+      ),
+    ).toThrow(/exceeds 128/);
+    expect(() => create('https://example.com/callback', ['bad scope'])).toThrow(
+      /bounded non-empty tokens/,
+    );
+    expect(() =>
+      createMcpAuthorizationRequest({
+        authorizationServer,
+        clientId: 'client',
+        redirectUri: 'https://example.com/callback',
+        resource: 'https://mcp.example.com/mcp',
+      }),
+    ).not.toThrow();
   });
 
   it('exchanges and rotates tokens with mandatory resource indicators', async () => {
@@ -404,6 +624,342 @@ describe('MCP authorization primitives', () => {
     } finally {
       await new Promise<void>((resolve) => server.close(() => resolve()));
     }
+  });
+
+  it('validates token endpoint responses and missing discovery responses', async () => {
+    let origin = '';
+    const server = http.createServer((request, response) => {
+      response.setHeader('content-type', 'application/json');
+      if (request.url === '/missing') {
+        response.statusCode = 404;
+        response.end('{}');
+        return;
+      }
+      if (request.url === '/gone') {
+        response.statusCode = 410;
+        response.end('{}');
+        return;
+      }
+      if (request.url === '/bad-type') {
+        response.end(JSON.stringify({ access_token: 'token', token_type: 'MAC' }));
+        return;
+      }
+      if (request.url === '/minimal') {
+        response.end(JSON.stringify({ access_token: 'token' }));
+        return;
+      }
+      response.end(
+        JSON.stringify({
+          access_token: 'token',
+          token_type: 'Bearer',
+          expires_in: 0,
+        }),
+      );
+    });
+    await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
+    const address = server.address();
+    if (!address || typeof address === 'string') throw new Error('fixture did not bind');
+    origin = `http://127.0.0.1:${address.port}`;
+    const metadata = (path: string) => ({
+      issuer: `${origin}/auth`,
+      authorizationEndpoint: `${origin}/authorize`,
+      tokenEndpoint: `${origin}${path}`,
+      scopesSupported: [],
+    });
+    const exchange = (path: string) =>
+      exchangeMcpAuthorizationCode({
+        authorizationServer: metadata(path),
+        clientId: 'client',
+        redirectUri: `${origin}/callback`,
+        resource: `${origin}/mcp`,
+        code: 'code',
+        codeVerifier: 'a'.repeat(43),
+      });
+
+    try {
+      await expect(exchange('/missing')).rejects.toThrow(/returned no response/);
+      await expect(
+        refreshMcpAccessToken({
+          authorizationServer: metadata('/gone'),
+          clientId: 'client',
+          resource: `${origin}/mcp`,
+          refreshToken: 'refresh',
+        }),
+      ).rejects.toThrow(/returned no response/);
+      await expect(exchange('/bad-type')).rejects.toThrow(/token type/);
+      await expect(exchange('/bad-expiry')).rejects.toThrow(/expires_in/);
+      await expect(exchange('/minimal')).resolves.toMatchObject({
+        tokenType: 'Bearer',
+        scopes: [],
+      });
+      await expect(
+        refreshMcpAccessToken({
+          authorizationServer: metadata('/minimal'),
+          clientId: 'client',
+          resource: `${origin}/mcp`,
+          refreshToken: 'previous-refresh',
+        }),
+      ).resolves.toMatchObject({ refreshToken: 'previous-refresh' });
+      await expect(
+        exchangeMcpAuthorizationCode({
+          authorizationServer: metadata('/missing'),
+          clientId: 'client',
+          redirectUri: `${origin}/callback`,
+          resource: `${origin}/mcp`,
+          code: 'code',
+          codeVerifier: 'short',
+        }),
+      ).rejects.toThrow(/code verifier/);
+      await expect(
+        refreshMcpAccessToken({
+          authorizationServer: metadata('/missing'),
+          clientId: 'client',
+          resource: `${origin}/mcp`,
+          refreshToken: 'bad\nrefresh',
+        }),
+      ).rejects.toThrow(/refresh token/);
+    } finally {
+      await new Promise<void>((resolve) => server.close(() => resolve()));
+    }
+  });
+
+  it('rejects bounded discovery HTTP failure modes', async () => {
+    let mode:
+      | 'status'
+      | 'content-type'
+      | 'missing-content-type'
+      | 'declared-large'
+      | 'chunk-large'
+      | 'invalid'
+      | 'response-error'
+      | 'timeout' = 'status';
+    const server = http.createServer((_request, response) => {
+      if (mode === 'status') {
+        response.statusCode = 500;
+        response.end('{}');
+        return;
+      }
+      if (mode === 'content-type') {
+        response.setHeader('content-type', 'text/plain');
+        response.end('{}');
+        return;
+      }
+      if (mode === 'missing-content-type') {
+        response.end('{}');
+        return;
+      }
+      if (mode === 'declared-large') {
+        response.setHeader('content-type', 'application/json');
+        response.setHeader('content-length', '100');
+        response.end('x'.repeat(100));
+        return;
+      }
+      if (mode === 'chunk-large') {
+        response.setHeader('content-type', 'application/json');
+        response.write('x'.repeat(40));
+        response.end('x'.repeat(40));
+        return;
+      }
+      if (mode === 'invalid') {
+        response.setHeader('content-type', 'application/json');
+        response.end('{invalid');
+        return;
+      }
+      if (mode === 'response-error') {
+        response.writeHead(200, {
+          'content-type': 'application/json',
+          'content-length': '10',
+        });
+        response.flushHeaders();
+        response.write('{}');
+        setImmediate(() => response.destroy(new Error('response failed')));
+        return;
+      }
+      // Leave the request pending so the client timeout path owns teardown.
+    });
+    await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
+    const address = server.address();
+    if (!address || typeof address === 'string') throw new Error('fixture did not bind');
+    const resource = `http://127.0.0.1:${address.port}/mcp`;
+    const discover = () =>
+      discoverMcpAuthorization(resource, {
+        timeoutMs: 25,
+        maxResponseBytes: 32,
+      });
+
+    try {
+      await expect(discover()).rejects.toThrow(/HTTP 500/);
+      mode = 'content-type';
+      await expect(discover()).rejects.toThrow(/must be JSON/);
+      mode = 'missing-content-type';
+      await expect(discover()).rejects.toThrow(/must be JSON/);
+      mode = 'declared-large';
+      await expect(discover()).rejects.toThrow(/exceeds 32 bytes/);
+      mode = 'chunk-large';
+      await expect(discover()).rejects.toThrow(/exceeds 32 bytes/);
+      mode = 'invalid';
+      await expect(discover()).rejects.toThrow(/not valid JSON/);
+      mode = 'response-error';
+      await expect(discover()).rejects.toThrow();
+      mode = 'timeout';
+      await expect(discover()).rejects.toThrow(/timed out/);
+    } finally {
+      await new Promise<void>((resolve) => server.close(() => resolve()));
+    }
+  });
+
+  it('handles discovery cancellation and connection errors', async () => {
+    const server = http.createServer(() => {
+      // Keep the request open until the caller aborts.
+    });
+    await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
+    const address = server.address();
+    if (!address || typeof address === 'string') throw new Error('fixture did not bind');
+    const port = address.port;
+    const controller = new AbortController();
+    const pending = discoverMcpAuthorization(`http://127.0.0.1:${port}/mcp`, {
+      signal: controller.signal,
+      timeoutMs: 1_000,
+    });
+    setTimeout(() => controller.abort('cancelled'), 0);
+    await expect(pending).rejects.toThrow();
+
+    const errorController = new AbortController();
+    const secondPending = discoverMcpAuthorization(`http://127.0.0.1:${port}/mcp`, {
+      signal: errorController.signal,
+      timeoutMs: 1_000,
+    });
+    setTimeout(() => errorController.abort(new Error('cancelled with error')), 0);
+    await expect(secondPending).rejects.toThrow(/cancelled with error/);
+    await new Promise<void>((resolve) => server.close(() => resolve()));
+
+    await expect(
+      discoverMcpAuthorization(`http://127.0.0.1:${port}/mcp`, { timeoutMs: 50 }),
+    ).rejects.toThrow(/discovery failed/);
+  });
+
+  it('validates DNS discovery results and selects an allowed loopback address', async () => {
+    await expect(
+      discoverMcpAuthorization('https://mcp.example.com/mcp', {
+        lookup: async () => [],
+      }),
+    ).rejects.toThrow(/DNS returned no addresses/);
+    await expect(
+      discoverMcpAuthorization('https://mcp.example.com/mcp', {
+        lookup: async () => [{ address: 'example', family: 0 }],
+      }),
+    ).rejects.toThrow(/unsupported address family/);
+    await expect(
+      discoverMcpAuthorization('https://mcp.example.com/mcp', {
+        lookup: async () => [
+          { address: '8.8.8.8', family: 4 },
+          { address: '127.0.0.1', family: 4 },
+        ],
+      }),
+    ).rejects.toThrow(/blocked private address/);
+
+    let origin = '';
+    const server = http.createServer((request, response) => {
+      response.setHeader('content-type', 'application/json');
+      if (request.url === '/.well-known/oauth-protected-resource/mcp') {
+        response.end(
+          JSON.stringify({
+            resource: `${origin}/mcp`,
+            authorization_servers: [`${origin}/auth`],
+          }),
+        );
+        return;
+      }
+      response.end(
+        JSON.stringify({
+          issuer: `${origin}/auth`,
+          authorization_endpoint: `${origin}/authorize`,
+          token_endpoint: `${origin}/token`,
+          code_challenge_methods_supported: ['S256'],
+        }),
+      );
+    });
+    await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
+    const address = server.address();
+    if (!address || typeof address === 'string') throw new Error('fixture did not bind');
+    origin = `http://localhost:${address.port}`;
+    try {
+      await expect(
+        discoverMcpAuthorization(`${origin}/mcp`, {
+          lookup: async () => [{ address: '127.0.0.1', family: 4 }],
+        }),
+      ).resolves.toMatchObject({
+        protectedResource: { resource: `${origin}/mcp` },
+      });
+    } finally {
+      await new Promise<void>((resolve) => server.close(() => resolve()));
+    }
+  });
+
+  it('uses the default DNS lookup for localhost discovery', async () => {
+    let origin = '';
+    const server = http.createServer((request, response) => {
+      response.setHeader('content-type', 'application/json');
+      if (request.url === '/.well-known/oauth-protected-resource/mcp') {
+        response.end(
+          JSON.stringify({
+            resource: `${origin}/mcp`,
+            authorization_servers: [`${origin}/auth`],
+          }),
+        );
+        return;
+      }
+      response.end(
+        JSON.stringify({
+          issuer: `${origin}/auth`,
+          authorization_endpoint: `${origin}/authorize`,
+          token_endpoint: `${origin}/token`,
+          code_challenge_methods_supported: ['S256'],
+        }),
+      );
+    });
+    await new Promise<void>((resolve) => server.listen(0, 'localhost', resolve));
+    const address = server.address();
+    if (!address || typeof address === 'string') throw new Error('fixture did not bind');
+    origin = `http://localhost:${address.port}`;
+    try {
+      await expect(discoverMcpAuthorization(`${origin}/mcp`)).resolves.toMatchObject({
+        protectedResource: { resource: `${origin}/mcp` },
+      });
+    } finally {
+      await new Promise<void>((resolve) => server.close(() => resolve()));
+    }
+  });
+
+  it('normalizes bracketed IPv6 discovery hosts', async () => {
+    await expect(discoverMcpAuthorization('http://[::1]:1/mcp', { timeoutMs: 25 })).rejects.toThrow(
+      /discovery failed/,
+    );
+    await expect(
+      discoverMcpAuthorization('http://127.0.0.1/mcp', { timeoutMs: 25 }),
+    ).rejects.toThrow(/discovery failed/);
+  });
+
+  it('builds HTTPS pinned requests for IP and named token endpoints', async () => {
+    const exchange = (tokenEndpoint: string) =>
+      exchangeMcpAuthorizationCode({
+        authorizationServer: {
+          issuer: 'https://auth.example.com',
+          authorizationEndpoint: 'https://auth.example.com/authorize',
+          tokenEndpoint,
+          scopesSupported: [],
+        },
+        clientId: 'client',
+        redirectUri: 'https://client.example.com/callback',
+        resource: 'https://mcp.example.com/mcp',
+        code: 'code',
+        codeVerifier: 'a'.repeat(43),
+        timeoutMs: 1,
+        lookup: async () => [{ address: '8.8.8.8', family: 4 }],
+      });
+
+    await expect(exchange('https://8.8.8.8')).rejects.toThrow();
+    await expect(exchange('https://token.example.com')).rejects.toThrow();
   });
 });
 

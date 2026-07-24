@@ -107,6 +107,11 @@
       "fingerprint": "8a61d88630f3993c"
     },
     {
+      "file": "packages/core/tests/chronicle/metrics-store.test.ts",
+      "kind": "skipIf",
+      "fingerprint": "b250a9cbe61c62c8"
+    },
+    {
       "file": "packages/core/tests/core/system-prompt-builder-h-guidance.test.ts",
       "kind": "skip",
       "fingerprint": "9bd984814fad43a3"
@@ -125,6 +130,21 @@
       "file": "packages/plug-lsp/tests/e2e/typescript.test.ts",
       "kind": "skipIf",
       "fingerprint": "31cfbc566a723022"
+    },
+    {
+      "file": "packages/plugins/tests/runtime-local-bin.test.ts",
+      "kind": "runIf",
+      "fingerprint": "08467b893da83899"
+    },
+    {
+      "file": "packages/plugins/tests/runtime-local-bin.test.ts",
+      "kind": "runIf",
+      "fingerprint": "768679495e4526b0"
+    },
+    {
+      "file": "packages/plugins/tests/runtime-local-bin.test.ts",
+      "kind": "runIf",
+      "fingerprint": "aa98e60796794e33"
     },
     {
       "file": "packages/sage/tests/agent-anchor.test.ts",

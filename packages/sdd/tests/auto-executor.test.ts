@@ -1,10 +1,10 @@
-import { describe, expect, it, vi, beforeEach } from 'vitest';
-import { AutoExecutor } from '../src/auto-executor.js';
 import { EventBus } from '@wrongstack/core/kernel/events.js';
 import { DefaultTaskStore } from '@wrongstack/core/tasking';
-import { TaskTracker } from '../src/task-tracker.js';
-import type { TaskNode, TaskGraph } from '@wrongstack/core/types/task-graph.js';
 import type { Specification } from '@wrongstack/core/types/spec.js';
+import type { TaskGraph, TaskNode } from '@wrongstack/core/types/task-graph.js';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { AutoExecutor, createAutoExecutor } from '../src/auto-executor.js';
+import { TaskTracker } from '../src/task-tracker.js';
 
 function makeSpec(): Specification {
   return {
@@ -40,7 +40,12 @@ function makeGraph(nodes: TaskNode[], edges: Array<{ from: string; to: string }>
     specId: 'spec-1',
     title: 'Test Graph',
     nodes: new Map(nodes.map((n) => [n.id, n])),
-    edges: edges.map((e) => ({ id: `${e.from}-${e.to}`, from: e.from, to: e.to, type: 'depends_on' })),
+    edges: edges.map((e) => ({
+      id: `${e.from}-${e.to}`,
+      from: e.from,
+      to: e.to,
+      type: 'depends_on',
+    })),
     rootNodes: nodes.filter((n) => !edges.some((e) => e.from === n.id)).map((n) => n.id),
     createdAt: Date.now(),
     updatedAt: Date.now(),
@@ -218,5 +223,169 @@ describe('AutoExecutor', () => {
     const summary = await executor.execute(graph, makeSpec());
     expect(summary.total).toBe(0);
     expect(summary.completed).toBe(0);
+  });
+
+  it('marks a task failed when execution requests a retry after the retry budget', async () => {
+    const graph = makeGraph([makeNode('a')]);
+    await store.saveGraph(graph);
+    await tracker.loadGraph(graph.id);
+    const executor = new AutoExecutor({
+      tracker,
+      events,
+      maxRetries: 0,
+      executeTask: async () => ({ success: false, retry: true, error: 'still failing' }),
+    });
+
+    const summary = await executor.execute(graph, makeSpec());
+
+    expect(summary.retried).toBe(1);
+    expect(summary.failed).toBe(0);
+    expect(tracker.getNode('a')?.status).toBe('in_progress');
+  });
+
+  it('reports failures thrown outside the task executor through allSettled', async () => {
+    const graph = makeGraph([makeNode('a')]);
+    await store.saveGraph(graph);
+    await tracker.loadGraph(graph.id);
+    const onTaskFail = vi.fn();
+    const executor = new AutoExecutor({
+      tracker,
+      events,
+      executeTask: async () => ({ success: true }),
+      onTaskStart: () => {
+        throw new Error('start callback failed');
+      },
+      onTaskFail,
+    });
+
+    const summary = await executor.execute(graph, makeSpec());
+
+    expect(summary.failed).toBe(1);
+    expect(onTaskFail).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 'a' }),
+      expect.any(Error),
+      0,
+    );
+  });
+
+  it('retries thrown errors and provides dependency context', async () => {
+    const a = makeNode('a', { priority: 'low' });
+    const b = makeNode('b', { priority: 'critical' });
+    const graph = makeGraph([a, b], [{ from: 'b', to: 'a' }]);
+    graph.edges.push({
+      id: 'missing-dependency',
+      from: 'b',
+      to: 'missing',
+      type: 'depends_on',
+    });
+    graph.edges.push({
+      id: 'missing-dependent',
+      from: 'missing',
+      to: 'a',
+      type: 'depends_on',
+    });
+    graph.edges.push({ id: 'related', from: 'a', to: 'b', type: 'relates_to' });
+    await store.saveGraph(graph);
+    await tracker.loadGraph(graph.id);
+    const onTaskFail = vi.fn();
+    let attempts = 0;
+    const executor = new AutoExecutor({
+      tracker,
+      events,
+      maxConcurrent: 2,
+      maxRetries: 1,
+      onTaskFail,
+      executeTask: async (task, context) => {
+        if (task.id === 'a' && attempts++ === 0) throw new Error('transient');
+        if (task.id === 'a') expect(context.dependents.map((node) => node.id)).toEqual(['b']);
+        if (task.id === 'b') expect(context.dependencies.map((node) => node.id)).toEqual(['a']);
+        return { success: true };
+      },
+    });
+
+    const summary = await executor.execute(graph, makeSpec());
+
+    expect(summary.completed).toBe(2);
+    expect(summary.retried).toBe(1);
+    expect(onTaskFail).toHaveBeenCalledWith(expect.anything(), expect.any(Error), 1);
+  });
+
+  it('normalizes non-Error task exceptions after retries are exhausted', async () => {
+    const graph = makeGraph([makeNode('a')]);
+    await store.saveGraph(graph);
+    await tracker.loadGraph(graph.id);
+    const executor = new AutoExecutor({
+      tracker,
+      events,
+      maxRetries: 0,
+      executeTask: async () => {
+        throw 'plain failure';
+      },
+    });
+
+    const summary = await executor.execute(graph, makeSpec());
+
+    expect(summary.failed).toBe(1);
+    expect(tracker.getNode('a')?.status).toBe('failed');
+  });
+
+  it('uses the message from an Error after retries are exhausted', async () => {
+    const graph = makeGraph([makeNode('a')]);
+    await store.saveGraph(graph);
+    await tracker.loadGraph(graph.id);
+    const executor = new AutoExecutor({
+      tracker,
+      events,
+      maxRetries: 0,
+      executeTask: async () => {
+        throw new Error('typed failure');
+      },
+    });
+
+    await expect(executor.execute(graph, makeSpec())).resolves.toMatchObject({ failed: 1 });
+  });
+
+  it('stops when failed blockers deadlock remaining tasks', async () => {
+    const failed = makeNode('a', { status: 'failed' });
+    const pending = makeNode('b');
+    const graph = makeGraph([failed, pending], [{ from: 'b', to: 'a' }]);
+    await store.saveGraph(graph);
+    await tracker.loadGraph(graph.id);
+    const executeTask = vi.fn(async () => ({ success: true }));
+    const executor = new AutoExecutor({ tracker, events, executeTask });
+
+    const summary = await executor.execute(graph, makeSpec());
+
+    expect(summary.completed).toBe(0);
+    expect(executeTask).not.toHaveBeenCalled();
+  });
+
+  it('stops without a deadlock when no task is currently ready', async () => {
+    const active = makeNode('a', { status: 'in_progress' });
+    const pending = makeNode('b');
+    const graph = makeGraph([active, pending], [{ from: 'b', to: 'a' }]);
+    await store.saveGraph(graph);
+    await tracker.loadGraph(graph.id);
+    const executeTask = vi.fn(async () => ({ success: true }));
+    const executor = new AutoExecutor({ tracker, events, executeTask });
+
+    await executor.execute(graph, makeSpec());
+
+    expect(executeTask).not.toHaveBeenCalled();
+  });
+
+  it('creates an executor through the convenience factory', async () => {
+    const graph = makeGraph([makeNode('a'), makeNode('b', { priority: 'medium' })]);
+    await store.saveGraph(graph);
+    await tracker.loadGraph(graph.id);
+    const executor = createAutoExecutor({
+      tracker,
+      events,
+      maxConcurrent: 2,
+      maxRetries: 0,
+      executeTask: async () => ({ success: true }),
+    });
+
+    await expect(executor.execute(graph, makeSpec())).resolves.toMatchObject({ completed: 2 });
   });
 });

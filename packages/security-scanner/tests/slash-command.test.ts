@@ -59,6 +59,19 @@ function withoutProvider() {
 }
 
 describe('createSecuritySlashCommand', () => {
+  it('falls back through cwd and process cwd when projectRoot is absent', async () => {
+    const cmd = createSecuritySlashCommand();
+    await cmd.run('audit-deps', { projectRoot: '', cwd: tmp } as never);
+    await cmd.run('audit-deps', { projectRoot: '', cwd: '' } as never);
+    await cmd.run('scan', { projectRoot: '', cwd: tmp } as never);
+    await cmd.run('scan', { projectRoot: '', cwd: '' } as never);
+    await cmd.run('audit', { projectRoot: '', cwd: tmp } as never);
+    await cmd.run('audit', { projectRoot: '', cwd: '' } as never);
+    await cmd.run('report', { projectRoot: '', cwd: tmp } as never);
+    await cmd.run('report', { projectRoot: '', cwd: '' } as never);
+    expect(packageAuditMocks.run).toHaveBeenCalled();
+  });
+
   it('exposes slash command metadata', () => {
     const cmd = createSecuritySlashCommand();
     expect(cmd.name).toBe('security');
@@ -83,6 +96,21 @@ describe('createSecuritySlashCommand', () => {
   // ── /security scan ─────────────────────────────────────────────────────────
 
   describe('scan', () => {
+    it('labels a scan with no detected stack as unknown', async () => {
+      orchestratorMocks.run.mockResolvedValue({
+        scanResult: {
+          summary: { critical: 0, high: 0, medium: 0, low: 0, total: 0 },
+          scannedFiles: 0,
+          scanDurationMs: 0,
+        },
+        detectionResult: { detectedStacks: [] },
+        synthesizedReport: null,
+        reportPath: '',
+      });
+      const res = await createSecuritySlashCommand().run('scan', fakeCtx());
+      expect(res?.message).toContain('**Tech Stack:** unknown');
+    });
+
     it('errors without provider configured', async () => {
       const cmd = createSecuritySlashCommand();
       const res = await cmd.run('scan', withoutProvider());
@@ -179,6 +207,21 @@ describe('createSecuritySlashCommand', () => {
   // ── /security audit ────────────────────────────────────────────────────────
 
   describe('audit', () => {
+    it('labels source audit output with no detected stack as unknown', async () => {
+      orchestratorMocks.run.mockResolvedValue({
+        scanResult: {
+          summary: { critical: 0, high: 0, medium: 0, low: 0 },
+          scannedFiles: 0,
+          scanDurationMs: 0,
+        },
+        detectionResult: { detectedStacks: [] },
+        synthesizedReport: null,
+        reportPath: '/report',
+      });
+      const res = await createSecuritySlashCommand().run('audit', fakeCtx());
+      expect(res?.message).toContain('**Tech Stack:** unknown');
+    });
+
     it('runs dependency-only audit without invoking the source scanner', async () => {
       const cmd = createSecuritySlashCommand();
       const res = await cmd.run('audit-deps', fakeCtx());
@@ -270,6 +313,34 @@ describe('createSecuritySlashCommand', () => {
       expect(res?.message).toContain('Dependency audit failed');
       expect(res?.message).toContain('spawn exploded');
       expect(orchestratorMocks.run).not.toHaveBeenCalled();
+    });
+
+    it('reports dependency-only runner exceptions', async () => {
+      packageAuditMocks.run.mockRejectedValue('runner offline');
+      const res = await createSecuritySlashCommand().run('audit-deps', fakeCtx());
+      expect(res?.message).toContain('Dependency audit failed: runner offline');
+    });
+
+    it('uses default explanations for skipped and failed audit results', async () => {
+      packageAuditMocks.run.mockResolvedValueOnce({
+        vulnerabilities: [],
+        summary: { critical: 0, high: 0, moderate: 0, low: 0, info: 0, total: 0 },
+        exitCode: null,
+        success: false,
+        skipped: true,
+      });
+      const skipped = await createSecuritySlashCommand().run('audit-deps', fakeCtx());
+      expect(skipped?.message).toContain('no supported lockfile found');
+
+      packageAuditMocks.run.mockResolvedValueOnce({
+        vulnerabilities: [],
+        summary: { critical: 0, high: 0, moderate: 0, low: 0, info: 0, total: 0 },
+        exitCode: null,
+        success: false,
+        skipped: false,
+      });
+      const failed = await createSecuritySlashCommand().run('audit-deps', fakeCtx());
+      expect(failed?.message).toContain('unknown error');
     });
   });
 

@@ -113,6 +113,12 @@ interface PageCursor {
   id: string;
 }
 
+function formatLegacyEntry(entry: MemoryEntry): string {
+  const tags = entry.tags?.length ? ` ${entry.tags.map((tag) => `#${tag}`).join(' ')}` : '';
+  const type = entry.type ? ` [${entry.type}${entry.priority ? `|${entry.priority}` : ''}]` : '';
+  return `- [${entry.ts}]${type} ${entry.text}${tags}`;
+}
+
 /** Decode an opaque cursor token; returns undefined for missing/malformed input. */
 function decodePageCursor(cursor: string | undefined): PageCursor | undefined {
   if (!cursor) return undefined;
@@ -143,13 +149,17 @@ let DatabaseSyncCtor: typeof DatabaseSync | undefined | null | typeof DATABASE_S
  * in the current runtime. Safe to call from outside the store.
  */
 export function isSqliteAvailable(): boolean {
+  return probeSqliteAvailable();
+}
+
+function probeSqliteAvailable(load?: () => typeof DatabaseSync): boolean {
   if (DatabaseSyncCtor === null) return false;
   // DATABASE_SYNC_LOADING is !== undefined, so it must be checked explicitly
   // before the broad `!== undefined` branch.
   if (DatabaseSyncCtor === DATABASE_SYNC_LOADING) return false;
   if (DatabaseSyncCtor !== undefined) return true;
   try {
-    loadDatabaseSync();
+    loadDatabaseSync(load);
     return true;
   } catch {
     DatabaseSyncCtor = null;
@@ -157,7 +167,12 @@ export function isSqliteAvailable(): boolean {
   }
 }
 
-function loadDatabaseSync(): typeof DatabaseSync {
+function loadDatabaseSync(
+  load: () => typeof DatabaseSync = () => {
+    const req = createRequire(import.meta.url);
+    return (req('node:sqlite') as typeof import('node:sqlite')).DatabaseSync;
+  },
+): typeof DatabaseSync {
   if (DatabaseSyncCtor === DATABASE_SYNC_LOADING) {
     throw new Error('Re-entrant call to loadDatabaseSync — cycle detected.');
   }
@@ -166,10 +181,7 @@ function loadDatabaseSync(): typeof DatabaseSync {
   // occur through a warning emission or module-graph cycle) is detected early.
   DatabaseSyncCtor = DATABASE_SYNC_LOADING;
   try {
-    DatabaseSyncCtor = withSqliteExperimentalWarningSuppressed(() => {
-      const req = createRequire(import.meta.url);
-      return (req('node:sqlite') as typeof import('node:sqlite')).DatabaseSync;
-    });
+    DatabaseSyncCtor = withSqliteExperimentalWarningSuppressed(load);
     return DatabaseSyncCtor;
   } catch (err) {
     DatabaseSyncCtor = null;
@@ -476,6 +488,19 @@ export class SqliteSageStore implements MemoryStore {
     this.initializing = this.initializeOnce();
     try {
       await this.initializing;
+    } catch (error) {
+      // A failed migration/open must not leak a handle. Without this cleanup,
+      // a retry opened a second connection while the failed WAL connection
+      // remained alive (notably leaving `sage.db-shm` locked on Windows).
+      this.stmtCache.clear();
+      if (this.db) {
+        try {
+          this.db.close();
+        } catch {
+          // Preserve the original initialization error.
+        }
+      }
+      throw error;
     } finally {
       this.initializing = undefined;
     }
@@ -755,7 +780,7 @@ export class SqliteSageStore implements MemoryStore {
           candidate.status,
           candidate.createdAt,
           candidate.updatedAt,
-          normalizeTextKey(candidate.text ?? ''),
+          normalizeTextKey(candidate.text),
         );
         migratedCandidates++;
       }
@@ -1055,15 +1080,7 @@ export class SqliteSageStore implements MemoryStore {
   }
 
   async read(scope: MemoryScope): Promise<string> {
-    return (await this.list(scope))
-      .map((entry) => {
-        const tags = entry.tags?.length ? ` ${entry.tags.map((tag) => `#${tag}`).join(' ')}` : '';
-        const type = entry.type
-          ? ` [${entry.type}${entry.priority ? `|${entry.priority}` : ''}]`
-          : '';
-        return `- [${entry.ts}]${type} ${entry.text}${tags}`;
-      })
-      .join('\n');
+    return (await this.list(scope)).map(formatLegacyEntry).join('\n');
   }
 
   async remember(
@@ -1229,14 +1246,18 @@ export class SqliteSageStore implements MemoryStore {
         const [keeper, ...duplicates] = [...mutable].sort(
           (a, b) => b.importance - a.importance || b.confidence - a.confidence,
         );
-        if (!keeper) continue;
+        // mutable.length >= 2 above guarantees a keeper.
+        const selectedKeeper = keeper!;
         const updatedKeeper: Sage = {
-          ...keeper,
+          ...selectedKeeper,
           tags: [...new Set(mutable.flatMap((memory) => memory.tags))],
           supersedes: [
-            ...new Set([...(keeper.supersedes ?? []), ...duplicates.map((memory) => memory.id)]),
+            ...new Set([
+              ...(selectedKeeper.supersedes ?? []),
+              ...duplicates.map((memory) => memory.id),
+            ]),
           ],
-          revision: keeper.revision + 1,
+          revision: selectedKeeper.revision + 1,
           updatedAt: this.nowIso(),
         };
         this.upsertMemory(updatedKeeper);
@@ -1245,7 +1266,7 @@ export class SqliteSageStore implements MemoryStore {
           const supersededDuplicate: Sage = {
             ...duplicate,
             status: 'superseded',
-            supersededBy: keeper.id,
+            supersededBy: selectedKeeper.id,
             revision: duplicate.revision + 1,
             updatedAt: this.nowIso(),
           };
@@ -1654,7 +1675,11 @@ export class SqliteSageStore implements MemoryStore {
     // retrieval), exclude memories marked contextPolicy='never' — mirrors
     // the canonical SageStore.searchSage (store.ts:1992).
     const neverInjectClause = automaticContext
-      ? ` AND (json_extract(data, '$.contextPolicy') IS NULL OR json_extract(data, '$.contextPolicy') != 'never')`
+      ? ` AND CASE
+            WHEN json_valid(data)
+            THEN COALESCE(json_extract(data, '$.contextPolicy') != 'never', 1)
+            ELSE 1
+          END`
       : '';
 
     // Empty query → direct table scan (bypasses FTS5 which is slower for list-all)
@@ -1798,11 +1823,9 @@ export class SqliteSageStore implements MemoryStore {
       }
     }
     const targetList = [...targets];
-    if (targetList.length === 0) return [];
 
     const targetPlaceholders = targetList.map(() => '?').join(',');
-    const globClause =
-      symbolGlobs.length > 0 ? `OR ${symbolGlobs.map(() => 'e.to_node GLOB ?').join(' OR ')}` : '';
+    const globClause = `OR ${symbolGlobs.map(() => 'e.to_node GLOB ?').join(' OR ')}`;
     // Use a subquery starting from edges (filtered by to_node via
     // idx_edge_to_relation) instead of scanning memories and probing edges.
     // The original `FROM memories INNER JOIN edges` defeated the idx_edge_from
@@ -1871,14 +1894,12 @@ export class SqliteSageStore implements MemoryStore {
     // ── Shared anchor targets (edges + in-memory anchor nodes) ─────────
     const targets = new Set<string>();
     const seedNodeIds = seeds.map((s) => SqliteSageStore.toNodeId(s.id));
-    if (seedNodeIds.length > 0) {
-      const ph = seedNodeIds.map(() => '?').join(',');
-      const edgeTargets = this.stmt(
-        `SELECT DISTINCT to_node AS n FROM edges
-         WHERE from_node IN (${ph}) AND relation GLOB 'about_*'`,
-      ).all(...seedNodeIds) as Array<{ n: string }>;
-      for (const row of edgeTargets) targets.add(row.n);
-    }
+    const ph = seedNodeIds.map(() => '?').join(',');
+    const edgeTargets = this.stmt(
+      `SELECT DISTINCT to_node AS n FROM edges
+       WHERE from_node IN (${ph}) AND relation GLOB 'about_*'`,
+    ).all(...seedNodeIds) as Array<{ n: string }>;
+    for (const row of edgeTargets) targets.add(row.n);
     for (const seed of seeds) {
       for (const anchor of seed.anchors) {
         const node = sqliteAnchorNode(anchor);
@@ -2312,18 +2333,9 @@ export class SqliteSageStore implements MemoryStore {
                 ? r.from_node
                 : // Both endpoints in frontier (or neither uniquely) — expand both.
                   null;
-          if (next) {
-            if (!visitedNodes.has(next)) {
-              visitedNodes.add(next);
-              nextFrontier.push(next);
-            }
-          } else {
-            for (const n of [r.from_node, r.to_node]) {
-              if (!visitedNodes.has(n)) {
-                visitedNodes.add(n);
-                nextFrontier.push(n);
-              }
-            }
+          if (next && !visitedNodes.has(next)) {
+            visitedNodes.add(next);
+            nextFrontier.push(next);
           }
         }
       }
@@ -2383,7 +2395,6 @@ export class SqliteSageStore implements MemoryStore {
       ) as Array<{ data: string }>;
       const memAnchorMap = batchRows.map((r) => this.rowToMemory(r));
       for (const memory of memAnchorMap) {
-        if (!memory) continue;
         for (const anchor of memory.anchors) {
           const node = sqliteAnchorNode(anchor);
           if (node) starts.add(node);
@@ -2440,9 +2451,7 @@ export class SqliteSageStore implements MemoryStore {
           default:
             // Terminal statuses (superseded, archived, contradicted, deleted):
             // update lastVerifiedAt for audit trail but preserve the status.
-            if (memory.anchors.length > 0) {
-              updates.push({ ...memory, lastVerifiedAt: result.checkedAt });
-            }
+            updates.push({ ...memory, lastVerifiedAt: result.checkedAt });
             break;
         }
       } else if (memory.anchors.length > 0 && memory.lastVerifiedAt !== result.checkedAt) {
@@ -2816,7 +2825,7 @@ export class SqliteSageStore implements MemoryStore {
       candidate.status,
       candidate.createdAt,
       candidate.updatedAt,
-      normalizeTextKey(candidate.text ?? ''),
+      normalizeTextKey(candidate.text),
     );
   }
 
@@ -2975,7 +2984,7 @@ export class SqliteSageStore implements MemoryStore {
             updated.status,
             updated.createdAt,
             updated.updatedAt,
-            normalizeTextKey(updated.text ?? ''),
+            normalizeTextKey(updated.text),
           );
           this.audit('memory.candidate_accepted', {
             memoryId: memory.id,
@@ -3022,7 +3031,7 @@ export class SqliteSageStore implements MemoryStore {
         updated.status,
         updated.createdAt,
         updated.updatedAt,
-        normalizeTextKey(updated.text ?? ''),
+        normalizeTextKey(updated.text),
       );
       this.audit('memory.candidate_rejected', { reason, details: { candidateId } });
       return true;
@@ -3351,17 +3360,14 @@ export class SqliteSageStore implements MemoryStore {
         if (other.supersededBy === id) {
           patch.supersededBy = undefined;
         }
-        if (Object.keys(patch).length > 0) {
-          // Preserve updatedAt so the hygiene scanner's freshness scores
-          // are not artificially reset by a cascade reference cleanup
-          // (matches SageStore.cascadeDeleteUnlocked:1668).
-          const updated: Sage = {
-            ...other,
-            ...patch,
-            revision: other.revision + 1,
-          };
-          this.upsertMemory(updated);
-        }
+        // The SQL predicate only returns rows with at least one matching
+        // reference, so patch is guaranteed non-empty here.
+        const updated: Sage = {
+          ...other,
+          ...patch,
+          revision: other.revision + 1,
+        };
+        this.upsertMemory(updated);
       }
 
       // Soft-delete: set status to 'deleted' (preserve tombstone for audit/recovery).
@@ -3573,3 +3579,38 @@ function isMigratableAuditRecord(value: unknown): value is SageAuditRecord {
   const audit = value as Partial<SageAuditRecord>;
   return typeof audit.event === 'string' && typeof audit.at === 'string';
 }
+
+/**
+ * Direct-module test seam for pure defensive helpers. This is intentionally
+ * absent from the package barrel, so it does not expand the supported public
+ * API while allowing malformed persisted data to be tested without corrupting
+ * a real SQLite file.
+ */
+export const sqliteStoreCoverage = {
+  escapeGlobPattern,
+  escapeLikePattern,
+  formatLegacyEntry,
+  decodePageCursor,
+  withSqliteExperimentalWarningSuppressed,
+  sqliteNormalizeCommand,
+  sqliteCommandFamily,
+  sqliteAnchorNode,
+  sqliteAnchorRelation,
+  importanceFromPriority,
+  legacyScopeLabel,
+  matchesLegacyForget,
+  isMigratableMemoryRecord,
+  shouldReplaceMigratedMemory,
+  isMigratableCandidate,
+  isMigratableEdge,
+  isMigratableAuditRecord,
+  probeSqliteAvailable,
+  loadDatabaseSync,
+  databaseSyncLoading: DATABASE_SYNC_LOADING,
+  getDatabaseSyncCtor: () => DatabaseSyncCtor,
+  setDatabaseSyncCtor: (
+    value: typeof DatabaseSync | undefined | null | typeof DATABASE_SYNC_LOADING,
+  ) => {
+    DatabaseSyncCtor = value;
+  },
+};

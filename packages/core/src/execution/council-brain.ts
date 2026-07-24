@@ -282,6 +282,10 @@ export function createCouncilBrainArbiter(opts: CouncilBrainOptions): BrainArbit
           distinctTargetCount: result.distinctTargetCount,
           judgeUsed: result.judgeUsed,
           usage: result.usage,
+          // Structural, not content — always emitted. See the event docs:
+          // a correlated panel is the one council failure mode that produces
+          // a perfectly normal-looking verdict.
+          ...(result.warnings?.length ? { warnings: [...result.warnings] } : {}),
           ...(opts.traceContent ? { reason: result.reason } : {}),
           at,
         });

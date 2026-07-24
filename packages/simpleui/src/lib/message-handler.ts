@@ -82,6 +82,7 @@ export interface MessageHandlerDeps {
   activeModelRef: { current: { provider: string; model: string } | null };
   runningRef: { current: boolean };
   refineStateRef: { current: RefineState | null };
+  refineEpochRef: { current: number };
   requestedModelsRef: { current: Set<string> };
   socketRef: {
     current: { send: (type: string, payload?: Record<string, unknown>) => void } | null;
@@ -152,6 +153,7 @@ export function createMessageHandler(deps: MessageHandlerDeps): ServerMessageHan
     activeModelRef,
     runningRef,
     refineStateRef,
+    refineEpochRef,
     socketRef,
     requestedModelsRef,
     setMessages,
@@ -546,9 +548,23 @@ export function createMessageHandler(deps: MessageHandlerDeps): ServerMessageHan
       case 'model.refine_result': {
         const current = refineStateRef.current;
         if (!current) break;
+        // No request is in flight during the countdown phase — drop any
+        // result that arrives now. A countdown state has no `epoch` stamped
+        // yet (the epoch is only attached when the request leaves in
+        // `refineStartNow`), so an epoch-based guard alone would silently
+        // accept orphans for any state whose epoch field is undefined.
+        // This status check is the most direct guard and must come first.
+        if (current.status === 'countdown') break;
+        // Stale-result guard: if the user flushed the panel mid-flight
+        // (startSend → setRefineState(null) → new countdown), the epoch
+        // on the incoming state will differ from the epoch we last attached
+        // to a `model.refine` request.  Drop the orphan — the state it
+        // refers to has been superseded.
+        if (current.epoch !== undefined && current.epoch !== refineEpochRef.current) break;
         const action = projectRefineResult(payload as RefineResultPayload, current);
         if (action.kind === 'retry') {
-          setRefineState(action.state);
+          refineEpochRef.current++;
+          setRefineState({ ...action.state, epoch: refineEpochRef.current });
           socketRef.current?.send('model.refine', {
             text: action.state.original,
             timeoutMs: action.timeoutMs,

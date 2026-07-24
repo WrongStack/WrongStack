@@ -131,4 +131,87 @@ describe('parsePackageAuditOutput', () => {
       parsePackageAuditOutput(JSON.stringify({ error: { summary: 'registry unavailable' } })),
     ).toThrow('registry unavailable');
   });
+
+  it('rejects primitive and differently shaped audit errors', () => {
+    expect(() => parsePackageAuditOutput('null')).toThrow('not a JSON object');
+    expect(() => parsePackageAuditOutput(JSON.stringify({ error: 'plain failure' }))).toThrow(
+      'plain failure',
+    );
+    expect(() => parsePackageAuditOutput(JSON.stringify({ error: 42 }))).toThrow(
+      'Package audit reported an error',
+    );
+    expect(() => parsePackageAuditOutput(JSON.stringify({ error: {} }))).toThrow(
+      'Package audit reported an error',
+    );
+  });
+
+  it('normalizes malformed vulnerability and advisory fields', () => {
+    const parsed = parsePackageAuditOutput(
+      JSON.stringify({
+        vulnerabilities: {
+          ignored: null,
+          odd: {
+            severity: 'mystery',
+            isDirect: 'yes',
+            range: 12,
+            via: [
+              { source: 123 },
+              { source: 'CVE-X' },
+              { title: 55 },
+              null,
+              'direct advisory',
+            ],
+          },
+          noVia: { severity: 'low', via: null },
+        },
+        advisories: { ignored: null },
+        metadata: { vulnerabilities: { total: Number.POSITIVE_INFINITY, high: 'one' } },
+      }),
+    );
+    expect(parsed.vulnerabilities).toEqual([
+      {
+        name: 'odd',
+        severity: 'unknown',
+        isDirect: undefined,
+        range: undefined,
+        via: ['123', 'CVE-X', 'direct advisory'],
+        fixAvailable: false,
+      },
+      {
+        name: 'noVia',
+        severity: 'low',
+        isDirect: undefined,
+        range: undefined,
+        via: [],
+        fixAvailable: false,
+      },
+    ]);
+    expect(parsed.summary.total).toBe(2);
+  });
+
+  it('uses advisory ids and empty fields when legacy details are malformed', () => {
+    const parsed = parsePackageAuditOutput(
+      JSON.stringify({
+        vulnerabilities: 'invalid',
+        advisories: {
+          ignored: null,
+          '404': {
+            module_name: 99,
+            severity: 'info',
+            vulnerable_versions: false,
+            title: 12,
+          },
+        },
+        metadata: null,
+      }),
+    );
+    expect(parsed.vulnerabilities[0]).toEqual({
+      name: '404',
+      severity: 'info',
+      range: undefined,
+      via: [],
+      fixAvailable: false,
+    });
+    expect(parsed.summary.info).toBe(1);
+  });
 });

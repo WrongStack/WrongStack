@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import { formatCodebaseLspResults } from '../../src/formatters/symbols.js';
 
 describe('formatCodebaseLspResults', () => {
@@ -24,7 +24,15 @@ describe('formatCodebaseLspResults', () => {
     const output = formatCodebaseLspResults(
       {
         results: [
-          { name: 'myFunc', kind: 'function', lspKind: 12, file: '/proj/src/index.ts', line: 42, source: 'index', score: 0.95 },
+          {
+            name: 'myFunc',
+            kind: 'function',
+            lspKind: 12,
+            file: '/proj/src/index.ts',
+            line: 42,
+            source: 'index',
+            score: 0.95,
+          },
         ],
         totalIndex: 1,
         totalLsp: 0,
@@ -74,7 +82,14 @@ describe('formatCodebaseLspResults', () => {
     const output = formatCodebaseLspResults(
       {
         results: [
-          { name: 'bareVar', kind: 'variable', lspKind: 13, file: '/proj/v.ts', line: 1, source: 'index' },
+          {
+            name: 'bareVar',
+            kind: 'variable',
+            lspKind: 13,
+            file: '/proj/v.ts',
+            line: 1,
+            source: 'index',
+          },
         ],
         totalIndex: 1,
         totalLsp: 0,

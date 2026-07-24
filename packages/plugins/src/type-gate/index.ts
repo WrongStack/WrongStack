@@ -34,6 +34,7 @@ import { existsSync } from 'node:fs';
 import type { Plugin } from '@wrongstack/core/types';
 import {
   type LanguageRuntime,
+  resolveNodeBin,
   resolveRunnerCommand,
   runRunnerCommand,
   sanitizeRunnerPath,
@@ -196,7 +197,14 @@ async function runTypeCheck(cfg: TypeGateConfig): Promise<TypeCheckResult | null
     // PostToolUse fire-on-every-edit) tsc returns in tens of milliseconds
     // instead of re-typechecking every file. tsbuildinfo is written next
     // to tsconfig.json or in the path pointed at by `--tsBuildInfoFile`.
-    argv = ['npx', 'tsc', '--noEmit', '--incremental'];
+    //
+    // Prefer the project's own `typescript` over `npx tsc`: `npx` re-resolves
+    // (and can download) the package on every gate run, and on Windows it is
+    // a `.cmd` shim that a shell-less spawn cannot launch at all — which made
+    // this gate a permanent silent no-op on every Windows machine.
+    const tscFlags = ['--noEmit', '--incremental'];
+    const localTsc = resolveNodeBin('typescript', 'tsc', process.cwd(), tscFlags);
+    argv = localTsc ? [localTsc.cmd, ...localTsc.args] : ['npx', 'tsc', ...tscFlags];
     if (tsConfig && tsConfig !== 'tsconfig.json') {
       argv = [...argv, '-p', tsConfig];
     }

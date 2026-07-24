@@ -47,6 +47,7 @@ import {
   updateTask,
   updateTaskAssignment,
 } from '../src/manager.js';
+import { finalizeTaskCompletion } from '../src/verification/completion-gate.js';
 import { CURRENT_KANBAN_VERSION, type KanbanBoard } from '../src/types.js';
 
 // ── Helpers ──────────────────────────────────────────────────────────────
@@ -1266,7 +1267,7 @@ describe('assignTask', () => {
 // ── updateTaskAssignment ───────────────────────────────────────────
 
 describe('updateTaskAssignment', () => {
-  it('marks a running task as completed', async () => {
+  it('parks a completed worker in review until the completion gate finalizes', async () => {
     const board = await makeBoard();
     const task = await addTask(tmpDir, board.id, { title: 'Run and done' });
     await assignTask(tmpDir, board.id, task!.task.id, { agentId: 'bot' });
@@ -1275,8 +1276,29 @@ describe('updateTaskAssignment', () => {
     });
     expect(updated).not.toBeNull();
     const found = updated!.tasks.find((t) => t.id === task!.task.id);
-    expect(found?.status).toBe('completed');
+    // Default (soft) gate: worker completion is a claim, not a final state.
+    expect(found?.status).toBe('review');
     expect(found?.assignment?.status).toBe('completed');
+    expect(found?.completedAt).toBeUndefined();
+
+    const finalized = await finalizeTaskCompletion(tmpDir, board.id, task!.task.id);
+    expect(finalized?.task.status).toBe('completed');
+    expect(finalized?.task.completedAt).toBeDefined();
+    expect(finalized?.gate.enforcement).toBe('soft');
+  });
+
+  it('completes directly when the board gate is off', async () => {
+    const board = await createBoard(tmpDir, {
+      title: 'Ungated',
+      completionGate: { enforcement: 'off' },
+    });
+    const task = await addTask(tmpDir, board.id, { title: 'Run and done' });
+    await assignTask(tmpDir, board.id, task!.task.id, { agentId: 'bot' });
+    const updated = await updateTaskAssignment(tmpDir, board.id, task!.task.id, {
+      status: 'completed',
+    });
+    const found = updated!.tasks.find((t) => t.id === task!.task.id);
+    expect(found?.status).toBe('completed');
     expect(found?.completedAt).toBeDefined();
   });
 
@@ -1339,13 +1361,12 @@ describe('reconcileKanbanBoard', () => {
       modelRouting: 'session',
       skills: ['testing'],
     });
+    // The completion gate already parks the worker's "completed" in review.
     await updateTaskAssignment(tmpDir, board.id, task!.task.id, { status: 'completed' });
+    const parkedBoard = await getBoard(tmpDir, board.id);
+    expect(parkedBoard?.tasks.find((item) => item.id === task!.task.id)?.status).toBe('review');
 
-    const pending = await reconcileKanbanBoard(tmpDir, board.id);
-    expect(pending?.board.tasks.find((item) => item.id === task!.task.id)?.status).toBe('review');
-
-    const reviewBoard = await getBoard(tmpDir, board.id);
-    const checkId = reviewBoard?.tasks.find((item) => item.id === task!.task.id)
+    const checkId = parkedBoard?.tasks.find((item) => item.id === task!.task.id)
       ?.successCriteria?.[0]?.id;
     await updateCheckOnTask(tmpDir, board.id, task!.task.id, checkId!, { status: 'passed' });
     const completed = await reconcileKanbanBoard(tmpDir, board.id);
@@ -1353,6 +1374,28 @@ describe('reconcileKanbanBoard', () => {
     expect(finalTask?.status).toBe('completed');
     expect(finalTask?.columnId).toBe('done');
     expect(finalTask?.assignment?.skills).toEqual(['testing']);
+  });
+
+  it('strict boards do not reconcile past review without a passed verification report', async () => {
+    const board = await createBoard(tmpDir, {
+      title: 'Strict board',
+      completionGate: { enforcement: 'strict' },
+    });
+    const task = await addTask(tmpDir, board.id, { title: 'Needs verified proof' });
+    await addCheckToTask(tmpDir, board.id, task!.task.id, {
+      description: 'Manually confirmed',
+      type: 'manual',
+      status: 'passed',
+    });
+    await assignTask(tmpDir, board.id, task!.task.id, { agentId: 'worker' });
+    await updateTaskAssignment(tmpDir, board.id, task!.task.id, { status: 'completed' });
+
+    // All check flags passed, but a strict board still requires the gate.
+    const reconciled = await reconcileKanbanBoard(tmpDir, board.id);
+    const parked =
+      reconciled?.board.tasks.find((item) => item.id === task!.task.id) ??
+      (await getBoard(tmpDir, board.id))?.tasks.find((item) => item.id === task!.task.id);
+    expect(parked?.status).toBe('review');
   });
 });
 

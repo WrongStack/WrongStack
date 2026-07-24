@@ -26,6 +26,8 @@ import {
   Sparkles,
   Sun,
   Wand2,
+  Wifi,
+  WifiOff,
   Zap,
 } from 'lucide-react';
 import { type ReactElement, useEffect, useMemo, useState } from 'react';
@@ -276,17 +278,23 @@ export function ActivityBar({ desktopShell = false }: { desktopShell?: boolean |
             {projectName || 'WS'}
           </span>
         )}
-        {/* Connection status dot */}
+        {/* Connection status indicator — always visible wifi icon */}
         <span
           role="status"
           aria-label={wsConnected ? t('activity:status.connected') : t('activity:status.disconnected')}
           className={cn(
-            'inline-block w-1.5 h-1.5 rounded-full',
+            'flex items-center justify-center',
             desktopShell ? 'mt-1.5' : 'mt-1',
-            wsConnected ? 'bg-success shadow-[0_0_4px_hsl(var(--success)/0.6)]' : 'bg-warning',
+            wsConnected ? 'text-success' : 'text-warning',
           )}
           title={wsConnected ? t('activity:status.connected') : t('activity:status.disconnected')}
-        />
+        >
+          {wsConnected ? (
+            <Wifi size={desktopShell ? 12 : 13} />
+          ) : (
+            <WifiOff size={desktopShell ? 12 : 13} />
+          )}
+        </span>
       </div>
 
       {/* ── Scrollable icon column ──

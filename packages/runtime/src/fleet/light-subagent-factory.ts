@@ -99,10 +99,12 @@ export function makeLightSubagentFactory(deps: LightSubagentFactoryDeps): AgentF
   const existingManager = deps.container.safeResolve(TOKENS.FallbackProfileManager);
   const fallbackProfileManager =
     existingManager ?? new FallbackProfileManager(configStore.get() as Config);
-  // A container-provided manager is already watched once at registration
-  // (container.ts). Only wire a watcher for a fallback manager we created here;
-  // otherwise every makeLightSubagentFactory call (e.g. one per SDD run) leaked
-  // a duplicate, never-removed watcher on the long-lived shared configStore.
+  // A container-provided manager is the host's shared singleton
+  // (`packages/runtime/src/container.ts` binds both the manager and the
+  // configStore watcher once at boot). Only wire a watcher for a fallback
+  // manager we created here; otherwise every makeLightSubagentFactory call
+  // (e.g. one per SDD run) would leak a duplicate, never-removed watcher on
+  // the long-lived shared configStore.
   if (!existingManager) {
     configStore.watch((next) => fallbackProfileManager.reload(next as Config));
   }
@@ -239,7 +241,13 @@ export function makeLightSubagentFactory(deps: LightSubagentFactoryDeps): AgentF
         getFallbackModels: () => subCfg.fallbackModels,
         getFallbackProfile: () => fallbackProfile,
         buildProvider: (id, model) =>
-          buildProvider(deps.providerRegistry, configStore.get(), id, model ?? effModel),
+          buildProvider(
+            deps.providerRegistry,
+            configStore.get(),
+            id,
+            /* v8 ignore next -- core fallback entries always carry a model; keep the interface fallback defensive */
+            model ?? effModel,
+          ),
         onModelSwitch: async (id, model) => {
           subReasoningConfig = await resolveReasoningConfig(modelsRegistry, id, model);
         },

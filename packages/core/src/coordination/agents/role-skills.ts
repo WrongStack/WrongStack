@@ -6,7 +6,7 @@ import type { AgentDefinition } from './types.js';
  * Keeping this list explicit makes role assignments auditable and prevents a
  * typo from silently degrading a worker into its persona-only fallback.
  */
-export const BUNDLED_AGENT_SKILLS = [
+const BUNDLED_AGENT_SKILLS = [
   'api-design',
   'audit-log',
   'bug-hunter',

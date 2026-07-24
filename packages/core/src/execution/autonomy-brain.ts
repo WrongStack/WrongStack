@@ -580,7 +580,7 @@ export async function completeBrainLlm(
 }
 
 /** Text plus the observable call metadata a trace/quality gate needs. */
-export interface BrainLlmCallResult {
+interface BrainLlmCallResult {
   text: string;
   usage?: Usage | undefined;
   /**
@@ -652,7 +652,7 @@ function extractStopReason(result: unknown): string | undefined {
  * crafted system prompt that establishes the brain's identity, purpose,
  * and decision-making framework.
  */
-export type BrainLlmDenyKind =
+type BrainLlmDenyKind =
   /** No target in the pool produced a response (transport/timeout). */
   | 'unavailable'
   /** A response came back but carried no exact valid option id. */
@@ -857,7 +857,7 @@ export function isNonAnswer(text: string): boolean {
 }
 
 /** Structured envelope a Brain LLM may return for an optionless question. */
-export interface BrainFreeTextEnvelope {
+interface BrainFreeTextEnvelope {
   decision: string;
   rationale?: string | undefined;
   confidence?: number | undefined;

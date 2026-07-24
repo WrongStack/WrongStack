@@ -161,6 +161,12 @@ const plugin: Plugin = {
         scheduleNextRun(name);
       }, delay);
 
+      // A cron job scheduled hours out must not, by itself, keep the host
+      // process alive. `unref` keeps the timer firing for as long as the
+      // process is running for other reasons, while letting the CLI exit
+      // when the user's work is done instead of hanging on a pending job.
+      timer.unref?.();
+
       state.timers.set(name, timer);
     }
 

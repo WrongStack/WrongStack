@@ -105,7 +105,7 @@ export function memoryQueryRelevance(memory: Sage, query: string): MemoryQueryRe
   if (anchorMatches.length > 0)
     evidence.push(`query:anchor-terms:${anchorMatches.slice(0, 3).join(',')}`);
   if (tagMatches.length > 0) evidence.push(`query:tag-terms:${tagMatches.slice(0, 3).join(',')}`);
-  if (matched.length > 0) evidence.push(`query:text-terms:${matched.slice(0, 4).join(',')}`);
+  evidence.push(`query:text-terms:${matched.slice(0, 4).join(',')}`);
 
   if (anchorMatches.length > 0) {
     return { strength: Math.min(0.92, 0.78 + anchorMatches.length * 0.05), evidence };
@@ -122,10 +122,7 @@ export function memoryQueryRelevance(memory: Sage, query: string): MemoryQueryRe
 }
 
 /** Structural corroboration required before a graph-expanded memory is injected. */
-export function memoryStructuralRelevance(
-  memory: Sage,
-  seeds: Sage[],
-): MemoryQueryRelevance {
+export function memoryStructuralRelevance(memory: Sage, seeds: Sage[]): MemoryQueryRelevance {
   const memoryAnchors = structuralAnchorKeys(memory);
   const memoryTags = new Set(memory.tags.flatMap(informativeTerms));
   for (const seed of seeds) {

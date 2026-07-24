@@ -1,6 +1,8 @@
 import type { JsonRpcResponse, ToolCallResult } from './client.js';
 import { MCP_CONSTANTS } from './constants.js';
 import { parseServerMetadata } from './protocol.js';
+import { readBodyCapped } from './read-body.js';
+import { normalizeMCPTools } from './tool-schema.js';
 import {
   BaseHTTPTransport,
   createTimeoutSignal,
@@ -14,8 +16,6 @@ import {
   isJsonRpcResult,
   type JsonRpcResult,
 } from './transport-jsonrpc.js';
-import { normalizeMCPTools } from './tool-schema.js';
-import { readBodyCapped } from './read-body.js';
 
 // ---------------------------------------------------------------------------
 // Streamable HTTP Transport
@@ -46,11 +46,7 @@ export class StreamableHTTPTransport extends BaseHTTPTransport {
       }
     }
     const responses = envelopes.filter(isJsonRpcResult);
-    return (
-      responses.find((envelope) => envelope.id === requestId) ??
-      responses.find((envelope) => envelope.id !== undefined) ??
-      responses[0]
-    );
+    return responses.find((envelope) => envelope.id === requestId) ?? responses[0];
   }
 
   private handleNotification(method: string): void {
@@ -200,7 +196,7 @@ export class StreamableHTTPTransport extends BaseHTTPTransport {
       // Notifications get no JSON-RPC reply (the server returns 202 / empty body).
       if (method.startsWith('notifications/')) {
         await res.text().catch(() => undefined);
-        return { jsonrpc: '2.0' };
+        return { jsonrpc: '2.0', id };
       }
 
       const match = this.consumeResponseText(await readBodyCapped(res), id);

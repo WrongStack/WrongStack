@@ -630,7 +630,12 @@ export class HqKanbanStore {
     }
     merged.boards.sort((a, b) => a.boardId.localeCompare(b.boardId));
     merged.tombstones.sort((a, b) => a.boardId.localeCompare(b.boardId));
-    this.cache.set(incoming.projectId, structuredClone(merged));
+    // One defensive clone, not two: the cache entry is only ever read through
+    // `load()` (which clones on the way out) and the writer only serializes,
+    // so both may share `merged`. Cloning per merge is O(full project set) —
+    // with thousands of run-mirror boards that was measurable churn on every
+    // delta. The returned clone keeps callers isolated from the cache.
+    this.cache.set(incoming.projectId, merged);
     this.writer(incoming.projectId).enqueue(merged);
     return structuredClone(merged);
   }

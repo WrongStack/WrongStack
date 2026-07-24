@@ -147,4 +147,10 @@ export {
   type ToolWireDefinitionLike,
 } from './tool-wire-compact.js';
 export { isUlid, ulid } from './ulid.js';
+export {
+  type ProjectWatchEvent,
+  type ProjectWatchSubscription,
+  watchProjectTree,
+} from './project-watch.js';
+export { DEFAULT_WALK_IGNORE_DIRS, DEFAULT_WALK_IGNORE_SET } from './walk-ignore.js';
 export * from './wstack-paths.js';

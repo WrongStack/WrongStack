@@ -360,13 +360,26 @@ export class BrainMonitor {
         source: 'system',
         question: input.question,
         context: input.context,
+        // Deliberately NO `recommended` option. "Should I interrupt the
+        // working agent?" has no caller-known safe default, and marking one
+        // had two costs:
+        //
+        //   1. `terminalPolicyDecision` accepts a recommended option at
+        //      low/medium risk, so whenever the LLM pool was unreachable the
+        //      escalation collapsed to "steer" — a dead provider made the
+        //      monitor inject a canned, model-less guidance string on EVERY
+        //      signal. It now denies instead, which `maybeIntervene` reads as
+        //      "do not interfere", leaving the engagement observe-only (the
+        //      `brain.intervention` event still fires, with intervened=false).
+        //   2. `buildBrainUserMessage` renders "★ recommended" into the
+        //      prompt, biasing the model toward intervening on a question it
+        //      is being asked precisely to judge neutrally.
         options: [
           {
             id: 'steer',
             label: 'Steer the agent with corrective guidance',
             consequence: 'A steer message is injected before its next step.',
             risk: 'low',
-            recommended: true,
           },
           {
             id: 'continue',

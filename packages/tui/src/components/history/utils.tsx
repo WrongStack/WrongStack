@@ -992,7 +992,7 @@ export function formatToolVisualOutput(
   if (toolName === 'outdated') return visualOutdated(text);
   if (toolName === 'audit') return visualAudit(text);
   if (toolName === 'scaffold') return visualScaffold(text);
-  if (toolName === 'todo') return visualTodo(text);
+  if (toolName === 'todo') return visualTodo(text, input);
   if (toolName === 'task' || toolName === 'plan') return visualWorkBoard(toolName, text, ok);
   if (
     toolName === 'remember' ||
@@ -1020,7 +1020,6 @@ export function formatToolVisualOutput(
   }
   if (toolName === 'set_working_dir') return visualWorkingDir(text, ok);
   if (toolName === 'mode') return visualMode(text, ok);
-  void input;
   return undefined;
 }
 
@@ -1645,7 +1644,37 @@ function visualScaffold(text: string): ToolVisualLine[] | undefined {
   return rows.length > 0 ? rows : undefined;
 }
 
-function visualTodo(text: string): ToolVisualLine[] | undefined {
+/** Max board rows shown inside the todo tool card before collapsing to "… N more". */
+const TODO_VISUAL_MAX_LINES = 10;
+
+function visualTodo(text: string, input?: unknown): ToolVisualLine[] | undefined {
+  // The tool OUTPUT only carries counts; the full replacement list lives in
+  // the call INPUT. Render the actual board inside the tool card (above the
+  // closing rail) so the transcript doesn't need a separate todo-list block.
+  const inputObj =
+    input && typeof input === 'object' && !Array.isArray(input)
+      ? (input as Record<string, unknown>)
+      : undefined;
+  const todos = Array.isArray(inputObj?.['todos']) ? inputObj['todos'] : undefined;
+  const items = (todos ?? []).filter(
+    (t): t is Record<string, unknown> => Boolean(t) && typeof t === 'object' && !Array.isArray(t),
+  );
+  if (items.length > 0) {
+    const rows: ToolVisualLine[] = items.slice(0, TODO_VISUAL_MAX_LINES).map((o): ToolVisualLine => {
+      const content = stringOf(o['content']) ?? stringOf(o['id']) ?? 'todo';
+      const status = stringOf(o['status']);
+      if (status === 'completed') return { kind: 'ok', marker: '[x] ', text: content };
+      if (status === 'in_progress') {
+        return { kind: 'warn', marker: '[~] ', text: stringOf(o['activeForm']) ?? content };
+      }
+      return { kind: 'meta', marker: '[ ] ', text: content };
+    });
+    if (items.length > rows.length) {
+      rows.push({ kind: 'meta', text: `… ${items.length - rows.length} more` });
+    }
+    return rows;
+  }
+
   const json = tryParseJson(text);
   const fields =
     json && typeof json === 'object' && !Array.isArray(json)

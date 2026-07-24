@@ -1,3 +1,5 @@
+import { EventEmitter } from 'node:events';
+import { createServer } from 'node:http';
 import { PassThrough } from 'node:stream';
 import { describe, expect, it, vi } from 'vitest';
 import {
@@ -25,6 +27,14 @@ async function call(server: MCPServer, msg: unknown): Promise<Record<string, unk
 }
 
 describe('MCPServer.handleMessage', () => {
+  it('returns INVALID_REQUEST for malformed JSON-RPC envelopes', async () => {
+    const server = new MCPServer({ host: makeHost() });
+    for (const message of [null, 42, 'text', {}, { id: 8 }, { id: 'request-id' }]) {
+      const response = await call(server, message);
+      expect((response!.error as { code: number }).code).toBe(-32600);
+    }
+  });
+
   it('responds to initialize with protocol version and serverInfo', async () => {
     const server = new MCPServer({ host: makeHost(), serverInfo: { name: 'ws', version: '9' } });
     const res = await call(server, { jsonrpc: '2.0', id: 1, method: 'initialize', params: {} });
@@ -72,6 +82,35 @@ describe('MCPServer.handleMessage', () => {
     });
     const result = res?.result as { isError: boolean };
     expect(result.isError).toBe(true);
+  });
+
+  it('validates tool names and normalizes invalid argument containers', async () => {
+    const callTool = vi.fn(async () => ({ content: 'ok', isError: false }));
+    const server = new MCPServer({ host: makeHost({ callTool }) });
+    const invalid = await call(server, {
+      jsonrpc: '2.0',
+      id: 1,
+      method: 'tools/call',
+      params: { name: 1 },
+    });
+    expect((invalid!.error as { code: number }).code).toBe(-32603);
+    const missingParams = await call(server, {
+      jsonrpc: '2.0',
+      id: 1,
+      method: 'tools/call',
+    });
+    expect((missingParams!.error as { code: number }).code).toBe(-32603);
+
+    for (const argumentsValue of [null, [], 'text']) {
+      await call(server, {
+        jsonrpc: '2.0',
+        id: 2,
+        method: 'tools/call',
+        params: { name: 'echo', arguments: argumentsValue },
+      });
+    }
+    expect(callTool).toHaveBeenCalledTimes(3);
+    expect(callTool).toHaveBeenCalledWith('echo', {});
   });
 
   it('returns INTERNAL_ERROR when the host throws', async () => {
@@ -151,6 +190,20 @@ describe('MCPServer.handleMessage', () => {
       params: { uri: 'file:///project/README.md' },
     });
     expect((read!.result as { contents: Array<{ text: string }> }).contents[0]?.text).toBe('hello');
+
+    const templates = await call(server, {
+      jsonrpc: '2.0',
+      id: 4,
+      method: 'resources/templates/list',
+    });
+    expect(templates?.result).toEqual({ resourceTemplates: [] });
+    const missing = await call(server, {
+      jsonrpc: '2.0',
+      id: 5,
+      method: 'resources/read',
+      params: { uri: 'file:///missing' },
+    });
+    expect((missing!.error as { code: number }).code).toBe(-32603);
   });
 
   it('paginates explicitly configured resources', async () => {
@@ -188,6 +241,10 @@ describe('MCPServer.handleMessage', () => {
     expect((listed!.result as { prompts: Array<{ name: string }> }).prompts[0]?.name).toBe(
       'review',
     );
+    const initialized = await call(server, { jsonrpc: '2.0', id: 9, method: 'initialize' });
+    expect(
+      (initialized!.result as { capabilities: { prompts?: unknown } }).capabilities.prompts,
+    ).toBeDefined();
     const selected = await call(server, {
       jsonrpc: '2.0',
       id: 2,
@@ -201,11 +258,134 @@ describe('MCPServer.handleMessage', () => {
         }
       ).messages[0]?.content.text,
     ).toBe('Review src/');
+
+    const missingArgument = await call(server, {
+      jsonrpc: '2.0',
+      id: 3,
+      method: 'prompts/get',
+      params: { name: 'review' },
+    });
+    expect((missingArgument!.error as { code: number }).code).toBe(-32603);
+    const missingPrompt = await call(server, {
+      jsonrpc: '2.0',
+      id: 4,
+      method: 'prompts/get',
+      params: { name: 'missing' },
+    });
+    expect((missingPrompt!.error as { code: number }).code).toBe(-32603);
+  });
+
+  it('serves static prompt messages and validates prompt arguments', async () => {
+    const server = new MCPServer({
+      host: makeHost(),
+      prompts: [
+        {
+          name: 'static',
+          arguments: [{ name: 'optional', required: false }],
+          messages: [{ role: 'assistant', content: { type: 'text', text: 'ready' } }],
+        },
+        {
+          name: 'empty',
+        },
+        {
+          name: 'template',
+          template: 'Hello {{name}}',
+        },
+      ],
+    });
+    const staticPrompt = await call(server, {
+      jsonrpc: '2.0',
+      id: 1,
+      method: 'prompts/get',
+      params: { name: 'static', arguments: { optional: 'yes' } },
+    });
+    expect(
+      (staticPrompt!.result as { messages: Array<{ content: { text: string } }> }).messages[0]
+        ?.content.text,
+    ).toBe('ready');
+    const emptyPrompt = await call(server, {
+      jsonrpc: '2.0',
+      id: 2,
+      method: 'prompts/get',
+      params: { name: 'empty' },
+    });
+    expect((emptyPrompt!.result as { messages: unknown[] }).messages).toEqual([]);
+
+    for (const argumentsValue of [[], 'invalid', { optional: 1 }]) {
+      const response = await call(server, {
+        jsonrpc: '2.0',
+        id: 3,
+        method: 'prompts/get',
+        params: { name: 'static', arguments: argumentsValue },
+      });
+      expect((response!.error as { code: number }).code).toBe(-32603);
+    }
+    const missingTemplateValue = await call(server, {
+      jsonrpc: '2.0',
+      id: 4,
+      method: 'prompts/get',
+      params: { name: 'template', arguments: {} },
+    });
+    expect((missingTemplateValue!.error as { code: number }).code).toBe(-32603);
+  });
+
+  it('validates resource and prompt pagination cursors', async () => {
+    const resources = [
+      {
+        uri: 'mem://one',
+        name: 'one',
+        contents: [{ uri: 'mem://one', text: 'one' }],
+      },
+    ];
+    const prompts = Array.from({ length: 101 }, (_, index) => ({
+      name: `prompt-${index}`,
+      template: 'hello',
+    }));
+    const server = new MCPServer({ host: makeHost(), resources, prompts });
+
+    for (const cursor of [1, '-1', 'not-a-number', '999999999999999999999999']) {
+      const response = await call(server, {
+        jsonrpc: '2.0',
+        id: 1,
+        method: 'resources/list',
+        params: { cursor },
+      });
+      expect((response!.error as { code: number }).code).toBe(-32603);
+    }
+    const firstPrompts = await call(server, {
+      jsonrpc: '2.0',
+      id: 2,
+      method: 'prompts/list',
+    });
+    expect((firstPrompts!.result as { nextCursor: string }).nextCursor).toBe('100');
+  });
+
+  it('requires non-empty resource and prompt names', async () => {
+    const server = new MCPServer({
+      host: makeHost(),
+      resources: [{ uri: 'mem://one', name: 'one', contents: [] }],
+      prompts: [{ name: 'one' }],
+    });
+    for (const [method, params] of [
+      ['resources/read', {}],
+      ['resources/read', { uri: '' }],
+      ['prompts/get', {}],
+      ['prompts/get', { name: '' }],
+    ] as const) {
+      const response = await call(server, { jsonrpc: '2.0', id: 1, method, params });
+      expect((response!.error as { code: number }).code).toBe(-32603);
+    }
   });
 
   it('keeps tools-only server behavior for unadvertised resources and prompts', async () => {
     const server = new MCPServer({ host: makeHost() });
-    for (const method of ['resources/list', 'prompts/list']) {
+    for (const method of [
+      'resources/list',
+      'resources/templates/list',
+      'resources/read',
+      'prompts/list',
+      'prompts/get',
+    ]) {
       const response = await call(server, { jsonrpc: '2.0', id: 1, method });
       expect((response!.error as { code: number }).code).toBe(-32601);
     }
@@ -236,9 +416,23 @@ describe('toContentBlocks', () => {
       { type: 'text', text: '{"not":"text"}\nstring-item' },
     ]);
   });
+
+  it('stringifies circular values through their safe fallback', () => {
+    const circular: Record<string, unknown> = {};
+    circular.self = circular;
+    expect(toContentBlocks(circular)).toEqual([{ type: 'text', text: '[object Object]' }]);
+    expect(toContentBlocks([])).toEqual([]);
+  });
 });
 
 describe('serveStdio', () => {
+  it('can attach to and immediately detach from the default process streams', async () => {
+    const handle = serveStdio(new MCPServer({ host: makeHost() }));
+    handle.close();
+    handle.close();
+    await handle.done;
+  });
+
   it('reads newline-delimited requests and writes responses', async () => {
     const stdin = new PassThrough();
     const stdout = new PassThrough();
@@ -312,6 +506,70 @@ describe('serveStdio', () => {
     stdin.write('a'.repeat(5 * 1024 * 1024));
     stdin.end();
     await expect(handle.done).resolves.toBeUndefined();
+  });
+
+  it('logs rejected message handlers and continues', async () => {
+    const stdin = new PassThrough();
+    const stdout = new PassThrough();
+    const server = new MCPServer({ host: makeHost() });
+    vi.spyOn(server, 'handleMessage').mockRejectedValue(new Error('handler failed'));
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const handle = serveStdio(server, { stdin, stdout });
+    stdin.end('{"jsonrpc":"2.0","id":1,"method":"ping"}\n');
+
+    await vi.waitFor(() =>
+      expect(consoleError).toHaveBeenCalledWith(expect.stringContaining('handle_message_failed')),
+    );
+    await handle.done;
+  });
+
+  it('logs stdout write failures', async () => {
+    const stdin = new PassThrough();
+    const stdout = new PassThrough();
+    vi.spyOn(stdout, 'write').mockImplementation(() => {
+      throw new Error('write failed');
+    });
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const handle = serveStdio(new MCPServer({ host: makeHost() }), { stdin, stdout });
+    stdin.end('{"jsonrpc":"2.0","id":1,"method":"ping"}\n');
+
+    await vi.waitFor(() =>
+      expect(consoleError).toHaveBeenCalledWith(expect.stringContaining('stdout_write_failed')),
+    );
+    await handle.done;
+  });
+
+  it('ignores stream teardown failures after buffer overflow', async () => {
+    const stdin = new PassThrough();
+    const stdout = new PassThrough();
+    vi.spyOn(stdin, 'pause').mockImplementation(() => {
+      throw new Error('pause failed');
+    });
+    vi.spyOn(console, 'error').mockImplementation(() => {});
+    const handle = serveStdio(new MCPServer({ host: makeHost() }), { stdin, stdout });
+    const onData = stdin.listeners('data')[0] as (chunk: Buffer | string) => void;
+    onData('a'.repeat(5 * 1024 * 1024));
+    onData('ignored after overflow');
+    await expect(handle.done).resolves.toBeUndefined();
+  });
+
+  it('skips blank stdio lines', async () => {
+    const stdin = new PassThrough();
+    stdin.setEncoding('utf8');
+    const stdout = new PassThrough();
+    const handle = serveStdio(new MCPServer({ host: makeHost() }), { stdin, stdout });
+    stdin.end('\n   \n');
+    await handle.done;
+  });
+
+  it('supports readable streams without resume()', async () => {
+    const stdin = new EventEmitter() as never as NodeJS.ReadableStream;
+    const handle = serveStdio(new MCPServer({ host: makeHost() }), {
+      stdin,
+      stdout: new PassThrough(),
+    });
+    handle.close();
+    await handle.done;
   });
 });
 
@@ -395,6 +653,63 @@ describe('serveHttp', () => {
       expect(r.status).toBe(405);
       const body = (await r.json()) as { error: string };
       expect(body.error).toBe('method not allowed');
+    } finally {
+      await handle.close();
+    }
+  });
+
+  it('rejects payloads larger than the HTTP body cap', async () => {
+    const handle = await serveHttp(new MCPServer({ host: makeHost() }), { port: 0 });
+    try {
+      const outcome = await fetch(handle.url, {
+        method: 'POST',
+        body: 'x'.repeat(5 * 1024 * 1024),
+      }).catch((error: unknown) => error);
+      if (outcome instanceof Response) expect(outcome.status).toBe(413);
+      else expect(outcome).toBeInstanceOf(Error);
+    } finally {
+      await handle.close();
+    }
+  });
+
+  it('returns 500 and logs when the protocol handler rejects', async () => {
+    const server = new MCPServer({ host: makeHost() });
+    vi.spyOn(server, 'handleMessage').mockRejectedValue(new Error('handler failed'));
+    const warn = vi.fn();
+    const handle = await serveHttp(server, { port: 0, logger: { warn } });
+    try {
+      const response = await fetch(handle.url, { method: 'POST', body: '{}' });
+      expect(response.status).toBe(500);
+      expect(warn).toHaveBeenCalledWith(expect.stringContaining('handler failed'));
+    } finally {
+      await handle.close();
+    }
+  });
+
+  it('rejects when the requested port is already occupied', async () => {
+    const occupied = createServer();
+    await new Promise<void>((resolve) => occupied.listen(0, '127.0.0.1', resolve));
+    const address = occupied.address();
+    if (!address || typeof address === 'string') throw new Error('fixture did not bind');
+    try {
+      await expect(
+        serveHttp(new MCPServer({ host: makeHost() }), {
+          host: '127.0.0.1',
+          port: address.port,
+        }),
+      ).rejects.toThrow();
+    } finally {
+      await new Promise<void>((resolve) => occupied.close(() => resolve()));
+    }
+  });
+
+  it('formats an IPv6 loopback URL', async () => {
+    const handle = await serveHttp(new MCPServer({ host: makeHost() }), {
+      host: '::1',
+      port: 0,
+    });
+    try {
+      expect(handle.url).toContain('http://[::1]:');
     } finally {
       await handle.close();
     }

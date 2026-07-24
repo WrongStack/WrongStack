@@ -72,22 +72,25 @@ export interface FetchAcpRegistryOptions {
 }
 
 /** Map Node's platform/arch to the registry's `<os>-<arch>` key form. */
-export function currentPlatformKey(): string {
+export function currentPlatformKey(
+  platform: NodeJS.Platform = process.platform,
+  architecture: string = process.arch,
+): string {
   const os =
-    process.platform === 'win32'
+    platform === 'win32'
       ? 'windows'
-      : process.platform === 'darwin'
+      : platform === 'darwin'
         ? 'darwin'
         : 'linux';
-  const arch = process.arch === 'arm64' ? 'aarch64' : process.arch === 'x64' ? 'x86_64' : process.arch;
+  const arch =
+    architecture === 'arm64' ? 'aarch64' : architecture === 'x64' ? 'x86_64' : architecture;
   return `${os}-${arch}`;
 }
 
 /** `./foo/bar` → `bar`; leaves bare names untouched. */
 function basename(cmd: string): string {
   const cleaned = cmd.replace(/^\.\//, '').replace(/\\/g, '/');
-  const parts = cleaned.split('/');
-  return parts[parts.length - 1] || cleaned;
+  return cleaned.slice(cleaned.lastIndexOf('/') + 1);
 }
 
 /**

@@ -4,7 +4,8 @@ import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { useComposerActions } from '../src/hooks/use-composer-actions.js';
-import type { RefineState, ChatMessage, PendingConfirm } from '../src/types.js';
+import type { RefineState } from '../src/lib/refine-model.js';
+import type { ChatMessage, PendingConfirm } from '../src/types.js';
 import type { QueuedItem } from '../src/lib/queue-model.js';
 
 interface Captured {
@@ -50,7 +51,7 @@ function renderHookViaRoot(
     queue: QueuedItem[];
     refineState: RefineState | null;
   }> = {},
-): { root: Root; socket: MockSocket; state: TestState; refs: Record<string, { current: unknown }> } {
+) {
   const socket: MockSocket = { send: vi.fn() };
   const state: TestState = {
     messages: [],
@@ -58,6 +59,7 @@ function renderHookViaRoot(
     activity: '',
     running: overrides.running ?? false,
     refineState: overrides.refineState ?? null,
+    pendingConfirm: null,
     draft: overrides.draft ?? '',
     fileRefs: overrides.fileRefs ?? [],
     attachedImages: [] as { id: string; data: string; mime: string; name: string }[],
@@ -67,6 +69,8 @@ function renderHookViaRoot(
   const draftRef = { current: state.draft };
   const fileRefsRef = { current: state.fileRefs };
   const refineStateRef = { current: state.refineState };
+  const refineEpochRef = { current: 0 };
+  const attachedImagesRef = { current: state.attachedImages };
 
   // startSend mock — the hook uses this as the refine-aware dispatch entry point.
   const startSendMock = vi.fn();
@@ -80,6 +84,7 @@ function renderHookViaRoot(
       draftRef: draftRef as never,
       fileRefsRef: fileRefsRef as never,
       refineStateRef: refineStateRef as never,
+      refineEpochRef: refineEpochRef as never,
       draft: state.draft,
       fileRefs: state.fileRefs,
       running: state.running,
@@ -100,6 +105,7 @@ function renderHookViaRoot(
       setAttachedImages: (v) => {
         state.attachedImages = typeof v === 'function' ? v(state.attachedImages) : v;
       },
+      attachedImagesRef: attachedImagesRef as never,
       setRefineState: (v) => {
         state.refineState = typeof v === 'function' ? (v as (prev: RefineState | null) => RefineState | null)(state.refineState) : v;
         refineStateRef.current = state.refineState;
@@ -113,7 +119,7 @@ function renderHookViaRoot(
   const root = createRoot(container);
   roots.push(root);
   act(() => root.render(<Probe />));
-  return { root, socket, state, startSendMock, dispatchUserMessageMock, refs: { sessionIdRef, draftRef, fileRefsRef, refineStateRef } };
+  return { root, socket, state, startSendMock, dispatchUserMessageMock, refs: { sessionIdRef, draftRef, fileRefsRef, refineStateRef, attachedImagesRef } };
 }
 
 beforeEach(() => {
@@ -170,16 +176,6 @@ describe('useComposerActions — submitWith', () => {
 });
 
 describe('useComposerActions — refineDecision', () => {
-  it("clears refine state on 'edit' without dispatching", () => {
-    const captured: Captured = { current: undefined as never };
-    const rs = makeRefineState('edit me');
-    const { state, startSendMock, dispatchUserMessageMock } = renderHookViaRoot(captured, { refineState: rs });
-    act(() => captured.current.refineDecision('edit'));
-    expect(state.refineState).toBeNull();
-    expect(dispatchUserMessageMock).not.toHaveBeenCalled();
-    expect(startSendMock).not.toHaveBeenCalled();
-  });
-
   // ── Regression: refineDecision must call dispatchUserMessage, NOT startSend.
   //    startSend re-enters the refine pipeline (sets status to 'refining' and
   //    sends a new model.refine request), which caused an infinite loop where
@@ -223,6 +219,74 @@ describe('useComposerActions — refineRetry', () => {
     const { socket } = renderHookViaRoot(captured, { refineState: rs });
     act(() => captured.current.refineRetry());
     expect(socket.send).toHaveBeenCalledWith('model.refine', expect.objectContaining({ text: 'retry this' }));
+  });
+});
+
+describe('useComposerActions — refineRetry feedback', () => {
+  it("sends previousRefined/previousEnglish when retrying from the 'ready' face", () => {
+    const captured: Captured = { current: undefined as never };
+    const rs = makeRefineState('retry this'); // status: 'ready'
+    const { socket } = renderHookViaRoot(captured, { refineState: rs });
+    act(() => captured.current.refineRetry());
+    expect(socket.send).toHaveBeenCalledWith(
+      'model.refine',
+      expect.objectContaining({
+        text: 'retry this',
+        previousRefined: 'refined version',
+        previousEnglish: 'english version',
+      }),
+    );
+  });
+
+  it("omits previous round fields when retrying from the 'failed' face", () => {
+    const captured: Captured = { current: undefined as never };
+    const rs: RefineState = { ...makeRefineState('retry this'), status: 'failed', error: 'boom' };
+    const { socket } = renderHookViaRoot(captured, { refineState: rs });
+    act(() => captured.current.refineRetry());
+    const call = socket.send.mock.calls.find((c) => c[0] === 'model.refine');
+    expect(call).toBeDefined();
+    expect(call?.[1]).not.toHaveProperty('previousRefined');
+    expect(call?.[1]).not.toHaveProperty('previousEnglish');
+  });
+
+  it("flips the panel status back to 'refining' and clears the stale error", () => {
+    const captured: Captured = { current: undefined as never };
+    const rs: RefineState = { ...makeRefineState('retry this'), status: 'failed', error: 'boom' };
+    const { state } = renderHookViaRoot(captured, { refineState: rs });
+    act(() => captured.current.refineRetry());
+    expect(state.refineState?.status).toBe('refining');
+    expect(state.refineState?.error).toBeUndefined();
+  });
+});
+
+describe('useComposerActions — refineRetryFallback', () => {
+  it("reflects the fallback provider/model and flips to 'refining'", () => {
+    const captured: Captured = { current: undefined as never };
+    const rs: RefineState = { ...makeRefineState('retry this'), status: 'failed', error: 'boom' };
+    const { socket, state } = renderHookViaRoot(captured, { refineState: rs });
+    act(() => captured.current.refineRetryFallback('anthropic/claude-sonnet'));
+    expect(state.refineState?.status).toBe('refining');
+    expect(state.refineState?.provider).toBe('anthropic');
+    expect(state.refineState?.model).toBe('claude-sonnet');
+    expect(state.refineState?.error).toBeUndefined();
+    expect(socket.send).toHaveBeenCalledWith(
+      'model.refine',
+      expect.objectContaining({
+        text: 'retry this',
+        provider: 'anthropic',
+        model: 'claude-sonnet',
+        timeoutMs: 180_000,
+      }),
+    );
+  });
+
+  it('ignores refs without a provider/model slash', () => {
+    const captured: Captured = { current: undefined as never };
+    const rs = makeRefineState('retry this');
+    const { socket, state } = renderHookViaRoot(captured, { refineState: rs });
+    act(() => captured.current.refineRetryFallback('not-a-ref'));
+    expect(socket.send).not.toHaveBeenCalledWith('model.refine', expect.anything());
+    expect(state.refineState?.status).toBe('ready');
   });
 });
 

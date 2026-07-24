@@ -693,6 +693,18 @@ export function watchHqAuthFile(
     }, debounceMs);
   };
 
+  // Without a listener an FSWatcher 'error' event is an uncaught exception
+  // (Windows emits transient EPERMs on dir churn). Degrade to "no watcher" —
+  // same as the creation-failure path above.
+  watcher.on('error', (err: Error) => {
+    opts.warn?.(`HQ auth watcher error: ${err.message}`);
+    try {
+      watcher.close();
+    } catch {
+      /* already closed */
+    }
+  });
+
   watcher.on('change', (eventType: string, filename: string | Buffer | null) => {
     const name = typeof filename === 'string' ? filename : '';
     // Only react to events that touch auth.json (rename, change).

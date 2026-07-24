@@ -193,6 +193,7 @@ export function useSubagentEvents(
     const offRemoved = events.on('subagent.removed', (e) => {
       if (!isCurrentSession(e.sessionId)) return;
       labelsRef.current.delete(e.subagentId);
+      ctxDispatchRef.current.delete(e.subagentId);
       gate.forget(e.subagentId);
       dispatch({ type: 'fleetRemove', id: e.subagentId });
     });

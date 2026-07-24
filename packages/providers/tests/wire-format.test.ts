@@ -309,6 +309,7 @@ describe('WireFormatProvider — declarative wire format', () => {
   it('finalizeStream emits trailing events when defined', async () => {
     const trailingCfg = defineWireFormat<{ saw: number }>({
       ...miniConfig,
+      isTruncated: () => false,
       createStreamState: () => ({ saw: 0 }),
       parseStreamEvent: (_msg, state) => {
         state.saw++;

@@ -1,1 +1,4 @@
 .wrongstack/
+!/.wrongstack/
+/.wrongstack/*
+!/.wrongstack/project.json

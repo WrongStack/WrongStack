@@ -15,14 +15,23 @@
 // opt in explicitly — because auto-picking a side can silently drop work.
 
 import { readFile, writeFile } from 'node:fs/promises';
-import { join, isAbsolute } from 'node:path';
+import { isAbsolute, join } from 'node:path';
 import type { TaskNode } from '@wrongstack/core/types';
-import {
-  readBundledInstructionText,
-  renderInstructionTemplate,
-} from '@wrongstack/core/utils';
+import { readBundledInstructionText, renderInstructionTemplate } from '@wrongstack/core/utils';
 
 export type ConflictSide = 'incoming' | 'base';
+
+export interface ConflictFileIO {
+  read(path: string): Promise<string>;
+  write(path: string, content: string): Promise<void>;
+}
+
+const defaultFileIO: ConflictFileIO = {
+  read: (path) => readFile(path, 'utf8'),
+  write: async (path, content) => {
+    await writeFile(path, content, 'utf8');
+  },
+};
 
 const START = '<<<<<<<';
 const BASE = '|||||||';
@@ -77,7 +86,10 @@ export function hasConflictMarkers(text: string): boolean {
  * file. Returns false (abort → conservative fail) if any file can't be read,
  * written, or still has markers after the rewrite.
  */
-export function makePreferSideConflictResolver(side: ConflictSide) {
+export function makePreferSideConflictResolver(
+  side: ConflictSide,
+  io: ConflictFileIO = defaultFileIO,
+) {
   return async function conflictResolver(info: {
     task: TaskNode;
     conflictFiles: string[];
@@ -88,14 +100,14 @@ export function makePreferSideConflictResolver(side: ConflictSide) {
       const abs = isAbsolute(rel) ? rel : join(info.cwd, rel);
       let content: string;
       try {
-        content = await readFile(abs, 'utf8');
+        content = await io.read(abs);
       } catch {
         return false; // can't read → don't risk a partial resolution
       }
       const resolved = resolveConflictText(content, side);
       if (hasConflictMarkers(resolved)) return false; // refuse a half-resolved file
       try {
-        await writeFile(abs, resolved, 'utf8');
+        await io.write(abs, resolved);
       } catch {
         return false;
       }
@@ -113,6 +125,8 @@ export interface LlmConflictResolverOptions {
    * Default 0.5.
    */
   minRetainedFraction?: number;
+  /** Optional filesystem seam for deterministic hosts and failure tests. */
+  io?: ConflictFileIO;
 }
 
 /** Strip a single surrounding ``` code fence (any/no language) if present. */
@@ -140,6 +154,7 @@ function nonMarkerLineCount(text: string): number {
  */
 export function makeLlmConflictResolver(opts: LlmConflictResolverOptions) {
   const minFraction = opts.minRetainedFraction ?? 0.5;
+  const io = opts.io ?? defaultFileIO;
 
   return async function conflictResolver(info: {
     task: TaskNode;
@@ -151,7 +166,7 @@ export function makeLlmConflictResolver(opts: LlmConflictResolverOptions) {
       const abs = isAbsolute(rel) ? rel : join(info.cwd, rel);
       let content: string;
       try {
-        content = await readFile(abs, 'utf8');
+        content = await io.read(abs);
       } catch {
         return false;
       }
@@ -179,7 +194,7 @@ export function makeLlmConflictResolver(opts: LlmConflictResolverOptions) {
         return false;
       }
       try {
-        await writeFile(abs, resolved, 'utf8');
+        await io.write(abs, resolved);
       } catch {
         return false;
       }

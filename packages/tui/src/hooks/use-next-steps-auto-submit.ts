@@ -1,6 +1,9 @@
 import type { ContentBlock } from '@wrongstack/core/types';
 import { resolveContinuation, type TodoItem } from '@wrongstack/core/agent';
-import { createAutoProceedLoopGuard } from '@wrongstack/tools/auto-proceed-loop-guard';
+import {
+  createAutoProceedLoopGuard,
+  GROUNDED_NO_PROGRESS_STEER,
+} from '@wrongstack/tools/auto-proceed-loop-guard';
 import {
   type Dispatch,
   type MutableRefObject,
@@ -100,6 +103,11 @@ export function useNextStepsAutoSubmit({
   const [nextStepsAutoSubmitCountdown, setNextStepsAutoSubmitCountdown] = useState<number | null>(null);
   const [nextStepsAutoSubmitLabel, setNextStepsAutoSubmitLabel] = useState<string | null>(null);
   const nextStepsAutoSubmitSuggestionRef = useRef<string | null>(null);
+  // Where the armed prompt came from. Todo-sourced prompts are GROUNDED
+  // (synthesized from the durable board, not echoed model output), so their
+  // repetition goes through the guard's steer-then-halt path instead of
+  // halting on the first identical re-feed.
+  const nextStepsAutoSubmitSourceRef = useRef<AutoProceedCandidate['source'] | null>(null);
   const nextStepsAutoSubmitTimerRef = useRef<ReturnType<typeof setInterval> | undefined>(undefined);
 
   // ── Next-steps auto-submit countdown ─────────────────────────────────
@@ -142,6 +150,7 @@ export function useNextStepsAutoSubmit({
       setNextStepsAutoSubmitCountdown(null);
       setNextStepsAutoSubmitLabel(null);
       nextStepsAutoSubmitSuggestionRef.current = null;
+      nextStepsAutoSubmitSourceRef.current = null;
       return;
     }
 
@@ -210,6 +219,7 @@ export function useNextStepsAutoSubmit({
     const delay = cfg?.delayMs ?? 45_000;
 
     nextStepsAutoSubmitSuggestionRef.current = candidate.prompt;
+    nextStepsAutoSubmitSourceRef.current = candidate.source;
     const start = Date.now();
     setNextStepsAutoSubmitCountdown(Math.ceil(delay / 1000));
     setNextStepsAutoSubmitLabel(candidate.label);
@@ -223,11 +233,14 @@ export function useNextStepsAutoSubmit({
         setNextStepsAutoSubmitLabel(null);
         if ((getAutonomy?.() ?? autonomyLive) !== 'auto') {
           nextStepsAutoSubmitSuggestionRef.current = null;
+          nextStepsAutoSubmitSourceRef.current = null;
           return;
         }
         // Auto-submit the suggestion
         const suggestion = nextStepsAutoSubmitSuggestionRef.current;
+        const source = nextStepsAutoSubmitSourceRef.current;
         nextStepsAutoSubmitSuggestionRef.current = null;
+        nextStepsAutoSubmitSourceRef.current = null;
         if (suggestion) {
           // ── Loop guard ──────────────────────────────────────────────────
           // The streak cap above is a generic runaway net. This guard
@@ -243,7 +256,17 @@ export function useNextStepsAutoSubmit({
           // auto-suggestion store is repopulated by `onAutoSuggestionsParsed`
           // from the next model output, so a stale auto="true" item cannot
           // survive into the next turn.)
-          const repetition = autoSubmitLoopGuardRef.current.record(suggestion);
+          // Todo-sourced prompts are grounded in the durable board, and an
+          // identical re-feed means "the whole previous turn moved nothing on
+          // the board" — usually the model just forgot to update it. For that
+          // case the guard steers once (an explicit "update the board" note is
+          // appended to the fed prompt) and only halts if the board stays
+          // frozen after the steer. Suggestion-sourced prompts keep the strict
+          // halt-on-first-repeat behavior: those ARE model echoes.
+          const repetition =
+            source === 'todo'
+              ? autoSubmitLoopGuardRef.current.recordGrounded(suggestion)
+              : autoSubmitLoopGuardRef.current.record(suggestion);
           if (repetition.shouldHalt) {
             setSuggestions?.([]);
             const truncatedForMessage =
@@ -263,11 +286,15 @@ export function useNextStepsAutoSubmit({
             // effect re-entry will not re-arm because suggestions is empty.
           } else {
             autoSubmitStreakRef.current += 1;
+            const steered = 'action' in repetition && repetition.action === 'steer';
+            const promptToFeed = steered
+              ? `${suggestion}\n\n${GROUNDED_NO_PROGRESS_STEER}`
+              : suggestion;
             // Trigger submit — input field is cleared after submission completes
             // (see clearDraft in finally block below). Do not pre-populate the
             // input with the suggestion text.
             void (async () => {
-              const trimmed = suggestion.trim();
+              const trimmed = promptToFeed.trim();
               if (!trimmed) {
                 clearDraft();
                 return;
@@ -330,6 +357,7 @@ export function useNextStepsAutoSubmit({
     setNextStepsAutoSubmitCountdown(null);
     setNextStepsAutoSubmitLabel(null);
     nextStepsAutoSubmitSuggestionRef.current = null;
+    nextStepsAutoSubmitSourceRef.current = null;
   }, []);
 
   return {

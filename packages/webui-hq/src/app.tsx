@@ -41,10 +41,13 @@ import {
   type ReactNode,
   Suspense,
   useEffect,
+  useRef,
   useState,
 } from 'react';
 import { useShallow } from 'zustand/react/shallow';
 import { authorizedFetch, clearHqToken, resolveHqToken } from './lib/auth.js';
+import { ToastOverlay } from './lib/toast-notification.js';
+import { useToastStore } from './lib/toast-store.js';
 import { fetchJson, useHqStore, type ViewId } from './store.js';
 import { setHqAppearancePrefs, useHqLocalPrefs } from './stores/hq-local-prefs.js';
 import { TokenGate } from './views/token-gate.js';
@@ -293,6 +296,19 @@ export function HqApp(): React.ReactElement {
   const [authStatus, setAuthStatus] = useState<HqAuthStatus | null>(null);
   const [loggingOut, setLoggingOut] = useState(false);
   const { theme } = useHqLocalPrefs().appearance;
+  const wasConnectedRef = useRef(false);
+  const hasConnectedOnceRef = useRef(false);
+
+  // Toast on connection state transitions
+  useEffect(() => {
+    if (hasConnectedOnceRef.current && connected === false) {
+      useToastStore.getState().addToast('Connection lost — reconnecting with backoff…', 'warning', 4_000);
+    } else if (hasConnectedOnceRef.current && wasConnectedRef.current === false && connected === true) {
+      useToastStore.getState().addToast('Reconnected to HQ server', 'success', 3_000);
+    }
+    if (connected) hasConnectedOnceRef.current = true;
+    wasConnectedRef.current = connected;
+  }, [connected]);
 
   useEffect(() => {
     document.documentElement.dataset.hqTheme = theme;
@@ -547,6 +563,7 @@ export function HqApp(): React.ReactElement {
           </HqViewBoundary>
         </main>
       </section>
+      <ToastOverlay />
     </div>
   );
 }

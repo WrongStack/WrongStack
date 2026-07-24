@@ -94,6 +94,13 @@ describe('SkillGenerator - edge coverage', () => {
     expect(skill.metadata.targetFiles).toContain('**/*');
   });
 
+  it('falls back to catch-all files for an unexpected runtime stack', () => {
+    const stack = makeStack('unknown');
+    stack.stack = 'future-language' as never;
+    const skill = generator.generate(stack);
+    expect(skill.metadata.targetFiles).toEqual(['**/*']);
+  });
+
   // ── includeInjection: false → no injection patterns ───────────────────────
   it('excludes injection patterns when includeInjection is false', () => {
     const g = new SkillGenerator({ includeInjection: false });

@@ -1,4 +1,4 @@
-import { formatTodosList, tuiStreamFlushMs } from '@wrongstack/core/utils';
+import { tuiStreamFlushMs } from '@wrongstack/core/utils';
 import {
   type Dispatch,
   type MutableRefObject,
@@ -210,25 +210,16 @@ export function useProviderEventBridge({
           },
         });
       }
-      // `tool.executed` has no tool_use id; the reducer falls back to
-      // clearing the oldest running entry that matches this name.
-      dispatch({ type: 'toolEnded', name: e.name });
+      // Prefer the tool_use id (paired with `tool.started.id`) so parallel
+      // same-name calls clear their own entry; the reducer still falls back
+      // to the oldest matching name for legacy emit sites without an id.
+      dispatch({ type: 'toolEnded', ...(e.id !== undefined ? { id: e.id } : {}), name: e.name });
       // Clear the live tail for this tool — the final entry is now in
       // retained history, so there is no need to keep mirroring it below.
       dispatch({ type: 'toolStreamClear', name: e.name });
       // Mirror into the leader-only counter so the AgentsMonitor's LEADER
       // row stays live even when no subagents exist.
       dispatch({ type: 'leaderToolEnd', name: e.name, ok: e.ok, durationMs: e.durationMs });
-      // Echo the current todo list into chat whenever the `todo` tool
-      // mutates ctx.todos — same format as `/todos list`. Snapshotted from
-      // agent.ctx.todos at this point (the tool executor has already
-      // applied the mutation by the time tool.executed fires).
-      if (e.ok && e.name === 'todo') {
-        dispatch({
-          type: 'addEntry',
-          entry: { kind: 'info', text: formatTodosList(agent.ctx.todos) },
-        });
-      }
     });
     const offRetry = events.on('provider.retry', (e) => {
       const secs = (e.delayMs / 1000).toFixed(e.delayMs >= 1000 ? 1 : 2);
@@ -487,6 +478,6 @@ export function useProviderEventBridge({
       offMemoryLifecycle();
       if (flushTimerRef.current) clearTimeout(flushTimerRef.current);
     };
-  }, [events, agent.ctx.todos, agent.ctx.session.id]);
+  }, [events, agent.ctx.session.id]);
 
 }

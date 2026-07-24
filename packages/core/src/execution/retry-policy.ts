@@ -27,7 +27,7 @@ const MAX_RETRY_AFTER_MS = 60_000;
 const MAX_ATTEMPTS_BY_KIND: Record<ProviderErrorKind, number> = {
   rate_limit: 5,
   quota_exhausted: 0,
-  stream_hang: 5, // transient, worth retrying aggressively
+  stream_hang: 2, // proxy-level timeout — retrying 5x wastes ~40s before fallback kicks in
   overloaded: 3,
   server: 3,
   timeout: 2,

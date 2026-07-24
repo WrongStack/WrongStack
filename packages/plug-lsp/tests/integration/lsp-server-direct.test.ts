@@ -31,6 +31,7 @@ describe('LSPServer direct API', () => {
     const events = new EventBus();
     const ready = vi.fn();
     const diagnostics = vi.fn();
+    const onCrash = vi.fn();
     events.on('lsp.server.ready', ready);
     events.on('lsp.diagnostics.updated', diagnostics);
     const server = new LSPServer(
@@ -41,7 +42,7 @@ describe('LSPServer direct API', () => {
         languages: ['typescript'],
         startupTimeoutMs: 5000,
       },
-      { cwd: root, rootPath: root, log, events },
+      { cwd: root, rootPath: root, log, events, onCrash },
     );
 
     expect(server.rootPath).toBe(root);
@@ -126,6 +127,19 @@ describe('LSPServer direct API', () => {
     ).toBeNull();
     expect(await server.pullDiagnostics(uri, 5000, new AbortController().signal)).toHaveLength(1);
     expect(server.textDocumentIdentifier(file)).toEqual({ uri });
+    const internal = server as unknown as {
+      child: NodeJS.EventEmitter;
+      connection: { handleMessage(message: unknown): void };
+    };
+    internal.connection.handleMessage({
+      jsonrpc: '2.0',
+      method: 'window/logMessage',
+      params: null,
+    });
+    const child = internal.child;
+    child.emit('error', new Error('late transport failure'));
+    expect(onCrash).toHaveBeenCalledWith(server);
+    child.emit('exit', null, 'SIGTERM');
     await server.shutdown();
     await server.shutdown();
   });

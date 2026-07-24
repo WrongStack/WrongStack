@@ -6,6 +6,11 @@ interface Props {
   children: ReactNode;
   /** Short label for the fallback line, e.g. the entry id or kind. */
   label?: string | undefined;
+  /** When this value changes, any caught error is cleared so the boundary
+   * retries rendering. Essential for streaming entries whose partial state
+   * may throw transiently (incomplete markdown/table) but render fine once
+   * content completes. */
+  resetKey?: string | number | undefined;
 }
 
 interface State {
@@ -31,6 +36,26 @@ export class EntryErrorBoundary extends Component<Props, State> {
 
   static getDerivedStateFromError(error: Error): State {
     return { error };
+  }
+
+  override componentDidCatch(error: Error): void {
+    // Surface silent render failures so they are debuggable rather than
+    // appearing as an unexplained "⚠ render error" line.
+    console.error(
+      JSON.stringify({
+        level: 'error',
+        event: 'entry_render_error',
+        label: this.props.label ?? null,
+        message: error.message,
+        timestamp: new Date().toISOString(),
+      }),
+    );
+  }
+
+  override componentDidUpdate(prevProps: Readonly<Props>): void {
+    if (this.state.error !== null && this.props.resetKey !== undefined && this.props.resetKey !== prevProps.resetKey) {
+      this.setState({ error: null });
+    }
   }
 
   override render(): ReactNode {

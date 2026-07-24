@@ -27,6 +27,7 @@
  * pipeline.
  */
 import type { Plugin } from '@wrongstack/core/types';
+import { cloneCredentialPatterns } from '../runtime/credential-patterns.js';
 
 // ---------------------------------------------------------------------------
 // Pattern set
@@ -44,64 +45,17 @@ interface Pattern {
   regex: RegExp;
 }
 
-// Base patterns — always present, never removed by custom config.
-// Custom patterns from config are APPENDED at setup() time.
-const BASE_PATTERNS: Pattern[] = [
-  // LLM provider keys
-  {
-    type: 'anthropic_key',
-    regex: /(?<![A-Za-z0-9])sk-ant-api\d+-[A-Za-z0-9_-]{20,}(?![A-Za-z0-9])/g,
-  },
-  { type: 'openai_key', regex: /(?<![A-Za-z0-9])sk-(?:proj-)?[A-Za-z0-9_-]{20,}(?![A-Za-z0-9])/g },
-  // GitHub
-  { type: 'github_pat', regex: /(?<![A-Za-z0-9])ghp_[A-Za-z0-9]{36,}(?![A-Za-z0-9])/g },
-  { type: 'github_pat_v2', regex: /(?<![A-Za-z0-9])github_pat_[A-Za-z0-9_]{50,}(?![A-Za-z0-9])/g },
-  // AWS
-  { type: 'aws_access_key', regex: /(?<![A-Za-z0-9])AKIA[0-9A-Z]{16}(?![A-Za-z0-9])/g },
-  // GCP
-  { type: 'gcp_key', regex: /(?<![A-Za-z0-9])AIza[0-9A-Za-z_-]{35}(?![A-Za-z0-9])/g },
-  // Slack
-  { type: 'slack_token', regex: /(?<![A-Za-z0-9-])xox[abpos]-[A-Za-z0-9-]{10,}(?![A-Za-z0-9-])/g },
-  // Stripe
-  {
-    type: 'stripe_key',
-    regex: /(?<![A-Za-z0-9])sk_(?:live|test)_[A-Za-z0-9]{24,}(?![A-Za-z0-9])/g,
-  },
-  // Twilio
-  { type: 'twilio_sid', regex: /(?<![A-Za-z0-9])AC[a-f0-9]{32}(?![A-Za-z0-9])/g },
-  // Telegram
-  {
-    type: 'telegram_bot_token',
-    regex: /\/bot\d+:[A-Za-z0-9_-]{20,}(?![A-Za-z0-9_-])/g,
-  },
-  // JWT
-  {
-    type: 'jwt',
-    regex:
-      /(?<![A-Za-z0-9/+=])eyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}(?![A-Za-z0-9/+=])/g,
-  },
-  // Private keys
-  {
-    type: 'private_key',
-    regex:
-      /(?:^|\n)-----BEGIN (?:RSA|EC|OPENSSH|DSA|PGP)? ?PRIVATE KEY-----[\s\S]*?-----END (?:RSA|EC|OPENSSH|DSA|PGP)? ?PRIVATE KEY-----(?!\S)/g,
-  },
-  // AI/ML provider tokens
-  { type: 'huggingface_token', regex: /(?<![A-Za-z0-9])hf_[A-Za-z0-9]{34}(?![A-Za-z0-9])/g },
-  { type: 'replicate_token', regex: /(?<![A-Za-z0-9])r8_[A-Za-z0-9]{40,}(?![A-Za-z0-9])/g },
-  { type: 'perplexity_key', regex: /(?<![A-Za-z0-9])pplx-[A-Za-z0-9]{40,}(?![A-Za-z0-9])/g },
-  { type: 'groq_key', regex: /(?<![A-Za-z0-9])gsk_[A-Za-z0-9]{40,}(?![A-Za-z0-9])/g },
-  // Bearer tokens
-  {
-    type: 'bearer_token',
-    regex: /(?:^|[^A-Za-z0-9_.~+/-])Bearer\s+[A-Za-z0-9._~+/-]{12,512}=*(?![A-Za-z0-9._~+/-])/g,
-  },
-  // Database URIs
-  { type: 'mongodb_uri', regex: /mongodb(?:\+srv)?:\/\/[^\s"'`]+/g },
-  { type: 'postgres_uri', regex: /postgres(?:ql)?:\/\/[^\s"'`]+/g },
-  { type: 'mysql_uri', regex: /mysql:\/\/[^\s"'`]+/g },
-  { type: 'redis_uri', regex: /redis:\/\/[^\s"'`]+/g },
-];
+/**
+ * Base patterns — always present, never removed by custom config.
+ * Custom patterns from config are APPENDED at setup() time.
+ *
+ * The table itself lives in `runtime/credential-patterns` so that
+ * `prompt-firewall` (which inspects outgoing provider requests) matches
+ * exactly the same credential shapes. The two lists used to be maintained
+ * separately and had drifted, so whether a credential was caught depended
+ * on which side of the pipeline it crossed.
+ */
+const BASE_PATTERNS: Pattern[] = cloneCredentialPatterns();
 
 /**
  * Active pattern set. Starts as a clone of BASE_PATTERNS; setup()
@@ -121,6 +75,23 @@ let PATTERNS: Pattern[] = [...BASE_PATTERNS];
 let patternCacheKey = '';
 
 /**
+ * Which capture-group index belongs to which pattern.
+ *
+ * `PATTERNS[i]` does NOT necessarily own group `i + 1`: a pattern whose
+ * own source contains a capturing group consumes extra slots and shifts
+ * every pattern after it. That is not hypothetical — user-supplied
+ * `customPatterns` are appended verbatim, so a single custom pattern
+ * spelled `(foo|bar)_[0-9]{10}` silently mis-attributed every later
+ * pattern's matches (wrong `[REDACTED:<type>]` label, wrong reported
+ * type). This table is rebuilt alongside the regex and consulted instead
+ * of assuming a 1:1 mapping.
+ *
+ * @internal
+ */
+let GROUP_INDEX_OF_PATTERN: number[] = [];
+
+
+/**
  * Combined single-pass regex. Each alternative is a capturing group so
  * the matcher callback can identify which pattern fired (only one group
  * is non-undefined at match time). Rebuilt whenever PATTERNS changes.
@@ -137,13 +108,41 @@ let COMBINED_REGEX = buildCombinedRegex(PATTERNS);
 // ---------------------------------------------------------------------------
 
 /**
- * Maximum input string length to scan. Strings longer than this are
- * silently skipped rather than fed to the regex engine. Credential
- * patterns match short tokens (20–200 chars typical), so this is a
- * safe trade-off: we accept missing a credential in a 100KB command
- * string in exchange for never allowing a ReDoS hang on the agent loop.
+ * Size of one scan window.
+ *
+ * Long inputs are scanned in windows of this size rather than handed to
+ * the regex engine whole — a single `exec()` over a multi-megabyte string
+ * is where catastrophic backtracking would actually hurt.
+ *
+ * This used to be a hard skip: any input longer than 100 KB was not
+ * scanned at all. That turned the size of a write into a bypass — paste a
+ * credential into a large file and the gate waved it through, which is
+ * precisely the case a pre-tool secret gate exists to catch. Windowing
+ * keeps the ReDoS ceiling (no single huge `exec`) without the bypass.
  */
-const RE_DOS_MAX_SCAN_LENGTH = 100_000;
+const SCAN_WINDOW_LENGTH = 100_000;
+
+/**
+ * Overlap between consecutive windows. A credential straddling a window
+ * boundary would otherwise be split in half and matched by neither side.
+ * This covers bounded token formats; unusually long multi-line credentials
+ * that exceed the overlap remain subject to the documented windowing limit.
+ */
+const SCAN_WINDOW_OVERLAP = 4_096;
+
+/**
+ * Hard ceiling on total characters scanned per string leaf. Beyond this the input is
+ * reported as unscannable by the caller rather than silently passed —
+ * see `TOO_LARGE_MARKER`.
+ */
+const MAX_TOTAL_SCAN_LENGTH = 8 * 1024 * 1024;
+
+/**
+ * Pseudo-match type reported when an input exceeds `MAX_TOTAL_SCAN_LENGTH`.
+ * Callers surface it instead of treating the input as clean: "we could not
+ * check this" must never render as "this is fine".
+ */
+const TOO_LARGE_MARKER = 'unscannable_oversized_input';
 
 /**
  * Cumulative regex execution timeout in ms. If the combined regex's
@@ -169,12 +168,49 @@ const RE_DOS_TIMEOUT_MS = 100;
  *
  * @internal
  */
+/**
+ * Count the capturing groups in a regex source. Appending `|` makes the
+ * whole pattern optional, so `exec('')` always matches and its result
+ * length reveals the group count without needing to parse the source.
+ */
+function countCaptureGroups(source: string): number {
+  try {
+    return new RegExp(`${source}|`).exec('')!.length - 1;
+  } catch {
+    return 0;
+  }
+}
+
+/**
+ * Map a match's capture groups back to the pattern that fired.
+ * `groups` is 0-indexed from the first capture group (i.e. `m[1]`).
+ */
+function patternTypeForGroups(groups: readonly unknown[]): string | undefined {
+  for (let i = 0; i < PATTERNS.length; i++) {
+    const at = GROUP_INDEX_OF_PATTERN[i];
+    if (at !== undefined && groups[at] !== undefined) return PATTERNS[i]!.type;
+  }
+  return undefined;
+}
+
 function buildCombinedRegex(patterns: Pattern[]): RegExp {
-  const newCacheKey = JSON.stringify(patterns.map((p) => p.type));
+  // Key on the actual regex sources, not just the type names. Keying on
+  // types alone meant editing a custom pattern's regex while keeping its
+  // `type` returned the STALE compiled regex — the edit silently had no
+  // effect.
+  const newCacheKey = JSON.stringify(patterns.map((p) => [p.type, p.regex.source]));
   if (newCacheKey === patternCacheKey && COMBINED_REGEX) {
     return COMBINED_REGEX;
   }
   patternCacheKey = newCacheKey;
+  // Record each pattern's outer-group offset before its own inner groups.
+  const offsets: number[] = [];
+  let cursor = 0;
+  for (const p of patterns) {
+    offsets.push(cursor);
+    cursor += 1 + countCaptureGroups(p.regex.source);
+  }
+  GROUP_INDEX_OF_PATTERN = offsets;
   return new RegExp(patterns.map((p) => `(${p.regex.source})`).join('|'), 'g');
 }
 
@@ -218,43 +254,58 @@ const state = {
  * Determinism: returns matched types in sorted order so scan results
  * are reproducible across runs.
  */
-function findMatches(text: string): string[] {
-  if (!text) return [];
-  // ReDoS guard: skip scanning very long inputs. Credential patterns
-  // match short strings (20–200 chars typical); a 100KB command line
-  // containing a secret somewhere is not a realistic threat vector,
-  // and feeding it to the combined regex could cause backtracking.
-  if (text.length > RE_DOS_MAX_SCAN_LENGTH) return [];
-  const found = new Set<string>();
+/** Scan one window with the combined regex, accumulating matched types. */
+function scanWindow(window: string, found: Set<string>, startTime: number): void {
   COMBINED_REGEX.lastIndex = 0;
   let m: RegExpExecArray | null;
-  const startTime = performance.now();
   // biome-ignore lint/suspicious/noAssignInExpressions: idiomatic RegExp.exec loop
-  while ((m = COMBINED_REGEX.exec(text)) !== null) {
+  while ((m = COMBINED_REGEX.exec(window)) !== null) {
     // ReDoS guard: abort if cumulative regex time exceeds the threshold.
-    // The throw propagates through buildHook's synchronously; with
+    // The throw propagates through buildHook synchronously; with
     // failurePolicy: 'closed' it is caught and treated as a block.
     if (performance.now() - startTime > RE_DOS_TIMEOUT_MS) {
       throw new Error(
-        `secret-scanner: ReDoS timeout — regex scan exceeded ${RE_DOS_TIMEOUT_MS}ms on ${text.length}-char input`,
+        `secret-scanner: ReDoS timeout — regex scan exceeded ${RE_DOS_TIMEOUT_MS}ms on ${window.length}-char window`,
       );
     }
-    // Determine which capture group matched by scanning for the first
-    // defined group beyond group 0. The combined regex has one
-    // capturing group per pattern, in PATTERNS order.
-    for (let i = 0; i < PATTERNS.length; i++) {
-      if (m[i + 1] !== undefined) {
-        found.add(PATTERNS[i]!.type);
-        break;
-      }
-    }
+    // Determine which pattern fired. Group offsets come from the table
+    // built with the regex — a pattern containing its own capture groups
+    // shifts every later pattern, so `m[i + 1]` is not reliable.
+    const type = patternTypeForGroups(m.slice(1));
+    if (type !== undefined) found.add(type);
     // Defensive: avoid infinite loop on zero-width matches (none of the
     // current patterns are zero-width, but future additions might be).
     if (m.index === COMBINED_REGEX.lastIndex) {
       COMBINED_REGEX.lastIndex += 1;
     }
   }
-  // Return sorted for deterministic output across runs.
+}
+
+function findMatches(text: string): string[] {
+  if (!text) return [];
+  const found = new Set<string>();
+  const startTime = performance.now();
+
+  if (text.length <= SCAN_WINDOW_LENGTH) {
+    scanWindow(text, found, startTime);
+    return Array.from(found).sort();
+  }
+
+  // Oversized input: report it rather than pass it. Silently returning "no
+  // matches" for something we declined to read is indistinguishable from
+  // "clean", and that is the wrong default for a security gate.
+  if (text.length > MAX_TOTAL_SCAN_LENGTH) {
+    return [TOO_LARGE_MARKER];
+  }
+
+  // Long input: scan in overlapping windows. Keeps every individual
+  // `exec()` bounded (the actual ReDoS risk) while still inspecting the
+  // whole input — previously anything past 100 KB was skipped outright,
+  // so file size alone was enough to walk a credential past the gate.
+  const stride = SCAN_WINDOW_LENGTH - SCAN_WINDOW_OVERLAP;
+  for (let offset = 0; offset < text.length; offset += stride) {
+    scanWindow(text.slice(offset, offset + SCAN_WINDOW_LENGTH), found, startTime);
+  }
   return Array.from(found).sort();
 }
 
@@ -291,37 +342,80 @@ function scanInput(input: unknown, depth = 0): string[] | null {
   return null;
 }
 
+/** A redaction either produces a complete safe clone or fails closed. */
+type RedactionResult =
+  | { ok: true; value: unknown }
+  | { ok: false; reason: 'oversized_input' | 'maximum_depth_exceeded' };
+
+/** Redact one bounded string without using an unguarded global replace. */
+function redactString(text: string): RedactionResult {
+  // Windowed scanning can safely detect a match across large input, but
+  // reconstructing overlapping redaction windows without duplicate or partial
+  // replacements is a different operation. Fail closed instead of running the
+  // combined regex over a multi-window string in one unbounded replace pass.
+  if (text.length > SCAN_WINDOW_LENGTH) {
+    return { ok: false, reason: 'oversized_input' };
+  }
+
+  const startTime = performance.now();
+  let cursor = 0;
+  let output = '';
+  COMBINED_REGEX.lastIndex = 0;
+  let match: RegExpExecArray | null;
+  // biome-ignore lint/suspicious/noAssignInExpressions: idiomatic RegExp.exec loop
+  while ((match = COMBINED_REGEX.exec(text)) !== null) {
+    if (performance.now() - startTime > RE_DOS_TIMEOUT_MS) {
+      return { ok: false, reason: 'oversized_input' };
+    }
+    const type = patternTypeForGroups(match.slice(1));
+    output += text.slice(cursor, match.index);
+    output += `[REDACTED:${type ?? 'unknown'}]`;
+    cursor = COMBINED_REGEX.lastIndex;
+    if (match.index === COMBINED_REGEX.lastIndex) {
+      COMBINED_REGEX.lastIndex += 1;
+    }
+  }
+  if (cursor === 0) return { ok: true, value: text };
+  return { ok: true, value: output + text.slice(cursor) };
+}
+
 /**
  * Walk an arbitrary input value, returning a deep clone with every
- * string-typed leaf redacted. Only used in `mode: 'redact'`. The walk
- * mirrors `scanInput` so the two functions stay in sync.
+ * string-typed leaf redacted. Only used in `mode: 'redact'`.
+ *
+ * Every string leaf is independently redacted through the bounded exec loop.
+ * This is intentional even though buildHook already found one match:
+ * scanInput stops at the first match, while redaction must prove that every
+ * sibling is within the redactor's size/time bounds. If any leaf cannot be
+ * processed, no partially-redacted input is returned.
  */
-function redactInput(input: unknown, depth = 0): unknown {
-  if (input === null || input === undefined) return input;
-  // ReDoS guard: mirror scanInput's depth cap so a deeply-nested
-  // crafted object doesn't cause a stack overflow.
-  if (depth > 50) return input;
+function redactInput(input: unknown, depth = 0): RedactionResult {
+  if (input === null || input === undefined) return { ok: true, value: input };
+  // Unlike scan-only mode, returning the original subtree here would allow
+  // uninspected content through a hook that claims to have redacted it.
+  if (depth > 50) return { ok: false, reason: 'maximum_depth_exceeded' };
   if (typeof input === 'string') {
-    return input.replace(COMBINED_REGEX, (_match, ...groups: unknown[]) => {
-      for (let i = 0; i < PATTERNS.length; i++) {
-        if (groups[i] !== undefined) {
-          return `[REDACTED:${PATTERNS[i]!.type}]`;
-        }
-      }
-      return '[REDACTED:unknown]';
-    });
+    return redactString(input);
   }
   if (Array.isArray(input)) {
-    return input.map((item) => redactInput(item, depth + 1));
+    const out: unknown[] = [];
+    for (const item of input) {
+      const redacted = redactInput(item, depth + 1);
+      if (!redacted.ok) return redacted;
+      out.push(redacted.value);
+    }
+    return { ok: true, value: out };
   }
   if (typeof input === 'object') {
     const out: Record<string, unknown> = {};
     for (const [k, v] of Object.entries(input as Record<string, unknown>)) {
-      out[k] = redactInput(v, depth + 1);
+      const redacted = redactInput(v, depth + 1);
+      if (!redacted.ok) return redacted;
+      out[k] = redacted.value;
     }
-    return out;
+    return { ok: true, value: out };
   }
-  return input;
+  return { ok: true, value: input };
 }
 
 // ---------------------------------------------------------------------------
@@ -438,22 +532,32 @@ function buildHook(
     }
     if (cfg.mode === 'redact') {
       const redacted = redactInput(input.toolInput);
-      if (redacted !== null && typeof redacted === 'object' && !Array.isArray(redacted)) {
+      if (
+        redacted.ok &&
+        redacted.value !== null &&
+        typeof redacted.value === 'object' &&
+        !Array.isArray(redacted.value)
+      ) {
         state.redactCount += 1;
         log.info(`[secret-scanner] redacted ${toolName} — matched: ${summary}`);
         return {
           decision: 'allow',
-          modifiedInput: redacted as Record<string, unknown>,
+          modifiedInput: redacted.value as Record<string, unknown>,
           additionalContext: `secret-scanner: redacted ${matched.length} credential pattern(s) from the ${toolName} arguments before execution.`,
         };
       }
-      // Fall through to block if redaction can't produce a valid input
-      // shape (the input wasn't a plain object).
+      // Redact mode is fail-closed: an oversized/deep input or a non-object
+      // tool payload must never pass through under the guise of redaction.
       state.blockCount += 1;
       state.lastBlock = { toolName, matchedTypes: matched, when };
+      const detail = !redacted.ok
+        ? redacted.reason === 'oversized_input'
+          ? 'an input field exceeds the safe scan limit'
+          : 'the input exceeds the safe nesting depth'
+        : 'the input has a non-object shape';
       return {
         decision: 'block',
-        reason: `secret-scanner: cannot safely redact '${toolName}' input (non-object shape); refusing to run.`,
+        reason: `secret-scanner: cannot safely redact '${toolName}' because ${detail}; refusing to run.`,
       };
     }
     // mode === 'allow' — just count and log, never block.
@@ -495,14 +599,33 @@ function buildPostHook(
     const matched = findMatches(result.content);
     if (matched.length === 0) return;
 
+    const toolName = input.toolName ?? 'unknown';
+    const oversized = matched.includes(TOO_LARGE_MARKER);
+    const credentialMatches = matched.filter((type) => type !== TOO_LARGE_MARKER);
+
+    // Oversized is a scan classification, not a credential type. If no actual
+    // pattern matched, warn that inspection was incomplete without recording a
+    // confirmed leak or telling the user to rotate an unknown credential.
+    if (oversized && credentialMatches.length === 0) {
+      log.warn(
+        `[secret-scanner] POST-TOOL UNSCANNABLE: ${toolName} output exceeds ${MAX_TOTAL_SCAN_LENGTH} characters`,
+      );
+      return {
+        additionalContext:
+          `\n⚠️ secret-scanner: the output of '${toolName}' exceeds the safe scan limit ` +
+          `and could not be inspected for plaintext credentials. Do not treat this output ` +
+          `as verified clean; avoid echoing, storing, committing, or transmitting it until ` +
+          `it can be reviewed in smaller bounded sections.`,
+      };
+    }
+
     // A secret leaked through the tool output. We can't un-run the
     // tool, but we CAN tell the LLM to treat this output as sensitive.
-    const toolName = input.toolName ?? 'unknown';
-    const summary = matched.join(', ');
+    const summary = credentialMatches.join(', ');
     const when = new Date().toISOString();
 
     state.leakCount += 1;
-    state.lastLeak = { toolName, matchedTypes: matched, when };
+    state.lastLeak = { toolName, matchedTypes: credentialMatches, when };
 
     log.warn(`[secret-scanner] POST-TOOL LEAK: ${toolName} output matched ${summary}`);
 

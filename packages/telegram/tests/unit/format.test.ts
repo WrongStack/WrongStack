@@ -1,13 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import {
   type DelegateCompletedLike,
-  type SessionEndedLike,
   fmtDuration,
   fmtTokens,
   fmtToolOutput,
   formatDelegateCompleted,
   formatSessionEnded,
   formatToolExecuted,
+  type SessionEndedLike,
 } from '../../src/format.js';
 
 const base: DelegateCompletedLike = {
@@ -40,6 +40,19 @@ describe('fmtDuration', () => {
 });
 
 describe('formatDelegateCompleted', () => {
+  it('derives status labels and truncates long tasks when status is absent', () => {
+    expect(formatDelegateCompleted({ ...base, status: undefined })).toContain('· success');
+    const failed = formatDelegateCompleted({
+      ...base,
+      ok: false,
+      status: undefined,
+      summary: '',
+      task: 'x'.repeat(200),
+    });
+    expect(failed).toContain('· failed');
+    expect(failed).toContain(`${'x'.repeat(159)}…`);
+  });
+
   it('produces a humanized multi-line message (not JSON)', () => {
     const msg = formatDelegateCompleted(base);
     expect(msg).not.toMatch(/[{}]/); // no raw JSON braces
@@ -111,6 +124,11 @@ describe('fmtTokens', () => {
 });
 
 describe('fmtToolOutput', () => {
+  it('truncates previews longer than 300 characters', () => {
+    const output = fmtToolOutput('x'.repeat(400));
+    expect(output).toHaveLength(298);
+    expect(output.endsWith('…')).toBe(true);
+  });
   it('returns placeholder for undefined', () => {
     expect(fmtToolOutput(undefined)).toBe('(no output)');
   });
@@ -164,6 +182,9 @@ describe('fmtToolOutput', () => {
 });
 
 describe('formatToolExecuted', () => {
+  it('falls back to the redacted source when JSON-wrapper stripping is empty', () => {
+    expect(fmtToolOutput('{}')).toBe('{}');
+  });
   it('formats a successful tool execution with output', () => {
     const msg = formatToolExecuted({
       name: 'bash',
@@ -196,6 +217,12 @@ describe('formatToolExecuted', () => {
 });
 
 describe('formatSessionEnded', () => {
+  it('keeps short session ids intact', () => {
+    expect(formatSessionEnded({ id: 'short', inputTokens: 0, outputTokens: 0 })).toContain(
+      'Session short ended',
+    );
+  });
+
   const baseSession: SessionEndedLike = {
     id: 'sess_abcdef1234567890',
     inputTokens: 8234,
@@ -229,5 +256,14 @@ describe('formatSessionEnded', () => {
     });
     expect(msg).toContain('1,200 cache read');
     expect(msg).not.toContain('written');
+  });
+
+  it('omits an empty cache detail line for non-positive truthy counters', () => {
+    const msg = formatSessionEnded({
+      ...baseSession,
+      cacheRead: -1,
+      cacheWrite: -2,
+    });
+    expect(msg).not.toContain('📦');
   });
 });

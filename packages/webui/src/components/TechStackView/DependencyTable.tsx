@@ -11,13 +11,14 @@ import { VList } from 'virtua';
 import { usePagination } from '@/hooks/usePagination';
 import type { TechStackDependency } from '@/stores';
 import { cn } from '@/lib/utils';
-import { Badge, installedVersion, statusMeta, versionDrift } from './shared';
+import { Badge, coverageMeta, EcosystemIcon, ecosystemMeta, installedVersion, statusMeta, versionDrift } from './shared';
 import { Pagination } from '../ui/pagination';
 
 export interface DependencyTableProps {
   dependencies: readonly TechStackDependency[];
   selectedId: string | null;
   hasDependencies: boolean;
+  coverageByWorkspaceId?: ReadonlyMap<string, string> | undefined;
   onSelect: (dependency: TechStackDependency) => void;
 }
 
@@ -27,6 +28,7 @@ export function DependencyTable({
   dependencies,
   selectedId,
   hasDependencies,
+  coverageByWorkspaceId,
   onSelect,
 }: DependencyTableProps) {
   const dependencyPage = usePagination(dependencies, 30);
@@ -64,6 +66,7 @@ export function DependencyTable({
               key={dependency.id}
               dependency={dependency}
               selected={dependency.id === selectedId}
+              coverage={coverageByWorkspaceId?.get(dependency.workspaceId)}
               onSelect={onSelect}
             />
           ))}
@@ -83,15 +86,18 @@ export function DependencyTable({
 function DependencyRow({
   dependency,
   selected,
+  coverage,
   onSelect,
 }: {
   dependency: TechStackDependency;
   selected: boolean;
+  coverage: string | undefined;
   onSelect: (dependency: TechStackDependency) => void;
 }) {
   const meta = statusMeta(dependency.status);
   const installed = installedVersion(dependency);
   const drift = versionDrift(dependency);
+  const depCoverageNote = coverage ? coverageMeta(coverage).note : undefined;
 
   return (
     <button
@@ -111,11 +117,18 @@ function DependencyRow({
           <span className="truncate font-mono text-xs text-foreground">{dependency.name}</span>
         </div>
         <p className="mt-0.5 truncate text-[10px] text-muted-foreground">
-          {dependency.ecosystem}
+          <EcosystemIcon ecosystem={dependency.ecosystem} className="mr-0.5 inline-block size-3 align-text-bottom" />
+          {ecosystemMeta(dependency.ecosystem).label}
           {' · '}
           {dependency.direct ? 'direct' : 'transitive'}
           {' · '}
           {dependency.scope}
+          {depCoverageNote && (
+            <>
+              {' · '}
+              <span className="text-warning">{depCoverageNote}</span>
+            </>
+          )}
         </p>
       </div>
 

@@ -14,14 +14,13 @@
 // and feeds the output back via `ingestAgentOutput`. That keeps core free of any
 // agent-loop / provider coupling.
 
-import type { Specification } from '@wrongstack/core/types';
-import type { TaskGraph, TaskNode } from '@wrongstack/core/types';
+import { DefaultTaskStore, TaskTracker } from '@wrongstack/core/tasking';
+import type { Specification, TaskGraph, TaskNode } from '@wrongstack/core/types';
+import { buildBoardTasks, type SddBoardColumn, type SddBoardTask } from './board-types.js';
 import { AISpecBuilder, type AISpecPhase } from './spec-builder.js';
 import type { SpecStore } from './spec-store.js';
-import type { TaskGraphStore } from './task-graph-store.js';
-import { TaskTracker, DefaultTaskStore } from '@wrongstack/core/tasking';
 import { TaskGenerator } from './task-generator.js';
-import { buildBoardTasks, type SddBoardTask, type SddBoardColumn } from './board-types.js';
+import type { TaskGraphStore } from './task-graph-store.js';
 
 export interface SddInterviewDriverOptions {
   /** Disk-backed spec store (`wpaths.projectSpecs`). */
@@ -323,14 +322,16 @@ export class SddInterviewDriver {
     );
     if (valid.length === 0) return undefined;
 
-    const spec = this.builder.getSession().spec;
-    if (!spec) return undefined;
+    // ingestAgentOutput only invokes this helper after confirming a spec.
+    const spec = this.builder.getSession().spec!;
 
-    if (!this.tracker || !this.graph) {
+    if (!this.tracker) {
       const tracker = new TaskTracker({ store: new DefaultTaskStore() });
       this.graph = await tracker.createGraph(spec.id, spec.title);
       this.tracker = tracker;
     }
+    const tracker = this.tracker;
+    const graph = this.graph!;
     // Two passes: (1) create every node, recording every reference key by which
     // a `dependsOn` entry might name it (declared id, positional `t1`/`1`, title);
     // (2) resolve each task's `dependsOn` refs into real `depends_on` edges. This
@@ -339,7 +340,7 @@ export class SddInterviewDriver {
     const refMap = new Map<string, string>();
     const created: Array<{ nodeId: string; task: Record<string, unknown> }> = [];
     valid.forEach((task, i) => {
-      const node = addTaskToTracker(this.tracker!, task);
+      const node = addTaskToTracker(tracker, task);
       created.push({ nodeId: node.id, task });
       if (typeof task.id === 'string' && task.id.trim()) {
         refMap.set(task.id.trim().toLowerCase(), node.id);
@@ -353,14 +354,14 @@ export class SddInterviewDriver {
       for (const ref of deps) {
         const depId = refMap.get(normalizeTaskRef(String(ref)));
         // addDependency self/duplicate/cycle-guards; a stale ref just no-ops.
-        if (depId && depId !== nodeId) this.tracker!.addDependency(depId, nodeId);
+        if (depId && depId !== nodeId) tracker.addDependency(depId, nodeId);
       }
     }
-    await this.persistGraph(this.graph);
-    this.builder.setTaskGraphId(this.graph.id);
+    await this.persistGraph(graph);
+    this.builder.setTaskGraphId(graph.id);
     // Flush so a reconnect resumes with the graph linked (see ensureTaskGraph).
     await this.builder.saveSession();
-    return this.graph.id;
+    return graph.id;
   }
 }
 

@@ -201,14 +201,27 @@ export class DirectorBudgetPolicy {
         ]
           .filter(Boolean)
           .join('\n'),
-        risk: 'high',
+        // 'medium', not 'high': a cost extension is BOUNDED and REVERSIBLE.
+        // `grantBoundedExtension` grows the limit by ×1.5 against hard
+        // ceilings ($100 / 5M tokens / 50k iterations), and a wrong grant
+        // costs money that the ceiling caps — it destroys nothing. This
+        // question also fires per subagent per budget kind, so it is by far
+        // the most FREQUENT Brain call in a fleet run.
+        //
+        // Declaring it 'high' put it above the council floor, which meant the
+        // multi-LLM panel convened for routine budget pressure while the
+        // genuinely irreversible questions (see phase-orchestrator's conflict
+        // resolution, now 'critical') got the same treatment. Keeping the
+        // risk vocabulary honest is what lets the council floor and the
+        // autonomy ceiling separate those two classes at all.
+        risk: 'medium',
         fallback: 'continue',
         options: [
           {
             id: 'extend',
             label: 'Grant the director default budget extension',
             consequence: 'The subagent continues with a larger cost budget.',
-            risk: 'high',
+            risk: 'medium',
             recommended: true,
           },
           {

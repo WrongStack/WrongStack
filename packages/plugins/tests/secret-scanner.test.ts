@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import secretScannerPlugin from '../src/secret-scanner';
+import secretScannerPlugin from '../src/secret-scanner/index.js';
+import { CREDENTIAL_PATTERNS } from '../src/runtime/credential-patterns.js';
 
 interface MockApi {
   tools: { register: ReturnType<typeof vi.fn> };
@@ -37,13 +38,17 @@ function getRegisteredTool(
   api: MockApi,
   name: string,
 ): {
-  execute: (input: unknown) => Promise<unknown>;
+  execute: (input: unknown) => Promise<any>;
 } {
   const call = api.tools.register.mock.calls.find(
     ([t]: unknown[]) => (t as { name: string }).name === name,
   );
   if (!call) throw new Error(`tool ${name} not registered`);
-  return call[0] as { execute: (input: unknown) => Promise<unknown> };
+  return call[0] as { execute: (input: unknown) => Promise<any> };
+}
+
+async function getHealthStatus(): Promise<any> {
+  return secretScannerPlugin.health!();
 }
 
 function getRegisteredHook(api: MockApi): (input: {
@@ -74,6 +79,7 @@ function getRegisteredPostHook(
 }
 
 beforeEach(() => {
+  secretScannerPlugin.teardown?.(makeApi() as any);
   vi.clearAllMocks();
 });
 
@@ -265,6 +271,34 @@ describe('PreToolUse hook — redact mode', () => {
     expect(modified.content).not.toContain(openAiKey);
     expect(result?.additionalContext).toContain('redacted');
   });
+
+  it('blocks instead of returning partially redacted input when any sibling exceeds the redaction limit', async () => {
+    const api = makeApi({ extensions: { 'secret-scanner': { mode: 'redact' } } });
+    secretScannerPlugin.setup(api as any);
+    const hook = getRegisteredHook(api);
+
+    const result = hook({
+      event: 'PreToolUse',
+      toolName: 'write',
+      toolInput: {
+        // scanInput finds this first; redactInput must still validate the
+        // later sibling rather than returning a partially safe clone. This
+        // size is scan-windowed successfully but exceeds the redactor's
+        // single-window safety ceiling.
+        command: `echo ${makeGithubPat()}`,
+        content: 'x'.repeat(100_001),
+      },
+      cwd: '/tmp',
+    });
+
+    expect(result?.decision).toBe('block');
+    expect(result?.modifiedInput).toBeUndefined();
+    expect(result?.reason).toContain('safe scan limit');
+
+    const status = await getRegisteredTool(api, 'secret_scanner_status').execute({});
+    expect(status.counters.block).toBe(1);
+    expect(status.counters.redact).toBe(0);
+  });
 });
 
 // ── Hook behavior: allow mode ─────────────────────────────────────────
@@ -444,11 +478,11 @@ describe('teardown + H1 pattern', () => {
       toolInput: { command: 'echo ' + makeGithubPat() },
       cwd: '/tmp',
     });
-    const before = await secretScannerPlugin.health!();
+    const before = await getHealthStatus();
     expect(before.counters.block).toBe(1);
 
     secretScannerPlugin.teardown!(api as any);
-    const after = await secretScannerPlugin.health!();
+    const after = await getHealthStatus();
     expect(after.counters.block).toBe(0);
     expect(after.counters.redact).toBe(0);
     expect(after.counters.allow).toBe(0);
@@ -465,13 +499,13 @@ describe('teardown + H1 pattern', () => {
       toolInput: { command: 'echo ' + makeGithubPat() },
       cwd: '/tmp',
     });
-    expect((await secretScannerPlugin.health!()).counters.block).toBe(1);
+    expect((await getHealthStatus()).counters.block).toBe(1);
 
     secretScannerPlugin.teardown!(api as any);
 
     // Second round: re-setup with no traffic
     secretScannerPlugin.setup(api as any);
-    const after = await secretScannerPlugin.health!();
+    const after = await getHealthStatus();
     expect(after.counters.block).toBe(0);
     expect(after.counters.redact).toBe(0);
     expect(after.counters.allow).toBe(0);
@@ -529,6 +563,27 @@ describe('PostToolUse hook', () => {
     expect(result).toBeUndefined();
   });
 
+  it('classifies oversized output as unscannable without recording a credential leak', async () => {
+    const api = makeApi();
+    secretScannerPlugin.setup(api as any);
+    const hook = getRegisteredPostHook(api);
+
+    const result = hook({
+      toolName: 'read',
+      toolResult: { content: 'x'.repeat(9 * 1024 * 1024), isError: false },
+    });
+
+    expect(result?.additionalContext).toContain('could not be inspected');
+    expect(result?.additionalContext).toContain('Do not treat this output as verified clean');
+    expect(result?.additionalContext).not.toContain('appears to be plaintext credential');
+    expect(result?.additionalContext).not.toContain('rotate');
+    expect(api.log.warn).toHaveBeenCalledWith(expect.stringContaining('POST-TOOL UNSCANNABLE'));
+
+    const status = await getRegisteredTool(api, 'secret_scanner_status').execute({});
+    expect(status.counters.leak).toBe(0);
+    expect(status.lastLeak).toBeNull();
+  });
+
   it('bumps leakCount and sets lastLeak on detection', async () => {
     const api = makeApi();
     secretScannerPlugin.setup(api as any);
@@ -584,7 +639,7 @@ describe('PostToolUse hook', () => {
     });
 
     secretScannerPlugin.teardown!(api as any);
-    const health = await secretScannerPlugin.health!();
+    const health = await getHealthStatus();
     expect(health.counters.leak).toBe(0);
     expect(health.lastLeak).toBeNull();
   });
@@ -593,6 +648,9 @@ describe('PostToolUse hook', () => {
 // ── Custom patterns ─────────────────────────────────────────────────────
 //
 // Users can supply their own credential patterns via config.
+
+/** Canonical base count without mutating the singleton plugin under test. */
+const BASE_PATTERN_COUNT = CREDENTIAL_PATTERNS.length;
 
 describe('custom patterns', () => {
   it('appends custom patterns to the base set at setup()', async () => {
@@ -609,8 +667,8 @@ describe('custom patterns', () => {
     secretScannerPlugin.setup(api as any);
     const statusTool = getRegisteredTool(api, 'secret_scanner_status');
     const status = await statusTool.execute({});
-    // 21 base patterns + 1 custom
-    expect(status.patternCount).toBe(22);
+    // base patterns + 1 custom
+    expect(status.patternCount).toBe(BASE_PATTERN_COUNT + 1);
     expect(status.patternTypes).toContain('custom_api_key');
   });
 
@@ -670,7 +728,7 @@ describe('custom patterns', () => {
 
     // Verify custom pattern is active
     const statusBefore = await getRegisteredTool(api, 'secret_scanner_status').execute({});
-    expect(statusBefore.patternCount).toBe(22);
+    expect(statusBefore.patternCount).toBe(BASE_PATTERN_COUNT + 1);
 
     secretScannerPlugin.teardown!(api as any);
 
@@ -678,7 +736,7 @@ describe('custom patterns', () => {
     const cleanApi = makeApi();
     secretScannerPlugin.setup(cleanApi as any);
     const statusAfter = await getRegisteredTool(cleanApi, 'secret_scanner_status').execute({});
-    expect(statusAfter.patternCount).toBe(21); // base only
+    expect(statusAfter.patternCount).toBe(BASE_PATTERN_COUNT); // base only
     expect(statusAfter.patternTypes).not.toContain('temp_pattern');
   });
 
@@ -696,8 +754,8 @@ describe('custom patterns', () => {
     });
     secretScannerPlugin.setup(api as any);
     const status = await getRegisteredTool(api, 'secret_scanner_status').execute({});
-    // 21 base + 2 valid custom (invalid one skipped)
-    expect(status.patternCount).toBe(23);
+    // base + 2 valid custom (invalid one skipped)
+    expect(status.patternCount).toBe(BASE_PATTERN_COUNT + 2);
     expect(status.patternTypes).toContain('valid_pattern');
     expect(status.patternTypes).toContain('another_valid');
     expect(status.patternTypes).not.toContain('invalid_pattern');
@@ -714,14 +772,17 @@ describe('custom patterns', () => {
     // First setup
     secretScannerPlugin.setup(api as any);
     const status1 = await getRegisteredTool(api, 'secret_scanner_status').execute({});
-    expect(status1.patternCount).toBe(22);
+    const expectedCount = BASE_PATTERN_COUNT + 1;
+    // Re-apply the plugin's own config after the probe above tore it down.
+    secretScannerPlugin.setup(api as any);
+    expect(status1.patternCount).toBe(expectedCount);
 
     // Teardown + re-setup with the same config
     secretScannerPlugin.teardown!(api as any);
     secretScannerPlugin.setup(api as any);
     const status2 = await getRegisteredTool(api, 'secret_scanner_status').execute({});
-    // Still 22 — not 23 (duplicate avoided by the reset-then-append pattern)
-    expect(status2.patternCount).toBe(22);
+    // Unchanged — the custom pattern is not appended twice (reset-then-append).
+    expect(status2.patternCount).toBe(expectedCount);
   });
 });
 
@@ -743,15 +804,14 @@ describe('ReDoS protection', () => {
     expect(result?.reason).toContain('openai_key');
   });
 
-  it('passes through a very long input without blocking (length guard)', () => {
+  it('scans a very long input in bounded windows', () => {
     const api = makeApi();
     secretScannerPlugin.setup(api as any);
     const hook = getRegisteredHook(api);
 
-    // Build a string longer than RE_DOS_MAX_SCAN_LENGTH (100K) with a
-    // credential near the end. The scanner skips long strings, so the
-    // credential is NOT detected — but the input also does NOT hang.
-    const padding = 'a'.repeat(100_001);
+    // Build a string longer than one scan window with a credential near the
+    // end. Each bounded window is scanned, so the credential is still found.
+    const padding = `${'a'.repeat(100_001)}\n`;
     const token = makeOpenAiKey();
     const result = hook({
       event: 'PreToolUse',
@@ -759,8 +819,8 @@ describe('ReDoS protection', () => {
       toolInput: { command: padding + token },
       cwd: '/tmp',
     });
-    // The command field was too long → skipped → no match → pass through.
-    expect(result).toBeUndefined();
+    expect(result?.decision).toBe('block');
+    expect(result?.reason).toContain('openai_key');
   });
 
   it('still detects a credential in a short field even when another field is very long', () => {

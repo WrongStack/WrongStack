@@ -49,10 +49,7 @@ export async function initializeServer(
     workspaceFolders: [
       {
         uri: rootUri,
-        name:
-          rootPath
-            .split(/[\\/]/)
-            .pop() /* v8 ignore next */ ?? rootPath,
+        name: rootPath.split(/[\\/]/).pop()!,
       },
     ],
   };

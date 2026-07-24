@@ -4,9 +4,10 @@ import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 import type { Tool, ToolStreamEvent } from '@wrongstack/core/types';
 import { ToolValidationError } from '@wrongstack/core/types';
-import { buildChildEnv, compileGlob } from '@wrongstack/core/utils';
+import { buildChildEnv, compileGlob, DEFAULT_WALK_IGNORE_DIRS } from '@wrongstack/core/utils';
 import { mapWithConcurrency } from './_concurrency.js';
 import { capSubject, compileUserRegex } from './_regex.js';
+import { loadGitignoreMatcher } from './codebase-index/gitignore.js';
 import { isBinaryBuffer, safeResolve } from './_util.js';
 interface GrepInput {
   pattern: string;
@@ -25,7 +26,7 @@ interface GrepOutput {
   used: 'rg' | 'native';
 }
 
-const DEFAULT_IGNORE = ['node_modules', '.git', 'dist', 'build', '.next', 'coverage'];
+const DEFAULT_IGNORE = DEFAULT_WALK_IGNORE_DIRS;
 const NATIVE_SCAN_CONCURRENCY = 32;
 const NATIVE_READ_CHUNK_BYTES = 64 * 1024;
 const NATIVE_MAX_FILE_BYTES = 1_000_000;
@@ -162,6 +163,13 @@ async function* runRgStream(
   }
   for (const ignored of DEFAULT_IGNORE) {
     args.push('--glob', `!${ignored}/**`, '--glob', `!**/${ignored}/**`);
+  }
+  // rg only honors .gitignore inside a git repository; pass it explicitly so
+  // non-repo trees (scratch dirs, exported archives) get the same pruning as
+  // repos and as the native fallback.
+  const gitignorePath = path.join(base, '.gitignore');
+  if (await fs.access(gitignorePath).then(() => true, () => false)) {
+    args.push('--ignore-file', gitignorePath);
   }
   if (input.glob) args.push('--glob', input.glob);
   args.push('--', input.pattern, base);
@@ -311,6 +319,9 @@ async function runNative(
   }
   const re = compiled.regex;
   const globRe = input.glob ? compileGlob(input.glob) : null;
+  // rg honors .gitignore natively; give the fallback the same pruning so a
+  // project whose artifacts aren't in DEFAULT_IGNORE isn't scanned in full.
+  const isGitIgnored = await loadGitignoreMatcher(base);
   const matches: string[] = [];
   const countOnlyFirstHit = mode === 'count' && limit === 1;
   const maxBytes = mode === 'content' ? NATIVE_MAX_FILE_BYTES : Math.min(NATIVE_MAX_FILE_BYTES, 256 * 1024);
@@ -412,7 +423,7 @@ async function runNative(
     }
   };
 
-  const walk = async (dir: string): Promise<void> => {
+  const walk = async (dir: string, relPrefix: string): Promise<void> => {
     if (stopped || signal.aborted) return;
     let entries: import('node:fs').Dirent[];
     try {
@@ -421,22 +432,27 @@ async function runNative(
       return;
     }
     const files: Array<{ full: string; name: string }> = [];
-    const subdirs: string[] = [];
+    const subdirs: Array<{ full: string; rel: string }> = [];
     for (const e of entries) {
       if (stopped) return;
       if (DEFAULT_IGNORE.includes(e.name)) continue;
       if (e.isSymbolicLink()) continue;
+      const rel = relPrefix ? `${relPrefix}/${e.name}` : e.name;
       const full = path.join(dir, e.name);
       if (e.isDirectory()) {
-        subdirs.push(full);
+        if (isGitIgnored(rel, true)) continue;
+        subdirs.push({ full, rel });
       } else if (e.isFile()) {
+        if (isGitIgnored(rel, false)) continue;
         files.push({ full, name: e.name });
       }
     }
     await mapWithConcurrency(files, NATIVE_SCAN_CONCURRENCY, ({ full, name }) => scanFile(full, name));
-    await mapWithConcurrency(subdirs, Math.min(16, NATIVE_SCAN_CONCURRENCY), walk);
+    await mapWithConcurrency(subdirs, Math.min(16, NATIVE_SCAN_CONCURRENCY), ({ full, rel }) =>
+      walk(full, rel),
+    );
   };
-  await walk(base);
+  await walk(base, '');
 
   return {
     matches,

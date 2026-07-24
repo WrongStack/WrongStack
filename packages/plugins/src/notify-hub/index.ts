@@ -56,6 +56,7 @@
 import { lookup } from 'node:dns/promises';
 import type { NotificationMessage, NotificationResult } from '@wrongstack/core/notifications';
 import type { Logger, Plugin } from '@wrongstack/core/types';
+import { safeJsonStringify } from '../runtime/index.js';
 import { WebhookNotificationChannel } from './webhook-channel.js';
 
 // ---------------------------------------------------------------------------
@@ -233,12 +234,30 @@ async function deliver(event: string, payload: Record<string, unknown>): Promise
         ? payload.message
         : typeof payload.error === 'string'
           ? payload.error
-          : JSON.stringify(payload),
+          : safeJsonStringify(payload),
     level: event === 'tool.error' || event === 'budget.threshold' ? 'warning' : 'info',
     source: event,
     metadata: payload,
   });
   return result.ok;
+}
+
+/**
+ * Send without awaiting, and absorb any failure.
+ *
+ * A notification is best-effort by definition: it must never block the
+ * path that triggered it, and it must never take the process down. A bare
+ * `void deliver(…)` satisfies the first requirement but not the second —
+ * anything that rejects inside becomes an unhandled rejection with no
+ * owner. This is the only spelling used for detached sends.
+ */
+function deliverDetached(event: string, payload: Record<string, unknown>): void {
+  deliver(event, payload).catch((err: unknown) => {
+    _pluginLog?.warn('notify-hub: notification delivery failed', {
+      event,
+      error: err instanceof Error ? err.message : String(err),
+    });
+  });
 }
 
 /**
@@ -386,7 +405,7 @@ const plugin: Plugin = {
     if (active && cfg.events.includes('session.stop')) {
       const stopHook = (input: { cwd?: string | undefined; sessionId?: string | undefined }) => {
         // Fire-and-forget: never block the stop path on network I/O.
-        void deliver('session.stop', {
+        deliverDetached('session.stop', {
           sessionId: input.sessionId ?? null,
           cwd: input.cwd ?? null,
         });
@@ -399,7 +418,7 @@ const plugin: Plugin = {
       const off = api.onPattern('tool.*', (eventName: string, payload: unknown) => {
         if (!/error|failed/.test(eventName)) return;
         const p = payload as { tool?: string; name?: string; error?: unknown } | null;
-        void deliver('tool.error', {
+        deliverDetached('tool.error', {
           tool: p?.tool ?? p?.name ?? 'unknown',
           busEvent: eventName,
           error: truncateText(
@@ -415,7 +434,7 @@ const plugin: Plugin = {
     if (active && cfg.events.includes('budget.threshold')) {
       const off = api.onPattern('budget.*', (eventName: string, payload: unknown) => {
         if (!eventName.includes('threshold')) return;
-        void deliver('budget.threshold', { busEvent: eventName, detail: payload });
+        deliverDetached('budget.threshold', { busEvent: eventName, detail: payload });
       });
       state.eventUnsubscribers.push(off);
     }

@@ -3,7 +3,9 @@ import { ToolError } from '@wrongstack/core/types';
 import type { JsonRpcResponse, ToolCallResult } from './client.js';
 import { MCP_CONSTANTS } from './constants.js';
 import { parseServerMetadata } from './protocol.js';
+import { readBodyCapped } from './read-body.js';
 import { SSEReader } from './sse-reader.js';
+import { normalizeMCPTools } from './tool-schema.js';
 import {
   BaseHTTPTransport,
   createTimeoutSignal,
@@ -11,8 +13,6 @@ import {
   makeAbortError,
 } from './transport-base.js';
 import { assertMatchingJsonRpcResult, type JsonRpcResult } from './transport-jsonrpc.js';
-import { normalizeMCPTools } from './tool-schema.js';
-import { readBodyCapped } from './read-body.js';
 
 // ---------------------------------------------------------------------------
 // SSE Transport
