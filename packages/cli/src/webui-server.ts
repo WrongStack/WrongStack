@@ -51,7 +51,14 @@ import type { Agent, Context } from '@wrongstack/core/agent';
 import type { BrainArbiter } from '@wrongstack/core/coordination';
 import type { BrainAutoRisk } from '@wrongstack/core/execution';
 import type { EventBus } from '@wrongstack/core/kernel';
-import type { MemoryPort, ModelsRegistry, ModeStore, PromptLoader, ProviderConfig, SkillLoader } from '@wrongstack/core/types';
+import type {
+  MemoryPort,
+  ModelsRegistry,
+  ModeStore,
+  PromptLoader,
+  ProviderConfig,
+  SkillLoader,
+} from '@wrongstack/core/types';
 import type { SessionStore, SessionWriter } from '@wrongstack/core/types';
 import { DefaultSecretScrubber } from '@wrongstack/core/security';
 import { PromptUsageStore, watchProviderConfig } from '@wrongstack/core/storage';
@@ -130,6 +137,7 @@ import { createSessionStartPayloadBuilder } from './webui-server/session-start-p
 import { createSetupEvents } from './webui-server/setup-events.js';
 import { startStaticServe } from './webui-server/static-serve.js';
 import { createStreamCoalescer } from './webui-server/stream-coalescer.js';
+import { startBoundedTerminalLogView } from './webui-server/terminal-log-view.js';
 
 /**
  * CLI-shaped webui options. Distinct from the standalone
@@ -1152,6 +1160,7 @@ export async function runWebUI(opts: CliWebUIOptions): Promise<void> {
     kanbanHostRoutes,
   });
 
+  const terminalLogView = startBoundedTerminalLogView();
   const stopped = new Promise<void>((resolve) => {
     let listeningAnnounced = false;
     const announceListening = () => {
@@ -1261,7 +1270,11 @@ export async function runWebUI(opts: CliWebUIOptions): Promise<void> {
       wss,
       pid: process.pid,
       registryBaseDir,
-      onStopped: resolve,
+      onStopped: () => {
+        terminalLogView.redraw();
+        terminalLogView.stop();
+        resolve();
+      },
     });
 
     registerWebuiSignalHandlers(signalShutdown);
@@ -1275,6 +1288,8 @@ export async function runWebUI(opts: CliWebUIOptions): Promise<void> {
 
   function shutdown(): void {
     console.log('[WebUI] Shutting down...');
+    terminalLogView.redraw();
+    terminalLogView.stop();
     credentialWatcherClose?.();
     flushAllStreamBuffers();
     worktreeHandler.dispose();
@@ -1307,5 +1322,5 @@ export async function runWebUI(opts: CliWebUIOptions): Promise<void> {
     send(ws, { type: 'key.operation_result', payload: { success, message } });
   }
 
-  return stopped;
+  return stopped.finally(() => terminalLogView.stop());
 } // end of runWebUI
