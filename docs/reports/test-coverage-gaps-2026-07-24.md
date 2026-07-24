@@ -21,7 +21,7 @@ Generated: 2026-07-24T21:49:32.105Z
   7. Extend `packages/plugins/tests/index-exports.test.ts` for `packages/plugins/src/audit/index.ts`.
 - **Thirteen additional files are below 25% line coverage.** The highest-impact additions are the Kanban verifier plugins, provider OAuth flows, `packages/tools/src/kanban.ts`, language-profile adapters, persistent process registry, and TechStack research search. Exact lines, functions, branches, and target test files are listed below.
 - **Branch coverage is the limiting metric:** 78.44% across completed reports, leaving 6,589 uncovered branches. Tools (66.75%), TechStack (65.25%), providers (73.65%), Kanban (74.10%), and plugins (77.65%) need explicit error, fallback, boundary, and platform-path tests.
-- **Five completed packages are at 100% in all metrics:** bench, persistence, plug-lsp, runtime, and SDD. Security Scanner, Telegram, and Sage are close but still have exact residual gaps below.
+- **Five completed packages are at 100% in all metrics:** bench, persistence, plug-lsp, runtime, and SDD. Security Scanner, Telegram, and Sage are near 100% but still have exact residual statement, branch, or file-level gaps below.
 - **Five packages need a dedicated idle-machine coverage rerun:** CLI, core, MCP, TUI, and webui-server. Their JSON reporters did not complete within bounded runs; 389 conservative no-direct-test candidates are listed instead (core 131, CLI 116, TUI 74, webui-server 65, MCP 3).
 
 ## Priority queue
@@ -74,7 +74,7 @@ Mandatory review during the audit identified two security regressions in concurr
 - Directory permission rules now evaluate every array, comma-separated plural, source, and destination path; a protected secondary target can no longer hide behind an allowed first target. `evaluate()` and `explain()` return matching denial decisions and subjects.
 - PostgreSQL credential detection now covers bounded literal and percent-encoded `password` query-parameter names in first, middle, and last positions across secret-scanner and prompt-firewall paths.
 
-Verification: 117 focused tests passed across four files; `@wrongstack/core` and `@wrongstack/plugins` typechecks passed; scoped Biome lint and format checks passed.
+Verification: 116 focused tests passed across four files; `@wrongstack/core` and `@wrongstack/plugins` typechecks passed; scoped Biome lint and format checks passed.
 
 ## Completed V8 shard aggregate
 

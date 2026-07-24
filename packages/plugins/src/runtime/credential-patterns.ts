@@ -44,7 +44,7 @@ export const CREDENTIAL_PATTERNS: readonly CredentialPattern[] = [
     type: 'anthropic_key',
     regex: /(?<![A-Za-z0-9])sk-ant-api\d+-[A-Za-z0-9_-]{20,}(?![A-Za-z0-9])/g,
   },
-  { type: 'openai_key', regex: /(?<![A-Za-z0-9])sk-(?:proj-)?[A-Za-z0-9_-]{20,}(?![A-Za-z0-9])/g },
+  { type: 'openai_key', regex: /(?<![A-Za-z0-9])sk-(?!ant)(?:proj-)?[A-Za-z0-9_-]{20,}(?![A-Za-z0-9])/g },
   // GitHub. `ghp_` is only the personal-access-token prefix — the OAuth
   // (`gho_`), user-to-server (`ghu_`), server-to-server (`ghs_`) and
   // refresh (`ghr_`) tokens grant the same or broader access and were
@@ -88,7 +88,7 @@ export const CREDENTIAL_PATTERNS: readonly CredentialPattern[] = [
   // Telegram
   {
     type: 'telegram_bot_token',
-    regex: /\/bot\d+:[A-Za-z0-9_-]{20,}(?![A-Za-z0-9_-])/g,
+    regex: /(?:(?<![A-Za-z0-9_])|(?<=bot))\d+:[A-Za-z0-9_-]{20,}(?![A-Za-z0-9_-])/g,
   },
   // JWT
   {
