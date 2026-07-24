@@ -10,7 +10,7 @@
  * Spans the sidebar width and wraps gracefully at narrow widths.
  */
 
-import { Crown, LayoutGrid } from 'lucide-react';
+import { Crown } from 'lucide-react';
 import { useCallback } from 'react';
 import { useShallow } from 'zustand/react/shallow';
 import { useAppTranslation } from '@/i18n';
@@ -127,8 +127,9 @@ export function FleetSummaryBar({ className, leaderName }: FleetSummaryBarProps)
       {recentEvents.length > 0 && (
         <div className="flex items-center gap-1 min-w-0 overflow-x-auto no-scrollbar">
           {recentEvents.map((ev) => (
-            <span
+            <button
               key={ev.id}
+              type="button"
               onClick={openFleetInspector}
               className="inline-flex items-center gap-1 shrink-0 rounded border border-border/50 bg-background/40 px-1.5 py-0.5 text-[9px] text-muted-foreground cursor-pointer hover:bg-accent/50 hover:text-foreground transition-colors"
               title={ev.message}
@@ -136,7 +137,7 @@ export function FleetSummaryBar({ className, leaderName }: FleetSummaryBarProps)
             >
               <EventKindDot kind={ev.kind} />
               {KIND_LABEL[ev.kind] ?? ev.kind}
-            </span>
+            </button>
           ))}
         </div>
       )}

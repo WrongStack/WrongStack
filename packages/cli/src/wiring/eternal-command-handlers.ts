@@ -1,10 +1,10 @@
 /** Eternal/autonomy slash-command adapters. */
-import { type Agent } from '@wrongstack/core/agent';
-import { type AutonomyStage, type Compactor, type Config } from '@wrongstack/core/types';
-import { type BrainArbiter } from '@wrongstack/core/coordination';
+import type { Agent } from '@wrongstack/core/agent';
+import type { AutonomyStage, Compactor, Config } from '@wrongstack/core/types';
+import type { BrainArbiter } from '@wrongstack/core/coordination';
 import { EternalAutonomyEngine, ParallelEternalEngine } from '@wrongstack/core/execution';
-import { type EventBus } from '@wrongstack/core/kernel';
-import { type JournalEntry } from '@wrongstack/core/goal';
+import type { EventBus } from '@wrongstack/core/kernel';
+import type { JournalEntry } from '@wrongstack/core/goal';
 import type { MultiAgentHost } from '../multi-agent.js';
 import type { AutonomyMode } from '../services/autonomy-mode.js';
 import type { BuiltinSlashCommandDeps } from './slash-commands.js';

@@ -11,12 +11,12 @@
 import { randomUUID } from 'node:crypto';
 import * as path from 'node:path';
 import type * as http from 'node:http';
-import { WebSocket } from 'ws';
+import type { WebSocket } from 'ws';
 import type { TrustBoundary } from '@wrongstack/core/security';
-import { buildTranscriptFromEvents, createHqPersistence, DEFAULT_HQ_REDACTION_POLICY, deriveHqProjectId, hashHqPassword, isLoopbackHost, mintHqCookieSecret, mutateHqAuthFile, resolveHqDataDir, tokenHasCapability, validateHqCommand, verifyHqPassword } from '@wrongstack/core/hq';
-import { type HqSnapshot, HqAlertEngine, type HqAlertRuleConfig, type HqCommand, type HqCommandAuditEntry, HqCommandAuditLog, type HqEventEnvelope, type HqQueuedCommand, type HqRedactionPolicy, type HqTimeseriesSample, type HqToken, type HqTranscriptEntry } from '@wrongstack/core/hq';
-import { createMailboxHttpRouter } from '@wrongstack/core/coordination';
-import { GlobalMailbox, type MailboxHttpAccessDecision, MailboxHttpRateLimiter, resolveProjectDir } from '@wrongstack/core/coordination';
+import { buildTranscriptFromEvents, type createHqPersistence, DEFAULT_HQ_REDACTION_POLICY, deriveHqProjectId, hashHqPassword, isLoopbackHost, mintHqCookieSecret, mutateHqAuthFile, resolveHqDataDir, tokenHasCapability, validateHqCommand, verifyHqPassword } from '@wrongstack/core/hq';
+import type { HqSnapshot, HqAlertEngine, HqAlertRuleConfig, HqCommand, HqCommandAuditEntry, HqCommandAuditLog, HqEventEnvelope, HqQueuedCommand, HqRedactionPolicy, HqTimeseriesSample, HqToken, HqTranscriptEntry } from '@wrongstack/core/hq';
+import type { createMailboxHttpRouter } from '@wrongstack/core/coordination';
+import { type GlobalMailbox, type MailboxHttpAccessDecision, type MailboxHttpRateLimiter, resolveProjectDir } from '@wrongstack/core/coordination';
 import { HQ_HTML } from '../hq-recovery-html.js';
 import { resolveHqDistDir, serveHqStatic } from '../hq-static-serve.js';
 import * as HqServerAuth from './auth.js';
@@ -24,7 +24,10 @@ import * as HqServerSnapshot from './snapshot.js';
 import * as HqServerUtils from './utils.js';
 import { authorizeHqCommand } from './trust-boundary.js';
 import {
+  handleApiAlerts,
+  handleApiCommandsAudit,
   handleApiSystemHealth,
+  handleApiSystemUpdate,
 } from './routes/system-handlers.js';
 
 // ── Re-exports for hq-server.ts backward compat ────────────────────────────
@@ -652,26 +655,6 @@ async function handleApiPassword(
   );
 }
 
-async function handleApiSystemUpdate(res: http.ServerResponse): Promise<void> {
-  const [{ checkForUpdate }, { detectUpdatePackageName }] = await Promise.all([
-    import('../update-check.js'),
-    import('../subcommands/handlers/update.js'),
-  ]);
-  const packageName = detectUpdatePackageName();
-  const info = await checkForUpdate({ packageName });
-  res.writeHead(200, {
-    'Content-Type': 'application/json',
-    'Cache-Control': 'no-store',
-  });
-  res.end(
-    JSON.stringify({
-      ...info,
-      packageName,
-      command: 'wstack update',
-    }),
-  );
-}
-
 async function handleMailboxGateway(
   _req: http.IncomingMessage,
   res: http.ServerResponse,
@@ -1150,35 +1133,6 @@ async function handleMailboxAction(
       }),
     );
   }
-}
-
-async function handleApiCommandsAudit(
-  req: http.IncomingMessage,
-  res: http.ServerResponse,
-  auditLog: HqCommandAuditLog,
-): Promise<void> {
-  const url = new URL(req.url ?? '/', 'http://localhost');
-  const rawLimit = Number.parseInt(url.searchParams.get('limit') ?? '200', 10);
-  const limit = Math.min(1000, Math.max(1, Number.isFinite(rawLimit) ? rawLimit : 200));
-  res.writeHead(200, { 'Content-Type': 'application/json' });
-  res.end(JSON.stringify({ commands: auditLog.recent(limit) }));
-}
-
-async function handleApiAlerts(
-  req: http.IncomingMessage,
-  res: http.ServerResponse,
-  alertEngine: HqAlertEngine,
-): Promise<void> {
-  const url = new URL(req.url ?? '/', 'http://localhost');
-  const rawLimit = Number.parseInt(url.searchParams.get('limit') ?? '100', 10);
-  const limit = Math.min(500, Math.max(1, Number.isFinite(rawLimit) ? rawLimit : 100));
-  res.writeHead(200, { 'Content-Type': 'application/json' });
-  res.end(
-    JSON.stringify({
-      active: alertEngine.activeAlerts(),
-      history: alertEngine.recentAlerts(limit),
-    }),
-  );
 }
 
 async function handleApiSessions(res: http.ServerResponse): Promise<void> {

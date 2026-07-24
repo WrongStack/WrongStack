@@ -90,7 +90,7 @@ describe('kanban.decomposition.approve/reject routes', () => {
     // Board-shaped payloads always ride the { board } envelope.
     const applied = broadcasts.find((message) => message.type === 'kanban.decomposition.applied');
     expect(
-      (applied?.payload as { data?: { board?: { id?: string } } }).data?.board?.id,
+      (applied?.payload as { data?: { board?: { id?: string } } } | undefined)?.data?.board?.id,
     ).toBe(boardId);
   });
 
@@ -112,7 +112,7 @@ describe('kanban.decomposition.approve/reject routes', () => {
     expect(board!.tasks[0]?.decomposition?.status).toBe('rejected');
     const resolved = broadcasts.find((message) => message.type === 'kanban.decomposition.resolved');
     expect(
-      (resolved?.payload as { data?: { boardId?: string } }).data?.boardId,
+      (resolved?.payload as { data?: { boardId?: string } } | undefined)?.data?.boardId,
     ).toBe(boardId);
   });
 

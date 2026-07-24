@@ -120,17 +120,10 @@ export function ChimeraSettingsPanel({
           />
         </div>
 
-        <div
-          className="flex items-center justify-between gap-3 rounded-lg border border-border p-3 cursor-pointer hover:bg-muted/50 transition-colors"
+        <button
+          type="button"
+          className="flex w-full items-center justify-between gap-3 rounded-lg border border-border p-3 text-left cursor-pointer hover:bg-muted/50 transition-colors"
           onClick={openChimeraPicker}
-          role="button"
-          tabIndex={0}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter' || e.key === ' ') {
-              e.preventDefault();
-              openChimeraPicker();
-            }
-          }}
         >
           <div className="min-w-0 flex-1">
             <div className="text-xs text-muted-foreground">{t('settings:features.chimeraModelLabel')}</div>
@@ -147,7 +140,7 @@ export function ChimeraSettingsPanel({
             <p className="text-[10px] text-muted-foreground mt-0.5">{t('settings:features.chimeraModelHint')}</p>
           </div>
           <Zap className="h-4 w-4 shrink-0 text-muted-foreground" />
-        </div>
+        </button>
 
         <PreferenceSlider
           label={t('settings:features.chimeraMaxFilesLabel')}
@@ -239,17 +232,10 @@ export function ChimeraSettingsPanel({
           <p className="text-[10px] text-muted-foreground">{t('settings:features.autoReviewFallbackModelsHint')}</p>
         </div>
 
-        <div
-          className="flex items-center justify-between gap-3 rounded-lg border border-border p-3 cursor-pointer hover:bg-muted/50 transition-colors"
+        <button
+          type="button"
+          className="flex w-full items-center justify-between gap-3 rounded-lg border border-border p-3 text-left cursor-pointer hover:bg-muted/50 transition-colors"
           onClick={openAutoReviewPicker}
-          role="button"
-          tabIndex={0}
-          onKeyDown={(e) => {
-            if (e.key === 'Enter' || e.key === ' ') {
-              e.preventDefault();
-              openAutoReviewPicker();
-            }
-          }}
         >
           <div className="min-w-0 flex-1">
             <div className="text-xs text-muted-foreground">{t('settings:features.autoReviewModelLabel')}</div>
@@ -266,7 +252,7 @@ export function ChimeraSettingsPanel({
             <p className="text-[10px] text-muted-foreground mt-0.5">{t('settings:features.autoReviewModelHint')}</p>
           </div>
           <Zap className="h-4 w-4 shrink-0 text-muted-foreground" />
-        </div>
+        </button>
 
         <div className="pt-2 border-t">
           <PreferenceSlider

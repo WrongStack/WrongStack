@@ -61,7 +61,7 @@ export function ModelSelectDialog({
   const [tab, setTab] = useState<'fallback' | 'models'>('fallback');
   const listRef = useRef<HTMLDivElement | null>(null);
 
-  const hasFallback =
+  const _hasFallback =
     (mode === 'fallback' || mode === 'both') &&
     fallbackProfiles &&
     Object.keys(fallbackProfiles).length > 0;

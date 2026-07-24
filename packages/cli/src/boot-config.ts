@@ -1,7 +1,7 @@
-import { type BootConfigOptions } from '@wrongstack/core/infrastructure';
-import { type Config } from '@wrongstack/core/types';
+import type { BootConfigOptions } from '@wrongstack/core/infrastructure';
+import type { Config } from '@wrongstack/core/types';
 import { bootConfig as coreBootConfig } from '@wrongstack/core/infrastructure';
-import { type WstackPaths } from '@wrongstack/core/utils';
+import type { WstackPaths } from '@wrongstack/core/utils';
 import type { DefaultPathResolver } from '@wrongstack/core/infrastructure';
 
 export interface BootPaths {

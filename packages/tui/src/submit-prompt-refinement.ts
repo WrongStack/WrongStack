@@ -51,8 +51,7 @@ export async function refineSubmittedPrompt(
   const chips: string[] = [];
   let cleanText = trimmed;
   const chipPattern = new RegExp(INLINE_TOKEN_SRC, 'g');
-  let chipMatch: RegExpExecArray | null;
-  while ((chipMatch = chipPattern.exec(trimmed)) !== null) chips.push(chipMatch[0]);
+  for (const chipMatch of trimmed.matchAll(chipPattern)) chips.push(chipMatch[0]);
   if (chips.length > 0) {
     cleanText = trimmed.replace(chipPattern, '').replace(/\s{2,}/g, ' ').trim();
     if (!cleanText) {

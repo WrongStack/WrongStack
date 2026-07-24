@@ -2,7 +2,7 @@ import { describe, expect, it, beforeEach, afterEach } from 'vitest';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import * as fs from 'node:fs';
-import { TechStackEngine, TechStackStore, attemptDelivery, drainPendingDeliveries } from '../src/index.js';
+import { TechStackStore, attemptDelivery, drainPendingDeliveries } from '../src/index.js';
 import type { Snapshot } from '../src/types.js';
 
 let tmpDir: string;

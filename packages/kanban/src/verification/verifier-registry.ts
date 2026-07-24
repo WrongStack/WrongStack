@@ -7,7 +7,7 @@
  * Built-in deterministic plugins are registered automatically. Escalation
  * plugins (agent, council) are registered only when explicitly configured.
  */
-import { type KanbanCheck, type KanbanVerificationCheckResult } from '../types.js';
+import type { KanbanCheck, KanbanVerificationCheckResult } from '../types.js';
 import type { VerificationContext } from './verification-context.js';
 import type { VerifierPlugin } from './verifier-plugin.js';
 import { EvidenceValidator, DEFAULT_EVIDENCE_RULES } from './evidence-validator.js';

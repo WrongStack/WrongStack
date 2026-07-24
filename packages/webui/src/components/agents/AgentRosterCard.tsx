@@ -18,7 +18,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useAppTranslation } from '@/i18n';
 import { cn } from '@/lib/utils';
 import type { SubagentView } from '@/stores';
-import { computeAgentStats, type AgentDisplayStats } from '@/lib/agent-status';
+import { computeAgentStats } from '@/lib/agent-status';
 import { SparklineChart } from '@/components/ui/sparkline';
 import { ContextFillBar } from '@/components/ContextBar';
 import { AgentDetailSection } from '@/components/agents/AgentDetailSection';
@@ -73,7 +73,6 @@ export function AgentRosterCard({ agent, isLeader, isExpanded, isFocused, onTogg
         data-agent-card
         role="option"
         aria-selected={isExpanded}
-        aria-expanded={isExpanded}
         onClick={onToggle}
         className={cn(
           'w-full text-left rounded-lg border px-3 py-2.5 transition-colors space-y-2',

@@ -7,7 +7,7 @@ import { execFile } from 'node:child_process';
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 import { attachDepWatcherBridge, GlobalMailbox, mailboxSessionTag } from '@wrongstack/core/coordination';
-import { type Config, type SystemPromptBuilder } from '@wrongstack/core/types';
+import type { Config, SystemPromptBuilder } from '@wrongstack/core/types';
 import { createFallbackManageTools, createPluginManagerTool } from '@wrongstack/core/tools';
 import { FLEET_ROSTER } from '@wrongstack/core/coordination';
 import { gatedEnhancerReasoning } from '@wrongstack/core/execution';

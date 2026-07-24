@@ -27,7 +27,7 @@
  * long-running consumer (file rotation, OTLP export) would
  * belong in a dedicated audit-sink module, not here.
  */
-import { type SecretScrubber } from '@wrongstack/core/types';
+import type { SecretScrubber } from '@wrongstack/core/types';
 import { DefaultSecretScrubber } from '@wrongstack/core/security';
 
 /**

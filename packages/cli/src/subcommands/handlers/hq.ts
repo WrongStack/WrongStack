@@ -486,7 +486,7 @@ function resolveTokenTtl(args: string[], deps: SubcommandDeps): ResolvedTtl {
     return parseTtlValue(inline.slice('--ttl='.length));
   }
   // Bare `--ttl <value>` — scan args manually so we don't depend on parseArgs.
-  const idx = args.findIndex((a) => a === '--ttl');
+  const idx = args.indexOf('--ttl');
   if (idx >= 0) {
     const raw = args[idx + 1];
     if (raw === undefined || raw.startsWith('-')) {

@@ -1,6 +1,6 @@
 import * as fsp from 'node:fs/promises';
 import { expectDefined } from '@wrongstack/core/utils';
-import { type SlashCommand, type SpecRequirement } from '@wrongstack/core/types';
+import type { SlashCommand, SpecRequirement } from '@wrongstack/core/types';
 import {
   AISpecBuilder,
   type AISpecPhase,

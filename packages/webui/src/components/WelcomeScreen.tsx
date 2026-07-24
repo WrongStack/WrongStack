@@ -1,4 +1,4 @@
-import { useWebSocket } from '@/hooks/useWebSocket';
+
 import { useAppTranslation } from '@/i18n';
 import { cn } from '@/lib/utils';
 import { getWSClient } from '@/lib/ws-client';

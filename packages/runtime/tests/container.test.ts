@@ -1,6 +1,10 @@
+import * as fs from 'node:fs';
+import * as os from 'node:os';
+import * as path from 'node:path';
 import { FallbackProfileManager } from '@wrongstack/core/agent';
 import { Container, TOKENS } from '@wrongstack/core/kernel';
 import { DefaultConfigStore, getSessionRegistry } from '@wrongstack/core/storage';
+import { DirectoryPermissionPolicy } from '@wrongstack/core/security';
 import type { SessionStore } from '@wrongstack/core/types';
 import { ProviderError } from '@wrongstack/core/types';
 import { SqliteMemoryPort } from '@wrongstack/sage';
@@ -31,11 +35,13 @@ const mockConfig = {
   features: { mcp: true, plugins: true, memory: true, modelsRegistry: true, skills: true },
 } as any;
 
+const runtimeProjectRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'wrongstack-runtime-container-'));
+
 const mockWpaths = {
-  projectRoot: '/repo',
-  projectSessions: '/tmp/sessions',
+  projectRoot: runtimeProjectRoot,
+  projectSessions: path.join(runtimeProjectRoot, 'sessions'),
   configDir: '/tmp/config',
-  projectTrust: '/tmp/trust.json',
+  projectTrust: path.join(runtimeProjectRoot, 'trust.json'),
   globalRoot: '/home/user/.wrongstack',
   inProjectAgentsFile: '/repo/.wrongstack/AGENTS.md',
   projectMemory: '/repo/.wrongstack/memory.md',
@@ -99,9 +105,7 @@ describe('createDefaultContainer', () => {
 
     expect(c.resolve(TOKENS.FallbackProfileManager)).toBe(manager);
     expect(manager.hasProfile('old')).toBe(false);
-    expect(manager.resolve('new')).toMatchObject([
-      { providerId: 'anthropic', model: 'new-model' },
-    ]);
+    expect(manager.resolve('new')).toMatchObject([{ providerId: 'anthropic', model: 'new-model' }]);
   });
 
   it('binds all required tokens', () => {
@@ -222,7 +226,7 @@ describe('createDefaultContainer', () => {
     expect(compactor).toBeDefined();
   });
 
-  it('passes permission yolo option to DefaultPermissionPolicy', () => {
+  it('passes permission yolo option through the directory-policy wrapper', () => {
     const c = createDefaultContainer({
       config: mockConfig,
       wpaths: mockWpaths,
@@ -230,7 +234,69 @@ describe('createDefaultContainer', () => {
       modelsRegistry: mockModels,
       permission: { yolo: true, promptDelegate: async () => 'yes' },
     });
-    expect(c.resolve(TOKENS.PermissionPolicy)).toBeDefined();
+    const policy = c.resolve(TOKENS.PermissionPolicy);
+    expect(policy).toBeInstanceOf(DirectoryPermissionPolicy);
+    expect(policy.getYolo?.()).toBe(true);
+  });
+
+  it('loads and enforces the in-project directory policy', async () => {
+    const projectRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'wrongstack-directory-policy-'));
+    fs.mkdirSync(path.join(projectRoot, '.wrongstack'), { recursive: true });
+    fs.writeFileSync(
+      path.join(projectRoot, '.wrongstack', 'directory-rules.json'),
+      JSON.stringify({
+        schemaVersion: 1,
+        rules: [{ directory: 'secrets/**', denyTools: ['write'] }],
+      }),
+    );
+    const c = createDefaultContainer({
+      config: mockConfig,
+      wpaths: {
+        ...mockWpaths,
+        projectRoot,
+        projectSessions: path.join(projectRoot, 'sessions'),
+        projectTrust: path.join(projectRoot, 'trust.json'),
+      },
+      logger: mockLogger,
+      modelsRegistry: mockModels,
+      permission: { yolo: true },
+    });
+    const policy = c.resolve(TOKENS.PermissionPolicy);
+
+    await expect(
+      policy.evaluate(
+        { name: 'write', permission: 'auto' } as never,
+        { path: 'secrets/token.txt' },
+        { meta: {}, projectRoot, workingDir: projectRoot, provider: { id: 'anthropic' } } as never,
+      ),
+    ).resolves.toMatchObject({ permission: 'deny', source: 'directory_rules' });
+  });
+
+  it('rejects an invalid in-project directory policy instead of silently bypassing it', () => {
+    const projectRoot = fs.mkdtempSync(
+      path.join(os.tmpdir(), 'wrongstack-directory-policy-invalid-'),
+    );
+    fs.mkdirSync(path.join(projectRoot, '.wrongstack'), { recursive: true });
+    fs.writeFileSync(
+      path.join(projectRoot, '.wrongstack', 'directory-rules.json'),
+      JSON.stringify({
+        schemaVersion: 1,
+        rules: [{ directory: 'secrets/**', denyTool: ['write'] }],
+      }),
+    );
+    expect(() =>
+      createDefaultContainer({
+        config: mockConfig,
+        wpaths: {
+          ...mockWpaths,
+          projectRoot,
+          projectSessions: path.join(projectRoot, 'sessions'),
+          projectTrust: path.join(projectRoot, 'trust.json'),
+        },
+        logger: mockLogger,
+        modelsRegistry: mockModels,
+      }),
+    ).toThrow('Invalid directory permission policy');
   });
 
   it('passes bundledSkillsDir to DefaultSkillLoader', () => {
@@ -273,9 +339,7 @@ describe('createDefaultContainer', () => {
       list.mockResolvedValueOnce([
         { sessionId: 'busy', projectName: 'WrongStack', pid: 4242 },
       ] as never);
-      await expect(store.isSessionInUse('busy')).resolves.toBe(
-        'active in WrongStack (PID 4242)',
-      );
+      await expect(store.isSessionInUse('busy')).resolves.toBe('active in WrongStack (PID 4242)');
 
       list.mockResolvedValueOnce([]).mockRejectedValueOnce(new Error('registry unavailable'));
       await expect(store.isSessionInUse('free')).resolves.toBeNull();

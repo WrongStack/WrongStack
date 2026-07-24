@@ -4,7 +4,7 @@ import {
   type HistoryScrollController,
   ScrollableHistory,
 } from '../src/components/scrollable-history.js';
-import { type HistoryEntry } from '../src/components/history.js';
+import type { HistoryEntry } from '../src/components/history.js';
 import { renderRealTty, settle } from './helpers/real-tty.js';
 
 const entries: HistoryEntry[] = Array.from({ length: 50 }, (_, index) => ({

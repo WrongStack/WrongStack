@@ -3,10 +3,9 @@ import * as os from 'node:os';
 import * as path from 'node:path';
 import { beforeEach, describe, expect, it } from 'vitest';
 import type { KanbanBoard } from '../src/types.js';
-import type { TaskGraph, TaskNode } from '../src/types/task-graph.js';
+import type { TaskGraph } from '../src/types/task-graph.js';
 import {
   addDependency,
-  addTask,
   assignTask,
   createBoard,
   createBoardFromTaskGraph,
@@ -20,7 +19,6 @@ import {
   setTaskChain,
   splitTask,
   transferTaskToBoard,
-  updateTask,
   updateTaskAssignment,
 } from '../src/manager.js';
 import {

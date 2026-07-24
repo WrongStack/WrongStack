@@ -1,5 +1,5 @@
 import { Layers } from 'lucide-react';
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useState } from 'react';
 import {
   formatModelMatrixRouteLabel,
   MODEL_MATRIX_DEFAULT_ROUTE,

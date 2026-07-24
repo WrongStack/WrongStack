@@ -22,7 +22,7 @@ interface ExtractPattern {
 const C_LIKE: ExtractPattern[] = [
   { re: /\b(?:class|struct|enum|interface|union)\s+([A-Za-z_]\w*)/g, kind: 'class' },
   {
-    re: /\b(?:public|private|protected|static|final|async|override|virtual|inline|export)?\s*(?:[\w:<>\[\]\s\*&]+)\s+([A-Za-z_]\w*)\s*\([^;{]*\)\s*(?:const)?\s*[{;]/g,
+    re: /\b(?:public|private|protected|static|final|async|override|virtual|inline|export)?\s*(?:[\w:<>[\]\s*&]+)\s+([A-Za-z_]\w*)\s*\([^;{]*\)\s*(?:const)?\s*[{;]/g,
     kind: 'function',
   },
   { re: /\b(?:namespace)\s+([A-Za-z_]\w*)/g, kind: 'namespace' },
@@ -54,7 +54,7 @@ const LANG_PATTERNS: Partial<Record<SymbolLang, ExtractPattern[]>> = {
   java: [
     { re: /\b(?:class|interface|enum|record)\s+([A-Za-z_]\w*)/g, kind: 'class' },
     {
-      re: /\b(?:public|private|protected|static|final|abstract|synchronized|native|default|\s)+\s*[\w.<>,\[\]\s]+\s+([A-Za-z_]\w*)\s*\(/g,
+      re: /\b(?:public|private|protected|static|final|abstract|synchronized|native|default|\s)+\s*[\w.<>,[\]\s]+\s+([A-Za-z_]\w*)\s*\(/g,
       kind: 'method',
     },
   ],
@@ -62,7 +62,7 @@ const LANG_PATTERNS: Partial<Record<SymbolLang, ExtractPattern[]>> = {
     { re: /\b(?:class|interface|struct|enum|record)\s+([A-Za-z_]\w*)/g, kind: 'class' },
     { re: /\bnamespace\s+([A-Za-z_.\w]+)/g, kind: 'namespace' },
     {
-      re: /\b(?:public|private|protected|internal|static|async|override|virtual|\s)+\s*[\w.<>,\[\]\s]+\s+([A-Za-z_]\w*)\s*\(/g,
+      re: /\b(?:public|private|protected|internal|static|async|override|virtual|\s)+\s*[\w.<>,[\]\s]+\s+([A-Za-z_]\w*)\s*\(/g,
       kind: 'method',
     },
   ],
@@ -295,8 +295,7 @@ export function parseGeneric(opts: {
     // Clone flags so lastIndex never leaks across files.
     const re = new RegExp(pattern.re.source, pattern.re.flags.includes('g') ? pattern.re.flags : `${pattern.re.flags}g`);
     re.lastIndex = 0;
-    let match: RegExpExecArray | null;
-    while ((match = re.exec(content)) !== null) {
+    for (const match of content.matchAll(re)) {
       if (symbols.length >= maxSymbols) break;
 
       let name = (match[1] ?? match[2] ?? '').trim();

@@ -1,14 +1,14 @@
 import * as path from 'node:path';
 import { allServers } from '@wrongstack/core/infrastructure';
-import { type Config, type Logger, type MetricsRuntimeStatus, type ModelsRegistry, type PromptLoader, type Provider, type ProviderConfig, type SecretVault, type SessionWriter, type SkillLoader } from '@wrongstack/core/types';
-import { type HqPublisher } from '@wrongstack/core/hq';
+import type { Config, Logger, MetricsRuntimeStatus, ModelsRegistry, PromptLoader, Provider, ProviderConfig, SecretVault, SessionWriter, SkillLoader } from '@wrongstack/core/types';
+import type { HqPublisher } from '@wrongstack/core/hq';
 import { countShellHooks, HookRegistry, HookRunner, shellHooksEqual } from '@wrongstack/core/hooks';
 import { GlobalMailbox } from '@wrongstack/core/coordination';
-import { type HealthRegistry } from '@wrongstack/core/types';
+import type { HealthRegistry } from '@wrongstack/core/types';
 import { NotifierImpl } from '@wrongstack/core/notifications';
 import { normalizeTokenSavingTier } from '@wrongstack/core/types';
-import { type WstackPaths } from '@wrongstack/core/utils';
-import { type PluginHostHandle } from '@wrongstack/core/plugin';
+import type { WstackPaths } from '@wrongstack/core/utils';
+import type { PluginHostHandle } from '@wrongstack/core/plugin';
 import { type ProviderRegistry, SlashCommandRegistry, type ToolRegistry } from '@wrongstack/core/registry';
 import { TOKENS } from '@wrongstack/core/kernel';
 import {

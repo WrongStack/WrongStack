@@ -1,4 +1,4 @@
-import { type Context } from '@wrongstack/core/agent';
+import type { Context } from '@wrongstack/core/agent';
 import { SlashCommandRegistry, ToolRegistry } from '@wrongstack/core/registry';
 import { HybridCompactor } from '@wrongstack/core/execution';
 import { DefaultTokenCounter } from '@wrongstack/core/infrastructure';

@@ -1,10 +1,10 @@
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
-import { type Config } from '@wrongstack/core/types';
+import type { Config } from '@wrongstack/core/types';
 import { Container, TOKENS } from '@wrongstack/core/kernel';
 import { ToolRegistry } from '@wrongstack/core/registry';
-import { type WstackPaths } from '@wrongstack/core/utils';
+import type { WstackPaths } from '@wrongstack/core/utils';
 import { selectBuiltinToolsForTier } from '@wrongstack/tools/tool-tier';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { setupTools } from '../src/wiring/tools.js';

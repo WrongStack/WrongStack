@@ -43,7 +43,7 @@ import {
   updateTaskAssignment,
 } from '@wrongstack/kanban';
 import { color } from '@wrongstack/core/utils';
-import { type SlashCommand } from '@wrongstack/core/types';
+import type { SlashCommand } from '@wrongstack/core/types';
 import { TaskGraphStore } from '@wrongstack/sdd';
 import { parseSubcommand, unknownSubcommand } from './helpers.js';
 import type { SlashCommandContext } from './command-context.js';

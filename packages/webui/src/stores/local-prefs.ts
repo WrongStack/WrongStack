@@ -311,8 +311,7 @@ export const useLocalPrefs = create<LocalPrefs>()(
       // simply get the defaults via the spread of DEFAULTS; no explicit remap
       // is needed.
       migrate: (persisted) => {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const p = (persisted ?? {}) as any;
+        const p = (persisted ?? {}) as Partial<LocalPrefs> & Record<string, unknown>;
 
         // v10: streamFleet (boolean) renamed to fleetChatVerbosity ('off'|'full').
         // Map legacy true → 'full' (was the default), legacy false → 'off'.
@@ -331,7 +330,7 @@ export const useLocalPrefs = create<LocalPrefs>()(
         if (!validStrategies.includes(p.contextStrategy as string)) {
           p.contextStrategy = 'hybrid';
         }
-        if (p.auditLevel === 'verbose') p.auditLevel = 'full';
+        if ((p as Record<string, unknown>)['auditLevel'] === 'verbose') p.auditLevel = 'full';
         if (!['minimal', 'standard', 'full'].includes(p.auditLevel as string)) {
           p.auditLevel = 'standard';
         }

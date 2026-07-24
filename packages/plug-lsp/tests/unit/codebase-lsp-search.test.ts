@@ -1,5 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
-import type { LSPRegistry } from '../../src/registry.js';
+import { describe, expect, it, vi } from 'vitest';
 import { createCodebaseLspSearchTool } from '../../src/tools/codebase-lsp-search.js';
 import type { ToolDeps } from '../../src/tools/shared.js';
 

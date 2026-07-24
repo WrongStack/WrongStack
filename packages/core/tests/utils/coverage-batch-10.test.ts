@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import { InMemoryBridgeTransport } from '../../src/coordination/in-memory-transport.js';
 import { MailboxEventEmitter } from '../../src/coordination/mailbox-events.js';
 import { DEFAULT_HQ_REDACTION_POLICY, HQ_TRANSCRIPT_TEXT_CAP } from '../../src/hq/protocol/tool.js';

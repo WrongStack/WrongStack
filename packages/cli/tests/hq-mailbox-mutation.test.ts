@@ -487,7 +487,7 @@ describe('HQ mailbox — /api/mailbox/messages/:id/action validator mutations', 
   });
 
   it('rejects an unknown mailId (404)', async () => {
-    const {projectRoot, cleanup} = await seedProject(actionProjectId);
+    const {cleanup} = await seedProject(actionProjectId);
     try {
       const res = await postAction('no-such-mail', validAction, auth());
       expect(res.status).toBe(404);

@@ -87,7 +87,11 @@ describe('proposeTaskDecomposition', () => {
     const login = board!.tasks.find((task) => task.id === loginId)!;
     const signup = board!.tasks.find((task) => task.id === signupId)!;
     // Command-marked criterion → deterministic check type; free text → manual.
-    expect(login.successCriteria?.[0]).toMatchObject({ type: 'command', status: 'pending' });
+    expect(login.successCriteria?.[0]).toMatchObject({
+      type: 'command',
+      status: 'pending',
+      notes: 'pnpm vitest run login',
+    });
     expect(signup.successCriteria?.[0]).toMatchObject({ type: 'manual', status: 'pending' });
     expect(login.description).toBe('POST /login with session cookie');
     // dependsOnIndex wired to real child ids.
@@ -96,6 +100,24 @@ describe('proposeTaskDecomposition', () => {
     const events = await readKanbanEvents(tmpDir, boardId);
     expect(events.some((event) => event.type === 'task.decomposition.applied')).toBe(true);
     expect(events.some((event) => event.type === 'task.split')).toBe(true);
+  });
+
+  it('keeps an empty command marker as a manual criterion', async () => {
+    const { boardId, taskId } = await seed('auto');
+    const result = await proposeTaskDecomposition(tmpDir, boardId, taskId, {
+      subtasks: [
+        { title: 'First', successCriteria: ['$ '] },
+        { title: 'Second', successCriteria: ['verify:'] },
+      ],
+    });
+    const board = await getBoard(tmpDir, boardId);
+    const childIds = result!.proposal.appliedChildTaskIds!;
+
+    for (const childId of childIds) {
+      const criterion = board!.tasks.find((task) => task.id === childId)?.successCriteria?.[0];
+      expect(criterion).toMatchObject({ type: 'manual', status: 'pending' });
+      expect(criterion?.notes).toBeUndefined();
+    }
   });
 });
 

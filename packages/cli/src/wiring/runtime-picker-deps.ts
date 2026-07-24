@@ -6,9 +6,9 @@
  * and mutations.
  */
 import { allServers } from '@wrongstack/core/infrastructure';
-import { type Config } from '@wrongstack/core/types';
-import { type ConfigStore } from '@wrongstack/core/types';
-import { type ToolRegistry } from '@wrongstack/core/registry';
+import type { Config } from '@wrongstack/core/types';
+import type { ConfigStore } from '@wrongstack/core/types';
+import type { ToolRegistry } from '@wrongstack/core/registry';
 import type { MCPRegistry } from '@wrongstack/mcp';
 import type { PickerDeps, PluginPickerItem, ToolPickerItem } from '../execute-deps.js';
 import { patchConfig } from '../utils.js';

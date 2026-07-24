@@ -4,7 +4,6 @@ import { describe, expect, it, vi } from 'vitest';
 import {
   ConfirmPrompt,
   confirmButtonSegments,
-  type ConfirmDecision,
 } from '../src/components/confirm-prompt.js';
 
 // writeOut is called on mount but module resolution for @wrongstack/core

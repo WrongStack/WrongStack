@@ -6,24 +6,14 @@
  *   - tasks.ts: various uncovered branches
  *   - boards.ts: board-level operations uncovered branches
  */
-import * as fs from 'node:fs/promises';
-import * as os from 'node:os';
-import * as path from 'node:path';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import {
   findTask, existingColumnId, selectRecoveryMode,
   normalizeDependencyIds, reconcileTaskColumns, columnIdForTaskGraphStatus,
-  isTaskReadyForWork, createTaskObject, addDependencyToTask,
-  assertNoDependencyCycles, buildAssignment,
+  isTaskReadyForWork, addDependencyToTask,
+  assertNoDependencyCycles,
 } from '../src/manager/_internal.js';
-import { addTask, createBoard, updateTask } from '../src/manager.js';
 import type { KanbanBoard, KanbanTask, KanbanRecoveryMode } from '../src/types.js';
-
-let tmpDir: string;
-
-beforeEach(async () => {
-  tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'gap-int-'));
-});
 
 // ── findTask: prefix ambiguity ──────────────────────────────────
 describe('findTask - prefix matching', () => {

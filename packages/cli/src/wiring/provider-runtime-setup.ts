@@ -1,10 +1,10 @@
-import { type Config, type Logger, type Provider, type ProviderConfig, type SecretVault } from '@wrongstack/core/types';
+import type { Config, Logger, Provider, ProviderConfig, SecretVault } from '@wrongstack/core/types';
 import { createFallbackModelExtension, type FallbackProfileManager } from '@wrongstack/core/agent';
-import { type EventBus } from '@wrongstack/core/kernel';
+import type { EventBus } from '@wrongstack/core/kernel';
 import { type ProviderConfigSnapshot, readProviderSnapshot, SessionMemoryConsolidator, watchProviderConfig } from '@wrongstack/core/storage';
-import { type ProviderModelStatusTracker } from '@wrongstack/core/coordination';
-import { type ProviderRegistry } from '@wrongstack/core/registry';
-import { type WstackPaths } from '@wrongstack/core/utils';
+import type { ProviderModelStatusTracker } from '@wrongstack/core/coordination';
+import type { ProviderRegistry } from '@wrongstack/core/registry';
+import type { WstackPaths } from '@wrongstack/core/utils';
 import { patchConfig } from '../utils.js';
 
 export function serializeProviderRuntimeSnapshot(snapshot: unknown): string {

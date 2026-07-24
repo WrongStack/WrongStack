@@ -297,7 +297,9 @@ describe('EntryHeightCache', () => {
 
 function filledCache(heights: number[]): EntryHeightCache {
   const c = new EntryHeightCache();
-  heights.forEach((h, i) => c.record(i + 1, h));
+  heights.forEach((h, i) => {
+    c.record(i + 1, h);
+  });
   return c;
 }
 

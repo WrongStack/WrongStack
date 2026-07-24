@@ -26,8 +26,7 @@ function identityFromLocation(location: string): string {
 function parsePackageSwift(content: string): SwiftManifestDependency[] {
   const deps: SwiftManifestDependency[] = [];
   const packageRegex = /\.package\s*\(\s*(?:name:\s*["'][^"']+["'],\s*)?(url|path):\s*["']([^"']+)["']\s*(?:,\s*(?:from|exact|branch|revision):\s*["']([^"']+)["'])?\s*\)/g;
-  let match: RegExpExecArray | null;
-  while ((match = packageRegex.exec(content)) !== null) {
+  for (const match of content.matchAll(packageRegex)) {
     const location = match[2];
     if (!location) continue;
     deps.push({

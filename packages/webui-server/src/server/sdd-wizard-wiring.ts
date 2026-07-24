@@ -1,7 +1,7 @@
 import * as path from 'node:path';
-import {
-  type AgentFactory,
-  type BrainArbiter,
+import type {
+  AgentFactory,
+  BrainArbiter,
 } from '@wrongstack/core/coordination';
 import type { Agent } from '@wrongstack/core/agent';
 import {

@@ -7,11 +7,10 @@
  *   - renameWithRetry transient-error retry (lines 223-237)
  */
 import * as fs from 'node:fs/promises';
-import { watch as watchDir } from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { FsError, atomicWrite, withFileLock } from '../src/utils/atomic-write.js';
+import { atomicWrite, withFileLock } from '../src/utils/atomic-write.js';
 
 function errWithCode(code: string, message = 'fake error'): NodeJS.ErrnoException {
   const err = new Error(message) as NodeJS.ErrnoException;

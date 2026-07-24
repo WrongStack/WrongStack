@@ -133,11 +133,11 @@ export class ReadOnlyPermissionPolicy implements PermissionPolicy {
   }
 
   denyOnce(rule: { tool: string; pattern: string }): void {
-    return this.inner.denyOnce(rule);
+    this.inner.denyOnce(rule);
   }
 
   allowOnce(rule: { tool: string; pattern: string }): void {
-    return this.inner.allowOnce(rule);
+    this.inner.allowOnce(rule);
   }
 
   async reload(): Promise<void> {

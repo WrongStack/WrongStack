@@ -350,7 +350,7 @@ export function Banner({
   entry: Extract<HistoryEntry, { kind: 'banner' }>;
   termWidth?: number;
   termHeight?: number;
-}): React.ReactElement {
+}): React.ReactElement | null {
   const panelWidth = Math.max(20, Math.floor(termWidth));
   const optionalRows = bannerOptionalRows(entry);
   const compactRows = COMPACT_BASE_ROWS + optionalRows;
@@ -369,7 +369,7 @@ export function Banner({
 
   // A not-yet-measured pane has no rows available. Rendering even the bare
   // identity line would leak outside its viewport.
-  if (termHeight !== undefined && termHeight <= 0) return <></>;
+  if (termHeight !== undefined && termHeight <= 0) return null;
 
   if (condensed) {
     const unbordered = (termHeight ?? 0) < 3;

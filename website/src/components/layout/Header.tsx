@@ -120,6 +120,7 @@ export function Header() {
               {item.label}
             </Link>
           ))}
+          {/* biome-ignore lint/a11y/noStaticElementInteractions: this wrapper only manages pointer hover intent; the nested button owns the menu interaction. */}
           <div ref={moreRef} className="relative" onMouseEnter={handleMoreEnter} onMouseLeave={handleMoreLeave}>
             <button
               type="button"

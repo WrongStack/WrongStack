@@ -2,11 +2,11 @@
 import { spawn } from 'node:child_process';
 import { allServers } from '@wrongstack/core/infrastructure';
 import { color, writeOut } from '@wrongstack/core/utils';
-import { type Config, type TokenCounter } from '@wrongstack/core/types';
-import { type ConfigStore } from '@wrongstack/core/types';
-import { type Context } from '@wrongstack/core/agent';
-import { type EventBus } from '@wrongstack/core/kernel';
-import { type ToolRegistry } from '@wrongstack/core/registry';
+import type { Config, TokenCounter } from '@wrongstack/core/types';
+import type { ConfigStore } from '@wrongstack/core/types';
+import type { Context } from '@wrongstack/core/agent';
+import type { EventBus } from '@wrongstack/core/kernel';
+import type { ToolRegistry } from '@wrongstack/core/registry';
 import type { MCPRegistry } from '@wrongstack/mcp';
 import type { MultiAgentHost } from '../multi-agent.js';
 import { runPluginManagementCommand } from '../plugin-management.js';

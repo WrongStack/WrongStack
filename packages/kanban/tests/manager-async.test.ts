@@ -2,7 +2,6 @@ import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { beforeEach, describe, expect, it } from 'vitest';
-import type { KanbanBoard, KanbanTask } from '../src/types.js';
 import type { TaskGraph, TaskNode } from '../src/types/task-graph.js';
 import type { PhaseGraph } from '../src/types/phase-graph.js';
 import {
@@ -18,7 +17,6 @@ import {
   getBoard,
   getKanbanOrchestrationSnapshot,
   getKanbanQueueHealth,
-  getTask,
   getBoardWithLivePresence,
   listKanbanEvents,
   listReadyTasks,
@@ -241,7 +239,7 @@ describe('updateBoard edges', () => {
   it('clears completedAt with null and updates supervisor/lifecycle', async () => {
     const b = await makeBoard();
     await updateBoard(tmpDir, b.id, { completedAt: '2026-07-17T00:00:00Z', supervisor: { enabled: true, mode: 'deterministic' } });
-    let stored = await getBoard(tmpDir, b.id);
+    const stored = await getBoard(tmpDir, b.id);
     expect(stored?.completedAt).toBe('2026-07-17T00:00:00Z');
     expect(stored?.supervisor?.mode).toBe('deterministic');
     // Clear supervisor + completedAt via null

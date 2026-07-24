@@ -42,7 +42,7 @@ async function seedLegacyJsonl(files: {
   const root = path.join(tempDir, '.wrongstack', 'memories');
   await fs.promises.mkdir(path.join(root, 'graph'), { recursive: true });
   const write = (file: string, rows?: object[]): Promise<void> =>
-    rows && rows.length
+    rows?.length
       ? fs.promises.writeFile(file, `${rows.map((r) => JSON.stringify(r)).join('\n')}\n`, 'utf8')
       : Promise.resolve();
   await write(path.join(root, 'memories.jsonl'), files.memories);

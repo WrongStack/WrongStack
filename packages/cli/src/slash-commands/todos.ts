@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import type { SlashCommand } from '@wrongstack/core/types';
 import { formatTodosList } from '@wrongstack/core/utils';
-import { type TodoItem } from '@wrongstack/core/agent';
+import type { TodoItem } from '@wrongstack/core/agent';
 import { parseSubcommand, unknownSubcommand } from './helpers.js';
 import type { SlashCommandContext } from './command-context.js';
 

@@ -472,6 +472,18 @@ a:focus-visible {
   color: inherit;
   transition: opacity 180ms ease;
 }
+
+.context-compact-hint {
+  grid-column: 1 / -1;
+  text-align: center;
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 7px;
+  letter-spacing: 0.15em;
+  color: var(--accent);
+  opacity: 0;
+  transition: opacity 180ms ease;
+}
+
 .context-meter:hover { opacity: 0.85; }
 .context-meter:hover .context-compact-hint { opacity: 1; }
 .context-meter:focus-visible {
@@ -517,17 +529,6 @@ a:focus-visible {
   font-family: "IBM Plex Mono", monospace;
   font-size: 8px;
   white-space: nowrap;
-}
-
-.context-compact-hint {
-  grid-column: 1 / -1;
-  text-align: center;
-  font-family: "IBM Plex Mono", monospace;
-  font-size: 7px;
-  letter-spacing: 0.15em;
-  color: var(--accent);
-  opacity: 0;
-  transition: opacity 180ms ease;
 }
 
 .connection {
@@ -1026,18 +1027,18 @@ a:focus-visible {
   color: var(--warning);
 }
 
-.message.thinking .message-body {
-  color: var(--muted);
-  font-family: "IBM Plex Mono", monospace;
-  font-size: 12px;
-}
-
 .message-body {
   min-width: 0;
   color: var(--text-secondary);
   font-size: 14px;
   line-height: 1.72;
   overflow-wrap: anywhere;
+}
+
+.message.thinking .message-body {
+  color: var(--muted);
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 12px;
 }
 
 .message.system .message-label,
@@ -3011,7 +3012,7 @@ a:focus-visible {
   color: var(--danger);
 }
 
-.tool-message .message-body {
+.message.tool-message .message-body {
   padding: 0;
 }
 
@@ -3591,8 +3592,8 @@ a:focus-visible {
 /* ── Full file manager (extended file explorer) ──────────────────── */
 
 .file-manager {
-  width: min(680px, calc(100vw - 40px)) !important;
-  right: 70px !important;
+  width: min(680px, calc(100vw - 40px));
+  right: 70px;
 }
 
 .file-manager-search {

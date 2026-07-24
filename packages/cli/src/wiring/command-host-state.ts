@@ -1,10 +1,10 @@
 /** Mutable command-host state created after the runtime fleet is available. */
 import { AgentError, type Config, type SessionWriter } from '@wrongstack/core/types';
-import { type BrainArbiter, type Director } from '@wrongstack/core/coordination';
+import type { BrainArbiter, Director } from '@wrongstack/core/coordination';
 import { resolveFleetChatVerbosity } from '@wrongstack/core/types';
-import { type EventBus } from '@wrongstack/core/kernel';
+import type { EventBus } from '@wrongstack/core/kernel';
 import { FLEET_ROSTER } from '@wrongstack/core/coordination';
-import { type WstackPaths } from '@wrongstack/core/utils';
+import type { WstackPaths } from '@wrongstack/core/utils';
 import { SddRunRegistry } from '@wrongstack/sdd';
 import { createGoalHost } from '../goal-host.js';
 import type { HqCommandController } from '../hq-command-controller.js';

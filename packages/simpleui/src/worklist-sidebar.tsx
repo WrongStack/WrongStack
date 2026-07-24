@@ -165,7 +165,7 @@ export function WorklistSidebar({
 
   return (
     <div className="worklist-content">
-      <div className="worklist-summary" aria-label={`${items.length} ${copy.noun}s`}>
+      <div className="worklist-summary">
         <span>{active.length} ACTIVE</span>
         <span>{completed.length} DONE</span>
         {completed.length > 0 && (

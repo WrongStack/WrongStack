@@ -10,8 +10,8 @@
  * bodies are a verbatim lift — only dependency references changed.
  */
 
-import {
-  type createStrategyCompactor,
+import type {
+  createStrategyCompactor,
 } from '@wrongstack/core/execution';
 import type { Context, TodoItem } from '@wrongstack/core/agent';
 import type { SessionStore, TokenCounter } from '@wrongstack/core/types';

@@ -1,5 +1,5 @@
 import { color } from '@wrongstack/core/utils';
-import { type SlashCommand } from '@wrongstack/core/types';
+import type { SlashCommand } from '@wrongstack/core/types';
 import type { SlashCommandContext } from './command-context.js';
 
 /**

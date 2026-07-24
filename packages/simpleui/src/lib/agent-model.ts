@@ -108,7 +108,7 @@ function assignName(
     return explicitName;
   }
 
-  if (task && task.trim()) {
+  if (task?.trim()) {
     const derived = taskToName(task.trim());
     // Avoid collisions with pool names by appending a suffix if needed.
     const unique = nameCache.has(derived) ? `${derived} #${id.slice(0, 4)}` : derived;

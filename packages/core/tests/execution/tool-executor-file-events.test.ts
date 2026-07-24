@@ -140,7 +140,7 @@ describe('ToolExecutor — file event auto-emission', () => {
     expect(result.outputs).toHaveLength(1);
     const output = result.outputs[0];
     expect(output?.result.type).toBe('tool_result');
-    if (!output || output.result.type !== 'tool_result') {
+    if (output?.result.type !== 'tool_result') {
       throw new Error('Expected the read tool to execute without pending confirmation');
     }
     expect(output.result.is_error).toBeFalsy();

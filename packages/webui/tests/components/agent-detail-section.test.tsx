@@ -1,24 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { useFleetStore } from '../../src/stores/index.js';
 
-function makeAgent(id: string, overrides: Partial<{ name: string; status: string; costUsd: number }> = {}) {
-  return {
-    id,
-    name: overrides.name ?? id,
-    status: overrides.status ?? 'running',
-    iteration: 0,
-    toolCalls: 0,
-    costUsd: overrides.costUsd ?? 0,
-    ctxPct: 0,
-    ctxTokens: 0,
-    maxContext: 0,
-    extensions: 0,
-    startedAt: Date.now(),
-    toolLog: [],
-    sparklineBins: Array(12).fill(0),
-  } as const;
-}
-
 describe('AgentDetailSection data paths', () => {
   beforeEach(() => {
     useFleetStore.setState({

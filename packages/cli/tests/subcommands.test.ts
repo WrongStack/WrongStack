@@ -2,7 +2,7 @@ import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { Writable } from 'node:stream';
-import { type Config, type ModelsRegistry, type ResolvedModel, type ResolvedProvider } from '@wrongstack/core/types';
+import type { Config, ModelsRegistry, ResolvedModel, ResolvedProvider } from '@wrongstack/core/types';
 import { DefaultSessionStore } from '@wrongstack/core/storage';
 import { ToolRegistry } from '@wrongstack/core/registry';
 import { resolveWstackPaths } from '@wrongstack/core/utils';

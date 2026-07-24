@@ -33,6 +33,19 @@ describe('BoundedMap — capacity', () => {
     expect(m.get('b')).toBe('2');
   });
 
+  it.each([Number.NaN, Number.POSITIVE_INFINITY, Number.NEGATIVE_INFINITY])(
+    'treats a non-finite max of %s as 1',
+    (max) => {
+      const m = new BoundedMap<string, string>({ max });
+      m.set('a', '1');
+      m.set('b', '2');
+      expect(m.size).toBe(1);
+      expect(m.has('a')).toBe(false);
+      expect(m.get('b')).toBe('2');
+      expect(m.evictionCount).toBe(1);
+    },
+  );
+
   it('overwriting a key does not grow the map', () => {
     const m = new BoundedMap<string, number>({ max: 5 });
     for (let i = 0; i < 100; i++) m.set('same', i);

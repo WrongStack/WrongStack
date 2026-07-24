@@ -5,7 +5,7 @@
 // WrongStack client on the machine finds a later-started HQ automatically.
 
 import { readHqAuthFile } from '@wrongstack/core/hq';
-import { type HqPublisher } from '@wrongstack/core/hq';
+import type { HqPublisher } from '@wrongstack/core/hq';
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';

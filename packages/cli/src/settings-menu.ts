@@ -2,7 +2,7 @@ import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 import { atomicWrite, color } from '@wrongstack/core/utils';
 import { ConfigError, ERROR_CODES, FsError, type SecretVault } from '@wrongstack/core/types';
-import { type ConfigStore } from '@wrongstack/core/types';
+import type { ConfigStore } from '@wrongstack/core/types';
 import { decryptConfigSecrets, encryptConfigSecrets } from '@wrongstack/core/security';
 import type { ReadlineInputReader } from './input-reader.js';
 import type { TerminalRenderer } from './renderer.js';

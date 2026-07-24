@@ -19,6 +19,7 @@ export type DirectoryPolicyDiagnosticCode =
   | 'read_error'
   | 'too_many_rules'
   | 'invalid_rule'
+  | 'unknown_field'
   | 'invalid_directory'
   | 'invalid_deny_tools'
   | 'invalid_deny_providers'
@@ -42,6 +43,7 @@ export type DirectoryPolicyValidationResult =
   | { ok: true; policy: DirectoryPolicy; diagnostics: DirectoryPolicyDiagnostic[] }
   | { ok: false; diagnostics: DirectoryPolicyDiagnostic[] };
 
+const RULE_FIELDS = new Set(['directory', 'description', 'denyTools', 'denyProviders', 'allowOnlyTools']);
 const UNSAFE_PROPERTY_NAMES = new Set(['__proto__', 'prototype', 'constructor']);
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -136,6 +138,17 @@ function validateRule(
     return undefined;
   }
 
+  for (const field of Object.keys(value)) {
+    if (!RULE_FIELDS.has(field)) {
+      error(
+        diagnostics,
+        'unknown_field',
+        `${rulePath}.${field}`,
+        `unknown directory policy field "${field}"`,
+      );
+    }
+  }
+
   const description = value['description'];
   let normalizedDescription: string | undefined;
   if (description !== undefined) {
@@ -185,12 +198,16 @@ function validateRule(
     if (allowOnlyTools) rule.allowOnlyTools = allowOnlyTools;
   }
 
-  if (!rule.denyTools && !rule.denyProviders && !rule.allowOnlyTools) {
+  const hasConstraint =
+    (rule.denyTools?.length ?? 0) > 0 ||
+    (rule.denyProviders?.length ?? 0) > 0 ||
+    rule.allowOnlyTools !== undefined;
+  if (!hasConstraint) {
     error(
       diagnostics,
       'empty_rule',
       rulePath,
-      'rule must declare at least one of denyTools, denyProviders, or allowOnlyTools',
+      'rule must declare non-empty denyTools or denyProviders, or declare allowOnlyTools',
     );
     return undefined;
   }

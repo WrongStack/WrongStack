@@ -114,7 +114,7 @@
   .ws-ledger--running,
   .ws-ledger--running::before,
   .ws-ledger__dot--running {
-    animation: none !important;
+    animation: none;
   }
   .ws-ledger--running::before {
     display: none;

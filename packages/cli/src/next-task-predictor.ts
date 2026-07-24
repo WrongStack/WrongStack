@@ -11,7 +11,7 @@
  */
 
 import { readBundledInstructionText } from '@wrongstack/core/utils';
-import { type TodoItem } from '@wrongstack/core/agent';
+import type { TodoItem } from '@wrongstack/core/agent';
 import type { CommitLLMProvider } from './services/commit-message.js';
 
 /** Provider shape required to predict — same structural contract as commit-llm. */

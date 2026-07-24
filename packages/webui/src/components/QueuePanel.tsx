@@ -141,8 +141,7 @@ export function QueuePanel({
               <p className="text-xs text-center max-w-xs">{t('activity:queue.emptyBody')}</p>
             </div>
           ) : (
-            <>
-              <ul className="divide-y divide-border/60" data-testid="queue-list">
+            <ul className="divide-y divide-border/60" data-testid="queue-list">
                 {sortedQueue.map(({ item, sourceIdx }, idx) => {
                   // sourceIdx was threaded through the sort so removal
                   // targets the correct entry in the underlying store.
@@ -184,7 +183,6 @@ export function QueuePanel({
                   );
                 })}
               </ul>
-            </>
           )}
         </div>
 

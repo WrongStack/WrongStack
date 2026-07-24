@@ -1,5 +1,5 @@
 import { expectDefined } from '@wrongstack/core/utils';
-import { type TaskProgress } from '@wrongstack/core/types';
+import type { TaskProgress } from '@wrongstack/core/types';
 import { DefaultTaskStore, renderProgress, TaskTracker } from '@wrongstack/sdd';
 import { sddState } from './state.js';
 

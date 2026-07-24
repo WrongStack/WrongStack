@@ -1,5 +1,5 @@
 import * as path from 'node:path';
-import { type EventBus } from '@wrongstack/core/kernel';
+import type { EventBus } from '@wrongstack/core/kernel';
 import { type FileAuthorTrackerOptions, type PackageAuthorTrackerOptions, startTechStackConsumer } from '@wrongstack/core/coordination';
 import { GlobalMailbox, startPackageOutdatedWatcher } from '@wrongstack/core/coordination';
 import type { DefaultLogger } from '@wrongstack/core/infrastructure';

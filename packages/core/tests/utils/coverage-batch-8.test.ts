@@ -5,7 +5,6 @@ import { mapWithConcurrency } from '../../src/storage/storage-concurrency.js';
 import {
   compareSessionSummaries,
   matchesSessionFilter,
-  type SessionFilterCriteria,
 } from '../../src/storage/session-summary.js';
 import { resolveMaxSpawnDepth, HARD_MAX_SPAWN_DEPTH } from '../../src/coordination/spawn-budget.js';
 import { NETWORK_ERR_RE } from '../../src/execution/regex-patterns.js';
@@ -42,7 +41,7 @@ describe('generateSessionId', () => {
   });
   it('falls back to Date.now() on invalid date', () => {
     const id = generateSessionId('not-a-date');
-    const now = new Date().toISOString().slice(0, 10);
+    const _now = new Date().toISOString().slice(0, 10);
     expect(id.startsWith('not-a-date/')).toBe(true); // uses raw string prefix
     // The seedTime falls back to Date.now()
     expect(id.length).toBeGreaterThan(20);

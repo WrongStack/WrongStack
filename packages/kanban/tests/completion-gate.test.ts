@@ -98,6 +98,31 @@ describe('enforceCompletionGate', () => {
     expect(softGate.allowed).toBe(true);
     expect(softGate.verdict).toBe('passed');
   });
+
+  it('does not allow a caller override to disable the gate on a managed board', async () => {
+    const board = await createBoard(tmpDir, {
+      title: 'Managed gate board',
+      lifecycle: {
+        mode: 'managed',
+        columns: {
+          backlog: 'backlog',
+          todo: 'todo',
+          running: 'in-progress',
+          review: 'review',
+          done: 'done',
+        },
+      },
+    });
+    const added = await addTask(tmpDir, board.id, { title: 'Managed task' });
+
+    const gate = await enforceCompletionGate(tmpDir, board.id, added!.task.id, {
+      enforcement: 'off',
+    });
+
+    expect(gate.enforcement).toBe('strict');
+    expect(gate.verdict).not.toBe('skipped');
+    expect(gate.allowed).toBe(false);
+  });
 });
 
 describe('finalizeTaskCompletion', () => {

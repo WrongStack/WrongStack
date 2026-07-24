@@ -96,7 +96,7 @@ export class LayoutStore {
   allMeasured(ids: Iterable<number>): boolean {
     for (const id of ids) {
       const layout = this.layouts.get(id);
-      if (!layout || layout.kind !== 'measured') return false;
+      if (layout?.kind !== 'measured') return false;
     }
     return true;
   }

@@ -2,7 +2,7 @@ import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { DefaultConfigStore } from '@wrongstack/core/storage';
-import { type Context } from '@wrongstack/core/agent';
+import type { Context } from '@wrongstack/core/agent';
 import { describe, expect, it, vi } from 'vitest';
 import { buildContextCommand } from '../src/slash-commands/context.js';
 

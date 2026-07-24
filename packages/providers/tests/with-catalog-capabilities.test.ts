@@ -1,9 +1,9 @@
 import { describe, expect, it, vi } from 'vitest';
-import {
-  type Capabilities,
-  type ModelsDevModel,
-  type ModelsDevPayload,
-  type Provider,
+import type {
+  Capabilities,
+  ModelsDevModel,
+  ModelsDevPayload,
+  Provider,
 } from '@wrongstack/core/types';
 import { DefaultModelsRegistry } from '@wrongstack/core/models';
 import { withCatalogCapabilities } from '../src/index.js';

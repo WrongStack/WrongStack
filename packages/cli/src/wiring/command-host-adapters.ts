@@ -1,7 +1,7 @@
 /** Terminal and tool-execution adapters used by the slash-command host. */
-import { type Agent } from '@wrongstack/core/agent';
+import type { Agent } from '@wrongstack/core/agent';
 import { color, isStdinTTY } from '@wrongstack/core/utils';
-import { type ToolRegistry } from '@wrongstack/core/registry';
+import type { ToolRegistry } from '@wrongstack/core/registry';
 import type { ReadlineInputReader } from '../input-reader.js';
 import type { BuiltinSlashCommandDeps } from './slash-commands.js';
 

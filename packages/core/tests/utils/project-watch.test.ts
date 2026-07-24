@@ -4,6 +4,7 @@ const io = vi.hoisted(() => ({
   watchCalls: [] as string[],
   listeners: new Map<string, (eventType: string, filename: string | Buffer | null) => void>(),
   errorHandlers: new Map<string, (error: unknown) => void>(),
+  closeHandlers: new Map<string, () => void>(),
   closed: [] as string[],
 }));
 
@@ -20,8 +21,9 @@ vi.mock('node:fs', async () => {
         io.watchCalls.push(root);
         io.listeners.set(root, listener);
         return {
-          on: (event: string, handler: (error: unknown) => void) => {
+          on: (event: string, handler: (error?: unknown) => void) => {
             if (event === 'error') io.errorHandlers.set(root, handler);
+            if (event === 'close') io.closeHandlers.set(root, handler);
           },
           close: () => {
             io.closed.push(root);
@@ -101,6 +103,18 @@ describe('watchProjectTree', () => {
     expect(errors).toHaveLength(1);
 
     // The dead entry is not reused — a new acquire opens a new OS watcher.
+    const sub2 = watchProjectTree(root, () => {});
+    expect(io.watchCalls.filter((r) => r === root)).toHaveLength(2);
+    sub.close();
+    sub2.close();
+  });
+
+  it('does not reuse a watcher that closed without emitting an error', () => {
+    const root = freshRoot();
+    const sub = watchProjectTree(root, () => {});
+
+    io.closeHandlers.get(root)?.();
+
     const sub2 = watchProjectTree(root, () => {});
     expect(io.watchCalls.filter((r) => r === root)).toHaveLength(2);
     sub.close();

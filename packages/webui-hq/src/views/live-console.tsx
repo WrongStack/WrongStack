@@ -63,10 +63,7 @@ function ConsoleCommandTurn({
     second: '2-digit',
   });
   const lifecyclePill = (
-    <span
-      className={`hq-pill ${commandLifecycleTone(lifecycle)}`}
-      aria-label={`Command ${lifecycle}`}
-    >
+    <span className={`hq-pill ${commandLifecycleTone(lifecycle)}`}>
       {lifecycle}
     </span>
   );

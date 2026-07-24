@@ -135,8 +135,15 @@ function parseQuery(tokens: string[]): ChronicleQuery {
     else if (key === 'resourceKind') query.resourceKind = value as NonNullable<ChronicleQuery['resourceKind']>;
     else if (key === 'line' || key === 'limit') query[key] = Number(value);
     else if (key === 'order' && (value === 'asc' || value === 'desc')) query.order = value;
-    else if (key.startsWith('tag.')) (query.tags ??= {})[key.slice(4)] = value;
-    else if (key.startsWith('attr.')) (query.attributes ??= {})[key.slice(5)] = parseValue(value);
+    else if (key.startsWith('tag.')) {
+      const tags = query.tags ?? {};
+      tags[key.slice(4)] = value;
+      query.tags = tags;
+    } else if (key.startsWith('attr.')) {
+      const attributes = query.attributes ?? {};
+      attributes[key.slice(5)] = parseValue(value);
+      query.attributes = attributes;
+    }
     else if (isStringQueryKey(key)) query[key] = value;
   }
   return query;

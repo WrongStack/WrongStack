@@ -144,6 +144,27 @@ describe('prompt-firewall plugin', () => {
     ).toBeGreaterThanOrEqual(1);
   });
 
+  const postgresQueryPassword =
+    ['postgresql', '://', 'db', '/app?', 'user=alice&', 'password=', 'query-secret'].join('');
+
+  it('block mode rejects a PostgreSQL URI with a password query parameter', async () => {
+    const api = setup({ enabled: true, mode: 'block' });
+    const inner = vi.fn().mockResolvedValue(resp('clean'));
+    await expect(api._wrap!(null, req(postgresQueryPassword), inner)).rejects.toThrow(
+      /postgres_uri/,
+    );
+    expect(inner).not.toHaveBeenCalled();
+  });
+
+  it('redact mode strips a PostgreSQL URI with a password query parameter', async () => {
+    const api = setup({ enabled: true, mode: 'redact' });
+    const inner = vi.fn().mockResolvedValue(resp('clean'));
+    await api._wrap!(null, req(postgresQueryPassword), inner);
+    const sent = JSON.stringify(inner.mock.calls[0]![1]);
+    expect(sent).not.toContain('query-secret');
+    expect(sent).toContain('[REDACTED:postgres_uri]');
+  });
+
   it('redact mode also redacts secrets echoed back in the response', async () => {
     const api = setup({ enabled: true, mode: 'redact', scanResponse: true });
     const inner = vi.fn().mockResolvedValue(resp(`the key is ${AWS_KEY}`));

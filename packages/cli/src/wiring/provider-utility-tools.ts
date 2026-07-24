@@ -1,11 +1,11 @@
 /** Registers provider-neutral one-shot, council, and context-summary tools. */
-import { type Config, type Provider } from '@wrongstack/core/types';
+import type { Config, Provider } from '@wrongstack/core/types';
 import { createContextManagerTool } from '@wrongstack/core/infrastructure';
 import { createCouncilTool, createOneShotLLMTool } from '@wrongstack/core/tools';
-import { type FallbackProfileManager } from '@wrongstack/core/agent';
+import type { FallbackProfileManager } from '@wrongstack/core/agent';
 import { OneShotOrchestrator } from '@wrongstack/core/execution';
-import { type ProviderModelStatusTracker } from '@wrongstack/core/coordination';
-import { type ToolRegistry } from '@wrongstack/core/registry';
+import type { ProviderModelStatusTracker } from '@wrongstack/core/coordination';
+import type { ToolRegistry } from '@wrongstack/core/registry';
 
 export interface ProviderUtilityToolsInput {
   toolRegistry: ToolRegistry;

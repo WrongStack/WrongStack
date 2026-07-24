@@ -1,8 +1,8 @@
 import type { Director } from '@wrongstack/core/coordination';
-import {
-  type Dispatch,
-  type MutableRefObject,
-  type SetStateAction,
+import type {
+  Dispatch,
+  MutableRefObject,
+  SetStateAction,
 } from 'react';
 import type { AppProps } from './app-props.js';
 import type { Action, State } from './app-state.js';

@@ -1,4 +1,5 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256">
+  <title>WrongStack</title>
   <rect width="256" height="256" rx="48" fill="#FD9F02"/>
   <path d="M80 60 L120 60 L100 100 L100 140 L120 180 L80 180 L60 140 L60 100 Z" fill="#1a1c1e" opacity="0.85"/>
   <path d="M136 60 L176 60 L196 100 L196 140 L176 180 L136 180 L156 140 L156 100 Z" fill="#1a1c1e" opacity="0.85"/>

@@ -5,10 +5,9 @@
  * spawn budget enforcement, task completion notification) using mock runners
  * and the shared test harness.
  */
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 import { EventBus } from '../../src/kernel/events.js';
 import { Director } from '../../src/coordination/director.js';
-import { FleetSpawnBudgetError, FleetCostCapError } from '../../src/coordination/director/director-errors.js';
 import type { MultiAgentConfig, SubagentRunner, TaskResult, TaskSpec } from '../../src/types/multi-agent.js';
 
 function makeConfig(overrides: Partial<MultiAgentConfig> = {}): MultiAgentConfig {

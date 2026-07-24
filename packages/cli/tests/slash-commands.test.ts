@@ -1,6 +1,6 @@
-import { type Context, type TodoItem } from '@wrongstack/core/agent';
+import type { Context, TodoItem } from '@wrongstack/core/agent';
 import { SlashCommandRegistry, ToolRegistry } from '@wrongstack/core/registry';
-import { type Message, type MemoryStore } from '@wrongstack/core/types';
+import type { Message, MemoryStore } from '@wrongstack/core/types';
 import { HybridCompactor } from '@wrongstack/core/execution';
 import { DefaultTokenCounter } from '@wrongstack/core/infrastructure';
 import { describe, expect, it, vi } from 'vitest';

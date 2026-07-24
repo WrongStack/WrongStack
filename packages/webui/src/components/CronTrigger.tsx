@@ -9,7 +9,7 @@ import { RotateCw } from 'lucide-react';
 import { useCronStore, useUIStore } from '@/stores';
 import { cn } from '@/lib/utils';
 
-export function CronTrigger(): React.ReactElement {
+export function CronTrigger(): React.ReactElement | null {
   const snapshot = useCronStore((s) => s.snapshot);
   const setCronJobsOpen = useUIStore((s) => s.setCronJobsOpen);
 
@@ -18,7 +18,7 @@ export function CronTrigger(): React.ReactElement {
   const activeCount = jobs.filter((j) => j.enabled && !j.overdue).length;
   const total = jobs.length;
 
-  if (total === 0) return <></>;
+  if (total === 0) return null;
 
   return (
     <button

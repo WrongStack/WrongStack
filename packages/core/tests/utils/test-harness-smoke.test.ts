@@ -2,7 +2,7 @@
  * Smoke test for the test harness itself — verifies all factory functions
  * produce working mocks that integrate correctly.
  */
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, afterEach } from 'vitest';
 import { createTestHarness, createMockProvider, createMockTool, createMockContext, userMessage, assistantMessage } from '../helpers/test-harness.js';
 
 describe('test-harness', () => {
@@ -55,12 +55,16 @@ describe('test-harness', () => {
       expect(harness.tools.has('write')).toBe(true);
     });
 
-    it('ctx has projectRoot and session id', () => {
+    it('ctx uses the configured project root and harness provider', () => {
       harness = createTestHarness({
+        provider: { id: 'configured-provider' },
         context: { projectRoot: '/custom', sessionId: 'sess-123' },
       });
       expect(harness.ctx.projectRoot).toBe('/custom');
+      expect(harness.ctx.cwd).toBe('/custom');
+      expect(harness.ctx.workingDir).toBe('/custom');
       expect(harness.ctx.session.id).toBe('sess-123');
+      expect(harness.ctx.provider).toBe(harness.provider);
     });
   });
 

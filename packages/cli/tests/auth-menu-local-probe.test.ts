@@ -2,7 +2,7 @@ import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { DefaultSecretScrubber, DefaultSecretVault } from '@wrongstack/core/security';
-import { type ModelsRegistry } from '@wrongstack/core/types';
+import type { ModelsRegistry } from '@wrongstack/core/types';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   type AuthMenuDeps,

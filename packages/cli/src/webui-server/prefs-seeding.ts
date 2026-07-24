@@ -43,8 +43,7 @@ export async function seedConfigToMeta(opts: CliWebUIOptions): Promise<void> {
       return;
     }
   }
-  const meta = (opts.agent.ctx.meta ??= {});
-  seedContextMeta(config, { meta });
+  seedContextMeta(config, { meta: opts.agent.ctx.meta });
 }
 
 export interface PrefsSeeding {

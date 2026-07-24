@@ -13,8 +13,14 @@
  */
 
 import { vi } from 'vitest';
-import { EventBus } from '../../src/kernel/events.js';
-import type { Provider, StreamEvent, Request, Response } from '../../src/types/provider.js';
+import { EventBus, type EventName } from '../../src/kernel/events.js';
+import type {
+  Provider,
+  StreamEvent,
+  Request,
+  Response,
+  StopReason,
+} from '../../src/types/provider.js';
 import type { Tool, Permission } from '../../src/types/tool.js';
 import type { Context } from '../../src/core/context.js';
 import type { Usage } from '../../src/types/messages.js';
@@ -36,7 +42,7 @@ export function createMockEventBus() {
   const collect = (name: string): unknown[] => {
     const arr: unknown[] = [];
     events$.set(name, arr);
-    events.on(name as any, (payload: unknown) => arr.push(payload));
+    events.on(name as EventName, (payload: unknown) => arr.push(payload));
     return arr;
   };
 
@@ -78,12 +84,12 @@ export function createMockProvider(opts: MockProviderOptions = {}): Provider {
       if (opts.streamError) throw opts.streamError;
       for (const e of streamEvents) yield e;
     },
-    async complete(req: Request, opts: { signal: AbortSignal }): Promise<Response> {
+    async complete(_req: Request, opts: { signal: AbortSignal }): Promise<Response> {
       if (opts.completeResponse) return opts.completeResponse;
       // Build a response from the stream events
       let text = '';
       let usage: Usage = { input: 0, output: 0 } as unknown as Usage;
-      let stopReason: string = 'end_turn';
+      let stopReason: StopReason = 'end_turn';
       for (const e of streamEvents) {
         if (e.type === 'text') text += e.text;
         if (e.type === 'message_stop') {
@@ -93,7 +99,7 @@ export function createMockProvider(opts: MockProviderOptions = {}): Provider {
       }
       return {
         content: [{ type: 'text', text }],
-        stopReason: stopReason as any,
+        stopReason,
         usage,
         model: `${id}-model`,
       };
@@ -151,23 +157,26 @@ export interface MockContextOptions {
   messages?: Message[];
   tools?: Map<string, Tool>;
   events?: EventBus;
+  provider?: Provider;
 }
 
 export function createMockContext(opts: MockContextOptions = {}): Context {
   const toolsMap = opts.tools ?? createMockToolRegistry();
+  const projectRoot = opts.projectRoot ?? '/test-project';
   return {
-    projectRoot: opts.projectRoot ?? '/test-project',
+    projectRoot,
     session: { id: opts.sessionId ?? 'test-session' },
     messages: opts.messages ?? [],
     tools: Array.from(toolsMap.values()),
     events: opts.events ?? new EventBus(),
     signal: new AbortController().signal,
-    cwd: opts.projectRoot ?? '/test-project',
+    cwd: projectRoot,
+    workingDir: projectRoot,
     // Minimal stub for the rest
-    provider: createMockProvider(),
-    config: { providers: {}, tools: {}, extensions: {} } as any,
-    logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() } as any,
-    tokenCounter: { count: vi.fn(() => 10), messages: vi.fn(() => 100) } as any,
+    provider: opts.provider ?? createMockProvider(),
+    config: { providers: {}, tools: {}, extensions: {} },
+    logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() },
+    tokenCounter: { count: vi.fn(() => 10), messages: vi.fn(() => 100) },
     readFiles: new Set<string>(),
     fileMtimes: new Map<string, number>(),
   } as unknown as Context;
@@ -202,6 +211,7 @@ export function createTestHarness(opts: {
     ...opts.context,
     events,
     tools,
+    provider,
   });
 
   return {

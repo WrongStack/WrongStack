@@ -2,7 +2,6 @@ import {
   Activity,
   Bot,
   Brain,
-  CheckCircle2,
   Cpu,
   Eye,
   Globe,
@@ -11,7 +10,6 @@ import {
   Network,
   Palette,
   Puzzle,
-  RefreshCw,
   Send,
   Server,
   Shield,
@@ -26,7 +24,6 @@ import { useProviderModels } from '@/hooks/useProviderModels';
 import { useScrollPosition } from '@/hooks/useScrollPosition';
 import { useWebSocket } from '@/hooks/useWebSocket';
 import { i18n, useAppTranslation } from '@/i18n';
-import { cn } from '@/lib/utils';
 import { showPanel } from '@/lib/view-navigation';
 import { useConfigStore, useUIStore } from '@/stores';
 import { useLocalPrefs } from '@/stores/local-prefs';
@@ -569,8 +566,9 @@ export function SettingsPanel() {
                   {/* ── Refiner config — unified selector ── */}
                   <div className="pt-2">
                     <p className="text-sm font-medium mb-1">{t('settings:agent.refineHeading')}</p>
-                    <div
-                      className="flex items-center justify-between gap-3 rounded-lg border border-border p-3 cursor-pointer hover:bg-muted/50 transition-colors"
+                    <button
+                      type="button"
+                      className="flex w-full items-center justify-between gap-3 rounded-lg border border-border p-3 text-left cursor-pointer hover:bg-muted/50 transition-colors"
                       onClick={() => setRefinerPickerOpen(true)}
                     >
                       <div className="min-w-0 flex-1">
@@ -608,7 +606,7 @@ export function SettingsPanel() {
                         )}
                       </div>
                       <Cpu className="h-4 w-4 shrink-0 text-muted-foreground" />
-                    </div>
+                    </button>
                     <p className="text-xs text-muted-foreground mt-1">
                       {t('settings:agent.refineDelayHint')}
                     </p>

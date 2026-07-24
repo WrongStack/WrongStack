@@ -4,7 +4,7 @@ import * as os from 'node:os';
 import * as path from 'node:path';
 import { ReplayLogStore } from '@wrongstack/core/storage';
 import { hashRequest, ReplayProviderRunner } from '@wrongstack/core/replay';
-import { type ProviderRunner, type Request, type Response, type RunProviderOptions } from '@wrongstack/core/types';
+import type { ProviderRunner, Request, Response, RunProviderOptions } from '@wrongstack/core/types';
 
 /**
  * End-to-end test for idea #2 (Deterministic Replay).

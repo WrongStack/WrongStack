@@ -17,13 +17,13 @@ import {
   resolveBrainConfigDefaults,
 } from '@wrongstack/core/execution';
 import { TOKENS } from '@wrongstack/core/kernel';
-import { type ToolRegistry } from '@wrongstack/core/registry';
+import type { ToolRegistry } from '@wrongstack/core/registry';
 import { createMcpControlTool, createMcpUseTool } from '@wrongstack/core/tools';
-import {
-  type Config,
-  type Provider,
-  type SecretVault,
-  type SessionWriter,
+import type {
+  Config,
+  Provider,
+  SecretVault,
+  SessionWriter,
 } from '@wrongstack/core/types';
 import { subscribeBrainDecisionLog } from '../boot/brain-decision-log.js';
 import { MultiAgentHost } from '../multi-agent.js';

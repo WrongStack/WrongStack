@@ -126,7 +126,7 @@ export abstract class WireAdapter implements Provider {
         code: 'CONFIG_INVALID',
       });
     }
-    if (!baseUrl || !baseUrl.trim()) {
+    if (!baseUrl?.trim()) {
       throw new ConfigError({
         message:
           `${this.constructor.name}: baseUrl required — specify the provider endpoint ` +

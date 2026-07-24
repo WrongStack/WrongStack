@@ -45,8 +45,7 @@ interface CsprojPackageRef {
 function parseCsproj(content: string): CsprojPackageRef[] {
   const refs: CsprojPackageRef[] = [];
   const regex = /<PackageReference\b([^>]*?)(?:\/>|>([\s\S]*?)<\/PackageReference>)/gi;
-  let match: RegExpExecArray | null;
-  while ((match = regex.exec(content)) !== null) {
+  for (const match of content.matchAll(regex)) {
     const attributes = match[1] ?? '';
     const body = match[2] ?? '';
     const parsedAttributes = parseXmlAttributes(attributes);

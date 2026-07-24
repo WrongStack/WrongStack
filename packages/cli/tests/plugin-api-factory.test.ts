@@ -1,4 +1,4 @@
-import { type Config } from '@wrongstack/core/types';
+import type { Config } from '@wrongstack/core/types';
 import { Container, EventBus } from '@wrongstack/core/kernel';
 import { DefaultLogger } from '@wrongstack/core/infrastructure';
 import { ProviderRegistry, ToolRegistry } from '@wrongstack/core/registry';

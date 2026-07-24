@@ -4,9 +4,9 @@ import * as os from 'node:os';
 import * as path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { Container, TOKENS } from '@wrongstack/core/kernel';
-import { type Config } from '@wrongstack/core/types';
+import type { Config } from '@wrongstack/core/types';
 import { ToolRegistry } from '@wrongstack/core/registry';
-import { type WstackPaths } from '@wrongstack/core/utils';
+import type { WstackPaths } from '@wrongstack/core/utils';
 import { makeFakeMemoryStore } from './fake-memory-store.js';
 import { setupTools } from '../src/wiring/tools.js';
 

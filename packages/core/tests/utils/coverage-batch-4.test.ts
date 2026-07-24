@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { slugify } from '../../src/utils/slug.js';
 import { assertNever } from '../../src/utils/assert-never.js';
-import { stripAnsi, color } from '../../src/utils/color.js';
+import { stripAnsi } from '../../src/utils/color.js';
 import { sleep } from '../../src/utils/sleep.js';
 import { truncate } from '../../src/utils/string.js';
 import {

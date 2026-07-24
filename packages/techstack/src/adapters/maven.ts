@@ -39,8 +39,7 @@ function parsePomDependencies(xml: string): MavenDependency[] {
   const properties = new Map<string, string>();
   const propertiesBlock = /<properties>([\s\S]*?)<\/properties>/.exec(xml)?.[1] ?? '';
   const propertyRegex = /<([A-Za-z0-9_.-]+)>\s*([^<]+?)\s*<\/\1>/g;
-  let propertyMatch: RegExpExecArray | null;
-  while ((propertyMatch = propertyRegex.exec(propertiesBlock)) !== null) {
+  for (const propertyMatch of propertiesBlock.matchAll(propertyRegex)) {
     const key = propertyMatch[1];
     const value = propertyMatch[2];
     if (key && value) properties.set(key, value.trim());
@@ -62,8 +61,7 @@ function parsePomDependencies(xml: string): MavenDependency[] {
   const managed = new Map<string, string>();
   const managementBlock = /<dependencyManagement>([\s\S]*?)<\/dependencyManagement>/.exec(xml)?.[1] ?? '';
   const managementRegex = /<dependency>\s*([\s\S]*?)<\/dependency>/g;
-  let managementMatch: RegExpExecArray | null;
-  while ((managementMatch = managementRegex.exec(managementBlock)) !== null) {
+  for (const managementMatch of managementBlock.matchAll(managementRegex)) {
     const block = managementMatch[1];
     if (!block) continue;
     const groupId = xmlTagValue(block, 'groupId');
@@ -74,8 +72,7 @@ function parsePomDependencies(xml: string): MavenDependency[] {
 
   const directXml = xml.replace(/<dependencyManagement>[\s\S]*?<\/dependencyManagement>/g, '');
   const depRegex = /<dependency>\s*([\s\S]*?)<\/dependency>/g;
-  let match: RegExpExecArray | null;
-  while ((match = depRegex.exec(directXml)) !== null) {
+  for (const match of directXml.matchAll(depRegex)) {
     const block = match[1]!;
     const groupId = xmlTagValue(block, 'groupId');
     const artifactId = xmlTagValue(block, 'artifactId');

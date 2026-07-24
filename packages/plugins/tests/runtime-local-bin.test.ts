@@ -8,8 +8,10 @@
  * plugin then misreads as "tool not installed". The result was a whole
  * class of plugins that silently did nothing on Windows.
  */
-import { describe, expect, it } from 'vitest';
-import { basename } from 'node:path';
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { basename, join } from 'node:path';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   clearLocalBinCache,
   findOnPath,
@@ -19,6 +21,15 @@ import {
 } from '../src/runtime/index.js';
 
 const isWindows = process.platform === 'win32';
+const temporaryDirectories: string[] = [];
+
+afterEach(() => {
+  vi.useRealTimers();
+  clearLocalBinCache();
+  for (const directory of temporaryDirectories.splice(0)) {
+    rmSync(directory, { recursive: true, force: true });
+  }
+});
 
 describe('resolveNodeBin', () => {
   it('resolves an installed package to a node + bin-entry invocation', () => {
@@ -48,12 +59,37 @@ describe('resolveNodeBin', () => {
     expect(resolveNodeBin('definitely-not-a-real-package-xyz', 'nope', process.cwd())).toBeNull();
   });
 
-  it('caches negative results so a missing tool is not re-probed forever', () => {
+  it('caches negative results so a missing tool is not re-probed on every call', () => {
     clearLocalBinCache();
     const a = resolveNodeBin('another-missing-package-abc', 'nope', process.cwd());
     const b = resolveNodeBin('another-missing-package-abc', 'nope', process.cwd());
     expect(a).toBeNull();
     expect(b).toBeNull();
+  });
+
+  it('expires negative results so a newly installed tool can be discovered', () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-01-01T00:00:00Z'));
+    const root = mkdtempSync(join(tmpdir(), 'local-bin-negative-cache-'));
+    temporaryDirectories.push(root);
+    writeFileSync(join(root, 'package.json'), '{}');
+
+    expect(resolveNodeBin('later-installed-package-abc', 'bin', root)).toBeNull();
+
+    const packageDirectory = join(root, 'node_modules', 'later-installed-package-abc');
+    mkdirSync(packageDirectory, { recursive: true });
+    writeFileSync(
+      join(packageDirectory, 'package.json'),
+      JSON.stringify({ name: 'later-installed-package-abc', bin: { bin: 'cli.js' } }),
+    );
+    writeFileSync(join(packageDirectory, 'cli.js'), '');
+
+    // The fresh install remains hidden while the negative result is live.
+    expect(resolveNodeBin('later-installed-package-abc', 'bin', root)).toBeNull();
+    vi.advanceTimersByTime(5_001);
+    expect(resolveNodeBin('later-installed-package-abc', 'bin', root)?.entry).toBe(
+      join(packageDirectory, 'cli.js'),
+    );
   });
 
   it('bounds the cache so a long session cannot grow it without limit', () => {
@@ -115,6 +151,13 @@ describe('resolveExecInvocation', () => {
     // Every token is individually quoted, so a path with spaces stays one arg.
     expect(inv.args[2]).toContain('"biome"');
     expect(inv.args[2]).toContain('"--version"');
+  });
+
+  it.runIf(isWindows)('routes an uppercase .CMD shim through cmd.exe', () => {
+    const inv = resolveExecInvocation('C:\\Tools\\NPM.CMD', ['--version']);
+    expect(basename(inv.cmd).toLowerCase()).toBe('cmd.exe');
+    expect(inv.windowsVerbatimArguments).toBe(true);
+    expect(inv.args[2]).toContain('"C:\\Tools\\NPM.CMD"');
   });
 
   it.runIf(isWindows)('refuses arguments carrying cmd.exe metacharacters', () => {

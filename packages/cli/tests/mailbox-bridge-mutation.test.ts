@@ -82,7 +82,7 @@ async function http(
   return { status: res.status, body: parsed };
 }
 
-async function countMessages(): Promise<number> {
+async function _countMessages(): Promise<number> {
   const mb = new GlobalMailbox(resolveProjectDir(tmpProject, wstackGlobalRoot()));
   try {
     const all = await mb.query({ limit: 1_000 });

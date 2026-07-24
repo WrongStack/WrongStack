@@ -1,4 +1,4 @@
-import { type Context } from '@wrongstack/core/agent';
+import type { Context } from '@wrongstack/core/agent';
 import { SlashCommandRegistry } from '@wrongstack/core/registry';
 import { describe, expect, it, vi } from 'vitest';
 import { buildClearCommand } from '../src/slash-commands/clear.js';

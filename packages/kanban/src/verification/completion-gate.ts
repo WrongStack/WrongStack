@@ -88,7 +88,13 @@ export async function enforceCompletionGate(
   const task = findTask(board, taskId);
   if (!task) throw new Error(`Task not found: ${taskId}`);
 
-  const enforcement = options.enforcement ?? resolveGateEnforcement(board);
+  const requestedEnforcement = options.enforcement ?? resolveGateEnforcement(board);
+  // Managed lifecycle completion is always gated. A caller-level override may
+  // relax strict verification to soft, but it must not skip the gate entirely.
+  const enforcement =
+    board.lifecycle?.mode === 'managed' && requestedEnforcement === 'off'
+      ? 'strict'
+      : requestedEnforcement;
   if (enforcement === 'off') {
     return { allowed: true, enforcement, verdict: 'skipped', issues: [] };
   }

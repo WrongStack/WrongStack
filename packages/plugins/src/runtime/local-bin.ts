@@ -71,8 +71,10 @@ export function resolveExecInvocation(
   args: readonly string[] = [],
 ): ExecInvocation {
   const resolved = resolveWin32Command(command);
+  const normalizedResolved = resolved.toLowerCase();
   const needsShell =
-    process.platform === 'win32' && (resolved.endsWith('.cmd') || resolved.endsWith('.bat'));
+    process.platform === 'win32' &&
+    (normalizedResolved.endsWith('.cmd') || normalizedResolved.endsWith('.bat'));
   if (needsShell) {
     const shim = buildWin32CmdShimInvocation(resolved, args);
     return { cmd: shim.command, args: shim.args, windowsVerbatimArguments: true };
@@ -152,11 +154,18 @@ function isInside(parent: string, candidate: string): boolean {
  * Cache of resolution results keyed by `packageName|binName|cwd`.
  *
  * Bounded: a long-lived session that walks many working directories must
- * not accumulate entries forever. `null` results are cached too — a
- * missing linter should not re-probe the filesystem on every hook call.
+ * not accumulate entries forever. `null` results remain cached for at most
+ * the short TTL below; insertion-order eviction may remove them sooner when
+ * the cache reaches `BIN_CACHE_MAX`.
  */
-const binCache = new Map<string, ResolvedNodeBin | null>();
+interface BinCacheEntry {
+  value: ResolvedNodeBin | null;
+  cachedAt: number;
+}
+
+const binCache = new Map<string, BinCacheEntry>();
 const BIN_CACHE_MAX = 64;
+const NEGATIVE_BIN_CACHE_TTL_MS = 5_000;
 
 function cachePut(key: string, value: ResolvedNodeBin | null): ResolvedNodeBin | null {
   // Insertion-ordered eviction (oldest first) keeps this a plain LRU-ish
@@ -167,7 +176,7 @@ function cachePut(key: string, value: ResolvedNodeBin | null): ResolvedNodeBin |
     if (oldest === undefined) break;
     binCache.delete(oldest);
   }
-  binCache.set(key, value);
+  binCache.set(key, { value, cachedAt: Date.now() });
   return value;
 }
 
@@ -199,7 +208,15 @@ export function resolveNodeBin(
   const key = `${packageName}|${binName}|${cwd}`;
   const cached = binCache.get(key);
   if (cached !== undefined) {
-    return cached === null ? null : { ...cached, args: [cached.entry, ...extraArgs] };
+    if (
+      cached.value !== null ||
+      Date.now() - cached.cachedAt < NEGATIVE_BIN_CACHE_TTL_MS
+    ) {
+      return cached.value === null
+        ? null
+        : { ...cached.value, args: [cached.value.entry, ...extraArgs] };
+    }
+    binCache.delete(key);
   }
 
   let resolved: ResolvedNodeBin | null = null;

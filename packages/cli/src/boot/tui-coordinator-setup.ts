@@ -18,9 +18,9 @@
  */
 import * as path from 'node:path';
 import { AutonomousCoordinator, type Director, type Mailbox } from '@wrongstack/core/coordination';
-import { type Context } from '@wrongstack/core/agent';
-import { type EventBus } from '@wrongstack/core/kernel';
-import { type LLMProvider } from '@wrongstack/core/coordination';
+import type { Context } from '@wrongstack/core/agent';
+import type { EventBus } from '@wrongstack/core/kernel';
+import type { LLMProvider } from '@wrongstack/core/coordination';
 import type { WstackPaths } from '@wrongstack/core/utils';
 import type { TuiRuntimeState } from './tui-runtime-state.js';
 

@@ -19,7 +19,6 @@ import {
   ChevronRight,
   Clock,
   Cpu,
-  Crown,
   Database,
   DollarSign,
   FolderOpen,

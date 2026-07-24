@@ -238,64 +238,74 @@ function FleetCompactList({ topology }: { topology: FleetTopology }): React.Reac
     useHqStore.getState().setActiveView('console');
   };
 
-  if (nodes.length === 0) {
-    return <div className="hq-empty hq-fleet-list-empty">No fleet entries match this search.</div>;
-  }
-
   return (
-    <div className="hq-fleet-list" role="table" aria-label="Fleet clients and agents">
-      <div className="hq-fleet-list-header" role="row">
-        <span role="columnheader">Fleet member</span>
-        <span role="columnheader">Context</span>
-        <span role="columnheader">Status</span>
-        <span role="columnheader">Details</span>
-      </div>
-      <div className="hq-fleet-list-body" role="rowgroup">
-        {nodes.map((node) => {
-          const clickable =
-            (node.kind === 'terminal' || node.kind === 'agent') &&
-            node.serviceMode === undefined &&
-            node.isSyntheticSession !== true;
-          const Tag = clickable ? 'button' : 'div';
-          return (
-            <Tag
-              key={node.id}
-              type={clickable ? 'button' : undefined}
-              className={`hq-fleet-list-row ${node.kind}${clickable ? ' clickable' : ''}`}
-              role="row"
-              onClick={clickable ? () => openConsole(node) : undefined}
-            >
-              <span
-                className="hq-fleet-list-member"
-                role="cell"
-                style={{ paddingLeft: `${10 + fleetColumnFor(node.kind) * 22}px` }}
+    <table className="hq-fleet-list" aria-label="Fleet clients and agents">
+      <thead>
+        <tr className="hq-fleet-list-header">
+          <th scope="col">Fleet member</th>
+          <th scope="col">Context</th>
+          <th scope="col">Status</th>
+          <th scope="col">Details</th>
+        </tr>
+      </thead>
+      <tbody className="hq-fleet-list-body">
+        {nodes.length === 0 ? (
+          <tr>
+            <td colSpan={4} className="hq-empty hq-fleet-list-empty">
+              No fleet entries match this search.
+            </td>
+          </tr>
+        ) : (
+          nodes.map((node) => {
+            const clickable =
+              (node.kind === 'terminal' || node.kind === 'agent') &&
+              node.serviceMode === undefined &&
+              node.isSyntheticSession !== true;
+            const activate = (): void => openConsole(node);
+            const handleKeyDown = (event: React.KeyboardEvent<HTMLTableRowElement>): void => {
+              if (!clickable || (event.key !== 'Enter' && event.key !== ' ')) return;
+              event.preventDefault();
+              activate();
+            };
+            return (
+              <tr
+                key={node.id}
+                className={`hq-fleet-list-row ${node.kind}${clickable ? ' clickable' : ''}`}
+                tabIndex={clickable ? 0 : undefined}
+                onClick={clickable ? activate : undefined}
+                onKeyDown={clickable ? handleKeyDown : undefined}
               >
-                {kindIcon(node.kind, node.clientKind)}
-                <span>
-                  <strong>{node.label}</strong>
-                  <small>{node.kind.replace('-', ' ')}</small>
-                </span>
-              </span>
-              <span className="hq-fleet-list-context" role="cell" title={node.sub}>
-                {node.sub ?? '—'}
-              </span>
-              <span role="cell">
-                <span className={`hq-pill ${statusClass(node.status)}`}>
-                  {node.status ?? (node.kind === 'machine' ? 'connected' : 'ready')}
-                </span>
-              </span>
-              <span className="hq-fleet-list-chips" role="cell">
-                {node.chips.slice(0, 5).map((chip) => (
-                  <span key={chip} className={`hq-pill ${statusClass(chip)}`}>
-                    {chip}
+                <td
+                  className="hq-fleet-list-member"
+                  style={{ paddingLeft: `${10 + fleetColumnFor(node.kind) * 22}px` }}
+                >
+                  {kindIcon(node.kind, node.clientKind)}
+                  <span>
+                    <strong>{node.label}</strong>
+                    <small>{node.kind.replace('-', ' ')}</small>
                   </span>
-                ))}
-              </span>
-            </Tag>
-          );
-        })}
-      </div>
-    </div>
+                </td>
+                <td className="hq-fleet-list-context" title={node.sub}>
+                  {node.sub ?? '—'}
+                </td>
+                <td>
+                  <span className={`hq-pill ${statusClass(node.status)}`}>
+                    {node.status ?? (node.kind === 'machine' ? 'connected' : 'ready')}
+                  </span>
+                </td>
+                <td className="hq-fleet-list-chips">
+                  {node.chips.slice(0, 5).map((chip) => (
+                    <span key={chip} className={`hq-pill ${statusClass(chip)}`}>
+                      {chip}
+                    </span>
+                  ))}
+                </td>
+              </tr>
+            );
+          })
+        )}
+      </tbody>
+    </table>
   );
 }
 
@@ -394,7 +404,11 @@ export function FleetMapView(): React.ReactElement {
           </span>
         </div>
         <div className="hq-flow-scope">
-          <div className="hq-flow-scope-buttons" role="group" aria-label="Fleet view scope">
+          <fieldset
+            className="hq-flow-scope-buttons"
+            aria-label="Fleet view scope"
+            style={{ border: 0, margin: 0, padding: 0 }}
+          >
             {(['all', 'machine', 'project'] as const).map((candidate) => (
               <button
                 key={candidate}
@@ -410,7 +424,7 @@ export function FleetMapView(): React.ReactElement {
                     : 'By project'}
               </button>
             ))}
-          </div>
+          </fieldset>
           {scope !== 'all' && (
             <select
               className="hq-select hq-flow-scope-select"
@@ -432,7 +446,11 @@ export function FleetMapView(): React.ReactElement {
             </select>
           )}
           <span className="hq-flow-toolbar-spacer" />
-          <div className="hq-flow-layout" role="group" aria-label="Fleet layout">
+          <fieldset
+            className="hq-flow-layout"
+            aria-label="Fleet layout"
+            style={{ border: 0, margin: 0, padding: 0 }}
+          >
             <button
               type="button"
               className={'hq-btn secondary' + (layout === 'map' ? ' active' : '')}
@@ -449,7 +467,7 @@ export function FleetMapView(): React.ReactElement {
             >
               <ListTree size={13} /> Compact list
             </button>
-          </div>
+          </fieldset>
           <label className="hq-flow-search">
             <Search size={13} />
             <input

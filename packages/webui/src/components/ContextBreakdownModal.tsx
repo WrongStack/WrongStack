@@ -270,6 +270,7 @@ export function ContextBreakdownModal({ open, onClose }: ContextBreakdownModalPr
                     {categories && (
                       <div className="relative shrink-0 flex items-center justify-center">
                         <svg width="96" height="96" viewBox="0 0 96 96" className="drop-shadow-md">
+                          <title>Token allocation: {ctxPct}% context usage</title>
                           {(() => {
                             const total = categories.reduce((s, c) => s + c.value, 0) || 1;
                             let offset = 0;
@@ -403,7 +404,6 @@ export function ContextBreakdownModal({ open, onClose }: ContextBreakdownModalPr
                   </div>
                   <div className="max-h-64 overflow-y-auto overscroll-contain space-y-0.5 rounded-lg border bg-muted/20 p-2">
                     {data.messages.breakdown.map((m) => {
-                      const pct = data.messages.total > 0 ? (m.tokens / data.messages.total) * 100 : 0;
                       return (
                         <div
                           key={m.index}

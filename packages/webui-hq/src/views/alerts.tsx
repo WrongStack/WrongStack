@@ -15,9 +15,7 @@ interface AlertsApiResponse {
 }
 
 export function AlertsView(): React.ReactElement {
-  const { alerts, snapshot } = useHqStore(
-    useShallow((s) => ({ alerts: s.alerts, snapshot: s.snapshot })),
-  );
+  const alerts = useHqStore(useShallow((s) => s.alerts));
   const [apiActive, setApiActive] = useState<HqAlert[]>([]);
   const [apiHistory, setApiHistory] = useState<HqAlert[]>([]);
 

@@ -1,5 +1,5 @@
 import { DefaultPermissionPolicy } from '@wrongstack/core/security';
-import { type PermissionTrace } from '@wrongstack/core/types';
+import type { PermissionTrace } from '@wrongstack/core/types';
 import { resolveWstackPaths } from '@wrongstack/core/utils';
 import type { Context } from '@wrongstack/core/agent';
 import type { SubcommandHandler } from '../contracts.js';

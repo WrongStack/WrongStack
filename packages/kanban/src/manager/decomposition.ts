@@ -43,15 +43,19 @@ export interface ResolveDecompositionInput {
 
 function checksFromCriteria(criteria: string[] | undefined): KanbanCheck[] | undefined {
   if (!criteria?.length) return undefined;
-  return criteria.map((description) => ({
-    id: randomUUID(),
-    description,
-    // Command-marked criteria get a deterministic verifier; free text stays manual.
-    type: /^\s*(?:\$\s+|(?:run|verify|cmd)\s*:\s*)/i.test(description)
-      ? ('command' as const)
-      : ('manual' as const),
-    status: 'pending' as const,
-  }));
+  return criteria.map((description) => {
+    // A marker alone (for example "$ ") has no executable body and remains
+    // manual; classifying it as a command would only produce a verifier error.
+    const commandMatch = /^\s*(?:\$\s+|(?:run|verify|cmd)\s*:\s*)(.+)$/i.exec(description);
+    return {
+      id: randomUUID(),
+      description,
+      // The command verifier consumes notes first, keeping the marker out of execution.
+      ...(commandMatch?.[1] ? { notes: commandMatch[1].trim() } : {}),
+      type: commandMatch ? ('command' as const) : ('manual' as const),
+      status: 'pending' as const,
+    };
+  });
 }
 
 /** Apply an approved proposal's subtasks via splitTask (single code path). */
@@ -63,15 +67,16 @@ async function applyProposal(
 ): Promise<{ board: KanbanBoard; parent: KanbanTask; children: KanbanTask[] } | null> {
   return splitTask(projectRoot, boardId, taskId, {
     titles: subtasks.map((subtask) => subtask.title),
-    childSpecs: subtasks.map((subtask) => ({
-      ...(subtask.description !== undefined ? { description: subtask.description } : {}),
-      ...(checksFromCriteria(subtask.successCriteria)
-        ? { successCriteria: checksFromCriteria(subtask.successCriteria) }
-        : {}),
-      ...(subtask.expectedFileChanges !== undefined
-        ? { expectedFileChanges: subtask.expectedFileChanges }
-        : {}),
-    })),
+    childSpecs: subtasks.map((subtask) => {
+      const successCriteria = checksFromCriteria(subtask.successCriteria);
+      return {
+        ...(subtask.description !== undefined ? { description: subtask.description } : {}),
+        ...(successCriteria ? { successCriteria } : {}),
+        ...(subtask.expectedFileChanges !== undefined
+          ? { expectedFileChanges: subtask.expectedFileChanges }
+          : {}),
+      };
+    }),
     // Proactive decomposition always opts the parent into subtree verification.
     atomic: true,
   });

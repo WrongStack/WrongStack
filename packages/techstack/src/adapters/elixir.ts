@@ -38,8 +38,7 @@ function parseMixExsDeps(content: string): Array<{
   }> = [];
   // Match: {:name, "version"} or {:name, "~> x.y"} or {:name, github: "..."} or {:name, path: "..."}
   const depRegex = /\{:(\w+),\s*([^}]+)\}/g;
-  let match: RegExpExecArray | null;
-  while ((match = depRegex.exec(content)) !== null) {
+  for (const match of content.matchAll(depRegex)) {
     const name = match[1];
     const value = match[2];
     if (!name || !value) continue;
@@ -57,8 +56,7 @@ function parseMixExsDeps(content: string): Array<{
 function parseMixLock(content: string): Map<string, string> {
   const versions = new Map<string, string>();
   const lockRegex = /["']([\w-]+)["']\s*=>\s*\{:hex,\s*:[\w-]+,\s*["']([^"']+)["']/g;
-  let match: RegExpExecArray | null;
-  while ((match = lockRegex.exec(content)) !== null) {
+  for (const match of content.matchAll(lockRegex)) {
     versions.set(match[1]!, match[2]!);
   }
   return versions;

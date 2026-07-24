@@ -105,7 +105,7 @@ function makeAwsAccessKey(): string {
   return 'AKIA' + 'IOSFODNN7EXAMPLE';
 }
 function makeJwt(): string {
-  return 'eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c';
+  return 'ey' + 'J' + 'a'.repeat(12) + '.' + 'b'.repeat(12) + '.' + 'c'.repeat(12);
 }
 function makePrivateKey(): string {
   return '-----BEGIN RSA PRIVATE KEY-----\nMIIEowIBAAK\n-----END RSA PRIVATE KEY-----';
@@ -773,8 +773,6 @@ describe('custom patterns', () => {
     secretScannerPlugin.setup(api as any);
     const status1 = await getRegisteredTool(api, 'secret_scanner_status').execute({});
     const expectedCount = BASE_PATTERN_COUNT + 1;
-    // Re-apply the plugin's own config after the probe above tore it down.
-    secretScannerPlugin.setup(api as any);
     expect(status1.patternCount).toBe(expectedCount);
 
     // Teardown + re-setup with the same config

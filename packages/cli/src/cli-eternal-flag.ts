@@ -15,10 +15,10 @@
 
 import type { Agent } from '@wrongstack/core/agent';
 import type { Logger } from '@wrongstack/core/types';
-import { type Compactor, type Config } from '@wrongstack/core/types';
+import type { Compactor, Config } from '@wrongstack/core/types';
 import { color } from '@wrongstack/core/utils';
 import { EternalAutonomyEngine } from '@wrongstack/core/execution';
-import { type JournalEntry } from '@wrongstack/core/goal';
+import type { JournalEntry } from '@wrongstack/core/goal';
 import { TOKENS } from '@wrongstack/core/kernel';
 import type { Token } from '@wrongstack/core/kernel';
 import type { TerminalRenderer } from './renderer.js';

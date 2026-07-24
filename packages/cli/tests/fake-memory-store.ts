@@ -3,7 +3,6 @@ import type {
   MemoryEntry,
   MemoryPort,
   MemoryRelevanceContext,
-  MemoryScope,
   ScoredEntry,
 } from '@wrongstack/core/types';
 

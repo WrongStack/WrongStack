@@ -19,7 +19,7 @@
  */
 
 export interface BoundedMapOptions {
-  /** Hard cap on retained entries. Must be >= 1. */
+  /** Hard cap on retained entries. Must be a safe integer >= 1. */
   max: number;
   /**
    * Optional per-entry lifetime in ms. An entry older than this is treated
@@ -44,7 +44,8 @@ export class BoundedMap<K, V> {
   private evictions = 0;
 
   constructor(options: BoundedMapOptions) {
-    this.max = Math.max(1, Math.floor(options.max));
+    const normalizedMax = Math.floor(options.max);
+    this.max = Number.isSafeInteger(normalizedMax) ? Math.max(1, normalizedMax) : 1;
     this.ttlMs = options.ttlMs;
     this.now = options.now ?? Date.now;
   }

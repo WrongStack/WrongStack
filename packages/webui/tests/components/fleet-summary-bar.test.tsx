@@ -1,7 +1,5 @@
 import { describe, expect, it } from 'vitest';
 import { selectFleetSummary, useFleetStore } from '../../src/stores/index.js';
-import type { FleetSummary } from '../../src/stores/fleet-store.js';
-import type { FleetTimelineEvent } from '../../src/stores/types.js';
 
 function makeAgent(id: string, overrides: Partial<{ name: string; status: string; costUsd: number }> = {}) {
   return {
@@ -122,24 +120,6 @@ describe('FleetSummaryBar event timeline data', () => {
       eventTimeline: [],
     });
   });
-
-  function addEvent(overrides: Partial<FleetTimelineEvent>): FleetTimelineEvent {
-    const ev: FleetTimelineEvent = {
-      id: `ev_${Date.now()}_${Math.random()}`,
-      kind: 'spawned',
-      agentId: 'a1',
-      agentName: 'test',
-      timestamp: Date.now(),
-      message: 'test event',
-      ...overrides,
-    };
-    useFleetStore.getState().applyEvent({
-      kind: overrides.kind ?? 'spawned',
-      subagentId: overrides.agentId ?? 'a1',
-      name: overrides.agentName ?? 'test',
-    });
-    return ev;
-  }
 
   it('starts with empty timeline', () => {
     expect(useFleetStore.getState().eventTimeline).toEqual([]);

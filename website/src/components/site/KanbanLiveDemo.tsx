@@ -397,7 +397,8 @@ function TaskCard({ task, reducedMotion }: { task: DemoTask; reducedMotion: bool
               </div>
             </div>
             {task.stage >= 3 && crew.length > 0 && (
-              <div className="flex -space-x-1.5" aria-label={`${crew.length} collaborating agents`}>
+              <div className="flex -space-x-1.5">
+                <span className="sr-only">{crew.length} collaborating agents</span>
                 {crew.map((agent) => (
                   <AgentAvatar key={agent.id} agent={agent} compact />
                 ))}

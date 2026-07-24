@@ -185,8 +185,6 @@ function buildChain(rules) {
   return createRuleBrainArbiter({ inner: tiered, getRules: () => compiled });
 }
 
-const FREE = new Set(['rule', 'policy', 'heuristic', 'cache', 'ledger-guard', 'terminal']);
-
 async function measure(rules) {
   const chain = buildChain(rules);
   const rows = [];

@@ -52,7 +52,7 @@
 
 import { DefaultSystemPromptBuilder } from '@wrongstack/core/agent';
 import { makeAutonomyPromptContributor } from '@wrongstack/core/execution';
-import { type TokenSavingTier } from '@wrongstack/core/types';
+import type { TokenSavingTier } from '@wrongstack/core/types';
 import { sessionScopedPath } from '@wrongstack/core/utils';
 import type { AutonomyMode } from '../services/autonomy-mode.js';
 

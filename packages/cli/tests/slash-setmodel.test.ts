@@ -2,7 +2,7 @@ import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { AGENT_CATALOG } from '@wrongstack/core/agent-catalog';
-import { type Config } from '@wrongstack/core/types';
+import type { Config } from '@wrongstack/core/types';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { SlashCommandContext } from '../src/slash-commands/index.js';
 import { buildSetModelCommand } from '../src/slash-commands/setmodel.js';

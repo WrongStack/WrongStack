@@ -19,7 +19,7 @@ import { DefaultLogger } from '@wrongstack/core/infrastructure';
 import { EventBus, TOKENS } from '@wrongstack/core/kernel';
 import { type Logger, type PermissionDecision, type PermissionPolicy, type Tool, ToolValidationError } from '@wrongstack/core/types';
 import { ToolRegistry } from '@wrongstack/core/registry';
-import { type WstackPaths } from '@wrongstack/core/utils';
+import type { WstackPaths } from '@wrongstack/core/utils';
 import { DefaultTokenCounter } from '@wrongstack/core/infrastructure';
 import { ToolExecutor } from '@wrongstack/core/execution';
 import type { RunTurnApi } from '@wrongstack/acp/agent';

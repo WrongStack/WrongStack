@@ -1,11 +1,11 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { execFileSync } from 'node:child_process';
-import * as fs from 'node:fs';
 import * as fsp from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { buildReviewContext } from '../../src/plugins/review-context-builder.js';
 import type { ResolvedChimeraConfig } from '../../src/plugins/chimera-plugin.js';
+import { createBoard } from '@wrongstack/kanban';
 
 const MOCK_CONFIG: ResolvedChimeraConfig = {
   enabled: true,
@@ -117,6 +117,28 @@ describe('buildReviewContext', () => {
     expect(paths).toContain('sibling2.ts');
   });
 
+  it('preserves raw special-character paths and uses the destination of renames', async () => {
+    const unicodePath = 'src/naïve "quote" \\ file.ts';
+    const oldPath = 'old name.ts';
+    const renamedPath = 'renamed → file.ts';
+    await fsp.mkdir(path.join(tmpDir, 'src'), { recursive: true });
+    await fsp.writeFile(path.join(tmpDir, unicodePath), 'export const unicode = true;\n');
+    await writeAndCommit(oldPath, 'export const renamed = false;\n', tmpDir);
+    await fsp.rename(path.join(tmpDir, oldPath), path.join(tmpDir, renamedPath));
+    git(['add', '-A'], tmpDir);
+
+    const result = await buildReviewContext({
+      cwd: tmpDir,
+      config: MOCK_CONFIG,
+      files: [],
+    });
+
+    const paths = result.allChangedFiles?.map((file) => file.path);
+    expect(paths).toContain(unicodePath);
+    expect(paths).toContain(renamedPath);
+    expect(paths).not.toContain(oldPath);
+  });
+
   it('collects recent commits', async () => {
     // We already have one commit from beforeEach + one from writeAndCommit
     const result = await buildReviewContext({
@@ -217,6 +239,45 @@ describe('buildReviewContext', () => {
       config: MOCK_CONFIG,
       files: [],
     });
+
+    expect(result.kanbanCard).toBeUndefined();
+  });
+
+  it('enriches a unique active kanban card', async () => {
+    const board = await createBoard(tmpDir, {
+      title: 'Review work',
+      tasks: [
+        {
+          title: 'Fix parser',
+          description: 'Handle raw Git paths',
+          status: 'in_progress',
+          successCriteria: [
+            { id: 'criterion-1', description: 'Unicode paths are preserved', type: 'manual', status: 'pending' },
+          ],
+        },
+      ],
+    });
+
+    const result = await buildReviewContext({ cwd: tmpDir, config: MOCK_CONFIG, files: [] });
+
+    expect(result.kanbanCard).toEqual({
+      id: board.tasks[0]?.id,
+      title: 'Fix parser',
+      description: 'Handle raw Git paths',
+      successCriteria: ['Unicode paths are preserved'],
+    });
+  });
+
+  it('omits kanban enrichment when multiple active cards are ambiguous', async () => {
+    await createBoard(tmpDir, {
+      title: 'Concurrent work',
+      tasks: [
+        { title: 'First task', status: 'in_progress' },
+        { title: 'Second task', status: 'review' },
+      ],
+    });
+
+    const result = await buildReviewContext({ cwd: tmpDir, config: MOCK_CONFIG, files: [] });
 
     expect(result.kanbanCard).toBeUndefined();
   });

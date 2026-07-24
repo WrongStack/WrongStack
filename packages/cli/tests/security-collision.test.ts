@@ -1,7 +1,7 @@
 // Regression coverage for the former no-op wstack-security plugin collision.
 // The CLI now registers one adapter and delegates production work to
 // @wrongstack/security-scanner.
-import { type Context } from '@wrongstack/core/agent';
+import type { Context } from '@wrongstack/core/agent';
 import { SlashCommandRegistry } from '@wrongstack/core/registry';
 import { describe, expect, it } from 'vitest';
 import { buildSecurityCommand } from '../src/slash-commands/security.js';

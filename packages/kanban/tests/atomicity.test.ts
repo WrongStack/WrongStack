@@ -246,7 +246,7 @@ describe('board integration', () => {
     const events = await readKanbanEvents(tmpDir, board.id);
     const assessed = events.filter((event) => event.type === 'task.atomicity.assessed');
     expect(assessed.length).toBe(1);
-    expect((assessed[0]?.after as { verdict?: string }).verdict).toBe(
+    expect((assessed[0]?.after as { verdict?: string } | undefined)?.verdict).toBe(
       result!.assessment.verdict,
     );
   });

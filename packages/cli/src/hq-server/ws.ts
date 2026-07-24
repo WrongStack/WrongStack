@@ -7,7 +7,7 @@
 import { randomUUID } from 'node:crypto';
 import { WebSocket } from 'ws';
 import { HQ_PROTOCOL_VERSION, HQ_TRANSCRIPT_TEXT_CAP, parseHqEventPayload, parseHqFrame, redactHqEvent, resolveHqRedactionPolicy, tightenHqRedactionPolicy, tokenHasCapability } from '@wrongstack/core/hq';
-import { type HqCommandAuditLog, type HqEventEnvelope, type HqFleetSnapshotPayload, type HqKanbanSnapshotPayload, type HqMailboxEventPayload, type HqMailboxSnapshotPayload, type HqMcpHealthSnapshotPayload, type HqPersistence, type HqQueuedCommand, type HqRedactionPolicy, type HqSessionEndedPayload, type HqSessionSnapshotPayload, type HqToken, type HqTranscriptAppendPayload, type HqTranscriptEntry, type HqWelcomePayload } from '@wrongstack/core/hq';
+import type { HqCommandAuditLog, HqEventEnvelope, HqFleetSnapshotPayload, HqKanbanSnapshotPayload, HqMailboxEventPayload, HqMailboxSnapshotPayload, HqMcpHealthSnapshotPayload, HqPersistence, HqQueuedCommand, HqRedactionPolicy, HqSessionEndedPayload, HqSessionSnapshotPayload, HqToken, HqTranscriptAppendPayload, HqTranscriptEntry, HqWelcomePayload } from '@wrongstack/core/hq';
 import type { ConnectedClient, HqSnapshotBroadcaster, TranscriptRing } from './types.js';
 import {
   TRANSCRIPT_RING_MAX,

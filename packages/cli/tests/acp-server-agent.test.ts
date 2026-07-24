@@ -46,7 +46,7 @@ import {
 import type { RunTurnApi } from '@wrongstack/acp/agent';
 import type { SubcommandDeps } from '../src/subcommands/index.js';
 import { ToolCapabilities } from '@wrongstack/core/security';
-import { type Tool } from '@wrongstack/core/types';
+import type { Tool } from '@wrongstack/core/types';
 
 function makeStubProvider(): Provider {
   return {

@@ -38,9 +38,7 @@ export interface RouteDef {
   cases: MutationCase[];
 }
 
-export interface PostFn {
-  (route: string, body: unknown, headers?: Record<string, string>): Promise<{ status: number; json: unknown }>;
-}
+export type PostFn = (route: string, body: unknown, headers?: Record<string, string>) => Promise<{ status: number; json: unknown }>
 
 // ── Route definitions ────────────────────────────────────────────────────
 
@@ -178,12 +176,12 @@ export function addRouteMutationTests(
         'rejects malformed body (case: $rejectContains)',
         async (c: MutationCase) => {
           let scopeCleanup: (() => Promise<void>) | undefined;
-          let baseline: number | undefined;
+          let _baseline: number | undefined;
           if (resourceCleanup) {
             const r = await resourceCleanup(def.route.replace(/[^a-z]/g, ''));
             if (r) {
               scopeCleanup = r.cleanup;
-              baseline = r.baseline;
+              _baseline = r.baseline;
             }
           }
           try {

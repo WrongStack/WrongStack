@@ -261,7 +261,7 @@ export class PythonAdapter implements EcosystemAdapter {
 
     const lockfilePath = await this.detectLockfile(root);
 
-    let allDeps: Array<{ name: string; constraint: string | undefined; scope: DependencyScope; source: string }> = [];
+    const allDeps: Array<{ name: string; constraint: string | undefined; scope: DependencyScope; source: string }> = [];
     let pyprojectEv: Evidence | undefined;
 
     if (hasPyproject) {

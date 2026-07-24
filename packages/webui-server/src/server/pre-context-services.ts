@@ -35,7 +35,7 @@ import {
   DefaultSkillLoader,
 } from '@wrongstack/core/execution';
 import {
-  Container,
+  type Container,
   EventBus,
   TOKENS,
 } from '@wrongstack/core/kernel';

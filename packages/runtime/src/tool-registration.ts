@@ -1,9 +1,9 @@
-import {
-  type ConcreteTokenSavingTier,
-  type MemoryPort,
-  type Tool,
-  type ToolDescriptionModeConfig,
-  type ToolResultRenderModeConfig,
+import type {
+  ConcreteTokenSavingTier,
+  MemoryPort,
+  Tool,
+  ToolDescriptionModeConfig,
+  ToolResultRenderModeConfig,
 } from '@wrongstack/core/types';
 import type { ToolRegistry } from '@wrongstack/core/registry';
 import { applyToolDescriptionModes, applyToolResultRenderModes } from '@wrongstack/core/utils';

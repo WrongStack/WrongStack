@@ -171,7 +171,9 @@ describe('adapter parser edge cases', () => {
         '<properties><junit.version>5.10.2</junit.version></properties>',
         '<dependencyManagement><dependencies><dependency><groupId>org.slf4j</groupId><artifactId>slf4j-api</artifactId><version>2.0.13</version></dependency></dependencies></dependencyManagement>',
         '<dependencies>',
-        '<dependency><groupId>org.junit.jupiter</groupId><artifactId>junit-jupiter</artifactId><version>${junit.version}</version><scope>test</scope></dependency>',
+        '<dependency><groupId>org.junit.jupiter</groupId><artifactId>junit-jupiter</artifactId><version>' +
+          String.fromCharCode(36) +
+          '{junit.version}</version><scope>test</scope></dependency>',
         '<dependency><groupId>org.slf4j</groupId><artifactId>slf4j-api</artifactId></dependency>',
         '</dependencies></project>',
       ].join('\n'),

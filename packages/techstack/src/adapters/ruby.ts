@@ -37,8 +37,7 @@ function parseGemfile(content: string): Array<{
     sourceType: 'registry' | 'git' | 'path';
   }> = [];
   const gemRegex = /gem\s+['"]([^'"]+)['"]([^\n]*)/g;
-  let match: RegExpExecArray | null;
-  while ((match = gemRegex.exec(content)) !== null) {
+  for (const match of content.matchAll(gemRegex)) {
     const name = match[1]!;
     // Skip gems that are clearly comments or block-evaluated
     if (name === 'rails' || name === 'ruby') continue;

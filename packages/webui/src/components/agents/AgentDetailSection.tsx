@@ -8,7 +8,7 @@
  */
 
 import { Check, ChevronDown, ChevronUp, ExternalLink, RotateCcw, X } from 'lucide-react';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useAppTranslation } from '@/i18n';
 import { cn } from '@/lib/utils';
 import type { SubagentView } from '@/stores';
@@ -22,9 +22,6 @@ export interface AgentDetailSectionProps {
   /** Called when user clicks "Open in Inspector". */
   onOpenInspector?: () => void | undefined;
 }
-
-/** Collapse/expand animation timing. */
-const ANIM_DURATION = 250;
 
 export function AgentDetailSection({
   agent,

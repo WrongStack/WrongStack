@@ -233,7 +233,9 @@ export const ScrollableHistory = memo(function ScrollableHistory({
   const groupIds = useMemo(() => groupedEntries.map(renderGroupId), [groupedEntries]);
   const groupIndexById = useMemo(() => {
     const map = new Map<number, number>();
-    groupIds.forEach((id, index) => map.set(id, index));
+    groupIds.forEach((id, index) => {
+      map.set(id, index);
+    });
     return map;
   }, [groupIds]);
   const groupIdsKey = groupIds.join(',');

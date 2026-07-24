@@ -65,7 +65,7 @@ export function mergeModelsPayload(
   }
   for (const [providerId, modelIds] of Object.entries(removeModels)) {
     const provider = out[providerId];
-    if (!provider || !provider.models) continue;
+    if (!provider?.models) continue;
     for (const modelId of modelIds) {
       delete provider.models[modelId];
     }

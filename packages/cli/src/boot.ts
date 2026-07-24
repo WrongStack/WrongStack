@@ -32,7 +32,7 @@ function resolveBundledOverlayFile(): string | undefined {
   }
 }
 
-import { type Config, type ModelsRegistry, type SecretVault } from '@wrongstack/core/types';
+import type { Config, ModelsRegistry, SecretVault } from '@wrongstack/core/types';
 import { color, isStdinTTY, type WstackPaths, writeErr } from '@wrongstack/core/utils';
 import { normalizeTokenSavingTier } from '@wrongstack/core/types';
 import { DefaultLogger } from '@wrongstack/core/infrastructure';

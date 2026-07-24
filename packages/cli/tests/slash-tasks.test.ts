@@ -3,7 +3,7 @@ import * as os from 'node:os';
 import * as path from 'node:path';
 import { createContextEvidenceState } from '@wrongstack/core/utils';
 import { loadCompletedWorkCheckpoint, saveTasks, type TaskFile } from '@wrongstack/core/storage';
-import { type Context } from '@wrongstack/core/agent';
+import type { Context } from '@wrongstack/core/agent';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { buildTasksCommand } from '../src/slash-commands/tasks.js';
 

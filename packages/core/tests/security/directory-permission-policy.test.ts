@@ -6,9 +6,7 @@ import {
   matchRule,
   resolveTargetPath,
 } from '../../src/security/directory-permission-policy.js';
-import {
-  validateDirectoryPolicy,
-} from '../../src/security/directory-policy-schema.js';
+import { validateDirectoryPolicy } from '../../src/security/directory-policy-schema.js';
 import type { Context } from '../../src/core/context.js';
 import type {
   DirectoryPolicy,
@@ -72,11 +70,12 @@ function makeCtx(projectRoot: string, options: MakeCtxOptions = {}): Context {
 
 function allowInner(decision: Partial<PermissionDecision> = {}): PermissionPolicy {
   return {
-    evaluate: async () => ({
-      permission: 'auto',
-      source: 'trust',
-      ...decision,
-    } as PermissionDecision),
+    evaluate: async () =>
+      ({
+        permission: 'auto',
+        source: 'trust',
+        ...decision,
+      }) as PermissionDecision,
     trust: async () => {},
     deny: async () => {},
     denyOnce: () => {},
@@ -87,11 +86,12 @@ function allowInner(decision: Partial<PermissionDecision> = {}): PermissionPolic
 
 function denyInner(reason = 'inner deny'): PermissionPolicy {
   return {
-    evaluate: async () => ({
-      permission: 'deny',
-      source: 'trust',
-      reason,
-    } as PermissionDecision),
+    evaluate: async () =>
+      ({
+        permission: 'deny',
+        source: 'trust',
+        reason,
+      }) as PermissionDecision,
     trust: async () => {},
     deny: async () => {},
     denyOnce: () => {},
@@ -123,10 +123,12 @@ describe('resolveTargetPath', () => {
     expect(resolved?.replace(/\\/g, '/')).toMatch(/\.\.\/wstack-dir-escape-OTHER\/secrets\/\.env$/);
   });
 
-  it('returns undefined when input has no path subject', () => {
+  it('returns undefined when input has no filesystem path subject', () => {
     const projectRoot = path.resolve(os.tmpdir(), 'wstack-dir-empty');
     const ctx = makeCtx(projectRoot);
     expect(resolveTargetPath({ query: 'no path here' }, ctx)).toBeUndefined();
+    expect(resolveTargetPath({ url: 'https://example.com/src/file.ts' }, ctx)).toBeUndefined();
+    expect(resolveTargetPath({ name: 'src/file.ts' }, ctx)).toBeUndefined();
     expect(resolveTargetPath({}, ctx)).toBeUndefined();
     expect(resolveTargetPath(null, ctx)).toBeUndefined();
   });
@@ -138,6 +140,24 @@ describe('resolveTargetPath', () => {
     expect(resolveTargetPath({ file_path: 'b.ts' }, ctx)).toBe('b.ts');
     expect(resolveTargetPath({ filePath: 'c.ts' }, ctx)).toBe('c.ts');
     expect(resolveTargetPath({ target: 'd.ts' }, ctx)).toBe('d.ts');
+    expect(resolveTargetPath({ directory: 'src' }, ctx)).toBe('src');
+    expect(resolveTargetPath({ outputPath: 'dist/report.json' }, ctx)).toBe('dist/report.json');
+    expect(resolveTargetPath({ worktreePath: '../worktree' }, ctx)).toBe('../worktree');
+  });
+
+  it('extracts the first string path from plural path keys', () => {
+    const projectRoot = path.resolve(os.tmpdir(), 'wstack-dir-arrays');
+    const ctx = makeCtx(projectRoot, { workingDir: projectRoot });
+    expect(resolveTargetPath({ paths: ['', 'src/a.ts', 42] }, ctx)).toBe('src/a.ts');
+    expect(resolveTargetPath({ files: ['src/b.ts', 'src/c.ts'] }, ctx)).toBe('src/b.ts');
+  });
+
+  it('preserves literal glob metacharacters in real filesystem paths', () => {
+    const projectRoot = path.resolve(os.tmpdir(), 'wstack-dir-literal-glob');
+    const ctx = makeCtx(projectRoot, { workingDir: projectRoot });
+    expect(resolveTargetPath({ path: 'clients/[acme]/secret.txt' }, ctx)).toBe(
+      'clients/[acme]/secret.txt',
+    );
   });
 });
 
@@ -213,6 +233,37 @@ describe('validateDirectoryPolicy', () => {
     expect(result.ok).toBe(true);
     if (result.ok) {
       expect(result.policy.rules[0]?.denyTools).toEqual(['bash', 'exec']);
+    }
+  });
+
+  it('rejects unknown rule fields instead of silently ignoring policy typos', () => {
+    const result = validateDirectoryPolicy({
+      schemaVersion: 1,
+      rules: [{ directory: 'a/**', denyTool: ['bash'] }],
+    });
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.diagnostics.some((d) => d.code === 'unknown_field')).toBe(true);
+    }
+  });
+
+  it('rejects empty deny lists but preserves an explicit empty allow-only whitelist', () => {
+    const emptyDeny = validateDirectoryPolicy({
+      schemaVersion: 1,
+      rules: [{ directory: 'a/**', denyTools: [] }],
+    });
+    expect(emptyDeny.ok).toBe(false);
+    if (!emptyDeny.ok) {
+      expect(emptyDeny.diagnostics.some((d) => d.code === 'empty_rule')).toBe(true);
+    }
+
+    const emptyAllow = validateDirectoryPolicy({
+      schemaVersion: 1,
+      rules: [{ directory: 'a/**', allowOnlyTools: [] }],
+    });
+    expect(emptyAllow.ok).toBe(true);
+    if (emptyAllow.ok) {
+      expect(emptyAllow.policy.rules[0]?.allowOnlyTools).toEqual([]);
     }
   });
 });
@@ -330,6 +381,85 @@ describe('DirectoryPermissionPolicy', () => {
     expect(result.permission).toBe('deny');
   });
 
+  it('treats an explicit empty allowOnlyTools list as deny-all', async () => {
+    const inner = allowInner();
+    const wrapper = new DirectoryPermissionPolicy(inner, {
+      policy: policy([{ directory: 'docs/**', allowOnlyTools: [] }]),
+    });
+    const input = { path: path.join(projectRoot, 'docs', 'spec.md') };
+
+    const result = await wrapper.evaluate(readTool, input, makeCtx(projectRoot));
+    const trace = await wrapper.explain(readTool, input, makeCtx(projectRoot));
+
+    expect(result.permission).toBe('deny');
+    expect(result.reason).toContain('allowOnlyTools');
+    expect(trace.decision.permission).toBe('deny');
+    expect(trace.decision).toEqual(result);
+  });
+
+  it('enforces rules for every path in plural path keys', async () => {
+    const inner = allowInner();
+    const wrapper = new DirectoryPermissionPolicy(inner, {
+      policy: policy([{ directory: 'infra/**', denyTools: ['write'] }]),
+    });
+    const ctx = makeCtx(projectRoot);
+
+    const pathsResult = await wrapper.evaluate(
+      writeTool,
+      {
+        paths: [
+          path.join(projectRoot, 'docs', 'README.md'),
+          path.join(projectRoot, 'infra', 'main.tf'),
+        ],
+      },
+      ctx,
+    );
+    const filesResult = await wrapper.evaluate(
+      writeTool,
+      {
+        files: [
+          path.join(projectRoot, 'docs', 'README.md'),
+          path.join(projectRoot, 'infra', 'main.tf'),
+        ],
+      },
+      ctx,
+    );
+
+    const filesTrace = await wrapper.explain(
+      writeTool,
+      {
+        files: [
+          path.join(projectRoot, 'docs', 'README.md'),
+          path.join(projectRoot, 'infra', 'main.tf'),
+        ],
+      },
+      ctx,
+    );
+
+    expect(pathsResult.permission).toBe('deny');
+    expect(filesResult.permission).toBe('deny');
+    expect(filesTrace.decision).toEqual(filesResult);
+    expect(filesTrace.subject).toBe('infra/main.tf');
+    expect(filesTrace.steps.filter((step) => step.rule === 'target path')).toHaveLength(2);
+  });
+
+  it('enforces secondary scalar source and destination paths', async () => {
+    const wrapper = new DirectoryPermissionPolicy(allowInner(), {
+      policy: policy([{ directory: 'infra/**', denyTools: ['write'] }]),
+    });
+    const input = {
+      sourcePath: path.join(projectRoot, 'docs', 'README.md'),
+      destinationPath: path.join(projectRoot, 'infra', 'README.md'),
+    };
+
+    const result = await wrapper.evaluate(writeTool, input, makeCtx(projectRoot));
+    const trace = await wrapper.explain(writeTool, input, makeCtx(projectRoot));
+
+    expect(result.permission).toBe('deny');
+    expect(trace.decision).toEqual(result);
+    expect(trace.subject).toBe('infra/README.md');
+  });
+
   it('chooses the most-specific rule when two rules both match', async () => {
     const inner = allowInner();
     const wrapper = new DirectoryPermissionPolicy(inner, {
@@ -406,6 +536,91 @@ describe('DirectoryPermissionPolicy', () => {
     );
     expect(result.permission).toBe('deny');
     expect(result.reason).toContain('secrets');
+  });
+
+  it('defensively copies policies accepted and returned by the wrapper', () => {
+    const supplied = policy([
+      {
+        directory: 'infra/**',
+        denyTools: ['bash'],
+        denyProviders: ['openai'],
+        allowOnlyTools: ['read'],
+      },
+    ]);
+    const wrapper = new DirectoryPermissionPolicy(allowInner(), { policy: supplied });
+
+    supplied.rules[0]?.denyTools?.push('write');
+    const diagnostic = wrapper.getPolicy();
+    diagnostic.rules[0]?.denyTools?.push('edit');
+    diagnostic.rules[0]?.denyProviders?.push('anthropic');
+    diagnostic.rules[0]?.allowOnlyTools?.push('write');
+
+    expect(wrapper.getPolicy().rules[0]).toEqual({
+      directory: 'infra/**',
+      denyTools: ['bash'],
+      denyProviders: ['openai'],
+      allowOnlyTools: ['read'],
+    });
+
+    const replacement = policy([{ directory: 'docs/**', denyTools: ['edit'] }]);
+    wrapper.setPolicy(replacement);
+    replacement.rules[0]?.denyTools?.push('write');
+    expect(wrapper.getPolicy().rules[0]?.denyTools).toEqual(['edit']);
+  });
+
+  it('delegates side-effect-free explain calls to the inner explainer', async () => {
+    const evaluate = vi.fn(async () => ({ permission: 'deny' as const, source: 'user' as const }));
+    const explain = vi.fn(async () => ({
+      toolName: 'read',
+      subject: 'src/file.ts',
+      steps: [],
+      winnerIndex: -1,
+      decision: { permission: 'auto' as const, source: 'trust' as const },
+    }));
+    const inner: PermissionPolicy = {
+      evaluate,
+      explain,
+      trust: async () => {},
+      deny: async () => {},
+      denyOnce: () => {},
+      allowOnce: () => {},
+      reload: async () => {},
+    };
+    const wrapper = new DirectoryPermissionPolicy(inner, { policy: policy([]) });
+
+    const trace = await wrapper.explain(readTool, { path: 'src/file.ts' }, makeCtx(projectRoot));
+
+    expect(trace.decision.permission).toBe('auto');
+    expect(explain).toHaveBeenCalledOnce();
+    expect(evaluate).not.toHaveBeenCalled();
+  });
+
+  it('forwards optional runtime controls to the inner policy', () => {
+    const inner: PermissionPolicy = {
+      ...allowInner(),
+      getYolo: vi.fn(() => true),
+      setYolo: vi.fn(),
+      getYoloDestructive: vi.fn(() => true),
+      setYoloDestructive: vi.fn(),
+      getConfirmDestructive: vi.fn(() => true),
+      setConfirmDestructive: vi.fn(),
+      setPromptDelegate: vi.fn(),
+    };
+    const wrapper = new DirectoryPermissionPolicy(inner, { policy: policy([]) });
+    const delegate = vi.fn(async () => 'yes' as const);
+
+    expect(wrapper.getYolo()).toBe(true);
+    expect(wrapper.getYoloDestructive()).toBe(true);
+    expect(wrapper.getConfirmDestructive()).toBe(true);
+    wrapper.setYolo(false);
+    wrapper.setYoloDestructive(false);
+    wrapper.setConfirmDestructive(false);
+    wrapper.setPromptDelegate(delegate);
+
+    expect(inner.setYolo).toHaveBeenCalledWith(false);
+    expect(inner.setYoloDestructive).toHaveBeenCalledWith(false);
+    expect(inner.setConfirmDestructive).toHaveBeenCalledWith(false);
+    expect(inner.setPromptDelegate).toHaveBeenCalledWith(delegate);
   });
 
   it('delegates trust / deny / denyOnce / allowOnce / reload to inner policy', async () => {

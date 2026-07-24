@@ -10,9 +10,9 @@
  * pass-through.
  *
  * Rule precedence (most-restrictive wins):
- *   1. `allowOnlyTools` — if non-empty AND the tool is not in the list,
- *      deny. This is the strictest form: it cannot be widened by an
- *      inner-policy allow.
+ *   1. `allowOnlyTools` — when declared, deny tools not in the list.
+ *      An empty list denies every tool. This is the strictest form: it
+ *      cannot be widened by an inner-policy allow.
  *   2. `denyTools` — deny if the tool name matches. This is also
  *      strict: a directory-level ban overrides an inner-policy allow.
  *   3. `denyProviders` — deny if the active `ctx.provider.id` matches.
@@ -24,14 +24,15 @@
  * with the longest non-wildcard path component (i.e. the most literal
  * prefix) wins. Ties fall back to first-declared order.
  *
- * Path resolution: target paths are extracted from the tool input
- * (same keys as `subjectForToolInput`) and resolved against
- * `ctx.workingDir` (NOT `projectRoot`) so a sub-agent that has changed
- * directory still gets the right rule. The resolved absolute path is
- * then normalized to forward slashes for matching.
+ * Path resolution: target paths are extracted from explicit filesystem
+ * input keys (for example `path`, `file`, `directory`, `outputPath`, and
+ * `worktreePath`) and resolved against `ctx.workingDir` (NOT `projectRoot`)
+ * so a sub-agent that has changed directory still gets the right rule.
+ * The resolved absolute path is then normalized to forward slashes.
  *
- * When no path is present in the input (e.g. a tool call without a
- * `path`/`file`/`url`/`name` subject), the wrapper passes through.
+ * When none of those filesystem keys is present, the wrapper passes through;
+ * URLs, shell command strings, and logical resource names are not interpreted
+ * as filesystem paths by this directory-scoped policy.
  *
  * Session-level toggle: `ctx.meta['directoryRules'] = false` disables
  * the wrapper entirely (returns inner policy result unchanged) so
@@ -50,7 +51,6 @@ import type {
 } from '../types/permission.js';
 import type { Tool } from '../types/tool.js';
 import { matchAny, matchGlob } from '../utils/glob-match.js';
-import { subjectForToolInput } from '../utils/tool-subject.js';
 
 export interface DirectoryPermissionPolicyOptions {
   /**
@@ -61,16 +61,48 @@ export interface DirectoryPermissionPolicyOptions {
   policy: DirectoryPolicy;
 }
 
-const PATH_KEYS = new Set(['path', 'file', 'files', 'target', 'targetPath', 'file_path', 'filePath']);
+const PATH_KEYS = new Set([
+  'path',
+  'paths',
+  'file',
+  'files',
+  'filepath',
+  'filename',
+  'target',
+  'targetPath',
+  'file_path',
+  'filePath',
+  'directory',
+  'dir',
+  'cwd',
+  'root',
+  'baseDir',
+  'out',
+  'outputPath',
+  'sourcePath',
+  'destinationPath',
+  'fromPath',
+  'toPath',
+  'worktreePath',
+]);
 
-function extractPathInput(input: unknown): string | undefined {
-  if (!input || typeof input !== 'object') return undefined;
+function extractPathInputs(input: unknown): string[] {
+  if (!input || typeof input !== 'object') return [];
   const obj = input as Record<string, unknown>;
+  const paths: string[] = [];
   for (const key of PATH_KEYS) {
     const value = obj[key];
-    if (typeof value === 'string' && value.length > 0) return value;
+    if (typeof value === 'string' && value.length > 0) {
+      paths.push(value);
+      continue;
+    }
+    if (Array.isArray(value)) {
+      for (const item of value) {
+        if (typeof item === 'string' && item.length > 0) paths.push(item);
+      }
+    }
   }
-  return undefined;
+  return [...new Set(paths)];
 }
 
 /**
@@ -85,15 +117,7 @@ function extractPathInput(input: unknown): string | undefined {
  * the project root the absolute path is returned unchanged, prefixed
  * with `..` so leading-wildcard patterns still match.
  */
-export function resolveTargetPath(input: unknown, ctx: Context): string | undefined {
-  // Prefer subjectForToolInput to be consistent with the rest of the
-  // permission system; fall back to extractPathInput when the subject
-  // is something else (e.g. a shell command) — in that case we want
-  // to peek for an explicit path argument the tool might pass alongside.
-  const subject = subjectForToolInput('', input, 'path');
-  const raw = subject ? subject.replace(/\\/g, '/') : extractPathInput(input);
-  if (!raw) return undefined;
-
+function resolveRawTargetPath(raw: string, ctx: Context): string {
   // If the path is absolute, use it directly. Otherwise resolve against
   // workingDir. We deliberately do NOT use projectRoot here — the agent
   // may have set a working directory inside the project, and the rule
@@ -106,11 +130,23 @@ export function resolveTargetPath(input: unknown, ctx: Context): string | undefi
   // we keep the absolute path with a `..` marker so leading-wildcard
   // patterns like `**/secrets/**` still work.
   const projectRoot = path.resolve(ctx.projectRoot).replace(/\\/g, '/');
-  const relative = path.relative(projectRoot, normalizedAbsolute).replace(/\\/g, '/');
-  if (relative.startsWith('..') || path.isAbsolute(relative)) {
-    return relative;
-  }
-  return relative;
+  return path.relative(projectRoot, normalizedAbsolute).replace(/\\/g, '/');
+}
+
+function resolveTargetPaths(input: unknown, ctx: Context): string[] {
+  // Preserve raw filesystem paths until after path.resolve(). Trust-pattern
+  // subjects glob-escape characters such as `[` and `]`, which would change
+  // real filenames and let matching rules observe a different path.
+  return extractPathInputs(input).map((raw) => resolveRawTargetPath(raw, ctx));
+}
+
+/**
+ * Resolve the first tool-input target path against `ctx.workingDir` and
+ * normalize it to forward slashes. Multi-target enforcement uses every path
+ * internally; this helper retains its historical first-target public contract.
+ */
+export function resolveTargetPath(input: unknown, ctx: Context): string | undefined {
+  return resolveTargetPaths(input, ctx)[0];
 }
 
 /**
@@ -177,26 +213,36 @@ function isToolInList(toolName: string, list: readonly string[]): boolean {
   return matchAny([...list], toolName);
 }
 
+function clonePolicy(policy: DirectoryPolicy): DirectoryPolicy {
+  return {
+    schemaVersion: policy.schemaVersion,
+    rules: policy.rules.map((rule) => {
+      const cloned = { ...rule };
+      if (rule.denyTools) cloned.denyTools = [...rule.denyTools];
+      if (rule.denyProviders) cloned.denyProviders = [...rule.denyProviders];
+      if (rule.allowOnlyTools) cloned.allowOnlyTools = [...rule.allowOnlyTools];
+      return cloned;
+    }),
+  };
+}
+
 export class DirectoryPermissionPolicy implements PermissionPolicy {
   private readonly inner: PermissionPolicy;
   private policy: DirectoryPolicy;
 
   constructor(inner: PermissionPolicy, options: DirectoryPermissionPolicyOptions) {
     this.inner = inner;
-    this.policy = options.policy;
+    this.policy = clonePolicy(options.policy);
   }
 
   /** Replace the in-memory directory policy. Does NOT reload from disk. */
   setPolicy(policy: DirectoryPolicy): void {
-    this.policy = policy;
+    this.policy = clonePolicy(policy);
   }
 
   /** Read-only access to the current directory policy for diagnostics. */
   getPolicy(): DirectoryPolicy {
-    return {
-      schemaVersion: this.policy.schemaVersion,
-      rules: this.policy.rules.map((rule) => ({ ...rule })),
-    };
+    return clonePolicy(this.policy);
   }
 
   async evaluate(tool: Tool, input: unknown, ctx: Context): Promise<PermissionDecision> {
@@ -210,23 +256,26 @@ export class DirectoryPermissionPolicy implements PermissionPolicy {
       return this.inner.evaluate(tool, input, ctx);
     }
 
-    // Try to extract a path. When the tool input has no path subject,
-    // the rule layer has nothing to match against → pass through.
-    const targetPath = resolveTargetPath(input, ctx);
-    if (!targetPath) {
+    // Evaluate every explicit target. Multi-file tools must not bypass a
+    // protected directory by placing an unrestricted path first.
+    const targetPaths = resolveTargetPaths(input, ctx);
+    if (targetPaths.length === 0) {
       return this.inner.evaluate(tool, input, ctx);
     }
 
-    const rule = matchRule(this.policy, targetPath);
-    if (!rule) {
-      return this.inner.evaluate(tool, input, ctx);
-    }
+    for (const targetPath of targetPaths) {
+      const rule = matchRule(this.policy, targetPath);
+      if (!rule) continue;
 
-    // Provider ban — checked against ctx.provider.id. Independent of
-    // the tool name; a model under a denied provider is banned for
-    // any tool call targeting this directory.
-    if (rule.denyProviders && rule.denyProviders.length > 0 && ctx.provider?.id) {
-      if (rule.denyProviders.includes(ctx.provider.id)) {
+      // Provider ban — checked against ctx.provider.id. Independent of
+      // the tool name; a model under a denied provider is banned for
+      // any tool call targeting this directory.
+      if (
+        rule.denyProviders &&
+        rule.denyProviders.length > 0 &&
+        ctx.provider?.id &&
+        rule.denyProviders.includes(ctx.provider.id)
+      ) {
         return deny(
           `provider "${ctx.provider.id}" is denied in this directory`,
           rule,
@@ -234,13 +283,11 @@ export class DirectoryPermissionPolicy implements PermissionPolicy {
           tool.name,
         );
       }
-    }
 
-    // allowOnlyTools — most restrictive form. If the tool is not in
-    // the allow list, deny. Computed before denyTools so the stricter
-    // rule wins regardless of declaration order.
-    if (rule.allowOnlyTools && rule.allowOnlyTools.length > 0) {
-      if (!isToolInList(tool.name, rule.allowOnlyTools)) {
+      // allowOnlyTools — most restrictive form. If the tool is not in
+      // the declared allow list, deny. An empty list intentionally denies
+      // every tool. Computed before denyTools so the stricter rule wins.
+      if (rule.allowOnlyTools != null && !isToolInList(tool.name, rule.allowOnlyTools)) {
         return deny(
           `tool "${tool.name}" is not in the allowOnlyTools list for this directory`,
           rule,
@@ -248,11 +295,9 @@ export class DirectoryPermissionPolicy implements PermissionPolicy {
           tool.name,
         );
       }
-    }
 
-    // denyTools — ban specific tool names (or namespace patterns).
-    if (rule.denyTools && rule.denyTools.length > 0) {
-      if (isToolInList(tool.name, rule.denyTools)) {
+      // denyTools — ban specific tool names (or namespace patterns).
+      if (rule.denyTools && isToolInList(tool.name, rule.denyTools)) {
         return deny(
           `tool "${tool.name}" is denied in this directory`,
           rule,
@@ -262,10 +307,44 @@ export class DirectoryPermissionPolicy implements PermissionPolicy {
       }
     }
 
-    // Rule matched but no constraint denied this call → pass through
-    // to the inner policy. This is intentional: a directory can
-    // restrict some operations without authorizing all others.
+    // No target constraint denied this call → pass through to the inner policy.
     return this.inner.evaluate(tool, input, ctx);
+  }
+
+  getYolo(): boolean {
+    return this.inner.getYolo?.() ?? false;
+  }
+
+  setYolo(enabled: boolean): void {
+    this.inner.setYolo?.(enabled);
+  }
+
+  getYoloDestructive(): boolean {
+    return this.inner.getYoloDestructive?.() ?? false;
+  }
+
+  setYoloDestructive(enabled: boolean): void {
+    this.inner.setYoloDestructive?.(enabled);
+  }
+
+  getConfirmDestructive(): boolean {
+    return this.inner.getConfirmDestructive?.() ?? false;
+  }
+
+  setConfirmDestructive(enabled: boolean): void {
+    this.inner.setConfirmDestructive?.(enabled);
+  }
+
+  setPromptDelegate(
+    delegate:
+      | ((
+          tool: Tool,
+          input: unknown,
+          suggestedPattern: string,
+        ) => Promise<'yes' | 'no' | 'always' | 'deny'>)
+      | undefined,
+  ): void {
+    this.inner.setPromptDelegate?.(delegate);
   }
 
   async trust(rule: { tool: string; pattern: string }): Promise<void> {
@@ -277,11 +356,11 @@ export class DirectoryPermissionPolicy implements PermissionPolicy {
   }
 
   denyOnce(rule: { tool: string; pattern: string }): void {
-    return this.inner.denyOnce(rule);
+    this.inner.denyOnce(rule);
   }
 
   allowOnce(rule: { tool: string; pattern: string }): void {
-    return this.inner.allowOnce(rule);
+    this.inner.allowOnce(rule);
   }
 
   async reload(): Promise<void> {
@@ -292,6 +371,10 @@ export class DirectoryPermissionPolicy implements PermissionPolicy {
   }
 
   async explain(tool: Tool, input: unknown, ctx: Context): Promise<PermissionTrace> {
+    const innerDecision = async (): Promise<PermissionDecision> => {
+      if (this.inner.explain) return (await this.inner.explain(tool, input, ctx)).decision;
+      return this.inner.evaluate(tool, input, ctx);
+    };
     const steps: PermissionTraceStep[] = [];
     let winnerIndex = -1;
 
@@ -306,117 +389,180 @@ export class DirectoryPermissionPolicy implements PermissionPolicy {
     };
 
     if (ctx.meta['directoryRules'] === false) {
-      add('directory rules disabled', true, 'auto', 'default', 'ctx.meta.directoryRules === false — wrapper is a pass-through');
+      add(
+        'directory rules disabled',
+        true,
+        'auto',
+        'default',
+        'ctx.meta.directoryRules === false — wrapper is a pass-through',
+      );
       winnerIndex = steps.length - 1;
-      const innerDecision = await this.inner.evaluate(tool, input, ctx);
-      return { toolName: tool.name, subject: null, steps, winnerIndex, decision: innerDecision };
+      const decision = await innerDecision();
+      return { toolName: tool.name, subject: null, steps, winnerIndex, decision };
     }
-    add('directory rules enabled', false, 'auto', 'default', 'wrapper consults directory policy before inner policy');
+    add(
+      'directory rules enabled',
+      false,
+      'auto',
+      'default',
+      'wrapper consults directory policy before inner policy',
+    );
 
     if (this.policy.rules.length === 0) {
       add('empty directory policy', true, 'auto', 'default', 'no directory rules configured');
       winnerIndex = steps.length - 1;
-      const innerDecision = await this.inner.evaluate(tool, input, ctx);
-      return { toolName: tool.name, subject: null, steps, winnerIndex, decision: innerDecision };
+      const decision = await innerDecision();
+      return { toolName: tool.name, subject: null, steps, winnerIndex, decision };
     }
-    add('empty directory policy', false, 'auto', 'default', `${this.policy.rules.length} rule(s) configured`);
+    add(
+      'empty directory policy',
+      false,
+      'auto',
+      'default',
+      `${this.policy.rules.length} rule(s) configured`,
+    );
 
-    const targetPath = resolveTargetPath(input, ctx);
-    if (!targetPath) {
-      add('no target path', true, 'auto', 'default', 'tool input has no path subject — wrapper cannot match any rule');
+    const targetPaths = resolveTargetPaths(input, ctx);
+    if (targetPaths.length === 0) {
+      add(
+        'no target path',
+        true,
+        'auto',
+        'default',
+        'tool input has no path subject — wrapper cannot match any rule',
+      );
       winnerIndex = steps.length - 1;
-      const innerDecision = await this.inner.evaluate(tool, input, ctx);
-      return { toolName: tool.name, subject: null, steps, winnerIndex, decision: innerDecision };
+      const decision = await innerDecision();
+      return { toolName: tool.name, subject: null, steps, winnerIndex, decision };
     }
-    add('target path', false, 'auto', 'default', `resolved "${targetPath}"`);
 
-    const rule = matchRule(this.policy, targetPath);
-    if (!rule) {
-      add('directory rule match', true, 'auto', 'default', `no rule matched "${targetPath}"`);
-      winnerIndex = steps.length - 1;
-      const innerDecision = await this.inner.evaluate(tool, input, ctx);
-      return { toolName: tool.name, subject: null, steps, winnerIndex, decision: innerDecision };
-    }
-    add('directory rule match', true, 'auto', 'directory_rules', `matched rule "${rule.directory}"`);
-
-    if (rule.denyProviders && rule.denyProviders.length > 0 && ctx.provider?.id) {
-      const matched = rule.denyProviders.includes(ctx.provider.id);
-      add(
-        'denyProviders',
-        matched,
-        'deny',
-        'directory_rules',
-        matched
-          ? `provider "${ctx.provider.id}" is in denyProviders`
-          : `provider "${ctx.provider.id}" is not in denyProviders`,
-      );
-      if (matched) {
-        winnerIndex = steps.length - 1;
-        return {
-          toolName: tool.name,
-          subject: targetPath,
-          steps,
-          winnerIndex,
-          decision: deny(`provider "${ctx.provider.id}" is denied in this directory`, rule, 'denyProviders', tool.name),
-        };
+    for (const targetPath of targetPaths) {
+      add('target path', false, 'auto', 'default', `resolved "${targetPath}"`);
+      const rule = matchRule(this.policy, targetPath);
+      if (!rule) {
+        add('directory rule match', false, 'auto', 'default', `no rule matched "${targetPath}"`);
+        continue;
       }
-    } else {
-      add('denyProviders', false, 'deny', 'directory_rules', 'rule does not declare denyProviders (or no active provider)');
-    }
-
-    if (rule.allowOnlyTools && rule.allowOnlyTools.length > 0) {
-      const matched = isToolInList(tool.name, rule.allowOnlyTools);
       add(
-        'allowOnlyTools',
-        matched,
-        'deny',
+        'directory rule match',
+        true,
+        'auto',
         'directory_rules',
-        matched
-          ? `tool "${tool.name}" is in allowOnlyTools — pass through to inner policy`
-          : `tool "${tool.name}" is NOT in allowOnlyTools — denied`,
+        `matched rule "${rule.directory}" for "${targetPath}"`,
       );
-      if (!matched) {
-        winnerIndex = steps.length - 1;
-        return {
-          toolName: tool.name,
-          subject: targetPath,
-          steps,
-          winnerIndex,
-          decision: deny(`tool "${tool.name}" is not in allowOnlyTools list for this directory`, rule, 'allowOnlyTools', tool.name),
-        };
+
+      if (rule.denyProviders && rule.denyProviders.length > 0 && ctx.provider?.id) {
+        const matched = rule.denyProviders.includes(ctx.provider.id);
+        add(
+          'denyProviders',
+          matched,
+          'deny',
+          'directory_rules',
+          matched
+            ? `provider "${ctx.provider.id}" is in denyProviders`
+            : `provider "${ctx.provider.id}" is not in denyProviders`,
+        );
+        if (matched) {
+          winnerIndex = steps.length - 1;
+          return {
+            toolName: tool.name,
+            subject: targetPath,
+            steps,
+            winnerIndex,
+            decision: deny(
+              `provider "${ctx.provider.id}" is denied in this directory`,
+              rule,
+              'denyProviders',
+              tool.name,
+            ),
+          };
+        }
+      } else {
+        add(
+          'denyProviders',
+          false,
+          'deny',
+          'directory_rules',
+          'rule does not declare denyProviders (or no active provider)',
+        );
       }
-    } else {
-      add('allowOnlyTools', false, 'deny', 'directory_rules', 'rule does not declare allowOnlyTools');
+
+      if (rule.allowOnlyTools != null) {
+        const matched = isToolInList(tool.name, rule.allowOnlyTools);
+        add(
+          'allowOnlyTools',
+          matched,
+          'deny',
+          'directory_rules',
+          matched
+            ? `tool "${tool.name}" is in allowOnlyTools — checking remaining targets`
+            : `tool "${tool.name}" is NOT in allowOnlyTools — denied`,
+        );
+        if (!matched) {
+          winnerIndex = steps.length - 1;
+          return {
+            toolName: tool.name,
+            subject: targetPath,
+            steps,
+            winnerIndex,
+            decision: deny(
+              `tool "${tool.name}" is not in the allowOnlyTools list for this directory`,
+              rule,
+              'allowOnlyTools',
+              tool.name,
+            ),
+          };
+        }
+      } else {
+        add(
+          'allowOnlyTools',
+          false,
+          'deny',
+          'directory_rules',
+          'rule does not declare allowOnlyTools',
+        );
+      }
+
+      if (rule.denyTools) {
+        const matched = isToolInList(tool.name, rule.denyTools);
+        add(
+          'denyTools',
+          matched,
+          'deny',
+          'directory_rules',
+          matched
+            ? `tool "${tool.name}" is in denyTools — denied`
+            : `tool "${tool.name}" is not in denyTools`,
+        );
+        if (matched) {
+          winnerIndex = steps.length - 1;
+          return {
+            toolName: tool.name,
+            subject: targetPath,
+            steps,
+            winnerIndex,
+            decision: deny(
+              `tool "${tool.name}" is denied in this directory`,
+              rule,
+              'denyTools',
+              tool.name,
+            ),
+          };
+        }
+      } else {
+        add('denyTools', false, 'deny', 'directory_rules', 'rule does not declare denyTools');
+      }
     }
 
-    if (rule.denyTools && rule.denyTools.length > 0) {
-      const matched = isToolInList(tool.name, rule.denyTools);
-      add(
-        'denyTools',
-        matched,
-        'deny',
-        'directory_rules',
-        matched
-          ? `tool "${tool.name}" is in denyTools — denied`
-          : `tool "${tool.name}" is not in denyTools`,
-      );
-      if (matched) {
-        winnerIndex = steps.length - 1;
-        return {
-          toolName: tool.name,
-          subject: targetPath,
-          steps,
-          winnerIndex,
-          decision: deny(`tool "${tool.name}" is denied in this directory`, rule, 'denyTools', tool.name),
-        };
-      }
-    } else {
-      add('denyTools', false, 'deny', 'directory_rules', 'rule does not declare denyTools');
-    }
-
-    add('directory rules pass through', true, 'auto', 'directory_rules', 'no constraint matched — delegating to inner policy');
+    add(
+      'directory rules pass through',
+      true,
+      'auto',
+      'directory_rules',
+      'no target constraint matched — delegating to inner policy',
+    );
     winnerIndex = steps.length - 1;
-    const innerDecision = await this.inner.evaluate(tool, input, ctx);
-    return { toolName: tool.name, subject: targetPath, steps, winnerIndex, decision: innerDecision };
+    const decision = await innerDecision();
+    return { toolName: tool.name, subject: targetPaths[0], steps, winnerIndex, decision };
   }
 }

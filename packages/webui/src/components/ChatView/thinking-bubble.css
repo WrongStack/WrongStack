@@ -289,12 +289,12 @@
   .thinking-wave,
   .thinking-wave span,
   .thinking-text {
-    animation: none !important;
-    animation-iteration-count: 1 !important;
-    animation-duration: 0s !important;
-    animation-delay: 0s !important;
-    transition: none !important;
-    scroll-behavior: auto !important;
+    animation: none;
+    animation-iteration-count: 1;
+    animation-duration: 0s;
+    animation-delay: 0s;
+    transition: none;
+    scroll-behavior: auto;
   }
   /* The drop-shadow filter and box-shadow glows are not motion, but their
    * breathing scale (driven by the keyframes) is. Pin them to the rest

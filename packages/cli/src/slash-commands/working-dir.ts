@@ -1,7 +1,7 @@
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 import { color } from '@wrongstack/core/utils';
-import { type SlashCommand } from '@wrongstack/core/types';
+import type { SlashCommand } from '@wrongstack/core/types';
 import type { SlashCommandContext } from './command-context.js';
 import { toErrorMessage } from '@wrongstack/core/utils';
 

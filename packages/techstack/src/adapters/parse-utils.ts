@@ -38,8 +38,7 @@ export function parseTomlKeyValue(line: string): TomlKeyValue | undefined {
 export function parseXmlAttributes(source: string): ReadonlyMap<string, string> {
   const attributes = new Map<string, string>();
   const regex = /([A-Za-z_:][\w:.-]*)\s*=\s*(["'])(.*?)\2/g;
-  let match: RegExpExecArray | null;
-  while ((match = regex.exec(source)) !== null) {
+  for (const match of source.matchAll(regex)) {
     const key = match[1];
     const value = match[3];
     if (key !== undefined && value !== undefined) attributes.set(key, value);

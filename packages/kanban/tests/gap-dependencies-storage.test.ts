@@ -11,11 +11,10 @@ import {
   addDependency, getTaskChain, areDependenciesMet, findBlockedTasks,
 } from '../src/manager/dependencies.js';
 import {
-  getKanbanPath, writeBoard, readBoard, deleteBoard, mutateBoard,
-  appendKanbanEvent, listBoardIds, resolveBoardRef, listBoardSummaries,
+  getKanbanPath, readBoard, deleteBoard, mutateBoard,
+  appendKanbanEvent, listBoardIds,
 } from '../src/storage.js';
-import { createBoard, addTask, createBoardFromTaskGraph, setTaskChain } from '../src/manager.js';
-import type { KanbanBoard } from '../src/types.js';
+import { createBoard, addTask, setTaskChain } from '../src/manager.js';
 
 let tmpDir: string;
 

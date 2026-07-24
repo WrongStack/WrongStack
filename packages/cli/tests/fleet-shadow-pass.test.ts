@@ -18,10 +18,10 @@ vi.mock('@wrongstack/providers', () => ({
 import { DefaultErrorHandler, DefaultRetryPolicy } from '@wrongstack/core/execution';
 import { DefaultLogger } from '@wrongstack/core/infrastructure';
 import { DefaultSecretScrubber } from '@wrongstack/core/security';
-import { type ConfigStore } from '@wrongstack/core/types';
+import type { ConfigStore } from '@wrongstack/core/types';
 import { Container, EventBus, TOKENS } from '@wrongstack/core/kernel';
 import { ProviderRegistry, ToolRegistry } from '@wrongstack/core/registry';
-import { type SessionWriter, type SystemPromptBuilder, type TokenCounter } from '@wrongstack/core/types';
+import type { SessionWriter, SystemPromptBuilder, TokenCounter } from '@wrongstack/core/types';
 import type { MultiAgentDeps } from '../src/multi-agent.js';
 import { MultiAgentHost } from '../src/multi-agent.js';
 

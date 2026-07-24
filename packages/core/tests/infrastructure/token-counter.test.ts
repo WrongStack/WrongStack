@@ -155,7 +155,7 @@ describe('DefaultTokenCounter', () => {
     const ledger = new ProviderCacheLedger(events);
     const pending = new Map<string, (value: ResolvedModel | undefined) => void>();
     const registry = {
-      getModel: vi.fn((providerId: string, modelId: string) =>
+      getModel: vi.fn((providerId: string, _modelId: string) =>
         new Promise<ResolvedModel | undefined>((resolve) => {
           pending.set(providerId, resolve);
         })),

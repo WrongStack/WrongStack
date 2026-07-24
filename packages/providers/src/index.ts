@@ -263,7 +263,7 @@ export async function buildProviderFactoriesFromRegistry(
     family: 'openai-compatible',
     create: (cfg) => {
       const baseUrl = cfg.baseUrl;
-      if (!baseUrl || !baseUrl.trim()) {
+      if (!baseUrl?.trim()) {
         throw new ConfigError({
           message:
             'OpenAI-compatible provider requires a base URL. Specify the endpoint (e.g. "https://api.example.com/v1").',
@@ -404,7 +404,7 @@ function makeProvider(p: ResolvedProvider, cfg: ProviderConfig): Provider {
       }
       const preset = COMPATIBLE_PRESETS[p.id];
       const resolvedBaseUrl = baseUrl ?? preset?.defaultBaseUrl;
-      if (!resolvedBaseUrl || !resolvedBaseUrl.trim()) {
+      if (!resolvedBaseUrl?.trim()) {
         throw new ConfigError({
           message:
             `Provider "${p.id}" (openai-compatible) requires a base URL. ` +

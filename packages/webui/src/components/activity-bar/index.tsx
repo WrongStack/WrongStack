@@ -1,5 +1,4 @@
 import {
-  Activity as ActivityIconSvg,
   Bot,
   Boxes,
   BrainCircuit,
@@ -8,7 +7,6 @@ import {
   Clock,
   Columns3,
   Command,
-  FileText,
   FolderOpen,
   GitBranch,
   GitCompare,
@@ -196,7 +194,6 @@ export function ActivityBar({ desktopShell = false }: { desktopShell?: boolean |
   // Subscribe (not getState()) so the utility trigger updates its active
   // highlight when the inspector opens or closes.
   const inspectorOpen = useUIStore((s) => s.inspectorOpen);
-  const inspectorTab = useUIStore((s) => s.inspectorTab);
   const desktopCapacity = useDesktopActivityCapacity(desktopShell);
   const desktopSplit = useMemo(
     () => splitDesktopActivityBarItems(desktopCapacity),

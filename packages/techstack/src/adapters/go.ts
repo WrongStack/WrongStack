@@ -93,7 +93,6 @@ function parseGoMod(content: string): GoRequireStmt[] {
 
     // Skip exclude/replace/retract blocks
     if (line.startsWith('exclude') || line.startsWith('replace') || line.startsWith('retract')) {
-      continue;
     }
   }
 

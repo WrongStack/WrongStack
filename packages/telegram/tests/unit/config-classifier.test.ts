@@ -1,4 +1,4 @@
-import { type TelegramPluginConfig } from '../../src/config.js';
+import type { TelegramPluginConfig } from '../../src/config.js';
 import { describe, expect, it } from 'vitest';
 import { diffConfigKeys } from '../../src/config-classifier.js';
 

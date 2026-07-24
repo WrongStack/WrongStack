@@ -52,7 +52,7 @@ function sendRosterMessage(type: string, payload?: unknown): Promise<unknown> {
       reject(new Error('WebSocket not connected'));
       return;
     }
-    const msgId = `roster-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    const _msgId = `roster-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
     const handler = (event: MessageEvent) => {
       try {
         const data = JSON.parse(event.data as string);
@@ -230,7 +230,7 @@ export function CustomRosterPanel({ projectRoot }: CustomRosterPanelProps) {
   // ── Capture learned ──────────────────────────────────────────────────
   const runCapture = async (role: string) => {
     try {
-      const data = await sendRosterMessage('agent-roster.capture', { role, projectRoot }) as { captured: number };
+      const _data = await sendRosterMessage('agent-roster.capture', { role, projectRoot }) as { captured: number };
       loadRoster();
     } catch { /* ignore */ }
   };

@@ -1,8 +1,8 @@
 import { randomUUID } from 'node:crypto';
 import type { SlashCommand } from '@wrongstack/core/types';
 import { addPlanItem, emptyPlan } from '@wrongstack/core/storage';
-import { type TaskItem } from '@wrongstack/core/utils';
-import { type TaskPriority, type TaskStatus, type TaskType } from '@wrongstack/core/types';
+import type { TaskItem } from '@wrongstack/core/utils';
+import type { TaskPriority, TaskStatus, TaskType } from '@wrongstack/core/types';
 import { formatPlan } from '@wrongstack/core/storage';
 import { formatTaskList, formatTaskProgress, recordCompletedWorkEvidence } from '@wrongstack/core/utils';
 import { loadPlan, loadTasks, mutateTasks, saveCompletedWorkCheckpoint, savePlan } from '@wrongstack/core/storage';

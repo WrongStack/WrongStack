@@ -21,14 +21,14 @@ import { DefaultLogger } from '@wrongstack/core/infrastructure';
 import { Container, EventBus, TOKENS } from '@wrongstack/core/kernel';
 import { ProviderRegistry, ToolRegistry } from '@wrongstack/core/registry';
 import { DefaultSecretScrubber } from '@wrongstack/core/security';
-import {
-  type Config,
-  type ConfigStore,
-  type SessionWriter,
-  type SubagentConfig,
-  type SystemPromptBuilder,
-  type TokenCounter,
-  type Tool,
+import type {
+  Config,
+  ConfigStore,
+  SessionWriter,
+  SubagentConfig,
+  SystemPromptBuilder,
+  TokenCounter,
+  Tool,
 } from '@wrongstack/core/types';
 import { capabilitiesFor } from '@wrongstack/providers';
 import { type MultiAgentDeps, MultiAgentHost } from '../src/multi-agent.js';

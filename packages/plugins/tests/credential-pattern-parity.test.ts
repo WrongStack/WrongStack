@@ -73,6 +73,28 @@ describe('prompt-firewall inherits the shared coverage', () => {
   });
 });
 
+describe('postgres_uri query-parameter password detection', () => {
+  // The postgres_uri pattern has two alternatives:
+  //   1. user:password@host  (credential in authority)
+  //   2. query-param password=
+  // The second alternative uses a repeating param group with a negative
+  // lookahead to avoid consuming password=value& when another param follows.
+  it.each([
+    ['password as last param (no other params)', 'postgres://host/db?password=secret', true],
+    ['password as last param (with preceding params)', 'postgres://host/db?user=alice&password=secret', true],
+    ['password in middle (followed by another param)', 'postgres://host/db?user=alice&password=secret&sslmode=require', true],
+    ['uripassword (no colon)', 'postgres://host/db?appname=somepass', false],
+    ['no password param', 'postgres://host/db?user=alice&sslmode=require', false],
+  ] as const)('detects %s', (_label, uri, shouldMatch) => {
+    const found = cloneCredentialPatterns().find((p) => p.type === 'postgres_uri');
+    expect(found).toBeDefined();
+    expect({ uri, matched: found?.regex.test(uri) }).toEqual({
+      uri,
+      matched: shouldMatch,
+    });
+  });
+});
+
 describe('aws-secret-key detection', () => {
   // The previous pattern required the literal "aws" to appear AFTER the
   // key and wrapped the 40-char run in `\b`. Real keys are written as

@@ -484,7 +484,11 @@ function TokenStatsCard({ tokenStats }: { tokenStats: TokenStats | undefined }):
   const { browserTotal, clientTotal, expired, expiringSoon } = tokenStats;
   const total = browserTotal + clientTotal;
   return (
-    <div className="hq-cockpit-grid" role="group" aria-label="Auth token stats">
+    <fieldset
+      className="hq-cockpit-grid"
+      aria-label="Auth token stats"
+      style={{ border: 0, margin: 0, padding: 0 }}
+    >
       <Stat label="browser" value={browserTotal} />
       <Stat label="client" value={clientTotal} />
       <Stat label="total" value={total} />
@@ -498,7 +502,7 @@ function TokenStatsCard({ tokenStats }: { tokenStats: TokenStats | undefined }):
         value={expiringSoon}
         accent={expiringSoon > 0 ? 'warn' : undefined}
       />
-    </div>
+    </fieldset>
   );
 }
 

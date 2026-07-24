@@ -1,5 +1,6 @@
 import { spawn } from 'node:child_process';
 import * as path from 'node:path';
+import type { KanbanTask } from '@wrongstack/kanban';
 import type { ReviewContextBundle, ReviewFileEntry, ResolvedChimeraConfig } from './review-types.js';
 
 // ---------------------------------------------------------------------------
@@ -57,30 +58,24 @@ async function getFileDiff(cwd: string, filePath: string): Promise<string | unde
  * List all changed files in the working tree (porcelain status).
  * Includes both tracked modifications and untracked additions.
  *
- * Handles rename (R) and copy (C) entries which use the format
- * `R  old -> new` — we extract the post-`->` path. Also strips git's
- * double-quote wrapping for paths containing spaces/unicode.
+ * Uses NUL-delimited porcelain output so Git returns raw path bytes instead of
+ * C-style quoted/escaped names. Rename and copy entries contain an additional
+ * source-path record; the first record is the destination path we review.
  */
 async function getAllChangedFiles(
   cwd: string,
 ): Promise<Array<{ path: string; status: string }>> {
-  const r = await runGit(['status', '--porcelain'], cwd);
+  const r = await runGit(['status', '--porcelain', '-z'], cwd);
   if (r.code !== 0) return [];
+  const records = r.stdout.split('\0');
   const out: Array<{ path: string; status: string }> = [];
-  for (const line of r.stdout.split('\n')) {
-    if (!line.trim()) continue;
-    const statusCode = line.slice(0, 2).trim();
-    let filePath = line.slice(3).trim();
-    // Handle rename (R) / copy (C): "old -> new"
-    if (statusCode === 'R' || statusCode === 'C') {
-      const arrowIdx = filePath.lastIndexOf(' -> ');
-      if (arrowIdx !== -1) filePath = filePath.slice(arrowIdx + 4).trim();
-    }
-    // Strip git's double-quote wrapping for paths with spaces/unicode
-    if (filePath.startsWith('"') && filePath.endsWith('"')) {
-      filePath = filePath.slice(1, -1);
-    }
+  for (let index = 0; index < records.length; index++) {
+    const record = records[index];
+    if (!record || record.length < 3) continue;
+    const statusCode = record.slice(0, 2).trim();
+    const filePath = record.slice(3);
     if (filePath) out.push({ path: filePath, status: statusCode });
+    if (statusCode.includes('R') || statusCode.includes('C')) index++;
   }
   return out;
 }
@@ -232,42 +227,48 @@ export async function buildReviewContext(
 
 /**
  * Find the active (in_progress / running-stage) kanban task across all
- * boards. Returns the first match — the "card the session is working on."
+ * boards. Enrichment is safe only when exactly one card is active; concurrent
+ * active cards are ambiguous and could attach another task's criteria.
  *
  * Uses dynamic import so the builder doesn't hard-depend on @wrongstack/kanban
  * (which may not be installed in all contexts). Best-effort: returns
- * undefined if kanban isn't available, no boards exist, or no task is active.
+ * undefined if kanban isn't available, no boards exist, or the active card
+ * cannot be identified unambiguously.
  */
 async function findActiveKanbanCard(
   projectRoot: string,
 ): Promise<ReviewContextBundle['kanbanCard']> {
-  let kanbanApi: any;
+  let kanbanApi: typeof import('@wrongstack/kanban');
   try {
     kanbanApi = await import('@wrongstack/kanban');
   } catch {
     return undefined; // kanban package not available
   }
 
+  const activeTasks: KanbanTask[] = [];
   const boards = await kanbanApi.listBoards(projectRoot);
   for (const board of boards) {
     const data = await kanbanApi.getBoard(projectRoot, board.id);
     if (!data?.tasks) continue;
-    for (const task of data.tasks) {
-      const isActive =
-        task.status === 'in_progress' ||
-        task.lifecycle?.currentStage === 'running' ||
-        task.lifecycle?.currentStage === 'review';
-      if (isActive) {
-        return {
-          id: task.id,
-          title: task.title,
-          description: task.description,
-          successCriteria: task.successCriteria?.map((c: { description: string }) => c.description),
-        };
-      }
-    }
+    activeTasks.push(
+      ...data.tasks.filter(
+        (task) =>
+          task.status === 'in_progress' ||
+          task.lifecycle?.currentStage === 'running' ||
+          task.lifecycle?.currentStage === 'review',
+      ),
+    );
   }
-  return undefined;
+
+  if (activeTasks.length !== 1) return undefined;
+  const task = activeTasks[0];
+  if (!task) return undefined;
+  return {
+    id: task.id,
+    title: task.title,
+    description: task.description,
+    successCriteria: task.successCriteria?.map((criterion) => criterion.description),
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -292,9 +293,12 @@ async function findFileProvenance(
   // Use a variable specifier so the static import guard doesn't flag a
   // dependency on chronicle files that may be untracked (peer work).
   const chronicleSpec = '../chronicle/query.js';
-  let ChronicleQueryEngine: any;
+  type ChronicleQueryEngineConstructor = typeof import('../chronicle/query.js').ChronicleQueryEngine;
+  let ChronicleQueryEngine: ChronicleQueryEngineConstructor;
   try {
-    const mod = await import(chronicleSpec);
+    const mod = (await import(chronicleSpec)) as {
+      ChronicleQueryEngine: ChronicleQueryEngineConstructor;
+    };
     ChronicleQueryEngine = mod.ChronicleQueryEngine;
   } catch {
     return []; // chronicle module not available
@@ -302,7 +306,7 @@ async function findFileProvenance(
 
   // Chronicle journal lives under .wrongstack/chronicle by convention
   const journalDir = path.join(projectRoot, '.wrongstack', 'chronicle');
-  let engine: any;
+  let engine: Awaited<ReturnType<ChronicleQueryEngineConstructor['fromDirectory']>>;
   try {
     engine = await ChronicleQueryEngine.fromDirectory(journalDir);
   } catch {
@@ -313,7 +317,7 @@ async function findFileProvenance(
   for (const filePath of filePaths) {
     try {
       const result = await engine.query({ path: filePath, limit: 1, order: 'desc' });
-      const evt: any = result.events[0];
+      const evt = result.events[0];
       if (!evt) continue;
       const scope = evt.scope ?? {};
       provenance.push({

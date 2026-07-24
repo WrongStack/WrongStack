@@ -180,6 +180,7 @@ function AnimatedDonutGauge({
 
   return (
     <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} className="drop-shadow-lg">
+      <title>Context usage: {clamped.toFixed(0)}%</title>
       {/* Background track */}
       <circle
         cx={size / 2}
@@ -250,7 +251,7 @@ function AnimatedCounter({
       const elapsed = now - startTime;
       const progress = Math.min(1, elapsed / duration);
       // Ease-out cubic
-      const eased = 1 - Math.pow(1 - progress, 3);
+      const eased = 1 - (1 - progress) ** 3;
       setDisplay(Math.round(start + diff * eased));
       if (progress < 1) {
         rafRef.current = requestAnimationFrame(animate);

@@ -2,7 +2,7 @@ import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { DefaultSecretVault } from '@wrongstack/core/security';
-import { type ModelsRegistry, type ResolvedProvider } from '@wrongstack/core/types';
+import type { ModelsRegistry, ResolvedProvider } from '@wrongstack/core/types';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { ReadlineInputReader } from '../src/input-reader.js';
 import type { TerminalRenderer } from '../src/renderer.js';

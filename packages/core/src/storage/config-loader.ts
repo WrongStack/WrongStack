@@ -876,7 +876,7 @@ function removeLegacySageEngine(config: Record<string, unknown>): boolean {
   const Sage = config['Sage'];
   if (!isPlainRecord(Sage)) return migratedKey;
   const storage = Sage['storage'];
-  if (!isPlainRecord(storage) || !Object.prototype.hasOwnProperty.call(storage, 'engine')) {
+  if (!isPlainRecord(storage) || !Object.hasOwn(storage, 'engine')) {
     return migratedKey;
   }
   delete storage['engine'];

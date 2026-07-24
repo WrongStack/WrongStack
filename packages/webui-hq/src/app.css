@@ -115,7 +115,7 @@
 *::before,
 *::after {
   box-sizing: border-box;
-  border-radius: 0 !important;
+  border-radius: var(--radius);
 }
 html,
 body,
@@ -300,7 +300,7 @@ a {
   background: rgb(254 46 95 / 0.1);
   color: var(--bright);
 }
-.hq-nav-item[data-active="true"] > svg {
+.hq-nav-item:where([data-active="true"]) > svg {
   color: var(--primary);
 }
 .hq-nav-item > span:first-of-type {
@@ -1131,10 +1131,23 @@ a {
 
 /* Dense hierarchy alternative for large fleets. */
 .hq-fleet-list {
+  display: block;
+  width: 100%;
   flex: 1;
   min-height: 0;
   overflow: auto;
+  border-collapse: collapse;
   background: var(--inset);
+}
+.hq-fleet-list > thead,
+.hq-fleet-list > tbody {
+  display: block;
+}
+.hq-fleet-list th,
+.hq-fleet-list td {
+  min-width: 0;
+  padding: 0;
+  text-align: left;
 }
 .hq-fleet-list-header,
 .hq-fleet-list-row {
@@ -2430,9 +2443,6 @@ a {
 .hq-command-turn .hq-chat-role .hq-pill {
   margin-left: 2px;
 }
-.hq-command-turn .hq-chat-system-line {
-  border-color: rgb(254 46 95 / 0.28);
-}
 .hq-chat-system-line {
   display: inline-flex;
   align-items: center;
@@ -2443,6 +2453,9 @@ a {
   border: 1px dashed var(--border);
   border-radius: 999px;
   background: var(--panel);
+}
+.hq-command-turn .hq-chat-system-line {
+  border-color: rgb(254 46 95 / 0.28);
 }
 
 /* ── Markdown body (assistant + thinking) ──────────────────────────────── */
@@ -3688,14 +3701,14 @@ a {
   font-family: var(--font-mono);
   font-size: 9px;
 }
-.hq-kanban-column-count {
+.hq-kanban-column > header .hq-kanban-column-count {
   display: grid;
   min-width: 24px;
   height: 24px;
   place-items: center;
   border: 1px solid var(--border);
   background: var(--inset);
-  color: var(--bright) !important;
+  color: var(--bright);
 }
 .hq-kanban-column-body {
   display: flex;

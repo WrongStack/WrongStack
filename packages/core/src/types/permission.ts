@@ -98,10 +98,9 @@ export interface DirectoryRule {
    */
   denyProviders?: string[];
   /**
-   * If non-empty, ONLY these tools are allowed when the input path
-   * matches this rule. Any tool not in the list is denied. This is
-   * stricter than `denyTools` because it cannot be widened by an
-   * inner-policy allow.
+   * When declared, ONLY these tools are allowed when the input path
+   * matches this rule. An empty list denies every tool. This is stricter
+   * than `denyTools` because it cannot be widened by an inner-policy allow.
    */
   allowOnlyTools?: string[];
   /**

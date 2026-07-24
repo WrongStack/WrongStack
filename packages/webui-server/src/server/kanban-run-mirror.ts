@@ -456,7 +456,7 @@ function desiredAssignmentFromSdd(t: SddBoardTask): DesiredAssignment | null {
     ...(t.agentName ? { name: t.agentName } : {}),
     ...(t.provider ? { provider: t.provider } : {}),
     ...(t.model ? { model: t.model } : {}),
-    ...(t.fallbackModels && t.fallbackModels.length ? { fallbackModels: t.fallbackModels } : {}),
+    ...(t.fallbackModels?.length ? { fallbackModels: t.fallbackModels } : {}),
     ...(t.retries ? { attempt: t.retries } : {}),
     ...(t.startedAt !== undefined ? { dispatchedAt: new Date(t.startedAt).toISOString() } : {}),
     ...(t.completedAt !== undefined ? { completedAt: new Date(t.completedAt).toISOString() } : {}),

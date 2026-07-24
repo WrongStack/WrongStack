@@ -161,7 +161,7 @@ export function parsePurl(purl: string): PurlParts | undefined {
   const slashIdx = main.indexOf('/');
   if (slashIdx < 0) return undefined;
   const type = main.slice(0, slashIdx);
-  let remainder = main.slice(slashIdx + 1);
+  const remainder = main.slice(slashIdx + 1);
 
   // Check for namespace (second /)
   let namespace: string | undefined;

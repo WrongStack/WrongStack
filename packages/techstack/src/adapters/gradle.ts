@@ -65,8 +65,7 @@ function parseVersionCatalog(content: string): Map<string, string> {
 function parseGradleManifest(content: string, catalog: ReadonlyMap<string, string>): GradleDependency[] {
   const deps: GradleDependency[] = [];
   const coordinateRegex = /\b(implementation|api|compileOnly|runtimeOnly|testImplementation|testRuntimeOnly|annotationProcessor)\s*(?:\(|\s)\s*["']([^"']+)["']/g;
-  let match: RegExpExecArray | null;
-  while ((match = coordinateRegex.exec(content)) !== null) {
+  for (const match of content.matchAll(coordinateRegex)) {
     const configuration = match[1];
     const value = match[2];
     if (!configuration || !value) continue;
@@ -76,7 +75,7 @@ function parseGradleManifest(content: string, catalog: ReadonlyMap<string, strin
   }
 
   const aliasRegex = /\b(implementation|api|compileOnly|runtimeOnly|testImplementation|testRuntimeOnly)\s*\(\s*libs\.([\w.]+)\s*\)/g;
-  while ((match = aliasRegex.exec(content)) !== null) {
+  for (const match of content.matchAll(aliasRegex)) {
     const configuration = match[1];
     const alias = match[2];
     if (!configuration || !alias) continue;

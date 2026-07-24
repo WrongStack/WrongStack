@@ -1,9 +1,9 @@
 import { type Container, TOKENS } from '@wrongstack/core/kernel';
-import { type Logger, type ProviderRunner } from '@wrongstack/core/types';
+import type { Logger, ProviderRunner } from '@wrongstack/core/types';
 import { type ReplayMode, ReplayProviderRunner } from '@wrongstack/core/replay';
 import { ReplayLogStore } from '@wrongstack/core/storage';
 import { runProviderWithRetry } from '@wrongstack/core/agent';
-import { type WstackPaths } from '@wrongstack/core/utils';
+import type { WstackPaths } from '@wrongstack/core/utils';
 
 /**
  * Bind a `ReplayProviderRunner` into the container under

@@ -157,7 +157,7 @@ describe('decideCascadeAgents', () => {
       '### High (0)',
       '',
       '### Medium (1)',
-      '1. [SECURITY] `src/log.ts:5\` — hardcoded secret in log message',
+      '1. [SECURITY] `src/log.ts:5` — hardcoded secret in log message',
     ].join('\n');
     const sev = parseReviewSeverity(report);
     const agents = decideCascadeAgents(report, sev);
@@ -175,7 +175,7 @@ describe('decideCascadeAgents', () => {
       '### Critical (0)',
       '',
       '### High (1)',
-      '1. [SECURITY] `src/render.ts:12\` — XSS via innerHTML assignment of user input',
+      '1. [SECURITY] `src/render.ts:12` — XSS via innerHTML assignment of user input',
       '   → use textContent or sanitize',
       '',
       '### Medium (0)',

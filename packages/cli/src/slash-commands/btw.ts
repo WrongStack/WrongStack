@@ -1,5 +1,5 @@
 import { pendingBtwCount, setBtwNote } from '@wrongstack/core/agent';
-import { type SlashCommand } from '@wrongstack/core/types';
+import type { SlashCommand } from '@wrongstack/core/types';
 import type { SlashCommandContext } from './command-context.js';
 
 /**

@@ -1,6 +1,6 @@
 import type { MemoryEntry, MemoryPort, MemoryScope } from '@wrongstack/core/types';
 import { MEMORY_TYPE_LABELS, type MemoryPriority, type MemoryType } from '@wrongstack/core/types';
-import { getSageSurface as getSageSurface } from '@wrongstack/sage';
+import { getSageSurface } from '@wrongstack/sage';
 
 export interface MemorySlashDeps {
   memoryStore: MemoryPort;

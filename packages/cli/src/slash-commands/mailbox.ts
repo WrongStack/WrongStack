@@ -25,7 +25,7 @@
 
 import { color, wstackGlobalRoot } from '@wrongstack/core/utils';
 import { GlobalMailbox, type MailboxAgentStatus, type MailboxAudience, type MailboxMessage, type MailboxMessageType, mailboxSessionTag, resolveMailboxIdentity, resolveProjectDir } from '@wrongstack/core/coordination';
-import { type SlashCommand } from '@wrongstack/core/types';
+import type { SlashCommand } from '@wrongstack/core/types';
 import type { SlashCommandContext } from './command-context.js';
 
 function buildMailbox(opts: SlashCommandContext): GlobalMailbox | null {

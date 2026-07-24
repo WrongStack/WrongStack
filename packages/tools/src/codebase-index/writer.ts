@@ -39,7 +39,7 @@ import type {
 } from './schema.js';
 import { SCHEMA_VERSION } from './schema.js';
 import { lspKindToInternalKind } from './lsp-kind.js';
-import { Bm25Index, buildBm25Index, buildIndexableText, tokenise } from './bm25.js';
+import { type Bm25Index, buildBm25Index, buildIndexableText, tokenise } from './bm25.js';
 const DB_FILE = 'index.db';
 
 function escapeLike(value: string): string {

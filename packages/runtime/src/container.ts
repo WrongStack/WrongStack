@@ -1,3 +1,5 @@
+import * as fs from 'node:fs';
+import * as path from 'node:path';
 import {
   DefaultSystemPromptBuilder,
   type DefaultSystemPromptBuilderOptions,
@@ -12,7 +14,12 @@ import {
 } from '@wrongstack/core/execution';
 import { Container, type EventBus, TOKENS } from '@wrongstack/core/kernel';
 import { DefaultModeStore } from '@wrongstack/core/models';
-import { DefaultPermissionPolicy, DefaultSecretScrubber } from '@wrongstack/core/security';
+import {
+  DirectoryPermissionPolicy,
+  DefaultPermissionPolicy,
+  DefaultSecretScrubber,
+  validateDirectoryPolicy,
+} from '@wrongstack/core/security';
 import { DefaultConfigStore, DefaultSessionStore } from '@wrongstack/core/storage';
 import type { Config, Logger, ModelsRegistry, Tool } from '@wrongstack/core/types';
 import type { WstackPaths } from '@wrongstack/core/utils';
@@ -181,6 +188,33 @@ export function createDefaultContainer(opts: CreateContainerOptions): Container 
     );
   }
 
+  const directoryPolicyPath = path.join(wpaths.projectRoot, '.wrongstack', 'directory-rules.json');
+  let directoryPolicy: ConstructorParameters<typeof DirectoryPermissionPolicy>[1]['policy'] = {
+    schemaVersion: 1,
+    rules: [],
+  };
+  try {
+    const parsed = JSON.parse(fs.readFileSync(directoryPolicyPath, 'utf8')) as unknown;
+    const validation = validateDirectoryPolicy(parsed);
+    if (!validation.ok) {
+      throw new Error(
+        validation.diagnostics
+          .map((diagnostic) => `${diagnostic.path}: ${diagnostic.message}`)
+          .join('; '),
+      );
+    }
+    directoryPolicy = validation.policy;
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code !== 'ENOENT') {
+      throw new Error(
+        `Invalid directory permission policy at ${directoryPolicyPath}: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+        { cause: error },
+      );
+    }
+  }
+
   container.bind(TOKENS.PermissionPolicy, () => {
     const policyOptions: ConstructorParameters<typeof DefaultPermissionPolicy>[0] = {
       trustFile: wpaths.projectTrust,
@@ -189,7 +223,9 @@ export function createDefaultContainer(opts: CreateContainerOptions): Container 
     if (opts.permission?.promptDelegate !== undefined) {
       policyOptions.promptDelegate = opts.permission.promptDelegate;
     }
-    return new DefaultPermissionPolicy(policyOptions);
+    return new DirectoryPermissionPolicy(new DefaultPermissionPolicy(policyOptions), {
+      policy: directoryPolicy,
+    });
   });
 
   container.bind(TOKENS.Compactor, () =>

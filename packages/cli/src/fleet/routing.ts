@@ -1,5 +1,5 @@
 import type { SubagentRunContext, SubagentRunner, TaskSpec } from '@wrongstack/core/types';
-import { type Config } from '@wrongstack/core/types';
+import type { Config } from '@wrongstack/core/types';
 import { expectDefined } from '@wrongstack/core/utils';
 import { makeAgentSubagentRunner, NULL_FLEET_BUS } from '@wrongstack/core/coordination';
 import { TOKENS } from '@wrongstack/core/kernel';

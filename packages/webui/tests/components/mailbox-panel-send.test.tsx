@@ -70,7 +70,8 @@ describe('MailboxPanel composer', () => {
     fireEvent.click(screen.getByRole('button', { name: /^send$/i }));
 
     const request = sends.find((message) => message.type === 'mailbox.send');
-    const requestId = (request?.payload as { requestId: string }).requestId;
+    const requestId = (request?.payload as { requestId?: string } | undefined)?.requestId;
+    expect(requestId).toBeDefined();
     act(() => {
       for (const handler of handlers.get('mailbox.sent') ?? []) {
         handler({

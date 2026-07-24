@@ -160,7 +160,7 @@ describe('DefaultConfigLoader', () => {
     expect(cfg.modelRuntime?.parameters?.user).toBe('kept');
     expect(cfg.modelRuntime?.reasoning?.effort).toBeUndefined();
     expect(cfg.Sage?.storage?.directory).toBe('custom-memory');
-    expect((cfg.Sage?.storage as Record<string, unknown>)['engine']).toBeUndefined();
+    expect((cfg.Sage?.storage as Record<string, unknown> | undefined)?.['engine']).toBeUndefined();
 
     // User settings are migrated to the profile config
     const written = JSON.parse(await fs.readFile(profileCfgPath, 'utf8'));
@@ -179,7 +179,7 @@ describe('DefaultConfigLoader', () => {
     process.env['WRONGSTACK_PROVIDER'] = 'openai';
     process.env['WRONGSTACK_API_KEY'] = 'sk-env';
     try {
-      const { loader: l, paths, profileCfgPath } = loader();
+      const { loader: l, profileCfgPath } = loader();
       const cfg = await l.load({ cliFlags: { model: 'gpt-5' } });
       expect(cfg.provider).toBe('openai');
       expect(cfg.model).toBe('gpt-5');
@@ -283,7 +283,7 @@ describe('DefaultConfigLoader', () => {
   });
 
   it('memoizes file reads across repeated load() calls until mtime changes', async () => {
-    const { loader: l, paths, profileCfgPath } = loader();
+    const { loader: l, profileCfgPath } = loader();
     // Write the initial config to the profile config (user settings)
     await fs.mkdir(path.dirname(profileCfgPath), { recursive: true });
     await fs.writeFile(profileCfgPath, JSON.stringify({ provider: 'anthropic', model: 'claude-opus-4-7' }));

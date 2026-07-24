@@ -190,13 +190,10 @@ export function ToolsPicker({
   // single matching prefix paint the entire catalogue on tall terminals.
   // Filtering still keeps the focused row in view because windowRows()
   // re-centres on `visibleSelected`.
-  let displayRows: Row[];
-  let hiddenAbove = 0;
-  let hiddenBelow = 0;
   const win = windowRows(rows, visibleSelected, maxVisible);
-  displayRows = win.rows;
-  hiddenAbove = win.start;
-  hiddenBelow = rows.length - win.end;
+  const displayRows = win.rows;
+  const hiddenAbove = win.start;
+  const hiddenBelow = rows.length - win.end;
 
   const hasFilter = filterActive;
 

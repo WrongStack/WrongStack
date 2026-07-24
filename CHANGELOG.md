@@ -13,6 +13,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Chronicle: task/kanban file lineage.** `file.event` mutations are now persisted with `scope.kanbanBoardId` and task attribution, and `kanban.*` events join the durable coding-signal set, so "which session, board, and task caused this file change" is answerable directly from scope filters.
 - **Chronicle: journal retention.** `chronicle.retentionDays` (default 30, floored at 7, `0` disables) arms the existing checkpoint-safe auto-purge, which previously had no configuration surface.
 
+### Changed
+
+- **Directory rules: explicit empty tool allowlists now deny all tools.** A rule in `.wrongstack/directory-rules.json` with `allowOnlyTools: []` is treated as an intentional deny-all constraint. Remove `allowOnlyTools` from a rule to impose no allowlist constraint; use a non-empty list to permit only the named tools.
+- **Kanban decomposition: empty command markers remain manual checks.** Success criteria containing only a dollar-sign marker, `run:`, `verify:`, or `cmd:` (with optional whitespace) are no longer classified as executable command checks; command markers must be followed by command text.
+
 ### Fixed
 
 - **Chronicle: fleet snapshots dominated journal volume.** `session.agents_updated` (a full-fleet state snapshot fired on every flush, ~76% of journal bytes) and `network.request.started/completed` are now reduced to windowed rollup aggregates instead of persisted raw; `provider.attempt.started`'s prompt manifest records its tool-name roster once per `manifestHash` rather than re-embedding it every attempt. Combined with retention, steady-state journal growth drops ~75%.

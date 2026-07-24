@@ -211,7 +211,7 @@ describe('bashTool background (faked shell)', () => {
 
   it('disconnects background stdout/stderr so the job survives host exit', async () => {
     await runFinal({ command: 'noisy', background: true });
-    expect((cfg.spawnCalls.at(-1)?.opts.stdio as string[]).slice(1)).toEqual([
+    expect((cfg.spawnCalls.at(-1)?.opts.stdio as string[] | undefined)?.slice(1)).toEqual([
       'ignore',
       'ignore',
     ]);

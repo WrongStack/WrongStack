@@ -1774,11 +1774,11 @@ function deriveWhy(category: LearnedEntryCategory, text: string): string {
     signals.push('guard before shipping');
   if (/\bto\s+avoid\b/.test(lower)) {
     const m = text.match(/to avoid ([^.!?]+)/i);
-    if (m && m[1]) signals.push(`avoid ${m[1].trim()}`);
+    if (m?.[1]) signals.push(`avoid ${m[1].trim()}`);
   }
   if (/\bso\s+(?:that|we|the project)\b/.test(lower)) {
     const m = text.match(/so (?:that |we |the project )?([^.!?]+)/i);
-    if (m && m[1]) signals.push(`so ${m[1].trim()}`);
+    if (m?.[1]) signals.push(`so ${m[1].trim()}`);
   }
   if (signals.length === 0) return base;
   return `${base} Project signals: ${signals.join('; ')}.`;
@@ -1800,10 +1800,10 @@ function extractHow(text: string): string {
     if (inner.length > 0 && inner.length <= 120) anchors.add(inner);
   }
   // File paths — anything matching packages/..., src/..., tests/..., or ending in .ts/.tsx/.js/.json/.md
-  const pathMatches = text.match(/(?:[a-zA-Z0-9_.\-]+\/)+[a-zA-Z0-9_.\-]+\.(?:ts|tsx|js|jsx|mjs|cjs|json|md|yaml|yml)/g) ?? [];
+  const pathMatches = text.match(/(?:[a-zA-Z0-9_.-]+\/)+[a-zA-Z0-9_.-]+\.(?:ts|tsx|js|jsx|mjs|cjs|json|md|yaml|yml)/g) ?? [];
   for (const p of pathMatches) anchors.add(p);
   // Package-scoped names like @scope/name
-  const scoped = text.match(/@[a-z0-9][\w.\-]*\/[a-z0-9][\w.\-]*/gi) ?? [];
+  const scoped = text.match(/@[a-z0-9][\w.-]*\/[a-z0-9][\w.-]*/gi) ?? [];
   for (const p of scoped) anchors.add(p);
   if (anchors.size === 0) return '';
   return [...anchors].map((a) => `- \`${a}\``).join('\n');
@@ -1827,8 +1827,7 @@ export function parseStructuredLearnedEntries(role: string, projectRoot?: string
   // immediately followed by a bullet `- **<what>**`. Extract those pairs.
   const entryPattern =
     /<!--\s*learned-stamp:\s*category=([\w-]+);\s*capturedAt=([^;]+?)\s*-->\s*\n-\s+\*\*(.+?)\*\*(?:\s*\n\s+-\s+\*Why:\*\s+(.+?))?(?:\s*\n\s+-\s+\*How:\*\s+(.+?))?(?=\n(?:<!--|##|---|\n|$))/gs;
-  let m: RegExpExecArray | null;
-  while ((m = entryPattern.exec(raw)) !== null) {
+  for (const m of raw.matchAll(entryPattern)) {
     const categoryRaw = m[1] ?? '';
     const capturedAt = (m[2] ?? '').trim();
     const what = (m[3] ?? '').trim();

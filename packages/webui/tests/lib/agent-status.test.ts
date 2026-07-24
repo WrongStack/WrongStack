@@ -9,7 +9,6 @@ import {
   fmtTok,
   isAgentActive,
   tallyAgents,
-  type CtxSeverity,
 } from '../../src/lib/agent-status.js';
 import type { SubagentView } from '../../src/stores/types.js';
 

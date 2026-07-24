@@ -12,10 +12,10 @@ import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 import type { SkillLoader } from '@wrongstack/core/types';
 import { type Agent, type Context, DefaultSystemPromptBuilder } from '@wrongstack/core/agent';
-import { type Config, type MemoryPort, type ModeStore } from '@wrongstack/core/types';
+import type { Config, MemoryPort, ModeStore } from '@wrongstack/core/types';
 import { setQueuedMessagesSnapshot } from '@wrongstack/core/agent';
 import { DefaultSessionStore, RecoveryLock } from '@wrongstack/core/storage';
-import { type EventBus } from '@wrongstack/core/kernel';
+import type { EventBus } from '@wrongstack/core/kernel';
 import { resolveWstackPaths, sessionScopedPath } from '@wrongstack/core/utils';
 import type { TuiRuntimeState } from './tui-runtime-state.js';
 

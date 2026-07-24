@@ -30,7 +30,7 @@
 
 import { atomicWrite, color, isStdinTTY } from '@wrongstack/core/utils';
 import { HQ_CLI_DEFAULT_HOST } from '@wrongstack/core/hq';
-import { type LaunchMenuChoice } from '@wrongstack/core/types';
+import type { LaunchMenuChoice } from '@wrongstack/core/types';
 import * as fs from 'node:fs/promises';
 import { DEFAULT_PORT as HQ_DEFAULT_PORT } from '../hq-server.js';
 import type { ReadlineInputReader } from '../input-reader.js';

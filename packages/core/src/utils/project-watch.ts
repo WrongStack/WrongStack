@@ -84,13 +84,19 @@ export function watchProjectTree(
       },
     );
     const created: WatchEntry = { watcher, subscribers, dead: false };
+    const retire = (): void => {
+      created.dead = true;
+      if (registry.get(key) === created) registry.delete(key);
+    };
     watcher.on('error', (error) => {
       // A watcher that errored is closed by Node — mark the entry dead so the
       // next acquire creates a fresh one instead of reusing a corpse.
-      created.dead = true;
-      if (registry.get(key) === created) registry.delete(key);
+      retire();
       for (const sub of subscribers) sub.onError?.(error);
     });
+    // Watchers can also close without first emitting `error` (for example when
+    // the watched tree disappears). Never leave that closed handle reusable.
+    watcher.on('close', retire);
     registry.set(key, created);
     entry = created;
   }

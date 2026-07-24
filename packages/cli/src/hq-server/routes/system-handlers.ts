@@ -6,9 +6,9 @@
  */
 
 import type * as http from 'node:http';
-import { WebSocket } from 'ws';
+import type { WebSocket } from 'ws';
 import type { HqCommandAuditLog, HqEventEnvelope, HqPersistence } from '@wrongstack/core/hq';
-import { HqAlertEngine } from '@wrongstack/core/hq';
+import type { HqAlertEngine } from '@wrongstack/core/hq';
 import type { ConnectedClient } from '../types.js';
 
 export async function handleApiSystemUpdate(res: http.ServerResponse): Promise<void> {

@@ -1,12 +1,12 @@
 import { Agent, type AgentPipelines, type Context, createDefaultPipelines } from '@wrongstack/core/agent';
 import { applyModelRuntime, AutoCompactionMiddleware } from '@wrongstack/core/execution';
-import { type Config, type Logger, type ModelsRegistry, type Provider } from '@wrongstack/core/types';
+import type { Config, Logger, ModelsRegistry, Provider } from '@wrongstack/core/types';
 import type { SessionEventBridge } from '@wrongstack/core/storage';
 import { createSessionEventBridge, resolveAuditLevel } from '@wrongstack/core/storage';
 import { type EventBus, TOKENS } from '@wrongstack/core/kernel';
 import { estimateRequestTokensCalibrated } from '@wrongstack/core/utils';
 import { resolveContextWindowPolicy } from '@wrongstack/core/types';
-import { type ProviderRegistry, type ToolRegistry } from '@wrongstack/core/registry';
+import type { ProviderRegistry, ToolRegistry } from '@wrongstack/core/registry';
 import { ToolExecutor } from '@wrongstack/core/execution';
 import { resolveRuntimeMaxContext } from '../context-limit.js';
 import { bootstrapMailboxBridgeAtStartup } from './mailbox-bridge-bootstrap.js';

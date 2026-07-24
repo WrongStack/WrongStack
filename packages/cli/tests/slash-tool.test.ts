@@ -3,8 +3,8 @@ import * as os from 'node:os';
 import * as path from 'node:path';
 import { DefaultConfigStore } from '@wrongstack/core/storage';
 import { ToolRegistry } from '@wrongstack/core/registry';
-import { type Config, type Tool } from '@wrongstack/core/types';
-import { type Context } from '@wrongstack/core/agent';
+import type { Config, Tool } from '@wrongstack/core/types';
+import type { Context } from '@wrongstack/core/agent';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { buildToolCommand } from '../src/slash-commands/tool.js';
 

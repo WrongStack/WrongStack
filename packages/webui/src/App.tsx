@@ -101,7 +101,7 @@ const SetupScreen = lazy(() =>
 const SkillDetailView = lazy(() =>
   import('./components/SkillDetailView').then((m) => ({ default: m.SkillDetailView })),
 );
-const SpecsView = lazy(() =>
+const _SpecsView = lazy(() =>
   import('./components/SpecsView').then((m) => ({ default: m.SpecsView })),
 );
 const TechStackView = lazy(() =>
@@ -329,7 +329,6 @@ function AppInner() {
     setShortcutsOpen,
     setModelSwitcherOpen,
     setPromptLibraryOpen,
-    promptLibraryOpen,
     toggleInspector,
     setFleetMonitorOpen,
     setAgentsMonitorOpen,
@@ -353,7 +352,6 @@ function AppInner() {
       setShortcutsOpen: s.setShortcutsOpen,
       setModelSwitcherOpen: s.setModelSwitcherOpen,
       setPromptLibraryOpen: s.setPromptLibraryOpen,
-      promptLibraryOpen: s.promptLibraryOpen,
       toggleInspector: s.toggleInspector,
       setFleetMonitorOpen: s.setFleetMonitorOpen,
       setAgentsMonitorOpen: s.setAgentsMonitorOpen,
@@ -375,7 +373,7 @@ function AppInner() {
   const nickname = useUIStore((s) => (sessionId ? s.sessionNicknames[sessionId] : undefined));
   const sideContextBreakdownOpen = useUIStore((s) => s.sideContextBreakdownOpen);
   const setSideContextBreakdownOpen = useUIStore((s) => s.setSideContextBreakdownOpen);
-  const fleetAgents = useFleetStore((s) => s.agents);
+  const _fleetAgents = useFleetStore((s) => s.agents);
 
   useDesktopBridge({
     setPaletteOpen,

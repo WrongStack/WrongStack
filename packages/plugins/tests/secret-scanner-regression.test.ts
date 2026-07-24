@@ -38,6 +38,7 @@ interface HookOutcome {
   decision?: string;
   reason?: string;
   modifiedInput?: unknown;
+  additionalContext?: string;
 }
 
 interface MockApi {
@@ -235,6 +236,146 @@ describe('large inputs are scanned, not skipped', () => {
     expect(result?.reason).toContain('unscannable');
     secretScannerPlugin.teardown?.(api as Any);
   });
+});
+
+describe('credential pattern regressions', () => {
+  // Synthetic, non-secret ASCII armor with representative metadata, wrapped
+  // payload lines, and a checksum exercises more than the BEGIN/END framing.
+  const syntheticPgpPrivateKey = [
+    '-----BEGIN PGP PRIVATE KEY BLOCK-----',
+    'Version: OpenPGP.js v5.11.0',
+    'Comment: Regression test fixture',
+    '',
+    'lQOYBGQAAAEBCADZ0Xv3jM9K8pQ2rT6uW1yF4hN7cL5sV8bE0aD3gJ6kM9pR',
+    '2tU5wX8zA1cF4iL7oQ0sV3yY6bB9eE2hH5kK8nN1qQ4tT7wW0zZ3cC6fF9iI',
+    '=AbCd',
+    '-----END PGP PRIVATE KEY BLOCK-----',
+  ].join('\n');
+
+  it('detects and redacts a synthetic PGP private-key block', async () => {
+    const blockApi = makeApi();
+    secretScannerPlugin.setup(blockApi as Any);
+    expect(await matchedTypes(blockApi, syntheticPgpPrivateKey)).toContain('private_key');
+    secretScannerPlugin.teardown?.(blockApi as Any);
+
+    const redactApi = makeApi({
+      extensions: { 'secret-scanner': { mode: 'redact' } },
+    });
+    secretScannerPlugin.setup(redactApi as Any);
+    const result = getPreHook(redactApi)({
+      event: 'PreToolUse',
+      toolName: 'write',
+      toolInput: { path: 'private.asc', content: syntheticPgpPrivateKey },
+      cwd: '/tmp',
+    });
+    expect(result?.decision).toBe('allow');
+    expect(result?.modifiedInput).toBeDefined();
+    const modified = result?.modifiedInput as { content: string };
+    expect(modified.content).toContain('[REDACTED:private_key]');
+    secretScannerPlugin.teardown?.(redactApi as Any);
+  });
+
+  it('preserves JSON structure around a redacted bearer token', async () => {
+    const api = makeApi({
+      extensions: { 'secret-scanner': { mode: 'redact' } },
+    });
+    secretScannerPlugin.setup(api as Any);
+    const bearerToken = ['Bearer', 'abcdefghijklmnop'].join(' ');
+    expect(await matchedTypes(api, bearerToken)).toContain('bearer_token');
+    const result = getPreHook(api)({
+      event: 'PreToolUse',
+      toolName: 'write',
+      toolInput: { path: 'auth.json', content: JSON.stringify({ authorization: bearerToken }) },
+      cwd: '/tmp',
+    });
+    expect(result?.decision).toBe('allow');
+    expect(result?.additionalContext).toContain('redacted 1 credential pattern');
+    expect(result?.modifiedInput).toBeDefined();
+    const modified = result?.modifiedInput as { content: string };
+    const parsed = JSON.parse(modified.content) as Record<string, unknown>;
+    expect(parsed.authorization).toBe('[REDACTED:bearer_token]');
+    secretScannerPlugin.teardown?.(api as Any);
+  });
+
+  const databaseUris = [
+    ['mongodb_uri', 'mongodb'],
+    ['postgres_uri', 'postgres'],
+    ['mysql_uri', 'mysql'],
+    ['redis_uri', 'redis'],
+  ] as const;
+
+  it.each(databaseUris)(
+    'does not classify a credential-free %s as a secret',
+    async (type, scheme) => {
+      const api = makeApi();
+      secretScannerPlugin.setup(api as Any);
+      expect(await matchedTypes(api, `${scheme}://${'localhost'}/db`)).not.toContain(type);
+      secretScannerPlugin.teardown?.(api as Any);
+    },
+  );
+
+  it.each(databaseUris)('detects a password-bearing %s', async (type, scheme) => {
+    const api = makeApi();
+    secretScannerPlugin.setup(api as Any);
+    const sample = `${scheme}://${'user'}:${'password'}@${'localhost'}/db`;
+    expect(await matchedTypes(api, sample)).toContain(type);
+    secretScannerPlugin.teardown?.(api as Any);
+  });
+
+  it.each(databaseUris)('detects a password-bearing %s with an empty username', async (type, scheme) => {
+    const api = makeApi();
+    secretScannerPlugin.setup(api as Any);
+    const sample = `${scheme}://${''}:${'password'}@${'localhost'}/db`;
+    expect(await matchedTypes(api, sample)).toContain(type);
+    secretScannerPlugin.teardown?.(api as Any);
+  });
+
+  const postgresQueryPasswords = [
+    ['first', ['password=', 'first-secret', '&sslmode=require'].join('')],
+    ['middle', ['sslmode=require&password=', 'middle-secret', '&connect_timeout=5'].join('')],
+    ['last', ['sslmode=require&password=', 'last-secret'].join('')],
+  ].map(([position, query]) => [
+    position,
+    ['postgresql', '://', 'localhost', '/app?', query].join(''),
+  ] as const);
+
+  it.each(postgresQueryPasswords)(
+    'blocks a PostgreSQL URI with a %s password query parameter',
+    (_position, sample) => {
+      const api = makeApi();
+      secretScannerPlugin.setup(api as Any);
+      const result = getPreHook(api)({
+        event: 'PreToolUse',
+        toolName: 'write',
+        toolInput: { path: 'database.txt', content: sample },
+        cwd: '/tmp',
+      });
+      expect(result?.decision).toBe('block');
+      expect(result?.reason).toContain('postgres_uri');
+      secretScannerPlugin.teardown?.(api as Any);
+    },
+  );
+
+  it.each(postgresQueryPasswords)(
+    'redacts a PostgreSQL URI with a %s password query parameter',
+    (_position, sample) => {
+      const api = makeApi({
+        extensions: { 'secret-scanner': { mode: 'redact' } },
+      });
+      secretScannerPlugin.setup(api as Any);
+      const result = getPreHook(api)({
+        event: 'PreToolUse',
+        toolName: 'write',
+        toolInput: { path: 'database.txt', content: sample },
+        cwd: '/tmp',
+      });
+      expect(result?.decision).toBe('allow');
+      const modified = result?.modifiedInput as { content: string } | undefined;
+      expect(modified?.content).toMatch(/^\[REDACTED:postgres_uri\](?:&.*)?$/);
+      expect(modified?.content).not.toContain('secret');
+      secretScannerPlugin.teardown?.(api as Any);
+    },
+  );
 });
 
 describe('expanded credential coverage', () => {

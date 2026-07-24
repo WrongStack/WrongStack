@@ -30,14 +30,14 @@ export function AgentDetail({
   agent: SubagentView;
   onClose: () => void;
 }): React.ReactElement {
-  const meta = STATUS_META[agent.status];
+  const _meta = STATUS_META[agent.status];
   const { t } = useAppTranslation();
   const active = agent.status === 'running';
   const tool = agent.currentTool ?? agent.lastTool;
   const elapsed = Date.now() - agent.startedAt;
   const [copied, setCopied] = useState(false);
   const leaderId = useFleetStore((s) => s.leaderId);
-  const isLeader = agent.id === leaderId;
+  const _isLeader = agent.id === leaderId;
   const transcript = useFleetStore((s) => s.agentTranscripts.get(agent.id) ?? EMPTY_AGENT_TRANSCRIPT);
   const ctxPct = Math.min(100, Math.max(0, agent.ctxPct));
 

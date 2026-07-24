@@ -1,5 +1,5 @@
 import { getProcessRegistry } from '@wrongstack/tools';
-import React from 'react';
+import type React from 'react';
 import type { AppViewProps } from './app-view-contract.js';
 import { AgentsMonitor } from './components/agents-monitor.js';
 import { ContextPanel } from './components/context-panel.js';

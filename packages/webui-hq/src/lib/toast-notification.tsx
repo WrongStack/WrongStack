@@ -8,7 +8,6 @@
 
 import { AlertTriangle, CheckCircle2, Info, X, XCircle } from 'lucide-react';
 import type React from 'react';
-import { useEffect } from 'react';
 import { useShallow } from 'zustand/react/shallow';
 import { useToastStore, type ToastSeverity } from './toast-store.js';
 
@@ -19,12 +18,12 @@ const ICON_MAP: Record<ToastSeverity, React.ReactNode> = {
   success: <CheckCircle2 size={16} aria-hidden="true" />,
 };
 
-export function ToastOverlay(): React.ReactElement {
+export function ToastOverlay(): React.ReactElement | null {
   const { toasts, removeToast } = useToastStore(
     useShallow((s) => ({ toasts: s.toasts, removeToast: s.removeToast })),
   );
 
-  if (toasts.length === 0) return <></>;
+  if (toasts.length === 0) return null;
 
   return (
     <div className="hq-toast-container" role="status" aria-live="polite" aria-label="Notifications">

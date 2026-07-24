@@ -1,6 +1,6 @@
 import * as fs from 'node:fs/promises';
 import { color } from '@wrongstack/core/utils';
-import { type ModelMatrixEntry, type ProviderConfig } from '@wrongstack/core/types';
+import type { ModelMatrixEntry, ProviderConfig } from '@wrongstack/core/types';
 import { toErrorMessage } from '@wrongstack/core/utils';
 import { makeProviderFromConfig } from '@wrongstack/providers';
 import type { SubcommandHandler } from '../index.js';

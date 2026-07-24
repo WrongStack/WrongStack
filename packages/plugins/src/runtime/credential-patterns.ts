@@ -100,7 +100,7 @@ export const CREDENTIAL_PATTERNS: readonly CredentialPattern[] = [
   {
     type: 'private_key',
     regex:
-      /(?:^|\n)-----BEGIN (?:RSA|EC|OPENSSH|DSA|PGP)? ?PRIVATE KEY-----[\s\S]*?-----END (?:RSA|EC|OPENSSH|DSA|PGP)? ?PRIVATE KEY-----(?!\S)/g,
+      /(?:^|\n)(?:-----BEGIN (?:RSA|EC|OPENSSH|DSA)? ?PRIVATE KEY-----[\s\S]*?-----END (?:RSA|EC|OPENSSH|DSA)? ?PRIVATE KEY-----|-----BEGIN PGP PRIVATE KEY BLOCK-----[\s\S]*?-----END PGP PRIVATE KEY BLOCK-----)(?!\S)/g,
   },
   // AI/ML provider tokens
   { type: 'huggingface_token', regex: /(?<![A-Za-z0-9])hf_[A-Za-z0-9]{34}(?![A-Za-z0-9])/g },
@@ -128,13 +128,17 @@ export const CREDENTIAL_PATTERNS: readonly CredentialPattern[] = [
   // Bearer tokens
   {
     type: 'bearer_token',
-    regex: /(?:^|[^A-Za-z0-9_.~+/-])Bearer\s+[A-Za-z0-9._~+/-]{12,512}=*(?![A-Za-z0-9._~+/-])/g,
+    regex: /(?<![A-Za-z0-9_.~+/-])Bearer\s+[A-Za-z0-9._~+/-]{12,512}=*(?![A-Za-z0-9._~+/-])/g,
   },
-  // Database URIs
-  { type: 'mongodb_uri', regex: /mongodb(?:\+srv)?:\/\/[^\s"'`]+/g },
-  { type: 'postgres_uri', regex: /postgres(?:ql)?:\/\/[^\s"'`]+/g },
-  { type: 'mysql_uri', regex: /mysql:\/\/[^\s"'`]+/g },
-  { type: 'redis_uri', regex: /redis:\/\/[^\s"'`]+/g },
+  // Database URIs. Require password-bearing user-info; credential-free values stay scannable.
+  { type: 'mongodb_uri', regex: /mongodb(?:\+srv)?:\/\/[^\s:/@"'`]*:[^\s/@"'`]+@[^\s"'`]+/g },
+  {
+    type: 'postgres_uri',
+    regex:
+      /postgres(?:ql)?:\/\/(?:[^\s:/@"'`]*:[^\s/@"'`]+@[^\s"'`]+|[^\s?"'`#]{1,2048}\?(?:(?!password=)[^&\s#"'`]{1,256}&){0,32}password=[^&\s#"'`]{1,4096})/g,
+  },
+  { type: 'mysql_uri', regex: /mysql:\/\/[^\s:/@"'`]*:[^\s/@"'`]+@[^\s"'`]+/g },
+  { type: 'redis_uri', regex: /redis:\/\/[^\s:/@"'`]*:[^\s/@"'`]+@[^\s"'`]+/g },
 ];
 
 /** Fresh, independently-stateful copies (RegExp `lastIndex` is mutable). */

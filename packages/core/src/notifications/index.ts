@@ -36,13 +36,13 @@
  * @public
  */
 
-export {
-  type NotificationChannel,
-  type NotificationChannelStatus,
-  type NotificationLevel,
-  type NotificationMessage,
-  type NotificationResult,
-  type Notifier,
-  type NotifierCounters,
+export type {
+  NotificationChannel,
+  NotificationChannelStatus,
+  NotificationLevel,
+  NotificationMessage,
+  NotificationResult,
+  Notifier,
+  NotifierCounters,
 } from './notifier.js';
 export { NotifierImpl } from './notifier-impl.js';

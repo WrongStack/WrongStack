@@ -155,7 +155,7 @@ export const Entry = React.memo(function Entry({
    * `kind: 'thinking'` entries render as an empty fragment. Default: true.
    */
   showModelReasoning?: boolean | undefined;
-}): React.ReactElement {
+}): React.ReactElement | null {
   // Whether the agent still has open (pending/in_progress) todos. While it
   // does, finishing them takes priority over offering `<nextsteps>` — both
   // the host callback (execution.ts → parseSuggestionsFromOutput) and this
@@ -223,7 +223,7 @@ export const Entry = React.memo(function Entry({
       );
     case 'thinking': {
       // Hidden when the user disables model reasoning display.
-      if (showModelReasoning === false) return <></>;
+      if (showModelReasoning === false) return null;
       const contentWidth = assistantContentWidth(termWidth);
       return (
         <Box

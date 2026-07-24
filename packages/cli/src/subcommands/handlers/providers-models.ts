@@ -1,6 +1,6 @@
 import * as fs from 'node:fs/promises';
 import { atomicWrite, color, expectDefined } from '@wrongstack/core/utils';
-import { type Capabilities } from '@wrongstack/core/types';
+import type { Capabilities } from '@wrongstack/core/types';
 import { decryptConfigSecrets, encryptConfigSecrets } from '@wrongstack/core/security';
 import { ConfigError, type CustomModelDefinition, type ProviderConfig, type WireFamily } from '@wrongstack/core/types';
 import { mutateConfigProviders } from '../../provider-config-utils.js';

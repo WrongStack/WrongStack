@@ -55,4 +55,3 @@ interface RelatedMemoryInput {
 }
 
 export declare function relatedMemoryTool(memory: MemoryStore): Tool<RelatedMemoryInput, SearchMemoryOutput>;
-export {};

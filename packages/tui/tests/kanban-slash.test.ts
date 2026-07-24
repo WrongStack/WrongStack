@@ -14,7 +14,6 @@
 
 import type {
   KanbanBoard,
-  KanbanBoardSummary,
   KanbanColumn,
   KanbanQueueHealth,
   KanbanTask,

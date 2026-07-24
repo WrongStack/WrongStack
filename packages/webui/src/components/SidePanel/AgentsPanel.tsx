@@ -9,7 +9,6 @@ import { Bot, CheckCircle2, LayoutGrid, ListFilter, Trash2 } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useShallow } from 'zustand/react/shallow';
 import { cn } from '@/lib/utils';
-import type { SubagentView } from '@/stores';
 import { selectLeaderName, selectSortedAgentList, useFleetStore, useUIStore } from '@/stores';
 import { useAppTranslation } from '@/i18n';
 import { FleetSummaryBar } from '@/components/agents/FleetSummaryBar';
@@ -17,11 +16,15 @@ import { AgentRosterCard } from '@/components/agents/AgentRosterCard';
 
 type AgentFilter = 'all' | 'running' | 'completed' | 'failed';
 
-const FILTER_OPTIONS: { value: AgentFilter; label: string }[] = [
-  { value: 'all', label: 'All' },
-  { value: 'running', label: 'Running' },
-  { value: 'completed', label: 'Done' },
-  { value: 'failed', label: 'Failed' },
+const FILTER_OPTIONS: Array<{
+  value: AgentFilter;
+  label: string;
+  translationKey: `activity:agents.filter${string}`;
+}> = [
+  { value: 'all', label: 'All', translationKey: 'activity:agents.filterAll' },
+  { value: 'running', label: 'Running', translationKey: 'activity:agents.filterRunning' },
+  { value: 'completed', label: 'Done', translationKey: 'activity:agents.filterCompleted' },
+  { value: 'failed', label: 'Failed', translationKey: 'activity:agents.filterFailed' },
 ];
 
 export function AgentsPanel() {
@@ -222,7 +225,7 @@ export function AgentsPanel() {
                 : 'text-muted-foreground hover:text-foreground hover:bg-muted/50',
             )}
           >
-            {t(`activity:agents.filter${opt.value.charAt(0).toUpperCase() + opt.value.slice(1)}` as any)}
+            {t(opt.translationKey)}
           </button>
         ))}
         <span className="flex-1" />

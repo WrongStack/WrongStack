@@ -208,7 +208,7 @@ export function extractFileEditMeta(toolCall: ToolCallInfo): FileEditMeta | null
 }
 
 /** Try to extract a file path from a tool's input for read/glob/grep/replace. */
-function extractPathFromInput(name: string, input: unknown): string | null {
+function extractPathFromInput(_name: string, input: unknown): string | null {
   if (!input || typeof input !== 'object') return null;
   const obj = input as Record<string, unknown>;
 

@@ -10,7 +10,7 @@ import type { IncomingMessage, ClientRequest } from 'node:http';
 
 function createMockResponse(
   statusCode: number,
-  body: string,
+  _body: string,
   headers: Record<string, string> = {},
 ): IncomingMessage {
   const listeners: Record<string, Array<(arg?: unknown) => void>> = {};
@@ -18,7 +18,9 @@ function createMockResponse(
     statusCode,
     headers,
     on(event: string, cb: (arg?: unknown) => void) {
-      (listeners[event] ??= []).push(cb);
+      const eventListeners = listeners[event] ?? [];
+      eventListeners.push(cb);
+      listeners[event] = eventListeners;
       return this as IncomingMessage;
     },
     // Allow the mock to emit events synchronously
@@ -65,7 +67,6 @@ import { get as httpGet } from 'node:http';
 import {
   lookupRegistry,
   clearRegistryCache,
-  type RegistryEntry,
 } from '../src/registry/client.js';
 
 const mockedHttpsGet = vi.mocked(httpsGet);

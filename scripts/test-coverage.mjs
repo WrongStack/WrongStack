@@ -12,6 +12,10 @@ const runs = [
     args: ['test:coverage:root'],
   },
   {
+    label: 'LSP package per-file gate',
+    args: ['--filter', '@wrongstack/plug-lsp', 'test:coverage'],
+  },
+  {
     label: 'WebUI package',
     args: ['--filter', '@wrongstack/webui', 'test:coverage'],
   },

@@ -15,10 +15,7 @@ import {
 import {
   normalizeToolDescriptionMode,
   simplifyToolDescription,
-  DEFAULT_TOOL_DESCRIPTION_MODE,
   applyToolDescriptionModeToTool,
-  applyToolDescriptionModes,
-  type ToolDescriptionRegistryLike,
 } from '../../src/utils/tool-description-mode.js';
 import {
   computeTaskItemProgress,

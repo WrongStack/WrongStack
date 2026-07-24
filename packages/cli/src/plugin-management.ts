@@ -1,6 +1,6 @@
 import * as fs from 'node:fs/promises';
 import { atomicWrite } from '@wrongstack/core/utils';
-import { type Config, type PluginConfig, type PluginManagerConfig } from '@wrongstack/core/types';
+import type { Config, PluginConfig, PluginManagerConfig } from '@wrongstack/core/types';
 import { OFFICIAL_PLUGIN_AUDIT_ENTRIES } from '@wrongstack/plugins/audit';
 
 export interface PluginAuditEntry {

@@ -101,8 +101,8 @@ Each file in `src/hq/` is classified as:
 | `worktree-bridge.ts` | 🟢 EXTERNAL | `startWorktreeTelemetryBridge` used by CLI | |
 | `tool-bridge.ts` | 🟢 EXTERNAL | `startToolTelemetryBridge` used by CLI | |
 | `cost-bridge.ts` | 🟢 EXTERNAL | `startCostTelemetryBridge` used by CLI | |
-| `bridge-context.ts` | 🔴 DEAD | **Zero external consumers.** Contains `BridgeContext` and `startSomethingBridge` — the function name literally starts with "Something", suggesting placeholder/incomplete code | Candidate for removal |
-| `transcript-mapper.ts` | 🔴 DEAD | **Zero external or internal consumers.** `mergeToolResults` and `buildTranscriptFromEvents` are never imported anywhere | Candidate for removal |
+| `bridge-context.ts` | 🟡 INTERNAL | `createBridgeContext` is consumed by five HQ bridge modules | Keep internal; do not remove without migrating those consumers |
+| `transcript-mapper.ts` | 🟢 EXTERNAL | `buildTranscriptFromEvents` is imported by the CLI HQ server and core tests; `mergeToolResults` supports it internally | Keep exported until the CLI consumer is migrated to a supported subpath |
 | `mailbox-mapper.ts` | 🟡 INTERNAL | Consumed by `publisher.ts` internally | Should not be public API |
 | `auth-store.ts` | 🟡 INTERNAL | ~20 exports consumed only by tests and `auth-audit.ts`. Not imported by any external package | Should not be public API |
 | `auth-audit.ts` | 🟡 INTERNAL | Consumed only by tests | Should not be public API |
@@ -112,16 +112,14 @@ Each file in `src/hq/` is classified as:
 | `redaction.ts` | 🟡 INTERNAL | `tightenHqRedactionPolicy`, `redactHqValue` consumed only by tests | Should not be public API |
 | `persistence.ts` | 🟡 INTERNAL | `HqEventLog`, `HqSnapshotStore`, `HqKanbanStore`, `HqTimeseriesStore`, `HqSimpleLog`, `HqPersistence`, `createHqPersistence` — 7 classes consumed only by tests | Should not be public API |
 
-#### 2.4 Actions Taken (2026-07-24)
+#### 2.4 Recommended Actions
 
 | Action | File | Detail |
 |--------|------|--------|
-| ✅ Removed from barrel | `bridge-context.ts` | `export *` line removed from `hq/index.ts`. File kept on disk — 5 bridge files import `createBridgeContext` internally |
-| ✅ Removed from barrel | `transcript-mapper.ts` | `export *` line removed from `hq/index.ts`. File kept on disk — `session-bridge.ts` imports `mapSessionEventToEntries` internally |
-| ✅ Pruned dead exports | `transcript-mapper.ts` | `mergeToolResults()` and `buildTranscriptFromEvents()` had zero consumers — removed entirely (165 lines) |
-| ✅ Removed from barrel | `auth-audit.ts`, `auth-store.ts`, `exposure.ts`, `commands.ts`, `alerts.ts`, `redaction.ts`, `persistence.ts`, `mailbox-mapper.ts` | All 8 internal-only files removed from public barrel. Files stay in source tree |
-| ✅ Typecheck post-cleanup | `packages/core` | 0 errors, 0 warnings |
-| ✅ Lint post-cleanup | `packages/core/src/hq` | 0 errors, 0 warnings |
+| Migrate before narrowing the barrel | `bridge-context.ts` | Five HQ bridge modules consume `createBridgeContext`; keep the current export until those imports use a supported internal subpath |
+| Preserve the public CLI dependency | `transcript-mapper.ts` | The CLI HQ server imports `buildTranscriptFromEvents` from `@wrongstack/core/hq`; `mergeToolResults()` remains part of that implementation |
+| Audit before removing barrel exports | `auth-audit.ts`, `auth-store.ts`, `exposure.ts`, `commands.ts`, `alerts.ts`, `redaction.ts`, `persistence.ts`, `mailbox-mapper.ts` | `hq/index.ts` still contains all 19 wildcard exports; migrate workspace consumers and verify the published API before narrowing it |
+| Verify any future cleanup | `packages/core` | Run the project typecheck and linter after changing the public export surface |
 
 ### 2.5 HQ Module Summary
 
@@ -148,16 +146,16 @@ Each file in `src/hq/` is classified as:
 │  ├── persistence.ts                                  │
 │  └── mailbox-mapper.ts                               │
 │                                                      │
-│  🔴 DEAD (zero consumers — remove entirely)          │
-│  ├── bridge-context.ts (has placeholder name!)       │
-│  └── transcript-mapper.ts                            │
+│  🟡 INTERNAL / SHARED (migrate before narrowing)     │
+│  ├── bridge-context.ts (used by HQ bridge modules)   │
+│  └── transcript-mapper.ts (used by CLI HQ server)    │
 │                                                      │
 └─────────────────────────────────────────────────────┘
 ```
 
 **Actionable estimate:**
-- **2 files** (bridge-context.ts, transcript-mapper.ts) → safe to **delete** entirely
-- **8 files** → remove from the public `hq/index.ts` barrel; keep as internal-only modules
+- **2 shared files** (`bridge-context.ts`, `transcript-mapper.ts`) → keep until current bridge and CLI consumers are migrated
+- **8 internal candidates** → audit and migrate consumers before removing them from the public `hq/index.ts` barrel
 - **11 files** (protocol types + publisher + factory + 7 bridges) → keep as public API
 
 ---
@@ -387,58 +385,15 @@ Files that are disproportionately large for their role:
 
 ---
 
-## 8. Actions Completed (2026-07-24)
+## 8. Recommended Public API Cleanup
 
-### 8.1 HQ Module — Public API Cleanup
+### 8.1 HQ Module
 
-**Barrel `src/hq/index.ts`:** 19 `export *` lines reduced to 9.
+`src/hq/index.ts` currently contains 19 wildcard exports. The proposed reduction to a smaller, explicitly reviewed public surface has not yet been applied; internal modules must remain exported until their production and test consumers are migrated to supported subpaths.
 
-| Removed from public API | Reason |
-|------------------------|--------|
-| `bridge-context.ts` | Internal utility — 5 bridge files import `createBridgeContext`. File stays on disk. |
-| `transcript-mapper.ts` | Internal — `session-bridge.ts` imports `mapSessionEventToEntries`. File stays. |
-| `auth-store.ts`, `auth-audit.ts` | Internal-only — consumed only by tests |
-| `exposure.ts`, `commands.ts` | Internal-only — consumed only by tests |
-| `alerts.ts`, `redaction.ts` | Internal-only — consumed only by tests |
-| `persistence.ts`, `mailbox-mapper.ts` | Internal-only |
+### 8.2 Core Barrel
 
-**Dead export pruning in `transcript-mapper.ts`:** Removed `mergeToolResults()` and `buildTranscriptFromEvents()` — both had zero consumers anywhere in the monorepo (verified via grep). **-165 lines.**
-
-**Verification after cleanup:**
-- `tsc --noEmit` ✅ 0 errors, 0 warnings
-- `biome lint` ✅ 0 errors, 0 warnings
-
-### 8.2 Core Barrel — Explicit Named Re-exports
-
-**`src/index.ts`:** All 12 `export *` lines replaced with explicit named re-exports.
-
-| Wildcard export | Symbols (new) | Breakdown |
-|----------------|--------------|-----------|
-| `./chronicle/index.js` | 23 | 11 value, 12 type |
-| `./coordination/index.js` | 10 | 8 value, 2 type |
-| `./defaults/index.js` | 17 | 14 value, 3 type |
-| `./hq/index.js` | 120 | 20 value, 100 type |
-| `./kernel/index.js` | 3 | 2 value, 1 type |
-| `./observability/network-telemetry.js` | 3 | 2 value, 1 type |
-| `./observability/process-telemetry.js` | 5 | 4 value, 1 type |
-| `./prompts/index.js` | 1 | 1 value, 0 type |
-| `./skills/index.js` | 4 | 4 value, 0 type |
-| `./storage/index.js` | 8 | 3 value, 5 type |
-| `./types/index.js` | 365 | 64 value, 301 type |
-| `./utils/index.js` | 90 | 68 value, 22 type |
-| **Total** | **649** | |
-
-Before: 935 lines, 12 wildcards. After: 957 lines, **zero wildcards**. Every symbol is now explicitly listed.
-
-**Impact:**
-- Enables accurate dead code detection (no more false positives from `export *` chains)
-- Defines a stable, auditable public API surface
-- Type/value distinction is correct per `isolatedModules` requirement
-- Consumers can now reliably know which exports are committed vs incidental
-
-**Verification after conversion:**
-- `tsc --noEmit` ✅ 0 errors, 0 warnings
-- `biome lint` ✅ 0 errors, 0 warnings
+`src/index.ts` currently retains 12 wildcard exports. Replacing them with explicit named exports remains a recommendation, not a completed action. Any future cleanup must preserve the published `@wrongstack/core` API and be verified against all workspace consumers with the project typecheck and linter.
 
 ### 8.3 Dead Export Pruning — autonomy-brain.ts
 
@@ -491,13 +446,13 @@ These types are part of the public API (exported via `types/index.ts` and re-exp
 
 ## 9. Updated Prioritized Action Plan
 
-### ✅ Completed (P0–P1 equivalents)
+### Completed and audited items
 
 | Item | Status |
 |------|--------|
-| HQ public API cleanup — removed 10 internal files from barrel | ✅ Done |
-| Dead export pruning in transcript-mapper.ts | ✅ Done |
-| Core barrel `export *` → explicit named re-exports | ✅ Done |
+| HQ public API cleanup | Recommended; 19 wildcard exports remain |
+| Dead export pruning in transcript-mapper.ts | Recommended; exports remain |
+| Core barrel explicit named re-exports | Recommended; 12 wildcard exports remain |
 | autonomy-brain.ts dead export pruning (3 types internalized) | ✅ Done |
 | Type audit — identified 9 dead public type exports | ✅ Audited |
 | boot.test.ts mock reset fix | ✅ Done |
@@ -542,7 +497,7 @@ These types are part of the public API (exported via `types/index.ts` and re-exp
 ```
 File                           Status   External Consumers
 ────────────────────────────────────────────────────────────
-hq/index.ts (barrel)            ✅       Public: 9 files, Internal: 10 files removed
+hq/index.ts (barrel)            ⚠️       19 wildcard exports; cleanup recommended
 hq/publisher.ts                 🟢      CLI, webui-server
 hq/factory.ts                   🟢      CLI, webui-server
 hq/session-bridge.ts            🟢      CLI, webui-server
@@ -553,7 +508,7 @@ hq/tool-bridge.ts               🟢      CLI
 hq/cost-bridge.ts               🟢      CLI
 hq/protocol/*.ts (10 files)     🟢      webui-server, webui-hq
 hq/bridge-context.ts            🟡      Internal (5 bridge files consume createBridgeContext)
-hq/transcript-mapper.ts         🟡      Internal (session-bridge.ts consumes mapSessionEventToEntries)
+hq/transcript-mapper.ts         🟢      CLI HQ server, core tests
 hq/auth-store.ts / auth-audit   🟡      Internal only
 hq/exposure.ts / commands.ts    🟡      Internal only
 hq/alerts.ts / redaction.ts     🟡      Internal only
@@ -563,4 +518,4 @@ hq/mailbox-mapper.ts            🟡      Internal only
 
 ---
 
-*Some files modified during analysis — see "Actions Completed" section for details.*
+*Some files modified during analysis — see the audited items and recommendations above for details.*

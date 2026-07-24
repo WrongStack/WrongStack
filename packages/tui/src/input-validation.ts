@@ -748,8 +748,7 @@ export function validateKeyEventFields(key: Record<string, unknown>): Validation
  */
 export function validateAction(action: {
   type: string;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  [key: string]: any;
+  [key: string]: unknown;
 }): ValidationResult<Record<string, unknown>> {
   const type = String(action.type);
 
@@ -822,7 +821,8 @@ export function validateAction(action: {
       if (!entry || typeof entry !== 'object') {
         return { valid: false, error: 'addEntry.entry: missing or non-object.' };
       }
-      const kind = String(entry.kind ?? '');
+      const entryRecord = entry as Record<string, unknown>;
+      const kind = String(entryRecord['kind'] ?? '');
       if (!ALLOWED_ENTRY_KINDS.has(kind)) {
         return {
           valid: false,
@@ -830,7 +830,7 @@ export function validateAction(action: {
         };
       }
       if (TEXT_BEARING_ENTRY_KINDS.has(kind)) {
-        const text = entry.text;
+        const text = entryRecord['text'];
         if (typeof text === 'string' && text.length > MAX_ENTRY_TEXT_CHARS) {
           return {
             valid: false,
@@ -1658,8 +1658,7 @@ export function validateRestoreEntry(
  */
 export function ensureValidAction(action: {
   type: string;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  [key: string]: any;
+  [key: string]: unknown;
 }): Record<string, unknown> {
   const result = validateAction(action);
   if (!result.valid) {
@@ -1676,8 +1675,7 @@ export function ensureValidAction(action: {
 export function safeDispatch(
   action: {
     type: string;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    [key: string]: any;
+    [key: string]: unknown;
   },
   dispatch: (action: Record<string, unknown>) => void,
 ): boolean {

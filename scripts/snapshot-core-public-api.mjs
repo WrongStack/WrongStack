@@ -211,9 +211,8 @@ function buildUsageSnapshot() {
       const clause = match[3] ?? '';
       const named = clause.match(/\{([\s\S]*?)\}/u)?.[1];
       const allNamedTypeOnly =
-        named !== undefined &&
         named
-          .split(',')
+          ?.split(',')
           .map((part) => part.trim())
           .filter(Boolean)
           .every((part) => /^type\s+/u.test(part));
