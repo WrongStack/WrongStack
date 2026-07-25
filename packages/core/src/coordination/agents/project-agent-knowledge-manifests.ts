@@ -3,21 +3,14 @@ import type { RoleKnowledgeManifest } from './project-agent-identity.js';
 export const BUILT_IN_KNOWLEDGE_MANIFESTS: Record<string, RoleKnowledgeManifest> = {
   android: {
     role: 'android',
+    // Only machine-readable JSON registries belong in liveQueries. Android
+    // release/API data has no JSON registry endpoint, so those checks stay as
+    // checklist prose below.
     liveQueries: {
-      agp: {
-        registry: 'https://developer.android.com/build/releases/gradle-plugin',
-        key: 'latest',
-        description: 'Android Gradle Plugin latest stable',
-      },
       kotlin: {
         registry: 'https://registry.npmjs.org/kotlin/latest',
         key: 'version',
         description: 'Kotlin latest stable',
-      },
-      compileSdk: {
-        registry: 'https://developer.android.com/about/versions',
-        key: 'api_level',
-        description: 'Current stable API level',
       },
     },
     checklist: [
@@ -58,7 +51,7 @@ export const BUILT_IN_KNOWLEDGE_MANIFESTS: Record<string, RoleKnowledgeManifest>
       node: {
         registry: 'https://registry.npmjs.org/node/latest',
         key: 'version',
-        description: 'Node.js latest LTS',
+        description: 'Node.js latest release',
       },
     },
     checklist: [

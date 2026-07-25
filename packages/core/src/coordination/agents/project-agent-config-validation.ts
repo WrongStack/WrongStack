@@ -64,6 +64,8 @@ export function validateProjectAgentConfig(value: unknown): ProjectAgentConfig {
     if (path.posix.isAbsolute(cwd) || /^[a-z]:\//i.test(cwd) || cwd.split('/').includes('..')) {
       throw new Error('Project agent config "cwd" must stay inside the assigned checkout.');
     }
+    // Normalize before returning so the checked value is the value used at runtime.
+    value.cwd = cwd;
   }
   if (
     value.worktree !== undefined &&
