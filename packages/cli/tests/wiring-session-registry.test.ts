@@ -23,6 +23,7 @@ const t = vi.hoisted(() => {
   const createGracefulShutdownMock = vi.fn(() => ({ install: installMock }));
   const registerMock = vi.fn();
   const markClosingMock = vi.fn();
+  // biome-ignore lint/complexity/useArrowFunction: vi.fn constructor mocks must be function() so `new` works
   const getSessionRegistryMock = vi.fn(function () {
     return {
       register: registerMock,
@@ -31,11 +32,13 @@ const t = vi.hoisted(() => {
   });
   const startMock = vi.fn();
   const stopMock = vi.fn();
+  // biome-ignore lint/complexity/useArrowFunction: vi.fn constructor mocks must be function() so `new` works
   const AgentStatusTrackerMock = vi.fn(function () {
     return { start: startMock, stop: stopMock };
   });
   const notifyMock = vi.fn();
   const disposeMock = vi.fn();
+  // biome-ignore lint/complexity/useArrowFunction: vi.fn constructor mocks must be function() so `new` works
   const FleetNotifierMock = vi.fn(function () {
     return { notify: notifyMock, dispose: disposeMock };
   });
@@ -94,12 +97,15 @@ beforeEach(() => {
   // Re-apply constructor implementations (clearAllMocks resets call history
   // but not mockImplementation — without this, error-case tests that set
   // mockImplementation(() => { throw ... }) would pollute subsequent tests).
+  // biome-ignore lint/complexity/useArrowFunction: vi.fn constructor mocks must be function() so `new` works
   t.getSessionRegistryMock.mockImplementation(function () {
     return { register: t.registerMock, markClosing: t.markClosingMock };
   });
+  // biome-ignore lint/complexity/useArrowFunction: vi.fn constructor mocks must be function() so `new` works
   t.AgentStatusTrackerMock.mockImplementation(function () {
     return { start: t.startMock, stop: t.stopMock };
   });
+  // biome-ignore lint/complexity/useArrowFunction: vi.fn constructor mocks must be function() so `new` works
   t.FleetNotifierMock.mockImplementation(function () {
     return { notify: t.notifyMock, dispose: t.disposeMock };
   });
