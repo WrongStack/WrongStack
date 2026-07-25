@@ -274,7 +274,7 @@ export function handleSessionStart(msg: WSServerMessage) {
   }
 
   if (isReset) {
-    useMemoryInjectorTraceStore.getState().resetContext();
+    useMemoryInjectorTraceStore.getState().clear();
     useSessionStore.getState().startSession({
       id: payload.sessionId,
       startedAt: Date.now(),
