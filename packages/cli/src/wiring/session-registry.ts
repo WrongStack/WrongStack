@@ -29,7 +29,7 @@ export interface SetupSessionRegistryDeps {
 
 export interface SetupSessionRegistryResult {
   /** AgentStatusTracker when the dynamic import and setup succeeded, else undefined. */
-  tracker: any | undefined;
+  tracker: InstanceType<typeof import('@wrongstack/core/storage').AgentStatusTracker> | undefined;
 }
 
 export async function setupSessionRegistry(
