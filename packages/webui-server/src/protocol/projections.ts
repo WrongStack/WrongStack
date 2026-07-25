@@ -43,6 +43,8 @@ export interface SessionProjection {
   maxContext: number;
   reset: boolean;
   replayMessages: unknown[] | null;
+  /** Audit markers replayed alongside the conversation. */
+  replayMarkers: unknown[] | null;
   replayUsage: Record<string, unknown> | null;
 }
 
@@ -60,6 +62,7 @@ export function projectSessionMessage(message: ProtocolEnvelope): SessionProject
     maxContext: finite(payload['maxContext']),
     reset: payload['reset'] === true,
     replayMessages: Array.isArray(payload['replayMessages']) ? payload['replayMessages'] : null,
+    replayMarkers: Array.isArray(payload['replayMarkers']) ? payload['replayMarkers'] : null,
     replayUsage: record(payload['replayUsage']),
   };
 }

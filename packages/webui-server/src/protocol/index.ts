@@ -34,6 +34,12 @@ export {
   type ToolProjection,
 } from './projections.js';
 export {
+  buildReplayPayload,
+  REPLAY_MESSAGE_CAP,
+  type ReplayPayloadFields,
+  type ReplaySource,
+} from './replay-payload.js';
+export {
   CLIENT_MESSAGE_TYPES,
   type ExactClientMessageType,
   type ExactServerMessageType,

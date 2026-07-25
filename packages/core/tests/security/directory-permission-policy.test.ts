@@ -463,6 +463,25 @@ describe('DirectoryPermissionPolicy', () => {
     expect(trace.steps.filter((step) => step.rule === 'target path')).toHaveLength(2);
   });
 
+  it('enforces mutating glob selectors that may overlap protected directories', async () => {
+    const wrapper = new DirectoryPermissionPolicy(allowInner(), {
+      policy: policy([{ directory: 'infra/**', denyTools: ['write'] }]),
+    });
+    const ctx = makeCtx(projectRoot);
+
+    for (const files of ['**/*.ts', 'infra/**/*.ts']) {
+      const input = { files };
+      const result = await wrapper.evaluate(writeTool, input, ctx);
+      const trace = await wrapper.explain(writeTool, input, ctx);
+      expect(result.permission).toBe('deny');
+      expect(trace.decision).toEqual(result);
+      expect(trace.subject).toBe(files);
+    }
+
+    const allowed = await wrapper.evaluate(writeTool, { files: 'src/**/*.ts' }, ctx);
+    expect(allowed.permission).toBe('auto');
+  });
+
   it('enforces secondary scalar source and destination paths', async () => {
     const wrapper = new DirectoryPermissionPolicy(allowInner(), {
       policy: policy([{ directory: 'infra/**', denyTools: ['write'] }]),

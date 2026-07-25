@@ -27,8 +27,8 @@
       "relativeImports": 1
     },
     "packages/cli/src/hq-server/routes.ts": {
-      "lines": 1426,
-      "relativeImports": 10
+      "lines": 1380,
+      "relativeImports": 8
     },
     "packages/cli/src/picker.ts": {
       "lines": 1181,
@@ -39,7 +39,7 @@
       "relativeImports": 12
     },
     "packages/cli/src/slash-commands/brain.ts": {
-      "lines": 918,
+      "lines": 942,
       "relativeImports": 1
     },
     "packages/cli/src/slash-commands/kanban.ts": {
@@ -67,7 +67,7 @@
       "relativeImports": 4
     },
     "packages/cli/src/webui-server.ts": {
-      "lines": 1327,
+      "lines": 1328,
       "relativeImports": 15
     },
     "packages/core/src/agent-status-tracker.ts": {
@@ -75,7 +75,7 @@
       "relativeImports": 2
     },
     "packages/core/src/coordination/agents/project-agent-identity.ts": {
-      "lines": 2484,
+      "lines": 2483,
       "relativeImports": 1
     },
     "packages/core/src/coordination/autonomous-coordinator.ts": {
@@ -131,7 +131,7 @@
       "relativeImports": 8
     },
     "packages/core/src/execution/brain-runtime.ts": {
-      "lines": 988,
+      "lines": 1002,
       "relativeImports": 12
     },
     "packages/core/src/execution/compaction-core.ts": {
@@ -315,7 +315,7 @@
       "relativeImports": 9
     },
     "packages/tui/src/input-validation.ts": {
-      "lines": 1709,
+      "lines": 1707,
       "relativeImports": 3
     },
     "packages/tui/src/kanban-slash.ts": {
@@ -331,7 +331,7 @@
       "relativeImports": 18
     },
     "packages/webui/src/App.tsx": {
-      "lines": 872,
+      "lines": 870,
       "relativeImports": 45
     },
     "packages/webui/src/components/AgentOfficeView.tsx": {
@@ -363,7 +363,7 @@
       "relativeImports": 1
     },
     "packages/webui/src/components/ContextDashboard.tsx": {
-      "lines": 886,
+      "lines": 887,
       "relativeImports": 2
     },
     "packages/webui/src/components/FileActivityDrawer.tsx": {
@@ -383,15 +383,15 @@
       "relativeImports": 8
     },
     "packages/webui/src/components/OfficeMapCanvas.tsx": {
-      "lines": 1569,
+      "lines": 1558,
       "relativeImports": 7
     },
     "packages/webui/src/components/SettingsPanel/BrainSection.tsx": {
-      "lines": 1049,
+      "lines": 1064,
       "relativeImports": 5
     },
     "packages/webui/src/components/SettingsPanel/index.tsx": {
-      "lines": 1202,
+      "lines": 1200,
       "relativeImports": 19
     },
     "packages/webui/src/components/SettingsPanel/MCPSection.tsx": {
@@ -419,7 +419,7 @@
       "relativeImports": 5
     },
     "packages/webui/src/hooks/ws-handlers/session-handlers.ts": {
-      "lines": 938,
+      "lines": 978,
       "relativeImports": 0
     },
     "packages/webui/src/hooks/ws-handlers.ts": {
@@ -435,7 +435,7 @@
       "relativeImports": 0
     },
     "packages/webui/src/types.ts": {
-      "lines": 3400,
+      "lines": 3412,
       "relativeImports": 0
     },
     "packages/webui-server/src/server/collaboration-ws-handler.ts": {
@@ -455,7 +455,7 @@
       "relativeImports": 8
     },
     "packages/webui-server/src/server/start-webui.ts": {
-      "lines": 894,
+      "lines": 895,
       "relativeImports": 17
     },
     "packages/webui-server/src/server/ws-payload-validation.ts": {

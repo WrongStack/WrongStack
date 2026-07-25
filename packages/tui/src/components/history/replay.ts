@@ -1,4 +1,5 @@
-import type { DistributiveOmit, Message, SessionEvent } from '@wrongstack/core/types';
+import type { DistributiveOmit, Message, SessionEvent, SessionMarker } from '@wrongstack/core/types';
+import { SESSION_MARKER_EVENT_TYPES, sessionEventToMarker } from '@wrongstack/core/types';
 import type { HistoryEntry } from './types.js';
 
 /**
@@ -46,23 +47,40 @@ import type { HistoryEntry } from './types.js';
  * backbone. Conversation-bearing events (user_input/llm_response/tool_*) are
  * intentionally excluded — those come from `messages` so both legacy logs and
  * the modern `message_appended` journal reconstruct identically.
+ *
+ * The set and the wording both live in core (`types/session-markers.ts`) so the
+ * TUI, WebUI, SimpleUI and HQ cannot drift on what a resumed session says.
  */
-const MARKER_EVENT_TYPES: ReadonlySet<SessionEvent['type']> = new Set([
-  'mode_changed',
-  'compaction',
-  'checkpoint',
-  'skill_activated',
-  'skill_deactivated',
-  'agent_spawned',
-  'agent_stopped',
-  'agent_error',
-  'error',
-  'provider_retry',
-  'provider_error',
-  'message_truncated',
-]);
+const MARKER_EVENT_TYPES = SESSION_MARKER_EVENT_TYPES;
 
 type PreEntry = DistributiveOmit<HistoryEntry, 'id'>;
+
+/** Presentation for the subagent lifecycle markers, keyed by source event. */
+const SUBAGENT_MARKER_STYLE: Record<string, { color: string; icon: string }> = {
+  agent_spawned: { color: 'magenta', icon: '⚡' },
+  agent_stopped: { color: 'gray', icon: '⊘' },
+  agent_error: { color: 'red', icon: '✗' },
+};
+
+/**
+ * Render a core {@link SessionMarker} as a TUI history entry. Only the visual
+ * treatment is decided here — the text came from core.
+ */
+function markerToEntry(marker: SessionMarker): PreEntry {
+  if (marker.agentId !== undefined) {
+    const style = SUBAGENT_MARKER_STYLE[marker.source] ?? { color: 'gray', icon: '·' };
+    return {
+      kind: 'subagent',
+      agentLabel: marker.agentId.slice(0, 8),
+      agentColor: style.color,
+      icon: style.icon,
+      text: marker.text,
+    } as PreEntry;
+  }
+  if (marker.level === 'error') return { kind: 'error', text: marker.text };
+  if (marker.level === 'warn') return { kind: 'warn', text: marker.text };
+  return { kind: 'info', text: marker.text };
+}
 
 /** Truncate a tool_result body to the same ~400-char preview used live. */
 function toolOutputPreview(content: unknown): string {
@@ -211,6 +229,18 @@ export function replaySessionMessages(
   return entries;
 }
 
+/**
+ * Raw-event replay: renders the JSONL stream directly, without the
+ * reconstructed message backbone.
+ *
+ * @deprecated Not the resume renderer. Use {@link replaySessionMessages} —
+ * it is the canonical one, and the only one both the boot `--resume` path and
+ * the in-session resume picker use. This variant cannot reconstruct sessions
+ * written through the exact message journal (`message_appended`/`_updated`/
+ * `_replaced`), because those events carry the conversation and this function
+ * ignores them. Kept for the legacy event-only tests and any embedder holding
+ * a bare event array; deliberately absent from the package barrel.
+ */
 export function replaySessionEvents(events: SessionEvent[], startId: number): HistoryEntry[] {
   const entries: HistoryEntry[] = [];
   let nextId = startId;
@@ -253,12 +283,20 @@ export function replaySessionEvents(events: SessionEvent[], startId: number): Hi
  * Convert a single SessionEvent to a HistoryEntry (or null if the event
  * should be skipped in the display). `pendingTools` is mutated to pair
  * tool_use events with their subsequent tool_result.
+ *
+ * Audit markers are delegated to core's shared projector; only the
+ * conversation-bearing events are rendered here, because only the TUI pairs
+ * tool_use/tool_result into a single entry.
  */
 function eventToEntry(
   ev: SessionEvent,
   pendingTools: Map<string, { name: string; input: unknown; ts: string }>,
   completedTools: Map<string, Extract<HistoryEntry, { kind: 'tool' }>>,
 ): DistributiveOmit<HistoryEntry, 'id'> | null {
+  if (MARKER_EVENT_TYPES.has(ev.type)) {
+    const marker = sessionEventToMarker(ev);
+    return marker ? markerToEntry(marker) : null;
+  }
   switch (ev.type) {
     case 'user_input': {
       const text =
@@ -340,114 +378,6 @@ function eventToEntry(
         outputBytes: ev.outputBytes,
         outputTokens: ev.outputTokens,
         outputLines: ev.outputLines,
-      };
-    }
-
-    case 'compaction': {
-      const before = (ev.before / 1000).toFixed(0);
-      const after = (ev.after / 1000).toFixed(0);
-      const level = ev.level ? ` (${ev.level})` : '';
-      const reductions =
-        ev.reductions && ev.reductions.length > 0
-          ? ` [${ev.reductions.map((r) => `${r.phase}: −${r.saved}`).join(', ')}]`
-          : '';
-      return {
-        kind: 'info',
-        text: `⟲ context compacted${level}: ${before}K → ${after}K tokens${reductions}`,
-      };
-    }
-
-    case 'error': {
-      return {
-        kind: 'error',
-        text: ev.phase ? `[${ev.phase}] ${ev.message}` : ev.message,
-      };
-    }
-
-    case 'provider_retry': {
-      const secs = (ev.delayMs / 1000).toFixed(ev.delayMs >= 1000 ? 1 : 2);
-      return {
-        kind: 'warn',
-        text: ev.status
-          ? `⟳ retry ${ev.attempt} (HTTP ${ev.status}) after ${secs}s — ${ev.description}`
-          : `⟳ retry ${ev.attempt} after ${secs}s — ${ev.description}`,
-      };
-    }
-
-    case 'provider_error': {
-      return {
-        kind: 'error',
-        text: ev.status
-          ? `provider error (HTTP ${ev.status}, ${ev.retryable ? 'retryable' : 'fatal'}): ${ev.description}`
-          : `provider error (${ev.retryable ? 'retryable' : 'fatal'}): ${ev.description}`,
-      };
-    }
-
-    case 'checkpoint': {
-      return {
-        kind: 'info',
-        text: `✓ checkpoint #${ev.promptIndex}: "${ev.promptPreview.slice(0, 60)}"`,
-      };
-    }
-
-    case 'agent_spawned': {
-      return {
-        kind: 'subagent',
-        agentLabel: ev.agentId.slice(0, 8),
-        agentColor: 'magenta',
-        icon: '⚡',
-        text: `spawned as ${ev.role}`,
-      };
-    }
-
-    case 'agent_stopped': {
-      return {
-        kind: 'subagent',
-        agentLabel: ev.agentId.slice(0, 8),
-        agentColor: 'gray',
-        icon: '⊘',
-        text: 'stopped',
-      };
-    }
-
-    case 'agent_error': {
-      return {
-        kind: 'subagent',
-        agentLabel: ev.agentId.slice(0, 8),
-        agentColor: 'red',
-        icon: '✗',
-        text: `error: ${ev.error.slice(0, 80)}`,
-      };
-    }
-
-    case 'mode_changed': {
-      return {
-        kind: 'info',
-        text: `mode: ${ev.from} → ${ev.to}`,
-      };
-    }
-
-    case 'skill_activated': {
-      return {
-        kind: 'info',
-        text: `skill activated: ${ev.skillName}`,
-      };
-    }
-
-    case 'skill_deactivated': {
-      return {
-        kind: 'info',
-        text: `skill deactivated: ${ev.skillName}`,
-      };
-    }
-
-    case 'message_truncated': {
-      return {
-        kind: 'warn',
-        text:
-          ev.after < ev.before
-            ? `message truncated: ${ev.before} → ${ev.after} tokens`
-            : `message truncated at ${ev.after} tokens`,
       };
     }
 

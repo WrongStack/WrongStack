@@ -5,6 +5,7 @@ import { streamCoalescer } from '@/lib/stream-coalescer';
 import { navigateToView, showPanel } from '@/lib/view-navigation';
 import { getWSClient } from '@/lib/ws-client';
 import { isActiveSessionMessage, pipeViz } from '@/lib/ws-client-utils';
+import type { SessionMarker } from '@wrongstack/core/types';
 import type { ChatMessage, SessionHistoryEntry, SubagentView } from '@/stores';
 import {
   resetUiNavigationToHome,
@@ -82,14 +83,44 @@ function sessionRouteIdentifier(value: unknown): string {
   return '';
 }
 
-function hydrateReplayMessages(replay: ReplayMessage[]): ChatMessage[] {
+function hydrateReplayMessages(
+  replay: ReplayMessage[],
+  markers: readonly SessionMarker[] = [],
+): ChatMessage[] {
   const messages: ChatMessage[] = [];
   const toolMessagesByUseId = new Map<string, ChatMessage>();
   let thinkingLogIteration = 0;
+  let markerIndex = 0;
 
   const pushText = (role: 'user' | 'assistant' | 'system', content: string, timestamp: number) => {
     if (!content) return;
     messages.push({ id: replayMessageId(messages.length), role, content, timestamp });
+  };
+  const pushMarker = (marker: SessionMarker) => {
+    messages.push({
+      id: replayMessageId(messages.length),
+      role: 'system',
+      content: marker.text,
+      timestamp: replayTimestamp(marker.ts),
+      isError: marker.level === 'error' ? true : undefined,
+    });
+  };
+  /**
+   * Emit every marker that happened strictly before `boundary`.
+   *
+   * Interleaving happens during the walk rather than as a merge pass
+   * afterwards, because `replayTimestamp` substitutes `Date.now()` for a
+   * message with no `ts` — merging on those synthesized values would sort
+   * every timestamp-less message behind the markers. Here the real `ts` is
+   * still in hand, so an unknown one simply doesn't advance the marker
+   * cursor. Ties keep the message first, matching the TUI's merge rule.
+   */
+  const flushMarkersBefore = (boundary: string | undefined) => {
+    if (typeof boundary !== 'string') return;
+    while (markerIndex < markers.length && markers[markerIndex]!.ts < boundary) {
+      pushMarker(markers[markerIndex]!);
+      markerIndex += 1;
+    }
   };
   const pushThinkingLog = (text: string, timestamp: number) => {
     const trimmed = text.trim();
@@ -111,6 +142,7 @@ function hydrateReplayMessages(replay: ReplayMessage[]): ChatMessage[] {
   };
 
   for (const m of replay) {
+    flushMarkersBefore(m.ts);
     if (m.role !== 'user' && m.role !== 'assistant' && m.role !== 'system') continue;
     const role = m.role;
     const timestamp = replayTimestamp(m.ts);
@@ -161,6 +193,13 @@ function hydrateReplayMessages(replay: ReplayMessage[]): ChatMessage[] {
     if (role === 'assistant' && thinking.length > 0) {
       pushThinkingLog(thinking.join('\n\n'), timestamp);
     }
+  }
+
+  // Markers after the last message (e.g. a compaction that ran once the final
+  // turn was already on disk).
+  while (markerIndex < markers.length) {
+    pushMarker(markers[markerIndex]!);
+    markerIndex += 1;
   }
 
   return messages;
@@ -292,6 +331,7 @@ export function handleSessionStart(msg: WSServerMessage) {
     getWSClient().send({ type: 'files.tree', payload: { path: useSessionStore.getState().cwd } });
   }
   const replay = (payload as { replayMessages?: ReplayMessage[] }).replayMessages;
+  const replayMarkers = (payload as { replayMarkers?: SessionMarker[] }).replayMarkers ?? [];
   if (replay && replay.length > 0) {
     // The server sends a replay on EVERY connect, including plain reconnects.
     // On a reconnect the local transcript may hold client-only messages the
@@ -308,7 +348,7 @@ export function handleSessionStart(msg: WSServerMessage) {
       chat.boundSessionId !== payload.sessionId ||
       chat.isLoading;
     if (shouldReplace) {
-      chat.setMessages(hydrateReplayMessages(replay));
+      chat.setMessages(hydrateReplayMessages(replay, replayMarkers));
       // The transcript we just hydrated belongs to the active session —
       // bind it so any cross-session bleed check in the verifier view knows
       // these messages are real, not leftovers from a prior session.

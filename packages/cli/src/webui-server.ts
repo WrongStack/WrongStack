@@ -1212,7 +1212,8 @@ export async function runWebUI(opts: CliWebUIOptions): Promise<void> {
           await activeSession.flush().catch(() => undefined);
           if (opts.sessionStore) {
             const data = await opts.sessionStore.load(activeSession.id);
-            return { messages: data.messages, usage: data.usage };
+            // `events` feeds the audit markers; the load already parsed them.
+            return { messages: data.messages, events: data.events, usage: data.usage };
           }
           const usage = opts.agent.ctx.tokenCounter.total();
           return { messages: opts.agent.ctx.messages, usage };

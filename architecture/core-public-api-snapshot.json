@@ -261,6 +261,7 @@
         "export type { Renderer } from './renderer.js';",
         "export type { RotatableSecretVault, SecretVault } from './secret-vault.js';",
         "export type { SecretScrubber } from './secret-scrubber.js';",
+        "export type { SessionMarker, SessionMarkerLevel } from './session-markers.js';",
         "export type { SideEffect, SideEffectRisk } from './side-effect.js';",
         "export type { SkillEntry, SkillLoader, SkillManifest } from './skill.js';",
         "export type { SlashCommand } from './slash-command.js';",
@@ -268,6 +269,7 @@
         "export type { SystemPromptContributor } from './system-prompt-contributor.js';",
         "export { AgentError, ConfigError, ERROR_CODES, FetchError, FsError, ParseError, PluginError, SddError, SessionError, ToolError, ToolValidationError, WrongStackError, isAgentError, isConfigError, isFetchError, isFsError, isParseError, isPluginError, isSddError, isSessionError, isToolError, isToolValidationError, isWrongStackError, toWrongStackError } from './errors.js';",
         "export { BUILTIN_PROMPT_CATEGORIES, PROMPT_CATEGORY_LABELS, isBuiltinCategory } from './prompt.js';",
+        "export { CHAT_MARKER_SOURCES, projectSessionMarkers, SESSION_MARKER_EVENT_TYPES, sessionEventToMarker } from './session-markers.js';",
         "export { CONTEXT_WINDOW_MODES, DEFAULT_CONTEXT_WINDOW_MODE_ID, formatContextWindowModeList, getContextWindowMode, isContextWindowModeId, listContextWindowModes, resolveContextWindowPolicy } from './context-window.js';",
         "export { DEFAULT_AUTONOMY_CONFIG, DEFAULT_CIRCUIT_BREAKER_CONFIG, DEFAULT_CONTEXT_CONFIG, DEFAULT_SESSION_LOGGING_CONFIG, DEFAULT_SESSION_PRUNE_DAYS, DEFAULT_TOOLS_CONFIG } from './default-config.js';",
         "export { DEFAULT_MODES } from './mode.js';",
@@ -810,8 +812,8 @@
       },
       "source": "packages/core/src/notifications/index.ts",
       "declarations": [
-        "export { NotifierImpl } from './notifier-impl.js';",
-        "export { type NotificationChannel, type NotificationChannelStatus, type NotificationLevel, type NotificationMessage, type NotificationResult, type Notifier, type NotifierCounters, } from './notifier.js';"
+        "export type { NotificationChannel, NotificationChannelStatus, NotificationLevel, NotificationMessage, NotificationResult, Notifier, NotifierCounters, } from './notifier.js';",
+        "export { NotifierImpl } from './notifier-impl.js';"
       ]
     },
     {
@@ -989,7 +991,7 @@
       "classification": "coordination implementation",
       "intendedOwner": "Core subpath until physical extraction is justified",
       "sourceFiles": 99,
-      "sourceLines": 38185
+      "sourceLines": 38184
     },
     {
       "directory": "core",
@@ -1017,7 +1019,7 @@
       "classification": "concrete runtime default",
       "intendedOwner": "Runtime pilot candidate after R2/R3",
       "sourceFiles": 43,
-      "sourceLines": 16393
+      "sourceLines": 16407
     },
     {
       "directory": "extension",
@@ -1045,7 +1047,7 @@
       "classification": "host/application concern",
       "intendedOwner": "protocol DTOs only in Core; runtime elsewhere",
       "sourceFiles": 31,
-      "sourceLines": 7287
+      "sourceLines": 7300
     },
     {
       "directory": "infrastructure",
@@ -1101,7 +1103,7 @@
       "classification": "product feature",
       "intendedOwner": "@wrongstack/plugins",
       "sourceFiles": 8,
-      "sourceLines": 3509
+      "sourceLines": 3520
     },
     {
       "directory": "prompts",
@@ -1129,7 +1131,7 @@
       "classification": "concrete runtime default",
       "intendedOwner": "Runtime security subsystem",
       "sourceFiles": 13,
-      "sourceLines": 4320
+      "sourceLines": 4538
     },
     {
       "directory": "skills",
@@ -1163,15 +1165,15 @@
       "directory": "types",
       "classification": "agent-domain contract",
       "intendedOwner": "Core type-only subpaths",
-      "sourceFiles": 54,
-      "sourceLines": 8771
+      "sourceFiles": 55,
+      "sourceLines": 8993
     },
     {
       "directory": "utils",
       "classification": "kernel primitive",
       "intendedOwner": "split dependency-free primitives from concrete helpers",
       "sourceFiles": 53,
-      "sourceLines": 7927
+      "sourceLines": 7933
     },
     {
       "directory": "worktree",

@@ -43,7 +43,7 @@ export {
 
 import { resolveExecInvocation, type ExecInvocation } from './local-bin.js';
 
-export { BoundedMap, type BoundedMapOptions } from './bounded-map.js';
+export { BoundedMap, BoundedSet, type BoundedMapOptions } from './bounded-map.js';
 export { UNSERIALIZABLE, safeJsonStringify } from './safe-json.js';
 
 export {

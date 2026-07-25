@@ -13,6 +13,8 @@
  *
  * @module hq/transcript-mapper
  */
+import { CHAT_MARKER_SOURCES, sessionEventToMarker } from '../types/session-markers.js';
+import type { SessionEvent } from '../types/session.js';
 import type { HqTranscriptEntry, HqTranscriptRole } from './protocol.js';
 
 function blocksToText(content: unknown): string {
@@ -135,17 +137,28 @@ export function mapSessionEventToEntries(ev: Record<string, unknown>): HqTranscr
         }),
       ];
     }
-    case 'error':
-    case 'provider_error':
-      return [make('error', String(ev['message'] ?? 'error'))];
-    case 'agent_spawned':
-      return [make('system', `spawned ${String(ev['role'] ?? 'agent')}`)];
     case 'task_completed':
       return [make('system', `task done: ${String(ev['title'] ?? '')}`)];
     case 'task_failed':
       return [make('system', `task failed: ${String(ev['title'] ?? '')}`)];
-    default:
-      return [];
+    default: {
+      // Audit markers (compaction, mode/skill switches, subagent lifecycle,
+      // provider retries/errors, truncation) share their wording with every
+      // other surface. This one branch covers both HQ planes: the disk replay
+      // behind `/api/sessions/:id/events` and the live `session.transcript`
+      // stream, since both funnel through this mapper.
+      if (!CHAT_MARKER_SOURCES.has(ev['type'] as SessionEvent['type'])) return [];
+      const marker = sessionEventToMarker(ev as unknown as SessionEvent);
+      if (!marker) return [];
+      // HqTranscriptRole has no 'warn'; warn-level markers keep their leading
+      // glyph (⟳ / truncation wording) to stay distinguishable as 'system'.
+      return [
+        make(marker.level === 'error' ? 'error' : 'system', marker.text, {
+          ...(marker.level === 'error' ? { isError: true } : {}),
+          ...(marker.agentId !== undefined ? { agentId: marker.agentId } : {}),
+        }),
+      ];
+    }
   }
 }
 

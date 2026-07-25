@@ -30,6 +30,7 @@
 import * as fsp from 'node:fs/promises';
 import { randomUUID } from 'node:crypto';
 import type { Plugin } from '@wrongstack/core/types';
+import { atomicWrite, ensureDir } from '@wrongstack/core/utils';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -112,12 +113,15 @@ async function loadFile(filePath: string): Promise<TodoTrackerFile | null> {
 }
 
 async function saveFile(filePath: string, file: TodoTrackerFile): Promise<void> {
-  // Atomic write: write to a temp file, then rename. Prevents a partial
-  // write from corrupting the backlog on crash/power-loss.
-  const tmp = `${filePath}.${randomUUID().slice(0, 8)}.tmp`;
-  await fsp.mkdir(filePath.replace(/[/\\][^/\\]+$/, ''), { recursive: true });
-  await fsp.writeFile(tmp, JSON.stringify(file, null, 2), { encoding: 'utf8', mode: 0o600 });
-  await fsp.rename(tmp, filePath);
+  // Atomic write: temp file + rename, so a partial write cannot corrupt the
+  // backlog on crash or power loss.
+  //
+  // Uses the shared primitive rather than a local tmp+rename: on Windows the
+  // rename fails EPERM/EBUSY while an antivirus scanner or a concurrent
+  // reader holds the destination, and a bare `fs.rename` reports that as a
+  // lost write. The shared helper retries across ~4s before giving up.
+  await ensureDir(filePath.replace(/[/\\][^/\\]+$/, ''));
+  await atomicWrite(filePath, JSON.stringify(file, null, 2), { mode: 0o600 });
 }
 
 // ---------------------------------------------------------------------------

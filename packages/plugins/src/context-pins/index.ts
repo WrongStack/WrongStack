@@ -35,6 +35,7 @@
 import * as fs from 'node:fs';
 import { dirname, isAbsolute, relative, resolve } from 'node:path';
 import type { Plugin } from '@wrongstack/core/types';
+import { atomicWrite, ensureDir } from '@wrongstack/core/utils';
 
 // ---------------------------------------------------------------------------
 // Module-scope state (H1 audit pattern)
@@ -137,23 +138,20 @@ function loadPins(filePath: string): { pins: Pin[]; nextId: number } {
   }
 }
 
-function persistPins(filePath: string): boolean {
+async function persistPins(filePath: string): Promise<boolean> {
   if (!filePath) return true;
-  const tmp = `${filePath}.${process.pid}.tmp`;
   try {
-    fs.mkdirSync(dirname(filePath), { recursive: true });
     // Atomic tmp+rename so a crash mid-write can't tear the pin state.
-    fs.writeFileSync(tmp, JSON.stringify({ pins: state.pins, nextId: state.nextId }, null, 2));
-    fs.renameSync(tmp, filePath);
+    //
+    // Uses the shared primitive rather than a local `renameSync`: on Windows
+    // that rename fails EPERM/EBUSY whenever an antivirus scanner or a
+    // concurrent reader holds the destination open, and the pin write was
+    // simply lost. The shared helper retries across ~4s first.
+    await ensureDir(dirname(filePath));
+    await atomicWrite(filePath, JSON.stringify({ pins: state.pins, nextId: state.nextId }, null, 2));
     return true;
   } catch {
     /* v8 ignore start */
-    // Best-effort cleanup: unlink orphaned tmp if write succeeded but rename failed.
-    try {
-      fs.unlinkSync(tmp);
-    } catch {
-      // tmp may not exist if writeFileSync itself failed
-    }
     state.persistErrors += 1;
     return false;
     /* v8 ignore stop */
@@ -269,7 +267,7 @@ const plugin: Plugin = {
         state.pins.push(pin);
         state.adds += 1;
         api.metrics.counter('adds');
-        const persisted = persistPins(cfg.filePath);
+        const persisted = await persistPins(cfg.filePath);
         return { ok: true, pin, persisted, totalPins: state.pins.length };
       },
     });
@@ -297,7 +295,7 @@ const plugin: Plugin = {
         if (removed === 0) return { ok: false, error: `no pin matches "${key}"` };
         state.removals += removed;
         api.metrics.counter('removals', removed);
-        const persisted = persistPins(cfg.filePath);
+        const persisted = await persistPins(cfg.filePath);
         return { ok: true, removed, persisted, totalPins: state.pins.length };
       },
     });

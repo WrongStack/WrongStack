@@ -64,6 +64,21 @@ describe('createBrainRuntime', () => {
     expect(poolProvider.complete).toHaveBeenCalled();
   });
 
+  it('exposes the effective council judge in the snapshot and clears it with the council', () => {
+    const rt = createBrainRuntime(baseOpts(undefined));
+    expect(rt.getSnapshot().judgeLabel).toBeUndefined();
+
+    // 4 models → 3 derived seats + one target left over to judge independently.
+    const seated = rt.apply({ models: ['a/x', 'b/y', 'c/z', 'd/w'] }, { persist: false });
+    expect(seated.snapshot.councilLabels).toHaveLength(3);
+    expect(seated.snapshot.judgeLabel).toBe('d/w');
+
+    // Dropping below two voters disbands the council; the judge goes with it.
+    const disbanded = rt.apply({ models: ['a/x'] }, { persist: false });
+    expect(disbanded.snapshot.councilLabels).toEqual([]);
+    expect(disbanded.snapshot.judgeLabel).toBeUndefined();
+  });
+
   it('defaults llm.denyIsTerminal to when-decided so a real refusal can stand', () => {
     // With 'never' the LLM tier could agree but never disagree: every deny was
     // discarded, which made the refused/unavailable/unparseable distinction

@@ -20,8 +20,8 @@
     },
     "@wrongstack/core/coordination": {
       "files": 122,
-      "typeOnly": 54,
-      "runtimeOrMixed": 126
+      "typeOnly": 55,
+      "runtimeOrMixed": 125
     },
     "@wrongstack/core/coordination/agent-subagent-runner.js": {
       "files": 2,
@@ -65,8 +65,8 @@
     },
     "@wrongstack/core/hq": {
       "files": 86,
-      "typeOnly": 66,
-      "runtimeOrMixed": 43
+      "typeOnly": 68,
+      "runtimeOrMixed": 41
     },
     "@wrongstack/core/infrastructure": {
       "files": 35,
@@ -114,9 +114,9 @@
       "runtimeOrMixed": 2
     },
     "@wrongstack/core/security": {
-      "files": 92,
+      "files": 93,
       "typeOnly": 14,
-      "runtimeOrMixed": 81
+      "runtimeOrMixed": 82
     },
     "@wrongstack/core/skills": {
       "files": 6,
@@ -139,9 +139,9 @@
       "runtimeOrMixed": 3
     },
     "@wrongstack/core/types": {
-      "files": 714,
-      "typeOnly": 687,
-      "runtimeOrMixed": 192
+      "files": 717,
+      "typeOnly": 690,
+      "runtimeOrMixed": 194
     },
     "@wrongstack/core/types/multi-agent.js": {
       "files": 2,
@@ -159,9 +159,9 @@
       "runtimeOrMixed": 1
     },
     "@wrongstack/core/utils": {
-      "files": 400,
+      "files": 403,
       "typeOnly": 36,
-      "runtimeOrMixed": 429
+      "runtimeOrMixed": 432
     },
     "@wrongstack/core/utils/error": {
       "files": 4,
@@ -1520,8 +1520,8 @@
     {
       "specifier": "@wrongstack/core/coordination",
       "file": "packages/cli/src/hq-server/routes.ts",
-      "typeOnly": 0,
-      "runtimeOrMixed": 3
+      "typeOnly": 1,
+      "runtimeOrMixed": 2
     },
     {
       "specifier": "@wrongstack/core/coordination",
@@ -2714,14 +2714,14 @@
     {
       "specifier": "@wrongstack/core/hq",
       "file": "packages/cli/src/hq-server/routes.ts",
-      "typeOnly": 0,
-      "runtimeOrMixed": 2
+      "typeOnly": 1,
+      "runtimeOrMixed": 1
     },
     {
       "specifier": "@wrongstack/core/hq",
       "file": "packages/cli/src/hq-server/routes/system-handlers.ts",
-      "typeOnly": 1,
-      "runtimeOrMixed": 1
+      "typeOnly": 2,
+      "runtimeOrMixed": 0
     },
     {
       "specifier": "@wrongstack/core/hq",
@@ -5564,6 +5564,12 @@
     {
       "specifier": "@wrongstack/core/security",
       "file": "packages/runtime/src/fleet/light-subagent-factory.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/security",
+      "file": "packages/runtime/tests/container.test.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },
@@ -9921,7 +9927,7 @@
       "specifier": "@wrongstack/core/types",
       "file": "packages/tui/src/components/history/replay.ts",
       "typeOnly": 1,
-      "runtimeOrMixed": 0
+      "runtimeOrMixed": 1
     },
     {
       "specifier": "@wrongstack/core/types",
@@ -10234,6 +10240,12 @@
       "file": "packages/tui/tests/use-token-counter-refresh.test.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/types",
+      "file": "packages/webui-server/src/protocol/replay-payload.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 1
     },
     {
       "specifier": "@wrongstack/core/types",
@@ -10627,7 +10639,19 @@
     },
     {
       "specifier": "@wrongstack/core/types",
+      "file": "packages/webui-server/tests/replay-payload.test.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/types",
       "file": "packages/webui-server/tests/session-history.test.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/types",
+      "file": "packages/webui/src/hooks/ws-handlers/session-handlers.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
     },
@@ -12319,7 +12343,19 @@
     },
     {
       "specifier": "@wrongstack/core/utils",
+      "file": "packages/plugins/src/context-pins/index.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/utils",
       "file": "packages/plugins/src/cost-tracker/index.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/utils",
+      "file": "packages/plugins/src/knowledge-graph/index.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },
@@ -12334,6 +12370,12 @@
       "file": "packages/plugins/src/semver-bump/index.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 2
+    },
+    {
+      "specifier": "@wrongstack/core/utils",
+      "file": "packages/plugins/src/todo-tracker/index.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
     },
     {
       "specifier": "@wrongstack/core/utils",

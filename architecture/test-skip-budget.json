@@ -144,6 +144,11 @@
     {
       "file": "packages/plugins/tests/runtime-local-bin.test.ts",
       "kind": "runIf",
+      "fingerprint": "a2087792cb832138"
+    },
+    {
+      "file": "packages/plugins/tests/runtime-local-bin.test.ts",
+      "kind": "runIf",
       "fingerprint": "aa98e60796794e33"
     },
     {

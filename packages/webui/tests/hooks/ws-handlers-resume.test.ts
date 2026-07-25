@@ -11,9 +11,22 @@ import { useChatStore } from '../../src/stores/chat-store';
 import { useConfigStore } from '../../src/stores/config-store';
 import { useSessionStore } from '../../src/stores/session-store';
 import { useUIStore } from '../../src/stores/ui-store';
+import type { WSSessionStart } from '../../src/types';
 
-function fireSessionStart(payload: Record<string, unknown>) {
-  WS_HANDLERS['session.start']?.({ type: 'session.start', payload });
+function fireSessionStart(
+  payload: Omit<WSSessionStart['payload'], 'model' | 'provider'> & {
+    model: unknown;
+    provider: unknown;
+  },
+) {
+  WS_HANDLERS['session.start']?.({
+    type: 'session.start',
+    payload: {
+      ...payload,
+      model: payload.model as string,
+      provider: payload.provider as string,
+    },
+  });
 }
 
 const BASE_PAYLOAD = {
@@ -227,6 +240,119 @@ describe('session.start resume transition', () => {
     expect(addSpy).not.toHaveBeenCalled();
     expect(setToolResultSpy).not.toHaveBeenCalled();
     expect(setMessagesSpy).toHaveBeenCalledTimes(1);
+  });
+
+  it('interleaves replayed audit markers into the conversation by timestamp', () => {
+    fireSessionStart({
+      ...BASE_PAYLOAD,
+      reset: true,
+      replayMessages: [
+        { role: 'user', content: 'hello', ts: '2026-06-11T10:00:00Z' },
+        { role: 'assistant', content: [{ type: 'text', text: 'world' }], ts: '2026-06-11T10:00:30Z' },
+      ],
+      replayMarkers: [
+        {
+          ts: '2026-06-11T10:00:10Z',
+          source: 'compaction',
+          level: 'info',
+          text: '⟲ context compacted: 8K → 2K tokens',
+        },
+      ],
+    });
+
+    const messages = useChatStore.getState().messages;
+    expect(messages.map((m) => m.content)).toEqual([
+      'hello',
+      '⟲ context compacted: 8K → 2K tokens',
+      'world',
+    ]);
+    expect(messages[1]?.role).toBe('system');
+    expect(messages[1]?.timestamp).toBe(Date.parse('2026-06-11T10:00:10Z'));
+  });
+
+  it('flags error-level markers so they render as failures', () => {
+    fireSessionStart({
+      ...BASE_PAYLOAD,
+      reset: true,
+      replayMessages: [{ role: 'user', content: 'hello', ts: '2026-06-11T10:00:00Z' }],
+      replayMarkers: [
+        {
+          ts: '2026-06-11T10:00:05Z',
+          source: 'provider_error',
+          level: 'error',
+          text: 'provider error (HTTP 500, retryable): upstream',
+        },
+        {
+          ts: '2026-06-11T10:00:06Z',
+          source: 'provider_retry',
+          level: 'warn',
+          text: '⟳ retry 1 after 2.0s — upstream',
+        },
+      ],
+    });
+
+    const messages = useChatStore.getState().messages;
+    expect(messages[1]?.isError).toBe(true);
+    // warn is not an error — it must not be styled as a failure
+    expect(messages[2]?.isError).toBeUndefined();
+  });
+
+  it('keeps a timestamp-less message ahead of later markers', () => {
+    // `replayTimestamp` substitutes Date.now() for a message with no `ts`.
+    // Merging on that synthesized value would sort the message behind every
+    // marker; the walk must leave the marker cursor untouched instead.
+    fireSessionStart({
+      ...BASE_PAYLOAD,
+      reset: true,
+      replayMessages: [
+        { role: 'user', content: 'no timestamp' },
+        { role: 'assistant', content: 'later', ts: '2026-06-11T10:00:30Z' },
+      ],
+      replayMarkers: [
+        {
+          ts: '2026-06-11T10:00:20Z',
+          source: 'mode_changed',
+          level: 'info',
+          text: 'mode: plan → build',
+        },
+      ],
+    });
+
+    expect(useChatStore.getState().messages.map((m) => m.content)).toEqual([
+      'no timestamp',
+      'mode: plan → build',
+      'later',
+    ]);
+  });
+
+  it('appends markers that outlived the last replayed message', () => {
+    fireSessionStart({
+      ...BASE_PAYLOAD,
+      reset: true,
+      replayMessages: [{ role: 'user', content: 'hello', ts: '2026-06-11T10:00:00Z' }],
+      replayMarkers: [
+        {
+          ts: '2026-06-11T10:09:00Z',
+          source: 'skill_activated',
+          level: 'info',
+          text: 'skill activated: commit',
+        },
+      ],
+    });
+
+    expect(useChatStore.getState().messages.map((m) => m.content)).toEqual([
+      'hello',
+      'skill activated: commit',
+    ]);
+  });
+
+  it('replays the conversation unchanged when the server sends no markers', () => {
+    fireSessionStart({
+      ...BASE_PAYLOAD,
+      reset: true,
+      replayMessages: [{ role: 'user', content: 'hello', ts: '2026-06-11T10:00:00Z' }],
+    });
+    expect(useChatStore.getState().messages.map((m) => m.content)).toEqual(['hello']);
   });
 
   it('restores lifetime usage and recomputes cost from the payload rates', () => {

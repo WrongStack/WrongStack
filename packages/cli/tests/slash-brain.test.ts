@@ -224,6 +224,7 @@ describe('/brain slash command', () => {
         cache: { enabled: false, ttlMs: 300_000, maxEntries: 200, hits: 0, misses: 0, size: 0 },
         poolLabels: [],
         councilLabels: [],
+        judgeLabel: undefined,
         usingSessionModel: true,
         ...over,
       };
@@ -261,6 +262,61 @@ describe('/brain slash command', () => {
       const message = stripAnsi(result!.message!);
       expect(message).toContain('prov/x');
       expect(message).toContain('saved to the active profile config');
+    });
+
+    it('/brain council shows the DERIVED judge and flags one that is also a voter', async () => {
+      // `council.judge` is undefined here — the common case. Status used to
+      // print nothing at all, which is exactly when the derived judge can
+      // silently be one of the seats that produced the tie it breaks.
+      const { runtime } = makeFakeRuntime({
+        council: {
+          enabled: true,
+          configured: undefined,
+          minRisk: 'high',
+          voters: [],
+          quorum: undefined,
+          approval: undefined,
+          judge: undefined,
+          perCallTimeoutMs: undefined,
+          maxConcurrency: undefined,
+          distinctness: 'none',
+          judgeMaxTokens: undefined,
+          seats: [],
+        },
+        councilLabels: ['a/x (executor)', 'b/y (skeptic, veto)'],
+        judgeLabel: 'a/x',
+      });
+      const ctx = makeCtx({ brainRuntime: runtime });
+      const message = stripAnsi((await buildBrainCommand(ctx).run!('council'))!.message!);
+      expect(message).toContain('judge: a/x');
+      expect(message).toContain('[derived]');
+      expect(message).toContain('also a voter');
+    });
+
+    it('/brain council does not flag an independent derived judge', async () => {
+      const { runtime } = makeFakeRuntime({
+        council: {
+          enabled: true,
+          configured: undefined,
+          minRisk: 'high',
+          voters: [],
+          quorum: undefined,
+          approval: undefined,
+          judge: undefined,
+          perCallTimeoutMs: undefined,
+          maxConcurrency: undefined,
+          distinctness: 'none',
+          judgeMaxTokens: undefined,
+          seats: [],
+        },
+        councilLabels: ['a/x (executor)', 'b/y (skeptic, veto)'],
+        judgeLabel: 'c/z',
+      });
+      const ctx = makeCtx({ brainRuntime: runtime });
+      const message = stripAnsi((await buildBrainCommand(ctx).run!('council'))!.message!);
+      expect(message).toContain('judge: c/z');
+      expect(message).toContain('[derived]');
+      expect(message).not.toContain('also a voter');
     });
 
     it('/brain model session clears the pool', async () => {
@@ -439,6 +495,7 @@ describe('/brain slash command', () => {
         cache: { enabled: false, ttlMs: 300_000, maxEntries: 200, hits: 0, misses: 0, size: 0 },
         poolLabels: [],
         councilLabels: [],
+        judgeLabel: undefined,
         usingSessionModel: true,
         ...over,
       };

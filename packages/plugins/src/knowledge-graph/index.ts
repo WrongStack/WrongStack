@@ -29,9 +29,10 @@
  * @public
  */
 
-import { mkdirSync, readFileSync, renameSync, unlinkSync, writeFileSync } from 'node:fs';
+import { readFileSync } from 'node:fs';
 import { dirname, isAbsolute, relative, resolve } from 'node:path';
 import type { Plugin } from '@wrongstack/core/types';
+import { atomicWrite, ensureDir } from '@wrongstack/core/utils';
 
 const API_VERSION = '^0.1.10';
 
@@ -151,22 +152,22 @@ function loadFacts(filePath: string): { facts: Fact[]; nextId: number } {
   }
 }
 
-function persistFacts(filePath: string): boolean {
+async function persistFacts(filePath: string): Promise<boolean> {
   if (!filePath) return true;
-  const tmp = `${filePath}.${process.pid}.tmp`;
   try {
-    mkdirSync(dirname(filePath), { recursive: true });
     // Atomic tmp+rename so a crash mid-write can't tear the fact store.
-    writeFileSync(tmp, JSON.stringify({ facts: state.facts, nextId: state.nextId }, null, 2));
-    renameSync(tmp, filePath);
+    //
+    // Uses the shared primitive rather than a local `renameSync`: on Windows
+    // that rename fails EPERM/EBUSY whenever an antivirus scanner or a
+    // concurrent reader holds the destination open, and the fact write was
+    // simply lost. The shared helper retries across ~4s first.
+    await ensureDir(dirname(filePath));
+    await atomicWrite(
+      filePath,
+      JSON.stringify({ facts: state.facts, nextId: state.nextId }, null, 2),
+    );
     return true;
   } catch {
-    // Best-effort cleanup: unlink orphaned tmp if write succeeded but rename failed.
-    try {
-      unlinkSync(tmp);
-    } catch {
-      // tmp may not exist if writeFileSync itself failed
-    }
     state.persistErrors += 1;
     return false;
   }
@@ -326,7 +327,7 @@ const plugin: Plugin = {
         state.facts.push(fact);
         state.adds += 1;
         api.metrics.counter('adds');
-        const persisted = persistFacts(resolved);
+        const persisted = await persistFacts(resolved);
         return { ok: true, fact, persisted, totalFacts: state.facts.length };
       },
     });
@@ -398,7 +399,7 @@ const plugin: Plugin = {
         if (removed === 0) return { ok: false, error: `no fact matches "${input.id}"` };
         state.removals += removed;
         api.metrics.counter('removals', removed);
-        const persisted = persistFacts(resolved);
+        const persisted = await persistFacts(resolved);
         return { ok: true, removed, persisted, totalFacts: state.facts.length };
       },
     });

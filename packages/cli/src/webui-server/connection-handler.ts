@@ -1,5 +1,5 @@
 import type { IncomingMessage } from 'node:http';
-import type { Message, Usage } from '@wrongstack/core/types';
+import type { Message, SessionEvent, Usage } from '@wrongstack/core/types';
 import type {
   GoalWebSocketHandler,
   PendingConfirm,
@@ -13,7 +13,7 @@ import {
   createConnectionLifecycle,
   verifyClient as verifyWsClient,
 } from '@wrongstack/webui-server';
-import { decodeProtocolFrame } from '@wrongstack/webui-server/protocol';
+import { buildReplayPayload, decodeProtocolFrame } from '@wrongstack/webui-server/protocol';
 import type { WebSocket } from 'ws';
 import type { WSClientMessage, WSServerMessage } from './contracts.js';
 
@@ -21,8 +21,6 @@ export interface ConnectedClient {
   ws: WebSocket;
   sessionId: string | null;
 }
-
-const REPLAY_MESSAGE_CAP = 2_000;
 
 export interface ConnectionHandlerDeps {
   host: string;
@@ -49,7 +47,11 @@ export interface ConnectionHandlerDeps {
     needsSetup?: boolean,
   ) => Promise<Record<string, unknown>>;
   loadReplay?:
-    | (() => Promise<{ messages: Message[]; usage?: Usage | undefined } | null>)
+    | (() => Promise<{
+        messages: Message[];
+        events?: readonly SessionEvent[] | undefined;
+        usage?: Usage | undefined;
+      } | null>)
     | undefined;
   loadAgentSessions?:
     | (() => Promise<import('@wrongstack/core/coordination').AgentVirtualSession[]>)
@@ -127,19 +129,7 @@ export function createConnectionHandler(
       const payload = { ...(await deps.buildSessionStartPayload({}, deps.needsSetup)) };
       try {
         const replay = await deps.loadReplay?.();
-        if (replay?.messages.length) {
-          payload['replayMessages'] =
-            replay.messages.length > REPLAY_MESSAGE_CAP
-              ? replay.messages.slice(-REPLAY_MESSAGE_CAP)
-              : replay.messages;
-        }
-        const usage = replay?.usage;
-        if (
-          usage &&
-          usage.input + usage.output + (usage.cacheRead ?? 0) + (usage.cacheWrite ?? 0) > 0
-        ) {
-          payload['replayUsage'] = usage;
-        }
+        if (replay) Object.assign(payload, buildReplayPayload(replay));
       } catch {
         // Replay is best-effort.
         console.debug('[WebUI] Failed to load replay');

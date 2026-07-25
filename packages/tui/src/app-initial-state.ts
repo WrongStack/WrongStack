@@ -47,15 +47,25 @@ export function buildRestoredEntries(
  * session starts with an empty list and `/rewind` reports "no checkpoints"
  * despite a JSONL full of them.
  *
- * `fileCount` is a live-only stat computed when the checkpoint is written; the
- * JSONL does not carry it, so restored rows report 0.
+ * `fileCount` is not stored on the checkpoint event itself, but it is derivable:
+ * the `file_snapshot` events carry the same `promptIndex`, so summing their
+ * `files.length` per index reproduces the live stat. `DefaultSessionRewinder.
+ * listCheckpoints` builds its counts the same way.
  */
 export function buildRestoredCheckpoints(
   restoredEvents?: SessionEvent[] | undefined,
 ): State['checkpoints'] {
   if (!restoredEvents || restoredEvents.length === 0) return [];
+  const fileCountByIndex = new Map<number, number>();
   const byIndex = new Map<number, State['checkpoints'][number]>();
   for (const ev of restoredEvents) {
+    if (ev.type === 'file_snapshot') {
+      fileCountByIndex.set(
+        ev.promptIndex,
+        (fileCountByIndex.get(ev.promptIndex) ?? 0) + ev.files.length,
+      );
+      continue;
+    }
     if (ev.type !== 'checkpoint') continue;
     byIndex.set(ev.promptIndex, {
       promptIndex: ev.promptIndex,
@@ -63,6 +73,11 @@ export function buildRestoredCheckpoints(
       ts: ev.ts,
       fileCount: 0,
     });
+  }
+  // Applied after the walk: a prompt's file_snapshot events are written as its
+  // tools run, i.e. AFTER its checkpoint event.
+  for (const [promptIndex, checkpoint] of byIndex) {
+    checkpoint.fileCount = fileCountByIndex.get(promptIndex) ?? 0;
   }
   return retainCheckpoints([...byIndex.values()].sort((a, b) => a.promptIndex - b.promptIndex));
 }

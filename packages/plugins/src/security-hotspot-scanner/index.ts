@@ -26,7 +26,7 @@
 import { readdir, readFile, stat } from 'node:fs/promises';
 import { isAbsolute, relative, resolve } from 'node:path';
 import type { Plugin } from '@wrongstack/core/types';
-import { withinProject } from '../runtime/index.js';
+import { BoundedSet, withinProject } from '../runtime/index.js';
 
 const API_VERSION = '^0.1.10';
 
@@ -54,7 +54,12 @@ interface SecurityHotspotState {
     durationMs: number;
     when: string;
   } | null;
-  knownHotspots: Set<string>;
+  /**
+   * Findings already surfaced, so a repeated scan does not re-report them.
+   * Bounded — this used to grow one entry per unique `path:type:line` for
+   * the whole session and was released only at teardown.
+   */
+  knownHotspots: BoundedSet<string>;
   hookUnregister: null | (() => void);
 }
 
@@ -66,7 +71,7 @@ const state: SecurityHotspotState = {
   skippedCount: 0,
   blockedCount: 0,
   lastResult: null,
-  knownHotspots: new Set(),
+  knownHotspots: new BoundedSet<string>({ max: 5_000 }),
   hookUnregister: null,
 };
 

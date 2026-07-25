@@ -29,13 +29,20 @@
 import { readFile, realpath, stat } from 'node:fs/promises';
 import { isAbsolute, relative, resolve, sep } from 'node:path';
 import type { Plugin } from '@wrongstack/core/types';
-import { collectSourceFilesAsync, withinProject } from '../runtime/index.js';
+import { BoundedMap, collectSourceFilesAsync, withinProject } from '../runtime/index.js';
 
 const API_VERSION = '^0.1.10';
 
 // ---------------------------------------------------------------------------
 // Module-scope state (H1 audit pattern)
 // ---------------------------------------------------------------------------
+
+/**
+ * How long to stay quiet about one path after warning about it. Also the
+ * retention window for `state.lastHookWarning` — past this point an entry
+ * cannot affect a decision, so keeping it is pure memory growth.
+ */
+const HOOK_WARNING_COOLDOWN_MS = 60_000;
 
 interface DuplicateLocation {
   file: string;
@@ -57,7 +64,16 @@ interface DuplicateCodeDetectorState {
   warningCount: number;
   errorCount: number;
   hookUnregister: null | (() => void);
-  lastHookWarning: Map<string, number>;
+  /**
+   * Per-path cooldown timestamps, so a bulk edit does not repeat the same
+   * warning for one file on every write.
+   *
+   * Bounded with a TTL matching the cooldown window: an entry older than
+   * the cooldown can never change a decision again, but a plain `Map` kept
+   * it for the life of the process — one entry per source file ever
+   * touched, released only at teardown.
+   */
+  lastHookWarning: BoundedMap<string, number>;
   /**
    * Process-lifetime fingerprint index. Maps `filePath -> {mtimeMs, size, fingerprints}`.
    * On every PostToolUse invocation the hook compares `(mtimeMs, size)` of each
@@ -94,7 +110,7 @@ const state: DuplicateCodeDetectorState = {
   warningCount: 0,
   errorCount: 0,
   hookUnregister: null,
-  lastHookWarning: new Map(),
+  lastHookWarning: new BoundedMap<string, number>({ max: 512, ttlMs: HOOK_WARNING_COOLDOWN_MS }),
   fileIndex: new Map(),
   inFlightFingerprintReads: new Map(),
   indexFingerprintCount: 0,
@@ -552,7 +568,7 @@ const plugin: Plugin = {
       // for the same file on every edit.
       const now = Date.now();
       const lastWarning = state.lastHookWarning.get(changedFile);
-      if (lastWarning !== undefined && now - lastWarning < 60_000) return;
+      if (lastWarning !== undefined && now - lastWarning < HOOK_WARNING_COOLDOWN_MS) return;
 
       const changedFps = await readCachedFingerprints(changedFile, cfg.minLines);
       if (changedFps === null) {

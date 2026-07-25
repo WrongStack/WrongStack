@@ -144,6 +144,55 @@ function resolveTargetPaths(input: unknown, ctx: Context): string[] {
   return extractPathInputs(input).map((raw) => resolveRawTargetPath(raw, ctx));
 }
 
+function resolveGlobSelectors(input: unknown, ctx: Context): Set<string> {
+  if (!input || typeof input !== 'object') return new Set();
+  const obj = input as Record<string, unknown>;
+  const selectors: string[] = [];
+  for (const key of ['paths', 'files'] as const) {
+    const value = obj[key];
+    const values = Array.isArray(value) ? value : typeof value === 'string' ? value.split(',') : [];
+    for (const item of values) {
+      if (typeof item !== 'string') continue;
+      const trimmed = item.trim();
+      if (trimmed.length > 0 && /[*?[\]]/.test(trimmed)) selectors.push(resolveRawTargetPath(trimmed, ctx));
+    }
+  }
+  return new Set(selectors);
+}
+
+function literalGlobPrefix(pattern: string): string {
+  const wildcardIndex = pattern.search(/[*?[\]]/);
+  const prefix = (wildcardIndex < 0 ? pattern : pattern.slice(0, wildcardIndex)).replace(/\/+$/, '');
+  return prefix === '.' ? '' : prefix;
+}
+
+function selectorMayOverlapRule(selector: string, rulePattern: string): boolean {
+  const selectorPrefix = literalGlobPrefix(selector);
+  const rulePrefix = literalGlobPrefix(rulePattern);
+  if (!selectorPrefix || !rulePrefix) return true;
+  return (
+    selectorPrefix === rulePrefix ||
+    selectorPrefix.startsWith(`${rulePrefix}/`) ||
+    rulePrefix.startsWith(`${selectorPrefix}/`)
+  );
+}
+
+function matchTargetRule(
+  policy: DirectoryPolicy,
+  targetPath: string,
+  globSelectors: ReadonlySet<string>,
+): DirectoryRule | undefined {
+  if (!globSelectors.has(targetPath)) return matchRule(policy, targetPath);
+  const overlappingPolicy: DirectoryPolicy = {
+    schemaVersion: policy.schemaVersion,
+    rules: policy.rules.filter((rule) => selectorMayOverlapRule(targetPath, rule.directory)),
+  };
+  if (overlappingPolicy.rules.length === 0) return undefined;
+  return overlappingPolicy.rules.reduce((best, rule) =>
+    patternSpecificity(rule.directory) > patternSpecificity(best.directory) ? rule : best,
+  );
+}
+
 /**
  * Resolve the first tool-input target path against `ctx.workingDir` and
  * normalize it to forward slashes. Multi-target enforcement uses every path
@@ -266,9 +315,10 @@ export class DirectoryPermissionPolicy implements PermissionPolicy {
     if (targetPaths.length === 0) {
       return this.inner.evaluate(tool, input, ctx);
     }
+    const globSelectors = resolveGlobSelectors(input, ctx);
 
     for (const targetPath of targetPaths) {
-      const rule = matchRule(this.policy, targetPath);
+      const rule = matchTargetRule(this.policy, targetPath, globSelectors);
       if (!rule) continue;
 
       // Provider ban — checked against ctx.provider.id. Independent of
@@ -439,10 +489,11 @@ export class DirectoryPermissionPolicy implements PermissionPolicy {
       const decision = await innerDecision();
       return { toolName: tool.name, subject: null, steps, winnerIndex, decision };
     }
+    const globSelectors = resolveGlobSelectors(input, ctx);
 
     for (const targetPath of targetPaths) {
       add('target path', false, 'auto', 'default', `resolved "${targetPath}"`);
-      const rule = matchRule(this.policy, targetPath);
+      const rule = matchTargetRule(this.policy, targetPath, globSelectors);
       if (!rule) {
         add('directory rule match', false, 'auto', 'default', `no rule matched "${targetPath}"`);
         continue;

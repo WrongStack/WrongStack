@@ -142,6 +142,17 @@ export interface BrainConfigSnapshot {
   poolLabels: string[];
   /** Resolved council seat labels; empty = council effectively disabled. */
   councilLabels: string[];
+  /**
+   * EFFECTIVE council judge, undefined when no council is wired.
+   *
+   * Distinct from `council.judge`, which is the CONFIGURED one and is usually
+   * absent — the judge is then derived from the pool. Since the judge only
+   * runs to break a tie or synthesize a split panel, whether it is one of the
+   * seats that produced that tie is the difference between an independent
+   * tie-breaker and voter #1 winning twice. Surfacing it is what makes that
+   * checkable instead of implicit.
+   */
+  judgeLabel: string | undefined;
   usingSessionModel: boolean;
 }
 
@@ -438,6 +449,7 @@ export function createBrainRuntime(opts: BrainRuntimeOptions): BrainRuntime {
   let cfg: BrainConfig = normalizeInitial(opts.initialConfig);
   let poolLabels: string[] = [];
   let councilLabels: string[] = [];
+  let judgeLabel: string | undefined;
   let circuit: BrainCircuitBreaker | undefined;
   let decisionCache: BrainDecisionCache | undefined;
   let compiledRules: CompiledBrainRule[] = [];
@@ -471,6 +483,7 @@ export function createBrainRuntime(opts: BrainRuntimeOptions): BrainRuntime {
     });
     poolLabels = tiers.poolLabels;
     councilLabels = tiers.councilLabels;
+    judgeLabel = tiers.judgeLabel;
     const tiered = createTieredBrainArbiter({
       policy: new DefaultBrainArbiter({ heuristics: cfg.heuristics }),
       autonomous: tiers.autonomous,
@@ -902,6 +915,7 @@ export function createBrainRuntime(opts: BrainRuntimeOptions): BrainRuntime {
       ruleErrors: [...ruleErrors],
       poolLabels: [...poolLabels],
       councilLabels: [...councilLabels],
+      judgeLabel,
       usingSessionModel: (cfg.models ?? []).length === 0,
     };
   }

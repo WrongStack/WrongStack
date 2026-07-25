@@ -27,7 +27,7 @@
 import { readFile } from 'node:fs/promises';
 import { isAbsolute, relative, resolve } from 'node:path';
 import type { Plugin } from '@wrongstack/core/types';
-import { collectSourceFilesAsync, matchesExtension, withinProject } from '../runtime/index.js';
+import { BoundedMap, collectSourceFilesAsync, matchesExtension, withinProject } from '../runtime/index.js';
 
 const API_VERSION = '^0.1.10';
 
@@ -41,6 +41,13 @@ export type SmellType =
   | 'many-parameters'
   | 'magic-number'
   | 'console-log';
+
+/**
+ * How long to stay quiet about one path after warning about it. Also the
+ * retention window for `state.lastHookWarning` — past this point an entry
+ * cannot affect a decision, so keeping it is pure memory growth.
+ */
+const HOOK_WARNING_COOLDOWN_MS = 60_000;
 
 export interface RefactorSuggestion {
   file: string;
@@ -56,7 +63,16 @@ interface RefactorSuggesterState {
   warningCount: number;
   errorCount: number;
   hookUnregister: null | (() => void);
-  lastHookWarning: Map<string, number>;
+  /**
+   * Per-path cooldown timestamps, so a bulk edit does not repeat the same
+   * warning for one file on every write.
+   *
+   * Bounded with a TTL matching the cooldown window: an entry older than
+   * the cooldown can never change a decision again, but a plain `Map` kept
+   * it for the life of the process — one entry per source file ever
+   * touched, released only at teardown.
+   */
+  lastHookWarning: BoundedMap<string, number>;
 }
 
 const state: RefactorSuggesterState = {
@@ -66,7 +82,7 @@ const state: RefactorSuggesterState = {
   warningCount: 0,
   errorCount: 0,
   hookUnregister: null,
-  lastHookWarning: new Map(),
+  lastHookWarning: new BoundedMap<string, number>({ max: 512, ttlMs: HOOK_WARNING_COOLDOWN_MS }),
 };
 
 // ---------------------------------------------------------------------------
@@ -379,7 +395,7 @@ const plugin: Plugin = {
       // for the same file on every edit.
       const now = Date.now();
       const lastWarning = state.lastHookWarning.get(sourcePath);
-      if (lastWarning !== undefined && now - lastWarning < 60_000) return;
+      if (lastWarning !== undefined && now - lastWarning < HOOK_WARNING_COOLDOWN_MS) return;
 
       const resolved = resolve(process.cwd(), sourcePath);
       let content: string;

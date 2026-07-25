@@ -62,6 +62,30 @@ function compactEntry(entry: { provider?: string | undefined; model: string }): 
 }
 
 /**
+ * Render the EFFECTIVE council judge as a `, judge: …` suffix.
+ *
+ * Status used to print `council.judge`, which is the CONFIGURED judge and is
+ * usually absent — so in the common case (judge derived from the pool) the
+ * line said nothing at all. That is precisely the case worth showing: the
+ * judge only runs to break a tie or synthesize a split panel, so a judge that
+ * is itself one of the seats re-states its own vote with the deciding weight.
+ * `[derived]` marks the non-configured case and `⚠ also a voter` marks the
+ * correlation, which happens whenever the pool has no model left over after
+ * seating (pool size == seat count).
+ */
+function judgeSummary(s: {
+  judgeLabel: string | undefined;
+  councilLabels: string[];
+  council: { judge?: { provider?: string | undefined; model: string } | undefined };
+}): string {
+  if (!s.judgeLabel) return '';
+  // councilLabels render as `<label> (<persona>[, veto])`.
+  const seated = s.councilLabels.some((label) => label.startsWith(`${s.judgeLabel} (`));
+  const origin = s.council.judge ? '' : ' [derived]';
+  return `, judge: ${s.judgeLabel}${origin}${seated ? ' ⚠ also a voter' : ''}`;
+}
+
+/**
  * Council seat grammar: `<ref>[:executor|:skeptic|:auditor][:persona=NAME][:veto][:w=N]`.
  * Modifiers are stripped from the RIGHT so model ids containing `:`
  * (e.g. ollama tags) survive as part of the ref.
@@ -358,7 +382,7 @@ export function buildBrainCommand(opts: SlashCommandContext): SlashCommand {
         const op = (rest[0] ?? '').toLowerCase();
         const councilSummary = (s: BrainConfigSnapshot): string =>
           s.council.enabled
-            ? `council ${color.cyan('convened')}: ${s.councilLabels.join(', ')} ${color.dim(`(minRisk: ${s.council.minRisk}${s.council.judge ? `, judge: ${compactEntry(s.council.judge)}` : ''})`)}`
+            ? `council ${color.cyan('convened')}: ${s.councilLabels.join(', ')} ${color.dim(`(minRisk: ${s.council.minRisk}${judgeSummary(s)})`)}`
             : `council ${color.dim('disabled')}`;
         if (!op) {
           const snapshot = opts.brainRuntime?.getSnapshot();
@@ -394,7 +418,7 @@ export function buildBrainCommand(opts: SlashCommandContext): SlashCommand {
             opts.renderer.writeWarning(msg);
             return { message: msg };
           }
-          return applyPatch({ council: { judge: ref.toLowerCase() === 'auto' ? null : ref } }, (s) => `Brain council judge: ${color.cyan(s.council.judge ? compactEntry(s.council.judge) : 'auto (first pool/voter model)')}`);
+          return applyPatch({ council: { judge: ref.toLowerCase() === 'auto' ? null : ref } }, (s) => `Brain council judge: ${color.cyan(s.council.judge ? compactEntry(s.council.judge) : 'auto')}${s.council.judge ? '' : color.dim(judgeSummary(s).replace(/^, judge: /, ' → '))}`);
         }
         if (op === 'quorum' || op === 'approval') {
           const value = Number(rest[1]);
@@ -542,7 +566,7 @@ export function buildBrainCommand(opts: SlashCommandContext): SlashCommand {
         const councilSeats = opts.brainSettings?.councilLabels ?? [];
         if (councilSeats.length > 0) {
           lines.push(
-            `  council:          ${color.cyan(councilSeats.join(', '))}${snapshot ? color.dim(` (minRisk: ${snapshot.council.minRisk}${snapshot.council.judge ? `, judge: ${compactEntry(snapshot.council.judge)}` : ''})`) : ''}`,
+            `  council:          ${color.cyan(councilSeats.join(', '))}${snapshot ? color.dim(` (minRisk: ${snapshot.council.minRisk}${judgeSummary(snapshot)})`) : ''}`,
           );
         } else if (snapshot) {
           lines.push(`  council:          ${color.dim('disabled (/brain council on + voters)')}`);

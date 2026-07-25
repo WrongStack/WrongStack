@@ -63,6 +63,8 @@ interface CheckpointState {
   captures: number;
   restores: number;
   skippedLarge: number;
+  /** Snapshots dropped to respect the retained-bytes budget. */
+  evictedForBytes: number;
   hookUnregister: null | (() => void);
 }
 
@@ -72,6 +74,7 @@ const state: CheckpointState = {
   captures: 0,
   restores: 0,
   skippedLarge: 0,
+  evictedForBytes: 0,
   hookUnregister: null,
 };
 
@@ -84,6 +87,13 @@ interface CheckpointConfig {
   autoCapture: boolean;
   maxSnapshots: number;
   maxFileBytes: number;
+  /**
+   * Ceiling on total retained snapshot content, in bytes. The snapshot
+   * count alone is not a memory bound — one snapshot holds every file a
+   * write touched, so `maxSnapshots x maxFileBytes x files-per-write` is
+   * the real worst case. Oldest snapshots are dropped past this.
+   */
+  maxTotalBytes: number;
 }
 
 const DEFAULTS: CheckpointConfig = {
@@ -91,6 +101,7 @@ const DEFAULTS: CheckpointConfig = {
   autoCapture: true,
   maxSnapshots: 50,
   maxFileBytes: 1_048_576,
+  maxTotalBytes: 64 * 1_048_576,
 };
 
 function readConfig(raw: unknown): CheckpointConfig {
@@ -103,6 +114,10 @@ function readConfig(raw: unknown): CheckpointConfig {
       typeof r['maxSnapshots'] === 'number' && r['maxSnapshots'] >= 1 && r['maxSnapshots'] <= 500
         ? r['maxSnapshots']
         : DEFAULTS.maxSnapshots,
+    maxTotalBytes:
+      typeof r['maxTotalBytes'] === 'number' && r['maxTotalBytes'] >= 1024
+        ? r['maxTotalBytes']
+        : DEFAULTS.maxTotalBytes,
     maxFileBytes:
       typeof r['maxFileBytes'] === 'number' && r['maxFileBytes'] >= 1024
         ? r['maxFileBytes']
@@ -174,10 +189,29 @@ async function captureFileForHook(
   }
 }
 
-function pushSnapshot(snapshot: Snapshot, maxSnapshots: number): void {
+/** Retained bytes across all snapshots — surfaced by status/health(). */
+export function retainedSnapshotBytes(): number {
+  let total = 0;
+  for (const snap of state.snapshots) {
+    for (const f of snap.files) total += f.content === null ? 0 : f.content.length;
+  }
+  return total;
+}
+
+function pushSnapshot(snapshot: Snapshot, maxSnapshots: number, maxTotalBytes: number): void {
   state.snapshots.push(snapshot);
   if (state.snapshots.length > maxSnapshots) {
     state.snapshots.splice(0, state.snapshots.length - maxSnapshots);
+  }
+  // A count-only ring is not a memory bound: one snapshot holds every file
+  // a single write touched, each up to `maxFileBytes`. With the default 50
+  // snapshots that is already tens of MiB, and `maxSnapshots` goes to 500 —
+  // all of it live for the whole session, captured automatically on every
+  // write. Evict oldest-first until the retained total fits the budget,
+  // always keeping the newest snapshot so a restore is still possible.
+  while (state.snapshots.length > 1 && retainedSnapshotBytes() > maxTotalBytes) {
+    state.snapshots.shift();
+    state.evictedForBytes += 1;
   }
 }
 
@@ -225,6 +259,7 @@ const plugin: Plugin = {
     state.captures = 0;
     state.restores = 0;
     state.skippedLarge = 0;
+    state.evictedForBytes = 0;
     if (state.hookUnregister) {
       try {
         state.hookUnregister();
@@ -260,6 +295,7 @@ const plugin: Plugin = {
             files: [captured],
           },
           cfg.maxSnapshots,
+          cfg.maxTotalBytes,
         );
         state.captures += 1;
         api.metrics.counter('captures');
@@ -348,7 +384,7 @@ const plugin: Plugin = {
           origin: input.label?.trim() ? `manual:${input.label.trim()}` : 'manual',
           files,
         };
-        pushSnapshot(snapshot, cfg.maxSnapshots);
+        pushSnapshot(snapshot, cfg.maxSnapshots, cfg.maxTotalBytes);
         state.captures += 1;
         api.metrics.counter('captures');
         return {
@@ -398,6 +434,8 @@ const plugin: Plugin = {
             captures: state.captures,
             restores: state.restores,
             skippedLarge: state.skippedLarge,
+            retainedBytes: retainedSnapshotBytes(),
+            evictedForBytes: state.evictedForBytes,
           },
         };
       },
@@ -492,12 +530,15 @@ const plugin: Plugin = {
       restores: state.restores,
       skippedLarge: state.skippedLarge,
       snapshotsHeld: state.snapshots.length,
+      retainedBytes: retainedSnapshotBytes(),
+      evictedForBytes: state.evictedForBytes,
     };
     state.snapshots = [];
     state.nextId = 1;
     state.captures = 0;
     state.restores = 0;
     state.skippedLarge = 0;
+    state.evictedForBytes = 0;
     api.log.info('checkpoint: teardown complete', { final });
   },
 
@@ -510,6 +551,10 @@ const plugin: Plugin = {
         captures: state.captures,
         restores: state.restores,
         skippedLarge: state.skippedLarge,
+        // Retained snapshot bytes: the count-based ring alone does not
+        // bound memory, so surface the number the byte budget acts on.
+        retainedBytes: retainedSnapshotBytes(),
+        evictedForBytes: state.evictedForBytes,
       },
     };
   },

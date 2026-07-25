@@ -69,7 +69,6 @@
     "cross-env": "^10.1.0",
     "esbuild": "^0.28.1",
     "jsdom": "^29.1.1",
-    "ts-prune": "^0.10.3",
     "typescript": "^7.0.2",
     "undici-types": "^8.7.0",
     "vitest": "^4.1.10"

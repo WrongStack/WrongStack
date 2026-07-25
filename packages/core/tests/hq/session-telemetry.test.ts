@@ -200,3 +200,92 @@ describe('transcript mapper', () => {
     expect(out[0]!.text).toContain('failed');
   });
 });
+
+describe('transcript mapper — audit markers', () => {
+  it('renders the marker set with the same wording every other surface uses', () => {
+    const cases: Array<[Record<string, unknown>, string]> = [
+      [
+        { type: 'compaction', ts: 't', before: 8_000, after: 2_000 },
+        '⟲ context compacted: 8K → 2K tokens',
+      ],
+      [{ type: 'mode_changed', ts: 't', from: 'plan', to: 'build' }, 'mode: plan → build'],
+      [{ type: 'skill_activated', ts: 't', skillName: 'commit' }, 'skill activated: commit'],
+      [{ type: 'skill_deactivated', ts: 't', skillName: 'commit' }, 'skill deactivated: commit'],
+      [
+        { type: 'message_truncated', ts: 't', before: 900, after: 400 },
+        'message truncated: 900 → 400 tokens',
+      ],
+      [
+        {
+          type: 'provider_retry',
+          ts: 't',
+          providerId: 'anthropic',
+          attempt: 1,
+          delayMs: 2_000,
+          description: 'busy',
+        },
+        '⟳ retry 1 after 2.0s — busy',
+      ],
+    ];
+    for (const [event, text] of cases) {
+      const out = mapSessionEventToEntries(event);
+      expect(out, `no entry for ${String(event['type'])}`).toHaveLength(1);
+      expect(out[0]!.text).toBe(text);
+      expect(out[0]!.role).toBe('system');
+    }
+  });
+
+  it('routes error-level markers to the error role', () => {
+    const out = mapSessionEventToEntries({
+      type: 'provider_error',
+      ts: 't',
+      providerId: 'openai',
+      status: 500,
+      description: 'upstream',
+      retryable: false,
+    });
+    expect(out[0]).toMatchObject({
+      role: 'error',
+      isError: true,
+      text: 'provider error (HTTP 500, fatal): upstream',
+    });
+  });
+
+  it('attributes subagent lifecycle markers to their agent', () => {
+    expect(
+      mapSessionEventToEntries({
+        type: 'agent_spawned',
+        ts: 't',
+        agentId: 'agt_1',
+        role: 'reviewer',
+      })[0],
+    ).toMatchObject({ role: 'system', text: 'spawned as reviewer', agentId: 'agt_1' });
+    expect(
+      mapSessionEventToEntries({ type: 'agent_stopped', ts: 't', agentId: 'agt_1' })[0],
+    ).toMatchObject({ role: 'system', text: 'stopped', agentId: 'agt_1' });
+    expect(
+      mapSessionEventToEntries({ type: 'agent_error', ts: 't', agentId: 'agt_1', error: 'nope' })[0],
+    ).toMatchObject({ role: 'error', text: 'error: nope', agentId: 'agt_1' });
+  });
+
+  it('skips checkpoints — one per prompt would restate the user message next to it', () => {
+    expect(
+      mapSessionEventToEntries({ type: 'checkpoint', ts: 't', promptIndex: 0, promptPreview: 'hi' }),
+    ).toEqual([]);
+  });
+
+  it('still ignores lifecycle bookkeeping events', () => {
+    for (const type of ['session_start', 'in_flight_start', 'in_flight_end', 'file_snapshot']) {
+      expect(mapSessionEventToEntries({ type, ts: 't' })).toEqual([]);
+    }
+  });
+
+  it('keeps markers in chronological position within a full transcript', () => {
+    const out = buildTranscriptFromEvents([
+      { type: 'user_input', ts: 't1', content: 'hello' },
+      { type: 'compaction', ts: 't2', before: 8_000, after: 2_000 },
+      { type: 'llm_response', ts: 't3', content: [{ type: 'text', text: 'hi' }] },
+    ]);
+    expect(out.map((e) => e.role)).toEqual(['user', 'system', 'assistant']);
+  });
+});

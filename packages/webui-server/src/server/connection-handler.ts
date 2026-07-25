@@ -1,7 +1,7 @@
 import type { Context } from '@wrongstack/core/agent';
-import type { Message, TokenCounter, Usage } from '@wrongstack/core/types';
+import type { Message, SessionEvent, TokenCounter, Usage } from '@wrongstack/core/types';
 import type { WebSocket } from 'ws';
-import { decodeProtocolFrame, protocolAdvertisement } from '../protocol/index.js';
+import { buildReplayPayload, decodeProtocolFrame, protocolAdvertisement } from '../protocol/index.js';
 import type { CollaborationWebSocketHandler } from './collaboration-ws-handler.js';
 import { createConnectionLifecycle } from './connection-lifecycle.js';
 import type { GoalWebSocketHandler } from './goal-ws-handler.js';
@@ -20,7 +20,11 @@ export interface ConnectionHandlerOptions {
   tokenCounter: TokenCounter;
   context: Context;
   loadReplay?:
-    | (() => Promise<{ messages: Message[]; usage?: Usage | undefined } | null>)
+    | (() => Promise<{
+        messages: Message[];
+        events?: readonly SessionEvent[] | undefined;
+        usage?: Usage | undefined;
+      } | null>)
     | undefined;
   clients: Map<WebSocket, ConnectedClient>;
   pendingConfirms: Map<string, PendingConfirm>;
@@ -34,7 +38,6 @@ export interface ConnectionHandlerOptions {
   handleMessage: (ws: WebSocket, client: ConnectedClient, msg: WSClientMessage) => Promise<void>;
 }
 
-const REPLAY_MESSAGE_CAP = 2_000;
 const RATE_LIMIT_MESSAGES = Number.parseInt(process.env['WEBUI_RATE_LIMIT'] ?? '0', 10);
 
 export function createConnectionHandler(
@@ -90,20 +93,16 @@ export function createConnectionHandler(
       }
       try {
         const replay = await options.loadReplay?.();
-        const messages = replay?.messages ?? options.context.messages ?? [];
-        if (messages.length) {
-          payload['replayMessages'] =
-            messages.length > REPLAY_MESSAGE_CAP ? messages.slice(-REPLAY_MESSAGE_CAP) : messages;
-        }
-        const usage = replay?.usage ?? options.tokenCounter.total();
-        if (usage.input + usage.output + (usage.cacheRead ?? 0) + (usage.cacheWrite ?? 0) > 0) {
-          payload['replayUsage'] = {
-            input: usage.input,
-            output: usage.output,
-            cacheRead: usage.cacheRead ?? 0,
-            cacheWrite: usage.cacheWrite ?? 0,
-          };
-        }
+        // No durable store wired: fall back to the live conversation, which has
+        // no event stream behind it — markers are simply absent in that mode.
+        Object.assign(
+          payload,
+          buildReplayPayload({
+            messages: replay?.messages ?? options.context.messages ?? [],
+            events: replay?.events,
+            usage: replay?.usage ?? options.tokenCounter.total(),
+          }),
+        );
       } catch {
         // Replay is best-effort; the client may still hydrate local state.
       }

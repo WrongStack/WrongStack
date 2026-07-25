@@ -328,6 +328,12 @@ async function runAutoDoc(input: AutoDocInput, api: Parameters<Plugin['setup']>[
 
       const entities = parseSource(content);
       let modified = content;
+      // Count what THIS file gained. `results` accumulates across every
+      // file in the batch, so using it as the write condition rewrote
+      // files that gained nothing — as soon as any earlier file produced a
+      // doc comment, every later file was written back verbatim, bumping
+      // its mtime and waking watchers, rebuilds and other PostToolUse hooks.
+      const beforeCount = results.length;
 
       for (const entity of entities) {
         if (!input.force && !needsDocComment(modified, entity)) continue;
@@ -357,7 +363,11 @@ async function runAutoDoc(input: AutoDocInput, api: Parameters<Plugin['setup']>[
         results.push({ file: safeFile, entity: entity.name, source });
       }
 
-      if (!input.dry_run && results.length > 0) {
+      // Belt and braces: require both a recorded change for this file AND
+      // a real content difference, so an injection that turned out to be a
+      // no-op does not rewrite the file either.
+      const changedThisFile = results.length > beforeCount && modified !== content;
+      if (!input.dry_run && changedThisFile) {
         writeFileSync(safeFile, modified, 'utf-8');
         api.log.info(`auto-doc: updated ${safeFile}`);
       }

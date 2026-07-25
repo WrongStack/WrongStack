@@ -205,8 +205,17 @@ export function createMessageHandler(deps: MessageHandlerDeps): ServerMessageHan
       case 'session.start': {
         const sessionProjection = projectSessionMessage(message);
         if (!sessionProjection) break;
-        const { id, provider, model, maxContext, projectName, cwd, replayMessages, replayUsage } =
-          sessionProjection;
+        const {
+          id,
+          provider,
+          model,
+          maxContext,
+          projectName,
+          cwd,
+          replayMessages,
+          replayMarkers,
+          replayUsage,
+        } = sessionProjection;
         const previousId = sessionIdRef.current;
         const switchedSession = Boolean(previousId && id && previousId !== id);
         const resetSessionState = switchedSession || sessionProjection.reset;
@@ -238,7 +247,7 @@ export function createMessageHandler(deps: MessageHandlerDeps): ServerMessageHan
             : [{ id: model, name: model }, ...(current[provider] ?? [])].filter((item) => item.id),
         }));
         if (replayMessages) {
-          setMessages(replayToMessages(replayMessages));
+          setMessages(replayToMessages(replayMessages, replayMarkers));
         } else if (resetSessionState) {
           setMessages([]);
         }

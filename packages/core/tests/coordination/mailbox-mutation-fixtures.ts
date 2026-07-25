@@ -176,12 +176,10 @@ export function addRouteMutationTests(
         'rejects malformed body (case: $rejectContains)',
         async (c: MutationCase) => {
           let scopeCleanup: (() => Promise<void>) | undefined;
-          let _baseline: number | undefined;
           if (resourceCleanup) {
             const r = await resourceCleanup(def.route.replace(/[^a-z]/g, ''));
             if (r) {
               scopeCleanup = r.cleanup;
-              _baseline = r.baseline;
             }
           }
           try {

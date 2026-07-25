@@ -45,6 +45,32 @@ describe('buildRestoredCheckpoints', () => {
     expect(restored.map((c) => c.promptIndex)).toEqual([1, 2]);
     expect(restored[1]?.promptPreview).toBe('rewritten after a rewind');
   });
+
+  it('derives fileCount from the file_snapshot events that follow each checkpoint', () => {
+    const snapshot = (promptIndex: number, paths: string[]): SessionEvent =>
+      ({
+        type: 'file_snapshot',
+        ts: `2026-07-05T10:00:1${promptIndex}.000Z`,
+        promptIndex,
+        files: paths.map((p) => ({ path: p, action: 'modified', before: 'a', after: 'b' })),
+      }) as SessionEvent;
+
+    const restored = buildRestoredCheckpoints([
+      checkpoint(0, 'first prompt'),
+      snapshot(0, ['a.ts', 'b.ts']),
+      checkpoint(1, 'second prompt'),
+      // Two separate snapshot events for the same prompt must sum, not overwrite.
+      snapshot(1, ['c.ts']),
+      snapshot(1, ['d.ts', 'e.ts', 'f.ts']),
+      checkpoint(2, 'read-only prompt'),
+    ]);
+
+    expect(restored.map((c) => [c.promptIndex, c.fileCount])).toEqual([
+      [0, 2],
+      [1, 4],
+      [2, 0],
+    ]);
+  });
 });
 
 function userMsg(text: string): Message {

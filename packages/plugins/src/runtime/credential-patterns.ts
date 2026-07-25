@@ -88,7 +88,7 @@ export const CREDENTIAL_PATTERNS: readonly CredentialPattern[] = [
   // Telegram
   {
     type: 'telegram_bot_token',
-    regex: /(?:(?<![A-Za-z0-9_])|(?<=bot))\d+:[A-Za-z0-9_-]{20,}(?![A-Za-z0-9_-])/g,
+    regex: /(?:(?<![A-Za-z0-9_])|(?<=(?:^|[^A-Za-z0-9_])bot))\d+:[A-Za-z0-9_-]{20,}(?![A-Za-z0-9_-])/g,
   },
   // JWT
   {

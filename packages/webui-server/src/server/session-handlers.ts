@@ -21,6 +21,7 @@ import { DEFAULT_CONTEXT_WINDOW_MODE_ID, resolveContextWindowPolicy } from '@wro
 import { repairToolUseAdjacency } from '@wrongstack/core/utils';
 import { sessionScopedPath } from '@wrongstack/core/utils';
 import type { WebSocket } from 'ws';
+import { buildReplayPayload } from '../protocol/index.js';
 import type { CustomModeStore } from './custom-context-modes.js';
 import { toSessionHistoryEntries } from './session-history.js';
 import type { SessionRouteHandlers } from './session-routes.js';
@@ -517,8 +518,13 @@ export function createSessionHandlers(ctx: SessionHandlersContext): SessionRoute
           type: 'session.start',
           payload: await ctx.sessionStartPayload({
             reset: true,
-            replayMessages: resumed.data.messages,
-            replayUsage: resumed.data.usage,
+            // Same builder the connect path uses, so a resume and a reconnect
+            // hand the client an identical transcript (markers included).
+            ...buildReplayPayload({
+              messages: resumed.data.messages,
+              events: resumed.data.events,
+              usage: resumed.data.usage,
+            }),
           }),
         });
         // The client resets todos to [] on session.start(reset); push the

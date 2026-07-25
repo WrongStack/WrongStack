@@ -215,16 +215,46 @@ function canonicalize(value: unknown): string {
   }
 }
 
-function sortKeys(value: unknown): unknown {
-  if (Array.isArray(value)) return value.map(sortKeys);
-  if (value && typeof value === 'object') {
+/**
+ * Depth beyond which nested values are summarised rather than walked.
+ * Tool inputs are shallow in practice; this only bounds pathological ones.
+ */
+const CANONICALIZE_MAX_DEPTH = 12;
+
+/**
+ * Key-sorted deep copy, used to give equivalent tool inputs the same
+ * fingerprint regardless of key order.
+ *
+ * Bounded on both depth and cycles. Unbounded recursion here was not
+ * merely a crash risk: a circular or very deep input blew the stack, the
+ * caller caught the `RangeError`, and fell back to `String(value)` —
+ * which is `"[object Object]"` for *every* such input. All of them then
+ * fingerprinted identically, and loop-breaker saw a repeat loop that was
+ * not happening. A false positive here interrupts the agent, so the
+ * fingerprint has to stay discriminating even for awkward inputs.
+ */
+function sortKeys(value: unknown, depth = 0, seen: Set<object> = new Set()): unknown {
+  if (value === null || typeof value !== 'object') return value;
+  if (seen.has(value as object)) return '[circular]';
+  if (depth >= CANONICALIZE_MAX_DEPTH) {
+    return Array.isArray(value) ? `[array:${value.length}]` : '[deep-object]';
+  }
+  seen.add(value as object);
+  try {
+    if (Array.isArray(value)) {
+      return value.map((v) => sortKeys(v, depth + 1, seen));
+    }
     const out: Record<string, unknown> = {};
     for (const key of Object.keys(value as Record<string, unknown>).sort()) {
-      out[key] = sortKeys((value as Record<string, unknown>)[key]);
+      out[key] = sortKeys((value as Record<string, unknown>)[key], depth + 1, seen);
     }
     return out;
+  } finally {
+    // Leave the node once its subtree is done: a value that legitimately
+    // appears twice in sibling branches is not a cycle, and collapsing it
+    // to a marker would make two genuinely different inputs look alike.
+    seen.delete(value as object);
   }
-  return value;
 }
 
 function fingerprint(toolName: string, toolInput: unknown): string {

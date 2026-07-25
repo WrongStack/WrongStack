@@ -844,6 +844,21 @@ export function BrainSection(): ReactElement {
                 <div className="mt-0.5 text-xs text-muted-foreground">
                   Tie-breaker model that sees every vote's rationale.
                 </div>
+                {/*
+                  On 'auto' the judge is derived from the pool, and when the
+                  pool has no model left over after seating it ends up being
+                  one of the voters — a tie-breaker that cast one of the tied
+                  votes. Surface the resolved judge so that is visible instead
+                  of implicit.
+                */}
+                {!config.council.judge && config.judgeLabel && (
+                  <div className="mt-0.5 font-mono text-xs text-muted-foreground">
+                    resolved: {config.judgeLabel}
+                    {config.councilLabels.some((l) => l.startsWith(`${config.judgeLabel} (`)) && (
+                      <span className="ml-1 font-sans text-amber-500">⚠ also a voter</span>
+                    )}
+                  </div>
+                )}
               </div>
               <div className="flex shrink-0 items-center gap-1.5">
                 <span className="max-w-[180px] truncate font-mono text-xs">

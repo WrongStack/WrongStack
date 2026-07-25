@@ -3,12 +3,21 @@
  */
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-// Use module-level mock to intercept writeFileSync
-const mockWriteFileSync = vi.fn();
+// Persistence goes through the shared `atomicWrite` primitive (which adds
+// the Windows EPERM/EBUSY rename retry), so the failure path is injected
+// there rather than at `fs.writeFileSync`. Mocking `node:fs` would no
+// longer intercept the write at all — the test would silently pass while
+// writing a real file into the repo.
+const mockAtomicWrite = vi.fn();
+vi.mock('@wrongstack/core/utils', async (importOriginal) => ({
+  ...(await importOriginal<Record<string, unknown>>()),
+  atomicWrite: mockAtomicWrite,
+  ensureDir: vi.fn(async () => undefined),
+}));
 vi.mock('node:fs', () => ({
   existsSync: vi.fn(() => true),
   mkdirSync: vi.fn(),
-  writeFileSync: mockWriteFileSync,
+  writeFileSync: vi.fn(),
   readFileSync: vi.fn(() => '{"pins":[],"nextId":1}'),
   statSync: vi.fn(() => ({ size: 100 })),
 }));
@@ -47,11 +56,11 @@ beforeEach(() => { vi.clearAllMocks(); });
 
 describe('context-pins plugin - persist error', () => {
   it('handles write failure gracefully', async () => {
-    mockWriteFileSync.mockImplementation(() => { throw new Error('mock error'); });
+    mockAtomicWrite.mockImplementation(() => { throw new Error('mock error'); });
     // A non-empty filePath is required: with the default empty path the plugin
     // is in-memory-only and persistPins() short-circuits to `true` before ever
-    // calling the (mocked, throwing) writeFileSync — so the error path is never
-    // exercised. The path never touches disk because writeFileSync is mocked.
+    // calling the (mocked, throwing) atomicWrite — so the error path is never
+    // exercised. The path never touches disk because atomicWrite is mocked.
     const api = makeApi({ extensions: { 'context-pins': { filePath: 'pins.json' } } });
     contextPinsPlugin.setup(api as never);
     const add = getTool(api, 'pin_add');

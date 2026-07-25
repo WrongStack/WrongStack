@@ -47,6 +47,7 @@
 import { readFileSync, writeFileSync } from 'node:fs';
 import { isAbsolute, relative, resolve } from 'node:path';
 import type { Plugin } from '@wrongstack/core/types';
+import { BoundedSet } from '../runtime/index.js';
 
 // ---------------------------------------------------------------------------
 // Module-scope state (H1 audit pattern)
@@ -70,7 +71,12 @@ export interface ChangelogEntry {
 
 interface ChangelogWriterState {
   entries: ChangelogEntry[];
-  filesTouched: Set<string>;
+  /**
+   * Paths touched this session. Bounded — an unbounded set grew one entry
+   * per distinct file for the whole session; only the newest 50 are ever
+   * reported, so retaining every path served no purpose.
+   */
+  filesTouched: BoundedSet<string>;
   commitsSeen: number;
   writes: number;
   polishes: number;
@@ -80,7 +86,7 @@ interface ChangelogWriterState {
 
 const state: ChangelogWriterState = {
   entries: [],
-  filesTouched: new Set(),
+  filesTouched: new BoundedSet<string>({ max: 2_000 }),
   commitsSeen: 0,
   writes: 0,
   polishes: 0,
@@ -281,7 +287,7 @@ const plugin: Plugin = {
   setup(api) {
     // Idempotent re-init (H1 pattern).
     state.entries = [];
-    state.filesTouched = new Set();
+    state.filesTouched = new BoundedSet<string>({ max: 2_000 });
     state.commitsSeen = 0;
     state.writes = 0;
     for (const off of state.eventUnsubscribers) {
@@ -506,7 +512,7 @@ const plugin: Plugin = {
       filesTouched: state.filesTouched.size,
     };
     state.entries = [];
-    state.filesTouched = new Set();
+    state.filesTouched = new BoundedSet<string>({ max: 2_000 });
     state.commitsSeen = 0;
     state.writes = 0;
     api.log.info('changelog-writer: teardown complete', { final });

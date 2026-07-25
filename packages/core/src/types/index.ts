@@ -33,6 +33,9 @@ export type { Compactor, CompactReport } from './compactor.js';
 export type { DirectoryPolicy, DirectoryRule, PermissionDecision, PermissionPolicy, PermissionTrace, PermissionTraceStep, TrustPolicy } from './permission.js';
 // ── session (15 symbols) ──
 export type { FileSnapshot, ForkedSession, ResumeFileStatus, ResumeFileValidationEntry, ResumeValidation, ResumedSession, SessionData, SessionEvent, SessionForkOptions, SessionMetadata, SessionStore, SessionSummary, SessionWriter, WorkspaceCheckpointRef, WorkspaceMaterializationResult } from './session.js';
+// ── session-markers (6 symbols) ──
+export { CHAT_MARKER_SOURCES, projectSessionMarkers, SESSION_MARKER_EVENT_TYPES, sessionEventToMarker } from './session-markers.js';
+export type { SessionMarker, SessionMarkerLevel } from './session-markers.js';
 // ── session-rewinder (4 symbols) ──
 export type { CheckpointInfo, RewindResult, RewindResultExtended, SessionRewinder } from './session-rewinder.js';
 // ── attachment (6 symbols) ──

@@ -23,7 +23,7 @@ import * as path from 'node:path';
 import { spawn } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 
-import { GlobalMailbox, resolveProjectDir } from '@wrongstack/core/coordination';
+import { resolveProjectDir } from '@wrongstack/core/coordination';
 import { wstackGlobalRoot } from '@wrongstack/core/utils';
 
 import {
@@ -80,16 +80,6 @@ async function http(
     parsed = text;
   }
   return { status: res.status, body: parsed };
-}
-
-async function _countMessages(): Promise<number> {
-  const mb = new GlobalMailbox(resolveProjectDir(tmpProject, wstackGlobalRoot()));
-  try {
-    const all = await mb.query({ limit: 1_000 });
-    return all.length;
-  } finally {
-    await mb.close();
-  }
 }
 
 /**

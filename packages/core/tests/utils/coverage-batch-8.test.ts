@@ -41,7 +41,6 @@ describe('generateSessionId', () => {
   });
   it('falls back to Date.now() on invalid date', () => {
     const id = generateSessionId('not-a-date');
-    const _now = new Date().toISOString().slice(0, 10);
     expect(id.startsWith('not-a-date/')).toBe(true); // uses raw string prefix
     // The seedTime falls back to Date.now()
     expect(id.length).toBeGreaterThan(20);

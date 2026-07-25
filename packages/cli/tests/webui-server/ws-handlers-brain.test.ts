@@ -140,6 +140,7 @@ const SNAPSHOT: BrainConfigSnapshot = {
   cache: { enabled: false, ttlMs: 300_000, maxEntries: 200, hits: 0, misses: 0, size: 0 },
   poolLabels: ['a/x'],
   councilLabels: [],
+  judgeLabel: undefined,
   usingSessionModel: false,
 };
 
@@ -178,6 +179,7 @@ describe('handleBrainStatus enrichment', () => {
       mode: 'headless',
       poolLabels: ['a/x'],
       councilLabels: [],
+      judgeLabel: undefined,
       ledgerPath: 'C:/x/ledger.jsonl',
     });
   });

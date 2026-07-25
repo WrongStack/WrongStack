@@ -144,3 +144,59 @@ export class BoundedMap<K, V> {
     return this.entries();
   }
 }
+
+/**
+ * A `Set` with the same hard cap and LRU eviction as {@link BoundedMap}.
+ *
+ * Plugins use module-scope sets to remember "already reported" keys so a
+ * finding is surfaced once rather than on every scan. That set has to
+ * outlive a single scan, which is why it lives at module scope — but
+ * without a bound it grows one entry per distinct finding for the life of
+ * the process.
+ *
+ * Eviction means a very old key may eventually be reported a second time.
+ * That is the right trade: re-reporting a finding the user last saw
+ * thousands of findings ago is reasonable behaviour, whereas unbounded
+ * growth is not.
+ */
+export class BoundedSet<T> {
+  private readonly inner: BoundedMap<T, true>;
+
+  constructor(options: BoundedMapOptions) {
+    this.inner = new BoundedMap<T, true>(options);
+  }
+
+  has(value: T): boolean {
+    return this.inner.has(value);
+  }
+
+  add(value: T): this {
+    this.inner.set(value, true);
+    return this;
+  }
+
+  delete(value: T): boolean {
+    return this.inner.delete(value);
+  }
+
+  clear(): void {
+    this.inner.clear();
+  }
+
+  get size(): number {
+    return this.inner.size;
+  }
+
+  /** How many entries have been dropped to respect `max`, since the last clear. */
+  get evictionCount(): number {
+    return this.inner.evictionCount;
+  }
+
+  *values(): IterableIterator<T> {
+    for (const [key] of this.inner) yield key;
+  }
+
+  [Symbol.iterator](): IterableIterator<T> {
+    return this.values();
+  }
+}

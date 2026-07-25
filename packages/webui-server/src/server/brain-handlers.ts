@@ -65,6 +65,10 @@ export function handleBrainStatus(ctx: BrainHandlerContext, ws: WebSocket): void
             mode: snapshot.mode,
             poolLabels: snapshot.poolLabels,
             councilLabels: snapshot.councilLabels,
+            // Status already lists the seats; without the judge it does not
+            // say who breaks their ties — and the derived judge is exactly
+            // the one that can silently be one of those seats.
+            judgeLabel: snapshot.judgeLabel,
             ledgerPath: snapshot.ledger.path,
           }
         : {}),

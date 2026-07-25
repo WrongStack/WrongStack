@@ -17,7 +17,7 @@ import { detectSecrets } from '../src/prompt-firewall/index.js';
 // Helper: construct a postgres URI at test-time to avoid the
 // secret-scanner redacting the literal credential pattern in source.
 const PG_BASE = ["postgresql", "://", "localhost", "/app?"].join("");
-function pg(qs) { return PG_BASE + qs; }
+function pg(qs: string): string { return PG_BASE + qs; }
 
 describe('canonical credential table', () => {
   it('gives every pattern a unique id', () => {
@@ -33,7 +33,7 @@ describe('canonical credential table', () => {
 
   it('uses no capturing groups in built-in patterns', () => {
     for (const p of CREDENTIAL_PATTERNS) {
-      const groupCount = new RegExp(p.regex.source + '|').exec('').length - 1;
+      const groupCount = new RegExp(p.regex.source + '|').exec('')!.length - 1;
       expect({ type: p.type, groupCount }).toEqual({ type: p.type, groupCount: 0 });
     }
   });
@@ -41,9 +41,9 @@ describe('canonical credential table', () => {
   it('hands out independently-stateful copies', () => {
     const a = cloneCredentialPatterns();
     const b = cloneCredentialPatterns();
-    a[0].regex.lastIndex = 42;
-    expect(b[0].regex.lastIndex).toBe(0);
-    expect(a[0].regex).not.toBe(b[0].regex);
+    a[0]!.regex.lastIndex = 42;
+    expect(b[0]!.regex.lastIndex).toBe(0);
+    expect(a[0]!.regex).not.toBe(b[0]!.regex);
   });
 });
 
@@ -75,16 +75,41 @@ describe('prompt-firewall inherits the shared coverage', () => {
 
 describe('postgres_uri query-parameter password detection', () => {
   it.each([
+    ['password as first param', pg('password=first-secret&user=alice'), true],
     ['password as last param (no other params)', pg('password=secret'), true],
     ['password as last param (with preceding params)', pg('user=alice&password=secret'), true],
     ['password in middle (followed by another param)', pg('user=alice&password=secret&sslmode=require'), true],
     ['uripassword (no colon)', pg('appname=somepass'), false],
+    ['percent-encoded password key', pg('user=alice&pass%77ord=secret'), true],
     ['no password param', pg('user=alice&sslmode=require'), false],
   ])('detects %s', (_label, uri, shouldMatch) => {
     const found = cloneCredentialPatterns().find((p) => p.type === 'postgres_uri');
     expect(found).toBeDefined();
-    expect({ uri, matched: found.regex.test(uri) }).toEqual({
+    expect({ uri, matched: found!.regex.test(uri) }).toEqual({
       uri,
+      matched: shouldMatch,
+    });
+  });
+});
+
+describe('telegram_bot_token detection', () => {
+  const token = '123456:ABCDEFghijklmnopqrstuvwxyz_1234';
+
+  it.each([
+    ['raw token', token, true],
+    ['url /bot prefix', '/bot' + token, true],
+    ['url t.me/bot prefix', 't.me/bot' + token, true],
+    ['space-prefixed bot', ' bot' + token, true],
+    ['start-of-string bot', 'bot' + token, true],
+    ['robot false match', 'robot' + token, false],
+    ['abot false match', 'abot' + token, false],
+    ['xbot false match', 'xbot' + token, false],
+  ])('detects %s', (_label, text, shouldMatch) => {
+    const found = cloneCredentialPatterns().find((p) => p.type === 'telegram_bot_token');
+    expect(found).toBeDefined();
+    found!.regex.lastIndex = 0;
+    expect({ text, matched: found!.regex.test(text) }).toEqual({
+      text,
       matched: shouldMatch,
     });
   });

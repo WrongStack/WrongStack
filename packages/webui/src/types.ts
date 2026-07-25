@@ -1,4 +1,4 @@
-import type { Usage } from '@wrongstack/core/types';
+import type { SessionMarker, Usage } from '@wrongstack/core/types';
 import type {
   KanbanBoard,
   KanbanBoardPresence,
@@ -29,6 +29,10 @@ export interface WSSessionStart {
     cacheReadCost?: number | undefined;
     reset?: boolean | undefined;
     replayMessages?: Array<{ role: string | undefined; content: unknown; ts?: string | undefined }>;
+    /** Audit markers (compaction, mode/skill switches, subagent lifecycle,
+     *  provider retries, truncation) projected server-side. Replayed alongside
+     *  the conversation so a reconnect shows what the live stream showed. */
+    replayMarkers?: SessionMarker[] | undefined;
     replayUsage?: Usage | undefined;
     /** True when no provider+model is configured yet — show the setup screen. */
     needsSetup?: boolean | undefined;
@@ -1884,6 +1888,12 @@ export interface BrainConfigWire {
   cache: BrainCacheWire;
   poolLabels: string[];
   councilLabels: string[];
+  /**
+   * EFFECTIVE council judge, undefined when no council is wired. Distinct from
+   * `council.judge` (the CONFIGURED one, usually absent): the derived judge is
+   * the one that can silently also be a seated voter.
+   */
+  judgeLabel?: string | undefined;
   usingSessionModel: boolean;
 }
 
@@ -2810,6 +2820,8 @@ export type WSServerMessage =
         mode?: 'headless' | 'interactive' | undefined;
         poolLabels?: string[] | undefined;
         councilLabels?: string[] | undefined;
+        /** EFFECTIVE council judge — undefined when no council is wired. */
+        judgeLabel?: string | undefined;
         ledgerPath?: string | undefined;
       };
     }

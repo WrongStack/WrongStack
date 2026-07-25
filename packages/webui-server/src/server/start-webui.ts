@@ -798,7 +798,8 @@ export async function startWebUI(
     loadReplay: async () => {
       await session.flush().catch(() => undefined);
       const data = await sessionStore.load(session.id);
-      return { messages: data.messages, usage: data.usage };
+      // `events` feeds the audit markers; the load already parsed them.
+      return { messages: data.messages, events: data.events, usage: data.usage };
     },
     clients,
     pendingConfirms,

@@ -254,17 +254,44 @@ function parseCommitMessage(message: string, cfg: CommitValidatorConfig): Parsed
  * Extract the commit message from a bash `git commit -m "..."` command.
  * Returns the message string, or null if no commit message was found.
  */
-function extractMessageFromBash(command: string): string | null {
-  // Match `git commit -m "message"` or `git commit -m 'message'`
-  // Handles multiple -m flags (git concatenates them with \n).
-  const flags: string[] = [];
-  const doubleQuoted = command.matchAll(/-m\s+"([^"]*)"/g);
-  const singleQuoted = command.matchAll(/-m\s+'([^']*)'/g);
-  for (const m of doubleQuoted) flags.push(m[1] ?? '');
-  for (const m of singleQuoted) flags.push(m[1] ?? '');
+/**
+ * Every spelling of git's message flag, in one alternation so `matchAll`
+ * yields them in command-line order.
+ *
+ * Ordering matters: git joins repeated `-m` values with a blank line, and
+ * the FIRST one is the subject that this validator checks. Scanning
+ * double-quoted values and then single-quoted ones (the previous
+ * approach) reordered a mixed-quoting command — `-m 'feat: x' -m "body"`
+ * produced `body\nfeat: x`, so the body was validated as the subject and
+ * a perfectly good commit was rejected.
+ *
+ * The bare (unquoted) and `--message=` forms are matched too. Leaving
+ * them out meant `git commit -m chore:x` and `git commit --message="…"`
+ * produced no message at all, and the hook let them through unchecked —
+ * a silent hole in the gate.
+ */
+const GIT_MESSAGE_FLAG_RE = new RegExp(
+  [
+    // -m "…" | -m '…' | -m=… ; --message "…" | --message='…' | --message=…
+    String.raw`(?:^|\s)(?:-m|--message)(?:\s+|=)"([^"]*)"`,
+    String.raw`(?:^|\s)(?:-m|--message)(?:\s+|=)'([^']*)'`,
+    // Bare value: stops at whitespace or a shell separator.
+    String.raw`(?:^|\s)(?:-m|--message)(?:\s+|=)([^\s;&|"']+)`,
+  ].join('|'),
+  'g',
+);
 
-  if (flags.length === 0) return null;
-  return flags.join('\n');
+function extractMessageFromBash(command: string): string | null {
+  const parts: string[] = [];
+  for (const m of command.matchAll(GIT_MESSAGE_FLAG_RE)) {
+    // Exactly one alternative's group is defined per match.
+    const value = m[1] ?? m[2] ?? m[3];
+    if (value !== undefined) parts.push(value);
+  }
+  if (parts.length === 0) return null;
+  // git separates repeated -m values with a blank line; the first is the
+  // subject, which is what `parseCommitMessage` validates.
+  return parts.join('\n');
 }
 
 // ---------------------------------------------------------------------------

@@ -94,6 +94,69 @@ describe('SimpleUI chat projection', () => {
       { role: 'assistant', text: 'Response' },
     ]);
   });
+
+  it('interleaves audit markers into the replayed conversation by timestamp', () => {
+    expect(
+      replayToMessages(
+        [
+          { role: 'user', content: 'Fix it', ts: '2026-07-25T10:00:00Z' },
+          { role: 'assistant', content: 'Done', ts: '2026-07-25T10:00:30Z' },
+        ],
+        [
+          {
+            ts: '2026-07-25T10:00:10Z',
+            source: 'compaction',
+            level: 'info',
+            text: '⟲ context compacted: 8K → 2K tokens',
+          },
+          {
+            ts: '2026-07-25T10:09:00Z',
+            source: 'mode_changed',
+            level: 'info',
+            text: 'mode: plan → build',
+          },
+        ],
+      ).map(({ role, text }) => ({ role, text })),
+    ).toEqual([
+      { role: 'user', text: 'Fix it' },
+      { role: 'system', text: '⟲ context compacted: 8K → 2K tokens' },
+      { role: 'assistant', text: 'Done' },
+      // outlived the last message — appended rather than dropped
+      { role: 'system', text: 'mode: plan → build' },
+    ]);
+  });
+
+  it('keeps markers when the conversation entry they follow was filtered out', () => {
+    // A mailbox injection is stripped from the human-facing history, but it
+    // must not take the marker that happened after it down with it.
+    expect(
+      replayToMessages(
+        [
+          { role: 'user', content: '[MAILBOX] worker done', ts: '2026-07-25T10:00:00Z' },
+          { role: 'assistant', content: 'Continuing', ts: '2026-07-25T10:00:30Z' },
+        ],
+        [
+          {
+            ts: '2026-07-25T10:00:10Z',
+            source: 'skill_activated',
+            level: 'info',
+            text: 'skill activated: commit',
+          },
+        ],
+      ).map(({ role, text }) => ({ role, text })),
+    ).toEqual([
+      { role: 'system', text: 'skill activated: commit' },
+      { role: 'assistant', text: 'Continuing' },
+    ]);
+  });
+
+  it('replays the conversation unchanged when no markers are supplied', () => {
+    expect(
+      replayToMessages([{ role: 'user', content: 'Hi', ts: '2026-07-25T10:00:00Z' }]).map(
+        ({ role, text }) => ({ role, text }),
+      ),
+    ).toEqual([{ role: 'user', text: 'Hi' }]);
+  });
 });
 
 describe('SimpleUI subagent projection', () => {
