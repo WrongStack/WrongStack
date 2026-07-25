@@ -21,7 +21,6 @@
   --subtle: oklch(64% 0.04 100);
   --accent: oklch(78% 0.11 85);
   --accent-hot: oklch(86% 0.12 88);
-  --brand-orange: oklch(70% 0.12 75);
   --success: oklch(76% 0.13 160);
   --warning: oklch(80% 0.13 80);
   --danger: oklch(68% 0.15 25);
@@ -51,7 +50,6 @@
   --subtle: oklch(52% 0.035 165);
   --accent: oklch(52% 0.11 80);
   --accent-hot: oklch(44% 0.11 75);
-  --brand-orange: oklch(48% 0.12 60);
   --success: oklch(52% 0.12 160);
   --warning: oklch(52% 0.12 75);
   --danger: oklch(45% 0.13 25);
@@ -83,7 +81,8 @@ body,
 
 button,
 select,
-textarea {
+textarea,
+input {
   font: inherit;
 }
 
@@ -103,6 +102,11 @@ a:focus-visible {
 ::selection {
   background: var(--accent);
   color: var(--accent-ink);
+}
+
+/* Light theme deepens the selection ground so ivory text stays well above AA. */
+:root[data-theme="light"] ::selection {
+  background: var(--accent-hot);
 }
 
 .app-shell {
@@ -2026,6 +2030,11 @@ a:focus-visible {
 }
 
 @media (prefers-reduced-motion: reduce) {
+  :root,
+  :root[data-theme="light"] {
+    transition: none;
+  }
+
   .settings-panel {
     animation: none;
   }
@@ -4004,6 +4013,7 @@ a:focus-visible {
   display: flex; align-items: center; justify-content: center;
   padding: 24px;
   background: color-mix(in srgb, var(--bg) 78%, transparent);
+  -webkit-backdrop-filter: blur(2px);
   backdrop-filter: blur(2px);
 }
 
