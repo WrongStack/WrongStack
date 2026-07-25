@@ -1064,7 +1064,10 @@ function SelfLearningTab({
           setTeachFeedback({ ok: false, msg: 'No raw entries to optimize yet.' });
           return;
         }
-        const prompt = data.leaderInstruction ?? data.instruction;
+        // Send the full instruction (with raw entries embedded) so the leader
+        // agent has the actual learning data to synthesize — the short
+        // leaderInstruction promises data it does not carry.
+        const prompt = data.instruction;
         if (!prompt) throw new Error('No consolidation instruction generated');
         const chat = useChatStore.getState();
         chat.addMessage({ role: 'user', content: prompt });
@@ -1096,22 +1099,49 @@ function SelfLearningTab({
       setBulkOptimizing(true);
       setTeachFeedback(null);
       try {
-        const results = await Promise.all(
-          roles.map(async (r) => {
-            const data = (await sendRosterMessage('agent-roster.consolidate', { role: r })) as {
+        // Serialize requests to avoid the per-type gate in sendRosterMessage
+        // ("Roster request 'agent-roster.consolidate' superseded by new request").
+        // Each individual failure is caught and pushed as null so the rest
+        // of the batch is not lost.
+        const results: Array<{ role: string; instruction: string } | null> = [];
+        let failedCount = 0;
+        let lastErrorMsg = '';
+        for (const r of roles) {
+          try {
+            const data = (await sendRosterMessage('agent-roster.consolidate', {
+              role: r,
+            })) as {
               instruction?: string;
               rawEntryCount?: number;
               error?: string;
             };
-            if (data.error || !data.instruction || data.rawEntryCount === 0) return null;
-            return { role: r, instruction: data.instruction };
-          }),
-        );
+            if (data.error || !data.instruction) {
+              // Server error or missing instruction — count as a failure
+              failedCount++;
+              lastErrorMsg = data.error || 'No consolidation instruction';
+              results.push(null);
+            } else if (data.rawEntryCount === 0) {
+              // No entries to optimize — legitimate skip, not a failure
+              results.push(null);
+            } else {
+              results.push({ role: r, instruction: data.instruction });
+            }
+          } catch (err) {
+            failedCount++;
+            const msg = err instanceof Error ? err.message : String(err);
+            lastErrorMsg = msg;
+            results.push(null);
+          }
+        }
         const valid = results.filter(
           (r): r is { role: string; instruction: string } => r !== null,
         );
         if (valid.length === 0) {
-          setTeachFeedback({ ok: false, msg: 'No agents had optimizable entries.' });
+          const diagnostic =
+            failedCount > 0
+              ? `Bulk consolidate failed for ${failedCount} of ${roles.length} agent${roles.length > 1 ? 's' : ''}.${lastErrorMsg ? ` Last error: ${lastErrorMsg}` : ''}`
+              : 'No agents had optimizable entries.';
+          setTeachFeedback({ ok: false, msg: diagnostic });
           return;
         }
         const prompt =

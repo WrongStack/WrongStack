@@ -33,7 +33,7 @@ describe('createRouteFamilyDispatcher', () => {
 
     await dispatch({} as WebSocket, { type: 'goal.refresh', payload: {} });
 
-    expect(input.routes.goal.handleMessage).toHaveBeenCalledWith({
+    expect(input.routes.goal.handleMessage).toHaveBeenCalledWith({} as WebSocket, {
       type: 'goal.refresh',
       payload: {},
     });

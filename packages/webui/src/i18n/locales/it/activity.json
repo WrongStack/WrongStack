@@ -151,7 +151,8 @@
     "clickToFill": "clic per compilare",
     "clickToFillTitle": "Clic per compilare: {{text}}",
     "auto": "auto",
-    "willAutoSubmit": "Invio automatico dopo il countdown"
+    "willAutoSubmit": "Invio automatico dopo il countdown",
+    "autoFilling": "Compilazione in corso"
   },
   "mailbox": {
     "onlineCount": "{{count}} online",

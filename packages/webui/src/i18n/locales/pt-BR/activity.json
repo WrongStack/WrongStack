@@ -151,7 +151,8 @@
     "clickToFill": "clique para preencher",
     "clickToFillTitle": "Clique para preencher: {{text}}",
     "auto": "auto",
-    "willAutoSubmit": "Envio automático após a contagem regressiva"
+    "willAutoSubmit": "Envio automático após a contagem regressiva",
+    "autoFilling": "Preenchendo"
   },
   "mailbox": {
     "onlineCount": "{{count}} online",

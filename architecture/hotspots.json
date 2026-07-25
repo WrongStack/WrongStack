@@ -343,7 +343,7 @@
       "relativeImports": 4
     },
     "packages/webui/src/components/AgentRosterView.tsx": {
-      "lines": 2207,
+      "lines": 2237,
       "relativeImports": 0
     },
     "packages/webui/src/components/AgentsPage.tsx": {
@@ -359,7 +359,7 @@
       "relativeImports": 13
     },
     "packages/webui/src/components/ChatView/index.tsx": {
-      "lines": 951,
+      "lines": 953,
       "relativeImports": 17
     },
     "packages/webui/src/components/CodeMap.tsx": {
@@ -383,8 +383,8 @@
       "relativeImports": 13
     },
     "packages/webui/src/components/MemoryManager/index.tsx": {
-      "lines": 1104,
-      "relativeImports": 8
+      "lines": 1101,
+      "relativeImports": 7
     },
     "packages/webui/src/components/OfficeMapCanvas.tsx": {
       "lines": 1558,

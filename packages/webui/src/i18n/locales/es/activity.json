@@ -151,7 +151,8 @@
     "clickToFill": "clic para rellenar",
     "clickToFillTitle": "Clic para rellenar: {{text}}",
     "auto": "auto",
-    "willAutoSubmit": "Envio automático tras la cuenta atrás"
+    "willAutoSubmit": "Envio automático tras la cuenta atrás",
+    "autoFilling": "Rellenando"
   },
   "mailbox": {
     "onlineCount": "{{count}} en línea",

@@ -196,7 +196,7 @@ function createHarness(overrides: Partial<MessageHandlerDeps> = {}): Harness {
   // Default: dispatch succeeds. `dispatchUserMessage` returns a boolean now —
   // the queue drain only advances when it returns true, so the default mock
   // must report success or every drain test would see a "dropped" no-op.
-  const dispatchUserMessage = overrides.dispatchUserMessage ?? vi.fn(() => true);
+  const dispatchUserMessage = overrides.dispatchUserMessage ?? vi.fn().mockReturnValue(true);
   const requestProviderModels = overrides.requestProviderModels ?? vi.fn();
   const onChime = overrides.onChime ?? vi.fn();
   const writeComposerDraft = overrides.writeComposerDraft ?? vi.fn();
@@ -383,7 +383,7 @@ function createHarness(overrides: Partial<MessageHandlerDeps> = {}): Harness {
       prefsRef,
     },
     socket,
-    dispatchUserMessage,
+    dispatchUserMessage: dispatchUserMessage as ReturnType<typeof vi.fn>,
     requestProviderModels,
     onChime,
     writeComposerDraft,

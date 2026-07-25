@@ -35,7 +35,7 @@ describe('handleGoalRoute', () => {
 
     await expect(handleGoalRoute(ws, msg, h)).resolves.toBe(true);
 
-    expect(h.handleMessage).toHaveBeenCalledWith(msg);
+    expect(h.handleMessage).toHaveBeenCalledWith(ws, msg);
     expect(sentMessages(ws)).toEqual([]);
   });
 
@@ -46,6 +46,6 @@ describe('handleGoalRoute', () => {
 
     await expect(handleGoalRoute(ws, msg, h)).resolves.toBe(true);
 
-    expect(h.handleMessage).toHaveBeenCalledWith(msg);
+    expect(h.handleMessage).toHaveBeenCalledWith(ws, msg);
   });
 });

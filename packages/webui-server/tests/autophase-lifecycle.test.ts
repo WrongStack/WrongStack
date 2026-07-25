@@ -45,8 +45,8 @@ describe('GoalWebSocketHandler lifecycle', () => {
 
     // Start (do NOT await — it suspends inside planPhases), then Stop, then let
     // planning resolve and the start settle.
-    const startP = h.handleMessage({ type: 'goal.start', payload: { title: 'demo' } });
-    await h.handleMessage({ type: 'goal.stop', payload: {} });
+    const startP = h.handleMessage(ws, { type: 'goal.start', payload: { title: 'demo' } });
+    await h.handleMessage(ws, { type: 'goal.stop', payload: {} });
     release(undefined);
     await startP;
 
@@ -65,7 +65,7 @@ describe('GoalWebSocketHandler lifecycle', () => {
     const ws = mockWs();
     h.addClient(ws);
 
-    await h.handleMessage({ type: 'goal.clear', payload: {} });
+    await h.handleMessage(ws, { type: 'goal.clear', payload: {} });
 
     const types = sentTypes(ws);
     expect(types).toContain('goal.cleared');
@@ -80,7 +80,7 @@ describe('GoalWebSocketHandler lifecycle', () => {
     const ws = mockWs();
     h.addClient(ws);
 
-    await h.handleMessage({ type: 'goal.revert', payload: {} });
+    await h.handleMessage(ws, { type: 'goal.revert', payload: {} });
 
     const reverted = ws.send.mock.calls
       .map(([raw]) => JSON.parse(String(raw)) as { type: string; payload?: { ok?: boolean; reason?: string } })

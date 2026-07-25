@@ -151,7 +151,8 @@
     "clickToFill": "doldurmak için tıkla",
     "clickToFillTitle": "Doldurmak için tıkla: {{text}}",
     "auto": "otomatik",
-    "willAutoSubmit": "Geri sayımdan sonra otomatik gönderilecek"
+    "willAutoSubmit": "Geri sayımdan sonra otomatik gönderilecek",
+    "autoFilling": "Dolduruluyor"
   },
   "mailbox": {
     "onlineCount": "{{count}} çevrimiçi",
