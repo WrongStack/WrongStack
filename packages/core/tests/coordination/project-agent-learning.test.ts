@@ -311,7 +311,13 @@ describe('project agent self-learning lifecycle', () => {
           fallbacks: [{ provider: 'other', model: 'unapproved' }],
         },
       }),
-    ).toThrow(/fallback must also appear in allowed/);
+    ).toThrow(/must also appear in allowed/);
+  });
+
+  it('normalizes cwd before returning validated config', () => {
+    // Windows-style path with leading/trailing whitespace.
+    const config = validateProjectAgentConfig({ cwd: '  packages\\core  ' });
+    expect(config.cwd).toBe('packages/core');
   });
 
   // ── Consolidation lifecycle ──────────────────────────────────────────
