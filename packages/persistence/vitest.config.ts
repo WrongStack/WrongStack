@@ -3,6 +3,7 @@ import { defineConfig } from 'vitest/config';
 export default defineConfig({
   test: {
     include: ['tests/**/*.test.ts'],
+    setupFiles: ['../../vitest.setup.ts'],
     coverage: {
       provider: 'v8',
       reporter: ['text', 'json', 'json-summary'],
@@ -11,9 +12,6 @@ export default defineConfig({
       exclude: [
         // Barrel re-export — no runnable code
         'src/index.ts',
-        'src/transport.ts',
-        // Test helpers — only exist to support tests, not production code
-        'src/test-helpers/**',
       ],
       thresholds: {
         100: true,
