@@ -426,7 +426,16 @@ export function createEmbeddedMessageRouter(
       worktree: deps.worktreeHandler,
       kanbanHost: deps.kanbanHostRoutes,
       agentRoster: {
-        rosterHandler: new AgentRosterWSHandler({ projectRoot }),
+        rosterHandler: new AgentRosterWSHandler({
+          projectRoot,
+          getLlm: () => {
+            const ctx = opts.agent.ctx;
+            return ctx.provider && ctx.model
+              ? { provider: ctx.provider, model: ctx.model }
+              : undefined;
+          },
+          broadcast: (m) => deps.providerCtx.broadcast(m),
+        }),
       },
     },
     memory: { getMemoryStore: () => opts.memoryStore, send, sendResult },

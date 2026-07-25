@@ -44,19 +44,119 @@ import {
   updateProjectAgentLearned,
   updateProjectAgentLearningPolicy,
 } from '@wrongstack/core/coordination';
+import { isTextBlock } from '@wrongstack/core/types';
+import type { Provider, Request } from '@wrongstack/core/types';
 import type { WebSocket } from 'ws';
 import type { WSServerMessage } from './types.js';
 
+/**
+ * Resolved LLM handle used for headless (chat-free) consolidation. Both the
+ * embedded and standalone routers can supply this from the active agent
+ * context (`agent.ctx.provider` / `agent.ctx.model`).
+ */
+export interface AgentRosterLlm {
+  provider: Provider;
+  model: string;
+}
+
 export interface AgentRosterHandlerOptions {
   projectRoot: string | (() => string);
+  /**
+   * Resolves the LLM used to synthesize consolidations directly on the server,
+   * without routing the instruction back through the chat loop. When it
+   * returns undefined (no active model), the handler degrades gracefully to
+   * returning the instruction for a caller-driven consolidation.
+   */
+  getLlm?: () => AgentRosterLlm | undefined;
+  /**
+   * Broadcasts a message to every connected client. Used to push
+   * `agent-roster.updated` after a headless consolidation so other open
+   * clients refresh the affected roster card without a manual reload.
+   */
+  broadcast?: (msg: WSServerMessage) => void;
 }
+
+/** Hard cap on synthesized consolidation output. */
+const CONSOLIDATION_MAX_TOKENS = 8000;
+/** Wall-clock budget for a single headless consolidation LLM call. */
+const CONSOLIDATION_TIMEOUT_MS = 120_000;
 
 export class AgentRosterWSHandler {
   private readonly getProjectRoot: () => string;
+  private readonly getLlm: () => AgentRosterLlm | undefined;
+  private readonly broadcast: (msg: WSServerMessage) => void;
 
   constructor(opts: AgentRosterHandlerOptions) {
     this.getProjectRoot =
       typeof opts.projectRoot === 'function' ? opts.projectRoot : () => opts.projectRoot as string;
+    this.getLlm = opts.getLlm ?? (() => undefined);
+    this.broadcast = opts.broadcast ?? (() => {});
+  }
+
+  /**
+   * Run the consolidation LLM synthesis headlessly and return the cleaned
+   * document text. Returns undefined when no LLM is available so the caller
+   * can fall back to the instruction-only path.
+   */
+  private async synthesizeConsolidation(
+    instruction: string,
+  ): Promise<{ content: string; model: string } | undefined> {
+    const llm = this.getLlm();
+    if (!llm) return undefined;
+
+    const req: Request = {
+      model: llm.model,
+      system: [
+        {
+          type: 'text',
+          text:
+            'You are a precise technical editor. You consolidate an AI agent role\'s ' +
+            'captured learning entries into a single, durable, role-scoped instruction ' +
+            'document. Output ONLY the consolidated markdown document — no preamble, no ' +
+            'code fences, no commentary about the consolidation process.',
+        },
+      ],
+      messages: [{ role: 'user', content: instruction }],
+      maxTokens: CONSOLIDATION_MAX_TOKENS,
+    };
+
+    const timer = new AbortController();
+    let timedOut = false;
+    const to = setTimeout(() => {
+      timedOut = true;
+      timer.abort(new Error('consolidation timeout'));
+    }, CONSOLIDATION_TIMEOUT_MS);
+    to.unref();
+    try {
+      const res = await llm.provider.complete(req, { signal: timer.signal });
+      const text = res.content
+        .filter(isTextBlock)
+        .map((block) => block.text)
+        .join('\n')
+        .trim();
+      // Strip an accidental ```markdown / ``` fence wrapper if the model wrapped
+      // the WHOLE document in one. Gate on a single wrapper fence that spans the
+      // entire output so a doc that legitimately starts or ends with a real code
+      // block is not corrupted (that doc has an interior closing/opening fence,
+      // so the whole-document pattern below will not match).
+      const wholeDocFence = /^```(?:markdown|md)?[^\n]*\n([\s\S]*?)\n?```\s*$/i;
+      const wrapped = wholeDocFence.exec(text);
+      const inner = wrapped?.[1];
+      const unfenced = inner !== undefined ? inner.trim() : text;
+      return { content: unfenced, model: llm.model };
+    } catch (err) {
+      // Providers surface an abort as a generic AbortError; translate the
+      // timeout case into a clear, caller-facing message.
+      if (timedOut) {
+        throw new Error(`consolidation timed out after ${CONSOLIDATION_TIMEOUT_MS}ms`);
+      }
+      throw err;
+    } finally {
+      // The AbortController exists solely to cancel the in-flight request on
+      // timeout; the timeout path aborts itself. On the success path there is
+      // nothing left to cancel, so only clear the pending timer here.
+      clearTimeout(to);
+    }
   }
 
   /** Handle an incoming client message. Returns a response payload. */
@@ -164,6 +264,7 @@ export class AgentRosterWSHandler {
 
       case 'agent-roster.read-customization': {
         if (!role) return { type, payload: { error: 'role required' } };
+        const profile = loadProjectAgentProfile(role, projectRoot);
         return {
           type,
           payload: {
@@ -171,9 +272,8 @@ export class AgentRosterWSHandler {
             identity: loadProjectAgentIdentity(role, projectRoot),
             learned: loadProjectAgentLearned(role, projectRoot),
             config: loadProjectAgentConfig(role, projectRoot) ?? {},
-            profile: loadProjectAgentProfile(role, projectRoot),
-            systemProtected:
-              !loadProjectAgentProfile(role, projectRoot) && Boolean(FLEET_ROSTER[role]),
+            profile,
+            systemProtected: !profile && Boolean(FLEET_ROSTER[role]),
           },
         };
       }
@@ -300,20 +400,142 @@ export class AgentRosterWSHandler {
         return { type, payload: { conflicts } };
       }
 
-      // ── Build consolidation instruction (LLM prompt) ──────────────────
+      // ── Consolidate learned entries (headless LLM synthesis) ──────────
+      // Runs the whole optimization on the server: read raw entries →
+      // synthesize with the active model → write consolidated.md +
+      // consolidation.json. No chat round-trip. When no LLM is available the
+      // handler degrades to returning the instruction so a caller (e.g. the
+      // chat agent) can still perform the consolidation manually.
       case 'agent-roster.consolidate': {
         if (!role) return { type, payload: { error: 'role required' } };
         const { instruction, rawEntries, hasExistingConsolidation } =
           buildConsolidationInstruction(role, projectRoot);
-        const currentStats = getProjectAgentLearnStats(role, projectRoot);
+
+        // Nothing to optimize — surface a clear, non-error signal.
+        if (rawEntries.length === 0) {
+          return {
+            type: 'agent-roster.consolidate',
+            payload: {
+              role,
+              consolidated: false,
+              rawEntryCount: 0,
+              hasExistingConsolidation,
+              currentStats: getProjectAgentLearnStats(role, projectRoot),
+            },
+          };
+        }
+
+        // Headless path: synthesize + persist directly on the server.
+        let synth: { content: string; model: string } | undefined;
+        try {
+          synth = await this.synthesizeConsolidation(instruction);
+        } catch (err) {
+          return {
+            type: 'agent-roster.consolidate',
+            payload: {
+              role,
+              consolidated: false,
+              rawEntryCount: rawEntries.length,
+              hasExistingConsolidation,
+              currentStats: getProjectAgentLearnStats(role, projectRoot),
+              error: err instanceof Error ? err.message : 'consolidation failed',
+            },
+          };
+        }
+
+        if (synth && synth.content.length > 0) {
+          let stats: ReturnType<typeof getProjectAgentLearnStats>;
+          let metadata: ReturnType<typeof loadConsolidationMetadata>;
+          try {
+            saveProjectAgentConsolidated(role, synth.content, projectRoot, {
+              trigger: 'manual',
+              model: synth.model,
+            });
+            stats = getProjectAgentLearnStats(role, projectRoot);
+            metadata = loadConsolidationMetadata(role, projectRoot);
+          } catch (err) {
+            // Persisting the consolidated document failed (e.g. filesystem
+            // error). Surface a structured failure instead of rejecting.
+            return {
+              type: 'agent-roster.consolidate',
+              payload: {
+                role,
+                consolidated: false,
+                rawEntryCount: rawEntries.length,
+                hasExistingConsolidation,
+                currentStats: getProjectAgentLearnStats(role, projectRoot),
+                error: err instanceof Error ? err.message : 'failed to persist consolidation',
+              },
+            };
+          }
+          // Push a fresh roster card to every other connected client so they
+          // reflect the new consolidated state without a manual reload. The
+          // document is already persisted, so a broadcast failure (e.g. a
+          // disconnected client iterator) must not reject the handler and
+          // swallow the success response below.
+          try {
+            this.broadcast({
+              type: 'agent-roster.updated',
+              payload: { role, reason: 'consolidated', currentStats: stats, metadata },
+            });
+          } catch (e) {
+            // Best-effort notification only; the consolidation itself succeeded.
+            // Log so a real bug in `broadcast` (TypeError, malformed message) is
+            // surfaced instead of silently swallowed alongside dead-client errors.
+            console.warn(
+              JSON.stringify({
+                level: 'warn',
+                event: 'agent_roster.broadcast_failed',
+                role,
+                message: e instanceof Error ? e.message : String(e),
+                timestamp: new Date().toISOString(),
+              }),
+            );
+          }
+          return {
+            type: 'agent-roster.consolidate',
+            payload: {
+              role,
+              consolidated: true,
+              rawEntryCount: rawEntries.length,
+              content: synth.content,
+              model: synth.model,
+              currentStats: stats,
+              metadata,
+            },
+          };
+        }
+
+        // The model was available and ran, but produced only whitespace /
+        // fencing. This is distinct from "no model available": signal it
+        // explicitly so a caller can tell an empty synthesis apart from the
+        // instruction-fallback path below and avoid corrupting the doc.
+        if (synth) {
+          return {
+            type: 'agent-roster.consolidate',
+            payload: {
+              role,
+              consolidated: false,
+              emptySynthesis: true,
+              model: synth.model,
+              rawEntryCount: rawEntries.length,
+              hasExistingConsolidation,
+              currentStats: getProjectAgentLearnStats(role, projectRoot),
+            },
+          };
+        }
+
+        // Fallback path (no active model): return the instruction so a
+        // caller can drive the consolidation through the chat agent.
         return {
           type: 'agent-roster.consolidate',
           payload: {
             role,
+            consolidated: false,
             instruction,
             rawEntryCount: rawEntries.length,
             hasExistingConsolidation,
-            currentStats,
+            currentStats: getProjectAgentLearnStats(role, projectRoot),
             // Instruction for the leader agent to execute the consolidation
             leaderInstruction:
               `Optimize what the "${role}" agent has learned. Read its raw learned entries, ` +

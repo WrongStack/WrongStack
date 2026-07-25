@@ -175,4 +175,276 @@ describe('AgentRosterWSHandler', () => {
     });
     expect(missing.payload).toMatchObject({ error: expect.stringContaining('unknown') });
   });
+
+  it('consolidates headlessly with an active model: synthesizes, persists both files, and broadcasts', async () => {
+    const synthesized = '## Consolidated\n\n- Directive one.\n- Directive two.';
+    let receivedSystem = false;
+    const broadcasts: Array<{ type: string; payload: unknown }> = [];
+    const stubProvider = {
+      capabilities: {},
+      async complete() {
+        return { content: [{ type: 'text', text: synthesized }] };
+      },
+    };
+    const llmHandler = new AgentRosterWSHandler({
+      projectRoot: () => projectRoot,
+      // Assert the instruction actually reaches the provider.
+      getLlm: () => {
+        receivedSystem = true;
+        return { provider: stubProvider as never, model: 'test-model' };
+      },
+      broadcast: (msg) => broadcasts.push(msg as { type: string; payload: unknown }),
+    });
+
+    await llmHandler.handleMessage(ws, 'agent-roster.append-learned', {
+      role: 'executor',
+      content: 'Always run the focused package test before the workspace suite.',
+    });
+
+    const res = await llmHandler.handleMessage(ws, 'agent-roster.consolidate', {
+      role: 'executor',
+    });
+    const payload = res.payload as {
+      consolidated: boolean;
+      content?: string;
+      model?: string;
+      rawEntryCount: number;
+    };
+
+    expect(receivedSystem).toBe(true);
+    expect(payload.consolidated).toBe(true);
+    expect(payload.model).toBe('test-model');
+    expect(payload.content).toContain('Directive one.');
+    expect(payload.rawEntryCount).toBeGreaterThan(0);
+
+    // consolidated.md is written verbatim, consolidation.json metadata alongside.
+    const dir = path.join(projectRoot, '.wrongstack', 'agents', 'executor');
+    expect(fs.readFileSync(path.join(dir, 'consolidated.md'), 'utf8')).toContain('Directive one.');
+    const meta = JSON.parse(fs.readFileSync(path.join(dir, 'consolidation.json'), 'utf8'));
+    expect(meta.trigger).toBe('manual');
+    expect(meta.model).toBe('test-model');
+    expect(meta.sourceEntryCount).toBeGreaterThan(0);
+
+    // Other connected clients are notified via agent-roster.updated.
+    const updated = broadcasts.find((b) => b.type === 'agent-roster.updated');
+    expect(updated).toBeDefined();
+    expect(updated?.payload).toMatchObject({ role: 'executor', reason: 'consolidated' });
+  });
+
+  it('does not broadcast on the no-active-model fallback path', async () => {
+    const broadcasts: object[] = [];
+    const noLlmHandler = new AgentRosterWSHandler({
+      projectRoot: () => projectRoot,
+      broadcast: (msg) => broadcasts.push(msg),
+    });
+    await noLlmHandler.handleMessage(ws, 'agent-roster.append-learned', {
+      role: 'executor',
+      content: 'A rule that will not consolidate without a model.',
+    });
+    const res = await noLlmHandler.handleMessage(ws, 'agent-roster.consolidate', {
+      role: 'executor',
+    });
+    expect((res.payload as { consolidated: boolean }).consolidated).toBe(false);
+    expect(broadcasts).toHaveLength(0);
+  });
+
+  it('strips an accidental code-fence wrapper from the synthesized document', async () => {
+    const stubProvider = {
+      capabilities: {},
+      async complete() {
+        return { content: [{ type: 'text', text: '```markdown\n## Doc\n\n- Rule.\n```' }] };
+      },
+    };
+    const llmHandler = new AgentRosterWSHandler({
+      projectRoot: () => projectRoot,
+      getLlm: () => ({ provider: stubProvider as never, model: 'm' }),
+    });
+    await llmHandler.handleMessage(ws, 'agent-roster.append-learned', {
+      role: 'executor',
+      content: 'A durable rule worth keeping.',
+    });
+    const res = await llmHandler.handleMessage(ws, 'agent-roster.consolidate', { role: 'executor' });
+    const payload = res.payload as { consolidated: boolean; content?: string };
+    expect(payload.consolidated).toBe(true);
+    expect(payload.content?.startsWith('```')).toBe(false);
+    expect(payload.content).toContain('## Doc');
+  });
+
+  it('returns a non-error signal when there are no learned entries to consolidate', async () => {
+    // No append-learned call → the role has zero raw entries.
+    let called = false;
+    const llmHandler = new AgentRosterWSHandler({
+      projectRoot: () => projectRoot,
+      getLlm: () => {
+        called = true;
+        return { provider: { capabilities: {}, async complete() { return { content: [] }; } } as never, model: 'm' };
+      },
+    });
+    const res = await llmHandler.handleMessage(ws, 'agent-roster.consolidate', { role: 'executor' });
+    const payload = res.payload as { consolidated: boolean; rawEntryCount: number; error?: string };
+    expect(payload.consolidated).toBe(false);
+    expect(payload.rawEntryCount).toBe(0);
+    expect(payload.error).toBeUndefined();
+    // Empty-entry path short-circuits before invoking the model.
+    expect(called).toBe(false);
+  });
+
+  it('surfaces a clean error payload when synthesis throws', async () => {
+    const stubProvider = {
+      capabilities: {},
+      async complete(): Promise<never> {
+        throw new Error('provider exploded');
+      },
+    };
+    const llmHandler = new AgentRosterWSHandler({
+      projectRoot: () => projectRoot,
+      getLlm: () => ({ provider: stubProvider as never, model: 'test-model' }),
+    });
+    await llmHandler.handleMessage(ws, 'agent-roster.append-learned', {
+      role: 'executor',
+      content: 'A rule that will fail to consolidate.',
+    });
+    const res = await llmHandler.handleMessage(ws, 'agent-roster.consolidate', { role: 'executor' });
+    const payload = res.payload as {
+      consolidated: boolean;
+      rawEntryCount: number;
+      error?: string;
+    };
+    expect(payload.consolidated).toBe(false);
+    expect(payload.rawEntryCount).toBeGreaterThan(0);
+    expect(payload.error).toBe('provider exploded');
+    // Failed synthesis must not have written a consolidated document.
+    const dir = path.join(projectRoot, '.wrongstack', 'agents', 'executor');
+    expect(fs.existsSync(path.join(dir, 'consolidated.md'))).toBe(false);
+  });
+
+  it('falls back to the instruction when no active model is available', async () => {
+    // Default handler has no getLlm → no active model.
+    await handler.handleMessage(ws, 'agent-roster.append-learned', {
+      role: 'executor',
+      content: 'Prefer surgical edits over full rewrites.',
+    });
+    const res = await handler.handleMessage(ws, 'agent-roster.consolidate', { role: 'executor' });
+    const payload = res.payload as {
+      consolidated: boolean;
+      instruction?: string;
+      leaderInstruction?: string;
+      rawEntryCount: number;
+    };
+    expect(payload.consolidated).toBe(false);
+    expect(payload.rawEntryCount).toBeGreaterThan(0);
+    expect(typeof payload.instruction).toBe('string');
+    expect(payload.instruction).toContain('executor');
+    // No files written on the fallback path.
+    expect(
+      fs.existsSync(path.join(projectRoot, '.wrongstack', 'agents', 'executor', 'consolidated.md')),
+    ).toBe(false);
+  });
+
+  it('reports consolidated:false with no error when there are no raw entries', async () => {
+    const stubProvider = {
+      capabilities: {},
+      async complete() {
+        throw new Error('should not be called for empty entries');
+      },
+    };
+    const llmHandler = new AgentRosterWSHandler({
+      projectRoot: () => projectRoot,
+      getLlm: () => ({ provider: stubProvider as never, model: 'm' }),
+    });
+    const res = await llmHandler.handleMessage(ws, 'agent-roster.consolidate', { role: 'executor' });
+    const payload = res.payload as { consolidated: boolean; rawEntryCount: number; error?: string };
+    expect(payload.consolidated).toBe(false);
+    expect(payload.rawEntryCount).toBe(0);
+    expect(payload.error).toBeUndefined();
+  });
+
+  it('surfaces a provider error as a clean failure payload (no chat misroute)', async () => {
+    const stubProvider = {
+      capabilities: {},
+      async complete() {
+        throw new Error('provider exploded');
+      },
+    };
+    const llmHandler = new AgentRosterWSHandler({
+      projectRoot: () => projectRoot,
+      getLlm: () => ({ provider: stubProvider as never, model: 'm' }),
+    });
+    await llmHandler.handleMessage(ws, 'agent-roster.append-learned', {
+      role: 'executor',
+      content: 'A lesson that will fail to consolidate.',
+    });
+    const res = await llmHandler.handleMessage(ws, 'agent-roster.consolidate', { role: 'executor' });
+    const payload = res.payload as { consolidated: boolean; error?: string; instruction?: string };
+    expect(payload.consolidated).toBe(false);
+    expect(payload.error).toContain('provider exploded');
+    // A real error must NOT be misrouted as the no-model fallback.
+    expect(payload.instruction).toBeUndefined();
+  });
+
+  it('signals emptySynthesis when the model runs but returns only whitespace', async () => {
+    const stubProvider = {
+      capabilities: {},
+      async complete() {
+        // Model was available and ran, but produced only whitespace/fencing.
+        return { content: [{ type: 'text', text: '   \n\n```markdown\n```\n' }] };
+      },
+    };
+    const llmHandler = new AgentRosterWSHandler({
+      projectRoot: () => projectRoot,
+      getLlm: () => ({ provider: stubProvider as never, model: 'empty-model' }),
+    });
+    await llmHandler.handleMessage(ws, 'agent-roster.append-learned', {
+      role: 'executor',
+      content: 'A durable rule the model failed to synthesize.',
+    });
+    const res = await llmHandler.handleMessage(ws, 'agent-roster.consolidate', { role: 'executor' });
+    const payload = res.payload as {
+      consolidated: boolean;
+      emptySynthesis?: boolean;
+      model?: string;
+      instruction?: string;
+      rawEntryCount: number;
+    };
+    expect(payload.consolidated).toBe(false);
+    // Distinct from the no-model fallback: the model ran but produced nothing.
+    expect(payload.emptySynthesis).toBe(true);
+    expect(payload.model).toBe('empty-model');
+    expect(payload.instruction).toBeUndefined();
+    expect(payload.rawEntryCount).toBeGreaterThan(0);
+    // Empty synthesis must NOT write a consolidated document.
+    expect(
+      fs.existsSync(path.join(projectRoot, '.wrongstack', 'agents', 'executor', 'consolidated.md')),
+    ).toBe(false);
+  });
+
+  it('does not swallow the success response when a broadcast throws', async () => {
+    const synthesized = '## Consolidated\n\n- Keep every fact.';
+    const stubProvider = {
+      capabilities: {},
+      async complete() {
+        return { content: [{ type: 'text', text: synthesized }] };
+      },
+    };
+    const llmHandler = new AgentRosterWSHandler({
+      projectRoot: () => projectRoot,
+      getLlm: () => ({ provider: stubProvider as never, model: 'test-model' }),
+      broadcast: () => {
+        throw new Error('client iterator disconnected mid-broadcast');
+      },
+    });
+    await llmHandler.handleMessage(ws, 'agent-roster.append-learned', {
+      role: 'executor',
+      content: 'A rule worth consolidating even if the broadcast fails.',
+    });
+    const res = await llmHandler.handleMessage(ws, 'agent-roster.consolidate', { role: 'executor' });
+    const payload = res.payload as { consolidated: boolean; content?: string };
+    // The document persisted, so the success response must still be returned
+    // even though the post-persist broadcast threw.
+    expect(payload.consolidated).toBe(true);
+    expect(payload.content).toContain('## Consolidated');
+    expect(
+      fs.existsSync(path.join(projectRoot, '.wrongstack', 'agents', 'executor', 'consolidated.md')),
+    ).toBe(true);
+  });
 });

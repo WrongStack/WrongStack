@@ -299,7 +299,16 @@ export function createMessageDispatcher(
       worktree: deps.worktreeHandler,
       kanbanHost: kanbanHostRoutes,
       agentRoster: {
-        rosterHandler: new AgentRosterWSHandler({ projectRoot: state.getProjectRoot }),
+        rosterHandler: new AgentRosterWSHandler({
+          projectRoot: state.getProjectRoot,
+          getLlm: () => {
+            const ctx = deps.agent.ctx;
+            return ctx.provider && ctx.model
+              ? { provider: ctx.provider, model: ctx.model }
+              : undefined;
+          },
+          broadcast: (m) => broadcast(state.getClients(), m),
+        }),
       },
     },
     memory: { getMemoryStore: () => deps.memoryStore, send, sendResult },
