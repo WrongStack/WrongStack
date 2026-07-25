@@ -198,7 +198,7 @@ jobs:
 
       # Playwright browsers are cached to avoid re-downloading on every run.
       - name: Cache Playwright browsers
-        uses: actions/cache@d4323d4df104b026a6aa6f6dfbed53dea3b2dfa3 # v4
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
         with:
           path: ~/.cache/ms-playwright
           key: playwright-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
