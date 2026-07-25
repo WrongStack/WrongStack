@@ -85,6 +85,28 @@ function coerceDockSection(value: unknown): DockSection | null {
     : (value as DockSection);
 }
 
+const SETTINGS_TABS = [
+  'general',
+  'provider',
+  'connection',
+  'agent',
+  'execution',
+  'fallbacks',
+  'routing',
+  'fleet',
+  'integrations',
+  'chimera',
+  'context',
+  'logs',
+  'security',
+] as const;
+
+function coerceSettingsTab(value: unknown): string {
+  return (SETTINGS_TABS as readonly string[]).includes(value as string)
+    ? (value as string)
+    : 'general';
+}
+
 /** Single source of truth for the secondary panel width bounds. */
 export const SIDEBAR_MIN_WIDTH = 240;
 export const SIDEBAR_MAX_WIDTH = 560;
@@ -387,7 +409,7 @@ export const useUIStore = create<UIState>()(
       cronJobsOpen: false,
       terminalOpen: false,
       terminalCreateNonce: 0,
-      settingsActiveTab: 'provider',
+      settingsActiveTab: 'general',
       scrollPositions: {},
       draftInput: '',
       sideContextBreakdownOpen: false,
@@ -516,7 +538,7 @@ export const useUIStore = create<UIState>()(
       setTerminalOpen: (open: boolean) => set({ terminalOpen: open }),
       toggleTerminal: () => set((s) => ({ terminalOpen: !s.terminalOpen })),
       requestTerminalCreate: () => set((s) => ({ terminalCreateNonce: s.terminalCreateNonce + 1 })),
-      setSettingsActiveTab: (tab: string) => set({ settingsActiveTab: tab }),
+      setSettingsActiveTab: (tab: string) => set({ settingsActiveTab: coerceSettingsTab(tab) }),
       setScrollPosition: (view: string, scrollTop: number) =>
         set((s) => ({ scrollPositions: { ...s.scrollPositions, [view]: scrollTop } })),
       setDraftInput: (text: string) => set({ draftInput: text }),
@@ -556,6 +578,9 @@ export const useUIStore = create<UIState>()(
         if ('dockSection' in p) {
           p.dockSection = coerceDockSection(p.dockSection);
         }
+        if ('settingsActiveTab' in p) {
+          p.settingsActiveTab = coerceSettingsTab(p.settingsActiveTab);
+        }
         return p as never as UIState;
       },
       merge: (persisted, current) => {
@@ -566,6 +591,7 @@ export const useUIStore = create<UIState>()(
         merged.activeActivity = coerceActivity(merged.activeActivity);
         merged.currentView = coerceView(merged.currentView);
         merged.dockSection = coerceDockSection(merged.dockSection);
+        merged.settingsActiveTab = coerceSettingsTab(merged.settingsActiveTab);
         merged.sidebarWidth = Math.max(
           SIDEBAR_MIN_WIDTH,
           Math.min(SIDEBAR_MAX_WIDTH, merged.sidebarWidth),
