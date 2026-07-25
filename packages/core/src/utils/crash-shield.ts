@@ -33,8 +33,9 @@ export interface CrashShieldOptions {
   write?: ((s: string) => void) | undefined;
 }
 
-function isBrokenPipe(error: unknown): boolean {
-  return typeof error === 'object' && error !== null && 'code' in error && error.code === 'EPIPE';
+function isBrokenOutputConsumer(error: unknown): boolean {
+  if (typeof error !== 'object' || error === null || !('code' in error)) return false;
+  return error.code === 'EPIPE' || error.code === 'ECONNRESET';
 }
 
 export function installCrashShield(options: CrashShieldOptions = {}): () => void {
@@ -58,21 +59,23 @@ export function installCrashShield(options: CrashShieldOptions = {}): () => void
       // stderr itself is broken; nothing useful left to do.
     }
   };
-  const guard = (kind: string) => (reason: unknown): void => {
-    // EPIPE means the consumer went away; the host's broken-pipe handler
-    // owns that path and turns it into a clean exit.
-    if (isBrokenPipe(reason)) return;
-    report(kind, reason);
-    if (isStorming()) {
-      report(
-        kind,
-        new Error(
-          `error storm: >${CRASH_STORM_LIMIT} in ${CRASH_STORM_WINDOW_MS / 1000}s — exiting`,
-        ),
-      );
-      exit(1);
-    }
-  };
+  const guard =
+    (kind: string) =>
+    (reason: unknown): void => {
+      // EPIPE/ECONNRESET mean the output consumer went away; the host's
+      // broken-pipe handler owns that path and turns it into a clean exit.
+      if (isBrokenOutputConsumer(reason)) return;
+      report(kind, reason);
+      if (isStorming()) {
+        report(
+          kind,
+          new Error(
+            `error storm: >${CRASH_STORM_LIMIT} in ${CRASH_STORM_WINDOW_MS / 1000}s — exiting`,
+          ),
+        );
+        exit(1);
+      }
+    };
 
   const onRejection = guard('unhandled promise rejection');
   const onException = guard('uncaught exception');

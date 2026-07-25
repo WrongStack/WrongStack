@@ -16,6 +16,19 @@ describe('CLI broken-pipe handling', () => {
     cleanup();
   });
 
+  it('treats stdout ECONNRESET as a clean exit', () => {
+    const stdout = new EventEmitter();
+    const stderr = new EventEmitter();
+    const exit = vi.fn();
+    const cleanup = installBrokenPipeHandlers({ streams: [stdout, stderr], exit });
+
+    stdout.emit('error', Object.assign(new Error('read ECONNRESET'), { code: 'ECONNRESET' }));
+
+    expect(exit).toHaveBeenCalledOnce();
+    expect(exit).toHaveBeenCalledWith(0);
+    cleanup();
+  });
+
   it('handles only the first EPIPE when both output streams close', () => {
     const stdout = new EventEmitter();
     const stderr = new EventEmitter();

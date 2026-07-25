@@ -1,3 +1,4 @@
+export { installBrokenPipeHandlers } from './cli-entry-point.js';
 export { main } from './cli-main.js';
 export { CLI_VERSION } from './version.js';
 

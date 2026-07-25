@@ -1,6 +1,7 @@
 #!/usr/bin/env node
-import { main } from '@wrongstack/cli';
+import { installBrokenPipeHandlers, main } from '@wrongstack/cli';
 
+installBrokenPipeHandlers();
 main(process.argv.slice(2)).then(
   (code) => {
     process.exitCode = code;

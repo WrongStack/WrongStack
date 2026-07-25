@@ -4,8 +4,8 @@
   "rootImportFiles": 0,
   "bySpecifier": {
     "@wrongstack/core/agent": {
-      "files": 195,
-      "typeOnly": 159,
+      "files": 196,
+      "typeOnly": 160,
       "runtimeOrMixed": 53
     },
     "@wrongstack/core/agent-catalog": {
@@ -125,7 +125,7 @@
     },
     "@wrongstack/core/storage": {
       "files": 78,
-      "typeOnly": 24,
+      "typeOnly": 25,
       "runtimeOrMixed": 86
     },
     "@wrongstack/core/tasking": {
@@ -836,6 +836,12 @@
     {
       "specifier": "@wrongstack/core/agent",
       "file": "packages/techstack/src/research/search.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/agent",
+      "file": "packages/techstack/tests/research/search.test.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
     },
@@ -5972,7 +5978,7 @@
     {
       "specifier": "@wrongstack/core/storage",
       "file": "packages/cli/src/wiring/session-registry.ts",
-      "typeOnly": 0,
+      "typeOnly": 1,
       "runtimeOrMixed": 1
     },
     {

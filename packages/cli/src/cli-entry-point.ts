@@ -44,19 +44,14 @@ const SQLITE_WARNING_RE = /sqlite is an experimental feature/i;
 function installSqliteWarningFilter(): void {
   const originalEmit = process.emitWarning.bind(process);
   process.emitWarning = ((warning: unknown, ...rest: unknown[]): void => {
-    const msg =
-      typeof warning === 'string'
-        ? warning
-        : (warning as Error)?.message ?? '';
+    const msg = typeof warning === 'string' ? warning : ((warning as Error)?.message ?? '');
     // Node's emitWarning overloads:
     //   (warning: string, type?: string, code?: string)
     //   (warning: Error,   options?: { type?: string; code?: string })
     // When warning is a string the type lives in rest[0]; when it's an Error
     // the type is warning.name.
     const type =
-      typeof warning === 'string'
-        ? String(rest[0] ?? '')
-        : (warning as Error).name ?? '';
+      typeof warning === 'string' ? String(rest[0] ?? '') : ((warning as Error).name ?? '');
     if (type === 'ExperimentalWarning' && SQLITE_WARNING_RE.test(msg)) {
       return; // suppressed — node:sqlite has been stable since Node 22.5
     }
@@ -83,8 +78,9 @@ interface BrokenPipeHandlerOptions {
   exit?: ((code: number) => void) | undefined;
 }
 
-function isBrokenPipe(error: unknown): boolean {
-  return typeof error === 'object' && error !== null && 'code' in error && error.code === 'EPIPE';
+function isBrokenOutputConsumer(error: unknown): boolean {
+  if (typeof error !== 'object' || error === null || !('code' in error)) return false;
+  return error.code === 'EPIPE' || error.code === 'ECONNRESET';
 }
 
 /**
@@ -92,19 +88,17 @@ function isBrokenPipe(error: unknown): boolean {
  *
  * A failed `write()` is reported asynchronously through the destination
  * stream's `error` event, so wrapping individual writes in `try/catch` cannot
- * prevent Node's unhandled-event crash. Keep this guard at the process entry
- * boundary and rethrow every non-EPIPE error so genuine stream failures remain
- * visible.
+ * prevent Node's unhandled-event crash. Windows can report the same closed
+ * consumer as ECONNRESET rather than EPIPE, so handle both at the process entry
+ * boundary and rethrow other stream failures so genuine faults remain visible.
  */
-export function installBrokenPipeHandlers(
-  options: BrokenPipeHandlerOptions = {},
-): () => void {
+export function installBrokenPipeHandlers(options: BrokenPipeHandlerOptions = {}): () => void {
   const streams = options.streams ?? [process.stdout, process.stderr];
   const exit = options.exit ?? ((code: number) => process.exit(code));
   let handled = false;
 
   const onError = (error: unknown): void => {
-    if (!isBrokenPipe(error)) throw error;
+    if (!isBrokenOutputConsumer(error)) throw error;
     if (handled) return;
     handled = true;
     exit(0);
