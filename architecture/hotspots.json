@@ -15,7 +15,7 @@
       "relativeImports": 17
     },
     "packages/cli/src/cli-main.ts": {
-      "lines": 1101,
+      "lines": 1102,
       "relativeImports": 45
     },
     "packages/cli/src/execution.ts": {
@@ -79,8 +79,8 @@
       "relativeImports": 2
     },
     "packages/core/src/coordination/agents/project-agent-identity.ts": {
-      "lines": 2483,
-      "relativeImports": 1
+      "lines": 1997,
+      "relativeImports": 6
     },
     "packages/core/src/coordination/autonomous-coordinator.ts": {
       "lines": 982,
@@ -171,7 +171,7 @@
       "relativeImports": 9
     },
     "packages/core/src/index.ts": {
-      "lines": 935,
+      "lines": 936,
       "relativeImports": 142
     },
     "packages/core/src/plugins/auto-review-plugin.ts": {
@@ -183,7 +183,7 @@
       "relativeImports": 12
     },
     "packages/core/src/storage/config-loader.ts": {
-      "lines": 1605,
+      "lines": 1606,
       "relativeImports": 14
     },
     "packages/core/src/storage/file-session-writer.ts": {
@@ -243,8 +243,8 @@
       "relativeImports": 7
     },
     "packages/sage/src/sqlite-store.ts": {
-      "lines": 3617,
-      "relativeImports": 8
+      "lines": 3186,
+      "relativeImports": 13
     },
     "packages/sdd/src/sdd-parallel-run.ts": {
       "lines": 1348,

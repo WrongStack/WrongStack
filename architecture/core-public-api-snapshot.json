@@ -146,7 +146,7 @@
         "export { type ErrorHistoryEntry, type ProviderModelState, type ProviderModelStatus, ProviderModelStatusTracker, type ProviderStatusSnapshot, type ProviderStatusTrackerConfig, } from './coordination/provider-status-tracker.js';",
         "export { type FleetStatusToolOptions, makeFleetStatusTool, } from './coordination/fleet-status-tool.js';",
         "export { type FleetWorktreePolicy, resolveSubagentWorktreeDecision, subagentNeedsWorktree, WorktreeIntegrationError, type WorktreeIsolationDecision, type WorktreeTaskRunnerOptions, type WorktreeTaskStateUpdate, wrapSubagentRunnerWithWorktrees, } from './coordination/worktree-task-runner.js';",
-        "export { type InstructionBundle, type InstructionBundlePaths, loadInstructionBundle, mergeInstructionBundle, type SystemInstructionBundle, } from './core/instruction-bundle.js';",
+        "export { type InstructionBundle, type InstructionBundlePaths, loadInstructionBundle, mergeInstructionBundle, type SystemInstructionBundle, type SystemInstructionVariant, } from './core/instruction-bundle.js';",
         "export { type MailToolsOptions, makeMailInboxTool, makeMailSendTool, } from './coordination/mail-tools.js';",
         "export { type NotificationChannel, type NotificationChannelStatus, type NotificationLevel, type NotificationMessage, type NotificationResult, type Notifier, type NotifierCounters, NotifierImpl, } from './notifications/index.js';",
         "export { type OutdatedNotifyMessage, type PackageOutdatedEntry, type PackageOutdatedResult, type PackageOutdatedWatcherOptions, startPackageOutdatedWatcher, } from './coordination/package-outdated-watcher.js';",
@@ -179,6 +179,7 @@
       },
       "source": "packages/core/src/core/index.ts",
       "declarations": [
+        "export type { SystemInstructionVariant } from './instruction-bundle.js';",
         "export { Agent, type RunResult, type UserInputPayload, } from './agent.js';",
         "export { Context, type ContextInit, type RunOptions, type TodoItem } from './context.js';",
         "export { ConversationState, type ReadonlyConversationState, type StateChange, type StateChangeHandler, wrapAsState, } from './conversation-state.js';",
@@ -991,15 +992,15 @@
       "directory": "coordination",
       "classification": "coordination implementation",
       "intendedOwner": "Core subpath until physical extraction is justified",
-      "sourceFiles": 99,
-      "sourceLines": 38296
+      "sourceFiles": 102,
+      "sourceLines": 38234
     },
     {
       "directory": "core",
       "classification": "agent-domain contract",
       "intendedOwner": "Core",
       "sourceFiles": 29,
-      "sourceLines": 8204
+      "sourceLines": 8241
     },
     {
       "directory": "defaults",
@@ -1146,7 +1147,7 @@
       "classification": "storage/repository implementation",
       "intendedOwner": "repositories over dependency-free persistence",
       "sourceFiles": 59,
-      "sourceLines": 16226
+      "sourceLines": 16228
     },
     {
       "directory": "tasking",
@@ -1167,14 +1168,14 @@
       "classification": "agent-domain contract",
       "intendedOwner": "Core type-only subpaths",
       "sourceFiles": 64,
-      "sourceLines": 9072
+      "sourceLines": 9083
     },
     {
       "directory": "utils",
       "classification": "kernel primitive",
       "intendedOwner": "split dependency-free primitives from concrete helpers",
       "sourceFiles": 53,
-      "sourceLines": 7933
+      "sourceLines": 7936
     },
     {
       "directory": "worktree",

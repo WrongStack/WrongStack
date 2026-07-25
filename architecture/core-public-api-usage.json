@@ -139,8 +139,8 @@
       "runtimeOrMixed": 3
     },
     "@wrongstack/core/types": {
-      "files": 728,
-      "typeOnly": 701,
+      "files": 730,
+      "typeOnly": 703,
       "runtimeOrMixed": 196
     },
     "@wrongstack/core/types/multi-agent.js": {
@@ -159,9 +159,9 @@
       "runtimeOrMixed": 1
     },
     "@wrongstack/core/utils": {
-      "files": 413,
+      "files": 414,
       "typeOnly": 36,
-      "runtimeOrMixed": 443
+      "runtimeOrMixed": 444
     },
     "@wrongstack/core/utils/error": {
       "files": 4,
@@ -9211,6 +9211,18 @@
     },
     {
       "specifier": "@wrongstack/core/types",
+      "file": "packages/sage/src/sqlite-store-legacy.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/types",
+      "file": "packages/sage/src/sqlite-store-pagination.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/types",
       "file": "packages/sage/src/sqlite-store.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
@@ -12650,6 +12662,12 @@
     {
       "specifier": "@wrongstack/core/utils",
       "file": "packages/runtime/src/vision.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/utils",
+      "file": "packages/sage/src/sqlite-store-schema.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },
