@@ -74,8 +74,8 @@
       "runtimeOrMixed": 36
     },
     "@wrongstack/core/kernel": {
-      "files": 157,
-      "typeOnly": 77,
+      "files": 158,
+      "typeOnly": 78,
       "runtimeOrMixed": 96
     },
     "@wrongstack/core/kernel/events.js": {
@@ -126,7 +126,7 @@
     "@wrongstack/core/storage": {
       "files": 78,
       "typeOnly": 24,
-      "runtimeOrMixed": 87
+      "runtimeOrMixed": 86
     },
     "@wrongstack/core/tasking": {
       "files": 27,
@@ -139,9 +139,9 @@
       "runtimeOrMixed": 3
     },
     "@wrongstack/core/types": {
-      "files": 718,
-      "typeOnly": 691,
-      "runtimeOrMixed": 195
+      "files": 728,
+      "typeOnly": 701,
+      "runtimeOrMixed": 196
     },
     "@wrongstack/core/types/multi-agent.js": {
       "files": 2,
@@ -159,9 +159,9 @@
       "runtimeOrMixed": 1
     },
     "@wrongstack/core/utils": {
-      "files": 403,
+      "files": 413,
       "typeOnly": 36,
-      "runtimeOrMixed": 432
+      "runtimeOrMixed": 443
     },
     "@wrongstack/core/utils/error": {
       "files": 4,
@@ -3673,6 +3673,12 @@
     },
     {
       "specifier": "@wrongstack/core/kernel",
+      "file": "packages/cli/src/wiring/session-registry.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/kernel",
       "file": "packages/cli/src/wiring/session.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
@@ -5827,12 +5833,6 @@
     },
     {
       "specifier": "@wrongstack/core/storage",
-      "file": "packages/cli/src/cli-main.ts",
-      "typeOnly": 0,
-      "runtimeOrMixed": 2
-    },
-    {
-      "specifier": "@wrongstack/core/storage",
       "file": "packages/cli/src/cli-recovery-prompt.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
@@ -5950,6 +5950,12 @@
       "file": "packages/cli/src/wiring/runtime-controller-deps.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/storage",
+      "file": "packages/cli/src/wiring/session-registry.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
     },
     {
       "specifier": "@wrongstack/core/storage",
@@ -6788,6 +6794,60 @@
     {
       "specifier": "@wrongstack/core/types",
       "file": "packages/cli/src/picker.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/types",
+      "file": "packages/cli/src/picker/codex.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/types",
+      "file": "packages/cli/src/picker/live-model-runner.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/types",
+      "file": "packages/cli/src/picker/live-provider-runner.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/types",
+      "file": "packages/cli/src/picker/live.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/types",
+      "file": "packages/cli/src/picker/local-presets.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/types",
+      "file": "packages/cli/src/picker/model-selection.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/types",
+      "file": "packages/cli/src/picker/numbered-model.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/types",
+      "file": "packages/cli/src/picker/numbered-provider.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/types",
+      "file": "packages/cli/src/picker/provider-list.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
     },
@@ -10261,6 +10321,12 @@
     },
     {
       "specifier": "@wrongstack/core/types",
+      "file": "packages/webui-server/src/server/agent-roster-handlers.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/types",
       "file": "packages/webui-server/src/server/backend-services.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 3
@@ -10693,7 +10759,7 @@
     },
     {
       "specifier": "@wrongstack/core/types",
-      "file": "packages/webui/src/types.ts",
+      "file": "packages/webui/src/types/protocol-core.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
     },
@@ -11320,6 +11386,66 @@
       "file": "packages/cli/src/picker.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 3
+    },
+    {
+      "specifier": "@wrongstack/core/utils",
+      "file": "packages/cli/src/picker/codex.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/utils",
+      "file": "packages/cli/src/picker/config-save.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 2
+    },
+    {
+      "specifier": "@wrongstack/core/utils",
+      "file": "packages/cli/src/picker/frame.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/utils",
+      "file": "packages/cli/src/picker/live-model-runner.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/utils",
+      "file": "packages/cli/src/picker/live-provider-runner.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/utils",
+      "file": "packages/cli/src/picker/live.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/utils",
+      "file": "packages/cli/src/picker/model-selection.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/utils",
+      "file": "packages/cli/src/picker/numbered-model.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/utils",
+      "file": "packages/cli/src/picker/numbered-provider.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/utils",
+      "file": "packages/cli/src/picker/provider-list.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
     },
     {
       "specifier": "@wrongstack/core/utils",

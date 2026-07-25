@@ -1,5 +1,4 @@
 import type { CacheTtl, ReasoningEffort } from '../provider.js';
-import type { AutonomyConfig } from './autonomy.js';
 
 export interface ModelRuntimeReasoningConfig {
   /**
@@ -174,27 +173,10 @@ export function resolveTokenSavingTier(
   return normalizeTokenSavingTier(val);
 }
 
-/**
- * Verbosity of fleet/subagent activity streamed into the main TUI chat.
- * See {@link AutonomyConfig.fleetChatVerbosity}.
- */
-export type FleetChatVerbosity = 'off' | 'full';
-
-export const FLEET_CHAT_VERBOSITY_VALUES: readonly FleetChatVerbosity[] = ['off', 'full'];
-
-/**
- * Resolve the effective fleet-chat verbosity from autonomy config.
- * An explicit `fleetChatVerbosity` wins; absence means 'off'.
- */
-export function resolveFleetChatVerbosity(
-  autonomy?: Pick<AutonomyConfig, 'fleetChatVerbosity'>,
-): FleetChatVerbosity {
-  const explicit = autonomy?.fleetChatVerbosity;
-  if (explicit && (FLEET_CHAT_VERBOSITY_VALUES as readonly string[]).includes(explicit)) {
-    return explicit;
-  }
-  return 'off';
-}
+// FleetChatVerbosity, FLEET_CHAT_VERBOSITY_VALUES, and resolveFleetChatVerbosity
+// were moved to the dependency-free leaf module ./fleet-chat.ts to avoid a
+// type-level import cycle with ./autonomy.ts. They are surfaced through the
+// config barrel (../config.ts) which re-exports ./config/fleet-chat.js directly.
 
 export const DEFAULT_TUI_THINKING_WORD = 'thinking';
 export const MAX_TUI_THINKING_WORD_LENGTH = 16;

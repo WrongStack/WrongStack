@@ -10,7 +10,7 @@
  *   - AgentStatusTracker/FleetNotifier construction args
  *   - Graceful shutdown handler is installed with correct cleanup wiring
  */
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 // All mocks in one hoisted block. vi.mock factories run during hoisting
 // so every variable they reference must also be hoisted.
@@ -151,7 +151,7 @@ describe('setupSessionRegistry', () => {
         onUpdate: expect.any(Function),
       }),
     );
-    const trackerArg = t.AgentStatusTrackerMock.mock.calls[0]![0] as {
+    const trackerArg = t.AgentStatusTrackerMock.mock.calls[0]![0] as unknown as {
       sessionId: () => string;
     };
     expect(trackerArg.sessionId()).toBe('sess_abc123');
@@ -164,7 +164,7 @@ describe('setupSessionRegistry', () => {
   it('wires the shutdown handler to dispose notifier, mark closing, and stop tracker', async () => {
     await setupSessionRegistry(makeDeps());
 
-    const shutdownArg = t.createGracefulShutdownMock.mock.calls[0]![0] as {
+    const shutdownArg = t.createGracefulShutdownMock.mock.calls[0]![0] as unknown as {
       run: () => Promise<void>;
     };
     await shutdownArg.run();
@@ -179,7 +179,7 @@ describe('setupSessionRegistry', () => {
 
     await setupSessionRegistry(makeDeps());
 
-    const shutdownArg = t.createGracefulShutdownMock.mock.calls[0]![0] as {
+    const shutdownArg = t.createGracefulShutdownMock.mock.calls[0]![0] as unknown as {
       run: () => Promise<void>;
     };
     await expect(shutdownArg.run()).resolves.toBeUndefined();
@@ -300,7 +300,7 @@ describe('setupSessionRegistry', () => {
   it('invokes FleetNotifier notify on every status change via onUpdate', async () => {
     await setupSessionRegistry(makeDeps());
 
-    const trackerArg = t.AgentStatusTrackerMock.mock.calls[0]![0] as {
+    const trackerArg = t.AgentStatusTrackerMock.mock.calls[0]![0] as unknown as {
       onUpdate: () => void;
     };
 

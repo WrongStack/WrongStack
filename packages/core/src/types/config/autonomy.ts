@@ -1,4 +1,4 @@
-import type { FleetChatVerbosity } from './runtime.js';
+import type { FleetChatVerbosity } from './fleet-chat.js';
 
 export interface AutonomyConfig {
   /** Default autonomy mode at startup. Default: "auto". */

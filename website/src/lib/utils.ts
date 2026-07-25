@@ -12,7 +12,7 @@ export function cn(...inputs: ClassValue[]) {
    ========================================================================= */
 
 export const META = {
-  version: '0.295.3',
+  version: '0.296.0',
   repo: 'https://github.com/WrongStack/WrongStack',
   npm: 'wrongstack',
   node: '22',
@@ -296,9 +296,22 @@ export interface ChangelogEntry {
 
 export const changelog: ChangelogEntry[] = [
   {
+    version: '0.296.0',
+    date: '2026-07-25',
+    latest: true,
+    tagline: 'Chronicle metrics store, headless roster consolidation, and cleaner CLI startup wiring',
+    highlights: [
+      'Chronicle gains a disposable SQLite metrics store (provider reliability, task outcomes, file lineage, token cost) with incremental ingest, journal retention (chronicle.retentionDays), and task/kanban file-lineage attribution',
+      'Agent roster supports headless LLM consolidation of role learning entries with live WebSocket broadcast and debounced refresh',
+      'CLI startup is cleaner: session-registry setup extracted into a dedicated wiring module, and config types split into focused files with new ModelRuntimeConfig exports',
+      'Goal engine adds a duration-realism assessor and chimera auto-review on completed tasks',
+      'WebUI SettingsPanel reaches full 456/456 locale parity with Spanish and German translations and PluginToggleList wired into the context tab',
+      'Fixes: WebUI-server prefs validation whitelist and typing, nested settings tabs, and WebSocket handshake in handleMessage tests',
+    ],
+  },
+  {
     version: '0.295.0',
     date: '2026-07-23',
-    latest: true,
     tagline: 'Stable project identity, shared HQ Kanban, replayable Brain decisions, and indexed SAGE',
     highlights: [
       'A committed .wrongstack/project.json proj_<ULID> keeps project identity stable across clones, worktrees, forks, and machines, with explicit id/init/rekey lifecycle commands',

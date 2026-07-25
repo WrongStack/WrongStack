@@ -441,6 +441,23 @@ export async function boot(argv: string[]): Promise<BootContext | number> {
     }
   }
 
+  // Early TUI TTY guard. The Ink TUI (run-tui.ts) requires a TTY on both stdin
+  // and stdout and bails with exit 2 if either is piped. That guard runs late
+  // (from execution.ts), so on an unconfigured machine the "No provider or model
+  // configured" check below would fire first — both return 2, but a piped
+  // `--tui` would then emit the wrong message. Hoist the TTY check here so a
+  // non-interactive `--tui` always reports the interactive-terminal guidance
+  // regardless of provider/model config state (see tui-smoke CI job).
+  const wantsTui = flags['tui'] === true && flags['no-tui'] !== true;
+  if (wantsTui && (!process.stdout.isTTY || !process.stdin.isTTY)) {
+    writeErr(
+      'wstack: --tui requires an interactive terminal on both stdin and stdout.\n' +
+        '       Drop the flag (use the plain REPL) or run wstack directly without piping.\n',
+    );
+    await reader.close();
+    return 2;
+  }
+
   // Provider + model selection
   const providerFlag = typeof flags['provider'] === 'string' ? flags['provider'] : undefined;
   const modelFlag = typeof flags['model'] === 'string' ? flags['model'] : undefined;
