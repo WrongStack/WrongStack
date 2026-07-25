@@ -22,6 +22,8 @@ interface GoalRunState {
   /** Full operator prompt that started the run (title is only a short heading). */
   goal: string | null;
   status: GoalRunStatus;
+  /** Split goal across multiple kanban boards (one per phase). */
+  multiBoard: boolean;
   lastEvent: string | null;
   lastError: string | null;
   /** All persisted boards for this project (from goal.list). */
@@ -43,6 +45,7 @@ interface GoalRunState {
     title?: string | null | undefined;
     goal?: string | null | undefined;
     status?: GoalRunStatus | undefined;
+    multiBoard?: boolean | undefined;
     lastEvent?: string | null | undefined;
     lastError?: string | null | undefined;
     graphs?: GoalRunBoardSummary[] | undefined;
@@ -61,6 +64,7 @@ export const useGoalRunStore = create<GoalRunState>()((set) => ({
   title: null,
   goal: null,
   status: 'idle',
+  multiBoard: false,
   lastEvent: null,
   lastError: null,
   graphs: [],
@@ -75,6 +79,7 @@ export const useGoalRunStore = create<GoalRunState>()((set) => ({
       title: patch.title !== undefined ? patch.title : prev.title,
       goal: patch.goal !== undefined ? patch.goal : prev.goal,
       status: patch.status ?? prev.status,
+      multiBoard: patch.multiBoard ?? prev.multiBoard,
       lastEvent: patch.lastEvent !== undefined ? patch.lastEvent : prev.lastEvent,
       lastError: patch.lastError !== undefined ? patch.lastError : prev.lastError,
       graphs: patch.graphs ?? prev.graphs,
@@ -89,6 +94,7 @@ export const useGoalRunStore = create<GoalRunState>()((set) => ({
       title: null,
       goal: null,
       status: 'idle',
+      multiBoard: false,
       lastEvent: null,
       lastError: null,
       graphs: [],

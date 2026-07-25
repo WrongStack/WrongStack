@@ -43,6 +43,7 @@ export function handleGoalState(msg: WSServerMessage) {
     title: typeof p.title === 'string' ? p.title : undefined,
     goal: typeof p.goal === 'string' ? p.goal : undefined,
     status,
+    multiBoard: p.multiBoard === true,
     lastError: status === 'failed' ? useGoalRunStore.getState().lastError : null,
   });
 }
