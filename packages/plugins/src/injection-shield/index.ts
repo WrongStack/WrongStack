@@ -149,12 +149,46 @@ const PATTERNS: InjectionPattern[] = [
   },
 ];
 
+/**
+ * Characters that are invisible when rendered but break a regex word.
+ *
+ * Zero-width space/non-joiner/joiner, word joiner, BOM, soft hyphen, and
+ * the LTR/RTL directional marks and overrides. All of them can sit inside
+ * a word without changing how a human — or a language model — reads it.
+ */
+const INVISIBLE_CHARS =
+  /[\u00AD\u200B-\u200F\u202A-\u202E\u2060-\u2064\uFEFF]/g;
+
+/**
+ * Strip invisible characters so a payload cannot hide between letters.
+ *
+ * Every pattern here is written against readable words, so a single
+ * zero-width space inside a keyword — `i​gnore previous
+ * instructions` — defeated all of them while the text stayed perfectly
+ * legible to the model it targets. That is the textbook evasion for this
+ * class of detector, and the existing `zero-width-flood` rule did not
+ * cover it: it only fires on 20+ *consecutive* invisibles, not on the one
+ * character it takes to break a word.
+ *
+ * Scanning is done on both forms: the stripped text catches hidden
+ * payloads, and the original still catches the flood rule (whose whole
+ * purpose is to notice the invisible characters themselves).
+ */
+export function stripInvisible(text: string): string {
+  INVISIBLE_CHARS.lastIndex = 0;
+  return text.replace(INVISIBLE_CHARS, '');
+}
+
 export function scanForInjection(text: string): string[] {
-  const hits: string[] = [];
+  const hits = new Set<string>();
+  const cleaned = stripInvisible(text);
   for (const p of PATTERNS) {
-    if (p.re.test(text)) hits.push(p.name);
+    // `p.re` carries no /g flag, so `test` is stateless and safe to reuse.
+    if (p.re.test(text)) hits.add(p.name);
+    // Only re-scan when stripping actually changed something.
+    else if (cleaned !== text && p.re.test(cleaned)) hits.add(p.name);
   }
-  return hits;
+  return [...hits];
 }
 
 // ---------------------------------------------------------------------------

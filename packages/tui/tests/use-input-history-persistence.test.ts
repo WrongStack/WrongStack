@@ -11,7 +11,7 @@ import type { State } from '../src/app-reducer.js';
 vi.mock('@wrongstack/core/storage', () => {
   const mockStore = {
     _entries: [] as string[],
-    load: vi.fn(async function () { return (this as unknown as typeof mockStore)._entries; }),
+    load: vi.fn(async function (this: typeof mockStore) { return this._entries; }),
     save: vi.fn(async () => undefined),
   };
   return {

@@ -134,7 +134,7 @@ describe('<Entry /> — comprehensive coverage', () => {
   describe('confirm kind', () => {
     it('renders confirm entry with tool name', () => {
       const frame = renderEntry({
-        id: 1, kind: 'confirm', toolName: 'bash', text: 'run command?',
+        id: 1, kind: 'confirm', toolName: 'bash', input: { command: 'run command?' }, suggestedPattern: 'bash:*',
       });
       expect(frame).toContain('Confirm');
       expect(frame).toContain('bash');

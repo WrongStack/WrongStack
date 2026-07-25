@@ -93,7 +93,9 @@
       "modelsFor": "Models available for {{provider}}",
       "activeKeys_one": "{{count}} active key",
       "activeKeys_other": "{{count}} active keys",
-      "startSession": "Start Session"
+      "startSession": "Start Session",
+      "saveConfig": "Save Configuration",
+      "saveConfigHint": "Saved provider and model. Start chatting when you're ready."
     },
     "card": {
       "keySaved": "Key saved",
@@ -135,6 +137,15 @@
       "minutesAgo": "{{count}}m ago",
       "hoursAgo": "{{count}}h ago",
       "daysAgo": "{{count}}d ago"
+    },
+    "probe": {
+      "checking": "Checking connection…",
+      "connected": "Connected",
+      "models": "models",
+      "failed": "Probe failed",
+      "noBaseUrl": "No base URL configured",
+      "unreachable": "Could not connect",
+      "httpStatus": "Status"
     },
     "toasts": {
       "keySaved": "{{name}} API key saved",

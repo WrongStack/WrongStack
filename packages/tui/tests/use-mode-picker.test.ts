@@ -8,8 +8,8 @@ import { buildModePickerOptions, useModePicker, type GetModesResult } from '../s
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
 const mockModes: Mode[] = [
-  { id: 'chat', label: 'Chat', description: 'Chat mode' },
-  { id: 'agent', label: 'Agent', description: 'Agent mode' },
+  { id: 'chat', name: 'Chat', description: 'Chat mode', prompt: '' },
+  { id: 'agent', name: 'Agent', description: 'Agent mode', prompt: '' },
 ];
 
 describe('buildModePickerOptions', () => {
@@ -21,9 +21,10 @@ describe('buildModePickerOptions', () => {
     expect(options[0]!.id).toBe('chat');
     expect(options[1]!.id).toBe('agent');
     // The active one should be marked - check for any truthy "active" or "isActive" property
-    const activeProp = Object.keys(options[0]).find(k => k.toLowerCase().includes('active'));
+    const first = options[0]!;
+    const activeProp = Object.keys(first).find(k => k.toLowerCase().includes('active'));
     expect(activeProp).toBeTruthy();
-    expect((options[0] as Record<string, unknown>)[activeProp!]).toBeTruthy();
+    expect((first as unknown as Record<string, unknown>)[activeProp!]).toBeTruthy();
   });
 
   it('handles null activeId', () => {

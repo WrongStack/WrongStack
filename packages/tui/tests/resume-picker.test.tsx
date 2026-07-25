@@ -242,7 +242,7 @@ describe('ResumePicker', () => {
 
   it('shows current session marker', () => {
     const currentSession: ResumeSessionEntry = {
-      ...sampleSessions[0],
+      ...sampleSessions[0]!,
       isCurrent: true,
     };
     const { lastFrame, unmount } = render(

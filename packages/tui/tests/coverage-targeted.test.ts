@@ -20,6 +20,7 @@ import { buildSlashCommandMatches } from '../src/slash-command-search.js';
 import { normalizeTuiThinkingWord } from '../src/thinking-word.js';
 import { authPanelRows, authMoveSelected, type AuthPanelState } from '../src/components/auth-panel-model.js';
 import { closePanels, firstSelectable, clampContextLoad, skipDivider } from '../src/reducers/helpers.js';
+import type { ProjectPickerItem } from '../src/ui-contracts.js';
 
 // ────────────────────────────────────────────────────────────────────────────
 // highlight.ts — branch gaps
@@ -71,20 +72,20 @@ describe('ink.tsx — branch gaps', () => {
     // Just verify it renders without error with a known color name.
     const el = Text({ color: 'cyan', children: 'hello' }) as NonNullable<ReturnType<typeof Text>>;
     expect(el).toBeDefined();
-    expect((el as never).props.color).toBe('#94e2d5'); // pastel cyan
+    expect((el as unknown as { props: Record<string, unknown> }).props.color).toBe('#94e2d5'); // pastel cyan
   });
 
   it('Text renders without color prop (undefined)', () => {
     // colorProps returns {} when softColor returns undefined.
     const el = Text({ children: 'plain' }) as NonNullable<ReturnType<typeof Text>>;
     expect(el).toBeDefined();
-    expect((el as never).props.color).toBeUndefined();
+    expect((el as unknown as { props: Record<string, unknown> }).props.color).toBeUndefined();
   });
 
   it('Text renders with backgroundColor that resolves', () => {
     const el = Text({ backgroundColor: 'blue', children: 'bg test' }) as NonNullable<ReturnType<typeof Text>>;
     expect(el).toBeDefined();
-    expect((el as never).props.backgroundColor).toBe('#89b4fa');
+    expect((el as unknown as { props: Record<string, unknown> }).props.backgroundColor).toBe('#89b4fa');
   });
 
   it('Box component can be rendered via createElement', async () => {
@@ -100,7 +101,7 @@ describe('ink.tsx — branch gaps', () => {
     const { Box } = await import('../src/ink.js');
     const el = React.createElement(Box, {}, 'plain box');
     expect(el).toBeDefined();
-    expect((el as never).props.borderColor).toBeUndefined();
+    expect((el as unknown as { props: Record<string, unknown> }).props.borderColor).toBeUndefined();
   });
 });
 
@@ -274,10 +275,7 @@ describe('queue-slash.ts — branch gaps', () => {
     const deps: QueueSlashDeps = {
       ...emptyDeps,
       getQueue: () => [
-        {
-          id: 1, displayText: 'msg1', text: 'msg1',
-          priority: 'normal', sendMode: 'queue',
-        },
+        { id: 1, displayText: 'msg1', blocks: [{ type: 'text', text: 'msg1' }] },
       ],
     };
     const result = handleQueueCommand('delete abc 999', deps);
@@ -317,9 +315,9 @@ describe('helpers.ts — branch gaps', () => {
   });
 
   it('skipDivider wraps around and handles all-dividers', () => {
-    const items = [
-      { key: '__divider__' as const },
-      { key: '__divider__' as const },
+    const items: ProjectPickerItem[] = [
+      { key: '__divider__', label: '', kind: 'action' },
+      { key: '__divider__', label: '', kind: 'action' },
     ];
     // All dividers — stays at idx
     expect(skipDivider(items, 0, 1)).toBe(0);

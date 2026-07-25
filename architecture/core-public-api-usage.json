@@ -19,8 +19,8 @@
       "runtimeOrMixed": 3
     },
     "@wrongstack/core/coordination": {
-      "files": 122,
-      "typeOnly": 55,
+      "files": 123,
+      "typeOnly": 56,
       "runtimeOrMixed": 125
     },
     "@wrongstack/core/coordination/agent-subagent-runner.js": {
@@ -139,9 +139,9 @@
       "runtimeOrMixed": 3
     },
     "@wrongstack/core/types": {
-      "files": 717,
-      "typeOnly": 690,
-      "runtimeOrMixed": 194
+      "files": 718,
+      "typeOnly": 691,
+      "runtimeOrMixed": 195
     },
     "@wrongstack/core/types/multi-agent.js": {
       "files": 2,
@@ -2020,6 +2020,12 @@
       "file": "packages/tui/tests/agents-monitor.test.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 2
+    },
+    {
+      "specifier": "@wrongstack/core/coordination",
+      "file": "packages/tui/tests/use-autonomous-coordinator.test.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
     },
     {
       "specifier": "@wrongstack/core/coordination",
@@ -9883,6 +9889,12 @@
     },
     {
       "specifier": "@wrongstack/core/types",
+      "file": "packages/tools/tests/tool-tier.test.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/types",
       "file": "packages/tools/tool-tier.d.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
@@ -10347,7 +10359,7 @@
       "specifier": "@wrongstack/core/types",
       "file": "packages/webui-server/src/server/goal-ws-handler.ts",
       "typeOnly": 1,
-      "runtimeOrMixed": 5
+      "runtimeOrMixed": 6
     },
     {
       "specifier": "@wrongstack/core/types",

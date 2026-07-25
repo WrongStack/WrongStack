@@ -29,7 +29,7 @@ function makeKey(overrides: Partial<KeyEvent> = {}): KeyEvent {
 
 function match(
   name: string,
-  category: string,
+  category: SlashCommandMatch['category'],
   description = `${name} description`,
 ): SlashCommandMatch {
   return {

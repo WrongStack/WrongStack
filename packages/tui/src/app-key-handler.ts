@@ -93,6 +93,13 @@ interface AppKeyHandlerOptions {
   pasteClipboardImage: () => Promise<void>;
   slashRegistry: AppProps['slashRegistry'];
   agent: AppProps['agent'];
+  /**
+   * Called with the copied entry's id after a chat card's copy icon is clicked
+   * and its content was successfully written to the clipboard. Lets the host
+   * surface a transient "Copied" confirmation and flash that card's icon. Not
+   * called when the click missed or the write failed.
+   */
+  onHistoryCopy?: ((entryId: number) => void) | undefined;
 }
 
 /** Creates the terminal key host around focused overlay/input routers. */
@@ -157,6 +164,7 @@ export function createAppKeyHandler(options: AppKeyHandlerOptions): (
     pasteClipboardImage,
     slashRegistry,
     agent,
+    onHistoryCopy,
   } = options;
   const stdout = { columns: terminalColumns, rows: terminalRows };
   const handleKey = async (input: string, key: KeyEvent) => {
@@ -514,13 +522,13 @@ export function createAppKeyHandler(options: AppKeyHandlerOptions): (
           return;
         }
       }
-      // Scrollbar click / drag. A left press (or left-button drag) on the
-      // right-edge track jumps the viewport to that position; each drag-move
-      // re-jumps, giving scrub-to-scroll for free. The track lives in the top
-      // `viewportRows` band, so the bottom region is never affected.
+      // Scrollbar click / drag. Managed mode already reports button presses,
+      // so a left press on the right-edge track always jumps to that absolute
+      // position. Full mouse mode additionally reports held-button motion,
+      // giving scrub-to-scroll. The track lives in the top `viewportRows`
+      // band, so the bottom region is never affected.
       if (
-        mouseMode &&
-        (key.mouse?.kind === 'press' || key.mouse?.kind === 'move') &&
+        (key.mouse?.kind === 'press' || (mouseMode && key.mouse?.kind === 'move')) &&
         key.mouse.button === 'left'
       ) {
         const region = hitRegion(
@@ -530,6 +538,30 @@ export function createAppKeyHandler(options: AppKeyHandlerOptions): (
         );
         if (region?.kind === 'scrollbar') {
           historyScrollRef.current?.scrollToTrackCell(region.cell);
+          return;
+        }
+        // A left press inside the history viewport may land on a card's
+        // click-to-copy icon. Only a fresh press triggers a copy (drags scrub
+        // the scrollbar above). Decide synchronously via hasCopyTargetAt so a
+        // plain in-history click (no icon under the cell) falls through to the
+        // handlers below instead of being swallowed. `region.row` is 0-based
+        // from the viewport top; the mouse x is 1-based, so convert to a 0-based
+        // column. The clipboard write itself is fire-and-forget — it must not
+        // block key handling; failures (no clipboard tool / denied) are swallowed.
+        if (
+          region?.kind === 'history' &&
+          key.mouse.kind === 'press' &&
+          historyScrollRef.current?.hasCopyTargetAt(region.row, key.mouse.x - 1)
+        ) {
+          void historyScrollRef.current
+            .copyAtViewportCell(region.row, key.mouse.x - 1)
+            .then((entryId) => {
+              // Non-null id means the clipboard write succeeded — surface the
+              // transient "Copied" confirmation and flash that card's icon. A
+              // null result (missed target or write failure) is silent.
+              if (entryId !== null) onHistoryCopy?.(entryId);
+            })
+            .catch(() => null);
           return;
         }
       }

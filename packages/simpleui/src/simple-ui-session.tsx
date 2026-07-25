@@ -162,11 +162,17 @@ export function SimpleUiSession() {
 
   /** Send a message to the agent and reflect it locally. The single send
    *  path — the composer, the queue drain, and every refine decision all
-   *  funnel through here. */
+   *  funnel through here.
+   *
+   *  Returns `true` when the message was actually dispatched, `false` when it
+   *  was dropped (no session, empty content, or no live socket). Callers that
+   *  advance a queue MUST gate on this: a drop must not consume the queued
+   *  item, or the user's held message is silently lost. */
   const dispatchUserMessage = useCallback(
-    (content: string, images?: { data: string; mime: string }[]) => {
+    (content: string, images?: { data: string; mime: string }[]): boolean => {
       const sessionId = sessionIdRef.current;
-      if (!content || !sessionId) return;
+      const socket = socketRef.current;
+      if (!content || !sessionId || !socket) return false;
       setMessages((current) => [
         ...current,
         {
@@ -186,7 +192,8 @@ export function SimpleUiSession() {
         timestamp: Date.now(),
       };
       if (images && images.length > 0) payload['images'] = images;
-      socketRef.current?.send('user_message', payload);
+      socket.send('user_message', payload);
+      return true;
     },
     [],
   );

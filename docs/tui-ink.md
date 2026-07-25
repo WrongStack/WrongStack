@@ -106,14 +106,14 @@ The TUI uses a single **`useReducer`** pattern with a pure reducer function (no 
 `packages/tui/src/run-tui.ts` (1,317 lines)
 
 The `runTui()` function:
-1. Sets up bracketed paste mode on stdin
+1. Enters the alternate screen buffer and sets up bracketed paste mode
 2. Installs signal handlers (SIGINT ladder: first Ctrl+C → abort, second → exit)
 3. Enables/disables mouse tracking (SGR protocol)
 4. Starts the animated terminal title
 5. Calls `render(<App {...props} />, { exitOnCtrlC: false, stdin })` — Ink's entry point
 6. Hooks raw stdin `'data'` listener to catch F-keys, Home/End, Backspace, mouse events
-7. Installs terminal resize handler that erases from cursor to end-of-screen (`\x1b[J`) to prevent ghost artifacts on reflow
-8. Returns a promise that settles with the exit code
+7. Installs terminal resize handling for the managed viewport
+8. On every exit path, unmounts Ink and restores the normal screen buffer
 
 ### 2.3 Ink Shim: `ink.tsx`
 
@@ -789,7 +789,7 @@ Based on mailbox broadcast activity during this session:
 
 ### 20.2 Design Considerations
 - **No font installation**: WrongStack never silently installs or changes system fonts — Nerd Font is user's choice via `WRONGSTACK_TUI_ICON_STYLE=nerd`
-- **Inline vs Alt-Screen**: The TUI runs in inline mode (Ink's default), but chat entries stay inside a fixed-height managed viewport instead of flowing into native terminal scrollback
+- **Alternate screen**: The TUI owns a full alternate buffer, so terminal-native scrollback is unavailable while it is visible; the normal shell screen is restored on exit
 - **Performance**: `React.memo` on history/input prevents keystroke churn; display retention is capped at 400 entries / 1 MiB; height-cache windowing, markdown LRU caching, and `fleetBatch` coalescing bound hot paths
 - **Ghost artifacts**: Resize handler erases from cursor to end-of-screen to prevent reflow ghosts
 - **Panel close mechanism**: Overlays rendered above the input keep the input `hidden` but mounted (not unmounted) so keyboard listeners for F-key/Esc remain active and panels remain closable

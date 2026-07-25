@@ -52,27 +52,35 @@ beforeEach(() => {
 });
 
 describe('FileExplorer (virtualized tree)', () => {
-  it('auto-expands root-level directories only', () => {
+  it('starts collapsed by default — only root-level items visible', () => {
     render(<FileExplorer />);
-    // Root dir children are visible…
-    expect(screen.getByText('app.ts')).toBeTruthy();
-    expect(screen.getByText('lib')).toBeTruthy();
+    // Root-level items are visible…
+    expect(screen.getByText('src')).toBeTruthy();
+    expect(screen.getByText('empty-dir')).toBeTruthy();
     expect(screen.getByText('readme.md')).toBeTruthy();
-    // …but nested (depth-2) content stays collapsed.
+    // …but directory children are NOT visible until expanded.
+    expect(screen.queryByText('app.ts')).toBeNull();
+    expect(screen.queryByText('lib')).toBeNull();
     expect(screen.queryByText('util.ts')).toBeNull();
   });
 
   it('expands and collapses a directory on click', () => {
     render(<FileExplorer />);
+    // Expand src first, then click lib to expand it
+    fireEvent.click(screen.getByText('src'));
     fireEvent.click(screen.getByText('lib'));
     expect(screen.getByText('util.ts')).toBeTruthy();
+    // Collapse lib
     fireEvent.click(screen.getByText('lib'));
     expect(screen.queryByText('util.ts')).toBeNull();
   });
 
   it('shows the empty placeholder under an expanded empty directory', () => {
     render(<FileExplorer />);
-    // Root dirs auto-expand, so the placeholder is visible immediately…
+    // Root dirs start collapsed, so click on empty-dir to expand it first
+    expect(screen.queryByText('empty')).toBeNull();
+    fireEvent.click(screen.getByText('empty-dir'));
+    // Now the placeholder is visible…
     expect(screen.getByText('empty')).toBeTruthy();
     // …and collapsing the dir removes it.
     fireEvent.click(screen.getByText('empty-dir'));
@@ -96,6 +104,8 @@ describe('FileExplorer (virtualized tree)', () => {
 
     // Tab into the tree highlights the first row (src).
     fireEvent.focus(tree);
+    // ArrowRight on the collapsed `src` expands it.
+    fireEvent.keyDown(tree, { key: 'ArrowRight' });
     // ArrowDown twice: src → app.ts → lib.
     fireEvent.keyDown(tree, { key: 'ArrowDown' });
     fireEvent.keyDown(tree, { key: 'ArrowDown' });
@@ -117,6 +127,7 @@ describe('FileExplorer (virtualized tree)', () => {
       render(<FileExplorer />);
       const tree = screen.getByRole('tree');
       fireEvent.focus(tree); // focus row 0 (src)
+      fireEvent.keyDown(tree, { key: 'ArrowRight' }); // expand src → app.ts becomes row 1
       fireEvent.keyDown(tree, { key: 'ArrowDown' }); // app.ts
       fireEvent.keyDown(tree, { key: 'Enter' });
       expect(seen).toEqual(['/proj/src/app.ts']);
@@ -127,16 +138,22 @@ describe('FileExplorer (virtualized tree)', () => {
 
   it('keeps user expansion when the tree refreshes for the same cwd', () => {
     render(<FileExplorer />);
+    // Expand src first so lib is visible, then expand lib.
+    fireEvent.click(screen.getByText('src'));
     fireEvent.click(screen.getByText('lib'));
     expect(screen.getByText('util.ts')).toBeTruthy();
     // Watcher-style refresh: same cwd, new tree objects.
     useFileStore.getState().setTree('/proj', makeTree());
+    // User's expansion of lib should persist.
     expect(screen.getByText('util.ts')).toBeTruthy();
   });
 
   it('right-click menu → Mention in chat adds a file reference to the store', () => {
     useFileReferenceStore.setState({ refs: [] });
     render(<FileExplorer />);
+
+    // Expand src so app.ts becomes visible.
+    fireEvent.click(screen.getByText('src'));
 
     // Right-click on a file node (app.ts).
     const fileNode = screen.getByText('app.ts');

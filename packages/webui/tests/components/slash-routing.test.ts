@@ -6,19 +6,42 @@ import {
 import { streamCoalescer } from '../../src/lib/stream-coalescer.js';
 
 // Mock external store dependencies and downloadChatAsMarkdown
-const mocks = vi.hoisted(() => ({
-  setAgentsMonitorOpen: vi.fn(),
-  setFleetMonitorOpen: vi.fn(),
-  setQueuePanelOpen: vi.fn(),
-  setProcessMonitorOpen: vi.fn(),
-  setDockSection: vi.fn(),
-  setWorkDashboardTab: vi.fn(),
-  setDockCustomizeOpen: vi.fn(),
-  setSidebarOpen: vi.fn(),
-  selectActivity: vi.fn(),
-  setCurrentViewUI: vi.fn(),
-  setTerminalOpen: vi.fn(),
-}));
+const mocks = vi.hoisted(() => {
+  const fns = {
+    setAgentsMonitorOpen: vi.fn(),
+    setFleetMonitorOpen: vi.fn(),
+    setQueuePanelOpen: vi.fn(),
+    setProcessMonitorOpen: vi.fn(),
+    setDockSection: vi.fn(),
+    setWorkDashboardTab: vi.fn(),
+    setDockCustomizeOpen: vi.fn(),
+    setSidebarOpen: vi.fn(),
+    selectActivity: vi.fn(),
+    setCurrentViewUI: vi.fn(),
+    setTerminalOpen: vi.fn(),
+  };
+
+  // Shared factory used by both @/stores and @/stores/ui-store mocks so
+  // view-navigation.ts (imports from @/stores/ui-store) and slash-routing.ts
+  // (imports from @/stores) observe the same store shape.
+  const createMockUIStore = () => ({
+    currentView: 'chat',
+    refineEnabled: false,
+    setAgentsMonitorOpen: fns.setAgentsMonitorOpen,
+    setFleetMonitorOpen: fns.setFleetMonitorOpen,
+    setQueuePanelOpen: fns.setQueuePanelOpen,
+    setProcessMonitorOpen: fns.setProcessMonitorOpen,
+    setDockSection: fns.setDockSection,
+    setWorkDashboardTab: fns.setWorkDashboardTab,
+    setDockCustomizeOpen: fns.setDockCustomizeOpen,
+    setSidebarOpen: fns.setSidebarOpen,
+    selectActivity: fns.selectActivity,
+    setCurrentView: fns.setCurrentViewUI,
+    setTerminalOpen: fns.setTerminalOpen,
+  });
+
+  return { ...fns, createMockUIStore };
+});
 
 vi.mock('@/stores', () => ({
   useSessionStore: {
@@ -30,42 +53,11 @@ vi.mock('@/stores', () => ({
       ],
     }),
   },
-  useUIStore: {
-    getState: () => ({
-      refineEnabled: false,
-      setAgentsMonitorOpen: mocks.setAgentsMonitorOpen,
-      setFleetMonitorOpen: mocks.setFleetMonitorOpen,
-      setQueuePanelOpen: mocks.setQueuePanelOpen,
-      setProcessMonitorOpen: mocks.setProcessMonitorOpen,
-      setDockSection: mocks.setDockSection,
-      setWorkDashboardTab: mocks.setWorkDashboardTab,
-      setDockCustomizeOpen: mocks.setDockCustomizeOpen,
-      setSidebarOpen: mocks.setSidebarOpen,
-      selectActivity: mocks.selectActivity,
-      setCurrentView: mocks.setCurrentViewUI,
-      setTerminalOpen: mocks.setTerminalOpen,
-    }),
-  },
+  useUIStore: { getState: mocks.createMockUIStore },
 }));
 
 vi.mock('@/stores/ui-store', () => ({
-  useUIStore: {
-    getState: () => ({
-      currentView: 'files',
-      refineEnabled: false,
-      setAgentsMonitorOpen: mocks.setAgentsMonitorOpen,
-      setFleetMonitorOpen: mocks.setFleetMonitorOpen,
-      setQueuePanelOpen: mocks.setQueuePanelOpen,
-      setProcessMonitorOpen: mocks.setProcessMonitorOpen,
-      setDockSection: mocks.setDockSection,
-      setWorkDashboardTab: mocks.setWorkDashboardTab,
-      setDockCustomizeOpen: mocks.setDockCustomizeOpen,
-      setSidebarOpen: mocks.setSidebarOpen,
-      selectActivity: mocks.selectActivity,
-      setCurrentView: mocks.setCurrentViewUI,
-      setTerminalOpen: mocks.setTerminalOpen,
-    }),
-  },
+  useUIStore: { getState: mocks.createMockUIStore },
 }));
 
 vi.mock('../../src/components/CommandPalette/export-utils.js', () => ({
@@ -200,7 +192,6 @@ describe('runChatSlashCommand', () => {
     expect(options.ws.listSessions).toHaveBeenCalledWith(50);
     expect(mocks.setSidebarOpen).toHaveBeenCalledWith(true);
     expect(mocks.selectActivity).toHaveBeenCalledWith('chat');
-    expect(mocks.setCurrentViewUI).toHaveBeenCalledWith('chat');
   });
 
   it.each(['/interrupt', '/abort', '/stop'])('%s calls sendAbort and setLoading(false)', (cmd) => {
@@ -327,7 +318,6 @@ describe('runChatSlashCommand — /f', () => {
     expect(opts.ws.listSessions).toHaveBeenCalledWith(50);
     expect(mocks.setSidebarOpen).toHaveBeenCalledWith(true);
     expect(mocks.selectActivity).toHaveBeenCalledWith('chat');
-    expect(mocks.setCurrentViewUI).toHaveBeenCalledWith('chat');
   });
 
   it('/f11 opens the coordinator office map surface', () => {

@@ -1,4 +1,4 @@
-import { Bot, Command, Cpu, Moon, Search, Settings, Sparkles, Sun } from 'lucide-react';
+import { Bot, Command, Cpu, Moon, Search, Settings, Sparkles, Sun, Wifi, WifiOff } from 'lucide-react';
 import { lazy, Suspense, useCallback, useEffect, useState } from 'react';
 import { useShallow } from 'zustand/react/shallow';
 import { useDesktopBridge } from '@/hooks/useDesktopBridge';
@@ -184,6 +184,7 @@ function WorkbenchTopbar({
   onSettings: () => void;
 }) {
   const { theme, setTheme } = useTheme();
+  const wsConnected = useConfigStore((s) => s.wsConnected);
   const effectiveTheme =
     theme === 'system'
       ? typeof window !== 'undefined' && window.matchMedia('(prefers-color-scheme: dark)').matches
@@ -285,6 +286,17 @@ function WorkbenchTopbar({
           </button>
           <InspectorTrigger />
           <CronTrigger />
+          <span
+            role="status"
+            aria-label={wsConnected ? 'Connected' : 'Disconnected'}
+            className={cn(
+              'inline-flex h-8 w-8 items-center justify-center rounded-md border border-border/70 bg-background/60',
+              wsConnected ? 'text-success' : 'text-warning',
+            )}
+            title={wsConnected ? 'Connected' : 'Disconnected'}
+          >
+            {wsConnected ? <Wifi className="h-3.5 w-3.5" /> : <WifiOff className="h-3.5 w-3.5" />}
+          </span>
           <button
             type="button"
             onClick={onSettings}

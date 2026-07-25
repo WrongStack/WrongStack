@@ -181,6 +181,7 @@ export const ALLOWED_ACTION_TYPES = defineActionTypes([
   'confirmOpen',
   'continueConfirmClose',
   'continueConfirmOpen',
+  'copiedNotice',
   'coordinatorEvent',
   'countdownEnded',
   'countdownTick',

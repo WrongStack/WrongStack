@@ -408,10 +408,13 @@ const STRING_ARRAY_PREF_KEYS = new Set([
   'autoReviewFallbackModels',
 ]);
 const STRING_ARRAY_RECORD_PREF_KEYS = new Set(['fallbackProfiles']);
-const ARRAY_PREF_KEYS = new Set([
-  // Model availability schedule — array of ModelBlackoutRule objects.
-  'modelAvailabilitySchedule',
-]);
+/** Map of array-typed pref keys to their element-level validator. */
+const ARRAY_PREF_VALIDATORS: Record<
+  string,
+  (item: Record<string, unknown>, path: string) => string | null
+> = {
+  modelAvailabilitySchedule: validateModelBlackoutRule,
+};
 const MODEL_MATRIX_PREF_KEYS = new Set(['modelMatrix']);
 // Object of booleans, e.g. { 'plugin-name': true }. Parity with the embedded
 // server, which accepts `pluginsEnabled` and persists it to
@@ -513,6 +516,69 @@ function validateModelRuntimeValue(
   return null;
 }
 
+/** Validate a single ModelBlackoutRule element. */
+function validateModelBlackoutRule(
+  rule: Record<string, unknown>,
+  path: string,
+): string | null {
+  const id = rule['id'];
+  if (typeof id !== 'string' || id.trim().length === 0) {
+    return `${path}.id must be a non-empty string`;
+  }
+  const start = rule['start'];
+  if (typeof start !== 'string' || !/^([01]\d|2[0-3]):[0-5]\d$/.test(start)) {
+    return `${path}.start must be a string in HH:mm (00:00-23:59) format`;
+  }
+  const end = rule['end'];
+  if (typeof end !== 'string' || !/^([01]\d|2[0-3]):[0-5]\d$/.test(end)) {
+    return `${path}.end must be a string in HH:mm (00:00-23:59) format`;
+  }
+  // start >= end is valid: it means the rule crosses midnight (overnight).
+  // e.g., start=22:00, end=06:00 blocks from 10 PM to 6 AM the next day.
+  // (if the caller intends same-day scheduling they must ensure start < end).
+  if (rule['enabled'] !== undefined && typeof rule['enabled'] !== 'boolean') {
+    return `${path}.enabled must be a boolean when provided`;
+  }
+  if (rule['provider'] !== undefined && typeof rule['provider'] !== 'string') {
+    return `${path}.provider must be a string when provided`;
+  }
+  if (rule['model'] !== undefined && typeof rule['model'] !== 'string') {
+    return `${path}.model must be a string when provided`;
+  }
+  if (rule['days'] !== undefined) {
+    if (!Array.isArray(rule['days'])) return `${path}.days must be an array when provided`;
+    const seen = new Set<number>();
+    for (const d of rule['days']) {
+      if (typeof d !== 'number' || !Number.isInteger(d) || d < 0 || d > 6) {
+        return `${path}.days elements must be integers 0-6 when provided`;
+      }
+      if (seen.has(d)) return `${path}.days contains duplicate day: ${d}`;
+      seen.add(d);
+    }
+  }
+  if (rule['timezone'] !== undefined) {
+    if (typeof rule['timezone'] !== 'string') {
+      return `${path}.timezone must be a string when provided`;
+    }
+    try {
+      Intl.DateTimeFormat(undefined, { timeZone: rule['timezone'] as string });
+    } catch {
+      return `${path}.timezone is not a valid IANA timezone (e.g. "America/New_York")`;
+    }
+  }
+  if (rule['label'] !== undefined && typeof rule['label'] !== 'string') {
+    return `${path}.label must be a string when provided`;
+  }
+  if (
+    rule['mode'] !== undefined &&
+    rule['mode'] !== 'blackout' &&
+    rule['mode'] !== 'allow_only'
+  ) {
+    return `${path}.mode must be 'blackout' or 'allow_only' when provided`;
+  }
+  return null;
+}
+
 function validatePreferenceValue(key: string, value: unknown): string | null {
   if (BOOLEAN_PREF_KEYS.has(key)) {
     return typeof value === 'boolean' ? null : `prefs.update payload.${key} must be a boolean`;
@@ -530,10 +596,20 @@ function validatePreferenceValue(key: string, value: unknown): string | null {
       ? null
       : `prefs.update payload.${key} must be an array of strings`;
   }
-  if (ARRAY_PREF_KEYS.has(key)) {
-    return Array.isArray(value)
-      ? null
-      : `prefs.update payload.${key} must be an array`;
+  const arrayValidator = ARRAY_PREF_VALIDATORS[key];
+  if (arrayValidator) {
+    if (!Array.isArray(value)) return `prefs.update payload.${key} must be an array`;
+    for (let i = 0; i < value.length; i++) {
+      const item = value[i];
+      if (!isRecord(item))
+        return `prefs.update payload.${key}[${i}] must be an object`;
+      const error = arrayValidator(
+        item,
+        `prefs.update payload.${key}[${i}]`,
+      );
+      if (error) return error;
+    }
+    return null;
   }
   if (STRING_ARRAY_RECORD_PREF_KEYS.has(key)) {
     return isRecord(value) &&

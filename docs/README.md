@@ -10,6 +10,8 @@ This is the on-ramp to the WrongStack documentation. If you're new to the projec
 |---|---|
 | Understand how the system is wired | [architecture.md](architecture.md) (overview) → [architecture-reference.md](architecture-reference.md) (deep) |
 | Add a new tool, plugin, provider, or help module | [Author Guides](#author-guides) below |
+| Look up CLI flags, subcommands, and `wstack update` | [cli-reference.md](cli-reference.md) |
+| Scan tools, providers, slash commands, modes, and skills at a glance | [reference.md](reference.md) |
 | Understand a specific subcommand | [Subcommand Reference](#subcommand-reference) |
 | Understand a specific slash command | [Slash Command Reference](#slash-command-reference) |
 | Configure MCP servers (browser, SSH, GitHub, …) | [subcommands/mcp.md](subcommands/mcp.md) → `mcpServers` in [configuration.md](configuration.md) |
@@ -75,6 +77,18 @@ How to add new things. Each guide is self-contained — read the one for the sur
 | [configuration.md](configuration.md) | Configuration model, secret vault, environment variables, config migration |
 | [troubleshooting.md](troubleshooting.md) | Common problems and their fixes: provider failures, model registry, session replay, MCP issues |
 | [SECURITY.md](../SECURITY.md) | Threat model, current controls, known limitations, HQ implementation status, vulnerability reporting |
+
+---
+
+## CLI & Reference
+
+High-level, README-adjacent reference. Start here for a quick map, then drill into
+the per-subcommand and per-slash-command docs below.
+
+| Document | What it covers |
+|---|---|
+| [cli-reference.md](cli-reference.md) | Launch flags, subcommands, and the `wstack update` self-updater (`--check-only`, `--pm`, `--allow-scripts`) |
+| [reference.md](reference.md) | Condensed map of the 58 built-in tools, ~140 providers, slash commands, the 8 modes, and the 23 bundled skills |
 
 ---
 

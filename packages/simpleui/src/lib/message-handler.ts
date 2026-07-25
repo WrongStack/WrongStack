@@ -65,6 +65,28 @@ function finiteNumber(value: unknown, fallback = 0): number {
   return typeof value === 'number' && Number.isFinite(value) ? value : fallback;
 }
 
+/**
+ * Normalize a `ctx.pct` `load` into a 0-1 context-fill fraction.
+ *
+ * The wire unit is a fraction of the context budget, NOT a percentage:
+ * core computes `rawLoad = tokens / maxContext` and emits it as
+ * `load = Math.max(0, Math.min(1, rawLoad))` — already clamped to [0, 1]
+ * (see `emitContextPct` in core `agent-loop.ts`; the un-clamped value is
+ * carried separately as `rawLoad`). So `load: 0.68` means 68% full and a
+ * full budget is exactly `1`. The previous `load > 1 ? load / 100`
+ * heuristic silently corrupted any value it mistook for a percentage and
+ * could never distinguish "1% as a percent" from "100% as a fraction".
+ *
+ * Deterministic rule: trust the fraction and pass it through. The only
+ * adjustment is a defensive clamp of non-finite/negative inputs to 0 (the
+ * producer already clamps, so this is just belt-and-suspenders against a
+ * malformed frame — we do NOT divide or magnitude-sniff).
+ */
+export function normalizeContextLoad(value: unknown): number {
+  const load = finiteNumber(value);
+  return load > 0 ? load : 0;
+}
+
 function messageId(prefix: string): string {
   return `${prefix}-${globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random()}`}`;
 }
@@ -128,7 +150,10 @@ export interface MessageHandlerDeps {
   onChime?: (() => void) | undefined;
 
   // Stable callbacks provided by app.tsx
-  dispatchUserMessage: (content: string, images?: { data: string; mime: string }[]) => void;
+  /** Returns `true` when the message was dispatched, `false` when dropped
+   *  (no session / empty content / no socket). Queue-drain callers gate on
+   *  this so a dropped drain does not silently consume the queued item. */
+  dispatchUserMessage: (content: string, images?: { data: string; mime: string }[]) => boolean;
   requestProviderModels: (providerId: string) => void;
   writeComposerDraft: (sessionId: string, draft: { text: string; fileRefs: string[] }) => void;
   clearComposerDraft: (sessionId: string) => void;
@@ -193,6 +218,24 @@ export function createMessageHandler(deps: MessageHandlerDeps): ServerMessageHan
     worklists,
     stickToBottomRef,
   } = deps;
+
+  /**
+   * Drain the next queued message at a turn boundary (`run.result` / `error`).
+   *
+   * The queue head is only consumed if `dispatchUserMessage` actually sends
+   * it. Previously the drain advanced the queue (`queueRef.current = rest;
+   * setQueue(rest)`) BEFORE dispatching, so if dispatch was dropped — e.g. the
+   * session was cleared between enqueue and drain — the held message was
+   * removed from the queue but never sent: silent user-input loss. Gating on
+   * the dispatch result keeps the item queued for the next successful drain.
+   */
+  function drainQueue(): void {
+    const { item, rest } = dequeueItem(queueRef.current);
+    if (!item) return;
+    if (!dispatchUserMessage(item.text)) return; // dropped — keep the item queued
+    queueRef.current = rest;
+    setQueue(rest);
+  }
 
   return function handleServerMessage(message: ServerMessage): void {
     const payload = message.payload ?? {};
@@ -492,23 +535,39 @@ export function createMessageHandler(deps: MessageHandlerDeps): ServerMessageHan
         const execName = projection.name;
         setActivity('Thinking');
         if (execId || execName) {
-          setToolCalls((current) =>
-            current.map((tc) => {
-              if (
-                (execId && tc.id === execId) ||
-                (!execId && tc.name === execName && tc.status === 'running')
-              ) {
-                return {
-                  ...tc,
-                  status: projection.ok ? 'done' : 'error',
-                  output: projection.output,
-                  durationMs: projection.durationMs,
-                  ok: projection.ok,
-                };
+          setToolCalls((current) => {
+            // Find the single call to close. With an id it's an exact match.
+            // Without an id, pair by name against the LAST still-running call
+            // of that name — mirroring agentTranscriptToToolCalls in
+            // tool-model.ts. A plain `.map` here closed *every* running call
+            // with that name, so two concurrent same-tool calls collapsed
+            // into one (both marked done with the same output).
+            // Only ever close a still-running call. Requiring `running` on
+            // BOTH the id and the name branch makes a duplicate/late
+            // `tool.executed` (same id arriving twice) a safe no-op instead of
+            // re-closing an already-done call and overwriting its output.
+            let matchIndex = -1;
+            for (let index = current.length - 1; index >= 0; index--) {
+              const tc = current[index];
+              if (!tc || tc.status !== 'running') continue;
+              if (execId ? tc.id === execId : tc.name === execName) {
+                matchIndex = index;
+                break;
               }
-              return tc;
-            }),
-          );
+            }
+            if (matchIndex < 0) return current;
+            const target = current[matchIndex];
+            if (!target) return current;
+            const next = current.slice();
+            next[matchIndex] = {
+              ...target,
+              status: projection.ok ? 'done' : 'error',
+              output: projection.output,
+              durationMs: projection.durationMs,
+              ok: projection.ok,
+            };
+            return next;
+          });
         }
         break;
       }
@@ -519,12 +578,7 @@ export function createMessageHandler(deps: MessageHandlerDeps): ServerMessageHan
         setMessages((current) =>
           current.map((item) => (item.streaming ? { ...item, streaming: false } : item)),
         );
-        const { item, rest } = dequeueItem(queueRef.current);
-        if (item) {
-          queueRef.current = rest;
-          setQueue(rest);
-          dispatchUserMessage(item.text);
-        }
+        drainQueue();
         break;
       }
       case 'prefs.updated':
@@ -589,18 +643,17 @@ export function createMessageHandler(deps: MessageHandlerDeps): ServerMessageHan
         setRunning(false);
         setActivity('');
         setMessages((current) => [...current, { id: messageId('error'), role: 'system', text }]);
-        const { item, rest } = dequeueItem(queueRef.current);
-        if (item) {
-          queueRef.current = rest;
-          setQueue(rest);
-          dispatchUserMessage(item.text);
-        }
+        drainQueue();
         break;
       }
       case 'ctx.pct': {
-        const rawLoad = finiteNumber(payload['load']);
         setContext({
-          load: rawLoad > 1 ? rawLoad / 100 : rawLoad,
+          // `load` is emitted as a 0-1 fraction of the context budget
+          // (e.g. 0.68 = 68%); values > 1 mean the budget is overflowed
+          // (e.g. 1.35 = 135%). See core `ctx.pct` emit + agent-status
+          // tracker. Never magnitude-sniff/divide — that corrupted genuine
+          // overflow values (1.35 -> 0.0135). Just clamp negatives to 0.
+          load: normalizeContextLoad(payload['load']),
           tokens: finiteNumber(payload['tokens']),
           maxContext: finiteNumber(payload['maxContext']),
         });

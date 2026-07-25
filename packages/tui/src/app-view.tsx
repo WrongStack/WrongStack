@@ -118,6 +118,16 @@ export function AppView({ host, runtime }: AppViewProps): React.ReactElement {
     >
       <Box flexDirection="column" flexShrink={0}>
         <ScrollableHistory
+          // Remount on every history-generation bump (e.g. /clear). The managed
+          // viewport keeps its scroll position, height-cache buffer, and
+          // measured-group set in component-local refs/state that the reducer
+          // cannot reach. `clearHistory` only reports historyScrolled:false —
+          // without a remount the component stays in "scrolled-away" mode
+          // (justifyContent:flex-start, scroll-up hint) after a clear and new
+          // output no longer auto-follows. Keying by historyGen resets that
+          // internal virtual-scroll state to its initial pinned/follow state,
+          // mirroring the <Static> remount driven by the same generation.
+          key={`history-gen-${state.historyGen}`}
           entries={state.entries}
           toolStream={state.toolStream}
           viewportRows={state.viewportRows}
@@ -133,6 +143,7 @@ export function AppView({ host, runtime }: AppViewProps): React.ReactElement {
               : (liveSettings?.showModelReasoning ?? true)
           }
           layoutStore={layoutStore}
+          copiedEntryId={state.copiedEntryId}
         />
         <Box flexDirection="column" flexShrink={0} ref={bottomRegionRef}>
           {/* NOTE: the LiveActivityStrip is deliberately NOT rendered here yet.

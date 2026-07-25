@@ -502,8 +502,22 @@ describe('topAuditIssues', () => {
 
 // ── Test helpers ────────────────────────────────────────────────────────────
 
+// Empty detail buckets + activity stamps shared by the audit-summary fixtures.
+// `KanbanAuditSummary` requires these even when a test only exercises issues.
+const EMPTY_AUDIT_BUCKETS = {
+  generatedAt: '2026-07-18T12:00:00.000Z',
+  boardIds: ['b-1'] as const,
+  dependencyBlocked: { count: 0, tasks: [] },
+  staleAssignments: { count: 0, tasks: [] },
+  failedRetryable: { count: 0, tasks: [] },
+  heartbeatDue: { count: 0, tasks: [] },
+  lastDispatchedAt: undefined,
+  lastStaleRecoveredAt: undefined,
+} satisfies Partial<KanbanAuditSummary>;
+
 function emptySummary(): KanbanAuditSummary {
   return {
+    ...EMPTY_AUDIT_BUCKETS,
     issues: [],
     counts: { error: 0, warning: 0 },
     affectedTaskCount: 0,
@@ -517,6 +531,7 @@ function singleIssue(
 ): KanbanAuditSummary {
   const issued = issue(severity, taskTitle, message);
   return {
+    ...EMPTY_AUDIT_BUCKETS,
     issues: [issued],
     counts: { error: severity === 'error' ? 1 : 0, warning: severity === 'warning' ? 1 : 0 },
     affectedTaskCount: 1,

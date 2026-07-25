@@ -311,6 +311,12 @@ export function handleRunResult(msg: WSServerMessage) {
         /* audio policy */
       }
     }
+    // Signal NextStepsBar to start a timed auto-fill countdown that places
+    // the first suggestion into the input without auto-submitting. The user
+    // can still modify it or press Enter to send.
+    if (typeof document !== 'undefined') {
+      document.dispatchEvent(new CustomEvent('chat:next-step-countdown'));
+    }
   }
   const next = useChatStore.getState().dequeue();
   if (!next) return;

@@ -346,9 +346,7 @@ describe('toolsPicker reducer — items / busy / hint / filter', () => {
       { type: 'toolsPickerOpen', items: [item('a')] } as never,
     ) as unknown as State;
     s = reducer(s as never, { type: 'toolsPickerFilter', filter: 'hello' } as never) as unknown as State;
-    s = reducer(s as never, { type: 'toolsPickerFilter', filter: '' } as never) as unknown as {
-      toolsPicker: { filter?: string };
-    };
+    s = reducer(s as never, { type: 'toolsPickerFilter', filter: '' } as never) as unknown as State;
     expect(s.toolsPicker.filter).toBe('');
   });
 

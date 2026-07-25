@@ -14,6 +14,7 @@
 
 import type {
   KanbanBoard,
+  KanbanBoardSummary,
   KanbanColumn,
   KanbanQueueHealth,
   KanbanTask,
@@ -64,8 +65,8 @@ function task(
 function summary(
   id: string,
   title: string,
-  extras: Partial<KanbanAuditSummary> = {},
-): KanbanAuditSummary {
+  extras: Partial<KanbanBoardSummary> = {},
+): KanbanBoardSummary {
   return {
     id,
     title,
@@ -597,8 +598,9 @@ function makeHealth(overrides: Partial<KanbanQueueHealth['counts']> = {}): Kanba
     staleAssignments: { count: 0, tasks: [] },
     failedRetryable: { count: 0, tasks: [] },
     heartbeatDue: { count: 0, tasks: [] },
-    lastDispatchedAt: undefined,
-    lastStaleRecoveredAt: undefined,
+    // `KanbanQueueHealth` declares these optional (`?: string`); under
+    // exactOptionalPropertyTypes they must be omitted rather than set to
+    // `undefined`. The renderer already treats an absent value as "never".
   };
 }
 
@@ -625,7 +627,7 @@ describe('renderHealthReport — queue-health partitioning', () => {
 
 // ── /kanban audit — Kanban Cleaner projection ──────────────────────────────
 
-import type { KanbanBoardSummary as KanbanAuditSummary } from '@wrongstack/kanban';
+import type { KanbanAuditSummary } from '../src/kanban-audit.js';
 
 function makeAudit(overrides: Partial<KanbanAuditSummary> = {}): KanbanAuditSummary {
   const issues = overrides.issues ?? [
@@ -751,9 +753,7 @@ describe('/kanban audit — dispatch routing', () => {
         'Demo',
         [column('todo', 'To Do', 0)],
         [
-          task('t1', 'todo', 'Bare task', {
-            status: 'pending' as KanbanTask['status'],
-          }),
+          task('t1', 'todo', 'Bare task', 'pending'),
         ],
       ),
     );
@@ -791,9 +791,7 @@ describe('/kanban audit — dispatch routing', () => {
         id === 'b-1' ? 'Alpha' : 'Beta',
         [column('todo', 'To Do', 0)],
         [
-          task('t1', 'todo', `t-${id}`, {
-            status: 'pending' as KanbanTask['status'],
-          }),
+          task('t1', 'todo', `t-${id}`, 'pending'),
         ],
       ),
     );

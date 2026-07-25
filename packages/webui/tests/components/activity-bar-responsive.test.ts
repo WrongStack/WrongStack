@@ -37,7 +37,9 @@ describe('ActivityBar desktop responsive overflow (compact / desktop shell)', ()
     const split = splitDesktopActivityBarItems(calculateDesktopActivityCapacity(520, true));
 
     expect(split.overflowPanelIds).toEqual([]);
-    expect(split.overflowViewIds).toContain('settings');
+    // At 520px compact: 10 slots → 8 panels + 2 views fit (settings + sddhub)
+    expect(split.visibleViewIds).toContain('settings');
+    expect(split.overflowViewIds).toContain('kanban');
   });
 
   it('promotes hidden panels and views when the desktop shell is tall enough', () => {

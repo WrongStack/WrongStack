@@ -116,9 +116,10 @@ describe('reducer — final correct branches', () => {
   });
   it('authConfirmStart/End cycle uses confirm field', () => {
     let s = initial({ authPanel: { open: true, view: 'list' as const, providers: [], presets: [], catalog: [], selected: 0, filter: '', busy: false, hint: '' } } as never);
-    s = reducer(s, { type: 'authConfirmStart', question: 'Press Enter', action: 'proceed' });
+    const confirmAction = { kind: 'remove-provider' as const, providerId: 'openai' };
+    s = reducer(s, { type: 'authConfirmStart', question: 'Press Enter', action: confirmAction });
     expect(s.authPanel.confirm?.question).toBe('Press Enter');
-    expect(s.authPanel.confirm?.action).toBe('proceed');
+    expect(s.authPanel.confirm?.action).toEqual(confirmAction);
     s = reducer(s, { type: 'authConfirmEnd' });
     expect(s.authPanel.confirm).toBeUndefined();
   });

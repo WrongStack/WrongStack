@@ -90,10 +90,10 @@ describe('OFFICIAL_PLUGIN_SPECIFIERS (factories)', () => {
   it('every specifier has a matching plugin name in the barrel export', async () => {
     const { OFFICIAL_PLUGIN_SPECIFIERS } = await import('../src/factories/index.js');
     const plugins = await import('../src/index.js');
-    const barrelNames = Object.keys(plugins)
-      .filter((k) => k.endsWith('Plugin'))
-      .map((k) => {
-        const p = plugins[k] as { name?: string };
+    const barrelNames = Object.entries(plugins)
+      .filter(([k]) => k.endsWith('Plugin'))
+      .map(([, v]) => {
+        const p = v as { name?: string };
         return p.name;
       })
       .filter(Boolean) as string[];
@@ -150,10 +150,10 @@ describe('OFFICIAL_PLUGIN_AUDIT_ENTRIES (audit)', () => {
   it('every entry name exists in the barrel plugin list', async () => {
     const { OFFICIAL_PLUGIN_AUDIT_ENTRIES } = await import('../src/audit/index.js');
     const plugins = await import('../src/index.js');
-    const barrelNames = Object.keys(plugins)
-      .filter((k) => k.endsWith('Plugin'))
-      .map((k) => {
-        const p = plugins[k] as { name?: string };
+    const barrelNames = Object.entries(plugins)
+      .filter(([k]) => k.endsWith('Plugin'))
+      .map(([, v]) => {
+        const p = v as { name?: string };
         return p.name;
       })
       .filter(Boolean) as string[];

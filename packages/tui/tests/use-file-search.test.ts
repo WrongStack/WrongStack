@@ -5,6 +5,7 @@ import type { Mock } from 'vitest';
 import type { InputBuilder } from '@wrongstack/core/agent';
 import { Text } from '../src/ink.js';
 import { detectAtToken, useFileSearch } from '../src/hooks/use-file-search.js';
+import type { State } from '../src/app-state.js';
 import { TokenPreviewStore } from '../src/token-previews.js';
 import * as fileSearchModule from '../src/file-search.js';
 
@@ -96,7 +97,9 @@ function buildHarness(): HarnessRefs {
 
 function Harness({ refs }: { refs: HarnessRefs }): React.ReactElement {
   refs.result.current = useFileSearch({
-    state: refs.state,
+    // The hook only reads buffer/cursor/picker; the harness supplies that slice
+    // and casts to the full State the hook's option type nominally requires.
+    state: refs.state as unknown as State,
     dispatch: refs.dispatch,
     projectRoot: refs.projectRoot,
     builderRef: refs.builderRef,

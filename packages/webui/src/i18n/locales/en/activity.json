@@ -22,6 +22,14 @@
     "returnToChat": "{{name}} — return to chat",
     "returnToChatDefault": "WrongStack — return to chat"
   },
+  "connection": {
+    "connected": "Connected",
+    "disconnected": "Disconnected from backend",
+    "reconnecting": "Reconnecting to backend (attempt {{attempt}}) — retrying in {{remaining}}s",
+    "retry": "Retry now",
+    "retryTitle": "Retry connection now",
+    "dismissTitle": "Dismiss (chip in topbar still shows status)"
+  },
   "status": {
     "connected": "Connected",
     "disconnected": "Disconnected",
@@ -99,8 +107,8 @@
     "timeout": "Timeout",
     "reRun": "Re-run",
     "reRunTitle": "Re-run this agent (not yet implemented)",
-    "lastToolCalls": "Last {{count}} tool call",
-    "lastToolCalls_plural": "Last {{count}} tool calls",
+    "lastToolCalls_one": "Last {{count}} tool call",
+    "lastToolCalls_other": "Last {{count}} tool calls",
     "config": "Config",
     "configProvider": "Provider",
     "configModel": "Model",
@@ -151,7 +159,8 @@
     "clickToFill": "click to fill input",
     "clickToFillTitle": "Click to fill: {{text}}",
     "auto": "auto",
-    "willAutoSubmit": "Will auto-submit after countdown"
+    "willAutoSubmit": "Will auto-submit after countdown",
+    "autoFilling": "Filling in"
   },
   "mailbox": {
     "onlineCount": "{{count}} online",
@@ -898,13 +907,6 @@
     "reasonPlaceholder": "reason (audit log)",
     "queueInjection": "Queue injection",
     "controllerInjection": "controller injection"
-  },
-  "connection": {
-    "reconnecting": "Reconnecting to backend (attempt {{attempt}}) — retrying in {{remaining}}s",
-    "disconnected": "Disconnected from backend",
-    "retry": "Retry now",
-    "retryTitle": "Retry connection now",
-    "dismissTitle": "Dismiss (chip in topbar still shows status)"
   },
   "mode": {
     "modePrefix": "mode:",

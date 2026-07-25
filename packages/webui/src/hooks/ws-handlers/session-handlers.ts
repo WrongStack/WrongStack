@@ -887,6 +887,11 @@ export function handleInFlightEnded(msg: WSServerMessage) {
 
 export function handleSessionEnd() {
   useConfigStore.getState().setWsConnected(false);
+  // Signal ChatView to expand the input so next-steps selections land in a
+  // visible textarea instead of a collapsed bar.
+  if (typeof document !== 'undefined') {
+    document.dispatchEvent(new CustomEvent('chat:session-end'));
+  }
 }
 
 export function handleContextModesList(msg: WSServerMessage) {

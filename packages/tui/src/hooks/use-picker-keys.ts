@@ -575,6 +575,8 @@ export function usePickerKeys(
           dispatch({ type: 'settingsValueChange', delta: 1 });
           return true;
         }
+        // Mouse clicks must not change settings — only ←/→ arrows.
+        if (key.mouse) return true;
         if (isEnter) {
           if (debouncedEnter(host)) return true;
           host.onSettingsPickerEnter?.();
@@ -840,6 +842,8 @@ export function usePickerKeys(
           dispatch({ type: 'statuslineFieldMove', delta: 1 });
           return true;
         }
+        // Mouse clicks must not toggle chips — only ←/→ arrows.
+        if (key.mouse) return true;
         if (key.leftArrow || key.rightArrow || isEnter) {
           const focused = STATUSLINE_ITEMS[state.statuslinePicker.field];
           if (focused) {

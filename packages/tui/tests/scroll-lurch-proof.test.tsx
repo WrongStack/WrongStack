@@ -52,10 +52,11 @@ function view(
 
 // The historic "lurch": wheel-scrolling through mixed-height markdown made the
 // viewport bounce or jump to unrelated content because estimate→measured
-// corrections moved the offset-based window between commits. The anchor model
-// renders from (entry, clip) directly, so a wheel step may only ever move the
-// top marker monotonically — these tests drive REAL Ink layout (fake TTY, real
-// measureElement) and would have caught the original bug.
+// corrections moved independently-maintained scroll values between commits.
+// One absolute top-row coordinate now drives the render anchor and scrollbar,
+// so a wheel step may only ever move the top marker monotonically — these tests
+// drive REAL Ink layout (fake TTY, real measureElement) and would have caught
+// the original bug.
 describe('scroll stability under real layout (lurch proof)', () => {
   it('wheel-up steps walk monotonically toward older content, no bounce', async () => {
     const controllerRef = { current: null as HistoryScrollController | null };
@@ -97,6 +98,44 @@ describe('scroll stability under real layout (lurch proof)', () => {
     expect(contentOnly(batched.lastFrame())).toBe(contentOnly(direct.lastFrame()));
     batched.unmount();
     direct.unmount();
+  });
+
+  it('uses the same absolute row for PageDown and an equivalent wheel distance', async () => {
+    const pageRef = { current: null as HistoryScrollController | null };
+    const wheelRef = { current: null as HistoryScrollController | null };
+    const entries = makeEntries();
+    const paged = renderRealTty(view(entries, pageRef), { columns: 60, rows: VP + 2 });
+    const wheeled = renderRealTty(view(entries, wheelRef), { columns: 60, rows: VP + 2 });
+    await settle();
+
+    pageRef.current?.scrollToTop();
+    wheelRef.current?.scrollToTop();
+    await settle();
+    pageRef.current?.scrollPage('down');
+    wheelRef.current?.scrollBy(-(VP - 1));
+    await settle();
+
+    expect(contentOnly(paged.lastFrame())).toBe(contentOnly(wheeled.lastFrame()));
+    paged.unmount();
+    wheeled.unmount();
+  });
+
+  it('returns to the exact same frame after one row up and down from a track position', async () => {
+    const controllerRef = { current: null as HistoryScrollController | null };
+    const entries = makeEntries();
+    const v = renderRealTty(view(entries, controllerRef), { columns: 60, rows: VP + 2 });
+    await settle();
+
+    controllerRef.current?.scrollToTrackCell(Math.floor(VP / 2));
+    await settle();
+    const selected = contentOnly(v.lastFrame());
+    controllerRef.current?.scrollBy(1);
+    await settle();
+    controllerRef.current?.scrollBy(-1);
+    await settle();
+
+    expect(contentOnly(v.lastFrame())).toBe(selected);
+    v.unmount();
   });
 
   it('the visible frame does not move when entries are appended below while scrolled', async () => {

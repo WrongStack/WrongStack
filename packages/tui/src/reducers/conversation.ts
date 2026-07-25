@@ -21,6 +21,7 @@ const conversationActionTypes = [
   'steerConsume',
   'resetInterrupts',
   'hint',
+  'copiedNotice',
   'brainStatus',
 ] as const satisfies readonly Action['type'][];
 
@@ -112,6 +113,11 @@ export function reduceConversation(state: State, action: ConversationAction): St
         brainPrompt: null,
         debugStreamStats: null,
         historyScrolled: false,
+        // Drop any transient copy highlight: its target entry is being
+        // discarded, so a stale copiedEntryId could otherwise flash a
+        // surviving card (the banner) or dangle until the 2s host timer fires.
+        copiedNotice: '',
+        copiedEntryId: null,
         // Bump the generation so <Static> remounts — without this, Ink's
         // already-written index exceeds the new (shorter) array and the
         // committed entries stay on screen even though `state.entries` no
@@ -171,6 +177,8 @@ export function reduceConversation(state: State, action: ConversationAction): St
       return { ...state, interrupts: 0 };
     case 'hint':
       return { ...state, hint: action.text };
+    case 'copiedNotice':
+      return { ...state, copiedNotice: action.text, copiedEntryId: action.entryId };
     case 'brainStatus':
       return {
         ...state,

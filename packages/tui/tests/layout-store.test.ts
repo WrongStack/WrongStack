@@ -140,6 +140,25 @@ describe('LayoutStore (persistence mode)', () => {
     expect(store2.get(2)?.kind).toBe('measured');
   });
 
+  it('does not overwrite a live measurement when async loading finishes later', async () => {
+    store.setTermWidth(80);
+    store.set(1, computeLayout(1, 'assistant', 'persisted estimate', 80));
+    await store.flushNow();
+
+    const store2 = new LayoutStore({ sessionDataDir: dir, ephemeral: false });
+    store2.setTermWidth(80);
+    store2.set(1, {
+      ...computeLayout(1, 'assistant', 'live content', 80),
+      rows: 37,
+      kind: 'measured',
+    });
+
+    expect(await store2.load()).toBe(0);
+    expect(store2.get(1)?.rows).toBe(37);
+    expect(store2.get(1)?.kind).toBe('measured');
+    store2.clear();
+  });
+
   it('discards data on version mismatch', async () => {
     store.setTermWidth(80);
     store.set(1, computeLayout(1, 'user', 'hello', 80));

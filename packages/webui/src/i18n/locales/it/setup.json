@@ -93,7 +93,9 @@
       "modelsFor": "Modelli disponibili per {{provider}}",
       "activeKeys_one": "{{count}} chiave attiva",
       "activeKeys_other": "{{count}} chiavi attive",
-      "startSession": "Avvia sessione"
+      "startSession": "Avvia sessione",
+      "saveConfig": "Salva configurazione",
+      "saveConfigHint": "Fornitore e modello salvati. Chatta quando sei pronto."
     },
     "card": {
       "keySaved": "Chiave salvata",
@@ -135,6 +137,15 @@
       "minutesAgo": "{{count}} min fa",
       "hoursAgo": "{{count}} h fa",
       "daysAgo": "{{count}} g fa"
+    },
+    "probe": {
+      "checking": "Controllo connessione…",
+      "connected": "Connesso",
+      "models": "modelli",
+      "failed": "Test fallito",
+      "noBaseUrl": "Nessun URL di base configurato",
+      "unreachable": "Impossibile connettersi",
+      "httpStatus": "Stato"
     },
     "toasts": {
       "keySaved": "Chiave API {{name}} salvata",

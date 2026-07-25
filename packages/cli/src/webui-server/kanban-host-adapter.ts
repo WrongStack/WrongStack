@@ -133,7 +133,7 @@ export function createCliKanbanHostRoutes(deps: CliKanbanHostAdapterDeps): Kanba
               ...(task.tags ? { tags: task.tags } : {}),
             })),
           }));
-          await goalHandler.handleMessage({
+          await goalHandler.handleMessage(ws, {
             type: 'goal.start',
             payload: {
               title: exported.board.title,

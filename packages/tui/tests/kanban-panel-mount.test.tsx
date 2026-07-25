@@ -185,7 +185,6 @@ function populatedBoardWithIssues(): KanbanBoard {
         assignee: undefined,
         successCriteria: undefined,
         labels: undefined,
-        tags: undefined,
         childTaskIds: undefined,
       }),
       // Running without a complete lease: drives `abandoned-running-task`.

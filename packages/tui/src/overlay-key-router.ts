@@ -230,7 +230,10 @@ export function routeSettingsOverlayKey(
     else if (key.downArrow) dispatch({ type: 'settingsFieldMove', delta: 1 });
     else if (key.leftArrow) dispatch({ type: 'settingsValueChange', delta: -1 });
     else if (key.rightArrow) dispatch({ type: 'settingsValueChange', delta: 1 });
-    else if (isEnter) {
+    // Mouse clicks must not change settings — only ←/→ arrows.
+    else if (key.mouse) {
+      /* consume silently */
+    } else if (isEnter) {
       const now = Date.now();
       if (now - host.lastEnterAt.current >= 50) {
         host.lastEnterAt.current = now;

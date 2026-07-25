@@ -246,8 +246,14 @@ export class LayoutStore {
     for (const [idStr, layout] of Object.entries(snapshot.entries)) {
       const id = Number(idStr);
       if (Number.isSafeInteger(id) && id >= 0) {
-        this.layouts.set(id, layout);
-        restored++;
+        // load() completes asynchronously after the first Ink commit. A live
+        // Yoga measurement recorded while the file was being read is newer
+        // and exact for the current process; never replace it with a persisted
+        // estimate (or a measurement from an older terminal geometry).
+        if (!this.layouts.has(id)) {
+          this.layouts.set(id, layout);
+          restored++;
+        }
       }
     }
     return restored;

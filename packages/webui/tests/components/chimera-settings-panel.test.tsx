@@ -98,18 +98,18 @@ describe('ChimeraSettingsPanel — model picker dialog opens', () => {
         sessionModel="claude-opus-4-6"
       />,
     );
-    // The picker row is a div[role=button] containing the "Model override"
-    // label from the English locale (the real i18n resolves translations
-    // from the bundled JSON, not the raw key).
+    // The picker row is a div[role=button] containing the "Model" label
+    // from the English locale (the real i18n resolves translations
+    // from the bundled JSON).
     const picker = screen
       .getAllByRole('button')
-      .find((el) => el.textContent?.includes('Model override'));
+      .find((el) => el.textContent?.includes('Model'));
     expect(picker, 'chimera model picker row').toBeDefined();
     fireEvent.click(picker!);
     // The dialog mounts ModelSelectDialog which renders the i18n title
-    // "Pick review model" from settings.json.
+    // "Pick provider/model for Chimera" from settings.json.
     expect(
-      screen.getByText('Pick review model'),
+      screen.getByText('Pick provider/model for Chimera'),
       'dialog title from the chimera picker',
     ).toBeTruthy();
   });
@@ -123,7 +123,7 @@ describe('ChimeraSettingsPanel — fallback chain display', () => {
     });
     render(<ChimeraSettingsPanel syncPref={vi.fn()} />);
     expect(
-      screen.getByText('(empty chain)'),
+      screen.getByText('No fallback models configured'),
     ).toBeTruthy();
   });
 

@@ -1,6 +1,6 @@
 import { ArrowRight, Lightbulb, MousePointerClick, Timer } from 'lucide-react';
 import type React from 'react';
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useAppTranslation } from '@/i18n';
 import {
   type ParseNextStepsResult,
@@ -68,6 +68,43 @@ function AutoCountdown({
  * - One-click execution — no copy-paste, just click and send
  * - Auto items in YOLO+auto mode show countdown and auto-submit
  */
+/**
+ * Default countdown seconds for the session-end auto-fill, i.e. how long
+ * after the completion sound before the first next-step suggestion is
+ * placed into the input.
+ */
+const SESSION_END_FILL_SECONDS = 5;
+
+/**
+ * Countdown timer that fills the input (without submitting) when the
+ * session-end event fires. Rendered as an inline timer badge.
+ */
+function SessionEndFillCountdown({
+  seconds,
+  onComplete,
+}: {
+  seconds: number;
+  onComplete: () => void;
+}): React.ReactElement {
+  const [remaining, setRemaining] = useState(seconds);
+
+  useEffect(() => {
+    if (remaining <= 0) {
+      onComplete();
+      return;
+    }
+    const t = setTimeout(() => setRemaining((r) => r - 1), 1000);
+    return () => clearTimeout(t);
+  }, [remaining, onComplete]);
+
+  return (
+    <span className="flex items-center gap-1 text-xs text-primary font-medium">
+      <Timer className="h-3 w-3" />
+      {remaining}s
+    </span>
+  );
+}
+
 export function NextStepsBar({
   steps,
   yoloMode = false,
@@ -75,6 +112,10 @@ export function NextStepsBar({
   autoDelayMs = 30_000,
   onAutoSubmit,
   canAutoSubmit: canAutoSubmitProp = true,
+  /** If true, start a countdown that fills the input after session end */
+  sessionEndAutoFill = false,
+  /** Override the default 5s countdown for session-end auto-fill */
+  sessionEndAutoFillSeconds = SESSION_END_FILL_SECONDS,
 }: {
   steps: NextStep[];
   /** Whether YOLO mode is active */
@@ -87,11 +128,39 @@ export function NextStepsBar({
   onAutoSubmit?: (text: string) => void;
   /** Whether auto-submit is currently allowed (cap not reached). */
   canAutoSubmit?: boolean;
+  /** If true, start a countdown that fills the input after session end */
+  sessionEndAutoFill?: boolean;
+  /** Override the default countdown seconds for session-end auto-fill */
+  sessionEndAutoFillSeconds?: number;
 }): React.ReactElement | null {
   const { t } = useAppTranslation();
+
+  // ── Session-end auto-fill countdown ──────────────────────────────────
+  // Listens for the custom event dispatched after the completion chime and
+  // starts a countdown that fills the input (does NOT auto-submit — the
+  // user can still edit or press Enter).
+  const [autoFillActive, setAutoFillActive] = useState(false);
+  const autoFillFired = useRef(false);
+  useEffect(() => {
+    if (autoFillActive || autoFillFired.current) return;
+    const handler = () => {
+      if (steps.length > 0) {
+        autoFillFired.current = true;
+        setAutoFillActive(true);
+      }
+    };
+    document.addEventListener('chat:next-step-countdown', handler);
+    return () => document.removeEventListener('chat:next-step-countdown', handler);
+  }, [steps.length, autoFillActive]);
+
+  const handleAutoFill = useCallback(() => {
+    if (steps.length > 0) fillInput(steps[0]!.text);
+    setAutoFillActive(false);
+  }, [steps]);
+
   if (steps.length === 0) return null;
 
-  // Don't show countdown if the consecutive auto-submit cap has been reached
+  // Don't show YOLO countdown if the consecutive auto-submit cap has been reached
   const showAutoCountdown = yoloMode && autoMode && canAutoSubmitProp;
   const autoStep = showAutoCountdown ? steps.find((s) => s.auto) : undefined;
 
@@ -103,7 +172,12 @@ export function NextStepsBar({
           <Lightbulb className="h-3 w-3" />
         </span>
         <span className="text-xs font-semibold text-foreground/90">{t('activity:nextSteps.header')}</span>
-        {showAutoCountdown && autoStep ? (
+        {autoFillActive ? (
+          <span className="ml-auto flex items-center gap-1 text-xs text-primary font-medium">
+            {t('activity:nextSteps.autoFilling', 'Filling in')}{' '}
+            <SessionEndFillCountdown seconds={sessionEndAutoFillSeconds} onComplete={handleAutoFill} />
+          </span>
+        ) : showAutoCountdown && autoStep ? (
           <span className="ml-auto flex items-center gap-1 text-xs text-primary">
             <Timer className="h-3 w-3" />
             {t('activity:nextSteps.autoSubmitting')} <AutoCountdown delayMs={autoDelayMs} onComplete={() => onAutoSubmit?.(autoStep.text)} />
@@ -118,7 +192,9 @@ export function NextStepsBar({
       {/* ── Steps ── */}
       <div className="flex flex-col p-2 gap-1">
         {steps.map((s) => {
-          const isAutoSelected = showAutoCountdown && s.auto;
+          const isAutoSelected = autoFillActive
+            ? s.index === steps[0]?.index
+            : showAutoCountdown && s.auto;
           return (
             <button
               key={s.index}

@@ -34,14 +34,16 @@ function makeEntries(count: number): HistoryEntry[] {
   });
 }
 
+/** Counts non-blank rows. `trim()` removes any trailing Ink frame-padding whitespace without dropping real content on short lines. */
 function contentRowCount(lines: string[], viewportRows: number): number {
-  return lines.slice(0, viewportRows).filter((l) => l.trim().length > 0).length;
+  return lines.slice(0, viewportRows).filter((line) => line.trim().length > 0).length;
 }
 
 function maxBlankRun(lines: string[], viewportRows: number): number {
   let run = 0;
   let max = 0;
   for (const line of lines.slice(0, viewportRows)) {
+    // `trim()` removes trailing Ink frame-padding whitespace without dropping short content.
     if (line.trim().length === 0) {
       run++;
       if (run > max) max = run;

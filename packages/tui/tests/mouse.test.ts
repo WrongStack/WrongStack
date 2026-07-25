@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
+  ALT_SCREEN_OFF,
+  ALT_SCREEN_ON,
   MOUSE_CLICK_ON,
   MOUSE_DRAG_ON,
   MOUSE_HOVER_ON,
@@ -16,6 +18,11 @@ const sgr = (cb: number, x: number, y: number, final: 'M' | 'm' = 'M') =>
   `${ESC}[<${cb};${x};${y}${final}`;
 
 describe('mouse enable/disable sequences', () => {
+  it('provides paired alternate-screen enter and restore sequences', () => {
+    expect(ALT_SCREEN_ON).toContain('?1049h');
+    expect(ALT_SCREEN_OFF).toContain('?1049l');
+  });
+
   it('enables SGR coordinates (1006) and never touches the alt buffer (1049)', () => {
     for (const seq of [MOUSE_CLICK_ON, MOUSE_DRAG_ON, MOUSE_HOVER_ON]) {
       expect(seq).toContain('?1006h');

@@ -30,6 +30,9 @@ function key(overrides: Partial<KeyEvent> = {}): KeyEvent {
 }
 
 function baseState(overrides: Partial<State> | Record<string, unknown> = {}): State {
+  // The overrides are deliberately loose (many call sites pass nested partials
+  // or focused slices); build the full base then cast the merged result to
+  // State so exactOptionalPropertyTypes doesn't reject the spread widening.
   return {
     authPanel: { open: false } as never,
     modelPicker: {
@@ -73,7 +76,7 @@ function baseState(overrides: Partial<State> | Record<string, unknown> = {}): St
     goalRun: null,
     rewindOverlay: null,
     ...overrides,
-  };
+  } as State;
 }
 
 function makeHost(state: State, overrides: Partial<PickerKeysHost> = {}): PickerKeysHost & {

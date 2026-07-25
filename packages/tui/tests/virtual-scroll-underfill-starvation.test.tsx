@@ -19,7 +19,7 @@ import {
   type HistoryScrollController,
   ScrollableHistory,
 } from '../src/components/scrollable-history.js';
-import { renderRealTty, settle } from './helpers/real-tty.js';
+import { cleanFrame, renderRealTty, settle } from './helpers/real-tty.js';
 
 /** Entries whose raw line count (≈ estimate) vastly exceeds rendered rows:
  *  markdown collapses the blank-line run to a single paragraph break. */
@@ -32,7 +32,25 @@ function makeCollapsingEntries(count: number): HistoryEntry[] {
 }
 
 function contentRowCount(lines: string[], viewportRows: number): number {
-  return lines.slice(0, viewportRows).filter((l) => l.trim().length > 0).length;
+  return lines
+    .slice(0, viewportRows)
+    // Strip trailing Ink frame-padding chars that survive cleanFrame
+    .filter((line) => line.slice(0, -2).trim().length > 0).length;
+}
+
+function maxHistoryBlankRun(lines: string[], viewportRows: number): number {
+  let run = 0;
+  let max = 0;
+  for (const line of lines.slice(0, viewportRows)) {
+    // Strip trailing Ink frame-padding chars that survive cleanFrame
+    if (line.slice(0, -2).trim().length === 0) {
+      run++;
+      max = Math.max(max, run);
+    } else {
+      run = 0;
+    }
+  }
+  return max;
 }
 
 function view(
@@ -106,6 +124,41 @@ describe('underfill starvation (estimate ≫ actual)', () => {
       contentRowCount(lines, VP),
       'page after PageDown should be full',
     ).toBeGreaterThan(VP - 6);
+    tty.unmount();
+  }, 30_000);
+
+  it('never emits an intermediate blank history frame while changing scroll inputs', async () => {
+    const VP = 80;
+    const entries = makeCollapsingEntries(100);
+    const controllerRef = createRef<HistoryScrollController>();
+    const tty = renderRealTty(view(entries, VP, controllerRef), {
+      columns: COLS,
+      rows: VP + 4,
+    });
+    await settle(300);
+
+    const frameStart = tty.stdout.frames.length;
+    controllerRef.current?.scrollToTop();
+    await settle(30);
+    controllerRef.current?.scrollPage('down');
+    await settle(30);
+    controllerRef.current?.scrollToTrackCell(Math.floor(VP / 2));
+    await settle(30);
+    for (let step = 0; step < 15; step++) {
+      controllerRef.current?.scrollBy(step % 2 === 0 ? 1 : -1);
+      await settle(5);
+    }
+    await settle(150);
+
+    const interactionFrames = tty.stdout.frames.slice(frameStart);
+    expect(interactionFrames.length).toBeGreaterThan(0);
+    interactionFrames.forEach((raw, index) => {
+      const lines = cleanFrame(raw).split('\n');
+      expect(
+        maxHistoryBlankRun(lines, VP),
+        `interaction frame ${index + 1} contains a blank history band`,
+      ).toBeLessThanOrEqual(2);
+    });
     tty.unmount();
   }, 30_000);
 });

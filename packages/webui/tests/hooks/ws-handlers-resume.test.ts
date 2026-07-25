@@ -68,7 +68,7 @@ describe('session.start resume transition', () => {
   });
 
   it('switches to the chat view when a resume replay arrives', () => {
-    useUIStore.setState({ currentView: 'sessions', activeActivity: 'history', sidebarOpen: true });
+    useUIStore.setState({ currentView: 'sessions', activeActivity: 'chat', sidebarOpen: true });
     fireSessionStart({
       ...BASE_PAYLOAD,
       reset: true,

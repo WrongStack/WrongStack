@@ -27,8 +27,9 @@ export interface UseComposerActionsOptions {
   /** Direct dispatch that bypasses the refine round-trip. Used by
    *  refineDecision so a panel decision sends immediately instead of
    *  re-entering the refine pipeline (which would loop back into
-   *  'refining'). */
-  dispatchUserMessage: (content: string, images?: { data: string; mime: string }[]) => void;
+   *  'refining'). Returns `true` when dispatched, `false` when dropped
+   *  (no session / empty content / no socket). */
+  dispatchUserMessage: (content: string, images?: { data: string; mime: string }[]) => boolean;
   setQueue: React.Dispatch<React.SetStateAction<QueuedItem[]>>;
   setDraft: React.Dispatch<React.SetStateAction<string>>;
   setFileRefs: React.Dispatch<React.SetStateAction<string[]>>;

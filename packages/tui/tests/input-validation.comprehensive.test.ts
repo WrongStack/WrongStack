@@ -39,7 +39,7 @@ describe('validateMouseEvent extra',()=>{
 
 describe('validateAction setup checks',()=>{
   it('rejects unknown type',()=>{const r=validateAction({type:'unknownType12345'});expect(r.valid).toBe(false);if(!r.valid)expect(r.error).toContain('allow-list')});
-  it('rejects deep nesting',()=>{const d={type:'clearInput'};let c=d;for(let i=0;i<12;i++){c.n={type:'clearInput'};c=c.n}const r=validateAction(d);expect(r.valid).toBe(false)});
+  it('rejects deep nesting',()=>{type Nested={type:string;[key:string]:unknown};const d:Nested={type:'clearInput'};let c=d;for(let i=0;i<12;i++){const next:Nested={type:'clearInput'};c.n=next;c=next}const r=validateAction(d);expect(r.valid).toBe(false)});
   it('rejects oversized string',()=>{const l='x'.repeat(MAX_ACTION_STRING_FIELD+1);expect(validateAction({type:'hint',text:l}).valid).toBe(false)});
 });
 
@@ -87,9 +87,9 @@ describe('validateFleetEntry',()=>{
   it('rejects bad cost',()=>{expect(validateFleetEntry({id:'a',name:'x',status:'idle',cost:NaN}).valid).toBe(false);expect(validateFleetEntry({id:'a',name:'x',status:'idle',cost:-1}).valid).toBe(false);expect(validateFleetEntry({id:'a',name:'x',status:'idle',cost:Infinity}).valid).toBe(false)});
   it('accepts cost 0',()=>{expect(validateFleetEntry({id:'a',name:'x',status:'idle',cost:0}).valid).toBe(true)});
   it('rejects oversized streamingText',()=>{const b='x'.repeat(MAX_ENTRY_TEXT_CHARS+1);expect(validateFleetEntry({id:'a',name:'x',status:'running',streamingText:b}).valid).toBe(false)});
-  it('rejects non-array recentTools',()=>{expect(validateFleetEntry({id:'a',name:'x',status:'running',recentTools:'not-array'}).valid).toBe(false)});
+  it('rejects non-array recentTools',()=>{expect(validateFleetEntry({id:'a',name:'x',status:'running',recentTools:'not-array' as unknown as unknown[]}).valid).toBe(false)});
   it('rejects oversized recentTools',()=>{expect(validateFleetEntry({id:'a',name:'x',status:'running',recentTools:Array.from({length:101})}).valid).toBe(false)});
-  it('rejects non-array recentMessages',()=>{const r=validateFleetEntry({id:'a',name:'x',status:'running',recentMessages:'not-array'});expect(r.valid).toBe(false);if(!r.valid)expect(r.error).toContain('recentMessages')});
+  it('rejects non-array recentMessages',()=>{const r=validateFleetEntry({id:'a',name:'x',status:'running',recentMessages:'not-array' as unknown as unknown[]});expect(r.valid).toBe(false);if(!r.valid)expect(r.error).toContain('recentMessages')});
   it('rejects oversized recentMessages',()=>{const r=validateFleetEntry({id:'a',name:'x',status:'running',recentMessages:Array.from({length:51})}).valid;expect(r).toBe(false)});
   it('accepts recentTools and recentMessages',()=>{expect(validateFleetEntry({id:'a',name:'x',status:'running',recentTools:[1],recentMessages:[2]}).valid).toBe(true)});
   it('accepts undefined cost',()=>{expect(validateFleetEntry({id:'a',name:'x',status:'idle'}).valid).toBe(true)});

@@ -212,6 +212,13 @@ describe('validateAction', () => {
     expect(validateAction({ type: 'closeAllPanels' }).valid).toBe(true);
   });
 
+  it('accepts the copiedNotice action (transient copy confirmation)', () => {
+    // Must be on the allow-list or safeDispatch would silently drop it and the
+    // "Copied" status-line confirmation would never appear.
+    expect(validateAction({ type: 'copiedNotice', text: '✓ Copied', entryId: 1 }).valid).toBe(true);
+    expect(validateAction({ type: 'copiedNotice', text: '', entryId: null }).valid).toBe(true);
+  });
+
   it('rejects unknown action type', () => {
     const result = validateAction({ type: 'nukeEverything' });
     expect(result.valid).toBe(false);
@@ -300,11 +307,13 @@ describe('validateAction', () => {
   });
 
   it('rejects actions with deeply nested payload', () => {
-    const deep: Record<string, unknown> & { type: string } = { type: 'setBuffer', buffer: 'hi', cursor: 0 };
+    type Nested = Record<string, unknown> & { type: string };
+    const deep: Nested = { type: 'setBuffer', buffer: 'hi', cursor: 0 };
     let cur = deep;
     for (let i = 0; i < 12; i++) {
-      cur.next = { buffer: 'deep', cursor: 0 };
-      cur = cur.next as Record<string, unknown>;
+      const next: Nested = { type: 'setBuffer', buffer: 'deep', cursor: 0 };
+      cur.next = next;
+      cur = next;
     }
     const result = validateAction(deep);
     expect(result.valid).toBe(false);

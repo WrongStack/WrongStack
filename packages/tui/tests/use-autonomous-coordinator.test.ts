@@ -1,6 +1,7 @@
 import { render } from 'ink-testing-library';
 import React from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import type { CoordinatorEvent } from '@wrongstack/core/coordination';
 import { useAutonomousCoordinator } from '../src/hooks/use-autonomous-coordinator.js';
 import { Text } from '../src/ink.js';
 
@@ -47,10 +48,10 @@ describe('useAutonomousCoordinator', () => {
   });
 
   it('dispatches coordinatorEvent when handler is called', () => {
-    let handler!: (event: unknown) => void;
-    const subscribeCoordinatorEvents = vi.fn((fn: (event: unknown) => void) => {
+    let handler!: (event: CoordinatorEvent) => void;
+    const subscribeCoordinatorEvents = vi.fn((fn: (event: CoordinatorEvent) => void) => {
       handler = fn;
-      return vi.fn();
+      return () => {};
     });
     const dispatch = vi.fn();
 
@@ -61,10 +62,10 @@ describe('useAutonomousCoordinator', () => {
 
     const view = render(React.createElement(Harness));
 
-    handler({ type: 'goal.updated', goalId: 'g1', status: 'active' });
+    handler({ type: 'goal:added', goalId: 'g1', title: 'Goal 1' });
     expect(dispatch).toHaveBeenCalledWith({
       type: 'coordinatorEvent',
-      event: { type: 'goal.updated', goalId: 'g1', status: 'active' },
+      event: { type: 'goal:added', goalId: 'g1', title: 'Goal 1' },
     });
 
     view.unmount();
@@ -84,10 +85,10 @@ describe('useAutonomousCoordinator', () => {
   });
 
   it('uses latest dispatch ref when dispatch changes', () => {
-    let handler!: (event: unknown) => void;
-    const subscribeCoordinatorEvents = vi.fn((fn: (event: unknown) => void) => {
+    let handler!: (event: CoordinatorEvent) => void;
+    const subscribeCoordinatorEvents = vi.fn((fn: (event: CoordinatorEvent) => void) => {
       handler = fn;
-      return vi.fn();
+      return () => {};
     });
     const dispatch1 = vi.fn();
     const dispatch2 = vi.fn();
@@ -100,7 +101,7 @@ describe('useAutonomousCoordinator', () => {
 
     const view = render(React.createElement(Harness));
 
-    handler({ type: 'goal.updated', goalId: 'g1' });
+    handler({ type: 'goal:added', goalId: 'g1' });
     expect(dispatch1).toHaveBeenCalled();
     dispatch1.mockClear();
 
@@ -108,7 +109,7 @@ describe('useAutonomousCoordinator', () => {
     currentDispatch = dispatch2;
     view.rerender(React.createElement(Harness));
 
-    handler({ type: 'goal.updated', goalId: 'g2' });
+    handler({ type: 'goal:added', goalId: 'g2' });
     expect(dispatch2).toHaveBeenCalled();
 
     view.unmount();

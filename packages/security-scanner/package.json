@@ -26,7 +26,7 @@
   ],
   "scripts": {
     "build": "node ../../scripts/build-package.mjs",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "tsc --noEmit && tsc -p tsconfig.test.json --noEmit",
     "typecheck:tests": "tsc -p tsconfig.test.json --noEmit",
     "lint": "biome lint src tests",
     "test": "vitest run",

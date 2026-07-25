@@ -92,10 +92,24 @@ interface CatalogModel {
   capabilities: string[];
 }
 
+interface ProbeResult {
+  ok: boolean;
+  status: string;
+  httpStatus?: number | undefined;
+  elapsedMs?: number | undefined;
+  modelCount?: number | undefined;
+  modelIds?: string[] | undefined;
+  detail?: string | undefined;
+}
+
 interface SavedProvider {
   id: string;
   family?: string | undefined;
   baseUrl?: string | undefined;
+  /** Saved model allowlist (from server-side preset hydration). */
+  models?: string[] | undefined;
+  /** First entry of `models`, or undefined when the list is empty/unset. */
+  pickedModelId?: string | undefined;
   apiKeys: Array<{
     label: string;
     maskedKey: string;
@@ -145,11 +159,13 @@ function ProviderKeyCard({
   catalogProvider,
   savedProvider,
   onKeySaved,
+  probeResult,
 }: {
   popular: PopularProvider;
   catalogProvider?: CatalogProvider;
   savedProvider?: SavedProvider;
   onKeySaved: (providerId: string) => void;
+  probeResult?: ProbeResult | 'probing' | undefined;
 }) {
   const { t } = useAppTranslation();
   const [key, setKey] = useState('');
@@ -201,6 +217,15 @@ function ProviderKeyCard({
       setKey('');
       toast.success(t('setup:screen.toasts.keySaved', { name: popular.name }));
       onKeySaved(popular.id);
+      // Re-fetch saved providers to pick up preset-hydrated fields
+      // (baseUrl, models, quirks) that the server baked into the config
+      // during upsertKey — the broadcast may race with the ack, so an
+      // explicit fetch guarantees the UI sees the canonical state.
+      ws.listSavedProviders();
+      // Auto-probe the saved endpoint to validate the key works and
+      // discover available models — the result arrives asynchronously
+      // and is displayed inline when `probeResult` updates.
+      ws.probeProvider(popular.id);
 
     } catch (err) {
       const detail = err instanceof Error && err.message && err.message !== 'timeout' ? err.message : null;
@@ -328,19 +353,88 @@ function ProviderKeyCard({
                 </div>
               )}
             </div>
-          ) : hasModels ? (
-            <button
-              type="button"
-              onClick={() => setShowModels(!showModels)}
-              className="mt-2 text-[11px] text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1"
-            >
-              {t('setup:screen.providers.modelsAvailable', { count: catalogProvider?.modelCount ?? 0 })}
-              {showModels ? (
-                <ChevronDown className="h-3 w-3" />
-              ) : (
-                <ChevronRight className="h-3 w-3" />
+          ) : saved ? (
+            /* Key saved — show enriched preset fields from the server */
+            <div className="mt-3 space-y-1">
+              {savedProvider?.baseUrl && (
+                <div className="text-[11px] text-muted-foreground/70 font-mono truncate" title={savedProvider.baseUrl}>
+                  <span className="text-muted-foreground/50">URL: </span>{savedProvider.baseUrl}
+                </div>
               )}
-            </button>
+              {savedProvider?.models && savedProvider.models.length > 0 && (
+                <div className="text-[11px] text-muted-foreground/70">
+                  <span className="text-muted-foreground/50">Models: </span>
+                  {savedProvider.pickedModelId ?? savedProvider.models[0]}
+                  <span className="text-muted-foreground/50"> (+{savedProvider.models.length - 1} more)</span>
+                </div>
+              )}
+
+              {/* Health probe result */}
+              {probeResult === 'probing' ? (
+                <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground mt-1">
+                  <Loader2 className="h-3 w-3 animate-spin" />
+                  {t('setup:screen.probe.checking', 'Checking connection…')}
+                </div>
+              ) : probeResult && probeResult.ok ? (
+                <div className="flex items-center gap-1.5 text-[11px] text-success mt-1">
+                  <Check className="h-3 w-3" />
+                  <span>
+                    {t('setup:screen.probe.connected', 'Connected')}
+                    {probeResult.modelCount != null &&
+                      ` · ${probeResult.modelCount} ${t('setup:screen.probe.models', 'models')}`}
+                    {probeResult.elapsedMs != null &&
+                      ` · ${probeResult.elapsedMs}ms`}
+                  </span>
+                </div>
+              ) : probeResult && !probeResult.ok ? (
+                <div className="flex items-start gap-1.5 text-[11px] text-destructive mt-1">
+                  <span className="mt-0.5 shrink-0">✕</span>
+                  <div className="min-w-0">
+                    <span className="font-medium">{t('setup:screen.probe.failed', 'Probe failed')}</span>
+                    {probeResult.status === 'no_base_url' && (
+                      <span className="block text-destructive/70">
+                        {t('setup:screen.probe.noBaseUrl', 'No base URL configured')}
+                      </span>
+                    )}
+                    {probeResult.status === 'unreachable' && (
+                      <span className="block text-destructive/70">
+                        {t('setup:screen.probe.unreachable', 'Could not connect')}
+                        {probeResult.detail ? `: ${probeResult.detail}` : ''}
+                      </span>
+                    )}
+                    {probeResult.status !== 'no_base_url' && probeResult.status !== 'unreachable' && (
+                      <>
+                        <span className="block text-destructive/70">
+                          {probeResult.httpStatus != null
+                            ? `${t('setup:screen.probe.httpStatus', 'Status')} ${probeResult.httpStatus}`
+                            : probeResult.status}
+                        </span>
+                        {probeResult.detail && (
+                          <span className="block text-destructive/70 truncate max-w-[250px]" title={probeResult.detail}>
+                            {probeResult.detail}
+                          </span>
+                        )}
+                      </>
+                    )}
+                  </div>
+                </div>
+              ) : null}
+
+              {hasModels && (
+                <button
+                  type="button"
+                  onClick={() => setShowModels(!showModels)}
+                  className="text-[11px] text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1"
+                >
+                  {t('setup:screen.providers.modelsAvailable', { count: catalogProvider?.modelCount ?? 0 })}
+                  {showModels ? (
+                    <ChevronDown className="h-3 w-3" />
+                  ) : (
+                    <ChevronRight className="h-3 w-3" />
+                  )}
+                </button>
+              )}
+            </div>
           ) : null}
         </div>
       </div>
@@ -591,6 +685,11 @@ function CustomProviderSection({ onKeySaved }: { onKeySaved: (providerId: string
       if (!result.success) throw new Error(result.message);
       toast.success(t('setup:screen.toasts.providerAdded', { id: providerId.trim() }));
       onKeySaved(providerId.trim());
+      // Re-fetch saved providers so the UI picks up preset-hydrated
+      // fields (baseUrl, models, quirks) from the server.
+      ws.listSavedProviders();
+      // Auto-probe the endpoint to validate connectivity.
+      ws.probeProvider(providerId.trim());
       setProviderId('');
       setBaseUrl('');
       setKey('');
@@ -745,9 +844,6 @@ export function SetupScreen() {
   );
   useWebSocket();
 
-  // Step: 'keys' | 'done'
-  const [step, setStep] = useState<'keys' | 'done'>('keys');
-
   // Catalog data
   const [catalogProviders, setCatalogProviders] = useState<CatalogProvider[]>([]);
   const [catalogModels, setCatalogModels] = useState<Record<string, CatalogModel[]>>({});
@@ -756,6 +852,12 @@ export function SetupScreen() {
   const [catalogError, setCatalogError] = useState<string | null>(null);
   const [reloadNonce, setReloadNonce] = useState(0);
   const [savedProviderIds, setSavedProviderIds] = useState<Set<string>>(new Set());
+
+  // Probe results: 'probing' while in-flight, ProbeResult on completion,
+  // or absent (undefined) when no probe has been run for a provider yet.
+  const [probeResults, setProbeResults] = useState<
+    Record<string, ProbeResult | 'probing'>
+  >({});
 
   // Popular providers loaded from external JSON
   const [popularProviders, setPopularProviders] = useState<PopularProvider[]>(DEFAULT_POPULAR_PROVIDERS);
@@ -894,6 +996,13 @@ export function SetupScreen() {
       }
     });
 
+    // Listen for health-probe responses and store by providerId.
+    const off4 = wsClient.on('provider.probe', (msg: WSServerMessage) => {
+      if (msg.type !== 'provider.probe') return;
+      const result = msg.payload as ProbeResult & { providerId: string };
+      setProbeResults((prev) => ({ ...prev, [result.providerId]: result }));
+    });
+
     setCatalogError(null);
     setIsLoadingCatalog(true);
     wsClient.listProviders();
@@ -903,6 +1012,7 @@ export function SetupScreen() {
       off1?.();
       off2?.();
       off3?.();
+      off4?.();
     };
   }, [wsConnected, wsUrl, model, reloadNonce]);
 
@@ -934,37 +1044,22 @@ export function SetupScreen() {
 
   const handleKeySaved = useCallback((providerId: string) => {
     setSavedProviderIds((prev) => new Set([...prev, providerId]));
+    // Auto-select the provider so the model picker appears inline
+    setSelectedProvider(providerId);
+    setSelectedModel(null);
   }, []);
 
   const hasAnyKey = savedProviderIds.size > 0;
 
-  const handleFinishSetup = useCallback(() => {
-    if (!hasAnyKey) {
-      // If no keys yet, try to use the first saved provider
-      if (savedProviders.length > 0) {
-        const first = savedProviders[0];
-        setSelectedProvider(first.id);
-        setStep('done');
-      }
-      return;
-    }
-    // Use the first saved provider with an active key
-    const firstWithKey = savedProviders.find((p) => p.apiKeys.some((k) => k.isActive));
-    if (firstWithKey) {
-      setSelectedProvider(firstWithKey.id);
-      setStep('done');
-    }
-  }, [hasAnyKey, savedProviders]);
-
   // Fetch models when selected provider changes
   useEffect(() => {
-    if (!selectedProvider || !wsConnected || step !== 'done') return;
+    if (!selectedProvider || !wsConnected) return;
     const wsClient = getWSClient(wsUrl);
     if (!catalogModels[selectedProvider]) {
       setIsLoadingModels(true);
       wsClient.listProviderModels(selectedProvider);
     }
-  }, [selectedProvider, wsConnected, wsUrl, catalogModels, step]);
+  }, [selectedProvider, wsConnected, wsUrl, catalogModels]);
 
   const currentModels = selectedProvider ? catalogModels[selectedProvider] ?? [] : [];
 
@@ -1001,13 +1096,50 @@ export function SetupScreen() {
     }, 5000);
   }, [selectedProvider, selectedModel, setProvider, setModel, wsUrl]);
 
+  /** Save configuration and navigate to chat without creating a new session.
+   *  The model.switch message persists the selection on the server and
+   *  broadcasts a session.start so the chat view is ready. Unlike
+   *  handleStartSession, this does NOT call newSession() — the user
+   *  picks up the existing (or fresh) session and can start typing. */
+  const handleSaveConfig = useCallback(() => {
+    if (!selectedProvider || !selectedModel) return;
+
+    setProvider(selectedProvider);
+    setModel(selectedModel);
+
+    const wsClient = getWSClient(wsUrl);
+    wsClient.switchModel(selectedProvider, selectedModel);
+
+    let timeoutId: ReturnType<typeof setTimeout> | null = null;
+    const cleanup = () => {
+      if (timeoutId) clearTimeout(timeoutId);
+    };
+
+    const off = wsClient.on('key.operation_result', (msg: WSServerMessage) => {
+      const p = (msg as { payload: { success: boolean; message: string } }).payload;
+      cleanup();
+      off();
+      if (p.success) {
+        showPanel('chat');
+      } else {
+        toast.error(p.message);
+      }
+    });
+
+    timeoutId = setTimeout(() => {
+      cleanup();
+      off();
+      toast.error(i18n.t('setup:screen.errors.modelSwitchTimeout'));
+    }, 5000);
+  }, [selectedProvider, selectedModel, setProvider, setModel, wsUrl]);
+
   // Sort providers: popular ones first, then catalog remainder
   const popularIds = new Set(popularProviders.map((p) => p.id));
   const additionalCatalog = catalogProviders
     .filter((p) => !popularIds.has(p.id))
     .sort((a, b) => a.id.localeCompare(b.id));
-  const catalogPage = usePagination(additionalCatalog, 10, step);
-  const savedProviderPage = usePagination(savedProviders, 9, step);
+  const catalogPage = usePagination(additionalCatalog, 10);
+  const savedProviderPage = usePagination(savedProviders, 9);
   const modelPage = usePagination(currentModels, 12, selectedProvider);
 
   return (
@@ -1028,48 +1160,56 @@ export function SetupScreen() {
             </p>
           </div>
         </div>
-        {hasAnyKey && (
-          <Button onClick={handleFinishSetup} size="sm" className="w-full sm:w-auto">
+        {hasAnyKey && selectedProvider ? (
+          <span className="text-xs text-success/80">
+            <Check className="h-3 w-3 inline-block mr-1" />
             {t('setup:screen.header.continue')}
-            <ArrowRight className="h-4 w-4 ml-1.5" />
-          </Button>
-        )}
+          </span>
+        ) : null}
       </header>
 
       {/* Content */}
       <ScrollArea className="min-h-0 flex-1">
-        {step === 'keys' ? (
-          <div className="mx-auto max-w-3xl space-y-8 p-4 sm:p-6">
-            {/* Progress steps */}
-            <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm">
-              <div className="flex min-w-0 items-center gap-1.5 text-primary font-medium">
-                <KeyRound className="h-4 w-4" />
-                <span>{t('setup:screen.steps.addKeys')}</span>
-              </div>
-              <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
-              <div className="flex min-w-0 items-center gap-1.5 text-muted-foreground">
-                <Bot className="h-4 w-4" />
-                <span>{t('setup:screen.steps.pickModel')}</span>
-              </div>
-              <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
-              <div className="flex min-w-0 items-center gap-1.5 text-muted-foreground">
-                <Sparkles className="h-4 w-4" />
-                <span>{t('setup:screen.steps.start')}</span>
-              </div>
+        <div className="mx-auto max-w-3xl space-y-8 p-4 pb-4 sm:p-6">
+          {/* Progress steps — all shown as available */}
+          <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm">
+            <div className={cn(
+              'flex min-w-0 items-center gap-1.5',
+              hasAnyKey ? 'text-success' : 'text-primary font-medium',
+            )}>
+              <KeyRound className="h-4 w-4" />
+              <span>{t('setup:screen.steps.addKeys')}</span>
             </div>
-
-            {/* Security note */}
-            <div className="flex items-start gap-3 rounded-xl border border-primary/20 bg-primary/5 p-4">
-              <Shield className="h-5 w-5 text-primary shrink-0 mt-0.5" />
-              <div>
-                <p className="text-sm font-medium">{t('setup:screen.security.title')}</p>
-                <p className="text-xs text-muted-foreground mt-0.5">
-                  {t('setup:screen.security.body')}
-                </p>
-              </div>
+            <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
+            <div className={cn(
+              'flex min-w-0 items-center gap-1.5',
+              selectedProvider ? 'text-primary font-medium' : 'text-muted-foreground',
+            )}>
+              <Bot className="h-4 w-4" />
+              <span>{t('setup:screen.steps.pickModel')}</span>
             </div>
+            <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
+            <div className={cn(
+              'flex min-w-0 items-center gap-1.5',
+              selectedProvider && selectedModel ? 'text-primary font-medium' : 'text-muted-foreground',
+            )}>
+              <Sparkles className="h-4 w-4" />
+              <span>{t('setup:screen.steps.start')}</span>
+            </div>
+          </div>
 
-            {/* Popular Providers Grid */}
+          {/* Security note */}
+          <div className="flex items-start gap-3 rounded-xl border border-primary/20 bg-primary/5 p-4">
+            <Shield className="h-5 w-5 text-primary shrink-0 mt-0.5" />
+            <div>
+              <p className="text-sm font-medium">{t('setup:screen.security.title')}</p>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                {t('setup:screen.security.body')}
+              </p>
+            </div>
+          </div>
+
+          {/* Popular Providers Grid */}
             {catalogError ? (
               <div className="flex flex-col items-center text-center gap-4 py-12 rounded-xl border border-destructive/30 bg-destructive/5 px-6">
                 <div className="w-12 h-12 rounded-xl bg-destructive/10 border border-destructive/30 flex items-center justify-center">
@@ -1130,6 +1270,7 @@ export function SetupScreen() {
                         catalogProvider={catalogProviders.find((c) => c.id === p.id)}
                         savedProvider={savedProviders.find((s) => s.id === p.id)}
                         onKeySaved={handleKeySaved}
+                        probeResult={probeResults[p.id] as ProbeResult | 'probing' | undefined}
                       />
                     ))}
                   </div>
@@ -1158,6 +1299,7 @@ export function SetupScreen() {
                           catalogProvider={p}
                           savedProvider={savedProviders.find((s) => s.id === p.id)}
                           onKeySaved={handleKeySaved}
+                          probeResult={probeResults[p.id] as ProbeResult | 'probing' | undefined}
                         />
                       ))}
                     </div>
@@ -1187,91 +1329,22 @@ export function SetupScreen() {
               </div>
             )}
 
-            {/* Start button (sticky at bottom) */}
-            {hasAnyKey && (
-              <div className="sticky bottom-0 -mx-4 border-t bg-background/80 px-4 py-4 backdrop-blur-sm sm:-mx-6 sm:px-6">
-                <Button onClick={handleFinishSetup} className="w-full" size="lg">
-                  <Bot className="h-4 w-4 mr-2" />
-                  {t('setup:screen.start.pickAndStart')}
-                  <ArrowRight className="h-4 w-4 ml-2" />
-                </Button>
-              </div>
-            )}
-          </div>
-        ) : (
-          /* Model Selection + Start */
-          <div className="mx-auto max-w-2xl space-y-8 p-4 sm:p-6">
-            {/* Progress steps */}
-            <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm">
-              <div className="flex min-w-0 items-center gap-1.5 text-success">
-                <Check className="h-4 w-4" />
-                <span>{t('setup:screen.steps.keys')}</span>
-              </div>
-              <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
-              <div className="flex min-w-0 items-center gap-1.5 text-primary font-medium">
-                <Bot className="h-4 w-4" />
-                <span>{t('setup:screen.steps.pickModel')}</span>
-              </div>
-              <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
-              <div className="flex min-w-0 items-center gap-1.5 text-muted-foreground">
-                <Sparkles className="h-4 w-4" />
-                <span>{t('setup:screen.steps.start')}</span>
-              </div>
-            </div>
-
-            <button
-              type="button"
-              onClick={() => setStep('keys')}
-              className="text-xs text-muted-foreground hover:text-foreground transition-colors"
-            >
-              {t('setup:screen.start.addMoreKeys')}
-            </button>
-
-            {/* Provider selector */}
-            <div className="space-y-3">
-              <h2 className="text-base font-semibold flex items-center gap-2">
-                <Bot className="h-4 w-4 text-primary" />
-                {t('setup:screen.start.chooseProvider')}
-              </h2>
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                {savedProviderPage.pageItems.map((p) => (
-                  <button
-                    key={p.id}
-                    type="button"
-                    onClick={() => {
-                      setSelectedProvider(p.id);
-                      setSelectedModel(null);
-                    }}
-                    className={cn(
-                      'rounded-lg border p-3 text-left transition-all text-sm',
-                      selectedProvider === p.id
-                        ? 'border-primary bg-primary/10 ring-1 ring-primary/30'
-                        : 'border-border hover:border-primary/40 hover:bg-primary/5',
-                    )}
-                  >
-                    <span className="font-medium">{p.id}</span>
-                    <span className="block text-[11px] text-muted-foreground mt-0.5">
-                      {t('setup:screen.start.activeKeys', { count: p.apiKeys.filter((k) => k.isActive).length })}
-                    </span>
-                  </button>
-                ))}
-              </div>
-              <Pagination
-                page={savedProviderPage.page}
-                pageSize={savedProviderPage.pageSize}
-                totalItems={savedProviderPage.totalItems}
-                onPageChange={savedProviderPage.setPage}
-                itemLabel="saved providers"
-              />
-            </div>
-
-            {/* Model list */}
+            {/* Model picker — inline below catalog when a provider is selected */}
             {selectedProvider && (
               <div className="space-y-3">
-                <h2 className="text-base font-semibold flex items-center gap-2">
-                  <Sparkles className="h-4 w-4 text-primary" />
-                  {t('setup:screen.start.chooseModel')}
-                </h2>
+                <div className="flex items-center justify-between">
+                  <h2 className="text-base font-semibold flex items-center gap-2">
+                    <Sparkles className="h-4 w-4 text-primary" />
+                    {t('setup:screen.start.chooseModel')}
+                  </h2>
+                  <button
+                    type="button"
+                    onClick={() => { setSelectedProvider(null); setSelectedModel(null); }}
+                    className="text-xs text-muted-foreground hover:text-foreground transition-colors"
+                  >
+                    {t('setup:screen.start.addMoreKeys')}
+                  </button>
+                </div>
                 <p className="text-xs text-muted-foreground">
                   {t('setup:screen.start.modelsFor', { provider: selectedProvider })}
                 </p>
@@ -1342,7 +1415,7 @@ export function SetupScreen() {
               </div>
             )}
 
-            {/* Start button */}
+            {/* Action buttons — sticky footer when provider + model are selected */}
             {selectedProvider && selectedModel && (
               <div className="sticky bottom-0 -mx-4 border-t bg-background/80 px-4 py-4 backdrop-blur-sm sm:-mx-6 sm:px-6">
                 <div className="mb-3 flex min-w-0 items-center justify-between gap-2 text-sm text-muted-foreground">
@@ -1350,15 +1423,24 @@ export function SetupScreen() {
                     {selectedProvider} / {selectedModel}
                   </span>
                 </div>
-                <Button onClick={handleStartSession} className="w-full" size="lg">
-                  <Bot className="h-4 w-4 mr-2" />
-                  {t('setup:screen.start.startSession')}
-                  <ArrowRight className="h-4 w-4 ml-2" />
-                </Button>
+                <div className="flex flex-col sm:flex-row gap-2">
+                  <Button onClick={handleStartSession} className="flex-1" size="lg">
+                    <Bot className="h-4 w-4 mr-2" />
+                    {t('setup:screen.start.startSession')}
+                    <ArrowRight className="h-4 w-4 ml-2" />
+                  </Button>
+                  <Button onClick={handleSaveConfig} variant="outline" className="flex-1" size="lg">
+                    <Check className="h-4 w-4 mr-2" />
+                    {t('setup:screen.start.saveConfig')}
+                  </Button>
+                </div>
+                <p className="text-[11px] text-muted-foreground/60 text-center mt-2">
+                  {t('setup:screen.start.saveConfigHint')}
+                </p>
               </div>
             )}
-          </div>
-        )}
+
+        </div>
       </ScrollArea>
     </div>
   );

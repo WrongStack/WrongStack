@@ -12,12 +12,14 @@ import type { Settings } from '../src/app-state.js';
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
 function makeQueueStore(overrides?: Partial<QueueStore>): QueueStore {
+  // QueueStore is a class with private fields; the hook only calls read/write/
+  // clear, so a structural stub is cast through unknown to stand in for it.
   return {
     read: vi.fn(async () => []),
     write: vi.fn(async () => undefined),
     clear: vi.fn(async () => undefined),
     ...overrides,
-  };
+  } as unknown as QueueStore;
 }
 
 function makeRegistry(): SlashCommandRegistry & { registered: { name: string }[]; unregisterCalls: string[] } {
@@ -42,7 +44,9 @@ function makeRegistry(): SlashCommandRegistry & { registered: { name: string }[]
 }
 
 interface HarnessRefs {
-  queueStore?: QueueStore;
+  // `| undefined` (not bare `?`) so exactOptionalPropertyTypes allows tests to
+  // explicitly assign `undefined` when exercising the "no store" path.
+  queueStore?: QueueStore | undefined;
   onQueueChange: Mock;
   slashRegistry: ReturnType<typeof makeRegistry>;
   stateRef: React.MutableRefObject<State>;
@@ -55,7 +59,7 @@ interface HarnessRefs {
 function buildHarness(): HarnessRefs {
   const state = { queue: [] } as unknown as State;
   return {
-    queueStore: undefined as never,
+    queueStore: undefined,
     onQueueChange: vi.fn(),
     slashRegistry: makeRegistry(),
     stateRef: { current: state },
@@ -123,7 +127,7 @@ describe('useQueueManager', () => {
     // Wait for promise to resolve - should not dispatch unless cancelled
     await act(async () => { await Promise.resolve(); });
     const enqueueCalls = refs.dispatch.mock.calls.filter(
-      (c: [Action]) => c[0].type === 'enqueue',
+      (c: unknown[]) => (c[0] as Action).type === 'enqueue',
     );
     expect(enqueueCalls).toHaveLength(0);
   });

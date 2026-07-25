@@ -1,7 +1,7 @@
 /**
- * SGR mouse protocol (xterm DEC private modes). These are INDEPENDENT of the
- * alternate screen buffer (?1049h): we enable tracking while staying in the
- * normal buffer. Chat history itself lives in a bounded managed viewport.
+ * SGR mouse protocol (xterm DEC private modes). Mouse tracking and alternate
+ * screen mode (?1049h) are independent terminal capabilities; the full-screen
+ * TUI enables both and tears both down explicitly.
  *
  *   ?1000h — button press/release tracking (clicks + wheel)
  *   ?1002h — button-event tracking: adds drag (motion while a button is held)

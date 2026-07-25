@@ -95,9 +95,9 @@ export function openPanel(activity: Activity): void {
     ui.setSidebarOpen(false);
     return;
   } else if (ui.activeActivity === 'agents') {
-    // Agents sidebar is open → clicking any other activity icon closes it
-    ui.setSidebarOpen(false);
-    return;
+    // Agents sidebar is open → switching to the selected activity
+    ui.setSidebarOpen(true);
+    ui.selectActivity(activity);
   } else {
     ui.selectActivity(activity);
   }

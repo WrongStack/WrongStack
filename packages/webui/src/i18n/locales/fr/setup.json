@@ -93,7 +93,9 @@
       "modelsFor": "Modèles disponibles pour {{provider}}",
       "activeKeys_one": "{{count}} clé active",
       "activeKeys_other": "{{count}} clés actives",
-      "startSession": "Démarrer la session"
+      "startSession": "Démarrer la session",
+      "saveConfig": "Sauvegarder la configuration",
+      "saveConfigHint": "Fournisseur et modèle enregistrés. Discutez quand vous êtes prêt."
     },
     "card": {
       "keySaved": "Clé enregistrée",
@@ -135,6 +137,15 @@
       "minutesAgo": "il y a {{count}} min",
       "hoursAgo": "il y a {{count}} h",
       "daysAgo": "il y a {{count}} j"
+    },
+    "probe": {
+      "checking": "Vérification de la connexion…",
+      "connected": "Connecté",
+      "models": "modèles",
+      "failed": "Test échoué",
+      "noBaseUrl": "Aucune URL de base configurée",
+      "unreachable": "Connexion impossible",
+      "httpStatus": "Statut"
     },
     "toasts": {
       "keySaved": "Clé API {{name}} enregistrée",

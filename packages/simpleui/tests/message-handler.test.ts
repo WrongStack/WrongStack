@@ -193,7 +193,10 @@ function createHarness(overrides: Partial<MessageHandlerDeps> = {}): Harness {
 
   const worklists = overrides.worklists ?? createWorklistStore();
 
-  const dispatchUserMessage = overrides.dispatchUserMessage ?? vi.fn();
+  // Default: dispatch succeeds. `dispatchUserMessage` returns a boolean now —
+  // the queue drain only advances when it returns true, so the default mock
+  // must report success or every drain test would see a "dropped" no-op.
+  const dispatchUserMessage = overrides.dispatchUserMessage ?? vi.fn(() => true);
   const requestProviderModels = overrides.requestProviderModels ?? vi.fn();
   const onChime = overrides.onChime ?? vi.fn();
   const writeComposerDraft = overrides.writeComposerDraft ?? vi.fn();
@@ -597,6 +600,47 @@ describe('tool call lifecycle', () => {
     // Tool failure must NOT be inferred from string scanning rendered output.
     expect(harness.state.toolCalls[0]).toMatchObject({ status: 'error' });
   });
+
+  it('closes only the last running same-name call when tool.executed has no id', () => {
+    // Two concurrent `read` calls are running at once.
+    harness.handler({ type: 'tool.started', payload: { id: 'read-a', name: 'read', input: { path: 'a' } } });
+    harness.handler({ type: 'tool.started', payload: { id: 'read-b', name: 'read', input: { path: 'b' } } });
+    expect(harness.state.toolCalls.map((tc) => tc.status)).toEqual(['running', 'running']);
+
+    // An id-less executed event arrives. Regression: a `.map` fallback closed
+    // BOTH running `read` calls, collapsing two calls into one shared result.
+    // Only the LAST running match may be closed.
+    harness.handler({
+      type: 'tool.executed',
+      payload: { name: 'read', ok: true, output: 'from b', durationMs: 5 },
+    });
+
+    const [first, second] = harness.state.toolCalls;
+    // First `read` (path a) must stay running and untouched.
+    expect(first).toMatchObject({ id: 'read-a', status: 'running' });
+    expect(first).not.toHaveProperty('output');
+    // Last `read` (path b) is the one that got closed.
+    expect(second).toMatchObject({
+      id: 'read-b',
+      status: 'done',
+      ok: true,
+      output: 'from b',
+      durationMs: 5,
+    });
+
+    // A second id-less executed event closes the remaining running call.
+    harness.handler({
+      type: 'tool.executed',
+      payload: { name: 'read', ok: true, output: 'from a', durationMs: 3 },
+    });
+    expect(harness.state.toolCalls[0]).toMatchObject({
+      id: 'read-a',
+      status: 'done',
+      output: 'from a',
+    });
+    // The already-closed call is not re-touched.
+    expect(harness.state.toolCalls[1]).toMatchObject({ id: 'read-b', output: 'from b' });
+  });
 });
 
 describe('provider streaming', () => {
@@ -672,23 +716,122 @@ describe('run lifecycle and queue drain', () => {
     expect(harness.state.messages.at(-1)).toMatchObject({ role: 'system', text: 'boom' });
     expect(harness.dispatchUserMessage).toHaveBeenCalledWith('after error');
   });
+
+  it('keeps the queued item when a run.result drain is dropped (session cleared)', () => {
+    // Simulate the session being cleared between enqueue and drain:
+    // dispatchUserMessage bails and returns false. Regression: the drain used
+    // to advance the queue (queueRef = rest; setQueue) BEFORE dispatching, so
+    // the held message was removed but never sent — silent user-input loss.
+    const dropped = vi.fn(() => false);
+    const h = createHarness({ dispatchUserMessage: dropped });
+    h.mutableRefs.queueRef.current = [
+      { id: 'q1', text: 'held message', mode: 'queue', addedAt: 1 },
+      { id: 'q2', text: 'second', mode: 'queue', addedAt: 2 },
+    ];
+
+    h.handler({ type: 'run.result', payload: {} });
+
+    // Dispatch was attempted on the head...
+    expect(dropped).toHaveBeenCalledWith('held message');
+    // ...but since it was dropped, the queue ref (the drain's source of truth)
+    // is untouched — nothing lost. setQueue is never called on a dropped
+    // drain, so the drain does not advance.
+    expect(h.mutableRefs.queueRef.current.map((entry) => entry.id)).toEqual(['q1', 'q2']);
+  });
+
+  it('keeps the queued item when an error drain is dropped (session cleared)', () => {
+    const dropped = vi.fn(() => false);
+    const h = createHarness({ dispatchUserMessage: dropped });
+    h.mutableRefs.queueRef.current = [
+      { id: 'q1', text: 'held after error', mode: 'queue', addedAt: 1 },
+    ];
+
+    h.handler({ type: 'error', payload: { message: 'boom' } });
+
+    expect(dropped).toHaveBeenCalledWith('held after error');
+    // Dropped drain leaves the queue ref intact; setQueue is never called.
+    expect(h.mutableRefs.queueRef.current.map((entry) => entry.id)).toEqual(['q1']);
+  });
+
+  it('drains the same held item on the next run.result once dispatch succeeds again', () => {
+    // First drain is dropped (session gone), item stays queued. When a later
+    // run.result arrives with a live session, the SAME item finally sends.
+    let live = false;
+    const dispatch = vi.fn(() => live);
+    const h = createHarness({ dispatchUserMessage: dispatch });
+    h.mutableRefs.queueRef.current = [
+      { id: 'q1', text: 'eventually sent', mode: 'queue', addedAt: 1 },
+    ];
+
+    h.handler({ type: 'run.result', payload: {} }); // dropped
+    expect(h.mutableRefs.queueRef.current.map((e) => e.id)).toEqual(['q1']);
+
+    live = true;
+    h.handler({ type: 'run.result', payload: {} }); // succeeds
+    expect(dispatch).toHaveBeenLastCalledWith('eventually sent');
+    expect(h.mutableRefs.queueRef.current).toEqual([]);
+    expect(h.state.queue).toEqual([]);
+  });
 });
 
 describe('context accounting', () => {
-  it('normalises percentage input to a 0..1 fraction', () => {
+  // Wire contract: `ctx.pct` `load` is a 0-1 fraction of the context budget.
+  // Core computes rawLoad = tokens / maxContext and emits it already clamped
+  // as load = Math.max(0, Math.min(1, rawLoad)) (see emitContextPct in core
+  // agent-loop.ts). So 0.68 = 68% full and a full budget is exactly 1. The
+  // handler must pass the fraction through deterministically — never
+  // magnitude-sniff or divide (the old `load > 1 ? load / 100` heuristic
+  // corrupted any value it mistook for a percentage).
+
+  it('passes a mid-range fraction through untouched (68% -> 0.68)', () => {
     harness.handler({
       type: 'ctx.pct',
-      payload: { load: 75, tokens: 75_000, maxContext: 100_000 },
+      payload: { load: 0.68, tokens: 136_000, maxContext: 200_000 },
     });
-    expect(harness.state.context).toEqual({ load: 0.75, tokens: 75_000, maxContext: 100_000 });
+    expect(harness.state.context).toEqual({ load: 0.68, tokens: 136_000, maxContext: 200_000 });
   });
 
-  it('preserves fraction input untouched', () => {
+  it('keeps a 1% fraction as 0.01 (not inflated to 100%)', () => {
     harness.handler({
       type: 'ctx.pct',
-      payload: { load: 0.42, tokens: 42_000, maxContext: 100_000 },
+      payload: { load: 0.01, tokens: 1_000, maxContext: 100_000 },
     });
-    expect(harness.state.context.load).toBe(0.42);
+    expect(harness.state.context.load).toBe(0.01);
+  });
+
+  it('keeps a full budget (100%) as exactly 1', () => {
+    harness.handler({
+      type: 'ctx.pct',
+      payload: { load: 1, tokens: 100_000, maxContext: 100_000 },
+    });
+    expect(harness.state.context.load).toBe(1);
+  });
+
+  it('passes a malformed out-of-range frame through without dividing (defensive)', () => {
+    // The producer already clamps `load` to [0, 1], so the UI should never
+    // receive a value above 1 on the wire. If a malformed frame ever does,
+    // the handler must NOT magnitude-sniff/divide it (the old bug turned
+    // 1.35 into 0.0135). It passes the value through untouched; the render
+    // layer is responsible for any display clamping.
+    harness.handler({
+      type: 'ctx.pct',
+      payload: { load: 1.35, tokens: 270_000, maxContext: 200_000 },
+    });
+    expect(harness.state.context.load).toBe(1.35);
+  });
+
+  it('clamps a negative or non-finite load to 0', () => {
+    harness.handler({
+      type: 'ctx.pct',
+      payload: { load: -0.5, tokens: 0, maxContext: 100_000 },
+    });
+    expect(harness.state.context.load).toBe(0);
+
+    harness.handler({
+      type: 'ctx.pct',
+      payload: { load: Number.NaN, tokens: 0, maxContext: 100_000 },
+    });
+    expect(harness.state.context.load).toBe(0);
   });
 });
 

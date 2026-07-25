@@ -42,25 +42,41 @@ describe('runTui exports', () => {
 // ─────────────────────────────────────────────────────────────────────
 // RunTuiOptions type structural checks
 // ─────────────────────────────────────────────────────────────────────
+// The always-required RunTuiOptions fields. Spread into each fixture so the
+// tests stay focused on the optional field under test while still satisfying
+// the full required shape (agent/slashRegistry/attachments/events/model plus
+// the statusline-hidden-items trio the host owns).
+const baseRequiredOpts: Pick<
+  RunTuiOptions,
+  | 'agent'
+  | 'slashRegistry'
+  | 'attachments'
+  | 'events'
+  | 'model'
+  | 'statuslineHiddenItems'
+  | 'setStatuslineHiddenItems'
+  | 'saveStatuslineHiddenItems'
+> = {
+  agent: {} as never,
+  slashRegistry: {} as never,
+  attachments: {} as never,
+  events: {} as never,
+  model: 'test-model',
+  statuslineHiddenItems: [],
+  setStatuslineHiddenItems: () => {},
+  saveStatuslineHiddenItems: async () => {},
+};
+
 describe('RunTuiOptions type', () => {
   it('accepts only required fields', () => {
     // The minimal RunTuiOptions shape.
-    const opts: RunTuiOptions | Record<string, unknown> = {
-      agent: {} as never,
-      slashRegistry: {} as never,
-      attachments: {} as never,
-      events: {} as never,
-      model: 'test-model',
-    };
+    const opts: RunTuiOptions = { ...baseRequiredOpts, model: 'test-model' };
     expect(opts.model).toBe('test-model');
   });
 
   it('accepts optional banner and yolo fields', () => {
-    const opts: RunTuiOptions | Record<string, unknown> = {
-      agent: {} as never,
-      slashRegistry: {} as never,
-      attachments: {} as never,
-      events: {} as never,
+    const opts: RunTuiOptions = {
+      ...baseRequiredOpts,
       model: 'gpt-4',
       banner: false,
       yolo: true,
@@ -71,11 +87,8 @@ describe('RunTuiOptions type', () => {
 
   it('accepts optional callback fields', () => {
     const onQueueChange = vi.fn();
-    const opts: RunTuiOptions | Record<string, unknown> = {
-      agent: {} as never,
-      slashRegistry: {} as never,
-      attachments: {} as never,
-      events: {} as never,
+    const opts: RunTuiOptions = {
+      ...baseRequiredOpts,
       model: 'm',
       onQueueChange,
     };
@@ -83,11 +96,8 @@ describe('RunTuiOptions type', () => {
   });
 
   it('accepts optional string fields (appVersion, provider, etc.)', () => {
-    const opts: RunTuiOptions | Record<string, unknown> = {
-      agent: {} as never,
-      slashRegistry: {} as never,
-      attachments: {} as never,
-      events: {} as never,
+    const opts: RunTuiOptions = {
+      ...baseRequiredOpts,
       model: 'claude-4',
       appVersion: '1.2.3',
       provider: 'anthropic',
@@ -104,11 +114,8 @@ describe('RunTuiOptions type', () => {
   it('accepts optional function fields (getYolo, getAutonomy, etc.)', () => {
     const getYolo = () => true;
     const getAutonomy = () => 'off' as const;
-    const opts: RunTuiOptions | Record<string, unknown> = {
-      agent: {} as never,
-      slashRegistry: {} as never,
-      attachments: {} as never,
-      events: {} as never,
+    const opts: RunTuiOptions = {
+      ...baseRequiredOpts,
       model: 'm',
       getYolo,
       getAutonomy,
@@ -121,11 +128,8 @@ describe('RunTuiOptions type', () => {
     const secretInputController = {
       readSecret: vi.fn().mockResolvedValue('secret'),
     };
-    const opts: RunTuiOptions | Record<string, unknown> = {
-      agent: {} as never,
-      slashRegistry: {} as never,
-      attachments: {} as never,
-      events: {} as never,
+    const opts: RunTuiOptions = {
+      ...baseRequiredOpts,
       model: 'm',
       secretInputController,
     };
@@ -133,11 +137,8 @@ describe('RunTuiOptions type', () => {
   });
 
   it('accepts the full set of boolean / number optionals', () => {
-    const opts: RunTuiOptions | Record<string, unknown> = {
-      agent: {} as never,
-      slashRegistry: {} as never,
-      attachments: {} as never,
-      events: {} as never,
+    const opts: RunTuiOptions = {
+      ...baseRequiredOpts,
       model: 'm',
       chime: true,
       mouse: false,
@@ -156,17 +157,20 @@ describe('RunTuiOptions type', () => {
 // AutonomyStage type re-export from @wrongstack/core
 // ─────────────────────────────────────────────────────────────────────
 describe('AutonomyStage type re-export', () => {
-  it('is a string literal union type that can hold any valid stage', () => {
+  it('is a discriminated union of engine iteration/parallel stages keyed by phase', () => {
+    // AutonomyStage = IterationStage | ParallelIterationStage — objects with a
+    // `phase` discriminant, NOT the autonomy-mode strings. This asserts the
+    // re-exported type covers stages from both engines.
     const stages: AutonomyStage[] = [
-      'off' as const,
-      'suggest' as const,
-      'auto' as const,
-      'eternal' as const,
-      'eternal-parallel' as const,
+      { phase: 'idle' },
+      { phase: 'decide', reason: 'next task' },
+      { phase: 'execute', task: 'run tests' },
+      { phase: 'fanout', slots: 3 },
+      { phase: 'aggregate', successCount: 2, total: 3, goalComplete: false },
     ];
     expect(stages).toHaveLength(5);
-    expect(stages[0]).toBe('off');
-    expect(stages[4]).toBe('eternal-parallel');
+    expect(stages[0]).toEqual({ phase: 'idle' });
+    expect(stages[3]).toEqual({ phase: 'fanout', slots: 3 });
   });
 });
 
@@ -360,11 +364,8 @@ describe('runTui type compatibility', () => {
     // TypeScript will enforce this at compile time. At runtime we
     // can only verify the function accepts the call without throwing
     // during argument evaluation (before the TTY guard).
-    const opts: RunTuiOptions | Record<string, unknown> = {
-      agent: {} as never,
-      slashRegistry: {} as never,
-      attachments: {} as never,
-      events: {} as never,
+    const opts: RunTuiOptions = {
+      ...baseRequiredOpts,
       model: 'model-id',
     };
     // Calling with non-TTY will return 2 — we just verify it doesn't
@@ -380,10 +381,7 @@ describe('runTui type compatibility', () => {
     // JS allows passing excess properties — the function should not
     // crash on the synchronous path for this.
     const opts = {
-      agent: {} as never,
-      slashRegistry: {} as never,
-      attachments: {} as never,
-      events: {} as never,
+      ...baseRequiredOpts,
       model: 'm',
       extraUnknownField: 'should be ignored',
     };

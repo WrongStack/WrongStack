@@ -99,8 +99,8 @@
     "timeout": "Zaman aşımı",
     "reRun": "Yeniden çalıştır",
     "reRunTitle": "Bu aracıyı yeniden çalıştır (henüz uygulanmadı)",
-    "lastToolCalls": "Son {{count}} araç çağrısı",
-    "lastToolCalls_plural": "Son {{count}} araç çağrısı",
+    "lastToolCalls_one": "Son {{count}} araç çağrısı",
+    "lastToolCalls_other": "Son {{count}} araç çağrısı",
     "config": "Yapılandırma",
     "configProvider": "Sağlayıcı",
     "configModel": "Model",
@@ -900,6 +900,7 @@
     "controllerInjection": "kontrolör enjeksiyonu"
   },
   "connection": {
+    "connected": "Bağlandı",
     "reconnecting": "Arka uca yeniden bağlanılıyor (deneme {{attempt}}) — {{remaining}} sn içinde yeniden denenecek",
     "disconnected": "Arka uçtan bağlantı kesildi",
     "retry": "Şimdi yeniden dene",

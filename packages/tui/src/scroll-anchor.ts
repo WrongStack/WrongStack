@@ -1,23 +1,19 @@
 /**
- * Anchor-based scroll model for the managed history viewport.
+ * Pure geometry helpers for the managed history viewport.
  *
- * The scroll position is a {@link ScrollAnchor}: the index of the render group
- * whose row band contains the viewport's top row, plus how many of that
- * group's rows are clipped above the viewport (`clip`). Rendering starts AT
- * the anchor and proceeds downward, so what appears on screen depends only on
- * the anchor and the heights of the groups actually mounted — never on the
- * (possibly estimated) heights of content above or below the window. That is
- * the property that kills the estimate-vs-actual spacer misalignment class of
- * bugs: an off-window estimate being wrong can no longer move a single pixel.
+ * The component owns one absolute viewport-top row for wheel, page, and
+ * scrollbar input. These helpers translate that coordinate into a temporary
+ * {@link ScrollAnchor}: the render-group containing the row plus the number
+ * of rows clipped inside it. Rendering begins at that anchor, with no spacer
+ * elements.
  *
  * `null` means "pinned to the newest output" (follow mode). Pinned rendering
  * uses `justifyContent:'flex-end'` and needs no position math at all.
  *
- * Prefix sums over the {@link EntryHeightCache} are still used — but only to
- * *translate* scroll gestures (wheel deltas, page jumps, scrollbar clicks)
- * into a new anchor, and to size the scrollbar thumb. Estimate error there
- * affects only the step size of a jump through unmeasured territory, which is
- * invisible; it can never misalign rendered content.
+ * Prefix sums over the {@link EntryHeightCache} translate absolute rows to
+ * mounted groups and size the scrollbar. When a measurement corrects those
+ * sums, the component resolves the same absolute row again instead of letting
+ * separate anchor/offset/thumb states drift apart.
  *
  * Pure TypeScript — no React, no Ink. Unit-testable without mounting anything.
  */
@@ -160,6 +156,32 @@ export function planFromAnchor(
     endIdx++;
   }
   endIdx = Math.min(groupCount, endIdx + 1);
+  // Floor: estimate the rows needed and convert to a row-budget group count
+  // using the average per-group height already in the cache. Without this,
+  // height estimates can be arbitrarily larger than real markdown layout
+  // (e.g. runs of blank source lines collapse during rendering), and a
+  // group-count floor would over-mount a transcript with many multi-row
+  // entries (tool results, large code fences) by `viewportRows` groups when
+  // only a handful of real rows are missing. A row-budget floor using the
+  // mean of the already-mounted groups keeps the mount count correct in the
+  // multi-row case while still guarding the collapsed-estimate underfill.
+  if (endIdx > startIdx) {
+    const coveredRows = cache.accumulatedHeight(endIdx) - startTop;
+    const mountedCount = endIdx - startIdx;
+    const avgRowsPerGroup = coveredRows > 0 ? coveredRows / mountedCount : 1;
+    const rowBudgetCount = Math.max(1, Math.ceil(needed / Math.max(1, avgRowsPerGroup)));
+    endIdx = Math.max(endIdx, Math.min(groupCount, startIdx + rowBudgetCount));
+  } else {
+    // No groups accumulated beyond the first one (its estimated height
+    // already meets `needed`). Use the cache-wide average per-group height
+    // for the floor instead of a raw group count so multi-row entries (tool
+    // results, large code fences) do not over-mount by many groups when only
+    // a few real rows are missing.
+    const totalH = cache.totalHeight();
+    const avgAll = groupCount > 0 && totalH > 0 ? totalH / groupCount : 1;
+    const rowBudgetCount = Math.max(1, Math.ceil(needed / Math.max(1, avgAll)));
+    endIdx = Math.max(endIdx, Math.min(groupCount, startIdx + rowBudgetCount));
+  }
   return { startIdx, endIdx, mountTail: endIdx >= groupCount };
 }
 
@@ -182,5 +204,25 @@ export function planPinned(geometry: ScrollGeometry, extraRows = 0): MountPlan {
     startIdx--;
   }
   if (startIdx > 0) startIdx--;
+  // Row-budget mirror of planFromAnchor's floor: convert `needed` rows back
+  // into a group count using the average row size across the trailing
+  // mounted range so multi-row groups don't pull in `viewportRows + overscan`
+  // groups when only a few real rows are missing.
+  const mountedCount = groupCount - startIdx;
+  if (mountedCount > 0) {
+    const mountedRows = total - cache.accumulatedHeight(startIdx);
+    const avgRowsPerGroup = mountedRows > 0 ? mountedRows / mountedCount : 1;
+    const rowBudgetCount = Math.max(1, Math.ceil(needed / Math.max(1, avgRowsPerGroup)));
+    const rowBudgetStart = Math.max(0, groupCount - rowBudgetCount);
+    startIdx = Math.min(startIdx, rowBudgetStart);
+  } else {
+    startIdx = Math.min(
+      startIdx,
+      Math.max(
+        0,
+        groupCount - (Math.max(1, geometry.viewportRows) + OVERSCAN_ROWS + extraRows),
+      ),
+    );
+  }
   return { startIdx, endIdx: groupCount, mountTail: true };
 }

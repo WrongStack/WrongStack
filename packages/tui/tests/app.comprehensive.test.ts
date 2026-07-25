@@ -167,7 +167,7 @@ describe('buildSteeringPreamble', () => {
     const snapshot = {
       runningTools: [],
       subagents: [
-        { label: 'scout', tool: 'read' },
+        { label: 'scout', status: 'running', tool: 'read' },
       ],
       subagentsTerminated: 1,
       partialAssistantText: '',
@@ -201,7 +201,7 @@ describe('buildSteeringPreamble', () => {
     const result = buildSteeringPreamble(snapshot, 'continue');
     // The quoted text should be at most 300 chars
     const match = result.match(/"(.+?)"/);
-    if (match) {
+    if (match?.[1] !== undefined) {
       expect(match[1].length).toBeLessThanOrEqual(300);
     }
   });
@@ -218,7 +218,7 @@ describe('buildSteeringPreamble', () => {
   it('produces a valid multi-line preamble with all sections when full snapshot is provided', () => {
     const snapshot = {
       runningTools: ['bash'],
-      subagents: [{ label: 'scout', tool: 'read' }],
+      subagents: [{ label: 'scout', status: 'running', tool: 'read' }],
       subagentsTerminated: 1,
       partialAssistantText: 'building a solution',
     };

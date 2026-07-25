@@ -43,11 +43,11 @@ describe('reducer — remaining branches', () => {
 
   // ── Tools picker ────────────────────────────────────────────────────
   it('toolsPicker open/close/move/setItems/busy/hint/filter', () => {
-    let s = reducer(initial(), { type: 'toolsPickerOpen', items: [{ name: 'read', owner: 'core', category: 'fs', enabled: true, mutating: false, permission: 'auto' }] });
+    let s = reducer(initial(), { type: 'toolsPickerOpen', items: [{ name: 'read', owner: 'core', category: 'fs', enabled: true, mutating: false, permission: 'auto', descMode: 'simple', description: 'Read a file' }] });
     expect(s.toolsPicker.open).toBe(true);
     s = reducer(s, { type: 'toolsPickerMove', delta: 1 });
     expect(s.toolsPicker.selected).toBe(0);
-    s = reducer(s, { type: 'toolsPickerSetItems', items: [{ name: 'write', owner: 'core', category: 'fs', enabled: true, mutating: true, permission: 'confirm' }] });
+    s = reducer(s, { type: 'toolsPickerSetItems', items: [{ name: 'write', owner: 'core', category: 'fs', enabled: true, mutating: true, permission: 'confirm', descMode: 'simple', description: 'Write a file' }] });
     expect(s.toolsPicker.items).toHaveLength(1);
     s = reducer(s, { type: 'toolsPickerFilter', filter: 'write' });
     expect(s.toolsPicker.filter).toBe('write');
@@ -69,10 +69,10 @@ describe('reducer — remaining branches', () => {
     expect(reducer(s, { type: 'authClose' }).authPanel.open).toBe(false);
   });
   it('authCatalog sets catalog', () => {
-    expect(reducer(initial(), { type: 'authCatalog', catalog: [{ id: 'openai' }] }).authPanel.catalog).toHaveLength(1);
+    expect(reducer(initial(), { type: 'authCatalog', catalog: [{ id: 'openai', name: 'OpenAI', family: 'openai', envVars: ['OPENAI_API_KEY'], saved: false }] }).authPanel.catalog).toHaveLength(1);
   });
   it('authProviders sets providers', () => {
-    expect(reducer(initial(), { type: 'authProviders', providers: [{ id: 'openai' }] }).authPanel.providers).toHaveLength(1);
+    expect(reducer(initial(), { type: 'authProviders', providers: [{ id: 'openai', models: [], envVars: [], keys: [] }] }).authPanel.providers).toHaveLength(1);
   });
   it('authFilter sets filter', () => {
     expect(reducer(initial(), { type: 'authFilter', filter: 'openai' }).authPanel.filter).toBe('openai');
@@ -101,7 +101,7 @@ describe('reducer — remaining branches', () => {
 
   // ── Help panel ──────────────────────────────────────────────────────
   it('helpFilter/Close/Move/Hint', () => {
-    const s = reducer(initial(), { type: 'helpOpen', entries: [{ id: 'h1', title: 'Help', description: 'desc', keys: ['esc'], category: 'general' }] });
+    const s = reducer(initial(), { type: 'helpOpen', entries: [{ name: 'Help', description: 'desc', category: 'general' }] });
     expect(s.helpPanel.open).toBe(true);
     expect(reducer(s, { type: 'helpFilter', filter: 'help' }).helpPanel.filter).toBe('help');
     expect(reducer(s, { type: 'helpMove', delta: 1 }).helpPanel.selected).toBe(0);

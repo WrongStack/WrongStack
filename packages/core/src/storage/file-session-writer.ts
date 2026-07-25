@@ -126,7 +126,21 @@ export class FileSessionWriter implements SessionWriter {
 
   /** Enqueue a write on the FIFO chain. Resolves/rejects with that write. */
   private enqueueWrite(data: string): Promise<void> {
-    const write = this.writeChain.then(() => this.handle.appendFile(data, 'utf8'));
+    const write = this.writeChain.then(async () => {
+      // Lazy reopen: clearSession() closes the handle to allow a subsequent
+      // clearHistory() atomicWrite (tmp + rename) on the same file. If the
+      // handle is still closed when the next append arrives, reopen it.
+      try {
+        return await this.handle.appendFile(data, 'utf8');
+      } catch (err: unknown) {
+        const nodeErr = err as NodeJS.ErrnoException;
+        if (nodeErr?.code === 'EBADF') {
+          this.handle = await fsp.open(this.filePath, 'a', 0o600);
+          return await this.handle.appendFile(data, 'utf8');
+        }
+        throw err;
+      }
+    });
     this.writeChain = write.then(
       () => undefined,
       () => undefined,
@@ -435,7 +449,18 @@ export class FileSessionWriter implements SessionWriter {
     }
     await this.flushBuffer();
     await this.writeChain;
-    await this.handle.datasync();
+    try {
+      await this.handle.datasync();
+    } catch (err: unknown) {
+      // Handle may be closed (e.g. after clearSession with no intervening
+      // append). Reopen lazily so the handle is ready for the next write.
+      const nodeErr = err as NodeJS.ErrnoException;
+      if (nodeErr?.code === 'EBADF') {
+        this.handle = await fsp.open(this.filePath, 'a', 0o600);
+        return;
+      }
+      throw err;
+    }
   }
 
   /**
@@ -690,7 +715,14 @@ export class FileSessionWriter implements SessionWriter {
     // Drain any write enqueued outside flushBuffer (e.g. the lazy
     // session_start record) before the handle is closed.
     await this.writeChain;
-    await this.handle.datasync();
+    try {
+      await this.handle.datasync();
+    } catch (err: unknown) {
+      // Handle may already be closed (e.g. clearSession closed it but no
+      // append reopened). Best-effort: the fd is still valid for close().
+      const nodeErr = err as NodeJS.ErrnoException;
+      if (nodeErr?.code !== 'EBADF') throw err;
+    }
     // Finalize the summary before writing.
     this.summary = {
       ...this.summary,
@@ -946,7 +978,12 @@ export class FileSessionWriter implements SessionWriter {
     // file. Windows rejects rename() when the destination still has an open
     // handle, even if that handle belongs to this process.
     await this.writeChain;
-    await this.handle.close();
+    try {
+      await this.handle.close();
+    } catch {
+      // Ignore — handle may already be closed (e.g. by clearSession).
+      // Consistent with the doClose() best-effort pattern.
+    }
     const tmpPath = `${this.filePath}.rewind.tmp`;
     const src = await fsp.open(this.filePath, 'r', 0o600);
     try {
@@ -1096,15 +1133,12 @@ export class FileSessionWriter implements SessionWriter {
     })}\n`;
     // Windows EPERM fix: close the append-mode handle before replacing the
     // file. Windows rejects rename() when the destination still has an open
-    // handle, even if that handle belongs to this process. closeHandlerThenReopen
-    // calls clearHistory (which uses atomicWrite → tmp + rename) and can also
-    // be called standalone.
+    // handle, even if that handle belongs to this process. The caller
+    // (/clear → buildClearCommand) may also call clearHistory which uses
+    // atomicWrite (tmp + rename) — so we do NOT reopen here. The handle is
+    // lazily reopened in enqueueWrite on the next append.
     await this.handle.close();
-    try {
-      await fsp.writeFile(this.filePath, record, 'utf8');
-    } finally {
-      this.handle = await fsp.open(this.filePath, 'a', 0o600);
-    }
+    await fsp.writeFile(this.filePath, record, 'utf8');
     this.activePromptIndex = null;
     this.pendingFileSnapshots = [];
     this.pendingFileSnapshotBytes = 0;

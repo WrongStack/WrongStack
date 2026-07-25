@@ -21,6 +21,8 @@ export function initial(over: Partial<State> = {}): State {
     steeringPending: false,
     steerSnapshot: null,
     hint: '',
+    copiedNotice: '',
+    copiedEntryId: null,
     brain: { state: 'idle' as const },
     brainPrompt: null,
     nextId: 1,
@@ -239,7 +241,7 @@ describe('TUI reducer', () => {
         elapsedMs: 0,
         monitorOpen: true,
       },
-      sddBoard: { monitorOpen: true, snapshot: null as never, focusColumn: null },
+      sddBoard: { monitorOpen: true, snapshot: null as never, focusColumn: undefined },
       worktreeMonitorOpen: true,
       coordinator: { ...initial().coordinator, monitorOpen: true },
     };
@@ -529,6 +531,23 @@ describe('TUI reducer', () => {
     expect(out.historyGen).toBe(1);
   });
 
+  // ── /clear regression: re-pin the managed virtual-scroll viewport ────────
+  // The managed history viewport (components/scrollable-history.tsx) keeps its
+  // scroll position, height-cache buffer, and measured-group set in
+  // component-local refs/state the reducer cannot reach. If the user had
+  // scrolled up (historyScrolled:true) and then ran /clear, the reducer must
+  // (a) report historyScrolled:false and (b) bump historyGen — app-view.tsx
+  // keys <ScrollableHistory> on historyGen, so the bump remounts the component
+  // and resets its internal state back to the pinned/follow position. Without
+  // both signals the viewport would stay in "scrolled-away" mode after a clear
+  // and new output would no longer auto-follow the newest line.
+  it('clearHistory re-pins the managed viewport (historyScrolled reset + historyGen bump)', () => {
+    const before = { ...initial(), historyScrolled: true, historyGen: 2 };
+    const out = reducer(before, { type: 'clearHistory' });
+    expect(out.historyScrolled).toBe(false);
+    expect(out.historyGen).toBe(3);
+  });
+
   it('clearHistory resets active run, queue, stream, tool, confirm, and steering state', () => {
     const out = reducer(
       initial({
@@ -575,6 +594,15 @@ describe('TUI reducer', () => {
     expect(out.queue).toEqual([]);
     expect(out.confirmQueue).toEqual([]);
     expect(out.debugStreamStats).toBeNull();
+  });
+
+  it('clearHistory drops any transient copy highlight', () => {
+    const out = reducer(
+      initial({ copiedNotice: '✓ Copied', copiedEntryId: 42 }),
+      { type: 'clearHistory' },
+    );
+    expect(out.copiedNotice).toBe('');
+    expect(out.copiedEntryId).toBeNull();
   });
 
   it('setBuffer + clearInput reset cursor and history index', () => {
@@ -1094,6 +1122,25 @@ describe('TUI reducer', () => {
     expect(s.entries).toHaveLength(2);
     s = reducer(s, { type: 'addEntry', entry: { kind: 'info', text: 'ok' } });
     expect(s.entries).toHaveLength(3);
+  });
+
+  it('copiedNotice sets and clears the transient copy confirmation and its entry id', () => {
+    let s = reducer(initial(), { type: 'copiedNotice', text: '✓ Copied', entryId: 7 });
+    expect(s.copiedNotice).toBe('✓ Copied');
+    expect(s.copiedEntryId).toBe(7);
+    // It is independent of the shared hint slice.
+    expect(s.hint).toBe('');
+    s = reducer(s, { type: 'copiedNotice', text: '', entryId: null });
+    expect(s.copiedNotice).toBe('');
+    expect(s.copiedEntryId).toBeNull();
+  });
+
+  it('copiedNotice does not disturb the hint slice and vice versa', () => {
+    let s = reducer(initial(), { type: 'hint', text: 'managed' });
+    s = reducer(s, { type: 'copiedNotice', text: '✓ Copied', entryId: 3 });
+    expect(s.hint).toBe('managed');
+    expect(s.copiedNotice).toBe('✓ Copied');
+    expect(s.copiedEntryId).toBe(3);
   });
 });
 

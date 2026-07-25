@@ -25,6 +25,8 @@ function breakdown(): ContextBreakdown {
         plan: 0,
         'leader-after-task': 0,
         contributor: 0,
+        ledger: 0,
+        nextsteps: 0,
         other: 0,
       },
     },

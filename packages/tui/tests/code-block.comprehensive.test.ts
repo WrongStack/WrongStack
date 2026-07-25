@@ -132,7 +132,7 @@ describe('extractMultiFileDiffs', () => {
     const diffs = extractMultiFileDiffs('replace', output);
     expect(diffs).toBeDefined();
     expect(diffs!.length).toBe(1);
-    expect(diffs![0].path).toBe('a.ts');
+    expect(diffs![0]!.path).toBe('a.ts');
   });
 
   it('returns undefined for unsupported tool', () => {

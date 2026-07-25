@@ -85,8 +85,11 @@ export class GoalWebSocketHandler {
   private broadcastInterval: ReturnType<typeof setInterval> | null = null;
   /** Aborts in-flight task agents AND the planning turn when the run is stopped. */
   private abort: AbortController | null = null;
-  /** Monotonically increasing seq for stale-assessment detection (no AbortController —
-   *  Agent.run() has a single-flight guard so we can't abort it from another assess call). */
+  /** Per-assessment AbortController so a newer assessment can abort the prior
+   *  LLM call instead of waiting for it to finish (frees the Agent's single-flight
+   *  guard sooner). */
+  private assessAbort: AbortController | null = null;
+  /** Monotonically increasing seq for stale-assessment detection. */
   private assessSeq = 0;
   /** Set the instant a stop/clear/revert is requested, so a planning turn that
    *  resolves afterwards never launches the orchestrator (the abort alone can't
@@ -251,11 +254,14 @@ export class GoalWebSocketHandler {
     const goal = (payload?.goal as string) || '';
     const seq = (payload?.seq as number) ?? 0;
 
-    // Capture the current seq so the (uncancellable) Agent.run() LLM call
-    // can discard its result if a newer assessment has already superseded it.
-    // Agent.run() has a synchronous single-flight guard (_runInProgress), so
-    // we never abort it from here — the old call completes in the background,
-    // but its result is silently dropped.
+    // Abort any prior assessment so its LLM call stops and frees the Agent's
+    // single-flight guard (_runInProgress), allowing this new assessment to
+    // start without waiting. The stale-seq guard below still catches any
+    // race between abort and the new seq being set.
+    this.assessAbort?.abort();
+    this.assessAbort = new AbortController();
+    const signal = this.assessAbort.signal;
+
     const mySeq = ++this.assessSeq;
 
     const sendResult = (result: GoalAssessResult) => {
@@ -285,7 +291,7 @@ export class GoalWebSocketHandler {
       const assessor = new GoalAssessor({
         goal,
         runOnce: async (prompt: string) => {
-          const result = (await this.agent.run(prompt)) as {
+          const result = (await this.agent.run(prompt, { signal })) as {
             status: string;
             finalText?: string | undefined;
           };
@@ -502,6 +508,8 @@ export class GoalWebSocketHandler {
   private async handleStop(): Promise<void> {
     this.stopping = true;
     this.abort?.abort();
+    this.assessAbort?.abort();
+    this.assessAbort = null;
     this.orchestrator?.stop();
     this.stopBroadcast();
     if (this.graph) await this.store.save(this.graph).catch(() => undefined);

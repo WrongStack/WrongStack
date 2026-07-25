@@ -34,7 +34,6 @@ import { MemoryDetail } from './MemoryDetail';
 import { MemoryDrawer } from './MemoryDrawer';
 import { MemoryEditor } from './MemoryEditor';
 import { MemoryFilters } from './MemoryFilters';
-import { MemoryInjectorTrace } from './MemoryInjectorTrace';
 import { MemoryList } from './MemoryList';
 import type { MemoryDraft } from './shared';
 import {
@@ -709,8 +708,6 @@ export function MemoryManager() {
           />
         </div>
       </div>
-
-      <MemoryInjectorTrace />
 
       {(() => {
         const scopedCount = memories.filter((m) => m.audience).length;

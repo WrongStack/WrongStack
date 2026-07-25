@@ -353,6 +353,32 @@ export function App(props: AppProps): React.ReactElement {
       dispatch({ type: 'setHistoryScrolled', scrolled: info.scrolled }),
     [dispatch],
   );
+  // Transient "Copied" status-line confirmation shown when a chat card's copy
+  // icon is clicked and its content lands on the clipboard. Uses the dedicated
+  // `copiedNotice` slice (not `hint`) so it takes precedence over the
+  // running-tools indicator and never races another hint producer. Auto-cleared
+  // after a short delay; the timer ref lets a rapid second copy reset the
+  // countdown instead of clearing early.
+  const copiedHintTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const onHistoryCopy = useCallback(
+    (entryId: number) => {
+      dispatch({ type: 'copiedNotice', text: '✓ Copied', entryId });
+      if (copiedHintTimerRef.current) clearTimeout(copiedHintTimerRef.current);
+      copiedHintTimerRef.current = setTimeout(() => {
+        dispatch({ type: 'copiedNotice', text: '', entryId: null });
+        copiedHintTimerRef.current = null;
+      }, 2_000);
+    },
+    [dispatch],
+  );
+  // Clear the pending auto-clear timer on unmount so it cannot fire (and
+  // dispatch into an unmounted tree) after teardown.
+  useEffect(
+    () => () => {
+      if (copiedHintTimerRef.current) clearTimeout(copiedHintTimerRef.current);
+    },
+    [],
+  );
   // Board id captured by `/kanban use <boardId>` or the Goal → Kanban
   // bridge. The KanbanPanel reads it as `initialBoardId` so the panel
   // opens on the requested board rather than the session-tag fallback.
@@ -680,7 +706,8 @@ export function App(props: AppProps): React.ReactElement {
 
   // Live mirror of the full-session pointer opt-in. The managed history always
   // owns wheel input because virtualized rows do not exist in native terminal
-  // scrollback. Full mode additionally enables drag and clickable app chrome.
+  // scrollback. Track clicks work in managed mode; full mode additionally
+  // enables pointer drag and clickable app chrome.
   const [mouseMode, setMouseMode] = useState(mouse);
 
   // Mouse tracking ownership. Managed history keeps cheap click/wheel reporting
@@ -1298,6 +1325,7 @@ export function App(props: AppProps): React.ReactElement {
     pasteClipboardImage,
     slashRegistry,
     agent,
+    onHistoryCopy,
   });
 
   /**

@@ -15,20 +15,25 @@
 import { describe, expect, it, vi } from 'vitest';
 import { createPanelOpenDispatcher, type PanelOpenDeps } from '../src/on-panel-open.js';
 
-function makeDeps(over: Partial<PanelOpenDeps> = {}): PanelOpenDeps & {
+type MockedPanelOpenDeps = PanelOpenDeps & {
   dispatch: ReturnType<typeof vi.fn>;
   openProjectPicker: ReturnType<typeof vi.fn>;
   openStatuslinePicker: ReturnType<typeof vi.fn>;
-} {
+};
+
+function makeDeps(over: Partial<PanelOpenDeps> = {}): MockedPanelOpenDeps {
   const dispatch = vi.fn();
   const openProjectPicker = vi.fn();
   const openStatuslinePicker = vi.fn();
+  // vi.fn() is callable and satisfies each dep's function signature at runtime;
+  // the cast reconciles vitest's Mock<Procedure> nominal type with the deps'
+  // structural function types (they differ only by the Constructable overload).
   return {
     dispatch,
     openProjectPicker,
     openStatuslinePicker,
     ...over,
-  };
+  } as MockedPanelOpenDeps;
 }
 
 describe('createPanelOpenDispatcher — picker openers', () => {

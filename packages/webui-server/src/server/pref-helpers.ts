@@ -141,13 +141,6 @@ export interface ConfigWriteLockHolder {
 }
 
 /**
- * Unified global config mutation: read → decrypt → mutate → encrypt → write.
- * All config writes MUST go through this helper so encryption is always
- * preserved and writes are serialized behind the holder's `lock`.
- *
- * Mutates `holder.lock` in place to the new (non-poisoning) chain value.
- */
-/**
  * Write the mutated config to a single file path. Handles read/decrypt/mutate/encrypt/write.
  */
 async function writeGlobalConfigFile(
@@ -179,6 +172,13 @@ async function writeGlobalConfigFile(
   await atomicWrite(filePath, JSON.stringify(encrypted, null, 2), { mode: 0o600 });
 }
 
+/**
+ * Unified global config mutation: read → decrypt → mutate → encrypt → write.
+ * All config writes MUST go through this helper so encryption is always
+ * preserved and writes are serialized behind the holder's `lock`.
+ *
+ * Mutates `holder.lock` in place to the new (non-poisoning) chain value.
+ */
 export async function updateGlobalConfig(
   deps: PrefHelperDeps,
   holder: ConfigWriteLockHolder,
@@ -210,11 +210,20 @@ export async function updateGlobalConfig(
  * and serialized behind the holder's `lock`; failures log but never break
  * the WS reply.
  */
+/** Display-only keys listed in PREF_KEYS for snapshot/get but never persisted. */
+const DISPLAY_ONLY_KEYS = new Set(['groupToolCalls', 'showThinkingLogs', 'autoReviewFallbackModels']);
+
 export async function persistPrefsToConfig(
   deps: PrefHelperDeps,
   holder: ConfigWriteLockHolder,
   payload: Record<string, unknown>,
 ): Promise<void> {
+  // Clone to avoid mutating the caller's payload object.
+  payload = { ...payload };
+  // Strip display-only keys to avoid a no-op config rewrite cycle.
+  for (const k of DISPLAY_ONLY_KEYS) delete payload[k];
+  if (Object.keys(payload).length === 0) return;
+
   return updateGlobalConfig(
     deps,
     holder,

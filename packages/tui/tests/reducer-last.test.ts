@@ -37,8 +37,14 @@ describe('reducer — last branches', () => {
 
   // ── escConfirm uses action.snapshot ──────────────────────────────
   it('escConfirmOpen/Close', () => {
-    const open = reducer(initial(), { type: 'escConfirmOpen', snapshot: { tools: [] } });
-    expect(open.escConfirm).toEqual({ snapshot: { tools: [] } });
+    const snapshot = {
+      runningTools: [],
+      subagents: [],
+      subagentsTerminated: 0,
+      partialAssistantText: '',
+    };
+    const open = reducer(initial(), { type: 'escConfirmOpen', snapshot });
+    expect(open.escConfirm).toEqual({ snapshot });
     expect(reducer(open, { type: 'escConfirmClose' }).escConfirm).toBeNull();
   });
 

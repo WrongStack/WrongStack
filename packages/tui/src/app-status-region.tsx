@@ -132,7 +132,7 @@ export function AppStatusRegion({ host, runtime }: AppViewProps): React.ReactEle
                 state.settingsPicker.open ? state.settingsPicker.animationStyle : liveAnimationStyle
               }
               tokenCounter={tokenCounter}
-              hint={renderRunningTools(state.runningTools) || state.hint}
+              hint={state.copiedNotice || renderRunningTools(state.runningTools) || state.hint}
               queueCount={state.queue.length}
               yolo={yoloLive}
               autonomy={autonomyLive}

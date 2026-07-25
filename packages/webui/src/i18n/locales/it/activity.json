@@ -99,8 +99,8 @@
     "timeout": "Tempo scaduto",
     "reRun": "Esegui di nuovo",
     "reRunTitle": "Esegui di nuovo questo agente (non ancora implementato)",
-    "lastToolCalls": "Ultima {{count}} chiamata strumento",
-    "lastToolCalls_plural": "Ultime {{count}} chiamate strumento",
+    "lastToolCalls_one": "Ultima {{count}} chiamata strumento",
+    "lastToolCalls_other": "Ultime {{count}} chiamate strumento",
     "config": "Configurazione",
     "configProvider": "Provider",
     "configModel": "Modello",
@@ -900,6 +900,7 @@
     "controllerInjection": "iniezione controllore"
   },
   "connection": {
+    "connected": "Connesso",
     "reconnecting": "Riconnessione al backend (tentativo {{attempt}}) — nuovo tentativo tra {{remaining}} s",
     "disconnected": "Disconnesso dal backend",
     "retry": "Riprova ora",

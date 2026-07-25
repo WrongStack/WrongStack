@@ -22,6 +22,42 @@ export async function readClipboardImage(): Promise<ClipboardImage | null> {
 }
 
 /**
+ * Write plain text to the system clipboard. Returns `true` on success, `false`
+ * when the platform is unsupported, no clipboard tool is available, or the
+ * child process failed. Mirrors `readClipboardText`'s platform matrix
+ * (PowerShell on Windows, `pbcopy` on macOS, `wl-copy`/`xclip` on Linux) and is
+ * used by the TUI to copy a chat card's content when its copy icon is clicked —
+ * terminals in raw mode never perform a native copy, so we do it ourselves.
+ */
+export async function writeClipboardText(text: string): Promise<boolean> {
+  const platform = process.platform;
+  if (platform === 'win32') {
+    // Read the payload from stdin so arbitrary text (quotes, newlines,
+    // non-ASCII) never has to be escaped into the command line. Force UTF-8 so
+    // multibyte characters survive the pipe.
+    const ps =
+      '[Console]::InputEncoding = [System.Text.Encoding]::UTF8; ' +
+      '$in = [Console]::In.ReadToEnd(); ' +
+      'Set-Clipboard -Value $in';
+    return runCmdWithInput('powershell', ['-NoProfile', '-Command', ps], text);
+  }
+  if (platform === 'darwin') {
+    return runCmdWithInput('pbcopy', [], text);
+  }
+  if (platform === 'linux') {
+    const tries: Array<[string, string[]]> = [
+      ['wl-copy', []],
+      ['xclip', ['-selection', 'clipboard']],
+    ];
+    for (const [cmd, args] of tries) {
+      if (await runCmdWithInput(cmd, args, text)) return true;
+    }
+    return false;
+  }
+  return false;
+}
+
+/**
  * Read plain text from the system clipboard. Returns `null` when the clipboard
  * holds no text (or only an image), the read failed, or the platform is
  * unsupported. Used by the TUI's Ctrl+V handler: terminals in raw mode deliver
@@ -168,6 +204,45 @@ function runCmd(cmd: string, args: string[]): Promise<string | null> {
       if (killedByTimeout) return finish(null);
       finish(code === 0 ? out : null);
     });
+  });
+}
+
+/**
+ * Spawn `cmd` and feed `input` to its stdin, resolving `true` when the child
+ * exits 0 within the timeout and `false` on spawn error, non-zero exit, or
+ * timeout. Used by `writeClipboardText`; stdin is the payload channel so text
+ * never touches the command line.
+ */
+function runCmdWithInput(cmd: string, args: string[], input: string): Promise<boolean> {
+  return new Promise((resolve) => {
+    const child = spawn(cmd, args, {
+      env: buildChildEnv(),
+      stdio: ['pipe', 'ignore', 'ignore'],
+      windowsHide: true,
+    });
+    let settled = false;
+    let killedByTimeout = false;
+    const finish = (value: boolean) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      clearTimeout(killCap);
+      resolve(value);
+    };
+    const timer = setTimeout(() => {
+      killedByTimeout = true;
+      child.kill('SIGTERM');
+    }, CLIPBOARD_CMD_TIMEOUT_MS);
+    const killCap = setTimeout(() => finish(false), CLIPBOARD_CMD_TIMEOUT_MS + 2_000);
+    child.on('error', () => finish(false));
+    child.on('exit', (code) => {
+      if (killedByTimeout) return finish(false);
+      finish(code === 0);
+    });
+    // Writing to stdin can EPIPE if the child already exited; swallow it and
+    // let the exit handler decide the outcome.
+    child.stdin.on('error', () => {});
+    child.stdin.end(input, 'utf8');
   });
 }
 

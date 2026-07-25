@@ -10,6 +10,7 @@ import {
   GitBranch,
   GitCompare,
   Keyboard,
+  Layers,
   LayoutGrid,
   Mail,
   MessageSquare,
@@ -20,8 +21,6 @@ import {
   Settings as SettingsIcon,
   Sparkles,
   Wand2,
-  Wifi,
-  WifiOff,
   Zap,
 } from 'lucide-react';
 import { type ReactElement, useEffect, useMemo, useState } from 'react';
@@ -84,13 +83,13 @@ const PANELS: PanelDef[] = [
 ];
 
 const VIEWS: ViewDef[] = [
+  { id: 'settings', icon: <SettingsIcon size={16} />, label: 'Settings' },
   { id: 'sddhub', icon: <Wand2 size={16} />, label: 'SDD' },
   { id: 'kanban', icon: <Columns3 size={16} />, label: 'Kanban' },
   { id: 'goal', icon: <Rocket size={16} />, label: 'Goal' },
   { id: 'codemap', icon: <Network size={16} />, label: 'CodeMap' },
   { id: 'techstack', icon: <Boxes size={16} />, label: 'TechStack' },
   { id: 'chronicle', icon: <ChartNoAxesCombined size={16} />, label: 'Chronicle' },
-  { id: 'settings', icon: <SettingsIcon size={16} />, label: 'Settings' },
   { id: 'memory', icon: <BrainCircuit size={16} />, label: 'Memory' },
   { id: 'roster', icon: <Bot size={16} />, label: 'Agent Roster' },
 ];
@@ -173,7 +172,6 @@ export function ActivityBar({ desktopShell = false }: { desktopShell?: boolean |
   const sidebarOpen = useUIStore((s) => s.sidebarOpen);
   const currentView = useUIStore((s) => s.currentView);
   const projectName = useSessionStore((s) => s.projectName);
-  const cwd = useSessionStore((s) => s.cwd);
   const wsConnected = useConfigStore((s) => s.wsConnected);
   const { t } = useAppTranslation();
   // Translate nav labels at render time (arrays are module-level constants;
@@ -223,13 +221,8 @@ export function ActivityBar({ desktopShell = false }: { desktopShell?: boolean |
         desktopShell ? 'w-10' : 'w-12',
       )}
     >
-      {/* ── Branding — logo + project name (pinned top) ── */}
-      <div
-        className={cn(
-          'flex flex-col items-center border-b border-border/60 shrink-0',
-          desktopShell ? 'pt-2 pb-1.5' : 'pt-2.5 pb-2',
-        )}
-      >
+      {/* ── Branding — edge-to-edge logo (pinned top) ── */}
+      <div className="flex flex-col items-center shrink-0 border-b border-border/60">
         <button
           type="button"
           onClick={() => {
@@ -242,8 +235,8 @@ export function ActivityBar({ desktopShell = false }: { desktopShell?: boolean |
               : t('activity:brand.returnToChatDefault')
           }
           className={cn(
-            'relative flex items-center justify-center overflow-hidden border border-border/70 bg-[#121210] shadow-[0_2px_8px_-2px_hsl(var(--shadow-color)/0.5)] transition-shadow hover:shadow-[0_3px_12px_-2px_hsl(var(--primary)/0.5)]',
-            desktopShell ? 'w-7 h-7' : 'w-8 h-8',
+            'relative flex items-center justify-center overflow-hidden bg-[#121210] transition-shadow hover:shadow-[0_3px_12px_-2px_hsl(var(--primary)/0.5)]',
+            desktopShell ? 'w-full h-8' : 'w-full h-11',
           )}
         >
           <img
@@ -254,34 +247,6 @@ export function ActivityBar({ desktopShell = false }: { desktopShell?: boolean |
             className="ws-brand-logo h-full w-full"
           />
         </button>
-        {/* Project name — truncated to fit the narrow icon rail. */}
-        {!desktopShell && (
-          <span
-            className="mt-1.5 w-10 truncate text-center text-[8px] font-semibold leading-tight text-muted-foreground"
-            title={cwd || projectName || 'WrongStack'}
-          >
-            {projectName || 'WS'}
-          </span>
-        )}
-        {/* Connection status indicator — always visible wifi icon */}
-        <span
-          role="status"
-          aria-label={
-            wsConnected ? t('activity:status.connected') : t('activity:status.disconnected')
-          }
-          className={cn(
-            'flex items-center justify-center',
-            desktopShell ? 'mt-1.5' : 'mt-1',
-            wsConnected ? 'text-success' : 'text-warning',
-          )}
-          title={wsConnected ? t('activity:status.connected') : t('activity:status.disconnected')}
-        >
-          {wsConnected ? (
-            <Wifi size={desktopShell ? 12 : 13} />
-          ) : (
-            <WifiOff size={desktopShell ? 12 : 13} />
-          )}
-        </span>
       </div>
 
       {/* ── Icon column ──
@@ -317,6 +282,29 @@ export function ActivityBar({ desktopShell = false }: { desktopShell?: boolean |
             onClick={() => openMainView(def.id)}
           />
         ))}
+      </div>
+
+      {/* ── Connection indicator — compact dot between icon column and utilities ── */}
+      <div
+        role="status"
+        aria-label={
+          wsConnected
+            ? t('activity:connection.connected', 'Connected')
+            : t('activity:connection.disconnected', 'Disconnected')
+        }
+        className="flex items-center justify-center py-1"
+      >
+        <span
+          className={cn(
+            'h-1.5 w-1.5 rounded-full',
+            wsConnected ? 'bg-success' : 'bg-muted-foreground/40',
+          )}
+          title={
+            wsConnected
+              ? t('activity:connection.connected', 'Connected')
+              : t('activity:connection.disconnected', 'Disconnected')
+          }
+        />
       </div>
 
       {/* ── Utilities overflow menu — pinned bottom ──
@@ -470,10 +458,32 @@ function UtilitiesMenu({
         )}
 
         <DropdownMenuSeparator />
+        <DropdownMenuLabel className="text-[11px] uppercase text-muted-foreground">
+          {t('activity:nav.settings', 'Settings')}
+        </DropdownMenuLabel>
         <DropdownMenuItem onSelect={() => openMainView('settings')}>
           <SettingsIcon size={16} />
           <span>{t('activity:nav.settings', 'Settings')}</span>
+          <span className="ml-auto text-[10px] text-muted-foreground">{t('settings:tabs.general', 'overview')}</span>
         </DropdownMenuItem>
+        {[
+          { icon: <Palette size={14} />, label: 'General', tab: 'general' },
+          { icon: <Network size={14} />, label: 'Provider', tab: 'provider' },
+          { icon: <Bot size={14} />, label: 'Agent', tab: 'agent' },
+          { icon: <Zap size={14} />, label: 'Execution', tab: 'execution' },
+          { icon: <Layers size={14} />, label: 'Fallbacks', tab: 'fallbacks' },
+        ].map(({ icon, label, tab }) => (
+          <DropdownMenuItem
+            key={tab}
+            onSelect={() => {
+              useUIStore.getState().setSettingsActiveTab(tab);
+              openMainView('settings');
+            }}
+          >
+            {icon}
+            <span>{t(`settings:tabs.${tab}`, label)}</span>
+          </DropdownMenuItem>
+        ))}
 
         <DropdownMenuSeparator />
         <DropdownMenuLabel className="text-[11px] uppercase text-muted-foreground">

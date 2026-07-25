@@ -178,6 +178,8 @@ export function createInitialState(options: CreateInitialStateOptions): State {
     steeringPending: false,
     steerSnapshot: null,
     hint: '',
+    copiedNotice: '',
+    copiedEntryId: null,
     brain: { state: 'idle' },
     brainPrompt: null,
     nextId: initialNextId,

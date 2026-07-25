@@ -64,6 +64,10 @@ jobs:
 
       # Workspace typecheck, serially to avoid tsc buildinfo contention.
       # Matches the root package.json script exactly.
+      # Each package's `typecheck` script covers BOTH its source tsconfig and
+      # its test tsconfig (e.g. packages/tui runs `tsc --noEmit &&
+      # tsc --noEmit -p tsconfig.test.json`), so test-fixture/type-contract
+      # drift fails this gate instead of silently accumulating.
       - name: TypeCheck
         run: pnpm typecheck
         env:

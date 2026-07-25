@@ -176,7 +176,7 @@ function QuickToggle({
 // ── Panel ─────────────────────────────────────────────────────────────
 
 export function SessionPanel() {
-  const { client, updatePrefs, switchAutonomy } = useWebSocket();
+  const { client, updatePrefs } = useWebSocket();
   const { t } = useAppTranslation();
   const wsConnected = useConfigStore((s) => s.wsConnected);
   const wsUrl = useConfigStore((s) => s.wsUrl);
@@ -194,6 +194,7 @@ export function SessionPanel() {
 
   const pinnedIds = useUIStore((s) => s.pinnedIds);
   const unpinAll = useUIStore((s) => s.unpinAll);
+  const historyEntries = useHistoryStore((s) => s.entries);
 
   const localPrefs = useLocalPrefs();
   const syncPref = useCallback(
@@ -227,6 +228,12 @@ export function SessionPanel() {
 
   const send = (msg: Parameters<NonNullable<ReturnType<typeof getWSClient>>['send']>[0]) =>
     getWSClient(wsUrl)?.send?.(msg);
+
+  // Fetch the session list when connected so the History section populates.
+  useEffect(() => {
+    if (!wsConnected) return;
+    getWSClient(wsUrl)?.send?.({ type: 'sessions.list', payload: { limit: 8 } });
+  }, [wsConnected, wsUrl]);
 
   const handleNewSession = useCallback(async () => {
     if (
@@ -456,35 +463,11 @@ export function SessionPanel() {
       {/* ── Quick settings — the mid-session knobs ── */}
       <div className="space-y-1 border-b border-border/70 px-3 py-2.5">
         <SectionHeading icon={<SlidersHorizontal className="h-3 w-3" />} label={t('activity:sessionPanel.quickSettings')} />
-        <div className="flex items-center justify-between gap-2 py-1">
-          <span className="text-xs text-foreground/80">{t('activity:sessionPanel.autonomy')}</span>
-          <select
-            value={localPrefs.autonomy}
-            onChange={(e) => {
-              const v = e.target.value as typeof localPrefs.autonomy;
-              localPrefs.set({ autonomy: v });
-              switchAutonomy(v);
-            }}
-            className="shrink-0 h-6 max-w-[150px] rounded-md border bg-background px-1.5 text-[11px]"
-          >
-            <option value="off">{t('activity:sessionPanel.autonomyOptions.off')}</option>
-            <option value="suggest">{t('activity:sessionPanel.autonomyOptions.suggest')}</option>
-            <option value="auto">{t('activity:sessionPanel.autonomyOptions.auto')}</option>
-            <option value="eternal">{t('activity:sessionPanel.autonomyOptions.eternal')}</option>
-            <option value="eternal-parallel">{t('activity:sessionPanel.autonomyOptions.eternal-parallel')}</option>
-          </select>
-        </div>
         <QuickToggle
           label={t('activity:sessionPanel.yolo')}
           title={t('activity:sessionPanel.yoloTitle')}
           value={localPrefs.yolo}
           onChange={() => syncPref('yolo', !localPrefs.yolo)}
-        />
-        <QuickToggle
-          label={t('activity:sessionPanel.refine')}
-          title={t('activity:sessionPanel.refineTitle')}
-          value={localPrefs.enhanceEnabled}
-          onChange={() => syncPref('enhanceEnabled', !localPrefs.enhanceEnabled)}
         />
         <QuickToggle
           label={t('activity:sessionPanel.sound')}
@@ -500,7 +483,6 @@ export function SessionPanel() {
 
       {/* ── History / recent sessions ── */}
       {(() => {
-        const historyEntries = useHistoryStore.getState().entries;
         const recent = historyEntries.slice(0, 8);
         if (recent.length === 0) return null;
         return (
@@ -548,17 +530,6 @@ export function SessionPanel() {
         );
       })()}
 
-      {/* ── Session ID footer ── */}
-      <div className="px-4 py-2.5">
-        {session && (
-          <div
-            className="text-[10px] text-muted-foreground font-mono mt-1 truncate"
-            title={session.id}
-          >
-            {t('activity:sessionPanel.sessionId', { id: shortSessionId(session.id) })}
-          </div>
-        )}
-      </div>
     </div>
   );
 }

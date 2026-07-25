@@ -99,8 +99,8 @@
     "timeout": "Délai dépassé",
     "reRun": "Relancer",
     "reRunTitle": "Relancer cet agent (pas encore implémenté)",
-    "lastToolCalls": "Dernier appel d’outil ({{count}})",
-    "lastToolCalls_plural": "Derniers appels d’outils ({{count}})",
+    "lastToolCalls_one": "Dernier appel d’outil ({{count}})",
+    "lastToolCalls_other": "Derniers appels d’outils ({{count}})",
     "config": "Configuration",
     "configProvider": "Fournisseur",
     "configModel": "Modèle",
@@ -900,6 +900,7 @@
     "controllerInjection": "injection contrôleur"
   },
   "connection": {
+    "connected": "Connecté",
     "reconnecting": "Reconnexion au backend (tentative {{attempt}}) — nouvel essai dans {{remaining}} s",
     "disconnected": "Déconnecté du backend",
     "retry": "Réessayer",

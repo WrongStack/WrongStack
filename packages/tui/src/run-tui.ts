@@ -33,7 +33,7 @@ import type { McpPickerItem } from './components/mcp-picker.js';
 import type { PluginPickerItem } from './components/plugin-picker.js';
 import type { StatuslineItem } from './components/statusline-picker.js';
 import type { ToolPickerItem } from './components/tools-picker.js';
-import { MOUSE_OFF } from './mouse.js';
+import { ALT_SCREEN_OFF, ALT_SCREEN_ON, MOUSE_OFF } from './mouse.js';
 import { startTerminalTitle } from './terminal-title.js';
 
 // Re-export autonomy stage types from core for backward compatibility
@@ -181,10 +181,10 @@ export interface RunTuiOptions {
   /** Play terminal bell (\\x07) when agent run completes. */
   chime?: boolean | undefined;
   /**
-   * Enable terminal mouse tracking (SGR; click + wheel). Stays in the normal
-   * screen buffer, but while tracking is on the plain wheel reports to the app.
-   * The bounded chat viewport can always be scrolled with PgUp/PgDn. Off by
-   * default; opt in here or via
+   * Enable full terminal mouse interaction (SGR drag + clickable UI). The TUI
+   * runs in the alternate screen and always owns plain wheel reports for its
+   * bounded chat viewport; this option additionally enables pointer dragging
+   * and app chrome clicks. Off by default; opt in here or via
    * WRONGSTACK_MOUSE=1. See mouse.ts for the trade-off rationale.
    */
   mouse?: boolean | undefined;
@@ -743,32 +743,21 @@ export async function runTui(opts: RunTuiOptions): Promise<number> {
   // Locked in at startup so the profile is stable throughout the session.
   const capability = detectTerminal({ stdin, stdout });
 
+  // Resolve the full pointer-mode opt-in before taking over the screen. A
+  // settings adapter is allowed to throw; doing this first guarantees such an
+  // error cannot strand the terminal inside the alternate buffer.
+  const mouseEnabled =
+    opts.mouse ?? opts.getSettings?.().mouseMode ?? process.env.WRONGSTACK_MOUSE === '1';
+
   // Silence all console / stderr / process-warning output so external
   // writes don't interleave with Ink's terminal control sequences. See
   // the block comment above `silenceTerminal` for the full rationale.
   silenceTerminal();
 
-  stdout.write(BRACKETED_PASTE_ON);
-
   // Resolve the full pointer-mode opt-in. The App component owns the actual
   // lifecycle: managed history always captures wheel reports, while this flag
   // adds drag/clickable UI. cleanup() below sends MOUSE_OFF unconditionally so
   // the terminal is never left reporting mouse events after exit.
-  const mouseEnabled =
-    opts.mouse ?? opts.getSettings?.().mouseMode ?? process.env.WRONGSTACK_MOUSE === '1';
-
-  // Clear the VISIBLE screen (not scrollback) before Ink's first paint. The
-  // REPL boot output (provider banner, Director roster, fleet paths, recovery
-  // prompts) typically fills the terminal, so without this Ink mounts with its
-  // live region (input + status bar) jammed against the bottom edge. The first
-  // post-mount re-render — async git/fleet/goal state landing a frame later —
-  // then grows/shifts that region by a row or two, the terminal scrolls, and
-  // the top of the live region (the `›` input row + status-bar border) is
-  // stranded permanently in scrollback (the "two prompts on launch" bug).
-  // \x1b[2J scrolls the boot output up into native scrollback (still reachable
-  // with the mouse wheel / Shift+PgUp), \x1b[H homes the cursor so Ink starts
-  // from a clean top-of-screen with a full screen of headroom below it.
-  stdout.write('\x1b[2J\x1b[H');
 
   const inkStdin: NodeJS.ReadStream = stdin;
 
@@ -827,6 +816,7 @@ export async function runTui(opts: RunTuiOptions): Promise<number> {
 
   // Track cleanup state so signal handlers don't double-disable.
   let cleaned = false;
+  let alternateScreenActive = false;
 
   // Hoisted Ink instance reference — signal handlers (registered before the
   // Promise constructor where `instance` lives) need to call unmount() on
@@ -836,7 +826,6 @@ export async function runTui(opts: RunTuiOptions): Promise<number> {
     if (cleaned) return;
     cleaned = true;
     unregisterTuiClient();
-    unsilenceTerminal();
     try {
       stopTitle();
     } catch {
@@ -851,8 +840,18 @@ export async function runTui(opts: RunTuiOptions): Promise<number> {
       // release() calls setRawMode(false) and emits the reset sequence; it is
       // idempotent (safe to call even if raw mode was never acquired).
       lifecycle.release();
+      if (alternateScreenActive) {
+        // Restore the saved normal buffer only after every TUI-owned mode is
+        // off. No printable output may follow this write or it would leak into
+        // the user's shell screen.
+        stdout.write(ALT_SCREEN_OFF);
+        alternateScreenActive = false;
+      }
+      lifecycle.reset(stdout);
     } catch {
       // stdout may already be closed during shutdown — ignore.
+    } finally {
+      unsilenceTerminal();
     }
   };
 
@@ -886,11 +885,9 @@ export async function runTui(opts: RunTuiOptions): Promise<number> {
     } catch {
       // best-effort — exiting either way
     }
-    stdout.write(BRACKETED_PASTE_OFF);
-    stdout.write(MOUSE_OFF);
-    // Release raw mode + reset SGR even on a forced exit.  The lifecycle
-    // manager is idempotent so this is safe even if cleanup() already ran.
-    lifecycle.release();
+    // Synchronous and idempotent: disables input modes, exits alternate screen,
+    // restores raw mode/cursor/style, and unsilences terminal output.
+    cleanup();
     process.exit(130);
   };
 
@@ -906,8 +903,8 @@ export async function runTui(opts: RunTuiOptions): Promise<number> {
   // is a safety net for when Ink's unmount itself hangs.
   const signals: NodeJS.Signals[] = ['SIGTERM', 'SIGHUP', 'SIGINT'];
   const signalHandler = () => {
-    cleanup();
     inkInstance?.unmount();
+    cleanup();
     // If Ink's unmount hangs, force-exit after 5s.
     const sig = setTimeout(() => process.exit(143), 5_000);
     sig.unref();
@@ -931,8 +928,8 @@ export async function runTui(opts: RunTuiOptions): Promise<number> {
     // restores terminal state and resolves waitUntilExit(). If Ink hangs,
     // the 5s deadline in signalHandler's pattern fires — but sigintHandler
     // is separate so we replicate the safety net here.
-    cleanup();
     inkInstance?.unmount();
+    cleanup();
     const sig = setTimeout(() => process.exit(130), 5_000);
     sig.unref();
   };
@@ -1254,11 +1251,19 @@ export async function runTui(opts: RunTuiOptions): Promise<number> {
         // stdout may be closed mid-teardown — ignore.
       }
     };
-    // Acquire raw mode through the lifecycle manager. This is the last setRawMode
-    // call before Ink takes over stdin, closing the Windows ConPTY readline→Ink
-    // handoff race (the manager's doubly-guarded acquire is idempotent).
-    lifecycle.acquire(stdin);
     try {
+      // A full-screen TUI must not share the normal buffer's scrollback. DECSET
+      // 1049 saves the shell screen and enters a fresh alternate buffer;
+      // terminals disable native scrollback/scrollbars for that buffer.
+      stdout.write(ALT_SCREEN_ON);
+      alternateScreenActive = true;
+      stdout.write(BRACKETED_PASTE_ON);
+      stdout.write('\x1b[2J\x1b[H');
+
+      // Acquire raw mode through the lifecycle manager. This is the last
+      // setRawMode call before Ink takes over stdin, closing the Windows ConPTY
+      // readline→Ink handoff race (acquire is idempotent).
+      lifecycle.acquire(stdin);
       instance = render(
         React.createElement(App, {
           agent: opts.agent,

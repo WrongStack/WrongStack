@@ -31,6 +31,7 @@ import { ChatInput } from '../ChatInput';
 import { CheckpointTimeline } from '../CheckpointTimeline';
 import { ContextFillBar } from '../ContextBar';
 import { ContextBreakdownModal } from '../ContextBreakdownModal';
+import { MemoryInjectorTrace } from '@/components/MemoryManager/MemoryInjectorTrace';
 import { ContextModePicker } from '../ContextModePicker';
 import { CostChip } from '../CostChip';
 import { MessageBubble } from '../MessageBubble';
@@ -282,6 +283,14 @@ export function ChatView() {
     const handler = () => setBreakdownOpen(true);
     document.addEventListener('open:context-breakdown', handler);
     return () => document.removeEventListener('open:context-breakdown', handler);
+  }, []);
+
+  // Listen for session-end event → expand collapsed input so next-steps
+  // selections can reach the textarea.
+  useEffect(() => {
+    const handler = () => setInputCollapsed(false);
+    document.addEventListener('chat:session-end', handler);
+    return () => document.removeEventListener('chat:session-end', handler);
   }, []);
 
   // Context window usage: cap display at 100%; raw token counts still show overflow.
@@ -665,6 +674,7 @@ export function ChatView() {
                   onClick={() => setBreakdownOpen(true)}
                 />
               )}
+              <MemoryInjectorTrace />
               {totalTokens.input > 0 && (
                 <>
                   <span className="flex items-center gap-1">

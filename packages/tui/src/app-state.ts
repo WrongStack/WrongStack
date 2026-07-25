@@ -213,6 +213,21 @@ export type State = {
     partialAssistantText: string;
   } | null;
   hint: string;
+  /**
+   * Transient "Copied" confirmation shown when a chat card's copy icon is
+   * clicked and its content lands on the clipboard. Separate from `hint` so it
+   * takes precedence over the running-tools indicator (copying tool output
+   * mid-run is a prime use case) and never races another hint producer. Empty
+   * string = no notice. Auto-cleared by a host timer.
+   */
+  copiedNotice: string;
+  /**
+   * Entry id of the card whose copy icon was just clicked, so ScrollableHistory
+   * can flash that specific icon in the success color while the "Copied" notice
+   * is active. `null` = no card highlighted. Set and cleared in lockstep with
+   * `copiedNotice`.
+   */
+  copiedEntryId: number | null;
   brain: {
     state: 'idle' | 'deciding' | 'answered' | 'ask_human' | 'denied';
     source?: string | undefined;
@@ -990,6 +1005,7 @@ export type Action =
   /** Submit handler consumed the steering flag; reset. */
   | { type: 'steerConsume' }
   | { type: 'hint'; text: string }
+  | { type: 'copiedNotice'; text: string; entryId: number | null }
   | {
       type: 'brainStatus';
       state: State['brain']['state'];

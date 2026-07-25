@@ -93,7 +93,9 @@
       "modelsFor": "{{provider}} için kullanılabilir modeller",
       "activeKeys_one": "{{count}} etkin anahtar",
       "activeKeys_other": "{{count}} etkin anahtar",
-      "startSession": "Oturumu Başlat"
+      "startSession": "Oturumu Başlat",
+      "saveConfig": "Yapılandırmayı Kaydet",
+      "saveConfigHint": "Sağlayıcı ve model kaydedildi. Hazır olduğunuzda sohbete başlayın."
     },
     "card": {
       "keySaved": "Anahtar kaydedildi",
@@ -135,6 +137,15 @@
       "minutesAgo": "{{count}} dk önce",
       "hoursAgo": "{{count}} sa önce",
       "daysAgo": "{{count}} gün önce"
+    },
+    "probe": {
+      "checking": "Bağlantı kontrol ediliyor…",
+      "connected": "Bağlandı",
+      "models": "model",
+      "failed": "Test başarısız",
+      "noBaseUrl": "Temel URL yapılandırılmamış",
+      "unreachable": "Bağlanılamadı",
+      "httpStatus": "Durum"
     },
     "toasts": {
       "keySaved": "{{name}} API anahtarı kaydedildi",
