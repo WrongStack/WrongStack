@@ -3,16 +3,9 @@
   "project": "packages/techstack",
   "hashAlgorithm": "sha256-64bit",
   "diagnostics": {
-    "f485293b187972c2": 1,
-    "7c28429a0e6857a2": 1,
     "b52d4915b3c8b288": 1,
     "2edb53842a20e17d": 1,
-    "adad9f5ab86cccef": 1,
     "2772b516c931f8d0": 5,
-    "8d8cedd6d1662ffa": 7,
-    "0189068366b535a9": 1,
-    "a7f6d62a0698df79": 1,
-    "ea1f1992f71533aa": 1
+    "8d8cedd6d1662ffa": 7
   }
 }
-

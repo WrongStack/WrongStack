@@ -3,14 +3,10 @@
   "project": "packages/plug-lsp",
   "hashAlgorithm": "sha256-64bit",
   "diagnostics": {
-    "18a5e558e006104c": 1,
-    "e9d411979a5f04dd": 1,
-    "a819e479695fb6f2": 1,
-    "9035a2c4601181bb": 50,
-    "e04c62c514a30a87": 2,
+    "9035a2c4601181bb": 1,
+    "e04c62c514a30a87": 1,
     "c66766d3d2a731fc": 10,
     "2362db66938a7a3b": 9,
     "b188e89ec3ee231b": 1
   }
 }
-

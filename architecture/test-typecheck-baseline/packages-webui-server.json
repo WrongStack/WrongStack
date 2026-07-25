@@ -3,7 +3,6 @@
   "project": "packages/webui-server",
   "hashAlgorithm": "sha256-64bit",
   "diagnostics": {
-    "eee28e006fe1bacc": 9,
     "17ca769e649e0285": 1,
     "232ee30d02aa6bcd": 1,
     "4626641daeb295ff": 3,
@@ -62,9 +61,7 @@
     "f4b9a7d0fa5c9b5b": 1,
     "27d4d63d8ea36cfd": 2,
     "973d63cad1d16b33": 1,
-    "2e9188dfa6a4fe59": 1,
     "9015f6c2ddcbcfe1": 1,
-    "437cf9244a610d90": 1,
     "4ee26ec8bf219060": 1,
     "c75cc11914fbf5fb": 1,
     "d985f67fbe8fe925": 1,
@@ -72,13 +69,10 @@
     "3711f22ba2cb43b1": 1,
     "4beb33790e0f1eb2": 1,
     "632ae0a3a9fe3a7f": 1,
-    "90d1bc75133489e1": 1,
     "3353903ab4c81d83": 1,
     "73c4317c7c2b209d": 10,
-    "ebd9eb48dadd3095": 1,
     "d9d182e5303caa70": 1,
     "aed8bfa2957b6401": 3,
-    "2809a7b732d293b8": 1,
     "050519a068c255c7": 1,
     "85249cf1f317bba4": 2,
     "d7850ac6fc47b8df": 1,
@@ -93,4 +87,3 @@
     "553470da4c7be226": 3
   }
 }
-

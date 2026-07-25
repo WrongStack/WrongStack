@@ -5,7 +5,7 @@ import { describe, expect, it } from 'vitest';
 // brand-new export from the @wrongstack/core dist bundle. Once
 // ALIBABA_TOKEN_PLAN_MODELS has at least one consumer inside the core
 // package itself, this can switch back to `from '@wrongstack/core'`.
-import { ALIBABA_TOKEN_PLAN_MODELS } from '../../core/src/models/alibaba-token-plan-catalog.js';
+import { ALIBABA_TOKEN_PLAN_MODELS } from '@wrongstack/core/models';
 
 /**
  * Drift guard: the curated overlay `packages/cli/data/providers.json` (synced
