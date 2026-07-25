@@ -4,6 +4,7 @@ import * as path from 'node:path';
 import type { Context } from '@wrongstack/core/agent';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { runIndexer } from '../src/codebase-index/indexer.js';
+import { IndexStore } from '../src/codebase-index/writer.js';
 
 const ctx = {} as Context; // runIndexer ignores ctx (prefixed _ctx)
 let dir: string;
@@ -105,6 +106,34 @@ describe('runIndexer', () => {
     // ignored→gitignore, adir→not a file, note.txt→no lang, missing→stat fails;
     // only real.ts is indexed.
     expect(res.filesIndexed).toBe(1);
+  });
+
+  it('makes a targeted reindex immediately searchable with stale symbols removed', async () => {
+    const file = path.join(dir, 'probe.ts');
+    const oldSymbol = 'TargetedReindexOldSymbol';
+    const newSymbol = 'TargetedReindexNewSymbol';
+
+    await fs.writeFile(file, `export const ${oldSymbol} = 1;\n`);
+    await runIndexer(ctx, { projectRoot: dir, indexDir: indexDir(), files: [file] });
+
+    await fs.writeFile(file, `export const ${newSymbol} = 2;\n`);
+    const newer = new Date(Date.now() + 2000);
+    await fs.utimes(file, newer, newer);
+    const result = await runIndexer(ctx, { projectRoot: dir, indexDir: indexDir(), files: [file] });
+
+    expect(result.errors).toEqual([]);
+    expect(result.filesIndexed).toBe(1);
+    expect(result.symbolsIndexed).toBe(1);
+
+    const store = new IndexStore(dir, { indexDir: indexDir() });
+    try {
+      const fresh = store.searchRanked(newSymbol, { file }, 10);
+      const stale = store.searchRanked(oldSymbol, { file }, 10);
+      expect(fresh.results.some((hit) => hit.name === newSymbol)).toBe(true);
+      expect(stale.results.some((hit) => hit.name === oldSymbol)).toBe(false);
+    } finally {
+      store.close();
+    }
   });
 
   it('records a file with zero symbols', async () => {
