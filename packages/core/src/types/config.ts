@@ -1,3 +1,4 @@
+export * from './config/fleet-chat.js';
 export * from './config/runtime.js';
 export * from './config/context.js';
 export * from './config/tools.js';
