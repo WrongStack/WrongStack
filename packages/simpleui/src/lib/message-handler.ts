@@ -549,7 +549,7 @@ export function createMessageHandler(deps: MessageHandlerDeps): ServerMessageHan
             let matchIndex = -1;
             for (let index = current.length - 1; index >= 0; index--) {
               const tc = current[index];
-              if (!tc || tc.status !== 'running') continue;
+              if (tc?.status !== 'running') continue;
               if (execId ? tc.id === execId : tc.name === execName) {
                 matchIndex = index;
                 break;

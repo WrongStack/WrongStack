@@ -100,6 +100,11 @@ a:focus-visible {
   outline-offset: 2px;
 }
 
+::selection {
+  background: var(--accent);
+  color: var(--accent-ink);
+}
+
 .app-shell {
   height: 100dvh;
   min-height: 0;
@@ -129,15 +134,31 @@ a:focus-visible {
   background: var(--topbar-bg);
 }
 
+/* Fine gold hairline under the topbar — deco linework, no gradient washes. */
 .topbar::after {
   position: absolute;
   right: 0;
   bottom: -1px;
   left: 0;
-  height: 2px;
-  background: linear-gradient(90deg, var(--accent) 0 18%, var(--brand-orange) 18% 23%, transparent 23%);
+  height: 1px;
+  background: var(--accent);
   content: "";
   pointer-events: none;
+}
+
+/* Centered diamond ornament on the gold rule — classic deco geometry. */
+.topbar::before {
+  position: absolute;
+  bottom: -4px;
+  left: 50%;
+  z-index: 1;
+  width: 7px;
+  height: 7px;
+  border: 1px solid var(--accent);
+  background: var(--bg);
+  content: "";
+  pointer-events: none;
+  transform: translateX(-50%) rotate(45deg);
 }
 
 .project-block,
@@ -154,8 +175,8 @@ a:focus-visible {
   display: grid;
   place-items: center;
   flex: none;
-  border-right: 1px solid var(--line);
-  background: #121210;
+  border-right: 1px solid var(--accent);
+  background: var(--code-bg);
   overflow: hidden;
 }
 
@@ -188,10 +209,13 @@ a:focus-visible {
 .project-copy > strong {
   overflow: hidden;
   color: var(--text);
-  font-size: 13px;
-  font-weight: 720;
+  font-family: var(--font-display);
+  font-size: 14px;
+  font-weight: 400;
+  letter-spacing: 0.08em;
   line-height: 1.2;
   text-overflow: ellipsis;
+  text-transform: uppercase;
   white-space: nowrap;
 }
 
@@ -654,7 +678,7 @@ a:focus-visible {
   overscroll-behavior: contain;
   background: var(--surface);
   border: 1px solid var(--line);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+  box-shadow: 0 8px 24px var(--shadow);
 }
 
 .agent-finished-item {
@@ -756,7 +780,7 @@ a:focus-visible {
 .agent-dot.running,
 .agent-dot.busy {
   background: var(--accent);
-  box-shadow: 0 0 10px rgba(255, 47, 130, 0.65);
+  box-shadow: 0 0 10px color-mix(in srgb, var(--accent) 65%, transparent);
 }
 
 .agent-dot.completed,
@@ -808,8 +832,11 @@ a:focus-visible {
 .agent-empty-state h1 {
   margin: 8px 0;
   color: var(--text);
+  font-family: var(--font-display);
   font-size: clamp(28px, 4vw, 48px);
-  letter-spacing: -0.04em;
+  font-weight: 400;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
 }
 
 .agent-empty-state p {
@@ -951,12 +978,27 @@ a:focus-visible {
   letter-spacing: 0.2em;
 }
 
+/* Deco diamond bullets flanking the eyebrow label. */
+.empty-state span::before,
+.empty-state span::after,
+.agent-empty-state span::before,
+.agent-empty-state span::after {
+  margin: 0 10px;
+  color: var(--accent);
+  content: "◆";
+  font-size: 6px;
+  letter-spacing: 0;
+  vertical-align: 2px;
+}
+
 .empty-state h1 {
   margin: 7px 0 9px;
   color: var(--text);
+  font-family: var(--font-display);
   font-size: clamp(30px, 5vw, 58px);
-  font-weight: 730;
-  letter-spacing: -0.055em;
+  font-weight: 400;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
 }
 
 .empty-state p {
@@ -2469,7 +2511,7 @@ a:focus-visible {
   gap: 7px;
   padding: 4px 8px;
   margin-bottom: 3px;
-  border-radius: 4px;
+  border-radius: 0;
   background: var(--surface-2);
   font-size: 11px;
   font-family: var(--font-mono);
@@ -3155,7 +3197,7 @@ a:focus-visible {
   width: 100%;
   padding: 6px 10px;
   border: 1px solid var(--line);
-  border-radius: 6px;
+  border-radius: 0;
   background: var(--surface);
   color: var(--text);
   font-size: 12px;
@@ -3239,7 +3281,7 @@ a:focus-visible {
   z-index: 40;
   border: 0;
   padding: 0;
-  background: rgba(0, 0, 0, 0.5);
+  background: oklch(18% 0.045 165 / 0.55); /* deep-emerald scrim, both themes */
   cursor: default;
 }
 
@@ -3313,7 +3355,7 @@ a:focus-visible {
   align-items: center;
   gap: 6px;
   border: 0;
-  border-radius: 2px;
+  border-radius: 0;
   padding: 4px 6px;
   background: transparent;
   color: var(--text-secondary);
@@ -3391,13 +3433,13 @@ a:focus-visible {
 
 .diff-line-add {
   display: block;
-  background: rgba(94, 224, 160, 0.08);
+  background: color-mix(in srgb, var(--success) 8%, transparent);
   color: var(--success);
 }
 
 .diff-line-remove {
   display: block;
-  background: rgba(255, 100, 110, 0.08);
+  background: color-mix(in srgb, var(--danger) 8%, transparent);
   color: var(--danger);
 }
 
@@ -3503,7 +3545,7 @@ a:focus-visible {
 }
 .memory-drawer-head span {
   display: flex; align-items: center; gap: 6px;
-  color: var(--accent); font-family: "IBM Plex Mono",monospace; font-size: 10px; letter-spacing: 0.1em;
+  color: var(--accent); font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.1em;
 }
 .memory-drawer-head button { width:26px;height:26px;border:0;background:transparent;color:var(--muted);cursor:pointer;display:flex;align-items:center;justify-content:center }
 .memory-drawer-head button:hover { background:var(--surface-2);color:var(--text) }
@@ -3513,11 +3555,11 @@ a:focus-visible {
 }
 .memory-drawer-search input {
   flex:1; min-width:0; border:1px solid var(--line-strong); padding:3px 6px;
-  background:var(--bg); color:var(--text); font-family:"IBM Plex Mono",monospace; font-size:10px;
+  background:var(--bg); color:var(--text); font-family:var(--font-mono); font-size:10px;
 }
 .memory-drawer-search button {
   border:1px solid var(--line-strong); padding:2px 10px; background:var(--surface);
-  color:var(--accent); font-family:"IBM Plex Mono",monospace; font-size:10px; cursor:pointer;
+  color:var(--accent); font-family:var(--font-mono); font-size:10px; cursor:pointer;
 }
 .memory-drawer-search button:disabled { opacity:0.4; cursor:default }
 
@@ -3530,14 +3572,14 @@ a:focus-visible {
 }
 .memory-card-head { display:flex;align-items:center;gap:6px;margin-bottom:3px }
 .memory-kind {
-  font-family:"IBM Plex Mono",monospace; font-size:7px; letter-spacing:0.1em; padding:1px 4px;
+  font-family:var(--font-mono); font-size:7px; letter-spacing:0.1em; padding:1px 4px;
   background:var(--surface-2); color:var(--accent);
 }
 .memory-card-tags { display:flex;align-items:center;gap:3px;font-size:9px;color:var(--muted) }
 .memory-card-text { margin:0 0 4px;font-size:10px;color:var(--text-secondary);line-height:1.4 }
 .memory-card-anchors { display:flex;gap:6px;flex-wrap:wrap }
 .memory-anchor {
-  display:flex;align-items:center;gap:3px;font-size:9px;font-family:"IBM Plex Mono",monospace;color:var(--subtle)
+  display:flex;align-items:center;gap:3px;font-size:9px;font-family:var(--font-mono);color:var(--subtle)
 }
 
 /* ── File explorer (floating panel) ──────────────────────────────── */
@@ -3564,7 +3606,7 @@ a:focus-visible {
 }
 .file-explorer-head span {
   display: flex; align-items: center; gap: 6px;
-  color: var(--accent); font-family: "IBM Plex Mono",monospace; font-size: 10px; letter-spacing: 0.1em;
+  color: var(--accent); font-family: var(--font-mono); font-size: 10px; letter-spacing: 0.1em;
 }
 .file-explorer-head button, .file-explorer-head button:hover {
   width:26px;height:26px;border:0;background:transparent;color:var(--muted);cursor:pointer;
@@ -3576,7 +3618,7 @@ a:focus-visible {
 .file-tree-node {
   width:100%; display:flex; align-items:center; gap:4px;
   border:0; padding:3px 8px; background:transparent;
-  color:var(--text-secondary); font-family:"IBM Plex Mono",monospace; font-size:11px; cursor:pointer;
+  color:var(--text-secondary); font-family:var(--font-mono); font-size:11px; cursor:pointer;
   text-align:left; white-space:nowrap;
 }
 .file-tree-node:hover { background:var(--surface-2); color:var(--text) }
@@ -3770,10 +3812,11 @@ a:focus-visible {
 
 .connection-ping {
   display: flex; align-items: center; gap: 4px;
-  color: var(--muted); font-family: "IBM Plex Mono",monospace; font-size: 9px;
+  color: var(--muted); font-family: var(--font-mono); font-size: 9px;
 }
 .connection-ping-dot {
-  width: 5px; height: 5px; border-radius: 50%;
+  width: 5px; height: 5px; border-radius: 0;
+  transform: rotate(45deg); /* deco diamond, matches agent-dot geometry */
 }
 .connection-ping-dot.good { background: var(--success); }
 .connection-ping-dot.poor { background: var(--warning); }
@@ -3801,19 +3844,19 @@ a:focus-visible {
   display: flex; align-items: center; justify-content: space-between;
   padding: 6px 10px; border-bottom: 1px solid var(--line); background: var(--surface-2);
 }
-.prompt-library-head span { display:flex;align-items:center;gap:6px;color:var(--accent);font-family:"IBM Plex Mono",monospace;font-size:10px;letter-spacing:.1em }
+.prompt-library-head span { display:flex;align-items:center;gap:6px;color:var(--accent);font-family:var(--font-mono);font-size:10px;letter-spacing:.1em }
 .prompt-library-head button { width:26px;height:26px;border:0;background:transparent;color:var(--muted);cursor:pointer }
 .prompt-library-head button:hover { background:var(--surface-2);color:var(--text) }
 
 .prompt-library-add { display:flex;flex-direction:column;gap:4px;padding:8px;border-bottom:1px solid var(--line) }
 .prompt-library-add input, .prompt-library-add textarea {
   border:1px solid var(--line-strong); padding:4px 6px; background:var(--bg); color:var(--text);
-  font-family:"IBM Plex Mono",monospace; font-size:10px; resize:vertical;
+  font-family:var(--font-mono); font-size:10px; resize:vertical;
 }
 .prompt-library-add button {
   align-self:flex-end; display:flex;align-items:center;gap:4px;
   border:1px solid var(--line-strong); padding:3px 10px; background:var(--surface);
-  color:var(--accent); font-family:"IBM Plex Mono",monospace; font-size:10px; cursor:pointer;
+  color:var(--accent); font-family:var(--font-mono); font-size:10px; cursor:pointer;
 }
 .prompt-library-add button:disabled { opacity:0.4;cursor:default }
 
@@ -3853,7 +3896,7 @@ a:focus-visible {
   display: flex; align-items: center; justify-content: space-between;
   padding: 6px 10px; border-bottom: 1px solid var(--line); background: var(--surface-2);
 }
-.brain-panel-head span { display:flex;align-items:center;gap:6px;color:var(--accent);font-family:"IBM Plex Mono",monospace;font-size:10px;letter-spacing:.1em }
+.brain-panel-head span { display:flex;align-items:center;gap:6px;color:var(--accent);font-family:var(--font-mono);font-size:10px;letter-spacing:.1em }
 .brain-panel-head button { width:26px;height:26px;border:0;background:transparent;color:var(--muted);cursor:pointer }
 .brain-panel-head button:hover { background:var(--surface-2);color:var(--text) }
 
@@ -3861,16 +3904,16 @@ a:focus-visible {
   display: flex; align-items: center; gap: 6px; padding: 6px 10px;
   border-bottom: 1px solid var(--line); font-size: 10px; color: var(--muted);
 }
-.brain-panel-risk b { font-family:"IBM Plex Mono",monospace; text-transform:uppercase }
+.brain-panel-risk b { font-family:var(--font-mono); text-transform:uppercase }
 
 .brain-panel-ask { display:flex;gap:4px;padding:6px 8px;border-bottom:1px solid var(--line) }
 .brain-panel-ask input {
   flex:1;min-width:0;border:1px solid var(--line-strong);padding:3px 6px;
-  background:var(--bg);color:var(--text);font-family:"IBM Plex Mono",monospace;font-size:10px;
+  background:var(--bg);color:var(--text);font-family:var(--font-mono);font-size:10px;
 }
 .brain-panel-ask button {
   border:1px solid var(--line-strong);padding:2px 10px;background:var(--surface);
-  color:var(--accent);font-family:"IBM Plex Mono",monospace;font-size:10px;cursor:pointer;
+  color:var(--accent);font-family:var(--font-mono);font-size:10px;cursor:pointer;
 }
 .brain-panel-ask button:disabled { opacity:0.4;cursor:default }
 
@@ -3906,7 +3949,7 @@ a:focus-visible {
 
 .health-pct {
   position: absolute; top: -6px; right: -12px;
-  font-family: "IBM Plex Mono",monospace; font-size: 8px; color: var(--accent);
+  font-family: var(--font-mono); font-size: 8px; color: var(--accent);
 }
 
 .health-panel {
@@ -3920,7 +3963,7 @@ a:focus-visible {
   display: flex; align-items: center; justify-content: space-between;
   padding: 6px 10px; border-bottom: 1px solid var(--line); background: var(--surface-2);
 }
-.health-panel-head span { display:flex;align-items:center;gap:6px;color:var(--accent);font-family:"IBM Plex Mono",monospace;font-size:10px;letter-spacing:.1em }
+.health-panel-head span { display:flex;align-items:center;gap:6px;color:var(--accent);font-family:var(--font-mono);font-size:10px;letter-spacing:.1em }
 .health-panel-head button { width:26px;height:26px;border:0;background:transparent;color:var(--muted);cursor:pointer }
 .health-panel-head button:hover { background:var(--surface-2);color:var(--text) }
 .health-panel-body { padding:8px }
@@ -3950,7 +3993,7 @@ a:focus-visible {
 }
 .message-image {
   max-width: 180px; max-height: 120px;
-  border: 1px solid var(--line); border-radius: 2px;
+  border: 1px solid var(--line); border-radius: 0;
   object-fit: cover;
 }
 
@@ -3968,7 +4011,7 @@ a:focus-visible {
   width: min(460px, 92vw);
   padding: 22px 24px;
   border: 1px solid var(--line-strong);
-  border-radius: 4px;
+  border-radius: 0;
   background: var(--surface);
   box-shadow: 0 18px 60px var(--shadow);
   text-align: center;
@@ -3977,7 +4020,8 @@ a:focus-visible {
 .outage-icon {
   display: flex; align-items: center; justify-content: center;
   width: 52px; height: 52px; margin: 0 auto 14px;
-  border-radius: 50%;
+  border: 1px solid var(--danger);
+  border-radius: 0;
   color: var(--danger);
   background: color-mix(in srgb, var(--danger) 14%, transparent);
 }
@@ -3995,7 +4039,7 @@ a:focus-visible {
 .outage-card code {
   padding: 1px 5px;
   border: 1px solid var(--line);
-  border-radius: 2px;
+  border-radius: 0;
   background: var(--surface-2);
   font-family: var(--font-mono); font-size: 11.5px;
 }
@@ -4023,7 +4067,7 @@ a:focus-visible {
 
 .outage-actions button {
   padding: 7px 14px;
-  border-radius: 3px;
+  border-radius: 0;
   font-size: 11px; font-weight: 600; letter-spacing: 0.04em;
   cursor: pointer;
 }
