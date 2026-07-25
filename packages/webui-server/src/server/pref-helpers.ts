@@ -100,6 +100,9 @@ export const PREF_KEYS = [
   'autoReviewMaxFilesPerBatch',
   'autoReviewMaxConcurrentReviews',
   'autoReviewCascadeOn',
+  // Display-only toggles (purely visual WebUI prefs, not persisted to config).
+  'groupToolCalls',
+  'showThinkingLogs',
   // Per-plugin enable/disable map (parity with the embedded server).
   'pluginsEnabled',
   // Fleet chat verbosity: off | full (migrated from streamFleet boolean).
