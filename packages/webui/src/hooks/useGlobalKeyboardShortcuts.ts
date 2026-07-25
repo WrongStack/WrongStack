@@ -131,7 +131,7 @@ export function useGlobalKeyboardShortcuts(options: UseGlobalKeyboardShortcutsOp
             return;
           case 10:
             ws?.listSessions?.(200);
-            showPanel('history');
+            showPanel('chat');
             return;
           case 11:
             showPanel('officemap');

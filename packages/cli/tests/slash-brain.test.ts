@@ -225,6 +225,7 @@ describe('/brain slash command', () => {
         poolLabels: [],
         councilLabels: [],
         judgeLabel: undefined,
+        judgeIsVoter: false,
         usingSessionModel: true,
         ...over,
       };
@@ -285,6 +286,9 @@ describe('/brain slash command', () => {
         },
         councilLabels: ['a/x (executor)', 'b/y (skeptic, veto)'],
         judgeLabel: 'a/x',
+        // Resolved server-side. The surface must NOT infer this by matching
+        // judgeLabel against the councilLabels display strings.
+        judgeIsVoter: true,
       });
       const ctx = makeCtx({ brainRuntime: runtime });
       const message = stripAnsi((await buildBrainCommand(ctx).run!('council'))!.message!);
@@ -311,6 +315,7 @@ describe('/brain slash command', () => {
         },
         councilLabels: ['a/x (executor)', 'b/y (skeptic, veto)'],
         judgeLabel: 'c/z',
+        judgeIsVoter: false,
       });
       const ctx = makeCtx({ brainRuntime: runtime });
       const message = stripAnsi((await buildBrainCommand(ctx).run!('council'))!.message!);
@@ -496,6 +501,7 @@ describe('/brain slash command', () => {
         poolLabels: [],
         councilLabels: [],
         judgeLabel: undefined,
+        judgeIsVoter: false,
         usingSessionModel: true,
         ...over,
       };
@@ -605,11 +611,16 @@ describe('/brain slash command', () => {
       expect(patches).toEqual([{ terminalPolicy: 'deny-all' }]);
     });
 
-    it('/brain monitor policy says the change is deferred to the next session', async () => {
+    it('/brain monitor policy reports a live change, not a deferred one', async () => {
+      // Monitor settings used to be the ONE knob that persisted but did not
+      // apply until restart; the host now forwards them to
+      // BrainMonitor.reconfigure() from the runtime's onApplied.
       const { runtime, patches } = makeRt();
       const res = await buildBrainCommand(makeCtx({ brainRuntime: runtime })).run!('monitor policy observe');
       expect(patches).toEqual([{ monitor: { policy: 'observe' } }]);
-      expect(stripAnsi(res?.message ?? '')).toContain('next session');
+      const message = stripAnsi(res?.message ?? '');
+      expect(message).toContain('applied live');
+      expect(message).not.toContain('next session');
     });
 
     it('/brain rules surfaces compile errors alongside the table', async () => {

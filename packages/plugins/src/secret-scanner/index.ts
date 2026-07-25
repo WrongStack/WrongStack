@@ -27,6 +27,7 @@
  * pipeline.
  */
 import type { Plugin } from '@wrongstack/core/types';
+import { releaseHandle } from '../runtime/index.js';
 import { cloneCredentialPatterns } from '../runtime/credential-patterns.js';
 
 // ---------------------------------------------------------------------------
@@ -703,8 +704,8 @@ const plugin: Plugin = {
     state.leakCount = 0;
     state.lastBlock = null;
     state.lastLeak = null;
-    state.hookUnregister = null;
-    state.postHookUnregister = null;
+    state.hookUnregister = releaseHandle(state.hookUnregister);
+    state.postHookUnregister = releaseHandle(state.postHookUnregister);
 
     const cfg = readConfig(api.config.extensions?.['secret-scanner']);
 

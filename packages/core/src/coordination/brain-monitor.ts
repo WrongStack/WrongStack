@@ -130,6 +130,30 @@ export interface BrainMonitorOptions {
   fileEditTools?: readonly string[] | undefined;
 }
 
+/**
+ * The subset of `BrainMonitorOptions` that can be re-applied to a running
+ * monitor via `reconfigure()` — everything except the wiring (`events`,
+ * `brain`, `intervene`, session-id resolvers), which is fixed for the
+ * monitor's lifetime. Mirrors `BrainConfig.monitor`.
+ */
+export type BrainMonitorTunables = Partial<
+  Pick<
+    BrainMonitorOptions,
+    | 'enabled'
+    | 'policy'
+    | 'signals'
+    | 'toolFailureStreak'
+    | 'errorStormCount'
+    | 'errorStormWindowMs'
+    | 'stallMs'
+    | 'stallCheckIntervalMs'
+    | 'fileChurnThreshold'
+    | 'fileChurnWindowMs'
+    | 'cooldownMs'
+    | 'fileEditTools'
+  >
+>;
+
 /** Tools whose successful execution mutates a file we can churn-track. */
 export const DEFAULT_FILE_EDIT_TOOLS: readonly string[] = [
   'edit',
@@ -159,18 +183,30 @@ export class BrainMonitor {
   private lastProgressAt = 0;
   private stallTimer: ReturnType<typeof setInterval> | undefined;
 
-  private readonly toolFailureStreak: number;
-  private readonly errorStormCount: number;
-  private readonly errorStormWindowMs: number;
-  private readonly stallMs: number;
-  private readonly stallCheckIntervalMs: number;
-  private readonly fileChurnThreshold: number;
-  private readonly fileChurnWindowMs: number;
-  private readonly cooldownMs: number;
-  private readonly enabled: boolean;
-  private readonly policy: BrainMonitorPolicy;
-  private readonly signals: Required<BrainMonitorSignalToggles>;
-  private readonly fileEditTools: ReadonlySet<string>;
+  // Mutable, not readonly: `reconfigure()` re-applies these live. Every knob
+  // on the Brain except these used to be live-editable, so `/brain monitor …`
+  // reported success and then quietly did nothing until the next session.
+  private toolFailureStreak!: number;
+  private errorStormCount!: number;
+  private errorStormWindowMs!: number;
+  private stallMs!: number;
+  private stallCheckIntervalMs!: number;
+  private fileChurnThreshold!: number;
+  private fileChurnWindowMs!: number;
+  private cooldownMs!: number;
+  private enabled!: boolean;
+  private policy!: BrainMonitorPolicy;
+  private signals!: Required<BrainMonitorSignalToggles>;
+  private fileEditTools!: ReadonlySet<string>;
+  /** True while the watchers are attached; guards against double-subscribing. */
+  private running = false;
+  /**
+   * HOST INTENT: set by `start()`, cleared by `stop()`. Distinct from
+   * `running`, which is whether anything is currently attached — a monitor the
+   * host started but that is `enabled: false` is intended-active yet detached,
+   * and that is exactly the state `reconfigure({enabled: true})` must revive.
+   */
+  private hostStarted = false;
 
   /** Resolve the leader's own session id for event filtering. */
   private resolveLeaderSessionId(): string | undefined {
@@ -179,29 +215,93 @@ export class BrainMonitor {
   }
 
   constructor(private readonly opts: BrainMonitorOptions) {
-    this.toolFailureStreak = opts.toolFailureStreak ?? 3;
-    this.errorStormCount = opts.errorStormCount ?? 4;
-    this.errorStormWindowMs = opts.errorStormWindowMs ?? 60_000;
-    this.stallMs = opts.stallMs ?? 300_000;
-    this.stallCheckIntervalMs = opts.stallCheckIntervalMs ?? 30_000;
-    this.fileChurnThreshold = opts.fileChurnThreshold ?? 5;
-    this.fileChurnWindowMs = opts.fileChurnWindowMs ?? 600_000;
-    this.cooldownMs = opts.cooldownMs ?? 120_000;
-    this.enabled = opts.enabled ?? true;
-    this.policy = opts.policy ?? 'llm';
+    this.applyTunables(opts);
+  }
+
+  /** Resolve the live-tunable subset onto the instance. Shared by the constructor and `reconfigure`. */
+  private applyTunables(next: BrainMonitorTunables): void {
+    this.toolFailureStreak = next.toolFailureStreak ?? 3;
+    this.errorStormCount = next.errorStormCount ?? 4;
+    this.errorStormWindowMs = next.errorStormWindowMs ?? 60_000;
+    this.stallMs = next.stallMs ?? 300_000;
+    this.stallCheckIntervalMs = next.stallCheckIntervalMs ?? 30_000;
+    this.fileChurnThreshold = next.fileChurnThreshold ?? 5;
+    this.fileChurnWindowMs = next.fileChurnWindowMs ?? 600_000;
+    this.cooldownMs = next.cooldownMs ?? 120_000;
+    this.enabled = next.enabled ?? true;
+    this.policy = next.policy ?? 'llm';
     this.signals = {
-      toolFailureStreak: opts.signals?.toolFailureStreak ?? true,
-      errorStorm: opts.signals?.errorStorm ?? true,
-      agentStall: opts.signals?.agentStall ?? true,
-      fileChurn: opts.signals?.fileChurn ?? true,
+      toolFailureStreak: next.signals?.toolFailureStreak ?? true,
+      errorStorm: next.signals?.errorStorm ?? true,
+      agentStall: next.signals?.agentStall ?? true,
+      fileChurn: next.signals?.fileChurn ?? true,
     };
     this.fileEditTools = new Set(
-      (opts.fileEditTools ?? DEFAULT_FILE_EDIT_TOOLS).map((name) => name.toLowerCase()),
+      (next.fileEditTools ?? DEFAULT_FILE_EDIT_TOOLS).map((name) => name.toLowerCase()),
     );
   }
 
+  /** The resolved tunables, for change detection. */
+  private tunableFingerprint(): string {
+    return JSON.stringify([
+      this.toolFailureStreak,
+      this.errorStormCount,
+      this.errorStormWindowMs,
+      this.stallMs,
+      this.stallCheckIntervalMs,
+      this.fileChurnThreshold,
+      this.fileChurnWindowMs,
+      this.cooldownMs,
+      this.enabled,
+      this.policy,
+      this.signals,
+      [...this.fileEditTools].sort(),
+    ]);
+  }
+
+  /**
+   * Apply new thresholds to a (possibly running) monitor.
+   *
+   * Hosts call this from the BrainRuntime's `onApplied`, which fires on EVERY
+   * Brain setting change — so an unchanged monitor block must be a no-op, or
+   * `/brain risk` would reset the monitor's in-flight streaks as a side effect.
+   * That is what the fingerprint comparison is for; the return value says
+   * whether anything actually moved.
+   *
+   * A real change re-subscribes rather than patching in place: `stallMs: 0`
+   * and the per-signal toggles decide which listeners and timers exist at all,
+   * so only a fresh attach can honour them. Accumulating counters (failure
+   * streaks, the error window, churn timestamps) reset with the restart, which
+   * is the right semantics — a partial streak measured against the OLD
+   * threshold is not evidence for the new one. Engagement cooldowns are
+   * deliberately preserved (`detach()` does not clear them), so re-tuning
+   * cannot be used to bypass the rate limit.
+   *
+   * The re-attach is driven by HOST INTENT (`hostStarted`), not by whether the
+   * watchers happen to be attached right now: toggling `enabled` false and
+   * then true again must reattach, and after the first toggle nothing is
+   * attached to observe.
+   */
+  reconfigure(next: BrainMonitorTunables): boolean {
+    const before = this.tunableFingerprint();
+    this.applyTunables(next);
+    if (this.tunableFingerprint() === before) return false;
+    if (this.hostStarted) {
+      this.detach();
+      this.attach();
+    }
+    return true;
+  }
+
+  /** Begin watching. Idempotent; a disabled monitor records the intent and stays detached. */
   start(): void {
-    if (!this.enabled) return;
+    this.hostStarted = true;
+    this.attach();
+  }
+
+  private attach(): void {
+    if (!this.enabled || this.running) return;
+    this.running = true;
     this.unsubscribers.push(
       this.opts.events.on('tool.executed', (e) => {
         // Ignore subagent tool events — only respond to the leader's own tool activity
@@ -303,7 +403,19 @@ export class BrainMonitor {
     );
   }
 
+  /** Stop watching and drop the host's intent to watch. */
   stop(): void {
+    this.hostStarted = false;
+    this.detach();
+  }
+
+  /**
+   * Tear down the watchers without touching host intent. Note `lastEngagedAt`
+   * is deliberately NOT cleared — cooldowns must survive a reconfigure so
+   * re-tuning cannot be used to bypass the engagement rate limit.
+   */
+  private detach(): void {
+    this.running = false;
     for (const off of this.unsubscribers) off();
     this.unsubscribers.length = 0;
     this.failStreaks.clear();

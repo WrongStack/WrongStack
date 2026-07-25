@@ -854,7 +854,7 @@ export function BrainSection(): ReactElement {
                 {!config.council.judge && config.judgeLabel && (
                   <div className="mt-0.5 font-mono text-xs text-muted-foreground">
                     resolved: {config.judgeLabel}
-                    {config.councilLabels.some((l) => l.startsWith(`${config.judgeLabel} (`)) && (
+                    {config.judgeIsVoter && (
                       <span className="ml-1 font-sans text-amber-500">⚠ also a voter</span>
                     )}
                   </div>

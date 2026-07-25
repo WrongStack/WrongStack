@@ -7,7 +7,6 @@ export type PanelMainView =
   | 'officemap'
   | 'changes'
   | 'mailbox'
-  | 'sessions'
   | 'design-gallery';
 
 export type MainView =
@@ -21,12 +20,11 @@ export type MainView =
   | 'techstack'
   | 'chronicle';
 
-export type AppView = PanelMainView | MainView | 'setup' | 'debug' | 'refresh-debug' | 'analytics';
+export type AppView = PanelMainView | MainView | 'sessions' | 'setup' | 'debug' | 'refresh-debug' | 'analytics';
 
 export const PANEL_VIEW_BY_ACTIVITY: Record<Activity, PanelMainView> = {
   chat: 'chat',
   agents: 'chat',
-  history: 'sessions',
   files: 'files',
   changes: 'changes',
   mailbox: 'mailbox',
@@ -40,7 +38,6 @@ export const VIEW_ACTIVITY: Partial<Record<AppView, Activity>> = {
   chat: 'chat',
   files: 'files',
   changes: 'changes',
-  sessions: 'history',
   mailbox: 'mailbox',
   skill: 'skills',
   officemap: 'officemap',
@@ -49,27 +46,24 @@ export const VIEW_ACTIVITY: Partial<Record<AppView, Activity>> = {
 
 export const ACTIVITY_SHORTCUT_BY_KEY: Readonly<Record<string, Activity>> = {
   '1': 'chat',
-  '2': 'agents',
-  '3': 'history',
-  '4': 'files',
-  '5': 'changes',
-  '6': 'mailbox',
-  '7': 'skills',
-  '8': 'officemap',
+  '2': 'files',
+  '3': 'changes',
+  '4': 'mailbox',
+  '5': 'skills',
+  '6': 'officemap',
   '0': 'design',
 };
 
 export const ACTIVITY_SHORTCUT_LABEL_BY_ACTIVITY: Readonly<Record<Activity, string>> = {
   chat: 'Ctrl+1',
-  agents: 'Ctrl+2',
-  history: 'Ctrl+3',
-  files: 'Ctrl+4',
-  changes: 'Ctrl+5',
-  mailbox: 'Ctrl+6',
-  skills: 'Ctrl+7',
+  agents: '',
+  files: 'Ctrl+2',
+  changes: 'Ctrl+3',
+  mailbox: 'Ctrl+4',
+  skills: 'Ctrl+5',
   worktrees: 'Ctrl+Shift+W',
   design: 'Ctrl+0',
-  officemap: 'Ctrl+8',
+  officemap: 'Ctrl+6',
 };
 
 export function pairedViewForActivity(activity: Activity): PanelMainView {

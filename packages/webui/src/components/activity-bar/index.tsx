@@ -4,7 +4,6 @@ import {
   BrainCircuit,
   Building2,
   ChartNoAxesCombined,
-  Clock,
   Columns3,
   Command,
   FolderOpen,
@@ -14,15 +13,12 @@ import {
   LayoutGrid,
   Mail,
   MessageSquare,
-  Monitor,
-  Moon,
   MoreHorizontal,
   Network,
   Palette,
   Rocket,
   Settings as SettingsIcon,
   Sparkles,
-  Sun,
   Wand2,
   Wifi,
   WifiOff,
@@ -42,19 +38,15 @@ import {
   type Activity,
   selectUnreadCount,
   useConfigStore,
-  useFleetStore,
   useMailboxStore,
   useSessionStore,
   useUIStore,
 } from '@/stores';
-import { useTheme } from '../ThemeProvider';
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuLabel,
-  DropdownMenuRadioGroup,
-  DropdownMenuRadioItem,
   DropdownMenuSeparator,
   DropdownMenuShortcut,
   DropdownMenuTrigger,
@@ -82,8 +74,6 @@ interface ViewDef {
 
 const PANELS: PanelDef[] = [
   { id: 'chat', icon: <MessageSquare size={16} />, label: 'Session' },
-  { id: 'agents', icon: <Bot size={16} />, label: 'Agents' },
-  { id: 'history', icon: <Clock size={16} />, label: 'History' },
   { id: 'files', icon: <FolderOpen size={16} />, label: 'Files' },
   { id: 'changes', icon: <GitCompare size={16} />, label: 'Changes' },
   { id: 'mailbox', icon: <Mail size={16} />, label: 'Mailbox' },
@@ -105,30 +95,32 @@ const VIEWS: ViewDef[] = [
   { id: 'roster', icon: <Bot size={16} />, label: 'Agent Roster' },
 ];
 
-const DESKTOP_CORE_PANEL_IDS: readonly Activity[] = [
-  'chat',
-  'agents',
-  'files',
-  'changes',
-  'mailbox',
-];
+const DESKTOP_CORE_PANEL_IDS: readonly Activity[] = ['chat', 'files', 'changes', 'mailbox'];
 
 const DESKTOP_PANEL_PRIORITY: readonly Activity[] = [
   ...DESKTOP_CORE_PANEL_IDS,
-  'history',
   'skills',
   'worktrees',
   'officemap',
   'design',
 ];
 
-const DESKTOP_ACTIVITY_RESERVED_PX = 132;
-const DESKTOP_ACTIVITY_SLOT_PX = 38;
+// Compact (desktop shell): h-9 icons, no project name text.
+// Full   (browser WebUI): h-11 icons, taller brand area with project name.
+const COMPACT_RESERVED_PX = 132;
+const COMPACT_SLOT_PX = 38;
+const FULL_RESERVED_PX = 165;
+const FULL_SLOT_PX = 46;
 
-export function calculateDesktopActivityCapacity(viewportHeight: number): number {
+export function calculateDesktopActivityCapacity(
+  viewportHeight: number,
+  isDesktopShell: boolean,
+): number {
   const max = PANELS.length + VIEWS.length;
   const height = Number.isFinite(viewportHeight) ? viewportHeight : 720;
-  const slots = Math.floor((height - DESKTOP_ACTIVITY_RESERVED_PX) / DESKTOP_ACTIVITY_SLOT_PX);
+  const reserved = isDesktopShell ? COMPACT_RESERVED_PX : FULL_RESERVED_PX;
+  const slot = isDesktopShell ? COMPACT_SLOT_PX : FULL_SLOT_PX;
+  const slots = Math.floor((height - reserved) / slot);
   return Math.max(DESKTOP_CORE_PANEL_IDS.length, Math.min(max, slots));
 }
 
@@ -160,10 +152,10 @@ function readViewportHeight(): number {
   return window.visualViewport?.height ?? window.innerHeight;
 }
 
-function useDesktopActivityCapacity(enabled: boolean): number {
+function useDesktopActivityCapacity(isDesktopShell: boolean): number {
   const [height, setHeight] = useState(readViewportHeight);
   useEffect(() => {
-    if (!enabled || typeof window === 'undefined') return;
+    if (typeof window === 'undefined') return;
     const update = () => setHeight(readViewportHeight());
     update();
     window.addEventListener('resize', update);
@@ -172,8 +164,8 @@ function useDesktopActivityCapacity(enabled: boolean): number {
       window.removeEventListener('resize', update);
       window.visualViewport?.removeEventListener('resize', update);
     };
-  }, [enabled]);
-  return enabled ? calculateDesktopActivityCapacity(height) : PANELS.length + VIEWS.length;
+  }, []);
+  return calculateDesktopActivityCapacity(height, isDesktopShell);
 }
 
 export function ActivityBar({ desktopShell = false }: { desktopShell?: boolean | undefined }) {
@@ -187,13 +179,12 @@ export function ActivityBar({ desktopShell = false }: { desktopShell?: boolean |
   // Translate nav labels at render time (arrays are module-level constants;
   // `def.label` is kept as the English fallback for any missing key).
   const navLabel = (id: string, fallback: string) => t(`activity:nav.${id}`, fallback);
-  const runningAgents = useFleetStore(
-    (s) => Array.from(s.agents.values()).filter((a) => a.status === 'running').length,
-  );
   const unreadMail = useMailboxStore(selectUnreadCount);
   // Subscribe (not getState()) so the utility trigger updates its active
   // highlight when the inspector opens or closes.
   const inspectorOpen = useUIStore((s) => s.inspectorOpen);
+  // Always calculate capacity — when icons don't fit the viewport they
+  // overflow into the "…" menu instead of scrolling.
   const desktopCapacity = useDesktopActivityCapacity(desktopShell);
   const desktopSplit = useMemo(
     () => splitDesktopActivityBarItems(desktopCapacity),
@@ -215,15 +206,12 @@ export function ActivityBar({ desktopShell = false }: { desktopShell?: boolean |
     () => new Set(desktopSplit.overflowViewIds),
     [desktopSplit.overflowViewIds],
   );
-  const visiblePanels = desktopShell
-    ? PANELS.filter((def) => visiblePanelIdSet.has(def.id))
-    : PANELS;
-  const overflowPanels = desktopShell ? PANELS.filter((def) => overflowPanelIdSet.has(def.id)) : [];
-  const visibleViews = desktopShell ? VIEWS.filter((def) => visibleViewIdSet.has(def.id)) : VIEWS;
-  const overflowViews = desktopShell ? VIEWS.filter((def) => overflowViewIdSet.has(def.id)) : [];
+  const visiblePanels = PANELS.filter((def) => visiblePanelIdSet.has(def.id));
+  const overflowPanels = PANELS.filter((def) => overflowPanelIdSet.has(def.id));
+  const visibleViews = VIEWS.filter((def) => visibleViewIdSet.has(def.id));
+  const overflowViews = VIEWS.filter((def) => overflowViewIdSet.has(def.id));
 
   const badgeFor = (id: Activity): number | undefined => {
-    if (id === 'agents') return runningAgents || undefined;
     if (id === 'mailbox') return unreadMail || undefined;
     return undefined;
   };
@@ -278,7 +266,9 @@ export function ActivityBar({ desktopShell = false }: { desktopShell?: boolean |
         {/* Connection status indicator — always visible wifi icon */}
         <span
           role="status"
-          aria-label={wsConnected ? t('activity:status.connected') : t('activity:status.disconnected')}
+          aria-label={
+            wsConnected ? t('activity:status.connected') : t('activity:status.disconnected')
+          }
           className={cn(
             'flex items-center justify-center',
             desktopShell ? 'mt-1.5' : 'mt-1',
@@ -294,12 +284,12 @@ export function ActivityBar({ desktopShell = false }: { desktopShell?: boolean |
         </span>
       </div>
 
-      {/* ── Scrollable icon column ──
-            Panels + main-view icons share one scroll region so a short
-            viewport scrolls them instead of pushing the bottom "More" menu
-            off-screen. The scrollbar is hidden (the bar is too thin to show
-            a 9px track). */}
-      <div className="flex-1 min-h-0 overflow-y-auto no-scrollbar flex flex-col items-center pt-2 pb-1">
+      {/* ── Icon column ──
+            Panels + main-view icons. When the viewport is too short to fit
+            all icons, overflow items are moved into the "…" menu instead of
+            scrolling. Note: `overflow-hidden` means browser WebUI (full) mode
+            also loses scroll fallback — ensure enough slots for core icons. */}
+      <div className="flex-1 min-h-0 overflow-hidden flex flex-col items-center pt-2 pb-1">
         {/* Panel icons */}
         {visiblePanels.map((def) => (
           <ActivityIcon
@@ -330,9 +320,9 @@ export function ActivityBar({ desktopShell = false }: { desktopShell?: boolean |
       </div>
 
       {/* ── Utilities overflow menu — pinned bottom ──
-            App-wide controls (palette, theme, shortcuts, Fleet/Agents
-            monitors) collapsed into one popover so they never crowd the bar
-            or overflow on short screens. */}
+            App-wide controls (palette, command, shortcuts, monitors,
+            Settings) collapsed into one popover. Items that don't fit
+            the visible icon slots also land here. */}
       <div className="flex flex-col items-center shrink-0 pt-1 pb-2 border-t border-border/60">
         <UtilitiesMenu
           compact={desktopShell}
@@ -362,7 +352,6 @@ function UtilitiesMenu({
   overflowPanels: PanelDef[];
   overflowViews: ViewDef[];
 }) {
-  const { theme, setTheme } = useTheme();
   const { t } = useAppTranslation();
   const activeActivity = useUIStore((s) => s.activeActivity);
   const sidebarOpen = useUIStore((s) => s.sidebarOpen);
@@ -374,7 +363,7 @@ function UtilitiesMenu({
   const hiddenViewActive = overflowViews.some((def) => currentView === def.id);
   const hiddenActive = hiddenPanelActive || hiddenViewActive;
 
-  const toggleInspectorTab = (tab: 'fleet' | 'agents' | 'sideEffects') => {
+  const toggleInspectorTab = (tab: 'fleet' | 'sideEffects') => {
     const ui = useUIStore.getState();
     if (ui.inspectorOpen && ui.inspectorTab === tab) {
       ui.setInspectorOpen(false);
@@ -426,7 +415,7 @@ function UtilitiesMenu({
           )}
           {/* Dot indicating a monitor is currently open behind the menu */}
           {monitorOpen && hiddenItemCount === 0 && (
-            <span className="absolute top-1 right-1 w-1.5 h-1.5 rounded-full bg-primary" />
+            <span className="absolute top-1 right-1 h-1.5 w-1.5 rounded-full bg-primary" />
           )}
         </button>
       </DropdownMenuTrigger>
@@ -481,23 +470,10 @@ function UtilitiesMenu({
         )}
 
         <DropdownMenuSeparator />
-        <DropdownMenuLabel className="text-[11px] uppercase text-muted-foreground">
-          {t('activity:menu.theme')}
-        </DropdownMenuLabel>
-        <DropdownMenuRadioGroup value={theme} onValueChange={(v) => setTheme(v as typeof theme)}>
-          <DropdownMenuRadioItem value="light">
-            <Sun size={16} className="mr-2" />
-            {t('settings:appearance.themeLight')}
-          </DropdownMenuRadioItem>
-          <DropdownMenuRadioItem value="dark">
-            <Moon size={16} className="mr-2" />
-            {t('settings:appearance.themeDark')}
-          </DropdownMenuRadioItem>
-          <DropdownMenuRadioItem value="system">
-            <Monitor size={16} className="mr-2" />
-            {t('settings:appearance.themeSystem')}
-          </DropdownMenuRadioItem>
-        </DropdownMenuRadioGroup>
+        <DropdownMenuItem onSelect={() => openMainView('settings')}>
+          <SettingsIcon size={16} />
+          <span>{t('activity:nav.settings', 'Settings')}</span>
+        </DropdownMenuItem>
 
         <DropdownMenuSeparator />
         <DropdownMenuLabel className="text-[11px] uppercase text-muted-foreground">
@@ -512,12 +488,11 @@ function UtilitiesMenu({
             <DropdownMenuShortcut>⇧⌘M</DropdownMenuShortcut>
           )}
         </DropdownMenuItem>
-        {/* Agents Monitor is now directly on the activity bar (Bot icon) */}
         <DropdownMenuItem onSelect={() => toggleInspectorTab('sideEffects')}>
           <Zap size={16} />
           <span>{t('activity:inspector.tabAudit')}</span>
           {inspectorOpen && inspectorTab === 'sideEffects' ? (
-            <span className="ml-auto h-1.5 w-1.5 bg-primary" />
+            <span className="ml-auto h-1.5 w-1.5 rounded-full bg-primary" />
           ) : null}
         </DropdownMenuItem>
       </DropdownMenuContent>

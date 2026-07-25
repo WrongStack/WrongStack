@@ -234,7 +234,28 @@ export abstract class WireAdapter implements Provider {
         sseBody = this.wrapWithHangDetection(sseBody, req.model);
       }
 
-      yield* this.parseStream(sseBody, req.model, req);
+      // Consume the SSE body through a try/catch that normalises transport-level
+      // errors (TypeError: terminated, fetch failed, ECONNRESET, etc.) into
+      // retryable ProviderErrors. These can fire after the HTTP response headers
+      // have already been received (e.g. Undici closes the connection mid-stream),
+      // so the fetch-level catch block above does not cover them.
+      try {
+        yield* this.parseStream(sseBody, req.model, req);
+      } catch (err) {
+        if (opts.signal.aborted || err instanceof ProviderError) throw err;
+        // Transport-shaped errors below this point become retryable network errors.
+        const message = toErrorMessage(err);
+        if (
+          err instanceof TypeError &&
+          /terminated|fetch failed|ECONNRESET|ETIMEDOUT|UND_ERR_/i.test(message)
+        ) {
+          throw new ProviderError(message, 0, true, this.id, {
+            cause: err,
+            body: { message },
+          });
+        }
+        throw err;
+      }
     } finally {
       opts.signal.removeEventListener('abort', forwardAbort);
     }

@@ -285,9 +285,9 @@ export function createSubmitController(host: SubmitControllerHost) {
           const m = res.metadata.goalRunInit as { title: string };
           dispatch({ type: 'goalRunInit', title: m.title });
         }
-        // /mouse toggles full-session pointer support. Off mode still borrows
-        // SGR tracking for selectable overlays while leaving normal chat wheel
-        // input to terminal scrollback. The command is stateless (it doesn't
+        // /mouse toggles full pointer support. Managed chat wheel tracking stays
+        // active in both modes because virtualized rows cannot be reached via
+        // native terminal scrollback. The command is stateless (it doesn't
         // know the live value), so it emits an intent and the App resolves it
         // against its own `mouseMode` state, persists, and prints the result.
         const mouseToggle = res?.metadata?.mouseToggle as
@@ -318,7 +318,7 @@ export function createSubmitController(host: SubmitControllerHost) {
               kind: 'info',
               text: nextVal
                 ? 'Mouse mode: ON — chat wheel, scrollbar drag, and clickable UI are managed in-app.'
-                : 'Mouse mode: OFF — chat wheel uses native terminal scrollback; pickers borrow pointer input while open.',
+                : 'Mouse mode: OFF — chat wheel remains managed in-app; scrollbar drag and clickable UI are disabled.',
             },
           });
         }

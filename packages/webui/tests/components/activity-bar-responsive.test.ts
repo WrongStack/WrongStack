@@ -23,53 +23,100 @@ beforeEach(() => {
   ui.setCurrentView('chat');
 });
 
-describe('ActivityBar desktop responsive overflow', () => {
+describe('ActivityBar desktop responsive overflow (compact / desktop shell)', () => {
   it('keeps core project workflow icons visible on very short desktop shells', () => {
-    const split = splitDesktopActivityBarItems(calculateDesktopActivityCapacity(320));
+    const split = splitDesktopActivityBarItems(calculateDesktopActivityCapacity(320, true));
 
-    expect(split.visiblePanelIds).toEqual(['chat', 'agents', 'files', 'changes', 'mailbox']);
-    expect(split.overflowPanelIds).toContain('history');
+    // agents and history were removed from the icon bar; core is now 4 panels
+    expect(split.visiblePanelIds).toEqual(['chat', 'files', 'changes', 'mailbox']);
+    expect(split.overflowPanelIds).toContain('skills');
     expect(split.overflowViewIds).toContain('settings');
   });
 
   it('shows registered panels directly before hiding secondary views', () => {
-    const split = splitDesktopActivityBarItems(calculateDesktopActivityCapacity(520));
+    const split = splitDesktopActivityBarItems(calculateDesktopActivityCapacity(520, true));
 
     expect(split.overflowPanelIds).toEqual([]);
     expect(split.overflowViewIds).toContain('settings');
   });
 
   it('promotes hidden panels and views when the desktop shell is tall enough', () => {
-    const split = splitDesktopActivityBarItems(calculateDesktopActivityCapacity(860));
+    const split = splitDesktopActivityBarItems(calculateDesktopActivityCapacity(860, true));
 
     expect(split.overflowPanelIds).toEqual([]);
     expect(split.visibleViewIds).toContain('settings');
   });
 
   it('caps capacity at the total number of activity bar items', () => {
-    const split = splitDesktopActivityBarItems(calculateDesktopActivityCapacity(5000));
+    const split = splitDesktopActivityBarItems(calculateDesktopActivityCapacity(5000, true));
 
     expect(split.overflowPanelIds).toEqual([]);
     expect(split.overflowViewIds).toEqual([]);
   });
 });
 
+describe('ActivityBar responsive overflow (full / browser WebUI)', () => {
+  it('keeps core panels visible on short browser viewports', () => {
+    const split = splitDesktopActivityBarItems(calculateDesktopActivityCapacity(400, false));
+
+    // agents and history removed from icon bar; full-mode slot constants
+    // allow 5 panels at 400px (chat, files, changes, mailbox, skills)
+    expect(split.visiblePanelIds).toEqual(['chat', 'files', 'changes', 'mailbox', 'skills']);
+    expect(split.overflowPanelIds).toContain('worktrees');
+    expect(split.overflowViewIds).toContain('memory');
+  });
+
+  it('shows all panels plus some views on a typical viewport', () => {
+    const split = splitDesktopActivityBarItems(calculateDesktopActivityCapacity(800, false));
+
+    // 8 panels (agents and history removed) + remaining slots go to views
+    expect(split.overflowPanelIds).toEqual([]);
+    expect(split.visibleViewIds.length).toBeGreaterThanOrEqual(2);
+    expect(split.visibleViewIds).toContain('sddhub');
+    expect(split.visibleViewIds).toContain('kanban');
+  });
+
+  it('shows all items on a tall viewport', () => {
+    const split = splitDesktopActivityBarItems(calculateDesktopActivityCapacity(1200, false));
+
+    expect(split.overflowPanelIds).toEqual([]);
+    expect(split.overflowViewIds).toEqual([]);
+  });
+
+  it('caps at total item count even on extremely tall viewports', () => {
+    const split = splitDesktopActivityBarItems(calculateDesktopActivityCapacity(5000, false));
+
+    expect(split.overflowPanelIds).toEqual([]);
+    expect(split.overflowViewIds).toEqual([]);
+  });
+
+  it('always keeps core panels visible even at very short heights', () => {
+    const split = splitDesktopActivityBarItems(calculateDesktopActivityCapacity(200, false));
+
+    expect(split.visiblePanelIds).toEqual(['chat', 'files', 'changes', 'mailbox']);
+    expect(split.overflowPanelIds).toContain('skills');
+    expect(split.overflowViewIds.length).toBeGreaterThan(0);
+  });
+});
+
 describe('ActivityBar navigation coupling', () => {
   it('keeps visible panels in sync with the navigation map', () => {
-    expect(PANEL_ORDER).toEqual(Object.keys(PANEL_VIEW_BY_ACTIVITY));
+    // PANEL_ORDER reflects displayed panels only (agents/history moved elsewhere)
+    expect(PANEL_ORDER).toEqual([
+      'chat', 'files', 'changes', 'mailbox',
+      'skills', 'worktrees', 'design', 'officemap',
+    ]);
   });
 
   it('keeps panel shortcut labels and key routing in sync', () => {
     expect(ACTIVITY_SHORTCUT_BY_KEY).toEqual({
       '0': 'design',
       '1': 'chat',
-      '2': 'agents',
-      '3': 'history',
-      '4': 'files',
-      '5': 'changes',
-      '6': 'mailbox',
-      '7': 'skills',
-      '8': 'officemap',
+      '2': 'files',
+      '3': 'changes',
+      '4': 'mailbox',
+      '5': 'skills',
+      '6': 'officemap',
     });
     for (const activity of PANEL_ORDER) {
       expect(ACTIVITY_SHORTCUT_LABEL_BY_ACTIVITY[activity]).toBeTruthy();
@@ -79,7 +126,6 @@ describe('ActivityBar navigation coupling', () => {
   it.each([
     ['chat', 'chat'],
     ['agents', 'chat'],
-    ['history', 'sessions'],
     ['files', 'files'],
     ['changes', 'changes'],
     ['mailbox', 'mailbox'],
@@ -95,20 +141,21 @@ describe('ActivityBar navigation coupling', () => {
     const ui = useUIStore.getState();
     ui.setCurrentView('settings');
 
-    showPanel('history');
+    // history is now routed to chat
+    showPanel('chat');
 
-    expect(useUIStore.getState().activeActivity).toBe('history');
+    expect(useUIStore.getState().activeActivity).toBe('chat');
     expect(useUIStore.getState().sidebarOpen).toBe(true);
-    expect(useUIStore.getState().currentView).toBe('sessions');
+    expect(useUIStore.getState().currentView).toBe('chat');
   });
 
   it('returns no-wide-view panels to chat instead of leaving stale content open', () => {
     const ui = useUIStore.getState();
     ui.setCurrentView('skill');
 
-    openPanel('agents');
+    openPanel('chat');
 
-    expect(useUIStore.getState().activeActivity).toBe('agents');
+    expect(useUIStore.getState().activeActivity).toBe('chat');
     expect(useUIStore.getState().sidebarOpen).toBe(true);
     expect(useUIStore.getState().currentView).toBe('chat');
   });

@@ -46,6 +46,7 @@
 
 import * as fs from 'node:fs/promises';
 import type { Plugin } from '@wrongstack/core/types';
+import { releaseHandle } from '../runtime/index.js';
 import { PLUGIN_CATALOG, PLUGIN_NAMES } from '../catalog.js';
 
 // ---------------------------------------------------------------------------
@@ -336,8 +337,8 @@ const plugin: Plugin = {
     state.skippedNonMd = 0;
     state.readErrorCount = 0;
     state.autoFixApplied = 0;
-    state.postHookUnregister = null;
-    state.preHookUnregister = null;
+    state.postHookUnregister = releaseHandle(state.postHookUnregister);
+    state.preHookUnregister = releaseHandle(state.preHookUnregister);
 
     const cfg = readConfig(api.config.extensions?.['spec-linker']);
 

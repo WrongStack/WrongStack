@@ -28,7 +28,7 @@
 
 import { basename, extname } from 'node:path';
 import type { Plugin } from '@wrongstack/core/types';
-import { withinProject } from '../runtime/index.js';
+import { releaseHandle, withinProject } from '../runtime/index.js';
 
 const API_VERSION = '^0.1.10';
 
@@ -205,7 +205,7 @@ const plugin: Plugin = {
     state.sourceWrites = 0;
     state.docWrites = 0;
     state.warningsIssued = 0;
-    state.hookUnregister = null;
+    state.hookUnregister = releaseHandle(state.hookUnregister);
 
     const cfg = readConfig(api.config.extensions?.['doc-sync-guard']);
 

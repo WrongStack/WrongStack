@@ -179,7 +179,7 @@ export function runChatSlashCommand(options: RunChatSlashCommandOptions): boolea
     case '/load':
     case '/resume':
       ws.listSessions(50);
-      showPanel('history');
+      showPanel('chat');
       return true;
     case '/agents':
       useUIStore.getState().setAgentsMonitorOpen(true);
@@ -632,7 +632,7 @@ export function runChatSlashCommand(options: RunChatSlashCommandOptions): boolea
       }
       if (panel === 'sessionsPanel') {
         ws.listSessions(50);
-        showPanel('history');
+        showPanel('chat');
         return true;
       }
       if (panel === 'coordinatorMonitor') {

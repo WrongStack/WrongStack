@@ -93,13 +93,100 @@ async function runGit(
   });
 }
 
+/**
+ * Undo git's C-style quoting of a porcelain path.
+ *
+ * git quotes any path containing a space, a quote, a backslash, a control
+ * character, or a non-ASCII byte (unless `core.quotePath=false`). Taking
+ * the raw slice left the surrounding quotes attached, so the path never
+ * matched a real file and the change was silently dropped from the commit.
+ */
+function unquotePorcelainPath(raw: string): string {
+  if (!raw.startsWith('"') || !raw.endsWith('"') || raw.length < 2) return raw;
+  const inner = raw.slice(1, -1);
+
+  // Decode into BYTES, then interpret the whole buffer as UTF-8.
+  //
+  // git escapes each non-ASCII byte separately (`é` becomes `\303\251`), so
+  // decoding escape-by-escape into characters yields the mojibake `Ã©` —
+  // which matches no file on disk, and the change would be dropped exactly
+  // as it was before this parsing existed. The bytes have to be reassembled
+  // before decoding.
+  const bytes: number[] = [];
+  for (let i = 0; i < inner.length; i++) {
+    const ch = inner[i]!;
+    if (ch !== '\\') {
+      // Non-escaped run: push its UTF-8 encoding verbatim.
+      for (const b of Buffer.from(ch, 'utf8')) bytes.push(b);
+      continue;
+    }
+    const next = inner[i + 1];
+    if (next === undefined) {
+      bytes.push(0x5c); // trailing lone backslash
+      break;
+    }
+    const simple: Record<string, number> = {
+      n: 0x0a,
+      t: 0x09,
+      r: 0x0d,
+      a: 0x07,
+      b: 0x08,
+      f: 0x0c,
+      v: 0x0b,
+      '"': 0x22,
+      '\\': 0x5c,
+    };
+    const mapped = simple[next];
+    if (mapped !== undefined) {
+      bytes.push(mapped);
+      i += 1;
+      continue;
+    }
+    const octal = /^[0-7]{1,3}/.exec(inner.slice(i + 1));
+    if (octal) {
+      bytes.push(Number.parseInt(octal[0], 8) & 0xff);
+      i += octal[0].length;
+      continue;
+    }
+    // Unknown escape — keep the character as written.
+    for (const b of Buffer.from(next, 'utf8')) bytes.push(b);
+    i += 1;
+  }
+  return Buffer.from(bytes).toString('utf8');
+}
+
+/**
+ * Parse one `git status --porcelain` line into the path to stage.
+ *
+ * Two shapes the naive `line.slice(3)` got wrong:
+ *  - **Renames/copies** print `R  old -> new`. Slicing produced the literal
+ *    string `"old -> new"`, which matches no file on disk, so the rename was
+ *    dropped from the commit entirely. The path that must be staged is the
+ *    NEW one.
+ *  - **Quoted paths** (spaces, unicode, control chars) keep their quotes,
+ *    likewise matching nothing.
+ */
+export function parsePorcelainLine(line: string): string | null {
+  // XY<space>PATH — the status code is always the first two columns.
+  const body = line.slice(3);
+  if (!body) return null;
+  const status = line.slice(0, 2);
+  if (status.includes('R') || status.includes('C')) {
+    // `old -> new`, either side possibly quoted. Stage the destination.
+    const arrow = body.lastIndexOf(' -> ');
+    if (arrow !== -1) return unquotePorcelainPath(body.slice(arrow + 4).trim());
+  }
+  return unquotePorcelainPath(body.trim());
+}
+
 async function getChangedFiles(cwd?: string): Promise<string[]> {
   const output = await runGit(['status', '--porcelain'], cwd);
   if (!output) return [];
   return output
     .split('\n')
     .filter((l) => l.trim())
-    .map((l) => l.slice(3).trim());
+    .map((l) => parsePorcelainLine(l))
+    .filter((p): p is string => p !== null && p.length > 0);
 }
 
 async function getStagedFiles(cwd?: string): Promise<string[]> {
@@ -119,7 +206,9 @@ async function stageFiles(files: string[] | undefined, cwd?: string): Promise<vo
     }
   });
   if (existing.length === 0) throw new Error('No files exist to stage');
-  await runGit(['add', ...existing], cwd);
+  // `--` terminates option parsing: without it a file named `-f` or
+  // `--force` would be read by git as a flag rather than a pathspec.
+  await runGit(['add', '--', ...existing], cwd);
 }
 
 async function commitWithMessage(message: string, cwd?: string): Promise<string> {
@@ -219,7 +308,10 @@ async function externalChangesSinceStage(cwd?: string): Promise<string[] | null>
         // '??' = untracked
         return idx === ' ' || idx === '?';
       })
-      .map((l) => l.slice(3).trim());
+      // Same parser as `getChangedFiles`: a quoted path reported raw would
+      // surface to the user with its git quoting still attached.
+      .map((l) => parsePorcelainLine(l))
+      .filter((p): p is string => p !== null && p.length > 0);
     return unstaged.length > 0 ? unstaged : null;
   } catch {
     return null;

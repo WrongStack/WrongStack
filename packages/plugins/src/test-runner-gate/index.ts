@@ -35,7 +35,7 @@ import { access } from 'node:fs/promises';
 import { basename, dirname, isAbsolute, join } from 'node:path';
 import type { Plugin } from '@wrongstack/core/types';
 import { buildWin32CmdShimInvocation, resolveWin32Command } from '@wrongstack/tools/win32';
-import { BoundedMap, withinProject } from '../runtime/index.js';
+import { releaseHandle, BoundedMap, withinProject } from '../runtime/index.js';
 
 /**
  * Resolve a (command, args) pair for execFile so Windows .cmd shims launch
@@ -607,7 +607,7 @@ const plugin: Plugin = {
     state.errorCount = 0;
     state.extensionSkippedCount = 0;
     state.cachedSkipCount = 0;
-    state.hookUnregister = null;
+    state.hookUnregister = releaseHandle(state.hookUnregister);
     state.lastResult = null;
     lastPassedHash.clear();
 

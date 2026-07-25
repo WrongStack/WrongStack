@@ -61,7 +61,13 @@ export function createBrainPanelHost(deps: BrainPanelServiceDeps): BrainPanelHos
           weight: v.weight,
         })),
         councilSeats: snap.councilLabels,
-        judgeLabel: snap.council.judge ? compactEntry(snap.council.judge) : undefined,
+        // The EFFECTIVE judge, not `council.judge`. The configured one is
+        // usually absent, so the panel used to read "auto" and say nothing
+        // about who actually breaks the panel's ties — including when that is
+        // one of the seats that produced the tie.
+        judgeLabel: snap.judgeLabel,
+        judgeConfigured: snap.council.judge !== undefined,
+        judgeIsVoter: snap.judgeIsVoter,
         ledgerEnabled: snap.ledger.enabled,
         autoDenyAfterFailures: snap.ledger.autoDenyAfterFailures,
         terminalPolicy: snap.terminalPolicy,

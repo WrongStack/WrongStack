@@ -75,14 +75,12 @@ function compactEntry(entry: { provider?: string | undefined; model: string }): 
  */
 function judgeSummary(s: {
   judgeLabel: string | undefined;
-  councilLabels: string[];
+  judgeIsVoter: boolean;
   council: { judge?: { provider?: string | undefined; model: string } | undefined };
 }): string {
   if (!s.judgeLabel) return '';
-  // councilLabels render as `<label> (<persona>[, veto])`.
-  const seated = s.councilLabels.some((label) => label.startsWith(`${s.judgeLabel} (`));
   const origin = s.council.judge ? '' : ' [derived]';
-  return `, judge: ${s.judgeLabel}${origin}${seated ? ' ⚠ also a voter' : ''}`;
+  return `, judge: ${s.judgeLabel}${origin}${s.judgeIsVoter ? ' ⚠ also a voter' : ''}`;
 }
 
 /**
@@ -857,11 +855,15 @@ export function buildBrainCommand(opts: SlashCommandContext): SlashCommand {
 
       if (subcommand === 'monitor') {
         const op = (rest[0] ?? '').toLowerCase();
-        const boot = color.dim('(applies on next session - the monitor is built at boot)');
+        // Monitor settings are live: the host re-tunes the running BrainMonitor
+        // from the runtime's onApplied. A threshold change restarts its
+        // watchers, so partially-accumulated streaks reset (they were measured
+        // against the old threshold); engagement cooldowns are preserved.
+        const live = color.dim('(applied live - accumulating signal counters reset)');
         if (op === 'on' || op === 'off') {
           return applyPatch(
             { monitor: { enabled: op === 'on' } },
-            () => `Brain monitor ${color.cyan(op)} ${boot}`,
+            () => `Brain monitor ${color.cyan(op)} ${live}`,
           );
         }
         if (op === 'policy') {
@@ -873,7 +875,7 @@ export function buildBrainCommand(opts: SlashCommandContext): SlashCommand {
           }
           return applyPatch(
             { monitor: { policy: value as 'llm' | 'steer' | 'observe' } },
-            () => `Brain monitor policy set to ${color.cyan(value)} ${boot}`,
+            () => `Brain monitor policy set to ${color.cyan(value)} ${live}`,
           );
         }
         const snapshot = opts.brainRuntime?.getSnapshot();
@@ -888,7 +890,7 @@ export function buildBrainCommand(opts: SlashCommandContext): SlashCommand {
           `  enabled  ${m.enabled === false ? color.dim('no') : color.cyan('yes')}`,
           `  policy   ${color.cyan(m.policy ?? 'llm')}`,
           color.dim('  Signals: tool-failure streak, error storm, agent stall, file churn.'),
-          color.dim('  Changes apply on the next session - the monitor is constructed at boot.'),
+          color.dim('  Changes apply live; a change restarts the watchers, resetting signal counters.'),
         ].join('\n');
         opts.renderer.write(msg);
         return { message: msg };
@@ -897,7 +899,14 @@ export function buildBrainCommand(opts: SlashCommandContext): SlashCommand {
       if (subcommand === 'stats') {
         const log = opts.getBrainLog?.() ?? [];
         const counts = new Map<string, number>();
+        const councilWarnings: Array<(typeof log)[number]> = [];
         for (const entry of log) {
+          // Council integrity warnings ride in the same ring but are not
+          // decisions — counting them would inflate 'unattributed'.
+          if (entry.kind === 'council_warn') {
+            councilWarnings.push(entry);
+            continue;
+          }
           const tier = (entry as { tier?: string }).tier ?? 'unattributed';
           counts.set(tier, (counts.get(tier) ?? 0) + 1);
         }
@@ -926,6 +935,12 @@ export function buildBrainCommand(opts: SlashCommandContext): SlashCommand {
         }
         if (snapshot?.circuit && snapshot.circuit.state !== 'closed') {
           lines.push(color.dim(`  circuit: ${snapshot.circuit.state}`));
+        }
+        if (councilWarnings.length > 0) {
+          lines.push('', color.bold(`  Council panel integrity (${councilWarnings.length})`));
+          for (const w of councilWarnings.slice(-3)) {
+            lines.push(color.dim(`  ${fmtAge(w.at).padEnd(8)} ${w.outcome}`));
+          }
         }
         lines.push('', color.dim(`  Based on the last ${log.length} logged decision(s) of this session.`));
         const msg = lines.join('\n');

@@ -218,6 +218,11 @@ export function setupBrainAndOrchestration(deps: BrainOrchestrationDeps): BrainO
   };
   const brainQueue = new BrainDecisionQueue(events, queueOpts);
 
+  // Declared before the runtime so `onApplied` can re-tune it; assigned below,
+  // after the Brain chain it consults exists. A plain `const` further down
+  // would leave the closure referencing a TDZ binding.
+  let brainMonitor: BrainMonitor | undefined;
+
   const brainRuntime = createBrainRuntime({
     initialConfig: brainCfg,
     // The tiers emit brain.llm_call / brain.council_* onto this bus; the
@@ -258,6 +263,12 @@ export function setupBrainAndOrchestration(deps: BrainOrchestrationDeps): BrainO
       ),
     onApplied: (snapshot) => {
       queueOpts.timeoutMs = snapshot.humanTimeoutMs;
+      // The monitor is constructed further down, so this fires against
+      // whatever is bound by the time a setting actually changes. `reconfigure`
+      // no-ops when the monitor block is unchanged, which matters because
+      // onApplied runs for EVERY Brain setting — `/brain risk` must not reset
+      // the monitor's in-flight failure streaks.
+      brainMonitor?.reconfigure(snapshot.monitor);
     },
   });
 
@@ -308,7 +319,7 @@ export function setupBrainAndOrchestration(deps: BrainOrchestrationDeps): BrainO
   // brain chain and brain monitor. The function continues below.
 
   // ── Brain Monitor ────────────────────────────────────────────────────────
-  const brainMonitor = new BrainMonitor({
+  brainMonitor = new BrainMonitor({
     events,
     brain,
     enabled: brainCfg?.monitor?.enabled,
@@ -341,7 +352,7 @@ export function setupBrainAndOrchestration(deps: BrainOrchestrationDeps): BrainO
     },
   });
   brainMonitor.start();
-  teardownHandlers.push(() => brainMonitor.stop());
+  teardownHandlers.push(() => brainMonitor?.stop());
   teardownHandlers.push(() => brainQueue.dispose());
 
   // ── Shadow controller ────────────────────────────────────────────────────

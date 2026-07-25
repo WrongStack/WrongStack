@@ -132,6 +132,7 @@ describe('assembleBrainTiers', () => {
         'c/z (auditor)',
       ]);
       expect(tiers.judgeLabel).toBe('d/w');
+      expect(tiers.judgeIsVoter).toBe(false);
     });
 
     it('honours an explicitly configured judge even when it is also a voter', () => {
@@ -143,6 +144,9 @@ describe('assembleBrainTiers', () => {
         resolveProvider: () => fakeProvider('ok'),
       });
       expect(tiers.judgeLabel).toBe('a/x');
+      // Configured explicitly, but still correlated — surfaces must be able to
+      // say so rather than trusting that a configured judge is independent.
+      expect(tiers.judgeIsVoter).toBe(true);
     });
 
     it('falls back to the first pool target when every target is seated', () => {
@@ -154,6 +158,7 @@ describe('assembleBrainTiers', () => {
         resolveProvider: () => fakeProvider('ok'),
       });
       expect(tiers.judgeLabel).toBe('a/x');
+      expect(tiers.judgeIsVoter).toBe(true);
     });
 
     it('reports no judge when no council is wired', () => {
@@ -163,6 +168,7 @@ describe('assembleBrainTiers', () => {
       });
       expect(tiers.council).toBeUndefined();
       expect(tiers.judgeLabel).toBeUndefined();
+      expect(tiers.judgeIsVoter).toBe(false);
     });
   });
 });

@@ -1094,7 +1094,17 @@ export class FileSessionWriter implements SessionWriter {
       model: this.meta.model ?? 'unknown',
       provider: this.meta.provider ?? 'unknown',
     })}\n`;
-    await fsp.writeFile(this.filePath, record, 'utf8');
+    // Windows EPERM fix: close the append-mode handle before replacing the
+    // file. Windows rejects rename() when the destination still has an open
+    // handle, even if that handle belongs to this process. closeHandlerThenReopen
+    // calls clearHistory (which uses atomicWrite → tmp + rename) and can also
+    // be called standalone.
+    await this.handle.close();
+    try {
+      await fsp.writeFile(this.filePath, record, 'utf8');
+    } finally {
+      this.handle = await fsp.open(this.filePath, 'a', 0o600);
+    }
     this.activePromptIndex = null;
     this.pendingFileSnapshots = [];
     this.pendingFileSnapshotBytes = 0;

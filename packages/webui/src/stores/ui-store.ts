@@ -13,7 +13,6 @@ import type { MailboxMessage } from './mailbox-store';
 export type Activity =
   | 'chat'
   | 'agents'
-  | 'history'
   | 'files'
   | 'changes'
   | 'mailbox'
@@ -25,7 +24,6 @@ export type Activity =
 const ACTIVITIES: readonly Activity[] = [
   'chat',
   'agents',
-  'history',
   'files',
   'changes',
   'mailbox',
@@ -39,7 +37,7 @@ const ACTIVITIES: readonly Activity[] = [
 export function coerceActivity(value: unknown): Activity {
   if (ACTIVITIES.includes(value as Activity)) return value as Activity;
   if (value === 'context') return 'chat';
-  if (value === 'sessions') return 'history';
+  if (value === 'history' || value === 'sessions') return 'chat';
   if (value === 'projects') return 'chat';
   if (value === 'officemap') return 'officemap';
   return 'chat';
@@ -168,6 +166,9 @@ interface UIState {
   settingsActiveTab: string;
   /** Generic per-view scroll positions — keyed by view name, restored on remount. */
   scrollPositions: Record<string, number>;
+  /** Persisted chat input draft — survives page navigation (e.g. Settings → Chat). */
+  draftInput: string;
+  setDraftInput: (text: string) => void;
   setProcessMonitorOpen: (open: boolean) => void;
   setQueuePanelOpen: (open: boolean) => void;
   setCronJobsOpen: (open: boolean) => void;
@@ -388,6 +389,7 @@ export const useUIStore = create<UIState>()(
       terminalCreateNonce: 0,
       settingsActiveTab: 'provider',
       scrollPositions: {},
+      draftInput: '',
       sideContextBreakdownOpen: false,
       selectedMailMessage: null,
       skillsState: {
@@ -517,6 +519,7 @@ export const useUIStore = create<UIState>()(
       setSettingsActiveTab: (tab: string) => set({ settingsActiveTab: tab }),
       setScrollPosition: (view: string, scrollTop: number) =>
         set((s) => ({ scrollPositions: { ...s.scrollPositions, [view]: scrollTop } })),
+      setDraftInput: (text: string) => set({ draftInput: text }),
       setSideContextBreakdownOpen: (open: boolean) => set({ sideContextBreakdownOpen: open }),
       setSkillsState: (state) => set({ skillsState: state }),
       setSelectedMailMessage: (msg) => set({ selectedMailMessage: msg }),
@@ -606,6 +609,7 @@ export const useUIStore = create<UIState>()(
         dockSection: s.dockSection,
         settingsActiveTab: s.settingsActiveTab,
         scrollPositions: s.scrollPositions,
+        draftInput: s.draftInput,
       }),
     },
   ),

@@ -90,6 +90,16 @@ export interface BrainTierAssembly {
    * previously observe.
    */
   judgeLabel: string | undefined;
+  /**
+   * True when the effective judge is ALSO one of the seated voters — i.e. the
+   * tie-breaker already cast one of the tied votes.
+   *
+   * Computed here, from the real voter list, rather than left to each surface
+   * to infer by string-matching `judgeLabel` against `councilLabels`: those
+   * are display strings (`"<label> (<persona>, veto)"`), and three independent
+   * re-parses of a rendering format is exactly how surfaces drift apart.
+   */
+  judgeIsVoter: boolean;
 }
 
 /** Assemble the LLM tiers of the Brain chain from `Config.brain`. */
@@ -229,5 +239,7 @@ export function assembleBrainTiers(opts: BrainTierAssemblyOptions): BrainTierAss
       ? voters.map((v) => `${v.label ?? v.model} (${v.persona ?? 'voter'}${v.veto ? ', veto' : ''})`)
       : [],
     judgeLabel: council ? (judge?.label ?? judge?.model) : undefined,
+    judgeIsVoter:
+      council !== undefined && judge !== undefined && seatedLabels.has(judge.label ?? judge.model),
   };
 }

@@ -43,6 +43,7 @@
  * @public
  */
 import type { Plugin } from '@wrongstack/core/types';
+import { releaseHandle } from '../runtime/index.js';
 
 // ---------------------------------------------------------------------------
 // Module-scope state (H1 audit pattern)
@@ -304,7 +305,7 @@ const plugin: Plugin = {
     state.commitCount = 0;
     state.startedAt = null;
     state.lastActivityAt = null;
-    state.stopHookUnregister = null;
+    state.stopHookUnregister = releaseHandle(state.stopHookUnregister);
     for (const off of state.eventUnsubscribers) {
       try {
         off();

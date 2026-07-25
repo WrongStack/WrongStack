@@ -121,6 +121,38 @@ describe('subscribeBrainDecisionLog', () => {
     ]);
   });
 
+  it('records a council resolution only when it carries integrity warnings', () => {
+    const events = new FakeEvents();
+    const { brainLog } = subscribeBrainDecisionLog(events);
+
+    // Healthy panel — the orchestrator emits no warnings, so the ring stays
+    // clean. With the default `distinctness: 'none'` this is every council.
+    events.emit('brain.council_resolved', {
+      at: 1000,
+      status: 'decided',
+      resolution: 'majority',
+      requestId: 'r1',
+    });
+    expect(brainLog).toEqual([]);
+
+    events.emit('brain.council_resolved', {
+      at: 2000,
+      status: 'decided',
+      resolution: 'majority',
+      requestId: 'r2',
+      warnings: ['Council distinctness policy "model" was not met: 1 distinct target(s) served 3 valid vote(s).'],
+    });
+    expect(brainLog).toEqual<BrainDecisionEntry[]>([
+      {
+        at: 2000,
+        kind: 'council_warn',
+        question: 'council decided via majority',
+        outcome:
+          'Council distinctness policy "model" was not met: 1 distinct target(s) served 3 valid vote(s).',
+      },
+    ]);
+  });
+
   it('disposes listeners on a real EventBus without losing method binding', () => {
     const events = new EventBus();
     const { brainLog, dispose } = subscribeBrainDecisionLog(events);

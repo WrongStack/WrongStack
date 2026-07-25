@@ -38,6 +38,15 @@ WrongStack is **free, open source, and MIT licensed**. It drives **autonomous go
 - 🔐 **Locked down by default** — encrypted secrets, SSRF guards on every redirect hop, fail-closed subagents, symlink containment, plugin trust tiers, WebUI redaction, and cloud-sync path guards.
 - 🪶 **A compact kernel** — `Container · Pipeline · EventBus · RunController` (~1670 lines including the full event type catalog). Everything above it is swappable; `--no-features` boots it fully offline.
 
+## What's new (unreleased fixes)
+
+- **ProviderError identity fixed across package boundaries** — `ProviderError.isProviderError()` duck-type guard catches cross-boundary class mismatches that previously made provider failures non-retryable and blocked fallback chains. (#304)
+- **`fallbackAuto: false` is now actually respected** — explicit fallback chains no longer have registry-discovered smart defaults appended after them. (#305)
+- **SSE transport errors no longer bypass retry/fallback** — `TypeError: terminated` during SSE body consumption is now normalized to a retryable `ProviderError`. (#306)
+- **WebUI Chimera toggle matches plugin state** — no longer shows "enabled" when the plugin is default-inactive and never loaded. (#307)
+- **`--desktop` boots without crashing** — `loadURL()` now receives a proper `file://` URL instead of a bare filesystem path. (#293)
+- **TUI long-prompt input supports vertical scrolling** — prompts wrapping beyond 10 rows show a scrollable viewport with auto-follow cursor and scroll indicator. (#295)
+
 ## What's new in 0.295.0
 
 - **Repository-stable project identity** — `.wrongstack/project.json` carries a committed `proj_<ULID>` across clones, worktrees, and machines, with explicit `project id|init|rekey` lifecycle commands.

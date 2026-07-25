@@ -45,6 +45,7 @@ import { resolveExecInvocation, type ExecInvocation } from './local-bin.js';
 
 export { BoundedMap, BoundedSet, type BoundedMapOptions } from './bounded-map.js';
 export { UNSERIALIZABLE, safeJsonStringify } from './safe-json.js';
+export { releaseHandle, releaseHandles, type Unregister } from './handles.js';
 
 export {
   clearLocalBinCache,

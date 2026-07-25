@@ -29,7 +29,7 @@
 
 import { execFile } from 'node:child_process';
 import type { Plugin } from '@wrongstack/core/types';
-import { BoundedMap } from '../runtime/index.js';
+import { releaseHandle, BoundedMap } from '../runtime/index.js';
 
 const API_VERSION = '^0.1.10';
 
@@ -293,8 +293,8 @@ const plugin: Plugin = {
     state.invocationCount = 0;
     state.blockCount = 0;
     state.warnCount = 0;
-    state.hookUnregister = null;
-    state.configUnregister = null;
+    state.hookUnregister = releaseHandle(state.hookUnregister);
+    state.configUnregister = releaseHandle(state.configUnregister);
     state.lastBlock = null;
     
     // Clear branch cache to ensure fresh detection after config changes.

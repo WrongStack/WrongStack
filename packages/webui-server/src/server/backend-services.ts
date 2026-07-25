@@ -450,6 +450,9 @@ export async function createAgentServices(input: AgentServicesInput): Promise<Ag
     void brainLedger.start();
   };
   if (brainLedgerEnabled) startBrainLedger();
+  // Declared before the runtime so `onApplied` can re-tune it; assigned below,
+  // once the Brain chain it consults exists.
+  let brainMonitor: BrainMonitor | undefined;
   const brainRuntime = createBrainRuntime({
     initialConfig: brainCfg,
     defaultProviderId: config.provider,
@@ -481,6 +484,12 @@ export async function createAgentServices(input: AgentServicesInput): Promise<Ag
       getDecisionDigest: (request) => brainLedger?.digestFor(request),
     },
     persist: input.persistBrainConfig,
+    // Keep the monitor's thresholds live, same as the CLI host. `reconfigure`
+    // no-ops when the monitor block is unchanged, so unrelated Brain edits
+    // (risk, pool, council) do not reset its in-flight failure streaks.
+    onApplied: (snapshot) => {
+      brainMonitor?.reconfigure(snapshot.monitor);
+    },
   });
   // Back-compat facade for the risk-only route: assignment routes through
   // runtime.apply(), which live-applies AND persists.
@@ -533,14 +542,25 @@ export async function createAgentServices(input: AgentServicesInput): Promise<Ag
   // is read at send time via the getter the caller passes, so the steer
   // always targets the LIVE session's leader identity.
   const brainMailbox = new GlobalMailbox(wpaths.projectDir, events);
-  const brainMonitor = new BrainMonitor({
+  brainMonitor = new BrainMonitor({
     events,
     brain,
+    // The full `config.brain.monitor` surface, matching the CLI host. Boot used
+    // to skip enabled/policy/signals/errorStormWindowMs/stallCheckIntervalMs/
+    // fileEditTools, so those settings were inert here — and now that
+    // `reconfigure()` applies the whole block, an unrelated Brain edit would
+    // have been the first thing to honour them.
+    enabled: brainCfg.monitor?.enabled,
+    policy: brainCfg.monitor?.policy,
+    signals: brainCfg.monitor?.signals,
     toolFailureStreak: brainCfg.monitor?.toolFailureStreak,
     errorStormCount: brainCfg.monitor?.errorStormCount,
+    errorStormWindowMs: brainCfg.monitor?.errorStormWindowMs,
     stallMs: brainCfg.monitor?.stallMs,
+    stallCheckIntervalMs: brainCfg.monitor?.stallCheckIntervalMs,
     fileChurnThreshold: brainCfg.monitor?.fileChurnThreshold,
     fileChurnWindowMs: brainCfg.monitor?.fileChurnWindowMs,
+    fileEditTools: brainCfg.monitor?.fileEditTools,
     cooldownMs: brainCfg.monitor?.cooldownMs,
     sessionId: () => context.session?.id,
     intervene: async ({ subject, body }) => {

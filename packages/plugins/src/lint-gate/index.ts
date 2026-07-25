@@ -33,7 +33,7 @@ import { createRequire } from 'node:module';
 import { tmpdir } from 'node:os';
 import { dirname, isAbsolute, join, relative, resolve, sep } from 'node:path';
 import type { Plugin } from '@wrongstack/core/types';
-import { BoundedMap } from '../runtime/index.js';
+import { releaseHandle, BoundedMap } from '../runtime/index.js';
 
 const API_VERSION = '^0.1.10';
 
@@ -436,7 +436,7 @@ const plugin: Plugin = {
     state.hitCount = 0;
     state.fixCount = 0;
     state.linterErrorCount = 0;
-    state.hookUnregister = null;
+    state.hookUnregister = releaseHandle(state.hookUnregister);
     state.lastResult = null;
     
     // Clear linter detection cache to ensure fresh detection after config changes.

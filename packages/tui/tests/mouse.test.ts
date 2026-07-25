@@ -36,28 +36,67 @@ describe('mouse enable/disable sequences', () => {
 describe('shouldEnableMouseTracking', () => {
   it('keeps full mouse mode active without an overlay', () => {
     expect(
-      shouldEnableMouseTracking({ fullMode: true, overlayOpen: false, protocol: 'sgr' }),
+      shouldEnableMouseTracking({
+        fullMode: true,
+        overlayOpen: false,
+        managedHistory: true,
+        protocol: 'sgr',
+      }),
     ).toBe(true);
   });
 
-  it('borrows tracking for overlays while full mode is off', () => {
+  it('keeps tracking active for managed history while full mode is off', () => {
     expect(
-      shouldEnableMouseTracking({ fullMode: false, overlayOpen: true, protocol: 'sgr' }),
+      shouldEnableMouseTracking({
+        fullMode: false,
+        overlayOpen: false,
+        managedHistory: true,
+        protocol: 'sgr',
+      }),
+    ).toBe(true);
+  });
+
+  it('borrows tracking for overlays without managed history', () => {
+    expect(
+      shouldEnableMouseTracking({
+        fullMode: false,
+        overlayOpen: true,
+        managedHistory: false,
+        protocol: 'sgr',
+      }),
     ).toBe(true);
     expect(
-      shouldEnableMouseTracking({ fullMode: false, overlayOpen: false, protocol: 'sgr' }),
+      shouldEnableMouseTracking({
+        fullMode: false,
+        overlayOpen: false,
+        managedHistory: false,
+        protocol: 'sgr',
+      }),
     ).toBe(false);
   });
 
   it.each(['none', 'x10', 'urxvt'] as const)(
     'never enables SGR tracking for the unsupported %s protocol',
     (protocol) => {
-      expect(shouldEnableMouseTracking({ fullMode: true, overlayOpen: true, protocol })).toBe(false);
+      expect(
+        shouldEnableMouseTracking({
+          fullMode: true,
+          overlayOpen: true,
+          managedHistory: true,
+          protocol,
+        }),
+      ).toBe(false);
     },
   );
 
   it('keeps compatibility when no capability profile was provided', () => {
-    expect(shouldEnableMouseTracking({ fullMode: true, overlayOpen: false })).toBe(true);
+    expect(
+      shouldEnableMouseTracking({
+        fullMode: true,
+        overlayOpen: false,
+        managedHistory: true,
+      }),
+    ).toBe(true);
   });
 });
 

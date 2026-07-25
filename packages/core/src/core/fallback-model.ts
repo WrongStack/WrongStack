@@ -101,8 +101,9 @@ export function fallbackProfileChain(config: Config, profileName: string | undef
  * so they surface instead.
  */
 function shouldFallback(err: unknown): number | null {
-  if (!(err instanceof ProviderError)) return null;
-  return isFallbackWorthy(err.kind) ? err.status : null;
+  if (!(err instanceof ProviderError) && !ProviderError.isProviderError(err)) return null;
+  const kind = (err as ProviderError).kind;
+  return isFallbackWorthy(kind) ? (err as ProviderError).status : null;
 }
 
 function isUsableModelResponse(response: Response): boolean | undefined {
@@ -171,10 +172,17 @@ function fallbackCandidates(
 ): FallbackChain {
   const mgr = opts.sharedManager ?? new FallbackProfileManager(config);
   const configuredPrimary = opts.primary ?? primaryTarget(config);
+  // The effective fallbackAuto: honour the config explicitly, fall back to
+  // !closedWorld only when config.fallbackAuto is undefined/null.
+  const configFallbackAuto = config.fallbackAuto;
+  const effectiveFallbackAuto =
+    configFallbackAuto !== undefined && configFallbackAuto !== null
+      ? configFallbackAuto
+      : !opts.closedWorld;
   const selectedChain = mgr.resolveEffective({
     fallbackModels: opts.fallbackModels ?? config.fallbackModels,
     fallbackProfile: opts.fallbackProfile,
-    fallbackAuto: !opts.closedWorld,
+    fallbackAuto: effectiveFallbackAuto,
     exclude: current,
   });
   const candidates: FallbackChainEntry[] = [];
@@ -210,9 +218,12 @@ function fallbackCandidates(
   // Then try the role-selected or explicit chain.
   candidates.push(...selectedChain);
 
-  // Finally try every other configured provider as a last resort.
-  const smartDefaults = mgr.resolveEffective({ fallbackAuto: true, exclude: current });
-  candidates.push(...smartDefaults);
+  // Finally try every other configured provider as a last resort — but only
+  // when fallbackAuto is actually enabled.
+  if (effectiveFallbackAuto) {
+    const smartDefaults = mgr.resolveEffective({ fallbackAuto: true, exclude: current });
+    candidates.push(...smartDefaults);
+  }
 
   const seen = new Set<string>();
   return Object.freeze(
@@ -411,13 +422,14 @@ export function createFallbackModelExtension(deps: FallbackModelDeps): AgentExte
         const current = { providerId: ctx_.provider.id, model: ctx_.model };
 
         // Record the failure in the tracker (real ProviderError, not our synthetic skip)
-        if (!alreadyTracked && firstErr_ instanceof ProviderError && tracker) {
+        const firstErrIsProvider = firstErr_ instanceof ProviderError || ProviderError.isProviderError(firstErr_);
+        if (!alreadyTracked && firstErrIsProvider && tracker) {
           tracker.recordFailure(
             ctx_.provider.id,
             ctx_.model,
-            firstErr_.kind,
-            firstErr_.status,
-            firstErr_.describe(),
+            (firstErr_ as ProviderError).kind,
+            (firstErr_ as ProviderError).status,
+            (firstErr_ as ProviderError).describe(),
             {
               sessionId: ctx_.session?.id,
               agentId: ctx_.agentId,
@@ -548,13 +560,13 @@ export function createFallbackModelExtension(deps: FallbackModelDeps): AgentExte
             return response;
           } catch (err) {
             // Record fallback failure too
-            if (err instanceof ProviderError && tracker) {
+            if ((err instanceof ProviderError || ProviderError.isProviderError(err)) && tracker) {
               tracker.recordFailure(
                 nextProvider.id,
                 targetModel,
-                err.kind,
-                err.status,
-                err.describe(),
+                (err as ProviderError).kind,
+                (err as ProviderError).status,
+                (err as ProviderError).describe(),
                 {
                   sessionId: ctx_.session?.id,
                   agentId: ctx_.agentId,

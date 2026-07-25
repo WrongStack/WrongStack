@@ -70,7 +70,12 @@ import { deriveAppViewState } from './app-view-state.js';
 import { AppView } from './app-view.js';
 import { historyViewportRows } from './hit-test.js';
 import { LayoutStore } from './layout-store.js';
-import { MOUSE_DRAG_ON, MOUSE_OFF, shouldEnableMouseTracking } from './mouse.js';
+import {
+  MOUSE_CLICK_ON,
+  MOUSE_DRAG_ON,
+  MOUSE_OFF,
+  shouldEnableMouseTracking,
+} from './mouse.js';
 import { createRunBlocksController } from './run-blocks-controller.js';
 import { createSubmitController } from './submit-controller.js';
 import { TokenPreviewStore } from './token-previews.js';
@@ -673,15 +678,14 @@ export function App(props: AppProps): React.ReactElement {
     [statuslineHiddenForPicker],
   );
 
-  // Live mirror of the full-session pointer opt-in. When false, the terminal
-  // keeps ownership of normal chat scrollback and tracking is only borrowed by
-  // selectable overlays. When true, the managed history owns wheel/click input.
+  // Live mirror of the full-session pointer opt-in. The managed history always
+  // owns wheel input because virtualized rows do not exist in native terminal
+  // scrollback. Full mode additionally enables drag and clickable app chrome.
   const [mouseMode, setMouseMode] = useState(mouse);
 
-  // Mouse tracking ownership. Full mode keeps SGR reporting active for the
-  // session; otherwise selectable overlays borrow it temporarily so wheel and
-  // click navigation still work without sacrificing normal terminal scrollback.
-  // A ref tracks the last write so transitions emit exactly one sequence.
+  // Mouse tracking ownership. Managed history keeps cheap click/wheel reporting
+  // active; full mode upgrades it to drag reporting for the scrollbar.
+  // A ref tracks the last sequence so transitions emit exactly one write.
   // Cleanup disables tracking on unmount;
   // run-tui also sends MOUSE_OFF as a belt-and-suspenders on process exit.
   const pickerOverlayOpen =
@@ -708,32 +712,39 @@ export function App(props: AppProps): React.ReactElement {
   const mouseTrackingOn = shouldEnableMouseTracking({
     fullMode: mouseMode,
     overlayOpen: pickerOverlayOpen,
+    managedHistory: true,
     protocol: capability?.mouseProtocol,
   });
-  const mouseWrittenRef = useRef<boolean | null>(null);
+  const mouseTrackingSequence = mouseTrackingOn
+    ? mouseMode
+      ? MOUSE_DRAG_ON
+      : MOUSE_CLICK_ON
+    : MOUSE_OFF;
+  const mouseWrittenRef = useRef<string | null>(null);
   useEffect(() => {
-    if (mouseWrittenRef.current === mouseTrackingOn) return;
-    mouseWrittenRef.current = mouseTrackingOn;
+    if (mouseWrittenRef.current === mouseTrackingSequence) return;
+    mouseWrittenRef.current = mouseTrackingSequence;
     try {
-      process.stdout.write(mouseTrackingOn ? MOUSE_DRAG_ON : MOUSE_OFF);
+      stdout?.write(mouseTrackingSequence);
     } catch {
       // stdout closed during shutdown — ignore.
     }
-  }, [mouseTrackingOn]);
+  }, [mouseTrackingSequence, stdout]);
   useEffect(
     () => () => {
-      const wasTracking = mouseWrittenRef.current === true;
+      const wasTracking =
+        mouseWrittenRef.current !== null && mouseWrittenRef.current !== MOUSE_OFF;
       // React StrictMode replays effects without recreating refs. Reset the
       // write sentinel so the replay restores whichever mode is still active.
       mouseWrittenRef.current = null;
       if (!wasTracking) return;
       try {
-        process.stdout.write(MOUSE_OFF);
+        stdout?.write(MOUSE_OFF);
       } catch {
         // ignore — process tearing down.
       }
     },
-    [],
+    [stdout],
   );
 
   // Managed history owns the rows above the input/status/panel region. Keep

@@ -8,6 +8,49 @@ import {
 } from '../../src/types/provider.js';
 import { ERROR_CODES } from '../../src/types/errors.js';
 
+describe('ProviderError.isProviderError', () => {
+  it('returns true for a genuine ProviderError', () => {
+    const err = new ProviderError('test', 429, true, 'anthropic');
+    expect(ProviderError.isProviderError(err)).toBe(true);
+  });
+
+  it('returns true for a duck-type-compatible object', () => {
+    const err = {
+      name: 'ProviderError',
+      status: 502,
+      retryable: true,
+      kind: 'server',
+      message: 'upstream gateway error',
+    };
+    expect(ProviderError.isProviderError(err)).toBe(true);
+  });
+
+  it('returns false for a plain Error', () => {
+    expect(ProviderError.isProviderError(new Error('boom'))).toBe(false);
+  });
+
+  it('returns false for null and undefined', () => {
+    expect(ProviderError.isProviderError(null)).toBe(false);
+    expect(ProviderError.isProviderError(undefined)).toBe(false);
+  });
+
+  it('returns false for a plain object missing required fields', () => {
+    expect(ProviderError.isProviderError({ name: 'ProviderError', status: 502 })).toBe(false);
+  });
+
+  it('returns false for a StreamHangError (subclass) since all fields match', () => {
+    const hang = new StreamHangError({
+      providerId: 'anthropic',
+      model: 'claude-opus-4',
+      hangTimeoutMs: 60_000,
+      bytesReceived: 0,
+      elapsedMs: 60_000,
+    });
+    // Subclass inherits the name and fields, so the duck-type check should pass
+    expect(ProviderError.isProviderError(hang)).toBe(true);
+  });
+});
+
 describe('classifyProviderError', () => {
   it('classifies by status code', () => {
     expect(classifyProviderError(0)).toBe('network');

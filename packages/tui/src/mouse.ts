@@ -12,7 +12,8 @@
  * Trade-off: with ANY of these on, the terminal reports the wheel to us as
  * buttons 64/65 instead of scrolling its own scrollback. Shift+wheel (and
  * users keep access to terminal scrollback — but plain wheel events are owned
- * by the app while tracking is active. Keep tracking opt-in / overlay-scoped.
+ * by the app while tracking is active. Managed history therefore keeps cheap
+ * click/wheel tracking active; full pointer/drag behavior remains opt-in.
  */
 
 const ESC = String.fromCharCode(27);
@@ -35,6 +36,12 @@ export interface MouseTrackingPolicy {
   fullMode: boolean;
   /** A picker that benefits from temporary click/wheel ownership is visible. */
   overlayOpen: boolean;
+  /**
+   * The chat transcript is rendered in a bounded, application-managed
+   * viewport. Its wheel must be reported to the app because native terminal
+   * scrollback cannot move virtualized content.
+   */
+  managedHistory: boolean;
   /** Startup terminal capability probe. Undefined keeps legacy callers enabled. */
   protocol?: 'none' | 'x10' | 'urxvt' | 'sgr' | undefined;
 }
@@ -45,7 +52,7 @@ export function shouldEnableMouseTracking(policy: MouseTrackingPolicy): boolean 
   // terminal would produce a different byte format and leak it into the composer,
   // so legacy protocols degrade to keyboard/native-scrollback behavior.
   const supportsSgr = policy.protocol === undefined || policy.protocol === 'sgr';
-  return supportsSgr && (policy.fullMode || policy.overlayOpen);
+  return supportsSgr && (policy.managedHistory || policy.fullMode || policy.overlayOpen);
 }
 
 /**

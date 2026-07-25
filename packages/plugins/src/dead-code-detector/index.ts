@@ -243,7 +243,15 @@ function findUnusedSymbols(files: ScannedFile[]): SuspiciousSymbol[] {
   for (const file of files) {
     const fileExports = extractExports(file.content, file.path);
     for (const exp of fileExports) {
-      const pattern = new RegExp(`\\b${escapeRegex(exp.identifier)}\\b`, 'g');
+      // Explicit identifier boundaries rather than `\b`. `\b` is defined
+      // against `[A-Za-z0-9_]`, which excludes `$` — so a `$`-prefixed
+      // export was never matched in any other file and got reported as
+      // dead code. This tool's output is a recommendation to DELETE, so a
+      // false positive here is expensive.
+      const pattern = new RegExp(
+        `(?<![A-Za-z0-9_$])${escapeRegex(exp.identifier)}(?![A-Za-z0-9_$])`,
+        'g',
+      );
       let usedElsewhere = false;
       for (const other of files) {
         if (other.path === file.path) continue;

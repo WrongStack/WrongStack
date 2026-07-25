@@ -102,13 +102,33 @@ function modelMatches(pattern: string, model: string): boolean {
   return model.toLowerCase() === pattern.toLowerCase();
 }
 
+/**
+ * Read a numeric option, falling back to the default unless it is a finite
+ * number inside `[min, max]`.
+ *
+ * The bounds in `configSchema` document intent but do not police this
+ * function: it read any `typeof === 'number'` value straight through, so
+ * `NaN`, `Infinity`, a negative limit, or `warnPercent: 500` all landed in
+ * the live config. `NaN` is the worst of them — every comparison against it
+ * is false, so the budget silently stopped enforcing anything.
+ */
+function readBoundedNumber(value: unknown, min: number, max: number, fallback: number): number {
+  if (typeof value !== 'number' || !Number.isFinite(value)) return fallback;
+  if (value < min || value > max) return fallback;
+  return value;
+}
+
 function readConfig(raw: unknown): TokenBudgetConfig {
   if (!raw || typeof raw !== 'object') return { ...DEFAULTS };
   const r = raw as Record<string, unknown>;
+  const warnPercent = readBoundedNumber(r['warnPercent'], 1, 100, DEFAULTS.warnPercent);
+  const stopPercent = readBoundedNumber(r['stopPercent'], 1, 100, DEFAULTS.stopPercent);
   return {
-    limit: typeof r['limit'] === 'number' ? r['limit'] : DEFAULTS.limit,
-    warnPercent: typeof r['warnPercent'] === 'number' ? r['warnPercent'] : DEFAULTS.warnPercent,
-    stopPercent: typeof r['stopPercent'] === 'number' ? r['stopPercent'] : DEFAULTS.stopPercent,
+    limit: readBoundedNumber(r['limit'], 0, Number.MAX_SAFE_INTEGER, DEFAULTS.limit),
+    warnPercent,
+    // A warn threshold above the stop threshold can never fire — the run
+    // stops first. Clamp so the pair always describes a reachable window.
+    stopPercent: Math.max(stopPercent, warnPercent),
     model: typeof r['model'] === 'string' ? r['model'] : '',
   };
 }
@@ -116,6 +136,27 @@ function readConfig(raw: unknown): TokenBudgetConfig {
 // ---------------------------------------------------------------------------
 // Plugin
 // ---------------------------------------------------------------------------
+
+/**
+ * Drop every hook this plugin owns.
+ *
+ * Shared by `setup()` (idempotent re-init) and `teardown()`. Setup must go
+ * through here rather than nulling the handles directly — otherwise the
+ * previous registration is abandoned in the registry, unreachable, and
+ * still firing.
+ */
+function clearRegistrations(): void {
+  for (const key of ['hookUnregister', 'postHookUnregister'] as const) {
+    const off = state[key];
+    if (!off) continue;
+    try {
+      off();
+    } catch {
+      // best-effort
+    }
+    state[key] = null;
+  }
+}
 
 const plugin: Plugin = {
   name: 'token-budget',
@@ -165,9 +206,13 @@ const plugin: Plugin = {
     state.stopFired = false;
     state.warnContextInjected = false;
     state.stopContextInjected = false;
-    state.hookUnregister = null;
-    state.postHookUnregister = null;
     state.lastRequest = null;
+    // Unregister BEFORE dropping the handles. Assigning null without
+    // calling them abandoned the previous registration: the old Stop and
+    // PostToolUse hooks stayed live in the registry with no way to reach
+    // them, so every plugin reload stacked another copy that fired
+    // alongside the new one.
+    clearRegistrations();
 
     const cfg = readConfig(api.config.extensions?.['token-budget']);
 
@@ -319,6 +364,12 @@ const plugin: Plugin = {
           remaining,
           percent,
           requestCount: state.requestCount,
+          // The EFFECTIVE thresholds, after out-of-range values fall back to
+          // the defaults and warn/stop are ordered. Without these the user
+          // cannot tell that a rejected or clamped setting is not in force.
+          warnPercent: cfg.warnPercent,
+          stopPercent: cfg.stopPercent,
+          model: cfg.model === '' ? null : cfg.model,
           breakdown: {
             prompt: state.totalPromptTokens,
             completion: state.totalCompletionTokens,
@@ -339,23 +390,8 @@ const plugin: Plugin = {
   },
 
   teardown(api) {
-    // H1 pattern: unregister hook + zero counters.
-    if (state.hookUnregister) {
-      try {
-        state.hookUnregister();
-      } catch {
-        // best-effort
-      }
-      state.hookUnregister = null;
-    }
-    if (state.postHookUnregister) {
-      try {
-        state.postHookUnregister();
-      } catch {
-        // best-effort
-      }
-      state.postHookUnregister = null;
-    }
+    // H1 pattern: unregister hooks + zero counters.
+    clearRegistrations();
     const final = {
       totalTokens: state.totalTokens,
       requestCount: state.requestCount,

@@ -153,6 +153,12 @@ export interface BrainConfigSnapshot {
    * checkable instead of implicit.
    */
   judgeLabel: string | undefined;
+  /**
+   * True when the effective judge is also one of the seated voters. Surfaces
+   * render this as a warning; they must NOT re-derive it by matching
+   * `judgeLabel` against the `councilLabels` display strings.
+   */
+  judgeIsVoter: boolean;
   usingSessionModel: boolean;
 }
 
@@ -197,9 +203,12 @@ export interface BrainConfigPatch {
   /** Decision cache. Merged field-by-field; `null` clears it. */
   cache?: BrainConfig['cache'] | null | undefined;
   /**
-   * Monitor thresholds. Merged field-by-field; `null` clears it. NOTE the
-   * BrainMonitor is constructed once at boot, so these take effect on the
-   * next session rather than live — unlike every other patch field.
+   * Monitor thresholds. Merged field-by-field; `null` clears it.
+   *
+   * Live, like every other patch field — but the runtime does not own the
+   * BrainMonitor, so the HOST must forward `snapshot.monitor` to
+   * `BrainMonitor.reconfigure()` from `onApplied`. A host that skips that
+   * wiring persists the setting and applies it on the next session.
    */
   monitor?: BrainConfig['monitor'] | null | undefined;
   council?: BrainCouncilPatch | null | undefined;
@@ -450,6 +459,7 @@ export function createBrainRuntime(opts: BrainRuntimeOptions): BrainRuntime {
   let poolLabels: string[] = [];
   let councilLabels: string[] = [];
   let judgeLabel: string | undefined;
+  let judgeIsVoter = false;
   let circuit: BrainCircuitBreaker | undefined;
   let decisionCache: BrainDecisionCache | undefined;
   let compiledRules: CompiledBrainRule[] = [];
@@ -484,6 +494,7 @@ export function createBrainRuntime(opts: BrainRuntimeOptions): BrainRuntime {
     poolLabels = tiers.poolLabels;
     councilLabels = tiers.councilLabels;
     judgeLabel = tiers.judgeLabel;
+    judgeIsVoter = tiers.judgeIsVoter;
     const tiered = createTieredBrainArbiter({
       policy: new DefaultBrainArbiter({ heuristics: cfg.heuristics }),
       autonomous: tiers.autonomous,
@@ -916,6 +927,7 @@ export function createBrainRuntime(opts: BrainRuntimeOptions): BrainRuntime {
       poolLabels: [...poolLabels],
       councilLabels: [...councilLabels],
       judgeLabel,
+      judgeIsVoter,
       usingSessionModel: (cfg.models ?? []).length === 0,
     };
   }

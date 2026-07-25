@@ -32,7 +32,7 @@
 
 import { readFileSync } from 'node:fs';
 import type { Plugin } from '@wrongstack/core/types';
-import { withinProject } from '../runtime/index.js';
+import { releaseHandle, withinProject } from '../runtime/index.js';
 
 const API_VERSION = '^0.1.10';
 
@@ -226,7 +226,7 @@ const plugin: Plugin = {
     state.skippedCount = 0;
     state.lastOverallPct = null;
     state.lastResult = null;
-    state.hookUnregister = null;
+    state.hookUnregister = releaseHandle(state.hookUnregister);
 
     const cfg = readConfig(api.config.extensions?.['test-coverage-gate']);
 

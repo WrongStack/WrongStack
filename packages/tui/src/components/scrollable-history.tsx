@@ -164,9 +164,9 @@ const MAX_UNDERFILL_BUMPS = 8;
  *
  * Instead of streaming entries into the terminal's native scrollback via
  * `<Static>`, retained entries render into a fixed-height `overflowY:'hidden'`
- * viewport the app scrolls itself. PageUp/PageDown always scroll it; mouse
- * mode additionally captures wheel and scrollbar interactions — both through
- * the {@link HistoryScrollController} this component owns.
+ * viewport the app scrolls itself. Wheel, PageUp/PageDown, and Ctrl+U/D scroll
+ * it in every mode; full mouse mode additionally enables scrollbar interaction.
+ * All paths use the {@link HistoryScrollController} this component owns.
  *
  * Positioning model (Ink-7 verified against real yoga layout):
  * - Pinned (anchor `null`): `justifyContent:'flex-end'` + enough trailing
@@ -372,7 +372,14 @@ export const ScrollableHistory = memo(function ScrollableHistory({
   const applyAnchor = useCallback((next: ScrollAnchor | null): void => {
     const ids = groupIdsRef.current;
     const nextId = next ? ids[next.index] : undefined;
-    setAnchor(next && nextId !== undefined ? { id: nextId, clip: Math.max(0, next.clip) } : null);
+    const normalized =
+      next && nextId !== undefined ? { index: next.index, clip: Math.max(0, next.clip) } : null;
+    // Raw stdin often batches many trackpad/wheel reports in one chunk. React
+    // does not render between those controller calls, so update the imperative
+    // ref immediately; otherwise every event computes from the same stale
+    // anchor and an entire gesture collapses to a single scroll step.
+    effectiveAnchorRef.current = normalized;
+    setAnchor(normalized && nextId !== undefined ? { id: nextId, clip: normalized.clip } : null);
     setMountBump(0);
   }, []);
 

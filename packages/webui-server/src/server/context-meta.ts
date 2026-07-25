@@ -128,12 +128,16 @@ export function seedContextMeta(config: Config, context: { meta: Record<string, 
 
   // Chimera (post-session review) — seed from extensions['wstack-chimera']
   // so the dedicated panel reflects the persisted config on first connect,
-  // before any prefs.update arrives. Defaults match ResolvedChimeraConfig in
-  // chimera-plugin.ts:34 (enabled=true; provider/model/session fallback).
+  // before any prefs.update arrives. The chimera plugin registers itself with
+  // defaultState: 'inactive' — when there is no extensions.wstack-chimera
+  // entry at all the plugin is NOT loaded, so the WebUI must default to
+  // disabled to match. Contrast with the chimera-plugin.ts internal default
+  // (enabled !== false) which only applies AFTER the plugin is explicitly
+  // opted into. See also plugin-manager.ts defaultState.
   const chimeraExt = (config.extensions as Record<string, Record<string, unknown>> | undefined)?.[
     'wstack-chimera'
   ];
-  meta['chimeraEnabled'] = chimeraExt?.['enabled'] !== false; // default true
+  meta['chimeraEnabled'] = chimeraExt?.['enabled'] === true; // default false (matches defaultState: 'inactive')
   meta['chimeraProvider'] = (chimeraExt?.['provider'] as string) ?? '';
   meta['chimeraModel'] = (chimeraExt?.['model'] as string) ?? '';
   meta['chimeraMaxFiles'] =

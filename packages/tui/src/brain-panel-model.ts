@@ -53,7 +53,15 @@ export interface BrainPanelSettings {
   voters: BrainPanelVoter[];
   /** Effective council seat labels (empty = council disabled). */
   councilSeats: string[];
+  /**
+   * EFFECTIVE council judge (resolved, not merely configured). Undefined when
+   * no council is wired.
+   */
   judgeLabel?: string | undefined;
+  /** False when `judgeLabel` was derived from the pool rather than configured. */
+  judgeConfigured?: boolean | undefined;
+  /** True when the effective judge is also a seated voter (correlated tie-break). */
+  judgeIsVoter?: boolean | undefined;
   ledgerEnabled: boolean;
   autoDenyAfterFailures?: number | undefined;
   /** Headless escalation variant. */

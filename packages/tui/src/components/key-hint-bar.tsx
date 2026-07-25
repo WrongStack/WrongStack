@@ -50,6 +50,12 @@ export function hintsFor(ctx: KeyHintContext): Hint[] {
     }
     return hints;
   }
+  if (ctx.managed) {
+    return [
+      { key: 'wheel', label: 'scroll' },
+      { key: 'Ctrl+U/D', label: 'page' },
+    ];
+  }
   // Idle / chat — brand line instead of keybinding hints.
   return [{ key: '', label: 'github.com/wrongstack/wrongstack' }];
 }

@@ -10,7 +10,7 @@
 import type { Plugin } from '@wrongstack/core/types';
 import { readFile, writeFile } from 'node:fs/promises';
 import { isAbsolute } from 'node:path';
-import { withinProject } from '../runtime/index.js';
+import { releaseHandle, withinProject } from '../runtime/index.js';
 
 const API_VERSION = '^0.1.10';
 
@@ -33,6 +33,17 @@ interface StoredTemplate {
 // reach the resource and clear it. Setup re-initializes the Map
 // (idempotent re-init on plugin reload); teardown releases it.
 const templates = new Map<string, StoredTemplate>();
+
+/**
+ * Handle for the system-prompt contributor.
+ *
+ * Unlike `api.onEvent`, the host does NOT track prompt contributors for
+ * automatic cleanup (`DefaultPluginAPI.registerSystemPromptContributor`
+ * returns the unregister function and keeps no reference). Discarding it
+ * meant every reload added another copy of the same prompt block, and
+ * teardown left one behind entirely.
+ */
+let contributorUnregister: (() => void) | null = null;
 
 // ---------------------------------------------------------------------------
 // Template engine
@@ -395,8 +406,10 @@ const plugin: Plugin = {
       },
     });
 
-    // System prompt contributor
-    api.registerSystemPromptContributor(async () => [
+    // System prompt contributor. Release any previous registration first
+    // so a reload replaces it rather than stacking a duplicate.
+    contributorUnregister = releaseHandle(contributorUnregister);
+    contributorUnregister = api.registerSystemPromptContributor(async () => [
       {
         type: 'text' as const,
         text: `Template engine available:
@@ -416,6 +429,7 @@ const plugin: Plugin = {
     // Templates are pure data so this is a single Map.clear().
     const count = templates.size;
     templates.clear();
+    contributorUnregister = releaseHandle(contributorUnregister);
     api.log.info('template-engine: teardown complete', { cleared: count });
   },
 

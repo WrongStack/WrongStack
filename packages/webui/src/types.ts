@@ -1894,6 +1894,11 @@ export interface BrainConfigWire {
    * the one that can silently also be a seated voter.
    */
   judgeLabel?: string | undefined;
+  /**
+   * True when the effective judge is also a seated voter. Resolved server-side
+   * — do not re-derive it from the `councilLabels` display strings.
+   */
+  judgeIsVoter?: boolean | undefined;
   usingSessionModel: boolean;
 }
 
@@ -2822,6 +2827,8 @@ export type WSServerMessage =
         councilLabels?: string[] | undefined;
         /** EFFECTIVE council judge — undefined when no council is wired. */
         judgeLabel?: string | undefined;
+        /** True when that judge is also a seated voter (correlated tie-break). */
+        judgeIsVoter?: boolean | undefined;
         ledgerPath?: string | undefined;
       };
     }

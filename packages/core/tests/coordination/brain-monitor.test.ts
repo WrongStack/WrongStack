@@ -404,3 +404,110 @@ describe('BrainMonitor — deterministic policies and kill switches', () => {
     monitor.stop();
   });
 });
+
+describe('BrainMonitor — live reconfiguration', () => {
+  let events: EventBus;
+  let interventions: BrainInterventionInput[];
+  let intervene: (input: BrainInterventionInput) => Promise<void>;
+  let brain: BrainArbiter & { decide: ReturnType<typeof vi.fn> };
+
+  beforeEach(() => {
+    events = new EventBus();
+    interventions = [];
+    intervene = async (input) => {
+      interventions.push(input);
+    };
+    brain = { decide: vi.fn(async (): Promise<BrainDecision> => STEER) };
+  });
+
+  it('applies a new failure threshold to a running monitor', async () => {
+    const monitor = new BrainMonitor({ events, brain, intervene, toolFailureStreak: 3 });
+    monitor.start();
+
+    expect(monitor.reconfigure({ toolFailureStreak: 5 })).toBe(true);
+    for (let i = 0; i < 4; i++) events.emit('tool.executed', failedTool('edit'));
+    await settle();
+    // Would have engaged twice under the old threshold of 3.
+    expect(brain.decide).not.toHaveBeenCalled();
+
+    events.emit('tool.executed', failedTool('edit'));
+    await settle();
+    expect(brain.decide).toHaveBeenCalledTimes(1);
+    monitor.stop();
+  });
+
+  it('reports no change for an identical config and leaves counters intact', async () => {
+    // onApplied fires for EVERY Brain setting, so `/brain risk` reaches this
+    // path too. If an unchanged monitor block restarted the watchers, it would
+    // silently discard an in-flight failure streak.
+    const monitor = new BrainMonitor({ events, brain, intervene, toolFailureStreak: 3 });
+    monitor.start();
+    events.emit('tool.executed', failedTool('edit'));
+    events.emit('tool.executed', failedTool('edit'));
+
+    expect(monitor.reconfigure({ toolFailureStreak: 3 })).toBe(false);
+
+    events.emit('tool.executed', failedTool('edit'));
+    await settle();
+    expect(brain.decide).toHaveBeenCalledTimes(1);
+    monitor.stop();
+  });
+
+  it('resets accumulating counters when a threshold actually changes', async () => {
+    const monitor = new BrainMonitor({ events, brain, intervene, toolFailureStreak: 3 });
+    monitor.start();
+    events.emit('tool.executed', failedTool('edit'));
+    events.emit('tool.executed', failedTool('edit'));
+
+    // Two failures banked, then the threshold moves. The partial streak was
+    // measured against the old threshold and must not carry over.
+    expect(monitor.reconfigure({ toolFailureStreak: 3, cooldownMs: 999 })).toBe(true);
+    events.emit('tool.executed', failedTool('edit'));
+    await settle();
+    expect(brain.decide).not.toHaveBeenCalled();
+    monitor.stop();
+  });
+
+  it('switches policy live — llm to steer stops consulting the Brain', async () => {
+    const monitor = new BrainMonitor({ events, brain, intervene, policy: 'llm', cooldownMs: 0 });
+    monitor.start();
+    for (let i = 0; i < 3; i++) events.emit('tool.executed', failedTool('edit'));
+    await settle();
+    expect(brain.decide).toHaveBeenCalledTimes(1);
+
+    expect(monitor.reconfigure({ policy: 'steer', cooldownMs: 0 })).toBe(true);
+    for (let i = 0; i < 3; i++) events.emit('tool.executed', failedTool('edit'));
+    await settle();
+    expect(brain.decide).toHaveBeenCalledTimes(1);
+    expect(interventions).toHaveLength(2);
+    monitor.stop();
+  });
+
+  it('disabling live detaches the watchers; re-enabling reattaches them', async () => {
+    const monitor = new BrainMonitor({ events, brain, intervene, cooldownMs: 0 });
+    monitor.start();
+
+    expect(monitor.reconfigure({ enabled: false })).toBe(true);
+    for (let i = 0; i < 3; i++) events.emit('tool.executed', failedTool('edit'));
+    await settle();
+    expect(brain.decide).not.toHaveBeenCalled();
+
+    expect(monitor.reconfigure({ enabled: true, cooldownMs: 0 })).toBe(true);
+    for (let i = 0; i < 3; i++) events.emit('tool.executed', failedTool('edit'));
+    await settle();
+    expect(brain.decide).toHaveBeenCalledTimes(1);
+    monitor.stop();
+  });
+
+  it('does not double-subscribe when start() is called twice', async () => {
+    const monitor = new BrainMonitor({ events, brain, intervene, cooldownMs: 0 });
+    monitor.start();
+    monitor.start();
+    for (let i = 0; i < 3; i++) events.emit('tool.executed', failedTool('edit'));
+    await settle();
+    // A second subscription would double-count every tool event, tripping the
+    // streak after two failures and engaging twice.
+    expect(brain.decide).toHaveBeenCalledTimes(1);
+    monitor.stop();
+  });
+});

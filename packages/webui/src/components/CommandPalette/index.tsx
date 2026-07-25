@@ -225,7 +225,7 @@ export function CommandPalette() {
         icon: HistoryIcon,
         keywords: ['history', 'sessions'],
         run: () => {
-          showPanel('history');
+          showPanel('chat');
         },
       },
       {

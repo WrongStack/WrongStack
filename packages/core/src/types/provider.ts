@@ -463,6 +463,37 @@ export class ProviderError extends WrongStackError {
   public readonly kind: ProviderErrorKind;
   public readonly body?: ProviderErrorBody | undefined;
 
+  /**
+   * Duck-type guard: checks whether an unknown value *looks like* a
+   * ProviderError by probing for its structural properties.  Use this
+   * anywhere the constructor identity might cross a package boundary
+   * (e.g. `@wrongstack/providers` creates the error, but the runner in
+   * `@wrongstack/core` checks it). A plain `instanceof ProviderError`
+   * can fail when npm hoists duplicate copies of `@wrongstack/core`,
+   * each with its own class identity.
+   *
+   * The check tests for the four invariant properties defined in the
+   * constructor: `name === 'ProviderError'`, `status` (number),
+   * `retryable` (boolean), and `kind` (string). This tolerates both
+   * true `ProviderError` instances and cross-boundary copies.
+   */
+  static isProviderError(err: unknown): err is ProviderError {
+    if (!err || typeof err !== 'object') return false;
+    const e = err as Record<string, unknown>;
+    // Accept both ProviderError and its subclasses (e.g. StreamHangError) by
+    // checking for the structural invariant properties defined in the
+    // constructor. The `name` check accepts 'ProviderError' and any subclass
+    // name that ends with 'Error' — this tolerates both true instances and
+    // cross-boundary copies where instanceof may fail due to npm hoisting.
+    const name = e.name;
+    if (typeof name !== 'string' || !name.endsWith('Error')) return false;
+    return (
+      typeof e.status === 'number' &&
+      typeof e.retryable === 'boolean' &&
+      typeof e.kind === 'string'
+    );
+  }
+
   constructor(
     message: string,
     status: number,
@@ -529,10 +560,11 @@ export class ProviderError extends WrongStackError {
  * still trigger compact-and-retry instead of failing terminally.
  */
 export function isContextOverflowShaped(err: unknown): boolean {
-  if (!(err instanceof ProviderError)) return false;
-  if (err.kind === 'context_overflow' || err.status === 413) return true;
-  if (err.status < 400) return false;
-  const text = [err.message, err.body?.message, err.body?.type, err.body?.raw]
+  if (!(err instanceof ProviderError) && !ProviderError.isProviderError(err)) return false;
+  const providerErr = err as ProviderError;
+  if (providerErr.kind === 'context_overflow' || providerErr.status === 413) return true;
+  if (providerErr.status < 400) return false;
+  const text = [providerErr.message, providerErr.body?.message, providerErr.body?.type, providerErr.body?.raw]
     .filter(Boolean)
     .join('\n');
   return CONTEXT_OVERFLOW_RE.test(text);

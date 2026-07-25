@@ -80,6 +80,25 @@ describe('scroll stability under real layout (lurch proof)', () => {
     v.unmount();
   });
 
+  it('accumulates batched wheel steps before React renders', async () => {
+    const batchRef = { current: null as HistoryScrollController | null };
+    const directRef = { current: null as HistoryScrollController | null };
+    const entries = makeEntries();
+    const batched = renderRealTty(view(entries, batchRef), { columns: 60, rows: VP + 2 });
+    const direct = renderRealTty(view(entries, directRef), { columns: 60, rows: VP + 2 });
+    await settle();
+
+    // Raw stdin can deliver several SGR wheel reports in one data chunk. These
+    // calls intentionally happen without a render/settle between them.
+    for (let row = 0; row < 9; row++) batchRef.current?.scrollBy(1);
+    directRef.current?.scrollBy(9);
+    await settle();
+
+    expect(contentOnly(batched.lastFrame())).toBe(contentOnly(direct.lastFrame()));
+    batched.unmount();
+    direct.unmount();
+  });
+
   it('the visible frame does not move when entries are appended below while scrolled', async () => {
     const controllerRef = { current: null as HistoryScrollController | null };
     const entries = makeEntries();

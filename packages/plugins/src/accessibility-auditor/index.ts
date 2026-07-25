@@ -28,7 +28,7 @@
 import { readFile } from 'node:fs/promises';
 import { isAbsolute, relative, resolve } from 'node:path';
 import type { Plugin } from '@wrongstack/core/types';
-import { collectSourceFilesAsync, matchesExtension, withinProject } from '../runtime/index.js';
+import { releaseHandle, collectSourceFilesAsync, matchesExtension, withinProject } from '../runtime/index.js';
 
 const API_VERSION = '^0.1.10';
 
@@ -364,7 +364,7 @@ const plugin: Plugin = {
     state.findingCount = 0;
     state.hookInvocationCount = 0;
     state.lastResult = null;
-    state.hookUnregister = null;
+    state.hookUnregister = releaseHandle(state.hookUnregister);
 
     const cfg = readConfig(api.config.extensions?.['accessibility-auditor']);
 

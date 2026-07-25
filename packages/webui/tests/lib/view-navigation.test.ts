@@ -69,10 +69,9 @@ function resetStore() {
 
 describe('constants', () => {
   it('PANEL_VIEW_BY_ACTIVITY maps all activities', () => {
-    expect(Object.keys(PANEL_VIEW_BY_ACTIVITY)).toHaveLength(10);
+    expect(Object.keys(PANEL_VIEW_BY_ACTIVITY)).toHaveLength(9);
     expect(PANEL_VIEW_BY_ACTIVITY.chat).toBe('chat');
     expect(PANEL_VIEW_BY_ACTIVITY.agents).toBe('chat');
-    expect(PANEL_VIEW_BY_ACTIVITY.history).toBe('sessions');
     expect(PANEL_VIEW_BY_ACTIVITY.files).toBe('files');
     expect(PANEL_VIEW_BY_ACTIVITY.changes).toBe('changes');
     expect(PANEL_VIEW_BY_ACTIVITY.mailbox).toBe('mailbox');
@@ -86,7 +85,6 @@ describe('constants', () => {
     expect(VIEW_ACTIVITY.chat).toBe('chat');
     expect(VIEW_ACTIVITY.files).toBe('files');
     expect(VIEW_ACTIVITY.changes).toBe('changes');
-    expect(VIEW_ACTIVITY.sessions).toBe('history');
     expect(VIEW_ACTIVITY.mailbox).toBe('mailbox');
     expect(VIEW_ACTIVITY.skill).toBe('skills');
     expect(VIEW_ACTIVITY.officemap).toBe('officemap');
@@ -95,15 +93,15 @@ describe('constants', () => {
 
   it('ACTIVITY_SHORTCUT_BY_KEY has all key bindings', () => {
     expect(ACTIVITY_SHORTCUT_BY_KEY['1']).toBe('chat');
-    expect(ACTIVITY_SHORTCUT_BY_KEY['2']).toBe('agents');
+    expect(ACTIVITY_SHORTCUT_BY_KEY['2']).toBe('files');
     expect(ACTIVITY_SHORTCUT_BY_KEY['0']).toBe('design');
-    expect(Object.keys(ACTIVITY_SHORTCUT_BY_KEY)).toHaveLength(9);
+    expect(Object.keys(ACTIVITY_SHORTCUT_BY_KEY)).toHaveLength(7);
   });
 
   it('ACTIVITY_SHORTCUT_LABEL_BY_ACTIVITY has all labels', () => {
     expect(ACTIVITY_SHORTCUT_LABEL_BY_ACTIVITY.chat).toBe('Ctrl+1');
     expect(ACTIVITY_SHORTCUT_LABEL_BY_ACTIVITY.worktrees).toBe('Ctrl+Shift+W');
-    expect(Object.keys(ACTIVITY_SHORTCUT_LABEL_BY_ACTIVITY)).toHaveLength(10);
+    expect(Object.keys(ACTIVITY_SHORTCUT_LABEL_BY_ACTIVITY)).toHaveLength(9);
   });
 });
 

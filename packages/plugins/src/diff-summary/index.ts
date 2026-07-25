@@ -31,7 +31,7 @@
 
 import { execFile } from 'node:child_process';
 import type { Plugin } from '@wrongstack/core/types';
-import { BoundedMap, withinProject } from '../runtime/index.js';
+import { releaseHandle, BoundedMap, withinProject } from '../runtime/index.js';
 
 const API_VERSION = '^0.1.10';
 
@@ -344,7 +344,7 @@ const plugin: Plugin = {
     state.fallbackCount = 0;
     state.throttledCount = 0;
     state.duplicateContentCount = 0;
-    state.hookUnregister = null;
+    state.hookUnregister = releaseHandle(state.hookUnregister);
     state.lastSummary = null;
     pathMemo.clear();
 

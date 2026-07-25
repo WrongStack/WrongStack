@@ -26,9 +26,11 @@ describe('KeyHintBar context priority', () => {
     expect(h[0]!.key).toBe('');
   });
 
-  it('idle hint is the same in managed viewport', () => {
+  it('shows wheel and compact-keyboard paging while history is scrolled', () => {
     const h = hintsFor({ managed: true });
-    expect(h).toHaveLength(1);
-    expect(h[0]!.label).toBe('github.com/wrongstack/wrongstack');
+    expect(h).toEqual([
+      { key: 'wheel', label: 'scroll' },
+      { key: 'Ctrl+U/D', label: 'page' },
+    ]);
   });
 });

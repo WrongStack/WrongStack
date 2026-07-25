@@ -4,6 +4,7 @@ import {
   ArrowUp,
   Bot,
   ChevronDown,
+  ChevronUp,
   Cpu,
   History,
   PanelLeftOpen,
@@ -269,6 +270,9 @@ export function ChatView() {
   // Overlay toggles — triggered by header buttons
   const [processOpen, setProcessOpen] = useState(false);
   const [checkpointOpen, setCheckpointOpen] = useState(false);
+  // Collapsed input: when there's an active session, the input area shrinks
+  // to a thin bar. Click to expand. Initialised true when messages exist.
+  const [inputCollapsed, setInputCollapsed] = useState(messages.length > 0);
 
   // Context breakdown modal
   const [breakdownOpen, setBreakdownOpen] = useState(false);
@@ -817,92 +821,114 @@ export function ChatView() {
         )}
       </div>
 
-      {/* Input */}
+      {/* Input — collapsible when there's an active session */}
       <div className="shrink-0 bg-[hsl(var(--surface-2)/0.45)] px-2 pb-2 pt-2 sm:px-3 lg:px-4 lg:pb-3">
-        <ProviderWaitingRoom />
-        {/* Quick settings + stats — replaces the old keyboard-shortcut hints row.
-            Compact toggles on the left, live session stats on the right.
-            Header items (autonomy, model, context) are NOT duplicated here. */}
-        <div className="ws-display-toggles flex max-w-6xl mx-auto px-2 pb-1.5 items-center gap-3 text-[11px] text-muted-foreground/75 select-none overflow-x-auto min-h-[1.75rem]">
-          <div className="flex items-center gap-2 shrink-0">
-            {/* Show Model Reasoning toggle */}
-            <ToggleSwitch
-              label="🧠 Reasoning"
-              value={showThinkingLogs}
-              onChange={() => {
-                useLocalPrefs
-                  .getState()
-                  .set({ showThinkingLogs: !useLocalPrefs.getState().showThinkingLogs });
-              }}
-            />
-            <span className="opacity-30">|</span>
-            {/* Group Tools toggle */}
-            <ToggleSwitch
-              label="🔧 Group Tools"
-              value={groupToolCallsPref}
-              onChange={() => {
-                useLocalPrefs
-                  .getState()
-                  .set({ groupToolCalls: !useLocalPrefs.getState().groupToolCalls });
-              }}
-            />
-            <span className="opacity-30">|</span>
-            {/* Compact Mode toggle */}
-            <ToggleSwitch
-              label="📦 Compact"
-              value={compactMode}
-              onChange={() => useUIStore.getState().toggleCompactMode()}
-            />
-          </div>
-
-          {/* Live session stats — right-aligned, only shown when there's data */}
-          {hasStatusContent && (
-            <>
-              <span className="opacity-20 grow min-w-[1rem]" />
-              <div className="flex items-center gap-3 tabular-nums text-[10px] text-muted-foreground/70 shrink-0">
-                {totalTokens.input > 0 && (
-                  <span className="flex items-center gap-1" title={`${totalTokens.input.toLocaleString()} tokens in`}>
-                    <span className="font-medium text-foreground/80">{fmtTok(totalTokens.input)}</span>
-                    <span className="text-[9px]">in</span>
-                  </span>
-                )}
-                {totalTokens.output > 0 && (
-                  <span className="flex items-center gap-1" title={`${totalTokens.output.toLocaleString()} tokens out`}>
-                    <span className="font-medium text-foreground/80">{fmtTok(totalTokens.output)}</span>
-                    <span className="text-[9px]">out</span>
-                  </span>
-                )}
-                {rows.length > 0 && (
-                  <span className="flex items-center gap-1" title="Messages">
-                    <span className="font-medium text-foreground/80">{rows.length}</span>
-                    <span className="text-[9px]">msgs</span>
-                  </span>
-                )}
-                {iteration?.index && (
-                  <span className="flex items-center gap-1 text-primary/70" title="Current iteration">
-                    <span className="font-medium">{iteration.index}</span>
-                    <span className="text-[9px]">iter</span>
-                  </span>
-                )}
-                {startTime && (
-                  <span className="tabular-nums text-muted-foreground/50">
-                    {formatDuration(startTime)}
-                  </span>
-                )}
+        {inputCollapsed && messages.length > 0 ? (
+          /* ── Collapsed bar — click to expand ── */
+          <button
+            type="button"
+            onClick={() => setInputCollapsed(false)}
+            className="flex w-full items-center gap-2 rounded-lg border border-border/60 bg-card/40 px-3 py-1.5 text-xs text-muted-foreground/60 hover:text-foreground/80 hover:border-border/80 hover:bg-card/70 transition-colors"
+          >
+            <ChevronUp className="h-3.5 w-3.5 shrink-0" />
+            <span>{t('chat:input.expandInput', 'Expand input')}</span>
+            {rows.length > 0 && (
+              <span className="ml-auto tabular-nums text-[10px] text-muted-foreground/40">
+                {rows.length} msgs · {fmtTok(totalTokens.input + totalTokens.output)}
+              </span>
+            )}
+          </button>
+        ) : (
+          /* ── Full input area ── */
+          <>
+            {messages.length > 0 && (
+              <button
+                type="button"
+                onClick={() => setInputCollapsed(true)}
+                className="mb-1 flex w-full items-center gap-1.5 rounded px-2 py-0.5 text-[10px] text-muted-foreground/50 hover:text-muted-foreground/80 transition-colors"
+              >
+                <ChevronDown className="h-3 w-3" />
+                <span>{t('chat:input.collapseInput', 'Collapse')}</span>
+              </button>
+            )}
+            <ProviderWaitingRoom />
+            {/* Quick settings + stats — compact toggles on the left,
+                live session stats on the right. */}
+            <div className="ws-display-toggles flex max-w-6xl mx-auto px-2 pb-1.5 items-center gap-3 text-[11px] text-muted-foreground/75 select-none overflow-x-auto min-h-[1.75rem]">
+              <div className="flex items-center gap-2 shrink-0">
+                <ToggleSwitch
+                  label="🧠 Reasoning"
+                  value={showThinkingLogs}
+                  onChange={() => {
+                    useLocalPrefs
+                      .getState()
+                      .set({ showThinkingLogs: !useLocalPrefs.getState().showThinkingLogs });
+                  }}
+                />
+                <span className="opacity-30">|</span>
+                <ToggleSwitch
+                  label="🔧 Group Tools"
+                  value={groupToolCallsPref}
+                  onChange={() => {
+                    useLocalPrefs
+                      .getState()
+                      .set({ groupToolCalls: !useLocalPrefs.getState().groupToolCalls });
+                  }}
+                />
+                <span className="opacity-30">|</span>
+                <ToggleSwitch
+                  label="📦 Compact"
+                  value={compactMode}
+                  onChange={() => useUIStore.getState().toggleCompactMode()}
+                />
               </div>
-            </>
-          )}
-
-          {/* Shortcut hint — always visible */}
-          <span className="opacity-20 ml-2 text-[9px] shrink-0">
-            <kbd className="font-mono text-[9px] border rounded px-1 py-0.5 bg-muted/40">?</kbd>
-          </span>
-        </div>
-        <div className="ws-chat-input-wrap p-0">
-          <div className="max-w-6xl mx-auto">
-            <ChatInput onOpenBreakdown={() => setBreakdownOpen(true)} />
-          </div>
-        </div>
+              {hasStatusContent && (
+                <>
+                  <span className="opacity-20 grow min-w-[1rem]" />
+                  <div className="flex items-center gap-3 tabular-nums text-[10px] text-muted-foreground/70 shrink-0">
+                    {totalTokens.input > 0 && (
+                      <span className="flex items-center gap-1" title={`${totalTokens.input.toLocaleString()} tokens in`}>
+                        <span className="font-medium text-foreground/80">{fmtTok(totalTokens.input)}</span>
+                        <span className="text-[9px]">in</span>
+                      </span>
+                    )}
+                    {totalTokens.output > 0 && (
+                      <span className="flex items-center gap-1" title={`${totalTokens.output.toLocaleString()} tokens out`}>
+                        <span className="font-medium text-foreground/80">{fmtTok(totalTokens.output)}</span>
+                        <span className="text-[9px]">out</span>
+                      </span>
+                    )}
+                    {rows.length > 0 && (
+                      <span className="flex items-center gap-1" title="Messages">
+                        <span className="font-medium text-foreground/80">{rows.length}</span>
+                        <span className="text-[9px]">msgs</span>
+                      </span>
+                    )}
+                    {iteration?.index && (
+                      <span className="flex items-center gap-1 text-primary/70" title="Current iteration">
+                        <span className="font-medium">{iteration.index}</span>
+                        <span className="text-[9px]">iter</span>
+                      </span>
+                    )}
+                    {startTime && (
+                      <span className="tabular-nums text-muted-foreground/50">
+                        {formatDuration(startTime)}
+                      </span>
+                    )}
+                  </div>
+                </>
+              )}
+              <span className="opacity-20 ml-2 text-[9px] shrink-0">
+                <kbd className="font-mono text-[9px] border rounded px-1 py-0.5 bg-muted/40">?</kbd>
+              </span>
+            </div>
+            <div className="ws-chat-input-wrap p-0">
+              <div className="max-w-6xl mx-auto">
+                <ChatInput onOpenBreakdown={() => setBreakdownOpen(true)} />
+              </div>
+            </div>
+          </>
+        )}
       </div>
 
       {/* Overlays — triggered by header buttons */}

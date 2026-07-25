@@ -97,8 +97,38 @@ function escapeRegex(s: string): string {
 // Rename logic
 // ---------------------------------------------------------------------------
 
-function renameInContent(content: string, oldName: string, newName: string): { preview: string; replacements: number } {
-  const re = new RegExp(`\\b${escapeRegex(oldName)}\\b`, 'g');
+/**
+ * A JavaScript/TypeScript identifier. `$` and `_` are legal anywhere,
+ * including as the first character.
+ */
+const IDENTIFIER_RE = /^[A-Za-z_$][A-Za-z0-9_$]*$/;
+
+/** True when `name` is something this tool may safely substitute. */
+export function isIdentifier(name: string): boolean {
+  return IDENTIFIER_RE.test(name);
+}
+
+/**
+ * Whole-word identifier replacement.
+ *
+ * The boundaries are written explicitly instead of with `\b`. `\b` is
+ * defined against `[A-Za-z0-9_]`, which does NOT include `$` — so for a
+ * `$`-prefixed identifier (legal, and common in jQuery-style and generated
+ * code) the leading `\b` required a word character immediately before the
+ * `$`, which almost never holds. Such renames matched nothing at all and
+ * the tool reported success with zero replacements: a silent no-op on a
+ * mutating operation. Lookarounds over the real identifier character class
+ * behave correctly for `$` and `_` alike.
+ */
+function renameInContent(
+  content: string,
+  oldName: string,
+  newName: string,
+): { preview: string; replacements: number } {
+  const re = new RegExp(
+    `(?<![A-Za-z0-9_$])${escapeRegex(oldName)}(?![A-Za-z0-9_$])`,
+    'g',
+  );
   let replacements = 0;
   const preview = content.replace(re, () => {
     replacements++;
@@ -171,6 +201,17 @@ const plugin: Plugin = {
         }
         if (!newName || typeof newName !== 'string' || newName.length === 0) {
           return { ok: false, error: 'newName is required' };
+        }
+        // Both names must be plain identifiers. `newName` is substituted
+        // directly into source, so accepting arbitrary text would let a
+        // "rename" splice statements into the file — and `oldName` is used
+        // to build the match, where non-identifier text makes the word
+        // boundaries meaningless.
+        if (!isIdentifier(oldName)) {
+          return { ok: false, error: `oldName "${oldName}" is not a valid identifier` };
+        }
+        if (!isIdentifier(newName)) {
+          return { ok: false, error: `newName "${newName}" is not a valid identifier` };
         }
         if (!withinProject(rawPath)) {
           return { ok: false, error: 'path is outside the project root' };

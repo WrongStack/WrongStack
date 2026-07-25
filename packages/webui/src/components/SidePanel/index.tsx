@@ -24,7 +24,6 @@ import { FileExplorer } from '../FileExplorer';
 import { MailboxPanel } from '../MailboxPanel';
 import { Button } from '../ui/button';
 import { ChangesPanel } from './ChangesPanel';
-import { HistoryPanel } from './HistoryPanel';
 import { SessionPanel } from './SessionPanel';
 import { SkillsList } from './SkillsList';
 import { DesignStudioPanel } from './DesignStudioPanel';
@@ -35,7 +34,6 @@ import { AgentsPanel } from './AgentsPanel';
 const PANEL_DESCRIPTIONS: Record<string, string> = {
   chat: 'Run state, model, context and quick controls',
   agents: 'Live fleet roster and agent monitoring',
-  history: 'Resume or inspect previous sessions',
   files: 'Browse and open project files',
   changes: 'Review source control changes',
   mailbox: 'Cross-surface coordination messages',
@@ -153,7 +151,6 @@ export function SidePanel({ desktopShell = false }: { desktopShell?: boolean | u
             <AgentsPanel />
           </div>
         )}
-        {activeActivity === 'history' && <HistoryPanel />}
         {activeActivity === 'files' && (
           <div className="flex-1 min-h-0 min-w-0 overflow-y-auto overscroll-contain">
             <FileExplorer />

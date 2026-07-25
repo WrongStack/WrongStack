@@ -32,6 +32,7 @@ import { execFile } from 'node:child_process';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { dirname, isAbsolute, relative, resolve } from 'node:path';
 import type { Plugin, PluginAPI } from '@wrongstack/core/types';
+import { releaseHandle } from '../runtime/index.js';
 
 const API_VERSION = '^0.1.10';
 
@@ -295,7 +296,7 @@ const plugin: Plugin = {
     state.draftsWritten = 0;
     state.draftErrors = 0;
     state.stopInvocations = 0;
-    state.stopHookUnregister = null;
+    state.stopHookUnregister = releaseHandle(state.stopHookUnregister);
     for (const off of state.eventUnsubscribers) {
       try {
         off();

@@ -105,7 +105,7 @@ export async function runProviderWithRetry(opts: RunProviderOptions): Promise<Re
       if (err instanceof Error) span?.recordError(err);
       span?.end();
       if (signal.aborted) throw err;
-      const isProviderErr = err instanceof ProviderError;
+      const isProviderErr = err instanceof ProviderError || ProviderError.isProviderError(err);
       const errAsErr = err instanceof Error ? err : new Error(String(err));
       const canRetry = retry.shouldRetry(isProviderErr ? err : errAsErr, attempt);
       const description = isProviderErr ? (err as ProviderError).describe() : errAsErr.message;

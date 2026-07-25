@@ -26,6 +26,7 @@
  * @public
  */
 import type { Plugin } from '@wrongstack/core/types';
+import { releaseHandle } from '../runtime/index.js';
 
 const API_VERSION = '^0.1.10';
 
@@ -361,7 +362,7 @@ const plugin: Plugin = {
     state.invalidCount = 0;
     state.suggestFixCount = 0;
     state.suggestFixErrors = 0;
-    state.hookUnregister = null;
+    state.hookUnregister = releaseHandle(state.hookUnregister);
     state.lastValidation = null;
 
     const cfg = readConfig(api.config.extensions?.['commit-validator']);

@@ -132,8 +132,21 @@ function rowText(row: BrainPanelRow, s: BrainPanelSettings): { label: string; va
     }
     case 'voterAdd':
       return { label: '  +', value: 'add voter…', dim: 'Enter' };
-    case 'judge':
-      return { label: '  judge', value: s.judgeLabel ?? 'auto', dim: 'Enter = pick · d = auto' };
+    case 'judge': {
+      // A derived judge that is also a seated voter re-states its own vote
+      // with the deciding weight — surface it rather than showing a bare
+      // "auto".
+      const note = s.judgeConfigured
+        ? ''
+        : s.judgeIsVoter
+          ? ' (derived · also a voter)'
+          : ' (derived)';
+      return {
+        label: '  judge',
+        value: s.judgeLabel ? `${s.judgeLabel}${note}` : 'auto',
+        dim: 'Enter = pick · d = auto',
+      };
+    }
     case 'ledgerToggle':
       return {
         label: 'Ledger',

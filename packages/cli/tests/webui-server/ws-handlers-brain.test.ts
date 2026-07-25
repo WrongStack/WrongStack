@@ -141,6 +141,7 @@ const SNAPSHOT: BrainConfigSnapshot = {
   poolLabels: ['a/x'],
   councilLabels: [],
   judgeLabel: undefined,
+  judgeIsVoter: false,
   usingSessionModel: false,
 };
 
@@ -180,6 +181,7 @@ describe('handleBrainStatus enrichment', () => {
       poolLabels: ['a/x'],
       councilLabels: [],
       judgeLabel: undefined,
+      judgeIsVoter: false,
       ledgerPath: 'C:/x/ledger.jsonl',
     });
   });

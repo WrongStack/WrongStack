@@ -74,7 +74,6 @@ describe('coerceActivity', () => {
     for (const a of [
       'chat',
       'agents',
-      'history',
       'files',
       'changes',
       'mailbox',
@@ -89,7 +88,8 @@ describe('coerceActivity', () => {
 
   it('maps removed legacy activities onto their new homes', () => {
     expect(coerceActivity('context')).toBe('chat');
-    expect(coerceActivity('sessions')).toBe('history');
+    expect(coerceActivity('history')).toBe('chat');
+    expect(coerceActivity('sessions')).toBe('chat');
     expect(coerceActivity('projects')).toBe('chat');
   });
 
@@ -779,16 +779,16 @@ describe('F5 resilience — currentView + dockSection persistence', () => {
     ).persist;
     const result = api?.getOptions?.().merge?.(
       {
-        currentView: 'sessions',
-        activeActivity: 'history',
+        currentView: 'chat',
+        activeActivity: 'chat',
         sidebarOpen: true,
         dockSection: 'work',
       },
       useUIStore.getState(),
     ) as ReturnType<typeof useUIStore.getState>;
 
-    expect(result.currentView).toBe('sessions');
-    expect(result.activeActivity).toBe('history');
+    expect(result.currentView).toBe('chat');
+    expect(result.activeActivity).toBe('chat');
     expect(result.sidebarOpen).toBe(true);
     expect(result.dockSection).toBe('work');
   });

@@ -41,8 +41,9 @@ const MAX_ATTEMPTS_BY_KIND: Record<ProviderErrorKind, number> = {
 
 export class DefaultRetryPolicy implements RetryPolicy {
   shouldRetry(err: Error | ProviderError, attempt: number): boolean {
-    if (err instanceof ProviderError) {
-      if (!err.retryable) return false;
+    const isProviderErr = err instanceof ProviderError || ProviderError.isProviderError(err);
+    if (isProviderErr) {
+      if (!(err as ProviderError).retryable) return false;
       return attempt < this.maxAttempts(err);
     }
     const msg = err.message ?? '';
@@ -52,8 +53,9 @@ export class DefaultRetryPolicy implements RetryPolicy {
   }
 
   maxAttempts(err: Error | ProviderError): number {
-    if (err instanceof ProviderError) {
-      return MAX_ATTEMPTS_BY_KIND[err.kind];
+    const isProviderErr = err instanceof ProviderError || ProviderError.isProviderError(err);
+    if (isProviderErr) {
+      return MAX_ATTEMPTS_BY_KIND[(err as ProviderError).kind];
     }
     return 2;
   }
@@ -106,8 +108,10 @@ export class DefaultRetryPolicy implements RetryPolicy {
  * absolute HTTP-date converted to ms-from-now).
  */
 function retryAfterMsFromError(err: Error | ProviderError | undefined): number | undefined {
-  if (!err || !(err instanceof ProviderError)) return undefined;
-  const ms = err.body?.retryAfterMs;
+  if (!err) return undefined;
+  const isProviderErr = err instanceof ProviderError || ProviderError.isProviderError(err);
+  if (!isProviderErr) return undefined;
+  const ms = (err as ProviderError).body?.retryAfterMs;
   if (typeof ms !== 'number' || !Number.isFinite(ms) || ms <= 0) return undefined;
   return ms;
 }

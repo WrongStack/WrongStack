@@ -69,6 +69,9 @@ export function handleBrainStatus(ctx: BrainHandlerContext, ws: WebSocket): void
             // say who breaks their ties — and the derived judge is exactly
             // the one that can silently be one of those seats.
             judgeLabel: snapshot.judgeLabel,
+            // Naming the judge without saying whether it also voted would just
+            // move the blind spot one level down.
+            judgeIsVoter: snapshot.judgeIsVoter,
             ledgerPath: snapshot.ledger.path,
           }
         : {}),

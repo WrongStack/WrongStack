@@ -33,6 +33,7 @@
 import { existsSync } from 'node:fs';
 import type { Plugin } from '@wrongstack/core/types';
 import {
+  releaseHandle,
   type LanguageRuntime,
   resolveNodeBin,
   resolveRunnerCommand,
@@ -325,7 +326,7 @@ const plugin: Plugin = {
     state.errorCount = 0;
     state.skippedCount = 0;
     state.lastResult = null;
-    state.hookUnregister = null;
+    state.hookUnregister = releaseHandle(state.hookUnregister);
 
     const cfg = readConfig(api.config.extensions?.['type-gate']);
 

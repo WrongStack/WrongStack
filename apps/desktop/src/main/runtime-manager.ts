@@ -982,7 +982,10 @@ function samePath(left: string, right: string): boolean {
 }
 
 export function rendererIndexPath(): string {
-  return fileURLToPath(new URL('../renderer/index.html', import.meta.url));
+  // Return a proper file:// URL for Electron's loadURL(), which requires a
+  // URL scheme — a bare filesystem path (from fileURLToPath) causes
+  // ERR_INVALID_URL.
+  return new URL('../renderer/index.html', import.meta.url).href;
 }
 
 export function preloadPath(): string {

@@ -3,8 +3,8 @@ import type { SlashCommandContext } from './command-context.js';
 
 /**
  * `/mouse` — toggle "full mouse mode" in the TUI: the chat history is rendered
- * into a managed, in-app-scrolled viewport (wheel + scrollbar + clickable UI)
- * instead of riding the terminal's native scrollback.
+ * into a managed, in-app-scrolled viewport. The wheel always drives that
+ * viewport; full mode adds scrollbar drag and clickable UI.
  *
  * The command is intentionally stateless: it doesn't hold the live value (which
  * lives in the App's `mouseMode` state). It emits an intent via `metadata`, and
@@ -20,13 +20,13 @@ export function buildMouseCommand(_opts: SlashCommandContext): SlashCommand {
       'Usage:',
       '  /mouse            Show current mouse-mode status',
       '  /mouse on         Enable full mouse mode',
-      '  /mouse off        Disable it (restore native terminal scrollback)',
+      '  /mouse off        Disable scrollbar drag and clickable UI',
       '  /mouse toggle     Flip the current state',
       '',
-      'In full mouse mode the terminal wheel scrolls the chat in-app (SGR mouse',
-      'tracking captures it), the scrollbar is drag-able, and status-bar chips /',
-      'confirm buttons are clickable. Native scrollback is off; Shift+wheel and',
-      'PgUp/PgDn page through the in-app history instead. The setting persists.',
+      'The wheel always scrolls virtualized chat history in-app. Full mouse mode',
+      'also makes the scrollbar drag-able and status-bar chips / confirm buttons',
+      'clickable. Shift+wheel, PgUp/PgDn, and Ctrl+U/D page through history.',
+      'The setting persists.',
     ].join('\n'),
     async run(args) {
       const arg = args.trim().toLowerCase();

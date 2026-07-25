@@ -21,7 +21,6 @@ import { useLocalPrefs } from '@/stores/local-prefs';
 import {
   navigateToView,
   openMainView,
-  pairedViewForActivity,
   showPanel,
 } from '@/components/activity-bar/nav';
 import { PANEL_ORDER } from '@/components/activity-bar';
@@ -116,12 +115,6 @@ export function useDesktopBridge(options: UseDesktopBridgeOptions): void {
         const nextActivity = activity as (typeof PANEL_ORDER)[number];
         showPanel(nextActivity);
         handled = true;
-        if (detail['view'] === undefined) {
-          const fallbackView = pairedViewForActivity(nextActivity);
-          if (fallbackView === 'sessions') {
-            ws?.listSessions?.(50);
-          }
-        }
       }
 
       const view = detail['view'];

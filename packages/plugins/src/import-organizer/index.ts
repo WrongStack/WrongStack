@@ -49,7 +49,7 @@ import { spawn } from 'node:child_process';
 import { existsSync, statSync } from 'node:fs';
 import { basename, isAbsolute } from 'node:path';
 import type { Plugin } from '@wrongstack/core/types';
-import { resolveExecInvocation, resolveNodeBin, withinProject } from '../runtime/index.js';
+import { releaseHandle, resolveExecInvocation, resolveNodeBin, withinProject } from '../runtime/index.js';
 
 // ---------------------------------------------------------------------------
 // Sandbox + command allowlist. import-organizer already uses spawn() with
@@ -466,7 +466,7 @@ const plugin: Plugin = {
     state.organizedCount = 0;
     state.cleanCount = 0;
     state.errorCount = 0;
-    state.hookUnregister = null;
+    state.hookUnregister = releaseHandle(state.hookUnregister);
     state.lastResult = null;
     state.probeComplete = false;
     state.linterAvailable = false;

@@ -51,7 +51,7 @@ vi.mock('@/stores', () => ({
 vi.mock('@/stores/ui-store', () => ({
   useUIStore: {
     getState: () => ({
-      currentView: 'chat',
+      currentView: 'files',
       refineEnabled: false,
       setAgentsMonitorOpen: mocks.setAgentsMonitorOpen,
       setFleetMonitorOpen: mocks.setFleetMonitorOpen,
@@ -195,12 +195,12 @@ describe('runChatSlashCommand', () => {
     }
   });
 
-  it('/load calls ws.listSessions and switches to sessions view', () => {
+  it('/load calls ws.listSessions and opens the chat panel', () => {
     expect(runChatSlashCommand({ ...options, raw: '/load' })).toBe(true);
     expect(options.ws.listSessions).toHaveBeenCalledWith(50);
     expect(mocks.setSidebarOpen).toHaveBeenCalledWith(true);
-    expect(mocks.selectActivity).toHaveBeenCalledWith('history');
-    expect(mocks.setCurrentViewUI).toHaveBeenCalledWith('sessions');
+    expect(mocks.selectActivity).toHaveBeenCalledWith('chat');
+    expect(mocks.setCurrentViewUI).toHaveBeenCalledWith('chat');
   });
 
   it.each(['/interrupt', '/abort', '/stop'])('%s calls sendAbort and setLoading(false)', (cmd) => {
@@ -321,13 +321,13 @@ describe('runChatSlashCommand — /f', () => {
     expect(mocks.setWorkDashboardTab).toHaveBeenCalledWith('todos');
   });
 
-  it('/f10 refreshes sessions and opens the sessions dashboard', () => {
+  it('/f10 refreshes sessions and opens the chat panel', () => {
     const opts = makeOptions({ raw: '/f10' });
     expect(runChatSlashCommand(opts)).toBe(true);
     expect(opts.ws.listSessions).toHaveBeenCalledWith(50);
     expect(mocks.setSidebarOpen).toHaveBeenCalledWith(true);
-    expect(mocks.selectActivity).toHaveBeenCalledWith('history');
-    expect(mocks.setCurrentViewUI).toHaveBeenCalledWith('sessions');
+    expect(mocks.selectActivity).toHaveBeenCalledWith('chat');
+    expect(mocks.setCurrentViewUI).toHaveBeenCalledWith('chat');
   });
 
   it('/f11 opens the coordinator office map surface', () => {

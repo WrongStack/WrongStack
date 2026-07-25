@@ -116,7 +116,7 @@ export function ChatInput({
    *  The chip only renders past the threshold so short drafts stay clean. */
   const lastInputTokens = useSessionStore((s) => s.lastInputTokens);
   const maxContext = useSessionStore((s) => s.maxContext);
-  const [input, setInput] = useState('');
+  const [input, setInput] = useState(() => useUIStore.getState().draftInput ?? '');
   const [slashIndex, setSlashIndex] = useState(0);
   /** Cursor into promptHistory. -1 = "live input, not browsing history".
    *  Reset to -1 whenever the user types something that's NOT a history
@@ -165,6 +165,11 @@ export function ChatInput({
   });
   /** Hidden file input driven by the attach button. */
   const imagePickerRef = useRef<HTMLInputElement>(null);
+
+  // Persist draft input to the ui-store so it survives page navigation.
+  useEffect(() => {
+    useUIStore.getState().setDraftInput(input);
+  }, [input]);
 
   // Prompt library "Insert" pushes its rendered text here; fold it into the input.
   useEffect(() => {

@@ -506,12 +506,54 @@ export const Input = memo(function Input({
   const contentWidth = inputContentWidth(cols);
   const rows = layoutInputRows(prompt, value, cursor, contentWidth);
 
+  // Constrain visible row count — when the prompt fills more than this many
+  // wrapped rows the input area scrolls internally; the cursor row is kept
+  // in the visible window and up/down arrow at the viewport edges scroll.
+  // This prevents the input from pushing the chat history off the top of the
+  // terminal on long prompts (GitHub issue #295).
+  const MAX_VISIBLE_ROWS = 10;
+  const needsScroll = rows.length > MAX_VISIBLE_ROWS;
+
+  // ── Scroll offset management ────────────────────────────────────────────
+  // Determine which row the cursor is on (the *first* row with a cursor cell).
+  let cursorRow = rows.length - 1; // default to last row
+  outer: for (let r = 0; r < rows.length; r++) {
+    const cells = rows[r] as InputCell[];
+    for (const cell of cells) {
+      if (cell.cursor) { cursorRow = r; break outer; }
+    }
+  }
+  // State is lifted to the parent via onKey — we compute the scroll offset
+  // here from a local state so scrolling is purely visual. The parent doesn't
+  // need to know about internal scroll.
+  const [vScroll, setVScroll] = useState(0);
+  const vScrollRef = useRef(vScroll);
+  vScrollRef.current = vScroll;
+  // Clamp the scroll offset so the cursor row is always visible and the last
+  // row is always reachable.
+  const clampedScroll = needsScroll
+    ? Math.max(0, Math.min(vScroll, rows.length - MAX_VISIBLE_ROWS))
+    : 0;
+  // Adjust scroll so the cursor row is in the visible window.
+  useEffect(() => {
+    if (!needsScroll || !onKey) return;
+    const cur = vScrollRef.current;
+    const clamped = Math.max(0, Math.min(cur, rows.length - MAX_VISIBLE_ROWS));
+    if (cursorRow < clamped) setVScroll(cursorRow);
+    else if (cursorRow >= clamped + MAX_VISIBLE_ROWS) setVScroll(cursorRow - MAX_VISIBLE_ROWS + 1);
+  }, [cursorRow, needsScroll, onKey]);
+  // When the content shrinks below the max, reset scroll.
+  useEffect(() => { if (!needsScroll && vScroll > 0) setVScroll(0); }, [needsScroll]);
+
+  // Slice the visible rows.
+  const visibleRows = needsScroll ? rows.slice(clampedScroll, clampedScroll + MAX_VISIBLE_ROWS) : rows;
+
   // Hidden mode: keep the listeners above mounted, but render only an empty
   // placeholder of the same height the visible input would occupy. The bottom
   // region stays a constant height (so Ink's log-update never bleeds the live
   // region into native scrollback) while keyboard handling stays alive.
   if (hidden) {
-    return <Box height={Math.max(3, placeholderHeight ?? rows.length + 2)} />;
+    return <Box height={Math.max(3, placeholderHeight ?? (needsScroll ? MAX_VISIBLE_ROWS + 2 : rows.length + 2))} />;
   }
 
   // Right-aligned live status chip. The rail is split into `head`/`tail`
@@ -522,32 +564,26 @@ export const Input = memo(function Input({
   const railStatus: ComposerStatus =
     status ?? (disabled ? { kind: 'aborting' } : { kind: 'idle', fleetRunning: 0 });
 
-  // Three-part bottom frame: colored border border, colorless hint text, colored filler + corner.
-  // Note on width: the bottom frame has its own corners (╰, ╯), NOT the side
-  // borders (│) used by content rows. So the budget is the full `cols`, not
-  // `cols - 2` — if it were cols - 2 the bottom rule would end 2 chars short.
+  // When scrolling is active, show a scroll indicator in the bottom frame.
+  const scrollIndicator =
+    needsScroll && rows.length > MAX_VISIBLE_ROWS
+      ? `  ${clampedScroll + 1}/${rows.length}`
+      : '';
+
+  // ── Bottom frame with optional scroll indicator ──
+  // Three-part bottom frame: colored border border, colorless hint text + scroll indicator, colored filler + corner.
   const bottomHint = hint || footerHint;
   const availW = cols;
   const leftBorder = '╰─ ';
   const leftBW = 3;
-  const maxHintW = Math.max(0, availW - leftBW - 2); // 2 for space before ╯ + ╯
+  const maxHintW = Math.max(0, availW - leftBW - 2 - displayWidth(scrollIndicator));
   const hintW = displayWidth(bottomHint);
   const shownHint = hintW > maxHintW ? truncateDisplay(bottomHint, maxHintW) : bottomHint;
   const shownHintW = displayWidth(shownHint);
-  const fillW = Math.max(0, availW - leftBW - shownHintW - 2); // 2 for " ╯"
+  const fillW = Math.max(0, availW - leftBW - shownHintW - 2 - displayWidth(scrollIndicator));
 
-  // Pin the visible input to an explicit height so Ink positions the whole
-  // region via absolute cursor moves on every frame. Without an explicit
-  // height Ink falls back to relative cursor-down sequences anchored at the
-  // end of the previous row; a stray stdout write between frames (e.g. a
-  // REPL flash from a silenced code path) shifts the terminal cursor by
-  // one row, and the diff rewrites the top border row using the drifted
-  // cursor — landing the first content row on top of the top border.
-  // `rows.length + 2` matches the natural content height exactly (top rail
-  // + N content rows + bottom frame), so the Box is never over- or
-  // under-sized, only anchored.
   return (
-    <Box flexDirection="column" height={rows.length + 2}>
+    <Box flexDirection="column" height={(needsScroll ? MAX_VISIBLE_ROWS : rows.length) + 2}>
       <ComposerTopRail
         width={cols}
         title={title}
@@ -556,7 +592,7 @@ export const Input = memo(function Input({
         disabled={disabled ?? false}
         workingTime={workingTime}
       />
-      {rows.map((row, i) => {
+      {visibleRows.map((row, i) => {
         const rowWidth = displayWidth(row.map((cell) => cell.ch).join(''));
         const padding = ' '.repeat(Math.max(0, contentWidth - rowWidth));
         return (
@@ -572,6 +608,7 @@ export const Input = memo(function Input({
       <Text>
         <Text color={disabled ? theme.error : theme.brandPrimary}>{leftBorder}</Text>
         <Text color={theme.textMuted}>{shownHint}</Text>
+        {scrollIndicator ? <Text color={theme.textMuted}>{scrollIndicator}</Text> : null}
         <Text color={disabled ? theme.error : theme.brandPrimary}>
           {fillW > 0 ? ' ' : ''}
           {'─'.repeat(fillW)}

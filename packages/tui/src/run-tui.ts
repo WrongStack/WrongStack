@@ -750,10 +750,10 @@ export async function runTui(opts: RunTuiOptions): Promise<number> {
 
   stdout.write(BRACKETED_PASTE_ON);
 
-  // Resolve the global mouse-tracking opt-in. The App component owns the actual
-  // enable/disable lifecycle (it also turns tracking on per-overlay); cleanup()
-  // below sends MOUSE_OFF unconditionally so the terminal is never left
-  // reporting mouse events after exit.
+  // Resolve the full pointer-mode opt-in. The App component owns the actual
+  // lifecycle: managed history always captures wheel reports, while this flag
+  // adds drag/clickable UI. cleanup() below sends MOUSE_OFF unconditionally so
+  // the terminal is never left reporting mouse events after exit.
   const mouseEnabled =
     opts.mouse ?? opts.getSettings?.().mouseMode ?? process.env.WRONGSTACK_MOUSE === '1';
 

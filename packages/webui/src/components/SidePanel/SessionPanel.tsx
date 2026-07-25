@@ -14,6 +14,7 @@ import {
   Cpu,
   Download,
   Eraser,
+  History,
   ListTodo,
   Pin,
   Plus,
@@ -30,12 +31,11 @@ import { cn } from '@/lib/utils';
 import { Pagination } from '@/components/ui/pagination';
 import { showPanel } from '@/lib/view-navigation';
 import { getWSClient } from '@/lib/ws-client';
-import { useChatStore, useConfigStore, useFleetStore, useSessionStore, useUIStore } from '@/stores';
+import { useChatStore, useConfigStore, useFleetStore, useHistoryStore, useSessionStore, useUIStore } from '@/stores';
 import { useLocalPrefs } from '@/stores/local-prefs';
 import { fmtTok } from '../ChatView/utils';
 import { downloadChatAsMarkdown } from '../CommandPalette';
 import { confirmModal } from '../ConfirmModal';
-import { ContextFillBar } from '../ContextBar';
 
 // ── Formatting helpers ────────────────────────────────────────────────
 
@@ -180,8 +180,6 @@ export function SessionPanel() {
   const { t } = useAppTranslation();
   const wsConnected = useConfigStore((s) => s.wsConnected);
   const wsUrl = useConfigStore((s) => s.wsUrl);
-  const provider = useConfigStore((s) => s.provider);
-  const model = useConfigStore((s) => s.model);
   const soundOnComplete = useConfigStore((s) => s.soundOnComplete);
 
   const session = useSessionStore((s) => s.session);
@@ -189,8 +187,6 @@ export function SessionPanel() {
   const cost = useSessionStore((s) => s.cost);
   const iteration = useSessionStore((s) => s.iteration);
   const todos = useSessionStore((s) => s.todos);
-  const lastInputTokens = useSessionStore((s) => s.lastInputTokens);
-  const maxContext = useSessionStore((s) => s.maxContext);
 
   const messages = useChatStore((s) => s.messages);
   const isLoading = useChatStore((s) => s.isLoading);
@@ -198,7 +194,6 @@ export function SessionPanel() {
 
   const pinnedIds = useUIStore((s) => s.pinnedIds);
   const unpinAll = useUIStore((s) => s.unpinAll);
-  const setModelSwitcherOpen = useUIStore((s) => s.setModelSwitcherOpen);
 
   const localPrefs = useLocalPrefs();
   const syncPref = useCallback(
@@ -208,8 +203,6 @@ export function SessionPanel() {
     },
     [localPrefs, updatePrefs],
   );
-
-  const setSideContextBreakdownOpen = useUIStore((s) => s.setSideContextBreakdownOpen);
 
   // Elapsed time ticks every second while a session exists — the old
   // sidebar computed Date.now() in render and showed a frozen value.
@@ -225,12 +218,6 @@ export function SessionPanel() {
     () => Array.from(fleetAgents.values()).filter((a) => a.status === 'running').length,
     [fleetAgents],
   );
-
-  // Context fill: cap display at 100%; raw token counts still show overflow.
-  const ctxPct =
-    maxContext > 0 && lastInputTokens > 0
-      ? Math.min(100, Math.round((lastInputTokens / maxContext) * 100))
-      : 0;
 
   const pinnedRows = pinnedIds
     .map((id) => messages.find((m) => m.id === id))
@@ -301,58 +288,6 @@ export function SessionPanel() {
           title={t('activity:sessionPanel.actions.clearTitle')}
         />
       </div>
-
-      {/* ── Model chip — opens the quick switcher ── */}
-      <button
-        type="button"
-        onClick={() => setModelSwitcherOpen(true)}
-        className="w-full border-b border-border/70 bg-card/35 px-4 py-2.5 text-left transition-colors hover:bg-muted/40"
-        title={t('activity:sessionPanel.modelTitle')}
-      >
-        <div className="text-[10px] uppercase text-muted-foreground mb-0.5">
-          {t('activity:sessionPanel.model')}
-        </div>
-        <div className="font-mono text-xs truncate">
-          <span className="text-muted-foreground">{provider || '—'}</span>
-          <span className="text-muted-foreground/65 mx-1">/</span>
-          <span className="font-medium">{model || '—'}</span>
-        </div>
-      </button>
-
-      {/* ── Context window ── */}
-      {maxContext > 0 && (
-        <div className="space-y-1.5 border-b border-border/70 bg-card/35 px-4 py-2.5">
-          <button
-            type="button"
-            onClick={() => setSideContextBreakdownOpen(true)}
-            className="w-full block text-left"
-            title={t('activity:sessionPanel.contextTitle')}
-          >
-            <SectionHeading
-              icon={null}
-              label={t('activity:sessionPanel.context')}
-              right={
-                <span className="text-[10px] text-muted-foreground tabular-nums font-mono">
-                  {fmtTok(lastInputTokens)}/{fmtTok(maxContext)} · {ctxPct}%
-                </span>
-              }
-            />
-          </button>
-          <button
-            type="button"
-            onClick={() => setSideContextBreakdownOpen(true)}
-            className="w-full block"
-            title={t('activity:sessionPanel.contextTitle')}
-          >
-            <ContextFillBar
-              pct={ctxPct}
-              tokens={lastInputTokens}
-              maxTokens={maxContext}
-              showTokens={true}
-            />
-          </button>
-        </div>
-      )}
 
       {/* ── Live stats ── */}
       <div className="space-y-1.5 border-b border-border/70 px-3 py-2.5">
@@ -562,6 +497,56 @@ export function SessionPanel() {
           }}
         />
       </div>
+
+      {/* ── History / recent sessions ── */}
+      {(() => {
+        const historyEntries = useHistoryStore.getState().entries;
+        const recent = historyEntries.slice(0, 8);
+        if (recent.length === 0) return null;
+        return (
+          <div className="space-y-1 border-b border-border/70 px-3 py-2.5">
+            <SectionHeading
+              icon={<History className="h-3 w-3" />}
+              label={t('activity:nav.history', 'History')}
+              right={
+                <button
+                  type="button"
+                  onClick={() => {
+                    const ui = useUIStore.getState();
+                    ui.setCurrentView('sessions');
+                    ui.setSidebarOpen(false);
+                  }}
+                  className="text-[10px] text-muted-foreground hover:text-foreground"
+                >
+                  {t('activity:history.openDashboard', 'Open Dashboard')}
+                </button>
+              }
+            />
+            <div className="space-y-0.5 max-h-40 overflow-y-auto">
+              {recent.map((entry) => (
+                <button
+                  key={entry.id}
+                  type="button"
+                  onClick={() => getWSClient(useConfigStore.getState().wsUrl)?.resumeSession?.(entry.id)}
+                  className={cn(
+                    'w-full text-left px-2 py-1.5 rounded text-xs leading-snug transition-colors',
+                    entry.isCurrent
+                      ? 'bg-primary/10 text-primary'
+                      : 'hover:bg-muted/60 text-muted-foreground hover:text-foreground',
+                  )}
+                >
+                  <div className="font-medium truncate">
+                    {entry.title || t('chat:empty', 'Untitled')}
+                  </div>
+                  <div className="text-[10px] text-muted-foreground/70 font-mono truncate">
+                    {entry.provider}/{entry.model} · {entry.tokenTotal.toLocaleString()} tok
+                  </div>
+                </button>
+              ))}
+            </div>
+          </div>
+        );
+      })()}
 
       {/* ── Session ID footer ── */}
       <div className="px-4 py-2.5">

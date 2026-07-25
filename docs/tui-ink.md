@@ -175,7 +175,8 @@ With inline diff previews using dark green/red background washes (`#1e4620`/`#5a
 
 The TUI uses `<ScrollableHistory>` by default. It renders retained entries into
 a **fixed-height, scrolled viewport**, preventing unbounded terminal scrollback.
-`PgUp`/`PgDn` work in every mode; mouse mode adds wheel and scrollbar control.
+Wheel, `PgUp`/`PgDn`, and `Ctrl+U`/`Ctrl+D` work in every mode; full mouse mode
+adds scrollbar drag and clickable UI.
 
 **Scrolling mechanism:**
 - Parent Box: `height={viewportRows}`, `overflowY="hidden"`, `justifyContent="flex-end"`
@@ -570,7 +571,7 @@ The TUI has an extensive picker system for interactive selection:
 
 ### 10.2 Mouse Mode
 - SGR protocol (`\x1b[<...M / m`) for precise pixel/scroll tracking
-- Enabled/disabled via `run-tui.ts` lifecycle
+- Wheel tracking stays active for managed history; full pointer mode is optional
 - `parseMouseEvents()` in `mouse.ts`
 - Wheel events → scroll offset changes
 - Click events → scrollbar track → `scrollOffsetForTrackRow()`

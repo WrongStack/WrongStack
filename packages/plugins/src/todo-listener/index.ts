@@ -32,7 +32,7 @@
 import type { TodoItem } from '@wrongstack/core/agent';
 import type { Mailbox, MailboxMessage, MailboxSendInput } from '@wrongstack/core/coordination';
 import type { Plugin } from '@wrongstack/core/types';
-import { safeJsonStringify } from '../runtime/index.js';
+import { releaseHandle, safeJsonStringify } from '../runtime/index.js';
 
 // ---------------------------------------------------------------------------
 // Module-scope state (H1 audit pattern)
@@ -170,7 +170,7 @@ const plugin: Plugin = {
     state.lastMessageId = null;
     state.lastPayloadHash = '';
     state.lastBroadcastAt = 0;
-    state.hookUnregister = null;
+    state.hookUnregister = releaseHandle(state.hookUnregister);
 
     const cfg = readConfig(api.config.extensions?.['todo-listener']);
     const mailbox: Mailbox | undefined = api.mailbox;

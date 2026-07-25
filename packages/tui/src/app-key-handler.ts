@@ -493,9 +493,14 @@ export function createAppKeyHandler(options: AppKeyHandlerOptions): (
     // and never reach this point, so they don't need listing here.
     // (overlayOpen is defined above in the multi-line input navigation section.)
 
-    // Mouse wheel/click handling remains opt-in; PgUp/PgDn works in every mode.
+    // Wheel always drives the managed history viewport. Native terminal
+    // scrollback cannot reveal virtualized rows, so gating this on full mouse
+    // mode makes the wheel appear broken (especially on macOS terminals without
+    // dedicated PageUp/PageDown keys). Full mode still gates drag/clickable UI.
     if (!overlayOpen) {
-      if (mouseMode && key.mouse?.kind === 'wheel') {
+      // Horizontal trackpad reports are also encoded as "wheel" with delta 0;
+      // ignore them so diagonal gestures do not accidentally move chat down.
+      if (key.mouse?.kind === 'wheel' && key.mouse.wheel !== 0) {
         if (
           isHistoryScrollTarget(
             { termRows, termCols: stdout?.columns ?? 80, viewportRows: state.viewportRows },
@@ -505,7 +510,7 @@ export function createAppKeyHandler(options: AppKeyHandlerOptions): (
         ) {
           if (key.mouse.shift)
             historyScrollRef.current?.scrollPage(key.mouse.wheel > 0 ? 'up' : 'down');
-          else historyScrollRef.current?.scrollBy(key.mouse.wheel > 0 ? 3 : -3);
+          else historyScrollRef.current?.scrollBy(key.mouse.wheel > 0 ? 1 : -1);
           return;
         }
       }
@@ -642,6 +647,17 @@ export function createAppKeyHandler(options: AppKeyHandlerOptions): (
       }
       if (key.pageDown) {
         historyScrollRef.current?.scrollPage('down');
+        return;
+      }
+      // Terminal-safe paging fallback for compact keyboards (notably MacBooks).
+      // Preserve the composer's Ctrl+U/D editing semantics whenever it contains
+      // text; on an empty draft these chords page through chat history.
+      if (
+        key.ctrl &&
+        draftRef.current.buffer === '' &&
+        (input === 'u' || input === 'd')
+      ) {
+        historyScrollRef.current?.scrollPage(input === 'u' ? 'up' : 'down');
         return;
       }
     }
