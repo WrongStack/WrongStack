@@ -8,7 +8,10 @@
  */
 import { describe, expect, it } from 'vitest';
 import { HashingEmbeddingProvider } from '../../src/embeddings/hashing.js';
-import type { EmbeddingProvider } from '../../src/embeddings/provider.js';
+import {
+  type EmbeddingProvider,
+  cosineSimilarity,
+} from '../../src/embeddings/provider.js';
 
 describe('EmbeddingProvider interface contract', () => {
   it('HashingEmbeddingProvider satisfies EmbeddingProvider', () => {
@@ -72,5 +75,49 @@ describe('EmbeddingProvider interface contract', () => {
     expect(results).toHaveLength(1);
     expect(results[0]!).toBeInstanceOf(Float32Array);
     expect(results[0]!.length).toBe(64);
+  });
+});
+
+describe('cosineSimilarity', () => {
+  it('returns 1 for identical vectors', () => {
+    const a = new Float32Array([1, 2, 3]);
+    const b = new Float32Array([1, 2, 3]);
+    expect(cosineSimilarity(a, b)).toBeCloseTo(1, 5);
+  });
+
+  it('returns 0 for a zero-vector pair', () => {
+    const zero = new Float32Array(4);
+    const b = new Float32Array([1, 0, 0, 0]);
+    expect(cosineSimilarity(zero, b)).toBe(0);
+    expect(cosineSimilarity(b, zero)).toBe(0);
+    expect(cosineSimilarity(zero, zero)).toBe(0);
+  });
+
+  it('returns -1 for opposite vectors', () => {
+    const a = new Float32Array([2, -1, 3]);
+    const b = new Float32Array([-2, 1, -3]);
+    expect(cosineSimilarity(a, b)).toBeCloseTo(-1, 5);
+  });
+
+  it('returns a value between 0 and 1 for partially similar vectors', () => {
+    const a = new Float32Array([1, 0, 0]);
+    const b = new Float32Array([0.5, 0.5, 0]);
+    const sim = cosineSimilarity(a, b);
+    expect(sim).toBeGreaterThan(0);
+    expect(sim).toBeLessThan(1);
+  });
+
+  it('is symmetric: cos(a, b) === cos(b, a)', () => {
+    const a = new Float32Array([4, -2, 1, 0]);
+    const b = new Float32Array([-1, 3, 2, 5]);
+    expect(cosineSimilarity(a, b)).toBeCloseTo(cosineSimilarity(b, a), 10);
+  });
+
+  it('handles single-element vectors', () => {
+    const a = new Float32Array([5]);
+    const b = new Float32Array([5]);
+    const c = new Float32Array([0]);
+    expect(cosineSimilarity(a, b)).toBeCloseTo(1, 5);
+    expect(cosineSimilarity(a, c)).toBe(0);
   });
 });

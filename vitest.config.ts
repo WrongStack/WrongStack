@@ -148,10 +148,10 @@ export default defineConfig({
       // Aggregate ratchet: keep the expanded TS/TSX inventory covered without
       // pretending the existing workspace is already at 100% per file.
       thresholds: {
-        lines: 74,
-        functions: 73,
-        branches: 64,
-        statements: 73,
+        lines: 75,
+        functions: 74,
+        branches: 65,
+        statements: 74,
         perFile: false,
       },
     },

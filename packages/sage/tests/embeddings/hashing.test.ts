@@ -121,6 +121,15 @@ describe('HashingEmbeddingProvider', () => {
       const b = await p.embed(['one', 'two', 'three']);
       expect(a).toEqual(b);
     });
+
+    it('covers the nullish-coalescing branch for null/undefined texts[i]', async () => {
+      const p = new HashingEmbeddingProvider({ dimensions: 64 });
+      const results = await p.embed(['hello', null as unknown as string, 'world']);
+      expect(results).toHaveLength(3);
+      expect(results[0]!.some((v) => v !== 0)).toBe(true);
+      expect(results[1]!.every((v) => v === 0)).toBe(true);
+      expect(results[2]!.some((v) => v !== 0)).toBe(true);
+    });
   });
 
   describe('sublinear scaling', () => {
@@ -132,6 +141,17 @@ describe('HashingEmbeddingProvider', () => {
       const repeatedMag = Math.sqrt(repeated!.reduce((s, v) => s + v * v, 0));
       expect(singleMag).toBeCloseTo(1, 4);
       expect(repeatedMag).toBeCloseTo(1, 4);
+    });
+
+    it('non-alphanumeric text produces a zero vector (norm === 0 branch)', async () => {
+      const p = new HashingEmbeddingProvider({ dimensions: 128 });
+      const [vec] = await p.embed(['!!!']);
+      expect(vec).toBeInstanceOf(Float32Array);
+      expect(vec!.length).toBe(128);
+      // Non-alphanumeric tokens are all filtered out → zero vector → norm === 0
+      for (let i = 0; i < 128; i++) {
+        expect(vec![i]).toBe(0);
+      }
     });
   });
 });

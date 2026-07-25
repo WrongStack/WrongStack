@@ -3,8 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 // ── Mocks ─────────────────────────────────────────────────────────────────
 // handleRunResult touches several side-effecty modules on a `done` run
 // (favicon, chime, notify, ws-client). We stub them so the test can focus on
-// the DOM-event side effect: expanding the collapsed input via the
-// `chat:session-end` event before the next-step countdown fires.
+// the DOM-event side effect: starting the next-step countdown.
 vi.mock('@/lib/favicon', () => ({ setFaviconStatus: vi.fn() }));
 vi.mock('@/lib/chime', () => ({
   playCompletionChime: vi.fn(),
@@ -32,8 +31,7 @@ function runResult(status: 'done' | 'error'): WSServerMessage {
   } as unknown as WSServerMessage;
 }
 
-describe('handleRunResult → input-expand on completion', () => {
-  let sessionEndSpy: EventListener & ReturnType<typeof vi.fn>;
+describe('handleRunResult → next-step countdown on completion', () => {
   let countdownSpy: EventListener & ReturnType<typeof vi.fn>;
 
   beforeEach(() => {
@@ -46,40 +44,32 @@ describe('handleRunResult → input-expand on completion', () => {
     });
     useChatStore.getState().setLoading(true);
 
-    sessionEndSpy = vi.fn() as EventListener & ReturnType<typeof vi.fn>;
     countdownSpy = vi.fn() as EventListener & ReturnType<typeof vi.fn>;
-    document.addEventListener('chat:session-end', sessionEndSpy);
     document.addEventListener('chat:next-step-countdown', countdownSpy);
   });
 
   afterEach(() => {
-    document.removeEventListener('chat:session-end', sessionEndSpy);
     document.removeEventListener('chat:next-step-countdown', countdownSpy);
     vi.restoreAllMocks();
   });
 
-  it('dispatches chat:session-end (expand input) on a done run with an empty queue', () => {
+  it('dispatches chat:next-step-countdown on a done run with an empty queue', () => {
     handleRunResult(runResult('done'));
 
-    expect(sessionEndSpy).toHaveBeenCalledTimes(1);
-    // The countdown must also fire so the suggestion lands in the now-visible input.
     expect(countdownSpy).toHaveBeenCalledTimes(1);
   });
 
-  it('skips chat:session-end when a follow-up message is queued (run continues)', () => {
+  it('dispatches chat:next-step-countdown before a queued follow-up continues', () => {
     useChatStore.getState().enqueue('a queued follow-up');
 
     handleRunResult(runResult('done'));
 
-    expect(sessionEndSpy).not.toHaveBeenCalled();
-    // Countdown is likewise suppressed mid-flow — the run isn't settling yet.
-    expect(countdownSpy).not.toHaveBeenCalled();
+    expect(countdownSpy).toHaveBeenCalledTimes(1);
   });
 
-  it('does not dispatch chat:session-end on a non-done (error) run', () => {
+  it('does not dispatch chat:next-step-countdown on a non-done (error) run', () => {
     handleRunResult(runResult('error'));
 
-    expect(sessionEndSpy).not.toHaveBeenCalled();
     expect(countdownSpy).not.toHaveBeenCalled();
   });
 });
