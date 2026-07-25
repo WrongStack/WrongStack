@@ -46,6 +46,13 @@ import { toast } from '@/components/Toaster';
 import type { SubagentView } from '@/stores';
 import { useChatStore, useFleetStore, useUIStore } from '@/stores';
 
+/**
+ * Trailing-debounce window for coalescing `agent-roster.updated` broadcasts.
+ * A bulk optimize emits one event per role; without this, each would trigger
+ * its own full roster reload. Reloading once after the burst settles is enough.
+ */
+const ROSTER_UPDATE_DEBOUNCE_MS = 300;
+
 // ── Types ──────────────────────────────────────────────────────────────
 
 interface RosterAgentEntry {
@@ -1047,16 +1054,23 @@ function SelfLearningTab({
     }
   }, []);
 
-  // Optimize learnings — triggers LLM consolidation via the leader agent
+  // Optimize learnings — runs the LLM consolidation headlessly on the server
+  // (read raw entries → synthesize → write consolidated.md + consolidation.json)
+  // and reflects the result inline, with NO chat round-trip. If the server has
+  // no active model it degrades to the legacy chat-driven path.
   const runOptimize = useCallback(
     async (role: string) => {
       setOptimizing(true);
       setTeachFeedback(null);
       try {
         const data = (await sendRosterMessage('agent-roster.consolidate', { role })) as {
+          consolidated?: boolean;
+          emptySynthesis?: boolean;
           instruction?: string;
           leaderInstruction?: string;
           rawEntryCount?: number;
+          content?: string;
+          model?: string;
           error?: string;
         };
         if (data.error) throw new Error(data.error);
@@ -1064,9 +1078,38 @@ function SelfLearningTab({
           setTeachFeedback({ ok: false, msg: 'No raw entries to optimize yet.' });
           return;
         }
-        // Send the full instruction (with raw entries embedded) so the leader
-        // agent has the actual learning data to synthesize — the short
-        // leaderInstruction promises data it does not carry.
+
+        // ── Headless success: the server already synthesized + persisted. ──
+        if (data.consolidated) {
+          await onRefresh();
+          // Reconcile the visible document from the server; this supersedes any
+          // optimistic set of `data.content` (which would otherwise be dead work).
+          // Always reload — `loadConsolidated` self-guards via `setConsolidatedContent`,
+          // so gating on a possibly-stale `selectedRole` closure is unnecessary and
+          // could leave the freshly-optimized document out of sync.
+          await loadConsolidated(role);
+          setTeachFeedback({ ok: true, msg: 'Optimized. Consolidated knowledge updated.' });
+          toast.success(
+            data.model
+              ? `Learnings consolidated with ${data.model}.`
+              : 'Learnings consolidated.',
+          );
+          return;
+        }
+
+        // ── Empty synthesis: the model ran but produced nothing usable. The
+        // existing document is left untouched; surface a retryable message. ──
+        if (data.emptySynthesis) {
+          setTeachFeedback({
+            ok: false,
+            msg: 'The model returned an empty result. Nothing was changed — try again.',
+          });
+          toast.error('Optimization produced an empty result. Try again.');
+          return;
+        }
+
+        // ── Fallback: no active model on the server. Route the full
+        // instruction through the chat agent so the work still completes. ──
         const prompt = data.instruction;
         if (!prompt) throw new Error('No consolidation instruction generated');
         const chat = useChatStore.getState();
@@ -1076,8 +1119,11 @@ function SelfLearningTab({
         const ui = useUIStore.getState();
         ui.setSidebarOpen(false);
         ui.setCurrentView('chat');
-        setTeachFeedback({ ok: true, msg: 'Optimization sent to agent. Check chat for progress.' });
-        toast.info('Optimization sent. Refresh the roster after the agent finishes to see the consolidated result.');
+        setTeachFeedback({
+          ok: true,
+          msg: 'No active model on server — optimization sent to chat agent instead.',
+        });
+        toast.info('No active model on server. Optimization sent to the chat agent.');
       } catch (err) {
         setTeachFeedback({
           ok: false,
@@ -1088,11 +1134,13 @@ function SelfLearningTab({
         setOptimizing(false);
       }
     },
-    [],
+    [onRefresh, loadConsolidated],
   );
 
-  // Bulk optimize — collects all agents needing optimization and sends a
-  // single combined consolidation prompt to the leader agent.
+  // Bulk optimize — consolidates each agent headlessly on the server. Agents
+  // that the server could consolidate directly are done inline; only agents
+  // that fall back (no active model) are collected and routed through the chat
+  // agent as a single combined prompt.
   const runBulkOptimize = useCallback(
     async (roles: string[]) => {
       if (roles.length === 0) return;
@@ -1101,74 +1149,108 @@ function SelfLearningTab({
       try {
         // Serialize requests to avoid the per-type gate in sendRosterMessage
         // ("Roster request 'agent-roster.consolidate' superseded by new request").
-        // Each individual failure is caught and pushed as null so the rest
-        // of the batch is not lost.
-        const results: Array<{ role: string; instruction: string } | null> = [];
+        // Each individual failure is isolated so the rest of the batch survives.
+        const consolidatedRoles: string[] = [];
+        let skippedCount = 0;
         let failedCount = 0;
         let lastErrorMsg = '';
+        const fallback: Array<{ role: string; instruction: string }> = [];
         for (const r of roles) {
           try {
             const data = (await sendRosterMessage('agent-roster.consolidate', {
               role: r,
             })) as {
+              consolidated?: boolean;
+              emptySynthesis?: boolean;
               instruction?: string;
               rawEntryCount?: number;
               error?: string;
             };
-            if (data.error || !data.instruction) {
-              // Server error or missing instruction — count as a failure
+            if (data.error) {
               failedCount++;
-              lastErrorMsg = data.error || 'No consolidation instruction';
-              results.push(null);
+              lastErrorMsg = data.error;
+            } else if (data.consolidated) {
+              // Server synthesized + persisted this one directly.
+              consolidatedRoles.push(r);
             } else if (data.rawEntryCount === 0) {
-              // No entries to optimize — legitimate skip, not a failure
-              results.push(null);
+              // No entries to optimize — legitimate skip, not a failure.
+              skippedCount++;
+            } else if (data.emptySynthesis) {
+              // Model ran but produced nothing usable — count as a failure
+              // with a clear reason; the existing document is untouched.
+              failedCount++;
+              lastErrorMsg = 'Model returned an empty result';
+            } else if (data.instruction) {
+              // No active model on the server — needs the chat fallback.
+              fallback.push({ role: r, instruction: data.instruction });
             } else {
-              results.push({ role: r, instruction: data.instruction });
+              failedCount++;
+              lastErrorMsg = 'No consolidation produced';
             }
           } catch (err) {
             failedCount++;
-            const msg = err instanceof Error ? err.message : String(err);
-            lastErrorMsg = msg;
-            results.push(null);
+            lastErrorMsg = err instanceof Error ? err.message : String(err);
           }
         }
-        const valid = results.filter(
-          (r): r is { role: string; instruction: string } => r !== null,
-        );
-        if (valid.length === 0) {
-          const diagnostic =
-            failedCount > 0
-              ? `Bulk consolidate failed for ${failedCount} of ${roles.length} agent${roles.length > 1 ? 's' : ''}.${lastErrorMsg ? ` Last error: ${lastErrorMsg}` : ''}`
+
+        // No explicit roster refresh here: each server-side consolidation emits
+        // an `agent-roster.updated` broadcast, and the debounced listener
+        // coalesces the whole burst into a single `loadRoster()` — avoiding an
+        // N+1 reload. The broadcast refreshes the roster *list*, but not the
+        // currently-open consolidated *document*, so reload that explicitly for
+        // the selected role if it was one of the consolidated ones — parity with
+        // the single-role `runOptimize` path.
+        if (selectedRole && consolidatedRoles.includes(selectedRole)) {
+          await loadConsolidated(selectedRole);
+        }
+
+        // Route only the fallback agents through chat, as one combined prompt.
+        if (fallback.length > 0) {
+          const prompt =
+            `Optimize the learned data for ${fallback.length} agent${fallback.length > 1 ? 's' : ''}. ` +
+            `For each agent below, read its raw learned entries, synthesize them into a single narrowly-scoped ` +
+            `document preserving every fact, and save the result to its consolidated.md file.\n\n` +
+            fallback.map((r) => `## Agent: ${r.role}\n\n${r.instruction}`).join('\n\n---\n\n');
+          const chat = useChatStore.getState();
+          chat.addMessage({ role: 'user', content: prompt });
+          chat.setLoading(true);
+          getWSClient().sendMessage(prompt);
+          const ui = useUIStore.getState();
+          ui.setSidebarOpen(false);
+          ui.setCurrentView('chat');
+        }
+
+        // Summarize the batch outcome.
+        if (consolidatedRoles.length === 0 && fallback.length === 0) {
+          if (failedCount > 0) {
+            const skipSuffix = skippedCount > 0 ? ` ${skippedCount} skipped.` : '';
+            const diagnostic = `Bulk consolidate failed for ${failedCount} of ${roles.length} agent${roles.length > 1 ? 's' : ''}.${lastErrorMsg ? ` Last error: ${lastErrorMsg}` : ''}${skipSuffix}`;
+            setTeachFeedback({ ok: false, msg: diagnostic });
+            return;
+          }
+          // Skipped-only outcome (no entries to optimize) is a normal no-op,
+          // not a failure — report it as info.
+          const info =
+            skippedCount > 0
+              ? `Bulk optimize: ${skippedCount} skipped (no entries to optimize).`
               : 'No agents had optimizable entries.';
-          setTeachFeedback({ ok: false, msg: diagnostic });
+          setTeachFeedback({ ok: true, msg: info });
+          toast.info(info, 6000);
           return;
         }
-        const prompt =
-          `Optimize the learned data for ${valid.length} agent${valid.length > 1 ? 's' : ''} that exceed the soft limit. ` +
-          `For each agent below, read its raw learned entries, synthesize them into a single narrowly-scoped ` +
-          `document preserving every fact, and save the result to its consolidated.md file.\n\n` +
-          valid
-            .map(
-              (r) =>
-                `## Agent: ${r.role}\n\n${r.instruction}`,
-            )
-            .join('\n\n---\n\n');
-        const chat = useChatStore.getState();
-        chat.addMessage({ role: 'user', content: prompt });
-        chat.setLoading(true);
-        getWSClient().sendMessage(prompt);
-        const ui = useUIStore.getState();
-        ui.setSidebarOpen(false);
-        ui.setCurrentView('chat');
-        setTeachFeedback({
-          ok: true,
-          msg: `Bulk optimization sent for ${valid.length} agent${valid.length > 1 ? 's' : ''}. Check chat for progress.`,
-        });
-        toast.success(
-          `Bulk optimization sent for ${valid.length} agent${valid.length > 1 ? 's' : ''}.\nRefresh the roster after the agent finishes to see consolidated results.`,
-          6000,
-        );
+
+        const parts: string[] = [];
+        if (consolidatedRoles.length > 0) parts.push(`${consolidatedRoles.length} consolidated`);
+        if (fallback.length > 0) parts.push(`${fallback.length} sent to chat`);
+        if (skippedCount > 0) parts.push(`${skippedCount} skipped`);
+        if (failedCount > 0) parts.push(`${failedCount} failed`);
+        const summary = `Bulk optimize: ${parts.join(', ')}.`;
+        setTeachFeedback({ ok: failedCount === 0, msg: summary });
+        if (consolidatedRoles.length > 0 && fallback.length === 0) {
+          toast.success(summary, 6000);
+        } else {
+          toast.info(summary, 6000);
+        }
       } catch (err) {
         setTeachFeedback({
           ok: false,
@@ -1179,7 +1261,7 @@ function SelfLearningTab({
         setBulkOptimizing(false);
       }
     },
-    [],
+    [selectedRole, loadConsolidated],
   );
 
   if (populated.length === 0) {
@@ -2151,6 +2233,25 @@ export function AgentRosterView({ className }: { className?: string | undefined 
 
   useEffect(() => {
     loadRoster();
+  }, [loadRoster]);
+
+  // Refresh the roster when another client (or a background headless
+  // consolidation) reports an update — no manual reload needed. Bursts of
+  // updates (e.g. a bulk optimize that emits one event per role) are coalesced
+  // into a single reload via a short trailing debounce.
+  useEffect(() => {
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    const unsub = getWSClient().on('agent-roster.updated', () => {
+      if (timer) clearTimeout(timer);
+      timer = setTimeout(() => {
+        timer = null;
+        loadRoster();
+      }, ROSTER_UPDATE_DEBOUNCE_MS);
+    });
+    return () => {
+      if (timer) clearTimeout(timer);
+      unsub();
+    };
   }, [loadRoster]);
 
   return (
