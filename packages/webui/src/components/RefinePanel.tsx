@@ -5,15 +5,21 @@ import { useLocalPrefs } from '@/stores/local-prefs';
 import { cn } from '@/lib/utils';
 import { useWebSocket } from '@/hooks/useWebSocket';
 import { Button } from './ui/button';
-import { AlertTriangle, Check, Clock, Edit3, Globe, Loader2, RotateCw, Send, Sparkles, X, Zap } from 'lucide-react';
+import { AlertTriangle, Check, ClipboardCopy, Clock, Edit3, Globe, Loader2, RotateCw, Send, Sparkles, X, Zap } from 'lucide-react';
 
-export type RefineDecision = 'refined' | 'english' | 'original' | 'edit';
+export type RefineDecision = 'refined' | 'english' | 'original' | 'edit' | 'cancel';
 
 interface RefinePanelProps {
   original: string;
   refined: string;
   english: string;
   onDecision: (decision: RefineDecision) => void;
+  /**
+   * Copy a text version into the chat input WITHOUT submitting it and close
+   * the panel, so the user can keep editing/appending before sending.
+   * Receives the exact text of the field whose copy icon was clicked.
+   */
+  onCopyToInput?: ((text: string) => void) | undefined;
   /** Auto-send countdown in ms. Default 0 (no auto-send). */
   autoSendDelayMs?: number;
   /**
@@ -55,13 +61,15 @@ interface RefinePanelProps {
  * - e → send English version
  * - o → send original
  * - t → edit the refined version
- * - Esc → cancel and send original
+ * - Esc → close the panel WITHOUT sending (returns to the edit state); the
+ *   parent restores the original prompt into the input if nothing was copied
  */
 export function RefinePanel({
   original,
   refined,
   english,
   onDecision,
+  onCopyToInput,
   autoSendDelayMs = 0,
   onStartRefine,
   status = 'ready',
@@ -198,8 +206,7 @@ export function RefinePanel({
             setIsEditing(false);
             setEditText(refined);
           } else {
-            setRefinePanel(null);
-            onDecision('original');
+            handleClose();
           }
           break;
       }
@@ -219,8 +226,29 @@ export function RefinePanel({
 
   const handleDecision = (decision: RefineDecision) => {
     if (countdownRef.current) clearInterval(countdownRef.current);
+    if (preRefineTimerRef.current) clearInterval(preRefineTimerRef.current);
     setRefinePanel(null);
     onDecision(decision);
+  };
+
+  /** Close the panel without submitting — just return to the edit state. */
+  const handleClose = () => {
+    if (countdownRef.current) clearInterval(countdownRef.current);
+    if (preRefineTimerRef.current) clearInterval(preRefineTimerRef.current);
+    setRefinePanel(null);
+    onDecision('cancel');
+  };
+
+  /**
+   * Copy the given text version into the chat input without submitting, then
+   * close the panel. The parent keeps the copied text in the input so the
+   * user can keep editing/appending before sending.
+   */
+  const handleCopyToInput = (text: string) => {
+    if (countdownRef.current) clearInterval(countdownRef.current);
+    if (preRefineTimerRef.current) clearInterval(preRefineTimerRef.current);
+    setRefinePanel(null);
+    onCopyToInput?.(text);
   };
 
   const handleEditSubmit = () => {
@@ -251,7 +279,7 @@ export function RefinePanel({
           </div>
           <button
             type="button"
-            onClick={() => handleDecision('original')}
+            onClick={handleClose}
             className="text-muted-foreground hover:text-foreground transition-colors"
             title={t('activity:refine.cancelTitle')}
           >
@@ -312,7 +340,7 @@ export function RefinePanel({
           </div>
           <button
             type="button"
-            onClick={() => handleDecision('original')}
+            onClick={handleClose}
             className="text-muted-foreground hover:text-foreground transition-colors"
             title={t('activity:refine.cancelTitle')}
           >
@@ -353,7 +381,7 @@ export function RefinePanel({
           </div>
           <button
             type="button"
-            onClick={() => handleDecision('original')}
+            onClick={handleClose}
             className="text-muted-foreground hover:text-foreground transition-colors"
             title={t('activity:refine.cancelTitle')}
           >
@@ -436,7 +464,7 @@ export function RefinePanel({
           )}
         </div>
         <button type="button"
-          onClick={() => handleDecision('original')}
+          onClick={handleClose}
           className="text-muted-foreground hover:text-foreground transition-colors"
           title={t('activity:refine.cancelTitle')}
         >
@@ -448,9 +476,23 @@ export function RefinePanel({
       <div className="p-4 space-y-3">
         {isEditing ? (
           <div className="space-y-2">
-            <span className="text-xs text-muted-foreground font-medium">
-              {t('activity:refine.editLabel')}
-            </span>
+            <div className="flex items-center gap-1">
+              <span className="text-xs text-muted-foreground font-medium">
+                {t('activity:refine.editLabel')}
+              </span>
+              {onCopyToInput && (
+                <button
+                  type="button"
+                  onClick={() => handleCopyToInput(editText)}
+                  disabled={!editText.trim()}
+                  className="ml-auto text-muted-foreground hover:text-foreground transition-colors disabled:opacity-40 disabled:pointer-events-none"
+                  title={t('activity:refine.copyToInputTitle')}
+                  aria-label={t('activity:refine.copyToInputTitle')}
+                >
+                  <ClipboardCopy className="h-3.5 w-3.5" />
+                </button>
+              )}
+            </div>
             <textarea
               value={editText}
               onChange={(e) => setEditText(e.target.value)}
@@ -484,6 +526,17 @@ export function RefinePanel({
             <div className="space-y-1">
               <div className="flex items-center gap-1 text-xs text-muted-foreground font-medium uppercase tracking-wider">
                 {t('activity:refine.original')}
+                {onCopyToInput && (
+                  <button
+                    type="button"
+                    onClick={() => handleCopyToInput(original)}
+                    className="ml-auto text-muted-foreground hover:text-foreground transition-colors normal-case tracking-normal"
+                    title={t('activity:refine.copyToInputTitle')}
+                    aria-label={t('activity:refine.copyToInputTitle')}
+                  >
+                    <ClipboardCopy className="h-3.5 w-3.5" />
+                  </button>
+                )}
               </div>
               <div className="text-sm text-muted-foreground bg-muted/30 rounded-md px-3 py-2">
                 {original.length > 200 ? original.slice(0, 200) + '...' : original}
@@ -494,6 +547,17 @@ export function RefinePanel({
             <div className="space-y-1">
               <div className="flex items-center gap-1 text-xs text-warning font-medium uppercase tracking-wider">
                 {t('activity:refine.refined')} <span className="text-muted-foreground font-normal">{t('activity:refine.yourLanguage')}</span>
+                {onCopyToInput && (
+                  <button
+                    type="button"
+                    onClick={() => handleCopyToInput(refined)}
+                    className="ml-auto text-warning/70 hover:text-warning transition-colors normal-case tracking-normal"
+                    title={t('activity:refine.copyToInputTitle')}
+                    aria-label={t('activity:refine.copyToInputTitle')}
+                  >
+                    <ClipboardCopy className="h-3.5 w-3.5" />
+                  </button>
+                )}
               </div>
               <button
                 type="button"
@@ -513,6 +577,17 @@ export function RefinePanel({
               <div className="flex items-center gap-1 text-xs text-info font-medium uppercase tracking-wider">
                 <Globe className="h-3 w-3" />
                 {t('activity:refine.english')}
+                {onCopyToInput && (
+                  <button
+                    type="button"
+                    onClick={() => handleCopyToInput(english)}
+                    className="ml-auto text-info/70 hover:text-info transition-colors normal-case tracking-normal"
+                    title={t('activity:refine.copyToInputTitle')}
+                    aria-label={t('activity:refine.copyToInputTitle')}
+                  >
+                    <ClipboardCopy className="h-3.5 w-3.5" />
+                  </button>
+                )}
               </div>
               <button
                 type="button"
