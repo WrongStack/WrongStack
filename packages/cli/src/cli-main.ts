@@ -3,7 +3,6 @@
  * Boot, command-host, runtime, surface, and shutdown behavior belongs in
  * focused modules; this file owns their ordering and data hand-off only.
  */
-import { execFile } from 'node:child_process';
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 import { attachDepWatcherBridge, GlobalMailbox, mailboxSessionTag } from '@wrongstack/core/coordination';
@@ -30,7 +29,6 @@ import { activeProfileConfigPath } from './profile-config-path.js';
 import { buildPickableProviders } from './provider-helpers.js';
 import { wireSessionEvents } from './session-event-wiring.js';
 import { SessionStats } from './session-stats.js';
-import { createGracefulShutdown } from './shutdown-cleanup.js';
 import { buildCommandHostSlashCommands } from './wiring/slash-commands.js';
 import { CLI_VERSION } from './version.js';
 import { setupBrainAndOrchestration } from './wiring/brain-and-orchestration.js';
@@ -44,6 +42,7 @@ import { setupHqTelemetry } from './wiring/hq-telemetry.js';
 import { setupLifecycleAndPlugins } from './wiring/lifecycle-plugins.js';
 import { setupMetrics } from './wiring/metrics.js';
 import { setupPipelines } from './wiring/pipeline.js';
+import { setupSessionRegistry } from './wiring/session-registry.js';
 import {
   buildProviderForId as buildProviderForIdRuntime,
   resolveProviderCfg as resolveProviderCfgRuntime,
@@ -373,82 +372,16 @@ export async function main(argv: string[]): Promise<number> {
   // Register this session in the cross-process registry so /sessions status
   // and the WebUI can discover it. Start the agent status tracker that
   // listens to EventBus events and pushes live status to the registry.
-  let tracker: import('@wrongstack/core/storage').AgentStatusTracker | undefined;
-  try {
-    const { getSessionRegistry, AgentStatusTracker, FleetNotifier } = await import(
-      '@wrongstack/core/storage'
-    );
-    const registry = getSessionRegistry(wpaths.globalRoot);
-    const projectSlug = path.basename(wpaths.projectDir);
-    const projectName = path.basename(projectRoot);
-
-    // Detect current git branch (best-effort, non-blocking)
-    let gitBranch = await new Promise<string | undefined>((resolve) => {
-      execFile(
-        'git',
-        ['rev-parse', '--abbrev-ref', 'HEAD'],
-        {
-          cwd: projectRoot,
-          encoding: 'utf8',
-          timeout: 3000,
-          windowsHide: true,
-          maxBuffer: 64 * 1024,
-        },
-        (error, stdout) => resolve(error ? undefined : stdout.trim() || undefined),
-      );
-    });
-    if (gitBranch === 'HEAD') gitBranch = undefined; // detached HEAD
-
-    await registry.register({
-      sessionId: session.id,
-      projectSlug,
-      projectRoot,
-      projectName,
-      workingDir: context.workingDir,
-      gitBranch,
-      // The TUI and the REPL both boot through cli-main; `tuiOwnsScreen`
-      // distinguishes the surface so the Fleet HQ map can label this session.
-      clientType: tuiOwnsScreen ? 'tui' : 'cli',
-      pid: process.pid,
-      startedAt: new Date().toISOString(),
-    });
-
-    // Push-on-write: nudge same-project WebUIs the instant our agents advance,
-    // so the Fleet HQ map reflects this TUI/REPL in ~ms (not watch/poll lag).
-    const fleetNotifier = new FleetNotifier({
-      baseDir: wpaths.globalRoot,
-      projectRoot,
-      selfPid: process.pid,
-    });
-    tracker = new AgentStatusTracker({
-      events,
-      registry,
-      sessionId: () => context.session.id,
-      onUpdate: () => fleetNotifier.notify(),
-    });
-    tracker.start();
-
-    // Graceful shutdown. `registry.markClosing()` is an awaited atomic disk
-    // write; calling `process.exit(0)` immediately after `void cleanup()` cut
-    // the write off and left the cross-process registry thinking the host was
-    // still alive after Ctrl+C. `createGracefulShutdown` matches the
-    // established pattern in webui-server/lifecycle.ts + cli-entry-point.ts:
-    // await the cleanup, set `exitCode`, give Node a 500ms grace to drain,
-    // then force exit. A second signal short-circuits to immediate exit.
-    createGracefulShutdown({
-      run: async () => {
-        try {
-          fleetNotifier.dispose();
-          await registry.markClosing();
-          tracker?.stop();
-        } catch {
-          /* ignore — a stuck cleanup cannot wedge the exit path */
-        }
-      },
-    }).install();
-  } catch {
-    // Non-critical — session tracking degrades gracefully
-  }
+  // Failures degrade gracefully — tracker stays undefined and downstream
+  // code treats an absent tracker as a no-op.
+  const { tracker } = await setupSessionRegistry({
+    wpaths,
+    projectRoot,
+    session,
+    context,
+    tuiOwnsScreen,
+    events,
+  });
 
   // SessionEventBridge + audit events (extracted to session-event-wiring.ts).
   const { errorRing, sessionBridge, disposeChronicle } = wireSessionEvents({
