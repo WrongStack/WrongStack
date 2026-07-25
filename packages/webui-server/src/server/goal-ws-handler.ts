@@ -83,6 +83,9 @@ export class GoalWebSocketHandler {
   private broadcastInterval: ReturnType<typeof setInterval> | null = null;
   /** Aborts in-flight task agents AND the planning turn when the run is stopped. */
   private abort: AbortController | null = null;
+  /** Monotonically increasing seq for stale-assessment detection (no AbortController —
+   *  Agent.run() has a single-flight guard so we can't abort it from another assess call). */
+  private assessSeq = 0;
   /** Set the instant a stop/clear/revert is requested, so a planning turn that
    *  resolves afterwards never launches the orchestrator (the abort alone can't
    *  cover the window between the LLM call resolving and the orchestrator start). */
@@ -246,7 +249,17 @@ export class GoalWebSocketHandler {
     const goal = (payload?.goal as string) || '';
     const seq = (payload?.seq as number) ?? 0;
 
+    // Capture the current seq so the (uncancellable) Agent.run() LLM call
+    // can discard its result if a newer assessment has already superseded it.
+    // Agent.run() has a synchronous single-flight guard (_runInProgress), so
+    // we never abort it from here — the old call completes in the background,
+    // but its result is silently dropped.
+    const mySeq = ++this.assessSeq;
+
     const sendResult = (result: GoalAssessResult) => {
+      // Stale guard: if a newer assessment arrived while this one was running,
+      // discard the response. The client also has its own reqSeq guard.
+      if (mySeq !== this.assessSeq) return;
       sendSerialized(ws, JSON.stringify({
         type: 'goal.assess.result',
         payload: { ...result, reqSeq: seq },
@@ -280,6 +293,8 @@ export class GoalWebSocketHandler {
       const result = await assessor.assess();
       sendResult(result);
     } catch (err: unknown) {
+      // Stale guard: skip logging+response if superseded.
+      if (mySeq !== this.assessSeq) return;
       this.logger.error(`[Goal] Assessment failed: ${toErrorMessage(err)}`);
       sendResult({
         realistic: true,

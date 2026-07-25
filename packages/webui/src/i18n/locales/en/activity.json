@@ -854,7 +854,10 @@
       "override": "Start anyway",
       "overrideTitle": "Clear the assessment warning and enable the start button",
       "disableTitle": "This goal has an unrealistic duration assessment — use \"Start anyway\" to override"
-    }
+    },
+    "multiBoardLabel": "Split into multiple kanban boards",
+    "verifyTasksLabel": "Require verification for each task",
+    "chimeraReviewLabel": "Enable chimera auto-review"
   },
   "collab": {
     "noObservers": "No live observers",

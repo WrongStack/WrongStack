@@ -854,7 +854,10 @@
       "override": "Iniciar mesmo assim",
       "overrideTitle": "Limpar aviso e habilitar o botão de iniciar",
       "disableTitle": "Esta meta tem uma duração irrealista — use \"Iniciar mesmo assim\" para sobrescrever"
-    }
+    },
+    "multiBoardLabel": "Dividir em múltiplos quadros kanban",
+    "verifyTasksLabel": "Exigir verificação para cada tarefa",
+    "chimeraReviewLabel": "Habilitar revisão automática chimera"
   },
   "collab": {
     "noObservers": "Sem observadores ao vivo",

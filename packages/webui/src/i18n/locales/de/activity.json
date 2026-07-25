@@ -854,7 +854,10 @@
       "override": "Trotzdem starten",
       "overrideTitle": "Warnung zurücksetzen und Start-Button aktivieren",
       "disableTitle": "Dieses Ziel hat eine unrealistische Dauer — mit \"Trotzdem starten\" überschreiben"
-    }
+    },
+    "multiBoardLabel": "In mehrere Kanban-Boards aufteilen",
+    "verifyTasksLabel": "Verifizierung für jede Aufgabe erforderlich",
+    "chimeraReviewLabel": "Chimera-Auto-Review aktivieren"
   },
   "collab": {
     "noObservers": "Keine Live-Beobachter",

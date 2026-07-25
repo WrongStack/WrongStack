@@ -51,6 +51,10 @@ export function GoalView({ onClose }: { onClose: () => void }): React.ReactEleme
   const [showGraph, setShowGraph] = useState(false);
   // Per-run git-worktree isolation (vs running phases on the current branch).
   const [isolate, setIsolate] = useState(true);
+  // Additional goal configuration options.
+  const [multiBoard, setMultiBoard] = useState(false);
+  const [verifyTasks, setVerifyTasks] = useState(false);
+  const [chimeraReview, setChimeraReview] = useState(false);
 
   // ── Goal realism assessment ──────────────────────────────────────────────
   const assessResult = useGoalAssessStore((s) => s.result);
@@ -104,7 +108,7 @@ export function GoalView({ onClose }: { onClose: () => void }): React.ReactEleme
     setGoal('');
     client?.send?.({
       type: 'goal.start',
-      payload: { title: g, autonomous: true, worktrees: isolate },
+      payload: { title: g, autonomous: true, worktrees: isolate, multiBoard, verifyTasks, chimeraReview },
     });
     // Navigate to chat so the user sees the echoed goal and live agent
     // messages in the transcript.
@@ -436,6 +440,36 @@ export function GoalView({ onClose }: { onClose: () => void }): React.ReactEleme
               />
               {t('activity:goalRun.isolateLabel')}
             </label>
+
+            <div className="flex flex-wrap items-center justify-center gap-3 text-xs text-muted-foreground">
+              <label className="flex cursor-pointer items-center gap-1.5">
+                <input
+                  type="checkbox"
+                  checked={multiBoard}
+                  onChange={(e) => setMultiBoard(e.target.checked)}
+                  className="h-3.5 w-3.5 accent-primary"
+                />
+                {t('activity:goalRun.multiBoardLabel')}
+              </label>
+              <label className="flex cursor-pointer items-center gap-1.5">
+                <input
+                  type="checkbox"
+                  checked={verifyTasks}
+                  onChange={(e) => setVerifyTasks(e.target.checked)}
+                  className="h-3.5 w-3.5 accent-primary"
+                />
+                {t('activity:goalRun.verifyTasksLabel')}
+              </label>
+              <label className="flex cursor-pointer items-center gap-1.5">
+                <input
+                  type="checkbox"
+                  checked={chimeraReview}
+                  onChange={(e) => setChimeraReview(e.target.checked)}
+                  className="h-3.5 w-3.5 accent-primary"
+                />
+                {t('activity:goalRun.chimeraReviewLabel')}
+              </label>
+            </div>
 
             <div className="flex items-center gap-3">
               {!assessLoading && assessResult && !assessResult.realistic && !assessResult.parseFailed && (

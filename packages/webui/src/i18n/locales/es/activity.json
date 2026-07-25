@@ -854,7 +854,10 @@
       "override": "Iniciar de todas formas",
       "overrideTitle": "Limpiar la advertencia y habilitar el botón de inicio",
       "disableTitle": "Esta meta tiene una duración poco realista — use \"Iniciar de todas formas\" para sobrescribir"
-    }
+    },
+    "multiBoardLabel": "Dividir en múltiples tableros kanban",
+    "verifyTasksLabel": "Requerir verificación para cada tarea",
+    "chimeraReviewLabel": "Habilitar revisión automática chimera"
   },
   "collab": {
     "noObservers": "Sin observadores en vivo",

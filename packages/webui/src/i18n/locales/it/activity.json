@@ -854,7 +854,10 @@
       "override": "Avvia comunque",
       "overrideTitle": "Cancella l'avviso e abilita il pulsante di avvio",
       "disableTitle": "Questo obiettivo ha una durata irrealistica — usa \"Avvia comunque\" per sovrascrivere"
-    }
+    },
+    "multiBoardLabel": "Dividi in più board kanban",
+    "verifyTasksLabel": "Richiedi verifica per ogni attività",
+    "chimeraReviewLabel": "Abilita revisione automatica chimera"
   },
   "collab": {
     "noObservers": "Nessun osservatore dal vivo",

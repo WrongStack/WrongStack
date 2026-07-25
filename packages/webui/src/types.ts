@@ -1978,6 +1978,12 @@ export type WSClientMessageCore =
         /** Per-run override of git-worktree isolation. Omitted → env default
          *  (WRONGSTACK_GOAL_WORKTREES). false → run on the current branch. */
         worktrees?: boolean | undefined;
+        /** Split the goal into multiple kanban boards (one per phase). */
+        multiBoard?: boolean | undefined;
+        /** Require verification (typecheck/lint/test) for each task. */
+        verifyTasks?: boolean | undefined;
+        /** Enable chimera auto-review for this goal run. */
+        chimeraReview?: boolean | undefined;
       };
     }
   | { type: 'goal.assess'; payload: { goal: string; seq?: number | undefined } }

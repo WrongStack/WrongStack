@@ -854,7 +854,10 @@
       "override": "Yine de başlat",
       "overrideTitle": "Uyarıyı temizle ve başlat düğmesini etkinleştir",
       "disableTitle": "Bu hedefin süresi gerçekçi değil — geçersiz kılmak için \"Yine de başlat\" kullanın"
-    }
+    },
+    "multiBoardLabel": "Birden çok kanban panosuna böl",
+    "verifyTasksLabel": "Her görev için doğrulama gerektir",
+    "chimeraReviewLabel": "Chimera otomatik incelemesini etkinleştir"
   },
   "collab": {
     "noObservers": "Canlı izleyici yok",
