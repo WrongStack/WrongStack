@@ -4,7 +4,7 @@ import type {
   CircuitBreakerRuntimeConfig,
   ContextConfig,
 } from './context.js';
-import type { HqClientConfig, ModelRuntimeConfig } from './runtime.js';
+import type { HqClientConfig, ModelRuntimeConfig, SystemPromptConfig } from './runtime.js';
 import type { ToolsConfig } from './tools.js';
 import type { ProviderConfig, CustomModelDefinition, ModelMatrixEntry } from './providers.js';
 import type {
@@ -193,6 +193,8 @@ export interface Config {
    * capabilities. See `ModelRuntimeConfig`.
    */
   modelRuntime?: ModelRuntimeConfig | undefined;
+  /** System identity prompt selection, used by CLI/REPL/TUI/WebUI consistently. */
+  systemPrompt?: SystemPromptConfig | undefined;
   /** HQ client publishing settings, used by CLI/REPL/TUI/WebUI consistently. */
   hq?: HqClientConfig | undefined;
   /**

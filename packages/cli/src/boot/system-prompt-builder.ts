@@ -50,6 +50,7 @@
 //     call site in main(). The unit test exercises the
 //     helper with fakes that satisfy the local interfaces.
 
+import type { SystemInstructionVariant } from '@wrongstack/core';
 import { DefaultSystemPromptBuilder } from '@wrongstack/core/agent';
 import { makeAutonomyPromptContributor } from '@wrongstack/core/execution';
 import type { TokenSavingTier } from '@wrongstack/core/types';
@@ -132,6 +133,8 @@ interface BindSystemPromptBuilderDeps {
   skillEagerMaxChars?: number | undefined;
   /** `config.features.tokenSavingMode` — forwarded so prompt guidance matches tool tiering. */
   tokenSavingMode?: TokenSavingTier | boolean | undefined;
+  /** `config.systemPrompt.variant` — selects system.md vs system-pro.md. */
+  systemPromptVariant?: SystemInstructionVariant | undefined;
   paths: SystemPromptBuilderPaths;
   /** `path.join`-shaped helper from the runtime. */
   pathJoiner: PathJoiner;
@@ -178,10 +181,15 @@ export function bindSystemPromptBuilder(deps: BindSystemPromptBuilderDeps): void
         instructionPaths: {
           globalDir: deps.paths.globalInstructions,
           projectDir: deps.paths.inProjectInstructions,
+          systemVariant: deps.systemPromptVariant,
         },
         planPath: () =>
           deps.sessionRef.current
-            ? sessionScopedPath(deps.paths.projectSessions, deps.sessionRef.current.id, '.plan.json')
+            ? sessionScopedPath(
+                deps.paths.projectSessions,
+                deps.sessionRef.current.id,
+                '.plan.json',
+              )
             : undefined,
         contributors: [
           // Injects the ETERNAL AUTONOMY block when the

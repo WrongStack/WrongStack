@@ -14,7 +14,8 @@ Later layers override earlier layers field-by-field.
 
 Use Markdown for the common system prompt sections:
 
-- `system.md` — replaces the baseline system identity/instructions block.
+- `system.md` — replaces the default baseline system identity/instructions block.
+- `system-pro.md` — replaces the pro baseline system identity/instructions block when `systemPrompt.variant` is `"pro"` or the launch uses `--system-pro` / `--system-prompt pro`.
 - `leader-after-task.md` — replaces the host-only after-task guidance block.
 - `sections/**/*.md` — replaces named reusable prompt sections.
 - `agents/<agent-id>.md` — bundled subagent role prompts used by the fleet catalog.
@@ -49,6 +50,36 @@ Use JSON when a structured override is easier:
 
 If both `instructions.json` and Markdown files exist in the same directory, the
 Markdown files win for their matching fields.
+
+## Selecting `system-pro.md`
+
+Use the pro baseline for one launch:
+
+```bash
+wstack --system-pro
+# or
+wstack --system-prompt pro
+```
+
+Or make it the default in config:
+
+```jsonc
+{
+  "systemPrompt": {
+    "variant": "pro"
+  }
+}
+```
+
+To override the pro prompt for one project without committing it, create:
+
+```text
+<project>/.wrongstack/instructions/system-pro.md
+```
+
+The same layering rules apply: profile and project `system-pro.md` files override
+the bundled `packages/core/instructions/system-pro.md` only when the selected
+variant is `pro`; default launches continue to read `system.md`.
 
 ## Builtin Sections
 

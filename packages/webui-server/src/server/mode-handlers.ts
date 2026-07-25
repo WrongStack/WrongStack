@@ -1,7 +1,7 @@
-import { DefaultSystemPromptBuilder, type Context } from '@wrongstack/core/agent';
+import { type Context, DefaultSystemPromptBuilder } from '@wrongstack/core/agent';
 import type { DefaultModeStore } from '@wrongstack/core/models';
 import type { ToolRegistry } from '@wrongstack/core/registry';
-import type { MemoryPort, SkillLoader } from '@wrongstack/core/types';
+import type { Config, MemoryPort, SkillLoader } from '@wrongstack/core/types';
 import { resolveWstackPaths } from '@wrongstack/core/utils';
 import type { WebSocket } from 'ws';
 import { createModeRouteHandlers } from './mode-routes.js';
@@ -33,7 +33,8 @@ export interface ModeHandlersContext {
   modelCapabilities: ModelCapabilities;
   context: Context;
   toolRegistry: ToolRegistry;
-  config: { provider: string; model: string };
+  config: Pick<Config, 'provider' | 'model' | 'systemPrompt'>;
+  getConfig?: () => Pick<Config, 'provider' | 'model' | 'systemPrompt'>;
   projectRoot: string;
   globalRoot: string;
   clients: Map<WebSocket, ConnectedClient>;
@@ -54,6 +55,7 @@ export function createModeHandlers(context: ModeHandlersContext) {
         projectRoot: context.projectRoot,
         globalRoot: context.globalRoot,
       });
+      const config = context.getConfig?.() ?? context.config;
       const builder = new DefaultSystemPromptBuilder({
         memoryStore: context.memoryStore,
         injectMemory: false,
@@ -65,14 +67,15 @@ export function createModeHandlers(context: ModeHandlersContext) {
         instructionPaths: {
           globalDir: paths.globalInstructions,
           projectDir: paths.inProjectInstructions,
+          systemVariant: config.systemPrompt?.variant,
         },
       });
       context.context.systemPrompt = await builder.build({
         cwd: context.projectRoot,
         projectRoot: context.projectRoot,
         tools: context.toolRegistry.list(),
-        provider: context.config.provider,
-        model: context.config.model,
+        provider: config.provider,
+        model: config.model,
       });
       broadcast(context.clients, {
         type: 'session.start',

@@ -2,7 +2,11 @@ import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { DefaultSystemPromptBuilder, LAYER_1_IDENTITY } from '../../src/index.js';
+import {
+  DefaultSystemPromptBuilder,
+  LAYER_1_IDENTITY,
+  loadInstructionBundle,
+} from '../../src/index.js';
 import type { MemoryStore, SkillLoader, Tool } from '../../src/index.js';
 
 const mkTool = (name: string, hint?: string): Tool => ({
@@ -72,6 +76,39 @@ describe('DefaultSystemPromptBuilder', () => {
 
     expect(blocks[0]?.text).toBe('PROJECT IDENTITY');
     expect(blocks.at(-1)?.text).toBe('PROJECT LEADER');
+  });
+
+  it('selects system-pro.md from bundled and override instruction directories', async () => {
+    const bundledDir = path.join(tmp, 'bundled-instructions');
+    const projectDir = path.join(tmp, '.wrongstack', 'instructions');
+    await fs.mkdir(bundledDir, { recursive: true });
+    await fs.mkdir(projectDir, { recursive: true });
+    await fs.writeFile(path.join(bundledDir, 'system.md'), 'BUNDLED DEFAULT');
+    await fs.writeFile(path.join(bundledDir, 'system-pro.md'), 'BUNDLED PRO');
+    await fs.writeFile(path.join(projectDir, 'system.md'), 'PROJECT DEFAULT');
+    await fs.writeFile(path.join(projectDir, 'system-pro.md'), 'PROJECT PRO');
+
+    const b = new DefaultSystemPromptBuilder({
+      todayIso: '2026-05-13',
+      instructionPaths: { bundledDir, projectDir, systemVariant: 'pro' },
+    });
+    const blocks = await b.build({ cwd: tmp, projectRoot: tmp, tools: [] });
+
+    expect(blocks[0]?.text).toBe('PROJECT PRO');
+  });
+
+  it('accepts an explicit system identity markdown file and rejects path traversal', async () => {
+    const projectDir = path.join(tmp, '.wrongstack', 'instructions');
+    await fs.mkdir(projectDir, { recursive: true });
+    await fs.writeFile(path.join(projectDir, 'system.md'), 'PROJECT DEFAULT');
+    await fs.writeFile(path.join(projectDir, 'system-pro.md'), 'PROJECT PRO');
+
+    const bundle = await loadInstructionBundle({ projectDir, systemFile: 'system-pro.md' });
+
+    expect(bundle.system?.identity).toBe('PROJECT PRO');
+    await expect(loadInstructionBundle({ projectDir, systemFile: '../system-pro.md' })).rejects.toThrow(
+      /Invalid system instruction file/,
+    );
   });
 
   it('applies in-memory instruction bundle overrides after file layers', async () => {

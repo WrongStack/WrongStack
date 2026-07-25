@@ -420,6 +420,7 @@ export {
   loadInstructionBundle,
   mergeInstructionBundle,
   type SystemInstructionBundle,
+  type SystemInstructionVariant,
 } from './core/instruction-bundle.js';
 export {
   buildMailboxBlock,

@@ -140,6 +140,7 @@ export async function switchProjectInPlace(
       instructionPaths: {
         globalDir: nextWpaths.globalInstructions,
         projectDir: nextWpaths.inProjectInstructions,
+        systemVariant: config.systemPrompt?.variant,
       },
     });
     context.systemPrompt = await switchBuilder.build({

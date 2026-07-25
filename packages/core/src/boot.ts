@@ -293,6 +293,13 @@ export async function bootConfig(options: BootConfigOptions = {}): Promise<BootC
   };
 }
 
+function isEnabledFlag(value: string | boolean | undefined): boolean {
+  if (value === true) return true;
+  if (typeof value !== 'string') return false;
+  const normalized = value.trim().toLowerCase();
+  return normalized === 'true' || normalized === '1' || normalized === 'yes' || normalized === 'on';
+}
+
 /**
  * Translate parsed CLI flags into a partial Config patch applied on top of the
  * file-loaded config. Explicit `--log-level` wins over `--verbose`/`--trace`.
@@ -330,6 +337,11 @@ export function flagsToConfigPatch(flags: Record<string, string | boolean>): Par
   if (flags['token-saving-mode']) {
     patch.features ??= {} as Config['features'];
     patch.features.tokenSavingMode = true;
+  }
+  if (isEnabledFlag(flags['system-pro']) || flags['system-prompt'] === 'pro') {
+    patch.systemPrompt = { variant: 'pro' };
+  } else if (flags['system-prompt'] === 'default') {
+    patch.systemPrompt = { variant: 'default' };
   }
   // `--token-saving-tier <level>` takes precedence over `--token-saving-mode`.
   // Supported values: off, minimal, light, medium, aggressive.

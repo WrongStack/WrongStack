@@ -225,6 +225,16 @@ describe('flagsToConfigPatch — all branches', () => {
       flagsToConfigPatch({ 'token-saving-mode': true, 'token-saving-tier': 'light' }).features?.tokenSavingMode,
     ).toBe('light');
   });
+
+  it('maps system prompt selection flags to config patches', () => {
+    expect(flagsToConfigPatch({ 'system-pro': true }).systemPrompt?.variant).toBe('pro');
+    expect(flagsToConfigPatch({ 'system-pro': 'true' }).systemPrompt?.variant).toBe('pro');
+    expect(flagsToConfigPatch({ 'system-pro': '1' }).systemPrompt?.variant).toBe('pro');
+    expect(flagsToConfigPatch({ 'system-pro': 'false' }).systemPrompt).toBeUndefined();
+    expect(flagsToConfigPatch({ 'system-prompt': 'pro' }).systemPrompt?.variant).toBe('pro');
+    expect(flagsToConfigPatch({ 'system-prompt': 'default' }).systemPrompt?.variant).toBe('default');
+    expect(flagsToConfigPatch({ 'system-prompt': 'other' }).systemPrompt).toBeUndefined();
+  });
 });
 
 // ── bootConfig identity-validation catch + sync merge ────────────────

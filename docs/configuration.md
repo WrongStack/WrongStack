@@ -36,6 +36,7 @@ WrongStack uses a layered configuration system. Settings are merged from multipl
   "features": { /* ... */ },
   "yolo": false,
   "modelRuntime": { /* ... */ },
+  "systemPrompt": { "variant": "default" },
   "modelMatrix": { /* ... */ },
   "fleet": { /* ... */ },
   "fallbackModels": [],
@@ -63,11 +64,49 @@ WrongStack uses a layered configuration system. Settings are merged from multipl
 | `favoriteModels` | `string[]` | `[]` | User-curated model refs prioritized by pickers and smart fallback derivation. |
 | `favoriteModelsOnly` | `boolean` | `false` | Restrict auto-derived fallback chains to `favoriteModels`. Explicit chains/profiles are still honored. |
 | `modelRuntime` | `object` | — | Runtime request controls for the leader/default request path: reasoning, prompt-cache TTL, and gated generation parameters. |
+| `systemPrompt` | `object` | `{ "variant": "default" }` | Baseline system prompt selection. `variant: "default"` loads `system.md`; `variant: "pro"` loads `system-pro.md`. Overridden for one launch by `--system-pro` or `--system-prompt pro`. |
 | `modelMatrix` | `Record<string, ModelMatrixEntry>` | — | Per-role/phase/`*` subagent routing matrix. Entries can override provider/model/fallback profile and role-specific runtime controls. |
 | `fleet` | `FleetConfig` | — | Fleet budgets, supervision, worktrees, peer awareness, and subagent lifecycle. User config only; stripped from in-project config. |
 | `brain` | `BrainConfig` | — | Decision layer: autonomy ceiling, deterministic rules, heuristics, LLM quality gate + circuit breaker, council, decision cache, replay trace, ledger, monitor. See [`brain`](#brain--decision-layer-autonomy-rules-council-trace). User config only; stripped from in-project config. |
 | `hooks` | `object` | — | Lifecycle shell hooks keyed by event. See [`hooks`](#hooks--lifecycle-hooks) below and [hooks.md](./hooks.md). |
 | `cwd` | `string` | `process.cwd()` | Working directory. Overridden by `--cwd` CLI flag. Director Mode is permanently on — no `--director` flag or config field exists. |
+
+---
+
+## `systemPrompt` — Baseline system prompt selection
+
+The host system prompt normally loads the baseline identity/instructions from
+`system.md`. Set `systemPrompt.variant` to use the pro baseline instead:
+
+```jsonc
+{
+  "systemPrompt": {
+    "variant": "pro"
+  }
+}
+```
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `variant` | `"default" \| "pro"` | `"default"` | `default` loads `system.md`; `pro` loads `system-pro.md`. |
+
+CLI flags override this setting for one launch:
+
+```bash
+wstack --system-pro
+wstack --system-prompt pro
+wstack --system-prompt default
+```
+
+The selected file follows the normal instruction override layers. For a
+project-local pro prompt that is not committed, create:
+
+```text
+<project>/.wrongstack/instructions/system-pro.md
+```
+
+That file is used when `variant` is `"pro"` and overrides the bundled
+`packages/core/instructions/system-pro.md` for that project.
 
 ---
 

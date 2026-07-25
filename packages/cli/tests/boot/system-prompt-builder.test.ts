@@ -31,7 +31,7 @@ import * as path from 'node:path';
 
 const { bindSystemPromptBuilder } = await import('../../src/boot/system-prompt-builder.js');
 
-import type { TokenSavingTier } from '@wrongstack/core/types';
+import type { SystemInstructionVariant, TokenSavingTier } from '@wrongstack/core/types';
 
 interface CapturedBuilder {
   opts: {
@@ -41,6 +41,7 @@ interface CapturedBuilder {
     modePrompt: string;
     skillsEnabled: boolean;
     tokenSavingMode?: 'off' | 'minimal' | 'light' | 'medium' | 'aggressive' | boolean | undefined;
+    instructionPaths?: { systemVariant?: SystemInstructionVariant | undefined };
   };
 }
 
@@ -50,6 +51,7 @@ function makeDeps(
     modePrompt: string;
     skillsEnabled: boolean;
     tokenSavingMode: TokenSavingTier | boolean | undefined;
+    systemPromptVariant: SystemInstructionVariant | undefined;
     autonomyMode: 'off' | 'suggest' | 'auto' | 'eternal' | 'eternal-parallel';
     sessionId: string | undefined;
     projectGoal: string;
@@ -80,6 +82,7 @@ function makeDeps(
     modelCapabilities: undefined,
     skillsEnabled: overrides.skillsEnabled ?? true,
     tokenSavingMode: overrides.tokenSavingMode,
+    systemPromptVariant: overrides.systemPromptVariant,
     paths: {
       projectGoal: overrides.projectGoal ?? '/tmp/goal.md',
       projectSessions: overrides.projectSessions ?? '/tmp/sessions',
@@ -169,6 +172,12 @@ describe('bindSystemPromptBuilder (PR 5 of #29)', () => {
     const { capturedFactory } = makeDeps({ tokenSavingMode: 'aggressive' });
     const builder = capturedFactory();
     expect(builder.opts.tokenSavingMode).toBe('aggressive');
+  });
+
+  it('passes systemPromptVariant through to instructionPaths', () => {
+    const { capturedFactory } = makeDeps({ systemPromptVariant: 'pro' });
+    const builder = capturedFactory();
+    expect(builder.opts.instructionPaths?.systemVariant).toBe('pro');
   });
 
   it('autonomy contributor is the only contributor wired into the builder', () => {

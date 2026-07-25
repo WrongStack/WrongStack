@@ -14,6 +14,8 @@ export interface InstructionBundle {
   sections?: Record<string, string> | undefined;
 }
 
+export type SystemInstructionVariant = 'default' | 'pro';
+
 export interface InstructionBundlePaths {
   /** Bundled instruction directory. Defaults to `<@wrongstack/core>/instructions`. */
   bundledDir?: string | undefined;
@@ -21,6 +23,19 @@ export interface InstructionBundlePaths {
   globalDir?: string | undefined;
   /** Project override directory, e.g. `<project>/.wrongstack/instructions`. */
   projectDir?: string | undefined;
+  /**
+   * Selects the markdown file used for the system identity layer.
+   * Defaults to `system.md`; `pro` reads `system-pro.md` from the same
+   * bundled/global/project instruction directories.
+   */
+  systemVariant?: SystemInstructionVariant | undefined;
+  /**
+   * Direct markdown filename for the system identity layer, for callers that
+   * need an explicit file such as `system-pro.md` without introducing another
+   * variant. Path separators are rejected so selection stays within each
+   * instruction directory.
+   */
+  systemFile?: string | undefined;
   /** Extra override JSON files applied after projectDir, in order. */
   files?: readonly string[] | undefined;
 }
@@ -29,6 +44,7 @@ export async function loadInstructionBundle(
   paths: InstructionBundlePaths | undefined,
 ): Promise<InstructionBundle> {
   let bundle: InstructionBundle = {};
+  const systemFile = resolveSystemInstructionFile(paths);
   const dirs = [
     paths?.bundledDir ?? defaultBundledInstructionDir(),
     paths?.globalDir,
@@ -36,7 +52,7 @@ export async function loadInstructionBundle(
   ].filter((p): p is string => typeof p === 'string' && p.trim().length > 0);
 
   for (const dir of dirs) {
-    bundle = mergeInstructionBundle(bundle, await readInstructionDir(dir));
+    bundle = mergeInstructionBundle(bundle, await readInstructionDir(dir, { systemFile }));
   }
   for (const file of paths?.files ?? []) {
     bundle = mergeInstructionBundle(bundle, await readInstructionJson(file));
@@ -62,10 +78,30 @@ export function mergeInstructionBundle(
   };
 }
 
-async function readInstructionDir(dir: string): Promise<InstructionBundle> {
+function resolveSystemInstructionFile(paths: InstructionBundlePaths | undefined): string {
+  if (paths?.systemFile !== undefined) return sanitizeSystemInstructionFile(paths.systemFile);
+  return paths?.systemVariant === 'pro' ? 'system-pro.md' : 'system.md';
+}
+
+function sanitizeSystemInstructionFile(file: string): string {
+  const trimmed = file.trim();
+  if (
+    trimmed.length === 0 ||
+    trimmed !== path.basename(trimmed) ||
+    path.extname(trimmed).toLowerCase() !== '.md'
+  ) {
+    throw new Error(`Invalid system instruction file: ${file}`);
+  }
+  return trimmed;
+}
+
+async function readInstructionDir(
+  dir: string,
+  options: { systemFile: string },
+): Promise<InstructionBundle> {
   const [json, identity, leaderAfterTask, sections] = await Promise.all([
     readInstructionJson(path.join(dir, 'instructions.json')),
-    readOptionalText(path.join(dir, 'system.md')),
+    readOptionalText(path.join(dir, options.systemFile)),
     readOptionalText(path.join(dir, 'leader-after-task.md')),
     readSections(path.join(dir, 'sections')),
   ]);

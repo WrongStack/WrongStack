@@ -178,6 +178,7 @@ export const CONFIG_BEHAVIOR_DEFAULTS: Omit<Config, 'provider' | 'model'> = {
     reasoning: { mode: 'auto' },
     cache: { ttl: '1h' },
   },
+  systemPrompt: { variant: 'default' },
 };
 
 function isPlainRecord(value: unknown): value is Record<string, unknown> {

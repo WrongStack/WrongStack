@@ -26,6 +26,8 @@ session) see [`docs/slash/`](slash/). For every `wstack <subcommand>` see also
 | `-p, --print <query>` | Single-shot: run one query non-interactively and exit. |
 | `--resume [id]` | Resume a saved session (prompts for one when omitted). |
 | `--token-saving-mode` | Trim the tool surface and prompt to reduce token cost. |
+| `--system-pro` | Use `system-pro.md` instead of `system.md` for the baseline system prompt in this launch. Equivalent to `--system-prompt pro`. |
+| `--system-prompt default\|pro` | Select the baseline system prompt variant for this launch. `default` uses `system.md`; `pro` uses `system-pro.md`, including profile/project instruction overrides. |
 | `--no-features` | Boot the minimal kernel — no MCP, plugins, memory tools, models.dev fetch, or skill discovery (fully offline). |
 
 Run `wstack --help` for the authoritative, version-specific flag list.

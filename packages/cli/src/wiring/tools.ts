@@ -112,6 +112,7 @@ export async function setupTools(params: ToolsWiringDeps): Promise<ToolsWiringRe
     instructionPaths: {
       globalDir: wpaths.globalInstructions,
       projectDir: wpaths.inProjectInstructions,
+      systemVariant: config.systemPrompt?.variant,
     },
   });
 

@@ -403,6 +403,7 @@ export function buildRoutes(
     context: deps.context,
     toolRegistry: deps.toolRegistry,
     config: state.getConfig(),
+    getConfig: state.getConfig,
     projectRoot: state.getProjectRoot(),
     globalRoot: deps.wpaths.globalRoot,
     clients: state.getClients(),

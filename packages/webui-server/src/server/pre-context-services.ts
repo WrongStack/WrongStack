@@ -415,6 +415,7 @@ export async function createPreContextServices(
     instructionPaths: {
       globalDir: wpaths.globalInstructions,
       projectDir: wpaths.inProjectInstructions,
+      systemVariant: config.systemPrompt?.variant,
     },
   });
   if (container.has(TOKENS.SystemPromptBuilder)) {

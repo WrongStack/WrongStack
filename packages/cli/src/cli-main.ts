@@ -148,6 +148,7 @@ export async function main(argv: string[]): Promise<number> {
     skillMode: config.skills?.mode,
     skillEagerMaxChars: config.skills?.eagerMaxChars,
     tokenSavingMode: config.features.tokenSavingMode,
+    systemPromptVariant: config.systemPrompt?.variant,
     paths: {
       projectGoal: wpaths.projectGoal,
       projectSessions: wpaths.projectSessions,

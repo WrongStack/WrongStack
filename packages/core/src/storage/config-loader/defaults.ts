@@ -142,4 +142,5 @@ export const CONFIG_BEHAVIOR_DEFAULTS: Omit<Config, 'provider' | 'model'> = {
     reasoning: { mode: 'auto' },
     cache: { ttl: '1h' },
   },
+  systemPrompt: { variant: 'default' },
 };
