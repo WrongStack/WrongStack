@@ -62,6 +62,16 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      # Build first so cross-package type declarations exist. Several packages
+      # (e.g. @wrongstack/kanban) import workspace deps like
+      # @wrongstack/persistence whose `types` resolve to dist/*.d.ts, which do
+      # not exist until the producing package is built. Without this, tsc in a
+      # clean CI checkout fails with TS2307 "Cannot find module".
+      - name: Build workspace declarations
+        run: pnpm build
+        env:
+          NODE_OPTIONS: --max-old-space-size=4096
+
       # Workspace typecheck, serially to avoid tsc buildinfo contention.
       # Matches the root package.json script exactly.
       # Each package's `typecheck` script covers BOTH its source tsconfig and
