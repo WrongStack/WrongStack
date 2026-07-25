@@ -388,13 +388,15 @@ const BOOLEAN_PREF_KEYS = new Set([
   'hqRawContent',
   'fallbackAuto',
   'favoriteModelsOnly',
-  'modelAvailabilitySchedule',
   'breakerEnabled',
   'debugStream',
   // Chimera + auto-review master toggles
   'chimeraEnabled',
   'autoReviewEnabled',
   'showModelReasoning',
+  // Display-only toggles (purely visual, persisted in localStorage via Zustand).
+  'groupToolCalls',
+  'showThinkingLogs',
 ]);
 
 /** Keys whose value must be an array of strings (e.g. an ordered model list). */
@@ -406,6 +408,10 @@ const STRING_ARRAY_PREF_KEYS = new Set([
   'autoReviewFallbackModels',
 ]);
 const STRING_ARRAY_RECORD_PREF_KEYS = new Set(['fallbackProfiles']);
+const ARRAY_PREF_KEYS = new Set([
+  // Model availability schedule — array of ModelBlackoutRule objects.
+  'modelAvailabilitySchedule',
+]);
 const MODEL_MATRIX_PREF_KEYS = new Set(['modelMatrix']);
 // Object of booleans, e.g. { 'plugin-name': true }. Parity with the embedded
 // server, which accepts `pluginsEnabled` and persists it to
@@ -523,6 +529,11 @@ function validatePreferenceValue(key: string, value: unknown): string | null {
     return Array.isArray(value) && value.every((v) => typeof v === 'string')
       ? null
       : `prefs.update payload.${key} must be an array of strings`;
+  }
+  if (ARRAY_PREF_KEYS.has(key)) {
+    return Array.isArray(value)
+      ? null
+      : `prefs.update payload.${key} must be an array`;
   }
   if (STRING_ARRAY_RECORD_PREF_KEYS.has(key)) {
     return isRecord(value) &&
