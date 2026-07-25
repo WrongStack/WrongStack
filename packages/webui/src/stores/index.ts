@@ -36,6 +36,7 @@ export type { GitChangedFile, GitDiffContent } from './git-changes-store.js';
 export { useGitChangesStore } from './git-changes-store.js';
 export type { GitInfo } from './git-info-store.js';
 export { useGitInfoStore } from './git-info-store.js';
+export { useGoalAssessStore } from './goal-assess-store.js';
 export { useGoalRunStore } from './goal-run-store.js';
 export { useGoalStateStore } from './goal-state-store.js';
 export { useHistoryStore } from './history-store.js';

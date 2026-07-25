@@ -598,7 +598,7 @@ export function buildRoutes(
   };
 
   const goalRoutes: GoalRouteHandlers = {
-    handleMessage: (msg) => deps.goalHandler.handleMessage(msg),
+    handleMessage: (ws, msg) => deps.goalHandler.handleMessage(ws, msg),
   };
 
   const specsRoutes: SpecsRouteHandlers = {

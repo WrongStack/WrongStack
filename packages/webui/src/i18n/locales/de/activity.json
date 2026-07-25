@@ -842,7 +842,19 @@
     "isolateOff": "Phasen laufen direkt auf dem aktuellen Branch",
     "lanes": "Spuren",
     "graph": "Graph",
-    "planningAck": "🚀 **Goal** — verstanden. Plane Phasen für dein Ziel…"
+    "planningAck": "🚀 **Goal** — verstanden. Plane Phasen für dein Ziel…",
+    "assess": {
+      "analyzing": "Analysiere Zielumfang…",
+      "realistic": "✓ Umfang sieht realistisch aus",
+      "durationConcern": "⚠ Dauerbedenken",
+      "durationClaimed": "Angegebene Dauer: {{duration}}",
+      "recommendation": "Empfohlen: {{duration}}",
+      "concerns": "Bedenken",
+      "analysisFailed": "Zielumfang konnte nicht analysiert werden",
+      "override": "Trotzdem starten",
+      "overrideTitle": "Warnung zurücksetzen und Start-Button aktivieren",
+      "disableTitle": "Dieses Ziel hat eine unrealistische Dauer — mit \"Trotzdem starten\" überschreiben"
+    }
   },
   "collab": {
     "noObservers": "Keine Live-Beobachter",

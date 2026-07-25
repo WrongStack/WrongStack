@@ -842,7 +842,19 @@
     "isolateOff": "as fases rodam diretamente no branch atual",
     "lanes": "Faixas",
     "graph": "Grafo",
-    "planningAck": "🚀 **Goal** — entendido. Planejando fases para seu objetivo…"
+    "planningAck": "🚀 **Goal** — entendido. Planejando fases para seu objetivo…",
+    "assess": {
+      "analyzing": "Analisando escopo da meta…",
+      "realistic": "✓ O escopo parece realista",
+      "durationConcern": "⚠ Problema de duração",
+      "durationClaimed": "Duração informada: {{duration}}",
+      "recommendation": "Recomendado: {{duration}}",
+      "concerns": "Preocupações",
+      "analysisFailed": "Não foi possível analisar o escopo da meta",
+      "override": "Iniciar mesmo assim",
+      "overrideTitle": "Limpar aviso e habilitar o botão de iniciar",
+      "disableTitle": "Esta meta tem uma duração irrealista — use \"Iniciar mesmo assim\" para sobrescrever"
+    }
   },
   "collab": {
     "noObservers": "Sem observadores ao vivo",

@@ -6,6 +6,7 @@ import {
   useChatStore,
   useConfigStore,
   useFleetStore,
+  useGoalAssessStore,
   useHistoryStore,
   useKanbanStore,
   useSddBoardStore,
@@ -17,7 +18,7 @@ import {
   useCodemapActivityStore,
 } from '@/stores';
 import { useCodemapIndexStore } from '@/stores/codemap-index-store';
-import type { WSServerMessage } from '@/types';
+import type { WSServerMessage, WSGoalAssessResult } from '@/types';
 
 // Chat domain handlers extracted to chat-handlers.ts
 import {
@@ -588,6 +589,19 @@ export const WS_HANDLERS: Partial<Record<WSServerMessage['type'], (msg: WSServer
       useSddWizardStore
         .getState()
         .setStartedRunId((msg.payload as { runId?: string }).runId ?? null);
+    },
+    'goal.assess.result': (msg: WSServerMessage) => {
+      const p = msg.payload as WSGoalAssessResult['payload'];
+      useGoalAssessStore.getState().setResult({
+        realistic: p.realistic,
+        durationClaimed: p.durationClaimed,
+        explanation: p.explanation,
+        recommendedDuration: p.recommendedDuration,
+        concerns: p.concerns,
+        parseFailed: p.parseFailed,
+        parseError: p.parseError,
+        reqSeq: p.reqSeq ?? 0,
+      });
     },
     'kanban.list': handleKanbanResult,
     'kanban.get': handleKanbanResult,

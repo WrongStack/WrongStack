@@ -842,7 +842,19 @@
     "isolateOff": "phases run directly on the current branch",
     "lanes": "Lanes",
     "graph": "Graph",
-    "planningAck": "🚀 **Goal** — got it. Planning phases for your goal now…"
+    "planningAck": "🚀 **Goal** — got it. Planning phases for your goal now…",
+    "assess": {
+      "analyzing": "Analyzing goal scope…",
+      "realistic": "✓ Scope looks realistic",
+      "durationConcern": "⚠ Duration concern",
+      "durationClaimed": "Claimed duration: {{duration}}",
+      "recommendation": "Recommended: {{duration}}",
+      "concerns": "Concerns",
+      "analysisFailed": "Could not analyze goal scope",
+      "override": "Start anyway",
+      "overrideTitle": "Clear the assessment warning and enable the start button",
+      "disableTitle": "This goal has an unrealistic duration assessment — use \"Start anyway\" to override"
+    }
   },
   "collab": {
     "noObservers": "No live observers",

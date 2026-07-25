@@ -842,7 +842,19 @@
     "isolateOff": "las fases se ejecutan directamente en la rama actual",
     "lanes": "Carriles",
     "graph": "Grafo",
-    "planningAck": "🚀 **Goal** — entendido. Planificando fases para tu objetivo…"
+    "planningAck": "🚀 **Goal** — entendido. Planificando fases para tu objetivo…",
+    "assess": {
+      "analyzing": "Analizando alcance de la meta…",
+      "realistic": "✓ El alcance parece realista",
+      "durationConcern": "⚠ Problema de duración",
+      "durationClaimed": "Duración indicada: {{duration}}",
+      "recommendation": "Recomendado: {{duration}}",
+      "concerns": "Preocupaciones",
+      "analysisFailed": "No se pudo analizar el alcance de la meta",
+      "override": "Iniciar de todas formas",
+      "overrideTitle": "Limpiar la advertencia y habilitar el botón de inicio",
+      "disableTitle": "Esta meta tiene una duración poco realista — use \"Iniciar de todas formas\" para sobrescribir"
+    }
   },
   "collab": {
     "noObservers": "Sin observadores en vivo",

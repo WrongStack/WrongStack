@@ -1,7 +1,7 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useAppTranslation, i18n } from '@/i18n';
 import { useWebSocket } from '@/hooks/useWebSocket';
-import { useGoalRunStore, useChatStore, useWorktreeStore } from '@/stores';
+import { useGoalRunStore, useChatStore, useWorktreeStore, useGoalAssessStore } from '@/stores';
 import { showPanel } from '@/components/activity-bar/nav';
 import { cn } from '@/lib/utils';
 import { BoardView } from './BoardView';
@@ -51,6 +51,35 @@ export function GoalView({ onClose }: { onClose: () => void }): React.ReactEleme
   const [showGraph, setShowGraph] = useState(false);
   // Per-run git-worktree isolation (vs running phases on the current branch).
   const [isolate, setIsolate] = useState(true);
+
+  // ── Goal realism assessment ──────────────────────────────────────────────
+  const assessResult = useGoalAssessStore((s) => s.result);
+  const assessLoading = useGoalAssessStore((s) => s.loading);
+  const assessDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Debounced assessment: send goal.assess 800ms after the user stops typing.
+  useEffect(() => {
+    if (assessDebounceRef.current) clearTimeout(assessDebounceRef.current);
+    if (!goal.trim()) {
+      useGoalAssessStore.getState().clear();
+      return;
+    }
+    assessDebounceRef.current = setTimeout(() => {
+      useGoalAssessStore.getState().setLoading();
+      const seq = useGoalAssessStore.getState().nextSeq();
+      client?.send?.({ type: 'goal.assess', payload: { goal, seq } });
+    }, 800);
+    return () => {
+      if (assessDebounceRef.current) clearTimeout(assessDebounceRef.current);
+    };
+  }, [goal, client]);
+
+  // Clear assessment when the form resets.
+  useEffect(() => {
+    if (!goal.trim() && !planningGoal) {
+      useGoalAssessStore.getState().clear();
+    }
+  }, [goal, planningGoal]);
 
   const hasPhases = phases.length > 0;
   const planning = planningGoal != null && !hasPhases;
@@ -344,6 +373,60 @@ export function GoalView({ onClose }: { onClose: () => void }): React.ReactEleme
               }}
             />
 
+            {/* ── Goal realism assessment ── */}
+            {assessLoading && (
+              <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                <Loader2 className="h-3 w-3 animate-spin" />
+                {t('activity:goalRun.assess.analyzing')}
+              </div>
+            )}
+            {!assessLoading && assessResult && !assessResult.parseFailed && (
+              <div
+                className={cn(
+                  'rounded-lg border px-3 py-2 text-xs space-y-1.5',
+                  assessResult.realistic
+                    ? 'border-success/40 bg-success/10'
+                    : 'border-warning/40 bg-warning/10',
+                )}
+              >
+                <div className="flex items-center gap-1.5 font-medium">
+                  {assessResult.realistic ? (
+                    <span className="text-success">{t('activity:goalRun.assess.realistic')}</span>
+                  ) : (
+                    <span className="text-warning">{t('activity:goalRun.assess.durationConcern')}</span>
+                  )}
+                </div>
+                {assessResult.durationClaimed && (
+                  <p className="text-muted-foreground">
+                    {t('activity:goalRun.assess.durationClaimed', { duration: assessResult.durationClaimed })}
+                  </p>
+                )}
+                <p className="text-muted-foreground">{assessResult.explanation}</p>
+                {assessResult.recommendedDuration && (
+                  <p className="text-muted-foreground">
+                    {t('activity:goalRun.assess.recommendation', { duration: assessResult.recommendedDuration })}
+                  </p>
+                )}
+                {assessResult.concerns.length > 0 && (
+                  <div className="space-y-0.5">
+                    <p className="font-medium text-foreground/80">
+                      {t('activity:goalRun.assess.concerns')}
+                    </p>
+                    <ul className="list-disc pl-4 space-y-0.5 text-muted-foreground">
+                      {assessResult.concerns.map((c, i) => (
+                        <li key={i}>{c}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </div>
+            )}
+            {!assessLoading && assessResult?.parseFailed && (
+              <div className="rounded-lg border border-border/40 bg-muted/20 px-3 py-2 text-xs text-muted-foreground">
+                {t('activity:goalRun.assess.analysisFailed')}
+              </div>
+            )}
+
             <label className="flex cursor-pointer items-center justify-center gap-2 text-xs text-muted-foreground">
               <input
                 type="checkbox"
@@ -355,7 +438,31 @@ export function GoalView({ onClose }: { onClose: () => void }): React.ReactEleme
             </label>
 
             <div className="flex items-center gap-3">
-              <Button onClick={handleStart} disabled={!goal.trim()} className="flex-1 gap-2">
+              {!assessLoading && assessResult && !assessResult.realistic && !assessResult.parseFailed && (
+                <button
+                  type="button"
+                  onClick={() => useGoalAssessStore.getState().clear()}
+                  className="shrink-0 rounded border border-border px-2 py-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
+                  title={t('activity:goalRun.assess.overrideTitle')}
+                >
+                  {t('activity:goalRun.assess.override')}
+                </button>
+              )}
+              <Button
+                onClick={handleStart}
+                disabled={
+                  !goal.trim() || planningGoal != null || assessLoading ||
+                  (!assessLoading && assessResult != null && !assessResult.parseFailed && !assessResult.realistic)
+                }
+                className="flex-1 gap-2"
+                title={
+                  !goal.trim()
+                    ? ''
+                    : (!assessLoading && assessResult && !assessResult.parseFailed && !assessResult.realistic
+                      ? t('activity:goalRun.assess.disableTitle')
+                      : '')
+                }
+              >
                 <Play className="h-4 w-4" />
                 {t('activity:goalRun.startButton')}
               </Button>

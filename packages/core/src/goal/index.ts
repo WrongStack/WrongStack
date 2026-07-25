@@ -40,6 +40,12 @@ export {
   type GoalPlanResult,
 } from './goal-planner.js';
 
+export {
+  GoalAssessor,
+  type GoalAssessResult,
+  type GoalAssessorOptions,
+} from './goal-assessor.js';
+
 export type {
   PhaseGraph,
   PhaseNode,

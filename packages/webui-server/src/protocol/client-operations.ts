@@ -1,6 +1,7 @@
 export const CLIENT_GOAL_MESSAGE_TYPES = [
   'goal-state.get',
   'goal.addTask',
+  'goal.assess',
   'goal.assignTask',
   'goal.clear',
   'goal.get',

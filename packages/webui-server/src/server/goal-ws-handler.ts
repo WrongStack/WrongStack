@@ -4,10 +4,12 @@ import {
   assignNickname,
 } from '@wrongstack/core/coordination';
 import {
+  GoalAssessor,
   GoalPlanner,
   PhaseGraphBuilder,
   PhaseOrchestrator,
   PhaseStore,
+  type GoalAssessResult,
   type PhaseGraph,
   type PhaseTemplate,
 } from '@wrongstack/core/goal';
@@ -123,8 +125,11 @@ export class GoalWebSocketHandler {
     this.sendState(client);
   }
 
-  async handleMessage(msg: GoalWSMessage): Promise<void> {
+  async handleMessage(ws: WebSocket, msg: GoalWSMessage): Promise<void> {
     switch (msg.type) {
+      case 'goal.assess':
+        await this.handleAssess(ws, msg.payload);
+        break;
       case 'goal.start':
         await this.handleStart(msg.payload);
         break;
@@ -227,6 +232,65 @@ export class GoalWebSocketHandler {
         }
         break;
       }
+    }
+  }
+
+  /**
+   * Assess a goal prompt for duration realism. Runs a lightweight LLM call
+   * (faster than planPhases) and returns the structured assessment to the
+   * requesting client so the UI can warn about unrealistic durations before
+   * the user submits the goal for planning. Sends only to the originating
+   * client (unicast) and echoes the client's `seq` for response correlation.
+   */
+  private async handleAssess(ws: WebSocket, payload?: Record<string, unknown>): Promise<void> {
+    const goal = (payload?.goal as string) || '';
+    const seq = (payload?.seq as number) ?? 0;
+
+    const sendResult = (result: GoalAssessResult) => {
+      sendSerialized(ws, JSON.stringify({
+        type: 'goal.assess.result',
+        payload: { ...result, reqSeq: seq },
+      }));
+    };
+
+    if (!goal.trim()) {
+      sendResult({
+        realistic: true,
+        durationClaimed: null,
+        explanation: '',
+        recommendedDuration: null,
+        concerns: [],
+        raw: '',
+        parseFailed: false,
+      });
+      return;
+    }
+
+    try {
+      const assessor = new GoalAssessor({
+        goal,
+        runOnce: async (prompt: string) => {
+          const result = (await this.agent.run(prompt)) as {
+            status: string;
+            finalText?: string | undefined;
+          };
+          return result.status === 'done' ? (result.finalText ?? '') : '';
+        },
+      });
+      const result = await assessor.assess();
+      sendResult(result);
+    } catch (err: unknown) {
+      this.logger.error(`[Goal] Assessment failed: ${toErrorMessage(err)}`);
+      sendResult({
+        realistic: true,
+        durationClaimed: null,
+        explanation: '',
+        recommendedDuration: null,
+        concerns: [],
+        raw: '',
+        parseFailed: true,
+        parseError: `Assessment error: ${toErrorMessage(err)}`,
+      });
     }
   }
 

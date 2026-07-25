@@ -389,7 +389,7 @@ export function createEmbeddedMessageRouter(
   const goalSnapshot: GoalSnapshotRouteHandlers = {
     getSnapshot: async () => broadcastEmbeddedGoalSnapshot(deps.sessionCtx),
   };
-  const goal: GoalRouteHandlers = { handleMessage: (msg) => deps.goalHandler.handleMessage(msg) };
+  const goal: GoalRouteHandlers = { handleMessage: (ws, msg) => deps.goalHandler.handleMessage(ws, msg) };
   const specs: SpecsRouteHandlers = {
     handleMessage: (msg) => deps.specsHandler.handleMessage(msg),
   };

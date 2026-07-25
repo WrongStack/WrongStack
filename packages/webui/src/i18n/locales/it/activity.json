@@ -842,7 +842,19 @@
     "isolateOff": "le fasi girano direttamente sul ramo corrente",
     "lanes": "Corsie",
     "graph": "Grafo",
-    "planningAck": "🚀 **Goal** — ricevuto. Sto pianificando le fasi per il tuo obiettivo…"
+    "planningAck": "🚀 **Goal** — ricevuto. Sto pianificando le fasi per il tuo obiettivo…",
+    "assess": {
+      "analyzing": "Analisi dell'ambito dell'obiettivo…",
+      "realistic": "✓ L'ambito sembra realistico",
+      "durationConcern": "⚠ Problema di durata",
+      "durationClaimed": "Durata indicata: {{duration}}",
+      "recommendation": "Consigliato: {{duration}}",
+      "concerns": "Preoccupazioni",
+      "analysisFailed": "Impossibile analizzare l'ambito dell'obiettivo",
+      "override": "Avvia comunque",
+      "overrideTitle": "Cancella l'avviso e abilita il pulsante di avvio",
+      "disableTitle": "Questo obiettivo ha una durata irrealistica — usa \"Avvia comunque\" per sovrascrivere"
+    }
   },
   "collab": {
     "noObservers": "Nessun osservatore dal vivo",

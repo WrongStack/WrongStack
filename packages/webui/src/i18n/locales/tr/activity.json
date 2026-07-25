@@ -842,7 +842,19 @@
     "isolateOff": "aşamalar doğrudan mevcut dalda çalışır",
     "lanes": "Şeritler",
     "graph": "Graf",
-    "planningAck": "🚀 **Goal** — anlaşıldı. Hedefiniz için aşamalar planlanıyor…"
+    "planningAck": "🚀 **Goal** — anlaşıldı. Hedefiniz için aşamalar planlanıyor…",
+    "assess": {
+      "analyzing": "Hedef kapsamı analiz ediliyor…",
+      "realistic": "✓ Kapsam gerçekçi görünüyor",
+      "durationConcern": "⚠ Süre endişesi",
+      "durationClaimed": "Belirtilen süre: {{duration}}",
+      "recommendation": "Önerilen: {{duration}}",
+      "concerns": "Endişeler",
+      "analysisFailed": "Hedef kapsamı analiz edilemedi",
+      "override": "Yine de başlat",
+      "overrideTitle": "Uyarıyı temizle ve başlat düğmesini etkinleştir",
+      "disableTitle": "Bu hedefin süresi gerçekçi değil — geçersiz kılmak için \"Yine de başlat\" kullanın"
+    }
   },
   "collab": {
     "noObservers": "Canlı izleyici yok",

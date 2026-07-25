@@ -842,7 +842,19 @@
     "isolateOff": "les phases tournent directement sur la branche courante",
     "lanes": "Voies",
     "graph": "Graphe",
-    "planningAck": "🚀 **Goal** — compris. Je planifie les phases pour votre objectif…"
+    "planningAck": "🚀 **Goal** — compris. Je planifie les phases pour votre objectif…",
+    "assess": {
+      "analyzing": "Analyse de la portée de l'objectif…",
+      "realistic": "✓ La portée semble réaliste",
+      "durationConcern": "⚠ Problème de durée",
+      "durationClaimed": "Durée indiquée : {{duration}}",
+      "recommendation": "Recommandé : {{duration}}",
+      "concerns": "Préoccupations",
+      "analysisFailed": "Impossible d'analyser la portée de l'objectif",
+      "override": "Démarrer quand même",
+      "overrideTitle": "Effacer l'avertissement et activer le bouton de démarrage",
+      "disableTitle": "Cet objectif a une durée irréaliste — utilisez \"Démarrer quand même\" pour passer outre"
+    }
   },
   "collab": {
     "noObservers": "Aucun observateur en direct",

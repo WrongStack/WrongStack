@@ -1532,6 +1532,24 @@ export interface WSGoalList {
   payload: { graphs: unknown[] };
 }
 
+/** Goal realism assessment result (see server/goal-ws-handler.ts). */
+export interface WSGoalAssessResult {
+  type: 'goal.assess.result';
+  payload: {
+    realistic: boolean;
+    durationClaimed: string | null;
+    explanation: string;
+    recommendedDuration: string | null;
+    concerns: string[];
+    parseFailed: boolean;
+    parseError?: string | undefined;
+    /** Raw LLM output (server-internal; not consumed by UI). */
+    raw?: string | undefined;
+    /** Echo of the client's request seq for stale-response detection. */
+    reqSeq?: number | undefined;
+  };
+}
+
 export interface WSEternalIteration {
   type: 'eternal.iteration';
   payload: { entry: Record<string, unknown> };
@@ -1962,6 +1980,7 @@ export type WSClientMessageCore =
         worktrees?: boolean | undefined;
       };
     }
+  | { type: 'goal.assess'; payload: { goal: string; seq?: number | undefined } }
   | { type: 'goal.pause'; payload: Record<string, never> }
   | { type: 'goal.resume'; payload: Record<string, never> }
   | { type: 'goal.stop'; payload: Record<string, never> }
@@ -2639,6 +2658,7 @@ export type WSServerMessage =
   | WSGoalProgress
   | WSGoalLifecycle
   | WSGoalList
+  | WSGoalAssessResult
   | { type: 'specs.list'; payload: { specs: unknown[] } }
   | { type: 'specs.detail'; payload: Record<string, unknown> }
   | { type: 'sdd.board.snapshot'; payload: Record<string, unknown> | null }
