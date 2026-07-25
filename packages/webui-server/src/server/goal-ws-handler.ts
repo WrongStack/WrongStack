@@ -434,6 +434,13 @@ export class GoalWebSocketHandler {
           this.logger.info(`[Goal] [${phaseId}] Executing: ${task.title}`);
           const result = await this.executeTaskWithAgent(task, phaseId, env);
           this.logger.info(`[Goal] [${phaseId}] Completed: ${task.title}`);
+
+          // Chimera auto-review: when enabled, run a lightweight review
+          // of the task output in the background (fire-and-forget).
+          if (chimeraReview) {
+            void this.runChimeraReview(task, phaseId, result, env?.cwd);
+          }
+
           return result;
         },
         ...maybeVerify,
@@ -616,6 +623,52 @@ export class GoalWebSocketHandler {
       return await this.agent.run(prompt, { signal });
     } finally {
       this.context.cwd = prevCwd;
+    }
+  }
+
+  /**
+   * Run a lightweight chimera-style review of a completed task's output.
+   * Fire-and-forget: runs in the background and logs the review summary.
+   */
+  private async runChimeraReview(
+    task: import('@wrongstack/core/types').TaskNode,
+    phaseId: string,
+    result: unknown,
+    cwd?: string | undefined,
+  ): Promise<void> {
+    const output = typeof result === 'string' ? result : JSON.stringify(result, null, 2);
+    void cwd; // reserved for future worktree-scoped review
+    const reviewPrompt = [
+      'You are a code review agent. Review the following completed task and its output.',
+      '',
+      `Task: ${task.title}`,
+      task.description ? `Description: ${task.description}` : '',
+      `Phase: ${phaseId}`,
+      `Priority: ${task.priority}`,
+      '',
+      '--- Task Output ---',
+      output.slice(0, 8000),
+      '',
+      '---',
+      '',
+      'Provide a brief review (2-5 sentences) covering:',
+      '1. Does the output satisfy the task requirements? (yes/no/partial)',
+      '2. Any correctness, security, or quality concerns.',
+      '3. A confidence score (low/medium/high).',
+    ]
+      .filter(Boolean)
+      .join('\n');
+
+    try {
+      const result_ = (await this.agent.run(reviewPrompt)) as {
+        status: string;
+        finalText?: string | undefined;
+      };
+      if (result_.status === 'done' && result_.finalText) {
+        this.logger.info(`[Goal] Chimera review for "${task.title}":\n${result_.finalText.slice(0, 2000)}`);
+      }
+    } catch (err: unknown) {
+      this.logger.warn(`[Goal] Chimera review failed for "${task.title}": ${toErrorMessage(err)}`);
     }
   }
 
