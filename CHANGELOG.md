@@ -7,16 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.296.0] — 2026-07-25
+
 ### Added
 
 - **Chronicle: derived metrics store.** A disposable SQLite projection (`<chronicle>/metrics.db`, node:sqlite/WAL) turns the raw journal into queryable aggregates — `provider_daily` (per provider×model×day attempt/success/failure/retry/fallback counts, tokens, duration stats), `task_outcomes` (status, timing, retries, board/run/session lineage, files touched), `file_lineage` (each mutation with full session/agent/task/board/tool/model attribution), and `token_cost` (latest cumulative cost per scope). Ingest is incremental via per-partition byte offsets, so raw partitions can be purged by retention without losing metrics. `wstack chronicle metrics [providers|tasks|files|summary]` and the `chronicle.metrics` WebUI message expose it; the Coding Intelligence dashboard gains Model-reliability and Task-outcomes strips fed from the store instead of re-scanning the journal.
 - **Chronicle: task/kanban file lineage.** `file.event` mutations are now persisted with `scope.kanbanBoardId` and task attribution, and `kanban.*` events join the durable coding-signal set, so "which session, board, and task caused this file change" is answerable directly from scope filters.
 - **Chronicle: journal retention.** `chronicle.retentionDays` (default 30, floored at 7, `0` disables) arms the existing checkpoint-safe auto-purge, which previously had no configuration surface.
+- **CLI: dedicated session-registry wiring module.** Session-registry setup was extracted from `cli-main.ts` into `./wiring/session-registry.ts` (`setupSessionRegistry`) for a clearer startup composition. (`99e6d83aa`)
+- **Agent roster: headless consolidation.** Role learning entries can be consolidated headlessly via an LLM synthesis pass, with live WebSocket broadcast and a debounced roster refresh. (`29ebd6a5d`)
+- **Config: dedicated config-type modules.** Config types were split into focused files, and new `ModelRuntimeConfig` exports were added. (`60dca9df1`)
+- **Goal: duration-realism assessor.** A new assessor evaluates whether a goal's estimated duration is realistic. (`d469c5483`)
+- **Goal WS handler: chimera auto-review.** Completed goal tasks now trigger an automatic chimera review pass. (`3e19e7276`)
+- **Docs: full README rewrite** covering architecture, scale, and comparison sections. (`4fc05b70d`)
 
 ### Changed
 
 - **Directory rules: explicit empty tool allowlists now deny all tools.** A rule in `.wrongstack/directory-rules.json` with `allowOnlyTools: []` is treated as an intentional deny-all constraint. Remove `allowOnlyTools` from a rule to impose no allowlist constraint; use a non-empty list to permit only the named tools.
 - **Kanban decomposition: empty command markers remain manual checks.** Success criteria containing only a dollar-sign marker, `run:`, `verify:`, or `cmd:` (with optional whitespace) are no longer classified as executable command checks; command markers must be followed by command text.
+- **WebUI i18n: full SettingsPanel locale parity.** All SettingsPanel locale files were restructured to 456/456 key parity, Spanish features/subtitle and German locale strings were translated, and `PluginToggleList` was wired into the context tab. (`bc020d035`, `d232e53c6`, `dbd0ecf22`, `215b9e3f9`, `fa5bfce52`)
 
 ### Fixed
 
@@ -29,6 +38,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **WebUI Chimera toggle defaults to disabled.** `context-meta.ts` now uses `chimeraExt?.['enabled'] === true` (strict opt-in) instead of `!== false`, matching the plugin's `defaultState: 'inactive'`. (#307)
 - **`--desktop` no longer crashes with `ERR_INVALID_URL`.** `rendererIndexPath()` now returns a `file://` URL (via `new URL(...).href`) instead of a bare filesystem path, fixing Electron's `loadURL()` requirement. (#293)
 - **TUI long-prompt input supports vertical scrolling.** Added `MAX_VISIBLE_ROWS=10` cap with scroll-offset tracking that auto-follows cursor position, a scroll indicator in the bottom frame, and Home/End navigation support. (#295)
+- **WebUI-server prefs validation.** Added missing display-only prefs to the validation whitelist, fixed `modelAvailabilitySchedule` typing, moved `groupToolCalls` / `showThinkingLogs` into `BOOLEAN_PREF_KEYS`, and moved `modelAvailabilitySchedule` into `ARRAY_PREF_KEYS`. (`b2a03f2fc`, `98464199d`)
+- **WebUI settings tabs.** Fixed nested `TabsContent` in `BasicSettingsTabs`, corrected accent-color i18n keys, and removed an unused `TabsContent` import. (`dbd0ecf22`, `215b9e3f9`)
+- **Tests: WebSocket handshake in `handleMessage` calls.** `handleMessage` calls now pass a `WebSocket`, with protocol counts and mock syntax updated to match. (`e6716108b`)
 
 ## [0.295.0] — 2026-07-23
 

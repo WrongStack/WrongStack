@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "package": "@wrongstack/core",
-  "packageVersion": "0.295.3",
+  "packageVersion": "0.296.0",
   "policy": "Root is compatibility-only; new imports use owned domain subpaths.",
   "subpaths": [
     {
@@ -1145,8 +1145,8 @@
       "directory": "storage",
       "classification": "storage/repository implementation",
       "intendedOwner": "repositories over dependency-free persistence",
-      "sourceFiles": 43,
-      "sourceLines": 14927
+      "sourceFiles": 59,
+      "sourceLines": 16226
     },
     {
       "directory": "tasking",
@@ -1166,8 +1166,8 @@
       "directory": "types",
       "classification": "agent-domain contract",
       "intendedOwner": "Core type-only subpaths",
-      "sourceFiles": 55,
-      "sourceLines": 9025
+      "sourceFiles": 63,
+      "sourceLines": 9060
     },
     {
       "directory": "utils",
