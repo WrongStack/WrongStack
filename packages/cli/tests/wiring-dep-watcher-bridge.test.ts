@@ -13,6 +13,8 @@
 import * as path from 'node:path';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+type AttachDepWatcherBridgeArgs = [{ mailbox?: unknown }];
+
 // ── Mocks ──────────────────────────────────────────────────────────────
 const t = vi.hoisted(() => {
   const disposeMock = vi.fn();
@@ -216,7 +218,7 @@ describe('setupDepWatcherBridge', () => {
 
     setupDepWatcherBridge(deps);
 
-    const callArgs = t.attachDepWatcherBridgeMock.mock.calls[0]![0] as Record<string, unknown>;
+    const callArgs = (t.attachDepWatcherBridgeMock.mock.calls as unknown as AttachDepWatcherBridgeArgs[])[0]![0];
     expect(callArgs.mailbox).toBeDefined();
     // The mailbox is the return value of new GlobalMailboxMock(...)
     expect(t.GlobalMailboxMock.mock.instances[0]).toBe(callArgs.mailbox);

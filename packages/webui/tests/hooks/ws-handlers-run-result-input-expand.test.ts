@@ -33,8 +33,8 @@ function runResult(status: 'done' | 'error'): WSServerMessage {
 }
 
 describe('handleRunResult → input-expand on completion', () => {
-  let sessionEndSpy: ReturnType<typeof vi.fn>;
-  let countdownSpy: ReturnType<typeof vi.fn>;
+  let sessionEndSpy: EventListener & ReturnType<typeof vi.fn>;
+  let countdownSpy: EventListener & ReturnType<typeof vi.fn>;
 
   beforeEach(() => {
     // Fresh store: no queued follow-ups, a run in progress with one message.
@@ -46,8 +46,8 @@ describe('handleRunResult → input-expand on completion', () => {
     });
     useChatStore.getState().setLoading(true);
 
-    sessionEndSpy = vi.fn();
-    countdownSpy = vi.fn();
+    sessionEndSpy = vi.fn() as EventListener & ReturnType<typeof vi.fn>;
+    countdownSpy = vi.fn() as EventListener & ReturnType<typeof vi.fn>;
     document.addEventListener('chat:session-end', sessionEndSpy);
     document.addEventListener('chat:next-step-countdown', countdownSpy);
   });

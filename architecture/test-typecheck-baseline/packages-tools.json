@@ -3,6 +3,9 @@
   "project": "packages/tools",
   "hashAlgorithm": "sha256-64bit",
   "diagnostics": {
+    "1da66b1d5d8b57de": 1,
+    "3415e87a3f37a195": 1,
+    "3b1e1f2ea0216778": 1,
     "6521e39a0540c572": 1,
     "dcc6b0858f55517a": 1,
     "330ab2a88e4a96fd": 1,
