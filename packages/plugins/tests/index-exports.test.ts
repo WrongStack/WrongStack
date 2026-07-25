@@ -71,3 +71,100 @@ describe('plugin barrel exports', () => {
     }
   });
 });
+
+describe('OFFICIAL_PLUGIN_SPECIFIERS (factories)', () => {
+  it('exports a non-empty string array', async () => {
+    const { OFFICIAL_PLUGIN_SPECIFIERS } = await import('../src/factories/index.js');
+    expect(Array.isArray(OFFICIAL_PLUGIN_SPECIFIERS)).toBe(true);
+    expect(OFFICIAL_PLUGIN_SPECIFIERS.length).toBeGreaterThan(0);
+  });
+
+  it('every specifier is a string starting with @wrongstack/plugins/', async () => {
+    const { OFFICIAL_PLUGIN_SPECIFIERS } = await import('../src/factories/index.js');
+    for (const spec of OFFICIAL_PLUGIN_SPECIFIERS) {
+      expect(typeof spec).toBe('string');
+      expect(spec).toMatch(/^@wrongstack\/plugins\//);
+    }
+  });
+
+  it('every specifier has a matching plugin name in the barrel export', async () => {
+    const { OFFICIAL_PLUGIN_SPECIFIERS } = await import('../src/factories/index.js');
+    const plugins = await import('../src/index.js');
+    const barrelNames = Object.keys(plugins)
+      .filter((k) => k.endsWith('Plugin'))
+      .map((k) => {
+        const p = plugins[k] as { name?: string };
+        return p.name;
+      })
+      .filter(Boolean) as string[];
+    // Every specifier's trailing path component should match a barrel plugin name
+    for (const spec of OFFICIAL_PLUGIN_SPECIFIERS) {
+      const inferredName = spec.replace(/^@wrongstack\/plugins\//, '');
+      expect(barrelNames).toContain(inferredName);
+    }
+  });
+
+  it('has no duplicate specifiers', async () => {
+    const { OFFICIAL_PLUGIN_SPECIFIERS } = await import('../src/factories/index.js');
+    expect(new Set(OFFICIAL_PLUGIN_SPECIFIERS).size).toBe(OFFICIAL_PLUGIN_SPECIFIERS.length);
+  });
+
+  it('exports OFFICIAL_PLUGIN_FACTORIES array of functions', async () => {
+    const { OFFICIAL_PLUGIN_FACTORIES } = await import('../src/factories/index.js');
+    expect(Array.isArray(OFFICIAL_PLUGIN_FACTORIES)).toBe(true);
+    expect(OFFICIAL_PLUGIN_FACTORIES.length).toBeGreaterThan(0);
+    for (const factory of OFFICIAL_PLUGIN_FACTORIES) {
+      expect(typeof factory).toBe('function');
+    }
+  });
+
+  it('OFFICIAL_PLUGIN_FACTORIES has same length as specifiers', async () => {
+    const factories = await import('../src/factories/index.js');
+    expect(factories.OFFICIAL_PLUGIN_FACTORIES.length).toBe(factories.OFFICIAL_PLUGIN_SPECIFIERS.length);
+  });
+});
+
+describe('OFFICIAL_PLUGIN_AUDIT_ENTRIES (audit)', () => {
+  it('exports a non-empty array', async () => {
+    const { OFFICIAL_PLUGIN_AUDIT_ENTRIES } = await import('../src/audit/index.js');
+    expect(Array.isArray(OFFICIAL_PLUGIN_AUDIT_ENTRIES)).toBe(true);
+    expect(OFFICIAL_PLUGIN_AUDIT_ENTRIES.length).toBeGreaterThan(0);
+  });
+
+  it('every entry has the required fields', async () => {
+    const { OFFICIAL_PLUGIN_AUDIT_ENTRIES } = await import('../src/audit/index.js');
+    for (const entry of OFFICIAL_PLUGIN_AUDIT_ENTRIES) {
+      expect(entry).toHaveProperty('name');
+      expect(typeof entry.name).toBe('string');
+      expect(entry).toHaveProperty('risk');
+      expect(['low', 'medium', 'high']).toContain(entry.risk);
+      expect(entry).toHaveProperty('summary');
+      expect(typeof entry.summary).toBe('string');
+      expect(entry).toHaveProperty('defaultState');
+      expect(['active', 'inactive']).toContain(entry.defaultState);
+      expect(entry).toHaveProperty('canDisable');
+      expect(typeof entry.canDisable).toBe('boolean');
+    }
+  });
+
+  it('every entry name exists in the barrel plugin list', async () => {
+    const { OFFICIAL_PLUGIN_AUDIT_ENTRIES } = await import('../src/audit/index.js');
+    const plugins = await import('../src/index.js');
+    const barrelNames = Object.keys(plugins)
+      .filter((k) => k.endsWith('Plugin'))
+      .map((k) => {
+        const p = plugins[k] as { name?: string };
+        return p.name;
+      })
+      .filter(Boolean) as string[];
+    for (const entry of OFFICIAL_PLUGIN_AUDIT_ENTRIES) {
+      expect(barrelNames).toContain(entry.name);
+    }
+  });
+
+  it('has no duplicate names', async () => {
+    const { OFFICIAL_PLUGIN_AUDIT_ENTRIES } = await import('../src/audit/index.js');
+    const names = OFFICIAL_PLUGIN_AUDIT_ENTRIES.map((e) => e.name);
+    expect(new Set(names).size).toBe(names.length);
+  });
+});

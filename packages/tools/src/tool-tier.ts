@@ -36,7 +36,7 @@ export function selectBuiltinToolsForTier(
         (tool) =>
           tier1Names.has(tool.name) ||
           (tier2Names.has(tool.name) && tool.name !== 'task') ||
-          (tier3Names.has(tool.name) && tool.name !== 'setWorkingDir'),
+          (tier3Names.has(tool.name) && tool.name !== 'set_working_dir'),
       );
     }
   }
