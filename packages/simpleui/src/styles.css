@@ -1,38 +1,39 @@
-/* ── Art Deco design tokens ──────────────────────────────────────────────
-   Kit: art-deco — gold/brass fine linework on deep emerald (dark) and
-   ivory (light) grounds, sharp stepped geometry (radius 0), letter-spaced
-   display type. Accent values are chosen per theme to keep WCAG AA:
-   bright gold on dark emerald, deep brass on ivory. */
+/* ── Art Deco structure × WrongStack corporate palette ───────────────────
+   Geometry/typography from the art-deco kit (radius 0, fine linework,
+   letter-spaced display type); colors from the brand logo (#121210 black,
+   #FD9F02 orange, #FE2E5F pink) — the same identity as website and WebUI.
+   Accent values are chosen per theme to keep WCAG AA. */
 :root {
   color-scheme: dark;
-  font-family: "Inter", system-ui, "Segoe UI", sans-serif;
+  font-family: "Inter Variable", "Inter", system-ui, "Segoe UI", sans-serif;
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   transition: background 200ms ease, color 200ms ease;
-  --font-display: "Poiret One", "Cinzel", serif;
+  --font-display: "Poiret One", "Cinzel Variable", "Cinzel", serif;
   --font-mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, monospace;
-  --bg: oklch(22% 0.05 165);
-  --surface: oklch(26% 0.05 165);
-  --surface-2: oklch(30% 0.055 165);
-  --line: oklch(78% 0.11 85 / 0.22);
-  --line-strong: oklch(78% 0.11 85 / 0.45);
-  --text: oklch(94% 0.02 90);
-  --muted: oklch(72% 0.04 90);
-  --subtle: oklch(64% 0.04 100);
-  --accent: oklch(78% 0.11 85);
-  --accent-hot: oklch(86% 0.12 88);
-  --success: oklch(76% 0.13 160);
-  --warning: oklch(80% 0.13 80);
-  --danger: oklch(68% 0.15 25);
-  --text-secondary: oklch(86% 0.025 95);
-  --inline-code: oklch(84% 0.11 85);
-  --code-bg: oklch(18% 0.045 165);
-  --code-text: oklch(86% 0.025 95);
-  --topbar-bg: oklch(22% 0.05 165 / 0.96);
-  --composer-bg: oklch(22% 0.05 165 / 0.97);
-  --grid-line: oklch(78% 0.11 85 / 0.05);
-  --accent-ink: oklch(20% 0.045 165);
-  --shadow: oklch(0% 0 0 / 0.35);
+  --bg: #1b1c1a;
+  --surface: #22231f;
+  --surface-2: #292a26;
+  --line: rgba(253, 159, 2, 0.14);
+  --line-strong: rgba(253, 159, 2, 0.34);
+  --text: #f5f2e9;
+  --muted: #b6b2a8;
+  --subtle: #85817a;
+  --accent: #fe2e5f;
+  --accent-hot: #ff5c82;
+  --brand-orange: #fd9f02;
+  --success: #5ee0a0;
+  --warning: #fd9f02;
+  --danger: #ff646e;
+  --text-secondary: #dedbd2;
+  --inline-code: #ff8aa5;
+  --code-bg: #121210;
+  --code-text: #dedbd2;
+  --topbar-bg: rgba(27, 28, 26, 0.96);
+  --composer-bg: rgba(27, 28, 26, 0.97);
+  --grid-line: rgba(253, 159, 2, 0.045);
+  --accent-ink: #121210;
+  --shadow: rgba(0, 0, 0, 0.3);
   color: var(--text);
   background: var(--bg);
 }
@@ -40,28 +41,29 @@
 :root[data-theme="light"] {
   color-scheme: light;
   transition: background 200ms ease, color 200ms ease;
-  --bg: oklch(96% 0.01 90);
-  --surface: oklch(99% 0.005 90);
-  --surface-2: oklch(93% 0.015 90);
-  --line: oklch(62% 0.1 85 / 0.35);
-  --line-strong: oklch(52% 0.11 80 / 0.6);
-  --text: oklch(20% 0.03 165);
-  --muted: oklch(45% 0.04 165);
-  --subtle: oklch(52% 0.035 165);
-  --accent: oklch(52% 0.11 80);
-  --accent-hot: oklch(44% 0.11 75);
-  --success: oklch(52% 0.12 160);
-  --warning: oklch(52% 0.12 75);
-  --danger: oklch(45% 0.13 25);
-  --text-secondary: oklch(30% 0.03 165);
-  --inline-code: oklch(45% 0.12 25);
-  --code-bg: oklch(92% 0.015 90);
-  --code-text: oklch(28% 0.03 165);
-  --topbar-bg: oklch(96% 0.01 90 / 0.96);
-  --composer-bg: oklch(96% 0.01 90 / 0.97);
-  --grid-line: oklch(62% 0.1 85 / 0.12);
-  --accent-ink: oklch(96% 0.01 90);
-  --shadow: oklch(30% 0.05 60 / 0.18);
+  --bg: #f8f6f0;
+  --surface: #fffdf8;
+  --surface-2: #f0ede5;
+  --line: rgba(213, 31, 77, 0.13);
+  --line-strong: rgba(213, 31, 77, 0.3);
+  --text: #171714;
+  --muted: #646159;
+  --subtle: #6e6a60;
+  --accent: #d51f4d;
+  --accent-hot: #b91640;
+  --brand-orange: #d97706;
+  --success: #137a50;
+  --warning: #b45309;
+  --danger: #c83442;
+  --text-secondary: #393832;
+  --inline-code: #b91640;
+  --code-bg: #f0ede5;
+  --code-text: #292821;
+  --topbar-bg: rgba(248, 246, 240, 0.96);
+  --composer-bg: rgba(248, 246, 240, 0.97);
+  --grid-line: rgba(217, 119, 6, 0.06);
+  --accent-ink: #ffffff;
+  --shadow: rgba(48, 33, 49, 0.16);
 }
 
 * {
@@ -150,7 +152,7 @@ a:focus-visible {
   pointer-events: none;
 }
 
-/* Centered diamond ornament on the gold rule — classic deco geometry. */
+/* Centered diamond ornament on the brand-pink rule — logo orange on black. */
 .topbar::before {
   position: absolute;
   bottom: -4px;
@@ -158,7 +160,7 @@ a:focus-visible {
   z-index: 1;
   width: 7px;
   height: 7px;
-  border: 1px solid var(--accent);
+  border: 1px solid var(--brand-orange);
   background: var(--bg);
   content: "";
   pointer-events: none;
@@ -179,8 +181,8 @@ a:focus-visible {
   display: grid;
   place-items: center;
   flex: none;
-  border-right: 1px solid var(--accent);
-  background: var(--code-bg);
+  border-right: 1px solid var(--brand-orange);
+  background: #121210; /* matches the logo's baked black rect in both themes */
   overflow: hidden;
 }
 
@@ -3290,7 +3292,7 @@ a:focus-visible {
   z-index: 40;
   border: 0;
   padding: 0;
-  background: oklch(18% 0.045 165 / 0.55); /* deep-emerald scrim, both themes */
+  background: rgba(18, 18, 16, 0.55); /* brand-black scrim, both themes */
   cursor: default;
 }
 
