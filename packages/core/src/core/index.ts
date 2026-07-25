@@ -54,5 +54,6 @@ export {
   type DefaultSystemPromptBuilderOptions,
   type SystemBlockSource,
 } from './system-prompt-builder.js';
+export type { SystemInstructionVariant } from './instruction-bundle.js';
 export { setQueuedMessagesSnapshot } from './queued-messages.js';
 export { runProviderWithRetry } from './provider-runner.js';

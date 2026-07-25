@@ -50,8 +50,7 @@
 //     call site in main(). The unit test exercises the
 //     helper with fakes that satisfy the local interfaces.
 
-import type { SystemInstructionVariant } from '@wrongstack/core';
-import { DefaultSystemPromptBuilder } from '@wrongstack/core/agent';
+import { DefaultSystemPromptBuilder, type SystemInstructionVariant } from '@wrongstack/core/agent';
 import { makeAutonomyPromptContributor } from '@wrongstack/core/execution';
 import type { TokenSavingTier } from '@wrongstack/core/types';
 import { sessionScopedPath } from '@wrongstack/core/utils';
