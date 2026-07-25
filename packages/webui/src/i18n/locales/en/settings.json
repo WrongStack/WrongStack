@@ -50,7 +50,13 @@
     "animationStyleBreathe": "Breathe",
     "animationStyleCycle": "Cycle",
     "thinkingWordLabel": "Thinking word (CLI/TUI)",
-    "thinkingWordHint": "Word shown in the TUI status chip. Single short word."
+    "thinkingWordHint": "Word shown in the TUI status chip. Single short word.",
+    "accentCyan": "Cyan",
+    "accentBlue": "Blue",
+    "accentEmerald": "Emerald",
+    "accentViolet": "Violet",
+    "accentRose": "Rose",
+    "accentAmber": "Amber"
   },
   "model": {
     "heading": "Model",
@@ -177,8 +183,7 @@
     "toastConnected": "Server \"{{name}}\" connected",
     "toastReconnected": "Server \"{{name}}\" reconnected",
     "toastDisconnected": "Server \"{{name}}\" disconnected: {{reason}}",
-    "toastError": "Server \"{{name}}\" error: {{error}}",
-    "disabledHint": "Enable the feature in the Context tab to use this section."
+    "toastError": "Server \"{{name}}\" error: {{error}}"
   },
   "allowlist": {
     "title": "Clear saved allowlist?",
@@ -490,6 +495,7 @@
     "selectProviderModelFirst": "Select a provider and model first",
     "defaultProfileCreated": "Default fallback profile created",
     "profileEmpty": "Fallback profile \"{{name}}\" is empty",
-    "leaderSetFrom": "Leader set from {{name}}"
+    "leaderSetFrom": "Leader set from {{name}}",
+    "modelSwitchTimeout": "Model switch timed out. Please try again."
   }
 }

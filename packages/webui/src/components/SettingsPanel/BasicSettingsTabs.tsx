@@ -8,7 +8,6 @@ import { useLocalPrefs } from '@/stores/local-prefs';
 import { useTheme } from '../ThemeProvider';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
-import { TabsContent } from '../ui/tabs';
 import { PreferenceSelect } from './PreferenceControls';
 import { PreferenceToggle } from './PreferenceToggle';
 

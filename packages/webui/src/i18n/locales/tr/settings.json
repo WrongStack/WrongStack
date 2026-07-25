@@ -141,8 +141,7 @@
     "toastConnected": "\"{{name}}\" sunucusu bağlandı",
     "toastReconnected": "\"{{name}}\" sunucusu yeniden bağlandı",
     "toastDisconnected": "\"{{name}}\" sunucusu bağlantısı koptu: {{reason}}",
-    "toastError": "\"{{name}}\" sunucusu hatası: {{error}}",
-    "disabledHint": "Bu bölümü kullanmak için Bağlam sekmesindeki \"MCP sunucuları\" özellik bayrağını etkinleştirin."
+    "toastError": "\"{{name}}\" sunucusu hatası: {{error}}"
   },
   "allowlist": {
     "title": "Kayıtlı izin listesi temizlensin mi?",
@@ -212,7 +211,13 @@
     "groupToolCallsHint": "Ardışık araç çağrılarını tek bir çipte topla.",
     "languageHeading": "Dil",
     "languageLabel": "Arayüz dili",
-    "languageHint": "Yalnızca arayüz metnini değiştirir. Promptlar, beceriler ve model çıktısı etkilenmez."
+    "languageHint": "Yalnızca arayüz metnini değiştirir. Promptlar, beceriler ve model çıktısı etkilenmez.",
+    "accentCyan": "Camgöbeği",
+    "accentBlue": "Mavi",
+    "accentEmerald": "Zümrüt",
+    "accentViolet": "Mor",
+    "accentRose": "Gül",
+    "accentAmber": "Kehribar"
   },
   "agent": {
     "autonomyHeading": "Otonomi ve Davranış",
@@ -490,6 +495,7 @@
     "selectProviderModelFirst": "Önce bir sağlayıcı ve model seçin",
     "defaultProfileCreated": "Varsayılan yedek profili oluşturuldu",
     "profileEmpty": "\"{{name}}\" yedek profili boş",
-    "leaderSetFrom": "Lider {{name}} adından ayarlandı"
+    "leaderSetFrom": "Lider {{name}} adından ayarlandı",
+    "modelSwitchTimeout": "Model geçişi zaman aşamına uğradı. Lütfen tekrar deneyin."
   }
 }

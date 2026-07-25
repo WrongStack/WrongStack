@@ -211,7 +211,13 @@
     "animationStyleCycle": "Zyklus",
     "languageHeading": "Sprache",
     "languageLabel": "Oberflächensprache",
-    "languageHint": "Ändert nur den Oberflächentext. Prompts, Skills und Modellausgaben bleiben unberührt."
+    "languageHint": "Ändert nur den Oberflächentext. Prompts, Skills und Modellausgaben bleiben unberührt.",
+    "accentCyan": "Cyan",
+    "accentBlue": "Blau",
+    "accentEmerald": "Smaragd",
+    "accentViolet": "Violett",
+    "accentRose": "Rose",
+    "accentAmber": "Bernstein"
   },
   "agent": {
     "autonomyHeading": "Autonomie & Verhalten",

@@ -21,7 +21,7 @@ export const DEFAULT_ACCENT_COLOR = 'cyan';
 export const ACCENT_PALETTES = [
   {
     id: 'cyan',
-    labelKey: 'settings:appearance.accentCyan',
+    labelKey: 'settings:general.accentCyan',
     light: {
       primary: '194 84% 38%',
       primaryForeground: '0 0% 100%',
@@ -41,7 +41,7 @@ export const ACCENT_PALETTES = [
   },
   {
     id: 'blue',
-    labelKey: 'settings:appearance.accentBlue',
+    labelKey: 'settings:general.accentBlue',
     light: {
       primary: '217 88% 48%',
       primaryForeground: '0 0% 100%',
@@ -61,7 +61,7 @@ export const ACCENT_PALETTES = [
   },
   {
     id: 'emerald',
-    labelKey: 'settings:appearance.accentEmerald',
+    labelKey: 'settings:general.accentEmerald',
     light: {
       primary: '151 68% 36%',
       primaryForeground: '0 0% 100%',
@@ -81,7 +81,7 @@ export const ACCENT_PALETTES = [
   },
   {
     id: 'violet',
-    labelKey: 'settings:appearance.accentViolet',
+    labelKey: 'settings:general.accentViolet',
     light: {
       primary: '262 72% 52%',
       primaryForeground: '0 0% 100%',
@@ -101,7 +101,7 @@ export const ACCENT_PALETTES = [
   },
   {
     id: 'rose',
-    labelKey: 'settings:appearance.accentRose',
+    labelKey: 'settings:general.accentRose',
     light: {
       primary: '344 72% 48%',
       primaryForeground: '0 0% 100%',
@@ -121,7 +121,7 @@ export const ACCENT_PALETTES = [
   },
   {
     id: 'amber',
-    labelKey: 'settings:appearance.accentAmber',
+    labelKey: 'settings:general.accentAmber',
     light: {
       primary: '35 92% 44%',
       primaryForeground: '36 45% 10%',

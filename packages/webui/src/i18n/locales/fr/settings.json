@@ -141,8 +141,7 @@
     "toastConnected": "Serveur « {{name}} » connecté",
     "toastReconnected": "Serveur « {{name}} » reconnecté",
     "toastDisconnected": "Serveur « {{name}} » déconnecté : {{reason}}",
-    "toastError": "Serveur « {{name}} » erreur : {{error}}",
-    "disabledHint": "Activez le drapeau « Serveurs MCP » dans l'onglet Contexte pour utiliser cette section."
+    "toastError": "Serveur « {{name}} » erreur : {{error}}"
   },
   "allowlist": {
     "title": "Effacer la allowlist enregistrée ?",
@@ -212,7 +211,13 @@
     "animationStyleCycle": "Cycle",
     "languageHeading": "Langue",
     "languageLabel": "Langue de l'interface",
-    "languageHint": "Modifie uniquement le texte de l'interface. Les prompts, les compétences et la sortie du modèle ne sont pas affectés."
+    "languageHint": "Modifie uniquement le texte de l'interface. Les prompts, les compétences et la sortie du modèle ne sont pas affectés.",
+    "accentCyan": "Cyan",
+    "accentBlue": "Bleu",
+    "accentEmerald": "Émeraude",
+    "accentViolet": "Violet",
+    "accentRose": "Rose",
+    "accentAmber": "Ambre"
   },
   "agent": {
     "autonomyHeading": "Autonomie & Comportement",
@@ -490,6 +495,7 @@
     "selectProviderModelFirst": "Sélectionnez d'abord un fournisseur et un modèle",
     "defaultProfileCreated": "Profil de fallback par défaut créé",
     "profileEmpty": "Le profil de fallback « {{name}} » est vide",
-    "leaderSetFrom": "Leader défini depuis {{name}}"
+    "leaderSetFrom": "Leader défini depuis {{name}}",
+    "modelSwitchTimeout": "Le changement de modèle a expiré. Veuillez réessayer."
   }
 }

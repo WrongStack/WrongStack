@@ -141,8 +141,7 @@
     "toastConnected": "Server \"{{name}}\" connesso",
     "toastReconnected": "Server \"{{name}}\" riconnesso",
     "toastDisconnected": "Server \"{{name}}\" disconnesso: {{reason}}",
-    "toastError": "Server \"{{name}}\" errore: {{error}}",
-    "disabledHint": "Abilita il flag \"Server MCP\" nella scheda Contesto per usare questa sezione."
+    "toastError": "Server \"{{name}}\" errore: {{error}}"
   },
   "allowlist": {
     "title": "Cancella l'allowlist salvata?",
@@ -212,7 +211,13 @@
     "animationStyleCycle": "Ciclo",
     "languageHeading": "Lingua",
     "languageLabel": "Lingua dell'interfaccia",
-    "languageHint": "Modifica solo il testo dell'interfaccia. I prompt, le skill e l'output del modello non sono interessati."
+    "languageHint": "Modifica solo il testo dell'interfaccia. I prompt, le skill e l'output del modello non sono interessati.",
+    "accentCyan": "Ciano",
+    "accentBlue": "Blu",
+    "accentEmerald": "Smeraldo",
+    "accentViolet": "Viola",
+    "accentRose": "Rosa",
+    "accentAmber": "Ambra"
   },
   "agent": {
     "autonomyHeading": "Autonomia e Comportamento",
@@ -490,6 +495,7 @@
     "selectProviderModelFirst": "Seleziona prima un provider e un modello",
     "defaultProfileCreated": "Profilo di fallback predefinito creato",
     "profileEmpty": "Il profilo di fallback \"{{name}}\" è vuoto",
-    "leaderSetFrom": "Leader impostato da {{name}}"
+    "leaderSetFrom": "Leader impostato da {{name}}",
+    "modelSwitchTimeout": "Cambio modello scaduto. Per favore riprova."
   }
 }
