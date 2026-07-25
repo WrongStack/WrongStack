@@ -2,22 +2,23 @@ import {
   Activity,
   Bot,
   Brain,
+  Bug,
+  CalendarClock,
   Cpu,
-  Eye,
+  FileText,
   Globe,
   Layers,
   ListPlus,
   Network,
   Palette,
   Puzzle,
-  Send,
-  Server,
+  Radio,
+  Settings2,
   Shield,
-  Wrench,
   X,
   Zap,
 } from 'lucide-react';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useShallow } from 'zustand/react/shallow';
 import { toast } from '@/components/Toaster';
 import { useProviderModels } from '@/hooks/useProviderModels';
@@ -29,20 +30,22 @@ import { useConfigStore, useUIStore } from '@/stores';
 import { useLocalPrefs } from '@/stores/local-prefs';
 import type { WSServerMessage } from '@/types';
 import { AvailabilityCalendarEditor } from '../AvailabilityCalendarEditor';
-import { FallbackEditor } from '../FallbackEditor';
 import { ModelSelectDialog } from '../ModelSelectDialog';
 import { Button } from '../ui/button';
-import { Input } from '../ui/input';
 import { ScrollArea } from '../ui/scroll-area';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../ui/tabs';
-import { BrainSection } from './BrainSection';
-import { AppearanceSettingsTab, ConnectionSettingsTab } from './BasicSettingsTabs';
+import {
+  AppearanceSettingsTab,
+  ConnectionSettingsTab,
+} from './BasicSettingsTabs';
 import { ChimeraSettingsPanel } from './ChimeraSettingsPanel';
-import { MCPSection } from './MCPSection';
+import { FallbacksSection } from './FallbacksSection';
+import { FleetSection } from './FleetSection';
+import { IntegrationsSection } from './IntegrationsSection';
 import { ModelSection } from './ModelSection';
-import { PluginToggleList } from './PluginToggleList';
 import { PreferenceSelect, PreferenceSlider } from './PreferenceControls';
 import { PreferenceToggle } from './PreferenceToggle';
+import { PluginToggleList } from './PluginToggleList';
 import {
   type CatalogProvider,
   ProviderSection,
@@ -50,9 +53,32 @@ import {
   type SavedProvider,
 } from './ProviderSection';
 import { RoutingSection } from './RoutingSection';
-import { ShadowSection } from './ShadowSection';
-import { ToolsSection } from './ToolsSection';
+import { SecuritySection } from './SecuritySection';
 
+// ── Tab definition ─────────────────────────────────────────────────────
+interface TabDef {
+  id: string;
+  icon: React.ReactNode;
+  labelKey: string;
+}
+
+const TABS: TabDef[] = [
+  { id: 'general', icon: <Palette className="h-3.5 w-3.5" />, labelKey: 'settings:tabs.general' },
+  { id: 'provider', icon: <Network className="h-3.5 w-3.5" />, labelKey: 'settings:tabs.provider' },
+  { id: 'connection', icon: <Globe className="h-3.5 w-3.5" />, labelKey: 'settings:tabs.connection' },
+  { id: 'agent', icon: <Bot className="h-3.5 w-3.5" />, labelKey: 'settings:tabs.agent' },
+  { id: 'execution', icon: <Zap className="h-3.5 w-3.5" />, labelKey: 'settings:tabs.execution' },
+  { id: 'fallbacks', icon: <Layers className="h-3.5 w-3.5" />, labelKey: 'settings:tabs.fallbacks' },
+  { id: 'routing', icon: <ListPlus className="h-3.5 w-3.5" />, labelKey: 'settings:tabs.routing' },
+  { id: 'fleet', icon: <Radio className="h-3.5 w-3.5" />, labelKey: 'settings:tabs.fleet' },
+  { id: 'integrations', icon: <Puzzle className="h-3.5 w-3.5" />, labelKey: 'settings:tabs.integrations' },
+  { id: 'chimera', icon: <Brain className="h-3.5 w-3.5" />, labelKey: 'settings:tabs.chimera' },
+  { id: 'context', icon: <FileText className="h-3.5 w-3.5" />, labelKey: 'settings:tabs.context' },
+  { id: 'logs', icon: <Bug className="h-3.5 w-3.5" />, labelKey: 'settings:tabs.logs' },
+  { id: 'security', icon: <Shield className="h-3.5 w-3.5" />, labelKey: 'settings:tabs.security' },
+];
+
+// ── Catalog types ──────────────────────────────────────────────────────
 interface CatalogModel {
   id: string;
   name: string;
@@ -63,6 +89,8 @@ interface CatalogModel {
   capabilities: string[];
 }
 
+// ── Component ──────────────────────────────────────────────────────────
+
 export function SettingsPanel() {
   const { settingsActiveTab, setSettingsActiveTab } = useUIStore(
     useShallow((s) => ({
@@ -70,7 +98,20 @@ export function SettingsPanel() {
       setSettingsActiveTab: s.setSettingsActiveTab,
     })),
   );
-  const scrollAreaRef = useScrollPosition('settings');
+  const scrollAreaRef = useScrollPosition<HTMLDivElement>('settings');
+  const modelSelectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Unsubscribe for the in-flight 'key.operation_result' listener, so rapid
+  // re-calls to handleModelSelect can tear down the previous one first.
+  const modelSelectOffRef = useRef<(() => void) | null>(null);
+
+  // Clean up the model-select timeout and listener on unmount.
+  useEffect(() => {
+    return () => {
+      if (modelSelectTimerRef.current) clearTimeout(modelSelectTimerRef.current);
+      modelSelectOffRef.current?.();
+      modelSelectOffRef.current = null;
+    };
+  }, []);
 
   const {
     provider,
@@ -92,12 +133,9 @@ export function SettingsPanel() {
   const { updatePrefs, switchAutonomy } = ws;
   const localPrefs = useLocalPrefs();
   const { t } = useAppTranslation();
-  // Model catalogue for the global fallback chain editor (fetched while open).
   const fallbackCandidates = useProviderModels(true);
 
-  // Helper: apply a pref change locally AND push it to the server so the
-  // running agent sees the new value immediately. Uses the batch
-  // prefs.update message for efficient multi-key updates.
+  // Helper: apply a pref change locally AND push it to the server.
   const syncPref = useCallback(
     (key: string, value: unknown) => {
       localPrefs.set({ [key]: value } as Parameters<typeof localPrefs.set>[0]);
@@ -106,8 +144,7 @@ export function SettingsPanel() {
     [localPrefs, updatePrefs],
   );
 
-
-  // Catalog data (unchanged)
+  // ── Catalog state ──────────────────────────────────────────────────
   const [catalogProviders, setCatalogProviders] = useState<CatalogProvider[]>([]);
   const [catalogModels, setCatalogModels] = useState<Record<string, CatalogModel[]>>({});
   const [savedProviders, setSavedProviders] = useState<SavedProvider[]>([]);
@@ -116,7 +153,6 @@ export function SettingsPanel() {
   const [isLoadingSaved, setIsLoadingSaved] = useState(false);
   const [providerTab, setProviderTab] = useState<ProviderTab>('catalog');
   const [catalogQuery, setCatalogQuery] = useState('');
-  const [newFallbackProfileName, setNewFallbackProfileName] = useState('');
   const [refinerPickerOpen, setRefinerPickerOpen] = useState(false);
   const currentCatalogProvider = catalogProviders.find((p) => p.id === provider);
 
@@ -178,28 +214,43 @@ export function SettingsPanel() {
     [catalogModels, setProvider, ws],
   );
 
-  // Model selection. The switch is fire-and-forget on the socket but the
-  // server always acks with `key.operation_result` — only toast success once
-  // it lands, so a rejected switch doesn't read as succeeded.
+  // Model selection
   const handleModelSelect = useCallback(
     (modelId: string) => {
+      const prevModel = useConfigStore.getState().model;
       setModel(modelId);
       const currentProvider = useConfigStore.getState().provider;
       if (wsClient) {
-        let timer: ReturnType<typeof setTimeout> | null = null;
+        // Clear any stale timer and listener from a previous model-select so a
+        // rapid re-call can't leave two listeners racing on the next result.
+        if (modelSelectTimerRef.current) clearTimeout(modelSelectTimerRef.current);
+        modelSelectOffRef.current?.();
         const off = wsClient.on('key.operation_result', (msg: WSServerMessage) => {
-          if (timer) clearTimeout(timer);
+          if (modelSelectTimerRef.current) {
+            clearTimeout(modelSelectTimerRef.current);
+            modelSelectTimerRef.current = null;
+          }
           off();
+          modelSelectOffRef.current = null;
           const p = (msg as { payload: { success: boolean; message: string } }).payload;
           if (p.success) {
             toast.success(
               i18n.t('settings:toast.switchingTo', { provider: currentProvider, model: modelId }),
             );
           } else {
+            // Roll back the optimistic set so the UI reflects the real model
+            setModel(prevModel);
             toast.error(p.message);
           }
         });
-        timer = setTimeout(off, 8000);
+        modelSelectOffRef.current = off;
+        modelSelectTimerRef.current = setTimeout(() => {
+          off();
+          modelSelectOffRef.current = null;
+          // Roll back the optimistic set on timeout too
+          setModel(prevModel);
+          toast.error(i18n.t('settings:toast.modelSwitchTimeout'));
+        }, 8000);
       }
       ws.switchModel?.(currentProvider, modelId);
     },
@@ -252,109 +303,24 @@ export function SettingsPanel() {
     [setModel, ws.client],
   );
 
-  const setFallbackProfiles = useCallback(
-    (next: Record<string, string[]>) => syncPref('fallbackProfiles', next),
-    [syncPref],
-  );
-
-  const addFallbackProfile = useCallback(() => {
-    const name = newFallbackProfileName.trim();
-    if (!name) return;
-    if (localPrefs.fallbackProfiles[name]) {
-      toast.error(i18n.t('settings:toast.fallbackExists', { name }));
-      return;
-    }
-    setFallbackProfiles({ ...localPrefs.fallbackProfiles, [name]: [] });
-    setNewFallbackProfileName('');
-  }, [localPrefs.fallbackProfiles, newFallbackProfileName, setFallbackProfiles]);
-
-  const createDefaultFallbackProfile = useCallback(() => {
-    const primary = provider && activeModel ? `${provider}/${activeModel}` : '';
-    if (!primary) {
-      toast.error(i18n.t('settings:toast.selectProviderModelFirst'));
-      return;
-    }
-    const chain = [primary, ...localPrefs.fallbackModels].filter(
-      (ref, index, arr) => ref && arr.indexOf(ref) === index,
-    );
-    setFallbackProfiles({ ...localPrefs.fallbackProfiles, default: chain });
-    toast.success(i18n.t('settings:toast.defaultProfileCreated'));
-  }, [
-    activeModel,
-    localPrefs.fallbackModels,
-    localPrefs.fallbackProfiles,
-    provider,
-    setFallbackProfiles,
-  ]);
-
-  useEffect(() => {
-    if (Object.keys(localPrefs.fallbackProfiles).length > 0) return;
-    const primary = provider && activeModel ? `${provider}/${activeModel}` : '';
-    if (!primary) return;
-    const chain = [primary, ...localPrefs.fallbackModels].filter(
-      (ref, index, arr) => ref && arr.indexOf(ref) === index,
-    );
-    setFallbackProfiles({ default: chain });
-  }, [
-    activeModel,
-    localPrefs.fallbackModels,
-    localPrefs.fallbackProfiles,
-    provider,
-    setFallbackProfiles,
-  ]);
-
-  const updateFallbackProfile = useCallback(
-    (name: string, chain: string[]) => {
-      setFallbackProfiles({ ...localPrefs.fallbackProfiles, [name]: chain });
-    },
-    [localPrefs.fallbackProfiles, setFallbackProfiles],
-  );
-
-  const removeFallbackProfile = useCallback(
-    (name: string) => {
-      const { [name]: _removed, ...rest } = localPrefs.fallbackProfiles;
-      setFallbackProfiles(rest);
-    },
-    [localPrefs.fallbackProfiles, setFallbackProfiles],
-  );
-
-  const useFallbackProfileAsActive = useCallback(
-    (name: string) => {
-      const chain = localPrefs.fallbackProfiles[name] ?? [];
-      syncPref('fallbackModels', chain);
-    },
-    [localPrefs.fallbackProfiles, syncPref],
-  );
-
-  const setLeaderFromFallbackProfile = useCallback(
-    (name: string) => {
-      const chain = localPrefs.fallbackProfiles[name] ?? [];
-      const first = chain[0];
-      if (!first) {
-        toast.error(i18n.t('settings:toast.profileEmpty', { name }));
-        return;
-      }
-      const slash = first.indexOf('/');
-      const targetProvider = slash > 0 ? first.slice(0, slash) : provider;
-      const targetModel = slash > 0 ? first.slice(slash + 1) : first;
-      setProvider(targetProvider);
-      setModel(targetModel);
-      ws.switchModel?.(targetProvider, targetModel);
-      syncPref('fallbackModels', chain.slice(1));
-      toast.success(i18n.t('settings:toast.leaderSetFrom', { name }));
-    },
-    [localPrefs.fallbackProfiles, provider, setModel, setProvider, syncPref, ws],
-  );
-
   return (
-    <div className="flex h-full min-h-0 min-w-0 flex-col bg-background/70">
+    <div className="flex h-full min-h-0 min-w-0 flex-col bg-gradient-to-b from-background/90 via-background/60 to-background/80">
       {/* Header */}
-      <header className="flex items-center justify-between px-4 py-3 border-b border-border/70 bg-card/90 backdrop-blur-xl shrink-0 shadow-sm">
-        <div>
-          <h1 className="text-lg font-semibold">{t('settings:title')}</h1>
-          <p className="mt-0.5 text-xs text-muted-foreground">
-            {provider && activeModel ? `${provider} / ${activeModel}` : t('settings:tabs.provider')}
-          </p>
+      <header className="flex items-center justify-between px-4 py-3 border-b border-border/60 bg-card/60 backdrop-blur-xl shrink-0 shadow-sm">
+        <div className="flex items-center gap-3">
+          <span className="flex h-9 w-9 items-center justify-center rounded-lg border border-primary/20 bg-primary/10 text-primary">
+            <Settings2 className="h-5 w-5" />
+          </span>
+          <div>
+            <h1 className="text-lg font-semibold bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text text-transparent">
+              {t('settings:title')}
+            </h1>
+            <p className="mt-0.5 text-[11px] text-muted-foreground">
+              {provider && activeModel
+                ? `${provider} / ${activeModel}`
+                : t('settings:subtitle')}
+            </p>
+          </div>
         </div>
         <Button variant="ghost" size="icon" onClick={() => showPanel('chat')}>
           <X className="h-4 w-4" />
@@ -362,85 +328,38 @@ export function SettingsPanel() {
       </header>
 
       {/* Content */}
-      <ScrollArea className="min-h-0 flex-1" ref={scrollAreaRef as React.Ref<HTMLDivElement>}>
-        <div className="mx-auto max-w-6xl p-4 sm:p-6">
+      <ScrollArea className="min-h-0 flex-1" ref={scrollAreaRef}>
+        <div className="mx-auto max-w-7xl p-4 sm:p-6">
           <Tabs
             value={settingsActiveTab}
             onValueChange={setSettingsActiveTab}
             className="grid min-h-[calc(100dvh-9rem)] gap-3 lg:grid-cols-[13.5rem_minmax(0,1fr)] lg:gap-5"
           >
             <div className="relative min-w-0">
-              <TabsList className="flex h-auto w-full justify-start gap-1 overflow-x-scroll rounded-lg border border-border/70 bg-card/60 p-1 pb-2 shadow-sm [scrollbar-gutter:stable] lg:sticky lg:top-4 lg:flex-col lg:overflow-visible lg:rounded-xl lg:bg-card/65 lg:p-2">
-                <TabsTrigger
-                  value="provider"
-                  className="h-9 shrink-0 gap-2 rounded-md px-3 text-xs scroll-mt-2 lg:w-full lg:justify-start"
-                >
-                  <Network className="h-3.5 w-3.5" />
-                  {t('settings:tabs.provider')}
-                </TabsTrigger>
-                <TabsTrigger
-                  value="connection"
-                  className="h-9 shrink-0 gap-2 rounded-md px-3 text-xs scroll-mt-2 lg:w-full lg:justify-start"
-                >
-                  <Globe className="h-3.5 w-3.5" />
-                  {t('settings:tabs.connection')}
-                </TabsTrigger>
-                <TabsTrigger
-                  value="appearance"
-                  className="h-9 shrink-0 gap-2 rounded-md px-3 text-xs scroll-mt-2 lg:w-full lg:justify-start"
-                >
-                  <Palette className="h-3.5 w-3.5" />
-                  {t('settings:tabs.appearance')}
-                </TabsTrigger>
-                <TabsTrigger
-                  value="agent"
-                  className="h-9 shrink-0 gap-2 rounded-md px-3 text-xs scroll-mt-2 lg:w-full lg:justify-start"
-                >
-                  <Bot className="h-3.5 w-3.5" />
-                  {t('settings:tabs.agent')}
-                </TabsTrigger>
-                <TabsTrigger
-                  value="features"
-                  className="h-9 shrink-0 gap-2 rounded-md px-3 text-xs scroll-mt-2 lg:w-full lg:justify-start"
-                >
-                  <Puzzle className="h-3.5 w-3.5" />
-                  {t('settings:tabs.features')}
-                </TabsTrigger>
-                <TabsTrigger
-                  value="tools"
-                  className="h-9 shrink-0 gap-2 rounded-md px-3 text-xs scroll-mt-2 lg:w-full lg:justify-start"
-                >
-                  <Wrench className="h-3.5 w-3.5" />
-                  {t('settings:tabs.tools')}
-                </TabsTrigger>
-                <TabsTrigger
-                  value="mcp"
-                  className="h-9 shrink-0 gap-2 rounded-md px-3 text-xs scroll-mt-2 lg:w-full lg:justify-start"
-                >
-                  <Server className="h-3.5 w-3.5" />
-                  {t('settings:tabs.mcp')}
-                </TabsTrigger>
-                <TabsTrigger
-                  value="brain"
-                  className="h-9 shrink-0 gap-2 rounded-md px-3 text-xs scroll-mt-2 lg:w-full lg:justify-start"
-                >
-                  <Brain className="h-3.5 w-3.5" />
-                  {t('settings:tabs.brain')}
-                </TabsTrigger>
-                <TabsTrigger
-                  value="shadow"
-                  className="h-9 shrink-0 gap-2 rounded-md px-3 text-xs scroll-mt-2 lg:w-full lg:justify-start"
-                >
-                  <Eye className="h-3.5 w-3.5" />
-                  {t('settings:tabs.shadow')}
-                </TabsTrigger>
+              <TabsList className="flex h-auto w-full justify-start gap-0.5 overflow-x-scroll rounded-lg border border-border/60 bg-card/60 p-1.5 shadow-sm [scrollbar-gutter:stable] lg:sticky lg:top-4 lg:flex-col lg:overflow-visible lg:rounded-xl lg:bg-card/60 lg:p-2">
+                {TABS.map((tab) => (
+                  <TabsTrigger
+                    key={tab.id}
+                    value={tab.id}
+                    className="h-9 shrink-0 gap-2.5 rounded-md px-3 text-xs scroll-mt-2 data-[state=active]:bg-primary/10 data-[state=active]:text-primary data-[state=active]:shadow-sm lg:w-full lg:justify-start lg:px-3"
+                  >
+                    <span className="shrink-0">{tab.icon}</span>
+                    <span className="truncate">{t(tab.labelKey)}</span>
+                  </TabsTrigger>
+                ))}
               </TabsList>
               <div className="pointer-events-none absolute inset-y-1 left-0 z-10 w-8 rounded-l-lg bg-gradient-to-r from-background via-background/90 to-transparent lg:hidden" />
               <div className="pointer-events-none absolute inset-y-1 right-0 z-10 w-8 rounded-r-lg bg-gradient-to-l from-background via-background/90 to-transparent lg:hidden" />
             </div>
 
-            <div className="min-w-0 rounded-xl border border-border/70 bg-card/75 p-4 shadow-sm sm:p-5">
-              {/* Provider & Model Tab — pick a provider, then its model */}
+            {/* Content area */}
+            <div className="min-w-0 space-y-0">
+              {/* ═══════════════════════════════════════ General ═══ */}
+              <TabsContent value="general" className="mt-0">
+                <AppearanceSettingsTab />
+              </TabsContent>
+
+              {/* ═══════════════════════════════════════ Provider ═══ */}
               <TabsContent value="provider" className="mt-0 space-y-4">
                 <ProviderSection
                   activeProvider={provider}
@@ -461,10 +380,10 @@ export function SettingsPanel() {
                   catalogQuery={catalogQuery}
                   setCatalogQuery={setCatalogQuery}
                 />
-                <div className="pt-4 border-t">
-                  <h3 className="text-sm font-semibold mb-3 flex items-center gap-2">
+                <div className="rounded-xl border border-border/70 bg-card/80 p-5 shadow-sm">
+                  <h3 className="text-sm font-semibold mb-4 flex items-center gap-2">
                     <Cpu className="h-4 w-4 text-muted-foreground" />
-                    {t('settings:agent.modelHeading')}
+                    {t('settings:model.heading')}
                   </h3>
                   <ModelSection
                     provider={provider}
@@ -478,16 +397,23 @@ export function SettingsPanel() {
                 </div>
               </TabsContent>
 
-              <ConnectionSettingsTab />
-              <AppearanceSettingsTab />
+              {/* ═══════════════════════════════════════ Connection ═══ */}
+              <TabsContent value="connection" className="mt-0">
+                <ConnectionSettingsTab />
+              </TabsContent>
 
-              {/* Agent Tab */}
-              <TabsContent value="agent" className="mt-0 space-y-4">
-                <div>
-                  <h3 className="text-sm font-semibold mb-3 flex items-center gap-2">
-                    <Activity className="h-4 w-4 text-muted-foreground" />
-                    {t('settings:agent.autonomyHeading')}
-                  </h3>
+              {/* ═══════════════════════════════════════ Agent ═══ */}
+              <TabsContent value="agent" className="mt-0 space-y-6">
+                {/* Autonomy & Behavior */}
+                <div className="rounded-xl border border-border/70 bg-card/80 p-5 shadow-sm">
+                  <div className="flex items-start gap-3 mb-4">
+                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-primary/20 bg-primary/10 text-primary">
+                      <Activity className="h-5 w-5" />
+                    </span>
+                    <div>
+                      <h3 className="text-sm font-semibold">{t('settings:agent.autonomyHeading')}</h3>
+                    </div>
+                  </div>
                   <PreferenceSelect
                     label={t('settings:agent.autonomyModeLabel')}
                     hint={t('settings:agent.autonomyModeHint')}
@@ -525,11 +451,16 @@ export function SettingsPanel() {
                   />
                 </div>
 
-                <div className="pt-2 border-t">
-                  <h3 className="text-sm font-semibold mb-3 mt-3 flex items-center gap-2">
-                    <Zap className="h-4 w-4 text-muted-foreground" />
-                    {t('settings:agent.refineHeading')}
-                  </h3>
+                {/* Prompt Refinement */}
+                <div className="rounded-xl border border-border/70 bg-card/80 p-5 shadow-sm">
+                  <div className="flex items-start gap-3 mb-4">
+                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-primary/20 bg-primary/10 text-primary">
+                      <Zap className="h-5 w-5" />
+                    </span>
+                    <div>
+                      <h3 className="text-sm font-semibold">{t('settings:agent.refineHeading')}</h3>
+                    </div>
+                  </div>
                   <PreferenceToggle
                     label={t('settings:agent.enableRefineLabel')}
                     hint={t('settings:agent.enableRefineHint')}
@@ -563,9 +494,9 @@ export function SettingsPanel() {
                     onChange={(v) => syncPref('enhanceLanguage', v)}
                   />
 
-                  {/* ── Refiner config — unified selector ── */}
-                  <div className="pt-2">
-                    <p className="text-sm font-medium mb-1">{t('settings:agent.refineHeading')}</p>
+                  {/* Refiner config */}
+                  <div className="pt-3">
+                    <p className="text-sm font-medium mb-2">{t('settings:agent.refineHeading')}</p>
                     <button
                       type="button"
                       className="flex w-full items-center justify-between gap-3 rounded-lg border border-border p-3 text-left cursor-pointer hover:bg-muted/50 transition-colors"
@@ -578,14 +509,11 @@ export function SettingsPanel() {
                               {localPrefs.refinerFallbackProfile}
                             </span>
                             <span className="text-xs text-muted-foreground">
-                              {(
-                                localPrefs.fallbackProfiles[localPrefs.refinerFallbackProfile] ?? []
-                              )
+                              {(localPrefs.fallbackProfiles[localPrefs.refinerFallbackProfile] ?? [])
                                 .slice(0, 2)
                                 .join(' → ')}
-                              {(
-                                localPrefs.fallbackProfiles[localPrefs.refinerFallbackProfile] ?? []
-                              ).length > 2
+                              {(localPrefs.fallbackProfiles[localPrefs.refinerFallbackProfile] ?? [])
+                                .length > 2
                                 ? ' …'
                                 : ''}
                             </span>
@@ -607,12 +535,8 @@ export function SettingsPanel() {
                       </div>
                       <Cpu className="h-4 w-4 shrink-0 text-muted-foreground" />
                     </button>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      {t('settings:agent.refineDelayHint')}
-                    </p>
                   </div>
 
-                  {/* Unified picker dialog */}
                   {refinerPickerOpen && (
                     <ModelSelectDialog
                       open={refinerPickerOpen}
@@ -642,11 +566,16 @@ export function SettingsPanel() {
                   )}
                 </div>
 
-                <div className="pt-2 border-t">
-                  <h3 className="text-sm font-semibold mb-3 mt-3 flex items-center gap-2">
-                    <Cpu className="h-4 w-4 text-muted-foreground" />
-                    {t('settings:agent.reasoningHeading')}
-                  </h3>
+                {/* Reasoning & Cache */}
+                <div className="rounded-xl border border-border/70 bg-card/80 p-5 shadow-sm">
+                  <div className="flex items-start gap-3 mb-4">
+                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-primary/20 bg-primary/10 text-primary">
+                      <Cpu className="h-5 w-5" />
+                    </span>
+                    <div>
+                      <h3 className="text-sm font-semibold">{t('settings:agent.reasoningHeading')}</h3>
+                    </div>
+                  </div>
                   <PreferenceSelect
                     label={t('settings:agent.reasoningModeLabel')}
                     hint={t('settings:agent.reasoningModeHint')}
@@ -664,15 +593,9 @@ export function SettingsPanel() {
                     value={localPrefs.reasoningEffort}
                     options={[
                       { value: 'none' as const, label: t('settings:agent.reasoningEffortNone') },
-                      {
-                        value: 'minimal' as const,
-                        label: t('settings:agent.reasoningEffortMinimal'),
-                      },
+                      { value: 'minimal' as const, label: t('settings:agent.reasoningEffortMinimal') },
                       { value: 'low' as const, label: t('settings:agent.reasoningEffortLow') },
-                      {
-                        value: 'medium' as const,
-                        label: t('settings:agent.reasoningEffortMedium'),
-                      },
+                      { value: 'medium' as const, label: t('settings:agent.reasoningEffortMedium') },
                       { value: 'high' as const, label: t('settings:agent.reasoningEffortHigh') },
                       { value: 'xhigh' as const, label: t('settings:agent.reasoningEffortXhigh') },
                       { value: 'max' as const, label: t('settings:agent.reasoningEffortMax') },
@@ -700,196 +623,22 @@ export function SettingsPanel() {
                     {t('settings:agent.capsHint')}
                   </p>
                 </div>
+              </TabsContent>
 
-                <div className="pt-2 border-t">
-                  <h3 className="text-sm font-semibold mb-2 mt-3">
-                    Provider/model availability calendar
-                  </h3>
-                  <p className="mb-3 text-xs text-muted-foreground">
-                    Prevent autonomous and overnight runs from using selected providers or models
-                    during recurring windows.
-                  </p>
-                  <AvailabilityCalendarEditor
-                    value={localPrefs.modelAvailabilitySchedule}
-                    candidates={fallbackCandidates}
-                    onChange={(next) => syncPref('modelAvailabilitySchedule', next)}
-                  />
-                </div>
-
-                <div className="pt-2 border-t">
-                  <h3 className="text-sm font-semibold mb-3 mt-3 flex items-center gap-2">
-                    <Cpu className="h-4 w-4 text-muted-foreground" />
-                    {t('settings:agent.fallbackHeading')}
-                  </h3>
-                  <p className="mb-2 text-xs text-muted-foreground">
-                    {t('settings:agent.fallbackBody')}
-                  </p>
-                  <FallbackEditor
-                    value={localPrefs.fallbackModels}
-                    candidates={fallbackCandidates}
-                    onChange={(next) => syncPref('fallbackModels', next)}
-                  />
-                  <div className="pt-1">
-                    <PreferenceToggle
-                      label={t('settings:agent.autoFallbackLabel')}
-                      hint={t('settings:agent.autoFallbackHint')}
-                      value={localPrefs.fallbackAuto}
-                      onChange={() => syncPref('fallbackAuto', !localPrefs.fallbackAuto)}
-                    />
-                    <PreferenceToggle
-                      label={t('settings:agent.favoritesOnlyLabel')}
-                      hint={t('settings:agent.favoritesOnlyHint')}
-                      value={localPrefs.favoriteModelsOnly}
-                      onChange={() =>
-                        syncPref('favoriteModelsOnly', !localPrefs.favoriteModelsOnly)
-                      }
-                    />
+              {/* ═══════════════════════════════════════ Execution ═══ */}
+              <TabsContent value="execution" className="mt-0 space-y-6">
+                <div className="rounded-xl border border-border/70 bg-card/80 p-5 shadow-sm">
+                  <div className="flex items-start gap-3 mb-4">
+                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-primary/20 bg-primary/10 text-primary">
+                      <Zap className="h-5 w-5" />
+                    </span>
+                    <div>
+                      <h3 className="text-sm font-semibold">{t('settings:execution.heading')}</h3>
+                    </div>
                   </div>
-                </div>
-
-                <div className="pt-2 border-t">
-                  <h3 className="text-sm font-semibold mb-3 mt-3 flex items-center gap-2">
-                    <ListPlus className="h-4 w-4 text-muted-foreground" />
-                    {t('settings:agent.profilesHeading')}
-                  </h3>
-                  <div className="flex gap-2">
-                    <Input
-                      value={newFallbackProfileName}
-                      onChange={(e) => setNewFallbackProfileName(e.target.value)}
-                      placeholder="fallback1"
-                      className="font-mono text-sm"
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter') addFallbackProfile();
-                      }}
-                    />
-                    <Button type="button" variant="outline" onClick={addFallbackProfile}>
-                      {t('settings:agent.addProfile')}
-                    </Button>
-                  </div>
-                  <div className="mt-3 space-y-3">
-                    {Object.keys(localPrefs.fallbackProfiles).length === 0 ? (
-                      <div className="rounded-md border border-dashed border-border p-3">
-                        <p className="text-xs text-muted-foreground">
-                          {t('settings:agent.noProfiles')}
-                        </p>
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          className="mt-2"
-                          onClick={createDefaultFallbackProfile}
-                        >
-                          {t('settings:agent.createDefault')}
-                        </Button>
-                      </div>
-                    ) : (
-                      Object.entries(localPrefs.fallbackProfiles)
-                        .sort(([a], [b]) => a.localeCompare(b))
-                        .map(([name, chain]) => (
-                          <div key={name} className="rounded-md border border-border p-3">
-                            <div className="mb-2 flex items-center justify-between gap-2">
-                              <span className="font-mono text-sm font-medium">{name}</span>
-                              <div className="flex gap-1">
-                                <Button
-                                  type="button"
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={() => useFallbackProfileAsActive(name)}
-                                >
-                                  {t('settings:agent.useChain')}
-                                </Button>
-                                <Button
-                                  type="button"
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={() => setLeaderFromFallbackProfile(name)}
-                                >
-                                  {t('settings:agent.setLeader')}
-                                </Button>
-                                <Button
-                                  type="button"
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={() => removeFallbackProfile(name)}
-                                >
-                                  {t('common:action.remove')}
-                                </Button>
-                              </div>
-                            </div>
-                            <FallbackEditor
-                              value={chain}
-                              candidates={fallbackCandidates}
-                              placeholder={t('settings:agent.addModelToProfile')}
-                              emptyHint={t('settings:agent.profileEmpty')}
-                              onChange={(next) => updateFallbackProfile(name, next)}
-                            />
-                          </div>
-                        ))
-                    )}
-                  </div>
-                </div>
-
-                <div className="pt-2 border-t">
-                  <h3 className="text-sm font-semibold mb-3 mt-3 flex items-center gap-2">
-                    <Cpu className="h-4 w-4 text-muted-foreground" />
-                    {t('settings:agent.favoritesHeading')}
-                  </h3>
-                  <FallbackEditor
-                    value={localPrefs.favoriteModels}
-                    candidates={fallbackCandidates}
-                    placeholder={t('settings:agent.addFavoriteModel')}
-                    emptyHint={t('settings:agent.favoritesEmpty')}
-                    onChange={(next) => syncPref('favoriteModels', next)}
-                  />
-                </div>
-
-                <RoutingSection syncPref={syncPref} candidates={fallbackCandidates} />
-
-                <div className="pt-2 border-t">
-                  <h3 className="text-sm font-semibold mb-3 mt-3 flex items-center gap-2">
-                    <Network className="h-4 w-4 text-muted-foreground" />
-                    {t('settings:agent.hqHeading')}
-                  </h3>
-                  <PreferenceToggle
-                    label={t('settings:agent.hqPublishingLabel')}
-                    hint={t('settings:agent.hqPublishingHint')}
-                    value={localPrefs.hqEnabled}
-                    onChange={() => syncPref('hqEnabled', !localPrefs.hqEnabled)}
-                  />
-                  <div className="space-y-1 py-2">
-                    <span className="text-sm font-medium">{t('settings:agent.hqUrlLabel')}</span>
-                    <Input
-                      value={localPrefs.hqUrl}
-                      placeholder="http://host:3499"
-                      onChange={(e) => syncPref('hqUrl', e.target.value)}
-                    />
-                    <p className="text-xs text-muted-foreground">{t('settings:agent.hqUrlHint')}</p>
-                  </div>
-                  <div className="space-y-1 py-2">
-                    <span className="text-sm font-medium">{t('settings:agent.hqTokenLabel')}</span>
-                    <Input
-                      type="password"
-                      value={localPrefs.hqToken}
-                      placeholder="Client token from wstack --hq"
-                      onChange={(e) => syncPref('hqToken', e.target.value)}
-                    />
-                  </div>
-                  <PreferenceToggle
-                    label={t('settings:agent.hqRawContentLabel')}
-                    hint={t('settings:agent.hqRawContentHint')}
-                    value={localPrefs.hqRawContent}
-                    onChange={() => syncPref('hqRawContent', !localPrefs.hqRawContent)}
-                  />
-                </div>
-
-                <div className="pt-2 border-t">
-                  <h3 className="text-sm font-semibold mb-3 mt-3 flex items-center gap-2">
-                    <Zap className="h-4 w-4 text-muted-foreground" />
-                    {t('settings:agent.executionHeading')}
-                  </h3>
                   <PreferenceSlider
-                    label={t('settings:agent.maxIterationsLabel')}
-                    hint={t('settings:agent.maxIterationsHint')}
+                    label={t('settings:execution.maxIterationsLabel')}
+                    hint={t('settings:execution.maxIterationsHint')}
                     value={localPrefs.maxIterations}
                     min={10}
                     max={2000}
@@ -897,8 +646,8 @@ export function SettingsPanel() {
                     onChange={(v) => syncPref('maxIterations', v)}
                   />
                   <PreferenceSlider
-                    label={t('settings:agent.autoProceedMaxIterationsLabel')}
-                    hint={t('settings:agent.autoProceedMaxIterationsHint')}
+                    label={t('settings:execution.autoProceedMaxIterationsLabel')}
+                    hint={t('settings:execution.autoProceedMaxIterationsHint')}
                     value={localPrefs.autoProceedMaxIterations}
                     min={0}
                     max={250}
@@ -906,289 +655,274 @@ export function SettingsPanel() {
                     onChange={(v) => syncPref('autoProceedMaxIterations', v)}
                   />
                   <PreferenceToggle
-                    label={t('settings:agent.confirmExitLabel')}
-                    hint={t('settings:agent.confirmExitHint')}
+                    label={t('settings:execution.confirmExitLabel')}
+                    hint={t('settings:execution.confirmExitHint')}
                     value={localPrefs.confirmExit}
                     onChange={() => syncPref('confirmExit', !localPrefs.confirmExit)}
                   />
                   <PreferenceToggle
-                    label={t('settings:agent.chimeLabel')}
-                    hint={t('settings:agent.chimeHint')}
+                    label={t('settings:execution.chimeLabel')}
+                    hint={t('settings:execution.chimeHint')}
                     value={localPrefs.chime}
                     onChange={() => syncPref('chime', !localPrefs.chime)}
                   />
                 </div>
 
-                <div className="pt-2 border-t">
-                  <h3 className="text-sm font-semibold mb-3 mt-3 flex items-center gap-2">
-                    <Layers className="h-4 w-4 text-muted-foreground" />
-                    {t('settings:agent.fleetHeading')}
-                  </h3>
+                <div className="rounded-xl border border-border/70 bg-card/80 p-5 shadow-sm">
+                  <div className="flex items-start gap-3 mb-4">
+                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-warning/20 bg-warning/10 text-warning">
+                      <Shield className="h-5 w-5" />
+                    </span>
+                    <div>
+                      <h3 className="text-sm font-semibold">{t('settings:execution.breakerLabel')}</h3>
+                      <p className="text-xs text-muted-foreground mt-0.5">
+                        {t('settings:execution.breakerHint')}
+                      </p>
+                    </div>
+                  </div>
                   <PreferenceToggle
-                    label={t('settings:agent.fleetChatVerbosityLabel')}
-                    hint={t('settings:agent.fleetChatVerbosityHint')}
-                    value={localPrefs.fleetChatVerbosity !== 'off'}
-                    onChange={() => syncPref('fleetChatVerbosity', localPrefs.fleetChatVerbosity === 'off' ? 'full' : 'off')}
+                    label={t('settings:execution.breakerLabel')}
+                    hint={t('settings:execution.breakerHint')}
+                    value={localPrefs.breakerEnabled}
+                    onChange={() => syncPref('breakerEnabled', !localPrefs.breakerEnabled)}
                   />
                   <PreferenceSlider
-                    label={t('settings:agent.maxConcurrentLabel')}
-                    hint={t('settings:agent.maxConcurrentHint')}
-                    value={localPrefs.maxConcurrent}
-                    min={1}
-                    max={50}
-                    step={1}
-                    onChange={(v) => syncPref('maxConcurrent', v)}
-                  />
-                  <PreferenceToggle
-                    label={t('settings:agent.nextPredictionLabel')}
-                    hint={t('settings:agent.nextPredictionHint')}
-                    value={localPrefs.nextPrediction}
-                    onChange={() => syncPref('nextPrediction', !localPrefs.nextPrediction)}
+                    label={t('settings:execution.breakerTimeoutLabel')}
+                    hint={t('settings:execution.breakerTimeoutHint')}
+                    value={localPrefs.breakerAutoKillResetMs}
+                    min={0}
+                    max={60000}
+                    step={1000}
+                    unit="ms"
+                    onChange={(v) => syncPref('breakerAutoKillResetMs', v)}
                   />
                 </div>
 
-                {/* Telegram notifications — mirrors the CLI /telegram-settings
-                  toggles. Configured flag gates the whole section so users
-                  without a bot token aren't shown dead controls. */}
-                <div className="pt-2 border-t">
-                  <h3 className="text-sm font-semibold mb-3 mt-3 flex items-center gap-2">
-                    <Send className="h-4 w-4 text-muted-foreground" />
-                    {t('settings:agent.telegramHeading')}
-                  </h3>
-                  {localPrefs.tgConfigured ? (
-                    <>
-                      <PreferenceToggle
-                        label={t('settings:agent.telegramSessionEndLabel')}
-                        hint={t('settings:agent.telegramSessionEndHint')}
-                        value={localPrefs.tgSessionEnd}
-                        onChange={() => syncPref('tgSessionEnd', !localPrefs.tgSessionEnd)}
-                      />
-                      <PreferenceToggle
-                        label={t('settings:agent.telegramDelegateLabel')}
-                        hint={t('settings:agent.telegramDelegateHint')}
-                        value={localPrefs.tgDelegate}
-                        onChange={() => syncPref('tgDelegate', !localPrefs.tgDelegate)}
-                      />
-                      <PreferenceToggle
-                        label={t('settings:agent.telegramLongToolLabel')}
-                        hint={t('settings:agent.telegramLongToolHint', {
-                          ms: localPrefs.tgLongToolMs,
-                        })}
-                        value={localPrefs.tgLongToolMs > 0}
-                        onChange={() =>
-                          syncPref('tgLongToolMs', localPrefs.tgLongToolMs > 0 ? 0 : 30_000)
-                        }
-                      />
-                      <p className="text-xs text-muted-foreground mt-2">
-                        {t('settings:agent.telegramChangesApply')}
+                <div className="rounded-xl border border-border/70 bg-card/80 p-5 shadow-sm">
+                  <div className="flex items-start gap-3 mb-4">
+                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-primary/20 bg-primary/10 text-primary">
+                      <CalendarClock className="h-5 w-5" />
+                    </span>
+                    <div>
+                      <h3 className="text-sm font-semibold">{t('settings:execution.availabilityHeading')}</h3>
+                      <p className="text-xs text-muted-foreground mt-0.5">
+                        {t('settings:execution.availabilityHint')}
                       </p>
-                    </>
-                  ) : (
-                    <p className="text-xs text-muted-foreground">
-                      {t('settings:agent.telegramNotConfigured')}
-                    </p>
-                  )}
+                    </div>
+                  </div>
+                  <AvailabilityCalendarEditor
+                    value={localPrefs.modelAvailabilitySchedule}
+                    candidates={fallbackCandidates}
+                    onChange={(next) => syncPref('modelAvailabilitySchedule', next)}
+                  />
                 </div>
               </TabsContent>
 
-              {/* Features Tab */}
-              <TabsContent value="features" className="mt-0 space-y-4">
-                <div>
-                  <h3 className="text-sm font-semibold mb-3 flex items-center gap-2">
-                    <Puzzle className="h-4 w-4 text-muted-foreground" />
-                    {t('settings:features.flagsHeading')}
-                  </h3>
-                  <PreferenceToggle
-                    label={t('settings:features.mcpLabel')}
-                    hint={t('settings:features.mcpHint')}
-                    value={localPrefs.featureMcp}
-                    onChange={() => syncPref('featureMcp', !localPrefs.featureMcp)}
-                  />
-                  <PreferenceToggle
-                    label={t('settings:features.pluginsLabel')}
-                    hint={t('settings:features.pluginsHint')}
-                    value={localPrefs.featurePlugins}
-                    onChange={() => syncPref('featurePlugins', !localPrefs.featurePlugins)}
-                  />
-                  <PreferenceToggle
-                    label={t('settings:features.memoryLabel')}
-                    hint={t('settings:features.memoryHint')}
-                    value={localPrefs.featureMemory}
-                    onChange={() => syncPref('featureMemory', !localPrefs.featureMemory)}
-                  />
-                  <PreferenceToggle
-                    label={t('settings:features.skillsLabel')}
-                    hint={t('settings:features.skillsHint')}
-                    value={localPrefs.featureSkills}
-                    onChange={() => syncPref('featureSkills', !localPrefs.featureSkills)}
-                  />
-                  <PreferenceToggle
-                    label={t('settings:features.modelsRegistryLabel')}
-                    hint={t('settings:features.modelsRegistryHint')}
-                    value={localPrefs.featureModelsRegistry}
-                    onChange={() =>
-                      syncPref('featureModelsRegistry', !localPrefs.featureModelsRegistry)
-                    }
-                  />
-                  <PreferenceToggle
-                    label={t('settings:features.indexOnStartLabel')}
-                    hint={t('settings:features.indexOnStartHint')}
-                    value={localPrefs.indexOnStart}
-                    onChange={() => syncPref('indexOnStart', !localPrefs.indexOnStart)}
-                  />
-                </div>
+              {/* ═══════════════════════════════════════ Fallbacks ═══ */}
+              <TabsContent value="fallbacks" className="mt-0">
+                <FallbacksSection
+                  syncPref={syncPref}
+                  candidates={fallbackCandidates}
+                  provider={provider}
+                  activeModel={activeModel}
+                  setProvider={setProvider}
+                  setModel={setModel}
+                  switchModel={ws.switchModel}
+                />
+              </TabsContent>
 
-                <div className="pt-2 border-t">
-                  <h3 className="text-sm font-semibold mb-3 mt-3 flex items-center gap-2">
-                    <Zap className="h-4 w-4 text-muted-foreground" />
-                    {t('settings:features.chimeraHeading')}
-                  </h3>
-                  {/* Chimera + auto-review settings are exposed by the dedicated
-                    ChimeraSettingsPanel below — it surfaces every knob
-                    (provider, model, maxFiles, autoFix, fallbackProfile,
-                    fallbackModels, debounce, concurrency, cascade, toggles)
-                    rather than just the auto-fix mode. */}
-                  <p className="text-xs text-muted-foreground">
-                    {t('settings:features.chimeraAutoFixHint')}
-                  </p>
-                </div>
+              {/* ═══════════════════════════════════════ Routing ═══ */}
+              <TabsContent value="routing" className="mt-0">
+                <RoutingSection syncPref={syncPref} candidates={fallbackCandidates} />
+              </TabsContent>
 
-                <div className="pt-2 border-t">
+              {/* ═══════════════════════════════════════ Fleet ═══ */}
+              <TabsContent value="fleet" className="mt-0">
+                <FleetSection syncPref={syncPref} />
+              </TabsContent>
+
+              {/* ═══════════════════════════════════════ Integrations ═══ */}
+              <TabsContent value="integrations" className="mt-0">
+                <IntegrationsSection syncPref={syncPref} />
+              </TabsContent>
+
+              {/* ═══════════════════════════════════════ Chimera ═══ */}
+              <TabsContent value="chimera" className="mt-0 space-y-6">
+                <div className="rounded-xl border border-border/70 bg-card/80 p-5 shadow-sm">
                   <ChimeraSettingsPanel
                     syncPref={syncPref}
                     sessionProvider={provider}
                     sessionModel={activeModel}
                   />
                 </div>
+              </TabsContent>
 
-                <PluginToggleList />
+              {/* ═══════════════════════════════════════ Context ═══ */}
+              <TabsContent value="context" className="mt-0 space-y-6">
+                {/* Feature Flags */}
+                <div className="rounded-xl border border-border/70 bg-card/80 p-5 shadow-sm">
+                  <div className="flex items-start gap-3 mb-4">
+                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-primary/20 bg-primary/10 text-primary">
+                      <FileText className="h-5 w-5" />
+                    </span>
+                    <div>
+                      <h3 className="text-sm font-semibold">{t('settings:context.flagsHeading')}</h3>
+                    </div>
+                  </div>
+                  <div className="grid gap-1 sm:grid-cols-2">
+                    <PreferenceToggle
+                      label={t('settings:context.mcpLabel')}
+                      hint={t('settings:context.mcpHint')}
+                      value={localPrefs.featureMcp}
+                      onChange={() => syncPref('featureMcp', !localPrefs.featureMcp)}
+                    />
+                    <PreferenceToggle
+                      label={t('settings:context.pluginsLabel')}
+                      hint={t('settings:context.pluginsHint')}
+                      value={localPrefs.featurePlugins}
+                      onChange={() => syncPref('featurePlugins', !localPrefs.featurePlugins)}
+                    />
+                    <PreferenceToggle
+                      label={t('settings:context.memoryLabel')}
+                      hint={t('settings:context.memoryHint')}
+                      value={localPrefs.featureMemory}
+                      onChange={() => syncPref('featureMemory', !localPrefs.featureMemory)}
+                    />
+                    <PreferenceToggle
+                      label={t('settings:context.skillsLabel')}
+                      hint={t('settings:context.skillsHint')}
+                      value={localPrefs.featureSkills}
+                      onChange={() => syncPref('featureSkills', !localPrefs.featureSkills)}
+                    />
+                    <PreferenceToggle
+                      label={t('settings:context.modelsRegistryLabel')}
+                      hint={t('settings:context.modelsRegistryHint')}
+                      value={localPrefs.featureModelsRegistry}
+                      onChange={() => syncPref('featureModelsRegistry', !localPrefs.featureModelsRegistry)}
+                    />
+                    <PreferenceToggle
+                      label={t('settings:context.indexOnStartLabel')}
+                      hint={t('settings:context.indexOnStartHint')}
+                      value={localPrefs.indexOnStart}
+                      onChange={() => syncPref('indexOnStart', !localPrefs.indexOnStart)}
+                    />
+                  </div>
+                </div>
 
-                <div className="pt-2 border-t">
-                  <h3 className="text-sm font-semibold mb-3 mt-3 flex items-center gap-2">
-                    <Shield className="h-4 w-4 text-muted-foreground" />
-                    {t('settings:features.contextHeading')}
-                  </h3>
+                {/* Context Strategy & Compactor */}
+                <div className="rounded-xl border border-border/70 bg-card/80 p-5 shadow-sm">
+                  <div className="flex items-start gap-3 mb-4">
+                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-primary/20 bg-primary/10 text-primary">
+                      <FileText className="h-5 w-5" />
+                    </span>
+                    <div>
+                      <h3 className="text-sm font-semibold">{t('settings:context.compactorStrategyLabel')}</h3>
+                    </div>
+                  </div>
                   <PreferenceToggle
-                    label={t('settings:features.autoCompactLabel')}
-                    hint={t('settings:features.autoCompactHint')}
+                    label={t('settings:context.autoCompactLabel')}
+                    hint={t('settings:context.autoCompactHint')}
                     value={localPrefs.contextAutoCompact}
                     onChange={() => syncPref('contextAutoCompact', !localPrefs.contextAutoCompact)}
                   />
                   <PreferenceSelect
-                    label={t('settings:features.compactorStrategyLabel')}
-                    hint={t('settings:features.compactorStrategyHint')}
+                    label={t('settings:context.compactorStrategyLabel')}
+                    hint={t('settings:context.compactorStrategyHint')}
                     value={localPrefs.contextStrategy}
                     options={[
-                      {
-                        value: 'hybrid' as const,
-                        label: t('settings:features.compactorStrategyHybrid'),
-                      },
-                      {
-                        value: 'intelligent' as const,
-                        label: t('settings:features.compactorStrategyIntelligent'),
-                      },
-                      {
-                        value: 'selective' as const,
-                        label: t('settings:features.compactorStrategySelective'),
-                      },
+                      { value: 'hybrid' as const, label: t('settings:context.compactorStrategyHybrid') },
+                      { value: 'intelligent' as const, label: t('settings:context.compactorStrategyIntelligent') },
+                      { value: 'selective' as const, label: t('settings:context.compactorStrategySelective') },
                     ]}
                     onChange={(v) => syncPref('contextStrategy', v)}
                   />
                   <PreferenceSelect
-                    label={t('settings:features.contextModeLabel')}
-                    hint={t('settings:features.contextModeHint')}
+                    label={t('settings:context.contextModeLabel')}
+                    hint={t('settings:context.contextModeHint')}
                     value={localPrefs.contextMode}
                     options={[
-                      {
-                        value: 'balanced' as const,
-                        label: t('settings:features.contextModeBalanced'),
-                      },
-                      { value: 'frugal' as const, label: t('settings:features.contextModeFrugal') },
-                      { value: 'deep' as const, label: t('settings:features.contextModeDeep') },
-                      {
-                        value: 'archival' as const,
-                        label: t('settings:features.contextModeArchival'),
-                      },
+                      { value: 'balanced' as const, label: t('settings:context.contextModeBalanced') },
+                      { value: 'frugal' as const, label: t('settings:context.contextModeFrugal') },
+                      { value: 'deep' as const, label: t('settings:context.contextModeDeep') },
+                      { value: 'archival' as const, label: t('settings:context.contextModeArchival') },
                     ]}
                     onChange={(v) => syncPref('contextMode', v)}
                   />
                   <PreferenceSelect
-                    label={t('settings:features.tokenSavingLabel')}
-                    hint={t('settings:features.tokenSavingHint')}
+                    label={t('settings:context.tokenSavingLabel')}
+                    hint={t('settings:context.tokenSavingHint')}
                     value={localPrefs.tokenSavingTier}
                     options={[
-                      { value: 'off' as const, label: t('settings:features.tokenSavingOff') },
-                      {
-                        value: 'minimal' as const,
-                        label: t('settings:features.tokenSavingMinimal'),
-                      },
-                      { value: 'light' as const, label: t('settings:features.tokenSavingLight') },
-                      { value: 'medium' as const, label: t('settings:features.tokenSavingMedium') },
-                      {
-                        value: 'aggressive' as const,
-                        label: t('settings:features.tokenSavingAggressive'),
-                      },
+                      { value: 'off' as const, label: t('settings:context.tokenSavingOff') },
+                      { value: 'minimal' as const, label: t('settings:context.tokenSavingMinimal') },
+                      { value: 'light' as const, label: t('settings:context.tokenSavingLight') },
+                      { value: 'medium' as const, label: t('settings:context.tokenSavingMedium') },
+                      { value: 'aggressive' as const, label: t('settings:context.tokenSavingAggressive') },
                     ]}
                     onChange={(v) => syncPref('tokenSavingTier', v)}
                   />
+                </div>
+
+                {/* Per-Plugin Toggle List */}
+                <PluginToggleList />
+              </TabsContent>
+
+              {/* ═══════════════════════════════════════ Logs ═══ */}
+              <TabsContent value="logs" className="mt-0 space-y-6">
+                <div className="rounded-xl border border-border/70 bg-card/80 p-5 shadow-sm">
+                  <div className="flex items-start gap-3 mb-4">
+                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-primary/20 bg-primary/10 text-primary">
+                      <Bug className="h-5 w-5" />
+                    </span>
+                    <div>
+                      <h3 className="text-sm font-semibold">{t('settings:logs.heading')}</h3>
+                    </div>
+                  </div>
                   <PreferenceSelect
-                    label={t('settings:features.logLevelLabel')}
-                    hint={t('settings:features.logLevelHint')}
+                    label={t('settings:logs.logLevelLabel')}
+                    hint={t('settings:logs.logLevelHint')}
                     value={localPrefs.logLevel}
                     options={[
-                      { value: 'debug' as const, label: t('settings:features.logLevelDebug') },
-                      { value: 'info' as const, label: t('settings:features.logLevelInfo') },
-                      { value: 'warn' as const, label: t('settings:features.logLevelWarn') },
-                      { value: 'error' as const, label: t('settings:features.logLevelError') },
+                      { value: 'debug' as const, label: t('settings:logs.logLevelDebug') },
+                      { value: 'info' as const, label: t('settings:logs.logLevelInfo') },
+                      { value: 'warn' as const, label: t('settings:logs.logLevelWarn') },
+                      { value: 'error' as const, label: t('settings:logs.logLevelError') },
                     ]}
                     onChange={(v) => syncPref('logLevel', v)}
                   />
                   <PreferenceSelect
-                    label={t('settings:features.auditLevelLabel')}
-                    hint={t('settings:features.auditLevelHint')}
+                    label={t('settings:logs.auditLevelLabel')}
+                    hint={t('settings:logs.auditLevelHint')}
                     value={localPrefs.auditLevel}
                     options={[
-                      {
-                        value: 'minimal' as const,
-                        label: t('settings:features.auditLevelMinimal'),
-                      },
-                      {
-                        value: 'standard' as const,
-                        label: t('settings:features.auditLevelStandard'),
-                      },
-                      { value: 'full' as const, label: t('settings:features.auditLevelFull') },
+                      { value: 'minimal' as const, label: t('settings:logs.auditLevelMinimal') },
+                      { value: 'standard' as const, label: t('settings:logs.auditLevelStandard') },
+                      { value: 'full' as const, label: t('settings:logs.auditLevelFull') },
                     ]}
                     onChange={(v) => syncPref('auditLevel', v)}
+                  />
+                  <PreferenceSelect
+                    label={t('settings:logs.fsAccessLabel')}
+                    hint={t('settings:logs.fsAccessHint')}
+                    value={localPrefs.fsAccess}
+                    options={[
+                      { value: 'unrestricted' as const, label: t('settings:logs.fsAccessUnrestricted') },
+                      { value: 'project' as const, label: t('settings:logs.fsAccessProject') },
+                    ]}
+                    onChange={(v) => syncPref('fsAccess', v)}
+                  />
+                  <PreferenceToggle
+                    label={t('settings:logs.debugStreamLabel')}
+                    hint={t('settings:logs.debugStreamHint')}
+                    value={localPrefs.debugStream}
+                    onChange={() => syncPref('debugStream', !localPrefs.debugStream)}
                   />
                 </div>
               </TabsContent>
 
-              {/* Tools Tab */}
-              <TabsContent value="tools" className="mt-0 space-y-4">
-                <ToolsSection />
-              </TabsContent>
-
-              {/* MCP Servers Tab */}
-              <TabsContent value="mcp" className="mt-0 space-y-4">
-                {!localPrefs.featureMcp ? (
-                  <div className="text-center py-8 text-muted-foreground">
-                    <Server className="w-10 h-10 mx-auto mb-2 opacity-50" />
-                    <p>{t('settings:mcp.disabled')}</p>
-                    <p className="text-sm mt-1">{t('settings:mcp.disabledHint')}</p>
-                  </div>
-                ) : (
-                  <MCPSection />
-                )}
-              </TabsContent>
-
-              {/* Brain Tab — risk ceiling + decision log */}
-              <TabsContent value="brain" className="mt-0 space-y-4">
-                <BrainSection />
-              </TabsContent>
-
-              {/* Shadow Agent Tab — start/stop, status */}
-              <TabsContent value="shadow" className="mt-0 space-y-4">
-                <ShadowSection />
+              {/* ═══════════════════════════════════════ Security ═══ */}
+              <TabsContent value="security" className="mt-0">
+                <SecuritySection />
               </TabsContent>
             </div>
           </Tabs>
