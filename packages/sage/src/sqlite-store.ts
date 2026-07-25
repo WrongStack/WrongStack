@@ -1,14 +1,4 @@
 /**
- * Escape GLOB metacharacters (`*`, `?`, `[`, `]`) so a path fragment is treated
- * literally inside a GLOB pattern. SQLite GLOB is LIKE's POSIX cousin — only
- * `*` (any sequence), `?` (single char), and `[...]` (character class) are
- * special; the backslash is not an escape character in GLOB.
- */
-function escapeGlobPattern(value: string): string {
-  return value.replace(/[*?[\]]/g, (ch) => `[${ch}]`);
-}
-
-/**
  * SQLite-backed SAGE store.
  *
  * Replaces the JSONL full-load-on-every-op pattern with an indexed database.
@@ -24,11 +14,10 @@ function escapeGlobPattern(value: string): string {
  */
 
 import * as fs from 'node:fs';
-import { createRequire } from 'node:module';
 import * as path from 'node:path';
 import type { DatabaseSync } from 'node:sqlite';
 import type { MemoryEntry, MemoryScope, MemoryStore } from '@wrongstack/core/types';
-import { ensureDir, SageCachePragmas, ulid, withFileLock } from '@wrongstack/core/utils';
+import { ensureDir, ulid, withFileLock } from '@wrongstack/core/utils';
 
 import { verifyMemoryAnchors } from './anchors/verify.js';
 import {
@@ -51,6 +40,40 @@ import {
   VALID_MEMORY_STATUSES,
 } from './shared/pagination.js';
 import { consolidateSession as sharedConsolidateSession } from './shared/session-consolidation.js';
+import { sqliteAnchorNode, sqliteAnchorRelation } from './sqlite-store-anchors.js';
+import {
+  importanceFromPriority,
+  isMigratableAuditRecord,
+  isMigratableCandidate,
+  isMigratableEdge,
+  isMigratableMemoryRecord,
+  legacyScopeLabel,
+  matchesLegacyForget,
+  shouldReplaceMigratedMemory,
+} from './sqlite-store-legacy.js';
+import {
+  DATABASE_SYNC_LOADING,
+  getDatabaseSyncCtor,
+  loadDatabaseSync,
+  probeSqliteAvailable,
+  setDatabaseSyncCtor,
+  withSqliteExperimentalWarningSuppressed,
+} from './sqlite-store-loader.js';
+import {
+  decodePageCursor,
+  escapeGlobPattern,
+  escapeLikePattern,
+  formatLegacyEntry,
+} from './sqlite-store-pagination.js';
+import {
+  AUDIT_LOG_MAX_ROWS,
+  AUDIT_LOG_PRUNE_INTERVAL,
+  initSchema,
+  LEGACY_JSONL_MIGRATION_KEY,
+  SQLITE_SCHEMA_VERSION,
+  sqliteCommandFamily,
+  sqliteNormalizeCommand,
+} from './sqlite-store-schema.js';
 import {
   canonicalMemoryText,
   clamp01,
@@ -83,7 +106,6 @@ import type {
   SageHygieneOptions,
   SageHygieneReport,
   SageManifest,
-  SageRecord,
   SageSearchOptions,
   SageStats,
   SageStatus,
@@ -103,47 +125,6 @@ import {
 
 // ─── Pagination helpers (mirror SageStore.listSagePage semantics) ──
 
-/** Escape `%`, `_`, and `\` so a user query is treated literally inside LIKE (ESCAPE '\\'). */
-function escapeLikePattern(value: string): string {
-  return value.replace(/[\\%_]/g, (ch) => `\\${ch}`);
-}
-
-interface PageCursor {
-  updatedAt: string;
-  id: string;
-}
-
-function formatLegacyEntry(entry: MemoryEntry): string {
-  const tags = entry.tags?.length ? ` ${entry.tags.map((tag) => `#${tag}`).join(' ')}` : '';
-  const type = entry.type ? ` [${entry.type}${entry.priority ? `|${entry.priority}` : ''}]` : '';
-  return `- [${entry.ts}]${type} ${entry.text}${tags}`;
-}
-
-/** Decode an opaque cursor token; returns undefined for missing/malformed input. */
-function decodePageCursor(cursor: string | undefined): PageCursor | undefined {
-  if (!cursor) return undefined;
-  try {
-    const parsed = JSON.parse(Buffer.from(cursor, 'base64url').toString('utf8')) as {
-      u?: unknown;
-      i?: unknown;
-    };
-    if (typeof parsed.u === 'string' && typeof parsed.i === 'string') {
-      return { updatedAt: parsed.u, id: parsed.i };
-    }
-  } catch {
-    // Malformed cursor → treat as first page.
-  }
-  return undefined;
-}
-
-// ─── SQLite loader (mirrors codebase-index's lazy pattern) ──────────────
-
-/** Sentinel marking in-flight probe. Prevents re-entrant require(). */
-const DATABASE_SYNC_LOADING: unique symbol = Symbol('database_sync_loading');
-
-let DatabaseSyncCtor: typeof DatabaseSync | undefined | null | typeof DATABASE_SYNC_LOADING;
-// null = confirmed unavailable, undefined = not yet probed, DATABASE_SYNC_LOADING = probing in progress
-
 /**
  * Non-throwing probe — returns true if `node:sqlite` is available
  * in the current runtime. Safe to call from outside the store.
@@ -152,295 +133,12 @@ export function isSqliteAvailable(): boolean {
   return probeSqliteAvailable();
 }
 
-function probeSqliteAvailable(load?: () => typeof DatabaseSync): boolean {
-  if (DatabaseSyncCtor === null) return false;
-  // DATABASE_SYNC_LOADING is !== undefined, so it must be checked explicitly
-  // before the broad `!== undefined` branch.
-  if (DatabaseSyncCtor === DATABASE_SYNC_LOADING) return false;
-  if (DatabaseSyncCtor !== undefined) return true;
-  try {
-    loadDatabaseSync(load);
-    return true;
-  } catch {
-    DatabaseSyncCtor = null;
-    return false;
-  }
-}
-
-function loadDatabaseSync(
-  load: () => typeof DatabaseSync = () => {
-    const req = createRequire(import.meta.url);
-    return (req('node:sqlite') as typeof import('node:sqlite')).DatabaseSync;
-  },
-): typeof DatabaseSync {
-  if (DatabaseSyncCtor === DATABASE_SYNC_LOADING) {
-    throw new Error('Re-entrant call to loadDatabaseSync — cycle detected.');
-  }
-  if (typeof DatabaseSyncCtor === 'function') return DatabaseSyncCtor;
-  // Mark as loading before any side effects so a recursive call (should one
-  // occur through a warning emission or module-graph cycle) is detected early.
-  DatabaseSyncCtor = DATABASE_SYNC_LOADING;
-  try {
-    DatabaseSyncCtor = withSqliteExperimentalWarningSuppressed(load);
-    return DatabaseSyncCtor;
-  } catch (err) {
-    DatabaseSyncCtor = null;
-    throw new Error(
-      "SAGE SQLite store needs Node's built-in SQLite (node:sqlite), available since Node 22.5. " +
-        `This runtime doesn't provide it: ${(err as Error).message}`,
-    );
-  }
-}
-
-/**
- * Suppress `node:sqlite` "ExperimentalWarning" emissions for the duration of
- * `run()`. The listener and its reentrancy flag are scoped to a single call —
- * RAII via `try/finally` keeps the listener detached and the flag cleared even
- * if a future caller mutates `process.on('warning')` during the require() or
- * another module installs a conflicting listener. Reference equality on
- * `onWarning` ensures unrelated 'warning' listeners are not detached.
- */
-function withSqliteExperimentalWarningSuppressed<T>(run: () => T): T {
-  let reentering = false;
-  const onWarning = (warning: Error, ...args: unknown[]) => {
-    if (reentering) return;
-    const msg = typeof warning === 'string' ? warning : (warning?.message ?? '');
-    if (/sqlite/i.test(msg) && /experimental/i.test(msg)) return;
-    reentering = true;
-    process.off('warning', onWarning);
-    process.emitWarning(
-      warning,
-      args[0] as string | undefined,
-      args[1] as string | undefined,
-      args[2] as (...args: unknown[]) => unknown | undefined,
-    );
-    process.on('warning', onWarning);
-    reentering = false;
-  };
-  process.on('warning', onWarning);
-  try {
-    return run();
-  } finally {
-    // Always detach and reset state, regardless of success or failure.
-    process.off('warning', onWarning);
-    reentering = false;
-  }
-}
-
-// ─── Schema ─────────────────────────────────────────────────────────────
-
-const SQLITE_SCHEMA_VERSION = 3;
-const LEGACY_JSONL_MIGRATION_KEY = 'legacy_jsonl_migrated';
-// The audit log is a *recent activity* trail — its only consumer is
-// `/memory audit`, which shows the newest ~50 events. It is not a compliance
-// record, so it is bounded to the most recent rows rather than kept forever.
-// 1000 is ~20x the view with hard-capped disk regardless of write rate.
-const AUDIT_LOG_MAX_ROWS = 1000;
-// Prune opportunistically every this-many audit writes so growth stays bounded
-// between hygiene passes without a DELETE on every single insert.
-const AUDIT_LOG_PRUNE_INTERVAL = 256;
-
-/** Local command helpers (mirror store-helpers; kept private to this module). */
-function sqliteNormalizeCommand(command: string): string {
-  return command.normalize('NFKC').trim().replace(/\s+/g, ' ').toLowerCase();
-}
-function sqliteCommandFamily(command: string): string {
-  return command.split(/\s+/).slice(0, 2).join(' ');
-}
-
-function initSchema(db: DatabaseSync): void {
-  // WAL + NORMAL is the multi-process sweet spot used across WrongStack SQLite stores.
-  // cache_size/temp_store/mmap reduce page-cache thrash on hot read paths (search, list, inject).
-  db.exec('PRAGMA journal_mode = WAL');
-  db.exec('PRAGMA synchronous = NORMAL');
-  db.exec('PRAGMA busy_timeout = 30000');
-  db.exec('PRAGMA temp_store = MEMORY');
-  // Cache/mmap follow WRONGSTACK_PERF_PROFILE (frugal = leaner RSS).
-  const cache = SageCachePragmas();
-  db.exec(`PRAGMA cache_size = -${cache.cacheSizeKiB}`);
-  db.exec(`PRAGMA mmap_size = ${cache.mmapBytes}`);
-  db.exec('PRAGMA foreign_keys = ON');
-
-  db.exec(`
-    CREATE TABLE IF NOT EXISTS schema_meta (
-      key TEXT PRIMARY KEY,
-      value INTEGER NOT NULL
-    );
-  `);
-
-  db.exec(`
-    CREATE TABLE IF NOT EXISTS memories (
-      id TEXT PRIMARY KEY,
-      data TEXT NOT NULL,
-      status TEXT NOT NULL,
-      kind TEXT NOT NULL,
-      scope TEXT NOT NULL,
-      importance REAL NOT NULL,
-      confidence REAL NOT NULL,
-      freshness REAL NOT NULL,
-      updated_at TEXT NOT NULL,
-      created_at TEXT NOT NULL,
-      audience TEXT,
-      tags TEXT,
-      canonical_text TEXT NOT NULL DEFAULT ''
-    );
-  `);
-
-  db.exec('CREATE INDEX IF NOT EXISTS idx_status ON memories(status)');
-  db.exec('CREATE INDEX IF NOT EXISTS idx_kind ON memories(kind)');
-  db.exec('CREATE INDEX IF NOT EXISTS idx_scope ON memories(scope)');
-  db.exec('CREATE INDEX IF NOT EXISTS idx_importance ON memories(importance DESC)');
-  db.exec('CREATE INDEX IF NOT EXISTS idx_updated ON memories(updated_at DESC)');
-  // Indexes that reference versioned columns are created after migrations.
-  // CREATE TABLE IF NOT EXISTS does not add columns to an existing database,
-  // so creating those indexes here would prevent the migration that adds the
-  // columns from ever running.
-  // Hot composite paths: ranked list and keyset pagination.
-  db.exec(
-    'CREATE INDEX IF NOT EXISTS idx_status_importance_updated ON memories(status, importance DESC, updated_at DESC)',
-  );
-  db.exec(
-    'CREATE INDEX IF NOT EXISTS idx_status_updated_id ON memories(status, updated_at DESC, id DESC)',
-  );
-
-  // FTS5 full-text search over memory text + tags
-  try {
-    db.exec(`
-      CREATE VIRTUAL TABLE IF NOT EXISTS memories_fts USING fts5(
-        text, tags, audience, content='memories', content_rowid='rowid'
-      );
-    `);
-    // Triggers to keep FTS in sync
-    db.exec(`
-      CREATE TRIGGER IF NOT EXISTS memories_ai AFTER INSERT ON memories BEGIN
-        INSERT INTO memories_fts(rowid, text, tags, audience)
-        VALUES (new.rowid,
-          json_extract(new.data, '$.text'),
-          COALESCE(json_extract(new.data, '$.tags'), ''),
-          COALESCE(new.audience, ''));
-      END;
-    `);
-    db.exec(`
-      CREATE TRIGGER IF NOT EXISTS memories_ad AFTER DELETE ON memories BEGIN
-        INSERT INTO memories_fts(memories_fts, rowid, text, tags, audience)
-        VALUES('delete', old.rowid,
-          json_extract(old.data, '$.text'),
-          COALESCE(json_extract(old.data, '$.tags'), ''),
-          COALESCE(old.audience, ''));
-      END;
-    `);
-    db.exec(`
-      CREATE TRIGGER IF NOT EXISTS memories_au AFTER UPDATE ON memories BEGIN
-        INSERT INTO memories_fts(memories_fts, rowid, text, tags, audience)
-        VALUES('delete', old.rowid,
-          json_extract(old.data, '$.text'),
-          COALESCE(json_extract(old.data, '$.tags'), ''),
-          COALESCE(old.audience, ''));
-        INSERT INTO memories_fts(rowid, text, tags, audience)
-        VALUES (new.rowid,
-          json_extract(new.data, '$.text'),
-          COALESCE(json_extract(new.data, '$.tags'), ''),
-          COALESCE(new.audience, ''));
-      END;
-    `);
-  } catch {
-    // FTS5 unavailable — search will use LIKE fallback
-  }
-
-  db.exec(`
-    CREATE TABLE IF NOT EXISTS edges (
-      from_node TEXT NOT NULL,
-      to_node TEXT NOT NULL,
-      relation TEXT NOT NULL,
-      weight REAL NOT NULL DEFAULT 1,
-      created_at TEXT NOT NULL,
-      PRIMARY KEY (from_node, to_node, relation)
-    );
-  `);
-  db.exec('CREATE INDEX IF NOT EXISTS idx_edge_from ON edges(from_node)');
-  db.exec('CREATE INDEX IF NOT EXISTS idx_edge_to ON edges(to_node)');
-
-  db.exec(`
-    CREATE TABLE IF NOT EXISTS audit_log (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      event TEXT NOT NULL,
-      at TEXT NOT NULL,
-      trace_id TEXT,
-      data TEXT
-    );
-  `);
-
-  db.exec(`
-    CREATE TABLE IF NOT EXISTS candidates (
-      id TEXT PRIMARY KEY,
-      data TEXT NOT NULL,
-      status TEXT NOT NULL,
-      created_at TEXT NOT NULL,
-      updated_at TEXT NOT NULL,
-      canonical_text TEXT NOT NULL DEFAULT ''
-    );
-  `);
-  db.exec(
-    'CREATE INDEX IF NOT EXISTS idx_candidates_status_created ON candidates(status, created_at DESC)',
-  );
-  // Shared-anchor lookups for findRelatedSage / retrieveForPath.
-  db.exec('CREATE INDEX IF NOT EXISTS idx_edge_to_relation ON edges(to_node, relation)');
-}
-
 // ─── Store ──────────────────────────────────────────────────────────────
 
 /**
  * @deprecated Use `createSqliteMemoryPort` and depend on Core's `MemoryPort`.
  * This class remains public only for the compatibility window.
  */
-function sqliteAnchorNode(anchor: MemoryAnchor): string | undefined {
-  switch (anchor.type) {
-    case 'file':
-    case 'test':
-    case 'git': {
-      const normalizedPath = anchor.path ? normalizeSlashes(anchor.path) : undefined;
-      return normalizedPath ? `file:${normalizedPath}` : undefined;
-    }
-    case 'directory': {
-      const normalizedPath = anchor.path ? normalizeSlashes(anchor.path) : undefined;
-      return normalizedPath ? `dir:${normalizedPath}` : undefined;
-    }
-    case 'symbol': {
-      const normalizedPath = anchor.path ? normalizeSlashes(anchor.path) : undefined;
-      return normalizedPath && anchor.symbol
-        ? `symbol:${normalizedPath}#${anchor.symbol}`
-        : undefined;
-    }
-    case 'package': {
-      const normalizedPath = anchor.path ? normalizeSlashes(anchor.path) : undefined;
-      return normalizedPath ? `dir:${normalizedPath}` : undefined;
-    }
-    case 'command':
-      return anchor.command ? `command:${anchor.command.trim().replace(/\s+/g, ' ')}` : undefined;
-    case 'agent':
-      return anchor.role ? `agent:${anchor.role.trim().toLowerCase()}` : undefined;
-  }
-}
-
-function sqliteAnchorRelation(anchor: MemoryAnchor): MemoryGraphRelation | undefined {
-  switch (anchor.type) {
-    case 'file':
-    case 'test':
-    case 'git':
-      return 'about_file';
-    case 'directory':
-      return 'about_directory';
-    case 'symbol':
-      return 'about_symbol';
-    case 'package':
-      return 'about_package';
-    case 'command':
-      return 'about_command';
-    case 'agent':
-      return 'about_agent';
-  }
-}
-
 export class SqliteSageStore implements MemoryStore {
   readonly paths;
   private readonly projectRoot: string;
@@ -3455,131 +3153,6 @@ export class SqliteSageStore implements MemoryStore {
   }
 }
 
-function importanceFromPriority(priority: MemoryEntry['priority']): number {
-  switch (priority) {
-    case 'critical':
-      return 1;
-    case 'high':
-      return 0.8;
-    case 'low':
-      return 0.3;
-    case 'medium':
-    case undefined:
-      return 0.6;
-    default: {
-      // Unknown priority — defensively fall back to medium (0.6) instead of
-      // throwing on a hot path where unvalidated input could reach here
-      // (e.g. JSON deserialization of persisted data from a future version).
-      return 0.6;
-    }
-  }
-}
-
-function legacyScopeLabel(scope: MemoryScope): string {
-  switch (scope) {
-    case 'project-agents':
-      return 'Project AGENTS.md';
-    case 'project-memory':
-      return 'Project Memory';
-    case 'user-memory':
-      return 'User Memory';
-    default: {
-      // Defensive fallback: return a human-readable label for unknown scopes
-      // instead of throwing, so a future MemoryScope addition doesn't crash
-      // readAll() or the read() header rendering.
-      console.warn(
-        JSON.stringify({
-          level: 'warn',
-          event: 'sage.unknown_memory_scope',
-          scope,
-          message: 'Unknown MemoryScope; using fallback label',
-          timestamp: new Date().toISOString(),
-        }),
-      );
-      return `${scope}`;
-    }
-  }
-}
-
-function matchesLegacyForget(memory: Sage, normalizedQuery: string): boolean {
-  const searchable = [
-    memory.id,
-    memory.text,
-    ...memory.tags,
-    ...memory.anchors.flatMap((anchor) => [anchor.path, anchor.symbol, anchor.command]),
-  ]
-    .filter((value): value is string => typeof value === 'string')
-    .join(' ')
-    .toLowerCase();
-  return searchable.includes(normalizedQuery);
-}
-
-function isMigratableMemoryRecord(value: unknown): value is SageRecord {
-  if (!value || typeof value !== 'object') return false;
-  const record = value as Partial<SageRecord>;
-  const memory = record.memory as Partial<Sage> | undefined;
-  return (
-    record.recordType === 'memory' &&
-    !!memory &&
-    typeof memory.id === 'string' &&
-    Number.isInteger(memory.revision) &&
-    (memory.revision ?? 0) >= 1 &&
-    typeof memory.status === 'string' &&
-    typeof memory.kind === 'string' &&
-    typeof memory.scope === 'string' &&
-    typeof memory.text === 'string' &&
-    typeof memory.importance === 'number' &&
-    Number.isFinite(memory.importance) &&
-    typeof memory.confidence === 'number' &&
-    Number.isFinite(memory.confidence) &&
-    typeof memory.freshness === 'number' &&
-    Number.isFinite(memory.freshness) &&
-    Array.isArray(memory.tags) &&
-    Array.isArray(memory.anchors) &&
-    Array.isArray(memory.sources) &&
-    typeof memory.createdAt === 'string' &&
-    typeof memory.updatedAt === 'string'
-  );
-}
-
-/** Match the JSONL replay rule while never replacing a newer SQLite revision. */
-function shouldReplaceMigratedMemory(current: Sage, incoming: Sage): boolean {
-  if (incoming.revision !== current.revision) return incoming.revision > current.revision;
-  return current.status === 'deleted' && incoming.status !== 'deleted';
-}
-
-function isMigratableCandidate(value: unknown): value is MemoryCandidate {
-  if (!value || typeof value !== 'object') return false;
-  const candidate = value as Partial<MemoryCandidate>;
-  return (
-    typeof candidate.id === 'string' &&
-    typeof candidate.status === 'string' &&
-    typeof candidate.text === 'string' &&
-    typeof candidate.createdAt === 'string' &&
-    typeof candidate.updatedAt === 'string'
-  );
-}
-
-function isMigratableEdge(value: unknown): value is MemoryGraphEdge {
-  if (!value || typeof value !== 'object') return false;
-  const edge = value as Partial<MemoryGraphEdge>;
-  return (
-    typeof edge.id === 'string' &&
-    typeof edge.from === 'string' &&
-    typeof edge.to === 'string' &&
-    typeof edge.relation === 'string' &&
-    typeof edge.weight === 'number' &&
-    Number.isFinite(edge.weight) &&
-    typeof edge.createdAt === 'string'
-  );
-}
-
-function isMigratableAuditRecord(value: unknown): value is SageAuditRecord {
-  if (!value || typeof value !== 'object') return false;
-  const audit = value as Partial<SageAuditRecord>;
-  return typeof audit.event === 'string' && typeof audit.at === 'string';
-}
-
 /**
  * Direct-module test seam for pure defensive helpers. This is intentionally
  * absent from the package barrel, so it does not expand the supported public
@@ -3607,10 +3180,6 @@ export const sqliteStoreCoverage = {
   probeSqliteAvailable,
   loadDatabaseSync,
   databaseSyncLoading: DATABASE_SYNC_LOADING,
-  getDatabaseSyncCtor: () => DatabaseSyncCtor,
-  setDatabaseSyncCtor: (
-    value: typeof DatabaseSync | undefined | null | typeof DATABASE_SYNC_LOADING,
-  ) => {
-    DatabaseSyncCtor = value;
-  },
+  getDatabaseSyncCtor,
+  setDatabaseSyncCtor,
 };
