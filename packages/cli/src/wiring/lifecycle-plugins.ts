@@ -18,7 +18,12 @@ import {
   MCPVaultTokenStore,
 } from '@wrongstack/mcp';
 import type { EventWiring } from '../boot/event-wiring.js';
-import { refreshRuntimeModelCatalog, resolveRuntimeMaxContext } from '../context-limit.js';
+import type { MaxContextBranch } from '../context-limit.js';
+import {
+  describeMaxContextChange,
+  refreshRuntimeModelCatalog,
+  resolveRuntimeMaxContextDetailed,
+} from '../context-limit.js';
 import {
   createLifecycleHooksExtension,
   createUserPromptSubmitMiddleware,
@@ -80,7 +85,13 @@ export interface LifecyclePluginsResult {
   // biome-ignore lint/suspicious/noExplicitAny: auto-compactor
   autoCompactor: any;
   effectiveMaxContextRef: { current: number };
-  applyMaxContext: (providerId: string, modelId: string, mc: number, seq?: number) => void;
+  applyMaxContext: (
+    providerId: string,
+    modelId: string,
+    mc: number,
+    seq?: number,
+    branch?: MaxContextBranch,
+  ) => void;
   refreshMaxContext: (
     providerId: string,
     modelId: string,
@@ -204,8 +215,10 @@ export async function setupLifecycleAndPlugins(
     modelId: string,
     mc: number,
     seq?: number | undefined,
+    branch?: MaxContextBranch | undefined,
   ): void => {
     if (seq !== undefined && seq !== maxContextRefreshSeq) return;
+    const previous = effectiveMaxContextRef.current;
     effectiveMaxContextRef.current = mc;
     context.provider.capabilities.maxContext = effectiveMaxContextRef.current;
     modelCapabilitiesRef.current =
@@ -232,6 +245,22 @@ export async function setupLifecycleAndPlugins(
       maxContext: effectiveMaxContextRef.current,
     });
     eventWiring.setEffectiveMaxContext(effectiveMaxContextRef.current);
+
+    // Debug telemetry: trace every mid-session max-context change to the
+    // resolution branch that produced it. A *decrease* via a non-catalog branch
+    // is the fingerprint of the "context window shrinks mid-session" bug class,
+    // so it is escalated to warn; benign/increasing changes stay at debug. The
+    // decision lives in the shared, unit-tested describeMaxContextChange helper.
+    const telemetry = describeMaxContextChange({
+      previous,
+      current: effectiveMaxContextRef.current,
+      providerId,
+      modelId,
+      branch,
+    });
+    if (telemetry) {
+      logger[telemetry.level](telemetry.message);
+    }
   };
 
   const refreshMaxContext = async (
@@ -241,7 +270,7 @@ export async function setupLifecycleAndPlugins(
   ): Promise<void> => {
     const seq = ++maxContextRefreshSeq;
     const resolveAndApply = async (): Promise<void> => {
-      const mc = await resolveRuntimeMaxContext({
+      const { maxContext, branch } = await resolveRuntimeMaxContextDetailed({
         modelsRegistry,
         config,
         provider: context.provider,
@@ -249,7 +278,7 @@ export async function setupLifecycleAndPlugins(
         providerId,
         modelId,
       });
-      applyMaxContext(providerId, modelId, mc, seq);
+      applyMaxContext(providerId, modelId, maxContext, seq, branch);
     };
     await resolveAndApply();
     const refreshed = await refreshRuntimeModelCatalog({

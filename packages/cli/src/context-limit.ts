@@ -56,13 +56,45 @@ export interface ResolveMaxContextInput {
  * whose real window may be smaller) skips the catalog — and even then the
  * explicit overrides (1) and (2) can raise the window back.
  */
-export async function resolveRuntimeMaxContext(input: ResolveMaxContextInput): Promise<number> {
+/**
+ * Which branch of the priority chain produced the resolved max-context value.
+ * Emitted as debug telemetry so mid-session window changes can be traced to
+ * their cause (e.g. a family-default fallthrough or a diverging proxy baseUrl
+ * that silently shrinks the window). See {@link resolveRuntimeMaxContextDetailed}.
+ */
+export type MaxContextBranch =
+  | 'explicit-config'
+  | 'provider-override'
+  | 'sibling-capabilities'
+  | 'sibling-direct-model'
+  | 'catalog-capabilities'
+  | 'catalog-direct-model'
+  | 'family-default'
+  | 'diverging-baseurl-family-default'
+  | 'unknown';
+
+export interface ResolvedMaxContext {
+  /** The resolved window (0 = unknown). */
+  maxContext: number;
+  /** The priority-chain branch that produced {@link maxContext}. */
+  branch: MaxContextBranch;
+}
+
+/**
+ * Detailed variant of {@link resolveRuntimeMaxContext} that also reports which
+ * branch of the priority chain produced the value. Prefer this at wiring sites
+ * that emit telemetry; the plain {@link resolveRuntimeMaxContext} stays a thin
+ * value-only wrapper for existing callers and tests.
+ */
+export async function resolveRuntimeMaxContextDetailed(
+  input: ResolveMaxContextInput,
+): Promise<ResolvedMaxContext> {
   const explicitContext = positiveNumber(input.config.context?.effectiveMaxContext);
-  if (explicitContext) return explicitContext;
+  if (explicitContext) return { maxContext: explicitContext, branch: 'explicit-config' };
 
   const providerConfig = input.runtimeProviderConfig ?? input.config.providers?.[input.providerId];
   const providerOverride = positiveNumber(readConfiguredMaxContext(providerConfig));
-  if (providerOverride) return providerOverride;
+  if (providerOverride) return { maxContext: providerOverride, branch: 'provider-override' };
 
   // OAuth/subscription families (Sign in with Claude/ChatGPT/Copilot) aren't in
   // the models.dev catalog under their own id, but they serve the SAME models as
@@ -80,13 +112,13 @@ export async function resolveRuntimeMaxContext(input: ResolveMaxContextInput): P
       mergedModels,
     ).catch(() => undefined);
     const siblingMax = positiveNumber(caps?.maxContext);
-    if (siblingMax) return siblingMax;
+    if (siblingMax) return { maxContext: siblingMax, branch: 'sibling-capabilities' };
 
     const directModel = await input.modelsRegistry
       .getModel(sibling, input.modelId)
       .catch(() => undefined);
     const directMax = positiveNumber(directModel?.capabilities.maxContext);
-    if (directMax) return directMax;
+    if (directMax) return { maxContext: directMax, branch: 'sibling-direct-model' };
   }
 
   // Resolve alias → catalog id so registry lookups hit the real provider. The
@@ -96,6 +128,11 @@ export async function resolveRuntimeMaxContext(input: ResolveMaxContextInput): P
     providerConfig?.type && providerConfig.type !== input.providerId
       ? providerConfig.type
       : input.providerId;
+
+  // Hoisted to function scope so the final family-default return can report
+  // whether a diverging proxy/gateway baseUrl (a silent-shrink cause) is why
+  // the catalog was skipped.
+  let divergedFromCatalog = false;
 
   if (input.modelsRegistry) {
     const topLevelBaseUrlApplies = input.providerId === input.config.provider;
@@ -111,6 +148,7 @@ export async function resolveRuntimeMaxContext(input: ResolveMaxContextInput): P
       divergesFromCatalog =
         normalizeBaseUrl(configuredBaseUrl) !== normalizeBaseUrl(resolved?.apiBase);
     }
+    divergedFromCatalog = divergesFromCatalog;
 
     if (!divergesFromCatalog) {
       // Phase 1 — capabilitiesFor(): merges per-model catalog facts with family
@@ -124,7 +162,7 @@ export async function resolveRuntimeMaxContext(input: ResolveMaxContextInput): P
         mergedModels,
       ).catch(() => undefined);
       const catalogMax = positiveNumber(caps?.maxContext);
-      if (catalogMax) return catalogMax;
+      if (catalogMax) return { maxContext: catalogMax, branch: 'catalog-capabilities' };
 
       // Phase 2 — direct getModel() retry. If capabilitiesFor threw due to a
       // transient registry issue (stale cache, race on model refresh), a direct
@@ -133,14 +171,90 @@ export async function resolveRuntimeMaxContext(input: ResolveMaxContextInput): P
         .getModel(catalogId, input.modelId)
         .catch(() => undefined);
       const directMax = positiveNumber(directModel?.capabilities.maxContext);
-      if (directMax) return directMax;
+      if (directMax) return { maxContext: directMax, branch: 'catalog-direct-model' };
     }
   }
 
   // All catalog lookups exhausted — return the provider's raw capabilities.
   // This may be 0 for catch-all families like openai-compatible, which
   // signals "unknown context window" to callers.
-  return positiveNumber(input.provider.capabilities.maxContext) ?? 0;
+  //
+  // Distinguish WHY we landed here: a diverging proxy/gateway baseUrl skips the
+  // catalog entirely (a common silent-shrink cause), versus the catalog simply
+  // having no window for this model. The branch lets telemetry tell them apart.
+  const familyDefault = positiveNumber(input.provider.capabilities.maxContext) ?? 0;
+  const branch: MaxContextBranch =
+    familyDefault === 0
+      ? 'unknown'
+      : divergedFromCatalog
+        ? 'diverging-baseurl-family-default'
+        : 'family-default';
+  return { maxContext: familyDefault, branch };
+}
+
+/**
+ * Value-only resolver — thin wrapper over {@link resolveRuntimeMaxContextDetailed}
+ * for callers and tests that only need the number.
+ */
+export async function resolveRuntimeMaxContext(input: ResolveMaxContextInput): Promise<number> {
+  const { maxContext } = await resolveRuntimeMaxContextDetailed(input);
+  return maxContext;
+}
+
+/**
+ * Branches whose fallthrough is a likely silent-shrink cause worth a warning.
+ *
+ * 'unknown' is deliberately EXCLUDED: the resolver only ever emits 'unknown'
+ * paired with maxContext:0 (familyDefault === 0), and the shrink predicate
+ * requires current > 0 — so a resolver-driven 'unknown' can never be a shrink.
+ * The only way an 'unknown' branch reaches here is the branch-less external
+ * caller (onModelContextResolved → intentional model switch), where a smaller
+ * window is expected. Including it would fire a false-positive warn on every
+ * switch to a smaller model, so it stays at debug.
+ */
+const SUSPICIOUS_SHRINK_BRANCHES: ReadonlySet<MaxContextBranch> = new Set([
+  'family-default',
+  'diverging-baseurl-family-default',
+]);
+
+export interface MaxContextChangeTelemetry {
+  /** Log severity for this change: 'warn' for a suspicious shrink, else 'debug'. */
+  level: 'warn' | 'debug';
+  /** Fully-rendered log line. */
+  message: string;
+  /** True when the window strictly decreased between two positive values. */
+  shrank: boolean;
+  /** The branch attributed to the new value (defaults to 'unknown'). */
+  branch: MaxContextBranch;
+}
+
+/**
+ * Pure decision for max-context change telemetry, shared by the runtime wiring
+ * (applyMaxContext) and its tests. Returns `undefined` when the value did not
+ * change (nothing to log). A strict decrease via a {@link SUSPICIOUS_SHRINK_BRANCHES}
+ * branch is escalated to 'warn' — this is the fingerprint of the "context window
+ * shrinks mid-session" bug class.
+ */
+export function describeMaxContextChange(params: {
+  previous: number;
+  current: number;
+  providerId: string;
+  modelId: string;
+  branch?: MaxContextBranch | undefined;
+}): MaxContextChangeTelemetry | undefined {
+  const { previous, current, providerId, modelId } = params;
+  if (current === previous) return undefined;
+
+  const branch: MaxContextBranch = params.branch ?? 'unknown';
+  const shrank = previous > 0 && current > 0 && current < previous;
+  const suspicious = SUSPICIOUS_SHRINK_BRANCHES.has(branch);
+  const detail =
+    `max-context ${previous} → ${current} for ${providerId}/${modelId} ` +
+    `(branch=${branch}${shrank ? ', DECREASED' : ''})`;
+
+  return shrank && suspicious
+    ? { level: 'warn', message: `Context window shrank via a non-catalog branch: ${detail}`, shrank, branch }
+    : { level: 'debug', message: detail, shrank, branch };
 }
 
 export async function refreshRuntimeModelCatalog(input: {

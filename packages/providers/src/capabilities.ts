@@ -110,17 +110,23 @@ export async function capabilitiesFor(
   //  2. model.capabilities.maxContext      — registry getModel()
   //  3. raw model limit.context            — direct provider.models fallback
   //  4. base.maxContext                    — family default
-  // maxOutput uses the same chain against `limit.output` (the models.dev
-  // field that names the model's per-response output ceiling). It's the
-  // driver for subagent `Request.maxTokens` (Chimera etc.) — keeping it
-  // out of the family table means a fresh models.dev sync automatically
-  // picks up new model ceilings without a code change.
+  //
+  // NOTE: `limit.output` is deliberately NOT part of this chain. It names the
+  // model's per-RESPONSE output ceiling, which is orders of magnitude smaller
+  // than the context window (e.g. 8K output vs 200K context). Falling back to
+  // it silently collapses the reported/compaction context window — the source
+  // of "context window shrinks mid-session" bugs when a refreshed catalog entry
+  // has `limit.context` missing but `limit.output` present. When the true
+  // context window is unknown, fall through to the family default instead.
+  //
+  // maxOutput uses its own chain against `limit.output` below — that IS the
+  // correct source for the per-response output ceiling and drives subagent
+  // `Request.maxTokens` (Chimera etc.).
   const rawProvider = bestRawProvider(provider, siblingProvider);
   const rawModel = rawProvider?.models.find((m) => m.id === modelId);
   const catalogMaxContext =
     model?.capabilities.maxContext ||
     rawModel?.limit?.context ||
-    rawModel?.limit?.output ||
     base.maxContext;
   const catalogMaxOutput =
     model?.capabilities.maxOutput ||
