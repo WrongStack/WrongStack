@@ -3,31 +3,12 @@
   "project": "packages/kanban",
   "hashAlgorithm": "sha256-64bit",
   "diagnostics": {
-    "63c4b7d88e96efd2": 1,
-    "a221413243a78828": 1,
-    "cb8535a2e650937b": 1,
-    "f24383e58d7305e3": 1,
-    "1af6e3a00cfc994d": 1,
-    "3001b454400dc0e0": 1,
-    "f42135e95553630b": 1,
-    "212f881b70c42bf7": 1,
-    "dffd987301e3b2e8": 1,
-    "c945f69805c82f2c": 1,
-    "86e3137ba77752d9": 1,
-    "e2350785f2afb45c": 1,
     "bf551af5d77e238a": 1,
-    "91a832f1aaaf087e": 1,
-    "2b88702d8cfae75b": 1,
     "066b4c69bfec8a02": 3,
     "26d7eb6fbef0b529": 1,
     "763b2d3e03261834": 1,
-    "08810dadf0fcaa39": 1,
-    "8d95d03caef96e99": 1,
-    "349c97fb9379e10a": 1,
     "2dba27b1e9c0bfea": 3,
-    "54ea09c3a2689908": 1,
     "eae82cbe8b235fc9": 1,
     "bde145f05da861bf": 1
   }
 }
-

@@ -115,13 +115,30 @@ function normalizeFile(file) {
   return toPosix(path.relative(repoRoot, absolute));
 }
 
+// Diagnostic messages (e.g. TS6059 "File '<abs>' is not under rootDir '<abs>'"
+// or TS2307/TS2352 that quote resolved module paths) embed ABSOLUTE repo paths.
+// Those differ per platform/checkout (D:/... on Windows, /home/runner/... on
+// Linux CI, backslash vs forward slash), so hashing the raw message makes the
+// baseline non-portable. Rewrite any absolute repoRoot path inside the message
+// to a stable repo-relative POSIX form so the hash is environment-independent.
+function normalizeMessage(message) {
+  const rootPosix = toPosix(repoRoot);
+  const rootWin = repoRoot.replaceAll('/', '\\');
+  return message
+    .split(rootPosix)
+    .join('<repo>')
+    .split(rootWin)
+    .join('<repo>')
+    .replaceAll('\\', '/');
+}
+
 function parseDiagnostics(result) {
   const diagnostics = [];
   const lines = result.output.replace(/\x1b\[[0-9;]*m/g, '').split(/\r?\n/);
   let current = null;
   function finish() {
     if (!current) return;
-    current.message = current.message.replace(/\s+/g, ' ').trim();
+    current.message = normalizeMessage(current.message.replace(/\s+/g, ' ').trim());
     current.key = `${current.project}|${current.file}|${current.code}|${current.message}`;
     diagnostics.push(current);
     current = null;
