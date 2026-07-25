@@ -19,9 +19,9 @@
       "runtimeOrMixed": 3
     },
     "@wrongstack/core/coordination": {
-      "files": 123,
+      "files": 124,
       "typeOnly": 56,
-      "runtimeOrMixed": 125
+      "runtimeOrMixed": 126
     },
     "@wrongstack/core/coordination/agent-subagent-runner.js": {
       "files": 2,
@@ -74,8 +74,8 @@
       "runtimeOrMixed": 36
     },
     "@wrongstack/core/kernel": {
-      "files": 158,
-      "typeOnly": 78,
+      "files": 159,
+      "typeOnly": 79,
       "runtimeOrMixed": 96
     },
     "@wrongstack/core/kernel/events.js": {
@@ -84,9 +84,9 @@
       "runtimeOrMixed": 6
     },
     "@wrongstack/core/models": {
-      "files": 21,
+      "files": 22,
       "typeOnly": 7,
-      "runtimeOrMixed": 15
+      "runtimeOrMixed": 16
     },
     "@wrongstack/core/notifications": {
       "files": 6,
@@ -1653,6 +1653,12 @@
       "specifier": "@wrongstack/core/coordination",
       "file": "packages/cli/src/wiring/command-host-state.ts",
       "typeOnly": 1,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/coordination",
+      "file": "packages/cli/src/wiring/dep-watcher-bridge.ts",
+      "typeOnly": 0,
       "runtimeOrMixed": 1
     },
     {
@@ -3571,6 +3577,12 @@
     },
     {
       "specifier": "@wrongstack/core/kernel",
+      "file": "packages/cli/src/wiring/dep-watcher-bridge.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/kernel",
       "file": "packages/cli/src/wiring/dep-watcher.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
@@ -4412,6 +4424,12 @@
     {
       "specifier": "@wrongstack/core/models",
       "file": "packages/cli/src/wiring/tools.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/models",
+      "file": "packages/cli/tests/alibaba-token-plan-catalog-overlay-sync.test.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
     },

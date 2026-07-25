@@ -10,9 +10,13 @@
       "lines": 1483,
       "relativeImports": 10
     },
+    "packages/cli/src/boot.ts": {
+      "lines": 804,
+      "relativeImports": 17
+    },
     "packages/cli/src/cli-main.ts": {
-      "lines": 1120,
-      "relativeImports": 44
+      "lines": 1101,
+      "relativeImports": 45
     },
     "packages/cli/src/execution.ts": {
       "lines": 2271,
@@ -351,7 +355,7 @@
       "relativeImports": 0
     },
     "packages/webui/src/components/ChatInput.tsx": {
-      "lines": 1396,
+      "lines": 1429,
       "relativeImports": 13
     },
     "packages/webui/src/components/ChatView/index.tsx": {

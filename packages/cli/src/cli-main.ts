@@ -5,7 +5,7 @@
  */
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
-import { attachDepWatcherBridge, GlobalMailbox, mailboxSessionTag } from '@wrongstack/core/coordination';
+import { GlobalMailbox, mailboxSessionTag } from '@wrongstack/core/coordination';
 import type { Config, SystemPromptBuilder } from '@wrongstack/core/types';
 import { createFallbackManageTools, createPluginManagerTool } from '@wrongstack/core/tools';
 import { FLEET_ROSTER } from '@wrongstack/core/coordination';
@@ -43,6 +43,7 @@ import { setupLifecycleAndPlugins } from './wiring/lifecycle-plugins.js';
 import { setupMetrics } from './wiring/metrics.js';
 import { setupPipelines } from './wiring/pipeline.js';
 import { setupSessionRegistry } from './wiring/session-registry.js';
+import { setupDepWatcherBridge } from './wiring/dep-watcher-bridge.js';
 import {
   buildProviderForId as buildProviderForIdRuntime,
   resolveProviderCfg as resolveProviderCfgRuntime,
@@ -480,36 +481,16 @@ export async function main(argv: string[]): Promise<number> {
   });
 
   // ── Dep-watcher bridge: wire file-watcher events into the mailbox ────
-  // When the file-watcher plugin's depWatcher.enabled config is true,
-  // dependency manifest changes (package.json, go.mod, etc.) are posted
-  // to the project-level mailbox for tech-stack audit.
-  const fwCfg = config.extensions?.['file-watcher'] as Record<string, unknown> | undefined;
-  const dwCfg = fwCfg?.['depWatcher'] as Record<string, unknown> | undefined;
-  let depWatcherDispose: (() => void) | undefined;
-  if (dwCfg?.['enabled'] === true) {
-    try {
-      const projectDir = path.join(wpaths.globalRoot, 'projects', wpaths.projectSlug);
-      const dwMailbox = new GlobalMailbox(projectDir, events);
-      depWatcherDispose = attachDepWatcherBridge({
-        events,
-        mailbox: dwMailbox,
-        projectRoot,
-        targetAgent: (dwCfg['targetAgent'] as string) ?? 'tech-stack',
-        watcherAgentId: 'dep-watcher',
-        debounceMs: (dwCfg['debounceMs'] as number) ?? 3000,
-      });
-      logger.info(
-        'Dep-watcher bridge activated — dependency changes will trigger tech-stack audits',
-      );
-    } catch (err) {
-      logger.warn(`Failed to wire dep-watcher bridge: ${err}`);
-    }
-  }
-
-  // Clean up dep-watcher bridge on teardown
-  if (depWatcherDispose) {
-    teardownHandlers.push(depWatcherDispose);
-  }
+  // Parses config and activates the bridge when enabled. Returns dwCfg
+  // so it can be passed to setupDepWatcherConsumers without re-parsing.
+  const { dwCfg } = setupDepWatcherBridge({
+    config,
+    wpaths,
+    projectRoot,
+    events,
+    logger,
+    teardownHandlers,
+  });
 
   // ── Provider runtime helpers + fallback + switch + credential watcher ──
   // Extracted to wiring/provider-runtime-setup.ts.
@@ -700,7 +681,7 @@ export async function main(argv: string[]): Promise<number> {
     renderer.writeInfo(`  scratchpad → ${sharedScratchpadPath}`);
     renderer.writeInfo(`  subagents  → ${subagentSessionsRoot}`);
   } else {
-    renderer.writeInfo(`Director mode enabled. Fleet manifest → ${manifestPath}`);
+    renderer.writeInfo(`Running without Director — fleet orchestration tools disabled.`);
   }
 
   // Shared controller for the `/fleet stream on|off` toggle. The TUI
