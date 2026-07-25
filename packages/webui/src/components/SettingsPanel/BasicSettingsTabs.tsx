@@ -19,7 +19,7 @@ export function ConnectionSettingsTab() {
   );
 
   return (
-    <TabsContent value="connection" className="mt-0 space-y-4">
+    <div className="mt-0 space-y-4">
       <div className="space-y-3">
         <label htmlFor="websocket-url" className="text-sm font-medium flex items-center gap-2">
           <Globe className="h-4 w-4 text-muted-foreground" />
@@ -41,7 +41,7 @@ export function ConnectionSettingsTab() {
           {t('settings:connection.startingBody')}
         </p>
       </div>
-    </TabsContent>
+    </div>
   );
 }
 
@@ -67,9 +67,9 @@ export function AppearanceSettingsTab() {
   );
 
   return (
-    <TabsContent value="appearance" className="mt-0 space-y-4">
+    <div className="mt-0 space-y-4">
       <div>
-        <h3 className="text-sm font-semibold mb-3">{t('settings:appearance.themeHeading')}</h3>
+        <h3 className="text-sm font-semibold mb-3">{t('settings:general.themeHeading')}</h3>
         <div className="grid grid-cols-3 gap-2 max-w-md">
           <Button
             variant={theme === 'light' ? 'default' : 'outline'}
@@ -77,7 +77,7 @@ export function AppearanceSettingsTab() {
             onClick={() => setTheme('light')}
           >
             <Sun className="h-4 w-4 mr-1" />
-            {t('settings:appearance.themeLight')}
+            {t('settings:general.themeLight')}
           </Button>
           <Button
             variant={theme === 'dark' ? 'default' : 'outline'}
@@ -85,7 +85,7 @@ export function AppearanceSettingsTab() {
             onClick={() => setTheme('dark')}
           >
             <Moon className="h-4 w-4 mr-1" />
-            {t('settings:appearance.themeDark')}
+            {t('settings:general.themeDark')}
           </Button>
           <Button
             variant={theme === 'system' ? 'default' : 'outline'}
@@ -93,21 +93,21 @@ export function AppearanceSettingsTab() {
             onClick={() => setTheme('system')}
           >
             <Monitor className="h-4 w-4 mr-1" />
-            {t('settings:appearance.themeSystem')}
+            {t('settings:general.themeSystem')}
           </Button>
         </div>
         <p className="text-xs text-muted-foreground mt-2">
-          {t('settings:appearance.themeSystemHint')}
+          {t('settings:general.themeSystemHint')}
         </p>
       </div>
 
       <div className="pt-2 border-t">
         <h3 className="text-sm font-semibold mb-3 mt-3">
-          {t('settings:appearance.languageHeading')}
+          {t('settings:general.languageHeading')}
         </h3>
         <PreferenceSelect
-          label={t('settings:appearance.languageLabel')}
-          hint={t('settings:appearance.languageHint')}
+          label={t('settings:general.languageLabel')}
+          hint={t('settings:general.languageHint')}
           value={localPrefs.uiLocale}
           options={LANGUAGES.map((language) => ({ value: language.code, label: language.name }))}
           onChange={setUiLocale}
@@ -116,39 +116,39 @@ export function AppearanceSettingsTab() {
 
       <div className="pt-2 border-t">
         <h3 className="text-sm font-semibold mb-3 mt-3">
-          {t('settings:appearance.preferencesHeading')}
+          {t('settings:general.preferencesHeading')}
         </h3>
         <PreferenceToggle
-          label={t('settings:appearance.compactDensity')}
-          hint={t('settings:appearance.compactDensityHint')}
+          label={t('settings:general.compactDensity')}
+          hint={t('settings:general.compactDensityHint')}
           selector={(state) => state.compactMode}
           onChange={() => useUIStore.getState().toggleCompactMode()}
         />
         <PreferenceToggle
-          label={t('settings:appearance.soundOnComplete')}
-          hint={t('settings:appearance.soundOnCompleteHint')}
+          label={t('settings:general.soundOnComplete')}
+          hint={t('settings:general.soundOnCompleteHint')}
           selector={null}
           configKey="soundOnComplete"
         />
         <PreferenceToggle
-          label={t('settings:appearance.titleAnimation')}
-          hint={t('settings:appearance.titleAnimationHint')}
+          label={t('settings:general.titleAnimation')}
+          hint={t('settings:general.titleAnimationHint')}
           value={localPrefs.titleAnimation}
           onChange={() => syncPref('titleAnimation', !localPrefs.titleAnimation)}
         />
         <PreferenceToggle
-          label={t('settings:appearance.showThinkingLabel')}
-          hint={t('settings:appearance.showThinkingHint')}
+          label={t('settings:general.showThinkingLabel')}
+          hint={t('settings:general.showThinkingHint')}
           value={localPrefs.showThinkingLogs}
           onChange={() => syncPref('showThinkingLogs', !localPrefs.showThinkingLogs)}
         />
         <PreferenceToggle
-          label={t('settings:appearance.groupToolCallsLabel')}
-          hint={t('settings:appearance.groupToolCallsHint')}
+          label={t('settings:general.groupToolCallsLabel')}
+          hint={t('settings:general.groupToolCallsHint')}
           value={localPrefs.groupToolCalls}
           onChange={() => syncPref('groupToolCalls', !localPrefs.groupToolCalls)}
         />
       </div>
-    </TabsContent>
+    </div>
   );
 }

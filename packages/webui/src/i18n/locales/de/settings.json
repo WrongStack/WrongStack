@@ -141,8 +141,7 @@
     "toastConnected": "Server „{{name}}“ verbunden",
     "toastReconnected": "Server „{{name}}“ neu verbunden",
     "toastDisconnected": "Server „{{name}}“ getrennt: {{reason}}",
-    "toastError": "Server „{{name}}“ Fehler: {{error}}",
-    "disabledHint": "Aktivieren Sie das \"MCP-Server\"-Feature-Flag im Context-Tab, um diesen Bereich zu nutzen."
+    "toastError": "Server „{{name}}“ Fehler: {{error}}"
   },
   "allowlist": {
     "title": "Gespeicherte Allowlist löschen?",
@@ -301,8 +300,8 @@
     "breakerHint": "Sperrt bash/exec nach wiederholten Fehlern; beim Auslösen startet der Kill/Reset-Countdown.",
     "breakerTimeoutLabel": "Kill/Reset-Timeout des Schutzschalters",
     "breakerTimeoutHint": "Verzögerung bis zum automatischen Kill/Reset nach dem Auslösen. 0 = manuelle Wiederherstellung.",
-    "availabilityHeading": "Provider/model availability calendar",
-    "availabilityHint": "Prevent autonomous and overnight runs from using selected providers or models during recurring windows."
+    "availabilityHeading": "Verfügbarkeitskalender für Anbieter/Modelle",
+    "availabilityHint": "Verhindert, dass autonome und nächtliche Ausführungen ausgewählte Anbieter oder Modelle in wiederkehrenden Fenstern verwenden."
   },
   "fallbacks": {
     "heading": "Modell-Fallbacks",
@@ -396,7 +395,7 @@
     "autoReviewCascadeHigh": "Hoch — kritische oder hohe Funde",
     "autoReviewPickModel": "Anbieter/Modell für Auto-Review wählen",
     "autoReviewPickModelHint": "Anbieter/Modell oder Fallback-Profil für Auto-Review wählen.",
-    "pluginsPerPluginHint": "Enable or disable individual plugins. Changes take effect on next session."
+    "pluginsPerPluginHint": "Einzelne Plugins aktivieren oder deaktivieren. Änderungen werden mit der nächsten Sitzung wirksam."
   },
   "context": {
     "flagsHeading": "Feature-Flags",
@@ -490,6 +489,7 @@
     "selectProviderModelFirst": "Wählen Sie zuerst einen Anbieter und ein Modell",
     "defaultProfileCreated": "Standard-Fallback-Profil erstellt",
     "profileEmpty": "Fallback-Profil \"{{name}}\" ist leer",
-    "leaderSetFrom": "Leader aus {{name}} gesetzt"
+    "leaderSetFrom": "Leader aus {{name}} gesetzt",
+    "modelSwitchTimeout": "Zeitüberschreitung beim Modellwechsel. Bitte erneut versuchen."
   }
 }
