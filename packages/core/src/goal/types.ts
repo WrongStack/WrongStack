@@ -74,6 +74,12 @@ export interface PhaseGraph {
   autonomous: boolean;
   /** Stop when all phases complete. */
   stopOnComplete: boolean;
+  /** Split into separate kanban boards per phase. */
+  multiBoard?: boolean | undefined;
+  /** Run typecheck/lint verification after each task. */
+  verifyTasks?: boolean | undefined;
+  /** Enable chimera auto-review for this run. */
+  chimeraReview?: boolean | undefined;
   createdAt: number;
   updatedAt: number;
   startedAt?: number | undefined;

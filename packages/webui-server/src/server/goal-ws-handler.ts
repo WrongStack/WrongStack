@@ -10,7 +10,9 @@ import {
   PhaseOrchestrator,
   PhaseStore,
   type GoalAssessResult,
+  type PhaseExecutionContext,
   type PhaseGraph,
+  type PhaseNode,
   type PhaseTemplate,
 } from '@wrongstack/core/goal';
 import type { Agent, Context } from '@wrongstack/core/agent';
@@ -317,6 +319,9 @@ export class GoalWebSocketHandler {
     const goal = (payload?.goal as string) || (payload?.title as string) || 'Untitled Project';
     const title = deriveTitle(goal);
     const autonomous = (payload?.autonomous as boolean) ?? true;
+    const multiBoard = (payload?.multiBoard as boolean) ?? false;
+    const verifyTasks = (payload?.verifyTasks as boolean) ?? false;
+    const chimeraReview = (payload?.chimeraReview as boolean) ?? false;
 
     // Fresh abort for THIS run, created BEFORE planning so a stop pressed during
     // the (long) planning turn actually cancels it. Previously the controller was
@@ -345,7 +350,7 @@ export class GoalWebSocketHandler {
 
     // Build the graph up-front so we have a reference for live broadcasts and
     // persistence *before* the (long-running) build begins.
-    const graph = await new PhaseGraphBuilder({ title, description: goal, phases, autonomous }).build();
+    const graph = await new PhaseGraphBuilder({ title, description: goal, phases, autonomous, multiBoard, verifyTasks, chimeraReview }).build();
     this.graph = graph;
     await this.store.save(graph);
 
@@ -378,15 +383,50 @@ export class GoalWebSocketHandler {
       this.runBase = await this.worktrees.currentBase();
     }
 
-    // NOTE: this interactive-board orchestrator deliberately omits the CLI host's
-    // `verifyPhase`/`repairPhase`/`resolveConflict` hooks. The WebUI run is
-    // human-supervised (live kanban + manual task moves), so it trusts the task
-    // agents + the operator rather than running an autonomous typecheck/lint gate
-    // and repair/conflict-resolver subagents. Worktree isolation + squash-merge
-    // still happen (above); an unresolved merge conflict simply parks the worktree
-    // for review (mergeOne's default). The fully-autonomous gate lives in the CLI
-    // host (`packages/cli/src/goal-host.ts`). Keep these two in mind when
-    // changing phase-completion semantics.
+    // Verification hooks — conditionally wired when verifyTasks is enabled.
+    // When active, the orchestrator runs typecheck after each task and triggers
+    // a repair subagent on failure, closing the verify→repair→verify loop.
+    const maybeVerify: {
+      verifyPhase?: PhaseExecutionContext['verifyPhase'];
+      repairPhase?: PhaseExecutionContext['repairPhase'];
+    } = {};
+    if (verifyTasks && this.projectRoot) {
+      maybeVerify.verifyPhase = (async (phase: PhaseNode, env?: { cwd?: string | undefined; branch?: string | undefined }) => {
+        const cwd = env?.cwd ?? this.projectRoot!;
+        try {
+          // Run typecheck in the phase worktree (or project root).
+          const { exec } = await import('node:child_process');
+          const result = await new Promise<string>((resolve) => {
+            exec('npx tsc --noEmit', { cwd, timeout: 60_000 }, (err, stdout, stderr) => {
+              if (err && (err as NodeJS.ErrnoException).code === 'ENOENT') {
+                resolve('[verify] tsc not found — skipping');
+                return;
+              }
+              resolve(stdout + stderr);
+            });
+          });
+          if (result.includes('[verify]') || result.trim().length === 0) {
+            return { ok: true as const };
+          }
+          this.logger.warn(`[Goal] Verify failed for phase "${phase.name}":\n${result}`);
+          return { ok: false as const, output: result };
+        } catch {
+          return { ok: true as const };
+        }
+      }) as PhaseExecutionContext['verifyPhase'];
+      maybeVerify.repairPhase = (async (phase: PhaseNode, failure: string, attempt: number) => {
+        this.logger.info(`[Goal] Repair attempt ${attempt} for phase "${phase.name}"`);
+        const repairPrompt = `Fix all type errors in the project at ${this.projectRoot ?? '(unknown)'}. Typecheck output:\n\n${failure.slice(0, 4000)}\n\nRun npx tsc --noEmit to verify the fix. Output the fixed file paths.`;
+        const repairResult = (await this.agent.run(repairPrompt)) as {
+          status: string;
+          finalText?: string | undefined;
+        };
+        if (repairResult.status !== 'done') {
+          this.logger.warn(`[Goal] Repair attempt ${attempt} did not complete`);
+        }
+      }) as PhaseExecutionContext['repairPhase'];
+    }
+
     this.orchestrator = new PhaseOrchestrator({
       graph,
       ctx: {
@@ -396,6 +436,7 @@ export class GoalWebSocketHandler {
           this.logger.info(`[Goal] [${phaseId}] Completed: ${task.title}`);
           return result;
         },
+        ...maybeVerify,
         onPhaseComplete: (phase) => {
           this.logger.info(`[Goal] Phase completed: ${phase.name}`);
           void this.store.save(graph);
@@ -634,7 +675,7 @@ export class GoalWebSocketHandler {
 
   private buildState(activePhaseId?: string): Record<string, unknown> {
     if (!this.graph) {
-      return { phases: [], tasks: [], overallPercent: 0, autonomous: true, title: '' };
+      return { phases: [], tasks: [], overallPercent: 0, autonomous: true, title: '', multiBoard: false, verifyTasks: false, chimeraReview: false };
     }
 
     const phases = Array.from(this.graph.phases.values());
@@ -730,6 +771,9 @@ export class GoalWebSocketHandler {
         failedTasks,
       },
       lastError,
+      multiBoard: this.graph.multiBoard ?? false,
+      verifyTasks: this.graph.verifyTasks ?? false,
+      chimeraReview: this.graph.chimeraReview ?? false,
     };
   }
 

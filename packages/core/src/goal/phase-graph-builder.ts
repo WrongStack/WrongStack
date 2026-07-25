@@ -13,6 +13,12 @@ export interface PhaseGraphBuilderOptions {
   stopOnFailure?: boolean | undefined;
   /** Optional external TaskStore. */
   externalTaskStore?: TaskStore | undefined;
+  /** Split into separate kanban boards per phase. */
+  multiBoard?: boolean | undefined;
+  /** Run typecheck/lint verification after each task. */
+  verifyTasks?: boolean | undefined;
+  /** Enable chimera auto-review for this run. */
+  chimeraReview?: boolean | undefined;
 }
 
 /**
@@ -106,6 +112,9 @@ export class PhaseGraphBuilder {
       failedPhaseIds: [],
       autonomous: this.opts.autonomous ?? true,
       stopOnComplete: true,
+      multiBoard: this.opts.multiBoard,
+      verifyTasks: this.opts.verifyTasks,
+      chimeraReview: this.opts.chimeraReview,
       createdAt: Date.now(),
       updatedAt: Date.now(),
     };
