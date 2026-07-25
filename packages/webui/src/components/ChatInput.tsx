@@ -34,6 +34,22 @@ import { Button } from './ui/button';
 const REFINE_RETRY_FEEDBACK =
   'Make another pass that is sharper and more self-contained. Use the provided project memory, current session context, and recent conversation only to resolve references and preserve project vocabulary; keep the original scope unchanged.';
 
+/**
+ * Decide what the chat input should contain after the refine panel is
+ * cancelled (X / Esc / plain cancel) WITHOUT sending anything.
+ *
+ * Contract:
+ *  - If the user already copied a version into the input (so `prev` holds
+ *    meaningful text), keep it untouched.
+ *  - Otherwise restore the `original` prompt they last typed, which was
+ *    cleared to '' at submit time when the panel opened.
+ *
+ * Exported so the ChatInput handler and its tests share one source of truth.
+ */
+export function resolveCancelInput(prev: string, original: string): string {
+  return prev.trim() ? prev : original;
+}
+
 export function ChatInput({
   onOpenBreakdown,
 }: {
@@ -984,8 +1000,25 @@ export function ChatInput({
             refineModel?.(refinePanel.original, { timeoutMs: 180_000, provider, model });
           }}
           onPickModel={() => setRefinePickOpen(true)}
+          onCopyToInput={(copied) => {
+            // Copy the chosen version into the input WITHOUT sending. The
+            // panel is already cleared by RefinePanel; just place the text so
+            // the user can keep editing/appending before submitting.
+            setRefinePanel(null);
+            setInput(copied);
+          }}
           onDecision={(decision) => {
             const { original, refined, english } = refinePanel;
+
+            // Cancel: close the panel without submitting. If the user never
+            // copied any version into the input, restore the text they last
+            // typed (the original prompt) so it isn't lost.
+            if (decision === 'cancel') {
+              setRefinePanel(null);
+              setInput((prev) => resolveCancelInput(prev, original));
+              return;
+            }
+
             let text = original;
             if (decision === 'refined') text = refined;
             else if (decision === 'english') text = english;

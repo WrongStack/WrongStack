@@ -61,24 +61,33 @@ interface RenderOpts {
   status?: 'countdown' | 'refining' | 'ready' | 'failed';
   onStartRefine?: () => void;
   onDecision?: (d: RefineDecision) => void;
+  onCopyToInput?: ((text: string) => void) | undefined;
+  original?: string;
+  refined?: string;
+  english?: string;
+  /** Pass explicitly to omit the prop entirely (guards the copy icons). */
+  withCopyToInput?: boolean;
 }
 
 function renderCountdown(opts: RenderOpts = {}) {
   const onDecision = opts.onDecision ?? vi.fn();
   const onStartRefine = opts.onStartRefine ?? vi.fn();
+  const withCopy = opts.withCopyToInput ?? true;
+  const onCopyToInput = withCopy ? (opts.onCopyToInput ?? vi.fn()) : undefined;
 
   const utils = render(
     <RefinePanel
-      original="fix the bug"
-      refined="fix the bug"
-      english="fix the bug"
+      original={opts.original ?? 'fix the bug'}
+      refined={opts.refined ?? 'fix the bug'}
+      english={opts.english ?? 'fix the bug'}
       status={opts.status ?? 'countdown'}
       onDecision={onDecision}
       onStartRefine={onStartRefine}
+      onCopyToInput={onCopyToInput}
     />,
   );
 
-  return { ...utils, onDecision, onStartRefine };
+  return { ...utils, onDecision, onStartRefine, onCopyToInput };
 }
 
 // ── Tests ──────────────────────────────────────────────────────────────
@@ -188,7 +197,7 @@ describe('RefinePanel — countdown phase', () => {
     expect(onDecision).toHaveBeenCalledTimes(1);
   });
 
-  it('X (cancel) button calls onDecision("original")', () => {
+  it('X (cancel) button calls onDecision("cancel") — does NOT submit', () => {
     const onDecision = vi.fn();
     renderCountdown({ onDecision });
 
@@ -196,7 +205,7 @@ describe('RefinePanel — countdown phase', () => {
     const cancelBtn = screen.getByTitle('activity:refine.cancelTitle');
     fireEvent.click(cancelBtn);
 
-    expect(onDecision).toHaveBeenCalledWith('original');
+    expect(onDecision).toHaveBeenCalledWith('cancel');
   });
 });
 
@@ -212,3 +221,100 @@ describe('RefinePanel — refining state cancel button', () => {
     expect(onDecision).toHaveBeenCalledTimes(1);
   });
 });
+
+describe('RefinePanel — copy-to-input icons', () => {
+  const COPY_TITLE = 'activity:refine.copyToInputTitle';
+
+  // In the 'ready' comparison state all three versions (original / refined /
+  // english) render, each with its own copy icon in field order.
+  function renderReadyCopy(onCopyToInput = vi.fn()) {
+    const utils = renderCountdown({
+      status: 'ready',
+      original: 'orig text',
+      refined: 'refined text',
+      english: 'english text',
+      onCopyToInput,
+    });
+    return { ...utils, onCopyToInput };
+  }
+
+  it('renders a copy icon for each of the three versions in ready state', () => {
+    renderReadyCopy();
+    // original + refined + english = 3 copy buttons.
+    expect(screen.getAllByTitle(COPY_TITLE)).toHaveLength(3);
+  });
+
+  it('copy icon on ORIGINAL calls onCopyToInput with the original text (no submit)', () => {
+    const onDecision = vi.fn();
+    const onCopyToInput = vi.fn();
+    renderCountdown({
+      status: 'ready',
+      original: 'orig text',
+      refined: 'refined text',
+      english: 'english text',
+      onDecision,
+      onCopyToInput,
+    });
+    const [originalCopy] = screen.getAllByTitle(COPY_TITLE);
+    fireEvent.click(originalCopy!);
+
+    expect(onCopyToInput).toHaveBeenCalledWith('orig text');
+    expect(onCopyToInput).toHaveBeenCalledTimes(1);
+    // Copy must NOT submit any version.
+    expect(onDecision).not.toHaveBeenCalled();
+  });
+
+  it('copy icon on REFINED calls onCopyToInput with the refined text', () => {
+    const { onCopyToInput } = renderReadyCopy();
+    const [, refinedCopy] = screen.getAllByTitle(COPY_TITLE);
+    fireEvent.click(refinedCopy!);
+
+    expect(onCopyToInput).toHaveBeenCalledWith('refined text');
+    expect(onCopyToInput).toHaveBeenCalledTimes(1);
+  });
+
+  it('copy icon on ENGLISH calls onCopyToInput with the english text', () => {
+    const { onCopyToInput } = renderReadyCopy();
+    const [, , englishCopy] = screen.getAllByTitle(COPY_TITLE);
+    fireEvent.click(englishCopy!);
+
+    expect(onCopyToInput).toHaveBeenCalledWith('english text');
+    expect(onCopyToInput).toHaveBeenCalledTimes(1);
+  });
+
+  it('clicking copy does NOT fire onDecision (never submits)', () => {
+    const onDecision = vi.fn();
+    const onCopyToInput = vi.fn();
+    renderCountdown({
+      status: 'ready',
+      original: 'a',
+      refined: 'b',
+      english: 'c',
+      onDecision,
+      onCopyToInput,
+    });
+
+    for (const btn of screen.getAllByTitle(COPY_TITLE)) {
+      fireEvent.click(btn);
+    }
+    expect(onDecision).not.toHaveBeenCalled();
+    expect(onCopyToInput).toHaveBeenCalledTimes(3);
+  });
+
+  it('omits the copy icons entirely when onCopyToInput is not provided', () => {
+    renderCountdown({
+      status: 'ready',
+      original: 'a',
+      refined: 'b',
+      english: 'c',
+      withCopyToInput: false,
+    });
+    expect(screen.queryAllByTitle(COPY_TITLE)).toHaveLength(0);
+  });
+});
+
+// NOTE: The "restore original on plain cancel" policy (ChatInput's
+// onDecision('cancel') handler) is covered against the REAL exported
+// `resolveCancelInput` helper and real React input state in
+// chat-input-refine-wiring.test.tsx — not with a local mirror here, so the
+// assertions can't drift away from production.
