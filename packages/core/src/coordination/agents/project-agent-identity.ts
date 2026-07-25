@@ -30,6 +30,27 @@ import {
 } from 'node:fs';
 import * as path from 'node:path';
 import type { SubagentConfig } from '../../types/multi-agent.js';
+import { validateProjectAgentConfig } from './project-agent-config-validation.js';
+import { BUILT_IN_KNOWLEDGE_MANIFESTS } from './project-agent-knowledge-manifests.js';
+import {
+  classifyLearnedEntry,
+  LEARNED_HARD_LIMIT,
+  LEARNED_SOFT_LIMIT,
+  type LearnedEntryCategory,
+  MIN_INSTRUCTIVE_LENGTH,
+  normalizeForComparison,
+  normalizeLearnedEntry,
+} from './project-agent-learning-normalize.js';
+
+export { validateProjectAgentConfig } from './project-agent-config-validation.js';
+export {
+  classifyLearnedEntry,
+  LEARNED_ENTRY_MAX_CHARS,
+  LEARNED_HARD_LIMIT,
+  LEARNED_SOFT_LIMIT,
+  type LearnedEntryCategory,
+  normalizeLearnedEntry,
+} from './project-agent-learning-normalize.js';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -102,181 +123,6 @@ export interface CreateProjectAgentInput {
   purpose: string;
   taskTypes: string[];
   baseRole?: string | undefined;
-}
-
-const PROJECT_AGENT_CONFIG_KEYS = new Set([
-  'tools',
-  'skillNames',
-  'budget',
-  'provider',
-  'model',
-  'allowedCapabilities',
-  'modelPolicy',
-  'fallbackProfile',
-  'cwd',
-  'worktree',
-  'availability',
-]);
-
-const PROJECT_AGENT_BUDGET_KEYS = new Set([
-  'timeoutMs',
-  'idleTimeoutMs',
-  'maxIterations',
-  'maxToolCalls',
-  'maxTokens',
-  'maxCostUsd',
-]);
-
-function isPlainRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value);
-}
-
-function assertStringList(value: unknown, field: string): asserts value is string[] {
-  if (
-    !Array.isArray(value) ||
-    value.some((entry) => typeof entry !== 'string' || entry.trim().length === 0)
-  ) {
-    throw new Error(`Project agent config "${field}" must be an array of non-empty strings.`);
-  }
-}
-
-/** Validate untrusted JSON before it can alter a roster agent runtime. */
-export function validateProjectAgentConfig(value: unknown): ProjectAgentConfig {
-  if (!isPlainRecord(value)) throw new Error('Project agent config must be an object.');
-
-  const unknownKey = Object.keys(value).find((key) => !PROJECT_AGENT_CONFIG_KEYS.has(key));
-  if (unknownKey) throw new Error(`Unknown project agent config field: "${unknownKey}".`);
-
-  if (value.tools !== undefined) assertStringList(value.tools, 'tools');
-  if (value.skillNames !== undefined) assertStringList(value.skillNames, 'skillNames');
-  if (value.allowedCapabilities !== undefined) {
-    assertStringList(value.allowedCapabilities, 'allowedCapabilities');
-  }
-  for (const field of ['provider', 'model', 'fallbackProfile'] as const) {
-    const fieldValue = value[field];
-    if (fieldValue !== undefined && (typeof fieldValue !== 'string' || !fieldValue.trim())) {
-      throw new Error(`Project agent config "${field}" must be a non-empty string.`);
-    }
-  }
-
-  if (value.cwd !== undefined) {
-    if (typeof value.cwd !== 'string' || !value.cwd.trim()) {
-      throw new Error('Project agent config "cwd" must be a non-empty relative path.');
-    }
-    const cwd = value.cwd.replace(/\\/g, '/').trim();
-    if (path.posix.isAbsolute(cwd) || /^[a-z]:\//i.test(cwd) || cwd.split('/').includes('..')) {
-      throw new Error('Project agent config "cwd" must stay inside the assigned checkout.');
-    }
-  }
-  if (
-    value.worktree !== undefined &&
-    value.worktree !== true &&
-    value.worktree !== false &&
-    value.worktree !== 'auto' &&
-    value.worktree !== 'required' &&
-    value.worktree !== 'off'
-  ) {
-    throw new Error('Project agent config "worktree" must be auto, required, off, or boolean.');
-  }
-
-  if (value.modelPolicy !== undefined) validateProjectAgentModelPolicy(value.modelPolicy);
-  if (value.availability !== undefined) validateProjectAgentAvailability(value.availability);
-
-  if (value.budget !== undefined) {
-    if (!isPlainRecord(value.budget)) {
-      throw new Error('Project agent config "budget" must be an object.');
-    }
-    const unknownBudgetKey = Object.keys(value.budget).find(
-      (key) => !PROJECT_AGENT_BUDGET_KEYS.has(key),
-    );
-    if (unknownBudgetKey) {
-      throw new Error(`Unknown project agent budget field: "${unknownBudgetKey}".`);
-    }
-    for (const [field, amount] of Object.entries(value.budget)) {
-      if (typeof amount !== 'number' || !Number.isFinite(amount) || amount < 0) {
-        throw new Error(`Project agent budget "${field}" must be a finite non-negative number.`);
-      }
-      if (field !== 'maxCostUsd' && !Number.isInteger(amount)) {
-        throw new Error(`Project agent budget "${field}" must be an integer.`);
-      }
-    }
-  }
-
-  return value as ProjectAgentConfig;
-}
-
-function validateProjectAgentModelPolicy(value: unknown): void {
-  if (!isPlainRecord(value)) throw new Error('Project agent modelPolicy must be an object.');
-  const allowedKeys = new Set(['allowed', 'fallbacks', 'strict']);
-  const unknownKey = Object.keys(value).find((key) => !allowedKeys.has(key));
-  if (unknownKey) throw new Error(`Unknown modelPolicy field: "${unknownKey}".`);
-
-  const validateTargets = (targets: unknown, field: string, allowEmpty: boolean) => {
-    if (!Array.isArray(targets) || (!allowEmpty && targets.length === 0)) {
-      throw new Error(`Project agent modelPolicy "${field}" must be a non-empty array.`);
-    }
-    for (const target of targets) {
-      if (
-        !isPlainRecord(target) ||
-        typeof target.provider !== 'string' ||
-        !target.provider.trim() ||
-        typeof target.model !== 'string' ||
-        !target.model.trim()
-      ) {
-        throw new Error(`Project agent modelPolicy "${field}" contains an invalid target.`);
-      }
-    }
-  };
-  validateTargets(value.allowed, 'allowed', false);
-  if (value.fallbacks !== undefined) {
-    validateTargets(value.fallbacks, 'fallbacks', true);
-    const allowed = new Set(
-      (value.allowed as Array<{ provider: string; model: string }>).map(
-        (target) => `${target.provider}\0${target.model}`,
-      ),
-    );
-    for (const target of value.fallbacks as Array<{ provider: string; model: string }>) {
-      if (!allowed.has(`${target.provider}\0${target.model}`)) {
-        throw new Error('Every modelPolicy fallback must also appear in allowed.');
-      }
-    }
-  }
-  if (value.strict !== undefined && typeof value.strict !== 'boolean') {
-    throw new Error('Project agent modelPolicy "strict" must be boolean.');
-  }
-}
-
-function validateProjectAgentAvailability(value: unknown): void {
-  if (!isPlainRecord(value)) throw new Error('Project agent availability must be an object.');
-  const allowedKeys = new Set(['timezone', 'days', 'start', 'end', 'mode']);
-  const unknownKey = Object.keys(value).find((key) => !allowedKeys.has(key));
-  if (unknownKey) throw new Error(`Unknown availability field: "${unknownKey}".`);
-  if (typeof value.timezone !== 'string' || !value.timezone.trim()) {
-    throw new Error('Project agent availability requires a timezone.');
-  }
-  try {
-    new Intl.DateTimeFormat('en-US', { timeZone: value.timezone }).format();
-  } catch {
-    throw new Error(`Invalid project agent availability timezone: "${value.timezone}".`);
-  }
-  if (
-    !Array.isArray(value.days) ||
-    value.days.length === 0 ||
-    value.days.some((day) => !Number.isInteger(day) || (day as number) < 0 || (day as number) > 6)
-  ) {
-    throw new Error('Project agent availability days must contain weekday numbers 0-6.');
-  }
-  if (
-    typeof value.start !== 'string' ||
-    typeof value.end !== 'string' ||
-    !/^([01]\d|2[0-3]):[0-5]\d$/.test(value.start) ||
-    !/^([01]\d|2[0-3]):[0-5]\d$/.test(value.end)
-  ) {
-    throw new Error('Project agent availability start/end must use HH:MM.');
-  }
-  if (value.mode !== undefined && value.mode !== 'advisory' && value.mode !== 'enforce') {
-    throw new Error('Project agent availability mode must be advisory or enforce.');
-  }
 }
 
 /** Persistent controls and counters for one roster role's learning loop. */
@@ -761,13 +607,16 @@ const SYSTEM_AGENT_BUDGET_FLOORS = {
   maxToolCalls: 40,
   maxTokens: 8_192,
   maxCostUsd: 0.25,
-} as const;
+} as const satisfies Partial<Record<keyof SubagentConfig, number>>;
+
+type BudgetFloorEntry = {
+  [K in keyof typeof SYSTEM_AGENT_BUDGET_FLOORS]: [K, (typeof SYSTEM_AGENT_BUDGET_FLOORS)[K]];
+}[keyof typeof SYSTEM_AGENT_BUDGET_FLOORS];
 
 function applySystemAgentBudgetFloors(config: SubagentConfig): void {
-  const mutable = config as unknown as Record<string, unknown>;
-  for (const [field, floor] of Object.entries(SYSTEM_AGENT_BUDGET_FLOORS)) {
-    const value = mutable[field];
-    if (typeof value === 'number' && value < floor) mutable[field] = floor;
+  for (const [field, floor] of Object.entries(SYSTEM_AGENT_BUDGET_FLOORS) as BudgetFloorEntry[]) {
+    const value = config[field];
+    if (typeof value === 'number' && value < floor) config[field] = floor;
   }
 }
 
@@ -901,12 +750,7 @@ export function refreshProjectAgentIdentity(role: string, projectRoot?: string):
   // Remove learned wisdom and identity, keep config.json and knowledge.json
   // Also clear any consolidated document since it was derived from entries
   // that are about to be wiped.
-  for (const file of [
-    'learned.md',
-    'identity.md',
-    'consolidated.md',
-    'consolidation.json',
-  ]) {
+  for (const file of ['learned.md', 'identity.md', 'consolidated.md', 'consolidation.json']) {
     const fp = path.join(dir, file);
     try {
       rmSync(fp, { force: true });
@@ -1110,277 +954,6 @@ export function buildProjectContextualizedPrompt(
 //         hook  : packages/cli/src/fleet/host.ts
 // ---------------------------------------------------------------------------
 
-export const LEARNED_SOFT_LIMIT = 8_192;
-export const LEARNED_HARD_LIMIT = 16_384;
-
-/**
- * Maximum length (in characters) of a single captured learning entry after
- * normalization. Entries longer than this are truncated to the first few
- * instructive sentences. Keeps `learned.md` scannable and prevents agents
- * from dumping journal-style narratives into the buffer.
- */
-export const LEARNED_ENTRY_MAX_CHARS = 600;
-
-/**
- * Minimum instructive content length (after stripping ephemeral artifacts
- * and narrative framing) for an entry to qualify as learned data.
- */
-const MIN_INSTRUCTIVE_LENGTH = 30;
-
-/**
- * Category tag for a captured learning entry. Derived deterministically from
- * the entry's content so the file is self-describing and scannable.
- *
- *  - `convention`  — durable rule / standard ("Always run X", "Never assume Y")
- *  - `pattern`     — reusable approach ("Use X for Y", "Prefer A over B")
- *  - `warning`     — pitfall / anti-pattern ("Avoid X", "Beware Y")
- *  - `fact`        — stable project fact (default when no directive verb matches)
- */
-export type LearnedEntryCategory = 'convention' | 'pattern' | 'warning' | 'fact';
-
-/**
- * Patterns whose presence signals an entry is narrative ("I/we did X") rather
- * than instructive ("Always do X"). When a sentence begins with one of these,
- * it is describing an event, not a principle — and gets stripped at capture
- * time so the buffer is not polluted with session logs.
- *
- * Each pattern matches a sentence START (after a sentence boundary), so it
- * only fires on narrative framing, never on substantive content that happens
- * to mention those words.
- */
-const NARRATIVE_SENTENCE_STARTS: readonly RegExp[] = [
-  /^(?:when|while|during|after|before|once|since)\s+(?:i|we|the agent|i was|i were|i had)\b/i,
-  /^(?:i|we)\s+(?:found|noticed|learned|discovered|realized|saw|encountered|hit|ran into)\b/i,
-  /^(?:i|we)\s+(?:was|were|had|did|ran|tried|attempted|used|modified|changed|updated)\b/i,
-  /^(?:this|that|the)\s+(?:task|session|run|commit|change|pr|pull request|invocation)\b/i,
-  /^(?:in|on|for|at|during)\s+(?:this|that|the)\s+(?:task|session|run|commit|change|pr)\b/i,
-  /^(?:today|yesterday|earlier|just now|recently|lately)\b/i,
-];
-
-/**
- * Ephemeral artifacts that are noisy anchors (they pin an entry to a single
- * moment in history instead of making it actionable across sessions). Stripped
- * before persistence so the buffer reads like durable guidance.
- *
- * Kept deliberately conservative: file paths, package names, and command names
- * are NEVER stripped — those anchor the lesson in actionable form.
- */
-const EPHEMERAL_PATTERNS: readonly { pattern: RegExp; replacement: string }[] = [
-  // Git commit / blob SHAs (7-40 hex chars surrounded by word boundaries).
-  { pattern: /\b[0-9a-f]{7,40}\b/g, replacement: '' },
-  // ISO-8601 timestamps (with optional fractional seconds and timezone).
-  {
-    pattern: /\b\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}(?::\d{2})?(?:\.\d+)?(?:Z|[+-]\d{2}:?\d{2})?\b/g,
-    replacement: '',
-  },
-  // Date-only references in narrative context ("on 2026-07-22", "from 2026-01-15").
-  // Matches date preceded by a preposition so we don't strip version strings
-  // like "2026.1.0" or legitimate date-valued configuration.
-  { pattern: /(?<=\b(?:on|from|since|before|after|dated|until)\s)\d{4}-\d{2}-\d{2}\b/gi, replacement: '' },
-  // Specific line / line-range references ("line 42", "lines 10–20").
-  { pattern: /\b(?:line|lines?)\s+\d+(?:\s*[-–]\s*\d+)?/gi, replacement: '' },
-  // PR / issue / MR number references ("PR #42", "issue #100").
-  { pattern: /#\s*(?:PR|issue|MR)\s*\d+/gi, replacement: '' },
-  // Standalone PR/issue/mr id (#123) when it's a numeric-only reference.
-  { pattern: /(?<=\s)#\d{1,6}\b/g, replacement: '' },
-];
-
-/**
- * Normalize a captured LEARNED block into an instructive entry.
- *
- * Removes ephemeral artifacts (commit SHAs, timestamps, line numbers, PR refs),
- * strips narrative framing sentences ("When I did X...", "Today I found..."),
- * and enforces a maximum length. Returns `null` when the block is too thin,
- * too narrative, or otherwise cannot be salvaged into actionable guidance —
- * in which case the capture pipeline should reject it rather than persist a
- * session-log entry that masquerades as learned data.
- *
- * This function is deliberately conservative: when unsure, it preserves the
- * content. The goal is to remove clearly-noisy artifacts, not to rewrite the
- * agent's lesson.
- */
-export function normalizeLearnedEntry(raw: string): {
-  text: string;
-  category: LearnedEntryCategory;
-} | null {
-  if (!raw) return null;
-
-  // Step 1: strip ephemeral artifacts.
-  let cleaned = raw;
-  for (const { pattern, replacement } of EPHEMERAL_PATTERNS) {
-    cleaned = cleaned.replace(pattern, replacement);
-  }
-
-  // Step 2: split into sentences and drop narrative-only sentences.
-  // A sentence is "narrative-only" when it STARTS with a narrative marker
-  // and contains no directive verb / imperative framing — i.e. it is purely
-  // describing what happened. Substantive sentences that merely mention
-  // a temporal marker (e.g. "When retrying, use backoff with jitter")
-  // are preserved.
-  const sentences = splitSentences(cleaned);
-  const directiveSentences: string[] = [];
-  let hadSubstantiveNarrative = false;
-  for (const sentence of sentences) {
-    const trimmed = sentence.trim();
-    if (!trimmed) continue;
-    if (isNarrativeSentence(trimmed)) {
-      hadSubstantiveNarrative = true;
-      // If the sentence ALSO contains a directive verb, salvage the directive
-      // tail (e.g. "When polling, prefer long-poll with jitter" → keep "prefer
-      // long-poll with jitter"). Otherwise drop it.
-      const salvaged = salvageDirectiveTail(trimmed);
-      if (salvaged) {
-        directiveSentences.push(salvaged);
-      }
-      continue;
-    }
-    directiveSentences.push(trimmed);
-  }
-
-  // If every sentence was narrative-only and we salvaged nothing, this is a
-  // session log entry, not a learning — reject it.
-  if (directiveSentences.length === 0) return null;
-
-  let normalized = directiveSentences.join(' ').replace(/\s+/g, ' ').trim();
-
-  // Step 3: enforce length cap. Truncate to the first full sentence that fits.
-  if (normalized.length > LEARNED_ENTRY_MAX_CHARS) {
-    normalized = truncateToInstructive(normalized, LEARNED_ENTRY_MAX_CHARS);
-    if (normalized.length < MIN_INSTRUCTIVE_LENGTH) return null;
-  }
-
-  if (normalized.length < MIN_INSTRUCTIVE_LENGTH) return null;
-
-  // If the entry was overwhelmingly narrative (more than half of its
-  // sentences were narrative framing) and nothing directive remains, treat
-  // it as a session log entry.
-  if (hadSubstantiveNarrative && directiveSentences.length < sentences.length / 2) {
-    // Only reject if the surviving content is thin relative to the original.
-    if (normalized.length < MIN_INSTRUCTIVE_LENGTH * 2) return null;
-  }
-
-  return {
-    text: normalized,
-    category: classifyLearnedEntry(normalized),
-  };
-}
-
-/**
- * Split a block into sentence-like units. Conservative splitter that
- * respects common abbreviations and avoids splitting on decimals so we
- * don't shred well-formed technical content.
- */
-function splitSentences(text: string): string[] {
-  return text
-    .replace(/\s+/g, ' ')
-    .split(/(?<=[.!?])\s+(?=[A-Z(])/)
-    .map((s) => s.trim())
-    .filter(Boolean);
-}
-
-/**
- * Heuristic: is this sentence narrative framing (describes an event) rather
- * than instructive content (describes what should be done)?
- */
-function isNarrativeSentence(sentence: string): boolean {
-  return NARRATIVE_SENTENCE_STARTS.some((re) => re.test(sentence));
-}
-
-/**
- * Given a narrative sentence like "When retrying, prefer long-poll with jitter",
- * extract the directive tail ("prefer long-poll with jitter") and return it.
- * Returns null when no salvageable directive tail exists.
- */
-function salvageDirectiveTail(sentence: string): string | null {
-  // Try each narrative pattern; if it matches, look for a directive verb
-  // somewhere in the remainder.
-  for (const re of NARRATIVE_SENTENCE_STARTS) {
-    const m = re.exec(sentence);
-    if (!m) continue;
-    const tail = sentence.slice(m[0].length).replace(/^[,\s]+/, '').trim();
-    if (!tail) return null;
-    // Salvage only if the tail starts with a directive verb / noun phrase
-    // that reads as actionable guidance.
-    if (looksDirective(tail)) return tail;
-    return null;
-  }
-  return null;
-}
-
-const DIRECTIVE_VERB_PATTERN =
-  /^(?:always|never|prefer|avoid|use|ensure|verify|check|run|execute|apply|adopt|choose|require|must|should|don'?t|do not|keep|maintain|set|define|specify|validate|confirm|inspect|review|handle|enable|disable|restrict|cap|limit|wrap|isolate|separate|combine|split|merge|refactor|rename|move|extract|inline)\b/i;
-
-/**
- * Loose test for "this reads as actionable guidance" — either starts with a
- * directive verb, or contains one of the canonical imperative markers.
- */
-function looksDirective(text: string): boolean {
-  if (DIRECTIVE_VERB_PATTERN.test(text)) return true;
-  // Substantive phrasing like "the project uses X" or "X is required" also
-  // counts as directive knowledge (it tells future invocations how things are).
-  if (/\b(?:is|are|must be|should be|required to)\s+(?:always|never|used|preferred)\b/i.test(text))
-    return true;
-  // Narrative tails that contain a deontic verb ("had to use", "needs to
-  // verify", "must be") carry a buried lesson — salvage them.
-  if (
-    /\b(?:had to|has to|have to|needs? to|must|should|ought to)\s+\w+/i.test(text) &&
-    text.length > MIN_INSTRUCTIVE_LENGTH
-  )
-    return true;
-  return false;
-}
-
-/**
- * Truncate text to fit within `maxChars`, cutting at the last sentence
- * boundary that still fits. Falls back to a hard cut when even the first
- * sentence exceeds the budget.
- */
-function truncateToInstructive(text: string, maxChars: number): string {
-  const sentences = splitSentences(text);
-  let acc = '';
-  for (const s of sentences) {
-    const candidate = acc ? `${acc} ${s}` : s;
-    if (candidate.length > maxChars) break;
-    acc = candidate;
-  }
-  if (acc) return acc;
-  // Hard cut at maxChars with an ellipsis when no sentence boundary works.
-  return `${text.slice(0, maxChars - 1).trimEnd()}…`;
-}
-
-/**
- * Classify an instructive entry into one of four category buckets so the
- * `learned.md` file is self-describing and scannable. Order of checks is
- * intentional: warnings are the highest-signal category and win ties.
- */
-export function classifyLearnedEntry(text: string): LearnedEntryCategory {
-  const lower = text.toLowerCase();
-  if (/\b(?:avoid|never|don'?t|do not|must not|prevent|watch out|beware|pitfall|gotcha|hazard|risk)\b/.test(lower))
-    return 'warning';
-  if (
-    /\b(?:use|prefer|choose|adopt|leverage|apply|switch to|migrate to)\b/.test(lower) ||
-    /\b(?:pattern|approach|strategy|technique|idiom)\b/.test(lower)
-  )
-    return 'pattern';
-  if (/\b(?:always|must|should|require|ensure|verify|check|run|execute|before|after|when)\b/.test(lower))
-    return 'convention';
-  return 'fact';
-}
-
-/**
- * Normalize text for dedup comparison: lowercase, strip punctuation, sort tokens.
- */
-function normalizeForComparison(text: string): string {
-  return text
-    .toLowerCase()
-    .replace(/[^\w\s]/g, ' ')
-    .replace(/\s+/g, ' ')
-    .trim()
-    .split(/\s+/)
-    .sort()
-    .join(' ');
-}
-
 // ─── Automation guardrails ───────────────────────────────────────────────────
 
 const captureCooldowns = new Map<string, number>(); // role → timestamp
@@ -1510,7 +1083,7 @@ export function getProjectAgentLearnStats(
 export function listProjectAgentRoles(projectRoot?: string): string[] {
   const dir = agentsDir(projectRoot);
   try {
-    return (readdirSync as (dir: string) => string[])(dir).filter((name: string) => {
+    return readdirSync(dir).filter((name: string) => {
       if (!AGENT_ROLE_PATTERN.test(name) || name === '.' || name === '..') return false;
       const sub = path.join(dir, name);
       try {
@@ -1566,10 +1139,8 @@ export function detectLearnedConflicts(projectRoot?: string): Array<{
     similarity: number;
     detectedAt: string;
   }> = [];
-  for (let i = 0; i < entries.length; i++) {
-    const a = entries[i]!;
-    for (let j = i + 1; j < entries.length; j++) {
-      const b = entries[j]!;
+  for (const [i, a] of entries.entries()) {
+    for (const b of entries.slice(i + 1)) {
       const sim = tokenOverlap(a.normalized, b.normalized);
       if (sim >= 0.6) {
         conflicts.push({
@@ -1756,8 +1327,7 @@ const WHY_BY_CATEGORY: Record<LearnedEntryCategory, string> = {
     "This project's chosen approach — alternatives were considered and either conflict with existing architecture or were rejected for known reasons.",
   warning:
     'Known failure mode — skipping this has caused real defects in this codebase. The cost of getting it wrong outweighs the cost of the check.',
-  fact:
-    'Current state of the project — assumed by other conventions, build steps, or peers, so acting on a stale assumption wastes a cycle.',
+  fact: 'Current state of the project — assumed by other conventions, build steps, or peers, so acting on a stale assumption wastes a cycle.',
 };
 
 /**
@@ -1800,7 +1370,10 @@ function extractHow(text: string): string {
     if (inner.length > 0 && inner.length <= 120) anchors.add(inner);
   }
   // File paths — anything matching packages/..., src/..., tests/..., or ending in .ts/.tsx/.js/.json/.md
-  const pathMatches = text.match(/(?:[a-zA-Z0-9_.-]+\/)+[a-zA-Z0-9_.-]+\.(?:ts|tsx|js|jsx|mjs|cjs|json|md|yaml|yml)/g) ?? [];
+  const pathMatches =
+    text.match(
+      /(?:[a-zA-Z0-9_.-]+\/)+[a-zA-Z0-9_.-]+\.(?:ts|tsx|js|jsx|mjs|cjs|json|md|yaml|yml)/g,
+    ) ?? [];
   for (const p of pathMatches) anchors.add(p);
   // Package-scoped names like @scope/name
   const scoped = text.match(/@[a-z0-9][\w.-]*\/[a-z0-9][\w.-]*/gi) ?? [];
@@ -1817,7 +1390,10 @@ function extractHow(text: string): string {
  * category from the directive text so old entries that lost their stamp
  * still load.
  */
-export function parseStructuredLearnedEntries(role: string, projectRoot?: string): StructuredLearnedEntry[] {
+export function parseStructuredLearnedEntries(
+  role: string,
+  projectRoot?: string,
+): StructuredLearnedEntry[] {
   // Read the raw buffer directly — do NOT use splitLearnedEntries, which
   // strips HTML comments and would destroy the structured stamp metadata.
   const raw = loadProjectAgentLearned(role, projectRoot);
@@ -1898,7 +1474,12 @@ export function mergeStructuredEntries(
   merged.push(freshEntry);
   // Stable order: by category bucket (warning → convention → pattern → fact),
   // then by what text so the buffer is scannable and reproducible.
-  const order: Record<LearnedEntryCategory, number> = { warning: 0, convention: 1, pattern: 2, fact: 3 };
+  const order: Record<LearnedEntryCategory, number> = {
+    warning: 0,
+    convention: 1,
+    pattern: 2,
+    fact: 3,
+  };
   merged.sort((a, b) => {
     const cmp = order[a.category] - order[b.category];
     if (cmp !== 0) return cmp;
@@ -1976,7 +1557,8 @@ export function renderLearnedInstructions(
       sections.push(`- **${entry.what}**`);
       sections.push(`  - *Why:* ${entry.why}`);
       if (entry.how) {
-        for (const line of entry.how.split('\n')) sections.push(`  - *How:* ${line.replace(/^- /, '')}`);
+        for (const line of entry.how.split('\n'))
+          sections.push(`  - *How:* ${line.replace(/^- /, '')}`);
       }
       sections.push('');
     }
@@ -2308,10 +1890,7 @@ export function saveProjectAgentConsolidated(
   writeTextAtomically(fp, content);
 
   const rawEntries = listProjectAgentLearnedEntries(normalizedRole, projectRoot);
-  const rawBytes = Buffer.byteLength(
-    loadProjectAgentLearned(normalizedRole, projectRoot),
-    'utf8',
-  );
+  const rawBytes = Buffer.byteLength(loadProjectAgentLearned(normalizedRole, projectRoot), 'utf8');
   const meta: ConsolidationMetadata = {
     consolidatedAt: new Date().toISOString(),
     sourceEntryCount: rawEntries.length,
@@ -2320,7 +1899,10 @@ export function saveProjectAgentConsolidated(
     trigger: metadata?.trigger ?? 'manual',
     ...(metadata?.model ? { model: metadata.model } : {}),
   };
-  writeTextAtomically(consolidationMetaPath(normalizedRole, projectRoot), `${JSON.stringify(meta, null, 2)}\n`);
+  writeTextAtomically(
+    consolidationMetaPath(normalizedRole, projectRoot),
+    `${JSON.stringify(meta, null, 2)}\n`,
+  );
   return fp;
 }
 
@@ -2331,7 +1913,10 @@ export function saveProjectAgentConsolidated(
  */
 export function clearProjectAgentConsolidated(role: string, projectRoot?: string): void {
   const normalizedRole = assertProjectAgentRole(role);
-  for (const file of [consolidationPath(normalizedRole, projectRoot), consolidationMetaPath(normalizedRole, projectRoot)]) {
+  for (const file of [
+    consolidationPath(normalizedRole, projectRoot),
+    consolidationMetaPath(normalizedRole, projectRoot),
+  ]) {
     try {
       rmSync(file, { force: true });
     } catch {
@@ -2352,7 +1937,10 @@ export function clearProjectAgentConsolidated(role: string, projectRoot?: string
  * The caller (WS handler / CLI / WebUI) is responsible for executing the
  * LLM call and passing the result to saveProjectAgentConsolidated().
  */
-export function buildConsolidationInstruction(role: string, projectRoot?: string): {
+export function buildConsolidationInstruction(
+  role: string,
+  projectRoot?: string,
+): {
   instruction: string;
   rawEntries: string[];
   hasExistingConsolidation: boolean;
@@ -2361,9 +1949,7 @@ export function buildConsolidationInstruction(role: string, projectRoot?: string
   const rawEntries = listProjectAgentLearnedEntries(normalizedRole, projectRoot);
   const existingConsolidation = loadProjectAgentConsolidated(normalizedRole, projectRoot);
 
-  const rawBody = rawEntries
-    .map((entry, i) => `### Entry ${i + 1}\n\n${entry}`)
-    .join('\n\n');
+  const rawBody = rawEntries.map((entry, i) => `### Entry ${i + 1}\n\n${entry}`).join('\n\n');
 
   const sections: string[] = [
     `You are reviewing and consolidating the captured learning entries for the "${normalizedRole}" agent role in this project.`,
@@ -2387,7 +1973,10 @@ export function buildConsolidationInstruction(role: string, projectRoot?: string
   ];
 
   if (existingConsolidation) {
-    sections.push('', `## Existing consolidated document (for reference — improve upon it)\n\n${existingConsolidation}`);
+    sections.push(
+      '',
+      `## Existing consolidated document (for reference — improve upon it)\n\n${existingConsolidation}`,
+    );
   }
 
   sections.push(
@@ -2405,78 +1994,3 @@ export function buildConsolidationInstruction(role: string, projectRoot?: string
     hasExistingConsolidation: Boolean(existingConsolidation),
   };
 }
-
-// ---------------------------------------------------------------------------
-// Built-in knowledge manifests (per role type, current-needs checklist)
-// ---------------------------------------------------------------------------
-
-const BUILT_IN_KNOWLEDGE_MANIFESTS: Record<string, RoleKnowledgeManifest> = {
-  android: {
-    role: 'android',
-    liveQueries: {
-      agp: {
-        registry: 'https://developer.android.com/build/releases/gradle-plugin',
-        key: 'latest',
-        description: 'Android Gradle Plugin latest stable',
-      },
-      kotlin: {
-        registry: 'https://registry.npmjs.org/kotlin/latest',
-        key: 'version',
-        description: 'Kotlin latest stable',
-      },
-      compileSdk: {
-        registry: 'https://developer.android.com/about/versions',
-        key: 'api_level',
-        description: 'Current stable API level',
-      },
-    },
-    checklist: [
-      'Current Android Gradle Plugin version (8.x+)',
-      'Current Kotlin version (2.x+)',
-      'Current compileSdk / targetSdk (≥ 34, check Play Store policy)',
-      'Current Jetpack Compose stable version',
-      'All third-party dependencies are at latest compatible minor',
-    ],
-    verifyThreshold: 0.5,
-  },
-  frontend: {
-    role: 'frontend',
-    liveQueries: {
-      react: {
-        registry: 'https://registry.npmjs.org/react/latest',
-        key: 'version',
-        description: 'React latest stable',
-      },
-      nextjs: {
-        registry: 'https://registry.npmjs.org/next/latest',
-        key: 'version',
-        description: 'Next.js latest stable',
-      },
-    },
-    checklist: [
-      'Current React version (pinned in package.json)',
-      'Current Next.js / Vite / framework version',
-      'Node.js runtime version (project .nvmrc or engines)',
-      'All devDependencies are at latest compatible versions',
-      'Browser compatibility targets from browserslist',
-    ],
-    verifyThreshold: 0.5,
-  },
-  executor: {
-    role: 'executor',
-    liveQueries: {
-      node: {
-        registry: 'https://registry.npmjs.org/node/latest',
-        key: 'version',
-        description: 'Node.js latest LTS',
-      },
-    },
-    checklist: [
-      'Node.js version from .nvmrc or package.engines',
-      'TypeScript version from package.json',
-      'Package manager (pnpm ≥ 9) from packageManager',
-      'Current toolchain: esbuild, vitest, etc.',
-    ],
-    verifyThreshold: 0.6,
-  },
-};
