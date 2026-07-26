@@ -5,7 +5,9 @@ import * as path from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { DefaultMailbox } from '../../src/coordination/mailbox.js';
 import type {
+  MailboxAgentStatus,
   MailboxMessage,
+  MailboxTaskContext,
 } from '../../src/coordination/mailbox-types.js';
 import { makeMailboxTool, mailboxSessionTag } from '../../src/coordination/mailbox-tool.js';
 import {
@@ -22,6 +24,38 @@ import {
 /** Minimal mock Context for tool tests — the mailbox tool only reads ctx.meta. */
 function mockCtx(overrides: Record<string, unknown> = {}): Record<string, unknown> {
   return { meta: {}, ...overrides };
+}
+
+interface MailboxToolResult {
+  ok: boolean;
+  count?: number | undefined;
+  summary?: string | undefined;
+  error?: string | undefined;
+  messageId?: string | undefined;
+  to?: string | undefined;
+  messages?: Array<Pick<MailboxMessage, 'senderSessionId' | 'subject' | 'to'>> | undefined;
+  agents?: Array<Pick<MailboxAgentStatus, 'name' | 'status'>> | undefined;
+}
+
+const toolExecutionOptions = { signal: new AbortController().signal };
+
+function makeTypedMailboxTool(...args: Parameters<typeof makeMailboxTool>) {
+  const tool = makeMailboxTool(...args);
+  return {
+    ...tool,
+    execute: async (input: unknown, ctx: unknown): Promise<MailboxToolResult> =>
+      tool.execute(input, ctx as never, toolExecutionOptions) as Promise<MailboxToolResult>,
+  };
+}
+
+function legacyAgentStatusContext(
+  agentName: string,
+  status: MailboxAgentStatus['status'],
+): MailboxTaskContext {
+  // DefaultMailbox's legacy status-message adapter reads taskContext.status as
+  // an agent lifecycle value. Keep that compatibility fixture local until the
+  // concurrently evolving mailbox contracts expose a dedicated status field.
+  return { agentName, status } as unknown as MailboxTaskContext;
 }
 
 function tmpDir(): string {
@@ -166,10 +200,10 @@ describe('DefaultMailbox', () => {
   });
 
   it('query sorts newest first', async () => {
-    const _m1 = await mailbox.send({ from: 'a', to: 'b', type: 'note', subject: 'older', body: 'b' });
+    await mailbox.send({ from: 'a', to: 'b', type: 'note', subject: 'older', body: 'b' });
     // Small delay to ensure different timestamps
     await new Promise((r) => setTimeout(r, 5));
-    const _m2 = await mailbox.send({ from: 'a', to: 'b', type: 'note', subject: 'newer', body: 'b' });
+    await mailbox.send({ from: 'a', to: 'b', type: 'note', subject: 'newer', body: 'b' });
 
     const results = await mailbox.query({ to: 'b' });
     expect(results[0]!.subject).toBe('newer');
@@ -237,7 +271,7 @@ describe('DefaultMailbox', () => {
       type: 'status',
       subject: 'Auditing dependencies',
       body: 'Working on tech-stack audit',
-      taskContext: { agentName: 'Tesla (Executor)', status: 'running' },
+      taskContext: legacyAgentStatusContext('Tesla (Executor)', 'running'),
     });
     await mailbox.send({
       from: 'agent-2',
@@ -245,7 +279,7 @@ describe('DefaultMailbox', () => {
       type: 'status',
       subject: 'Scanning for bugs',
       body: 'Bug hunt in progress',
-      taskContext: { agentName: 'Einstein (BugHunter)', status: 'running' },
+      taskContext: legacyAgentStatusContext('Einstein (BugHunter)', 'running'),
     });
 
     const statuses = await mailbox.getAgentStatuses();
@@ -260,13 +294,13 @@ describe('DefaultMailbox', () => {
   it('getAgentStatuses only returns latest status per agent', async () => {
     await mailbox.send({
       from: 'agent-1', to: '*', type: 'status', subject: 'Starting...',
-      body: '', taskContext: { agentName: 'Agent 1', status: 'running' },
+      body: '', taskContext: legacyAgentStatusContext('Agent 1', 'running'),
     });
     // Small delay
     await new Promise((r) => setTimeout(r, 5));
     await mailbox.send({
       from: 'agent-1', to: '*', type: 'status', subject: 'Done!',
-      body: '', taskContext: { agentName: 'Agent 1', status: 'idle' },
+      body: '', taskContext: legacyAgentStatusContext('Agent 1', 'idle'),
     });
 
     const statuses = await mailbox.getAgentStatuses();
@@ -326,22 +360,22 @@ describe('makeMailboxTool', () => {
   let mailbox: DefaultMailbox;
   let dir: string;
   /** Tool pre-wired to the test mailbox — created in beforeEach. */
-  let toolForAgentB: ReturnType<typeof makeMailboxTool>;
-  let toolForAgentX: ReturnType<typeof makeMailboxTool>;
-  let toolForSender: ReturnType<typeof makeMailboxTool>;
-  let toolForBroadcaster: ReturnType<typeof makeMailboxTool>;
-  let toolForDirector: ReturnType<typeof makeMailboxTool>;
+  let toolForAgentB: ReturnType<typeof makeTypedMailboxTool>;
+  let toolForAgentX: ReturnType<typeof makeTypedMailboxTool>;
+  let toolForSender: ReturnType<typeof makeTypedMailboxTool>;
+  let toolForBroadcaster: ReturnType<typeof makeTypedMailboxTool>;
+  let toolForDirector: ReturnType<typeof makeTypedMailboxTool>;
 
   beforeEach(async () => {
     const m = await createMailbox();
     mailbox = m.mailbox;
     dir = m.dir;
     // Create tools AFTER mailbox is available
-    toolForAgentB = makeMailboxTool({ resolveMailbox: () => mailbox, agentId: 'agent-b' });
-    toolForAgentX = makeMailboxTool({ resolveMailbox: () => mailbox, agentId: 'agent-x' });
-    toolForSender = makeMailboxTool({ resolveMailbox: () => mailbox, agentId: 'sender' });
-    toolForBroadcaster = makeMailboxTool({ resolveMailbox: () => mailbox, agentId: 'broadcaster' });
-    toolForDirector = makeMailboxTool({ resolveMailbox: () => mailbox, agentId: 'director' });
+    toolForAgentB = makeTypedMailboxTool({ resolveMailbox: () => mailbox, agentId: 'agent-b' });
+    toolForAgentX = makeTypedMailboxTool({ resolveMailbox: () => mailbox, agentId: 'agent-x' });
+    toolForSender = makeTypedMailboxTool({ resolveMailbox: () => mailbox, agentId: 'sender' });
+    toolForBroadcaster = makeTypedMailboxTool({ resolveMailbox: () => mailbox, agentId: 'broadcaster' });
+    toolForDirector = makeTypedMailboxTool({ resolveMailbox: () => mailbox, agentId: 'director' });
   });
 
   afterEach(async () => {
@@ -350,7 +384,7 @@ describe('makeMailboxTool', () => {
 
   /** Helper: create a one-off tool for a specific agent id. */
   function makeTestTool(agentId: string) {
-    return makeMailboxTool({ resolveMailbox: () => mailbox, agentId });
+    return makeTypedMailboxTool({ resolveMailbox: () => mailbox, agentId });
   }
 
   it('check returns unread messages', async () => {
@@ -358,11 +392,10 @@ describe('makeMailboxTool', () => {
     await mailbox.send({ from: 'a', to: 'agent-b', type: 'ask', subject: 's2', body: 'b2' });
 
     // Create tool inline AFTER messages are written — guarantees closure sees the set mailbox
-    const tool = makeMailboxTool({ resolveMailbox: () => mailbox, agentId: 'agent-b' });
+    const tool = makeTypedMailboxTool({ resolveMailbox: () => mailbox, agentId: 'agent-b' });
     const result = await tool.execute(
       { action: 'check' },
       mockCtx() as any,
-      { signal: new AbortController().signal },
     );
     expect(result.ok).toBe(true);
     expect(result.count).toBe(2);
@@ -384,7 +417,7 @@ describe('makeMailboxTool', () => {
   it('check can peek without marking messages read', async () => {
     await mailbox.send({ from: 'a', to: 'agent-b', type: 'note', subject: 'peek', body: 'b' });
 
-    const tool = makeMailboxTool({ resolveMailbox: () => mailbox, agentId: 'agent-b' });
+    const tool = makeTypedMailboxTool({ resolveMailbox: () => mailbox, agentId: 'agent-b' });
     const result = await tool.execute({ action: 'check', markRead: false }, mockCtx() as any);
     expect(result.ok).toBe(true);
     expect(result.count).toBe(1);
@@ -398,7 +431,7 @@ describe('makeMailboxTool', () => {
     await mailbox.send({ from: 'a', to: 'agent-b', type: 'ask', subject: 'q1', body: 'b1' });
     await mailbox.send({ from: 'a', to: 'agent-b', type: 'assign', subject: 'q2', body: 'b2' });
 
-    const tool = makeMailboxTool({ resolveMailbox: () => mailbox, agentId: 'agent-b' });
+    const tool = makeTypedMailboxTool({ resolveMailbox: () => mailbox, agentId: 'agent-b' });
     const result = await tool.execute(
       { action: 'check', completed: true, outcome: 'handled from check' },
       mockCtx() as any,
@@ -437,7 +470,7 @@ describe('makeMailboxTool', () => {
   });
 
   it('forces Chimera sends through the low-level tool to leaders only', async () => {
-    const chimeraTool = makeMailboxTool({
+    const chimeraTool = makeTypedMailboxTool({
       resolveMailbox: () => mailbox,
       agentId: 'chimera-fix',
     });
@@ -482,7 +515,7 @@ describe('makeMailboxTool', () => {
       context as any,
     );
     expect(queried.messages).toHaveLength(1);
-    expect(queried.messages[0]).toMatchObject({
+    expect(queried.messages?.at(0)).toMatchObject({
       to: '@session:session-a',
       senderSessionId: 'session-a',
     });
@@ -536,19 +569,19 @@ describe('makeMailboxTool', () => {
     const result = await toolForAgentB.execute({ action: 'query', from: 'alice' }, mockCtx() as any);
     expect(result.ok).toBe(true);
     expect(result.count).toBe(1);
-    expect(result.messages[0].subject).toBe('from alice');
+    expect(result.messages?.at(0)?.subject).toBe('from alice');
   });
 
   it('status returns agent statuses', async () => {
     await mailbox.send({
       from: 'worker-1', to: '*', type: 'status', subject: 'Working',
-      body: '', taskContext: { agentName: 'Worker 1', status: 'running' },
+      body: '', taskContext: legacyAgentStatusContext('Worker 1', 'running'),
     });
     const result = await toolForDirector.execute({ action: 'status' }, mockCtx() as any);
     expect(result.ok).toBe(true);
     expect(result.count).toBe(1);
-    expect(result.agents[0].name).toBe('Worker 1');
-    expect(result.agents[0].status).toBe('running');
+    expect(result.agents?.at(0)?.name).toBe('Worker 1');
+    expect(result.agents?.at(0)?.status).toBe('running');
   });
 
   it('unknown action returns error', async () => {
