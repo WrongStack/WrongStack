@@ -1,6 +1,4 @@
 import { expectDefined } from '@wrongstack/core/utils';
-import { LockError } from './circuit-breaker.js';
-import { toErrorMessage } from '@wrongstack/core/utils';
 /**
  * SQLite storage layer for the codebase index.
  *
@@ -19,11 +17,10 @@ import { toErrorMessage } from '@wrongstack/core/utils';
  * breaker treats this as a transient condition and does NOT count it as a failure.
  */
 
-import { createRequire } from 'node:module';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import type { DatabaseSync } from 'node:sqlite';
-import { resolveWstackPaths, sqliteCachePragmas } from '@wrongstack/core/utils';
+import { sqliteCachePragmas } from '@wrongstack/core/utils';
 import type {
   FileMeta,
   IndexStats,
@@ -33,235 +30,49 @@ import type {
   SymbolKind,
   SymbolLang,
   CodeMapGraph,
-  GraphNode,
-  GraphEdge,
-  CallType,
 } from './schema.js';
 import { SCHEMA_VERSION } from './schema.js';
 import { lspKindToInternalKind } from './lsp-kind.js';
 import { type Bm25Index, buildBm25Index, buildIndexableText, tokenise } from './bm25.js';
+import { loadDatabaseSync, runSqliteWithRetry } from './sqlite-runtime.js';
+import {
+  assignRefsToSymbols,
+  escapeLike,
+  resolveIndexDir,
+} from './writer-helpers.js';
+import {
+  addWeightedEdge,
+  buildFileGraphNodeState,
+  buildPackageGraphNodes,
+  buildSymbolGraphNodes,
+  derivePackage,
+  materializeWeightedEdges,
+  packageFromImport,
+  resolveRelativeImport,
+  type WriterFileGraphSymbolRow,
+  type WriterSymbolGraphRow,
+  type WeightedEdgeAccumulator,
+} from './writer-graph-helpers.js';
+import {
+  CORE_TABLES_SQL,
+  METADATA_TABLE_SQL,
+  REFS_INDEX_SQL,
+  REFS_TABLE_SQL,
+  SYMBOLS_FTS_SQL,
+  SYMBOL_INDEX_SQL,
+} from './writer-schema.js';
+import { mapWriterRefRow, type WriterRefRow } from './writer-ref-mapper.js';
+import {
+  buildWriterSearchWhere,
+  mapWriterSearchRow,
+  normalizeSearchLimit,
+  type WriterSearchFilter,
+  type WriterSearchRow,
+} from './writer-search-helpers.js';
+import { StorePool } from './writer-store-pool.js';
+export { codebaseIndexDirOverride, resolveIndexDir } from './writer-helpers.js';
+export { StorePool } from './writer-store-pool.js';
 const DB_FILE = 'index.db';
-
-function escapeLike(value: string): string {
-  return value.replace(/[\\%_]/g, (char) => `\\${char}`);
-}
-
-function assignRefsToSymbols(refs: Ref[], symbols: IndexSymbol[]): Ref[] {
-  if (refs.length === 0 || symbols.length === 0) return [];
-  const ordered = [...symbols].sort((a, b) => a.line - b.line || a.col - b.col || a.id - b.id);
-  const seen = new Set<string>();
-  const assigned: Ref[] = [];
-  for (const ref of refs) {
-    let owner: IndexSymbol | undefined;
-    for (const symbol of ordered) {
-      if (symbol.line > ref.line) break;
-      owner = symbol;
-    }
-    if (!owner && ref.callType === 'import') owner = ordered[0];
-    if (!owner || owner.id <= 0) continue;
-    const key = `${owner.id}:${ref.toName}:${ref.callType}`;
-    if (seen.has(key)) continue;
-    seen.add(key);
-    assigned.push({ ...ref, fromId: owner.id });
-  }
-  return assigned;
-}
-
-/**
- * Resolve the per-project index directory. By default it lives under the
- * global project dir (`~/.wrongstack/projects/<hash>/codebase-index`),
- * matching every other piece of per-project state. Callers may pass an
- * explicit `override` (used by tests and any wiring that already resolved the
- * path) to avoid touching the real home directory.
- */
-export function resolveIndexDir(projectRoot: string, override?: string): string {
-  return override ?? resolveWstackPaths({ projectRoot }).projectCodebaseIndex;
-}
-
-/**
- * Optional index-directory override carried on the run context's `meta` bag.
- * Production leaves it unset (the index resolves to the global per-project
- * dir); tests and bespoke wiring set `meta.codebaseIndexDir` to redirect it.
- */
-export function codebaseIndexDirOverride(ctx: {
-  meta?: Record<string, unknown>;
-}): string | undefined {
-  const v = ctx.meta?.['codebaseIndexDir'];
-  return typeof v === 'string' ? v : undefined;
-}
-
-/**
- * Warm-connection pool for IndexStore instances.
- *
- * Each (projectRoot, indexDir) pair gets one persisted IndexStore. Every read
- * operation (search, stats, graph) acquires the store from the pool instead of
- * opening a fresh SQLite connection, re-parsing the schema, and re-preparing
- * statements. The connection stays warm between calls — only warm-up cost is
- * paid once per project per process lifetime.
- *
- * In WAL mode, readers coexist with the writer connection, so a single pooled
- * connection handles both reads and writes safely. The caller is responsible
- * for serializing writes (the host's promise-chain mutex does this); the pool
- * itself has no lock because the worker processes one message at a time.
- */
-export class StorePool {
-  private readonly stores = new Map<string, IndexStore>();
-
-  private key(projectRoot: string, indexDir?: string): string {
-    return `${projectRoot}\u0000${indexDir ?? ''}`;
-  }
-
-  /** Borrow a store. Creates it on first access for this key. */
-  acquire(projectRoot: string, opts?: { indexDir?: string | undefined }): IndexStore {
-    const k = this.key(projectRoot, opts?.indexDir);
-    let store = this.stores.get(k);
-    if (!store) {
-      store = new IndexStore(projectRoot, { indexDir: opts?.indexDir });
-      this.stores.set(k, store);
-    }
-    return store;
-  }
-
-  /** Return the store to the pool. The connection stays warm for subsequent
-   * operations on the same (projectRoot, indexDir). */
-  release(_store: IndexStore): void {
-    // No-op — the store remains open with its prepared-statement cache intact,
-    // ready for the next acquire() on the same key. The connection is closed
-    // explicitly via closeAll() (shutdown) or evict() (test isolation).
-  }
-
-  /** Close every pooled connection and drain the pool. Call on shutdown. */
-  closeAll(): void {
-    for (const store of this.stores.values()) {
-      try {
-        store.close();
-      } catch {
-        /* already closed */
-      }
-    }
-    this.stores.clear();
-  }
-
-  /** Remove one store from the pool. Used by tests that need isolation. */
-  evict(projectRoot: string, indexDir?: string): void {
-    const k = this.key(projectRoot, indexDir);
-    const store = this.stores.get(k);
-    if (store) {
-      try {
-        store.close();
-      } catch {
-        /* already closed */
-      }
-      this.stores.delete(k);
-    }
-  }
-
-  /** True when the pool holds a connection for the given key. */
-  has(projectRoot: string, indexDir?: string): boolean {
-    return this.stores.has(this.key(projectRoot, indexDir));
-  }
-}
-
-/** Process-wide singleton pool. */
-export const indexStorePool = new StorePool();
-
-let warningSilenced = false;
-/**
- * Swallow the one-time `ExperimentalWarning: SQLite ...` Node prints the first
- * time `node:sqlite` loads. Patched only once, and only filters that specific
- * warning — every other warning passes through untouched.
- */
-function silenceSqliteExperimentalWarning(): void {
-  if (warningSilenced) return;
-  warningSilenced = true;
-  const original = process.emitWarning.bind(process);
-  process.emitWarning = ((warning: unknown, ...rest: unknown[]): void => {
-    const msg = typeof warning === 'string' ? warning : ((warning as Error)?.message ?? '');
-    const name =
-      typeof warning === 'string' ? String(rest[0] ?? '') : ((warning as Error)?.name ?? '');
-    if (/sqlite/i.test(msg) && /experimental/i.test(`${name} ${msg}`)) return;
-    (original as (w: unknown, ...r: unknown[]) => void)(warning, ...rest);
-  }) as typeof process.emitWarning;
-}
-
-let DatabaseSyncCtor: typeof DatabaseSync | undefined;
-/**
- * Load `node:sqlite`'s `DatabaseSync` lazily. Keeping this off the module's
- * top-level import means the codebase-index tools can be registered at CLI boot
- * without eagerly loading SQLite — so a runtime that lacks `node:sqlite` (it is
- * experimental, available since Node 22.5) only fails if the index is actually
- * used, with a clear message instead of a crash on import.
- */
-function loadDatabaseSync(): typeof DatabaseSync {
-  if (DatabaseSyncCtor) return DatabaseSyncCtor;
-  silenceSqliteExperimentalWarning();
-  try {
-    const req = createRequire(import.meta.url);
-    DatabaseSyncCtor = (req('node:sqlite') as typeof import('node:sqlite')).DatabaseSync;
-  } catch (err) {
-    throw new Error(
-      "The codebase index needs Node's built-in SQLite (node:sqlite), available since Node 22.5. " +
-        `This runtime doesn't provide it: ${toErrorMessage(err)}`,
-    );
-  }
-  return DatabaseSyncCtor;
-}
-
-// ─── SQLite lock-error retry ───────────────────────────────────────────────────
-
-/** Maximum retry attempts for a lock-conflict error. */
-const MAX_LOCK_RETRIES = 3;
-/**
- * Base delay (ms) before the first retry after a lock error. Each subsequent
- * retry doubles this (exponential backoff). Combined with the 5-second
- * busy_timeout pragma, this means: 5s (pragma) + 50ms + 100ms + 200ms per
- * attempt — enough to wait out most cross-process writer conflicts.
- */
-const LOCK_RETRY_BASE_DELAY_MS = 50;
-/** Cap on the per-retry delay so we never sleep for more than this. */
-const LOCK_RETRY_MAX_DELAY_MS = 500;
-
-/**
- * Returns true when `err` represents a SQLite lock conflict (SQLITE_BUSY or
- * SQLITE_LOCKED).  These are transient — another process holds the write lock
- * and will release it shortly.  Retry instead of failing.
- *
- * node:sqlite surfaces these as plain Error instances with `code` set to
- * 'SQLITE_BUSY' or 'SQLITE_LOCKED', or with a message that contains the
- * error name. Defensive: anything we can't classify as safe is NOT treated
- * as a lock error so real failures are not retried indefinitely.
- */
-function isLockError(err: unknown): boolean {
-  if (!(err instanceof Error)) return false;
-  const e = err as { code?: unknown; sqliteCode?: unknown };
-  const code = e.code ?? e.sqliteCode;
-  if (typeof code === 'string' && /SQLITE_(BUSY|LOCKED)/.test(code)) return true;
-  if (typeof code === 'number' && (code === 5 || code === 6)) return true; // SQLITE_BUSY=5, SQLITE_LOCKED=6
-  // node:sqlite sometimes surfaces the numeric code as a string in the message
-  if (/SQLITE_(BUSY|LOCKED)/.test(err.message)) return true;
-  return false;
-}
-
-/**
- * Synchronous sleep via Atomics.wait on a zero-length SharedArrayBuffer.
- * This is the only way to synchronously block in a Worker thread without
- * busy-waiting.  The main thread (where DatabaseSync is never used) is
- * unaffected.
- *
- * The call is wrapped in try/catch because Atomics.wait throws in browsers
- * and other environments where SharedArrayBuffer is not available.
- */
-function sleepSync(ms: number): void {
-  try {
-    const sab = new SharedArrayBuffer(4);
-    const view = new Int32Array(sab);
-    Atomics.wait(view, 0, 0, ms);
-  } catch {
-    // Atomics.wait not available (browser, unknown runtime) — fall through.
-    // The retry still happens but without sleeping, which is acceptable because
-    // busy_timeout already handled the bulk of the wait.
-  }
-}
 
 export class IndexStore {
   private db: DatabaseSync;
@@ -312,41 +123,6 @@ export class IndexStore {
     return s;
   }
 
-  /**
-   * Execute a SQLite write operation with automatic retry on lock conflicts.
-   *
-   * When another wstack process is holding the write lock the statement first
-   * waits up to `busy_timeout` ms, then throws SQLITE_BUSY.  This wrapper catches
-   * that error and retries (up to MAX_LOCK_RETRIES) with exponential backoff,
-   * giving the competing writer time to finish and release the lock.
-   *
-   * @param fn  The write operation to execute. Can return a value which is
-   *            returned to the caller on success.
-   * @throws   {@link LockError} when all retries are exhausted on a lock conflict
-   *            (non-lock errors always propagate on the first attempt).
-   */
-  runWithRetry<T>(fn: () => T): T {
-    let lastError: unknown;
-    for (let attempt = 0; attempt <= MAX_LOCK_RETRIES; attempt++) {
-      try {
-        return fn();
-      } catch (err) {
-        lastError = err;
-        if (!isLockError(err)) throw err;
-        if (attempt === MAX_LOCK_RETRIES) {
-          // All retries exhausted — wrap in LockError so the circuit breaker
-          // knows this is a transient lock conflict, not a real failure.
-          const msg = lastError instanceof Error ? lastError.message : String(lastError);
-          throw new LockError(`SQLite lock conflict after ${MAX_LOCK_RETRIES} retries: ${msg}`);
-        }
-        // Exponential backoff: 50ms → 100ms → 200ms, capped at 500ms.
-        const delay = Math.min(LOCK_RETRY_BASE_DELAY_MS * 2 ** attempt, LOCK_RETRY_MAX_DELAY_MS);
-        sleepSync(delay);
-      }
-    }
-    throw lastError; // unreachable — satisfies TypeScript
-  }
-
   constructor(projectRoot: string, opts: { indexDir?: string | undefined } = {}) {
     this.indexDir = resolveIndexDir(projectRoot, opts.indexDir);
     fs.mkdirSync(this.indexDir, { recursive: true });
@@ -379,13 +155,12 @@ export class IndexStore {
     this.initSchema();
   }
 
+  runWithRetry<T>(fn: () => T): T {
+    return runSqliteWithRetry(fn);
+  }
+
   private initSchema(): void {
-    this.db.exec(`
-      CREATE TABLE IF NOT EXISTS metadata (
-        key TEXT PRIMARY KEY,
-        value TEXT NOT NULL
-      );
-    `);
+    this.db.exec(METADATA_TABLE_SQL);
 
     // Schema migration: the index is derived, rebuildable data — on any
     // version mismatch we drop everything and let the next index run repopulate
@@ -407,67 +182,17 @@ export class IndexStore {
         .run('version', String(SCHEMA_VERSION));
     }
 
-    this.db.exec(`
-      CREATE TABLE IF NOT EXISTS files (
-        file TEXT PRIMARY KEY,
-        lang TEXT NOT NULL,
-        mtime_ms INTEGER NOT NULL,
-        symbol_count INTEGER NOT NULL DEFAULT 0,
-        last_indexed INTEGER NOT NULL
-      );
-      CREATE TABLE IF NOT EXISTS symbols (
-        id INTEGER PRIMARY KEY,
-        lang TEXT NOT NULL,
-        kind TEXT NOT NULL,
-        name TEXT NOT NULL,
-        file TEXT NOT NULL,
-        line INTEGER NOT NULL,
-        col INTEGER NOT NULL,
-        signature TEXT NOT NULL DEFAULT '',
-        doc_comment TEXT NOT NULL DEFAULT '',
-        scope TEXT NOT NULL DEFAULT '',
-        text TEXT NOT NULL DEFAULT '',
-        file_fk TEXT NOT NULL
-      );
-    `);
-
-    this.db.exec('CREATE INDEX IF NOT EXISTS idx_s_name ON symbols(name)');
-    this.db.exec('CREATE INDEX IF NOT EXISTS idx_s_kind ON symbols(kind)');
-    this.db.exec('CREATE INDEX IF NOT EXISTS idx_s_lang ON symbols(lang)');
-    this.db.exec('CREATE INDEX IF NOT EXISTS idx_s_file ON symbols(file)');
-    // Compound index for the common lang+kind filter in ranked search.
-    this.db.exec('CREATE INDEX IF NOT EXISTS idx_s_lang_kind ON symbols(lang, kind)');
-    // Index on file_fk: deleteSymbolsForFile and FTS delete paths query by
-    // file_fk — without this index every reindex/delete scans the symbols table.
-    this.db.exec('CREATE INDEX IF NOT EXISTS idx_s_file_fk ON symbols(file_fk)');
-    // resolveRefs joins refs.to_name → symbols.name; covering (name, id) avoids
-    // a second lookup for the id column on each unresolved ref.
-    this.db.exec('CREATE INDEX IF NOT EXISTS idx_s_name_id ON symbols(name, id)');
-
-    this.db.exec(`
-      CREATE TABLE IF NOT EXISTS refs (
-        id INTEGER PRIMARY KEY,
-        from_id INTEGER NOT NULL,
-        to_name TEXT NOT NULL,
-        to_id INTEGER,
-        call_type TEXT NOT NULL,
-        line INTEGER NOT NULL
-      );
-    `);
-
-    this.db.exec('CREATE INDEX IF NOT EXISTS idx_r_from ON refs(from_id)');
-    this.db.exec('CREATE INDEX IF NOT EXISTS idx_r_to_id ON refs(to_id)');
-    this.db.exec('CREATE INDEX IF NOT EXISTS idx_r_to_name ON refs(to_name)');
-    this.db.exec('CREATE INDEX IF NOT EXISTS idx_r_call_type ON refs(call_type)');
+    this.db.exec(CORE_TABLES_SQL);
+    for (const sql of SYMBOL_INDEX_SQL) this.db.exec(sql);
+    this.db.exec(REFS_TABLE_SQL);
+    for (const sql of REFS_INDEX_SQL) this.db.exec(sql);
 
     // FTS5 full-text index over the camelCase-split symbol text; rowid is the
     // symbol id. Replaces the old `LIKE '%token%'` full-table scan + per-query
     // in-process BM25 build: MATCH uses the inverted index and bm25() ranks
     // natively. Kept in sync explicitly in insertSymbols/delete*/clearAll.
     try {
-      this.db.exec(
-        "CREATE VIRTUAL TABLE IF NOT EXISTS symbols_fts USING fts5(text, tokenize = 'unicode61')",
-      );
+      this.db.exec(SYMBOLS_FTS_SQL);
       this.ftsAvailable = true;
       // A database may have been populated by a runtime without FTS5. Backfill
       // the derived table when FTS later becomes available instead of making
@@ -797,111 +522,29 @@ export class IndexStore {
 
   search(
     query: string,
-    filter?: {
-      kind?: SymbolKind | undefined;
-      lang?: SymbolLang | undefined;
-      file?: string | undefined;
-      lspKind?: number | undefined;
-    },
+    filter?: WriterSearchFilter,
     opts?: { limit?: number | undefined },
   ): SearchResult[] {
     const built = this.buildSearchWhere(query, filter);
     if (built === null) return [];
 
     const { where, values } = built;
-    const limit =
-      typeof opts?.limit === 'number' && Number.isFinite(opts.limit)
-        ? Math.max(0, Math.trunc(opts.limit))
-        : undefined;
+    const limit = normalizeSearchLimit(opts?.limit);
     const limitSql = limit !== undefined ? ' LIMIT ?' : '';
     const sql = `SELECT id, lang, kind, name, file, line, col, signature, doc_comment, text FROM symbols ${where}${limitSql}`;
 
     const binds = limit !== undefined ? [...values, limit] : values;
-    const rows = this.stmt(sql).all(...(binds as (string | number)[])) as {
-      id: number;
-      lang: string;
-      kind: string;
-      name: string;
-      file: string;
-      line: number;
-      col: number;
-      signature: string;
-      doc_comment: string;
-      text: string;
-    }[];
+    const rows = this.stmt(sql).all(...(binds as (string | number)[])) as unknown as WriterSearchRow[];
 
-    return rows.map((r) => ({
-      id: r.id,
-      lang: r.lang as SymbolLang,
-      kind: r.kind as SymbolKind,
-      name: r.name,
-      file: r.file,
-      line: r.line,
-      col: r.col,
-      signature: r.signature,
-      docComment: r.doc_comment,
-      score: 0,
-      snippet: '',
-      lspKind: filter?.lspKind,
-    }));
+    return rows.map((row) => mapWriterSearchRow(row, filter?.lspKind));
   }
 
   /** Shared WHERE builder for {@link search} / empty-query ranked totals. */
-  private buildSearchWhere(
-    query: string,
-    filter?: {
-      kind?: SymbolKind | undefined;
-      lang?: SymbolLang | undefined;
-      file?: string | undefined;
-      lspKind?: number | undefined;
-    },
-  ): { where: string; values: unknown[] } | null {
-    const conditions: string[] = [];
-    const values: unknown[] = [];
-
-    let effectiveKind: SymbolKind | undefined = filter?.kind;
-    if (filter?.lspKind !== undefined) {
-      const mapped = lspKindToInternalKind(filter.lspKind);
-      if (mapped !== null) {
-        effectiveKind = mapped;
-      } else {
-        // LSP kind was explicitly provided but has no internal mapping → no results
-        return null;
-      }
-    }
-
-    if (effectiveKind) {
-      conditions.push('kind = ?');
-      values.push(effectiveKind);
-    }
-    if (filter?.lang) {
-      conditions.push('lang = ?');
-      values.push(filter.lang);
-    }
-    if (filter?.file) {
-      conditions.push("replace(file, '\\', '/') LIKE ? ESCAPE '\\'");
-      values.push(`%${escapeLike(filter.file.replace(/\\/g, '/'))}%`);
-    }
-    if (query.trim()) {
-      const tokens = query.toLowerCase().split(/\s+/).filter(Boolean);
-      const tokenConds = tokens.map(() => 'text LIKE ?');
-      conditions.push(`(${tokenConds.join(' OR ')})`);
-      for (const t of tokens) values.push(`%${t}%`);
-    }
-
-    const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
-    return { where, values };
+  private buildSearchWhere(query: string, filter?: WriterSearchFilter | undefined) {
+    return buildWriterSearchWhere(query, filter);
   }
 
-  private countSearch(
-    query: string,
-    filter?: {
-      kind?: SymbolKind | undefined;
-      lang?: SymbolLang | undefined;
-      file?: string | undefined;
-      lspKind?: number | undefined;
-    },
-  ): number {
+  private countSearch(query: string, filter?: WriterSearchFilter | undefined): number {
     const built = this.buildSearchWhere(query, filter);
     if (built === null) return 0;
     const row = this.stmt(`SELECT COUNT(*) AS n FROM symbols ${built.where}`).get(
@@ -922,14 +565,7 @@ export class IndexStore {
    */
   searchRanked(
     query: string,
-    filter:
-      | {
-          kind?: SymbolKind | undefined;
-          lang?: SymbolLang | undefined;
-          file?: string | undefined;
-          lspKind?: number | undefined;
-        }
-      | undefined,
+    filter: WriterSearchFilter | undefined,
     limit: number,
   ): { results: SearchResult[]; total: number } {
     const rawLimit = Number.isFinite(limit) ? Math.trunc(limit) : 20;
@@ -1001,22 +637,9 @@ export class IndexStore {
     }[];
 
     return {
-      results: rows.map((r) => ({
-        id: r.id,
-        lang: r.lang as SymbolLang,
-        kind: r.kind as SymbolKind,
-        name: r.name,
-        file: r.file,
-        line: r.line,
-        col: r.col,
-        signature: r.signature,
-        docComment: r.doc_comment,
-        // bm25() is negative-is-better; negate so callers keep "higher is
-        // better" and clamp so a match never reports a zero score.
-        score: Math.max(0.0001, r.score),
-        snippet: r.snippet,
-        lspKind: filter?.lspKind,
-      })),
+      results: rows.map((row) =>
+        mapWriterSearchRow(row, filter?.lspKind, Math.max(0.0001, row.score), row.snippet),
+      ),
       total,
     };
   }
@@ -1069,14 +692,7 @@ export class IndexStore {
   /** Legacy ranked path: LIKE candidates + in-process BM25 + JS snippets. */
   private searchRankedFallback(
     query: string,
-    filter:
-      | {
-          kind?: SymbolKind | undefined;
-          lang?: SymbolLang | undefined;
-          file?: string | undefined;
-          lspKind?: number | undefined;
-        }
-      | undefined,
+    filter: WriterSearchFilter | undefined,
     limit: number,
   ): { results: SearchResult[]; total: number } {
     // Empty query = filtered listing: push LIMIT into SQL so a 10k-symbol
@@ -1506,22 +1122,8 @@ export class IndexStore {
       this.stmt(
           'SELECT id, from_id, to_name, to_id, call_type, line FROM refs WHERE to_id = ? OR to_name = (SELECT name FROM symbols WHERE id = ?)',
         )
-        .all(symbolId, symbolId) as {
-        id: number;
-        from_id: number;
-        to_name: string;
-        to_id: number | null;
-        call_type: string;
-        line: number;
-      }[]
-    ).map((r) => ({
-      id: r.id,
-      fromId: r.from_id,
-      toName: r.to_name,
-      toId: r.to_id ?? undefined,
-      callType: r.call_type as Ref['callType'],
-      line: r.line,
-    }));
+        .all(symbolId, symbolId) as WriterRefRow[]
+    ).map(mapWriterRefRow);
   }
 
   /**
@@ -1530,22 +1132,8 @@ export class IndexStore {
   findRefsFrom(symbolId: number): Ref[] {
     return (
       this.stmt('SELECT id, from_id, to_name, to_id, call_type, line FROM refs WHERE from_id = ?')
-        .all(symbolId) as {
-        id: number;
-        from_id: number;
-        to_name: string;
-        to_id: number | null;
-        call_type: string;
-        line: number;
-      }[]
-    ).map((r) => ({
-      id: r.id,
-      fromId: r.from_id,
-      toName: r.to_name,
-      toId: r.to_id ?? undefined,
-      callType: r.call_type as Ref['callType'],
-      line: r.line,
-    }));
+      .all(symbolId) as WriterRefRow[]
+    ).map(mapWriterRefRow);
   }
 
   private sizeBytes(): number {
@@ -1560,63 +1148,6 @@ export class IndexStore {
   // ─── CodeMap graph aggregation ──────────────────────────────────────────────
 
   /**
-   * Derive a monorepo package name from an absolute file path.
-   * Handles both `packages/<name>/...` (workspace) and `src/<name>/...` layouts.
-   * Returns `undefined` for files outside any recognisable package structure.
-   */
-  private static derivePackage(filePath: string): string | undefined {
-    // Normalise backslashes (Windows) to forward slashes.
-    const f = filePath.replace(/\\/g, '/');
-    const pkgsIdx = f.indexOf('/packages/');
-    if (pkgsIdx !== -1) {
-      const rest = f.slice(pkgsIdx + '/packages/'.length);
-      const seg = rest.split('/')[0];
-      return seg ? `@wrongstack/${seg}` : undefined;
-    }
-    const appsIdx = f.indexOf('/apps/');
-    if (appsIdx !== -1) {
-      const rest = f.slice(appsIdx + '/apps/'.length);
-      const seg = rest.split('/')[0];
-      return seg ? `app:${seg}` : undefined;
-    }
-    return undefined;
-  }
-
-  private static packageFromImport(moduleName: string): string | undefined {
-    if (!moduleName.startsWith('@wrongstack/')) return undefined;
-    const parts = moduleName.split('/');
-    return parts[1] ? `@wrongstack/${parts[1]}` : undefined;
-  }
-
-  private static resolveRelativeImport(
-    fromFile: string,
-    moduleName: string,
-    indexedFiles: Set<string>,
-  ): string | undefined {
-    if (!moduleName.startsWith('.')) return undefined;
-    const normalizedFrom = fromFile.replace(/\\/g, '/');
-    const absolute = path.posix.normalize(
-      path.posix.join(path.posix.dirname(normalizedFrom), moduleName),
-    );
-    const extension = path.posix.extname(absolute);
-    const base = extension ? absolute.slice(0, -extension.length) : absolute;
-    const candidates = [
-      absolute,
-      ...['.ts', '.tsx', '.js', '.jsx', '.mts', '.cts'].map((ext) => `${base}${ext}`),
-      ...['.ts', '.tsx', '.js', '.jsx'].map((ext) => path.posix.join(absolute, `index${ext}`)),
-      ...['.ts', '.tsx', '.js', '.jsx'].map((ext) => path.posix.join(base, `index${ext}`)),
-    ];
-    const indexedByPortablePath = new Map(
-      [...indexedFiles].map((file) => [file.replace(/\\/g, '/').toLocaleLowerCase(), file]),
-    );
-    for (const candidate of candidates) {
-      const indexed = indexedByPortablePath.get(candidate.toLocaleLowerCase());
-      if (indexed) return indexed;
-    }
-    return undefined;
-  }
-
-  /**
    * Package-level graph: each workspace package is a node; edges are derived
    * from cross-package symbol references (a symbol in package A references a
    * symbol resolved in package B). Node metadata includes symbol/file counts.
@@ -1628,45 +1159,9 @@ export class IndexStore {
       'SELECT file, COUNT(*) AS n FROM symbols GROUP BY file',
     ).all() as Array<{ file: string; n: number }>;
 
-    const pkgNodes = new Map<string, GraphNode>();
-    const fileToPkg = new Map<string, string>();
-
-    for (const { file, n } of fileCounts) {
-      const pkg = IndexStore.derivePackage(file) ?? '(root)';
-      fileToPkg.set(file, pkg);
-      const node = pkgNodes.get(pkg);
-      if (node) {
-        node.symbolCount = (node.symbolCount ?? 0) + n;
-      } else {
-        pkgNodes.set(pkg, {
-          id: `pkg:${pkg}`,
-          label: pkg,
-          kind: 'package' as const,
-          package: pkg,
-          symbolCount: n,
-          fileCount: 0,
-        });
-      }
-    }
-
     // File counts per package
     const files = this.stmt('SELECT DISTINCT file FROM files').all() as { file: string }[];
-    for (const { file } of files) {
-      const pkg = IndexStore.derivePackage(file) ?? '(root)';
-      fileToPkg.set(file, pkg);
-      const node = pkgNodes.get(pkg);
-      if (node) node.fileCount = (node.fileCount ?? 0) + 1;
-      else {
-        pkgNodes.set(pkg, {
-          id: `pkg:${pkg}`,
-          label: pkg,
-          kind: 'package' as const,
-          package: pkg,
-          symbolCount: 0,
-          fileCount: 1,
-        });
-      }
-    }
+    const { pkgNodes, fileToPkg } = buildPackageGraphNodes(fileCounts, files);
 
     // Cross-package edges: aggregate in SQL first (file×file×type) so monorepos
     // with tens of thousands of symbol refs ship far fewer rows into JS.
@@ -1679,20 +1174,13 @@ export class IndexStore {
        GROUP BY r.call_type, sf.file, st.file`,
     ).all() as Array<{ call_type: string; from_file: string; to_file: string; n: number }>;
 
-    const edgeMap = new Map<string, { weight: number; types: Map<string, number> }>();
+    const edgeMap = new Map<string, WeightedEdgeAccumulator>();
     for (const r of refRows) {
-      const fromPkg = fileToPkg.get(r.from_file) ?? IndexStore.derivePackage(r.from_file) ?? '(root)';
-      const toPkg = fileToPkg.get(r.to_file) ?? IndexStore.derivePackage(r.to_file) ?? '(root)';
+      const fromPkg = fileToPkg.get(r.from_file) ?? derivePackage(r.from_file) ?? '(root)';
+      const toPkg = fileToPkg.get(r.to_file) ?? derivePackage(r.to_file) ?? '(root)';
       if (fromPkg === toPkg) continue;
-      const key = `${fromPkg}\u0000${toPkg}`;
-      let e = edgeMap.get(key);
-      if (!e) {
-        e = { weight: 0, types: new Map() };
-        edgeMap.set(key, e);
-      }
       const n = Number(r.n) || 0;
-      e.weight += n;
-      e.types.set(r.call_type, (e.types.get(r.call_type) ?? 0) + n);
+      addWeightedEdge(edgeMap, fromPkg, toPkg, r.call_type, n);
     }
 
     // Module imports are path/package references, not symbol names. They must
@@ -1706,40 +1194,14 @@ export class IndexStore {
        GROUP BY r.to_name, s.file`,
     ).all() as Array<{ to_name: string; from_file: string; n: number }>;
     for (const r of importRows) {
-      const fromPkg = fileToPkg.get(r.from_file) ?? IndexStore.derivePackage(r.from_file) ?? '(root)';
-      const toPkg = IndexStore.packageFromImport(r.to_name);
+      const fromPkg = fileToPkg.get(r.from_file) ?? derivePackage(r.from_file) ?? '(root)';
+      const toPkg = packageFromImport(r.to_name);
       if (!fromPkg || !toPkg || fromPkg === toPkg || !pkgNodes.has(toPkg)) continue;
-      const key = `${fromPkg}\u0000${toPkg}`;
-      let edge = edgeMap.get(key);
-      if (!edge) {
-        edge = { weight: 0, types: new Map() };
-        edgeMap.set(key, edge);
-      }
       const n = Number(r.n) || 0;
-      edge.weight += n;
-      edge.types.set('import', (edge.types.get('import') ?? 0) + n);
+      addWeightedEdge(edgeMap, fromPkg, toPkg, 'import', n);
     }
 
-    const edges: GraphEdge[] = [];
-    for (const [key, e] of edgeMap) {
-      const [source, target] = key.split('\u0000');
-      // Dominant ref type = most frequent
-      let bestType = 'call';
-      let bestCount = 0;
-      for (const [t, c] of e.types) {
-        if (c > bestCount) {
-          bestType = t;
-          bestCount = c;
-        }
-      }
-      edges.push({
-        source: `pkg:${source}`,
-        target: `pkg:${target}`,
-        weight: e.weight,
-        refType: bestType as CallType,
-      });
-    }
-
+    const edges = materializeWeightedEdges(edgeMap, 'pkg');
     return { nodes: [...pkgNodes.values()], edges };
   }
 
@@ -1748,22 +1210,13 @@ export class IndexStore {
    * derived from cross-file symbol references within the package.
    */
   getFileGraph(packageFilter: string): CodeMapGraph {
-    type SymRow = {
-      file: string;
-      id: number;
-      name: string;
-      kind: string;
-      lang: string;
-      line: number;
-    };
-
     // Phase 1: Discover which files belong to the target package. Instead of
     // loading every symbol row (5500+) and filtering in JS, scan just the
     // distinct file paths — a much smaller result set.
     const allFiles = this.stmt('SELECT DISTINCT file FROM symbols')
       .all() as { file: string }[];
     const pkgFilePaths = allFiles
-      .filter((f) => (IndexStore.derivePackage(f.file) ?? '(root)') === packageFilter)
+      .filter((f) => (derivePackage(f.file) ?? '(root)') === packageFilter)
       .map((f) => f.file);
     const localFiles = new Set(pkgFilePaths);
     if (localFiles.size === 0) return { nodes: [], edges: [] };
@@ -1773,37 +1226,11 @@ export class IndexStore {
     const pkgSyms = this.stmt(
         `SELECT file, id, name, kind, lang, line FROM symbols WHERE file IN (${filePlaceholders}) ORDER BY id`,
       )
-      .all(...pkgFilePaths) as SymRow[];
-
-    const fileNodes = new Map<string, GraphNode>();
-    const symToFile = new Map<number, string>();
-    const fileStats = new Map<string, { count: number; lang: SymbolLang }>();
-    for (const s of pkgSyms) {
-      symToFile.set(s.id, s.file);
-      const current = fileStats.get(s.file);
-      fileStats.set(s.file, {
-        count: (current?.count ?? 0) + 1,
-        lang: (current?.lang ?? s.lang) as SymbolLang,
-      });
-    }
-
-    const ensureFileNode = (file: string): void => {
-      if (fileNodes.has(file)) return;
-      const stats = fileStats.get(file);
-      fileNodes.set(file, {
-        id: `file:${file}`,
-        label: file.replace(/\\/g, '/').split('/').pop() ?? file,
-        kind: 'file' as const,
-        package: IndexStore.derivePackage(file) ?? '(root)',
-        file,
-        symbolCount: stats?.count ?? 0,
-        lang: stats?.lang,
-        external: !localFiles.has(file),
-      });
-    };
-    for (const file of localFiles) {
-      ensureFileNode(file);
-    }
+      .all(...pkgFilePaths) as WriterFileGraphSymbolRow[];
+    const { fileNodes, symToFile, fileStats, ensureFileNode } = buildFileGraphNodeState(
+      pkgSyms,
+      localFiles,
+    );
 
     // Build indexed-files set for import resolution — cheap DISTINCT query
     // on file paths only (no full symbol rows).
@@ -1847,7 +1274,7 @@ export class IndexStore {
       }
     }
 
-    const edgeMap = new Map<string, { weight: number; types: Map<string, number> }>();
+    const edgeMap = new Map<string, WeightedEdgeAccumulator>();
     for (const r of refRows) {
       if (r.call_type === 'import') continue;
       const fromFile = symToFile.get(r.from_id);
@@ -1856,15 +1283,8 @@ export class IndexStore {
       if (!localFiles.has(fromFile) && !localFiles.has(toFile)) continue;
       ensureFileNode(fromFile);
       ensureFileNode(toFile);
-      const key = `${fromFile}\u0000${toFile}`;
-      let e = edgeMap.get(key);
-      if (!e) {
-        e = { weight: 0, types: new Map() };
-        edgeMap.set(key, e);
-      }
       const n = Number(r.n) || 0;
-      e.weight += n;
-      e.types.set(r.call_type, (e.types.get(r.call_type) ?? 0) + n);
+      addWeightedEdge(edgeMap, fromFile, toFile, r.call_type, n);
     }
 
     const importRows = this.stmt(
@@ -1878,40 +1298,15 @@ export class IndexStore {
     for (const r of importRows) {
       const fromFile = symToFile.get(r.from_id);
       if (!fromFile || !localFiles.has(fromFile)) continue;
-      const toFile = IndexStore.resolveRelativeImport(fromFile, r.to_name, indexedFiles);
+      const toFile = resolveRelativeImport(fromFile, r.to_name, indexedFiles);
       if (!toFile || fromFile === toFile) continue;
       ensureFileNode(fromFile);
       ensureFileNode(toFile);
-      const key = `${fromFile}\u0000${toFile}`;
-      let edge = edgeMap.get(key);
-      if (!edge) {
-        edge = { weight: 0, types: new Map() };
-        edgeMap.set(key, edge);
-      }
       const n = Number(r.n) || 0;
-      edge.weight += n;
-      edge.types.set('import', (edge.types.get('import') ?? 0) + n);
+      addWeightedEdge(edgeMap, fromFile, toFile, 'import', n);
     }
 
-    const edges: GraphEdge[] = [];
-    for (const [key, e] of edgeMap) {
-      const [source, target] = key.split('\u0000');
-      let bestType = 'call';
-      let bestCount = 0;
-      for (const [t, c] of e.types) {
-        if (c > bestCount) {
-          bestType = t;
-          bestCount = c;
-        }
-      }
-      edges.push({
-        source: `file:${source}`,
-        target: `file:${target}`,
-        weight: e.weight,
-        refType: bestType as CallType,
-      });
-    }
-
+    const edges = materializeWeightedEdges(edgeMap, 'file');
     return { nodes: [...fileNodes.values()], edges };
   }
 
@@ -1920,43 +1315,18 @@ export class IndexStore {
    * derived from intra-file and cross-file symbol references (who calls whom).
    */
   getSymbolGraph(fileFilter: string): CodeMapGraph {
-    type SymRow = {
-      id: number;
-      name: string;
-      kind: string;
-      lang: string;
-      file: string;
-      line: number;
-      signature: string;
-      scope: string;
-    };
     // Query ONLY symbols from the target file — avoids loading the entire
     // project's symbol table (5500+ rows) just to render one file's graph.
     // Cross-file symbols referenced via refs are fetched lazily below.
     const syms = this.stmt(
         'SELECT id, name, kind, lang, file, line, signature, scope FROM symbols WHERE file = ? ORDER BY line, id',
       )
-      .all(fileFilter) as SymRow[];
+      .all(fileFilter) as WriterSymbolGraphRow[];
 
     if (syms.length === 0) return { nodes: [], edges: [] };
 
     const symById = new Map(syms.map((symbol) => [symbol.id, symbol]));
     const relatedIds = new Set(syms.map((symbol) => symbol.id));
-
-    const toGraphNode = (s: SymRow): GraphNode => ({
-      id: `sym:${s.id}`,
-      label: s.name,
-      kind: 'symbol' as const,
-      symbolId: s.id,
-      symbolKind: s.kind as SymbolKind,
-      file: s.file,
-      package: IndexStore.derivePackage(s.file) ?? '(root)',
-      lang: s.lang as SymbolLang,
-      line: s.line,
-      signature: s.signature,
-      scope: s.scope,
-      external: s.file !== fileFilter,
-    });
 
     // Collect refs FROM symbols in this file (outgoing) and TO symbols in this
     // file (incoming), so the graph shows both callers and callees.
@@ -1992,41 +1362,16 @@ export class IndexStore {
       n: number;
     }[];
 
-    const edgeMap = new Map<string, { weight: number; types: Map<string, number> }>();
+    const edgeMap = new Map<string, WeightedEdgeAccumulator>();
     for (const r of refRows) {
       // Aggregated query only returns resolved endpoints; still guard.
       if (r.to_id == null) continue;
       relatedIds.add(r.from_id);
       relatedIds.add(r.to_id);
-      const key = `${r.from_id}\u0000${r.to_id}`;
-      let e = edgeMap.get(key);
-      if (!e) {
-        e = { weight: 0, types: new Map() };
-        edgeMap.set(key, e);
-      }
       const n = Number(r.n) || 0;
-      e.weight += n;
-      e.types.set(r.call_type, (e.types.get(r.call_type) ?? 0) + n);
+      addWeightedEdge(edgeMap, r.from_id, r.to_id, r.call_type, n);
     }
-
-    const edges: GraphEdge[] = [];
-    for (const [key, e] of edgeMap) {
-      const [fromId, toId] = key.split('\u0000').map(Number);
-      let bestType = 'call';
-      let bestCount = 0;
-      for (const [t, c] of e.types) {
-        if (c > bestCount) {
-          bestType = t;
-          bestCount = c;
-        }
-      }
-      edges.push({
-        source: `sym:${fromId}`,
-        target: `sym:${toId}`,
-        weight: e.weight,
-        refType: bestType as CallType,
-      });
-    }
+    const edges = materializeWeightedEdges(edgeMap, 'sym');
 
     // Lazily fetch referenced symbols from other files that aren't already
     // loaded (discovered via refs above) instead of loading the entire project
@@ -2038,24 +1383,14 @@ export class IndexStore {
       const extras = this.stmt(
           `SELECT id, name, kind, lang, file, line, signature, scope FROM symbols WHERE id IN (${placeholders})`,
         )
-        .all(...missingIds) as SymRow[];
+        .all(...missingIds) as WriterSymbolGraphRow[];
       for (const s of extras) symById.set(s.id, s);
     }
 
     // Include direct callers/callees from other files. Previously their edges
     // pointed at missing React Flow nodes, which made cross-file relations
     // invisible exactly where users expected to inspect them.
-    const nodes = [...relatedIds]
-      .map((id) => symById.get(id))
-      .filter((symbol): symbol is SymRow => symbol !== undefined)
-      .sort((a, b) => {
-        const aExternal = a.file === fileFilter ? 0 : 1;
-        const bExternal = b.file === fileFilter ? 0 : 1;
-        return (
-          aExternal - bExternal || a.file.localeCompare(b.file) || a.line - b.line || a.id - b.id
-        );
-      })
-      .map(toGraphNode);
+    const nodes = buildSymbolGraphNodes(symById, relatedIds, fileFilter);
 
     return { nodes, edges };
   }
@@ -2075,3 +1410,9 @@ export class IndexStore {
     }
   }
 }
+
+/** Process-wide singleton pool. */
+export const indexStorePool = new StorePool(
+  (projectRoot: string, opts?: { indexDir?: string | undefined }) =>
+    new IndexStore(projectRoot, opts),
+);
