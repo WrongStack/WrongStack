@@ -14,7 +14,7 @@ export interface InstructionBundle {
   sections?: Record<string, string> | undefined;
 }
 
-export type SystemInstructionVariant = 'default' | 'pro';
+export type SystemInstructionVariant = 'default' | 'lite' | 'pro';
 
 export interface InstructionBundlePaths {
   /** Bundled instruction directory. Defaults to `<@wrongstack/core>/instructions`. */
@@ -25,8 +25,8 @@ export interface InstructionBundlePaths {
   projectDir?: string | undefined;
   /**
    * Selects the markdown file used for the system identity layer.
-   * Defaults to `system.md`; `pro` reads `system-pro.md` from the same
-   * bundled/global/project instruction directories.
+   * Defaults to `system.md`; `lite` reads `system-lite.md` and `pro` reads
+   * `system-pro.md` from the same bundled/global/project instruction directories.
    */
   systemVariant?: SystemInstructionVariant | undefined;
   /**
@@ -80,7 +80,9 @@ export function mergeInstructionBundle(
 
 function resolveSystemInstructionFile(paths: InstructionBundlePaths | undefined): string {
   if (paths?.systemFile !== undefined) return sanitizeSystemInstructionFile(paths.systemFile);
-  return paths?.systemVariant === 'pro' ? 'system-pro.md' : 'system.md';
+  if (paths?.systemVariant === 'lite') return 'system-lite.md';
+  if (paths?.systemVariant === 'pro') return 'system-pro.md';
+  return 'system.md';
 }
 
 function sanitizeSystemInstructionFile(file: string): string {

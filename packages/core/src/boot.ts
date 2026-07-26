@@ -340,6 +340,8 @@ export function flagsToConfigPatch(flags: Record<string, string | boolean>): Par
   }
   if (isEnabledFlag(flags['system-pro']) || flags['system-prompt'] === 'pro') {
     patch.systemPrompt = { variant: 'pro' };
+  } else if (isEnabledFlag(flags['system-lite']) || flags['system-prompt'] === 'lite') {
+    patch.systemPrompt = { variant: 'lite' };
   } else if (flags['system-prompt'] === 'default') {
     patch.systemPrompt = { variant: 'default' };
   }

@@ -31,7 +31,8 @@ import * as path from 'node:path';
 
 const { bindSystemPromptBuilder } = await import('../../src/boot/system-prompt-builder.js');
 
-import type { SystemInstructionVariant, TokenSavingTier } from '@wrongstack/core/types';
+import type { TokenSavingTier } from '@wrongstack/core/types';
+type SystemInstructionVariant = 'default' | 'lite' | 'pro';
 
 interface CapturedBuilder {
   opts: {
@@ -174,10 +175,10 @@ describe('bindSystemPromptBuilder (PR 5 of #29)', () => {
     expect(builder.opts.tokenSavingMode).toBe('aggressive');
   });
 
-  it('passes systemPromptVariant through to instructionPaths', () => {
-    const { capturedFactory } = makeDeps({ systemPromptVariant: 'pro' });
+  it.each(['lite', 'pro'] as const)('passes %s systemPromptVariant through to instructionPaths', (variant) => {
+    const { capturedFactory } = makeDeps({ systemPromptVariant: variant });
     const builder = capturedFactory();
-    expect(builder.opts.instructionPaths?.systemVariant).toBe('pro');
+    expect(builder.opts.instructionPaths?.systemVariant).toBe(variant);
   });
 
   it('autonomy contributor is the only contributor wired into the builder', () => {

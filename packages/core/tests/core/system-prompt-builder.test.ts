@@ -78,23 +78,59 @@ describe('DefaultSystemPromptBuilder', () => {
     expect(blocks.at(-1)?.text).toBe('PROJECT LEADER');
   });
 
-  it('selects system-pro.md from bundled and override instruction directories', async () => {
+  it('selects variant system markdown from bundled and override instruction directories', async () => {
     const bundledDir = path.join(tmp, 'bundled-instructions');
     const projectDir = path.join(tmp, '.wrongstack', 'instructions');
     await fs.mkdir(bundledDir, { recursive: true });
     await fs.mkdir(projectDir, { recursive: true });
     await fs.writeFile(path.join(bundledDir, 'system.md'), 'BUNDLED DEFAULT');
+    await fs.writeFile(path.join(bundledDir, 'system-lite.md'), 'BUNDLED LITE');
     await fs.writeFile(path.join(bundledDir, 'system-pro.md'), 'BUNDLED PRO');
     await fs.writeFile(path.join(projectDir, 'system.md'), 'PROJECT DEFAULT');
+    await fs.writeFile(path.join(projectDir, 'system-lite.md'), 'PROJECT LITE');
     await fs.writeFile(path.join(projectDir, 'system-pro.md'), 'PROJECT PRO');
 
-    const b = new DefaultSystemPromptBuilder({
+    await expect(loadInstructionBundle({ bundledDir, systemVariant: 'default' })).resolves.toMatchObject({
+      system: { identity: 'BUNDLED DEFAULT' },
+    });
+    await expect(loadInstructionBundle({ bundledDir, systemVariant: 'lite' })).resolves.toMatchObject({
+      system: { identity: 'BUNDLED LITE' },
+    });
+    await expect(loadInstructionBundle({ bundledDir, systemVariant: 'pro' })).resolves.toMatchObject({
+      system: { identity: 'BUNDLED PRO' },
+    });
+
+    const fallbackProjectDir = path.join(tmp, '.wrongstack', 'fallback-instructions');
+    await fs.mkdir(fallbackProjectDir, { recursive: true });
+    await fs.writeFile(path.join(fallbackProjectDir, 'system.md'), 'PROJECT FALLBACK DEFAULT');
+    await expect(
+      loadInstructionBundle({ bundledDir, projectDir: fallbackProjectDir, systemVariant: 'lite' }),
+    ).resolves.toMatchObject({
+      system: { identity: 'BUNDLED LITE' },
+    });
+
+    const defaultVariant = new DefaultSystemPromptBuilder({
+      todayIso: '2026-05-13',
+      instructionPaths: { bundledDir, projectDir, systemVariant: 'default' },
+    });
+    const lite = new DefaultSystemPromptBuilder({
+      todayIso: '2026-05-13',
+      instructionPaths: { bundledDir, projectDir, systemVariant: 'lite' },
+    });
+    const pro = new DefaultSystemPromptBuilder({
       todayIso: '2026-05-13',
       instructionPaths: { bundledDir, projectDir, systemVariant: 'pro' },
     });
-    const blocks = await b.build({ cwd: tmp, projectRoot: tmp, tools: [] });
 
-    expect(blocks[0]?.text).toBe('PROJECT PRO');
+    const defaultBlocks = await defaultVariant.build({ cwd: tmp, projectRoot: tmp, tools: [] });
+    const liteBlocks = await lite.build({ cwd: tmp, projectRoot: tmp, tools: [] });
+    const proBlocks = await pro.build({ cwd: tmp, projectRoot: tmp, tools: [] });
+
+    expect(defaultBlocks[0]?.text).toBe('PROJECT DEFAULT');
+    expect(liteBlocks[0]?.text).toBe('PROJECT LITE');
+    expect(liteBlocks[0]?.text).not.toContain('PROJECT DEFAULT');
+    expect(proBlocks[0]?.text).toBe('PROJECT PRO');
+    expect(proBlocks[0]?.text).not.toContain('PROJECT DEFAULT');
   });
 
   it('accepts an explicit system identity markdown file and rejects path traversal', async () => {

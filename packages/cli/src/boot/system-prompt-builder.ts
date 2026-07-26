@@ -132,7 +132,7 @@ interface BindSystemPromptBuilderDeps {
   skillEagerMaxChars?: number | undefined;
   /** `config.features.tokenSavingMode` — forwarded so prompt guidance matches tool tiering. */
   tokenSavingMode?: TokenSavingTier | boolean | undefined;
-  /** `config.systemPrompt.variant` — selects system.md vs system-pro.md. */
+  /** `config.systemPrompt.variant` — selects system.md, system-lite.md, or system-pro.md. */
   systemPromptVariant?: SystemInstructionVariant | undefined;
   paths: SystemPromptBuilderPaths;
   /** `path.join`-shaped helper from the runtime. */

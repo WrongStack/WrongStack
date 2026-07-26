@@ -44,6 +44,7 @@ export const BOOLEAN_FLAGS = new Set([
   'mouse',
   'no-interactive',
   'token-saving-mode',
+  'system-lite',
   'system-pro',
   'hq',
   'hq-allow-exec',

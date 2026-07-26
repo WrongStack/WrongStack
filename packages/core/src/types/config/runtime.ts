@@ -50,10 +50,10 @@ export interface ModelRuntimeConfig {
 /**
  * Selects which built-in/base system identity prompt file is used when building
  * the host system prompt. Surfaces keep `default` unless explicitly told to use
- * the pro prompt.
+ * the lite or pro prompt.
  */
 export interface SystemPromptConfig {
-  variant?: 'default' | 'pro' | undefined;
+  variant?: 'default' | 'lite' | 'pro' | undefined;
 }
 
 /**

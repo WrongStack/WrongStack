@@ -231,7 +231,12 @@ describe('flagsToConfigPatch — all branches', () => {
     expect(flagsToConfigPatch({ 'system-pro': 'true' }).systemPrompt?.variant).toBe('pro');
     expect(flagsToConfigPatch({ 'system-pro': '1' }).systemPrompt?.variant).toBe('pro');
     expect(flagsToConfigPatch({ 'system-pro': 'false' }).systemPrompt).toBeUndefined();
+    expect(flagsToConfigPatch({ 'system-lite': true }).systemPrompt?.variant).toBe('lite');
+    expect(flagsToConfigPatch({ 'system-lite': 'true' }).systemPrompt?.variant).toBe('lite');
+    expect(flagsToConfigPatch({ 'system-lite': '1' }).systemPrompt?.variant).toBe('lite');
+    expect(flagsToConfigPatch({ 'system-lite': 'false' }).systemPrompt).toBeUndefined();
     expect(flagsToConfigPatch({ 'system-prompt': 'pro' }).systemPrompt?.variant).toBe('pro');
+    expect(flagsToConfigPatch({ 'system-prompt': 'lite' }).systemPrompt?.variant).toBe('lite');
     expect(flagsToConfigPatch({ 'system-prompt': 'default' }).systemPrompt?.variant).toBe('default');
     expect(flagsToConfigPatch({ 'system-prompt': 'other' }).systemPrompt).toBeUndefined();
   });
