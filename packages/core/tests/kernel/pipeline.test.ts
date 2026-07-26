@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { Pipeline } from '../../src/kernel/pipeline.js';
+import { Pipeline, type Middleware } from '../../src/kernel/pipeline.js';
+
+function useMiddleware<T>(pipeline: Pipeline<T>, middleware: Middleware<T>): void {
+  pipeline.use(middleware);
+}
 
 describe('Pipeline', () => {
   it('runs empty input unchanged', async () => {
@@ -9,22 +13,22 @@ describe('Pipeline', () => {
 
   it('chains middleware in order', async () => {
     const p = new Pipeline<number>();
-    p.use({ name: 'plus1', handler: async (v, next) => next(v + 1) });
-    p.use({ name: 'times2', handler: async (v, next) => next(v * 2) });
+    useMiddleware(p, { name: 'plus1', handler: async (v, next) => next(v + 1) });
+    useMiddleware(p, { name: 'times2', handler: async (v, next) => next(v * 2) });
     expect(await p.run(1)).toBe(4);
   });
 
   it('respects prepend', async () => {
     const p = new Pipeline<number>();
-    p.use({ name: 'times2', handler: async (v, next) => next(v * 2) });
+    useMiddleware(p, { name: 'times2', handler: async (v, next) => next(v * 2) });
     p.prepend({ name: 'plus1', handler: async (v, next) => next(v + 1) });
     expect(await p.run(1)).toBe(4);
   });
 
   it('insertBefore and insertAfter', async () => {
     const p = new Pipeline<number>();
-    p.use({ name: 'a', handler: async (v, n) => n(v + 1) });
-    p.use({ name: 'c', handler: async (v, n) => n(v + 10) });
+    useMiddleware(p, { name: 'a', handler: async (v, n) => n(v + 1) });
+    useMiddleware(p, { name: 'c', handler: async (v, n) => n(v + 10) });
     p.insertAfter('a', { name: 'b', handler: async (v, n) => n(v + 100) });
     p.insertBefore('c', { name: 'b2', handler: async (v, n) => n(v + 1000) });
     expect(p.list()).toEqual(['a', 'b', 'b2', 'c']);
@@ -32,9 +36,9 @@ describe('Pipeline', () => {
 
   it('insertAt at arbitrary index', async () => {
     const p = new Pipeline<number>();
-    p.use({ name: 'a', handler: async (v, n) => n(v + 1) });
-    p.use({ name: 'b', handler: async (v, n) => n(v + 10) });
-    p.use({ name: 'c', handler: async (v, n) => n(v + 100) });
+    useMiddleware(p, { name: 'a', handler: async (v, n) => n(v + 1) });
+    useMiddleware(p, { name: 'b', handler: async (v, n) => n(v + 10) });
+    useMiddleware(p, { name: 'c', handler: async (v, n) => n(v + 100) });
     p.insertAt(1, { name: 'x', handler: async (v, n) => n(v + 1000) });
     expect(p.list()).toEqual(['a', 'x', 'b', 'c']);
     expect(await p.run(0)).toBe(1111);
@@ -42,8 +46,8 @@ describe('Pipeline', () => {
 
   it('insertAt clamps out-of-range indices', async () => {
     const p = new Pipeline<number>();
-    p.use({ name: 'a', handler: async (v, n) => n(v + 1) });
-    p.use({ name: 'b', handler: async (v, n) => n(v + 10) });
+    useMiddleware(p, { name: 'a', handler: async (v, n) => n(v + 1) });
+    useMiddleware(p, { name: 'b', handler: async (v, n) => n(v + 10) });
     p.insertAt(99, { name: 'c', handler: async (v, n) => n(v + 100) });
     expect(p.list()).toEqual(['a', 'b', 'c']);
     p.insertAt(-5, { name: 'd', handler: async (v, n) => n(v + 1000) });
@@ -52,8 +56,8 @@ describe('Pipeline', () => {
 
   it('replace and remove', async () => {
     const p = new Pipeline<number>();
-    p.use({ name: 'a', handler: async (v, n) => n(v + 1) });
-    p.use({ name: 'b', handler: async (v, n) => n(v + 2) });
+    useMiddleware(p, { name: 'a', handler: async (v, n) => n(v + 1) });
+    useMiddleware(p, { name: 'b', handler: async (v, n) => n(v + 2) });
     p.replace('a', { name: 'a', handler: async (v, n) => n(v + 100) });
     p.remove('b');
     expect(await p.run(0)).toBe(100);
@@ -61,8 +65,8 @@ describe('Pipeline', () => {
 
   it('rejects duplicate names', () => {
     const p = new Pipeline<number>();
-    p.use({ name: 'x', handler: async (v, n) => n(v) });
-    expect(() => p.use({ name: 'x', handler: async (v, n) => n(v) })).toThrow(/already/);
+    useMiddleware(p, { name: 'x', handler: async (v, n) => n(v) });
+    expect(() => useMiddleware(p, { name: 'x', handler: async (v, n) => n(v) })).toThrow(/already/);
   });
 
   it('throws for unknown insertBefore target', () => {
@@ -74,7 +78,7 @@ describe('Pipeline', () => {
 
   it('propagates middleware throw', async () => {
     const p = new Pipeline<number>();
-    p.use({
+    useMiddleware(p, {
       name: 'fail',
       handler: async () => {
         throw new Error('boom');
@@ -86,7 +90,7 @@ describe('Pipeline', () => {
   it('async order preserved', async () => {
     const p = new Pipeline<string>();
     const order: string[] = [];
-    p.use({
+    useMiddleware(p, {
       name: 'a',
       handler: async (v, n) => {
         order.push('a-before');
@@ -95,7 +99,7 @@ describe('Pipeline', () => {
         return r;
       },
     });
-    p.use({
+    useMiddleware(p, {
       name: 'b',
       handler: async (v, n) => {
         order.push('b-before');
@@ -111,7 +115,7 @@ describe('Pipeline', () => {
   describe('error boundary (L1-F)', () => {
     it('rethrows by default when middleware crashes', async () => {
       const p = new Pipeline<number>();
-      p.use({
+      useMiddleware(p, {
         name: 'crash',
         handler: async () => {
           throw new Error('boom');
@@ -123,7 +127,7 @@ describe('Pipeline', () => {
     it('swallows when the handler returns "swallow"', async () => {
       const seen: { middleware: string; owner?: string }[] = [];
       const p = new Pipeline<number>();
-      p.use({
+      useMiddleware(p, {
         name: 'bad-plugin',
         owner: 'sneaky',
         handler: async () => {
@@ -131,7 +135,10 @@ describe('Pipeline', () => {
         },
       });
       p.setErrorHandler((ev) => {
-        seen.push({ middleware: ev.middleware, owner: ev.owner });
+        seen.push({
+          middleware: ev.middleware,
+          ...(ev.owner !== undefined ? { owner: ev.owner } : {}),
+        });
         return 'swallow';
       });
       // Value going into the crashed middleware passes through unchanged.
@@ -141,8 +148,8 @@ describe('Pipeline', () => {
 
     it('rethrows when the handler returns "rethrow"', async () => {
       const p = new Pipeline<number>();
-      p.use({ name: 'good', handler: async (v, next) => next(v + 1) });
-      p.use({
+      useMiddleware(p, { name: 'good', handler: async (v, next) => next(v + 1) });
+      useMiddleware(p, {
         name: 'kaboom',
         handler: async () => {
           throw new Error('x');
@@ -155,21 +162,21 @@ describe('Pipeline', () => {
     it('after swallow, subsequent middleware is skipped (skip-the-broken-layer semantics)', async () => {
       const calls: string[] = [];
       const p = new Pipeline<number>();
-      p.use({
+      useMiddleware(p, {
         name: 'a',
         handler: async (v, next) => {
           calls.push('a');
           return next(v + 1);
         },
       });
-      p.use({
+      useMiddleware(p, {
         name: 'b',
         handler: async () => {
           calls.push('b');
           throw new Error('crash');
         },
       });
-      p.use({
+      useMiddleware(p, {
         name: 'c',
         handler: async (v, next) => {
           calls.push('c');
@@ -191,7 +198,7 @@ describe('Pipeline', () => {
       // observes the swallowed (pre-crash) value flowing back up.
       const calls: string[] = [];
       const p = new Pipeline<number>();
-      p.use({
+      useMiddleware(p, {
         name: 'upstream',
         handler: async (v, next) => {
           calls.push('upstream:before');
@@ -200,14 +207,14 @@ describe('Pipeline', () => {
           return out + 100;
         },
       });
-      p.use({
+      useMiddleware(p, {
         name: 'crash',
         handler: async () => {
           calls.push('crash');
           throw new Error('boom');
         },
       });
-      p.use({
+      useMiddleware(p, {
         name: 'downstream',
         handler: async (v, next) => {
           calls.push('downstream'); // must NEVER run
@@ -226,7 +233,7 @@ describe('Pipeline', () => {
     it('swallow path emits a structured warning when a logger is set (P2 #7)', async () => {
       const warnings: { msg: string; ctx?: unknown }[] = [];
       const p = new Pipeline<number>();
-      p.use({
+      useMiddleware(p, {
         name: 'bad-plugin',
         owner: 'third-party',
         handler: async () => {
@@ -235,12 +242,15 @@ describe('Pipeline', () => {
       });
       p.setErrorHandler(() => 'swallow');
       p.setLogger({
-        warn: (msg, ctx) => warnings.push({ msg, ctx }),
+        warn: (msg, ctx) => {
+          warnings.push({ msg, ctx });
+        },
       });
       await p.run(42);
       expect(warnings).toHaveLength(1);
-      expect(warnings[0].msg).toBe('pipeline.error');
-      expect(warnings[0].ctx).toMatchObject({
+      const warning = warnings.at(0);
+      expect(warning?.msg).toBe('pipeline.error');
+      expect(warning?.ctx).toMatchObject({
         middleware: 'bad-plugin',
         owner: 'third-party',
         error: 'plugin blew up',
@@ -249,7 +259,7 @@ describe('Pipeline', () => {
 
     it('swallow path is silent when no logger is set (backward compatible)', async () => {
       const p = new Pipeline<number>();
-      p.use({
+      useMiddleware(p, {
         name: 'silent-crash',
         handler: async () => {
           throw new Error('no logger');
@@ -264,14 +274,18 @@ describe('Pipeline', () => {
     it('rethrow path does NOT log (only swallow logs)', async () => {
       const warnings: { msg: string; ctx?: unknown }[] = [];
       const p = new Pipeline<number>();
-      p.use({
+      useMiddleware(p, {
         name: 'crash',
         handler: async () => {
           throw new Error('rethrown');
         },
       });
       p.setErrorHandler(() => 'rethrow');
-      p.setLogger({ warn: (msg, ctx) => warnings.push({ msg, ctx }) });
+      p.setLogger({
+        warn: (msg, ctx) => {
+          warnings.push({ msg, ctx });
+        },
+      });
       await expect(p.run(0)).rejects.toThrow('rethrown');
       expect(warnings).toHaveLength(0);
     });
@@ -280,7 +294,7 @@ describe('Pipeline', () => {
   describe('asReadonly', () => {
     it('returns a frozen view with size + list + run methods', async () => {
       const p = new Pipeline<number>();
-      p.use({ name: 'plus-one', handler: async (v, next) => next(v + 1) });
+      useMiddleware(p, { name: 'plus-one', handler: async (v, next) => next(v + 1) });
       const view = p.asReadonly();
       expect(view.size).toBe(1);
       expect(view.list()).toEqual(['plus-one']);
@@ -292,13 +306,13 @@ describe('Pipeline', () => {
       const p = new Pipeline<number>();
       const view = p.asReadonly();
       expect(view.size).toBe(0);
-      p.use({ name: 'm', handler: async (v, next) => next(v) });
+      useMiddleware(p, { name: 'm', handler: async (v, next) => next(v) });
       expect(view.size).toBe(1);
     });
 
     it('list snapshot from the view is frozen', () => {
       const p = new Pipeline<number>();
-      p.use({ name: 'm', handler: async (v, next) => next(v) });
+      useMiddleware(p, { name: 'm', handler: async (v, next) => next(v) });
       const snap = p.asReadonly().list();
       expect(Object.isFrozen(snap)).toBe(true);
     });
