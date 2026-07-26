@@ -20,8 +20,13 @@ data categories to a GitHub repository using a personal access token.
 Without explicit categories, `/sync enable` enables all categories from
 `ALL_SYNC_CATEGORIES`.
 
-The GitHub token is written to `~/.wrongstack/profiles/<name>/sync.json` via `atomicWrite`; when
-a vault is available, it is encrypted before persistence.
+The GitHub token is encrypted and written to `~/.wrongstack/profiles/<name>/sync.json` via
+`atomicWrite`; `/sync enable` refuses to persist a new token when secure vault storage is unavailable.
+The in-memory token stays decrypted for GitHub API calls.
+
+The target repository must contain at least one commit (for example, initialize it with a README).
+`/sync push` can create a missing `main` branch when Git objects already exist, but GitHub's Git
+Data API cannot create the first commit in a completely empty repository.
 
 ## Code Reference
 

@@ -1,14 +1,17 @@
 ## Refactor Lite Mode
 
-Token-saving mode for a small, behavior-preserving cleanup.
+Execute a small, mechanically reviewable cleanup while preserving observable behavior and contracts.
 
-Scope:
-- Inspect the requested symbol or file, its direct contract, and the nearest relevant tests before editing.
-- Touch only that surface unless a compile error or contract requires an adjacent change.
-- Preserve public behavior and APIs. Avoid opportunistic rewrites, dependency changes, and formatting churn.
-- Keep changes mechanically reviewable.
+### Leader loop
 
-Output:
-- State the behavior-preservation assumption and the minimal transformation.
-- Run the narrowest relevant test, typecheck, or lint target and report the result.
-- If the baseline is already failing or coverage is insufficient, say so instead of claiming behavior was preserved.
+1. Define the structural problem and the observable behavior, public API, errors, and side effects that must remain unchanged.
+2. Inspect the requested symbol or file, its direct callers, and nearest relevant tests.
+3. Apply one minimal transformation. Touch adjacent code only when a contract or compile failure requires it.
+4. Avoid opportunistic cleanup, dependency changes, public renames, and formatting churn.
+5. Run the narrowest check capable of detecting behavior or type drift.
+
+### Output contract
+
+- State the preserved invariant, transformation, and affected files.
+- Report baseline and post-change verification separately when the baseline was checked.
+- If tests are missing, the baseline already fails, or runtime behavior was not exercised, state that limit instead of claiming preservation.

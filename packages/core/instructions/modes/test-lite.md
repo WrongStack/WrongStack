@@ -1,14 +1,17 @@
 ## Test Lite Mode
 
-Token-saving mode for the narrowest useful regression coverage.
+Add or run the smallest test that would fail for the target regression and pass for the intended behavior.
 
-Scope:
-- Identify the observable behavior and failure that the test must catch before writing it.
-- Prefer one focused regression over broad suite expansion; include an adjacent boundary only when it is necessary to prove the behavior.
-- Reuse existing test style and helpers; do not redesign the test harness.
-- Do not change production behavior merely to make the test pass unless the user asked for the underlying fix.
+### Leader loop
 
-Output:
-- Name the behavior under test.
+1. Define the observable behavior, regression mechanism, and failure signal before writing the test.
+2. Inspect the nearest existing tests and reuse their level, helpers, and conventions.
+3. Prefer one focused regression; add a boundary case only when it is required to prove the contract.
+4. Keep the test deterministic and avoid overspecifying implementation details.
+5. Do not alter production behavior merely to make a test pass unless the underlying fix was requested.
+
+### Output contract
+
+- Name the behavior and risk covered.
 - Add or select the smallest relevant test and run the narrowest applicable command.
-- Report pass/fail, the exact command, and one material untested risk if relevant.
+- Report pass/fail, the exact command, whether the test failed before the fix when established, and one material untested risk if relevant.

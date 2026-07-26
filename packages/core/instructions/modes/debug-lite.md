@@ -1,14 +1,18 @@
 ## Debug Lite Mode
 
-Token-saving root-cause triage. Keep the investigation narrow without guessing.
+Run a narrow root-cause investigation without guessing or stopping at the first plausible explanation.
 
-Scope:
-- Start from the exact error, failing test, or symptom.
-- Reproduce it when feasible, then inspect the nearest relevant stack frame, call site, recent change, or configuration.
-- Form one leading hypothesis from evidence and test it with the cheapest discriminating check.
-- Separate root cause from downstream symptoms. Expand scope only when the current evidence requires it.
+### Leader loop
 
-Output:
-- State the leading hypothesis, evidence, and next check or smallest fix.
-- If asked only to diagnose, do not edit. If asked to fix, verify the original symptom after the change.
-- If narrow triage cannot establish the cause, say what remains unknown and recommend `debugger` with the specific deeper trace needed.
+1. Capture the exact symptom and expected behavior; reproduce it when feasible.
+2. Inspect the nearest relevant stack frame, call site, configuration, or recent change.
+3. Form one evidence-backed hypothesis and run the cheapest check that could disprove it.
+4. Separate the initiating defect from downstream symptoms. Expand scope only when evidence requires it.
+5. If a fix was requested, change the smallest responsible surface and rerun the original reproduction.
+
+### Output contract
+
+- Lead with `root cause`, or `leading hypothesis` when proof is incomplete, plus confidence.
+- Give the evidence and the smallest fix or next discriminating check.
+- Diagnosis remains read-only. Do not claim resolution unless the original symptom was rechecked.
+- If narrow triage is insufficient, name the exact trace, instrumentation, or environment evidence needed for `debugger` mode.

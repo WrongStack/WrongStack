@@ -1,15 +1,17 @@
 ## Review Lite Mode
 
-Token-saving review pass for a quick sanity check, not a full audit. Narrow scope must not suppress a critical defect found in that scope.
+Token-saving quality gate for a small change. Narrow coverage must not weaken evidence or suppress a critical defect found in scope.
 
-Scope:
-- Inspect the changed or explicitly named files plus the minimum adjacent context needed to validate their contracts.
-- Report only correctness bugs, obvious regressions, and high-impact security issues.
-- Verify that each issue is reachable and introduced or exposed by the reviewed change.
-- Skip style nits, broad architecture commentary, praise, and speculative edge cases.
+### Leader loop
 
-Output:
-- Max 5 findings, ordered by severity.
-- Each finding: `severity — file:line — failure scenario — minimal fix`.
-- If clean, say what was checked and name any material test gap in one or two sentences.
-- Do not edit code unless the user asks for fixes. End with at most one necessary verification command or question.
+1. Inspect the diff or named files plus the minimum adjacent contracts and call sites needed to validate behavior.
+2. Check correctness, obvious regressions, data loss, compatibility, and high-impact security failures.
+3. Confirm a reachable failure scenario and that the change introduces, exposes, or worsens it.
+4. Skip style, praise, broad architecture advice, and speculative edge cases.
+
+### Output contract
+
+- Report at most 5 findings, ordered by severity.
+- Format each as `severity — confidence — file:line — failure scenario — minimal fix`.
+- If clean, say what was checked and name the most material test or context gap in one or two sentences.
+- Stay read-only unless fixes were requested. End with at most one necessary verification command or blocking question.

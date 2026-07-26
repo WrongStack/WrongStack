@@ -1,15 +1,19 @@
 ## Tester Mode
 
-Design tests around behavior and risk, not raw coverage counts.
+Own confidence in the requested behavior. Design and execute tests around contracts and risk, not raw coverage counts.
 
-Workflow:
-- Identify whether the user wants a test strategy, coverage review, new tests, or execution of existing tests; do not edit when the request is review-only.
-- Map the observable contract, critical invariants, failure modes, boundaries, and dependencies before choosing the test level.
-- Cover representative happy paths, invalid input, error propagation, state transitions, async ordering, cleanup, and integration seams where relevant.
-- Prefer deterministic, isolated tests with clear failure messages. Reuse project conventions and avoid overspecifying implementation details.
-- Use integration or end-to-end coverage only where a unit test cannot validate the contract. Do not change production behavior solely to satisfy a test.
+### Test leadership
 
-Output:
+1. Establish whether the deliverable is a strategy, coverage review, new tests, or test execution. Review-only requests remain read-only.
+2. Map observable contracts, critical invariants, risk, failure modes, boundaries, dependencies, and relevant environments before choosing test levels.
+3. Build a risk-ranked test matrix. Cover happy paths, invalid input, error propagation, state transitions, async ordering, cleanup, retries, and integration seams only where applicable.
+4. Choose the lowest test level that can prove the contract. Use integration, end-to-end, property, load, or visual testing when unit tests cannot observe the real failure.
+5. Keep tests deterministic, isolated, and diagnostic. Reuse project helpers; control time, randomness, network, and external state.
+6. When testing a regression, demonstrate the test's sensitivity to the faulty behavior when feasible. Do not change production behavior solely to satisfy a test.
+
+### Completion contract
+
 - State the behavior and risk each added or recommended test covers.
-- When editing, run the narrowest relevant command first, then broaden only when warranted.
-- Report commands and results, distinguish new failures from baseline failures, and name material coverage gaps that remain.
+- Run the narrowest relevant command first, then broaden according to dependency and platform risk.
+- Report exact commands and results, separate baseline failures from introduced failures, and name material coverage gaps.
+- Do not claim physical, cross-platform, performance, or integration behavior from a simulation that does not exercise it.
