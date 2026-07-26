@@ -1,337 +1,74 @@
 import type {
   KanbanBoard,
   KanbanBoardPresence,
-  KanbanColumn,
   KanbanEvent,
   KanbanManualActivityKind,
   KanbanManualActivityOutcome,
   KanbanModelRoutingMode,
-  KanbanSupervisorSnapshot,
   KanbanTask,
 } from '@wrongstack/kanban';
 import {
-  Activity,
-  ArrowLeft,
-  CircleUserRound,
-  Clock3,
-  Check,
   ChevronDown,
   Columns3,
   Copy,
   Maximize2,
   Minimize2,
   MoveRight,
-  Pause,
-  Play,
   Plus,
-  RefreshCw,
-  Rocket,
-  RotateCcw,
   Save,
   Send,
   ShieldCheck,
-  Square,
   Trash2,
   UserPlus,
   X,
 } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { useKanbanMeta } from '@/hooks/useKanbanMeta';
 import { useHorizontalScroll } from '@/hooks/useHorizontalScroll';
+import { useKanbanMeta } from '@/hooks/useKanbanMeta';
+import { useProviderModels } from '@/hooks/useProviderModels';
 import { useScrollPosition } from '@/hooks/useScrollPosition';
-import { type ModelCandidate, useProviderModels } from '@/hooks/useProviderModels';
 import { auditKanbanBoard } from '@/lib/kanban-cleaner';
 import { kanbanMetadataText } from '@/lib/kanban-metadata';
-import { verificationStateOf, type TaskVerificationState } from '@/lib/kanban-verification';
 import { cn } from '@/lib/utils';
 import { getWSClient } from '@/lib/ws-client';
+import { useConfigStore, useFleetStore, useKanbanStore, useSessionStore } from '@/stores';
+import { ChipMultiSelect } from './ChipMultiSelect';
+import { AgentRunPanel } from './KanbanAgentRunPanel.js';
+import { BoardPresence, SupervisorBar } from './KanbanBoardChrome.js';
 import {
-  useConfigStore,
-  useFleetStore,
-  useKanbanStore,
-  useSessionStore,
-  useUIStore,
-} from '@/stores';
-import { ChipMultiSelect, type ChipOption } from './ChipMultiSelect';
-import { KanbanCleanerAlert } from './KanbanCleanerAlert';
+  collectActiveSessionIds,
+  collectLiveAgentIdentities,
+  isKanbanBoardActive,
+  parseRunLink,
+  runningBoardCostTotal,
+} from './KanbanBoardState';
+import { KanbanBoardSidebar } from './KanbanBoardSidebar';
 import { KanbanBoundaryEditor } from './KanbanBoundaryEditor';
+import { KanbanCleanerAlert } from './KanbanCleanerAlert';
 import {
   KanbanDecompositionApprovalCard,
   KanbanDecompositionPanel,
 } from './KanbanDecompositionPanel';
+import { KanbanTaskCompletionChecks } from './KanbanTaskCompletionChecks';
+import { KanbanTaskActivityRecorder } from './KanbanTaskActivityRecorder';
+import { KanbanColumnView } from './KanbanColumnView';
+import { KanbanQueueHealthBar } from './KanbanQueueHealthBar';
+import { RunControlBar, type RunLink, RunTaskControls, StartAsBar } from './KanbanRunControls.js';
+import { columnTitle, Field, Metric, SelectField } from './KanbanTaskFields.js';
+import { KNOWN_CAPABILITIES, KNOWN_ROLES } from './KanbanTaskOptions';
 import { KanbanTaskTree } from './KanbanTaskTree';
 import { KanbanVerificationDashboard } from './KanbanVerificationDashboard';
 import { ModelPicker } from './ModelPicker';
 import { TaskActivityTimeline } from './TaskActivityTimeline';
 import { TaskExecutionAttempts } from './TaskExecutionAttempts';
 import { TaskIntelligencePanel } from './TaskIntelligencePanel';
+import { TaskRiskPanel } from './TaskRiskPanel';
 import { TaskVerificationSection } from './TaskVerificationSection';
-import { analyzeTaskRisk, TaskRiskPanel } from './TaskRiskPanel';
-import { Pagination } from './ui/pagination';
-
-/** A kanban board that mirrors a live Goal/SDD run, detected from its tags. */
-interface RunLink {
-  engine: 'sdd' | 'goal';
-  runId?: string | undefined;
-}
 
 export const TASK_ACTIVITY_LOAD_LIMIT = 5_000;
 const BOARD_PAGE_SIZE = 12;
 
-function relativeLastSeen(lastSeenAt: string): string {
-  const elapsed = Math.max(0, Date.now() - Date.parse(lastSeenAt));
-  if (elapsed < 60_000) return 'just now';
-  if (elapsed < 3_600_000) return `${Math.floor(elapsed / 60_000)}m ago`;
-  return `${Math.floor(elapsed / 3_600_000)}h ago`;
-}
-
-function BoardPresence({ presence = [] }: { presence?: KanbanBoardPresence[] | undefined }) {
-  if (presence.length === 0) return null;
-  return (
-    <section
-      aria-label="Board presence"
-      className="flex shrink-0 flex-wrap items-center gap-2 border-b border-border bg-card/50 px-4 py-2"
-    >
-      <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-        Live board users
-      </span>
-      {presence.map((entry) => (
-        <span
-          key={entry.id}
-          className="inline-flex min-w-0 items-center gap-1.5 rounded-full border border-border bg-background px-2.5 py-1 text-xs shadow-sm"
-          title={`Session ${entry.sessionId} · last seen ${entry.lastSeenAt}`}
-        >
-          <span
-            role="img"
-            aria-label={entry.active ? 'active' : 'inactive'}
-            className={cn(
-              'h-2 w-2 shrink-0 rounded-full',
-              entry.active ? 'bg-success' : 'bg-muted-foreground/50',
-            )}
-          />
-          <CircleUserRound size={13} aria-hidden="true" />
-          <span className="max-w-32 truncate font-medium">
-            {entry.agentName ?? entry.agentId}
-          </span>
-          <span className="max-w-32 truncate text-muted-foreground">{entry.sessionId}</span>
-          <Clock3 size={12} className="text-muted-foreground" aria-hidden="true" />
-          <time dateTime={entry.lastSeenAt} className="tabular-nums text-muted-foreground">
-            {relativeLastSeen(entry.lastSeenAt)}
-          </time>
-        </span>
-      ))}
-    </section>
-  );
-}
-
-function SupervisorBar({
-  board,
-  snapshot,
-  sendKanban,
-}: {
-  board: KanbanBoard;
-  snapshot: KanbanSupervisorSnapshot | null;
-  sendKanban: (type: `kanban.${string}`, payload?: Record<string, unknown>) => void;
-}) {
-  const [expanded, setExpanded] = useState(false);
-  const [enabled, setEnabled] = useState(true);
-  const [mode, setMode] = useState<'deterministic' | 'agentic'>('deterministic');
-  const [routingMode, setRoutingMode] = useState<KanbanModelRoutingMode>('session');
-  const [provider, setProvider] = useState('');
-  const [model, setModel] = useState('');
-  const [fallbackProfile, setFallbackProfile] = useState('');
-  const [fallbackModels, setFallbackModels] = useState<string[]>([]);
-  const [skills, setSkills] = useState<string[]>([]);
-  const [intervalSeconds, setIntervalSeconds] = useState(10);
-  const modelCandidates = useProviderModels(expanded && mode === 'agentic');
-  const meta = useKanbanMeta(expanded && mode === 'agentic');
-
-  useEffect(() => {
-    const config = board.supervisor;
-    setEnabled(config?.enabled ?? true);
-    setMode(config?.mode ?? 'deterministic');
-    setRoutingMode(config?.routing?.mode ?? 'session');
-    setProvider(config?.routing?.provider ?? '');
-    setModel(config?.routing?.model ?? '');
-    setFallbackProfile(config?.routing?.fallbackProfile ?? '');
-    setFallbackModels(config?.routing?.fallbackModels ?? []);
-    setSkills(config?.skills ?? []);
-    setIntervalSeconds(Math.max(2, Math.round((config?.intervalMs ?? 10_000) / 1000)));
-  }, [board.id, board.supervisor]);
-
-  const save = () => {
-    const routing = {
-      mode: routingMode,
-      ...(routingMode === 'fixed' && provider ? { provider } : {}),
-      ...(routingMode === 'fixed' && model ? { model } : {}),
-      ...(routingMode === 'fallback_profile' && fallbackProfile ? { fallbackProfile } : {}),
-      ...(fallbackModels.length ? { fallbackModels } : {}),
-    };
-    sendKanban('kanban.update', {
-      boardId: board.id,
-      supervisor: {
-        enabled,
-        mode,
-        intervalMs: Math.max(2, intervalSeconds) * 1000,
-        recoveryMode: 'auto',
-        ...(mode === 'agentic' ? { routing, skills } : {}),
-      },
-    });
-    window.setTimeout(() => sendKanban('kanban.supervisor.audit', { boardId: board.id }), 150);
-  };
-
-  const status = enabled ? (snapshot?.status ?? 'starting') : 'disabled';
-  return (
-    <div className="shrink-0 border-b bg-background/80">
-      <button
-        type="button"
-        onClick={() => setExpanded((value) => !value)}
-        className="flex w-full items-center gap-2 px-4 py-1.5 text-left text-[11px] hover:bg-muted/40"
-      >
-        <ShieldCheck size={13} className={status === 'healthy' ? 'text-success' : 'text-warning'} />
-        <span className="font-semibold">Kanban Agent</span>
-        <span className="rounded bg-muted px-1.5 py-0.5 capitalize text-muted-foreground">
-          {mode} · {status}
-        </span>
-        {snapshot?.summary && (
-          <span className="min-w-0 flex-1 truncate text-muted-foreground">{snapshot.summary}</span>
-        )}
-        <span className="ml-auto text-muted-foreground">
-          {snapshot?.lastAuditAt
-            ? `checked ${fmtElapsed(snapshot.lastAuditAt)} ago`
-            : 'not checked'}
-        </span>
-        <ChevronDown size={13} className={cn('transition-transform', expanded && 'rotate-180')} />
-      </button>
-      {expanded && (
-        <div className="grid gap-3 border-t p-3 text-xs lg:grid-cols-[220px_220px_1fr_auto]">
-          <label className="flex items-center gap-2 rounded-md border bg-card px-2 py-2">
-            <input
-              type="checkbox"
-              checked={enabled}
-              onChange={(event) => setEnabled(event.target.checked)}
-            />
-            <span>Watch this board</span>
-          </label>
-          <SelectField
-            label="Supervisor engine"
-            value={mode}
-            options={['deterministic', 'agentic']}
-            onChange={(value) => setMode(value as 'deterministic' | 'agentic')}
-          />
-          <label className="block">
-            <span className="mb-1 block text-[11px] font-medium text-muted-foreground">
-              Audit interval (seconds)
-            </span>
-            <input
-              type="number"
-              min={2}
-              value={intervalSeconds}
-              onChange={(event) => setIntervalSeconds(Number(event.target.value) || 2)}
-              className="h-8 w-full rounded-md border bg-background px-2 outline-none focus:border-primary"
-            />
-          </label>
-          <div className="flex items-end gap-2">
-            <button
-              type="button"
-              onClick={save}
-              className="inline-flex h-8 items-center gap-1 rounded-md bg-primary px-3 text-primary-foreground"
-            >
-              <Save size={13} /> Save
-            </button>
-            <button
-              type="button"
-              onClick={() => sendKanban('kanban.supervisor.audit', { boardId: board.id })}
-              className="inline-flex h-8 items-center gap-1 rounded-md border px-3 hover:bg-muted"
-            >
-              <Activity size={13} /> Audit now
-            </button>
-          </div>
-          {mode === 'deterministic' ? (
-            <div className="lg:col-span-4 rounded-md border border-success/20 bg-success/5 px-3 py-2 text-muted-foreground">
-              Deterministic mode uses no provider, model, token, or billing. It repairs
-              assignment/status/column drift and recovers expired leases.
-            </div>
-          ) : (
-            <div className="grid gap-3 lg:col-span-4 lg:grid-cols-2">
-              <SelectField
-                label="Kanban Agent model source"
-                value={routingMode}
-                options={['session', 'fixed', 'fallback_profile']}
-                onChange={(value) => setRoutingMode(value as KanbanModelRoutingMode)}
-              />
-              {routingMode === 'fixed' && (
-                <div>
-                  <span className="mb-1 block text-[11px] font-medium text-muted-foreground">
-                    Fixed provider / model
-                  </span>
-                  <ModelPicker
-                    value={model || undefined}
-                    provider={provider || undefined}
-                    candidates={modelCandidates}
-                    placeholder="Select exact provider / model…"
-                    onPick={(nextModel, nextProvider) => {
-                      setModel(nextModel);
-                      setProvider(nextProvider);
-                    }}
-                  />
-                </div>
-              )}
-              {routingMode === 'fallback_profile' && (
-                <SelectField
-                  label="Fallback profile (first model is primary)"
-                  value={fallbackProfile}
-                  options={Object.keys(meta.fallbackProfiles)}
-                  placeholder="Select configured profile…"
-                  onChange={setFallbackProfile}
-                />
-              )}
-              <div>
-                <span className="mb-1 block text-[11px] font-medium text-muted-foreground">
-                  Supervisor skills
-                </span>
-                <ChipMultiSelect
-                  options={meta.skills.map((skill) => ({
-                    value: skill.name,
-                    label: skill.name,
-                    description: skill.description,
-                    tag: skill.source,
-                  }))}
-                  selected={skills}
-                  onChange={setSkills}
-                  placeholder="Force-load agentic skills…"
-                />
-              </div>
-              <div>
-                <span className="mb-1 block text-[11px] font-medium text-muted-foreground">
-                  Extra fallback models
-                </span>
-                <ChipMultiSelect
-                  options={modelCandidates.map((candidate) => ({
-                    value: `${candidate.provider}/${candidate.model}`,
-                    label: candidate.label,
-                    tag: candidate.provider,
-                  }))}
-                  selected={fallbackModels}
-                  onChange={setFallbackModels}
-                  placeholder="Optional ordered fallbacks…"
-                />
-              </div>
-            </div>
-          )}
-        </div>
-      )}
-    </div>
-  );
-}
-
-function parseRunLink(board: { tags?: string[] | undefined } | null | undefined): RunLink | null {
-  const tags = board?.tags ?? [];
-  const engine = tags.includes('sdd') ? 'sdd' : tags.includes('goal') ? 'goal' : null;
-  if (!engine) return null;
-  const runId = tags.find((t) => t.startsWith('run:'))?.slice(4);
-  return { engine, ...(runId ? { runId } : {}) };
-}
+export { deriveTaskCardIntelligence, type TaskCardIntelligence } from './KanbanColumnView';
 
 export function KanbanView({ onClose }: { onClose?: (() => void) | undefined }) {
   const wsUrl = useConfigStore((s) => s.wsUrl);
@@ -372,31 +109,21 @@ export function KanbanView({ onClose }: { onClose?: (() => void) | undefined }) 
 
   const ws = useMemo(() => getWSClient(wsUrl), [wsUrl]);
   const selectedTask = activeBoard?.tasks.find((task) => task.id === selectedTaskId) ?? null;
-  const liveAgentIdentities = useMemo(() => {
-    const identities = new Set<string>();
-    for (const agent of fleetAgents.values()) {
-      if (agent.status !== 'running') continue;
-      identities.add(agent.id);
-      identities.add(agent.name);
-    }
-    return identities;
-  }, [fleetAgents]);
-  const activeSessionIds = useMemo(() => {
-    const ids = new Set<string>();
-    if (sessionId) ids.add(sessionId);
-    for (const id of registrySessionIds) ids.add(id);
-    for (const agent of fleetAgents.values()) {
-      if (agent.status === 'running' && agent.sessionId) ids.add(agent.sessionId);
-    }
-    return [...ids];
-  }, [fleetAgents, registrySessionIds, sessionId]);
-  const isBoardActive = (board: (typeof boards)[number]) =>
-    board.presence?.some((entry) => entry.active) === true ||
-    board.tags?.some(
-      (tag) => tag.startsWith('session:') && activeSessionIds.includes(tag.slice(8)),
-    ) === true;
-  const activeBoards = boards.filter(isBoardActive);
-  const orphanedBoards = boards.filter((board) => !isBoardActive(board));
+  const liveAgentIdentities = useMemo(
+    () => collectLiveAgentIdentities(fleetAgents.values()),
+    [fleetAgents],
+  );
+  const activeSessionIds = useMemo(
+    () =>
+      collectActiveSessionIds({
+        sessionId,
+        registrySessionIds,
+        agents: fleetAgents.values(),
+      }),
+    [fleetAgents, registrySessionIds, sessionId],
+  );
+  const activeBoards = boards.filter((board) => isKanbanBoardActive(board, activeSessionIds));
+  const orphanedBoards = boards.filter((board) => !isKanbanBoardActive(board, activeSessionIds));
   const boardAudit = useMemo(
     () =>
       activeBoard
@@ -409,17 +136,7 @@ export function KanbanView({ onClose }: { onClose?: (() => void) | undefined }) 
     [activeBoard, liveAgentIdentities],
   );
 
-  const runningCostTotal = useMemo(() => {
-    if (!activeBoard) return 0;
-    return activeBoard.tasks
-      .filter(
-        (t) =>
-          t.status === 'in_progress' ||
-          t.assignment?.status === 'running' ||
-          t.assignment?.status === 'queued',
-      )
-      .reduce((sum, t) => sum + (t.costCeilingUsd ?? 0), 0);
-  }, [activeBoard]);
+  const runningCostTotal = useMemo(() => runningBoardCostTotal(activeBoard), [activeBoard]);
 
   const sendKanban = (type: `kanban.${string}`, payload: Record<string, unknown> = {}) => {
     setLoading(true);
@@ -687,124 +404,27 @@ export function KanbanView({ onClose }: { onClose?: (() => void) | undefined }) 
 
   return (
     <div className="flex h-full min-h-0 min-w-0 flex-col bg-background text-foreground md:flex-row">
-      <aside className="flex max-h-[45dvh] w-full shrink-0 flex-col border-b bg-card/40 md:max-h-none md:w-[280px] md:border-b-0 md:border-r">
-        <div className="flex h-12 items-center gap-2 border-b px-3">
-          <button
-            type="button"
-            title="Back"
-            onClick={onClose}
-            className="flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground"
-          >
-            <ArrowLeft size={16} />
-          </button>
-          <Columns3 size={17} className="text-primary" />
-          <div className="min-w-0 flex-1">
-            <div className="truncate text-sm font-semibold">Kanban</div>
-            <div className="truncate text-[11px] text-muted-foreground">
-              {boardTotal} boards · {activeBoardTotal} active · {orphanedBoardTotal} orphaned
-            </div>
-          </div>
-          <button
-            type="button"
-            title="Refresh"
-            onClick={() => refreshBoards()}
-            className="flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground"
-          >
-            <RefreshCw size={15} className={loading ? 'animate-spin' : undefined} />
-          </button>
-        </div>
-
-        <div className="flex gap-1 border-b p-2">
-          <input
-            value={newBoardTitle}
-            onChange={(e) => setNewBoardTitle(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') createBoard();
-            }}
-            placeholder="New board"
-            className="min-w-0 flex-1 rounded-md border bg-background px-2 py-1.5 text-sm outline-none focus:border-primary"
-          />
-          <button
-            type="button"
-            title="Create board"
-            onClick={createBoard}
-            className="flex h-8 w-8 items-center justify-center rounded-md bg-primary text-primary-foreground hover:bg-primary/90"
-          >
-            <Plus size={16} />
-          </button>
-        </div>
-
-        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-2">
-          {activeBoards.length > 0 && (
-            <div className="mb-1 px-2 py-1 text-[10px] font-semibold uppercase tracking-wider text-success">
-              Active session · {activeBoardTotal}
-            </div>
-          )}
-          {activeBoards.map((board) => (
-            <button
-              key={board.id}
-              type="button"
-              onClick={() => {
-                setActiveBoardId(board.id);
-                sendKanban('kanban.get', { boardId: board.id });
-              }}
-              className={cn(
-                'mb-1 w-full rounded-md px-2 py-2 text-left transition-colors',
-                activeBoardId === board.id
-                  ? 'bg-primary/10 text-foreground'
-                  : 'text-muted-foreground hover:bg-muted hover:text-foreground',
-              )}
-            >
-              <div className="truncate text-sm font-medium">{board.title}</div>
-              <div className="mt-0.5 flex items-center justify-between text-[11px]">
-                <span className="inline-flex items-center gap-1">
-                  <span className="h-1.5 w-1.5 rounded-full bg-success" />
-                  {board.taskCount} tasks
-                </span>
-                <span>{board.completedTaskCount} done</span>
-              </div>
-            </button>
-          ))}
-          {orphanedBoards.length > 0 && (
-            <div className="mb-1 mt-2 px-2 py-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-              No active session · {orphanedBoardTotal}
-            </div>
-          )}
-          {orphanedBoards.map((board) => (
-            <button
-              key={board.id}
-              type="button"
-              onClick={() => {
-                setActiveBoardId(board.id);
-                sendKanban('kanban.get', { boardId: board.id });
-              }}
-              className={cn(
-                'mb-1 w-full rounded-md px-2 py-2 text-left transition-colors',
-                activeBoardId === board.id
-                  ? 'bg-primary/10 text-foreground'
-                  : 'text-muted-foreground hover:bg-muted hover:text-foreground',
-              )}
-            >
-              <div className="truncate text-sm font-medium">{board.title}</div>
-              <div className="mt-0.5 flex items-center justify-between text-[11px]">
-                <span className="inline-flex items-center gap-1">
-                  <span className="h-1.5 w-1.5 rounded-full bg-muted-foreground/45" />
-                  {board.taskCount} tasks
-                </span>
-                <span>{board.completedTaskCount} done</span>
-              </div>
-            </button>
-          ))}
-        </div>
-        <Pagination
-          page={boardPage}
-          pageSize={BOARD_PAGE_SIZE}
-          totalItems={boardTotal}
-          onPageChange={changeBoardPage}
-          compact
-          itemLabel="boards"
-        />
-      </aside>
+      <KanbanBoardSidebar
+        boardTotal={boardTotal}
+        activeBoardTotal={activeBoardTotal}
+        orphanedBoardTotal={orphanedBoardTotal}
+        activeBoardId={activeBoardId}
+        activeBoards={activeBoards}
+        orphanedBoards={orphanedBoards}
+        boardPage={boardPage}
+        boardPageSize={BOARD_PAGE_SIZE}
+        loading={loading}
+        newBoardTitle={newBoardTitle}
+        onClose={onClose}
+        onRefresh={() => refreshBoards()}
+        onNewBoardTitleChange={setNewBoardTitle}
+        onCreateBoard={createBoard}
+        onBoardSelect={(boardId) => {
+          setActiveBoardId(boardId);
+          sendKanban('kanban.get', { boardId });
+        }}
+        onBoardPageChange={changeBoardPage}
+      />
 
       <main className="flex min-h-0 min-w-0 flex-1 flex-col">
         <header className="flex min-h-12 shrink-0 flex-wrap items-center gap-2 border-b px-3 py-2 sm:px-4">
@@ -898,9 +518,7 @@ export function KanbanView({ onClose }: { onClose?: (() => void) | undefined }) 
             sendKanban={sendKanban}
           />
         )}
-        {boardAudit && (
-          <KanbanCleanerAlert audit={boardAudit} onSelectTask={setSelectedTaskId} />
-        )}
+        {boardAudit && <KanbanCleanerAlert audit={boardAudit} onSelectTask={setSelectedTaskId} />}
         {activeBoard && (
           <KanbanDecompositionApprovalCard
             board={activeBoard}
@@ -941,79 +559,17 @@ export function KanbanView({ onClose }: { onClose?: (() => void) | undefined }) 
           </div>
         )}
 
-        <div ref={boardScrollRef} className="kanban-scroll-area min-h-0 flex-1 overflow-x-auto overflow-y-hidden overscroll-contain">
+        <div
+          ref={boardScrollRef}
+          className="kanban-scroll-area min-h-0 flex-1 overflow-x-auto overflow-y-hidden overscroll-contain"
+        >
           {activeBoard ? (
             <>
               {queueHealth && (
-                <div className="flex shrink-0 items-center gap-4 border-b px-4 py-2 text-xs text-muted-foreground">
-                  <span className="font-medium text-foreground">Queue health</span>
-                  {queueHealth.counts.ready > 0 && (
-                    <span
-                      title="Claimable tasks"
-                      className="inline-flex items-center gap-1 text-success"
-                    >
-                      {queueHealth.counts.ready} ready
-                    </span>
-                  )}
-                  {queueHealth.counts.running > 0 && (
-                    <span
-                      title="Running assignments"
-                      className="inline-flex items-center gap-1 text-warning"
-                    >
-                      {queueHealth.counts.running} running
-                    </span>
-                  )}
-                  {queueHealth.counts.review > 0 && (
-                    <span title="In review" className="inline-flex items-center gap-1 text-primary">
-                      {queueHealth.counts.review} review
-                    </span>
-                  )}
-                  {queueHealth.counts.blocked > 0 && (
-                    <span
-                      title="Manually blocked"
-                      className="inline-flex items-center gap-1 text-destructive"
-                    >
-                      {queueHealth.counts.blocked} blocked
-                    </span>
-                  )}
-                  {queueHealth.counts.failed > 0 && (
-                    <span
-                      title="Failed tasks"
-                      className="inline-flex items-center gap-1 text-destructive"
-                    >
-                      {queueHealth.counts.failed} failed
-                    </span>
-                  )}
-                  {queueHealth.dependencyBlocked.count > 0 && (
-                    <span
-                      title="Ready/pending tasks blocked by dependencies"
-                      className="inline-flex items-center gap-1 rounded bg-warning/10 px-1.5 py-0.5 text-warning"
-                    >
-                      {queueHealth.dependencyBlocked.count} blocked by deps
-                    </span>
-                  )}
-                  {queueHealth.staleAssignments.count > 0 && (
-                    <span
-                      title="Expired lease assignments"
-                      className="inline-flex items-center gap-1 rounded bg-destructive/10 px-1.5 py-0.5 text-destructive"
-                    >
-                      {queueHealth.staleAssignments.count} stale
-                    </span>
-                  )}
-                  {queueHealth.heartbeatDue.count === 0 &&
-                    queueHealth.staleAssignments.count === 0 &&
-                    queueHealth.dependencyBlocked.count === 0 && (
-                      <span className="text-success">healthy</span>
-                    )}
-                  {runningCostTotal > 0 && (
-                    <span
-                      title="Sum of costCeilingUsd for running/queued tasks"
-                      className="inline-flex items-center gap-1 text-info"
-                    >
-                      ~${runningCostTotal.toFixed(2)} running cost
-                    </span>
-                  )}
-                </div>
+                <KanbanQueueHealthBar
+                  queueHealth={queueHealth}
+                  runningCostTotal={runningCostTotal}
+                />
               )}
               {viewMode === 'tree' ? (
                 <KanbanTaskTree
@@ -1022,10 +578,7 @@ export function KanbanView({ onClose }: { onClose?: (() => void) | undefined }) 
                   onSelectTask={setSelectedTaskId}
                 />
               ) : viewMode === 'dashboard' ? (
-                <KanbanVerificationDashboard
-                  board={activeBoard}
-                  onSelectTask={setSelectedTaskId}
-                />
+                <KanbanVerificationDashboard board={activeBoard} onSelectTask={setSelectedTaskId} />
               ) : (
                 <div className="flex h-full min-w-max gap-3 p-4">
                   {[...activeBoard.columns]
@@ -1074,551 +627,6 @@ export function KanbanView({ onClose }: { onClose?: (() => void) | undefined }) 
     </div>
   );
 }
-
-function RunControlBar({
-  runLink,
-  sendRaw,
-}: {
-  runLink: RunLink;
-  sendRaw: (type: string, payload?: Record<string, unknown>) => void;
-}) {
-  const isSdd = runLink.engine === 'sdd';
-  const pfx = isSdd ? 'sdd.board' : 'goal';
-  const setCurrentView = useUIStore((s) => s.setCurrentView);
-  const btn =
-    'inline-flex items-center gap-1 rounded-md border px-2 py-1 text-[11px] font-medium hover:bg-muted';
-  return (
-    <div className="flex shrink-0 flex-wrap items-center gap-2 border-b bg-primary/5 px-4 py-1.5">
-      <span className="inline-flex items-center gap-1 rounded bg-primary/15 px-1.5 py-0.5 text-[10px] font-semibold uppercase text-primary">
-        <Rocket size={11} /> {runLink.engine}
-      </span>
-      <span className="text-[11px] text-muted-foreground">Live run — steer it from here</span>
-      {isSdd && (
-        <button
-          type="button"
-          className={btn}
-          title="Open the live run view (SDD Hub)"
-          onClick={() => setCurrentView('sddhub')}
-        >
-          <Rocket size={12} /> Open live run
-        </button>
-      )}
-      <div className="ml-auto flex items-center gap-1">
-        <button type="button" className={btn} onClick={() => sendRaw(`${pfx}.pause`)}>
-          <Pause size={12} /> Pause
-        </button>
-        <button type="button" className={btn} onClick={() => sendRaw(`${pfx}.resume`)}>
-          <Play size={12} /> Resume
-        </button>
-        {isSdd && (
-          <button
-            type="button"
-            className={btn}
-            onClick={() => sendRaw('sdd.board.retry_all_failed')}
-          >
-            <RotateCcw size={12} /> Retry failed
-          </button>
-        )}
-        <button
-          type="button"
-          className={cn(btn, 'text-destructive hover:bg-destructive/10')}
-          onClick={() => sendRaw(`${pfx}.stop`)}
-        >
-          <Square size={12} /> Stop
-        </button>
-      </div>
-    </div>
-  );
-}
-
-function StartAsBar({
-  boardId,
-  sendKanban,
-}: {
-  boardId: string;
-  sendKanban: (type: `kanban.${string}`, payload?: Record<string, unknown>) => void;
-}) {
-  const btn =
-    'inline-flex items-center gap-1 rounded-md border px-2 py-1 text-[11px] font-medium text-primary hover:bg-primary/10';
-  return (
-    <div className="flex shrink-0 flex-wrap items-center gap-2 border-b bg-muted/30 px-4 py-1.5">
-      <Rocket size={13} className="text-primary" />
-      <span className="text-[11px] text-muted-foreground">Run this board as a live agent job:</span>
-      <div className="ml-auto flex items-center gap-1">
-        <button
-          type="button"
-          className={btn}
-          onClick={() => sendKanban('kanban.run.start', { boardId, engine: 'goal' })}
-        >
-          Start as Goal
-        </button>
-        <button
-          type="button"
-          className={btn}
-          onClick={() => sendKanban('kanban.run.start', { boardId, engine: 'sdd' })}
-        >
-          Start as SDD
-        </button>
-      </div>
-    </div>
-  );
-}
-
-/** Run-native per-task controls shown in the inspector for run-linked boards. */
-function RunTaskControls({
-  runLink,
-  runTaskId,
-  modelCandidates,
-  sendRaw,
-}: {
-  runLink: RunLink;
-  runTaskId: string;
-  modelCandidates: ModelCandidate[];
-  sendRaw: (type: string, payload?: Record<string, unknown>) => void;
-}) {
-  const isSdd = runLink.engine === 'sdd';
-  const [reassigning, setReassigning] = useState(false);
-  const [reassignName, setReassignName] = useState('');
-  const btn =
-    'inline-flex flex-1 items-center justify-center gap-1 rounded-md border py-1.5 text-xs font-medium hover:bg-muted';
-  const submitReassign = () => {
-    const n = reassignName.trim();
-    if (!n) return;
-    sendRaw(isSdd ? 'sdd.board.reassign' : 'goal.assignTask', {
-      taskId: runTaskId,
-      agentName: n,
-    });
-    setReassigning(false);
-    setReassignName('');
-  };
-  return (
-    <div className="mt-4 rounded-md border bg-primary/5 p-2.5">
-      <div className="mb-2 text-[10px] font-semibold uppercase tracking-wide text-primary">
-        Run controls
-      </div>
-      {isSdd && (
-        <div className="mb-2">
-          <div className="mb-1 text-[10px] uppercase text-muted-foreground">Worker model</div>
-          <ModelPicker
-            candidates={modelCandidates}
-            placeholder="Set model for this task…"
-            onPick={(model, provider) =>
-              sendRaw('sdd.board.set_task_model', { taskId: runTaskId, model, provider })
-            }
-          />
-        </div>
-      )}
-      {reassigning ? (
-        <div className="flex items-center gap-1.5">
-          <input
-            value={reassignName}
-            onChange={(e) => setReassignName(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') submitReassign();
-              if (e.key === 'Escape') setReassigning(false);
-            }}
-            placeholder="New worker name"
-            className="min-w-0 flex-1 rounded-md border bg-background px-2 py-1.5 text-xs outline-none focus:border-primary"
-          />
-          <button
-            type="button"
-            onClick={submitReassign}
-            className="rounded-md bg-primary/10 px-2 py-1.5 text-primary"
-          >
-            <Check size={14} />
-          </button>
-          <button
-            type="button"
-            onClick={() => setReassigning(false)}
-            className="rounded-md bg-muted px-2 py-1.5"
-          >
-            <X size={14} />
-          </button>
-        </div>
-      ) : (
-        <div className="flex flex-wrap gap-2">
-          <button
-            type="button"
-            className={btn}
-            onClick={() =>
-              sendRaw(isSdd ? 'sdd.board.retry' : 'goal.retryTask', { taskId: runTaskId })
-            }
-          >
-            <RotateCcw size={13} /> Retry
-          </button>
-          <button type="button" className={btn} onClick={() => setReassigning(true)}>
-            <UserPlus size={13} /> Reassign
-          </button>
-          {isSdd ? (
-            <button
-              type="button"
-              className={cn(btn, 'text-destructive hover:bg-destructive/10')}
-              onClick={() => sendRaw('sdd.board.cancel_task', { taskId: runTaskId })}
-            >
-              <Square size={13} /> Cancel
-            </button>
-          ) : (
-            <button
-              type="button"
-              className={btn}
-              onClick={() => sendRaw('goal.runTask', { taskId: runTaskId })}
-            >
-              <Play size={13} /> Run now
-            </button>
-          )}
-        </div>
-      )}
-    </div>
-  );
-}
-
-export interface TaskCardIntelligence {
-  owner: string;
-  route: string;
-  blockers: number;
-  attempts: string;
-  fallbackCount: number;
-  activeUsers: number;
-  failed: boolean;
-  criticalRisks: number;
-  warningRisks: number;
-  /** Verification display state derived from the persisted report. */
-  verification: TaskVerificationState;
-  /** Completed/total resolved child tasks, or null for leaf tasks. */
-  subtaskCounts: { done: number; total: number } | null;
-  /** Atomicity verdict when an assessment exists. */
-  atomicityVerdict: 'atomic' | 'borderline' | 'needs_decomposition' | 'composite' | null;
-  /** Evidence attachments on the verification report. */
-  evidenceCount: number;
-  /** A decomposition proposal awaiting approval. */
-  pendingDecomposition: boolean;
-}
-
-export function deriveTaskCardIntelligence(
-  board: KanbanBoard,
-  task: KanbanTask,
-  verificationActivity?: Record<string, { startedAt: number }>,
-): TaskCardIntelligence {
-  const assignment = task.assignment;
-  const operationalFindings = analyzeTaskRisk(board, task, []).findings.filter(
-    (finding) => finding.category === 'operational',
-  );
-  const provider = kanbanMetadataText(assignment?.provider);
-  const model = kanbanMetadataText(assignment?.model);
-  return {
-    owner:
-      kanbanMetadataText(assignment?.name) ??
-      kanbanMetadataText(assignment?.agentId) ??
-      kanbanMetadataText(assignment?.role) ??
-      kanbanMetadataText(task.assignee) ??
-      kanbanMetadataText(task.assignedAgent) ??
-      'Unassigned',
-    route:
-      provider || model
-        ? `${provider ? `${provider}/` : ''}${model ?? 'default'}`
-        : assignment?.modelRouting === 'session'
-          ? 'session default'
-          : 'default route',
-    blockers: (task.dependsOn ?? []).filter((dependencyId) => {
-      const dependency = board.tasks.find((candidate) => candidate.id === dependencyId);
-      return !dependency || !['completed', 'archived'].includes(dependency.status);
-    }).length,
-    attempts: assignment?.attempt
-      ? `${assignment.attempt}${assignment.maxAttempts ? `/${assignment.maxAttempts}` : ''}`
-      : '0',
-    fallbackCount:
-      (assignment?.fallbackProfile ? 1 : 0) + (assignment?.fallbackModels?.length ?? 0),
-    activeUsers: (board.presence ?? []).filter(
-      (entry) => entry.taskId === task.id && entry.active,
-    ).length,
-    failed: task.status === 'failed' || assignment?.status === 'failed' || !!assignment?.error,
-    criticalRisks: operationalFindings.filter((finding) => finding.severity === 'critical').length,
-    warningRisks: operationalFindings.filter((finding) => finding.severity === 'warning').length,
-    verification: verificationStateOf(
-      task,
-      verificationActivity?.[`${board.id}:${task.id}`],
-    ),
-    subtaskCounts: (() => {
-      const childIds = task.childTaskIds ?? [];
-      if (!childIds.length) return null;
-      const children = childIds
-        .map((childId) => board.tasks.find((candidate) => candidate.id === childId))
-        .filter((child): child is KanbanTask => Boolean(child));
-      if (!children.length) return null;
-      return {
-        done: children.filter((child) =>
-          ['completed', 'review', 'archived'].includes(child.status),
-        ).length,
-        total: children.length,
-      };
-    })(),
-    atomicityVerdict: task.atomicityAssessment?.verdict ?? null,
-    evidenceCount: task.verificationReport?.attachments.length ?? 0,
-    pendingDecomposition: task.decomposition?.status === 'proposed',
-  };
-}
-
-function KanbanColumnView({
-  board,
-  column,
-  selectedTaskId,
-  dragTaskId,
-  setDragTaskId,
-  onSelectTask,
-  onDeleteTask,
-  onMoveTask,
-}: {
-  board: KanbanBoard;
-  column: KanbanColumn;
-  selectedTaskId: string | null;
-  dragTaskId: string | null;
-  setDragTaskId: (id: string | null) => void;
-  onSelectTask: (id: string) => void;
-  onDeleteTask: (task: KanbanTask) => void;
-  onMoveTask: (taskId: string, columnId: string) => void;
-}) {
-  const verificationActivity = useKanbanStore((state) => state.verificationActivity);
-  const tasks = board.tasks
-    .filter((task) => task.columnId === column.id)
-    .sort((a, b) => a.order - b.order);
-  const empty = tasks.length === 0;
-  return (
-    <section
-      className={cn(
-        'flex h-full shrink-0 flex-col rounded-md border bg-muted/25 transition-[width] duration-200',
-        empty ? 'w-[180px]' : 'w-[310px]',
-      )}
-    >
-      <div className="flex h-10 shrink-0 items-center gap-2 border-b px-3">
-        <span
-          className="h-2.5 w-2.5 rounded-full"
-          style={{ background: column.color ?? 'hsl(var(--primary))' }}
-        />
-        <div className="min-w-0 flex-1 truncate text-sm font-semibold">{column.title}</div>
-        <span className="rounded bg-background px-1.5 py-0.5 text-[11px] text-muted-foreground">
-          {tasks.length}
-        </span>
-      </div>
-      <ul
-        className="min-h-0 flex-1 space-y-2 overflow-y-auto p-2 [scrollbar-gutter:stable]"
-        onDragOver={(event) => event.preventDefault()}
-        onDrop={(event) => {
-          event.preventDefault();
-          if (board.lifecycle?.mode !== 'managed' && dragTaskId) {
-            onMoveTask(dragTaskId, column.id);
-          }
-          setDragTaskId(null);
-        }}
-      >
-        {tasks.map((task) => {
-          const intelligence = deriveTaskCardIntelligence(board, task, verificationActivity);
-          return (
-            <li
-            key={task.id}
-            draggable={board.lifecycle?.mode !== 'managed'}
-            onDragStart={() => {
-              if (board.lifecycle?.mode !== 'managed') setDragTaskId(task.id);
-            }}
-            onDragEnd={() => setDragTaskId(null)}
-            className={cn(
-              'relative rounded-md border bg-background p-3 shadow-sm transition-colors',
-              selectedTaskId === task.id ? 'border-primary' : 'hover:border-primary/50',
-            )}
-          >
-            <button
-              type="button"
-              aria-label={`Select task: ${task.title}`}
-              onClick={() => onSelectTask(task.id)}
-              className="absolute inset-0 cursor-pointer rounded-md"
-            />
-            <div className="pointer-events-none relative flex items-start gap-2">
-              <div className="min-w-0 flex-1">
-                <div className="flex items-center gap-1.5">
-                  {(task.atomic || intelligence.atomicityVerdict) && (
-                    <span
-                      className={cn(
-                        'shrink-0 rounded px-1 py-0.5 text-[10px] font-medium',
-                        intelligence.atomicityVerdict === 'needs_decomposition'
-                          ? 'bg-destructive/15 text-destructive'
-                          : intelligence.atomicityVerdict === 'composite'
-                            ? 'bg-info/15 text-info'
-                            : intelligence.atomicityVerdict === 'borderline'
-                              ? 'bg-warning/15 text-warning'
-                              : task.atomic
-                                ? 'bg-warning/15 text-warning'
-                                : 'bg-muted text-muted-foreground',
-                      )}
-                      title={
-                        intelligence.atomicityVerdict
-                          ? `Atomicity: ${intelligence.atomicityVerdict}`
-                          : 'Atomic task (subtree verification required)'
-                      }
-                    >
-                      {task.atomic
-                        ? 'atomic'
-                        : intelligence.atomicityVerdict === 'needs_decomposition'
-                          ? 'split me'
-                          : intelligence.atomicityVerdict}
-                    </span>
-                  )}
-                  <span className="line-clamp-2 text-sm font-medium leading-5">{task.title}</span>
-                </div>
-                {task.description && (
-                  <div className="mt-1 line-clamp-2 text-xs leading-4 text-muted-foreground">
-                    {task.description}
-                  </div>
-                )}
-              </div>
-              <button
-                type="button"
-                title="Delete task"
-                aria-label={`Delete task: ${task.title}`}
-                onClick={() => onDeleteTask(task)}
-                className="pointer-events-auto relative flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
-              >
-                <Trash2 size={14} />
-              </button>
-            </div>
-            <div className="pointer-events-none relative mt-2 flex flex-wrap items-center gap-1.5 text-[11px]">
-              <span className={priorityClass(task.priority)}>{task.priority}</span>
-              <span className="rounded bg-muted px-1.5 py-0.5 text-muted-foreground">
-                {task.status}
-              </span>
-              {intelligence.owner !== 'Unassigned' && (
-                <span className="rounded bg-primary/10 px-1.5 py-0.5 text-primary">
-                  {intelligence.owner}
-                </span>
-              )}
-              {task.assignment && (
-                <span className="rounded bg-muted px-1.5 py-0.5 text-muted-foreground">
-                  {intelligence.route}
-                </span>
-              )}
-              {task.assignment?.attempt ? (
-                <span className="rounded bg-info/10 px-1.5 py-0.5 text-info">
-                  attempt {intelligence.attempts}
-                </span>
-              ) : null}
-              {intelligence.fallbackCount > 0 && (
-                <span className="rounded bg-info/10 px-1.5 py-0.5 text-info">
-                  {intelligence.fallbackCount} fallback
-                </span>
-              )}
-              {intelligence.blockers > 0 ? (
-                <span className="rounded bg-warning/10 px-1.5 py-0.5 text-warning">
-                  {intelligence.blockers} blocker
-                </span>
-              ) : null}
-              {intelligence.activeUsers > 0 && (
-                <span className="rounded bg-success/10 px-1.5 py-0.5 text-success">
-                  {intelligence.activeUsers} active
-                </span>
-              )}
-              {intelligence.failed && (
-                <span className="rounded bg-destructive/10 px-1.5 py-0.5 text-destructive">
-                  run failed
-                </span>
-              )}
-              {intelligence.criticalRisks > 0 && (
-                <span className="rounded bg-destructive/10 px-1.5 py-0.5 text-destructive">
-                  {intelligence.criticalRisks} critical risk
-                </span>
-              )}
-              {intelligence.warningRisks > 0 && (
-                <span className="rounded bg-warning/10 px-1.5 py-0.5 text-warning">
-                  {intelligence.warningRisks} warning
-                </span>
-              )}
-              {task.chain && (
-                <span className="rounded bg-primary/10 px-1.5 py-0.5 text-primary">
-                  chain {task.chain.order + 1}
-                </span>
-              )}
-              {task.assignment?.skills?.length ? (
-                <span className="rounded bg-success/10 px-1.5 py-0.5 text-success">
-                  {task.assignment.skills.length} skills
-                </span>
-              ) : null}
-              {intelligence.verification !== 'unverified' && (
-                <span
-                  className={cn(
-                    'rounded px-1.5 py-0.5',
-                    intelligence.verification === 'passed'
-                      ? 'bg-success/10 text-success'
-                      : intelligence.verification === 'failed'
-                        ? 'bg-destructive/10 text-destructive'
-                        : 'bg-warning/10 text-warning',
-                  )}
-                >
-                  ✓ {intelligence.verification}
-                </span>
-              )}
-              {intelligence.subtaskCounts && (
-                <span className="rounded bg-info/10 px-1.5 py-0.5 text-info">
-                  {intelligence.subtaskCounts.done}/{intelligence.subtaskCounts.total} subtasks
-                </span>
-              )}
-              {intelligence.evidenceCount > 0 && (
-                <span className="rounded bg-muted px-1.5 py-0.5 text-muted-foreground">
-                  {intelligence.evidenceCount} evidence
-                </span>
-              )}
-              {intelligence.pendingDecomposition && (
-                <span className="rounded bg-warning/10 px-1.5 py-0.5 text-warning">
-                  split pending approval
-                </span>
-              )}
-            </div>
-            </li>
-          );
-        })}
-      </ul>
-    </section>
-  );
-}
-
-// ── Constants for select fields ──
-// Roles and fallback profiles are fixed WrongStack semantics (not provider data),
-// so they stay static. Providers and models are loaded live from the user's saved
-// configuration via useProviderModels() — never hardcoded.
-const KNOWN_ROLES = [
-  'architect',
-  'developer',
-  'reviewer',
-  'tester',
-  'verifier',
-  'security',
-  'documenter',
-  'external',
-  'leader',
-  'shadow',
-  'subagent',
-] as const;
-
-// Fixed capability vocabulary mirroring core's `ToolCapabilities` — a stable
-// security enum (like roles), NOT provider data. Blank = the safe subagent
-// default grant (WIDE_SUBAGENT_CAPABILITIES) applied server-side.
-const KNOWN_CAPABILITIES: ChipOption[] = [
-  { value: 'fs.read', label: 'Read files', description: 'fs.read' },
-  { value: 'fs.write', label: 'Write files (in project)', description: 'fs.write' },
-  {
-    value: 'fs.write.outside-project',
-    label: 'Write outside project',
-    description: 'fs.write.outside-project',
-  },
-  { value: 'net.outbound', label: 'Outbound network', description: 'net.outbound' },
-  { value: 'shell.exec', label: 'Run project commands', description: 'shell.exec' },
-  { value: 'shell.restricted', label: 'Restricted shell', description: 'shell.restricted' },
-  { value: 'shell.arbitrary', label: 'Arbitrary shell', description: 'shell.arbitrary' },
-  { value: 'session.todo', label: 'Session todos', description: 'session.todo' },
-  { value: 'tool.meta', label: 'Tool metadata', description: 'tool.meta' },
-  { value: 'tool.mutate.any', label: 'Invoke any tool', description: 'tool.mutate.any' },
-  { value: 'memory.read', label: 'Read memory', description: 'memory.read' },
-  { value: 'memory.write', label: 'Write memory', description: 'memory.write' },
-  { value: 'package.install', label: 'Install packages', description: 'package.install' },
-  { value: 'subagent.spawn', label: 'Spawn subagents', description: 'subagent.spawn' },
-  { value: 'config.mutate', label: 'Mutate config / trust', description: 'config.mutate' },
-];
 
 function TaskInspector({
   boards,
@@ -1676,7 +684,10 @@ function TaskInspector({
   // Scroll-position hook must be called unconditionally — calling it inside
   // JSX within the {task ? … : …} ternary violates the Rules of Hooks
   // (React error 310) when task toggles between null and non-null.
-  const inspectorScrollRef = useScrollPosition<HTMLDivElement>('kanban-task-inspector', Boolean(task));
+  const inspectorScrollRef = useScrollPosition<HTMLDivElement>(
+    'kanban-task-inspector',
+    Boolean(task),
+  );
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [expanded, setExpanded] = useState(false);
   const [title, setTitle] = useState('');
@@ -1709,7 +720,9 @@ function TaskInspector({
     const assignmentProvider = kanbanMetadataText(task?.assignment?.provider);
     const assignmentModel = kanbanMetadataText(task?.assignment?.model);
     setAgentId(
-      kanbanMetadataText(task?.assignment?.agentId) ?? kanbanMetadataText(task?.assignedAgent) ?? '',
+      kanbanMetadataText(task?.assignment?.agentId) ??
+        kanbanMetadataText(task?.assignedAgent) ??
+        '',
     );
     setName(kanbanMetadataText(task?.assignment?.name) ?? '');
     setRole(kanbanMetadataText(task?.assignment?.role) ?? '');
@@ -2379,59 +1392,14 @@ function TaskInspector({
             </div>
           ) : null}
 
-          <div className="mt-5">
-            <div className="mb-2 text-xs font-semibold uppercase text-muted-foreground">
-              Completion checks
-            </div>
-            <div className="space-y-1.5">
-              {(task.successCriteria ?? []).map((check) => (
-                <div
-                  key={check.id}
-                  className="grid grid-cols-[auto_1fr_92px] items-center gap-2 rounded-md border bg-background px-2 py-1.5 text-xs"
-                >
-                  <Check
-                    size={13}
-                    className={check.status === 'passed' ? 'text-success' : 'text-muted-foreground'}
-                  />
-                  <span className="min-w-0 truncate">{check.description}</span>
-                  <select
-                    value={check.status}
-                    onChange={(event) =>
-                      sendKanban('kanban.task.check.update', {
-                        boardId: board?.id,
-                        taskId: task.id,
-                        checkId: check.id,
-                        status: event.target.value,
-                      })
-                    }
-                    className="h-7 rounded border bg-background px-1 text-[11px]"
-                  >
-                    {['pending', 'passed', 'failed', 'skipped'].map((value) => (
-                      <option key={value} value={value}>
-                        {value}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              ))}
-              <div className="flex gap-1.5">
-                <input
-                  value={newCheck}
-                  onChange={(event) => setNewCheck(event.target.value)}
-                  onKeyDown={(event) => event.key === 'Enter' && addCheck()}
-                  placeholder="Add a verifiable completion check…"
-                  className="h-8 min-w-0 flex-1 rounded-md border bg-background px-2 text-xs outline-none focus:border-primary"
-                />
-                <button
-                  type="button"
-                  onClick={addCheck}
-                  className="h-8 rounded-md border px-2 hover:bg-muted"
-                >
-                  <Plus size={14} />
-                </button>
-              </div>
-            </div>
-          </div>
+          <KanbanTaskCompletionChecks
+            board={board}
+            task={task}
+            newCheck={newCheck}
+            onNewCheckChange={setNewCheck}
+            onAddCheck={addCheck}
+            sendKanban={sendKanban}
+          />
 
           {board && (
             <TaskVerificationSection boardId={board.id} task={task} sendKanban={sendKanban} />
@@ -2455,272 +1423,19 @@ function TaskInspector({
             onRefresh={refreshActivity}
           />
 
-          <div className="mt-4">
-            <div className="mb-2 text-xs font-semibold uppercase text-muted-foreground">
-              Record decision / outcome
-            </div>
-            <div className="mb-1.5 grid grid-cols-2 gap-1.5">
-              <select
-                value={newActivityKind}
-                onChange={(event) =>
-                  setNewActivityKind(event.target.value as KanbanManualActivityKind)
-                }
-                aria-label="Task activity kind"
-                className="h-8 rounded-md border bg-background px-2 text-xs"
-              >
-                {['decision', 'attempt', 'result', 'blocker', 'observation'].map((value) => (
-                  <option key={value} value={value}>
-                    {value}
-                  </option>
-                ))}
-              </select>
-              <select
-                value={newActivityOutcome}
-                onChange={(event) =>
-                  setNewActivityOutcome(event.target.value as KanbanManualActivityOutcome)
-                }
-                aria-label="Task activity outcome"
-                className="h-8 rounded-md border bg-background px-2 text-xs"
-              >
-                {['unknown', 'succeeded', 'failed', 'partial', 'skipped'].map((value) => (
-                  <option key={value} value={value}>
-                    {value}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div className="flex gap-1.5">
-              <input
-                value={newNote}
-                onChange={(event) => setNewNote(event.target.value)}
-                onKeyDown={(event) => event.key === 'Enter' && recordActivity()}
-                placeholder="What was decided, attempted, or produced?"
-                className="h-8 min-w-0 flex-1 rounded-md border bg-background px-2 text-xs outline-none focus:border-primary"
-              />
-              <button
-                type="button"
-                onClick={recordActivity}
-                className="h-8 rounded-md border px-2 hover:bg-muted"
-                aria-label="Record task decision or outcome"
-              >
-                <Plus size={14} />
-              </button>
-            </div>
-            <input
-              value={newActivityDetails}
-              onChange={(event) => setNewActivityDetails(event.target.value)}
-              placeholder="Optional evidence, rationale, command, link, or failure detail…"
-              aria-label="Task activity details"
-              className="mt-1.5 h-8 w-full rounded-md border bg-background px-2 text-xs outline-none focus:border-primary"
-            />
-          </div>
+          <KanbanTaskActivityRecorder
+            activityKind={newActivityKind}
+            activityOutcome={newActivityOutcome}
+            note={newNote}
+            details={newActivityDetails}
+            onActivityKindChange={setNewActivityKind}
+            onActivityOutcomeChange={setNewActivityOutcome}
+            onNoteChange={setNewNote}
+            onDetailsChange={setNewActivityDetails}
+            onRecordActivity={recordActivity}
+          />
         </div>
       ) : null}
     </aside>
   );
-}
-
-function columnTitle(board: KanbanBoard | null, columnId: string): string {
-  return board?.columns.find((c) => c.id === columnId)?.title ?? columnId;
-}
-
-// Colored badge classes per real KanbanAgentRunStatus.
-const RUN_STATUS_STYLE: Record<string, string> = {
-  assigned: 'bg-info/10 text-info',
-  queued: 'bg-info/10 text-info',
-  running: 'bg-warning/10 text-warning',
-  completed: 'bg-success/10 text-success',
-  failed: 'bg-destructive/10 text-destructive',
-  cancelled: 'bg-muted text-muted-foreground',
-};
-
-function fmtElapsed(fromIso?: string, toIso?: string): string | null {
-  if (!fromIso) return null;
-  const from = Date.parse(fromIso);
-  if (Number.isNaN(from)) return null;
-  const to = toIso ? Date.parse(toIso) : Date.now();
-  if (Number.isNaN(to)) return null;
-  const secs = Math.max(0, Math.round((to - from) / 1000));
-  if (secs < 60) return `${secs}s`;
-  const mins = Math.floor(secs / 60);
-  if (mins < 60) return `${mins}m ${secs % 60}s`;
-  const hrs = Math.floor(mins / 60);
-  return `${hrs}h ${mins % 60}m`;
-}
-
-/**
- * AgentRunPanel — the *real* runtime of the agent working this task, straight
- * from `task.assignment`. Not a hardcoded placeholder: run status, the actual
- * spawned subagent id, dispatch/finish timing, retry attempts, cost ceiling,
- * the last result and any error.
- */
-function AgentRunPanel({ assignment }: { assignment: NonNullable<KanbanTask['assignment']> }) {
-  const running = assignment.status === 'running';
-  const elapsed = fmtElapsed(assignment.dispatchedAt, assignment.completedAt);
-  const agentName = kanbanMetadataText(assignment.name) ?? kanbanMetadataText(assignment.agentId);
-  const role = kanbanMetadataText(assignment.role);
-  const provider = kanbanMetadataText(assignment.provider);
-  const model = kanbanMetadataText(assignment.model);
-  const rows: Array<{ label: string; value: React.ReactNode }> = [];
-  if (agentName) rows.push({ label: 'Agent', value: agentName });
-  if (role) rows.push({ label: 'Role', value: role });
-  if (assignment.modelRouting) rows.push({ label: 'Model source', value: assignment.modelRouting });
-  if (provider || model) {
-    rows.push({
-      label: 'Model',
-      value: (
-        <span className="font-mono text-[11px]">
-          {provider ? `${provider}/` : ''}
-          {model ?? '—'}
-        </span>
-      ),
-    });
-  }
-  if (assignment.subagentId) {
-    rows.push({
-      label: 'Subagent',
-      value: <span className="font-mono text-[11px]">{assignment.subagentId}</span>,
-    });
-  }
-  if (elapsed) {
-    rows.push({ label: assignment.completedAt ? 'Duration' : 'Elapsed', value: elapsed });
-  }
-  if (typeof assignment.attempt === 'number') {
-    rows.push({
-      label: 'Attempt',
-      value: `${assignment.attempt}${assignment.maxAttempts ? ` / ${assignment.maxAttempts}` : ''}`,
-    });
-  }
-  if (assignment.costCeilingUsd) {
-    rows.push({ label: 'Cost ceiling', value: `$${assignment.costCeilingUsd.toFixed(2)}` });
-  }
-  if (assignment.fallbackProfile) {
-    rows.push({ label: 'Fallback profile', value: assignment.fallbackProfile });
-  }
-  if (assignment.fallbackModels?.length) {
-    rows.push({ label: 'Fallbacks', value: assignment.fallbackModels.join(' → ') });
-  }
-  if (assignment.skills?.length)
-    rows.push({ label: 'Skills', value: assignment.skills.join(', ') });
-  if (assignment.tools?.length) rows.push({ label: 'Tools', value: assignment.tools.join(', ') });
-  if (assignment.leaseExpiresAt) {
-    rows.push({
-      label: 'Lease expires',
-      value: new Date(assignment.leaseExpiresAt).toLocaleString(),
-    });
-  }
-
-  return (
-    <div className="mt-4 rounded-md border bg-background p-2.5">
-      <div className="mb-2 flex items-center gap-2">
-        <span className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
-          Live run
-        </span>
-        <span
-          className={cn(
-            'ml-auto inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[10px] font-medium capitalize',
-            RUN_STATUS_STYLE[assignment.status] ?? 'bg-muted text-muted-foreground',
-          )}
-        >
-          {running && (
-            <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-current" aria-hidden />
-          )}
-          {assignment.status}
-        </span>
-      </div>
-      {rows.length > 0 && (
-        <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1 text-xs">
-          {rows.map((row) => (
-            <div key={row.label} className="contents">
-              <dt className="text-muted-foreground">{row.label}</dt>
-              <dd className="min-w-0 truncate text-right text-foreground">{row.value}</dd>
-            </div>
-          ))}
-        </dl>
-      )}
-      {assignment.lastResult && (
-        <div className="mt-2">
-          <div className="mb-1 text-[10px] uppercase text-muted-foreground">Last result</div>
-          <div className="max-h-24 overflow-y-auto whitespace-pre-wrap rounded bg-muted px-2 py-1 text-[11px] leading-relaxed text-foreground">
-            {assignment.lastResult}
-          </div>
-        </div>
-      )}
-      {assignment.error && (
-        <div className="mt-2 rounded border border-destructive/30 bg-destructive/10 px-2 py-1 text-[11px] text-destructive">
-          {assignment.error}
-        </div>
-      )}
-    </div>
-  );
-}
-
-function Metric({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="rounded-md border bg-background px-2 py-1.5">
-      <div className="text-[10px] uppercase text-muted-foreground">{label}</div>
-      <div className="mt-0.5 truncate text-xs font-medium">{value}</div>
-    </div>
-  );
-}
-
-function Field({
-  label,
-  value,
-  onChange,
-}: {
-  label: string;
-  value: string;
-  onChange: (value: string) => void;
-}) {
-  return (
-    <label className="block">
-      <span className="mb-1 block text-[11px] font-medium text-muted-foreground">{label}</span>
-      <input
-        value={value}
-        onChange={(event) => onChange(event.target.value)}
-        className="h-8 w-full rounded-md border bg-background px-2 text-sm outline-none focus:border-primary"
-      />
-    </label>
-  );
-}
-
-function SelectField({
-  label,
-  value,
-  options,
-  placeholder,
-  onChange,
-}: {
-  label: string;
-  value: string;
-  options: readonly string[];
-  placeholder?: string;
-  onChange: (value: string) => void;
-}) {
-  return (
-    <label className="block">
-      <span className="mb-1 block text-[11px] font-medium text-muted-foreground">{label}</span>
-      <select
-        value={value}
-        onChange={(event) => onChange(event.target.value)}
-        className="h-8 w-full rounded-md border bg-background px-2 text-sm outline-none focus:border-primary"
-      >
-        {placeholder && <option value="">{placeholder}</option>}
-        {options.map((opt) => (
-          <option key={opt} value={opt}>
-            {opt}
-          </option>
-        ))}
-      </select>
-    </label>
-  );
-}
-
-function priorityClass(priority: KanbanTask['priority']): string {
-  const base = 'rounded px-1.5 py-0.5';
-  if (priority === 'critical') return `${base} bg-destructive/10 text-destructive`;
-  if (priority === 'high') return `${base} bg-warning/10 text-warning`;
-  if (priority === 'low') return `${base} bg-muted text-muted-foreground`;
-  return `${base} bg-info/10 text-info`;
 }
