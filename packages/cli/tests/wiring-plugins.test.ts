@@ -517,6 +517,28 @@ describe('setupPlugins', () => {
     expect(names).not.toContain('telegram');
   });
 
+  it('injects the host vault into built-in plugin config', async () => {
+    const vault = { encrypt: vi.fn((value: string) => `enc:${value}`) };
+    const deps = { ...baseDeps(), paths: fakePaths(), vault };
+    await setupPlugins(deps as never);
+    const [, opts] = loadPluginsMock.mock.calls[0]!;
+    const syncPlugin = (loadPluginsMock.mock.calls[0]![0] as Array<{ name: string }>).find(
+      (plugin) => plugin.name === 'wstack-sync',
+    );
+
+    expect(syncPlugin).toBeDefined();
+    const apiFactoryMod = (await import('../src/plugin-api-factory.js')) as never as {
+      default: ReturnType<typeof vi.fn>;
+    };
+    let capturedConfig: Record<string, unknown> | undefined;
+    apiFactoryMod.default.mockImplementationOnce((_name, cfg: { config: Record<string, unknown> }) => {
+      capturedConfig = cfg.config;
+      return { kind: 'fake-api' };
+    });
+    opts.apiFactory(syncPlugin);
+    expect(capturedConfig?.vault).toBe(vault);
+  });
+
   it('loads an opt-in built-in only when explicitly enabled', async () => {
     const deps = {
       ...baseDeps({ plugins: [{ name: 'plugin-stack-observer', enabled: true }] as never }),
