@@ -1,10 +1,12 @@
 import { mutateBoard } from '../storage.js';
 import type {
+  AdoptManagedLifecycleInput,
   KanbanBoard,
   KanbanBoardLifecyclePolicy,
   KanbanLifecycleStage,
   KanbanLifecycleTransition,
   KanbanLifecycleValidationIssue,
+  RepairManagedProjectionInput,
   KanbanTask,
   KanbanTaskStatus,
   KanbanTaskTransitionInput,
@@ -52,6 +54,166 @@ export function createManagedLifecyclePolicy(
       done: overrides.done ?? 'done',
     },
   };
+}
+
+export async function adoptManagedLifecycle(
+  projectRoot: string,
+  boardId: string,
+  input: AdoptManagedLifecycleInput,
+): Promise<KanbanBoard | null> {
+  const updated = await mutateBoard(projectRoot, boardId, (board) => {
+    if (board.lifecycle?.mode === 'managed') {
+      throw new KanbanLifecycleError('Board already uses the managed lifecycle.', [
+        {
+          code: 'managed-policy-invalid',
+          field: 'lifecycle.mode',
+          message: 'Board already uses the managed lifecycle.',
+        },
+      ]);
+    }
+    if (!hasText(input.actor) || !hasText(input.comment)) {
+      throw new KanbanLifecycleError('Lifecycle adoption requires an actor and audit comment.', [
+        {
+          code: 'task-detail-missing',
+          field: !hasText(input.actor) ? 'actor' : 'comment',
+          message: 'Lifecycle adoption requires an actor and audit comment.',
+        },
+      ]);
+    }
+    if (board.tasks.some((task) => task.lifecycle !== undefined)) {
+      throw new KanbanLifecycleError('Legacy lifecycle adoption refuses cards with existing lifecycle metadata.', [
+        {
+          code: 'managed-policy-invalid',
+          field: 'tasks.lifecycle',
+          message: 'Legacy lifecycle adoption refuses cards with existing lifecycle metadata.',
+        },
+      ]);
+    }
+
+    const at = nowIso();
+    const lifecycle: KanbanBoardLifecyclePolicy = {
+      mode: 'managed',
+      columns: { ...input.columns },
+      adoptedAt: at,
+      adoptedBy: input.actor.trim(),
+      adoptionComment: input.comment.trim(),
+    };
+    const policyIssues = validateManagedLifecyclePolicy({ columns: board.columns, lifecycle });
+    if (policyIssues.length > 0) {
+      throw new KanbanLifecycleError(policyIssues[0]!.message, policyIssues);
+    }
+    const mappedColumns = new Set(Object.values(lifecycle.columns));
+    const unmappedColumns = board.columns.filter((column) => !mappedColumns.has(column.id));
+    if (unmappedColumns.length > 0) {
+      const message = `Unmapped legacy columns: ${unmappedColumns.map((column) => column.id).join(', ')}.`;
+      throw new KanbanLifecycleError(message, [
+        {
+          code: 'managed-policy-invalid',
+          field: 'lifecycle.columns',
+          message,
+        },
+      ]);
+    }
+
+    board.lifecycle = lifecycle;
+    board.updatedAt = at;
+    for (const task of board.tasks) {
+      const stage = lifecycleStageForColumn(board, task.columnId);
+      if (!stage) {
+        throw new KanbanLifecycleError(`Card ${task.id} is outside the adopted lifecycle columns.`, [
+          {
+            code: 'stage-mismatch',
+            field: 'columnId',
+            message: `Card ${task.id} is outside the adopted lifecycle columns.`,
+          },
+        ]);
+      }
+      task.status = STATUS_BY_STAGE[stage];
+      task.updatedAt = at;
+      task.lifecycle = {
+        currentStage: stage,
+        stageEnteredAt: at,
+        history: [
+          {
+            to: stage,
+            at,
+            actor: input.actor.trim(),
+            action: 'Managed lifecycle adopted',
+            comment: input.comment.trim(),
+          },
+        ],
+      };
+      if (stage !== 'done') delete task.completedAt;
+      else task.completedAt ??= at;
+    }
+    return board;
+  });
+  return updated?.board ?? null;
+}
+
+export async function repairManagedTaskProjection(
+  projectRoot: string,
+  boardId: string,
+  taskId: string,
+  input: RepairManagedProjectionInput,
+): Promise<KanbanTaskTransitionResult | null> {
+  const updated = await mutateBoard(projectRoot, boardId, (board) => {
+    const task = findTask(board, taskId);
+    if (!task) return null;
+    if (board.lifecycle?.mode !== 'managed' || !task.lifecycle) {
+      throw new KanbanLifecycleError('Managed projection repair requires managed lifecycle metadata.', [
+        {
+          code: 'managed-policy-invalid',
+          field: 'lifecycle',
+          message: 'Managed projection repair requires managed lifecycle metadata.',
+        },
+      ]);
+    }
+    if (!hasText(input.actor) || !hasText(input.comment)) {
+      throw new KanbanLifecycleError('Projection repair requires an actor and audit comment.', [
+        {
+          code: 'task-detail-missing',
+          field: !hasText(input.actor) ? 'actor' : 'comment',
+          message: 'Projection repair requires an actor and audit comment.',
+        },
+      ]);
+    }
+    const stage = task.lifecycle.currentStage;
+    const expectedColumnId = board.lifecycle.columns[stage];
+    const expectedStatus = STATUS_BY_STAGE[stage];
+    if (task.columnId === expectedColumnId && task.status === expectedStatus) {
+      throw new KanbanLifecycleError('Managed card projection already matches its lifecycle stage.', [
+        {
+          code: 'stage-mismatch',
+          field: 'columnId',
+          message: 'Managed card projection already matches its lifecycle stage.',
+        },
+      ]);
+    }
+    const at = nowIso();
+    const transition: KanbanLifecycleTransition = {
+      from: stage,
+      to: stage,
+      at,
+      actor: input.actor.trim(),
+      action: 'Managed projection repaired',
+      comment: input.comment.trim(),
+    };
+    task.columnId = expectedColumnId;
+    task.status = expectedStatus;
+    task.updatedAt = at;
+    if (stage !== 'done') delete task.completedAt;
+    else task.completedAt ??= at;
+    task.lifecycle = {
+      ...task.lifecycle,
+      history: [...task.lifecycle.history, transition],
+    };
+    board.updatedAt = at;
+    return { task, transition };
+  });
+  return updated?.result
+    ? { board: updated.board, task: updated.result.task, transition: updated.result.transition }
+    : null;
 }
 
 export function validateManagedLifecyclePolicy(

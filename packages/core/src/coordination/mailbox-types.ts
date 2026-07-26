@@ -937,3 +937,274 @@ export interface Mailbox {
    */
   purgeClients(): Promise<number>;
 }
+
+// ── P0 Contract Repair: Actor, Principal, and Capability Types ──────
+//
+// These types are introduced by GM-P0.1 (global-mailbox-p0-contract-repairs-v1).
+// They are additive — no existing types are changed. Downstream tasks
+// (GM-P0.5A) will add actor-bearing service methods that use them.
+
+/**
+ * The kind of principal making a mailbox request. Determines default
+ * capability grants, credential lifetime bounds, and audit labelling.
+ */
+export type MailboxPrincipalKind = 'agent' | 'operator' | 'service';
+
+/**
+ * Fine-grained authorization capabilities. Capabilities are deny-by-default:
+ * a principal must explicitly hold a capability to perform the corresponding
+ * operation. Implication rules:
+ *   - `mail.read.all` ⇒ `mail.read.self`
+ *   - `mail.events.all` ⇒ `mail.events.self`
+ *   - `mail.send.directive` ⇒ `mail.send.actionable` ⇒ `mail.send.informational`
+ *
+ * `control` send capability is never granted to external principals — it is
+ * reserved for trusted runtime use only.
+ */
+export type MailboxCapability =
+  | 'mail.send.informational' // note, btw, result, status, broadcast
+  | 'mail.send.actionable' // ask, assign, review (requires informational)
+  | 'mail.send.directive' // steer (requires actionable)
+  | 'mail.read.self' // query/check messages visible to this principal
+  | 'mail.read.all' // administrative query of all messages
+  | 'mail.ack.self' // acknowledge messages for this principal only
+  | 'mail.events.self' // SSE events filtered to this principal's visibility
+  | 'mail.events.all' // unfiltered SSE (implies events.self)
+  | 'mail.presence.register.self'
+  | 'mail.presence.heartbeat.self'
+  | 'mail.presence.deregister.self'
+  | 'mail.presence.read'
+  | 'mail.retention.purge'
+  | 'mail.retention.clear'
+  | 'mail.admin.receipts'; // view aggregate receipt state across actors
+
+/** How the principal was authenticated. */
+export type MailboxAuthMode = 'runtime' | 'identity-token' | 'legacy-operator';
+
+/**
+ * Trusted actor context for mailbox operations.
+ *
+ * This is the resolved, server-side identity that all actor-specific
+ * mailbox decisions (visibility, receipt scoping, capability enforcement)
+ * MUST derive from. It is never decoded from untrusted request payloads.
+ */
+export interface MailboxActorContext {
+  /** Process-unique agent identity (e.g. `leader@a1b2c3d4`). */
+  actorId: string;
+  /** Project this actor is bound to. Mailbox operations are scoped to it. */
+  projectId: string;
+  /** What kind of principal this is. Determines defaults and audit labels. */
+  kind: MailboxPrincipalKind;
+  /** Trusted role (e.g. `leader`, `tech-stack`). Not decoded from request body. */
+  role?: string | undefined;
+  /** Explicit capabilities granted to this actor. Deny-by-default. */
+  capabilities: ReadonlySet<MailboxCapability>;
+  /** How this actor was authenticated. */
+  authMode: MailboxAuthMode;
+  /**
+   * Base aliases this principal may consume mail for (e.g. `leader`, `worker`).
+   * Used to derive eligible recipient forms for self-query. Issued by trusted
+   * runtime code or credential provisioning — never from request body.
+   */
+  recipientAliases: ReadonlySet<string>;
+  /**
+   * Session ID if the principal belongs to a specific session. Enables
+   * session-broadcast delivery.
+   */
+  sessionId?: string | undefined;
+}
+
+// ── Capability implication rules ─────────────────────────────────────
+
+/**
+ * Set of capabilities implied by holding another capability.
+ * Used to expand capability sets for enforcement checks.
+ */
+export const MAILBOX_CAPABILITY_IMPLICATIONS: Readonly<Record<MailboxCapability, readonly MailboxCapability[]>> = {
+  'mail.read.all': ['mail.read.self'],
+  'mail.events.all': ['mail.events.self'],
+  'mail.send.directive': ['mail.send.actionable', 'mail.send.informational'],
+  'mail.send.actionable': ['mail.send.informational'],
+  // Leaf capabilities imply nothing further.
+  'mail.send.informational': [],
+  'mail.read.self': [],
+  'mail.ack.self': [],
+  'mail.events.self': [],
+  'mail.presence.register.self': [],
+  'mail.presence.heartbeat.self': [],
+  'mail.presence.deregister.self': [],
+  'mail.presence.read': [],
+  'mail.retention.purge': [],
+  'mail.retention.clear': [],
+  'mail.admin.receipts': [],
+};
+
+/**
+ * Expand a set of capabilities to include all implied capabilities.
+ * For example, `mail.read.all` implies `mail.read.self`.
+ */
+export function expandMailboxCapabilities(caps: Iterable<MailboxCapability>): Set<MailboxCapability> {
+  const result = new Set<MailboxCapability>();
+  const queue = [...caps];
+  while (queue.length > 0) {
+    const cap = queue.pop()!;
+    if (result.has(cap)) continue;
+    result.add(cap);
+    const implied = MAILBOX_CAPABILITY_IMPLICATIONS[cap];
+    if (implied) queue.push(...implied);
+  }
+  return result;
+}
+
+/**
+ * Check whether an actor holds a capability, accounting for implication rules.
+ */
+export function hasMailboxCapability(
+  actor: Pick<MailboxActorContext, 'capabilities'>,
+  cap: MailboxCapability,
+): boolean {
+  if (actor.capabilities.has(cap)) return true;
+  // Check implied capabilities by expanding the set.
+  const expanded = expandMailboxCapabilities(actor.capabilities);
+  return expanded.has(cap);
+}
+
+// ── Recipient-scoped receipt state ───────────────────────────────────
+
+/**
+ * Per-recipient delivery/action state for a single message.
+ *
+ * Keyed by actor ID. Each entry tracks when the actor read, completed,
+ * or otherwise interacted with the message — independently of other actors.
+ */
+export interface MailboxRecipientState {
+  /** Actor ID this state belongs to. */
+  actorId: string;
+  /** ISO8601 — when this actor first read the message. */
+  readAt?: string | undefined;
+  /** ISO8601 — when this actor completed the message. */
+  completedAt?: string | undefined;
+  /** Who recorded the completion (usually same as actorId). */
+  completedBy?: string | undefined;
+  /** Optional outcome summary recorded by this actor. */
+  outcome?: string | undefined;
+}
+
+/**
+ * V2 JSONL receipt record. Appended alongside messages and v1 ack records.
+ *
+ * Has an explicit `__mailboxReceipt: 2` discriminator so:
+ * 1. The v2 reader folds these into per-actor `MailboxRecipientState`.
+ * 2. A v1 reader ignores the unknown JSON line (no `__ack` field).
+ *
+ * Fold algebra (applied during materialization):
+ *   - Keyed by `(messageId, actorId)`.
+ *   - `read`: first-write-wins (earliest read timestamp is preserved).
+ *   - `completed`: monotonic upward (once `true`, cannot revert unless an
+ *     explicit reopen record with `completed: false` is appended).
+ *   - `outcome`: last-write-wins.
+ *   - Duplicate records (same messageId, actorId, timestamp): idempotent no-ops.
+ */
+export interface MailboxReceiptRecordV2 {
+  /** Discriminator — always `2` to distinguish from messages and v1 acks. */
+  __mailboxReceipt: 2;
+  /** Target message this receipt applies to. */
+  messageId: string;
+  /** Actor this receipt belongs to. */
+  actorId: string;
+  /** ISO8601 — when the receipt event occurred. */
+  timestamp: string;
+  /** Was the message read by this actor? */
+  read?: boolean | undefined;
+  /** Was the message completed by this actor? */
+  completed?: boolean | undefined;
+  /** Optional outcome summary. */
+  outcome?: string | undefined;
+}
+
+/**
+ * Check if a parsed JSONL value is a v2 receipt record.
+ * Validates the discriminator AND required structural fields.
+ */
+export function isMailboxReceiptRecordV2(value: unknown): value is MailboxReceiptRecordV2 {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) return false;
+  const v = value as Record<string, unknown>;
+  if (v['__mailboxReceipt'] !== 2) return false;
+  if (typeof v['messageId'] !== 'string' || v['messageId'].length === 0) return false;
+  if (typeof v['actorId'] !== 'string' || v['actorId'].length === 0) return false;
+  if (typeof v['timestamp'] !== 'string' || v['timestamp'].length === 0) return false;
+  // Validate optional fields when present — prevents malformed JSONL records
+  // from entering typed receipt-folding code (e.g. completed:"false" truthy string).
+  if ('read' in v && typeof v['read'] !== 'boolean') return false;
+  if ('completed' in v && typeof v['completed'] !== 'boolean') return false;
+  if ('outcome' in v && v['outcome'] !== undefined && typeof v['outcome'] !== 'string') return false;
+  return true;
+}
+
+// ── Message projections ──────────────────────────────────────────────
+
+/**
+ * Materialized message with per-actor recipient state.
+ *
+ * This is the internal representation after folding all v1 acks and v2
+ * receipt records. It carries both the legacy fields (for backward
+ * compatibility) and the new actor-specific state map.
+ *
+ * `legacyGlobalCompletion` is set ONLY for historical v1 fan-out messages
+ * that were globally completed. It is never set for new v2 writes.
+ */
+export interface MailboxMessageProjection extends MailboxMessage {
+  /** Per-actor delivery/action state, keyed by actorId. */
+  recipientState: Readonly<Record<string, MailboxRecipientState>>;
+  /**
+   * True ONLY for historical v1 fan-out messages that were globally completed
+   * (completed before the v2 migration). These remain globally suppressed to
+   * prevent upgrade re-delivery. New v2 writes NEVER set this.
+   */
+  legacyGlobalCompletion?: boolean | undefined;
+}
+
+/**
+ * Self-facing message — what a specific actor sees.
+ *
+ * This does NOT extend `MailboxMessage` because self-facing responses must NOT
+ * contain aggregate receipt metadata (`readBy`, `completedBy`, `completedAt`,
+ * `outcome`) that would leak other actors' activity. Only actor-specific
+ * derived fields are added on top of the non-sensitive message fields.
+ */
+export interface ActorMailboxMessage
+  extends Omit<MailboxMessage, 'readBy' | 'completed' | 'completedBy' | 'completedAt' | 'outcome'> {
+  /** Has this actor read the message? */
+  readByMe: boolean;
+  /** Has this actor completed the message? */
+  completedByMe: boolean;
+  /** Does this message require action from this actor? */
+  actionRequiredForMe: boolean;
+  /** This actor's outcome, if any. */
+  myOutcome?: string | undefined;
+  /**
+   * True for historical v1 fan-out messages that were globally completed.
+   * Lets the UI distinguish "completed by me" from "completed globally
+   * before migration."
+   */
+  legacyGlobalCompletion?: boolean | undefined;
+}
+
+/**
+ * Derive `actionRequiredForMe` from the canonical type properties and actor state.
+ *
+ * Defined as:
+ *   `MAILBOX_TYPE_PROPERTIES[type].requiresAction && visible && !completedByMe && !deleted && !legacyGlobalCompletion`
+ *
+ * For historical legacy-global messages, `actionRequiredForMe` is always false
+ * because the message is suppressed and should not re-enter any actor's flow.
+ */
+export function isActionRequiredForActor(
+  message: Pick<MailboxMessage, 'type' | 'deletedAt' | 'completed'>,
+  projection: Pick<ActorMailboxMessage, 'completedByMe' | 'legacyGlobalCompletion'>,
+): boolean {
+  if (projection.legacyGlobalCompletion) return false;
+  if (message.deletedAt !== undefined) return false;
+  if (projection.completedByMe) return false;
+  return MAILBOX_TYPE_PROPERTIES[message.type]?.requiresAction === true;
+}

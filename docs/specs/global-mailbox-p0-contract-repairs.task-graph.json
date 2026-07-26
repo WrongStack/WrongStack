@@ -1,0 +1,504 @@
+{
+  "id": "global-mailbox-p0-contract-repairs-graph-v1",
+  "specId": "global-mailbox-p0-contract-repairs-v1",
+  "title": "Global Mailbox P0 Contract Repairs",
+  "nodes": [
+    [
+      "GM-P0.0",
+      {
+        "id": "GM-P0.0",
+        "title": "Baseline mailbox contract fixtures and migration invariants",
+        "description": "Capture the current supported mailbox behavior before changing contracts. Add reusable fixtures for v1 direct, base-alias, session, project-broadcast, leader-only, read, completed, deleted, reply, corrupt-line, and mixed acknowledgement cases. Pin the task-graph edge convention as dependency → dependent.\n\n**Acceptance Criteria:**\n- Existing supported mailbox behavior is represented by deterministic fixtures without changing production behavior.\n- Fixtures cover every current message type, recipient form, audience, priority, acknowledgement action, and query field.\n- V1 JSONL fixtures include historical globally completed direct and fan-out messages.\n- Rejected fixture operations assert zero storage side effects.\n- The graph validator confirms every edge endpoint exists and the graph is acyclic.\n\n**Verification:**\n- Run the existing focused mailbox suite before contract changes.\n- Validate this graph with the repository TaskGraph deserializer and a DAG check.",
+        "type": "test",
+        "priority": "critical",
+        "status": "pending",
+        "estimateHours": 6,
+        "tags": ["mailbox", "baseline", "fixtures", "migration", "p0"],
+        "specRequirementId": "R9",
+        "createdAt": 1785067200000,
+        "updatedAt": 1785067200000,
+        "metadata": {
+          "phase": "baseline",
+          "requirementIds": ["R3", "R4", "R9"],
+          "verificationCommand": "pnpm exec vitest run packages/core/tests/coordination/global-mailbox.test.ts packages/core/tests/coordination/mailbox-http-router.test.ts packages/core/tests/coordination/mail-tools.test.ts",
+          "expectedFiles": [
+            "packages/core/tests/coordination/global-mailbox.test.ts",
+            "packages/core/tests/coordination/mailbox-http-router.test.ts",
+            "packages/core/tests/coordination/mail-tools.test.ts",
+            "packages/core/tests/coordination/fixtures/mailbox/"
+          ]
+        }
+      }
+    ],
+    [
+      "GM-P0.1",
+      {
+        "id": "GM-P0.1",
+        "title": "Define actor, principal, capability, and recipient-receipt contracts",
+        "description": "Add the typed domain contract for trusted mailbox actors, HTTP principals, capabilities, recipient-scoped state, v2 receipt records, actor projections, and legacy global-completion metadata. Do not change persistence behavior in this task.\n\n**Acceptance Criteria:**\n- Types distinguish trusted actor context from untrusted payload fields.\n- Capabilities cover send, self-read, administrative read, self-ack, presence write, presence read, and management.\n- Recipient state supports independent read, completion, timestamp, completer, and outcome per actor.\n- V2 receipt records have an explicit discriminator/version and remain ignorable by previous readers.\n- Legacy-global completion is explicitly represented and cannot be created by new typed APIs.\n- Public exports use the coordination subpath without introducing root-import regressions.\n\n**Verification:**\n- Typecheck @wrongstack/core.\n- Run focused type/codec tests.",
+        "type": "feature",
+        "priority": "critical",
+        "status": "pending",
+        "estimateHours": 6,
+        "tags": ["mailbox", "types", "receipts", "authorization", "p0"],
+        "specRequirementId": "R1",
+        "createdAt": 1785067201000,
+        "updatedAt": 1785067201000,
+        "metadata": {
+          "phase": "contracts",
+          "requirementIds": ["R1", "R2", "R3", "R6"],
+          "verificationCommand": "pnpm --filter @wrongstack/core typecheck",
+          "expectedFiles": [
+            "packages/core/src/coordination/mailbox-types.ts",
+            "packages/core/src/coordination/index.ts",
+            "packages/core/tests/coordination/mailbox-types.test.ts"
+          ]
+        }
+      }
+    ],
+    [
+      "GM-P0.2",
+      {
+        "id": "GM-P0.2",
+        "title": "Implement shared mailbox boundary codecs and stable errors",
+        "description": "Implement shared codecs for send, query, acknowledgement/check, registration, and mailbox actions. Codecs accept unknown data plus trusted actor context where required, perform structural and cross-field validation, and return normalized domain inputs or stable boundary errors. Do not cut over transports yet.\n\n**Acceptance Criteria:**\n- Every supported field and default has one canonical parser.\n- Type/recipient validation cannot be bypassed through a codec entry point.\n- Security-sensitive actor claims are rejected when they disagree with trusted context.\n- Stable errors distinguish validation, unauthorized, forbidden, not found, conflict, and internal failures.\n- Unknown-field policy is documented and tested.\n- Codecs contain no HTTP, CLI, WebSocket, or HQ response-writing logic.\n\n**Verification:**\n- Run codec table tests.\n- Typecheck @wrongstack/core.",
+        "type": "feature",
+        "priority": "critical",
+        "status": "pending",
+        "estimateHours": 8,
+        "tags": ["mailbox", "codec", "validation", "errors", "p0"],
+        "specRequirementId": "R4",
+        "createdAt": 1785067202000,
+        "updatedAt": 1785067202000,
+        "metadata": {
+          "phase": "contracts",
+          "requirementIds": ["R4", "R5", "R7"],
+          "verificationCommand": "pnpm exec vitest run packages/core/tests/coordination/mailbox-codecs.test.ts",
+          "expectedFiles": [
+            "packages/core/src/coordination/mailbox-codecs/",
+            "packages/core/tests/coordination/mailbox-codecs.test.ts"
+          ]
+        }
+      }
+    ],
+    [
+      "GM-P0.3",
+      {
+        "id": "GM-P0.3",
+        "title": "Enforce canonical query semantics including exact replyTo filtering",
+        "description": "Move mailbox query normalization/predicates behind one canonical implementation and apply exact `replyTo` filtering. Preserve composition with all current filters, defensive copies, ordering, limit behavior, actor visibility, and index fallbacks.\n\n**Acceptance Criteria:**\n- Querying `replyTo=A` returns only direct replies whose parent is exactly A.\n- Empty `replyTo` is rejected by untrusted codecs and has documented typed-call compatibility behavior.\n- replyTo composes with to, from, unread actor, incomplete, type, priority, since, sender session, deletion, audience, and limit.\n- Query candidate indexes never change results relative to a full scan.\n- Direct core, tool, and HTTP query fixtures produce equivalent normalized behavior.\n\n**Verification:**\n- Run GlobalMailbox query and codec tests.\n- Typecheck @wrongstack/core.",
+        "type": "bugfix",
+        "priority": "critical",
+        "status": "pending",
+        "estimateHours": 5,
+        "tags": ["mailbox", "query", "replyTo", "parity", "p0"],
+        "specRequirementId": "R5",
+        "createdAt": 1785067203000,
+        "updatedAt": 1785067203000,
+        "metadata": {
+          "phase": "query",
+          "requirementIds": ["R4", "R5"],
+          "verificationCommand": "pnpm exec vitest run packages/core/tests/coordination/global-mailbox.test.ts packages/core/tests/coordination/mailbox-codecs.test.ts",
+          "expectedFiles": [
+            "packages/core/src/coordination/global-mailbox.ts",
+            "packages/core/src/coordination/mailbox-query-candidates.ts",
+            "packages/core/src/coordination/mailbox-codecs/query.ts",
+            "packages/core/tests/coordination/global-mailbox.test.ts"
+          ]
+        }
+      }
+    ],
+    [
+      "GM-P0.4",
+      {
+        "id": "GM-P0.4",
+        "title": "Materialize mixed v1 and v2 mailbox receipt records",
+        "description": "Extend JSONL parsing/materialization to fold v1 message/read/ack/delete records and v2 actor receipt records into one normalized projection. Preserve malformed-line tolerance and make legacy global fan-out completion explicit so upgrades do not re-deliver historical finished work.\n\n**Acceptance Criteria:**\n- V1 readBy and acknowledgement records map to actor receipt state.\n- V2 read/completion/outcome/delete records survive close and reopen.\n- Historical direct completion maps to its known actor when possible.\n- Historical globally completed fan-out mail is marked legacy-global and remains suppressed.\n- Mixed-log record order is deterministic and duplicate/no-op receipts are idempotent.\n- Malformed v2 receipt records are skipped and counted without dropping valid messages.\n\n**Verification:**\n- Run codec, migration, compaction, and reopen tests.\n- Typecheck @wrongstack/core.",
+        "type": "feature",
+        "priority": "critical",
+        "status": "pending",
+        "estimateHours": 8,
+        "tags": ["mailbox", "migration", "jsonl", "receipts", "p0"],
+        "specRequirementId": "R3",
+        "createdAt": 1785067204000,
+        "updatedAt": 1785067204000,
+        "metadata": {
+          "phase": "persistence",
+          "requirementIds": ["R1", "R2", "R3", "R10"],
+          "verificationCommand": "pnpm exec vitest run packages/core/tests/coordination/mailbox-message-codec.test.ts packages/core/tests/coordination/mailbox-autocompact.test.ts packages/core/tests/coordination/global-mailbox.test.ts",
+          "expectedFiles": [
+            "packages/core/src/coordination/mailbox-message-codec.ts",
+            "packages/core/src/coordination/mailbox-message-cache.ts",
+            "packages/core/tests/coordination/mailbox-message-codec.test.ts",
+            "packages/core/tests/coordination/fixtures/mailbox/"
+          ]
+        }
+      }
+    ],
+    [
+      "GM-P0.5",
+      {
+        "id": "GM-P0.5",
+        "title": "Persist actor-scoped acknowledgements and expose actor/aggregate projections",
+        "description": "Change read, completion, outcome, soft-delete/restore, unread, incomplete, and compaction paths to use trusted actor receipt state for v2 messages. Keep explicit aggregate and legacy projections for administrative views and rollback.\n\n**Acceptance Criteria:**\n- Completing a broadcast as actor A leaves actor B incomplete.\n- Direct actor completion persists across reload and excludes the message only for that actor.\n- Actor-facing projections expose readByMe, completedByMe, and actionRequiredForMe.\n- Administrative projections expose aggregate counts without impersonating an actor.\n- Ack actor overrides are rejected before append.\n- Auto-compaction cannot remove a v2 fan-out message because only one actor completed it.\n- New writes do not create legacy-global completion.\n\n**Verification:**\n- Run actor-isolation, compaction, reload, and cross-process acknowledgement tests.\n- Typecheck @wrongstack/core.",
+        "type": "feature",
+        "priority": "critical",
+        "status": "pending",
+        "estimateHours": 8,
+        "tags": ["mailbox", "completion", "receipts", "compaction", "p0"],
+        "specRequirementId": "R1",
+        "createdAt": 1785067205000,
+        "updatedAt": 1785067205000,
+        "metadata": {
+          "phase": "persistence",
+          "requirementIds": ["R1", "R2", "R3"],
+          "verificationCommand": "pnpm exec vitest run packages/core/tests/coordination/global-mailbox.test.ts packages/core/tests/coordination/mailbox-autocompact.test.ts",
+          "expectedFiles": [
+            "packages/core/src/coordination/global-mailbox.ts",
+            "packages/core/src/coordination/mailbox-message-codec.ts",
+            "packages/core/src/coordination/mailbox-types.ts",
+            "packages/core/tests/coordination/global-mailbox.test.ts",
+            "packages/core/tests/coordination/mailbox-autocompact.test.ts"
+          ]
+        }
+      }
+    ],
+    [
+      "GM-P0.6",
+      {
+        "id": "GM-P0.6",
+        "title": "Implement authenticated mailbox principal and capability policy",
+        "description": "Implement project-bound principals, capability checks, identity credential resolution, legacy-operator mapping, and structured authorization diagnostics. Reuse existing secret facilities for credential material; do not log tokens.\n\n**Acceptance Criteria:**\n- Principals carry project, identity, actor kind, trusted role, capability set, and auth mode.\n- Capability checks are deterministic and deny by default.\n- Credentials cannot resolve to a different project than the mounted mailbox.\n- Reserved runtime identities require trusted runtime issuance.\n- Legacy bearer mode maps to a named legacy-operator principal and is observable.\n- Diagnostics contain principal/auth metadata but no token material.\n\n**Verification:**\n- Run principal/capability policy tests.\n- Typecheck @wrongstack/core.",
+        "type": "feature",
+        "priority": "critical",
+        "status": "pending",
+        "estimateHours": 7,
+        "tags": ["mailbox", "security", "principal", "capability", "p0"],
+        "specRequirementId": "R6",
+        "createdAt": 1785067206000,
+        "updatedAt": 1785067206000,
+        "metadata": {
+          "phase": "authorization",
+          "requirementIds": ["R6", "R7", "R8", "R10"],
+          "verificationCommand": "pnpm exec vitest run packages/core/tests/coordination/mailbox-authorization.test.ts",
+          "expectedFiles": [
+            "packages/core/src/coordination/mailbox-authorization.ts",
+            "packages/core/tests/coordination/mailbox-authorization.test.ts"
+          ]
+        }
+      }
+    ],
+    [
+      "GM-P0.7",
+      {
+        "id": "GM-P0.7",
+        "title": "Enforce identity-scoped principals in the mailbox HTTP router",
+        "description": "Upgrade router authorization to return a principal, derive actor fields server-side, apply shared codecs/capabilities to every route, and contain legacy bearer mode to explicit loopback compatibility. Preserve consistent JSON error envelopes, rate limiting, body caps, health probes, and SSE teardown.\n\n**Acceptance Criteria:**\n- New authorization success always includes a principal.\n- Body-supplied from, readerId, agentId, role, or client identity cannot override the principal.\n- Self credentials cannot read all mail, ack another actor, register another identity, or manage retention.\n- Operator operations require explicit capabilities.\n- Legacy mode is named, counted, warning-emitting, and loopback-only by default.\n- Non-loopback legacy startup fails closed without an approved unsafe override.\n- Existing auth failure, rate-limit, validation, body-size, and SSE tests remain green.\n\n**Verification:**\n- Run router, mutation-matrix, and security tests.\n- Typecheck core and CLI host packages.",
+        "type": "feature",
+        "priority": "critical",
+        "status": "pending",
+        "estimateHours": 8,
+        "tags": ["mailbox", "http", "security", "authorization", "p0"],
+        "specRequirementId": "R7",
+        "createdAt": 1785067207000,
+        "updatedAt": 1785067207000,
+        "metadata": {
+          "phase": "authorization",
+          "requirementIds": ["R4", "R6", "R7", "R8"],
+          "verificationCommand": "pnpm exec vitest run packages/core/tests/coordination/mailbox-http-router.test.ts packages/cli/tests/mailbox-bridge-security.test.ts packages/cli/tests/mailbox-bridge-mutation.test.ts packages/cli/tests/hq-mailbox-mutation.test.ts",
+          "expectedFiles": [
+            "packages/core/src/coordination/mailbox-http-router.ts",
+            "packages/cli/src/subcommands/handlers/mailbox-serve.ts",
+            "packages/cli/src/hq-server/",
+            "packages/core/tests/coordination/mailbox-http-router.test.ts",
+            "packages/cli/tests/mailbox-bridge-security.test.ts"
+          ]
+        }
+      }
+    ],
+    [
+      "GM-P0.8",
+      {
+        "id": "GM-P0.8",
+        "title": "Cut over internal mail tools and slash commands to shared contracts",
+        "description": "Move `mail_send`, `mail_inbox`, low-level `mailbox`, mailbox loop/checker, and `/mailbox` adapters to trusted actor contexts, shared codecs, exact reply filtering, and actor-scoped projections. Remove duplicated validation only after parity tests cover it.\n\n**Acceptance Criteria:**\n- Thin and low-level tools produce equivalent normalized send/query/ack inputs.\n- Inbox/check/read state is computed for the resolved mailbox identity.\n- Slash commands cannot bypass canonical type/recipient rules.\n- `replyTo` is available wherever the surface exposes querying or replies.\n- Session, alias, project broadcast, leader-only audience, Chimera send policy, and request-scoped injection remain intact.\n- Duplicate validation removed by this task has an equivalent shared-codec fixture.\n\n**Verification:**\n- Run mail-tools, mailbox-tool, mailbox-loop, smoke, and slash mailbox tests.\n- Typecheck core and CLI.",
+        "type": "refactor",
+        "priority": "critical",
+        "status": "pending",
+        "estimateHours": 8,
+        "tags": ["mailbox", "tools", "slash", "loop", "p0"],
+        "specRequirementId": "R4",
+        "createdAt": 1785067208000,
+        "updatedAt": 1785067208000,
+        "metadata": {
+          "phase": "surface-cutover",
+          "requirementIds": ["R1", "R2", "R4", "R5", "R9"],
+          "verificationCommand": "pnpm exec vitest run packages/core/tests/coordination/mail-tools.test.ts packages/core/tests/coordination/mailbox.test.ts packages/core/tests/coordination/mailbox-smoke.test.ts packages/cli/tests/slash-mailbox.test.ts",
+          "expectedFiles": [
+            "packages/core/src/coordination/mail-tools.ts",
+            "packages/core/src/coordination/mailbox-tool.ts",
+            "packages/core/src/core/mailbox-loop.ts",
+            "packages/core/src/mailbox-attach.ts",
+            "packages/cli/src/slash-commands/mailbox.ts"
+          ]
+        }
+      }
+    ],
+    [
+      "GM-P0.9",
+      {
+        "id": "GM-P0.9",
+        "title": "Cut over standalone and HQ HTTP mailbox gateways",
+        "description": "Wire the standalone bridge and HQ project gateway through principal-bearing authorization, shared codecs, actor-scoped query/mutation projections, and explicit legacy mode. Preserve project resolution and per-project router caching.\n\n**Acceptance Criteria:**\n- Both HTTP hosts mount the same canonical router contract.\n- Project IDs resolve server-side and principals cannot override project scope.\n- Standalone and HQ mutation matrices return equivalent errors and zero-side-effect guarantees.\n- Existing browser/operator auth rules remain enforced in addition to mailbox capabilities.\n- Router/mailbox/SSE resources still close on shutdown.\n- Legacy clients remain available only through the explicit compatibility mode.\n\n**Verification:**\n- Run standalone bridge, HQ mailbox mutation/action, routing, SSE, and shutdown tests.\n- Typecheck core and CLI.",
+        "type": "refactor",
+        "priority": "critical",
+        "status": "pending",
+        "estimateHours": 7,
+        "tags": ["mailbox", "bridge", "hq", "http", "p0"],
+        "specRequirementId": "R8",
+        "createdAt": 1785067209000,
+        "updatedAt": 1785067209000,
+        "metadata": {
+          "phase": "surface-cutover",
+          "requirementIds": ["R4", "R6", "R7", "R8", "R9"],
+          "verificationCommand": "pnpm exec vitest run packages/cli/tests/mailbox-bridge.test.ts packages/cli/tests/mailbox-bridge-sse.test.ts packages/cli/tests/mailbox-bridge-security.test.ts packages/cli/tests/mailbox-bridge-mutation.test.ts packages/cli/tests/hq-mailbox-mutation.test.ts packages/cli/tests/hq-mailbox-actions.test.ts",
+          "expectedFiles": [
+            "packages/cli/src/subcommands/handlers/mailbox-serve.ts",
+            "packages/cli/src/hq-server.ts",
+            "packages/cli/src/hq-server/routes.ts",
+            "packages/cli/tests/mailbox-bridge.test.ts",
+            "packages/cli/tests/hq-mailbox-mutation.test.ts"
+          ]
+        }
+      }
+    ],
+    [
+      "GM-P0.10",
+      {
+        "id": "GM-P0.10",
+        "title": "Cut over WebSocket, WebUI, and HQ mailbox projections",
+        "description": "Update WebSocket handlers, mailbox stores, HQ mapper/protocol summaries, and required UI fields to distinguish actor-specific state from aggregate state. This is contract plumbing, not a mailbox UX redesign.\n\n**Acceptance Criteria:**\n- Actor-facing payloads expose actor-specific read/completion/action state.\n- Administrative/HQ payloads expose aggregate receipt data with unambiguous names.\n- Existing `completed` and read-count fields remain documented compatibility projections during rollout.\n- WebUI unread counters do not equate any-reader or incomplete state with the selected actor's unread state.\n- Task context, audience, recipient scope, replyTo, sender session, deletion, and outcome fields retain their current meaning.\n- WebSocket/HQ payload validators reject actor claims that belong to authenticated server context.\n\n**Verification:**\n- Run WebSocket mailbox handlers, WebUI mailbox store/model tests, and HQ mailbox grouping/action tests.\n- Typecheck WebUI server and affected UI packages.",
+        "type": "refactor",
+        "priority": "high",
+        "status": "pending",
+        "estimateHours": 8,
+        "tags": ["mailbox", "websocket", "webui", "hq", "p0"],
+        "specRequirementId": "R2",
+        "createdAt": 1785067210000,
+        "updatedAt": 1785067210000,
+        "metadata": {
+          "phase": "surface-cutover",
+          "requirementIds": ["R2", "R4", "R5", "R7", "R9"],
+          "verificationCommand": "pnpm exec vitest run packages/webui-server/tests/mailbox-handlers.test.ts packages/webui-hq/tests/mailbox-grouping.test.ts packages/webui-hq/tests/mailbox-actions.test.ts",
+          "expectedFiles": [
+            "packages/webui-server/src/server/mailbox-handlers.ts",
+            "packages/webui/src/stores/mailbox-store.ts",
+            "packages/webui/src/components/MailboxPanel.tsx",
+            "packages/core/src/hq/mailbox-mapper.ts",
+            "packages/webui-hq/src/views/mailbox-*.ts*"
+          ]
+        }
+      }
+    ],
+    [
+      "GM-P0.11",
+      {
+        "id": "GM-P0.11",
+        "title": "Add the cross-surface mailbox contract matrix",
+        "description": "Run one golden fixture matrix through direct core, thin tools, low-level tool, HTTP router, standalone bridge, WebSocket handler, HQ gateway, and slash-command adapters. Compare normalized results/errors rather than transport-specific wrappers.\n\n**Acceptance Criteria:**\n- Matrix covers every field, default, alias, audience, type/recipient rule, actor override, query filter, and error class.\n- Each fixture declares applicable surfaces and any explicit unsupported reason.\n- Applicable surfaces normalize equivalently or return the same stable error code/field path.\n- Rejected fixtures have zero storage side effects.\n- Matrix specifically covers replyTo and two-recipient fan-out completion isolation.\n- Removing any shared-codec call from one surface causes a deterministic test failure.\n\n**Verification:**\n- Run the dedicated cross-surface contract matrix and focused regressions.",
+        "type": "test",
+        "priority": "critical",
+        "status": "pending",
+        "estimateHours": 8,
+        "tags": ["mailbox", "contract-matrix", "parity", "integration", "p0"],
+        "specRequirementId": "R9",
+        "createdAt": 1785067211000,
+        "updatedAt": 1785067211000,
+        "metadata": {
+          "phase": "verification",
+          "requirementIds": ["R4", "R5", "R7", "R9"],
+          "verificationCommand": "pnpm exec vitest run packages/core/tests/coordination/mailbox-contract-matrix.test.ts",
+          "expectedFiles": [
+            "packages/core/tests/coordination/mailbox-contract-fixtures.ts",
+            "packages/core/tests/coordination/mailbox-contract-matrix.test.ts",
+            "packages/cli/tests/mailbox-contract-matrix.test.ts",
+            "packages/webui-server/tests/mailbox-contract-matrix.test.ts"
+          ]
+        }
+      }
+    ],
+    [
+      "GM-P0.12",
+      {
+        "id": "GM-P0.12",
+        "title": "Add migration, concurrency, rollback, and authorization fault tests",
+        "description": "Prove the high-risk behavioral guarantees independently of the surface parity suite: mixed-log migration, historical no-reflood, actor completion isolation, concurrent append/ack/compact, crash/reopen, previous-reader rollback compatibility, and principal capability denial.\n\n**Acceptance Criteria:**\n- V1-only, v2-only, and mixed fixtures normalize identically before and after compaction/reopen.\n- Historical globally completed fan-out messages do not reappear after upgrade.\n- New fan-out completion is isolated per actor across processes.\n- Child-process send/ack/compact races lose no messages or receipts.\n- Previous-version compatibility fixture reads migration-window output.\n- Every capability denial and actor override returns the expected error with zero side effects.\n- Legacy non-loopback startup refusal is covered.\n\n**Verification:**\n- Run dedicated migration/concurrency/security suites plus existing mailbox security tests.",
+        "type": "test",
+        "priority": "critical",
+        "status": "pending",
+        "estimateHours": 8,
+        "tags": ["mailbox", "migration", "concurrency", "security", "rollback", "p0"],
+        "specRequirementId": "R10",
+        "createdAt": 1785067212000,
+        "updatedAt": 1785067212000,
+        "metadata": {
+          "phase": "verification",
+          "requirementIds": ["R1", "R3", "R6", "R7", "R8", "R10"],
+          "verificationCommand": "pnpm exec vitest run packages/core/tests/coordination/mailbox-v2-migration.test.ts packages/core/tests/coordination/mailbox-multiprocess.test.ts packages/core/tests/coordination/mailbox-authorization.test.ts packages/cli/tests/mailbox-bridge-security.test.ts",
+          "expectedFiles": [
+            "packages/core/tests/coordination/mailbox-v2-migration.test.ts",
+            "packages/core/tests/coordination/mailbox-multiprocess.test.ts",
+            "packages/core/tests/coordination/mailbox-authorization.test.ts",
+            "packages/core/tests/coordination/fixtures/mailbox/"
+          ]
+        }
+      }
+    ],
+    [
+      "GM-P0.13",
+      {
+        "id": "GM-P0.13",
+        "title": "Document migration, expose telemetry, and wire rollback controls",
+        "description": "Publish operator/external-agent migration guidance, expose bounded compatibility diagnostics, add named rollout/rollback configuration, and define the removal gate for legacy global completion projection and legacy bearer mode.\n\n**Acceptance Criteria:**\n- Docs explain identity credentials, capability scopes, body actor changes, replyTo parity, actor-scoped completion, and legacy limits.\n- Diagnostics expose v1 records, v2 receipts, legacy-global projections, legacy-auth use, forbidden actor overrides, and malformed receipts without secrets.\n- Rollout and rollback flags have explicit defaults and test coverage.\n- Legacy mode remains loopback-only by default.\n- Removal requires one stable release with no known legacy clients and no migration/parity failures.\n- Public docs and tool descriptions do not advertise capabilities unavailable on their surface.\n\n**Verification:**\n- Run config validation, system-prompt/tool-description, docs-link, and mailbox diagnostics tests.\n- Review diff for secret/token exposure.",
+        "type": "docs",
+        "priority": "high",
+        "status": "pending",
+        "estimateHours": 6,
+        "tags": ["mailbox", "docs", "telemetry", "rollback", "p0"],
+        "specRequirementId": "R10",
+        "createdAt": 1785067213000,
+        "updatedAt": 1785067213000,
+        "metadata": {
+          "phase": "rollout",
+          "requirementIds": ["R8", "R10"],
+          "verificationCommand": "pnpm exec vitest run packages/core/tests/coordination/mailbox-diagnostics.test.ts packages/core/tests/core/system-prompt-builder-h-guidance.test.ts packages/cli/tests/boot/tool-registry.test.ts",
+          "expectedFiles": [
+            "docs/subcommands/mailbox.md",
+            "docs/slash/mailbox.md",
+            "packages/cli/README.md",
+            "packages/core/skills/mailbox-bridge/SKILL.md",
+            "packages/core/skills/wrongstack-mailbox/SKILL.md",
+            "packages/core/src/types/config/",
+            "packages/core/tests/coordination/mailbox-diagnostics.test.ts"
+          ]
+        }
+      }
+    ],
+    [
+      "GM-P0.4A",
+      {
+        "id": "GM-P0.4A",
+        "title": "Writer-version fence for safe mixed-version mailbox mutation",
+        "description": "Implement a version marker/sentinel that prevents previous-version processes from mutating a mailbox file after v2 receipt records appear. This blocks v2 receipt writes from being erased by an old compactor or collapsed by an old reader.\n\n**Acceptance Criteria:**\n- A version marker (sentinel line or sidecar) is written when the first v2 receipt record is appended.\n- An old process encountering the marker refuses all mutation operations (send, ack, softDelete, restore, purge, compact, clearAll) with a structured error.\n- Read-only operations by old processes continue to work (backward-compatible reads).\n- The fence is idempotent: re-checking an existing marker does not create duplicates.\n- Fence detection handles missing, corrupt, and sidecar-only markers gracefully.\n- Tests prove an old parser/compactor cannot erase v2 receipt state from a fenced mailbox.\n\n**Verification:**\n- Run migration/fence tests with simulated previous-version codec.\n- Typecheck @wrongstack/core.",
+        "type": "feature",
+        "priority": "critical",
+        "status": "pending",
+        "estimateHours": 5,
+        "tags": ["mailbox", "migration", "version-fence", "safety", "p0"],
+        "specRequirementId": "R3",
+        "createdAt": 1785067204500,
+        "updatedAt": 1785067204500,
+        "metadata": {
+          "phase": "persistence",
+          "requirementIds": ["R3", "R10"],
+          "verificationCommand": "pnpm exec vitest run packages/core/tests/coordination/mailbox-version-fence.test.ts",
+          "expectedFiles": [
+            "packages/core/src/coordination/global-mailbox.ts",
+            "packages/core/src/coordination/mailbox-message-codec.ts",
+            "packages/core/tests/coordination/mailbox-version-fence.test.ts"
+          ]
+        }
+      }
+    ],
+    [
+      "GM-P0.5A",
+      {
+        "id": "GM-P0.5A",
+        "title": "Storage-boundary enforcement of canonical send and actor authorization",
+        "description": "Make GlobalMailbox.send() and all mutation methods call validateSendType() / shared codec validation internally, and introduce actor-bearing service methods (sendFor, ackFor, softDeleteFor, restoreFor, registerFor, heartbeatFor). Legacy actor-ambiguous methods become explicitly internal/admin-only.\n\n**Acceptance Criteria:**\n- Direct typed calls to GlobalMailbox.send() reject invalid type/recipient combinations (control, broadcast assign/steer) without relying on transport adapters.\n- Actor-bearing methods accept a trusted MailboxActorContext and reject unauthorized mutations.\n- Legacy actor-ambiguous methods are marked @internal or deprecated in their JSDoc.\n- Acknowledgement of a message not visible to the actor is rejected before persistence.\n- No receipt or registry state is appended for rejected operations.\n- Existing mailbox regression suites remain green after the change.\n\n**Verification:**\n- Run GlobalMailbox and storage-boundary tests.\n- Typecheck @wrongstack/core.",
+        "type": "feature",
+        "priority": "critical",
+        "status": "pending",
+        "estimateHours": 6,
+        "tags": ["mailbox", "storage-boundary", "validation", "actor-apis", "p0"],
+        "specRequirementId": "R4",
+        "createdAt": 1785067205500,
+        "updatedAt": 1785067205500,
+        "metadata": {
+          "phase": "persistence",
+          "requirementIds": ["R4", "R7"],
+          "verificationCommand": "pnpm exec vitest run packages/core/tests/coordination/global-mailbox.test.ts packages/core/tests/coordination/mailbox-storage-boundary.test.ts",
+          "expectedFiles": [
+            "packages/core/src/coordination/global-mailbox.ts",
+            "packages/core/src/coordination/mailbox-codecs/",
+            "packages/core/tests/coordination/mailbox-storage-boundary.test.ts"
+          ]
+        }
+      }
+    ],
+    [
+      "GM-P0.GATE",
+      {
+        "id": "GM-P0.GATE",
+        "title": "Independent Global Mailbox P0 acceptance gate",
+        "description": "Perform independent contract, security, migration, and rollback review after all implementation and documentation tasks. Do not approve removal of legacy validation or compatibility controls without complete evidence.\n\n**Acceptance Criteria:**\n- All twenty-four global acceptance criteria in the SDD have linked passing evidence.\n- Cross-surface matrix passes with no undocumented exception.\n- Migration/concurrency/security suite passes, including writer-version fence, old-compactor safety, previous-reader rollback compatibility, receipt fold algebra, and v1 completion classification.\n- Core, CLI, WebUI server, and affected UI typechecks pass.\n- Existing mailbox suites pass without skipped or zero-collected target files.\n- Independent security review finds no Critical/High issue.\n- Independent contract reviewer confirms actor-specific and aggregate fields are not conflated.\n- Legacy code removal, if any, is limited to paths covered by parity fixtures.\n\n**Verification:**\n- Run all commands listed in SDD section 8.6 and the new P0 gate suite.\n- Attach command outputs and reviewer verdicts before marking complete.",
+        "type": "test",
+        "priority": "critical",
+        "status": "pending",
+        "estimateHours": 6,
+        "tags": ["mailbox", "gate", "security-review", "acceptance", "p0"],
+        "specRequirementId": "R9",
+        "createdAt": 1785067214000,
+        "updatedAt": 1785067214000,
+        "metadata": {
+          "phase": "gate",
+          "requirementIds": ["R1", "R2", "R3", "R4", "R5", "R6", "R7", "R8", "R9", "R10"],
+          "verificationCommand": "pnpm exec vitest run packages/core/tests/coordination/mailbox-p0-gate.test.ts",
+          "requiredReviewers": ["security-scanner", "critic"],
+          "expectedFiles": [
+            "packages/core/tests/coordination/mailbox-p0-gate.test.ts",
+            "docs/specs/global-mailbox-p0-contract-repairs.md"
+          ]
+        }
+      }
+    ]
+  ],
+  "edges": [
+    { "id": "e-00-01", "from": "GM-P0.0", "to": "GM-P0.1", "type": "depends_on" },
+    { "id": "e-01-02", "from": "GM-P0.1", "to": "GM-P0.2", "type": "depends_on" },
+    { "id": "e-02-03", "from": "GM-P0.2", "to": "GM-P0.3", "type": "depends_on" },
+    { "id": "e-01-04", "from": "GM-P0.1", "to": "GM-P0.4", "type": "depends_on" },
+    { "id": "e-04-05", "from": "GM-P0.4", "to": "GM-P0.5", "type": "depends_on" },
+    { "id": "e-04-4a", "from": "GM-P0.4", "to": "GM-P0.4A", "type": "depends_on" },
+    { "id": "e-4a-05", "from": "GM-P0.4A", "to": "GM-P0.5", "type": "depends_on" },
+    { "id": "e-02-5a", "from": "GM-P0.2", "to": "GM-P0.5A", "type": "depends_on" },
+    { "id": "e-04-5a", "from": "GM-P0.4", "to": "GM-P0.5A", "type": "depends_on" },
+    { "id": "e-5a-08", "from": "GM-P0.5A", "to": "GM-P0.8", "type": "depends_on" },
+    { "id": "e-03-05", "from": "GM-P0.3", "to": "GM-P0.5", "type": "depends_on" },
+    { "id": "e-01-06", "from": "GM-P0.1", "to": "GM-P0.6", "type": "depends_on" },
+    { "id": "e-01-07", "from": "GM-P0.1", "to": "GM-P0.7", "type": "depends_on" },
+    { "id": "e-02-07", "from": "GM-P0.2", "to": "GM-P0.7", "type": "depends_on" },
+    { "id": "e-06-07", "from": "GM-P0.6", "to": "GM-P0.7", "type": "depends_on" },
+    { "id": "e-02-08", "from": "GM-P0.2", "to": "GM-P0.8", "type": "depends_on" },
+    { "id": "e-03-08", "from": "GM-P0.3", "to": "GM-P0.8", "type": "depends_on" },
+    { "id": "e-05-08", "from": "GM-P0.5", "to": "GM-P0.8", "type": "depends_on" },
+    { "id": "e-02-09", "from": "GM-P0.2", "to": "GM-P0.9", "type": "depends_on" },
+    { "id": "e-05-09", "from": "GM-P0.5", "to": "GM-P0.9", "type": "depends_on" },
+    { "id": "e-07-09", "from": "GM-P0.7", "to": "GM-P0.9", "type": "depends_on" },
+    { "id": "e-08-10", "from": "GM-P0.8", "to": "GM-P0.10", "type": "depends_on" },
+    { "id": "e-09-10", "from": "GM-P0.9", "to": "GM-P0.10", "type": "depends_on" },
+    { "id": "e-10-11", "from": "GM-P0.10", "to": "GM-P0.11", "type": "depends_on" },
+    { "id": "e-04-12", "from": "GM-P0.4", "to": "GM-P0.12", "type": "depends_on" },
+    { "id": "e-05-12", "from": "GM-P0.5", "to": "GM-P0.12", "type": "depends_on" },
+    { "id": "e-07-12", "from": "GM-P0.7", "to": "GM-P0.12", "type": "depends_on" },
+    { "id": "e-09-12", "from": "GM-P0.9", "to": "GM-P0.12", "type": "depends_on" },
+    { "id": "e-07-13", "from": "GM-P0.7", "to": "GM-P0.13", "type": "depends_on" },
+    { "id": "e-10-13", "from": "GM-P0.10", "to": "GM-P0.13", "type": "depends_on" },
+    { "id": "e-11-gate", "from": "GM-P0.11", "to": "GM-P0.GATE", "type": "depends_on" },
+    { "id": "e-12-gate", "from": "GM-P0.12", "to": "GM-P0.GATE", "type": "depends_on" },
+    { "id": "e-13-gate", "from": "GM-P0.13", "to": "GM-P0.GATE", "type": "depends_on" }
+  ],
+  "rootNodes": ["GM-P0.0"],
+  "createdAt": 1785067200000,
+  "updatedAt": 1785067214000
+}

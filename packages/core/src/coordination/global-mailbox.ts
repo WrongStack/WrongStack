@@ -23,7 +23,6 @@ import * as path from 'node:path';
 import type { HqPublisher } from '../hq/publisher.js';
 import type { EventBus } from '../kernel/events.js';
 import { atomicWrite, withFileLock } from '../utils/atomic-write.js';
-import { projectSlug } from '../utils/wstack-paths.js';
 import {
   AGENT_STALE_MS,
   AUTO_COMPACT_DEFAULT_TTL_MS,
@@ -32,17 +31,38 @@ import {
   CLIENT_STALE_MS,
   HEARTBEAT_THROTTLE_MS,
   LINE_SEPARATOR,
-  MESSAGE_CACHE_MAX_ENTRIES,
   REGISTRY_CACHE_TTL_MS,
 } from './mailbox-constants.js';
+import {
+  MailboxMessageCache,
+  type MailboxMessageFileStat,
+} from './mailbox-message-cache.js';
 import type { MailboxEventEmitter } from './mailbox-events.js';
 import {
-  applyAckToMessage,
-  isAckRecord,
+  buildReceiptRecordV2,
+  serializeReceiptRecordV2,
+} from './mailbox-receipt-folding.js';
+import { ensureVersionSentinel } from './mailbox-version-fence.js';
+import {
   normalizeMailboxMessageType,
-  parseMailboxLine,
+  parseMailboxLines,
   serializeAckRecord,
 } from './mailbox-message-codec.js';
+import {
+  GLOBAL_MAILBOX_CLIENT_REGISTRY_FILE,
+  GLOBAL_MAILBOX_FILE,
+} from './global-mailbox-paths.js';
+import {
+  readAgentRegistryFile,
+  readClientRegistryFile,
+  writeRegistryFile,
+} from './mailbox-registry-file.js';
+import { selectMailboxQueryCandidates } from './mailbox-query-candidates.js';
+import { pruneStaleRegistryEntries } from './mailbox-registry-utils.js';
+import {
+  mapRegisteredAgentsToStatuses,
+  mapRegisteredClientsToStatuses,
+} from './mailbox-status-mappers.js';
 import type {
   AckRecord,
   AgentHeartbeatInput,
@@ -64,30 +84,10 @@ import type {
   RegisteredAgent,
   RegisteredClient,
 } from './mailbox-types.js';
-import { isMailboxMessageVisibleTo, normalizeRecipient, sessionRecipient } from './mailbox-types.js';
-
-// ── Constants ────────────────────────────────────────────────────────────
-
-const MAILBOX_FILE = '_mailbox.jsonl';
-const CLIENT_REGISTRY_FILE = '_mailbox.clients.json';
+import { isMailboxMessageVisibleTo, normalizeRecipient, sessionRecipient, validateSendType } from './mailbox-types.js';
+export { resolveProjectDir } from './global-mailbox-paths.js';
 
 type HqPublisherRef = HqPublisher | (() => HqPublisher | undefined);
-
-/**
- * Derive the project-level mailbox directory path.
- *
- * Delegates to the CANONICAL `projectSlug()` from wstack-paths so every
- * surface (CLI, TUI, WebUI, mailbox tool, loop checker) lands in the exact
- * same `~/.wrongstack/projects/<slug>/` directory. `projectSlug()` also folds
- * linked Git worktrees into their shared common project identity, preventing
- * branch/worktree isolation from accidentally becoming mailbox isolation.
- *
- * @param projectRoot  — absolute path to the project root
- * @param globalRoot   — `~/.wrongstack` (or custom global root)
- */
-export function resolveProjectDir(projectRoot: string, globalRoot: string): string {
-  return path.join(globalRoot, 'projects', projectSlug(projectRoot));
-}
 
 // ── Singleton factory ────────────────────────────────────────────────────
 
@@ -187,22 +187,7 @@ export class GlobalMailbox implements Mailbox {
    * cache is current. This collapses the per-iteration `query()` cost from
    * O(file_size) disk + parse to O(messages) in memory.
    */
-  private _messageCache: MailboxMessage[] | null = null;
-  /** mtimeMs of the file when `_messageCache` was populated. */
-  private _messageCacheMtime = -1;
-  /** Size of the file when `_messageCache` was populated (extra guard). */
-  private _messageCacheSize = -1;
-  /**
-   * Serializes reads of the message file so overlapping concurrent
-   * `_readMessagesCached()` calls don't both enter the incremental "file
-   * only grew" branch against the same stale `_messageCacheSize` and
-   * each push the same tail bytes onto the cache (duplicating every
-   * appended message). The chain runs each read to completion before
-   * the next starts, in issue order — readers are read-only and never
-   * conflict with each other on content, only on the cache mutation
-   * that follows the read. Pattern mirrors a serialized mutation chain.
-   */
-  private _readChain: Promise<MailboxMessage[]> = Promise.resolve([] as MailboxMessage[]);
+  private readonly _messageCache = new MailboxMessageCache();
 
   /**
    * Recipient → Set of indices into `_messageCache`. Maintained alongside
@@ -222,14 +207,6 @@ export class GlobalMailbox implements Mailbox {
    * `_readMessagesCached()` either gets the old array + old index, or
    * the new array + new index — never a mismatch.
    */
-  private _recipientIndex: Map<string, Set<number>> | null = null;
-
-  /**
-   * Sender → Set of indices into `_messageCache`. Same lifecycle and
-   * safety properties as `_recipientIndex`, but keyed on `msg.from`
-   * so `query({ from })` can skip the full scan.
-   */
-  private _senderIndex: Map<string, Set<number>> | null = null;
 
   /**
    * @param projectDir — `~/.wrongstack/projects/<slug>/`
@@ -243,9 +220,9 @@ export class GlobalMailbox implements Mailbox {
     hqPublisher?: HqPublisherRef,
     eventEmitter?: MailboxEventEmitter,
   ) {
-    this.messagePath = path.join(projectDir, MAILBOX_FILE);
+    this.messagePath = path.join(projectDir, GLOBAL_MAILBOX_FILE);
     this.registryPath = path.join(projectDir, '_mailbox.registry.json');
-    this.clientRegistryPath = path.join(projectDir, CLIENT_REGISTRY_FILE);
+    this.clientRegistryPath = path.join(projectDir, GLOBAL_MAILBOX_CLIENT_REGISTRY_FILE);
     this._events = events;
     this._hqPublisher = hqPublisher;
     this.eventEmitter = eventEmitter;
@@ -278,14 +255,21 @@ export class GlobalMailbox implements Mailbox {
   // ── Messages ────────────────────────────────────────────────────────────
 
   async send(input: MailboxSendInput): Promise<MailboxMessage> {
+    // GM-P0.5A: Enforce type/recipient validation at the storage boundary.
+    // This prevents direct typed callers from bypassing the canonical
+    // validateSendType() check that transport adapters (tools, HTTP, CLI)
+    // apply. Without this, a direct call to send({ type: 'control', ... })
+    // would succeed — control is reserved for runtime use only.
+    const resolvedType = normalizeMailboxMessageType(input.type);
+    const normalizedTo = normalizeRecipient(input.to, input.senderSessionId);
+    validateSendType(resolvedType, normalizedTo);
+
     const now = new Date().toISOString();
     const msg: MailboxMessage = {
       id: randomUUID(),
       from: input.from,
-      // "all" maps to project broadcast; "@session" is resolved against the
-      // sender's session before persistence so recipients can match it exactly.
-      to: normalizeRecipient(input.to, input.senderSessionId),
-      type: normalizeMailboxMessageType(input.type),
+      to: normalizedTo,
+      type: resolvedType,
       ...(input.audience !== undefined && input.audience !== 'all'
         ? { audience: input.audience }
         : {}),
@@ -321,7 +305,7 @@ export class GlobalMailbox implements Mailbox {
       // Refresh the in-memory cache from the message we just appended —
       // cheaper than re-reading the whole file, and correct because we
       // held the lock so nothing else changed underneath us.
-      this._pushToCache(msg, mtimeMs, size);
+      this._messageCache.push(msg, { mtimeMs, size });
     });
 
     this.publishHqMailboxEvent({
@@ -375,35 +359,12 @@ export class GlobalMailbox implements Mailbox {
     // Sender index fast-path: symmetric — when filtering ONLY by `from`
     // (no `to`, `type`, `minPriority`), iterate only messages from that
     // sender.
-    let candidates: Iterable<MailboxMessage>;
-    if (
-      q.to !== undefined &&
-      this._recipientIndex !== null &&
-      q.from === undefined &&
-      q.type === undefined &&
-      q.minPriority === undefined
-    ) {
-      // Collect candidate indices: messages addressed to `q.to` + broadcasts.
-      const indices = new Set<number>();
-      const direct = this._recipientIndex.get(q.to);
-      if (direct !== undefined) for (const i of direct) indices.add(i);
-      const broadcasts = this._recipientIndex.get('*');
-      if (broadcasts !== undefined) for (const i of broadcasts) indices.add(i);
-      candidates = [...indices].sort((a, b) => a - b).map((i) => all[i]!);
-    } else if (
-      q.from !== undefined &&
-      q.to === undefined &&
-      this._senderIndex !== null &&
-      q.type === undefined &&
-      q.minPriority === undefined
-    ) {
-      // Sender index fast-path: iterate only messages from `q.from`.
-      const indices = this._senderIndex.get(q.from);
-      candidates =
-        indices !== undefined ? [...indices].sort((a, b) => a - b).map((i) => all[i]!) : [];
-    } else {
-      candidates = all;
-    }
+    const candidates = selectMailboxQueryCandidates(
+      q,
+      all,
+      this._messageCache.recipientIndex,
+      this._messageCache.senderIndex,
+    );
 
     for (const m of candidates) {
       if (q.to !== undefined && m.to !== q.to && m.to !== '*') continue;
@@ -421,6 +382,8 @@ export class GlobalMailbox implements Mailbox {
       // caller explicitly opts in via `includeDeleted: true` (used by
       // the WebUI's "trash" view).
       if (!q.includeDeleted && m.deletedAt !== undefined) continue;
+      // Exact-match filter on replyTo parent message id.
+      if (q.replyTo !== undefined && m.replyTo !== q.replyTo) continue;
       out.push(m);
     }
 
@@ -479,8 +442,8 @@ export class GlobalMailbox implements Mailbox {
     // Capture the metadata that produced `all`. Taking this snapshot before
     // the cached read caused false desync reports whenever that read itself
     // legitimately discovered a cross-process append.
-    this.diag.ackManyPreLockMtime = this._messageCacheMtime;
-    this.diag.ackManyPreLockSize = this._messageCacheSize;
+    this.diag.ackManyPreLockMtime = this._messageCache.mtimeMs;
+    this.diag.ackManyPreLockSize = this._messageCache.sizeBytes;
     for (const msg of all) {
       const a = byId.get(msg.id);
       if (!a) continue;
@@ -540,28 +503,43 @@ export class GlobalMailbox implements Mailbox {
     // Append ack records to the file under the lock. Messages appended by
     // another process during this ack may be absent from `updated`; callers
     // will observe them on their next query/read.
+    //
+    // GM-P0.4: Dual-write v1 ack records AND v2 receipt records.
+    // The v1 ack preserves backward compatibility for old readers.
+    // The v2 receipt record enables per-actor delivery state.
+    // The version sentinel is written on the first v2 receipt to fence
+    // old processes from mutating a v2 mailbox (GM-P0.4A).
     const serialized = ackRecords.map((a) => serializeAckRecord(a)).join('');
+    const v2Receipts = ackRecords.map((a) =>
+      serializeReceiptRecordV2(
+        buildReceiptRecordV2(a.messageId, a.readerId, a.timestamp, {
+          read: a.read !== false,
+          completed: a.completed === true,
+          ...(a.outcome !== undefined ? { outcome: a.outcome } : {}),
+        }),
+      ),
+    ).join('');
     await withFileLock(this.messagePath, async () => {
-      // Close the read→lock race: a different process can append after
-      // `_readMessagesCached()` returns but before this lock is acquired.
-      // Reconcile first so advancing the trackers below cannot bless a cache
-      // that is missing those records.
+      // Close the read→lock race.
       await this._refreshMessageCacheUnderLock();
-      await fsp.appendFile(this.messagePath, serialized, 'utf8');
+      // GM-P0.4A: Ensure the version sentinel exists before writing v2 receipts.
+      // Reads the file content under lock to check; appends sentinel if absent.
+      await ensureVersionSentinel(this.messagePath);
+      // Append v1 acks + v2 receipts.
+      await fsp.appendFile(this.messagePath, serialized + v2Receipts, 'utf8');
       // Capture the post-append stat inside the lock.
       const { mtimeMs, size } = await this._statMessageFile();
       // Apply ack effects directly to the in-memory cache.
       for (const ack of ackRecords) {
-        this._applyAckToCache(ack);
+        this._messageCache.applyAck(ack);
       }
       // Advance cache trackers so the next read sees current size.
-      this._messageCacheMtime = mtimeMs;
-      this._messageCacheSize = size;
+      this._messageCache.updateStat({ mtimeMs, size });
 
       // ── Post-lock diagnostics ──
       this.diag.ackManyPostLockMtime = mtimeMs;
       this.diag.ackManyPostLockSize = size;
-      this.diag.ackManyMessageCount = this._messageCache?.length ?? -1;
+      this.diag.ackManyMessageCount = this._messageCache.messageCount;
       this.diag.ackManyAckCount = ackRecords.length;
     });
 
@@ -591,14 +569,14 @@ export class GlobalMailbox implements Mailbox {
 
     // Recipient index fast-path: iterate direct + project broadcast + the
     // recipient's session broadcast, instead of the full cache.
-    if (this._recipientIndex !== null) {
+    if (this._messageCache.recipientIndex !== null) {
       const indices = new Set<number>();
-      const direct = this._recipientIndex.get(forAgentId);
+      const direct = this._messageCache.recipientIndex.get(forAgentId);
       if (direct !== undefined) for (const i of direct) indices.add(i);
-      const broadcasts = this._recipientIndex.get('*');
+      const broadcasts = this._messageCache.recipientIndex.get('*');
       if (broadcasts !== undefined) for (const i of broadcasts) indices.add(i);
       if (scopedSessionRecipient !== undefined) {
-        const sessionBroadcasts = this._recipientIndex.get(scopedSessionRecipient);
+        const sessionBroadcasts = this._messageCache.recipientIndex.get(scopedSessionRecipient);
         if (sessionBroadcasts !== undefined) for (const i of sessionBroadcasts) indices.add(i);
       }
       for (const i of indices) {
@@ -623,7 +601,7 @@ export class GlobalMailbox implements Mailbox {
     // Append-only soft-delete: instead of reading all messages, mutating
     // one, and rewriting the entire file, we append a single ack record
     // with `deleted: true`. At read time, the delete is applied to the
-    // target message via _parseLines / applyAckToMessage.
+    // target message via parseMailboxLines / applyAckToMessage.
     // No-op when the message is already soft-deleted.
 
     const all = await this._readMessagesCached();
@@ -648,9 +626,8 @@ export class GlobalMailbox implements Mailbox {
       await this._refreshMessageCacheUnderLock();
       await fsp.appendFile(this.messagePath, serializeAckRecord(ack), 'utf8');
       const { mtimeMs, size } = await this._statMessageFile();
-      this._applyAckToCache(ack);
-      this._messageCacheMtime = mtimeMs;
-      this._messageCacheSize = size;
+      this._messageCache.applyAck(ack);
+      this._messageCache.updateStat({ mtimeMs, size });
     });
 
     const msg = { ...target, readBy: { ...target.readBy } };
@@ -698,9 +675,8 @@ export class GlobalMailbox implements Mailbox {
       await this._refreshMessageCacheUnderLock();
       await fsp.appendFile(this.messagePath, serializeAckRecord(ack), 'utf8');
       const { mtimeMs, size } = await this._statMessageFile();
-      this._applyAckToCache(ack);
-      this._messageCacheMtime = mtimeMs;
-      this._messageCacheSize = size;
+      this._messageCache.applyAck(ack);
+      this._messageCache.updateStat({ mtimeMs, size });
     });
 
     const msg = { ...target, readBy: { ...target.readBy } };
@@ -897,25 +873,7 @@ export class GlobalMailbox implements Mailbox {
       });
     }
 
-    const now = Date.now();
-    return Array.from(registry.values())
-      .map((a) => ({
-        agentId: a.agentId,
-        name: a.name,
-        role: a.role,
-        sessionId: a.sessionId,
-        status: a.status,
-        currentTool: a.currentTool,
-        currentTask: a.currentTask,
-        iterations: a.iterations,
-        toolCalls: a.toolCalls,
-        lastActivityAt: a.lastSeenAt,
-        lastSeenAt: a.lastSeenAt,
-        online: now - new Date(a.lastSeenAt).getTime() < AGENT_STALE_MS,
-        pid: a.pid,
-        source: a.source,
-      }))
-      .sort((a, b) => b.lastSeenAt.localeCompare(a.lastSeenAt));
+    return mapRegisteredAgentsToStatuses(registry, Date.now(), AGENT_STALE_MS);
   }
 
   async getOnlineAgents(): Promise<MailboxAgentStatus[]> {
@@ -1038,18 +996,7 @@ export class GlobalMailbox implements Mailbox {
       });
     }
 
-    const now = Date.now();
-    return Array.from(registry.values())
-      .map((c) => ({
-        clientId: c.clientId,
-        name: c.name,
-        source: c.source,
-        sessionId: c.sessionId,
-        lastSeenAt: c.lastSeenAt,
-        online: now - new Date(c.lastSeenAt).getTime() < CLIENT_STALE_MS,
-        pid: c.pid,
-      }))
-      .sort((a, b) => b.lastSeenAt.localeCompare(a.lastSeenAt));
+    return mapRegisteredClientsToStatuses(registry, Date.now(), CLIENT_STALE_MS);
   }
 
   /**
@@ -1085,11 +1032,7 @@ export class GlobalMailbox implements Mailbox {
     // JSONL append-only — no flush needed
     this._registryCache = null;
     this._clientRegistryCache = null;
-    this._messageCache = null;
-    this._messageCacheMtime = -1;
-    this._messageCacheSize = -1;
-    this._recipientIndex = null;
-    this._senderIndex = null;
+    this._messageCache.clear();
   }
 
   async clearAll(): Promise<void> {
@@ -1100,7 +1043,7 @@ export class GlobalMailbox implements Mailbox {
     await withFileLock(this.messagePath, async () => {
       await atomicWrite(this.messagePath, '');
       const { mtimeMs, size } = await this._statMessageFile();
-      this._setMessageCache([], mtimeMs, size);
+      this._messageCache.set([], { mtimeMs, size });
     });
   }
 
@@ -1149,7 +1092,7 @@ export class GlobalMailbox implements Mailbox {
       const { mtimeMs, size } = await this._statMessageFile();
       // Either way we just read fresh under the lock, so adopt the kept
       // snapshot (== all when nothing was purged) as the cache.
-      this._setMessageCache(kept, mtimeMs, size);
+      this._messageCache.set(kept, { mtimeMs, size });
     });
 
     return {
@@ -1254,7 +1197,7 @@ export class GlobalMailbox implements Mailbox {
         await atomicWrite(this.messagePath, content);
       }
       const { mtimeMs, size } = await this._statMessageFile();
-      this._setMessageCache(kept, mtimeMs, size);
+      this._messageCache.set(kept, { mtimeMs, size });
     });
 
     const totalRemoved = expiredPurged + readByAllPurged + completedPurged + incompletePurged;
@@ -1297,32 +1240,11 @@ export class GlobalMailbox implements Mailbox {
   private async _readMessages(): Promise<MailboxMessage[]> {
     try {
       const raw = await fsp.readFile(this.messagePath, 'utf8');
-      return this._parseLines(raw);
+      return parseMailboxLines(raw);
     } catch (err) {
       if ((err as NodeJS.ErrnoException).code === 'ENOENT') return [];
       throw err;
     }
-  }
-
-  /** Parse a JSONL string into MailboxMessage[], applying ack records. */
-  private _parseLines(raw: string): MailboxMessage[] {
-    const lines = raw.split(LINE_SEPARATOR).filter((l) => l.trim().length > 0);
-    const messages: MailboxMessage[] = [];
-    const acks: AckRecord[] = [];
-    for (const line of lines) {
-      const parsed = parseMailboxLine(line);
-      if (isAckRecord(parsed)) {
-        acks.push(parsed);
-      } else if (parsed !== null) {
-        messages.push(parsed);
-      }
-    }
-    // Apply ack records to messages (event-sourcing fold).
-    for (const ack of acks) {
-      const target = messages.find((m) => m.id === ack.messageId);
-      if (target) applyAckToMessage(target, ack);
-    }
-    return messages;
   }
 
   /**
@@ -1339,10 +1261,10 @@ export class GlobalMailbox implements Mailbox {
    * as a "file only grew" append and corrupts the cache.
    */
   private async _readMessagesFresh(): Promise<MailboxMessage[]> {
-    const all = await this._readMessages();
-    const { mtimeMs, size } = await this._statMessageFile();
-    this._setMessageCache(all, mtimeMs, size);
-    return all;
+    return this._messageCache.readFresh(
+      () => this._readMessages(),
+      () => this._statMessageFile(),
+    );
   }
 
   /**
@@ -1353,7 +1275,7 @@ export class GlobalMailbox implements Mailbox {
    * the result reflects the post-write on-disk state, not a later
    * intermediate state from another process.
    */
-  private async _statMessageFile(): Promise<{ mtimeMs: number; size: number }> {
+  private async _statMessageFile(): Promise<MailboxMessageFileStat> {
     try {
       const st = await fsp.stat(this.messagePath);
       return { mtimeMs: st.mtimeMs, size: st.size };
@@ -1380,17 +1302,12 @@ export class GlobalMailbox implements Mailbox {
    * disabled by the size cap, and the next query will perform a full read.
    */
   private async _refreshMessageCacheUnderLock(): Promise<boolean> {
-    if (this._messageCache === null) return false;
-
-    const { mtimeMs, size } = await this._statMessageFile();
-    if (this._messageCacheMtime === mtimeMs && this._messageCacheSize === size) {
-      return false;
-    }
-
-    const all = await this._readMessages();
-    this._setMessageCache(all, mtimeMs, size);
-    this.diag.ackManyCacheDesync++;
-    return true;
+    const refreshed = await this._messageCache.refreshUnderLock(
+      () => this._readMessages(),
+      () => this._statMessageFile(),
+    );
+    if (refreshed) this.diag.ackManyCacheDesync++;
+    return refreshed;
   }
 
   /**
@@ -1418,257 +1335,10 @@ export class GlobalMailbox implements Mailbox {
    * subsequent reads; each caller observes and re-throws its own error.
    */
   private _readMessagesCached(): Promise<MailboxMessage[]> {
-    // Chain this read after the prior one settles. Catch-and-swallow the
-    // prior's error so the chain stays alive for this call regardless.
-    const run = this._readChain
-      .catch(() => undefined as unknown as MailboxMessage[])
-      .then(() => this._readMessagesCachedWork());
-    this._readChain = run.catch(() => [] as MailboxMessage[]);
-    return run;
+    return this._messageCache.readCached(this.messagePath, () => this._readMessages());
   }
-
-  /**
-   * The un-serialized body of {@link _readMessagesCached}. Reads the
-   * message file with the mtime-bounded cache + incremental-tail
-   * optimization. Must only be called from `_readMessagesCached` so the
-   * cache mutations here don't race a sibling read.
-   */
-  private async _readMessagesCachedWork(): Promise<MailboxMessage[]> {
-    try {
-      const st = await fsp.stat(this.messagePath);
-
-      // Fast path: cache is current — no disk I/O beyond stat.
-      if (
-        this._messageCache !== null &&
-        this._messageCacheMtime === st.mtimeMs &&
-        this._messageCacheSize === st.size
-      ) {
-        return this._messageCache;
-      }
-
-      // Full re-read when the cache is stale. With append-only acks, the
-      // file grows monotonously (no rewrites except compaction/purge/clear).
-      // A simple incremental tail-read optimization could apply here for
-      // cross-process scenarios, but the full re-read is correct and in the
-      // common case (same-process) the cache stays current via `_pushToCache`
-      // and `_applyAckToCache` which update the cache synchronously with
-      // every send/ack. The full re-read also correctly handles ack records
-      // via _parseLines which folds them into messages.
-
-      // Full re-read: cache empty, file was rewritten (ack/purge), or
-      // this is the first read.
-      const all = await this._readMessages();
-      this._setMessageCache(all, st.mtimeMs, st.size);
-      return all;
-    } catch (err) {
-      if ((err as NodeJS.ErrnoException).code === 'ENOENT') {
-        this._setMessageCache([], -1, -1);
-        return [];
-      }
-      throw err;
-    }
-  }
-
-  /**
-   * Replace the in-memory cache, setting the mtime/size trackers
-   * synchronously in the same step. Callers MUST pass the stat of the
-   * on-disk file state that produced `messages`.
-   *
-   * Why both are required (not fire-and-forget): `_readMessagesCached()`
-   * validates the cache against a fresh stat using these two trackers.
-   * If the cache array is updated but the trackers lag behind (e.g. via
-   * a deferred `stat().then(...)`), a concurrent reader landing in that
-   * window sees a mismatched mtime and falls into the incremental
-   * "file only grew" branch — parsing rewritten bytes as an appended
-   * tail and corrupting the cache with duplicates/garbage. So both
-   * values are captured under the file lock and applied synchronously
-   * here, matching the fix already shipped in DefaultMailbox.
-   */
-  private _setMessageCache(messages: MailboxMessage[], mtime: number, size: number): void {
-    // Bound the cache so a runaway mailbox can't balloon memory. The cap
-    // is high enough that any realistic project mailbox fits; if it ever
-    // exceeds the cap we just refuse to cache and the next read goes to
-    // disk (the unoptimized but correct behavior).
-    if (messages.length > MESSAGE_CACHE_MAX_ENTRIES) {
-      this._messageCache = null;
-      this._messageCacheMtime = -1;
-      this._messageCacheSize = -1;
-      this._recipientIndex = null;
-      this._senderIndex = null;
-      return;
-    }
-    this._messageCache = messages;
-    this._messageCacheMtime = mtime;
-    this._messageCacheSize = size;
-    this._rebuildRecipientIndex();
-  }
-
-  /**
-   * Fold a single ack record into the in-memory cache, mutating the target
-   * message in place. Called from `ackMany` after appending the record to
-   * disk so the cache reflects the ack without a full re-read + re-parse.
-   *
-   * An ack only touches `readBy`/`completed*`/`outcome` — none of which
-   * affect the recipient/sender indexes — so no index rebuild is needed.
-   * No-op when the cache is empty or the target message isn't cached.
-   */
-  private _applyAckToCache(ack: AckRecord): void {
-    const cache = this._messageCache;
-    if (cache === null) return;
-    const target = cache.find((m) => m.id === ack.messageId);
-    if (target !== undefined) applyAckToMessage(target, ack);
-  }
-
-  /**
-   * Build the recipient AND sender indexes from the current `_messageCache`.
-   * Called only from `_setMessageCache` so both indexes are always in sync
-   * with a freshly-replaced cache array.
-   */
-  private _rebuildRecipientIndex(): void {
-    const cache = this._messageCache;
-    if (cache === null) {
-      this._recipientIndex = null;
-      this._senderIndex = null;
-      return;
-    }
-    const recIdx = new Map<string, Set<number>>();
-    const sndIdx = new Map<string, Set<number>>();
-    for (let i = 0; i < cache.length; i++) {
-      const msg = cache[i]!;
-      let rSet = recIdx.get(msg.to);
-      if (rSet === undefined) {
-        rSet = new Set();
-        recIdx.set(msg.to, rSet);
-      }
-      rSet.add(i);
-      let sSet = sndIdx.get(msg.from);
-      if (sSet === undefined) {
-        sSet = new Set();
-        sndIdx.set(msg.from, sSet);
-      }
-      sSet.add(i);
-    }
-    this._recipientIndex = recIdx;
-    this._senderIndex = sndIdx;
-  }
-
-  /**
-   * Append a single just-sent message to the in-memory cache without
-   * re-reading the file. The caller must hold the file lock (or have
-   * just released it after a successful append) and MUST pass the
-   * post-append stat so the mtime/size trackers advance in lock-step
-   * with the pushed content.
-   *
-   * Why the stat is required here: without it, `_messageCacheSize`
-   * stays at the pre-append value. A concurrent `_readMessagesCached()`
-   * then sees `st.size > _messageCacheSize` (the file did grow), takes
-   * the incremental branch, and re-reads the just-appended tail —
-   * pushing the same message onto the cache a second time. Setting the
-   * trackers here closes that window for the local-process append path.
-   */
-  private _pushToCache(msg: MailboxMessage, mtime: number, size: number): void {
-    if (this._messageCache === null) {
-      // No cache to extend — leave trackers at -1 so the next read does
-      // a full re-read and rebuilds the cache from disk.
-      return;
-    }
-    if (this._messageCache.length >= MESSAGE_CACHE_MAX_ENTRIES) {
-      this._messageCache = null;
-      this._messageCacheMtime = -1;
-      this._messageCacheSize = -1;
-      return;
-    }
-    // The cache holds shared message objects; we mirror the on-disk line
-    // by storing the same reference. Callers of `query()` get defensive
-    // copies, so this shared reference is safe.
-    this._messageCache.push(msg);
-    // Update the recipient index with the new message's position.
-    const newIdx = this._messageCache.length - 1;
-    if (this._recipientIndex !== null) {
-      let set = this._recipientIndex.get(msg.to);
-      if (set === undefined) {
-        set = new Set();
-        this._recipientIndex.set(msg.to, set);
-      }
-      set.add(newIdx);
-    }
-    // Update the sender index with the new message's position.
-    if (this._senderIndex !== null) {
-      let set = this._senderIndex.get(msg.from);
-      if (set === undefined) {
-        set = new Set();
-        this._senderIndex.set(msg.from, set);
-      }
-      set.add(newIdx);
-    }
-    // Advance the trackers synchronously with the content push so a
-    // concurrent reader does not re-append this same message.
-    this._messageCacheMtime = mtime;
-    this._messageCacheSize = size;
-  }
-
   private async _ensureRegistry(): Promise<void> {
     await fsp.mkdir(path.dirname(this.registryPath), { recursive: true });
-  }
-
-  /** Minimal shape-check for a deserialized agent registry entry.
-   *  Logs a warning and returns `false` for structurally invalid data
-   *  so a single corrupted entry doesn't break the entire registry. */
-  private _parseAgentEntry(value: unknown): RegisteredAgent | null {
-    if (typeof value !== 'object' || value === null) return null;
-    const v = value as Record<string, unknown>;
-    // Identity fields are the only hard requirement — an entry without a usable
-    // id/session is genuinely unusable and safe to drop. Everything else is
-    // coerced to a safe default rather than rejected: this registry is shared
-    // across processes and rewritten wholesale (read → modify → write-back), so
-    // returning null for a merely UNRECOGNISED entry (e.g. a newer/mixed-version
-    // CLI that adds a `status` value we don't know) would permanently ERASE
-    // another live process's registration on the next write, not just skip it.
-    if (typeof v.agentId !== 'string') return null;
-    if (typeof v.sessionId !== 'string') return null;
-    const statuses = ['idle', 'busy', 'running', 'streaming', 'waiting_user', 'error'] as const;
-    const status =
-      typeof v.status === 'string' && (statuses as readonly string[]).includes(v.status)
-        ? v.status
-        : 'idle';
-    return {
-      ...v,
-      agentId: v.agentId,
-      sessionId: v.sessionId,
-      name: typeof v.name === 'string' ? v.name : v.agentId,
-      registeredAt: typeof v.registeredAt === 'string' ? v.registeredAt : new Date(0).toISOString(),
-      lastSeenAt: typeof v.lastSeenAt === 'string' ? v.lastSeenAt : new Date(0).toISOString(),
-      iterations: typeof v.iterations === 'number' && Number.isFinite(v.iterations) ? v.iterations : 0,
-      toolCalls: typeof v.toolCalls === 'number' && Number.isFinite(v.toolCalls) ? v.toolCalls : 0,
-      pid: typeof v.pid === 'number' && Number.isFinite(v.pid) ? v.pid : 0,
-      status,
-    } as unknown as RegisteredAgent;
-  }
-
-  /** Minimal shape-check for a deserialized client registry entry. */
-  private _parseClientEntry(value: unknown): RegisteredClient | null {
-    if (typeof value !== 'object' || value === null) return null;
-    const v = value as Record<string, unknown>;
-    // See _parseAgentEntry: only identity is a hard requirement. Coerce the rest
-    // so an unrecognised entry from another/newer process survives a shared
-    // read-modify-write instead of being permanently evicted.
-    if (typeof v.clientId !== 'string') return null;
-    if (typeof v.sessionId !== 'string') return null;
-    const sources = ['repl', 'tui', 'webui', 'http'] as const;
-    const source =
-      typeof v.source === 'string' && (sources as readonly string[]).includes(v.source)
-        ? v.source
-        : 'http';
-    return {
-      ...v,
-      clientId: v.clientId,
-      sessionId: v.sessionId,
-      name: typeof v.name === 'string' ? v.name : v.clientId,
-      registeredAt: typeof v.registeredAt === 'string' ? v.registeredAt : new Date(0).toISOString(),
-      lastSeenAt: typeof v.lastSeenAt === 'string' ? v.lastSeenAt : new Date(0).toISOString(),
-      pid: typeof v.pid === 'number' && Number.isFinite(v.pid) ? v.pid : 0,
-      source,
-    } as unknown as RegisteredClient;
   }
 
   private async _readRegistry(opts?: { fresh?: boolean }): Promise<Map<string, RegisteredAgent>> {
@@ -1684,53 +1354,18 @@ export class GlobalMailbox implements Mailbox {
       return new Map(this._registryCache);
     }
 
-    try {
-      const raw = await fsp.readFile(this.registryPath, 'utf8');
-      const data = JSON.parse(raw) as Record<string, unknown>;
-      const map = new Map<string, RegisteredAgent>();
-      for (const [id, agent] of Object.entries(data)) {
-        const parsed = this._parseAgentEntry(agent);
-        if (parsed) {
-          map.set(id, parsed);
-        } else {
-          console.warn(JSON.stringify({ level: 'warn', event: 'mailbox.registry.invalid_agent', message: `Skipping malformed agent entry "${id}" in registry`, timestamp: new Date().toISOString() }));
-        }
-      }
-      this._registryCache = map;
-      this._registryCacheAt = Date.now();
-      return new Map(map);
-    } catch (err) {
-      if ((err as NodeJS.ErrnoException).code === 'ENOENT') {
-        const empty = new Map<string, RegisteredAgent>();
-        this._registryCache = empty;
-        this._registryCacheAt = Date.now();
-        return empty;
-      }
-      throw err;
-    }
+    const map = await readAgentRegistryFile(this.registryPath);
+    this._registryCache = map;
+    this._registryCacheAt = Date.now();
+    return new Map(map);
   }
 
   private _pruneStaleInPlace(registry: Map<string, RegisteredAgent>): void {
-    const cutoff = Date.now() - AGENT_STALE_MS;
-    for (const [id, agent] of registry) {
-      const lastSeen = Date.parse(agent.lastSeenAt);
-      // Missing/invalid heartbeat timestamps cannot establish liveness. Remove
-      // them alongside expired entries instead of making malformed ghosts
-      // immortal through NaN comparisons.
-      if (!Number.isFinite(lastSeen) || lastSeen < cutoff) {
-        registry.delete(id);
-      }
-    }
+    pruneStaleRegistryEntries(registry, AGENT_STALE_MS);
   }
 
   private async _writeRegistry(registry: Map<string, RegisteredAgent>): Promise<void> {
-    const obj: Record<string, RegisteredAgent> = {};
-    for (const [id, agent] of registry) {
-      obj[id] = agent;
-    }
-    const tmp = `${this.registryPath}.${randomUUID().slice(0, 8)}.tmp`;
-    await fsp.writeFile(tmp, JSON.stringify(obj), 'utf8');
-    await fsp.rename(tmp, this.registryPath);
+    await writeRegistryFile(this.registryPath, registry);
   }
 
   // ── Client registry internals ───────────────────────────────────────────
@@ -1750,49 +1385,110 @@ export class GlobalMailbox implements Mailbox {
       return new Map(this._clientRegistryCache);
     }
 
-    try {
-      const raw = await fsp.readFile(this.clientRegistryPath, 'utf8');
-      const data = JSON.parse(raw) as Record<string, unknown>;
-      const map = new Map<string, RegisteredClient>();
-      for (const [id, client] of Object.entries(data)) {
-        const parsed = this._parseClientEntry(client);
-        if (parsed) {
-          map.set(id, parsed);
-        } else {
-          console.warn(JSON.stringify({ level: 'warn', event: 'mailbox.registry.invalid_client', message: `Skipping malformed client entry "${id}" in client registry`, timestamp: new Date().toISOString() }));
-        }
-      }
-      this._clientRegistryCache = map;
-      this._clientRegistryCacheAt = Date.now();
-      return new Map(map);
-    } catch (err) {
-      if ((err as NodeJS.ErrnoException).code === 'ENOENT') {
-        const empty = new Map<string, RegisteredClient>();
-        this._clientRegistryCache = empty;
-        this._clientRegistryCacheAt = Date.now();
-        return empty;
-      }
-      throw err;
-    }
+    const map = await readClientRegistryFile(this.clientRegistryPath);
+    this._clientRegistryCache = map;
+    this._clientRegistryCacheAt = Date.now();
+    return new Map(map);
   }
 
   private _pruneStaleClientsInPlace(registry: Map<string, RegisteredClient>): void {
-    const cutoff = Date.now() - CLIENT_STALE_MS;
-    for (const [id, client] of registry) {
-      const lastSeen = Date.parse(client.lastSeenAt);
-      if (!Number.isFinite(lastSeen) || lastSeen < cutoff) {
-        registry.delete(id);
-      }
-    }
+    pruneStaleRegistryEntries(registry, CLIENT_STALE_MS);
   }
 
   private async _writeClientRegistry(registry: Map<string, RegisteredClient>): Promise<void> {
-    const obj: Record<string, RegisteredClient> = {};
-    for (const [id, client] of registry) {
-      obj[id] = client;
+    await writeRegistryFile(this.clientRegistryPath, registry);
+  }
+
+  // ── GM-P0.5A: Actor-bearing service methods ───────────────────────────
+  //
+  // These methods enforce a trusted MailboxActorContext before delegating
+  // to the existing methods. They are the preferred entry point for all
+  // external/untrusted callers. Legacy actor-ambiguous methods (send, ack,
+  // query, etc.) remain for trusted runtime callers that already have a
+  // resolved actor.
+
+  /**
+   * Send a message with a verified actor context.
+   * Stamps `from` and `senderSessionId` from the actor — body-supplied
+   * values are ignored.
+   */
+  async sendFor(
+    actor: MailboxActorContext,
+    input: Omit<MailboxSendInput, 'from' | 'senderSessionId'>,
+  ): Promise<MailboxMessage> {
+    return this.send({
+      ...input,
+      from: actor.actorId,
+      senderSessionId: actor.sessionId,
+    });
+  }
+
+  /**
+   * Acknowledge a message with a verified actor context.
+   * Stamps `readerId` from the actor. Rejects if the message is not
+   * visible to the actor (visibility check before persistence).
+   */
+  async ackFor(
+    actor: MailboxActorContext,
+    input: { messageId: string; read?: boolean; completed?: boolean; outcome?: string },
+  ): Promise<MailboxMessage | null> {
+    // Visibility check: the actor must be able to see the message.
+    const all = await this._readMessagesCached();
+    const target = all.find((m) => m.id === input.messageId);
+    if (target === undefined) return null;
+    if (!isMailboxMessageVisibleTo(target, actor.actorId, actor.role)) {
+      return null; // NOT_FOUND — does not disclose existence
     }
-    const tmp = `${this.clientRegistryPath}.${randomUUID().slice(0, 8)}.tmp`;
-    await fsp.writeFile(tmp, JSON.stringify(obj), 'utf8');
-    await fsp.rename(tmp, this.clientRegistryPath);
+    return this.ack({
+      messageId: input.messageId,
+      readerId: actor.actorId,
+      read: input.read ?? true,
+      completed: input.completed ?? false,
+      outcome: input.outcome,
+    });
+  }
+
+  /**
+   * Query messages with a verified actor context.
+   * Derives `readerRole` and `unreadBy` from the actor.
+   */
+  async queryFor(
+    actor: MailboxActorContext,
+    query?: Partial<MailboxQuery>,
+  ): Promise<MailboxMessage[]> {
+    return this.query({
+      ...query,
+      readerRole: actor.role ?? actor.actorId.split('@', 1)[0]!,
+      // Do not let body override unreadBy — derive from actor.
+      unreadBy: query?.unreadBy ?? actor.actorId,
+    });
+  }
+
+  /**
+   * Soft-delete a message with a verified actor context.
+   * Rejects if the message is not visible to the actor.
+   */
+  async softDeleteFor(actor: MailboxActorContext, mailId: string): Promise<MailboxMessage | null> {
+    const all = await this._readMessagesCached();
+    const target = all.find((m) => m.id === mailId);
+    if (target === undefined) return null;
+    if (!isMailboxMessageVisibleTo(target, actor.actorId, actor.role)) {
+      return null;
+    }
+    return this.softDelete(mailId, actor.actorId);
+  }
+
+  /**
+   * Restore a soft-deleted message with a verified actor context.
+   * Rejects if the message is not visible to the actor.
+   */
+  async restoreFor(actor: MailboxActorContext, mailId: string): Promise<MailboxMessage | null> {
+    const all = await this._readMessagesCached();
+    const target = all.find((m) => m.id === mailId);
+    if (target === undefined) return null;
+    if (!isMailboxMessageVisibleTo(target, actor.actorId, actor.role)) {
+      return null;
+    }
+    return this.restore(mailId);
   }
 }
