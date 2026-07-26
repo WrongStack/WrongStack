@@ -1,7 +1,7 @@
 import * as crypto from 'node:crypto';
 import * as path from 'node:path';
 import { toErrorMessage } from '@wrongstack/core/utils';
-import type { Agent, TodoItem } from '@wrongstack/core/agent';
+import type { Agent } from '@wrongstack/core/agent';
 import type { AttachmentStore, TokenCounter } from '@wrongstack/core/types';
 import type { GoalFile } from '@wrongstack/core/goal';
 import type { SlashCommandRegistry } from '@wrongstack/core/registry';
@@ -10,7 +10,6 @@ import { detectContinueIntent, InputBuilder, resolveContinuation } from '@wrongs
 import { GlobalMailbox, resolveProjectDir } from '@wrongstack/core/coordination';
 import { goalFilePath, loadGoal, summarizeUsage } from '@wrongstack/core/goal';
 import { readClipboardImage, routeImagesForModel, type VisionAdapters } from '@wrongstack/runtime';
-import { parseNextSteps } from '@wrongstack/tools/next-steps';
 import { contextOverflowHint } from './context-overflow-diagnostic.js';
 import { startCliHqConnection } from './hq-publisher.js';
 import type { ReadlineInputReader } from './input-reader.js';
@@ -29,24 +28,21 @@ import {
   trySaveSpecFromAIOutput,
   trySaveTasksFromAIOutput,
 } from './services/sdd-runtime.js';
-import { theme } from './theme.js';
 import { fmtTok } from './utils.js';
-import { CLI_VERSION } from './version.js';
 import {
   getSuggestions,
   setAutoSuggestions,
   setSuggestions,
 } from './services/suggestion-store.js';
+import { theme } from './theme.js';
+import { parseSuggestionsFromOutput } from './repl-suggestions.js';
+import { printBanner, renderContextChip } from './repl-rendering.js';
 import {
   type AutoProceedLoopGuard,
   createAutoProceedLoopGuard,
   GROUNDED_NO_PROGRESS_STEER,
 } from '@wrongstack/tools/auto-proceed-loop-guard';
 
-/**
- * Extract canonical "<nextsteps>" suggestions from the agent's final output.
- * Returns null when no suggestions are found.
- */
 /**
  * Default ceiling on consecutive auto-proceed turns ('auto' autonomy mode)
  * between two manual inputs. Without it, a model that ends every reply with
@@ -56,46 +52,7 @@ import {
  */
 const DEFAULT_MAX_CONSECUTIVE_AUTO_PROCEED = 50;
 
-/**
- * Extract canonical "<nextsteps>" suggestions from the agent's final output.
- * Loose "Next steps" prose is intentionally ignored; `/next` requires the tagged block.
- * Returns null when no suggestions are found.
- *
- * Gated on the live todo list: when the agent still has open todos
- * (`pending` or `in_progress`), we suppress `<nextsteps>` entirely and clear
- * the auto-suggestion store. Surfacing suggestions mid-task would race the
- * todo loop — YOLO+auto could pick the top suggestion and pivot away from
- * the unfinished work, and `/next 1` would replace the next todo with an
- * arbitrary prompt. Finishing the todo list comes first; suggestions re-arm
- * on the next turn once everything is `completed`.
- */
-export function parseSuggestionsFromOutput(
-  finalText: string,
-  todos?: readonly TodoItem[] | null,
-): string[] | null {
-  if (hasOpenTodos(todos)) {
-    // Clear auto-suggestion store too — stale auto="true" items would
-    // otherwise survive into the next turn and feed YOLO+auto even
-    // though we just refused to store the matching regular suggestions.
-    setAutoSuggestions([]);
-    return null;
-  }
-  const { texts, autoTexts } = parseNextSteps(finalText, false); // assistant output: canonical <nextsteps> only
-  // Store auto suggestions in the shared store for YOLO+auto autonomy mode
-  if (autoTexts.length > 0) {
-    setAutoSuggestions(autoTexts);
-  }
-  return texts.length > 0 ? texts : null;
-}
-
-/**
- * Extract only the auto="true" items from next_steps output.
- * Used by YOLO+auto autonomy mode.
- */
-export function parseAutoSuggestionsFromOutput(finalText: string): string[] | null {
-  const { autoTexts } = parseNextSteps(finalText, false); // assistant output: canonical <nextsteps> only
-  return autoTexts.length > 0 ? autoTexts : null;
-}
+export { parseSuggestionsFromOutput, parseAutoSuggestionsFromOutput } from './repl-suggestions.js';
 
 export interface ReplOptions {
   agent: Agent;
@@ -1514,33 +1471,4 @@ async function readPossiblyMultiline(opts: ReplOptions): Promise<string> {
     buf += '\n' + cont;
   }
   return buf;
-}
-
-const FILLED = '█';
-const EMPTY = '░';
-
-function renderContextChip(used: number, max: number): string {
-  const ratio = Math.max(0, Math.min(1, used / max));
-  const pct = Math.round(ratio * 100);
-  const bar = renderProgress(ratio, 6);
-  return `${bar} ${pct}% (${fmtTok(used)}/${fmtTok(max)})`;
-}
-
-function renderProgress(ratio: number, width: number): string {
-  const clamped = Math.max(0, Math.min(1, ratio));
-  const filled = clamped === 0 ? 0 : Math.max(1, Math.round(clamped * width));
-  const capped = Math.min(width, filled);
-  return FILLED.repeat(capped) + EMPTY.repeat(width - capped);
-}
-
-function printBanner(renderer: TerminalRenderer, projectName?: string): void {
-  const lines = [
-    theme.primary(theme.bold('WrongStack')) + color.dim(` v${CLI_VERSION}`),
-    color.dim('Built on the wrong stack. Shipped anyway.'),
-  ];
-  if (projectName && projectName.length > 0) {
-    lines.push(color.dim('Project: ') + theme.bold(projectName));
-  }
-  lines.push(color.dim('Type /help for commands, /exit or q to quit.'), '');
-  renderer.write(`${lines.join('\n')}\n`);
 }
