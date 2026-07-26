@@ -351,6 +351,12 @@ export async function handleSkillsCreate(
 
     await atomicWrite(path.join(targetDir, 'SKILL.md'), skillContent);
 
+    // Invalidate the SkillLoader cache so the new skill appears immediately
+    // in skills.list and the system prompt builder. Without this, the
+    // DefaultSkillLoader caches its results and the skill would stay invisible
+    // until the next process restart.
+    ctx.skillLoader?.invalidateCache();
+
     send(ws, {
       type: 'skills.created',
       payload: {
@@ -399,6 +405,9 @@ export async function handleSkillsEdit(
       return;
     }
     await atomicWrite(entry.path, editPayload.body);
+    // Invalidate the SkillLoader cache so the edited body is picked up
+    // immediately by readBody and the system prompt builder.
+    ctx.skillLoader?.invalidateCache();
     send(ws, { type: 'skills.edited', payload: { success: true, error: null } });
   } catch (err) {
     send(ws, { type: 'skills.edited', payload: { success: false, error: errMessage(err) } });

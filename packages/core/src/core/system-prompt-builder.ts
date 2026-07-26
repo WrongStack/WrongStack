@@ -301,9 +301,11 @@ export class DefaultSystemPromptBuilder implements SystemPromptBuilder {
 
   async buildRegions(ctx: BuildContext): Promise<SystemPromptRegions> {
     this._lastBuildTools = ctx.tools;
-    // Pre-load skill entries so we can include them in the environment block
-    // (which is cached). Skills are static per-session, so this is safe.
-    if (this.opts.skillLoader && !this.skillCache) {
+    // Re-read skill entries on every build so newly created/edited skills
+    // (which call SkillLoader.invalidateCache()) are picked up without a
+    // process restart. The SkillLoader itself caches disk I/O, so this is
+    // cheap — only string formatting, no filesystem reads for cached data.
+    if (this.opts.skillLoader) {
       try {
         const entries = await this.opts.skillLoader.listEntries();
         if (entries.length > 0) {
@@ -314,10 +316,14 @@ export class DefaultSystemPromptBuilder implements SystemPromptBuilder {
             lines.push(`- **${e.name}**  (${shortTrigger})`);
           }
           this.skillCache = lines.join('\n');
+        } else {
+          this.skillCache = '';
         }
       } catch {
-        // skip
+        this.skillCache = '';
       }
+    } else {
+      this.skillCache = '';
     }
 
     const instructions = await this.instructions();
@@ -1043,7 +1049,11 @@ export class DefaultSystemPromptBuilder implements SystemPromptBuilder {
         // skip
       }
     }
-    // Skill bodies — load once and cache for the session lifetime.
+    // Skill bodies — re-read on every build so newly created/edited skills
+    // are picked up. The SkillLoader caches disk I/O internally (list/body
+    // caches), so re-calling its methods here is cheap: the loader returns
+    // cached data unless invalidateCache() was called, which happens when
+    // skills are created, edited, installed, or removed.
     // Skills are listed by name+trigger in buildEnvironment (envCache);
     // here we inject the full body content so the model has the actual
     // domain instructions, not just a trigger hint.
@@ -1051,21 +1061,11 @@ export class DefaultSystemPromptBuilder implements SystemPromptBuilder {
     // only the Overview and Rules sections (~400 chars max per skill).
     if (this.opts.skillLoader) {
       if (this.opts.skillMode === 'progressive') {
-        // Progressive disclosure — only the metadata manifest is injected; the
-        // agent loads full bodies on demand via the `skill` tool.
-        if (this.skillBodyCache === undefined) {
-          await this.buildProgressiveSkillManifest();
-        }
+        await this.buildProgressiveSkillManifest();
       } else if (this.isCompact) {
-        // Compact mode — build once, cache
-        if (this.skillBodyCache === undefined) {
-          await this.buildCompactSkillBodies();
-        }
+        await this.buildCompactSkillBodies();
       } else {
-        // Full mode — build once, cache
-        if (this.skillBodyCache === undefined) {
-          await this.buildFullSkillBodies();
-        }
+        await this.buildFullSkillBodies();
       }
     }
     if (this.skillBodyCache) {
