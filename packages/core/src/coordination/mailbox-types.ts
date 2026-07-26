@@ -26,6 +26,9 @@
  * @module mailbox-types
  */
 
+import { MAILBOX_TYPE_PROPERTIES } from './mailbox-type-properties.js';
+export { MAILBOX_TYPE_PROPERTIES, type MailboxTypeCategory } from './mailbox-type-properties.js';
+
 // ── Message type discriminator ───────────────────────────────────────────
 
 /**
@@ -160,152 +163,6 @@ export function isMailboxMessageVisibleTo(
 ): boolean {
   return message.audience !== 'leaders' || isMailboxLeader(agentId, role);
 }
-
-/**
- * Semantic category a mail type belongs to — determines its handling
- * priority, delivery guarantees, and interaction with the agent loop.
- */
-type MailboxTypeCategory =
-  /** Requires a substantive response from the recipient. */
-  | 'actionable'
-  /** Consumed for context; no action required. */
-  | 'informational'
-  /** Multi-recipient envelope — routing metadata only. */
-  | 'routing'
-  /** Out-of-band signal handled by the runtime, not the agent. */
-  | 'control_signal';
-
-/**
- * Explicit per-type properties used for programmatic dispatch decisions.
- * This is the single source of truth — every type in the union appears
- * here, so adding a new type requires a corresponding entry.
- */
-export const MAILBOX_TYPE_PROPERTIES: Record<MailboxMessageType, {
-  category: MailboxTypeCategory;
-  /** Is the sender expected to get a substantive response? */
-  expectsReply: boolean;
-  /**
-   * Should this message type trigger the "Action required" acknowledgement
-   * footer in the rendered mailbox block?
-   *
-   * This is SEPARATE from `expectsReply`:
-   * - `review` expects no reply but still requires inspection → `requiresAction: true`
-   * - `ask` requires both a reply AND action → `requiresAction: true, expectsReply: true`
-   * - `result` provides evidence but expects nothing back → both false
-   */
-  requiresAction: boolean;
-  /** Should this type be injected inline in background delivery mode? */
-  backgroundEligible: boolean;
-  /** Should this type be excluded from the folded conversation block? */
-  outOfBand: boolean;
-  /** Render priority (lower = rendered first). */
-  renderPriority: number;
-  /** Human-readable description of the recipient's obligation. */
-  recipientObligation: string;
-  /** Human-readable description of when a sender should use this type. */
-  senderGuidance: string;
-}> = {
-  note: {
-    category: 'informational',
-    expectsReply: false,
-    requiresAction: false,
-    backgroundEligible: false,
-    outOfBand: false,
-    renderPriority: 20,
-    recipientObligation: 'Read for context; no reply needed.',
-    senderGuidance: 'General-purpose FYI. Use when no more specific type applies.',
-  },
-  ask: {
-    category: 'actionable',
-    expectsReply: true,
-    requiresAction: true,
-    backgroundEligible: true,
-    outOfBand: false,
-    renderPriority: 10,
-    recipientObligation: 'Answer as soon as possible — the sender is waiting.',
-    senderGuidance: 'Blocking question. Only use when you need an answer to proceed.',
-  },
-  assign: {
-    category: 'actionable',
-    expectsReply: false,
-    requiresAction: true,
-    backgroundEligible: true,
-    outOfBand: false,
-    renderPriority: 10,
-    recipientObligation: 'Accept or decline; act on it when current operation allows.',
-    senderGuidance: 'Task delegation. Must be directed to a specific recipient (not "*").',
-  },
-  steer: {
-    category: 'actionable',
-    expectsReply: false,
-    requiresAction: true,
-    backgroundEligible: true,
-    outOfBand: false,
-    renderPriority: 0, // Always rendered first
-    recipientObligation: 'Pause current approach, adjust per instruction, then resume.',
-    senderGuidance: 'Mid-task direction change. The recipient is already working on something.',
-  },
-  btw: {
-    category: 'informational',
-    expectsReply: false,
-    requiresAction: false,
-    backgroundEligible: false,
-    outOfBand: false,
-    renderPriority: 30,
-    recipientObligation: 'Absorb the information and stay on current task; no reply needed.',
-    senderGuidance: 'Low-priority aside. Non-urgent info that can wait.',
-  },
-  broadcast: {
-    category: 'routing',
-    expectsReply: false,
-    requiresAction: false,
-    backgroundEligible: false,
-    outOfBand: false,
-    renderPriority: 20,
-    recipientObligation: 'Read if addressed to you (direct recipient, alias, or "*").',
-    senderGuidance: 'Multi-recipient envelope. Auto-selected when to is "*" or "@session".',
-  },
-  status: {
-    category: 'informational',
-    expectsReply: false,
-    requiresAction: false,
-    backgroundEligible: false,
-    outOfBand: false,
-    renderPriority: 40,
-    recipientObligation: 'Use to avoid redundant work; never act on as a task or question.',
-    senderGuidance: 'Agent/system status update. Machine-generated, not for human-originated messages.',
-  },
-  result: {
-    category: 'informational',
-    expectsReply: false,
-    requiresAction: false,
-    backgroundEligible: true,
-    outOfBand: false,
-    renderPriority: 10,
-    recipientObligation: 'Factor into next decision; treat as evidence, not a new task.',
-    senderGuidance: 'Task completion notice. Share the outcome of finished work.',
-  },
-  review: {
-    category: 'actionable',
-    expectsReply: false,
-    requiresAction: true,
-    backgroundEligible: true,
-    outOfBand: false,
-    renderPriority: 10,
-    recipientObligation: 'Inspect when convenient; no immediate reply required.',
-    senderGuidance: 'Passive review request (code/doc/PR). No reply required.',
-  },
-  control: {
-    category: 'control_signal',
-    expectsReply: false,
-    requiresAction: false,
-    backgroundEligible: false,
-    outOfBand: true,
-    renderPriority: 999, // Never rendered
-    recipientObligation: 'Handled by the agent loop, NOT folded into conversation. "interrupt" causes cooperative halt.',
-    senderGuidance: 'RESERVED for runtime use. Agents must NOT send control messages.',
-  },
-};
 
 /** Category + expectsReply are provided by MAILBOX_TYPE_PROPERTIES directly. */
 
@@ -493,6 +350,12 @@ export interface MailboxQuery {
   readerRole?: string | undefined;
   /** Only incomplete messages. */
   incompleteOnly?: boolean | undefined;
+  /**
+   * Internal trusted-read option: retain folded per-actor receipt state so a
+   * boundary can derive an actor-safe projection. Untrusted query codecs must
+   * never accept this field from request payloads.
+   */
+  includeReceiptState?: boolean | undefined;
   /** Filter by message type. */
   type?: MailboxMessageType | undefined;
   /** Filter by priority (>= this level). */
@@ -938,136 +801,15 @@ export interface Mailbox {
   purgeClients(): Promise<number>;
 }
 
-// ── P0 Contract Repair: Actor, Principal, and Capability Types ──────
-//
-// These types are introduced by GM-P0.1 (global-mailbox-p0-contract-repairs-v1).
-// They are additive — no existing types are changed. Downstream tasks
-// (GM-P0.5A) will add actor-bearing service methods that use them.
-
-/**
- * The kind of principal making a mailbox request. Determines default
- * capability grants, credential lifetime bounds, and audit labelling.
- */
-export type MailboxPrincipalKind = 'agent' | 'operator' | 'service';
-
-/**
- * Fine-grained authorization capabilities. Capabilities are deny-by-default:
- * a principal must explicitly hold a capability to perform the corresponding
- * operation. Implication rules:
- *   - `mail.read.all` ⇒ `mail.read.self`
- *   - `mail.events.all` ⇒ `mail.events.self`
- *   - `mail.send.directive` ⇒ `mail.send.actionable` ⇒ `mail.send.informational`
- *
- * `control` send capability is never granted to external principals — it is
- * reserved for trusted runtime use only.
- */
-export type MailboxCapability =
-  | 'mail.send.informational' // note, btw, result, status, broadcast
-  | 'mail.send.actionable' // ask, assign, review (requires informational)
-  | 'mail.send.directive' // steer (requires actionable)
-  | 'mail.read.self' // query/check messages visible to this principal
-  | 'mail.read.all' // administrative query of all messages
-  | 'mail.ack.self' // acknowledge messages for this principal only
-  | 'mail.events.self' // SSE events filtered to this principal's visibility
-  | 'mail.events.all' // unfiltered SSE (implies events.self)
-  | 'mail.presence.register.self'
-  | 'mail.presence.heartbeat.self'
-  | 'mail.presence.deregister.self'
-  | 'mail.presence.read'
-  | 'mail.retention.purge'
-  | 'mail.retention.clear'
-  | 'mail.admin.receipts'; // view aggregate receipt state across actors
-
-/** How the principal was authenticated. */
-export type MailboxAuthMode = 'runtime' | 'identity-token' | 'legacy-operator';
-
-/**
- * Trusted actor context for mailbox operations.
- *
- * This is the resolved, server-side identity that all actor-specific
- * mailbox decisions (visibility, receipt scoping, capability enforcement)
- * MUST derive from. It is never decoded from untrusted request payloads.
- */
-export interface MailboxActorContext {
-  /** Process-unique agent identity (e.g. `leader@a1b2c3d4`). */
-  actorId: string;
-  /** Project this actor is bound to. Mailbox operations are scoped to it. */
-  projectId: string;
-  /** What kind of principal this is. Determines defaults and audit labels. */
-  kind: MailboxPrincipalKind;
-  /** Trusted role (e.g. `leader`, `tech-stack`). Not decoded from request body. */
-  role?: string | undefined;
-  /** Explicit capabilities granted to this actor. Deny-by-default. */
-  capabilities: ReadonlySet<MailboxCapability>;
-  /** How this actor was authenticated. */
-  authMode: MailboxAuthMode;
-  /**
-   * Base aliases this principal may consume mail for (e.g. `leader`, `worker`).
-   * Used to derive eligible recipient forms for self-query. Issued by trusted
-   * runtime code or credential provisioning — never from request body.
-   */
-  recipientAliases: ReadonlySet<string>;
-  /**
-   * Session ID if the principal belongs to a specific session. Enables
-   * session-broadcast delivery.
-   */
-  sessionId?: string | undefined;
-}
-
-// ── Capability implication rules ─────────────────────────────────────
-
-/**
- * Set of capabilities implied by holding another capability.
- * Used to expand capability sets for enforcement checks.
- */
-export const MAILBOX_CAPABILITY_IMPLICATIONS: Readonly<Record<MailboxCapability, readonly MailboxCapability[]>> = {
-  'mail.read.all': ['mail.read.self'],
-  'mail.events.all': ['mail.events.self'],
-  'mail.send.directive': ['mail.send.actionable', 'mail.send.informational'],
-  'mail.send.actionable': ['mail.send.informational'],
-  // Leaf capabilities imply nothing further.
-  'mail.send.informational': [],
-  'mail.read.self': [],
-  'mail.ack.self': [],
-  'mail.events.self': [],
-  'mail.presence.register.self': [],
-  'mail.presence.heartbeat.self': [],
-  'mail.presence.deregister.self': [],
-  'mail.presence.read': [],
-  'mail.retention.purge': [],
-  'mail.retention.clear': [],
-  'mail.admin.receipts': [],
-};
-
-/**
- * Expand a set of capabilities to include all implied capabilities.
- * For example, `mail.read.all` implies `mail.read.self`.
- */
-export function expandMailboxCapabilities(caps: Iterable<MailboxCapability>): Set<MailboxCapability> {
-  const result = new Set<MailboxCapability>();
-  const queue = [...caps];
-  while (queue.length > 0) {
-    const cap = queue.pop()!;
-    if (result.has(cap)) continue;
-    result.add(cap);
-    const implied = MAILBOX_CAPABILITY_IMPLICATIONS[cap];
-    if (implied) queue.push(...implied);
-  }
-  return result;
-}
-
-/**
- * Check whether an actor holds a capability, accounting for implication rules.
- */
-export function hasMailboxCapability(
-  actor: Pick<MailboxActorContext, 'capabilities'>,
-  cap: MailboxCapability,
-): boolean {
-  if (actor.capabilities.has(cap)) return true;
-  // Check implied capabilities by expanding the set.
-  const expanded = expandMailboxCapabilities(actor.capabilities);
-  return expanded.has(cap);
-}
+export {
+  expandMailboxCapabilities,
+  hasMailboxCapability,
+  MAILBOX_CAPABILITY_IMPLICATIONS,
+  type MailboxActorContext,
+  type MailboxAuthMode,
+  type MailboxCapability,
+  type MailboxPrincipalKind,
+} from './mailbox-auth-types.js';
 
 // ── Recipient-scoped receipt state ───────────────────────────────────
 

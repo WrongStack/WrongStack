@@ -1,26 +1,45 @@
-import { timingSafeEqual } from 'node:crypto';
 import type { IncomingMessage, ServerResponse } from 'node:http';
 
 import type { MailboxEventEmitter } from './mailbox-events.js';
-import { resolveSendType } from './mailbox-message-codec.js';
+import type { JsonlCredentialStore } from './mailbox-credential-store.js';
+import {
+  authorizePersistedMailboxCredential,
+  parseCredentialAuthorization,
+  type MailboxHttpAccessDecision,
+} from './mailbox-http-auth.js';
+import {
+  filterMailboxMessagesByTimestamp,
+  MAILBOX_HTTP_MAX_AGE_CEILING_MS,
+  MailboxHttpValidationError,
+  parseSinceMs,
+  requireString,
+  type MailboxCheckInput,
+  validateAck,
+  validateAckMany,
+  validateAgentHeartbeat,
+  validateAgentRegistration,
+  validateCheck,
+  validateClientHeartbeat,
+  validateClientRegistration,
+  validateQuery,
+  validateSend,
+  validationError,
+} from './mailbox-http-validation.js';
 import type {
-  AgentHeartbeatInput,
-  AgentRegistrationInput,
-  ClientHeartbeatInput,
-  ClientRegistrationInput,
+  ActorMailboxMessage,
   Mailbox,
-  MailboxAckBatchInput,
-  MailboxAckInput,
+  MailboxActorContext,
   MailboxAudience,
+  MailboxCapability,
   MailboxMessage,
+  MailboxMessageProjection,
   MailboxMessageType,
-  MailboxQuery,
-  MailboxSendInput,
 } from './mailbox-types.js';
 import {
+  hasMailboxCapability,
+  isActionRequiredForActor,
   isMailboxMessageVisibleTo,
-  MAILBOX_TYPE_PROPERTIES,
-  normalizeRecipient,
+  sessionRecipient,
 } from './mailbox-types.js';
 
 export const MAILBOX_HTTP_MAX_BODY_BYTES = 256 * 1024;
@@ -42,11 +61,14 @@ export const MAILBOX_HTTP_RATE_LIMIT_WINDOW_MS = 60_000;
 // per-request `?sinceMs=0` URL query parameter remains the disable sentinel
 // for the URL param.
 export const MAILBOX_HTTP_DEFAULT_MAX_AGE_MS = 60 * 60 * 1000; // 1 hour
-export const MAILBOX_HTTP_MAX_AGE_CEILING_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
+export { MAILBOX_HTTP_MAX_AGE_CEILING_MS };
 
-export type MailboxHttpAccessDecision =
-  | { allowed: true; rateLimitKey?: string }
-  | { allowed: false; status?: number; body?: unknown };
+export {
+  authorizeMailboxBearerToken,
+  authorizeMailboxCredential,
+  type MailboxHttpAccessDecision,
+  type MailboxHttpCredentialDecision,
+} from './mailbox-http-auth.js';
 
 export interface MailboxHttpRouterOptions {
   mailbox: Mailbox;
@@ -54,6 +76,10 @@ export interface MailboxHttpRouterOptions {
   authorize?: (
     request: IncomingMessage,
   ) => MailboxHttpAccessDecision | Promise<MailboxHttpAccessDecision>;
+  /** Identity-scoped credential store for principal-based auth (GM-P0.6). */
+  credentialStore?: JsonlCredentialStore;
+  /** Project ID for credential-based auth project-scoping (GM-P0.9). */
+  projectId?: string;
   rateLimiter?: MailboxHttpRateLimiter;
   maxBodyBytes?: number;
   /**
@@ -92,22 +118,6 @@ export interface MailboxHttpRouterOptions {
    * option therefore share identical "no filter" semantics.
    */
   defaultMaxAgeMs?: number;
-}
-
-export function authorizeMailboxBearerToken(
-  request: IncomingMessage,
-  expectedToken: string,
-): MailboxHttpAccessDecision {
-  const header = request.headers.authorization;
-  if (typeof header !== 'string') return { allowed: false };
-  const match = /^Bearer\s+(.+)$/i.exec(header);
-  if (match === null) return { allowed: false };
-  const presented = Buffer.from(match[1] ?? '', 'utf8');
-  const expected = Buffer.from(expectedToken, 'utf8');
-  if (presented.length !== expected.length || !timingSafeEqual(presented, expected)) {
-    return { allowed: false };
-  }
-  return { allowed: true, rateLimitKey: expectedToken };
 }
 
 export interface MailboxHttpRouter {
@@ -165,6 +175,11 @@ export function createMailboxHttpRouter(options: MailboxHttpRouterOptions): Mail
   const defaultMaxAgeMs = options.defaultMaxAgeMs ?? undefined;
   const closeSseStreams = new Set<() => void>();
 
+  // H1: Require projectId when credentialStore is configured.
+  if (options.credentialStore !== undefined && options.projectId === undefined) {
+    throw new TypeError('projectId is required when credentialStore is configured');
+  }
+
   return {
     async handle(request, response, routePath): Promise<void> {
       try {
@@ -179,9 +194,53 @@ export function createMailboxHttpRouter(options: MailboxHttpRouterOptions): Mail
           return;
         }
 
-        const access: MailboxHttpAccessDecision = options.authorize
+        const customAccess = options.authorize
           ? await options.authorize(request)
-          : { allowed: true };
+          : undefined;
+        let access: MailboxHttpAccessDecision = customAccess ?? { allowed: true };
+        const presentedCredential = parseCredentialAuthorization(request);
+        if (options.credentialStore !== undefined && presentedCredential !== undefined) {
+          const persistedAccess = await authorizePersistedMailboxCredential(
+            request,
+            options.credentialStore,
+          );
+          if (!persistedAccess.allowed) {
+            access = persistedAccess;
+          } else if (persistedAccess.actor === undefined) {
+            access = { allowed: false };
+          } else if (access.allowed) {
+            if (
+              access.actor !== undefined &&
+              (access.actor.actorId !== persistedAccess.actor.actorId ||
+                access.actor.projectId !== persistedAccess.actor.projectId)
+            ) {
+              access = { allowed: false };
+            } else {
+              access = {
+                ...access,
+                // The persisted credential is authoritative for identity and
+                // capabilities; a custom authorizer may hold a stale snapshot.
+                actor: persistedAccess.actor,
+                ...(access.rateLimitKey ?? persistedAccess.rateLimitKey
+                  ? { rateLimitKey: access.rateLimitKey ?? persistedAccess.rateLimitKey }
+                  : {}),
+              };
+            }
+          }
+        } else if (customAccess === undefined && options.credentialStore !== undefined) {
+          access = { allowed: false };
+        }
+        if (
+          access.allowed &&
+          access.actor !== undefined &&
+          options.projectId !== undefined &&
+          access.actor.projectId !== options.projectId
+        ) {
+          writeJson(response, 403, {
+            error: { code: 'FORBIDDEN', message: 'credential is scoped to a different project' },
+          });
+          return;
+        }
         if (!access.allowed) {
           const forwardedFor = request.headers['x-forwarded-for'];
           const clientIp =
@@ -203,7 +262,7 @@ export function createMailboxHttpRouter(options: MailboxHttpRouterOptions): Mail
             response,
             access.status ?? 401,
             access.body ?? {
-              error: { code: 'UNAUTHORIZED', message: 'invalid or missing bearer token' },
+              error: { code: 'UNAUTHORIZED', message: 'invalid or missing authorization credential' },
             },
           );
           return;
@@ -234,6 +293,8 @@ export function createMailboxHttpRouter(options: MailboxHttpRouterOptions): Mail
           defaultMaxAgeMs,
           closeSseStreams,
           routePath,
+          access.actor,
+          options.credentialStore,
         );
       } catch (error) {
         const code =
@@ -265,6 +326,8 @@ async function dispatchMailboxRoute(
   defaultMaxAgeMs: number | undefined,
   closeSseStreams: Set<() => void>,
   routePath?: string,
+  actor?: MailboxActorContext,
+  credentialStore?: JsonlCredentialStore,
 ): Promise<void> {
   // The look-back window is a per-route concern — only the routes that
   // return `MailboxMessage` records (query, check, events) care. We
@@ -299,8 +362,46 @@ async function dispatchMailboxRoute(
   const queryIndex = url.indexOf('?');
   const path = queryIndex === -1 ? url : url.slice(0, queryIndex);
 
+  if (actor !== undefined) {
+    const requiredCapability = requiredCredentialCapability(method, path);
+    if (requiredCapability === undefined) {
+      writeJson(response, 403, {
+        error: { code: 'FORBIDDEN', message: `credential access is not permitted for ${method} ${path}` },
+      });
+      return;
+    }
+    // Send capabilities depend on the validated message type, so that route is
+    // intentionally authorized after body parsing. All other routes have one
+    // static capability and can be denied before consuming the request body.
+    if (path !== '/mailbox/send' && !hasMailboxCapability(actor, requiredCapability)) {
+      writeJson(response, 403, {
+        error: {
+          code: 'FORBIDDEN',
+          message: `credential lacks required capability "${requiredCapability}"`,
+        },
+      });
+      return;
+    }
+  }
+
   if (method === 'POST' && path === '/mailbox/send') {
-    const input = validateSend(await readJsonBody(request, maxBodyBytes));
+    const input = validateSend(await readJsonBody(request, maxBodyBytes), actor?.actorId);
+    if (actor !== undefined) {
+      const requiredCapability = requiredSendCapability(input.type);
+      if (requiredCapability === undefined || !hasMailboxCapability(actor, requiredCapability)) {
+        writeJson(response, 403, {
+          error: {
+            code: 'FORBIDDEN',
+            message:
+              requiredCapability === undefined
+                ? `credential cannot send message type "${input.type}"`
+                : `credential lacks required capability "${requiredCapability}"`,
+          },
+        });
+        return;
+      }
+      input.from = actor.actorId;
+    }
     writeJson(response, 201, await mailbox.send(input));
     return;
   }
@@ -310,9 +411,26 @@ async function dispatchMailboxRoute(
       writeJson(response, 400, { error: queryContext.error });
       return;
     }
-    const messages = await mailbox.query(validateQuery(await readJsonBody(request, maxBodyBytes)));
+    const query = validateQuery(await readJsonBody(request, maxBodyBytes));
+    const selfScoped = actor !== undefined && !hasMailboxCapability(actor, 'mail.read.all');
+    const actorProjectionRequired =
+      actor !== undefined && !hasMailboxCapability(actor, 'mail.admin.receipts');
+    if (actorProjectionRequired && (query.unreadBy !== undefined || query.incompleteOnly === true)) {
+      // Any non-receipt-admin response is actor-relative, even when the actor
+      // may read all message bodies. Never let it select another actor's state.
+      query.unreadBy = actor.actorId;
+      query.readerRole = actor.role;
+    }
+    if (actor !== undefined) query.includeReceiptState = true;
+    const messages = selfScoped && actor !== undefined
+      ? await queryMessagesForActor(mailbox, actor, query)
+      : await mailbox.query(query);
     const filtered = filterMailboxMessagesByTimestamp(messages, queryContext.minTimestampIso);
-    writeJson(response, 200, { data: filtered, count: filtered.length });
+    const projected =
+      actorProjectionRequired && actor !== undefined
+        ? filtered.map((message) => stripAggregateReceiptState(message, actor.actorId))
+        : filtered;
+    writeJson(response, 200, { data: projected, count: projected.length });
     return;
   }
   if (method === 'POST' && path === '/mailbox/check') {
@@ -321,42 +439,96 @@ async function dispatchMailboxRoute(
       writeJson(response, 400, { error: queryContext.error });
       return;
     }
+    const checkInput = validateCheck(await readJsonBody(request, maxBodyBytes), actor?.actorId);
+    if (actor !== undefined) {
+      // `checkMailbox()` marks messages read unless the caller explicitly opts out.
+      const modifiesReceipts =
+        checkInput.markRead !== false || checkInput.completed === true || checkInput.outcome !== undefined;
+      if (modifiesReceipts && !hasMailboxCapability(actor, 'mail.ack.self')) {
+        writeJson(response, 403, {
+          error: {
+            code: 'FORBIDDEN',
+            message: 'capability "mail.ack.self" required for this operation',
+          },
+        });
+        return;
+      }
+      checkInput.agentId = actor.actorId;
+      delete checkInput.baseId;
+    }
+    const actorProjectionRequired =
+      actor !== undefined && !hasMailboxCapability(actor, 'mail.admin.receipts');
     const result = await checkMailbox(
       mailbox,
-      validateCheck(await readJsonBody(request, maxBodyBytes)),
+      checkInput,
       queryContext.minTimestampIso,
+      actor !== undefined,
+      actor === undefined ? undefined : eligibleRecipientsForActor(actor),
+      actor?.role,
     );
-    writeJson(response, 200, result);
+    const projected =
+      actorProjectionRequired && actor !== undefined
+        ? result.data.map((message) => stripAggregateReceiptState(message, actor.actorId))
+        : result.data;
+    writeJson(response, 200, { data: projected, count: projected.length });
     return;
   }
   if (method === 'POST' && path === '/mailbox/ack') {
-    const updated = await mailbox.ack(validateAck(await readJsonBody(request, maxBodyBytes)));
-    writeJson(response, 200, { updated });
+    const input = validateAck(await readJsonBody(request, maxBodyBytes), actor?.actorId);
+    if (actor !== undefined) {
+      input.readerId = actor.actorId;
+      if (!(await isMessageVisibleToActor(mailbox, input.messageId, actor))) {
+        writeJson(response, 404, { error: { code: 'NOT_FOUND', message: 'message not found' } });
+        return;
+      }
+    }
+    const updated = await mailbox.ack(input);
+    const projectedAck = actor !== undefined && !hasMailboxCapability(actor, 'mail.admin.receipts') && updated !== null
+      ? stripAggregateReceiptState(updated, actor.actorId)
+      : updated;
+    writeJson(response, 200, { updated: projectedAck });
     return;
   }
   if (method === 'POST' && path === '/mailbox/ack-many') {
-    const updated = await mailbox.ackMany(
-      validateAckMany(await readJsonBody(request, maxBodyBytes)),
-    );
-    writeJson(response, 200, { updated, count: updated.length });
+    const input = validateAckMany(await readJsonBody(request, maxBodyBytes), actor?.actorId);
+    if (actor !== undefined) {
+      const requestedIds = new Set(input.acks.map((ack) => ack.messageId));
+      const visibleIds = new Set(
+        (await queryVisibleMessagesForActor(mailbox, actor))
+          .filter((message) => requestedIds.has(message.id))
+          .map((message) => message.id),
+      );
+      if (visibleIds.size !== requestedIds.size) {
+        writeJson(response, 404, { error: { code: 'NOT_FOUND', message: 'message not found' } });
+        return;
+      }
+      input.acks = input.acks.map((ack) => ({ ...ack, readerId: actor.actorId }));
+    }
+    const updated = await mailbox.ackMany(input);
+    const projectedMany = actor !== undefined && !hasMailboxCapability(actor, 'mail.admin.receipts')
+      ? updated.map((message) => stripAggregateReceiptState(message, actor.actorId))
+      : updated;
+    writeJson(response, 200, { updated: projectedMany, count: projectedMany.length });
     return;
   }
   if (method === 'POST' && path === '/mailbox/unread-count') {
     const body = await readJsonBody(request, maxBodyBytes);
-    writeJson(response, 200, {
-      count: await mailbox.unreadCount(requireString(body, 'forAgentId')),
-    });
+    const count = actor === undefined
+      ? await mailbox.unreadCount(requireString(body, 'forAgentId'))
+      : await unreadCountForActor(mailbox, actor);
+    writeJson(response, 200, { count });
     return;
   }
   if (method === 'POST' && path === '/mailbox/agents/register') {
-    await mailbox.registerAgent(
-      validateAgentRegistration(await readJsonBody(request, maxBodyBytes)),
-    );
+    const input = validateAgentRegistration(await readJsonBody(request, maxBodyBytes), actor);
+    await mailbox.registerAgent(input);
     writeJson(response, 200, { ok: true });
     return;
   }
   if (method === 'POST' && path === '/mailbox/agents/heartbeat') {
-    await mailbox.heartbeat(validateAgentHeartbeat(await readJsonBody(request, maxBodyBytes)));
+    const input = validateAgentHeartbeat(await readJsonBody(request, maxBodyBytes), actor?.actorId);
+    if (actor !== undefined) input.agentId = actor.actorId;
+    await mailbox.heartbeat(input);
     writeJson(response, 200, { ok: true });
     return;
   }
@@ -394,13 +566,165 @@ async function dispatchMailboxRoute(
       writeJson(response, 400, { error: queryContext.error });
       return;
     }
-    handleSse(request, response, eventEmitter, queryContext.minTimestampIso, closeSseStreams);
+    handleSse(
+      request,
+      response,
+      eventEmitter,
+      queryContext.minTimestampIso,
+      closeSseStreams,
+      actor !== undefined && !hasMailboxCapability(actor, 'mail.events.all') ? actor : undefined,
+      actor === undefined || credentialStore === undefined
+        ? undefined
+        : createCredentialRevalidator(request, credentialStore, actor),
+    );
     return;
   }
 
   writeJson(response, 404, {
     error: { code: 'NOT_FOUND', message: `no route for ${method} ${url}` },
   });
+}
+
+function stripAggregateReceiptState(
+  message: MailboxMessage,
+  actorId: string,
+): ActorMailboxMessage {
+  const projection = message as Partial<MailboxMessageProjection>;
+  const actorState = projection.recipientState?.[actorId];
+  const readByMe = actorState?.readAt !== undefined || actorId in message.readBy;
+  const completedByMe = actorState?.completedAt !== undefined;
+  const legacyGlobalCompletion = projection.legacyGlobalCompletion === true;
+  const visible = { ...message } as Record<string, unknown>;
+  delete visible['readBy'];
+  delete visible['completed'];
+  delete visible['completedBy'];
+  delete visible['completedAt'];
+  delete visible['outcome'];
+  delete visible['recipientState'];
+  delete visible['legacyGlobalCompletion'];
+
+  return {
+    ...visible,
+    readByMe,
+    completedByMe,
+    actionRequiredForMe: isActionRequiredForActor(message, {
+      completedByMe,
+      legacyGlobalCompletion,
+    }),
+    ...(actorState?.outcome !== undefined ? { myOutcome: actorState.outcome } : {}),
+    ...(legacyGlobalCompletion ? { legacyGlobalCompletion: true } : {}),
+  } as ActorMailboxMessage;
+}
+
+function eligibleRecipientsForActor(actor: MailboxActorContext): string[] {
+  return [...new Set([
+    actor.actorId,
+    ...actor.recipientAliases,
+    ...(actor.sessionId === undefined ? [] : [sessionRecipient(actor.sessionId)]),
+  ])];
+}
+
+async function queryMessagesForActor(
+  mailbox: Mailbox,
+  actor: MailboxActorContext,
+  query: Parameters<Mailbox['query']>[0],
+): Promise<MailboxMessage[]> {
+  const eligibleRecipients = new Set(eligibleRecipientsForActor(actor));
+  const requestedRecipient = query.to;
+  if (requestedRecipient !== undefined && !eligibleRecipients.has(requestedRecipient)) return [];
+
+  const recipients = requestedRecipient === undefined
+    ? [...eligibleRecipients]
+    : [requestedRecipient];
+  const batches = await Promise.all(
+    recipients.map((to) => mailbox.query({ ...query, to })),
+  );
+  const seen = new Set<string>();
+  const visible = batches.flat().filter((message) => {
+    if (seen.has(message.id)) return false;
+    if (!isMailboxMessageVisibleTo(message, actor.actorId, actor.role)) return false;
+    seen.add(message.id);
+    return true;
+  });
+  visible.sort((a, b) => b.timestamp.localeCompare(a.timestamp));
+  return visible.slice(0, query.limit ?? 50);
+}
+
+async function queryVisibleMessagesForActor(
+  mailbox: Mailbox,
+  actor: MailboxActorContext,
+): Promise<MailboxMessage[]> {
+  return queryMessagesForActor(mailbox, actor, {
+    readerRole: actor.role,
+    limit: Number.MAX_SAFE_INTEGER,
+    includeReceiptState: true,
+  });
+}
+
+async function unreadCountForActor(
+  mailbox: Mailbox,
+  actor: MailboxActorContext,
+): Promise<number> {
+  const messages = await queryMessagesForActor(mailbox, actor, {
+    unreadBy: actor.actorId,
+    readerRole: actor.role,
+    includeReceiptState: true,
+    limit: Number.MAX_SAFE_INTEGER,
+  });
+  return messages.filter((message) => !isMessageCompletedForActor(message, actor.actorId)).length;
+}
+
+function isMessageCompletedForActor(message: MailboxMessage, actorId: string): boolean {
+  const projection = message as Partial<MailboxMessageProjection>;
+  if (projection.legacyGlobalCompletion === true) return true;
+  const recipientState = projection.recipientState;
+  const actorState = recipientState?.[actorId];
+  if (actorState !== undefined) return actorState.completedAt !== undefined;
+  if (recipientState !== undefined && Object.keys(recipientState).length > 0) return false;
+  return message.completed === true;
+}
+
+async function isMessageVisibleToActor(
+  mailbox: Mailbox,
+  messageId: string,
+  actor: MailboxActorContext,
+): Promise<boolean> {
+  const messages = await queryVisibleMessagesForActor(mailbox, actor);
+  return messages.some((message) => message.id === messageId);
+}
+
+function requiredSendCapability(type: MailboxMessageType): MailboxCapability | undefined {
+  if (type === 'control') return undefined;
+  if (type === 'steer') return 'mail.send.directive';
+  if (type === 'ask' || type === 'assign' || type === 'review') {
+    return 'mail.send.actionable';
+  }
+  return 'mail.send.informational';
+}
+
+function requiredCredentialCapability(
+  method: string,
+  path: string,
+): MailboxCapability | undefined {
+  if (method === 'POST' && path === '/mailbox/send') return 'mail.send.informational';
+  if (method === 'POST' && (path === '/mailbox/query' || path === '/mailbox/check')) {
+    return 'mail.read.self';
+  }
+  if (method === 'POST' && (path === '/mailbox/ack' || path === '/mailbox/ack-many')) {
+    return 'mail.ack.self';
+  }
+  if (method === 'POST' && path === '/mailbox/unread-count') return 'mail.read.self';
+  if (method === 'POST' && path === '/mailbox/agents/register') {
+    return 'mail.presence.register.self';
+  }
+  if (method === 'POST' && path === '/mailbox/agents/heartbeat') {
+    return 'mail.presence.heartbeat.self';
+  }
+  if (method === 'GET' && (path === '/mailbox/agents' || path === '/mailbox/agents/online')) {
+    return 'mail.presence.read';
+  }
+  if (method === 'GET' && path === '/mailbox/events') return 'mail.events.self';
+  return undefined;
 }
 
 /**
@@ -419,17 +743,9 @@ async function dispatchMailboxRoute(
  * pre-filter behaviour: drop nothing we cannot classify).
  */
 function extractEventTimestamp(event: unknown): string | undefined {
-  if (event === null || typeof event !== 'object') return undefined;
-  const top = (event as { timestamp?: unknown }).timestamp;
-  if (typeof top === 'string') return top;
-  // Walk one level into known nested shapes.
-  const nestedKeys = ['messageSent', 'ackUpdated'] as const;
-  for (const key of nestedKeys) {
-    const nested = (event as Record<string, unknown>)[key];
-    if (nested !== null && typeof nested === 'object') {
-      const inner = (nested as { timestamp?: unknown }).timestamp;
-      if (typeof inner === 'string') return inner;
-    }
+  for (const record of mailboxEventRecords(event)) {
+    const timestamp = record['timestamp'];
+    if (typeof timestamp === 'string') return timestamp;
   }
   return undefined;
 }
@@ -440,12 +756,71 @@ function isEventOlderThan(event: unknown, minTimestampIso: string): boolean {
   return eventTimestamp < minTimestampIso;
 }
 
+function mailboxEventRecords(event: unknown): Record<string, unknown>[] {
+  if (event === null || typeof event !== 'object') return [];
+  const record = event as Record<string, unknown>;
+  const records = [record];
+  // Keep this bounded to the documented one-level envelopes. Recursive walking
+  // would allow unrelated nested objects to accidentally satisfy visibility.
+  for (const key of ['messageSent', 'ackUpdated'] as const) {
+    const nested = record[key];
+    if (nested !== null && typeof nested === 'object' && !Array.isArray(nested)) {
+      records.push(nested as Record<string, unknown>);
+    }
+  }
+  return records;
+}
+
+function isMailboxEventVisibleToActor(event: unknown, actor: MailboxActorContext): boolean {
+  for (const record of mailboxEventRecords(event)) {
+    const from = record['from'];
+    const to = record['to'];
+    const audience = record['audience'];
+    if (typeof from !== 'string' || typeof to !== 'string') continue;
+    if (audience !== undefined && audience !== 'all' && audience !== 'leaders') continue;
+    const addressedToActor =
+      from === actor.actorId ||
+      to === actor.actorId ||
+      to === '*' ||
+      actor.recipientAliases.has(to) ||
+      (actor.sessionId !== undefined && to === `@session:${actor.sessionId}`);
+    if (
+      addressedToActor &&
+      isMailboxMessageVisibleTo(
+        { audience: audience as MailboxAudience | undefined },
+        actor.actorId,
+        actor.role,
+      )
+    ) {
+      return true;
+    }
+  }
+  return false;
+}
+
+function createCredentialRevalidator(
+  request: IncomingMessage,
+  store: JsonlCredentialStore,
+  actor: MailboxActorContext,
+): () => Promise<boolean> {
+  const parsed = parseCredentialAuthorization(request);
+  if (parsed === undefined) return async () => false;
+  return async () => {
+    const validation = await store.verifyPersisted(parsed.credentialId, parsed.secret);
+    return validation.valid &&
+      validation.credential?.principalId === actor.actorId &&
+      validation.credential.projectId === actor.projectId;
+  };
+}
+
 function handleSse(
   request: IncomingMessage,
   response: ServerResponse,
   eventEmitter: MailboxEventEmitter,
   minTimestampIso: string | undefined,
   closeSseStreams: Set<() => void>,
+  actor?: MailboxActorContext,
+  revalidateCredential?: () => Promise<boolean>,
 ): void {
   response.writeHead(200, {
     'Content-Type': 'text/event-stream',
@@ -473,36 +848,68 @@ function handleSse(
     }
   };
 
+  let deliveryChain = Promise.resolve();
+  const enqueue = (operation: () => Promise<void>): void => {
+    if (revalidateCredential === undefined) {
+      void operation();
+      return;
+    }
+    deliveryChain = deliveryChain.then(operation, operation);
+  };
+
   unsubscribe = eventEmitter.subscribe((event) => {
-    if (closed) return;
-    try {
-      // SSE events carry a `timestamp` field at the top level. Some event
-      // shapes (e.g. `messageSent`) wrap the timestamp inside a nested
-      // payload — `extractEventTimestamp()` walks one level into the known
-      // nested shape so a long-lived SSE subscriber is not flooded by
-      // bulk historical mail forwarded by another bridge whose outer
-      // timestamp is fresh but whose nested timestamp is stale.
-      if (minTimestampIso !== undefined && isEventOlderThan(event, minTimestampIso)) {
-        return;
-      }
-      response.write(`data: ${JSON.stringify(event)}\n\n`);
-      // Backpressure guard: `write()`'s return value was previously ignored, so
-      // a slow or stalled consumer made Node buffer every event in memory
-      // without bound. Once the unflushed backlog exceeds the cap, drop this
-      // one consumer rather than let a single dead client grow the process.
-      if (response.writableLength > MAX_SSE_BUFFER_BYTES) {
+    enqueue(async () => {
+      if (closed) return;
+      try {
+        if (revalidateCredential !== undefined && !(await revalidateCredential())) {
+          close();
+          return;
+        }
+        // The stream may have closed while persisted credential I/O was in flight.
+        if (closed) return;
+        // SSE events carry a `timestamp` field at the top level. Some event
+        // shapes (e.g. `messageSent`) wrap the timestamp inside a nested
+        // payload — `extractEventTimestamp()` walks one level into the known
+        // nested shape so a long-lived SSE subscriber is not flooded by
+        // bulk historical mail forwarded by another bridge whose outer
+        // timestamp is fresh but whose nested timestamp is stale.
+        if (minTimestampIso !== undefined && isEventOlderThan(event, minTimestampIso)) {
+          return;
+        }
+        if (
+          actor !== undefined &&
+          !isMailboxEventVisibleToActor(event, actor)
+        ) {
+          return;
+        }
+        response.write(`data: ${JSON.stringify(event)}\n\n`);
+        // Backpressure guard: `write()`'s return value was previously ignored, so
+        // a slow or stalled consumer made Node buffer every event in memory
+        // without bound. Once the unflushed backlog exceeds the cap, drop this
+        // one consumer rather than let a single dead client grow the process.
+        if (response.writableLength > MAX_SSE_BUFFER_BYTES) {
+          close();
+        }
+      } catch {
         close();
       }
-    } catch {
-      close();
-    }
+    });
   });
   keepAlive = setInterval(() => {
-    try {
-      response.write(': keepalive\n\n');
-    } catch {
-      close();
-    }
+    enqueue(async () => {
+      if (closed) return;
+      try {
+        if (revalidateCredential !== undefined && !(await revalidateCredential())) {
+          close();
+          return;
+        }
+        // The stream may have closed while persisted credential I/O was in flight.
+        if (closed) return;
+        response.write(': keepalive\n\n');
+      } catch {
+        close();
+      }
+    });
   }, 15_000);
 
   closeSseStreams.add(close);
@@ -547,321 +954,32 @@ function writeJson(response: ServerResponse, status: number, body: unknown): voi
   response.end(JSON.stringify(body));
 }
 
-class MailboxHttpValidationError extends Error {}
-
-function validationError(message: string): MailboxHttpValidationError {
-  return new MailboxHttpValidationError(message);
-}
-
-function requireString(object: unknown, key: string): string {
-  if (typeof object !== 'object' || object === null) {
-    throw validationError('expected JSON object body');
-  }
-  const value = (object as Record<string, unknown>)[key];
-  if (typeof value !== 'string' || value.length === 0) {
-    throw validationError(`field "${key}" is required (string)`);
-  }
-  return value;
-}
-
-function requireNumber(object: unknown, key: string): number {
-  if (typeof object !== 'object' || object === null) {
-    throw validationError('expected JSON object body');
-  }
-  const value = (object as Record<string, unknown>)[key];
-  if (typeof value !== 'number' || !Number.isInteger(value)) {
-    throw validationError(`field "${key}" is required (integer)`);
-  }
-  return value;
-}
-
-function optionalString(object: unknown, key: string): string | undefined {
-  if (typeof object !== 'object' || object === null) return undefined;
-  const value = (object as Record<string, unknown>)[key];
-  if (value === undefined) return undefined;
-  if (value === null) {
-    throw validationError(`field "${key}" must not be null when present`);
-  }
-  if (typeof value !== 'string') {
-    throw validationError(`field "${key}" must be a string when present`);
-  }
-  return value;
-}
-
-function optionalNumber(object: unknown, key: string): number | undefined {
-  if (typeof object !== 'object' || object === null) return undefined;
-  const value = (object as Record<string, unknown>)[key];
-  if (value === undefined || value === null) return undefined;
-  if (typeof value !== 'number') {
-    throw validationError(`field "${key}" must be a number when present`);
-  }
-  return value;
-}
-
-/**
- * Resolves the look-back window for one HTTP request.
- *
- * Behaviour matrix:
- *
- *   - Default disabled (`defaultMaxAgeMs = -1`, the test-suite escape hatch):
- *     filter is off, every message regardless of age is retained.
- *   - Default enabled with no per-request override: filter is `now - defaultMaxAgeMs`.
- *   - Per-request `?sinceMs=N`:
- *       N = 0 → no filter (retain everything currently held).
- *       N > 0 → filter is `now - min(N, MAILBOX_HTTP_MAX_AGE_CEILING_MS)`.
- *       N out of range, NaN, non-integer, or non-numeric → `400 VALIDATION_ERROR`.
- *
- * Returns the resolved cut-off as an ISO-8601 string suitable for
- * lexicographic comparison against `MailboxMessage.timestamp` (every
- * timestamp in the mailbox store is UTC-encoded, so string comparison
- * is monotonic).
- */
-type SinceResolution =
-  | { minTimestampIso: string | undefined }
-  | { error: { code: 'VALIDATION_ERROR'; message: string } };
-
-function parseSinceMs(url: string, defaultMaxAgeMs: number | undefined): SinceResolution {
-  // The router dispatches by `url` (which is the rewritten `routePath`
-  // when the host mounts the router below a prefix, or the raw
-  // `request.url`). Strip the optional query string before scanning for
-  // the `sinceMs` parameter.
-  //
-  // Invariant: `routePath` provided by hosts never contains a literal `?`
-  // — the router's canonical `/mailbox/*` routes are fixed strings without
-  // query characters. `indexOf('?')` therefore always locates the true
-  // query boundary, so any `?`-containing suffix is the entire query
-  // string and any `&`-separated pairs belong to the query, not to a
-  // forged prefix.
-  const queryStart = url.indexOf('?');
-  if (queryStart === -1) return resolveDefault(defaultMaxAgeMs, Date.now());
-  const params = new URLSearchParams(url.slice(queryStart + 1));
-  if (!params.has('sinceMs')) return resolveDefault(defaultMaxAgeMs, Date.now());
-
-  const raw = params.get('sinceMs');
-  if (raw === null || raw === undefined || raw === '') {
-    return {
-      error: {
-        code: 'VALIDATION_ERROR',
-        message: 'query parameter "sinceMs" is required (integer in milliseconds) when present',
-      },
-    };
-  }
-  // Only digits are accepted; the URLSearchParams parser already rejects
-  // `?sinceMs=abc` (it's string-coerced) but explicit guard prevents
-  // accidental floats like `1.5` or padded forms slipping through.
-  if (!/^\d+$/.test(raw)) {
-    return {
-      error: {
-        code: 'VALIDATION_ERROR',
-        message: 'query parameter "sinceMs" must be a non-negative integer (milliseconds)',
-      },
-    };
-  }
-  const requestedMs = Number(raw);
-  if (!Number.isFinite(requestedMs) || requestedMs > Number.MAX_SAFE_INTEGER) {
-    return {
-      error: {
-        code: 'VALIDATION_ERROR',
-        message: `query parameter "sinceMs" is out of range (max ${Number.MAX_SAFE_INTEGER})`,
-      },
-    };
-  }
-  const now = Date.now();
-  if (requestedMs === 0) return { minTimestampIso: undefined };
-  const effectiveMs = Math.min(requestedMs, MAILBOX_HTTP_MAX_AGE_CEILING_MS);
-  return { minTimestampIso: new Date(now - effectiveMs).toISOString() };
-}
-
-function resolveDefault(defaultMaxAgeMs: number | undefined, now: number): SinceResolution {
-  // Sentinel values that disable the look-back filter entirely:
-  //   - undefined caller (`defaultMaxAgeMs` never assigned)
-  //   - any non-finite number (`NaN`, `Infinity`, `-Infinity`)
-  //   - any negative number (the test-suite escape hatch, e.g. `-1`)
-  //   - exactly `0` — reserved because `now - 0` would otherwise map
-  //     to the current instant and hide every retained message; the
-  //     JSDoc on `MailboxHttpRouterOptions.defaultMaxAgeMs` calls this
-  //     out as equivalent to "disabled".
-  if (
-    defaultMaxAgeMs === undefined ||
-    !Number.isFinite(defaultMaxAgeMs) ||
-    defaultMaxAgeMs < 0 ||
-    defaultMaxAgeMs === 0
-  ) {
-    return { minTimestampIso: undefined };
-  }
-  return { minTimestampIso: new Date(now - defaultMaxAgeMs).toISOString() };
-}
-
-function filterMailboxMessagesByTimestamp(
-  messages: readonly MailboxMessage[],
-  minTimestampIso: string | undefined,
-): MailboxMessage[] {
-  if (minTimestampIso === undefined) return messages.slice();
-  return messages.filter((message) => message.timestamp >= minTimestampIso);
-}
-
-function optionalBoolean(object: unknown, key: string): boolean | undefined {
-  if (typeof object !== 'object' || object === null) return undefined;
-  const value = (object as Record<string, unknown>)[key];
-  if (value === undefined || value === null) return undefined;
-  if (typeof value !== 'boolean') {
-    throw validationError(`field "${key}" must be a boolean when present`);
-  }
-  return value;
-}
-
-/**
- * Valid types derived from the canonical MAILBOX_TYPE_PROPERTIES table.
- * Stays in sync automatically as the type union evolves.
- */
-const VALID_TYPES = new Set(Object.keys(MAILBOX_TYPE_PROPERTIES) as MailboxMessageType[]);
-const VALID_PRIORITIES = new Set(['low', 'normal', 'high']);
-const VALID_AUDIENCES = new Set<MailboxAudience>(['all', 'leaders']);
-const RESERVED_FROM_IDS = new Set([
-  'leader',
-  'fleet',
-  'hq',
-  'mailbox-bridge',
-  'mailbox-bridge-watchdog',
-  'tech-stack-consumer',
-  '*',
-]);
-const RESERVED_READER_IDS = new Set([
-  'leader',
-  'fleet',
-  'hq',
-  'mailbox-bridge',
-  'mailbox-bridge-watchdog',
-  'tech-stack-consumer',
-]);
-
-function validateReaderId(id: string): void {
-  const base = id.split('@')[0]!.toLowerCase();
-  if (RESERVED_READER_IDS.has(base)) {
-    throw validationError(`"readerId" must not use reserved internal agent id "${base}"`);
-  }
-}
-
-function validateSend(body: unknown): MailboxSendInput {
-  if (typeof body !== 'object' || body === null) {
-    throw validationError('expected JSON object body');
-  }
-  const object = body as Record<string, unknown>;
-  const type = requireString(object, 'type');
-  if (!VALID_TYPES.has(type as MailboxMessageType)) {
-    throw validationError(`field "type" must be one of ${[...VALID_TYPES].join(', ')}`);
-  }
-  const priority = optionalString(object, 'priority');
-  if (priority !== undefined && !VALID_PRIORITIES.has(priority)) {
-    throw validationError(`field "priority" must be one of ${[...VALID_PRIORITIES].join(', ')}`);
-  }
-  const audience = optionalString(object, 'audience');
-  if (audience !== undefined && !VALID_AUDIENCES.has(audience as MailboxAudience)) {
-    throw validationError(`field "audience" must be one of ${[...VALID_AUDIENCES].join(', ')}`);
-  }
-  const from = requireString(object, 'from');
-  const fromBase = from.split('@')[0]!.toLowerCase();
-  if (RESERVED_FROM_IDS.has(fromBase)) {
-    throw validationError(
-      `field "from" must not use reserved internal agent id "${fromBase}" — external agents must use their own identity`,
-    );
-  }
-  const to = normalizeRecipient(requireString(object, 'to'));
-
-  // Cross-field (type, to) validation must use the same canonical recipient
-  // that is forwarded to and persisted by the mailbox.
-  try {
-    resolveSendType(type as MailboxMessageType, to);
-  } catch (err) {
-    throw validationError(`field "type" is invalid: ${(err as Error).message}`);
-  }
-
-  const result: MailboxSendInput = {
-    from,
-    to,
-    type: type as MailboxSendInput['type'],
-    subject: requireString(object, 'subject'),
-    body: requireString(object, 'body'),
-    priority: priority as MailboxSendInput['priority'],
-    ...(audience !== undefined ? { audience: audience as MailboxSendInput['audience'] } : {}),
-  };
-  const replyTo = optionalString(object, 'replyTo');
-  if (replyTo !== undefined) result.replyTo = replyTo;
-  const ttlMs = optionalNumber(object, 'ttlMs');
-  if (ttlMs !== undefined) {
-    if (!Number.isInteger(ttlMs) || ttlMs < 1) {
-      throw validationError('field "ttlMs" must be a positive integer when present');
-    }
-    result.ttlMs = ttlMs;
-  }
-  return result;
-}
-
-function validateQuery(body: unknown): MailboxQuery {
-  if (typeof body !== 'object' || body === null) {
-    throw validationError('expected JSON object body');
-  }
-  const object = body as Record<string, unknown>;
-  const result: MailboxQuery = {};
-  const to = optionalString(object, 'to');
-  const from = optionalString(object, 'from');
-  const unreadBy = optionalString(object, 'unreadBy');
-  const type = optionalString(object, 'type');
-  const minPriority = optionalString(object, 'minPriority');
-  const since = optionalString(object, 'since');
-  const limit = optionalNumber(object, 'limit');
-  if (limit !== undefined) {
-    if (!Number.isInteger(limit) || limit < 1) {
-      throw validationError('field "limit" must be a positive integer when present');
-    }
-  }
-  const incompleteOnly = optionalBoolean(object, 'incompleteOnly');
-  if (to !== undefined) result.to = to;
-  if (from !== undefined) result.from = from;
-  if (unreadBy !== undefined) result.unreadBy = unreadBy;
-  if (type !== undefined) {
-    if (!VALID_TYPES.has(type as MailboxMessageType)) {
-      throw validationError(`field "type" must be one of ${[...VALID_TYPES].join(', ')}`);
-    }
-    result.type = type as MailboxQuery['type'];
-  }
-  if (minPriority !== undefined) {
-    if (!VALID_PRIORITIES.has(minPriority)) {
-      throw validationError(
-        `field "minPriority" must be one of ${[...VALID_PRIORITIES].join(', ')}`,
-      );
-    }
-    result.minPriority = minPriority as MailboxQuery['minPriority'];
-  }
-  if (since !== undefined) result.since = since;
-  if (limit !== undefined) result.limit = limit;
-  if (incompleteOnly !== undefined) result.incompleteOnly = incompleteOnly;
-  return result;
-}
-
-interface MailboxCheckInput {
-  agentId: string;
-  baseId?: string;
-  limit?: number;
-  markRead?: boolean;
-  completed?: boolean;
-  outcome?: string;
-}
-
 async function checkMailbox(
   mailbox: Mailbox,
   input: MailboxCheckInput,
   minTimestampIso: string | undefined,
+  includeReceiptState = false,
+  eligibleRecipients?: readonly string[],
+  readerRole?: string,
 ): Promise<{ data: MailboxMessage[]; count: number }> {
   const limit = input.limit ?? 20;
   const markRead = input.markRead ?? true;
   const completed = input.completed ?? false;
-  const targets =
+  const targets = eligibleRecipients ?? (
     input.baseId !== undefined && input.baseId !== input.agentId
       ? [input.agentId, input.baseId]
-      : [input.agentId];
+      : [input.agentId]
+  );
   const batches = await Promise.all(
-    targets.map((to) => mailbox.query({ to, unreadBy: input.agentId, limit })),
+    targets.map((to) =>
+      mailbox.query({
+        to,
+        unreadBy: input.agentId,
+        readerRole,
+        limit,
+        includeReceiptState,
+      }),
+    ),
   );
   // Apply the staleness filter up-front so a `?sinceMs=0` call cannot
   // ack messages that the filter then drops from the response — the
@@ -872,10 +990,11 @@ async function checkMailbox(
   const messages = withinWindow
     .filter((message) => {
       if (seen.has(message.id) || message.from === input.agentId) return false;
-      if (!isMailboxMessageVisibleTo(message, input.agentId)) return false;
+      if (!isMailboxMessageVisibleTo(message, input.agentId, readerRole)) return false;
       seen.add(message.id);
       return true;
     })
+    .sort((a, b) => b.timestamp.localeCompare(a.timestamp))
     .slice(0, limit);
   const data =
     markRead || completed
@@ -890,137 +1009,4 @@ async function checkMailbox(
         })
       : messages;
   return { data, count: data.length };
-}
-
-function validateCheck(body: unknown): MailboxCheckInput {
-  if (typeof body !== 'object' || body === null) {
-    throw validationError('expected JSON object body');
-  }
-  const object = body as Record<string, unknown>;
-  const result: MailboxCheckInput = { agentId: requireString(object, 'agentId') };
-  const baseId = optionalString(object, 'baseId');
-  const limit = optionalNumber(object, 'limit');
-  const markRead = optionalBoolean(object, 'markRead');
-  const completed = optionalBoolean(object, 'completed');
-  const outcome = optionalString(object, 'outcome');
-  if (baseId !== undefined) result.baseId = baseId;
-  if (limit !== undefined) {
-    if (!Number.isInteger(limit) || limit < 1) {
-      throw validationError('field "limit" must be a positive integer when present');
-    }
-    result.limit = limit;
-  }
-  if (markRead !== undefined) result.markRead = markRead;
-  if (completed !== undefined) result.completed = completed;
-  if (outcome !== undefined) result.outcome = outcome;
-  return result;
-}
-
-function validateAck(body: unknown): MailboxAckInput {
-  if (typeof body !== 'object' || body === null) {
-    throw validationError('expected JSON object body');
-  }
-  const object = body as Record<string, unknown>;
-  const readerId = requireString(object, 'readerId');
-  validateReaderId(readerId);
-  const result: MailboxAckInput = {
-    messageId: requireString(object, 'messageId'),
-    readerId,
-  };
-  const read = optionalBoolean(object, 'read');
-  const completed = optionalBoolean(object, 'completed');
-  const outcome = optionalString(object, 'outcome');
-  if (read !== undefined) result.read = read;
-  if (completed !== undefined) result.completed = completed;
-  if (outcome !== undefined) result.outcome = outcome;
-  return result;
-}
-
-function validateAckMany(body: unknown): MailboxAckBatchInput {
-  if (typeof body !== 'object' || body === null) {
-    throw validationError('expected JSON object body');
-  }
-  const raw = (body as Record<string, unknown>)['acks'];
-  if (!Array.isArray(raw)) throw validationError('field "acks" is required (array)');
-  return { acks: raw.map((entry) => validateAck(entry)) };
-}
-
-function validateAgentRegistration(body: unknown): AgentRegistrationInput {
-  if (typeof body !== 'object' || body === null) {
-    throw validationError('expected JSON object body');
-  }
-  const object = body as Record<string, unknown>;
-  const agentId = requireString(object, 'agentId');
-  validateReaderId(agentId);
-  const pid = requireNumber(object, 'pid');
-  if (!Number.isInteger(pid) || pid < 1) {
-    throw validationError('field "pid" must be a positive integer');
-  }
-  const result: AgentRegistrationInput = {
-    agentId,
-    sessionId: optionalString(object, 'sessionId') ?? 'external',
-    name: requireString(object, 'name'),
-    pid,
-    source: 'http',
-  };
-  const role = optionalString(object, 'role');
-  if (role !== undefined) result.role = role;
-  return result;
-}
-
-function validateAgentHeartbeat(body: unknown): AgentHeartbeatInput {
-  if (typeof body !== 'object' || body === null) {
-    throw validationError('expected JSON object body');
-  }
-  const object = body as Record<string, unknown>;
-  const result: AgentHeartbeatInput = { agentId: requireString(object, 'agentId') };
-  const status = optionalString(object, 'status');
-  const currentTool = optionalString(object, 'currentTool');
-  const currentTask = optionalString(object, 'currentTask');
-  const iterations = optionalNumber(object, 'iterations');
-  const toolCalls = optionalNumber(object, 'toolCalls');
-  if (status !== undefined) result.status = status as AgentHeartbeatInput['status'];
-  if (currentTool !== undefined) result.currentTool = currentTool;
-  if (currentTask !== undefined) result.currentTask = currentTask;
-  if (iterations !== undefined) {
-    if (!Number.isInteger(iterations) || iterations < 0) {
-      throw validationError('field "iterations" must be a non-negative integer when present');
-    }
-    result.iterations = iterations;
-  }
-  if (toolCalls !== undefined) {
-    if (!Number.isInteger(toolCalls) || toolCalls < 0) {
-      throw validationError('field "toolCalls" must be a non-negative integer when present');
-    }
-    result.toolCalls = toolCalls;
-  }
-  return result;
-}
-
-function validateClientRegistration(body: unknown): ClientRegistrationInput {
-  if (typeof body !== 'object' || body === null) {
-    throw validationError('expected JSON object body');
-  }
-  const object = body as Record<string, unknown>;
-  const pid = requireNumber(object, 'pid');
-  if (!Number.isInteger(pid) || pid < 1) {
-    throw validationError('field "pid" must be a positive integer');
-  }
-  return {
-    clientId: requireString(object, 'clientId'),
-    sessionId: optionalString(object, 'sessionId') ?? 'external',
-    name: requireString(object, 'name'),
-    source: 'http',
-    pid,
-  };
-}
-
-function validateClientHeartbeat(body: unknown): ClientHeartbeatInput {
-  if (typeof body !== 'object' || body === null) {
-    throw validationError('expected JSON object body');
-  }
-  const object = body as Record<string, unknown>;
-  const clientId = requireString(object, 'clientId');
-  const sessionId = optionalString(object, 'sessionId');
-  return sessionId ? { clientId, sessionId } : { clientId };
 }

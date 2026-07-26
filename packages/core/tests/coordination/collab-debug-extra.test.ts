@@ -164,6 +164,14 @@ describe('CollabSession.wireFleetBus event handlers', () => {
       prebuiltSnapshot: snap(),
       onBudgetWarning: onBudgetWarning as never,
     });
+    // Register the test subagent ids the way spawnAgent would, so the
+    // ownsSubagent strict guard accepts them. The fallback guard checks
+    // `${prefix}${sessionId}` which doesn't match the `-0` suffix used here.
+    // subagentIds maps role → runtimeId (set by spawnAgent).
+    const subagentIds = (s as never as { subagentIds: Map<string, string> }).subagentIds;
+    subagentIds.set('bug-hunter', 'bug-hunter-0');
+    subagentIds.set('refactor-planner', 'refactor-planner-0');
+    subagentIds.set('critic', 'critic-0');
     (s as never as { wireFleetBus: () => void }).wireFleetBus();
     return s;
   }
@@ -280,6 +288,9 @@ describe('CollabSession edge cases', () => {
 
   it('extractJsonObjects tolerates escaped quotes and backslashes', async () => {
     const s = new CollabSession(makeMockDirector(fleetBus) as never, fleetBus, { targetPaths: ['a.ts'], prebuiltSnapshot: snap() });
+    // Register subagent so parseAndEmit's ownership guard accepts the event.
+    // subagentIds maps role → runtimeId (same as spawnAgent).
+    (s as never as { subagentIds: Map<string, string> }).subagentIds.set('bug-hunter', 'bug-hunter-0');
     (s as never as { wireFleetBus: () => void }).wireFleetBus();
     const json = JSON.stringify({ finding: { id: 'b9', type: 't', severity: 'low', location: { file: 'a.ts', line: 1 }, description: 'a"b\\c' } });
     await (s as never as { parseAndEmit: (r: unknown) => Promise<void> }).parseAndEmit({ status: 'success', subagentId: 'bug-hunter-0', taskId: 't', result: json });
@@ -289,6 +300,8 @@ describe('CollabSession edge cases', () => {
 
   it('auto-extends iterations, tokens, and cost on the ignore path', async () => {
     const s = new CollabSession(makeMockDirector(fleetBus) as never, fleetBus, { targetPaths: ['a.ts'], prebuiltSnapshot: snap(), onBudgetWarning: () => 'ignore' });
+    // Register subagent so the budget handler's ownership guard accepts it.
+    (s as never as { subagentIds: Map<string, string> }).subagentIds.set('critic-0', 'critic-0');
     (s as never as { wireFleetBus: () => void }).wireFleetBus();
     for (const [kind, field] of [['iterations', 'maxIterations'], ['tokens', 'maxTokens'], ['cost', 'maxCostUsd']] as const) {
       const cap = { extended: null as Record<string, unknown> | null };

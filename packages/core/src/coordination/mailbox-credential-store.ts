@@ -235,6 +235,13 @@ export class JsonlCredentialStore {
     return { valid: true, credential };
   }
 
+  /** Verify against a fresh persisted snapshot without mutating this store's cache. */
+  async verifyPersisted(credentialId: string, secret: string): Promise<CredentialValidation> {
+    const snapshot = new JsonlCredentialStore(path.dirname(this.filePath));
+    await snapshot.load();
+    return snapshot.verify(credentialId, secret);
+  }
+
   /**
    * Revoke a credential by ID.
    */

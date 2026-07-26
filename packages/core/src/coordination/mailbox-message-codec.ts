@@ -319,3 +319,37 @@ export function applyAckToMessage(msg: MailboxMessage, ack: AckRecord): void {
 export function serializeAckRecord(ack: AckRecord): string {
   return JSON.stringify(ack) + '\n';
 }
+
+/**
+ * Serialize a MailboxMessage to a JSONL line.
+ *
+ * Strips any extra fields added by a projection (recipientState,
+ * legacyGlobalCompletion) so compaction rewrites produce clean
+ * v1-parseable lines. V2 receipt records are preserved as separate
+ * lines — they are NOT embedded in the message object.
+ */
+export function serializeMailboxMessage(msg: MailboxMessage): string {
+  const obj: Record<string, unknown> = {
+    id: msg.id,
+    from: msg.from,
+    to: msg.to,
+    type: msg.type,
+    subject: msg.subject,
+    body: msg.body,
+    priority: msg.priority,
+    readBy: msg.readBy,
+    completed: msg.completed,
+    timestamp: msg.timestamp,
+  };
+  if (msg.audience !== undefined && msg.audience !== 'all') obj.audience = msg.audience;
+  if (msg.completedBy !== undefined) obj.completedBy = msg.completedBy;
+  if (msg.outcome !== undefined) obj.outcome = msg.outcome;
+  if (msg.completedAt !== undefined) obj.completedAt = msg.completedAt;
+  if (msg.deletedAt !== undefined) obj.deletedAt = msg.deletedAt;
+  if (msg.deletedBy !== undefined) obj.deletedBy = msg.deletedBy;
+  if (msg.replyTo !== undefined) obj.replyTo = msg.replyTo;
+  if (msg.senderSessionId !== undefined) obj.senderSessionId = msg.senderSessionId;
+  if (msg.expiresAt !== undefined) obj.expiresAt = msg.expiresAt;
+  if (msg.taskContext !== undefined) obj.taskContext = msg.taskContext;
+  return JSON.stringify(obj) + '\n';
+}

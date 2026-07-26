@@ -94,7 +94,7 @@ async function seedMessage(sessionId: string, slug: string): Promise<Seeded> {
   const mailbox = new GlobalMailbox(resolveProjectDir(projectRoot, globalRoot));
   const sent = await mailbox.send({
     from: 'leader@x',
-    to: 'operator',
+    to: 'operator@sess-1',
     type: 'ask',
     subject: 'Need a decision',
     body: 'Which port should HQ bind?',
@@ -134,7 +134,7 @@ describe('HQ mailbox message actions (POST /api/mailbox/messages/:id/action)', (
       };
       expect(body).toMatchObject({ action: 'acknowledge', mailId, changed: true, message: null });
 
-      const msgs = await mailbox.query({ to: 'operator' });
+      const msgs = await mailbox.query({ to: 'operator@sess-1' });
       const found = msgs.find((m) => m.id === mailId);
       expect(found?.completed).toBe(true);
       expect(found?.completedBy).toBe('hq-operator');
@@ -164,7 +164,7 @@ describe('HQ mailbox message actions (POST /api/mailbox/messages/:id/action)', (
         sessionId: 'sess-del-1',
       });
       expect(restore.status).toBe(200);
-      const afterRestore = await mailbox.query({ to: 'operator' });
+      const afterRestore = await mailbox.query({ to: 'operator@sess-1' });
       expect(afterRestore.find((m) => m.id === mailId)).toBeTruthy();
     } finally {
       await cleanup();
@@ -187,7 +187,7 @@ describe('HQ mailbox message actions (POST /api/mailbox/messages/:id/action)', (
         projectId: shaProjectId,
       });
       expect(res.status).toBe(200);
-      const msgs = await mailbox.query({ to: 'operator' });
+      const msgs = await mailbox.query({ to: 'operator@sess-1' });
       expect(msgs.find((m) => m.id === mailId)?.readBy['hq-operator']).toBeTruthy();
     } finally {
       await cleanup();

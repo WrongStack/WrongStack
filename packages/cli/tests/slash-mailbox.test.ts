@@ -105,21 +105,21 @@ describe('/mailbox slash command', () => {
     expect(all[0]!.body).toBe('pausing deploys, hold off on main');
   });
 
-  it('broadcast honors an inline type= override (e.g. type=steer)', async () => {
-    // Operator may need to fleet-wide steer ("stop what you're doing") or
-    // announce a review request across every agent — the literal "broadcast"
-    // type would lose that signal in the recipient's mailbox render.
+  it('broadcast honors an inline type= override (e.g. type=note)', async () => {
+    // Operator may need to override the default broadcast type with a
+    // different informational type. Actionable types like steer/assign are
+    // correctly rejected for multi-recipient targets.
     const cmd = buildMailboxCommand(opts);
     const res = await cmd.run(
-      'broadcast type=steer stop all in-flight work, we are rolling back',
+      'broadcast type=note stop all in-flight work, we are rolling back',
       opts.context,
     );
     const msg = stripAnsi(res?.message ?? '');
-    expect(msg).toContain('[steer]');
+    expect(msg).toContain('[note]');
     expect(msg).toContain('Broadcast to all agents on the project');
     const all = await mailbox.query({ to: '*', limit: 10 });
     expect(all).toHaveLength(1);
-    expect(all[0]!.type).toBe('steer');
+    expect(all[0]!.type).toBe('note');
     expect(all[0]!.to).toBe('*');
     expect(all[0]!.body).toBe('stop all in-flight work, we are rolling back');
   });

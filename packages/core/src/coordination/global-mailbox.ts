@@ -22,14 +22,11 @@ import * as fsp from 'node:fs/promises';
 import * as path from 'node:path';
 import type { HqPublisher } from '../hq/publisher.js';
 import type { EventBus } from '../kernel/events.js';
-import { atomicWrite, withFileLock } from '../utils/atomic-write.js';
+import { withFileLock } from '../utils/atomic-write.js';
 import {
   AGENT_STALE_MS,
-  AUTO_COMPACT_DEFAULT_TTL_MS,
   AUTO_COMPACT_INTERVAL_MS,
-  AUTO_COMPACT_READ_MAX_AGE_MS,
   CLIENT_STALE_MS,
-  HEARTBEAT_THROTTLE_MS,
   LINE_SEPARATOR,
   REGISTRY_CACHE_TTL_MS,
 } from './mailbox-constants.js';
@@ -37,17 +34,21 @@ import {
   MailboxMessageCache,
   type MailboxMessageFileStat,
 } from './mailbox-message-cache.js';
+import { statMailboxMessageFile } from './mailbox-message-file-stat.js';
 import type { MailboxEventEmitter } from './mailbox-events.js';
 import {
   buildReceiptRecordV2,
+  isFanOutRecipient,
+  parseMailboxFile,
   serializeReceiptRecordV2,
+  type MailboxMessageProjection,
 } from './mailbox-receipt-folding.js';
-import { ensureVersionSentinel } from './mailbox-version-fence.js';
 import {
-  normalizeMailboxMessageType,
-  parseMailboxLines,
-  serializeAckRecord,
-} from './mailbox-message-codec.js';
+  isMailboxMessageProjection,
+  isMessageCompletedForActor,
+} from './global-mailbox-completion.js';
+import { assertMailboxNotFenced, ensureVersionSentinel } from './mailbox-version-fence.js';
+import { normalizeMailboxMessageType, serializeAckRecord } from './mailbox-message-codec.js';
 import {
   GLOBAL_MAILBOX_CLIENT_REGISTRY_FILE,
   GLOBAL_MAILBOX_FILE,
@@ -60,11 +61,39 @@ import {
 import { selectMailboxQueryCandidates } from './mailbox-query-candidates.js';
 import { pruneStaleRegistryEntries } from './mailbox-registry-utils.js';
 import {
-  mapRegisteredAgentsToStatuses,
-  mapRegisteredClientsToStatuses,
-} from './mailbox-status-mappers.js';
+  ackMailboxFor,
+  heartbeatMailboxActor,
+  queryMailboxFor,
+  registerMailboxActor,
+  restoreMailboxFor,
+  sendMailboxFor,
+  softDeleteMailboxFor,
+} from './global-mailbox-actor-methods.js';
+import { runGlobalMailboxAutoCompact } from './global-mailbox-auto-compact.js';
+import { runGlobalMailboxClearAll } from './global-mailbox-clear.js';
+import {
+  deregisterMailboxClient,
+  getMailboxClientStatuses,
+  heartbeatMailboxClient,
+  purgeMailboxClients,
+  registerMailboxClient,
+  type GlobalMailboxClientRegistryContext,
+} from './global-mailbox-clients.js';
+import {
+  deregisterMailboxAgent,
+  getMailboxAgentStatuses,
+  heartbeatMailboxAgent,
+  registerMailboxAgent,
+  type GlobalMailboxAgentRegistryContext,
+} from './global-mailbox-agents.js';
+import { runGlobalMailboxPurgeStale } from './global-mailbox-purge-stale.js';
+import {
+  clearMailboxSingletonCache,
+  getOrCreateMailboxInstance,
+} from './global-mailbox-singleton-cache.js';
 import type {
   AckRecord,
+  ActorMailboxMessage,
   AgentHeartbeatInput,
   AgentRegistrationInput,
   AutoCompactOptions,
@@ -75,6 +104,7 @@ import type {
   Mailbox,
   MailboxAckBatchInput,
   MailboxAckInput,
+  MailboxActorContext,
   MailboxAgentStatus,
   MailboxMessage,
   MailboxQuery,
@@ -89,25 +119,18 @@ export { resolveProjectDir } from './global-mailbox-paths.js';
 
 type HqPublisherRef = HqPublisher | (() => HqPublisher | undefined);
 
-// ── Singleton factory ────────────────────────────────────────────────────
-
 /**
- * Process-wide registry of GlobalMailbox instances, keyed by projectDir.
+ * Process-wide registry of GlobalMailbox instances, keyed by projectDir and
+ * caller-owned EventBus/HQ publisher identities.
  *
- * Without this, `attachMailboxChecker` and `attachFleetPulse` each created
- * a SEPARATE GlobalMailbox for the same project directory — two independent
- * mtime caches, two read chains, two sets of heartbeat timers. The factory
- * ensures that within a single process there is at most one instance per
- * project directory, so cache hit ratio is maximized and I/O is minimized.
- *
- * Cross-process sharing still works as before (the JSONL file + file lock
- * is the source of truth); this is purely an in-process optimization.
+ * Repeated calls from one agent reuse its mailbox caches and read chains.
+ * Different same-project agents receive separate instances so their event and
+ * telemetry channels cannot be retained or replaced by another agent's
+ * lifecycle. The JSONL file + file lock remains the shared source of truth.
  *
  * Pass `forceNew: true` to bypass the cache (used by tests that need an
  * isolated tmpdir instance without polluting the singleton).
  */
-const _mailboxInstances = new Map<string, GlobalMailbox>();
-
 export function getSharedMailbox(
   projectDir: string,
   events?: EventBus,
@@ -117,16 +140,15 @@ export function getSharedMailbox(
   if (opts?.forceNew) {
     return new GlobalMailbox(projectDir, events, hqPublisher);
   }
-  const existing = _mailboxInstances.get(projectDir);
-  if (existing !== undefined) return existing;
-  const mb = new GlobalMailbox(projectDir, events, hqPublisher);
-  _mailboxInstances.set(projectDir, mb);
-  return mb;
+  const publisherKey = hqPublisher === undefined ? undefined : Object(hqPublisher);
+  return getOrCreateMailboxInstance(projectDir, events, publisherKey, () =>
+    new GlobalMailbox(projectDir, events, hqPublisher),
+  );
 }
 
 /** Clear the singleton registry — used by tests to avoid cross-test leakage. */
 export function _clearMailboxSingletons(): void {
-  _mailboxInstances.clear();
+  clearMailboxSingletonCache();
 }
 
 // ── GlobalMailbox ────────────────────────────────────────────────────────
@@ -177,6 +199,46 @@ export class GlobalMailbox implements Mailbox {
     for (const id of throttleMap.keys()) {
       if (!registry.has(id)) throttleMap.delete(id);
     }
+  }
+
+  private agentRegistryContext(): GlobalMailboxAgentRegistryContext {
+    return {
+      registryPath: this.registryPath,
+      hqMailboxId: this.hqMailboxId,
+      lastHeartbeat: this._lastHeartbeat,
+      ensureRegistry: () => this._ensureRegistry(),
+      readRegistry: (opts) => this._readRegistry(opts),
+      writeRegistry: (registry) => this._writeRegistry(registry),
+      pruneStaleInPlace: (registry) => this._pruneStaleInPlace(registry),
+      pruneHeartbeatThrottleMap: (throttleMap, registry) =>
+        this.pruneHeartbeatThrottleMap(throttleMap, registry),
+      setRegistryCache: (registry) => {
+        this._registryCache = registry;
+        this._registryCacheAt = Date.now();
+      },
+      emitAgentEvent: (event, payload) => this._events?.emitCustom(event, payload),
+      publishHqMailboxEvent: (input) => this.publishHqMailboxEvent(input),
+      publishHqMailboxSnapshot: () => this.publishHqMailboxSnapshot(),
+    };
+  }
+
+  private clientRegistryContext(): GlobalMailboxClientRegistryContext {
+    return {
+      clientRegistryPath: this.clientRegistryPath,
+      lastClientHeartbeat: this._lastClientHeartbeat,
+      ensureClientRegistry: () => this._ensureClientRegistry(),
+      readClientRegistry: (opts) => this._readClientRegistry(opts),
+      writeClientRegistry: (registry) => this._writeClientRegistry(registry),
+      pruneStaleClientsInPlace: (registry) => this._pruneStaleClientsInPlace(registry),
+      pruneHeartbeatThrottleMap: (throttleMap, registry) =>
+        this.pruneHeartbeatThrottleMap(throttleMap, registry),
+      setClientRegistryCache: (registry) => {
+        this._clientRegistryCache = registry;
+        this._clientRegistryCacheAt = Date.now();
+      },
+      emitClientEvent: (event, payload) => this._events?.emitCustom(event, payload),
+      publishHqMailboxSnapshot: () => this.publishHqMailboxSnapshot(),
+    };
   }
   /**
    * In-memory mirror of the JSONL message file. The mailbox is shared
@@ -255,14 +317,24 @@ export class GlobalMailbox implements Mailbox {
   // ── Messages ────────────────────────────────────────────────────────────
 
   async send(input: MailboxSendInput): Promise<MailboxMessage> {
+    return this.sendMessage(input, false);
+  }
+
+  /** Persist a runtime-owned control signal. Never expose this to agent tools or HTTP send routes. */
+  async sendRuntimeControl(
+    input: Omit<MailboxSendInput, 'type'> & { type?: 'control' },
+  ): Promise<MailboxMessage> {
+    return this.sendMessage({ ...input, type: 'control' }, true);
+  }
+
+  private async sendMessage(input: MailboxSendInput, allowRuntimeControl: boolean): Promise<MailboxMessage> {
     // GM-P0.5A: Enforce type/recipient validation at the storage boundary.
-    // This prevents direct typed callers from bypassing the canonical
-    // validateSendType() check that transport adapters (tools, HTTP, CLI)
-    // apply. Without this, a direct call to send({ type: 'control', ... })
-    // would succeed — control is reserved for runtime use only.
+    // Runtime control has one explicit, narrowly named bypass above.
     const resolvedType = normalizeMailboxMessageType(input.type);
     const normalizedTo = normalizeRecipient(input.to, input.senderSessionId);
-    validateSendType(resolvedType, normalizedTo);
+    if (!(allowRuntimeControl && resolvedType === 'control')) {
+      validateSendType(resolvedType, normalizedTo);
+    }
 
     const now = new Date().toISOString();
     const msg: MailboxMessage = {
@@ -292,6 +364,9 @@ export class GlobalMailbox implements Mailbox {
     // append racing ack's read→rewrite gets silently erased when the rewrite
     // lands. This file is shared ACROSS PROCESSES, so the window is real.
     await withFileLock(this.messagePath, async () => {
+      // GM-P0.4A: Refuse mutation when a newer-version process has written
+      // v2 receipt records to this mailbox.
+      await assertMailboxNotFenced(this.messagePath);
       // Another process may have appended since our last cached read. Refresh
       // before advancing the cache trackers to our post-append size, otherwise
       // those cross-process records would become permanently hidden locally.
@@ -331,6 +406,7 @@ export class GlobalMailbox implements Mailbox {
       messageId: msg.id,
       from: msg.from,
       to: msg.to,
+      audience: msg.audience,
       timestamp: now,
     });
 
@@ -371,8 +447,11 @@ export class GlobalMailbox implements Mailbox {
       if (q.from !== undefined && m.from !== q.from) continue;
       if (q.sessionId !== undefined && m.senderSessionId !== q.sessionId) continue;
       if (q.unreadBy !== undefined && !isMailboxMessageVisibleTo(m, q.unreadBy, q.readerRole)) continue;
-      if (q.unreadBy !== undefined && q.unreadBy in m.readBy) continue;
-      if (q.incompleteOnly && m.completed) continue;
+      // An actor-scoped incomplete-work query is independent of unread state:
+      // an explicitly reopened message remains read, but must re-enter the
+      // actor's incomplete queue. Plain unread queries still exclude reads.
+      if (!q.incompleteOnly && q.unreadBy !== undefined && q.unreadBy in m.readBy) continue;
+      if (q.incompleteOnly && isMessageCompletedForActor(m, q.unreadBy)) continue;
       if (queryType !== undefined && m.type !== queryType) continue;
       if (order !== null && (order[m.priority as keyof typeof order] ?? 1) < minPriorityRank!) {
         continue;
@@ -389,8 +468,17 @@ export class GlobalMailbox implements Mailbox {
 
     out.sort((a, b) => b.timestamp.localeCompare(a.timestamp));
     // Return defensive shallow copies so callers cannot mutate the shared
-    // cache entries. Only the returned slice is copied — O(limit), not O(N).
-    return out.slice(0, limit).map((m) => ({ ...m, readBy: { ...m.readBy } }));
+    // cache entries. Aggregate projection fields are stripped by default;
+    // trusted boundaries may retain them briefly to derive actor-safe fields.
+    // Only the returned slice is copied — O(limit), not O(N).
+    return out.slice(0, limit).map((m) => {
+      const copy = { ...m, readBy: { ...m.readBy } };
+      if (!q.includeReceiptState) {
+        delete (copy as Record<string, unknown>)['recipientState'];
+        delete (copy as Record<string, unknown>)['legacyGlobalCompletion'];
+      }
+      return copy;
+    });
   }
 
   async ack(input: MailboxAckInput): Promise<MailboxMessage | null> {
@@ -450,19 +538,49 @@ export class GlobalMailbox implements Mailbox {
 
       // Determine what this ack actually changes to avoid no-op appends.
       const needsRead = a.read !== false && !(a.readerId in msg.readBy);
-      const needsComplete = a.completed && !msg.completed;
-      const needsOutcome = a.outcome !== undefined && msg.outcome !== a.outcome;
+      const projection = isMailboxMessageProjection(msg) ? msg : undefined;
+      const actorState = projection?.recipientState[a.readerId];
+      const isActorCompleted =
+        actorState?.completedAt !== undefined ||
+        (projection === undefined && msg.completed && msg.completedBy === a.readerId);
+      // V2: check actor-scoped completion, not the global v1 flag.
+      // This allows actor B to complete a broadcast that actor A already
+      // completed — the v2 receipt is written for each actor independently.
+      const needsComplete = a.completed && !isActorCompleted && !projection?.legacyGlobalCompletion;
+      const actorOutcome = actorState?.outcome ?? (projection === undefined ? msg.outcome : undefined);
+      const needsOutcome = a.outcome !== undefined && actorOutcome !== a.outcome;
+      // V2 reopen applies only while this actor is currently complete. The
+      // legacy v1 global flag intentionally remains true after an actor-scoped
+      // reopen and must not make every later reopen request append again.
+      const needsReopen =
+        a.read === false &&
+        a.completed === false &&
+        isActorCompleted &&
+        projection?.legacyGlobalCompletion !== true;
+      const completedChange = a.completed === true ? true : needsReopen ? false : undefined;
 
-      if (!needsRead && !needsComplete && !needsOutcome) {
-        // No-op ack — return the pre-ack state (defensive copy matches
-        // the original semantics: re-acking an already-read message
-        // returns the message as it was).
-        updated.push({ ...msg, readBy: { ...msg.readBy } });
+      // Build an actor-relative defensive copy for the return value. Fan-out
+      // v2 state is intentionally absent from the global legacy fields, so
+      // seed those fields from this actor's folded state before mutations.
+      const copy = { ...msg, readBy: { ...msg.readBy } };
+      if (projection !== undefined && !projection.legacyGlobalCompletion) {
+        copy.completed = isActorCompleted;
+        if (isActorCompleted) {
+          copy.completedBy = actorState?.completedBy ?? a.readerId;
+          copy.completedAt = actorState?.completedAt;
+        } else {
+          delete (copy as Record<string, unknown>)['completedBy'];
+          delete (copy as Record<string, unknown>)['completedAt'];
+        }
+        copy.outcome = actorOutcome;
+      }
+
+      if (!needsRead && !needsComplete && !needsOutcome && !needsReopen) {
+        // No-op ack — return the actor-relative state without appending.
+        updated.push(copy);
         continue;
       }
 
-      // Apply changes to a defensive copy for the return value.
-      const copy = { ...msg, readBy: { ...msg.readBy } };
       if (needsRead) copy.readBy[a.readerId] = now;
       if (needsComplete) {
         copy.completed = true;
@@ -470,6 +588,14 @@ export class GlobalMailbox implements Mailbox {
         copy.completedAt = now;
       }
       if (needsOutcome) copy.outcome = a.outcome;
+      // V2 reopen: return the message as incomplete for this actor.
+      // The v1 global completed stays true on disk; the defensive copy
+      // reflects the actor-scoped reopen state.
+      if (needsReopen) {
+        copy.completed = false;
+        delete (copy as Record<string, unknown>)['completedBy'];
+        delete (copy as Record<string, unknown>)['completedAt'];
+      }
       updated.push(copy);
 
       ackRecords.push({
@@ -478,25 +604,15 @@ export class GlobalMailbox implements Mailbox {
         readerId: a.readerId,
         timestamp: now,
         read: a.read !== false,
-        completed: a.completed,
-        completedBy: a.completed ? a.readerId : undefined,
+        completed: completedChange,
+        completedBy: completedChange === true ? a.readerId : undefined,
         outcome: a.outcome,
       });
     }
 
     if (ackRecords.length === 0) {
-      // All requested acks were no-ops (already read/completed).
-      // Still return the messages that were found (updated may be empty if
-      // none matched, which preserves prior silent-skip semantics).
-      if (updated.length > 0) {
-        for (const message of updated) {
-          this.publishHqMailboxEvent({
-            mailboxId: this.hqMailboxId,
-            action: message.completed ? 'message.completed' : 'message.read',
-            message,
-          });
-        }
-      }
+      // All requested acks were no-ops (already read/completed). Return the
+      // actor-relative state without publishing an HQ mutation event.
       return updated;
     }
 
@@ -509,32 +625,85 @@ export class GlobalMailbox implements Mailbox {
     // The v2 receipt record enables per-actor delivery state.
     // The version sentinel is written on the first v2 receipt to fence
     // old processes from mutating a v2 mailbox (GM-P0.4A).
-    const serialized = ackRecords.map((a) => serializeAckRecord(a)).join('');
-    const v2Receipts = ackRecords.map((a) =>
-      serializeReceiptRecordV2(
-        buildReceiptRecordV2(a.messageId, a.readerId, a.timestamp, {
-          read: a.read !== false,
-          completed: a.completed === true,
-          ...(a.outcome !== undefined ? { outcome: a.outcome } : {}),
-        }),
-      ),
-    ).join('');
+    const persistedAckIds = new Set<string>();
     await withFileLock(this.messagePath, async () => {
-      // Close the read→lock race.
+      // Close the read→lock race, then recompute every ack field against the
+      // refreshed actor state before persisting.
       await this._refreshMessageCacheUnderLock();
-      // GM-P0.4A: Ensure the version sentinel exists before writing v2 receipts.
-      // Reads the file content under lock to check; appends sentinel if absent.
+      const current = await this._readMessagesCached();
+      const messageById = new Map(current.map((message) => [message.id, message]));
+      for (let index = ackRecords.length - 1; index >= 0; index--) {
+        const ack = ackRecords[index];
+        if (ack === undefined) continue;
+        const projection = messageById.get(ack.messageId) as MailboxMessageProjection | undefined;
+        if (projection === undefined) continue;
+        const actorState = projection.recipientState?.[ack.readerId];
+        const keepRead = ack.read === true && actorState?.readAt === undefined;
+        const keepOutcome = ack.outcome !== undefined && actorState?.outcome !== ack.outcome;
+        const keepCompletion =
+          ack.completed === true
+            ? actorState?.completedAt === undefined && projection.legacyGlobalCompletion !== true
+            : ack.completed === false
+              ? actorState?.completedAt !== undefined
+              : false;
+        if (!keepRead && !keepOutcome && !keepCompletion) {
+          ackRecords.splice(index, 1);
+          continue;
+        }
+        ackRecords[index] = {
+          ...ack,
+          read: keepRead,
+          completed: keepCompletion ? ack.completed : undefined,
+          completedBy: keepCompletion && ack.completed === true ? ack.readerId : undefined,
+          outcome: keepOutcome ? ack.outcome : undefined,
+        };
+      }
+      if (ackRecords.length === 0) return;
+      for (const ack of ackRecords) persistedAckIds.add(ack.messageId);
+
+      const serialized = ackRecords
+        .map((ack) => {
+          const message = messageById.get(ack.messageId);
+          if (message === undefined) return '';
+          if (!isFanOutRecipient(message.to)) {
+            return serializeAckRecord(ack);
+          }
+          // Old readers fold v1 completion and outcome into message-global
+          // fields. For fan-out targets, preserve only the per-reader read ack;
+          // actor-scoped completion/outcome live exclusively in the v2 receipt.
+          return serializeAckRecord({
+            __ack: true,
+            messageId: ack.messageId,
+            readerId: ack.readerId,
+            timestamp: ack.timestamp,
+            read: ack.read,
+          });
+        })
+        .join('');
+      const v2Receipts = ackRecords
+        .map((ack) =>
+          serializeReceiptRecordV2(
+            buildReceiptRecordV2(ack.messageId, ack.readerId, ack.timestamp, {
+              read: ack.read !== false,
+              ...(ack.completed !== undefined ? { completed: ack.completed } : {}),
+              ...(ack.outcome !== undefined ? { outcome: ack.outcome } : {}),
+            }),
+          ),
+        )
+        .join('');
+      // GM-P0.4A: Refuse mutation when a newer-version process has written
+      // v2 receipt records to this mailbox.
+      await assertMailboxNotFenced(this.messagePath);
+      // Ensure the version sentinel exists before writing v2 receipts.
       await ensureVersionSentinel(this.messagePath);
       // Append v1 acks + v2 receipts.
       await fsp.appendFile(this.messagePath, serialized + v2Receipts, 'utf8');
       // Capture the post-append stat inside the lock.
       const { mtimeMs, size } = await this._statMessageFile();
-      // Apply ack effects directly to the in-memory cache.
-      for (const ack of ackRecords) {
-        this._messageCache.applyAck(ack);
-      }
-      // Advance cache trackers so the next read sees current size.
-      this._messageCache.updateStat({ mtimeMs, size });
+      // Re-read the full file to rebuild recipientState on the cached
+      // projection; applyAck only mutates v1 fields and does not fold the v2
+      // receipts just appended above.
+      this._messageCache.set(await this._readMessages(), { mtimeMs, size });
 
       // ── Post-lock diagnostics ──
       this.diag.ackManyPostLockMtime = mtimeMs;
@@ -543,7 +712,30 @@ export class GlobalMailbox implements Mailbox {
       this.diag.ackManyAckCount = ackRecords.length;
     });
 
-    for (const message of updated) {
+    const foldedById = new Map(
+      (await this._readMessagesCached())
+        .filter((message) => targetIds.has(message.id))
+        .map((message) => [message.id, { ...message, readBy: { ...message.readBy } }]),
+    );
+    // Keep the actor-relative legacy fields computed above while attaching the
+    // freshly folded v2 projection. A fan-out completion is intentionally not
+    // written into the message-global v1 fields, so replacing the whole return
+    // value with the cached projection would report `completed: false` for the
+    // actor that just completed it (and publish a `message.read` HQ event).
+    const foldedUpdated = updated.map((message) => {
+      const folded = foldedById.get(message.id);
+      if (folded === undefined) return message;
+      return {
+        ...folded,
+        completed: message.completed,
+        completedBy: message.completedBy,
+        completedAt: message.completedAt,
+        outcome: message.outcome,
+      };
+    });
+
+    for (const message of foldedUpdated) {
+      if (!persistedAckIds.has(message.id)) continue;
       this.publishHqMailboxEvent({
         mailboxId: this.hqMailboxId,
         action: message.completed ? 'message.completed' : 'message.read',
@@ -554,11 +746,12 @@ export class GlobalMailbox implements Mailbox {
         messageId: message.id,
         from: message.from,
         to: message.to,
+        audience: message.audience,
         timestamp: new Date().toISOString(),
       });
     }
-    if (updated.length > 0) this.publishHqMailboxSnapshot();
-    return updated;
+    if (foldedUpdated.length > 0) this.publishHqMailboxSnapshot();
+    return foldedUpdated;
   }
 
   async unreadCount(forAgentId: string, sessionId?: string): Promise<number> {
@@ -581,7 +774,11 @@ export class GlobalMailbox implements Mailbox {
       }
       for (const i of indices) {
         const m = all[i]!;
-        if (isMailboxMessageVisibleTo(m, forAgentId) && !(forAgentId in m.readBy) && !m.completed) count++;
+        if (
+          isMailboxMessageVisibleTo(m, forAgentId) &&
+          !(forAgentId in m.readBy) &&
+          !isMessageCompletedForActor(m, forAgentId)
+        ) count++;
       }
     } else {
       for (let i = 0; i < all.length; i++) {
@@ -590,7 +787,7 @@ export class GlobalMailbox implements Mailbox {
           (m.to === forAgentId || m.to === '*' || m.to === scopedSessionRecipient) &&
           isMailboxMessageVisibleTo(m, forAgentId) &&
           !(forAgentId in m.readBy) &&
-          !m.completed
+          !isMessageCompletedForActor(m, forAgentId)
         ) count++;
       }
     }
@@ -623,6 +820,9 @@ export class GlobalMailbox implements Mailbox {
     };
 
     await withFileLock(this.messagePath, async () => {
+      // GM-P0.4A: Refuse mutation when a newer-version process has written
+      // v2 receipt records to this mailbox.
+      await assertMailboxNotFenced(this.messagePath);
       await this._refreshMessageCacheUnderLock();
       await fsp.appendFile(this.messagePath, serializeAckRecord(ack), 'utf8');
       const { mtimeMs, size } = await this._statMessageFile();
@@ -644,6 +844,7 @@ export class GlobalMailbox implements Mailbox {
       messageId: msg.id,
       from: msg.from,
       to: msg.to,
+      audience: msg.audience,
       timestamp: msg.deletedAt ?? now,
     });
     return msg;
@@ -672,6 +873,9 @@ export class GlobalMailbox implements Mailbox {
     };
 
     await withFileLock(this.messagePath, async () => {
+      // GM-P0.4A: Refuse mutation when a newer-version process has written
+      // v2 receipt records to this mailbox.
+      await assertMailboxNotFenced(this.messagePath);
       await this._refreshMessageCacheUnderLock();
       await fsp.appendFile(this.messagePath, serializeAckRecord(ack), 'utf8');
       const { mtimeMs, size } = await this._statMessageFile();
@@ -693,6 +897,7 @@ export class GlobalMailbox implements Mailbox {
       messageId: msg.id,
       from: msg.from,
       to: msg.to,
+      audience: msg.audience,
       timestamp: now,
     });
     return msg;
@@ -701,179 +906,19 @@ export class GlobalMailbox implements Mailbox {
   // ── Agent registry ──────────────────────────────────────────────────────
 
   async registerAgent(input: AgentRegistrationInput): Promise<void> {
-    await this._ensureRegistry();
-    const now = new Date().toISOString();
-    const agent: RegisteredAgent = {
-      agentId: input.agentId,
-      sessionId: input.sessionId,
-      name: input.name,
-      role: input.role,
-      status: 'idle',
-      currentTool: undefined,
-      currentTask: undefined,
-      iterations: 0,
-      toolCalls: 0,
-      registeredAt: now,
-      lastSeenAt: now,
-      pid: input.pid ?? process.pid,
-      source: input.source,
-    };
-
-    await withFileLock(this.registryPath, async () => {
-      // fresh: read-modify-write must start from the on-disk state, not the
-      // cache — other processes may have registered agents since.
-      const registry = await this._readRegistry({ fresh: true });
-      // Prune stale agents
-      this._pruneStaleInPlace(registry);
-      this.pruneHeartbeatThrottleMap(this._lastHeartbeat, registry);
-      // Upsert
-      registry.set(input.agentId, agent);
-      // Update cache
-      this._registryCache = registry;
-      this._registryCacheAt = Date.now();
-      await this._writeRegistry(registry);
-    });
-
-    // Emit event for TUI/WebUI to update online agent count
-    this._events?.emitCustom('mailbox.agent_registered', {
-      agentId: input.agentId,
-      sessionId: input.sessionId,
-      name: input.name,
-      role: input.role,
-      source: input.source,
-    });
-    this.publishHqMailboxEvent({
-      mailboxId: this.hqMailboxId,
-      action: 'agent.registered',
-      agent: {
-        agentId: input.agentId,
-        name: input.name,
-        ...(input.role !== undefined ? { role: input.role } : {}),
-        sessionId: input.sessionId,
-        status: 'idle',
-        iterations: 0,
-        toolCalls: 0,
-        lastActivityAt: now,
-        lastSeenAt: now,
-        online: true,
-        pid: input.pid ?? process.pid,
-        ...(input.source !== undefined ? { source: input.source } : {}),
-      },
-    });
-    this.publishHqMailboxSnapshot();
+    await registerMailboxAgent(this.agentRegistryContext(), input);
   }
 
   async deregisterAgent(agentId: string): Promise<void> {
-    await this._ensureRegistry();
-    let removed: RegisteredAgent | undefined;
-    await withFileLock(this.registryPath, async () => {
-      const registry = await this._readRegistry({ fresh: true });
-      this._pruneStaleInPlace(registry);
-      this.pruneHeartbeatThrottleMap(this._lastHeartbeat, registry);
-      // Capture the record before deletion so HQ telemetry can emit a full,
-      // well-typed agent summary rather than a bare id.
-      removed = registry.get(agentId);
-      registry.delete(agentId);
-      this._lastHeartbeat.delete(agentId);
-      this._registryCache = registry;
-      this._registryCacheAt = Date.now();
-      await this._writeRegistry(registry);
-    });
-    this._events?.emitCustom('mailbox.agent_deregistered', {
-      agentId,
-    });
-    this.publishHqMailboxEvent({
-      mailboxId: this.hqMailboxId,
-      action: 'agent.deregistered',
-      agent: {
-        agentId,
-        name: removed?.name ?? agentId,
-        ...(removed?.role !== undefined ? { role: removed.role } : {}),
-        sessionId: removed?.sessionId ?? '',
-        status: 'offline',
-        ...(removed?.currentTool !== undefined ? { currentTool: removed.currentTool } : {}),
-        ...(removed?.currentTask !== undefined ? { currentTask: removed.currentTask } : {}),
-        iterations: removed?.iterations ?? 0,
-        toolCalls: removed?.toolCalls ?? 0,
-        lastActivityAt: removed?.lastSeenAt ?? new Date().toISOString(),
-        lastSeenAt: removed?.lastSeenAt ?? new Date().toISOString(),
-        online: false,
-        pid: removed?.pid ?? 0,
-        ...(removed?.source !== undefined ? { source: removed.source } : {}),
-      },
-    });
-    this.publishHqMailboxSnapshot();
+    await deregisterMailboxAgent(this.agentRegistryContext(), agentId);
   }
 
   async heartbeat(input: AgentHeartbeatInput): Promise<void> {
-    // Throttle: at most one heartbeat per agent per HEARTBEAT_THROTTLE_MS
-    const last = this._lastHeartbeat.get(input.agentId) ?? 0;
-    const now = Date.now();
-    if (now - last < HEARTBEAT_THROTTLE_MS) return;
-
-    this._lastHeartbeat.set(input.agentId, now);
-
-    await this._ensureRegistry();
-
-    await withFileLock(this.registryPath, async () => {
-      // fresh: see registerAgent — never read-modify-write from the cache.
-      const registry = await this._readRegistry({ fresh: true });
-      this._pruneStaleInPlace(registry);
-      this.pruneHeartbeatThrottleMap(this._lastHeartbeat, registry);
-
-      const agent = registry.get(input.agentId);
-      if (agent) {
-        const iso = new Date().toISOString();
-        agent.lastSeenAt = iso;
-        if (input.status !== undefined) agent.status = input.status;
-        if (input.currentTool !== undefined) agent.currentTool = input.currentTool;
-        if (input.currentTask !== undefined) agent.currentTask = input.currentTask;
-        if (input.iterations !== undefined) agent.iterations = input.iterations;
-        if (input.toolCalls !== undefined) agent.toolCalls = input.toolCalls;
-      }
-      // If agent not registered yet, silently skip — registerAgent first
-
-      this._registryCache = registry;
-      this._registryCacheAt = Date.now();
-      await this._writeRegistry(registry);
-    });
-
-    // Emit event so TUI/WebUI can track online agents in real time
-    this._events?.emitCustom('mailbox.agent_heartbeat', {
-      agentId: input.agentId,
-      status: input.status,
-      currentTool: input.currentTool,
-      currentTask: input.currentTask,
-    });
-    this.publishHqMailboxEvent({
-      mailboxId: this.hqMailboxId,
-      action: 'agent.heartbeat',
-      summary: input.agentId,
-    });
-    this.publishHqMailboxSnapshot();
+    await heartbeatMailboxAgent(this.agentRegistryContext(), input);
   }
 
   async getAgentStatuses(): Promise<MailboxAgentStatus[]> {
-    await this._ensureRegistry();
-    let registry = await this._readRegistry();
-    const before = registry.size;
-    this._pruneStaleInPlace(registry);
-
-    // A read can be the only activity after every process in a project exits.
-    // Persist expiry under the file lock so old agents do not survive forever
-    // in `_mailbox.registry.json` (or race a concurrent registration).
-    if (registry.size < before) {
-      await withFileLock(this.registryPath, async () => {
-        const fresh = await this._readRegistry({ fresh: true });
-        this._pruneStaleInPlace(fresh);
-        this._registryCache = fresh;
-        this._registryCacheAt = Date.now();
-        await this._writeRegistry(fresh);
-        registry = fresh;
-      });
-    }
-
-    return mapRegisteredAgentsToStatuses(registry, Date.now(), AGENT_STALE_MS);
+    return getMailboxAgentStatuses(this.agentRegistryContext());
   }
 
   async getOnlineAgents(): Promise<MailboxAgentStatus[]> {
@@ -884,119 +929,19 @@ export class GlobalMailbox implements Mailbox {
   // ── Client registry ─────────────────────────────────────────────────────
 
   async registerClient(input: ClientRegistrationInput): Promise<void> {
-    await this._ensureClientRegistry();
-    const now = new Date().toISOString();
-    const client: RegisteredClient = {
-      clientId: input.clientId,
-      sessionId: input.sessionId,
-      name: input.name,
-      source: input.source,
-      registeredAt: now,
-      lastSeenAt: now,
-      pid: input.pid ?? process.pid,
-    };
-
-    await withFileLock(this.clientRegistryPath, async () => {
-      const registry = await this._readClientRegistry({ fresh: true });
-      this._pruneStaleClientsInPlace(registry);
-      this.pruneHeartbeatThrottleMap(this._lastClientHeartbeat, registry);
-      registry.set(input.clientId, client);
-      this._clientRegistryCache = registry;
-      this._clientRegistryCacheAt = Date.now();
-      await this._writeClientRegistry(registry);
-    });
-
-    // Emit event for TUI/WebUI to update online client count
-    this._events?.emitCustom('mailbox.client_registered', {
-      clientId: input.clientId,
-      sessionId: input.sessionId,
-      name: input.name,
-      source: input.source,
-    });
-    this.publishHqMailboxSnapshot();
+    await registerMailboxClient(this.clientRegistryContext(), input);
   }
 
   async deregisterClient(clientId: string): Promise<void> {
-    await this._ensureClientRegistry();
-    await withFileLock(this.clientRegistryPath, async () => {
-      const registry = await this._readClientRegistry({ fresh: true });
-      this._pruneStaleClientsInPlace(registry);
-      this.pruneHeartbeatThrottleMap(this._lastClientHeartbeat, registry);
-      registry.delete(clientId);
-      this._clientRegistryCache = registry;
-      this._clientRegistryCacheAt = Date.now();
-      await this._writeClientRegistry(registry);
-    });
-    this._lastClientHeartbeat.delete(clientId);
-    this._events?.emitCustom('mailbox.client_deregistered', { clientId });
-    this.publishHqMailboxSnapshot();
+    await deregisterMailboxClient(this.clientRegistryContext(), clientId);
   }
 
   async clientHeartbeat(input: ClientHeartbeatInput): Promise<void> {
-    // Throttle: at most one heartbeat per client per HEARTBEAT_THROTTLE_MS
-    const last = this._lastClientHeartbeat.get(input.clientId) ?? 0;
-    const now = Date.now();
-    if (now - last < HEARTBEAT_THROTTLE_MS) return;
-
-    this._lastClientHeartbeat.set(input.clientId, now);
-
-    await this._ensureClientRegistry();
-
-    await withFileLock(this.clientRegistryPath, async () => {
-      const registry = await this._readClientRegistry({ fresh: true });
-      this._pruneStaleClientsInPlace(registry);
-      this.pruneHeartbeatThrottleMap(this._lastClientHeartbeat, registry);
-
-      const client = registry.get(input.clientId);
-      if (client) {
-        client.lastSeenAt = new Date().toISOString();
-        if (typeof input.sessionId === 'string' && input.sessionId.length > 0) {
-          client.sessionId = input.sessionId;
-        }
-      }
-
-      this._clientRegistryCache = registry;
-      this._clientRegistryCacheAt = Date.now();
-      await this._writeClientRegistry(registry);
-    });
-
-    // Emit event so TUI/WebUI can track online clients in real time
-    this._events?.emitCustom('mailbox.client_heartbeat', {
-      clientId: input.clientId,
-      ...(input.sessionId ? { sessionId: input.sessionId } : {}),
-    });
-    this.publishHqMailboxSnapshot();
+    await heartbeatMailboxClient(this.clientRegistryContext(), input);
   }
 
   async getClientStatuses(): Promise<ClientStatus[]> {
-    await this._ensureClientRegistry();
-    let registry = await this._readClientRegistry();
-    const before = registry.size;
-    this._pruneStaleClientsInPlace(registry);
-
-    // Persist the pruning so stale entries in _mailbox.clients.json don't
-    // accumulate indefinitely. Without this, `getClientStatuses` prunes in
-    // memory only — the stale JSON records survive on disk until another
-    // write happens (registerClient / clientHeartbeat), which may never
-    // occur if all bridge clients are dead.
-    //
-    // Lock around the read-prune-write to prevent racing concurrent
-    // registerClient / clientHeartbeat / deregisterClient calls, all of
-    // which also acquire this lock.
-    if (registry.size < before) {
-      await withFileLock(this.clientRegistryPath, async () => {
-        // Re-read under the lock so a concurrent write since our
-        // initial read is not overwritten.
-        registry = await this._readClientRegistry({ fresh: true });
-        const postLockBefore = registry.size;
-        this._pruneStaleClientsInPlace(registry);
-        if (registry.size < postLockBefore) {
-          await this._writeClientRegistry(registry);
-        }
-      });
-    }
-
-    return mapRegisteredClientsToStatuses(registry, Date.now(), CLIENT_STALE_MS);
+    return getMailboxClientStatuses(this.clientRegistryContext());
   }
 
   /**
@@ -1010,20 +955,7 @@ export class GlobalMailbox implements Mailbox {
    * ensures the file gets cleaned up on demand.
    */
   async purgeClients(): Promise<number> {
-    await this._ensureClientRegistry();
-    let purged = 0;
-    await withFileLock(this.clientRegistryPath, async () => {
-      const registry = await this._readClientRegistry({ fresh: true });
-      const before = registry.size;
-      this._pruneStaleClientsInPlace(registry);
-      purged = before - registry.size;
-      if (purged > 0) {
-        this._clientRegistryCache = registry;
-        this._clientRegistryCacheAt = Date.now();
-        await this._writeClientRegistry(registry);
-      }
-    });
-    return purged;
+    return purgeMailboxClients(this.clientRegistryContext());
   }
 
   // ── Lifecycle ───────────────────────────────────────────────────────────
@@ -1036,71 +968,21 @@ export class GlobalMailbox implements Mailbox {
   }
 
   async clearAll(): Promise<void> {
-    // Truncate the mailbox file and promote the empty cache under the same
-    // lock, with the post-truncate stat captured synchronously so a
-    // concurrent reader doesn't misclassify the shrink as a "file only
-    // grew" append.
-    await withFileLock(this.messagePath, async () => {
-      await atomicWrite(this.messagePath, '');
-      const { mtimeMs, size } = await this._statMessageFile();
-      this._messageCache.set([], { mtimeMs, size });
+    await runGlobalMailboxClearAll({
+      messagePath: this.messagePath,
+      statMessageFile: () => this._statMessageFile(),
+      setMessageCache: (messages, stat) => this._messageCache.set(messages, stat),
     });
   }
 
   async purgeStale(opts?: PurgeOptions): Promise<PurgeResult> {
-    const COMPLETED_MAX_AGE_MS = opts?.completedMaxAgeMs ?? 86_400_000; // 1 day
-    const INCOMPLETE_MAX_AGE_MS = opts?.incompleteMaxAgeMs ?? 604_800_000; // 7 days
-
-    let completedPurged = 0;
-    let incompletePurged = 0;
-    let remaining = 0;
-
-    // Read-modify-write under the lock — same pattern as ack().
-    await withFileLock(this.messagePath, async () => {
-      const all = await this._readMessagesFresh();
-      const now = Date.now();
-      const cutoffCompleted = now - COMPLETED_MAX_AGE_MS;
-      const cutoffIncomplete = now - INCOMPLETE_MAX_AGE_MS;
-
-      const kept: MailboxMessage[] = [];
-
-      for (const msg of all) {
-        const msgTime = new Date(msg.timestamp).getTime();
-        const completedTime = msg.completedAt ? new Date(msg.completedAt).getTime() : 0;
-
-        if (msg.completed && completedTime < cutoffCompleted) {
-          completedPurged++;
-          continue; // drop
-        }
-        if (!msg.completed && msgTime < cutoffIncomplete) {
-          incompletePurged++;
-          continue; // drop
-        }
-
-        kept.push(msg);
-      }
-      remaining = kept.length;
-
-      // Rewrite only if something changed
-      if (kept.length < all.length) {
-        const content = kept.map((m) => JSON.stringify(m)).join(LINE_SEPARATOR) + LINE_SEPARATOR;
-        // Atomic temp+rename — a torn compact would silently drop messages.
-        await atomicWrite(this.messagePath, content);
-      }
-      // Capture the post-write (or post-read when nothing purged) stat
-      // inside the lock so the cache trackers match the on-disk state.
-      const { mtimeMs, size } = await this._statMessageFile();
-      // Either way we just read fresh under the lock, so adopt the kept
-      // snapshot (== all when nothing was purged) as the cache.
-      this._messageCache.set(kept, { mtimeMs, size });
+    return runGlobalMailboxPurgeStale(opts, {
+      messagePath: this.messagePath,
+      getAgentStatuses: () => this.getAgentStatuses(),
+      readMessagesFresh: () => this._readMessagesFresh(),
+      statMessageFile: () => this._statMessageFile(),
+      setMessageCache: (messages, stat) => this._messageCache.set(messages, stat),
     });
-
-    return {
-      completedPurged,
-      incompletePurged,
-      totalPurged: completedPurged + incompletePurged,
-      remaining,
-    };
   }
 
   // ── Auto-compaction ─────────────────────────────────────────────────────
@@ -1108,106 +990,13 @@ export class GlobalMailbox implements Mailbox {
   private _autoCompactTimer: NodeJS.Timeout | null = null;
 
   async autoCompact(opts?: AutoCompactOptions): Promise<AutoCompactResult> {
-    const readMaxAgeMs = opts?.readMaxAgeMs ?? AUTO_COMPACT_READ_MAX_AGE_MS;
-    const defaultTtlMs = opts?.defaultTtlMs ?? AUTO_COMPACT_DEFAULT_TTL_MS;
-    const completedMaxAgeMs = opts?.completedMaxAgeMs ?? 86_400_000; // 1 day
-    const incompleteMaxAgeMs = opts?.incompleteMaxAgeMs ?? 604_800_000; // 7 days
-
-    let expiredPurged = 0;
-    let readByAllPurged = 0;
-    let completedPurged = 0;
-    let incompletePurged = 0;
-    let remaining = 0;
-
-    // Resolve the currently-online agent identities so we can check
-    // "has every online agent read this?" without a second file read.
-    // Online registry is advisory — if it is temporarily empty we
-    // skip the read-by-all pass rather than purging everything.
-    let onlineAgents: Map<string, string | undefined> | null = null;
-    try {
-      const statuses = await this.getAgentStatuses();
-      const online = statuses.filter((s) => s.online);
-      onlineAgents =
-        online.length > 0 ? new Map(online.map((s) => [s.agentId, s.role])) : null;
-    } catch {
-      onlineAgents = null;
-    }
-
-    await withFileLock(this.messagePath, async () => {
-      const all = await this._readMessagesFresh();
-      const now = Date.now();
-      const cutoffReadAge = now - readMaxAgeMs;
-      const cutoffCompleted = now - completedMaxAgeMs;
-      const cutoffIncomplete = now - incompleteMaxAgeMs;
-      const cutoffDefaultTtl = now - defaultTtlMs;
-
-      const kept: MailboxMessage[] = [];
-
-      for (const msg of all) {
-        const msgTime = new Date(msg.timestamp).getTime();
-
-        // Pass 1: Explicit expiry.
-        if (msg.expiresAt !== undefined) {
-          if (new Date(msg.expiresAt).getTime() < now) {
-            expiredPurged++;
-            continue;
-          }
-        } else if (msgTime < cutoffDefaultTtl) {
-          // No explicit expiry; use default TTL from send time.
-          expiredPurged++;
-          continue;
-        }
-
-        // Pass 2: Read by ALL currently-online agents.
-        if (onlineAgents !== null && !msg.completed) {
-          const eligibleAgentIds = [...onlineAgents]
-            .filter(([id, role]) => isMailboxMessageVisibleTo(msg, id, role))
-            .map(([id]) => id);
-          const readByAll =
-            eligibleAgentIds.length > 0 && eligibleAgentIds.every((id) => id in msg.readBy);
-          if (readByAll) {
-            // Check age of the most recent read receipt.
-            const readTimes = Object.values(msg.readBy).map((t) => new Date(t).getTime());
-            const latestRead = Math.max(...readTimes);
-            if (latestRead < cutoffReadAge) {
-              readByAllPurged++;
-              continue;
-            }
-          }
-        }
-
-        // Pass 3: Standard purge-stale logic.
-        const completedTime = msg.completedAt ? new Date(msg.completedAt).getTime() : 0;
-        if (msg.completed && completedTime < cutoffCompleted) {
-          completedPurged++;
-          continue;
-        }
-        if (!msg.completed && msgTime < cutoffIncomplete) {
-          incompletePurged++;
-          continue;
-        }
-
-        kept.push(msg);
-      }
-      remaining = kept.length;
-
-      if (kept.length < all.length) {
-        const content = kept.map((m) => JSON.stringify(m)).join(LINE_SEPARATOR) + LINE_SEPARATOR;
-        // Atomic temp+rename — a torn compact would silently drop messages.
-        await atomicWrite(this.messagePath, content);
-      }
-      const { mtimeMs, size } = await this._statMessageFile();
-      this._messageCache.set(kept, { mtimeMs, size });
+    return runGlobalMailboxAutoCompact(opts, {
+      messagePath: this.messagePath,
+      getAgentStatuses: () => this.getAgentStatuses(),
+      readMessagesFresh: () => this._readMessagesFresh(),
+      statMessageFile: () => this._statMessageFile(),
+      setMessageCache: (messages, stat) => this._messageCache.set(messages, stat),
     });
-
-    const totalRemoved = expiredPurged + readByAllPurged + completedPurged + incompletePurged;
-    return {
-      expiredRemoved: expiredPurged,
-      readByAllRemoved: readByAllPurged,
-      stalePurged: completedPurged + incompletePurged,
-      totalRemoved,
-      remaining,
-    };
   }
 
   startAutoCompactTimer(opts?: AutoCompactOptions): () => void {
@@ -1232,7 +1021,15 @@ export class GlobalMailbox implements Mailbox {
   // ── Internal ────────────────────────────────────────────────────────────
 
   /**
-   * Read all messages from the JSONL file. Always reads + parses the file.
+   * Read all messages from the JSONL file. Folds v1 messages/acks AND v2
+   * receipt records into MailboxMessageProjection[] carrying per-actor
+   * recipientState.
+   *
+   * The returned type is Promise<MailboxMessage[]> for interface compatibility;
+   * every element is actually a MailboxMessageProjection that carries
+   * recipientState and optional legacyGlobalCompletion on top of the base
+   * MailboxMessage fields.
+   *
    * Callers that can tolerate a stale-by-mtime view should use
    * {@link _readMessagesCached}; writers that need the post-lock truth
    * should call this directly (it's what {@link _readMessagesFresh} aliases).
@@ -1240,7 +1037,7 @@ export class GlobalMailbox implements Mailbox {
   private async _readMessages(): Promise<MailboxMessage[]> {
     try {
       const raw = await fsp.readFile(this.messagePath, 'utf8');
-      return parseMailboxLines(raw);
+      return parseMailboxFile(raw);
     } catch (err) {
       if ((err as NodeJS.ErrnoException).code === 'ENOENT') return [];
       throw err;
@@ -1276,15 +1073,7 @@ export class GlobalMailbox implements Mailbox {
    * intermediate state from another process.
    */
   private async _statMessageFile(): Promise<MailboxMessageFileStat> {
-    try {
-      const st = await fsp.stat(this.messagePath);
-      return { mtimeMs: st.mtimeMs, size: st.size };
-    } catch (err) {
-      if ((err as NodeJS.ErrnoException).code === 'ENOENT') {
-        return { mtimeMs: -1, size: -1 };
-      }
-      throw err;
-    }
+    return statMailboxMessageFile(this.messagePath);
   }
 
   /**
@@ -1416,11 +1205,23 @@ export class GlobalMailbox implements Mailbox {
     actor: MailboxActorContext,
     input: Omit<MailboxSendInput, 'from' | 'senderSessionId'>,
   ): Promise<MailboxMessage> {
-    return this.send({
-      ...input,
-      from: actor.actorId,
-      senderSessionId: actor.sessionId,
-    });
+    return sendMailboxFor(actor, input, (sendInput) => this.send(sendInput));
+  }
+
+  /** Register presence with identity, session, and role derived from the actor. */
+  async registerFor(
+    actor: MailboxActorContext,
+    input: Omit<AgentRegistrationInput, 'agentId' | 'sessionId' | 'role'>,
+  ): Promise<void> {
+    await registerMailboxActor(actor, input, (registration) => this.registerAgent(registration));
+  }
+
+  /** Update presence with identity derived from the actor. */
+  async heartbeatFor(
+    actor: MailboxActorContext,
+    input: Omit<AgentHeartbeatInput, 'agentId'>,
+  ): Promise<void> {
+    await heartbeatMailboxActor(actor, input, (heartbeat) => this.heartbeat(heartbeat));
   }
 
   /**
@@ -1431,20 +1232,10 @@ export class GlobalMailbox implements Mailbox {
   async ackFor(
     actor: MailboxActorContext,
     input: { messageId: string; read?: boolean; completed?: boolean; outcome?: string },
-  ): Promise<MailboxMessage | null> {
-    // Visibility check: the actor must be able to see the message.
-    const all = await this._readMessagesCached();
-    const target = all.find((m) => m.id === input.messageId);
-    if (target === undefined) return null;
-    if (!isMailboxMessageVisibleTo(target, actor.actorId, actor.role)) {
-      return null; // NOT_FOUND — does not disclose existence
-    }
-    return this.ack({
-      messageId: input.messageId,
-      readerId: actor.actorId,
-      read: input.read ?? true,
-      completed: input.completed ?? false,
-      outcome: input.outcome,
+  ): Promise<ActorMailboxMessage | null> {
+    return ackMailboxFor(actor, input, {
+      readMessages: () => this._readMessagesCached(),
+      ack: (ackInput) => this.ack(ackInput),
     });
   }
 
@@ -1455,40 +1246,32 @@ export class GlobalMailbox implements Mailbox {
   async queryFor(
     actor: MailboxActorContext,
     query?: Partial<MailboxQuery>,
-  ): Promise<MailboxMessage[]> {
-    return this.query({
-      ...query,
-      readerRole: actor.role ?? actor.actorId.split('@', 1)[0]!,
-      // Do not let body override unreadBy — derive from actor.
-      unreadBy: query?.unreadBy ?? actor.actorId,
-    });
+  ): Promise<ActorMailboxMessage[]> {
+    return queryMailboxFor(actor, query, (queryInput) => this.query(queryInput));
   }
 
   /**
    * Soft-delete a message with a verified actor context.
    * Rejects if the message is not visible to the actor.
    */
-  async softDeleteFor(actor: MailboxActorContext, mailId: string): Promise<MailboxMessage | null> {
-    const all = await this._readMessagesCached();
-    const target = all.find((m) => m.id === mailId);
-    if (target === undefined) return null;
-    if (!isMailboxMessageVisibleTo(target, actor.actorId, actor.role)) {
-      return null;
-    }
-    return this.softDelete(mailId, actor.actorId);
+  async softDeleteFor(
+    actor: MailboxActorContext,
+    mailId: string,
+  ): Promise<ActorMailboxMessage | null> {
+    return softDeleteMailboxFor(actor, mailId, {
+      readMessages: () => this._readMessagesCached(),
+      softDelete: (targetMailId, readerId) => this.softDelete(targetMailId, readerId),
+    });
   }
 
   /**
    * Restore a soft-deleted message with a verified actor context.
    * Rejects if the message is not visible to the actor.
    */
-  async restoreFor(actor: MailboxActorContext, mailId: string): Promise<MailboxMessage | null> {
-    const all = await this._readMessagesCached();
-    const target = all.find((m) => m.id === mailId);
-    if (target === undefined) return null;
-    if (!isMailboxMessageVisibleTo(target, actor.actorId, actor.role)) {
-      return null;
-    }
-    return this.restore(mailId);
+  async restoreFor(actor: MailboxActorContext, mailId: string): Promise<ActorMailboxMessage | null> {
+    return restoreMailboxFor(actor, mailId, {
+      readMessages: () => this._readMessagesCached(),
+      restore: (targetMailId) => this.restore(targetMailId),
+    });
   }
 }

@@ -81,7 +81,8 @@ const REQUIRED_SOURCE_LITERALS = [
   { file: 'packages/core/src/coordination/mailbox-types.ts', literal: "'http'" },
   { file: 'packages/core/src/coordination/mailbox-types.ts', literal: "'cli' | 'webui' | 'mcp' | 'acp' | 'http'" },
   // The shared router still tags external registrations as 'http'.
-  { file: 'packages/core/src/coordination/mailbox-http-router.ts', literal: "source: 'http'" },
+  // After extraction, the literal lives in mailbox-http-validation.ts.
+  { file: 'packages/core/src/coordination/mailbox-http-validation.ts', literal: "source: 'http'" },
   // Moved from hq/protocol.ts into the hq/protocol/ domain split (R12): the
   // HQ mailbox source union now lives with the HqMailbox* types in mailbox.ts.
   { file: 'packages/core/src/hq/protocol/mailbox.ts', literal: "'cli' | 'webui' | 'mcp' | 'acp' | 'http'" },
@@ -140,7 +141,11 @@ async function checkRoutes() {
   // which includes staged + unstaged changes, so a focused commit that
   // updates either file passes.
   const staged = getStagedFiles();
-  const canonicalFiles = ['packages/cli/src/subcommands/handlers/mailbox-serve.ts', 'packages/core/src/coordination/mailbox-http-router.ts'];
+  const canonicalFiles = [
+    'packages/cli/src/subcommands/handlers/mailbox-serve.ts',
+    'packages/core/src/coordination/mailbox-http-router.ts',
+    'packages/core/src/coordination/mailbox-http-validation.ts',
+  ];
   const anyCanonical = canonicalFiles.some((file) => staged.includes(file));
   if (!anyCanonical) {
     log('no mailbox-bridge canonical file staged — route-table check skipped');
@@ -201,7 +206,11 @@ async function checkQueryParamLiterals() {
   // across files would be caught by the new fixture entry rather
   // than silently surviving.
   const staged = getStagedFiles();
-  const canonicalFiles = ['packages/cli/src/subcommands/handlers/mailbox-serve.ts', 'packages/core/src/coordination/mailbox-http-router.ts'];
+  const canonicalFiles = [
+    'packages/cli/src/subcommands/handlers/mailbox-serve.ts',
+    'packages/core/src/coordination/mailbox-http-router.ts',
+    'packages/core/src/coordination/mailbox-http-validation.ts',
+  ];
   const anyCanonical = canonicalFiles.some((file) => staged.includes(file));
   if (!anyCanonical) {
     log('no mailbox-bridge canonical file staged — query-param check skipped');

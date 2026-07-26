@@ -13,7 +13,14 @@
  * @module mailbox-receipt-folding
  */
 
+import { LINE_SEPARATOR } from './mailbox-constants.js';
+import {
+  applyAckToMessage,
+  isAckRecord,
+  parseMailboxMessage,
+} from './mailbox-message-codec.js';
 import type {
+  AckRecord,
   MailboxMessage,
   MailboxMessageProjection,
   MailboxRecipientState,
@@ -21,23 +28,23 @@ import type {
 } from './mailbox-types.js';
 import { isMailboxReceiptRecordV2 } from './mailbox-types.js';
 
+export type { MailboxMessageProjection };
+
 /**
  * Determine if a message's recipient is a fan-out form (broadcast, alias, or
  * session-scoped). Fan-out messages use `legacyGlobalCompletion` for v1 acks
  * because the original semantic was message-global.
  *
- * Heuristic: agent IDs follow the `name@sessionId` pattern (confirmed by
- * `mailboxIdentityBase()` splitting on `@`/`#`). A `to` value that does NOT
- * contain `@` is either `*` (broadcast), `@session:...` (session broadcast),
- * or a bare base alias like `leader` or `worker` — all of which are fan-out.
- * Only a fully-qualified `name@sessionId` is a direct exact-recipient message.
+ * Heuristic: exact agent IDs are qualified with either `@` (session identity)
+ * or `#` (process identity), matching `mailboxIdentityBase()`. A `to` value
+ * without either delimiter is a bare base alias such as `leader` or `worker`
+ * and therefore fans out. `*` and `@session:...` are explicit broadcasts.
  */
-function isFanOutRecipient(to: string): boolean {
+export function isFanOutRecipient(to: string): boolean {
   if (to === '*') return true;
   if (to.startsWith('@session:')) return true;
-  // Base alias: no `@` means it's not a fully-qualified agent ID.
-  // This catches `leader`, `worker`, `bug-hunter`, etc.
-  return !to.includes('@');
+  // A bare base alias contains neither exact-recipient delimiter.
+  return !to.includes('@') && !to.includes('#');
 }
 
 /**
@@ -79,8 +86,9 @@ export function materializeMessages(
   }
 
   return messages.map((msg) => {
-    const recipientState = foldRecipientState(msg, receiptsByMessage.get(msg.id) ?? []);
-    const legacyGlobalCompletion = classifyLegacyCompletion(msg);
+    const msgReceipts = receiptsByMessage.get(msg.id) ?? [];
+    const recipientState = foldRecipientState(msg, msgReceipts);
+    const legacyGlobalCompletion = classifyLegacyCompletion(msg, msgReceipts);
 
     return {
       ...msg,
@@ -125,7 +133,8 @@ function foldRecipientState(
   }
 
   // Fold v2 receipt records.
-  // Sort by timestamp to ensure deterministic fold order.
+  // Sort by timestamp to ensure deterministic fold order. ECMAScript's stable
+  // sort preserves persisted file order when timestamps compare equal.
   const sorted = [...v2Receipts].sort((a, b) => a.timestamp.localeCompare(b.timestamp));
 
   for (const receipt of sorted) {
@@ -165,8 +174,13 @@ function foldRecipientState(
  *   - Direct exact-recipient message with `completed: true`
  *     → NOT legacy (it's actor-scoped, handled in foldRecipientState).
  */
-function classifyLegacyCompletion(msg: MailboxMessage): boolean {
+function classifyLegacyCompletion(msg: MailboxMessage, v2Receipts: readonly MailboxReceiptRecordV2[]): boolean {
   if (!msg.completed) return false;
+  // Suppress legacy-global classification only when v2 data carries
+  // unambiguous actor-scoped completion provenance — at least one v2
+  // receipt with completed:true. A read-only v2 receipt must NOT
+  // suppress legacy completion (GM-P0.4 R3).
+  if (v2Receipts.some((r) => r.completed === true)) return false;
   return isFanOutRecipient(msg.to);
 }
 
@@ -195,6 +209,47 @@ export function extractV2Receipts(parsed: readonly unknown[]): MailboxReceiptRec
     }
   }
   return receipts;
+}
+
+/**
+ * Parse the raw JSONL content of a mailbox file into MailboxMessageProjection[].
+ *
+ * This is the canonical read-path entry point: it parses each line once,
+ * classifies v1 messages, v1 ack records, and v2 receipt records, then folds
+ * them into a unified MailboxMessageProjection carrying per-actor state.
+ *
+ * Malformed lines are silently skipped (same tolerance as parseMailboxLines).
+ */
+export function parseMailboxFile(raw: string): MailboxMessageProjection[] {
+  const messages: MailboxMessage[] = [];
+  const ackRecords: AckRecord[] = [];
+  const v2Receipts: MailboxReceiptRecordV2[] = [];
+
+  for (const line of raw.split(LINE_SEPARATOR)) {
+    if (line.trim().length === 0) continue;
+    try {
+      const parsed: unknown = JSON.parse(line);
+      if (isMailboxReceiptRecordV2(parsed)) {
+        v2Receipts.push(parsed);
+      } else if (isAckRecord(parsed)) {
+        ackRecords.push(parsed);
+      } else {
+        messages.push(parseMailboxMessage(parsed));
+      }
+    } catch {
+      // skip malformed lines
+    }
+  }
+
+  // Fold v1 ack records into their target messages.
+  const messagesById = new Map(messages.map((message) => [message.id, message]));
+  for (const ack of ackRecords) {
+    const target = messagesById.get(ack.messageId);
+    if (target) applyAckToMessage(target, ack);
+  }
+
+  // Fold v1 + v2 into projections
+  return materializeMessages(messages, v2Receipts);
 }
 
 /**
