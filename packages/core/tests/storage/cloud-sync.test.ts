@@ -210,6 +210,33 @@ describe('CloudSync', () => {
   });
 
   describe('hasLocalChanges()', () => {
+    it('returns false immediately after a successful push', async () => {
+      await withTempDir(async (dir) => {
+        const promptsPath = path.join(dir, 'prompts');
+        await fs.mkdir(promptsPath, { recursive: true });
+        await fs.writeFile(path.join(promptsPath, 'note.txt'), 'hello');
+        const paths = { ...mockPaths, configDir: dir, globalPrompts: promptsPath } as WstackPaths;
+        const sync = new CloudSync(
+          paths,
+          () => ({ enabled: true, repo: 'testuser/testrepo', categories: ['prompts'] }),
+          vi.fn(),
+        );
+        vi.spyOn(sync, 'githubFetch' as keyof CloudSync).mockImplementation(
+          async (_t, _o, _r, method, segment) => {
+            if (method === 'GET' && segment.includes('/git/refs/heads/main')) {
+              throw new Error('GitHub API GET failed (404): missing');
+            }
+            if (method === 'POST' && segment === '/git/trees') return { sha: 'tree' };
+            if (method === 'POST' && segment === '/git/commits') return { sha: 'commit' };
+            return {};
+          },
+        );
+
+        await sync.push('token');
+        expect(await sync.hasLocalChanges()).toBe(false);
+      });
+    });
+
     it('returns true when state is null', async () => {
       await withTempDir(async (dir) => {
         const sync = new CloudSync({ ...mockPaths, globalRoot: dir }, () => null, vi.fn());
@@ -259,6 +286,8 @@ describe('CloudSync', () => {
         // Mock GitHub API calls via spy on private githubFetch
         vi.spyOn(sync, 'githubFetch' as keyof CloudSync).mockImplementation(
           async (_t, _o, _r, method, seg) => {
+            if (method === 'GET' && seg === '/git/refs/heads/main') return { object: { sha: 'remote-commit' } };
+            if (method === 'GET' && seg === '/git/commits/remote-commit') return { tree: { sha: 'remote-tree' }, message: 'm' };
             if (method === 'POST' && seg === '/git/trees') return { sha: 'tree-sha-abc' };
             if (method === 'POST' && seg === '/git/commits') return { sha: 'commit-sha-abc' };
             if (method === 'PATCH' && seg === '/git/refs/heads/main') return {};
@@ -375,7 +404,17 @@ describe('CloudSync', () => {
         }));
         const sync = new CloudSync(paths, getConfig, vi.fn());
 
-        vi.spyOn(sync, 'githubFetch' as keyof CloudSync).mockResolvedValue({ sha: 'c' });
+        vi.spyOn(sync, 'githubFetch' as keyof CloudSync).mockImplementation(
+          async (_t, _o, _r, method, segment) => {
+            if (method === 'GET' && segment === '/git/refs/heads/main') {
+              return { object: { sha: 'remote-commit' } };
+            }
+            if (method === 'GET' && segment === '/git/commits/remote-commit') {
+              return { tree: { sha: 'remote-tree' }, message: 'm' };
+            }
+            return { sha: 'c' };
+          },
+        );
 
         await sync.push('tok');
         expect(getConfig).toHaveBeenCalledTimes(1);
@@ -465,7 +504,165 @@ describe('CloudSync', () => {
     });
   });
 
+  describe('directory traversal safety', () => {
+    it('does not upload a category whose root is a symlink', async ({ skip }) => {
+      await withTempDir(async (dir) => {
+        const outsidePrompts = path.join(dir, 'outside-prompts');
+        const promptsLink = path.join(dir, 'prompts-link');
+        await fs.mkdir(outsidePrompts, { recursive: true });
+        await fs.writeFile(path.join(outsidePrompts, 'secret.txt'), 'secret outside the profile');
+        try {
+          await fs.symlink(outsidePrompts, promptsLink, 'junction');
+        } catch (err) {
+          if ((err as NodeJS.ErrnoException).code === 'EPERM') {
+            skip('symlink creation is not permitted on this platform');
+            return;
+          }
+          throw err;
+        }
+        const paths = { ...mockPaths, configDir: dir, globalPrompts: promptsLink } as WstackPaths;
+        const sync = new CloudSync(
+          paths,
+          () => ({ enabled: true, repo: 'testuser/testrepo', categories: ['prompts'] }),
+          vi.fn(),
+        );
+
+        const tree = await (
+          sync as unknown as {
+            buildLocalTree(categories: SyncCategory[]): Promise<{
+              treeEntries: Array<{ path: string; content: string; mode: string }>;
+            }>;
+          }
+        ).buildLocalTree(['prompts']);
+
+        expect(tree.treeEntries).toEqual([]);
+      });
+    });
+
+    it('does not upload files reached through symlinks', async ({ skip }) => {
+      await withTempDir(async (dir) => {
+        const promptsPath = path.join(dir, 'prompts');
+        const outsidePath = path.join(dir, 'outside.txt');
+        await fs.mkdir(promptsPath, { recursive: true });
+        await fs.writeFile(outsidePath, 'secret outside the profile');
+        try {
+          await fs.symlink(outsidePath, path.join(promptsPath, 'outside-link.txt'));
+        } catch (err) {
+          if ((err as NodeJS.ErrnoException).code === 'EPERM') {
+            skip('symlink creation is not permitted on this platform');
+            return;
+          }
+          throw err;
+        }
+        const paths = { ...mockPaths, configDir: dir, globalPrompts: promptsPath } as WstackPaths;
+        const sync = new CloudSync(
+          paths,
+          () => ({ enabled: true, repo: 'testuser/testrepo', categories: ['prompts'] }),
+          vi.fn(),
+        );
+
+        const tree = await (
+          sync as unknown as {
+            buildLocalTree(categories: SyncCategory[]): Promise<{
+              treeEntries: Array<{ path: string; content: string; mode: string }>;
+            }>;
+          }
+        ).buildLocalTree(['prompts']);
+
+        expect(tree.treeEntries).toEqual([]);
+      });
+    });
+  });
+
   describe('pull() path safety', () => {
+    it('rejects a symlinked category root before downloading the blob', async ({ skip }) => {
+      await withTempDir(async (dir) => {
+        const outsideSkills = path.join(dir, 'outside-skills');
+        const skillsLink = path.join(dir, 'skills-link');
+        await fs.mkdir(outsideSkills, { recursive: true });
+        try {
+          await fs.symlink(outsideSkills, skillsLink, 'junction');
+        } catch (err) {
+          if ((err as NodeJS.ErrnoException).code === 'EPERM') {
+            skip('symlink creation is not permitted on this platform');
+            return;
+          }
+          throw err;
+        }
+        const sync = new CloudSync(
+          { ...mockPaths, globalRoot: dir, globalSkills: skillsLink } as WstackPaths,
+          () => ({ enabled: true, repo: 'testuser/testrepo', categories: ['skills'] }),
+          vi.fn(),
+        );
+        vi.spyOn(sync, 'getRef' as keyof CloudSync).mockResolvedValue({ object: { sha: 'commit' } } as never);
+        vi.spyOn(sync, 'getCommit' as keyof CloudSync).mockResolvedValue({ tree: { sha: 'tree' } } as never);
+        vi.spyOn(sync, 'getTreeEntries' as keyof CloudSync).mockResolvedValue([
+          { path: 'data/skills/a.txt', sha: 'blob', type: 'blob' },
+        ] as never);
+        const getBlob = vi.spyOn(sync, 'getBlob' as keyof CloudSync).mockResolvedValue(Buffer.from('owned').toString('base64') as never);
+
+        await expect(sync.pull('fake-token')).rejects.toThrow(/symlink/i);
+        expect(getBlob).not.toHaveBeenCalled();
+        await expect(fs.readFile(path.join(outsideSkills, 'a.txt'), 'utf8')).rejects.toThrow();
+      });
+    });
+
+    it('rejects an existing symlink destination before downloading the blob', async ({ skip }) => {
+      await withTempDir(async (dir) => {
+        const skillsPath = path.join(dir, 'skills');
+        const outsideFile = path.join(dir, 'outside.txt');
+        await fs.mkdir(skillsPath, { recursive: true });
+        await fs.writeFile(outsideFile, 'safe');
+        try {
+          await fs.symlink(outsideFile, path.join(skillsPath, 'a.txt'));
+        } catch (err) {
+          if ((err as NodeJS.ErrnoException).code === 'EPERM') {
+            skip('symlink creation is not permitted on this platform');
+            return;
+          }
+          throw err;
+        }
+        const sync = new CloudSync(
+          { ...mockPaths, globalRoot: dir, globalSkills: skillsPath } as WstackPaths,
+          () => ({ enabled: true, repo: 'testuser/testrepo', categories: ['skills'] }),
+          vi.fn(),
+        );
+        vi.spyOn(sync, 'getRef' as keyof CloudSync).mockResolvedValue({ object: { sha: 'commit' } } as never);
+        vi.spyOn(sync, 'getCommit' as keyof CloudSync).mockResolvedValue({ tree: { sha: 'tree' } } as never);
+        vi.spyOn(sync, 'getTreeEntries' as keyof CloudSync).mockResolvedValue([
+          { path: 'data/skills/a.txt', sha: 'blob', type: 'blob' },
+        ] as never);
+        const getBlob = vi.spyOn(sync, 'getBlob' as keyof CloudSync).mockResolvedValue(Buffer.from('owned').toString('base64') as never);
+
+        await expect(sync.pull('fake-token')).rejects.toThrow(/symlink/i);
+        expect(getBlob).not.toHaveBeenCalled();
+        expect(await fs.readFile(outsideFile, 'utf8')).toBe('safe');
+      });
+    });
+
+    it('rejects backslash traversal that reaches the final containment guard', async () => {
+      await withTempDir(async (dir) => {
+        const paths: WstackPaths = {
+          ...mockPaths,
+          globalRoot: dir,
+          globalSkills: path.join(dir, 'skills'),
+        };
+        const sync = new CloudSync(
+          paths,
+          () => ({ enabled: true, repo: 'testuser/testrepo', categories: ['skills'] }),
+          vi.fn(),
+        );
+
+        vi.spyOn(sync, 'getRef' as keyof CloudSync).mockResolvedValue({ object: { sha: 'commit' } } as never);
+        vi.spyOn(sync, 'getCommit' as keyof CloudSync).mockResolvedValue({ tree: { sha: 'tree' } } as never);
+        vi.spyOn(sync, 'getTreeEntries' as keyof CloudSync).mockResolvedValue([
+          { path: 'data/skills/..\\escape.txt', sha: 'blob', type: 'blob' },
+        ] as never);
+
+        await expect(sync.pull('fake-token')).rejects.toThrow(/outside category root|path traversal/i);
+      });
+    });
+
     it('rejects remote tree paths that escape a directory-backed category root', async () => {
       await withTempDir(async (dir) => {
         const paths: WstackPaths = {

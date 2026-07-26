@@ -48,6 +48,13 @@ afterEach(async () => {
 const cfg = (over: Partial<SyncConfig> = {}): SyncConfig => ({ enabled: true, repo: 'me/data', categories: ['settings', 'prompts'], ...over });
 const make = (config: SyncConfig | null = cfg()) => new CloudSync(paths, () => config, async () => {});
 
+function requestBody(call: unknown[] | undefined): unknown {
+  expect(call).toBeDefined();
+  const init = call?.[1] as RequestInit | undefined;
+  expect(init?.body).toBeDefined();
+  return JSON.parse(String(init?.body));
+}
+
 describe('CloudSync.enable', () => {
   it('returns the slash-command hint', async () => {
     expect(await make().enable('me/data', ['prompts'])).toMatch(/Enable via/);
@@ -55,8 +62,13 @@ describe('CloudSync.enable', () => {
 });
 
 describe('CloudSync.push via real githubFetch', () => {
-  function stubPush(patchHandler?: (calls: number) => Response) {
+  function stubPush(
+    patchHandler?: (calls: number) => Response,
+    remoteTree: Array<{ path: string; sha: string; type: string }> = [],
+  ) {
     let patchCalls = 0;
+    let headSha = 'remote-sha';
+    let headTreeSha = 'remote-tree-sha';
     const fetchMock = vi.fn(async (url: string, init?: RequestInit) => {
       const u = String(url);
       const m = init?.method;
@@ -64,14 +76,52 @@ describe('CloudSync.push via real githubFetch', () => {
       if (u.endsWith('/git/commits') && m === 'POST') return json({ sha: 'commit-sha' });
       if (u.includes('/git/refs/heads/main') && m === 'PATCH') {
         patchCalls++;
-        return patchHandler ? patchHandler(patchCalls) : json({});
+        const response = patchHandler ? patchHandler(patchCalls) : json({});
+        if (response.ok) {
+          headSha = JSON.parse(String(init?.body)).sha as string;
+          headTreeSha = 'tree-sha';
+        }
+        return response;
       }
-      if (u.includes('/git/refs/heads/main') && m === 'GET') return json({ object: { sha: 'remote-sha' } });
+      if (u.includes('/git/refs/heads/main') && m === 'GET') return json({ object: { sha: headSha } });
+      if (u.includes(`/git/commits/${headSha}`) && m === 'GET') {
+        return json({ tree: { sha: headTreeSha }, message: 'remote' });
+      }
+      if (u.includes(`/git/trees/${headTreeSha}`) && m === 'GET') {
+        return json({ tree: remoteTree, truncated: false });
+      }
       return json({}, 404);
     });
     vi.stubGlobal('fetch', fetchMock);
     return fetchMock;
   }
+
+  it('creates main when the target repository has no branch yet', async () => {
+    const fetchMock = vi.fn(async (url: string, init?: RequestInit) => {
+      const u = String(url);
+      const m = init?.method;
+      if (u.includes('/git/refs/heads/main') && m === 'GET') return json('missing branch', 404);
+      if (u.endsWith('/git/trees') && m === 'POST') return json({ sha: 'tree-sha' });
+      if (u.endsWith('/git/commits') && m === 'POST') return json({ sha: 'commit-sha' });
+      if (u.endsWith('/git/refs') && m === 'POST') return json({ ref: 'refs/heads/main' });
+      return json({}, 404);
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    const result = await make().push('tok');
+    expect(result).toMatchObject({ ok: true, committedAt: 'commit-sha' });
+    const createRefCall = fetchMock.mock.calls.find(([url, init]) =>
+      String(url).endsWith('/git/refs') && (init as RequestInit | undefined)?.method === 'POST');
+    expect(requestBody(createRefCall)).toEqual({
+      ref: 'refs/heads/main',
+      sha: 'commit-sha',
+    });
+  });
+
+  it('gives an actionable error for a truly empty repository', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => json('empty repository', 409)));
+    await expect(make().push('tok')).rejects.toThrow(/Initialize it with a README or first commit/);
+  });
 
   it('builds a tree, commits, and updates the ref', async () => {
     stubPush();
@@ -86,18 +136,92 @@ describe('CloudSync.push via real githubFetch', () => {
     expect(state.sha).toBe('commit-sha');
   });
 
-  it('uses base_tree + parent on a second push (prior state present)', async () => {
-    stubPush();
-    const sync = make();
-    await sync.push('tok'); // first push writes state
-    const res = await sync.push('tok'); // second push → state.sha drives base_tree + parent
-    expect(res.ok).toBe(true);
+  it('deletes missing blobs only inside selected categories', async () => {
+    const fetchMock = stubPush(undefined, [
+      { path: 'data/prompts/deleted.json', sha: 'old-prompt', type: 'blob' },
+      { path: 'data/settings', sha: 'settings-blob', type: 'blob' },
+      { path: 'README.md', sha: 'readme-blob', type: 'blob' },
+    ]);
+
+    await make(cfg({ categories: ['prompts'] })).push('tok');
+
+    const treeRequest = fetchMock.mock.calls.find(([url, init]) =>
+      String(url).endsWith('/git/trees') && (init as RequestInit | undefined)?.method === 'POST');
+    const body = requestBody(treeRequest) as {
+      tree: Array<Record<string, unknown>>;
+    };
+    expect(body.tree).toContainEqual({
+      path: 'data/prompts/deleted.json',
+      mode: '100644',
+      type: 'blob',
+      sha: null,
+    });
+    expect(body.tree.some((entry) => entry.path === 'data/settings' && entry.sha === null)).toBe(false);
+    expect(body.tree.some((entry) => entry.path === 'README.md' && entry.sha === null)).toBe(false);
   });
 
-  it('rebases and retries when updateRef returns 422 (not a fast-forward)', async () => {
-    stubPush((n) => (n === 1 ? json('not a fast forward', 422) : json({})));
+  it('uses the previous tree as base_tree and previous commit as parent', async () => {
+    const fetchMock = stubPush();
+    const sync = make();
+    await sync.push('tok');
+    const res = await sync.push('tok');
+    expect(res.ok).toBe(true);
+
+    const treeRequests = fetchMock.mock.calls.filter(([url, init]) =>
+      String(url).endsWith('/git/trees') && (init as RequestInit | undefined)?.method === 'POST');
+    const commitRequests = fetchMock.mock.calls.filter(([url, init]) =>
+      String(url).endsWith('/git/commits') && (init as RequestInit | undefined)?.method === 'POST');
+    expect(requestBody(treeRequests[1])).toMatchObject({ base_tree: 'tree-sha' });
+    expect(requestBody(commitRequests[1])).toMatchObject({ parents: ['commit-sha'] });
+    expect(fetchMock.mock.calls.filter(([url, init]) =>
+      String(url).includes('/git/refs/heads/main') && (init as RequestInit | undefined)?.method === 'GET')).toHaveLength(2);
+  });
+
+  it('rebuilds on the remote tree and records the rebased commit after a 422', async () => {
+    let treeCalls = 0;
+    let commitCalls = 0;
+    let patchCalls = 0;
+    const fetchMock = vi.fn(async (url: string, init?: RequestInit) => {
+      const u = String(url);
+      const m = init?.method;
+      if (u.endsWith('/git/trees') && m === 'POST') return json({ sha: `tree-${++treeCalls}` });
+      if (u.endsWith('/git/commits') && m === 'POST') return json({ sha: `commit-${++commitCalls}` });
+      if (u.includes('/git/refs/heads/main') && m === 'PATCH') {
+        return ++patchCalls === 1 ? json('not a fast forward', 422) : json({});
+      }
+      if (u.includes('/git/refs/heads/main') && m === 'GET') return json({ object: { sha: 'remote-commit' } });
+      if (u.includes('/git/commits/remote-commit') && m === 'GET') return json({ tree: { sha: 'remote-tree' }, message: 'm' });
+      if (u.includes('/git/trees/remote-tree') && m === 'GET') {
+        return json({
+          tree: patchCalls === 0
+            ? [{ path: 'data/prompts/stale.json', sha: 'stale', type: 'blob' }]
+            : [{ path: 'data/prompts/concurrent.json', sha: 'concurrent', type: 'blob' }],
+          truncated: false,
+        });
+      }
+      return json({}, 404);
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
     const res = await make().push('tok');
-    expect(res.ok).toBe(true); // succeeded on retry
+    expect(res).toMatchObject({ ok: true, committedAt: 'commit-2' });
+    const state = JSON.parse(await fs.readFile(path.join(paths.configDir, 'sync-state.json'), 'utf8'));
+    expect(state).toMatchObject({ sha: 'commit-2', treeSha: 'tree-2' });
+
+    const treeRequests = fetchMock.mock.calls.filter(([url, init]) =>
+      String(url).endsWith('/git/trees') && (init as RequestInit | undefined)?.method === 'POST');
+    const retryBody = requestBody(treeRequests[1]) as {
+      base_tree: string;
+      tree: Array<Record<string, unknown>>;
+    };
+    expect(retryBody).toMatchObject({ base_tree: 'remote-tree' });
+    expect(retryBody.tree).toContainEqual({
+      path: 'data/prompts/concurrent.json',
+      mode: '100644',
+      type: 'blob',
+      sha: null,
+    });
+    expect(retryBody.tree.some((entry) => entry.path === 'data/prompts/stale.json')).toBe(false);
   });
 
   it('rethrows a non-422 updateRef failure', async () => {
@@ -149,6 +273,20 @@ describe('CloudSync.pull via real githubFetch', () => {
     await expect(make().pull('tok')).rejects.toThrow(/500/);
   });
 
+  it('does not write known categories excluded by the local allowlist', async () => {
+    stubPull([
+      { path: 'data/settings', sha: 'settings-blob', type: 'blob' },
+      { path: 'data/prompts/p.json', sha: 'prompt-blob', type: 'blob' },
+    ]);
+    const settingsPath = path.join(paths.configDir, 'config.json');
+    await fs.writeFile(settingsPath, '{"local":true}');
+
+    await make(cfg({ categories: ['prompts'] })).pull('tok');
+
+    expect(JSON.parse(await fs.readFile(settingsPath, 'utf8'))).toEqual({ local: true });
+    expect(JSON.parse(await fs.readFile(path.join(paths.globalPrompts, 'p.json'), 'utf8'))).toEqual({ pulled: true });
+  });
+
   it('skips unknown categories and empty category paths', async () => {
     stubPull([
       { path: 'data/bogus/x', sha: 'b0', type: 'blob' }, // not a known category → skip
@@ -197,6 +335,8 @@ describe('CloudSync.hasLocalChanges + buildLocalTree edges', () => {
     // push first to populate the state file (with a localRev)
     const fetchMock = vi.fn(async (url: string, init?: RequestInit) => {
       const u = String(url); const m = init?.method;
+      if (u.includes('/git/refs/heads/main') && m === 'GET') return json({ object: { sha: 'remote-commit' } });
+      if (u.includes('/git/commits/remote-commit') && m === 'GET') return json({ tree: { sha: 'remote-tree' }, message: 'm' });
       if (u.endsWith('/git/trees') && m === 'POST') return json({ sha: 't' });
       if (u.endsWith('/git/commits') && m === 'POST') return json({ sha: 'c' });
       return json({});
@@ -212,6 +352,8 @@ describe('CloudSync.hasLocalChanges + buildLocalTree edges', () => {
   it('skips empty and missing category paths when building the tree', async () => {
     const fetchMock = vi.fn(async (url: string, init?: RequestInit) => {
       const u = String(url); const m = init?.method;
+      if (u.includes('/git/refs/heads/main') && m === 'GET') return json({ object: { sha: 'remote-commit' } });
+      if (u.includes('/git/commits/remote-commit') && m === 'GET') return json({ tree: { sha: 'remote-tree' }, message: 'm' });
       if (u.endsWith('/git/trees') && m === 'POST') return json({ sha: 't' });
       if (u.endsWith('/git/commits') && m === 'POST') return json({ sha: 'c' });
       return json({});

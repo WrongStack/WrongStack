@@ -39,7 +39,6 @@ function build(cfgGet: CfgGetter = () => ({}), apiConfig: Record<string, unknown
     paths: {
       configDir: tmp,
       syncConfig: path.join(tmp, 'sync.json'),
-      profileConfig: (name: string) => path.join(tmp, 'profiles', name, 'config.json'),
     } as never,
     configStore: configStore as never,
     vault,
@@ -73,12 +72,17 @@ describe('createSyncPlugin lifecycle', () => {
     expect(warn).toHaveBeenCalledWith(expect.stringContaining('disabled'));
   });
 
-  it('reads paths/configStore/vault from api.config as a fallback', () => {
+  it('reads paths/configStore/vault from api.config as a fallback', async () => {
     const configStore = { get: vi.fn(() => ({})), update: vi.fn() };
     const registered: SlashCommand[] = [];
-    const api = { config: { paths: { configDir: tmp, syncConfig: path.join(tmp, 's.json'), profileConfig: (name: string) => path.join(tmp, 'profiles', name, 'config.json') }, configStore, vault: { encrypt: (t: string) => t } }, slashCommands: { register: (c: SlashCommand) => registered.push(c), unregister: vi.fn() }, log: { info: vi.fn(), warn: vi.fn() } } as never;
+    const api = { config: { paths: { configDir: tmp }, configStore, vault: { encrypt: (t: string) => `enc:${t}` } }, slashCommands: { register: (c: SlashCommand) => registered.push(c), unregister: vi.fn() }, log: { info: vi.fn(), warn: vi.fn() } } as never;
     createSyncPlugin().setup!(api);
     expect(registered[0]?.name).toBe('sync');
+    await registered[0]!.run!('enable me/data token prompts', ctx);
+    expect(JSON.parse(await fs.readFile(path.join(tmp, 'sync.json'), 'utf8'))).toMatchObject({
+      repo: 'me/data',
+      githubToken: 'enc:token',
+    });
   });
 
   it('health is ok', async () => {
@@ -93,9 +97,13 @@ describe('createSyncPlugin lifecycle', () => {
     const setCfg = call[2] as (c: unknown) => Promise<void>;
     const getSettingsPath = call[3] as () => string;
     expect(getCfg()).toBe(sync); // getter returns config.sync
-    expect(getSettingsPath()).toBe(path.join(tmp, 'profiles', 'work', 'config.json'));
-    await setCfg({ enabled: false });
-    expect(configStore.update).toHaveBeenCalledWith(expect.objectContaining({ sync: { enabled: false } }));
+    expect(getSettingsPath()).toBe(path.join(tmp, 'config.json'));
+    await setCfg({ ...sync, enabled: false });
+    expect(configStore.update).toHaveBeenCalledWith(expect.objectContaining({
+      sync: expect.objectContaining({ enabled: false, githubToken: 't' }),
+    }));
+    const persisted = JSON.parse(await fs.readFile(path.join(tmp, 'sync.json'), 'utf8'));
+    expect(persisted).toMatchObject({ enabled: false, githubToken: 'enc:t' });
   });
 });
 
@@ -111,29 +119,100 @@ describe('/sync verbs', () => {
     expect((await cmd!.run!('disable', ctx)).message).toBe('DISABLED-OUTPUT');
   });
 
+  it('persists disable changes through the CloudSync setter callback', async () => {
+    const sync = { enabled: true, repo: 'me/data', githubToken: 'plain-token', categories: ['settings'] };
+    const { cmd, configStore } = build(() => ({ sync }));
+    cloudInstance.disable.mockImplementationOnce(async () => {
+      const call = (CloudSync as never as { mock: { calls: unknown[][] } }).mock.calls.at(-1)!;
+      await (call[2] as (cfg: typeof sync) => Promise<void>)({ ...sync, enabled: false });
+      return 'DISABLED-OUTPUT';
+    });
+
+    expect((await cmd!.run!('disable', ctx)).message).toBe('DISABLED-OUTPUT');
+    expect(configStore.update).toHaveBeenCalledWith(expect.objectContaining({
+      sync: expect.objectContaining({ enabled: false, githubToken: 'plain-token' }),
+    }));
+    const persisted = JSON.parse(await fs.readFile(path.join(tmp, 'sync.json'), 'utf8'));
+    expect(persisted).toMatchObject({ enabled: false, githubToken: 'enc:plain-token' });
+  });
+
   it('enable: usage, invalid repo, and success (encrypts + writes + updates)', async () => {
     const { cmd, configStore, vault } = build();
     expect((await cmd!.run!('enable', ctx)).message).toContain('Usage');
     expect((await cmd!.run!('enable badrepo ghp_x', ctx)).message).toContain('Invalid repo');
+    expect((await cmd!.run!('enable me/data ghp_x bogus', ctx)).message).toContain('Unknown categories');
     const out = await cmd!.run!('enable me/data ghp_secret memory prompts', ctx);
     expect(out.message).toContain('CloudSync enabled for me/data');
     expect(vault.encrypt).toHaveBeenCalledWith('ghp_secret');
-    expect(configStore.update).toHaveBeenCalledWith(expect.objectContaining({ sync: expect.objectContaining({ enabled: true, repo: 'me/data', githubToken: 'enc:ghp_secret' }) }));
-    // token file written with 0600
+    expect(configStore.update).toHaveBeenCalledWith(expect.objectContaining({ sync: expect.objectContaining({ enabled: true, repo: 'me/data', githubToken: 'ghp_secret' }) }));
+    // Token is encrypted at rest but remains plaintext in memory for GitHub requests.
     const written = JSON.parse(await fs.readFile(path.join(tmp, 'sync.json'), 'utf8'));
+    expect(written.githubToken).toBe('enc:ghp_secret');
     expect(written.categories).toEqual(['memory', 'prompts']);
     expect(cloudInstance.loadState).toHaveBeenCalled();
   });
 
-  it('enable without a vault stores the raw token', async () => {
+  it('refuses to enable without secure token storage', async () => {
     const registered: SlashCommand[] = [];
     const configStore = { get: () => ({}), update: vi.fn() };
     const api = { config: {}, slashCommands: { register: (c: SlashCommand) => registered.push(c), unregister: vi.fn() }, log: { info: vi.fn(), warn: vi.fn() } } as never;
-    createSyncPlugin({ paths: { configDir: tmp, syncConfig: path.join(tmp, 'sync.json'), profileConfig: (name: string) => path.join(tmp, 'profiles', name, 'config.json') } as never, configStore: configStore as never }).setup!(api);
-    await registered[0]!.run!('enable me/data ghp_raw', ctx);
-    const written = JSON.parse(await fs.readFile(path.join(tmp, 'sync.json'), 'utf8'));
-    expect(written.githubToken).toBe('ghp_raw'); // no vault → not encrypted
-    expect(written.categories.length).toBeGreaterThan(0); // defaulted to ALL
+    createSyncPlugin({ paths: { configDir: tmp, syncConfig: path.join(tmp, 'sync.json') } as never, configStore: configStore as never }).setup!(api);
+    const result = await registered[0]!.run!('enable me/data token', ctx);
+    expect(result.message).toContain('Secure token storage is unavailable');
+    expect(configStore.update).not.toHaveBeenCalled();
+    await expect(fs.readFile(path.join(tmp, 'sync.json'), 'utf8')).rejects.toThrow();
+  });
+
+  it('rejects vault implementations that return plaintext unchanged', async () => {
+    const registered: SlashCommand[] = [];
+    const configStore = { get: () => ({}), update: vi.fn() };
+    const api = { config: {}, slashCommands: { register: (c: SlashCommand) => registered.push(c), unregister: vi.fn() }, log: { info: vi.fn(), warn: vi.fn() } } as never;
+    createSyncPlugin({
+      paths: { configDir: tmp, syncConfig: path.join(tmp, 'sync.json') } as never,
+      configStore: configStore as never,
+      vault: { encrypt: (token: string) => token },
+    }).setup!(api);
+
+    await expect(registered[0]!.run!('enable me/data plain-token', ctx)).rejects.toThrow(
+      'Secure token storage failed',
+    );
+    expect(configStore.update).not.toHaveBeenCalled();
+    await expect(fs.readFile(path.join(tmp, 'sync.json'), 'utf8')).rejects.toThrow();
+  });
+
+  it('fails closed when a persistence callback receives plaintext without a vault', async () => {
+    const sync = { enabled: true, repo: 'me/data', githubToken: 'plain-token', categories: ['settings'] };
+    const registered: SlashCommand[] = [];
+    const configStore = { get: () => ({ sync }), update: vi.fn() };
+    const api = { config: {}, slashCommands: { register: (c: SlashCommand) => registered.push(c), unregister: vi.fn() }, log: { info: vi.fn(), warn: vi.fn() } } as never;
+    createSyncPlugin({
+      paths: { configDir: tmp, syncConfig: path.join(tmp, 'sync.json') } as never,
+      configStore: configStore as never,
+    }).setup!(api);
+    const call = (CloudSync as never as { mock: { calls: unknown[][] } }).mock.calls.at(-1)!;
+
+    await expect((call[2] as (cfg: typeof sync) => Promise<void>)(sync)).rejects.toThrow(
+      'refusing to persist a plaintext token',
+    );
+    expect(configStore.update).not.toHaveBeenCalled();
+    await expect(fs.readFile(path.join(tmp, 'sync.json'), 'utf8')).rejects.toThrow();
+  });
+
+  it('reports successful pushes even when only metadata persistence fails', async () => {
+    const sync = { enabled: true, githubToken: 't', repo: 'r', categories: [] };
+    const registered: SlashCommand[] = [];
+    const configStore = { get: () => ({ sync }), update: vi.fn() };
+    const api = { config: {}, slashCommands: { register: (c: SlashCommand) => registered.push(c), unregister: vi.fn() }, log: { info: vi.fn(), warn: vi.fn() } } as never;
+    createSyncPlugin({
+      paths: { configDir: tmp, syncConfig: `${tmp}\0sync.json` } as never,
+      configStore: configStore as never,
+      vault: { encrypt: (token: string) => `enc:${token}` },
+    }).setup!(api);
+
+    const result = await registered[0]!.run!('push', ctx);
+
+    expect(result.message).toContain('pushed ok');
+    expect(result.message).toContain('metadata persistence failed');
   });
 
   it('push: not-enabled, no-token, success, and failure', async () => {
@@ -172,6 +251,7 @@ describe('/sync verbs', () => {
     const added = enabled(['memory']);
     expect((await added.cmd!.run!('categories add prompts', ctx)).message).toContain('Added "prompts"');
     expect(added.configStore.update).toHaveBeenCalled();
+    expect(JSON.parse(await fs.readFile(path.join(tmp, 'sync.json'), 'utf8')).categories).toEqual(['memory', 'prompts']);
 
     expect((await enabled(['memory']).cmd!.run!('categories remove prompts', ctx)).message).toContain('not in sync');
     const removed = enabled(['memory', 'prompts']);

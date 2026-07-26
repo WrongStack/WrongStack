@@ -16,9 +16,16 @@ export interface SyncResult {
   message: string;
 }
 
+type LocalTreeEntry = { path: string; content: string; mode: string };
+type GitTreeEntry = LocalTreeEntry | { path: string; sha: null; mode: string };
+type RemoteTreeEntry = { path: string; sha: string; type: 'blob' | 'tree' };
+
 interface SyncStateFile {
   version: 1;
+  /** Last pushed/pulled commit SHA. */
   sha: string;
+  /** Tree SHA paired with `sha`; absent in legacy state files. */
+  treeSha?: string | undefined;
   lastSyncedAt: string;
   localRev: string;
 }
@@ -87,30 +94,51 @@ export class CloudSync {
     const owner = expectDefined(parts[0]);
     const repoName = expectDefined(parts[1]);
     const branch = 'main';
-    const baseTreeSha = this.state?.sha;
+    const remoteHead = await this.getOptionalRef(token, owner, repoName, branch);
+    let parentCommitSha = remoteHead?.object?.sha;
+    let baseTreeSha: string | undefined;
+    let remoteEntries: RemoteTreeEntry[] = [];
+    if (parentCommitSha) {
+      baseTreeSha =
+        parentCommitSha === this.state?.sha && this.state.treeSha
+          ? this.state.treeSha
+          : (await this.getCommit(token, owner, repoName, parentCommitSha)).tree.sha;
+      remoteEntries = await this.getTreeEntries(token, owner, repoName, baseTreeSha);
+    }
 
-    const { treeEntries, rev } = await this.buildLocalTree(cfg.categories);
-    const newTreeSha = await this.createGitTree(token, owner, repoName, treeEntries, baseTreeSha);
+    const { treeEntries: localEntries, rev } = await this.buildLocalTree(cfg.categories);
+    let treeEntries = this.buildPushTree(localEntries, remoteEntries, cfg.categories);
+    let newTreeSha = await this.createGitTree(token, owner, repoName, treeEntries, baseTreeSha);
 
-    const commitSha = await this.createCommit(
+    let commitSha = await this.createCommit(
       token, owner, repoName, newTreeSha,
-      baseTreeSha,
+      parentCommitSha,
       `Sync ${cfg.categories.join(', ')} — ${new Date().toISOString()}`,
     );
 
     try {
-      await this.updateRef(token, owner, repoName, branch, commitSha);
+      if (parentCommitSha) {
+        await this.updateRef(token, owner, repoName, branch, commitSha);
+      } else {
+        await this.createRef(token, owner, repoName, branch, commitSha);
+      }
     } catch (err) {
       // 422 = not a fast forward — remote branch moved. Fetch latest SHA and retry.
       if (err instanceof Error && err.message.includes('422')) {
         const remote = await this.getRef(token, owner, repoName, branch);
-        const currentSha = remote.object.sha;
-        const rebasedCommitSha = await this.createCommit(
+        parentCommitSha = remote.object.sha;
+        baseTreeSha = (await this.getCommit(token, owner, repoName, parentCommitSha)).tree.sha;
+        // Rebuild on the latest remote tree so concurrent files/categories are
+        // preserved and deletions are recalculated after the conflict.
+        remoteEntries = await this.getTreeEntries(token, owner, repoName, baseTreeSha);
+        treeEntries = this.buildPushTree(localEntries, remoteEntries, cfg.categories);
+        newTreeSha = await this.createGitTree(token, owner, repoName, treeEntries, baseTreeSha);
+        commitSha = await this.createCommit(
           token, owner, repoName, newTreeSha,
-          currentSha,
+          parentCommitSha,
           `Sync ${cfg.categories.join(', ')} — ${new Date().toISOString()}`,
         );
-        await this.updateRef(token, owner, repoName, branch, rebasedCommitSha);
+        await this.updateRef(token, owner, repoName, branch, commitSha);
       } else {
         throw err;
       }
@@ -119,6 +147,7 @@ export class CloudSync {
     const syncState: SyncStateFile = {
       version: 1,
       sha: commitSha,
+      treeSha: newTreeSha,
       lastSyncedAt: new Date().toISOString(),
       localRev: rev,
     };
@@ -157,7 +186,7 @@ export class CloudSync {
       const segments = entry.path.split('/');
       if (segments[0] !== 'data' || !segments[1]) continue;
       const cat = segments[1] as SyncCategory;
-      if (!['settings', 'skills', 'prompts', 'memory', 'history'].includes(cat)) continue;
+      if (!ALL_SYNC_CATEGORIES.includes(cat) || !cfg.categories.includes(cat)) continue;
 
       const localPath = this.categoryToPath(cat);
       if (!localPath) continue;
@@ -169,8 +198,8 @@ export class CloudSync {
       const rel = segments.slice(2).join('/');
       const destPath = resolvePulledCategoryPath(cat, localPath, rel, entry.path);
 
+      await preparePulledDestination(cat, localPath, destPath, entry.path);
       const blobData = await this.getBlob(token, owner, repoName, entry.sha);
-      await fs.mkdir(path.dirname(destPath), { recursive: true });
       // Atomic write: pulled blobs land on live files (config.json, memory,
       // history). A bare writeFile truncated by a crash/ENOSPC mid-write would
       // corrupt the live file; atomicWrite writes a temp + fsync + rename.
@@ -181,6 +210,7 @@ export class CloudSync {
     const syncState: SyncStateFile = {
       version: 1,
       sha: currentSha,
+      treeSha,
       lastSyncedAt: new Date().toISOString(),
       localRev,
     };
@@ -257,6 +287,31 @@ export class CloudSync {
     };
   }
 
+  private async getOptionalRef(token: string, owner: string, repo: string, ref: string) {
+    try {
+      return await this.getRef(token, owner, repo, ref);
+    } catch (err) {
+      if (err instanceof Error && err.message.includes('failed (404)')) return null;
+      if (err instanceof Error && err.message.includes('failed (409)')) {
+        throw new WrongStackError({
+          message: 'GitHub repository is empty. Initialize it with a README or first commit, then retry `/sync push`.',
+          code: ERROR_CODES.UNKNOWN,
+          subsystem: 'general',
+          context: { repo: `${owner}/${repo}`, ref },
+          cause: err,
+        });
+      }
+      throw err;
+    }
+  }
+
+  private async createRef(token: string, owner: string, repo: string, ref: string, sha: string) {
+    await this.githubFetch(token, owner, repo, 'POST', '/git/refs', {
+      ref: `refs/heads/${ref}`,
+      sha,
+    });
+  }
+
   private async updateRef(token: string, owner: string, repo: string, ref: string, sha: string) {
     await this.githubFetch(token, owner, repo, 'PATCH', `/git/refs/heads/${ref}`, {
       sha,
@@ -271,7 +326,12 @@ export class CloudSync {
     };
   }
 
-  private async getTreeEntries(token: string, owner: string, repo: string, treeSha: string) {
+  private async getTreeEntries(
+    token: string,
+    owner: string,
+    repo: string,
+    treeSha: string,
+  ): Promise<RemoteTreeEntry[]> {
     // GitHub returns `{ sha, tree: [...], truncated }`, NOT a bare array — the
     // previous cast made `for (const entry of ...)` throw "not iterable", so
     // pull never actually ran. Unwrap `.tree`, and refuse a truncated result
@@ -309,15 +369,14 @@ export class CloudSync {
 
   private async createGitTree(
     token: string, owner: string, repo: string,
-    entries: Array<{ path: string; content: string; mode: string }>,
+    entries: GitTreeEntry[],
     baseTreeSha?: string | undefined,
   ): Promise<string> {
-    const tree = entries.map((e) => ({
-      path: e.path,
-      mode: e.mode,
-      type: 'blob',
-      content: e.content,
-    }));
+    const tree = entries.map((entry) =>
+      'sha' in entry
+        ? { path: entry.path, mode: entry.mode, type: 'blob', sha: entry.sha }
+        : { path: entry.path, mode: entry.mode, type: 'blob', content: entry.content },
+    );
     const body: Record<string, unknown> = { tree };
     if (baseTreeSha) body.base_tree = baseTreeSha;
     const result = (await this.githubFetch(token, owner, repo, 'POST', '/git/trees', body)) as { sha: string };
@@ -331,8 +390,26 @@ export class CloudSync {
 
   // ── Local file helpers ──────────────────────────────────────────────
 
+  private buildPushTree(
+    localEntries: LocalTreeEntry[],
+    remoteEntries: RemoteTreeEntry[],
+    categories: SyncCategory[],
+  ): GitTreeEntry[] {
+    const selected = new Set(categories.map((category) => `data/${category}`));
+    const localPaths = new Set(localEntries.map((entry) => entry.path));
+    const deletions: GitTreeEntry[] = [];
+    for (const entry of remoteEntries) {
+      if (entry.type !== 'blob' || localPaths.has(entry.path)) continue;
+      const selectedCategory = [...selected].some(
+        (prefix) => entry.path === prefix || entry.path.startsWith(`${prefix}/`),
+      );
+      if (selectedCategory) deletions.push({ path: entry.path, sha: null, mode: '100644' });
+    }
+    return [...localEntries, ...deletions];
+  }
+
   private async buildLocalTree(categories: SyncCategory[]): Promise<{
-    treeEntries: Array<{ path: string; content: string; mode: string }>;
+    treeEntries: LocalTreeEntry[];
     rev: string;
   }> {
     const entries: Array<{ path: string; content: string; mode: string }> = [];
@@ -342,19 +419,20 @@ export class CloudSync {
       const localPath = this.categoryToPath(cat);
       if (!localPath) continue;
       try {
-        const stat = await fs.stat(localPath);
+        const stat = await fs.lstat(localPath);
+        if (stat.isSymbolicLink()) continue;
         if (stat.isDirectory()) {
           const files = await this.walkDir(localPath, localPath);
           for (const file of files) {
             const content = await fs.readFile(file, 'utf8');
             const rel = path.relative(localPath, file).replace(/\\/g, '/');
             entries.push({ path: `data/${cat}/${rel}`, content, mode: '100644' });
-            hashes.push(content);
+            hashes.push(`${cat}/${rel}\0${content}`);
           }
         } else {
           const content = await fs.readFile(localPath, 'utf8');
           entries.push({ path: `data/${cat}`, content, mode: '100644' });
-          hashes.push(content);
+          hashes.push(`${cat}\0${content}`);
         }
       } catch {
         // skip missing files/dirs
@@ -371,16 +449,18 @@ export class CloudSync {
       const localPath = this.categoryToPath(cat);
       if (!localPath) continue;
       try {
-        const stat = await fs.stat(localPath);
+        const stat = await fs.lstat(localPath);
+        if (stat.isSymbolicLink()) continue;
         if (stat.isDirectory()) {
           const files = await this.walkDir(localPath, localPath);
           for (const file of files) {
-            const content = await fs.readFile(file);
-            hashes.push(content.toString('base64') + file);
+            const content = await fs.readFile(file, 'utf8');
+            const rel = path.relative(localPath, file).replace(/\\/g, '/');
+            hashes.push(`${cat}/${rel}\0${content}`);
           }
         } else {
-          const content = await fs.readFile(localPath);
-          hashes.push(content.toString('base64') + localPath);
+          const content = await fs.readFile(localPath, 'utf8');
+          hashes.push(`${cat}\0${content}`);
         }
       } catch {
         // skip
@@ -404,16 +484,66 @@ export class CloudSync {
   private async walkDir(dir: string, base: string): Promise<string[]> {
     const results: string[] = [];
     const entries = await fs.readdir(dir, { withFileTypes: true });
+    entries.sort((a, b) => a.name.localeCompare(b.name));
     for (const entry of entries) {
       const full = path.join(dir, entry.name);
+      if (entry.isSymbolicLink()) continue;
       if (entry.isDirectory()) {
         results.push(...(await this.walkDir(full, base)));
-      } else {
+      } else if (entry.isFile()) {
         results.push(full);
       }
     }
     return results;
   }
+}
+
+async function preparePulledDestination(
+  cat: SyncCategory,
+  localPath: string,
+  destPath: string,
+  remotePath: string,
+): Promise<void> {
+  const directoryBacked = cat === 'skills' || cat === 'prompts';
+  const rootPath = directoryBacked ? localPath : path.dirname(localPath);
+  const rootStat = await lstatIfExists(rootPath);
+  if (rootStat?.isSymbolicLink()) {
+    throw unsafePulledSymlinkError(remotePath, rootPath);
+  }
+
+  if (directoryBacked) {
+    const relativeParent = path.relative(rootPath, path.dirname(destPath));
+    let cursor = rootPath;
+    if (relativeParent) {
+      for (const segment of relativeParent.split(path.sep)) {
+        cursor = path.join(cursor, segment);
+        const stat = await lstatIfExists(cursor);
+        if (stat?.isSymbolicLink()) throw unsafePulledSymlinkError(remotePath, cursor);
+      }
+    }
+  }
+
+  const destStat = await lstatIfExists(destPath);
+  if (destStat?.isSymbolicLink()) throw unsafePulledSymlinkError(remotePath, destPath);
+  await fs.mkdir(path.dirname(destPath), { recursive: true });
+}
+
+async function lstatIfExists(filePath: string): Promise<Awaited<ReturnType<typeof fs.lstat>> | null> {
+  try {
+    return await fs.lstat(filePath);
+  } catch (err) {
+    if ((err as NodeJS.ErrnoException).code === 'ENOENT') return null;
+    throw err;
+  }
+}
+
+function unsafePulledSymlinkError(remotePath: string, symlinkPath: string): FsError {
+  return new FsError({
+    message: `Refusing CloudSync write through symlink: ${remotePath}`,
+    code: ERROR_CODES.FS_DELETE_FAILED,
+    path: remotePath,
+    context: { reason: 'symlink_destination', symlinkPath },
+  });
 }
 
 function resolvePulledCategoryPath(
@@ -448,7 +578,9 @@ function resolvePulledCategoryPath(
   const dest = path.resolve(localPath, normalizedRel);
   const root = path.resolve(localPath);
   const relative = path.relative(root, dest);
-  /* v8 ignore start -- unreachable: the normalizedRel '..' guard above already rejects traversal */
+  // On POSIX, a backslash is not a path separator, so an input such as
+  // `..\\secret` reaches this containment check even though the first guard
+  // rejects ordinary `../secret` traversal.
   if (relative.startsWith('..') || path.isAbsolute(relative)) {
     throw new FsError({
       message: `Refusing CloudSync path outside category root: ${remotePath}`,
@@ -457,7 +589,6 @@ function resolvePulledCategoryPath(
       context: { reason: 'outside_category_root', category: cat },
     });
   }
-  /* v8 ignore stop */
   return dest;
 }
 
