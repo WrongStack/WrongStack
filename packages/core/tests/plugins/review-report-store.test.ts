@@ -12,7 +12,6 @@ import { JsonlReportStore } from '../../src/plugins/review-report-store.js';
 import {
   InvalidReportTransitionError,
   validateReportTransition,
-  type ReviewReport,
 } from '../../src/plugins/review-report-types.js';
 import { resolveChimeraConfig, type ChimeraReviewCompletePayload } from '../../src/plugins/chimera-plugin.js';
 import { persistReviewReport, syncReportCompletion, syncReportReopen } from '../../src/plugins/review-report-integration.js';
@@ -808,9 +807,7 @@ describe('syncReportReopen', () => {
       { severity: 'high', file: 'src/a.ts', line: 1, title: 'Bug one' },
     ]);
 
-    const findingStore = new JsonlFindingStore(dir);
     const reportStore = new JsonlReportStore(dir);
-    const findings = await findingStore.list({ reportId: 'reopen-2', limit: 100 });
 
     // Skip the report directly from open (don't resolve findings first)
     await reportStore.transition('reopen-2', 'skipped', { id: 'op', kind: 'operator' }, { reason: 'deferred' });
