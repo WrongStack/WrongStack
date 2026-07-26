@@ -54,7 +54,7 @@ describe('FileMatchesPlugin', () => {
       board: {} as any,
       task: {} as any,
       requireBackingEvidence: false,
-    } as VerificationContext;
+    } as unknown as VerificationContext;
 
     it('returns a structured result with checkId', async () => {
       const result = await plugin.verify(mockCheck, mockContext);

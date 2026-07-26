@@ -58,7 +58,7 @@ describe('GitDiffPlugin', () => {
       diffSince: async () => [],
       gitStatus: async () => ({ files: [], ahead: 0, behind: 0 }),
       readFile: async () => '',
-    } as VerificationContext;
+    } as unknown as VerificationContext;
 
     it('returns a structured result with checkId', async () => {
       const result = await plugin.verify(mockCheck, mockContext);

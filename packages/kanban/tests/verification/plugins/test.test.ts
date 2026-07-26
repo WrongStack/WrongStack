@@ -55,7 +55,7 @@ describe('TestPlugin', () => {
       task: {} as any,
       requireBackingEvidence: false,
       runTest: async () => ({ passed: 0, failed: 0, skipped: 0, durationMs: 0 }),
-    } as VerificationContext;
+    } as unknown as VerificationContext;
 
     it('returns a structured result with checkId', async () => {
       const result = await plugin.verify(mockCheck, mockContext);
