@@ -77,8 +77,13 @@ export class DirectorCollabController {
   cancel(sessionId: string, reason = 'Director cancelled'): void {
     const entry = this.activeSessions.get(sessionId);
     if (!entry || entry.session.isCancelled()) return;
-    // Unsubscribe Director listeners first so they don't fire after cancel.
-    for (const unsub of entry.unsubs) unsub();
+    // NOTE: we intentionally do NOT remove the done/error listeners here.
+    // The session's start() is still running (Promise.race on awaitTasks);
+    // it will resolve when the stopped agents complete and fire session.done,
+    // which deletes this entry from activeSessions. Removing the listeners
+    // prematurely (the old behaviour) orphaned the entry — the session
+    // finished later but the done handler was already gone, so the entry
+    // leaked in activeSessions for the Director's lifetime.
     entry.session.cancel(reason);
     // Stop each collab agent via the coordinator so their run() aborts.
     // This is the critical difference from a natural finish: we call

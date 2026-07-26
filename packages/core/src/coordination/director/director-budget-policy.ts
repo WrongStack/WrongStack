@@ -33,6 +33,26 @@ export interface DirectorBudgetPolicyDeps {
 /** Owns budget-threshold admission, progress heartbeats, and extension history. */
 export class DirectorBudgetPolicy {
   private readonly extendTotals = new Map<string, number>();
+  /**
+   * Per-(subagentId:budgetKind) extension-grant counter. Tracks how many times
+   * the director has granted an extension for a specific kind so the
+   * `maxBudgetExtensions` ceiling is enforced per kind. Reset to 0 on deny.
+   * Promoted from a closure-local so `removeSubagent` can clean stale entries.
+   */
+  private readonly extendCounts = new Map<string, number>();
+  /**
+   * Running tool-call count per subagent — the heartbeat signal for timeout
+   * extension gating. Incremented on every `tool.executed` event. Promoted
+   * from a closure-local so `removeSubagent` can clean stale entries.
+   */
+  private readonly progressBySubagent = new Map<string, number>();
+  /**
+   * Per-(subagentId:timeoutKind) last-known tool-call count at the moment an
+   * extension was granted. Used by the heartbeat gate: if progress hasn't
+   * advanced since the last grant, the next threshold event is denied.
+   * Promoted from a closure-local so `removeSubagent` can clean stale entries.
+   */
+  private readonly lastTimeoutProgress = new Map<string, number>();
   private readonly disposers: Array<() => void> = [];
   private started = false;
 
@@ -41,14 +61,11 @@ export class DirectorBudgetPolicy {
   start(): void {
     if (this.started) return;
     this.started = true;
-    const extendCounts = new Map<string, number>();
-    const progressBySubagent = new Map<string, number>();
-    const lastTimeoutProgress = new Map<string, number>();
 
     this.disposers.push(
       this.deps.fleet.filter('tool.executed', (event) => {
-        const current = progressBySubagent.get(event.subagentId) ?? 0;
-        progressBySubagent.set(event.subagentId, current + 1);
+        const current = this.progressBySubagent.get(event.subagentId) ?? 0;
+        this.progressBySubagent.set(event.subagentId, current + 1);
       }),
       this.deps.fleet.filter('budget.threshold_reached', (event) => {
         // Only skip agents that are currently inside a collab-debug session.
@@ -68,17 +85,15 @@ export class DirectorBudgetPolicy {
             event.subagentId,
             event.taskId,
             payload,
-            progressBySubagent,
-            lastTimeoutProgress,
           );
           return;
         }
 
         const guardKey = `${event.subagentId}:${payload.kind}`;
-        const prior = extendCounts.get(guardKey) ?? 0;
+        const prior = this.extendCounts.get(guardKey) ?? 0;
         if (prior >= this.deps.maxBudgetExtensions) {
           payload.deny();
-          extendCounts.delete(guardKey);
+          this.extendCounts.delete(guardKey);
           return;
         }
         if (payload.kind === 'cost' && this.deps.maxFleetCostUsd < Number.POSITIVE_INFINITY) {
@@ -96,7 +111,6 @@ export class DirectorBudgetPolicy {
             payload,
             guardKey,
             prior,
-            extendCounts,
           );
         if (payload.kind !== 'cost' || !this.deps.brain) {
           grant();
@@ -118,23 +132,31 @@ export class DirectorBudgetPolicy {
 
   removeSubagent(subagentId: string): void {
     this.extendTotals.delete(subagentId);
+    // Clean up per-subagent entries from all extension/heartbeat maps. These
+    // were previously closure-locals in start(), unreachable from this method,
+    // so every retired subagent leaked its entries for the session lifetime.
+    this.progressBySubagent.delete(subagentId);
+    for (const key of this.extendCounts.keys()) {
+      if (key.startsWith(`${subagentId}:`)) this.extendCounts.delete(key);
+    }
+    for (const key of this.lastTimeoutProgress.keys()) {
+      if (key.startsWith(`${subagentId}:`)) this.lastTimeoutProgress.delete(key);
+    }
   }
 
   private handleTimeoutThreshold(
     subagentId: string,
     taskId: string | undefined,
     payload: BudgetThresholdPayload,
-    progressBySubagent: Map<string, number>,
-    lastTimeoutProgress: Map<string, number>,
   ): void {
     const heartbeatKey = `${subagentId}:${payload.kind}`;
-    const progress = progressBySubagent.get(subagentId) ?? 0;
-    const lastProgress = lastTimeoutProgress.get(heartbeatKey) ?? -1;
+    const progress = this.progressBySubagent.get(subagentId) ?? 0;
+    const lastProgress = this.lastTimeoutProgress.get(heartbeatKey) ?? -1;
     if (progress <= lastProgress) {
       payload.deny();
       return;
     }
-    lastTimeoutProgress.set(heartbeatKey, progress);
+    this.lastTimeoutProgress.set(heartbeatKey, progress);
     const field = payload.kind === 'timeout' ? 'timeoutMs' : 'idleTimeoutMs';
     setImmediate(() => {
       const newLimit = Math.min(Math.ceil(payload.limit * 2), 24 * 60 * 60_000);
@@ -149,7 +171,6 @@ export class DirectorBudgetPolicy {
     payload: BudgetThresholdPayload,
     guardKey: string,
     prior: number,
-    extendCounts: Map<string, number>,
   ): void {
     setImmediate(() => {
       const extra: Record<string, unknown> = {};
@@ -174,7 +195,7 @@ export class DirectorBudgetPolicy {
           extra.maxCostUsd = newLimit;
           break;
       }
-      extendCounts.set(guardKey, prior + 1);
+      this.extendCounts.set(guardKey, prior + 1);
       this.recordExtension(subagentId, taskId, payload.kind, newLimit);
       payload.extend(extra);
     });

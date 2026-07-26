@@ -456,11 +456,25 @@ export class CollabSession extends EventEmitter {
     await this.buildSnapshot();
     this.wireFleetBus();
 
-    const [bugHunter, refactorPlanner, critic] = await Promise.all([
-      this.spawnAgent('bug-hunter', this.buildBugHunterTask()),
-      this.spawnAgent('refactor-planner', this.buildRefactorPlannerTask()),
-      this.spawnAgent('critic', this.buildCriticTask()),
-    ]);
+    // spawnAgent can fail (spawn cap, context overflow, assign rejection).
+    // wireFleetBus() already registered 6 FleetBus subscriptions into
+    // this.disposers — a throw here would bypass both cleanup() call sites
+    // below and leak those listeners onto the shared FleetBus for the
+    // Director's lifetime. Catch, clean up, and rethrow so the caller sees
+    // the original failure.
+    let bugHunter: { subagentId: string; taskId: string };
+    let refactorPlanner: { subagentId: string; taskId: string };
+    let critic: { subagentId: string; taskId: string };
+    try {
+      [bugHunter, refactorPlanner, critic] = await Promise.all([
+        this.spawnAgent('bug-hunter', this.buildBugHunterTask()),
+        this.spawnAgent('refactor-planner', this.buildRefactorPlannerTask()),
+        this.spawnAgent('critic', this.buildCriticTask()),
+      ]);
+    } catch (err) {
+      this.cleanup();
+      throw err;
+    }
 
     this.subagentIds.set('bug-hunter', bugHunter.subagentId);
     this.subagentIds.set('refactor-planner', refactorPlanner.subagentId);

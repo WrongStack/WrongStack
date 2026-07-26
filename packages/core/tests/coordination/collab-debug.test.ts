@@ -415,31 +415,52 @@ describe('CollabSession', () => {
   });
 
   // -------------------------------------------------------------------------
-  // Test 6: session.done event is emitted on successful completion
+  // Test 7: spawn failure must clean up FleetBus listeners (regression)
   // -------------------------------------------------------------------------
-  it('emits session.done with the report on successful completion', async () => {
+  // wireFleetBus() registers 6 FleetBus subscriptions before spawnAgent() runs.
+  // If spawnAgent throws (spawn cap, context overflow), the throw used to
+  // bypass both cleanup() call sites, leaking the listeners onto the shared
+  // FleetBus for the Director's lifetime. This test forces a spawn failure
+  // and asserts the subscriptions are removed.
+  it('cleans up FleetBus listeners when spawn fails mid-session', async () => {
     const { mockDirector } = makeMockDirector(fleetBus);
 
+    // Count subscribers via the internal Sets. onAny adds to the `any` Set;
+    // each filter() adds to byType. A clean FleetBus has zero of each after
+    // every subscription is disposed.
+    function subscriberCount(): number {
+      const internals = fleetBus as unknown as {
+        byId: Map<unknown, unknown>;
+        byType: Map<unknown, Set<unknown>>;
+        any: Set<unknown>;
+      };
+      let total = internals.any.size;
+      for (const set of internals.byType.values()) total += set.size;
+      return total;
+    }
+
+    expect(subscriberCount()).toBe(0);
+
+    // Make spawn throw on the second agent (the refactor-planner).
+    const realSpawn = mockDirector.spawn.bind(mockDirector);
+    mockDirector.spawn = async (cfg: { role: string; name: string }) => {
+      if (cfg.role === 'refactor-planner') {
+        throw new Error('simulated context overflow');
+      }
+      return realSpawn(cfg);
+    };
+
     const session = new CollabSession(mockDirector as never, fleetBus, {
-      targetPaths: ['src/done.ts'],
-      timeoutMs: 2000,
+      targetPaths: ['src/leak.ts'],
+      timeoutMs: 5000,
     });
 
-    // Listen before starting so we don't miss the event.
-    let doneEvent: CollabDebugReport | undefined;
-    session.on('session.done', (report) => {
-      doneEvent = report;
-    });
+    // start() should reject because spawn threw.
+    await expect(session.start()).rejects.toThrow(/simulated context overflow/);
 
-    // start() runs the real code path — awaitTasks resolves quickly in our mock.
-    const result = session.start();
-
-    // The session should complete without timing out.
-    await expect(result).resolves.toBeDefined();
-    const report = await result;
-
-    expect(doneEvent).toBeDefined();
-    expect(doneEvent!.sessionId).toBe(report.sessionId);
-    expect(doneEvent!.overallVerdict).toBe(report.overallVerdict);
+    // The 6 FleetBus subscriptions wired in wireFleetBus() MUST be disposed
+    // by the catch → cleanup() path. A leak leaves them attached to the
+    // shared FleetBus, where they keep processing events for a dead session.
+    expect(subscriberCount()).toBe(0);
   });
 });
