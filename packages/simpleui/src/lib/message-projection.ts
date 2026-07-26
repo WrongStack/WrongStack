@@ -28,7 +28,7 @@ export function projectAssistantMessage(text: string): AssistantMessageProjectio
   const parsed = parseNextSteps(normalized);
 
   if (parsed.steps.length > 0) {
-    return { text: parsed.stripped, nextSteps: parsed.steps };
+    return { text: stripNextStepsBlock(parsed.stripped), nextSteps: parsed.steps };
   }
 
   const openingTag = NEXT_STEPS_OPEN_RE.exec(text);

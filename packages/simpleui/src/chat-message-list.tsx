@@ -18,7 +18,9 @@ interface ChatMessageListProps {
   emptyState: React.ReactNode;
   theme: 'dark' | 'light';
   onCopyMessage: (id: string, text: string) => void;
-  onSelectNextStep: (text: string) => void;
+  onSelectNextStep: (messageId: string, text: string) => void;
+  /** Message IDs whose next-steps have been consumed (selected or auto-run). */
+  consumedNextSteps: Set<string>;
   /** Open the file diff panel for a single file edit. */
   onOpenDiff?: ((meta: FileEditMeta) => void) | undefined;
 }
@@ -31,7 +33,8 @@ interface MessageItemProps {
   copiedMessageId: string | null;
   theme: 'dark' | 'light';
   onCopyMessage: (id: string, text: string) => void;
-  onSelectNextStep: (text: string) => void;
+  onSelectNextStep: (messageId: string, text: string) => void;
+  consumedNextSteps: Set<string>;
 }
 
 /** Shiki theme name for syntax-highlighted code blocks. */
@@ -46,6 +49,7 @@ const MessageItem = memo(function MessageItem({
   theme,
   onCopyMessage,
   onSelectNextStep,
+  consumedNextSteps,
 }: MessageItemProps) {
   // projectAssistantMessage runs two global-regex passes + parseNextSteps over
   // the whole message text. Memoize on the text so it re-runs only when the text
@@ -58,7 +62,10 @@ const MessageItem = memo(function MessageItem({
         : { text: message.text, nextSteps: [] },
     [message.role, message.text],
   );
-  const nextSteps = isLatestAssistant && !message.streaming ? projection.nextSteps : [];
+  const nextSteps =
+    isLatestAssistant && !message.streaming && !consumedNextSteps.has(message.id)
+      ? projection.nextSteps
+      : [];
 
   return (
     <article className={`message ${message.role}`}>
@@ -132,7 +139,7 @@ const MessageItem = memo(function MessageItem({
                   type="button"
                   className="next-step"
                   key={`${step.index}:${step.text}`}
-                  onClick={() => onSelectNextStep(step.text)}
+                  onClick={() => onSelectNextStep(message.id, step.text)}
                 >
                   <span className="next-step-index">{step.index}</span>
                   <span className="next-step-text">{step.text}</span>
@@ -165,6 +172,7 @@ export function ChatMessageList({
   theme,
   onCopyMessage,
   onSelectNextStep,
+  consumedNextSteps,
   onOpenDiff,
 }: ChatMessageListProps) {
   // Interleave file edits into the timeline by timestamp
@@ -207,6 +215,7 @@ export function ChatMessageList({
               theme={theme}
               onCopyMessage={onCopyMessage}
               onSelectNextStep={onSelectNextStep}
+              consumedNextSteps={consumedNextSteps}
             />
           );
         }

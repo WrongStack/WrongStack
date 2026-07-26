@@ -5,11 +5,11 @@
    Accent values are chosen per theme to keep WCAG AA. */
 :root {
   color-scheme: dark;
-  font-family: "Inter Variable", "Inter", system-ui, "Segoe UI", sans-serif;
+  --font-sans: "Inter Variable", "Inter", system-ui, "Segoe UI", sans-serif;
+  font-family: var(--font-sans);
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   transition: background 200ms ease, color 200ms ease;
-  --font-display: "Poiret One", "Cinzel Variable", "Cinzel", serif;
   --font-mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, monospace;
   --bg: #1b1c1a;
   --surface: #22231f;
@@ -215,7 +215,7 @@ a:focus-visible {
 .project-copy > strong {
   overflow: hidden;
   color: var(--text);
-  font-family: var(--font-display);
+  font-family: var(--font-sans);
   font-size: 14px;
   font-weight: 400;
   letter-spacing: 0.08em;
@@ -838,7 +838,7 @@ a:focus-visible {
 .agent-empty-state h1 {
   margin: 8px 0;
   color: var(--text);
-  font-family: var(--font-display);
+  font-family: var(--font-sans);
   font-size: clamp(28px, 4vw, 48px);
   font-weight: 400;
   letter-spacing: 0.06em;
@@ -1000,7 +1000,7 @@ a:focus-visible {
 .empty-state h1 {
   margin: 7px 0 9px;
   color: var(--text);
-  font-family: var(--font-display);
+  font-family: var(--font-sans);
   font-size: clamp(30px, 5vw, 58px);
   font-weight: 400;
   letter-spacing: 0.06em;
@@ -3830,8 +3830,15 @@ a:focus-visible {
   transform: rotate(45deg); /* deco diamond, matches agent-dot geometry */
 }
 .connection-ping-dot.good { background: var(--success); }
-.connection-ping-dot.poor { background: var(--warning); }
-.connection-ping-dot.bad { background: var(--danger); }
+.connection-ping-dot.poor {
+  width: 8px; height: 8px;
+  background: var(--warning);
+}
+.connection-ping-dot.bad {
+  background: var(--danger);
+  outline: 1px solid var(--danger);
+  outline-offset: 2px;
+}
 
 /* ── Prompt library (floating panel) ─────────────────────────────── */
 

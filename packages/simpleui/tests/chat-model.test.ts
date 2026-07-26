@@ -216,6 +216,17 @@ describe('SimpleUI assistant metadata projection', () => {
     expect(projected.nextSteps.map((step) => step.text)).toEqual(['Inspect logs', 'Retry']);
   });
 
+  it('strips a second nextsteps block that parseNextSteps leaves behind', () => {
+    // parseWithHeading matches only the first <nextsteps> block, so a second
+    // block would leak as raw XML into the message body. The stripNextStepsBlock
+    // safety net on the parsed-stripped branch removes the residual.
+    const projected = projectAssistantMessage(
+      'Done.\n\n<nextsteps>\n1. First step\n2. Second step\n</nextsteps>\n\nMore text.\n\n<nextsteps>\n3. Third step\n</nextsteps>',
+    );
+    expect(projected.text).toBe('Done.\n\nMore text.');
+    expect(projected.nextSteps.map((s) => s.text)).toEqual(['First step', 'Second step']);
+  });
+
   it('hides incomplete or malformed metadata instead of rendering raw tags', () => {
     expect(projectAssistantMessage('Answer\n\n<nextsteps>\n1. Still streaming')).toEqual({
       text: 'Answer',

@@ -3,6 +3,7 @@ import { memo } from 'react';
 import { MarkdownHooks as ReactMarkdown } from 'react-markdown';
 import rehypePrettyCode from 'rehype-pretty-code';
 import remarkGfm from 'remark-gfm';
+import { stripNextStepsBlock } from '@wrongstack/tools/next-steps';
 import type { AgentTranscriptEntry } from './types.js';
 
 interface AgentChatPaneProps {
@@ -98,7 +99,7 @@ export const AgentChatPane = memo(function AgentChatPane({
                       }}
                       fallback={null}
                     >
-                      {entry.content}
+                      {stripNextStepsBlock(entry.content)}
                     </ReactMarkdown>
                   ) : (
                     <pre>{entry.content}</pre>

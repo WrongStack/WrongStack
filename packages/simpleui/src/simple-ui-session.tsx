@@ -42,7 +42,6 @@ import { isVisionModel } from './lib/model-capabilities.js';
 import { type AutonomyMode, DEFAULT_PREFS, type SimplePrefs } from './lib/prefs-model.js';
 import { type QueuedItem, removeQueuedAt } from './lib/queue-model.js';
 import { type RefineState, resolveEscapeRestore } from './lib/refine-model.js';
-import { sessionDisplayName } from './lib/session-model.js';
 import { aggregateFileEdits } from './lib/timeline-model.js';
 import { agentTranscriptToToolCalls } from './lib/tool-model.js';
 import {
@@ -108,6 +107,7 @@ export function SimpleUiSession() {
   const [activity, setActivity] = useState('');
   const { notice, showNotice: setNotice } = useStatusNotice();
   const [copiedMessageId, setCopiedMessageId] = useState<string | null>(null);
+  const [consumedNextSteps, setConsumedNextSteps] = useState<Set<string>>(new Set());
   const [toolCalls, setToolCalls] = useState<ToolCallInfo[]>([]);
   const [worklists] = useState(createWorklistStore);
   const [diffFiles, setDiffFiles] = useState<FileEditMeta[] | null>(null);
@@ -595,10 +595,6 @@ export function SimpleUiSession() {
     return () => clearTimeout(timer);
   }, [draft, fileRefs, session?.id]);
 
-  const _currentSessionName = sessionDisplayName(
-    sessions.find((item) => item.id === session?.id),
-    session?.id,
-  );
   const load = Math.max(0, Math.min(1, context.load));
   const latestAssistantId = useMemo(() => {
     for (let index = messages.length - 1; index >= 0; index--) {
@@ -622,19 +618,19 @@ export function SimpleUiSession() {
     [activeAgentId, agentTranscripts, leaderSelected, toolCalls],
   );
 
-  const fileEditSummary = useMemo(() => aggregateFileEdits(toolCalls), [toolCalls]);
-
-  /** File edits with timestamps for the chat timeline widgets.
-   *  One entry per file (deduplicated by path) with merged diffs, so
-   *  edits to the same file in separate tool calls produce a single
-   *  inline widget showing the total change. */
-  const fileEdits = useMemo(() => {
+  const { fileEditSummary, fileEdits } = useMemo(() => {
     const aggregate = aggregateFileEdits(toolCalls);
-    return aggregate.files.map((edit) => ({ edit, ts: '' }));
+    return {
+      fileEditSummary: aggregate,
+      fileEdits: aggregate.files.map((edit) => ({ edit, ts: '' })),
+    };
   }, [toolCalls]);
 
-  const selectNextStep = (text: string) => {
+  const selectNextStep = (messageId: string, text: string) => {
     setDraft(text);
+    setConsumedNextSteps((prev) =>
+      prev.has(messageId) ? prev : new Set(prev).add(messageId),
+    );
     requestAnimationFrame(() => textareaRef.current?.focus());
   };
 
@@ -913,6 +909,7 @@ export function SimpleUiSession() {
             }
             onCopyMessage={copyAssistantMessage}
             onSelectNextStep={selectNextStep}
+            consumedNextSteps={consumedNextSteps}
           />
         </main>
         {agentTabs
