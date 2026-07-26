@@ -172,6 +172,193 @@ export interface AutoProceedLoopGuard {
  *     feedPrompt(prompt);
  *   }
  */
+// ── Continuation-attempt tracker ───────────────────────────────────────
+//
+// Tracks per-todo how many times auto-submit has continued on it, so
+// advancement prompts can vary wording and report "attempt N" rather than
+// feeding an identical instruction. Resets on manual user input.
+
+export interface ContinuationAttemptTracker {
+  /** Record an attempt against a todo. Returns the new attempt count (≥ 1). */
+  recordAttempt(todoId: string): number;
+  /** How many times continuation has been attempted for this todo (0 = never). */
+  getAttempts(todoId: string): number;
+  /** Mark a todo as "skipped" — a later attempt tried advancing past it. */
+  markSkipped(todoId: string): void;
+  /** True when this todo has been skipped due to no board progress. */
+  isSkipped(todoId: string): boolean;
+  /** Reset every tracked todo (call on manual user input). */
+  reset(): void;
+  /** Read-only snapshot for diagnostic use. */
+  snapshot(): Record<string, { attempts: number; skipped: boolean }>;
+}
+
+export function createContinuationAttemptTracker(): ContinuationAttemptTracker {
+  const attempts = new Map<string, number>();
+  const skipped = new Set<string>();
+
+  return {
+    recordAttempt(todoId: string): number {
+      const count = (attempts.get(todoId) ?? 0) + 1;
+      attempts.set(todoId, count);
+      return count;
+    },
+    getAttempts(todoId: string): number {
+      return attempts.get(todoId) ?? 0;
+    },
+    markSkipped(todoId: string): void {
+      skipped.add(todoId);
+    },
+    isSkipped(todoId: string): boolean {
+      return skipped.has(todoId);
+    },
+    reset(): void {
+      attempts.clear();
+      skipped.clear();
+    },
+    snapshot(): Record<string, { attempts: number; skipped: boolean }> {
+      const result: Record<string, { attempts: number; skipped: boolean }> = {};
+      const allIds = new Set([...attempts.keys(), ...skipped]);
+      for (const id of allIds) {
+        result[id] = { attempts: attempts.get(id) ?? 0, skipped: skipped.has(id) };
+      }
+      return result;
+    },
+  };
+}
+
+// ── Advancement prompt generator ────────────────────────────────────────
+//
+// When a grounded (todo-sourced) prompt stalls because the board hasn't
+// moved, instead of halting we advance to the next open todo and generate
+// a varied prompt that references the stalled item's attempt count. The
+// wording rotates through a pool so identical todos produce different
+// text across attempts.
+
+const ADVANCE_PREAMBLES = [
+  'Pivoting to the next open item — previous todo still pending after {attempts} attempt(s).',
+  'Shifting focus to a different task while the previous item ({label}) remains open after {attempts} attempt(s).',
+  'No board progress on the current item after {attempts} attempt(s). Continuing with the next todo.',
+  'The previous item is still unresolved after {attempts} try(ies). Moving on down the list.',
+  'Advancing to the next piece of work after {attempts} unproductive attempt(s) on the prior one.',
+  'Taking a different angle — the stalled item ({label}) stays open after {attempts} attempt(s). Pressing ahead.',
+  'The todo board shows no movement on the current task after {attempts} attempt(s). Switching gears.',
+  'No change on the board from the last {attempts} continuation(s). Proceeding to the next open item.',
+];
+
+/**
+ * Build a continuation-advancement prompt when the normal todo-sourced
+ * prompt has stalled (no board progress). The text varies by attempt count
+ * to avoid triggering the repetition guard.
+ *
+ * @param stalledTodo   The todo that didn't progress (used for its id/label).
+ * @param nextTodo      The next open todo to advance to, or null if none left.
+ * @param attemptCount  How many times stalledTodo has been retried.
+ * @param todos         The full current todo list for board context.
+ * @returns A varied advancement prompt for the next auto-feed.
+ */
+export function generateAdvancementPrompt(
+  stalledTodo: { id: string; content: string },
+  nextTodo: { id: string; content: string; status: string; activeForm?: string | undefined } | null,
+  attemptCount: number,
+  todos: readonly { id: string; content: string; status: string; activeForm?: string | undefined }[],
+): string {
+  const idx = Math.max(0, Math.min(attemptCount - 1, ADVANCE_PREAMBLES.length - 1));
+  const preamble = ADVANCE_PREAMBLES[idx]!
+    .replace(/\{attempts\}/g, () => String(attemptCount))
+    .replace(/\{label\}/g, () => stalledTodo.content.slice(0, 72));
+
+  if (!nextTodo) {
+    return [
+      preamble,
+      '',
+      'No more open items remain on the todo list. What has been accomplished and what should I do next?',
+    ].join('\n');
+  }
+
+  const itemLabel =
+    nextTodo.status === 'in_progress' && nextTodo.activeForm
+      ? nextTodo.activeForm
+      : nextTodo.content;
+
+  const done = todos.filter((t) => t.status === 'completed').length;
+  const total = todos.length;
+
+  const lines: string[] = [preamble, '', `Proceed with: ${itemLabel}`];
+
+  if (total > 0) {
+    lines.push('', `Todo board (${done}/${total} done):`);
+    lines.push(
+      ...todos.slice(0, 20).map((t) => {
+        const mark = t.status === 'completed' ? '[x]' : t.status === 'in_progress' ? '[~]' : '[ ]';
+        const flat = t.content.replace(/\n|\r/g, ' ');
+        return `  ${mark} ${flat}`;
+      }),
+    );
+  }
+
+  lines.push('', 'If this item is already done, mark it complete and move to the next open todo. Keep the board honest as you work.');
+
+  return lines.join('\n');
+}
+
+// ── Stalled-todo matching ───────────────────────────────────────────────
+//
+// Shared helper used by both TUI and WebUI to identify which todo produced a
+// stalled continuation prompt. Matches by content against the in_progress /
+// pending todos in the board before falling back to the first open item.
+
+export interface StalledTodoMatch {
+  id: string;
+  content: string;
+}
+
+/**
+ * Identify the todo whose content appears in a stalled continuation prompt.
+ * Scans the board for the in_progress item first (that's what
+ * `resolveContinuation` picks), then falls back to any pending item whose
+ * text appears in the prompt. Last resort: the first non-completed todo.
+ *
+ * Returns `null` when the board is empty or all items are completed.
+ */
+export function matchTodoIdFromPrompt(
+  todos: readonly { id: string; content: string; status: string; activeForm?: string | undefined }[],
+  prompt: string,
+): StalledTodoMatch | null {
+  if (todos.length === 0 || !prompt) return null;
+  const lowerPrompt = prompt.toLowerCase();
+
+  // 1. In-progress item — resolveContinuation promotes this first.
+  const inProgress = todos.find((t) => t.status === 'in_progress');
+  if (inProgress) {
+    const label = (inProgress.activeForm ?? inProgress.content).toLowerCase();
+    if (label.length > 5 && lowerPrompt.includes(label)) {
+      return { id: inProgress.id, content: inProgress.activeForm ?? inProgress.content };
+    }
+  }
+
+  // 2. Any pending item whose content appears in the prompt (board snapshot).
+  for (const t of todos) {
+    if (t.status === 'completed') continue;
+    if (inProgress && t.id === inProgress.id) continue;
+    const label = (t.activeForm ?? t.content).toLowerCase();
+    if (label.length > 5 && lowerPrompt.includes(label)) {
+      return { id: t.id, content: t.activeForm ?? t.content };
+    }
+  }
+
+  // 3. Last resort — pick the first non-completed todo.
+  const firstOpen = todos.find((t) => t.status !== 'completed');
+  return firstOpen ? { id: firstOpen.id, content: firstOpen.activeForm ?? firstOpen.content } : null;
+}
+
+/**
+ * Maximum total advancement attempts before we give up on the board and
+ * halt. Otherwise a board where no agent turn makes progress cycles through
+ * the same todos indefinitely. Reset on manual user input.
+ */
+export const MAX_ADVANCEMENT_ATTEMPTS = 9;
+
 export function createAutoProceedLoopGuard(options: LoopGuardOptions = {}): AutoProceedLoopGuard {
   // Validate options defensively. Non-finite values (NaN, Infinity) MUST
   // fall back to the documented default — a guard that silently disables

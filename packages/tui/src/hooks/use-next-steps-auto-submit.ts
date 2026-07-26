@@ -2,7 +2,11 @@ import type { ContentBlock } from '@wrongstack/core/types';
 import { resolveContinuation, type TodoItem } from '@wrongstack/core/agent';
 import {
   createAutoProceedLoopGuard,
+  createContinuationAttemptTracker,
+  generateAdvancementPrompt,
   GROUNDED_NO_PROGRESS_STEER,
+  matchTodoIdFromPrompt,
+  MAX_ADVANCEMENT_ATTEMPTS,
 } from '@wrongstack/tools/auto-proceed-loop-guard';
 import {
   type Dispatch,
@@ -108,6 +112,9 @@ export function useNextStepsAutoSubmit({
   // repetition goes through the guard's steer-then-halt path instead of
   // halting on the first identical re-feed.
   const nextStepsAutoSubmitSourceRef = useRef<AutoProceedCandidate['source'] | null>(null);
+  // Snapshot of the todo list taken when the candidate was selected, so the
+  // countdown handler can re-evaluate todos if the grounded prompt stalls.
+  const nextStepsAutoSubmitTodosRef = useRef<readonly TodoItem[]>([]);
   const nextStepsAutoSubmitTimerRef = useRef<ReturnType<typeof setInterval> | undefined>(undefined);
 
   // ── Next-steps auto-submit countdown ─────────────────────────────────
@@ -129,6 +136,12 @@ export function useNextStepsAutoSubmit({
   // it back. The streak cap above is the generic runaway net; this guard
   // catches the targeted case the user reported. Reset on every manual input.
   const autoSubmitLoopGuardRef = useRef(createAutoProceedLoopGuard());
+  // Continuation-attempt tracker: records how many times each todo has been
+  // re-continued across turns. When a grounded prompt stalls and we advance
+  // to a different todo, this tracker provides the attempt count for the
+  // stalled todo so the advancement prompt can report "attempt N" with
+  // varied wording — avoiding identical re-feeds to the loop guard.
+  const continuationAttemptTrackerRef = useRef(createContinuationAttemptTracker());
   // Bumped on a slow poll while idle+auto with no suggestions, so the
   // auto-submit effect re-checks for suggestions that arrived out-of-band.
   const [nextStepsRecheck, setNextStepsRecheck] = useState(0);
@@ -140,6 +153,7 @@ export function useNextStepsAutoSubmit({
     autoSubmitStreakRef.current = 0;
     autoSubmitCapWarnedRef.current = false;
     autoSubmitLoopGuardRef.current.reset();
+    continuationAttemptTrackerRef.current.reset();
   }, [autonomyLive]);
   useEffect(() => {
     const liveAutonomy = getAutonomy?.() ?? autonomyLive;
@@ -178,13 +192,26 @@ export function useNextStepsAutoSubmit({
 
     const suggestions = getSuggestions?.() ?? [];
     const isYolo = getYolo?.() ?? false;
+    // Filter out todos that the continuation tracker has marked skipped
+    // (stalled during a prior advancement cycle). resolveContinuation
+    // otherwise re-selects the highest-priority open todo regardless of skip
+    // state — after the loop guard is reset during advancement, this would
+    // re-arm the same stalled todo and re-create the repetition the feature
+    // targets. Reading isSkipped here makes the tracker effective on the
+    // selection path, not just the advancement path.
+    const allTodos = agent?.ctx?.todos ?? [];
+    const todos = allTodos.filter((t) => !continuationAttemptTrackerRef.current.isSkipped(t.id));
     const candidate = selectAutoProceedCandidate({
-      todos: agent?.ctx?.todos ?? [],
+      todos,
       suggestions,
       autoSuggestions: isYolo ? (getAutoSuggestions?.() ?? []) : [],
       yolo: isYolo,
       autonomyNextPrompt,
     });
+    // Snapshot the FULL todo list (including skipped items) so the countdown
+    // handler can re-evaluate if a grounded prompt stalls and needs to advance
+    // to the next item. The advancement path uses isSkipped to skip ahead.
+    nextStepsAutoSubmitTodosRef.current = allTodos;
     if (!candidate) {
       // Continuations can arrive while idle without changing an effect
       // dependency. Poll slowly until there is grounded work to submit.
@@ -256,34 +283,125 @@ export function useNextStepsAutoSubmit({
           // auto-suggestion store is repopulated by `onAutoSuggestionsParsed`
           // from the next model output, so a stale auto="true" item cannot
           // survive into the next turn.)
-          // Todo-sourced prompts are grounded in the durable board, and an
-          // identical re-feed means "the whole previous turn moved nothing on
-          // the board" — usually the model just forgot to update it. For that
-          // case the guard steers once (an explicit "update the board" note is
-          // appended to the fed prompt) and only halts if the board stays
-          // frozen after the steer. Suggestion-sourced prompts keep the strict
-          // halt-on-first-repeat behavior: those ARE model echoes.
+          //
+          // Todo-sourced prompts: the guard steers once first. If the board
+          // still hasn't moved after the steer, instead of halting we
+          // advance to the next open todo (if one exists) with a varied
+          // prompt that reports attempt count for the stalled item. This
+          // avoids stopping the auto-proceed loop when there's still
+          // unfinished work. Only when no more todos remain do we halt.
+          //
+          // Suggestion-sourced prompts keep strict halt-on-first-repeat:
+          // those ARE model echoes.
           const repetition =
             source === 'todo'
               ? autoSubmitLoopGuardRef.current.recordGrounded(suggestion)
               : autoSubmitLoopGuardRef.current.record(suggestion);
           if (repetition.shouldHalt) {
+            // Tracks whether we identified the stalled todo but could not
+            // advance (all others done/skipped), vs. failing to match the
+            // prompt to any todo at all. Used for an accurate halt message.
+            let stalledMatchFailed = false;
+            if (source === 'todo') {
+              // ── Grounded stall: advance to next todo ───────────────
+              // The board hasn't moved after the steer. Find the stalled
+              // todo by matching against the captured snapshot, record
+              // the attempt, and try the next open item with a fresh
+              // (different) prompt.
+              const todos = nextStepsAutoSubmitTodosRef.current;
+              const stalled = matchTodoIdFromPrompt(todos, suggestion);
+              if (stalled) {
+                const attemptCount = continuationAttemptTrackerRef.current.recordAttempt(stalled.id);
+                continuationAttemptTrackerRef.current.markSkipped(stalled.id);
+                // Cap: if total advancement attempts across all todos
+                // exceeds limit, halt so the board gets manual attention.
+                const totalAdvancements = Object.values(
+                  continuationAttemptTrackerRef.current.snapshot(),
+                ).reduce((sum, e) => sum + e.attempts, 0);
+                if (totalAdvancements <= MAX_ADVANCEMENT_ATTEMPTS) {
+                  const nextTodo = todos
+                    .filter((t) => t.status !== 'completed')
+                    .find((t) => t.id !== stalled.id && !continuationAttemptTrackerRef.current.isSkipped(t.id));
+                  if (nextTodo) {
+                    // ── Guaranteed marking ───────────────────────────
+                    // Directly demote the stalled todo off "in_progress"
+                    // so the next resolveContinuation call does NOT
+                    // re-select it — the agent's steer text is only a
+                    // suggestion, but this mutation is guaranteed.
+                    // The todos array IS agent.ctx.todos (same reference),
+                    // so the change is live for the next agent turn.
+                    const stalledTodo = todos.find((t) => t.id === stalled.id);
+                    if (stalledTodo) {
+                      stalledTodo.status = 'pending';
+                    }
+                    // Also update the ref snapshot for consistency with
+                    // subsequent advancement lookups.
+                    const freshTodos = [...todos];
+                    nextStepsAutoSubmitTodosRef.current = freshTodos;
+
+                    // Build a varied advancement prompt and feed it instead
+                    // of halting. Pass actual todo content (stalled.content,
+                    // not the full stalled prompt) so the generated label
+                    // is readable.
+                    const advancementPrompt =
+                      generateAdvancementPrompt(
+                        { id: stalled.id, content: stalled.content },
+                        nextTodo,
+                        attemptCount,
+                        freshTodos,
+                      ) +
+                      // Steer the model to mark the stalled item off
+                      // "in_progress" (already done below, but tell the
+                      // agent what happened so it stays in sync).
+                      '\n\n(I have demoted the stalled item from "in_progress" to "pending" so the auto-advance loop can move on. If it is actually done, mark it complete. Otherwise it is queued for a later pass.)';
+                    autoSubmitStreakRef.current += 1;
+                    void (async () => {
+                      const trimmed = advancementPrompt.trim();
+                      if (!trimmed) {
+                        clearDraft();
+                        return;
+                      }
+                      const blocks: ContentBlock[] = [{ type: 'text', text: trimmed }];
+                      dispatch({ type: 'addEntry', entry: { kind: 'user', text: trimmed } });
+                      try {
+                        await runBlocksRef.current(blocks);
+                      } finally {
+                        clearDraft();
+                      }
+                    })();
+                    // Reset loop guard so the next iteration compares
+                    // against the fresh advancement prompt, not the old
+                    // cycle. The tracker retains attempt history so
+                    // repeated stalls on the same todo still escalate.
+                    autoSubmitLoopGuardRef.current.reset();
+                    return;
+                  }
+                }
+              } else {
+                // The prompt could not be matched to any todo on the board.
+                stalledMatchFailed = true;
+              }
+            }
+            // ── All paths exhausted: halt normally ──────────────────
             setSuggestions?.([]);
             const truncatedForMessage =
               suggestion.length > 100 ? `${suggestion.slice(0, 97)}…` : suggestion;
+            const reason =
+              source === 'todo'
+                ? stalledMatchFailed
+                  ? 'the stalled prompt could not be matched to any todo on the board'
+                  : 'No more open todos to advance to'
+                : `the same prompt was fed ${repetition.runLength} times in a row`;
             dispatch({
               type: 'addEntry',
               entry: {
                 kind: 'warn',
                 text:
-                  `⚠️ Auto-submit halted: the same prompt was fed ${repetition.runLength} times in a row. ` +
-                  `Autonomy mode is still on, but no automatic next step will run until you provide input. ` +
-                  `Type anything to continue (resets the guard). ` +
-                  `Last seen prompt: "${truncatedForMessage}"`,
+                  `⚠️ Auto-submit halted: ${reason}. ` +
+                  `Autonomy is still on; type anything to continue (resets the guard). ` +
+                  `Last seen: "${truncatedForMessage}"`,
               },
             });
-            // Already cleared the countdown / label state above; the next
-            // effect re-entry will not re-arm because suggestions is empty.
           } else {
             autoSubmitStreakRef.current += 1;
             const steered = 'action' in repetition && repetition.action === 'steer';

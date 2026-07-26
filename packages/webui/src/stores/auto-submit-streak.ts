@@ -1,4 +1,11 @@
-import { createAutoProceedLoopGuard } from '@wrongstack/tools/auto-proceed-loop-guard';
+import {
+  createAutoProceedLoopGuard,
+  createContinuationAttemptTracker,
+  generateAdvancementPrompt,
+  matchTodoIdFromPrompt,
+  MAX_ADVANCEMENT_ATTEMPTS,
+} from '@wrongstack/tools/auto-proceed-loop-guard';
+import type { TodoItem } from '@wrongstack/core/agent';
 import { useCallback, useEffect, useRef } from 'react';
 import { useLocalPrefs } from './local-prefs.js';
 import { useSessionStore } from './session-store.js';
@@ -40,6 +47,18 @@ interface UseAutoSubmitStreak {
    * Returns false when the prompt repeats and the caller must halt.
    */
   recordPrompt: (prompt: string) => boolean;
+  /**
+   * Record a grounded (todo-sourced) auto-submit prompt. When the loop
+   * guard detects repetition, instead of halting it attempts to advance
+   * to the next open todo with varied wording. Returns:
+   *   - `{ canFeed: true }` — feed the same prompt as-is
+   *   - `{ canFeed: false, advancement: string }` — feed the advancement prompt
+   *   - `{ canFeed: false, halted: true }` — no more todos to advance to
+   */
+  recordGroundedPrompt: (
+    prompt: string,
+    todos: readonly TodoItem[],
+  ) => { canFeed: boolean; advancement?: string; halted?: boolean };
   /** Reset the streak and repetition history on every manual user submit. */
   reset: () => void;
   /** Reset the cap-warning flag — call when autonomy mode changes */
@@ -52,6 +71,7 @@ let _streak = 0;
 let _capWarned = false;
 let _loopHalted = false;
 const _loopGuard = createAutoProceedLoopGuard();
+const _continuationTracker = createContinuationAttemptTracker();
 
 /** Module-level streak — reset when the page hard-reloads (acceptable tradeoff) */
 export function useAutoSubmitStreak(): UseAutoSubmitStreak {
@@ -82,6 +102,7 @@ export function useAutoSubmitStreak(): UseAutoSubmitStreak {
       capWarnedRef.current = false;
       _loopHalted = false;
       _loopGuard.reset();
+      _continuationTracker.reset();
       prevSessionIdRef.current = sessionId;
     }
   }, [sessionId]);
@@ -125,6 +146,58 @@ export function useAutoSubmitStreak(): UseAutoSubmitStreak {
     return !signal.shouldHalt;
   }, []);
 
+  const recordGroundedPrompt = useCallback(
+    (
+      prompt: string,
+      todos: readonly TodoItem[],
+    ): { canFeed: boolean; advancement?: string; halted?: boolean } => {
+      if (_loopHalted) return { canFeed: false, halted: true };
+      const signal = _loopGuard.recordGrounded(prompt);
+      if (!signal.shouldHalt) {
+        // No repetition yet — feed as-is (or with steer).
+        return { canFeed: true };
+      }
+      // Repetition detected — try to advance to the next todo.
+      const stalled = matchTodoIdFromPrompt(todos, prompt);
+      if (stalled) {
+        const attemptCount = _continuationTracker.recordAttempt(stalled.id);
+        _continuationTracker.markSkipped(stalled.id);
+        // Cap total advancement attempts to prevent infinite cycling.
+        const totalAdvancements = Object.values(_continuationTracker.snapshot()).reduce(
+          (sum, e) => sum + e.attempts,
+          0,
+        );
+        if (totalAdvancements <= MAX_ADVANCEMENT_ATTEMPTS) {
+          const nextTodo = todos
+            .filter((t) => t.status !== 'completed')
+            .find((t) => t.id !== stalled.id && !_continuationTracker.isSkipped(t.id));
+          if (nextTodo) {
+            // ── Guaranteed marking ─────────────────────────────
+            // Directly demote the stalled todo off "in_progress"
+            // so the next resolveContinuation call does NOT
+            // re-select it. The todos array is the caller's live
+            // reference, so the change is immediate.
+            const stalledTodo = todos.find((t) => t.id === stalled.id);
+            if (stalledTodo) {
+              stalledTodo.status = 'pending';
+            }
+            const advancement = generateAdvancementPrompt(
+              { id: stalled.id, content: stalled.content },
+              nextTodo,
+              attemptCount,
+              todos,
+            );
+            _loopGuard.reset();
+            return { canFeed: false, advancement };
+          }
+        }
+      }
+      _loopHalted = true;
+      return { canFeed: false, halted: true };
+    },
+    [],
+  );
+
   const reset = useCallback(() => {
     _streak = 0;
     streakRef.current = 0;
@@ -132,6 +205,7 @@ export function useAutoSubmitStreak(): UseAutoSubmitStreak {
     capWarnedRef.current = false;
     _loopHalted = false;
     _loopGuard.reset();
+    _continuationTracker.reset();
   }, []);
 
   const resetCapWarned = useCallback(() => {
@@ -145,6 +219,7 @@ export function useAutoSubmitStreak(): UseAutoSubmitStreak {
     canAutoSubmit,
     recordAutoSubmit,
     recordPrompt,
+    recordGroundedPrompt,
     reset,
     resetCapWarned,
   };
