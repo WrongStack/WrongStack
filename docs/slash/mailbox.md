@@ -1,66 +1,106 @@
-# /mailbox — Project-wide agent mailbox
+# `/mailbox` - Operator mailbox commands
 
-The human operator's window into the shared inter-agent mailbox. Every
-terminal, TUI, and WebUI session working on the same project shares one
-mailbox at `~/.wrongstack/projects/<slug>/_mailbox.jsonl` — agents see
-incoming messages automatically on their next iteration (mailbox-loop) and
-can write via the `mailbox` tool. `/mailbox` gives **you** the same powers.
+> ⚠️ **Operator only** — these commands require `WRONGSTACK_OPERATOR_ID` to be
+> set and the calling identity to be the project operator. Non-operator users
+> receive an error.
 
-## Identity model
+## Overview
 
-Every process registers its agents under a **process-unique id**:
-`<base>@<session-tag>` (e.g. `leader@a1b2c3d4`). The bare base id (`leader`) stays
-addressable as an **alias** — a message sent to `leader` is received by
-*every* live leader session on the project, while `leader@a1b2c3d4` reaches
-exactly one. Broadcasts (`*`, alias `all`) reach everyone. Read receipts are
-recorded per unique id, so two terminals never consume each other's unread
-state.
+The `/mailbox` slash command provides operator-level management of the project's
+shared GlobalMailbox. It supports:
 
-`/mailbox` acts under the current session's leader identity, so messages
-you send are attributed to the same agent your conversation runs as, and
-replies addressed to it are folded into your agent's next iteration.
+- **Dashboard** — `status` shows message counts, receipt breakdown, connected
+  agents, credential health, and lock state.
+- **Credential management** — `credential list`, `credential issue`, `credential
+  revoke` for the identity credential system (GM-P0.6 / GM-P0.7).
+- **Receipt inspection** — `receipt <msgId>` shows per-principal receipt state.
+- **Compact** — `compact` triggers an LLM-driven compaction pass (GM-P0.5).
+- **Send** — `send` is an interactive composition workflow with audience
+  selection (`all` / `leaders`).
+- **User settings** — `userConfig list|set|get|rm` manages local preferences
+  (GM-P0.8).
 
-## Subcommands
+## Identity enforcement
 
-| Command | Effect |
-|---|---|
-| `/mailbox` | Unread inbox for this session's leader (marks them read). |
-| `/mailbox agents` | All registered agents on the project (`●` = live heartbeat). |
-| `/mailbox online` | Only agents with a live heartbeat (last 60s). |
-| `/mailbox send <id> <message>` | Direct message an agent (ids from `agents`). |
-| `/mailbox broadcast [audience=leaders] <message>` | Message every agent, or only leader agents. |
-| `/mailbox history [n]` | Last *n* messages on the project (default 20). |
-| `/mailbox clear` | Delete all messages from the mailbox. |
+All `/mailbox` commands require:
 
-Alias: `/mb`.
+1. `WRONGSTACK_OPERATOR_ID` environment variable set to a non-empty value.
+2. The current principal identity must match that value.
 
-## Examples
+If either condition is unmet, the command prints an error and exits.
+
+## Credential commands
+
+### `credential list`
 
 ```
-/mailbox broadcast pausing deploys, hold off on main
-/mailbox broadcast audience=leaders operator context for terminal/WebUI leaders only
-/mailbox send leader@a1b2c3d4 can you take the auth refactor?
-/mailbox agents
+/mailbox credential list
 ```
 
-## How agents receive messages
+Outputs a table with columns: credential ID, principal ID, kind, capabilities,
+status (active/revoked/expired), issue time, and expiry time.
 
-Before each LLM call, the agent loop checks the mailbox for messages
-addressed to its unique id, its base alias, or `*`. Fresh eligible mail is
-injected for one model evaluation and its raw block is then removed. Only a
-concise durable conclusion/action, assistant response, or resulting tool/task
-state needs to remain; routine mail can simply be absorbed and discarded.
-Agents write with `mail_send` (direct or `to="*"`), catch up
-with `mail_inbox` (reads + marks read), or use the multi-action
-`mailbox` power-tool — all registered in CLI and WebUI surfaces and
-available to fleet subagents. The system prompt grants this authority
-explicitly (identity model, broadcast-milestones etiquette,
-answer-your-mail).
+### `credential issue <principalId> <kind> [capabilities...]`
 
-Set `audience="leaders"` on `mail_send`/`mailbox action=send`, or use
-`audience=leaders` with `/mailbox send` and `/mailbox broadcast`, for context
-that only the main agent should consume. The operator mailbox UI still shows
-these records, while subagent loop injection, inbox, unread count, and tool
-query results exclude them.
+```
+/mailbox credential issue build-agent agent       mail.read.self mail.ack.self
+/mailbox credential issue deploy-bot service       mail.read.all mail.events.all
+/mailbox credential issue ci-operator operator     mail.admin.receipts mail.send.actionable
+```
 
-See also: `/mailbox-demo` (test harness with a separate demo identity).
+Prints the credential ID and the raw secret **once**. The secret is never stored
+on disk — save it securely.
+
+### `credential revoke <id> [reason]`
+
+```
+/mailbox credential revoke f1a2b3c4 rotated to new key
+```
+
+Revokes a credential immediately. Concurrent clients using this credential will
+fail on their next request. Use after rotating to a new credential to minimize
+downtime.
+
+## Compaction
+
+`/mailbox compact` triggers a bounded compaction pass:
+
+- Aggregates complete message+receipt chains into compact entries.
+- Preserves receipt state (readBy, completedBy).
+- Respects the `compactThreshold` from the mailbox config (default 100 raw
+  messages before compaction triggers).
+
+## Dashboard output
+
+```
+Mailbox Status — project "wrongstack"
+========================================
+  Messages:         147
+    Raw:             18
+    Compacted:      129
+  Unread:            12
+  Agents online:     7
+
+  Credentials:       5
+    Active:           3
+    Expired:          1
+    Revoked:          1
+
+  Receipt state:
+    readBy:      2047 entries
+    completedBy:  148 entries
+
+  Lock:            2.3 KiB
+  Last compact:    ~24m ago (2.3s)
+
+  Operator:   leader@wrongstack (since 2026-07-20)
+```
+
+The credential section only appears when credentials are in use (at least one
+issued or revoked credential).
+
+## Code Reference
+
+- `packages/cli/src/slash/mailbox-handler.ts` — dispatch
+- `packages/core/src/coordination/mailbox-credential-store.ts` — credential store
+- `packages/core/src/coordination/global-mailbox.ts` — message + receipt operations
