@@ -1,27 +1,28 @@
 import type { SlashCommand } from '@wrongstack/core/types';
 import { toErrorMessage } from '@wrongstack/core/utils';
 import type {
-  FindMemoriesForFileResponse,
-  LegacyImportResult,
-  MemoryAnchor,
   MemoryAudienceSelector,
-  MemoryCandidate,
-  MemoryForFileMatch,
-  MemoryGraphEdge,
-  MemoryVerificationResult,
-  Sage,
-  SageAuditRecord,
-  SageHygieneReport,
-  SageKind,
-  SageScope,
-  SageStats,
-  SageStatus,
   SageSurface,
   UpdateSageInput,
 } from '@wrongstack/sage';
 import { getSageSurface } from '@wrongstack/sage';
 import type { SlashCommandContext } from './command-context.js';
 import { parseSubcommand, unknownSubcommand } from './helpers.js';
+import {
+  formatAudit,
+  formatCandidates,
+  formatForFileResponse,
+  formatGraph,
+  formatHygiene,
+  formatLegacyEntries,
+  formatLegacyImport,
+  formatSageMemories,
+  formatSageShow,
+  formatSageStats,
+  formatVerification,
+  requiresSage,
+} from './memory-formatters.js';
+import { parseForFileFlags, parseMemoryFlags } from './memory-flags.js';
 
 export function buildMemoryCommand(opts: SlashCommandContext): SlashCommand {
   return {
@@ -203,8 +204,8 @@ export function buildMemoryCommand(opts: SlashCommandContext): SlashCommand {
             return {
               message: 'Usage: /memory for-file <path> [--line <n>] [--limit <n>] [--show-deleted]',
             };
-          // Inline flag parsing — kept local so we don't widen the
-          // whitelist of the shared `parseMemoryFlags` (which is reused
+          // Flag parsing delegated to `parseForFileFlags`, which is kept
+          // separate from the shared `parseMemoryFlags` (that one is reused
           // for remember/update and validates against the canonical
           // memory-record field set).
           const pathArg = rest[0];
@@ -429,280 +430,6 @@ export function buildMemoryCommand(opts: SlashCommandContext): SlashCommand {
       }
     },
   };
-}
-
-// ── /memory remember|update flag parsing ────────────────────────────────
-
-const MEMORY_KINDS: SageKind[] = [
-  'fact',
-  'decision',
-  'convention',
-  'preference',
-  'warning',
-  'anti_pattern',
-  'workflow',
-  'bug_root_cause',
-  'file_note',
-  'symbol_note',
-  'command_note',
-  'summary',
-];
-const MEMORY_SCOPES: SageScope[] = ['project', 'user', 'session', 'file', 'symbol'];
-const MEMORY_STATUSES: SageStatus[] = [
-  'active',
-  'stale',
-  'superseded',
-  'contradicted',
-  'archived',
-  'deleted',
-];
-
-interface ParsedMemoryFlags {
-  text: string;
-  kind?: SageKind;
-  scope?: SageScope;
-  status?: SageStatus;
-  tags?: string[];
-  anchors?: MemoryAnchor[];
-  importance?: number | undefined;
-  confidence?: number | undefined;
-  freshness?: number | undefined;
-  supersedes?: string[];
-  contradicts?: string[];
-  errors: string[];
-}
-
-/**
- * Parse `remember`/`update` argument tokens into structured SAGE fields.
- * Recognized flags take the single following token as their value; every other
- * token is collected as free-text and joined into `text`. `--tag`,
- * `--supersedes`, and `--contradicts` accept comma-separated lists.
- */
-function parseMemoryFlags(tokens: string[]): ParsedMemoryFlags {
-  const words: string[] = [];
-  const anchors: MemoryAnchor[] = [];
-  const errors: string[] = [];
-  const out: ParsedMemoryFlags = { text: '', errors };
-
-  const nextValue = (i: number): { value: string | undefined; skip: boolean } => {
-    const nxt = tokens[i + 1];
-    if (nxt === undefined || nxt.startsWith('--')) return { value: undefined, skip: false };
-    return { value: nxt, skip: true };
-  };
-  const csv = (value: string): string[] =>
-    value
-      .split(',')
-      .map((part) => part.trim())
-      .filter(Boolean);
-  const num = (name: string, value: string | undefined): number | undefined => {
-    if (value === undefined) {
-      errors.push(`${name} needs a value between 0 and 1.`);
-      return undefined;
-    }
-    const parsed = Number.parseFloat(value);
-    if (!Number.isFinite(parsed) || parsed < 0 || parsed > 1) {
-      errors.push(`${name} must be a number between 0 and 1 (got "${value}").`);
-      return undefined;
-    }
-    return parsed;
-  };
-
-  for (let i = 0; i < tokens.length; i++) {
-    const token = tokens[i] ?? '';
-    if (!token.startsWith('--')) {
-      words.push(token);
-      continue;
-    }
-    const name = token.slice(2).toLowerCase();
-    const { value, skip } = nextValue(i);
-    if (skip) i++;
-    switch (name) {
-      case 'kind':
-        if (value && (MEMORY_KINDS as string[]).includes(value))
-          out.kind = value as SageKind;
-        else errors.push(`--kind must be one of: ${MEMORY_KINDS.join(', ')}.`);
-        break;
-      case 'scope':
-        if (value && (MEMORY_SCOPES as string[]).includes(value))
-          out.scope = value as SageScope;
-        else errors.push(`--scope must be one of: ${MEMORY_SCOPES.join(', ')}.`);
-        break;
-      case 'status':
-        if (value && (MEMORY_STATUSES as string[]).includes(value))
-          out.status = value as SageStatus;
-        else errors.push(`--status must be one of: ${MEMORY_STATUSES.join(', ')}.`);
-        break;
-      case 'tag':
-      case 'tags':
-        if (value) out.tags = [...(out.tags ?? []), ...csv(value)];
-        else errors.push('--tag needs a value (comma-separated for multiple).');
-        break;
-      case 'anchor':
-      case 'file':
-        if (value) anchors.push({ type: 'file', path: value });
-        else errors.push('--anchor needs a file path.');
-        break;
-      case 'symbol': {
-        if (!value) {
-          errors.push('--symbol needs a value like path#SymbolName.');
-          break;
-        }
-        const hash = value.lastIndexOf('#');
-        if (hash <= 0 || hash === value.length - 1) {
-          errors.push('--symbol must be path#SymbolName.');
-          break;
-        }
-        anchors.push({ type: 'symbol', path: value.slice(0, hash), symbol: value.slice(hash + 1) });
-        break;
-      }
-      case 'command':
-        if (value) anchors.push({ type: 'command', command: value });
-        else errors.push('--command needs a value.');
-        break;
-      case 'agent':
-        if (value) anchors.push({ type: 'agent', role: value });
-        else
-          errors.push(
-            '--agent needs a role id (fleet roster member or .wrongstack/agents/<role> directory).',
-          );
-        break;
-      case 'importance':
-        out.importance = num('--importance', value);
-        break;
-      case 'confidence':
-        out.confidence = num('--confidence', value);
-        break;
-      case 'freshness':
-        out.freshness = num('--freshness', value);
-        break;
-      case 'supersedes':
-        if (value) out.supersedes = [...(out.supersedes ?? []), ...csv(value)];
-        else errors.push('--supersedes needs one or more memory ids.');
-        break;
-      case 'contradicts':
-        if (value) out.contradicts = [...(out.contradicts ?? []), ...csv(value)];
-        else errors.push('--contradicts needs one or more memory ids.');
-        break;
-      case 'text':
-        if (value) words.push(value);
-        else errors.push('--text needs a value.');
-        break;
-      default:
-        errors.push(`Unknown flag "--${name}".`);
-    }
-  }
-
-  out.text = words.join(' ').trim();
-  if (anchors.length > 0) out.anchors = anchors;
-  return out;
-}
-
-// ── /memory for-file flag parsing (PR #4) ────────────────────────────────
-//
-// Kept deliberately separate from `parseMemoryFlags`: that parser
-// validates against the canonical memory-record field set (kind/scope/
-// status/tags/anchors/...) and rejects unknown flags. The for-file
-// subcommand takes *query* flags (`--line`, `--limit`, `--show-deleted`)
-// that aren't memory-record fields. Mixing them into one parser would
-// either widen the whitelist (looser validation for remember/update) or
-// leak false "Unknown flag" errors into for-file. So for-file gets its
-// own scoped parser.
-interface ParsedForFileFlags {
-  singleLine: number | undefined;
-  limit: number;
-  showDeleted: boolean;
-  errors: string[];
-}
-
-function parseForFileFlags(tokens: string[]): ParsedForFileFlags {
-  const out: ParsedForFileFlags = {
-    singleLine: undefined,
-    limit: 50,
-    showDeleted: false,
-    errors: [],
-  };
-  for (let i = 0; i < tokens.length; i++) {
-    const token = tokens[i] ?? '';
-    if (!token.startsWith('--')) continue;
-    const name = token.slice(2).toLowerCase();
-    const next = tokens[i + 1];
-    if (name === 'line') {
-      if (next === undefined || next.startsWith('--')) {
-        out.errors.push('--line needs a 1-indexed line number.');
-        continue;
-      }
-      const parsed = Number.parseInt(next, 10);
-      if (!Number.isFinite(parsed) || parsed < 1) {
-        out.errors.push(`--line must be a positive integer (got "${next}").`);
-        continue;
-      }
-      out.singleLine = parsed;
-      i++;
-    } else if (name === 'limit') {
-      if (next === undefined || next.startsWith('--')) {
-        out.errors.push('--limit needs a value between 1 and 200.');
-        continue;
-      }
-      const parsed = Number.parseInt(next, 10);
-      if (!Number.isFinite(parsed) || parsed < 1 || parsed > 200) {
-        out.errors.push(`--limit must be between 1 and 200 (got "${next}").`);
-        continue;
-      }
-      out.limit = parsed;
-      i++;
-    } else if (name === 'show-deleted' || name === 'show-deleted-memories') {
-      out.showDeleted = true;
-    } else {
-      out.errors.push(`Unknown flag "--${name}".`);
-    }
-  }
-  return out;
-}
-
-// ── /memory for-file response formatter (PR #4) ─────────────────────────
-//
-// Three buckets: cursor-boosted symbol matches, file/directory primary
-// matches, and weak "Mentioned in" matches. Each card shows why it
-// matched (`matchedVia`) so the user understands the signal.
-function previewText(text: string, maxLen: number): string {
-  if (text.length <= maxLen) return text;
-  return text.slice(0, maxLen - 1) + '…';
-}
-
-function formatForFileResponse(filePath: string, response: FindMemoriesForFileResponse): string {
-  const lines: string[] = [
-    `## SAGE — File: \`${filePath}\``,
-    '',
-    `Total ${response.totalCount} match${response.totalCount === 1 ? '' : 'es'} ` +
-      `(${response.activeCount} active, ${response.supersededCount} superseded, ` +
-      `${response.reviewPendingCount} pending review).`,
-  ];
-  const renderBucket = (label: string, matches: ReadonlyArray<MemoryForFileMatch>): void => {
-    if (matches.length === 0) return;
-    lines.push('', `### ${label} (${matches.length})`);
-    for (const match of matches) {
-      const via = match.matchedVia;
-      const flags: string[] = [];
-      if (match.pendingReview) {
-        flags.push(`review:${match.pendingReview.reason}`);
-      }
-      if (match.supersededByActiveId) flags.push('superseded');
-      const flagSuffix = flags.length > 0 ? `  [${flags.join(', ')}]` : '';
-      const strengthPct = Math.round(match.matchStrength * 100);
-      lines.push(
-        `- **${match.memory.kind}** (${strengthPct}% via ${via})${flagSuffix}: ` +
-          `${previewText(match.memory.text, 140)}`,
-      );
-      lines.push(`    \`${match.memory.id}\``);
-    }
-  };
-  renderBucket('Cursor boost (symbol)', response.symbolMatches);
-  renderBucket('File-scoped', response.primaryMatches);
-  renderBucket('Mentioned in', response.relatedMatches);
-  if (response.totalCount === 0) {
-    lines.push('', '_No memories attached to this file yet._');
-  }
-  return lines.join('\n');
 }
 
 async function runPathMemory(
@@ -1092,183 +819,6 @@ async function runAudienceMemory(
       '`/memory audience clear <memory-id>` — remove scope (becomes general memory)',
     ].join('\n'),
   };
-}
-
-function requiresSage(command: string): { message: string } {
-  return {
-    message: `\`/memory ${command}\` requires the SAGE backend. Enable \`Sage.enabled\` and restart the session.`,
-  };
-}
-
-function formatSageMemories(memories: Sage[], title: string): string {
-  if (memories.length === 0) return `No SAGE entries matched ${title}.`;
-  return [
-    `## SAGE — ${title}`,
-    ...memories.map(
-      (memory) => `- \`${memory.id}\` [${memory.kind}|${memory.status}] ${memory.text}`,
-    ),
-  ].join('\n');
-}
-
-function formatLegacyEntries(entries: string[], query: string): string {
-  return entries.length === 0
-    ? `No memory entries matched "${query}".`
-    : [`## Memory — Search: ${query}`, ...entries.map((text) => `- ${text}`)].join('\n');
-}
-
-function formatGraph(edges: MemoryGraphEdge[], query: string): string {
-  if (edges.length === 0) return `No graph relationships matched "${query}".`;
-  return [
-    `## Memory Graph — ${query}`,
-    ...edges.map(
-      (edge) =>
-        `- ${edge.from} —[${edge.relation}:${edge.weight.toFixed(2)}]→ ${edge.to}` +
-        (edge.evidence?.length ? ` _(why: ${edge.evidence.join(', ')})_` : ''),
-    ),
-  ].join('\n');
-}
-
-function formatVerification(results: MemoryVerificationResult[]): string {
-  if (results.length === 0) return 'No memories were available to verify.';
-  const counts = new Map<string, number>();
-  for (const result of results) counts.set(result.status, (counts.get(result.status) ?? 0) + 1);
-  const lines = [
-    '## SAGE Verification',
-    ...[...counts].map(([status, count]) => `- ${status}: ${count}`),
-  ];
-  for (const result of results.filter((item) => item.status !== 'verified').slice(0, 20)) {
-    lines.push(
-      `- \`${result.memoryId}\`: ${result.anchors.map((anchor) => anchor.reason).join('; ') || result.status}`,
-    );
-  }
-  return lines.join('\n');
-}
-
-function formatHygiene(report: SageHygieneReport): string {
-  const unusedNote =
-    report.archivedUnused > 0
-      ? ` (${report.archivedUnused} for repeated injection without use)`
-      : '';
-  return [
-    '## SAGE Hygiene',
-    `Examined ${report.examined}; deduplicated ${report.deduplicated}; superseded ${report.superseded}.`,
-    `Verified ${report.verified}; staled ${report.staled}; archived ${report.archived}${unusedNote}; deleted ${report.deleted}.`,
-  ].join('\n');
-}
-
-function formatCandidates(candidates: MemoryCandidate[]): string {
-  if (candidates.length === 0) return 'No memory candidates.';
-  return [
-    '## Memory Candidates',
-    ...candidates.map(
-      (candidate) =>
-        `- \`${candidate.id}\` [${candidate.status}|${candidate.kind}] ${candidate.text}`,
-    ),
-  ].join('\n');
-}
-
-function formatAudit(rows: SageAuditRecord[]): string {
-  if (rows.length === 0) return 'SAGE audit log is empty.';
-  return [
-    '## SAGE Audit',
-    ...rows.map(
-      (row) =>
-        `- ${row.at} ${row.event}${row.memoryId ? ` \`${row.memoryId}\`` : ''}${row.reason ? ` — ${row.reason}` : ''}`,
-    ),
-  ].join('\n');
-}
-
-function formatLegacyImport(result: LegacyImportResult): string {
-  return `Legacy import complete: ${result.imported} imported, ${result.skipped} skipped from ${result.files} file(s).`;
-}
-
-function formatSageStats(
-  stats: SageStats,
-  scopedCount?: number,
-  scopedRoles?: string,
-): string {
-  const lines = [
-    '## SAGE Stats',
-    `Total: ${stats.total}; active ${stats.byStatus.active}; stale ${stats.byStatus.stale}; archived ${stats.byStatus.archived}; deleted ${stats.byStatus.deleted}.`,
-    `Graph edges: ${stats.edges}.`,
-    `Kinds: ${
-      Object.entries(stats.byKind)
-        .map(([kind, count]) => `${kind}=${count}`)
-        .join(', ') || 'none'
-    }.`,
-  ];
-  if (scopedCount !== undefined) {
-    lines.push(`Audience-scoped: ${scopedCount}${scopedRoles ? ` (${scopedRoles})` : ''}.`);
-  }
-  return lines.join('\n');
-}
-
-function formatSageShow(stats: SageStats, memories: Sage[]): string {
-  const lines: string[] = [];
-
-  // Stats header
-  const active = stats.byStatus['active'] ?? 0;
-  const stale = stats.byStatus['stale'] ?? 0;
-  const archived = stats.byStatus['archived'] ?? 0;
-  lines.push('## 🧠 SAGE');
-  lines.push('');
-  lines.push(
-    `**Total:** ${stats.total} · 🟢 ${active} active · 🟡 ${stale} stale · 🔵 ${archived} archived`,
-  );
-  lines.push(`**Graph edges:** ${stats.edges}`);
-  lines.push('');
-
-  // Kind breakdown
-  const kindOrder: SageKind[] = [
-    'fact',
-    'decision',
-    'convention',
-    'preference',
-    'anti_pattern',
-    'warning',
-    'workflow',
-    'bug_root_cause',
-    'file_note',
-    'symbol_note',
-    'command_note',
-    'summary',
-  ];
-  const kindRows: string[] = [];
-  for (const kind of kindOrder) {
-    const count = stats.byKind[kind] ?? 0;
-    if (count === 0) continue;
-    kindRows.push(`- **${kind}**: ${count}`);
-  }
-  if (kindRows.length > 0) {
-    lines.push('### 📊 By kind');
-    lines.push('');
-    lines.push(...kindRows);
-    lines.push('');
-  }
-
-  // Entries
-  lines.push('### 📋 Entries');
-  lines.push('');
-  for (const mem of memories) {
-    const tags =
-      mem.tags.length > 0
-        ? ` \`${mem.tags.slice(0, 3).join('` `')}${mem.tags.length > 3 ? '…' : ''}\``
-        : '';
-    const preview = mem.text.replace(/\s+/g, ' ').trim().slice(0, 120);
-    const statusIcon =
-      mem.status === 'active'
-        ? '🟢'
-        : mem.status === 'stale'
-          ? '🟡'
-          : mem.status === 'archived'
-            ? '🔵'
-            : '⚪';
-    lines.push(`- ${statusIcon} \`${mem.id.slice(0, 12)}…\` [${mem.kind}] ${preview}${tags}`);
-  }
-  lines.push('');
-  lines.push(`*${memories.length} entr${memories.length === 1 ? 'y' : 'ies'}*`);
-
-  return lines.join('\n');
 }
 
 // ── /memory compact — LLM-driven memory review and optimization ────────
