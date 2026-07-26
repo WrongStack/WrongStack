@@ -41,7 +41,7 @@
     "@wrongstack/core": "workspace:*",
     "@wrongstack/webui": "workspace:*",
     "@wrongstack/webui-server": "workspace:*",
-    "electron": "^43.1.1",
+    "electron": "^43.2.0",
     "ws": "^8.21.1",
     "zod": "^4.4.3"
   },

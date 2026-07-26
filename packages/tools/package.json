@@ -250,12 +250,12 @@
     "clean": "node -e \"require('node:fs').rmSync('dist',{recursive:true,force:true})\""
   },
   "dependencies": {
-    "@playwright/test": "^1.61.1",
+    "@playwright/test": "^1.62.0",
     "@typescript/typescript6": "^6.0.2",
     "@wrongstack/core": "workspace:*",
     "@wrongstack/kanban": "workspace:*",
     "turndown": "^7.2.4",
-    "undici": "^8.7.0"
+    "undici": "^8.9.0"
   },
   "devDependencies": {
     "@types/node": "^26.1.1",

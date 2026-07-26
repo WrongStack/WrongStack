@@ -61,8 +61,8 @@
     "postinstall": "git config core.hooksPath .githooks"
   },
   "devDependencies": {
-    "@biomejs/biome": "2.5.4",
-    "@playwright/test": "^1.61.1",
+    "@biomejs/biome": "2.5.5",
+    "@playwright/test": "^1.62.0",
     "@types/node": "^26.1.1",
     "@vitest/coverage-v8": "^4.1.10",
     "@wrongstack/tools": "workspace:*",
@@ -70,7 +70,7 @@
     "esbuild": "^0.28.1",
     "jsdom": "^29.1.1",
     "typescript": "^7.0.2",
-    "undici-types": "^8.7.0",
+    "undici-types": "^8.9.0",
     "vitest": "^4.1.10"
   },
   "overrides": {
