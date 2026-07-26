@@ -59,6 +59,23 @@ const NODE_HEIGHT = 108;
 const X_GAP = 150;
 const Y_GAP = 52;
 
+/**
+ * Module-level memo cache for `normalizedPath`. Path strings are stable
+ * across renders — the same file path always normalizes to the same string —
+ * so caching by the raw input is safe and eliminates the per-render regex
+ * cost. `sameFile()` calls `normalizedPath` twice per comparison, and
+ * `activityMatchesNode` invokes it once per activity × node pair, so the
+ * total call count can reach 10K+ per render for medium graphs.
+ */
+const normalizedPathCache = new Map<string, string>();
+export function normalizedPath(filePath: string): string {
+  const cached = normalizedPathCache.get(filePath);
+  if (cached !== undefined) return cached;
+  const normalized = filePath.replace(/\\/g, '/').replace(/^\.\//, '').toLocaleLowerCase();
+  normalizedPathCache.set(filePath, normalized);
+  return normalized;
+}
+
 export function scopeKey(scope: CodeMapScope): string {
   if (scope.level === 'packages') return 'packages';
   if (scope.level === 'files') return `files:${scope.package}`;
