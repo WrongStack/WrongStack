@@ -104,6 +104,58 @@ describe('SAGE output separation and grouping', () => {
     );
     expect(narrow).toBeGreaterThan(wide);
   });
+
+  // ── Regression: trailing blank/whitespace tolerance ──
+
+  it('strips SAGE block followed by a trailing newline', () => {
+    const output = `command output\n\n${injectedMemory}\n`;
+    const result = extractSageBlock(output);
+    expect(result.sageLines.length).toBe(2);
+    expect(result.cleanOutput).toBe('command output');
+  });
+
+  it('strips SAGE block followed by trailing blank lines', () => {
+    const output = `command output\n\n${injectedMemory}\n\n`;
+    const result = extractSageBlock(output);
+    expect(result.sageLines.length).toBe(2);
+    expect(result.cleanOutput).toBe('command output');
+  });
+
+  it('strips SAGE block followed by trailing whitespace-only line', () => {
+    const output = `command output\n\n${injectedMemory}\n   `;
+    const result = extractSageBlock(output);
+    expect(result.sageLines.length).toBe(2);
+    expect(result.cleanOutput).toBe('command output');
+  });
+
+  it('strips SAGE block followed by mixed trailing blank and whitespace lines', () => {
+    const output = `command output\n\n${injectedMemory}\n\n  \n\n`;
+    const result = extractSageBlock(output);
+    expect(result.sageLines.length).toBe(2);
+    expect(result.cleanOutput).toBe('command output');
+  });
+
+  it('does NOT strip SAGE block followed by non-memory content', () => {
+    // A real (non-blank) line after the SAGE block means it's not a
+    // terminal suffix — the SAGE-like header might be legitimate tool output.
+    const output = `command output\n\n${injectedMemory}\nsome real trailing content`;
+    const result = extractSageBlock(output);
+    expect(result.sageLines.length).toBe(0);
+    expect(result.cleanOutput).toBe(output);
+  });
+
+  it('strips SAGE block with multiple memories followed by trailing newline', () => {
+    const multiMemory = [
+      '--- SAGE: related project knowledge (Memory Injector) ---',
+      '- [fact] <memory id="mem-a">first memory</memory> [tags=a]',
+      '- [decision][high] <memory id="mem-b">second memory</memory>',
+      '- [bug_root_cause][critical] <memory id="mem-c">third memory</memory>',
+    ].join('\n');
+    const output = `tool result\n\n${multiMemory}\n\n`;
+    const result = extractSageBlock(output);
+    expect(result.sageLines.length).toBe(4);
+    expect(result.cleanOutput).toBe('tool result');
+  });
 });
 
 describe('<ToolCard /> frame', () => {

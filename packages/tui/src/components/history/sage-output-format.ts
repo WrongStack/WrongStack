@@ -16,13 +16,22 @@ export function extractSageBlock(output: string): SageSplit {
   const lines = output.split('\n');
   for (let sageIdx = lines.length - 1; sageIdx >= 0; sageIdx--) {
     if (!SAGE_INJECTOR_HEADINGS.has(lines[sageIdx] ?? '')) continue;
-    const sageLines = lines.slice(sageIdx);
-    if (sageLines.length < 2 || !sageLines.slice(1).every((line) => SAGE_MEMORY_LINE.test(line))) {
+    const candidate = lines.slice(sageIdx);
+    if (candidate.length < 2) continue;
+    // Tolerate trailing blank/whitespace-only lines that may follow the SAGE
+    // block if the injector or a downstream serializer appends them. Every
+    // non-blank line after the header must still match the memory-line regex.
+    const memoryLines = candidate.slice(1).filter((line) => line.trim().length > 0);
+    if (memoryLines.length === 0 || !memoryLines.every((line) => SAGE_MEMORY_LINE.test(line))) {
       continue;
     }
+    // Exclude trailing blank/whitespace lines from sageLines so the rendered
+    // memory panel doesn't show empty rows.
+    let end = candidate.length;
+    while (end > 1 && candidate[end - 1]!.trim().length === 0) end--;
     return {
       cleanOutput: lines.slice(0, sageIdx).join('\n').trimEnd(),
-      sageLines,
+      sageLines: candidate.slice(0, end),
     };
   }
   return { cleanOutput: output, sageLines: [] };
