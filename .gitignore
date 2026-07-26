@@ -23,6 +23,13 @@ packages/tui/_vr.txt
 packages/tui/tmp_*.log
 packages/tui/*.txt
 !packages/tui/tests/*.txt
+packages/tui/tests/tsc-out.txt
+
+# Package-local diagnostic captures
+packages/cli/wiring-test-out.txt
+packages/core/tsc-out.txt
+packages/runtime/tsc-out.txt
+packages/security-scanner/coverage_output.txt
 
 # Local environment
 .env
