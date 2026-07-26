@@ -114,14 +114,14 @@ describe('serializeReceiptRecordV2', () => {
 describe('materializeMessages — v1 completion classification', () => {
   it('classifies completed direct message as actor-scoped (not legacy)', () => {
     const msg: MailboxMessage = {
-      id: 'm1', from: 'a', to: 'worker-1', type: 'note',
+      id: 'm1', from: 'a', to: 'worker-1@sess-1', type: 'note',
       subject: 's', body: 'b', priority: 'normal', readBy: {},
-      completed: true, completedBy: 'worker-1', completedAt: '2026-01-01T01:00:00Z',
+      completed: true, completedBy: 'worker-1@sess-1', completedAt: '2026-01-01T01:00:00Z',
       timestamp: '2026-01-01T00:00:00Z',
     };
     const projections = materializeMessages([msg], []);
     expect(projections[0]!.legacyGlobalCompletion).toBeUndefined();
-    expect(projections[0]!.recipientState['worker-1']?.completedAt).toBe('2026-01-01T01:00:00Z');
+    expect(projections[0]!.recipientState['worker-1@sess-1']?.completedAt).toBe('2026-01-01T01:00:00Z');
   });
 
   it('classifies completed broadcast as legacyGlobalCompletion', () => {

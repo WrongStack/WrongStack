@@ -26,9 +26,19 @@ import { isMailboxReceiptRecordV2 } from './mailbox-types.js';
  * Determine if a message's recipient is a fan-out form (broadcast, alias, or
  * session-scoped). Fan-out messages use `legacyGlobalCompletion` for v1 acks
  * because the original semantic was message-global.
+ *
+ * Heuristic: agent IDs follow the `name@sessionId` pattern (confirmed by
+ * `mailboxIdentityBase()` splitting on `@`/`#`). A `to` value that does NOT
+ * contain `@` is either `*` (broadcast), `@session:...` (session broadcast),
+ * or a bare base alias like `leader` or `worker` — all of which are fan-out.
+ * Only a fully-qualified `name@sessionId` is a direct exact-recipient message.
  */
 function isFanOutRecipient(to: string): boolean {
-  return to === '*' || to.startsWith('@session:');
+  if (to === '*') return true;
+  if (to.startsWith('@session:')) return true;
+  // Base alias: no `@` means it's not a fully-qualified agent ID.
+  // This catches `leader`, `worker`, `bug-hunter`, etc.
+  return !to.includes('@');
 }
 
 /**
@@ -174,6 +184,9 @@ export function serializeReceiptRecordV2(record: MailboxReceiptRecordV2): string
  *
  * This is used by the read path to separate receipts from messages
  * before materialization.
+ *
+ * @param parsed - Array of parsed JSON values from the JSONL file.
+ * @returns Only the values that pass `isMailboxReceiptRecordV2`.
  */
 export function extractV2Receipts(parsed: readonly unknown[]): MailboxReceiptRecordV2[] {
   const receipts: MailboxReceiptRecordV2[] = [];
