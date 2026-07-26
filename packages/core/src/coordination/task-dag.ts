@@ -121,6 +121,14 @@ export class TaskDAG {
       }
     }
 
+    // Remove the node BEFORE checking dependents so the readiness guard
+    // `!this.nodes.has(d)` sees the removed dependency as satisfied. The old
+    // code deleted the node AFTER this loop, so a dependent whose only
+    // unsatisfied dep was the removed node stayed 'pending' forever — the
+    // guard saw the node still in the map with a non-'done' status.
+    this.nodes.delete(id);
+    this.invalidateCache();
+
     // Mark dependents with no remaining deps as ready
     for (const depId of node.dependents) {
       const dep = this.nodes.get(depId);
@@ -128,9 +136,6 @@ export class TaskDAG {
         this._transition(depId, 'pending', 'ready');
       }
     }
-
-    this.nodes.delete(id);
-    this.invalidateCache();
   }
 
   // ── State transitions ──────────────────────────────────────────────────

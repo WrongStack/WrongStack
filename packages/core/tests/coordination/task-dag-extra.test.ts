@@ -128,4 +128,61 @@ describe('task-dag — extra coverage', () => {
     // Adding a node depending on a re-traverses dependents incl. x twice.
     expect(() => dag.addNode('y', 'Y', ['a'])).not.toThrow();
   });
+
+  // -------------------------------------------------------------------------
+  // removeNode ordering (regression)
+  // -------------------------------------------------------------------------
+  // removeNode must transition dependents to 'ready' when their sole
+  // remaining dependency is removed. The old code deleted the node AFTER
+  // the dependents loop, so the readiness guard
+  // `!this.nodes.has(d) || ... === 'done'` still saw the node in the map
+  // with a non-done status → the dependent stayed 'pending' forever.
+  it('removeNode transitions a dependent to ready when its sole dependency is removed', () => {
+    const dag = new TaskDAG();
+    dag.addNode('dep', 'Dependency');
+    dag.addNode('child', 'Child', ['dep']); // pending — waits on dep
+
+    expect(dag.getNode('child')!.status).toBe('pending');
+
+    dag.removeNode('dep');
+
+    // The dependent must now be ready — its only dependency is gone, so the
+    // `!this.nodes.has(d)` branch of the readiness guard fires.
+    expect(dag.getNode('child')!.status).toBe('ready');
+    expect(dag.getReady().map((n) => n.id)).toEqual(['child']);
+  });
+
+  it('removeNode does not transition a dependent when another dep is still pending', () => {
+    const dag = new TaskDAG();
+    // dep2 has its own dep so it is NOT ready — child waits on both dep1 and dep2.
+    dag.addNode('root', 'Root');
+    dag.addNode('dep1', 'Dependency 1');
+    dag.addNode('dep2', 'Dependency 2', ['root']); // pending — waits on root
+    dag.addNode('child', 'Child', ['dep1', 'dep2']); // pending — waits on both
+
+    // Remove only one dependency — the other (dep2) is still pending.
+    dag.removeNode('dep1');
+
+    // child must stay pending — dep2 is still in the map and not done.
+    expect(dag.getNode('child')!.status).toBe('pending');
+    expect(dag.getReady().map((n) => n.id)).not.toContain('child');
+  });
+
+  it('removeNode transitions a dependent to ready when its last pending dependency is removed', () => {
+    const dag = new TaskDAG();
+    dag.addNode('done', 'Done Dep');
+    dag.addNode('pending', 'Pending Dep');
+    dag.addNode('child', 'Child', ['done', 'pending']);
+
+    // Satisfy one dependency via completion.
+    dag.start('done', 'agent');
+    dag.complete('done', 'result');
+    // child is still pending — `pending` is unsatisfied.
+
+    // Remove the remaining pending dependency.
+    dag.removeNode('pending');
+
+    // Now both deps are satisfied (one done, one removed) → child is ready.
+    expect(dag.getNode('child')!.status).toBe('ready');
+  });
 });
