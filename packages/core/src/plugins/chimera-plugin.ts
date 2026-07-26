@@ -1,11 +1,13 @@
 import { spawn } from 'node:child_process';
 import * as fsp from 'node:fs/promises';
+import * as os from 'node:os';
 import * as path from 'node:path';
 import type { EventBus } from '../kernel/events.js';
 import type { Plugin } from '../types/plugin.js';
 import type { SlashCommand } from '../types/slash-command.js';
 import { toErrorMessage } from '../utils/error.js';
 import { readBundledInstructionText } from '../utils/instruction-file.js';
+import { projectSlug } from '../utils/wstack-paths.js';
 import {
   emitReviewIfChanged,
   recordCompletedReview,
@@ -17,6 +19,8 @@ import type {
   ReviewContextBundle,
   ReviewFileEntry,
 } from './review-types.js';
+import { executeFindingCommand } from './review-finding-commands.js';
+import { integrateFindings } from './review-finding-integration.js';
 
 // Re-export the shared review types so existing importers keep resolving them
 // from './chimera-plugin.js' (and the package barrel). Their definitions live
@@ -273,6 +277,48 @@ function buildChimeraCommand(
   };
 }
 
+// ── /review finding-store command ─────────────────────────────
+function buildReviewCommand(
+  _getConfig: () => ResolvedChimeraConfig,
+): SlashCommand {
+  return {
+    name: 'review',
+    category: 'Session',
+    description: 'Query the Chimera Finding Store.',
+    help: [
+      'Usage: /review findings [--severity <s>] [--status <s>] [--limit <n>]',
+      '       /review finding <id>',
+      '       /review status',
+      '',
+      'The finding store persists structured findings from every Chimera review.',
+      'Use this to track what issues were found, their lifecycle, and outcomes.',
+    ].join('\n'),
+    async run(args) {
+      const cwd = process.cwd();
+      const slug = projectSlug(cwd);
+      const globalRoot = path.join(os.homedir(), '.wrongstack');
+      const projectDir = path.join(globalRoot, 'projects', slug);
+      const trimmed = (args ?? '').trim();
+      const parts = trimmed.split(/\s+/).filter(Boolean);
+      return {
+        message: await executeFindingCommand(parts, { projectDir }),
+      };
+    },
+  };
+}
+
+// ── Finding store persistence helper ──────────────────────────
+async function tryPersistFindings(payload: unknown): Promise<void> {
+  if (!payload || typeof payload !== 'object') return;
+  const p = payload as { bundle?: { cwd?: string }; reviewText?: string; status?: string; cwd?: string };
+  const cwd = p.cwd ?? p.bundle?.cwd;
+  if (!cwd) return;
+  const slug = projectSlug(cwd);
+  const globalRoot = path.join(os.homedir(), '.wrongstack');
+  const projectDir = path.join(globalRoot, 'projects', slug);
+  await integrateFindings(payload as any, projectDir);
+}
+
 // ---------------------------------------------------------------------------
 // Plugin
 // ---------------------------------------------------------------------------
@@ -312,6 +358,13 @@ export function createChimeraPlugin(): Plugin {
       });
       api.onPattern('chimera.review_complete', (_event, payload) => {
         recordCompletedReview(api.events, payload);
+
+        // FS-P0.6: Persist findings from the review into the finding store.
+        // This runs even when chimera is disabled so findings from manual
+        // reviews and other sessions are captured too.
+        tryPersistFindings(payload).catch((err) => {
+          api.log.warn(`[review-finding] failed to persist findings: ${toErrorMessage(err)}`);
+        });
       });
 
       if (!resolved.enabled) {
@@ -325,6 +378,9 @@ export function createChimeraPlugin(): Plugin {
 
       // ── /chimera command ──────────────────────────────────────────
       api.slashCommands.register(buildChimeraCommand(() => resolved, api.events));
+
+      // ── /review command (finding store) ───────────────────────────
+      api.slashCommands.register(buildReviewCommand(() => resolved));
 
       // ── session.ended → emit review event ─────────────────────────
       api.onEvent('session.ended', async () => {
@@ -396,6 +452,7 @@ export function createChimeraPlugin(): Plugin {
 
     teardown(api) {
       api.slashCommands.unregister('chimera');
+      api.slashCommands.unregister('review');
       api.log.info('[chimera] unloaded');
     },
 

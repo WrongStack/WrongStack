@@ -253,6 +253,7 @@ export {
   resolveMaxSpawnDepth,
 } from './spawn-budget.js';
 export { GlobalMailbox, resolveProjectDir } from './global-mailbox.js';
+export { JsonlCredentialStore } from './mailbox-credential-store.js';
 export { MailboxEventEmitter } from './mailbox-events.js';
 export { BrainTraceRecorder, type BrainTraceRecorderOptions } from './brain-trace.js';
 export { type FileAuthorTrackerOptions, recordFileAction } from './file-author-tracker.js';
@@ -346,11 +347,17 @@ export type {
 export {
   isMailboxLeader,
   isMailboxMessageVisibleTo,
+  MAILBOX_TYPE_PROPERTIES,
   mailboxIdentityBase,
   normalizeRecipient,
   SESSION_RECIPIENT_PREFIX,
   sessionRecipient,
 } from './mailbox-types.js';
+export {
+  parseMailboxAckInput,
+  parseMailboxQueryInput,
+  parseMailboxSendInput,
+} from './mailbox-codecs.js';
 export {
   isValidMatrixKey,
   MATRIX_PHASE_KEYS,

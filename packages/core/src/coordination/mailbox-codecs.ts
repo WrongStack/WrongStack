@@ -20,13 +20,10 @@ import {
   MAILBOX_TYPE_PROPERTIES,
   mailboxIdentityBase,
   normalizeRecipient,
-  sessionRecipient,
-  validateSendType,
+  type MailboxAckInput,
   type MailboxAudience,
   type MailboxMessageType,
   type MailboxQuery,
-  type MailboxSendInput,
-  type MailboxAckInput,
 } from './mailbox-types.js';
 import { resolveSendTypeSafe } from './mailbox-message-codec.js';
 import type { MailboxActorContext, MailboxCapability } from './mailbox-types.js';
@@ -53,17 +50,12 @@ export class MailboxValidationError extends Error {
 /** Fields allowed in a send mutation payload from untrusted callers. */
 const SEND_ALLOWED_FIELDS = new Set<string>([
   'to', 'subject', 'body', 'type', 'priority', 'audience', 'replyTo',
-]);
-
-/** Fields allowed in a query input from untrusted callers. */
-const QUERY_ALLOWED_FIELDS = new Set<string>([
-  'to', 'from', 'unreadBy', 'readerRole', 'incompleteOnly', 'type',
-  'minPriority', 'limit', 'since', 'sessionId', 'includeDeleted', 'replyTo',
+  'senderSessionId', 'ttlMs', 'taskContext',
 ]);
 
 /** Fields allowed in an ack mutation payload. */
 const ACK_ALLOWED_FIELDS = new Set<string>([
-  'messageId', 'read', 'completed', 'readerId', 'note', 'outcome', 'requestId',
+  'messageId', 'read', 'completed', 'readerId', 'outcome',
 ]);
 
 /** Fields allowed in a presence-registration payload. */
@@ -247,18 +239,14 @@ export function parseMailboxAckInput(
 
   const read = optionalBoolean(payload, 'read', 'ack');
   const completed = optionalBoolean(payload, 'completed', 'ack');
-  const note = optionalString(payload, 'note', 'ack');
   const outcome = optionalString(payload, 'outcome', 'ack');
-  const requestId = optionalString(payload, 'requestId', 'ack');
 
   return {
     messageId,
     read: read ?? false,
     completed: completed ?? false,
     readerId,
-    note,
     outcome,
-    requestId,
   };
 }
 
