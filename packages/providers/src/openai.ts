@@ -5,6 +5,7 @@ import { safeParse } from '@wrongstack/core/utils';
 import { parseToolInput } from './_tool-input.js';
 import { type HeadersLike, parseProviderHttpError } from './error-parse.js';
 import { capabilitiesForFamily } from './family-capabilities.js';
+import { type BuildBodyContext, resolveMaxOutputTokens } from './model-output-limits.js';
 import { applyPromptCacheKey } from './prompt-cache-key.js';
 import { parseSSE } from './sse.js';
 import { normalizeOpenAI } from './stop-reason.js';
@@ -90,20 +91,20 @@ export class OpenAIProvider extends WireAdapter {
     return 'max_completion_tokens';
   }
 
-  protected override buildBody(
-    req: Request,
-    ctx: { capabilities: Capabilities },
-  ): Record<string, unknown> {
-    const maxOutput = req.maxTokens ?? ctx.capabilities.maxOutput ?? 8192;
+  protected override buildBody(req: Request, ctx: BuildBodyContext): Record<string, unknown> {
+    const maxOutput = resolveMaxOutputTokens(req, ctx);
     const body: Record<string, unknown> = {
       model: req.model,
       messages: messagesToOpenAI(this.stripCacheControl(req), req.messages, {
         ...this.opts.quirks,
       }),
-      [this.tokenLimitParam()]: maxOutput,
       stream: true,
       stream_options: { include_usage: true },
     };
+    // Optional field: omitted when neither the caller, the catalog nor the
+    // capability overlay knows this model's ceiling, so the backend applies
+    // its own maximum rather than a literal invented here.
+    if (maxOutput !== undefined) body[this.tokenLimitParam()] = maxOutput;
     if (req.tools && req.tools.length > 0) {
       body['tools'] = toolsToOpenAI(req.tools);
       if (req.toolChoice) {

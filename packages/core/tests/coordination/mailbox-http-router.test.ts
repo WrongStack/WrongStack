@@ -1,10 +1,16 @@
+import { mkdtemp, rm, writeFile } from 'node:fs/promises';
 import type { IncomingMessage, OutgoingHttpHeaders, ServerResponse } from 'node:http';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { PassThrough, Readable } from 'node:stream';
 import { describe, expect, it, vi } from 'vitest';
 
+import { GlobalMailbox } from '../../src/coordination/global-mailbox.js';
+import { JsonlCredentialStore } from '../../src/coordination/mailbox-credential-store.js';
 import { MailboxEventEmitter } from '../../src/coordination/mailbox-events.js';
 import {
   authorizeMailboxBearerToken,
+  authorizeMailboxCredential,
   createMailboxHttpRouter,
   MailboxHttpRateLimiter,
 } from '../../src/coordination/mailbox-http-router.js';
@@ -186,16 +192,22 @@ async function handle(
     request?: IncomingMessage;
     routePath?: string;
     authorize?: Parameters<typeof createMailboxHttpRouter>[0]['authorize'];
+    credentialStore?: JsonlCredentialStore;
     rateLimiter?: MailboxHttpRateLimiter;
     eventEmitter?: MailboxEventEmitter;
     maxBodyBytes?: number;
     defaultMaxAgeMs?: number;
+    projectId?: string;
   } = {},
 ): Promise<ResponseRecorder> {
   const response = makeResponse();
   const router = createMailboxHttpRouter({
     mailbox: input.mailbox ?? makeMailbox().mailbox,
     ...(input.authorize ? { authorize: input.authorize } : {}),
+    ...(input.credentialStore ? { credentialStore: input.credentialStore } : {}),
+    ...(input.credentialStore || input.projectId !== undefined
+      ? { projectId: input.projectId ?? 'test-project' }
+      : {}),
     ...(input.rateLimiter ? { rateLimiter: input.rateLimiter } : {}),
     ...(input.eventEmitter ? { eventEmitter: input.eventEmitter } : {}),
     ...(input.maxBodyBytes !== undefined ? { maxBodyBytes: input.maxBodyBytes } : {}),
@@ -754,6 +766,273 @@ describe('mailbox HTTP router', () => {
     });
   });
 
+  it('filters leader-only broadcast SSE events for a self-scoped non-leader actor', async () => {
+    const eventEmitter = new MailboxEventEmitter();
+    const request = makeRequest({ method: 'GET', url: '/mailbox/events', keepOpen: true });
+    const response = makeResponse();
+    const router = createMailboxHttpRouter({
+      mailbox: makeMailbox().mailbox,
+      eventEmitter,
+      authorize: () => ({
+        allowed: true,
+        actor: {
+          actorId: 'worker-1',
+          projectId: 'project-1',
+          kind: 'agent',
+          role: 'worker',
+          capabilities: new Set(['mail.events.self']),
+          authMode: 'identity-token',
+          recipientAliases: new Set<string>(),
+        },
+      }),
+    });
+
+    await router.handle(request, response.response);
+    eventEmitter.emit({
+      type: 'message.sent',
+      messageId: 'leaders-only',
+      from: 'leader-1',
+      to: '*',
+      audience: 'leaders',
+      timestamp: '2026-07-16T00:00:00.000Z',
+    });
+    eventEmitter.emit({
+      type: 'message.sent',
+      messageId: 'all-agents',
+      from: 'leader-1',
+      to: '*',
+      audience: 'all',
+      timestamp: '2026-07-16T00:00:01.000Z',
+    });
+
+    expect(response.text()).not.toContain('leaders-only');
+    expect(response.text()).toContain('all-agents');
+    router.close();
+  });
+
+  it('applies self and audience visibility to documented nested SSE envelopes', async () => {
+    const eventEmitter = new MailboxEventEmitter();
+    const request = makeRequest({ method: 'GET', url: '/mailbox/events', keepOpen: true });
+    const response = makeResponse();
+    const router = createMailboxHttpRouter({
+      mailbox: makeMailbox().mailbox,
+      eventEmitter,
+      authorize: () => ({
+        allowed: true,
+        actor: {
+          actorId: 'worker-1',
+          projectId: 'project-1',
+          kind: 'agent',
+          role: 'worker',
+          capabilities: new Set(['mail.events.self']),
+          authMode: 'identity-token',
+          recipientAliases: new Set(['worker']),
+        },
+      }),
+    });
+
+    await router.handle(request, response.response);
+    eventEmitter.emit({
+      messageSent: {
+        messageId: 'nested-other-recipient',
+        from: 'leader-1',
+        to: 'other-worker',
+        audience: 'all',
+        timestamp: '2026-07-16T00:00:00.000Z',
+      },
+    } as never);
+    eventEmitter.emit({
+      ackUpdated: {
+        messageId: 'nested-leaders-only',
+        from: 'leader-1',
+        to: '*',
+        audience: 'leaders',
+        timestamp: '2026-07-16T00:00:01.000Z',
+      },
+    } as never);
+    eventEmitter.emit({
+      messageSent: {
+        messageId: 'nested-visible',
+        from: 'leader-1',
+        to: 'worker',
+        audience: 'all',
+        timestamp: '2026-07-16T00:00:02.000Z',
+      },
+    } as never);
+    eventEmitter.emit({
+      payload: {
+        messageId: 'undocumented-payload',
+        from: 'leader-1',
+        to: 'worker',
+        audience: 'all',
+        timestamp: '2026-07-16T00:00:03.000Z',
+      },
+    } as never);
+
+    expect(response.text()).not.toContain('nested-other-recipient');
+    expect(response.text()).not.toContain('nested-leaders-only');
+    expect(response.text()).not.toContain('undocumented-payload');
+    expect(response.text()).toContain('nested-visible');
+    router.close();
+  });
+
+  it('revalidates a credential before SSE delivery and closes a revoked stream', async () => {
+    const dir = await mkdtemp(join(tmpdir(), 'mailbox-http-router-sse-credential-'));
+    try {
+      const store = new JsonlCredentialStore(dir);
+      await store.load();
+      const { credential, secret } = await store.issue({
+        principalId: 'worker@sess-1',
+        projectId: 'project-1',
+        kind: 'agent',
+        capabilities: ['mail.events.self'],
+        ttlMs: 60_000,
+      });
+      const eventEmitter = new MailboxEventEmitter();
+      const request = makeRequest({
+        method: 'GET',
+        url: '/mailbox/events',
+        keepOpen: true,
+        headers: { authorization: `Credential ${credential.credentialId}:${secret}` },
+      });
+      const response = makeResponse();
+      const router = createMailboxHttpRouter({
+        mailbox: makeMailbox().mailbox,
+        eventEmitter,
+        credentialStore: store,
+        projectId: 'project-1',
+      });
+
+      await router.handle(request, response.response);
+      expect(eventEmitter.subscriberCount).toBe(1);
+      const externalStore = new JsonlCredentialStore(dir);
+      await externalStore.load();
+      await externalStore.revoke(credential.credentialId);
+      eventEmitter.emit({
+        type: 'message.sent',
+        messageId: 'after-revoke',
+        from: 'leader@sess-1',
+        to: 'worker@sess-1',
+        timestamp: '2026-07-16T00:00:00.000Z',
+      });
+
+      await vi.waitFor(() => expect(response.ended).toBe(true));
+      expect(response.text()).not.toContain('after-revoke');
+      expect(eventEmitter.subscriberCount).toBe(0);
+      router.close();
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  }, 5_000);
+
+  it('preserves SSE event order while credential revalidation is asynchronous', async () => {
+    const dir = await mkdtemp(join(tmpdir(), 'mailbox-http-router-sse-order-'));
+    try {
+      const store = new JsonlCredentialStore(dir);
+      await store.load();
+      const { credential, secret } = await store.issue({
+        principalId: 'worker@sess-1',
+        projectId: 'project-1',
+        kind: 'agent',
+        capabilities: ['mail.events.self'],
+        ttlMs: 60_000,
+      });
+      const eventEmitter = new MailboxEventEmitter();
+      const request = makeRequest({
+        method: 'GET',
+        url: '/mailbox/events',
+        keepOpen: true,
+        headers: { authorization: `Credential ${credential.credentialId}:${secret}` },
+      });
+      const response = makeResponse();
+      const router = createMailboxHttpRouter({
+        mailbox: makeMailbox().mailbox,
+        eventEmitter,
+        credentialStore: store,
+        projectId: 'project-1',
+      });
+      await router.handle(request, response.response);
+
+      const verifyPersisted = store.verifyPersisted.bind(store);
+      let validations = 0;
+      vi.spyOn(store, 'verifyPersisted').mockImplementation(async (...args) => {
+        validations++;
+        if (validations === 1) await new Promise((resolve) => setTimeout(resolve, 25));
+        return verifyPersisted(...args);
+      });
+      eventEmitter.emit({
+        type: 'message.sent', messageId: 'first', from: 'leader', to: 'worker@sess-1',
+        timestamp: '2026-07-16T00:00:00.000Z',
+      });
+      eventEmitter.emit({
+        type: 'message.sent', messageId: 'second', from: 'leader', to: 'worker@sess-1',
+        timestamp: '2026-07-16T00:00:01.000Z',
+      });
+
+      await vi.waitFor(() => expect(response.text()).toContain('second'));
+      expect(response.text().indexOf('first')).toBeLessThan(response.text().indexOf('second'));
+      router.close();
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  }, 5_000);
+
+  it('does not write an event when the stream closes during credential revalidation', async () => {
+    const dir = await mkdtemp(join(tmpdir(), 'mailbox-http-router-sse-close-race-'));
+    try {
+      const store = new JsonlCredentialStore(dir);
+      await store.load();
+      const { credential, secret } = await store.issue({
+        principalId: 'worker@sess-1',
+        projectId: 'project-1',
+        kind: 'agent',
+        capabilities: ['mail.events.self'],
+        ttlMs: 60_000,
+      });
+      const eventEmitter = new MailboxEventEmitter();
+      const request = makeRequest({
+        method: 'GET',
+        url: '/mailbox/events',
+        keepOpen: true,
+        headers: { authorization: `Credential ${credential.credentialId}:${secret}` },
+      });
+      const response = makeResponse();
+      const router = createMailboxHttpRouter({
+        mailbox: makeMailbox().mailbox,
+        eventEmitter,
+        credentialStore: store,
+        projectId: 'project-1',
+      });
+      await router.handle(request, response.response);
+
+      const verifyPersisted = store.verifyPersisted.bind(store);
+      let releaseValidation: () => void = () => undefined;
+      const validationGate = new Promise<void>((resolve) => {
+        releaseValidation = resolve;
+      });
+      const validationStarted = vi.fn();
+      vi.spyOn(store, 'verifyPersisted').mockImplementation(async (...args) => {
+        validationStarted();
+        await validationGate;
+        return verifyPersisted(...args);
+      });
+
+      eventEmitter.emit({
+        type: 'message.sent', messageId: 'pending-at-close', from: 'leader', to: 'worker@sess-1',
+        timestamp: '2026-07-16T00:00:00.000Z',
+      });
+      await vi.waitFor(() => expect(validationStarted).toHaveBeenCalledOnce());
+      router.close();
+      releaseValidation();
+      await new Promise((resolve) => setTimeout(resolve, 0));
+
+      expect(response.ended).toBe(true);
+      expect(response.text()).not.toContain('pending-at-close');
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  }, 5_000);
+
   it('streams events over SSE and router.close tears down subscribers idempotently', async () => {
     const eventEmitter = new MailboxEventEmitter();
     const request = makeRequest({ method: 'GET', url: '/mailbox/events', keepOpen: true });
@@ -1257,6 +1536,1051 @@ describe('mailbox HTTP authorization helpers', () => {
     expect(authorizeMailboxBearerToken(makeRequest(), expected)).toEqual({ allowed: false });
   });
 
+  it('resolves the persisted principal and capability set for a valid credential', async () => {
+    const dir = await mkdtemp(join(tmpdir(), 'mailbox-http-credential-'));
+    try {
+      const store = new JsonlCredentialStore(dir);
+      await store.load();
+      const { credential, secret } = await store.issue({
+        principalId: 'agent-credential',
+        projectId: 'test-project',
+        kind: 'agent',
+        capabilities: ['mail.send.informational', 'mail.read.self'],
+        ttlMs: 60_000,
+      });
+
+      const decision = authorizeMailboxCredential(
+        makeRequest({
+          headers: { authorization: `Credential ${credential.credentialId}:${secret}` },
+        }),
+        store,
+      );
+
+      expect(decision).toMatchObject({
+        allowed: true,
+        rateLimitKey: `cred:${credential.credentialId}`,
+        actor: {
+          actorId: 'agent-credential',
+          kind: 'agent',
+          authMode: 'identity-token',
+        },
+      });
+      if (!decision.allowed || !('actor' in decision)) {
+        throw new Error('expected successful credential authorization');
+      }
+      expect(decision.actor.capabilities).toBeInstanceOf(Set);
+      expect(decision.actor.capabilities.has('mail.read.self')).toBe(true);
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  }, 5_000);
+
+  it('uses credentialStore for router authorization when no custom authorizer is supplied', async () => {
+    const dir = await mkdtemp(join(tmpdir(), 'mailbox-http-router-credential-'));
+    try {
+      const store = new JsonlCredentialStore(dir);
+      await store.load();
+      const { credential, secret } = await store.issue({
+        principalId: 'service-credential',
+        projectId: 'test-project',
+        kind: 'service',
+        capabilities: ['mail.presence.read'],
+        ttlMs: 60_000,
+      });
+
+      const accepted = await handle({
+        credentialStore: store,
+        request: makeRequest({
+          url: '/mailbox/agents',
+          headers: { authorization: `Credential ${credential.credentialId}:${secret}` },
+        }),
+      });
+      const rejected = await handle({
+        credentialStore: store,
+        request: makeRequest({
+          url: '/mailbox/agents',
+          headers: { authorization: `Credential ${credential.credentialId}:wrong-secret` },
+        }),
+      });
+      const missing = await handle({
+        credentialStore: store,
+        request: makeRequest({ url: '/mailbox/agents' }),
+      });
+
+      expect(accepted.status).toBe(200);
+      expect(rejected.status).toBe(401);
+      expect(missing.status).toBe(401);
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  }, 5_000);
+
+  it('rejects ordinary requests after another store revokes the credential', async () => {
+    const dir = await mkdtemp(join(tmpdir(), 'mailbox-http-router-external-revoke-'));
+    try {
+      const store = new JsonlCredentialStore(dir);
+      await store.load();
+      const { credential, secret } = await store.issue({
+        principalId: 'credential-agent',
+        projectId: 'test-project',
+        kind: 'agent',
+        capabilities: ['mail.presence.read'],
+        ttlMs: 60_000,
+      });
+      const authorization = `Credential ${credential.credentialId}:${secret}`;
+      const stub = makeMailbox();
+
+      const accepted = await handle({
+        mailbox: stub.mailbox,
+        credentialStore: store,
+        request: makeRequest({ url: '/mailbox/agents', headers: { authorization } }),
+      });
+      expect(accepted.status).toBe(200);
+      expect(stub.getAgentStatuses).toHaveBeenCalledTimes(1);
+
+      const externalStore = new JsonlCredentialStore(dir);
+      await externalStore.load();
+      await externalStore.revoke(credential.credentialId);
+      stub.getAgentStatuses.mockClear();
+
+      const rejected = await handle({
+        mailbox: stub.mailbox,
+        credentialStore: store,
+        request: makeRequest({ url: '/mailbox/agents', headers: { authorization } }),
+      });
+      expect(rejected.status).toBe(401);
+      expect(stub.getAgentStatuses).not.toHaveBeenCalled();
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  }, 5_000);
+
+  it('revalidates cached custom credential authorization before ordinary dispatch', async () => {
+    const dir = await mkdtemp(join(tmpdir(), 'mailbox-http-router-custom-external-revoke-'));
+    try {
+      const store = new JsonlCredentialStore(dir);
+      await store.load();
+      const { credential, secret } = await store.issue({
+        principalId: 'credential-agent',
+        projectId: 'test-project',
+        kind: 'agent',
+        capabilities: ['mail.presence.read'],
+        ttlMs: 60_000,
+      });
+      const authorization = `Credential ${credential.credentialId}:${secret}`;
+      const stub = makeMailbox();
+      const authorize = (request: IncomingMessage) => authorizeMailboxCredential(request, store);
+
+      const accepted = await handle({
+        mailbox: stub.mailbox,
+        credentialStore: store,
+        authorize,
+        request: makeRequest({ url: '/mailbox/agents', headers: { authorization } }),
+      });
+      expect(accepted.status).toBe(200);
+      expect(stub.getAgentStatuses).toHaveBeenCalledTimes(1);
+
+      const externalStore = new JsonlCredentialStore(dir);
+      await externalStore.load();
+      await externalStore.revoke(credential.credentialId);
+      stub.getAgentStatuses.mockClear();
+
+      const rejected = await handle({
+        mailbox: stub.mailbox,
+        credentialStore: store,
+        authorize,
+        request: makeRequest({ url: '/mailbox/agents', headers: { authorization } }),
+      });
+      expect(rejected.status).toBe(401);
+      expect(stub.getAgentStatuses).not.toHaveBeenCalled();
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  }, 5_000);
+
+  it('uses persisted capabilities instead of a custom authorizer stale snapshot', async () => {
+    const dir = await mkdtemp(join(tmpdir(), 'mailbox-http-router-custom-capabilities-'));
+    try {
+      const store = new JsonlCredentialStore(dir);
+      await store.load();
+      const { credential, secret } = await store.issue({
+        principalId: 'credential-agent',
+        projectId: 'test-project',
+        kind: 'agent',
+        capabilities: ['mail.read.self'],
+        ttlMs: 60_000,
+      });
+      const authorization = `Credential ${credential.credentialId}:${secret}`;
+      const stub = makeMailbox();
+
+      const response = await handle({
+        mailbox: stub.mailbox,
+        credentialStore: store,
+        authorize: () => ({
+          allowed: true,
+          actor: {
+            actorId: 'credential-agent',
+            projectId: 'test-project',
+            kind: 'agent',
+            capabilities: new Set(['mail.presence.read']),
+            authMode: 'identity-token',
+            recipientAliases: new Set(['credential-agent']),
+          },
+        }),
+        request: makeRequest({ url: '/mailbox/agents', headers: { authorization } }),
+      });
+
+      expect(response.status).toBe(403);
+      expect(stub.getAgentStatuses).not.toHaveBeenCalled();
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  }, 5_000);
+
+  it('enforces credential capabilities and derives the sender from the principal', async () => {
+    const dir = await mkdtemp(join(tmpdir(), 'mailbox-http-router-principal-'));
+    try {
+      const store = new JsonlCredentialStore(dir);
+      await store.load();
+      const { credential, secret } = await store.issue({
+        principalId: 'credential-agent',
+        projectId: 'test-project',
+        kind: 'agent',
+        capabilities: ['mail.send.informational'],
+        ttlMs: 60_000,
+      });
+      const authorization = `Credential ${credential.credentialId}:${secret}`;
+      const stub = makeMailbox();
+
+      const sent = await handle({
+        mailbox: stub.mailbox,
+        credentialStore: store,
+        request: makeRequest({
+          method: 'POST',
+          url: '/mailbox/send',
+          headers: { authorization },
+          body: {
+            to: 'recipient',
+            type: 'note',
+            subject: 'subject',
+            body: 'body',
+          },
+        }),
+      });
+      const denied = await handle({
+        mailbox: stub.mailbox,
+        credentialStore: store,
+        request: makeRequest({
+          method: 'POST',
+          url: '/mailbox/query',
+          headers: { authorization },
+          body: {},
+        }),
+      });
+
+      expect(sent.status).toBe(201);
+      expect(stub.send).toHaveBeenCalledWith(
+        expect.objectContaining({ from: 'credential-agent' }),
+      );
+      expect(denied.status).toBe(403);
+      expect(stub.query).not.toHaveBeenCalled();
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  }, 5_000);
+
+  it('enforces project scope before dispatching a credential-authenticated request', async () => {
+    const dir = await mkdtemp(join(tmpdir(), 'mailbox-http-router-project-scope-'));
+    try {
+      const store = new JsonlCredentialStore(dir);
+      await store.load();
+      const { credential, secret } = await store.issue({
+        principalId: 'credential-agent',
+        projectId: 'project-a',
+        kind: 'agent',
+        capabilities: ['mail.presence.read'],
+        ttlMs: 60_000,
+      });
+      const stub = makeMailbox();
+
+      const response = await handle({
+        mailbox: stub.mailbox,
+        credentialStore: store,
+        projectId: 'project-b',
+        request: makeRequest({
+          url: '/mailbox/agents',
+          headers: { authorization: `Credential ${credential.credentialId}:${secret}` },
+        }),
+      });
+
+      expect(response.status).toBe(403);
+      expect(response.json()).toEqual({
+        error: { code: 'FORBIDDEN', message: 'credential is scoped to a different project' },
+      });
+      expect(stub.getAgentStatuses).not.toHaveBeenCalled();
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  }, 5_000);
+
+  it('requires ack capability when credential check uses its default mark-read behavior', async () => {
+    const dir = await mkdtemp(join(tmpdir(), 'mailbox-http-router-check-capability-'));
+    try {
+      const store = new JsonlCredentialStore(dir);
+      await store.load();
+      const { credential, secret } = await store.issue({
+        principalId: 'credential-agent',
+        projectId: 'test-project',
+        kind: 'agent',
+        capabilities: ['mail.read.self'],
+        ttlMs: 60_000,
+      });
+      const authorization = `Credential ${credential.credentialId}:${secret}`;
+      const stub = makeMailbox();
+
+      const denied = await handle({
+        mailbox: stub.mailbox,
+        credentialStore: store,
+        request: makeRequest({
+          method: 'POST',
+          url: '/mailbox/check',
+          headers: { authorization },
+          body: {},
+        }),
+      });
+      const completionDenied = await handle({
+        mailbox: stub.mailbox,
+        credentialStore: store,
+        request: makeRequest({
+          method: 'POST',
+          url: '/mailbox/check',
+          headers: { authorization },
+          body: { markRead: false, completed: true, outcome: 'handled' },
+        }),
+      });
+      const readOnly = await handle({
+        mailbox: stub.mailbox,
+        credentialStore: store,
+        request: makeRequest({
+          method: 'POST',
+          url: '/mailbox/check',
+          headers: { authorization },
+          body: { markRead: false },
+        }),
+      });
+
+      expect(denied.status).toBe(403);
+      expect(completionDenied.status).toBe(403);
+      expect(readOnly.status).toBe(200);
+      expect(stub.query).toHaveBeenCalledWith(
+        expect.objectContaining({ to: 'credential-agent', unreadBy: 'credential-agent' }),
+      );
+      expect(stub.ackMany).not.toHaveBeenCalled();
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  }, 5_000);
+
+  it('derives ack and self-query identities from the credential principal', async () => {
+    const dir = await mkdtemp(join(tmpdir(), 'mailbox-http-router-self-'));
+    try {
+      const store = new JsonlCredentialStore(dir);
+      await store.load();
+      const { credential, secret } = await store.issue({
+        principalId: 'credential-agent',
+        projectId: 'test-project',
+        kind: 'agent',
+        capabilities: ['mail.read.self', 'mail.ack.self'],
+        ttlMs: 60_000,
+      });
+      const authorization = `Credential ${credential.credentialId}:${secret}`;
+      const stub = makeMailbox();
+      stub.query.mockResolvedValue([
+        {
+          ...message({
+            id: 'msg-1',
+            to: 'credential-agent',
+            readBy: {
+              'credential-agent': '2026-07-16T00:00:30.000Z',
+              'other-agent': '2026-07-16T00:01:00.000Z',
+            },
+            completed: true,
+            completedBy: 'other-agent',
+            completedAt: '2026-07-16T00:02:00.000Z',
+            outcome: 'other actor legacy outcome',
+          }),
+          recipientState: {
+            'credential-agent': {
+              actorId: 'credential-agent',
+              readAt: '2026-07-16T00:00:30.000Z',
+              completedAt: '2026-07-16T00:01:30.000Z',
+              outcome: 'my private outcome',
+            },
+            'other-agent': {
+              actorId: 'other-agent',
+              readAt: '2026-07-16T00:01:00.000Z',
+              completedAt: '2026-07-16T00:02:00.000Z',
+              outcome: 'other private outcome',
+            },
+          },
+        },
+      ]);
+      const legacyCompleted = {
+        ...message({
+          id: 'msg-1',
+          to: 'credential-agent',
+          completed: true,
+          completedBy: 'credential-agent',
+          completedAt: '2026-07-16T00:03:00.000Z',
+          outcome: 'another recipient outcome',
+        }),
+        recipientState: {
+          'credential-agent': {
+            actorId: 'credential-agent',
+            completedAt: '2026-07-16T00:03:00.000Z',
+          },
+        },
+      };
+      stub.ack.mockResolvedValue(legacyCompleted);
+      stub.ackMany.mockResolvedValue([legacyCompleted]);
+
+      const queried = await handle({
+        mailbox: stub.mailbox,
+        credentialStore: store,
+        request: makeRequest({
+          method: 'POST',
+          url: '/mailbox/query',
+          headers: { authorization },
+          body: { to: 'credential-agent', unreadBy: 'other-agent' },
+        }),
+      });
+      const checked = await handle({
+        mailbox: stub.mailbox,
+        credentialStore: store,
+        request: makeRequest({
+          method: 'POST',
+          url: '/mailbox/check',
+          headers: { authorization },
+          body: { markRead: false },
+        }),
+      });
+      const acked = await handle({
+        mailbox: stub.mailbox,
+        credentialStore: store,
+        request: makeRequest({
+          method: 'POST',
+          url: '/mailbox/ack',
+          headers: { authorization },
+          body: { messageId: 'msg-1' },
+        }),
+      });
+      const batchAcked = await handle({
+        mailbox: stub.mailbox,
+        credentialStore: store,
+        request: makeRequest({
+          method: 'POST',
+          url: '/mailbox/ack-many',
+          headers: { authorization },
+          body: { acks: [{ messageId: 'msg-1', completed: true, outcome: 'handled' }] },
+        }),
+      });
+      const rejectedBatch = await handle({
+        mailbox: stub.mailbox,
+        credentialStore: store,
+        request: makeRequest({
+          method: 'POST',
+          url: '/mailbox/ack-many',
+          headers: { authorization },
+          body: { acks: [{ messageId: 'not-visible', completed: true }] },
+        }),
+      });
+
+      expect(queried.status).toBe(200);
+      expect(stub.query).toHaveBeenCalledWith(
+        expect.objectContaining({
+          to: 'credential-agent',
+          unreadBy: 'credential-agent',
+          includeReceiptState: true,
+        }),
+      );
+      expect(stub.query).toHaveBeenCalledWith(
+        expect.objectContaining({
+          to: 'credential-agent',
+          limit: Number.MAX_SAFE_INTEGER,
+        }),
+      );
+      expect(stub.query.mock.calls.some(([query]) => query.unreadBy === undefined)).toBe(true);
+      const projected = (queried.json() as { data: Array<Record<string, unknown>> }).data[0];
+      expect(projected).toMatchObject({
+        readByMe: true,
+        completedByMe: true,
+        myOutcome: 'my private outcome',
+      });
+      expect(projected).not.toHaveProperty('recipientState');
+      expect(projected).not.toHaveProperty('readBy');
+      expect(projected).not.toHaveProperty('completedBy');
+      expect(projected).not.toHaveProperty('completedAt');
+      expect(projected).not.toHaveProperty('outcome');
+      expect(JSON.stringify(projected)).not.toContain('other private outcome');
+      expect(checked.status).toBe(200);
+      expect(checked.json()).toMatchObject({
+        data: [
+          {
+            readByMe: true,
+            completedByMe: true,
+            myOutcome: 'my private outcome',
+          },
+        ],
+      });
+      expect(acked.status).toBe(200);
+      expect(stub.ack).toHaveBeenCalledWith(
+        expect.objectContaining({ messageId: 'msg-1', readerId: 'credential-agent' }),
+      );
+      expect(acked.json()).toMatchObject({
+        updated: {
+          completedByMe: true,
+        },
+      });
+      expect((acked.json() as { updated: Record<string, unknown> }).updated).not.toHaveProperty(
+        'myOutcome',
+      );
+      expect(batchAcked.status).toBe(200);
+      expect(batchAcked.json()).toMatchObject({
+        updated: [
+          {
+            completedByMe: true,
+          },
+        ],
+      });
+      expect(
+        (batchAcked.json() as { updated: Array<Record<string, unknown>> }).updated[0],
+      ).not.toHaveProperty('myOutcome');
+      expect(stub.ackMany).toHaveBeenCalledWith({
+        acks: [
+          expect.objectContaining({
+            messageId: 'msg-1',
+            readerId: 'credential-agent',
+            completed: true,
+            outcome: 'handled',
+          }),
+        ],
+      });
+      expect(rejectedBatch.status).toBe(404);
+      expect(stub.ackMany).toHaveBeenCalledTimes(1);
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  }, 5_000);
+
+  it('unions exact, alias, and session recipients without forcing unread filtering', async () => {
+    const stub = makeMailbox();
+    const visibleByRecipient: Record<string, MailboxMessage[]> = {
+      'worker@sess-1': [message({ id: 'direct', to: 'worker@sess-1' })],
+      worker: [message({ id: 'alias', to: 'worker' })],
+      '@session:sess-1': [message({ id: 'session', to: '@session:sess-1' })],
+    };
+    stub.query.mockImplementation(async (query) => visibleByRecipient[query.to ?? ''] ?? []);
+    const actor = {
+      actorId: 'worker@sess-1',
+      projectId: 'test-project',
+      kind: 'agent' as const,
+      role: 'worker',
+      capabilities: new Set(['mail.read.self'] as const),
+      authMode: 'identity-token' as const,
+      recipientAliases: new Set(['worker']),
+      sessionId: 'sess-1',
+    };
+
+    const response = await handle({
+      mailbox: stub.mailbox,
+      authorize: () => ({ allowed: true, actor }),
+      request: makeRequest({ method: 'POST', url: '/mailbox/query', body: {} }),
+    });
+
+    expect(response.status).toBe(200);
+    expect((response.json() as { data: MailboxMessage[] }).data.map(({ id }) => id)).toEqual([
+      'direct',
+      'alias',
+      'session',
+    ]);
+    expect(stub.query).toHaveBeenCalledTimes(3);
+    for (const [query] of stub.query.mock.calls) {
+      expect(query.unreadBy).toBeUndefined();
+      expect(query.includeReceiptState).toBe(true);
+    }
+
+    const unreadResponse = await handle({
+      mailbox: stub.mailbox,
+      authorize: () => ({ allowed: true, actor }),
+      request: makeRequest({
+        method: 'POST',
+        url: '/mailbox/query',
+        body: { unreadBy: 'spoofed-reader' },
+      }),
+    });
+    expect(unreadResponse.status).toBe(200);
+    for (const [query] of stub.query.mock.calls.slice(3)) {
+      expect(query.unreadBy).toBe('worker@sess-1');
+      expect(query.readerRole).toBe('worker');
+    }
+
+    stub.query.mockClear();
+    const incompleteResponse = await handle({
+      mailbox: stub.mailbox,
+      authorize: () => ({ allowed: true, actor }),
+      request: makeRequest({
+        method: 'POST',
+        url: '/mailbox/query',
+        body: { incompleteOnly: true },
+      }),
+    });
+    expect(incompleteResponse.status).toBe(200);
+    expect(stub.query).toHaveBeenCalledTimes(3);
+    for (const [query] of stub.query.mock.calls) {
+      expect(query.unreadBy).toBe('worker@sess-1');
+      expect(query.readerRole).toBe('worker');
+      expect(query.incompleteOnly).toBe(true);
+    }
+  });
+
+  it('counts credential unread mail across exact, alias, and session recipients', async () => {
+    const stub = makeMailbox();
+    const broadcast = message({ id: 'broadcast', to: '*' });
+    const completedForActor = {
+      ...message({ id: 'completed-for-actor', to: 'worker' }),
+      recipientState: {
+        'worker@sess-1': {
+          actorId: 'worker@sess-1',
+          completedAt: '2026-07-16T00:02:00.000Z',
+        },
+      },
+    };
+    const completedForSomeoneElse = {
+      ...message({ id: 'completed-for-someone-else', to: 'worker' }),
+      recipientState: {
+        'other-worker': {
+          actorId: 'other-worker',
+          completedAt: '2026-07-16T00:03:00.000Z',
+        },
+      },
+    };
+    const visibleByRecipient: Record<string, MailboxMessage[]> = {
+      'worker@sess-1': [message({ id: 'direct', to: 'worker@sess-1' }), broadcast],
+      worker: [
+        message({ id: 'alias', to: 'worker' }),
+        broadcast,
+        completedForActor,
+        completedForSomeoneElse,
+      ],
+      '@session:sess-1': [message({ id: 'session', to: '@session:sess-1' }), broadcast],
+    };
+    stub.query.mockImplementation(async (query) => visibleByRecipient[query.to ?? ''] ?? []);
+    const actor = {
+      actorId: 'worker@sess-1',
+      projectId: 'test-project',
+      kind: 'agent' as const,
+      role: 'worker',
+      capabilities: new Set(['mail.read.self'] as const),
+      authMode: 'identity-token' as const,
+      recipientAliases: new Set(['worker']),
+      sessionId: 'sess-1',
+    };
+
+    const response = await handle({
+      mailbox: stub.mailbox,
+      authorize: () => ({ allowed: true, actor }),
+      request: makeRequest({
+        method: 'POST',
+        url: '/mailbox/unread-count',
+        body: { forAgentId: 'spoofed-reader' },
+      }),
+    });
+
+    expect(response.status).toBe(200);
+    expect(response.json()).toEqual({ count: 5 });
+    expect(stub.unreadCount).not.toHaveBeenCalled();
+    expect(stub.query).toHaveBeenCalledTimes(3);
+    for (const [query] of stub.query.mock.calls) {
+      expect(query).toMatchObject({
+        unreadBy: 'worker@sess-1',
+        readerRole: 'worker',
+        includeReceiptState: true,
+        limit: Number.MAX_SAFE_INTEGER,
+      });
+      expect(query.incompleteOnly).toBeUndefined();
+    }
+  }, 5_000);
+
+  it('rejects self queries for recipient forms outside the trusted actor context', async () => {
+    const stub = makeMailbox();
+    const response = await handle({
+      mailbox: stub.mailbox,
+      authorize: () => ({
+        allowed: true,
+        actor: {
+          actorId: 'worker@sess-1',
+          projectId: 'test-project',
+          kind: 'agent',
+          role: 'worker',
+          capabilities: new Set(['mail.read.self']),
+          authMode: 'identity-token',
+          recipientAliases: new Set(['worker']),
+          sessionId: 'sess-1',
+        },
+      }),
+      request: makeRequest({
+        method: 'POST',
+        url: '/mailbox/query',
+        body: { to: 'other-worker' },
+      }),
+    });
+
+    expect(response.status).toBe(200);
+    expect(response.json()).toEqual({ data: [], count: 0 });
+    expect(stub.query).not.toHaveBeenCalled();
+  });
+
+  it('binds receipt state to broad readers that lack receipt-admin capability', async () => {
+    const stub = makeMailbox();
+    stub.query.mockResolvedValue([
+      {
+        ...message({ id: 'aggregate', to: '*' }),
+        recipientState: {
+          operator: { actorId: 'operator', readAt: '2026-07-16T00:00:30.000Z' },
+          victim: { actorId: 'victim', completedAt: '2026-07-16T00:01:00.000Z' },
+        },
+      },
+    ]);
+    const response = await handle({
+      mailbox: stub.mailbox,
+      authorize: () => ({
+        allowed: true,
+        actor: {
+          actorId: 'operator',
+          projectId: 'test-project',
+          kind: 'operator',
+          capabilities: new Set(['mail.read.all']),
+          authMode: 'identity-token',
+          recipientAliases: new Set<string>(),
+        },
+      }),
+      request: makeRequest({
+        method: 'POST',
+        url: '/mailbox/query',
+        body: { unreadBy: 'victim', incompleteOnly: true },
+      }),
+    });
+    expect(response.status).toBe(200);
+    expect(stub.query).toHaveBeenCalledWith(expect.objectContaining({
+      unreadBy: 'operator',
+      incompleteOnly: true,
+      includeReceiptState: true,
+    }));
+    const projected = (response.json() as { data: Array<Record<string, unknown>> }).data[0];
+    expect(projected).toMatchObject({ readByMe: true, completedByMe: false });
+    expect(projected).not.toHaveProperty('recipientState');
+  });
+
+  it('allows receipt administrators to retrieve folded aggregate receipt state', async () => {
+    const stub = makeMailbox();
+    const aggregate = {
+      ...message({ id: 'aggregate', to: '*' }),
+      recipientState: {
+        worker: { actorId: 'worker', readAt: '2026-07-16T00:00:30.000Z' },
+      },
+      legacyGlobalCompletion: false,
+    };
+    stub.query.mockResolvedValue([aggregate]);
+
+    const response = await handle({
+      mailbox: stub.mailbox,
+      authorize: () => ({
+        allowed: true,
+        actor: {
+          actorId: 'operator',
+          projectId: 'test-project',
+          kind: 'operator',
+          capabilities: new Set(['mail.read.all', 'mail.admin.receipts']),
+          authMode: 'identity-token',
+          recipientAliases: new Set<string>(),
+        },
+      }),
+      request: makeRequest({ method: 'POST', url: '/mailbox/query', body: {} }),
+    });
+
+    expect(response.status).toBe(200);
+    expect(stub.query).toHaveBeenCalledWith(expect.objectContaining({ includeReceiptState: true }));
+    expect(response.json()).toMatchObject({
+      data: [{ id: 'aggregate', recipientState: aggregate.recipientState }],
+    });
+  });
+
+  it('derives v2 completion and outcome on credential query and read-only check paths', async () => {
+    const dir = await mkdtemp(join(tmpdir(), 'mailbox-http-router-v2-projection-'));
+    const mailbox = new GlobalMailbox(dir);
+    try {
+      const store = new JsonlCredentialStore(dir);
+      await store.load();
+      const { credential, secret } = await store.issue({
+        principalId: 'credential-agent',
+        projectId: 'test-project',
+        kind: 'agent',
+        capabilities: ['mail.read.self'],
+        ttlMs: 60_000,
+      });
+      const authorization = `Credential ${credential.credentialId}:${secret}`;
+      const sent = await mailbox.send({
+        from: 'sender',
+        to: 'credential-agent',
+        type: 'ask',
+        subject: 'question',
+        body: 'answer me',
+      });
+      await mailbox.ack({
+        messageId: sent.id,
+        readerId: 'credential-agent',
+        read: false,
+        completed: true,
+        outcome: 'resolved privately',
+      });
+
+      const queried = await handle({
+        mailbox,
+        credentialStore: store,
+        request: makeRequest({
+          method: 'POST',
+          url: '/mailbox/query',
+          headers: { authorization },
+          body: {},
+        }),
+      });
+      const checked = await handle({
+        mailbox,
+        credentialStore: store,
+        request: makeRequest({
+          method: 'POST',
+          url: '/mailbox/check',
+          headers: { authorization },
+          body: { markRead: false },
+        }),
+      });
+
+      for (const response of [queried, checked]) {
+        expect(response.status).toBe(200);
+        const projected = (response.json() as { data: Array<Record<string, unknown>> }).data[0];
+        expect(projected).toMatchObject({
+          id: sent.id,
+          readByMe: false,
+          completedByMe: true,
+          actionRequiredForMe: false,
+          myOutcome: 'resolved privately',
+        });
+        expect(projected).not.toHaveProperty('recipientState');
+        expect(projected).not.toHaveProperty('readBy');
+        expect(projected).not.toHaveProperty('completed');
+      }
+    } finally {
+      await mailbox.close();
+      await rm(dir, { recursive: true, force: true });
+    }
+  }, 5_000);
+
+  it('preserves legacy global completion when projecting a credential query', async () => {
+    const dir = await mkdtemp(join(tmpdir(), 'mailbox-http-router-v1-projection-'));
+    const mailbox = new GlobalMailbox(dir);
+    try {
+      const store = new JsonlCredentialStore(dir);
+      await store.load();
+      const { credential, secret } = await store.issue({
+        principalId: 'credential-agent',
+        projectId: 'test-project',
+        kind: 'agent',
+        capabilities: ['mail.read.self'],
+        ttlMs: 60_000,
+      });
+      await writeFile(
+        mailbox.messagePath,
+        `${JSON.stringify({
+          id: 'legacy-complete',
+          from: 'sender',
+          to: '*',
+          type: 'ask',
+          subject: 'legacy question',
+          body: 'already handled',
+          priority: 'normal',
+          timestamp: '2026-07-16T00:00:00.000Z',
+          readBy: {},
+          completed: true,
+          completedBy: 'old-worker',
+          completedAt: '2026-07-16T00:01:00.000Z',
+        })}\n`,
+        'utf8',
+      );
+      const response = await handle({
+        mailbox,
+        credentialStore: store,
+        request: makeRequest({
+          method: 'POST',
+          url: '/mailbox/query?sinceMs=0',
+          headers: { authorization: `Credential ${credential.credentialId}:${secret}` },
+          body: {},
+        }),
+      });
+
+      expect(response.status).toBe(200);
+      expect(response.json()).toMatchObject({
+        data: [
+          {
+            id: 'legacy-complete',
+            completedByMe: false,
+            actionRequiredForMe: false,
+            legacyGlobalCompletion: true,
+          },
+        ],
+      });
+    } finally {
+      await mailbox.close();
+      await rm(dir, { recursive: true, force: true });
+    }
+  }, 5_000);
+
+  it('rejects a credential presence registration with a conflicting session claim', async () => {
+    const dir = await mkdtemp(join(tmpdir(), 'mailbox-http-router-presence-'));
+    try {
+      const store = new JsonlCredentialStore(dir);
+      await store.load();
+      const { credential, secret } = await store.issue({
+        principalId: 'credential-agent@credential-session',
+        projectId: 'test-project',
+        kind: 'agent',
+        capabilities: ['mail.presence.register.self'],
+        ttlMs: 60_000,
+      });
+      const authorization = `Credential ${credential.credentialId}:${secret}`;
+      const stub = makeMailbox();
+
+      const registered = await handle({
+        mailbox: stub.mailbox,
+        credentialStore: store,
+        request: makeRequest({
+          method: 'POST',
+          url: '/mailbox/agents/register',
+          headers: { authorization },
+          body: {
+            name: 'Credential Agent',
+            pid: 123,
+            sessionId: 'another-session',
+          },
+        }),
+      });
+
+      expect(registered.status).toBe(400);
+      expect(registered.json()).toMatchObject({
+        error: { code: 'VALIDATION_ERROR', message: expect.stringContaining('sessionId') },
+      });
+      expect(stub.registerAgent).not.toHaveBeenCalled();
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  }, 5_000);
+
+  it('rejects a credential presence registration with a conflicting role claim', async () => {
+    const dir = await mkdtemp(join(tmpdir(), 'mailbox-http-router-presence-'));
+    try {
+      const store = new JsonlCredentialStore(dir);
+      await store.load();
+      const { credential, secret } = await store.issue({
+        principalId: 'credential-agent@credential-session',
+        projectId: 'test-project',
+        kind: 'agent',
+        capabilities: ['mail.presence.register.self'],
+        ttlMs: 60_000,
+      });
+      const authorization = `Credential ${credential.credentialId}:${secret}`;
+      const stub = makeMailbox();
+
+      const registered = await handle({
+        mailbox: stub.mailbox,
+        credentialStore: store,
+        request: makeRequest({
+          method: 'POST',
+          url: '/mailbox/agents/register',
+          headers: { authorization },
+          body: {
+            name: 'Credential Agent',
+            pid: 123,
+            role: 'leader',
+          },
+        }),
+      });
+
+      expect(registered.status).toBe(400);
+      expect(registered.json()).toMatchObject({
+        error: { code: 'VALIDATION_ERROR', message: expect.stringContaining('role') },
+      });
+      expect(stub.registerAgent).not.toHaveBeenCalled();
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  }, 5_000);
+
+  it('derives credential presence registration identity and heartbeat agent ID', async () => {
+    const dir = await mkdtemp(join(tmpdir(), 'mailbox-http-router-presence-'));
+    try {
+      const store = new JsonlCredentialStore(dir);
+      await store.load();
+      const { credential, secret } = await store.issue({
+        principalId: 'credential-agent@credential-session',
+        projectId: 'test-project',
+        kind: 'agent',
+        capabilities: ['mail.presence.register.self', 'mail.presence.heartbeat.self'],
+        ttlMs: 60_000,
+      });
+      const authorization = `Credential ${credential.credentialId}:${secret}`;
+      const stub = makeMailbox();
+
+      const registered = await handle({
+        mailbox: stub.mailbox,
+        credentialStore: store,
+        request: makeRequest({
+          method: 'POST',
+          url: '/mailbox/agents/register',
+          headers: { authorization },
+          body: { name: 'Credential Agent', pid: 123 },
+        }),
+      });
+      const heartbeat = await handle({
+        mailbox: stub.mailbox,
+        credentialStore: store,
+        request: makeRequest({
+          method: 'POST',
+          url: '/mailbox/agents/heartbeat',
+          headers: { authorization },
+          body: { status: 'working', iterations: 1 },
+        }),
+      });
+
+      expect(registered.status).toBe(200);
+      expect(stub.registerAgent).toHaveBeenCalledWith(
+        expect.objectContaining({
+          agentId: 'credential-agent@credential-session',
+          sessionId: 'credential-session',
+          role: 'credential-agent',
+        }),
+      );
+      expect(heartbeat.status).toBe(200);
+      expect(stub.heartbeat).toHaveBeenCalledWith(
+        expect.objectContaining({
+          agentId: 'credential-agent@credential-session',
+          status: 'working',
+          iterations: 1,
+        }),
+      );
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  }, 5_000);
+
   it('expires limiter entries after the configured window', () => {
     vi.useFakeTimers();
     try {
@@ -1576,7 +2900,28 @@ describe('mailbox HTTP look-back filter (sinceMs / defaultMaxAgeMs)', () => {
     // path WITH a per-request query (e.g. the HQ gateway does this for
     // `?sinceMs=…` overrides). The router must strip the query before
     // route matching and forward it to `parseSinceMs`.
+    const stub = makeMailbox();
+    const oldMessage = message({
+      id: 'old-message', to: 'agent-b',
+      timestamp: new Date(Date.now() - 2 * 60 * 60_000).toISOString(),
+    });
+    stub.query.mockResolvedValue([oldMessage]);
+
+    // Without the override the 1-hour default suppresses the old message.
+    const filtered = await handle({
+      mailbox: stub.mailbox,
+      request: makeRequest({ method: 'POST', url: '/api/projects/p1/mailbox/query', body: { to: 'agent-b' } }),
+      routePath: '/mailbox/query',
+      defaultMaxAgeMs: 60 * 60_000,
+    });
+    expect(filtered.status).toBe(200);
+    expect(filtered.json()).toMatchObject({ count: 0 });
+
+    // With ?sinceMs=0 the filter is disabled and the old message is returned.
+    stub.query.mockClear();
+    stub.query.mockResolvedValue([oldMessage]);
     const response = await handle({
+      mailbox: stub.mailbox,
       request: makeRequest({
         method: 'POST',
         url: '/api/projects/p1/mailbox/query?sinceMs=0',
@@ -1587,5 +2932,6 @@ describe('mailbox HTTP look-back filter (sinceMs / defaultMaxAgeMs)', () => {
     });
 
     expect(response.status).toBe(200);
+    expect(response.json()).toMatchObject({ count: 1, data: [{ id: 'old-message' }] });
   });
 });

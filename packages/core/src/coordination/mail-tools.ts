@@ -24,10 +24,13 @@ import type { Context } from '../core/context.js';
 import type { Tool } from '../types/tool.js';
 import { ToolCapabilities } from '../security/capabilities.js';
 import { GlobalMailbox } from './global-mailbox.js';
+import { parseMailboxSendInput } from './mailbox-codecs.js';
 import { isMailboxMessageVisibleTo, normalizeRecipient } from './mailbox-types.js';
 import type {
   Mailbox,
+  MailboxActorContext,
   MailboxAudience,
+  MailboxCapability,
   MailboxMessage,
   MailboxMessageType,
 } from './mailbox-types.js';
@@ -150,6 +153,29 @@ export function makeMailSendTool(opts: MailToolsOptions = {}) {
       const body = i.body as string | undefined;
       if (!rawTo || !subject || body === undefined || body === null) {
         return { ok: false, error: '"to", "subject" and "body" are required.' };
+      }
+      // GM-P0.8: Early validation through the shared boundary codec.
+      // Rejects unknown fields and malformed type/priority before any I/O.
+      const codecIdentity = resolveMailboxIdentity(ctx);
+      const sendCapabilities: ReadonlySet<MailboxCapability> = new Set([
+        'mail.send.directive',
+        'mail.send.actionable',
+        'mail.send.informational',
+      ]);
+      const codecActor: MailboxActorContext = {
+        actorId: codecIdentity.callerId,
+        projectId: ctx.projectRoot,
+        kind: 'agent',
+        role: codecIdentity.role,
+        capabilities: sendCapabilities,
+        authMode: 'runtime',
+        recipientAliases: new Set([codecIdentity.baseId]),
+        sessionId: codecIdentity.sessionId,
+      };
+      try {
+        parseMailboxSendInput(i, codecActor);
+      } catch (err) {
+        return { ok: false, error: err instanceof Error ? err.message : String(err) };
       }
       const audience = i.audience as MailboxAudience | undefined;
       if (audience !== undefined && audience !== 'all' && audience !== 'leaders') {

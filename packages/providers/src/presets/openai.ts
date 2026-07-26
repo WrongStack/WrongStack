@@ -3,10 +3,11 @@
  * as `OpenAIProvider`; the per-message body is the loop body of
  * `parseOpenAIStream` split into a stateful step.
  */
-import type { Capabilities, ReasoningEffort, Request, ResponseFormat, StopReason, StreamEvent, Usage } from '@wrongstack/core/types';
+import type { ReasoningEffort, Request, ResponseFormat, StopReason, StreamEvent, Usage } from '@wrongstack/core/types';
 import { safeParse } from '@wrongstack/core/utils';
 import { parseToolInput } from '../_tool-input.js';
 import { capabilitiesForFamily } from '../family-capabilities.js';
+import { type BuildBodyContext, resolveMaxOutputTokens } from '../model-output-limits.js';
 import { applyPromptCacheKey } from '../prompt-cache-key.js';
 import { normalizeOpenAI } from '../stop-reason.js';
 import { messagesToOpenAI, toolsToOpenAI } from '../tool-format/to-openai.js';
@@ -61,17 +62,20 @@ export const openaiWireFormat = defineWireFormat<OpenAIStreamState>({
     return `${b}/v1/chat/completions`;
   },
   buildHeaders: (apiKey) => ({ authorization: `Bearer ${apiKey}` }),
-  buildBody: (req: Request, ctx: { capabilities: Capabilities }) => {
-    const maxOutput = req.maxTokens ?? ctx.capabilities.maxOutput ?? 8192;
+  buildBody: (req: Request, ctx: BuildBodyContext) => {
+    const maxOutput = resolveMaxOutputTokens(req, ctx);
     const body: Record<string, unknown> = {
       model: req.model,
       messages: messagesToOpenAI(stripCacheControl(req.system), req.messages),
-      // Real OpenAI requires `max_completion_tokens`; newer model families
-      // (gpt-4o, o1/o3/o4) 400 on the deprecated `max_tokens`. See issue #10.
-      max_completion_tokens: maxOutput,
       stream: true,
       stream_options: { include_usage: true },
     };
+    // `max_completion_tokens` is optional — when nothing knows this model's
+    // ceiling, omit it so the backend applies the model's own maximum instead
+    // of a number we made up. Real OpenAI 400s on the deprecated `max_tokens`
+    // for newer model families (gpt-4o, o1/o3/o4), so the field name matters.
+    // See issue #10.
+    if (maxOutput !== undefined) body['max_completion_tokens'] = maxOutput;
     if (req.tools && req.tools.length > 0) {
       body['tools'] = toolsToOpenAI(req.tools);
       if (req.toolChoice) {

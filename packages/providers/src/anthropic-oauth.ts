@@ -29,6 +29,7 @@ import type { AnthropicStreamState } from './presets/anthropic.js';
 import { WireFormatProvider } from './wire-format.js';
 import { capabilitiesForFamily } from './family-capabilities.js';
 import type { WireAdapterStreamOptions } from './wire-adapter.js';
+import type { BuildBodyContext } from './model-output-limits.js';
 
 const CLIENT_ID = '9d1c250a-e61b-44d9-88ed-5944d1962f5e';
 const TOKEN_URL = 'https://platform.claude.com/v1/oauth/token';
@@ -271,10 +272,7 @@ export class AnthropicOAuthProvider extends WireFormatProvider<AnthropicStreamSt
     };
   }
 
-  protected override buildBody(
-    req: Request,
-    ctx: { capabilities: Capabilities },
-  ): Record<string, unknown> {
+  protected override buildBody(req: Request, ctx: BuildBodyContext): Record<string, unknown> {
     const body = super.buildBody(req, ctx);
     // Prepend the required Claude Code identity block (unless already present).
     const existing = (body['system'] as { type: 'text'; text: string }[] | undefined) ?? [];

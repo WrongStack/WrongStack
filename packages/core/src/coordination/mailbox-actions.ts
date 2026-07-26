@@ -19,8 +19,8 @@ import type { MailboxAckInput, MailboxMessage } from './mailbox-types.js';
 /**
  * High-level verbs the WebUI/server route handlers expose. The
  * mapping to underlying `MailboxAckInput` is straightforward:
- *   - `mark-read`  → `ack({ read: true,  completed: false })`
- *   - `acknowledge`→ `ack({ read: true,  completed: true  })`
+ *   - `mark-read`  → `ack({ read: true })`
+ *   - `acknowledge`→ `ack({ read: true, completed: true })`
  *   - `reopen`     → `ack({ read: false, completed: false })`
  *   - `soft-delete`→ not an `ack` — a separate `Mailbox.softDelete()`
  *     that flips `deletedAt` to "now" (recoverable) and is filtered
@@ -78,7 +78,7 @@ export function actionToAckInput(
 ): MailboxAckInput {
   switch (action) {
     case 'mark-read':
-      return { messageId: input.mailId, readerId: input.readerId, read: true, completed: false };
+      return { messageId: input.mailId, readerId: input.readerId, read: true };
     case 'acknowledge':
       return { messageId: input.mailId, readerId: input.readerId, read: true, completed: true };
     case 'reopen':

@@ -244,7 +244,7 @@ export function parseMailboxAckInput(
   return {
     messageId,
     read: read ?? false,
-    completed: completed ?? false,
+    ...(completed !== undefined ? { completed } : {}),
     readerId,
     outcome,
   };

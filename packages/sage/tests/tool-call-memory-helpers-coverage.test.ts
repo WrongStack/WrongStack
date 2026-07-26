@@ -178,12 +178,14 @@ describe('tool-call memory selection and scoring helpers', () => {
       ),
     ).toHaveLength(1);
 
-    const small = new Map([['one', 1]]);
-    coverage.pruneCooldowns(small, now, 100);
+    const small = new Map([['one', now]]);
+    const smallPruneState = { lastPruneAt: 0 };
+    coverage.pruneCooldowns(small, smallPruneState, now, 100);
     expect(small.size).toBe(1);
     const large = new Map<string, number>();
     for (let index = 0; index <= 10_000; index++) large.set(String(index), index === 0 ? 1 : now);
-    coverage.pruneCooldowns(large, now, 100);
+    const largePruneState = { lastPruneAt: 0 };
+    coverage.pruneCooldowns(large, largePruneState, now, 100);
     expect(large.has('0')).toBe(false);
 
     expect(coverage.scoreForInjection(sage('score'))).toBeCloseTo(4.8);

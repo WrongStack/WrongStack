@@ -1,0 +1,222 @@
+{
+  "id": "chimera-finding-store-graph-v1",
+  "specId": "chimera-finding-store-v1",
+  "title": "Chimera Finding Store implementation task graph",
+  "nodes": [
+    [
+      "FS-P0.0",
+      {
+        "id": "FS-P0.0",
+        "title": "Finding types, fingerprint, and error classes",
+        "description": "Define the core data model types (ChimeraFinding, FindingLifecycleEvent, FindingStatus, ResolutionOutcome, FindingSeverity, FindingStoreEntry) and the fingerprint generation function.\n\n**Acceptance Criteria:**\n- ChimeraFinding has all fields specified in the SDD data model (id, fingerprint, severity, source, location, title, description, suggestedFix, createdAt, status, resolution, originReport).\n- FindingLifecycleEvent captures every transition with eventType, fromStatus, toStatus, actorId, actorKind, timestamp, and reason.\n- Fingerprint = SHA256(file + \":\" + line + \":\" + normalizedTitle) with correct normalization (lowercase, strip trailing punctuation, collapse whitespace).\n- Fingerprint produces consistent output for the same inputs across processes.\n- FindingStatus enum matches the state machine: 'active' | 'triaged' | 'in_progress' | 'resolved' | 'ignored'.\n- Error classes: FindingNotFoundError, InvalidTransitionError, FindingStoreLockError.\n- All types are exported from the package barrel.\n\n**Verification:**\n- tsc --noEmit passes on @wrongstack/core.\n- Focused tests for fingerprint generation with edge cases (null line, multi-line titles, unicode).",
+        "type": "feature",
+        "priority": "critical",
+        "status": "pending",
+        "estimateHours": 4,
+        "tags": ["finding-store", "types", "fingerprint", "p0"],
+        "specRequirementId": "R1",
+        "createdAt": 1785089100000,
+        "updatedAt": 1785089100000,
+        "metadata": {
+          "phase": "types",
+          "requirementIds": ["R1", "R3"],
+          "verificationCommand": "pnpm exec vitest run packages/core/tests/plugins/review-finding-types.test.ts",
+          "expectedFiles": [
+            "packages/core/src/plugins/review-finding-types.ts",
+            "packages/core/tests/plugins/review-finding-types.test.ts"
+          ]
+        }
+      }
+    ],
+    [
+      "FS-P0.1",
+      {
+        "id": "FS-P0.1",
+        "title": "Finding store path, constants, and locking infrastructure",
+        "description": "Implement the store file path resolver, store constants (default retention TTLs, compaction interval, max findings per page), and the file-lock adapter.\n\n**Acceptance Criteria:**\n- Store path resolves to ~/.wrongstack/projects/<slug>/review-findings.jsonl, using the same projectDir resolution as the mailbox.\n- Default retention: resolved findings = 30 days; ignored/wontfix = 14 days.\n- File lock reuses the existing withFileLock() mechanism from @wrongstack/core/utils.\n- All constants are exported from a single module.\n\n**Verification:**\n- tsc --noEmit passes.\n- Path resolution tests use temp directories and verify correct file location.",
+        "type": "feature",
+        "priority": "high",
+        "status": "pending",
+        "estimateHours": 2,
+        "tags": ["finding-store", "storage", "constants", "p0"],
+        "specRequirementId": "R2",
+        "metadata": {
+          "phase": "storage",
+          "requirementIds": ["R2", "R7"],
+          "verificationCommand": "pnpm exec vitest run packages/core/tests/plugins/review-finding-store.test.ts --grep 'path|constant|lock'",
+          "expectedFiles": [
+            "packages/core/src/plugins/review-finding-store.ts"
+          ]
+        }
+      }
+    ],
+    [
+      "FS-P0.2",
+      {
+        "id": "FS-P0.2",
+        "title": "Chimera report finding parser",
+        "description": "Implement the finding parser that extracts structured findings from the canonical Chimera review report format (### Severity (N) + numbered list items).\n\n**Acceptance Criteria:**\n- Parser accepts a raw review text string and produces ChimeraFinding[].\n- Extracts section headers by severity (### Critical, ### High, ### Medium, ### Low).\n- Extracts numbered list items (1., 2., etc.) under each severity section.\n- For each item, extracts: title (first line after the number), file:line from **File:** pattern or [BUG/SECURITY/PERF] prefix, description from paragraph text, suggestedFix from → lines or **Remediation:** sections.\n- When (N) count in heading and actual item count disagree, item count wins.\n- When a finding item has no parseable file:line, produces finding with location: null (not dropped).\n- Empty/clean reports produce an empty array.\n\n**Verification:**\n- Run parser test suite with ≥90% line coverage on canonical report fixtures.\n- tsc --noEmit passes.",
+        "type": "feature",
+        "priority": "critical",
+        "status": "pending",
+        "estimateHours": 6,
+        "tags": ["finding-store", "parser", "chimera", "p0"],
+        "specRequirementId": "R1",
+        "createdAt": 1785089100000,
+        "updatedAt": 1785089100000,
+        "metadata": {
+          "phase": "parser",
+          "requirementIds": ["R1"],
+          "verificationCommand": "pnpm exec vitest run packages/core/tests/plugins/review-finding-parser.test.ts",
+          "expectedFiles": [
+            "packages/core/src/plugins/review-finding-parser.ts",
+            "packages/core/tests/plugins/review-finding-parser.test.ts"
+          ]
+        }
+      }
+    ],
+    [
+      "FS-P0.3",
+      {
+        "id": "FS-P0.3",
+        "title": "Finding store: upsert, deduplication, and read operations",
+        "description": "Implement the core store: finding creation with fingerprint deduplication, get-by-id, get-by-fingerprint, and list with filters.\n\n**Acceptance Criteria:**\n- upsert(newFindings) inserts new findings and returns { created, relinked, reopened }.\n- A finding with a new fingerprint creates a new record with status='active' and a 'created' event.\n- A finding with an existing active fingerprint produces a 'relinked' event on the existing record (not a new record).\n- A finding with an existing resolved fingerprint produces a 'reopened' transition on the existing record.\n- get(id) returns a single finding or null.\n- list({ severities, statuses, file, limit }) returns filtered results sorted by severity (critical first) then by age (oldest first).\n- list without filters returns all active findings.\n- File filter uses substring match on normalized path.\n\n**Verification:**\n- Run store test suite with ≥85% coverage.\n- tsc --noEmit passes.",
+        "type": "feature",
+        "priority": "critical",
+        "status": "pending",
+        "estimateHours": 8,
+        "tags": ["finding-store", "store", "dedup", "p0"],
+        "specRequirementId": "R2",
+        "createdAt": 1785089100000,
+        "updatedAt": 1785089100000,
+        "metadata": {
+          "phase": "store",
+          "requirementIds": ["R2", "R3"],
+          "verificationCommand": "pnpm exec vitest run packages/core/tests/plugins/review-finding-store.test.ts",
+          "expectedFiles": [
+            "packages/core/src/plugins/review-finding-store.ts",
+            "packages/core/tests/plugins/review-finding-store.test.ts"
+          ]
+        }
+      }
+    ],
+    [
+      "FS-P0.4",
+      {
+        "id": "FS-P0.4",
+        "title": "Finding store: lifecycle transitions and compaction",
+        "description": "Implement the lifecycle state machine (found → triaged → in_progress → resolved) and compaction for old resolved/ignored findings.\n\n**Acceptance Criteria:**\n- transition(findingId, to, actor) validates the transition against the state machine matrix.\n- Valid transitions append a FindingLifecycleEvent and update the materialized status.\n- Invalid transitions throw InvalidTransitionError with a specific message.\n- Resolved transitions require an outcome (fixed | wontfix | duplicate | false_positive | stale | merged).\n- getEvents(findingId) returns the full lifecycle history sorted by timestamp.\n- compact({ maxAgeMs }) removes resolved findings older than maxAgeMs and ignored findings older than maxAgeMs/2.\n- Compaction folds lifecycle events older than maxAgeMs into a single 'compacted' event on each retained finding.\n- Compaction preserves all active/triaged/in_progress findings regardless of age.\n- Compaction is idempotent — running it twice produces the same result.\n\n**Verification:**\n- Run lifecycle transition tests covering every valid and invalid transition.\n- Run compaction tests with timing-sensitive assertions.\n- tsc --noEmit passes.",
+        "type": "feature",
+        "priority": "high",
+        "status": "pending",
+        "estimateHours": 8,
+        "tags": ["finding-store", "lifecycle", "compaction", "p0"],
+        "specRequirementId": "R4",
+        "createdAt": 1785089100000,
+        "updatedAt": 1785089100000,
+        "metadata": {
+          "phase": "lifecycle",
+          "requirementIds": ["R4", "R7", "R8"],
+          "verificationCommand": "pnpm exec vitest run packages/core/tests/plugins/review-finding-store.test.ts --grep 'transition|compact|event'",
+          "expectedFiles": [
+            "packages/core/src/plugins/review-finding-store.ts",
+            "packages/core/tests/plugins/review-finding-store.test.ts"
+          ]
+        }
+      }
+    ],
+    [
+      "FS-P0.5",
+      {
+        "id": "FS-P0.5",
+        "title": "Slash commands: /review findings and /review finding",
+        "description": "Implement the /review findings (list) and /review finding <id> (detail) slash commands.\n\n**Acceptance Criteria:**\n- /review shows a summary: count by severity, count by status, oldest unresolved finding.\n- /review findings --severity <sevs> --status <statuses> --file <pattern> lists matching findings with filter.\n- /review finding <id> shows the full finding record: file:line, severity, title, description, suggested fix, status, and all lifecycle events with timestamps and actors.\n- /review findings <id> is an alias for /review finding <id>.\n- Results are formatted for CLI/TUI display (no Markdown rendering needed).\n- Commands fail gracefully when the store file does not exist.\n\n**Verification:**\n- Run slash-command test suite with mock FindingStore.\n- tsc --noEmit passes.",
+        "type": "feature",
+        "priority": "high",
+        "status": "pending",
+        "estimateHours": 6,
+        "tags": ["finding-store", "cli", "slash-commands", "p0"],
+        "specRequirementId": "R6",
+        "createdAt": 1785089100000,
+        "updatedAt": 1785089100000,
+        "metadata": {
+          "phase": "cli",
+          "requirementIds": ["R6"],
+          "verificationCommand": "pnpm exec vitest run packages/core/tests/plugins/review-finding-commands.test.ts",
+          "expectedFiles": [
+            "packages/core/src/plugins/review-finding-commands.ts",
+            "packages/core/tests/plugins/review-finding-commands.test.ts"
+          ]
+        }
+      }
+    ],
+    [
+      "FS-P0.6",
+      {
+        "id": "FS-P0.6",
+        "title": "Auto-integration with chimera.review_complete and mailbox linkage",
+        "description": "Wire the finding store into the existing chimera.review_complete event handler. Add findingReportId to the mailbox message's taskContext.\n\n**Acceptance Criteria:**\n- On chimera.review_complete, the finding parser is called on reviewText.\n- The resulting findings are upserted into the finding store.\n- The mailbox message's taskContext includes a findingReportId field.\n- The finding store operation is non-blocking — mailbox delivery is not delayed.\n- Errors from the finding store (malformed review, store unavailable) are logged but do not crash the event handler.\n\n**Verification:**\n- Integration test with a mock EventBus triggers chimera.review_complete and verifies store state.\n- tsc --noEmit passes.",
+        "type": "feature",
+        "priority": "high",
+        "status": "pending",
+        "estimateHours": 4,
+        "tags": ["finding-store", "chimera", "integration", "p0"],
+        "specRequirementId": "R5",
+        "createdAt": 1785089100000,
+        "updatedAt": 1785089100000,
+        "metadata": {
+          "phase": "integration",
+          "requirementIds": ["R5"],
+          "verificationCommand": "pnpm exec vitest run packages/core/tests/plugins/review-finding-integration.test.ts",
+          "expectedFiles": [
+            "packages/core/src/plugins/auto-review-plugin.ts",
+            "packages/core/src/plugins/chimera-plugin.ts",
+            "packages/core/tests/plugins/review-finding-integration.test.ts"
+          ]
+        }
+      }
+    ],
+    [
+      "FS-P0.GATE",
+      {
+        "id": "FS-P0.GATE",
+        "title": "Independent Chimera Finding Store P0 acceptance gate",
+        "description": "Perform independent review after all P0 implementation tasks are complete.\n\n**Acceptance Criteria:**\n- All P0 acceptance criteria in the SDD have linked passing evidence.\n- Finding parser suite passes with ≥90% line coverage.\n- Finding store suite passes with ≥85% line coverage.\n- Slash command suite passes with coverage of list, detail, and error paths.\n- Integration test triggers a mock chimera.review_complete and verifies findings are persisted.\n- @wrongstack/core typecheck passes.\n- Independent review finds no Critical/High issue.\n\n**Verification:**\n- Run all verification commands listed in the SDD.\n- Attach command outputs and reviewer verdicts before marking complete.",
+        "type": "test",
+        "priority": "critical",
+        "status": "pending",
+        "estimateHours": 4,
+        "tags": ["finding-store", "gate", "acceptance", "p0"],
+        "specRequirementId": "R1",
+        "createdAt": 1785089100000,
+        "updatedAt": 1785089100000,
+        "metadata": {
+          "phase": "gate",
+          "requirementIds": ["R1", "R2", "R3", "R4", "R5", "R6", "R7", "R8"],
+          "verificationCommand": "pnpm exec vitest run packages/core/tests/plugins/review-finding-gate.test.ts",
+          "requiredReviewers": ["critic"],
+          "expectedFiles": [
+            "packages/core/tests/plugins/review-finding-gate.test.ts",
+            "docs/specs/chimera-finding-store-sdd.md"
+          ]
+        }
+      }
+    ]
+  ],
+  "edges": [
+    { "id": "fe-00-01", "from": "FS-P0.0", "to": "FS-P0.2", "type": "depends_on" },
+    { "id": "fe-00-03", "from": "FS-P0.0", "to": "FS-P0.3", "type": "depends_on" },
+    { "id": "fe-01-03", "from": "FS-P0.1", "to": "FS-P0.3", "type": "depends_on" },
+    { "id": "fe-01-04", "from": "FS-P0.1", "to": "FS-P0.4", "type": "depends_on" },
+    { "id": "fe-02-06", "from": "FS-P0.2", "to": "FS-P0.6", "type": "depends_on" },
+    { "id": "fe-03-04", "from": "FS-P0.3", "to": "FS-P0.4", "type": "depends_on" },
+    { "id": "fe-03-05", "from": "FS-P0.3", "to": "FS-P0.5", "type": "depends_on" },
+    { "id": "fe-03-06", "from": "FS-P0.3", "to": "FS-P0.6", "type": "depends_on" },
+    { "id": "fe-04-05", "from": "FS-P0.4", "to": "FS-P0.5", "type": "depends_on" },
+    { "id": "fe-05-ga", "from": "FS-P0.5", "to": "FS-P0.GATE", "type": "depends_on" },
+    { "id": "fe-06-ga", "from": "FS-P0.6", "to": "FS-P0.GATE", "type": "depends_on" }
+  ],
+  "rootNodes": ["FS-P0.0", "FS-P0.1"],
+  "createdAt": 1785089100000,
+  "updatedAt": 1785089100000
+}

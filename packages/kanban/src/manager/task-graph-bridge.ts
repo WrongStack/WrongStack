@@ -11,25 +11,27 @@ export type {
   SyncKanbanBoardFromTaskGraphOptions,
 } from './task-graph-contracts.js';
 import {
-  applyGraphNodeToTask,
-  applyTaskGraphRelationships,
   assertNoDependencyCycles,
-  columnIdForTaskGraphStatus,
   createTaskObject,
-  findTaskByOrigin,
-  isTaskFromGraph,
   normalizeAllColumnTaskOrders,
   nowIso,
   parseIsoTimestamp,
   placeTaskInColumn,
   requireNonBlank,
+  uniqueIdFromSet,
+  uniqueStrings,
+} from './_internal.js';
+import {
+  applyGraphNodeToTask,
+  applyTaskGraphRelationships,
+  columnIdForTaskGraphStatus,
+  findTaskByOrigin,
+  isTaskFromGraph,
   taskGraphEdgesFromBoard,
   taskGraphStatusToKanbanStatus,
   taskInputFromGraphNode,
   taskToTaskGraphNode,
-  uniqueIdFromSet,
-  uniqueStrings,
-} from './_internal.js';
+} from './task-graph-internal.js';
 
 export async function createBoardFromTaskGraph(
   projectRoot: string,

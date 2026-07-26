@@ -172,8 +172,8 @@ describe('DirectorCollabController', () => {
   // -------------------------------------------------------------------------
   // Partial-spawn cleanup (regression)
   // -------------------------------------------------------------------------
-  // When one of the three parallel spawnAgent calls fails after siblings
-  // have already spawned, start() must:
+  // When one of the three parallel spawnAgent calls fails after spawning while
+  // a sibling is still starting, start() must:
   //   1. emit session.error so the controller reacts
   //   2. surface the already-spawned agents via getSubagentIds() so the
   //      controller's errorHandler can stop them
@@ -185,15 +185,18 @@ describe('DirectorCollabController', () => {
   it('stops already-spawned agents and clears the entry when a sibling spawn fails', async () => {
     const fleet = new FleetBus();
 
-    // Director that spawns bug-hunter + refactor-planner successfully, then
-    // throws on critic (simulating a spawn cap / context overflow after the
-    // first two agents are live).
+    // Director that spawns bug-hunter immediately, rejects critic immediately,
+    // and spawns refactor-planner slightly later. start() must wait for the late
+    // sibling to settle before session.error lets the controller inspect IDs.
     const director: CollabDirectorHost = {
       id: 'mock-director',
       sharedScratchpadPath: null,
       async spawn(cfg) {
         if (cfg.role === 'critic') {
           throw new Error('simulated context overflow on critic');
+        }
+        if (cfg.role === 'refactor-planner') {
+          await new Promise((resolve) => setTimeout(resolve, 10));
         }
         return `${cfg.role}-sub`;
       },
@@ -244,6 +247,51 @@ describe('DirectorCollabController', () => {
     // 2. The dead session entry is gone — session.error fired, the
     //    errorHandler deleted it. The old code didn't emit session.error
     //    on the spawn-failure path, so the entry leaked forever.
+    expect(controller.activeSessionIds()).toHaveLength(0);
+  });
+
+  it('stops a spawned agent when its task assignment fails', async () => {
+    const fleet = new FleetBus();
+    const director: CollabDirectorHost = {
+      id: 'mock-director',
+      sharedScratchpadPath: null,
+      async spawn(cfg) {
+        return `${cfg.role}-sub`;
+      },
+      async assign(task) {
+        if (task.subagentId === 'critic-sub') {
+          throw new Error('simulated assignment rejection');
+        }
+        return `task-for-${task.subagentId}`;
+      },
+      async awaitTasks() {
+        return [];
+      },
+      getLeaderBtwNotes() {
+        return [];
+      },
+    };
+    const stoppedAgents: string[] = [];
+    const controller = new DirectorCollabController({
+      director,
+      fleet,
+      coordinator: {
+        async stop(subagentId: string) {
+          stoppedAgents.push(subagentId);
+        },
+      },
+    });
+
+    await expect(
+      controller.spawn({ targetPaths: ['src/assign-fail.ts'], timeoutMs: 30_000 }),
+    ).rejects.toThrow(/simulated assignment rejection/);
+    await new Promise((resolve) => setTimeout(resolve, 20));
+
+    expect(stoppedAgents.sort()).toEqual([
+      'bug-hunter-sub',
+      'critic-sub',
+      'refactor-planner-sub',
+    ]);
     expect(controller.activeSessionIds()).toHaveLength(0);
   });
 });

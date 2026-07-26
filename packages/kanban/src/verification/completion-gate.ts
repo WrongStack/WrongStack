@@ -177,6 +177,9 @@ export async function finalizeTaskCompletion(
   const updated = await mutateBoard(projectRoot, boardId, (board) => {
     const task = findTask(board, taskId);
     if (!task) return null;
+    // Managed cards advance only through transitionTask. Completion callers may
+    // persist assignment results, but cannot project lifecycle stages here.
+    if (board.lifecycle?.mode === 'managed') return null;
     const previousColumnId = task.columnId;
     const now = nowIso();
 

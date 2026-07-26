@@ -26,3 +26,32 @@ export function shouldLogWatcherStats(): boolean {
   const value = process.env['WRONGSTACK_WEBUI_WATCHER_STATS']?.trim().toLowerCase();
   return value === '1' || value === 'true' || value === 'yes' || value === 'on';
 }
+
+export function initializeFileWatcherMetrics(metrics: FileWatcherMetrics): void {
+  metrics.fileChangesDetected = 0;
+  metrics.filesProcessed = 0;
+  metrics.broadcastsSent = 0;
+  metrics.debounceResets = 0;
+  metrics.totalDebounceDelayMs = 0;
+  metrics.activeProjects = 0;
+  metrics.averageDebounceDelayMs = 0;
+  metrics.watcherActive = true;
+}
+
+export function averageFileWatcherDebounceDelay(metrics: FileWatcherMetrics | undefined): number {
+  if (!metrics || metrics.broadcastsSent === 0) return 0;
+  return metrics.totalDebounceDelayMs / metrics.broadcastsSent;
+}
+
+export function logFileWatcherMetrics(metrics: FileWatcherMetrics | undefined): void {
+  if (!metrics || !shouldLogWatcherStats()) return;
+  metrics.averageDebounceDelayMs = averageFileWatcherDebounceDelay(metrics);
+  console.log(
+    `[setup-events] File watcher stats: ` +
+      `${metrics.broadcastsSent} broadcasts, ` +
+      `${metrics.fileChangesDetected} file changes, ` +
+      `${metrics.debounceResets} debounce resets, ` +
+      `avg delay: ${metrics.averageDebounceDelayMs.toFixed(1)}ms, ` +
+      `${metrics.activeProjects} active projects`,
+  );
+}

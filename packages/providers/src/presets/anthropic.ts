@@ -7,12 +7,13 @@
  * `parseAnthropicStream` in `../anthropic.ts`, just split into a stateful
  * `parseStreamEvent` call instead of an async generator loop.
  */
-import type { Capabilities, ContentBlock, Message, ReasoningEffort, Request, StopReason, StreamEvent, Usage } from '@wrongstack/core/types';
+import type { ContentBlock, Message, ReasoningEffort, Request, StopReason, StreamEvent, Usage } from '@wrongstack/core/types';
 import { ProviderError } from '@wrongstack/core/types';
 import { safeParse } from '@wrongstack/core/utils';
 import { parseToolInput } from '../_tool-input.js';
 import { capAnthropicCacheBreakpoints } from '../cache-breakpoint-cap.js';
 import { capabilitiesForFamily } from '../family-capabilities.js';
+import { type BuildBodyContext, resolveRequiredMaxOutputTokens } from '../model-output-limits.js';
 import { normalizeAnthropic } from '../stop-reason.js';
 import { toolsToAnthropic } from '../tool-format/to-anthropic.js';
 import { defineWireFormat } from '../wire-format.js';
@@ -48,13 +49,11 @@ export const anthropicWireFormat = defineWireFormat<AnthropicStreamState>({
     'x-api-key': apiKey,
     'anthropic-version': DEFAULT_VERSION,
   }),
-  buildBody: (req: Request, ctx: { capabilities: Capabilities }) => {
-    // Anthropic's `max_tokens` is required. Pull from the caller's
-    // Request when set, otherwise the per-model ceiling the catalog
-    // populates via `withCatalogCapabilities` for the selected model.
-    // The 8192 floor is the same safety net the rest of the system uses
-    // for unknown models.
-    const maxOutput = req.maxTokens ?? ctx.capabilities.maxOutput ?? 8192;
+  buildBody: (req: Request, ctx: BuildBodyContext) => {
+    // Anthropic's Messages API REQUIRES `max_tokens`, so this is the one wire
+    // format that cannot simply omit the field when nothing is known — hence
+    // the `Required` variant with its documented last resort.
+    const maxOutput = resolveRequiredMaxOutputTokens(req, ctx);
     const body: Record<string, unknown> = {
       model: req.model,
       max_tokens: maxOutput,

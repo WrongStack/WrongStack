@@ -5,7 +5,6 @@ import {
   Settings,
   Sparkles,
   Sun,
-  Users,
   Wifi,
   WifiOff,
 } from 'lucide-react';
@@ -18,7 +17,6 @@ import { ErrorBoundary } from './error-boundary.js';
 import { FileChangesButton } from './file-changes-button.js';
 import { FileDiffPanel } from './file-diff-panel.js';
 import { FileExplorer } from './file-explorer.js';
-import { FinishedAgentsMenu } from './finished-agents-menu.js';
 import { useAgentRoster } from './hooks/use-agent-roster.js';
 import { useComposerActions } from './hooks/use-composer-actions.js';
 import { useF5Resilience } from './hooks/use-f5-resilience.js';
@@ -56,6 +54,7 @@ import { MemoryDrawer } from './memory-drawer.js';
 import { ModelSwitcher } from './model-switcher.js';
 import { PromptLibrary } from './prompt-library.js';
 import { ServerOutageOverlay } from './server-outage-overlay.js';
+import { SessionAgentStrip } from './session-agent-strip.js';
 import { SessionHealthPanel } from './session-health-panel.js';
 import { SessionSwitcher } from './session-switcher.js';
 import { SettingsPanel } from './settings-panel.js';
@@ -831,54 +830,12 @@ export function SimpleUiSession() {
         </div>
       </header>
 
-      <section className="agent-strip" aria-label="Agent conversations">
-        <div className="agent-strip-label">
-          <Users size={14} aria-hidden="true" /> AGENTS
-        </div>
-        <div className="agent-list" role="tablist" aria-label="Agent conversations">
-          {liveAgentTabs.map((agent, index) => {
-            const selected = activeAgentId === agent.id;
-            return (
-              <button
-                type="button"
-                id={`agent-tab-${agent.id}`}
-                className={`agent-item${selected ? ' active' : ''}`}
-                role="tab"
-                aria-selected={selected}
-                aria-controls={`agent-panel-${agent.id}`}
-                tabIndex={selected ? 0 : -1}
-                key={agent.id}
-                title={agent.task ?? `${agent.name} · ${agent.status}`}
-                onClick={() => setSelectedAgentId(agent.id)}
-                onKeyDown={(event) => {
-                  if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return;
-                  event.preventDefault();
-                  const direction = event.key === 'ArrowRight' ? 1 : -1;
-                  const next =
-                    liveAgentTabs[
-                      (index + direction + liveAgentTabs.length) % liveAgentTabs.length
-                    ];
-                  if (!next) return;
-                  setSelectedAgentId(next.id);
-                  requestAnimationFrame(() =>
-                    document.getElementById(`agent-tab-${next.id}`)?.focus(),
-                  );
-                }}
-              >
-                <span className={`agent-dot ${agent.status}`} aria-hidden="true" />
-                <strong>{agent.name}</strong>
-                <span>{agent.status}</span>
-                {agent.task && <small>{agent.task}</small>}
-              </button>
-            );
-          })}
-        </div>
-        <FinishedAgentsMenu
-          agents={finishedAgentTabs}
-          activeAgentId={activeAgentId}
-          onSelect={setSelectedAgentId}
-        />
-      </section>
+      <SessionAgentStrip
+        activeAgentId={activeAgentId}
+        finishedAgentTabs={finishedAgentTabs}
+        liveAgentTabs={liveAgentTabs}
+        onSelectAgent={setSelectedAgentId}
+      />
 
       <ErrorBoundary>
         <main

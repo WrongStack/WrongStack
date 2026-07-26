@@ -65,21 +65,36 @@ describe('alibaba-token-plan overlay ↔ core floor parity', () => {
     }
   });
 
-  it('declares the documented Qwen context and output limits', () => {
+  /**
+   * These three cases used to pin literal `limit` values transcribed by hand
+   * from the Alibaba docs. Because the overlay is merged ON TOP of models.dev,
+   * every one of those literals overrode the catalog — and four had drifted
+   * below the real ceiling (deepseek-v4-pro 65_536 vs a real 384_000, glm-5.2
+   * 198_000 context vs a real 1_000_000). The assertions kept the stale numbers
+   * alive instead of catching the drift.
+   *
+   * The guard is now the invariant itself: the overlay carries the allowlist
+   * and the display copy, models.dev carries the numbers. A `limit` reappearing
+   * on a text model here is the bug, whatever value it holds.
+   */
+  it('carries no hand-written limits for text models — models.dev owns the numbers', () => {
     const models = OVERLAY['alibaba-token-plan']?.models ?? {};
-    for (const id of ['qwen3.7-max', 'qwen3.7-plus', 'qwen3.6-flash']) {
-      expect(models[id]?.limit, id).toEqual({ context: 1_000_000, output: 65_536 });
+    const TEXT_MODELS = [
+      'qwen3.8-max-preview',
+      'qwen3.7-max',
+      'qwen3.7-plus',
+      'qwen3.6-flash',
+      'glm-5.2',
+      'deepseek-v4-pro',
+    ];
+    for (const id of TEXT_MODELS) {
+      expect(models[id], `${id} missing from the overlay`).toBeDefined();
+      expect(
+        models[id]?.limit,
+        `${id} declares a hand-written limit; it overrides the models.dev ` +
+          `alibaba-token-plan entry, which is the authority for context/output`,
+      ).toBeUndefined();
     }
-  });
-
-  it('declares the GLM-5.2 198K context window', () => {
-    const models = OVERLAY['alibaba-token-plan']?.models ?? {};
-    expect(models['glm-5.2']?.limit).toEqual({ context: 198_000, output: 65_536 });
-  });
-
-  it('declares the DeepSeek V4 Pro 1M context window', () => {
-    const models = OVERLAY['alibaba-token-plan']?.models ?? {};
-    expect(models['deepseek-v4-pro']?.limit).toEqual({ context: 1_000_000, output: 65_536 });
   });
 
   it('rejects models that are NOT in the Personal Edition (safety net)', () => {

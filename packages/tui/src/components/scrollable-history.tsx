@@ -1,7 +1,7 @@
 import type React from 'react';
 import {
-  memo,
   type MutableRefObject,
+  memo,
   useCallback,
   useEffect,
   useLayoutEffect,
@@ -9,10 +9,11 @@ import {
   useRef,
   useState,
 } from 'react';
+import { writeClipboardText } from '../clipboard.js';
 import { EntryHeightCache } from '../height-cache.js';
-import { computeLayout } from '../layout-engine.js';
 import { SCROLLBAR_HIT_WIDTH } from '../hit-test.js';
 import { Box, type DOMElement, measureElement, Text, useStdout } from '../ink.js';
+import { computeLayout } from '../layout-engine.js';
 import {
   anchorAtTopRow,
   contentRows,
@@ -25,6 +26,7 @@ import {
 } from '../scroll-anchor.js';
 import { theme } from '../theme.js';
 import { EntryErrorBoundary } from './entry-error-boundary.js';
+import { COPY_ICON, COPY_ICON_WIDTH, copyableTextForEntry } from './history/copy-icon.js';
 import {
   estimateRenderGroupRows,
   groupEntries,
@@ -40,8 +42,6 @@ import {
   tailForDisplay,
   toolStreamBoxHeight,
 } from './history.js';
-import { COPY_ICON, COPY_ICON_WIDTH, copyableTextForEntry } from './history/copy-icon.js';
-import { writeClipboardText } from '../clipboard.js';
 
 /**
  * Imperative scroll surface owned by the ScrollableHistory component. The app
@@ -103,11 +103,7 @@ export interface CopyHit {
  * icon's cell span. Iterates newest-first so overlapping row estimates favor
  * the most recently rendered card. Exported-shape pure helper for unit tests.
  */
-export function findCopyHit(
-  hits: readonly CopyHit[],
-  row: number,
-  col: number,
-): CopyHit | null {
+export function findCopyHit(hits: readonly CopyHit[], row: number, col: number): CopyHit | null {
   for (let i = hits.length - 1; i >= 0; i--) {
     const hit = hits[i];
     if (!hit) continue;
@@ -351,20 +347,14 @@ export const ScrollableHistory = memo(function ScrollableHistory({
   // (via setTermWidth), so including it would make the key change one render
   // later — causing a second seeding pass that discards freshly-measured
   // heights and replaces them with estimates, corrupting the viewport.
-  const cacheKey = layoutStore
-    ? `${groupIdsKey}|w${termWidth}`
-    : groupIdsKey;
-  if (
-    preparedGroupIdsRef.current !== cacheKey ||
-    preparedEstimateWidthRef.current !== termWidth
-  ) {
+  const cacheKey = layoutStore ? `${groupIdsKey}|w${termWidth}` : groupIdsKey;
+  if (preparedGroupIdsRef.current !== cacheKey || preparedEstimateWidthRef.current !== termWidth) {
     // `!== null` guards the first render: on mount `preparedEstimateWidthRef`
     // is null so widthChanged stays false, preserving the initial calibration
     // state. On subsequent renders a real width change clears the measured ids
     // and calibrated width so the cache re-seeds cleanly at the new dimension.
     const widthChanged =
-      preparedEstimateWidthRef.current !== null &&
-      preparedEstimateWidthRef.current !== termWidth;
+      preparedEstimateWidthRef.current !== null && preparedEstimateWidthRef.current !== termWidth;
     if (widthChanged) {
       measuredGroupIdsRef.current.clear();
       calibratedWidthRef.current = null;
@@ -396,14 +386,25 @@ export const ScrollableHistory = memo(function ScrollableHistory({
           const estimatedRows = estimateRenderGroupRows(group, termWidth);
           heightCache.record(id, estimatedRows);
           const kind = group.type === 'tool-group' ? 'tool-group' : group.entry.kind;
-          const text = group.type === 'tool-group' ? group.data.name : (group.entry as { text?: string }).text ?? '';
-          layoutStore.set(id, computeLayout(id, kind, text, termWidth, { ...(group.type === 'tool-group' ? { groupCount: group.data.entries.length } : {}) }));
+          const text =
+            group.type === 'tool-group'
+              ? group.data.name
+              : ((group.entry as { text?: string }).text ?? '');
+          layoutStore.set(
+            id,
+            computeLayout(id, kind, text, termWidth, {
+              ...(group.type === 'tool-group' ? { groupCount: group.data.entries.length } : {}),
+            }),
+          );
         }
       }
     } else {
       // No LayoutStore: fall back to heuristic estimates only.
       const estimateById = new Map(
-        groupedEntries.map((group) => [renderGroupId(group), estimateRenderGroupRows(group, termWidth)]),
+        groupedEntries.map((group) => [
+          renderGroupId(group),
+          estimateRenderGroupRows(group, termWidth),
+        ]),
       );
       heightCache.recordMany(
         groupIds
@@ -412,10 +413,7 @@ export const ScrollableHistory = memo(function ScrollableHistory({
       );
     }
 
-    if (
-      groupIds.length > 0 &&
-      groupIds.every((id) => measuredGroupIdsRef.current.has(id))
-    ) {
+    if (groupIds.length > 0 && groupIds.every((id) => measuredGroupIdsRef.current.has(id))) {
       calibratedWidthRef.current = termWidth;
     }
     preparedGroupIdsRef.current = cacheKey;
@@ -483,8 +481,7 @@ export const ScrollableHistory = memo(function ScrollableHistory({
     (requestedTopRow: number | null, trackRatio: number | null = null): void => {
       const geom = geometryRef.current;
       const max = maxTopRow(geom);
-      const normalizedRatio =
-        trackRatio === null ? null : Math.max(0, Math.min(1, trackRatio));
+      const normalizedRatio = trackRatio === null ? null : Math.max(0, Math.min(1, trackRatio));
       const computedTop =
         requestedTopRow === null
           ? max
@@ -583,8 +580,7 @@ export const ScrollableHistory = memo(function ScrollableHistory({
   // `vp` means even a 4:1 estimate overestimation fills the viewport in 2-3
   // correction cycles rather than exhausting the 8-step cap.
   const bumpStep = Math.max(UNDERFILL_BUMP_ROWS, vp);
-  const calibrating =
-    groupedEntries.length > 0 && calibratedWidthRef.current !== termWidth;
+  const calibrating = groupedEntries.length > 0 && calibratedWidthRef.current !== termWidth;
   const plan = calibrating
     ? { startIdx: 0, endIdx: groupedEntries.length, mountTail: true }
     : effectiveAnchor
@@ -631,8 +627,7 @@ export const ScrollableHistory = memo(function ScrollableHistory({
         }
         continue;
       }
-      const margin =
-        group.type !== 'tool-group' && group.entry.kind === 'turn-summary' ? 1 : 0;
+      const margin = group.type !== 'tool-group' && group.entry.kind === 'turn-summary' ? 1 : 0;
       const actual = measureElement(node).height + margin;
       // Empty/collapsed groups render at height 0 but MUST still count as
       // measured: without this, the calibration convergence condition
@@ -708,9 +703,7 @@ export const ScrollableHistory = memo(function ScrollableHistory({
     if (
       calibrating &&
       renderGroups.length === groupedEntries.length &&
-      groupedEntries.every((group) =>
-        measuredGroupIdsRef.current.has(renderGroupId(group)),
-      )
+      groupedEntries.every((group) => measuredGroupIdsRef.current.has(renderGroupId(group)))
     ) {
       calibratedWidthRef.current = termWidth;
       changed = true;
@@ -719,8 +712,7 @@ export const ScrollableHistory = memo(function ScrollableHistory({
     const geom = geometryRef.current;
     const currentPosition = positionRef.current;
     const currentTop = resolvedTopRow(geom, currentPosition);
-    const cur =
-      currentPosition.topRow === null ? null : anchorAtTopRow(geom, currentTop);
+    const cur = currentPosition.topRow === null ? null : anchorAtTopRow(geom, currentTop);
 
     // Rounding a near-bottom track ratio, or a total-height correction, can
     // land exactly on the newest legal row. Treat that as real follow mode;
@@ -741,8 +733,7 @@ export const ScrollableHistory = memo(function ScrollableHistory({
       // be one correction stale and would nudge the bump counter by one.
       const startTop = heightCache.accumulatedHeight(plan.startIdx);
       const mountedRows = heightCache.accumulatedHeight(plan.endIdx) - startTop;
-      const visibleBudget =
-        mountedRows - cur.clip + (plan.mountTail ? geom.tailRows : 0);
+      const visibleBudget = mountedRows - cur.clip + (plan.mountTail ? geom.tailRows : 0);
       if (
         visibleBudget < geom.viewportRows &&
         plan.endIdx < geom.groupCount &&
@@ -753,8 +744,7 @@ export const ScrollableHistory = memo(function ScrollableHistory({
       }
     } else {
       // Pinned underfill: trailing groups + tail must cover the viewport.
-      const mountedRows =
-        heightCache.totalHeight() - heightCache.accumulatedHeight(plan.startIdx);
+      const mountedRows = heightCache.totalHeight() - heightCache.accumulatedHeight(plan.startIdx);
       if (
         mountedRows + geom.tailRows < geom.viewportRows &&
         plan.startIdx > 0 &&
@@ -787,11 +777,7 @@ export const ScrollableHistory = memo(function ScrollableHistory({
         overflowY="hidden"
         justifyContent={scrolled ? 'flex-start' : 'flex-end'}
       >
-        <Box
-          flexDirection="column"
-          flexShrink={0}
-          marginTop={scrolled && clip > 0 ? -clip : 0}
-        >
+        <Box flexDirection="column" flexShrink={0} marginTop={scrolled && clip > 0 ? -clip : 0}>
           {/* Mounted groups, with consecutive same-tool calls compacted under
               one header. At scrolled positions the first group is the anchor:
               its clipped rows hide above the viewport via the negative margin.
@@ -824,7 +810,13 @@ export const ScrollableHistory = memo(function ScrollableHistory({
             const entryEl = (
               <EntryErrorBoundary
                 label={entry.kind}
-                resetKey={entry.kind === 'tool' ? (entry.output?.length ?? 0) : 'text' in entry ? entry.text.length : 0}
+                resetKey={
+                  entry.kind === 'tool'
+                    ? (entry.output?.length ?? 0)
+                    : 'text' in entry
+                      ? entry.text.length
+                      : 0
+                }
               >
                 <Entry
                   entry={entry}

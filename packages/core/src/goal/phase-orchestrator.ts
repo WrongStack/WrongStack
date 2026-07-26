@@ -5,8 +5,19 @@ import { DefaultTaskStore, TaskTracker } from '../tasking/index.js';
 import type { TaskNode } from '../types/task-graph.js';
 import { toErrorMessage } from '../utils/error.js';
 import type { WorktreeHandle, WorktreeManager } from '../worktree/worktree-manager.js';
+import {
+  addPhaseTask,
+  findPhaseOfTaskInGraph,
+  movePhaseTask,
+  requeuePhaseTask,
+  setPhaseTaskAssignee,
+} from './phase-board-mutations.js';
+import { createNoopEventBus, normalizePhaseGraphForResume } from './phase-orchestrator-runtime.js';
 import type {
-  GoalOptions,
+  NormalizedGoalOptions,
+  PhaseOrchestratorOptions,
+} from './phase-orchestrator-types.js';
+import type {
   PhaseEventMap,
   PhaseEventName,
   PhaseExecutionContext,
@@ -15,37 +26,7 @@ import type {
   PhaseProgress,
   PhaseStatus,
 } from './types.js';
-
-export interface PhaseOrchestratorOptions extends GoalOptions {
-  graph: PhaseGraph;
-  ctx: PhaseExecutionContext;
-  /** Structured logger. Defaults to noOpLogger (silent). */
-  logger?: Logger | undefined;
-}
-
-type NormalizedGoalOptions = Omit<
-  GoalOptions,
-  | 'maxConcurrentPhases'
-  | 'maxConcurrentTasks'
-  | 'maxRetries'
-  | 'maxVerifyAttempts'
-  | 'autonomous'
-  | 'phaseDelayMs'
-  | 'stopOnFailure'
-  | 'taskTimeoutMs'
-  | 'events'
-  | 'worktrees'
-> & {
-  maxConcurrentPhases: number;
-  maxConcurrentTasks: number;
-  maxRetries: number;
-  maxVerifyAttempts: number;
-  autonomous: boolean;
-  phaseDelayMs: number;
-  stopOnFailure: boolean;
-  taskTimeoutMs: number;
-  events: EventBus;
-};
+export type { PhaseOrchestratorOptions } from './phase-orchestrator-types.js';
 
 /**
  * PhaseOrchestrator - dependency-aware engine for running phases autonomously.
@@ -82,7 +63,7 @@ export class PhaseOrchestrator {
   constructor(opts: PhaseOrchestratorOptions) {
     this.graph = opts.graph;
     this.ctx = opts.ctx;
-    this.events = opts.events ?? this.createNoopEventBus();
+    this.events = opts.events ?? createNoopEventBus();
     this.worktrees = opts.worktrees;
     this.logger = opts.logger ?? noOpLogger;
     this.opts = {
@@ -155,18 +136,7 @@ export class PhaseOrchestrator {
    * For a freshly built graph this is a no-op.
    */
   private normalizeForResume(): void {
-    this.graph.activePhaseIds = []; // stale active ids from the previous process
-    for (const phase of this.graph.phases.values()) {
-      if (phase.status === 'running') {
-        phase.status = 'pending';
-        phase.updatedAt = Date.now();
-      }
-      if (phase.status === 'pending') {
-        for (const task of phase.taskGraph.nodes.values()) {
-          if (task.status === 'in_progress') task.status = 'pending';
-        }
-      }
-    }
+    normalizePhaseGraphForResume(this.graph);
   }
 
   /** Wait for all pending phase merges, dependency-ordered and globally serialized. */
@@ -948,10 +918,7 @@ export class PhaseOrchestrator {
 
   /** Find the phase whose task graph currently holds `taskId`. */
   findPhaseOfTask(taskId: string): PhaseNode | undefined {
-    for (const phase of this.graph.phases.values()) {
-      if (phase.taskGraph.nodes.has(taskId)) return phase;
-    }
-    return undefined;
+    return findPhaseOfTaskInGraph(this.graph, taskId);
   }
 
   /**
@@ -960,63 +927,12 @@ export class PhaseOrchestrator {
    * or target phase is missing, or it is already in the target phase.
    */
   moveTask(taskId: string, toPhaseId: string): boolean {
-    const from = this.findPhaseOfTask(taskId);
-    const to = this.graph.phases.get(toPhaseId);
-    if (!from || !to || from.id === toPhaseId) return false;
-
-    const node = from.taskGraph.nodes.get(taskId);
-    if (!node) return false;
-
-    // Promote any task that depends on the moved task to a root node so it
-    // doesn't stall as an orphaned blocked task in the source phase.
-    const dependents = from.taskGraph.edges
-      .filter((e) => e.from === taskId)
-      .map((e) => e.to);
-    for (const depId of dependents) {
-      const depNode = from.taskGraph.nodes.get(depId);
-      if (depNode) {
-        depNode.parentId = undefined;
-        depNode.children = undefined;
-      }
-      from.taskGraph.edges = from.taskGraph.edges.filter(
-        (e) => !(e.from === taskId && e.to === depId),
-      );
-      if (!from.taskGraph.rootNodes.includes(depId)) {
-        from.taskGraph.rootNodes.push(depId);
-      }
-    }
-
-    // Detach from the source graph (nodes, rootNodes, touching edges).
-    from.taskGraph.nodes.delete(taskId);
-    from.taskGraph.rootNodes = from.taskGraph.rootNodes.filter((id) => id !== taskId);
-    from.taskGraph.edges = from.taskGraph.edges.filter((e) => e.from !== taskId && e.to !== taskId);
-    from.taskGraph.updatedAt = Date.now();
-
-    // Attach to the target graph as a root node.
-    node.parentId = undefined;
-    node.children = undefined;
-    node.updatedAt = Date.now();
-    to.taskGraph.nodes.set(taskId, node);
-    to.taskGraph.rootNodes.push(taskId);
-    to.taskGraph.updatedAt = Date.now();
-
-    // Invalidate cached trackers so getProgress/getExecutableTasks see the move.
-    this.trackerCache.delete(from.id);
-    this.trackerCache.delete(to.id);
-    this.graph.updatedAt = Date.now();
-    this.emit('phase.taskMoved', { taskId, fromPhaseId: from.id, toPhaseId });
-    return true;
+    return movePhaseTask(this.boardMutationContext(), taskId, toPhaseId);
   }
 
   /** (Re)assign a task to a specific agent (or clear with agentName/agentId omitted). */
   setTaskAssignee(taskId: string, agentId?: string, agentName?: string): boolean {
-    const phase = this.findPhaseOfTask(taskId);
-    if (!phase) return false;
-    const tracker = this.getTrackerForPhase(phase);
-    tracker.updateNode(taskId, { assignee: agentName ?? agentId ?? '' });
-    this.graph.updatedAt = Date.now();
-    this.emit('phase.taskAssigned', { phaseId: phase.id, taskId, agentId, agentName });
-    return true;
+    return setPhaseTaskAssignee(this.boardMutationContext(), taskId, agentId, agentName);
   }
 
   /** Add a new task to a phase. Returns the created task id, or null if the phase is missing. */
@@ -1029,19 +945,7 @@ export class PhaseOrchestrator {
       priority?: TaskNode['priority'] | undefined;
     },
   ): string | null {
-    const phase = this.graph.phases.get(phaseId);
-    if (!phase) return null;
-    const tracker = this.getTrackerForPhase(phase);
-    const node = tracker.addNode({
-      title: spec.title,
-      description: spec.description ?? '',
-      type: spec.type ?? 'feature',
-      priority: spec.priority ?? 'medium',
-      status: 'pending',
-    });
-    this.graph.updatedAt = Date.now();
-    this.emit('phase.taskAdded', { phaseId, taskId: node.id, taskTitle: node.title });
-    return node.id;
+    return addPhaseTask(this.boardMutationContext(), phaseId, spec);
   }
 
   /**
@@ -1050,50 +954,27 @@ export class PhaseOrchestrator {
    * board's "retry" and "start" affordances.
    */
   requeueTask(taskId: string): boolean {
-    const phase = this.findPhaseOfTask(taskId);
-    if (!phase) return false;
-    const tracker = this.getTrackerForPhase(phase);
-    tracker.updateNodeStatus(taskId, 'pending');
-    this.taskRetryCounts.delete(`${phase.id}:${taskId}`);
-    // A terminal/paused phase is reset to `pending` (the only status the
-    // ready-scan + tick loop pick up) so its newly-pending task re-runs. Drop
-    // the stale worktree handle so the rerun allocates a fresh isolated tree.
-    if (phase.status === 'completed' || phase.status === 'failed' || phase.status === 'paused') {
-      this.graph.failedPhaseIds = this.graph.failedPhaseIds.filter((id) => id !== phase.id);
-      this.graph.completedPhaseIds = this.graph.completedPhaseIds.filter((id) => id !== phase.id);
-      this.graph.activePhaseIds = this.graph.activePhaseIds.filter((id) => id !== phase.id);
-      this.phaseWorktrees.delete(phase.id);
-      this.updatePhaseStatus(phase, 'pending');
-    }
-    this.graph.updatedAt = Date.now();
-    return true;
+    return requeuePhaseTask(this.boardMutationContext(), taskId);
+  }
+
+  private boardMutationContext() {
+    return {
+      graph: this.graph,
+      trackerCache: this.trackerCache,
+      taskRetryCounts: this.taskRetryCounts,
+      phaseWorktrees: this.phaseWorktrees,
+      getTrackerForPhase: (phase: PhaseNode) => this.getTrackerForPhase(phase),
+      updatePhaseStatus: (phase: PhaseNode, status: PhaseStatus) =>
+        this.updatePhaseStatus(phase, status),
+      emit: (event: string, payload: unknown) =>
+        this.emit(event as PhaseEventName, payload as PhaseEventMap[PhaseEventName]),
+    };
   }
 
   // ─── Events ───────────────────────────────────────────────────────────────
 
   private emit<K extends PhaseEventName>(event: K, payload: PhaseEventMap[K]): void {
     (this.events.emit as (event: string, payload: unknown) => void)(event, payload);
-  }
-
-  private createNoopEventBus(): EventBus {
-    // Intentional test mock — safe because this is only called from test/benchmark code,
-    // never with real event handling. Using `as never as EventBus` here is acceptable
-    // since the return value is explicitly typed as EventBus and callers only use the
-    // public API surface (which is fully implemented).
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    return {
-      emit: () => {},
-      on: () => () => {},
-      off: () => {},
-      once: () => () => {},
-      listeners: new Map(),
-      wildcards: [],
-      setLogger: () => {},
-      onAny: () => () => {},
-      offAny: () => {},
-      emitAsync: async () => [],
-      waitFor: async () => {},
-    } as never as EventBus;
   }
 
   private async waitWhilePaused(): Promise<void> {

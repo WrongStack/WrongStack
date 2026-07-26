@@ -123,4 +123,22 @@ describe('project agent memory audiences', () => {
     expect(await store.retrieveForAudience({ role: 'reviewer' })).toHaveLength(1);
     expect(await store.retrieveForAudience({ role: 'git' })).toHaveLength(1);
   });
+
+  it('preserves identical text for different roles during hygiene', async () => {
+    const store = openStore();
+    const reviewer = await store.rememberSage({
+      text: 'Keep audience-specific policy.',
+      audience: { roles: ['reviewer'] },
+    });
+    const git = await store.rememberSage({
+      text: 'Keep audience-specific policy.',
+      audience: { roles: ['git'] },
+    });
+
+    const report = await store.hygiene({ verify: false });
+
+    expect(report.deduplicated).toBe(0);
+    expect((await store.getSage(reviewer.id))?.status).toBe('active');
+    expect((await store.getSage(git.id))?.status).toBe('active');
+  });
 });

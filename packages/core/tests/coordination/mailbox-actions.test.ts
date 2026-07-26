@@ -12,7 +12,6 @@ describe('actionToAckInput', () => {
       messageId: 'msg-1',
       readerId: 'agent-1',
       read: true,
-      completed: false,
     });
   });
 
@@ -70,7 +69,6 @@ describe('actionToAckInput', () => {
       messageId: 'msg-5',
       readerId: 'agent-5',
       read: true,
-      completed: false,
     });
   });
 });

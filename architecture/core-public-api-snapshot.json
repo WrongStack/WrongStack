@@ -558,6 +558,7 @@
         "export { FleetManager, type FleetManagerOptions, } from './fleet-manager.js';",
         "export { FleetSupervisor, type FleetSupervisorActions, type FleetSupervisorConfig, type FleetSupervisorOptions, type FleetSupervisorSource, type SupervisedSubagent, type SupervisorLogEntry, } from './fleet-supervisor.js';",
         "export { GlobalMailbox, resolveProjectDir } from './global-mailbox.js';",
+        "export { JsonlCredentialStore } from './mailbox-credential-store.js';",
         "export { KnowledgeGraph } from './knowledge-graph.js';",
         "export { LargeAnswerStore } from './large-answer-store.js';",
         "export { MailboxEventEmitter } from './mailbox-events.js';",
@@ -570,7 +571,7 @@
         "export { assessCommitSafety, type CommitSafetyOptions, type CommitSafetyReport, } from './commit-safety.js';",
         "export { assignNickname } from './subagent-nicknames.js';",
         "export { attachDepWatcherBridge, type DepWatcherBridgeOptions, } from './dep-watcher-bridge.js';",
-        "export { authorizeMailboxBearerToken, createMailboxHttpRouter, MAILBOX_HTTP_DEFAULT_MAX_AGE_MS, MAILBOX_HTTP_MAX_AGE_CEILING_MS, MAILBOX_HTTP_MAX_BODY_BYTES, MAILBOX_HTTP_RATE_LIMIT_PER_MINUTE, MAILBOX_HTTP_RATE_LIMIT_WINDOW_MS, MailboxHttpRateLimiter, type MailboxHttpAccessDecision, type MailboxHttpRouter, type MailboxHttpRouterOptions, } from './mailbox-http-router.js';",
+        "export { authorizeMailboxBearerToken, authorizeMailboxCredential, createMailboxHttpRouter, MAILBOX_HTTP_DEFAULT_MAX_AGE_MS, MAILBOX_HTTP_MAX_AGE_CEILING_MS, MAILBOX_HTTP_MAX_BODY_BYTES, MAILBOX_HTTP_RATE_LIMIT_PER_MINUTE, MAILBOX_HTTP_RATE_LIMIT_WINDOW_MS, MailboxHttpRateLimiter, type MailboxHttpAccessDecision, type MailboxHttpRouter, type MailboxHttpRouterOptions, } from './mailbox-http-router.js';",
         "export { brainDecisionKey, BrainDecisionLedger, type BrainDecisionLedgerOptions, type BrainLedgerEntry, createLedgerGuardBrainArbiter, type LedgerGuardBrainArbiterOptions, } from './brain-ledger.js';",
         "export { buildDownAlert, buildRecoveryAlert, type DownAlertInput, MAILBOX_HEALTH_DEFAULT_FAILURE_THRESHOLD, MAILBOX_HEALTH_DEFAULT_FROM, MAILBOX_HEALTH_DEFAULT_INTERVAL_MS, MAILBOX_HEALTH_DEFAULT_TIMEOUT_MS, type MailboxHealthEvent, MailboxHealthWatchdog, type MailboxHealthWatchdogOptions, type RecoveryAlertInput, validateWatchdogOptions, type WatchdogConfig, } from './mailbox-health.js';",
         "export { collabInjectMiddleware, collabPauseMiddleware, } from '../middleware/collab-pause.js';",
@@ -579,9 +580,10 @@
         "export { createMessage, InMemoryAgentBridge, InMemoryBridgeTransport, } from './agent-bridge.js';",
         "export { detectEcosystem, getFullPackageLog, getManifestPackages, getPackageAuthor, getPackagesByAgent, type PackageAuthorEntry, type PackageAuthorLog, type PackageAuthorTrackerOptions, recordPackageAction, updatePackageOutdatedStatus, } from './package-author-tracker.js';",
         "export { formatSubagentStructuredReport, MAX_SUBAGENT_STRUCTURED_REPORT_CHARS, makeSubagentResultTool, normalizeSubagentStructuredReport, readSubagentStructuredReport, SUBAGENT_STRUCTURED_REPORT_META_KEY, } from './subagent-result-tool.js';",
-        "export { isMailboxLeader, isMailboxMessageVisibleTo, mailboxIdentityBase, normalizeRecipient, SESSION_RECIPIENT_PREFIX, sessionRecipient, } from './mailbox-types.js';",
+        "export { isMailboxLeader, isMailboxMessageVisibleTo, MAILBOX_TYPE_PROPERTIES, mailboxIdentityBase, normalizeRecipient, SESSION_RECIPIENT_PREFIX, sessionRecipient, } from './mailbox-types.js';",
         "export { isValidMatrixKey, MATRIX_PHASE_KEYS, type MatrixKeyKind, type ModelMatrixResolution, type ModelMatrixResolutionSource, type ModelReference, matrixKeyKind, phaseForRole, type ResolvedModelTarget, type ResolvedSubagentModelTarget, resolveImplementationModelTarget, resolveModelMatrix, resolveModelMatrixResolution, resolveModelTargetFromEntry, resolveSubagentModelTarget, roleNeedsIndependentReviewModel, sameModelReference, } from './model-matrix.js';",
         "export { makeAskResultTool, makeAskTool, makeAssignTool, makeAwaitTasksTool, makeCollabDebugTool, makeFleetEmitTool, makeFleetTool, // NOTE: `makeFleetStatusTool` is no longer an alias of makeFleetTool — it // is the standalone read-only peer-snapshot tool from fleet-status-tool.ts // (exported below). The old leader-side fleet_status was consolidated into // `fleet` (action: status). makeKanbanQueueTool, makeQualityGateTool, makeRollUpTool, makeSpawnTool, makeTerminateAllTool, makeTerminateTool, makeWorkCompleteTool, } from './director-tools.js';",
+        "export { parseMailboxAckInput, parseMailboxQueryInput, parseMailboxSendInput, } from './mailbox-codecs.js';",
         "export { startTechStackConsumer, type TechStackConsumerOptions, } from './techstack-mailbox-consumer.js';",
         "export { type AcquireOptions, type AcquireResult, acquireOrJoin, finalize, type LiveLockResult, MAILBOX_BRIDGE_LOCK_FILENAME, MAILBOX_BRIDGE_TOKEN_FILENAME, type MailboxBridgeLock, readLiveLock, release, } from './single-instance-mailbox.js';",
         "export { type AgentFactory, type AgentFactoryResult, type AgentRunnerOptions, makeAgentSubagentRunner, withDisabledToolFiltering, } from './agent-subagent-runner.js';",
@@ -992,15 +994,15 @@
       "directory": "coordination",
       "classification": "coordination implementation",
       "intendedOwner": "Core subpath until physical extraction is justified",
-      "sourceFiles": 102,
-      "sourceLines": 38234
+      "sourceFiles": 146,
+      "sourceLines": 41654
     },
     {
       "directory": "core",
       "classification": "agent-domain contract",
       "intendedOwner": "Core",
-      "sourceFiles": 29,
-      "sourceLines": 8241
+      "sourceFiles": 34,
+      "sourceLines": 8232
     },
     {
       "directory": "defaults",
@@ -1020,8 +1022,8 @@
       "directory": "execution",
       "classification": "concrete runtime default",
       "intendedOwner": "Runtime pilot candidate after R2/R3",
-      "sourceFiles": 43,
-      "sourceLines": 16435
+      "sourceFiles": 50,
+      "sourceLines": 16380
     },
     {
       "directory": "extension",
@@ -1034,8 +1036,8 @@
       "directory": "goal",
       "classification": "storage/repository implementation",
       "intendedOwner": "repository behind persistence primitive",
-      "sourceFiles": 9,
-      "sourceLines": 3052
+      "sourceFiles": 12,
+      "sourceLines": 3147
     },
     {
       "directory": "hooks",
@@ -1048,8 +1050,8 @@
       "directory": "hq",
       "classification": "host/application concern",
       "intendedOwner": "protocol DTOs only in Core; runtime elsewhere",
-      "sourceFiles": 31,
-      "sourceLines": 7300
+      "sourceFiles": 33,
+      "sourceLines": 7304
     },
     {
       "directory": "infrastructure",
@@ -1077,7 +1079,7 @@
       "classification": "concrete runtime default",
       "intendedOwner": "Runtime or Providers",
       "sourceFiles": 9,
-      "sourceLines": 2159
+      "sourceLines": 2148
     },
     {
       "directory": "notifications",
@@ -1104,8 +1106,8 @@
       "directory": "plugins",
       "classification": "product feature",
       "intendedOwner": "@wrongstack/plugins",
-      "sourceFiles": 8,
-      "sourceLines": 3520
+      "sourceFiles": 13,
+      "sourceLines": 4769
     },
     {
       "directory": "prompts",
@@ -1146,8 +1148,8 @@
       "directory": "storage",
       "classification": "storage/repository implementation",
       "intendedOwner": "repositories over dependency-free persistence",
-      "sourceFiles": 59,
-      "sourceLines": 16228
+      "sourceFiles": 71,
+      "sourceLines": 15312
     },
     {
       "directory": "tasking",
@@ -1160,15 +1162,15 @@
       "directory": "tools",
       "classification": "host/application concern",
       "intendedOwner": "@wrongstack/tools or product plugin",
-      "sourceFiles": 7,
-      "sourceLines": 2864
+      "sourceFiles": 13,
+      "sourceLines": 2926
     },
     {
       "directory": "types",
       "classification": "agent-domain contract",
       "intendedOwner": "Core type-only subpaths",
       "sourceFiles": 64,
-      "sourceLines": 9083
+      "sourceLines": 9193
     },
     {
       "directory": "utils",

@@ -41,12 +41,10 @@
  * Public surface: `runWebUI` plus the `WSServerMessage` / `WSClientMessage`
  * message shapes. Everything else is internal to the run.
  */
-import { existsSync } from 'node:fs';
-import * as http from 'node:http';
-import { createRequire, findPackageJSON } from 'node:module';
+import type { Server as HttpServer } from 'node:http';
+import { findPackageJSON } from 'node:module';
 import * as os from 'node:os';
 import * as path from 'node:path';
-import { fileURLToPath } from 'node:url';
 import type { Agent, Context } from '@wrongstack/core/agent';
 import type { BrainArbiter } from '@wrongstack/core/coordination';
 import type { BrainAutoRisk } from '@wrongstack/core/execution';
@@ -138,6 +136,11 @@ import { createSetupEvents } from './webui-server/setup-events.js';
 import { startStaticServe } from './webui-server/static-serve.js';
 import { createStreamCoalescer } from './webui-server/stream-coalescer.js';
 import { startBoundedTerminalLogView } from './webui-server/terminal-log-view.js';
+import { createNodePtyLoader } from './webui-server/node-pty-loader.js';
+import {
+  startDeferredHttpListen,
+  startIpv6LoopbackProxy,
+} from './webui-server/listen-helpers.js';
 
 /**
  * CLI-shaped webui options. Distinct from the standalone
@@ -419,80 +422,7 @@ export async function runWebUI(opts: CliWebUIOptions): Promise<void> {
   );
   const worktreeHandler = new WorktreeWebSocketHandler(opts.events, consoleLogger);
 
-  // Integrated terminal — the shared per-client node-pty transport. node-pty
-  // is an optional dependency of @wrongstack/webui (where the prebuilds
-  // live), so under pnpm it is NOT resolvable from the handler's own module
-  // — resolve it through the webui package instead and hand the loader in.
-  //
-  // Three resolution strategies, in order:
-  //   1. `@wrongstack/webui/package.json` via createRequire — this gives a
-  //      filesystem path to webui's package dir, then we walk into its
-  //      `node_modules/node-pty` symlink. Avoids `ERR_PACKAGE_PATH_NOT_EXPORTED`
-  //      (Node 16+ refuses `./package.json` subpath unless the package's
-  //      `exports` field lists it).
-  //   2. Direct `require('node-pty')` from the CLI's own resolution root
-  //      (works when node-pty is hoisted or symlinked into cli's deps).
-  //   3. Workspace-root `node_modules/node-pty` (the pnpm `.pnpm/node-pty@*`
-  //      store path resolved via the monorepo's workspace root).
-  const requireFromCli = createRequire(import.meta.url);
-  let cachedNodePty: unknown;
-  const loadNodePtyViaWebui = () => {
-    if (cachedNodePty !== undefined) return cachedNodePty as never;
-    // Strategy 1: resolve webui via its main export, then walk to package.json.
-    try {
-      const webuiEntry = requireFromCli.resolve('@wrongstack/webui');
-      // webuiEntry is the dist path (e.g. dist/index.js). Walk up to package.json.
-      const webuiDir = webuiEntry.replace(/[\\/]dist.*$/, '');
-      const webuiPkgJson = path.join(webuiDir, 'package.json');
-      cachedNodePty = createRequire(webuiPkgJson)('node-pty');
-      if (cachedNodePty) {
-        consoleLogger.debug?.(`[terminal] node-pty loaded via webui package (${webuiDir})`);
-        return cachedNodePty as never;
-      }
-    } catch (err) {
-      consoleLogger.debug?.(`[terminal] webui-route failed: ${(err as Error).message}`);
-    }
-    // Strategy 2: direct require from CLI's own resolution root.
-    try {
-      cachedNodePty = requireFromCli('node-pty');
-      consoleLogger.debug?.('[terminal] node-pty loaded via direct requireFromCli');
-      return cachedNodePty as never;
-    } catch (err) {
-      consoleLogger.debug?.(`[terminal] direct require failed: ${(err as Error).message}`);
-    }
-    // Strategy 3: workspace root node_modules/node-pty.
-    try {
-      // @wrongstack/cli is the package we're currently inside; use
-      // import.meta.url to find our own package.json (avoids the same
-      // ERR_PACKAGE_PATH_NOT_EXPORTED issue the webui route had).
-      const cliPkgJson = path.join(
-        path.dirname(fileURLToPath(import.meta.url)),
-        '..',
-        'package.json',
-      );
-      let dir = path.dirname(cliPkgJson);
-      for (let i = 0; i < 6; i++) {
-        const candidate = path.join(dir, 'node_modules', 'node-pty');
-        if (existsSync(candidate)) {
-          cachedNodePty = createRequire(candidate)('node-pty');
-          if (cachedNodePty) {
-            consoleLogger.debug?.(`[terminal] node-pty loaded via workspace root (${candidate})`);
-            return cachedNodePty as never;
-          }
-        }
-        const parent = path.dirname(dir);
-        if (parent === dir) break;
-        dir = parent;
-      }
-    } catch (err) {
-      consoleLogger.debug?.(`[terminal] workspace-root walk failed: ${(err as Error).message}`);
-    }
-    cachedNodePty = null;
-    consoleLogger.debug?.(
-      '[terminal] node-pty resolution failed; terminal panel will report "unavailable"',
-    );
-    return cachedNodePty as never;
-  };
+  const loadNodePtyViaWebui = createNodePtyLoader(import.meta.url, consoleLogger);
   const terminalHandler = new TerminalWebSocketHandler(
     () => (opts.agent.ctx as Context).cwd ?? opts.projectRoot ?? process.cwd(),
     consoleLogger,
@@ -680,19 +610,11 @@ export async function runWebUI(opts: CliWebUIOptions): Promise<void> {
   // crash — the caller's .catch handler (dispatch-webui.ts:349) reports
   // the error gracefully.
   if (httpServer && surface === 'simpleui') {
-    await new Promise<void>((resolveListen, rejectListen) => {
-      httpServer.server.listen(httpPort, host, () => resolveListen());
-      httpServer.server.once('error', rejectListen);
-    });
-    // Persistent error handler for post-listen async errors (e.g. during
-    // shutdown) that the one-shot 'error' listener above wouldn't catch.
-    // The wss.on('error', …) handler below only covers WebSocket-level
-    // errors — the underlying http server needs its own listener.
-    httpServer.server.on('error', (err: Error) => {
-      consoleLogger.error('http_server_error', {
-        message: err.message,
-        port: httpPort,
-      });
+    await startDeferredHttpListen({
+      server: httpServer.server,
+      host,
+      httpPort,
+      logger: consoleLogger,
     });
   }
 
@@ -711,37 +633,13 @@ export async function runWebUI(opts: CliWebUIOptions): Promise<void> {
   // `localhost` AND `127.0.0.1` work. Best-effort: EAFNOSUPPORT/EADDRNOTAVAIL/
   // EADDRINUSE (no usable IPv6 loopback, or already bound) must never take down
   // the authoritative v4 listener.
-  let ipv6LoopbackServer: http.Server | null = null;
+  let ipv6LoopbackServer: HttpServer | null = null;
   if (httpServer && host === '127.0.0.1') {
-    const primary = httpServer.server;
-    const v6 = http.createServer();
-    v6.on('request', (req, res) => primary.emit('request', req, res));
-    v6.on('upgrade', (req, socket, head) => primary.emit('upgrade', req, socket, head));
-    const logIpv6Error = (err: NodeJS.ErrnoException): void => {
-      if (err.code === 'EAFNOSUPPORT' || err.code === 'EADDRNOTAVAIL' || err.code === 'EADDRINUSE') {
-        consoleLogger.warn('ipv6_loopback_unavailable', { code: err.code, port: httpPort });
-        return; // no usable IPv6 loopback — the v4 listener stays authoritative
-      }
-      consoleLogger.error('http_server_error', { message: err.message, port: httpPort });
-    };
-    v6.on('error', logIpv6Error);
-    const ipv6Listening = await new Promise<boolean>((resolveListen) => {
-      const onListening = () => {
-        v6.off('error', onInitialError);
-        resolveListen(true);
-      };
-      const onInitialError = () => {
-        v6.off('listening', onListening);
-        resolveListen(false);
-      };
-      v6.once('listening', onListening);
-      v6.once('error', onInitialError);
-      v6.listen(httpPort, '::1');
+    ipv6LoopbackServer = await startIpv6LoopbackProxy({
+      primary: httpServer.server,
+      httpPort,
+      logger: consoleLogger,
     });
-    if (ipv6Listening) {
-      ipv6LoopbackServer = v6;
-      console.log(`[WebUI] Also listening on http://[::1]:${httpPort}`);
-    }
   }
 
   console.log(`[WebUI] WebSocket server starting on ws://${host}:${httpPort}`);

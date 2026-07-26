@@ -1,32 +1,36 @@
 import { randomUUID } from 'node:crypto';
 import * as fsp from 'node:fs/promises';
-import * as path from 'node:path';
 import { DirectorStateCheckpoint, type DirectorStateSnapshot } from '../storage/director-state.js';
 import type { BridgeMessage } from '../types/agent-bridge.js';
 import type { Logger } from '../types/logger.js';
 import type {
   AwaitAnyResult,
   CoordinatorStatus,
-  MultiAgentConfig,
   SubagentConfig,
-  SubagentRunner,
   TaskResult,
   TaskSpec,
 } from '../types/multi-agent.js';
 import type { SessionWriter } from '../types/session.js';
 import type { Tool } from '../types/tool.js';
-import { atomicWrite } from '../utils/atomic-write.js';
 import { toErrorMessage } from '../utils/error.js';
-import { safeParse, safeStringify } from '../utils/safe-json.js';
-import type { WorktreeManager } from '../worktree/worktree-manager.js';
+import { safeStringify } from '../utils/safe-json.js';
+import {
+  acquireCheckpointLock as acquireDirectorCheckpointLock,
+  appendSessionEvent as appendDirectorSessionEvent,
+  resumeFromCheckpoint as resumeDirectorFromCheckpoint,
+  scheduleManifest as scheduleDirectorManifest,
+  setCheckpointState as setDirectorCheckpointState,
+  writeManifest as writeDirectorManifest,
+  type DirectorCheckpointHost,
+} from './checkpoint-wiring.js';
 import { InMemoryAgentBridge } from './agent-bridge.js';
-import type { BrainArbiter } from './brain.js';
 import type { CollabDebugReport, CollabSessionOptions } from './collab-debug.js';
 import { DirectorBtwNotes } from './director/director-btw-notes.js';
 import { DirectorBudgetPolicy } from './director/director-budget-policy.js';
 import { DirectorCollabController } from './director/director-collab.js';
 import { FleetSpawnBudgetError } from './director/director-errors.js';
 import { DirectorTaskRegistry } from './director/director-task-registry.js';
+import type { DirectorOptions } from './director-options.js';
 import {
   composeDirectorPrompt,
   composeSubagentPrompt,
@@ -34,42 +38,24 @@ import {
   DEFAULT_SUBAGENT_BASELINE,
   rosterSummaryFromConfigs,
 } from './director-prompts.js';
-import {
-  makeAskResultTool,
-  makeAskTool,
-  makeAssignTool,
-  makeAwaitTasksTool,
-  makeCollabDebugTool,
-  makeFleetEmitTool,
-  makeFleetTool,
-  makeKanbanQueueTool,
-  makeQualityGateTool,
-  makeRollUpTool,
-  makeSpawnTool,
-  makeTerminateAllTool,
-  makeTerminateTool,
-  makeWorkCompleteTool,
-} from './director-tools.js';
+import { buildDirectorToolset } from './director/director-toolset.js';
 import { FleetBus, type FleetUsage, FleetUsageAggregator } from './fleet-bus.js';
 import type { FleetManager } from './fleet-manager.js';
 import { type DirectorFleetHost, spawn as fleetSpawn, type ManifestEntry } from './fleet-spawn.js';
 import type { ICoordinator } from './icoordinator.js';
 import { InMemoryBridgeTransport } from './in-memory-transport.js';
 import { LargeAnswerStore } from './large-answer-store.js';
-import {
-  type ModelMatrixSource,
-  resolveModelMatrixResolution,
-  roleNeedsIndependentReviewModel,
-} from './model-matrix.js';
+import { resolveDirectorSpawnModel } from './director-spawn-model.js';
+import { type ModelMatrixSource } from './model-matrix.js';
 import { DefaultMultiAgentCoordinator } from './multi-agent-coordinator.js';
 import type { ProviderModelStatusTracker } from './provider-status-tracker.js';
 import { resolveMaxSpawnDepth } from './spawn-budget.js';
 import { nicknameKeyFromDisplay } from './subagent-nicknames.js';
+import { type WorktreeTaskStateUpdate, wrapSubagentRunnerWithWorktrees } from './worktree-task-runner.js';
 import {
-  type FleetWorktreePolicy,
-  type WorktreeTaskStateUpdate,
-  wrapSubagentRunnerWithWorktrees,
-} from './worktree-task-runner.js';
+  readDirectorSubagentSession,
+  type DirectorSubagentSessionSummary,
+} from './director-session.js';
 
 /**
  * Director — high-level orchestrator that owns a `MultiAgentCoordinator`,
@@ -84,297 +70,6 @@ import {
  * symmetric with how other agents are built and avoids smuggling a
  * heavy LLM dependency into core just for the director path.
  */
-/**
- * Payload handed to {@link DirectorOptions.taskResultNotifier} when a
- * fire-and-forget task completes (no `awaitTasks` waiter was pending).
- */
-export interface TaskResultNotification {
-  taskId: string;
-  /** Task description (or task id when no description was recorded). */
-  title: string;
-  status: TaskResult['status'];
-  subagentId: string;
-  /** Human-readable subagent name from the fleet manifest, when known. */
-  subagentName?: string | undefined;
-  /** The subagent's textual result (stringified when structured). */
-  resultText?: string | undefined;
-  /** Flattened `kind: message` error string for non-success statuses. */
-  errorText?: string | undefined;
-  /** Bounded incomplete text recovered before a non-successful exit. */
-  partialText?: string | undefined;
-  /** Machine-readable result submitted through submit_result. */
-  report?: TaskResult['report'] | undefined;
-  iterations: number;
-  toolCalls: number;
-  durationMs: number;
-}
-
-interface DirectorOptions {
-  config: MultiAgentConfig;
-  runner?: SubagentRunner | undefined;
-  /** Optional Brain arbiter above the director for policy/decision escalation. */
-  brain?: BrainArbiter | undefined;
-  /**
-   * Called when a task completes with NO pending `awaitTasks` waiter —
-   * i.e. a fire-and-forget `assign_task`. Wire this to the project
-   * mailbox so the result reaches the leader's next model evaluation
-   * automatically instead of waiting for a poll. Synchronous `delegate` calls attach a
-   * waiter up front, so they never double-report through this hook.
-   * Internal tasks (shadow passes) are excluded. Errors are swallowed.
-   */
-  taskResultNotifier?: ((n: TaskResultNotification) => void | Promise<void>) | undefined;
-  /**
-   * Remove a spawned or between-task subagent after this much idle time.
-   * Undefined disables idle retirement. This is separate from the in-task
-   * activity watchdog enforced by SubagentBudget.
-   */
-  subagentIdleTimeoutMs?: number | undefined;
-  /**
-   * Retire a subagent immediately after its final task result when the
-   * coordinator did not reuse it for queued work in the same dispatch cycle.
-   * Default false for embedders; runtime hosts opt in.
-   */
-  retireSubagentOnTaskComplete?: boolean | undefined;
-  /** Optional logger for structured debug/error logging. Falls back to console if omitted. */
-  logger?: Logger | undefined;
-  /**
-   * When set, the director writes a `fleet.json` manifest to this path
-   * recording every spawned subagent (id, provider, model, role, task
-   * ids). Used by `wstack replay <runId>` to rehydrate a fleet. Pass an
-   * absolute file path — the directory must already exist (the
-   * director-session factory creates it when used together).
-   */
-  manifestPath?: string | undefined;
-  /**
-   * Optional roster used by `leaderSystemPrompt()` to render a roles
-   * summary into the leader's preamble. Same shape as the roster passed
-   * to `tools()` — typically the same value.
-   */
-  roster?: Record<string, SubagentConfig>;
-  /**
-   * Override the built-in fleet preamble (see `DEFAULT_DIRECTOR_PREAMBLE`).
-   * Pass an empty string to suppress the preamble entirely.
-   */
-  directorPreamble?: string | undefined;
-  /**
-   * Override the built-in subagent baseline (see
-   * `DEFAULT_SUBAGENT_BASELINE`). Pass an empty string to suppress.
-   */
-  subagentBaseline?: string | undefined;
-  /**
-   * Absolute path to a directory the fleet can use as a shared scratchpad
-   * (read + write by every subagent). When set, the director creates it on
-   * construction and `subagentSystemPrompt()` automatically injects a
-   * "Shared notes" block telling subagents where to drop their findings.
-   * This is the cheap fleet-coordination channel — agents don't need each
-   * other's transcripts, just each other's conclusions.
-   *
-   * Convention: under a fleet run rooted at `<sessionsRoot>/<runId>/`,
-   * pass `<sessionsRoot>/<runId>/shared/` here.
-   */
-  sharedScratchpadPath?: string | undefined;
-  /**
-   * Maximum number of spawns this director can perform across its
-   * lifetime. Default: unlimited. Acts as a hard fleet-wide cost cap —
-   * a runaway leader that keeps spawning workers gets cut off cleanly
-   * instead of burning provider tokens until the user kills the
-   * process. The N+1-th spawn call rejects with a `FleetSpawnBudgetError`.
-   */
-  maxSpawns?: number | undefined;
-  /**
-   * Maximum nesting depth for spawns. The director constructed by the
-   * user is at depth `spawnDepth` (default 0); any subagent that itself
-   * acts as a director would construct its own `Director` with
-   * `spawnDepth: parent.spawnDepth + 1`. When `spawnDepth >= maxSpawnDepth`,
-   * `spawn()` rejects. The process-wide hard ceiling is 2; configuration can
-   * narrow it but cannot widen it. Default: 2 (root director can spawn workers; a
-   * worker that becomes a sub-director cannot itself spawn further).
-   * This stops infinite recursive director chains from a hostile or
-   * confused prompt.
-   */
-  maxSpawnDepth?: number | undefined;
-  /**
-   * Current spawn-chain depth for this director instance. Defaults to 0.
-   * A nested director should pass `parent.spawnDepth + 1`. Together with
-   * `maxSpawnDepth` this bounds the chain.
-   */
-  spawnDepth?: number | undefined;
-  /**
-   * Absolute path to a director-state checkpoint file. When set, the
-   * director writes an incremental snapshot of pending/running/completed
-   * tasks + spawned subagents on every state mutation. Distinct from
-   * `manifestPath`: the manifest is a final record written on shutdown,
-   * the checkpoint is a live mirror useful for crash recovery and the
-   * `wstack resume` "you had N tasks in flight" banner.
-   */
-  stateCheckpointPath?: string | undefined;
-  /**
-   * Session writer the director should forward task lifecycle events to
-   * (`agent_spawned`, `task_created`, `task_completed`, `task_failed`).
-   * When omitted these events stay in-memory only — useful for tests but
-   * lossy in production. Production callers (the CLI) pass the same
-   * writer the host Agent uses so all events land in a single JSONL.
-   */
-  sessionWriter?: SessionWriter | undefined;
-  /**
-   * Session id for live fleet/coordinator events. Defaults to
-   * `sessionWriter.id` when a writer is available; accepts a getter so
-   * embedding surfaces can follow session swaps.
-   */
-  sessionId?: string | (() => string | undefined) | undefined;
-  /**
-   * Debounce window for periodic manifest writes triggered by spawn/
-   * assign/complete events. Default: 2000ms. Pass 0 to disable periodic
-   * writes (the manifest will then only be written on `shutdown()`).
-   */
-  manifestDebounceMs?: number | undefined;
-  /**
-   * Fleet-wide cost ceiling. When set, `spawn()` refuses any new subagent
-   * that would push the fleet's total cost above this limit. The cap
-   * is checked BEFORE the spawn is recorded — a refused spawn must not
-   * leak partial state into the manifest or fleet bus. Let in-flight
-   * tasks complete; refuse new spawns only. When omitted or Infinity,
-   * no cost cap applies.
-   *
-   * Distinct from SubagentBudget.maxCostUsd (per-subagent spend) — this
-   * field caps the *entire fleet* total.
-   */
-  directorBudget?:
-    | {
-        /**
-         * Maximum total USD the fleet may spend across all subagents.
-         * Default: Infinity (no cap).
-         */
-        maxCostUsd?: number | undefined;
-        /** Maximum cumulative input+output tokens across the fleet. */
-        maxTokens?: number | undefined;
-      }
-    | undefined;
-  /**
-   * Maximum auto-extensions per subagent per budget kind before the
-   * director denies further extensions. A subagent hitting the same
-   * soft limit repeatedly (e.g. 3× budget.threshold_reached for
-   * tool_calls) is likely looping on a prompt/config issue, not
-   * making legitimate progress. Default: 12. Set to Infinity to
-   * disable the cap (use with caution — a misconfigured subagent
-   * could burn unlimited budget).
-   */
-  maxBudgetExtensions?: number | undefined;
-  /**
-   * Debounce window for state-checkpoint writes. Default: 250ms.
-   * Bursts of spawn/assign/complete events collapse into one disk
-   * hit. Higher values reduce write amplification on fast machines;
-   * lower values improve crash-recovery fidelity (less state lost
-   * on sudden process exit).
-   */
-  checkpointDebounceMs?: number | undefined;
-  /**
-   * Sessions root directory for per-subagent JSONL transcripts.
-   * When set, the director can read subagent transcripts directly for
-   * `fleet` tool (action: session) — no bridge round-trip needed. Path convention:
-   * `<sessionsRoot>/<directorRunId>/<subagentId>.jsonl`.
-   */
-  sessionsRoot?: string | undefined;
-  /**
-   * Director run id — namespaced under `sessionsRoot` to locate per-subagent
-   * JSONLs. Defaults to the director's own `id` when omitted.
-   */
-  directorRunId?: string | undefined;
-  /**
-   * Pre-built fleet manager. When provided the Director delegates all
-   * fleet-level policy (spawn budgets, manifest assembly, checkpointing)
-   * to this instance and takes ownership of the coordinator + bridge
-   * layer only. This enables unit-testing fleet policy in isolation
-   * and swapping implementations without changing the Director surface.
-   *
-   * When omitted the Director creates its own fleet infrastructure
-   * (same behavior as before this field was added).
-   */
-  fleetManager?: FleetManager | undefined;
-  /**
-   * Optional LLM classifier for the smart dispatcher. When set, the
-   * `spawn_subagent` tool can accept a free-form `description` field
-   * and the director will automatically route to the best-matching
-   * catalog agent using `dispatchAgent()`. When omitted, routing is
-   * pure heuristic (no provider call) — sufficient for most tasks.
-   *
-   * Build from a `complete(prompt) => string` function using
-   * `makeLLMClassifier(complete)` from the dispatcher module.
-   */
-  dispatchClassifier?: import('../coordination/dispatcher.js').DispatchClassifier | undefined;
-  /**
-   * Maximum context load (as a fraction of maxContext) the leader agent
-   * is allowed to reach before a new spawn is rejected. Default: 0.85.
-   * When the leader's context pressure exceeds this threshold, spawning
-   * a new subagent is refused — the leader must compact first.
-   * Only used when no `fleetManager` is provided (inline mode).
-   * Set to 1.0 to disable this check.
-   */
-  maxLeaderContextLoad?: number | undefined;
-  /**
-   * Provider's max context window in tokens. Used with `maxLeaderContextLoad`
-   * to compute the absolute token threshold. Default: 128_000.
-   * Only used when no `fleetManager` is provided (inline mode).
-   *
-   * A function may be supplied when the leader can switch models at runtime;
-   * spawn() reads it lazily so the threshold follows the active model.
-   */
-  maxContext?: number | (() => number | undefined) | undefined;
-  /**
-   * Per-task model matrix (Config.modelMatrix). When set, a spawn whose
-   * config has no explicit `model` is resolved against this matrix by role
-   * (→ phase → `*`) before the subagent is built — so the spawned event,
-   * manifest, and the agent itself all run the matched model. Explicit
-   * per-spawn `model` overrides always win.
-   *
-   * Pass a **function** (not a snapshot) when the matrix can change at
-   * runtime (the CLI passes `() => configStore.get().modelMatrix`) so a
-   * mid-session `/setmodel` takes effect on the next spawn. A static record
-   * is also accepted for tests and one-shot runs.
-   */
-  modelMatrix?: ModelMatrixSource | undefined;
-  /**
-   * Optional git-worktree manager for Director fleet isolation. When supplied,
-   * task runners can execute side-effectful subagents in per-task worktrees and
-   * squash-merge successful branches back into the base checkout.
-   */
-  worktrees?: WorktreeManager | undefined;
-  /** Worktree policy. Defaults to `auto` when `worktrees` is provided. */
-  worktreePolicy?: FleetWorktreePolicy | undefined;
-  /**
-   * Optional guarded merge-conflict resolver invoked by WorktreeManager when a
-   * successful task branch cannot squash-merge cleanly.
-   */
-  worktreeConflictResolver?:
-    | ((info: {
-        task: TaskSpec;
-        config: SubagentConfig;
-        conflictFiles: string[];
-        cwd: string;
-      }) => Promise<boolean>)
-    | undefined;
-  /**
-   * Shared provider/model status tracker. When set, the director checks
-   * whether the resolved provider/model is blocked BEFORE spawning the
-   * subagent — so a blocked model is never assigned to a new worker.
-   */
-  statusTracker?: ProviderModelStatusTracker | undefined;
-  /**
-   * Session/leader's own provider id — independent per-field fallback
-   * when matrix resolution and explicit config both leave provider
-   * undefined. Both this and sessionModel must be set for every spawn
-   * to be guaranteed credentialed.
-   */
-  sessionProvider?: string | undefined;
-  /**
-   * Session/leader's own model id — independent per-field fallback
-   * when matrix resolution and explicit config both leave model
-   * undefined. Each field falls back independently; the two fields
-   * are not required to be paired.
-   */
-  sessionModel?: string | undefined;
-}
-
 // Re-exported from director-errors.ts for backward compatibility
 export {
   FleetContextOverflowError,
@@ -384,6 +79,7 @@ export {
 } from './director/director-errors.js';
 /** @deprecated Import from model-matrix.ts; retained for public compatibility. */
 export type { ModelMatrixSource } from './model-matrix.js';
+export type { DirectorOptions, TaskResultNotification } from './director-options.js';
 
 export class Director implements DirectorFleetHost, ICoordinator {
   /* eslint-disable-next-line @typescript-eslint/no-unused-vars — just a cast helper */
@@ -447,6 +143,23 @@ export class Director implements DirectorFleetHost, ICoordinator {
     const value =
       typeof this.sessionIdSource === 'function' ? this.sessionIdSource() : this.sessionIdSource;
     return typeof value === 'string' && value.length > 0 ? value : undefined;
+  }
+
+  private checkpointHost(): DirectorCheckpointHost {
+    return {
+      id: this.id,
+      manifestPath: this.manifestPath,
+      manifestDebounceMs: this.manifestDebounceMs,
+      stateCheckpoint: this.stateCheckpoint,
+      sessionWriter: this.sessionWriter,
+      usage: this.usage,
+      manifestEntries: this.manifestEntries,
+      completedResult: (taskId) => this.tasks.completedResult(taskId),
+      logShutdownError: (phase, err) => this.logShutdownError(phase, err),
+      onManifestTimerFired: () => {
+        this.manifestTimer = null;
+      },
+    };
   }
   /**
    * Optional fleet-level policy container. When provided the Director
@@ -945,34 +658,15 @@ export class Director implements DirectorFleetHost, ICoordinator {
   /** Best-effort session-writer append. Swallows failures — the director
    *  must not break a fleet run because the session JSONL handle closed. */
   async appendSessionEvent(event: Parameters<SessionWriter['append']>[0]): Promise<void> {
-    if (!this.sessionWriter) return;
-    try {
-      await this.sessionWriter.append(event);
-    } catch {
-      // ignore
-    }
+    await appendDirectorSessionEvent(this.checkpointHost(), event);
   }
 
   /** Debounced manifest writer. A burst of spawn/assign/complete events
    *  collapses into one write. Set `manifestDebounceMs` to 0 to write
    *  synchronously (no debounce); set to negative to disable entirely. */
   scheduleManifest(): void {
-    if (!this.manifestPath) return;
-    if (this.manifestDebounceMs === 0) {
-      // 0 means instant flush — write synchronously, no timer.
-      void this.writeManifest().catch((err) =>
-        this.logShutdownError('manifest_write_debounced', err),
-      );
-      return;
-    }
-    if (this.manifestDebounceMs < 0) return;
     if (this.manifestTimer) return;
-    this.manifestTimer = setTimeout(() => {
-      this.manifestTimer = null;
-      void this.writeManifest().catch((err) =>
-        this.logShutdownError('manifest_write_debounced', err),
-      );
-    }, this.manifestDebounceMs);
+    this.manifestTimer = scheduleDirectorManifest(this.checkpointHost());
   }
 
   private clearManifestTimer(): void {
@@ -1040,66 +734,13 @@ export class Director implements DirectorFleetHost, ICoordinator {
   }
 
   private resolveSpawnModel(config: SubagentConfig): void {
-    // Normalize: empty strings are equivalent to undefined. A config that
-    // arrives with provider: "" or model: "" would bypass the !config.model
-    // check below and remain as empty strings through the entire spawn,
-    // producing a subagent with no valid credentials.
-    if (config.provider?.trim() === '') config.provider = undefined;
-    if (config.model?.trim() === '') config.model = undefined;
-
-    // Per-task model matrix: when the caller didn't pin a model, resolve one
-    // from the matrix by role (→ phase → `*`). Done here, before the spawned
-    // event + manifest + coordinator handoff, so the fleet UI and the agent
-    // itself all reflect the matched model. Explicit per-spawn models win.
-    if (!config.model && this.modelMatrix) {
-      const matrix = typeof this.modelMatrix === 'function' ? this.modelMatrix() : this.modelMatrix;
-      const resolution = resolveModelMatrixResolution(matrix, config.role);
-      const entry =
-        resolution?.source === 'default' && roleNeedsIndependentReviewModel(config.role)
-          ? undefined
-          : resolution?.entry;
-      if (entry) {
-        // Matrix fields are independent: a provider-only route must survive
-        // when the missing model is filled from the session below, just as a
-        // model-only route keeps its model while inheriting the provider.
-        if (entry.model) config.model = entry.model;
-        if (entry.provider) config.provider = entry.provider;
-        if (entry.fallbackProfile) config.fallbackProfile = entry.fallbackProfile;
-        if (entry.modelRuntime) config.modelRuntime = entry.modelRuntime;
-      }
-    }
-
-    // Final per-field guarantee: when the matrix or explicit config left
-    // one field undefined, restore it from the session's own values. Each
-    // field is guarded independently — a matrix entry that sets `model` but
-    // omits `provider` (a documented supported pattern) must not have its
-    // model silently overwritten by the session fallback.
-    if (!config.provider && this.sessionProvider) {
-      config.provider = this.sessionProvider;
-      this.logger?.info(
-        `spawn: provider="${config.provider}" for role "${config.role ?? '?'}" ` +
-          'fell back to session provider (matrix resolution left it undefined)',
-      );
-    }
-    if (!config.model && this.sessionModel) {
-      config.model = this.sessionModel;
-      this.logger?.info(
-        `spawn: model="${config.model}" for role "${config.role ?? '?'}" ` +
-          'fell back to session model (matrix resolution left it undefined)',
-      );
-    }
-
-    // Check the tracker — if the resolved provider/model is blocked, log a
-    // warning. The subagent itself will also check via its fallback extension
-    // and rotate away, but this early warning helps debugging.
-    if (this.statusTracker && config.provider && config.model) {
-      if (!this.statusTracker.isAvailable(config.provider, config.model)) {
-        this.logger?.warn(
-          `spawn: resolved model "${config.provider}/${config.model}" for role "${config.role ?? '?'}" is blocked by the status tracker. ` +
-            'The subagent will attempt its fallback chain.',
-        );
-      }
-    }
+    resolveDirectorSpawnModel(config, {
+      modelMatrix: this.modelMatrix,
+      sessionProvider: this.sessionProvider,
+      sessionModel: this.sessionModel,
+      statusTracker: this.statusTracker,
+      logger: this.logger,
+    });
   }
 
   // NOTE: enforceSpawnCaps, assignSpawnNickname, applySpawnLineage were
@@ -1164,42 +805,9 @@ export class Director implements DirectorFleetHost, ICoordinator {
     this.clearManifestTimer();
     const write = this.manifestWriteChain
       .catch(() => undefined)
-      .then(() => this.writeManifestNow());
+      .then(() => writeDirectorManifest(this.checkpointHost()));
     this.manifestWriteChain = write.catch(() => undefined);
     return write;
-  }
-
-  private async writeManifestNow(): Promise<string | null> {
-    if (!this.manifestPath) return null;
-    const manifest = {
-      directorRunId: this.id,
-      writtenAt: new Date().toISOString(),
-      children: Array.from(this.manifestEntries.values()).map((e) => {
-        const entry = Director._asManifestEntry(e);
-        // Surface final status from `completed` when available — manifest
-        // becomes much more useful for replay when it carries the
-        // success/failure state.
-        const results = entry.taskIds.map((tid) => {
-          const r = this.tasks.completedResult(tid);
-          const worktree = entry.worktrees?.[tid];
-          return r
-            ? {
-                taskId: tid,
-                status: r.status,
-                iterations: r.iterations,
-                toolCalls: r.toolCalls,
-                durationMs: r.durationMs,
-                ...(worktree ? { worktree } : {}),
-              }
-            : { taskId: tid, status: 'pending' as const, ...(worktree ? { worktree } : {}) };
-        });
-        return { ...entry, results };
-      }),
-      usage: this.usage.snapshot(),
-    };
-    await fsp.mkdir(path.dirname(this.manifestPath), { recursive: true });
-    await atomicWrite(this.manifestPath, JSON.stringify(manifest, null, 2), { mode: 0o600 });
-    return this.manifestPath;
   }
 
   /**
@@ -1515,7 +1123,7 @@ export class Director implements DirectorFleetHost, ICoordinator {
    * a terminal state in the prior run.
    */
   setCheckpointState(snapshot: DirectorStateSnapshot): void {
-    this.stateCheckpoint?.resume(snapshot);
+    setDirectorCheckpointState(this.checkpointHost(), snapshot);
   }
 
   /**
@@ -1527,53 +1135,13 @@ export class Director implements DirectorFleetHost, ICoordinator {
   async readSession(
     subagentId: string,
     tail?: number | undefined,
-  ): Promise<{
-    lastAssistantText?: string | undefined;
-    lastStopReason?: string | undefined;
-    toolUsesObserved: number;
-    events: number;
-    path?: string | undefined;
-  } | null> {
-    if (!this.sessionsRoot) return null;
-    const filePath = path.join(this.sessionsRoot, this.directorRunId, `${subagentId}.jsonl`);
-    let raw: string;
-    try {
-      raw = await fsp.readFile(filePath, 'utf8');
-    } catch {
-      return null;
-    }
-    const lines = raw.split('\n').filter((l) => l.trim());
-    const targetLines = tail ? lines.slice(-tail) : lines;
-    let lastAssistantText: string | undefined;
-    let lastStopReason: string | undefined;
-    let toolUses = 0;
-    for (const line of targetLines) {
-      try {
-        const parsed = safeParse<{
-          type?: string | undefined;
-          text?: string | undefined;
-          stopReason?: string | undefined;
-        }>(line);
-        if (!parsed.ok || !parsed.value) continue;
-        const ev = parsed.value;
-        if (ev.type === 'assistant' && typeof ev.text === 'string') {
-          lastAssistantText = ev.text;
-        } else if (ev.type === 'stop' && ev.stopReason) {
-          lastStopReason = ev.stopReason;
-        } else if (ev.type === 'tool_use') {
-          toolUses++;
-        }
-      } catch {
-        // skip malformed lines
-      }
-    }
-    return {
-      lastAssistantText,
-      lastStopReason,
-      toolUsesObserved: toolUses,
-      events: targetLines.length,
-      path: filePath,
-    };
+  ): Promise<DirectorSubagentSessionSummary | null> {
+    return readDirectorSubagentSession({
+      sessionsRoot: this.sessionsRoot,
+      directorRunId: this.directorRunId,
+      subagentId,
+      tail,
+    });
   }
 
   snapshot(): FleetUsage {
@@ -1658,23 +1226,7 @@ export class Director implements DirectorFleetHost, ICoordinator {
     // Use stored roster as default — allows `director.tools()` to be
     // called without args when the roster was passed at construction.
     const effectiveRoster = roster ?? this.roster;
-    const t: Tool[] = [
-      makeSpawnTool(this, effectiveRoster),
-      makeAssignTool(this),
-      makeKanbanQueueTool(this, effectiveRoster),
-      makeAwaitTasksTool(this),
-      makeAskTool(this),
-      makeAskResultTool(this),
-      makeRollUpTool(this),
-      makeQualityGateTool(this, effectiveRoster),
-      makeTerminateTool(this),
-      makeTerminateAllTool(this),
-      makeFleetTool(this),
-      makeCollabDebugTool(this),
-      makeFleetEmitTool(this),
-      makeWorkCompleteTool(this),
-    ];
-    return t;
+    return buildDirectorToolset(this, effectiveRoster);
   }
 
   /**
@@ -1683,7 +1235,7 @@ export class Director implements DirectorFleetHost, ICoordinator {
    * false and the caller should not proceed with the resume.
    */
   async acquireCheckpointLock(): Promise<boolean> {
-    return this.stateCheckpoint ? this.stateCheckpoint.acquireLock() : true;
+    return acquireDirectorCheckpointLock(this.checkpointHost());
   }
 
   /**
@@ -1703,6 +1255,6 @@ export class Director implements DirectorFleetHost, ICoordinator {
    * subsequent spawn/assign calls update the checkpoint normally.
    */
   resumeFromCheckpoint(snapshot: DirectorStateSnapshot): void {
-    this.stateCheckpoint?.resume(snapshot);
+    resumeDirectorFromCheckpoint(this.checkpointHost(), snapshot);
   }
 }

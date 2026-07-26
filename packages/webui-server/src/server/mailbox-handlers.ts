@@ -9,6 +9,7 @@
 import {
   GlobalMailbox,
   isMailboxMessageVisibleTo,
+  MAILBOX_TYPE_PROPERTIES,
   mailboxIdentityBase,
   resolveProjectDir,
 } from '@wrongstack/core/coordination';
@@ -175,7 +176,16 @@ export async function handleMailboxMessages(
     send(ws, {
       type: 'mailbox.messages',
       payload: {
-        messages: visibleMessages.map((m) => ({
+        messages: visibleMessages.map((m) => {
+          const readByMe = payload?.agentId !== undefined ? (payload.agentId as string) in m.readBy : false;
+          const completedByMe = payload?.agentId !== undefined ? m.completedBy === payload.agentId : false;
+          const actionRequiredForMe =
+            payload?.agentId !== undefined
+              ? MAILBOX_TYPE_PROPERTIES[m.type]?.requiresAction === true &&
+                !completedByMe &&
+                m.deletedAt === undefined
+              : false;
+          return {
           id: m.id,
           from: m.from,
           to: m.to,
@@ -194,7 +204,8 @@ export async function handleMailboxMessages(
           replyTo: m.replyTo,
           senderSessionId: m.senderSessionId,
           taskContext: m.taskContext,
-        })),
+          ...(payload?.agentId !== undefined ? { readByMe, completedByMe, actionRequiredForMe } : {}),
+        };}),
       },
     });
   } catch (err) {

@@ -13,8 +13,8 @@ import * as path from 'node:path';
 import type * as http from 'node:http';
 import type { WebSocket } from 'ws';
 import type { TrustBoundary } from '@wrongstack/core/security';
-import { buildTranscriptFromEvents, type createHqPersistence, DEFAULT_HQ_REDACTION_POLICY, deriveHqProjectId, hashHqPassword, isLoopbackHost, mintHqCookieSecret, mutateHqAuthFile, resolveHqDataDir, tokenHasCapability, validateHqCommand, verifyHqPassword } from '@wrongstack/core/hq';
-import type { HqSnapshot, HqAlertEngine, HqAlertRuleConfig, HqCommand, HqCommandAuditEntry, HqCommandAuditLog, HqEventEnvelope, HqQueuedCommand, HqRedactionPolicy, HqTimeseriesSample, HqToken, HqTranscriptEntry } from '@wrongstack/core/hq';
+import { type createHqPersistence, tokenHasCapability, validateHqCommand } from '@wrongstack/core/hq';
+import type { HqSnapshot, HqAlertEngine, HqCommand, HqCommandAuditEntry, HqCommandAuditLog, HqEventEnvelope, HqQueuedCommand, HqTimeseriesSample, HqTranscriptEntry } from '@wrongstack/core/hq';
 import type { createMailboxHttpRouter } from '@wrongstack/core/coordination';
 import { type GlobalMailbox, type MailboxHttpAccessDecision, type MailboxHttpRateLimiter, resolveProjectDir } from '@wrongstack/core/coordination';
 import { HQ_HTML } from '../hq-recovery-html.js';
@@ -24,11 +24,24 @@ import * as HqServerSnapshot from './snapshot.js';
 import * as HqServerUtils from './utils.js';
 import { authorizeHqCommand } from './trust-boundary.js';
 import {
+  handleApiAuthStatus,
+  handleApiLogin,
+  handleApiLogout,
+  handleApiPassword,
+} from './routes/auth-handlers.js';
+import {
   handleApiAlerts,
   handleApiCommandsAudit,
   handleApiSystemHealth,
   handleApiSystemUpdate,
 } from './routes/system-handlers.js';
+import {
+  handleApiAgentMessages,
+  handleApiSessionAgentMessages,
+  handleApiSessionEvents,
+  handleApiSessions,
+} from './routes/session-handlers.js';
+import { resolveHqProjectRoot } from './project-root.js';
 
 // ── Re-exports for hq-server.ts backward compat ────────────────────────────
 
@@ -71,11 +84,6 @@ export type {
   ProjectDetail,
   TranscriptRing,
 };
-
-function isLoopbackRequest(req: http.IncomingMessage): boolean {
-  const address = req.socket.remoteAddress?.replace(/^::ffff:/, '');
-  return address !== undefined && isLoopbackHost(address);
-}
 
 // ── Router dependency interface ────────────────────────────────────────────
 
@@ -349,7 +357,7 @@ export function createHqRouter(deps: HqRouterDeps): (req: http.IncomingMessage, 
         /^\/api\/sessions\/([^/]+)\/agents\/([^/]+)\/messages$/,
       );
       if (sessionAgentMsgMatch && req.method === 'GET') {
-        await handleApiSessionAgentMessages(req, res, sessionAgentMsgMatch, agentMessages, transcripts);
+        await handleApiSessionAgentMessages(req, res, sessionAgentMsgMatch, agentMessages);
         return;
       }
 
@@ -382,278 +390,6 @@ export function createHqRouter(deps: HqRouterDeps): (req: http.IncomingMessage, 
 // ── Login rate-limit state (scoped to routes, mutable) ────────────────────
 
 // ── Individual route handlers ──────────────────────────────────────────────
-
-async function handleApiAuthStatus(
-  req: http.IncomingMessage,
-  res: http.ServerResponse,
-  url: URL,
-  mutableAuth: HqRouterMutableAuth,
-  sessions: Map<string, { createdAt: number }>,
-  requireBrowserAuth: boolean | undefined,
-  trustedPublicOrigins: Set<string>,
-  secureCookies: boolean | undefined,
-): Promise<void> {
-  const auth = authenticateBrowserRequest(req, url, mutableAuth, sessions);
-  const openMode =
-    mutableAuth.browserTokens.size === 0 && mutableAuth.passwordHash === undefined;
-  const localOpenMode = openMode && !requireBrowserAuth && isLoopbackRequest(req);
-  const publicOrigin = trustedPublicOrigins.values().next().value;
-  res.writeHead(200, { 'Content-Type': 'application/json' });
-  res.end(
-    JSON.stringify({
-      tokenMode: mutableAuth.browserTokens.size > 0,
-      passwordMode: mutableAuth.passwordHash !== undefined,
-      publicRelay: requireBrowserAuth === true || publicOrigin !== undefined,
-      ...(publicOrigin !== undefined ? { publicOrigin } : {}),
-      secureCookies: secureCookies === true,
-      loggedIn: auth !== undefined || localOpenMode,
-      authKind:
-        auth === 'cookie'
-          ? 'password'
-          : isTokenAuth(auth)
-            ? 'token'
-            : localOpenMode
-              ? 'open'
-              : undefined,
-    }),
-  );
-}
-
-async function handleApiLogin(
-  req: http.IncomingMessage,
-  res: http.ServerResponse,
-  mutableAuth: HqRouterMutableAuth,
-  sessions: Map<string, { createdAt: number }>,
-  loginAttempts: Map<string, { count: number; blockedUntil: number; lastAttempt: number }>,
-  secureCookies: boolean | undefined,
-): Promise<void> {
-  if (!mutableAuth.passwordHash) {
-    res.writeHead(403, { 'Content-Type': 'application/json' });
-    res.end(
-      JSON.stringify({
-        error: {
-          code: 'PASSWORD_NOT_CONFIGURED',
-          message: 'Password login is not enabled on this HQ server.',
-        },
-      }),
-    );
-    return;
-  }
-
-  const clientIp = req.socket.remoteAddress ?? 'unknown';
-  const existing = loginAttempts.get(clientIp);
-  if (existing && existing.blockedUntil > Date.now()) {
-    const retryAfter = Math.ceil((existing.blockedUntil - Date.now()) / 1000);
-    res.writeHead(429, {
-      'Content-Type': 'application/json',
-      'Retry-After': String(retryAfter),
-    });
-    res.end(
-      JSON.stringify({
-        error: {
-          code: 'RATE_LIMITED',
-          message: `Too many failed login attempts. Retry after ${retryAfter} seconds.`,
-        },
-      }),
-    );
-    return;
-  }
-
-  let body: { password?: unknown };
-  try {
-    body = JSON.parse(await readRequestBody(req)) as { password?: unknown };
-  } catch (error) {
-    writeInvalidBody(res, error);
-    return;
-  }
-
-  if (typeof body.password !== 'string' || body.password.length === 0) {
-    res.writeHead(400, { 'Content-Type': 'application/json' });
-    res.end(
-      JSON.stringify({ error: { code: 'BAD_REQUEST', message: 'password is required' } }),
-    );
-    return;
-  }
-
-  const ok = await verifyHqPassword(body.password, mutableAuth.passwordHash);
-  if (!ok || !mutableAuth.cookieSecret) {
-    const prev = loginAttempts.get(clientIp);
-    const count = (prev?.count ?? 0) + 1;
-    const backoffMs = Math.min(2 ** count * 1000, 16_000);
-    loginAttempts.set(clientIp, {
-      count,
-      blockedUntil: Date.now() + backoffMs,
-      lastAttempt: Date.now(),
-    });
-    res.writeHead(401, { 'Content-Type': 'application/json' });
-    res.end(
-      JSON.stringify({ error: { code: 'INVALID_PASSWORD', message: 'Invalid password.' } }),
-    );
-    return;
-  }
-
-  loginAttempts.delete(clientIp);
-  const sessionId = randomUUID();
-  sessions.set(sessionId, { createdAt: Date.now() });
-  setHqSessionCookie(
-    res,
-    serializeHqSessionCookie(sessionId, mutableAuth.cookieSecret),
-    secureCookies,
-  );
-  res.writeHead(200, { 'Content-Type': 'application/json' });
-  res.end(JSON.stringify({ loggedIn: true }));
-}
-
-async function handleApiLogout(
-  req: http.IncomingMessage,
-  res: http.ServerResponse,
-  mutableAuth: HqRouterMutableAuth,
-  sessions: Map<string, { createdAt: number }>,
-  secureCookies: boolean | undefined,
-): Promise<void> {
-  const auth = authenticateBrowserRequest(req, new URL(req.url ?? '/', 'http://localhost'), mutableAuth, sessions);
-  if (auth === 'cookie') {
-    const cookies = parseCookieHeader(req.headers.cookie);
-    const raw = cookies[HQ_SESSION_COOKIE];
-    if (raw) {
-      const sessionId = parseHqSessionCookie(raw, mutableAuth.cookieSecret ?? '');
-      if (sessionId) sessions.delete(sessionId);
-    }
-  }
-  clearHqSessionCookie(res, secureCookies);
-  res.writeHead(200, { 'Content-Type': 'application/json' });
-  res.end(JSON.stringify({ loggedIn: false }));
-}
-
-async function handleApiPassword(
-  req: http.IncomingMessage,
-  res: http.ServerResponse,
-  mutableAuth: HqRouterMutableAuth,
-  sessions: Map<string, { createdAt: number }>,
-  dataDir: string,
-  secureCookies: boolean | undefined,
-  requireBrowserAuth: boolean | undefined,
-): Promise<void> {
-  const auth = authenticateBrowserRequest(req, new URL(req.url ?? '/', 'http://localhost'), mutableAuth, sessions);
-  const localOpenBootstrap =
-    auth === undefined &&
-    req.method === 'POST' &&
-    mutableAuth.browserTokens.size === 0 &&
-    mutableAuth.passwordHash === undefined &&
-    isLoopbackRequest(req);
-  if (auth === undefined && !localOpenBootstrap) {
-    res.writeHead(401, { 'Content-Type': 'application/json' });
-    res.end(
-      JSON.stringify({
-        error: {
-          code: 'AUTH_REQUIRED',
-          message: 'A browser token or password session is required to manage the password.',
-        },
-      }),
-    );
-    return;
-  }
-
-  let body: { currentPassword?: unknown; newPassword?: unknown } = {};
-  try {
-    body = JSON.parse(await readRequestBody(req)) as typeof body;
-  } catch {
-    res.writeHead(400, { 'Content-Type': 'application/json' });
-    res.end(
-      JSON.stringify({ error: { code: 'BAD_REQUEST', message: 'Invalid JSON body.' } }),
-    );
-    return;
-  }
-
-  if (auth === 'cookie' && mutableAuth.passwordHash !== undefined) {
-    const currentPassword = typeof body.currentPassword === 'string' ? body.currentPassword : '';
-    if (
-      !currentPassword ||
-      !(await verifyHqPassword(currentPassword, mutableAuth.passwordHash))
-    ) {
-      res.writeHead(403, { 'Content-Type': 'application/json' });
-      res.end(
-        JSON.stringify({
-          error: { code: 'INVALID_CURRENT_PASSWORD', message: 'Current password is invalid.' },
-        }),
-      );
-      return;
-    }
-  }
-
-  if (req.method === 'DELETE') {
-    if (requireBrowserAuth && mutableAuth.browserTokens.size === 0) {
-      res.writeHead(409, { 'Content-Type': 'application/json' });
-      res.end(
-        JSON.stringify({
-          error: {
-            code: 'BROWSER_AUTH_REQUIRED',
-            message:
-              'Cannot remove the only browser authentication method while a public relay is active.',
-          },
-        }),
-      );
-      return;
-    }
-    const next = await mutateHqAuthFile(dataDir, (current) => {
-      const updated = { ...current };
-      delete updated.passwordHash;
-      delete updated.cookieSecret;
-      return updated;
-    });
-    applyAuthFile(mutableAuth, next);
-    sessions.clear();
-    clearHqSessionCookie(res, secureCookies);
-    res.writeHead(200, { 'Content-Type': 'application/json' });
-    res.end(
-      JSON.stringify({
-        passwordMode: false,
-        tokenMode: mutableAuth.browserTokens.size > 0,
-        loggedIn: auth !== 'cookie' && isTokenAuth(auth),
-      }),
-    );
-    return;
-  }
-
-  const newPassword = typeof body.newPassword === 'string' ? body.newPassword : '';
-  if (newPassword.length < 8 || newPassword.length > 1024) {
-    res.writeHead(400, { 'Content-Type': 'application/json' });
-    res.end(
-      JSON.stringify({
-        error: { code: 'INVALID_PASSWORD', message: 'New password must be between 8 and 1024 characters.' },
-      }),
-    );
-    return;
-  }
-
-  const passwordHash = await hashHqPassword(newPassword);
-  const cookieSecret = mintHqCookieSecret();
-  const next = await mutateHqAuthFile(dataDir, (current) => ({
-    ...current,
-    passwordHash,
-    cookieSecret,
-  }));
-  applyAuthFile(mutableAuth, next);
-  sessions.clear();
-
-  if (auth === 'cookie' || localOpenBootstrap) {
-    const sessionId = randomUUID();
-    sessions.set(sessionId, { createdAt: Date.now() });
-    setHqSessionCookie(
-      res,
-      serializeHqSessionCookie(sessionId, cookieSecret),
-      secureCookies,
-    );
-  }
-  res.writeHead(200, { 'Content-Type': 'application/json' });
-  res.end(
-    JSON.stringify({
-      passwordMode: true,
-      tokenMode: mutableAuth.browserTokens.size > 0,
-      loggedIn: true,
-    }),
-  );
-}
 
 async function handleMailboxGateway(
   _req: http.IncomingMessage,
@@ -1133,247 +869,4 @@ async function handleMailboxAction(
       }),
     );
   }
-}
-
-async function handleApiSessions(res: http.ServerResponse): Promise<void> {
-  const { SessionRegistry } = await import('@wrongstack/core/storage');
-  const globalRoot = path.dirname(resolveHqDataDir());
-  try {
-    const registry = new SessionRegistry(globalRoot);
-    const sessions = (await registry.list()) as unknown as Array<Record<string, unknown>>;
-    const result = sessions
-      .filter((s: { status?: string }) => s.status !== 'stale')
-      .map((s: Record<string, unknown>) => ({
-        sessionId: s.sessionId,
-        projectSlug: s.projectSlug,
-        projectName: s.projectName,
-        projectRoot: s.projectRoot,
-        workingDir: s.workingDir,
-        status: s.status,
-        pid: s.pid,
-        startedAt: s.startedAt,
-        lastHeartbeatAt: s.lastHeartbeatAt,
-        agentCount: s.agentCount,
-        agents: (s.agents as Array<Record<string, unknown>>).map((a) => ({
-          id: a.id,
-          name: a.name,
-          status: a.status,
-          currentTool: a.currentTool,
-          iterations: a.iterations,
-          toolCalls: a.toolCalls,
-          lastActivityAt: a.lastActivityAt,
-        })),
-      }));
-    res.writeHead(200, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify(result));
-  } catch (err) {
-    res.writeHead(500, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ error: sanitizeApiError(err) }));
-  }
-}
-
-async function handleApiSessionEvents(
-  req: http.IncomingMessage,
-  res: http.ServerResponse,
-  match: RegExpMatchArray,
-  transcripts: Map<string, TranscriptRing>,
-): Promise<void> {
-  const { SessionRegistry, DefaultSessionStore } = await import('@wrongstack/core/storage');
-  const { resolveWstackPaths } = await import('@wrongstack/core/utils');
-  const url = new URL(req.url ?? '/', 'http://localhost');
-  const full = url.searchParams.get('full') === '1';
-  const rawLimit = Number.parseInt(url.searchParams.get('limit') ?? '200', 10);
-  const limit = Math.min(5000, Math.max(1, Number.isFinite(rawLimit) ? rawLimit : 200));
-  const sessionId = decodePathSegment(match[1]!);
-  if (sessionId === null) {
-    res.writeHead(400, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ error: 'invalid sessionId encoding' }));
-    return;
-  }
-
-  const globalRoot = path.dirname(resolveHqDataDir());
-  try {
-    const registry = new SessionRegistry(globalRoot);
-    const entry = await registry.get(sessionId).catch(() => null);
-
-    let entries: HqTranscriptEntry[] = [];
-    let source: 'disk' | 'stream' = 'stream';
-    let status: string | undefined;
-    let clientType: string | undefined;
-    let projectName: string | undefined;
-
-    if (entry && 'projectRoot' in entry) {
-      const paths = resolveWstackPaths({ projectRoot: (entry as { projectRoot: string }).projectRoot, globalRoot });
-      const store = new DefaultSessionStore({ dir: paths.projectSessions });
-      const data = await store.load(sessionId).catch(() => null);
-      if (data) {
-        entries = buildTranscriptFromEvents(
-          (data.events as unknown[]).map((e) => e as Record<string, unknown>),
-        );
-        source = 'disk';
-        status = (entry as { status?: string }).status;
-        clientType = (entry as { clientType?: string }).clientType;
-        projectName = (entry as { projectName?: string }).projectName;
-      }
-    }
-
-    if (entries.length === 0) {
-      const ring = transcripts.get(sessionId);
-      if (!ring && !entry) {
-        res.writeHead(404, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ error: 'Session not found' }));
-        return;
-      }
-      entries = ring ? ring.entries : [];
-      source = 'stream';
-      if (entry) {
-        status = (entry as { status?: string }).status;
-        clientType = (entry as { clientType?: string }).clientType;
-        projectName = (entry as { projectName?: string }).projectName;
-      }
-    }
-
-    const total = entries.length;
-    const tail = full ? entries : entries.slice(-limit);
-
-    res.writeHead(200, { 'Content-Type': 'application/json' });
-    res.end(
-      JSON.stringify({
-        sessionId,
-        source,
-        ...(status !== undefined ? { status } : {}),
-        ...(clientType !== undefined ? { clientType } : {}),
-        ...(projectName !== undefined ? { projectName } : {}),
-        total,
-        entries: tail,
-      }),
-    );
-  } catch (err) {
-    res.writeHead(500, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ error: sanitizeApiError(err) }));
-  }
-}
-
-async function handleApiSessionAgentMessages(
-  req: http.IncomingMessage,
-  res: http.ServerResponse,
-  match: RegExpMatchArray,
-  agentMessages: Map<string, HqTranscriptEntry[]>,
-  _transcripts: Map<string, TranscriptRing>,
-): Promise<void> {
-  const url = new URL(req.url ?? '/', 'http://localhost');
-  const sid = decodePathSegment(match[1]!);
-  const aid = decodePathSegment(match[2]!);
-  if (sid === null || aid === null) {
-    res.writeHead(400, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ error: 'invalid session or agent id encoding' }));
-    return;
-  }
-  const full = url.searchParams.get('full') === '1';
-  const disk = await readLocalSubagentTranscript(sid, aid);
-  const source: 'disk' | 'stream' = disk !== null ? 'disk' : 'stream';
-  const all =
-    disk !== null
-      ? disk
-      : (agentMessages.get(agentRingKey(sid, aid)) ?? agentMessages.get(aid) ?? []);
-  const entries = full ? all : all.slice(-200);
-  res.writeHead(200, { 'Content-Type': 'application/json' });
-  res.end(
-    JSON.stringify({ subagentId: aid, sessionId: sid, source, total: all.length, entries }),
-  );
-}
-
-async function handleApiAgentMessages(
-  req: http.IncomingMessage,
-  res: http.ServerResponse,
-  match: RegExpMatchArray,
-  agentMessages: Map<string, HqTranscriptEntry[]>,
-): Promise<void> {
-  const url = new URL(req.url ?? '/', 'http://localhost');
-  const id = decodePathSegment(match[1]!);
-  if (id === null) {
-    res.writeHead(400, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ error: 'invalid agent id encoding' }));
-    return;
-  }
-  const full = url.searchParams.get('full') === '1';
-  const merged: HqTranscriptEntry[] = [];
-  for (const [key, ring] of agentMessages) {
-    if (key === id || key.endsWith(`::${id}`)) merged.push(...ring);
-  }
-  merged.sort((a, b) => a.ts.localeCompare(b.ts));
-  const entries = full ? merged : merged.slice(-200);
-  res.writeHead(200, { 'Content-Type': 'application/json' });
-  res.end(JSON.stringify({ subagentId: id, total: merged.length, entries }));
-}
-
-// ── Helpers ────────────────────────────────────────────────────────────────
-
-function resolveHqProjectRoot(
-  globalRoot: string,
-  ids: { sessionId?: string | undefined; projectId?: string | undefined },
-): Promise<string | undefined> {
-  // Dynamic import to avoid pulling in SessionRegistry at module level
-  const fn = async (): Promise<string | undefined> => {
-    const { SessionRegistry } = await import('@wrongstack/core/storage');
-    try {
-      const registry = new SessionRegistry(globalRoot);
-      if (typeof ids.sessionId === 'string') {
-        const entry = await registry.get(ids.sessionId).catch(() => null);
-        if (entry?.projectRoot) return entry.projectRoot;
-      }
-      if (typeof ids.projectId === 'string') {
-        const { createHash } = await import('node:crypto');
-        const all = await registry.list().catch(() => []);
-        const projectIds = new Map<string, string>();
-        const projectIdForRoot = (projectRoot: string): string => {
-          const cached = projectIds.get(projectRoot);
-          if (cached !== undefined) return cached;
-          const derived = deriveHqProjectId(projectRoot);
-          projectIds.set(projectRoot, derived);
-          return derived;
-        };
-        const match = all.find(
-          (e: { projectSlug?: string; projectRoot: string }) =>
-            e.projectSlug === ids.projectId ||
-            projectIdForRoot(e.projectRoot) === ids.projectId ||
-            createHash('sha256').update(e.projectRoot).digest('hex').slice(0, 12) === ids.projectId,
-        );
-        if (match) return match.projectRoot;
-      }
-    } catch {
-      /* fall through */
-    }
-    return undefined;
-  };
-  return fn();
-}
-
-function applyAuthFile(
-  mutableAuth: HqRouterMutableAuth,
-  next: {
-    browserTokens?: Array<{ token: string; id: string; capabilities?: string[] }>;
-    clientTokens?: Array<HqToken>;
-    redactionPolicy?: Partial<HqRedactionPolicy>;
-    passwordHash?: string;
-    cookieSecret?: string;
-    alertRules?: HqAlertRuleConfig;
-  },
-): void {
-  mutableAuth.operatorPolicy = {
-    ...DEFAULT_HQ_REDACTION_POLICY,
-    ...(next.redactionPolicy ?? {}),
-  };
-  mutableAuth.operatorPolicyOverride = next.redactionPolicy;
-  mutableAuth.browserTokens = new Set((next.browserTokens ?? []).map((t) => t.token));
-  mutableAuth.clientTokens = new Set((next.clientTokens ?? []).map((t) => t.token));
-  mutableAuth.browserTokenObjs = new Map(
-    (next.browserTokens ?? []).map((t) => [t.token, { id: t.id, ...(t.capabilities !== undefined ? { capabilities: t.capabilities } : {}) }]),
-  );
-  mutableAuth.clientTokenObjs = new Map(
-    (next.clientTokens ?? []).map((token: HqToken) => [token.token, token]),
-  );
-  mutableAuth.passwordHash = next.passwordHash;
-  mutableAuth.cookieSecret = next.cookieSecret;
-  mutableAuth.alertRules = next.alertRules;
 }

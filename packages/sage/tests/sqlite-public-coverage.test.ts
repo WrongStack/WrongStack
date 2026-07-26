@@ -265,10 +265,13 @@ describe('SQLite public API completion coverage', () => {
     );
   });
 
-  it('cleans every relationship when deleting a referenced memory', async () => {
-    const store = createStore();
+  it('cleans every relationship and reports only deleted edges', async () => {
+    const events = { emit: vi.fn() };
+    const store = createStore({ events: events as never });
     const target = await store.rememberSage({ text: 'Delete target' });
     const other = await store.rememberSage({ text: 'References target' });
+    await store.addGraphEdge(`mem:${target.id}`, `mem:${other.id}`, 'related_to');
+    await store.addGraphEdge(`mem:${target.id}`, `mem:${other.id}`, 'contradicts');
     const db = database(store);
     const otherValue: Sage = {
       ...(await store.getSage(other.id))!,
@@ -287,6 +290,15 @@ describe('SQLite public API completion coverage', () => {
       contradicts: ['keep-contradicts'],
     });
     expect(cleaned?.supersededBy).toBeUndefined();
+    expect(events.emit).toHaveBeenCalledWith(
+      'memory.deleted',
+      expect.objectContaining({ removedEdges: 1 }),
+    );
+    expect(
+      db
+        .prepare("SELECT COUNT(*) AS n FROM edges WHERE relation = 'related_to'")
+        .get() as { n: number },
+    ).toEqual({ n: 1 });
   });
 
   it('covers candidate empty text, duplicate scope, and missing accept targets', async () => {
@@ -317,9 +329,10 @@ describe('SQLite public API completion coverage', () => {
 
   it('drains rejected mutation chains', async () => {
     const store = createStore();
-    (store as unknown as { mutationChain: Promise<unknown> }).mutationChain = Promise.reject(
-      new Error('failed mutation'),
-    );
+    const queue = (store as unknown as {
+      mutationQueue: { mutationChain: Promise<unknown> };
+    }).mutationQueue;
+    queue.mutationChain = Promise.reject(new Error('failed mutation'));
     await expect(store.drainMutations()).resolves.toBeUndefined();
   });
 });

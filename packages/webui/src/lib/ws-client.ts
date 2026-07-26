@@ -16,7 +16,6 @@ import {
 } from '@wrongstack/webui-server/protocol';
 import type {
   WSClientMessage,
-  WSCompletionRequest,
   WSServerMessage,
   WSUserMessageImage,
 } from '../types';
@@ -26,6 +25,10 @@ import {
   buildProviderUpdateMessage,
   buildUndoClearMessage,
 } from './ws-client-helpers';
+import {
+  installWsClientActionMethods,
+  type WsClientActionMethods,
+} from './ws-client-actions';
 import {
   defaultWsUrl,
   type EventHandler,
@@ -153,7 +156,7 @@ export class WrongStackWebSocketClient {
     this.url = url ?? defaultWsUrl();
   }
 
-  private withSession<T extends Record<string, unknown>>(payload: T): T & { sessionId?: string } {
+  withSession<T extends Record<string, unknown>>(payload: T): T & { sessionId?: string } {
     return this.sessionId ? { ...payload, sessionId: this.sessionId } : payload;
   }
 
@@ -835,359 +838,6 @@ export class WrongStackWebSocketClient {
     this.send({ type: 'prefs.get' });
   }
 
-  // ---- Inspect commands (mirror TUI/CLI's /tools /memory /skill /diag /stats) ----
-
-  listTools(options?: WSSendOptions) {
-    this.send({ type: 'tools.list' }, options);
-  }
-
-  listMemory(options?: WSSendOptions) {
-    this.send({ type: 'memory.list' }, options);
-  }
-
-  // ---- Sage commands ----
-
-  listSageMemories(options?: WSSendOptions) {
-    this.send({ type: 'memory.sage.list' }, options);
-  }
-
-  /**
-   * Paginated, status-filtered listing. Defaults (server-side) to every status
-   * except `deleted`. Pass `{ statuses: ['deleted'] }` for the "Deleted" tab and
-   * `cursor` (from the previous page's `nextCursor`) to load the next page.
-   */
-  listSageMemoriesPage(
-    params?: {
-      statuses?: string[];
-      kind?: string;
-      query?: string;
-      limit?: number;
-      cursor?: string;
-    },
-    options?: WSSendOptions,
-  ) {
-    this.send({ type: 'memory.sage.listPage', payload: { ...params } }, options);
-  }
-
-  getSage(id: string, options?: WSSendOptions) {
-    this.send({ type: 'memory.sage.get', payload: { id } }, options);
-  }
-
-  getSageGraph(
-    query: string,
-    params?: { maxDepth?: number; limit?: number },
-    options?: WSSendOptions,
-  ) {
-    this.send({ type: 'memory.sage.graph', payload: { query, ...params } }, options);
-  }
-
-  updateSage(id: string, patch: Record<string, unknown>, options?: WSSendOptions) {
-    this.send({ type: 'memory.sage.update', payload: { id, ...patch } }, options);
-  }
-
-  /**
-   * Delete a SAGE record.
-   * @param reason - Optional human-readable reason. Uses `!== undefined` (not
-   *   truthy) so an empty string `''` is intentionally included — the caller
-   *   may want to record an explicit blank reason rather than omitting the
-   *   field. This is consistent with the `updateSage` style which
-   *   spreads the entire `patch` unconditionally.
-   */
-  deleteSage(id: string, reason?: string) {
-    this.send({
-      type: 'memory.sage.delete',
-      payload: { id, ...(reason !== undefined ? { reason } : {}) },
-    });
-  }
-
-  rememberSage(
-    opts: Extract<WSClientMessage, { type: 'memory.sage.remember' }>['payload'],
-    options?: WSSendOptions,
-  ) {
-    this.send({ type: 'memory.sage.remember', payload: opts }, options);
-  }
-
-  /**
-   * File-drawer query: returns memories grouped by how they match the file
-   * (primary / symbol / related), with cursor-aware boost when lineStart
-   * / lineEnd are provided. Read-only — opens a file without mutating store.
-   */
-  findMemoriesForFile(
-    opts: Extract<WSClientMessage, { type: 'memory.sage.forFile' }>['payload'],
-    options?: WSSendOptions,
-  ) {
-    this.send({ type: 'memory.sage.forFile', payload: opts }, options);
-  }
-
-  /**
-   * Restore a `deleted` SAGE entry to active status (PR #1). The
-   * server replies with `memory.sage.recover` carrying the restored memory
-   * (or `noop: true` when the id was already active/superseded).
-   */
-  recoverSage(
-    opts: Extract<WSClientMessage, { type: 'memory.sage.recover' }>['payload'],
-    options?: WSSendOptions,
-  ) {
-    this.send({ type: 'memory.sage.recover', payload: opts }, options);
-  }
-
-  /**
-   * Resolve a pending hygiene review candidate (PR #1): accept (delete the
-   * source memory + mark candidate accepted) or reject (keep the memory +
-   * mark candidate rejected). Optional `reason` is recorded in audit.
-   */
-  resolveMemoryCandidate(
-    opts: Extract<WSClientMessage, { type: 'memory.sage.candidateResolve' }>['payload'],
-    options?: WSSendOptions,
-  ) {
-    this.send({ type: 'memory.sage.candidateResolve', payload: opts }, options);
-  }
-
-  /**
-   * Scan `status='deleted'` records and create fresh active versions for
-   * the ones that pass the recoverability filter (PR #3). Default `apply`
-   * is false (dry-run); pass `apply: true` to actually write.
-   */
-  backfillRecoverable(
-    opts: Extract<WSClientMessage, { type: 'memory.sage.backfillRecoverable' }>['payload'],
-    options?: WSSendOptions,
-  ) {
-    this.send({ type: 'memory.sage.backfillRecoverable', payload: opts }, options);
-  }
-
-  // ── MCP server management ─────────────────────────────────────────────────────
-  listMcpServers() {
-    this.send({ type: 'mcp.list' });
-  }
-
-  addMcpServer(config: {
-    name: string;
-    transport: string;
-    description?: string;
-    enabled?: boolean;
-    command?: string;
-    args?: string[];
-    env?: Record<string, string>;
-    allowedTools?: string[];
-    url?: string;
-    headers?: Record<string, string>;
-    lazy?: boolean;
-  }) {
-    this.send({ type: 'mcp.add', payload: config });
-  }
-
-  removeMcpServer(name: string) {
-    this.send({ type: 'mcp.remove', payload: { name } });
-  }
-
-  updateMcpServer(config: {
-    name: string;
-    transport?: string;
-    description?: string;
-    enabled?: boolean;
-    command?: string;
-    args?: string[];
-    env?: Record<string, string>;
-    allowedTools?: string[];
-    url?: string;
-    headers?: Record<string, string>;
-    lazy?: boolean;
-  }) {
-    this.send({ type: 'mcp.update', payload: config });
-  }
-
-  wakeMcpServer(name: string) {
-    this.send({ type: 'mcp.wake', payload: { name } });
-  }
-
-  sleepMcpServer(name: string) {
-    this.send({ type: 'mcp.sleep', payload: { name } });
-  }
-
-  discoverMcpServer(name: string) {
-    this.send({ type: 'mcp.discover', payload: { name } });
-  }
-
-  listMcpResources(name: string, refresh = false) {
-    this.send({ type: 'mcp.resources', payload: { name, refresh } });
-  }
-
-  listMcpPrompts(name: string, refresh = false) {
-    this.send({ type: 'mcp.prompts', payload: { name, refresh } });
-  }
-
-  readMcpResource(name: string, uri: string) {
-    this.send({ type: 'mcp.resource.read', payload: { name, uri } });
-  }
-
-  getMcpPrompt(name: string, prompt: string, args?: Record<string, string>) {
-    this.send({
-      type: 'mcp.prompt.get',
-      payload: { name, prompt, ...(args === undefined ? {} : { arguments: args }) },
-    });
-  }
-
-  enableMcpServer(name: string) {
-    this.send({ type: 'mcp.enable', payload: { name } });
-  }
-
-  disableMcpServer(name: string) {
-    this.send({ type: 'mcp.disable', payload: { name } });
-  }
-
-  restartMcpServer(name: string) {
-    this.send({ type: 'mcp.restart', payload: { name } });
-  }
-
-  listSkills(options?: WSSendOptions) {
-    this.send({ type: 'skills.list' }, options);
-  }
-
-  getSkillContent(name: string, source: string) {
-    this.send({ type: 'skills.content', payload: { name, source } });
-  }
-
-  installSkill(ref: string, global?: boolean) {
-    this.send({ type: 'skills.install', payload: { ref, global } });
-  }
-
-  uninstallSkill(name: string, global?: boolean) {
-    this.send({ type: 'skills.uninstall', payload: { name, global } });
-  }
-
-  checkForUpdates(name?: string, global?: boolean) {
-    this.send({ type: 'skills.update', payload: { name, global } });
-  }
-
-  createSkill(name: string, description: string, scope: 'project' | 'global') {
-    this.send({ type: 'skills.create', payload: { name, description, scope } });
-  }
-
-  editSkill(name: string, body: string) {
-    this.send({ type: 'skills.edit', payload: { name, body } });
-  }
-
-  exportAllSkills() {
-    this.send({ type: 'skills.export' });
-  }
-
-  getDiag(options?: WSSendOptions) {
-    this.send({ type: 'diag.get', payload: this.withSession({}) }, options);
-  }
-
-  getStats(options?: WSSendOptions) {
-    this.send({ type: 'stats.get', payload: this.withSession({}) }, options);
-  }
-
-  saveSession() {
-    this.send({ type: 'session.save', payload: this.withSession({}) });
-  }
-
-  resumeSessionById(id: string) {
-    this.send({ type: 'session.resume', payload: this.withSession({ id }) });
-  }
-
-  listModes() {
-    this.send({ type: 'modes.list' });
-  }
-
-  switchMode(id: string) {
-    this.send({ type: 'mode.switch', payload: { id } });
-  }
-
-  listFiles(query?: string, limit?: number, path?: string) {
-    this.send({ type: 'files.list', payload: { query, limit, path } });
-  }
-
-  requestCompletion(payload: WSCompletionRequest['payload']) {
-    this.send({ type: 'completion.request', payload });
-  }
-
-  getTodos() {
-    this.send({ type: 'todos.get', payload: this.withSession({}) });
-  }
-
-  clearTodos() {
-    this.send({ type: 'todos.clear', payload: this.withSession({}) });
-  }
-
-  removeTodo(idOrIndex: string | number) {
-    const payload = typeof idOrIndex === 'number' ? { index: idOrIndex } : { id: idOrIndex };
-    this.send({ type: 'todos.remove', payload: this.withSession(payload) });
-  }
-
-  updateTodoStatus(id: string, status: 'pending' | 'in_progress' | 'completed') {
-    this.send({ type: 'todo.update', payload: this.withSession({ id, status }) });
-  }
-
-  getTasks() {
-    this.send({ type: 'tasks.get', payload: this.withSession({}) });
-  }
-
-  updateTaskStatus(id: string, status: string) {
-    this.send({ type: 'task.update', payload: this.withSession({ id, status }) });
-  }
-
-  getPlan() {
-    this.send({ type: 'plan.get', payload: this.withSession({}) });
-  }
-
-  updatePlanItem(target: string, status: 'open' | 'in_progress' | 'done') {
-    this.send({ type: 'plan.item.update', payload: this.withSession({ target, status }) });
-  }
-
-  listSessions(limit = 50) {
-    this.send({ type: 'sessions.list', payload: this.withSession({ limit }) });
-  }
-
-  deleteSession(id: string) {
-    this.send({ type: 'session.delete', payload: { id } });
-  }
-
-  renameSession(id: string, name: string) {
-    this.send({ type: 'session.rename', payload: { id, name } });
-  }
-
-  setWorkingDir(path: string) {
-    this.send({ type: 'working_dir.set', payload: { path } });
-  }
-
-  resumeSession(sessionId: string) {
-    this.send({
-      type: 'session.resume',
-      payload: this.withSession({ id: sessionId }),
-    });
-  }
-
-  ping() {
-    this.send({ type: 'ping' });
-  }
-
-  refineModel(
-    text: string,
-    opts?: {
-      timeoutMs?: number | undefined;
-      provider?: string | undefined;
-      model?: string | undefined;
-      previousRefined?: string | undefined;
-      previousEnglish?: string | undefined;
-      retryFeedback?: string | undefined;
-    },
-  ) {
-    this.send({
-      type: 'model.refine',
-      payload: {
-        text,
-        ...(opts?.timeoutMs !== undefined ? { timeoutMs: opts.timeoutMs } : {}),
-        ...(opts?.provider !== undefined ? { provider: opts.provider } : {}),
-        ...(opts?.model !== undefined ? { model: opts.model } : {}),
-        ...(opts?.previousRefined !== undefined ? { previousRefined: opts.previousRefined } : {}),
-        ...(opts?.previousEnglish !== undefined ? { previousEnglish: opts.previousEnglish } : {}),
-        ...(opts?.retryFeedback !== undefined ? { retryFeedback: opts.retryFeedback } : {}),
-      },
-    });
-  }
-
   disconnect() {
     this.shouldReconnect = false;
     this.connectionState = stopConnection(this.connectionState);
@@ -1215,6 +865,9 @@ export class WrongStackWebSocketClient {
     return this.sessionId;
   }
 }
+
+export interface WrongStackWebSocketClient extends WsClientActionMethods {}
+installWsClientActionMethods(WrongStackWebSocketClient);
 
 let client: WrongStackWebSocketClient | null = null;
 

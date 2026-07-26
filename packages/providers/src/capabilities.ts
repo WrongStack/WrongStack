@@ -12,13 +12,19 @@ const CUSTOM_MODEL_IDS = new WeakMap<Record<string, CustomModelDefinition>, numb
 const WRAPPED_REFRESH = new WeakSet<ModelsRegistry>();
 let nextCustomModelId = 1;
 
-const FAMILY_BY_PROVIDER_ID: Partial<Record<string, WireFamily>> = {
+export const FAMILY_BY_PROVIDER_ID: Partial<Record<string, WireFamily>> = {
   'anthropic-oauth': 'anthropic-oauth',
   'github-copilot': 'github-copilot',
   'openai-codex': 'openai-codex',
 };
 
-const SIBLING_CATALOG_BY_FAMILY: Partial<Record<WireFamily, string>> = {
+/**
+ * Providers absent from models.dev whose per-model facts live under another
+ * catalog id. Shared with `model-output-limits.ts` so the per-request output
+ * ceiling resolves through exactly the same aliasing rules as the capability
+ * overlay.
+ */
+export const SIBLING_CATALOG_BY_FAMILY: Partial<Record<WireFamily, string>> = {
   'anthropic-oauth': 'anthropic',
   'github-copilot': 'openai',
   'openai-codex': 'openai',
@@ -97,9 +103,15 @@ export async function capabilitiesFor(
   // User-defined custom model overrides take top priority when present.
   const customDef = customModels?.[modelId];
   const customCaps = customDef?.capabilities;
+  // `CustomModelDefinition` carries the output ceiling in two places: the
+  // top-level `maxOutput` (what `/models add --max-output` and the WebUI
+  // model editor write) and `capabilities.maxOutput` (a full capability
+  // overlay). Reading only the latter silently dropped every value the CLI
+  // flag ever set.
+  const customMaxOutput = customDef?.maxOutput ?? customCaps?.maxOutput;
 
   // Without any model info at all, return base (possibly with custom overrides).
-  if (!model && !customCaps) {
+  if (!model && !customCaps && customMaxOutput === undefined) {
     const value = { ...base };
     registryCache.set(key, value);
     return value;
@@ -150,7 +162,7 @@ export async function capabilitiesFor(
     reasoning: customCaps?.reasoning ?? modelReasoning,
     // Scalar fields: custom override wins, then catalog, then base
     maxContext: customCaps?.maxContext ?? catalogMaxContext,
-    maxOutput: customCaps?.maxOutput ?? catalogMaxOutput,
+    maxOutput: customMaxOutput ?? catalogMaxOutput,
     streaming: customCaps?.streaming ?? base.streaming,
     promptCache: customCaps?.promptCache ?? base.promptCache,
     systemPrompt: customCaps?.systemPrompt ?? base.systemPrompt,

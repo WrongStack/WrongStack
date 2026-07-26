@@ -41,6 +41,12 @@ import {
   isMailboxMessageVisibleTo,
   sessionRecipient,
 } from './mailbox-types.js';
+import { MailboxHttpRateLimiter } from './mailbox-http-rate-limit.js';
+export {
+  MAILBOX_HTTP_RATE_LIMIT_PER_MINUTE,
+  MAILBOX_HTTP_RATE_LIMIT_WINDOW_MS,
+  MailboxHttpRateLimiter,
+} from './mailbox-http-rate-limit.js';
 
 export const MAILBOX_HTTP_MAX_BODY_BYTES = 256 * 1024;
 
@@ -50,8 +56,6 @@ export const MAILBOX_HTTP_MAX_BODY_BYTES = 256 * 1024;
  * one stalled client grow the process's memory without bound.
  */
 const MAX_SSE_BUFFER_BYTES = 8 * 1024 * 1024;
-export const MAILBOX_HTTP_RATE_LIMIT_PER_MINUTE = 120;
-export const MAILBOX_HTTP_RATE_LIMIT_WINDOW_MS = 60_000;
 
 // Filter bounds shipped with the router: `MAILBOX_HTTP_DEFAULT_MAX_AGE_MS`
 // is a 1-hour reference default callers may opt into via the `defaultMaxAgeMs`
@@ -129,38 +133,6 @@ export interface MailboxHttpRouter {
   handle(request: IncomingMessage, response: ServerResponse, routePath?: string): Promise<void>;
   /** Close every active SSE stream owned by this router. Idempotent. */
   close(): void;
-}
-
-/** Sliding-window request limiter shared by every mailbox HTTP host. */
-export class MailboxHttpRateLimiter {
-  private readonly hits = new Map<string, number[]>();
-
-  constructor(
-    readonly limit = MAILBOX_HTTP_RATE_LIMIT_PER_MINUTE,
-    readonly windowMs = MAILBOX_HTTP_RATE_LIMIT_WINDOW_MS,
-  ) {}
-
-  allow(key: string): boolean {
-    const now = Date.now();
-    const cutoff = now - this.windowMs;
-    const fresh = (this.hits.get(key) ?? []).filter((timestamp) => timestamp > cutoff);
-    if (fresh.length >= this.limit) {
-      this.hits.set(key, fresh);
-      return false;
-    }
-    fresh.push(now);
-    this.hits.set(key, fresh);
-    return true;
-  }
-
-  cleanup(): void {
-    const cutoff = Date.now() - this.windowMs;
-    for (const [key, timestamps] of this.hits) {
-      const fresh = timestamps.filter((timestamp) => timestamp > cutoff);
-      if (fresh.length === 0) this.hits.delete(key);
-      else this.hits.set(key, fresh);
-    }
-  }
 }
 
 export function createMailboxHttpRouter(options: MailboxHttpRouterOptions): MailboxHttpRouter {

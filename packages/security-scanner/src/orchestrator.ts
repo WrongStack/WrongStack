@@ -562,7 +562,9 @@ ${i + 1}. [${f.severity.toUpperCase()}] ${f.title}
           { type: 'text', text: readBundledInstructionText('security-scanner/report-system.md') },
         ],
         messages: [{ role: 'user', content: prompt }],
-        maxTokens: 8192,
+        // No explicit cap: the provider adapter resolves this model's real
+        // `limit.output` from the catalog. A hardcoded 8192 truncated the
+        // report on every model that can write a longer one.
       };
 
       const response = await this.completeWithRetry(provider, request, abortController);

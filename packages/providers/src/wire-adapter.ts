@@ -1,6 +1,7 @@
 import type { Capabilities, Provider, Request, Response, StreamEvent } from '@wrongstack/core/types';
 import { ConfigError, ParseError, ProviderError, StreamHangError } from '@wrongstack/core/types';
 import { parseProviderHttpError, type HeadersLike } from './error-parse.js';
+import type { BuildBodyContext } from './model-output-limits.js';
 import { isDebugStreamEnabled, pushDebugChunkStats } from './stream-debug-state.js';
 import { isNodeReadable } from './object-utils.js';
 import { Readable } from 'node:stream';
@@ -148,11 +149,11 @@ export abstract class WireAdapter implements Provider {
     const url = this.buildUrl(req);
     const headers = this.buildHeaders(req);
     // Subclasses with their own buildBody (anthropic, openai, openai-codex,
-    // openai-compatible, github-copilot) read this.capabilities here so
-    // the per-model `maxOutput` lands on the wire. WireFormatProvider's
-    // own override forwards the same context to the cfg-supplied
-    // buildBody.
-    const body = this.buildBody(req, { capabilities: this.capabilities });
+    // openai-compatible, github-copilot) size the response from this context
+    // via `resolveMaxOutputTokens`. `providerId` is what lets that lookup hit
+    // the catalog for `req.model` — `capabilities` alone is provider-scoped
+    // and goes stale the moment the session switches model.
+    const body = this.buildBody(req, { capabilities: this.capabilities, providerId: this.id });
 
     // Linked abort: forward the caller's signal to a controller we ALSO trip
     // if response headers never arrive. `streamHangTimeoutMs` only guards the
@@ -424,13 +425,10 @@ export abstract class WireAdapter implements Provider {
     };
   }
 
-  /** Map Request fields to the wire request body. Receives the
-   *  provider's resolved `Capabilities` so the body can use
-   *  `ctx.capabilities.maxOutput` when `req.maxTokens` is undefined. */
-  protected abstract buildBody(
-    req: Request,
-    ctx: { capabilities: Capabilities },
-  ): Record<string, unknown>;
+  /** Map Request fields to the wire request body. Receives the provider's
+   *  resolved `Capabilities` and id so the body can size the response with
+   *  `resolveMaxOutputTokens(req, ctx)` when `req.maxTokens` is undefined. */
+  protected abstract buildBody(req: Request, ctx: BuildBodyContext): Record<string, unknown>;
 
   /** Translate wire SSE events into canonical StreamEvent[]. */
   protected abstract parseStream(

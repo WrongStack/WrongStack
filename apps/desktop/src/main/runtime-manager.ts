@@ -1,14 +1,11 @@
 import { type ChildProcess, spawn } from 'node:child_process';
 import { randomBytes } from 'node:crypto';
 import { EventEmitter } from 'node:events';
-import { existsSync } from 'node:fs';
 import * as fs from 'node:fs/promises';
 import * as http from 'node:http';
-import { createRequire } from 'node:module';
 import * as net from 'node:net';
 import * as os from 'node:os';
 import * as path from 'node:path';
-import { fileURLToPath } from 'node:url';
 import {
   atomicWrite,
   buildChildEnv,
@@ -23,6 +20,7 @@ import {
   authorizeDesktopRuntimeStop,
   desktopCompatibilityTrustBoundary,
 } from './desktop-privileged-actions.js';
+import { resolveWebUiDistDir, resolveWebUiEntry } from './runtime-manager-paths.js';
 import type {
   DesktopProjectEntry,
   DesktopRuntimeKind,
@@ -835,39 +833,6 @@ function waitForHttpReady(baseUrl: string, token: string, timeoutMs: number): Pr
   });
 }
 
-function resolveWebUiEntry(): string {
-  if (process.env['WRONGSTACK_WEBUI_ENTRY']) {
-    return path.resolve(process.env['WRONGSTACK_WEBUI_ENTRY']);
-  }
-  const require = createRequire(import.meta.url);
-  // After PR #018b, the server entry lives in @wrongstack/webui-server.
-  // Try the new package first; fall back to the legacy path for older builds
-  // or when the new package is not yet built.
-  try {
-    const serverPkgPath = require.resolve('@wrongstack/webui-server/package.json');
-    const candidate = path.join(path.dirname(serverPkgPath), 'dist', 'server', 'entry.js');
-    if (existsSync(candidate)) return candidate;
-  } catch {
-    // fall through to legacy path
-  }
-  const serverIndex = require.resolve('@wrongstack/webui-server');
-  return path.join(path.dirname(serverIndex), 'server', 'entry.js');
-}
-
-function resolveWebUiDistDir(): string {
-  if (process.env['WRONGSTACK_WEBUI_DIST']) {
-    return path.resolve(process.env['WRONGSTACK_WEBUI_DIST']);
-  }
-  const require = createRequire(import.meta.url);
-  // The built React frontend assets live in @wrongstack/webui/dist.
-  const serverEntry = require.resolve('@wrongstack/webui');
-  const candidate = path.dirname(serverEntry);
-  if (existsSync(candidate)) return candidate;
-  throw new Error(
-    `WebUI frontend assets not found at ${candidate}. Build @wrongstack/webui or set WRONGSTACK_WEBUI_DIST.`,
-  );
-}
-
 async function readGlobalProjectManifest(): Promise<DesktopProjectEntry[]> {
   const manifestFile = path.join(wstackGlobalRoot(), 'projects.json');
   try {
@@ -981,27 +946,9 @@ function samePath(left: string, right: string): boolean {
   return os.platform() === 'win32' ? a.toLowerCase() === b.toLowerCase() : a === b;
 }
 
-export function rendererIndexPath(): string {
-  // Return a proper file:// URL for Electron's loadURL(), which requires a
-  // URL scheme — a bare filesystem path (from fileURLToPath) causes
-  // ERR_INVALID_URL.
-  return new URL('../renderer/index.html', import.meta.url).href;
-}
-
-export function preloadPath(): string {
-  return fileURLToPath(new URL('../preload/preload.cjs', import.meta.url));
-}
-
-export function webuiPreloadPath(): string {
-  return fileURLToPath(new URL('../preload/webui-preload.cjs', import.meta.url));
-}
-
-/**
- * Filesystem root for the built-in profile settings workspace.
- *
- * The desktop shell opens this directory as a `global-settings` runtime so the
- * user can edit provider/config state without an actual project checkout.
- */
-export function desktopSettingsWorkspaceRoot(): string {
-  return path.join(resolveWstackPaths({ projectRoot: process.cwd() }).configDir, 'settings');
-}
+export {
+  desktopSettingsWorkspaceRoot,
+  preloadPath,
+  rendererIndexPath,
+  webuiPreloadPath,
+} from './runtime-manager-paths.js';

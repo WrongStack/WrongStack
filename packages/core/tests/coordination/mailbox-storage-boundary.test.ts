@@ -58,6 +58,14 @@ describe('GM-P0.5A: storage-boundary enforcement', () => {
     ).rejects.toThrow('control');
   });
 
+  it('allows only the explicit runtime control sender to persist control messages', async () => {
+    const message = await mb.sendRuntimeControl({
+      from: 'runtime', to: 'leader@sess-1', subject: 'interrupt', body: 'stop',
+    });
+    expect(message.type).toBe('control');
+    expect((await mb.query({ type: 'control' }))[0]?.id).toBe(message.id);
+  });
+
   it('rejects assign to broadcast at the storage boundary', async () => {
     await expect(
       mb.send({ from: 'a', to: '*', type: 'assign', subject: 's', body: 'b' }),
@@ -128,6 +136,31 @@ describe('GM-P0.5A: sendFor stamps identity from actor', () => {
   });
 });
 
+describe('GM-P0.5A: actor-bearing presence methods', () => {
+  it('stamps registration identity, session, and role from the actor', async () => {
+    await mb.registerFor(actor(), {
+      name: 'Spoof-resistant actor',
+      source: 'http',
+      pid: 42,
+    });
+    const status = (await mb.getAgentStatuses()).find((entry) => entry.agentId === 'leader@sess-1');
+    expect(status).toMatchObject({ sessionId: 'sess-1', role: 'leader', pid: 42 });
+  });
+
+  it('stamps heartbeat identity from the actor', async () => {
+    await mb.registerFor(actor(), { name: 'Leader', source: 'http' });
+    await mb.heartbeatFor(actor(), { status: 'running', currentTask: 'verified task' });
+    const status = (await mb.getAgentStatuses()).find((entry) => entry.agentId === 'leader@sess-1');
+    expect(status).toMatchObject({ status: 'running', currentTask: 'verified task' });
+  });
+
+  it('rejects presence registration when the actor has no session', async () => {
+    await expect(
+      mb.registerFor(actor({ sessionId: undefined }), { name: 'No session' }),
+    ).rejects.toThrow('sessionId');
+  });
+});
+
 // ── ackFor: visibility check + readerId from actor ───────────────────
 
 describe('GM-P0.5A: ackFor checks visibility and stamps readerId', () => {
@@ -136,13 +169,23 @@ describe('GM-P0.5A: ackFor checks visibility and stamps readerId', () => {
       from: 'a', to: 'leader@sess-1', type: 'note', subject: 's', body: 'b',
     });
     const acked = await mb.ackFor(actor(), { messageId: msg.id, read: true });
-    expect(acked).not.toBeNull();
-    expect(acked!.readBy['leader@sess-1']).toBeDefined();
+    expect(acked).toMatchObject({ readByMe: true });
+    expect(acked).not.toHaveProperty('readBy');
+    expect(acked).not.toHaveProperty('recipientState');
   });
 
   it('returns null for non-existent message', async () => {
     const result = await mb.ackFor(actor(), { messageId: 'no-such-id' });
     expect(result).toBeNull();
+  });
+
+  it('cannot acknowledge a public message addressed to another actor', async () => {
+    const msg = await mb.send({
+      from: 'a', to: 'worker@sess-2', type: 'note', subject: 'private', body: 'b',
+    });
+    const result = await mb.ackFor(actor(), { messageId: msg.id, read: true });
+    expect(result).toBeNull();
+    expect((await mb.query({ to: 'worker@sess-2' }))[0]?.readBy).toEqual({});
   });
 
   it('returns null (NOT_FOUND) for leaders-only message from non-leader', async () => {
@@ -179,6 +222,46 @@ describe('GM-P0.5A: queryFor derives readerRole from actor', () => {
     expect(results.length).toBeGreaterThanOrEqual(1);
   });
 
+  it('does not expose aggregate receipt state when the caller requests it', async () => {
+    const message = await mb.send({
+      from: 'a', to: '*', type: 'broadcast', subject: 'private receipts', body: 'b',
+    });
+    await mb.ack({
+      messageId: message.id,
+      readerId: 'worker@sess-2',
+      completed: true,
+      outcome: 'private worker outcome',
+    });
+
+    const result = (await mb.queryFor(actor(), { includeReceiptState: true })).find(
+      (entry) => entry.id === message.id,
+    );
+    expect(result).toMatchObject({ completedByMe: false });
+    expect(result).not.toHaveProperty('recipientState');
+    expect(result).not.toHaveProperty('readBy');
+    expect(result).not.toHaveProperty('outcome');
+  });
+
+  it('filters out public messages addressed to another actor', async () => {
+    await mb.send({
+      from: 'a', to: 'worker@sess-2', type: 'note', subject: 'private', body: 'b',
+    });
+    await mb.send({
+      from: 'a', to: 'leader', type: 'note', subject: 'alias', body: 'b',
+    });
+    const results = await mb.queryFor(actor());
+    expect(results.map((message) => message.subject)).not.toContain('private');
+    expect(results.map((message) => message.subject)).toContain('alias');
+  });
+
+  it('rejects an explicit recipient outside the actor context', async () => {
+    await mb.send({
+      from: 'a', to: 'worker@sess-2', type: 'note', subject: 'private', body: 'b',
+    });
+    const results = await mb.queryFor(actor(), { to: 'worker@sess-2' });
+    expect(results).toEqual([]);
+  });
+
   it('filters leaders-only messages for non-leader actors', async () => {
     await mb.send({
       from: 'a', to: '*', type: 'broadcast', subject: 'secret',
@@ -200,13 +283,35 @@ describe('GM-P0.5A: queryFor derives readerRole from actor', () => {
 // ── softDeleteFor / restoreFor: visibility check ─────────────────────
 
 describe('GM-P0.5A: softDeleteFor checks visibility', () => {
-  it('soft-deletes a visible message', async () => {
+  it('soft-deletes a visible message without exposing aggregate receipt state', async () => {
     const msg = await mb.send({
-      from: 'a', to: 'leader@sess-1', type: 'note', subject: 's', body: 'b',
+      from: 'a', to: '*', type: 'broadcast', subject: 's', body: 'b',
+    });
+    await mb.ack({
+      messageId: msg.id,
+      readerId: 'worker@sess-2',
+      completed: true,
+      outcome: 'private worker outcome',
+    });
+
+    const result = await mb.softDeleteFor(actor(), msg.id);
+
+    expect(result?.deletedAt).toBeDefined();
+    expect(result).not.toHaveProperty('recipientState');
+    expect(result).not.toHaveProperty('readBy');
+    expect(result).not.toHaveProperty('completed');
+    expect(result).not.toHaveProperty('completedBy');
+    expect(result).not.toHaveProperty('completedAt');
+    expect(result).not.toHaveProperty('outcome');
+    expect(JSON.stringify(result)).not.toContain('private worker outcome');
+  });
+
+  it('returns null for a public message addressed to another actor', async () => {
+    const msg = await mb.send({
+      from: 'a', to: 'worker@sess-2', type: 'note', subject: 'private', body: 'b',
     });
     const result = await mb.softDeleteFor(actor(), msg.id);
-    expect(result).not.toBeNull();
-    expect(result!.deletedAt).toBeDefined();
+    expect(result).toBeNull();
   });
 
   it('returns null for invisible message', async () => {
@@ -224,14 +329,37 @@ describe('GM-P0.5A: softDeleteFor checks visibility', () => {
 });
 
 describe('GM-P0.5A: restoreFor checks visibility', () => {
-  it('restores a visible message', async () => {
+  it('restores a visible message without exposing aggregate receipt state', async () => {
     const msg = await mb.send({
-      from: 'a', to: 'leader@sess-1', type: 'note', subject: 's', body: 'b',
+      from: 'a', to: '*', type: 'broadcast', subject: 's', body: 'b',
+    });
+    await mb.ack({
+      messageId: msg.id,
+      readerId: 'worker@sess-2',
+      completed: true,
+      outcome: 'private worker outcome',
     });
     await mb.softDelete(msg.id, 'leader@sess-1');
+
     const result = await mb.restoreFor(actor(), msg.id);
-    expect(result).not.toBeNull();
-    expect(result!.deletedAt).toBeUndefined();
+
+    expect(result?.deletedAt).toBeUndefined();
+    expect(result).not.toHaveProperty('recipientState');
+    expect(result).not.toHaveProperty('readBy');
+    expect(result).not.toHaveProperty('completed');
+    expect(result).not.toHaveProperty('completedBy');
+    expect(result).not.toHaveProperty('completedAt');
+    expect(result).not.toHaveProperty('outcome');
+    expect(JSON.stringify(result)).not.toContain('private worker outcome');
+  });
+
+  it('returns null for a public message addressed to another actor', async () => {
+    const msg = await mb.send({
+      from: 'a', to: 'worker@sess-2', type: 'note', subject: 'private', body: 'b',
+    });
+    await mb.softDelete(msg.id, 'worker@sess-2');
+    const result = await mb.restoreFor(actor(), msg.id);
+    expect(result).toBeNull();
   });
 
   it('returns null for invisible message', async () => {

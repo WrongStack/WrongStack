@@ -1,11 +1,8 @@
-import { createHash } from 'node:crypto';
-import { createReadStream, type Dirent } from 'node:fs';
+import { type Dirent } from 'node:fs';
 import * as fsp from 'node:fs/promises';
 import * as path from 'node:path';
-import { createInterface } from 'node:readline';
 import type { EventBus } from '../kernel/events.js';
 import { DefaultSecretScrubber } from '../security/secret-scrubber.js';
-import type { ContentBlock } from '../types/blocks.js';
 import type { Logger } from '../types/logger.js';
 import type { Message } from '../types/messages.js';
 import type { SecretScrubber } from '../types/secret-scrubber.js';
@@ -24,14 +21,10 @@ import type {
 } from '../types/session.js';
 import { atomicWrite, ensureDir, withFileLock } from '../utils/atomic-write.js';
 import { toErrorMessage } from '../utils/index.js';
-import { repairToolUseAdjacency } from '../utils/message-invariants.js';
 import { FileSessionWriter } from './file-session-writer.js';
 import { SessionCheckpointCas } from './session-checkpoint-cas.js';
 import { generateSessionId } from './session-id.js';
-import {
-  scrubPersistedSessionEvent,
-  scrubPersistedSessionSummary,
-} from './session-read-scrubber.js';
+import { scrubPersistedSessionSummary } from './session-read-scrubber.js';
 import {
   formatInterruptedToolNotice,
   formatResumeValidationNotice,
@@ -44,19 +37,16 @@ import {
   collectSessionIds as collectSessionIdsFromDirectory,
 } from './session-store/directory-session-files.js';
 import { deleteSessionArtifacts } from './session-store/delete-session-artifacts.js';
+import { assertSessionCanBeDeleted } from './session-store/delete-session-guards.js';
 import { SessionLoadCache } from './session-store/load-cache.js';
-import { isPrunableSessionJsonl, readActiveSessionId } from './session-store/prune-helpers.js';
+import { pruneSessionFiles } from './session-store/prune-helpers.js';
 import {
   emitSessionStoreError,
   emitSessionStoreRead,
   emitSessionStoreWrite,
 } from './session-store/events.js';
-import {
-  applyContextSnapshot,
-  inheritsIntoFork,
-  replayableMessage,
-  trackMessageToolState,
-} from './session-store/replay.js';
+import { forkSession } from './session-store/fork-session.js';
+import { loadSessionDataFromFile } from './session-store/load-session-data.js';
 import type {
   DirectorySummaryCandidate,
   IndexCacheEntry,
@@ -70,9 +60,11 @@ import {
   shardKeyForSessionId,
   shardManifestPath,
 } from './session-store/paths.js';
-import { iterateSessionEvents, summarizeSessionFile } from './session-store/summary-builder.js';
+import { summarizeSessionFile } from './session-store/summary-builder.js';
+import { readSessionSummaryHeader } from './session-store/summary-header.js';
+import { readOrBuildShardManifestEntry } from './session-store/shard-manifest.js';
+import { searchSessionEvents } from './session-store/search-events.js';
 import { compareSessionSummaries, matchesSessionFilter } from './session-summary.js';
-import { extractToolCallEnds } from './session-tool-call-ends.js';
 import { mapWithConcurrency } from './storage-concurrency.js';
 
 export type { SessionStoreOptions } from './session-store/types.js';
@@ -212,69 +204,7 @@ export class DefaultSessionStore implements SessionStore {
   }
 
   async fork(id: string, opts: SessionForkOptions = {}): Promise<ForkedSession> {
-    const parent = await this.load(id);
-    let boundary = parent.events.length - 1;
-    let targetCheckpoint: Extract<SessionEvent, { type: 'checkpoint' }> | undefined;
-    if (opts.checkpointPromptIndex !== undefined) {
-      boundary = -1;
-      for (let i = 0; i < parent.events.length; i++) {
-        const event = parent.events[i];
-        if (event?.type === 'checkpoint' && event.promptIndex === opts.checkpointPromptIndex) {
-          // Prefer the latest matching checkpoint if a legacy/non-truncated
-          // journal reused prompt indices after a rewind.
-          boundary = i;
-          targetCheckpoint = event;
-        }
-      }
-      if (boundary === -1) {
-        throw new Error(`Checkpoint ${opts.checkpointPromptIndex} not found in session "${id}"`);
-      }
-    }
-
-    const parentPrefix = parent.events.slice(0, boundary + 1);
-    const workspaceCheckpoint = targetCheckpoint?.workspaceCheckpoint;
-    const checkpointHash = createHash('sha256')
-      .update(parentPrefix.map((event) => JSON.stringify(event)).join('\n') + '\n', 'utf8')
-      .digest('hex');
-    const inherited = parentPrefix.filter(inheritsIntoFork);
-    const writer = await this.create({
-      id: '',
-      title: parent.metadata.title,
-      model: parent.metadata.model,
-      provider: parent.metadata.provider,
-    });
-
-    try {
-      await writer.append({
-        type: 'session_forked',
-        ts: new Date().toISOString(),
-        parentSessionId: id,
-        parentCheckpointPromptIndex: opts.checkpointPromptIndex,
-        parentCheckpointHash: checkpointHash,
-        workspace: 'shared-current',
-        workspaceCheckpointHash: workspaceCheckpoint?.manifestHash,
-      });
-      const batchSize = 250;
-      for (let offset = 0; offset < inherited.length; offset += batchSize) {
-        await writer.appendBatch(inherited.slice(offset, offset + batchSize));
-      }
-      await writer.flush();
-      await writer.close();
-      const data = await this.load(writer.id);
-      return {
-        id: writer.id,
-        data,
-        parentSessionId: id,
-        checkpointPromptIndex: opts.checkpointPromptIndex,
-        checkpointHash,
-        workspace: 'shared-current',
-        workspaceCheckpoint,
-      };
-    } catch (err) {
-      await writer.close().catch(() => undefined);
-      await this.delete(writer.id).catch(() => undefined);
-      throw err;
-    }
+    return forkSession(this, id, opts);
   }
 
   async materializeWorkspaceCheckpoint(
@@ -432,231 +362,13 @@ export class DefaultSessionStore implements SessionStore {
         return cached;
       }
 
-      // Cache miss â€” do the full read + parse.
-      // Fused single pass: parse events + build messages + extract metadata together.
-      // Streams the file line-by-line so we don't materialize the whole JSONL
-      // (multi-MB for long sessions). Events-only requests skip the message
-      // build and the adjacency repair entirely.
-      const events: SessionEvent[] = [];
-
-      // Metadata extracted in the same single pass over the raw lines.
-      let sessionStartEvent: SessionEvent | undefined;
-      let sessionEndEvent: SessionEvent | undefined;
-      let sessionModel: string | undefined;
-      let sessionProvider: string | undefined;
-      let sessionPendingToolUses: string[] | undefined;
-      let sessionForkedEvent: Extract<SessionEvent, { type: 'session_forked' }> | undefined;
-
-      // Message builder state — only allocated when mode.full.
-      const messages: Message[] | undefined = mode.full ? [] : undefined;
-      const openToolUses: Set<string> | undefined = mode.full ? new Set<string>() : undefined;
-      // Once an exact message-journal event appears, it becomes authoritative.
-      // Legacy turn events continue to supply usage/audit data but must not be
-      // replayed a second time into the conversation.
-      let exactJournalActive = false;
-      let usage = { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 };
-
-      const stream = createReadStream(file, { encoding: 'utf8' });
-      const rl = createInterface({ input: stream, crlfDelay: Infinity });
-
-      try {
-        for await (const line of rl) {
-          if (!line.trim()) continue;
-          try {
-            const parsed: unknown = JSON.parse(line);
-            if (
-              parsed !== null &&
-              typeof parsed === 'object' &&
-              typeof (parsed as { type?: unknown | undefined }).type === 'string' &&
-              typeof (parsed as { ts?: unknown | undefined }).ts === 'string'
-            ) {
-              const ev = scrubPersistedSessionEvent(parsed as SessionEvent, this.secretScrubber);
-              events.push(ev);
-
-              // Track metadata in the same pass.
-              if (ev.type === 'session_start' && !sessionStartEvent) {
-                sessionStartEvent = ev;
-                sessionModel = ev.model;
-                sessionProvider = ev.provider;
-              }
-              if (ev.type === 'session_end') {
-                sessionEndEvent = ev;
-                sessionPendingToolUses = ev.pendingToolUses;
-              }
-              if (ev.type === 'session_forked' && !sessionForkedEvent) {
-                sessionForkedEvent = ev;
-              }
-
-              // Build messages in the same pass (replay() logic inlined).
-              // Skipped entirely when mode.full is false.
-              if (mode.full && messages !== undefined && openToolUses !== undefined) {
-                if (ev.type === 'message_appended' && ev.version === 1) {
-                  const message = replayableMessage(ev.message, ev.ts);
-                  if (message) {
-                    if (!exactJournalActive) {
-                      messages.length = 0;
-                      openToolUses.clear();
-                      exactJournalActive = true;
-                    }
-                    messages.push(message);
-                    trackMessageToolState(message, openToolUses);
-                  } else {
-                    this.events?.emit('session.damaged', {
-                      sessionId: id,
-                      detail: 'Ignored malformed message_appended event',
-                    });
-                  }
-                } else if (ev.type === 'message_updated' && ev.version === 1) {
-                  const message = replayableMessage(ev.message, ev.ts);
-                  if (
-                    message &&
-                    exactJournalActive &&
-                    ev.index >= 0 &&
-                    ev.index < messages.length
-                  ) {
-                    messages[ev.index] = message;
-                    openToolUses.clear();
-                    for (const current of messages) trackMessageToolState(current, openToolUses);
-                  } else {
-                    this.events?.emit('session.damaged', {
-                      sessionId: id,
-                      detail: `Ignored malformed message_updated event at index ${ev.index}`,
-                    });
-                  }
-                } else if (ev.type === 'messages_replaced' && ev.version === 1) {
-                  if (applyContextSnapshot(messages, openToolUses, ev.messages)) {
-                    exactJournalActive = true;
-                  } else {
-                    this.events?.emit('session.damaged', {
-                      sessionId: id,
-                      detail: 'Ignored malformed messages_replaced event',
-                    });
-                  }
-                } else if (ev.type === 'context_snapshot') {
-                  if (!applyContextSnapshot(messages, openToolUses, ev.messages)) {
-                    this.events?.emit('session.damaged', {
-                      sessionId: id,
-                      detail: 'Ignored malformed context_snapshot event',
-                    });
-                  }
-                } else if (!exactJournalActive && ev.type === 'user_input') {
-                  openToolUses.clear();
-                  messages.push({ role: 'user', content: ev.content, ts: ev.ts });
-                } else if (ev.type === 'llm_response') {
-                  if (!exactJournalActive) {
-                    messages.push({ role: 'assistant', content: ev.content, ts: ev.ts });
-                    for (const b of ev.content) {
-                      if (b.type === 'tool_use') openToolUses.add(b.id);
-                    }
-                  }
-                  usage = {
-                    input: usage.input + (ev.usage.input ?? 0),
-                    output: usage.output + (ev.usage.output ?? 0),
-                    cacheRead: (usage.cacheRead ?? 0) + (ev.usage.cacheRead ?? 0),
-                    cacheWrite: (usage.cacheWrite ?? 0) + (ev.usage.cacheWrite ?? 0),
-                  };
-                } else if (!exactJournalActive && ev.type === 'tool_result') {
-                  if (!openToolUses.has(ev.id)) {
-                    this.events?.emit('session.damaged', {
-                      sessionId: id,
-                      detail: `Orphan tool_result "${ev.id}" has no matching tool_use`,
-                    });
-                    continue;
-                  }
-                  openToolUses.delete(ev.id);
-                  const resultBlock: ContentBlock = {
-                    type: 'tool_result',
-                    tool_use_id: ev.id,
-                    content:
-                      typeof ev.content === 'string' ? ev.content : JSON.stringify(ev.content),
-                    is_error: ev.isError,
-                  };
-                  const last = messages[messages.length - 1];
-                  const lastIsToolResultUser =
-                    last?.role === 'user' &&
-                    Array.isArray(last.content) &&
-                    last.content.every((b) => (b as ContentBlock).type === 'tool_result');
-                  if (lastIsToolResultUser && Array.isArray(last.content)) {
-                    last.content.push(resultBlock);
-                  } else {
-                    messages.push({ role: 'user', content: [resultBlock], ts: ev.ts });
-                  }
-                }
-              } else if (ev.type === 'llm_response') {
-                // events-only path still accumulates usage.
-                usage = {
-                  input: usage.input + (ev.usage.input ?? 0),
-                  output: usage.output + (ev.usage.output ?? 0),
-                  cacheRead: (usage.cacheRead ?? 0) + (ev.usage.cacheRead ?? 0),
-                  cacheWrite: (usage.cacheWrite ?? 0) + (ev.usage.cacheWrite ?? 0),
-                };
-              }
-            }
-          } catch {
-            // skip malformed JSON
-          }
-        }
-      } finally {
-        rl.close();
-        stream.close();
-      }
-
-      let finalMessages: Message[] = [];
-      if (mode.full && messages !== undefined && openToolUses !== undefined) {
-        // Repair tool adjacency after the single parse + replay loop.
-        if (openToolUses.size > 0) {
-          this.events?.emit('session.damaged', {
-            sessionId: id,
-            detail: `${openToolUses.size} tool_use blocks without matching results - replay repaired`,
-          });
-        }
-        const repaired = repairToolUseAdjacency(messages);
-        if (repaired.report.changed) {
-          this.events?.emit('session.damaged', {
-            sessionId: id,
-            detail:
-              `Repaired replay adjacency: removed ${repaired.report.removedToolUses.length} tool_use, ` +
-              `${repaired.report.removedToolResults.length} tool_result, ` +
-              `${repaired.report.removedMessages} empty messages`,
-          });
-        }
-        finalMessages = repaired.messages;
-      }
-
-      // Build metadata from the extracted session_start/end events.
-      const meta: SessionMetadata = {
+      const data = await loadSessionDataFromFile({
         id,
-        startedAt: sessionStartEvent?.ts ?? new Date(0).toISOString(),
-        endedAt: sessionEndEvent?.ts,
-        model: sessionModel,
-        provider: sessionProvider,
-        pendingToolUses: sessionPendingToolUses,
-        forkedFrom: sessionForkedEvent
-          ? {
-              sessionId: sessionForkedEvent.parentSessionId,
-              checkpointPromptIndex: sessionForkedEvent.parentCheckpointPromptIndex,
-              checkpointHash: sessionForkedEvent.parentCheckpointHash,
-              workspace: sessionForkedEvent.workspace,
-              workspaceCheckpointHash: sessionForkedEvent.workspaceCheckpointHash,
-            }
-          : undefined,
-      };
-
-      // Extract tool_call_end events for TUI tool entry rendering on resume.
-      const toolCallEnds = extractToolCallEnds(events);
-      // `openToolUses` holds tool_use ids still unmatched after the full replay
-      // (before repairToolUseAdjacency strips them) — i.e. tools the prior run
-      // left in flight. Surfaced so resume() can notify without re-executing.
-      const pendingToolUseCount =
-        openToolUses && openToolUses.size > 0 ? openToolUses.size : undefined;
-      const data: SessionData = {
-        metadata: meta,
-        events,
-        messages: finalMessages,
-        usage,
-        toolCallEnds,
-        ...(pendingToolUseCount !== undefined ? { pendingToolUseCount } : {}),
-      };
+        file,
+        full: mode.full,
+        events: this.events,
+        secretScrubber: this.secretScrubber,
+      });
 
       // Only full loads populate the cache; events-only loads always read
       // through (they're cheap, and a hot loop on events-only would
@@ -714,95 +426,13 @@ export class DefaultSessionStore implements SessionStore {
     predicate: (event: SessionEvent, eventIndex: number, ts: string) => boolean,
     opts?: { limit?: number | undefined; signal?: AbortSignal | undefined },
   ): Promise<Array<{ event: SessionEvent; eventIndex: number; ts: string }>> {
-    const file = this.sessionPath(id, '.jsonl');
-    const limit = opts?.limit;
-    const signal = opts?.signal;
-    const out: Array<{ event: SessionEvent; eventIndex: number; ts: string }> = [];
-
-    // Try to stat first so a missing file returns [] instead of throwing
-    // — matches `load()` ENOENT semantics that callers already depend on.
-    let stat: import('node:fs').Stats;
-    try {
-      stat = await fsp.stat(file);
-    } catch (err) {
-      if ((err as NodeJS.ErrnoException).code === 'ENOENT') return [];
-      throw err;
-    }
-    if (stat.size === 0) return [];
-
-    let fh: fsp.FileHandle | undefined;
-    try {
-      fh = await fsp.open(file, 'r');
-      // Read in 64KB chunks; lines can straddle a chunk boundary so we
-      // carry the trailing partial line forward between iterations.
-      const CHUNK = 64 * 1024;
-      const buf = Buffer.alloc(CHUNK);
-      let leftover = '';
-      let eventIndex = 0;
-      for (let position = 0; ; position += buf.byteLength) {
-        if (signal?.aborted) {
-          const reason = signal.reason ?? new DOMException('Aborted', 'AbortError');
-          throw reason;
-        }
-        const { bytesRead } = await fh.read(buf, 0, CHUNK, position);
-        if (bytesRead === 0) break;
-        const text = leftover + buf.subarray(0, bytesRead).toString('utf8');
-        // Split into lines; the last element is either '' (file ended on a
-        // newline) or a partial line — keep it as the new leftover.
-        const parts = text.split('\n');
-        leftover = parts.pop() ?? '';
-        for (const line of parts) {
-          if (!line) continue;
-          let ev: SessionEvent;
-          try {
-            const parsed: unknown = JSON.parse(line);
-            if (
-              parsed === null ||
-              typeof parsed !== 'object' ||
-              typeof (parsed as { type?: unknown }).type !== 'string' ||
-              typeof (parsed as { ts?: unknown }).ts !== 'string'
-            ) {
-              // Skip lines that don't match the SessionEvent shape — same
-              // tolerance as `load()` (which silently drops non-events).
-              continue;
-            }
-            ev = scrubPersistedSessionEvent(parsed as SessionEvent, this.secretScrubber);
-          } catch {
-            // Skip malformed JSON, matching `load()` behavior.
-            continue;
-          }
-          if (predicate(ev, eventIndex, ev.ts)) {
-            out.push({ event: ev, eventIndex, ts: ev.ts });
-            if (limit !== undefined && out.length >= limit) {
-              return out;
-            }
-          }
-          eventIndex++;
-        }
-      }
-      // Flush a trailing line that lacks a final newline.
-      if (leftover.trim()) {
-        try {
-          const parsed: unknown = JSON.parse(leftover);
-          if (
-            parsed !== null &&
-            typeof parsed === 'object' &&
-            typeof (parsed as { type?: unknown }).type === 'string' &&
-            typeof (parsed as { ts?: unknown }).ts === 'string'
-          ) {
-            const ev = scrubPersistedSessionEvent(parsed as SessionEvent, this.secretScrubber);
-            if (predicate(ev, eventIndex, ev.ts)) {
-              out.push({ event: ev, eventIndex, ts: ev.ts });
-            }
-          }
-        } catch {
-          /* partial trailing line — drop */
-        }
-      }
-      return out;
-    } finally {
-      if (fh) await fh.close().catch(() => undefined);
-    }
+    return searchSessionEvents({
+      file: this.sessionPath(id, '.jsonl'),
+      secretScrubber: this.secretScrubber,
+      predicate,
+      limit: opts?.limit,
+      signal: opts?.signal,
+    });
   }
 
   async list(limit = 20): Promise<SessionSummary[]> {
@@ -1103,39 +733,16 @@ export class DefaultSessionStore implements SessionStore {
     if (cached) return cached;
 
     const manifestPath = this.shardManifestPath(shardKey);
-    try {
-      const raw = await fsp.readFile(manifestPath, 'utf8');
-      const parsed = JSON.parse(raw) as ShardManifestEntry;
-      const entry: ShardManifestEntry = {
-        summaries: Array.isArray(parsed.summaries) ? parsed.summaries : [],
-        ids: Array.isArray(parsed.ids) ? parsed.ids : [],
-      };
-      this.shardManifestCache.set(shardKey, entry);
-      return entry;
-    } catch {
-      // build below
-    }
-
-    const refs = await this.collectSessionFilesInShard(shardKey);
-    const candidates = await mapWithConcurrency(
-      refs,
-      DefaultSessionStore.LIST_SCAN_CONCURRENCY,
-      async (ref): Promise<DirectorySummaryCandidate | null> => {
-        const manifest = await this.readSummaryManifest(ref.id);
-        if (manifest) return { summary: manifest, needsBackfill: false };
-        const summary = await this.summaryHeaderFor(ref);
-        if (!summary) return null;
-        const hydrated = await this.summaryFor(summary.id).catch(() => summary);
-        return { summary: hydrated, needsBackfill: false };
-      },
-    );
-    const summaries = candidates
-      .filter((candidate): candidate is DirectorySummaryCandidate => candidate !== null)
-      .map((candidate) => candidate.summary);
-    summaries.sort(compareSessionSummaries);
-    const entry: ShardManifestEntry = { summaries, ids: summaries.map((summary) => summary.id) };
+    const entry = await readOrBuildShardManifestEntry({
+      shardKey,
+      manifestPath,
+      concurrency: DefaultSessionStore.LIST_SCAN_CONCURRENCY,
+      collectSessionFilesInShard: (key) => this.collectSessionFilesInShard(key),
+      readSummaryManifest: (id) => this.readSummaryManifest(id),
+      summaryHeaderFor: (ref) => this.summaryHeaderFor(ref),
+      summaryFor: (id) => this.summaryFor(id),
+    });
     this.shardManifestCache.set(shardKey, entry);
-    await atomicWrite(manifestPath, JSON.stringify(entry), { mode: 0o600 }).catch(() => undefined);
     return entry;
   }
 
@@ -1225,55 +832,7 @@ export class DefaultSessionStore implements SessionStore {
   }
 
   private async summaryHeaderFor(ref: SessionFileRef): Promise<SessionSummary | null> {
-    let mtime = new Date(0).toISOString();
-    try {
-      const stat = await fsp.stat(ref.filePath);
-      if (!stat.isFile()) {
-        return {
-          id: ref.id,
-          title: '(damaged)',
-          startedAt: stat.mtime.toISOString(),
-          model: 'unknown',
-          provider: 'unknown',
-          tokenTotal: 0,
-        };
-      }
-      mtime = stat.mtime.toISOString();
-    } catch {
-      return null;
-    }
-
-    try {
-      for await (const event of iterateSessionEvents(ref.filePath, this.secretScrubber)) {
-        if (event.type === 'session_start') {
-          return {
-            id: ref.id,
-            title: '(empty session)',
-            startedAt: event.ts,
-            model: event.model ?? 'unknown',
-            provider: event.provider ?? 'unknown',
-            tokenTotal: 0,
-          };
-        }
-      }
-      return {
-        id: ref.id,
-        title: '(empty session)',
-        startedAt: new Date(0).toISOString(),
-        model: 'unknown',
-        provider: 'unknown',
-        tokenTotal: 0,
-      };
-    } catch {
-      return {
-        id: ref.id,
-        title: '(damaged)',
-        startedAt: mtime,
-        model: 'unknown',
-        provider: 'unknown',
-        tokenTotal: 0,
-      };
-    }
+    return readSessionSummaryHeader(ref, this.secretScrubber);
   }
 
   /**
@@ -1294,29 +853,7 @@ export class DefaultSessionStore implements SessionStore {
   }
 
   async delete(id: string): Promise<void> {
-    // Guard 1: never delete the session another process in this project is
-    // actively writing to. active.json is the per-project RecoveryLock; every
-    // CLI/TUI/WebUI writes it on session start. Without this check, deleting
-    // a session that a parallel surface holds open would silently drop every
-    // subsequent append (the JSONL is gone) while the writer keeps buffering —
-    // a data-loss + recovery-inconsistency bug.
-    const activeId = await readActiveSessionId(this.dir);
-    if (activeId && id === activeId) {
-      throw new Error(
-        `Session ${id} is currently active in this project and cannot be deleted. Resume or start another session first.`,
-      );
-    }
-    // Guard 2: cross-process live-session registry. active.json only tracks
-    // the *latest* active session per project; the registry lists every live
-    // process (multiple terminals/TUIs/WebUIs can each have their own active
-    // session). When wired, this catches a delete targeting a session that a
-    // *different* surface is using, even though it isn't in our active.json.
-    if (this.isSessionInUse) {
-      const reason = await this.isSessionInUse(id);
-      if (reason) {
-        throw new Error(`Session ${id} is in use (${reason}) and cannot be deleted.`);
-      }
-    }
+    await assertSessionCanBeDeleted(this.dir, id, this.isSessionInUse);
     await this.deleteSession(id);
   }
 
@@ -1381,68 +918,11 @@ export class DefaultSessionStore implements SessionStore {
   }
 
   async prune(maxAgeDays = 30): Promise<number> {
-    const cutoff = Date.now() - maxAgeDays * 86_400_000;
-    let deleted = 0;
-
-    // Read the active session lock to avoid pruning the current session.
-    const activeSessionId = await readActiveSessionId(this.dir);
-
-    const pruneFile = async (dir: string, name: string, prefix: string): Promise<void> => {
-      const jsonlPath = path.join(dir, name);
-      try {
-        const stat = await fsp.stat(jsonlPath);
-        if (stat.mtimeMs >= cutoff) return;
-        /* v8 ignore start -- defensive: file vanished between readdir and stat */
-      } catch {
-        return;
-      }
-      /* v8 ignore stop */
-      const base = name.replace(/\.jsonl$/, '');
-      const id = prefix ? `${prefix}/${base}` : base;
-      // Never prune the currently active session.
-      if (activeSessionId && id === activeSessionId) return;
-      await this.deleteSession(id);
-      deleted++;
-    };
-
-    /* v8 ignore next -- defensive: store dir is ensured before prune runs */
-    const entries = await fsp.readdir(this.dir, { withFileTypes: true }).catch(() => []);
-    for (const entry of entries) {
-      if (entry.isFile()) {
-        // Flat legacy sessions at the sessions root â€” pre-shard layout.
-        // A shard-only scan left these accumulating forever.
-        if (isPrunableSessionJsonl(entry.name)) await pruneFile(this.dir, entry.name, '');
-        continue;
-      }
-      /* v8 ignore next -- defensive: root entries are only files or directories */
-      if (!entry.isDirectory()) continue;
-      // entry.name is a date-shard like "2026-06-06"
-      const dateDir = path.join(this.dir, entry.name);
-      /* v8 ignore next -- defensive: dateDir came from readdir and is readable */
-      const files = await fsp.readdir(dateDir, { withFileTypes: true }).catch(() => []);
-      for (const file of files) {
-        if (!file.isFile() || !isPrunableSessionJsonl(file.name)) continue;
-        await pruneFile(dateDir, file.name, entry.name);
-      }
-    }
+    const deleted = await pruneSessionFiles(this.dir, maxAgeDays, (id) => this.deleteSession(id));
     if (deleted > 0) {
       // Compact the index to remove tombstones for deleted sessions.
       /* v8 ignore next -- best-effort: compactIndex swallows its own errors */
       await this.compactIndex().catch(() => undefined); /* best-effort */
-    }
-    // Clean up empty date-shard directories left behind after pruning.
-    for (const entry of entries) {
-      if (!entry.isDirectory()) continue;
-      const dateDir = path.join(this.dir, entry.name);
-      try {
-        const remaining = await fsp.readdir(dateDir);
-        if (remaining.length === 0) {
-          /* v8 ignore next -- best-effort: rmdir of a confirmed-empty dir does not reject */
-          await fsp.rmdir(dateDir).catch(() => undefined);
-        }
-      } catch {
-        // best-effort
-      }
     }
     return deleted;
   }

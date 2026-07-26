@@ -96,6 +96,7 @@ export function createSageToolCallMiddleware(
   opts: SageToolCallMiddlewareOptions,
 ): Middleware<ToolCallPipelinePayload> {
   const seen = new Map<string, number>();
+  const pruneState = { lastPruneAt: 0 };
   const injector = new MemoryInjectorAgent();
   return {
     name: 'sage.tool-result-injection',
@@ -244,7 +245,7 @@ export function createSageToolCallMiddleware(
         payload.result.content = content;
         const now = Date.now();
         for (const memoryId of rendered.memoryIds) seen.set(cooldownKey(memoryId, sessionId), now);
-        pruneCooldowns(seen, now, opts.repeatCooldownMs ?? DEFAULT_REPEAT_COOLDOWN_MS);
+        pruneCooldowns(seen, pruneState, now, opts.repeatCooldownMs ?? DEFAULT_REPEAT_COOLDOWN_MS);
         if (opts.tracker) {
           const injectedById = new Map(selected.map((memory) => [memory.id, memory]));
           for (const memoryId of rendered.memoryIds) {
@@ -577,8 +578,20 @@ function cooldownKey(memoryId: string, sessionId?: string): string {
   return `${sessionId ?? '<no-session>'}:${memoryId}`;
 }
 
-function pruneCooldowns(seen: Map<string, number>, now: number, cooldownMs: number): void {
-  if (seen.size <= 10_000) return;
+interface CooldownPruneState {
+  lastPruneAt: number;
+}
+
+const PRUNE_COOLDOWNS_INTERVAL_MS = 60_000;
+
+function pruneCooldowns(
+  seen: Map<string, number>,
+  state: CooldownPruneState,
+  now: number,
+  cooldownMs: number,
+): void {
+  if (now - state.lastPruneAt < PRUNE_COOLDOWNS_INTERVAL_MS) return;
+  state.lastPruneAt = now;
   const oldestUseful = now - Math.max(cooldownMs, 60 * 60_000);
   for (const [key, at] of seen) {
     if (at < oldestUseful) seen.delete(key);

@@ -4,11 +4,107 @@ import { describe, expect, it } from 'vitest';
 import { ToolCard } from '../src/components/history/tool-card.js';
 import {
   estimateRenderGroupRows,
+  groupEntries,
   ToolGroup,
   type ToolGroupData,
 } from '../src/components/history/tool-group.js';
 import { Text } from '../src/ink.js';
 import { displayWidth } from '../src/terminal-width.js';
+import { extractSageBlock } from '../src/components/history/utils.js';
+
+const injectedMemory = [
+  '--- SAGE: related project knowledge (Memory Injector) ---',
+  '- [fact] <memory id="mem-1">remembered fact</memory>',
+].join('\n');
+
+describe('SAGE output separation and grouping', () => {
+  it('leaves ordinary SAGE-like output untouched', () => {
+    const output = ['command output', '--- SAGE: example from a fixture', 'still ordinary output'].join('\n');
+    expect(extractSageBlock(output)).toEqual({ cleanOutput: output, sageLines: [] });
+  });
+
+  it('extracts a complete terminal injector suffix', () => {
+    expect(extractSageBlock(`command output\n\n${injectedMemory}`)).toEqual({
+      cleanOutput: 'command output',
+      sageLines: injectedMemory.split('\n'),
+    });
+  });
+
+  it('splits compact groups around an entry with injected memory', () => {
+    const groups = groupEntries([
+      { id: 1, kind: 'tool', name: 'read', durationMs: 1, ok: true, output: 'first' },
+      { id: 2, kind: 'tool', name: 'read', durationMs: 1, ok: true, output: 'second' },
+      { id: 3, kind: 'tool', name: 'read', durationMs: 1, ok: true, output: `third\n\n${injectedMemory}` },
+    ]);
+    expect(groups).toHaveLength(2);
+    expect(groups[0]).toMatchObject({ type: 'tool-group', data: { entries: [{ id: 1 }, { id: 2 }] } });
+    expect(groups[1]).toMatchObject({ type: 'single', entry: { id: 3 } });
+  });
+
+  it('includes the independent memory panel in virtual row estimates', () => {
+    const base = estimateRenderGroupRows(
+      {
+        type: 'single',
+        entry: { id: 1, kind: 'tool', name: 'write', durationMs: 1, ok: true, resultRenderMode: 'simple' },
+      },
+      80,
+    );
+    const injected = estimateRenderGroupRows(
+      {
+        type: 'single',
+        entry: {
+          id: 2,
+          kind: 'tool',
+          name: 'write',
+          durationMs: 1,
+          ok: true,
+          resultRenderMode: 'simple',
+          output: injectedMemory,
+        },
+      },
+      80,
+    );
+    expect(injected).toBeGreaterThan(base);
+  });
+
+  it('accounts for wrapped memory content at narrow terminal widths', () => {
+    const output = [
+      '--- SAGE: related project knowledge (Memory Injector) ---',
+      `- [fact] <memory id="mem-1">${'x'.repeat(160)}</memory>`,
+    ].join('\n');
+    const narrow = estimateRenderGroupRows(
+      {
+        type: 'single',
+        entry: {
+          id: 1,
+          kind: 'tool',
+          name: 'write',
+          durationMs: 1,
+          ok: true,
+          resultRenderMode: 'simple',
+          output,
+        },
+      },
+      32,
+    );
+    const wide = estimateRenderGroupRows(
+      {
+        type: 'single',
+        entry: {
+          id: 1,
+          kind: 'tool',
+          name: 'write',
+          durationMs: 1,
+          ok: true,
+          resultRenderMode: 'simple',
+          output,
+        },
+      },
+      120,
+    );
+    expect(narrow).toBeGreaterThan(wide);
+  });
+});
 
 describe('<ToolCard /> frame', () => {
   it('leaves the top row blank after a failed tool summary', () => {

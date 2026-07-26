@@ -413,16 +413,20 @@ export const TRUSTED_PROVIDER_PRESETS: Readonly<
       'happyhorse-1.1-i2v',
       'happyhorse-1.1-r2v',
     ],
-    // Per-model structured definitions with context sizes and capabilities.
-    // This is required — comma-separated model IDs alone are insufficient;
-    // downstream consumers need maxContext/maxOutput for routing decisions.
+    // Per-model capability FLAGS only. Numeric limits (maxContext/maxOutput)
+    // are deliberately absent: models.dev publishes a dedicated
+    // `alibaba-token-plan` provider whose per-model `limit` is the authority,
+    // and these entries land in `customModels.capabilities` — the
+    // highest-priority branch of `capabilitiesFor`. A hand-written number here
+    // OVERRIDES the catalog for every consumer, which is exactly how
+    // deepseek-v4-pro shipped capped at 65_536 against a real 384_000 ceiling.
+    // Add a number here only for a model models.dev does not carry.
     customModels: {
       'qwen3.8-max-preview': {
         capabilities: {
           tools: true, vision: true, reasoning: true,
           streaming: true, systemPrompt: true, jsonMode: true,
           promptCache: true, parallelTools: true,
-          maxContext: 1_000_000, maxOutput: 65_536,
           cacheControl: 'auto',
         },
       },
@@ -431,7 +435,6 @@ export const TRUSTED_PROVIDER_PRESETS: Readonly<
           tools: true, vision: false, reasoning: true,
           streaming: true, systemPrompt: true, jsonMode: true,
           promptCache: true, parallelTools: true,
-          maxContext: 1_000_000, maxOutput: 65_536,
           cacheControl: 'auto',
         },
       },
@@ -440,7 +443,6 @@ export const TRUSTED_PROVIDER_PRESETS: Readonly<
           tools: true, vision: true, reasoning: true,
           streaming: true, systemPrompt: true, jsonMode: true,
           promptCache: true, parallelTools: true,
-          maxContext: 1_000_000, maxOutput: 65_536,
           cacheControl: 'auto',
         },
       },
@@ -449,7 +451,6 @@ export const TRUSTED_PROVIDER_PRESETS: Readonly<
           tools: true, vision: true, reasoning: true,
           streaming: true, systemPrompt: true, jsonMode: true,
           promptCache: true, parallelTools: true,
-          maxContext: 1_000_000, maxOutput: 65_536,
           cacheControl: 'auto',
         },
       },
@@ -458,7 +459,6 @@ export const TRUSTED_PROVIDER_PRESETS: Readonly<
           tools: true, vision: false, reasoning: true,
           streaming: true, systemPrompt: true, jsonMode: true,
           promptCache: true, parallelTools: true,
-          maxContext: 198_000, maxOutput: 65_536,
           cacheControl: 'auto',
         },
       },
@@ -467,7 +467,6 @@ export const TRUSTED_PROVIDER_PRESETS: Readonly<
           tools: true, vision: false, reasoning: true,
           streaming: true, systemPrompt: true, jsonMode: false,
           promptCache: true, parallelTools: true,
-          maxContext: 1_000_000, maxOutput: 65_536,
           cacheControl: 'auto',
         },
       },
@@ -476,7 +475,7 @@ export const TRUSTED_PROVIDER_PRESETS: Readonly<
           tools: false, vision: true, reasoning: false,
           streaming: true, systemPrompt: false, jsonMode: false,
           promptCache: false, parallelTools: false,
-          maxContext: 0, cacheControl: 'none',
+          cacheControl: 'none',
         },
       },
       'wan2.7-image-pro': {
@@ -484,7 +483,7 @@ export const TRUSTED_PROVIDER_PRESETS: Readonly<
           tools: false, vision: true, reasoning: false,
           streaming: true, systemPrompt: false, jsonMode: false,
           promptCache: false, parallelTools: false,
-          maxContext: 0, cacheControl: 'none',
+          cacheControl: 'none',
         },
       },
       'happyhorse-1.1-t2v': {
@@ -492,7 +491,7 @@ export const TRUSTED_PROVIDER_PRESETS: Readonly<
           tools: false, vision: true, reasoning: false,
           streaming: true, systemPrompt: false, jsonMode: false,
           promptCache: false, parallelTools: false,
-          maxContext: 0, cacheControl: 'none',
+          cacheControl: 'none',
         },
       },
       'happyhorse-1.1-i2v': {
@@ -500,7 +499,7 @@ export const TRUSTED_PROVIDER_PRESETS: Readonly<
           tools: false, vision: true, reasoning: false,
           streaming: true, systemPrompt: false, jsonMode: false,
           promptCache: false, parallelTools: false,
-          maxContext: 0, cacheControl: 'none',
+          cacheControl: 'none',
         },
       },
       'happyhorse-1.1-r2v': {
@@ -508,7 +507,7 @@ export const TRUSTED_PROVIDER_PRESETS: Readonly<
           tools: false, vision: true, reasoning: false,
           streaming: true, systemPrompt: false, jsonMode: false,
           promptCache: false, parallelTools: false,
-          maxContext: 0, cacheControl: 'none',
+          cacheControl: 'none',
         },
       },
     },

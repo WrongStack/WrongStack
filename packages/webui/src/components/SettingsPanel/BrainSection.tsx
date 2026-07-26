@@ -14,172 +14,31 @@ import { Button } from '../ui/button';
 import { PreferenceSelect } from './PreferenceControls';
 import { PreferenceToggle } from './PreferenceToggle';
 
-const RISK_LEVELS = ['off', 'low', 'medium', 'high', 'all'] as const;
-type RiskLevel = (typeof RISK_LEVELS)[number];
-
-const RISK_COLORS: Record<RiskLevel, string> = {
-  off: 'bg-muted-foreground',
-  low: 'bg-success',
-  medium: 'bg-warning',
-  high: 'bg-warning ring-2 ring-warning/25',
-  all: 'bg-destructive',
-};
-
-const RISK_COPY: Record<RiskLevel, string> = {
-  off: 'Human decides everything',
-  low: 'Auto-decide low risk only',
-  medium: 'Auto-decide up to medium risk',
-  high: 'Auto-decide up to high risk',
-  all: 'Auto-decide everything',
-};
-
-const PERSONAS = ['executor', 'skeptic', 'auditor'] as const;
-
-const DECISION_TIMEOUTS: Array<{ value: string; label: string }> = [
-  { value: 'default', label: 'Default (15s)' },
-  { value: '5000', label: '5s' },
-  { value: '10000', label: '10s' },
-  { value: '20000', label: '20s' },
-  { value: '30000', label: '30s' },
-  { value: '60000', label: '60s' },
-];
-
-const HUMAN_TIMEOUTS: Array<{ value: string; label: string }> = [
-  { value: 'off', label: 'Wait forever' },
-  { value: '30000', label: '30s' },
-  { value: '60000', label: '1m' },
-  { value: '120000', label: '2m' },
-  { value: '300000', label: '5m' },
-];
-
-const FRACTIONS: Array<{ value: string; label: string }> = [
-  { value: 'default', label: 'Default (0.5)' },
-  { value: '0.34', label: '1/3' },
-  { value: '0.5', label: '1/2' },
-  { value: '0.67', label: '2/3' },
-  { value: '0.75', label: '3/4' },
-  { value: '1', label: 'All' },
-];
-
-/** Effective-valued numbers: the snapshot always carries a resolved number, so
- *  the default is a LABELLED concrete option rather than a `default` sentinel. */
-const LLM_MAX_TOKENS: Array<{ value: string; label: string }> = [
-  { value: '100', label: '100' },
-  { value: '200', label: '200 (default)' },
-  { value: '400', label: '400' },
-  { value: '800', label: '800' },
-  { value: '1600', label: '1600' },
-];
-
-const MIN_CONFIDENCE: Array<{ value: string; label: string }> = [
-  { value: '0', label: 'Off (default)' },
-  { value: '0.3', label: '0.3' },
-  { value: '0.5', label: '0.5' },
-  { value: '0.7', label: '0.7' },
-  { value: '0.9', label: '0.9' },
-];
-
-const DECISION_LOG_SIZES: Array<{ value: string; label: string }> = [
-  { value: '10', label: '10' },
-  { value: '20', label: '20 (default)' },
-  { value: '50', label: '50' },
-  { value: '100', label: '100' },
-];
-
-const CACHE_TTLS: Array<{ value: string; label: string }> = [
-  { value: '60000', label: '1m' },
-  { value: '300000', label: '5m (default)' },
-  { value: '900000', label: '15m' },
-  { value: '3600000', label: '1h' },
-];
-
-const CACHE_MAX_ENTRIES: Array<{ value: string; label: string }> = [
-  { value: '50', label: '50' },
-  { value: '200', label: '200 (default)' },
-  { value: '500', label: '500' },
-  { value: '1000', label: '1000' },
-];
-
-/** Optional-valued knobs: `default` clears the field back to core's default. */
-const COUNCIL_CALL_TIMEOUTS: Array<{ value: string; label: string }> = [
-  { value: 'default', label: 'Default' },
-  { value: '10000', label: '10s' },
-  { value: '20000', label: '20s' },
-  { value: '30000', label: '30s' },
-  { value: '60000', label: '60s' },
-];
-
-const COUNCIL_CONCURRENCY: Array<{ value: string; label: string }> = [
-  { value: 'default', label: 'Default' },
-  { value: '1', label: '1 (serial)' },
-  { value: '2', label: '2' },
-  { value: '3', label: '3' },
-  { value: '5', label: '5' },
-];
-
-const JUDGE_MAX_TOKENS: Array<{ value: string; label: string }> = [
-  { value: 'default', label: 'Default' },
-  { value: '200', label: '200' },
-  { value: '400', label: '400' },
-  { value: '800', label: '800' },
-  { value: '1600', label: '1600' },
-];
-
-const LEDGER_MEMORY_ENTRIES: Array<{ value: string; label: string }> = [
-  { value: 'default', label: 'Default (500)' },
-  { value: '100', label: '100' },
-  { value: '500', label: '500' },
-  { value: '1000', label: '1000' },
-  { value: '5000', label: '5000' },
-];
-
-const INTERVENTION_WINDOWS: Array<{ value: string; label: string }> = [
-  { value: 'default', label: 'Default (10m)' },
-  { value: '120000', label: '2m' },
-  { value: '600000', label: '10m' },
-  { value: '1800000', label: '30m' },
-  { value: '3600000', label: '1h' },
-];
-
-/**
- * Presets plus the live value when the config holds something off-menu — a
- * hand-edited config must not render as an empty select (which would then
- * write the first preset back on the next change).
- */
-function withCurrent(
-  options: Array<{ value: string; label: string }>,
-  current: string,
-): Array<{ value: string; label: string }> {
-  return options.some((o) => o.value === current)
-    ? options
-    : [...options, { value: current, label: current }];
-}
-
-/** `undefined` snapshot field → the `default` sentinel used by the selects. */
-function optionalValue(n: number | undefined): string {
-  return n !== undefined ? String(n) : 'default';
-}
-
-function RiskDot({ level }: { level: RiskLevel }) {
-  return <span className={cn('inline-block h-2.5 w-2.5 rounded-full', RISK_COLORS[level])} />;
-}
-
-function entryLabel(entry: { provider?: string | undefined; model: string }): string {
-  return entry.provider ? `${entry.provider}/${entry.model}` : entry.model;
-}
-
-/** What the shared ModelPickDialog is currently choosing a model FOR. */
-type PickTarget = 'pool' | 'voter' | 'judge' | null;
-
-const PICK_TITLES: Record<Exclude<PickTarget, null>, { title: string; hint: string }> = {
-  pool: { title: 'Add Brain pool model', hint: 'Ordered decision pool — first is primary.' },
-  voter: {
-    title: 'Add council voter',
-    hint: 'Dialog stays open — add ≥2 voters, then close.',
-  },
-  judge: { title: 'Pick council judge', hint: 'Tie-breaker that sees every vote.' },
-};
-
+import {
+  CACHE_MAX_ENTRIES,
+  CACHE_TTLS,
+  COUNCIL_CALL_TIMEOUTS,
+  COUNCIL_CONCURRENCY,
+  DECISION_LOG_SIZES,
+  DECISION_TIMEOUTS,
+  FRACTIONS,
+  HUMAN_TIMEOUTS,
+  INTERVENTION_WINDOWS,
+  JUDGE_MAX_TOKENS,
+  LEDGER_MEMORY_ENTRIES,
+  LLM_MAX_TOKENS,
+  MIN_CONFIDENCE,
+  PERSONAS,
+  PICK_TITLES,
+  RISK_COPY,
+  RISK_LEVELS,
+  RiskDot,
+  entryLabel,
+  optionalValue,
+  withCurrent,
+  type PickTarget,
+  type RiskLevel,
+} from './brain-section-options';
 export function BrainSection(): ReactElement {
   const { client } = useWebSocket();
   const [config, setConfig] = useState<BrainConfigWire | null>(null);

@@ -520,10 +520,9 @@ export async function handleApiSessionInterrupt(
     const paths = resolveWstackPaths({ projectRoot: entry.projectRoot, globalRoot });
     const mailbox = new GlobalMailbox(paths.projectDir);
     const to = `leader@${mailboxSessionTag(sessionId)}`;
-    const sent = await mailbox.send({
+    const sent = await mailbox.sendRuntimeControl({
       from,
       to,
-      type: 'control',
       subject: 'interrupt',
       body: reason,
       priority: 'high',

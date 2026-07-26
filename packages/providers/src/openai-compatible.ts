@@ -5,6 +5,7 @@ import { capabilitiesForFamily } from './family-capabilities.js';
 import { applyOpenAICompatiblePolicy } from './openai-compatible-policy.js';
 import { OpenAIProvider } from './openai.js';
 import type { WireAdapterStreamOptions } from './wire-adapter.js';
+import type { BuildBodyContext } from './model-output-limits.js';
 export type { CompatibilityQuirks } from './compatibility-quirks.js';
 
 const VALID_QUIRK_KEYS = new Set<keyof CompatibilityQuirks>([
@@ -92,10 +93,7 @@ export class OpenAICompatibleProvider extends OpenAIProvider {
     return 'max_tokens';
   }
 
-  protected override buildBody(
-    req: Request,
-    ctx: { capabilities: Capabilities },
-  ): Record<string, unknown> {
+  protected override buildBody(req: Request, ctx: BuildBodyContext): Record<string, unknown> {
     const body = super.buildBody(req, ctx);
     applyThinkingParams(body, req, this.opts.quirks?.thinkingParam);
     // #14: the base builder only emits `reasoning_effort` for the values real

@@ -1,7 +1,7 @@
 import type { DatabaseSync } from 'node:sqlite';
 import { SageCachePragmas } from '@wrongstack/core/utils';
 
-export const SQLITE_SCHEMA_VERSION = 3;
+export const SQLITE_SCHEMA_VERSION = 4;
 export const LEGACY_JSONL_MIGRATION_KEY = 'legacy_jsonl_migrated';
 // The audit log is a recent activity trail, not a compliance record.
 export const AUDIT_LOG_MAX_ROWS = 1000;
@@ -43,6 +43,7 @@ export function initSchema(db: DatabaseSync): void {
       status TEXT NOT NULL,
       kind TEXT NOT NULL,
       scope TEXT NOT NULL,
+      legacy_scope TEXT,
       importance REAL NOT NULL,
       confidence REAL NOT NULL,
       freshness REAL NOT NULL,
@@ -57,6 +58,9 @@ export function initSchema(db: DatabaseSync): void {
   db.exec('CREATE INDEX IF NOT EXISTS idx_status ON memories(status)');
   db.exec('CREATE INDEX IF NOT EXISTS idx_kind ON memories(kind)');
   db.exec('CREATE INDEX IF NOT EXISTS idx_scope ON memories(scope)');
+  // idx_scope_legacy is created by SqliteSageStore after migrations because
+  // existing v3 databases do not have the legacy_scope column yet when
+  // initSchema() runs.
   db.exec('CREATE INDEX IF NOT EXISTS idx_importance ON memories(importance DESC)');
   db.exec('CREATE INDEX IF NOT EXISTS idx_updated ON memories(updated_at DESC)');
   db.exec(

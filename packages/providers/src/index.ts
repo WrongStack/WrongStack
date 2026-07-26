@@ -50,6 +50,7 @@ export {
 } from './trusted-presets.js';
 export { GoogleProvider, type GoogleProviderOptions } from './google.js';
 export {
+  codexOutputCap,
   OpenAICodexProvider,
   type OpenAICodexProviderOptions,
   type CodexCredentials,
@@ -98,6 +99,18 @@ export { openaiWireFormat } from './presets/openai.js';
 export { googleWireFormat } from './presets/google.js';
 export { ollamaWireFormat, vllmWireFormat, lmstudioWireFormat } from './presets/local-llm.js';
 export { capabilitiesFor } from './capabilities.js';
+export {
+  type BuildBodyContext,
+  clearModelOutputLimitResolver,
+  installCatalogModelOutputLimits,
+  type InstallCatalogOutputLimitsOptions,
+  type ModelOutputLimitResolver,
+  REQUIRED_FIELD_LAST_RESORT_MAX_OUTPUT,
+  resolveCatalogMaxOutput,
+  resolveMaxOutputTokens,
+  resolveRequiredMaxOutputTokens,
+  setModelOutputLimitResolver,
+} from './model-output-limits.js';
 export { capabilitiesForFamily, CAPABILITIES_BY_FAMILY } from './family-capabilities.js';
 export {
   LOCAL_PROVIDER_DEFINITIONS,
@@ -206,9 +219,9 @@ export function setOAuthTokenPersister(
  * drives Chimera's `Request.maxTokens`.
  *
  * Failures inside the resolution step are swallowed: the family default
- * stands, and `agent-response.ts` keeps its 8192 safety net for the rare
- * cases where the catalog is unreachable. The diagnostic lives at DEBUG
- * so a healthy boot stays quiet.
+ * stands, and the per-request `resolveMaxOutputTokens` lookup still reaches
+ * the catalog for `req.model`. The diagnostic lives at DEBUG so a healthy
+ * boot stays quiet.
  */
 export async function withCatalogCapabilities(
   registry: ModelsRegistry,
@@ -222,8 +235,14 @@ export async function withCatalogCapabilities(
     // `Provider.capabilities` is `readonly`; the property descriptor was
     // set with `writable: false` at construction time. Redefine it so
     // the catalog overlay lands cleanly.
+    //
+    // Assign a COPY: `capabilitiesFor` memoises one object per
+    // (provider, model, customModels) key, and callers such as the fleet host
+    // provider refine fields in place (`capabilities.maxContext = …`). Handing
+    // out the cached instance would let one provider's refinement leak into
+    // every other provider resolved from the same key.
     Object.defineProperty(provider, 'capabilities', {
-      value: resolved,
+      value: { ...resolved },
       writable: true,
       configurable: true,
       enumerable: true,

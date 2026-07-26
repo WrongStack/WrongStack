@@ -1,13 +1,7 @@
-/**
- * Top-level CLI phase orchestrator.
- * Boot, command-host, runtime, surface, and shutdown behavior belongs in
- * focused modules; this file owns their ordering and data hand-off only.
- */
-import * as fs from 'node:fs/promises';
+/** Top-level CLI phase orchestrator. */
 import * as path from 'node:path';
-import { GlobalMailbox, mailboxSessionTag } from '@wrongstack/core/coordination';
-import type { Config, SystemPromptBuilder } from '@wrongstack/core/types';
-import { createFallbackManageTools, createPluginManagerTool } from '@wrongstack/core/tools';
+import { mailboxSessionTag } from '@wrongstack/core/coordination';
+import type { SystemPromptBuilder } from '@wrongstack/core/types';
 import { FLEET_ROSTER } from '@wrongstack/core/coordination';
 import { gatedEnhancerReasoning } from '@wrongstack/core/execution';
 import { TOKENS } from '@wrongstack/core/kernel';
@@ -21,12 +15,15 @@ import { bindSystemPromptBuilder } from './boot/system-prompt-builder.js';
 import { registerBuiltinTools } from './boot/tool-registry.js';
 import { initializeCli } from './cli-context.js';
 import { launchEternalFromFlag } from './cli-eternal-flag.js';
+import {
+  createPickableProvidersLoader,
+  createTeardownEventRegistrar,
+  getSddRuntimeStateForCli,
+  loadOnlineAgentsForPrompt,
+} from './cli-main-helpers.js';
 import { promptRecovery } from './cli-recovery-prompt.js';
-import { refreshRuntimeModelCatalog } from './context-limit.js';
 import { execute } from './execution.js';
-import { PLUGIN_AUDIT_ENTRIES, runPluginManagementCommand } from './plugin-management.js';
 import { activeProfileConfigPath } from './profile-config-path.js';
-import { buildPickableProviders } from './provider-helpers.js';
 import { wireSessionEvents } from './session-event-wiring.js';
 import { SessionStats } from './session-stats.js';
 import { buildCommandHostSlashCommands } from './wiring/slash-commands.js';
@@ -40,6 +37,7 @@ import { createEternalCommandHandlers } from './wiring/eternal-command-handlers.
 import { createFleetCommandHandlers } from './wiring/fleet-command-handlers.js';
 import { setupHqTelemetry } from './wiring/hq-telemetry.js';
 import { setupLifecycleAndPlugins } from './wiring/lifecycle-plugins.js';
+import { registerCliManagementTools } from './wiring/management-tools.js';
 import { setupMetrics } from './wiring/metrics.js';
 import { setupPipelines } from './wiring/pipeline.js';
 import { setupSessionRegistry } from './wiring/session-registry.js';
@@ -179,78 +177,12 @@ export async function main(argv: string[]): Promise<number> {
   // These tools read config from the in-memory store and persist changes
   // to the active profile config file, mirroring updates back to the store.
   const stdinInteractive = process.stdin.isTTY;
-  const fallbackManageTools = createFallbackManageTools({
-    getConfig: () => configStore.get(),
-    updateConfig: async (mutate: (cfg: Record<string, unknown>) => void) => {
-      const raw = await fs.readFile(profileConfigPath, 'utf8').catch(() => '{}');
-      const parsed = JSON.parse(raw) as Record<string, unknown>;
-      mutate(parsed);
-      await fs.writeFile(profileConfigPath, JSON.stringify(parsed, null, 2), { mode: 0o600 });
-      configStore.update(parsed as Parameters<typeof configStore.update>[0]);
-    },
-    // Interactive key entry for REPL mode — reads a line from stdin without echo.
-    // When the TUI owns the screen, standalone input is avoided (will be plumbed
-    // through the TUI's own prompt mechanism in a follow-up).
-    ...(stdinInteractive
-      ? {
-          requestInput: async (prompt: string): Promise<string> => {
-            const { createInterface } = await import('node:readline');
-            const rl = createInterface({ input: process.stdin, output: process.stdout });
-            return new Promise<string>((resolve) => {
-              rl.question(`\n${prompt}\n> `, (answer) => {
-                rl.close();
-                resolve(answer);
-              });
-            });
-          },
-        }
-      : {}),
+  registerCliManagementTools({
+    toolRegistry,
+    configStore,
+    profileConfigPath,
+    stdinInteractive,
   });
-  for (const tool of fallbackManageTools) toolRegistry.register(tool);
-
-  // Give the leader a single tool-calling surface for discovering and managing
-  // plugins. Config mutations reuse the same implementation as `/plugin`, while
-  // live tool discovery comes from the registry after plugin setup completes.
-  toolRegistry.register(
-    createPluginManagerTool({
-      getConfig: () => configStore.get(),
-      catalog: PLUGIN_AUDIT_ENTRIES.map((entry) => {
-        const aliases = [
-          ...(entry.name.startsWith('@wrongstack/') ? [] : [`@wrongstack/plugins/${entry.name}`]),
-          ...(entry.name === '@wrongstack/plug-lsp' ? ['lsp'] : []),
-          ...(entry.name === 'telegram' ? ['@wrongstack/telegram'] : []),
-        ];
-        return {
-          name: entry.name,
-          description: entry.summary,
-          risk: entry.risk,
-          defaultState: entry.defaultState,
-          canDisable: entry.canDisable,
-          ...(aliases.length > 0 ? { aliases } : {}),
-        };
-      }),
-      toolRegistry,
-      // Invariant: runPluginManagementCommand writes the mutated config to disk
-      // AND returns a `patch` for every enabling/disabling branch, so re-applying
-      // the patch here keeps configStore in sync with the persisted file. Unlike
-      // createFallbackManageTools.updateConfig above, no defensive re-read is
-      // needed as long as this contract holds for future mutation branches.
-      setEnabled: async (plugin, enabled) => {
-        const result = await runPluginManagementCommand([enabled ? 'enable' : 'disable', plugin], {
-          config: configStore.get(),
-          configPath: profileConfigPath,
-        });
-        if (result.patch) {
-          configStore.update(result.patch as never as Partial<Config>);
-        }
-        return {
-          ok: result.code === 0,
-          message: result.message,
-          restartRequired: result.restartRequired === true,
-        };
-      },
-    }),
-  );
 
   // Metrics wiring — extracted to wiring/metrics.ts
   const { metricsSink, healthRegistry, metricsStatus } = (() => {
@@ -275,23 +207,7 @@ export async function main(argv: string[]): Promise<number> {
   // REPL/TUI modes keep the EventBus alive across multiple runs — stale
   // handlers from a re-entrant main() would otherwise accumulate.
   const teardownHandlers: Array<() => void> = [];
-  // Variadic helper: EventBus is dynamically typed per-event, but evOn needs to
-  // register many events with different payload shapes. (...args: any) keeps the
-  // handler body type-safe while Biome only flags the parameter declaration line.
-  const evOn = (
-    event: string,
-    handler: (
-      // biome-ignore lint/suspicious/noExplicitAny: dynamic event dispatch — callers use typed payloads
-      ...args: any
-    ) => void,
-  ) => {
-    // biome-ignore lint/suspicious/noExplicitAny: dynamic event dispatcher signature
-    (events.on as (e: string, h: (...args: any) => void) => void)(event, handler);
-    teardownHandlers.push(() =>
-      // biome-ignore lint/suspicious/noExplicitAny: dynamic event dispatcher signature
-      (events.off as (e: string, h: (...args: any) => void) => void)(event, handler),
-    );
-  };
+  const evOn = createTeardownEventRegistrar(events, teardownHandlers);
 
   const eventWiring = wireEventWiring({
     evOn,
@@ -312,15 +228,7 @@ export async function main(argv: string[]): Promise<number> {
   // Fetch online agents from the shared mailbox to include in system prompt.
   // HQ telemetry is owned by setupHqTelemetry below; opening a publisher here
   // created a second client for the same process with no live session bridge.
-  let onlineAgents: Awaited<ReturnType<GlobalMailbox['getAgentStatuses']>> = [];
-  if (flags['simpleui'] !== true) {
-    try {
-      const systemMailbox = new GlobalMailbox(wpaths.projectDir);
-      onlineAgents = await systemMailbox.getAgentStatuses();
-    } catch {
-      // Non-fatal — mailbox errors should not block prompt building
-    }
-  }
+  const onlineAgents = await loadOnlineAgentsForPrompt(wpaths.projectDir, flags['simpleui'] === true);
 
   const systemPrompt = await promptBuilder.build({
     cwd,
@@ -518,6 +426,7 @@ export async function main(argv: string[]): Promise<number> {
     configStore,
     fallbackProfileManager,
     providerRegistry,
+    modelsRegistry,
     agent,
     memoryStore,
     refreshMaxContext,
@@ -854,14 +763,7 @@ export async function main(argv: string[]): Promise<number> {
       agent,
       logger,
       sddRunRegistry,
-      getSddRuntimeState: async () => {
-        const sdd = await import('./services/sdd-runtime.js');
-        return {
-          tracker: sdd.getTaskTracker(),
-          builder: sdd.getActiveBuilder(),
-          graphId: sdd.getTaskGraphId(),
-        };
-      },
+      getSddRuntimeState: getSddRuntimeStateForCli,
     }),
     onGoalStart: goalHost.onGoalStart,
     onGoalPause: goalHost.onGoalPause,
@@ -930,8 +832,6 @@ export async function main(argv: string[]): Promise<number> {
     onEvent: evOn,
   });
 
-  // Dispatch to execution phase — single-shot, TUI, REPL, or WebUI.
-
   const savedProviderCfg = config.providers?.[config.provider];
   return execute(
     toExecuteDeps({
@@ -975,14 +875,11 @@ export async function main(argv: string[]): Promise<number> {
         modelsRegistry,
         savedProviderCfg: savedProviderCfg as import('@wrongstack/core/types').ProviderConfig | undefined,
         resolvedProvider: resolvedProvider ?? undefined,
-        getPickableProviders: async () => {
-          await refreshRuntimeModelCatalog({
-            modelsRegistry,
-            logger,
-            reason: 'model-picker',
-          });
-          return buildPickableProviders(modelsRegistry, config);
-        },
+        getPickableProviders: createPickableProvidersLoader({
+          modelsRegistry,
+          logger,
+          getConfig: () => config,
+        }),
         switchProviderAndModel,
         onModelContextResolved: (providerId, modelId, maxContext) => {
           applyMaxContext(providerId, modelId, maxContext);

@@ -67,10 +67,21 @@
  */
 import { createServer } from 'node:http';
 import * as path from 'node:path';
-import { authorizeMailboxBearerToken, GlobalMailbox, MailboxEventEmitter, MailboxHttpRateLimiter, resolveProjectDir } from '@wrongstack/core/coordination';
-import { createMailboxHttpRouter, MAILBOX_HTTP_DEFAULT_MAX_AGE_MS } from '@wrongstack/core/coordination';
+import {
+  acquireOrJoin,
+  authorizeMailboxBearerToken,
+  authorizeMailboxCredential,
+  createMailboxHttpRouter,
+  finalize,
+  GlobalMailbox,
+  JsonlCredentialStore,
+  MAILBOX_HTTP_DEFAULT_MAX_AGE_MS,
+  MailboxEventEmitter,
+  MailboxHttpRateLimiter,
+  release,
+  resolveProjectDir,
+} from '@wrongstack/core/coordination';
 import { wstackGlobalRoot } from '@wrongstack/core/utils';
-import { acquireOrJoin, finalize, release } from '@wrongstack/core/coordination';
 import { startCliHqConnection, type CliHqConnection } from '../../hq-publisher.js';
 import type { SubcommandDeps, SubcommandHandler } from '../index.js';
 
@@ -179,11 +190,35 @@ async function startServer(deps: SubcommandDeps): Promise<number> {
   const rateLimiter = new MailboxHttpRateLimiter();
   const rateLimitCleanup = setInterval(() => rateLimiter.cleanup(), 120_000);
   rateLimitCleanup.unref?.();
+  const projectId = path.basename(projectDir);
+  const credentialStore = new JsonlCredentialStore(projectDir);
+  // Identity credentials must be ready before the socket starts accepting
+  // requests. `verify()` intentionally fails closed while the store is
+  // unloaded, so a fire-and-forget load creates a startup race for every
+  // external agent reconnecting as the bridge comes online.
+  try {
+    await credentialStore.load();
+  } catch (error) {
+    clearInterval(rateLimitCleanup);
+    await mailbox.close().catch(() => undefined);
+    await release(projectDir, tentative.generation);
+    deps.renderer.writeError(
+      `Failed to load mailbox credentials: ${error instanceof Error ? error.message : String(error)}\n`,
+    );
+    return 1;
+  }
   const router = createMailboxHttpRouter({
     mailbox,
     eventEmitter,
     rateLimiter,
-    authorize: (request) => authorizeMailboxBearerToken(request, tentative.token),
+    credentialStore,
+    projectId,
+    authorize: (request) => {
+      const credentialDecision = authorizeMailboxCredential(request, credentialStore);
+      return credentialDecision.allowed
+        ? credentialDecision
+        : authorizeMailboxBearerToken(request, tentative.token);
+    },
     // Wire the 1h look-back that the router's docs promise at
     // mailbox-http-router.ts:25-32 / :47-62. The router itself is
     // opt-in (L146-152): without this option, every retained

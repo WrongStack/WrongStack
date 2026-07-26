@@ -4,15 +4,10 @@
 import { deserializeTaskGraph, serializeTaskGraph } from '@wrongstack/core/tasking';
 import type { SerializableTaskGraph, Tool } from '@wrongstack/core/types';
 import { loadTasks } from '@wrongstack/core/storage';
-import type { KanbanBoard, KanbanTask } from '@wrongstack/kanban';
 import {
-  addCheckToTask,
   addColumn,
-  addDependency,
-  addGoalMetricToTask,
-  addLinkToTask,
-  addNoteToTask,
   addTask,
+  adoptManagedLifecycle,
   assignTask,
   claimReadyTask,
   copyTaskToBoard,
@@ -35,29 +30,31 @@ import {
   moveTask,
   parseLinesIntoTasks,
   recoverStaleTaskAssignments,
+  repairManagedTaskProjection,
   releaseTaskClaim,
   removeBoard,
   removeColumn,
   removeTask,
   searchKanban,
   setTaskChain,
-  splitTask,
   syncBoardFromTaskGraph,
   transitionTask,
   transferTaskToBoard,
-  touchKanbanPresence,
   updateBoard,
-  updateCheckOnTask,
   updateColumn,
-  updateGoalMetricOnTask,
   updateTask,
   updateTaskAssignment,
   verifyTaskCompletion,
   finalizeTaskCompletion,
-  assessTaskAtomicity,
-  proposeTaskDecomposition,
 } from '@wrongstack/kanban';
 import { recordKanbanVerificationEvidence } from './kanban-evidence-bridge.js';
+import { handleKanbanDecompositionAction } from './kanban-decomposition-actions.js';
+import { handleKanbanDetailAction } from './kanban-detail-actions.js';
+import {
+  boardCreateInput,
+  boardUpdatePatch,
+  duplicateBoardOptions,
+} from './kanban-board-inputs.js';
 import {
   atomicityNudge,
   fail,
@@ -72,6 +69,8 @@ import {
   KANBAN_TOOL_USAGE_HINT,
 } from './kanban-tool-schema.js';
 import type { KanbanToolInput, KanbanToolOutput } from './kanban-tool-types.js';
+import { handleSplitTask, requireBoard } from './kanban-split-task-handler.js';
+import { createKanbanPresenceWrapper } from './kanban-presence.js';
 import { taskFileToSerializedGraph } from './session-kanban.js';
 
 export const kanbanTool: Tool<KanbanToolInput, KanbanToolOutput> = {
@@ -89,27 +88,12 @@ export const kanbanTool: Tool<KanbanToolInput, KanbanToolOutput> = {
     const projectRoot = ctx.projectRoot;
     if (!projectRoot) return fail('No project root is available.');
 
-    const withPresence = async (result: KanbanToolOutput): Promise<KanbanToolOutput> => {
-      const boardId = result.board?.id ?? input.boardId;
-      if (!result.ok || !boardId || !ctx.session?.id || !ctx.agentId) return result;
-      try {
-        const board = await touchKanbanPresence(projectRoot, boardId, {
-          sessionId: ctx.session.id,
-          agentId: ctx.agentId,
-          agentName: ctx.agentName,
-          taskId: input.taskId ?? result.task?.id,
-          runTaskId: input.runTaskId,
-        });
-        return board ? { ...result, board } : result;
-      } catch {
-        // Presence is observational. A failed heartbeat must not turn a
-        // successful board mutation into an apparent task failure.
-        return result;
-      }
-    };
+    const withPresence = createKanbanPresenceWrapper(projectRoot, input, ctx);
 
     try {
       const result = await (async (): Promise<KanbanToolOutput> => {
+        const decompositionResult = await handleKanbanDecompositionAction(projectRoot, input, ctx);
+        if (decompositionResult !== undefined) return decompositionResult;
         switch (input.action) {
         case 'list_boards': {
           const boards = await listBoards(projectRoot);
@@ -121,58 +105,41 @@ export const kanbanTool: Tool<KanbanToolInput, KanbanToolOutput> = {
         }
         case 'create_board': {
           if (!input.title) return fail('create_board requires title.');
-          const board = await createBoard(projectRoot, {
-            title: input.title,
-            ...(input.description !== undefined ? { description: input.description } : {}),
-            ...(input.tags !== undefined ? { tags: input.tags } : {}),
-            ...(input.generatedBy !== undefined ? { generatedBy: input.generatedBy } : {}),
-            ...(input.atomicityMode !== undefined
-              ? {
-                  atomicity: {
-                    mode: input.atomicityMode,
-                    decomposition: input.atomicityDecomposition ?? 'propose',
-                  },
-                }
-              : {}),
-            ...(input.gateEnforcement !== undefined
-              ? { completionGate: { enforcement: input.gateEnforcement } }
-              : {}),
-          });
+          const board = await createBoard(projectRoot, boardCreateInput(input, input.title));
           return { ok: true, message: `Board created: ${board.title}`, board };
         }
         case 'update_board': {
           if (!input.boardId) return fail('update_board requires boardId.');
-          const board = await updateBoard(projectRoot, input.boardId, {
-            ...(input.title !== undefined ? { title: input.title } : {}),
-            ...(input.description !== undefined ? { description: input.description } : {}),
-            ...(input.tags !== undefined ? { tags: input.tags } : {}),
-            ...(input.atomicityMode !== undefined
-              ? {
-                  atomicity: {
-                    mode: input.atomicityMode,
-                    decomposition: input.atomicityDecomposition ?? 'propose',
-                  },
-                }
-              : {}),
-            ...(input.gateEnforcement !== undefined
-              ? { completionGate: { enforcement: input.gateEnforcement } }
-              : {}),
-          });
+          const board = await updateBoard(projectRoot, input.boardId, boardUpdatePatch(input));
           return board ? okBoard(board, 'Board updated.') : fail('Board not found.');
+        }
+        case 'adopt_managed_lifecycle': {
+          if (!input.boardId || !input.author || !input.transitionComment) {
+            return fail(
+              'adopt_managed_lifecycle requires boardId, author, transitionComment, and five ordered columns.',
+            );
+          }
+          if (input.columns?.length !== 5) {
+            return fail(
+              'adopt_managed_lifecycle columns must be ordered as backlog, todo, running, review, done.',
+            );
+          }
+          const [backlog, todo, running, review, done] = input.columns;
+          if (!backlog || !todo || !running || !review || !done) {
+            return fail('adopt_managed_lifecycle columns must contain five nonblank ids.');
+          }
+          const board = await adoptManagedLifecycle(projectRoot, input.boardId, {
+            columns: { backlog, todo, running, review, done },
+            actor: input.author,
+            comment: input.transitionComment,
+          });
+          return board
+            ? okBoard(board, 'Managed lifecycle adopted without moving existing cards.')
+            : fail('Board not found.');
         }
         case 'duplicate_board': {
           if (!input.boardId) return fail('duplicate_board requires boardId.');
-          const board = await duplicateBoard(projectRoot, input.boardId, {
-            ...(input.title !== undefined ? { title: input.title } : {}),
-            ...(input.generatedBy !== undefined ? { generatedBy: input.generatedBy } : {}),
-            ...(input.includeTasks !== undefined ? { includeTasks: input.includeTasks } : {}),
-            ...(input.includeCompletedTasks !== undefined
-              ? { includeCompletedTasks: input.includeCompletedTasks }
-              : {}),
-            ...(input.preserveAssignment !== undefined
-              ? { preserveAssignment: input.preserveAssignment }
-              : {}),
-          });
+          const board = await duplicateBoard(projectRoot, input.boardId, duplicateBoardOptions(input));
           return board ? okBoard(board, 'Board duplicated.') : fail('Board not found.');
         }
         case 'delete_board': {
@@ -554,6 +521,20 @@ export const kanbanTool: Tool<KanbanToolInput, KanbanToolOutput> = {
             ? okTask(result.board, result.task, `Task advanced to ${result.transition.to}.`)
             : fail('Board or task not found.');
         }
+        case 'repair_managed_projection': {
+          if (!input.boardId || !input.taskId || !input.author || !input.transitionComment) {
+            return fail(
+              'repair_managed_projection requires boardId, taskId, author, and transitionComment.',
+            );
+          }
+          const result = await repairManagedTaskProjection(projectRoot, input.boardId, input.taskId, {
+            actor: input.author,
+            comment: input.transitionComment,
+          });
+          return result
+            ? okTask(result.board, result.task, 'Managed card projection repaired from lifecycle history.')
+            : fail('Board or task not found.');
+        }
         case 'move_task': {
           if (!input.boardId || !input.taskId || !input.targetColumnId) {
             return fail('move_task requires boardId, taskId, and targetColumnId.');
@@ -683,7 +664,7 @@ export const kanbanTool: Tool<KanbanToolInput, KanbanToolOutput> = {
           // applies the final status (async — cannot happen inside the board
           // mutation). Env fallback applies only when the board carries no
           // explicit completionGate policy; the kanban package never reads env.
-          if (assignmentStatus === 'completed') {
+          if (assignmentStatus === 'completed' && board.lifecycle?.mode !== 'managed') {
             const envGate = readEnvGateEnforcement();
             const finalized = await finalizeTaskCompletion(projectRoot, board.id, input.taskId, {
               ...(board.completionGate === undefined && envGate !== undefined
@@ -711,6 +692,152 @@ export const kanbanTool: Tool<KanbanToolInput, KanbanToolOutput> = {
                 gate: gateSummary,
               };
             }
+          } else if (board.lifecycle?.mode === 'managed') {
+            // ── Managed lifecycle auto-transition ──────────────────────
+            // The worker's assignment status changes represent lifecycle
+            // events. transitionTask atomically persists audit history,
+            // evidence, and the correct column/status projection.  The
+            // assignment telemetry was already persisted by
+            // updateTaskAssignment above; this separate domain call
+            // advances the card without violating the invariant that
+            // assignment writes never fabricate lifecycle stages.
+            //
+            // When completed transitions to Review, verification runs
+            // automatically and — if the verdict is passed/skipped — the
+            // card auto-advances to Done without human intervention.
+            // ------------------------------------------------------------
+            const managedTask = board.tasks.find(
+              (candidate) => candidate.id === input.taskId,
+            );
+            const stage = managedTask?.lifecycle?.currentStage;
+            const actor = ctx.agentId ?? 'kanban-agent';
+            let transitionResult: Awaited<ReturnType<typeof transitionTask>> = null;
+            const lifecycleWarnings: string[] = [];
+
+            if (assignmentStatus === 'running' && stage === 'todo') {
+              try {
+                transitionResult = await transitionTask(
+                  projectRoot,
+                  board.id,
+                  input.taskId,
+                  { to: 'running', actor, comment: 'Work started.' },
+                );
+              } catch (err: unknown) {
+                lifecycleWarnings.push(
+                  `Lifecycle transition to Running deferred: ${err instanceof Error ? err.message : String(err)}`,
+                );
+              }
+            }
+            if (assignmentStatus === 'completed' && stage === 'running') {
+              // ── Running → Review ─────────────────────────────────────
+              const comment =
+                typeof input.lastResult === 'string' &&
+                input.lastResult.trim().length > 0
+                  ? input.lastResult.trim().slice(0, 1000)
+                  : 'Work completed.';
+              try {
+                transitionResult = await transitionTask(
+                  projectRoot,
+                  board.id,
+                  input.taskId,
+                  {
+                    to: 'review',
+                    actor,
+                    comment,
+                    attachment: {
+                      url: `kanban://task/${input.taskId}/result`,
+                      title: 'Worker completion result',
+                      type: 'file',
+                    },
+                    patch: {
+                      // Only patch non-description fields so the
+                      // original card description is preserved.
+                      ...(input.agentId !== undefined
+                        ? { assignedAgent: input.agentId }
+                        : {}),
+                    },
+                  },
+                );
+              } catch (err: unknown) {
+                lifecycleWarnings.push(
+                  `Lifecycle transition to Review failed: ${err instanceof Error ? err.message : String(err)}`,
+                );
+              }
+
+              // ── Autonomous verify + accept ──────────────────────────
+              // Card is now in Review.  When it has verifiable criteria
+              // or is atomic, the system runs the verifier automatically
+              // and — if the verdict allows — advances to Done.
+              if (transitionResult) {
+                const hasCriteria =
+                  (transitionResult.task.successCriteria?.length ?? 0) > 0 ||
+                  transitionResult.task.atomic === true;
+
+                if (hasCriteria) {
+                  try {
+                    const verResult = await verifyTaskCompletion(
+                      projectRoot,
+                      board.id,
+                      input.taskId,
+                    );
+                    if (verResult.report) {
+                      recordKanbanVerificationEvidence(ctx, verResult.report);
+                    }
+
+                    const verdict = verResult.report.verdict;
+                    if (verdict === 'passed') {
+                      try {
+                        const doneResult = await transitionTask(
+                          projectRoot,
+                          board.id,
+                          input.taskId,
+                          {
+                            to: 'done',
+                            actor,
+                            comment: 'Auto-accepted: verification passed.',
+                            attachment: {
+                              url: `kanban://task/${input.taskId}/verification`,
+                              title: 'Auto-verification result',
+                              type: 'file',
+                            },
+                          },
+                        );
+                        transitionResult = doneResult;
+                      } catch (acceptErr: unknown) {
+                        lifecycleWarnings.push(
+                          `Auto-accept to Done deferred: ${acceptErr instanceof Error ? acceptErr.message : String(acceptErr)}`,
+                        );
+                      }
+                    } else {
+                      lifecycleWarnings.push(
+                        `Verification verdict: ${verdict} — card left in Review for manual acceptance.`,
+                      );
+                    }
+                  } catch (verifyErr: unknown) {
+                    lifecycleWarnings.push(
+                      `Auto-verification error: ${verifyErr instanceof Error ? verifyErr.message : String(verifyErr)}`,
+                    );
+                  }
+                } else {
+                  lifecycleWarnings.push(
+                    'No automatic success criteria — card left in Review for manual verification.',
+                  );
+                }
+              }
+            }
+
+            // ── Build the freshest possible response ──────────────
+            // transitionResult carries the post-transition board; use
+            // it instead of the stale snapshot from updateTaskAssignment.
+            const responseBoard = transitionResult?.board ?? board;
+            const responseTask =
+              transitionResult?.task ?? managedTask!;
+            const msgParts = ['Assignment updated.'];
+            if (transitionResult) {
+              msgParts.push(`Card advanced to ${transitionResult.transition.to}.`);
+            }
+            for (const w of lifecycleWarnings) msgParts.push(`Warning: ${w}`);
+            return okTask(responseBoard, responseTask, msgParts.join(' '));
           }
           return okBoard(board, 'Assignment updated.');
         }
@@ -800,202 +927,11 @@ export const kanbanTool: Tool<KanbanToolInput, KanbanToolOutput> = {
             queueHealth: health,
           };
         }
-        case 'add_dependency': {
-          if (!input.boardId || !input.taskId || !input.dependencyTaskId) {
-            return fail('add_dependency requires boardId, taskId, and dependencyTaskId.');
-          }
-          const board = await addDependency(
-            projectRoot,
-            input.boardId,
-            input.taskId,
-            input.dependencyTaskId,
-          );
-          return board ? okBoard(board, 'Dependency added.') : fail('Task not found.');
-        }
-        case 'add_goal_metric': {
-          if (!input.boardId || !input.taskId || !input.metricName) {
-            return fail('add_goal_metric requires boardId, taskId, and metricName.');
-          }
-          const board = await addGoalMetricToTask(projectRoot, input.boardId, input.taskId, {
-            name: input.metricName,
-            ...(input.metricStatus !== undefined ? { status: input.metricStatus } : {}),
-            ...(input.metricTarget !== undefined ? { target: input.metricTarget } : {}),
-            ...(input.metricCurrent !== undefined ? { current: input.metricCurrent } : {}),
-            ...(input.metricUnit !== undefined ? { unit: input.metricUnit } : {}),
-            ...(input.metricNotes !== undefined ? { notes: input.metricNotes } : {}),
-          });
-          return board ? okBoard(board, 'Goal metric added.') : fail('Task not found.');
-        }
-        case 'update_goal_metric': {
-          if (!input.boardId || !input.taskId || !input.metricId) {
-            return fail('update_goal_metric requires boardId, taskId, and metricId.');
-          }
-          const board = await updateGoalMetricOnTask(
-            projectRoot,
-            input.boardId,
-            input.taskId,
-            input.metricId,
-            {
-              ...(input.metricName !== undefined ? { name: input.metricName } : {}),
-              ...(input.metricStatus !== undefined ? { status: input.metricStatus } : {}),
-              ...(input.metricTarget !== undefined ? { target: input.metricTarget } : {}),
-              ...(input.metricCurrent !== undefined ? { current: input.metricCurrent } : {}),
-              ...(input.metricUnit !== undefined ? { unit: input.metricUnit } : {}),
-              ...(input.metricNotes !== undefined ? { notes: input.metricNotes } : {}),
-            },
-          );
-          return board ? okBoard(board, 'Goal metric updated.') : fail('Metric not found.');
-        }
-        case 'add_check': {
-          if (!input.boardId || !input.taskId || !input.checkDescription) {
-            return fail('add_check requires boardId, taskId, and checkDescription.');
-          }
-          const board = await addCheckToTask(projectRoot, input.boardId, input.taskId, {
-            description: input.checkDescription,
-            type: 'manual',
-            status: input.checkStatus,
-          });
-          return board ? okBoard(board, 'Check added.') : fail('Task not found.');
-        }
-        case 'update_check': {
-          if (!input.boardId || !input.taskId || !input.checkId) {
-            return fail('update_check requires boardId, taskId, and checkId.');
-          }
-          const board = await updateCheckOnTask(
-            projectRoot,
-            input.boardId,
-            input.taskId,
-            input.checkId,
-            {
-              ...(input.checkDescription !== undefined
-                ? { description: input.checkDescription }
-                : {}),
-              ...(input.checkStatus !== undefined ? { status: input.checkStatus } : {}),
-            },
-          );
-          return board ? okBoard(board, 'Check updated.') : fail('Check not found.');
-        }
-        case 'add_note': {
-          if (!input.boardId || !input.taskId || !input.note)
-            return fail('add_note requires boardId, taskId, and note.');
-          const board = await addNoteToTask(projectRoot, input.boardId, input.taskId, {
-            author: input.author ?? 'agent',
-            content: input.note,
-          });
-          return board ? okBoard(board, 'Note added.') : fail('Task not found.');
-        }
-        case 'add_link': {
-          if (!input.boardId || !input.taskId || !input.url)
-            return fail('add_link requires boardId, taskId, and url.');
-          const board = await addLinkToTask(projectRoot, input.boardId, input.taskId, {
-            url: input.url,
-            type: input.linkType ?? 'url',
-            ...(input.linkTitle !== undefined ? { title: input.linkTitle } : {}),
-          });
-          return board ? okBoard(board, 'Link added.') : fail('Task not found.');
-        }
-        case 'assess_atomicity': {
-          if (!input.boardId || !input.taskId) {
-            return fail('assess_atomicity requires boardId and taskId.');
-          }
-          const result = await assessTaskAtomicity(projectRoot, input.boardId, input.taskId, {
-            assessedBy: 'agent',
-            ...(ctx.agentId !== undefined ? { eventContext: { actor: ctx.agentId } } : {}),
-          });
-          if (!result) return fail('Task not found.');
-          const failing = result.assessment.criteria
-            .filter((entry) => entry.score < 1)
-            .map((entry) => entry.reason);
-          const guidance =
-            result.assessment.verdict === 'needs_decomposition'
-              ? ` This task should be split before dispatch — call propose_decomposition with 2+ subtasks (each with one verifiable success criterion). Reasons: ${failing.join(' | ')}`
-              : result.assessment.verdict === 'composite'
-                ? ' Container task: work happens in its children; it is verified via subtask aggregation.'
-                : '';
-          return okTask(
-            result.board,
-            result.task,
-            `Atomicity verdict: ${result.assessment.verdict} (score ${result.assessment.score}).${guidance}`,
-          );
-        }
-        case 'propose_decomposition': {
-          if (!input.boardId || !input.taskId || !input.subtasks?.length) {
-            return fail('propose_decomposition requires boardId, taskId, and subtasks (2+).');
-          }
-          if (input.subtasks.length < 2) {
-            return fail('propose_decomposition requires at least two subtasks.');
-          }
-          const invalid = input.subtasks.find(
-            (subtask) => typeof subtask?.title !== 'string' || !subtask.title.trim(),
-          );
-          if (invalid) return fail('Every proposed subtask needs a non-blank title.');
-          const result = await proposeTaskDecomposition(
-            projectRoot,
-            input.boardId,
-            input.taskId,
-            {
-              subtasks: input.subtasks,
-              ...(input.note !== undefined ? { rationale: input.note } : {}),
-              ...(ctx.agentId !== undefined ? { proposedBy: ctx.agentId } : {}),
-            },
-            ctx.agentId !== undefined ? { actor: ctx.agentId } : {},
-          );
-          if (!result) return fail('Task not found.');
-          const message =
-            result.proposal.status === 'applied'
-              ? `Decomposition applied: ${result.proposal.appliedChildTaskIds?.length ?? 0} child tasks created (parent marked atomic).`
-              : 'Decomposition proposal recorded — awaiting approval (board policy is "propose"). It can be approved from the WebUI or via update_task.';
-          return okTask(result.board, result.task, message);
-        }
-        case 'verify_completion': {
-          if (!input.boardId || !input.taskId) {
-            return fail('verify_completion requires boardId and taskId.');
-          }
-          const verResult = await verifyTaskCompletion(projectRoot, input.boardId, input.taskId);
-          // Persist verificationReport AND updated successCriteria atomically
-          // in a single board mutation so there is no window where the report
-          // exists but criteria are stale. Always persist both — the verifier
-          // may have updated individual criterion status/checkedBy/checkedAt
-          // on the in-memory task, and the comparison would always be false
-          // because both references point to the same updated object.
-          const persistedBoard = await updateTask(projectRoot, input.boardId, input.taskId, {
-            verificationReport: verResult.report,
-            successCriteria: verResult.task.successCriteria,
-          });
-          if (!persistedBoard) {
-            // Return structured failure so callers can inspect the
-            // verification verdict and report without re-running.
-            return {
-              ok: false,
-              verdict: verResult.report.verdict,
-              message:
-                `Verification succeeded but persist failed: ${verResult.report.markdownSummary}. ` +
-                `Board may be stale — re-run verify_completion.`,
-              board: verResult.board,
-            };
-          }
-          recordKanbanVerificationEvidence(ctx, verResult.report);
-          const freshTask = persistedBoard.tasks?.find((t: KanbanTask) => t.id === input.taskId);
-          // ok is true whenever the verifier produced a deterministic verdict
-          // (passed/failed/needs_human/incomplete). Callers should inspect the
-          // `verdict` field to distinguish success from human-review-needed;
-          // ok: false is reserved for thrown errors that never produced a report.
-          const deterministicVerdicts = ['passed', 'failed', 'needs_human', 'incomplete'] as const;
-          return {
-            ok: deterministicVerdicts.includes(verResult.report.verdict as typeof deterministicVerdicts[number]),
-            verdict: verResult.report.verdict,
-            message: verResult.report.markdownSummary,
-            board: persistedBoard,
-            task: freshTask ?? verResult.task,
-          };
-        }
-        case 'split_atomic': {
-          if (!input.boardId || !input.taskId || !input.childTitles?.length) {
-            return fail('split_atomic requires boardId, taskId, and childTitles (at least one).');
-          }
-          return handleSplitTask(projectRoot, input, { atomic: true });
-        }
         default:
+          {
+            const detailResult = await handleKanbanDetailAction(projectRoot, input);
+            if (detailResult !== undefined) return detailResult;
+          }
           return fail(`Unknown kanban action: ${(input as { action: string }).action}`);
         }
       })();
@@ -1005,63 +941,3 @@ export const kanbanTool: Tool<KanbanToolInput, KanbanToolOutput> = {
     }
   },
 };
-
-/** Shared split handler used by both split_task and split_atomic. */
-async function handleSplitTask(
-  projectRoot: string,
-  input: KanbanToolInput,
-  extraSplitOptions: Record<string, unknown>,
-): Promise<KanbanToolOutput> {
-  const boardId = input.boardId;
-  const taskId = input.taskId;
-  const childTitles = input.childTitles;
-  if (!boardId || !taskId || !childTitles?.length) {
-    return fail('split requires boardId, taskId, and at least one childTitles.');
-  }
-  // Destructure the optional SplitKanbanTaskInput fields from the tool input.
-  // childTitles→titles and targetColumnId→columnId are the only renames.
-  const {
-    targetColumnId,
-    inheritAssignment,
-    inheritLabels,
-    inheritSuccessCriteria,
-    inheritGoalMetrics,
-    inheritDependencies,
-    chainChildren,
-    rewireDependents,
-  } = input;
-  const result = await splitTask(projectRoot, boardId, taskId, {
-    titles: childTitles,
-    ...extraSplitOptions,
-    ...(targetColumnId !== undefined ? { columnId: targetColumnId } : {}),
-    ...(inheritAssignment !== undefined ? { inheritAssignment } : {}),
-    ...(inheritLabels !== undefined ? { inheritLabels } : {}),
-    ...(inheritSuccessCriteria !== undefined ? { inheritSuccessCriteria } : {}),
-    ...(inheritGoalMetrics !== undefined ? { inheritGoalMetrics } : {}),
-    ...(inheritDependencies !== undefined ? { inheritDependencies } : {}),
-    ...(chainChildren !== undefined ? { chainChildren } : {}),
-    ...(rewireDependents !== undefined ? { rewireDependents } : {}),
-  });
-  if (!result) return fail('Task not found.');
-  const freshParent = result.board.tasks?.find((t: KanbanTask) => t.id === taskId);
-  if (!freshParent) {
-    return fail(
-      `Split succeeded but parent ${taskId} not found in returned board. ` +
-      `Children: [${result.children.map((c) => c.id).join(', ')}].`,
-    );
-  }
-  return {
-    ok: true,
-    message: `${result.children.length} child task(s) created.`,
-    board: result.board,
-    task: freshParent,
-    children: result.children,
-  };
-}
-
-async function requireBoard(
-  projectRoot: string,
-  boardId: string | undefined,
-): Promise<KanbanBoard | null> {
-  return boardId ? getBoard(projectRoot, boardId) : null;
-}

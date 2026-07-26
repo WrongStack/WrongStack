@@ -91,6 +91,32 @@ describe('CollabSession', () => {
     fleetBus = new FleetBus();
   });
 
+  it('accepts only this session deterministic ids while parallel spawns are partially tracked', () => {
+    const { mockDirector } = makeMockDirector(fleetBus);
+    const session = new CollabSession(mockDirector as never, fleetBus, {
+      targetPaths: ['src/startup-isolation.ts'],
+    });
+    const internals = session as unknown as {
+      subagentIds: Map<string, string>;
+      ownsSubagent(subagentId: string): boolean;
+    };
+    const ownsSubagent = internals.ownsSubagent.bind(session);
+
+    expect(ownsSubagent(`bug-hunter-${session.id}`)).toBe(true);
+    expect(ownsSubagent(`refactor-planner-${session.id}`)).toBe(true);
+    expect(ownsSubagent(`critic-${session.id}`)).toBe(true);
+
+    // One parallel spawn can resolve before its siblings. Their exact requested
+    // ids must remain owned during that window even though the map is non-empty.
+    internals.subagentIds.set('bug-hunter', 'runtime-bug-hunter-id');
+    expect(ownsSubagent('runtime-bug-hunter-id')).toBe(true);
+    expect(ownsSubagent(`refactor-planner-${session.id}`)).toBe(true);
+    expect(ownsSubagent(`critic-${session.id}`)).toBe(true);
+
+    expect(ownsSubagent('bug-hunter-other-session')).toBe(false);
+    expect(ownsSubagent('critic-ordinary-delegate')).toBe(false);
+  });
+
   // -------------------------------------------------------------------------
   // Test 1: three agents spawned in parallel
   // -------------------------------------------------------------------------

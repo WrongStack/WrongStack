@@ -1,9 +1,6 @@
-import { spawn } from 'node:child_process';
-import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import type { MailboxAgentStatus } from '../coordination/mailbox-types.js';
-import { SKILL_LIMITS } from '../skills/limits.js';
 import type { TextBlock } from '../types/blocks.js';
 import type { ConcreteTokenSavingTier, TokenSavingTier } from '../types/config.js';
 import { resolveTokenSavingTier } from '../types/config.js';
@@ -19,7 +16,6 @@ import type {
 import { flattenSystemPromptRegions } from '../types/system-prompt.js';
 import type { SystemPromptContributor } from '../types/system-prompt-contributor.js';
 import type { Tool } from '../types/tool.js';
-import { buildChildEnv } from '../utils/child-env.js';
 import {
   type InstructionBundle,
   type InstructionBundlePaths,
@@ -27,6 +23,20 @@ import {
   mergeInstructionBundle,
 } from './instruction-bundle.js';
 import { PROMPT as DEFAULT_PROMPT, LEADER_AFTER_TASK_PROMPT } from './modes/default.js';
+import { detectLanguages, dirExists, gitStatus } from './system-prompt-environment-probes.js';
+import { compactTrigger } from './system-prompt-skill-text.js';
+import {
+  buildCompactSkillBodiesText,
+  buildFullSkillBodiesText,
+  buildProgressiveSkillManifestText,
+} from './system-prompt-skill-bodies.js';
+import {
+  effectiveShell,
+  SHELL_DISPLAY,
+  shellGuidanceBlock,
+} from './system-prompt-shell.js';
+import { type ActivePlanCache, readActivePlanBlock } from './system-prompt-plan.js';
+export { effectiveShell, shellGuidanceBlock, type EffectiveShell } from './system-prompt-shell.js';
 
 export const LAYER_1_IDENTITY = DEFAULT_PROMPT;
 
@@ -66,81 +76,6 @@ function tagBlock(block: TextBlock, source: SystemBlockSource): TextBlock {
 function shortSessionId(sessionId: string): string {
   const leaf = sessionId.split('/').pop() ?? sessionId;
   return leaf.length > 12 ? `${leaf.slice(0, 12)}…` : leaf;
-}
-
-/** Canonical shell the `bash` tool targets — drives the Environment Shell line
- *  and the syntax-guidance sub-block. */
-type EffectiveShell = 'pwsh' | 'powershell' | 'cmd' | 'posix';
-
-/**
- * Derive the shell the `bash` tool will use from `os.platform()` + the pinned
- * `WRONGSTACK_SHELL` value (set at boot by `ensureSessionShell` in
- * @wrongstack/tools). On POSIX this is always `'posix'` and the caller shows the
- * raw `$SHELL`. On Windows with no pinned value (boot didn't run — tests /
- * embeddings) we report `'cmd'`, matching `bash.ts`'s default for
- * non-PowerShell-looking commands.
- */
-export function effectiveShell(
-  platform: NodeJS.Platform,
-  wrongstackShell: string | undefined,
-): EffectiveShell {
-  if (platform !== 'win32') return 'posix';
-  const v = wrongstackShell?.trim().toLowerCase();
-  if (v === 'powershell' || v === 'powershell.exe') return 'powershell';
-  if (v === 'pwsh' || v === 'pwsh.exe') return 'pwsh';
-  if (v === 'cmd' || v === 'cmd.exe') return 'cmd';
-  return 'cmd';
-}
-
-const SHELL_DISPLAY: Record<Exclude<EffectiveShell, 'posix'>, string> = {
-  pwsh: 'pwsh (PowerShell 7+) — write PowerShell syntax, not bash',
-  powershell: 'powershell (Windows PowerShell 5.1) — write PowerShell syntax, not bash',
-  cmd: 'cmd.exe (Command Prompt) — write cmd syntax, not bash',
-};
-
-/**
- * Shell-specific syntax guidance for the Environment block. Returns `''` for
- * POSIX (the model writes bash natively, so no nudge is needed). `detail:
- * 'short'` is the light-tier one-liner; `'full'` is the complete cheat-sheet.
- * The `&&`/`||` note branches on the PowerShell edition (only pwsh 7 supports
- * them).
- */
-export function shellGuidanceBlock(shell: EffectiveShell, detail: 'full' | 'short'): string {
-  if (shell === 'posix') return '';
-  if (shell === 'cmd') {
-    if (detail === 'short') {
-      return '- Shell syntax: cmd.exe — use `%VAR%`, `2>nul`, `dir`/`type`/`del`/`where` (NOT bash `$VAR`, `/dev/null`, `ls`/`cat`/`rm`).';
-    }
-    return [
-      '## Shell — cmd.exe',
-      'The `bash` tool runs **cmd.exe** on this machine. Write cmd syntax, not bash/POSIX:',
-      '- Env vars: `%NAME%` (NOT `$NAME`); set with `set NAME=value`.',
-      '- Discard output: `2>nul` / `>nul` (NOT `2>/dev/null`).',
-      '- No `ls`/`cat`/`rm`/`which`/`head` — use `dir`/`type`/`del`/`where` and `more`.',
-      '- Chain with `&&` / `||` / `&`. Prefer the dedicated read/grep/glob tools over shell file ops.',
-    ].join('\n');
-  }
-  // pwsh or powershell
-  if (detail === 'short') {
-    return '- Shell syntax: PowerShell — use `$env:VAR`, `2>$null`, `Get-Content`/`Select-Object` (NOT bash `$VAR`, `/dev/null`, `cat`/`head`).';
-  }
-  const chain =
-    shell === 'pwsh'
-      ? '- Chain with `&&` / `||` (supported in PowerShell 7).'
-      : '- `&&` / `||` are NOT available in Windows PowerShell 5.1 — separate commands with `;` (and check `$LASTEXITCODE`).';
-  return [
-    `## Shell — PowerShell${shell === 'pwsh' ? ' 7+ (pwsh)' : ' 5.1 (powershell)'}`,
-    'The `bash` tool runs **PowerShell** on this machine. Write PowerShell syntax, not bash/POSIX:',
-    "- Env vars: read `$env:NAME`, set `$env:NAME = 'value'` (NOT `$NAME`, `%NAME%`, or `export`).",
-    '- Discard output: `... 2>$null` or `$null = ...` (NOT `2>/dev/null`).',
-    '- No bash builtins — use cmdlets: `head -n N`→`Select-Object -First N`, `tail`→`-Last N`, `cat`→`Get-Content`, `which x`→`Get-Command x`, `rm -rf p`→`Remove-Item -Recurse -Force p`, `touch f`→`New-Item -ItemType File f`. Prefer the grep/glob tools over `Select-String`.',
-    '- Read a line window of a file: `Get-Content path | Select-Object -Skip N -First M` (the `sed -n` / `head|tail` equivalent).',
-    '- Pipes work normally; `rg`/`git`/`node` and other native exes run as-is — only the *shell builtins* differ. (`rg --files src | rg pattern` is fine.)',
-    '- Call exes whose path has spaces via the call operator: `& "C:\\Program Files\\app.exe" args`.',
-    "- Multi-line literals: single-quoted here-string `@'…'@` with the closing `'@` at column 0.",
-    '- Non-interactive only: no `Read-Host`/`Get-Credential`/`pause`; add `-Confirm:$false` to destructive cmdlets.',
-    chain,
-  ].join('\n');
 }
 
 export interface DefaultSystemPromptBuilderOptions {
@@ -476,7 +411,7 @@ export class DefaultSystemPromptBuilder implements SystemPromptBuilder {
    * this avoids a blocking fs.readFile + JSON.parse on every iteration.
    * Cleared when the file's mtime changes (the `/plan` tool mutated it).
    */
-  private _planCache?: { path: string; mtimeMs: number; text: string } | undefined;
+  private _planCache?: ActivePlanCache | undefined;
 
   /**
    * Reads the session-scoped plan sidecar (when configured) and produces
@@ -488,56 +423,12 @@ export class DefaultSystemPromptBuilder implements SystemPromptBuilder {
   private async buildActivePlan(): Promise<string> {
     const planPath =
       typeof this.opts.planPath === 'function' ? this.opts.planPath() : this.opts.planPath;
-    if (!planPath) return '';
-
-    let raw: string;
-    try {
-      // Check mtime before reading — plans change at human pace (a few times
-      // per session), not on every iteration. Stat is O(1) metadata; readFile
-      // + JSON.parse is O(n) for the file content.
-      const stat = await fs.stat(planPath);
-      if (
-        this._planCache &&
-        this._planCache.path === planPath &&
-        this._planCache.mtimeMs === stat.mtimeMs
-      ) {
-        return this._planCache.text;
-      }
-      raw = await fs.readFile(planPath, 'utf8');
-      const text = this._formatPlan(raw);
-      this._planCache = { path: planPath, mtimeMs: stat.mtimeMs, text };
-      return text;
-    } catch {
-      // File missing, unreadable, or corrupt — clear cache and return empty.
-      this._planCache = undefined;
-      return '';
-    }
-  }
-
-  private _formatPlan(raw: string): string {
-    let parsed: {
-      items?: Array<{ status?: string | undefined; title?: string | undefined }>;
-      title?: string | undefined;
-    };
-    try {
-      parsed = JSON.parse(raw);
-    } catch {
-      return '';
-    }
-    if (!Array.isArray(parsed.items) || parsed.items.length === 0) return '';
-    const open = parsed.items.filter((i) => i?.status !== 'done');
-    if (open.length === 0) return '';
-    const lines = ['## Active plan'];
-    if (parsed.title) lines.push(`*${parsed.title}*`, '');
-    parsed.items.forEach((it, idx) => {
-      const mark = it?.status === 'done' ? '[x]' : it?.status === 'in_progress' ? '[~]' : '[ ]';
-      lines.push(`${idx + 1}. ${mark} ${it?.title ?? '(untitled)'}`);
+    const result = await readActivePlanBlock({
+      planPath,
+      cache: this._planCache,
     });
-    lines.push(
-      '',
-      'Use `/plan` (user) or the `plan` tool to update status as you progress. The roadmap survives session resume.',
-    );
-    return lines.join('\n');
+    this._planCache = result.cache;
+    return result.text;
   }
 
   private async buildToolUsage(tools: Tool[], ctx: BuildContext): Promise<string> {
@@ -910,13 +801,13 @@ export class DefaultSystemPromptBuilder implements SystemPromptBuilder {
         ? (process.env.SHELL ?? process.env.ComSpec ?? 'unknown')
         : SHELL_DISPLAY[effShell];
     const node = process.version;
-    const isGit = await this.dirExists(path.join(ctx.projectRoot, '.git'));
+    const isGit = await dirExists(path.join(ctx.projectRoot, '.git'));
     // Fan out the per-root probes so the prompt build doesn't serialize
     // ~12 fs.access calls plus the git status spawn back-to-back. On a
     // cold cache (CI / first turn) this trims hundreds of ms.
     const [git, langs] = await Promise.all([
-      isGit ? this.gitStatus(ctx.projectRoot) : Promise.resolve('not a git repo'),
-      this.detectLanguages(ctx.projectRoot),
+      isGit ? gitStatus(ctx.projectRoot) : Promise.resolve('not a git repo'),
+      detectLanguages(ctx.projectRoot),
     ]);
 
     // Tier-aware environment block content.
@@ -1061,131 +952,20 @@ export class DefaultSystemPromptBuilder implements SystemPromptBuilder {
     // only the Overview and Rules sections (~400 chars max per skill).
     if (this.opts.skillLoader) {
       if (this.opts.skillMode === 'progressive') {
-        await this.buildProgressiveSkillManifest();
+        this.skillBodyCache = await buildProgressiveSkillManifestText(this.opts.skillLoader);
       } else if (this.isCompact) {
-        await this.buildCompactSkillBodies();
+        this.skillBodyCache = await buildCompactSkillBodiesText(this.opts.skillLoader);
       } else {
-        await this.buildFullSkillBodies();
+        this.skillBodyCache = await buildFullSkillBodiesText(
+          this.opts.skillLoader,
+          this.opts.skillEagerMaxChars,
+        );
       }
     }
     if (this.skillBodyCache) {
       parts.push(`# Active Skills\n\n${this.skillBodyCache}`);
     }
     return parts.join('\n\n');
-  }
-
-  /**
-   * Build the progressive-disclosure manifest: list each skill's name + trigger
-   * only and instruct the agent to call the `skill` tool to load a body. No
-   * bodies are injected — the agent pulls them on demand (agentskills.io tier 2).
-   */
-  private async buildProgressiveSkillManifest(): Promise<void> {
-    if (!this.opts.skillLoader) {
-      this.skillBodyCache = '';
-      return;
-    }
-    try {
-      const entries = await this.opts.skillLoader.listEntries();
-      if (entries.length === 0) {
-        this.skillBodyCache = '';
-        return;
-      }
-      const lines = [
-        'Call the `skill` tool to load a skill before relying on it.',
-        '',
-        '| Skill | Use when |',
-        '|---|---|',
-      ];
-      for (const e of entries) {
-        const trigger = (e.trigger ?? '').replace(/\|/g, '\\|').replace(/\n+/g, ' ').trim();
-        lines.push(`| \`${e.name}\` | ${trigger} |`);
-      }
-      this.skillBodyCache = lines.join('\n');
-    } catch {
-      this.skillBodyCache = '';
-    }
-  }
-
-  /** Build full skill bodies (token-saving OFF), bounded by an overall budget. */
-  private async buildFullSkillBodies(): Promise<void> {
-    try {
-      const skills = await this.opts.skillLoader!.list();
-      if (skills.length === 0) {
-        this.skillBodyCache = '';
-        return;
-      }
-      // Overall budget: the loader returns skills highest-priority first, so the
-      // most relevant (project, then user) skills get a full body; the rest are
-      // listed as a manifest the agent loads on demand via the `skill` tool.
-      // Without this, discovering many skills (foreign agents add a lot) would
-      // bloat every prompt with every skill body.
-      const budget = this.opts.skillEagerMaxChars ?? SKILL_LIMITS.EAGER_DEFAULT_MAX_CHARS;
-      const bodies: string[] = [];
-      const overflow: string[] = [];
-      let used = 0;
-      for (const s of skills) {
-        try {
-          const raw = await this.opts.skillLoader!.readBody(s.name);
-          const trimmed = stripFrontmatter(raw).trim();
-          if (!trimmed) continue;
-          // Per-skill cap (I5 audit): a misconfigured multi-MB file can't bloat.
-          const entry = `## Skill: ${s.name}\n\n${capSkillBody(trimmed)}`;
-          if (used + entry.length <= budget) {
-            bodies.push(entry);
-            used += entry.length;
-          } else {
-            overflow.push(`- ${s.name}`);
-          }
-        } catch {
-          // skip unreadable skill
-        }
-      }
-      let out = bodies.join('\n\n---\n\n');
-      if (overflow.length > 0) {
-        const note =
-          overflow.length === skills.length
-            ? '## Available skills (load with the `skill` tool)'
-            : '## Other available skills (not injected — load with the `skill` tool)';
-        out += `${out ? '\n\n---\n\n' : ''}${note}\n${overflow.join('\n')}`;
-      }
-      this.skillBodyCache = out;
-    } catch {
-      this.skillBodyCache = '';
-    }
-  }
-
-  /**
-   * Build compact skill bodies for token-saving mode.
-   * Uses `readSaveBody` from the skill loader which tries `SKILL.save.md`
-   * first, then falls back to auto-compaction.
-   */
-  private async buildCompactSkillBodies(): Promise<void> {
-    if (!this.opts.skillLoader) {
-      this.skillBodyCache = '';
-      return;
-    }
-    try {
-      const skills = await this.opts.skillLoader.list();
-      if (skills.length > 0) {
-        const bodies: string[] = [];
-        for (const s of skills) {
-          try {
-            const saveBody = await this.opts.skillLoader.readSaveBody(s.name);
-            const clean = stripFrontmatter(saveBody);
-            if (clean.trim()) {
-              bodies.push(`## Skill: ${s.name}\n\n${clean.trim()}`);
-            }
-          } catch {
-            // skip unreadable skill
-          }
-        }
-        this.skillBodyCache = bodies.length > 0 ? bodies.join('\n\n---\n\n') : '';
-      } else {
-        this.skillBodyCache = '';
-      }
-    } catch {
-      this.skillBodyCache = '';
-    }
   }
 
   private async buildMode(): Promise<string> {
@@ -1197,152 +977,4 @@ export class DefaultSystemPromptBuilder implements SystemPromptBuilder {
     return mode.prompt;
   }
 
-  private async dirExists(p: string): Promise<boolean> {
-    try {
-      const stat = await fs.stat(p);
-      return stat.isDirectory();
-    } catch {
-      return false;
-    }
-  }
-
-  private async gitStatus(root: string): Promise<string> {
-    return new Promise((resolve) => {
-      let settled = false;
-      const finish = (s: string): void => {
-        if (settled) return;
-        settled = true;
-        resolve(s);
-      };
-      let proc: ReturnType<typeof spawn> | undefined;
-      // 2 s ceiling: a hung git status (corrupt index, .git/index.lock
-      // held by another process, network FS hiccup) must not stall the
-      // whole prompt build for a turn.
-      const timer = setTimeout(() => {
-        proc?.kill('SIGKILL');
-        finish('git timeout');
-      }, 2000);
-      try {
-        proc = spawn('git', ['status', '--porcelain=v1', '--branch'], {
-          cwd: root,
-          env: buildChildEnv(),
-          stdio: ['ignore', 'pipe', 'ignore'],
-          windowsHide: true,
-        });
-        let buf = '';
-        proc.stdout?.on('data', (c) => {
-          buf += c.toString();
-        });
-        proc.on('error', () => {
-          clearTimeout(timer);
-          finish('git error');
-        });
-        proc.on('close', () => {
-          clearTimeout(timer);
-          const lines = buf.split('\n').filter(Boolean);
-          const branchLine = lines[0] ?? '';
-          const branchMatch = branchLine.match(/## ([^\s.]+)/);
-          const branch = branchMatch?.[1] ?? 'detached';
-          const dirty = lines.slice(1);
-          const staged = dirty.filter((l) => /^[MARCD]/.test(l)).length;
-          const modified = dirty.length - staged;
-          finish(`branch=${branch}, ${modified} modified, ${staged} staged`);
-        });
-      } catch {
-        clearTimeout(timer);
-        finish('git unavailable');
-      }
-    });
-  }
-
-  private async detectLanguages(root: string): Promise<string> {
-    const checks: Array<[string, string]> = [
-      ['package.json', 'JavaScript/TypeScript'],
-      ['tsconfig.json', 'TypeScript'],
-      ['go.mod', 'Go'],
-      ['Cargo.toml', 'Rust'],
-      ['pyproject.toml', 'Python'],
-      ['requirements.txt', 'Python'],
-      ['Gemfile', 'Ruby'],
-      ['pom.xml', 'Java'],
-      ['build.gradle', 'Java/Kotlin'],
-      ['composer.json', 'PHP'],
-      ['mix.exs', 'Elixir'],
-    ];
-    // Fan out the marker probes. Sequential await on 11 fs.access calls
-    // adds latency on cold cache for no reason — each probe is independent.
-    const hits = await Promise.all(
-      checks.map(async ([marker, lang]) => {
-        try {
-          await fs.access(path.join(root, marker));
-          return lang;
-        } catch {
-          return null;
-        }
-      }),
-    );
-    const langs = new Set(hits.filter((l): l is string => l !== null));
-    return langs.size === 0 ? 'unknown' : Array.from(langs).join(', ');
-  }
-}
-
-/** Strip YAML frontmatter from a SKILL.md file, returning only the body. */
-function stripFrontmatter(raw: string): string {
-  if (!raw.startsWith('---')) return raw;
-  const end = raw.indexOf('\n---', 4);
-  if (end === -1) return raw;
-  // Skip past the closing `---` and the following newline
-  let body = raw.slice(end + 4);
-  if (body.startsWith('\n')) body = body.slice(1);
-  return body;
-}
-
-/**
- * Maximum number of characters of a skill body to inject into the
- * prompt when building the full (token-saving OFF) Active Skills block.
- *
- * Real-world SKILL.md files are <5 KB; 16 KB is generous headroom.
- * Without a cap, a misconfigured multi-MB skill file can bloat the
- * prompt by tens of thousands of tokens. This cap matches the
- * bash `MAX_OUTPUT` (32 KB) at a smaller scale and keeps the full
- * path comparable in size to the compact path's natural output.
- *
- * I5 audit (Sprint 3). See
- * `packages/core/tests/core/system-prompt-builder-i-skills.test.ts`.
- */
-/**
- * Cap a skill body at `SKILL_LIMITS.MAX_SKILL_BODY_CHARS`, truncating at a
- * paragraph boundary when possible to preserve readability. Appends an
- * ellipsis marker when truncated so the model can detect the cap.
- */
-function capSkillBody(body: string): string {
-  const max = SKILL_LIMITS.MAX_SKILL_BODY_CHARS;
-  if (body.length <= max) return body;
-  // Try to cut at the last paragraph break (`\n\n`) within the
-  // budget so the truncated body ends cleanly. Fall back to a
-  // hard cut if no paragraph break exists.
-  const budget = max - 1; // reserve 1 char for ellipsis
-  const cut = body.lastIndexOf('\n\n', budget);
-  const truncated = cut > budget / 2 ? body.slice(0, cut) : body.slice(0, budget);
-  return truncated + '…';
-}
-
-/**
- * Compact a skill trigger description into a short label.
- * "Use this skill when scanning source code for bugs..."
- * → "scanning source code for bugs, anti-patterns, code smells"
- */
-function compactTrigger(trigger: string): string {
-  // Strip common prefixes
-  let s = trigger
-    .replace(/^Use this skill when /i, '')
-    .replace(/^Use this skill for /i, '')
-    .replace(/^Use when /i, '')
-    .replace(/\.$/, '');
-  // Truncate to ~72 chars at a word boundary
-  if (s.length > 72) {
-    const cut = s.lastIndexOf(' ', 68);
-    s = cut > 50 ? s.slice(0, cut) + '…' : s.slice(0, 68) + '…';
-  }
-  return s;
 }

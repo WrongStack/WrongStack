@@ -1,0 +1,1535 @@
+{
+  "id": "kanban-agent-evolution-graph-v1",
+  "specId": "kanban-agent-evolution-v1",
+  "title": "Kanban Agent Evolution implementation task graph",
+  "nodes": [
+    [
+      "KAE-P0.1",
+      {
+        "id": "KAE-P0.1",
+        "title": "Canonical types: state machines, profiles, commands, dependency semantics",
+        "description": "Define types for task lifecycle, attempt lifecycle, review lifecycle, evidence lifecycle, board profiles (legacy/mirror/orchestrated), KanbanCommandContext, KanbanTaskAttempt, KanbanVerificationRun, KanbanReviewDecision, KanbanAttemptBaseline, KanbanOutboxEntry, and the canonical edge direction dependency→dependent with explicit satisfaction policy.\n\n**Acceptance Criteria:**\n- All type, enum, and interface definitions from the SDD model section are present in one canonical module.\n- dependency→dependent is the only supported edge direction in new code.\n- completed, explicitly skipped, and explicitly waived statuses satisfy dependency readiness; failed does not unless continueOnFailure is explicit.\n- BoardProfile type resolves as legacy for untyped boards.\n- Attempt creates its own epoch and lease independent of task fields.\n- VerificationRun has contentId, attemptId, attemptEpoch, taskRevision, and policyVersion.\n- ReviewDecision references attemptId and verificationRunIds, not a snapshot of task state.\n- Generic task/board patches cannot mutate evidence, reviews, lifecycle, or attempt identity.\n\n**Verification:**\n- tsc --noEmit passes on affected packages.\n- Domain unit tests for transition validation, edge/policy checks.",
+        "type": "feature",
+        "priority": "critical",
+        "status": "pending",
+        "estimateHours": 10,
+        "tags": [
+          "kanban",
+          "types",
+          "lifecycle",
+          "attempt",
+          "dependency",
+          "p0"
+        ],
+        "specRequirementId": "R1,R3,R11",
+        "metadata": {
+          "phase": "contract",
+          "requirementIds": [
+            "R1",
+            "R3",
+            "R11"
+          ],
+          "expectedFiles": [
+            "packages/kanban/src/types/command.ts",
+            "packages/kanban/src/types/profile.ts",
+            "packages/kanban/src/types/attempt.ts",
+            "packages/kanban/src/types/verification.ts",
+            "packages/kanban/src/types/review.ts",
+            "packages/kanban/src/types/dependency.ts"
+          ]
+        }
+      }
+    ],
+    [
+      "KAE-P0.2",
+      {
+        "id": "KAE-P0.2",
+        "title": "Cross-surface conformance fixture harness",
+        "description": "Build a table-driven conformance harness that runs the same valid and invalid command sequences through manager API, kanban tool, Director queue adapter, and WebUI dispatch adapter (once profiles exist).\n\n**Acceptance Criteria:**\n- Fixtures cover legal state transitions, illegal transitions, stale revision/epoch/lease rejections, duplicate command idempotency, unmet dependencies, full WIP, and board profile rules.\n- Every fixture records expected output shape, error codes, and zero-storage-side-effect assertions for failures.\n- Fixtures are independent of persistence backend.\n- Legacy-untouched, mirror, and orchestrated profiles each have representative fixture sets.\n\n**Verification:**\n- Focused harness bootstrap tests.\n- Existing legacy manager tests remain green after adding fixtures.",
+        "type": "test",
+        "priority": "critical",
+        "status": "pending",
+        "estimateHours": 8,
+        "tags": [
+          "kanban",
+          "test",
+          "conformance",
+          "p0"
+        ],
+        "specRequirementId": "R2",
+        "metadata": {
+          "phase": "contract",
+          "requirementIds": [
+            "R2"
+          ],
+          "expectedFiles": [
+            "packages/kanban/tests/shared/conformance-harness.ts",
+            "packages/kanban/tests/shared/conformance-fixtures.ts"
+          ]
+        }
+      }
+    ],
+    [
+      "KAE-P0.GATE",
+      {
+        "id": "KAE-P0.GATE",
+        "title": "Independent P0 contract acceptance gate",
+        "description": "Independent reviewer approves the canonical model, profile definitions, dependency policy, and conformance fixture set.\n\n**Acceptance Criteria:**\n- State machines, dependency direction/policy, board profiles, and immutable-field authority are reviewed and accepted.\n- Conformance fixtures exist and can be executed against each active surface.\n- Fixtures demonstrate current behavioral drift before repairs.\n- No production code is changed.\n\n**Verification:**\n- Reviewer report attached.\n- Fixture execution log attached.",
+        "type": "test",
+        "priority": "critical",
+        "status": "pending",
+        "estimateHours": 4,
+        "tags": [
+          "kanban",
+          "gate",
+          "acceptance",
+          "p0"
+        ],
+        "specRequirementId": "R1,R2",
+        "metadata": {
+          "phase": "gate",
+          "requirementIds": [
+            "R1",
+            "R2",
+            "R3",
+            "R11"
+          ],
+          "expectedFiles": [
+            "docs/specs/kanban-agent-evolution-sdd.md",
+            "docs/specs/kanban-agent-evolution.task-graph.json"
+          ],
+          "requiredReviewers": [
+            "critic"
+          ]
+        }
+      }
+    ],
+    [
+      "KAE-P1.1",
+      {
+        "id": "KAE-P1.1",
+        "title": "Command context, command service, and legacy adapter shell",
+        "description": "Implement the KanbanCommandContext type, command id structure, and a command service that validates preconditions, enforces immutable-field rules, and delegates to the existing manager API or new attempt/lifecycle mutations based on board profile.\n\n**Acceptance Criteria:**\n- CommandContext carries commandId, actorId, reason, expectedBoardRevision, expectedAttemptId/Epoch/LeaseId.\n- Command service rejects state changes that would mutate lifecycle, review, verification, or attempt fields through non-canonical adapters on orchestrated boards.\n- Legacy profile skips immutable-field gates and preserves current behavior.\n- Mirror profile permits source-owned field mutations and rejects autonomous lifecycle transitions.\n\n**Verification:**\n- tsc --noEmit passes.\n- Command service unit tests for each profile's allowed and rejected mutations.",
+        "type": "refactor",
+        "priority": "critical",
+        "status": "completed",
+        "estimateHours": 12,
+        "tags": [
+          "kanban",
+          "command",
+          "profile",
+          "gate",
+          "p1"
+        ],
+        "specRequirementId": "R1,R3",
+        "metadata": {
+          "phase": "lifecycle",
+          "requirementIds": [
+            "R1",
+            "R3",
+            "R5"
+          ],
+          "expectedFiles": [
+            "packages/kanban/src/command/command-context.ts",
+            "packages/kanban/src/command/command-service.ts"
+          ],
+          "implementedAt": "2026-07-26",
+          "implementedBy": "kanban-queue-reserve-start"
+        }
+      }
+    ],
+    [
+      "KAE-P1.2",
+      {
+        "id": "KAE-P1.2",
+        "title": "Managed ReserveAttempt and StartAttempt for orchestrated boards",
+        "description": "Implement ReserveAttempt (creates attempt identity, epoch, lease in Todo without lifecycle stage change) and StartAttempt (validates reservation epoch/lease, records running attempt, atomically advances Todo→Running on managed boards).\n\n**Acceptance Criteria:**\n- Reserve succeeds only when task is ready, dependencies met, WIP/policy/capacity permits, and current lease/epoch absent.\n- Concurrent reserves produce exactly one owner; the rest receive a conflict.\n- Start validates matching epoch, lease, dependency readiness, and board revision.\n- Running transition writes lifecycle history, attempt record, and task/column projection atomically on file backend.\n- Legacy boards keep existing claim+assignment flow; orchestrated boards refuse legacy claim.\n\n**Verification:**\n- tsc --noEmit passes.\n- Unit tests for concurrent reserve, start with stale epoch/lease, start after task revision change.\n- Conformance harness runs managed start path.",
+        "type": "feature",
+        "priority": "critical",
+        "status": "completed",
+        "estimateHours": 16,
+        "tags": [
+          "kanban",
+          "attempt",
+          "lifecycle",
+          "leases",
+          "p1"
+        ],
+        "specRequirementId": "R4",
+        "metadata": {
+          "phase": "lifecycle",
+          "requirementIds": [
+            "R4",
+            "R5"
+          ],
+          "expectedFiles": [
+            "packages/kanban/src/command/reserve-attempt.ts",
+            "packages/kanban/src/command/start-attempt.ts"
+          ],
+          "implementedAt": "2026-07-26",
+          "implementedBy": "kanban-queue-reserve-start"
+        }
+      }
+    ],
+    [
+      "KAE-P1.3",
+      {
+        "id": "KAE-P1.3",
+        "title": "Mandatory fencing for all worker-owned mutations",
+        "description": "Add attempt epoch + lease validation to heartbeat, progress, scope update, submit, fail, release, and cancel. Block generic filesystem tool writes from stale contexts.\n\n**Acceptance Criteria:**\n- Every worker-owned mutation requires matching attemptId, epoch, and leaseId.\n- Missing or mismatched fields produce a structured error; legacy boards fall back to unfenced behavior with telemetry.\n- kanban-boundary runtime blocks fs-write/shell tools when lease context no longer matches.\n- Stale worker cannot overwrite successor ownership, result, or evidence.\n\n**Verification:**\n- tsc --noEmit passes.\n- Unit tests for each fenced mutation with stale and current tokens.\n- Runtime boundary test with context lease mismatch.",
+        "type": "feature",
+        "priority": "critical",
+        "status": "completed",
+        "estimateHours": 12,
+        "tags": [
+          "kanban",
+          "fencing",
+          "leases",
+          "security",
+          "p1"
+        ],
+        "specRequirementId": "R5",
+        "metadata": {
+          "phase": "lifecycle",
+          "requirementIds": [
+            "R5"
+          ],
+          "expectedFiles": [
+            "packages/kanban/src/command/heartbeat-attempt.ts",
+            "packages/kanban/src/command/submit-attempt.ts",
+            "packages/kanban/src/command/fail-attempt.ts"
+          ],
+          "implementedAt": "2026-07-26",
+          "implementedBy": "kanban-queue-reserve-start"
+        }
+      }
+    ],
+    [
+      "KAE-P1.4",
+      {
+        "id": "KAE-P1.4",
+        "title": "Lifecycle-safe expiry, release, and recovery",
+        "description": "Implement ExpireAttempt, ReleaseAttempt, and retry/fail recovery using canonical commands that respect lifecycle history and attempt epochs.\n\n**Acceptance Criteria:**\n- Expired queued attempt returns task to Todo or fails per policy, recording lifecycle history.\n- Expired running attempt invalidates epoch before another attempt can reserve.\n- Release clears active attempt and returns task to ready/blocked per lifecycle rules.\n- Recovery increments epoch for expired leases; retry creates a new attempt with fresh epoch.\n- Repeated recovery command is idempotent.\n- Recovery never advances a task to Review or Done.\n- Existing recoverStaleTaskAssignments adapter checks profile and delegates to canonical path for orchestrated boards.\n\n**Verification:**\n- tsc --noEmit passes.\n- Recovery race, lease fence recovery, idempotency tests.\n- Managed projection unchanged after normal recovery.",
+        "type": "feature",
+        "priority": "critical",
+        "status": "completed",
+        "estimateHours": 14,
+        "tags": [
+          "kanban",
+          "recovery",
+          "leases",
+          "lifecycle",
+          "p1"
+        ],
+        "specRequirementId": "R6",
+        "metadata": {
+          "phase": "lifecycle",
+          "requirementIds": [
+            "R6"
+          ],
+          "expectedFiles": [
+            "packages/kanban/src/command/expire-attempt.ts",
+            "packages/kanban/src/command/release-attempt.ts"
+          ],
+          "implementedAt": "2026-07-26",
+          "implementedBy": "kanban-queue-reserve-start"
+        }
+      }
+    ],
+    [
+      "KAE-P1.5",
+      {
+        "id": "KAE-P1.5",
+        "title": "Shared dispatch adapter for Director and WebUI",
+        "description": "Extract a common dispatch service for readiness, reserve, start, renewal, release, and terminal handling that Director and WebUI both call. WebUI removes its independent fixed-lease dispatch and calls the shared service instead.\n\n**Acceptance Criteria:**\n- Director kanban_queue and WebUI dispatch both call the same reserve/start/renew functions.\n- Same effective lease TTL and heartbeat calculation applies to both paths.\n- Host-side renewal is active for both awaited and fire-and-forget execution.\n- WebUI dispatch has no independent lease algorithm after cutover.\n\n**Verification:**\n- tsc --noEmit passes.\n- Conformance harness runs dispatch scenarios through both Director and WebUI adapters.",
+        "type": "refactor",
+        "priority": "high",
+        "status": "completed",
+        "estimateHours": 12,
+        "tags": [
+          "kanban",
+          "dispatch",
+          "director",
+          "webui",
+          "leases",
+          "p1"
+        ],
+        "specRequirementId": "R7",
+        "metadata": {
+          "phase": "lifecycle",
+          "requirementIds": [
+            "R7"
+          ],
+          "expectedFiles": [
+            "packages/kanban/src/queue/dispatch-service.ts",
+            "packages/core/src/coordination/director-kanban-queue.ts",
+            "packages/webui-server/src/server/kanban-dispatch.ts"
+          ],
+          "implementedAt": "2026-07-26",
+          "implementedBy": "kanban-queue-reserve-start"
+        }
+      }
+    ],
+    [
+      "KAE-P1.GATE",
+      {
+        "id": "KAE-P1.GATE",
+        "title": "Independent P1 managed execution acceptance gate",
+        "description": "Verifies that orchestrated boards are fully executable via reserve/start, stale recovery is lifecycle-safe, fencing prevents stale-owner mutations, and both dispatch paths converge.\n\n**Acceptance Criteria:**\n- Orchestrated happy path: ReserveAttempt → StartAttempt → SubmitAttempt → RequestReview produces authoritative lifecycle history.\n- Concurrent reserve tests produce exactly one owner.\n- Stale worker fencing blocks writes and heartbeat.\n- Recovery without projection drift after expired lease.\n- Director kanban_queue and WebUI dispatch produce identical attempt state for the same task.\n- Independent security/reliability review reports no Critical/High finding.\n\n**Verification:**\n- All conformance fixtures in P1 scope pass for every applicable surface.\n- Projection-repair is not called during any normal orchestrated execution in the test suite.\n- Reviewer report attached.",
+        "type": "test",
+        "priority": "critical",
+        "status": "completed",
+        "estimateHours": 6,
+        "tags": [
+          "kanban",
+          "gate",
+          "managed-lifecycle",
+          "fencing",
+          "p1"
+        ],
+        "specRequirementId": "R4,R5,R6,R7",
+        "metadata": {
+          "phase": "gate",
+          "requirementIds": [
+            "R4",
+            "R5",
+            "R6",
+            "R7"
+          ],
+          "requiredReviewers": [
+            "critic",
+            "security-scanner"
+          ],
+          "expectedFiles": [
+            "packages/kanban/tests/gates/p1-gate.test.ts"
+          ],
+          "gatedAt": "2026-07-26"
+        }
+      }
+    ],
+    [
+      "KAE-P2.1",
+      {
+        "id": "KAE-P2.1",
+        "title": "Attempt-bound verification baseline and report binding",
+        "description": "Capture base commit, tree hash, task revision, criteria hash, expected-files hash, and worktree identity at attempt start. Persist verification reports with attemptId, epoch, revision, and policyVersion. Implement or remove snapshot/persist options. Report never accepted when attempt, epoch, revision, criteria hash, or baseline does not match.\n\n**Acceptance Criteria:**\n- StartAttempt records baseline fields atomically.\n- Verification uses stored baseline; unrelated pre-existing changes are distinguishable.\n- File-scope mismatch produces failed or needs_human; cannot produce passed silently.\n- Attempt/epoch/revision mismatch produces a stale-report error, not acceptance.\n- Generic task.set cannot replace report.\n\n**Verification:**\n- tsc --noEmit passes.\n- Unit tests: baseline capture, stale report rejection, file-scope mismatch verdict changes.\n- Focused verification tests with dirty worktree preconditions.",
+        "type": "feature",
+        "priority": "critical",
+        "status": "pending",
+        "estimateHours": 14,
+        "tags": [
+          "kanban",
+          "verification",
+          "attempt",
+          "baseline",
+          "p2"
+        ],
+        "specRequirementId": "R8,R9",
+        "metadata": {
+          "phase": "verification",
+          "requirementIds": [
+            "R8",
+            "R9"
+          ],
+          "expectedFiles": [
+            "packages/kanban/src/command/capture-baseline.ts",
+            "packages/kanban/src/command/record-verification.ts",
+            "packages/kanban/src/verification/completion-protocol.ts"
+          ]
+        }
+      }
+    ],
+    [
+      "KAE-P2.2",
+      {
+        "id": "KAE-P2.2",
+        "title": "Append-only immutable verification with invalidation",
+        "description": "Verification reports become content-addressed and append-only. Invalidating a report for acceptance purposes retains it for historical display. General task patches cannot write, replace, or delete reports, lifecycle, or review fields.\n\n**Acceptance Criteria:**\n- Identical report content produces the same contentId and is persisted idempotently.\n- A later revision or re-verification appends; it does not overwrite the existing report.\n- Invalidation sets invalidatedAt and reason; it does not delete the report.\n- updateTask's applyTaskPatch refuses immutable fields on orchestrated boards.\n\n**Verification:**\n- tsc --noEmit passes.\n- Unit tests: content idempotency, invalidation, patch rejection.",
+        "type": "refactor",
+        "priority": "critical",
+        "status": "pending",
+        "estimateHours": 10,
+        "tags": [
+          "kanban",
+          "verification",
+          "immutability",
+          "p2"
+        ],
+        "specRequirementId": "R9",
+        "metadata": {
+          "phase": "verification",
+          "requirementIds": [
+            "R9"
+          ],
+          "expectedFiles": [
+            "packages/kanban/src/verification/verification-report.ts",
+            "packages/kanban/src/manager/_internal.ts"
+          ]
+        }
+      }
+    ],
+    [
+      "KAE-P2.3",
+      {
+        "id": "KAE-P2.3",
+        "title": "File-scope verdict integration and child verification completeness",
+        "description": "File-scope mismatch affects the verdict. Missing/unknown child IDs, stale child reports, and incomplete child verification make composite verification incomplete rather than passing.\n\n**Acceptance Criteria:**\n- fileScope.scopeMatches === false → verdict is failed or needs_human according to policy.\n- Unresolved child IDs produce incomplete verdict.\n- Stale child reports (revision mismatch) produce incomplete verdict.\n\n**Verification:**\n- tsc --noEmit passes.\n- Unit tests for each verdict-affecting condition.",
+        "type": "fix",
+        "priority": "high",
+        "status": "pending",
+        "estimateHours": 6,
+        "tags": [
+          "kanban",
+          "verification",
+          "file-scope",
+          "child-verification",
+          "p2"
+        ],
+        "specRequirementId": "R9",
+        "metadata": {
+          "phase": "verification",
+          "requirementIds": [
+            "R9"
+          ],
+          "expectedFiles": [
+            "packages/kanban/src/verification/verification-report.ts",
+            "packages/kanban/src/verification/completion-protocol.ts"
+          ]
+        }
+      }
+    ],
+    [
+      "KAE-P2.4",
+      {
+        "id": "KAE-P2.4",
+        "title": "Atomic decomposition approval and stale assessment refresh",
+        "description": "Approval, child creation, criteria/files, internal dependencies, rewiring, cycle validation, parent composite state, and proposal applied status commit atomically. Refresh atomicity assessment when its config hash no longer matches the board policy.\n\n**Acceptance Criteria:**\n- DecompositionApprove is all-or-nothing in one board mutation.\n- A fault before commit leaves original proposed state untouched.\n- Repeating the same approval idempotently returns the already-applied result.\n- Validates dependsOnIndex, self-dependency, missing child, cycles.\n- Orchestrated children begin in Backlog with lifecycle initialized.\n- atomicityAssessment with stale configHash is refreshed before readiness can reject it.\n\n**Verification:**\n- tsc --noEmit passes.\n- Fault injection at every decomposition approval step.\n- Stale assessment refresh tests.",
+        "type": "feature",
+        "priority": "critical",
+        "status": "pending",
+        "estimateHours": 14,
+        "tags": [
+          "kanban",
+          "decomposition",
+          "atomicity",
+          "p2"
+        ],
+        "specRequirementId": "R10",
+        "metadata": {
+          "phase": "decomposition",
+          "requirementIds": [
+            "R10"
+          ],
+          "expectedFiles": [
+            "packages/kanban/src/command/approve-decomposition.ts",
+            "packages/kanban/src/manager/decomposition.ts",
+            "packages/kanban/src/atomicity/assess.ts"
+          ]
+        }
+      }
+    ],
+    [
+      "KAE-P2.GATE",
+      {
+        "id": "KAE-P2.GATE",
+        "title": "Independent P2 verification and decomposition acceptance gate",
+        "description": "Verifies attempt-bound baselines, immutable/verdict-correct reports, and atomic decomposition.\n\n**Acceptance Criteria:**\n- Attempt-bound report baselines are captured and compared.\n- File-scope mismatch fails acceptance.\n- Generic update_task cannot mutate reports, lifecycle, or reviews on orchestrated boards.\n- Decomposition approval is atomic under injected faults.\n- Independent review reports no Critical/High finding.\n\n**Verification:**\n- P2 conformance fixtures pass.\n- Fault injection log and reviewer report attached.",
+        "type": "test",
+        "priority": "critical",
+        "status": "pending",
+        "estimateHours": 6,
+        "tags": [
+          "kanban",
+          "gate",
+          "verification",
+          "decomposition",
+          "p2"
+        ],
+        "specRequirementId": "R8,R9,R10",
+        "metadata": {
+          "phase": "gate",
+          "requirementIds": [
+            "R8",
+            "R9",
+            "R10"
+          ],
+          "requiredReviewers": [
+            "critic"
+          ],
+          "expectedFiles": [
+            "packages/kanban/tests/gates/p2-gate.test.ts"
+          ]
+        }
+      }
+    ],
+    [
+      "KAE-P3.1",
+      {
+        "id": "KAE-P3.1",
+        "title": "Unify dependency semantics across engines",
+        "description": "Ensure Kanban, TaskTracker, TaskDAG, SDD scheduler, SDD legacy helpers, session projection, and task-graph import/export use dependency→dependent direction and the same satisfaction policy. Mark/remove legacy helpers with opposite direction.\n\n**Acceptance Criteria:**\n- All active engines: completed, skipped, waived satisfy; failed blocks unless continueOnFailure is explicit.\n- Round-trips preserve direction and policy.\n- Conformance tests run the same graph through every engine and assert identical readiness outcomes.\n- Legacy opposite-direction helpers are fenced or removed.\n\n**Verification:**\n- tsc --noEmit passes.\n- Conformance graph fixture tests.",
+        "type": "refactor",
+        "priority": "high",
+        "status": "pending",
+        "estimateHours": 10,
+        "tags": [
+          "kanban",
+          "core",
+          "sdd",
+          "dependencies",
+          "p3"
+        ],
+        "specRequirementId": "R11",
+        "metadata": {
+          "phase": "scheduler",
+          "requirementIds": [
+            "R11"
+          ],
+          "expectedFiles": [
+            "packages/core/src/tasking/task-tracker.ts",
+            "packages/core/src/coordination/task-dag.ts",
+            "packages/sdd/src/auto-executor.ts"
+          ]
+        }
+      }
+    ],
+    [
+      "KAE-P3.2",
+      {
+        "id": "KAE-P3.2",
+        "title": "Continuous scheduler port over canonical commands",
+        "description": "Extract a neutral scheduler that operates over Kanban ReserveAttempt/StartAttempt/SubmitAttempt and uses dependency readiness, priority, WIP, capacity, boundaries, route, cost, and retry state.\n\n**Acceptance Criteria:**\n- Scheduler fills free slots immediately from dependency-ready work.\n- Scheduling considers WIP, boundary policy, route availability, cost ceiling, retry timing.\n- Pause stops new attempts; stop correctly releases/cancels in-flight attempts per policy.\n- Retries, failed-task sweeps, deadlock recovery, no-progress cutoff, and wall-clock backstops.\n- Restart resets or expires orphans without duplicate execution.\n\n**Verification:**\n- tsc --noEmit passes.\n- Continuous scheduling E2E tests with dependency DAGs and pause/resume/stop.",
+        "type": "feature",
+        "priority": "high",
+        "status": "pending",
+        "estimateHours": 24,
+        "tags": [
+          "kanban",
+          "scheduler",
+          "continuous",
+          "p3"
+        ],
+        "specRequirementId": "R12",
+        "metadata": {
+          "phase": "scheduler",
+          "requirementIds": [
+            "R12"
+          ],
+          "expectedFiles": [
+            "packages/kanban/src/scheduler/scheduler-port.ts",
+            "packages/kanban/src/scheduler/continuous-scheduler.ts"
+          ]
+        }
+      }
+    ],
+    [
+      "KAE-P3.3",
+      {
+        "id": "KAE-P3.3",
+        "title": "Worktree isolation and rollback evidence for scheduler attempts",
+        "description": "Wire optional worktree allocation, branch/commit/conflict tracking, and rollback evidence into the scheduler's attempt lifecycle.\n\n**Acceptance Criteria:**\n- Worktree identity is part of the attempt baseline.\n- Successful attempts record merge commit; conflicted attempts record conflict files.\n- Rollback reverts landed commits and releases worktrees.\n- Worktree evidence is persisted on the attempt record.\n\n**Verification:**\n- tsc --noEmit passes.\n- Worktree scheduler scenario tests.",
+        "type": "feature",
+        "priority": "medium",
+        "status": "pending",
+        "estimateHours": 14,
+        "tags": [
+          "kanban",
+          "scheduler",
+          "worktree",
+          "rollback",
+          "p3"
+        ],
+        "specRequirementId": "R12",
+        "metadata": {
+          "phase": "scheduler",
+          "requirementIds": [
+            "R12"
+          ],
+          "expectedFiles": [
+            "packages/kanban/src/scheduler/worktree-orchestrator.ts"
+          ]
+        }
+      }
+    ],
+    [
+      "KAE-P3.4",
+      {
+        "id": "KAE-P3.4",
+        "title": "Kanban queue dispatch as scheduler adapter",
+        "description": "Refactor kanban_queue dispatch_ready to call the continuous scheduler port instead of its own claim-then-dispatch loop. Legacy Boarding stays available for non-scheduler use.\n\n**Acceptance Criteria:**\n- kanban_queue dispatch_ready submits tasks to the scheduler.\n- Existing dispatch configuration (cost, route, worktree) is preserved.\n- Legacy claimReadyTask remains for non-scheduled (mirror/legacy) use.\n\n**Verification:**\n- tsc --noEmit passes.\n- Conformance dispatches produce identical state through scheduler and legacy paths.",
+        "type": "refactor",
+        "priority": "medium",
+        "status": "pending",
+        "estimateHours": 8,
+        "tags": [
+          "kanban",
+          "scheduler",
+          "dispatch",
+          "p3"
+        ],
+        "specRequirementId": "R12",
+        "metadata": {
+          "phase": "scheduler",
+          "requirementIds": [
+            "R12"
+          ],
+          "expectedFiles": [
+            "packages/core/src/coordination/director-tools.ts"
+          ]
+        }
+      }
+    ],
+    [
+      "KAE-P3.GATE",
+      {
+        "id": "KAE-P3.GATE",
+        "title": "Independent P3 scheduler convergence acceptance gate",
+        "description": "Verifies all active engines agree on dependency direction/policy, scheduler meets continuous execution requirements, and kanban_queue is an adapter.\n\n**Acceptance Criteria:**\n- Conformance dependency DAG produces identical readiness across Kanban, TaskTracker, TaskDAG, SDD, and scheduler.\n- Scheduler pause/resume/stop/restart tests pass.\n- Zero duplicate execution counts across restart scenarios.\n- kanban_queue dispatch_ready works through scheduler.\n- Independent review reports no Critical/High finding.\n\n**Verification:**\n- P3 conformance fixtures pass.\n- Continuous scheduler E2E logs.\n- Reviewer report attached.",
+        "type": "test",
+        "priority": "high",
+        "status": "pending",
+        "estimateHours": 6,
+        "tags": [
+          "kanban",
+          "gate",
+          "scheduler",
+          "dependencies",
+          "p3"
+        ],
+        "specRequirementId": "R11,R12",
+        "metadata": {
+          "phase": "gate",
+          "requirementIds": [
+            "R11",
+            "R12"
+          ],
+          "requiredReviewers": [
+            "critic"
+          ],
+          "expectedFiles": [
+            "packages/kanban/tests/gates/p3-gate.test.ts"
+          ]
+        }
+      }
+    ],
+    [
+      "KAE-P4.1",
+      {
+        "id": "KAE-P4.1",
+        "title": "Typed verification, review, and repair records in Kanban",
+        "description": "Define and persist VerificationRun, ReviewDecision, and RepairRequest records within Kanban data model. Add AcceptTask, RequestReview, DecideReview, RequestRepair commands.\n\n**Acceptance Criteria:**\n- VerificationRun is typed, attempt-bound, and persists canonically.\n- ReviewDecision references attempt+verification run IDs, not task snapshots.\n- RepairRequest creates a new attempt while preserving rejected/previous evidence.\n- RecordVerification and DecideReview commands are idempotent.\n\n**Verification:**\n- tsc --noEmit passes.\n- Unit tests for each typed record and command.",
+        "type": "feature",
+        "priority": "high",
+        "status": "pending",
+        "estimateHours": 12,
+        "tags": [
+          "kanban",
+          "review",
+          "verification",
+          "repair",
+          "p4"
+        ],
+        "specRequirementId": "R13",
+        "metadata": {
+          "phase": "review",
+          "requirementIds": [
+            "R13"
+          ],
+          "expectedFiles": [
+            "packages/kanban/src/command/request-review.ts",
+            "packages/kanban/src/command/decide-review.ts",
+            "packages/kanban/src/command/accept-task.ts",
+            "packages/kanban/src/command/request-repair.ts"
+          ]
+        }
+      }
+    ],
+    [
+      "KAE-P4.2",
+      {
+        "id": "KAE-P4.2",
+        "title": "Director quality-gate adapter for typed Kanban protocol",
+        "description": "Adapt Director quality_gate output into Kanban VerificationRun and ReviewDecision. Ensure quality gate results are persisted and referenced correctly.\n\n**Acceptance Criteria:**\n- quality_gate verdict pass/fail → Kanban ReviewDecision.\n- quality_gate mustFix and uncertainty → Kanban repair request or review fields.\n- quality_gate result references attemptId and verificationRunId.\n\n**Verification:**\n- tsc --noEmit passes.\n- quality_gate->Kanban round-trip integration tests.",
+        "type": "refactor",
+        "priority": "high",
+        "status": "pending",
+        "estimateHours": 8,
+        "tags": [
+          "kanban",
+          "director",
+          "quality-gate",
+          "p4"
+        ],
+        "specRequirementId": "R13",
+        "metadata": {
+          "phase": "review",
+          "requirementIds": [
+            "R13"
+          ],
+          "expectedFiles": [
+            "packages/core/src/coordination/director-quality-gate-adapter.ts"
+          ]
+        }
+      }
+    ],
+    [
+      "KAE-P4.3",
+      {
+        "id": "KAE-P4.3",
+        "title": "Reviewer independence enforcement",
+        "description": "Policy may require the reviewer identity to differ from the implementer identity. Enforce at DecideReview time.\n\n**Acceptance Criteria:**\n- When board policy requires independent review, a reviewer who matches the worker identity is rejected.\n- Worker identity comes from the attempt record, not task assignee.\n- Policy is per-board or per-task.\n\n**Verification:**\n- tsc --noEmit passes.\n- Unit tests for independence gate.",
+        "type": "feature",
+        "priority": "medium",
+        "status": "pending",
+        "estimateHours": 4,
+        "tags": [
+          "kanban",
+          "review",
+          "independence",
+          "p4"
+        ],
+        "specRequirementId": "R13",
+        "metadata": {
+          "phase": "review",
+          "requirementIds": [
+            "R13"
+          ],
+          "expectedFiles": [
+            "packages/kanban/src/command/decide-review.ts",
+            "packages/kanban/src/types/policy.ts"
+          ]
+        }
+      }
+    ],
+    [
+      "KAE-P4.4",
+      {
+        "id": "KAE-P4.4",
+        "title": "RequestReview from submit to review transition",
+        "description": "When a worker submits a result, a separate RequestReview command transitions Running→Review on orchestrated boards. Worker success never produces Done directly.\n\n**Acceptance Criteria:**\n- SubmitAttempt persists implementation result; task remains Running.\n- RequestReview creates Review when evidence and attempt state are valid.\n- Strict boards refuse direct completed assignment transitions.\n\n**Verification:**\n- tsc --noEmit passes.\n- Running → Review transition tests.",
+        "type": "feature",
+        "priority": "high",
+        "status": "pending",
+        "estimateHours": 6,
+        "tags": [
+          "kanban",
+          "review",
+          "transition",
+          "p4"
+        ],
+        "specRequirementId": "R13",
+        "metadata": {
+          "phase": "review",
+          "requirementIds": [
+            "R13"
+          ],
+          "expectedFiles": [
+            "packages/kanban/src/command/request-review.ts"
+          ]
+        }
+      }
+    ],
+    [
+      "KAE-P4.GATE",
+      {
+        "id": "KAE-P4.GATE",
+        "title": "Independent P4 review/quality/repair acceptance gate",
+        "description": "Verifies typed review protocol, quality-gate adapter, reviewer independence, and the submit→review→accept path.\n\n**Acceptance Criteria:**\n- Worker submit → task stays Running; RequestReview → Review.\n- DecideReview (pass) → AcceptTask → Done. DecideReview (changes_requested) → new attempt.\n- quality_gate output persists as Kanban ReviewDecision.\n- Reviewer independence enforced.\n- Independent review reports no Critical/High finding.\n\n**Verification:**\n- P4 conformance fixtures pass.\n- quality_gate→Kanban integration test.\n- Reviewer report attached.",
+        "type": "test",
+        "priority": "high",
+        "status": "pending",
+        "estimateHours": 6,
+        "tags": [
+          "kanban",
+          "gate",
+          "review",
+          "quality",
+          "p4"
+        ],
+        "specRequirementId": "R13",
+        "metadata": {
+          "phase": "gate",
+          "requirementIds": [
+            "R13"
+          ],
+          "requiredReviewers": [
+            "critic"
+          ],
+          "expectedFiles": [
+            "packages/kanban/tests/gates/p4-gate.test.ts"
+          ]
+        }
+      }
+    ],
+    [
+      "KAE-P5.1",
+      {
+        "id": "KAE-P5.1",
+        "title": "Explicit board profiles on creation and migration",
+        "description": "New boards are created with resolved profile (legacy, mirror, orchestrated). Existing boards without profile resolve as legacy. Profile is an audited, explicit field, not inferred.\n\n**Acceptance Criteria:**\n- createBoard accepts profile field.\n- Session boards create as mirror.\n- Task-graph/source-imported boards create as mirror.\n- Legacy adoption of managed lifecycle creates as orchestrated.\n- Generic updateBoard cannot change profile.\n\n**Verification:**\n- tsc --noEmit passes.\n- Unit tests for profile resolution and creation.",
+        "type": "feature",
+        "priority": "high",
+        "status": "pending",
+        "estimateHours": 6,
+        "tags": [
+          "kanban",
+          "profile",
+          "board-creation",
+          "p5"
+        ],
+        "specRequirementId": "R3,R14",
+        "metadata": {
+          "phase": "source-authority",
+          "requirementIds": [
+            "R3",
+            "R14"
+          ],
+          "expectedFiles": [
+            "packages/kanban/src/types/profile.ts",
+            "packages/kanban/src/manager/boards.ts"
+          ]
+        }
+      }
+    ],
+    [
+      "KAE-P5.2",
+      {
+        "id": "KAE-P5.2",
+        "title": "Mirror board sync rules and source authority enforcement",
+        "description": "Mirror-owned source sync updates only owned fields. Source-owned status cannot bypass orchestrated Definition of Done. Manual follow-up tasks and dependencies survive sync.\n\n**Acceptance Criteria:**\n- Mirror sync updates only fields tagged as source-owned.\n- Orchestrated lifecycle, attempt, review, and evidence are never overwritten by sync.\n- Manual tasks and manual dependencies survive sync unless explicitly removed.\n- Autonomous claim is disabled on mirror boards.\n\n**Verification:**\n- tsc --noEmit passes.\n- Sync scenarios: source-only fields, manual follow-up survival, ownership matrix tests.",
+        "type": "feature",
+        "priority": "high",
+        "status": "pending",
+        "estimateHours": 8,
+        "tags": [
+          "kanban",
+          "mirror",
+          "sync",
+          "source-authority",
+          "p5"
+        ],
+        "specRequirementId": "R14",
+        "metadata": {
+          "phase": "source-authority",
+          "requirementIds": [
+            "R14"
+          ],
+          "expectedFiles": [
+            "packages/kanban/src/command/set-board-profile.ts",
+            "packages/kanban/src/manager/task-graph-bridge.ts"
+          ]
+        }
+      }
+    ],
+    [
+      "KAE-P5.3",
+      {
+        "id": "KAE-P5.3",
+        "title": "Explicit promotion and demotion with validation",
+        "description": "Add explicit promotion from legacy/mirror to orchestrated and demotion from orchestrated to legacy/mirror. Demotion blocked while active attempts or unresolved reviews exist.\n\n**Acceptance Criteria:**\n- Promotion validates five lifecycle columns, task details, and writes audit metadata.\n- Demotion is blocked when active attempts or reviews exist.\n- Demotion is reversible without data loss.\n- Both are audited commands.\n\n**Verification:**\n- tsc --noEmit passes.\n- Promotion/demotion tests.",
+        "type": "feature",
+        "priority": "high",
+        "status": "pending",
+        "estimateHours": 8,
+        "tags": [
+          "kanban",
+          "promotion",
+          "profile",
+          "p5"
+        ],
+        "specRequirementId": "R14",
+        "metadata": {
+          "phase": "source-authority",
+          "requirementIds": [
+            "R14"
+          ],
+          "expectedFiles": [
+            "packages/kanban/src/command/set-board-profile.ts"
+          ]
+        }
+      }
+    ],
+    [
+      "KAE-P5.4",
+      {
+        "id": "KAE-P5.4",
+        "title": "Session projection and bidirectional idempotency",
+        "description": "Ensure bidirectional Kanban↔session projection is bounded, origin-idempotent, and does not oscillate. Session boards remain mirror by default.\n\n**Acceptance Criteria:**\n- Same snapshot does not produce a board write.\n- Origin IDs remain stable.\n- Reverse projection (board→session) does not overwrite non-session tasks.\n\n**Verification:**\n- tsc --noEmit passes.\n- Projection idempotency and oscillation tests.",
+        "type": "refactor",
+        "priority": "medium",
+        "status": "pending",
+        "estimateHours": 8,
+        "tags": [
+          "kanban",
+          "session",
+          "projection",
+          "p5"
+        ],
+        "specRequirementId": "R14",
+        "metadata": {
+          "phase": "source-authority",
+          "requirementIds": [
+            "R14"
+          ],
+          "expectedFiles": [
+            "packages/tools/src/session-kanban.ts"
+          ]
+        }
+      }
+    ],
+    [
+      "KAE-P5.GATE",
+      {
+        "id": "KAE-P5.GATE",
+        "title": "Independent P5 projection authority acceptance gate",
+        "description": "Verifies explicit profiles, mirror sync rules, promotion/demotion, and session projection.\n\n**Acceptance Criteria:**\n- New boards resolve correct profile.\n- Mirror sync cannot overwrite orchestrated state.\n- Promotion/demotion tests pass.\n- Session projection is idempotent.\n- Independent review reports no Critical/High finding.\n\n**Verification:**\n- P5 conformance fixtures pass.\n- Reviewer report attached.",
+        "type": "test",
+        "priority": "high",
+        "status": "pending",
+        "estimateHours": 6,
+        "tags": [
+          "kanban",
+          "gate",
+          "profile",
+          "mirror",
+          "p5"
+        ],
+        "specRequirementId": "R14",
+        "metadata": {
+          "phase": "gate",
+          "requirementIds": [
+            "R3",
+            "R14"
+          ],
+          "requiredReviewers": [
+            "critic"
+          ],
+          "expectedFiles": [
+            "packages/kanban/tests/gates/p5-gate.test.ts"
+          ]
+        }
+      }
+    ],
+    [
+      "KAE-P6.1",
+      {
+        "id": "KAE-P6.1",
+        "title": "Command idempotency and transactional file-backed outbox",
+        "description": "Every canonical command is idempotent via command ID deduplication. Board mutation and outbox commitment happen atomically on the file backend. An outbox flusher appends JSONL events and marks delivered idempotently.\n\n**Acceptance Criteria:**\n- Same command ID + input returns original result.\n- Same command ID + different input returns conflict.\n- Board state + pending outbox entries commit in one file mutation.\n- Crash after board commit but before event append is recovered.\n- Event trimming never deletes undelivered entries or active-task-required evidence.\n\n**Verification:**\n- tsc --noEmit passes.\n- Fault injection: crash after board commit, before event append.\n- Idempotency and conflict tests.",
+        "type": "feature",
+        "priority": "high",
+        "status": "pending",
+        "estimateHours": 16,
+        "tags": [
+          "kanban",
+          "idempotency",
+          "outbox",
+          "events",
+          "p6"
+        ],
+        "specRequirementId": "R15",
+        "metadata": {
+          "phase": "reliability",
+          "requirementIds": [
+            "R15"
+          ],
+          "expectedFiles": [
+            "packages/kanban/src/storage/outbox.ts",
+            "packages/kanban/src/storage/idempotency-registry.ts"
+          ]
+        }
+      }
+    ],
+    [
+      "KAE-P6.2",
+      {
+        "id": "KAE-P6.2",
+        "title": "Schema migration and writer-version fence",
+        "description": "Implement explicit board schema upcasters, compatibility projections, future-version mutation fences, and non-destructive migration path.\n\n**Acceptance Criteria:**\n- Versionless/v1 boards readable but not rewritten on read.\n- Unknown future versions fail closed for mutation.\n- Migration creates a backup before irreversible transformation.\n- Old writers cannot mutate board after newer writer-only feature is committed.\n\n**Verification:**\n- tsc --noEmit passes.\n- Mixed-version, corrupt-file, upgrade/downgrade, backup-restore tests.",
+        "type": "feature",
+        "priority": "medium",
+        "status": "pending",
+        "estimateHours": 10,
+        "tags": [
+          "kanban",
+          "schema",
+          "migration",
+          "versioning",
+          "p6"
+        ],
+        "specRequirementId": "R16",
+        "metadata": {
+          "phase": "reliability",
+          "requirementIds": [
+            "R16"
+          ],
+          "expectedFiles": [
+            "packages/kanban/src/storage/migration.ts",
+            "packages/kanban/src/storage/version-fence.ts"
+          ]
+        }
+      }
+    ],
+    [
+      "KAE-P6.3",
+      {
+        "id": "KAE-P6.3",
+        "title": "Fenced controller lease and deterministic health/observability",
+        "description": "Supervisors compete for a fenced controller lease. Queue health accurately separates dependency-blocked from ready. Health exposes stage/attempt durations, review wait, recovery latency, retries, claim conflicts, and scheduler utilization. whyNotReady diagnostics.\n\n**Acceptance Criteria:**\n- One controller owns scheduling per board.\n- Two concurrent supervisors produce exactly one controller.\n- Health counts do not double-count dependency-blocked in ready.\n- whyNotReady returns deterministic reasons.\n\n**Verification:**\n- tsc --noEmit passes.\n- Supervisor lease contention tests.\n- whyNotReady unit tests.",
+        "type": "feature",
+        "priority": "high",
+        "status": "pending",
+        "estimateHours": 12,
+        "tags": [
+          "kanban",
+          "supervisor",
+          "controller-lease",
+          "health",
+          "p6"
+        ],
+        "specRequirementId": "R17",
+        "metadata": {
+          "phase": "reliability",
+          "requirementIds": [
+            "R17"
+          ],
+          "expectedFiles": [
+            "packages/kanban/src/scheduler/controller-lease.ts",
+            "packages/kanban/src/health/why-not-ready.ts"
+          ]
+        }
+      }
+    ],
+    [
+      "KAE-P6.4",
+      {
+        "id": "KAE-P6.4",
+        "title": "Per-board watcher and projection repair hardening",
+        "description": "Each board has a separate watcher debounce timer. Watcher retries registration when the kanban directory appears later. Projection repair reports anomaly when state is ambiguous.\n\n**Acceptance Criteria:**\n- Each board debounce is independent.\n- Missing directory at start does not permanently disable watching.\n- Repair reports blocked when authoritative state is ambiguous.\n\n**Verification:**\n- tsc --noEmit passes.\n- Watcher tests with delayed directory creation.\n- Ambiguous state repair tests.",
+        "type": "fix",
+        "priority": "medium",
+        "status": "pending",
+        "estimateHours": 4,
+        "tags": [
+          "kanban",
+          "watcher",
+          "projection-repair",
+          "observability",
+          "p6"
+        ],
+        "specRequirementId": "R17",
+        "metadata": {
+          "phase": "reliability",
+          "requirementIds": [
+            "R17"
+          ],
+          "expectedFiles": [
+            "packages/webui-server/src/server/kanban-board-watcher.ts",
+            "packages/kanban/src/manager/lifecycle.ts"
+          ]
+        }
+      }
+    ],
+    [
+      "KAE-P6.5",
+      {
+        "id": "KAE-P6.5",
+        "title": "Governed advisory agent learning",
+        "description": "Completed outcomes may produce advisory routing/estimate/verifier/decomposition suggestions without changing policy autonomously.\n\n**Acceptance Criteria:**\n- Learning records are grounded with what/why/how evidence and reference task/attempt/report IDs.\n- Suggestions are scoped by project, role, task type, board profile.\n- Cost/retry/boundary/lifecycle/reviewer policy changes require explicit approval.\n- Disabling learning has no effect on deterministic operations.\n\n**Verification:**\n- tsc --noEmit passes.\n- Learning record tests; disable/reenable tests.",
+        "type": "feature",
+        "priority": "medium",
+        "status": "pending",
+        "estimateHours": 10,
+        "tags": [
+          "kanban",
+          "learning",
+          "advisory",
+          "p6"
+        ],
+        "specRequirementId": "R18",
+        "metadata": {
+          "phase": "reliability",
+          "requirementIds": [
+            "R18"
+          ],
+          "expectedFiles": [
+            "packages/kanban/src/learning/advisory-recorder.ts"
+          ]
+        }
+      }
+    ],
+    [
+      "KAE-P6.GATE",
+      {
+        "id": "KAE-P6.GATE",
+        "title": "Independent P6 reliability and observability acceptance gate",
+        "description": "Verifies idempotency, outbox crash recovery, schema migration, controller lease, health/whyNotReady, watcher hardening, and advisory learning.\n\n**Acceptance Criteria:**\n- Command dedupe and outbox crash recovery tests pass.\n- Schema version fence and backup/restore tests pass.\n- One supervisor owns each board.\n- Health output matches canonical state.\n- Learning is advisory-only.\n- Independent review reports no Critical/High finding.\n\n**Verification:**\n- P6 conformance fixtures pass.\n- Fault injection log.\n- Reviewer report attached.",
+        "type": "test",
+        "priority": "high",
+        "status": "pending",
+        "estimateHours": 6,
+        "tags": [
+          "kanban",
+          "gate",
+          "reliability",
+          "observability",
+          "p6"
+        ],
+        "specRequirementId": "R15,R16,R17,R18",
+        "metadata": {
+          "phase": "gate",
+          "requirementIds": [
+            "R15",
+            "R16",
+            "R17",
+            "R18"
+          ],
+          "requiredReviewers": [
+            "critic",
+            "security-scanner"
+          ],
+          "expectedFiles": [
+            "packages/kanban/tests/gates/p6-gate.test.ts"
+          ]
+        }
+      }
+    ],
+    [
+      "KAE-P7.1",
+      {
+        "id": "KAE-P7.1",
+        "title": "Storage port and SQLite schema",
+        "description": "Introduce KanbanStore port. Build SQLite schema for tasks, dependencies, attempts, lifecycle transitions, verification runs, review decisions, commands, and outbox. Import existing JSON boards without deleting originals.\n\n**Acceptance Criteria:**\n- Storage port preserves current manager/domain API behavior.\n- SQLite schema covers all canonical types.\n- Import idempotent; source JSON unchanged.\n\n**Verification:**\n- tsc --noEmit passes.\n- Import scenario tests.",
+        "type": "feature",
+        "priority": "low",
+        "status": "pending",
+        "estimateHours": 20,
+        "tags": [
+          "kanban",
+          "sqlite",
+          "storage",
+          "port",
+          "p7"
+        ],
+        "specRequirementId": "R19",
+        "metadata": {
+          "phase": "storage",
+          "requirementIds": [
+            "R19"
+          ],
+          "expectedFiles": [
+            "packages/kanban/src/store/kanban-store-port.ts",
+            "packages/kanban/src/store/sqlite-schema.ts"
+          ]
+        }
+      }
+    ],
+    [
+      "KAE-P7.2",
+      {
+        "id": "KAE-P7.2",
+        "title": "Shadow-write parity and fault injection",
+        "description": "Shadow-write SQLite alongside JSON authority. Compare canonical projections after every mutation. Add fault injection: process crash, lock contention, partial disk write, duplicate command, stale schema, downgrade.\n\n**Acceptance Criteria:**\n- No unexplained projection mismatches.\n- Fault injection does not produce different state in JSON and SQLite.\n- Parity metrics are logged.\n\n**Verification:**\n- Shadow parity test suite.\n- Fault injection log.",
+        "type": "test",
+        "priority": "low",
+        "status": "pending",
+        "estimateHours": 16,
+        "tags": [
+          "kanban",
+          "sqlite",
+          "shadow",
+          "parity",
+          "p7"
+        ],
+        "specRequirementId": "R19",
+        "metadata": {
+          "phase": "storage",
+          "requirementIds": [
+            "R19"
+          ],
+          "expectedFiles": [
+            "packages/kanban/tests/shadow/shadow-parity.test.ts"
+          ]
+        }
+      }
+    ],
+    [
+      "KAE-P7.3",
+      {
+        "id": "KAE-P7.3",
+        "title": "SQLite read cutover, compatibility, and offline rollback",
+        "description": "Switch read authority to SQLite after parity gate passes. Retain JSON export and down-migration for at least one compatibility window. Define and test offline downgrade procedure.\n\n**Acceptance Criteria:**\n- Read cutover requires maintainer approval.\n- Feature flag can immediately restore JSON reads.\n- Export from SQLite to JSON is lossless.\n- Offline downgrade from SQLite to JSON retains all committed commands.\n\n**Verification:**\n- tsc --noEmit passes.\n- Cutover/restore/export/downgrade tests.",
+        "type": "feature",
+        "priority": "low",
+        "status": "pending",
+        "estimateHours": 12,
+        "tags": [
+          "kanban",
+          "sqlite",
+          "cutover",
+          "migration",
+          "p7"
+        ],
+        "specRequirementId": "R19",
+        "metadata": {
+          "phase": "storage",
+          "requirementIds": [
+            "R19"
+          ],
+          "expectedFiles": [
+            "packages/kanban/src/store/read-cutover.ts",
+            "packages/kanban/src/store/json-export.ts",
+            "packages/kanban/src/store/offline-downgrade.ts"
+          ]
+        }
+      }
+    ],
+    [
+      "KAE-P7.GATE",
+      {
+        "id": "KAE-P7.GATE",
+        "title": "Independent P7 transactional storage acceptance gate",
+        "description": "Verifies storage port preserves behavior, shadow parity has zero mismatches, cutover/rollback tests pass, and maintainer explicitly approves read cutover.\n\n**Acceptance Criteria:**\n- Storage port conformance fixtures pass.\n- Shadow parity: zero unexplained mismatches.\n- Fault injection produces identical recovery.\n- Cutover, restore, and offline downgrade tests pass.\n- Maintainer documented approval.\n\n**Verification:**\n- P7 gate test suite.\n- Parity and fault logs.\n- Maintainer approval attached.",
+        "type": "test",
+        "priority": "low",
+        "status": "pending",
+        "estimateHours": 6,
+        "tags": [
+          "kanban",
+          "gate",
+          "storage",
+          "sqlite",
+          "cutover",
+          "p7"
+        ],
+        "specRequirementId": "R19",
+        "metadata": {
+          "phase": "gate",
+          "requirementIds": [
+            "R19"
+          ],
+          "requiredReviewers": [
+            "critic"
+          ],
+          "expectedFiles": [
+            "packages/kanban/tests/gates/p7-gate.test.ts"
+          ]
+        }
+      }
+    ]
+  ],
+  "edges": [
+    {
+      "id": "kae-p0dot1-p0dot2",
+      "from": "KAE-P0.1",
+      "to": "KAE-P0.2",
+      "type": "depends_on"
+    },
+    {
+      "id": "kae-p0dot2-p0gate",
+      "from": "KAE-P0.2",
+      "to": "KAE-P0.GATE",
+      "type": "depends_on"
+    },
+    {
+      "id": "kae-p0gate-p1dot1",
+      "from": "KAE-P0.GATE",
+      "to": "KAE-P1.1",
+      "type": "depends_on"
+    },
+    {
+      "id": "kae-p1dot1-p1dot2",
+      "from": "KAE-P1.1",
+      "to": "KAE-P1.2",
+      "type": "depends_on"
+    },
+    {
+      "id": "kae-p1dot1-p1dot3",
+      "from": "KAE-P1.1",
+      "to": "KAE-P1.3",
+      "type": "depends_on"
+    },
+    {
+      "id": "kae-p1dot1-p1dot4",
+      "from": "KAE-P1.1",
+      "to": "KAE-P1.4",
+      "type": "depends_on"
+    },
+    {
+      "id": "kae-p1dot2-p1dot3",
+      "from": "KAE-P1.2",
+      "to": "KAE-P1.3",
+      "type": "depends_on"
+    },
+    {
+      "id": "kae-p1dot2-p1dot4",
+      "from": "KAE-P1.2",
+      "to": "KAE-P1.4",
+      "type": "depends_on"
+    },
+    {
+      "id": "kae-p1dot4-p1dot5",
+      "from": "KAE-P1.4",
+      "to": "KAE-P1.5",
+      "type": "depends_on"
+    },
+    {
+      "id": "kae-p1dot5-p1gate",
+      "from": "KAE-P1.5",
+      "to": "KAE-P1.GATE",
+      "type": "depends_on"
+    },
+    {
+      "id": "kae-p1gate-p2dot1",
+      "from": "KAE-P1.GATE",
+      "to": "KAE-P2.1",
+      "type": "depends_on"
+    },
+    {
+      "id": "kae-p1gate-p2dot4",
+      "from": "KAE-P1.GATE",
+      "to": "KAE-P2.4",
+      "type": "depends_on"
+    },
+    {
+      "id": "kae-p2dot1-p2dot2",
+      "from": "KAE-P2.1",
+      "to": "KAE-P2.2",
+      "type": "depends_on"
+    },
+    {
+      "id": "kae-p2dot1-p2dot3",
+      "from": "KAE-P2.1",
+      "to": "KAE-P2.3",
+      "type": "depends_on"
+    },
+    {
+      "id": "kae-p2dot2-p2dot3",
+      "from": "KAE-P2.2",
+      "to": "KAE-P2.3",
+      "type": "depends_on"
+    },
+    {
+      "id": "kae-p2dot3-p2gate",
+      "from": "KAE-P2.3",
+      "to": "KAE-P2.GATE",
+      "type": "depends_on"
+    },
+    {
+      "id": "kae-p2dot4-p2gate",
+      "from": "KAE-P2.4",
+      "to": "KAE-P2.GATE",
+      "type": "depends_on"
+    },
+    {
+      "id": "kae-p2gate-p3dot1",
+      "from": "KAE-P2.GATE",
+      "to": "KAE-P3.1",
+      "type": "depends_on"
+    },
+    {
+      "id": "kae-p3dot1-p3dot2",
+      "from": "KAE-P3.1",
+      "to": "KAE-P3.2",
+      "type": "depends_on"
+    },
+    {
+      "id": "kae-p3dot2-p3dot3",
+      "from": "KAE-P3.2",
+      "to": "KAE-P3.3",
+      "type": "depends_on"
+    },
+    {
+      "id": "kae-p3dot2-p3dot4",
+      "from": "KAE-P3.2",
+      "to": "KAE-P3.4",
+      "type": "depends_on"
+    },
+    {
+      "id": "kae-p3dot3-p3gate",
+      "from": "KAE-P3.3",
+      "to": "KAE-P3.GATE",
+      "type": "depends_on"
+    },
+    {
+      "id": "kae-p3dot4-p3gate",
+      "from": "KAE-P3.4",
+      "to": "KAE-P3.GATE",
+      "type": "depends_on"
+    },
+    {
+      "id": "kae-p3gate-p4dot1",
+      "from": "KAE-P3.GATE",
+      "to": "KAE-P4.1",
+      "type": "depends_on"
+    },
+    {
+      "id": "kae-p3gate-p4dot4",
+      "from": "KAE-P3.GATE",
+      "to": "KAE-P4.4",
+      "type": "depends_on"
+    },
+    {
+      "id": "kae-p4dot1-p4dot2",
+      "from": "KAE-P4.1",
+      "to": "KAE-P4.2",
+      "type": "depends_on"
+    },
+    {
+      "id": "kae-p4dot1-p4dot3",
+      "from": "KAE-P4.1",
+      "to": "KAE-P4.3",
+      "type": "depends_on"
+    },
+    {
+      "id": "kae-p4dot1-p4dot4",
+      "from": "KAE-P4.1",
+      "to": "KAE-P4.4",
+      "type": "depends_on"
+    },
+    {
+      "id": "kae-p4dot2-p4gate",
+      "from": "KAE-P4.2",
+      "to": "KAE-P4.GATE",
+      "type": "depends_on"
+    },
+    {
+      "id": "kae-p4dot3-p4gate",
+      "from": "KAE-P4.3",
+      "to": "KAE-P4.GATE",
+      "type": "depends_on"
+    },
+    {
+      "id": "kae-p4dot4-p4gate",
+      "from": "KAE-P4.4",
+      "to": "KAE-P4.GATE",
+      "type": "depends_on"
+    },
+    {
+      "id": "kae-p4gate-p5dot1",
+      "from": "KAE-P4.GATE",
+      "to": "KAE-P5.1",
+      "type": "depends_on"
+    },
+    {
+      "id": "kae-p4gate-p5dot4",
+      "from": "KAE-P4.GATE",
+      "to": "KAE-P5.4",
+      "type": "depends_on"
+    },
+    {
+      "id": "kae-p5dot1-p5dot2",
+      "from": "KAE-P5.1",
+      "to": "KAE-P5.2",
+      "type": "depends_on"
+    },
+    {
+      "id": "kae-p5dot1-p5dot3",
+      "from": "KAE-P5.1",
+      "to": "KAE-P5.3",
+      "type": "depends_on"
+    },
+    {
+      "id": "kae-p5dot2-p5gate",
+      "from": "KAE-P5.2",
+      "to": "KAE-P5.GATE",
+      "type": "depends_on"
+    },
+    {
+      "id": "kae-p5dot3-p5gate",
+      "from": "KAE-P5.3",
+      "to": "KAE-P5.GATE",
+      "type": "depends_on"
+    },
+    {
+      "id": "kae-p5dot4-p5gate",
+      "from": "KAE-P5.4",
+      "to": "KAE-P5.GATE",
+      "type": "depends_on"
+    },
+    {
+      "id": "kae-p5gate-p6dot1",
+      "from": "KAE-P5.GATE",
+      "to": "KAE-P6.1",
+      "type": "depends_on"
+    },
+    {
+      "id": "kae-p5gate-p6dot2",
+      "from": "KAE-P5.GATE",
+      "to": "KAE-P6.2",
+      "type": "depends_on"
+    },
+    {
+      "id": "kae-p5gate-p6dot3",
+      "from": "KAE-P5.GATE",
+      "to": "KAE-P6.3",
+      "type": "depends_on"
+    },
+    {
+      "id": "kae-p5gate-p6dot5",
+      "from": "KAE-P5.GATE",
+      "to": "KAE-P6.5",
+      "type": "depends_on"
+    },
+    {
+      "id": "kae-p6dot2-p6dot4",
+      "from": "KAE-P6.2",
+      "to": "KAE-P6.4",
+      "type": "depends_on"
+    },
+    {
+      "id": "kae-p6dot3-p6dot4",
+      "from": "KAE-P6.3",
+      "to": "KAE-P6.4",
+      "type": "depends_on"
+    },
+    {
+      "id": "kae-p6dot4-p6gate",
+      "from": "KAE-P6.4",
+      "to": "KAE-P6.GATE",
+      "type": "depends_on"
+    },
+    {
+      "id": "kae-p6dot1-p6gate",
+      "from": "KAE-P6.1",
+      "to": "KAE-P6.GATE",
+      "type": "depends_on"
+    },
+    {
+      "id": "kae-p6dot5-p6gate",
+      "from": "KAE-P6.5",
+      "to": "KAE-P6.GATE",
+      "type": "depends_on"
+    },
+    {
+      "id": "kae-p6gate-p7dot1",
+      "from": "KAE-P6.GATE",
+      "to": "KAE-P7.1",
+      "type": "depends_on"
+    },
+    {
+      "id": "kae-p7dot1-p7dot2",
+      "from": "KAE-P7.1",
+      "to": "KAE-P7.2",
+      "type": "depends_on"
+    },
+    {
+      "id": "kae-p7dot2-p7dot3",
+      "from": "KAE-P7.2",
+      "to": "KAE-P7.3",
+      "type": "depends_on"
+    },
+    {
+      "id": "kae-p7dot3-p7gate",
+      "from": "KAE-P7.3",
+      "to": "KAE-P7.GATE",
+      "type": "depends_on"
+    }
+  ],
+  "rootNodes": [
+    "KAE-P0.1",
+    "KAE-P0.2"
+  ],
+  "createdAt": 1785100000000,
+  "updatedAt": 1785100000000
+}

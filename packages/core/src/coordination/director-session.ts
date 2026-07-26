@@ -1,6 +1,16 @@
+import * as fsp from 'node:fs/promises';
 import * as path from 'node:path';
 import { DefaultSessionStore } from '../storage/session-store.js';
 import type { SessionStore, SessionWriter } from '../types/session.js';
+import { safeParse } from '../utils/safe-json.js';
+
+export interface DirectorSubagentSessionSummary {
+  lastAssistantText?: string | undefined;
+  lastStopReason?: string | undefined;
+  toolUsesObserved: number;
+  events: number;
+  path?: string | undefined;
+}
 
 /**
  * Per-subagent session factory.
@@ -111,5 +121,53 @@ export function makeDirectorSessionFactory(
       }
       return writer;
     },
+  };
+}
+
+export async function readDirectorSubagentSession(args: {
+  sessionsRoot: string | undefined;
+  directorRunId: string;
+  subagentId: string;
+  tail?: number | undefined;
+}): Promise<DirectorSubagentSessionSummary | null> {
+  if (!args.sessionsRoot) return null;
+  const filePath = path.join(args.sessionsRoot, args.directorRunId, `${args.subagentId}.jsonl`);
+  let raw: string;
+  try {
+    raw = await fsp.readFile(filePath, 'utf8');
+  } catch {
+    return null;
+  }
+  const lines = raw.split('\n').filter((l) => l.trim());
+  const targetLines = args.tail ? lines.slice(-args.tail) : lines;
+  let lastAssistantText: string | undefined;
+  let lastStopReason: string | undefined;
+  let toolUses = 0;
+  for (const line of targetLines) {
+    try {
+      const parsed = safeParse<{
+        type?: string | undefined;
+        text?: string | undefined;
+        stopReason?: string | undefined;
+      }>(line);
+      if (!parsed.ok || !parsed.value) continue;
+      const ev = parsed.value;
+      if (ev.type === 'assistant' && typeof ev.text === 'string') {
+        lastAssistantText = ev.text;
+      } else if (ev.type === 'stop' && ev.stopReason) {
+        lastStopReason = ev.stopReason;
+      } else if (ev.type === 'tool_use') {
+        toolUses++;
+      }
+    } catch {
+      // skip malformed lines
+    }
+  }
+  return {
+    lastAssistantText,
+    lastStopReason,
+    toolUsesObserved: toolUses,
+    events: targetLines.length,
+    path: filePath,
   };
 }

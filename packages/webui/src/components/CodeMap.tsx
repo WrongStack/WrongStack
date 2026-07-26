@@ -12,14 +12,9 @@
  */
 
 import {
-  Background,
-  BackgroundVariant,
-  Controls,
   type Edge,
   MarkerType,
-  MiniMap,
   type Node,
-  ReactFlow,
   ReactFlowProvider,
   useEdgesState,
   useNodesState,
@@ -28,22 +23,7 @@ import {
 import { useCallback, useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
 import '@xyflow/react/dist/style.css';
 import { useVirtualizer } from '@tanstack/react-virtual';
-import {
-  ArrowLeft,
-  ChevronDown,
-  ChevronRight,
-  ExternalLink,
-  Home,
-  Layers,
-  Loader2,
-  Network,
-  Orbit,
-  Package,
-  Radio,
-  Search,
-  Target,
-  X,
-} from 'lucide-react';
+import { Target } from 'lucide-react';
 import { useShallow } from 'zustand/react/shallow';
 import { cn } from '@/lib/utils';
 import {
@@ -66,7 +46,11 @@ import {
 } from './CodeMapActivityHelpers';
 import { CodeMapActivityDrawer } from './CodeMapActivityDrawer';
 import { CodeMapActivityStreamPanel } from './CodeMapActivityStreamPanel';
-import { CodeMapSelectedNodeSummary } from './CodeMapSelectedNodeSummary';
+import { CodeMapCanvasSurface } from './CodeMapCanvasSurface';
+import { CodeMapCanvasToolbar } from './CodeMapCanvasToolbar';
+import { CodeMapHeader } from './CodeMapHeader';
+import { CodeMapRelationInspector } from './CodeMapRelationInspector';
+import { CodeMapTreeSidebar } from './CodeMapTreeSidebar';
 import {
   EMPTY_GRAPH,
   FLOW_ACTIVITY_THROTTLE_MS,
@@ -75,22 +59,17 @@ import {
   MAX_SYMBOL_RESOLVE_INFLIGHT,
   MAX_TRAIL_AGENTS,
   MAX_TRAIL_HOPS,
-  MINIMAP_NODE_LIMIT,
   SEARCH_DEBOUNCE_MS,
   SEARCH_VIRTUALIZE_THRESHOLD,
 } from './CodeMapConfig';
-import { DirectoryBranch } from './CodeMapDirectoryTree';
 import { preserveFlowEdges, preserveFlowNodes } from './CodeMapFlowState';
-import { LiveAgentsHud, LiveControlBar, LiveOperationRow } from './CodeMapLiveOverlay';
-import { RelationSection } from './CodeMapRelations';
-import { CodeMapSearchResultRow } from './CodeMapSearchResults';
+import { LiveAgentsHud, LiveControlBar } from './CodeMapLiveOverlay';
 import {
   agentInitials,
   agentTrailColor,
   type CodeMapNodeData,
   EDGE_COLOR,
   NODE_STYLE,
-  nodeTypes,
 } from './CodeMapVisuals';
 import {
   buildDirectoryTree,
@@ -103,7 +82,6 @@ import {
   layoutGraph,
   normalizedPath,
   relationItems,
-  relativeFilePath,
   scopeKey,
   scopeUrl,
   smartCanvasGraph,
@@ -826,348 +804,58 @@ function CodeMapInner(): React.ReactElement {
 
   return (
     <div className="flex h-full min-h-0 flex-col bg-background">
-      <header className="flex h-[62px] shrink-0 items-center gap-4 border-b bg-card px-4">
-        <div className="flex min-w-[220px] items-center gap-3">
-          <span className="flex h-9 w-9 items-center justify-center border border-primary bg-primary/10 text-primary">
-            <Network className="h-4 w-4" />
-          </span>
-          <div>
-            <h1 className="font-display text-sm font-semibold tracking-tight">Code Atlas</h1>
-            <p className="text-[9px] uppercase tracking-[0.18em] text-muted-foreground">
-              Architecture intelligence
-            </p>
-          </div>
-        </div>
-        <nav
-          className="flex min-w-0 flex-1 items-center gap-1 font-mono text-[10px]"
-          aria-label="Code map breadcrumb"
-        >
-          {scope.level !== 'packages' && (
-            <button
-              type="button"
-              className="mr-1 flex h-7 w-7 items-center justify-center border text-muted-foreground hover:bg-muted"
-              onClick={() => {
-                if (scope.level === 'symbols')
-                  navigate({ level: 'files', package: scope.package ?? '(root)' });
-                else navigate({ level: 'packages' });
-              }}
-              aria-label="Back"
-            >
-              <ArrowLeft className="h-3.5 w-3.5" />
-            </button>
-          )}
-          <button
-            type="button"
-            className="flex items-center gap-1.5 px-1.5 py-1 text-muted-foreground hover:text-foreground"
-            onClick={() => navigate({ level: 'packages' })}
-          >
-            <Home className="h-3 w-3" /> workspace
-          </button>
-          {scope.level !== 'packages' && (
-            <>
-              <ChevronRight className="h-3 w-3 text-muted-foreground" />
-              <button
-                type="button"
-                className="max-w-[220px] truncate px-1.5 py-1 hover:text-primary"
-                onClick={() => navigate({ level: 'files', package: scope.package ?? '(root)' })}
-              >
-                {scope.package ?? '(root)'}
-              </button>
-            </>
-          )}
-          {scope.level === 'symbols' && (
-            <>
-              <ChevronRight className="h-3 w-3 text-muted-foreground" />
-              <span className="truncate px-1.5 py-1 text-primary">
-                {relativeFilePath({
-                  id: '',
-                  label: scope.file,
-                  kind: 'file',
-                  file: scope.file,
-                  package: scope.package,
-                })}
-              </span>
-            </>
-          )}
-        </nav>
-        <div className="hidden items-center gap-5 xl:flex">
-          <div
-            className={cn(
-              'flex h-8 items-center gap-2 border px-2.5',
-              agentPresences.length > 0
-                ? 'border-success/50 bg-success/10 text-success'
-                : 'text-muted-foreground',
-            )}
-          >
-            <Radio className={cn('h-3 w-3', agentPresences.length > 0 && 'animate-pulse')} />
-            <div>
-              <div className="font-mono text-[10px] font-bold">{agentPresences.length} LIVE</div>
-              <div className="text-[7px] uppercase tracking-wider">agents</div>
-            </div>
-          </div>
-          <div className="text-right">
-            <div className="font-mono text-sm font-semibold">{graph.nodes.length}</div>
-            <div className="text-[8px] uppercase tracking-wider text-muted-foreground">nodes</div>
-          </div>
-          <div className="text-right">
-            <div className="font-mono text-sm font-semibold">{graph.edges.length}</div>
-            <div className="text-[8px] uppercase tracking-wider text-muted-foreground">links</div>
-          </div>
-          <div className="text-right">
-            <div className="font-mono text-sm font-semibold">{edgeWeight}</div>
-            <div className="text-[8px] uppercase tracking-wider text-muted-foreground">
-              references
-            </div>
-          </div>
-          <div className="text-right">
-            <div className="font-mono text-sm font-semibold">{connectedNodeCount}</div>
-            <div className="text-[8px] uppercase tracking-wider text-muted-foreground">
-              connected
-            </div>
-          </div>
-        </div>
-      </header>
+      <CodeMapHeader
+        scope={scope}
+        graph={graph}
+        agentPresences={agentPresences}
+        edgeWeight={edgeWeight}
+        connectedNodeCount={connectedNodeCount}
+        navigate={navigate}
+      />
 
       <div className="flex min-h-0 flex-1">
-        <aside className="flex w-[286px] shrink-0 flex-col border-r bg-card/70">
-          <div className="border-b p-3">
-            <div className="mb-2 flex items-center justify-between">
-              <h2 className="text-[10px] font-bold uppercase tracking-[0.18em]">Code tree</h2>
-              <span className="font-mono text-[9px] text-muted-foreground">
-                {rootGraph.nodes.length} roots
-              </span>
-            </div>
-            <label className="flex h-8 items-center gap-2 border bg-background px-2 focus-within:border-primary">
-              <Search className="h-3.5 w-3.5 text-muted-foreground" />
-              <input
-                className="min-w-0 flex-1 bg-transparent font-mono text-[10px] outline-none placeholder:text-muted-foreground"
-                value={searchInput}
-                onChange={(event) => setSearchInput(event.target.value)}
-                placeholder="Find package, file, symbol…"
-              />
-              {searchInput && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    setSearchInput('');
-                    setSearch('');
-                  }}
-                  aria-label="Clear search"
-                >
-                  <X className="h-3 w-3 text-muted-foreground" />
-                </button>
-              )}
-            </label>
-          </div>
-          <div ref={treeScrollRef} className="min-h-0 flex-1 overflow-y-auto py-2">
-            {search.trim() ? (
-              <div>
-                <div className="px-3 pb-2 text-[9px] text-muted-foreground">
-                  {searchResults.length} loaded-map results
-                </div>
-                {searchResults.length === 0 ? (
-                  <p className="px-3 py-8 text-center text-[10px] text-muted-foreground">
-                    No match in loaded branches.
-                    <br />
-                    Expand a package to search its files.
-                  </p>
-                ) : virtualizeSearch ? (
-                  <div
-                    style={{
-                      height: `${searchVirtualizer.getTotalSize()}px`,
-                      width: '100%',
-                      position: 'relative',
-                    }}
-                  >
-                    {searchVirtualizer.getVirtualItems().map((virtualRow) => {
-                      const node = searchResults[virtualRow.index];
-                      if (!node) return null;
-                      return (
-                        <CodeMapSearchResultRow
-                          key={node.id}
-                          node={node}
-                          onSelect={selectSearchResult}
-                          virtual={{
-                            index: virtualRow.index,
-                            start: virtualRow.start,
-                            measureElement: searchVirtualizer.measureElement,
-                          }}
-                        />
-                      );
-                    })}
-                  </div>
-                ) : (
-                  searchResults.map((node) => (
-                    <CodeMapSearchResultRow
-                      key={node.id}
-                      node={node}
-                      onSelect={selectSearchResult}
-                    />
-                  ))
-                )}
-              </div>
-            ) : (
-              rootGraph.nodes.map((packageNode) => {
-                const packageName = packageNode.package ?? packageNode.label;
-                const expanded = expandedPackages.has(packageName);
-                const branchKey = scopeKey({ level: 'files', package: packageName });
-                const filesGraph = packageGraph(packageName);
-                const tree = filesGraph ? buildDirectoryTree(filesGraph.nodes) : undefined;
-                return (
-                  <div key={packageNode.id}>
-                    <div
-                      className={cn(
-                        'group flex h-8 items-center px-2 hover:bg-muted',
-                        selectedId === packageNode.id && 'bg-primary/10 text-primary',
-                      )}
-                    >
-                      <button
-                        type="button"
-                        className="flex h-6 w-5 items-center justify-center text-muted-foreground"
-                        onClick={() => togglePackage(packageNode)}
-                        aria-label={`${expanded ? 'Collapse' : 'Expand'} ${packageName}`}
-                      >
-                        {loadingBranches.has(branchKey) ? (
-                          <Loader2 className="h-3 w-3 animate-spin" />
-                        ) : expanded ? (
-                          <ChevronDown className="h-3 w-3" />
-                        ) : (
-                          <ChevronRight className="h-3 w-3" />
-                        )}
-                      </button>
-                      <button
-                        type="button"
-                        className="flex min-w-0 flex-1 items-center gap-2 text-left"
-                        onClick={() => navigate({ level: 'packages' }, packageNode.id)}
-                        onDoubleClick={() => navigate({ level: 'files', package: packageName })}
-                      >
-                        <Package className="h-3.5 w-3.5 shrink-0 text-primary" />
-                        <span className="truncate font-mono text-[10px] font-semibold">
-                          {packageNode.label}
-                        </span>
-                        <span className="ml-auto text-[9px] text-muted-foreground">
-                          {packageNode.fileCount ?? 0}
-                        </span>
-                      </button>
-                      <button
-                        type="button"
-                        className="ml-1 hidden h-5 w-5 items-center justify-center text-muted-foreground hover:text-foreground group-hover:flex"
-                        onClick={() => navigate({ level: 'files', package: packageName })}
-                        title="Open file map"
-                        aria-label={`Open ${packageName} map`}
-                      >
-                        <ExternalLink className="h-3 w-3" />
-                      </button>
-                    </div>
-                    {expanded && tree && (
-                      <DirectoryBranch
-                        directory={tree}
-                        packageName={packageName}
-                        depth={1}
-                        expandedDirectories={expandedDirectories}
-                        expandedFiles={expandedFiles}
-                        loadingBranches={loadingBranches}
-                        graphForFile={graphForFile}
-                        onToggleDirectory={toggleDirectory}
-                        onToggleFile={toggleFile}
-                        onSelectFile={selectFileFromTree}
-                        onOpenFile={handleOpenNode}
-                        onSelectSymbol={selectSymbolFromTree}
-                        selectedId={selectedId}
-                        activeFileNorms={activeFileNorms}
-                        activeSymbolIds={activeSymbolIds}
-                        revealAllKeys={revealAllKeys}
-                        onRevealAll={revealAllTree}
-                      />
-                    )}
-                  </div>
-                );
-              })
-            )}
-          </div>
-          <div className="border-t px-3 py-2 text-[9px] leading-relaxed text-muted-foreground">
-            Click to focus · double-click to enter
-            <br />
-            Branches stay open while the map changes
-          </div>
-        </aside>
+        <CodeMapTreeSidebar
+          rootGraph={rootGraph}
+          search={search}
+          searchInput={searchInput}
+          searchResults={searchResults}
+          virtualizeSearch={virtualizeSearch}
+          searchVirtualizer={searchVirtualizer}
+          treeScrollRef={treeScrollRef}
+          selectedId={selectedId}
+          expandedPackages={expandedPackages}
+          expandedDirectories={expandedDirectories}
+          expandedFiles={expandedFiles}
+          loadingBranches={loadingBranches}
+          activeFileNorms={activeFileNorms}
+          activeSymbolIds={activeSymbolIds}
+          revealAllKeys={revealAllKeys}
+          packageGraph={packageGraph}
+          graphForFile={graphForFile}
+          navigate={navigate}
+          togglePackage={togglePackage}
+          toggleDirectory={toggleDirectory}
+          toggleFile={toggleFile}
+          revealAllTree={revealAllTree}
+          selectFileFromTree={selectFileFromTree}
+          selectSymbolFromTree={selectSymbolFromTree}
+          selectSearchResult={selectSearchResult}
+          handleOpenNode={handleOpenNode}
+          onSearchInputChange={setSearchInput}
+          onSearchChange={setSearch}
+        />
 
         <main className="relative min-w-0 flex-1 bg-[radial-gradient(circle_at_50%_0%,hsl(var(--primary)/0.055),transparent_38%)]">
-          <div className="absolute left-3 right-3 top-3 z-10 flex items-center gap-2 pointer-events-none">
-            <div className="pointer-events-auto flex border bg-card/95 shadow-md backdrop-blur">
-              <button
-                type="button"
-                className={cn(
-                  'flex h-8 items-center gap-1.5 border-r px-2.5 text-[9px] font-semibold uppercase tracking-wider',
-                  layout === 'layers'
-                    ? 'bg-primary text-primary-foreground'
-                    : 'text-muted-foreground hover:bg-muted',
-                )}
-                onClick={() => setLayout('layers')}
-              >
-                <Layers className="h-3 w-3" /> Layers
-              </button>
-              <button
-                type="button"
-                className={cn(
-                  'flex h-8 items-center gap-1.5 px-2.5 text-[9px] font-semibold uppercase tracking-wider',
-                  layout === 'orbit'
-                    ? 'bg-primary text-primary-foreground'
-                    : 'text-muted-foreground hover:bg-muted',
-                )}
-                onClick={() => setLayout('orbit')}
-              >
-                <Orbit className="h-3 w-3" /> Relations
-              </button>
-            </div>
-            <div className="pointer-events-auto flex border bg-card/95 shadow-md backdrop-blur">
-              <button
-                type="button"
-                className={cn(
-                  'h-8 border-r px-2.5 font-mono text-[9px] font-bold',
-                  canvasMode === 'smart'
-                    ? 'bg-success text-success-foreground'
-                    : 'text-muted-foreground hover:bg-muted',
-                )}
-                onClick={() => setCanvasMode('smart')}
-                title="Keep the full tree, show the strongest relations and selected neighbourhood"
-              >
-                SMART {canvasGraph.nodes.length}/{graph.nodes.length}
-              </button>
-              <button
-                type="button"
-                className={cn(
-                  'h-8 px-2.5 font-mono text-[9px] font-bold',
-                  canvasMode === 'all'
-                    ? 'bg-foreground text-background'
-                    : 'text-muted-foreground hover:bg-muted',
-                )}
-                onClick={() => setCanvasMode('all')}
-                title="Render every node and relation in this scope"
-              >
-                ALL
-              </button>
-            </div>
-            <div className="pointer-events-auto ml-auto flex max-w-[60%] overflow-x-auto border bg-card/95 shadow-md backdrop-blur">
-              {(['all', 'import', 'call', 'type_ref', 'inherit', 'implement'] as const).map(
-                (filter) => (
-                  <button
-                    type="button"
-                    key={filter}
-                    className={cn(
-                      'h-8 whitespace-nowrap border-r px-2.5 font-mono text-[9px] last:border-r-0',
-                      edgeFilter === filter
-                        ? 'bg-foreground text-background'
-                        : 'text-muted-foreground hover:bg-muted',
-                    )}
-                    onClick={() => setEdgeFilter(filter)}
-                  >
-                    {filter === 'all' ? 'ALL LINKS' : filter.replace('_', ' ').toUpperCase()}
-                  </button>
-                ),
-              )}
-            </div>
-          </div>
+          <CodeMapCanvasToolbar
+            layout={layout}
+            canvasMode={canvasMode}
+            edgeFilter={edgeFilter}
+            canvasNodeCount={canvasGraph.nodes.length}
+            graphNodeCount={graph.nodes.length}
+            onLayoutChange={setLayout}
+            onCanvasModeChange={setCanvasMode}
+            onEdgeFilterChange={setEdgeFilter}
+          />
 
           <LiveAgentsHud presences={agentPresences} onLocate={locateActivity} />
           <LiveControlBar
@@ -1186,191 +874,42 @@ function CodeMapInner(): React.ReactElement {
             }}
           />
 
-          {loading && (
-            <div className="absolute inset-0 z-20 flex flex-col items-center justify-center gap-3 bg-background/75 backdrop-blur-sm">
-              <Loader2 className="h-7 w-7 animate-spin text-primary" />
-              <span className="font-mono text-[10px] uppercase tracking-widest text-muted-foreground">
-                Mapping relationships
-              </span>
-            </div>
-          )}
-          {error && !loading && (
-            <div className="absolute inset-0 z-20 flex flex-col items-center justify-center gap-3 p-8 text-center">
-              <Network className="h-10 w-10 text-destructive" />
-              <p className="font-mono text-sm text-destructive">{error}</p>
-              <p className="max-w-md text-xs text-muted-foreground">
-                The map needs a codebase index. Run{' '}
-                <code className="border bg-muted px-1.5 py-0.5">codebase-index</code> once, then
-                reopen this view.
-              </p>
-            </div>
-          )}
-          {!loading && !error && graph.nodes.length === 0 && (
-            <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 text-muted-foreground">
-              <Network className="h-8 w-8 opacity-40" />
-              <p className="text-xs">No indexed nodes at this level.</p>
-            </div>
-          )}
-          {!loading && !error && graph.nodes.length > 1 && graph.edges.length === 0 && (
-            <div className="pointer-events-none absolute left-1/2 top-14 z-10 -translate-x-1/2 border border-warning/40 bg-warning/10 px-3 py-2 text-center shadow backdrop-blur">
-              <div className="font-mono text-[9px] font-bold uppercase tracking-wider text-warning">
-                No resolved relations in this scope
-              </div>
-              <div className="mt-0.5 text-[8px] text-muted-foreground">
-                The upgraded index will rebuild and resolve call/import/type links automatically.
-              </div>
-            </div>
-          )}
-          {!error && graph.nodes.length > 0 && (
-            <ReactFlow
-              nodes={flowNodes}
-              edges={flowEdges}
-              onNodesChange={onNodesChange}
-              onEdgesChange={onEdgesChange}
-              nodeTypes={nodeTypes}
-              nodesConnectable={false}
-              nodesDraggable={false}
-              edgesFocusable={false}
-              elementsSelectable={false}
-              onlyRenderVisibleElements
-              minZoom={0.08}
-              maxZoom={2.2}
-              proOptions={{ hideAttribution: true }}
-            >
-              <Background
-                variant={BackgroundVariant.Dots}
-                // Wider gap on dense canvases — fewer SVG dots to paint.
-                gap={canvasGraph.nodes.length > 60 ? 32 : 22}
-                size={1}
-                color="hsl(var(--muted-foreground))"
-                className="!opacity-25"
-              />
-              <Controls
-                position="bottom-left"
-                showInteractive={false}
-                className="!border !border-border !bg-card !shadow-md [&>button]:!border-border [&>button]:!bg-card [&>button]:!fill-foreground"
-              />
-              {canvasGraph.nodes.length <= MINIMAP_NODE_LIMIT && (
-                <MiniMap
-                  position="bottom-right"
-                  pannable
-                  zoomable
-                  className="!h-[112px] !w-[180px] !border !border-border !bg-card !shadow-md"
-                  maskColor="hsl(var(--background) / 0.72)"
-                  nodeColor={(node) => {
-                    const kind = (node.data as CodeMapNodeData | undefined)?.graphNode.kind;
-                    return kind === 'package'
-                      ? 'hsl(var(--primary))'
-                      : kind === 'file'
-                        ? 'hsl(var(--info))'
-                        : 'hsl(var(--success))';
-                  }}
-                />
-              )}
-            </ReactFlow>
-          )}
-          <div className="pointer-events-none absolute bottom-3 left-1/2 z-10 flex -translate-x-1/2 items-center gap-3 border bg-card/90 px-3 py-1.5 font-mono text-[8px] text-muted-foreground shadow backdrop-blur">
-            {(Object.entries(EDGE_COLOR) as [GraphRefType, string][]).map(([kind, color]) => (
-              <span key={kind} className="flex items-center gap-1">
-                <span className="h-0.5 w-3" style={{ backgroundColor: color }} />
-                {kind.replace('_', ' ')}
-              </span>
-            ))}
-            <span className="flex items-center gap-1 text-primary" data-testid="agent-trail-count">
-              <span className="w-4 border-t-2 border-dashed border-primary" />
-              agent trail{agentTrailCount > 0 ? ` ×${agentTrailCount}` : ''}
-            </span>
-          </div>
+          <CodeMapCanvasSurface
+            loading={loading}
+            error={error}
+            graph={graph}
+            canvasNodeCount={canvasGraph.nodes.length}
+            flowNodes={flowNodes}
+            flowEdges={flowEdges}
+            onNodesChange={onNodesChange}
+            onEdgesChange={onEdgesChange}
+            agentTrailCount={agentTrailCount}
+          />
         </main>
 
-        <aside className="flex w-[326px] shrink-0 flex-col border-l bg-card/80">
-          <div className="flex h-10 items-center justify-between border-b px-3">
-            <h2 className="text-[10px] font-bold uppercase tracking-[0.18em]">
-              Relation inspector
-            </h2>
-            {selectedNode && (
-              <button
-                type="button"
-                className="text-muted-foreground hover:text-foreground"
-                onClick={() => setSelectedId(null)}
-                aria-label="Clear selection"
-              >
-                <X className="h-3.5 w-3.5" />
-              </button>
-            )}
-          </div>
-          {!selectedNode ? (
-            <CodeMapActivityStreamPanel
-              activeOperations={displayedActiveOperations}
-              recentActivities={displayedRecentActivities}
-              activityTotalCount={activityTotalCount}
-              onLocate={locateActivity}
-            />
-          ) : (
-            <div className="min-h-0 flex-1 overflow-y-auto">
-              <CodeMapSelectedNodeSummary
-                node={selectedNode}
-                incomingCount={incoming.length}
-                outgoingCount={outgoing.length}
-                onOpenNode={handleOpenNode}
-                onOpenActivity={setHistoryFile}
-              />
-              {selectedActivities.length > 0 && (
-                <section className="border-b bg-success/5 py-2">
-                  <div className="mb-1 flex items-center gap-2 px-3">
-                    <Radio className="h-3 w-3 animate-pulse text-success" />
-                    <h3 className="text-[9px] font-bold uppercase tracking-[0.16em]">
-                      Agents on this node
-                    </h3>
-                    <span className="ml-auto font-mono text-[9px] text-success">
-                      {selectedActivities.length}
-                    </span>
-                  </div>
-                  {selectedActivities.map((activity) => (
-                    <LiveOperationRow
-                      key={activity.id ?? `${activity.toolUseId}:${activity.filePath}`}
-                      activity={activity}
-                      onLocate={locateActivity}
-                      showAgent
-                    />
-                  ))}
-                </section>
-              )}
-              <RelationSection
-                title="Incoming"
-                subtitle="Who depends on this"
-                items={incoming}
-                graph={filteredGraph}
-                selectedId={selectedNode.id}
-                expanded={expandedRelations}
-                onToggle={(key) =>
-                  setExpandedRelations((current) => {
-                    const next = new Set(current);
-                    next.has(key) ? next.delete(key) : next.add(key);
-                    return next;
-                  })
-                }
-                onSelect={handleSelectNode}
-              />
-              <RelationSection
-                title="Outgoing"
-                subtitle="What this depends on"
-                items={outgoing}
-                graph={filteredGraph}
-                selectedId={selectedNode.id}
-                expanded={expandedRelations}
-                onToggle={(key) =>
-                  setExpandedRelations((current) => {
-                    const next = new Set(current);
-                    next.has(key) ? next.delete(key) : next.add(key);
-                    return next;
-                  })
-                }
-                onSelect={handleSelectNode}
-              />
-            </div>
-          )}
-        </aside>
+        <CodeMapRelationInspector
+          selectedNode={selectedNode}
+          incoming={incoming}
+          outgoing={outgoing}
+          filteredGraph={filteredGraph}
+          expandedRelations={expandedRelations}
+          activeOperations={displayedActiveOperations}
+          recentActivities={displayedRecentActivities}
+          activityTotalCount={activityTotalCount}
+          selectedActivities={selectedActivities}
+          onClearSelection={() => setSelectedId(null)}
+          onOpenNode={handleOpenNode}
+          onOpenActivity={setHistoryFile}
+          onLocateActivity={locateActivity}
+          onToggleRelation={(key) =>
+            setExpandedRelations((current) => {
+              const next = new Set(current);
+              next.has(key) ? next.delete(key) : next.add(key);
+              return next;
+            })
+          }
+          onSelectNode={handleSelectNode}
+        />
       </div>
 
       {historyFile && (

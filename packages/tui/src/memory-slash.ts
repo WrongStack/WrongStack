@@ -1,84 +1,18 @@
 import type { MemoryEntry, MemoryPort, MemoryScope } from '@wrongstack/core/types';
 import { MEMORY_TYPE_LABELS, type MemoryPriority, type MemoryType } from '@wrongstack/core/types';
 import { getSageSurface } from '@wrongstack/sage';
+import {
+  daysAgo,
+  fmtDate,
+  KIND_EMOJI,
+  PRIORITY_EMOJI,
+  recencyLabel,
+  SCOPE_LABEL,
+  TYPE_EMOJI,
+} from './memory-slash-format.js';
 
 export interface MemorySlashDeps {
   memoryStore: MemoryPort;
-}
-
-// ── Scope labels ────────────────────────────────────────────────────────────
-
-const SCOPE_LABEL: Record<MemoryScope, string> = {
-  'project-agents': '🤖 Project AGENTS.md',
-  'project-memory': '🧠 Project memory',
-  'user-memory': '👤 User memory',
-};
-
-// ── Emoji badges ────────────────────────────────────────────────────────────
-
-const TYPE_EMOJI: Record<MemoryType, string> = {
-  fact: '📌',
-  decision: '⚖️',
-  convention: '📐',
-  preference: '⭐',
-  reference: '📎',
-  anti_pattern: '🚫',
-};
-
-const PRIORITY_EMOJI: Record<MemoryPriority, string> = {
-  critical: '🔴',
-  high: '🟠',
-  medium: '🟡',
-  low: '⚪',
-};
-
-const KIND_EMOJI: Record<string, string> = {
-  fact: '📌',
-  decision: '⚖️',
-  convention: '📐',
-  preference: '⭐',
-  anti_pattern: '🚫',
-  warning: '⚠️',
-  workflow: '🔁',
-  bug_root_cause: '🐛',
-  file_note: '📄',
-  symbol_note: '🔣',
-  command_note: '⌨️',
-  summary: '📋',
-};
-
-// ── Safe date utilities ──────────────────────────────────────────────────────
-
-/**
- * Parse an ISO timestamp string safely. Returns null for falsy, malformed, or
- * otherwise unparseable values so callers can render placeholders instead of
- * crashing.
- */
-function parseDate(ts: string): Date | null {
-  if (!ts || typeof ts !== 'string') return null;
-  const d = new Date(ts);
-  return Number.isFinite(d.getTime()) ? d : null;
-}
-
-function daysAgo(ts: string): number | null {
-  const d = parseDate(ts);
-  if (!d) return null;
-  return (Date.now() - d.getTime()) / (1000 * 60 * 60 * 24);
-}
-
-function fmtDate(ts: string): string {
-  const d = parseDate(ts);
-  if (!d) return '—';
-  return d.toISOString().slice(0, 10);
-}
-
-function recencyLabel(days: number | null): string {
-  if (days === null) return '—';
-  if (days < 1) return 'today';
-  if (days < 7) return `${Math.round(days)}d ago`;
-  if (days < 30) return `${Math.round(days / 7)}w ago`;
-  if (days < 365) return `${Math.round(days / 30)}mo ago`;
-  return `${Math.round(days / 365)}y ago`;
 }
 
 // ── Sage duck-type interface ──────────────────────────────────────────

@@ -131,7 +131,12 @@ function applyAlibaba(body: Record<string, unknown>, req: Request): void {
   if (r?.enabled !== undefined) body['enable_thinking'] = r.enabled;
   if (r?.enabled !== false && r?.effort && r.effort !== 'none') {
     body['enable_thinking'] = true;
-    body['thinking_budget'] = deriveBudget(req.maxTokens ?? 8192, r.effort, 32_768);
+    // Budget a fraction of the response cap. The base body builder already
+    // resolved that cap for THIS model (catalog `limit.output`), so read it
+    // back. When it resolved to nothing, no budget is sent either: the value
+    // would have to be invented, and the backend picks its own default.
+    const cap = outputCapFrom(body, req);
+    if (cap !== undefined) body['thinking_budget'] = deriveBudget(cap, r.effort, 32_768);
   }
   if (body['enable_thinking'] === true) forceAutoToolChoice(body, req);
 }
@@ -194,6 +199,25 @@ function forceAutoToolChoice(body: Record<string, unknown>, req: Request): void 
 
 function isOneOf<T extends string>(value: T | undefined, allowed: readonly T[]): value is T {
   return value !== undefined && allowed.includes(value);
+}
+
+/**
+ * The output cap the body builder already put on the wire, whichever field
+ * name this provider uses, falling back to the request's explicit value.
+ *
+ * Undefined when nothing resolved one. Callers must then omit whatever they
+ * would have derived from it rather than substitute a literal — a guessed
+ * budget here is the same class of bug as a guessed `max_tokens`.
+ */
+function outputCapFrom(body: Record<string, unknown>, req: Request): number | undefined {
+  for (const field of ['max_tokens', 'max_completion_tokens'] as const) {
+    const value = body[field];
+    if (typeof value === 'number' && Number.isFinite(value) && value > 0) return value;
+  }
+  const explicit = req.maxTokens;
+  return typeof explicit === 'number' && Number.isFinite(explicit) && explicit > 0
+    ? explicit
+    : undefined;
 }
 
 function deriveBudget(maxTokens: number, effort: ReasoningEffort, cap: number): number {

@@ -1,20 +1,11 @@
-import * as crypto from 'node:crypto';
-import * as path from 'node:path';
 import { toErrorMessage } from '@wrongstack/core/utils';
-import type { Agent } from '@wrongstack/core/agent';
-import type { AttachmentStore, TokenCounter } from '@wrongstack/core/types';
 import type { GoalFile } from '@wrongstack/core/goal';
-import type { SlashCommandRegistry } from '@wrongstack/core/registry';
-import { color, estimateRequestTokensCalibrated, expectDefined, hasOpenTodos, wstackGlobalRoot } from '@wrongstack/core/utils';
+import { color, estimateRequestTokensCalibrated, expectDefined, hasOpenTodos } from '@wrongstack/core/utils';
 import { detectContinueIntent, InputBuilder, resolveContinuation } from '@wrongstack/core/agent';
-import { GlobalMailbox, resolveProjectDir } from '@wrongstack/core/coordination';
 import { goalFilePath, loadGoal, summarizeUsage } from '@wrongstack/core/goal';
-import { readClipboardImage, routeImagesForModel, type VisionAdapters } from '@wrongstack/runtime';
+import { readClipboardImage, routeImagesForModel } from '@wrongstack/runtime';
 import { contextOverflowHint } from './context-overflow-diagnostic.js';
-import { startCliHqConnection } from './hq-publisher.js';
-import type { ReadlineInputReader } from './input-reader.js';
 import { type PredictLLMProvider, predictNextTasks } from './next-task-predictor.js';
-import type { TerminalRenderer } from './renderer.js';
 import {
   advanceToNextTask,
   autoDetectTaskCompletion,
@@ -37,6 +28,8 @@ import {
 import { theme } from './theme.js';
 import { parseSuggestionsFromOutput } from './repl-suggestions.js';
 import { printBanner, renderContextChip } from './repl-rendering.js';
+import { registerReplClient } from './repl-client-registration.js';
+import type { ReplOptions } from './repl-options.js';
 import {
   type AutoProceedLoopGuard,
   createAutoProceedLoopGuard,
@@ -53,152 +46,7 @@ import {
 const DEFAULT_MAX_CONSECUTIVE_AUTO_PROCEED = 50;
 
 export { parseSuggestionsFromOutput, parseAutoSuggestionsFromOutput } from './repl-suggestions.js';
-
-export interface ReplOptions {
-  agent: Agent;
-  renderer: TerminalRenderer;
-  reader: ReadlineInputReader;
-  slashRegistry: SlashCommandRegistry;
-  attachments: AttachmentStore;
-  banner?: boolean | undefined;
-  tokenCounter?: TokenCounter | undefined;
-  visionAdapters?: VisionAdapters | undefined;
-  /** Autonomy mode state getter. */
-  getAutonomy?: (() => import('./services/autonomy-mode.js').AutonomyMode) | undefined;
-  /** Set autonomy mode (used by SIGINT handler to flip back to 'off'). */
-  onAutonomy?: ((mode: import('./services/autonomy-mode.js').AutonomyMode) => void) | undefined;
-  /**
-   * Whether next-task prediction is enabled. When true, the REPL runs a
-   * lightweight single-shot prediction after each completed turn and shows
-   * the likely next steps (display-only). Toggled via `/next`.
-   */
-  getNextPredict?: (() => boolean) | undefined;
-  /**
-   * Called after each agent turn with parsed "💡 Next steps" suggestions
-   * extracted from the final response text. The host stores these so
-   * `/next 1`, `/next 1 2 3` can select and execute them.
-   * Passed `null` when no suggestions were found in the output.
-   */
-  onSuggestionsParsed?: ((suggestions: string[] | null) => void) | undefined;
-  /**
-   * Read the current suggestion list. Used by the auto-proceed loop to
-   * check whether there are suggestions to feed when autonomy is 'auto'.
-   */
-  getSuggestions?: (() => string[]) | undefined;
-  /**
-   * Read the current auto suggestion list (items with auto="true" attribute).
-   * Used by YOLO+auto autonomy mode.
-   */
-  getAutoSuggestions?: (() => string[]) | undefined;
-  /**
-   * YOLO mode getter. When true, auto="true" suggestions trigger auto-proceed.
-   */
-  getYolo?: (() => boolean) | undefined;
-  /**
-   * Autonomy next prompt template. Used to construct the prompt when auto-submitting
-   * a next_steps item in YOLO+auto mode. Contains {{suggestion}} placeholder.
-   */
-  autonomyNextPrompt?: string | undefined;
-  /**
-   * Delay in milliseconds before auto-proceeding with the top suggestion
-   * when autonomy mode is 'auto'. Default 45 seconds.
-   */
-  autoProceedDelayMs?: number | undefined;
-  /**
-   * Maximum auto-proceed iterations before stopping to prevent infinite
-   * loops. Default 50. 0 means unlimited.
-   */
-  autoProceedMaxIterations?: number | undefined;
-  /**
-   * LLM validation gate called before starting the auto-proceed countdown.
-   * Receives the top suggestion and the last agent output text. Should
-   * return `true` if auto-proceeding is safe, `false` if user review is
-   * needed. The countdown only starts when this returns `true`.
-   */
-  onValidateAutoProceed?:
-    | ((suggestion: string, lastOutput: string) => Promise<boolean>)
-    | undefined;
-  /**
-   * Access the eternal-autonomy engine. When autonomy mode is 'eternal'
-   * the REPL skips reading user input and instead drives engine
-   * iterations from this loop — so the engine and the REPL never compete
-   * for the shared Context. Returns null until /autonomy eternal primes it.
-   */
-  getEternalEngine?: (() => import('@wrongstack/core/execution').EternalAutonomyEngine | null) | undefined;
-  /**
-   * Access the parallel-eternal engine. When autonomy mode is 'eternal-parallel'
-   * the REPL drives this engine instead of reading user input.
-   * Returns null until /autonomy parallel primes it.
-   */
-  getParallelEngine?: (() => import('@wrongstack/core/execution').ParallelEternalEngine | null) | undefined;
-  /**
-   * Access the active SDD parallel run's control surface (or null). A running
-   * `/sdd parallel` blocks the prompt while it awaits completion, so this is the
-   * only mid-run stop path from the REPL — the SIGINT handler calls `stop()`.
-   */
-  getSddRun?: (() => import('@wrongstack/sdd').SddRunControl | null) | undefined;
-  /** Model-specific max context window (tokens). Used for the context bar in turn summaries. */
-  effectiveMaxContext?: number | undefined;
-  /** Live model-specific max context window. Prefer this over the startup snapshot when provided. */
-  getEffectiveMaxContext?: (() => number | undefined) | undefined;
-  /** Project / folder name shown in the banner. Usually `path.basename(projectRoot)`. */
-  projectName?: string | undefined;
-  /** Absolute project root — used to locate .wrongstack/goal.json for the goal banner. */
-  projectRoot?: string | undefined;
-  /** Full app config, used for HQ client publishing settings. */
-  appConfig?: import('@wrongstack/core/types').Config | undefined;
-  /** Live active session id for cross-surface client registration. */
-  getSessionId?: (() => string | undefined) | undefined;
-  /** Resolve current model vision support. Falls back to provider capability when omitted. */
-  supportsVision?: (() => boolean | Promise<boolean>) | undefined;
-  /** Skill loader for the skill generator wizard. */
-  skillLoader?: import('@wrongstack/core/types').SkillLoader | undefined;
-  /** Controller for the agents monitor overlay. */
-  agentsMonitorController?:
-    | {
-        visible: boolean;
-        setVisible: (visible: boolean) => void;
-      }
-    | undefined;
-  /** Controller for fleet stream (subagent output to history). */
-  fleetStreamController?:
-    | {
-        mode: import('@wrongstack/core/types').FleetChatVerbosity;
-        setMode: (mode: import('@wrongstack/core/types').FleetChatVerbosity) => void;
-      }
-    | undefined;
-  /**
-   * Shared controller for the `/interrupt` slash command. The REPL installs
-   * `abortLeader` here so the command can abort the active turn. Note: the REPL
-   * prompt is blocked during a run, so `/interrupt` is only dispatched at the
-   * prompt (where nothing is in flight) — Ctrl+C is the mid-run path.
-   */
-  interruptController?:
-    | {
-        abortLeader: () => boolean;
-      }
-    | undefined;
-  /**
-   * Stop every running subagent. Wired to the director so the first Ctrl+C (and
-   * `/interrupt`) stops the fleet too, not just the leader. Returns the count
-   * stopped. Undefined when no fleet/director is active.
-   */
-  onInterruptFleet?: (() => number) | undefined;
-  /**
-   * Called after each agent.run() iteration completes so the host can
-   * report context pressure to the Director (for spawn pre-checks) or
-   * other systems that track token usage across the session.
-   */
-  onAgentIterationComplete?: ((estimatedTokens: number) => void) | undefined;
-  /**
-   * Called every second during the auto-proceed countdown with the
-   * remaining seconds until auto-proceed fires. Return true to abort
-   * the countdown and switch to manual mode.
-   */
-  onCountdownTick?: ((remainingSeconds: number) => boolean | void) | undefined;
-  /** Called when the REPL exits — use for cleanup such as removing event listeners. */
-  onDestroy?: (() => void) | undefined;
-}
+export type { ReplOptions } from './repl-options.js';
 
 export async function runRepl(opts: ReplOptions): Promise<number> {
   if (opts.banner !== false) printBanner(opts.renderer, opts.projectName);
@@ -297,42 +145,7 @@ export async function runRepl(opts: ReplOptions): Promise<number> {
   };
   process.on('SIGINT', onSigint);
 
-  // ── Register REPL as a client in the shared mailbox ──────────────────────────
-  // This lets other REPL/TUI/WebUI instances on the same project know this
-  // REPL is running, even when no agents are active.
-  const replProjectRoot = opts.projectRoot ?? process.cwd();
-  const projectDir = resolveProjectDir(replProjectRoot, wstackGlobalRoot());
-  const clientId = `repl@${crypto.randomUUID().slice(0, 8)}`;
-  // The REPL never runs a session telemetry bridge, so it must not advertise
-  // `session.summary` — HQ would render it as a permanent "waiting for
-  // session telemetry" terminal and orphan-evict the socket every 30s.
-  const hqConnection = startCliHqConnection({
-    clientKind: 'repl',
-    projectRoot: replProjectRoot,
-    projectName: path.basename(replProjectRoot),
-    appConfig: opts.appConfig,
-    capabilities: ['telemetry.publish', 'mailbox.summary'],
-  });
-  const clientMailbox = new GlobalMailbox(projectDir, undefined, () => hqConnection.getPublisher());
-  let clientHeartbeat: ReturnType<typeof setInterval> | undefined;
-  clientMailbox
-    .registerClient({
-      clientId,
-      sessionId: opts.getSessionId?.() ?? replProjectRoot,
-      name: `REPL [${path.basename(replProjectRoot)}]`,
-      source: 'repl',
-      pid: process.pid,
-    })
-    .then(() => {
-      clientHeartbeat = setInterval(() => {
-        clientMailbox.clientHeartbeat({ clientId, sessionId: opts.getSessionId?.() ?? replProjectRoot }).catch(() => {
-          // best-effort — if the registry is gone, don't spam errors
-        });
-      }, 15_000);
-    })
-    .catch(() => {
-      // best-effort — if another instance has the lock, skip registration
-    });
+  const replClientRegistration = registerReplClient(opts);
 
   const builder = new InputBuilder({ store: opts.attachments });
 
@@ -1075,11 +888,7 @@ export async function runRepl(opts: ReplOptions): Promise<number> {
     await opts.reader.close().catch(() => {
       /* best-effort */
     });
-    clearInterval(clientHeartbeat);
-    await clientMailbox.deregisterClient(clientId).catch(() => {
-      /* best-effort */
-    });
-    hqConnection.stop();
+    replClientRegistration.close();
     // Run user-provided cleanup (e.g., SessionStats event listener removal).
     opts.onDestroy?.();
   }

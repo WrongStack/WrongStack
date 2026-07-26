@@ -134,10 +134,10 @@ describe('SQLite migration completion coverage', () => {
           value: number;
         }
       ).value,
-    ).toBe(3);
+    ).toBe(4);
   });
 
-  it('rolls back a malformed v1 upgrade and permits a clean retry object', async () => {
+  it('recovers a partially upgraded v1 database that already has canonical_text', async () => {
     const root = path.join(directory, '.wrongstack', 'memories');
     await fs.mkdir(root, { recursive: true });
     const db = new DatabaseSync(path.join(root, 'sage.db'));
@@ -163,11 +163,18 @@ describe('SQLite migration completion coverage', () => {
     db.close();
 
     const value = store();
-    await expect(value.initialize()).rejects.toThrow(/duplicate column/i);
-    await expect(value.initialize()).rejects.toThrow(/duplicate column/i);
+    await expect(value.initialize()).resolves.toBeUndefined();
+    const migrated = (value as unknown as { db: DatabaseSyncType }).db;
+    expect(
+      (
+        migrated.prepare("SELECT value FROM schema_meta WHERE key = 'version'").get() as {
+          value: number;
+        }
+      ).value,
+    ).toBe(4);
   });
 
-  it('detects populated versionless databases as v0', async () => {
+  it('recovers populated versionless databases that already have canonical_text', async () => {
     const root = path.join(directory, '.wrongstack', 'memories');
     await fs.mkdir(root, { recursive: true });
     const db = new DatabaseSync(path.join(root, 'sage.db'));
@@ -209,9 +216,29 @@ describe('SQLite migration completion coverage', () => {
       '[]',
       'versionless',
     );
+    // A real pre-marker database already had its external-content FTS row.
+    // Populate it so later migration UPDATE triggers do not delete a missing
+    // shadow-table entry (which SQLite correctly reports as malformed).
+    db.exec(`
+      CREATE VIRTUAL TABLE memories_fts USING fts5(
+        text, tags, audience, content='memories', content_rowid='rowid'
+      );
+      INSERT INTO memories_fts(rowid, text, tags, audience)
+      SELECT rowid, json_extract(data, '$.text'), tags, audience FROM memories;
+    `);
     db.close();
 
-    await expect(store().initialize()).rejects.toThrow(/duplicate column/i);
+    const recovered = store();
+    await expect(recovered.initialize()).resolves.toBeUndefined();
+    expect(await recovered.getSage('versionless')).toMatchObject({ text: 'memory versionless' });
+    const recoveredDb = (recovered as unknown as { db: DatabaseSyncType }).db;
+    expect(
+      (
+        recoveredDb.prepare("SELECT value FROM schema_meta WHERE key = 'version'").get() as {
+          value: number;
+        }
+      ).value,
+    ).toBe(4);
   });
 
   it('recovers corrupt JSONL lines and applies revision, candidate, edge, and audit rules', async () => {

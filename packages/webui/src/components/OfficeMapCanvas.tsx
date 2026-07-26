@@ -13,9 +13,7 @@ import {
   type Connection,
   Controls,
   type Edge,
-  MiniMap,
   type Node,
-  Panel,
   ReactFlow,
   useEdgesState,
   useNodesState,
@@ -23,26 +21,10 @@ import {
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 
-import {
-  Activity,
-  Bot,
-  Building2,
-  Cpu,
-  DollarSign,
-  Hash,
-  LayoutGrid,
-  Mail,
-  Monitor,
-  ScrollText,
-  Send,
-  Terminal,
-  Users,
-  Zap,
-} from 'lucide-react';
+import { Building2 } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useShallow } from 'zustand/react/shallow';
 import { useAppTranslation } from '@/i18n';
-import { cn } from '@/lib/utils';
 import {
   EMPTY_AGENT_TRANSCRIPT,
   useFleetStore,
@@ -52,8 +34,8 @@ import {
   useSessionStore,
   useVizStore,
 } from '@/stores';
-import type { VizEvent } from '@/stores/viz-store';
-import { feedColor, resolveClients } from './OfficeMapCanvas/resolve.js';
+import { resolveClients } from './OfficeMapCanvas/resolve.js';
+import { LiveFeed, StatsHUD } from './OfficeMapCanvas/Hud.js';
 import { SelectedNodeDetailPanel } from './OfficeMapCanvas/SelectedNodeDetailPanel.js';
 import { useRecentlyFinishedFleetAgents } from './OfficeMapCanvas/use-recently-finished.js';
 import {
@@ -70,215 +52,14 @@ import {
   MAILBOX_Y,
   type OfficeNodeData,
 } from './OfficeMapCanvas/utils.js';
-import { SessionWatchPanel } from './SessionWatchPanel';
 import {
   FIT_VIEW_PADDING,
   nodeTypes,
   OFFICE_COLOR,
 } from './OfficeMapCanvas/nodes.js';
 import { edgeTypes } from './OfficeMapCanvas/edges.js';
-
-
-function StatsHUD() {
-  const { t } = useAppTranslation();
-  const { clientCounts, currentSession, totalAgents, activeAgents, aggregate } = useMonitorStore(
-    useShallow((s) => ({
-      clientCounts: s.clientCounts,
-      currentSession: s.currentSession,
-      totalAgents: s.totalAgents,
-      activeAgents: s.activeAgents,
-      aggregate: s.aggregate,
-    })),
-  );
-  const totalClients = clientCounts.tui + clientCounts.webui + clientCounts.repl;
-
-  // Format tokens with commas
-  const fmtNum = (n?: number) => n?.toLocaleString() ?? '0';
-  const fmtCost = (n?: number) => (n != null ? `$${n.toFixed(4)}` : '$0.0000');
-
-  return (
-    <div className="absolute left-4 top-20 z-10 rounded-xl border border-border/70 bg-card/90 p-3 text-foreground shadow-xl backdrop-blur">
-      <div className="flex items-center gap-2 mb-2">
-        <Activity className="h-3.5 w-3.5 text-success" />
-        <span className="text-[10px] font-bold uppercase text-muted-foreground">
-          {t('activity:office.sessionStats')}
-        </span>
-      </div>
-
-      <div className="space-y-1.5 text-[10px]">
-        {/* Active clients */}
-        <div className="flex items-center justify-between gap-4">
-          <div className="flex items-center gap-1.5">
-            <Users className="h-3 w-3 text-muted-foreground" />
-            <span className="text-muted-foreground">{t('activity:office.clients')}</span>
-          </div>
-          <span className="font-mono text-foreground">
-            {activeAgents} <span className="text-muted-foreground">/</span>{' '}
-            <span className="text-success">{totalClients}</span>
-          </span>
-        </div>
-
-        {/* Client breakdown */}
-        <div className="flex items-center gap-3 pl-4 text-[9px]">
-          {clientCounts.tui > 0 && (
-            <span className="flex items-center gap-1">
-              <Terminal className="h-2.5 w-2.5 text-success" />
-              <span className="text-muted-foreground">TUI</span>
-              <span className="font-mono text-success">{clientCounts.tui}</span>
-            </span>
-          )}
-          {clientCounts.webui > 0 && (
-            <span className="flex items-center gap-1">
-              <Monitor className="h-2.5 w-2.5 text-primary" />
-              <span className="text-muted-foreground">WebUI</span>
-              <span className="font-mono text-primary">{clientCounts.webui}</span>
-            </span>
-          )}
-          {clientCounts.repl > 0 && (
-            <span className="flex items-center gap-1">
-              <Terminal className="h-2.5 w-2.5 text-warning" />
-              <span className="text-muted-foreground">REPL</span>
-              <span className="font-mono text-warning">{clientCounts.repl}</span>
-            </span>
-          )}
-        </div>
-
-        {/* Agent count */}
-        <div className="flex items-center justify-between gap-4">
-          <div className="flex items-center gap-1.5">
-            <Bot className="h-3 w-3 text-muted-foreground" />
-            <span className="text-muted-foreground">{t('activity:officeMap.agents')}</span>
-          </div>
-          <span className="font-mono text-foreground">
-            {activeAgents} <span className="text-muted-foreground">/</span>{' '}
-            <span className="text-primary">{totalAgents}</span>
-          </span>
-        </div>
-
-        {/* Model */}
-        {currentSession.model && (
-          <div className="flex items-center justify-between gap-4">
-            <div className="flex items-center gap-1.5">
-              <Cpu className="h-3 w-3 text-muted-foreground" />
-              <span className="text-muted-foreground">{t('activity:officeMap.model')}</span>
-            </div>
-            <span
-              className="max-w-[120px] truncate font-mono text-primary"
-              title={currentSession.model}
-            >
-              {currentSession.model.split('/').pop()?.slice(0, 16)}
-            </span>
-          </div>
-        )}
-
-        {/* Mode */}
-        {currentSession.mode && (
-          <div className="flex items-center justify-between gap-4">
-            <div className="flex items-center gap-1.5">
-              <Zap className="h-3 w-3 text-muted-foreground" />
-              <span className="text-muted-foreground">{t('activity:officeMap.mode')}</span>
-            </div>
-            <span
-              className={cn(
-                'font-mono uppercase text-[9px] px-1.5 py-0.5 rounded',
-                currentSession.mode === 'auto' && 'bg-primary/10 text-primary',
-                currentSession.mode === 'suggest' && 'bg-success/10 text-success',
-                currentSession.mode === 'off' && 'bg-muted text-muted-foreground',
-                !['auto', 'suggest', 'off'].includes(currentSession.mode || '') &&
-                  'bg-muted text-muted-foreground',
-              )}
-            >
-              {currentSession.mode}
-            </span>
-          </div>
-        )}
-
-        {/* Tool Calls — project-wide total across every live agent */}
-        <div className="flex items-center justify-between gap-4">
-          <div className="flex items-center gap-1.5">
-            <Hash className="h-3 w-3 text-muted-foreground" />
-            <span className="text-muted-foreground">{t('activity:office.toolCallsLabel')}</span>
-          </div>
-          <span className="font-mono text-warning">{fmtNum(aggregate.toolCalls)}</span>
-        </div>
-
-        {/* Token breakdown — project-wide */}
-        <div className="mt-1.5 space-y-1 border-t border-border/70 pt-1.5">
-          <div className="flex items-center justify-between gap-4">
-            <div className="flex items-center gap-1.5">
-              <span className="text-[8px] text-muted-foreground">IN</span>
-              <span className="text-muted-foreground">{t('activity:office.input')}</span>
-            </div>
-            <span className="font-mono text-[9px] text-foreground">
-              {fmtNum(aggregate.tokensIn)}
-            </span>
-          </div>
-          <div className="flex items-center justify-between gap-4">
-            <div className="flex items-center gap-1.5">
-              <span className="text-[8px] text-muted-foreground">OUT</span>
-              <span className="text-muted-foreground">{t('activity:office.output')}</span>
-            </div>
-            <span className="font-mono text-[9px] text-foreground">
-              {fmtNum(aggregate.tokensOut)}
-            </span>
-          </div>
-        </div>
-
-        {/* Cost — project-wide */}
-        <div className="mt-1.5 flex items-center justify-between gap-4 border-t border-border/70 pt-1.5">
-          <div className="flex items-center gap-1.5">
-            <DollarSign className="h-3 w-3 text-muted-foreground" />
-            <span className="text-muted-foreground">{t('activity:office.cost')}</span>
-          </div>
-          <span className="font-mono font-medium text-success">{fmtCost(aggregate.costUsd)}</span>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-/**
- * Bottom Live Activity strip — the most recent cross-process viz events
- * (tool calls, mail, provider/agent activity), newest first. Gives a running
- * log of "what just happened across the office" alongside the spatial map.
- */
-function LiveFeed({ events, now }: { events: VizEvent[]; now: number }) {
-  const { t } = useAppTranslation();
-  const recent = events.slice(0, 14);
-  return (
-    <div className="absolute bottom-0 left-0 right-0 z-10 pointer-events-none px-3 pb-3">
-      <div className="pointer-events-auto mx-auto max-w-3xl rounded-lg border border-border/70 bg-card/90 px-3 py-2 shadow-xl backdrop-blur">
-        <div className="mb-1.5 flex items-center gap-1.5 text-[10px] uppercase text-primary">
-          <Activity className="h-3 w-3" />
-          {t('activity:office.liveActivity')}
-        </div>
-        {recent.length === 0 ? (
-          <div className="text-[11px] italic text-muted-foreground">
-            {t('activity:office.waitingActivity')}
-          </div>
-        ) : (
-          <div className="flex flex-col gap-0.5 max-h-32 overflow-hidden">
-            {recent.map((e) => {
-              const ago = Math.max(0, Math.round((now - e.timestamp) / 1000));
-              return (
-                <div key={e.id} className="flex items-center gap-2 text-[11px] leading-tight">
-                  <span
-                    className="w-1.5 h-1.5 rounded-full shrink-0"
-                    style={{ backgroundColor: feedColor(e.kind) }}
-                  />
-                  <span className="flex-1 truncate text-foreground">{e.label}</span>
-                  <span className="shrink-0 tabular-nums text-muted-foreground">
-                    {ago < 1 ? t('activity:office.now') : `${ago}s`}
-                  </span>
-                </div>
-              );
-            })}
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
+import { BroadcastComposer, OfficeMapLegends } from './OfficeMapCanvas/Overlays.js';
+import { OfficeMiniMap, OfficeToolbar, SessionWatchDrawer } from './OfficeMapCanvas/CanvasPanels.js';
 
 // ── Main Canvas Component ────────────────────────────────────────────────────
 
@@ -1118,49 +899,7 @@ export function OfficeMapCanvas() {
         </div>
       </div>
 
-      {/* Legend */}
-      {showLegend && (
-        <div className="absolute bottom-4 left-4 z-10 rounded-lg border border-border/70 bg-card/90 p-3 text-[10px] shadow-xl backdrop-blur">
-          <div className="mb-2 font-bold text-foreground">{t('activity:office.legendStatus')}</div>
-          <div className="space-y-1">
-            <div className="flex items-center gap-2">
-              <span className="h-2 w-2 animate-pulse rounded-full bg-success" />
-              <span className="text-muted-foreground">{t('activity:office.legendActive')}</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="h-2 w-2 rounded-full bg-muted-foreground" />
-              <span className="text-muted-foreground">{t('activity:office.legendIdle')}</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="h-2 w-2 animate-pulse rounded-full bg-destructive" />
-              <span className="text-muted-foreground">{t('activity:office.legendError')}</span>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Connection type legend */}
-      {showLegend && (
-        <div className="absolute bottom-4 right-4 z-10 rounded-lg border border-border/70 bg-card/90 p-3 text-[10px] shadow-xl backdrop-blur">
-          <div className="mb-2 font-bold text-foreground">
-            {t('activity:office.legendConnections')}
-          </div>
-          <div className="space-y-1">
-            <div className="flex items-center gap-2">
-              <span className="text-warning">✉</span>
-              <span className="text-muted-foreground">{t('activity:office.legendMail')}</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="text-primary">→</span>
-              <span className="text-muted-foreground">{t('activity:office.legendTask')}</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="text-success">●</span>
-              <span className="text-muted-foreground">{t('activity:office.legendStatusConn')}</span>
-            </div>
-          </div>
-        </div>
-      )}
+      {showLegend && <OfficeMapLegends />}
 
       <ReactFlow
         nodes={nodes}
@@ -1181,45 +920,21 @@ export function OfficeMapCanvas() {
         }}
         proOptions={{ hideAttribution: true }}
       >
-        <Panel position="top-right" className="flex items-center gap-2">
-          <button
-            type="button"
-            onClick={onArrange}
-            title={t('activity:office.arrangeTitle')}
-            className="flex items-center gap-1.5 rounded-md border border-border/70 bg-card/90 px-2.5 py-1.5 text-xs text-foreground shadow-sm transition-colors hover:bg-accent"
-          >
-            <LayoutGrid className="h-3.5 w-3.5" />
-            {t('activity:office.arrange')}
-          </button>
-          <button
-            type="button"
-            onClick={() => setShowFeed(!showFeed)}
-            title={t('activity:office.feedTitle')}
-            className={cn(
-              'flex items-center gap-1.5 px-2.5 py-1.5 rounded-md border text-xs transition-colors',
-              showFeed
-                ? 'border-primary/35 bg-primary/10 text-primary'
-                : 'border-border/70 bg-card/90 text-muted-foreground hover:bg-accent hover:text-foreground',
-            )}
-          >
-            <ScrollText className="h-3.5 w-3.5" />
-            {t('activity:office.feed')}
-          </button>
-          <button
-            type="button"
-            onClick={() => setBroadcastOpen((v) => !v)}
-            title={t('activity:office.broadcastTitle')}
-            className={cn(
-              'flex items-center gap-1.5 px-2.5 py-1.5 rounded-md border text-xs transition-colors',
-              broadcastOpen
-                ? 'border-warning/35 bg-warning/10 text-warning'
-                : 'border-border/70 bg-card/90 text-muted-foreground hover:bg-accent hover:text-foreground',
-            )}
-          >
-            <Send className="h-3.5 w-3.5" />
-            {t('activity:office.broadcast')}
-          </button>
-        </Panel>
+        <OfficeToolbar
+          broadcastOpen={broadcastOpen}
+          labels={{
+            arrange: t('activity:office.arrange'),
+            arrangeTitle: t('activity:office.arrangeTitle'),
+            broadcast: t('activity:office.broadcast'),
+            broadcastTitle: t('activity:office.broadcastTitle'),
+            feed: t('activity:office.feed'),
+            feedTitle: t('activity:office.feedTitle'),
+          }}
+          onArrange={onArrange}
+          onBroadcastToggle={() => setBroadcastOpen((v) => !v)}
+          onFeedToggle={() => setShowFeed(!showFeed)}
+          showFeed={showFeed}
+        />
         {background !== 'none' && (
           <Background
             variant={
@@ -1237,80 +952,20 @@ export function OfficeMapCanvas() {
         {showControls && (
           <Controls className="rounded-lg border border-border/70 bg-card/90 [&>button]:bg-card [&>button]:text-foreground" />
         )}
-        {showMinimap && (
-          <MiniMap
-            className="rounded-lg border border-border/70 bg-card/90"
-            nodeColor={(n) => {
-              const data = n.data as OfficeNodeData;
-              switch (data.kind) {
-                case 'coordinator':
-                  return OFFICE_COLOR.primary;
-                case 'webui':
-                  return OFFICE_COLOR.info;
-                case 'tui':
-                  return OFFICE_COLOR.success;
-                case 'repl':
-                  return OFFICE_COLOR.warning;
-                case 'mailbox':
-                  return OFFICE_COLOR.warning;
-                case 'agent':
-                  return OFFICE_COLOR.primary;
-                default:
-                  return OFFICE_COLOR.primary;
-              }
-            }}
-            maskColor="hsl(var(--background) / 0.72)"
-          />
-        )}
+        {showMinimap && <OfficeMiniMap />}
       </ReactFlow>
 
       {showFeed && <LiveFeed events={vizEvents} now={Date.now()} />}
 
-      {/* Broadcast composer — fan one message out to every live session's leader. */}
       {broadcastOpen && (
-        <div className="absolute right-4 top-16 z-30 w-80 rounded-xl border border-warning/35 bg-card/95 p-3 shadow-2xl backdrop-blur">
-          <div className="mb-1.5 flex items-center justify-between">
-            <div className="flex items-center gap-1.5 text-[11px] font-semibold text-warning">
-              <Send className="h-3.5 w-3.5" /> {t('activity:office.broadcastToAll')}
-            </div>
-            <button
-              type="button"
-              onClick={() => setBroadcastOpen(false)}
-              className="text-base leading-none text-muted-foreground hover:text-foreground"
-            >
-              ×
-            </button>
-          </div>
-          <textarea
-            value={broadcastDraft}
-            onChange={(ev) => setBroadcastDraft(ev.target.value)}
-            onKeyDown={(ev) => {
-              if (ev.key === 'Enter' && (ev.metaKey || ev.ctrlKey)) {
-                ev.preventDefault();
-                void sendBroadcast();
-              }
-            }}
-            rows={3}
-            placeholder={t('activity:office.broadcastPlaceholder')}
-            className="w-full resize-none rounded-md border border-border/70 bg-background/70 px-2 py-1 text-[11px] text-foreground placeholder:text-muted-foreground focus:border-warning/45 focus:outline-none"
-          />
-          <div className="mt-1.5 flex items-center justify-between">
-            <span className="text-[9px] text-muted-foreground">
-              {t('activity:office.broadcastSendHint')}
-            </span>
-            <button
-              type="button"
-              onClick={() => void sendBroadcast()}
-              disabled={broadcasting || !broadcastDraft.trim()}
-              className="rounded-md border border-warning/35 bg-warning/12 px-2.5 py-1 text-[11px] text-warning transition-colors hover:bg-warning/18 disabled:cursor-not-allowed disabled:opacity-40"
-            >
-              {broadcasting ? '…' : t('activity:office.broadcast')}
-            </button>
-          </div>
-          {broadcastResult && (
-            <div className="mt-1 text-[10px] text-muted-foreground">{broadcastResult}</div>
-          )}
-        </div>
+        <BroadcastComposer
+          draft={broadcastDraft}
+          isSending={broadcasting}
+          result={broadcastResult}
+          onClose={() => setBroadcastOpen(false)}
+          onDraftChange={setBroadcastDraft}
+          onSend={() => void sendBroadcast()}
+        />
       )}
 
       {/* Selected node detail panel */}
@@ -1324,33 +979,14 @@ export function OfficeMapCanvas() {
         />
       )}
 
-      {/* Expanded watch drawer — full-height, wide overlay on the right showing
-          the selected agent/client's COMPLETE operation stream + composer. */}
       {watch && (
-        <div className="absolute inset-y-0 right-0 z-30 flex w-[min(680px,92%)] flex-col border-l border-border bg-background shadow-2xl">
-          <div className="flex items-center justify-between border-b border-border px-4 py-2.5 shrink-0 bg-card">
-            <div className="flex items-center gap-2 min-w-0">
-              <Bot className="h-4 w-4 text-primary shrink-0" />
-              <div className="min-w-0">
-                <div className="truncate text-sm font-bold text-foreground">{watch.label}</div>
-                <div className="text-[10px] uppercase tracking-wide text-muted-foreground">
-                  {t('activity:office.fullOperationStream')}
-                </div>
-              </div>
-            </div>
-            <button
-              type="button"
-              onClick={() => setWatch(null)}
-              title={t('activity:office.closeEsc')}
-              className="text-muted-foreground hover:text-foreground text-xl leading-none shrink-0"
-            >
-              ×
-            </button>
-          </div>
-          <div className="flex-1 min-h-0 p-4">
-            <SessionWatchPanel sessionId={watch.sessionId} limit={500} />
-          </div>
-        </div>
+        <SessionWatchDrawer
+          closeTitle={t('activity:office.closeEsc')}
+          label={watch.label}
+          onClose={() => setWatch(null)}
+          sessionId={watch.sessionId}
+          streamTitle={t('activity:office.fullOperationStream')}
+        />
       )}
     </div>
   );

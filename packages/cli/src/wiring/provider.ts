@@ -1,7 +1,12 @@
 import type { ResolvedProvider } from '@wrongstack/core/types';
 import { ConfigError, type Config, type Logger, type ModelsRegistry } from '@wrongstack/core/types';
 import { ProviderRegistry } from '@wrongstack/core/registry';
-import { buildProviderFactoriesFromRegistry, makeProviderFromConfig, withCatalogCapabilities } from '@wrongstack/providers';
+import {
+  buildProviderFactoriesFromRegistry,
+  installCatalogModelOutputLimits,
+  makeProviderFromConfig,
+  withCatalogCapabilities,
+} from '@wrongstack/providers';
 import {
   fallbackCodexProviderModels,
   filterCurrentCodexModelIds,
@@ -94,6 +99,19 @@ export async function setupProvider(params: {
     });
   }
 
+  // Per-request output ceilings. The capability overlay below is resolved
+  // ONCE, for `config.model`; this index is keyed on the model of the request
+  // being built, so `/model` switches, fallback hops and subagents running a
+  // model-matrix entry all get their own model's `limit.output` instead of the
+  // adapters' 8192 last-resort literal.
+  if (config.features.modelsRegistry) {
+    await installCatalogModelOutputLimits({
+      registry: modelsRegistry,
+      getConfig: () => config,
+      log: (message) => logger.debug(message),
+    });
+  }
+
   // Provider registry — populated dynamically from models.dev catalog.
   const providerRegistry = new ProviderRegistry();
   if (config.features.modelsRegistry) {
@@ -148,8 +166,8 @@ export async function setupProvider(params: {
   // same resolution rules (customCaps → catalog → base) are shared with
   // any other caller that constructs a Provider post-init. Failures
   // inside are swallowed inside the helper — the family default stands
-  // and agent-response's 8192 safety net covers the rare cases where
-  // the catalog is unreachable.
+  // and the per-request output-limit lookup installed above still resolves
+  // the ceiling from the catalog.
   if (config.features.modelsRegistry) {
     provider = await withCatalogCapabilities(
       modelsRegistry,

@@ -1,8 +1,8 @@
 import type { EventBus } from '@wrongstack/core/kernel';
 import type { ToolRegistry } from '@wrongstack/core/registry';
-import type { Logger, MCPServerConfig, Tool } from '@wrongstack/core/types';
+import type { Logger } from '@wrongstack/core/types';
+import type { MCPServerConfig } from '@wrongstack/core/types';
 import { expectDefined } from '@wrongstack/core/utils';
-import type { MCPAuthorizationProvider } from './authorization.js';
 import type {
   MCPAuthorizationManager,
   MCPAuthorizationStartResult,
@@ -23,130 +23,44 @@ import {
   writeCapabilityManifest,
 } from './manifest-cache.js';
 import {
-  applyHealthThresholds,
   createMCPServerOperationState,
-  evaluateHealthThresholds,
-  healthStateFor,
   MCP_OPERATION_LIMITS,
   type MCPFailureKind,
-  type MCPOperationEvent,
   type MCPOperationKind,
   type MCPOperationListener,
   type MCPServerOperationalHealth,
-  type MCPServerOperationState,
   pushBounded,
-  safeOperationReason,
-  summarizeLatency,
 } from './operations.js';
+import {
+  cloneCatalogRecords,
+  collectCatalogPages,
+  registryCatalogSnapshot,
+} from './registry-catalog.js';
+import { buildRegistryOperationalHealth } from './registry-health.js';
+import {
+  beginRegistryAuthorization,
+  completeRegistryAuthorization,
+  requireAuthorizationManager,
+  requireHttpServerConfig,
+} from './registry-authorization.js';
+import type { ServerSlot } from './registry-slots.js';
+import type { MCPRegistryCatalog, MCPRegistryOptions } from './registry-types.js';
+import {
+  recordRegistryFailure,
+  recordRegistryOperation,
+  recordRegistrySuccess,
+} from './registry-operations.js';
+import { markLazySlotDormant, resetDisconnectedSlotTools } from './registry-disconnect.js';
+import { scheduleRegistryReconnect } from './registry-reconnect.js';
 import type {
   MCPGetPromptResult,
   MCPPrompt,
   MCPReadResourceResult,
   MCPResource,
   MCPResourceTemplate,
-  MCPServerMetadata,
 } from './protocol.js';
 import { wrapMCPTool } from './wrap-tool.js';
-
-interface ServerSlot {
-  cfg: MCPServerConfig;
-  client?: MCPClient | undefined;
-  state: ConnectionState;
-  /** Tools currently registered in toolRegistry (empty in lazy mode). */
-  toolNames: string[];
-  /** Cached tools when lazyMode is active (not registered in toolRegistry). */
-  lazyTools: Tool[];
-  serverMetadata?: MCPServerMetadata | undefined;
-  resources?: MCPResource[] | undefined;
-  resourceTemplates?: MCPResourceTemplate[] | undefined;
-  prompts?: MCPPrompt[] | undefined;
-  /** Serializes replacements so rapid list-change notifications cannot restore stale data. */
-  manifestWrite?: Promise<void> | undefined;
-  attempts: number;
-  /** Set when a reconnect cycle is already running for this slot. */
-  reconnectPending: boolean;
-  /**
-   * Handle to the pending backoff timer scheduled by `scheduleReconnect`.
-   * Stored so `stop` / `stopAll` / `sleepIdle` / exhaustion paths can cancel
-   * it — a stale timer that fires after the slot has been torn down would
-   * resurrect the server via `attemptReconnect` (which doesn't gate on
-   * `slot.state`).
-   */
-  reconnectTimer?: NodeJS.Timeout | undefined;
-  /**
-   * L2-B: number of full reconnect *cycles* (where one cycle = one
-   * `attemptConnect` invocation, which itself can try multiple times
-   * before giving up). After `MAX_RECONNECT_CYCLES`, the slot stays
-   * `failed` until a manual `restart()` resets it.
-   */
-  reconnectCycles: number;
-  /**
-   * Slot-scoped, bound disconnect callback. Stored so the matching
-   * `removeDisconnectListener` call can hand back the *same* reference —
-   * a fresh arrow `() => onTransportDisconnect(slot.cfg.name)` would
-   * not match the one we added and the set-based listener registry
-   * would silently keep the old handler, causing duplicate reconnect
-   * cycles after a few transport flaps.
-   */
-  onDisconnect?: (() => void) | undefined;
-  /**
-   * Lazy-connect: the server process is not spawned at boot. Tools are
-   * registered from a cached manifest and the process only spawns on the first
-   * tool call (via {@link MCPRegistry.ensureConnected}), then auto-sleeps.
-   */
-  lazy: boolean;
-  /** Epoch ms of the last tool call — drives idle auto-sleep. */
-  lastUsed: number;
-  /** Single-flight guard so concurrent first-calls trigger only one connect. */
-  connecting?: Promise<MCPClient> | undefined;
-  /** Whether this lazy server's resolver wrappers are registered (register once). */
-  registeredLazy: boolean;
-  /** Bounded, payload-free operational telemetry for this server. */
-  operations: MCPServerOperationState;
-}
-
-export interface MCPRegistryOptions {
-  toolRegistry: ToolRegistry;
-  events: EventBus;
-  log: Logger;
-  /**
-   * Directory for the on-disk tool-manifest cache (lazy-connect). Without it,
-   * `lazy` servers cannot register tools cold and fall back to eager connect.
-   * Typically `wpaths.cacheDir` (`~/.wrongstack/cache`).
-   */
-  cacheDir?: string | undefined;
-  /**
-   * Idle window (ms) after which a connected lazy server is auto-stopped and
-   * re-woken on the next tool call. 0 disables idle auto-sleep.
-   * Default: {@link MCP_CONSTANTS.IDLE.DEFAULT_TIMEOUT_MS}.
-   */
-  idleTimeoutMs?: number | undefined;
-  /**
-   * Lazy mode: when true, MCP server tools are NOT registered into the
-   * tool registry on connect. They are cached internally and can be
-   * activated on demand via `activateServer(name)`. This is used in
-   * token-saving mode to avoid bloating the system prompt with 50-100+
-   * MCP tool descriptions. The model uses `mcp_control({ action: "activate", server: "..." })`
-   * to temporarily enable tools when needed.
-   * Default: false.
-   */
-  lazyMode?: boolean | undefined;
-  /** Resolve host-owned, vault-backed OAuth state for an HTTP server. */
-  authorizationProviderFactory?:
-    | ((server: Readonly<MCPServerConfig>) => MCPAuthorizationProvider | undefined)
-    | undefined;
-  /** Coordinate manual/headless OAuth start, completion, status, and logout. */
-  authorizationManager?: MCPAuthorizationManager | undefined;
-}
-
-export interface MCPRegistryCatalog {
-  name: string;
-  state: ConnectionState;
-  serverMetadata?: MCPServerMetadata | undefined;
-  resources?: MCPResource[] | undefined;
-  resourceTemplates?: MCPResourceTemplate[] | undefined;
-  prompts?: MCPPrompt[] | undefined;
-}
+export type { MCPRegistryCatalog, MCPRegistryOptions } from './registry-types.js';
 
 export class MCPRegistry {
   private readonly servers = new Map<string, ServerSlot>();
@@ -191,13 +105,8 @@ export class MCPRegistry {
       signal?: AbortSignal | undefined;
     },
   ): Promise<MCPAuthorizationStartResult> {
-    const manager = this.requireAuthorizationManager();
     const cfg = this.requireHttpServerConfig(name);
-    return manager.begin({
-      serverName: name,
-      resource: cfg.url!,
-      ...input,
-    });
+    return beginRegistryAuthorization(this.authorizationManager, cfg, name, input);
   }
 
   async completeAuthorization(
@@ -205,37 +114,30 @@ export class MCPRegistry {
     callbackUrl: string,
     signal?: AbortSignal | undefined,
   ): Promise<MCPAuthorizationStatus> {
-    const manager = this.requireAuthorizationManager();
     const cfg = this.requireHttpServerConfig(name);
-    return manager.complete({ serverName: name, resource: cfg.url!, callbackUrl, signal });
+    return completeRegistryAuthorization(
+      this.authorizationManager,
+      cfg,
+      name,
+      callbackUrl,
+      signal,
+    );
   }
 
   async authorizationStatus(name: string): Promise<MCPAuthorizationStatus> {
-    const manager = this.requireAuthorizationManager();
+    const manager = requireAuthorizationManager(this.authorizationManager);
     const cfg = this.requireHttpServerConfig(name);
     return manager.status(name, cfg.url!);
   }
 
   async disconnectAuthorization(name: string): Promise<boolean> {
-    const manager = this.requireAuthorizationManager();
+    const manager = requireAuthorizationManager(this.authorizationManager);
     const cfg = this.requireHttpServerConfig(name);
     return manager.disconnect(name, cfg.url!);
   }
 
-  private requireAuthorizationManager(): MCPAuthorizationManager {
-    if (!this.authorizationManager) {
-      throw new Error('MCP authorization management is not configured for this host');
-    }
-    return this.authorizationManager;
-  }
-
   private requireHttpServerConfig(name: string): MCPServerConfig {
-    const cfg = this.servers.get(name)?.cfg ?? this.disabledServers.get(name);
-    if (!cfg) throw new Error(`MCP server "${name}" not registered`);
-    if (cfg.transport === 'stdio' || !cfg.url) {
-      throw new Error(`MCP server "${name}" does not use an HTTP transport`);
-    }
-    return cfg;
+    return requireHttpServerConfig(this.servers, this.disabledServers, name);
   }
 
   async start(cfg: MCPServerConfig): Promise<void> {
@@ -482,74 +384,26 @@ export class MCPRegistry {
 
   /** Detailed, defensively-copied operational snapshots for CLI/WebUI/HQ. */
   operationalHealth(): MCPServerOperationalHealth[] {
-    const active = Array.from(this.servers.values()).map((slot) => {
-      const op = slot.operations;
-      const baseHealth = healthStateFor(slot.state, op, slot.cfg.enabled !== false);
-      const checks = evaluateHealthThresholds(op, slot.cfg.health?.thresholds);
-      return {
-        name: slot.cfg.name,
-        connectionState: slot.state,
-        healthState: applyHealthThresholds(baseHealth, checks),
-        lastSuccessAt: op.lastSuccessAt,
-        lastFailureAt: op.lastFailureAt,
-        lastFailureKind: op.lastFailureKind,
-        lastReason: op.lastReason,
-        consecutiveFailures: op.consecutiveFailures,
-        failures: { ...op.failures },
-        reconnectCount: op.reconnectCount,
-        wakeCount: op.wakeCount,
-        sleepCount: op.sleepCount,
-        restartCount: op.restartCount,
-        connectionLatency: summarizeLatency(op.connectionSamples),
-        discoveryLatency: summarizeLatency(op.discoverySamples),
-        callLatency: summarizeLatency(op.callSamples),
-        inFlightCalls: op.inFlightCalls,
-        peakInFlightCalls: op.peakInFlightCalls,
-        recentEvents: op.recentEvents.map((event) => ({ ...event })),
-        healthChecks: checks,
-      };
-    });
-    const disabled = Array.from(this.disabledServers.values()).map((cfg) => {
-      const operations = createMCPServerOperationState();
-      return {
-        name: cfg.name,
-        connectionState: 'idle' as const,
-        healthState: 'disabled' as const,
-        consecutiveFailures: 0,
-        failures: { ...operations.failures },
-        reconnectCount: 0,
-        wakeCount: 0,
-        sleepCount: 0,
-        restartCount: 0,
-        connectionLatency: summarizeLatency([]),
-        discoveryLatency: summarizeLatency([]),
-        callLatency: summarizeLatency([]),
-        inFlightCalls: 0,
-        peakInFlightCalls: 0,
-        recentEvents: [],
-        healthChecks: [],
-      };
-    });
-    return [...active, ...disabled];
+    return buildRegistryOperationalHealth(this.servers.values(), this.disabledServers.values());
   }
 
   getCatalog(name: string): MCPRegistryCatalog | undefined {
     const slot = this.servers.get(name);
     if (!slot) return undefined;
-    return catalogSnapshot(slot);
+    return registryCatalogSnapshot(slot);
   }
 
   async listResources(name: string, opts: { refresh?: boolean } = {}): Promise<MCPResource[]> {
     const slot = this.requireSlot(name);
-    if (!opts.refresh && slot.resources) return cloneRecords(slot.resources);
+    if (!opts.refresh && slot.resources) return cloneCatalogRecords(slot.resources);
     const client = await this.ensureConnected(name);
     if (!client.getServerMetadata()?.capabilities.resources) return [];
-    slot.resources = await collectPages(
+    slot.resources = await collectCatalogPages(
       (cursor) => client.listResources(cursor ? { cursor } : {}),
       (page) => page.resources,
     );
     await this.persistCapabilityManifest(slot);
-    return cloneRecords(slot.resources);
+    return cloneCatalogRecords(slot.resources);
   }
 
   async listResourceTemplates(
@@ -557,15 +411,15 @@ export class MCPRegistry {
     opts: { refresh?: boolean } = {},
   ): Promise<MCPResourceTemplate[]> {
     const slot = this.requireSlot(name);
-    if (!opts.refresh && slot.resourceTemplates) return cloneRecords(slot.resourceTemplates);
+    if (!opts.refresh && slot.resourceTemplates) return cloneCatalogRecords(slot.resourceTemplates);
     const client = await this.ensureConnected(name);
     if (!client.getServerMetadata()?.capabilities.resources) return [];
-    slot.resourceTemplates = await collectPages(
+    slot.resourceTemplates = await collectCatalogPages(
       (cursor) => client.listResourceTemplates(cursor ? { cursor } : {}),
       (page) => page.resourceTemplates,
     );
     await this.persistCapabilityManifest(slot);
-    return cloneRecords(slot.resourceTemplates);
+    return cloneCatalogRecords(slot.resourceTemplates);
   }
 
   async readResource(name: string, uri: string): Promise<MCPReadResourceResult> {
@@ -590,15 +444,15 @@ export class MCPRegistry {
 
   async listPrompts(name: string, opts: { refresh?: boolean } = {}): Promise<MCPPrompt[]> {
     const slot = this.requireSlot(name);
-    if (!opts.refresh && slot.prompts) return cloneRecords(slot.prompts);
+    if (!opts.refresh && slot.prompts) return cloneCatalogRecords(slot.prompts);
     const client = await this.ensureConnected(name);
     if (!client.getServerMetadata()?.capabilities.prompts) return [];
-    slot.prompts = await collectPages(
+    slot.prompts = await collectCatalogPages(
       (cursor) => client.listPrompts(cursor ? { cursor } : {}),
       (page) => page.prompts,
     );
     await this.persistCapabilityManifest(slot);
-    return cloneRecords(slot.prompts);
+    return cloneCatalogRecords(slot.prompts);
   }
 
   async getPrompt(
@@ -694,7 +548,7 @@ export class MCPRegistry {
     const capabilities = slot.serverMetadata?.capabilities;
     if (capabilities?.resources) {
       try {
-        slot.resources = await collectPages(
+        slot.resources = await collectCatalogPages(
           (cursor) => client.listResources(cursor ? { cursor } : {}),
           (page) => page.resources,
         );
@@ -704,7 +558,7 @@ export class MCPRegistry {
         this.log.warn(`MCP server "${slot.cfg.name}" resource discovery failed`, err);
       }
       try {
-        slot.resourceTemplates = await collectPages(
+        slot.resourceTemplates = await collectCatalogPages(
           (cursor) => client.listResourceTemplates(cursor ? { cursor } : {}),
           (page) => page.resourceTemplates,
         );
@@ -719,7 +573,7 @@ export class MCPRegistry {
     }
     if (capabilities?.prompts) {
       try {
-        slot.prompts = await collectPages(
+        slot.prompts = await collectCatalogPages(
           (cursor) => client.listPrompts(cursor ? { cursor } : {}),
           (page) => page.prompts,
         );
@@ -933,30 +787,11 @@ export class MCPRegistry {
     const slot = this.servers.get(name);
     if (!slot) return;
     if (slot.lazy) {
-      // Lazy server died — go dormant (keep resolver wrappers); the next tool
-      // call re-spawns it. No reconnect storm for an on-demand server.
-      slot.client = undefined;
-      slot.state = 'dormant';
       this.recordFailure(slot, 'transport', 'process-exit-lazy');
-      this.events.emit('mcp.server.disconnected', {
-        name,
-        reason: `exit:${code ?? 'unknown'} (dormant)`,
-      });
+      markLazySlotDormant(slot, this.events, `exit:${code ?? 'unknown'}`);
       return;
     }
-    for (const t of slot.toolNames) {
-      try {
-        this.toolRegistry.unregister(t);
-      } catch {
-        /* ignore */
-      }
-    }
-    slot.toolNames = [];
-    slot.lazyTools = [];
-    slot.serverMetadata = undefined;
-    slot.resources = undefined;
-    slot.resourceTemplates = undefined;
-    slot.prompts = undefined;
+    resetDisconnectedSlotTools(slot, this.toolRegistry);
     slot.state = 'disconnected';
     this.recordFailure(slot, 'transport', 'process-exit');
     this.events.emit('mcp.server.disconnected', { name, reason: `exit:${code ?? 'unknown'}` });
@@ -968,80 +803,32 @@ export class MCPRegistry {
     const slot = this.servers.get(name);
     if (!slot) return;
     if (slot.lazy) {
-      slot.client = undefined;
-      slot.state = 'dormant';
       this.recordFailure(slot, 'transport', 'http-disconnect-lazy');
-      this.events.emit('mcp.server.disconnected', { name, reason: 'http-disconnect (dormant)' });
+      markLazySlotDormant(slot, this.events, 'http-disconnect');
       return;
     }
-    for (const t of slot.toolNames) {
-      try {
-        this.toolRegistry.unregister(t);
-      } catch {
-        /* ignore */
-      }
-    }
-    slot.toolNames = [];
-    slot.lazyTools = [];
-    slot.serverMetadata = undefined;
-    slot.resources = undefined;
-    slot.resourceTemplates = undefined;
-    slot.prompts = undefined;
+    resetDisconnectedSlotTools(slot, this.toolRegistry);
     slot.state = 'disconnected';
     this.recordFailure(slot, 'transport', 'http-disconnect');
     this.events.emit('mcp.server.disconnected', { name, reason: 'http-disconnect' });
     this.scheduleReconnect(slot);
   };
 
-  /**
-   * L2-B: maximum number of reconnect cycles before staying `failed`.
-   * One cycle = one full `attemptConnect` (which itself may try up to 3
-   * times). Caps total reconnect storm at ~5 cycles, then the slot
-   * needs an explicit `restart()` to re-engage.
-   */
   private static readonly MAX_RECONNECT_CYCLES = MCP_CONSTANTS.RECONNECT.MAX_CYCLES;
-  /** Base delay between cycles, in ms. Real delay adds jitter. */
   private static readonly BASE_RECONNECT_DELAY_MS = MCP_CONSTANTS.RECONNECT.BASE_DELAY_MS;
-  /** Hard ceiling on the inter-cycle delay so the user doesn't wait minutes. */
   private static readonly MAX_RECONNECT_DELAY_MS = 30_000;
 
   private scheduleReconnect(slot: ServerSlot): void {
-    if (slot.reconnectPending) return;
-    if (slot.reconnectCycles >= MCPRegistry.MAX_RECONNECT_CYCLES) {
-      slot.state = 'failed';
-      this.recordFailure(slot, 'transport', 'reconnect-exhausted');
-      this.log.error(
-        `MCP server "${slot.cfg.name}" giving up after ${slot.reconnectCycles} reconnect cycles. Use \`/mcp restart ${slot.cfg.name}\` to retry.`,
-      );
-      this.events.emit('mcp.server.disconnected', {
-        name: slot.cfg.name,
-        reason: `reconnect-exhausted:${slot.reconnectCycles}`,
-      });
-      return;
-    }
-    slot.reconnectPending = true;
-    // Cancel any previously-scheduled timer for this slot. Defensive — the
-    // `reconnectPending` early-return above normally prevents re-scheduling
-    // while one is outstanding, but if the slot was torn down mid-flight
-    // and re-started (`restart()`), a stale handle from the prior cycle
-    // could otherwise fire and resurrect the wrong client.
-    if (slot.reconnectTimer) {
-      clearTimeout(slot.reconnectTimer);
-      slot.reconnectTimer = undefined;
-    }
-    // Exponential backoff with light jitter: 1s, 2s, 4s, 8s, 16s, capped
-    // at 30s. The ±20% jitter avoids reconnect stampedes when many
-    // servers crash together.
-    const base = Math.min(
-      MCPRegistry.BASE_RECONNECT_DELAY_MS * 2 ** slot.reconnectCycles,
-      MCPRegistry.MAX_RECONNECT_DELAY_MS,
-    );
-    const jitter = base * MCP_CONSTANTS.RECONNECT.JITTER_FACTOR * (Math.random() * 2 - 1);
-    const delay = Math.max(100, Math.round(base + jitter));
-    slot.reconnectTimer = setTimeout(() => {
-      slot.reconnectTimer = undefined;
-      void this.attemptReconnect(slot);
-    }, delay);
+    scheduleRegistryReconnect({
+      slot,
+      events: this.events,
+      log: this.log,
+      maxReconnectCycles: MCPRegistry.MAX_RECONNECT_CYCLES,
+      baseReconnectDelayMs: MCPRegistry.BASE_RECONNECT_DELAY_MS,
+      maxReconnectDelayMs: MCPRegistry.MAX_RECONNECT_DELAY_MS,
+      recordReconnectExhausted: (target) => this.recordFailure(target, 'transport', 'reconnect-exhausted'),
+      attemptReconnect: (target) => this.attemptReconnect(target),
+    });
   }
 
   private async attemptReconnect(slot: ServerSlot): Promise<void> {
@@ -1053,9 +840,7 @@ export class MCPRegistry {
   }
 
   private recordSuccess(slot: ServerSlot, resetFailures = true): void {
-    const operations = this.operationsFor(slot);
-    operations.lastSuccessAt = Date.now();
-    if (resetFailures) operations.consecutiveFailures = 0;
+    recordRegistrySuccess(slot, resetFailures);
   }
 
   private recordFailure(
@@ -1064,14 +849,7 @@ export class MCPRegistry {
     reason: string,
     durationMs?: number | undefined,
   ): void {
-    const operations = this.operationsFor(slot);
-    const safeReason = safeOperationReason(reason);
-    operations.lastFailureAt = Date.now();
-    operations.lastFailureKind = failureKind;
-    operations.lastReason = safeReason;
-    operations.consecutiveFailures++;
-    operations.failures[failureKind]++;
-    this.recordOperation(slot, 'failure', safeReason, failureKind, durationMs);
+    recordRegistryFailure(slot, this.operationListeners, failureKind, reason, durationMs);
   }
 
   private recordOperation(
@@ -1082,35 +860,15 @@ export class MCPRegistry {
     durationMs?: number | undefined,
     retain = true,
   ): void {
-    const operations = this.operationsFor(slot);
-    const baseHealth = healthStateFor(slot.state, operations, slot.cfg.enabled !== false);
-    const checks = evaluateHealthThresholds(operations, slot.cfg.health?.thresholds);
-    const event: MCPOperationEvent = {
-      serverName: slot.cfg.name,
+    recordRegistryOperation(
+      slot,
+      this.operationListeners,
       kind,
-      at: Date.now(),
-      connectionState: slot.state,
-      healthState: applyHealthThresholds(baseHealth, checks),
-    };
-    if (reason !== undefined) event.reason = safeOperationReason(reason);
-    if (failureKind !== undefined) event.failureKind = failureKind;
-    if (durationMs !== undefined) event.durationMs = Math.max(0, Math.round(durationMs));
-    if (retain) {
-      pushBounded(operations.recentEvents, event, MCP_OPERATION_LIMITS.RECENT_EVENTS);
-    }
-    for (const listener of this.operationListeners) {
-      try {
-        listener({ ...event });
-      } catch {
-        // Observability must never affect MCP execution.
-      }
-    }
-  }
-
-  /** Keeps private-method unit fixtures from needing to duplicate every slot field. */
-  private operationsFor(slot: ServerSlot): MCPServerOperationState {
-    if (!slot.operations) slot.operations = createMCPServerOperationState();
-    return slot.operations;
+      reason,
+      failureKind,
+      durationMs,
+      retain,
+    );
   }
 
   private async attemptConnect(slot: ServerSlot): Promise<void> {
@@ -1238,44 +996,4 @@ export class MCPRegistry {
       }
     }
   }
-}
-
-const MAX_CATALOG_PAGES = 100;
-const MAX_CATALOG_ITEMS = 10_000;
-
-async function collectPages<Page extends { nextCursor?: string | undefined }, Item>(
-  load: (cursor?: string | undefined) => Promise<Page>,
-  select: (page: Page) => Item[],
-): Promise<Item[]> {
-  const items: Item[] = [];
-  const seenCursors = new Set<string>();
-  let cursor: string | undefined;
-  for (let pageNumber = 0; pageNumber < MAX_CATALOG_PAGES; pageNumber++) {
-    const page = await load(cursor);
-    items.push(...select(page));
-    if (items.length > MAX_CATALOG_ITEMS) {
-      throw new Error(`MCP catalog exceeds ${MAX_CATALOG_ITEMS} items`);
-    }
-    const next = page.nextCursor;
-    if (!next) return items;
-    if (seenCursors.has(next)) throw new Error(`MCP catalog repeated cursor "${next}"`);
-    seenCursors.add(next);
-    cursor = next;
-  }
-  throw new Error(`MCP catalog exceeds ${MAX_CATALOG_PAGES} pages`);
-}
-
-function cloneRecords<T>(records: T[]): T[] {
-  return structuredClone(records);
-}
-
-function catalogSnapshot(slot: ServerSlot): MCPRegistryCatalog {
-  return {
-    name: slot.cfg.name,
-    state: slot.state,
-    serverMetadata: slot.serverMetadata ? structuredClone(slot.serverMetadata) : undefined,
-    resources: slot.resources ? cloneRecords(slot.resources) : undefined,
-    resourceTemplates: slot.resourceTemplates ? cloneRecords(slot.resourceTemplates) : undefined,
-    prompts: slot.prompts ? cloneRecords(slot.prompts) : undefined,
-  };
 }

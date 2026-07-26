@@ -12,23 +12,24 @@
  */
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
-import type { Config, FleetChatVerbosity } from '@wrongstack/core/types';
-import type { ConfigStore } from '@wrongstack/core/types';
-import { type WstackPaths, atomicWrite } from '@wrongstack/core/utils';
-import { normalizeTokenSavingTier } from '@wrongstack/core/types';
 import { decryptConfigSecrets, encryptConfigSecrets, noOpVault } from '@wrongstack/core/security';
-import { resolveFleetChatVerbosity } from '@wrongstack/core/types';
+import type { Config, ConfigStore, FleetChatVerbosity } from '@wrongstack/core/types';
+import { normalizeTokenSavingTier, resolveFleetChatVerbosity } from '@wrongstack/core/types';
+import { atomicWrite, type WstackPaths } from '@wrongstack/core/utils';
 import { getProcessRegistry } from '@wrongstack/tools';
-import { deriveFsAccessPair, filterSafeForProject, resolveActualTarget, resolvePersistPath } from '../settings-menu.js';
-import { normalizeTuiThinkingWord } from '../tui-thinking-word.js';
 import type { LiveSettingsInput } from '../execution.js';
+import {
+  deriveFsAccessPair,
+  filterSafeForProject,
+  resolveActualTarget,
+  resolvePersistPath,
+} from '../settings-menu.js';
+import { normalizeTuiThinkingWord } from '../tui-thinking-word.js';
 
 export interface SettingsAdapterContext {
   configStore: ConfigStore;
   wpaths: WstackPaths;
-  fleetStreamController:
-    | { setMode?: ((mode: FleetChatVerbosity) => void) | undefined }
-    | undefined;
+  fleetStreamController: { setMode?: ((mode: FleetChatVerbosity) => void) | undefined } | undefined;
   applyLiveSettings: ((s: LiveSettingsInput) => void) | undefined;
 }
 
@@ -68,7 +69,14 @@ export function createSettingsAdapter(ctx: SettingsAdapterContext): SettingsAdap
     const rawMode = autonomy?.defaultMode as string | undefined;
     const mode: 'off' | 'suggest' | 'auto' =
       rawMode === 'suggest' || rawMode === 'auto' ? rawMode : 'off';
-    const modelRuntime = (cfg as { modelRuntime?: { reasoning?: { mode?: string; effort?: string; preserve?: boolean }; cache?: { ttl?: string } } }).modelRuntime;
+    const modelRuntime = (
+      cfg as {
+        modelRuntime?: {
+          reasoning?: { mode?: string; effort?: string; preserve?: boolean };
+          cache?: { ttl?: string };
+        };
+      }
+    ).modelRuntime;
     const contextModeRaw = cfg.context?.mode;
     const contextMode =
       contextModeRaw === 'frugal' || contextModeRaw === 'deep' || contextModeRaw === 'archival'
@@ -105,7 +113,7 @@ export function createSettingsAdapter(ctx: SettingsAdapterContext): SettingsAdap
       mode,
       delayMs: (autonomy?.autoProceedDelayMs as number) ?? 45_000,
       titleAnimation: autonomy?.terminalTitleAnimation !== false,
-      yolo: cfg.yolo ?? ((autonomy?.yolo as boolean | undefined) ?? false),
+      yolo: cfg.yolo ?? (autonomy?.yolo as boolean | undefined) ?? false,
       fleetChatVerbosity: resolveFleetChatVerbosity(cfg.autonomy),
       chime: (autonomy?.chime as boolean) ?? false,
       confirmExit: autonomy?.confirmExit !== false,
@@ -137,13 +145,17 @@ export function createSettingsAdapter(ctx: SettingsAdapterContext): SettingsAdap
           ?.autoProceedMaxIterations as number) ?? 50,
       debugStream: cfg.debugStream ?? false,
       shellBangWarningDontShowAgain: autonomy?.shellBangWarningDontShowAgain === true,
-      statuslineMode: autonomy?.statuslineMode === 'no-color' ? 'no-color' : autonomy?.statuslineMode === 'minimum' ? 'minimum' : 'detailed',
+      statuslineMode:
+        autonomy?.statuslineMode === 'no-color'
+          ? 'no-color'
+          : autonomy?.statuslineMode === 'minimum'
+            ? 'minimum'
+            : 'detailed',
       thinkingWord: normalizeTuiThinkingWord(autonomy?.thinkingWord),
       animationStyle: normalizeAnimationStyle(autonomy?.animationStyle),
       configScope: cfg.configScope ?? 'global',
       enhanceDelayMs:
-        ((cfg.autonomy as Record<string, unknown> | undefined)?.enhanceDelayMs as number) ??
-        60_000,
+        ((cfg.autonomy as Record<string, unknown> | undefined)?.enhanceDelayMs as number) ?? 60_000,
       enhanceEnabled:
         ((cfg.autonomy as Record<string, unknown> | undefined)?.enhance as boolean) ?? true,
       enhanceLanguage:
@@ -151,11 +163,13 @@ export function createSettingsAdapter(ctx: SettingsAdapterContext): SettingsAdap
           ? ('english' as const)
           : ('original' as const),
       midRunSendPicker:
-        ((cfg.autonomy as Record<string, unknown> | undefined)?.midRunSendPicker as boolean) ?? true,
+        ((cfg.autonomy as Record<string, unknown> | undefined)?.midRunSendPicker as boolean) ??
+        true,
       mouseMode: (autonomy?.mouseMode as boolean) ?? false,
       autonomyNextPrompt:
-        ((cfg.autonomy as Record<string, unknown> | undefined)
-          ?.autonomyNextPrompt as string | undefined) ?? 'auto {{suggestion}}',
+        ((cfg.autonomy as Record<string, unknown> | undefined)?.autonomyNextPrompt as
+          | string
+          | undefined) ?? 'auto {{suggestion}}',
       reasoningMode:
         modelRuntime?.reasoning?.mode === 'on' || modelRuntime?.reasoning?.mode === 'off'
           ? modelRuntime.reasoning.mode
@@ -307,7 +321,8 @@ export function createSettingsAdapter(ctx: SettingsAdapterContext): SettingsAdap
           if (s.featureSkills !== undefined) feats.skills = s.featureSkills;
           if (s.featureModelsRegistry !== undefined) feats.modelsRegistry = s.featureModelsRegistry;
           if (s.featureTokenSaving !== undefined) feats.tokenSavingMode = s.featureTokenSaving;
-          if (fsAccess !== undefined) feats.allowOutsideProjectRoot = fsAccess.allowOutsideProjectRoot;
+          if (fsAccess !== undefined)
+            feats.allowOutsideProjectRoot = fsAccess.allowOutsideProjectRoot;
           decrypted.features = feats;
         }
         if (
@@ -337,10 +352,7 @@ export function createSettingsAdapter(ctx: SettingsAdapterContext): SettingsAdap
           idx.onSessionStart = s.indexOnStart;
           decrypted.indexing = idx;
         }
-        if (
-          s.maxIterations !== undefined ||
-          fsAccess !== undefined
-        ) {
+        if (s.maxIterations !== undefined || fsAccess !== undefined) {
           const tools = (decrypted.tools as Record<string, unknown>) ?? {};
           if (s.maxIterations !== undefined) tools.maxIterations = s.maxIterations;
           // Single source of truth for the inverse: deriveFsAccess above.
@@ -392,7 +404,11 @@ export function createSettingsAdapter(ctx: SettingsAdapterContext): SettingsAdap
         // Re-resolve the target path after the mutation block: the mutator
         // may have changed configScope (or another field the canonical
         // resolveActualTarget checks), so the pre-mutation snapshot is stale.
-        const actualTarget = resolveActualTarget(persistDeps, decrypted as Record<string, unknown>, targetPath);
+        const actualTarget = resolveActualTarget(
+          persistDeps,
+          decrypted as Record<string, unknown>,
+          targetPath,
+        );
         // Only filter for project safety when writing to the in-project
         // config (.wrongstack/config.json). The active profile config stores
         // the full trusted user settings; the root bootstrap is never targeted.
@@ -463,8 +479,7 @@ export function createSettingsAdapter(ctx: SettingsAdapterContext): SettingsAdap
                 } as Config['indexing'],
               }
             : {}),
-          ...(s.maxIterations !== undefined ||
-          fsAccess !== undefined
+          ...(s.maxIterations !== undefined || fsAccess !== undefined
             ? {
                 tools: {
                   ...currentConfig.tools,
@@ -473,7 +488,9 @@ export function createSettingsAdapter(ctx: SettingsAdapterContext): SettingsAdap
               }
             : {}),
           ...(s.debugStream !== undefined ? { debugStream: s.debugStream } : {}),
-          ...(s.configScope !== undefined ? { configScope: s.configScope as 'global' | 'project' } : {}),
+          ...(s.configScope !== undefined
+            ? { configScope: s.configScope as 'global' | 'project' }
+            : {}),
           autonomy: {
             ...currentConfig.autonomy,
             ...((decrypted.autonomy as Record<string, unknown> | undefined) ?? {}),

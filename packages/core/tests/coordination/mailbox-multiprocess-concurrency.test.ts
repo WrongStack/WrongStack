@@ -72,8 +72,8 @@ describe('ack', () => {
       from: 'leader@sess-1', to: 'leader@sess-1', type: 'note', subject: 's', body: 'b', priority: 'normal',
     });
     const acked = await mb.ackFor(actor(), { messageId: msg.id, read: true });
-    expect(acked).not.toBeNull();
-    expect(acked!.readBy['leader@sess-1']).toBeDefined();
+    expect(acked).toMatchObject({ readByMe: true });
+    expect(acked).not.toHaveProperty('readBy');
   });
 
   it('B can ack a broadcast sent by A (cross-process)', async () => {
@@ -88,9 +88,10 @@ describe('ack', () => {
     const before = await mbB.query({}, actor({ actorId: 'receiver', recipientAliases: new Set() }));
     expect(before.length).toBeGreaterThanOrEqual(1);
     const result = await mbB.ackFor(actor({ actorId: 'receiver', recipientAliases: new Set() }), { messageId: msg.id, read: true, completed: true });
-    expect(result).not.toBeNull();
-    expect(Object.keys(result?.readBy||{}).length).toBeGreaterThan(0);
-    expect(Object.keys(result?.completedBy||{}).length).toBeGreaterThan(0);
+    expect(result).toMatchObject({ readByMe: true, completedByMe: true });
+    expect(result).not.toHaveProperty('readBy');
+    expect(result).not.toHaveProperty('completedBy');
+    expect(result).not.toHaveProperty('recipientState');
 
     await mbA.close();
     await mbB.close();

@@ -1,0 +1,69 @@
+import type { FleetChatVerbosity, TokenSavingTier } from '@wrongstack/core/types';
+
+/**
+ * Settings payload shared by `saveSettings` (persist) and `applyLiveSettings`
+ * (apply to the running session). Mirrors the fields the TUI `/settings` picker
+ * cycles with left/right.
+ */
+export interface LiveSettingsInput {
+  mode?: 'off' | 'suggest' | 'auto' | undefined;
+  delayMs?: number | undefined;
+  titleAnimation?: boolean | undefined;
+  yolo?: boolean | undefined;
+  /** Fleet-chat verbosity (off | full). */
+  fleetChatVerbosity?: FleetChatVerbosity | undefined;
+  chime?: boolean | undefined;
+  confirmExit?: boolean | undefined;
+  nextPrediction?: boolean | undefined;
+  featureMcp?: boolean | undefined;
+  featurePlugins?: boolean | undefined;
+  featureMemory?: boolean | undefined;
+  featureSkills?: boolean | undefined;
+  featureModelsRegistry?: boolean | undefined;
+  featureTokenSaving?: TokenSavingTier | undefined;
+  allowOutsideProjectRoot?: boolean | undefined;
+  contextAutoCompact?: boolean | undefined;
+  contextStrategy?: string | undefined;
+  contextMode?: string | undefined;
+  maxConcurrent?: number | undefined;
+  logLevel?: string | undefined;
+  auditLevel?: string | undefined;
+  indexOnStart?: boolean | undefined;
+  maxIterations?: number | undefined;
+  autoProceedMaxIterations?: number | undefined;
+  /** When true, file tools are confined to the project root. Default false. */
+  restrictFsToRoot?: boolean | undefined;
+  debugStream?: boolean | undefined;
+  configScope?: 'global' | 'project' | undefined;
+  enhanceDelayMs?: number | undefined;
+  enhanceEnabled?: boolean | undefined;
+  enhanceLanguage?: string | undefined;
+  /** Mid-run send-mode picker (queue/btw/steer) toggle. Default on. */
+  midRunSendPicker?: boolean | undefined;
+  /** Skip the confirmation prompt for the TUI `!<command>` shell shortcut. */
+  shellBangWarningDontShowAgain?: boolean | undefined;
+  mouseMode?: boolean | undefined;
+  autonomyNextPrompt?: string | undefined;
+  /** Whether the process circuit breaker gates bash/exec. Default false. */
+  breakerEnabled?: boolean | undefined;
+  /** Auto kill/reset delay (ms) when the breaker trips. 0 = manual recovery. */
+  breakerAutoKillResetMs?: number | undefined;
+  /** TUI statusline density. Defaults to detailed when unset. */
+  statuslineMode?: 'minimum' | 'detailed' | undefined;
+  /** Single word shown in the TUI rainbow working-state chip. */
+  thinkingWord?: string | undefined;
+  /** Animation style for the TUI working-state chip. */
+  animationStyle?: 'rainbow' | 'wave' | 'pulse' | 'dots' | 'breathe' | 'cycle' | undefined;
+  /** Provider-runtime reasoning mode. */
+  reasoningMode?: 'auto' | 'on' | 'off' | undefined;
+  /** Provider-runtime reasoning effort. */
+  reasoningEffort?: string | undefined;
+  /** Preserve thinking blocks across turns when supported. */
+  reasoningPreserve?: boolean | undefined;
+  /** Prompt-cache TTL, or default to clear the explicit override. */
+  cacheTtl?: 'default' | '5m' | '1h' | undefined;
+  /** Show "Model Reasoning" blocks in chat history. Default: true. */
+  showModelReasoning?: boolean | undefined;
+  /** Optionally show the persistent AGENT SWARM and todo mission queue panel; defaults to true at the storage layer. */
+  showAgentSwarmPanel?: boolean | undefined;
+}

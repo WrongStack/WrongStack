@@ -322,8 +322,12 @@ function emitDeclarations(entries, outdir) {
   const result = spawnSync(process.execPath, args, {
     cwd: packageRoot,
     env: { ...process.env, NODE_OPTIONS: '--max-old-space-size=4096' },
-    stdio: 'inherit',
+    stdio: 'pipe',
+    encoding: 'utf8',
   });
+  // Forward tsc output so declaration diagnostics are visible in build logs.
+  if (result.stdout) process.stdout.write(result.stdout);
+  if (result.stderr) process.stderr.write(result.stderr);
   if (result.status !== 0) {
     throw new Error(`Type declaration emit failed (exit ${result.status ?? 'unknown'})`);
   }

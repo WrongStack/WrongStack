@@ -13,6 +13,8 @@
  * @module mailbox-events
  */
 
+import type { MailboxAudience } from './mailbox-types.js';
+
 export type MailboxEventType = 'message.sent' | 'message.acked' | 'message.deleted' | 'message.restored';
 
 export interface MailboxEvent {
@@ -20,6 +22,7 @@ export interface MailboxEvent {
   messageId: string;
   from?: string | undefined;
   to?: string | undefined;
+  audience?: MailboxAudience | undefined;
   timestamp: string;
 }
 

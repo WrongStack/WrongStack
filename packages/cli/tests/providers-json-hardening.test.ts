@@ -79,16 +79,48 @@ describe('providers.json hardening — schema validation', () => {
     }
   });
 
-  it('CLI providers.json — text models have limit.context', () => {
+  /**
+   * Models whose limits models.dev already publishes under the SAME provider
+   * id. This overlay is merged ON TOP of the catalog, so a `limit` declared
+   * here wins — and a hand-transcribed copy only ever drifts below the real
+   * ceiling. It did: deepseek-v4-pro shipped 65_536 against a real 384_000,
+   * glm-5.2 shipped a 198_000 context against a real 1_000_000.
+   *
+   * For these the rule INVERTS — they must NOT declare a limit. The overlay's
+   * job for them is the Personal-Edition allowlist plus the display copy.
+   * Everything else is overlay-only (absent from models.dev) and still needs a
+   * limit, or it falls through to the wire-family default.
+   */
+  const CATALOG_BACKED_LIMITS: Record<string, string[]> = {
+    'alibaba-token-plan': [
+      'qwen3.8-max-preview',
+      'qwen3.7-max',
+      'qwen3.7-plus',
+      'qwen3.6-flash',
+      'glm-5.2',
+      'deepseek-v4-pro',
+    ],
+  };
+
+  it('CLI providers.json — text models have limit.context unless models.dev owns them', () => {
     const data = loadCliProviders();
     for (const [providerId, provider] of Object.entries(data)) {
       if (providerId.startsWith('_')) continue;
       if (!provider.models) continue;
+      const catalogBacked = CATALOG_BACKED_LIMITS[providerId] ?? [];
       for (const [key, model] of Object.entries(provider.models)) {
         // Image/video generation models legitimately omit limit
         const outputModality = model.modalities?.output?.[0];
         if (outputModality === 'image' || outputModality === 'video') continue;
-        // Text models MUST have limit.context
+        if (catalogBacked.includes(key)) {
+          expect(
+            model.limit,
+            `${providerId}.models.${key} — models.dev publishes this model's limits; ` +
+              `declaring them here overrides the catalog with a value that will drift`,
+          ).toBeUndefined();
+          continue;
+        }
+        // Overlay-only text models MUST have limit.context
         expect(model.limit, `${providerId}.models.${key} — text model missing limit`).toBeDefined();
         expect(model.limit!.context, `${providerId}.models.${key}.limit.context`).toBeGreaterThan(
           0,

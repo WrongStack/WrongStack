@@ -27,8 +27,29 @@ const baseRoutes = [
   'tools',
   'plugins',
   'troubleshooting',
+  'brand',
   'created-by',
+  'sage',
+  'design-studio',
+  'skills',
+  'prompts',
+  'sdd',
+  'shadow-agent',
+  'acp',
+  'supervisor',
+  'goal',
+  'ensemble',
+  'hq',
+  'telegram',
+  'collab',
+  'sync',
+  'checkpoints',
+  'commit-workflow',
 ];
+
+const websiteRoot = fs.existsSync(path.resolve(__dirname, 'src/data/content.ts'))
+  ? __dirname
+  : path.resolve(__dirname, '..', '..');
 
 function sourceSection(source: string, startMarker: string, endMarker?: string) {
   const start = source.indexOf(startMarker);
@@ -43,7 +64,7 @@ function captures(source: string, pattern: RegExp) {
 }
 
 /**
- * Parses the website `commandRows` slice in `src/data/content.ts`.
+ * Parses the website `commandRows` slice in `src/data/content-commands.ts`.
  *
  * Anchors on the row-opener shape `[ '/name', 'summary' ]` (followed by an
  * optional `,`) rather than any quoted slash string, so a `'/something'` in
@@ -52,13 +73,16 @@ function captures(source: string, pattern: RegExp) {
  * this — keeping them on one parser is the whole point.
  */
 function parseWebsiteCommands(source: string): string[] {
-  const commandBlock = sourceSection(source, 'const commandRows', 'const categories');
+  const commandSource = source.includes('const commandRows')
+    ? source
+    : fs.readFileSync(path.resolve(websiteRoot, 'src/data/content-commands.ts'), 'utf8');
+  const commandBlock = sourceSection(commandSource, 'const commandRows', 'const categories');
   // Anchor on the start of a tuple row: `[ '/<name>',`. This handles both one-line
   // and multiline summaries while avoiding quoted slash strings later in a row or comment.
   const names = [...commandBlock.matchAll(/^\s*\[\s*'\/([^']+)'\s*,/gm)].map(([, name]) => name);
   if (names.length === 0) {
     throw new Error(
-      'Slash-command row parser matched 0 rows in website/src/data/content.ts. '
+      'Slash-command row parser matched 0 rows in website/src/data/content-commands.ts. '
         + 'Did `const commandRows` change shape, get renamed, or lose its tuple opener?',
     );
   }
@@ -66,7 +90,7 @@ function parseWebsiteCommands(source: string): string[] {
 }
 
 /**
- * Parses the `pluginCommands` Set declaration in `src/data/content.ts`.
+ * Parses the `pluginCommands` Set declaration in `src/data/content-commands.ts`.
  *
  * This Set is the authoritative origin signal: every entry is a first-party
  * built-in plugin command. We use it (negated) to identify the set of Core
@@ -75,7 +99,10 @@ function parseWebsiteCommands(source: string): string[] {
  * the parse robust against refactors of the Set body.
  */
 function parsePluginCommands(source: string): Set<string> {
-  const block = sourceSection(source, 'const pluginCommands = new Set([', ']);');
+  const commandSource = source.includes('const pluginCommands = new Set([')
+    ? source
+    : fs.readFileSync(path.resolve(websiteRoot, 'src/data/content-commands.ts'), 'utf8');
+  const block = sourceSection(commandSource, 'const pluginCommands = new Set([', ']);');
   return new Set(captures(block, /'\/([^']+)'/g));
 }
 
@@ -103,10 +130,7 @@ function assertSameCatalog(label: string, websiteValues: string[], runtimeValues
  */
 function validateProductCatalog() {
   const repoRoot = path.resolve(__dirname, '..');
-  const productSource = fs.readFileSync(
-    path.resolve(__dirname, 'src/data/product-catalog.ts'),
-    'utf8',
-  );
+  const productSource = fs.readFileSync(path.resolve(websiteRoot, 'src/data/product-catalog.ts'), 'utf8');
 
   const modeSource = fs.readFileSync(
     path.join(repoRoot, 'packages/core/src/types/mode.ts'),
@@ -168,7 +192,7 @@ function validateProductCatalog() {
   );
 
   const runtimeCatalogSource = fs.readFileSync(
-    path.resolve(__dirname, 'src/data/runtime-catalog.ts'),
+    path.resolve(websiteRoot, 'src/data/runtime-catalog.ts'),
     'utf8',
   );
   const websiteToolBlock = sourceSection(
@@ -233,10 +257,18 @@ function validateProductCatalog() {
   // /commands/<slug> routing breaks. We assert the rich-detail + dispatch coverage here
   // (one-directional: the website catalog cannot have an undocumented entry), without trying
   // to enumerate every runtime slash command from AST.
-  const contentSource = fs.readFileSync(path.resolve(__dirname, 'src/data/content.ts'), 'utf8');
-  const websiteCommands = parseWebsiteCommands(contentSource);
-  const pluginCommands = parsePluginCommands(contentSource);
-  const detailsBlock = fs.readFileSync(path.resolve(__dirname, 'src/data/command-details.ts'), 'utf8');
+  const commandSource = fs.readFileSync(
+    path.resolve(websiteRoot, 'src/data/content-commands.ts'),
+    'utf8',
+  );
+  const websiteCommands = parseWebsiteCommands(commandSource);
+  const pluginCommands = parsePluginCommands(commandSource);
+  const detailsDir = path.resolve(websiteRoot, 'src/data');
+  const detailsBlock = fs
+    .readdirSync(detailsDir)
+    .filter((file) => /^command-details(?:-part-\d+)?\.ts$/.test(file))
+    .map((file) => fs.readFileSync(path.join(detailsDir, file), 'utf8'))
+    .join('\n');
   // Anchor only on the slash-key shape; indentation of `command-details.ts` keys
   // is left to Prettier so a reformat cannot silently empty the capture set.
   const websiteDetails = captures(detailsBlock, /'\/([^']+)': \{/gm);
@@ -283,14 +315,21 @@ function commandSlug(name: string) {
 }
 
 function contentRoutes() {
-  const source = fs.readFileSync(path.resolve(__dirname, 'src/data/content.ts'), 'utf8');
+  const commandSource = fs.readFileSync(
+    path.resolve(websiteRoot, 'src/data/content-commands.ts'),
+    'utf8',
+  );
+  const featureSource = fs.readFileSync(
+    path.resolve(websiteRoot, 'src/data/content-features.ts'),
+    'utf8',
+  );
   // Reuse the shared parser so drift-detection and route-generation stay on
   // one anchored regex. `parseWebsiteCommands()` throws on a zero-row match,
   // surfacing a `commandRows` shape change as a clean build error.
-  const commands = parseWebsiteCommands(source).map((name) => `commands/${commandSlug(name)}`);
-  const features = [...source.matchAll(/slug: '([^']+)'/g)].map(([, slug]) => `features/${slug}`);
+  const commands = parseWebsiteCommands(commandSource).map((name) => `commands/${commandSlug(name)}`);
+  const features = [...featureSource.matchAll(/slug: '([^']+)'/g)].map(([, slug]) => `features/${slug}`);
 
-  const runtimeSource = fs.readFileSync(path.resolve(__dirname, 'src/data/runtime-catalog.ts'), 'utf8');
+  const runtimeSource = fs.readFileSync(path.resolve(websiteRoot, 'src/data/runtime-catalog.ts'), 'utf8');
   const pluginBlock = sourceSection(
     runtimeSource,
     'export const pluginCatalog',
@@ -304,7 +343,7 @@ function contentRoutes() {
     (name) => `tools/${name.replace(/_/g, '-')}`,
   );
 
-  const productSource = fs.readFileSync(path.resolve(__dirname, 'src/data/product-catalog.ts'), 'utf8');
+  const productSource = fs.readFileSync(path.resolve(websiteRoot, 'src/data/product-catalog.ts'), 'utf8');
   const modeBlock = sourceSection(productSource, 'export const modeCatalog', 'export type RosterBudget');
   const modes = captures(modeBlock, /\bid:\s*'([^']+)'/g).map((id) => `modes/${id}`);
   const agents = captures(productSource, /\brole:\s*'([^']+)'/g).map(

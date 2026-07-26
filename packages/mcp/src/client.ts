@@ -19,6 +19,16 @@ import {
 import { normalizeMCPTools } from './tool-schema.js';
 import { type HttpTransportOptions, SSETransport, StreamableHTTPTransport } from './transport.js';
 import { isJsonRpcResult } from './transport-jsonrpc.js';
+import {
+  pageParams,
+  parseEmptyResult,
+  quoteWindowsArg,
+  validateProtocolString,
+} from './client-protocol-helpers.js';
+import { forceKillTree } from './client-process.js';
+
+export { quoteWindowsArg } from './client-protocol-helpers.js';
+export { forceKillTree } from './client-process.js';
 
 export type Transport = 'stdio' | 'sse' | 'streamable-http';
 
@@ -95,58 +105,9 @@ type JsonRpcServerRequest = {
 };
 
 type ExitListener = (name: string, code: number | null, signal: string | null) => void;
-/**
- * Fired when the server sends `notifications/tools/list_changed`. The
- * client refreshes its cached tool list before invoking listeners, so
- * subscribers can call `listTools()` for the fresh set.
- */
 type ToolsChangedListener = (name: string, tools: MCPTool[]) => void;
 export type MCPListChangedListener = (name: string) => void;
 
-/**
- * Force-kill a child and its descendants. On Windows a stdio server is launched
- * through a `.cmd` shim with `shell: true`, so `child` is the `cmd.exe` wrapper
- * and the real server (npx→node / uvx) is its grandchild — `child.kill('SIGKILL')`
- * signals only the wrapper and orphans the server, which then accumulates across
- * every close / restart / idle-sleep. `taskkill /T /F` tears down the whole tree.
- */
-export function forceKillTree(child: ChildProcess): void {
-  if (child.pid === undefined) {
-    try {
-      child.kill('SIGKILL');
-    } catch {
-      /* already gone */
-    }
-    return;
-  }
-  if (process.platform === 'win32') {
-    const killer = spawn('taskkill', ['/pid', String(child.pid), '/T', '/F'], {
-      stdio: 'ignore',
-      windowsHide: true,
-    });
-    killer.once('error', () => {
-      try {
-        child.kill('SIGKILL');
-      } catch {
-        /* already gone */
-      }
-    });
-    killer.unref();
-    return;
-  }
-  try {
-    child.kill('SIGKILL');
-  } catch {
-    /* already gone */
-  }
-}
-
-/**
- * Lightweight MCP client supporting three transport types:
- * - stdio: spawns a child process and communicates over pipes
- * - sse: connects to an HTTP SSE endpoint for server events, POST for requests
- * - streamable-http: session-based HTTP transport with NDJSON responses
- */
 export class MCPClient {
   /**
    * Maximum bytes the rx buffer may accumulate before the connection is
@@ -1031,43 +992,5 @@ export class MCPClient {
         /* listeners are best-effort */
       }
     }
-  }
-}
-
-/**
- * Quote a single argument for `cmd.exe` when spawning with `shell: true` on
- * Windows. Only args containing whitespace or quotes need wrapping; inside
- * double quotes cmd.exe escapes a literal `"` as `""`. Backslashes are literal
- * inside cmd quotes, so paths like `C:\Program Files\x` pass through unharmed.
- */
-export function quoteWindowsArg(arg: string): string {
-  if (!/[\s"]/.test(arg)) return arg;
-  return `"${arg.replace(/"/g, '""')}"`;
-}
-
-const MAX_PROTOCOL_INPUT_CHARS = 8_192;
-
-function validateProtocolString(
-  value: unknown,
-  label: string,
-  allowEmpty = false,
-): asserts value is string {
-  if (typeof value !== 'string' || (!allowEmpty && value.length === 0)) {
-    throw new Error(`MCP ${label} must be ${allowEmpty ? 'a string' : 'a non-empty string'}`);
-  }
-  if (value.length > MAX_PROTOCOL_INPUT_CHARS) {
-    throw new Error(`MCP ${label} exceeds ${MAX_PROTOCOL_INPUT_CHARS} characters`);
-  }
-}
-
-function pageParams(cursor: string | undefined, label: string): Record<string, string> {
-  if (cursor === undefined) return {};
-  validateProtocolString(cursor, label);
-  return { cursor };
-}
-
-function parseEmptyResult(value: unknown): void {
-  if (!value || typeof value !== 'object' || Array.isArray(value)) {
-    throw new Error('Malformed MCP empty result: expected object');
   }
 }

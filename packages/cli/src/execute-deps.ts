@@ -10,17 +10,36 @@
  */
 
 import type { Agent, Context } from '@wrongstack/core/agent';
-import type { AgentFactory, GlobalMailbox } from '@wrongstack/core/coordination';
-import type { AttachmentStore, AutonomyStage, Config, MemoryPort, Message, ModelsRegistry, ModeStore, PromptLoader, ProviderConfig, ResolvedProvider, SkillLoader, TokenCounter } from '@wrongstack/core/types';
-import type { JournalEntry } from '@wrongstack/core/goal';
-import type { RecoveryLock } from '@wrongstack/core/storage';
-import type { WstackPaths } from '@wrongstack/core/utils';
-import type { BrainArbiter, Director } from '@wrongstack/core/coordination';
+import type {
+  AgentFactory,
+  BrainArbiter,
+  Director,
+  GlobalMailbox,
+} from '@wrongstack/core/coordination';
 import type { BrainAutoRisk } from '@wrongstack/core/execution';
-import type { ConfigStore, SessionEvent, SessionStore, SessionWriter } from '@wrongstack/core/types';
-import type { QueueStore } from '@wrongstack/core/storage';
+import type { JournalEntry } from '@wrongstack/core/goal';
 import type { EventBus } from '@wrongstack/core/kernel';
 import type { SlashCommandRegistry } from '@wrongstack/core/registry';
+import type { QueueStore, RecoveryLock } from '@wrongstack/core/storage';
+import type {
+  AttachmentStore,
+  AutonomyStage,
+  Config,
+  ConfigStore,
+  MemoryPort,
+  Message,
+  ModelsRegistry,
+  ModeStore,
+  PromptLoader,
+  ProviderConfig,
+  ResolvedProvider,
+  SessionEvent,
+  SessionStore,
+  SessionWriter,
+  SkillLoader,
+  TokenCounter,
+} from '@wrongstack/core/types';
+import type { WstackPaths } from '@wrongstack/core/utils';
 import type { MCPRegistry } from '@wrongstack/mcp';
 import type { SddLifecycleResult, SddRunControl } from '@wrongstack/sdd';
 import type { LiveSettingsInput } from './execution.js';
@@ -310,8 +329,12 @@ export interface LifecycleDeps {
   onValidateAutoProceed?:
     | ((suggestion: string, lastOutput: string) => Promise<boolean>)
     | undefined;
-  getEternalEngine?: (() => import('@wrongstack/core/execution').EternalAutonomyEngine | null) | undefined;
-  getParallelEngine?: (() => import('@wrongstack/core/execution').ParallelEternalEngine | null) | undefined;
+  getEternalEngine?:
+    | (() => import('@wrongstack/core/execution').EternalAutonomyEngine | null)
+    | undefined;
+  getParallelEngine?:
+    | (() => import('@wrongstack/core/execution').ParallelEternalEngine | null)
+    | undefined;
   getSddRun?: (() => SddRunControl | null) | undefined;
   onSddLifecycle?:
     | ((

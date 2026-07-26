@@ -10,6 +10,7 @@ import type {
 import { AnthropicProvider } from './anthropic.js';
 import { capabilitiesForFamily } from './family-capabilities.js';
 import { type OpenAICompatibleOptions, OpenAICompatibleProvider } from './openai-compatible.js';
+import type { BuildBodyContext } from './model-output-limits.js';
 
 const DEFAULT_BASE_URL = 'https://opencode.ai/zen/go/v1';
 
@@ -118,10 +119,7 @@ class OpenCodeGoChatProvider extends OpenAICompatibleProvider {
     super(opts);
   }
 
-  protected override buildBody(
-    req: Request,
-    ctx: { capabilities: Capabilities },
-  ): Record<string, unknown> {
+  protected override buildBody(req: Request, ctx: BuildBodyContext): Record<string, unknown> {
     const body = super.buildBody(req, ctx);
 
     // The generic adapter cannot know a gateway model's effort enum. Go's
@@ -147,10 +145,7 @@ class OpenCodeGoMessagesProvider extends AnthropicProvider {
     super(opts);
   }
 
-  protected override buildBody(
-    req: Request,
-    ctx: { capabilities: Capabilities },
-  ): Record<string, unknown> {
+  protected override buildBody(req: Request, ctx: BuildBodyContext): Record<string, unknown> {
     let normalized = req;
     const model = this.models.get(req.model);
     const family = model?.family?.toLowerCase();

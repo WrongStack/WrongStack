@@ -263,6 +263,7 @@ export {
 } from './techstack-mailbox-consumer.js';
 export {
   authorizeMailboxBearerToken,
+  authorizeMailboxCredential,
   createMailboxHttpRouter,
   MAILBOX_HTTP_DEFAULT_MAX_AGE_MS,
   MAILBOX_HTTP_MAX_AGE_CEILING_MS,

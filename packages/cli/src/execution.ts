@@ -31,33 +31,22 @@
  * in the `runTui()` options literal below. Do NOT grow this file.
  */
 
-import { createHash, randomUUID } from 'node:crypto';
-import * as fsp from 'node:fs/promises';
+import { randomUUID } from 'node:crypto';
 import * as path from 'node:path';
 import {
-  fallbackProfileChain,
-  parseModelRef,
   setQueuedMessagesSnapshot,
 } from '@wrongstack/core/agent';
 import { type CoordinatorEvent, isMailboxLeader } from '@wrongstack/core/coordination';
 import {
-  type CascadeAgentKind,
-  buildReviewerModelPool,
   CHIMERA_REVIEW_PROMPT,
-  type ChimeraCascadeNeededPayload,
   type ChimeraReviewCompletePayload,
   type ChimeraReviewNeededPayload,
-  DEFAULT_REVIEW_FALLBACK_MODELS,
-  selectRoundRobinReviewerAssignment,
 } from '@wrongstack/core/plugin';
-import { WIDE_SUBAGENT_CAPABILITIES } from '@wrongstack/core/security';
 import { attachTodosCheckpoint } from '@wrongstack/core/storage';
 import {
-  type FleetChatVerbosity,
   normalizeTokenSavingTier,
   type StopReason,
   type SubagentConfig,
-  type TokenSavingTier,
 } from '@wrongstack/core/types';
 import { mergeCustomModelDefs } from '@wrongstack/core/utils';
 import { capabilitiesFor } from '@wrongstack/providers';
@@ -67,6 +56,7 @@ import { runTuiDispatch } from './boot/dispatch-tui.js';
 import { runWebUIDispatch } from './boot/dispatch-webui.js';
 import { resolveExecutionMode } from './boot/execution-mode.js';
 import { setupAutonomousCoordinator } from './boot/tui-coordinator-setup.js';
+import { createTuiCoordinatorCallbacks } from './boot/tui-coordinator-callbacks.js';
 import {
   registerDebugStreamCallback,
   restoreDebugStreamCallback,
@@ -91,184 +81,40 @@ import {
 import { resumeSession } from './boot/tui-session-resume.js';
 import { createSettingsAdapter } from './boot/tui-settings-adapter.js';
 import { createBrainPanelHost } from './brain-menu/panel-service.js';
+import {
+  buildChimeraReviewTaskDescription,
+  truncateAtCodePointBoundary,
+} from './chimera-review-task.js';
+import {
+  applyChimeraReviewerReadOnlyPolicy,
+  assignReviewerModelsRoundRobin,
+  resolveReviewerFallbackModels,
+} from './chimera-reviewer-policy.js';
 import type { ExecuteDeps } from './execute-deps.js';
+import { createKanbanDispatchHandler } from './execution-kanban-dispatch.js';
+import { finalizeExecutionCleanup } from './execution-cleanup.js';
+import { createReplFleetCallbacks } from './execution-repl-fleet-callbacks.js';
 import { FleetStatusLine } from './fleet-statusline.js';
-import { type PredictLLMProvider, predictNextTasks } from './next-task-predictor.js';
+
+export type { LiveSettingsInput } from './live-settings-input.js';
+
 import { resolveActiveApiKey } from './provider-config-utils.js';
-import { parseSuggestionsFromOutput, runRepl } from './repl.js';
-import { setSuggestions } from './services/suggestion-store.js';
+import { runRepl } from './repl.js';
+import { installStorageObservability } from './execution-storage-observability.js';
+import { installChimeraCascadeHandler } from './execution-chimera-cascade.js';
+import { waitForChimeraAskApproval } from './execution-chimera-ask.js';
+import { createTuiNextStepCallbacks } from './execution-tui-next-step-callbacks.js';
 import type { UpdateInfo } from './update-check.js';
 import { CLI_VERSION } from './version.js';
 import { createKanbanRunMirror } from './webui-server/kanban-run-mirror.js';
 
-/**
- * Resolve the fallback-model chain used when spawning the chimera-review
- * reviewer subagent.
- *
- * - When the auto-review bundle already resolved a chain (`reviewFallbackModels`
- *   present), that chain is used verbatim.
- * - Otherwise (manual/ordinary Chimera), fall back to the shared
- *   {@link DEFAULT_REVIEW_FALLBACK_MODELS} default from `@wrongstack/core`.
- *
- * Exported so the drift-guard test can assert the exact value the production
- * spawn uses, rather than string-matching source. Shared single constant means
- * the two spawn seams can never diverge and reopen the chimera-review
- * `provider_auth` (1 iter / 0 tools) failure. See fix(auto-review) 623bd441a.
- */
-export function resolveReviewerFallbackModels(
-  reviewFallbackModels?: readonly string[] | undefined,
-  /** Append session ref as a final fallback chain entry — useful on the
-   *  auto-review branch when the bundle carries a separate fallback chain;
-   *  redundant with the primary on the manual branch. */
-  sessionRef?: string,
-): string[] {
-  const base =
-    reviewFallbackModels && reviewFallbackModels.length > 0
-      ? [...reviewFallbackModels]
-      : [...DEFAULT_REVIEW_FALLBACK_MODELS];
-  if (sessionRef && !base.includes(sessionRef)) {
-    base.push(sessionRef);
-  }
-  return base;
-}
-
-/**
- * Process-local round-robin cursor for Chimera reviewer model assignment.
- * Advances on every successful assignment so concurrent/successive reviewers
- * start on different providers and share rate-limit budget across the pool.
- */
-let reviewerRoundRobinCursor = 0;
-
-/** Test hook — reset the process-local reviewer round-robin cursor. */
-export function __resetReviewerRoundRobinCursor(value = 0): void {
-  reviewerRoundRobinCursor = value;
-}
-
-/**
- * Assign provider/model/fallbackModels for a Chimera reviewer spawn.
- *
- * Builds the pool from the configured primary + fallback chain, then picks
- * the next entry via round-robin. When the pool has ≤1 usable entry the
- * original primary/fallbacks are returned unchanged.
- */
-export function assignReviewerModelsRoundRobin(
-  provider: string,
-  model: string,
-  fallbackModels: readonly string[],
-): { provider: string; model: string; fallbackModels: string[] } {
-  const pool = buildReviewerModelPool(provider, model, fallbackModels);
-  if (pool.length <= 1) {
-    return {
-      provider,
-      model,
-      fallbackModels: [...fallbackModels],
-    };
-  }
-  const assignment = selectRoundRobinReviewerAssignment(
-    pool,
-    reviewerRoundRobinCursor,
-    provider,
-    model,
-  );
-  reviewerRoundRobinCursor = assignment.nextCursor;
-  return {
-    provider: assignment.provider,
-    model: assignment.model,
-    fallbackModels: assignment.fallbackModels,
-  };
-}
-
-/**
- * Chimera reviewers only inspect code and return a report. They never repair
- * files themselves; bug-hunter/security-scanner/fix agents own all mutations.
- */
-export const CHIMERA_REVIEW_READ_ONLY_TOOLS = Object.freeze([
-  'read',
-  'grep',
-  'glob',
-  'tree',
-  'codebase-search',
-  'codebase-stats',
-] as const);
-
-export function applyChimeraReviewerReadOnlyPolicy(config: SubagentConfig): SubagentConfig {
-  return {
-    ...config,
-    // A security boundary, not an additive default: discard any inherited
-    // mutation tools/capabilities so Chimera reviewers cannot repair files.
-    tools: [...CHIMERA_REVIEW_READ_ONLY_TOOLS],
-    allowedCapabilities: ['fs.read'],
-    worktree: 'off',
-  };
-}
-
-/**
- * Settings payload shared by `saveSettings` (persist) and `applyLiveSettings`
- * (apply to the running session). Mirrors the fields the TUI `/settings` picker
- * cycles with ←/→.
- */
-export interface LiveSettingsInput {
-  mode?: 'off' | 'suggest' | 'auto' | undefined;
-  delayMs?: number | undefined;
-  titleAnimation?: boolean | undefined;
-  yolo?: boolean | undefined;
-  /** Fleet-chat verbosity (off | full). */
-  fleetChatVerbosity?: FleetChatVerbosity | undefined;
-  chime?: boolean | undefined;
-  confirmExit?: boolean | undefined;
-  nextPrediction?: boolean | undefined;
-  featureMcp?: boolean | undefined;
-  featurePlugins?: boolean | undefined;
-  featureMemory?: boolean | undefined;
-  featureSkills?: boolean | undefined;
-  featureModelsRegistry?: boolean | undefined;
-  featureTokenSaving?: TokenSavingTier | undefined;
-  allowOutsideProjectRoot?: boolean | undefined;
-  contextAutoCompact?: boolean | undefined;
-  contextStrategy?: string | undefined;
-  contextMode?: string | undefined;
-  maxConcurrent?: number | undefined;
-  logLevel?: string | undefined;
-  auditLevel?: string | undefined;
-  indexOnStart?: boolean | undefined;
-  maxIterations?: number | undefined;
-  autoProceedMaxIterations?: number | undefined;
-  /** When true, file tools are confined to the project root. Default false. */
-  restrictFsToRoot?: boolean | undefined;
-  debugStream?: boolean | undefined;
-  configScope?: 'global' | 'project' | undefined;
-  enhanceDelayMs?: number | undefined;
-  enhanceEnabled?: boolean | undefined;
-  enhanceLanguage?: string | undefined;
-  /** Mid-run send-mode picker (queue/btw/steer) toggle. Default on. */
-  midRunSendPicker?: boolean | undefined;
-  /** Skip the confirmation prompt for the TUI `!<command>` shell shortcut. */
-  shellBangWarningDontShowAgain?: boolean | undefined;
-  mouseMode?: boolean | undefined;
-  autonomyNextPrompt?: string | undefined;
-  /** Whether the process circuit breaker gates bash/exec. Default false. */
-  breakerEnabled?: boolean | undefined;
-  /** Auto kill/reset delay (ms) when the breaker trips. 0 = manual recovery. */
-  breakerAutoKillResetMs?: number | undefined;
-  /** TUI statusline density. Defaults to detailed when unset. */
-  statuslineMode?: 'minimum' | 'detailed' | undefined;
-  /** Single word shown in the TUI rainbow working-state chip. */
-  thinkingWord?: string | undefined;
-  /** Animation style for the TUI working-state chip. */
-  animationStyle?: 'rainbow' | 'wave' | 'pulse' | 'dots' | 'breathe' | 'cycle' | undefined;
-  /** Provider-runtime reasoning mode. */
-  reasoningMode?: 'auto' | 'on' | 'off' | undefined;
-  /** Provider-runtime reasoning effort. */
-  reasoningEffort?: string | undefined;
-  /** Preserve thinking blocks across turns when supported. */
-  reasoningPreserve?: boolean | undefined;
-  /** Prompt-cache TTL, or default to clear the explicit override. */
-  cacheTtl?: 'default' | '5m' | '1h' | undefined;
-  /** Show "Model Reasoning" blocks in chat history. Default: true. */
-  showModelReasoning?: boolean | undefined;
-  /** Optionally show the persistent AGENT SWARM and todo mission queue panel; defaults to true at the storage layer. */
-  showAgentSwarmPanel?: boolean | undefined;
-}
+export {
+  __resetReviewerRoundRobinCursor,
+  applyChimeraReviewerReadOnlyPolicy,
+  assignReviewerModelsRoundRobin,
+  CHIMERA_REVIEW_READ_ONLY_TOOLS,
+  resolveReviewerFallbackModels,
+} from './chimera-reviewer-policy.js';
 
 export type {
   BrainData,
@@ -424,52 +270,11 @@ export async function execute(deps: ExecuteDeps): Promise<number> {
   // events emitted by FileSessionWriter (flush, close) carry their own traceId
   // (propagated from ContextInit) which we also included; events from the
   // DefaultSessionStore level (load, summary, compact) inherit it from context.
-  const rootTraceId = context.traceId;
-  const storageLog = (event: string, payload: Record<string, unknown>) => {
-    // Merge: prefer the storage-event-level traceId (from FileSessionWriter) over
-    // the root traceId when both are present, so Fleet/spans are precisely keyed.
-    const traceId = (payload.traceId as string | undefined) ?? rootTraceId;
-    // eslint-disable-next-line no-console
-    console.warn(
-      JSON.stringify({
-        level: 'info',
-        event,
-        timestamp: new Date().toISOString(),
-        traceId,
-        ...payload,
-      }),
-    );
-  };
-  const onStorageRead = (...args: unknown[]) =>
-    storageLog('storage.read', args[0] as Record<string, unknown>);
-  const onStorageWrite = (...args: unknown[]) =>
-    storageLog('storage.write', args[0] as Record<string, unknown>);
-  const onStorageError = (...args: unknown[]) =>
-    storageLog('storage.error', args[0] as Record<string, unknown>);
-  const offStorageRead = events.on('storage.read', onStorageRead);
-  const offStorageWrite = events.on('storage.write', onStorageWrite);
-  const offStorageError = events.on('storage.error', onStorageError);
+  const offStorageObservability = installStorageObservability(events, context.traceId);
 
   // Tracks the in-flight chimera subagent so finally can await it before session.close().
   // Without this, the fire-and-forget IIFE appends to a session whose handle is already closed.
   let pendingChimeraWork: Promise<void> | undefined;
-
-  // ── Grapheme-safe truncation ────────────────────────────────────
-  // Plain .slice() operates on UTF-16 code units and can split a
-  // surrogate pair (e.g. 🦂 → \uD83E\uDD82), producing an invalid
-  // substring.  This helper iterates by code point so every truncated
-  // result is well-formed.  When available, Intl.Segmenter would be
-  // even more precise (handles combining sequences); the code-point
-  // approach covers >99% of practical cases without overhead.
-  function truncateAtCodePointBoundary(text: string, maxCodeUnits: number): string {
-    if (text.length <= maxCodeUnits) return text;
-    let result = '';
-    for (const ch of text) {
-      if (result.length + ch.length > maxCodeUnits) break;
-      result += ch;
-    }
-    return result;
-  }
 
   // ── Chimera post-session review: spawns subagent on chimera.review_needed ──
   events.onPattern('chimera.review_needed', (_event, payload) => {
@@ -486,105 +291,7 @@ export async function execute(deps: ExecuteDeps): Promise<number> {
     // happens before the finally block checks pendingChimeraWork.
     pendingChimeraWork = (async () => {
       try {
-        // ── Build enriched task description from ReviewContextBundle ──
-        const lines: string[] = [];
-
-        // Section 1: File list with diffs
-        lines.push(
-          `Review the following ${p.files.length} file(s) changed in this session at ${p.cwd}.`,
-        );
-        lines.push('');
-        for (const f of p.files) {
-          lines.push(`## [${f.status.toUpperCase()}] ${f.path}`);
-          if (f.diff) {
-            lines.push('');
-            lines.push('```diff');
-            lines.push(f.diff);
-            lines.push('```');
-          } else if (f.status === 'added') {
-            lines.push('');
-            lines.push('(New file — full content provided)');
-          }
-          lines.push('');
-        }
-
-        // Section 2: Sibling changes (context only, not review scope)
-        if (p.allChangedFiles && p.allChangedFiles.length > p.files.length) {
-          const reviewedPaths = new Set(p.files.map((f) => f.path));
-          const siblings = p.allChangedFiles
-            .filter((s) => !reviewedPaths.has(s.path))
-            .map((s) => `  ${s.path} (${s.status})`);
-          if (siblings.length > 0) {
-            lines.push('---');
-            lines.push('');
-            lines.push(
-              `**Also changed this session (${siblings.length} files — for context, NOT in your review scope):**`,
-            );
-            lines.push(siblings.slice(0, 30).join('\n'));
-            lines.push('');
-          }
-        }
-
-        // Section 3: Recent commits
-        if (p.recentCommits && p.recentCommits.length > 0) {
-          lines.push('---');
-          lines.push('');
-          lines.push('**Recent commits (newest first):**');
-          for (const c of p.recentCommits) lines.push(`  ${c}`);
-          lines.push('');
-        }
-
-        // Section 3b: Active todos (task intent)
-        if (p.activeTodos && p.activeTodos.length > 0) {
-          lines.push('---');
-          lines.push('');
-          lines.push(`**Active task items (${p.activeTodos.length}):**`);
-          for (const t of p.activeTodos) {
-            lines.push(`  [${t.status}] ${t.content}`);
-          }
-          lines.push('');
-        }
-
-        // Section 3c: Kanban card (acceptance criteria)
-        if (p.kanbanCard) {
-          lines.push('---');
-          lines.push('');
-          lines.push(`**Kanban card: ${p.kanbanCard.title}**`);
-          if (p.kanbanCard.description) {
-            lines.push(`  ${p.kanbanCard.description.slice(0, 500)}`);
-          }
-          if (p.kanbanCard.successCriteria && p.kanbanCard.successCriteria.length > 0) {
-            lines.push('  **Success criteria:**');
-            for (const sc of p.kanbanCard.successCriteria) lines.push(`    - ${sc}`);
-          }
-          lines.push('');
-        }
-
-        // Section 3d: File provenance (who changed what)
-        if (p.fileProvenance && p.fileProvenance.length > 0) {
-          lines.push('---');
-          lines.push('');
-          lines.push('**File provenance (Chronicle):**');
-          for (const fp of p.fileProvenance) {
-            const parts: string[] = [];
-            if (fp.agentId) parts.push(`agent: ${fp.agentId}`);
-            if (fp.taskId) parts.push(`task: ${fp.taskId}`);
-            if (fp.eventType) parts.push(fp.eventType);
-            if (fp.observedAt) parts.push(fp.observedAt);
-            lines.push(`  ${fp.path} — ${parts.join(', ')}`);
-          }
-          lines.push('');
-        }
-
-        // Section 4: Instructions
-        lines.push('---');
-        lines.push('');
-        lines.push('Read each file using the read tool. For modified files, focus on the');
-        lines.push('diff above — do not re-review unchanged pre-existing code.');
-        lines.push('Check for bugs, type issues, security problems, and produce a');
-        lines.push('structured review report.');
-
-        const taskDesc = lines.join('\n');
+        const taskDesc = buildChimeraReviewTaskDescription(p);
 
         // Role-based model matrix resolution: the Director.spawn() resolves
         // provider/model from the model matrix by role (→ phase → * → leader)
@@ -810,222 +517,13 @@ export async function execute(deps: ExecuteDeps): Promise<number> {
 
             // ── ask mode: poll for leader reply with bounded timeout ──
             if (isAskMode) {
-              // ASK_TIMEOUT_MS already resolved above for the directive message
-              const rawPoll =
-                (agent.ctx.meta['chimeraPollIntervalMs'] as number | undefined) ?? 2_000;
-              const POLL_INTERVAL_MS = Number.isFinite(rawPoll) ? Math.max(0, rawPoll) : 2_000;
-              const abortSignal: AbortSignal | undefined = agent.ctx.meta['chimeraAbortSignal'] as
-                | AbortSignal
-                | undefined;
-              const askStartTime = Date.now();
-
-              let repliesFound = false;
-              let nonLeaderReplyCount = 0;
-              let pollDone = false;
-
-              // Recursive async poll: each iteration yields control to the
-              // event loop via setTimeout + await, so mailbox writes, HTTP
-              // handlers, and UI repaints are not starved during the 30s
-              // approval window.
-              //
-              // NOTE: Deadline is checked in pollNext only, not before
-              // the query here.  If we checked first, a reply arriving
-              // during the sleep interval that crosses the deadline
-              // boundary would be silently missed — pollForReply would
-              // bail without the final query.  Always query, then let
-              // pollNext decide whether to schedule another tick.
-              const pollForReply = async (): Promise<void> => {
-                if (pollDone) return;
-                // Poll using replyTo UUID only — NO `to` filter because the
-                // leader's reply is addressed to `chimera-review@<sessionId>`
-                // (session-qualified), not bare `chimera-review`. The
-                // cryptographically-random replyTo is sufficient scoping.
-                const replies = await mailbox.query({
-                  replyTo: askMailMsgId,
-                  limit: 5,
-                });
-
-                if (replies.length > 0) {
-                  repliesFound = true;
-                  const firstReply = replies[0];
-                  if (!firstReply) return pollNext(); // should not happen
-
-                  // Post-query sender validation: accept only replies whose
-                  // sender base id is 'leader' AND whose audience is not
-                  // 'leaders' (a leader-only message should not be visible
-                  // to chimera-review, a non-leader agent). This prevents
-                  // cascade replies, system messages, or stale replies from
-                  // a prior session that happen to share the replyTo UUID
-                  // from being misclassified by the approval/denial regex.
-                  const replyFromBase = (firstReply.from ?? '').split('@')[0];
-                  if (replyFromBase !== 'leader' || firstReply.audience === 'leaders') {
-                    nonLeaderReplyCount++;
-                    if (nonLeaderReplyCount >= 5) {
-                      console.warn(
-                        JSON.stringify({
-                          level: 'warn',
-                          event: 'execution.chimera_ask_non_leader_threshold',
-                          message: `${nonLeaderReplyCount} non-leader replies seen on chimera ask — stopping poll`,
-                          timestamp: new Date().toISOString(),
-                        }),
-                      );
-                      pollDone = true;
-                      return; // break out of polling entirely
-                    }
-                    // Log the first non-leader reply at warn, rest at debug
-                    console.warn(
-                      JSON.stringify({
-                        level: nonLeaderReplyCount <= 1 ? 'warn' : 'debug',
-                        event: 'execution.chimera_ask_non_leader_reply',
-                        message: `Ignoring non-leader reply #${nonLeaderReplyCount} from ${firstReply.from}`,
-                        timestamp: new Date().toISOString(),
-                      }),
-                    );
-                    return pollNext(); // keep polling
-                  }
-
-                  // Ack the consumed leader reply so it is not reprocessed
-                  // on a subsequent poll tick. Await the ack so the reply is
-                  // reliably marked as read before continuing; log errors
-                  // instead of swallowing them silently.
-                  await mailbox
-                    .ack({
-                      messageId: firstReply.id,
-                      readerId: 'chimera-review',
-                      read: true,
-                      completed: true,
-                    })
-                    .catch((_ackErr) => {
-                      console.warn(
-                        JSON.stringify({
-                          level: 'warn',
-                          event: 'execution.chimera_ask_ack_failed',
-                          message: _ackErr instanceof Error ? _ackErr.message : String(_ackErr),
-                          replyMessageId: firstReply.id,
-                          timestamp: new Date().toISOString(),
-                        }),
-                      );
-                    });
-
-                  const body = firstReply.body.toLowerCase();
-                  // Whitespace-only reply: short-circuit as denial for a
-                  // faster fallback instead of polling until timeout.
-                  if (body.trim().length === 0) {
-                    leaderApproved = false;
-                    pollDone = true;
-                    return;
-                  }
-                  // Symmetrical start-anchored matching: both approval and
-                  // denial are checked at the start of the reply body, so
-                  // a reply like "Yes, go ahead" matches approval, and
-                  // "No, skip it" matches denial — with no ambiguity from
-                  // mid-sentence keywords. NOTE: body is lowercased above.
-                  leaderApproved =
-                    /^\s*(?:y(?:es)?|sure|ok(?:ay)?|go ahead|proceed|approve|fix it|please do|do it|yep|yeah)\b/.test(
-                      body,
-                    ) || /^\s*👍/.test(body);
-                  if (leaderApproved) {
-                    pollDone = true;
-                    return;
-                  } // approved — exit early
-                  const denial = /^\s*(no|don'?t|stop|skip|ignore|cancel|reject|decline)\b/.test(
-                    body,
-                  );
-                  if (denial) {
-                    leaderApproved = false;
-                    pollDone = true;
-                    return;
-                  } // denied — exit early
-
-                  // Forgiveness fallback: a non-start-anchored word-boundary
-                  // check catches free-form approval like "Looks fine, yes"
-                  // or "I think we should approve it" that the start-anchored
-                  // patterns above missed. This runs AFTER the denial check
-                  // so explicit denials or "No, don't approve" are not flipped.
-                  leaderApproved = /\b(?:y(?:es)?|sure|approve|proceed|go ahead)\b/i.test(body);
-                  if (leaderApproved) {
-                    pollDone = true;
-                    return;
-                  }
-
-                  // Unmatched reply (neither explicit approval nor denial):
-                  // log a diagnostic but keep polling — the leader may
-                  // send a clearer follow-up reply before the deadline.
-                  const hash = createHash('sha256').update(body).digest('hex').slice(0, 12);
-                  console.warn(
-                    JSON.stringify({
-                      level: 'debug',
-                      event: 'execution.chimera_ask_reply_unmatched',
-                      replyBodyHash: hash,
-                      replyBodyLength: body.length,
-                      timestamp: new Date().toISOString(),
-                    }),
-                  );
-                  // Fall through to pollNext() — keep polling for a clearer reply
-                }
-
-                return pollNext();
-              };
-
-              // Schedule the next poll tick via setTimeout so the event loop
-              // can process I/O, mailbox writes, and UI repaints between
-              // iterations.
-              const pollNext = (): Promise<void> => {
-                if (pollDone) return Promise.resolve();
-                const elapsed = Date.now() - askStartTime;
-                const remaining = ASK_TIMEOUT_MS - elapsed;
-                if (remaining <= 0 || abortSignal?.aborted) {
-                  pollDone = true;
-                  return Promise.resolve();
-                }
-                return new Promise((r) =>
-                  setTimeout(r, Math.min(POLL_INTERVAL_MS, remaining)),
-                ).then(() => pollForReply());
-              };
-
-              await pollForReply();
-
-              if (!leaderApproved) {
-                const askEvent = repliesFound
-                  ? 'execution.chimera_ask_rejected'
-                  : 'execution.chimera_ask_timeout';
-                console.warn(
-                  JSON.stringify({
-                    level: 'warn',
-                    event: askEvent,
-                    message: repliesFound
-                      ? 'Leader replied to ask but did not approve'
-                      : 'Ask timeout expired, falling back to off mode (no auto-fix)',
-                    timestamp: new Date().toISOString(),
-                  }),
-                );
-
-                const activeSessionForChimera = agent.ctx.session ?? session;
-                await activeSessionForChimera
-                  .append({
-                    type: 'llm_response' as const,
-                    ts: new Date().toISOString(),
-                    content: [
-                      {
-                        type: 'text',
-                        text: `🦂 Chimera auto-fix request sent to leader — no approval received within ${ASK_TIMEOUT_MS / 1000}s timeout. Falling back to manual review mode. Set autoFix via \`/chimera autoFix auto\` to auto-approve future reviews.`,
-                      },
-                    ],
-                    stopReason: 'end_turn' as StopReason,
-                    usage: { input: 0, output: 0 },
-                  })
-                  .catch((_appendErr) => {
-                    console.warn(
-                      JSON.stringify({
-                        level: 'warn',
-                        event: 'execution.chimera_timeout_append_failed',
-                        message:
-                          _appendErr instanceof Error ? _appendErr.message : String(_appendErr),
-                        timestamp: new Date().toISOString(),
-                      }),
-                    );
-                  });
-              }
+              leaderApproved = await waitForChimeraAskApproval({
+                mailbox,
+                messageId: askMailMsgId,
+                meta: agent.ctx.meta,
+                session: agent.ctx.session ?? session,
+                askTimeoutMs: ASK_TIMEOUT_MS,
+              });
             }
           } catch (mailErr) {
             const errMsg = mailErr instanceof Error ? mailErr.message : String(mailErr);
@@ -1186,221 +684,15 @@ export async function execute(deps: ExecuteDeps): Promise<number> {
     })();
   });
 
-  // ── Cascade task description builder ──
-  //
-  // Tailors the follow-up agent's task based on its kind. The review
-  // report (capped at 12K chars to match the autoFix path's limit) is
-  // included so the agent sees the specific findings that triggered it.
-  function buildCascadeTaskDescription(
-    agentKind: CascadeAgentKind,
-    p: ChimeraCascadeNeededPayload,
-  ): string {
-    const fileList = p.bundle.files.map((f) => `- ${f.path}`).join('\n');
-    const reportSlice = truncateAtCodePointBoundary(p.reviewText, 12_000);
-    const severityLine = `Critical: ${p.severities.critical}, High: ${p.severities.high}, Medium: ${p.severities.medium}`;
-
-    if (agentKind === 'security-scanner') {
-      return [
-        `You are a security cascade agent. A Chimera code review flagged security-relevant findings.`,
-        ``,
-        `Repository: ${p.bundle.cwd}`,
-        `Severity summary: ${severityLine}`,
-        ``,
-        `--- Review report ---`,
-        reportSlice,
-        ``,
-        `--- Changed files ---`,
-        fileList,
-        ``,
-        `Investigate the security findings above. Read the flagged files, confirm or refute`,
-        `each finding, and **apply fixes** for confirmed vulnerabilities using the edit tool.`,
-        `Use severity (Critical/High/Medium), file:line citations, and remediation steps.`,
-        `After fixing, run the project's typecheck and linter to verify. If a finding is a`,
-        `false positive, say so and do not modify the file.`,
-      ].join('\n');
-    }
-    // bug-hunter
-    return [
-      `You are a bug-hunter cascade agent. A Chimera code review flagged correctness defects.`,
-      ``,
-      `Repository: ${p.bundle.cwd}`,
-      `Severity summary: ${severityLine}`,
-      ``,
-      `--- Review report ---`,
-      reportSlice,
-      ``,
-      `--- Changed files ---`,
-      fileList,
-      ``,
-      `Hunt for the bugs flagged above. Read the affected files, trace each finding to its`,
-      `root cause, and **apply minimal fixes** for confirmed bugs using the edit tool.`,
-      `Use severity (Critical/High/Medium), file:line citations. After fixing, run the`,
-      `project's typecheck and linter to verify. If a finding is a false positive, say so`,
-      `and do not modify the file.`,
-    ].join('\n');
-  }
-
   // ── Chimera cascade: spawns follow-up agents on chimera.cascade_needed ──
-  //
-  // Emitted by the auto-review plugin when a review report contains
-  // findings at or above the configured cascadeOn threshold. This handler
-  // spawns the requested follow-up agents (security-scanner, bug-hunter)
-  // via the Director and appends their results to the session transcript.
-  //
-  // Like the review handler, the work is tracked in pendingChimeraWork so
-  // the session-close await covers it. The cascade fires synchronously
-  // after review_complete (the plugin's listener emits cascade_needed
-  // inline), so this handler runs within the same pendingChimeraWork IIFE
-  // timeline.
-  events.onPattern('chimera.cascade_needed', (_event, payload) => {
-    const p = payload as ChimeraCascadeNeededPayload;
-    const dir = director;
-    if (!dir) return; // Director not available — cascade skipped.
-    if (p.agents.length === 0) return;
-
-    // Track in pendingChimeraWork so the finally block awaits cascade
-    // completion before session.close(). Chain onto any prior in-flight
-    // work so cascades run after their parent review, not concurrently.
-    pendingChimeraWork = (async () => {
-      // Await any prior pending work (the parent review) before spawning.
-      try {
-        await pendingChimeraWork;
-      } catch {
-        // Parent failed — proceed with cascade anyway; the review text
-        // is carried in the payload, independent of subagent success.
-      }
-
-      for (const agentKind of p.agents) {
-        try {
-          const taskDesc = buildCascadeTaskDescription(agentKind, p);
-          const role = agentKind === 'security-scanner' ? 'security-scanner' : 'bug-hunter';
-          const cfg: SubagentConfig = {
-            name: `chimera-cascade-${agentKind}`,
-            role,
-            maxIterations: 40,
-            maxToolCalls: 200,
-            timeoutMs: 600_000,
-          };
-          const subagentId = await dir.spawn(cfg);
-          const taskId = randomUUID();
-          await dir.assign({ id: taskId, description: taskDesc, subagentId });
-          const results = await dir.awaitTasks([taskId]);
-          const result = results[0];
-
-          if (result?.status === 'success') {
-            const resultText =
-              typeof result.result === 'string' ? result.result : JSON.stringify(result.result);
-            await session.append({
-              type: 'llm_response',
-              ts: new Date().toISOString(),
-              content: [
-                {
-                  type: 'text',
-                  text: `🦂 Chimera cascade (${agentKind}) — ${resultText}`,
-                },
-              ],
-              stopReason: 'end_turn' as StopReason,
-              usage: { input: 0, output: 0 },
-            });
-          } else {
-            await session.append({
-              type: 'error',
-              ts: new Date().toISOString(),
-              message: `🦂 Chimera cascade (${agentKind}) ${result?.status ?? 'unknown'}: ${result?.error?.message ?? 'no result'}`,
-              phase: 'agent',
-            });
-          }
-        } catch (err) {
-          await session.append({
-            type: 'error',
-            ts: new Date().toISOString(),
-            message: `🦂 Chimera cascade (${agentKind}) failed: ${err instanceof Error ? err.message : String(err)}`,
-            phase: 'agent',
-          });
-        }
-      }
-
-      // ── Re-review: closed self-correcting loop ──
-      //
-      // After the cascade fix agents finish, re-read the (now possibly
-      // modified) files and re-emit chimera.review_needed to trigger a
-      // fresh review. The loop is bounded by maxCascadeDepth: when
-      // cascadeDepth reaches it, we stop. This prevents infinite
-      // fix→re-review→fix cycles while giving the cascade a chance to
-      // verify its own fixes converged.
-      //
-      // Only fires when:
-      //   - bundle.maxCascadeDepth is set (> 0) — absent or 0 = no re-review
-      //   - cascadeDepth < maxCascadeDepth — depth guard
-      //   - at least one file path is re-readable (file still exists)
-      const maxDepth = p.bundle.maxCascadeDepth ?? 0;
-      const currentDepth = p.bundle.cascadeDepth ?? 0;
-      if (maxDepth > 0 && currentDepth < maxDepth) {
-        try {
-          // Re-read the changed files — they may have been edited by the
-          // fix agents. Skip files that were deleted or are unreadable.
-          const reReadFiles: ChimeraReviewNeededPayload['files'] = [];
-          for (const f of p.bundle.files) {
-            try {
-              const absPath = path.join(p.bundle.cwd, f.path);
-              const content = await fsp.readFile(absPath, 'utf8');
-              reReadFiles.push({ path: f.path, status: 'modified', content });
-            } catch {
-              // File deleted or unreadable — skip it
-            }
-          }
-
-          if (reReadFiles.length > 0) {
-            const reReviewBundle: ChimeraReviewNeededPayload = {
-              ...p.bundle,
-              files: reReadFiles,
-              cascadeDepth: currentDepth + 1,
-            };
-
-            await session.append({
-              type: 'llm_response',
-              ts: new Date().toISOString(),
-              content: [
-                {
-                  type: 'text',
-                  text: `🦂 Chimera cascade re-review (depth ${currentDepth + 1}/${maxDepth}) — re-reviewing ${reReadFiles.length} file(s) after fixes`,
-                },
-              ],
-              stopReason: 'end_turn' as StopReason,
-              usage: { input: 0, output: 0 },
-            });
-
-            // Re-emit review_needed — the review handler will pick it up
-            // and run a fresh review subagent. If that review also finds
-            // High+ findings with cascadeOn set, the cycle continues until
-            // maxCascadeDepth or the review comes back clean.
-            events.emitCustom('chimera.review_needed', reReviewBundle);
-          }
-        } catch (err) {
-          await session.append({
-            type: 'error',
-            ts: new Date().toISOString(),
-            message: `🦂 Chimera cascade re-review failed: ${err instanceof Error ? err.message : String(err)}`,
-            phase: 'agent',
-          });
-        }
-      } else if (maxDepth > 0 && currentDepth >= maxDepth) {
-        // Depth limit reached — log so the user knows the loop stopped
-        // intentionally, not because fixes converged.
-        await session.append({
-          type: 'llm_response',
-          ts: new Date().toISOString(),
-          content: [
-            {
-              type: 'text',
-              text: `🦂 Chimera cascade stopped at depth limit (${currentDepth}/${maxDepth}) — manual review recommended if issues persist`,
-            },
-          ],
-          stopReason: 'end_turn' as StopReason,
-          usage: { input: 0, output: 0 },
-        });
-      }
-    })();
+  installChimeraCascadeHandler({
+    events,
+    director,
+    session,
+    getPendingWork: () => pendingChimeraWork,
+    setPendingWork: (work) => {
+      pendingChimeraWork = work;
+    },
   });
 
   let code = 0;
@@ -1607,36 +899,12 @@ export async function execute(deps: ExecuteDeps): Promise<number> {
           getYolo,
           onYolo,
           getAutonomy,
-          // Next-task prediction (/next). Host owns the gating: returns [] when
-          // the toggle is off or autonomy is self-driving, so the TUI can call
-          // this unconditionally after a done turn. Display-only.
-          predictNext: async (input: { userRequest: string; assistantSummary: string }) => {
-            if (!getNextPredict?.()) return [];
-            if ((getAutonomy?.() ?? 'off') !== 'off') return [];
-            return predictNextTasks(
-              { ...input, todos: context.todos },
-              {
-                provider: context.provider as never as PredictLLMProvider,
-                model: context.model,
-              },
-            );
-          },
-          // Parse 💡 Next steps from assistant output and store them in the
-          // shared suggestion store so `/next 1`, `/next 1 2 3` work without
-          // requiring `/suggest` first. Called unconditionally on every done
-          // turn. The live todo list is passed through so we suppress
-          // <nextsteps> while the in-flight todo loop is still in progress
-          // — finishing the open todos comes before offering new prompt
-          // options.
-          onSuggestionsParsed: (finalText: string) => {
-            const parsed = parseSuggestionsFromOutput(finalText, context.todos);
-            setSuggestions(parsed ?? []);
-          },
-          // Retrieve current suggestions for next-steps auto-submit countdown.
-          getSuggestions: () => getSuggestions?.() ?? [],
-          // Store parsed next steps so the /next command and auto-submit countdown
-          // can access them (entry.tsx parses from rendered messages).
-          setSuggestions,
+          ...createTuiNextStepCallbacks({
+            context,
+            getNextPredict,
+            getAutonomy,
+            getSuggestions,
+          }),
           getEternalEngine,
           getSddRun,
           onSddLifecycle,
@@ -1694,143 +962,12 @@ export async function execute(deps: ExecuteDeps): Promise<number> {
           getDirector,
           fleetRoster,
           // ── AutonomousCoordinator: project-level multi-session coordination ─────────
-          // The coordinator tracks goals, tasks, knowledge, and consensus across all
-          // active sessions in the same project. It runs independently of the leader
-          // agent and is accessible to any session in the project via the GlobalMailbox.
-          getAutonomousCoordinator: () => ensureAutonomousCoordinator(),
-          subscribeCoordinatorEvents: (fn: (event: CoordinatorEvent) => void) => {
-            coordinatorEvents.add(fn);
-            return () => {
-              coordinatorEvents.delete(fn);
-            };
-          },
-          onCoordinatorStart: (goal?: string) => {
-            const coordinator = ensureAutonomousCoordinator();
-            if (!coordinator) {
-              console.error(
-                JSON.stringify({
-                  level: 'error',
-                  event: 'coordinator.not_ready',
-                  message: 'no director available',
-                  timestamp: new Date().toISOString(),
-                }),
-              );
-              return;
-            }
-            if (state.coordinatorRun) return;
-            state.coordinatorRun = coordinator
-              .run({ goal: goal ?? 'Improve the codebase', runUntilComplete: true })
-              .then(() => undefined)
-              .catch((err) => {
-                console.error(
-                  JSON.stringify({
-                    level: 'error',
-                    event: 'coordinator.run_failed',
-                    message: err instanceof Error ? err.message : String(err),
-                    timestamp: new Date().toISOString(),
-                  }),
-                );
-              })
-              .finally(() => {
-                state.coordinatorRun = null;
-              });
-          },
-          onCoordinatorStop: () => {
-            state.autonomousCoordinator?.stop();
-          },
-          onCoordinatorTasks: async () => {
-            const coordinator = ensureAutonomousCoordinator();
-            if (!coordinator) return null;
-            await coordinator.graph.load();
-            return coordinator.auction.getPendingTasks().map((task) => ({
-              id: task.id,
-              title: task.title,
-              priority: task.priority,
-              tags: task.tags,
-            }));
-          },
-          onCoordinatorClaim: async (taskId: string) => {
-            const coordinator = ensureAutonomousCoordinator();
-            if (!coordinator) return 'No coordinator is active.';
-            await coordinator.graph.load();
-            const goal = coordinator.graph.get(taskId) as
-              | import('@wrongstack/core/coordination').GoalNode
-              | undefined;
-            if (goal?.type !== 'goal') {
-              return `Task ${taskId.slice(0, 8)} not found in the coordinator graph.`;
-            }
-            if (goal.status !== 'pending') {
-              return `Task ${taskId.slice(0, 8)} is ${goal.status}, not claimable.`;
-            }
-            const ok = await coordinator.auction.claim(
-              taskId,
-              `terminal@${context.session.id ?? 'unknown'}`,
-              'Terminal worker',
-            );
-            if (!ok) {
-              return `Task ${taskId.slice(0, 8)} could not be claimed (status changed?).`;
-            }
-            return { description: goal.description };
-          },
-          onCoordinatorComplete: async (taskId: string, result?: string) => {
-            const coordinator = ensureAutonomousCoordinator();
-            if (!coordinator) return 'No coordinator is active.';
-            await coordinator.graph.load();
-            const goal = coordinator.graph.get(taskId) as
-              | import('@wrongstack/core/coordination').GoalNode
-              | undefined;
-            if (goal?.type !== 'goal') {
-              return `Task ${taskId.slice(0, 8)} not found in the coordinator graph.`;
-            }
-            if (goal.status !== 'in_progress') {
-              return `Task ${taskId.slice(0, 8)} is ${goal.status}, cannot complete.`;
-            }
-            await coordinator.reportTaskCompletion(
-              taskId,
-              result ?? 'Terminal worker completed the task',
-            );
-            return null;
-          },
-          onCoordinatorFail: async (taskId: string, error: string) => {
-            const coordinator = ensureAutonomousCoordinator();
-            if (!coordinator) return 'No coordinator is active.';
-            await coordinator.graph.load();
-            const goal = coordinator.graph.get(taskId) as
-              | import('@wrongstack/core/coordination').GoalNode
-              | undefined;
-            if (goal?.type !== 'goal') {
-              return `Task ${taskId.slice(0, 8)} not found in the coordinator graph.`;
-            }
-            if (goal.status !== 'in_progress') {
-              return `Task ${taskId.slice(0, 8)} is ${goal.status}, cannot fail.`;
-            }
-            await coordinator.reportTaskFailure(taskId, error);
-            return null;
-          },
-          onCoordinatorStatus: async () => {
-            const coordinator = ensureAutonomousCoordinator();
-            if (!coordinator) return null;
-            await coordinator.syncFromGraph();
-            const stats = coordinator.getStats();
-            return {
-              goals: {
-                total: stats.goals.total,
-                done: stats.goals.done,
-                pending: stats.goals.pending,
-                failed: stats.goals.failed,
-              },
-              dag: {
-                running: stats.dag.running,
-                ready: stats.dag.ready,
-                done: stats.dag.done,
-                failed: stats.dag.failed,
-              },
-              auction: {
-                pending: stats.auction.pending,
-                inProgress: stats.auction.in_progress,
-              },
-            };
-          },
+          ...createTuiCoordinatorCallbacks({
+            state,
+            context,
+            coordinatorEvents,
+            ensureAutonomousCoordinator,
+          }),
           // /clear: signal the TUI to wipe entries and reset fleet/leader stats,
           // refresh the preserved banner from the live Context, and bump the
           // context chip version so every surface reflects the fresh session.
@@ -1853,7 +990,6 @@ export async function execute(deps: ExecuteDeps): Promise<number> {
             dispatch({ type: 'toolStreamClear' });
           },
           fleetStreamController,
-          agentTranscripts,
           interruptController,
           enhanceController,
           getEnhancerReasoning,
@@ -1878,6 +1014,7 @@ export async function execute(deps: ExecuteDeps): Promise<number> {
           onShadowStop,
           authHost,
           agentsMonitorController,
+          agentTranscripts,
           getLiveSessions: () => getLiveSessions({ state }),
           onSwitchToSession: (_sessionId: string, targetRoot: string, projectName: string) =>
             onSwitchToSession({ state }, _sessionId, targetRoot, projectName),
@@ -2006,87 +1143,7 @@ export async function execute(deps: ExecuteDeps): Promise<number> {
         onModelContextResolved,
         sddSubagentFactory,
         statusTracker,
-        ...(sddSubagentFactory
-          ? {
-              onKanbanDispatch: async (description, spawnOpts) => {
-                const subagentId = `kanban-${randomUUID().slice(0, 8)}`;
-                const taskId = randomUUID();
-                const name = spawnOpts?.name ?? 'kanban-agent';
-                let resolvedProvider = spawnOpts?.provider;
-                let resolvedModel = spawnOpts?.model;
-                let resolvedFallbackModels = spawnOpts?.fallbackModels;
-                if (spawnOpts?.fallbackProfile) {
-                  const chain = fallbackProfileChain(config, spawnOpts.fallbackProfile);
-                  const primary = chain[0] ? parseModelRef(chain[0]) : undefined;
-                  if (primary?.model) {
-                    resolvedProvider = primary.provider ?? config.provider;
-                    resolvedModel = primary.model;
-                    resolvedFallbackModels = spawnOpts.fallbackModels ?? chain.slice(1);
-                  }
-                }
-                let agentDescription = description;
-                if (spawnOpts?.skills?.length && skillLoader) {
-                  const loaded = await Promise.all(
-                    spawnOpts.skills.map(async (skillName) => {
-                      const manifest = await skillLoader.find(skillName);
-                      if (!manifest) throw new Error(`Kanban skill not found: ${skillName}`);
-                      const body = await skillLoader.readBody(skillName);
-                      return `## Required skill: ${skillName}\n\n${body}`;
-                    }),
-                  );
-                  agentDescription = `${description}\n\n# Required agentic skill instructions\n\n${loaded.join('\n\n')}`;
-                }
-                void (async () => {
-                  const built = await sddSubagentFactory({
-                    id: subagentId,
-                    name,
-                    role: 'kanban-agent',
-                    prompt: agentDescription,
-                    allowedCapabilities:
-                      spawnOpts?.allowedCapabilities ?? WIDE_SUBAGENT_CAPABILITIES,
-                    ...(resolvedProvider ? { provider: resolvedProvider } : {}),
-                    ...(resolvedModel ? { model: resolvedModel } : {}),
-                    ...(resolvedFallbackModels ? { fallbackModels: resolvedFallbackModels } : {}),
-                    ...(spawnOpts?.tools ? { tools: spawnOpts.tools } : {}),
-                  });
-                  try {
-                    const result = await built.agent.run(agentDescription);
-                    await spawnOpts?.onDone?.({
-                      status: result.status === 'done' ? 'completed' : 'failed',
-                      result: result.finalText,
-                      ...('error' in result && result.error?.message
-                        ? { error: result.error.message }
-                        : {}),
-                    });
-                  } catch (err) {
-                    await spawnOpts?.onDone?.({
-                      status: 'failed',
-                      error: err instanceof Error ? err.message : String(err),
-                    });
-                    throw err;
-                  } finally {
-                    await built.dispose?.();
-                  }
-                })().catch((err) => {
-                  events.emit('error', {
-                    err: err instanceof Error ? err : new Error(String(err)),
-                    phase: 'kanban.dispatch',
-                  });
-                });
-                const tags: string[] = [];
-                if (resolvedProvider) tags.push(resolvedProvider);
-                if (resolvedModel) tags.push(resolvedModel);
-                if (resolvedFallbackModels?.length) {
-                  tags.push(`fallback=${resolvedFallbackModels.join(',')}`);
-                }
-                if (spawnOpts?.fallbackProfile) tags.push(`profile=${spawnOpts.fallbackProfile}`);
-                if (spawnOpts?.skills?.length) tags.push(`skills=${spawnOpts.skills.join(',')}`);
-                if (spawnOpts?.name) tags.push(`"${spawnOpts.name}"`);
-                const tag = tags.length > 0 ? ` (${tags.join(' / ')})` : '';
-                return `Spawned subagent ${subagentId}${tag} for task ${taskId}.`;
-              },
-            }
-          : {}),
+        ...createKanbanDispatchHandler({ config, events, skillLoader, sddSubagentFactory }),
       });
     } else {
       // Headless run→kanban mirror: an SDD run started via `/sdd parallel` in
@@ -2136,31 +1193,7 @@ export async function execute(deps: ExecuteDeps): Promise<number> {
           agentsMonitorController,
           fleetStreamController,
           interruptController,
-          onInterruptFleet: () => {
-            // Mirror the slash /fleet kill path: remove (not just terminate)
-            // every running/idle subagent so a Ctrl+C stops the whole fleet.
-            // Resolved through getDirector so subagents spawned via the LAZY
-            // director build (delegate tool in a non---director session) are
-            // seen too — the static `director` is null there.
-            const dir = getDirector?.() ?? director;
-            if (!dir) return 0;
-            let killed = 0;
-            for (const sa of dir.status().subagents) {
-              if (sa.status === 'running' || sa.status === 'idle') {
-                try {
-                  void dir.remove(sa.id);
-                  killed++;
-                } catch {
-                  /* best-effort */
-                }
-              }
-            }
-            return killed;
-          },
-          onAgentIterationComplete: (tokens) => {
-            const dir = getDirector?.() ?? director;
-            dir?.setLeaderContextPressure(tokens);
-          },
+          ...createReplFleetCallbacks({ director, getDirector }),
           onCountdownTick,
           onDestroy,
         });
@@ -2169,101 +1202,21 @@ export async function execute(deps: ExecuteDeps): Promise<number> {
       }
     }
   } finally {
-    offStorageRead();
-    offStorageWrite();
-    offStorageError();
-    // Tear down the live fleet status line first so the scroll region is
-    // restored before any end-of-session output prints.
-    fleetStatusLine?.stop();
-    // Stop the AutonomousCoordinator so its while-loop exits cleanly.
-    // This sets running=false; the loop terminates at the next iteration check.
-    onCoordinatorStopImpl?.();
-    // stats.render is synchronous but can throw — isolate it so cleanup
-    // always runs regardless.
-    try {
-      stats.render(renderer);
-    } catch (_err) {
-      /* best-effort */
-    }
-    await Promise.resolve(detachTodosCheckpoint?.()).catch(() => undefined);
-    // Each cleanup step is independently guarded so a single failure
-    // (e.g. MCP registry stop rejecting) cannot skip subsequent
-    // durability steps (session_end, lock clear, reader close).
-    await mcpRegistry.stopAll().catch((err) => {
-      console.warn(
-        JSON.stringify({
-          level: 'warn',
-          event: 'shutdown.mcp_stop_failed',
-          message: `MCP registry stopAll failed: ${err instanceof Error ? err.message : String(err)}`,
-          timestamp: new Date().toISOString(),
-        }),
-      );
-    });
-    // Use the CURRENT writer, not the one captured at startup — an in-app
-    // resume (TUI/WebUI) swaps agent.ctx.session to the resumed session's
-    // writer; session_end and close must land in THAT JSONL or the resumed
-    // session never gets finalized (no summary sidecar, no index entry).
-    const activeSession = agent.ctx.session ?? session;
-    const pending = activeSession.pendingToolUses;
-    await activeSession
-      .append({
-        type: 'session_end',
-        ts: new Date().toISOString(),
-        usage: tokenCounter.total(),
-        pendingToolUses: pending.length > 0 ? pending : undefined,
-      })
-      .catch((err) => {
-        console.warn(
-          JSON.stringify({
-            level: 'warn',
-            event: 'shutdown.session_end_append_failed',
-            message: `session_end append failed: ${err instanceof Error ? err.message : String(err)}`,
-            timestamp: new Date().toISOString(),
-          }),
-        );
-      });
-    events.emit('session.ended', {
-      id: activeSession.id,
-      sessionId: activeSession.id,
-      usage: tokenCounter.total(),
-    });
-    // Await chimera's in-flight work so the review result is written to the JSONL
-    // before we close — without this, session.close() races against the subagent
-    // and the review text is silently dropped because append returns early on closed.
-    if (pendingChimeraWork) {
-      await pendingChimeraWork.catch((err) => {
-        console.warn(
-          JSON.stringify({
-            level: 'warn',
-            event: 'shutdown.chimera_work_failed',
-            message: `Pending chimera work failed: ${err instanceof Error ? err.message : String(err)}`,
-            timestamp: new Date().toISOString(),
-          }),
-        );
-      });
-    }
-    await activeSession.close().catch((err) => {
-      console.warn(
-        JSON.stringify({
-          level: 'warn',
-          event: 'shutdown.session_close_failed',
-          message: `Session close failed: ${err instanceof Error ? err.message : String(err)}`,
-          timestamp: new Date().toISOString(),
-        }),
-      );
-    });
-    await currentRecoveryLock
-      .clear()
-      .catch(() => undefined); /* best-effort: stale lock will be recovered on next startup */
-    await reader.close().catch((err) => {
-      console.warn(
-        JSON.stringify({
-          level: 'warn',
-          event: 'shutdown.reader_close_failed',
-          message: `Input reader close failed: ${err instanceof Error ? err.message : String(err)}`,
-          timestamp: new Date().toISOString(),
-        }),
-      );
+    await finalizeExecutionCleanup({
+      offStorageObservability,
+      fleetStatusLine,
+      onCoordinatorStop: onCoordinatorStopImpl,
+      stats,
+      renderer,
+      detachTodosCheckpoint,
+      mcpRegistry,
+      agent,
+      session,
+      tokenCounter,
+      events,
+      getPendingChimeraWork: () => pendingChimeraWork,
+      recoveryLock: currentRecoveryLock,
+      reader,
     });
   }
   return code;

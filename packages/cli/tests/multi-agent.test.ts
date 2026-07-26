@@ -13,6 +13,19 @@ vi.mock('@wrongstack/providers', () => ({
     })),
   })),
   capabilitiesFor: vi.fn(async () => ({ maxContext: 128_000 })),
+  // Subagents overlay their own model's catalog facts onto the freshly built
+  // provider. Mirror the real helper: mutate `capabilities` in place with a
+  // COPY so each provider keeps its own object, and let the maxContext
+  // refinement that runs afterwards stay observable.
+  withCatalogCapabilities: vi.fn(async (_registry, _providerId, provider) => {
+    Object.defineProperty(provider, 'capabilities', {
+      value: { ...provider.capabilities, maxOutput: 64_000 },
+      writable: true,
+      configurable: true,
+      enumerable: true,
+    });
+    return provider;
+  }),
 }));
 
 import { createProjectAgent } from '@wrongstack/core/coordination';

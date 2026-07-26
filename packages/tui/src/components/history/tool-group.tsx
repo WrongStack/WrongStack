@@ -23,7 +23,7 @@ import { getToolVisual } from '../../tool-glyph.js';
 import { glyphs } from '../../ui-glyphs.js';
 import type { HistoryEntry } from './types.js';
 import { DIFF_MAX_LINES, MULTI_DIFF_MAX_ROWS } from './code-block.js';
-import { formatToolArgs } from './utils.js';
+import { extractSageBlock, formatToolArgs } from './utils.js';
 
 // ── Types ──
 
@@ -62,6 +62,10 @@ export const MAX_TOOL_GROUP_ENTRIES = 12;
  */
 const STRUCTURED_DIFF_TOOLS = new Set(['edit', 'write', 'replace', 'diff', 'patch']);
 
+function hasInjectedMemory(entry: HistoryEntry & { kind: 'tool' }): boolean {
+  return extractSageBlock(entry.output ?? '').sageLines.length > 0;
+}
+
 /** Stable id used by the height cache and React keys for a render group. */
 export function renderGroupId(group: RenderGroup): number {
   return group.type === 'tool-group' ? (group.data.entries[0]?.id ?? 0) : group.entry.id;
@@ -94,17 +98,36 @@ export function estimateRenderGroupRows(group: RenderGroup, contentWidth: number
 
   const { entry } = group;
   if (entry.kind === 'tool') {
-    if (entry.resultRenderMode === 'simple') return 3;
+    const { cleanOutput, sageLines } = extractSageBlock(entry.output ?? '');
+    const memoryLines = sageLines.slice(1);
+    // Match the bordered panel rendered by SageMemoryBlock: two border rows,
+    // a wrapping header, and width-aware wrapping for every memory line.
+    const panelContentWidth = Math.max(16, contentWidth - 4);
+    const sagePanelRows =
+      memoryLines.length > 0
+        ? 2 +
+          estimateTextRows(
+            `🧠 SAGE MEMORY INJECTED · SYSTEM CONTEXT  ${memoryLines.length} ${memoryLines.length === 1 ? 'memory' : 'memories'}`,
+            panelContentWidth,
+            MAX_TEXT_ESTIMATE_ROWS,
+          ) +
+          memoryLines.reduce(
+            (rows, line) =>
+              rows + estimateTextRows(line, panelContentWidth, MAX_TEXT_ESTIMATE_ROWS),
+            0,
+          )
+        : 0;
+    if (entry.resultRenderMode === 'simple') return 3 + sagePanelRows;
     if (STRUCTURED_DIFF_TOOLS.has(entry.name)) {
       const previewCap =
         entry.name === 'replace' || entry.name === 'diff' || entry.name === 'patch'
           ? MULTI_DIFF_MAX_ROWS
           : DIFF_MAX_LINES;
-      const previewRows = estimateTextRows(entry.output ?? '', contentWidth - 8, previewCap);
+      const previewRows = estimateTextRows(cleanOutput, contentWidth - 8, previewCap);
       // Tool header + stats/path chrome + a possible hidden-lines footer.
-      return Math.min(previewCap + 3, previewRows + 3);
+      return Math.min(previewCap + 3, previewRows + 3) + sagePanelRows;
     }
-    return 3;
+    return 3 + sagePanelRows;
   }
 
   let text = '';
@@ -168,7 +191,12 @@ export function groupEntries(entries: readonly HistoryEntry[]): RenderGroup[] {
   };
 
   for (const entry of entries) {
-    if (entry.kind === 'tool' && !STRUCTURED_DIFF_TOOLS.has(entry.name)) {
+    const containsInjectedMemory = entry.kind === 'tool' && hasInjectedMemory(entry);
+    if (
+      entry.kind === 'tool' &&
+      !STRUCTURED_DIFF_TOOLS.has(entry.name) &&
+      !containsInjectedMemory
+    ) {
       if (currentName !== entry.name) {
         flush();
         currentName = entry.name;

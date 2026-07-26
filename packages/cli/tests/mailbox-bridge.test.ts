@@ -2,7 +2,11 @@ import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
-import { GlobalMailbox, resolveProjectDir } from '@wrongstack/core/coordination';
+import {
+  GlobalMailbox,
+  JsonlCredentialStore,
+  resolveProjectDir,
+} from '@wrongstack/core/coordination';
 import { wstackGlobalRoot } from '@wrongstack/core/utils';
 import { mailboxServeCmd } from '../src/subcommands/handlers/mailbox-serve.js';
 
@@ -19,6 +23,7 @@ import { mailboxServeCmd } from '../src/subcommands/handlers/mailbox-serve.js';
 let tmpProject: string;
 let serverPromise: Promise<number>; // resolves to the bound port
 let token: string;
+let credentialAuthorization: string;
 let baseUrl: string;
 let serverChild: import('node:child_process').ChildProcess | null = null;
 
@@ -84,6 +89,20 @@ beforeAll(async () => {
     body: 'pre-suite',
   });
   await mb.close();
+
+  // Persist an identity-scoped credential before the bridge starts. The first
+  // credential-authenticated request after the startup event proves the CLI
+  // awaited the store load before it began listening.
+  const credentialStore = new JsonlCredentialStore(projectDir);
+  await credentialStore.load();
+  const issued = await credentialStore.issue({
+    principalId: 'bridge-test@test-session',
+    projectId: path.basename(projectDir),
+    kind: 'agent',
+    capabilities: ['mail.presence.read'],
+    ttlMs: 60_000,
+  });
+  credentialAuthorization = `Credential ${issued.credential.credentialId}:${issued.secret}`;
 
   // Boot the server via the same handler the CLI uses. We pass
   // --port 0 so the OS picks a free port, and capture it from a side
@@ -190,6 +209,12 @@ describe('mailbox-bridge — auth gate', () => {
   });
   it('returns 200 with the right token', async () => {
     const res = await http('GET', '/mailbox/agents', undefined, auth());
+    expect(res.status).toBe(200);
+  });
+  it('accepts a persisted identity credential immediately after startup', async () => {
+    const res = await http('GET', '/mailbox/agents', undefined, {
+      Authorization: credentialAuthorization,
+    });
     expect(res.status).toBe(200);
   });
 });

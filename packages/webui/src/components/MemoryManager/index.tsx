@@ -3,23 +3,13 @@ import {
   ArrowLeft,
   BrainCircuit,
   Check,
-  Loader2,
   PanelRight,
   PanelRightOpen,
   Plus,
   RefreshCw,
-  Trash2,
 } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Button } from '@/components/ui/button';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
 import { useScrollPosition } from '@/hooks/useScrollPosition';
 import { useWebSocket } from '@/hooks/useWebSocket';
 import { cn } from '@/lib/utils';
@@ -40,10 +30,12 @@ import {
   draftFromMemory,
   emptyDraft,
   MetricCard,
-  memoryPreview,
   normalizeAnchors,
   splitList,
 } from './shared';
+import { DeleteMemoryDialog } from './DeleteMemoryDialog';
+import { MemoryManagerEmpty } from './MemoryManagerEmpty';
+import { collectMemoryTags, filterMemories, selectRelatedMemories } from './selectors';
 
 export function MemoryManager() {
   const {
@@ -507,59 +499,24 @@ export function MemoryManager() {
     deleteSage(deletingId, 'Deleted from the WebUI Memory Manager.');
   }, [client, deleteSage, deletingId, loadMemories]);
 
-  const filteredMemories = useMemo(() => {
-    const query = searchQuery.trim().toLowerCase();
-    return memories.filter((memory) => {
-      if (statusFilter !== 'all' && memory.status !== statusFilter) return false;
-      if (kindFilter !== 'all' && memory.kind !== kindFilter) return false;
-      if (tagFilter && !memory.tags.includes(tagFilter)) return false;
-      if (audienceOnly && !memory.audience) return false;
-      if (!query) return true;
-      const anchorText = memory.anchors
-        .map((anchor) =>
-          [anchor.path, anchor.symbol, anchor.command, anchor.role].filter(Boolean).join(' '),
-        )
-        .join(' ');
-      const audienceText = memory.audience
-        ? [
-            memory.audience.roles?.join(' ') ?? '',
-            memory.audience.taskTypes?.join(' ') ?? '',
-            memory.audience.modes?.join(' ') ?? '',
-          ].join(' ')
-        : '';
-      return [
-        memory.id,
-        memory.text,
-        memory.summary ?? '',
-        memory.kind,
-        memory.scope,
-        memory.tags.join(' '),
-        anchorText,
-        audienceText,
-      ]
-        .join(' ')
-        .toLowerCase()
-        .includes(query);
-    });
-  }, [audienceOnly, kindFilter, memories, searchQuery, statusFilter, tagFilter]);
+  const filteredMemories = useMemo(
+    () =>
+      filterMemories(memories, {
+        searchQuery,
+        statusFilter,
+        kindFilter,
+        tagFilter,
+        audienceOnly,
+      }),
+    [audienceOnly, kindFilter, memories, searchQuery, statusFilter, tagFilter],
+  );
 
-  const allTags = useMemo(() => {
-    const counts = new Map<string, number>();
-    for (const memory of memories) {
-      for (const tagName of memory.tags) counts.set(tagName, (counts.get(tagName) ?? 0) + 1);
-    }
-    return [...counts.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
-  }, [memories]);
+  const allTags = useMemo(() => collectMemoryTags(memories), [memories]);
 
-  const relatedMemories = useMemo(() => {
-    if (!selectedMemory) return [];
-    const links: Array<{ relation: string; id: string }> = [];
-    if (selectedMemory.supersededBy)
-      links.push({ relation: 'Superseded by', id: selectedMemory.supersededBy });
-    for (const id of selectedMemory.supersedes ?? []) links.push({ relation: 'Supersedes', id });
-    for (const id of selectedMemory.contradicts ?? []) links.push({ relation: 'Contradicts', id });
-    return links;
-  }, [selectedMemory]);
+  const relatedMemories = useMemo(
+    () => selectRelatedMemories(selectedMemory),
+    [selectedMemory],
+  );
 
   const clearFilters = useCallback(() => {
     setSearchQuery('');
@@ -1018,83 +975,16 @@ export function MemoryManager() {
         </section>
       </div>
 
-      <Dialog
-        open={Boolean(deletingId)}
+      <DeleteMemoryDialog
+        busyAction={busyAction}
+        deletingId={deletingId}
+        memories={memories}
+        onCancel={() => setDeletingId(null)}
+        onConfirm={confirmDelete}
         onOpenChange={(open) => {
           if (!open && busyAction !== 'delete') setDeletingId(null);
         }}
-      >
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <span className="mb-2 flex size-10 items-center justify-center border border-destructive/35 bg-destructive/10 text-destructive">
-              <Trash2 className="size-4" />
-            </span>
-            <DialogTitle>Delete this memory?</DialogTitle>
-            <DialogDescription className="leading-6">
-              SAGE will mark the record deleted, remove graph edges, and clean references
-              from related memories. The record remains in the audit trail but cannot be restored
-              from this page.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="border border-border/70 bg-background/45 p-3 text-xs text-muted-foreground">
-            {memoryPreview(memories.find((memory) => memory.id === deletingId)?.text ?? '', 180)}
-          </div>
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => setDeletingId(null)}
-              disabled={busyAction === 'delete'}
-            >
-              Cancel
-            </Button>
-            <Button
-              variant="destructive"
-              onClick={confirmDelete}
-              disabled={busyAction === 'delete'}
-            >
-              {busyAction === 'delete' ? (
-                <Loader2 className="size-4 animate-spin" />
-              ) : (
-                <Trash2 className="size-4" />
-              )}
-              {busyAction === 'delete' ? 'Deleting…' : 'Delete memory'}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-    </div>
-  );
-}
-
-function MemoryManagerEmpty({ onCapture }: { onCapture: () => void }) {
-  return (
-    <div className="flex min-h-0 flex-1 flex-col items-center justify-center p-8 text-center">
-      <div className="relative flex size-20 items-center justify-center border border-info/25 bg-info/5 text-info">
-        <BrainCircuit className="size-8" />
-        <span className="absolute inset-2 border border-info/10" />
-      </div>
-      <h2 className="mt-5 text-lg font-bold">Your project’s long-term context</h2>
-      <p className="mt-2 max-w-md text-sm leading-6 text-muted-foreground">
-        Select a memory to inspect its metadata and relationship graph, or capture knowledge that
-        future agents should retrieve automatically.
-      </p>
-      <div className="mt-6 grid w-full max-w-lg gap-2 sm:grid-cols-3">
-        <div className="border border-border/70 bg-card/45 p-3">
-          <Check className="mx-auto size-4 text-success" />
-          <p className="mt-2 text-[10px] font-bold uppercase">Verified anchors</p>
-        </div>
-        <div className="border border-border/70 bg-card/45 p-3">
-          <BrainCircuit className="mx-auto size-4 text-info" />
-          <p className="mt-2 text-[10px] font-bold uppercase">Typed relations</p>
-        </div>
-        <div className="border border-border/70 bg-card/45 p-3">
-          <Plus className="mx-auto size-4 text-warning" />
-          <p className="mt-2 text-[10px] font-bold uppercase">Agent recall</p>
-        </div>
-      </div>
-      <Button onClick={onCapture}>
-        <Plus className="size-4" /> Capture memory
-      </Button>
+      />
     </div>
   );
 }

@@ -1,5 +1,13 @@
-import type { Config, Logger, Provider, ProviderConfig, SecretVault } from '@wrongstack/core/types';
+import type {
+  Config,
+  Logger,
+  ModelsRegistry,
+  Provider,
+  ProviderConfig,
+  SecretVault,
+} from '@wrongstack/core/types';
 import { createFallbackModelExtension, type FallbackProfileManager } from '@wrongstack/core/agent';
+import { withCatalogCapabilities } from '@wrongstack/providers';
 import type { EventBus } from '@wrongstack/core/kernel';
 import { type ProviderConfigSnapshot, readProviderSnapshot, SessionMemoryConsolidator, watchProviderConfig } from '@wrongstack/core/storage';
 import type { ProviderModelStatusTracker } from '@wrongstack/core/coordination';
@@ -26,6 +34,12 @@ export interface ProviderRuntimeDeps {
   /** Shared live fallback profile manager from the runtime container. */
   fallbackProfileManager: FallbackProfileManager;
   providerRegistry: ProviderRegistry;
+  /**
+   * Catalog used to re-resolve per-model capabilities whenever the runtime
+   * rebuilds the provider. Without it a rebuilt provider carries only the wire
+   * family baseline, where `maxOutput` is undefined.
+   */
+  modelsRegistry: ModelsRegistry;
   agent: AnyObj;
   memoryStore: AnyObj;
   refreshMaxContext: (providerId: string, modelId: string, cfg?: ProviderConfig) => Promise<void>;
@@ -48,6 +62,13 @@ export interface ProviderRuntimeDeps {
 export interface ProviderRuntimeResult {
   resolveProviderCfg: (providerId: string) => { cfg: ProviderConfig };
   buildProviderForId: (providerId: string) => Provider;
+  /**
+   * `buildProviderForId` plus the catalog capability overlay for `modelId`.
+   * Use this on every path that swaps `context.provider`, so readers of
+   * `provider.capabilities` (`/context`, the compaction denominator) describe
+   * the model that is actually about to run.
+   */
+  buildProviderForModel: (providerId: string, modelId: string) => Promise<Provider>;
   refreshMaxContextFor: (providerId: string, modelId: string) => Promise<void>;
   refreshRuntimeModelStateFor: (providerId: string, modelId: string) => Promise<void>;
   switchProviderAndModel: (providerId: string, modelId: string) => Promise<string | null>;
@@ -69,6 +90,7 @@ export function setupProviderRuntime(deps: ProviderRuntimeDeps): ProviderRuntime
     configStore,
     fallbackProfileManager,
     providerRegistry,
+    modelsRegistry,
     agent,
     memoryStore,
     refreshMaxContext,
@@ -98,6 +120,22 @@ export function setupProviderRuntime(deps: ProviderRuntimeDeps): ProviderRuntime
   const buildProviderForId = (providerId: string): Provider =>
     buildProviderForIdRuntime({ config: cfg, providerRegistry }, providerId);
 
+  const buildProviderForModel = async (providerId: string, modelId: string): Promise<Provider> => {
+    const provider = buildProviderForId(providerId);
+    if (!cfg.features.modelsRegistry) return provider;
+    const { cfg: resolvedCfg } = resolveProviderCfg(providerId);
+    // `withCatalogCapabilities` swallows its own failures — an unreachable
+    // catalog leaves the family baseline in place rather than blocking the
+    // switch.
+    return withCatalogCapabilities(
+      modelsRegistry,
+      providerId,
+      provider,
+      { ...resolvedCfg, type: providerId, model: modelId },
+      logger,
+    );
+  };
+
   const refreshMaxContextFor = async (providerId: string, modelId: string): Promise<void> => {
     const { cfg: resolvedCfg } = resolveProviderCfg(providerId);
     await refreshMaxContext(providerId, modelId, resolvedCfg);
@@ -116,7 +154,10 @@ export function setupProviderRuntime(deps: ProviderRuntimeDeps): ProviderRuntime
     createFallbackModelExtension({
       getConfig: () => cfg,
       fallbackProfileManager,
-      buildProvider: buildProviderForId,
+      // The fallback chain hops between models; each hop needs its own
+      // model's capabilities, not the ones the session booted with.
+      buildProvider: (providerId, modelId) =>
+        modelId ? buildProviderForModel(providerId, modelId) : buildProviderForId(providerId),
       onModelSwitch: refreshRuntimeModelStateFor,
       events,
       logger,
@@ -144,7 +185,7 @@ export function setupProviderRuntime(deps: ProviderRuntimeDeps): ProviderRuntime
     modelId: string,
   ): Promise<string | null> => {
     try {
-      context.provider = buildProviderForId(providerId);
+      context.provider = await buildProviderForModel(providerId, modelId);
       context.model = modelId;
       sync(patchConfig(cfg, { provider: providerId, model: modelId }));
       configStore.update({ provider: providerId, model: modelId });
@@ -319,7 +360,9 @@ export function setupProviderRuntime(deps: ProviderRuntimeDeps): ProviderRuntime
       const after = JSON.stringify(resolveProviderCfg(activeId).cfg);
       if (after === before) return;
       try {
-        context.provider = buildProviderForId(activeId);
+        // Rebuild for the model that is live right now — a credential reload
+        // must not silently drop the active model's capability overlay.
+        context.provider = await buildProviderForModel(activeId, String(context.model ?? ''));
         logger.info(`Provider credentials reloaded from config (${activeId})`);
       } catch (err) {
         logger.warn(
@@ -351,6 +394,7 @@ export function setupProviderRuntime(deps: ProviderRuntimeDeps): ProviderRuntime
   return {
     resolveProviderCfg,
     buildProviderForId,
+    buildProviderForModel,
     refreshMaxContextFor,
     refreshRuntimeModelStateFor,
     switchProviderAndModel,

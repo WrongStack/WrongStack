@@ -1,4 +1,3 @@
-import { expectDefined } from '@wrongstack/core/utils';
 /**
  * SddParallelRun
  *
@@ -20,10 +19,8 @@ import { expectDefined } from '@wrongstack/core/utils';
  */
 
 import { randomUUID } from 'node:crypto';
-import type { Agent } from '@wrongstack/core/agent';
 import type { AgentFactory } from '@wrongstack/core/coordination';
 import {
-  assignNickname,
   DefaultMultiAgentCoordinator,
   makeAgentSubagentRunner,
   withDisabledToolFiltering,
@@ -33,206 +30,30 @@ import type { TaskTracker } from '@wrongstack/core/tasking';
 import type {
   MultiAgentConfig,
   SubagentConfig,
-  TaskGraph,
   TaskNode,
-  TaskProgress,
   TaskResult,
 } from '@wrongstack/core/types';
-import { ERROR_CODES, SddError } from '@wrongstack/core/types';
-import type { WorktreeHandle, WorktreeManager } from '@wrongstack/core/worktree';
+import type { WorktreeHandle } from '@wrongstack/core/worktree';
 import { splitGraphNode } from './graph-split.js';
+import { executeSddTask } from './sdd-task-execution.js';
 import { SddTaskDecomposer, type TaskBatch } from './sdd-task-decomposer.js';
-/** A sub-task produced by splitting a parent task (see `splitTask`). */
-export interface SddSubtaskSpec {
-  title: string;
-  description: string;
-  type?: TaskNode['type'] | undefined;
-  priority?: TaskNode['priority'] | undefined;
-  /**
-   * One verifiable success criterion for this sub-task (planning decomposer).
-   * A runnable-command marker (`$ cmd`, `run:`/`verify:`/`cmd:`) becomes the
-   * leaf's `metadata.verificationCommand`; free text is appended to the
-   * description as an explicit acceptance criterion.
-   */
-  successCriterion?: string | undefined;
-}
-
-/**
- * Verdict returned by the optional failure supervisor when a task is about to go
- * terminal. `retry` re-queues with a fresh attempt budget; `reassign` swaps the
- * worker model (+ optional provider) then re-queues; `split` breaks the task
- * into sub-tasks; `fail` (or `undefined`) lets it terminal-fail.
- */
-export type SddSupervisorVerdict =
-  | { action: 'retry' }
-  | { action: 'reassign'; model?: string | undefined; provider?: string | undefined }
-  | { action: 'split'; subtasks: SddSubtaskSpec[] }
-  | { action: 'fail' };
-
-export interface SddParallelRunOptions {
-  /** Pre-constructed TaskTracker (must already hold the graph's initial state). */
-  tracker: TaskTracker;
-  /** The TaskGraph produced by TaskGenerator from an approved spec. */
-  graph: TaskGraph;
-  /** The main agent — used as the subagent factory. */
-  agent: Agent;
-  /** Project root (used for coordinator id). */
-  projectRoot: string;
-  /**
-   * Override default parallel slots (1–16). Default: 2 — deliberately low so a
-   * run never juggles more git worktrees than a human can review. Independent
-   * tasks still run concurrently up to this cap; dependency chains run in order.
-   */
-  parallelSlots?: number | undefined;
-  /**
-   * Hard wall-clock cap per task in ms. OPT-IN — `undefined` by default so a
-   * long-but-productive task is never killed merely for running long (the old
-   * 5-min default hard-killed real coding tasks with `budget_timeout`). When
-   * set, the coordinator watchdog enforces it. Prefer `taskIdleTimeoutMs`.
-   */
-  taskTimeoutMs?: number | undefined;
-  /**
-   * Idle reaper per task in ms: reap a task only after this long with NO
-   * activity (iteration / tool call / streamed token / tool progress). Resets
-   * on every sign of forward motion, so an actively-working agent runs until
-   * its task naturally ends. Default: 600_000 (10 min of silence = genuinely
-   * stuck). This is the default guard — wall-clock (`taskTimeoutMs`) is opt-in.
-   */
-  taskIdleTimeoutMs?: number | undefined;
-  /** Maximum in-run retry attempts for a failed task before it goes terminal. Default: 3. */
-  maxRetries?: number | undefined;
-  /**
-   * After the graph settles with terminal-failed tasks, requeue ALL failed
-   * (non-cancelled) tasks to `pending` and run them again — up to this many
-   * sweeps. Each sweep gives every failed task a fresh `maxRetries` budget. The
-   * loop stops early once a sweep produces no new completions (no progress).
-   * 0 = off. Default: 2.
-   */
-  maxFailedRetrySweeps?: number | undefined;
-  /** Override the default agent factory. */
-  subagentFactory?: AgentFactory | undefined;
-  /**
-   * Run-level default model for worker subagents. A task's own
-   * `metadata.model` (set per-task in the WebUI) takes precedence; this is the
-   * fallback for every task that has no explicit assignment. Undefined → the
-   * factory's own default (the leader's model).
-   */
-  defaultModel?: string | undefined;
-  /** Run-level default provider id (same precedence rules as defaultModel). */
-  defaultProvider?: string | undefined;
-  /**
-   * Run-level fallback model chain (entries: `model` / `provider/model`). A
-   * task's `metadata.fallbackModels` overrides this. The subagent factory wires
-   * these into a fallback extension so a 429/stream-hang rotates to the next.
-   */
-  fallbackModels?: string[] | undefined;
-  /**
-   * Post-task verification gate. When set, a task whose worker reported success
-   * is NOT marked `completed` (and NOT merged) until this resolves `{ok:true}`.
-   * Runs in the task's worktree cwd (or the project root when no worktree). Core
-   * stays shell-agnostic — the caller injects a verifier that, e.g., runs the
-   * task's `metadata.verificationCommand` (tests / typecheck). A task with no
-   * command should return `{ok:true}`. An `{ok:false}` routes the task into the
-   * normal failure path (retry while attempts remain, else terminal-fail).
-   */
-  verifyTask?:
-    | ((info: {
-        task: TaskNode;
-        result: TaskResult;
-        cwd: string;
-      }) => Promise<{ ok: boolean; reason?: string }>)
-    | undefined;
-  /**
-   * Optional merge-conflict resolver, forwarded to `WorktreeManager.merge`. Given
-   * the conflicted files + the base checkout cwd, return `true` once resolved (no
-   * markers left). When omitted or it returns `false`, the task is requeued (a
-   * re-run forks a fresh worktree off the advanced base) and, if retries are
-   * exhausted, terminally failed with its worktree kept for review.
-   */
-  conflictResolver?:
-    | ((info: { task: TaskNode; conflictFiles: string[]; cwd: string }) => Promise<boolean>)
-    | undefined;
-  /**
-   * Failure supervisor: consulted ONLY when a task has exhausted its retries and
-   * is about to go terminal-failed. Returning a verdict lets a decision agent
-   * keep the run moving — `retry` / `reassign` (swap model) / `split` — instead
-   * of dead-ending. Returning `{action:'fail'}` / `undefined` lets it fail. Each
-   * task can be rescued at most `maxSupervisorEscalations` times (loop guard).
-   */
-  superviseFailure?:
-    | ((info: {
-        task: TaskNode;
-        error: string;
-        attempts: number;
-      }) => Promise<SddSupervisorVerdict | undefined>)
-    | undefined;
-  /** Max times the supervisor may rescue a single task before it must fail. Default 2. */
-  maxSupervisorEscalations?: number | undefined;
-  /** Called after each wave completes. */
-  onWave?: ((wave: WaveResult) => void) | undefined;
-  /** Called with progress stats every ~2s during execution. */
-  onProgress?: ((progress: SddProgress) => void) | undefined;
-  /** Shared EventBus — when set, the run emits `sdd.*` live-board events. */
-  events?: EventBus | undefined;
-  /** Parent session id for every emitted `sdd.*` event. */
-  sessionId?: string | (() => string | undefined) | undefined;
-  /** Stable id correlating all events of this run (default: random). */
-  runId?: string | undefined;
-  /**
-   * Optional git-worktree manager. When set (and the project is a git repo),
-   * each task runs in its own isolated worktree and merges back into the base
-   * branch after success — so parallel agents never collide on the same files.
-   */
-  worktrees?: WorktreeManager | undefined;
-  /** Run-level backstops (prevent an autonomous run from looping forever). */
-  maxTotalWaves?: number | undefined;
-  maxWallClockMs?: number | undefined;
-  /**
-   * Deadlock auto-recovery rounds: when the graph deadlocks on failed blockers,
-   * requeue those failed blockers `pending` and try again, up to N times. 0 = off.
-   */
-  maxRecoveryRounds?: number | undefined;
-}
-
-export interface SddProgress {
-  wave: number;
-  total: number;
-  completed: number;
-  inProgress: number;
-  failed: number;
-  blocked: number;
-  pending: number;
-  percent: number;
-  deadlocked: boolean;
-}
-
-export interface WaveResult {
-  wave: number;
-  batch: TaskBatch;
-  results: TaskResult[];
-  successCount: number;
-  failCount: number;
-  durationMs: number;
-  stopRequested: boolean;
-}
-
-/** Result of a single task's execution in the continuous scheduler. */
-interface TaskOutcome {
-  taskId: string;
-  success: boolean;
-  result?: TaskResult | undefined;
-}
-
-export interface RunResult {
-  totalWaves: number;
-  totalCompleted: number;
-  totalFailed: number;
-  totalDurationMs: number;
-  deadlocked: boolean;
-  stopRequested: boolean;
-  finalProgress: TaskProgress;
-}
-
+import type {
+  RunResult,
+  SddParallelRunOptions,
+  SddProgress,
+  SddSubtaskSpec,
+  SddSupervisorVerdict,
+  TaskOutcome,
+  WaveResult,
+} from './sdd-parallel-run-types.js';
+export type {
+  RunResult,
+  SddParallelRunOptions,
+  SddProgress,
+  SddSubtaskSpec,
+  SddSupervisorVerdict,
+  WaveResult,
+} from './sdd-parallel-run-types.js';
 export class SddParallelRun {
   private readonly slots: number;
   /** Opt-in hard wall-clock cap (undefined → no cap; idle reaper guards instead). */
@@ -861,220 +682,31 @@ export class SddParallelRun {
    * missing coordinator or failed spawn so callers can enforce all-or-nothing.
    */
   async executeOne(task: TaskNode): Promise<TaskOutcome> {
-    const taskId = task.id;
-
-    // Worker identity (reuse a manual assignment if present), shown on the board.
-    let agentName = task.assignee;
-    if (!agentName) {
-      const nick = assignNickname('executor', this.usedNicknames);
-      this.usedNicknames.add(nick.key);
-      agentName = nick.display.replace(/\s*\([^)]*\)\s*$/, '');
-      this.opts.tracker.updateNode(taskId, { assignee: agentName });
-    }
-
-    this.opts.tracker.updateNodeStatus(taskId, 'in_progress');
-
-    // Per-task git-worktree isolation: a fresh checkout off the current base
-    // (which already holds every dependency's merged work).
-    await this.allocateWorktrees([task]);
-
-    if (!this.coordinator)
-      throw new SddError({
-        message: 'SDD parallel runner requires a coordinator',
-        code: ERROR_CODES.SDD_INVALID_STATE,
-      });
-    const coordinator = this.coordinator;
-
-    const subagentId = `sdd-d${this.dispatchSeq++}`;
-    const correlationId = randomUUID();
-
-    // Per-task model / provider / fallback resolution: the node's own assignment
-    // (set per-task in the WebUI) wins, else the run-level default.
-    const meta = (task.metadata ?? {}) as Record<string, unknown>;
-    const model =
-      (typeof meta.model === 'string' ? meta.model : undefined) ?? this.opts.defaultModel;
-    const provider =
-      (typeof meta.provider === 'string' ? meta.provider : undefined) ?? this.opts.defaultProvider;
-    const fallbackModels = Array.isArray(meta.fallbackModels)
-      ? (meta.fallbackModels as string[])
-      : this.opts.fallbackModels;
-
-    const spawnResult = await coordinator.spawn({
-      id: subagentId,
-      name: agentName,
-      role: 'executor',
-      // Idle reaper is always on; the hard wall-clock cap only when opted in.
+    const outcome = await executeSddTask({
+      task,
+      opts: this.opts,
+      coordinator: this.coordinator,
+      usedNicknames: this.usedNicknames,
       idleTimeoutMs: this.idleTimeoutMs,
-      ...(this.timeoutMs ? { timeoutMs: this.timeoutMs } : {}),
-      cwd: this.taskCwds.get(taskId),
-      disabledTools: ['delegate'],
-      ...(model ? { model } : {}),
-      ...(provider ? { provider } : {}),
-      ...(fallbackModels?.length ? { fallbackModels } : {}),
-    });
-    if (!spawnResult.subagentId) {
-      throw new SddError({
-        message: 'One or more subagent spawns failed',
-        code: ERROR_CODES.SDD_INVALID_STATE,
-      });
-    }
-    // Record the live subagent so cancelTask() can abort exactly this task.
-    this.taskSubagents.set(taskId, subagentId);
-
-    this.emit('sdd.task.started', {
+      timeoutMs: this.timeoutMs,
       runId: this.runId,
-      taskId,
-      subagentId,
-      agentName,
-      worktreeBranch: this.taskBranches.get(taskId),
+      nextSubagentId: () => `sdd-d${this.dispatchSeq++}`,
+      emit: (event, payload) => this.emit(event, payload),
+      taskCwds: this.taskCwds,
+      taskBranches: this.taskBranches,
+      taskSubagents: this.taskSubagents,
+      cancelledTasks: this.cancelledTasks,
+      allocateWorktrees: (tasks) => this.allocateWorktrees(tasks),
+      resolveWorktrees: (tasks) => this.resolveWorktrees(tasks),
+      integrateWorktree: (taskNode, result) => this.integrateWorktree(taskNode, result),
+      applyTaskFailure: (taskId, subagentId, errMsg) =>
+        this.applyTaskFailure(taskId, subagentId, errMsg),
     });
-
-    const directivePreamble = [
-      '═══ SDD PARALLEL EXECUTION ═══',
-      '',
-      `Graph: ${this.opts.graph.title}`,
-      '',
-      '── EXECUTION PROTOCOL ──',
-      '• Execute the assigned SDD task end-to-end using multiple tool calls.',
-      '• Mark the task [done] in the tracker when complete.',
-      '• Do not ask before routine in-project tool use; if a permission gate appears, wait for that flow.',
-      '• Keep output concise — summarize changes, do not transcribe files.',
-    ].join('\n');
-
-    await coordinator.assign({
-      id: correlationId,
-      description: [
-        directivePreamble,
-        '',
-        `── TASK ──`,
-        `[${task.priority.toUpperCase()}] ${task.title}`,
-        '',
-        task.description,
-      ].join('\n'),
-      subagentId,
-      ...(this.timeoutMs ? { timeoutMs: this.timeoutMs } : {}),
-      context: {
-        telemetryTaskId: taskId,
-        telemetryRunId: this.runId,
-        telemetryBoardId: this.opts.graph.id,
-      },
-    });
-
-    let result: TaskResult;
-    try {
-      const got = await coordinator.awaitTasks([correlationId]);
-      result = expectDefined(got[0]);
-    } catch (err) {
-      result = {
-        subagentId,
-        taskId: correlationId,
-        status: 'failed',
-        error: { kind: 'unknown', message: String(err), retryable: false },
-        iterations: 0,
-        toolCalls: 0,
-        durationMs: 0,
-      };
+    if (outcome.success) {
+      this.retryMap.delete(task.id);
+      this.persistRetries(task.id, 0);
     }
-
-    this.taskSubagents.delete(taskId);
-
-    // Cancelled mid-flight: cancelTask() already marked the node terminal — don't
-    // resurrect it via the retry path. Discard its worktree and report failure.
-    if (this.cancelledTasks.has(taskId)) {
-      await this.resolveWorktrees([task]);
-      return { taskId, success: false, result };
-    }
-
-    // Completion gate: a worker-reported success is not trusted until the
-    // optional verification gate passes. A rejection here is treated exactly
-    // like a task failure (retry while attempts remain, else terminal-fail) and
-    // — crucially — happens BEFORE the worktree merge, so unverified work never
-    // reaches the base branch.
-    let verificationFailReason: string | undefined;
-    if (result.status === 'success' && this.opts.verifyTask) {
-      const cwd = this.taskCwds.get(taskId) ?? this.opts.projectRoot;
-      try {
-        const verdict = await this.opts.verifyTask({ task, result, cwd });
-        if (!verdict.ok) {
-          verificationFailReason = `verification failed: ${verdict.reason ?? 'acceptance criteria not met'}`;
-        }
-      } catch (err) {
-        verificationFailReason = `verification error: ${String(err)}`;
-      }
-      // Durable per-task verification telemetry: the board projector and the
-      // kanban run mirror read these to render verification state. 'passed' is
-      // only stamped when the task actually declared something verifiable.
-      const hadVerifiable =
-        typeof task.metadata?.['verificationCommand'] === 'string' ||
-        task.description.includes('**Acceptance Criteria:**');
-      if (verificationFailReason) {
-        this.opts.tracker.patchMetadata(taskId, {
-          verificationState: 'failed',
-          verificationDetail: verificationFailReason,
-        });
-        this.emit('sdd.task.verification_failed', {
-          runId: this.runId,
-          taskId,
-          reason: verificationFailReason,
-        });
-      } else if (hadVerifiable) {
-        this.opts.tracker.patchMetadata(taskId, {
-          verificationState: 'passed',
-          verificationDetail: undefined,
-        });
-      }
-    }
-
-    let success = false;
-    if (result.status === 'success' && !verificationFailReason) {
-      // Merge gate: only declare 'completed' once this task's worktree integrates
-      // cleanly into the base. An unresolved conflict is treated like any other
-      // failure (retry on a fresh base, else terminal-fail) so the run never
-      // wedges and dependents never build on un-merged work.
-      const merged = await this.integrateWorktree(task, result);
-      if (merged.ok) {
-        success = true;
-        this.opts.tracker.updateNodeStatus(taskId, 'completed');
-        this.retryMap.delete(taskId);
-        this.persistRetries(taskId, 0);
-        this.emit('sdd.task.completed', {
-          runId: this.runId,
-          taskId,
-          subagentId,
-          durationMs: result.durationMs,
-        });
-      } else if (merged.reason) {
-        // A conflict-resolved merge that regressed re-verification — the squash
-        // commit was reverted. Surface it as a verification failure (not a raw
-        // conflict) and let the retry path re-run on a fresh base.
-        this.emit('sdd.task.verification_failed', {
-          runId: this.runId,
-          taskId,
-          reason: merged.reason,
-        });
-        await this.applyTaskFailure(taskId, subagentId, merged.reason);
-      } else {
-        const conflictFiles = merged.conflictFiles ?? [];
-        this.emit('sdd.task.conflict', {
-          runId: this.runId,
-          taskId,
-          conflictFiles,
-        });
-        const reason = `merge conflict${conflictFiles.length ? `: ${conflictFiles.join(', ')}` : ''}`;
-        await this.applyTaskFailure(taskId, subagentId, reason);
-      }
-    } else {
-      const errMsg =
-        verificationFailReason ??
-        (result.error?.kind
-          ? `${result.error.kind}: ${result.error.message}`
-          : (result.error?.message ?? 'unknown error'));
-      await this.applyTaskFailure(taskId, subagentId, errMsg);
-      // Resolve the worktree for the non-success path (failed → keep, retry → discard).
-      await this.resolveWorktrees([task]);
-    }
-
-    return { taskId, success, result };
+    return outcome;
   }
 
   /**

@@ -151,6 +151,24 @@ describe('verify', () => {
     expect(result.valid).toBe(false);
     expect(result.reason).toContain('expired');
   });
+
+  it('observes revocation persisted by another store when verifying a fresh snapshot', async () => {
+    await store.load();
+    const { credential, secret } = await store.issue({
+      principalId: 'agent-cross-process',
+      kind: 'agent',
+      capabilities: ['mail.events.self'],
+      ttlMs: 60_000,
+    });
+    const externalStore = new JsonlCredentialStore(dir);
+    await externalStore.load();
+    await externalStore.revoke(credential.credentialId, 'revoked externally');
+
+    expect(store.verify(credential.credentialId, secret).valid).toBe(true);
+    const persistedResult = await store.verifyPersisted(credential.credentialId, secret);
+    expect(persistedResult.valid).toBe(false);
+    expect(persistedResult.reason).toBe('credential is revoked');
+  });
 });
 
 // ── Revoke ────────────────────────────────────────────────────

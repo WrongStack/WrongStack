@@ -10,6 +10,7 @@ import {
   type KanbanTask,
   listBoards,
   reconcileKanbanBoard,
+  transitionTask,
   updateTaskAssignment,
 } from '@wrongstack/kanban';
 import { recordKanbanVerificationEvidence } from '@wrongstack/tools';
@@ -259,6 +260,40 @@ export async function handleKanbanTaskDispatch(
               `[kanban-dispatch] completion gate failed for task ${task.id}: ${error instanceof Error ? error.message : String(error)}`,
             );
           }
+          // Managed lifecycle: finalizeTaskCompletion is intentionally a
+          // no-op above; the worker's completed assignment represents the
+          // Running → Review transition. Advance the card so a reviewer
+          // can verify and accept it.
+          if (terminalWrite.lifecycle?.mode === 'managed') {
+            const managedTask = terminalWrite.tasks.find(
+              (candidate) => candidate.id === task.id,
+            );
+            if (managedTask && managedTask.lifecycle?.currentStage === 'running') {
+              const actor = ctx.context?.agentId ?? 'kanban-agent';
+              const comment =
+                typeof result.result === 'string' && result.result.trim().length > 0
+                  ? result.result.trim().slice(0, 1000)
+                  : 'Work completed.';
+              try {
+                await transitionTask(ctx.projectRoot, boardId, task.id, {
+                  to: 'review',
+                  actor,
+                  comment,
+                  attachment: {
+                    url: `kanban://task/${task.id}/result`,
+                    title: 'Worker completion result',
+                    type: 'file',
+                  },
+                });
+              } catch (transitionError) {
+                console.warn(
+                  `[kanban-dispatch] auto-transition to review failed for task ${task.id}: ${
+                    transitionError instanceof Error ? transitionError.message : String(transitionError)
+                  }`,
+                );
+              }
+            }
+          }
         }
         const reconciled = await reconcileKanbanBoard(ctx.projectRoot, boardId);
         const completed = reconciled?.board ?? (await getBoard(ctx.projectRoot, boardId));
@@ -297,7 +332,29 @@ export async function handleKanbanTaskDispatch(
       },
       activityContext(ctx, undefined, leaseId),
     );
-    const runningTask = updated?.tasks.find((candidate) => candidate.id === task.id) ?? task;
+    // Managed lifecycle: auto-advance Todo → Running so the worker starts
+    // in the correct stage. The assignment telemetry was already persisted
+    // by updateTaskAssignment; a separate transition carries the lifecycle.
+    // Capture post-transition board so runningTask below uses fresh state.
+    let transitionBoard = updated;
+    if (updated?.lifecycle?.mode === 'managed') {
+      const managedTask = updated.tasks.find((candidate) => candidate.id === task.id);
+      if (managedTask && managedTask.lifecycle?.currentStage === 'todo') {
+        try {
+          const tr = await transitionTask(ctx.projectRoot, boardId, task.id, {
+            to: 'running',
+            actor: ctx.context?.agentId ?? 'kanban-agent',
+            comment: 'Work started.',
+          });
+          if (tr) transitionBoard = tr.board;
+        } catch (transitionErr) {
+          console.warn(
+            `[kanban-dispatch] auto-transition to Running failed for task ${task.id}: ${transitionErr instanceof Error ? transitionErr.message : String(transitionErr)}`,
+          );
+        }
+      }
+    }
+    const runningTask = transitionBoard?.tasks.find((candidate) => candidate.id === task.id) ?? task;
     ctx.broadcast?.({
       type: 'kanban.task.update',
       payload: { success: true, data: { boardId: board.id, task: runningTask } },
@@ -380,7 +437,7 @@ function buildKanbanAgentPrompt(
       '- If your lease expires, call heartbeat_assignment with expectedLeaseId to extend it, or release_task so another worker can claim.',
       'On failure the host may call recover_stale; respect its decisions and do not duplicate work.',
     ] : []),
-    `When you start or finish, call kanban with action "mark_assignment", boardId "${board.id}", taskId "${task.id}", and assignmentStatus "running", "completed", or "failed"${leaseId ? `, and expectedLeaseId "${leaseId}"` : ''}. Include lastResult or error when you finish.`,
+    `When you start or finish, call kanban with action "mark_assignment", boardId "${board.id}", taskId "${task.id}", and assignmentStatus "running", "completed", or "failed"${leaseId ? `, and expectedLeaseId "${leaseId}"` : ''}. Include lastResult or error when you finish. On managed lifecycle boards, mark_assignment(completed) will automatically advance your card from Running to Review — a separate verification step is required before the card reaches Done.`,
     'When finished, report what changed, what you verified, and any remaining blockers.',
   ]
     .filter(Boolean)

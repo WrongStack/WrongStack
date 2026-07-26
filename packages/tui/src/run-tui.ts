@@ -1,5 +1,3 @@
-import { randomUUID } from 'node:crypto';
-import * as path from 'node:path';
 import type { Agent } from '@wrongstack/core/agent';
 import type { AutonomousCoordinator, CoordinatorEvent, Director } from '@wrongstack/core/coordination';
 import type { SlashCommandRegistry } from '@wrongstack/core/registry';
@@ -7,20 +5,9 @@ import type { QueueStore } from '@wrongstack/core/storage';
 import type { AttachmentStore, AutonomyStage, FleetChatVerbosity, Message, TokenCounter, TokenSavingTier } from '@wrongstack/core/types';
 import type { EventBus } from '@wrongstack/core/kernel';
 import {
-  createHqPublisherFromEnv,
-  startBrainTelemetryBridge,
-  startCostTelemetryBridge,
-  startFleetTelemetryBridge,
-  startSessionTelemetryBridge,
-  startToolTelemetryBridge,
-  startWorktreeTelemetryBridge,
-} from '@wrongstack/core/hq';
-import { GlobalMailbox, resolveProjectDir } from '@wrongstack/core/coordination';
-import {
   detectTerminal,
   TerminalLifecycle,
   writeErr,
-  wstackGlobalRoot,
 } from '@wrongstack/core/utils';
 import type { VisionAdapters } from '@wrongstack/runtime/vision';
 import type { SddLifecycleResult, SddRunControl } from '@wrongstack/sdd';
@@ -34,10 +21,14 @@ import type { PluginPickerItem } from './components/plugin-picker.js';
 import type { StatuslineItem } from './components/statusline-picker.js';
 import type { ToolPickerItem } from './components/tools-picker.js';
 import { ALT_SCREEN_OFF, ALT_SCREEN_ON, MOUSE_OFF } from './mouse.js';
-import { startTerminalTitle } from './terminal-title.js';
+import { BRACKETED_PASTE_OFF, BRACKETED_PASTE_ON } from './terminal-modes.js';
+import { createRunTuiClientRegistration } from './run-tui-client-registration.js';
+import { createRunTuiTitleController } from './run-tui-title-controller.js';
+import { silenceTerminal, unsilenceTerminal } from './terminal-silence.js';
 
 // Re-export autonomy stage types from core for backward compatibility
 export type { AutonomyStage };
+export { silenceTerminal, unsilenceTerminal };
 
 export interface RunTuiOptions {
   agent: Agent;
@@ -640,84 +631,6 @@ export interface RunTuiOptions {
   memoryStore?: import('@wrongstack/core/types').MemoryPort | undefined;
 }
 
-// Bracketed paste mode wraps any pasted text with these markers, letting us
-// distinguish a paste from typed input even when chunks arrive identically.
-const BRACKETED_PASTE_ON = '\x1b[?2004h';
-const BRACKETED_PASTE_OFF = '\x1b[?2004l';
-
-// ── Console / stderr / warning silencing ──────────────────────────────
-// Ink owns the terminal while the TUI is running. Any write to stdout or
-// stderr that doesn't go through Ink's render cycle will interleave with
-// ANSI control sequences, causing visible content to jump from the bottom
-// and corrupt the chat-history / input-area layout.
-//
-// What we silence:
-//  1. console.log / warn / error / debug — 60+ sites across core + CLI
-//     that bypass the DefaultLogger (which already suppresses stderr in
-//     TUI mode). These fire during Goal, session store, security
-//     scanner, config loader, and plugin teardown.
-//  2. process.emitWarning — used by Director, FleetManager, and
-//     SpecBuilder for non-fatal warnings. Node writes these to stderr by
-//     default. A no-op 'warning' listener swallows them.
-//  3. process.stderr.write — the memory-consolidator writes a summary
-//     line on every session close. Patching this is safe because Ink's
-//     rendering goes through process.stdout, which we leave untouched.
-//
-// All silenced output is lost during TUI mode — it never reaches disk or
-// memory. The DefaultLogger still writes structured logs to the log file
-// even with stderr suppressed. For post-hoc debugging, check the log file
-// at ~/.wrongstack/logs/<date>.log.
-// ──────────────────────────────────────────────────────────────────────
-
-const origConsoleLog = console.log;
-const origConsoleWarn = console.warn;
-const origConsoleError = console.error;
-const origConsoleDebug = console.debug;
-const origConsoleInfo = console.info;
-const origConsoleTable = console.table;
-const origConsoleTrace = console.trace;
-const origStderrWrite = process.stderr.write.bind(process.stderr);
-
-const consoleNoop = (..._args: unknown[]): void => {};
-const stderrNoop = ((
-  _chunk: string | Uint8Array,
-  _encodingOrCb?: BufferEncoding | ((err?: Error) => void),
-  _cb?: (err?: Error) => void,
-): boolean => {
-  // Preserve Node's callback contract so callers that pass a cb don't hang.
-  // process.stderr.write has two overloads:
-  //   write(buffer, cb?)          → second arg is a callback
-  //   write(str, encoding?, cb?)  → second arg is encoding, third is callback
-  if (typeof _encodingOrCb === 'function') _encodingOrCb();
-  else if (typeof _cb === 'function') _cb();
-  return true;
-}) as typeof process.stderr.write;
-const warningNoop = (_warning: Error): void => {};
-
-export function silenceTerminal(): void {
-  console.log = consoleNoop;
-  console.warn = consoleNoop;
-  console.error = consoleNoop;
-  console.debug = consoleNoop;
-  console.info = consoleNoop;
-  console.table = consoleNoop;
-  console.trace = consoleNoop;
-  process.stderr.write = stderrNoop as typeof process.stderr.write;
-  process.on('warning', warningNoop);
-}
-
-export function unsilenceTerminal(): void {
-  console.log = origConsoleLog;
-  console.warn = origConsoleWarn;
-  console.error = origConsoleError;
-  console.debug = origConsoleDebug;
-  console.info = origConsoleInfo;
-  console.table = origConsoleTable;
-  console.trace = origConsoleTrace;
-  process.stderr.write = origStderrWrite;
-  process.off('warning', warningNoop);
-}
-
 export async function runTui(opts: RunTuiOptions): Promise<number> {
   const stdout = process.stdout;
   const stdin = process.stdin;
@@ -769,30 +682,16 @@ export async function runTui(opts: RunTuiOptions): Promise<number> {
   //
   // Wrapped in a small start/stop controller (idempotent) so the TUI
   // `/settings` picker can toggle the title animation live without a restart.
-  let titleStop: (() => void) | null = null;
-  const startTitle = () => {
-    if (titleStop) return; // already running
-    titleStop = startTerminalTitle({
-      stdout,
-      events: opts.events,
-      model: opts.model,
-      appName: opts.projectRoot ? path.basename(opts.projectRoot) : undefined,
-    });
-  };
-  const stopTitle = () => {
-    try {
-      titleStop?.();
-    } catch {
-      // title controller already torn down — ignore.
-    }
-    titleStop = null;
-  };
-  const titleController = {
-    setEnabled(on: boolean) {
-      if (on) startTitle();
-      else stopTitle();
-    },
-  };
+  const {
+    controller: titleController,
+    start: startTitle,
+    stop: stopTitle,
+  } = createRunTuiTitleController({
+    stdout,
+    events: opts.events,
+    model: opts.model,
+    projectRoot: opts.projectRoot,
+  });
   if (opts.titleAnimation !== false) startTitle();
 
   // Take over EVERY keystroke. Raw mode (Ink turns this on when render
@@ -817,6 +716,14 @@ export async function runTui(opts: RunTuiOptions): Promise<number> {
   // Track cleanup state so signal handlers don't double-disable.
   let cleaned = false;
   let alternateScreenActive = false;
+  const tuiClientRegistration = createRunTuiClientRegistration({
+    projectRoot: opts.projectRoot,
+    events: opts.events,
+    appConfig: opts.appConfig,
+    hqTelemetryOwnedExternally: opts.hqTelemetryOwnedExternally,
+    getSessionId: opts.getSessionId,
+    isCleaned: () => cleaned,
+  });
 
   // Hoisted Ink instance reference — signal handlers (registered before the
   // Promise constructor where `instance` lives) need to call unmount() on
@@ -825,7 +732,7 @@ export async function runTui(opts: RunTuiOptions): Promise<number> {
   const cleanup = () => {
     if (cleaned) return;
     cleaned = true;
-    unregisterTuiClient();
+    tuiClientRegistration.unregister();
     try {
       stopTitle();
     } catch {
@@ -869,7 +776,7 @@ export async function runTui(opts: RunTuiOptions): Promise<number> {
   const forceExitViaRapidCtrlC = (): void => {
     // Detach all listeners first so cleanup() doesn't race with process.exit()
     detachListeners();
-    unregisterTuiClient();
+    tuiClientRegistration.unregister();
     // Tree-kill foreground children before exiting. Explicit background jobs
     // are detached and intentionally preserved across the host shutdown.
     try {
@@ -990,198 +897,8 @@ export async function runTui(opts: RunTuiOptions): Promise<number> {
     process.off('exit', exitHandler);
   };
 
-  // ── Client (REPL/TUI/WebUI) registration ─────────────────────────────────
-  // Register this TUI instance as a client in the global mailbox so other
-  // TUIs, WebUIs, and REPLs on the same project can see it as "online".
-  // Clients heartbeat more frequently than agents (15s vs 30s) since they
-  // have no other activity to drive the registration.
-  let clientHeartbeatTimer: ReturnType<typeof setInterval> | null = null;
-  let clientSyncTimer: ReturnType<typeof setInterval> | null = null;
-  let initialClientSyncTimer: ReturnType<typeof setTimeout> | null = null;
-  let registeredMailbox: GlobalMailbox | null = null;
-  let registeredClientId: string | null = null;
-  let tuiHqPublisher: ReturnType<typeof createHqPublisherFromEnv>;
-  let registrationGeneration = 0;
-  const stopHqAuxBridges: Array<() => void> = [];
-  const CLIENT_HEARTBEAT_MS = 15_000;
-  /** Sync client counts from the shared registry every 30s so closed clients disappear promptly. */
-  const CLIENT_SYNC_MS = 30_000;
-
-  const registerTuiClient = async (): Promise<string | null> => {
-    if (!opts.projectRoot) return null;
-    const generation = ++registrationGeneration;
-    try {
-      const projectDir = resolveProjectDir(opts.projectRoot, wstackGlobalRoot());
-      const mailbox = new GlobalMailbox(projectDir, opts.events);
-      const clientId = `tui@${randomUUID().slice(0, 8)}`;
-      await mailbox.registerClient({
-        clientId,
-        sessionId: opts.getSessionId?.() ?? opts.projectRoot,
-        name: `TUI [${path.basename(opts.projectRoot)}]`,
-        source: 'tui',
-        pid: process.pid,
-      });
-      if (cleaned || generation !== registrationGeneration) {
-        await mailbox.deregisterClient(clientId);
-        return null;
-      }
-      registeredMailbox = mailbox;
-      registeredClientId = clientId;
-
-      // The CLI host already owns the single session/fleet publisher. Standalone
-      // TUI consumers still get a local publisher, which cleanup closes below.
-      if (!opts.hqTelemetryOwnedExternally) {
-        tuiHqPublisher = createHqPublisherFromEnv({
-          clientKind: 'tui',
-          projectRoot: opts.projectRoot,
-          projectName: path.basename(opts.projectRoot),
-          appConfig: opts.appConfig,
-        } as never as Parameters<typeof createHqPublisherFromEnv>[0]);
-        tuiHqPublisher?.connect();
-        const tuiSessionId = opts.getSessionId?.() ?? opts.projectRoot;
-        if (tuiHqPublisher) {
-          try {
-            stopHqAuxBridges.push(
-              startSessionTelemetryBridge({
-                publisher: tuiHqPublisher,
-                events: opts.events,
-                sessionId: tuiSessionId,
-                projectRoot: opts.projectRoot,
-                projectName: path.basename(opts.projectRoot),
-              }),
-            );
-          } catch {
-            /* optional */
-          }
-          try {
-            stopHqAuxBridges.push(
-              startFleetTelemetryBridge({
-                events: opts.events,
-                publisher: tuiHqPublisher,
-                runId: tuiSessionId,
-                sessionId: tuiSessionId,
-              }),
-            );
-          } catch {
-            /* optional */
-          }
-          try {
-            stopHqAuxBridges.push(
-              startBrainTelemetryBridge({
-                events: opts.events,
-                publisher: tuiHqPublisher,
-                sessionId: tuiSessionId,
-              }),
-            );
-          } catch {
-            /* optional */
-          }
-          try {
-            stopHqAuxBridges.push(
-              startWorktreeTelemetryBridge({
-                events: opts.events,
-                publisher: tuiHqPublisher,
-                sessionId: tuiSessionId,
-              }),
-            );
-          } catch {
-            /* optional */
-          }
-          try {
-            stopHqAuxBridges.push(
-              startToolTelemetryBridge({
-                events: opts.events,
-                publisher: tuiHqPublisher,
-                projectRoot: opts.projectRoot,
-                sessionId: tuiSessionId,
-              }),
-            );
-          } catch {
-            /* optional */
-          }
-          try {
-            stopHqAuxBridges.push(
-              startCostTelemetryBridge({
-                events: opts.events,
-                publisher: tuiHqPublisher,
-                sessionId: tuiSessionId,
-              }),
-            );
-          } catch {
-            /* optional */
-          }
-        }
-      }
-
-      clientHeartbeatTimer = setInterval(() => {
-        mailbox
-          .clientHeartbeat({ clientId, sessionId: opts.getSessionId?.() ?? opts.projectRoot })
-          .catch(() => {
-            // best-effort — ignore heartbeat failures during shutdown
-          });
-      }, CLIENT_HEARTBEAT_MS);
-      clientHeartbeatTimer.unref();
-
-      const syncClients = async (): Promise<void> => {
-        try {
-          const statuses = await mailbox.getClientStatuses();
-          const counts = { tui: 0, webui: 0, repl: 0 };
-          for (const s of statuses) {
-            if (s.online && s.source in counts) counts[s.source as keyof typeof counts]++;
-          }
-          opts.events.emitCustom('mailbox.sync_clients', counts);
-        } catch {
-          // best-effort — sync failures should not affect TUI operation
-        }
-      };
-      initialClientSyncTimer = setTimeout(() => {
-        initialClientSyncTimer = null;
-        void syncClients();
-      }, 5_000);
-      initialClientSyncTimer.unref?.();
-      clientSyncTimer = setInterval(() => void syncClients(), CLIENT_SYNC_MS);
-      clientSyncTimer.unref();
-
-      return clientId;
-    } catch {
-      // best-effort — client registration errors should not block TUI startup
-      return null;
-    }
-  };
-
-  const unregisterTuiClient = (): void => {
-    registrationGeneration++;
-    if (clientHeartbeatTimer) {
-      clearInterval(clientHeartbeatTimer);
-      clientHeartbeatTimer = null;
-    }
-    if (clientSyncTimer) {
-      clearInterval(clientSyncTimer);
-      clientSyncTimer = null;
-    }
-    if (initialClientSyncTimer) {
-      clearTimeout(initialClientSyncTimer);
-      initialClientSyncTimer = null;
-    }
-    for (const stop of stopHqAuxBridges) {
-      try {
-        stop();
-      } catch {
-        /* ignore */
-      }
-    }
-    stopHqAuxBridges.length = 0;
-    tuiHqPublisher?.close();
-    tuiHqPublisher = undefined;
-    const mailbox = registeredMailbox;
-    const clientId = registeredClientId;
-    registeredMailbox = null;
-    registeredClientId = null;
-    if (mailbox && clientId) void mailbox.deregisterClient(clientId).catch(() => undefined);
-  };
-
   // Register immediately (fire-and-forget)
-  registerTuiClient();
+  void tuiClientRegistration.register();
 
   return new Promise<number>((resolve) => {
     let exitCode = 0;

@@ -143,13 +143,16 @@ export function createAgentResponseHandler(a: AgentInternals): AgentResponseHand
       system,
       messages: a.ctx.messages,
       tools: a.tools.list(),
-      // Default to the provider's model-native output ceiling so subagents
-      // (Chimera, etc.) can run long reports up to the model's actual
-      // limit. The provider adapter's `buildBody` substitutes its own
-      // fallback (`ctx.capabilities.maxOutput ?? 8192`) when this is
-      // absent — keeping the field optional at the wire layer is what
-      // lets the catalog-driven ceiling reach the API untouched.
-      maxTokens: a.ctx.provider.capabilities.maxOutput,
+      // `maxTokens` is deliberately NOT set here. The provider adapter
+      // resolves the ceiling from the catalog entry for the model in
+      // `req.model`, which is the only source that stays correct across a
+      // `/model` switch, a fallback hop, or a subagent on a model-matrix
+      // entry — `provider.capabilities` is resolved once, for the model the
+      // session booted on, and pinning it here would override the accurate
+      // per-request value with a stale one. Callers that genuinely want a
+      // smaller response (one-shot LLM helpers, compaction, the brain) still
+      // set `maxTokens` on their own Request and keep priority over the
+      // catalog.
       // Provider-agnostic cache-partition key from the stable prompt epoch.
       // Wires that support prompt caching (OpenAI `prompt_cache_key`) read it;
       // the config `ttl` is merged over this by the ModelRuntime middleware.

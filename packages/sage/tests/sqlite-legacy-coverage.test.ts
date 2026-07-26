@@ -153,6 +153,14 @@ describe('SQLite legacy MemoryStore compatibility coverage', () => {
     await expect(store.drainMutations()).resolves.toBeUndefined();
   });
 
+  it('initializes before deleting from a fresh store', async () => {
+    const store = createStore();
+
+    await expect(
+      store.deleteSage('missing', 'fresh-store deletion', { force: true }),
+    ).rejects.toThrow('SAGE "missing" not found.');
+  });
+
   it('enforces delete authorization, supports hard delete, and is idempotent', async () => {
     const store = createStore();
     const normal = await store.rememberSage({ text: 'Delete guard' });

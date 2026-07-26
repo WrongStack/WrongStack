@@ -38,6 +38,7 @@ import { OAuthRefreshCoordinator } from './oauth-refresh-coordinator.js';
 import { applyPromptCacheKey } from './prompt-cache-key.js';
 import { createSseLineFoldingTransform, parseSSE } from './sse.js';
 import { messagesToResponsesInput, toolsToResponses } from './tool-format/to-responses.js';
+import type { BuildBodyContext } from './model-output-limits.js';
 import { WireAdapter, type WireAdapterStreamOptions } from './wire-adapter.js';
 
 // ── OAuth refresh constants (mirror packages/cli auth-menu/openai-codex-oauth) ─
@@ -115,6 +116,34 @@ export interface CodexCredentials {
   expiresAt?: number | undefined;
   /** Cached ChatGPT account id. Re-derived from the live token when missing. */
   accountId?: string | undefined;
+}
+
+/**
+ * Decide what happens to a caller's `req.maxTokens` on the Codex wire.
+ *
+ * Forwarded verbatim when set, omitted entirely when not. There is no
+ * threshold and no substituted default, because there is no data to build one
+ * from: models.dev publishes `reasoning_options: [{type:'effort', ...}]` for
+ * every Codex model and no `budget_tokens.min`, so nothing in the catalog says
+ * how much of the budget reasoning will take. A number chosen here would be a
+ * guess, and guesses are what this whole subsystem exists to remove.
+ *
+ * Two consequences worth knowing:
+ *  - Omitted (the common case): the backend applies the model's own ceiling,
+ *    which is the right number sourced from the provider itself.
+ *  - Forwarded and small: the Responses API counts reasoning tokens against
+ *    `max_output_tokens`, so a tight cap can be spent before any visible text
+ *    and the response comes back `incomplete` — surfaced honestly as
+ *    `stopReason: 'max_tokens'` by `mapResponsesStatus`. That is the caller's
+ *    own number doing what the caller asked, not a value we invented.
+ *
+ * Exported for tests.
+ */
+export function codexOutputCap(maxTokens: number | undefined): number | undefined {
+  if (typeof maxTokens !== 'number' || !Number.isFinite(maxTokens) || maxTokens <= 0) {
+    return undefined;
+  }
+  return Math.floor(maxTokens);
 }
 
 export interface OpenAICodexProviderOptions {
@@ -260,10 +289,7 @@ export class OpenAICodexProvider extends WireAdapter {
     return headers;
   }
 
-  protected override buildBody(
-    req: Request,
-    ctx: { capabilities: Capabilities },
-  ): Record<string, unknown> {
+  protected override buildBody(req: Request, ctx: BuildBodyContext): Record<string, unknown> {
     const instructions =
       req.system && req.system.length > 0
         ? req.system.map((b) => b.text).join('\n\n')
@@ -285,6 +311,12 @@ export class OpenAICodexProvider extends WireAdapter {
       body['tools'] = toolsToResponses(req.tools);
       body['tool_choice'] = mapToolChoice(req.toolChoice);
     }
+    // Output cap: the caller's explicit value or nothing at all. Unlike the
+    // other adapters this one does not consult the catalog when the caller is
+    // silent — omitting the field lets the backend apply the model's own
+    // maximum, the same number without the risk of sending a stale one.
+    const cap = codexOutputCap(req.maxTokens);
+    if (cap !== undefined) body['max_output_tokens'] = cap;
     if (req.temperature !== undefined) body['temperature'] = req.temperature;
     if (req.topP !== undefined) body['top_p'] = req.topP;
     const reasoningEffort = req.reasoning?.effort ?? this.reasoningEffort;

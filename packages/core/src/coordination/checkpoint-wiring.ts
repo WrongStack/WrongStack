@@ -38,7 +38,9 @@ export interface DirectorCheckpointHost {
   /** The set of { subagentId, taskIds, ... } manifest rows. */
   readonly manifestEntries: Map<string, unknown>;
   /** Final status of completed tasks, indexed by taskId. */
-  readonly completed: Map<string, TaskResult>;
+  readonly completed?: Map<string, TaskResult> | undefined;
+  completedResult?(taskId: string): TaskResult | undefined;
+  onManifestTimerFired?(): void;
   /**
    * Called from async failure paths in the manifest writer — when the
    * debounced flush or atomic write fails. Implementations funnel
@@ -77,6 +79,7 @@ export function scheduleManifest(host: DirectorCheckpointHost): NodeJS.Timeout |
   }
   if (host.manifestDebounceMs < 0) return null;
   return setTimeout(() => {
+    host.onManifestTimerFired?.();
     void writeManifest(host).catch((err) => host.logShutdownError('manifest_write_debounced', err));
   }, host.manifestDebounceMs);
 }
@@ -106,7 +109,7 @@ export async function writeManifest(host: DirectorCheckpointHost): Promise<strin
         // becomes much more useful for replay when it carries the
         // success/failure state.
         results: entry.taskIds.map((tid) => {
-          const r = host.completed.get(tid);
+          const r = host.completedResult?.(tid) ?? host.completed?.get(tid);
           const worktree = entry.worktrees?.[tid];
           return r
             ? {

@@ -279,9 +279,54 @@ describe('<Entry /> — comprehensive coverage', () => {
       });
       expect(frame).toContain('a.ts');
     });
+
+    it('keeps a generic tool result outside its injected-memory panel', () => {
+      const frame = renderEntry({
+        id: 1,
+        kind: 'tool',
+        name: 'extension_tool',
+        durationMs: 10,
+        ok: true,
+        output: [
+          'actual tool result',
+          '',
+          '--- SAGE: task-aware project knowledge (Memory Injector) ---',
+          '- [fact] <memory id="mem-1">remembered fact</memory>',
+        ].join('\n'),
+      });
+      expect(frame).toContain('actual tool result');
+      expect(frame).toContain('SAGE MEMORY INJECTED · SYSTEM CONTEXT');
+      expect(frame).toContain('remembered fact');
+      expect(frame).not.toContain('--- SAGE:');
+    });
   });
 
   describe('tool kind — resultRenderMode simple', () => {
+    it('preserves a new-file write label when SAGE output is appended', () => {
+      const output = `${JSON.stringify({
+        created: true,
+        path: 'new.ts',
+        diff: '--- /dev/null\n+++ new.ts\n@@ -0,0 +1 @@\n+export {};',
+      })}\n\n--- SAGE: related project knowledge (Memory Injector) ---\n- [fact] <memory id="mem-1">remembered fact</memory>`;
+      const frame = renderEntry({
+        id: 1,
+        kind: 'tool',
+        name: 'write',
+        durationMs: 12,
+        ok: true,
+        resultRenderMode: 'simple',
+        input: { path: 'new.ts', content: 'export {};' },
+        output,
+      });
+      expect(frame).toContain('Write(new.ts)');
+      expect(frame).toContain('Added 1 line');
+      expect(frame).not.toContain('removed');
+      expect(frame).toContain('SAGE MEMORY INJECTED · SYSTEM CONTEXT');
+      expect(frame).toContain('remembered fact');
+      expect(frame).not.toContain('--- SAGE:');
+      expect(frame).not.toContain('Update(new.ts)');
+    });
+
     it('hides diff body in simple mode for edit', () => {
       const frame = renderEntry({
         id: 1, kind: 'tool', name: 'edit', durationMs: 12, ok: true,

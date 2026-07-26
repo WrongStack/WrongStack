@@ -1,6 +1,6 @@
 import { expectDefined } from '@wrongstack/core/utils/expect-defined';
 import { toErrorMessage } from '@wrongstack/core/utils/error';
-import { Bell, BookOpen, ImagePlus, ListPlus, Pencil, RotateCw, Send, Sparkles, Square } from 'lucide-react';
+import { Bell, BookOpen, ListPlus, RotateCw, Send, Sparkles } from 'lucide-react';
 import type React from 'react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useShallow } from 'zustand/react/shallow';
@@ -18,21 +18,20 @@ import { QueuedMessages } from './ChatInput/queued-messages.js';
 import {
   detectAtMention,
   matchSlash,
-  SLASH_CATEGORY_ORDER,
   type SlashCommandDef,
 } from './ChatInput/slash-commands.js';
+import { SlashCommandPopup } from './ChatInput/slash-popup.js';
 import { runChatSlashCommand } from './ChatInput/slash-routing.js';
 import { usePasteDrop } from './ChatInput/use-paste-drop.js';
 import { FileReferenceChip } from './FileReferenceChip.js';
-import { ModelPickDialog } from './ModelPickDialog.js';
 import { parseNextSteps } from './NextStepsBar.js';
 import { PromptLibraryModal } from './PromptLibraryModal.js';
-import { RefinePanel } from './RefinePanel.js';
 import { toast } from './Toaster';
 import { Button } from './ui/button';
-
-const REFINE_RETRY_FEEDBACK =
-  'Make another pass that is sharper and more self-contained. Use the provided project memory, current session context, and recent conversation only to resolve references and preserve project vocabulary; keep the original scope unchanged.';
+import { DraftTokenCounter } from './ChatInput/draft-token-counter.js';
+import { ImageAttachControl } from './ChatInput/image-attach-control.js';
+import { StopControls } from './ChatInput/stop-controls.js';
+import { ChatInputRefinePanelHost } from './ChatInput/refine-panel-host.js';
 
 /**
  * Decide what the chat input should contain after the refine panel is
@@ -955,123 +954,18 @@ export function ChatInput({
         return null;
       })()}
 
-      {/* Prompt-refinement panel — shown when the user submits and refine is enabled */}
-      {refinePanel && enhanceEnabled && (
-        <RefinePanel
-          original={refinePanel.original}
-          refined={refinePanel.refined}
-          english={refinePanel.english}
-          status={refinePanel.status}
-          error={refinePanel.error}
-          fallbackRef={refinePanel.fallbackRef}
-          provider={refinePanel.provider}
-          model={refinePanel.model}
-          onStartRefine={() => {
-            // Countdown elapsed (or user clicked "start now") — kick off
-            // the actual refine request. Reads provider/model from the panel
-            // state so it stays in sync with retry/fallback overrides.
-            const current = useUIStore.getState().refinePanel;
-            if (!current) return;
-            setRefinePanel({ ...current, status: 'refining' });
-            refineModel?.(current.original);
-          }}
-          onRetry={() => {
-            // Failed panel: retry on the same model with more time. Ready
-            // panel: ask for a better second pass and send the previous output
-            // as retry context. Keep `retried` so a fresh timeout surfaces the
-            // panel rather than auto-looping.
-            const retryContext =
-              (refinePanel.status ?? 'ready') === 'ready'
-                ? {
-                    previousRefined: refinePanel.refined,
-                    previousEnglish: refinePanel.english,
-                    retryFeedback: REFINE_RETRY_FEEDBACK,
-                  }
-                : {};
-            setRefinePanel({ ...refinePanel, status: 'refining', retried: true });
-            refineModel?.(refinePanel.original, { timeoutMs: 180_000, ...retryContext });
-          }}
-          onRetryFallback={(ref) => {
-            const slash = ref.indexOf('/');
-            const provider = slash === -1 ? undefined : ref.slice(0, slash);
-            const model = slash === -1 ? ref : ref.slice(slash + 1);
-            if (!provider || !model) return;
-            setRefinePanel({ ...refinePanel, provider, model, status: 'refining', retried: true });
-            refineModel?.(refinePanel.original, { timeoutMs: 180_000, provider, model });
-          }}
-          onPickModel={() => setRefinePickOpen(true)}
-          onCopyToInput={(copied) => {
-            // Copy the chosen version into the input WITHOUT sending. The
-            // panel is already cleared by RefinePanel; just place the text so
-            // the user can keep editing/appending before submitting.
-            setRefinePanel(null);
-            setInput(copied);
-          }}
-          onDecision={(decision) => {
-            const { original, refined, english } = refinePanel;
-
-            // Cancel: close the panel without submitting. If the user never
-            // copied any version into the input, restore the text they last
-            // typed (the original prompt) so it isn't lost.
-            if (decision === 'cancel') {
-              setRefinePanel(null);
-              setInput((prev) => resolveCancelInput(prev, original));
-              return;
-            }
-
-            let text = original;
-            if (decision === 'refined') text = refined;
-            else if (decision === 'english') text = english;
-            else if (decision === 'edit') text = refined;
-
-            // Send the chosen text as a user message
-            if (decision === 'edit') {
-              // For edit, the panel handles it differently — set input to refined text
-              setInput(refined);
-              setRefinePanel(null);
-              return;
-            }
-
-            // For refined/english/original, proceed to send
-            setRefinePanel(null);
-            if (client?.isConnected) {
-              addMessage({ role: 'user', content: text });
-              setLoading(true);
-              sendMessage(text);
-            } else {
-              // Socket down: keep the text in the input instead of dropping it.
-              setInput(text);
-              toast.error(t('chat:input.notConnectedDraftKept'));
-            }
-          }}
-        />
-      )}
-
-      {/* "Retry refinement with another model" picker (ephemeral — does NOT
-          switch the session model). */}
-      <ModelPickDialog
-        open={refinePickOpen}
-        title={t('activity:refine.pickModelTitle')}
-        hint={t('activity:refine.pickModelHint')}
-        onClose={() => setRefinePickOpen(false)}
-        onPick={(candidate) => {
-          setRefinePickOpen(false);
-          const current = useUIStore.getState().refinePanel;
-          if (!current) return;
-          setRefinePanel({ ...current, provider: candidate.provider, model: candidate.model, status: 'refining', retried: true });
-          refineModel?.(current.original, {
-            timeoutMs: 180_000,
-            provider: candidate.provider,
-            model: candidate.model,
-            ...((current.status ?? 'ready') === 'ready'
-              ? {
-                  previousRefined: current.refined,
-                  previousEnglish: current.english,
-                  retryFeedback: REFINE_RETRY_FEEDBACK,
-                }
-              : {}),
-          });
-        }}
+      <ChatInputRefinePanelHost
+        enhanceEnabled={enhanceEnabled}
+        refinePickOpen={refinePickOpen}
+        setRefinePickOpen={setRefinePickOpen}
+        refineModel={refineModel}
+        clientConnected={client?.isConnected === true}
+        addUserMessage={(content) => addMessage({ role: 'user', content })}
+        setLoading={setLoading}
+        sendMessage={sendMessage}
+        setInput={setInput}
+        resolveCancelInput={resolveCancelInput}
+        notConnectedDraftKept={() => toast.error(t('chat:input.notConnectedDraftKept'))}
       />
 
       {/* Prompt library trigger — opens the browse/insert modal */}
@@ -1135,61 +1029,17 @@ export function ChatInput({
 
           {/* Slash command popup — descriptions inline, ↑/↓ to select, Tab to
             autocomplete, Enter to dispatch directly. Click also works. */}
-          {!atMention &&
-            slashSuggestions.length > 0 &&
-            (() => {
-              // Bucket the suggestions by category and preserve the global
-              // index across categories — the keyboard navigation (↑/↓) tracks
-              // a flat index, so each rendered row needs to map back to its
-              // position in the un-grouped `slashSuggestions` array.
-              const byCategory: Record<string, Array<{ cmd: SlashCommandDef; idx: number }>> = {};
-              slashSuggestions.forEach((cmd, idx) => {
-                if (!byCategory[cmd.category]) byCategory[cmd.category] = [];
-                byCategory[cmd.category]?.push({ cmd, idx });
-              });
-              const orderedCategories = SLASH_CATEGORY_ORDER.filter((c) => byCategory[c]?.length);
-              return (
-                <div className="absolute bottom-full left-0 right-0 mb-2 rounded-lg border border-border/70 bg-popover shadow-xl p-1 text-sm max-h-72 overflow-auto">
-                  <div className="px-3 py-1 text-[10px] uppercase text-muted-foreground border-b mb-1">
-                    ↑/↓ select · Tab complete · Enter dispatch · Esc dismiss
-                  </div>
-                  {orderedCategories.map((cat) => (
-                    <div key={cat} className="mb-1">
-                      <div className="px-3 pt-1 pb-0.5 text-[10px] uppercase text-muted-foreground/70 font-semibold">
-                        {cat}
-                      </div>
-                      {byCategory[cat]?.map(({ cmd, idx }) => (
-                        <button
-                          type="button"
-                          key={cmd.name}
-                          onClick={() => {
-                            setInput('');
-                            runSlashCommand(cmd.name);
-                          }}
-                          onMouseEnter={() => setSlashIndex(idx)}
-                          className={cn(
-                            'w-full text-left px-3 py-1.5 rounded transition-colors flex items-center gap-3',
-                            idx === slashIndex
-                              ? 'bg-accent text-accent-foreground'
-                              : 'hover:bg-accent/40',
-                          )}
-                        >
-                          <span className="font-mono shrink-0">{cmd.name}</span>
-                          {cmd.aliases?.length ? (
-                            <span className="text-xs text-muted-foreground/70 font-mono shrink-0">
-                              ({cmd.aliases.join(', ')})
-                            </span>
-                          ) : null}
-                          <span className="text-xs text-muted-foreground truncate">
-                            — {cmd.description}
-                          </span>
-                        </button>
-                      ))}
-                    </div>
-                  ))}
-                </div>
-              );
-            })()}
+          {!atMention && (
+            <SlashCommandPopup
+              suggestions={slashSuggestions}
+              selectedIndex={slashIndex}
+              onSelectIndex={setSlashIndex}
+              onRun={(name) => {
+                setInput('');
+                runSlashCommand(name);
+              }}
+            />
+          )}
           <textarea
             ref={textareaRef}
             data-chat-textarea
@@ -1235,106 +1085,27 @@ export function ChatInput({
             disabled={!client?.isConnected}
           />
 
-          {input.length > 0 &&
-            (() => {
-              // Hide the token estimate until the draft is non-trivial — small
-              // messages aren't worth a context warning, and the chip would
-              // otherwise just flicker as the user types each character.
-              const showTokens = input.length >= 400;
-              const estTokens = Math.ceil(input.length / 4);
-              // Project the next request's context usage: last sent + draft +
-              // small overhead. If that crosses 85% of the configured window,
-              // tint amber; past 100% turns red. Falls through to muted when
-              // we don't have the window size yet (e.g. before first request).
-              let tone = 'text-muted-foreground';
-              let title: string | undefined;
-              if (maxContext > 0 && showTokens) {
-                const projected = lastInputTokens + estTokens + 64;
-                const pct = (projected / maxContext) * 100;
-                if (pct >= 100) {
-                  tone = 'text-destructive font-medium';
-                  title = `Projected ${Math.round(pct)}% of ${maxContext.toLocaleString()} ctx — will likely error or compact.`;
-                } else if (pct >= 85) {
-                  tone = 'text-warning font-medium';
-                  title = `Projected ${Math.round(pct)}% of ${maxContext.toLocaleString()} ctx — getting tight.`;
-                } else {
-                  title = `≈ ${estTokens.toLocaleString()} tokens · projected ${Math.round(pct)}% of ${maxContext.toLocaleString()} ctx.`;
-                }
-              } else if (showTokens) {
-                title = `≈ ${estTokens.toLocaleString()} tokens (4-char heuristic)`;
-              }
-              return (
-                <span
-                  className={cn('absolute bottom-1.5 right-12 text-xs tabular-nums', tone)}
-                  title={title}
-                >
-                  {input.length}
-                  {showTokens && (
-                    <span className="ml-1 opacity-70">
-                      · ≈{estTokens >= 1000 ? `${(estTokens / 1000).toFixed(1)}k` : estTokens}t
-                    </span>
-                  )}
-                </span>
-              );
-            })()}
+          <DraftTokenCounter
+            input={input}
+            lastInputTokens={lastInputTokens}
+            maxContext={maxContext}
+          />
         </div>
 
         <div className="flex w-full justify-end gap-1 overflow-x-auto no-scrollbar sm:w-auto sm:overflow-visible">
-          {/* Attach images — opens a file picker; paste and drag-drop feed
-              the same pending-attachment list. */}
-          <input
-            ref={imagePickerRef}
-            type="file"
-            accept="image/*"
-            multiple
-            className="hidden"
-            onChange={(e) => {
-              const files = Array.from(e.target.files ?? []);
-              if (files.length > 0) void addImageFiles(files);
-              // Reset so picking the same file twice re-fires onChange.
-              e.target.value = '';
-            }}
-          />
-          <Button
-            type="button"
-            size="icon"
-            variant="outline"
+          <ImageAttachControl
+            imagePickerRef={imagePickerRef}
             disabled={!client?.isConnected}
-            onClick={() => imagePickerRef.current?.click()}
-            className="h-[44px] w-[44px] shrink-0 rounded-md"
             title={t('chat:input.attachImagesTitle')}
-            data-testid="attach-images"
-          >
-            <ImagePlus className="h-4 w-4" />
-          </Button>
+            addImageFiles={addImageFiles}
+          />
           {isLoading && chatStarted ? (
-            <>
-              {/* Stop controls stay beside the new send-mode buttons so
-                  the user can interrupt from the same row. Stop-and-edit
-                  pulls the last prompt back; Stop aborts without editing. */}
-              <Button
-                type="button"
-                size="icon"
-                variant="outline"
-                onClick={handleStopAndEdit}
-                className="h-[44px] w-[44px] shrink-0 rounded-md"
-                title={t('chat:input.stopEditTitle')}
-                data-testid="stop-and-edit"
-              >
-                <Pencil className="h-4 w-4" />
-              </Button>
-              <Button
-                type="button"
-                size="icon"
-                variant="destructive"
-                onClick={handleAbort}
-                className="h-[44px] w-[44px] shrink-0 rounded-md"
-                title={t('chat:input.abortTitle')}
-                data-testid="stop"
-              >
-                <Square className="h-4 w-4 fill-current" />
-              </Button>
-            </>
+            <StopControls
+              stopEditTitle={t('chat:input.stopEditTitle')}
+              abortTitle={t('chat:input.abortTitle')}
+              onStopAndEdit={handleStopAndEdit}
+              onAbort={handleAbort}
+            />
           ) : (
             <Button
               type="button"

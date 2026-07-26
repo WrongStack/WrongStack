@@ -19,10 +19,11 @@
  * `createLocalLlmPreset` is the single source of truth — the three named
  * exports below are thin wrappers that pick the right defaults.
  */
-import type { Capabilities, Request, StopReason, StreamEvent } from '@wrongstack/core/types';
+import type { Request, StopReason, StreamEvent } from '@wrongstack/core/types';
 import { safeParse } from '@wrongstack/core/utils';
 import { parseToolInput } from '../_tool-input.js';
 import { capabilitiesForFamily } from '../family-capabilities.js';
+import { type BuildBodyContext, resolveMaxOutputTokens } from '../model-output-limits.js';
 import { normalizeOpenAI } from '../stop-reason.js';
 import { messagesToOpenAI, toolsToOpenAI } from '../tool-format/to-openai.js';
 import { defineWireFormat } from '../wire-format.js';
@@ -138,14 +139,16 @@ export function createLocalLlmPreset(opts: LocalLlmPresetOptions) {
       // is enabled. Use a placeholder if the caller didn't supply one.
       return { authorization: `Bearer ${apiKey || 'no-key'}` };
     },
-    buildBody: (req: Request, ctx: { capabilities: Capabilities }) => {
-      const maxOutput = req.maxTokens ?? ctx.capabilities.maxOutput ?? 8192;
+    buildBody: (req: Request, ctx: BuildBodyContext) => {
+      const maxOutput = resolveMaxOutputTokens(req, ctx);
       const body: Record<string, unknown> = {
         model: req.model,
         messages: messagesToOpenAI(req.system, req.messages),
-        max_tokens: maxOutput,
         stream: true,
       };
+      // Optional field — omit rather than guess. Local runtimes size the
+      // response from the loaded model's own config when it is absent.
+      if (maxOutput !== undefined) body['max_tokens'] = maxOutput;
       if (req.tools && req.tools.length > 0) {
         body['tools'] = toolsToOpenAI(req.tools);
         if (req.toolChoice) {

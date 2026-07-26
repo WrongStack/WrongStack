@@ -55,7 +55,7 @@ const COMPACTOR_SRC = path.resolve(
   '..',
   'src',
   'execution',
-  'compaction-core.ts',
+  'compaction-scoring.ts',
 );
 
 const SESSION_SIZE = 50_000;

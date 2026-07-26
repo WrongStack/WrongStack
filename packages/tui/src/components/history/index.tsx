@@ -1,13 +1,22 @@
-import { Box, Static, useStdout } from '../../ink.js';
 import type React from 'react';
 import { memo, useEffect, useRef, useState } from 'react';
+import { Box, Static, useStdout } from '../../ink.js';
 import { Entry } from './entry.js';
 import type { HistoryProps } from './types.js';
 
 // ── Re-exports ──
 
-export type { AutonomyAgentStatus, HistoryEntry, HistoryProps } from './types.js';
-export type { BodySegment } from './types.js';
+export {
+  ASSISTANT_TAIL_HEIGHT,
+  AssistantBody,
+  AssistantTail,
+  assistantContentWidth,
+  assistantTailRows,
+  MESSAGE_PANEL_BORDER_WIDTH,
+  MESSAGE_PANEL_CHROME_WIDTH,
+  MESSAGE_PANEL_MARGIN,
+  splitFencedBlocks,
+} from './assistant.js';
 export { Banner } from './banner.js';
 export {
   CodeBlock,
@@ -17,46 +26,46 @@ export {
   type DiffLineKind,
   type DiffLineRow,
   type DiffPreview,
-  type MultiDiffSummary,
-  MULTI_DIFF_MAX_FILES,
-  MULTI_DIFF_MAX_ROWS,
-  MULTI_DIFF_SUMMARY_THRESHOLD,
   extractDiffPreview,
   extractMultiFileDiffs,
   extractReplaceDiffs,
   formatDiffStats,
   formatMultiDiffSummary,
+  MULTI_DIFF_MAX_FILES,
+  MULTI_DIFF_MAX_ROWS,
+  MULTI_DIFF_SUMMARY_THRESHOLD,
+  type MultiDiffSummary,
   parseUnifiedDiff,
   summarizeMultiFileDiffs,
 } from './code-block.js';
 export { Entry } from './entry.js';
-export { MESSAGE_PANEL_BORDER_WIDTH, MESSAGE_PANEL_CHROME_WIDTH, MESSAGE_PANEL_MARGIN, ASSISTANT_TAIL_HEIGHT, AssistantBody, AssistantTail, assistantContentWidth, assistantTailRows, splitFencedBlocks } from './assistant.js';
+export type { AutonomyAgentStatus, BodySegment, HistoryEntry, HistoryProps } from './types.js';
 export {
-  shortenPath,
-  previewArgs,
-  previewOutput,
-  fmtTok,
-  fmtDuration,
-  fmtBytes,
-  truncMid,
-  stringOf,
-  numOf,
-  tryParseJson,
-  scanNumberedRange,
   countLines,
   firstNonEmpty,
+  fmtBytes,
+  fmtDuration,
+  fmtTok,
   formatMatchHit,
   formatToolArgs,
   formatToolOutput,
   formatToolVisualOutput,
-  type ToolVisualLine,
-  type ToolVisualLineKind,
+  MAX_STREAM_DISPLAY_CHARS,
+  numOf,
+  previewArgs,
+  previewOutput,
+  scanNumberedRange,
+  shortenPath,
+  streamBoxRows,
+  stringOf,
   ToolOutputLines,
   ToolStreamBox,
-  streamBoxRows,
-  toolStreamBoxHeight,
-  MAX_STREAM_DISPLAY_CHARS,
+  type ToolVisualLine,
+  type ToolVisualLineKind,
   tailForDisplay,
+  toolStreamBoxHeight,
+  truncMid,
+  tryParseJson,
 } from './utils.js';
 
 // ── History Component ──
@@ -71,7 +80,16 @@ export {
  * primitives or stable reducer references, so default shallow
  * comparison is sufficient.
  */
-export const History = memo(function History({ entries, generation, toolStream, setSuggestions, autonomyMode, multiDiffSummaryThreshold, todos, showModelReasoning }: HistoryProps): React.ReactElement {
+export const History = memo(function History({
+  entries,
+  generation,
+  toolStream,
+  setSuggestions,
+  autonomyMode,
+  multiDiffSummaryThreshold,
+  todos,
+  showModelReasoning,
+}: HistoryProps): React.ReactElement {
   const { stdout } = useStdout();
   const [termSize, setTermSize] = useState({
     columns: stdout?.columns ?? 80,
@@ -180,7 +198,16 @@ export const History = memo(function History({ entries, generation, toolStream, 
       <Static key={staticKey} items={staticEntries}>
         {(entry) => (
           <Box key={entry.id} marginBottom={entry.kind === 'turn-summary' ? 1 : 0}>
-            <Entry entry={entry} termWidth={termWidth} termHeight={termSize.rows} setSuggestions={setSuggestions} autonomyMode={autonomyMode} multiDiffSummaryThreshold={multiDiffSummaryThreshold} todos={todos} showModelReasoning={showModelReasoning} />
+            <Entry
+              entry={entry}
+              termWidth={termWidth}
+              termHeight={termSize.rows}
+              setSuggestions={setSuggestions}
+              autonomyMode={autonomyMode}
+              multiDiffSummaryThreshold={multiDiffSummaryThreshold}
+              todos={todos}
+              showModelReasoning={showModelReasoning}
+            />
           </Box>
         )}
       </Static>

@@ -76,7 +76,10 @@ import {
   MCPRegistry,
   MCPVaultTokenStore,
 } from '@wrongstack/mcp';
-import { buildProviderFactoriesFromRegistry } from '@wrongstack/providers';
+import {
+  buildProviderFactoriesFromRegistry,
+  installCatalogModelOutputLimits,
+} from '@wrongstack/providers';
 import { createDefaultContainer } from '@wrongstack/runtime';
 import { registerCanonicalHostTools } from '@wrongstack/runtime/tool-registration';
 import { configureDangerBypass, configureExecPolicy } from '@wrongstack/tools';
@@ -166,6 +169,19 @@ export async function createPreContextServices(
     } catch (err) {
       logger.warn(`models.dev refresh failed (${toErrorMessage(err)}); using cached catalog`);
     }
+  }
+
+  // Same per-request output-ceiling index the CLI installs. Without it every
+  // wire body falls back to the adapters' 8192 literal whenever the provider
+  // instance wasn't built for the model being requested.
+  try {
+    await installCatalogModelOutputLimits({
+      registry: modelsRegistry,
+      getConfig: () => config,
+      log: (message) => logger.debug(message),
+    });
+  } catch (err) {
+    logger.debug(`model output-limit index skipped: ${toErrorMessage(err)}`);
   }
 
   try {

@@ -9,84 +9,12 @@
  */
 
 import { useCallback } from 'react';
-import type { Action, State } from '../app-reducer.js';
 import { brainPanelRows } from '../brain-panel-model.js';
 import type { KeyEvent } from '../components/input.js';
 import { settingsPickerJumpField } from '../components/settings-picker.js';
 import { STATUSLINE_ITEMS } from '../components/statusline-picker.js';
-import type { AutonomyStage } from './use-statusline-state.js';
-
-export interface PickerKeysHost {
-  state: State;
-  dispatch: React.Dispatch<Action>;
-  lastEnterAtRef: { current: number };
-  inputGateRef: { current: boolean };
-
-  switchProviderAndModel:
-    | ((providerId: string, modelId: string) => string | null | Promise<string | null>)
-    | undefined;
-  // These mirror the plain setter signatures the app provides (from
-  // useStatuslineState); the hook only ever calls them with a concrete value,
-  // never a SetStateAction updater, so the narrow `(v) => void` form is both
-  // accurate and assignable from the real setters.
-  setLiveProvider: ((v: string) => void) | undefined;
-  setLiveModel: ((v: string) => void) | undefined;
-  setActiveMaxContext: ((v: number | undefined) => void) | undefined;
-  getAgentCtxMaxContext: () => number;
-  activeMaxContext: number | undefined;
-  currentContextTokens: number;
-  /** Live provider id *before* the switch — the "from" row of the switch card. */
-  currentProvider: string | undefined;
-  /** Live model id *before* the switch. */
-  currentModel: string | undefined;
-
-  // `opt.mode` is an AutonomyStage, so accept that union (not bare string) to
-  // match the app's `switchAutonomy`.
-  switchAutonomy: ((mode: AutonomyStage) => string | null) | undefined;
-  submit: ((text: string) => void) | undefined;
-
-  onAuthEnter: (() => void) | undefined;
-  onAuthBack: (() => void) | undefined;
-  onAuthShortcut: ((input: string) => void) | undefined;
-  onAuthPromptSubmit: (() => void) | undefined;
-  onAuthPromptCancel: (() => void) | undefined;
-  onAuthConfirm: ((yes: boolean) => void) | undefined;
-  onAuthFlowCancel: (() => void) | undefined;
-  onAuthCtrlC: (() => void) | undefined;
-
-  onPromptPickerEnter: (() => void) | undefined;
-  onResumePickerEnter: (() => Promise<void>) | undefined;
-  onSessionsPanelEnter: (() => Promise<void>) | undefined;
-  onProjectPickerEnter: (() => Promise<void>) | undefined;
-  onSlashPickerEnter: (() => void) | undefined;
-  onSettingsPickerEnter: (() => void) | undefined;
-  onPluginPickerToggle: (() => Promise<void> | void) | undefined;
-  onMcpPickerToggle: (() => Promise<void> | void) | undefined;
-  onMcpPickerRestart: (() => Promise<void> | void) | undefined;
-  onToolsPickerToggle: (() => Promise<void> | void) | undefined;
-  onHelpPanelEnter: (() => void) | undefined;
-  onBrainRiskChange: ((delta: number) => void) | undefined;
-  /** Settings-view value edit: ←/→ on the focused row. */
-  onBrainAdjust: ((row: import('../brain-panel-model.js').BrainPanelRow, delta: number) => void) | undefined;
-  /** Settings-view Enter: toggle a boolean row or open the model picker. */
-  onBrainEnter: ((row: import('../brain-panel-model.js').BrainPanelRow) => void) | undefined;
-  /** Settings-view d/Delete on a removable row. */
-  onBrainDelete: ((row: import('../brain-panel-model.js').BrainPanelRow) => void) | undefined;
-  /** Voter row modifiers: p = cycle persona, v = toggle veto. */
-  onBrainVoterMod: ((index: number, mod: 'persona' | 'veto') => void) | undefined;
-  /**
-   * Generic model-pick resolution: Enter on the model step when the picker
-   * was opened with purpose 'pick' (requestModelPick) — the selection is
-   * RETURNED to the caller instead of switching the session model.
-   */
-  onModelPicked: ((providerId: string, modelId: string) => void) | undefined;
-  onShadowStart: (() => Promise<void> | void) | undefined;
-  onShadowStop: (() => Promise<void> | void) | undefined;
-  onFKeyPickerEnter: (() => void) | undefined;
-  onPickerEnter: (() => Promise<void>) | undefined;
-
-  onSlashPickerTab: (() => void) | undefined;
-}
+import type { PickerKeysHost } from './use-picker-keys-types.js';
+export type { PickerKeysHost } from './use-picker-keys-types.js';
 
 const ENTER_DOUBLE_TAP_MS = 50;
 

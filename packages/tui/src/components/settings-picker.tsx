@@ -9,6 +9,7 @@ import {
   SETTINGS_PICKER_JUMP_CHORDS,
 } from './settings-picker-jumps.js';
 import { buildSettingsFilterState } from './settings-picker-filter.js';
+import { SettingsPickerRowList, type SettingsPickerRowData } from './settings-picker-row-list.js';
 
 export {
   SETTINGS_PICKER_JUMP_CHORDS,
@@ -889,14 +890,7 @@ export function SettingsPicker({
 }: SettingsPickerProps): React.ReactElement {
   const boolVal = (v: boolean) => (v ? 'on' : 'off');
 
-  interface Row {
-    section?: string | undefined;
-    label?: string | undefined;
-    value?: string | undefined;
-    detail?: string | undefined;
-  }
-
-  const rows: Row[] = [
+  const rows: SettingsPickerRowData[] = [
     // ── Autonomy ──
     { section: 'Autonomy' },
     { label: 'Default autonomy mode', value: mode, detail: MODE_DESC[mode] },
@@ -1155,29 +1149,6 @@ export function SettingsPicker({
   const hasAbove = windowStart > 0;
   const hasBelow = windowEnd < totalFields;
 
-  // Build section → field range map so we can decide whether to show
-  // a section header (show it when ANY of its fields are in the window).
-  const sectionFields: Array<{ headerIdx: number; fieldStart: number; fieldEnd: number }> = [];
-  let curHeader = -1;
-  for (let i = 0; i < rows.length; i++) {
-    if (rows[i]?.section) curHeader = i;
-    else if (curHeader >= 0) {
-      const fieldIdx = fieldRowIndex.indexOf(i);
-      if (fieldIdx === -1) continue;
-      const entry = sectionFields.find((s) => s.headerIdx === curHeader);
-      if (entry) {
-        entry.fieldEnd = fieldIdx + 1;
-      } else {
-        sectionFields.push({ headerIdx: curHeader, fieldStart: fieldIdx, fieldEnd: fieldIdx + 1 });
-      }
-    }
-  }
-  const shouldShowSection = (headerIdx: number): boolean => {
-    const sec = sectionFields.find((s) => s.headerIdx === headerIdx);
-    if (!sec) return false;
-    return sec.fieldStart < windowEnd && sec.fieldEnd > windowStart;
-  };
-
   return (
     <Box flexDirection="column" borderStyle="round" borderColor="yellow" paddingX={1}>
       <Text color="cyan" bold>
@@ -1194,91 +1165,16 @@ export function SettingsPicker({
       {filterActive && filteredFieldIndices.length === 0 ? (
         <Text dimColor italic>No matching settings rows.</Text>
       ) : null}
-      {filterActive
-        ? // Filter mode: render ranked rows in score order (not picker
-          // order). Each row is looked up by its field index from the
-          // `rows` array via `fieldRowIndex`.
-          rankedResults.map((result) => {
-            const fieldIdx = result.chord.field;
-            // Find the `rows` entry for this field index.
-            const rowIdx = fieldRowIndex[fieldIdx] ?? -1;
-            const row = rows[rowIdx];
-            if (!row?.label) return null;
-            const selected = fieldIdx === field;
-            const labelStr = row.label;
-            const segments = highlightSegments(labelStr);
-            const padNeeded = Math.max(0, 26 - labelStr.length);
-            return (
-              <Text key={`frow-${labelStr}`} inverse={selected} {...(selected ? { color: 'yellow' } : {})}>
-                {selected ? '› ' : '  '}
-                {segments.map((seg, j) => (
-                  <Text
-                    key={j}
-                    bold
-                    {...(seg.match ? { color: 'yellow' } : { dimColor: true })}
-                  >
-                    {seg.text}
-                  </Text>
-                ))}
-                <Text bold dimColor>{' '.repeat(padNeeded)}</Text>
-                <Text color="cyan">{String(row.value ?? '').padEnd(12)}</Text>
-                <Text dimColor>{row.detail ?? ''}</Text>
-              </Text>
-            );
-          })
-        : // Normal mode: render rows in picker order with windowing.
-          rows.map((row, i) => {
-        const fieldAtRow = fieldRowIndex.indexOf(i);
-        // Section headers are always shown when they fall between visible fields.
-        // Non-section rows are only shown when their field index is in the window.
-        if (fieldAtRow === -1) {
-          if (filterActive) return null; // hide section headers in filter mode
-          // Section header — show when any of its fields are in the window.
-          if (shouldShowSection(i)) {
-            return (
-              <Text key={`section-${row.section ?? i}`} bold color="green">
-                ── {row.section} ──
-              </Text>
-            );
-          }
-          return null;
-        }
-        // In filter mode, show only rows whose field index is in the
-        // filtered set. In normal mode, show only rows in the visible window.
-        if (filterActive) {
-          if (!filteredFieldIndices.includes(fieldAtRow)) return null;
-        } else if (fieldAtRow < windowStart || fieldAtRow >= windowEnd) return null;
-        const selected = fieldAtRow === field;
-        const labelStr = row.label ?? '';
-        const segments = highlightSegments(labelStr);
-        // Pad the label to 26 chars total so the value/detail columns
-        // still align. Compute padding from the full label length (not
-        // the segmented version — segments only affect colour, not width).
-        const padNeeded = Math.max(0, 26 - labelStr.length);
-        return (
-          <Text key={`row-${row.label ?? fieldAtRow}`} inverse={selected} {...(selected ? { color: 'yellow' } : {})}>
-            {selected ? '› ' : '  '}
-            {filterActive ? (
-              <>
-                {segments.map((seg, j) => (
-                  <Text
-                    key={j}
-                    bold
-                    {...(seg.match ? { color: 'yellow' } : { dimColor: true })}
-                  >
-                    {seg.text}
-                  </Text>
-                ))}
-                <Text bold dimColor>{' '.repeat(padNeeded)}</Text>
-              </>
-            ) : (
-              <Text bold>{labelStr.padEnd(26)}</Text>
-            )}
-            <Text color="cyan">{String(row.value ?? '').padEnd(12)}</Text>
-            <Text dimColor>{row.detail ?? ''}</Text>
-          </Text>
-        );
-      })}
+      <SettingsPickerRowList
+        rows={rows}
+        field={field}
+        fieldRowIndex={fieldRowIndex}
+        filterActive={filterActive}
+        rankedResults={rankedResults}
+        highlightSegments={highlightSegments}
+        windowStart={windowStart}
+        windowEnd={windowEnd}
+      />
       {hasBelow && !filterActive ? (
         <Text dimColor>{`  ↓ ${totalFields - windowEnd} field${totalFields - windowEnd === 1 ? '' : 's'} below`}</Text>
       ) : null}

@@ -12,8 +12,9 @@
  *
  * See: fix(auto-review) 623bd441a + refactor(auto-review) a93f3310a.
  */
-import { afterEach, describe, expect, it } from 'vitest';
+
 import { DEFAULT_REVIEW_FALLBACK_MODELS } from '@wrongstack/core/plugin';
+import { afterEach, describe, expect, it } from 'vitest';
 import {
   __resetReviewerRoundRobinCursor,
   assignReviewerModelsRoundRobin,
@@ -33,9 +34,7 @@ describe('reviewer fallback-chain drift guard', () => {
       expect(typeof ref).toBe('string');
       const slash = ref.indexOf('/');
       expect(slash, `"${ref}" must be provider/model`).toBeGreaterThan(0);
-      expect(slash, `"${ref}" must have a model after the slash`).toBeLessThan(
-        ref.length - 1,
-      );
+      expect(slash, `"${ref}" must have a model after the slash`).toBeLessThan(ref.length - 1);
     }
   });
 
@@ -44,15 +43,9 @@ describe('reviewer fallback-chain drift guard', () => {
     // manual/ordinary-Chimera reviewer spawn calls resolveReviewerFallbackModels()
     // with no bundle chain, so it MUST equal the shared core default. If a future
     // edit re-hardcodes a divergent local list, this equality fails in CI.
-    expect(resolveReviewerFallbackModels()).toEqual([
-      ...DEFAULT_REVIEW_FALLBACK_MODELS,
-    ]);
-    expect(resolveReviewerFallbackModels(undefined)).toEqual([
-      ...DEFAULT_REVIEW_FALLBACK_MODELS,
-    ]);
-    expect(resolveReviewerFallbackModels([])).toEqual([
-      ...DEFAULT_REVIEW_FALLBACK_MODELS,
-    ]);
+    expect(resolveReviewerFallbackModels()).toEqual([...DEFAULT_REVIEW_FALLBACK_MODELS]);
+    expect(resolveReviewerFallbackModels(undefined)).toEqual([...DEFAULT_REVIEW_FALLBACK_MODELS]);
+    expect(resolveReviewerFallbackModels([])).toEqual([...DEFAULT_REVIEW_FALLBACK_MODELS]);
   });
 
   it('returns a fresh mutable copy (never aliases the shared frozen constant)', () => {
@@ -63,9 +56,7 @@ describe('reviewer fallback-chain drift guard', () => {
     // SubagentConfig.fallbackModels is a mutable string[]; mutating the result
     // must not corrupt the shared source constant.
     a.push('mutation/check');
-    expect(resolveReviewerFallbackModels()).toEqual([
-      ...DEFAULT_REVIEW_FALLBACK_MODELS,
-    ]);
+    expect(resolveReviewerFallbackModels()).toEqual([...DEFAULT_REVIEW_FALLBACK_MODELS]);
   });
 
   it('uses the auto-review bundle chain verbatim when one is supplied', () => {

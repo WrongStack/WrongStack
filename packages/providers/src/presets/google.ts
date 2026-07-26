@@ -5,9 +5,10 @@ import { randomUUID } from 'node:crypto';
  * of `thoughtSignature` and forced `tool_use` stop reason on functionCall
  * turns.
  */
-import type { Capabilities, Message, Request, StopReason, StreamEvent, Tool, Usage } from '@wrongstack/core/types';
+import type { Message, Request, StopReason, StreamEvent, Tool, Usage } from '@wrongstack/core/types';
 import { compactToolDefinitionForWire, safeParse } from '@wrongstack/core/utils';
 import { capabilitiesForFamily } from '../family-capabilities.js';
+import { type BuildBodyContext, resolveMaxOutputTokens } from '../model-output-limits.js';
 import { normalizeGemini } from '../stop-reason.js';
 import { defineWireFormat } from '../wire-format.js';
 
@@ -48,7 +49,7 @@ export const googleWireFormat = defineWireFormat<GoogleStreamState>({
   buildUrl: (base, req) =>
     `${base}/models/${encodeURIComponent(req.model)}:streamGenerateContent?alt=sse`,
   buildHeaders: (apiKey) => ({ 'x-goog-api-key': apiKey }),
-  buildBody: (req: Request, ctx: { capabilities: Capabilities }) => {
+  buildBody: (req: Request, ctx: BuildBodyContext) => {
     const body: Record<string, unknown> = {
       contents: messagesToGemini(req.messages),
       generationConfig: buildGenConfig(req, ctx),
@@ -157,12 +158,12 @@ export const googleWireFormat = defineWireFormat<GoogleStreamState>({
   isTruncated: (state) => state.started && !state.sawTerminal,
 });
 
-function buildGenConfig(
-  req: Request,
-  ctx: { capabilities: Capabilities },
-): Record<string, unknown> {
-  const maxOutput = req.maxTokens ?? ctx.capabilities.maxOutput ?? 8192;
-  const cfg: Record<string, unknown> = { maxOutputTokens: maxOutput };
+function buildGenConfig(req: Request, ctx: BuildBodyContext): Record<string, unknown> {
+  const maxOutput = resolveMaxOutputTokens(req, ctx);
+  // Optional field — omit rather than guess; Gemini then uses the model's own
+  // output ceiling.
+  const cfg: Record<string, unknown> = {};
+  if (maxOutput !== undefined) cfg['maxOutputTokens'] = maxOutput;
   if (req.temperature !== undefined) cfg['temperature'] = req.temperature;
   if (req.topP !== undefined) cfg['topP'] = req.topP;
   if (req.topK !== undefined) cfg['topK'] = req.topK;

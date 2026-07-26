@@ -169,6 +169,37 @@ describe('SqliteSageStore', () => {
 
     });
 
+    it('updates persistence and requires force to delete permanent memories', async () => {
+      const store = trackStore(new SqliteSageStore({ projectRoot: tempDir }));
+      await store.initialize();
+      const mem = await store.rememberSage({
+        text: 'Permanent memory',
+        kind: 'fact',
+        persistence: 'short_lived',
+      });
+
+      await expect(
+        store.updateSage(mem.id, { persistence: 'permanent', status: 'deleted' }),
+      ).rejects.toThrow("is marked 'permanent' and cannot be deleted");
+
+      const permanent = await store.updateSage(mem.id, { persistence: 'permanent' });
+      expect(permanent.persistence).toBe('permanent');
+      await expect(store.updateSage(mem.id, { status: 'deleted' })).rejects.toThrow(
+        "is marked 'permanent' and cannot be deleted",
+      );
+
+      const deleted = await store.updateSage(mem.id, { status: 'deleted', force: true });
+      expect(deleted.status).toBe('deleted');
+      const audit = await store.readAudit(10);
+      expect(audit).toContainEqual(
+        expect.objectContaining({
+          event: 'memory.deleted',
+          memoryId: mem.id,
+          details: expect.objectContaining({ force: true, persistence: 'permanent' }),
+        }),
+      );
+    });
+
     it('throws for a non-existent id', async () => {
       const store = trackStore(new SqliteSageStore({ projectRoot: tempDir }));
       await store.initialize();
@@ -453,6 +484,30 @@ describe('SqliteSageStore', () => {
       const report = await store.hygiene();
       expect(report.examined).toBe(2);
       expect(report.staled).toBeGreaterThanOrEqual(1);
+    });
+
+    it('persists stale verification results and honors verify: false', async () => {
+      const store = trackStore(new SqliteSageStore({ projectRoot: tempDir }));
+      await store.initialize();
+      const skipped = await store.rememberSage({
+        text: 'Skip missing-anchor verification',
+        kind: 'file_note',
+        anchors: [{ type: 'file', path: 'missing/skipped.ts' }],
+      });
+
+      const skippedReport = await store.hygiene({ verify: false });
+      expect(skippedReport.staled).toBe(0);
+      expect(skippedReport.verified).toBe(0);
+      const unverified = await store.getSage(skipped.id);
+      expect(unverified?.status).toBe('active');
+      expect(unverified?.lastVerifiedAt).toBeUndefined();
+
+      const report = await store.hygiene();
+      expect(report.staled).toBe(1);
+      expect(await store.getSage(skipped.id)).toMatchObject({
+        status: 'stale',
+        lastVerifiedAt: expect.any(String),
+      });
     });
 
     it('deduplicates identical-text memories and marks losers superseded', async () => {

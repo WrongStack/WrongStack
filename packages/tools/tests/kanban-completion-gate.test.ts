@@ -2,7 +2,16 @@ import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import type { Context } from '@wrongstack/core/agent';
-import { addCheckToTask, addTask, createBoard, getBoard } from '@wrongstack/kanban';
+import {
+  addCheckToTask,
+  addTask,
+  assignTask,
+  createBoard,
+  createManagedLifecyclePolicy,
+  getBoard,
+  transitionTask,
+  updateTask,
+} from '@wrongstack/kanban';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { kanbanTool } from '../src/kanban.js';
 import { newSignal } from './fixtures.js';
@@ -108,6 +117,78 @@ describe('kanban tool — universal completion gate', () => {
     );
     expect(softResult.gate?.enforcement).toBe('soft');
     expect(softResult.task?.status).toBe('completed');
+  });
+
+  it('managed assignment completion preserves the lifecycle projection', async () => {
+    const columns = [
+      { id: 'backlog', title: 'Backlog', order: 0, wipLimit: 0 },
+      { id: 'todo', title: 'Todo', order: 1, wipLimit: 0 },
+      { id: 'in-progress', title: 'Running', order: 2, wipLimit: 0 },
+      { id: 'review', title: 'Review', order: 3, wipLimit: 0 },
+      { id: 'done', title: 'Done', order: 4, wipLimit: 0 },
+    ];
+    const board = await createBoard(dir, {
+      title: 'Managed completion board',
+      columns,
+      lifecycle: createManagedLifecyclePolicy(),
+    });
+    const added = await addTask(dir, board.id, { title: 'Managed task' });
+    await updateTask(dir, board.id, added!.task.id, {
+      description: 'Managed assignment completion regression.',
+      dueDate: '2026-08-01T00:00:00.000Z',
+      assignee: 'worker',
+      labels: ['managed'],
+      childTaskIds: ['child-1'],
+      successCriteria: [{ id: 'c1', description: 'Pass', type: 'manual', status: 'passed' }],
+    });
+    await assignTask(dir, board.id, added!.task.id, {
+      status: 'running',
+      agentId: 'worker',
+      leaseId: 'lease-1',
+      claimedAt: '2026-07-26T00:00:00.000Z',
+      heartbeatAt: '2026-07-26T00:00:00.000Z',
+      leaseExpiresAt: '2026-07-27T00:00:00.000Z',
+    });
+    await transitionTask(dir, board.id, added!.task.id, {
+      to: 'todo',
+      actor: 'worker',
+      comment: 'Planned.',
+    });
+    await transitionTask(dir, board.id, added!.task.id, {
+      to: 'running',
+      actor: 'worker',
+      comment: 'Started.',
+    });
+
+    const result = await kanbanTool.execute(
+      {
+        action: 'mark_assignment',
+        boardId: board.id,
+        taskId: added!.task.id,
+        assignmentStatus: 'completed',
+        expectedLeaseId: 'lease-1',
+        lastResult: 'Implementation passed.',
+      },
+      ctx(),
+      { signal: newSignal() },
+    );
+
+    expect(result.ok).toBe(true);
+    // Managed lifecycle auto-transition: completed assignment advances
+    // Running → Review. The gate is not involved because this path goes
+    // through the managed lifecycle block, not finalizeTaskCompletion.
+    // The auto-verifier passes (verdict 'passed') but the advance to Done
+    // fails because validateDoneEvidence requires an `action` field that
+    // the auto-advance transitionTask call doesn't supply — the card stays
+    // in Review for manual acceptance.
+    expect(result.gate).toBeUndefined();
+    const after = await getBoard(dir, board.id);
+    expect(after?.tasks[0]).toMatchObject({
+      columnId: 'review',
+      status: 'review',
+      lifecycle: { currentStage: 'review' },
+      assignment: { status: 'completed', lastResult: 'Implementation passed.' },
+    });
   });
 
   it('create_board accepts atomicity and gate policy fields', async () => {

@@ -8,32 +8,20 @@
  * Spec: https://agentclientprotocol.com/protocol/v1/overview
  * Design: see ./acp-session.design.md in this directory.
  */
-import type {
-  TrustActor,
-  TrustAuthContext,
-  TrustBoundary,
-  TrustScope,
-} from '@wrongstack/core/security';
 import { type ACPClientTransport, ClientTransport } from '../agent/stdio-transport.js';
 import type { ACPMessage } from '../types/acp-messages.js';
 import {
   ACP_PROTOCOL_VERSION,
   type AgentCapabilities,
-  type AnySessionUpdate,
   type AuthMethod,
   type ContentBlock,
   type McpServer,
-  type PlanEntry,
   type SessionId,
   type SessionInfo,
   type StopReason,
-  type ToolCallContent,
-  type ToolCallStatus,
-  type ToolCallUpdateNotification,
-  type ToolKind,
-  type UsageCost,
 } from '../types/acp-v1.js';
-import { FileServer, FsError } from './file-server.js';
+import { emptyRunResult } from './acp-session-content.js';
+import { FileServer } from './file-server.js';
 import { type PermissionPolicy, readOnlyPermissionPolicy } from './permission.js';
 import { TerminalServer } from './terminal-server.js';
 import { makeTrustBoundaryPermissionPolicy } from './trust-boundary-permission.js';
@@ -41,129 +29,37 @@ import {
   WebSocketClientTransport,
   type WebSocketClientTransportOptions,
 } from './websocket-transport.js';
+import type {
+  ACPProgressEvent,
+  ACPProgressHandler,
+  ACPSessionOptions,
+  ACPSessionRunResult,
+} from './acp-session-types.js';
+import { ACPSessionError, isJsonRpcError } from './acp-session-errors.js';
+import {
+  createSessionScratch,
+  handleAcpSessionUpdate,
+  type ACPSessionScratch,
+} from './acp-session-updates.js';
+import {
+  type ACPResponseSender,
+  handleAcpFsRequest,
+  handleAcpPermissionRequest,
+  handleAcpTerminalRequest,
+} from './acp-session-callbacks.js';
+import { isBestEffortAckMethod } from './acp-message-routing.js';
 
-export interface ACPSessionOptions {
-  command: string;
-  args?: readonly string[] | undefined;
-  env?: Record<string, string> | undefined;
-  cwd?: string | undefined;
-  role?: string | undefined;
-  /** Sandbox root for fs/* and terminal/* methods. */
-  projectRoot: string;
-  /** Hard timeout for one prompt turn. Default 5 minutes. */
-  timeoutMs?: number | undefined;
-  /** Override the permission policy. */
-  permissionPolicy?: PermissionPolicy | undefined;
-  /** Shared authorization authority. Mutually exclusive with `permissionPolicy`. */
-  trustBoundary?: TrustBoundary | undefined;
-  /** Actor identity supplied to `trustBoundary`. Defaults to an ACP agent. */
-  trustActor?: TrustActor | undefined;
-  /** Base scope supplied to `trustBoundary`; callback session IDs are merged in. */
-  trustScope?: TrustScope | undefined;
-  /** Authentication evidence supplied to `trustBoundary`. */
-  trustAuthContext?: TrustAuthContext | undefined;
-  /** Per-fs-call timeout, default 30s. */
-  fsTimeoutMs?: number | undefined;
-  /** Per-terminal command timeout, default 5 minutes. */
-  terminalTimeoutMs?: number | undefined;
-  /** Per-terminal output byte cap, default 1 MiB. */
-  terminalOutputByteLimit?: number | undefined;
-  /** Maximum terminal records retained concurrently, default 32. */
-  terminalMaxCount?: number | undefined;
-  /**
-   * MCP server configs to include in session/new, session/load, and
-   * session/resume. The agent will connect to these servers to provide
-   * additional tools.
-   *
-   * Stdio servers are always sent. HTTP/SSE servers are only sent if
-   * the agent advertises the corresponding mcpCapabilities.
-   */
-  mcpServers?: McpServer[] | undefined;
-}
-
-/**
- * A captured file diff emitted by the agent during a turn (via a tool
- * call's `diff` content). `oldText: null` means the file was created.
- */
-export interface ACPCapturedDiff {
-  path: string;
-  oldText: string | null;
-  newText: string;
-}
-
-/**
- * A captured tool call the agent ran during a turn. We collapse the
- * `tool_call` + subsequent `tool_call_update` notifications for the same
- * `toolCallId` into one record carrying its latest status.
- */
-export interface ACPCapturedToolCall {
-  toolCallId: string;
-  title: string;
-  kind?: ToolKind | undefined;
-  status: ToolCallStatus;
-  /** Terminal/command output or text content surfaced by the tool, if any. */
-  rawOutput?: Record<string, unknown> | undefined;
-  rawInput?: Record<string, unknown> | undefined;
-}
-
-export interface ACPSessionRunResult {
-  text: string;
-  stopReason: StopReason;
-  hasText: boolean;
-  usage?: { used: number; size: number; cost?: UsageCost | undefined } | undefined;
-  plan?: PlanEntry[] | undefined;
-  /** Tool calls the agent ran this turn (deduped by toolCallId). */
-  toolCalls: ACPCapturedToolCall[];
-  /** File diffs the agent produced this turn. */
-  diffs: ACPCapturedDiff[];
-  /** Agent "thinking" text emitted via thought_chunk, concatenated. */
-  thoughts: string;
-}
-
-/**
- * Live progress callback. Invoked for every `session/update` notification
- * the agent streams during a `prompt()` turn, in arrival order, BEFORE the
- * turn resolves. Lets the host render tool activity / text deltas / diffs
- * as they happen instead of waiting for the buffered final result.
- *
- * The raw `update` (the discriminated `session/update` payload) is passed
- * through verbatim so callers can switch on `update.sessionUpdate`.
- */
-export type ACPProgressHandler = (event: ACPProgressEvent) => void;
-
-export type ACPProgressEvent =
-  | { type: 'message'; text: string }
-  | { type: 'thought'; text: string }
-  | { type: 'tool_call'; toolCall: ACPCapturedToolCall }
-  | { type: 'tool_call_update'; toolCall: ACPCapturedToolCall }
-  | { type: 'diff'; diff: ACPCapturedDiff }
-  | { type: 'plan'; entries: PlanEntry[] }
-  | { type: 'usage'; usage: { used: number; size: number; cost?: UsageCost | undefined } }
-  | { type: 'raw'; update: AnySessionUpdate };
-
-export type ACPSessionErrorKind =
-  | 'spawn_failed'
-  | 'init_failed'
-  | 'protocol_error'
-  | 'session_create_failed'
-  | 'prompt_failed'
-  | 'auth_failed'
-  | 'logout_failed'
-  | 'aborted'
-  | 'closed'
-  | 'agent_died'
-  | 'unsupported_capability';
-
-export class ACPSessionError extends Error {
-  readonly kind: ACPSessionErrorKind;
-  override readonly cause: unknown;
-  constructor(kind: ACPSessionErrorKind, message: string, cause?: unknown) {
-    super(message);
-    this.name = 'ACPSessionError';
-    this.kind = kind;
-    this.cause = cause;
-  }
-}
+export type {
+  ACPCapturedDiff,
+  ACPCapturedToolCall,
+  ACPProgressEvent,
+  ACPProgressHandler,
+  ACPSessionErrorKind,
+  ACPSessionOptions,
+  ACPSessionRunResult,
+} from './acp-session-types.js';
+export { ACPSessionError } from './acp-session-errors.js';
+export { audioContent, imageContent, textContent } from './acp-session-content.js';
 
 interface PendingRequest {
   method: string;
@@ -174,21 +70,6 @@ interface PendingRequest {
 }
 
 type State = 'init' | 'ready' | 'authenticated' | 'sessioning' | 'prompting' | 'done' | 'closed';
-
-interface JsonRpcError {
-  code: number;
-  message: string;
-  data?: unknown;
-}
-
-function isJsonRpcError(v: unknown): v is JsonRpcError {
-  return (
-    typeof v === 'object' &&
-    v !== null &&
-    typeof (v as { code?: unknown }).code === 'number' &&
-    typeof (v as { message?: unknown }).message === 'string'
-  );
-}
 
 export class ACPSession {
   private readonly transport: ACPClientTransport;
@@ -1007,6 +888,13 @@ export class ACPSession {
     } as never as ACPMessage);
   }
 
+  private responseSender(): ACPResponseSender {
+    return {
+      sendResult: (id, result) => this.sendResult(id, result),
+      sendErrorResponse: (id, code, message) => this.sendErrorResponse(id, code, message),
+    };
+  }
+
   private handleMessage(msg: ACPMessage): void {
     // Response to an outbound request (has id and either result or error)
     if (msg.id !== undefined && (msg.result !== undefined || msg.error !== undefined)) {
@@ -1024,44 +912,39 @@ export class ACPSession {
 
     // session/update notification (no id)
     if (msg.method === 'session/update') {
-      this.handleUpdate(msg);
+      handleAcpSessionUpdate(msg, this.scratch, (event) => this.emitProgress(event));
       return;
     }
 
     // session/request_permission (has id, expected response: outcome)
     if (msg.method === 'session/request_permission') {
-      void this.handlePermissionRequest(msg);
+      void handleAcpPermissionRequest(msg, this.permissionPolicy, this.responseSender());
       return;
     }
 
     // fs/* requests
     if (msg.method === 'fs/read_text_file' || msg.method === 'fs/write_text_file') {
-      void this.handleFsRequest(msg);
+      void handleAcpFsRequest(
+        msg,
+        this.fileServer,
+        this.permissionPolicy,
+        this.responseSender(),
+      );
       return;
     }
 
     // terminal/* requests
     if (msg.method?.startsWith('terminal/')) {
-      void this.handleTerminalRequest(msg);
+      void handleAcpTerminalRequest(
+        msg,
+        this.terminalServer,
+        this.permissionPolicy,
+        this.responseSender(),
+      );
       return;
     }
 
-    // mcp/* requests from the agent
-    if (
-      msg.method === 'mcp/connect' ||
-      msg.method === 'mcp/message' ||
-      msg.method === 'mcp/disconnect'
-    ) {
-      // MCP channel management — best-effort acknowledge.
-      if (msg.id !== undefined) {
-        this.sendResult(msg.id, {}).catch(() => {});
-      }
-      return;
-    }
-
-    // elicitation/* requests from the agent
-    if (msg.method === 'elicitation/create' || msg.method === 'elicitation/complete') {
-      // Elicitation is a UI feedback mechanism — acknowledge and ignore.
+    if (isBestEffortAckMethod(msg.method)) {
       if (msg.id !== undefined) {
         this.sendResult(msg.id, {}).catch(() => {});
       }
@@ -1087,109 +970,6 @@ export class ACPSession {
     }
   }
 
-  private handleUpdate(msg: ACPMessage): void {
-    const update = (msg as { params?: { update?: unknown } }).params?.update;
-    if (typeof update !== 'object' || update === null) return;
-    const u = update as { sessionUpdate?: string; [k: string]: unknown };
-    // Always surface the raw update so callers that want full fidelity
-    // (forwarding to an event bus, etc.) never lose a notification.
-    this.emitProgress({ type: 'raw', update: u as AnySessionUpdate });
-    switch (u.sessionUpdate) {
-      case 'agent_message_chunk': {
-        const text = extractText(u.content);
-        if (text) {
-          this.scratch.text += text;
-          this.emitProgress({ type: 'message', text });
-        }
-        return;
-      }
-      case 'thought_chunk': {
-        const text = extractText(u.content);
-        if (text) {
-          this.scratch.thoughts += text;
-          this.emitProgress({ type: 'thought', text });
-        }
-        return;
-      }
-      case 'tool_call':
-      case 'tool_call_update': {
-        this.captureToolCall(u, u.sessionUpdate === 'tool_call');
-        return;
-      }
-      case 'plan':
-        if (Array.isArray(u.entries)) {
-          this.scratch.plan = u.entries as PlanEntry[];
-          this.emitProgress({ type: 'plan', entries: u.entries as PlanEntry[] });
-        }
-        return;
-      case 'usage_update':
-        if (typeof u.used === 'number' && typeof u.size === 'number') {
-          const usage = {
-            used: u.used,
-            size: u.size,
-            ...(typeof u.cost === 'object' && u.cost !== null ? { cost: u.cost as UsageCost } : {}),
-          };
-          this.scratch.usage = usage;
-          this.emitProgress({ type: 'usage', usage });
-        }
-        return;
-      case 'available_commands_update':
-      case 'current_mode_update':
-      case 'config_option_update':
-      case 'session_info_update':
-      case 'user_message_chunk':
-      case 'next_edit_suggestions':
-      case 'elicitation':
-        return;
-      default:
-        return;
-    }
-  }
-
-  /**
-   * Fold a `tool_call` / `tool_call_update` notification into the scratch
-   * tool-call map (deduped by toolCallId), extract any `diff` content into
-   * the diffs list, and emit live progress.
-   */
-  private captureToolCall(u: { [k: string]: unknown }, isNew: boolean): void {
-    const toolCallId = typeof u.toolCallId === 'string' ? u.toolCallId : '';
-    if (!toolCallId) return;
-    const prev = this.scratch.toolCalls.get(toolCallId);
-    const record: ACPCapturedToolCall = {
-      toolCallId,
-      title: typeof u.title === 'string' ? u.title : (prev?.title ?? toolCallId),
-      kind: typeof u.kind === 'string' ? (u.kind as ToolKind) : prev?.kind,
-      status:
-        typeof u.status === 'string'
-          ? (u.status as ToolCallStatus)
-          : (prev?.status ?? (isNew ? 'pending' : 'in_progress')),
-      rawInput: isRecord(u.rawInput) ? u.rawInput : prev?.rawInput,
-      rawOutput: isRecord(u.rawOutput) ? u.rawOutput : prev?.rawOutput,
-    };
-    this.scratch.toolCalls.set(toolCallId, record);
-
-    // Pull any diff content out of the tool call so the host can show
-    // what changed. The agent sends diffs as ToolCallContent of type 'diff'.
-    if (Array.isArray(u.content)) {
-      for (const c of u.content as ToolCallContent[]) {
-        if (c && typeof c === 'object' && c.type === 'diff') {
-          const diff: ACPCapturedDiff = {
-            path: c.path,
-            oldText: c.oldText,
-            newText: c.newText,
-          };
-          this.scratch.diffs.push(diff);
-          this.emitProgress({ type: 'diff', diff });
-        }
-      }
-    }
-
-    this.emitProgress({
-      type: isNew ? 'tool_call' : 'tool_call_update',
-      toolCall: record,
-    });
-  }
-
   private emitProgress(event: ACPProgressEvent): void {
     if (!this.progressHandler) return;
     try {
@@ -1203,280 +983,9 @@ export class ACPSession {
   private progressHandler: ACPProgressHandler | null = null;
 
   // Per-prompt scratch state
-  private scratch: {
-    text: string;
-    thoughts: string;
-    plan?: PlanEntry[];
-    usage?: { used: number; size: number; cost?: UsageCost | undefined };
-    toolCalls: Map<string, ACPCapturedToolCall>;
-    diffs: ACPCapturedDiff[];
-  } = { text: '', thoughts: '', toolCalls: new Map(), diffs: [] };
+  private scratch: ACPSessionScratch = createSessionScratch();
 
   private resetScratch(): void {
-    this.scratch = { text: '', thoughts: '', toolCalls: new Map(), diffs: [] };
+    this.scratch = createSessionScratch();
   }
-
-  private async handlePermissionRequest(msg: ACPMessage): Promise<void> {
-    const id = msg.id;
-    if (id === undefined) return;
-    const params = (msg as { params?: { toolCall?: unknown; options?: unknown } }).params;
-    const toolCall = params?.toolCall as ToolCallUpdateNotification | undefined;
-    const options = Array.isArray(params?.options)
-      ? (params.options as never as Parameters<PermissionPolicy>[0]['options'])
-      : [];
-    if (!toolCall) {
-      await this.sendErrorResponse(id, -32602, 'toolCall is required');
-      return;
-    }
-    const policyAbort = new AbortController();
-    try {
-      const outcome = await this.permissionPolicy({
-        toolCall,
-        options,
-        signal: policyAbort.signal,
-      });
-      await this.sendResult(id, { outcome });
-    } catch (err) {
-      const message = err instanceof Error ? err.message : String(err);
-      await this.sendErrorResponse(id, -32603, `permission policy failed: ${message}`);
-    }
-  }
-
-  /**
-   * Enforce authorization at privileged callback sinks (fs/write,
-   * terminal/create). Unlike `handlePermissionRequest` which responds to
-   * agent-initiated `session/request_permission` messages, this method is
-   * called by the handler BEFORE dispatching to FileServer/TerminalServer,
-   * closing the gap where the agent simply skips the voluntary permission
-   * request and sends the privileged callback directly.
-   *
-   * Uses the session's permission policy. The default
-   * (`readOnlyPermissionPolicy`) auto-approves only side-effect-free tool
-   * calls (read/search/fetch/think) and rejects everything else — this is
-   * the safe-by-default posture. For trusted local agents (CLI `acp spawn`,
-   * Director fan-out), inject `defaultPermissionPolicy` to grant
-   * write/execute access.
-   *
-   * Returns true if the callback is authorized, false if denied.
-   */
-  private async authorizeCallback(partial: {
-    toolCallId: string;
-    title: string;
-    kind: import('../types/acp-v1.js').ToolKind;
-    rawInput?: Record<string, unknown>;
-  }): Promise<boolean> {
-    try {
-      const outcome = await this.permissionPolicy({
-        toolCall: {
-          sessionUpdate: 'tool_call_update',
-          toolCallId: partial.toolCallId as import('../types/acp-v1.js').ToolCallId,
-          title: partial.title,
-          kind: partial.kind,
-          status: 'pending',
-          ...(partial.rawInput ? { rawInput: partial.rawInput } : {}),
-        },
-        options: [
-          { optionId: 'allow', name: 'Allow', kind: 'allow_once' },
-          { optionId: 'reject', name: 'Reject', kind: 'reject_once' },
-        ],
-        signal: new AbortController().signal,
-      });
-      return (
-        outcome.outcome === 'selected' &&
-        outcome.optionId !== 'reject' &&
-        outcome.optionId !== 'reject_once' &&
-        outcome.optionId !== 'reject_always'
-      );
-    } catch {
-      // If the policy throws, deny rather than crash.
-      return false;
-    }
-  }
-
-  private async handleFsRequest(msg: ACPMessage): Promise<void> {
-    const id = msg.id;
-    if (id === undefined) return;
-    const params = (msg as { params?: { sessionId?: string; path?: string; content?: string } })
-      .params;
-    if (!params?.path) {
-      await this.sendErrorResponse(id, -32602, 'path is required');
-      return;
-    }
-    // Authorization gate: the ACP spec makes session/request_permission
-    // voluntary — the agent is NOT required to ask before sending fs/*.
-    // Enforce authorization at the sink: synthesize a permission request
-    // for write operations (reads are auto-approved), and reject if the
-    // policy denies.
-    if (msg.method === 'fs/write_text_file') {
-      const allowed = await this.authorizeCallback({
-        toolCallId: `acp-fs-write-${id}`,
-        title: `Write file: ${params.path}`,
-        kind: 'edit',
-        rawInput: { path: params.path, sessionId: params.sessionId },
-      });
-      if (!allowed) {
-        await this.sendErrorResponse(id, -32602, 'filesystem write denied by permission policy');
-        return;
-      }
-    }
-    try {
-      if (msg.method === 'fs/read_text_file') {
-        const result = await this.fileServer.readTextFile({
-          sessionId: params.sessionId ?? '',
-          path: params.path,
-        });
-        await this.sendResult(id, result);
-      } else {
-        await this.fileServer.writeTextFile({
-          sessionId: params.sessionId ?? '',
-          path: params.path,
-          content: params.content ?? '',
-        });
-        await this.sendResult(id, {});
-      }
-    } catch (err) {
-      const code = err instanceof FsError ? -32602 : -32603;
-      const message = err instanceof Error ? err.message : String(err);
-      await this.sendErrorResponse(id, code, message);
-    }
-  }
-
-  private async handleTerminalRequest(msg: ACPMessage): Promise<void> {
-    const id = msg.id;
-    if (id === undefined) return;
-    const params = (msg as { params?: Record<string, unknown> }).params ?? {};
-    try {
-      switch (msg.method) {
-        case 'terminal/create': {
-          // Authorization gate: terminal/create spawns a process with the
-          // agent's chosen command/args. Require explicit policy approval
-          // before allowing it, since this is arbitrary code execution.
-          const allowed = await this.authorizeCallback({
-            toolCallId: `acp-terminal-create-${id}`,
-            title:
-              `Run command: ${String(params.command ?? '')} ${(Array.isArray(params.args) ? params.args : []).join(' ')}`.trim(),
-            kind: 'execute',
-            rawInput: {
-              command: params.command,
-              args: params.args,
-              cwd: params.cwd,
-              sessionId: params.sessionId,
-            },
-          });
-          if (!allowed) {
-            await this.sendErrorResponse(id, -32602, 'terminal create denied by permission policy');
-            return;
-          }
-          const createOpts: Parameters<TerminalServer['create']>[0] = {
-            sessionId: String(params.sessionId ?? ''),
-            command: String(params.command ?? ''),
-            args: Array.isArray(params.args) ? (params.args as string[]) : [],
-          };
-          if (Array.isArray(params.env)) {
-            createOpts.env = params.env as { name: string; value: string }[];
-          }
-          if (typeof params.cwd === 'string') {
-            createOpts.cwd = params.cwd;
-          }
-          if (typeof params.outputByteLimit === 'number') {
-            createOpts.outputByteLimit = params.outputByteLimit;
-          }
-          const result = this.terminalServer.create(createOpts);
-          await this.sendResult(id, result);
-          return;
-        }
-        case 'terminal/output': {
-          const terminalId = String(params.terminalId ?? '');
-          const out = this.terminalServer.output(terminalId);
-          await this.sendResult(id, out);
-          return;
-        }
-        case 'terminal/wait_for_exit': {
-          const terminalId = String(params.terminalId ?? '');
-          const exit = await this.terminalServer.waitForExit(terminalId);
-          await this.sendResult(id, exit);
-          return;
-        }
-        case 'terminal/kill': {
-          const terminalId = String(params.terminalId ?? '');
-          this.terminalServer.kill(terminalId);
-          await this.sendResult(id, {});
-          return;
-        }
-        case 'terminal/release': {
-          const terminalId = String(params.terminalId ?? '');
-          this.terminalServer.release(terminalId);
-          await this.sendResult(id, {});
-          return;
-        }
-        default:
-          await this.sendErrorResponse(id, -32601, `unknown method: ${msg.method}`);
-      }
-    } catch (err) {
-      const message = err instanceof Error ? err.message : String(err);
-      await this.sendErrorResponse(id, -32603, message);
-    }
-  }
-}
-
-/**
- * Create a text ContentBlock. Convenience helper for callers of
- * `session.prompt()`.
- */
-export function textContent(text: string): ContentBlock {
-  return { type: 'text', text };
-}
-
-/**
- * Create an image ContentBlock. Only send this if the agent's
- * `promptCapabilities.image` is `true` (check via
- * `session.getCapabilities().promptCapabilities?.image`).
- */
-export function imageContent(mimeType: string, data: string): ContentBlock {
-  return { type: 'image', mimeType, data };
-}
-
-/**
- * Create an audio ContentBlock. Only send this if the agent's
- * `promptCapabilities.audio` is `true` (check via
- * `session.getCapabilities().promptCapabilities?.audio`).
- */
-export function audioContent(mimeType: string, data: string): ContentBlock {
-  return { type: 'audio', mimeType, data };
-}
-
-function extractText(block: unknown): string {
-  if (typeof block !== 'object' || block === null) return '';
-  const b = block as {
-    type?: string;
-    text?: unknown;
-    resource?: { text?: unknown };
-  };
-  if (b.type === 'text' && typeof b.text === 'string') return b.text;
-  // Embedded text resources carry their content under `resource.text`.
-  if (
-    b.type === 'resource' &&
-    b.resource &&
-    typeof b.resource === 'object' &&
-    typeof b.resource.text === 'string'
-  ) {
-    return b.resource.text;
-  }
-  return '';
-}
-
-function isRecord(v: unknown): v is Record<string, unknown> {
-  return typeof v === 'object' && v !== null && !Array.isArray(v);
-}
-
-/** A fully-populated empty run result (used for pre-aborted short-circuits). */
-function emptyRunResult(stopReason: StopReason): ACPSessionRunResult {
-  return {
-    text: '',
-    stopReason,
-    hasText: false,
-    toolCalls: [],
-    diffs: [],
-    thoughts: '',
-  };
 }

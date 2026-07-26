@@ -131,23 +131,10 @@ describe('SQLite defensive and lifecycle completion coverage', () => {
       { data: JSON.stringify(missingIdA) },
       { data: JSON.stringify(missingIdB) },
     ];
-    const legacyRows = [
-      { data: JSON.stringify(first) },
-      { data: JSON.stringify(second) },
-      { data: '{broken' },
-    ];
+    const scopedRows = [...rows, { data: JSON.stringify(second) }, { data: '{broken' }];
     (state as unknown as { stmt: typeof state.stmt }).stmt = ((sql: string) => {
-      if (sql.includes('scope != ? AND json_extract(data')) {
-        return { all: () => legacyRows } as never;
-      }
-      if (sql.includes('SELECT data FROM memories WHERE status != ? AND scope = ?')) {
-        return { all: () => rows } as never;
-      }
-      if (sql.includes("status IN ('active','stale') AND scope = ?")) {
-        return { all: () => rows } as never;
-      }
-      if (sql.includes("status = 'active' AND scope = ? ORDER BY")) {
-        return { all: () => rows } as never;
+      if (sql.includes('scope = ? OR legacy_scope = ?')) {
+        return { all: () => scopedRows } as never;
       }
       return originalStmt(sql);
     }) as never;
@@ -171,6 +158,17 @@ describe('SQLite defensive and lifecycle completion coverage', () => {
     put(store, sage('derived-clear-scope', { legacyScope: undefined }));
     await expect(store.clear('project-memory')).resolves.toBeUndefined();
     await expect(store.clear('project-agents')).resolves.toBeUndefined();
+    await expect(store.listMemories({ status: 'all', limit: 0 })).resolves.toEqual(
+      expect.arrayContaining([expect.objectContaining({ id: 'scope-mismatch' })]),
+    );
+  });
+
+  it('returns no search results for an explicit empty status filter', async () => {
+    const store = createStore();
+    await store.rememberSage({ text: 'empty status filter should not match' });
+
+    await expect(store.searchSage('', { includeStatuses: [] })).resolves.toEqual([]);
+    await expect(store.searchSage('empty status filter', { includeStatuses: [] })).resolves.toEqual([]);
   });
 
   it('exercises path fallbacks, relationship expansion, and audience corruption guards', async () => {
@@ -243,6 +241,12 @@ describe('SQLite defensive and lifecycle completion coverage', () => {
       .db.prepare('UPDATE memories SET data = ? WHERE id = ?')
       .run('{broken', corruptAudience.id);
     await expect(store.searchSage('')).resolves.toEqual(expect.any(Array));
+    await expect(store.retrieveForAudience({ role: 'reviewer' })).resolves.toEqual(
+      expect.any(Array),
+    );
+    await expect(store.listSagePage()).resolves.toMatchObject({ memories: expect.any(Array) });
+    await expect(store.listSage()).resolves.toEqual(expect.any(Array));
+    await expect(store.verify()).resolves.toEqual(expect.any(Array));
   });
 
   it('verifies active, stale, terminal, anchorless, and unverified memories', async () => {
@@ -286,6 +290,51 @@ describe('SQLite defensive and lifecycle completion coverage', () => {
     await expect(store.verify('active-existing')).resolves.toHaveLength(1);
     state.runMutation = originalRunMutation;
     expect(await store.getSage('active-existing')).toMatchObject({ status: 'archived' });
+
+    put(store, sage('concurrent-edit', { anchors: [{ type: 'file', path: 'src/exists.ts' }] }));
+    state.runMutation = (async <T>(work: () => T): Promise<T> => {
+      const current = await store.getSage('concurrent-edit');
+      put(store, {
+        ...current!,
+        revision: current!.revision + 1,
+        text: 'edited while anchors were being verified',
+        tags: ['concurrent'],
+      });
+      return work();
+    }) as never;
+    await expect(store.verify('concurrent-edit')).resolves.toHaveLength(1);
+    state.runMutation = originalRunMutation;
+    expect(await store.getSage('concurrent-edit')).toMatchObject({
+      revision: 2,
+      text: 'edited while anchors were being verified',
+      tags: ['concurrent'],
+      lastVerifiedAt: expect.any(String),
+      freshness: 1,
+    });
+
+    put(store, sage('concurrent-anchor-edit', {
+      anchors: [{ type: 'file', path: 'src/exists.ts' }],
+    }));
+    state.runMutation = (async <T>(work: () => T): Promise<T> => {
+      const current = await store.getSage('concurrent-anchor-edit');
+      put(store, {
+        ...current!,
+        revision: current!.revision + 1,
+        freshness: 0.4,
+        anchors: [{ type: 'file', path: 'src/replaced.ts' }],
+      });
+      return work();
+    }) as never;
+    await expect(store.verify('concurrent-anchor-edit')).resolves.toHaveLength(1);
+    state.runMutation = originalRunMutation;
+    const concurrentAnchorEdit = await store.getSage('concurrent-anchor-edit');
+    expect(concurrentAnchorEdit).toMatchObject({
+      revision: 2,
+      anchors: [{ type: 'file', path: 'src/replaced.ts' }],
+      freshness: 0.4,
+    });
+    expect(concurrentAnchorEdit).not.toHaveProperty('lastVerifiedAt');
+
     await expect(store.verify('anchorless')).resolves.toHaveLength(1);
 
     put(store, sage('vanishing', { anchors: [{ type: 'file', path: 'src/exists.ts' }] }));
@@ -484,6 +533,26 @@ describe('SQLite defensive and lifecycle completion coverage', () => {
       applied: false,
     });
 
+    const promotedDuringDelete = await store.rememberSage({
+      text: 'promoted during candidate deletion',
+    });
+    const promotionRaceCandidate = await store.createCandidate({
+      text: 'delete proposal racing permanent promotion',
+      targetMemoryId: promotedDuringDelete.id,
+    });
+    vi.mocked(store.updateSage).mockImplementationOnce(async (id, input) => {
+      const current = await store.getSage(id);
+      put(store, { ...current!, persistence: 'permanent' });
+      return originalUpdate(id, input);
+    });
+    await expect(store.resolveCandidate(promotionRaceCandidate.id, 'delete')).resolves.toMatchObject({
+      applied: false,
+    });
+    expect(await store.getSage(promotedDuringDelete.id)).toMatchObject({
+      persistence: 'permanent',
+      status: 'active',
+    });
+
     const raced = await store.createCandidate({
       text: 'raced resolution',
       targetMemoryId: target.id,
@@ -556,7 +625,7 @@ describe('SQLite defensive and lifecycle completion coverage', () => {
     };
     await expect(store.getSage(target.id)).resolves.toBeNull();
     rowState.rowToMemory = originalRowToMemory;
-    expect(console.warn).toHaveBeenCalledTimes(6);
+    expect(console.warn).toHaveBeenCalledTimes(7);
   });
 
   it('cleans independent reference shapes and considers project candidates in consolidation', async () => {

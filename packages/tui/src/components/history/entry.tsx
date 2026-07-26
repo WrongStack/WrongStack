@@ -1,11 +1,14 @@
-import { Box, Text } from '../../ink.js';
 import type { TodoItem } from '@wrongstack/core/agent';
 import { hasOpenTodos } from '@wrongstack/core/utils';
+import type { ParsedNextStep } from '@wrongstack/tools/next-steps';
+import { parseNextSteps } from '@wrongstack/tools/next-steps';
 import React, { useEffect, useMemo } from 'react';
+import { langFromPath } from '../../highlight.js';
+import { Box, Text } from '../../ink.js';
 import { theme } from '../../theme.js';
 import { getToolVisual } from '../../tool-glyph.js';
+import { AssistantBody, assistantContentWidth } from './assistant.js';
 import { Banner } from './banner.js';
-import { langFromPath } from '../../highlight.js';
 import {
   DiffBlock,
   DiffFileBlock,
@@ -15,16 +18,13 @@ import {
   formatMultiDiffSummary,
   summarizeMultiFileDiffs,
 } from './code-block.js';
-import { parseNextSteps } from '@wrongstack/tools/next-steps';
-import type { ParsedNextStep } from '@wrongstack/tools/next-steps';
-import type { HistoryEntry } from './types.js';
-import { AssistantBody, assistantContentWidth } from './assistant.js';
 import { ToolCard } from './tool-card.js';
+import type { HistoryEntry } from './types.js';
 import {
   fmtBytes,
   fmtTok,
   formatToolArgs,
-  formatToolOutput,
+  formatToolOutputSage,
   formatToolVisualOutput,
   shortenPath,
   stringOf,
@@ -50,7 +50,9 @@ function brainStatusStyle(status: Extract<HistoryEntry, { kind: 'brain' }>['stat
   }
 }
 
-function memoryLifecycleStyle(action: Extract<HistoryEntry, { kind: 'memory-lifecycle' }>['action']): {
+function memoryLifecycleStyle(
+  action: Extract<HistoryEntry, { kind: 'memory-lifecycle' }>['action'],
+): {
   icon: string;
   color: string;
 } {
@@ -238,15 +240,13 @@ export const Entry = React.memo(function Entry({
           paddingLeft={1}
         >
           <Box flexDirection="row">
-            <Text bold color={theme.textSecondary}>{'⟳ Model Reasoning'}</Text>
-            <Text color={theme.textSecondary}>
-              {'  (model reasoning…)'}
+            <Text bold color={theme.textSecondary}>
+              {'⟳ Model Reasoning'}
             </Text>
+            <Text color={theme.textSecondary}>{'  (model reasoning…)'}</Text>
           </Box>
           <Box width={contentWidth}>
-            <Text color={theme.textSecondary}>
-              {entry.text}
-            </Text>
+            <Text color={theme.textSecondary}>{entry.text}</Text>
           </Box>
         </Box>
       );
@@ -301,11 +301,12 @@ export const Entry = React.memo(function Entry({
                     <Text bold color={theme.accent}>{`  ${s.index}. `}</Text>
                     <Text>{s.text}</Text>
                     {s.auto ? (
-                      <Text color="cyan" dimColor>  auto</Text>
+                      <Text color="cyan" dimColor>
+                        {' '}
+                        auto
+                      </Text>
                     ) : null}
-                    {autonomyMode === 'auto' && i === 0 ? (
-                      <Text color="cyan">{'  ⏩'}</Text>
-                    ) : null}
+                    {autonomyMode === 'auto' && i === 0 ? <Text color="cyan">{'  ⏩'}</Text> : null}
                   </Text>
                 </Box>
               ))}
@@ -321,93 +322,101 @@ export const Entry = React.memo(function Entry({
       // extractDiffPreview / extractMultiFileDiffs / formatToolVisualOutput
       // calls re-parse the entire output on every terminal resize,
       // even though the entry data never changes.
-      const {
-        argSummary,
-        outLines,
-        visualLines,
-        diff,
-        multiDiffs,
-        sizeChip,
-        mutation,
-      } = useMemo(() => {
-        const argSummary = formatToolArgs(entry.name, entry.input);
-        const outLines = formatToolOutput(
+      const { argSummary, outLines, sageLines, visualLines, diff, multiDiffs, sizeChip, mutation } =
+        useMemo(() => {
+          const argSummary = formatToolArgs(entry.name, entry.input);
+          const {
+            cleanOutput: outputForFormatting,
+            outLines,
+            sageLines,
+          } = formatToolOutputSage(
+            entry.name,
+            entry.output,
+            entry.ok,
+            entry.outputBytes,
+            entry.outputLines,
+          );
+          const visualLines = formatToolVisualOutput(
+            entry.name,
+            outputForFormatting,
+            entry.ok,
+            entry.input,
+          );
+          const diff = entry.ok
+            ? extractDiffPreview(entry.name, outputForFormatting, entry.input)
+            : undefined;
+          const multiDiffs =
+            entry.ok &&
+            !diff &&
+            (entry.name === 'replace' || entry.name === 'diff' || entry.name === 'patch')
+              ? extractMultiFileDiffs(entry.name, outputForFormatting, entry.input)
+              : undefined;
+          const sizeChip = (() => {
+            if (!entry.ok) return '';
+            const parts: string[] = [];
+            if (entry.outputLines !== undefined && entry.outputLines > 0) {
+              parts.push(`${entry.outputLines} L`);
+            }
+            if (entry.outputBytes && entry.outputBytes > 0) {
+              parts.push(fmtBytes(entry.outputBytes));
+            }
+            if (entry.outputTokens && entry.outputTokens > 0) {
+              parts.push(`≈${fmtTok(entry.outputTokens)} tok`);
+            }
+            return parts.join(' · ');
+          })();
+          // Claude-Code-style header info for file-mutating tools whose diff
+          // is renderable: `● Update(path)` / `● Write(path)` + a
+          // `⎿  Added N lines, removed M lines` stats line. Only successful
+          // calls with a recovered diff take this shape — failures and
+          // diff-less results keep the generic glyph header below.
+          const mutation = (() => {
+            const name = entry.name;
+            if (name !== 'edit' && name !== 'write' && name !== 'patch' && name !== 'replace') {
+              return undefined;
+            }
+            if (!entry.ok || (!diff && !multiDiffs)) return undefined;
+            const inputObj =
+              entry.input && typeof entry.input === 'object'
+                ? (entry.input as Record<string, unknown>)
+                : undefined;
+            const outJson = tryParseJson(outputForFormatting.trim());
+            const outObj =
+              outJson && typeof outJson === 'object'
+                ? (outJson as Record<string, unknown>)
+                : undefined;
+            // `created` lives in the JSON output shape; the serialized-text
+            // shape carries it as a `created=true` field on the header line.
+            const created =
+              name === 'write' &&
+              (outObj?.['created'] === true ||
+                /^[^\n]*\bcreated=true\b/.test(outputForFormatting));
+            const verb = created ? 'Write' : 'Update';
+            const path = stringOf(inputObj?.['path']) ?? stringOf(outObj?.['path']);
+            const agg = multiDiffs ? summarizeMultiFileDiffs(multiDiffs) : undefined;
+            const target = multiDiffs
+              ? agg?.fileCount === 1
+                ? multiDiffs[0]!.path
+                : `${agg?.fileCount ?? multiDiffs.length} files`
+              : (path ?? 'file');
+            return {
+              verb,
+              target,
+              added: agg ? agg.added : (diff?.added ?? 0),
+              removed: agg ? agg.removed : (diff?.removed ?? 0),
+              lang: langFromPath(multiDiffs ? '' : (path ?? '')),
+            };
+          })();
+          return { argSummary, outLines, sageLines, visualLines, diff, multiDiffs, sizeChip, mutation };
+        }, [
           entry.name,
           entry.output,
+          entry.input,
           entry.ok,
           entry.outputBytes,
           entry.outputLines,
-        );
-        const visualLines = formatToolVisualOutput(entry.name, entry.output, entry.ok, entry.input);
-        const diff = entry.ok ? extractDiffPreview(entry.name, entry.output, entry.input) : undefined;
-        const multiDiffs =
-          entry.ok && !diff && (entry.name === 'replace' || entry.name === 'diff' || entry.name === 'patch')
-            ? extractMultiFileDiffs(entry.name, entry.output, entry.input)
-            : undefined;
-        const sizeChip = (() => {
-          if (!entry.ok) return '';
-          const parts: string[] = [];
-          if (entry.outputLines !== undefined && entry.outputLines > 0) {
-            parts.push(`${entry.outputLines} L`);
-          }
-          if (entry.outputBytes && entry.outputBytes > 0) {
-            parts.push(fmtBytes(entry.outputBytes));
-          }
-          if (entry.outputTokens && entry.outputTokens > 0) {
-            parts.push(`≈${fmtTok(entry.outputTokens)} tok`);
-          }
-          return parts.join(' · ');
-        })();
-        // Claude-Code-style header info for file-mutating tools whose diff
-        // is renderable: `● Update(path)` / `● Write(path)` + a
-        // `⎿  Added N lines, removed M lines` stats line. Only successful
-        // calls with a recovered diff take this shape — failures and
-        // diff-less results keep the generic glyph header below.
-        const mutation = (() => {
-          const name = entry.name;
-          if (name !== 'edit' && name !== 'write' && name !== 'patch' && name !== 'replace') {
-            return undefined;
-          }
-          if (!entry.ok || (!diff && !multiDiffs)) return undefined;
-          const inputObj =
-            entry.input && typeof entry.input === 'object'
-              ? (entry.input as Record<string, unknown>)
-              : undefined;
-          const outJson = tryParseJson((entry.output ?? '').trim());
-          const outObj =
-            outJson && typeof outJson === 'object' ? (outJson as Record<string, unknown>) : undefined;
-          // `created` lives in the JSON output shape; the serialized-text
-          // shape carries it as a `created=true` field on the header line.
-          const created =
-            name === 'write' &&
-            (outObj?.['created'] === true ||
-              /^[^\n]*\bcreated=true\b/.test(entry.output ?? ''));
-          const verb = created ? 'Write' : 'Update';
-          const path = stringOf(inputObj?.['path']) ?? stringOf(outObj?.['path']);
-          const agg = multiDiffs ? summarizeMultiFileDiffs(multiDiffs) : undefined;
-          const target = multiDiffs
-            ? agg?.fileCount === 1
-              ? multiDiffs[0]!.path
-              : `${agg?.fileCount ?? multiDiffs.length} files`
-            : (path ?? 'file');
-          return {
-            verb,
-            target,
-            added: agg ? agg.added : (diff?.added ?? 0),
-            removed: agg ? agg.removed : (diff?.removed ?? 0),
-            lang: langFromPath(multiDiffs ? '' : (path ?? '')),
-          };
-        })();
-        return { argSummary, outLines, visualLines, diff, multiDiffs, sizeChip, mutation };
-      }, [
-        entry.name,
-        entry.output,
-        entry.input,
-        entry.ok,
-        entry.outputBytes,
-        entry.outputLines,
-        entry.outputTokens,
-      ]);
+          entry.outputTokens,
+        ]);
       if (mutation) {
         // Claude-Code-style file-mutation entry:
         //   ● Update(D:\path\to\file.tsx)  ·  12ms
@@ -427,6 +436,7 @@ export const Entry = React.memo(function Entry({
         const hasCounts = mutation.added > 0 || mutation.removed > 0;
         const toolContentWidth = Math.max(20, termWidth - 2);
         return (
+          <Box flexDirection="column">
           <ToolCard
             glyph={glyph}
             color={color}
@@ -455,9 +465,7 @@ export const Entry = React.memo(function Entry({
                     summarizeMultiFileDiffs(multiDiffs),
                     multiDiffSummaryThreshold ?? -1,
                   );
-                  return summaryLine ? (
-                    <Text dimColor italic>{`  ${summaryLine}`}</Text>
-                  ) : null;
+                  return summaryLine ? <Text dimColor italic>{`  ${summaryLine}`}</Text> : null;
                 })()}
                 {multiDiffs.map((item) => (
                   <DiffFileBlock
@@ -484,6 +492,8 @@ export const Entry = React.memo(function Entry({
               />
             ) : null}
           </ToolCard>
+        <SageMemoryBlock sageLines={sageLines} />
+        </Box>
         );
       }
       const toolContentWidth = Math.max(20, termWidth - 2);
@@ -493,6 +503,7 @@ export const Entry = React.memo(function Entry({
           (entry.resultRenderMode !== 'simple' && (diff || multiDiffs)),
       );
       return (
+        <Box flexDirection="column">
         <ToolCard
           glyph={glyph}
           color={color}
@@ -513,7 +524,8 @@ export const Entry = React.memo(function Entry({
             <ToolOutputLines lines={visualLines} hasFollowingBlock={false} />
           ) : entry.resultRenderMode === 'simple' ? null : (
             outLines.map((line, i) => {
-              const connector = i === outLines.length - 1 && !diff && !multiDiffs ? '  └─ ' : '  ├─ ';
+              const connector =
+                i === outLines.length - 1 && !diff && !multiDiffs ? '  └─ ' : '  ├─ ';
               return (
                 <Text key={i}>
                   <Text color={color} dimColor>
@@ -540,11 +552,19 @@ export const Entry = React.memo(function Entry({
                   multiDiffSummaryThreshold ?? -1,
                 );
                 return summaryLine ? (
-                  <Text dimColor italic>{summaryLine}</Text>
+                  <Text dimColor italic>
+                    {summaryLine}
+                  </Text>
                 ) : null;
               })()}
               {multiDiffs.map((item) => (
-                <DiffFileBlock key={item.path} path={item.path} preview={item.preview} useColor={theme.supportsBackground} contentWidth={toolContentWidth} />
+                <DiffFileBlock
+                  key={item.path}
+                  path={item.path}
+                  preview={item.preview}
+                  useColor={theme.supportsBackground}
+                  contentWidth={toolContentWidth}
+                />
               ))}
             </Box>
           ) : entry.resultRenderMode !== 'simple' && diff ? (
@@ -560,6 +580,8 @@ export const Entry = React.memo(function Entry({
             />
           ) : null}
         </ToolCard>
+        <SageMemoryBlock sageLines={sageLines} />
+        </Box>
       );
     }
     case 'memory-activation': {
@@ -578,7 +600,9 @@ export const Entry = React.memo(function Entry({
       return (
         <Box flexDirection="column" borderStyle="single" borderColor="magenta" paddingX={1}>
           <Box flexDirection="row">
-            <Text bold color="magenta">{'🧠 MEMORY INJECTOR  '}</Text>
+            <Text bold color="magenta">
+              {'🧠 MEMORY INJECTOR  '}
+            </Text>
             <Text color="cyan">{entry.trigger}</Text>
             <Text dimColor>
               {`  ${entry.activated.length} activated → ${entry.injectedIds.length} injected / ${entry.candidates} · ctx ${Math.round(entry.contextPressure * 100)}% · +${entry.injectedChars} chars`}
@@ -588,7 +612,9 @@ export const Entry = React.memo(function Entry({
           {injectedSummary ? (
             <Text>
               <Text color="green">{'injected '}</Text>
-              <Text dimColor>{`${injectedSummary}${injected.length > 3 ? ` +${injected.length - 3}` : ''}`}</Text>
+              <Text
+                dimColor
+              >{`${injectedSummary}${injected.length > 3 ? ` +${injected.length - 3}` : ''}`}</Text>
               {why ? <Text dimColor>{` · why: ${why}`}</Text> : null}
             </Text>
           ) : null}
@@ -616,7 +642,7 @@ export const Entry = React.memo(function Entry({
       if (hasAnsi) return <Text>{entry.text}</Text>;
       return (
         <Text dimColor>
-          <Text dimColor>{'ℹ '}</Text>
+          <Text>{'ℹ '}</Text>
           {entry.text}
         </Text>
       );
@@ -626,9 +652,11 @@ export const Entry = React.memo(function Entry({
       // full-bordered NoticeCard that took 4+ lines — now a one-liner so
       // common warnings (retries, rate-limits) don't dominate the history.
       return (
-        <Box flexDirection="row" marginY={0} height={1}>
+        <Box flexDirection="row" marginY={0}>
           <Text>
-            <Text bold color={theme.warn}>{'⚠ '}</Text>
+            <Text bold color={theme.warn}>
+              {'⚠ '}
+            </Text>
             <Text color={theme.warn}>{entry.text}</Text>
           </Text>
         </Box>
@@ -687,7 +715,9 @@ export const Entry = React.memo(function Entry({
           borderColor={accent}
           paddingX={1}
         >
-          <Text bold color={accent}>{'🔄 MODEL SWITCHED'}</Text>
+          <Text bold color={accent}>
+            {'🔄 MODEL SWITCHED'}
+          </Text>
           {fromRef ? (
             <Text>
               <Text dimColor>{'  from  '}</Text>
@@ -697,7 +727,9 @@ export const Entry = React.memo(function Entry({
           ) : null}
           <Text>
             <Text dimColor>{fromRef ? '  to    ' : '  now   '}</Text>
-            <Text bold color={theme.assistant}>{toRef}</Text>
+            <Text bold color={theme.assistant}>
+              {toRef}
+            </Text>
             {toChip ? (
               <Text color={shrink ? theme.warn : theme.success}>{`   ${toChip}`}</Text>
             ) : null}
@@ -833,3 +865,34 @@ export const Entry = React.memo(function Entry({
     }
   }
 });
+
+/**
+ * Compact magenta-bordered panel rendering SAGE memory-injection lines
+ * appended to a tool result. Renders nothing when `sageLines` is empty.
+ */
+function SageMemoryBlock({ sageLines }: { sageLines: string[] }): React.ReactElement | null {
+  const memoryLines = sageLines.slice(1);
+  if (memoryLines.length === 0) return null;
+  return (
+    <Box
+      flexDirection="column"
+      marginY={0}
+      borderStyle="single"
+      borderColor={theme.accent}
+      paddingX={1}
+      marginTop={0}
+    >
+      <Box flexDirection="row">
+        <Text bold color={theme.accent}>
+          {'🧠 SAGE MEMORY INJECTED · SYSTEM CONTEXT  '}
+        </Text>
+        <Text dimColor>{`${memoryLines.length} ${memoryLines.length === 1 ? 'memory' : 'memories'}`}</Text>
+      </Box>
+      {memoryLines.map((line, i) => (
+        <Text key={i} color={theme.accent} dimColor>
+          {line}
+        </Text>
+      ))}
+    </Box>
+  );
+}

@@ -7,26 +7,17 @@ import * as path from 'node:path';
  * subagents don't pay the construction cost.
  */
 import {
-  ACP_AGENT_COMMANDS,
-  defaultPermissionPolicy,
-  findAgentDescriptor,
-  makeACPSubagentRunner,
-} from '@wrongstack/acp';
-import {
   Agent,
   Context,
   createDefaultPipelines,
   createFallbackModelExtension,
-  type FallbackProfileManager,
 } from '@wrongstack/core/agent';
 import {
   applyProjectAgentConfig,
   buildProjectContextualizedPrompt,
-  captureLearnedFromAgentOutputDetailed,
   createProjectAgentRoster,
   loadProjectAgentConfig,
 } from '@wrongstack/core/agent-catalog';
-import type { BrainArbiter, ProviderModelStatusTracker } from '@wrongstack/core/coordination';
 import {
   AdaptiveConcurrencyController,
   type AgentFactory,
@@ -35,18 +26,12 @@ import {
   type DefaultMultiAgentCoordinator,
   Director,
   type DirectorSessionFactory,
-  dispatchAgent,
   FLEET_ROSTER,
-  FleetManager,
-  FleetSupervisor,
-  type FleetWorktreePolicy,
-  formatSubagentStructuredReport,
+  type FleetSupervisor,
   GlobalMailbox,
   HARD_MAX_SPAWN_DEPTH,
-  mailboxSessionTag,
   makeDirectorSessionFactory,
   makeFleetEmitTool,
-  makeSubagentResultTool,
   resolveProjectDir,
   resolveSubagentModelTarget,
   type TaskResultNotification,
@@ -61,331 +46,73 @@ import {
 // PR-C1: DefaultTokenCounter moved off the root barrel — infrastructure/
 // symbols are imported from the published subpath (see commit 66c4eb68).
 import { DefaultTokenCounter } from '@wrongstack/core/infrastructure';
-import { type Container, EventBus, TOKENS } from '@wrongstack/core/kernel';
-import { type ProviderRegistry, ToolRegistry } from '@wrongstack/core/registry';
-import {
-  AutoApprovePermissionPolicy,
-  ToolCapabilities,
-  WIDE_SUBAGENT_CAPABILITIES,
-} from '@wrongstack/core/security';
+import { EventBus, TOKENS } from '@wrongstack/core/kernel';
+import { ToolRegistry } from '@wrongstack/core/registry';
+import { AutoApprovePermissionPolicy } from '@wrongstack/core/security';
 import type { SubagentRunner, TextBlock } from '@wrongstack/core/types';
 import {
   AgentError,
   type Config,
-  type ConfigStore,
-  type ModelsRegistry,
   type Provider,
-  type ReasoningConfig,
   type Request,
   type SessionWriter,
-  type SkillLoader,
   type SubagentConfig,
-  type SystemPromptBuilder,
   type TaskResult,
   type TaskSpec,
-  type TokenCounter,
   type Tool,
-  ToolValidationError,
 } from '@wrongstack/core/types';
 
 import { wstackGlobalRoot } from '@wrongstack/core/utils';
-import { toErrorMessage } from '@wrongstack/core/utils/error';
-import { WorktreeManager } from '@wrongstack/core/worktree';
-import { makeProviderFromConfig } from '@wrongstack/providers';
-import { makePreferSideConflictResolver } from '@wrongstack/sdd';
-import { getSageRetrieval } from '@wrongstack/sage';
-import { refreshRuntimeModelCatalog, resolveRuntimeMaxContext } from '../context-limit.js';
+import {
+  isAgentAvailable,
+  isInsideDirectory,
+  makeFleetWorktreeConflictResolver,
+  resolveSubagentCapabilities,
+  selectSubagentTools,
+} from './host-helpers.js';
+import { installSubagentEventBridge } from './host-event-bridge.js';
+import { HostAcpRunnerCache } from './host-acp-runner-cache.js';
+import { runHostShadowPass, stopHostShadowAfterTask } from './host-shadow-pass.js';
+import { normalizeMaxConcurrent } from './host-concurrency.js';
+import { emitHostLifecycleCompleted } from './host-lifecycle-events.js';
+import { applyFleetRootDefaults } from './host-paths.js';
+import {
+  resolveHostSubagentSkillContent,
+  retrieveHostSubagentMemory,
+} from './host-context.js';
+import {
+  buildHostSubagentProvider,
+  resolveHostSubagentModelSelection,
+  resolveHostSubagentReasoningConfig,
+} from './host-provider.js';
+import {
+  installDirectorTaskCompletedHandler,
+  registerCoordinatorLifecycleHandlers,
+  registerDirectorBudgetAndContextBridges,
+  registerDirectorStatsBridge,
+  registerDirectorSubagentLifecycleBridges,
+} from './host-director-event-bridges.js';
+import { createParentSubagentSessionWriter } from './host-session-writer.js';
+import { reportTaskResultToLeader } from './host-task-result-report.js';
+import { createHostFleetSupervisor } from './host-supervisor.js';
+import {
+  createHostStatusBroadcaster,
+  startDirectorAgentMonitor,
+} from './host-director-services.js';
+import { createHostFleetManager, prepareHostDirectorRuntime } from './host-director-builder.js';
+import {
+  aggregateFleetUsage,
+  buildFleetHostStatus,
+  type FleetHostStatus,
+  type FleetHostUsage,
+} from './host-status.js';
+import type { HostSpawnAndWaitOptions, HostSpawnOptions } from './host-spawn-types.js';
+import type { MultiAgentDeps, MultiAgentHostOptions } from './host-types.js';
 import { buildRoutingRunner } from './routing.js';
-import { createFleetStatusBroadcaster } from './status-broadcast.js';
 import { setActiveFleetSupervisor } from './supervisor-registry.js';
+import { HostLearningRoleTracker } from './host-learning-tracker.js';
 
-type AgentAvailability = NonNullable<SubagentConfig['availability']>;
-
-function isInsideDirectory(root: string, candidate: string): boolean {
-  const relative = path.relative(path.resolve(root), path.resolve(candidate));
-  return relative === '' || (!relative.startsWith('..') && !path.isAbsolute(relative));
-}
-
-function isAgentAvailable(
-  schedule: AgentAvailability,
-  at = new Date(),
-): { allowed: boolean; localTime: string } {
-  const parts = new Intl.DateTimeFormat('en-US', {
-    timeZone: schedule.timezone,
-    weekday: 'short',
-    hour: '2-digit',
-    minute: '2-digit',
-    hourCycle: 'h23',
-  }).formatToParts(at);
-  const weekday = parts.find((part) => part.type === 'weekday')?.value ?? 'Sun';
-  const day = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].indexOf(weekday);
-  const hour = Number(parts.find((part) => part.type === 'hour')?.value ?? 0);
-  const minute = Number(parts.find((part) => part.type === 'minute')?.value ?? 0);
-  const current = hour * 60 + minute;
-  const parseTime = (value: string) => {
-    const [hours = '0', minutes = '0'] = value.split(':');
-    return Number(hours) * 60 + Number(minutes);
-  };
-  const start = parseTime(schedule.start);
-  const end = parseTime(schedule.end);
-  const inWindow =
-    start <= end
-      ? schedule.days.includes(day) && current >= start && current < end
-      : (schedule.days.includes(day) && current >= start) ||
-        (schedule.days.includes((day + 6) % 7) && current < end);
-  return {
-    allowed: inWindow,
-    localTime: `${weekday} ${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')} ${schedule.timezone}`,
-  };
-}
-
-function buildShadowAgentTaskDescription(reason: string): string {
-  return `Shadow Agent one-shot fleet monitor. Reason: ${reason}.
-
-Run exactly one quiet pass:
-- Call fleet with action: "status" and action: "health".
-- Inspect mail_inbox only for explicit hoop/shadow control messages.
-- Do not broadcast startup, heartbeat, shutdown, or healthy status messages.
-- Use mail_send only for high/critical anomalies or explicit control replies.
-- Terminate agents only when explicitly commanded.
-- If the fleet is healthy and no command needs a reply, keep the final answer to "shadow: quiet".
-
-The host will stop this Shadow Agent after this pass. Do not schedule follow-up work.`;
-}
-
-const DEFAULT_SUBAGENT_HIDDEN_TOOLS = new Set([
-  'delegate',
-  'spawn_subagent',
-  'assign_task',
-  'kanban_queue',
-  'await_tasks',
-  'ask_subagent',
-  'ask_result',
-  'roll_up',
-  'quality_gate',
-  'terminate_subagent',
-  'terminate_all',
-  'work_complete',
-  'collab_debug',
-  'fleet_emit',
-]);
-
-function resolveFleetWorktreePolicy(config: Config): FleetWorktreePolicy {
-  const env = process.env['WRONGSTACK_FLEET_WORKTREES']?.trim().toLowerCase();
-  if (env === '0' || env === 'false' || env === 'off') {
-    return { ...(config.fleet?.worktrees ?? {}), enabled: false, mode: 'off' };
-  }
-  if (env === 'required') {
-    return { ...(config.fleet?.worktrees ?? {}), enabled: true, mode: 'required' };
-  }
-  if (env === 'auto' || env === '1' || env === 'true' || env === 'on') {
-    return { ...(config.fleet?.worktrees ?? {}), enabled: true, mode: 'auto' };
-  }
-  const configured = config.fleet?.worktrees ?? {};
-  return {
-    ...configured,
-    enabled: configured.enabled ?? true,
-    mode: configured.mode ?? 'auto',
-  };
-}
-
-function makeFleetWorktreeConflictResolver() {
-  const mode = process.env['WRONGSTACK_FLEET_CONFLICT_RESOLVER']?.trim().toLowerCase();
-  if (mode !== 'prefer-incoming' && mode !== 'prefer-base') return undefined;
-  const resolver = makePreferSideConflictResolver(mode === 'prefer-incoming' ? 'incoming' : 'base');
-  return (info: {
-    task: import('@wrongstack/core/types').TaskSpec;
-    conflictFiles: string[];
-    cwd: string;
-  }) =>
-    resolver({
-      task: info.task as never,
-      conflictFiles: info.conflictFiles,
-      cwd: info.cwd,
-    });
-}
-
-export interface MultiAgentDeps {
-  container: Container;
-  toolRegistry: ToolRegistry;
-  providerRegistry: ProviderRegistry;
-  configStore: ConfigStore;
-  /**
-   * Models catalog used to resolve a subagent provider's real context
-   * window. Without it, an `openai-compatible` subagent (DeepSeek, Groq,
-   * …) falls back to the 32k family default and the fleet panel reports
-   * the wrong window per subagent. Optional so callers/tests that don't
-   * wire it still build providers (the family default applies).
-   */
-  modelsRegistry?: ModelsRegistry | undefined;
-  events: EventBus;
-  systemPromptBuilder: SystemPromptBuilder;
-  session: SessionWriter;
-  tokenCounter: TokenCounter;
-  projectRoot: string;
-  cwd: string;
-  secretScrubber: import('@wrongstack/core/types').SecretScrubber;
-  /** Loader used to resolve the roster's per-role skill names. */
-  skillLoader?: SkillLoader | undefined;
-  renderer?: import('@wrongstack/core/types').Renderer | undefined;
-  /** Shared live fallback profile manager from the runtime container. */
-  fallbackProfileManager: FallbackProfileManager;
-}
-
-/**
- * Per-session options for the multi-agent host. Director Mode is always
- * active — all lifecycle, manifest writing, and FleetBus features are
- * available without a promotion flag.
- */
-export interface MultiAgentHostOptions {
-  /**
-   * Absolute file path the director writes its fleet manifest to on
-   * shutdown (and on-demand via `manifest()`).
-   */
-  manifestPath?: string | undefined;
-  /**
-   * Absolute path to the fleet's shared scratchpad directory. When set,
-   * subagent system prompts are augmented with a "Shared notes" block
-   * pointing here so agents can pass conclusions through the filesystem
-   * without going through the bridge. Directory is created on first
-   * spawn. Only meaningful in director mode.
-   */
-  sharedScratchpadPath?: string | undefined;
-  /**
-   * Absolute path to the directory under which per-subagent JSONL
-   * transcripts land — typically
-   * `<projectSessions>/<date>/sess_<ULID>/subagents/`.
-   * When set, the host builds a `DirectorSessionFactory` rooted there and
-   * each spawned subagent gets its own session writer (instead of sharing
-   * the parent session). Director mode only.
-   */
-  sessionsRoot?: string | undefined;
-  /**
-   * Director run id for namespacing per-subagent JSONLs. Defaults to the
-   * coordinator id when omitted. Pass an explicit id when resuming from a
-   * prior fleet manifest.
-   */
-  directorRunId?: string | undefined;
-  /**
-   * Base directory for fleet artifacts (manifest, shared scratchpad,
-   * subagent sessions). When set and director mode is promoted at runtime
-   * (via /director), paths are derived as:
-   *   <fleetRoot>/fleet.json        (manifest)
-   *   <fleetRoot>/shared/           (scratchpad)
-   *   <fleetRoot>/subagents/        (per-subagent JSONL)
-   */
-  fleetRoot?: string | undefined;
-  /**
-   * Absolute path the director writes its live state checkpoint to. Distinct
-   * from `manifestPath` (final record) — the checkpoint mirrors pending /
-   * running / completed tasks on every mutation so `wstack resume` can show
-   * a "you had N tasks in flight" banner after a crash. Only meaningful in
-   * director mode.
-   */
-  stateCheckpointPath?: string | undefined;
-  /**
-   * Fleet-wide cost ceiling for the director. When set, the director
-   * refuses any new spawn that would push total fleet spend above this
-   * limit. In-flight subagents complete normally; only new spawns are
-   * blocked. Only meaningful in director mode.
-   */
-  directorBudget?: {
-    maxCostUsd?: number | undefined;
-    maxTokens?: number | undefined;
-  };
-  /** Lifetime spawn cap for this Director. CLI default: 64. */
-  maxSpawns?: number | undefined;
-  /**
-   * Maximum auto-extensions per subagent per budget kind before the
-   * director denies further extensions. Default: 2. Only meaningful in
-   * director mode.
-   */
-  maxBudgetExtensions?: number | undefined;
-  /** Optional global Brain arbiter for director-level policy decisions. */
-  brain?: BrainArbiter | undefined;
-  /**
-   * Maximum number of subagent tasks that may run concurrently. Extra
-   * tasks queue in the coordinator's pending list and dispatch as slots
-   * free. Default: 4. Raising this lets more work proceed in parallel
-   * at the cost of provider rate-limit pressure (each subagent makes
-   * its own API calls).
-   */
-  maxConcurrent?: number | undefined;
-  /**
-   * Maximum time a spawned/between-task subagent may remain idle before it is
-   * removed from the Director and every live registry surface. Default: 30s.
-   */
-  subagentIdleTimeoutMs?: number | undefined;
-  /** Retire a completed one-shot subagent immediately when it stays idle. */
-  retireSubagentOnTaskComplete?: boolean | undefined;
-  /**
-   * Live max context window for the leader model. Director spawn guards read
-   * this lazily so runtime provider/model switches do not leave the fleet
-   * using the launch-time family default.
-   */
-  getLeaderMaxContext?: (() => number) | undefined;
-  /**
-   * Debounce window for state-checkpoint writes in milliseconds.
-   * Default: 250. Only meaningful in director mode.
-   */
-  checkpointDebounceMs?: number | undefined;
-  /**
-   * Session writer the director forwards task lifecycle events to
-   * (agent_spawned, task_created, task_completed, task_failed). The CLI
-   * passes the same writer the host Agent uses so all events land in one
-   * JSONL. Optional — when omitted, those events stay in-memory.
-   */
-  sessionWriter?: import('@wrongstack/core/types').SessionWriter | undefined;
-  /**
-   * Root session trace ID for correlating subagent storage events with
-   * the parent session's trace in observability pipelines.
-   */
-  traceId?: string | undefined;
-  /**
-   * Optional AgentMonitorService for tracking subagent conversations.
-   * When set, the host calls trackSubagent on spawn and completeSubagent
-   * on completion, and starts the monitor's FleetBus listener.
-   */
-  agentMonitor?: import('@wrongstack/core/coordination').AgentMonitorService | undefined;
-  /**
-   * Called when the host auto-starts the Shadow Agent. The CLI uses this to
-   * keep /shadow duplicate checks in sync with the background auto-start path.
-   */
-  onShadowAgentStarted?: ((subagentId: string) => void) | undefined;
-  /**
-   * Called when the tracked Shadow Agent stops, so command surfaces do not keep
-   * treating a stale subagent id as active.
-   */
-  onShadowAgentStopped?: ((subagentId: string) => void) | undefined;
-  /**
-   * Resolved shared-mailbox project directory (`~/.wrongstack/projects/<slug>`)
-   * — the SAME directory the leader's mailbox checker attaches to (see
-   * `resolveProjectDir` + `wstackGlobalRoot`). Used for the fire-and-forget
-   * task-result report-back and the subagent online-agents block. When
-   * omitted, both fall back to `resolveProjectDir(deps.projectRoot, ...)`
-   * computed here.
-   */
-  mailboxProjectDir?: string | undefined;
-  /**
-   * Mailbox id of THIS session's leader, for task-result report-back.
-   * Defaults to `leader@<sessionTag(session.id)>` — the exact identity the
-   * CLI leader registers under (wiring/session.ts pins agentId: 'leader').
-   * Override for embedders whose leader uses a custom base id.
-   */
-  getLeaderMailboxId?: (() => string | undefined) | undefined;
-  /**
-   * Live getter for the leader's current mode id (e.g. 'teach', 'brief').
-   * When set, spawned subagents inherit it as `memoryContext.mode` so
-   * audience-scoped memories targeting that mode are injected.
-   */
-  getLeaderMode?: (() => string | undefined) | undefined;
-  /**
-   * Shared provider/model status tracker. When set, the Director checks
-   * whether the resolved provider/model is blocked before spawning a new
-   * subagent.
-   */
-  statusTracker?: ProviderModelStatusTracker | undefined;
-}
+export type { MultiAgentDeps, MultiAgentHostOptions } from './host-types.js';
 
 /**
  * Lazy holder — created on first /spawn call, reused across the session
@@ -418,16 +145,8 @@ export class MultiAgentHost {
    *  creating a new transport process on every ACP task dispatch. Stores the
    *  pending promise so concurrent calls for the same subagentId share one spawn.
    *  Bounded to 20 entries with LRU eviction to prevent unbounded memory growth. */
-  private readonly acpRunnerCache = new Map<string, Promise<SubagentRunner>>();
-  /** Runtime subagent id → stable roster role for task-end learning capture.
-   *  Bounded with LRU eviction (see LEARNING_ROLES_MAX) — every spawn adds
-   *  1–2 entries and a long session would otherwise grow this map without
-   *  limit, mirroring the acpRunnerCache pattern. */
-  private readonly subagentLearningRoles = new Map<string, string>();
-  private readonly subagentLearningRolesAccessOrder: string[] = [];
-  private static readonly LEARNING_ROLES_MAX = 256;
-  private readonly acpRunnerAccessOrder: string[] = [];
-  private static readonly ACP_CACHE_MAX = 20;
+  private readonly acpRunnerCache = new HostAcpRunnerCache();
+  private readonly learningRoles = new HostLearningRoleTracker();
   /** Adaptive concurrency controller — created in buildDirector() when config has
    *  adaptiveConcurrency.enabled = true. Monitors FleetBus for 429 errors and
    *  automatically adjusts maxConcurrent to prevent rate limiting. */
@@ -511,19 +230,7 @@ export class MultiAgentHost {
     // Create the FleetManager FIRST so we can pass it to the Director.
     // The FleetManager owns pending task tracking (addPendingTask /
     // removePendingTask) used by status(), plus manifest + checkpointing.
-    const fleetManager = new FleetManager({
-      manifestPath: this.opts.manifestPath,
-      sessionsRoot: this.opts.sessionsRoot,
-      directorRunId: this.opts.directorRunId,
-      stateCheckpointPath: this.opts.stateCheckpointPath,
-      sessionWriter: this.opts.sessionWriter,
-      directorBudget: this.opts.directorBudget,
-      maxSpawns: this.opts.maxSpawns ?? DEFAULT_MAX_FLEET_SPAWNS,
-      manifestDebounceMs: 2000,
-      checkpointDebounceMs: this.opts.checkpointDebounceMs ?? 250,
-      maxSpawnDepth: HARD_MAX_SPAWN_DEPTH,
-      maxContext: this.opts.getLeaderMaxContext,
-    });
+    const fleetManager = createHostFleetManager(this.opts);
     this.fleetManager = fleetManager;
 
     if (this.opts.sessionsRoot && !this.sessionFactory) {
@@ -534,35 +241,18 @@ export class MultiAgentHost {
       });
     }
 
-    const coordinatorConfig = {
-      coordinatorId: randomUUID(),
-      doneCondition: { type: 'all_tasks_done' as const },
-      maxConcurrent: this.opts.maxConcurrent ?? 4,
-    };
-    const fleetLifecycle = config.fleet?.lifecycle;
-    const configuredIdleTimeoutMs =
-      this.opts.subagentIdleTimeoutMs ?? fleetLifecycle?.idleTimeoutMs;
-    const subagentIdleTimeoutMs =
-      typeof configuredIdleTimeoutMs === 'number' &&
-      Number.isFinite(configuredIdleTimeoutMs) &&
-      configuredIdleTimeoutMs >= 0
-        ? configuredIdleTimeoutMs
-        : 30_000;
-
-    const defaultScratchpad: string | undefined =
-      this.opts.sharedScratchpadPath ||
-      (this.opts.sessionsRoot && this.opts.directorRunId
-        ? path.join(this.opts.sessionsRoot, this.opts.directorRunId, 'shared')
-        : undefined);
-    const worktreePolicy = resolveFleetWorktreePolicy(config);
-    const worktrees =
-      worktreePolicy.enabled === false || worktreePolicy.mode === 'off'
-        ? undefined
-        : new WorktreeManager({
-            projectRoot: this.deps.projectRoot,
-            events: this.deps.events,
-            sessionId: () => this.deps.session.id,
-          });
+    const {
+      coordinatorConfig,
+      fleetLifecycle,
+      subagentIdleTimeoutMs,
+      defaultScratchpad,
+      worktreePolicy,
+      worktrees,
+    } = prepareHostDirectorRuntime({
+      config,
+      deps: this.deps,
+      opts: this.opts,
+    });
     this.director = new Director({
       config: coordinatorConfig,
       manifestPath: this.opts.manifestPath,
@@ -600,55 +290,34 @@ export class MultiAgentHost {
       retireSubagentOnTaskComplete:
         this.opts.retireSubagentOnTaskComplete ?? fleetLifecycle?.retireOnTaskComplete ?? true,
     });
-    this.director.on('task.completed', ({ task, result }) => {
-      this.fleetManager?.removePendingTask(task.id);
-      // Capture before the shadow lifecycle early-return so every roster role
-      // follows the same quality-gated learning contract.
-      this.captureCompletedTaskLearning(result);
-      const isShadowTask = this.shadowTaskIds.has(task.id);
-      if (isShadowTask) {
-        this.shadowOutstandingTaskIds.delete(task.id);
-        if (this.shadowStopAfterTaskIds.delete(task.id)) {
-          void this.stopShadowAfterTask(result.subagentId);
+    installDirectorTaskCompletedHandler({
+      director: this.director,
+      fleetManager: this.fleetManager,
+      agentMonitor: this.opts.agentMonitor,
+      captureCompletedTaskLearning: (result) => this.captureCompletedTaskLearning(result),
+      isShadowTask: (taskId) => this.shadowTaskIds.has(taskId),
+      onShadowTaskCompleted: (taskId, subagentId) => {
+        this.shadowOutstandingTaskIds.delete(taskId);
+        if (this.shadowStopAfterTaskIds.delete(taskId)) {
+          void this.stopShadowAfterTask(subagentId);
         }
-        return;
-      }
-      this.emitLifecycleCompleted(task.id, result);
-      // Mark subagent complete in the AgentMonitorService when available.
-      const monitor = this.opts.agentMonitor;
-      if (monitor) {
-        const subagentId = task.subagentId ?? task.id;
-        const status =
-          result.status === 'success'
-            ? ('completed' as const)
-            : result.status === 'timeout'
-              ? ('timeout' as const)
-              : result.status === 'stopped'
-                ? ('stopped' as const)
-                : ('failed' as const);
-        const summary =
-          result.status === 'success'
-            ? `Completed in ${result.iterations} iterations`
-            : (result.error?.message ?? result.status);
-        monitor.completeSubagent(subagentId, status, summary);
-      }
+      },
+      emitLifecycleCompleted: (taskId, result) => this.emitLifecycleCompleted(taskId, result),
     });
 
-    // Start the AgentMonitorService on the Director's FleetBus.
-    const agentMonitor = this.opts.agentMonitor;
-    if (agentMonitor) {
-      agentMonitor.setFleetBus(this.director.fleet);
-      agentMonitor.start();
-    }
+    startDirectorAgentMonitor({
+      director: this.director,
+      agentMonitor: this.opts.agentMonitor,
+    });
 
     // Peer-awareness broadcaster: subagent lifecycle transitions become
     // `type:'status'` broadcast mails (visible to every agent on the
     // project, cross-process) and rich registry heartbeats (what makes the
     // fleet-pulse digest show each worker's current task).
-    this.statusBroadcaster = createFleetStatusBroadcaster({
+    this.statusBroadcaster = createHostStatusBroadcaster({
       events: this.deps.events,
-      mailboxFactory: () => new GlobalMailbox(this.mailboxProjectDir(), this.deps.events),
-      sessionTag: () => mailboxSessionTag(this.deps.session.id),
+      sessionId: this.deps.session.id,
+      mailboxProjectDir: () => this.mailboxProjectDir(),
       subagentName: (id) => this.director?.status().subagents.find((s) => s.id === id)?.name,
       config: config.fleet?.statusBroadcasts,
     });
@@ -657,186 +326,36 @@ export class MultiAgentHost {
     this.buildFleetSupervisor(config);
 
     this.directorOffHandles.push(
-      this.director.fleet.filter('budget.threshold_reached', (e) => {
-        const payload = e.payload as { kind: string; used: number; limit: number };
-        this.deps.events.emit('subagent.budget_warning', {
-          sessionId: this.deps.session.id,
-          subagentId: e.subagentId,
-          kind: payload.kind,
-          used: payload.used,
-          limit: payload.limit,
-        });
-      }),
-    );
-    // The director resolves a threshold negotiation by granting an extension
-    // and broadcasting budget.extended on the FleetBus. Bridge it to the host
-    // bus so the TUI monitor / REPL fleet line can show a "⚡ extended ×N"
-    // badge — the live proof that never-die kept the agent running.
-    this.directorOffHandles.push(
-      this.director.fleet.filter('budget.extended', (e) => {
-        const payload = e.payload as { kind: string; newLimit: number; totalExtensions: number };
-        this.deps.events.emit('subagent.budget_extended', {
-          sessionId: this.deps.session.id,
-          subagentId: e.subagentId,
-          kind: payload.kind,
-          newLimit: payload.newLimit,
-          totalExtensions: payload.totalExtensions,
-        });
-      }),
-    );
-    this.directorOffHandles.push(
-      this.director.fleet.filter('coordinator.stats', (e) => {
-        const payload = e.payload as {
-          total: number;
-          running: number;
-          idle: number;
-          stopped: number;
-          inFlight: number;
-          pending: number;
-          completed: number;
-          subagentStatuses: {
-            subagentId: string;
-            taskId: string;
-            status: string;
-            assigned: boolean;
-          }[];
-        };
-        // Enrich each subagent with cumulative cost/runtime/model data joined
-        // from the Director's FleetUsage aggregator — the coordinator itself
-        // does not track spend or timing. Falls back to the skeletal shape when
-        // the Director snapshot is unavailable (defensive; never throws).
-        let usage: { total?: { cost?: number }; perSubagent?: Record<string, unknown> } | null =
-          null;
-        if (this.director) {
-          try {
-            usage = this.director.snapshot();
-          } catch {
-            usage = null;
-          }
-        }
-        const perSubagent = usage?.perSubagent ?? {};
-        const subagentStatuses = payload.subagentStatuses.map((s) => {
-          const u = perSubagent[s.subagentId] as
-            | {
-                model?: string | undefined;
-                cost?: number | undefined;
-                startedAt?: number | undefined;
-                lastEventAt?: number | undefined;
-                iterations?: number | undefined;
-                toolCalls?: number | undefined;
-              }
-            | undefined;
-          if (u === undefined) return s;
-          return {
-            ...s,
-            ...(u.model !== undefined ? { model: u.model } : {}),
-            ...(u.cost !== undefined ? { costUsd: u.cost } : {}),
-            ...(u.startedAt !== undefined ? { runtimeMs: Date.now() - u.startedAt } : {}),
-            ...(u.lastEventAt !== undefined
-              ? { lastActivityAt: new Date(u.lastEventAt).toISOString() }
-              : {}),
-            ...(u.iterations !== undefined ? { iterations: u.iterations } : {}),
-            ...(u.toolCalls !== undefined ? { toolCalls: u.toolCalls } : {}),
-          };
-        });
-        this.deps.events.emit('coordinator.stats', {
-          sessionId: this.deps.session.id,
-          total: payload.total,
-          running: payload.running,
-          idle: payload.idle,
-          stopped: payload.stopped,
-          inFlight: payload.inFlight,
-          pending: payload.pending,
-          completed: payload.completed,
-          ...(usage?.total?.cost !== undefined ? { totalCostUsd: usage.total.cost } : {}),
-          subagentStatuses,
-        });
-      }),
-    );
-    // Forward ctx.pct events from the FleetBus to the host EventBus so the TUI
-    // can render live context-window fill bars per subagent.
-    this.directorOffHandles.push(
-      this.director.fleet.filter('ctx.pct', (e) => {
-        const payload = e.payload as { load: number; tokens: number; maxContext: number };
-        this.deps.events.emit('subagent.ctx_pct', {
-          sessionId: this.deps.session.id,
-          subagentId: e.subagentId,
-          load: payload.load,
-          tokens: payload.tokens,
-          maxContext: payload.maxContext,
-        });
-      }),
-    );
-    // Forward subagent.spawned from FleetBus to host EventBus so the TUI can
-    // track collab agents (bug-hunter, refactor-planner, critic) that bypass
-    // MultiAgentHost.spawn and go through director.spawn directly.
-    this.directorOffHandles.push(
-      this.director.fleet.filter('subagent.spawned', (e) => {
-        const payload = e.payload as {
-          subagentId: string;
-          taskId: string;
-          name?: string | undefined;
-          role?: string | undefined;
-          provider?: string | undefined;
-          model?: string | undefined;
-        };
-        this.deps.events.emit('subagent.spawned', {
-          sessionId: this.deps.session.id,
-          subagentId: payload.subagentId,
-          taskId: payload.taskId,
-          name: payload.name,
-          provider: payload.provider,
-          model: payload.model,
-        });
-        // Track subagent in the AgentMonitorService when available.
-        const monitor = this.opts.agentMonitor;
-        if (monitor) {
-          const agentName = payload.name ?? payload.role ?? payload.subagentId;
-          monitor.trackSubagent(payload.subagentId, agentName, payload.taskId);
-        }
-      }),
-    );
-    const coordinatorTaskAssignedHandler = ({
-      task,
-      subagentId,
-    }: {
-      task: { id: string; description?: string | undefined };
-      subagentId: string;
-    }) => {
-      if (this.shadowTaskIds.has(task.id)) return;
-      this.deps.events.emit('subagent.task_started', {
+      ...registerDirectorBudgetAndContextBridges({
+        director: this.director,
+        events: this.deps.events,
         sessionId: this.deps.session.id,
-        subagentId,
-        taskId: task.id,
-        description: task.description,
-      });
-    };
-    const coordinatorSubagentStoppedHandler = ({ subagentId }: { subagentId: string }) => {
-      this.clearShadowAgent(subagentId);
-    };
+      }),
+    );
     this.directorOffHandles.push(
-      this.director.fleet.filter('subagent.removed', (e) => {
-        const payload = e.payload as {
-          subagentId?: string | undefined;
-          reason?: string | undefined;
-        };
-        const subagentId = payload.subagentId ?? e.subagentId;
-        this.clearShadowAgent(subagentId);
-        this.opts.agentMonitor?.removeSubagent(subagentId);
-        this.deps.events.emit('subagent.removed', {
-          sessionId: this.deps.session.id,
-          subagentId,
-          reason: payload.reason ?? 'subagent lifecycle completed',
-        });
+      registerDirectorStatsBridge({
+        director: this.director,
+        events: this.deps.events,
+        sessionId: this.deps.session.id,
+      }),
+    );
+    this.directorOffHandles.push(
+      ...registerDirectorSubagentLifecycleBridges({
+        director: this.director,
+        events: this.deps.events,
+        sessionId: this.deps.session.id,
+        agentMonitor: this.opts.agentMonitor,
+        onSubagentRemoved: (subagentId) => this.clearShadowAgent(subagentId),
       }),
     );
     const coordinator = this.getCoordinator();
-    coordinator.on('task.assigned', coordinatorTaskAssignedHandler);
-    coordinator.on('subagent.stopped', coordinatorSubagentStoppedHandler);
-    this.coordinatorOffHandle = () => {
-      coordinator.off('task.assigned', coordinatorTaskAssignedHandler);
-      coordinator.off('subagent.stopped', coordinatorSubagentStoppedHandler);
-    };
+    this.coordinatorOffHandle = registerCoordinatorLifecycleHandlers({
+      coordinator,
+      events: this.deps.events,
+      sessionId: this.deps.session.id,
+      isShadowTask: (taskId) => this.shadowTaskIds.has(taskId),
+      onSubagentStopped: (subagentId) => this.clearShadowAgent(subagentId),
+    });
     this.fleetEmitTool = makeFleetEmitTool(this.director);
     this.directorToolsByName = new Map(
       this.director.tools(this.roster).map((tool) => [tool.name, tool] as const),
@@ -978,71 +497,39 @@ export class MultiAgentHost {
   }
 
   private async runShadowPass(reason: string): Promise<void> {
-    try {
-      if (!this.director) return;
-      // Director has wound down (workComplete()) — spawning is closed. A
-      // heartbeat-scheduled shadow pass can race shutdown; bail quietly.
-      if (this.director.isWorkComplete()) return;
-      if (this.shadowObservedWorkDepth > 0) {
-        this.shadowQueuedProblem = this.shadowQueuedProblem
-          ? `${this.shadowQueuedProblem}; ${reason}`
-          : reason;
-        return;
-      }
-      const liveConfig = this.deps.configStore.get() as Config;
-      try {
-        await this._spawnAndAssign(
-          {
-            name: 'shadow',
-            role: 'shadow-agent',
-            provider: liveConfig.provider,
-            model: liveConfig.model,
-            tools: [
-              'fleet',
-              'fleet',
-              'fleet',
-              'mailbox',
-              'mail_inbox',
-              'mail_send',
-              'terminate_subagent',
-            ],
-          },
-          buildShadowAgentTaskDescription(reason),
-          {
-            internalTask: true,
-            stopShadowAfterTask: true,
-            shadowIntervalMs: this.shadowHeartbeatIntervalMs,
-          },
-        );
-      } catch (err) {
-        // A FleetSpawnBudgetError after workComplete() is an expected
-        // shutdown race for an internal monitoring spawn — never fatal.
-        // Re-throw anything else.
-        if ((err as { name?: string } | null)?.name !== 'FleetSpawnBudgetError') {
-          throw err;
-        }
-      }
-    } finally {
-      this.shadowPassInFlight = false;
-      if (this.shadowObservedWorkDepth === 0 && this.shadowQueuedProblem) {
-        const queued = this.shadowQueuedProblem;
-        this.shadowQueuedProblem = null;
-        this.requestShadowPass(queued);
-      }
-    }
+    return runHostShadowPass(
+      {
+        getDirector: () => this.director,
+        getLiveConfig: () => this.deps.configStore.get() as Config,
+        getObservedWorkDepth: () => this.shadowObservedWorkDepth,
+        getQueuedProblem: () => this.shadowQueuedProblem,
+        setQueuedProblem: (value) => {
+          this.shadowQueuedProblem = value;
+        },
+        setPassInFlight: (value) => {
+          this.shadowPassInFlight = value;
+        },
+        getHeartbeatIntervalMs: () => this.shadowHeartbeatIntervalMs,
+        spawnAndAssign: (subagentConfig, task, opts) =>
+          this._spawnAndAssign(subagentConfig, task, opts),
+        requestShadowPass: (queued) => this.requestShadowPass(queued),
+      },
+      reason,
+    );
   }
 
   private async stopShadowAfterTask(subagentId: string): Promise<void> {
-    try {
-      await this.getCoordinator().stop(subagentId);
-    } finally {
-      this.clearShadowAgent(subagentId);
-      if (this.shadowObservedWorkDepth === 0 && this.shadowQueuedProblem) {
-        const queued = this.shadowQueuedProblem;
-        this.shadowQueuedProblem = null;
-        this.requestShadowPass(queued);
-      }
-    }
+    return stopHostShadowAfterTask(
+      (targetSubagentId) => this.getCoordinator().stop(targetSubagentId),
+      (targetSubagentId) => this.clearShadowAgent(targetSubagentId),
+      () => this.shadowObservedWorkDepth,
+      () => this.shadowQueuedProblem,
+      (value) => {
+        this.shadowQueuedProblem = value;
+      },
+      (queued) => this.requestShadowPass(queued),
+      subagentId,
+    );
   }
 
   /**
@@ -1089,50 +576,27 @@ export class MultiAgentHost {
       const matrixTarget = effectiveCfg.model
         ? undefined
         : resolveSubagentModelTarget(liveConfig, effectiveCfg.role);
-      let effProvider = effectiveCfg.provider ?? matrixTarget?.provider ?? liveConfig.provider;
-      let effModel = effectiveCfg.model ?? matrixTarget?.model ?? liveConfig.model;
-      const modelPolicy = effectiveCfg.modelPolicy;
-      const closedModelPolicy = modelPolicy?.strict === true;
-      const allowedModels = modelPolicy?.allowed ?? [];
-      if (
-        modelPolicy &&
-        !allowedModels.some(
-          (target) => target.provider === effProvider && target.model === effModel,
-        )
-      ) {
-        const firstAllowed = allowedModels[0];
-        if (!firstAllowed) throw new Error(`Agent "${effectiveCfg.role}" has no allowed models.`);
-        effProvider = firstAllowed.provider;
-        effModel = firstAllowed.model;
-      }
-      const fallbackProfile = modelPolicy
-        ? undefined
-        : (effectiveCfg.fallbackProfile ?? matrixTarget?.fallbackProfile);
-      const runtimeOverride = effectiveCfg.modelRuntime ?? matrixTarget?.modelRuntime;
+      const modelSelection = resolveHostSubagentModelSelection(
+        liveConfig,
+        effectiveCfg,
+        matrixTarget,
+      );
+      let effProvider = modelSelection.effProvider;
+      let effModel = modelSelection.effModel;
       let provider: Provider | undefined;
       let providerError: unknown;
-      const startupTargets = modelPolicy
-        ? [
-            { provider: effProvider, model: effModel },
-            ...(modelPolicy.fallbacks ?? []),
-            ...(closedModelPolicy ||
-            (effProvider === liveConfig.provider && effModel === liveConfig.model)
-              ? []
-              : [{ provider: liveConfig.provider, model: liveConfig.model }]),
-          ]
-        : [
-            { provider: effProvider, model: effModel },
-            ...(effProvider === liveConfig.provider && effModel === liveConfig.model
-              ? []
-              : [{ provider: liveConfig.provider, model: liveConfig.model }]),
-          ];
       const seenStartupTargets = new Set<string>();
-      for (const target of startupTargets) {
+      for (const target of modelSelection.startupTargets) {
         const key = `${target.provider}/${target.model}`;
         if (seenStartupTargets.has(key)) continue;
         seenStartupTargets.add(key);
         try {
-          provider = await this.buildSubagentProvider(mergedConfig, target.provider, target.model);
+          provider = await buildHostSubagentProvider(
+            this.deps,
+            mergedConfig,
+            target.provider,
+            target.model,
+          );
           effProvider = target.provider;
           effModel = target.model;
           break;
@@ -1142,7 +606,11 @@ export class MultiAgentHost {
       }
       if (!provider)
         throw providerError ?? new Error('No permitted provider/model could be built.');
-      let subReasoningConfig = await this.resolveSubagentReasoningConfig(effProvider, effModel);
+      let subReasoningConfig = await resolveHostSubagentReasoningConfig(
+        this.deps,
+        effProvider,
+        effModel,
+      );
 
       let availabilityNotice: string | undefined;
       if (effectiveCfg.availability) {
@@ -1211,7 +679,12 @@ export class MultiAgentHost {
       baseSystem.unshift({ type: 'text', text: DEFAULT_SUBAGENT_BASELINE });
       if (availabilityNotice) baseSystem.push({ type: 'text', text: availabilityNotice });
 
-      const audienceMemory = await this.retrieveSubagentMemory(effectiveCfg, task?.context);
+      const audienceMemory = await retrieveHostSubagentMemory(
+        this.deps,
+        this.opts.getLeaderMode,
+        effectiveCfg,
+        task?.context,
+      );
       if (audienceMemory.length > 0) {
         baseSystem.push({
           type: 'text',
@@ -1223,7 +696,11 @@ export class MultiAgentHost {
       // the system prompt. This lets project `.wrongstack/agents/<role>/`
       // files customize the agent's tools, budget, identity and learned
       // wisdom on top of the base catalog definition.
-      const roleSkillContent = await this.resolveSubagentSkillContent(effectiveCfg, task?.context);
+      const roleSkillContent = await resolveHostSubagentSkillContent(
+        this.deps,
+        this.roster,
+        effectiveCfg,
+      );
       if (roleSkillContent) {
         // The shared builder may eagerly inject every discovered skill. A
         // roster-selected worker needs only its curated subset, so replace that
@@ -1275,34 +752,7 @@ export class MultiAgentHost {
           title: `subagent: ${subagentName}`,
         });
       } else {
-        // No session factory — interleave subagent events into the parent's
-        // JSONL. This shim must implement the FULL SessionWriter surface the
-        // agent loop touches: runInner calls flush()/writeCheckpoint()
-        // unguarded and the tool handler calls appendBatch(); a partial shim
-        // crashes the subagent on its first input. Checkpoints, in-flight
-        // markers, and lifecycle calls are deliberate no-ops — subagent
-        // promptIndices/markers in the PARENT log would corrupt the parent's
-        // rewind and crash-recovery state, and the parent owns close().
-        const parentSession = this.deps.session;
-        subSession = {
-          id: parentSession.id,
-          transcriptPath: parentSession.transcriptPath,
-          get pendingToolUses(): string[] {
-            return [];
-          },
-          append: (ev) => parentSession.append({ ...ev }),
-          appendBatch: (evs) => parentSession.appendBatch(evs.map((e) => ({ ...e }))),
-          flush: () => parentSession.flush(),
-          close: async () => {},
-          recordFileChange: () => {},
-          recordSideEffect: () => {},
-          writeCheckpoint: async () => {},
-          writeFileSnapshot: async () => {},
-          truncateToCheckpoint: async () => 0,
-          clearSession: async () => {},
-          writeInFlightMarker: async () => {},
-          clearInFlightMarker: async () => {},
-        } satisfies SessionWriter;
+        subSession = createParentSubagentSessionWriter(this.deps.session);
       }
 
       const tools = effectiveCfg.tools ? [...effectiveCfg.tools] : undefined;
@@ -1351,7 +801,9 @@ export class MultiAgentHost {
       // Per-spawn capability allowlist. The ToolExecutor and the Agent must
       // share the same policy semantics — resolve one allowlist and pass it to
       // both. See `resolveSubagentCapabilities` for the precedence rules.
-      const subAllowedCaps = this.resolveSubagentCapabilities(effectiveCfg);
+      const subAllowedCaps = resolveSubagentCapabilities(effectiveCfg, (allow) =>
+        this.filterTools([...allow]),
+      );
       const toolExecutor = new ToolExecutor(baseRegistry, {
         permissionPolicy: new AutoApprovePermissionPolicy(subAllowedCaps),
         secretScrubber: this.deps.secretScrubber,
@@ -1371,7 +823,10 @@ export class MultiAgentHost {
         async handler(req: Request) {
           return applyModelRuntime(req, {
             getSettings: () =>
-              mergeModelRuntime(subagentConfigStore.get().modelRuntime, runtimeOverride),
+              mergeModelRuntime(
+                subagentConfigStore.get().modelRuntime,
+                modelSelection.runtimeOverride,
+              ),
             getReasoningConfig: () => subReasoningConfig,
             getCapabilities: () => ctx.provider.capabilities,
           });
@@ -1416,13 +871,13 @@ export class MultiAgentHost {
           getConfig: () => this.deps.configStore.get() as Config,
           fallbackProfileManager: this.deps.fallbackProfileManager,
           getFallbackModels: () => effectiveCfg.fallbackModels,
-          getFallbackProfile: () => fallbackProfile,
+          getFallbackProfile: () => modelSelection.fallbackProfile,
           getPrimaryTarget: () => ({ providerId: effProvider, model: effModel }),
-          isClosedWorld: () => closedModelPolicy,
+          isClosedWorld: () => modelSelection.closedModelPolicy,
           buildProvider: (id, model) =>
-            this.buildSubagentProvider(mergedConfig, id, model ?? effModel),
+            buildHostSubagentProvider(this.deps, mergedConfig, id, model ?? effModel),
           onModelSwitch: async (id, model) => {
-            subReasoningConfig = await this.resolveSubagentReasoningConfig(id, model);
+            subReasoningConfig = await resolveHostSubagentReasoningConfig(this.deps, id, model);
           },
           events,
         }),
@@ -1446,93 +901,17 @@ export class MultiAgentHost {
       // when in director mode; in legacy non-director mode the id is
       // discovered post-spawn, so we wire the bridge lazily with a
       // mutable holder and let the legacy emit path fill it.
-      const hostEvents = this.deps.events;
-      const offToolStartedBridge = events.on('tool.started', (e) => {
-        hostEvents.emit('subagent.tool_started', {
-          sessionId: this.deps.session.id,
-          agentSessionId: e.sessionId,
-          subagentId: effectiveCfg.id ?? effectiveCfg.name ?? 'subagent',
-          agentName: e.agentName ?? subCfg.name,
-          traceId: e.traceId,
-          id: e.id,
-          name: e.name,
-          input: e.input,
-        });
-      });
-      const offToolProgressBridge = events.on('tool.progress', (e) => {
-        if (e.event.type !== 'file_changed') return;
-        const rawPath =
-          e.event.path ??
-          (typeof e.event.data?.['path'] === 'string' ? e.event.data['path'] : undefined);
-        if (!rawPath) return;
-        const filePath = path.normalize(
-          path.isAbsolute(rawPath) ? rawPath : path.resolve(ctx.projectRoot, rawPath),
-        );
-        hostEvents.emit('file.activity', {
-          filePath,
-          operation: e.event.operation ?? 'edit',
-          phase: 'changed',
-          source: 'deterministic',
-          at: Date.now(),
-          sessionId: e.sessionId,
-          traceId: e.traceId,
-          agentId: effectiveCfg.id ?? effectiveCfg.name ?? 'subagent',
-          agentName: e.agentName ?? subCfg.name,
-          toolUseId: e.id,
-          toolName: e.name,
-          line: e.event.line,
-          endLine: e.event.endLine,
-        });
-      });
-      const offToolBridge = events.on('tool.executed', (e) => {
-        // subCfg.id is populated by Director.spawn before this factory
-        // is invoked, and by coord.spawn for the non-director path
-        // (the runner re-uses the same config object). When it's
-        // missing we still emit with a fallback so the bridge never
-        // drops events — observability is more useful than perfect
-        // attribution in that edge case.
-        hostEvents.emit('subagent.tool_executed', {
-          sessionId: this.deps.session.id,
-          agentSessionId: e.sessionId,
-          subagentId: effectiveCfg.id ?? effectiveCfg.name ?? 'subagent',
-          agentName: e.agentName ?? subCfg.name,
-          traceId: e.traceId,
-          id: e.id,
-          name: e.name,
-          durationMs: e.durationMs,
-          ok: e.ok,
-          input: e.input,
-          output: e.output,
-          outputBytes: e.outputBytes,
-          outputTokens: e.outputTokens,
-          outputLines: e.outputLines,
-        });
-      });
-
-      const offSummaryBridge = events.on('subagent.iteration_summary', (e) => {
-        hostEvents.emit('subagent.iteration_summary', {
-          ...e,
-          sessionId: this.deps.session.id,
-          subagentId: effectiveCfg.id ?? effectiveCfg.name ?? 'subagent',
-        });
-      });
-
-      const offCtxBridge = events.on('ctx.pct', (e) => {
-        hostEvents.emit('subagent.ctx_pct', {
-          sessionId: this.deps.session.id,
-          subagentId: effectiveCfg.id ?? effectiveCfg.name ?? 'subagent',
-          load: e.load,
-          tokens: e.tokens,
-          maxContext: e.maxContext,
-        });
+      const disposeBridge = installSubagentEventBridge({
+        events,
+        hostEvents: this.deps.events,
+        hostSessionId: this.deps.session.id,
+        projectRoot: ctx.projectRoot,
+        effectiveCfg,
+        subCfg,
       });
 
       const dispose = async () => {
-        offToolStartedBridge();
-        offToolProgressBridge();
-        offToolBridge();
-        offSummaryBridge();
-        offCtxBridge();
+        disposeBridge();
         try {
           await subSession.close?.();
         } catch {
@@ -1542,80 +921,6 @@ export class MultiAgentHost {
 
       return { agent, events, dispose };
     };
-  }
-
-  private async resolveSubagentSkillContent(
-    subCfg: SubagentConfig,
-    _taskContext?: Record<string, unknown>,
-  ): Promise<string> {
-    const rosterSkillNames = subCfg.role ? this.roster[subCfg.role]?.skillNames : undefined;
-    const skillNames = [...new Set(subCfg.skillNames ?? rosterSkillNames ?? [])];
-    const directContent = subCfg.skillContent?.trim();
-    if (skillNames.length === 0 || !this.deps.skillLoader) return directContent ?? '';
-
-    const resolved: string[] = [];
-    let usedChars = 0;
-    const maxChars = 16_000;
-    const maxCharsPerSkill = 4_000;
-    for (const skillName of skillNames) {
-      try {
-        const manifest = await this.deps.skillLoader.find(skillName);
-        if (!manifest) continue;
-        const body = (await this.deps.skillLoader.readSaveBody(skillName)).trim();
-        if (!body) continue;
-        const entry = `## Skill: ${skillName}\n\n${body.slice(0, maxCharsPerSkill)}`;
-        if (usedChars + entry.length > maxChars) {
-          console.warn(
-            `[MultiAgentHost] resolveSubagentSkillContent: budget (${maxChars}) exhausted ` +
-              `after ${resolved.length} skill(s); dropping "${skillName}" and remaining skills`,
-          );
-          break;
-        }
-        resolved.push(entry);
-        usedChars += entry.length;
-      } catch {
-        // A missing or unreadable optional skill must not prevent the role from spawning.
-      }
-    }
-
-    const sections = [
-      directContent,
-      resolved.length > 0
-        ? `# Role-prioritized skills\n\nApply these skills first for this assignment.\n\n${resolved.join('\n\n---\n\n')}`
-        : undefined,
-    ].filter((section): section is string => Boolean(section));
-    return sections.join('\n\n');
-  }
-
-  private async retrieveSubagentMemory(
-    subCfg: SubagentConfig,
-    taskContext?: Record<string, unknown>,
-  ): Promise<string[]> {
-    const memoryPort = this.deps.container.safeResolve(TOKENS.MemoryStore);
-    const memory = memoryPort ? getSageRetrieval(memoryPort) : undefined;
-    if (!memory?.retrieveForAudience) return [];
-    const contextualTaskType =
-      typeof taskContext?.['taskType'] === 'string' ? taskContext['taskType'] : undefined;
-    try {
-      const taskType = subCfg.memoryContext?.taskType ?? contextualTaskType;
-      const mode = subCfg.memoryContext?.mode ?? this.opts.getLeaderMode?.();
-      const matches = await memory.retrieveForAudience(
-        {
-          ...(subCfg.role !== undefined ? { role: subCfg.role } : {}),
-          ...(taskType !== undefined ? { taskType } : {}),
-          ...(mode !== undefined ? { mode } : {}),
-        },
-        20,
-      );
-      await memory.recordInjection?.(
-        matches.map((item) => item.id),
-        'subagent_audience',
-        this.deps.session.id,
-      );
-      return matches.map((item) => item.text);
-    } catch {
-      return [];
-    }
   }
 
   /**
@@ -1634,115 +939,7 @@ export class MultiAgentHost {
   }
 
   async buildACPRunner(subagentId: string): Promise<SubagentRunner> {
-    const cached = this.acpRunnerCache.get(subagentId);
-    if (cached) {
-      // Move to end (most recently used)
-      const idx = this.acpRunnerAccessOrder.indexOf(subagentId);
-      if (idx !== -1) this.acpRunnerAccessOrder.splice(idx, 1);
-      this.acpRunnerAccessOrder.push(subagentId);
-      return cached;
-    }
-    // Prefer the legacy command map, then fall back to the 12-entry
-    // catalog so Director-spawned agents (claude-code, codex-cli,
-    // opencode, cursor, …) work the same as `wstack acp spawn`.
-    let cmd = ACP_AGENT_COMMANDS[subagentId];
-    if (!cmd) {
-      const desc = findAgentDescriptor(subagentId);
-      if (desc) {
-        cmd = {
-          command: desc.acp.command,
-          args: [...(desc.acp.args ?? [])],
-          role: subagentId,
-          ...(desc.acp.env ? { env: desc.acp.env } : {}),
-        };
-      }
-    }
-    if (!cmd)
-      throw new ToolValidationError({
-        message: `Unknown ACP agent: ${subagentId}`,
-        field: 'subagentId',
-        context: { requested: subagentId },
-      });
-    // LRU eviction: remove oldest entries if at capacity
-    while (this.acpRunnerAccessOrder.length >= MultiAgentHost.ACP_CACHE_MAX) {
-      const oldest = this.acpRunnerAccessOrder.shift();
-      if (oldest) this.acpRunnerCache.delete(oldest);
-    }
-    // CLI /spawn and Director fan-out are trusted local agents — grant write/execute access.
-    // The session default is read-only for untrusted agents (acp-session.ts:221).
-    const p = makeACPSubagentRunner({ ...cmd, permissionPolicy: defaultPermissionPolicy });
-    this.acpRunnerCache.set(subagentId, p);
-    this.acpRunnerAccessOrder.push(subagentId);
-    return p;
-  }
-
-  /**
-   * Build a Provider for a subagent. When `overrideId` is supplied (from
-   * `SubagentConfig.provider`), looks that provider up in
-   * `config.providers` and constructs it with its own apiKey/baseUrl.
-   * Falls back to the leader's provider when `overrideId` is absent or
-   * not configured (so a typo doesn't crash the whole run — we just
-   * use the leader and the calling code can decide to error later).
-   */
-  private async buildSubagentProvider(
-    config: Config,
-    overrideId?: string | undefined,
-    model?: string | undefined,
-  ): Promise<Provider> {
-    const requestedProviderId = overrideId ?? config.provider;
-    const providerId =
-      requestedProviderId === config.provider ||
-      config.providers?.[requestedProviderId] !== undefined ||
-      this.deps.providerRegistry.has(requestedProviderId)
-        ? requestedProviderId
-        : config.provider;
-    const newCfg = config.providers?.[providerId] ?? {
-      type: providerId,
-      apiKey: config.apiKey,
-      baseUrl: config.baseUrl,
-    };
-    const cfgWithType = {
-      ...newCfg,
-      type: providerId,
-      ...(model ? { model } : {}),
-    };
-    const provider = this.deps.providerRegistry.has(providerId)
-      ? this.deps.providerRegistry.create(cfgWithType)
-      : makeProviderFromConfig(providerId, cfgWithType);
-    // Overlay the runtime context window. Catalog model limits are accurate
-    // for normal hosted providers, but custom baseUrl/proxy configs may route
-    // the same model id to a smaller backend. Keep this aligned with the
-    // leader's compaction denominator.
-    if (this.deps.modelsRegistry) {
-      const resolvedModel = model ?? config.model;
-      await refreshRuntimeModelCatalog({
-        modelsRegistry: this.deps.modelsRegistry,
-        reason: `${providerId}/${resolvedModel}`,
-      });
-      const mc = await resolveRuntimeMaxContext({
-        modelsRegistry: this.deps.modelsRegistry,
-        config,
-        provider,
-        runtimeProviderConfig: cfgWithType,
-        providerId,
-        modelId: resolvedModel,
-      });
-      if (mc && mc > 0) provider.capabilities.maxContext = mc;
-    }
-    return provider;
-  }
-
-  private async resolveSubagentReasoningConfig(
-    providerId: string,
-    modelId: string,
-  ): Promise<ReasoningConfig | undefined> {
-    if (!this.deps.modelsRegistry) return undefined;
-    try {
-      return (await this.deps.modelsRegistry.getModel(providerId, modelId))?.capabilities
-        .reasoningConfig;
-    } catch {
-      return undefined;
-    }
+    return this.acpRunnerCache.get(subagentId);
   }
 
   async spawnACP(subagentId: string, task: string, config: Config): Promise<string> {
@@ -1783,70 +980,7 @@ export class MultiAgentHost {
 
   /** Returns a tool slice for the subagent — full set unless restricted. */
   private filterTools(allow?: string[]): Tool[] {
-    const all = this.deps.toolRegistry.list();
-    if (!allow || allow.length === 0) {
-      const visible = new Map(
-        all
-          .filter((tool) => !DEFAULT_SUBAGENT_HIDDEN_TOOLS.has(tool.name))
-          .map((tool) => [tool.name, tool] as const),
-      );
-      visible.set('submit_result', makeSubagentResultTool());
-      return Array.from(visible.values());
-    }
-    const allowSet = new Set(allow);
-    const result = new Map<string, Tool>();
-    for (const tool of all) {
-      if (allowSet.has(tool.name)) result.set(tool.name, tool);
-    }
-    for (const name of allowSet) {
-      const directorTool = this.directorToolsByName.get(name);
-      if (directorTool && !result.has(name)) result.set(name, directorTool);
-    }
-    // Task-result submission is safe, task-local control-plane plumbing. It is
-    // always present even for a narrow read-only role so structured reporting
-    // does not require widening that role's filesystem/shell permissions.
-    result.set('submit_result', makeSubagentResultTool());
-    return Array.from(result.values());
-  }
-
-  /**
-   * Resolve the capability allowlist for a subagent's auto-approve policy.
-   *
-   * Precedence:
-   *   1. Explicit `subCfg.allowedCapabilities` — the spawn site knows best
-   *      (e.g. `/techstack` grants exactly `fs.write` on top of the safe set).
-   *   2. A scoped `subCfg.tools` slice — the granted tool slice IS the intended
-   *      capability grant. The leader/roster deliberately chose these tools, so
-   *      allow exactly the capabilities they declare (plus the read-only safe
-   *      floor). Without this, a role given the `write`/`build` tool presets
-   *      could *see* those tools but the policy would deny execution (`fs.write`
-   *      and `shell.*` are not in the read-only default), silently crippling
-   *      every code-writing / build role in the catalog.
-   *   3. No tool restriction (full registry) → the WIDE working set
-   *      (`WIDE_SUBAGENT_CAPABILITIES`: read, write, net, shell, install,
-   *      session todo, tool metadata, read-only memory). The user authorized full
-   *      developer work when they invoked the leader, so a delegated agent runs
-   *      the same toolchain end-to-end. The genuinely blast-radius-escaping
-   *      capabilities (fs.write.outside-project, tool.mutate.any, memory writes,
-   *      mcp.proxy, subagent.spawn, config.mutate) stay off and need an explicit
-   *      (1) grant.
-   */
-  private resolveSubagentCapabilities(subCfg: SubagentConfig): readonly string[] | undefined {
-    if (subCfg.allowedCapabilities) {
-      return Array.from(
-        new Set([...subCfg.allowedCapabilities, ToolCapabilities.COORDINATION_RESULT_SUBMIT]),
-      );
-    }
-    const allow = subCfg.tools;
-    if (!allow || allow.length === 0) return WIDE_SUBAGENT_CAPABILITIES;
-    // Scoped slice: the granted tools' own capabilities ARE the grant, atop the
-    // wide working floor so a scoped agent is never *more* restricted than an
-    // unscoped one for the capabilities its tools actually need.
-    const caps = new Set<string>(WIDE_SUBAGENT_CAPABILITIES);
-    for (const tool of this.filterTools([...allow])) {
-      for (const c of tool.capabilities ?? []) caps.add(c);
-    }
-    return [...caps];
+    return selectSubagentTools(this.deps.toolRegistry.list(), this.directorToolsByName, allow);
   }
 
   /** Resolved shared-mailbox project dir — same as the leader's checker. */
@@ -1864,83 +998,16 @@ export class MultiAgentHost {
    * coordinator internals or budget negotiation.
    */
   private buildFleetSupervisor(config: Config): void {
-    const director = this.director;
-    const brain = this.opts.brain;
-    const supervisorCfg = config.fleet?.supervisor;
-    if (!director || !brain || supervisorCfg?.enabled === false) return;
-    const supTag = () => mailboxSessionTag(this.deps.session.id);
-    const mailbox = () => new GlobalMailbox(this.mailboxProjectDir(), this.deps.events);
-    this.fleetSupervisor = new FleetSupervisor({
+    this.fleetSupervisor = createHostFleetSupervisor({
+      director: this.director,
+      brain: this.opts.brain,
+      supervisorConfig: config.fleet?.supervisor,
       events: this.deps.events,
-      fleet: director.fleet,
-      brain,
-      sessionId: () => this.deps.session.id,
-      config: supervisorCfg,
-      source: {
-        subagents: () => director.status().subagents,
-        listPendingTasks: () => director.listPendingTasks(),
-        isWorkComplete: () => director.isWorkComplete(),
-      },
-      actions: {
-        retargetPendingTask: (taskId, subagentId) =>
-          director.retargetPendingTask(taskId, subagentId),
-        spawnHelper: async ({ reason, task }) => {
-          try {
-            // Route the helper through the same catalog/model-matrix path as a
-            // normal smart dispatch. A name-only helper would receive the
-            // unscoped WIDE capability set and lose role-specific tools,
-            // budgets, prompts, worktree policy, and model routing.
-            const routed = await dispatchAgent(task?.description ?? reason, {
-              classifier: director.dispatchClassifier,
-            });
-            const template = this.roster[routed.role] ?? this.roster['executor'];
-            const helperPrompt = [
-              template?.prompt,
-              `You are a helper worker spawned by the fleet supervisor to drain a task backlog (${reason}). Complete the assigned task efficiently and report a concise, evidence-backed result.`,
-            ]
-              .filter((part): part is string => typeof part === 'string' && part.trim().length > 0)
-              .join('\n\n');
-            const subagentId = await director.spawn({
-              ...(template ?? { name: 'fleet helper', role: 'executor' }),
-              id: `helper-${randomUUID().slice(0, 8)}`,
-              name: `fleet helper (${routed.role})`,
-              role: routed.role,
-              systemPromptOverride: helperPrompt,
-            });
-            return { subagentId };
-          } catch (err) {
-            return { error: toErrorMessage(err) };
-          }
-        },
-        steerAgent: async (subagentId, subject, body) => {
-          // Subagent mailbox base id == its coordinator id (ctx.agentId is
-          // set to subagentName = subCfg.id at spawn), so the session-tagged
-          // unique address reaches exactly this worker.
-          await mailbox().send({
-            from: `supervisor@${supTag()}`,
-            to: `${subagentId}@${supTag()}`,
-            type: 'steer',
-            subject,
-            body,
-            priority: 'high',
-          });
-        },
-        notifyLeader: async (subject, body) => {
-          const leaderId = this.opts.getLeaderMailboxId?.() ?? `leader@${supTag()}`;
-          await mailbox().send({
-            from: `supervisor@${supTag()}`,
-            to: leaderId,
-            type: 'status',
-            subject,
-            body,
-            priority: 'normal',
-          });
-        },
-        terminate: (subagentId) => director.terminate(subagentId),
-      },
+      sessionId: this.deps.session.id,
+      mailboxProjectDir: this.mailboxProjectDir(),
+      roster: this.roster,
+      getLeaderMailboxId: this.opts.getLeaderMailboxId,
     });
-    this.fleetSupervisor.start();
-    setActiveFleetSupervisor(this.fleetSupervisor);
   }
 
   /**
@@ -1953,33 +1020,13 @@ export class MultiAgentHost {
    * cache, retrievable via `await_tasks`/`roll_up`.
    */
   private async reportTaskResultToLeader(n: TaskResultNotification): Promise<void> {
-    try {
-      const leaderId =
-        this.opts.getLeaderMailboxId?.() ?? `leader@${mailboxSessionTag(this.deps.session.id)}`;
-      const mailbox = new GlobalMailbox(this.mailboxProjectDir(), this.deps.events);
-      const ok = n.status === 'success';
-      const MAX_BODY = 700;
-      const failureText = [
-        n.errorText ?? n.status,
-        n.partialText ? `Partial output:\n${n.partialText}` : '',
-      ]
-        .filter(Boolean)
-        .join('\n\n');
-      const successText = n.report ? formatSubagentStructuredReport(n.report) : n.resultText;
-      const raw = (ok ? successText : failureText) ?? '(no textual result)';
-      const excerpt = raw.length > MAX_BODY ? `${raw.slice(0, MAX_BODY)}…` : raw;
-      const title = n.title.length > 80 ? `${n.title.slice(0, 80)}…` : n.title;
-      await mailbox.send({
-        from: n.subagentName ?? n.subagentId,
-        to: leaderId,
-        type: 'result',
-        subject: `[task ${n.status}] ${title}`,
-        body: `${excerpt}\n\n(taskId: ${n.taskId} — ${n.iterations} iterations, ${n.toolCalls} tool calls, ${Math.round(n.durationMs / 1000)}s. Full result: await_tasks(["${n.taskId}"]) or roll_up.)`,
-        priority: ok ? 'normal' : 'high',
-      });
-    } catch {
-      // Report-back is best-effort; never disturb task completion.
-    }
+    await reportTaskResultToLeader({
+      notification: n,
+      sessionId: this.deps.session.id,
+      mailboxProjectDir: this.mailboxProjectDir(),
+      events: this.deps.events,
+      getLeaderMailboxId: this.opts.getLeaderMailboxId,
+    });
   }
 
   private subagentToolRegistry(allow?: string[]): ToolRegistry {
@@ -2003,27 +1050,7 @@ export class MultiAgentHost {
    */
   async spawn(
     description: string,
-    opts?: {
-      provider?: string | undefined;
-      model?: string | undefined;
-      fallbackModels?: string[] | undefined;
-      tools?: string[] | undefined;
-      name?: string | undefined;
-      allowedCapabilities?: readonly string[] | undefined;
-      shadowIntervalMs?: number | undefined;
-      /**
-       * Free-form task context propagated into the spawned `TaskSpec.context`.
-       * Used by `/kanban task dispatch` (and the WebUI relay) to carry
-       * `{ kanban: { boardId, taskId } }` so the tool-runtime boundary gate
-       * (`evaluateToolKanbanBoundary`) can resolve the live policy instead
-       * of failing open.
-       */
-      context?:
-        | {
-            kanban?: { boardId?: string; taskId?: string; projectRoot?: string };
-          }
-        | undefined;
-    },
+    opts?: HostSpawnOptions,
   ): Promise<{ subagentId: string; taskId: string }> {
     // Director Mode is permanently on — no guard needed.
 
@@ -2083,26 +1110,7 @@ export class MultiAgentHost {
    */
   async spawnAndWait(
     description: string,
-    opts?: {
-      provider?: string | undefined;
-      model?: string | undefined;
-      fallbackModels?: string[] | undefined;
-      tools?: string[] | undefined;
-      name?: string | undefined;
-      allowedCapabilities?: readonly string[] | undefined;
-      /**
-       * Free-form task context propagated into the spawned `TaskSpec.context`.
-       * Used by `/kanban task dispatch` (and the WebUI relay) to carry
-       * `{ kanban: { boardId, taskId } }` so the tool-runtime boundary gate
-       * (`evaluateToolKanbanBoundary`) can resolve the live policy instead
-       * of failing open.
-       */
-      context?:
-        | {
-            kanban?: { boardId?: string; taskId?: string; projectRoot?: string };
-          }
-        | undefined;
-    },
+    opts?: HostSpawnAndWaitOptions,
   ): Promise<TaskResult> {
     const { taskId } = await this.spawn(description, opts);
     // Capture director reference before await to avoid TOCTOU race with
@@ -2196,175 +1204,33 @@ export class MultiAgentHost {
    * would change ordering semantics for those listeners.
    */
   private emitLifecycleCompleted(taskId: string, result: TaskResult): void {
-    this.deps.events.emit('subagent.task_completed', {
-      sessionId: this.deps.session.id,
-      subagentId: result.subagentId,
-      taskId,
-      status: result.status,
-      iterations: result.iterations,
-      toolCalls: result.toolCalls,
-      durationMs: result.durationMs,
-      error: result.error,
-      finalText: typeof result.result === 'string' ? result.result : result.partial?.text,
-    });
+    emitHostLifecycleCompleted(this.deps.events, this.deps.session.id, taskId, result);
   }
 
-  /** LRU-bounded insert into `subagentLearningRoles`. Mirrors the
-   *  acpRunnerCache eviction strategy so a long-lived session cannot
-   *  grow the map without limit. */
   private recordLearningRole(subagentId: string, role: string): void {
-    const existingIdx = this.subagentLearningRolesAccessOrder.indexOf(subagentId);
-    if (existingIdx !== -1) this.subagentLearningRolesAccessOrder.splice(existingIdx, 1);
-    while (this.subagentLearningRolesAccessOrder.length >= MultiAgentHost.LEARNING_ROLES_MAX) {
-      const oldest = this.subagentLearningRolesAccessOrder.shift();
-      if (oldest) this.subagentLearningRoles.delete(oldest);
-    }
-    this.subagentLearningRoles.set(subagentId, role);
-    this.subagentLearningRolesAccessOrder.push(subagentId);
+    this.learningRoles.record(subagentId, role);
   }
 
   private captureCompletedTaskLearning(result: TaskResult): void {
-    if (result.status !== 'success') return;
-    const role = this.subagentLearningRoles.get(result.subagentId);
-    const finalText = typeof result.result === 'string' ? result.result : result.partial?.text;
-    if (!role || !finalText) return;
-    try {
-      const capture = captureLearnedFromAgentOutputDetailed(
-        finalText,
-        role,
-        this.deps.projectRoot,
-        false,
-      );
-      if (capture.captured > 0) {
-        this.deps.container
-          .safeResolve(TOKENS.Logger)
-          ?.debug(`agent learning captured ${capture.captured} item(s) for role "${role}"`);
-      }
-    } catch (error) {
-      this.deps.container
-        .safeResolve(TOKENS.Logger)
-        ?.warn(
-          `agent learning capture failed for role "${role}": ${error instanceof Error ? error.message : String(error)}`,
-        );
-    }
+    this.learningRoles.capture(result, this.deps);
   }
 
-  status(): {
-    pending: { taskId: string; description: string; subagentId: string }[];
-    completed: TaskResult[];
-    live: { subagentId: string; status: string; task?: string | undefined }[];
-    summary: string;
-  } {
-    const activeSubagentIds = new Set<string>();
-    const live: { subagentId: string; status: string; task?: string | undefined }[] = [];
-    if (this.director) {
-      const coord = this.getCoordinator();
-      const s = coord.getStatus();
-      for (const a of s.subagents) {
-        if (a.status === 'running' || a.status === 'idle') {
-          activeSubagentIds.add(a.id);
-        }
-        live.push({ subagentId: a.id, status: a.status, task: a.currentTask });
-      }
-    }
-    // Pending tasks come from the host's FleetManager (passed to Director)
-    const fleetStatus = this.fleetManager?.getFleetStatus() ?? { pending: [], live: [] };
-    const pending = fleetStatus.pending.filter((p) => activeSubagentIds.has(p.subagentId));
-    // Results always from Director (single source of truth)
+  status(): FleetHostStatus {
+    return buildFleetHostStatus({
+      coordinatorStatus: this.director ? this.getCoordinator().getStatus() : null,
+      fleetStatus: this.fleetManager?.getFleetStatus() ?? null,
+      completedResults: this.director ? this.director.completedResults() : null,
+      shadowTaskIds: this.shadowTaskIds,
+    });
+  }
+
+  usage(): FleetHostUsage {
     const completed = this.director
       ? this.director.completedResults().filter((r) => !this.shadowTaskIds.has(r.taskId))
       : [];
-    const completedCount = completed.length;
-    const liveCount = live.filter((s) => s.status === 'running' || s.status === 'idle').length;
-    const summary = !this.director
-      ? 'No subagents have been spawned.'
-      : liveCount > 0
-        ? `${pending.length} pending, ${liveCount} active, ${completedCount} completed.`
-        : `${pending.length} pending, ${completedCount} completed.`;
-    return { pending, completed, live, summary };
+    return aggregateFleetUsage(completed);
   }
 
-  /**
-   * Roll up per-subagent runtime cost from completed TaskResults. We don't
-   * yet have FleetUsageAggregator wired into the simple MultiAgentHost
-   * path (that lives on `Director`), so this aggregates iterations / tool
-   * calls / duration which we *do* have — enough to spot a thrashing
-   * worker without paying for a heavier orchestrator on every /spawn.
-   *
-   * Returns rows sorted by total duration descending (slowest first) so
-   * the table renders the most interesting subagent at the top.
-   */
-  usage(): {
-    rows: Array<{
-      subagentId: string;
-      tasks: number;
-      iterations: number;
-      toolCalls: number;
-      durationMs: number;
-      status: string;
-    }>;
-    totals: { tasks: number; iterations: number; toolCalls: number; durationMs: number };
-  } {
-    const completed = this.director
-      ? this.director.completedResults().filter((r) => !this.shadowTaskIds.has(r.taskId))
-      : [];
-    const bySubagent = new Map<
-      string,
-      {
-        tasks: number;
-        iterations: number;
-        toolCalls: number;
-        durationMs: number;
-        lastStatus: string;
-      }
-    >();
-    for (const r of completed) {
-      const cur = bySubagent.get(r.subagentId) ?? {
-        tasks: 0,
-        iterations: 0,
-        toolCalls: 0,
-        durationMs: 0,
-        lastStatus: 'unknown',
-      };
-      cur.tasks += 1;
-      cur.iterations += r.iterations;
-      cur.toolCalls += r.toolCalls;
-      cur.durationMs += r.durationMs;
-      cur.lastStatus = r.status;
-      bySubagent.set(r.subagentId, cur);
-    }
-    const rows = Array.from(bySubagent.entries())
-      .map(([subagentId, v]) => ({
-        subagentId,
-        tasks: v.tasks,
-        iterations: v.iterations,
-        toolCalls: v.toolCalls,
-        durationMs: v.durationMs,
-        status: v.lastStatus,
-      }))
-      .sort((a, b) => b.durationMs - a.durationMs);
-    const totals = rows.reduce(
-      (acc, r) => ({
-        tasks: acc.tasks + r.tasks,
-        iterations: acc.iterations + r.iterations,
-        toolCalls: acc.toolCalls + r.toolCalls,
-        durationMs: acc.durationMs + r.durationMs,
-      }),
-      { tasks: 0, iterations: 0, toolCalls: 0, durationMs: 0 },
-    );
-    return { rows, totals };
-  }
-
-  /**
-   * Force the director to write its manifest to disk and return the path,
-   * or `null` when director mode is off (the simple coordinator path has
-   * no manifest). Callers should fall back to a friendly user message
-   * when `null` is returned — e.g. `/fleet manifest` does this already.
-   *
-   * The returned string is the absolute path of the manifest file. The
-   * file contents are JSON; readers can `JSON.parse(fs.readFileSync(...))`
-   * to consume.
-   */
   async manifest(): Promise<string | null> {
     if (!this.director) return null;
     // Force a synchronous write — bypass the debounce timer so callers
@@ -2374,44 +1240,17 @@ export class MultiAgentHost {
     return (await this.director.fleetManager?.writeManifest()) ?? null;
   }
 
-  /**
-   * Return the live Director. Since Director Mode is permanently on,
-   * this always builds and returns the Director. Idempotent: calling
-   * promoteToDirector on an already-initialized host returns the
-   * existing director without side effects.
-   */
   async promoteToDirector(): Promise<Director | null> {
     if (this.director) return this.director;
-    // Derive fleet paths from fleetRoot when available.
-    if (this.opts.fleetRoot && !this.opts.manifestPath) {
-      this.opts.manifestPath = path.join(this.opts.fleetRoot, 'fleet.json');
-    }
-    if (this.opts.fleetRoot && !this.opts.sharedScratchpadPath) {
-      this.opts.sharedScratchpadPath = path.join(this.opts.fleetRoot, 'shared');
-    }
-    if (this.opts.fleetRoot && !this.opts.sessionsRoot) {
-      this.opts.sessionsRoot = path.join(this.opts.fleetRoot, 'subagents');
-    }
-    if (this.opts.fleetRoot && !this.opts.stateCheckpointPath) {
-      this.opts.stateCheckpointPath = path.join(this.opts.fleetRoot, 'director-state.json');
-    }
+    applyFleetRootDefaults(this.opts);
     await this.ensureDirector();
     return this.director ?? null;
   }
 
-  /**
-   * Always true — Director Mode is permanently on.
-   */
   isDirectorMode(): boolean {
     return true;
   }
 
-  /**
-   * Terminate a single subagent. Returns true when the subagent existed
-   * (regardless of whether stop() succeeded or it was already idle),
-   * false when no coordinator has been created yet — meaning the user
-   * called /fleet kill before any /spawn, and there's nothing to do.
-   */
   async kill(subagentId: string): Promise<boolean> {
     if (!this.director) return false;
     await this.getCoordinator().stop(subagentId);
@@ -2437,12 +1276,6 @@ export class MultiAgentHost {
     await this.fleetManager?.closeManifest();
   }
 
-  /**
-   * Current effective concurrent-subagent ceiling. Reads the live
-   * coordinator config when the director is built; otherwise falls back
-   * to the constructor option (or the default of 4 that buildDirector
-   * will apply on first /spawn).
-   */
   getMaxConcurrent(): number {
     if (this.director) {
       return this.getCoordinator().config.maxConcurrent ?? 4;
@@ -2450,24 +1283,8 @@ export class MultiAgentHost {
     return this.opts.maxConcurrent ?? 4;
   }
 
-  /**
-   * Change the concurrent-subagent ceiling at runtime. Updates the
-   * constructor option (so lazy-built director picks it up) and, if the
-   * coordinator already exists, mutates its live config + triggers a
-   * dispatch pass so newly-allowed slots fill immediately.
-   *
-   * Throws on non-positive values; the caller is expected to validate
-   * user input first.
-   */
   setMaxConcurrent(n: number): void {
-    if (!Number.isFinite(n) || n < 1) {
-      throw new ToolValidationError({
-        message: `maxConcurrent must be a finite integer >= 1, got ${n}`,
-        field: 'maxConcurrent',
-        context: { received: n },
-      });
-    }
-    const v = Math.floor(n);
+    const v = normalizeMaxConcurrent(n);
     this.opts.maxConcurrent = v;
     if (this.director) {
       this.getCoordinator().setMaxConcurrent(v);

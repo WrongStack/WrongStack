@@ -23,16 +23,13 @@
  *
  * @module hq/persistence
  */
-import { createHash } from 'node:crypto';
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 import { atomicWrite, withFileLock } from '../utils/atomic-write.js';
-import {
-  type HqEventEnvelope,
-  type HqKanbanSnapshotPayload,
-  type HqSnapshot,
-  isHqKanbanSnapshotPayload,
-} from './protocol.js';
+import { type HqEventEnvelope, type HqSnapshot } from './protocol.js';
+import { HqKanbanStore } from './kanban-store.js';
+export { HqKanbanStore } from './kanban-store.js';
+import { BestEffortBatchQueue, BestEffortLatestQueue } from './write-queues.js';
 
 /** Maximum event-log lines before a rotation compacts it down to the tail. */
 const DEFAULT_EVENT_LOG_MAX_LINES = 50_000;
@@ -52,109 +49,6 @@ const FILTERED_RECENT_TAIL_SCAN_BYTES = 256 * 1024;
  */
 const BULK_PREFIX_READ_CAP = 8 * 1024 * 1024;
 const LINE_COUNT_CHUNK_BYTES = 256 * 1024;
-
-/**
- * Collect fire-and-forget writes issued in the same event-loop turn and send
- * them to storage as one batch. The FIFO promise still serializes batches,
- * while drain() observes batches queued during an in-flight write as well.
- */
-class BestEffortBatchQueue<T> {
-  private readonly pending: T[] = [];
-  private activeWrite: Promise<void> | null = null;
-  private drainScheduled = false;
-  private static readonly MAX_PENDING = 10_000;
-
-  constructor(private readonly writeBatch: (items: T[]) => Promise<void>) {}
-
-  enqueue(item: T): void {
-    if (this.pending.length >= BestEffortBatchQueue.MAX_PENDING) this.pending.shift();
-    this.pending.push(item);
-    if (this.drainScheduled) return;
-    this.drainScheduled = true;
-    queueMicrotask(() => this.flushPending());
-  }
-
-  async drain(): Promise<void> {
-    for (;;) {
-      this.flushPending();
-      const observed = this.activeWrite;
-      if (observed) await observed;
-      if (!this.activeWrite && this.pending.length === 0) return;
-    }
-  }
-
-  private flushPending(): void {
-    this.drainScheduled = false;
-    if (this.activeWrite || this.pending.length === 0) return;
-    const batch = this.pending.splice(0);
-    const active = this.writeBatch(batch)
-      .catch((err: unknown) => {
-        /* best-effort: a failed batch must not break the write chain, but
-         * surface the error to stderr so a silent write death is observable.
-         * Programmer errors (TypeError, etc.) should not go unnoticed. */
-        console.error(
-          `[BestEffortBatchQueue] failed to write batch of ${batch.length} item(s):`,
-          err,
-        );
-      })
-      .finally(() => {
-        if (this.activeWrite === active) this.activeWrite = null;
-        if (this.pending.length > 0) this.flushPending();
-      });
-    this.activeWrite = active;
-  }
-}
-
-/** Coalesce queued checkpoints so only the newest not-yet-started value writes. */
-class BestEffortLatestQueue<T> {
-  private pending: T | undefined;
-  private activeWrite: Promise<void> | null = null;
-  private drainScheduled = false;
-
-  constructor(private readonly writeLatest: (value: T) => Promise<void>) {}
-
-  enqueue(value: T): void {
-    this.pending = value;
-    if (this.drainScheduled) return;
-    this.drainScheduled = true;
-    queueMicrotask(() => this.flushPending());
-  }
-
-  async drain(): Promise<void> {
-    for (;;) {
-      this.flushPending();
-      const observed = this.activeWrite;
-      if (observed) await observed;
-      if (!this.activeWrite && this.pending === undefined) return;
-    }
-  }
-
-  private flushPending(): void {
-    this.drainScheduled = false;
-    if (this.activeWrite || this.pending === undefined) return;
-    const latest = this.pending;
-    this.pending = undefined;
-    const active = this.writeLatest(latest)
-      .catch((err: unknown) => {
-        /* best-effort: a failed write must not break the write chain, but
-         * surface the error to stderr so a silent write death is observable.
-         * Programmer errors (TypeError, etc.) should not go unnoticed. */
-        console.warn(
-          JSON.stringify({
-            level: 'warn',
-            event: 'hq.persistence_latest_write_failed',
-            message: err instanceof Error ? err.message : String(err),
-            timestamp: new Date().toISOString(),
-          }),
-        );
-      })
-      .finally(() => {
-        if (this.activeWrite === active) this.activeWrite = null;
-        if (this.pending !== undefined) this.flushPending();
-      });
-    this.activeWrite = active;
-  }
-}
 
 // ── HqEventLog ──────────────────────────────────────────────────────────────
 
@@ -558,125 +452,6 @@ export class HqSnapshotStore {
       return null;
     }
   }
-}
-
-// ── HqKanbanStore ────────────────────────────────────────────────────────────
-
-export class HqKanbanStore {
-  private readonly dirPath: string;
-  private readonly cache = new Map<string, HqKanbanSnapshotPayload>();
-  private readonly writers = new Map<string, BestEffortLatestQueue<HqKanbanSnapshotPayload>>();
-  private readonly mergeChains = new Map<string, Promise<HqKanbanSnapshotPayload>>();
-
-  constructor(dataDir: string) {
-    this.dirPath = path.join(dataDir, 'kanban');
-  }
-
-  async load(projectId: string): Promise<HqKanbanSnapshotPayload> {
-    const cached = this.cache.get(projectId);
-    if (cached !== undefined) return structuredClone(cached);
-    try {
-      const content = await fs.readFile(this.filePath(projectId), 'utf8');
-      const snapshot: unknown = JSON.parse(content);
-      if (!isHqKanbanSnapshotPayload(snapshot) || snapshot.projectId !== projectId) {
-        return emptyKanbanSnapshot(projectId);
-      }
-      this.cache.set(projectId, snapshot);
-      return structuredClone(snapshot);
-    } catch {
-      return emptyKanbanSnapshot(projectId);
-    }
-  }
-
-  /** Merge by revision, then timestamp. HQ never lets a stale writer win. */
-  merge(incoming: HqKanbanSnapshotPayload): Promise<HqKanbanSnapshotPayload> {
-    const previous = this.mergeChains.get(incoming.projectId) ?? Promise.resolve(emptyKanbanSnapshot(incoming.projectId));
-    const next = previous.catch(() => emptyKanbanSnapshot(incoming.projectId)).then(() => this.mergeNow(incoming));
-    this.mergeChains.set(incoming.projectId, next);
-    void next.then(
-      () => {
-        if (this.mergeChains.get(incoming.projectId) === next) {
-          this.mergeChains.delete(incoming.projectId);
-        }
-      },
-      () => {
-        if (this.mergeChains.get(incoming.projectId) === next) {
-          this.mergeChains.delete(incoming.projectId);
-        }
-      },
-    );
-    return next;
-  }
-
-  private async mergeNow(incoming: HqKanbanSnapshotPayload): Promise<HqKanbanSnapshotPayload> {
-    const current = await this.load(incoming.projectId);
-    const records = new Map<string, HqKanbanSnapshotPayload['boards'][number] | HqKanbanSnapshotPayload['tombstones'][number]>();
-    for (const record of [...current.boards, ...current.tombstones]) records.set(record.boardId, record);
-    for (const record of [...incoming.boards, ...incoming.tombstones]) {
-      const existing = records.get(record.boardId);
-      if (existing === undefined || compareKanbanRecord(record, existing) > 0) {
-        records.set(record.boardId, record);
-      }
-    }
-    const merged: HqKanbanSnapshotPayload = {
-      projectId: incoming.projectId,
-      generatedAt: new Date().toISOString(),
-      boards: [],
-      tombstones: [],
-    };
-    for (const record of records.values()) {
-      if ('board' in record) merged.boards.push(record);
-      else merged.tombstones.push(record);
-    }
-    merged.boards.sort((a, b) => a.boardId.localeCompare(b.boardId));
-    merged.tombstones.sort((a, b) => a.boardId.localeCompare(b.boardId));
-    // One defensive clone, not two: the cache entry is only ever read through
-    // `load()` (which clones on the way out) and the writer only serializes,
-    // so both may share `merged`. Cloning per merge is O(full project set) —
-    // with thousands of run-mirror boards that was measurable churn on every
-    // delta. The returned clone keeps callers isolated from the cache.
-    this.cache.set(incoming.projectId, merged);
-    this.writer(incoming.projectId).enqueue(merged);
-    return structuredClone(merged);
-  }
-
-  async drain(): Promise<void> {
-    await Promise.allSettled(this.mergeChains.values());
-    await Promise.all([...this.writers.values()].map((writer) => writer.drain()));
-  }
-
-  private writer(projectId: string): BestEffortLatestQueue<HqKanbanSnapshotPayload> {
-    let writer = this.writers.get(projectId);
-    if (writer === undefined) {
-      writer = new BestEffortLatestQueue(async (snapshot) => {
-        await fs.mkdir(this.dirPath, { recursive: true });
-        await atomicWrite(this.filePath(projectId), JSON.stringify(snapshot), { mode: 0o600 });
-      });
-      this.writers.set(projectId, writer);
-    }
-    return writer;
-  }
-
-  private filePath(projectId: string): string {
-    const safe = createHash('sha256').update(projectId).digest('hex');
-    return path.join(this.dirPath, `${safe}.json`);
-  }
-}
-
-function emptyKanbanSnapshot(projectId: string): HqKanbanSnapshotPayload {
-  return { projectId, generatedAt: new Date(0).toISOString(), boards: [], tombstones: [] };
-}
-
-function compareKanbanRecord(
-  a: HqKanbanSnapshotPayload['boards'][number] | HqKanbanSnapshotPayload['tombstones'][number],
-  b: HqKanbanSnapshotPayload['boards'][number] | HqKanbanSnapshotPayload['tombstones'][number],
-): number {
-  if (a.revision !== b.revision) return a.revision - b.revision;
-  const aTime = 'board' in a ? a.updatedAt : a.deletedAt;
-  const bTime = 'board' in b ? b.updatedAt : b.deletedAt;
-  if (aTime !== bTime) return aTime.localeCompare(bTime);
-  if ('board' in a === 'board' in b) return 0;
-  return 'board' in a ? -1 : 1;
 }
 
 // ── HqTimeseriesStore ────────────────────────────────────────────────────────

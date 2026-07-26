@@ -51,7 +51,7 @@ type Session = Awaited<ReturnType<SessionStore['create']>>;
 
 import type { Config } from '@wrongstack/core/types';
 import type { MCPRegistry } from '@wrongstack/mcp';
-import { makeProviderFromConfig } from '@wrongstack/providers';
+import { makeProviderFromConfig, withCatalogCapabilities } from '@wrongstack/providers';
 import { type AutonomyRouteHandlers, createAutonomyRouteHandlers } from './autonomy-routes.js';
 import { patchConfig } from './boot.js';
 import {
@@ -308,9 +308,19 @@ export function buildRoutes(
 
     const newCfg = state.getConfig();
     const providerCfg: ProviderConfig = newCfg.providers?.[newProvider] ?? { type: newProvider };
-    const newProv = deps.providerRegistry.has(newProvider)
+    const built = deps.providerRegistry.has(newProvider)
       ? deps.providerRegistry.create({ ...providerCfg, type: newProvider } as never)
       : makeProviderFromConfig(newProvider, providerCfg);
+    // Overlay the target model's catalog facts. A freshly constructed provider
+    // only has the wire-family baseline, so without this the session keeps the
+    // previous model's context window and loses `maxOutput` entirely.
+    const newProv = deps.modelsRegistry
+      ? await withCatalogCapabilities(deps.modelsRegistry, newProvider, built, {
+          ...providerCfg,
+          type: newProvider,
+          model: newModel,
+        })
+      : built;
     deps.context.provider = newProv;
 
     await cb.updateAutoCompactionMaxContext(newProv, newProvider, providerCfg);

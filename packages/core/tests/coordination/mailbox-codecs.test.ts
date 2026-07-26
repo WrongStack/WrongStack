@@ -255,7 +255,7 @@ describe('parseMailboxAckInput', () => {
     );
     expect(result.messageId).toBe('msg-1');
     expect(result.read).toBe(true);
-    expect(result.completed).toBe(false);
+    expect(result.completed).toBeUndefined();
     expect(result.readerId).toBe('leader@a1b2c3d4');
   });
 

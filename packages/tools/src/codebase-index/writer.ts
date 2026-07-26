@@ -20,7 +20,6 @@ import { expectDefined } from '@wrongstack/core/utils';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import type { DatabaseSync } from 'node:sqlite';
-import { sqliteCachePragmas } from '@wrongstack/core/utils';
 import type {
   FileMeta,
   IndexStats,
@@ -35,24 +34,7 @@ import { SCHEMA_VERSION } from './schema.js';
 import { lspKindToInternalKind } from './lsp-kind.js';
 import { type Bm25Index, buildBm25Index, buildIndexableText, tokenise } from './bm25.js';
 import { loadDatabaseSync, runSqliteWithRetry } from './sqlite-runtime.js';
-import {
-  assignRefsToSymbols,
-  escapeLike,
-  resolveIndexDir,
-} from './writer-helpers.js';
-import {
-  addWeightedEdge,
-  buildFileGraphNodeState,
-  buildPackageGraphNodes,
-  buildSymbolGraphNodes,
-  derivePackage,
-  materializeWeightedEdges,
-  packageFromImport,
-  resolveRelativeImport,
-  type WriterFileGraphSymbolRow,
-  type WriterSymbolGraphRow,
-  type WeightedEdgeAccumulator,
-} from './writer-graph-helpers.js';
+import { assignRefsToSymbols, escapeLike, resolveIndexDir } from './writer-helpers.js';
 import {
   CORE_TABLES_SQL,
   METADATA_TABLE_SQL,
@@ -61,7 +43,28 @@ import {
   SYMBOLS_FTS_SQL,
   SYMBOL_INDEX_SQL,
 } from './writer-schema.js';
-import { mapWriterRefRow, type WriterRefRow } from './writer-ref-mapper.js';
+import {
+  getAllIndexableWithStatement,
+  getAllFileMetasWithStatement,
+  getFileMetaWithStatement,
+  getMaxSymbolIdWithStatement,
+  getMetadataWithStatement,
+  getStatsWithStatement,
+} from './writer-admin.js';
+import {
+  bulkInsertFtsWithStatement,
+  bulkInsertRefsWithStatement,
+  bulkInsertSymbolsWithStatement,
+  type BulkSymbolRow,
+} from './writer-bulk-insert.js';
+import {
+  findRefsFromWithStatement,
+  findRefsToWithStatement,
+  getFileGraphWithStatement,
+  getPackageGraphWithStatement,
+  getSymbolGraphWithStatement,
+} from './writer-graph-reader.js';
+import { applyIndexStorePragmas } from './writer-pragmas.js';
 import {
   buildWriterSearchWhere,
   mapWriterSearchRow,
@@ -128,30 +131,7 @@ export class IndexStore {
     fs.mkdirSync(this.indexDir, { recursive: true });
     const Database = loadDatabaseSync();
     this.db = new Database(path.join(this.indexDir, DB_FILE));
-    // Multi-process safety: several wstack surfaces (TUI, WebUI, parallel
-    // terminals) share this per-project db. WAL lets readers coexist with the
-    // writer, and busy_timeout gives SQLite a head start waiting for the lock.
-    // When the timeout expires the statement throws SQLITE_BUSY; the
-    // runWithRetry() wrapper then retries with exponential backoff so most
-    // lock-conflict errors are resolved without a circuit-breaker failure.
-    try {
-      this.db.exec('PRAGMA journal_mode = WAL');
-      this.db.exec('PRAGMA synchronous = NORMAL');
-      // Large reindex batches hold the write lock longer; give concurrent
-      // readers/writers more headroom before SQLITE_BUSY → retry.
-      this.db.exec('PRAGMA busy_timeout = 15000');
-      this.db.exec('PRAGMA temp_store = MEMORY');
-      // Cache/mmap follow WRONGSTACK_PERF_PROFILE (frugal = leaner RSS).
-      const cache = sqliteCachePragmas();
-      this.db.exec(`PRAGMA cache_size = -${cache.cacheSizeKiB}`);
-      this.db.exec(`PRAGMA mmap_size = ${cache.mmapBytes}`);
-      this.db.exec('PRAGMA foreign_keys = ON');
-      // Cap WAL growth so long-lived index processes don't leave multi-GB -wal files.
-      this.db.exec('PRAGMA journal_size_limit = 67108864'); // 64 MiB
-      this.db.exec('PRAGMA wal_autocheckpoint = 1000');
-    } catch {
-      /* pragmas are best-effort — an old SQLite build without WAL still works */
-    }
+    applyIndexStorePragmas(this.db);
     this.initSchema();
   }
 
@@ -212,7 +192,10 @@ export class IndexStore {
         this.db.exec('DELETE FROM symbols_fts');
         const rows = this.stmt('SELECT id, name, signature, doc_comment FROM symbols ORDER BY id')
           .all() as Array<{ id: number; name: string; signature: string; doc_comment: string }>;
-        this.bulkInsertFts(
+        bulkInsertFtsWithStatement(
+          (sql) => this.stmt(sql),
+          IndexStore.MAX_SQL_VARS,
+          this.ftsAvailable,
           rows.map((row) => ({
             id: row.id,
             text: buildIndexableText(row.name, row.signature, row.doc_comment),
@@ -278,85 +261,6 @@ export class IndexStore {
     return start;
   }
 
-  /** Multi-row INSERT for symbols — amortizes prepare/bind overhead in large batches. */
-  private bulkInsertSymbols(
-    rows: Array<{
-      id: number;
-      lang: string;
-      kind: string;
-      name: string;
-      file: string;
-      line: number;
-      col: number;
-      signature: string;
-      docComment: string;
-      scope: string;
-      text: string;
-    }>,
-  ): void {
-    if (rows.length === 0) return;
-    const cols = 12;
-    const chunkSize = Math.max(1, Math.floor(IndexStore.MAX_SQL_VARS / cols));
-    for (let i = 0; i < rows.length; i += chunkSize) {
-      const chunk = rows.slice(i, i + chunkSize);
-      const placeholders = chunk.map(() => '(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)').join(', ');
-      const stmt = this.stmt(
-        `INSERT INTO symbols(id, lang, kind, name, file, line, col, signature, doc_comment, scope, text, file_fk)
-         VALUES ${placeholders}`,
-      );
-      const binds: (string | number)[] = [];
-      for (const r of chunk) {
-        binds.push(
-          r.id,
-          r.lang,
-          r.kind,
-          r.name,
-          r.file,
-          r.line,
-          r.col,
-          r.signature,
-          r.docComment,
-          r.scope,
-          r.text,
-          r.file,
-        );
-      }
-      stmt.run(...binds);
-    }
-  }
-
-  private bulkInsertFts(rows: Array<{ id: number; text: string }>): void {
-    if (!this.ftsAvailable || rows.length === 0) return;
-    const cols = 2;
-    const chunkSize = Math.max(1, Math.floor(IndexStore.MAX_SQL_VARS / cols));
-    for (let i = 0; i < rows.length; i += chunkSize) {
-      const chunk = rows.slice(i, i + chunkSize);
-      const placeholders = chunk.map(() => '(?, ?)').join(', ');
-      const stmt = this.stmt(`INSERT INTO symbols_fts(rowid, text) VALUES ${placeholders}`);
-      const binds: (string | number)[] = [];
-      for (const r of chunk) binds.push(r.id, r.text);
-      stmt.run(...binds);
-    }
-  }
-
-  private bulkInsertRefs(refs: Ref[]): void {
-    if (refs.length === 0) return;
-    const cols = 5;
-    const chunkSize = Math.max(1, Math.floor(IndexStore.MAX_SQL_VARS / cols));
-    for (let i = 0; i < refs.length; i += chunkSize) {
-      const chunk = refs.slice(i, i + chunkSize);
-      const placeholders = chunk.map(() => '(?, ?, ?, ?, ?)').join(', ');
-      const stmt = this.stmt(
-        `INSERT INTO refs(from_id, to_name, to_id, call_type, line) VALUES ${placeholders}`,
-      );
-      const binds: (string | number | null)[] = [];
-      for (const ref of chunk) {
-        binds.push(ref.fromId, ref.toName, ref.toId ?? null, ref.callType, ref.line);
-      }
-      stmt.run(...binds);
-    }
-  }
-
   // ─── Symbol CRUD ─────────────────────────────────────────────────────────────
 
   /**
@@ -375,19 +279,7 @@ export class IndexStore {
       try {
         let nextId = this.allocateSymbolIds(symbols.length);
         const result: IndexSymbol[] = [];
-        const bulk: Array<{
-          id: number;
-          lang: string;
-          kind: string;
-          name: string;
-          file: string;
-          line: number;
-          col: number;
-          signature: string;
-          docComment: string;
-          scope: string;
-          text: string;
-        }> = [];
+        const bulk: BulkSymbolRow[] = [];
         const ftsRows: Array<{ id: number; text: string }> = [];
 
         for (const s of symbols) {
@@ -410,8 +302,13 @@ export class IndexStore {
           }
           result.push({ ...s, id });
         }
-        this.bulkInsertSymbols(bulk);
-        this.bulkInsertFts(ftsRows);
+        bulkInsertSymbolsWithStatement((sql) => this.stmt(sql), IndexStore.MAX_SQL_VARS, bulk);
+        bulkInsertFtsWithStatement(
+          (sql) => this.stmt(sql),
+          IndexStore.MAX_SQL_VARS,
+          this.ftsAvailable,
+          ftsRows,
+        );
 
         this.db.exec('COMMIT');
         return result;
@@ -479,43 +376,11 @@ export class IndexStore {
   }
 
   getFileMeta(file: string): FileMeta | null {
-    const rows = this.stmt(
-      'SELECT file, lang, mtime_ms, symbol_count, last_indexed FROM files WHERE file = ?',
-    ).all(file) as {
-      file: string;
-      lang: string;
-      mtime_ms: number;
-      symbol_count: number;
-      last_indexed: number;
-    }[];
-    if (!rows.length) return null;
-    const r = expectDefined(rows[0]);
-    return {
-      file: r.file,
-      lang: r.lang as SymbolLang,
-      mtimeMs: r.mtime_ms,
-      symbolCount: r.symbol_count,
-      lastIndexed: r.last_indexed,
-    };
+    return getFileMetaWithStatement((sql) => this.stmt(sql), file);
   }
 
   getAllFileMetas(): FileMeta[] {
-    return (
-      this.stmt('SELECT file, lang, mtime_ms, symbol_count, last_indexed FROM files')
-        .all() as {
-        file: string;
-        lang: string;
-        mtime_ms: number;
-        symbol_count: number;
-        last_indexed: number;
-      }[]
-    ).map((r) => ({
-      file: r.file,
-      lang: r.lang as SymbolLang,
-      mtimeMs: r.mtime_ms,
-      symbolCount: r.symbol_count,
-      lastIndexed: r.last_indexed,
-    }));
+    return getAllFileMetasWithStatement((sql) => this.stmt(sql));
   }
 
   // ─── Search ──────────────────────────────────────────────────────────────────
@@ -744,9 +609,7 @@ export class IndexStore {
   }
 
   getAllIndexable(): Array<{ id: number; text: string }> {
-    return (
-      this.stmt('SELECT id, text FROM symbols').all() as { id: number; text: string }[]
-    ).map(({ id, text }) => ({ id, text }));
+    return getAllIndexableWithStatement((sql) => this.stmt(sql));
   }
 
   /**
@@ -757,55 +620,13 @@ export class IndexStore {
    * `symbols.id`). Ids may have gaps — that is fine.
    */
   getMaxSymbolId(): number {
-    const rows = this.stmt('SELECT MAX(id) AS m FROM symbols').all() as {
-      m: number | null;
-    }[];
-    return rows[0]?.m ?? 0;
+    return getMaxSymbolIdWithStatement((sql) => this.stmt(sql));
   }
 
   // ─── Stats ───────────────────────────────────────────────────────────────────
 
   getStats(): IndexStats {
-    const sizeBytes = this.sizeBytes();
-
-    const lastRows = this.stmt("SELECT value FROM metadata WHERE key = 'last_indexed'")
-      .all() as { value: string }[];
-    const lastIndexed = lastRows.length ? Number(lastRows[0]?.value) : null;
-
-    const totalRows = this.stmt('SELECT COUNT(*) FROM symbols').all() as {
-      'COUNT(*)': number;
-    }[];
-    const totalSymbols = totalRows[0] ? Number(totalRows[0]['COUNT(*)']) : 0;
-
-    const fileRows = this.stmt('SELECT COUNT(*) FROM files').all() as {
-      'COUNT(*)': number;
-    }[];
-    const totalFiles = fileRows[0] ? Number(fileRows[0]['COUNT(*)']) : 0;
-
-    const langRows = this.stmt('SELECT lang, COUNT(*) FROM symbols GROUP BY lang').all() as {
-      lang: string;
-      'COUNT(*)': number;
-    }[];
-    const byLang = {} as Record<SymbolLang, number>;
-    for (const row of langRows) byLang[row.lang as SymbolLang] = Number(row['COUNT(*)']);
-
-    const kindRows = this.stmt('SELECT kind, COUNT(*) FROM symbols GROUP BY kind').all() as {
-      kind: string;
-      'COUNT(*)': number;
-    }[];
-    const byKind = {} as Record<SymbolKind, number>;
-    for (const row of kindRows) byKind[row.kind as SymbolKind] = Number(row['COUNT(*)']);
-
-    return {
-      totalSymbols,
-      totalFiles,
-      byLang,
-      byKind,
-      indexPath: this.indexDir,
-      lastIndexed,
-      sizeBytes,
-      version: SCHEMA_VERSION,
-    };
+    return getStatsWithStatement((sql) => this.stmt(sql), this.indexDir);
   }
 
   setLastIndexed(ts: number): void {
@@ -816,10 +637,7 @@ export class IndexStore {
   }
 
   getMetadata(key: string): string | undefined {
-    const rows = this.stmt('SELECT value FROM metadata WHERE key = ?').all(key) as {
-      value: string;
-    }[];
-    return rows[0]?.value;
+    return getMetadataWithStatement((sql) => this.stmt(sql), key);
   }
 
   setMetadata(key: string, value: string): void {
@@ -864,7 +682,11 @@ export class IndexStore {
       // Delete old refs from this symbol (handles re-index)
       this.stmt('DELETE FROM refs WHERE from_id = ?').run(fromId);
       if (refs.length === 0) return;
-      this.bulkInsertRefs(refs.map((ref) => ({ ...ref, fromId })));
+      bulkInsertRefsWithStatement(
+        (sql) => this.stmt(sql),
+        IndexStore.MAX_SQL_VARS,
+        refs.map((ref) => ({ ...ref, fromId })),
+      );
     });
   }
 
@@ -882,7 +704,7 @@ export class IndexStore {
   insertRefsBatch(refs: Ref[]): void {
     if (refs.length === 0) return;
     this.runWithRetry(() => {
-      this.bulkInsertRefs(refs);
+      bulkInsertRefsWithStatement((sql) => this.stmt(sql), IndexStore.MAX_SQL_VARS, refs);
     });
   }
 
@@ -946,19 +768,7 @@ export class IndexStore {
 
         const allInserted: IndexSymbol[] = [];
         const refsToInsert: Ref[] = [];
-        const bulkSyms: Array<{
-          id: number;
-          lang: string;
-          kind: string;
-          name: string;
-          file: string;
-          line: number;
-          col: number;
-          signature: string;
-          docComment: string;
-          scope: string;
-          text: string;
-        }> = [];
+        const bulkSyms: BulkSymbolRow[] = [];
         const ftsRows: Array<{ id: number; text: string }> = [];
 
         for (const entry of entries) {
@@ -991,11 +801,20 @@ export class IndexStore {
           refsToInsert.push(...assignRefsToSymbols(entry.refs, insertedForEntry));
         }
 
-        this.bulkInsertSymbols(bulkSyms);
-        this.bulkInsertFts(ftsRows);
+        bulkInsertSymbolsWithStatement((sql) => this.stmt(sql), IndexStore.MAX_SQL_VARS, bulkSyms);
+        bulkInsertFtsWithStatement(
+          (sql) => this.stmt(sql),
+          IndexStore.MAX_SQL_VARS,
+          this.ftsAvailable,
+          ftsRows,
+        );
 
         // 3) Multi-row insert all refs.
-        this.bulkInsertRefs(refsToInsert);
+        bulkInsertRefsWithStatement(
+          (sql) => this.stmt(sql),
+          IndexStore.MAX_SQL_VARS,
+          refsToInsert,
+        );
 
         // 4) Upsert file metadata for every entry (small N — single-row is fine).
         const upsertStmt = this.stmt(
@@ -1118,31 +937,14 @@ export class IndexStore {
    * Find all references TO a given symbol (who calls / uses this symbol?).
    */
   findRefsTo(symbolId: number): Ref[] {
-    return (
-      this.stmt(
-          'SELECT id, from_id, to_name, to_id, call_type, line FROM refs WHERE to_id = ? OR to_name = (SELECT name FROM symbols WHERE id = ?)',
-        )
-        .all(symbolId, symbolId) as WriterRefRow[]
-    ).map(mapWriterRefRow);
+    return findRefsToWithStatement((sql) => this.stmt(sql), symbolId);
   }
 
   /**
    * Find all references FROM a given symbol (what does this symbol call/use?).
    */
   findRefsFrom(symbolId: number): Ref[] {
-    return (
-      this.stmt('SELECT id, from_id, to_name, to_id, call_type, line FROM refs WHERE from_id = ?')
-      .all(symbolId) as WriterRefRow[]
-    ).map(mapWriterRefRow);
-  }
-
-  private sizeBytes(): number {
-    const dbPath = path.join(this.indexDir, DB_FILE);
-    try {
-      return fs.statSync(dbPath).size;
-    } catch {
-      return 0;
-    }
+    return findRefsFromWithStatement((sql) => this.stmt(sql), symbolId);
   }
 
   // ─── CodeMap graph aggregation ──────────────────────────────────────────────
@@ -1153,56 +955,7 @@ export class IndexStore {
    * symbol resolved in package B). Node metadata includes symbol/file counts.
    */
   getPackageGraph(): CodeMapGraph {
-    // Aggregate symbol counts per file in SQL — avoids shipping every symbol id
-    // into JS just to count them (5k–50k rows on large monorepos).
-    const fileCounts = this.stmt(
-      'SELECT file, COUNT(*) AS n FROM symbols GROUP BY file',
-    ).all() as Array<{ file: string; n: number }>;
-
-    // File counts per package
-    const files = this.stmt('SELECT DISTINCT file FROM files').all() as { file: string }[];
-    const { pkgNodes, fileToPkg } = buildPackageGraphNodes(fileCounts, files);
-
-    // Cross-package edges: aggregate in SQL first (file×file×type) so monorepos
-    // with tens of thousands of symbol refs ship far fewer rows into JS.
-    const refRows = this.stmt(
-      `SELECT r.call_type, sf.file AS from_file, st.file AS to_file, COUNT(*) AS n
-       FROM refs r
-       JOIN symbols sf ON sf.id = r.from_id
-       JOIN symbols st ON st.id = r.to_id
-       WHERE r.to_id IS NOT NULL AND r.call_type != 'import'
-       GROUP BY r.call_type, sf.file, st.file`,
-    ).all() as Array<{ call_type: string; from_file: string; to_file: string; n: number }>;
-
-    const edgeMap = new Map<string, WeightedEdgeAccumulator>();
-    for (const r of refRows) {
-      const fromPkg = fileToPkg.get(r.from_file) ?? derivePackage(r.from_file) ?? '(root)';
-      const toPkg = fileToPkg.get(r.to_file) ?? derivePackage(r.to_file) ?? '(root)';
-      if (fromPkg === toPkg) continue;
-      const n = Number(r.n) || 0;
-      addWeightedEdge(edgeMap, fromPkg, toPkg, r.call_type, n);
-    }
-
-    // Module imports are path/package references, not symbol names. They must
-    // bypass symbol resolution or aliases/barrels leave the architecture with
-    // isolated boxes even though source imports are explicit.
-    const importRows = this.stmt(
-      `SELECT r.to_name, s.file AS from_file, COUNT(*) AS n
-       FROM refs r
-       JOIN symbols s ON s.id = r.from_id
-       WHERE r.call_type = 'import'
-       GROUP BY r.to_name, s.file`,
-    ).all() as Array<{ to_name: string; from_file: string; n: number }>;
-    for (const r of importRows) {
-      const fromPkg = fileToPkg.get(r.from_file) ?? derivePackage(r.from_file) ?? '(root)';
-      const toPkg = packageFromImport(r.to_name);
-      if (!fromPkg || !toPkg || fromPkg === toPkg || !pkgNodes.has(toPkg)) continue;
-      const n = Number(r.n) || 0;
-      addWeightedEdge(edgeMap, fromPkg, toPkg, 'import', n);
-    }
-
-    const edges = materializeWeightedEdges(edgeMap, 'pkg');
-    return { nodes: [...pkgNodes.values()], edges };
+    return getPackageGraphWithStatement((sql) => this.stmt(sql));
   }
 
   /**
@@ -1210,104 +963,7 @@ export class IndexStore {
    * derived from cross-file symbol references within the package.
    */
   getFileGraph(packageFilter: string): CodeMapGraph {
-    // Phase 1: Discover which files belong to the target package. Instead of
-    // loading every symbol row (5500+) and filtering in JS, scan just the
-    // distinct file paths — a much smaller result set.
-    const allFiles = this.stmt('SELECT DISTINCT file FROM symbols')
-      .all() as { file: string }[];
-    const pkgFilePaths = allFiles
-      .filter((f) => (derivePackage(f.file) ?? '(root)') === packageFilter)
-      .map((f) => f.file);
-    const localFiles = new Set(pkgFilePaths);
-    if (localFiles.size === 0) return { nodes: [], edges: [] };
-
-    // Phase 2: Query symbols only for files in this package.
-    const filePlaceholders = [...localFiles].map(() => '?').join(',');
-    const pkgSyms = this.stmt(
-        `SELECT file, id, name, kind, lang, line FROM symbols WHERE file IN (${filePlaceholders}) ORDER BY id`,
-      )
-      .all(...pkgFilePaths) as WriterFileGraphSymbolRow[];
-    const { fileNodes, symToFile, fileStats, ensureFileNode } = buildFileGraphNodeState(
-      pkgSyms,
-      localFiles,
-    );
-
-    // Build indexed-files set for import resolution — cheap DISTINCT query
-    // on file paths only (no full symbol rows).
-    const indexedFiles = new Set(allFiles.map((f) => f.file));
-
-    // Phase 3: Restrict refs to those involving the target package's symbols
-    // and aggregate identical edges in SQL before shipping to JS.
-    const refRows = this.stmt(
-        `SELECT r.from_id, r.to_id, r.call_type, COUNT(*) AS n
-       FROM refs r
-       WHERE (r.from_id IN (SELECT id FROM symbols WHERE file IN (${filePlaceholders}))
-           OR r.to_id IN (SELECT id FROM symbols WHERE file IN (${filePlaceholders})))
-         AND r.to_id IS NOT NULL
-       GROUP BY r.from_id, r.to_id, r.call_type`,
-      )
-      .all(...pkgFilePaths, ...pkgFilePaths) as {
-      from_id: number;
-      to_id: number;
-      call_type: string;
-      n: number;
-    }[];
-
-    // Collect symbol ids referenced across packages for lazy fetch
-    const knownSymIds = new Set(pkgSyms.map((s) => s.id));
-    const crossRefIds = new Set<number>();
-    for (const r of refRows) {
-      if (!knownSymIds.has(r.from_id)) crossRefIds.add(r.from_id);
-      if (!knownSymIds.has(r.to_id)) crossRefIds.add(r.to_id);
-    }
-    if (crossRefIds.size > 0) {
-      const crossPlaceholders = [...crossRefIds].map(() => '?').join(',');
-      const extras = this.stmt(
-          `SELECT id, file FROM symbols WHERE id IN (${crossPlaceholders})`,
-        )
-        .all(...crossRefIds) as { id: number; file: string }[];
-      for (const x of extras) {
-        symToFile.set(x.id, x.file);
-        if (!fileStats.has(x.file)) {
-          fileStats.set(x.file, { count: 0, lang: 'ts' as SymbolLang });
-        }
-      }
-    }
-
-    const edgeMap = new Map<string, WeightedEdgeAccumulator>();
-    for (const r of refRows) {
-      if (r.call_type === 'import') continue;
-      const fromFile = symToFile.get(r.from_id);
-      const toFile = symToFile.get(r.to_id);
-      if (!fromFile || !toFile || fromFile === toFile) continue;
-      if (!localFiles.has(fromFile) && !localFiles.has(toFile)) continue;
-      ensureFileNode(fromFile);
-      ensureFileNode(toFile);
-      const n = Number(r.n) || 0;
-      addWeightedEdge(edgeMap, fromFile, toFile, r.call_type, n);
-    }
-
-    const importRows = this.stmt(
-        `SELECT r.from_id, r.to_name, COUNT(*) AS n
-       FROM refs r
-       WHERE r.call_type = 'import'
-         AND r.from_id IN (SELECT id FROM symbols WHERE file IN (${filePlaceholders}))
-       GROUP BY r.from_id, r.to_name`,
-      )
-      .all(...pkgFilePaths) as { from_id: number; to_name: string; n: number }[];
-    for (const r of importRows) {
-      const fromFile = symToFile.get(r.from_id);
-      if (!fromFile || !localFiles.has(fromFile)) continue;
-      const toFile = resolveRelativeImport(fromFile, r.to_name, indexedFiles);
-      if (!toFile || fromFile === toFile) continue;
-      ensureFileNode(fromFile);
-      ensureFileNode(toFile);
-      const n = Number(r.n) || 0;
-      addWeightedEdge(edgeMap, fromFile, toFile, 'import', n);
-    }
-
-    const edges = materializeWeightedEdges(edgeMap, 'file');
-    return { nodes: [...fileNodes.values()], edges };
+    return getFileGraphWithStatement((sql) => this.stmt(sql), packageFilter);
   }
 
   /**
@@ -1315,84 +971,7 @@ export class IndexStore {
    * derived from intra-file and cross-file symbol references (who calls whom).
    */
   getSymbolGraph(fileFilter: string): CodeMapGraph {
-    // Query ONLY symbols from the target file — avoids loading the entire
-    // project's symbol table (5500+ rows) just to render one file's graph.
-    // Cross-file symbols referenced via refs are fetched lazily below.
-    const syms = this.stmt(
-        'SELECT id, name, kind, lang, file, line, signature, scope FROM symbols WHERE file = ? ORDER BY line, id',
-      )
-      .all(fileFilter) as WriterSymbolGraphRow[];
-
-    if (syms.length === 0) return { nodes: [], edges: [] };
-
-    const symById = new Map(syms.map((symbol) => [symbol.id, symbol]));
-    const relatedIds = new Set(syms.map((symbol) => symbol.id));
-
-    // Collect refs FROM symbols in this file (outgoing) and TO symbols in this
-    // file (incoming), so the graph shows both callers and callees.
-    //
-    // Two index-friendly JOINs are UNIONed (dedup on the physical ref tuple),
-    // then aggregated by (from_id, to_id, call_type) so dense call graphs
-    // ship far fewer rows into JS. The outer COUNT preserves the same edge
-    // weights as walking every raw ref row.
-    // Each JOIN drives off `idx_s_file` (symbols.file) and probes `refs` via
-    // `idx_r_from` / `idx_r_to_id`. Avoid `from_id IN (…) OR to_id IN (…)` —
-    // that form cannot be flattened by the SQLite planner and degenerates to
-    // a sequential scan over `refs` for every graph render.
-    const refRows = this.stmt(
-        `SELECT from_id, to_id, call_type, COUNT(*) AS n
-       FROM (
-         SELECT r.from_id, r.to_id, r.to_name, r.call_type, r.line
-         FROM refs r
-         JOIN symbols s ON s.id = r.from_id
-         WHERE s.file = ?
-         UNION
-         SELECT r.from_id, r.to_id, r.to_name, r.call_type, r.line
-         FROM refs r
-         JOIN symbols s ON s.id = r.to_id
-         WHERE s.file = ?
-       )
-       WHERE to_id IS NOT NULL
-       GROUP BY from_id, to_id, call_type`,
-      )
-      .all(fileFilter, fileFilter) as {
-      from_id: number;
-      to_id: number;
-      call_type: string;
-      n: number;
-    }[];
-
-    const edgeMap = new Map<string, WeightedEdgeAccumulator>();
-    for (const r of refRows) {
-      // Aggregated query only returns resolved endpoints; still guard.
-      if (r.to_id == null) continue;
-      relatedIds.add(r.from_id);
-      relatedIds.add(r.to_id);
-      const n = Number(r.n) || 0;
-      addWeightedEdge(edgeMap, r.from_id, r.to_id, r.call_type, n);
-    }
-    const edges = materializeWeightedEdges(edgeMap, 'sym');
-
-    // Lazily fetch referenced symbols from other files that aren't already
-    // loaded (discovered via refs above) instead of loading the entire project
-    // symbol table. For a typical file, this saves loading 5000+ irrelevant rows.
-    const loadedIds = new Set(syms.map((s) => s.id));
-    const missingIds = [...relatedIds].filter((id) => !loadedIds.has(id));
-    if (missingIds.length > 0) {
-      const placeholders = missingIds.map(() => '?').join(',');
-      const extras = this.stmt(
-          `SELECT id, name, kind, lang, file, line, signature, scope FROM symbols WHERE id IN (${placeholders})`,
-        )
-        .all(...missingIds) as WriterSymbolGraphRow[];
-      for (const s of extras) symById.set(s.id, s);
-    }
-
-    // Include direct callers/callees from other files. Previously their edges
-    // pointed at missing React Flow nodes, which made cross-file relations
-    // invisible exactly where users expected to inspect them.
-    const nodes = buildSymbolGraphNodes(symById, relatedIds, fileFilter);
-
-    return { nodes, edges };
+    return getSymbolGraphWithStatement((sql) => this.stmt(sql), fileFilter);
   }
 
   close(): void {

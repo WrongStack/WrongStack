@@ -18,8 +18,14 @@ import {
   panelWindow,
   truncatePanelText,
 } from './monitor-shell.js';
-
-// ─── Types & Interfaces ───────────────────────────────────────────────
+import {
+  EMPTY_AGENTS_CLOSE_DELAY_MS,
+  IDLE_HIDE_MS,
+  STATUS,
+  TRANSCRIPT_FETCH_LIMIT,
+  TRANSCRIPT_GLYPHS,
+  TRANSCRIPT_ROWS,
+} from './agents-monitor-constants.js';
 
 /**
  * Narrow read-only view of per-subagent transcripts. AgentMonitorService
@@ -39,28 +45,12 @@ export interface AgentsMonitorProps {
   fullscreen?: boolean | undefined;
 }
 
-// ─── Constants ────────────────────────────────────────────────────────
-
-const STATUS: Record<FleetEntry['status'], { icon: string; color: string }> = {
-  idle: { icon: '○', color: theme.textMuted },
-  running: { icon: '▶', color: theme.warn },
-  success: { icon: '✓', color: theme.success },
-  failed: { icon: '✗', color: theme.error },
-  timeout: { icon: '⏱', color: theme.warn },
-  stopped: { icon: '⊘', color: theme.textMuted },
-};
-
-/** Retained for callers/tests that tune the empty-state grace window. */
-export const IDLE_HIDE_MS = 60_000;
-export const EMPTY_AGENTS_CLOSE_DELAY_MS = 7_500;
-
-/** Fallback rows of transcript content when terminal height is unknown. */
-export const TRANSCRIPT_ROWS = 10;
-
-/** Full in-memory transcript depth to fetch (AgentMonitorService ring size). */
-export const TRANSCRIPT_FETCH_LIMIT = 500;
-
-// ─── Pure Helpers ─────────────────────────────────────────────────────
+export {
+  EMPTY_AGENTS_CLOSE_DELAY_MS,
+  IDLE_HIDE_MS,
+  TRANSCRIPT_FETCH_LIMIT,
+  TRANSCRIPT_ROWS,
+} from './agents-monitor-constants.js';
 
 function isLeaderEntry(entry: FleetEntry): boolean {
   return entry.id === 'leader' || entry.name === 'LEADER';
@@ -256,16 +246,6 @@ export function transcriptRowsForTerminal(
   const available = (termRows ?? 30) - chrome;
   return Math.max(6, fullscreen ? available : Math.min(24, available));
 }
-
-const TRANSCRIPT_GLYPHS: Record<AgentTimelineEntry['kind'], string> = {
-  text: '💬',
-  thinking: '∴',
-  tool_use: '🔧',
-  tool_result: '📎',
-  status: '·',
-  error: '❌',
-  system: '·',
-};
 
 /** One transcript entry as a single display line: `HH:MM:SS L3 🔧 …`. */
 export function formatTranscriptLine(e: AgentTimelineEntry, maxWidth = 110): string {

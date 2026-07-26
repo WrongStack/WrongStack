@@ -2,6 +2,7 @@ import type { Request } from '@wrongstack/core/types';
 import { describe, expect, it, vi } from 'vitest';
 import {
   type CodexOAuthTokens,
+  codexOutputCap,
   extractAccountId,
   OpenAICodexProvider,
   resolveCodexUrl,
@@ -481,5 +482,47 @@ describe('OpenAICodexProvider token refresh', () => {
     // onRefresh also fires exactly once per actual refresh — three callers
     // sharing one refresh must not multiply the persistence callbacks.
     expect(onRefresh).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('Codex output cap', () => {
+  it('ignores an absent or non-positive cap', () => {
+    expect(codexOutputCap(undefined)).toBeUndefined();
+    expect(codexOutputCap(0)).toBeUndefined();
+    expect(codexOutputCap(-1)).toBeUndefined();
+    expect(codexOutputCap(Number.NaN)).toBeUndefined();
+    expect(codexOutputCap(Number.POSITIVE_INFINITY)).toBeUndefined();
+  });
+
+  it('forwards any positive cap verbatim, floored to an integer', () => {
+    // No threshold: there is no catalog data to derive one from, so the
+    // caller's number is used as given rather than second-guessed.
+    for (const n of [80, 1024, 4096, 16_384, 128_000]) {
+      expect(codexOutputCap(n), String(n)).toBe(n);
+    }
+    expect(codexOutputCap(8_192.7)).toBe(8_192);
+  });
+
+  it('omits max_output_tokens entirely when the caller sets no cap', async () => {
+    const captured: Captured = {};
+    const p = new OpenAICodexProvider({
+      credentials: { accessToken: fakeJwt('acc_1'), expiresAt: Date.now() + 3_600_000 },
+      fetchImpl: capturingFetch(COMPLETED_SSE, captured),
+    });
+    await p.complete({ ...baseReq, maxTokens: undefined }, { signal: new AbortController().signal });
+    const body = JSON.parse(captured.init?.body ?? '{}');
+    // Absent, NOT the catalog ceiling: the backend default is the same number
+    // without the risk of us sending a stale one.
+    expect(body).not.toHaveProperty('max_output_tokens');
+  });
+
+  it("puts the caller's explicit cap on the wire", async () => {
+    const captured: Captured = {};
+    const p = new OpenAICodexProvider({
+      credentials: { accessToken: fakeJwt('acc_1'), expiresAt: Date.now() + 3_600_000 },
+      fetchImpl: capturingFetch(COMPLETED_SSE, captured),
+    });
+    await p.complete({ ...baseReq, maxTokens: 16_384 }, { signal: new AbortController().signal });
+    expect(JSON.parse(captured.init?.body ?? '{}').max_output_tokens).toBe(16_384);
   });
 });

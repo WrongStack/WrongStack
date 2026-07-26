@@ -77,7 +77,66 @@ describe('SqliteSageStore v3 migration', () => {
     expect(candidateIndexes.map((index) => index.name)).toContain(
       'idx_candidates_status_canonical',
     );
-    expect(version.value).toBe(3);
+    expect(version.value).toBe(4);
+  });
+
+  it('opens a v3 database containing a malformed active memory row', async () => {
+    const memoryDir = path.join(tempDir, '.wrongstack', 'memories');
+    const dbPath = path.join(memoryDir, 'sage.db');
+    await fs.promises.mkdir(memoryDir, { recursive: true });
+
+    const DatabaseSync = loadDatabaseSync();
+    const v3 = new DatabaseSync(dbPath);
+    v3.exec(`
+      CREATE TABLE schema_meta (
+        key TEXT PRIMARY KEY,
+        value INTEGER NOT NULL
+      );
+      INSERT INTO schema_meta (key, value) VALUES ('version', 3);
+
+      CREATE TABLE memories (
+        id TEXT PRIMARY KEY,
+        data TEXT NOT NULL,
+        status TEXT NOT NULL,
+        kind TEXT NOT NULL,
+        scope TEXT NOT NULL,
+        importance REAL NOT NULL,
+        confidence REAL NOT NULL,
+        freshness REAL NOT NULL,
+        updated_at TEXT NOT NULL,
+        created_at TEXT NOT NULL,
+        audience TEXT,
+        tags TEXT,
+        canonical_text TEXT NOT NULL DEFAULT ''
+      );
+      INSERT INTO memories (
+        id, data, status, kind, scope, importance, confidence, freshness,
+        updated_at, created_at, canonical_text
+      ) VALUES (
+        'broken-active', '{broken', 'active', 'fact', 'project', 0.8, 0.9, 1,
+        '2026', '2026', ''
+      );
+    `);
+    v3.close();
+
+    store = new SqliteSageStore({ projectRoot: tempDir });
+    await expect(store.initialize()).resolves.toBeUndefined();
+
+    const migrated = new DatabaseSync(dbPath, { readOnly: true });
+    const version = migrated
+      .prepare("SELECT value FROM schema_meta WHERE key = 'version'")
+      .get() as { value: number };
+    const broken = migrated
+      .prepare("SELECT legacy_scope FROM memories WHERE id = 'broken-active'")
+      .get() as { legacy_scope: string | null };
+    const updateTrigger = migrated
+      .prepare("SELECT name FROM sqlite_master WHERE type = 'trigger' AND name = 'memories_au'")
+      .get() as { name: string } | undefined;
+    migrated.close();
+
+    expect(updateTrigger?.name).toBe('memories_au');
+    expect(version.value).toBe(4);
+    expect(broken.legacy_scope).toBeNull();
   });
 
   it('rolls back a v3 migration when a dependent index cannot be created', async () => {

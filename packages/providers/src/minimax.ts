@@ -2,6 +2,7 @@ import type { Capabilities, Provider, Request, Response, StreamEvent } from '@wr
 import { AnthropicProvider } from './anthropic.js';
 import { capabilitiesForFamily } from './family-capabilities.js';
 import { OpenAICompatibleProvider } from './openai-compatible.js';
+import type { BuildBodyContext } from './model-output-limits.js';
 
 const DEFAULT_ROOT = 'https://api.minimax.io';
 
@@ -79,10 +80,7 @@ class MiniMaxMessagesProvider extends AnthropicProvider {
     };
   }
 
-  protected override buildBody(
-    req: Request,
-    ctx: { capabilities: Capabilities },
-  ): Record<string, unknown> {
+  protected override buildBody(req: Request, ctx: BuildBodyContext): Record<string, unknown> {
     // MiniMax documents `thinking` as ignored on this compatibility surface;
     // omit the canonical control and let the always-reasoning model decide.
     return super.buildBody({ ...req, reasoning: undefined }, ctx);

@@ -203,10 +203,6 @@
           "output": [
             "text"
           ]
-        },
-        "limit": {
-          "context": 1000000,
-          "output": 65536
         }
       },
       "qwen3.7-max": {
@@ -222,10 +218,6 @@
           "output": [
             "text"
           ]
-        },
-        "limit": {
-          "context": 1000000,
-          "output": 65536
         }
       },
       "qwen3.7-plus": {
@@ -242,10 +234,6 @@
           "output": [
             "text"
           ]
-        },
-        "limit": {
-          "context": 1000000,
-          "output": 65536
         }
       },
       "qwen3.6-flash": {
@@ -262,10 +250,6 @@
           "output": [
             "text"
           ]
-        },
-        "limit": {
-          "context": 1000000,
-          "output": 65536
         }
       },
       "glm-5.2": {
@@ -281,10 +265,6 @@
           "output": [
             "text"
           ]
-        },
-        "limit": {
-          "context": 198000,
-          "output": 65536
         }
       },
       "deepseek-v4-pro": {
@@ -300,10 +280,6 @@
           "output": [
             "text"
           ]
-        },
-        "limit": {
-          "context": 1000000,
-          "output": 65536
         }
       },
       "wan2.7-image": {

@@ -17,12 +17,9 @@ import {
   getBoard,
   getKanbanOrchestrationSnapshot,
   getKanbanQueueHealth,
-  getTask,
   getTaskChain,
   type KanbanBoard,
-  type KanbanBoardSummary,
   type KanbanColumn,
-  type KanbanEventContext,
   type KanbanLifecycleStage,
   type KanbanLink,
   type KanbanTask,
@@ -31,198 +28,46 @@ import {
   type KanbanTaskTransitionInput,
   listBoards,
   listReadyTasks,
-  listTaskActivity,
   mergeTasks,
   moveTask,
   parseLinesIntoTasks,
   reconcileKanbanBoard,
-  recordTaskActivity,
   recoverStaleTaskAssignments,
   releaseTaskClaim,
   removeBoard,
   removeColumn,
-  removeTask,
   setTaskChain,
   splitTask,
   syncBoardFromTaskGraph,
-  touchKanbanPresence,
   transferTaskToBoard,
   transitionTask,
   updateBoard,
   updateCheckOnTask,
   updateGoalMetricOnTask,
   updateTask,
-  resolveDecompositionProposal,
-  verifyTaskCompletion,
-  type KanbanDecompositionSubtask,
 } from '@wrongstack/kanban';
-import { recordKanbanVerificationEvidence } from '@wrongstack/tools';
-import { applySessionKanbanTaskToSource } from '@wrongstack/tools/session-kanban';
 import type { WebSocket } from 'ws';
 import type { WSClientMessage, WSServerMessage } from './types.js';
 import { handleKanbanTaskDispatch, type KanbanTaskDispatcher } from './kanban-dispatch.js';
-import { send } from './ws-utils.js';
+import { handleKanbanDecompositionRoute } from './kanban-decomposition-routes.js';
+import { handleKanbanTaskRoute } from './kanban-task-routes.js';
+import {
+  activityContext,
+  fail,
+  findTask,
+  has,
+  ok,
+  syncSessionSource,
+} from './kanban-route-helpers.js';
+import { paginateKanbanBoards } from './kanban-route-pagination.js';
+export { KANBAN_CLIENT_MESSAGE_TYPES } from './kanban-route-protocol.js';
+export { paginateKanbanBoards, type KanbanBoardPage } from './kanban-route-pagination.js';
 
 export interface KanbanRouteContext {
   projectRoot: string;
   context?: Context | undefined;
   broadcast?: ((msg: WSServerMessage) => void) | undefined;
   dispatchTask?: KanbanTaskDispatcher | undefined;
-}
-
-/**
- * Every client→server kanban message type handled by handleKanbanRoute.
- * Pinned by tests: each entry must be dispatched by the switch (never reach
- * the "Unknown kanban message type" default). Both servers consume this
- * single switch (standalone dispatcher + CLI embedded router), so this list
- * IS the protocol surface — update it together with the switch.
- */
-export const KANBAN_CLIENT_MESSAGE_TYPES = [
-  'kanban.capabilities',
-  'kanban.column.add',
-  'kanban.column.remove',
-  'kanban.create',
-  'kanban.decomposition.approve',
-  'kanban.decomposition.reject',
-  'kanban.delete',
-  'kanban.duplicate',
-  'kanban.generate',
-  'kanban.get',
-  'kanban.health',
-  'kanban.list',
-  'kanban.snapshot',
-  'kanban.supervisor.audit',
-  'kanban.supervisor.status',
-  'kanban.task.activity',
-  'kanban.task.activity.add',
-  'kanban.task.add',
-  'kanban.task.assign',
-  'kanban.task.chain',
-  'kanban.task.chain.get',
-  'kanban.task.check.add',
-  'kanban.task.check.update',
-  'kanban.task.claim',
-  'kanban.task.copy',
-  'kanban.task.dispatch',
-  'kanban.task.get',
-  'kanban.task.merge',
-  'kanban.task.metric.add',
-  'kanban.task.metric.update',
-  'kanban.task.move',
-  'kanban.task.note.add',
-  'kanban.task.ready',
-  'kanban.task.release',
-  'kanban.task.remove',
-  'kanban.task.split',
-  'kanban.task.transfer',
-  'kanban.task.transition',
-  'kanban.task.update',
-  'kanban.task.verify',
-  'kanban.taskgraph.export',
-  'kanban.taskgraph.sync',
-  'kanban.update',
-] as const;
-
-export interface KanbanBoardPage {
-  items: KanbanBoardSummary[];
-  total: number;
-  page: number;
-  pageSize: number;
-  totalPages: number;
-  activeTotal: number;
-  orphanedTotal: number;
-}
-
-export function paginateKanbanBoards(
-  boards: KanbanBoardSummary[],
-  input: { page: number; pageSize: number; activeSessionIds?: readonly string[] | undefined },
-): KanbanBoardPage {
-  const pageSize = Math.min(100, Math.max(1, Math.floor(input.pageSize)));
-  const activeSessionIds = new Set(input.activeSessionIds ?? []);
-  const isActive = (board: KanbanBoardSummary) =>
-    board.presence?.some((entry) => entry.active) === true ||
-    board.tags?.some((tag) => tag.startsWith('session:') && activeSessionIds.has(tag.slice(8))) ===
-      true;
-  const sorted = [...boards].sort((left, right) => {
-    const activityOrder = Number(isActive(right)) - Number(isActive(left));
-    return activityOrder || right.updatedAt.localeCompare(left.updatedAt);
-  });
-  const activeTotal = sorted.filter(isActive).length;
-  const total = sorted.length;
-  const totalPages = Math.max(1, Math.ceil(total / pageSize));
-  const requestedPage = Number.isFinite(input.page) ? Math.floor(input.page) : 1;
-  const page = Math.min(totalPages, Math.max(1, requestedPage));
-  const start = (page - 1) * pageSize;
-  return {
-    items: sorted.slice(start, start + pageSize),
-    total,
-    page,
-    pageSize,
-    totalPages,
-    activeTotal,
-    orphanedTotal: total - activeTotal,
-  };
-}
-
-async function syncSessionSource(
-  ctx: KanbanRouteContext,
-  task: KanbanTask,
-  remove = false,
-): Promise<void> {
-  if (!ctx.context) return;
-  const update = await applySessionKanbanTaskToSource(ctx.context, task, { remove });
-  const sessionId = ctx.context.session?.id ?? '';
-  if (update.todos)
-    ctx.broadcast?.({ type: 'todos.updated', payload: { sessionId, todos: update.todos } });
-  if (update.tasks)
-    ctx.broadcast?.({ type: 'tasks.updated', payload: { sessionId, tasks: update.tasks.tasks } });
-  if (update.plan)
-    ctx.broadcast?.({ type: 'plan.updated', payload: { sessionId, plan: update.plan } });
-}
-
-function ok(ws: WebSocket, type: string, data?: unknown): void {
-  send(ws, { type, payload: { success: true, data: data ?? null } });
-}
-
-function fail(ws: WebSocket, type: string, message: string): void {
-  send(ws, { type, payload: { success: false, error: message } });
-}
-
-function has(payload: Record<string, unknown> | undefined, key: string): boolean {
-  return payload !== undefined && Object.hasOwn(payload, key);
-}
-
-function activityContext(
-  ctx: KanbanRouteContext,
-  actor?: string,
-  note?: string,
-): KanbanEventContext {
-  const sessionId = ctx.context?.session?.id;
-  return {
-    ...(sessionId ? { sessionId } : {}),
-    ...(actor ? { actor } : {}),
-    ...(note?.trim() ? { note: note.trim() } : {}),
-  };
-}
-
-async function touchTaskPresence(
-  ctx: KanbanRouteContext,
-  boardId: string,
-  taskId: string,
-): Promise<KanbanBoard | null> {
-  const context = ctx.context;
-  const sessionId = context?.session?.id;
-  if (!context || !sessionId) return null;
-  try {
-    return await touchKanbanPresence(ctx.projectRoot, boardId, {
-      sessionId,
-      agentId: context.agentId || 'webui',
-      agentName: context.agentName || context.agentId || 'WebUI',
-      taskId,
-    });
-  } catch {
-    return null;
-  }
 }
 
 export async function handleKanbanRoute(
@@ -235,6 +80,8 @@ export async function handleKanbanRoute(
   const type = msg.type;
 
   try {
+    if (await handleKanbanDecompositionRoute(ws, type, payload, ctx)) return true;
+    if (await handleKanbanTaskRoute(ws, type, payload, ctx)) return true;
     switch (type) {
       case 'kanban.list': {
         const boards = await listBoards(ctx.projectRoot);
@@ -1082,97 +929,6 @@ export async function handleKanbanRoute(
       case 'kanban.capabilities':
         ok(ws, type, { dispatchSupported: Boolean(ctx.dispatchTask) });
         return true;
-      case 'kanban.task.remove': {
-        const boardId = payload?.boardId as string | undefined;
-        const taskId = payload?.taskId as string | undefined;
-        if (!boardId || !taskId) {
-          fail(ws, type, 'boardId and taskId required');
-          return true;
-        }
-        const task = await getTask(ctx.projectRoot, boardId, taskId);
-        if (!task) {
-          fail(ws, type, 'Board or task not found');
-          return true;
-        }
-        const board = await removeTask(ctx.projectRoot, boardId, taskId);
-        if (!board) {
-          fail(ws, type, 'Board or task not found');
-          return true;
-        }
-        await syncSessionSource(ctx, task, true);
-        ok(ws, type, { removed: true, boardId: board.id, taskId: task.id, board });
-        return true;
-      }
-      case 'kanban.task.get': {
-        const boardId = payload?.boardId as string | undefined;
-        const taskId = payload?.taskId as string | undefined;
-        if (!boardId || !taskId) {
-          fail(ws, type, 'boardId and taskId required');
-          return true;
-        }
-        const task = await getTask(ctx.projectRoot, boardId, taskId);
-        if (task) {
-          await touchTaskPresence(ctx, boardId, task.id);
-          ok(ws, type, task);
-        } else {
-          fail(ws, type, 'Task not found');
-        }
-        return true;
-      }
-      case 'kanban.task.activity': {
-        const boardId = payload?.boardId as string | undefined;
-        const taskId = payload?.taskId as string | undefined;
-        if (!boardId || !taskId) {
-          fail(ws, type, 'boardId and taskId required');
-          return true;
-        }
-        const presenceBoard = await touchTaskPresence(ctx, boardId, taskId);
-        const events = await listTaskActivity(ctx.projectRoot, boardId, taskId, {
-          ...(typeof payload?.limit === 'number' ? { limit: payload.limit } : {}),
-        });
-        ok(ws, type, {
-          boardId,
-          taskId,
-          events,
-          presence: presenceBoard?.presence?.filter((entry) => entry.taskId === taskId) ?? [],
-        });
-        return true;
-      }
-      case 'kanban.task.activity.add': {
-        const boardId = payload?.boardId as string | undefined;
-        const taskId = payload?.taskId as string | undefined;
-        const kind = payload?.kind as string | undefined;
-        const summary = payload?.summary as string | undefined;
-        const allowedKinds = ['decision', 'attempt', 'result', 'blocker', 'observation'] as const;
-        const allowedOutcomes = ['succeeded', 'failed', 'partial', 'skipped', 'unknown'] as const;
-        if (!boardId || !taskId || !summary?.trim() || !allowedKinds.includes(kind as never)) {
-          fail(ws, type, 'boardId, taskId, summary, and a valid activity kind required');
-          return true;
-        }
-        const requestedOutcome = payload?.outcome as string | undefined;
-        const outcome = allowedOutcomes.includes(requestedOutcome as never)
-          ? (requestedOutcome as (typeof allowedOutcomes)[number])
-          : 'unknown';
-        const board = await recordTaskActivity(
-          ctx.projectRoot,
-          boardId,
-          taskId,
-          {
-            kind: kind as (typeof allowedKinds)[number],
-            summary: summary.trim(),
-            outcome,
-            ...(typeof payload?.details === 'string' && payload.details.trim()
-              ? { details: payload.details.trim() }
-              : {}),
-          },
-          activityContext(
-            ctx,
-            (payload?.actor as string | undefined) ?? ctx.context?.agentId ?? 'webui',
-          ),
-        );
-        board ? ok(ws, type, board) : fail(ws, type, 'Board or task not found');
-        return true;
-      }
       case 'kanban.column.add': {
         const boardId = payload?.boardId as string | undefined;
         const title = payload?.title as string | undefined;
@@ -1199,118 +955,6 @@ export async function handleKanbanRoute(
           : fail(ws, type, `Column not found: ${columnId}`);
         return true;
       }
-      case 'kanban.decomposition.approve':
-      case 'kanban.decomposition.reject': {
-        const boardId = payload?.boardId as string | undefined;
-        const taskId = payload?.taskId as string | undefined;
-        const proposalId = payload?.proposalId as string | undefined;
-        if (!boardId || !taskId || !proposalId) {
-          fail(ws, type, 'boardId, taskId, and proposalId required');
-          return true;
-        }
-        const action = type === 'kanban.decomposition.approve' ? 'approve' : 'reject';
-        // Validate each edit element has at least a string `title` before
-        // forwarding — malformed objects would corrupt the proposal/board.
-        let edits: KanbanDecompositionSubtask[] | undefined;
-        if (Array.isArray(payload?.edits)) {
-          const rawEdits = payload.edits as unknown[];
-          const valid = rawEdits.every(
-            (e): e is KanbanDecompositionSubtask =>
-              e !== null && typeof e === 'object' && typeof (e as Record<string, unknown>).title === 'string',
-          );
-          if (!valid) {
-            fail(ws, type, 'Each edit must be an object with a string "title"');
-            return true;
-          }
-          edits = rawEdits;
-        }
-        const resolved = await resolveDecompositionProposal(
-          ctx.projectRoot,
-          boardId,
-          taskId,
-          proposalId,
-          {
-            action,
-            ...(typeof payload?.reason === 'string' ? { reason: payload.reason } : {}),
-            ...(edits ? { editedSubtasks: edits } : {}),
-            resolvedBy: 'webui',
-          },
-        );
-        if (!resolved) {
-          fail(ws, type, `Proposal not found or already resolved: ${proposalId}`);
-          return true;
-        }
-        ok(ws, type, { boardId, task: resolved.task });
-        // Approval applies a structural split — broadcast the full board (the
-        // {board} envelope) plus the refreshed list, mirroring the dispatch
-        // completion pattern. Rejection only touches the task.
-        if (action === 'approve') {
-          ctx.broadcast?.({
-            type: 'kanban.decomposition.applied',
-            payload: { success: true, data: { board: resolved.board } },
-          });
-          ctx.broadcast?.({
-            type: 'kanban.get',
-            payload: { success: true, data: { board: resolved.board } },
-          });
-          ctx.broadcast?.({
-            type: 'kanban.list',
-            payload: { success: true, data: await listBoards(ctx.projectRoot) },
-          });
-        } else {
-          ctx.broadcast?.({
-            type: 'kanban.decomposition.resolved',
-            payload: { success: true, data: { boardId, task: resolved.task } },
-          });
-        }
-        return true;
-      }
-      case 'kanban.task.verify': {
-        const boardId = payload?.boardId as string | undefined;
-        const taskId = payload?.taskId as string | undefined;
-        if (!boardId || !taskId) {
-          fail(ws, type, 'boardId and taskId required');
-          return true;
-        }
-        ctx.broadcast?.({
-          type: 'kanban.task.verification_started',
-          payload: { success: true, data: { boardId, taskId } },
-        });
-        try {
-          const verResult = await verifyTaskCompletion(ctx.projectRoot, boardId, taskId);
-          const persisted = await updateTask(ctx.projectRoot, boardId, taskId, {
-            verificationReport: verResult.report,
-            successCriteria: verResult.task.successCriteria,
-          });
-          const freshTask =
-            persisted?.tasks.find((candidate) => candidate.id === verResult.task.id) ??
-            verResult.task;
-          if (ctx.context) recordKanbanVerificationEvidence(ctx.context, verResult.report);
-          ok(ws, type, { boardId, task: freshTask });
-          ctx.broadcast?.({
-            type: 'kanban.task.verification_completed',
-            payload: { success: true, data: { boardId, task: freshTask } },
-          });
-          if (persisted) {
-            ctx.broadcast?.({
-              type: 'kanban.get',
-              payload: { success: true, data: { board: persisted } },
-            });
-          }
-        } catch (err) {
-          // Clear the spinner on failure so the task doesn't look stuck.
-          ctx.broadcast?.({
-            type: 'kanban.task.verification_completed',
-            payload: {
-              success: false,
-              error: err instanceof Error ? err.message : String(err),
-              data: { boardId, taskId },
-            },
-          });
-          fail(ws, type, err instanceof Error ? err.message : String(err));
-        }
-        return true;
-      }
       default:
         fail(ws, type, `Unknown kanban message type: ${type}`);
         return true;
@@ -1319,8 +963,4 @@ export async function handleKanbanRoute(
     fail(ws, type, err instanceof Error ? err.message : String(err));
     return true;
   }
-}
-
-function findTask(tasks: KanbanTask[], taskId: string): KanbanTask | undefined {
-  return tasks.find((task) => task.id === taskId || task.id.startsWith(taskId));
 }

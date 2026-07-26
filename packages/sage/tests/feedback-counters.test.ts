@@ -228,6 +228,38 @@ describe.skipIf(!isSqliteAvailable())('SqliteSageStore feedback counters', () =>
     expect(loaded?.lastAccessedAt).toBe(current.toISOString());
   });
 
+  it('skips corrupt SQLite rows while recording injection counters', async () => {
+    const store = makeSqliteStore();
+    await store.initialize();
+    const db = (store as unknown as { db: import('node:sqlite').DatabaseSync }).db;
+    // The production store can encounter corrupt rows from legacy/crash recovery.
+    // Drop FTS triggers in this fixture so SQLite allows seeding malformed JSON;
+    // the assertion below targets recordInjection's json_valid guard, not FTS.
+    db.exec('DROP TRIGGER IF EXISTS memories_ai; DROP TRIGGER IF EXISTS memories_au;');
+    db.prepare(
+      `INSERT INTO memories
+        (id, data, status, kind, scope, legacy_scope, importance, confidence, freshness, updated_at, created_at, audience, tags, canonical_text)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    ).run(
+      'corrupt-counter-row',
+      '{broken',
+      'active',
+      'fact',
+      'project',
+      'project-memory',
+      0.8,
+      0.8,
+      1,
+      current.toISOString(),
+      current.toISOString(),
+      null,
+      '[]',
+      'broken',
+    );
+
+    await expect(store.recordInjection(['corrupt-counter-row'], 'turn_context')).resolves.toBeUndefined();
+  });
+
   it('SQLite hygiene currently does NOT auto-archive — report fields reflect zero', async () => {
     // SQLite backend's hygiene() is a separate implementation that was already
     // a near-stub before the redesign (it never had the unused-rule code-path

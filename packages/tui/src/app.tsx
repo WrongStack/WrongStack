@@ -7,15 +7,12 @@ import {
   type PromptUsageStore,
 } from '@wrongstack/core/storage';
 import { InputBuilder } from '@wrongstack/core/agent';
-import { toErrorMessage } from '@wrongstack/core/utils';
 import React, {
   useCallback,
   useEffect,
-  useLayoutEffect,
   useMemo,
   useReducer,
   useRef,
-  useState,
 } from 'react';
 import {
   buildRestoredCheckpoints,
@@ -26,23 +23,29 @@ import {
 import { reducer, type State } from './app-reducer.js';
 import { leaderTimelineFromEntries } from './components/agents-monitor.js';
 import type { HistoryScrollController } from './components/scrollable-history.js';
-import type { KeyEvent } from './components/input.js';
 import type { StatuslineItem } from './components/statusline-picker.js';
 import { useAuthPanel } from './hooks/use-auth-panel.js';
 import { useAppPickerKeys } from './hooks/use-app-picker-keys.js';
 import { useAutonomyDrivers } from './hooks/use-autonomy-drivers.js';
 import { useAutonomousCoordinator } from './hooks/use-autonomous-coordinator.js';
 import { useBrainPanel } from './hooks/use-brain-panel.js';
+import { useBrainRiskSync } from './hooks/use-brain-risk-sync.js';
 import { useClientTelemetry } from './hooks/use-client-telemetry.js';
 import { useCoreTuiCommands } from './hooks/use-core-tui-commands.js';
 import { useDirectorFleetBridge } from './hooks/use-director-fleet-bridge.js';
 import { useFileSearch } from './hooks/use-file-search.js';
+import { useHelpPanel } from './hooks/use-help-panel.js';
 import { useInputHistoryPersistence } from './hooks/use-input-history-persistence.js';
 import { useInitialPrompt } from './hooks/use-initial-prompt.js';
 import { useInterruptLadder } from './hooks/use-interrupt-ladder.js';
 import { useGitSessionStatus } from './hooks/use-git-session-status.js';
+import { useHistoryCopyNotice } from './hooks/use-history-copy-notice.js';
+import { useHistoryViewportSync } from './hooks/use-history-viewport-sync.js';
+import { useKanbanBoardFocus } from './hooks/use-kanban-board-focus.js';
 import { useLiveTodos } from './hooks/use-live-todos.js';
+import { useLiveSettingsState } from './hooks/use-live-settings-state.js';
 import { useMailboxViewModel } from './hooks/use-mailbox-view-model.js';
+import { useMouseTracking } from './hooks/use-mouse-tracking.js';
 import { useNextStepsAutoSubmit } from './hooks/use-next-steps-auto-submit.js';
 import { usePanelControllers } from './hooks/use-panel-controllers.js';
 import { useModePicker } from './hooks/use-mode-picker.js';
@@ -54,7 +57,9 @@ import { useQueueManager } from './hooks/use-queue-manager.js';
 import { useSessionInterruptController } from './hooks/use-session-interrupt-controller.js';
 import { useSettingsAutoSave } from './hooks/use-settings-auto-save.js';
 import { useSlashPicker } from './hooks/use-slash-picker.js';
+import { useShadowPanel } from './hooks/use-shadow-panel.js';
 import { useStatuslineHiddenSync } from './hooks/use-statusline-hidden-sync.js';
+import { useStableKeyHandler } from './hooks/use-stable-key-handler.js';
 import { useStatusbarViewModel } from './hooks/use-statusbar-view-model.js';
 import { useTuiEnvironmentState } from './hooks/use-tui-environment-state.js';
 import { useStreamChipExpiration } from './hooks/use-stream-chip-expiration.js';
@@ -65,17 +70,12 @@ import { useTuiEventBridge } from './hooks/use-tui-event-bridge.js';
 import { useTuiSlashCommands } from './hooks/use-tui-slash-commands.js';
 import { useWorkingDirChip } from './hooks/use-working-dir-chip.js';
 import { useExitCommand } from './hooks/use-exit-command.js';
-import { type DOMElement, measureElement, useApp, useStdout } from './ink.js';
+import { useEnhanceRuntimeState } from './hooks/use-enhance-runtime-state.js';
+import { useApp, useStdout } from './ink.js';
 import { deriveAppViewState } from './app-view-state.js';
+import { isPickerOverlayOpen, mergeStatuslineHiddenItems } from './app-ui-state.js';
 import { AppView } from './app-view.js';
-import { historyViewportRows } from './hit-test.js';
 import { LayoutStore } from './layout-store.js';
-import {
-  MOUSE_CLICK_ON,
-  MOUSE_DRAG_ON,
-  MOUSE_OFF,
-  shouldEnableMouseTracking,
-} from './mouse.js';
 import { createRunBlocksController } from './run-blocks-controller.js';
 import { createSubmitController } from './submit-controller.js';
 import { TokenPreviewStore } from './token-previews.js';
@@ -353,49 +353,8 @@ export function App(props: AppProps): React.ReactElement {
       dispatch({ type: 'setHistoryScrolled', scrolled: info.scrolled }),
     [dispatch],
   );
-  // Transient "Copied" status-line confirmation shown when a chat card's copy
-  // icon is clicked and its content lands on the clipboard. Uses the dedicated
-  // `copiedNotice` slice (not `hint`) so it takes precedence over the
-  // running-tools indicator and never races another hint producer. Auto-cleared
-  // after a short delay; the timer ref lets a rapid second copy reset the
-  // countdown instead of clearing early.
-  const copiedHintTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const onHistoryCopy = useCallback(
-    (entryId: number) => {
-      dispatch({ type: 'copiedNotice', text: '✓ Copied', entryId });
-      if (copiedHintTimerRef.current) clearTimeout(copiedHintTimerRef.current);
-      copiedHintTimerRef.current = setTimeout(() => {
-        dispatch({ type: 'copiedNotice', text: '', entryId: null });
-        copiedHintTimerRef.current = null;
-      }, 2_000);
-    },
-    [dispatch],
-  );
-  // Clear the pending auto-clear timer on unmount so it cannot fire (and
-  // dispatch into an unmounted tree) after teardown.
-  useEffect(
-    () => () => {
-      if (copiedHintTimerRef.current) clearTimeout(copiedHintTimerRef.current);
-    },
-    [],
-  );
-  // Board id captured by `/kanban use <boardId>` or the Goal → Kanban
-  // bridge. The KanbanPanel reads it as `initialBoardId` so the panel
-  // opens on the requested board rather than the session-tag fallback.
-  // Reset to null once the panel has consumed it on mount.
-  const [focusedBoardId, setFocusedBoardId] = useState<string | null>(null);
-  // Stable ref-shaped bridge so the slash command can call it through
-  // `deps.onBoardFocus.current(boardId)` regardless of how many times
-  // the registration effect re-runs.
-  const boardFocusRef = useRef<{ current: (boardId: string) => boolean } | null>(null);
-  if (!boardFocusRef.current) {
-    boardFocusRef.current = {
-      current: (boardId: string) => {
-        setFocusedBoardId(boardId);
-        return true;
-      },
-    };
-  }
+  const onHistoryCopy = useHistoryCopyNotice(dispatch);
+  const { focusedBoardId, setFocusedBoardId, boardFocusRef } = useKanbanBoardFocus();
 
   useInputHistoryPersistence({
     projectRoot,
@@ -415,72 +374,22 @@ export function App(props: AppProps): React.ReactElement {
   });
   const brainCtl = useBrainPanel({ dispatch, getBrainData, brainPanelHost, requestModelPick });
   const openBrainPanel = brainCtl.openBrainPanel;
-
-  const changeBrainRisk = React.useCallback((delta: number) => {
-    dispatch({ type: 'brainRiskChange', delta });
-  }, []);
-
-  // Sync risk level to host whenever it changes via ←/→ in the panel.
-  const prevRiskRef = React.useRef(state.brainPanel.riskLevel);
-  React.useEffect(() => {
-    if (!state.brainPanel.open) return;
-    const current = state.brainPanel.riskLevel;
-    if (current !== prevRiskRef.current && onBrainRiskLevel) {
-      prevRiskRef.current = current;
-      const err = onBrainRiskLevel(current);
-      if (err) dispatch({ type: 'brainHint', text: err });
-      else dispatch({ type: 'brainHint', text: `Risk ceiling → ${current.toUpperCase()}` });
-    }
-  }, [state.brainPanel.riskLevel, state.brainPanel.open, onBrainRiskLevel]);
+  const { changeBrainRisk } = useBrainRiskSync({
+    dispatch,
+    riskLevel: state.brainPanel.riskLevel,
+    brainPanelOpen: state.brainPanel.open,
+    onBrainRiskLevel,
+  });
 
   // ── Shadow Agent panel ─────────────────────────────────────────
-  const openShadowPanel = React.useCallback(() => {
-    if (!getShadowData) return;
-    const data = getShadowData();
-    dispatch({ type: 'shadowOpen', shadow: data });
-  }, [getShadowData]);
-
-  const handleShadowStart = React.useCallback(async () => {
-    if (!onShadowStart) return;
-    dispatch({ type: 'shadowHint', text: 'Starting Shadow Agent…' });
-    try {
-      const err = await onShadowStart();
-      if (err) dispatch({ type: 'shadowHint', text: err });
-      else {
-        if (getShadowData) dispatch({ type: 'shadowUpdate', shadow: getShadowData() });
-        dispatch({ type: 'shadowHint', text: 'Shadow Agent started.' });
-      }
-    } catch (e) {
-      dispatch({ type: 'shadowHint', text: `Failed to start: ${toErrorMessage(e)}` });
-    }
-  }, [onShadowStart, getShadowData]);
-
-  const handleShadowStop = React.useCallback(async () => {
-    if (!onShadowStop) return;
-    dispatch({ type: 'shadowHint', text: 'Stopping Shadow Agent…' });
-    try {
-      const err = await onShadowStop();
-      if (err) dispatch({ type: 'shadowHint', text: err });
-      else {
-        if (getShadowData) dispatch({ type: 'shadowUpdate', shadow: getShadowData() });
-        dispatch({ type: 'shadowHint', text: 'Shadow Agent stopped.' });
-      }
-    } catch (e) {
-      dispatch({ type: 'shadowHint', text: `Failed to stop: ${toErrorMessage(e)}` });
-    }
-  }, [onShadowStop, getShadowData]);
+  const { openShadowPanel, handleShadowStart, handleShadowStop } = useShadowPanel(dispatch, {
+    getShadowData,
+    onShadowStart,
+    onShadowStop,
+  });
 
   // ── Help panel ──────────────────────────────────────────────────
-  const openHelpPanel = React.useCallback(() => {
-    const entries = Array.from(slashRegistry.listWithOwner()).map(({ cmd, owner }) => ({
-      name: owner === 'core' ? cmd.name : `${owner}:${cmd.name}`,
-      description: cmd.description,
-      category: cmd.category ?? 'App',
-      aliases: cmd.aliases,
-      argsHint: cmd.argsHint,
-    }));
-    dispatch({ type: 'helpOpen', entries });
-  }, []);
+  const { openHelpPanel } = useHelpPanel(dispatch, slashRegistry);
 
   useStatuslineHiddenSync({
     pickerOpen: state.statuslinePicker.open,
@@ -553,40 +462,14 @@ export function App(props: AppProps): React.ReactElement {
 
   const workingDirChip = useWorkingDirChip(agent.ctx, projectRoot);
 
-  // chime/confirmExit must reflect LIVE `/settings` changes, not just the boot
-  // props. getSettings() reads the in-memory configStore, which saveSettings
-  // updates on every ←/→ change, so these refs stay current within the running
-  // session without a restart. Falls back to the boot prop when unavailable.
-  const liveSettings = getSettings?.();
-  const liveStatuslineMode = liveSettings?.statuslineMode ?? 'detailed';
-  // The animation style for the working/thinking chip in the status bar.
-  // `getSettings()` returns an untyped record, so the value is widened to the
-  // animation picker literal union before passing it down. Falls back to
-  // 'rainbow' so an unrecognised value still leaves a working chip.
-  const liveAnimationStyle =
-    (liveSettings?.animationStyle as
-      | 'rainbow'
-      | 'wave'
-      | 'pulse'
-      | 'dots'
-      | 'breathe'
-      | 'cycle'
-      | undefined) ?? 'rainbow';
-  const liveThinkingWord = liveSettings?.thinkingWord ?? 'thinking';
-  const chimeRef = useRef(chime);
-  chimeRef.current = liveSettings?.chime ?? chime;
-  const confirmExitRef = useRef(confirmExit);
-  confirmExitRef.current = liveSettings?.confirmExit ?? confirmExit;
-
-  // Apply a live `titleAnimation` change to the out-of-band terminal title
-  // controller (set up in run-tui). Reads the configStore-backed live value so
-  // it tracks ←/→ changes in `/settings`; the boolean primitive keeps the
-  // effect from re-firing on unrelated renders.
-  const liveTitleAnimation = liveSettings?.titleAnimation;
-  useEffect(() => {
-    if (!titleController) return;
-    titleController.setEnabled(liveTitleAnimation !== false);
-  }, [titleController, liveTitleAnimation]);
+  const {
+    liveSettings,
+    liveStatuslineMode,
+    liveAnimationStyle,
+    liveThinkingWord,
+    chimeRef,
+    confirmExitRef,
+  } = useLiveSettingsState({ getSettings, titleController, chime, confirmExit });
 
   // Source of truth for the streamed assistant text — kept here, not in
   // React state, because we need to read it synchronously when `agent.run`
@@ -686,12 +569,10 @@ export function App(props: AppProps): React.ReactElement {
   }, [secretInputController, authPanelController.readSecret, authPanelController.readText]);
 
   const statuslineHiddenForPicker = useCallback((): StatuslineItem[] => {
-    const hookHidden = hiddenItemsRef.current;
-    const hookHiddenSet = new Set<StatuslineItem>(hookHidden);
-    const reducerOnlyHidden = stateRef.current.statuslinePicker.hiddenItems.filter(
-      (item) => !hookHiddenSet.has(item),
+    return mergeStatuslineHiddenItems(
+      hiddenItemsRef.current,
+      stateRef.current.statuslinePicker.hiddenItems,
     );
-    return [...hookHidden, ...reducerOnlyHidden];
   }, []);
 
   const openStatuslinePicker = useCallback(
@@ -708,110 +589,20 @@ export function App(props: AppProps): React.ReactElement {
   // owns wheel input because virtualized rows do not exist in native terminal
   // scrollback. Track clicks work in managed mode; full mode additionally
   // enables pointer drag and clickable app chrome.
-  const [mouseMode, setMouseMode] = useState(mouse);
-
-  // Mouse tracking ownership. Managed history keeps cheap click/wheel reporting
-  // active; full mode upgrades it to drag reporting for the scrollbar.
-  // A ref tracks the last sequence so transitions emit exactly one write.
-  // Cleanup disables tracking on unmount;
-  // run-tui also sends MOUSE_OFF as a belt-and-suspenders on process exit.
-  const pickerOverlayOpen =
-    state.modelPicker.open ||
-    state.autonomyPicker.open ||
-    state.modePicker.open ||
-    state.designPicker.open ||
-    state.resumePicker.open ||
-    state.promptPicker.open ||
-    state.settingsPicker.open ||
-    state.projectPicker.open ||
-    state.slashPicker.open ||
-    state.statuslinePicker.open ||
-    state.pluginPicker.open ||
-    state.mcpPicker.open ||
-    state.toolsPicker.open ||
-    state.brainPanel.open ||
-    state.helpPanel.open ||
-    state.shadowPanel.open ||
-    state.fKeyPicker.open ||
-    state.authPanel.open ||
-    state.sessionsPanelOpen ||
-    state.picker.open;
-  const mouseTrackingOn = shouldEnableMouseTracking({
-    fullMode: mouseMode,
+  const pickerOverlayOpen = isPickerOverlayOpen(state);
+  const { mouseMode, setMouseMode } = useMouseTracking({
+    initialMouseMode: mouse,
     overlayOpen: pickerOverlayOpen,
-    managedHistory: true,
     protocol: capability?.mouseProtocol,
+    stdout,
   });
-  const mouseTrackingSequence = mouseTrackingOn
-    ? mouseMode
-      ? MOUSE_DRAG_ON
-      : MOUSE_CLICK_ON
-    : MOUSE_OFF;
-  const mouseWrittenRef = useRef<string | null>(null);
-  useEffect(() => {
-    if (mouseWrittenRef.current === mouseTrackingSequence) return;
-    mouseWrittenRef.current = mouseTrackingSequence;
-    try {
-      stdout?.write(mouseTrackingSequence);
-    } catch {
-      // stdout closed during shutdown — ignore.
-    }
-  }, [mouseTrackingSequence, stdout]);
-  useEffect(
-    () => () => {
-      const wasTracking =
-        mouseWrittenRef.current !== null && mouseWrittenRef.current !== MOUSE_OFF;
-      // React StrictMode replays effects without recreating refs. Reset the
-      // write sentinel so the replay restores whichever mode is still active.
-      mouseWrittenRef.current = null;
-      if (!wasTracking) return;
-      try {
-        stdout?.write(MOUSE_OFF);
-      } catch {
-        // ignore — process tearing down.
-      }
-    },
-    [stdout],
-  );
 
-  // Managed history owns the rows above the input/status/panel region. Keep
-  // that viewport synchronized with the measured bottom region; otherwise the
-  // initial zero-row state collapses ScrollableHistory to its one-row guard and
-  // clips the startup banner to a single line.
-  const bottomRegionRef = useRef<DOMElement | null>(null);
-  // Measured on click to locate clickable status-bar chips: the status bar is
-  // bottom-anchored above `belowStatusBarRef`'s panels, so its absolute rows are
-  // termRows − belowHeight − statusBarHeight … See statusBarLineRow / handleKey.
-  const statusBarWrapRef = useRef<DOMElement | null>(null);
-  const belowStatusBarRef = useRef<DOMElement | null>(null);
-  const [termRows, setTermRows] = useState(stdout?.rows ?? 24);
-  useEffect(() => {
-    const onResize = () => setTermRows(process.stdout.rows ?? 24);
-    // prependListener, not on: Ink attaches its own 'resize' handler first (in
-    // the Ink constructor) and that handler synchronously re-lays-out and
-    // REWRITES the previous tree. If our height update hasn't landed by then,
-    // a height-shrink writes a frame taller than the new terminal, which
-    // scrolls the screen and leaks rows into scrollback. Running before Ink's
-    // handler gives React (legacy root: synchronous flush outside batched
-    // contexts) the chance to commit the new termRows first, so Ink re-renders
-    // the already-resized tree.
-    process.stdout.prependListener('resize', onResize);
-    return () => {
-      process.stdout.off('resize', onResize);
-    };
-  }, []);
-  useLayoutEffect(() => {
-    const node = bottomRegionRef.current;
-    if (!node) return;
-    const rows = historyViewportRows(termRows, measureElement(node).height);
-    if (rows !== stateRef.current.viewportRows) {
-      dispatch({ type: 'setViewportRows', rows });
-    }
+  const { bottomRegionRef, statusBarWrapRef, belowStatusBarRef, termRows } =
+    useHistoryViewportSync({
+      stdoutRows: stdout?.rows,
+      viewportRows: state.viewportRows,
+      setViewportRows: (rows) => dispatch({ type: 'setViewportRows', rows }),
   });
-  // Latest handleKey, so the keyboard event pipeline can be accessed from
-  // effects and callbacks defined above handleKey in the component body.
-  const handleKeyRef = useRef<((input: string, key: KeyEvent) => Promise<void>) | null>(null);
-
   // handleRewindTo must be declared before the /rewind useEffect (line 1803)
   // so the closure can capture it. It is intentionally NOT in useCallback
   // — each call needs a fresh rewinder referencing the current sessionsDir.
@@ -1065,28 +856,26 @@ export function App(props: AppProps): React.ReactElement {
     dispatch,
   });
 
-  // Live mirror of the prompt-refinement toggle, read synchronously inside
-  // submit() (which can't see the latest reducer state through its closure).
-  const enhanceEnabledRef = useRef(state.enhanceEnabled);
-  useEffect(() => {
-    enhanceEnabledRef.current = state.enhanceEnabled;
-  }, [state.enhanceEnabled]);
-  // Live mirror of the mid-run send-mode picker toggle. Seeded from the prop
-  // (config) and flipped synchronously by `/queue picker on|off` — read inside
-  // submit()'s busy branch, which can't see the latest value via its closure.
-  const midRunSendPickerRef = useRef(midRunSendPicker);
-  // Abort handle for the in-flight refiner call, so Esc can cancel a slow
-  // "refining..." without sending anything — the user is returned to the
-  // input to edit/retry.
-  const enhanceAbortRef = useRef<AbortController | null>(null);
-  // Set to true when Esc is pressed during the "refining…" state so the
-  // submit() function knows to load the original text back instead of sending
-  // it. Reset after handling.
-  const enhanceCancelledRef = useRef(false);
-  // Captures the submitted text before clearDraft() so RefiningPanel can show
-  // the preview despite state.buffer being empty. Only set inside the refine
-  // block in submit(), never read/written by anything else.
-  const enhanceOriginalRef = useRef('');
+  const {
+    enhanceEnabledRef,
+    midRunSendPickerRef,
+    enhanceAbortRef,
+    enhanceCancelledRef,
+    enhanceOriginalRef,
+    enhanceCountdown,
+    setEnhanceCountdown,
+    enhanceStartedAt,
+    setEnhanceStartedAt,
+    enhanceDurationMs,
+    setEnhanceDurationMs,
+    refineProviderId,
+    setRefineProviderId,
+    refineModel,
+    setRefineModel,
+  } = useEnhanceRuntimeState({
+    enhanceEnabled: state.enhanceEnabled,
+    midRunSendPicker,
+  });
 
   // ── Paste handling ──────────────────────────────────────────────────
   const {
@@ -1114,21 +903,6 @@ export function App(props: AppProps): React.ReactElement {
     saveSettings,
     midRunSendPickerRef,
   });
-
-  // Seconds remaining in the prompt-refinement auto-send countdown. Lifted
-  // out of EnhancePanel so the statusline can display it — panel re-renders
-  // during the countdown were causing blank entries in chat scrollback.
-  const [enhanceCountdown, setEnhanceCountdown] = useState<number | null>(null);
-  // Timing for the refiner request itself. `startedAt` drives the live elapsed
-  // label; `durationMs` survives the busy → preview transition so the result
-  // panel can report exactly how long the rewrite took.
-  const [enhanceStartedAt, setEnhanceStartedAt] = useState<number | null>(null);
-  const [enhanceDurationMs, setEnhanceDurationMs] = useState<number | null>(null);
-  // The actual provider/model used for the current refinement — captured after
-  // refiner profile resolution, NOT agent.ctx (which may differ when a dedicated
-  // refiner fallback profile is configured). Cleared per-attempt in runAttempt.
-  const [refineProviderId, setRefineProviderId] = useState<string | null>(null);
-  const [refineModel, setRefineModel] = useState<string | null>(null);
 
   const getActiveSessionId = useCallback(() => agent.ctx.session.id, [agent]);
 
@@ -1463,22 +1237,7 @@ export function App(props: AppProps): React.ReactElement {
 
   useInitialPrompt({ initialGoal, initialAsk, builderRef, runBlocksRef, dispatch });
 
-  // Expose the latest handleKey for the keyboard event pipeline.
-  handleKeyRef.current = handleKey;
-
-  // Stable callback wrapping handleKey via ref — prevents Input from
-  // re-rendering on every nowTick tick. handleKey itself captures many
-  // mutable state values in its closure and must be recreated each render,
-  // but the Input only needs a stable function reference that delegates
-  // to the latest closure via the ref.
-  const stableOnKey = useCallback((input: string, key: KeyEvent) => {
-    // Rejection from handleKey is caught here to prevent unhandled promise
-    // rejections — handleKey itself is async and may throw from the
-    // paste/runBlocks/routeInputKey paths. Error handling (dispatch, toast,
-    // noop) is the responsibility of each sub-path; this catch only
-    // prevents the rejection from surfacing as an unhandled error.
-    handleKeyRef.current?.(input, key)?.catch(() => {});
-  }, []);
+  const stableOnKey = useStableKeyHandler(handleKey);
 
   const viewState = deriveAppViewState({
     state,

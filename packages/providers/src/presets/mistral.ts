@@ -7,10 +7,11 @@
  * For exotic providers the same pattern still applies — only the
  * `parseStreamEvent` body changes.
  */
-import type { Capabilities, Request, StopReason, StreamEvent } from '@wrongstack/core/types';
+import type { Request, StopReason, StreamEvent } from '@wrongstack/core/types';
 import { safeParse } from '@wrongstack/core/utils';
 import { parseToolInput } from '../_tool-input.js';
 import { capabilitiesForFamily } from '../family-capabilities.js';
+import { type BuildBodyContext, resolveMaxOutputTokens } from '../model-output-limits.js';
 import { messagesToOpenAI, toolsToOpenAI } from '../tool-format/to-openai.js';
 import { defineWireFormat } from '../wire-format.js';
 import { stripCacheControl } from '../object-utils.js';
@@ -36,14 +37,15 @@ export const mistralWireFormat = defineWireFormat<MistralStreamState>({
   defaultBaseUrl: 'https://api.mistral.ai/v1',
   buildUrl: (base) => `${base.replace(/\/+$/, '')}/chat/completions`,
   buildHeaders: (apiKey) => ({ authorization: `Bearer ${apiKey}` }),
-  buildBody: (req: Request, ctx: { capabilities: Capabilities }) => {
-    const maxOutput = req.maxTokens ?? ctx.capabilities.maxOutput ?? 8192;
+  buildBody: (req: Request, ctx: BuildBodyContext) => {
+    const maxOutput = resolveMaxOutputTokens(req, ctx);
     const body: Record<string, unknown> = {
       model: req.model,
       messages: messagesToMistral(req),
-      max_tokens: maxOutput,
       stream: true,
     };
+    // Optional field — omit rather than guess; see model-output-limits.ts.
+    if (maxOutput !== undefined) body['max_tokens'] = maxOutput;
     if (req.tools && req.tools.length > 0) {
       body['tools'] = toolsToOpenAI(req.tools);
       if (req.toolChoice) {

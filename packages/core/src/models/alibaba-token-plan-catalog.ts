@@ -61,10 +61,6 @@ export interface AlibabaTokenPlanModelMeta {
   description: string;
   /** Capability tags — which modality/feature this model supports. */
   capabilities: string[];
-  /** Context window in tokens (where applicable). */
-  contextWindow?: number;
-  /** Max output tokens (where documented). */
-  maxOutput?: number;
   /** The recommended / latest model — tagged "(current)" in the official UI. */
   current?: boolean;
   /** Explicit input modality declaration (e.g. image-conditioned video models). */
@@ -75,6 +71,11 @@ export interface AlibabaTokenPlanModelMeta {
  * Token Plan Personal Edition models, newest-first. The first entry is the
  * recommended default (`current`). Order is significant: callers that need a
  * default model id use `ALIBABA_TOKEN_PLAN_MODELS[0]`.
+ *
+ * Carries DISPLAY metadata only — ids, names, descriptions, capability tags.
+ * Context/output limits are deliberately NOT stored here: models.dev publishes
+ * a dedicated `alibaba-token-plan` provider entry whose per-model `limit` is
+ * the authority, and a hand-transcribed copy here only ever drifts below it.
  *
  * Corresponds to the "Supported models" table on:
  * https://www.alibabacloud.com/help/en/model-studio/token-plan-personal-overview
@@ -89,8 +90,6 @@ export const ALIBABA_TOKEN_PLAN_MODELS: ReadonlyArray<AlibabaTokenPlanModelMeta>
     description:
       '2.4T-parameter multimodal reasoning — text, image, video, documents. 10% Credits rate during preview. Night discount (22:00-08:00 UTC+8).',
     capabilities: ['reasoning', 'visual-understanding', 'text-generation'],
-    contextWindow: 1_000_000, // speculative — matches Qwen3.7 Max; official docs pending
-    maxOutput: 65_536,
     current: true,
   },
   {
@@ -99,8 +98,6 @@ export const ALIBABA_TOKEN_PLAN_MODELS: ReadonlyArray<AlibabaTokenPlanModelMeta>
     description:
       'Top-tier pure-text reasoning model — strongest in the Qwen3.7 series. 1M context, thinking mode, function calling.',
     capabilities: ['reasoning', 'text-generation'],
-    contextWindow: 1_000_000,
-    maxOutput: 65_536,
   },
   {
     id: 'qwen3.7-plus',
@@ -108,8 +105,6 @@ export const ALIBABA_TOKEN_PLAN_MODELS: ReadonlyArray<AlibabaTokenPlanModelMeta>
     description:
       'Balanced flagship — reasoning, visual understanding, text generation. 1M context, built-in tools.',
     capabilities: ['reasoning', 'visual-understanding', 'text-generation'],
-    contextWindow: 1_000_000,
-    maxOutput: 65_536,
   },
   {
     id: 'qwen3.6-flash',
@@ -117,8 +112,6 @@ export const ALIBABA_TOKEN_PLAN_MODELS: ReadonlyArray<AlibabaTokenPlanModelMeta>
     description:
       'Cost-effective reasoning model — vision + text, 1M context, same context length as flagship at lower cost.',
     capabilities: ['reasoning', 'visual-understanding', 'text-generation'],
-    contextWindow: 1_000_000,
-    maxOutput: 65_536,
   },
 
   // ── Zhipu AI ──────────────────────────────────────────────────────
@@ -128,8 +121,6 @@ export const ALIBABA_TOKEN_PLAN_MODELS: ReadonlyArray<AlibabaTokenPlanModelMeta>
     description:
       'Zhipu AI flagship text-generation model — reasoning, text, 198K context, function calling, structured output.',
     capabilities: ['reasoning', 'text-generation'],
-    contextWindow: 198_000,
-    maxOutput: 65_536,
   },
 
   // ── DeepSeek ──────────────────────────────────────────────────────
@@ -139,8 +130,6 @@ export const ALIBABA_TOKEN_PLAN_MODELS: ReadonlyArray<AlibabaTokenPlanModelMeta>
     description:
       'Frontier reasoning + text generation model. 1M context, always-thinking mode.',
     capabilities: ['reasoning', 'text-generation'],
-    contextWindow: 1_000_000,
-    maxOutput: 65_536,
   },
 
   // ── Wanx (image generation) ────────────────────────────────────────

@@ -1,4 +1,4 @@
-import { createHash, randomUUID } from 'node:crypto';
+import { randomUUID } from 'node:crypto';
 import { runWithProcessTelemetry } from '../observability/process-telemetry.js';
 import { runWithNetworkTelemetry } from '../observability/network-telemetry.js';
 import { isDeepStrictEqual } from 'node:util';
@@ -11,8 +11,7 @@ import {
 } from '../security/capabilities.js';
 import { evaluateToolKanbanBoundary } from '../security/kanban-boundary.js';
 import type { ToolResultBlock, ToolUseBlock } from '../types/blocks.js';
-import type { Tool, ToolProgressEvent, ToolErrorCategory } from '../types/tool.js';
-import { ToolErrorCategory as ToolErrorCategoryEnum } from '../types/tool.js';
+import type { Tool } from '../types/tool.js';
 import {
   GOVERNED_TOOL_EXECUTOR_META_KEY,
   type GovernedToolExecutor,
@@ -22,23 +21,35 @@ import {
   type ToolExecutorOptions,
   type ToolExecutorStrategy,
 } from '../types/tool-executor.js';
+import { isWrongStackError } from '../types/errors.js';
 import { toErrorMessage } from '../utils/error.js';
-import { expectDefined } from '../utils/expect-defined.js';
 import { coerceAgainstSchema, validateAgainstSchema } from '../utils/json-schema-validate.js';
 import { subjectForToolInput } from '../utils/tool-subject.js';
 import { createToolOutputSerializer } from '../utils/tool-output-serializer.js';
-import { wstackGlobalRoot } from '../utils/wstack-paths.js';
-import {
-  FetchError,
-  isWrongStackError,
-  ToolError,
-  ToolValidationError,
-  WrongStackError,
-} from '../types/errors.js';
-import { MALFORMED_ARG_MARKERS } from '../types/tool-markers.js';
 import type { ToolResultRenderMode } from '../types/config.js';
 import { resolveToolResultRenderMode } from '../utils/tool-result-render-mode.js';
 import type { ToolResultRenderModeConfig } from '../types/config.js';
+import {
+  abortReasonToError,
+  clampTimeoutMs,
+  classifyToolError,
+  extractMalformedRaw,
+  hashPermissionInput,
+  hasMalformedArguments,
+  maybePersistLargeToolOutput,
+} from './tool-executor-support.js';
+import {
+  blockedByHookResult,
+  deniedResult,
+  malformedInputResult,
+  unknownToolResult,
+} from './tool-executor-results.js';
+import {
+  logToolFailure as logToolFailureEvent,
+  logToolSuccess as logToolSuccessEvent,
+} from './tool-executor-logging.js';
+import { executeStreamedTool } from './tool-executor-stream.js';
+export { classifyToolError } from './tool-executor-support.js';
 export class ToolExecutor {
   /** Minimum gap between coalesced `partial_output` tool.progress emits. */
   static readonly PROGRESS_EMIT_INTERVAL_MS = 100;
@@ -92,23 +103,6 @@ export class ToolExecutor {
     renderer.setResultRenderMode(toolName, mode);
   }
 
-  private toolLogBase(
-    ctx: Context,
-    use: ToolUseBlock,
-    toolName: string,
-    durationMs: number,
-  ): Record<string, unknown> {
-    return {
-      event: 'tool.execution',
-      traceId: ctx.traceId,
-      sessionId: ctx.session.id,
-      agentId: ctx.agentId ?? '<unknown>',
-      toolName,
-      toolUseId: use.id,
-      durationMs,
-    };
-  }
-
   private logToolSuccess(
     ctx: Context,
     use: ToolUseBlock,
@@ -116,21 +110,7 @@ export class ToolExecutor {
     durationMs: number,
     outputChars: number,
   ): void {
-    this.opts.events?.emit('tool.completed', {
-      name: toolName,
-      id: use.id,
-      sessionId: ctx.session.id,
-      ...(ctx.traceId ? { traceId: ctx.traceId } : {}),
-      agentId: ctx.agentId ?? '<unknown>',
-      durationMs,
-      outputChars,
-    });
-    this.opts.logger?.info('tool execution completed', {
-      ...this.toolLogBase(ctx, use, toolName, durationMs),
-      outcome: 'success',
-      isError: false,
-      outputChars,
-    });
+    logToolSuccessEvent(this.opts, ctx, use, toolName, durationMs, outputChars);
   }
 
   private logToolFailure(
@@ -140,36 +120,7 @@ export class ToolExecutor {
     durationMs: number,
     err: unknown,
   ): void {
-    const { category, retryable, detail } = classifyToolError(err);
-    const structured = isWrongStackError(err);
-    const structuredError = structured
-      ? {
-          errorCode: err.code,
-          errorSubsystem: err.subsystem,
-          errorSeverity: err.severity,
-        }
-      : {};
-    this.opts.events?.emit('tool.failed', {
-      name: toolName,
-      id: use.id,
-      sessionId: ctx.session.id,
-      ...(ctx.traceId ? { traceId: ctx.traceId } : {}),
-      agentId: ctx.agentId ?? '<unknown>',
-      durationMs,
-      category,
-      retryable,
-      ...(detail ? { detail } : {}),
-      ...structuredError,
-    });
-    this.opts.logger?.warn('tool execution failed', {
-      ...this.toolLogBase(ctx, use, toolName, durationMs),
-      outcome: 'failure',
-      isError: true,
-      errorCategory: category,
-      retryable,
-      errorDetail: detail,
-      ...structuredError,
-    });
+    logToolFailureEvent(this.opts, ctx, use, toolName, durationMs, err);
   }
 
   /**
@@ -207,7 +158,7 @@ export class ToolExecutor {
 
       // Fast path: unknown tool
       if (!tool) {
-        const result = this.unknownToolResult(use, () => this.registry.list().map((t) => t.name));
+        const result = unknownToolResult(use, () => this.registry.list().map((t) => t.name));
         budget = this.budgetForString(result.content, budget);
         return { result, tool, durationMs: Date.now() - start };
       }
@@ -221,7 +172,7 @@ export class ToolExecutor {
       // misleading "field missing" error, when the actionable feedback is
       // "your arguments were not a JSON object — here is what arrived".
       if (hasMalformedArguments(use.input)) {
-        const result = this.malformedInputResult(use, extractMalformedRaw(use.input));
+        const result = malformedInputResult(use, extractMalformedRaw(use.input));
         budget = this.budgetForString(result.content, budget);
         return { result, tool, durationMs: Date.now() - start };
       }
@@ -278,7 +229,7 @@ export class ToolExecutor {
       if (this.opts.hookRunner?.has('PreToolUse')) {
         const pre = await this.opts.hookRunner.preToolUse(tool.name, use.input, ctx);
         if (pre.block) {
-          const result = this.blockedByHookResult(use, pre.reason);
+          const result = blockedByHookResult(use, pre.reason);
           budget = this.budgetForString(result.content, budget);
           return { result, tool, durationMs: Date.now() - start };
         }
@@ -417,7 +368,7 @@ export class ToolExecutor {
       });
 
       if (effectivePermission === 'deny') {
-        const result = this.deniedResult(use, decision.reason);
+        const result = deniedResult(use, decision.reason);
         budget = this.budgetForString(result.content, budget);
         return { result, tool, durationMs: Date.now() - start };
       }
@@ -990,176 +941,17 @@ export class ToolExecutor {
     signal: AbortSignal,
     toolUseId: string | undefined,
   ): Promise<unknown> {
-    let finalOutput: unknown;
-    let sawFinal = false;
-    if (!tool.executeStream) {
-      throw new ToolError({
-        message: `Tool "${tool.name}" does not support streaming execution`,
-        code: 'TOOL_EXECUTION_FAILED',
-        toolName: tool.name,
-        context: { reason: 'streaming_not_supported' },
-      });
-    }
-    const stream = tool.executeStream(input, ctx, { signal });
-    // Manual iteration so we can explicitly close the async iterator after
-    // receiving the final event, ensuring any cleanup in the tool's generator
-    // finally block runs regardless of whether the engine calls return() on
-    // break of a for-await-of loop.
-    const iter = stream[Symbol.asyncIterator]();
-    // Coalesce `partial_output` progress into at most one EventBus emit per
-    // PROGRESS_EMIT_INTERVAL_MS, carrying the most recent PROGRESS_TAIL_CHARS
-    // of accumulated text PLUS the first PROGRESS_HEAD_CHARS (the head).
-    // P3 #22 (before-release.md): without the head, an important error
-    // message at the beginning of a long output (e.g. `pnpm build`) was
-    // gone by the time the user saw the live tail. Now both the head and
-    // tail survive — when the output exceeds the combined buffer, the flush
-    // emits "head...\n[...truncated...]\n...tail" so subscribers see both
-    // ends.
-    let progressTail = '';
-    let progressHead = '';
-    let headComplete = false;
-    let lastProgressEmitAt = 0;
-    const emitProgress = (ev: ToolProgressEvent) => {
-      this.opts.events?.emit('tool.progress', {
-        sessionId: ctx.session.id,
-        ...(ctx.traceId ? { traceId: ctx.traceId } : {}),
-        agentId: ctx.agentId,
-        agentName: ctx.agentName,
-        name: tool.name,
-        id: toolUseId ?? '<unknown>',
-        event: ev,
-      });
-    };
-    const flushProgressTail = (force: boolean) => {
-      if (progressTail.length === 0) return;
-      const now = Date.now();
-      if (!force && now - lastProgressEmitAt < ToolExecutor.PROGRESS_EMIT_INTERVAL_MS) return;
-      lastProgressEmitAt = now;
-      // On the final force-flush, if we have a head AND tail (output was
-      // truncated in the middle), emit both with a truncation marker. On
-      // normal coalesced flushes, just emit the tail — matching the
-      // pre-P3-#22 per-event behavior.
-      let text: string;
-      if (force && headComplete && progressTail.length > 0) {
-        text = `${progressHead}\n[...output truncated...]\n${progressTail}`;
-      } else {
-        text = progressTail;
-      }
-      progressTail = '';
-      emitProgress({ type: 'partial_output', text });
-    };
-    try {
-      while (true) {
-        const { done, value: ev } = await iter.next();
-        if (done) break;
-        if (ev.type === 'final') {
-          finalOutput = ev.output;
-          sawFinal = true;
-          // Result is locked — stop consuming further events.
-          break;
-        }
-        if (ev.type === 'partial_output' && typeof ev.text === 'string') {
-          if (ev.data?.['livePreview'] === true) {
-            flushProgressTail(true);
-            emitProgress(ev);
-            continue;
-          }
-          // P3 #22: accumulate the head (first PROGRESS_HEAD_CHARS) for the
-          // final force-flush, while the tail follows the original per-event
-          // coalescing behavior. This preserves backward compatibility with
-          // tests that expect each partial_output to emit independently,
-          // while ensuring long outputs retain their beginning in the final
-          // flush.
-          if (!headComplete) {
-            const remaining = ToolExecutor.PROGRESS_HEAD_CHARS - progressHead.length;
-            if (ev.text.length <= remaining) {
-              progressHead += ev.text;
-            } else {
-              progressHead += ev.text.slice(0, remaining);
-              headComplete = true;
-            }
-          }
-          progressTail += ev.text;
-          if (progressTail.length > ToolExecutor.PROGRESS_TAIL_CHARS) {
-            progressTail = progressTail.slice(-ToolExecutor.PROGRESS_TAIL_CHARS);
-          }
-          flushProgressTail(false);
-          continue;
-        }
-        // Non-partial events (log/warning/metric/file_changed) are low-volume;
-        // flush buffered text first so subscribers see events in stream order.
-        flushProgressTail(true);
-        emitProgress(ev);
-      }
-      flushProgressTail(true);
-    } finally {
-      // Always close the iterator so the tool's generator finally block
-      // runs even if we broke early on a final event or errored.
-      await iter.return?.(undefined);
-    }
-    if (!sawFinal) {
-      throw new ToolError({
-        message: `tool "${tool.name}" executeStream completed without a 'final' event`,
-        code: 'TOOL_EXECUTION_FAILED',
-        toolName: tool.name,
-        context: { reason: 'missing_final_event' },
-      });
-    }
-    return finalOutput;
-  }
-
-  private unknownToolResult(use: ToolUseBlock, listFns: () => string[]): ToolResultBlock {
-    return {
-      type: 'tool_result',
-      tool_use_id: use.id,
-      content: `Tool "${use.name}" is not registered. Available tools: ${listFns().join(', ')}`,
-      is_error: true,
-    };
-  }
-
-  private malformedInputResult(use: ToolUseBlock, raw?: string): ToolResultBlock {
-    let content =
-      `Tool "${use.name}" received arguments that were not a valid JSON object, so they ` +
-      `could not be parsed. Re-issue the call with the arguments encoded as a single ` +
-      `well-formed JSON object matching the tool's input schema.`;
-    // Echo the raw payload back so the model can see *what* it produced and
-    // self-correct. Without this the model is blind to its own mistake and
-    // tends to resend the identical malformed call in a loop. Common causes:
-    // unescaped newlines/quotes/backslashes inside a string field, or the
-    // arguments being truncated mid-stream.
-    if (raw) {
-      const max = 800;
-      const excerpt =
-        raw.length > max ? `${raw.slice(0, max)}… (truncated, ${raw.length} chars total)` : raw;
-      content +=
-        ` Common cause: a string field (e.g. code in old_string/new_string) ` +
-        `contains literal newlines, quotes, or backslashes that must be JSON-escaped, ` +
-        `or the payload was cut off mid-stream. The raw arguments received were:\n${excerpt}`;
-    }
-    return {
-      type: 'tool_result',
-      tool_use_id: use.id,
-      content,
-      is_error: true,
-    };
-  }
-
-  private deniedResult(use: ToolUseBlock, reason?: string): ToolResultBlock {
-    return {
-      type: 'tool_result',
-      tool_use_id: use.id,
-      content: `Tool "${use.name}" denied: ${reason ?? 'policy'}`,
-      is_error: true,
-    };
-  }
-
-  private blockedByHookResult(use: ToolUseBlock, reason?: string): ToolResultBlock {
-    return {
-      type: 'tool_result',
-      tool_use_id: use.id,
-      content: `Tool "${use.name}" was blocked by a PreToolUse hook: ${reason ?? 'no reason given'}`,
-      is_error: true,
-    };
+    return executeStreamedTool({
+      tool,
+      input,
+      ctx,
+      signal,
+      toolUseId,
+      events: this.opts.events,
+      progressEmitIntervalMs: ToolExecutor.PROGRESS_EMIT_INTERVAL_MS,
+      progressTailChars: ToolExecutor.PROGRESS_TAIL_CHARS,
+      progressHeadChars: ToolExecutor.PROGRESS_HEAD_CHARS,
+    });
   }
 
   /**
@@ -1176,278 +968,4 @@ export class ToolExecutor {
   private budgetForString(content: string, budget: number): number {
     return Math.max(0, budget - Buffer.byteLength(content, 'utf8'));
   }
-}
-
-function clampTimeoutMs(timeoutMs: number, maxTimeoutMs: number): number {
-  const fallback = 300_000;
-  const finiteTimeout = Number.isFinite(timeoutMs) && timeoutMs > 0 ? timeoutMs : fallback;
-  const finiteMax = Number.isFinite(maxTimeoutMs) && maxTimeoutMs > 0 ? maxTimeoutMs : fallback;
-  return Math.max(1, Math.min(finiteTimeout, finiteMax));
-}
-
-/** Normalize an AbortSignal reason (Error | string | undefined) to an Error. */
-function abortReasonToError(reason: unknown): Error {
-  return reason instanceof Error
-    ? reason
-    : new Error(typeof reason === 'string' ? reason : 'tool timeout');
-}
-
-/**
- * Sentinel keys the provider adapters use to wrap tool arguments that could
- * not be parsed into a proper JSON object. `parseToolInput` (Anthropic /
- * shared) uses `__raw`, `contentFromOpenAI` uses `__raw_arguments`, and the
- * streaming response builder's `safeJsonOrRaw` uses `_raw`.
- *
- * P3 #14 (before-release.md): centralized in `types/tool-markers.ts` so the
- * providers package (which produces these markers) and this executor (which
- * detects them) share a single source of truth. The old "Keep this list in
- * sync" comment is gone.
- *
- * NOTE: `parseToolInput` and `safeJsonOrRaw` now attempt JSON repair
- * (auto-closing braces and strings) before wrapping — so a truncated blob
- * like `{"old_string": "line1\nline2` gets repaired first. The sentinel is
- * only used when repair also fails.
- */
-
-function hasMalformedArguments(input: unknown): boolean {
-  if (!input || typeof input !== 'object' || Array.isArray(input)) return false;
-  const obj = input as Record<string, unknown>;
-  // The sentinel is the *only* key when wrapping occurred — a real tool call
-  // that legitimately uses a key named e.g. `_raw` will carry other keys too.
-  const keys = Object.keys(obj);
-  return keys.length === 1 && MALFORMED_ARG_MARKERS.includes(keys[0] as never);
-}
-
-/**
- * Pull the original (unparseable) payload back out of a sentinel-wrapped input
- * so the executor can echo it to the model. The wrapped value is usually the
- * raw argument string, but a scalar/array that parsed cleanly is wrapped too —
- * stringify those. Returns undefined if nothing usable is present.
- */
-function extractMalformedRaw(input: unknown): string | undefined {
-  if (!hasMalformedArguments(input)) return undefined;
-  const obj = input as Record<string, unknown>;
-  const value = obj[expectDefined(Object.keys(obj)[0])];
-  if (value === undefined || value === null) return undefined;
-  if (typeof value === 'string') return value;
-  try {
-    return JSON.stringify(value);
-  } catch {
-    return String(value);
-  }
-}
-
-const TOOL_OUTPUT_ARTIFACT_THRESHOLD_BYTES = 64 * 1024;
-const TOOL_OUTPUT_ARTIFACT_PREVIEW_BYTES = 12 * 1024;
-const TOOL_OUTPUT_ARTIFACT_OMISSION = '\n…[artifact middle omitted]…\n';
-
-/**
- * Classify a tool execution error into a structured ToolErrorCategory.
- * Used for observability (span attributes) and retry strategy decisions.
- */
-export function classifyToolError(err: unknown): {
-  category: ToolErrorCategory;
-  retryable: boolean;
-  detail?: string;
-} {
-  // AbortError — user cancellation, never retry
-  if (err instanceof Error && err.name === 'AbortError') {
-    return { category: ToolErrorCategoryEnum.FATAL, retryable: false, detail: 'aborted' };
-  }
-
-  // Node.js ErrnoException with system error codes
-  if (err instanceof Error && 'code' in err) {
-    const code = (err as NodeJS.ErrnoException).code;
-    switch (code) {
-      case 'ETIMEDOUT':
-      case 'ECONNRESET':
-      case 'ECONNREFUSED':
-      case 'ENETUNREACH':
-      case 'EHOSTUNREACH':
-        return { category: ToolErrorCategoryEnum.TRANSIENT, retryable: true, detail: code };
-      case 'ENOENT':
-      case 'ENOTDIR':
-        return { category: ToolErrorCategoryEnum.NOT_FOUND, retryable: false, detail: code };
-      case 'EACCES':
-      case 'EPERM':
-        return { category: ToolErrorCategoryEnum.PERMISSION, retryable: false, detail: code };
-      case 'EBUSY':
-      case 'EMFILE':
-      case 'ENFILE':
-        return { category: ToolErrorCategoryEnum.TRANSIENT, retryable: true, detail: code };
-    }
-  }
-
-  // HTTP response errors (fetch failed with non-OK status).
-  // P3 #18 (before-release.md): prefer the structured FetchError subclass
-  // (instanceof is reliable) over the duck-typing `'response' in err` check,
-  // which catches any Error with a `response` property — custom errors,
-  // proxies, mocks. The duck-typing arm stays as a fallback for code that
-  // still throws bare Error objects with an ad-hoc `response` field.
-  if (err instanceof FetchError) {
-    return httpStatusToCategory(err.status);
-  }
-  if (err instanceof Error && 'response' in err) {
-    const response = (err as { response: { status?: number } }).response;
-    const status = response?.status;
-    if (status !== undefined) {
-      return httpStatusToCategory(status);
-    }
-  }
-
-  // Validation errors. Prefer the structured ValidationError subclass
-  // (P2 #6) — instanceof is locale-independent and cannot misclassify an
-  // unrelated error whose message happens to contain "validation". The
-  // legacy string-match arm stays as a fallback for tools that still throw
-  // bare Error('...validation...') and have not yet migrated.
-  if (err instanceof ToolValidationError) {
-    return { category: ToolErrorCategoryEnum.VALIDATION, retryable: false, detail: 'validation' };
-  }
-  if (err instanceof Error && err.message.includes('validation')) {
-    return { category: ToolErrorCategoryEnum.VALIDATION, retryable: false, detail: 'validation' };
-  }
-
-  // Structured WrongStackError catch-all: any error that is a WrongStackError
-  // subclass (FsError, SessionError, ConfigError, ParseError, PluginError,
-  // AgentError, etc.) but wasn't matched by the FetchError or
-  // ToolValidationError arms above. Route by severity + recoverability:
-  //   fatal   → FATAL (abort the loop)
-  //   error   → FATAL (surface to the user, don't retry)
-  //   warning → TRANSIENT (log and continue; the subsystem flagged it as
-  //             recoverable so the loop can proceed)
-  if (err instanceof WrongStackError) {
-    const wse = err as WrongStackError;
-    const category =
-      wse.severity === 'warning' ? ToolErrorCategoryEnum.TRANSIENT : ToolErrorCategoryEnum.FATAL;
-    return {
-      category,
-      retryable: wse.recoverable,
-      detail: `${wse.code} [${wse.subsystem}]`,
-    };
-  }
-
-  // Default: fatal/unclassified
-  return {
-    category: ToolErrorCategoryEnum.FATAL,
-    retryable: false,
-    detail: err instanceof Error ? err.message.slice(0, 100) : String(err).slice(0, 100),
-  };
-}
-
-/**
- * Map an HTTP status code to a ToolErrorCategory. Shared by the FetchError
- * and duck-typed-response paths in classifyToolError.
- */
-function httpStatusToCategory(status: number): {
-  category: ToolErrorCategory;
-  retryable: boolean;
-  detail: string;
-} {
-  if (status === 429 || status === 503 || status === 502 || status === 504) {
-    return { category: ToolErrorCategoryEnum.TRANSIENT, retryable: true, detail: `HTTP ${status}` };
-  }
-  if (status === 404 || status === 410) {
-    return {
-      category: ToolErrorCategoryEnum.NOT_FOUND,
-      retryable: false,
-      detail: `HTTP ${status}`,
-    };
-  }
-  if (status === 401 || status === 403) {
-    return {
-      category: ToolErrorCategoryEnum.PERMISSION,
-      retryable: false,
-      detail: `HTTP ${status}`,
-    };
-  }
-  if (status === 400) {
-    return {
-      category: ToolErrorCategoryEnum.VALIDATION,
-      retryable: false,
-      detail: `HTTP ${status}`,
-    };
-  }
-  return { category: ToolErrorCategoryEnum.FATAL, retryable: false, detail: `HTTP ${status}` };
-}
-
-async function maybePersistLargeToolOutput(
-  toolName: string,
-  content: string,
-  budget: number,
-): Promise<string> {
-  const bytes = Buffer.byteLength(content, 'utf8');
-  if (bytes <= Math.min(TOOL_OUTPUT_ARTIFACT_THRESHOLD_BYTES, Math.max(0, budget))) {
-    return content;
-  }
-
-  try {
-    const dir = path.join(wstackGlobalRoot(), 'tool-output');
-    await fs.mkdir(dir, { recursive: true });
-    const safeTool = toolName.replace(/[^a-zA-Z0-9._-]+/g, '_').slice(0, 40) || 'tool';
-    const stamp = new Date().toISOString().replace(/[:.]/g, '-');
-    const filePath = path.join(dir, `${stamp}-${safeTool}-${randomUUID()}.log`);
-    await fs.writeFile(filePath, content, 'utf8');
-    const marker =
-      `[full tool output: ${bytes} bytes at ${filePath}; ` +
-      'read/grep that file selectively instead of re-running or requesting more output]';
-    const fixedBytes = Buffer.byteLength(marker + TOOL_OUTPUT_ARTIFACT_OMISSION, 'utf8');
-    const previewBytes = Math.min(
-      TOOL_OUTPUT_ARTIFACT_PREVIEW_BYTES,
-      Math.max(0, budget - fixedBytes),
-    );
-    if (previewBytes < 256) return marker;
-
-    const headBudget = Math.ceil(previewBytes / 2);
-    const tailBudget = previewBytes - headBudget;
-    const head = sliceUtf8Prefix(content, headBudget);
-    const tail = sliceUtf8Suffix(content, tailBudget);
-    return `${marker}\n${head}${TOOL_OUTPUT_ARTIFACT_OMISSION}${tail}`;
-  } catch {
-    return content;
-  }
-}
-
-function hashPermissionInput(
-  input: unknown,
-  scrubber: ToolExecutorOptions['secretScrubber'],
-): string {
-  let serialized: string;
-  try {
-    serialized = JSON.stringify(input) ?? '';
-  } catch {
-    serialized = String(input);
-  }
-  return createHash('sha256').update(scrubber.scrub(serialized), 'utf8').digest('hex');
-}
-
-function sliceUtf8Prefix(text: string, maxBytes: number): string {
-  if (maxBytes <= 0) return '';
-  if (Buffer.byteLength(text, 'utf8') <= maxBytes) return text;
-  let low = 0;
-  let high = text.length;
-  while (low < high) {
-    const mid = Math.ceil((low + high) / 2);
-    if (Buffer.byteLength(text.slice(0, mid), 'utf8') <= maxBytes) low = mid;
-    else high = mid - 1;
-  }
-  let end = low;
-  const last = text.charCodeAt(end - 1);
-  if (last >= 0xd800 && last <= 0xdbff) end--;
-  return text.slice(0, end);
-}
-
-function sliceUtf8Suffix(text: string, maxBytes: number): string {
-  if (maxBytes <= 0) return '';
-  if (Buffer.byteLength(text, 'utf8') <= maxBytes) return text;
-  let low = 0;
-  let high = text.length;
-  while (low < high) {
-    const chars = Math.ceil((low + high) / 2);
-    if (Buffer.byteLength(text.slice(text.length - chars), 'utf8') <= maxBytes) low = chars;
-    else high = chars - 1;
-  }
-  let start = text.length - low;
-  const first = text.charCodeAt(start);
-  if (first >= 0xdc00 && first <= 0xdfff) start++;
-  return text.slice(start);
 }

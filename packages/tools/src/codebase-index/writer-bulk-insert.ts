@@ -1,0 +1,93 @@
+import type { DatabaseSync } from 'node:sqlite';
+import type { Ref } from './schema.js';
+
+type Statement = ReturnType<DatabaseSync['prepare']>;
+type PrepareStatement = (sql: string) => Statement;
+
+export interface BulkSymbolRow {
+  id: number;
+  lang: string;
+  kind: string;
+  name: string;
+  file: string;
+  line: number;
+  col: number;
+  signature: string;
+  docComment: string;
+  scope: string;
+  text: string;
+}
+
+export function bulkInsertSymbolsWithStatement(
+  stmt: PrepareStatement,
+  maxSqlVars: number,
+  rows: BulkSymbolRow[],
+): void {
+  if (rows.length === 0) return;
+  const chunkSize = Math.max(1, Math.floor(maxSqlVars / 12));
+  for (let i = 0; i < rows.length; i += chunkSize) {
+    const chunk = rows.slice(i, i + chunkSize);
+    const placeholders = chunk.map(() => '(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)').join(', ');
+    const insert = stmt(
+      `INSERT INTO symbols(id, lang, kind, name, file, line, col, signature, doc_comment, scope, text, file_fk)
+       VALUES ${placeholders}`,
+    );
+    const binds: (string | number)[] = [];
+    for (const r of chunk) {
+      binds.push(
+        r.id,
+        r.lang,
+        r.kind,
+        r.name,
+        r.file,
+        r.line,
+        r.col,
+        r.signature,
+        r.docComment,
+        r.scope,
+        r.text,
+        r.file,
+      );
+    }
+    insert.run(...binds);
+  }
+}
+
+export function bulkInsertFtsWithStatement(
+  stmt: PrepareStatement,
+  maxSqlVars: number,
+  ftsAvailable: boolean,
+  rows: Array<{ id: number; text: string }>,
+): void {
+  if (!ftsAvailable || rows.length === 0) return;
+  const chunkSize = Math.max(1, Math.floor(maxSqlVars / 2));
+  for (let i = 0; i < rows.length; i += chunkSize) {
+    const chunk = rows.slice(i, i + chunkSize);
+    const placeholders = chunk.map(() => '(?, ?)').join(', ');
+    const insert = stmt(`INSERT INTO symbols_fts(rowid, text) VALUES ${placeholders}`);
+    const binds: (string | number)[] = [];
+    for (const r of chunk) binds.push(r.id, r.text);
+    insert.run(...binds);
+  }
+}
+
+export function bulkInsertRefsWithStatement(
+  stmt: PrepareStatement,
+  maxSqlVars: number,
+  refs: Ref[],
+): void {
+  if (refs.length === 0) return;
+  const chunkSize = Math.max(1, Math.floor(maxSqlVars / 5));
+  for (let i = 0; i < refs.length; i += chunkSize) {
+    const chunk = refs.slice(i, i + chunkSize);
+    const placeholders = chunk.map(() => '(?, ?, ?, ?, ?)').join(', ');
+    const insert = stmt(
+      `INSERT INTO refs(from_id, to_name, to_id, call_type, line) VALUES ${placeholders}`,
+    );
+    const binds: (string | number | null)[] = [];
+    for (const ref of chunk) {
+      binds.push(ref.fromId, ref.toName, ref.toId ?? null, ref.callType, ref.line);
+    }
+    insert.run(...binds);
+  }
+}

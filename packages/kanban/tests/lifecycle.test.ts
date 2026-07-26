@@ -6,13 +6,22 @@ import type { KanbanBoard, KanbanTask } from '../src/types.js';
 import {
   KANBAN_AGENT_STAGES,
   KanbanLifecycleError,
+  adoptManagedLifecycle,
   createManagedLifecyclePolicy,
   initializeManagedTaskLifecycle,
   lifecycleStageForColumn,
+  repairManagedTaskProjection,
   validateManagedLifecyclePolicy,
   validateManagedTaskTransition,
 } from '../src/manager/lifecycle.js';
-import { addTask, createBoard, transitionTask, updateTask, updateTaskAssignment } from '../src/manager.js';
+import {
+  addTask,
+  createBoard,
+  getBoard,
+  transitionTask,
+  updateTask,
+  updateTaskAssignment,
+} from '../src/manager.js';
 
 let tmpDir: string;
 
@@ -88,6 +97,142 @@ describe('lifecycleStageForColumn', () => {
   });
   it('returns null when the column is not a lifecycle column', () => {
     expect(lifecycleStageForColumn(managedBoard(), 'nope')).toBeNull();
+  });
+});
+
+// ── adoptManagedLifecycle ───────────────────────────────────────────
+
+describe('adoptManagedLifecycle', () => {
+  it('atomically adopts current columns without moving legacy cards', async () => {
+    const board = await createBoard(tmpDir, {
+      title: 'Legacy',
+      columns: COLS,
+      tasks: [
+        { title: 'Queued', columnId: 'todo', status: 'pending' },
+        { title: 'Active', columnId: 'in-progress', status: 'in_progress' },
+        { title: 'Shipped', columnId: 'done', status: 'archived' },
+      ],
+    });
+    const originalColumns = board.tasks.map((task) => task.columnId);
+
+    const adopted = await adoptManagedLifecycle(tmpDir, board.id, {
+      columns: policy.columns,
+      actor: 'migration-agent',
+      comment: 'Adopt existing project stages without moving cards.',
+    });
+
+    expect(adopted?.lifecycle).toMatchObject({
+      mode: 'managed',
+      columns: policy.columns,
+      adoptedBy: 'migration-agent',
+      adoptionComment: 'Adopt existing project stages without moving cards.',
+    });
+    expect(adopted?.lifecycle?.adoptedAt).toBe(adopted?.updatedAt);
+    expect(adopted?.tasks.map((task) => task.columnId)).toEqual(originalColumns);
+    expect(adopted?.tasks.map((task) => task.status)).toEqual(['ready', 'in_progress', 'completed']);
+    expect(adopted?.tasks.map((task) => task.lifecycle?.currentStage)).toEqual([
+      'todo',
+      'running',
+      'done',
+    ]);
+    expect(adopted?.tasks.every((task) => task.lifecycle?.history[0]?.action === 'Managed lifecycle adopted')).toBe(true);
+    expect(adopted?.tasks.every((task) => task.updatedAt === task.lifecycle?.stageEnteredAt)).toBe(true);
+  });
+
+  it('persists adoption audit metadata on a taskless board', async () => {
+    const board = await createBoard(tmpDir, { title: 'Empty legacy', columns: COLS });
+
+    const adopted = await adoptManagedLifecycle(tmpDir, board.id, {
+      columns: policy.columns,
+      actor: 'migration-agent',
+      comment: 'Adopt an empty legacy board.',
+    });
+
+    expect(adopted?.tasks).toEqual([]);
+    expect(adopted?.lifecycle).toMatchObject({
+      mode: 'managed',
+      adoptedBy: 'migration-agent',
+      adoptionComment: 'Adopt an empty legacy board.',
+    });
+    expect(adopted?.lifecycle?.adoptedAt).toBe(adopted?.updatedAt);
+  });
+
+  it('rejects an unmapped legacy column without mutating the board', async () => {
+    const board = await createBoard(tmpDir, {
+      title: 'Legacy',
+      columns: [...COLS, { id: 'extra', title: 'Extra', order: 5, wipLimit: 0 }],
+      tasks: [{ title: 'Unmapped', columnId: 'extra' }],
+    });
+
+    await expect(
+      adoptManagedLifecycle(tmpDir, board.id, {
+        columns: policy.columns,
+        actor: 'migration-agent',
+        comment: 'Invalid migration.',
+      }),
+    ).rejects.toThrow(/Unmapped legacy columns: extra/);
+
+    const unchanged = await getBoard(tmpDir, board.id);
+    expect(unchanged?.lifecycle).toBeUndefined();
+    expect(unchanged?.tasks[0]?.columnId).toBe('extra');
+    expect(unchanged?.tasks.every((task) => task.lifecycle === undefined)).toBe(true);
+  });
+});
+
+// ── repairManagedTaskProjection ─────────────────────────────────────
+
+describe('repairManagedTaskProjection', () => {
+  it('restores column/status from authoritative lifecycle history and records the repair', async () => {
+    const board = await createBoard(tmpDir, {
+      title: 'Managed drift',
+      columns: COLS,
+      lifecycle: policy,
+    });
+    const added = await addTask(tmpDir, board.id, { title: 'Drifted' });
+    await updateTask(tmpDir, board.id, added!.task.id, {
+      description: 'Drift repair test.',
+      dueDate: '2026-08-01T00:00:00.000Z',
+      assignee: 'agent-1',
+      labels: ['repair'],
+      childTaskIds: ['child-1'],
+      successCriteria: [{ id: 'c1', description: 'Pass', type: 'manual', status: 'passed' }],
+    });
+    await transitionTask(tmpDir, board.id, added!.task.id, {
+      to: 'todo',
+      actor: 'agent-1',
+      comment: 'Planned.',
+    });
+    const drifted = await getBoard(tmpDir, board.id);
+    const task = drifted!.tasks.find((candidate) => candidate.id === added!.task.id)!;
+    const stageEnteredAt = task.lifecycle!.stageEnteredAt;
+    task.columnId = 'done';
+    task.status = 'completed';
+    await updateTask(tmpDir, board.id, task.id, { verificationReport: null });
+    // updateTask correctly refuses managed projection edits, so introduce drift
+    // through the universal finalizer seam that this repair API is designed to recover.
+    const boardPath = path.join(tmpDir, '.wrongstack', 'kanbans', `${board.id}.json`);
+    const raw = JSON.parse(await fs.readFile(boardPath, 'utf8')) as KanbanBoard;
+    const rawTask = raw.tasks.find((candidate) => candidate.id === task.id)!;
+    rawTask.columnId = 'done';
+    rawTask.status = 'completed';
+    await fs.writeFile(boardPath, JSON.stringify(raw, null, 2));
+
+    const repaired = await repairManagedTaskProjection(tmpDir, board.id, task.id, {
+      actor: 'repair-agent',
+      comment: 'Restore projection from lifecycle history.',
+    });
+
+    expect(repaired?.task).toMatchObject({ columnId: 'todo', status: 'ready' });
+    expect(repaired?.task.lifecycle?.currentStage).toBe('todo');
+    expect(repaired?.task.lifecycle?.stageEnteredAt).toBe(stageEnteredAt);
+    expect(repaired?.task.updatedAt).not.toBe(stageEnteredAt);
+    expect(repaired?.task.lifecycle?.history.at(-1)?.at).toBe(repaired?.task.updatedAt);
+    expect(repaired?.task.lifecycle?.history.at(-1)).toMatchObject({
+      from: 'todo',
+      to: 'todo',
+      actor: 'repair-agent',
+      action: 'Managed projection repaired',
+    });
   });
 });
 

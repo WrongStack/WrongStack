@@ -12,6 +12,7 @@ import {
   parseProviderHttpError,
   retryAfterMsFromHeaders,
 } from './error-parse.js';
+import type { BuildBodyContext } from './model-output-limits.js';
 import { type SSEMessage, parseSSE } from './sse.js';
 import { WireAdapter, type WireAdapterStreamOptions } from './wire-adapter.js';
 
@@ -47,13 +48,13 @@ export interface WireFormatConfig<S = Record<string, unknown>> {
   /** Per-request headers. Default `content-type`/`accept` are provided already. */
   buildHeaders(apiKey: string, req: Request): Record<string, string>;
   /** Map a canonical Request onto the provider's body shape.
-   *  Receives the provider's resolved `Capabilities` so per-model fields
-   *  like `capabilities.maxOutput` can substitute for an absent
-   *  `req.maxTokens`. The catalog overlay in `withCatalogCapabilities`
-   *  means `ctx.capabilities` reflects the active model, not just the
-   *  family default. The `ctx` is required so callers always know
-   *  where to look for the model's ceiling. */
-  buildBody(req: Request, ctx: { capabilities: Capabilities }): Record<string, unknown>;
+   *  Receives the provider's resolved `Capabilities` and its id; pass both to
+   *  `resolveMaxOutputTokens(req, ctx)` rather than reading
+   *  `ctx.capabilities.maxOutput` directly. Capabilities are provider-scoped
+   *  and resolved once at boot, so they describe the model the session
+   *  started on — the catalog lookup keyed on `req.model` is what stays
+   *  correct across `/model` switches, fallback hops and subagents. */
+  buildBody(req: Request, ctx: BuildBodyContext): Record<string, unknown>;
   /** Construct fresh per-stream state. Called once per `stream()` call. */
   createStreamState(fallbackModel: string): S;
   /**
@@ -118,12 +119,9 @@ export class WireFormatProvider<S = Record<string, unknown>> extends WireAdapter
     };
   }
 
-  protected override buildBody(
-    req: Request,
-    ctx: { capabilities: Capabilities },
-  ): Record<string, unknown> {
-    // Forward the resolved capabilities so the preset can fall back from
-    // req.maxTokens to the catalog-populated ceiling.
+  protected override buildBody(req: Request, ctx: BuildBodyContext): Record<string, unknown> {
+    // Forward the whole context (capabilities + provider id) so the preset can
+    // resolve the model's real output ceiling for `req.model`.
     return this.cfg.buildBody(req, ctx);
   }
 

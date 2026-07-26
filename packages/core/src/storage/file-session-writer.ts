@@ -16,6 +16,11 @@ import { atomicWrite } from '../utils/atomic-write.js';
 import { toErrorMessage } from '../utils/index.js';
 import type { SessionCheckpointCas } from './session-checkpoint-cas.js';
 import { userInputTitle } from './session-helpers.js';
+import {
+  findSessionCheckpointTruncatePlan,
+  rewriteSessionToCheckpoint,
+} from './session-writer-truncate.js';
+import { scrubSessionWriterEvent } from './session-writer-scrubber.js';
 
 /**
  * Append-mode JSONL session writer with batched writes, write serialization,
@@ -156,45 +161,6 @@ export class FileSessionWriter implements SessionWriter {
   private fileChangeCount = 0;
   private compactionCount = 0;
   private outcome: SessionSummary['outcome'] = undefined;
-
-  /**
-   * Scrub secrets out of conversation-turn events before they are observed
-   * for the summary, written to the JSONL log, or surfaced on resume. Only
-   * Conversation events carry free-form user/model text. Snapshot and exact
-   * message-journal normalization also strips transient token-cache fields
-   * even when no scrubber is set.
-   */
-  private scrubEvent(event: SessionEvent): SessionEvent {
-    const s = this.secretScrubber;
-    const persistMessage = (message: import('../types/messages.js').Message) => {
-      const { _estTokens: _ignored, ...persisted } = message;
-      return {
-        ...persisted,
-        content:
-          typeof persisted.content === 'string'
-            ? (s?.scrub(persisted.content) ?? persisted.content)
-            : (s?.scrubObject(persisted.content) ?? persisted.content),
-      };
-    };
-    if (event.type === 'context_snapshot' || event.type === 'messages_replaced') {
-      return { ...event, messages: event.messages.map(persistMessage) };
-    }
-    if (event.type === 'message_appended' || event.type === 'message_updated') {
-      return { ...event, message: persistMessage(event.message) };
-    }
-    if (!s) return event;
-    if (event.type === 'user_input') {
-      return {
-        ...event,
-        content:
-          typeof event.content === 'string' ? s.scrub(event.content) : s.scrubObject(event.content),
-      };
-    }
-    if (event.type === 'llm_response') {
-      return { ...event, content: s.scrubObject(event.content) };
-    }
-    return event;
-  }
 
   private pendingFileSnapshots: Array<{
     path: string;
@@ -386,7 +352,7 @@ export class FileSessionWriter implements SessionWriter {
     // Scrub before observing (the summary title is derived from user_input
     // content) and before buffering, so neither the JSONL nor the sidecar
     // ever holds a cleartext secret.
-    const scrubbed = this.scrubEvent(event);
+    const scrubbed = scrubSessionWriterEvent(event, this.secretScrubber);
     // observeForSummary MUST run synchronously here — the summary counters
     // (toolCallCount, tokenIn/Out, outcome) drive the .summary.json sidecar
     // and the session index. Deferring observation to flush time would leave
@@ -415,7 +381,7 @@ export class FileSessionWriter implements SessionWriter {
     if (this.closed || events.length === 0) return;
     await this.ensureInit();
     for (const event of events) {
-      const scrubbed = this.scrubEvent(event);
+      const scrubbed = scrubSessionWriterEvent(event, this.secretScrubber);
       this.observeForSummary(scrubbed);
       this.pushWriteBuffer(scrubbed);
     }
@@ -870,109 +836,8 @@ export class FileSessionWriter implements SessionWriter {
     // Drain the write chain so no in-flight write straddles the close/rename/reopen.
     await this.writeChain;
 
-    // Single-pass scan: track byte offset of each line start. Stop as soon as
-    // the target checkpoint is found — no I/O or parsing for post-checkpoint data.
-    const CHUNK_SIZE = 65_536;
-    let fd: fsp.FileHandle | undefined;
-    let fileOffset = 0; // cumulative byte position of the start of the next disk read
-    let pendingLine = Buffer.alloc(0); // bytes after the last newline, carried across chunks
-    let checkpointByteOffset = -1; // byte offset where we will truncate the file
-    let removedCount = 0;
-    let targetCheckpointSeen = false; // has the target checkpoint been found yet?
-
-    try {
-      fd = await fsp.open(this.filePath, 'r', 0o600);
-
-      while (true) {
-        const buf = Buffer.alloc(CHUNK_SIZE);
-        const { bytesRead } = await fd.read(buf, 0, CHUNK_SIZE, fileOffset);
-        if (bytesRead === 0) break;
-
-        const carriedBytes = pendingLine.length;
-        const chunk =
-          carriedBytes === 0
-            ? buf.subarray(0, bytesRead)
-            : Buffer.concat([pendingLine, buf.subarray(0, bytesRead)]);
-        const chunkFileOffset = fileOffset - carriedBytes;
-        let chunkPos = 0;
-        while (chunkPos < chunk.length) {
-          const idx = chunk.indexOf('\n', chunkPos);
-          if (idx === -1) break;
-
-          const lineStartOffset = chunkFileOffset + chunkPos;
-          if (checkpointByteOffset !== -1) {
-            // Target already found — every subsequent line is removed.
-            removedCount++;
-          } else {
-            // Only parse lines that could precede or be the checkpoint.
-            const lineBytes = chunk.subarray(chunkPos, idx);
-            // eslint-disable-next-line no-sync
-            const line = new TextDecoder('utf-8', { fatal: false }).decode(lineBytes);
-            if (line.trim()) {
-              try {
-                const event = JSON.parse(line) as { type?: string; promptIndex?: number };
-                if (event.type === 'checkpoint') {
-                  if (event.promptIndex === targetPromptIndex) {
-                    // Target found — record its byte offset and stop scanning.
-                    checkpointByteOffset = lineStartOffset;
-                    targetCheckpointSeen = true;
-                  } else if (
-                    event.promptIndex !== undefined &&
-                    event.promptIndex > targetPromptIndex
-                  ) {
-                    // A checkpoint with a higher promptIndex means the target is absent.
-                    // Truncate before this line (exclusive) — it and all following events
-                    // will be replaced by the new rewinded history.
-                    checkpointByteOffset = lineStartOffset;
-                  }
-                } else if (
-                  targetCheckpointSeen &&
-                  event.promptIndex !== undefined &&
-                  event.promptIndex > targetPromptIndex
-                ) {
-                  // Post-target event with a later promptIndex — count as removed.
-                  removedCount++;
-                } else if (targetCheckpointSeen && event.promptIndex === undefined) {
-                  // After the target checkpoint was found: remove events with no
-                  // promptIndex. (In the original this is the afterTarget &&
-                  // targetCheckpointLine !== -1 branch.)
-                  removedCount++;
-                } else if (!targetCheckpointSeen && event.promptIndex === undefined) {
-                  // Past a higher checkpoint but the target checkpoint not yet found.
-                  // Matches original: remove events with undefined promptIndex
-                  // (malformed lines, file_snapshots, etc.) that appear after a
-                  // higher checkpoint but before the target.
-                  removedCount++;
-                } else if (
-                  !targetCheckpointSeen &&
-                  event.promptIndex !== undefined &&
-                  event.promptIndex > targetPromptIndex
-                ) {
-                  // Past a higher checkpoint but the target not yet found.
-                  // Matches original: remove events with promptIndex > target that
-                  // appear before the target checkpoint (e.g. user_inputs belonging
-                  // to a later prompt).
-                  removedCount++;
-                }
-                // Events with promptIndex <= targetPromptIndex (before the target is
-                // found) are implicitly kept — no action needed.
-              } catch {
-                // Malformed JSON — matches original: keep it.
-              }
-            }
-          }
-
-          chunkPos = idx + 1;
-        }
-
-        pendingLine = chunk.subarray(chunkPos);
-        fileOffset += bytesRead;
-      }
-    } finally {
-      await fd?.close();
-    }
-
-    if (checkpointByteOffset === -1) return 0;
+    const plan = await findSessionCheckpointTruncatePlan(this.filePath, targetPromptIndex);
+    if (!plan) return 0;
 
     // Windows EPERM fix: close the append-mode handle before replacing the
     // file. Windows rejects rename() when the destination still has an open
@@ -984,97 +849,12 @@ export class FileSessionWriter implements SessionWriter {
       // Ignore — handle may already be closed (e.g. by clearSession).
       // Consistent with the doClose() best-effort pattern.
     }
-    const tmpPath = `${this.filePath}.rewind.tmp`;
-    const src = await fsp.open(this.filePath, 'r', 0o600);
     try {
-      const statResult = await src.stat();
-      const totalSize = statResult.size;
-      // checkpointByteOffset points to the start of the checkpoint line.
-      // We want to keep everything up to and including that line's '\n'.
-      // Since the file ends with '\n', keeping bytes [0 .. lineStartAfterCheckpoint]
-      // means we include the trailing newline. We find that '\n' by scanning
-      // from checkpointByteOffset forward (at most one chunk's worth).
-      const prefixBytes = checkpointByteOffset;
-      let newlineAfterCheckpoint = prefixBytes;
-
-      if (prefixBytes < totalSize) {
-        const probeBuf = Buffer.alloc(Math.min(CHUNK_SIZE, totalSize - prefixBytes));
-        const { bytesRead: probeRead } = await src.read(probeBuf, 0, probeBuf.length, prefixBytes);
-        if (probeRead > 0) {
-          const nl = probeBuf.indexOf('\n');
-          newlineAfterCheckpoint = nl !== -1 ? prefixBytes + nl + 1 : totalSize;
-        }
-      } else {
-        newlineAfterCheckpoint = totalSize;
-      }
-
-      const writeFd = await fsp.open(tmpPath, 'w', 0o600);
-      try {
-        let readOffset = 0;
-        while (readOffset < newlineAfterCheckpoint) {
-          const toCopy = Math.min(CHUNK_SIZE, newlineAfterCheckpoint - readOffset);
-          const copyBuf = Buffer.alloc(toCopy);
-          const { bytesRead: r } = await src.read(copyBuf, 0, toCopy, readOffset);
-          if (r === 0) break;
-          await writeFd.write(copyBuf, 0, r);
-          readOffset += r;
-        }
-
-        // Preserve malformed JSONL records even after the rewind target. They
-        // are not replayable session events, but keeping them avoids silently
-        // deleting diagnostic/corruption evidence during a truncate.
-        // Stream the tail from the already-open src handle instead of
-        // re-reading the entire file — the prefix was already streamed above,
-        // so reading via readFile() would duplicate all of that I/O.
-        let tailOffset = newlineAfterCheckpoint;
-        let leftover = '';
-        while (tailOffset < totalSize) {
-          const toRead = Math.min(CHUNK_SIZE, totalSize - tailOffset);
-          const tailBuf = Buffer.alloc(toRead);
-          const { bytesRead: tr } = await src.read(tailBuf, 0, toRead, tailOffset);
-          if (tr === 0) break;
-          const chunk = leftover + tailBuf.subarray(0, tr).toString('utf8');
-          const lastNl = chunk.lastIndexOf('\n');
-          if (lastNl === -1) {
-            // No complete line in this chunk — accumulate into leftover.
-            leftover = chunk;
-          } else {
-            for (const line of chunk.slice(0, lastNl + 1).split('\n')) {
-              if (!line.trim()) continue;
-              try {
-                JSON.parse(line);
-              } catch {
-                await writeFd.write(`${line}\n`, undefined, 'utf8');
-              }
-            }
-            leftover = chunk.slice(lastNl + 1);
-          }
-          tailOffset += tr;
-        }
-        // Flush trailing partial line (file may not end with \n).
-        if (leftover.trim()) {
-          try {
-            JSON.parse(leftover);
-          } catch {
-            await writeFd.write(`${leftover}\n`, undefined, 'utf8');
-          }
-        }
-        // fsync the data to disk BEFORE the rename. Without this, a power loss
-        // after the rename is journaled but before the data pages are flushed
-        // can leave the whole session JSONL zero-filled on NTFS — losing the
-        // entire session, not just the rewound tail.
-        await writeFd.sync();
-      } finally {
-        await writeFd.close();
-      }
-
-      await src.close();
-      await fsp.rename(tmpPath, this.filePath);
+      await rewriteSessionToCheckpoint(this.filePath, plan.checkpointByteOffset);
       // Re-open in append mode for continued use of this file.
       this.handle = await fsp.open(this.filePath, 'a', 0o600);
       /* v8 ignore start -- defensive: close/rename/reopen of a just-written temp file */
     } catch (err) {
-      await fsp.unlink(tmpPath).catch(() => undefined);
       this.handle = await fsp.open(this.filePath, 'a', 0o600).catch(() => this.handle);
       throw err;
     }
@@ -1099,10 +879,10 @@ export class FileSessionWriter implements SessionWriter {
       sessionId: this.id,
       toPromptIndex: targetPromptIndex,
       revertedFiles: reverted,
-      removedEvents: removedCount,
+      removedEvents: plan.removedCount,
     });
 
-    return removedCount;
+    return plan.removedCount;
   }
 
   async clearSession(): Promise<void> {
