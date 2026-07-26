@@ -1287,4 +1287,52 @@ describe('GlobalMailbox purgeStale preserves v2 receipts', () => {
     expect(raw).toContain('keep-me');
     expect(raw).not.toContain('old-done');
   });
+
+  it('two actors on a broadcast get independent outcomes and no-op detection', async () => {
+    // Regression: actor A sets outcome "fixed" and actor B sets outcome
+    // "wontfix" on the same broadcast. Each actor's no-op detection must
+    // compare against its OWN recipientState outcome, not the message-global
+    // or the other actor's outcome.
+    const msg = await mb.send({
+      from: 'a', to: '*', type: 'broadcast', subject: 'bug', body: 'crash on startup',
+    });
+
+    // Actor A completes with outcome "fixed"
+    await mb.ack({
+      messageId: msg.id, readerId: 'worker-a@sess-1', read: true, completed: true, outcome: 'fixed',
+    });
+
+    // Actor B completes with outcome "wontfix"
+    await mb.ack({
+      messageId: msg.id, readerId: 'worker-b@sess-2', read: true, completed: true, outcome: 'wontfix',
+    });
+
+    // Assert each actor has independent state in the projection
+    const raw = await fs.readFile(mb.messagePath, 'utf8');
+    const projections = parseMailboxFile(raw);
+    const proj = projections.find((p) => p.id === msg.id);
+    expect(proj).toBeDefined();
+    expect(proj!.recipientState?.['worker-a@sess-1']?.outcome).toBe('fixed');
+    expect(proj!.recipientState?.['worker-b@sess-2']?.outcome).toBe('wontfix');
+
+    // Actor A re-acks the same outcome "fixed" — must be a no-op (no new receipt)
+    const receiptsBefore = (raw.match(/__mailboxReceipt/g) ?? []).length;
+    await mb.ack({
+      messageId: msg.id, readerId: 'worker-a@sess-1', outcome: 'fixed',
+    });
+    const rawAfter = await fs.readFile(mb.messagePath, 'utf8');
+    const receiptsAfter = (rawAfter.match(/__mailboxReceipt/g) ?? []).length;
+    expect(receiptsAfter).toBe(receiptsBefore);
+
+    // Actor A changes outcome to "needs-review" — must NOT be a no-op
+    await mb.ack({
+      messageId: msg.id, readerId: 'worker-a@sess-1', outcome: 'needs-review',
+    });
+    const rawFinal = await fs.readFile(mb.messagePath, 'utf8');
+    const projectionsFinal = parseMailboxFile(rawFinal);
+    const projFinal = projectionsFinal.find((p) => p.id === msg.id);
+    expect(projFinal!.recipientState?.['worker-a@sess-1']?.outcome).toBe('needs-review');
+    // Actor B's outcome is unchanged
+    expect(projFinal!.recipientState?.['worker-b@sess-2']?.outcome).toBe('wontfix');
+  });
 });
