@@ -41,6 +41,8 @@ import type { JSONSchema, Tool } from '../types/tool.js';
 import { AGENT_CATALOG } from '../coordination/agents/index.js';
 import { isValidMatrixKey, phaseForRole, resolveSubagentModelTarget } from '../coordination/model-matrix.js';
 import { normalizeModelRef } from '../core/fallback-model.js';
+import { parseRefInternal } from './fallback-model-ref-parse.js';
+import { storeProviderKey } from './fallback-provider-key-store.js';
 
 // ── Public types ────────────────────────────────────────────────────────────
 
@@ -1001,7 +1003,7 @@ function createProviderKeySetTool(opts: FallbackManageToolOptions): Tool<Provide
             if (!value || value.trim().length === 0) {
               return { status: 'error', message: 'No key was entered. Operation cancelled.' };
             }
-            return storeKey(providers, input, value.trim(), opts);
+            return storeProviderKey(providers, input, value.trim(), opts);
           } catch (err) {
             return {
               status: 'error',
@@ -1031,61 +1033,16 @@ function createProviderKeySetTool(opts: FallbackManageToolOptions): Tool<Provide
               `Set it first or use a different envVar.`,
           };
         }
-        return storeKey(providers, input, envValue, opts);
+        return storeProviderKey(providers, input, envValue, opts);
       }
 
       // Key provided directly
       if (input.key) {
-        return storeKey(providers, input, input.key, opts);
+        return storeProviderKey(providers, input, input.key, opts);
       }
 
       return { status: 'error', message: 'Unexpected — no key source available.' };
     },
-  };
-}
-
-async function storeKey(
-  providers: Record<string, Record<string, unknown>>,
-  input: ProviderKeySetInput,
-  keyValue: string,
-  opts: FallbackManageToolOptions,
-): Promise<ProviderKeySetOutput> {
-  const providerId = input.provider;
-
-  // Ensure the provider config exists
-  if (!providers[providerId]) {
-    // Auto-create with a best-guess type (user can configure properly later)
-    providers[providerId] = { type: providerId };
-  }
-
-  const entry = providers[providerId]!;
-  const existingKeys = Array.isArray(entry.apiKeys) ? [...(entry.apiKeys as Array<Record<string, unknown>>)] : [];
-  const label = input.label ?? 'default';
-
-  existingKeys.push({
-    label,
-    apiKey: keyValue,
-    createdAt: new Date().toISOString(),
-  });
-
-  entry.apiKeys = existingKeys;
-  entry.apiKey = undefined; // Clear legacy field after migration to multikey format
-
-  if (input.setActive !== false) {
-    entry.activeKey = label;
-  }
-
-  providers[providerId] = entry;
-
-  await opts.updateConfig((cfg) => {
-    cfg.providers = providers;
-  });
-
-  const sourceName = input.envVar ? `env:${input.envVar}` : 'direct key';
-  return {
-    status: 'ok',
-    message: `✓ API key stored for "${providerId}" from ${sourceName}. ` +
-      `Now add models to favorites with favorite_manage to use them in fallback chains.`,
   };
 }
 
@@ -1239,27 +1196,6 @@ function createLeaderModelSetTool(opts: FallbackManageToolOptions): Tool<LeaderM
       return { status: 'error', message: `Unknown action: "${input.action}".` };
     },
   };
-}
-
-interface ParsedRef {
-  provider?: string;
-  model: string;
-}
-
-function parseRefInternal(ref: string): ParsedRef {
-  const trimmed = ref.trim();
-  const slash = trimmed.indexOf('/');
-  if (slash !== -1) {
-    const p = trimmed.slice(0, slash);
-    const m = trimmed.slice(slash + 1).trim();
-    if (p) return { provider: p, model: m };
-    return { model: m };
-  }
-  const parts = trimmed.split(/\s+/);
-  if (parts.length >= 2) {
-    return { provider: parts[0]!, model: parts.slice(1).join(' ') };
-  }
-  return { model: trimmed };
 }
 
 // ── 8. SYSTEM_CONFIG_VIEW ───────────────────────────────────────────────────
