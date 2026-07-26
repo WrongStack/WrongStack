@@ -679,3 +679,64 @@ All five decisions have been resolved. The rationale is recorded here so impleme
 **Rationale:** A fixed calendar removal is risky — we don't know how many external agents (Claude Code, Aider, custom scripts) use the current bearer-token bridge. A telemetry-driven gate is safer: it removes the mode when evidence shows it's no longer needed, not when a calendar says so. The 14-day observation window catches intermittent CI/script usage.
 
 **Impact on graph:** GM-P0.13 implements the telemetry counters and the removal-gate documentation. GM-P0.GATE verifies the removal criteria are documented and testable.
+
+---
+
+## 12. Implementation Status (2026-07-26)
+
+The following GM-P0 tasks are **implemented and verified**:
+
+### GM-P0.4 — Mixed-log materializer ✅
+
+`parseMailboxFile()` in `mailbox-receipt-folding.ts` is the canonical read path. It is a single-pass JSONL parser that classifies each line as v1 message, v1 ack record, or v2 receipt record, folds v1 acks into their target messages, and folds v2 receipts into a unified `MailboxMessageProjection` carrying per-actor `recipientState`.
+
+`GlobalMailbox._readMessages()` calls `parseMailboxFile()` instead of the old `parseMailboxLines()`. Every read path — cached, fresh, and cache-refresh-under-lock — now sees v2 receipt state.
+
+### GM-P0.4A — Writer-version fence ✅
+
+`assertMailboxNotFenced()` is wired into every mutation lock:
+
+| Mutation | Location |
+|---|---|
+| `send()` | `global-mailbox.ts` sendMessage lock |
+| `ackMany()` | `global-mailbox.ts` ackMany lock (after cache refresh, before sentinel + append) |
+| `softDelete()` | `global-mailbox.ts` softDelete lock |
+| `restore()` | `global-mailbox.ts` restore lock |
+| `clearAll()` | `global-mailbox-clear.ts` |
+| `purgeStale()` | `global-mailbox-purge-stale.ts` |
+| `autoCompact()` | `global-mailbox-auto-compact.ts` |
+
+Old processes encountering a v2 sentinel on a newer-version file refuse mutations with `MailboxVersionFenceError`.
+
+### GM-P0.5 — Actor-scoped mutation and projection ✅
+
+`classifyLegacyCompletion()` in `mailbox-receipt-folding.ts` bridges the v1→v2 transition:
+
+- A pre-v2 `completed: true` on a fan-out message stays `legacyGlobalCompletion: true` (global for all actors).
+- Once any actor sends a v2 completion receipt with `completed: true`, `legacyGlobalCompletion` is suppressed and completion becomes actor-scoped.
+- A read-only v2 receipt does **not** suppress legacy completion (prevents historical broadcasts from resurfacing).
+
+`isMessageCompletedForActor()` in `global-mailbox-completion.ts` checks v2 `recipientState` first; only when no v2 state exists for any actor does it fall back to v1 global `completed`.
+
+`query()` and `unreadCount()` use actor-scoped completion. `query()` strips `recipientState` and `legacyGlobalCompletion` from public return values by default; the HTTP router sets `includeReceiptState: true` for actor projection.
+
+### GM-P0.5A — Fan-out dual-write ✅
+
+For fan-out recipients (`*`, base alias, `@session:*`), the v1 ack record strips completion and outcome — only the read receipt survives in the v1 line. Actor-scoped completion and outcome live exclusively in v2 receipts. This prevents old compactors from collapsing actor-scoped fan-out completion back into global state.
+
+### Compaction and purge preservation ✅
+
+`global-mailbox-auto-compact.ts` and `global-mailbox-purge-stale.ts` preserve v2 receipt records and the version sentinel for kept messages during rewrites. `serializeMailboxMessage()` strips projection extras (`recipientState`, `legacyGlobalCompletion`) from the rewritten message lines so the file stays clean v1-parseable.
+
+`resolveMailboxRetentionState()` in `mailbox-retention-state.ts` drives actor-aware retention: a v2-enabled fan-out message stays on the incomplete TTL until every relevant recipient has an actor-scoped completion receipt.
+
+### Reopen semantics ✅
+
+Reopen requires the canonical verb: `read: false` + `completed: false` (matching `actionToAckInput('reopen')` in `mailbox-actions.ts`). Routine `mark-read` (`read: true`, `completed: false`) does **not** reopen — completion is sticky until an explicit reopen action. Outcome-only acks (`completed: undefined`) also do not reopen.
+
+### Verification
+
+- `@wrongstack/core` typecheck: **0 errors**
+- Core tests: **7808/7808 passed** (477 files)
+- CLI mailbox bridge tests: **162/162 passed** (10 files)
+- V2 receipt tests: **70/70 passed** (including two-actor independent outcome no-op, broadcast retention, version fence, compaction/purge preservation)
