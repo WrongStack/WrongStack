@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { hintsFor } from '../src/components/key-hint-bar.js';
+import { IDLE_MESSAGES, hintsFor, isIdleContext } from '../src/components/key-hint-bar.js';
 
 const keys = (ctx: Parameters<typeof hintsFor>[0]) => hintsFor(ctx).map((h) => h.key);
 
@@ -32,5 +32,33 @@ describe('KeyHintBar context priority', () => {
       { key: 'wheel', label: 'scroll' },
       { key: 'Ctrl+U/D', label: 'page' },
     ]);
+  });
+});
+
+describe('Idle message rotation', () => {
+  it('IDLE_MESSAGES is a non-empty array of hints with empty keys', () => {
+    expect(IDLE_MESSAGES.length).toBeGreaterThan(1);
+    for (const m of IDLE_MESSAGES) {
+      expect(m.key).toBe('');
+      expect(m.label.length).toBeGreaterThan(0);
+    }
+  });
+
+  it('first idle message is always the canonical brand link', () => {
+    expect(IDLE_MESSAGES[0]!.label).toBe('github.com/wrongstack/wrongstack');
+  });
+
+  it('isIdleContext returns true only when no interactive flag is set', () => {
+    expect(isIdleContext({})).toBe(true);
+    expect(isIdleContext({ confirm: true })).toBe(false);
+    expect(isIdleContext({ picker: true })).toBe(false);
+    expect(isIdleContext({ monitor: true })).toBe(false);
+    expect(isIdleContext({ managed: true })).toBe(false);
+    // monitor takes priority, but isIdleContext should still be false
+    expect(isIdleContext({ confirm: true, picker: true })).toBe(false);
+  });
+
+  it('hintsFor idle case returns the same hint as IDLE_MESSAGES[0]', () => {
+    expect(hintsFor({})).toEqual([IDLE_MESSAGES[0]]);
   });
 });
