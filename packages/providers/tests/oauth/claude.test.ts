@@ -6,7 +6,7 @@
  * - buildClaudeAuthorizeUrl returns a valid URL
  * - OAUTH_PROVIDER_IDS includes claude with anthropic-oauth
  */
-import { describe, expect, it, vi } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import {
   beginClaudeLogin,
   buildClaudeAuthorizeUrl,
@@ -21,7 +21,7 @@ describe('Claude OAuth', () => {
   });
 
   it('buildClaudeAuthorizeUrl returns an absolute URL', () => {
-    const url = buildClaudeAuthorizeUrl('test-state');
+    const url = buildClaudeAuthorizeUrl('test-challenge', 'test-state');
     expect(url).toBeDefined();
     expect(url).toContain('http');
     expect(url).toContain('test-state');
