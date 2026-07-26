@@ -460,8 +460,13 @@ export class CollabSession extends EventEmitter {
     // wireFleetBus() already registered 6 FleetBus subscriptions into
     // this.disposers — a throw here would bypass both cleanup() call sites
     // below and leak those listeners onto the shared FleetBus for the
-    // Director's lifetime. Catch, clean up, and rethrow so the caller sees
-    // the original failure.
+    // Director's lifetime. Catch, clean up, emit session.error so the
+    // controller can stop any already-spawned agents, and rethrow.
+    //
+    // spawnAgent records each successfully-spawned agent into subagentIds
+    // immediately after spawn returns, before assign — so a partial failure
+    // (one sibling throws after another spawned) still surfaces the orphan
+    // via getSubagentIds(). The controller's session.error handler stops it.
     let bugHunter: { subagentId: string; taskId: string };
     let refactorPlanner: { subagentId: string; taskId: string };
     let critic: { subagentId: string; taskId: string };
@@ -473,7 +478,9 @@ export class CollabSession extends EventEmitter {
       ]);
     } catch (err) {
       this.cleanup();
-      throw err;
+      const error = err instanceof Error ? err : new Error(String(err));
+      this.emit('session.error', error);
+      throw error;
     }
 
     this.subagentIds.set('bug-hunter', bugHunter.subagentId);
@@ -634,6 +641,10 @@ export class CollabSession extends EventEmitter {
       timeoutMs: budget.timeoutMs,
     };
     const subagentId = await this.director.spawn(cfg);
+    // Record immediately so a partial-spawn failure (a sibling throw,
+    // an assign rejection, a spawn cap) makes this agent visible to
+    // getSubagentIds() — the controller uses it to stop orphans.
+    this.subagentIds.set(role, subagentId);
     const taskId = await this.director.assign({
       id: randomUUID(),
       subagentId,

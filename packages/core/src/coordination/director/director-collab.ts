@@ -63,7 +63,22 @@ export class DirectorCollabController {
     // Note: EventEmitter.on() returns `this`, not an unsubscribe function,
     // so we create explicit wrappers that call .off() with the same handler ref.
     const doneHandler = () => this.activeSessions.delete(session.sessionId);
-    const errorHandler = () => this.activeSessions.delete(session.sessionId);
+    // session.error fires when start() fails after spawning (partial spawn)
+    // or when the awaitTasks race rejects. The handler must stop any agents
+    // that were already spawned (getSubagentIds is populated incrementally
+    // by spawnAgent) so they don't keep running as orphans, then delete the
+    // entry so the controller doesn't retain a dead session forever.
+    const errorHandler = () => {
+      for (const [_role, subagentId] of session.getSubagentIds()) {
+        this.deps.coordinator.stop(subagentId).catch((err) => {
+          this.deps.logger?.debug(`stop subagent ${subagentId} failed on session error`, {
+            subagentId,
+            err: err instanceof Error ? err.message : String(err),
+          });
+        });
+      }
+      this.activeSessions.delete(session.sessionId);
+    };
     session.on('session.done', doneHandler);
     session.on('session.error', errorHandler);
     const unsubs: (() => void)[] = [

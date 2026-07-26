@@ -168,4 +168,82 @@ describe('DirectorCollabController', () => {
     expect(() => controller.cancel('never-spawned')).not.toThrow();
     expect(controller.activeSessionIds()).toHaveLength(0);
   });
+
+  // -------------------------------------------------------------------------
+  // Partial-spawn cleanup (regression)
+  // -------------------------------------------------------------------------
+  // When one of the three parallel spawnAgent calls fails after siblings
+  // have already spawned, start() must:
+  //   1. emit session.error so the controller reacts
+  //   2. surface the already-spawned agents via getSubagentIds() so the
+  //      controller's errorHandler can stop them
+  //   3. remove the entry from activeSessions
+  // Without incremental recording in spawnAgent, getSubagentIds() returns
+  // empty at session.error time (the map is only populated after all three
+  // succeed), so the orphaned agents run forever and the controller retains
+  // a dead session entry for its lifetime.
+  it('stops already-spawned agents and clears the entry when a sibling spawn fails', async () => {
+    const fleet = new FleetBus();
+
+    // Director that spawns bug-hunter + refactor-planner successfully, then
+    // throws on critic (simulating a spawn cap / context overflow after the
+    // first two agents are live).
+    const director: CollabDirectorHost = {
+      id: 'mock-director',
+      sharedScratchpadPath: null,
+      async spawn(cfg) {
+        if (cfg.role === 'critic') {
+          throw new Error('simulated context overflow on critic');
+        }
+        return `${cfg.role}-sub`;
+      },
+      async assign(task) {
+        return `task-for-${task.subagentId}`;
+      },
+      // Should never be reached — start() throws before awaitTasks.
+      async awaitTasks() {
+        return [];
+      },
+      getLeaderBtwNotes() {
+        return [];
+      },
+    };
+
+    const stoppedAgents: string[] = [];
+    const mockCoordinator = {
+      async stop(subagentId: string) {
+        stoppedAgents.push(subagentId);
+      },
+    };
+
+    const controller = new DirectorCollabController({
+      director,
+      fleet,
+      coordinator: mockCoordinator,
+    });
+
+    // spawn() rejects because the critic spawn threw and start() rethrew.
+    await expect(
+      controller.spawn({
+        targetPaths: ['src/partial-fail.ts'],
+        timeoutMs: 30_000,
+      }),
+    ).rejects.toThrow(/simulated context overflow on critic/);
+
+    // Allow the errorHandler's fire-and-forget coordinator.stop() calls to
+    // land (they use .catch so they settle on the microtask queue).
+    await new Promise((r) => setTimeout(r, 20));
+
+    // ── The regression assertions ───────────────────────────────────
+    // 1. The two agents that spawned successfully (bug-hunter, refactor-planner)
+    //    were stopped — they are NOT left as orphans. The old code recorded
+    //    subagentIds only after all three spawned, so getSubagentIds() was
+    //    empty at session.error time and the errorHandler stopped nothing.
+    expect(stoppedAgents.sort()).toEqual(['bug-hunter-sub', 'refactor-planner-sub']);
+
+    // 2. The dead session entry is gone — session.error fired, the
+    //    errorHandler deleted it. The old code didn't emit session.error
+    //    on the spawn-failure path, so the entry leaked forever.
+    expect(controller.activeSessionIds()).toHaveLength(0);
+  });
 });
