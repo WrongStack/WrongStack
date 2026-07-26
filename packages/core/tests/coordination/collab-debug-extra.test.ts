@@ -356,3 +356,159 @@ describe('CollabSession.assembleReport markdown sections', () => {
     expect(report.summary).toContain('Bugs Found');
   });
 });
+
+// -------------------------------------------------------------------------
+// Concurrent-session event isolation (regression)
+// -------------------------------------------------------------------------
+// Two collab sessions sharing the same FleetBus must NOT collect each
+// other's findings. Before the ownership-guard fix, every wireFleetBus
+// filter processed events from ANY agent — both sessions' bugs/plans/
+// evaluations maps contained the union of both sessions' outputs, and
+// budget negotiations raced on the same extend/deny callbacks.
+//
+// These tests populate subagentIds (simulating post-spawn state) so the
+// strict ownership check is active — the prefix fallback only applies
+// when the map is empty (startup race).
+describe('CollabSession concurrent-session isolation', () => {
+  const fleetEvent = (fleetBus: FleetBus, subagentId: string, type: string, payload: unknown) =>
+    (fleetBus as never as { emit: (e: { subagentId: string; ts: number; type: string; payload: unknown }) => void }).emit({ subagentId, ts: Date.now(), type, payload });
+
+  /** Populate subagentIds as if spawnAgent had run for all three roles. */
+  function seedAgents(session: CollabSession, suffix: string): void {
+    const priv = session as unknown as {
+      subagentIds: Map<string, string>;
+    };
+    priv.subagentIds.set('bug-hunter', `bug-hunter-${suffix}`);
+    priv.subagentIds.set('refactor-planner', `refactor-planner-${suffix}`);
+    priv.subagentIds.set('critic', `critic-${suffix}`);
+  }
+
+  it('does not collect another session bug.found events', () => {
+    const fleetBus = new FleetBus();
+    const directorA = {
+      id: 'director-A', fleet: fleetBus, sharedScratchpadPath: '/tmp',
+      getLeaderBtwNotes: () => [] as string[],
+      async spawn() { return ''; }, async assign() { return ''; }, async awaitTasks() { return []; },
+    };
+    const directorB = { ...directorA, id: 'director-B' };
+
+    const sessionA = new CollabSession(directorA as never, fleetBus, {
+      targetPaths: ['a.ts'], prebuiltSnapshot: { id: 's', createdAt: '', files: [{ path: 'a.ts', content: 'x' }] },
+    });
+    const sessionB = new CollabSession(directorB as never, fleetBus, {
+      targetPaths: ['b.ts'], prebuiltSnapshot: { id: 's', createdAt: '', files: [{ path: 'b.ts', content: 'x' }] },
+    });
+    seedAgents(sessionA, 'A');
+    seedAgents(sessionB, 'B');
+    // Wire both sessions to the shared bus (simulates concurrent start()).
+    (sessionA as never as { wireFleetBus: () => void }).wireFleetBus();
+    (sessionB as never as { wireFleetBus: () => void }).wireFleetBus();
+
+    // Session A's bug-hunter emits a finding.
+    fleetEvent(fleetBus, 'bug-hunter-A', 'bug.found', {
+      finding: { id: 'bug-A', type: 'null', severity: 'high', location: { file: 'a.ts', line: 1 }, description: 'A-only bug' },
+    });
+    // Session B's bug-hunter emits a different finding.
+    fleetEvent(fleetBus, 'bug-hunter-B', 'bug.found', {
+      finding: { id: 'bug-B', type: 'sqli', severity: 'low', location: { file: 'b.ts', line: 2 }, description: 'B-only bug' },
+    });
+
+    const reportA = (sessionA as never as { assembleReport: () => { bugs: { id: string }[] } }).assembleReport();
+    const reportB = (sessionB as never as { assembleReport: () => { bugs: { id: string }[] } }).assembleReport();
+
+    // Session A sees ONLY its own bug, not session B's.
+    expect(reportA.bugs.map((b) => b.id)).toEqual(['bug-A']);
+    // Session B sees ONLY its own bug, not session A's.
+    expect(reportB.bugs.map((b) => b.id)).toEqual(['bug-B']);
+  });
+
+  it('does not race on another session budget.threshold_reached events', async () => {
+    const fleetBus = new FleetBus();
+    const director = {
+      id: 'director', fleet: fleetBus, sharedScratchpadPath: '/tmp',
+      getLeaderBtwNotes: () => [] as string[],
+      async spawn() { return ''; }, async assign() { return ''; }, async awaitTasks() { return []; },
+    };
+
+    const sessionA = new CollabSession(director as never, fleetBus, {
+      targetPaths: ['a.ts'], prebuiltSnapshot: { id: 's', createdAt: '', files: [{ path: 'a.ts', content: 'x' }] },
+    });
+    const sessionB = new CollabSession(director as never, fleetBus, {
+      targetPaths: ['b.ts'], prebuiltSnapshot: { id: 's', createdAt: '', files: [{ path: 'b.ts', content: 'x' }] },
+    });
+    seedAgents(sessionA, 'A');
+    seedAgents(sessionB, 'B');
+    (sessionA as never as { wireFleetBus: () => void }).wireFleetBus();
+    (sessionB as never as { wireFleetBus: () => void }).wireFleetBus();
+
+    // Session B's agent trips an iterations threshold.
+    fleetEvent(fleetBus, 'critic-B', 'budget.threshold_reached', {
+      kind: 'iterations', used: 11, limit: 10, timeoutMs: 1000,
+      extend: () => {}, deny: () => {},
+    });
+
+    // Let setImmediate grants settle.
+    await new Promise((r) => setImmediate(r));
+
+    // Session A's internal state must not reflect B's event — its
+    // progressBySubagent and alerts must be clean. Before the fix, session A's
+    // handler also processed the event (roleFromSubagentId prefix-matched
+    // 'critic-B'), racing with session B's own handler on the same
+    // extend/deny callbacks.
+    const progressA = (sessionA as never as { progressBySubagent: Map<string, number> }).progressBySubagent;
+    expect(progressA.has('critic-B')).toBe(false);
+
+    const alertsA = sessionA.getSessionAlerts();
+    expect(alertsA.some((a) => a.subagentId === 'critic-B')).toBe(false);
+
+    // Session B DID process its own event (sanity: the event wasn't lost).
+    const alertsB = sessionB.getSessionAlerts();
+    expect(alertsB.some((a) => a.subagentId === 'critic-B')).toBe(true);
+  });
+
+  it('does not collect another session refactor.plan or critic.evaluation events', () => {
+    const fleetBus = new FleetBus();
+    const director = {
+      id: 'director', fleet: fleetBus, sharedScratchpadPath: '/tmp',
+      getLeaderBtwNotes: () => [] as string[],
+      async spawn() { return ''; }, async assign() { return ''; }, async awaitTasks() { return []; },
+    };
+
+    const sessionA = new CollabSession(director as never, fleetBus, {
+      targetPaths: ['a.ts'], prebuiltSnapshot: { id: 's', createdAt: '', files: [{ path: 'a.ts', content: 'x' }] },
+    });
+    const sessionB = new CollabSession(director as never, fleetBus, {
+      targetPaths: ['b.ts'], prebuiltSnapshot: { id: 's', createdAt: '', files: [{ path: 'b.ts', content: 'x' }] },
+    });
+    seedAgents(sessionA, 'A');
+    seedAgents(sessionB, 'B');
+    (sessionA as never as { wireFleetBus: () => void }).wireFleetBus();
+    (sessionB as never as { wireFleetBus: () => void }).wireFleetBus();
+
+    fleetEvent(fleetBus, 'refactor-planner-A', 'refactor.plan', {
+      plan: { id: 'plan-A', basedOnBugIds: [], phases: [], riskScore: 'low', estimatedChangeCount: 1, rollbackStrategy: 'git' },
+    });
+    fleetEvent(fleetBus, 'refactor-planner-B', 'refactor.plan', {
+      plan: { id: 'plan-B', basedOnBugIds: [], phases: [], riskScore: 'low', estimatedChangeCount: 2, rollbackStrategy: 'git' },
+    });
+    fleetEvent(fleetBus, 'critic-A', 'critic.evaluation', {
+      evaluation: { id: 'eval-A', subjectType: 'bug_finding', subjectId: 'x', score: 9, verdict: 'approve', strengths: [], weaknesses: [], concerns: [] },
+    });
+    fleetEvent(fleetBus, 'critic-B', 'critic.evaluation', {
+      evaluation: { id: 'eval-B', subjectType: 'refactor_plan', subjectId: 'y', score: 3, verdict: 'reject', strengths: [], weaknesses: [], concerns: [] },
+    });
+
+    const reportA = (sessionA as never as {
+      assembleReport: () => { refactorPlans: { id: string }[]; evaluations: { id: string }[] };
+    }).assembleReport();
+    const reportB = (sessionB as never as {
+      assembleReport: () => { refactorPlans: { id: string }[]; evaluations: { id: string }[] };
+    }).assembleReport();
+
+    // Each session sees only its own plans and evaluations.
+    expect(reportA.refactorPlans.map((p) => p.id)).toEqual(['plan-A']);
+    expect(reportA.evaluations.map((e) => e.id)).toEqual(['eval-A']);
+    expect(reportB.refactorPlans.map((p) => p.id)).toEqual(['plan-B']);
+    expect(reportB.evaluations.map((e) => e.id)).toEqual(['eval-B']);
+  });
+});
