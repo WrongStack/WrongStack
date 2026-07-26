@@ -79,6 +79,18 @@ describe('ProviderModelStatusTracker', () => {
     ok(status?.stateExpiresAt !== null);
   });
 
+  it('quarantines a plain 429 on the FIRST hit with default config', () => {
+    // Regression pin for the immediate-quarantine default: a transient 429
+    // must enter the waiting room at once so the fallback engine rotates
+    // instead of burning more doomed requests on the same model.
+    const defaultTracker = new ProviderModelStatusTracker();
+    defaultTracker.recordFailure('test', 'model-a', 'rate_limit', 429, 'Too many requests');
+
+    strictEqual(defaultTracker.getStatus('test', 'model-a')?.state, 'blocked');
+    strictEqual(defaultTracker.isAvailable('test', 'model-a'), false);
+    strictEqual(defaultTracker.isBlocked('test', 'model-a'), true);
+  });
+
   it('sends exhausted quota to the waiting room on the first failure', () => {
     tracker.recordFailure(
       'openrouter',
@@ -92,6 +104,115 @@ describe('ProviderModelStatusTracker', () => {
     strictEqual(status?.state, 'blocked');
     strictEqual(status?.rateLimitHits, 1);
     ok((status?.stateExpiresAt ?? 0) > Date.now() + 100_000);
+  });
+
+  it('honors a prose reset hint over the fixed quota block duration', () => {
+    // Weekly-cap style message: the provider publishes the reset in prose but
+    // sends no Retry-After header. The waiting room must hold until the real
+    // reset (6h12m), not the configured 2-minute quota default.
+    tracker.recordFailure(
+      'openrouter',
+      'weekly-model',
+      'rate_limit',
+      429,
+      'insufficient_quota: weekly plan limit reached. Please try again in 6h12m',
+    );
+
+    const status = tracker.getStatus('openrouter', 'weekly-model');
+    strictEqual(status?.state, 'blocked');
+    ok((status?.stateExpiresAt ?? 0) > Date.now() + 6 * 3_600_000);
+    strictEqual(status?.recentErrors[0]?.retryAfterMs, 6 * 3_600_000 + 12 * 60_000);
+  });
+
+  it('parses an absolute ISO reset timestamp from the message', () => {
+    const resetAt = new Date(Date.now() + 2 * 3_600_000).toISOString();
+    tracker.recordFailure(
+      'openrouter',
+      'iso-model',
+      'rate_limit',
+      429,
+      `insufficient_quota: usage cap reached; resets at ${resetAt}`,
+    );
+
+    const status = tracker.getStatus('openrouter', 'iso-model');
+    strictEqual(status?.state, 'blocked');
+    ok((status?.stateExpiresAt ?? 0) > Date.now() + 3_500_000);
+  });
+
+  it('prefers an explicit retryAfterMs over any prose hint', () => {
+    tracker.recordFailure(
+      'openrouter',
+      'explicit-model',
+      'rate_limit',
+      429,
+      'insufficient_quota: credit exhausted. Please try again in 6h',
+      { retryAfterMs: 30_000 },
+    );
+
+    const status = tracker.getStatus('openrouter', 'explicit-model');
+    strictEqual(status?.recentErrors[0]?.retryAfterMs, 30_000);
+    // The 6h prose hint must NOT extend the expiry past the quota default.
+    ok((status?.stateExpiresAt ?? 0) < Date.now() + 3_600_000);
+  });
+
+  it('ignores garbage prose and falls back to the configured quota duration', () => {
+    tracker.recordFailure(
+      'openrouter',
+      'garbage-model',
+      'rate_limit',
+      429,
+      'insufficient_quota: credit exhausted; try again in a bit',
+    );
+
+    const status = tracker.getStatus('openrouter', 'garbage-model');
+    strictEqual(status?.state, 'blocked');
+    const expiry = status?.stateExpiresAt ?? 0;
+    ok(expiry > Date.now() + 100_000 && expiry < Date.now() + 140_000);
+  });
+
+  it('clamps absurd prose hints to the 7-day maximum', () => {
+    tracker.recordFailure(
+      'openrouter',
+      'monthly-model',
+      'rate_limit',
+      429,
+      'insufficient_quota: monthly budget exhausted. Please try again in 30 days',
+    );
+
+    const status = tracker.getStatus('openrouter', 'monthly-model');
+    const expiry = status?.stateExpiresAt ?? 0;
+    ok(expiry > Date.now() + 6 * 86_400_000);
+    ok(expiry <= Date.now() + 7 * 86_400_000 + 5_000);
+  });
+
+  it('parses prose hints on plain rate_limit failures too', () => {
+    // Default config: a single 429 blocks immediately (blockAfterRateLimitHits: 1),
+    // so the 45m prose hint should extend the block past the 5-min default.
+    const defaultTracker = new ProviderModelStatusTracker();
+    defaultTracker.recordFailure(
+      'test',
+      'burst-model',
+      'rate_limit',
+      429,
+      'Too many requests. Please try again in 45m',
+    );
+
+    const status = defaultTracker.getStatus('test', 'burst-model');
+    strictEqual(status?.state, 'blocked');
+    // 45m hint must extend past the 5-min default block duration.
+    ok((status?.stateExpiresAt ?? 0) > Date.now() + 2_600_000);
+  });
+
+  it('ignores prose hints on non-rate-limit failures', () => {
+    tracker.recordFailure(
+      'test',
+      'server-model',
+      'server',
+      500,
+      'Internal error; try again in 6h12m',
+    );
+
+    strictEqual(tracker.getStatus('test', 'server-model')?.recentErrors[0]?.retryAfterMs, undefined);
   });
 
   it('treats HTTP 402 as exhausted credit even without a provider-specific message', () => {

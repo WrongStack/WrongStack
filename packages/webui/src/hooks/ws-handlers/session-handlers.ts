@@ -663,6 +663,15 @@ export function handleProviderStatusChanged(msg: WSServerMessage) {
   }
 }
 
+export function handleProviderStatusSnapshot(msg: WSServerMessage) {
+  const payload = msg.payload;
+  if (payload && typeof payload === 'object' && 'error' in payload) {
+    useProviderStatusStore.getState().setError('Provider status tracking not available');
+    return;
+  }
+  useProviderStatusStore.getState().applySnapshot(payload as Record<string, unknown>);
+}
+
 export function handleProviderActiveBlocked(msg: WSServerMessage) {
   if (!isActiveSessionMessage(msg)) return;
   const payload = msg.payload as {
@@ -978,5 +987,6 @@ export const sessionHandlerMap: Partial<Record<string, (msg: WSServerMessage) =>
   'context.modes.list': handleContextModesList,
   'context.mode.changed': handleContextModeChanged,
   'sessions.list': handleSessionsList,
+  'provider.status.snapshot': handleProviderStatusSnapshot,
   error: handleError,
 };

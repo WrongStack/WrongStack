@@ -1,6 +1,7 @@
-import { AlertTriangle, CheckCircle2, Clock3 } from 'lucide-react';
-import { useEffect, useMemo, useState } from 'react';
+import { AlertTriangle, CheckCircle2, Clock3, RefreshCw, RotateCcw, Trash2 } from 'lucide-react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { blockingCalendarRules, ruleTarget } from '@/lib/model-calendar';
+import { getWSClient } from '@/lib/ws-client';
 import { useProviderStatusStore } from '@/stores';
 import { useLocalPrefs } from '@/stores/local-prefs';
 
@@ -14,28 +15,72 @@ function remaining(expiresAt: number | undefined, now: number): string {
   return `${Math.floor(minutes / 60)}h ${minutes % 60}m`;
 }
 
+function formatAgo(ts: number | null | undefined, now: number): string {
+  if (!ts) return '';
+  const seconds = Math.max(0, Math.floor((now - ts) / 1000));
+  if (seconds < 60) return `${seconds}s ago`;
+  const minutes = Math.floor(seconds / 60);
+  if (minutes < 60) return `${minutes}m ago`;
+  return `${Math.floor(minutes / 60)}h ${minutes % 60}m ago`;
+}
+
 export function ProviderWaitingRoom() {
   const entriesByKey = useProviderStatusStore((state) => state.entries);
+  const summary = useProviderStatusStore((state) => state.summary);
+  const removeEntry = useProviderStatusStore((state) => state.removeEntry);
   const calendarRules = useLocalPrefs((state) => state.modelAvailabilitySchedule);
   const [expanded, setExpanded] = useState(false);
+  const [selectedKey, setSelectedKey] = useState<string | null>(null);
   const [now, setNow] = useState(Date.now());
+
   const entries = useMemo(
-    () => Object.values(entriesByKey).sort((a, b) => a.providerId.localeCompare(b.providerId)),
+    () =>
+      Object.values(entriesByKey).sort(
+        (a, b) => (a.stateExpiresAt ?? 0) - (b.stateExpiresAt ?? 0),
+      ),
     [entriesByKey],
   );
   const activeRules = useMemo(
     () => blockingCalendarRules(calendarRules, new Date(now)),
     [calendarRules, now],
   );
-  // Provider entries and rules are bounded (active providers), show all without pagination.
+
+  const refresh = useCallback(() => {
+    getWSClient().getProviderStatus();
+  }, []);
+
+  const handleRetry = useCallback(
+    (providerId: string, model: string) => {
+      getWSClient().retryProviderModel(providerId, model);
+      removeEntry(providerId, model);
+    },
+    [removeEntry],
+  );
+
+  const handleClear = useCallback(
+    (providerId: string, model: string) => {
+      getWSClient().clearProviderStatus(providerId, model);
+      removeEntry(providerId, model);
+    },
+    [removeEntry],
+  );
+
+  // Auto-refresh on expand; tick countdown timer when entries exist.
   useEffect(() => {
-    if (entries.length === 0 && calendarRules.length === 0) return;
+    if (entries.length === 0 && activeRules.length === 0) return;
     const timer = window.setInterval(() => setNow(Date.now()), 1000);
     return () => window.clearInterval(timer);
-  }, [calendarRules.length, entries.length]);
+  }, [activeRules.length, entries.length]);
+
+  useEffect(() => {
+    if (expanded) refresh();
+  }, [expanded, refresh]);
 
   if (entries.length === 0 && activeRules.length === 0) return null;
+
   const blocked = entries.filter((entry) => entry.state === 'blocked').length;
+  const degraded = entries.length - blocked;
+  const selected = selectedKey ? entriesByKey[selectedKey] : null;
 
   return (
     <div className="mx-auto mb-2 max-w-6xl rounded-lg border border-amber-500/25 bg-amber-500/5 text-xs">
@@ -48,34 +93,137 @@ export function ProviderWaitingRoom() {
         <AlertTriangle className="h-3.5 w-3.5 text-amber-400" />
         <span className="font-medium text-foreground">Provider/model availability</span>
         <span className="text-muted-foreground">
-          {blocked} blocked · {entries.length - blocked} degraded · {activeRules.length} scheduled
+          {blocked} blocked · {degraded} degraded · {activeRules.length} scheduled
         </span>
-        <span className="ml-auto text-muted-foreground">{expanded ? 'Hide' : 'Details'}</span>
+        <button
+          type="button"
+          className="ml-auto inline-flex items-center gap-1 text-muted-foreground transition-colors hover:text-foreground"
+          onClick={(e) => {
+            e.stopPropagation();
+            refresh();
+          }}
+          title="Refresh status"
+        >
+          <RefreshCw className="h-3 w-3" />
+        </button>
+        <span className="text-muted-foreground">{expanded ? 'Hide' : 'Details'}</span>
       </button>
       {expanded && (
         <div className="border-t border-amber-500/15 px-3 py-2">
-          {entries.map((entry) => (
-            <div
-              key={`${entry.providerId}/${entry.model}`}
-              className="flex flex-wrap items-center gap-x-2 gap-y-1 py-1.5"
-            >
-              {entry.state === 'blocked' ? (
-                <Clock3 className="h-3.5 w-3.5 text-amber-400" />
-              ) : (
-                <CheckCircle2 className="h-3.5 w-3.5 text-yellow-300" />
-              )}
-              <code className="text-foreground">
-                {entry.providerId}/{entry.model}
-              </code>
-              <span className="rounded bg-amber-500/10 px-1.5 py-0.5 text-amber-300">
-                {entry.state}
-              </span>
-              <span className="text-muted-foreground">{entry.reason.replaceAll('_', ' ')}</span>
-              <span className="ml-auto tabular-nums text-muted-foreground">
-                {remaining(entry.stateExpiresAt, now)}
-              </span>
-            </div>
-          ))}
+          {entries.map((entry) => {
+            const key = `${entry.providerId}\u0000${entry.model}`;
+            const isSelected = selectedKey === key;
+            return (
+              <div key={key}>
+                <div
+                  role="button"
+                  tabIndex={0}
+                  className="flex flex-wrap cursor-pointer items-center gap-x-2 gap-y-1 py-1.5 hover:bg-amber-500/5"
+                  onClick={() => setSelectedKey(isSelected ? null : key)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      setSelectedKey(isSelected ? null : key);
+                    }
+                  }}
+                >
+                  {entry.state === 'blocked' ? (
+                    <Clock3 className="h-3.5 w-3.5 text-amber-400" />
+                  ) : (
+                    <CheckCircle2 className="h-3.5 w-3.5 text-yellow-300" />
+                  )}
+                  <code className="text-foreground">
+                    {entry.providerId}/{entry.model}
+                  </code>
+                  <span className="rounded bg-amber-500/10 px-1.5 py-0.5 text-amber-300">
+                    {entry.state}
+                  </span>
+                  <span className="text-muted-foreground">{entry.reason.replaceAll('_', ' ')}</span>
+                  <span className="ml-auto tabular-nums text-muted-foreground">
+                    {remaining(entry.stateExpiresAt, now)}
+                  </span>
+                </div>
+
+                {/* Expanded detail: error message, counters, logs, actions */}
+                {isSelected && (
+                  <div className="ml-6 mb-2 rounded border border-border/50 bg-background/50 p-2">
+                    {entry.lastErrorMessage && (
+                      <div className="mb-1.5 text-red-300">
+                        <span className="text-muted-foreground">Last error: </span>
+                        {entry.lastErrorMessage.slice(0, 300)}
+                      </div>
+                    )}
+                    <div className="mb-1.5 flex flex-wrap gap-x-3 gap-y-0.5 text-muted-foreground">
+                      {entry.totalFailures !== undefined && (
+                        <span>failures: {entry.totalFailures}</span>
+                      )}
+                      {entry.rateLimitHits !== undefined && entry.rateLimitHits > 0 && (
+                        <span>rate-limits: {entry.rateLimitHits}</span>
+                      )}
+                      {entry.consecutiveFailures !== undefined && (
+                        <span>streak: {entry.consecutiveFailures}</span>
+                      )}
+                      {entry.lastErrorStatus !== undefined && (
+                        <span>HTTP: {entry.lastErrorStatus}</span>
+                      )}
+                      {entry.lastSessionId && (
+                        <span>session: {entry.lastSessionId.slice(0, 12)}…</span>
+                      )}
+                      {entry.lastAgentId && (
+                        <span>agent: {entry.lastAgentId.slice(0, 16)}…</span>
+                      )}
+                      {entry.lastFailureAt && (
+                        <span>{formatAgo(entry.lastFailureAt, now)}</span>
+                      )}
+                    </div>
+
+                    {/* Recent error log */}
+                    {entry.recentErrors && entry.recentErrors.length > 0 && (
+                      <details className="mb-1.5">
+                        <summary className="cursor-pointer text-muted-foreground hover:text-foreground">
+                          Error history ({entry.recentErrors.length})
+                        </summary>
+                        <div className="mt-1 max-h-32 overflow-y-auto text-[11px] text-muted-foreground">
+                          {entry.recentErrors.map((err, idx) => (
+                            <div key={idx} className="flex gap-2 border-b border-border/20 py-0.5">
+                              <span className="shrink-0 tabular-nums text-amber-300/70">
+                                {err.kind}
+                              </span>
+                              <span className="shrink-0 tabular-nums">HTTP {err.status}</span>
+                              <span className="truncate">{err.message.slice(0, 200)}</span>
+                              <span className="ml-auto shrink-0 tabular-nums">
+                                {formatAgo(err.timestamp, now)}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      </details>
+                    )}
+
+                    {/* Actions */}
+                    <div className="flex gap-2">
+                      <button
+                        type="button"
+                        className="inline-flex items-center gap-1 rounded border border-border bg-background px-2 py-1 text-[11px] font-medium text-foreground transition-colors hover:bg-accent"
+                        onClick={() => handleRetry(entry.providerId, entry.model)}
+                      >
+                        <RotateCcw className="h-3 w-3" />
+                        Reopen (half-open probe)
+                      </button>
+                      <button
+                        type="button"
+                        className="inline-flex items-center gap-1 rounded border border-border bg-background px-2 py-1 text-[11px] font-medium text-muted-foreground transition-colors hover:text-foreground"
+                        onClick={() => handleClear(entry.providerId, entry.model)}
+                      >
+                        <Trash2 className="h-3 w-3" />
+                        Clear tracking
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            );
+          })}
           {activeRules.map((rule) => (
             <div key={rule.id} className="flex flex-wrap items-center gap-x-2 gap-y-1 py-1.5">
               <Clock3 className="h-3.5 w-3.5 text-sky-400" />
@@ -89,7 +237,8 @@ export function ProviderWaitingRoom() {
           ))}
           <div className="mt-1 text-[11px] text-muted-foreground">
             WrongStack routes around active schedules and unhealthy models automatically, then
-            restores recovered routes on their next eligible use.
+            restores recovered routes on their next eligible use. Click an entry for details and
+            manual controls.
           </div>
         </div>
       )}

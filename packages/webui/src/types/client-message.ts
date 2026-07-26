@@ -216,6 +216,9 @@ export type WSClientMessageCore =
   | { type: 'auth.oauth.start'; payload: { kind: OAuthKind; providerId?: string | undefined } }
   | { type: 'auth.oauth.code'; payload: { kind: OAuthKind; input: string } }
   | { type: 'auth.oauth.cancel'; payload: { kind: OAuthKind } }
+  | { type: 'provider.status.get' }
+  | { type: 'provider.status.retry'; payload: { providerId: string; model: string } }
+  | { type: 'provider.status.clear'; payload: { providerId: string; model: string } }
   | { type: 'tools.list' }
   | { type: 'memory.list' }
   | { type: `agent-roster.${string}`; payload?: Record<string, unknown> | undefined }

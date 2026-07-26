@@ -35,5 +35,6 @@ export const SERVER_CONFIGURATION_MESSAGE_TYPES = [
   'provider.catalog',
   'provider.models',
   'provider.probe',
+  'provider.status.snapshot',
   'providers.saved',
 ] as const;

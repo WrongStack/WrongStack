@@ -22,7 +22,7 @@
  *   | Metric | Threshold | Action |
  *   |--------|-----------|--------|
  *   | consecutive failures ≥ 2 | → `degraded` for 30 s |
- *   | rate-limit hits ≥ 3 | → `blocked` for 5 min |
+ *   | rate-limit hits ≥ 1 | → `blocked` for 5 min |
  *   | consecutive failures ≥ 5 | → `blocked` for 5 min |
  *   | success streak ≥ 3 | → back to `healthy` |
  *   | `blocked` timeout elapses | → back to `healthy` |
@@ -40,7 +40,7 @@
  */
 
 import type { EventBus } from '../kernel/events.js';
-import type { ProviderErrorKind } from '../types/provider.js';
+import { parseResetHintMs, type ProviderErrorKind } from '../types/provider.js';
 
 // ── Public types ────────────────────────────────────────────────────────────
 
@@ -105,7 +105,8 @@ export interface ProviderStatusTrackerConfig {
   degradedDurationMs?: number;
   /**
    * Rate-limit hits (error kind = 'rate_limit') before entering `blocked`.
-   * Default: 3.
+   * Default: 1 — a single 429 quarantines the model immediately so the
+   * fallback engine rotates instead of burning more doomed requests.
    */
   blockAfterRateLimitHits?: number;
   /**
@@ -141,7 +142,7 @@ export interface ProviderStatusTrackerConfig {
 const DEFAULTS = {
   degradedAfterFailures: 2,
   degradedDurationMs: 30_000,
-  blockAfterRateLimitHits: 3,
+  blockAfterRateLimitHits: 1,
   blockAfterFailures: 5,
   blockDurationMs: 300_000,
   quotaBlockDurationMs: 900_000,
@@ -219,6 +220,10 @@ export class ProviderModelStatusTracker {
       const oldState = s.state;
       s.state = 'healthy';
       s.stateExpiresAt = null;
+      s.rateLimitHits = 0;
+      s.overloadedHits = 0;
+      s.serverErrors = 0;
+      s.otherErrors = 0;
       this.emitStatusChanged(providerId, model, oldState, 'healthy', 'success_streak_recovery');
     }
   }
@@ -274,6 +279,20 @@ export class ProviderModelStatusTracker {
         s.otherErrors += 1;
     }
 
+    // A depleted account/plan is not a transient burst-rate signal. Waiting
+    // for two more doomed requests wastes time and can fan the same failure
+    // out through subagents, so quarantine this model on the first response.
+    const quotaExhausted = kind === 'quota_exhausted' || isQuotaExhausted(kind, status, message);
+
+    // Effective wait-room hint: an explicit structured Retry-After wins;
+    // otherwise, for quota/rate-limit failures, parse the provider's prose
+    // reset hint ("try again in 6h12m", "resets at <ISO>") so weekly caps
+    // hold until their real reset instead of the fixed default block.
+    const proseHintMs =
+      quotaExhausted || kind === 'rate_limit' ? parseResetHintMs(message, now) : undefined;
+    const effectiveRetryAfterMs =
+      meta?.retryAfterMs && meta.retryAfterMs > 0 ? meta.retryAfterMs : proseHintMs;
+
     // Push error history (newest first, capped)
     const entry: ErrorHistoryEntry = Object.freeze({
       timestamp: now,
@@ -282,7 +301,7 @@ export class ProviderModelStatusTracker {
       message,
       sessionId: meta?.sessionId,
       agentId: meta?.agentId,
-      retryAfterMs: meta?.retryAfterMs,
+      retryAfterMs: effectiveRetryAfterMs,
     });
     s.recentErrors.unshift(entry);
     if (s.recentErrors.length > this.cfg.maxErrorHistory) {
@@ -293,11 +312,6 @@ export class ProviderModelStatusTracker {
 
     let newState: ProviderModelState = s.state;
     let reason = '';
-
-    // A depleted account/plan is not a transient burst-rate signal. Waiting
-    // for two more doomed requests wastes time and can fan the same failure
-    // out through subagents, so quarantine this model on the first response.
-    const quotaExhausted = kind === 'quota_exhausted' || isQuotaExhausted(kind, status, message);
 
     // API endpoint unreachable (502 with connection-refused / upstream-down
     // message) is equally non-transient: the provider's upstream is offline
@@ -337,9 +351,10 @@ export class ProviderModelStatusTracker {
       }
     }
 
-    // If the provider sent a Retry-After hint, extend the blocked time
-    if (newState !== 'healthy' && meta?.retryAfterMs && meta.retryAfterMs > 0) {
-      const hintExpiry = now + meta.retryAfterMs;
+    // If the provider sent a Retry-After hint (structured header or a prose
+    // reset time parsed from the message), extend the blocked time
+    if (newState !== 'healthy' && effectiveRetryAfterMs && effectiveRetryAfterMs > 0) {
+      const hintExpiry = now + effectiveRetryAfterMs;
       if (s.stateExpiresAt === null || hintExpiry > s.stateExpiresAt) {
         s.stateExpiresAt = hintExpiry;
       }
@@ -373,7 +388,12 @@ export class ProviderModelStatusTracker {
       const oldState = s.state;
       s.state = 'healthy';
       s.stateExpiresAt = null;
-      s.consecutiveFailures = Math.max(0, s.consecutiveFailures - 1); // reduce but don't fully reset
+      s.consecutiveFailures = 0;
+      s.consecutiveSuccesses = 0;
+      s.rateLimitHits = 0;
+      s.overloadedHits = 0;
+      s.serverErrors = 0;
+      s.otherErrors = 0;
       this.emitStatusChanged(providerId, model, oldState, 'healthy', 'cooldown_expired');
       return true;
     }
@@ -383,6 +403,12 @@ export class ProviderModelStatusTracker {
       const oldState = s.state;
       s.state = 'healthy';
       s.stateExpiresAt = null;
+      s.consecutiveFailures = 0;
+      s.consecutiveSuccesses = 0;
+      s.rateLimitHits = 0;
+      s.overloadedHits = 0;
+      s.serverErrors = 0;
+      s.otherErrors = 0;
       this.emitStatusChanged(providerId, model, oldState, 'healthy', 'degraded_timeout_expired');
       return true;
     }
@@ -454,6 +480,10 @@ export class ProviderModelStatusTracker {
       s.stateExpiresAt = null;
       s.consecutiveFailures = 0;
       s.consecutiveSuccesses = 0;
+      s.rateLimitHits = 0;
+      s.overloadedHits = 0;
+      s.serverErrors = 0;
+      s.otherErrors = 0;
       this.emitStatusChanged(providerId, model, previous, 'healthy', 'waiting_room_expired');
       released += 1;
     }
@@ -473,6 +503,10 @@ export class ProviderModelStatusTracker {
     s.stateExpiresAt = null;
     s.consecutiveFailures = 0;
     s.consecutiveSuccesses = 0;
+    s.rateLimitHits = 0;
+    s.overloadedHits = 0;
+    s.serverErrors = 0;
+    s.otherErrors = 0;
     this.emitStatusChanged(providerId, model, previous, 'healthy', 'manual_half_open');
     return true;
   }
@@ -500,9 +534,16 @@ export class ProviderModelStatusTracker {
   }
 
   /**
-   * Check if a (providerId, model) pair would be blocked, WITHOUT the
-   * side-effect of auto-recovering stale entries. Used in hot paths
-   * where we don't want to mutate state during a quick peek.
+   * Check if a (providerId, model) pair is currently blocked, WITHOUT
+   * mutating internal state. Unlike {@link isAvailable}, this method does
+   * not perform lazy auto-recovery — it returns the effective blocked
+   * status by evaluating the expiry condition, but leaves `s.state`
+   * unchanged. A subsequent call to {@link isAvailable} or
+   * {@link getAllStatuses} will perform the actual state transition.
+   *
+   * Note: the result is a snapshot in time — if the blocked entry has
+   * expired, this returns `false` (as-if recovered) even though no
+   * mutation has occurred yet.
    */
   isBlocked(providerId: string, model: string): boolean {
     ({ providerId, model } = statusIdentity(providerId, model));
@@ -510,7 +551,7 @@ export class ProviderModelStatusTracker {
     const s = this.map.get(key);
     if (!s) return false;
     if (s.state !== 'blocked') return false;
-    // Auto-recover even in this read-only-ish peek
+    // Evaluate expiry but do NOT mutate state — see JSDoc above
     if (s.stateExpiresAt !== null && Date.now() >= s.stateExpiresAt) {
       return false; // would have recovered
     }

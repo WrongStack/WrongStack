@@ -259,6 +259,11 @@ export interface WSProviderStatusChanged {
   };
 }
 
+export interface WSProviderStatusSnapshot {
+  type: 'provider.status.snapshot';
+  payload: Record<string, unknown>;
+}
+
 export interface WSProviderActiveBlocked {
   type: 'provider.active_blocked';
   payload: SessionScopedPayload & {

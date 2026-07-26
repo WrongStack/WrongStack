@@ -1158,6 +1158,7 @@ export async function runWebUI(opts: CliWebUIOptions): Promise<void> {
     worktreeHandler,
     terminalHandler,
     kanbanHostRoutes,
+    statusTracker: opts.statusTracker,
   });
 
   const terminalLogView = startBoundedTerminalLogView();

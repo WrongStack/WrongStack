@@ -1,3 +1,4 @@
+import type { ProviderModelStatusTracker } from '@wrongstack/core/coordination';
 import type { Agent } from '@wrongstack/core/agent';
 import type { TrustBoundary } from '@wrongstack/core/security';
 import type { Logger, MemoryPort } from '@wrongstack/core/types';
@@ -120,6 +121,9 @@ export interface EmbeddedMessageRouterDeps {
   worktreeHandler: WorktreeWebSocketHandler;
   terminalHandler: TerminalWebSocketHandler;
   kanbanHostRoutes: KanbanHostRouteHandlers;
+  /** Shared provider/model health tracker for the WebUI waiting-room panel.
+   * Undefined when the host has not wired one (e.g. test harnesses). */
+  statusTracker?: ProviderModelStatusTracker | undefined;
 }
 
 export type EmbeddedMessageRouter = (
@@ -294,6 +298,7 @@ export function createEmbeddedMessageRouter(
     refineModel: (ws, msg) => modelOperations.refineModel(ws, msg.payload as never),
     adoptDefaultProviderIfUnset: providerOperations.adoptDefaultProviderIfUnset,
     providerHandlers: providerOperations,
+    statusTracker: deps.statusTracker,
   };
 
   const session = createEmbeddedSessionRoutes(deps.sessionCtx);

@@ -1,6 +1,7 @@
+import type { ProviderModelStatusTracker } from '@wrongstack/core/coordination';
 import type { WebSocket } from 'ws';
 import type { WSClientMessage } from './types.js';
-import { sendResult } from './ws-utils.js';
+import { send, sendResult } from './ws-utils.js';
 
 type OAuthKind = 'chatgpt' | 'claude' | 'copilot';
 
@@ -62,6 +63,9 @@ export interface ProviderRouteHandlers {
   /** Adopt a just-added provider as the live default when no model is active. */
   adoptDefaultProviderIfUnset: (providerId: string) => Promise<void>;
   providerHandlers: ProviderMutationHandlers;
+  /** Live provider/model health tracker (the "waiting room"). Undefined when
+   * the host is not wired with a tracker (e.g. test harnesses). */
+  statusTracker?: ProviderModelStatusTracker | undefined;
 }
 
 function asPayloadRecord(msg: WSClientMessage): Record<string, unknown> | null {
@@ -258,6 +262,52 @@ export async function handleProviderRoute(
       const kind = oauthKind(asPayloadRecord(msg));
       if (!kind) return invalidPayload(ws, msg.type);
       routes.providerHandlers.handleOAuthCancel(ws, kind);
+      return true;
+    }
+
+    case 'provider.status.get': {
+      if (!routes.statusTracker) {
+        send(ws, { type: 'provider.status.snapshot', payload: { error: 'not_available' } });
+        return true;
+      }
+      send(ws, {
+        type: 'provider.status.snapshot',
+        payload: routes.statusTracker.getSnapshot(),
+      });
+      return true;
+    }
+
+    case 'provider.status.retry': {
+      if (!routes.statusTracker) {
+        sendResult(ws, false, 'provider.status.retry: tracker not available');
+        return true;
+      }
+      const payload = asPayloadRecord(msg);
+      const providerId = payload ? requiredString(payload, 'providerId') : null;
+      const model = payload ? requiredString(payload, 'model') : null;
+      if (!providerId || !model) return invalidPayload(ws, msg.type);
+      const released = routes.statusTracker.retryNow(providerId, model);
+      sendResult(
+        ws,
+        true,
+        released
+          ? `Released ${providerId}/${model} for a half-open probe on its next use.`
+          : `${providerId}/${model} is not currently in the waiting room.`,
+      );
+      return true;
+    }
+
+    case 'provider.status.clear': {
+      if (!routes.statusTracker) {
+        sendResult(ws, false, 'provider.status.clear: tracker not available');
+        return true;
+      }
+      const payload = asPayloadRecord(msg);
+      const providerId = payload ? requiredString(payload, 'providerId') : null;
+      const model = payload ? requiredString(payload, 'model') : null;
+      if (!providerId || !model) return invalidPayload(ws, msg.type);
+      routes.statusTracker.clear(providerId, model);
+      sendResult(ws, true, `Cleared tracking for ${providerId}/${model}.`);
       return true;
     }
 

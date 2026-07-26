@@ -48,6 +48,7 @@ import type {
   WSProviderResponse,
   WSProviderRetry,
   WSProviderStatusChanged,
+  WSProviderStatusSnapshot,
   WSProviderStreamError,
   WSRunResult,
   WSSessionEnd,
@@ -146,6 +147,7 @@ export type WSServerMessage =
   | WSProviderError
   | WSProviderFallback
   | WSProviderStatusChanged
+  | WSProviderStatusSnapshot
   | WSProviderActiveBlocked
   | WSProviderStreamError
   | WSRunResult

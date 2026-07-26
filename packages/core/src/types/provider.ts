@@ -390,6 +390,116 @@ export function classifyProviderError(
   return 'unknown';
 }
 
+// ── Prose reset-hint parsing ────────────────────────────────────────────────
+//
+// Many providers answer an exhausted hourly/daily/weekly/monthly budget with
+// a 429/402 whose *message prose* says when the limit resets — e.g.
+//   "Please try again in 6h12m"                      (OpenAI, Go durations)
+//   "usage limit reached; resets in 2 hours"         (plan-cap notices)
+//   "Your usage limit resets at 2026-07-28T00:00:00Z" (weekly caps)
+// When no structured `Retry-After` header was captured into
+// `ProviderErrorBody.retryAfterMs`, the waiting room should still honor the
+// provider-published reset instead of falling back to a fixed default block
+// (which probes a weekly cap every 15 minutes).
+//
+// `parseResetHintMs` extracts that hint. It is deliberately conservative:
+// only text following an explicit lead-in ("try again in", "retry after",
+// "reset(s) in/at/on", "available in") is parsed, garbage yields `undefined`,
+// and any parsed delay is clamped to `MAX_RESET_HINT_MS` so a corrupt or
+// absurd message cannot park a model forever (manual `retryNow()` and the
+// periodic sweep remain the escape hatches).
+
+/** Upper bound for any prose-parsed reset delay: 7 days. */
+export const MAX_RESET_HINT_MS = 7 * 24 * 60 * 60 * 1_000;
+
+const RESET_HINT_LEAD_RE =
+  /(?:try again|retry|resets?|resetting|available|returns?|back online|usable again)\s+(?:in|after)\s+/i;
+const RESET_AT_LEAD_RE = /resets?\s+(?:at|on)\s+/i;
+
+/** Longest-unit-first so `minutes` wins over `m`; `(?![a-z])` keeps `12m0.5s` compound durations intact. */
+const DURATION_TOKEN_RE =
+  /(\d+(?:\.\d+)?)\s*(ms|secs?|seconds?|s|mins?|minutes?|m|hrs?|hours?|h|days?|d)(?![a-z])/gi;
+
+const UNIT_MS: Record<string, number> = {
+  ms: 1,
+  s: 1_000,
+  m: 60_000,
+  h: 3_600_000,
+  d: 86_400_000,
+};
+
+function unitMs(unit: string): number {
+  const u = unit.toLowerCase();
+  if (u === 'ms') return 1;
+  if (u.startsWith('s')) return UNIT_MS['s']!;
+  if (u.startsWith('m')) return UNIT_MS['m']!;
+  if (u.startsWith('h')) return UNIT_MS['h']!;
+  return UNIT_MS['d']!;
+}
+
+const ISO_TIMESTAMP_RE =
+  /(\d{4}-\d{2}-\d{2}(?:[T ]\d{2}:\d{2}(?::\d{2}(?:\.\d+)?)?(?:\s*(?:Z|[+-]\d{2}:?\d{2}|UTC|GMT))?)?)/i;
+
+/**
+ * Parse a prose reset/retry hint from a provider error message into
+ * milliseconds-from-`now`. Returns `undefined` when no usable hint exists.
+ *
+ * @param message - Provider error message (body.message / error text).
+ * @param now - Reference timestamp (ms epoch); injectable for tests.
+ */
+export function parseResetHintMs(message: string, now: number = Date.now()): number | undefined {
+  if (!message) return undefined;
+
+  // 1. Relative duration: "try again in 6h12m", "retry after 90 seconds",
+  //    "resets in 2 hours", "available in 1 day".
+  const lead = RESET_HINT_LEAD_RE.exec(message);
+  if (lead) {
+    const window = message.slice(lead.index + lead[0].length, lead.index + lead[0].length + 80);
+    let total = 0;
+    let matched = false;
+    DURATION_TOKEN_RE.lastIndex = 0;
+    for (let m = DURATION_TOKEN_RE.exec(window); m; m = DURATION_TOKEN_RE.exec(window)) {
+      const value = Number.parseFloat(m[1]!);
+      if (Number.isFinite(value) && value > 0) {
+        total += value * unitMs(m[2]!);
+        matched = true;
+      }
+    }
+    // Bare-word units: "try again in an hour" / "retry after a minute".
+    if (!matched) {
+      const bare = /^(?:an?\s+)?(second|minute|hour|day)\b/i.exec(window.trim());
+      if (bare) {
+        total = unitMs(bare[1]!);
+        matched = true;
+      }
+    }
+    if (matched && total > 0) {
+      return Math.min(total, MAX_RESET_HINT_MS);
+    }
+  }
+
+  // 2. Absolute timestamp: "resets at 2026-07-28T00:00:00Z",
+  //    "reset on 2026-08-01 00:00 UTC".
+  const atLead = RESET_AT_LEAD_RE.exec(message);
+  if (atLead) {
+    const window = message.slice(atLead.index + atLead[0].length);
+    const iso = ISO_TIMESTAMP_RE.exec(window);
+    if (iso) {
+      // Normalize "2026-08-01 00:00 UTC" → "2026-08-01T00:00Z" so Date.parse
+      // is deterministic across JS engines.
+      const normalized = iso[1]!
+        .replace(/^(\d{4}-\d{2}-\d{2}) (\d{2}:\d{2})/, '$1T$2')
+        .replace(/\s*(UTC|GMT)$/i, 'Z');
+      const ts = Date.parse(normalized);
+      if (Number.isFinite(ts) && ts > now) {
+        return Math.min(ts - now, MAX_RESET_HINT_MS);
+      }
+    }
+  }
+
+  return undefined;
+}
+
 /**
  * Whether a kind is worth retrying against the SAME provider/model.
  * `context_overflow` is deliberately false — the request must shrink first;

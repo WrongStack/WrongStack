@@ -662,6 +662,20 @@ export class WrongStackWebSocketClient {
     });
   }
 
+  // ---- Provider/model health (waiting room) ----
+
+  getProviderStatus() {
+    this.send({ type: 'provider.status.get' });
+  }
+
+  retryProviderModel(providerId: string, model: string) {
+    this.send({ type: 'provider.status.retry', payload: { providerId, model } });
+  }
+
+  clearProviderStatus(providerId: string, model: string) {
+    this.send({ type: 'provider.status.clear', payload: { providerId, model } });
+  }
+
   newSession() {
     this.send({ type: 'session.new', payload: this.withSession({}) });
   }
