@@ -2,15 +2,13 @@ import type { AutonomyStage, TokenCounter, TokenSavingTier } from '@wrongstack/c
 import type { EventBus } from '@wrongstack/core/kernel';
 import { expectDefined } from '@wrongstack/core/utils';
 import type React from 'react';
-import { isValidElement, useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import type { GitInfo } from '../git-info.js';
 import type { HeapSample } from '../heap-watchdog.js';
 import { useChipStalenessGuard, computeTokenFingerprint } from '../hooks/use-chip-staleness-guard.js';
 import { useTokenCounterRefresh } from '../hooks/use-token-counter-refresh.js';
 import { Box, Text, useAnimation, useStdout } from '../ink.js';
-import { displayWidth } from '../terminal-width.js';
-import { pastel, theme } from '../theme.js';
-import { normalizeTuiThinkingWord } from '../thinking-word.js';
+import { theme } from '../theme.js';
 import { glyphs } from '../ui-glyphs.js';
 import { COLOR_TICK_MS, colorPhaseFromTime, type AnimationStyle } from './animation-style.js';
 import { PowerlineRail } from './powerline-rail.js';
@@ -21,6 +19,36 @@ import {
   activeMemoryContextCount,
   type MemoryContextMonitorState,
 } from '../memory-context-monitor.js';
+import {
+  contextBarColor,
+  fmtDebugBytes,
+  fmtElapsed,
+  fmtMemory,
+  fmtTok,
+  hasTokenDisplay,
+  renderMeter,
+  stateChip,
+  tokenDisplayTotals,
+  truncateChip,
+} from './status-bar-format.js';
+
+export {
+  contextBarColor,
+  fmtElapsed,
+  fmtMemory,
+  hasTokenDisplay,
+  nodeText,
+  planChipFit,
+  renderMeter,
+  renderProgress,
+  stateChip,
+  statusBarAutonomySpan,
+  statusBarModelSpan,
+  statusBarTodosSpan,
+  tokenDisplayTotals,
+  truncateChip,
+  type TokenDisplayTotals,
+} from './status-bar-format.js';
 
 // ─── Stream chip expiration helpers ─────────────────────────────────────────
 
@@ -119,135 +147,6 @@ function countdownColor(secs: number, warn: number, danger: number): string {
   if (secs > warn) return theme.success;
   if (secs > danger) return theme.warn;
   return theme.error;
-}
-
-/**
- * Head-truncate a chip's free-text payload (branch, path, project name) with a
- * trailing ellipsis so one long value can't blow out the line width. Mirrors
- * the inline pattern the goal/mailbox chips already use.
- */
-export function truncateChip(text: string, max: number): string {
-  return text.length > max ? `${text.slice(0, max - 1)}…` : text;
-}
-
-/**
- * Recover the visible plain text of a rendered chip by walking its React
- * element tree (string/number leaves only). Used purely to estimate display
- * width for overflow budgeting — deriving width from the SAME node we render
- * means there's no parallel text to drift out of sync.
- */
-export function nodeText(node: React.ReactNode): string {
-  if (node == null || typeof node === 'boolean') return '';
-  if (typeof node === 'string') return node;
-  if (typeof node === 'number') return String(node);
-  if (Array.isArray(node)) return node.map(nodeText).join('');
-  if (isValidElement(node)) {
-    return nodeText((node.props as { children?: React.ReactNode }).children);
-  }
-  return '';
-}
-
-/**
- * Approximate column cost of the ` │ ` separator block between two chips: the
- * glyph plus the `gap={2}` on each side. Conservative (over-estimating drops a
- * touch earlier, which is the safe direction for avoiding a wrapped line).
- */
-const SB_SEP_COST = 5;
-
-/**
- * Decide how many leading chips fit within `budget` columns. Trailing (lowest
- * priority) chips are dropped first, which keeps the high-value leading chips
- * — and the columns the mouse hit-test spans assume — stable. The first chip is
- * always kept even if it alone exceeds the budget (better one clipped chip than
- * an empty line). Pure + exported for testing.
- */
-export function planChipFit(widths: number[], budget: number, sepCost = SB_SEP_COST): number {
-  let used = 0;
-  let keep = 0;
-  for (const w of widths) {
-    const cost = w + (keep > 0 ? sepCost : 0);
-    if (keep > 0 && used + cost > budget) break;
-    used += cost;
-    keep += 1;
-  }
-  return keep;
-}
-
-/**
- * Render a status-bar chip line: separator-join the chips that fit within
- * `budget`, and append a dim `+N` marker when lower-priority chips were dropped
- * so the line never wraps (a wrapped status bar shifts Ink's layout and strands
- * the input row in scrollback).
- */
-/** Minimum terminal width before we switch to ultra-compact mode. Exported so
- *  the TUI mouse hit-test can skip the model-chip click in compact mode (where
- *  line 1 uses a different layout than `statusBarModelSpan` assumes). */
-export const COMPACT_THRESHOLD = 50;
-/** Above this width, show most available information. */
-const COMFORTABLE_THRESHOLD = 90;
-
-/**
- * Return the color value in normal mode, or `undefined` in no-color mode so
- * Ink omits the color prop entirely. Centralises the `isNoColor ? undefined : color`
- * pattern that was repeated ~50× across this file.
- */
-function chipColor(color: string, isNoColor: boolean): string | undefined {
-  return isNoColor ? undefined : color;
-}
-
-/**
- * Per-line background tones for the 3 status bar lines + 1 spare.
- * Progressively darker from line 1 (top, lightest) to line 4 (bottom,
- * darkest) for a subtle layered/sunken effect.
- */
-const LINE_BG_COLORS = [theme.surface, theme.surface, theme.surface, theme.surface] as const;
-
-// Animated braille spinner shown when the agent is thinking/streaming.
-const SPINNER_FRAMES = ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏'];
-const SPINNER_INTERVAL_MS = 1_000;
-
-export interface TokenDisplayTotals {
-  input: number;
-  output: number;
-}
-
-export function tokenDisplayTotals(
-  usage:
-    | {
-        input: number;
-        output: number;
-        cacheRead?: number | undefined;
-        cacheWrite?: number | undefined;
-      }
-    | undefined,
-  currentRequest: { input: number; cacheRead: number; cacheWrite?: number | undefined } | undefined,
-  /**
-   * Local estimate of the assembled request size (prompt tokens we're about
-   * to send). Used ONLY when the provider reports nothing — some providers
-   * omit prompt usage or return `input: 0` (see
-   * [[statusline-vs-context-token-source]]), which otherwise leaves the "↑"
-   * sent-token counter stuck at 0 even though we're clearly sending tokens.
-   * The breakdown total IS the sent size, so this is an honest fallback, not
-   * a guess. Output stays provider-only (received tokens can't be known
-   * locally).
-   */
-  estimatedInput?: number | undefined,
-): TokenDisplayTotals {
-  const usageInput = usage ? usage.input + (usage.cacheRead ?? 0) + (usage.cacheWrite ?? 0) : 0;
-  const usageOutput = usage?.output ?? 0;
-  const fallbackInput = currentRequest
-    ? currentRequest.input + currentRequest.cacheRead + (currentRequest.cacheWrite ?? 0)
-    : 0;
-  const input =
-    usageInput > 0 ? usageInput : fallbackInput > 0 ? fallbackInput : Math.max(0, estimatedInput ?? 0);
-  return {
-    input,
-    output: usageOutput,
-  };
-}
-
-export function hasTokenDisplay(tokens: TokenDisplayTotals): boolean {
-  return tokens.input > 0 || tokens.output > 0;
 }
 
 export interface TodoCounts {
@@ -557,6 +456,20 @@ export interface StatusBarProps {
    */
   sideEffectCount?: number | undefined;
 }
+
+/** Minimum terminal width before we switch to ultra-compact mode. */
+export const COMPACT_THRESHOLD = 50;
+/** Above this width, show most available information. */
+const COMFORTABLE_THRESHOLD = 90;
+
+function chipColor(color: string, isNoColor: boolean): string | undefined {
+  return isNoColor ? undefined : color;
+}
+
+const LINE_BG_COLORS = [theme.surface, theme.surface, theme.surface, theme.surface] as const;
+
+const SPINNER_FRAMES = ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏'];
+const SPINNER_INTERVAL_MS = 1_000;
 
 /**
  * Two-line status bar. The first line stays compact and shows the
@@ -1505,198 +1418,4 @@ export function StatusBar({
       ) : null}
     </Box>
   );
-}
-
-/** Compute the leading state chip (label + Ink color) for the status bar.
- *
- * The foreground loop reports 'idle' between turns, but background subagents
- * can still be running — e.g. between eternal/parallel autonomy iterations,
- * or a fleet spawned outside a foreground run. Showing plain "idle" then is
- * misleading, so when `fleetRunning > 0` and the foreground is idle we surface
- * the live agent count (`agents ▶N`) in a distinct color instead.
- */
-// Powerline geometry: one start cap and one cell of padding on either side of
-// every segment. Hit-test helpers add the renderer's transition width explicitly.
-const RAIL_CAP = 1;
-const RAIL_PAD = 2;
-
-/**
- * 0-based column span (offset from the box's left edge) of the
- * `{provider}/{model}` chip on status-bar line 1. The TUI mouse handler uses
- * it to open the model picker. This mirrors the visible workspace prefix:
- * YOLO/autonomy, project, working directory, then provider/model.
- */
-export function statusBarModelSpan(opts: {
-  model: string;
-  provider?: string | undefined;
-  yolo?: boolean | undefined;
-  autonomy?: 'off' | 'suggest' | 'auto' | 'eternal' | 'eternal-parallel' | undefined;
-  projectName?: string | undefined;
-  workingDir?: string | undefined;
-  projectHidden?: boolean | undefined;
-  workingDirHidden?: boolean | undefined;
-  monochrome?: boolean | undefined;
-}): { start: number; len: number } {
-  const leading: string[] = [];
-  if (opts.yolo) leading.push(opts.monochrome ? 'YOLO' : `${glyphs.warning} YOLO`);
-  if (opts.autonomy && opts.autonomy !== 'off') {
-    leading.push(
-      opts.monochrome ? opts.autonomy.toUpperCase() : `∞ ${opts.autonomy.toUpperCase()}`,
-    );
-  }
-  if (opts.projectName && !opts.projectHidden) {
-    const project = truncateChip(opts.projectName, 24);
-    leading.push(opts.monochrome ? project : `${glyphs.folder} ${project}`);
-  }
-  if (opts.workingDir && !opts.workingDirHidden) {
-    const workingDir = truncateChip(opts.workingDir, 28);
-    leading.push(opts.monochrome ? workingDir : `${glyphs.workingDirectory} ${workingDir}`);
-  }
-
-  const transitionWidth = 3; // PowerlineRail renders ` space + glyph + space `.
-  const precedingWidth = leading.reduce(
-    (total, text) => total + displayWidth(text) + RAIL_PAD + transitionWidth,
-    0,
-  );
-  const full = opts.provider ? `${opts.provider}/${opts.model}` : opts.model;
-  return { start: RAIL_CAP + precedingWidth + 1, len: displayWidth(full) };
-}
-
-/**
- * 0-based column span of the autonomy chip on status-bar line 1, or null when
- * autonomy is off/unset. Mirrors both colored (`∞ MODE`) and monochrome
- * (`MODE`) Powerline rendering, including an optional leading YOLO segment.
- */
-export function statusBarAutonomySpan(opts: {
-  yolo?: boolean | undefined;
-  autonomy?: 'off' | 'suggest' | 'auto' | 'eternal' | 'eternal-parallel' | undefined;
-  monochrome?: boolean | undefined;
-}): { start: number; len: number } | null {
-  if (!opts.autonomy || opts.autonomy === 'off') return null;
-  let col = RAIL_CAP;
-  if (opts.yolo) {
-    const yolo = opts.monochrome ? 'YOLO' : `${glyphs.warning} YOLO`;
-    const transitionWidth = 3;
-    col += displayWidth(yolo) + RAIL_PAD + transitionWidth;
-  }
-  const label = opts.monochrome ? opts.autonomy.toUpperCase() : `∞ ${opts.autonomy.toUpperCase()}`;
-  return { start: col + 1, len: displayWidth(label) };
-}
-
-/**
- * 0-based column span of the `todos ⌛N ☐M ✓K` chip on status-bar line 3.
- * Returns null when no todos are visible. Used by the TUI mouse handler
- * to make the todos chip clickable (→ F5 right panel / F6 overlay).
- * The chip is always at the start of line 3 with only left padding.
- */
-export function statusBarTodosSpan(): { start: number; len: number } {
-  // Line 3: paddingX(1) + chip text (variable). The chip is the first item.
-  // We return a fixed span for the label portion — the exact width depends
-  // on counts, so we use a generous estimate that covers "todos ⌛99 ☐99 ✓99".
-  const LABEL_MAX = 20;
-  return { start: RAIL_CAP + 1, len: LABEL_MAX };
-}
-
-export function stateChip(
-  state: 'idle' | 'running' | 'streaming' | 'aborting',
-  fleetRunning: number,
-  thinkingWord?: string | undefined,
-): { label: string; color: string } {
-  if (state === 'idle' && fleetRunning > 0) {
-    return { label: `agents ▶${fleetRunning}`, color: theme.monitor.agents };
-  }
-  if (state === 'idle') return { label: 'idle', color: theme.accent };
-  if (state === 'aborting') return { label: 'aborting…', color: theme.warn };
-  return { label: `${normalizeTuiThinkingWord(thinkingWord)}…`, color: theme.success };
-}
-
-const FILLED = '█';
-const EMPTY = '░';
-
-export function renderProgress(ratio: number, width: number): string {
-  const clamped = Math.max(0, Math.min(1, ratio));
-  const filled = clamped === 0 ? 0 : Math.max(1, Math.round(clamped * width));
-  const capped = Math.min(width, filled);
-  return FILLED.repeat(capped) + EMPTY.repeat(width - capped);
-}
-
-// Sub-cell-precise meter: each cell is 1/8 resolution via Unicode block
-// fractions, so the bar grows smoothly token-by-token instead of jumping a
-// whole cell. Empty track stays '░'. Total width is always `width` chars.
-
-/**
- * Pick a Catppuccin Mocha color for the context meter bar based on the
- * usage ratio. Uses a 5-level progression that follows the Catppuccin
- * palette spectrum from cool (low usage) → warm (moderate) → hot (high):
- *
- *   `< 25%`  teal/cyan   (`accent`)   — cool, spacious
- *   `< 50%`  green       (`success`)  — comfortable
- *   `< 65%`  peach       (`pastel`)   — warm, filling
- *   `< 80%`  yellow      (`warn`)     — caution
- *   `>= 80%` red         (`error`)    — urgent
- */
-export function contextBarColor(ratio: number): string {
-  if (ratio < 0.25) return theme.accent;
-  if (ratio < 0.50) return theme.success;
-  if (ratio < 0.65) return pastel.peach;
-  if (ratio < 0.80) return theme.warn;
-  return theme.error;
-}
-
-/**
- * Bracket-style context meter, e.g. `[00o.......]`.
- *
- * Renders a fixed-width progress bar inside square brackets. `0` marks filled
- * cells, `o` is the boundary marker at the edge of used space, and `.` marks
- * remaining cells. The marker disappears at 0% (bar is all `.`) and at 100%
- * (bar is all `0`).
- */
-export function renderMeter(ratio: number, width: number): string {
-  const clamped = Math.max(0, Math.min(1, ratio));
-  const filled = Math.round(clamped * width);
-  let bar = '';
-  for (let i = 0; i < width; i++) {
-    if (i < filled) {
-      bar += '0';
-    } else if (i === filled && filled < width) {
-      bar += 'o';
-    } else {
-      bar += '.';
-    }
-  }
-  return '[' + bar + ']';
-}
-
-function fmtTok(n: number): string {
-  if (n < 1000) return String(n);
-  if (n < 1_000_000) return `${(n / 1000).toFixed(n < 10_000 ? 1 : 0)}k`;
-  return `${(n / 1_000_000).toFixed(1)}M`;
-}
-
-export function fmtMemory(bytes: number): string {
-  if (bytes >= 1024 ** 3) return `${(bytes / 1024 ** 3).toFixed(1).replace(/\.0$/, '')}G`;
-  if (bytes >= 1024 ** 2) return `${Math.round(bytes / 1024 ** 2)}M`;
-  if (bytes >= 1024) return `${Math.round(bytes / 1024)}K`;
-  return `${Math.round(bytes)}B`;
-}
-
-export function fmtElapsed(ms: number): string {
-  const totalSec = Math.floor(ms / 1000);
-  const h = Math.floor(totalSec / 3600);
-  const m = Math.floor((totalSec % 3600) / 60);
-  const s = totalSec % 60;
-  if (h > 0) {
-    return `${h}:${pad2(m)}:${pad2(s)}`;
-  }
-  return `${pad2(m)}:${pad2(s)}`;
-}
-
-function fmtDebugBytes(n: number): string {
-  if (n < 1024) return `${n}B`;
-  if (n < 1_048_576) return `${(n / 1024).toFixed(1)}KB`;
-  return `${(n / 1_048_576).toFixed(1)}MB`;
-}
-
-function pad2(n: number): string {
-  return n < 10 ? `0${n}` : String(n);
 }
