@@ -5,7 +5,8 @@
  */
 import type { Config, ModelsRegistry, ProviderConfig, ResolvedProvider } from '@wrongstack/core/types';
 
-const CATALOG_REFRESHABLE_MODEL_PROVIDERS = new Set(['chatgpt', 'openai', 'codex', 'openai-codex']);
+// (Removed) CATALOG_REFRESHABLE_MODEL_PROVIDERS — a four-entry hand-list that
+// decided whose models were allowed to come from models.dev. See visibleModelIds.
 
 function uniqueModelIds(primary: readonly string[], fallback: readonly string[]): string[] {
   const seen = new Set<string>();
@@ -19,20 +20,29 @@ function uniqueModelIds(primary: readonly string[], fallback: readonly string[])
   return out;
 }
 
-function canRefreshModelsFromCatalog(providerId: string, entry: ProviderConfig | undefined): boolean {
-  const ids = [providerId, entry?.type, entry?.family].filter(
-    (value): value is string => typeof value === 'string' && value.length > 0,
-  );
-  return ids.some((id) => CATALOG_REFRESHABLE_MODEL_PROVIDERS.has(id));
-}
-
-/** Return the provider's visible model ids.
+/** Return the provider's visible model ids: models.dev plus anything the saved
+ * config names that the catalog does not carry.
  *
- * For most providers, `cfg.models` is a strict user allowlist. ChatGPT/OpenAI/Codex
- * are catalog-backed by the curated providers.json overlay, so their saved config
- * model list is treated as a cache/visibility hint: an empty list falls back to
- * refreshed catalog models, and a non-empty list is augmented with catalog models
- * so newly-added providers.json entries can be fetched again when needed. */
+ * `cfg.models` is ADDITIVE, never subtractive. It used to be a strict allowlist
+ * for every provider except a four-entry hand-list (chatgpt/openai/codex/
+ * openai-codex), which had two failure modes that showed up in real configs:
+ *
+ *   - A saved `models: []` — written by an auth flow that had nothing to cache
+ *     yet — pinned the provider to ZERO selectable models forever. A configured
+ *     GitHub Copilot listed nothing at all.
+ *   - A preset's hand-maintained list went stale against the catalog and hid
+ *     real models on the user's own plan: `kimi-for-coding` offered 2 of the 4
+ *     models models.dev publishes for it, hiding `k3` (131_072 output) behind
+ *     `kimi-for-coding` (32_768). `alibaba-token-plan` hid 11 of 22.
+ *
+ * models.dev publishes a dedicated provider entry per subscription plan, so the
+ * catalog already describes exactly what a plan includes — a second,
+ * hand-curated copy could only ever drift below it. Narrowing what the user
+ * sees is `favoriteModels`' job, not this list's.
+ *
+ * A model the credential cannot actually serve now surfaces as an error at
+ * request time rather than being silently unselectable, which is the better
+ * failure: visible and actionable. */
 export function visibleModelIds(
   providerId: string,
   config: Config,
@@ -41,7 +51,6 @@ export function visibleModelIds(
 ): string[] {
   const entry = cfg ?? config.providers?.[providerId];
   if (entry?.models === undefined) return [...catalogModelIds];
-  if (!canRefreshModelsFromCatalog(providerId, entry)) return [...entry.models];
   return uniqueModelIds(entry.models, catalogModelIds);
 }
 

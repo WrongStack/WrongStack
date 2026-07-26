@@ -161,15 +161,35 @@ describe('visibleModelIds', () => {
     ).toEqual(['legacy-codex', 'gpt-5.6-sol', 'gpt-5.4']);
   });
 
-  it('keeps non-target custom provider model lists as strict allowlists', () => {
+  it('treats a saved model list as additive for EVERY provider', () => {
+    // Previously this was a strict allowlist for every provider outside a
+    // four-entry hand-list, which hid catalog models the user's own plan
+    // includes (kimi-for-coding offered 2 of 4; alibaba-token-plan 11 of 22).
+    // The saved list now adds to the catalog instead of replacing it.
     expect(
       visibleModelIds('anthropic', { providers: {} } as never, ['opus', 'haiku'], {
         models: ['opus'],
       } as never),
-    ).toEqual(['opus']);
+    ).toEqual(['opus', 'haiku']);
+  });
+
+  it('never lets an empty saved list pin a provider to zero models', () => {
+    // A real config had `github-copilot: { models: [] }` written by an auth
+    // flow with nothing to cache yet, which made the provider list nothing at
+    // all in the picker.
     expect(
-      visibleModelIds('anthropic', { providers: {} } as never, ['opus'], { models: [] } as never),
-    ).toEqual([]);
+      visibleModelIds('github-copilot', { providers: {} } as never, ['opus'], {
+        models: [],
+      } as never),
+    ).toEqual(['opus']);
+  });
+
+  it('keeps config-only model ids the catalog does not carry', () => {
+    expect(
+      visibleModelIds('anthropic', { providers: {} } as never, ['opus'], {
+        models: ['my-self-hosted'],
+      } as never),
+    ).toEqual(['my-self-hosted', 'opus']);
   });
 });
 
@@ -215,7 +235,7 @@ describe('buildPickableProviders', () => {
     expect(result.map((p) => p.id)).toContain('openai');
   });
 
-  it('uses config models when config provides custom models[]', async () => {
+  it('adds config models on top of the catalog list', async () => {
     const registry = fakeRegistry([
       {
         id: 'custom',
@@ -228,7 +248,8 @@ describe('buildPickableProviders', () => {
       providers: { custom: { apiKey: 'sk', models: ['m1', 'm2'] } },
     } as never);
     const custom = result.find((p) => p.id === 'custom');
-    expect(custom?.models).toEqual(['m1', 'm2']);
+    // Config-named ids first, then whatever models.dev knows for the provider.
+    expect(custom?.models).toEqual(['m1', 'm2', 'default-model']);
   });
 
   it('includes a keyless local gateway from the catalog (omniroute)', async () => {
@@ -329,7 +350,7 @@ describe('buildPickableProviders', () => {
     // Should appear only once
     const anths = result.filter((p) => p.id === 'anthropic');
     expect(anths).toHaveLength(1);
-    // And the overlay's models should win
-    expect(anths[0]!.models).toEqual(['custom']);
+    // The overlay's ids lead, but the catalog's are no longer dropped.
+    expect(anths[0]!.models).toEqual(['custom', 'opus']);
   });
 });

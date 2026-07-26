@@ -27,84 +27,9 @@
       "fingerprint": "6ec5e9ce19834641"
     },
     {
-      "file": "packages/cli/tests/boot/system-prompt.test.ts",
-      "kind": "skip",
-      "fingerprint": "1fb86d48fd43738d"
-    },
-    {
       "file": "packages/cli/tests/hq-visual-smoke.test.ts",
       "kind": "skipIf",
       "fingerprint": "a2d5376526a22703"
-    },
-    {
-      "file": "packages/cli/tests/slash-sdd.test.ts",
-      "kind": "skip",
-      "fingerprint": "38e0b6fa5f8dfbda"
-    },
-    {
-      "file": "packages/cli/tests/slash-sdd.test.ts",
-      "kind": "skip",
-      "fingerprint": "7de2dc942d7da5ff"
-    },
-    {
-      "file": "packages/cli/tests/slash-sdd.test.ts",
-      "kind": "skip",
-      "fingerprint": "818c37eb32f6cabd"
-    },
-    {
-      "file": "packages/cli/tests/slash-sdd.test.ts",
-      "kind": "skip",
-      "fingerprint": "8cb168c2f9b81d1d"
-    },
-    {
-      "file": "packages/cli/tests/slash-sdd.test.ts",
-      "kind": "skip",
-      "fingerprint": "9fd9c77e204d76a4"
-    },
-    {
-      "file": "packages/cli/tests/slash-sdd.test.ts",
-      "kind": "skip",
-      "fingerprint": "af306d6331acb08e"
-    },
-    {
-      "file": "packages/cli/tests/slash-sdd.test.ts",
-      "kind": "skip",
-      "fingerprint": "bae91ba24f8ae106"
-    },
-    {
-      "file": "packages/cli/tests/slash-sdd.test.ts",
-      "kind": "skip",
-      "fingerprint": "c361e2e2c8bc3180"
-    },
-    {
-      "file": "packages/cli/tests/slash-sdd.test.ts",
-      "kind": "skip",
-      "fingerprint": "ee35e0a6d94b4b21"
-    },
-    {
-      "file": "packages/core/tests/coordination/autonomous-coordinator.test.ts",
-      "kind": "skip",
-      "fingerprint": "3f67de1d231d0365"
-    },
-    {
-      "file": "packages/core/tests/coordination/package-author-tracker.test.ts",
-      "kind": "skipIf",
-      "fingerprint": "6c1dfd9f1895e5c4"
-    },
-    {
-      "file": "packages/core/tests/coordination/subagent-budget.test.ts",
-      "kind": "skip",
-      "fingerprint": "5b741789af0df2f0"
-    },
-    {
-      "file": "packages/core/tests/coordination/subagent-budget.test.ts",
-      "kind": "skip",
-      "fingerprint": "62f2b913f5a21f0e"
-    },
-    {
-      "file": "packages/core/tests/coordination/subagent-budget.test.ts",
-      "kind": "skip",
-      "fingerprint": "8a61d88630f3993c"
     },
     {
       "file": "packages/core/tests/chronicle/metrics-store.test.ts",
@@ -112,9 +37,9 @@
       "fingerprint": "b250a9cbe61c62c8"
     },
     {
-      "file": "packages/core/tests/core/system-prompt-builder-h-guidance.test.ts",
-      "kind": "skip",
-      "fingerprint": "9bd984814fad43a3"
+      "file": "packages/core/tests/coordination/package-author-tracker.test.ts",
+      "kind": "skipIf",
+      "fingerprint": "6c1dfd9f1895e5c4"
     },
     {
       "file": "packages/core/tests/worktree/worktree-manager.test.ts",

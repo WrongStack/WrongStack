@@ -1,90 +1,46 @@
 import { randomUUID } from 'node:crypto';
-import { existsSync, statSync } from 'node:fs';
-import * as path from 'node:path';
 /**
  * L1-E: Multi-agent CLI integration. The coordinator + per-task agent
  * factory is created lazily on the first `/spawn` so users who never use
  * subagents don't pay the construction cost.
  */
-import {
-  Agent,
-  Context,
-  createDefaultPipelines,
-  createFallbackModelExtension,
-} from '@wrongstack/core/agent';
-import {
-  applyProjectAgentConfig,
-  buildProjectContextualizedPrompt,
-  createProjectAgentRoster,
-  loadProjectAgentConfig,
-} from '@wrongstack/core/agent-catalog';
+import { createProjectAgentRoster } from '@wrongstack/core/agent-catalog';
 import {
   AdaptiveConcurrencyController,
   type AgentFactory,
   DEFAULT_MAX_FLEET_SPAWNS,
-  DEFAULT_SUBAGENT_BASELINE,
   type DefaultMultiAgentCoordinator,
   Director,
   type DirectorSessionFactory,
   FLEET_ROSTER,
   type FleetSupervisor,
-  GlobalMailbox,
   HARD_MAX_SPAWN_DEPTH,
   makeDirectorSessionFactory,
   makeFleetEmitTool,
   resolveProjectDir,
-  resolveSubagentModelTarget,
   type TaskResultNotification,
 } from '@wrongstack/core/coordination';
-import { installDesignStudioMiddleware } from '@wrongstack/core/design';
-import {
-  applyModelRuntime,
-  installSubagentAutoCompaction,
-  mergeModelRuntime,
-  ToolExecutor,
-} from '@wrongstack/core/execution';
-// PR-C1: DefaultTokenCounter moved off the root barrel — infrastructure/
-// symbols are imported from the published subpath (see commit 66c4eb68).
-import { DefaultTokenCounter } from '@wrongstack/core/infrastructure';
-import { EventBus, TOKENS } from '@wrongstack/core/kernel';
+import { TOKENS } from '@wrongstack/core/kernel';
 import { ToolRegistry } from '@wrongstack/core/registry';
-import { AutoApprovePermissionPolicy } from '@wrongstack/core/security';
-import type { SubagentRunner, TextBlock } from '@wrongstack/core/types';
+import type { SubagentRunner } from '@wrongstack/core/types';
 import {
   AgentError,
   type Config,
-  type Provider,
-  type Request,
-  type SessionWriter,
   type SubagentConfig,
   type TaskResult,
-  type TaskSpec,
   type Tool,
 } from '@wrongstack/core/types';
 
 import { wstackGlobalRoot } from '@wrongstack/core/utils';
 import {
-  isAgentAvailable,
-  isInsideDirectory,
   makeFleetWorktreeConflictResolver,
-  resolveSubagentCapabilities,
   selectSubagentTools,
 } from './host-helpers.js';
-import { installSubagentEventBridge } from './host-event-bridge.js';
 import { HostAcpRunnerCache } from './host-acp-runner-cache.js';
 import { runHostShadowPass, stopHostShadowAfterTask } from './host-shadow-pass.js';
 import { normalizeMaxConcurrent } from './host-concurrency.js';
 import { emitHostLifecycleCompleted } from './host-lifecycle-events.js';
 import { applyFleetRootDefaults } from './host-paths.js';
-import {
-  resolveHostSubagentSkillContent,
-  retrieveHostSubagentMemory,
-} from './host-context.js';
-import {
-  buildHostSubagentProvider,
-  resolveHostSubagentModelSelection,
-  resolveHostSubagentReasoningConfig,
-} from './host-provider.js';
 import {
   installDirectorTaskCompletedHandler,
   registerCoordinatorLifecycleHandlers,
@@ -92,7 +48,7 @@ import {
   registerDirectorStatsBridge,
   registerDirectorSubagentLifecycleBridges,
 } from './host-director-event-bridges.js';
-import { createParentSubagentSessionWriter } from './host-session-writer.js';
+import { createHostSubagentFactory } from './host-subagent-factory.js';
 import { reportTaskResultToLeader } from './host-task-result-report.js';
 import { createHostFleetSupervisor } from './host-supervisor.js';
 import {
@@ -550,377 +506,16 @@ export class MultiAgentHost {
    * specialized, concurrency-safe agent instead of sharing the leader's Context.
    */
   makeSubagentFactory(config: Config): AgentFactory {
-    return async (subCfg: SubagentConfig, task?: TaskSpec) => {
-      const events = new EventBus();
-      // Per-task model matrix safety net. Director.spawn already fills these in
-      // for director-routed spawns, but direct-factory paths (e.g. the
-      // autonomy-parallel engine) call the factory without going through the
-      // director — resolve here too so they honor the matrix. Explicit
-      // per-subagent model/provider always win.
-      const liveConfig = this.deps.configStore.get();
-      const mergedConfig = { ...liveConfig, ...config };
-      const projectRoot = this.deps.projectRoot;
-      // `applyProjectAgentConfig` never overrides `role` (it only merges
-      // tools, skillNames, provider, model, allowedCapabilities, and budget
-      // fields), so we can read the role directly from `subCfg` and derive
-      // the project override in one shot — no bootstrap call needed. The
-      // guard returns the base by reference when `projectCfg` is absent,
-      // so `effectiveCfg` is set unconditionally below for downstream use.
-      const projectCfg = subCfg.role ? loadProjectAgentConfig(subCfg.role, projectRoot) : undefined;
-      const isSystemRole = Boolean(subCfg.role && Object.hasOwn(FLEET_ROSTER, subCfg.role));
-      const effectiveCfg: SubagentConfig = projectCfg
-        ? applyProjectAgentConfig(subCfg, projectCfg, {
-            protectSystemRole: isSystemRole,
-          })
-        : subCfg;
-      const matrixTarget = effectiveCfg.model
-        ? undefined
-        : resolveSubagentModelTarget(liveConfig, effectiveCfg.role);
-      const modelSelection = resolveHostSubagentModelSelection(
-        liveConfig,
-        effectiveCfg,
-        matrixTarget,
-      );
-      let effProvider = modelSelection.effProvider;
-      let effModel = modelSelection.effModel;
-      let provider: Provider | undefined;
-      let providerError: unknown;
-      const seenStartupTargets = new Set<string>();
-      for (const target of modelSelection.startupTargets) {
-        const key = `${target.provider}/${target.model}`;
-        if (seenStartupTargets.has(key)) continue;
-        seenStartupTargets.add(key);
-        try {
-          provider = await buildHostSubagentProvider(
-            this.deps,
-            mergedConfig,
-            target.provider,
-            target.model,
-          );
-          effProvider = target.provider;
-          effModel = target.model;
-          break;
-        } catch (err) {
-          providerError = err;
-        }
-      }
-      if (!provider)
-        throw providerError ?? new Error('No permitted provider/model could be built.');
-      let subReasoningConfig = await resolveHostSubagentReasoningConfig(
-        this.deps,
-        effProvider,
-        effModel,
-      );
-
-      let availabilityNotice: string | undefined;
-      if (effectiveCfg.availability) {
-        const status = isAgentAvailable(effectiveCfg.availability);
-        if (!status.allowed) {
-          const message = `Agent "${effectiveCfg.role ?? effectiveCfg.name}" is outside its working hours (${status.localTime}; ${effectiveCfg.availability.start}-${effectiveCfg.availability.end}).`;
-          if (effectiveCfg.availability.mode === 'enforce') throw new Error(message);
-          availabilityNotice = `${message} This protected system role may continue, but should minimize non-urgent work.`;
-        }
-      }
-
-      // Per-subagent cwd (defaults to the factory cwd). Goal points this
-      // at a phase's git worktree so isolated checkouts don't collide.
-      const assignedCheckout =
-        subCfg.cwd && path.isAbsolute(subCfg.cwd) ? subCfg.cwd : this.deps.projectRoot;
-      let subCwd = projectCfg?.cwd
-        ? path.resolve(assignedCheckout, projectCfg.cwd)
-        : (effectiveCfg.cwd ?? this.deps.cwd);
-      if (projectCfg?.cwd && !isInsideDirectory(assignedCheckout, subCwd)) {
-        throw new Error(
-          `Agent "${effectiveCfg.role ?? effectiveCfg.name}" cwd escapes its assigned checkout.`,
-        );
-      }
-      if (
-        projectCfg?.cwd &&
-        (!existsSync(subCwd) || !statSync(subCwd, { throwIfNoEntry: false })?.isDirectory())
-      ) {
-        const message = `Agent "${effectiveCfg.role ?? effectiveCfg.name}" working directory does not exist: ${subCwd}.`;
-        if (!isSystemRole) throw new Error(message);
-        subCwd = assignedCheckout;
-        availabilityNotice = availabilityNotice
-          ? `${availabilityNotice}\n${message} Falling back to the assigned checkout.`
-          : `${message} Falling back to the assigned checkout.`;
-      }
-
-      // Fetch online agents from the shared mailbox to include in subagent prompt.
-      // NOTE: must use the RESOLVED project dir (~/.wrongstack/projects/<slug>)
-      // — the raw repo root previously passed here pointed GlobalMailbox at a
-      // nonexistent <repo>/_mailbox.* and the online list was always empty.
-      let onlineAgents: Awaited<ReturnType<GlobalMailbox['getAgentStatuses']>> = [];
-      try {
-        const subagentMailbox = new GlobalMailbox(this.mailboxProjectDir());
-        onlineAgents = await subagentMailbox.getAgentStatuses();
-      } catch {
-        // Non-fatal — mailbox errors should not block subagent creation
-      }
-
-      const baseSystem: TextBlock[] = await this.deps.systemPromptBuilder.build({
-        cwd: subCwd,
-        projectRoot: this.deps.projectRoot,
-        tools: this.filterTools(effectiveCfg.tools),
-        model: effModel,
-        provider: effProvider,
-        // Tell the builder this is a subagent build — skips the host's
-        // plan injection so each subagent gets a clean, task-scoped
-        // prompt instead of inheriting strategic context that's
-        // meaningless to a single delegated subtask.
-        subagent: true,
-        onlineAgents,
-      });
-
-      // Prepend bridge contract so the subagent knows it has a parent it
-      // can ask for clarification. Placed first so the subagent reads its
-      // role in the hierarchy before absorbing the full identity block.
-      // The builder already includes the identity + tools + skills layers.
-      baseSystem.unshift({ type: 'text', text: DEFAULT_SUBAGENT_BASELINE });
-      if (availabilityNotice) baseSystem.push({ type: 'text', text: availabilityNotice });
-
-      const audienceMemory = await retrieveHostSubagentMemory(
-        this.deps,
-        this.opts.getLeaderMode,
-        effectiveCfg,
-        task?.context,
-      );
-      if (audienceMemory.length > 0) {
-        baseSystem.push({
-          type: 'text',
-          text: `Project memory for this agent role:\n${audienceMemory.map((text) => `- ${text}`).join('\n')}`,
-        });
-      }
-
-      // Apply project-level agent identity and overrides before building
-      // the system prompt. This lets project `.wrongstack/agents/<role>/`
-      // files customize the agent's tools, budget, identity and learned
-      // wisdom on top of the base catalog definition.
-      const roleSkillContent = await resolveHostSubagentSkillContent(
-        this.deps,
-        this.roster,
-        effectiveCfg,
-      );
-      if (roleSkillContent) {
-        // The shared builder may eagerly inject every discovered skill. A
-        // roster-selected worker needs only its curated subset, so replace that
-        // generic section rather than duplicating the same skill bodies.
-        // NOTE: splice is guarded by roleSkillContent being truthy — if
-        // resolveSubagentSkillContent returns empty (deduped empty names,
-        // no skillLoader, or all skills filtered), we keep the builder's
-        // generic block rather than leaving the worker with no skills at all.
-        for (let index = baseSystem.length - 1; index >= 0; index--) {
-          if (baseSystem[index]?.text.includes('# Active Skills')) baseSystem.splice(index, 1);
-        }
-        baseSystem.push({ type: 'text', text: roleSkillContent });
-      }
-
-      // Append the role persona. Priority:
-      //   1. Explicit `systemPromptOverride` on the SubagentConfig (caller control)
-      //   2. Roster lookup by `subCfg.role` — matches catalog agents (bug-hunter, etc.)
-      //   3. Nothing — subagent runs with generic identity + bridge contract only
-      const rawRolePrompt =
-        effectiveCfg.systemPromptOverride ??
-        effectiveCfg.prompt ??
-        (effectiveCfg.role ? this.roster[effectiveCfg.role]?.prompt : undefined);
-      const rolePrompt =
-        rawRolePrompt && effectiveCfg.role
-          ? buildProjectContextualizedPrompt(rawRolePrompt, effectiveCfg.role, projectRoot, {
-              identityOverride: effectiveCfg.projectIdentity?.identityOverride,
-            })
-          : rawRolePrompt;
-      if (rolePrompt) {
-        baseSystem.push({ type: 'text', text: rolePrompt });
-      }
-
-      const subagentName =
-        effectiveCfg.id ?? effectiveCfg.name ?? `sub_${randomUUID().slice(0, 8)}`;
-      if (effectiveCfg.role) {
-        this.recordLearningRole(subagentName, effectiveCfg.role);
-        // Avoid a redundant LRU re-insert when `id` is set — in that case
-        // `subagentName === effectiveCfg.id` and the first call already
-        // recorded the role under the same key. Recording again just
-        // performs an extra splice+shift and shifts the role's eviction
-        // position one step back in the LRU.
-      }
-      let subSession: SessionWriter;
-      if (this.sessionFactory) {
-        subSession = await this.sessionFactory.createSubagentSession({
-          subagentId: subagentName,
-          provider: effProvider,
-          model: effModel,
-          title: `subagent: ${subagentName}`,
-        });
-      } else {
-        subSession = createParentSubagentSessionWriter(this.deps.session);
-      }
-
-      const tools = effectiveCfg.tools ? [...effectiveCfg.tools] : undefined;
-      const subTokenCounter = new DefaultTokenCounter({
-        registry: this.deps.modelsRegistry,
-        providerId: effProvider,
-        events,
-        sessionId: () => this.deps.session.id,
-      });
-
-      const ctx = new Context({
-        systemPrompt: baseSystem,
-        provider,
-        session: subSession,
-        signal: new AbortController().signal,
-        // Keep per-request context pressure isolated. The leader statusline
-        // reads currentRequestTokens() from the leader counter; sharing it with
-        // subagents lets the latest subagent provider call overwrite the ctx
-        // chip even though subagent ctx is reported separately as
-        // subagent.ctx_pct.
-        tokenCounter: subTokenCounter,
-        cwd: subCwd,
-        projectRoot: this.deps.projectRoot,
-        // Subagents inherit the leader's filesystem-access scope.
-        allowOutsideProjectRoot:
-          config.features?.allowOutsideProjectRoot ??
-          !(config.tools?.restrictToProjectRoot ?? false),
-        model: effModel,
-        tools: this.filterTools(tools),
-        // Distinct mailbox identity: without these, every subagent fell back
-        // to the host's 'leader' base id and they all collided in the shared
-        // project mailbox registry (and consumed each other's read receipts).
-        agentId: subagentName,
-        agentName: effectiveCfg.name ?? subagentName,
-      });
-      if (effectiveCfg.role) ctx.meta['agentRole'] = effectiveCfg.role;
-      const normalizedAgentName = (effectiveCfg.name ?? subagentName).trim().toLowerCase();
-      if (normalizedAgentName === 'chimera' || normalizedAgentName.startsWith('chimera-')) {
-        ctx.meta['mailboxSendPolicy'] = 'leaders-only';
-      }
-      const leaderMode = this.opts.getLeaderMode?.();
-      if (leaderMode) ctx.meta['mode'] = leaderMode;
-      if (effectiveCfg.spawnLineage) ctx.meta['spawnLineage'] = effectiveCfg.spawnLineage;
-
-      const baseRegistry = this.subagentToolRegistry(tools);
-      // Per-spawn capability allowlist. The ToolExecutor and the Agent must
-      // share the same policy semantics — resolve one allowlist and pass it to
-      // both. See `resolveSubagentCapabilities` for the precedence rules.
-      const subAllowedCaps = resolveSubagentCapabilities(effectiveCfg, (allow) =>
-        this.filterTools([...allow]),
-      );
-      const toolExecutor = new ToolExecutor(baseRegistry, {
-        permissionPolicy: new AutoApprovePermissionPolicy(subAllowedCaps),
-        secretScrubber: this.deps.secretScrubber,
-        renderer: this.deps.renderer,
-        events,
-        confirmAwaiter: undefined,
-        iterationTimeoutMs: config.tools?.iterationTimeoutMs ?? 120_000,
-        maxToolTimeoutMs: config.tools?.maxToolTimeoutMs ?? 300_000,
-        perIterationOutputCapBytes: config.tools?.perIterationOutputCapBytes ?? 100_000,
-        tracer: undefined,
-      });
-
-      const subagentConfigStore = this.deps.configStore;
-      const pipelines = createDefaultPipelines();
-      pipelines.request.use({
-        name: 'ModelRuntimeSettings',
-        async handler(req: Request) {
-          return applyModelRuntime(req, {
-            getSettings: () =>
-              mergeModelRuntime(
-                subagentConfigStore.get().modelRuntime,
-                modelSelection.runtimeOverride,
-              ),
-            getReasoningConfig: () => subReasoningConfig,
-            getCapabilities: () => ctx.provider.capabilities,
-          });
-        },
-      });
-
-      // Design Studio — install the SAME per-turn UI-intent detection + kit-menu
-      // injection + auto-verify-on-write that the leader has, so a frontend task
-      // delegated to this subagent still commits to the active kit (restored
-      // from `.design/active.json` via shared projectRoot) and gets nudged on
-      // off-palette drift. Without this, roster/fleet agents lost the design
-      // direction entirely the moment work was delegated. `prepend`-based, so
-      // ordering vs. ModelRuntimeSettings above is handled by the installer.
-      installDesignStudioMiddleware({ pipelines, ctx });
-
-      // Proactive auto-compaction — subagents shrink on the warn/soft/hard
-      // thresholds (and get the last-resort emergency trim) like the leader,
-      // instead of growing unbounded until the provider rejects the request.
-      installSubagentAutoCompaction(pipelines, ctx, config.context, events);
-
-      const agent = new Agent({
-        container: this.deps.container,
-        tools: baseRegistry,
-        providers: this.deps.providerRegistry,
-        events,
-        pipelines,
-        context: ctx,
-        // Subagents cannot answer interactive permission prompts — they
-        // run under a director, not the user. Auto-approve everything
-        // whose capability is in the (possibly widened) allowlist; the
-        // user already authorized the work when they invoked the leader.
-        permissionPolicy: new AutoApprovePermissionPolicy(subAllowedCaps),
-        toolExecutor,
-        loopDetection: config.tools?.loopDetection,
-      });
-
-      // Explicit task fallbacks stay pinned, while matrix-selected named
-      // profiles are re-resolved from ConfigStore for every provider attempt.
-      // This lets WebUI profile edits/reordering affect active workers.
-      agent.extensions.register(
-        createFallbackModelExtension({
-          getConfig: () => this.deps.configStore.get() as Config,
-          fallbackProfileManager: this.deps.fallbackProfileManager,
-          getFallbackModels: () => effectiveCfg.fallbackModels,
-          getFallbackProfile: () => modelSelection.fallbackProfile,
-          getPrimaryTarget: () => ({ providerId: effProvider, model: effModel }),
-          isClosedWorld: () => modelSelection.closedModelPolicy,
-          buildProvider: (id, model) =>
-            buildHostSubagentProvider(this.deps, mergedConfig, id, model ?? effModel),
-          onModelSwitch: async (id, model) => {
-            subReasoningConfig = await resolveHostSubagentReasoningConfig(this.deps, id, model);
-          },
-          events,
-        }),
-      );
-
-      // Close the per-subagent JSONL writer when the task ends. Without
-      // this each completed task leaks one open file descriptor; over a
-      // long fleet run (1000+ tasks) the process eventually hits the OS
-      // limit. We only close writers we created via `sessionFactory` —
-      // the fallback path forwards into the parent's session, which the
-      // host owns and must not close here — the fallback shim's `close()`
-      // is a no-op, so calling it unconditionally is safe in both cases.
-      // Bridge per-subagent tool lifecycle to the host EventBus so the
-      // TUI can update its compact live agent surfaces regardless of
-      // director mode. The FleetBus path (director-only) covers the
-      // richer FleetPanel stream; this bridge gives baseline visibility
-      // for plain /spawn without forcing tool calls into chat history.
-      // Capture the subagentId from the caller-supplied config — the
-      // factory itself doesn't know the id until spawn() assigns one,
-      // but director.spawn/coord.spawn both pass it back via subCfg.id
-      // when in director mode; in legacy non-director mode the id is
-      // discovered post-spawn, so we wire the bridge lazily with a
-      // mutable holder and let the legacy emit path fill it.
-      const disposeBridge = installSubagentEventBridge({
-        events,
-        hostEvents: this.deps.events,
-        hostSessionId: this.deps.session.id,
-        projectRoot: ctx.projectRoot,
-        effectiveCfg,
-        subCfg,
-      });
-
-      const dispose = async () => {
-        disposeBridge();
-        try {
-          await subSession.close?.();
-        } catch {
-          // see runner-side comment — cleanup must not mask the result
-        }
-      };
-
-      return { agent, events, dispose };
-    };
+    return createHostSubagentFactory(config, {
+      deps: this.deps,
+      opts: this.opts,
+      roster: this.roster,
+      sessionFactory: this.sessionFactory,
+      filterTools: (allow) => this.filterTools(allow),
+      mailboxProjectDir: () => this.mailboxProjectDir(),
+      recordLearningRole: (subagentId, role) => this.recordLearningRole(subagentId, role),
+      subagentToolRegistry: (allow) => this.subagentToolRegistry(allow),
+    });
   }
 
   /**

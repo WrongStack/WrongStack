@@ -7,7 +7,6 @@ import { TaskDAG } from '../../src/coordination/task-dag.js';
 import { TaskAuctioneer } from '../../src/coordination/task-auctioneer.js';
 import { ConsensusProtocol } from '../../src/coordination/consensus-protocol.js';
 import { ChangeManager } from '../../src/coordination/change-manager.js';
-import { AutonomousBrain } from '../../src/coordination/autonomous-brain.js';
 import { AutonomousCoordinator } from '../../src/coordination/autonomous-coordinator.js';
 import type { FleetBus } from '../../src/coordination/fleet-bus.js';
 import type { Mailbox } from '../../src/coordination/mailbox-types.js';
@@ -24,6 +23,7 @@ beforeEach(async () => {
 });
 
 afterEach(async () => {
+  vi.useRealTimers();
   for (let attempt = 0; attempt < 10; attempt++) {
     try {
       await fs.rm(tempDir, { recursive: true, force: true });
@@ -137,12 +137,10 @@ function createCoordinator(opts?: {
   const changeManager = new ChangeManager({ graph, consensus });
   const auctioneer = new TaskAuctioneer({ graph, fleet, mailbox, maxBidRetries: 3 });
 
-  const _brain = new AutonomousBrain({
-    llmProvider: createMockLlmProvider(),
-    graph,
-    fleet,
-    disableSelfImprove: opts?.disableSelfImprove ?? true,
-  });
+  // NOTE: AutonomousBrain is NOT constructed here — the coordinator
+  // creates its own internal brain. An orphan brain would allocate an
+  // LLM provider and subscribe to fleet events with no cleanup path,
+  // leaking listeners for the test suite duration.
 
   const events: CoordinatorEvent[] = [];
   const coordinator = new AutonomousCoordinator({
@@ -275,11 +273,37 @@ describe('AutonomousCoordinator', () => {
       ).resolves.not.toThrow();
     });
 
-    // Note: TaskDAG deadlock detection is tested in task-dag.test.ts.
-    // This test verifies the coordinator's DAG event handler is wired up correctly.
-    it.skip('emits deadlock:detected when DAG has a deadlock', async () => {
-      // TaskDAG has no addEdge API — nodes must declare deps at creation time.
-      // Testing DAG cycle detection is done in task-dag.test.ts.
+    // TaskDAG prevents cycles at creation time (addDependency throws on
+    // would-be cycles), so a coordinator-level deadlock event can never fire
+    // through normal API usage. Cycle detection is covered in task-dag.test.ts.
+    // This test verifies the coordinator's DAG wiring: completing a task
+    // unblocks its dependents and makes them dispatchable.
+    it('completing a DAG task unblocks its dependents for dispatch', async () => {
+      const llmProvider = createMockLlmProvider();
+      const coordinator = new AutonomousCoordinator({
+        sessionDir: tempDir,
+        selfAgentId: 'leader@test',
+        selfAgentName: 'Leader',
+        llmProvider,
+        disableSelfImprove: true,
+        maxConcurrentAgents: 2,
+      });
+
+      // dag is a public readonly property on AutonomousCoordinator.
+      const dag = coordinator.dag;
+      dag.addNode('task-a', 'First task');
+      dag.addNode('task-b', 'Second task', ['task-a']);
+
+      // task-b is blocked until task-a completes.
+      expect(dag.getNode('task-b')!.status).toBe('pending');
+      expect(dag.getReady().map((n) => n.id)).toContain('task-a');
+      expect(dag.getReady().map((n) => n.id)).not.toContain('task-b');
+
+      // Complete task-a → task-b becomes ready.
+      dag.start('task-a', 'test');
+      dag.complete('task-a', 'done');
+      expect(dag.getNode('task-b')!.status).toBe('ready');
+      expect(dag.getReady().map((n) => n.id)).toContain('task-b');
     });
   });
 
@@ -295,12 +319,10 @@ describe('AutonomousCoordinator', () => {
         maxConcurrentAgents: 3,
       });
 
-      const start = Date.now();
+      // run() resolves without hanging — that is sufficient. A wall-clock
+      // threshold would be inherently flaky on CI under load or GC pauses.
       const stats = await coordinator.run({ goal: 'improve the codebase', maxIterations: 2 });
-      const elapsed = Date.now() - start;
 
-      // Should complete quickly (not hang)
-      expect(elapsed).toBeLessThan(5000);
       expect(stats.goals.total).toBeGreaterThanOrEqual(0);
     });
 
@@ -464,6 +486,7 @@ describe('AutonomousCoordinator', () => {
       });
 
       await coordinator.run({ goal: 'fix null pointer bug', maxIterations: 2 });
+      expect(director._assignCalls.length).toBeGreaterThan(0);
       const assignedTask = director._assignCalls[0]!.task;
       const subagentId = assignedTask.subagentId!;
 
@@ -510,6 +533,7 @@ describe('AutonomousCoordinator', () => {
       });
 
       await coordinator.run({ goal: 'fix null pointer bug', maxIterations: 2 });
+      expect(director._assignCalls.length).toBeGreaterThan(0);
       const assignedTask = director._assignCalls[0]!.task;
       const result = [
         'Implemented first pass.',

@@ -1,8 +1,3 @@
-/**
- * Agent loop handler — extracted from Agent class.
- * Contains runInner (the main iteration loop), checkIterationLimit,
- * compactContextIfNeeded, emitContextPct, and injectPendingBtwNotes.
- */
 
 import type { RunController } from '../kernel/run-controller.js';
 import { TOKENS } from '../kernel/tokens.js';
@@ -38,7 +33,6 @@ function toError(err: unknown): Error {
   return err instanceof Error ? err : new Error(String(err));
 }
 
-/** Extract a human-readable reason from an AbortSignal. */
 export function signalAbortReason(signal: AbortSignal): string {
   const r = signal.reason;
   if (r instanceof Error) return r.message || r.name;
@@ -64,19 +58,8 @@ export function createAgentLoopHandler(
   a: AgentInternals,
   handlers: LoopHandlers,
 ): AgentLoopHandler {
-  // Mailbox checker — created once, reused every iteration. Derives
-  // mailbox path from the session transcript directory. Ephemeral
-  // sessions (no transcriptPath) get a no-op that returns [].
   const checkMailbox = attachMailboxChecker(a);
 
-  // Fleet-pulse peer digest — periodic "[FLEET PULSE]" block so every
-  // agent (leader AND fleet subagents) sees what its peers are doing
-  // mid-run, not just at spawn time. Config comes from the bound
-  // ConfigStore when available (CLI/WebUI); bare Agents fall back to
-  // defaults. Cadence: at most every `everyNIterations` iterations, and
-  // the provider itself throttles registry reads + dedups by signature.
-  // Read defensively: minimal hosts and test harnesses hand Agents a
-  // container stub without the full Container surface.
   const fleetPulseCfg = (() => {
     try {
       return typeof a.container?.has === 'function' && a.container.has(TOKENS.ConfigStore)
@@ -90,21 +73,6 @@ export function createAgentLoopHandler(
   const pulseEveryN = Math.max(1, fleetPulseCfg?.everyNIterations ?? 5);
   const backgroundCoordination = () => a.ctx.meta['coordinationContextMode'] === 'background';
 
-  /**
-   * Run context window pipeline — but skip the pipeline call entirely
-   * when we already know context is comfortably below the warn threshold
-   * and nothing has changed since the last run. The middleware inside
-   * the pipeline already short-circuits below the warn threshold with
-   * a cached token count, but the *pipeline materialization* itself
-   * (middleware chain walk, await plumbing, EventBus subscription setup)
-   * is not free. Skipping the whole call is free.
-   *
-   * Safety: we only skip when the message count is unchanged AND the
-   * last run was a no-op. If context grew (new messages, tool results
-   * appended, tool definitions changed) the next call must re-evaluate.
-   * If the last run actually fired a compaction, we must also re-run so
-   * the noop-retry logic gets its delta check.
-   */
   async function compactContextIfNeeded(): Promise<boolean> {
     const msgCount = a.ctx.messages.length;
     const maxContext = currentMaxContext();
@@ -133,17 +101,9 @@ export function createAgentLoopHandler(
     _lastCompactionSystemRef = a.ctx.systemPrompt;
     _lastCompactionMaxContext = maxContext;
     const changed = a.ctx.messages !== beforeMessages || a.ctx.messages.length !== beforeMsgCount;
-    // Mark as noop when the cached token count is below the warn fraction.
-    // The middleware's own noop-retry check (lastNoopAttempt) tracks a more
-    // nuanced "tried but couldn't reduce" state — this flag is coarser: it
-    // answers "should we even bother running the pipeline next time?"
     const tokens = refreshContextRequestTokenStash({ force: changed });
     _lastCompactionRequestTokens = tokens;
     const load = maxContext > 0 ? tokens / maxContext : 0;
-    // 0.5 is the soft default warn threshold used by `defaultConfig`; we
-    // hard-code it here to avoid a context.options lookup. The middleware
-    // is the authority on the actual policy threshold — this is just a
-    // fast-path heuristic for "definitely below warn" to skip the pipeline.
     _lastCompactionWasNoop = tokens > 0 && load < 0.5;
     if (changed) {
       _lastEmittedMsgCount = -1;
@@ -153,17 +113,9 @@ export function createAgentLoopHandler(
     return changed;
   }
 
-  /** Per-(provider,model) calibration bucket so a model-switching or fleet
-   *  process doesn't collapse every tokenizer onto one shared ratio. */
   const calibrationKey = (model: string = a.ctx.model): string =>
     `${a.ctx.provider?.id ?? 'unknown'}/${model}`;
 
-  // ── System+tools overhead cache ──────────────────────────────────────────
-  // The system prompt and tool definitions change rarely (only on /model,
-  // mode switch, MCP connect/disconnect). Caching their combined token
-  // count by reference identity avoids re-walking them on every token
-  // estimation call — turning estimateRequestTokens from O(msgs+sys+tools)
-  // into O(msgs) when the references are stable.
   let _cachedSysRef: unknown = null;
   let _cachedToolsRef: readonly unknown[] | null = null;
   let _cachedOverheadTokens = 0;
@@ -189,23 +141,11 @@ export function createAgentLoopHandler(
       calibrationKey(req.model),
     );
 
-    // Stash the uncalibrated total on ctx so the middleware and the
-    // context bar (emitContextPct) can read it without re-walking the
-    // messages. The middleware applies its own per-(provider,model)
-    // calibration ratio on read so the value it sees matches the
-    // calibrated figure the compaction decision was made on.
     a.ctx.lastRequestTokens = preFlight.total;
     _lastPreFlightMsgCount = req.messages.length;
-    // Track message-only tokens and populate the overhead cache so
-    // subsequent incremental estimates (emitContextPct,
-    // refreshContextRequestTokenStash) can skip the full walk.
     _cachedSysRef = req.system;
     _cachedToolsRef = req.tools ?? [];
     _cachedOverheadTokens = preFlight.systemPrompt + preFlight.tools;
-    // Companion meta entry: the (msg, tool) count snapshot the stash
-    // was computed at, so the middleware can detect when tool results
-    // were appended between pre-flight and compaction and refuse the
-    // stale value. See AutoCompactionMiddleware.tryStashedTokens.
     a.ctx.meta['lastRequestTokensAt'] = {
       msgCount: req.messages.length,
       toolCount: (req.tools ?? []).length,
@@ -249,10 +189,6 @@ export function createAgentLoopHandler(
     let req = await handlers.response.buildAndRunRequestPipeline(opts);
     let preFlight = stashRequestTokens(req);
 
-    // The new user turn may be what crosses the context threshold. Run the
-    // context-window pipeline before the provider call and rebuild the request
-    // if compaction rewrote ctx.messages, otherwise the oversized stale request
-    // would still be sent.
     if (await compactContextIfNeeded()) {
       req = await handlers.response.buildAndRunRequestPipeline(opts);
       preFlight = stashRequestTokens(req);
@@ -261,11 +197,7 @@ export function createAgentLoopHandler(
     return { req, preFlight };
   }
 
-  /** Emit ctx.pct event for live context-fill bar in UIs. */
   function emitContextPct(): void {
-    // In autonomous idle loops the conversation doesn't grow between
-    // iterations — skip the expensive token estimation and event emission
-    // when nothing has changed since the last emit.
     const msgCount = a.ctx.messages.length;
     const toolCount = (a.ctx.tools ?? []).length;
     const maxContext = currentMaxContext();
@@ -284,11 +216,6 @@ export function createAgentLoopHandler(
     _lastEmittedRevision = revision;
     _lastEmittedMaxContext = maxContext;
 
-    // H1: the pre-flight stash is stale if tool results have been appended
-    // since. Instead of re-walking the entire message array + system prompt
-    // + tool defs, compute only the delta: the tokens of the newly appended
-    // messages. This turns an O(n) full re-walk into O(new_messages) —
-    // typically O(1-3) for tool result appends.
     if (msgCount !== _lastPreFlightMsgCount) {
       const stashed = a.ctx.lastRequestTokens;
       if (
@@ -297,23 +224,15 @@ export function createAgentLoopHandler(
         _lastPreFlightMsgCount >= 0 &&
         _lastPreFlightMsgCount < msgCount
       ) {
-        // Incremental: tool results were appended, existing messages unchanged.
         const delta = estimateMessageTokens(a.ctx.messages.slice(_lastPreFlightMsgCount));
         a.ctx.lastRequestTokens = stashed + delta;
       } else {
-        // Fallback: cold start or messages were replaced (compaction).
         a.ctx.lastRequestTokens = estimateMessageTokens(a.ctx.messages) + systemAndToolsOverhead();
       }
       _lastPreFlightMsgCount = msgCount;
       a.ctx.meta['lastRequestTokensAt'] = { msgCount, toolCount };
     }
 
-    // Prefer the REAL usage anchor: the provider's authoritative prompt-token
-    // count from the last response + the estimate of messages appended since.
-    // This is exact for everything but the newest unsent turn, so the bar shows
-    // real tokens rather than a scaled estimate. Falls back to the calibrated
-    // estimate before the first response, or when compaction shrank the array
-    // below the anchor (until the next response re-anchors).
     let total: number;
     const anchored = realAnchoredInputTokens(
       a.ctx.messages,
@@ -331,8 +250,6 @@ export function createAgentLoopHandler(
         ? Math.round(stashed * Math.min(1.5, Math.max(0.5, cal.ratio)))
         : stashed;
     } else {
-      // Cold-start fallback: compute once, then stash so the next call
-      // takes the fast path above.
       const raw = estimateMessageTokens(a.ctx.messages) + systemAndToolsOverhead();
       a.ctx.lastRequestTokens = raw;
       _lastPreFlightMsgCount = msgCount;
@@ -351,10 +268,6 @@ export function createAgentLoopHandler(
   }
 
   function currentMaxContext(): number {
-    // Mirror the denominator AutoCompactionMiddleware uses: an explicit
-    // effectiveMaxContext override (ctx.meta) wins, then the provider window,
-    // then a safe default. This must be read live: /model, fallback, and
-    // /context limit can all change it after the session starts.
     const metaLimit = a.ctx.meta?.['effectiveMaxContext'];
     const providerMax = a.ctx.provider.capabilities.maxContext;
     return typeof metaLimit === 'number' && metaLimit > 0
@@ -368,16 +281,7 @@ export function createAgentLoopHandler(
   let _lastEmittedToolCount = -1;
   let _lastEmittedRevision = -1;
   let _lastEmittedMaxContext = -1;
-  // H1: tracks the message count at the most recent pre-flight. emitContextPct
-  // uses it to detect when tool results have been appended since the
-  // pre-flight and the stash needs a restash. -1 = no pre-flight yet.
   let _lastPreFlightMsgCount = -1;
-  // H3: fast-path for the context-window pipeline. When the message count
-  // is unchanged since the last run AND the last run was a noop (load
-  // below warn), we can skip the entire pipeline call. The middleware
-  // inside the pipeline still has its own per-call caches, but the
-  // pipeline materialization itself (chain walk, await plumbing) is
-  // pure overhead in this case.
   let _lastCompactionMsgCount = -1;
   let _lastCompactionRevision = -1;
   let _lastCompactionToolsRef: unknown = null;
@@ -386,44 +290,12 @@ export function createAgentLoopHandler(
   let _lastCompactionMaxContext = -1;
   let _lastCompactionWasNoop = false;
 
-  /**
-   * Append an informational block to the conversation, merging into the
-   * trailing user message when there is one (keeps user/assistant
-   * alternation intact between tool batches).
-   */
   function foldBlockIntoConversation(block: TextBlock): void {
     if (!a.ctx.state.appendBlockToLastUserMessage(block)) {
       a.ctx.state.appendMessage({ role: 'user', content: [block] });
     }
   }
 
-  /**
-   * Build a canonical per-iteration fingerprint so we can detect when the
-   * model repeats the same response shape iteration after iteration. The
-   * fingerprint covers THREE signals, not just tool calls:
-   *
-   *   1. The SORTED SET of tool names (deduped) the iteration is calling.
-   *      Using a set means rotating-but-similar tool names ("read" vs
-   *      "read_file") still match — a k2p7 stuck on "I should re-read the
-   *      file" picks different concrete names each turn but the *idea* is
-   *      the same and the loop is real.
-   *   2. A representative input hash from the FIRST tool call. We don't
-   *      hash every call's input (k2p7 varies paths/offsets trivially to
-   *      dodge a strict signature) — the first call's input is enough to
-   *      tell "same idea" from "actually different".
-   *   3. The concatenated text-block content, truncated to 512 chars.
-   *      This catches the "assistant message repeats" variant where k2p7
-   *      echoes the same prose turn after turn in autonomous-continue
-   *      mode with no tool calls at all. Thinking-block text is INTENTIONALLY
-   *      excluded — chain-of-thought legitimately varies per iteration,
-   *      including it would defeat the detector on every legitimate run.
-   *
-   * Returns `'__empty__'` when the response has no text AND no tool calls
-   * (e.g. a pure thinking response). The empty marker is unique enough to
-   * never collide with a real fingerprint and is excluded from the loop
-   * check at the call site so legitimate end-of-turn responses don't
-   * false-positive.
-   */
   function iterationFingerprint(blocks: ContentBlock[]): string {
     const toolUses = blocks.filter(isToolUseBlock);
     const texts = blocks.filter(isTextBlock);
@@ -445,11 +317,6 @@ export function createAgentLoopHandler(
     ].join('\n');
   }
 
-  /**
-   * JSON.stringify with recursively sorted object keys, so two inputs that
-   * differ only in property order produce the same fingerprint. Models
-   * routinely reorder argument keys between otherwise-identical calls.
-   */
   function stableStringify(value: unknown): string {
     return JSON.stringify(canonicalize(value));
   }
@@ -465,13 +332,6 @@ export function createAgentLoopHandler(
     return value;
   }
 
-  /**
-   * Tiny stable hash for short strings (the representative input + the
-   * already-truncated text). 32-bit FNV-1a — collision rate is irrelevant
-   * here because keys are only compared for equality within a small window
-   * (previous iteration's fingerprint, recent-call ring buffer). Avoids
-   * pulling a real hash function for what is effectively an equality check.
-   */
   function hashSmall(s: string): string {
     let h = 0x811c9dc5;
     for (let i = 0; i < s.length; i++) {
@@ -481,12 +341,6 @@ export function createAgentLoopHandler(
     return h.toString(36);
   }
 
-  /**
-   * Fold pending /btw notes into conversation before each iteration.
-   * Mailbox awareness uses the same queue for safe-boundary delivery, but its
-   * raw body remains request-scoped and is therefore folded as a separate
-   * block that the run can remove after evaluation.
-   */
   function injectPendingBtwNotes(onMailboxBlock?: (block: TextBlock) => void): void {
     const notes = consumeBtwNotes(a.ctx);
     if (notes.length === 0) return;
@@ -502,22 +356,12 @@ export function createAgentLoopHandler(
     }
   }
 
-  /**
-   * Surface the host's pending-message queue (messages typed while this run
-   * was busy) when it changed since the model last saw it. Informational
-   * only — the queued messages still arrive later as their own user turns;
-   * this just lets the model factor the backlog into in-flight decisions.
-   * See {@link ./queued-messages.ts}.
-   */
   function injectQueueAwareness(): void {
     const items = consumeQueuedMessagesUpdate(a.ctx);
     if (!items) return;
     foldBlockIntoConversation({ type: 'text', text: buildQueuedMessagesBlock(items) });
   }
 
-  /**
-   * Check if iteration limit reached and request extension if needed.
-   */
   async function checkIterationLimit(
     iterationIndex: number,
     limit: number,
@@ -554,9 +398,6 @@ export function createAgentLoopHandler(
   ): Promise<RunResult> {
     await a.pipelines.userInput.run(inputPayload);
     recordUserIntentEvidence(a.ctx, inputPayload.text);
-    // Persist the semantic event before its exact-state projection. The
-    // conversation journal drains independently, so mutating state first can
-    // otherwise race `message_appended` ahead of `user_input` on disk.
     await a.ctx.session.append({
       type: 'user_input',
       ts: new Date().toISOString(),
@@ -566,11 +407,6 @@ export function createAgentLoopHandler(
     const promptIndex = a.ctx.messages.filter((m) => m.role === 'user').length - 1;
     const preview = inputPayload.text.slice(0, 80) + (inputPayload.text.length > 80 ? '…' : '');
     await a.ctx.session.writeCheckpoint(promptIndex, preview);
-    // The user input and its checkpoint are one recovery boundary. Await the
-    // drain before the provider call so a crash cannot start work whose prompt
-    // exists only in the 500ms memory buffer. FileSessionWriter retains a
-    // failed batch for retry; alternate writers may reject, which remains
-    // best-effort and must not abort the user's turn.
     try {
       await a.ctx.flushConversationJournal();
       await a.ctx.session.flush();
@@ -586,52 +422,18 @@ export function createAgentLoopHandler(
     let recoveryRetries = 0;
     const pendingMailboxBlocks: TextBlock[] = [];
 
-    /**
-     * Raw mail is useful for exactly one successful provider evaluation. Its
-     * consequences remain in assistant/tool/task state; the original bodies do
-     * not stay in every later request.
-     */
     function clearEvaluatedMailboxBlocks(): void {
       if (pendingMailboxBlocks.length === 0) return;
       const cleaned = removeInjectedMailboxBlocks(a.ctx.messages, pendingMailboxBlocks);
       pendingMailboxBlocks.length = 0;
       if (cleaned.changed) {
         a.ctx.state.replaceMessages(cleaned.messages);
-        // The pre-flight stash included the raw mail. Re-anchor immediately so
-        // the context bar and post-response compaction do not keep charging for
-        // text that no longer exists.
         a.ctx.lastRealInputTokens = undefined;
         delete a.ctx.meta['realAnchorMsgCount'];
         refreshContextRequestTokenStash({ force: true });
       }
     }
 
-    // ── Loop detection state ──────────────────────────────────────
-    // Two complementary detectors, tuned via `tools.loopDetection`:
-    //
-    //   1. ITERATION detector (the original): tracks the previous
-    //      iteration's fingerprint (tool-name set + first tool input +
-    //      text blob) and how many times in a row it has matched. Catches
-    //      whole-response repeats — identical tool calls AND the text-only
-    //      assistant-message echoes seen in autonomous-continue mode.
-    //   2. PER-CALL detector: a sliding window of (tool name +
-    //      canonicalized full args) hashes across recent tool calls.
-    //      Catches "reading the same file for the 4th time" even when the
-    //      repeats are interleaved with other calls — a pattern the
-    //      consecutive iteration detector cannot see.
-    //
-    // Escalation ladder in 'steer-then-cut' mode (the default): the first
-    // detection queues a corrective note that is folded into the
-    // conversation at the top of the next iteration (never mid-batch, so
-    // tool_use/tool_result adjacency is preserved) and the run continues.
-    // If the iteration streak persists to cutThreshold the turn is cut
-    // with `status: 'max_iterations'` exactly like the legacy hard-stop.
-    // mode 'cut' preserves the legacy behavior (hard-stop at
-    // steerThreshold, per-call detector off); 'off' disables both.
-    //
-    // Empty responses (pure thinking blocks, end-of-turn silence) reset
-    // the iteration streak so a real loop after a silence is still caught
-    // from iteration 1.
     const loopCfg = a.loopDetection;
     let lastToolSignature = '';
     let toolLoopCount = 0;
@@ -640,7 +442,6 @@ export function createAgentLoopHandler(
     const steeredCallKeys = new Set<string>();
     let pendingLoopSteer: string | null = null;
 
-    /** Accumulate a steer note; delivered at the top of the next iteration. */
     function queueLoopSteer(text: string): void {
       pendingLoopSteer = pendingLoopSteer ? `${pendingLoopSteer}\n${text}` : text;
     }
@@ -650,7 +451,6 @@ export function createAgentLoopHandler(
     };
     const offSubagentDone = a.events.on('subagent.done', onSubagentDone);
 
-    // Build the base provider runner
     const diRunner = a.container.has(TOKENS.ProviderRunner)
       ? a.container.resolve(TOKENS.ProviderRunner)
       : null;
@@ -692,9 +492,6 @@ export function createAgentLoopHandler(
           };
         }
 
-        // Persist the open boundary before starting provider/tool work. A
-        // fire-and-forget marker could be overtaken by later events or remain
-        // solely in memory for the entire crash window.
         try {
           await a.ctx.session.writeInFlightMarker(`iteration ${i} / max ${a.maxIterations}`);
           await a.ctx.session.flush();
@@ -726,29 +523,19 @@ export function createAgentLoopHandler(
         injectPendingBtwNotes((block) => pendingMailboxBlocks.push(block));
         injectQueueAwareness();
 
-        // Deliver the loop-detector steer queued by the previous iteration.
-        // Folded here — after the previous tool batch's results have landed —
-        // so the note merges into the trailing user message and never splits
-        // a tool_use/tool_result pair.
         if (pendingLoopSteer) {
           foldBlockIntoConversation({ type: 'text', text: pendingLoopSteer });
           pendingLoopSteer = null;
         }
 
-        // Fold the fleet-pulse peer digest in on its cadence (i=1, then
-        // every N). Best-effort: the provider returns null on throttle,
-        // no-change, no-peers, or any failure.
         if (!backgroundCoordination() && (i % pulseEveryN === 1 || pulseEveryN === 1)) {
           try {
             const pulse = await getFleetPulse();
             if (pulse) foldBlockIntoConversation(pulse);
           } catch {
-            // Never let peer awareness break the loop.
           }
         }
 
-        // Check inter-agent mailbox for steer/btw messages from other agents.
-        // Non-blocking best-effort — a broken mailbox must not stop the agent.
         const mailboxResult = await injectPendingMailboxMessages(
           checkMailbox,
           (block) => {
@@ -765,18 +552,11 @@ export function createAgentLoopHandler(
           },
           backgroundCoordination() ? 'background' : 'inline',
         );
-        // Cooperative interrupt: an operator (e.g. Fleet HQ) dropped a
-        // `control:interrupt` message in our mailbox. Stop gracefully at this
-        // iteration boundary — before the next LLM call — rather than killing
-        // the process. Mirrors the abort-signal exit shape.
         if (mailboxResult.interrupt) {
           const reason = `interrupted: ${mailboxResult.interruptReason ?? 'operator request'}`;
           return { status: 'aborted', iterations, abortReason: reason, finalText };
         }
 
-        // H1: compute once, share with the middleware + context bar.
-        // The helper also gives auto-compaction one pre-send chance to shrink
-        // a newly over-budget turn and rebuilds the request when it does.
         const { req, preFlight } = await buildRequestWithPreflightCompaction(opts);
 
         await a.ctx.session
@@ -789,18 +569,11 @@ export function createAgentLoopHandler(
             toolCount: (req.tools ?? []).length,
           })
           .catch(() => {
-            /* best-effort */
           });
 
         let res: Response;
         try {
           res = await customRunner(a.ctx, req);
-          // Derive the calibrated estimate from the pre-flight result instead
-          // of calling estimateRequestTokensCalibrated() which would re-walk
-          // the same messages/system/tools arrays. The calibration ratio is
-          // the same per-(provider,model) bucket — applying it to the raw
-          // total is equivalent to the per-component rounding in the full
-          // calibrated function.
           const key = calibrationKey(req.model);
           const cal = getCalibrationState(key);
           const calibratedTotal = cal.calibrated
@@ -808,11 +581,6 @@ export function createAgentLoopHandler(
             : preFlight.total;
           const realInputTokens = effectiveInputTokens(res.usage);
           recordActualUsage(realInputTokens, calibratedTotal, key);
-          // Anchor the live context figure to the provider's REAL prompt-token
-          // count. `_lastPreFlightMsgCount` is the ctx.messages length of the
-          // request that produced this usage (the response is appended later),
-          // so subsequent estimates only need to add the delta on top of a real
-          // base. See `realAnchoredInputTokens`.
           const previousRealInput = a.ctx.lastRealInputTokens;
           const previousAnchorMsgCount =
             typeof a.ctx.meta?.['realAnchorMsgCount'] === 'number'
@@ -916,9 +684,6 @@ export function createAgentLoopHandler(
           res = recovered.response;
         }
 
-        // The provider has now seen and evaluated every pending raw mailbox
-        // block. Remove them before appending its response so only the useful
-        // consequence (assistant text, tool work, todos, etc.) survives.
         clearEvaluatedMailboxBlocks();
 
         const responseResult = await handlers.response.processResponse(res, req);
@@ -944,20 +709,6 @@ export function createAgentLoopHandler(
 
         const toolUses = res.content.filter(isToolUseBlock);
 
-        // ── Loop detection (runs UNCONDITIONALLY — not just when tool calls are present) ──
-        // Models with weak instruction-following (k2p7, etc.) can enter tight
-        // loops in two ways, and the same fingerprint covers both:
-        //   (a) tool loop: the same tool gets called with the same input
-        //       over and over (the original failure mode the strict
-        //       fingerprint was built for);
-        //   (b) message loop: the assistant echoes the same prose turn
-        //       after turn with no tool calls at all — most often seen in
-        //       autonomous-continue mode where the run keeps looping on a
-        //       stuck directive.
-        // The fingerprint also catches mixed-shape repeats (same tool + same
-        // text). The check is *above* the no-tool-uses early-return so
-        // message loops get caught too. See the state block above for the
-        // steer-then-cut escalation ladder and the per-call window detector.
         if (loopCfg.mode !== 'off') {
           const sig = iterationFingerprint(res.content);
           if (sig !== '__empty__') {
@@ -1043,17 +794,11 @@ export function createAgentLoopHandler(
               );
             }
           } else {
-            // Empty iteration: reset the streak so a real-loop after a silence
-            // is still caught from iteration 1.
             lastToolSignature = '';
             toolLoopCount = 0;
             iterationSteerDone = false;
           }
 
-          // Per-call window detector: same (name + canonicalized args) call
-          // repeated across recent iterations, even when interleaved with
-          // other calls. Steer-only — persistence is caught by the iteration
-          // detector or the iteration budget. Disabled in legacy 'cut' mode.
           if (loopCfg.mode === 'steer-then-cut') {
             for (const u of toolUses) {
               const key = `${u.name}:${hashSmall(stableStringify(u.input ?? {}))}`;
@@ -1111,8 +856,6 @@ export function createAgentLoopHandler(
           return { status: 'done', iterations, finalText, delegateSummaries };
         }
 
-        // Wrap tool execution so an abort mid-tool surfaces as 'aborted'
-        // rather than AGENT_RUN_FAILED in the outer agent.run() catch block.
         try {
           await handlers.tools.executeTools(toolUses);
         } catch (toolErr) {
@@ -1153,9 +896,6 @@ export function createAgentLoopHandler(
         }
       }
     } finally {
-      // A failed/aborted run must not leave request-scoped mail in a resumed
-      // session. Retry/continue paths keep it until either a response arrives
-      // or this final teardown executes.
       clearEvaluatedMailboxBlocks();
       offSubagentDone();
       const reason: 'clean' | 'aborted' = controller.signal.aborted ? 'aborted' : 'clean';

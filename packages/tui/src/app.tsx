@@ -1,26 +1,14 @@
 import * as path from 'node:path';
 import type { Director } from '@wrongstack/core/coordination';
-import type { ContentBlock } from '@wrongstack/core/types';
 import {
   applyRewindToConversation,
   DefaultSessionRewinder,
-  type PromptUsageStore,
 } from '@wrongstack/core/storage';
-import { InputBuilder } from '@wrongstack/core/agent';
 import React, {
   useCallback,
   useEffect,
-  useMemo,
-  useReducer,
   useRef,
 } from 'react';
-import {
-  buildRestoredCheckpoints,
-  buildRestoredEntries,
-  createInitialState,
-} from './app-initial-state.js';
-// Types imported from app-reducer.ts (single source of truth for reducer + State types)
-import { reducer, type State } from './app-reducer.js';
 import { leaderTimelineFromEntries } from './components/agents-monitor.js';
 import type { HistoryScrollController } from './components/scrollable-history.js';
 import type { StatuslineItem } from './components/statusline-picker.js';
@@ -37,6 +25,8 @@ import { useFileSearch } from './hooks/use-file-search.js';
 import { useHelpPanel } from './hooks/use-help-panel.js';
 import { useInputHistoryPersistence } from './hooks/use-input-history-persistence.js';
 import { useInitialPrompt } from './hooks/use-initial-prompt.js';
+import { useAppRuntimeRefs } from './hooks/use-app-runtime-refs.js';
+import { useAppSessionState } from './hooks/use-app-session-state.js';
 import { useInterruptLadder } from './hooks/use-interrupt-ladder.js';
 import { useGitSessionStatus } from './hooks/use-git-session-status.js';
 import { useHistoryCopyNotice } from './hooks/use-history-copy-notice.js';
@@ -75,10 +65,8 @@ import { useApp, useStdout } from './ink.js';
 import { deriveAppViewState } from './app-view-state.js';
 import { isPickerOverlayOpen, mergeStatuslineHiddenItems } from './app-ui-state.js';
 import { AppView } from './app-view.js';
-import { LayoutStore } from './layout-store.js';
 import { createRunBlocksController } from './run-blocks-controller.js';
 import { createSubmitController } from './submit-controller.js';
-import { TokenPreviewStore } from './token-previews.js';
 
 export {
   type Action,
@@ -120,111 +108,29 @@ export { buildSteeringPreamble } from './steering-preamble.js';
 
 export function App(props: AppProps): React.ReactElement {
   const {
-  agent,
-  slashRegistry,
-  secretInputController,
-  attachments,
-  events,
-  tokenCounter,
-  visionAdapters = [],
-  supportsVision,
-  model,
-  banner = true,
-  queueStore,
-  onQueueChange,
-  yolo = false,
-  chime = false,
-  confirmExit = true,
-  titleController,
-  mouse = false,
-  capability,
-  enhanceEnabled = true,
-  enhanceController,
-  midRunSendPicker = true,
-  enhanceDelayMs = 15_000,
-  getEnhancerReasoning,
-  buildEnhancerProvider,
-  getEnhanceFallbackRef,
-  getConfiguredRefinerRef,
-  getYolo,
-  getAutonomy,
-  getEternalEngine,
-  getParallelEngine,
-  getSddRun,
-  onSddLifecycle,
-  subscribeEternalIteration,
-  subscribeEternalStage,
-  subscribeGoal,
-  getSDDContext,
-  onSDDOutput,
-  appVersion,
-  provider,
-  family,
-  keyTail,
-  profile,
-  profileConfigPath,
-  autonomyAgents,
-  toolCount,
-  getPickableProviders,
-  switchProviderAndModel,
-  getSettings,
-  saveSettings,
-  getPluginItems,
-  onPluginToggle,
-  getMcpServers,
-  onMcpToggle,
-  onMcpRestart,
-  getToolsItems,
-  onToolToggle,
-  getBrainData,
-  onBrainRiskLevel,
-  brainPanelHost,
-  getShadowData,
-  onShadowStart,
-  onShadowStop,
-  authHost,
-  predictNext,
-  onSuggestionsParsed,
-  getSuggestions,
-  getAutoSuggestions,
-  autonomyNextPrompt,
-  setSuggestions,
-  switchAutonomy,
-  effectiveMaxContext,
-  onExit,
-  director,
-  getDirector,
-  onClearHistory,
-  clearTerminal,
-  listSessions,
-  fleetStreamController,
-  interruptController,
-  statuslineHiddenItems,
-  setStatuslineHiddenItems,
-  saveStatuslineHiddenItems,
-  agentsMonitorController,
-  initialGoal,
-  initialAsk,
-  sessionsDir,
-  modeLabel,
-  getModeLabel,
-  getModes,
-  registerDebugStreamCallback,
-  restoreDebugStreamCallback,
-  restoredMessages,
-  restoredToolCalls,
-  restoredEvents,
-  getProjectPickerItems,
-  getLiveSessions,
-  initialAgentsMonitorOpen,
-  onPanelOpen,
-  subscribeCoordinatorEvents,
-  // Reserved for the coordinator monitor panel: terminal-driven task discovery/claim.
-  onCoordinatorTasks: _onCoordinatorTasks,
-  onCoordinatorClaim: _onCoordinatorClaim,
-  coordinatorRunning = false,
-  clientId,
-  memoryStore,
+    agent, slashRegistry, secretInputController, attachments, events, tokenCounter,
+    visionAdapters = [], supportsVision, model, banner = true, queueStore, onQueueChange,
+    yolo = false, chime = false, confirmExit = true, titleController, mouse = false,
+    capability, enhanceEnabled = true, enhanceController, midRunSendPicker = true,
+    enhanceDelayMs = 15_000, getEnhancerReasoning, buildEnhancerProvider,
+    getEnhanceFallbackRef, getConfiguredRefinerRef, getYolo, getAutonomy,
+    getEternalEngine, getParallelEngine, getSddRun, onSddLifecycle,
+    subscribeEternalIteration, subscribeEternalStage, subscribeGoal, getSDDContext,
+    onSDDOutput, appVersion, provider, family, keyTail, profile, profileConfigPath,
+    autonomyAgents, toolCount, getPickableProviders, switchProviderAndModel, getSettings,
+    saveSettings, getPluginItems, onPluginToggle, getMcpServers, onMcpToggle,
+    onMcpRestart, getToolsItems, onToolToggle, getBrainData, onBrainRiskLevel,
+    brainPanelHost, getShadowData, onShadowStart, onShadowStop, authHost, predictNext,
+    onSuggestionsParsed, getSuggestions, getAutoSuggestions, autonomyNextPrompt,
+    setSuggestions, switchAutonomy, effectiveMaxContext, onExit, director, getDirector,
+    onClearHistory, clearTerminal, listSessions, fleetStreamController, interruptController,
+    statuslineHiddenItems, setStatuslineHiddenItems, saveStatuslineHiddenItems,
+    agentsMonitorController, initialGoal, initialAsk, sessionsDir, modeLabel, getModeLabel,
+    getModes, registerDebugStreamCallback, restoreDebugStreamCallback, restoredMessages,
+    restoredToolCalls, restoredEvents, getProjectPickerItems, getLiveSessions,
+    initialAgentsMonitorOpen, onPanelOpen, subscribeCoordinatorEvents,
+    onCoordinatorTasks: _onCoordinatorTasks, onCoordinatorClaim: _onCoordinatorClaim,
+    coordinatorRunning = false, clientId, memoryStore,
   } = props;
   const { exit } = useApp();
   const { stdout } = useStdout();
@@ -244,109 +150,20 @@ export function App(props: AppProps): React.ReactElement {
     saveStatuslineHiddenItems,
   });
   const {
-    liveModel,
-    setLiveModel,
-    liveProvider,
-    setLiveProvider,
-    activeMaxContext,
-    setActiveMaxContext,
-    yoloLive,
-    setYoloLive,
-    autonomyLive,
-    setAutonomyLive,
-    liveModeLabel,
-    setLiveModeLabel,
-    hiddenItems,
-    setHiddenItems,
-    setSessionCount,
-    hiddenItemsRef,
-    setMemoryContextMonitor,
-    memoryContextMonitorRef,
-    memoryRecordTotalRef,
+    liveModel, setLiveModel, liveProvider, setLiveProvider, activeMaxContext,
+    setActiveMaxContext, yoloLive, setYoloLive, autonomyLive, setAutonomyLive,
+    liveModeLabel, setLiveModeLabel, hiddenItems, setHiddenItems, setSessionCount,
+    hiddenItemsRef, setMemoryContextMonitor, memoryContextMonitorRef, memoryRecordTotalRef,
     setLiveToolCount,
   } = environment;
 
-  // Statusline picker → status bar sync lives after useReducer (see below) —
-  // it reads `state.statuslinePicker`, which doesn't exist until the reducer
-  // is declared. Keeping it here would reference `state` in the temporal dead
-  // zone ("Cannot access 'state' before initialization").
-
-  // Stream chip auto-expiration code lives after useReducer (see below).
-
   const projectRoot = agent.ctx.projectRoot;
   const liveTodos = useLiveTodos(agent.ctx);
-  const promptUsageRef = useRef<PromptUsageStore | null>(null);
-
-  // Rehydrate prior-session data once for each stable resume payload. App
-  // re-renders continuously while timers, provider deltas, and tool events are
-  // active; replaying the complete JSONL-backed transcript on every such render
-  // creates session-sized temporary maps/arrays that useReducer never consumes
-  // after its initial mount.
-  const restoredMessageSource = restoredMessages ?? agent.ctx.messages;
-  const restoredEntries = useMemo(
-    () => buildRestoredEntries(restoredMessageSource, restoredToolCalls, restoredEvents),
-    [restoredMessageSource, restoredToolCalls, restoredEvents],
-  );
-  // Checkpoints likewise only reach state via the live checkpoint.written
-  // bridge, so a resumed session would have none and /rewind would refuse.
-  const restoredCheckpoints = useMemo(
-    () => buildRestoredCheckpoints(restoredEvents),
-    [restoredEvents],
-  );
-
-  const [state, rawDispatch] = useReducer(
-    reducer,
-    createInitialState({
-      banner,
-      appVersion,
-      provider,
-      model,
-      cwd: agent.ctx.cwd,
-      family,
-      keyTail,
-      sessionId: agent.ctx.session.id,
-      profile,
-      profileConfigPath,
-      autonomyAgents,
-      restoredEntries,
-      restoredCheckpoints,
-      enhanceEnabled,
-      initialAgentsMonitorOpen,
-      initialFleetChat: fleetStreamController?.mode,
-    }),
-  );
-  // Reducer actions created inside the React tree are already constrained by
-  // the Action discriminated union. Do not route them through the validator
-  // for untrusted external payloads: a stale runtime allow-list used to drop
-  // valid UI actions silently (status changes, slash panels, queueing, picker
-  // navigation) and made the entire composer appear frozen.
-  const dispatch = rawDispatch;
-
-  // ── Layout store (virtual-scroll position cache) ────────────────────
-  // Created per session; persists entry height data to disk so resumed
-  // sessions reconstruct the virtual viewport without remounting every entry.
-  // Ephemeral mode is used when no sessionsDir is available (test/adhoc).
-  const layoutStore = useMemo(
-    () =>
-      new LayoutStore({
-        sessionDataDir: sessionsDir,
-        ephemeral: !sessionsDir,
-      }),
-    [sessionsDir],
-  );
-  // On mount: load previously-persisted layout data and start the debounced
-  // flush cycle. Cleanup: flush on unmount so no data is lost.
-  useEffect(() => {
-    void layoutStore.load();
-    return () => {
-      void layoutStore.flushNow();
-    };
-  }, [layoutStore]);
-  // Imperative scroll surface assigned by ScrollableHistory: all scroll math
-  // (wheel, PgUp/PgDn, scrollbar clicks, submit-time re-pin) runs inside the
-  // component, where the live height cache lives. The app only learns about
-  // scroll-state transitions through the stable onScrollInfo callback, which
-  // drives the "managed" key hint.
+  const { state, dispatch, layoutStore } = useAppSessionState({
+    agent, banner, appVersion, provider, model, family, keyTail, profile, profileConfigPath,
+    autonomyAgents, restoredMessages, restoredToolCalls, restoredEvents, enhanceEnabled,
+    initialAgentsMonitorOpen, initialFleetChat: fleetStreamController?.mode, sessionsDir,
+  });
   const historyScrollRef = useRef<HistoryScrollController | null>(null);
   const onScrollInfo = useCallback(
     (info: { scrolled: boolean }) =>
@@ -405,56 +222,15 @@ export function App(props: AppProps): React.ReactElement {
     dispatch,
   });
 
-  // ── AutonomousCoordinator bridge ─────────────────────────────────────
-  // Wire project-level coordinator events into the TUI reducer so the
-  // CoordinatorPanel can render live goals, tasks, and knowledge.
   useAutonomousCoordinator(subscribeCoordinatorEvents, dispatch);
 
-  const builderRef = useRef<InputBuilder | null>(null);
-  if (builderRef.current === null) {
-    builderRef.current = new InputBuilder({ store: attachments });
-  }
-
-  const activeCtrlRef = useRef<AbortController | null>(null);
-  useEffect(
-    () => () => {
-      activeCtrlRef.current?.abort('TUI unmounted');
-      activeCtrlRef.current = null;
-    },
-    [],
-  );
-  const eternalLoopRunningRef = useRef(false);
-  const parallelLoopRunningRef = useRef(false);
-  // `/clear` waits for the complete runBlocks lifecycle before resetting Context.
-  const activeRunSettledRef = useRef<Promise<void>>(Promise.resolve());
-  // Set once we've asked Ink to unmount on a Ctrl+C exit. A synchronous ref
-  // (not React state) because consecutive SIGINTs can fire faster than a
-  // re-render — without it, `stateRef.current.interrupts` reads stale and a
-  // wedged unmount could never escalate to a hard exit.
-  const exitRequestedRef = useRef(false);
-  // Prevent re-entrant handleKey: some terminals emit \r\n as two separate
-  // stdin events for Enter. While the first event is being processed (submit
-  // or picker accept), the second arrives with stale state and would trigger
-  // a duplicate action. The gate blocks the stale-second event entirely.
-  const inputGateRef = useRef(false);
-  // Separate guard JUST for the submit path. The full `inputGateRef`
-  // is held across `await foo()` blocks (picker accept, model picker
-  // commit) — that's fine because those resolve in milliseconds. But
-  // `await submit()` resolves only when `agent.run()` finishes, which
-  // can be minutes for a delegated subagent task. Using the same gate
-  // would lock ALL keystrokes (typing, backspace, slash menu) for the
-  // entire agent run. This timestamp-based guard fires for the few
-  // milliseconds needed to debounce a terminal-side `\r\n` double-event
-  // and then auto-releases — leaving the input live for the user.
-  const lastEnterAtRef = useRef(0);
-  // Maps an inline attachment token (e.g. `[pasted #1, 123 lines]`) to a short
-  // preview of its content, so the chat-history entry can show the collapsed
-  // text below the message. Bounded (count + chars, LRU-evicted) — values hold
-  // full paste/file contents, so an unbounded map would leak MBs per session.
-  const tokenPreviewsRef = useRef(new TokenPreviewStore());
-  // The status-bar chip surfaces the basename so multiple WrongStack
-  // windows running against different repos are immediately distinguishable.
-  // Empty / root fallback to undefined so the chip just hides itself.
+  const {
+    promptUsageRef, builderRef, activeCtrlRef, eternalLoopRunningRef, parallelLoopRunningRef,
+    activeRunSettledRef, exitRequestedRef, inputGateRef, lastEnterAtRef, tokenPreviewsRef,
+    streamingTextRef, streamSegmentsRef, pendingDeltaRef, flushTimerRef, sessionGenerationRef,
+    activeRunGenerationRef, assistantCommittedThisRunRef, stateRef, draftRef, runBlocksRef,
+    lastEscAtRef, dismissedEscAtRef, submitRef,
+  } = useAppRuntimeRefs(attachments, state);
   const projectName = React.useMemo(() => {
     const base = path.basename(projectRoot);
     return base && base !== path.sep ? base : undefined;
@@ -471,36 +247,6 @@ export function App(props: AppProps): React.ReactElement {
     confirmExitRef,
   } = useLiveSettingsState({ getSettings, titleController, chime, confirmExit });
 
-  // Source of truth for the streamed assistant text — kept here, not in
-  // React state, because we need to read it synchronously when `agent.run`
-  // returns. The React `streamingText` shown in the live tail is throttled
-  // (~10fps) for redraw cost, so it can lag the actual stream by up to
-  // FLUSH_MS. Reading from this ref instead removes the race where the
-  // final chunk lands in pending after run() returns and ends up flashing
-  // into the next frame's tail (leaking into scrollback).
-  const streamingTextRef = useRef('');
-  const streamSegmentsRef = useRef<Array<{ kind: 'assistant' | 'thinking'; text: string }>>([]);
-  const pendingDeltaRef = useRef('');
-  const flushTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  // Generations prevent a cooperatively aborted run from writing after `/clear`.
-  const sessionGenerationRef = useRef(0);
-  const activeRunGenerationRef = useRef(0);
-  // Set synchronously by the `provider.response` listener whenever it commits
-  // an assistant text entry during the current run. `runBlocks` reads it after
-  // `agent.run()` returns to decide whether the `finalText` recovery path is
-  // still needed. A ref (not `stateRef`) is mandatory here: the per-iteration
-  // `addEntry` dispatch has NOT been flushed into `stateRef` by the time
-  // runBlocks resumes on the awaited continuation, so a state-based check reads
-  // a stale entry count and re-commits the final message (the "final reply
-  // shown twice" bug).
-  const assistantCommittedThisRunRef = useRef(false);
-
-  // Latest state snapshot — async callbacks (the queue drainer, slash command
-  // closures) read this instead of capturing `state` to avoid stale closures.
-  const stateRef = useRef<State>(state);
-  stateRef.current = state;
-  const draftRef = useRef({ buffer: state.buffer, cursor: state.cursor });
-  draftRef.current = { buffer: state.buffer, cursor: state.cursor };
   const activity = useTuiActivity({
     status: state.status,
     fleet: state.fleet,
@@ -516,22 +262,11 @@ export function App(props: AppProps): React.ReactElement {
     refreshGoalSummary,
   } = activity;
 
-  // Live director accessor. The static `director` prop is captured at boot
-  // and stays null when the fleet host builds its director LAZILY (first
-  // delegate/spawn in a non---director session). Every fleet-teardown path
-  // (Ctrl+C, Esc, /steer) must resolve through this or it silently no-ops
-  // on lazily spawned subagents.
   const liveDirector = useCallback(
     (): Director | null => getDirector?.() ?? director,
     [getDirector, director],
   );
 
-  // Tear down pending tool-confirm panels when a run is aborted. The agent
-  // side resolves the underlying promises as 'abort' via its signal listener
-  // (which fires synchronously inside `activeCtrlRef.abort()`), so the
-  // resolve('no') here is an idempotent belt-and-braces — a settled promise
-  // ignores it — guaranteeing the executor can never stay parked on a dead
-  // prompt. The dispatch returns input routing to the composer.
   const clearPendingConfirms = useCallback(() => {
     const queue = stateRef.current.confirmQueue;
     if (queue.length === 0) return;
@@ -780,7 +515,6 @@ export function App(props: AppProps): React.ReactElement {
   // then silently vanished. The real TUI-side countdown (with execution) is
   // the next-steps auto-submit below.
 
-  const runBlocksRef = useRef<(blocks: ContentBlock[]) => Promise<void>>(async () => undefined);
   const {
     nextStepsAutoSubmitCountdown,
     nextStepsAutoSubmitLabel,
@@ -972,12 +706,6 @@ export function App(props: AppProps): React.ReactElement {
     getDirector: liveDirector,
   });
 
-  // Track double-Esc for input buffer clearing.
-  const lastEscAtRef = useRef(0);
-  // Tracks when EscConfirmPrompt was last dismissed so the main handler
-  // doesn't immediately re-open it on the same keystroke.
-  const dismissedEscAtRef = useRef(0);
-
   useDirectorFleetBridge({
     director,
     dispatch,
@@ -996,10 +724,6 @@ export function App(props: AppProps): React.ReactElement {
     setDraft,
     tokenPreviewsRef,
   });
-
-  // submit is defined later in the component body (after handleKey);
-  // this ref lets usePickerKeys call it without reordering code.
-  const submitRef = useRef<(text?: string) => void>(() => {});
 
   const tryPickerKey = useAppPickerKeys({
     host: props,
@@ -1250,48 +974,14 @@ export function App(props: AppProps): React.ReactElement {
     <AppView
       host={props}
       runtime={{
-        state,
-        dispatch,
-        historyScrollRef,
-        onScrollInfo,
-        activity,
-        environment,
-        statusbar,
-        mailbox,
-        gitInfo,
-        viewState,
-        mouseMode,
-        termRows,
-        bottomRegionRef,
-        statusBarWrapRef,
-        belowStatusBarRef,
-        stableOnKey,
-        liveTodos,
-        liveSettings,
-        liveAnimationStyle,
-        liveStatuslineMode,
-        projectName,
-        workingDirChip,
-        handleRewindTo,
-        activeCtrlRef,
-        clearPendingConfirms,
-        liveDirector,
-        dismissedEscAtRef,
-        enhanceOriginalRef,
-        enhanceStartedAt,
-        enhanceDurationMs,
-        refineProviderId,
-        refineModel,
-        setEnhanceCountdown,
-        enhanceCountdown,
-        nextStepsAutoSubmitCountdown,
-        nextStepsAutoSubmitLabel,
-        setDraft,
-        focusedBoardId,
-        getCronJobs,
-        getLeaderTranscript,
-        coordinatorRunning,
-        enhanceDelayMs,
+        state, dispatch, historyScrollRef, onScrollInfo, activity, environment, statusbar,
+        mailbox, gitInfo, viewState, mouseMode, termRows, bottomRegionRef, statusBarWrapRef,
+        belowStatusBarRef, stableOnKey, liveTodos, liveSettings, liveAnimationStyle,
+        liveStatuslineMode, projectName, workingDirChip, handleRewindTo, activeCtrlRef,
+        clearPendingConfirms, liveDirector, dismissedEscAtRef, enhanceOriginalRef,
+        enhanceStartedAt, enhanceDurationMs, refineProviderId, refineModel, setEnhanceCountdown,
+        enhanceCountdown, nextStepsAutoSubmitCountdown, nextStepsAutoSubmitLabel, setDraft,
+        focusedBoardId, getCronJobs, getLeaderTranscript, coordinatorRunning, enhanceDelayMs,
         layoutStore,
       }}
     />

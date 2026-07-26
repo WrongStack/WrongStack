@@ -1,5 +1,27 @@
 import { describe, expect, it, vi } from 'vitest';
 
+const mockSetupProvider = vi.fn();
+
+vi.mock('../../src/wiring/provider.js', async () => {
+  const actual = await vi.importActual<typeof import('../../src/wiring/provider.js')>('../../src/wiring/provider.js');
+  return {
+    ...actual,
+    setupProvider: mockSetupProvider,
+  };
+});
+
+// Mock @wrongstack/providers so we can force capabilitiesFor to throw
+// and test the graceful fallback. Default: call through to the real impl.
+const mockCapabilitiesFor = vi.fn();
+
+vi.mock('@wrongstack/providers', async () => {
+  const actual = await vi.importActual<typeof import('@wrongstack/providers')>('@wrongstack/providers');
+  return {
+    ...actual,
+    capabilitiesFor: mockCapabilitiesFor.mockImplementation(actual.capabilitiesFor),
+  };
+});
+
 /**
  * PR 4 of Issue #29: mode + provider + modelCapabilities
  * resolution is now in `resolveModeAndCapabilities()`. This
@@ -27,16 +49,6 @@ import { describe, expect, it, vi } from 'vitest';
  * the test doesn't have to wire up a real models registry
  * or a real provider factory.
  */
-
-const mockSetupProvider = vi.fn();
-
-vi.mock('../../src/wiring/provider.js', async () => {
-  const actual = await vi.importActual<typeof import('../../src/wiring/provider.js')>('../../src/wiring/provider.js');
-  return {
-    ...actual,
-    setupProvider: mockSetupProvider,
-  };
-});
 
 const { resolveModeAndCapabilities } = await import('../../src/boot/system-prompt.js');
 import type { Config, Logger, ModelsRegistry } from '@wrongstack/core/types';
@@ -141,14 +153,24 @@ describe('resolveModeAndCapabilities (PR 4 of #29)', () => {
     }
   });
 
-  it.skip('returns modelCapabilities: undefined when capabilitiesFor throws (graceful fallback)', () => {
-    // Skipped: the real `capabilitiesFor` for the mocked
-    // 'test-provider' resolves to a real value, so the
-    // `.catch(() => undefined)` path is unreachable in this
-    // test. To exercise the catch path we'd need to mock
-    // `@wrongstack/providers`, which conflicts with the
-    // setupProvider mock at the top of the file. Tracked as
-    // a follow-up test alongside the integration test in
-    // cli-main-baseline.test.ts.
+  it('returns modelCapabilities: undefined when capabilitiesFor throws (graceful fallback)', async () => {
+    mockCapabilitiesFor.mockRejectedValueOnce(new Error('provider crash'));
+    mockSetupProvider.mockResolvedValueOnce(makeProviderResult());
+    const result = await resolveModeAndCapabilities({
+      config: makeConfig(),
+      modelsRegistry: makeModelsRegistry(),
+      logger: makeLogger(),
+      activeMode: null,
+    });
+    expect(result.kind).toBe('ok');
+    if (result.kind === 'ok') {
+      // When capabilitiesFor rejects, the .catch(() => undefined) in
+      // resolveModeAndCapabilities produces undefined modelCapabilities,
+      // which the system prompt builder treats as "skip model-aware hints".
+      expect(result.modelCapabilities).toBeUndefined();
+      // modeId and prompt are still populated — the provider itself worked.
+      expect(result.modeId).toBe('default');
+      expect(result.modePrompt).toBe('');
+    }
   });
 });

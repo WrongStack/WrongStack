@@ -6,66 +6,25 @@
  * session instances the REPL and eternal-autonomy loop use, then routes
  * browser messages through a `handleMessage` switch.
  *
- * Issue #30 (the webui-server N-PR refactor) pulled the self-contained
- * concerns out of this file into focused `webui-server/*` modules. Where
- * each concern now lives:
+ * Most self-contained concerns live under `webui-server/*`; this file now
+ * assembles CLI-owned instances, route contexts, WebSocket lifecycle, and the
+ * embedded shared router.
  *
- *   webui-server/logger-shim.ts        — console→Logger adapter (PR 1)
- *   webui-server/cost-helpers.ts       — token/usage cost math (PR 2)
- *   webui-server/context-breakdown.ts  — context-window estimation (PR 3)
- *   webui-server/provider-config.ts    — provider-config IO + the
- *                                        ProviderConfigStore facade
- *                                        (PR 4 + follow-up)
- *   webui-server/static-serve.ts       — dist discovery + HTTP bring-up (PR 6)
- *   webui-server/lifecycle.ts          — instance registry, ready banner +
- *                                        open-browser, SIGINT/SIGTERM
- *                                        graceful shutdown (PR 7)
- *   @wrongstack/webui-server           — canonical message dispatcher,
- *                                        route families, and embedded-host
- *                                        capability adapters
- *   webui-server/stream-coalescer.ts   — server-side coalescing of
- *                                        text/thinking deltas + tool
- *                                        progress (PR 9)
- *   webui-server/client-registration.ts — mailbox presence + HQ telemetry
- *                                        heartbeat for this instance (PR 10)
- *   webui-server/session-start-payload.ts — session.start payload builder
- *                                        with cost rates + max context (PR 11)
- *
- * `handleMessage` now only routes: each case unpacks the payload and calls
- * the matching `handleXxx(ctx, …)`. The per-group contexts are all built
- * once (before the WS connection handler is wired, so a fast client message
- * can't reach a handler before its context initializes). The file/memory/
- * mailbox/shell cases delegate to the shared `@wrongstack/webui-server`
- * handlers.
- *
- * Public surface: `runWebUI` plus the `WSServerMessage` / `WSClientMessage`
- * message shapes. Everything else is internal to the run.
+ * Public surface: `runWebUI` plus WS message shapes.
  */
 import type { Server as HttpServer } from 'node:http';
 import { findPackageJSON } from 'node:module';
 import * as os from 'node:os';
 import * as path from 'node:path';
-import type { Agent, Context } from '@wrongstack/core/agent';
-import type { BrainArbiter } from '@wrongstack/core/coordination';
-import type { BrainAutoRisk } from '@wrongstack/core/execution';
-import type { EventBus } from '@wrongstack/core/kernel';
-import type {
-  MemoryPort,
-  ModelsRegistry,
-  ModeStore,
-  PromptLoader,
-  ProviderConfig,
-  SkillLoader,
-} from '@wrongstack/core/types';
-import type { SessionStore, SessionWriter } from '@wrongstack/core/types';
+import type { Context } from '@wrongstack/core/agent';
 import { DefaultSecretScrubber } from '@wrongstack/core/security';
 import { PromptUsageStore, watchProviderConfig } from '@wrongstack/core/storage';
+import type { ProviderConfig } from '@wrongstack/core/types';
 import { resolveWstackPaths, wstackGlobalRoot } from '@wrongstack/core/utils';
 import { TOKENS } from '@wrongstack/core/kernel';
-import { createCompatibilityTrustBoundary, type TrustBoundary } from '@wrongstack/core/security';
+import { createCompatibilityTrustBoundary } from '@wrongstack/core/security';
 import { SkillInstaller } from '@wrongstack/core/skills';
 import { toErrorMessage } from '@wrongstack/core/utils/error';
-import type { MCPRegistry } from '@wrongstack/mcp';
 import { makeProviderFromConfig } from '@wrongstack/providers';
 import {
   type BrainHandlerContext,
@@ -119,12 +78,7 @@ import {
   registerWebuiInstance,
   registerWebuiSignalHandlers,
 } from './webui-server/lifecycle.js';
-// ── Console logger adapter for GoalWebSocketHandler ──────────────────────
-// GoalWebSocketHandler requires a Logger. The CLI uses console.log/error
-// directly, so we adapt that to the Logger interface expected by the handler.
-// PR 1 of Issue #30: extracted to `./webui-server/logger-shim.js`.
 import { consoleLogger } from './webui-server/logger-shim.js';
-// PR 8 of Issue #30: extracted to `./webui-server/prefs-seeding.js`.
 import { createPrefsSeeding, seedConfigToMeta } from './webui-server/prefs-seeding.js';
 import {
   createProviderConfigStore,
@@ -142,189 +96,8 @@ import {
   startIpv6LoopbackProxy,
 } from './webui-server/listen-helpers.js';
 
-/**
- * CLI-shaped webui options. Distinct from the standalone
- * `WebUIOptions` exported by `@wrongstack/webui-server` (which is the
- * type `startWebUI` accepts): the CLI builds its own agent/events/
- * session/etc. up front because the same instances power the
- * eternal-autonomy loop, and just hands the webui the surfaces it
- * needs. This type used to be called `WebUIOptions` too, which
- * caused a name collision with the standalone one whenever both
- * were imported into the same module (the CLI here imports from
- * `@wrongstack/webui-server` for shared helpers, so the collision
- * was a real source of confusion when reading this file).
- */
-export interface CliWebUIOptions {
-  /** Policy authority for privileged WebUI actions. */
-  trustBoundary?: TrustBoundary | undefined;
-  agent: Agent;
-  events: EventBus;
-  statusTracker?: import('@wrongstack/core/coordination').ProviderModelStatusTracker | undefined;
-  session: SessionWriter;
-  /** HTTP port (WS shares it — single-port design). Defaults to 3456. */
-  port?: number | undefined;
-  /** Host/interface to bind HTTP and WS servers. Defaults to 127.0.0.1. */
-  host?: string | undefined;
-  /** HTTP port serving the React frontend. Defaults to 3456 (auto-advances). */
-  httpPort?: number | undefined;
-  /** Alternate frontend dist directory (used by the independent SimpleUI surface). */
-  frontendDistDir?: string | undefined;
-  /** Surface kind: 'webui' (default) or 'simpleui'. Controls port defaults and the instance registry label. */
-  surface?: 'webui' | 'simpleui' | undefined;
-  /** Fixed access token/password. Defaults to WEBUI_TOKEN or random per process. */
-  accessToken?: string | undefined;
-  /** Browser-facing HTTP URL, used when WebUI is exposed behind a tunnel/proxy. */
-  publicUrl?: string | undefined;
-  /** Browser-facing WebSocket URL injected into the frontend. */
-  publicWsUrl?: string | undefined;
-  /** Force token/password protection even on loopback binds. */
-  requireToken?: boolean | undefined;
-  /** Project root — recorded in the running-instance registry. */
-  projectRoot?: string | undefined;
-  /** Full app config, used for HQ client publishing settings. */
-  appConfig?: import('@wrongstack/core/types').Config | undefined;
-  /** Pop the browser open to the served URL once the frontend is ready. */
-  open?: boolean | undefined;
-  /** Read-only worker transcript snapshot used for F5/reconnect replay. */
-  agentTranscripts?:
-    | {
-        getAllSessions(): import('@wrongstack/core/coordination').AgentVirtualSession[];
-        /** Ring + on-disk transcripts, for surfaces that survive a process restart. */
-        loadSessionsFromDisk(): Promise<
-          import('@wrongstack/core/coordination').AgentVirtualSession[]
-        >;
-      }
-    | undefined;
-  /**
-   * Fired once the WebSocket server is accepting connections. Useful for
-   * callers (and tests) that must not connect before the server is ready —
-   * port resolution now makes startup asynchronous, so a synchronous bind can
-   * no longer be assumed.
-   */
-  onListening?: (info: { httpPort: number; wsPort: number; host: string; url: string }) => void;
-  modelsRegistry?: ModelsRegistry | undefined;
-  globalConfigPath?: string | undefined;
-  /** Resolved profile config path: ~/.wrongstack/profiles/<activeProfile>/config.json */
-  profileConfigPath: string;
-  /**
-   * Live MCP registry — the SAME instance the agent loop and `/mcp` use. When
-   * provided, the WebUI MCP settings panel can add/remove/enable/disable and
-   * actually start/stop servers (not just edit config). Threaded in from the
-   * CLI host (`execution.ts`), where the registry is constructed.
-   */
-  mcpRegistry?: MCPRegistry | undefined;
-  /**
-   * Subscribe to live per-iteration events from the eternal-autonomy
-   * engine. When provided, the WebUI broadcasts each iteration to every
-   * connected client. Observability-only — starting the loop still goes
-   * through REPL/TUI or the `--eternal` flag (the WebUI has no slash
-   * command dispatch surface yet).
-   */
-  subscribeEternalIteration?:
-    | ((fn: (entry: import('@wrongstack/core/goal').JournalEntry) => void) => () => void)
-    | undefined;
-  /** Callback to invoke when the WebUI is shut down by a client request. */
-  onExit?: (() => void) | undefined;
-  /**
-   * When true, HQ `run-command` control commands are allowed to route to
-   * this WebUI's agent (still delivered as a steer, so the agent's own
-   * permission policy applies). Mirrors the CLI's `--hq-allow-exec`. Off by
-   * default — without it, HQ run-command is rejected.
-   */
-  hqAllowExec?: boolean | undefined;
-  /**
-   * Per-task agent factory (the host's director-backed `makeSubagentFactory`).
-   * When present, the WebUI exposes the "New SDD Project" wizard, which runs the
-   * same multi-agent fleet as `/sdd execute`. Omitted → wizard is unavailable.
-   */
-  sddSubagentFactory?: import('@wrongstack/core/coordination').AgentFactory | undefined;
-  /** Session store — enables session.resume and session.delete from the WebUI. */
-  sessionStore?: SessionStore | undefined;
-  /** Host Brain arbiter (same instance bound at TOKENS.BrainArbiter). */
-  brain?: BrainArbiter | undefined;
-  /** Host brain settings — the SAME object /brain mutates (shared ceiling + mode). */
-  brainSettings?:
-    | {
-        maxAutoRisk: BrainAutoRisk;
-        mode?: import('@wrongstack/core/coordination').BrainEscalationMode | undefined;
-        poolLabels?: string[] | undefined;
-        councilLabels?: string[] | undefined;
-      }
-    | undefined;
-  /** Live-editable Brain config owner (brain.config.get/set handlers). */
-  brainRuntime?: import('@wrongstack/core/execution').BrainRuntime | undefined;
-  /** Read the host's rolling brain decision log (newest last, ≤20 entries). */
-  getBrainLog?:
-    | (() => Array<{ at: number; kind: string; question: string; outcome: string }>)
-    | undefined;
-  /**
-   * Absolute path to the project's sessions directory (wpaths.projectSessions).
-   * Used by checkpoint/rewind handlers to locate session JSONL files. When
-   * absent, falls back to the legacy <projectRoot>/.wrongstack/sessions path.
-   */
-  sessionsDir?: string | undefined;
-  /**
-   * Called after session.resume swaps the active writer, with the new session
-   * id. The host uses this to re-point crash-recovery state (active.json) at
-   * the session that is now actually being written.
-   */
-  onSessionSwapped?: ((newSessionId: string) => void) | undefined;
-  /** Memory store — enables the Memory panel + chat `/memory` (memory.list) and the structured memory.sage.* operations. */
-  memoryStore?: MemoryPort | undefined;
-  /** Skill loader — enables the SkillsPanel (skills.list). */
-  skillLoader?: SkillLoader | undefined;
-  /** Prompt loader — enables the prompt library (prompts.list/search/content/favorite/create). */
-  promptLoader?: PromptLoader | undefined;
-  /** Mode store — enables the ModePicker (modes.list, mode.switch). */
-  modeStore?: ModeStore | undefined;
-  /** Active agent mode id passed to the frontend via session.start. */
-  modeId?: string | undefined;
-  /**
-   * Host callback invoked after model.switch resolves the active model's
-   * context window. The CLI uses this to refresh the shared auto-compactor
-   * denominator and context chip state.
-   */
-  onModelContextResolved?:
-    | ((providerId: string, modelId: string, maxContext: number) => void)
-    | undefined;
-  /** When true, the frontend shows a provider/model setup screen instead of the chat. */
-  needsSetup?: boolean | undefined;
-  /**
-   * Forward `autonomy.switch` to the CLI's real autonomy state (the same
-   * setter the TUI/REPL use). Without it the switch only lands in
-   * context.meta and the running loop never changes mode.
-   */
-  onAutonomySwitch?: ((mode: string) => void) | undefined;
-  /** Forward browser YOLO changes to the host's live permission policy. */
-  onYoloSwitch?: ((enabled: boolean) => void) | undefined;
-  /** Optional kanban task dispatch hook, backed by the CLI multi-agent host. */
-  onKanbanDispatch?:
-    | ((
-        description: string,
-        opts?: {
-          provider?: string | undefined;
-          model?: string | undefined;
-          fallbackModels?: string[] | undefined;
-          fallbackProfile?: string | undefined;
-          skills?: string[] | undefined;
-          tools?: string[] | undefined;
-          name?: string | undefined;
-          allowedCapabilities?: readonly string[] | undefined;
-          onDone?:
-            | ((result: {
-                status: 'completed' | 'failed';
-                result?: string | undefined;
-                error?: string | undefined;
-              }) => void | Promise<void>)
-            | undefined;
-        },
-      ) => Promise<string>)
-    | undefined;
-}
-
-// ConnectedClient is defined in ./webui-server/connection-handler.ts (PR 14
-// of Issue #30) — imported below alongside createConnectionHandler.
-
+import type { CliWebUIOptions } from './webui-server-options.js';
+export type { CliWebUIOptions } from './webui-server-options.js';
 export async function runWebUI(opts: CliWebUIOptions): Promise<void> {
   const trustBoundary =
     opts.trustBoundary ??
@@ -1223,4 +996,4 @@ export async function runWebUI(opts: CliWebUIOptions): Promise<void> {
   }
 
   return stopped.finally(() => terminalLogView.stop());
-} // end of runWebUI
+}

@@ -213,14 +213,14 @@ describe('DefaultSystemPromptBuilder — H-area guidance section gating', () => 
     });
   });
 
-  describe('H2 — Memory injection count and compactness (skipped — memoryStore plumbing)', () => {
-    // H2 requires a MemoryStore fixture to exercise. The H-area
-    // table above covers presence/absence of static sections;
-    // memory behavior is verified by the parallel-session
-    // `token-saving-memory-injection-size.test.ts` regression test
-    // (committed separately). Skipping duplicate coverage here.
-    it.skip('memory: off=8, minimal=3, light=5, medium=8, aggressive=8 (covered elsewhere)', () => {});
-  });
+  // H2 — Memory injection count and compactness.
+  // Exact item counts (off=8, minimal=3, light=5, medium=8, aggressive=8)
+  // are NOT pinned in this file. The dedicated regression at
+  // token-saving-memory-injection-size.test.ts verifies relative memory-block
+  // sizing (minimal is smallest, off/medium/aggressive roughly equal) and
+  // the aggressive-not-compact guard. The H-area tests above cover static
+  // section presence/absence per compactness tier. If exact count
+  // assertions are needed, add them to the dedicated regression file.
 
   describe('H-comment-code-drift — Mailbox and MCP comments are stale', () => {
     // Documents the discrepancy between the code (which puts

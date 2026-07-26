@@ -15,11 +15,7 @@ import { refsToMarkdown } from '@/stores/file-reference-store.js';
 import { FileMentionPicker, type FileMentionState } from './ChatInput/file-mention-picker.js';
 import { toWireImages } from './ChatInput/image-attachments.js';
 import { QueuedMessages } from './ChatInput/queued-messages.js';
-import {
-  detectAtMention,
-  matchSlash,
-  type SlashCommandDef,
-} from './ChatInput/slash-commands.js';
+import { detectAtMention, matchSlash, type SlashCommandDef } from './ChatInput/slash-commands.js';
 import { SlashCommandPopup } from './ChatInput/slash-popup.js';
 import { runChatSlashCommand } from './ChatInput/slash-routing.js';
 import { usePasteDrop } from './ChatInput/use-paste-drop.js';
@@ -32,19 +28,6 @@ import { DraftTokenCounter } from './ChatInput/draft-token-counter.js';
 import { ImageAttachControl } from './ChatInput/image-attach-control.js';
 import { StopControls } from './ChatInput/stop-controls.js';
 import { ChatInputRefinePanelHost } from './ChatInput/refine-panel-host.js';
-
-/**
- * Decide what the chat input should contain after the refine panel is
- * cancelled (X / Esc / plain cancel) WITHOUT sending anything.
- *
- * Contract:
- *  - If the user already copied a version into the input (so `prev` holds
- *    meaningful text), keep it untouched.
- *  - Otherwise restore the `original` prompt they last typed, which was
- *    cleared to '' at submit time when the panel opened.
- *
- * Exported so the ChatInput handler and its tests share one source of truth.
- */
 export function resolveCancelInput(prev: string, original: string): string {
   return prev.trim() ? prev : original;
 }
@@ -55,61 +38,32 @@ export function ChatInput({
   onOpenBreakdown?: (() => void) | undefined;
 } = {}) {
   const { isLoading, setLoading, addMessage, clearMessages } = useChatStore(
-    useShallow((s) => ({
-      isLoading: s.isLoading,
-      setLoading: s.setLoading,
-      addMessage: s.addMessage,
-      clearMessages: s.clearMessages,
-    })),
+    useShallow((s) => ({ isLoading: s.isLoading, setLoading: s.setLoading, addMessage: s.addMessage, clearMessages: s.clearMessages })),
   );
   const messages = useChatStore((s) => s.messages);
   const openFiles = useFileStore((s) => s.openFiles);
-  /** A "started" chat is one that already has at least one message — i.e.
-   *  the user has sent a prompt at some point and is now either waiting
-   *  for a response or has finished one. While the chat hasn't started yet
-   *  the input only shows `refining` + `submit`; once it has started we
-   *  reveal the send-mode trio (`btw` / `steer` / `queue`) alongside the
-   *  `stop` button. */
   const chatStarted = messages.length > 0;
-  const queue = useChatStore((s) => s.queue);
-  const enqueue = useChatStore((s) => s.enqueue);
-  const removeQueued = useChatStore((s) => s.removeQueued);
-  const clearQueue = useChatStore((s) => s.clearQueue);
-  const setCurrentView = useUIStore((s) => s.setCurrentView);
-  const setPromptLibraryOpen = useUIStore((s) => s.setPromptLibraryOpen);
-  const pushPrompt = useUIStore((s) => s.pushPrompt);
-  const promptHistory = useUIStore((s) => s.promptHistory);
+  const queue = useChatStore((s) => s.queue); const enqueue = useChatStore((s) => s.enqueue);
+  const removeQueued = useChatStore((s) => s.removeQueued); const clearQueue = useChatStore((s) => s.clearQueue);
+  const setCurrentView = useUIStore((s) => s.setCurrentView); const setPromptLibraryOpen = useUIStore((s) => s.setPromptLibraryOpen);
+  const pushPrompt = useUIStore((s) => s.pushPrompt); const promptHistory = useUIStore((s) => s.promptHistory);
   const ws = useWebSocket();
   const { sendMessage, sendAbort, client, refineModel, updatePrefs } = ws;
   const { t } = useAppTranslation();
-  const enhanceEnabled = useLocalPrefs((s) => s.enhanceEnabled);
-  const refinerProvider = useLocalPrefs((s) => s.refinerProvider);
-  const refinerModel = useLocalPrefs((s) => s.refinerModel);
-  const refinerFallbackProfile = useLocalPrefs((s) => s.refinerFallbackProfile);
-  const fallbackProfiles = useLocalPrefs((s) => s.fallbackProfiles);
-  const refinePanel = useUIStore((s) => s.refinePanel);
-  const configProvider = useConfigStore((s) => s.provider);
-  const configModel = useConfigStore((s) => s.model);
-  const promptInsertRequest = useUIStore((s) => s.promptInsertRequest);
-  const clearPromptInsert = useUIStore((s) => s.clearPromptInsert);
-  const setRefinePanel = useUIStore((s) => s.setRefinePanel);
-  const setProcessMonitorOpen = useUIStore((s) => s.setProcessMonitorOpen);
+  const enhanceEnabled = useLocalPrefs((s) => s.enhanceEnabled); const refinerProvider = useLocalPrefs((s) => s.refinerProvider);
+  const refinerModel = useLocalPrefs((s) => s.refinerModel); const refinerFallbackProfile = useLocalPrefs((s) => s.refinerFallbackProfile);
+  const fallbackProfiles = useLocalPrefs((s) => s.fallbackProfiles); const refinePanel = useUIStore((s) => s.refinePanel);
+  const configProvider = useConfigStore((s) => s.provider); const configModel = useConfigStore((s) => s.model);
+  const promptInsertRequest = useUIStore((s) => s.promptInsertRequest); const clearPromptInsert = useUIStore((s) => s.clearPromptInsert);
+  const setRefinePanel = useUIStore((s) => s.setRefinePanel); const setProcessMonitorOpen = useUIStore((s) => s.setProcessMonitorOpen);
   const setQueuePanelOpen = useUIStore((s) => s.setQueuePanelOpen);
-  /** Auto-submit streak reset — called on every manual submit to re-arm the cap. */
   const { reset: resetAutoSubmitStreak } = useAutoSubmitStreak();
 
-  // Refine fallback: while a request is in flight the user's message exists
-  // NOWHERE but the panel. If the backend NEVER answers (dead socket, not a
-  // reported failure — those now surface the recovery panel), close the panel
-  // and send the original so the message can't silently vanish. The window
-  // must exceed the server's own refine timeout (90s, or the extended retry
-  // window) so a slow-but-working refine is never cut short.
   useEffect(() => {
     if (!refinePanel || (refinePanel.status ?? 'refining') !== 'refining') return;
     const window = refinePanel.retried ? 210_000 : 105_000;
     const timer = setTimeout(() => {
       const current = useUIStore.getState().refinePanel;
-      // Re-check: a reply may have landed (or the user decided) meanwhile.
       if (!current || (current.status ?? 'refining') !== 'refining') return;
       setRefinePanel(null);
       toast.info(t('chat:input.refineTimeoutFallback'));
@@ -124,69 +78,32 @@ export function ChatInput({
     }, window);
     return () => clearTimeout(timer);
   }, [refinePanel, client, addMessage, setLoading, sendMessage, setRefinePanel, t]);
-  /** Live context-budget signals — drive the token-estimate chip beside
-   *  the character counter. The estimate uses the universal 4-char-per-token
-   *  heuristic which is wrong by ±25% for natural prose but accurate enough
-   *  to warn the user before they paste a 100k-char file into a 200k window.
-   *  The chip only renders past the threshold so short drafts stay clean. */
   const lastInputTokens = useSessionStore((s) => s.lastInputTokens);
   const maxContext = useSessionStore((s) => s.maxContext);
   const [input, setInput] = useState(() => useUIStore.getState().draftInput ?? '');
   const [slashIndex, setSlashIndex] = useState(0);
-  /** Cursor into promptHistory. -1 = "live input, not browsing history".
-   *  Reset to -1 whenever the user types something that's NOT a history
-   *  navigation. */
   const [historyIdx, setHistoryIdx] = useState(-1);
-  /** Sticky buffer for the live draft the user was composing when they
-   *  first pressed ↑ to enter history mode. Terminal-style prompt recall
-   *  (readline, fish, zsh) saves whatever the user had typed and restores
-   *  it verbatim when ↓ walks back past index 0. Without this slot the
-   *  draft is overwritten on the way in and discarded on the way out, so
-   *  a single ↑↓ cycle silently deletes unsent work. */
   const stickyDraftRef = useRef<string | null>(null);
-  /** Open `@`-mention picker state. We track the starting position of the
-   *  `@` in the textarea so on pick we can replace the partial token
-   *  (`@compa`) with the chosen path. Null = closed. */
   const [atMention, setAtMention] = useState<FileMentionState | null>(null);
-  /** Open state for the "retry refinement with another model" picker. */
   const [refinePickOpen, setRefinePickOpen] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileRefs = useFileReferenceStore((s) => s.refs);
   const { removeRef, clearRefs } = useFileReferenceStore.getState();
   const hasFileRefs = fileRefs.length > 0;
   const {
-    draggingOver,
-    onDragEnter,
-    onDragLeave,
-    onDragOver,
-    onDrop,
-    onTextPaste,
-    pasteHint,
-    pendingImagesRef,
-    pendingImages,
-    addImageFiles,
-    removeImage,
-    clearPendingImages,
-    setPasteHint,
-  } = usePasteDrop({
-    input,
-    textareaRef,
-    setInput,
-    errorText: {
-      tooManyImages: (max) => t('chat:input.tooManyImages', { max }),
-      imageProcessFailed: (name) => t('chat:input.imageProcessFailed', { name }),
-      imageTooLarge: (name) => t('chat:input.imageTooLarge', { name }),
-    },
-  });
-  /** Hidden file input driven by the attach button. */
+    draggingOver, onDragEnter, onDragLeave, onDragOver, onDrop, onTextPaste, pasteHint,
+    pendingImagesRef, pendingImages, addImageFiles, removeImage, clearPendingImages, setPasteHint,
+  } = usePasteDrop({ input, textareaRef, setInput, errorText: {
+    tooManyImages: (max) => t('chat:input.tooManyImages', { max }),
+    imageProcessFailed: (name) => t('chat:input.imageProcessFailed', { name }),
+    imageTooLarge: (name) => t('chat:input.imageTooLarge', { name }),
+  } });
   const imagePickerRef = useRef<HTMLInputElement>(null);
 
-  // Persist draft input to the ui-store so it survives page navigation.
   useEffect(() => {
     useUIStore.getState().setDraftInput(input);
   }, [input]);
 
-  // Prompt library "Insert" pushes its rendered text here; fold it into the input.
   useEffect(() => {
     if (promptInsertRequest == null) return;
     setInput((prev) => (prev.trim() ? `${prev}\n${promptInsertRequest}` : promptInsertRequest));
@@ -220,32 +137,10 @@ export function ChatInput({
         handleNextList,
         handleNextSelect,
       }),
-    [
-      addMessage,
-      clearMessages,
-      client,
-      queue,
-      sendAbort,
-      setLoading,
-      setCurrentView,
-      handleToggleEnhance,
-      setProcessMonitorOpen,
-      setQueuePanelOpen,
-      ws,
-      onOpenBreakdown,
-    ],
+    [addMessage, clearMessages, client, queue, sendAbort, setLoading, setCurrentView, handleToggleEnhance, setProcessMonitorOpen, setQueuePanelOpen, ws, onOpenBreakdown],
   );
 
-  // ── /next helpers ──────────────────────────────────────────────────
 
-  /**
-   * Extract next-step suggestions from an assistant message.
-   *
-   * Preferred source: `message.nextSteps` (parsed at finalize time — the
-   * canonical path going forward). Falls back to re-parsing `content` for
-   * messages persisted before the finalize-time strip landed (old
-   * localStorage transcripts still carry the raw block in content).
-   */
   function stepsFromMessage(m: { content: string; nextSteps?: { steps: Array<{ index: number; text: string }> } | undefined } | undefined): Array<{ index: number; text: string }> {
     if (!m) return [];
     if (m.nextSteps && m.nextSteps.steps.length > 0) {
@@ -268,13 +163,9 @@ export function ChatInput({
     return [];
   }
 
-  /** Send a user message through the agent. */
   function sendMsg(content: string) {
     if (isLoading) {
       const images = pendingImagesRef.current;
-      // Before enqueuing, offer refinement. Call model.refine and
-      // store the pending text so handleModelRefineResult can open
-      // the RefinePanel for the user to approve or reject.
       useChatStore.getState().setPendingRefinement(
         content,
         images.length > 0
@@ -290,17 +181,11 @@ export function ChatInput({
       useChatStore.getState().setRefining(true);
       if (refineModel) {
         refineModel(content, { timeoutMs: 15_000 });
-        // Defensive timeout: if no model.refine_result arrives (dropped WS or
-        // unresponsive server), don't leave the "Refining…" indicator stuck.
-        // 30s = 2× the server timeout as a safety margin for latency/retries.
-        // handleModelRefineResult clears refining on arrival; this is a
-        // last-reset cleanup that is harmless if already cleared.
         setTimeout(() => {
           useChatStore.getState().setRefining(false);
           useChatStore.getState().setPendingRefinement(null);
         }, 30_000);
       } else {
-        // No WS refine available — enqueue directly.
         useChatStore.getState().setPendingRefinement(null);
         useChatStore.getState().setRefining(false);
         enqueue(content, 'queue', images.length > 0 ? images : undefined);
@@ -367,7 +252,6 @@ export function ChatInput({
     };
   }, [client, addMessage, enqueue, sendMessage, setLoading]);
 
-  /** Read next-step suggestions from the last assistant message and show them. */
   function handleNextList(): true {
     const all = useChatStore.getState().messages;
     let lastMsg: { content: string; nextSteps?: { steps: Array<{ index: number; text: string }> } | undefined } | undefined;
@@ -393,7 +277,6 @@ export function ChatInput({
     return true;
   }
 
-  /** Execute the selected next-step item(s) from the last assistant message. */
   function handleNextSelect(input: string): true {
     const steps = stepsFromLastAssistant();
     if (steps.length === 0) {
@@ -426,18 +309,12 @@ export function ChatInput({
     return true;
   }
 
-  // Suggest slash commands as the user types. Only when the buffer is
-  // exactly a slash command head — `/foo bar` shouldn't open the popup.
   const slashSuggestions = input.startsWith('/') && !input.includes(' ') ? matchSlash(input) : [];
 
-  // Reset the highlight when the visible list changes so ↑/↓ always starts
-  // from the top of the new matches.
   useEffect(() => {
     if (slashIndex >= slashSuggestions.length) setSlashIndex(0);
   }, [slashSuggestions.length, slashIndex]);
 
-  /** Direct textarea DOM clear — bypasses useState so the UI updates
-   *  even when React batches the state update. */
   const _clearTextarea = useCallback(() => {
     const ta = textareaRef.current;
     if (ta) {
@@ -450,46 +327,22 @@ export function ChatInput({
     }
   }, [isLoading]);
 
-  /** Core submit path shared by Enter and the three mode buttons.
-   *
-   *  Modes:
-   *  - `btw`    — send the message without interrupting the running agent.
-   *               While idle this is identical to a plain send; while
-   *               running, the message goes through the queue so the
-   *               agent sees it on the next turn boundary.
-   *  - `steer`  — interrupt the running agent, then send. While idle
-   *               this collapses to a plain send (no abort target).
-   *  - `queue`  — always enqueue, regardless of `isLoading`. Held until
-   *               the current run completes, then sent in arrival order.
-   *
-   *  Refine + slash-command paths bypass this entirely — they short-circuit
-   *  before mode is applied. */
   const submitWith = useCallback(
     async (mode: QueueMode) => {
-      // Manual submit re-arms the auto-proceed consecutive cap.
       resetAutoSubmitStreak();
       if (!input.trim() && pendingImagesRef.current.length === 0 && fileRefs.length === 0) return;
 
       const content = input.trim();
-      // Build a content map from files already open in the editor so whole-file
-      // refs can include the actual source code rather than just a bare @path.
       const fileContents: Record<string, string> = {};
       for (const f of openFiles) fileContents[f.path] = f.content;
       const refsMarkdown = refsToMarkdown(fileRefs, fileContents);
       const combined = [content, refsMarkdown].filter(Boolean).join('\n\n');
-      // Snapshot refs and clear them immediately so a rapid second submit
-      // doesn't duplicate the references.
       clearRefs();
 
-      // Slash commands leave attached images pending — they apply to the
-      // NEXT real message, not to the command.
       if (content.startsWith('/') && runSlashCommand(content)) {
         pushPrompt(content);
         setInput('');
         setHistoryIdx(-1);
-        // Submitted content is now in promptHistory; the original draft
-        // (if any) is no longer the "next thing to send", so drop the
-        // sticky buffer to avoid restoring stale text on a later ↓.
         stickyDraftRef.current = null;
         _clearTextarea();
         return;
@@ -502,9 +355,6 @@ export function ChatInput({
       pushPrompt(content);
       _clearTextarea(); // ensure textarea is cleared even if batching delays state
 
-      // Snapshot attached images. They're only cleared at the point of
-      // consumption (enqueue/send) so a dead socket keeps them pending
-      // instead of silently dropping them.
       const images = pendingImagesRef.current;
       const attachments = images.map((img) => ({
         id: img.id,
@@ -515,17 +365,12 @@ export function ChatInput({
         name: img.name,
       }));
 
-      // `queue` mode always enqueues, even when idle. The drain loop
-      // picks it up after the next run.result.
       if (mode === 'queue') {
         enqueue(combined, 'queue', images.length > 0 ? images : undefined);
         clearPendingImages();
         return;
       }
 
-      // `btw` while running enqueues (so the message rides alongside
-      // without interrupting). While idle, it sends normally.
-      // `steer` always tries to interrupt first, then sends.
       const mustSteer = mode === 'steer' && isLoading;
       const mustEnqueue = mode === 'btw' && isLoading;
 
@@ -536,15 +381,11 @@ export function ChatInput({
       }
 
       if (mustSteer) {
-        // Stop the in-flight run so the agent picks up our redirect at
-        // the next turn. sendAbort is a no-op if nothing is running.
         sendAbort();
       }
 
       try {
         if (client?.isConnected) {
-          // Refine only rewrites text — with images attached, send directly
-          // so the attachments can't be dropped by the refine round-trip.
           if (enhanceEnabled && images.length === 0) {
             const profileRef = refinerFallbackProfile
               ? fallbackProfiles[refinerFallbackProfile]?.[0]
@@ -562,13 +403,10 @@ export function ChatInput({
               english: combined,
               status: 'countdown',
               resolve: (_decision) => {
-                // This is called when the refine panel is decided
               },
               provider: displayedProvider,
               model: displayedModel,
             });
-            // refineModel is deferred until the countdown elapses —
-            // onStartRefine (passed to RefinePanel) fires it.
           } else {
             addMessage({
               role: 'user',
@@ -580,8 +418,6 @@ export function ChatInput({
             clearPendingImages();
           }
         } else {
-          // Socket is down: the textarea was already cleared above, so
-          // restore the draft instead of silently dropping the message.
           setInput(combined);
           toast.error(t('chat:input.notConnectedDraftKept'));
           console.warn(
@@ -633,9 +469,6 @@ export function ChatInput({
   const handleSubmit = useCallback(
     (e: React.FormEvent) => {
       e.preventDefault();
-      // Enter (and the form-submit button) default to btw — the softest
-      // mode. Users who want to interrupt or queue explicitly use the
-      // steer / add-queue buttons beside the input.
       void submitWith('btw');
     },
     [submitWith],
@@ -656,10 +489,6 @@ export function ChatInput({
     setLoading(false);
   }, [sendAbort, setLoading]);
 
-  /** "Stop & edit" — abort the in-flight run, then pull the last user
-   *  message back into the input so the user can rewrite the prompt and
-   *  resend. Saves the two-step dance of clicking Abort, waiting for the
-   *  agent to settle, then hunting for the original prompt. */
   const handleStopAndEdit = useCallback(() => {
     sendAbort();
     setLoading(false);
@@ -684,24 +513,12 @@ export function ChatInput({
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-      // Terminal-style prompt history: ↑ pulls the previous user prompt,
-      // ↓ steps forward. Only active when both popups are closed AND the
-      // input is empty OR already showing a history entry. We keep the cursor
-      // ergonomic — once the user starts editing, we drop out of history mode.
       if (slashSuggestions.length === 0 && !atMention && promptHistory.length > 0) {
         if (e.key === 'ArrowUp') {
           const ta = e.currentTarget;
-          // Only steal ↑ if we're on the first line (so multi-line editing
-          // can still navigate within the textarea naturally).
           const beforeCursor = ta.value.slice(0, ta.selectionStart);
           if (historyIdx >= 0 || beforeCursor.indexOf('\n') === -1) {
             e.preventDefault();
-            // Entering history from the live input: snapshot whatever the
-            // user had typed so we can restore it when ↓ walks back past
-            // index 0. Only do this on the first ↑ (historyIdx === -1); if
-            // we're already browsing history the original draft is already
-            // pinned in the ref and we must not overwrite it with the
-            // current history entry.
             if (historyIdx === -1) stickyDraftRef.current = ta.value;
             const next = Math.min(promptHistory.length - 1, historyIdx + 1);
             setHistoryIdx(next);
@@ -722,11 +539,6 @@ export function ChatInput({
           e.preventDefault();
           const next = historyIdx - 1;
           if (next < 0) {
-            // Walked past the oldest entry: restore the live draft the
-            // user was composing before ↑ stole the input. The ref may be
-            // null on the very first ↓ of a session (e.g. ↑ was triggered
-            // programmatically without a draft); fall back to '' in that
-            // edge case so we don't surface `undefined` as a string.
             const restored = stickyDraftRef.current ?? '';
             stickyDraftRef.current = null;
             setHistoryIdx(-1);
@@ -756,9 +568,6 @@ export function ChatInput({
         }
       }
 
-      // Slash popup keyboard navigation: ↑/↓ to select, Tab/Enter to commit,
-      // Esc to dismiss. Matches the TUI's slash menu UX one-for-one so users
-      // moving between surfaces don't have to relearn anything.
       if (slashSuggestions.length > 0) {
         if (e.key === 'ArrowDown') {
           e.preventDefault();
@@ -780,9 +589,6 @@ export function ChatInput({
           return;
         }
         if (e.key === 'Enter' && !e.shiftKey) {
-          // Commit the highlighted suggestion if there's an exact match below
-          // the cursor (or the user hasn't typed a full name yet). Otherwise
-          // fall through to normal submit.
           const pick = slashSuggestions[slashIndex];
           if (pick && pick.name !== input.toLowerCase().trim()) {
             e.preventDefault();
@@ -1048,16 +854,10 @@ export function ChatInput({
               const v = e.target.value;
               setInput(v);
               adjustTextareaHeight();
-              // Manual typing drops us out of history mode so the next
-              // Enter sends the user's edits, not a stale history entry.
-              // The user's new keystrokes have also replaced the original
-              // draft, so the sticky buffer (which would otherwise be
-              // restored by a later ↓) is no longer meaningful — clear it.
               if (historyIdx >= 0) {
                 setHistoryIdx(-1);
                 stickyDraftRef.current = null;
               }
-              // Detect / refresh @-mention based on cursor position.
               const cur = e.target.selectionStart ?? v.length;
               setAtMention(detectAtMention(v, cur));
             }}

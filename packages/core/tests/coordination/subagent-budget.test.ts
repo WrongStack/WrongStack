@@ -293,17 +293,80 @@ describe('SubagentBudget', () => {
     expect(() => b2.recordIteration()).toThrow(BudgetExceededError);
   });
 
-  // NOTE: the three tests below targeted the pre-refactor fire-and-forget
-  // handler API (sync return of 'continue' / 'stop' / { extend }). The
-  // current contract throws `BudgetThresholdSignal` synchronously from
-  // checkLimit and requires an EventBus listener on
-  // `budget.threshold_reached` (typically wired by agent-subagent-runner)
-  // to actually drive the handler. Without that listener, checkLimit hard-
-  // fails with BudgetExceededError. End-to-end coverage of the negotiation
-  // path lives in agent-subagent-runner / director integration tests.
-  it.skip('checkLimitAsync _onThreshold returns continue → returns without throwing', () => {});
-  it.skip('checkLimitAsync _onThreshold returns Promise with stop → throws BudgetExceededError', () => {});
-  it.skip('checkLimitAsync _onThreshold returns Promise with extend → extends limits and continues', () => {});
+  // Async negotiation via EventBus listener — the three outcomes the
+  // listener can produce: deny (stop), extend with empty (continue),
+  // and extend with raised limits (grant).
+  it('bus listener denies → decision resolves to stop', async () => {
+    const bus = new EventBus();
+    bus.on('budget.threshold_reached', (payload) => {
+      payload.deny();
+    });
+    const b = new SubagentBudget({ maxIterations: 2 }, 'auto');
+    (b as never as { _events: EventBus })._events = bus;
+    b.onThreshold = ({ requestDecision }) => requestDecision();
+    b.recordIteration();
+    b.recordIteration();
+
+    let signal: BudgetThresholdSignal | null = null;
+    try {
+      b.recordIteration();
+    } catch (e) {
+      signal = e as BudgetThresholdSignal;
+    }
+    expect(signal).toBeInstanceOf(BudgetThresholdSignal);
+    const decision = await signal!.decision;
+    expect(decision).toBe('stop');
+    // Limits unchanged — deny does not patch.
+    expect(b.limits.maxIterations).toBe(2);
+  });
+
+  it('bus listener extends with empty object → decision is continue (limits unchanged)', async () => {
+    const bus = new EventBus();
+    bus.on('budget.threshold_reached', (payload) => {
+      payload.extend({});
+    });
+    const b = new SubagentBudget({ maxIterations: 2 }, 'auto');
+    (b as never as { _events: EventBus })._events = bus;
+    b.onThreshold = ({ requestDecision }) => requestDecision();
+    b.recordIteration();
+    b.recordIteration();
+
+    let signal: BudgetThresholdSignal | null = null;
+    try {
+      b.recordIteration();
+    } catch (e) {
+      signal = e as BudgetThresholdSignal;
+    }
+    expect(signal).toBeInstanceOf(BudgetThresholdSignal);
+    const decision = await signal!.decision;
+    expect(decision).toEqual({ extend: {} });
+    // Empty extend = continue without raising limits.
+    expect(b.limits.maxIterations).toBe(2);
+  });
+
+  it('bus listener extends with new limits → decision patches limits in-place', async () => {
+    const bus = new EventBus();
+    bus.on('budget.threshold_reached', (payload) => {
+      payload.extend({ maxIterations: 50 });
+    });
+    const b = new SubagentBudget({ maxIterations: 2 }, 'auto');
+    (b as never as { _events: EventBus })._events = bus;
+    b.onThreshold = ({ requestDecision }) => requestDecision();
+    b.recordIteration();
+    b.recordIteration();
+
+    let signal: BudgetThresholdSignal | null = null;
+    try {
+      b.recordIteration();
+    } catch (e) {
+      signal = e as BudgetThresholdSignal;
+    }
+    expect(signal).toBeInstanceOf(BudgetThresholdSignal);
+    const decision = await signal!.decision;
+    expect(decision).toEqual({ extend: { maxIterations: 50 } });
+    // Limits are patched in-place by _negotiateExtension.
+    expect(b.limits.maxIterations).toBe(50);
+  });
 
   it('BudgetThresholdSignal constructor sets all fields', async () => {
     const decision = Promise.resolve('stop');

@@ -1,5 +1,4 @@
 import type {
-  DesktopProjectEntry,
   DesktopRuntimeRecord,
   DesktopStateSnapshot,
   DesktopWebuiStatusSnapshot,
@@ -8,6 +7,26 @@ import type {
 import { getLocale, onLocaleChange, setLocale, SUPPORTED_LOCALES, t } from './i18n.js';
 import { iconSvg } from './icons.js';
 import type { IconName } from './icons.js';
+import {
+  basenameFromPath,
+  dedupeProjects,
+  escapeAttr,
+  escapeHtml,
+  parseDesktopPanel,
+  parseProjectPickerTab,
+  type DesktopPanel,
+  type ProjectPickerTab,
+} from './renderer-utils.js';
+import {
+  groupRuntimesByProject,
+  renderRuntimeGroup,
+  runtimeGroupIsOpen,
+  type RuntimeGroupRenderContext,
+} from './renderer-runtime-groups.js';
+import {
+  renderProjectPicker,
+  type ProjectPickerRenderContext,
+} from './renderer-project-picker.js';
 import './styles.css';
 
 /** Locale code → endonym (shown untranslated so a user finds their language in
@@ -40,9 +59,6 @@ const RUNTIME_GROUP_STORAGE_KEY = 'wrongstack.desktop.runtimeGroups';
 const SHELL_SIDEBAR_STORAGE_KEY = 'wrongstack.desktop.sidebarCollapsed';
 const DESKTOP_PANEL_STORAGE_KEY = 'wrongstack.desktop.panel';
 const PROJECT_TAB_STORAGE_KEY = 'wrongstack.desktop.projectTab';
-type DesktopPanel = 'workspace' | 'projects' | 'quick';
-type ProjectPickerTab = 'recent' | 'registered' | 'all';
-type ProjectPickerVariant = 'dock' | 'full' | 'embedded';
 let runtimeGroupState = readRuntimeGroupState();
 let shellSidebarCollapsed = readShellSidebarCollapsed();
 let desktopPanel: DesktopPanel = readDesktopPanel();
@@ -57,14 +73,6 @@ interface LauncherFeedback {
   label: string;
   commandKey?: string | undefined;
   message?: string | undefined;
-}
-
-interface RuntimeProjectGroup {
-  key: string;
-  name: string;
-  root: string;
-  kind: DesktopRuntimeRecord['kind'];
-  sessions: DesktopRuntimeRecord[];
 }
 
 function activeRuntime(): DesktopRuntimeRecord | undefined {
@@ -235,7 +243,7 @@ function renderPaneBody(active: DesktopRuntimeRecord | undefined): string {
         ${renderRuntimeList()}
       </div>
       <div class="workspace-projects">
-        ${renderProjectPicker('dock')}
+        ${renderProjectPicker('dock', projectPickerRenderContext())}
       </div>
     </div>
   `;
@@ -246,7 +254,7 @@ function renderProjectsMenu(): string {
     <div class="projects-menu-stack">
       ${renderLauncherFeedback()}
       ${renderProjectSessionTree()}
-      ${renderProjectPicker('embedded')}
+      ${renderProjectPicker('embedded', projectPickerRenderContext())}
     </div>
   `;
 }
@@ -385,157 +393,17 @@ function renderLauncher(active: DesktopRuntimeRecord | undefined): string {
   `;
 }
 
-function renderProjectPicker(variant: ProjectPickerVariant): string {
-  const recentProjects = dedupeProjects(state.recentProjects);
-  const registeredProjects = dedupeProjects(state.registeredProjects);
-  const allProjects = dedupeProjects([...registeredProjects, ...recentProjects]);
-  const tabProjects =
-    projectPickerTab === 'recent'
-      ? recentProjects
-      : projectPickerTab === 'registered'
-        ? registeredProjects
-        : allProjects;
-  const query = projectSearch.trim();
-  const filteredProjects = query
-    ? tabProjects.filter((project) => projectMatchesSearch(project, query))
-    : tabProjects;
-  const limit = variant === 'dock' ? 8 : variant === 'embedded' ? 18 : 48;
-  const visibleProjects = filteredProjects.slice(0, limit);
-  const visibleTotal = visibleProjects.length;
-  const filteredTotal = filteredProjects.length;
-  const total = allProjects.length;
-  return `
-    <section class="panel projects-panel projects-panel-${variant}">
-      <header class="panel-header projects-header">
-        <span>${t('projects')}</span>
-        <span class="panel-header-actions">
-          <span class="count">${visibleTotal}/${filteredTotal || total}</span>
-          <button class="panel-header-button" title="${t('registerProjectFolder')}" data-action="register-project" ${busy ? 'disabled' : ''}>
-            ${iconSvg('folder-plus')}
-          </button>
-        </span>
-      </header>
-      <div class="project-picker">
-        ${renderProjectTabs(recentProjects.length, registeredProjects.length, allProjects.length)}
-        <div class="project-search-row">
-          ${iconSvg('search')}
-          <input
-            class="project-search-input"
-            type="search"
-            value="${escapeAttr(projectSearch)}"
-            placeholder="${t('findProject')}"
-            aria-label="${t('findProject')}"
-            autocomplete="off"
-            spellcheck="false"
-          />
-          ${
-            projectSearch
-              ? `<button class="project-search-clear" title="${t('clearProjectSearch')}" data-action="clear-project-search">${iconSvg('x')}</button>`
-              : ''
-          }
-        </div>
-        ${
-          variant === 'full' || variant === 'embedded'
-            ? `<div class="project-picker-actions">
-          <button class="secondary-action compact-action" data-action="open-project" ${busy ? 'disabled' : ''}>
-            ${iconSvg('folder')}<span>${t('open')}</span>
-          </button>
-          <button class="secondary-action compact-action" data-action="register-project" ${busy ? 'disabled' : ''}>
-            ${iconSvg('folder-plus')}<span>${t('register')}</span>
-          </button>
-        </div>`
-            : ''
-        }
-        ${
-          visibleProjects.length === 0
-            ? `<div class="empty compact-empty">${total === 0 ? t('noRegisteredProjects') : t('noMatchingProjects')}</div>`
-            : `<div class="project-list">${visibleProjects.map(renderProjectItem).join('')}</div>`
-        }
-      </div>
-    </section>
-  `;
-}
-
-function renderProjectTabs(recentCount: number, registeredCount: number, allCount: number): string {
-  return `
-    <div class="project-tabs" role="tablist" aria-label="${t('projectLists')}">
-      ${renderProjectTab('recent', t('recent'), recentCount)}
-      ${renderProjectTab('registered', t('registered'), registeredCount)}
-      ${renderProjectTab('all', t('all'), allCount)}
-    </div>
-  `;
-}
-
-function renderProjectTab(tab: ProjectPickerTab, label: string, count: number): string {
-  const active = projectPickerTab === tab;
-  return `
-    <button
-      class="project-tab ${active ? 'active' : ''}"
-      data-action="set-project-tab"
-      data-project-tab="${escapeAttr(tab)}"
-      role="tab"
-      aria-selected="${active ? 'true' : 'false'}"
-    >
-      <span>${escapeHtml(label)}</span>
-      <span>${count}</span>
-    </button>
-  `;
-}
-
-function renderProjectItem(project: DesktopProjectEntry): string {
-  const openRuntime = state.runtimes.find((runtime) => sameProjectRoot(runtime.root, project.root));
-  const registered = state.registeredProjects.some((item) => sameProjectRoot(item.root, project.root));
-  const recent = state.recentProjects.some((item) => sameProjectRoot(item.root, project.root));
-  const title = project.name || basenameFromPath(project.root) || project.root;
-  const subtitle = project.lastWorkingDir || project.root;
-  const actionLabel = openRuntime ? t('quickView') : registered ? t('openRegisteredProject') : t('openProject');
-  return `
-    <div class="project-item-row ${openRuntime ? 'open' : ''} ${registered ? 'registered' : ''} ${recent ? 'recent' : ''}">
-      <button
-        class="project-item-main"
-        data-action="${openRuntime ? 'activate' : 'open-project-path'}"
-        ${openRuntime ? `data-runtime="${escapeAttr(openRuntime.id)}"` : `data-project-root="${escapeAttr(project.root)}"`}
-        title="${escapeAttr(`${actionLabel} · ${project.root}`)}"
-      >
-        ${iconSvg(openRuntime ? 'project' : registered ? 'folder-plus' : 'folder')}
-        <span class="project-item-copy">
-          <span class="project-item-title">${escapeHtml(title)}</span>
-          <span class="project-item-path">${escapeHtml(subtitle)}</span>
-        </span>
-        <span class="project-source-tags">
-          ${registered ? `<span class="project-source-tag registered-tag">${t('registered')}</span>` : ''}
-          ${recent ? `<span class="project-source-tag recent-tag">${t('recent')}</span>` : ''}
-        </span>
-        ${openRuntime ? `<span class="project-open-dot" title="${t('open')}"></span>` : ''}
-      </button>
-      ${
-        registered
-          ? `<button
-        class="project-remove-button"
-        data-action="unregister-project"
-        data-project-root="${escapeAttr(project.root)}"
-        title="${t('removeFromProjectRegistry')}"
-        aria-label="${t('removeFromProjectRegistry')}"
-      >
-        ${iconSvg('x')}
-      </button>`
-          : '<span></span>'
-      }
-    </div>
-  `;
-}
-
-function projectMatchesSearch(project: DesktopProjectEntry, query: string): boolean {
-  const haystack = [
-    project.name,
-    project.root,
-    project.slug,
-    project.lastWorkingDir,
-  ]
-    .filter(Boolean)
-    .join(' ')
-    .toLowerCase();
-  return haystack.includes(query.toLowerCase());
+function projectPickerRenderContext(): ProjectPickerRenderContext {
+  return {
+    busy,
+    projectPickerTab,
+    projectSearch,
+    recentProjects: state.recentProjects,
+    registeredProjects: state.registeredProjects,
+    runtimes: state.runtimes,
+    t,
+    iconSvg,
+  };
 }
 
 function renderLauncherFeedback(): string {
@@ -593,7 +461,8 @@ function renderShortcut(
 }
 
 function renderRuntimeList(): string {
-  const groups = groupRuntimesByProject(state.runtimes);
+  const groups = groupRuntimesByProject(state.runtimes, t);
+  const runtimeCtx = runtimeRenderContext();
   return `
     <section class="panel runtime-panel">
       <header class="panel-header">
@@ -604,7 +473,7 @@ function renderRuntimeList(): string {
         ${
           state.runtimes.length === 0
             ? `<div class="empty">${t('none')}</div>`
-            : groups.map(renderRuntimeGroup).join('')
+            : groups.map((group) => renderRuntimeGroup(group, runtimeCtx)).join('')
         }
       </div>
     </section>
@@ -612,7 +481,8 @@ function renderRuntimeList(): string {
 }
 
 function renderProjectSessionTree(): string {
-  const groups = groupRuntimesByProject(state.runtimes).filter((group) => group.kind === 'project');
+  const groups = groupRuntimesByProject(state.runtimes, t).filter((group) => group.kind === 'project');
+  const runtimeCtx = runtimeRenderContext();
   return `
     <section class="panel runtime-panel project-sessions-panel">
       <header class="panel-header">
@@ -623,169 +493,22 @@ function renderProjectSessionTree(): string {
         ${
           groups.length === 0
             ? `<div class="empty compact-empty">${state.restoring ? `${t('restoring')}...` : t('noOpenProjectSessions')}</div>`
-            : groups.map(renderRuntimeGroup).join('')
+            : groups.map((group) => renderRuntimeGroup(group, runtimeCtx)).join('')
         }
       </div>
     </section>
   `;
 }
 
-function groupRuntimesByProject(runtimes: DesktopRuntimeRecord[]): RuntimeProjectGroup[] {
-  const groups = new Map<string, RuntimeProjectGroup>();
-  for (const runtime of runtimes) {
-    const key = runtimeProjectKey(runtime);
-    const existing = groups.get(key);
-    if (existing) {
-      existing.sessions.push(runtime);
-      continue;
-    }
-    groups.set(key, {
-      key,
-      name: runtime.kind === 'global-settings' ? t('globalSettings') : basenameFromPath(runtime.root) || runtime.name,
-      root: runtime.root,
-      kind: runtime.kind,
-      sessions: [runtime],
-    });
-  }
-  return [...groups.values()];
-}
-
-function runtimeProjectKey(runtime: DesktopRuntimeRecord): string {
-  if (runtime.kind === 'global-settings') return 'global-settings';
-  return `${runtime.kind}:${normalizeRuntimeRoot(runtime.root) || runtime.id}`;
-}
-
-function normalizeRuntimeRoot(root: string): string {
-  return root.replace(/\\/g, '/').replace(/\/+$/g, '').trim().toLowerCase();
-}
-
-function sameProjectRoot(left: string, right: string): boolean {
-  return normalizeRuntimeRoot(left) === normalizeRuntimeRoot(right);
-}
-
-function dedupeProjects(projects: DesktopProjectEntry[]): DesktopProjectEntry[] {
-  const seen = new Set<string>();
-  const next: DesktopProjectEntry[] = [];
-  for (const project of projects) {
-    const key = normalizeRuntimeRoot(project.root);
-    if (!key || seen.has(key)) continue;
-    seen.add(key);
-    next.push(project);
-  }
-  return next;
-}
-
-function basenameFromPath(root: string): string {
-  const normalized = root.replace(/\\/g, '/').replace(/\/+$/g, '').trim();
-  if (!normalized) return root;
-  return normalized.split('/').filter(Boolean).pop() ?? normalized;
-}
-
-function renderRuntimeGroup(group: RuntimeProjectGroup): string {
-  const active = group.sessions.some((runtime) => runtime.id === state.activeRuntimeId);
-  const firstSession = group.sessions[0];
-  const open = runtimeGroupIsOpen(group);
-  const sessionLabel = group.sessions.length === 1 ? '1 session' : `${group.sessions.length} sessions`;
-  return `
-    <div class="runtime-project-group ${active ? 'active' : ''} ${open ? 'open' : 'collapsed'}" data-runtime-group="${escapeAttr(group.key)}">
-      <div class="runtime-project-header">
-        <button
-          class="runtime-project-toggle"
-          data-action="toggle-runtime-group"
-          data-runtime-group-key="${escapeAttr(group.key)}"
-          aria-expanded="${open ? 'true' : 'false'}"
-          title="${escapeAttr(group.root)}"
-        >
-          <span class="runtime-chevron">${iconSvg('chevron')}</span>
-          ${iconSvg(group.kind === 'global-settings' ? 'settings' : 'folder')}
-          <span class="runtime-project-copy">
-            <span class="runtime-name">${escapeHtml(group.name)}</span>
-            <span class="runtime-path">${escapeHtml(group.root)}</span>
-          </span>
-          ${renderRuntimeGroupStatus(group)}
-          <span class="runtime-session-count">${escapeHtml(sessionLabel)}</span>
-        </button>
-        ${
-          group.kind === 'project' && firstSession
-            ? `<button class="icon-button runtime-add-session" title="${t('newSession')}" data-action="new-project-session" data-runtime="${escapeAttr(firstSession.id)}">
-          ${iconSvg('plus')}
-        </button>`
-            : ''
-        }
-      </div>
-      ${
-        open
-          ? `<div class="runtime-session-list">
-        ${group.sessions.map((runtime, index) => renderRuntimeSession(runtime, index + 1)).join('')}
-      </div>`
-          : ''
-      }
-    </div>
-  `;
-}
-
-function runtimeGroupIsOpen(group: RuntimeProjectGroup): boolean {
-  if (group.sessions.some((runtime) => runtime.id === state.activeRuntimeId)) return true;
-  const stored = runtimeGroupState[group.key];
-  if (typeof stored === 'boolean') return stored;
-  return state.runtimes.length === group.sessions.length;
-}
-
-function renderRuntimeGroupStatus(group: RuntimeProjectGroup): string {
-  const statuses: DesktopRuntimeRecord['status'][] = ['error', 'starting', 'running', 'stopped'];
-  const activeStatuses = statuses.filter((status) =>
-    group.sessions.some((runtime) => runtime.status === status),
-  );
-  return `
-    <span class="runtime-status-stack" aria-hidden="true">
-      ${activeStatuses
-        .map((status) => `<span class="status-dot status-${escapeAttr(status)}"></span>`)
-        .join('')}
-    </span>
-  `;
-}
-
-function renderRuntimeSession(runtime: DesktopRuntimeRecord, index: number): string {
-  const isActive = runtime.id === state.activeRuntimeId;
-  const label = runtime.kind === 'global-settings' ? t('settings') : `Session ${index}`;
-  const meta = runtime.status === 'error'
-    ? runtime.error ?? t('error')
-    : `HTTP ${runtime.httpPort} · WS ${runtime.wsPort}`;
-  const disabled = runtime.status === 'running' ? '' : 'disabled';
-  return `
-    <div class="runtime-session-row ${isActive ? 'active' : ''}">
-      <button class="runtime-session-main" data-action="activate" data-runtime="${escapeAttr(runtime.id)}" title="${escapeAttr(runtime.root)}">
-        <span class="status-dot status-${runtime.status}"></span>
-        <span class="runtime-session-copy">
-          <span class="runtime-session-title">${escapeHtml(label)}</span>
-          <span class="runtime-session-meta">${escapeHtml(meta)}</span>
-        </span>
-      </button>
-      <div class="runtime-session-actions" aria-label="${escapeAttr(label)} actions">
-        <button class="runtime-session-action primary" title="${t('quickView')}" data-action="activate" data-runtime="${escapeAttr(runtime.id)}">
-          ${iconSvg('monitor')}<span>${t('quick')}</span>
-        </button>
-        <button class="runtime-session-action" title="${t('openChat')}" data-action="session-webui-command" data-runtime="${escapeAttr(runtime.id)}" data-command="${escapeAttr(launcherCommandKey({ activity: 'chat', view: 'chat' }))}" data-label="Chat" ${disabled}>
-          ${iconSvg('message')}<span>${t('chat')}</span>
-        </button>
-        <button class="runtime-session-action" title="${t('openTerminal')}" data-action="session-webui-command" data-runtime="${escapeAttr(runtime.id)}" data-command="${escapeAttr(launcherCommandKey({ terminal: 'toggle' }))}" data-label="Terminal" ${disabled}>
-          ${iconSvg('terminal')}<span>${t('term')}</span>
-        </button>
-        <button class="runtime-session-action" title="${t('openFiles')}" data-action="session-webui-command" data-runtime="${escapeAttr(runtime.id)}" data-command="${escapeAttr(launcherCommandKey({ activity: 'files', view: 'files' }))}" data-label="Files" ${disabled}>
-          ${iconSvg('files')}<span>${t('files')}</span>
-        </button>
-        <button class="runtime-session-icon" title="${t('openInBrowser')}" data-action="open-browser" data-runtime="${escapeAttr(runtime.id)}" ${disabled}>
-          ${iconSvg('external')}
-        </button>
-        <button class="runtime-session-icon" title="${t('refresh')}" data-action="session-reload-webui" data-runtime="${escapeAttr(runtime.id)}" ${disabled}>
-          ${iconSvg('refresh')}
-        </button>
-        <button class="runtime-session-icon danger" title="${t('closeSession')}" data-action="close" data-runtime="${escapeAttr(runtime.id)}">
-          ${iconSvg('x')}
-        </button>
-      </div>
-    </div>
-  `;
+function runtimeRenderContext(): RuntimeGroupRenderContext {
+  return {
+    activeRuntimeId: state.activeRuntimeId,
+    allRuntimeCount: state.runtimes.length,
+    runtimeGroupState,
+    t,
+    iconSvg,
+    launcherCommandKey,
+  };
 }
 
 function renderStage(active: DesktopRuntimeRecord | undefined): string {
@@ -1028,9 +751,9 @@ appRoot.addEventListener('click', (event) => {
   if (action === 'toggle-runtime-group') {
     const key = actionTarget.dataset.runtimeGroupKey;
     if (!key) return;
-    const group = groupRuntimesByProject(state.runtimes).find((item) => item.key === key);
+    const group = groupRuntimesByProject(state.runtimes, t).find((item) => item.key === key);
     if (!group) return;
-    runtimeGroupState = { ...runtimeGroupState, [key]: !runtimeGroupIsOpen(group) };
+    runtimeGroupState = { ...runtimeGroupState, [key]: !runtimeGroupIsOpen(group, runtimeRenderContext()) };
     writeRuntimeGroupState();
     render();
     return;
@@ -1091,18 +814,6 @@ onLocaleChange(() => render());
 void refresh();
 void window.wrongstackDesktop.setShellSidebarCollapsed(shellSidebarCollapsed);
 
-function escapeHtml(value: string): string {
-  return value
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;');
-}
-
-function escapeAttr(value: string): string {
-  return escapeHtml(value).replace(/'/g, '&#39;');
-}
-
 function toErrorMessage(value: unknown): string {
   if (value instanceof Error) return value.message;
   if (typeof value === 'string') return value;
@@ -1159,14 +870,6 @@ function readLocalStorageValue(key: string): string | null {
   } catch {
     return null;
   }
-}
-
-function parseDesktopPanel(value: unknown): DesktopPanel | null {
-  return value === 'workspace' || value === 'projects' || value === 'quick' ? value : null;
-}
-
-function parseProjectPickerTab(value: unknown): ProjectPickerTab | null {
-  return value === 'recent' || value === 'registered' || value === 'all' ? value : null;
 }
 
 function readBooleanRecord(key: string): Record<string, boolean> {

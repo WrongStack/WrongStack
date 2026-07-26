@@ -1,137 +1,31 @@
 import os from 'node:os';
-import type { Config, ModelsDevModel, ModelsRegistry, ResolvedProvider } from '@wrongstack/core/types';
+import type { Config, ModelsRegistry, ResolvedProvider } from '@wrongstack/core/types';
 import { color, expectDefined, setOutputLineGuard, setRawMode, stripAnsi, writeOut } from '@wrongstack/core/utils';
 import { toErrorMessage } from '@wrongstack/core/utils';
 import { LOCAL_LLM_PRESETS } from './auth-menu/local-presets.js';
 import { appendHistory, backupCurrent } from './config-history.js';
 import type { ReadlineInputReader } from './input-reader.js';
+import { applyPickerKey, type ProviderPickerState } from './picker-key-state.js';
+import {
+  LIVE_PICKER_MAX_VISIBLE,
+  runLiveModelPicker,
+} from './picker-model-picker.js';
+import {
+  boxBottom,
+  boxDivider,
+  boxRow,
+  boxTop,
+  codexPickerPreamble,
+  keyHints,
+  padVisible,
+  theme,
+} from './picker-ui.js';
 import { hasApiKey, isKeylessLocalProvider, visibleModelIds } from './provider-helpers.js';
 import type { TerminalRenderer } from './renderer.js';
 
-// Picker theme — a small, self-contained palette so the launch model picker
-// looks intentional without pulling in the full theme module. The accent is
-// amber (WrongStack's brand color); chrome is drawn dim/gray so the content
-// carries the emphasis.
-const theme = {
-  accent: color.amber,
-  chrome: color.gray,
-  cursor: (s: string): string => color.amber(color.bold(s)),
-  ctx: color.cyan,
-  cost: color.green,
-  caps: color.magenta,
-};
-
-/** Box-drawing glyphs for the picker frame (rounded corners). */
-const BOX = {
-  tl: '╭',
-  tr: '╮',
-  bl: '╰',
-  br: '╯',
-  h: '─',
-  v: '│',
-} as const;
-
-/**
- * Inner content width of the picker box, in columns. Fixed default used when
- * the terminal width is unknown (non-TTY: CI, piped stdin, tests) so those
- * render paths stay deterministic. Also the lower clamp bound — the box never
- * shrinks below this even in a very narrow terminal, since the model columns
- * (id 34 + ctx 6 + cost 12 + caps) need the room.
- */
-const PICKER_MIN_WIDTH = 74;
-
-/**
- * Upper clamp bound. On very wide terminals the box stops growing here so the
- * content (left-aligned columns) doesn't stretch into an unreadable full-screen
- * band; the extra terminal space is left as margin on the right.
- */
-const PICKER_MAX_WIDTH = 100;
-
-/**
- * Resolve the box's inner content width from the live terminal. Adapts to
- * `process.stdout.columns` when it's a TTY with a known width, clamped to
- * [PICKER_MIN_WIDTH, PICKER_MAX_WIDTH] and inset by 2 columns so the box (which
- * renders 2 columns wider than its inner width: the left+right borders) fits
- * without wrapping. Falls back to PICKER_MIN_WIDTH when columns is undefined —
- * this keeps non-TTY output (CI, pipes, tests) at a stable, deterministic
- * width. Called by every box helper; within one synchronous render pass the
- * terminal width is stable, so all borders line up.
- */
-function pickerWidth(): number {
-  const cols = process.stdout.columns;
-  if (typeof cols !== 'number' || !Number.isFinite(cols) || cols <= 0) {
-    return PICKER_MIN_WIDTH;
-  }
-  // Reserve 2 columns for the box's own border characters.
-  const inner = cols - 2;
-  return Math.max(PICKER_MIN_WIDTH, Math.min(PICKER_MAX_WIDTH, inner));
-}
-
-/** Visible width of a string, ignoring ANSI color escapes. */
-function visibleWidth(s: string): number {
-  return stripAnsi(s).length;
-}
-
-/**
- * Right-pad a (possibly colorized) string to `width` visible columns. ANSI
- * escapes have zero display width, so we measure with `visibleWidth` and add
- * literal spaces after the (already-terminated) colored segment. Truncates
- * with an ellipsis when the visible content is wider than `width`.
- */
-function padVisible(s: string, width: number): string {
-  const w = visibleWidth(s);
-  if (w === width) return s;
-  if (w < width) return s + ' '.repeat(width - w);
-  // Too wide: truncate the plain text and re-emit (drops color on overflow,
-  // which only happens for pathologically long ids in a narrow terminal).
-  const plain = stripAnsi(s);
-  return `${plain.slice(0, Math.max(0, width - 1))}…`;
-}
-
-/** Top border with an embedded, accented title: `╭─ Title ───────╮`. */
-function boxTop(title: string): string {
-  const width = pickerWidth();
-  const label = ` ${title} `;
-  const pad = Math.max(0, width - visibleWidth(label) - 1);
-  return theme.chrome(
-    `${BOX.tl}${BOX.h}${theme.accent(color.bold(label))}${theme.chrome(BOX.h.repeat(pad))}${BOX.tr}`,
-  );
-}
-
-/** Bottom border. */
-function boxBottom(): string {
-  return theme.chrome(`${BOX.bl}${BOX.h.repeat(pickerWidth())}${BOX.br}`);
-}
-
-/** A content row wrapped in the box's vertical borders, padded to width. */
-function boxRow(content: string): string {
-  return `${theme.chrome(BOX.v)} ${padVisible(content, pickerWidth() - 2)} ${theme.chrome(BOX.v)}`;
-}
-
-/** A full-width dim separator row inside the box. */
-function boxDivider(): string {
-  return theme.chrome(`${BOX.v}${BOX.h.repeat(pickerWidth())}${BOX.v}`);
-}
-
-/**
- * Render a key-hint footer: keys in accent, descriptions dim, ` · ` dim
- * separators. e.g. `↑↓ move · Enter select · Esc clear · Ctrl+C quit`.
- */
-function keyHints(pairs: Array<[string, string]>): string {
-  return pairs.map(([k, label]) => `${theme.accent(k)} ${color.dim(label)}`).join(color.dim(' · '));
-}
-
-/**
- * The ChatGPT sign-in provider. The openai-codex picker mirrors the official
- * Codex CLI header ("Select Model and Effort") plus a legacy-models note; both
- * render paths (live TTY + numbered) append the same block so a TTY user and a
- * piped/CI user see identical copy for this provider. Keep the wording in one
- * place so the two paths can't drift.
- */
-const CODEX_PROVIDER_ID = 'openai-codex';
-const CODEX_PICKER_HEADER = 'Select Model and Effort';
-const CODEX_LEGACY_NOTE =
-  'Access legacy models by running `wstack -m <model_name>` or in your `config.json`.';
+export { applyPickerKey, type ProviderPickerState } from './picker-key-state.js';
+export { filterModels, LIVE_PICKER_MAX_VISIBLE, renderLiveModelList } from './picker-model-picker.js';
+export { codexPickerPreamble } from './picker-ui.js';
 
 /**
  * Filter providers by a free-text query: case-insensitive substring match
@@ -180,59 +74,6 @@ export function filterProviders(query: string, providers: ResolvedProvider[]): R
   );
 }
 
-export interface ProviderPickerState {
-  query: string;
-  selected: number;
-  status: 'typing' | 'submitted' | 'cancelled';
-}
-
-/**
- * Advance the live type-to-filter provider picker by one raw input chunk.
- * Pure: given the current state, a key chunk (a single keystroke, a paste, or
- * a multi-byte arrow escape sequence), and the number of providers matching
- * the CURRENT query, returns the next state. The raw-stdin loop in
- * runLiveProviderPicker is a thin shell around this so the input logic is
- * fully unit-testable.
- */
-export function applyPickerKey(
-  state: ProviderPickerState,
-  chunk: string,
-  matchCount: number,
-): ProviderPickerState {
-  // Arrow keys arrive as a 3-byte CSI sequence.
-  if (chunk === '\x1b[A') return { ...state, selected: Math.max(0, state.selected - 1) };
-  if (chunk === '\x1b[B')
-    return { ...state, selected: Math.min(Math.max(0, matchCount - 1), state.selected + 1) };
-  // Lone Esc clears the query (same as Ctrl+U).
-  if (chunk === '\x1b') return { ...state, query: '', selected: 0, status: 'typing' };
-  // Ignore other escape sequences (left/right arrows, etc.).
-  if (chunk.charCodeAt(0) === 0x1b) return state;
-
-  let query = state.query;
-  let selected = state.selected;
-  const status: ProviderPickerState['status'] = 'typing';
-  for (const ch of chunk) {
-    if (ch === '\r' || ch === '\n') {
-      return { ...state, status: matchCount > 0 ? 'submitted' : 'typing' };
-    }
-    if (ch === '\x03') return { ...state, status: 'cancelled' };
-    if (ch === '\x15') {
-      query = '';
-      selected = 0;
-      continue;
-    }
-    if (ch === '\x7f' || ch === '\b') {
-      if (query.length > 0) query = query.slice(0, -1);
-      selected = 0;
-      continue;
-    }
-    if (ch < ' ') continue; // skip stray control bytes
-    query += ch;
-    selected = 0;
-  }
-  return { query, selected, status };
-}
-
 /** Preferred family display order; remaining families follow in insertion order. */
 const PROVIDER_FAMILY_PREFERRED_ORDER = [
   'anthropic',
@@ -243,9 +84,6 @@ const PROVIDER_FAMILY_PREFERRED_ORDER = [
   'google',
   'openai-compatible',
 ];
-
-/** Max providers rendered in one live-picker frame (keeps a frame in-viewport). */
-export const LIVE_PICKER_MAX_VISIBLE = 15;
 
 /**
  * Order providers for display: grouped by wire family in preferred order, then
@@ -348,102 +186,6 @@ export function renderLiveProviderList(
   );
   lines.push(boxBottom());
   return lines.join('\n');
-}
-
-/**
- * Filter models by a free-text query: case-insensitive substring match against
- * the model id OR display name. Empty/whitespace query returns all (copy).
- * Powers the live type-to-filter model picker.
- */
-export function filterModels(query: string, models: ModelsDevModel[]): ModelsDevModel[] {
-  const q = query.trim().toLowerCase();
-  if (!q) return [...models];
-  return models.filter((m) => m.id.toLowerCase().includes(q) || m.name.toLowerCase().includes(q));
-}
-
-/**
- * Render the live type-to-filter model view as one string: the provider header,
- * the query line, models sorted newest-first (release_date desc) with context /
- * cost / capability columns, the selected model marked with ▶, and a key hint.
- * Capped to LIVE_PICKER_MAX_VISIBLE rows so a frame fits the viewport. Pure.
- */
-export function renderLiveModelList(
-  query: string,
-  filtered: ModelsDevModel[],
-  selectedIdx: number,
-  header: string,
-): string {
-  const ordered = [...filtered].sort((a, b) =>
-    (b.release_date ?? '').localeCompare(a.release_date ?? ''),
-  );
-  const visible = ordered.slice(0, LIVE_PICKER_MAX_VISIBLE);
-
-  const lines: string[] = [];
-  lines.push(boxTop('Select a model'));
-  // The raw `header` is kept intact (tests assert it is contained verbatim);
-  // it is rendered dim as a context sub-label under the title.
-  lines.push(boxRow(color.dim(header)));
-  // Search field. The literal `Select model: ${query}` substring is preserved
-  // for tests; the visible prefix is the accented prompt glyph + label.
-  const caret = query.length > 0 ? color.dim('▏') : theme.cursor('▏');
-  lines.push(boxRow(`${theme.accent('❯')} ${color.dim('Select model:')} ${query}${caret}`));
-  lines.push(boxDivider());
-
-  let flat = 0;
-  for (const m of visible) {
-    const selected = flat === selectedIdx;
-    const marker = selected ? theme.cursor('▶') : ' ';
-
-    const ctxRaw = m.limit?.context ? `${(m.limit.context / 1000).toFixed(0)}k` : '?';
-    const ctx = theme.ctx(ctxRaw.padStart(6));
-
-    const costRaw = m.cost?.input !== undefined ? `$${m.cost.input}/$${m.cost.output ?? '?'}` : '';
-    const cost = costRaw ? theme.cost(costRaw) : '';
-
-    const capTags: string[] = [];
-    if (m.tool_call) capTags.push('tools');
-    if (m.reasoning) capTags.push('reason');
-    if (m.modalities?.input?.includes('image')) capTags.push('vision');
-    const caps = capTags.map((c) => theme.caps(c)).join(color.dim(' '));
-
-    const id = selected ? theme.accent(color.bold(m.id)) : m.id;
-    // Columns: id (34) · ctx (6) · gap · cost (12) · caps. padVisible keeps
-    // alignment even though the colored segments carry zero-width ANSI codes.
-    const row = `${padVisible(id, 34)} ${ctx}  ${padVisible(cost, 12)} ${caps}`;
-    lines.push(boxRow(`${marker} ${row}`));
-    flat++;
-  }
-
-  if (ordered.length > LIVE_PICKER_MAX_VISIBLE) {
-    lines.push(
-      boxRow(color.dim(`  … ${ordered.length - LIVE_PICKER_MAX_VISIBLE} more — type to filter`)),
-    );
-  }
-
-  lines.push(boxDivider());
-  lines.push(
-    boxRow(
-      keyHints([
-        ['↑↓', 'move'],
-        ['Enter', 'select'],
-        ['Esc', 'clear'],
-        ['Ctrl+C', 'quit'],
-      ]),
-    ),
-  );
-  lines.push(boxBottom());
-  return lines.join('\n');
-}
-
-/**
- * openai-codex picker preamble — the "Select Model and Effort" header + the
- * legacy-models note, rendered above the live type-to-filter list (and mirrored
- * by the numbered picker's codex block). Returns an empty string for any other
- * provider. Pure so it can be unit-tested without a TTY.
- */
-export function codexPickerPreamble(provider: ResolvedProvider): string {
-  if (provider.id !== CODEX_PROVIDER_ID) return '';
-  return `  ${color.bold(CODEX_PICKER_HEADER)}\n${color.dim(`  ${CODEX_LEGACY_NOTE}`)}\n\n`;
 }
 
 /**
@@ -889,105 +631,6 @@ export async function runPicker(deps: {
   // provider; switching providers invalidates it.
   const modelHint = chosen.provider.id === defaultProvider ? defaultModel : undefined;
   return pickModel(chosen.provider, modelsRegistry, renderer, reader, modelHint);
-}
-
-/**
- * Live type-to-filter model picker (TTY only). Mirrors runLiveProviderPicker:
- * takes over stdin in raw mode and redraws the filtered, newest-first model
- * list on every keystroke. Selection indexes the release_date-desc order used
- * by renderLiveModelList so the ▶ cursor and Enter always agree. Returns the
- * chosen model, or undefined on cancel.
- */
-async function runLiveModelPicker(
-  provider: ResolvedProvider,
-  defaultModel?: string,
-): Promise<ModelsDevModel | undefined> {
-  const stdin = process.stdin;
-  const out = process.stdout;
-  if (!stdin.isTTY || !out.isTTY) return undefined;
-
-  // openai-codex mirrors the official Codex CLI header. Both render paths
-  // (live TTY + numbered) keep the generic "<name> (<id>) models:" line and
-  // append the same codex block, so a TTY user and a piped/CI user see the
-  // identical copy. See CODEX_PICKER_HEADER / CODEX_LEGACY_NOTE.
-  const header = `${provider.name} (${provider.id}) models:`;
-  const byNewest = (a: ModelsDevModel, b: ModelsDevModel): number =>
-    (b.release_date ?? '').localeCompare(a.release_date ?? '');
-  // Pre-select the default model (if any) in newest-first order.
-  const ranked = [...provider.models].sort(byNewest);
-  const defaultIdx =
-    defaultModel !== undefined ? ranked.findIndex((m) => m.id === defaultModel) : -1;
-
-  setOutputLineGuard(null);
-  let state: ProviderPickerState = {
-    query: '',
-    selected: defaultIdx >= 0 ? defaultIdx : 0,
-    status: 'typing',
-  };
-  const order = (filtered: ModelsDevModel[]): ModelsDevModel[] => [...filtered].sort(byNewest);
-  let ordered = order(filterModels(state.query, provider.models));
-  const visibleCount = (): number => Math.min(ordered.length, LIVE_PICKER_MAX_VISIBLE);
-  const clamp = (): void => {
-    if (state.selected >= visibleCount()) state.selected = Math.max(0, visibleCount() - 1);
-  };
-  clamp();
-  // openai-codex: write the codex header + legacy note once, above the live
-  // frame. The repaint loop only rewinds over `frame` (not this preamble), so
-  // it persists correctly above the type-to-filter list — mirroring the
-  // numbered picker, which renders the same block below the generic header.
-  const preamble = codexPickerPreamble(provider);
-  if (preamble) writeOut(preamble);
-  let frame = renderLiveModelList(state.query, ordered, state.selected, header);
-  writeOut(frame);
-
-  return new Promise<ModelsDevModel | undefined>((resolve) => {
-    const wasRaw = stdin.isRaw;
-    const wasPaused = stdin.isPaused();
-    setRawMode(stdin, true);
-    stdin.resume();
-    stdin.setEncoding('utf8');
-
-    const cleanup = (): void => {
-      stdin.off('data', onData);
-      setRawMode(stdin, wasRaw);
-      if (wasPaused) stdin.pause();
-    };
-    const repaint = (): void => {
-      const ups = (frame.match(/\n/g) ?? []).length;
-      writeOut(`\x1b[${ups}A\r\x1b[J`);
-      ordered = order(filterModels(state.query, provider.models));
-      clamp();
-      frame = renderLiveModelList(state.query, ordered, state.selected, header);
-      writeOut(frame);
-    };
-    const onData = (chunk: string): void => {
-      ordered = order(filterModels(state.query, provider.models));
-      state = applyPickerKey(state, chunk, visibleCount());
-      // applyPickerKey may have changed the query — recompute before resolving.
-      ordered = order(filterModels(state.query, provider.models));
-      clamp();
-      if (state.status === 'cancelled') {
-        cleanup();
-        writeOut('\n');
-        resolve(undefined);
-        return;
-      }
-      if (state.status === 'submitted') {
-        if (ordered.length === 0) {
-          state = { ...state, status: 'typing' };
-          repaint();
-          return;
-        }
-        const pick = ordered[state.selected] ?? ordered[0];
-        cleanup();
-        writeOut('\n');
-        resolve(pick);
-        return;
-      }
-      repaint();
-    };
-    stdin.on('data', onData);
-  });
 }
 
 async function pickModel(

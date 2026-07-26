@@ -67,6 +67,11 @@ export const BOOLEAN_FLAGS = new Set([
   // (e.g. the agent list in `acp bench --fs gemini-cli,codex-cli`).
   'echo',
   'fs',
+  // `wstack modeldiag test` booleans. Keep a following positional token from
+  // being consumed as the value of one of these switches.
+  'all-models',
+  'plan',
+  'json',
 ]);
 
 // ------------------------------------------------------------------ main args

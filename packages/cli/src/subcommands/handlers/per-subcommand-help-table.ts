@@ -355,11 +355,12 @@ export const helpTable: Record<string, PerSubcommandHelp> = {
     description:
       'Read-only diagnostics for the configured model: key check, ' +
       'capability scan (vision / tools / context window), heuristic ' +
-      'strengths/weaknesses (bestFor / avoidFor), and (optionally) ' +
-      'real benchmarks against a small prompt suite. Never modifies ' +
-      'config — safe to run on any machine.',
+      'strengths/weaknesses (bestFor / avoidFor), sequential live ' +
+      'provider/model smoke tests, and real benchmarks against a small ' +
+      'prompt suite. Smoke tests use tiny prompts and never print credentials.',
     usage: 'wstack modeldiag',
-    seeAlso: 'wstack doctor (pass/fail health checks)',
+    seeAlso:
+      'wstack modeldiag test --plan; wstack modeldiag test; wstack modeldiag test --all-models',
   },
 
   // -- Bench (developer / CI only) -------------------------------------

@@ -1,21 +1,3 @@
-/**
- * GlobalMailbox — project-level inter-agent mailbox with cross-session support.
- *
- * Stores messages at `~/.wrongstack/projects/<slug>/_mailbox.jsonl` so every
- * client and agent working on the same canonical project shares one inbox,
- * including agents in different processes, sessions, branches, and linked Git
- * worktrees.
- *
- * Features:
- * - Agent registration + heartbeat (agents go stale after 60s without heartbeat)
- * - Per-recipient read receipts (readBy[agentId] = ISO8601)
- * - Atomic file-locking for concurrent multi-process writes
- * - Unread count for new-mail notifications
- * - Online agent list
- *
- * @module GlobalMailbox
- */
-
 import { randomUUID } from 'node:crypto';
 import * as fsp from 'node:fs/promises';
 
@@ -37,17 +19,10 @@ import {
 import { statMailboxMessageFile } from './mailbox-message-file-stat.js';
 import type { MailboxEventEmitter } from './mailbox-events.js';
 import {
-  buildReceiptRecordV2,
-  isFanOutRecipient,
   parseMailboxFile,
-  serializeReceiptRecordV2,
-  type MailboxMessageProjection,
 } from './mailbox-receipt-folding.js';
-import {
-  isMailboxMessageProjection,
-  isMessageCompletedForActor,
-} from './global-mailbox-completion.js';
-import { assertMailboxNotFenced, ensureVersionSentinel } from './mailbox-version-fence.js';
+import { isMessageCompletedForActor } from './global-mailbox-completion.js';
+import { assertMailboxNotFenced } from './mailbox-version-fence.js';
 import { normalizeMailboxMessageType, serializeAckRecord } from './mailbox-message-codec.js';
 import {
   GLOBAL_MAILBOX_CLIENT_REGISTRY_FILE,
@@ -69,6 +44,7 @@ import {
   sendMailboxFor,
   softDeleteMailboxFor,
 } from './global-mailbox-actor-methods.js';
+import { ackMailboxMany } from './global-mailbox-ack.js';
 import { runGlobalMailboxAutoCompact } from './global-mailbox-auto-compact.js';
 import { runGlobalMailboxClearAll } from './global-mailbox-clear.js';
 import {
@@ -119,18 +95,6 @@ export { resolveProjectDir } from './global-mailbox-paths.js';
 
 type HqPublisherRef = HqPublisher | (() => HqPublisher | undefined);
 
-/**
- * Process-wide registry of GlobalMailbox instances, keyed by projectDir and
- * caller-owned EventBus/HQ publisher identities.
- *
- * Repeated calls from one agent reuse its mailbox caches and read chains.
- * Different same-project agents receive separate instances so their event and
- * telemetry channels cannot be retained or replaced by another agent's
- * lifecycle. The JSONL file + file lock remains the shared source of truth.
- *
- * Pass `forceNew: true` to bypass the cache (used by tests that need an
- * isolated tmpdir instance without polluting the singleton).
- */
 export function getSharedMailbox(
   projectDir: string,
   events?: EventBus,
@@ -146,38 +110,18 @@ export function getSharedMailbox(
   );
 }
 
-/** Clear the singleton registry — used by tests to avoid cross-test leakage. */
 export function _clearMailboxSingletons(): void {
   clearMailboxSingletonCache();
 }
 
-// ── GlobalMailbox ────────────────────────────────────────────────────────
-
 export class GlobalMailbox implements Mailbox {
-  /** Path to the JSONL message file. */
   readonly messagePath: string;
-  /** Path to the JSON agent registry file. */
   readonly registryPath: string;
-  /** Path to the JSON client registry file. */
   readonly clientRegistryPath: string;
-  /** Optional event bus for emitting agent registration/heartbeat events. */
   private readonly _events?: EventBus | undefined;
-  /** Optional HQ publisher for cross-project command-center telemetry. */
   private readonly _hqPublisher?: HqPublisherRef | undefined;
-  /**
-   * Optional SSE event emitter for real-time push to HTTP bridge clients.
-   * When present, `send`/`ack`/`softDelete`/`restore` emit events that
-   * connected SSE subscribers receive instantly.
-   */
   readonly eventEmitter?: MailboxEventEmitter | undefined;
-  /**
-   * Local cache of the agent registry to avoid re-reading on every call.
-   * Time-bounded: the registry file is shared ACROSS PROCESSES (that's the
-   * whole point of GlobalMailbox), so a cache served forever would never see
-   * agents registered by other sessions. Writers always bypass it.
-   */
   private _registryCache: Map<string, RegisteredAgent> | null = null;
-  /** When the registry cache was last refreshed from disk (epoch ms). */
   private _registryCacheAt = 0;
   /**
    * Local cache of the client registry to avoid re-reading on every call.
@@ -504,254 +448,19 @@ export class GlobalMailbox implements Mailbox {
   };
 
   async ackMany(input: MailboxAckBatchInput): Promise<MailboxMessage[]> {
-    // Append-only ack: instead of reading all messages, mutating them,
-    // and rewriting the entire file (O(N) read + O(N) write), we append
-    // small ack records (O(K) append where K = number of acks). At read
-    // time, ack records are folded into their target messages.
-    //
-    // This is the #1 performance fix: every agent iteration calls ackMany
-    // on the mailbox-loop hot path. Previously it was O(N) per iteration.
-    if (input.acks.length === 0) return [];
-
-    const now = new Date().toISOString();
-    const ackRecords: AckRecord[] = [];
-    const updated: MailboxMessage[] = [];
-    const targetIds = new Set<string>();
-    const byId = new Map<string, MailboxAckInput>();
-
-    for (const a of input.acks) {
-      byId.set(a.messageId, a);
-      targetIds.add(a.messageId);
-    }
-
-    // Build ack records and find target messages.
-    // We need to find messages to return them; use cached view for speed.
-    const all = await this._readMessagesCached();
-    // Capture the metadata that produced `all`. Taking this snapshot before
-    // the cached read caused false desync reports whenever that read itself
-    // legitimately discovered a cross-process append.
-    this.diag.ackManyPreLockMtime = this._messageCache.mtimeMs;
-    this.diag.ackManyPreLockSize = this._messageCache.sizeBytes;
-    for (const msg of all) {
-      const a = byId.get(msg.id);
-      if (!a) continue;
-
-      // Determine what this ack actually changes to avoid no-op appends.
-      const needsRead = a.read !== false && !(a.readerId in msg.readBy);
-      const projection = isMailboxMessageProjection(msg) ? msg : undefined;
-      const actorState = projection?.recipientState[a.readerId];
-      const isActorCompleted =
-        actorState?.completedAt !== undefined ||
-        (projection === undefined && msg.completed && msg.completedBy === a.readerId);
-      // V2: check actor-scoped completion, not the global v1 flag.
-      // This allows actor B to complete a broadcast that actor A already
-      // completed — the v2 receipt is written for each actor independently.
-      const needsComplete = a.completed && !isActorCompleted && !projection?.legacyGlobalCompletion;
-      const actorOutcome = actorState?.outcome ?? (projection === undefined ? msg.outcome : undefined);
-      const needsOutcome = a.outcome !== undefined && actorOutcome !== a.outcome;
-      // V2 reopen applies only while this actor is currently complete. The
-      // legacy v1 global flag intentionally remains true after an actor-scoped
-      // reopen and must not make every later reopen request append again.
-      const needsReopen =
-        a.read === false &&
-        a.completed === false &&
-        isActorCompleted &&
-        projection?.legacyGlobalCompletion !== true;
-      const completedChange = a.completed === true ? true : needsReopen ? false : undefined;
-
-      // Build an actor-relative defensive copy for the return value. Fan-out
-      // v2 state is intentionally absent from the global legacy fields, so
-      // seed those fields from this actor's folded state before mutations.
-      const copy = { ...msg, readBy: { ...msg.readBy } };
-      if (projection !== undefined && !projection.legacyGlobalCompletion) {
-        copy.completed = isActorCompleted;
-        if (isActorCompleted) {
-          copy.completedBy = actorState?.completedBy ?? a.readerId;
-          copy.completedAt = actorState?.completedAt;
-        } else {
-          delete (copy as Record<string, unknown>)['completedBy'];
-          delete (copy as Record<string, unknown>)['completedAt'];
-        }
-        copy.outcome = actorOutcome;
-      }
-
-      if (!needsRead && !needsComplete && !needsOutcome && !needsReopen) {
-        // No-op ack — return the actor-relative state without appending.
-        updated.push(copy);
-        continue;
-      }
-
-      if (needsRead) copy.readBy[a.readerId] = now;
-      if (needsComplete) {
-        copy.completed = true;
-        copy.completedBy = a.readerId;
-        copy.completedAt = now;
-      }
-      if (needsOutcome) copy.outcome = a.outcome;
-      // V2 reopen: return the message as incomplete for this actor.
-      // The v1 global completed stays true on disk; the defensive copy
-      // reflects the actor-scoped reopen state.
-      if (needsReopen) {
-        copy.completed = false;
-        delete (copy as Record<string, unknown>)['completedBy'];
-        delete (copy as Record<string, unknown>)['completedAt'];
-      }
-      updated.push(copy);
-
-      ackRecords.push({
-        __ack: true,
-        messageId: msg.id,
-        readerId: a.readerId,
-        timestamp: now,
-        read: a.read !== false,
-        completed: completedChange,
-        completedBy: completedChange === true ? a.readerId : undefined,
-        outcome: a.outcome,
-      });
-    }
-
-    if (ackRecords.length === 0) {
-      // All requested acks were no-ops (already read/completed). Return the
-      // actor-relative state without publishing an HQ mutation event.
-      return updated;
-    }
-
-    // Append ack records to the file under the lock. Messages appended by
-    // another process during this ack may be absent from `updated`; callers
-    // will observe them on their next query/read.
-    //
-    // GM-P0.4: Dual-write v1 ack records AND v2 receipt records.
-    // The v1 ack preserves backward compatibility for old readers.
-    // The v2 receipt record enables per-actor delivery state.
-    // The version sentinel is written on the first v2 receipt to fence
-    // old processes from mutating a v2 mailbox (GM-P0.4A).
-    const persistedAckIds = new Set<string>();
-    await withFileLock(this.messagePath, async () => {
-      // Close the read→lock race, then recompute every ack field against the
-      // refreshed actor state before persisting.
-      await this._refreshMessageCacheUnderLock();
-      const current = await this._readMessagesCached();
-      const messageById = new Map(current.map((message) => [message.id, message]));
-      for (let index = ackRecords.length - 1; index >= 0; index--) {
-        const ack = ackRecords[index];
-        if (ack === undefined) continue;
-        const projection = messageById.get(ack.messageId) as MailboxMessageProjection | undefined;
-        if (projection === undefined) continue;
-        const actorState = projection.recipientState?.[ack.readerId];
-        const keepRead = ack.read === true && actorState?.readAt === undefined;
-        const keepOutcome = ack.outcome !== undefined && actorState?.outcome !== ack.outcome;
-        const keepCompletion =
-          ack.completed === true
-            ? actorState?.completedAt === undefined && projection.legacyGlobalCompletion !== true
-            : ack.completed === false
-              ? actorState?.completedAt !== undefined
-              : false;
-        if (!keepRead && !keepOutcome && !keepCompletion) {
-          ackRecords.splice(index, 1);
-          continue;
-        }
-        ackRecords[index] = {
-          ...ack,
-          read: keepRead,
-          completed: keepCompletion ? ack.completed : undefined,
-          completedBy: keepCompletion && ack.completed === true ? ack.readerId : undefined,
-          outcome: keepOutcome ? ack.outcome : undefined,
-        };
-      }
-      if (ackRecords.length === 0) return;
-      for (const ack of ackRecords) persistedAckIds.add(ack.messageId);
-
-      const serialized = ackRecords
-        .map((ack) => {
-          const message = messageById.get(ack.messageId);
-          if (message === undefined) return '';
-          if (!isFanOutRecipient(message.to)) {
-            return serializeAckRecord(ack);
-          }
-          // Old readers fold v1 completion and outcome into message-global
-          // fields. For fan-out targets, preserve only the per-reader read ack;
-          // actor-scoped completion/outcome live exclusively in the v2 receipt.
-          return serializeAckRecord({
-            __ack: true,
-            messageId: ack.messageId,
-            readerId: ack.readerId,
-            timestamp: ack.timestamp,
-            read: ack.read,
-          });
-        })
-        .join('');
-      const v2Receipts = ackRecords
-        .map((ack) =>
-          serializeReceiptRecordV2(
-            buildReceiptRecordV2(ack.messageId, ack.readerId, ack.timestamp, {
-              read: ack.read !== false,
-              ...(ack.completed !== undefined ? { completed: ack.completed } : {}),
-              ...(ack.outcome !== undefined ? { outcome: ack.outcome } : {}),
-            }),
-          ),
-        )
-        .join('');
-      // GM-P0.4A: Refuse mutation when a newer-version process has written
-      // v2 receipt records to this mailbox.
-      await assertMailboxNotFenced(this.messagePath);
-      // Ensure the version sentinel exists before writing v2 receipts.
-      await ensureVersionSentinel(this.messagePath);
-      // Append v1 acks + v2 receipts.
-      await fsp.appendFile(this.messagePath, serialized + v2Receipts, 'utf8');
-      // Capture the post-append stat inside the lock.
-      const { mtimeMs, size } = await this._statMessageFile();
-      // Re-read the full file to rebuild recipientState on the cached
-      // projection; applyAck only mutates v1 fields and does not fold the v2
-      // receipts just appended above.
-      this._messageCache.set(await this._readMessages(), { mtimeMs, size });
-
-      // ── Post-lock diagnostics ──
-      this.diag.ackManyPostLockMtime = mtimeMs;
-      this.diag.ackManyPostLockSize = size;
-      this.diag.ackManyMessageCount = this._messageCache.messageCount;
-      this.diag.ackManyAckCount = ackRecords.length;
+    return ackMailboxMany(input, {
+      messagePath: this.messagePath,
+      diag: this.diag,
+      eventEmitter: this.eventEmitter,
+      hqMailboxId: this.hqMailboxId,
+      messageCache: this._messageCache,
+      publishHqMailboxEvent: (event) => this.publishHqMailboxEvent(event),
+      publishHqMailboxSnapshot: () => this.publishHqMailboxSnapshot(),
+      readMessages: () => this._readMessages(),
+      readMessagesCached: () => this._readMessagesCached(),
+      refreshMessageCacheUnderLock: () => this._refreshMessageCacheUnderLock(),
+      statMessageFile: () => this._statMessageFile(),
     });
-
-    const foldedById = new Map(
-      (await this._readMessagesCached())
-        .filter((message) => targetIds.has(message.id))
-        .map((message) => [message.id, { ...message, readBy: { ...message.readBy } }]),
-    );
-    // Keep the actor-relative legacy fields computed above while attaching the
-    // freshly folded v2 projection. A fan-out completion is intentionally not
-    // written into the message-global v1 fields, so replacing the whole return
-    // value with the cached projection would report `completed: false` for the
-    // actor that just completed it (and publish a `message.read` HQ event).
-    const foldedUpdated = updated.map((message) => {
-      const folded = foldedById.get(message.id);
-      if (folded === undefined) return message;
-      return {
-        ...folded,
-        completed: message.completed,
-        completedBy: message.completedBy,
-        completedAt: message.completedAt,
-        outcome: message.outcome,
-      };
-    });
-
-    for (const message of foldedUpdated) {
-      if (!persistedAckIds.has(message.id)) continue;
-      this.publishHqMailboxEvent({
-        mailboxId: this.hqMailboxId,
-        action: message.completed ? 'message.completed' : 'message.read',
-        message,
-      });
-      this.eventEmitter?.emit({
-        type: 'message.acked' as const,
-        messageId: message.id,
-        from: message.from,
-        to: message.to,
-        audience: message.audience,
-        timestamp: new Date().toISOString(),
-      });
-    }
-    if (foldedUpdated.length > 0) this.publishHqMailboxSnapshot();
-    return foldedUpdated;
   }
 
   async unreadCount(forAgentId: string, sessionId?: string): Promise<number> {

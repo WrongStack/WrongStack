@@ -31,8 +31,8 @@ function makeReader(lines: string[]) {
   };
 }
 
-describe('runPicker respects visible model allowlists', () => {
-  it('shows only visible models for a configured provider', async () => {
+describe('runPicker model visibility', () => {
+  it('shows the catalog models alongside the ones named in config', async () => {
     const provider: ResolvedProvider = {
       id: 'anthropic',
       name: 'Anthropic',
@@ -69,7 +69,11 @@ describe('runPicker respects visible model allowlists', () => {
     await runPicker({ modelsRegistry, renderer: renderer as never, reader: reader as never, config });
 
     const text = output.join('\n');
+    // `providers.<id>.models` is additive, not a filter. It used to hide every
+    // catalog model it did not name, which is how a stale preset list left
+    // real models on the user's own plan unselectable (and how a saved
+    // `models: []` pinned GitHub Copilot to nothing at all).
     expect(text).toContain('anthropic-test-model');
-    expect(text).not.toContain('claude-opus-4');
+    expect(text).toContain('claude-opus-4');
   });
 });

@@ -19,12 +19,12 @@
       "relativeImports": 43
     },
     "packages/cli/src/execution.ts": {
-      "lines": 1224,
+      "lines": 992,
       "relativeImports": 36
     },
     "packages/cli/src/fleet/host.ts": {
-      "lines": 1343,
-      "relativeImports": 22
+      "lines": 938,
+      "relativeImports": 19
     },
     "packages/cli/src/goal-host.ts": {
       "lines": 917,
@@ -35,12 +35,12 @@
       "relativeImports": 11
     },
     "packages/cli/src/picker.ts": {
-      "lines": 1181,
-      "relativeImports": 5
+      "lines": 824,
+      "relativeImports": 11
     },
     "packages/cli/src/repl.ts": {
-      "lines": 1284,
-      "relativeImports": 12
+      "lines": 995,
+      "relativeImports": 13
     },
     "packages/cli/src/slash-commands/brain.ts": {
       "lines": 957,
@@ -63,12 +63,12 @@
       "relativeImports": 4
     },
     "packages/cli/src/subcommands/handlers/modeldiag.ts": {
-      "lines": 859,
-      "relativeImports": 2
+      "lines": 1064,
+      "relativeImports": 6
     },
     "packages/cli/src/webui-server.ts": {
-      "lines": 1227,
-      "relativeImports": 17
+      "lines": 1000,
+      "relativeImports": 19
     },
     "packages/core/src/agent-status-tracker.ts": {
       "lines": 977,
@@ -94,13 +94,9 @@
       "lines": 886,
       "relativeImports": 13
     },
-    "packages/core/src/coordination/director.ts": {
-      "lines": 1261,
-      "relativeImports": 38
-    },
     "packages/core/src/coordination/global-mailbox.ts": {
-      "lines": 1278,
-      "relativeImports": 25
+      "lines": 987,
+      "relativeImports": 26
     },
     "packages/core/src/coordination/mailbox-http-router.ts": {
       "lines": 985,
@@ -111,15 +107,15 @@
       "relativeImports": 3
     },
     "packages/core/src/coordination/multi-agent-coordinator.ts": {
-      "lines": 1288,
-      "relativeImports": 9
+      "lines": 962,
+      "relativeImports": 10
     },
     "packages/core/src/coordination/provider-status-tracker.ts": {
       "lines": 915,
       "relativeImports": 2
     },
     "packages/core/src/core/agent-loop.ts": {
-      "lines": 1175,
+      "lines": 915,
       "relativeImports": 22
     },
     "packages/core/src/core/system-prompt-builder.ts": {
@@ -167,8 +163,8 @@
       "relativeImports": 9
     },
     "packages/core/src/index.ts": {
-      "lines": 936,
-      "relativeImports": 142
+      "lines": 989,
+      "relativeImports": 149
     },
     "packages/core/src/plugins/auto-review-plugin.ts": {
       "lines": 883,
@@ -183,8 +179,8 @@
       "relativeImports": 9
     },
     "packages/core/src/storage/session-store.ts": {
-      "lines": 1183,
-      "relativeImports": 37
+      "lines": 954,
+      "relativeImports": 34
     },
     "packages/core/src/tools/fallback-manage-tools.ts": {
       "lines": 898,
@@ -235,8 +231,8 @@
       "relativeImports": 39
     },
     "packages/sdd/src/sdd-parallel-run.ts": {
-      "lines": 1171,
-      "relativeImports": 4
+      "lines": 980,
+      "relativeImports": 5
     },
     "packages/simpleui/src/simple-ui-session.tsx": {
       "lines": 995,
@@ -259,8 +255,8 @@
       "relativeImports": 0
     },
     "packages/tui/src/app.tsx": {
-      "lines": 1300,
-      "relativeImports": 68
+      "lines": 990,
+      "relativeImports": 66
     },
     "packages/tui/src/components/agents-monitor.tsx": {
       "lines": 997,
@@ -290,10 +286,6 @@
       "lines": 880,
       "relativeImports": 12
     },
-    "packages/tui/src/components/settings-picker.tsx": {
-      "lines": 1190,
-      "relativeImports": 7
-    },
     "packages/tui/src/components/status-bar.tsx": {
       "lines": 987,
       "relativeImports": 16
@@ -314,10 +306,6 @@
       "lines": 982,
       "relativeImports": 1
     },
-    "packages/tui/src/run-tui.ts": {
-      "lines": 1161,
-      "relativeImports": 21
-    },
     "packages/webui/src/App.tsx": {
       "lines": 882,
       "relativeImports": 45
@@ -335,7 +323,7 @@
       "relativeImports": 0
     },
     "packages/webui/src/components/ChatInput.tsx": {
-      "lines": 1200,
+      "lines": 1000,
       "relativeImports": 16
     },
     "packages/webui/src/components/ChatView/index.tsx": {
@@ -447,8 +435,8 @@
       "relativeImports": 4
     },
     "apps/desktop/src/renderer/src/renderer.ts": {
-      "lines": 1241,
-      "relativeImports": 5
+      "lines": 944,
+      "relativeImports": 8
     }
   }
 }
