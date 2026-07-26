@@ -59,6 +59,14 @@ export function buildClearCommand(opts: SlashCommandContext): SlashCommand {
       await interruptAll(opts);
       await opts.interruptController?.waitForIdle?.();
 
+      // Drain the conversation journal BEFORE clearing session state. The
+      // journal queue holds references to every pending SessionEvent —
+      // including the entire message history. If we skip this flush, those
+      // message objects survive in RAM until the drain naturally fires,
+      // which can be indefinitely after a /clear. Flushing synchronously
+      // here writes them to disk and releases the references.
+      await ctx?.flushConversationJournal?.();
+
       if (ctx) {
         ctx.state.replaceMessages([]);
         ctx.state.replaceTodos([]);
