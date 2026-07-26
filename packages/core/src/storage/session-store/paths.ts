@@ -2,7 +2,7 @@ import * as path from 'node:path';
 import { ensureDir } from '../../utils/atomic-write.js';
 import { sessionScopedPath } from '../../utils/session-scoped-path.js';
 
-export function sessionPath(storeDir: string, id: string, ext: '.jsonl' | '.summary.json'): string {
+export function sessionPath(storeDir: string, id: string, ext: string): string {
   return sessionScopedPath(storeDir, id, ext);
 }
 
