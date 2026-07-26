@@ -1,440 +1,58 @@
 import * as fs from 'node:fs/promises';
-import * as path from 'node:path';
-import type { EventBus } from '../kernel/events.js';
 import { decryptConfigSecrets } from '../security/config-secrets.js';
-import {
-  type Config,
-  type ConfigLoader,
-  DEFAULT_TUI_THINKING_WORD,
-  type SyncConfig,
-} from '../types/config.js';
+import { type Config, type ConfigLoader, type SyncConfig } from '../types/config.js';
 import {
   DEFAULT_CONTEXT_WINDOW_MODE_ID,
   isContextWindowModeId,
   listContextWindowModes,
 } from '../types/context-window.js';
-import {
-  DEFAULT_AUTONOMY_CONFIG,
-  DEFAULT_CIRCUIT_BREAKER_CONFIG,
-  DEFAULT_CONTEXT_CONFIG,
-  DEFAULT_SESSION_LOGGING_CONFIG,
-  DEFAULT_TOOLS_CONFIG,
-} from '../types/default-config.js';
 import { ConfigError, ERROR_CODES } from '../types/errors.js';
-import type { Logger } from '../types/logger.js';
-import type { SecretVault } from '../types/secret-vault.js';
 import { atomicWrite, withFileLock } from '../utils/atomic-write.js';
 import { backupConfigFile } from '../utils/config-backup.js';
 import { type DeepMergeOptions, deepMerge as deepMergeCore } from '../utils/deep-merge.js';
 import { toErrorMessage } from '../utils/error.js';
 import { safeParse } from '../utils/safe-json.js';
-import { safeProfileName, type WstackPaths } from '../utils/wstack-paths.js';
+import { safeProfileName } from '../utils/wstack-paths.js';
+import { isBootstrapOnly } from './config-loader/bootstrap.js';
+import {
+  fillMissingDefaults,
+  isPlainRecord,
+} from './config-loader/default-repair.js';
+import { CONFIG_BEHAVIOR_DEFAULTS } from './config-loader/defaults.js';
+import { storageErrorString } from './config-loader/diagnostics.js';
+import {
+  ENV_MAP,
+  envBoolOptional,
+  type PartialConfig,
+} from './config-loader/env-overrides.js';
+import {
+  migrateLegacySuperMemoryKey,
+  removeLegacySageEngine,
+} from './config-loader/legacy-sage-migration.js';
+import { samePath } from './config-loader/path-identity.js';
+import type {
+  ConfigLoaderOptions,
+  ConfigSource,
+  MemoizedConfigSource,
+} from './config-loader/types.js';
+import type { EventBus } from '../kernel/events.js';
+import type { Logger } from '../types/logger.js';
+import type { SecretVault } from '../types/secret-vault.js';
+import type { WstackPaths } from '../utils/wstack-paths.js';
 
-/**
- * Surface the OS error code (EACCES, ENOSPC, …) alongside the message in
- * storage.* event payloads. Codes are stable and locale-independent, so
- * they are what dashboards and alerts key on; the message is supplementary.
- */
-function storageErrorString(err: unknown): string {
-  if (err instanceof Error) {
-    const code = (err as NodeJS.ErrnoException).code;
-    return code ? `${code}: ${err.message}` : err.message;
-  }
-  /* v8 ignore next -- defensive: callers only pass fs Error instances */
-  return String(err);
-}
+export {
+  fillMissingDefaults,
+  repairConfigDefaults,
+  type ConfigDefaultRepair,
+  type ConfigDefaultRepairReport,
+} from './config-loader/default-repair.js';
+export { CONFIG_BEHAVIOR_DEFAULTS } from './config-loader/defaults.js';
+export type {
+  ConfigLoaderOptions,
+  ConfigSource,
+  MemoizedConfigSource,
+} from './config-loader/types.js';
 
-/**
- * Defaults express *behavior*, not identity. Provider and model are NOT
- * hardcoded — they must be resolved at runtime from config + env + the
- * ModelsRegistry. A bare Config returned by this loader will throw when
- * the agent tries to construct a provider, with a message that points
- * users at `wstack init`.
- */
-export const CONFIG_BEHAVIOR_DEFAULTS: Omit<Config, 'provider' | 'model'> = {
-  version: 1,
-  context: {
-    mode: DEFAULT_CONTEXT_WINDOW_MODE_ID,
-    warnThreshold: 0.6,
-    softThreshold: 0.75,
-    hardThreshold: 0.9,
-    autoCompact: true,
-    preserveK: DEFAULT_CONTEXT_CONFIG.preserveK,
-    eliseThreshold: DEFAULT_CONTEXT_CONFIG.eliseThreshold,
-    strategy: 'hybrid',
-  },
-  tools: {
-    defaultExecutionStrategy: DEFAULT_TOOLS_CONFIG.defaultExecutionStrategy,
-    maxIterations: DEFAULT_TOOLS_CONFIG.maxIterations,
-    iterationTimeoutMs: DEFAULT_TOOLS_CONFIG.iterationTimeoutMs,
-    maxToolTimeoutMs: DEFAULT_TOOLS_CONFIG.maxToolTimeoutMs,
-    sessionTimeoutMs: DEFAULT_TOOLS_CONFIG.sessionTimeoutMs,
-    perIterationOutputCapBytes: DEFAULT_TOOLS_CONFIG.perIterationOutputCapBytes,
-    descriptionMode: DEFAULT_TOOLS_CONFIG.descriptionMode,
-    disabledTools: DEFAULT_TOOLS_CONFIG.disabledTools as string[],
-    autoExtendLimit: DEFAULT_TOOLS_CONFIG.autoExtendLimit,
-    restrictToProjectRoot: DEFAULT_TOOLS_CONFIG.restrictToProjectRoot,
-    loopDetection: DEFAULT_TOOLS_CONFIG.loopDetection,
-  },
-  log: { level: 'info' },
-  features: {
-    mcp: true,
-    plugins: true,
-    memory: true,
-    modelsRegistry: true,
-    skills: true,
-    prompts: true,
-    // 'auto' → resolveTokenSavingTier picks a concrete tier from the model's
-    // context window ONCE per session (cache-safe): lean prompt on small
-    // windows (<32k medium, <128k light) where the fixed identity+tool prose
-    // is a big fraction; minimal trimming on >=128k so modern large-window
-    // models still get cost savings without capability loss. Explicit tiers
-    // are respected verbatim.
-    tokenSavingMode: 'auto',
-    allowOutsideProjectRoot: true,
-  },
-  Sage: {
-    enabled: true,
-    storage: {
-      projectLocal: true,
-      directory: '.wrongstack/memories',
-    },
-    inject: {
-      // Keep the ordinary turn prompt clean. Project memory is surfaced
-      // on-demand beside relevant tool results, where the path/query that
-      // caused retrieval is known and the hint can be independently capped.
-      turnContext: false,
-      toolResults: true,
-      taskAware: true,
-      maxHintsPerTool: 8,
-      maxCharsPerTool: 2800,
-      maxTurnMemories: 8,
-      maxCharsPerTurn: 2400,
-      minScore: 0.65,
-      repeatCooldownMs: 30 * 60_000,
-    },
-    hygiene: {
-      autoAfterSession: true,
-      autoOnFileChange: true,
-      retentionDays: 90,
-      archiveLowConfidenceAfterDays: 30,
-    },
-    embeddings: {
-      enabled: false,
-    },
-  },
-  skills: { readClaudeSkills: true },
-  mcpServers: {},
-  fallbackAuto: true,
-  maxConcurrent: 4,
-  // YOLO opt-in: users who want auto-approve behaviour set `yolo: true`.
-  // Off by default so prompt injection in repository content, fetched
-  // content, or mailbox messages cannot induce arbitrary shell calls or
-  // write operations without human confirmation.
-  yolo: false,
-  nextPrediction: false,
-  hints: true,
-  debugStream: false,
-  configScope: 'global',
-  indexing: {
-    onSessionStart: true,
-    onEdit: true,
-    watchExternal: true,
-    debounceMs: 400,
-  },
-  session: { ...DEFAULT_SESSION_LOGGING_CONFIG },
-  autonomy: {
-    // 'auto' by default: the agent self-drives (picks the top next-step after
-    // each turn). This is a startup default, not a runtime flip — the
-    // autoProceedMaxIterations cap + autoProceedDelayMs cooldown + Ctrl+C /
-    // [GOAL_COMPLETE] stops remain in force. Explicit 'off'
-    // in a config file is preserved (opt-out respected).
-    defaultMode: 'auto',
-    autoProceedDelayMs: DEFAULT_AUTONOMY_CONFIG.autoProceedDelayMs,
-    autoProceedMaxIterations: 50,
-    autonomyNextPrompt: 'auto {{suggestion}}',
-    terminalTitleAnimation: true,
-    // Mirrored from the top-level yolo default so the autonomy subsystem
-    // (which reads autonomy.yolo) stays consistent with config.yolo.
-    yolo: false,
-    fleetChatVerbosity: 'off',
-    chime: false,
-    confirmExit: true,
-    mouseMode: false,
-    enhance: true,
-    enhanceDelayMs: 60_000,
-    enhanceLanguage: 'original',
-    statuslineMode: 'detailed',
-    thinkingWord: DEFAULT_TUI_THINKING_WORD,
-    showAgentSwarmPanel: true,
-  },
-  circuitBreaker: { ...DEFAULT_CIRCUIT_BREAKER_CONFIG },
-  modelRuntime: {
-    // `effort` is intentionally undefined by default. Leaving it unset lets
-    // each model use its provider-recommended reasoning effort (or none at
-    // all) instead of forcing an opinionated value that may be unsupported,
-    // silently omitted, and surfaced as a per-request warning. Users who
-    // want a specific effort can opt in via `/settings` or the WebUI panel.
-    reasoning: { mode: 'auto' },
-    cache: { ttl: '1h' },
-  },
-  systemPrompt: { variant: 'default' },
-};
-
-function isPlainRecord(value: unknown): value is Record<string, unknown> {
-  return (
-    typeof value === 'object' &&
-    value !== null &&
-    !Array.isArray(value) &&
-    Object.getPrototypeOf(value) === Object.prototype
-  );
-}
-
-function cloneJsonValue<T>(value: T): T {
-  return structuredClone(value);
-}
-
-/**
- * Add-only default filling: copies missing keys from `defaults` into `target`
- * without removing or replacing any existing values. Recursively fills nested
- * plain objects. Safe for the normal boot path where a user's explicit config
- * must never be overwritten.
- *
- * For the add+replace variant (which also replaces type-incompatible values)
- * see `repairConfigDefaults`.
- */
-function fillMissingDefaults(
-  target: Record<string, unknown>,
-  defaults: Record<string, unknown>,
-): { value: Record<string, unknown>; changed: boolean } {
-  const value = cloneJsonValue(target);
-  const changed = fillMissingDefaultsInPlace(value, defaults);
-  return { value, changed };
-}
-
-function fillMissingDefaultsInPlace(
-  target: Record<string, unknown>,
-  defaults: Record<string, unknown>,
-): boolean {
-  let changed = false;
-  for (const [key, defaultValue] of Object.entries(defaults)) {
-    if (!Object.hasOwn(target, key)) {
-      target[key] = cloneJsonValue(defaultValue);
-      changed = true;
-      continue;
-    }
-    const current = target[key];
-    if (isPlainRecord(current) && isPlainRecord(defaultValue)) {
-      changed = fillMissingDefaultsInPlace(current, defaultValue) || changed;
-    }
-  }
-  return changed;
-}
-
-export interface ConfigDefaultRepair {
-  path: string;
-  action: 'added' | 'replaced';
-}
-
-export interface ConfigDefaultRepairReport {
-  fixed: Record<string, unknown>;
-  changes: ConfigDefaultRepair[];
-  changed: boolean;
-}
-
-/**
- * Materialize the canonical behavior defaults into a persisted profile config.
- * Add+replace variant: missing fields are added AND values whose JSON shape is
- * incompatible with the default are replaced (not just skipped). This is useful
- * for the config-doctor repair path where a user-edited file may have wrong
- * types. For the normal boot path (add-only) see `fillMissingDefaults`.
- *
- * Identity fields (`provider`, `model`) are intentionally not invented.
- *
- * NOTE: This function assumes JSON-roundtripped input. Non-JSON values such
- * as `Buffer` or `Uint8Array` are objects and may not be correctly detected
- * as type-incompatible with primitive defaults.
- */
-export function repairConfigDefaults(input: Record<string, unknown>): ConfigDefaultRepairReport {
-  const fixed = cloneJsonValue(input);
-  const changes: ConfigDefaultRepair[] = [];
-
-  const MAX_REPAIR_DEPTH = 20;
-
-  const repair = (
-    target: Record<string, unknown>,
-    defaults: Record<string, unknown>,
-    prefix: string,
-    depth: number = 0,
-  ): void => {
-    if (depth > MAX_REPAIR_DEPTH) {
-      throw new ConfigError({
-        message:
-          `Config repair exceeded maximum depth (${MAX_REPAIR_DEPTH}) at "${prefix}". ` +
-          'This likely indicates a circular reference or deeply nested user-provided config.',
-        code: ERROR_CODES.CONFIG_INVALID,
-        context: { depth, prefix },
-      });
-    }
-    for (const [key, defaultValue] of Object.entries(defaults)) {
-      const path = prefix ? `${prefix}.${key}` : key;
-      if (!Object.hasOwn(target, key)) {
-        target[key] = cloneJsonValue(defaultValue);
-        changes.push({ path, action: 'added' });
-        continue;
-      }
-
-      const current = target[key];
-      if (isPlainRecord(defaultValue)) {
-        if (isPlainRecord(current)) {
-          repair(current, defaultValue, path, depth + 1);
-        } else {
-          target[key] = cloneJsonValue(defaultValue);
-          changes.push({ path, action: 'replaced' });
-        }
-        continue;
-      }
-
-      const defaultIsArray = Array.isArray(defaultValue);
-      // Array element shape is NOT validated here — if an array default's
-      // element type changes in a future version, existing arrays with the
-      // old element type will be kept even though their elements no longer
-      // match the new default element type. This is acceptable because:
-      // (a) config changes that widen element types are extremely rare, and
-      // (b) the config-doctor is a best-effort repair, not a type checker.
-      const compatible = defaultIsArray
-        ? Array.isArray(current)
-        : !Array.isArray(current) && typeof current === typeof defaultValue;
-      if (!compatible) {
-        target[key] = cloneJsonValue(defaultValue);
-        changes.push({ path, action: 'replaced' });
-      }
-    }
-  };
-
-  repair(fixed, CONFIG_BEHAVIOR_DEFAULTS as Record<string, unknown>, '');
-  return { fixed, changes, changed: changes.length > 0 };
-}
-
-/** Parse a boolean-ish env var: "0"/"false"/"no"/"off" → false, anything else → true. */
-function envBool(v: string): boolean {
-  return !/^(0|false|no|off)$/i.test(v.trim());
-}
-
-function envBoolOptional(v: string | undefined): boolean {
-  return v !== undefined && envBool(v);
-}
-
-const LOG_LEVELS = new Set<Config['log']['level']>(['error', 'warn', 'info', 'debug', 'trace']);
-
-function envLogLevel(v: string): Config['log']['level'] {
-  return LOG_LEVELS.has(v as Config['log']['level']) ? (v as Config['log']['level']) : 'info';
-}
-
-const ENV_MAP: Record<string, (cfg: PartialConfig, val: string) => void> = {
-  WRONGSTACK_PROVIDER: (c, v) => {
-    c.provider = v;
-    if (c._envSource === undefined) c._envSource = new Set();
-    c._envSource.add('provider');
-  },
-  WRONGSTACK_MODEL: (c, v) => {
-    c.model = v;
-    if (c._envSource === undefined) c._envSource = new Set();
-    c._envSource.add('model');
-  },
-  WRONGSTACK_API_KEY: (c, v) => {
-    c.apiKey = v;
-    if (c._envSource === undefined) c._envSource = new Set();
-    c._envSource.add('apiKey');
-  },
-  WRONGSTACK_BASE_URL: (c, v) => {
-    c.baseUrl = v;
-    if (c._envSource === undefined) c._envSource = new Set();
-    c._envSource.add('baseUrl');
-  },
-  WRONGSTACK_LOG_LEVEL: (c, v) => {
-    /* v8 ignore next -- defensive: config defaults always seed c.log before env handlers run */
-    if (!c.log) c.log = { level: 'info' };
-    c.log.level = envLogLevel(v);
-  },
-  WRONGSTACK_INDEX_ON_START: (c, v) => {
-    c.indexing = { ...defaultIndexing, ...c.indexing, onSessionStart: envBool(v) };
-  },
-  WRONGSTACK_INDEX_ON_EDIT: (c, v) => {
-    c.indexing = { ...defaultIndexing, ...c.indexing, onEdit: envBool(v) };
-  },
-  WRONGSTACK_INDEX_WATCH: (c, v) => {
-    c.indexing = { ...defaultIndexing, ...c.indexing, watchExternal: envBool(v) };
-  },
-};
-
-const defaultIndexing = {
-  onSessionStart: true,
-  onEdit: true,
-  watchExternal: true,
-  debounceMs: 400,
-} as const;
-
-type PartialConfig = Partial<Config> & {
-  providers?: Record<
-    string,
-    { apiKey?: string | undefined; baseUrl?: string | undefined; type?: string | undefined }
-  >;
-  /** Fields that came from environment variables — must not be persisted. */
-  _envSource?: Set<string> | undefined;
-};
-
-/**
- * Top-level config keys a REPO-COMMITTED `<project>/.wrongstack/config.json`
- * (the `inProjectConfig` layer) IS permitted to set. The in-project config
- * is attacker-controllable (it ships inside a cloned/pulled repository), so
- * every other field is denied by default. Anything not in this list is
- * stripped by `stripUnsafeInProjectFields()` before the merge.
- *
- * Why an allow-list and not a deny-list? A deny-list of N known-bad keys is
- * structurally incomplete: any new field added to `Config` without a matching
- * edit to the deny list silently becomes attacker-controllable, and the next
- * field that carries an executable string or a credential immediately turns
- * `<project>/.wrongstack/config.json` into an RCE / secret-exfiltration
- * vector the moment someone clones a malicious repo. An allow-list inverts
- * that — new fields are denied by default and must be explicitly added, so a
- * forgotten update is a safe default instead of an unsafe one.
- *
- * Each entry below is a benign user-preference that a project author may
- * legitimately want to pin for everyone who works in the repo:
- *
- *   - `version`            — schema marker required for any config merge.
- *   - `model`              — model id (also settable via env / CLI).
- *   - `cwd`                — working-directory hint (UX, not a permission).
- *   - `context`            — compaction thresholds, mode, preserveK.
- *   - `tools`              — iteration / timeouts / restrictToProjectRoot.
- *   - `features`           — feature toggles (display-only side effects).
- *   - `autonomy`           — autoProceedDelayMs, thinkingWord.
- *   - `indexing`           — onSessionStart / onEdit / debounceMs.
- *   - `session`            — audit level + sampling.
- *   - `log`                — log level.
- *   - `launch`             — saved launch prefs.
- *   - `nextPrediction`     — toggle `/next` after-turn suggestions.
- *   - `hints`              — toggle startup hints.
- *   - `debugStream`        — verbose SSE dump (noisy, not security-sensitive).
- *   - `configScope`        — where settings persist.
- *   - `maxConcurrent`      — fleet concurrency limit.
- *   - `fallbackModels`     — model references tried on 429/5xx.
- *   - `fallbackProfiles`   — named fallback chains.
- *   - `favoriteModels`     — model references preferred for display/routing.
- *   - `favoriteModelsOnly` — restrict auto-derived chains to favorite models.
- *   - `fallbackAuto`       — derived-fallback toggle.
- *   - `models`             — custom model definitions (data, not code).
- *   - `modelMatrix`        — per-task model matrix.
- *   - `circuitBreaker`     — process circuit-breaker config (process gating).
- *   - `adaptiveConcurrency` — adaptive concurrency controller.
- *   - `modelRuntime`       — runtime reasoning/cache/parameters.
- *   - `Sage`        — benign local memory storage/injection/hygiene knobs.
- *
- * Fields deliberately NOT in the allow-list (and therefore always stripped
- * from `<project>/.wrongstack/config.json`) — see `KNOWN_DENIED_IN_PROJECT`
- * below for the reason each is unsafe.
- */
 const IN_PROJECT_ALLOWED_KEYS: ReadonlySet<string> = new Set([
   'version',
   'model',
@@ -814,23 +432,6 @@ export function stripUnsafeInProjectFields(
 }
 
 /**
- * Compare two absolute filesystem paths for identity. Normalizes separators and
- * `.`/`..` segments via `path.resolve`, and folds case on win32 (and darwin,
- * whose default APFS/HFS+ volumes are case-insensitive) so the same file
- * reached through differently-cased drive/dir spellings still compares equal —
- * the same Windows path-casing hazard that bit the core token symbols.
- */
-function samePath(a: string, b: string): boolean {
-  let ra = path.resolve(a);
-  let rb = path.resolve(b);
-  if (process.platform === 'win32' || process.platform === 'darwin') {
-    ra = ra.toLowerCase();
-    rb = rb.toLowerCase();
-  }
-  return ra === rb;
-}
-
-/**
  * Config-layer deep merge — delegates to the shared utility with
  * `arrayMode: 'concat-primitives'` and optional debug logging for
  * non-primitive array replacements.
@@ -850,72 +451,6 @@ function deepMerge<T, TPatch extends object>(base: T, patch: TPatch): T {
     patch as Record<string, unknown>,
     opts,
   ) as T;
-}
-
-/**
- * Migrate the retired `superMemory` config key (pre-SAGE-rename user configs)
- * into `Sage`. Existing `Sage` values win on conflict; top-level sub-keys the
- * user only ever set under `superMemory` are preserved so a rename release
- * does not silently drop their storage/injection/hygiene settings.
- */
-function migrateLegacySuperMemoryKey(config: Record<string, unknown>): boolean {
-  const legacy = config['superMemory'];
-  if (legacy === undefined) return false;
-  if (isPlainRecord(legacy)) {
-    const current = config['Sage'];
-    config['Sage'] = isPlainRecord(current)
-      ? { ...legacy, ...current }
-      : { ...legacy };
-  }
-  delete config['superMemory'];
-  return true;
-}
-
-/** Remove the retired backend selector from legacy/user-supplied configs. */
-function removeLegacySageEngine(config: Record<string, unknown>): boolean {
-  const migratedKey = migrateLegacySuperMemoryKey(config);
-  const Sage = config['Sage'];
-  if (!isPlainRecord(Sage)) return migratedKey;
-  const storage = Sage['storage'];
-  if (!isPlainRecord(storage) || !Object.hasOwn(storage, 'engine')) {
-    return migratedKey;
-  }
-  delete storage['engine'];
-  return true;
-}
-
-/**
- * A single config source. Higher priority wins in merges.
- * Sources are applied in priority order (lowest first), so a source
- * with priority=10 overrides one with priority=1.
- */
-export interface ConfigSource {
-  /** Unique name for debugging and error messages. */
-  name: string;
-  /** Lower numbers merge first, higher numbers override lower. Default: 50. */
-  priority?: number | undefined;
-  /**
-   * Read the raw config patch. Return an empty object if unavailable.
-   * Errors are surfaced but do not abort loading — the source is skipped.
-   */
-  read(): Promise<Partial<Config>>;
-}
-
-export interface ConfigLoaderOptions {
-  paths: WstackPaths;
-  strict?: boolean | undefined;
-  vault?: SecretVault | undefined;
-  /** Extra sources merged after the built-in layers. */
-  sources?: ConfigSource[] | undefined;
-  events?: EventBus;
-  traceId?: string;
-  /** Logger for structured warning/error events. When omitted, falls back to console.warn. */
-  logger?: Logger | undefined;
-}
-
-interface MemoizedConfigSource {
-  mtimeMs: number | null;
-  value: PartialConfig;
 }
 
 export class DefaultConfigLoader implements ConfigLoader {
@@ -1130,8 +665,7 @@ export class DefaultConfigLoader implements ConfigLoader {
 
   /** Check whether a config object contains only the two bootstrap keys. */
   private static isBootstrapOnly(config: Record<string, unknown>): boolean {
-    const BOOTSTRAP_KEYS = new Set(['version', 'activeProfile']);
-    return Object.keys(config).every((k) => BOOTSTRAP_KEYS.has(k));
+    return isBootstrapOnly(config);
   }
 
   private async ensureGlobalDefaults(): Promise<void> {
