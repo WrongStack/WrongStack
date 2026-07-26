@@ -80,7 +80,7 @@ interface BrokenPipeHandlerOptions {
 
 function isBrokenOutputConsumer(error: unknown): boolean {
   if (typeof error !== 'object' || error === null || !('code' in error)) return false;
-  return error.code === 'EPIPE' || error.code === 'ECONNRESET';
+  return error.code === 'EPIPE' || error.code === 'ECONNRESET' || error.code === 'ECONNABORTED';
 }
 
 /**
