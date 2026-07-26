@@ -7,7 +7,6 @@
  * @module review-finding-integration
  */
 
-import { randomUUID } from 'node:crypto';
 import { type ChimeraReviewCompletePayload } from './chimera-plugin.js';
 import { parseChimeraReviewReport } from './review-finding-parser.js';
 import { JsonlFindingStore } from './review-finding-store.js';
@@ -40,13 +39,13 @@ export interface FindingsIntegrationResult {
 export async function integrateFindings(
   payload: ChimeraReviewCompletePayload,
   projectDir: string,
+  reportId: string,
 ): Promise<FindingsIntegrationResult> {
   if (!payload.reviewText || payload.reviewText.trim().length === 0) {
     return { created: 0, relinked: 0, reopened: 0, totalFindings: 0, unparseableCount: 0 };
   }
 
   const store = new JsonlFindingStore(projectDir);
-  const reportId = randomUUID();
   const source = (payload.bundle.cascadeDepth ?? 0) > 0
     ? 'cascade'
     : payload.bundle.cascadeOn !== undefined && payload.bundle.cascadeOn !== 'off'

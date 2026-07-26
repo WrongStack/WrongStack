@@ -89,6 +89,8 @@ export interface ListOptions {
   severities?: FindingSeverity[] | undefined;
   statuses?: FindingStatus[] | undefined;
   file?: string | undefined;
+  /** Filter to findings from a specific review report. */
+  reportId?: string | undefined;
   limit?: number | undefined;
 }
 
@@ -144,8 +146,16 @@ export class JsonlFindingStore implements FindingStore {
           const materialized = this._materialize(match);
           if (materialized.status === 'resolved' || materialized.status === 'ignored') {
             const reopenEvent = this._makeEvent(match.finding.id, 'reopened', materialized.status, 'active', context);
-            await fsp.appendFile(this.filePath, JSON.stringify({ __findingEvent: 1, data: reopenEvent }) + LINE_SEPARATOR, 'utf8');
             match.finding.status = 'active';
+            match.finding.resolution = undefined;
+            // Re-persist the finding record so status + cleared resolution survive reads.
+            const updatedRecord: FindingRecord = { __finding: 1, data: match.finding };
+            await fsp.appendFile(
+              this.filePath,
+              JSON.stringify(updatedRecord) + LINE_SEPARATOR +
+              JSON.stringify({ __findingEvent: 1, data: reopenEvent }) + LINE_SEPARATOR,
+              'utf8',
+            );
             result.reopened++;
           } else {
             const relinkEvent = this._makeEvent(match.finding.id, 'relinked', match.finding.status, match.finding.status, context);
@@ -203,8 +213,12 @@ export class JsonlFindingStore implements FindingStore {
       };
     }
 
+    // Re-persist the finding record so non-event fields (resolution, etc.)
+    // survive _readAll + _materialize. The latest record wins on read.
+    const updatedRecord: FindingRecord = { __finding: 1, data: entry.finding };
     await fsp.appendFile(
       this.filePath,
+      JSON.stringify(updatedRecord) + LINE_SEPARATOR +
       JSON.stringify({ __findingEvent: 1, data: event }) + LINE_SEPARATOR,
       'utf8',
     );
@@ -227,6 +241,9 @@ export class JsonlFindingStore implements FindingStore {
     if (opts?.file) {
       const pattern = opts.file.toLowerCase();
       findings = findings.filter((f) => f.location?.file.toLowerCase().includes(pattern));
+    }
+    if (opts?.reportId) {
+      findings = findings.filter((f) => f.originReport.reportId === opts.reportId);
     }
 
     // Sort by severity (critical first), then by age (oldest first).
@@ -406,6 +423,7 @@ export class JsonlFindingStore implements FindingStore {
       case 'in_progress': return 'started';
       case 'resolved': return 'resolved';
       case 'ignored': return 'ignored';
+      case 'active': return 'reopened';
       default: return 'created';
     }
   }

@@ -143,7 +143,7 @@ describe('/review findings slash commands', () => {
 describe('integrateFindings', () => {
   it('returns empty result for empty report', async () => {
     const { integrateFindings } = await import('../../src/plugins/review-finding-integration.js');
-    const result = await integrateFindings(makeReviewPayload(''), dir);
+    const result = await integrateFindings(makeReviewPayload(''), dir, 'report-1');
     expect(result.created).toBe(0);
     expect(result.totalFindings).toBe(0);
   });
@@ -159,7 +159,7 @@ describe('integrateFindings', () => {
       '2. src/auth.ts:3 — Hardcoded token',
     ].join('\n');
 
-    const result = await integrateFindings(makeReviewPayload(report), dir);
+    const result = await integrateFindings(makeReviewPayload(report), dir, 'report-2');
     expect(result.created).toBe(3);
     expect(result.totalFindings).toBe(3);
     expect(result.unparseableCount).toBe(0);

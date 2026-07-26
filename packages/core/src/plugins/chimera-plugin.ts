@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import { spawn } from 'node:child_process';
 import * as fsp from 'node:fs/promises';
 import * as os from 'node:os';
@@ -21,6 +22,7 @@ import type {
 } from './review-types.js';
 import { executeFindingCommand } from './review-finding-commands.js';
 import { integrateFindings } from './review-finding-integration.js';
+import { persistReviewReport } from './review-report-integration.js';
 
 // Re-export the shared review types so existing importers keep resolving them
 // from './chimera-plugin.js' (and the package barrel). Their definitions live
@@ -307,7 +309,7 @@ function buildReviewCommand(
   };
 }
 
-// ── Finding store persistence helper ──────────────────────────
+// ── Finding + report store persistence helper ────────────────
 async function tryPersistFindings(payload: unknown): Promise<void> {
   if (!payload || typeof payload !== 'object') return;
   const p = payload as { bundle?: { cwd?: string }; reviewText?: string; status?: string; cwd?: string };
@@ -316,7 +318,15 @@ async function tryPersistFindings(payload: unknown): Promise<void> {
   const slug = projectSlug(cwd);
   const globalRoot = path.join(os.homedir(), '.wrongstack');
   const projectDir = path.join(globalRoot, 'projects', slug);
-  await integrateFindings(payload as any, projectDir);
+
+  // One shared reportId links the finding store and the report store.
+  const reportId = randomUUID();
+
+  // Persist the report first (parent record), then findings (children).
+  // If the process crashes between writes, an orphan report with no findings
+  // is recoverable; orphan findings pointing at a nonexistent reportId are not.
+  await persistReviewReport(payload as any, reportId, projectDir);
+  await integrateFindings(payload as any, projectDir, reportId);
 }
 
 // ---------------------------------------------------------------------------

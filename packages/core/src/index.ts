@@ -729,6 +729,59 @@ export {
   createChimeraPlugin,
   resolveChimeraConfig,
 } from './plugins/chimera-plugin.js';
+export {
+  integrateFindings,
+  type FindingsIntegrationResult,
+} from './plugins/review-finding-integration.js';
+export {
+  executeFindingCommand,
+  transitionReport,
+  type FindingCommandContext,
+} from './plugins/review-finding-commands.js';
+export {
+  JsonlFindingStore,
+  FINDING_STORE_FILE,
+  type FindingStore,
+  type ListOptions as FindingListOptions,
+  type UpsertContext,
+  type UpsertResult,
+} from './plugins/review-finding-store.js';
+export type {
+  ChimeraFinding,
+  ChimeraFindingLocation,
+  ChimeraFindingOrigin,
+  ChimeraFindingResolution,
+  FindingEventType,
+  FindingLifecycleEvent,
+  FindingSeverity,
+  FindingSource,
+  FindingStatus,
+  ResolutionOutcome,
+} from './plugins/review-finding-types.js';
+export {
+  JsonlReportStore,
+  REPORT_STORE_FILE,
+  type PersistReportInput,
+  type ReportStore,
+  type ListReportsOptions,
+  type ReportActor,
+} from './plugins/review-report-store.js';
+export type {
+  ReviewReport,
+  ReviewReportCounts,
+  ReviewReportEvent,
+  ReviewReportFile,
+  ReportEventType,
+  ReportLifecycleStatus,
+} from './plugins/review-report-types.js';
+export {
+  persistReviewReport,
+  syncReportCompletion,
+  syncReportReopen,
+  type ReportIntegrationResult,
+  type ReportSyncResult,
+  type ReportReopenResult,
+} from './plugins/review-report-integration.js';
 export { createPromptsPlugin } from './plugins/prompts-plugin.js';
 export { createSkillsPlugin } from './plugins/skills-plugin.js';
 export { createSyncPlugin } from './plugins/sync-plugin.js';

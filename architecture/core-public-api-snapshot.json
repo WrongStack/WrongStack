@@ -27,6 +27,7 @@
         "export type { AgentHeartbeatInput, AgentRegistrationInput, AutoCompactOptions, AutoCompactResult, Mailbox, MailboxAckInput, MailboxAgentStatus, MailboxAudience, MailboxMessage, MailboxMessageType, MailboxQuery, MailboxSendInput, MailboxTaskContext, ReadReceipts, RegisteredAgent, } from './coordination/mailbox-types.js';",
         "export type { CacheStats, TokenCounter } from './types/token-counter.js';",
         "export type { CascadeAgentKind, ChimeraCascadeNeededPayload, ChimeraReviewCompletePayload, ChimeraReviewNeededPayload, ResolvedChimeraConfig, ReviewContextBundle, } from './plugins/chimera-plugin.js';",
+        "export type { ChimeraFinding, ChimeraFindingLocation, ChimeraFindingOrigin, ChimeraFindingResolution, FindingEventType, FindingLifecycleEvent, FindingSeverity, FindingSource, FindingStatus, ResolutionOutcome, } from './plugins/review-finding-types.js';",
         "export type { Compactor, CompactReport } from './types/compactor.js';",
         "export type { FallbackChain, FallbackChainEntry, ProviderHealth, } from './core/fallback-profile-manager.js';",
         "export type { FileEventRecord } from './types/file-event-record.js';",
@@ -34,6 +35,7 @@
         "export type { MailboxEvent, MailboxEventListener, MailboxEventType, } from './coordination/mailbox-events.js';",
         "export type { ModelsDevModel, ModelsDevPayload, ModelsDevProvider, ModelsRegistry, ResolvedModel, ResolvedProvider, WireFamily, } from './types/models-registry.js';",
         "export type { ProviderRunner, RunProviderOptions } from './types/provider-runner.js';",
+        "export type { ReviewReport, ReviewReportCounts, ReviewReportEvent, ReviewReportFile, ReportEventType, ReportLifecycleStatus, } from './plugins/review-report-types.js';",
         "export type { RotatableSecretVault, SecretVault } from './types/secret-vault.js';",
         "export type { SecretScrubber } from './types/secret-scrubber.js';",
         "export type { ToolWrapper } from './registry/tool-registry.js';",
@@ -72,6 +74,8 @@
         "export { FleetManager, type FleetManagerOptions, } from './coordination/fleet-manager.js';",
         "export { FleetSupervisor, type FleetSupervisorActions, type FleetSupervisorOptions, type FleetSupervisorSource, type SupervisedSubagent, type SupervisorLogEntry, } from './coordination/fleet-supervisor.js';",
         "export { InputBuilder, type InputBuilderEvent, type InputBuilderOptions, } from './core/input-builder.js';",
+        "export { JsonlFindingStore, FINDING_STORE_FILE, type FindingStore, type ListOptions as FindingListOptions, type UpsertContext, type UpsertResult, } from './plugins/review-finding-store.js';",
+        "export { JsonlReportStore, REPORT_STORE_FILE, type PersistReportInput, type ReportStore, type ListReportsOptions, type ReportActor, } from './plugins/review-report-store.js';",
         "export { KERNEL_API_VERSION, type LoadPluginsOptions, type PluginHostHandle, type PluginLoadFailure, loadPlugins, unloadPlugins, } from './plugin/loader.js';",
         "export { MailboxEventEmitter } from './coordination/mailbox-events.js';",
         "export { NULL_FLEET_BUS } from './coordination/null-fleet-bus.js';",
@@ -111,15 +115,18 @@
         "export { encryptedPrefixForVersion, noOpVault, parseEncryptedVersion, } from './types/secret-vault.js';",
         "export { evaluateModelCalendar, logicalCalendarTarget, type ModelBlackoutRule, type ModelCalendarDecision, } from './core/model-availability-calendar.js';",
         "export { evaluateToolKanbanBoundary, type ToolKanbanBoundaryEvaluation, } from './security/kanban-boundary.js';",
+        "export { executeFindingCommand, transitionReport, type FindingCommandContext, } from './plugins/review-finding-commands.js';",
         "export { expectDefined } from './utils/expect-defined.js';",
         "export { extractRunEnv, type RunEnv } from './core/run-env.js';",
         "export { formatSubagentStructuredReport, MAX_SUBAGENT_STRUCTURED_REPORT_CHARS, makeSubagentResultTool, normalizeSubagentStructuredReport, readSubagentStructuredReport, SUBAGENT_STRUCTURED_REPORT_META_KEY, } from './coordination/subagent-result-tool.js';",
         "export { getSessionRegistry, hasSessionRegistry, type SessionLiveStatus, SessionRegistry, type SessionRegistryEntry, } from './session-registry.js';",
         "export { getTermSize, isInteractive, isStdinTTY, isStdoutTTY, type OutputLineGuard, onResize, setOutputLineGuard, setRawMode, writeErr, writeOut, } from './utils/term.js';",
         "export { hashRequest, stableStringify, } from './replay/hash.js';",
+        "export { integrateFindings, type FindingsIntegrationResult, } from './plugins/review-finding-integration.js';",
         "export { isMailboxLeader, isMailboxMessageVisibleTo, mailboxIdentityBase, normalizeRecipient, } from './coordination/mailbox-types.js';",
         "export { isValidMatrixKey, MATRIX_PHASE_KEYS, type MatrixKeyKind, type ModelMatrixResolution, type ModelMatrixResolutionSource, type ModelReference, matrixKeyKind, phaseForRole, type ResolvedModelTarget, type ResolvedSubagentModelTarget, resolveImplementationModelTarget, resolveModelMatrix, resolveModelMatrixResolution, resolveModelTargetFromEntry, resolveSubagentModelTarget, roleNeedsIndependentReviewModel, sameModelReference, } from './coordination/model-matrix.js';",
         "export { makeAskTool, makeAssignTool, makeAwaitTasksTool, makeCollabDebugTool, makeFleetEmitTool, makeFleetTool, makeKanbanQueueTool, makeQualityGateTool, makeRollUpTool, makeSpawnTool, makeTerminateTool, } from './coordination/director-tools.js';",
+        "export { persistReviewReport, syncReportCompletion, syncReportReopen, type ReportIntegrationResult, type ReportSyncResult, type ReportReopenResult, } from './plugins/review-report-integration.js';",
         "export { readBundledInstructionText, renderInstructionTemplate, } from './utils/instruction-file.js';",
         "export { runProviderWithRetry } from './core/provider-runner.js';",
         "export { safeParse, safeStringify, sanitizeJsonString, stripCodeFences, } from './utils/safe-json.js';",
@@ -994,15 +1001,15 @@
       "directory": "coordination",
       "classification": "coordination implementation",
       "intendedOwner": "Core subpath until physical extraction is justified",
-      "sourceFiles": 146,
-      "sourceLines": 41654
+      "sourceFiles": 148,
+      "sourceLines": 41034
     },
     {
       "directory": "core",
       "classification": "agent-domain contract",
       "intendedOwner": "Core",
       "sourceFiles": 34,
-      "sourceLines": 8232
+      "sourceLines": 7972
     },
     {
       "directory": "defaults",
@@ -1106,8 +1113,8 @@
       "directory": "plugins",
       "classification": "product feature",
       "intendedOwner": "@wrongstack/plugins",
-      "sourceFiles": 13,
-      "sourceLines": 4769
+      "sourceFiles": 16,
+      "sourceLines": 6008
     },
     {
       "directory": "prompts",
@@ -1148,8 +1155,8 @@
       "directory": "storage",
       "classification": "storage/repository implementation",
       "intendedOwner": "repositories over dependency-free persistence",
-      "sourceFiles": 71,
-      "sourceLines": 15312
+      "sourceFiles": 72,
+      "sourceLines": 15334
     },
     {
       "directory": "tasking",
