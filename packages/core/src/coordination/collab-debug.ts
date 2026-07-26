@@ -43,6 +43,9 @@ import { validateFleetEventEmission } from './fleet-event-validation.js';
  */
 export const DEFAULT_MAX_TARGET_FILES = 30;
 
+/** ID prefixes for the three collab-debug agent roles. Used by ownsSubagent. */
+const COLLAB_ID_PREFIXES = ['bug-hunter-', 'refactor-planner-', 'critic-'];
+
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
@@ -464,18 +467,25 @@ export class CollabSession extends EventEmitter {
     // controller can stop any already-spawned agents, and rethrow.
     //
     // spawnAgent records each successfully-spawned agent into subagentIds
-    // immediately after spawn returns, before assign — so a partial failure
-    // (one sibling throws after another spawned) still surfaces the orphan
-    // via getSubagentIds(). The controller's session.error handler stops it.
+    // immediately after spawn returns, before assign. Wait for every parallel
+    // startup to settle before emitting session.error: Promise.all would reject
+    // early, allowing a slower sibling to spawn after the controller had already
+    // inspected getSubagentIds(), leaving that late success orphaned.
     let bugHunter: { subagentId: string; taskId: string };
     let refactorPlanner: { subagentId: string; taskId: string };
     let critic: { subagentId: string; taskId: string };
     try {
-      [bugHunter, refactorPlanner, critic] = await Promise.all([
+      const [bugHunterResult, refactorPlannerResult, criticResult] = await Promise.allSettled([
         this.spawnAgent('bug-hunter', this.buildBugHunterTask()),
         this.spawnAgent('refactor-planner', this.buildRefactorPlannerTask()),
         this.spawnAgent('critic', this.buildCriticTask()),
       ]);
+      if (bugHunterResult.status === 'rejected') throw bugHunterResult.reason;
+      if (refactorPlannerResult.status === 'rejected') throw refactorPlannerResult.reason;
+      if (criticResult.status === 'rejected') throw criticResult.reason;
+      bugHunter = bugHunterResult.value;
+      refactorPlanner = refactorPlannerResult.value;
+      critic = criticResult.value;
     } catch (err) {
       this.cleanup();
       const error = err instanceof Error ? err : new Error(String(err));
@@ -716,8 +726,11 @@ export class CollabSession extends EventEmitter {
   }
 
   private wireFleetBus(): void {
-    // Track tool executions for progress-based timeout decisions
+    // Track tool executions for progress-based timeout decisions.
+    // Ownership guard: only count THIS session's agents so a concurrent
+    // collab session's tool calls don't pollute the progress tracker.
     const dTool = this.fleetBus.filter('tool.executed', (e) => {
+      if (!this.ownsSubagent(e.subagentId)) return;
       this.progressBySubagent.set(
         e.subagentId,
         (this.progressBySubagent.get(e.subagentId) ?? 0) + 1,
@@ -726,7 +739,11 @@ export class CollabSession extends EventEmitter {
     this.disposers.push(dTool);
 
     // budget.threshold_reached → Director's alert handler
+    // Ownership guard: only handle THIS session's agents. Without it a
+    // concurrent collab session's budget events would race here — both
+    // sessions' heartbeat gates would call extend/deny on the same event.
     const dBudget = this.fleetBus.filter('budget.threshold_reached', (e) => {
+      if (!this.ownsSubagent(e.subagentId)) return;
       const payload = e.payload as {
         kind: 'timeout' | 'idle_timeout' | 'iterations' | 'tool_calls' | 'tokens' | 'cost';
         used: number;
@@ -818,32 +835,34 @@ export class CollabSession extends EventEmitter {
       }
 
       // 'ignore' (or any unrecognized decision): apply a conservative
-      // auto-extension for non-timeout kinds so the session keeps making
-      // progress rather than hitting a hard limit. The Director sees the
-      // collab.warning event and can always call cancelCollabSession() if the
-      // pattern looks like a bad infinite loop. Timeout kind is already handled
-      // above by the progress-based logic.
-      if ((payload.kind as string) !== 'timeout') {
-        setImmediate(() => {
-          const base = Math.max(payload.limit, payload.used);
-          const extra: Record<string, unknown> = {};
-          switch (payload.kind) {
-            case 'iterations':
-              extra.maxIterations = Math.min(Math.ceil(base * 1.25), 50_000);
-              break;
-            case 'tool_calls':
-              extra.maxToolCalls = Math.min(Math.ceil(base * 1.25), 100_000);
-              break;
-            case 'tokens':
-              extra.maxTokens = Math.min(Math.ceil(base * 1.25), 5_000_000);
-              break;
-            case 'cost':
-              extra.maxCostUsd = Math.min(base * 1.25, 100);
-              break;
-          }
-          payload.extend(extra);
-        });
-      }
+      // auto-extension for the remaining non-timeout kinds so the session
+      // keeps making progress rather than hitting a hard limit. The Director
+      // sees the collab.warning event and can always call cancelCollabSession()
+      // if the pattern looks like a bad infinite loop.
+      //
+      // Both 'timeout' and 'idle_timeout' are already fully handled by the
+      // progress-based logic above (which returns), so TypeScript narrows
+      // payload.kind to exclude them here — the switch below only sees
+      // iterations / tool_calls / tokens / cost.
+      setImmediate(() => {
+        const base = Math.max(payload.limit, payload.used);
+        const extra: Record<string, unknown> = {};
+        switch (payload.kind) {
+          case 'iterations':
+            extra.maxIterations = Math.min(Math.ceil(base * 1.25), 50_000);
+            break;
+          case 'tool_calls':
+            extra.maxToolCalls = Math.min(Math.ceil(base * 1.25), 100_000);
+            break;
+          case 'tokens':
+            extra.maxTokens = Math.min(Math.ceil(base * 1.25), 5_000_000);
+            break;
+          case 'cost':
+            extra.maxCostUsd = Math.min(base * 1.25, 100);
+            break;
+        }
+        payload.extend(extra);
+      });
     });
     this.disposers.push(dBudget);
 
@@ -866,7 +885,11 @@ export class CollabSession extends EventEmitter {
     this.disposers.push(dCancel);
 
     // bug.found → RefactorPlanner + Critic
+    // Ownership guard: only collect THIS session's findings. A concurrent
+    // collab session's bug-hunter emits the same event type — without this
+    // guard both sessions' reports contain the union of both sessions' bugs.
     const d1 = this.fleetBus.filter('bug.found', (e) => {
+      if (!this.ownsSubagent(e.subagentId)) return;
       const payload = e.payload as BugFoundPayload;
       if (payload?.finding) {
         this.bugs.set(payload.finding.id, payload.finding);
@@ -876,7 +899,9 @@ export class CollabSession extends EventEmitter {
     this.disposers.push(d1);
 
     // refactor.plan → Critic
+    // Ownership guard: only collect THIS session's plans (same rationale).
     const d2 = this.fleetBus.filter('refactor.plan', (e) => {
+      if (!this.ownsSubagent(e.subagentId)) return;
       const payload = e.payload as RefactorPlanPayload;
       if (payload?.plan) {
         this.plans.set(payload.plan.id, payload.plan);
@@ -886,7 +911,9 @@ export class CollabSession extends EventEmitter {
     this.disposers.push(d2);
 
     // critic.evaluation
+    // Ownership guard: only collect THIS session's evaluations (same rationale).
     const d3 = this.fleetBus.filter('critic.evaluation', (e) => {
+      if (!this.ownsSubagent(e.subagentId)) return;
       const payload = e.payload as CriticEvaluationPayload;
       if (payload?.evaluation) {
         this.evaluations.set(payload.evaluation.id, payload.evaluation);
@@ -906,6 +933,33 @@ export class CollabSession extends EventEmitter {
     // (edge case at session start — race between first tool call and map insert).
     const match = subagentId.match(/^(bug-hunter|refactor-planner|critic)/);
     return match?.[1] ?? null;
+  }
+
+  /**
+   * True when `subagentId` belongs to THIS session. All wireFleetBus filters
+   * MUST check this before processing an event — the FleetBus is shared across
+   * the whole Director fleet, so a concurrent collab session's bug-hunter,
+   * refactor-planner, and critic agents emit the same event types. Without
+   * this guard, one session's findings cross-pollinate into another session's
+   * report, and budget negotiations race when both sessions try to
+   * extend/deny the same threshold event.
+   *
+   * Resolution: check the tracked `subagentIds` map (strict — distinguishes
+   * `bug-hunter-<sessionA>` from `bug-hunter-<sessionB>`). When the map is
+   * empty (session startup race — first event arrives before spawnAgent
+   * records the id), fall back to prefix-match. This preserves isolation for
+   * the concurrent-session case (both sessions have populated maps) while
+   * tolerating the startup race for a single session.
+   */
+  private ownsSubagent(subagentId: string): boolean {
+    if (this.subagentIds.size > 0) {
+      for (const id of this.subagentIds.values()) {
+        if (id === subagentId) return true;
+      }
+      return false;
+    }
+    // Startup race fallback: no agents tracked yet, accept prefix match.
+    return COLLAB_ID_PREFIXES.some((p) => subagentId.startsWith(p));
   }
 
   private assembleReport(): CollabDebugReport {
