@@ -1,6 +1,13 @@
 import { EventEmitter } from 'node:events';
+import * as fs from 'node:fs/promises';
+import * as os from 'node:os';
+import * as path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { EventBus } from '@wrongstack/core/kernel';
 import { describe, expect, it, vi } from 'vitest';
+import { DocumentTracker } from '../../src/document-tracker.js';
+import { LSPRegistry } from '../../src/registry.js';
+import type { PlugLSPConfig } from '../../src/types.js';
 import { LSPServer, lspServerCoverage } from '../../src/server/lsp-server.js';
 import { LSPErrorCode } from '../../src/types.js';
 
@@ -111,5 +118,75 @@ describe('LSP server completion coverage', () => {
       { cwd: process.cwd(), rootPath: process.cwd(), log: log as never, events: new EventBus() },
     );
     await expect(value.start()).rejects.toMatchObject({ code: LSPErrorCode.ServerFailed });
+  });
+
+  it('skips the crash path when the child exits after shutdown', async () => {
+    const fixtureServer = fileURLToPath(
+      new URL('../integration/fixtures/crash-once-lsp-server.mjs', import.meta.url),
+    );
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), 'plug-lsp-cov-shutdown-'));
+    try {
+      await fs.writeFile(path.join(root, 'package.json'), '{}');
+
+      const events = new EventBus();
+      const crashed = vi.fn();
+      events.on('lsp.server.crashed', crashed);
+      const holder: { registry?: LSPRegistry } = {};
+      const tracker = new DocumentTracker(() => holder.registry!, log as never, root);
+      const cfg: PlugLSPConfig = {
+        servers: {
+          shutdownTest: {
+            command: process.execPath,
+            args: [fixtureServer, path.join(root, 'no-marker')],
+            languages: ['typescript'],
+            rootPatterns: ['package.json'],
+            startupTimeoutMs: 5000,
+            enabled: true,
+          },
+        },
+        autoStart: 'lazy',
+        diagnosticsAfterEdit: 'background',
+        diagnosticsWaitMs: 100,
+        severityFilter: ['error', 'warning'],
+        maxDiagnosticsPerFile: 10,
+        maxDiagnosticsTotal: 20,
+        autoDiscover: false,
+        logServerOutput: false,
+      };
+      const registry = new LSPRegistry(cfg, tracker, { cwd: root, log: log as never, events });
+      holder.registry = registry;
+      await registry.bind(root, 'lazy');
+
+      const source = path.join(root, 'sample.ts');
+      await fs.writeFile(source, 'const x = 1;\n');
+      await registry.findForPath(source, new AbortController().signal);
+      await tracker.open(source);
+      await new Promise((resolve) => setTimeout(resolve, 100));
+
+      // Wait for server to become ready
+      await new Promise<void>((resolve, reject) => {
+        const deadline = Date.now() + 5000;
+        const poll = () => {
+          if (registry.get('shutdownTest')?.state === 'ready') return resolve();
+          if (Date.now() > deadline) return reject(new Error('timed out waiting for ready'));
+          setTimeout(poll, 50);
+        };
+        poll();
+      });
+      expect(registry.get('shutdownTest')?.state).toBe('ready');
+
+      // Shut down — the exit event fires asynchronously after the child is killed
+      await registry.shutdown();
+
+      // Yield to the event loop so the child 'exit' handler runs
+      await new Promise((resolve) => setTimeout(resolve, 200));
+
+      // The server state ended as 'exited' (crash-skip guard at lsp-server.ts:88
+      // prevented overwriting 'shutting_down'/'exited' to 'failed')
+      expect(registry.get('shutdownTest')?.state).toBe('exited');
+      expect(crashed).not.toHaveBeenCalled();
+    } finally {
+      await fs.rm(root, { recursive: true, force: true }).catch(() => {});
+    }
   });
 });
