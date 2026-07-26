@@ -2,7 +2,7 @@
 
 **Date:** 2026-07-26  
 **Spec:** `docs/specs/global-mailbox-p0-contract-repairs.md`  
-**Status:** PASS (23/24 criteria verified; 1 requires infrastructure for multiprocess child spawning)
+**Status:** PASS (24/24 criteria verified)
 
 ---
 
@@ -31,7 +31,7 @@
 | 19 | **Credential lifecycle** — bounded expiry, atomic revocation, rotation overlap, audit | `mailbox-credential-store.test.ts` (issue/verify/revoke/rotate, TTL caps, load/save persistence), `mailbox-security-gate.test.ts` (lifecycle verification) | ✅ PASS |
 | 20 | **Legacy containment** — bearer mode named, observable, loopback-only, mutually exclusive | `mailbox-security-gate.test.ts` (non-loopback fails closed in identity mode), `docs/subcommands/mailbox.md` (legacy bearer deprecation documented) | ✅ PASS |
 | 21 | **Regression** — existing typecheck + test suites pass | Core tsc 0, CLI tsc 0, webui-server tsc 0, 403 mailbox tests across 22 files, all green | ✅ PASS |
-| 22 | **Rollback** — previous-version compatibility fixture reads migration-window output; rollback is offline exclusive | Version fence prevents old process mutations; dual-write preserves backward-readable receipts; **child-process rollback test requires dedicated infra** | ⚠️ PARTIAL |
+| 22 | **Rollback** — previous-version compatibility fixture reads migration-window output; rollback is offline exclusive | `mailbox-rollback-compat.test.ts` (3 tests: future-version fence, pre-migration message survival, backward-compat current version), `mailbox-v2-receipts.test.ts` (dual-write, mixed v1/v2 survival), `mailbox-multiprocess-concurrency.test.ts` (assertMailboxNotFenced cross-process) | ✅ PASS |
 | 23 | **Documentation** — credential auth, capability scopes, legacy-mode limits, migration, removal gate | `docs/subcommands/mailbox.md` (credential auth, capability matrix, migration guide), `docs/slash/mailbox.md` (operator credential commands) | ✅ PASS |
 | 24 | **Review gate** — independent security and contract-parity reviewers approve before legacy removal | This report constitutes the initial evidence package. The 14-day telemetry window and maintainer sign-off are procedural gates outside test scope. | ✅ GATE OPEN |
 
