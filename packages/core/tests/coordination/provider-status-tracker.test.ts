@@ -215,6 +215,212 @@ describe('ProviderModelStatusTracker', () => {
     strictEqual(tracker.getStatus('test', 'server-model')?.recentErrors[0]?.retryAfterMs, undefined);
   });
 
+  // ── Provider-level sibling quarantine ─────────────────────────────
+
+  it('quarantines sibling models on the same provider when quota is exhausted', () => {
+    // Seed two sibling models so they are known to the tracker.
+    tracker.recordSuccess('openai', 'gpt-4o');
+    tracker.recordSuccess('openai', 'gpt-4o-mini');
+
+    // Trigger a quota_exhausted on one model.
+    tracker.recordFailure(
+      'openai',
+      'gpt-4o',
+      'rate_limit',
+      429,
+      'insufficient_quota: account credit exhausted',
+    );
+
+    // The triggering model is blocked.
+    strictEqual(tracker.getStatus('openai', 'gpt-4o')?.state, 'blocked');
+
+    // The sibling is ALSO blocked via fan-out.
+    strictEqual(tracker.getStatus('openai', 'gpt-4o-mini')?.state, 'blocked');
+    ok(!tracker.isAvailable('openai', 'gpt-4o-mini'));
+  });
+
+  it('does NOT quarantine siblings on a different provider', () => {
+    tracker.recordSuccess('openai', 'gpt-4o');
+    tracker.recordSuccess('anthropic', 'claude-4');
+
+    tracker.recordFailure(
+      'openai',
+      'gpt-4o',
+      'rate_limit',
+      429,
+      'insufficient_quota: account credit exhausted',
+    );
+
+    strictEqual(tracker.getStatus('openai', 'gpt-4o')?.state, 'blocked');
+    // Different provider — unaffected.
+    strictEqual(tracker.isAvailable('anthropic', 'claude-4'), true);
+  });
+
+  it('does NOT quarantine siblings on a plain rate_limit (non-quota)', () => {
+    // Use default config (threshold=1) so one hit blocks the triggering model.
+    const defaultTracker = new ProviderModelStatusTracker();
+    defaultTracker.recordSuccess('openai', 'gpt-4o');
+    defaultTracker.recordSuccess('openai', 'gpt-4o-mini');
+
+    // Plain 429 without quota language — per-model, not account-level.
+    defaultTracker.recordFailure('openai', 'gpt-4o', 'rate_limit', 429, 'Too many requests');
+
+    strictEqual(defaultTracker.getStatus('openai', 'gpt-4o')?.state, 'blocked');
+    // Sibling must NOT be blocked.
+    strictEqual(defaultTracker.isAvailable('openai', 'gpt-4o-mini'), true);
+  });
+
+  it('respects quarantineSiblingsOnQuotaExhausted: false', () => {
+    const noFanOut = new ProviderModelStatusTracker({
+      config: { quarantineSiblingsOnQuotaExhausted: false },
+    });
+    noFanOut.recordSuccess('openai', 'gpt-4o');
+    noFanOut.recordSuccess('openai', 'gpt-4o-mini');
+
+    noFanOut.recordFailure(
+      'openai',
+      'gpt-4o',
+      'rate_limit',
+      429,
+      'insufficient_quota: account credit exhausted',
+    );
+
+    strictEqual(noFanOut.getStatus('openai', 'gpt-4o')?.state, 'blocked');
+    // Sibling stays available when fan-out is disabled.
+    strictEqual(noFanOut.isAvailable('openai', 'gpt-4o-mini'), true);
+  });
+
+  it('does not re-block already-blocked siblings', () => {
+    // Pre-block one sibling with a long cooldown.
+    tracker.recordFailure('openai', 'gpt-4o', 'server', 500, 'Server error');
+    tracker.recordFailure('openai', 'gpt-4o', 'server', 500, 'Server error');
+    tracker.recordFailure('openai', 'gpt-4o', 'server', 500, 'Server error');
+    tracker.recordFailure('openai', 'gpt-4o', 'server', 500, 'Server error');
+    tracker.recordFailure('openai', 'gpt-4o', 'server', 500, 'Server error');
+    // Now gpt-4o is blocked via the consecutive-failures threshold.
+    const originalExpiry = tracker.getStatus('openai', 'gpt-4o')?.stateExpiresAt;
+    ok(originalExpiry !== null && originalExpiry !== undefined);
+
+    tracker.recordSuccess('openai', 'gpt-4o-mini');
+
+    // Trigger quota on the mini — gpt-4o is already blocked and should
+    // keep its original expiry, not be overwritten by the sibling fan-out.
+    tracker.recordFailure(
+      'openai',
+      'gpt-4o-mini',
+      'rate_limit',
+      429,
+      'insufficient_quota: credit exhausted',
+    );
+
+    strictEqual(tracker.getStatus('openai', 'gpt-4o')?.state, 'blocked');
+    // The already-blocked sibling's expiry was not changed.
+    strictEqual(tracker.getStatus('openai', 'gpt-4o')?.stateExpiresAt, originalExpiry);
+  });
+
+  it('sibling quarantine message identifies the triggering model', () => {
+    tracker.recordSuccess('openai', 'gpt-4o-mini');
+
+    tracker.recordFailure(
+      'openai',
+      'gpt-4o',
+      'rate_limit',
+      429,
+      'insufficient_quota: account credit exhausted',
+    );
+
+    const sibling = tracker.getStatus('openai', 'gpt-4o-mini');
+    strictEqual(sibling?.state, 'blocked');
+    ok(sibling?.lastErrorMessage?.includes('gpt-4o'));
+    strictEqual(sibling?.lastErrorKind, 'quota_exhausted');
+  });
+
+  it('sets the sibling stateExpiresAt to match the triggering pair expiry', () => {
+    tracker.recordSuccess('openai', 'gpt-4o-mini');
+
+    tracker.recordFailure(
+      'openai',
+      'gpt-4o',
+      'rate_limit',
+      429,
+      'insufficient_quota: account credit exhausted',
+    );
+
+    const triggerExpiry = tracker.getStatus('openai', 'gpt-4o')?.stateExpiresAt;
+    const siblingExpiry = tracker.getStatus('openai', 'gpt-4o-mini')?.stateExpiresAt;
+    ok(triggerExpiry !== null && triggerExpiry !== undefined);
+    strictEqual(siblingExpiry, triggerExpiry);
+  });
+
+  it('propagates the actual trigger status (402) to quarantined siblings', () => {
+    tracker.recordSuccess('openai', 'gpt-4o-mini');
+
+    // 402 Payment Required triggers quota-exhausted detection without
+    // any prose. The sibling must inherit the real status, not a
+    // hardcoded 429.
+    tracker.recordFailure('openai', 'gpt-4o', 'invalid_request', 402, 'Payment required');
+
+    strictEqual(tracker.getStatus('openai', 'gpt-4o')?.lastErrorStatus, 402);
+    strictEqual(tracker.getStatus('openai', 'gpt-4o-mini')?.lastErrorStatus, 402);
+  });
+
+  it('records an error-history entry for each quarantined sibling', () => {
+    tracker.recordSuccess('openai', 'gpt-4o-mini');
+
+    tracker.recordFailure(
+      'openai',
+      'gpt-4o',
+      'rate_limit',
+      429,
+      'insufficient_quota: account credit exhausted',
+    );
+
+    const sibling = tracker.getStatus('openai', 'gpt-4o-mini');
+    strictEqual(sibling?.recentErrors.length, 1);
+    strictEqual(sibling?.recentErrors[0]?.kind, 'quota_exhausted');
+    strictEqual(sibling?.recentErrors[0]?.status, 429);
+    ok(sibling?.recentErrors[0]?.message.includes('gpt-4o'));
+  });
+
+  it('does not double-broadcast when re-triggering quarantine on an already-quarantined sibling', () => {
+    // Track how many status_changed events are emitted for each model.
+    const modelEvents = new Map<string, number>();
+    const bump = (model: string) => modelEvents.set(model, (modelEvents.get(model) ?? 0) + 1);
+    const eventTracker = new ProviderModelStatusTracker({
+      config: {},
+      events: {
+        emit: (_event: string, payload: { model?: string }) => {
+          if (payload.model) bump(payload.model);
+        },
+      } as unknown as import('../../src/kernel/events.js').EventBus,
+    });
+    eventTracker.recordSuccess('openai', 'gpt-4o-mini');
+
+    eventTracker.recordFailure(
+      'openai',
+      'gpt-4o',
+      'rate_limit',
+      429,
+      'insufficient_quota: account credit exhausted',
+    );
+    const siblingEventsAfterFirst = modelEvents.get('gpt-4o-mini') ?? 0;
+    ok(siblingEventsAfterFirst >= 1, 'sibling should have received an event on first quarantine');
+
+    // A second quota failure on a different model. The already-blocked
+    // sibling (gpt-4o-mini) must NOT receive another event.
+    eventTracker.recordSuccess('openai', 'gpt-4o-2');
+    eventTracker.recordFailure(
+      'openai',
+      'gpt-4o-2',
+      'rate_limit',
+      429,
+      'insufficient_quota: account credit exhausted',
+    );
+    const siblingEventsAfterSecond = modelEvents.get('gpt-4o-mini') ?? 0;
+
+    strictEqual(siblingEventsAfterSecond, siblingEventsAfterFirst);
+  });
+
   it('treats HTTP 402 as exhausted credit even without a provider-specific message', () => {
     tracker.recordFailure('metered', 'model-a', 'invalid_request', 402, 'Payment required');
     strictEqual(tracker.isAvailable('metered', 'model-a'), false);

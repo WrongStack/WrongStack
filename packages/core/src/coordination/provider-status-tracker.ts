@@ -135,6 +135,13 @@ export interface ProviderStatusTrackerConfig {
    * Default: 50.
    */
   maxErrorHistory?: number;
+  /**
+   * When true, a `quota_exhausted` failure on any (providerId, model) pair
+   * quarantines ALL other tracked pairs on the same provider — account-level
+   * budget exhaustion affects every model, so we save N−1 doomed requests.
+   * Default: true.
+   */
+  quarantineSiblingsOnQuotaExhausted?: boolean;
 }
 
 // ── Defaults ────────────────────────────────────────────────────────────────
@@ -148,6 +155,7 @@ const DEFAULTS = {
   quotaBlockDurationMs: 900_000,
   recoverAfterSuccesses: 3,
   maxErrorHistory: 50,
+  quarantineSiblingsOnQuotaExhausted: true,
 } satisfies Required<ProviderStatusTrackerConfig>;
 
 // ── Internal mutable state ──────────────────────────────────────────────────
@@ -368,7 +376,71 @@ export class ProviderModelStatusTracker {
       this.emitStatusChanged(providerId, model, s.state, s.state, 'cooldown_extended');
     }
 
+    // ── Provider-level sibling quarantine ──
+    // When an account-level budget is exhausted, every model on that provider
+    // will return the same error. Fan out the quarantine to all other tracked
+    // pairs on the same provider so the fallback engine skips them without
+    // burning N−1 doomed requests.
+    if (
+      this.cfg.quarantineSiblingsOnQuotaExhausted &&
+      quotaExhausted &&
+      newState === 'blocked'
+    ) {
+      this.quarantineSiblings(providerId, model, status, now, s.stateExpiresAt ?? 0);
+    }
+
     return newState;
+  }
+
+  /**
+   * Mark every other tracked pair on the same provider as blocked with the
+   * same expiry as the triggering pair. Only pairs already known to the
+   * tracker (previously seen via a call or failure) are affected — unknown
+   * pairs are implicitly healthy and not pre-emptively blocked.
+   */
+  private quarantineSiblings(
+    triggerProviderId: string,
+    triggerModel: string,
+    triggerStatus: number,
+    now: number,
+    expiry: number,
+  ): void {
+    const providerKey = triggerProviderId + KEY_SEP;
+    for (const [key, s] of this.map) {
+      if (!key.startsWith(providerKey)) continue;
+      if (key === pairKey(triggerProviderId, triggerModel)) continue;
+      if (s.state === 'blocked') continue; // already blocked — leave as-is
+
+      const [siblingProvider, siblingModel] = unpairKey(key);
+      const oldState = s.state;
+      s.state = 'blocked';
+      s.stateExpiresAt = expiry;
+      s.lastErrorKind = 'quota_exhausted';
+      s.lastErrorMessage = `Sibling quarantine: account-level budget exhausted on ${triggerProviderId}/${triggerModel}`;
+      s.lastErrorStatus = triggerStatus;
+      s.lastFailureAt = now;
+
+      // Push an error-history entry so the WebUI timeline records the
+      // quarantine event for this sibling.
+      const entry: ErrorHistoryEntry = Object.freeze({
+        timestamp: now,
+        kind: 'quota_exhausted',
+        status: triggerStatus,
+        message: s.lastErrorMessage,
+      });
+      s.recentErrors.unshift(entry);
+      if (s.recentErrors.length > this.cfg.maxErrorHistory) {
+        s.recentErrors = s.recentErrors.slice(0, this.cfg.maxErrorHistory);
+      }
+
+      this.emitStatusChanged(
+        siblingProvider,
+        siblingModel,
+        oldState,
+        'blocked',
+        'sibling_quota_exhausted',
+      );
+    }
   }
 
   /**
