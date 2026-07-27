@@ -167,10 +167,29 @@ const URL_LINE_RE = /^https?:\/\/\S+$/;
  */
 const OSC8_RE = /\x1b]8;[^\x07]*?(?:\x07|\x1b\\)/g;
 
-export function isAuthFlowUrlLine(line: string): boolean {
-  // Strip OSC 8 hyperlink sequences so the plain-URL regex matches
+function authFlowUrl(line: string): string | undefined {
+  // Strip OSC 8 hyperlink sequences so the plain-URL regex matches.
   const plain = line.replace(OSC8_RE, '').trim();
-  return URL_LINE_RE.test(plain);
+  return URL_LINE_RE.test(plain) ? plain : undefined;
+}
+
+export function isAuthFlowUrlLine(line: string): boolean {
+  return authFlowUrl(line) !== undefined;
+}
+
+/** Keep the newest authorize URL pinned even as later status lines arrive. */
+export function latestAuthFlowUrl(lines: readonly string[]): string | undefined {
+  for (let i = lines.length - 1; i >= 0; i -= 1) {
+    const line = lines[i];
+    if (line === undefined) continue;
+    const url = authFlowUrl(line);
+    if (url) return url;
+  }
+  return undefined;
+}
+
+function terminalHyperlink(url: string, label: string): string {
+  return `\x1b]8;;${url}\x1b\\${label}\x1b]8;;\x1b\\`;
 }
 
 function viewTitle(panel: AuthPanelState): string {
@@ -225,7 +244,12 @@ export function AuthPanel({ panel }: AuthPanelProps): React.ReactElement {
   const below = total - windowEnd;
 
   const provider = panel.view === 'provider' ? authSelectedProvider(panel) : undefined;
-  const logWindow = panel.log.slice(-Math.max(6, maxVisible));
+  const flowUrl = panel.view === 'flow' ? latestAuthFlowUrl(panel.log) : undefined;
+  const flowLog = flowUrl ? panel.log.filter((line) => !isAuthFlowUrlLine(line)) : panel.log;
+  // Keep status + pinned URL + completion marker within the same content
+  // budget so later lines cannot displace the login link below the viewport.
+  const flowLogRows = Math.max(1, maxVisible - (flowUrl ? 1 : 0) - (panel.flowDone ? 1 : 0));
+  const logWindow = flowLog.slice(-flowLogRows);
 
   return (
     <Box flexDirection="column" borderStyle="round" borderColor={UI_COLORS.border} paddingX={1}>
@@ -311,28 +335,30 @@ export function AuthPanel({ panel }: AuthPanelProps): React.ReactElement {
 
       {panel.view === 'flow' ? (
         <Box flexDirection="column" marginTop={1}>
-          {logWindow.length === 0 && !panel.flowDone ? <Text dimColor>Starting…</Text> : null}
-          {logWindow.map((line, li) => {
-            const isUrl = isAuthFlowUrlLine(line);
-            return (
-              <Text
-                key={`fl-${li}`}
-                wrap={isUrl ? 'wrap' : 'truncate-end'}
-                color={
-                  isUrl
-                    ? UI_COLORS.hint
-                    : line.startsWith('✗')
-                      ? UI_COLORS.error
-                      : line.startsWith('✓')
-                        ? UI_COLORS.active
-                        : undefined
-                }
-                dimColor={!isUrl && !line.startsWith('✗') && !line.startsWith('✓')}
-              >
-                {line}
-              </Text>
-            );
-          })}
+          {logWindow.length === 0 && !panel.flowDone && !flowUrl ? (
+            <Text dimColor>Starting…</Text>
+          ) : null}
+          {logWindow.map((line, li) => (
+            <Text
+              key={`fl-${li}`}
+              wrap="truncate-end"
+              color={
+                line.startsWith('✗')
+                  ? UI_COLORS.error
+                  : line.startsWith('✓')
+                    ? UI_COLORS.active
+                    : undefined
+              }
+              dimColor={!line.startsWith('✗') && !line.startsWith('✓')}
+            >
+              {line}
+            </Text>
+          ))}
+          {flowUrl ? (
+            <Text wrap="truncate-end" color={UI_COLORS.hint} bold>
+              Open: {terminalHyperlink(flowUrl, flowUrl)}
+            </Text>
+          ) : null}
           {panel.flowDone ? (
             <Text color={panel.flowOk ? UI_COLORS.active : UI_COLORS.error}>
               {panel.flowOk ? '✓ Done.' : '✗ Not completed.'}{' '}
@@ -359,29 +385,31 @@ export function AuthPanel({ panel }: AuthPanelProps): React.ReactElement {
         </Box>
       ) : null}
 
-      <Box flexDirection="column" minHeight={maxVisible}>
-        {above > 0 ? (
-          <Text dimColor>
-            {'\u25b2'} {above} above
-          </Text>
-        ) : null}
-        {allRows.slice(windowStart, windowEnd).map((row, ri) => (
-          <Box key={`row-${windowStart + ri}`} marginLeft={0}>
-            {renderRow(row, windowStart + ri === panel.selected, windowStart + ri)}
-          </Box>
-        ))}
-        {/* Pad trailing slots to prevent ghost text from a longer previous list */}
-        {Array.from({ length: maxVisible - (windowEnd - windowStart) }).map((_, i) => (
-          <Box key={`pad-${i}`}>
-            <Text> </Text>
-          </Box>
-        ))}
-        {below > 0 ? (
-          <Text dimColor>
-            {'\u25bc'} {below} below
-          </Text>
-        ) : null}
-      </Box>
+      {panel.view !== 'flow' ? (
+        <Box flexDirection="column" minHeight={maxVisible}>
+          {above > 0 ? (
+            <Text dimColor>
+              {'\u25b2'} {above} above
+            </Text>
+          ) : null}
+          {allRows.slice(windowStart, windowEnd).map((row, ri) => (
+            <Box key={`row-${windowStart + ri}`} marginLeft={0}>
+              {renderRow(row, windowStart + ri === panel.selected, windowStart + ri)}
+            </Box>
+          ))}
+          {/* Pad trailing slots to prevent ghost text from a longer previous list */}
+          {Array.from({ length: maxVisible - (windowEnd - windowStart) }).map((_, i) => (
+            <Box key={`pad-${i}`}>
+              <Text> </Text>
+            </Box>
+          ))}
+          {below > 0 ? (
+            <Text dimColor>
+              {'\u25bc'} {below} below
+            </Text>
+          ) : null}
+        </Box>
+      ) : null}
     </Box>
   );
 }

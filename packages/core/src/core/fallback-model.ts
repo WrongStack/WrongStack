@@ -27,6 +27,7 @@ import {
 import type { FallbackChain, FallbackChainEntry } from './fallback-profile-manager.js';
 import { FallbackProfileManager } from './fallback-profile-manager.js';
 import { evaluateModelCalendar, logicalCalendarTarget } from './model-availability-calendar.js';
+import { bindRequestProvider } from './request-provider-binding.js';
 
 export type { ModelRef } from './model-ref.js';
 // Compatibility: the canonical leaf implementation lives in model-ref.ts.
@@ -532,6 +533,7 @@ export function createFallbackModelExtension(deps: FallbackModelDeps): AgentExte
           ctx_.provider = nextProvider;
           ctx_.model = targetModel;
           request_.model = targetModel;
+          bindRequestProvider(request_, nextProvider);
           dirty = true;
           await deps.onModelSwitch?.(targetProviderId, targetModel);
 

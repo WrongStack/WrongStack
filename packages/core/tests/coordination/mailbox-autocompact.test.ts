@@ -113,6 +113,50 @@ describe('GlobalMailbox autoCompact — expiry', () => {
     expect(result.remaining).toBe(1);
   });
 
+  it('expires transient status chatter well before the default TTL', async () => {
+    const hourAgo = new Date(Date.now() - 3600_000).toISOString();
+    await writeRawMessages([
+      { id: '1', type: 'status', subject: 'stale-status', timestamp: hourAgo },
+      { id: '2', type: 'note', subject: 'note-same-age', timestamp: hourAgo },
+    ]);
+
+    // Both are an hour old and neither carries an explicit expiry, so under a
+    // single 24h TTL both would survive. Only the live-awareness chatter goes.
+    const result = await mb.autoCompact();
+    expect(result.expiredRemoved).toBe(1);
+
+    const remaining = await mb.query({ limit: 100 });
+    expect(remaining.map((m) => m.subject)).toEqual(['note-same-age']);
+  });
+
+  it('lets an explicit expiresAt outrank the type TTL', async () => {
+    const hourAgo = new Date(Date.now() - 3600_000).toISOString();
+    await writeRawMessages([
+      {
+        id: '1',
+        type: 'status',
+        subject: 'pinned-status',
+        timestamp: hourAgo,
+        expiresAt: new Date(Date.now() + 3600_000).toISOString(),
+      },
+    ]);
+
+    const result = await mb.autoCompact();
+    expect(result.expiredRemoved).toBe(0);
+    expect((await mb.query({ limit: 100 })).map((m) => m.subject)).toEqual(['pinned-status']);
+  });
+
+  it('respects a caller-supplied typeTtlMs override', async () => {
+    const hourAgo = new Date(Date.now() - 3600_000).toISOString();
+    await writeRawMessages([
+      { id: '1', type: 'status', subject: 'kept-status', timestamp: hourAgo },
+    ]);
+
+    const result = await mb.autoCompact({ typeTtlMs: { status: 86_400_000 } });
+    expect(result.expiredRemoved).toBe(0);
+    expect(result.remaining).toBe(1);
+  });
+
   it('respects a custom defaultTtlMs', async () => {
     const twoHrsAgo = new Date(Date.now() - 2 * 3600_000).toISOString();
     await writeRawMessages([

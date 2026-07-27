@@ -290,7 +290,13 @@ export interface RunTuiOptions {
     | undefined;
   /** Capability-gated low-effort reasoning hint for the prompt refiner. */
   getEnhancerReasoning?:
-    | (() => import('@wrongstack/core/types').ReasoningRequest | undefined)
+    | ((
+        providerId?: string,
+        modelId?: string,
+      ) =>
+        | import('@wrongstack/core/types').ReasoningRequest
+        | undefined
+        | Promise<import('@wrongstack/core/types').ReasoningRequest | undefined>)
     | undefined;
   /** Build an ephemeral Provider for retrying a failed refinement on another model (no session switch). */
   buildEnhancerProvider?:

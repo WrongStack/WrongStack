@@ -54,6 +54,62 @@ describe('createMailboxHooks', () => {
     expect(emit).toHaveBeenCalled();
   });
 
+  it('beforeTool throttles the mailbox read across a burst of tool calls', async () => {
+    const mailbox = makeMailbox({ unreadCount: vi.fn(async () => 1) as never });
+    const emit = vi.fn();
+    const hooks = createMailboxHooks({ mailbox: mailbox as never, agentId: 'a1' });
+
+    for (let i = 0; i < 25; i++) await hooks.beforeTool({ emit });
+
+    // A tool-heavy turn used to stat/read the shared mailbox file once per
+    // call; the default interval collapses the burst into a single read.
+    expect(mailbox.unreadCount).toHaveBeenCalledTimes(1);
+  });
+
+  it('beforeTool reads on every call when the interval is 0', async () => {
+    const mailbox = makeMailbox({ unreadCount: vi.fn(async () => 1) as never });
+    const emit = vi.fn();
+    const hooks = createMailboxHooks({
+      mailbox: mailbox as never,
+      agentId: 'a1',
+      unreadCheckIntervalMs: 0,
+    });
+
+    await hooks.beforeTool({ emit });
+    await hooks.beforeTool({ emit });
+    await hooks.beforeTool({ emit });
+
+    expect(mailbox.unreadCount).toHaveBeenCalledTimes(3);
+  });
+
+  it('beforeTool re-reads once the throttle interval has elapsed', async () => {
+    vi.useFakeTimers();
+    try {
+      const counts = [1, 4];
+      const mailbox = makeMailbox({
+        unreadCount: vi.fn(async () => counts.shift() ?? 0) as never,
+      });
+      const emit = vi.fn();
+      const hooks = createMailboxHooks({
+        mailbox: mailbox as never,
+        agentId: 'a1',
+        unreadCheckIntervalMs: 1000,
+      });
+
+      await hooks.beforeTool({ emit });
+      await hooks.beforeTool({ emit }); // inside the window — no read
+      expect(mailbox.unreadCount).toHaveBeenCalledTimes(1);
+
+      vi.advanceTimersByTime(1000);
+      await hooks.beforeTool({ emit });
+
+      expect(mailbox.unreadCount).toHaveBeenCalledTimes(2);
+      expect(emit).toHaveBeenLastCalledWith('mailbox.unread_count', { agentId: 'a1', count: 4 });
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it('afterTool updates the heartbeat with the current tool', async () => {
     const mailbox = makeMailbox();
     const hooks = createMailboxHooks({ mailbox: mailbox as never, agentId: 'a1' });

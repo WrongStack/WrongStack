@@ -185,10 +185,7 @@ export function computeEntryRows(
       if (simple || !hasBody) return 2; // header + empty close (╰─)
       // Header (1) + left rail content (wrapped text) + footer (1)
       const contentWidth = w - 2; // left rail padding
-      const bodyRows = Math.min(
-        MAX_ESTIMATE_ROWS,
-        wrappedRows(text, contentWidth),
-      );
+      const bodyRows = Math.min(MAX_ESTIMATE_ROWS, wrappedRows(text, contentWidth));
       // Rail top border (from ToolCard header shares the header row)
       // Rail body: bodyRows
       // Rail footer (╰───): 1
@@ -231,7 +228,7 @@ export function computeEntryRows(
     // Round-bordered card: top (1) + from line (1) + to line (1) + optional
     // shrink line (1) + bottom (1)
     case 'model-switch': {
-      let rows = 4; // top border + from + to + bottom border
+      let rows = 5; // top border + from + to + activation + bottom border
       if (meta?.hasBody) rows += 1; // shrink warning
       return rows;
     }
@@ -293,7 +290,10 @@ export function computeEntryRows(
  * Accounts for the primary text field as well as secondary fields (pasteContent,
  * output preview, detail strings) that contribute to visual length.
  */
-export function computeEntryChars(kind: string, entry: { text?: string; [key: string]: unknown }): number {
+export function computeEntryChars(
+  kind: string,
+  entry: { text?: string; [key: string]: unknown },
+): number {
   let total = entry.text ? visibleChars(entry.text as string) : 0;
 
   // Add secondary text fields that contribute to visual length
@@ -304,9 +304,12 @@ export function computeEntryChars(kind: string, entry: { text?: string; [key: st
     if (entry.output) total += visibleChars(entry.output as string);
     if (entry.input) {
       try {
-        const serialized = typeof entry.input === 'string' ? entry.input : JSON.stringify(entry.input);
+        const serialized =
+          typeof entry.input === 'string' ? entry.input : JSON.stringify(entry.input);
         total += visibleChars(serialized);
-      } catch { /* skip non-serializable inputs */ }
+      } catch {
+        /* skip non-serializable inputs */
+      }
     }
   }
   if (kind === 'subagent' && entry.detail) {

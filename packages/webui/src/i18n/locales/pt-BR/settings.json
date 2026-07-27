@@ -491,6 +491,11 @@
   },
   "toast": {
     "switchingTo": "Mudando para {{provider}} / {{model}}…",
+    "switching": "Mudando o modelo…",
+    "switchingToTarget": "Mudando para {{target}}…",
+    "previousModel": "modelo anterior",
+    "modelSwitchedNextRequest": "Modelo alterado: {{from}} → {{to}}. Ativo na próxima solicitação ao LLM.",
+    "modelSwitchedRunActive": "Modelo alterado: {{from}} → {{to}}. Ativo na próxima solicitação ao LLM; a execução atual continua sem reiniciar.",
     "fallbackExists": "O perfil de fallback \"{{name}}\" já existe",
     "selectProviderModelFirst": "Selecione um provedor e um modelo primeiro",
     "defaultProfileCreated": "Perfil de fallback padrão criado",

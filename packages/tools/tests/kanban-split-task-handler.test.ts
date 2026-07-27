@@ -1,0 +1,151 @@
+import { describe, expect, it, vi } from 'vitest';
+
+vi.mock('@wrongstack/kanban', () => ({
+  getBoard: vi.fn().mockResolvedValue({
+    id: 'board-1',
+    title: 'Test Board',
+    tasks: [{ id: 'task-1', title: 'Parent Task' }],
+    columns: [],
+    metadata: {},
+  }),
+  splitTask: vi.fn().mockResolvedValue({
+    board: {
+      id: 'board-1',
+      title: 'Test Board',
+      tasks: [{ id: 'task-1', title: 'Parent Task' }],
+      columns: [],
+      metadata: {},
+    },
+    children: [{ id: 'child-1', title: 'Child 1' }],
+  }),
+}));
+
+import { handleSplitTask, requireBoard } from '../src/kanban-split-task-handler.js';
+
+describe('handleSplitTask', () => {
+  it('fails when required params missing', async () => {
+    const result = await handleSplitTask('/project', { action: 'split_task' }, {});
+    expect(result.ok).toBe(false);
+    expect(result.message).toContain('split requires boardId, taskId, and at least one childTitles');
+  });
+
+  it('splits task with child titles', async () => {
+    const { splitTask } = await import('@wrongstack/kanban');
+    vi.mocked(splitTask).mockResolvedValueOnce({
+      board: {
+        id: 'board-1',
+        title: 'Test Board',
+        tasks: [{ id: 't1', title: 'Parent Task' }],
+        columns: [],
+        metadata: {},
+      },
+      children: [{ id: 'child-1', title: 'Child 1' }],
+    });
+    const result = await handleSplitTask(
+      '/project',
+      { action: 'split_task', boardId: 'b1', taskId: 't1', childTitles: ['Child 1'] },
+      {},
+    );
+    expect(result.ok).toBe(true);
+    expect(result.message).toContain('child task(s) created');
+  });
+
+  it('fails when task not found in result', async () => {
+    const { splitTask } = await import('@wrongstack/kanban');
+    vi.mocked(splitTask).mockResolvedValueOnce({
+      board: {
+        id: 'board-1',
+        title: 'Empty Board',
+        tasks: [], // No parent task
+        columns: [],
+        metadata: {},
+      },
+      children: [{ id: 'child-1', title: 'Child 1' }],
+    });
+    const result = await handleSplitTask(
+      '/project',
+      { action: 'split_task', boardId: 'b1', taskId: 't1', childTitles: ['Child 1'] },
+      {},
+    );
+    expect(result.ok).toBe(false);
+    expect(result.message).toContain('not found in returned board');
+  });
+
+  it('fails when splitTask returns null', async () => {
+    const { splitTask } = await import('@wrongstack/kanban');
+    vi.mocked(splitTask).mockResolvedValueOnce(null);
+    const result = await handleSplitTask(
+      '/project',
+      { action: 'split_task', boardId: 'b1', taskId: 't1', childTitles: ['Child 1'] },
+      {},
+    );
+    expect(result.ok).toBe(false);
+    expect(result.message).toContain('Task not found');
+  });
+
+  it('passes extra split options like atomic', async () => {
+    const { splitTask } = await import('@wrongstack/kanban');
+    vi.mocked(splitTask).mockResolvedValueOnce({
+      board: {
+        id: 'board-1',
+        title: 'Test Board',
+        tasks: [{ id: 't1', title: 'Parent Task' }],
+        columns: [],
+        metadata: {},
+      },
+      children: [{ id: 'child-1', title: 'Child 1' }],
+    });
+    const result = await handleSplitTask(
+      '/project',
+      { action: 'split_atomic', boardId: 'b1', taskId: 't1', childTitles: ['Child 1'] },
+      { atomic: true },
+    );
+    expect(result.ok).toBe(true);
+  });
+
+  it('passes optional fields to splitTask', async () => {
+    const { splitTask } = await import('@wrongstack/kanban');
+    vi.mocked(splitTask).mockResolvedValueOnce({
+      board: {
+        id: 'board-1',
+        title: 'Test Board',
+        tasks: [{ id: 't1', title: 'Parent Task' }],
+        columns: [],
+        metadata: {},
+      },
+      children: [{ id: 'child-1', title: 'Child 1' }],
+    });
+    const result = await handleSplitTask(
+      '/project',
+      {
+        action: 'split_task',
+        boardId: 'b1',
+        taskId: 't1',
+        childTitles: ['Child 1'],
+        targetColumnId: 'col-2',
+        inheritAssignment: true,
+        inheritLabels: true,
+        inheritSuccessCriteria: true,
+        inheritGoalMetrics: true,
+        inheritDependencies: true,
+        chainChildren: true,
+        rewireDependents: true,
+      },
+      {},
+    );
+    expect(result.ok).toBe(true);
+  });
+});
+
+describe('requireBoard', () => {
+  it('returns board when boardId provided', async () => {
+    const board = await requireBoard('/project', 'b1');
+    expect(board).toBeDefined();
+    expect(board?.id).toBe('board-1');
+  });
+
+  it('returns null when boardId undefined', async () => {
+    const board = await requireBoard('/project', undefined);
+    expect(board).toBeNull();
+  });
+});

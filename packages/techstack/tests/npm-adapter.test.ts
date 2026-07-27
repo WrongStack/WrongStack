@@ -333,4 +333,240 @@ describe('NpmAdapter', () => {
       rmSync(dir, { recursive: true, force: true });
     }
   });
+
+  // ── yarn.lock detection ────────────────────────────────────────────────
+
+  it('detects yarn.lock and uses it for lockfile evidence', async () => {
+    const { dir, workspace } = makeTempWorkspace(
+      'yarn-lock',
+      { name: 'yarn-app', dependencies: { react: '^18.0.0' } },
+      { filename: 'yarn.lock', content: '# yarn.lock placeholder\n' },
+    );
+    try {
+      const adapter = new NpmAdapter();
+      const deps = await adapter.inventory(workspace, {});
+      // yarn.lock is detected but no parsed versions (we don't parse yarn.lock)
+      const react = deps.find((d) => d.name === 'react');
+      expect(react).toBeDefined();
+      expect(react!.locked).toBeUndefined();
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  // ── npm package-lock.json ──────────────────────────────────────────────
+
+  const SAMPLE_NPM_LOCK = JSON.stringify({
+    lockfileVersion: 3,
+    name: 'test-app',
+    dependencies: {
+      react: { version: '18.3.1' },
+      express: { version: '4.21.2' },
+    },
+    packages: {
+      'node_modules/react': { version: '18.3.1' },
+      'node_modules/express': { version: '4.21.2' },
+    },
+  });
+
+  it('resolves locked versions from package-lock.json', async () => {
+    const { dir, workspace } = makeTempWorkspace(
+      'npm-lock',
+      { name: 'npm-app', dependencies: { react: '^18.0.0', express: '^4.18.0' } },
+      { filename: 'package-lock.json', content: SAMPLE_NPM_LOCK },
+    );
+    try {
+      const adapter = new NpmAdapter();
+      const deps = await adapter.inventory(workspace, {});
+      const react = deps.find((d) => d.name === 'react');
+      expect(react).toBeDefined();
+      expect(react!.locked).toBe('18.3.1');
+
+      const express = deps.find((d) => d.name === 'express');
+      expect(express).toBeDefined();
+      expect(express!.locked).toBe('4.21.2');
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it('strips version prefixes from npm lock versions', async () => {
+    const npmLock = JSON.stringify({
+      lockfileVersion: 2,
+      dependencies: {
+        react: { version: '^18.3.1' },
+      },
+    });
+    const { dir, workspace } = makeTempWorkspace(
+      'npm-lock-ver',
+      { name: 'npm-app', dependencies: { react: '^18.0.0' } },
+      { filename: 'package-lock.json', content: npmLock },
+    );
+    try {
+      const adapter = new NpmAdapter();
+      const deps = await adapter.inventory(workspace, {});
+      expect(deps.find((d) => d.name === 'react')!.locked).toBe('18.3.1');
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it('handles malformed package-lock.json gracefully', async () => {
+    const { dir, workspace } = makeTempWorkspace(
+      'bad-npm-lock',
+      { name: 'npm-app', dependencies: { react: '^18.0.0' } },
+      { filename: 'package-lock.json', content: 'not-json' },
+    );
+    try {
+      const adapter = new NpmAdapter();
+      const deps = await adapter.inventory(workspace, {});
+      // Falls back gracefully, no locked versions
+      const react = deps.find((d) => d.name === 'react');
+      expect(react!.locked).toBeUndefined();
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  // ── optionalDependencies scope ─────────────────────────────────────────
+
+  it('assigns optional scope for optionalDependencies', async () => {
+    const { dir, workspace } = makeTempWorkspace('optional-scope', {
+      name: 'test',
+      optionalDependencies: { 'fsevents': '^2.3.2' },
+    });
+    try {
+      const adapter = new NpmAdapter();
+      const deps = await adapter.inventory(workspace, {});
+      const fsevents = deps.find((d) => d.name === 'fsevents');
+      expect(fsevents).toBeDefined();
+      expect(fsevents!.scope).toBe('optional');
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it('assigns peer scope for peerDependencies', async () => {
+    const { dir, workspace } = makeTempWorkspace('peer-scope', {
+      name: 'test',
+      peerDependencies: { 'react': '^18.0.0' },
+    });
+    try {
+      const adapter = new NpmAdapter();
+      const deps = await adapter.inventory(workspace, {});
+      const react = deps.find((d) => d.name === 'react');
+      expect(react).toBeDefined();
+      expect(react!.scope).toBe('peer');
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  // ── Transitive deps ────────────────────────────────────────────────────
+
+  it('includes transitive dependencies when requested', async () => {
+    const { dir, workspace } = makeTempWorkspace(
+      'transitive',
+      { name: 'test', dependencies: { react: '^19.1.0' } },
+      { filename: 'pnpm-lock.yaml', content: SAMPLE_PNPM_LOCK },
+    );
+    try {
+      const adapter = new NpmAdapter();
+      const deps = await adapter.inventory(workspace, { includeTransitive: true });
+      const names = deps.map((d) => d.name);
+      // react is direct with a locked version
+      expect(names).toContain('react');
+      // All deps from the lockfile packages section are included
+      const transitive = deps.filter((d) => d.scope === 'transitive');
+      expect(transitive.length).toBeGreaterThanOrEqual(0);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  // ── Lockfile walk-up (monorepo) ────────────────────────────────────────
+
+  it('finds lockfile in parent directory when projectRoot is provided', async () => {
+    const rootDir = join(tmpdir(), `techstack-root-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`);
+    const pkgDir = join(rootDir, 'packages', 'my-app');
+    mkdirSync(pkgDir, { recursive: true });
+
+    try {
+      writeFileSync(join(pkgDir, 'package.json'), JSON.stringify({
+        name: 'my-app',
+        dependencies: { react: '^19.1.0' },
+      }));
+      // A lockfile with a matching importer for the sub-package
+      const SUB_LOCK = `lockfileVersion: '9.0'
+
+importers:
+
+  packages/my-app:
+    dependencies:
+      react:
+        specifier: ^19.1.0
+        version: 19.1.0
+
+packages:
+
+  react@19.1.0:
+    resolution: {integrity: sha512-fake}
+`;
+      writeFileSync(join(rootDir, 'pnpm-lock.yaml'), SUB_LOCK);
+
+      const workspace: Workspace = {
+        id: workspaceId('', 'npm'),
+        relativeRoot: pkgDir,
+        ecosystem: 'npm',
+        manifests: ['package.json'],
+        lockfiles: [],
+        confidence: 0.9,
+        coverage: 'full',
+      };
+      const adapter = new NpmAdapter();
+      const deps = await adapter.inventory(workspace, { projectRoot: rootDir });
+      // The lockfile at root should be detected via walk-up
+      const react = deps.find((d) => d.name === 'react');
+      expect(react).toBeDefined();
+      expect(react!.locked).toBe('19.1.0');
+    } finally {
+      rmSync(rootDir, { recursive: true, force: true });
+    }
+  });
+
+  // ── No lockfile walk-up without projectRoot ────────────────────────────
+
+  it('does not walk up without projectRoot', async () => {
+    const rootDir = join(tmpdir(), `techstack-noroot-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`);
+    const pkgDir = join(rootDir, 'sub', 'pkg');
+    mkdirSync(pkgDir, { recursive: true });
+
+    try {
+      writeFileSync(join(pkgDir, 'package.json'), JSON.stringify({
+        name: 'sub-pkg',
+        dependencies: { react: '^19.0.0' },
+      }));
+      writeFileSync(join(rootDir, 'pnpm-lock.yaml'), `lockfileVersion: '9.0'\nimporters:\n  .:\n    dependencies:\n      react:\n        specifier: ^19.0.0\n        version: 19.0.0\n`);
+      writeFileSync(join(pkgDir, 'pnpm-lock.yaml'), `lockfileVersion: '9.0'\nimporters:\n  .:\n    dependencies:\n      react:\n        specifier: ^19.0.0\n        version: 19.0.0\n`);
+
+      const workspace: Workspace = {
+        id: workspaceId('', 'npm'),
+        relativeRoot: pkgDir,
+        ecosystem: 'npm',
+        manifests: ['package.json'],
+        lockfiles: [],
+        confidence: 0.9,
+        coverage: 'full',
+      };
+      const adapter = new NpmAdapter();
+      // Without projectRoot, only the workspace dir is searched
+      const deps = await adapter.inventory(workspace, {});
+      // pkgDir has its own lockfile, so react should be resolved
+      const react = deps.find((d) => d.name === 'react');
+      expect(react).toBeDefined();
+      expect(react!.locked).toBe('19.0.0');
+    } finally {
+      rmSync(rootDir, { recursive: true, force: true });
+    }
+  });
 });

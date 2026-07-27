@@ -51,6 +51,18 @@ export const MAILBOX_HEARTBEAT_INTERVAL_MS = 30_000;
 /** Min interval between registry reads for the fleet pulse digest. */
 export const PULSE_MIN_READ_INTERVAL_MS = 30_000;
 
+/**
+ * Floor on how often the pre-tool hook actually reads the mailbox.
+ *
+ * `beforeTool` fires once per tool call, and a busy turn issues dozens. Each
+ * call stats the shared message file and, whenever another session has written
+ * to it, pays a read. Collapsing bursts to one check per second keeps steer
+ * messages effectively immediate (no tool completes fast enough for a human to
+ * notice the difference) while removing the per-tool file churn. Set the hook's
+ * `unreadCheckIntervalMs` to 0 to check on every call.
+ */
+export const UNREAD_CHECK_MIN_INTERVAL_MS = 1_000;
+
 // ── Auto-cleanup / compaction ──────────────────────────────────────────────
 
 /**
@@ -73,6 +85,24 @@ export const AUTO_COMPACT_READ_MAX_AGE_MS = 600_000;
  * `expiresAt`: 24 hours.
  */
 export const AUTO_COMPACT_DEFAULT_TTL_MS = 86_400_000; // 24h
+
+/**
+ * Per-type TTL overrides for message classes that are pure live-awareness
+ * chatter, applied when the message carries no explicit `expiresAt`.
+ *
+ * `status` is broadcast by the fleet supervisor, host supervisor, mailbox
+ * health probe and handoff plugin purely so peers can see who is doing what
+ * *right now*; nothing reads it back as history. Under the 24h default it
+ * dominated the shared file — on a real project mailbox, 1807 of 2766 lines
+ * and 1.5 MB of 3 MB — and every reader pays for that on any cache miss.
+ * Half an hour is far longer than any consumer's interest window.
+ *
+ * Keyed by `MailboxMessageType`; unlisted types keep
+ * {@link AUTO_COMPACT_DEFAULT_TTL_MS}.
+ */
+export const AUTO_COMPACT_TYPE_TTL_MS: Readonly<Record<string, number>> = {
+  status: 1_800_000, // 30 min
+};
 
 // ── HTTP bridge rate limiting ──────────────────────────────────────────────
 

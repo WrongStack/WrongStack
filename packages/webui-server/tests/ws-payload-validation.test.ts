@@ -122,14 +122,13 @@ describe('WebUI payload validation', () => {
       },
     ];
 
-    it.each(cases)('accepts valid and rejects invalid $name payloads', ({
-      validator,
-      valid,
-      invalid,
-    }) => {
-      expect(validator(valid)).toMatchObject({ ok: true });
-      expectInvalid(validator, invalid);
-    });
+    it.each(cases)(
+      'accepts valid and rejects invalid $name payloads',
+      ({ validator, valid, invalid }) => {
+        expect(validator(valid)).toMatchObject({ ok: true });
+        expectInvalid(validator, invalid);
+      },
+    );
 
     it('normalizes the brain question while preserving other valid values', () => {
       expect(validateBrainAskPayload({ question: '  continue?  ' })).toEqual({
@@ -139,6 +138,16 @@ describe('WebUI payload validation', () => {
       expect(validateModelSwitchPayload({ provider: 'openai', model: 'gpt-5' })).toEqual({
         ok: true,
         value: { provider: 'openai', model: 'gpt-5' },
+      });
+      expect(
+        validateModelSwitchPayload({
+          provider: ' openai ',
+          model: ' gpt-5 ',
+          requestId: ' req-1 ',
+        }),
+      ).toEqual({
+        ok: true,
+        value: { provider: 'openai', model: 'gpt-5', requestId: 'req-1' },
       });
     });
   });

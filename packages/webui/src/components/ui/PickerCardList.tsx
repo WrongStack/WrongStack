@@ -31,6 +31,8 @@ export interface PickerCardListProps {
   noneLabel?: string | undefined;
   /** When set, shows a dashed border message when options is empty. */
   emptyMessage?: string | undefined;
+  /** Prevent selection while an async owner operation is in flight. */
+  disabled?: boolean | undefined;
 }
 
 /**
@@ -61,12 +63,14 @@ export function PickerCardList({
   showNone,
   noneLabel,
   emptyMessage,
+  disabled = false,
 }: PickerCardListProps) {
   return (
     <div className={cn('space-y-1', className)}>
       {showNone && (
         <button
           type="button"
+          disabled={disabled}
           onClick={() => onSelect('')}
           className={cn(
             'w-full flex items-center justify-between p-3 rounded-lg border text-left transition-all',
@@ -88,9 +92,10 @@ export function PickerCardList({
         <button
           key={opt.id}
           type="button"
+          disabled={disabled}
           onClick={() => onSelect(opt.id)}
           className={cn(
-            'w-full flex items-center justify-between p-3 rounded-lg border text-left transition-all',
+            'w-full flex items-center justify-between p-3 rounded-lg border text-left transition-all disabled:cursor-wait disabled:opacity-60',
             selectedId === opt.id
               ? 'border-primary bg-primary/5 ring-2 ring-primary/20'
               : 'border-border hover:bg-muted',
@@ -113,12 +118,19 @@ export function PickerCardList({
           </div>
           <div className="text-right shrink-0 ml-2">
             {opt.detail && (
-              <div className={cn('text-xs', opt.detailHighlight ? 'text-foreground font-medium' : 'text-muted-foreground')}>
+              <div
+                className={cn(
+                  'text-xs',
+                  opt.detailHighlight ? 'text-foreground font-medium' : 'text-muted-foreground',
+                )}
+              >
                 {opt.detail}
               </div>
             )}
             {opt.rightContent ??
-              (selectedId === opt.id && <CheckCircle2 className="h-4 w-4 text-primary mt-1 ml-auto" />)}
+              (selectedId === opt.id && (
+                <CheckCircle2 className="h-4 w-4 text-primary mt-1 ml-auto" />
+              ))}
           </div>
         </button>
       ))}

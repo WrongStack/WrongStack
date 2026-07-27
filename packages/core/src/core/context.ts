@@ -178,6 +178,25 @@ export class Context implements RunEnv {
 
   /** Callbacks fired when `setWorkingDir()` changes the working directory. */
   private _onWorkingDirChanged: Array<(newDir: string, oldDir: string) => void> = [];
+  /**
+   * Serializes externally requested provider/model changes. Request creation
+   * waits on this barrier so an automatic continuation cannot capture the old
+   * model while a user-triggered switch is still building its provider.
+   */
+  private _modelTransition: Promise<void> = Promise.resolve();
+
+  runModelTransition<T>(transition: () => T | Promise<T>): Promise<T> {
+    const result = this._modelTransition.then(transition, transition);
+    this._modelTransition = result.then(
+      () => undefined,
+      () => undefined,
+    );
+    return result;
+  }
+
+  async waitForModelTransition(): Promise<void> {
+    await this._modelTransition;
+  }
 
   /**
    * Set to true when the conversation gains new tool_use or tool_result

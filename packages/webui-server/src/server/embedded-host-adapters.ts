@@ -63,44 +63,47 @@ export async function applyEmbeddedModelSwitch(
   modelId: string,
 ): Promise<void> {
   const agentContext = ctx.agent.ctx;
-  agentContext.model = modelId;
-  const saved = await ctx.loadSavedProviders();
-  const providerConfig = saved[providerId] ?? { type: providerId };
-  agentContext.provider = makeProviderFromConfig(providerId, providerConfig);
-  await ctx.modelsRegistry?.refresh().catch((error) => {
-    ctx.log(
-      JSON.stringify({
-        level: 'warn',
-        event: 'models.refresh_failed',
-        provider: providerId,
-        model: modelId,
-        message: toErrorMessage(error),
-        timestamp: new Date().toISOString(),
-      }),
-    );
-  });
-  const catalogId =
-    providerConfig.type && providerConfig.type !== providerId ? providerConfig.type : providerId;
-  const resolved = await ctx.modelsRegistry?.getModel(catalogId, modelId).catch(() => undefined);
-  const maxContext =
-    resolved?.capabilities.maxContext ?? agentContext.provider.capabilities.maxContext;
-  agentContext.provider.capabilities.maxContext = maxContext;
-  await ctx.persistPrefs?.({ provider: providerId, model: modelId });
-  if (ctx.onMaxContextResolved) ctx.onMaxContextResolved(providerId, modelId, maxContext);
-  else {
-    if (maxContext > 0) agentContext.meta['effectiveMaxContext'] = maxContext;
-    else delete agentContext.meta['effectiveMaxContext'];
-    ctx.broadcast({
-      type: 'ctx.max_context',
-      payload: {
-        sessionId: agentContext.session.id,
-        providerId,
-        modelId,
-        maxContext,
-      },
+  await agentContext.runModelTransition(async () => {
+    const saved = await ctx.loadSavedProviders();
+    const providerConfig = saved[providerId] ?? { type: providerId };
+    const nextProvider = makeProviderFromConfig(providerId, providerConfig);
+    await ctx.modelsRegistry?.refresh().catch((error) => {
+      ctx.log(
+        JSON.stringify({
+          level: 'warn',
+          event: 'models.refresh_failed',
+          provider: providerId,
+          model: modelId,
+          message: toErrorMessage(error),
+          timestamp: new Date().toISOString(),
+        }),
+      );
     });
-  }
-  ctx.broadcast({ type: 'session.start', payload: await ctx.buildSessionStart() });
+    const catalogId =
+      providerConfig.type && providerConfig.type !== providerId ? providerConfig.type : providerId;
+    const resolved = await ctx.modelsRegistry?.getModel(catalogId, modelId).catch(() => undefined);
+    const maxContext = resolved?.capabilities.maxContext ?? nextProvider.capabilities.maxContext;
+    nextProvider.capabilities.maxContext = maxContext;
+    await ctx.persistPrefs?.({ provider: providerId, model: modelId });
+
+    agentContext.provider = nextProvider;
+    agentContext.model = modelId;
+    if (ctx.onMaxContextResolved) ctx.onMaxContextResolved(providerId, modelId, maxContext);
+    else {
+      if (maxContext > 0) agentContext.meta['effectiveMaxContext'] = maxContext;
+      else delete agentContext.meta['effectiveMaxContext'];
+      ctx.broadcast({
+        type: 'ctx.max_context',
+        payload: {
+          sessionId: agentContext.session.id,
+          providerId,
+          modelId,
+          maxContext,
+        },
+      });
+    }
+    ctx.broadcast({ type: 'session.start', payload: await ctx.buildSessionStart() });
+  });
 }
 
 export function createEmbeddedProviderOperations(ctx: EmbeddedProviderContext) {

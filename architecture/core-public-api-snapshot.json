@@ -700,6 +700,7 @@
         "export { loadGoal, saveGoal, emptyGoal, appendJournal, formatGoal, setProgress, recordProgress, parseProgressFromText, goalFilePath, summarizeUsage, MAX_JOURNAL_ENTRIES, MAX_PROGRESS_HISTORY, type GoalFile, type JournalEntry, type ProgressSnapshot, } from './goal-store.js';",
         "export { loadTasks, saveTasks, emptyTaskFile, mutateTasks, type TaskFile, } from './task-store.js';",
         "export { readProviderSnapshot, watchProviderConfig, type ProviderConfigSnapshot, type WatchProviderConfigOptions, } from './provider-config-watcher.js';",
+        "export { resolveSessionId, sessionIdResolutionError, type SessionIdResolution, } from './session-id-resolver.js';",
         "export { runConfigMigrations, ConfigMigrationError, DEFAULT_CONFIG_MIGRATIONS, type ConfigMigration, type MigrationContext, type MigrationResult, } from './config-migration.js';",
         "export { scrubPersistedSessionData, scrubPersistedSessionEvent, scrubPersistedSessionSummary, } from './session-read-scrubber.js';"
       ]
@@ -1001,15 +1002,15 @@
       "directory": "coordination",
       "classification": "coordination implementation",
       "intendedOwner": "Core subpath until physical extraction is justified",
-      "sourceFiles": 148,
-      "sourceLines": 41034
+      "sourceFiles": 149,
+      "sourceLines": 41457
     },
     {
       "directory": "core",
       "classification": "agent-domain contract",
       "intendedOwner": "Core",
-      "sourceFiles": 34,
-      "sourceLines": 7972
+      "sourceFiles": 35,
+      "sourceLines": 8042
     },
     {
       "directory": "defaults",
@@ -1058,7 +1059,7 @@
       "classification": "host/application concern",
       "intendedOwner": "protocol DTOs only in Core; runtime elsewhere",
       "sourceFiles": 33,
-      "sourceLines": 7304
+      "sourceLines": 7362
     },
     {
       "directory": "infrastructure",
@@ -1086,7 +1087,7 @@
       "classification": "concrete runtime default",
       "intendedOwner": "Runtime or Providers",
       "sourceFiles": 9,
-      "sourceLines": 2148
+      "sourceLines": 2151
     },
     {
       "directory": "notifications",
@@ -1114,7 +1115,7 @@
       "classification": "product feature",
       "intendedOwner": "@wrongstack/plugins",
       "sourceFiles": 16,
-      "sourceLines": 6008
+      "sourceLines": 6062
     },
     {
       "directory": "prompts",
@@ -1155,8 +1156,8 @@
       "directory": "storage",
       "classification": "storage/repository implementation",
       "intendedOwner": "repositories over dependency-free persistence",
-      "sourceFiles": 72,
-      "sourceLines": 15334
+      "sourceFiles": 73,
+      "sourceLines": 15764
     },
     {
       "directory": "tasking",
@@ -1177,7 +1178,7 @@
       "classification": "agent-domain contract",
       "intendedOwner": "Core type-only subpaths",
       "sourceFiles": 64,
-      "sourceLines": 9193
+      "sourceLines": 9212
     },
     {
       "directory": "utils",

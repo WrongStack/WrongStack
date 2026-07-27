@@ -12,6 +12,7 @@
  * @module mailbox-hooks
  */
 
+import { UNREAD_CHECK_MIN_INTERVAL_MS } from './mailbox-constants.js';
 import type { Mailbox } from '../coordination/mailbox-types.js';
 
 export interface MailboxHooksOptions {
@@ -25,6 +26,11 @@ export interface MailboxHooksOptions {
   notifyNewMail?: boolean | undefined;
   /** Whether to update heartbeat. Default: true. */
   heartbeat?: boolean | undefined;
+  /**
+   * Minimum gap between actual mailbox reads in `beforeTool`. Default:
+   * {@link UNREAD_CHECK_MIN_INTERVAL_MS}. Pass 0 to read on every tool call.
+   */
+  unreadCheckIntervalMs?: number | undefined;
 }
 
 /**
@@ -42,16 +48,35 @@ export interface MailboxHooksOptions {
  * the agent heartbeat.
  */
 export function createMailboxHooks(opts: MailboxHooksOptions) {
-  const { mailbox, agentId, sessionId, notifyNewMail = true, heartbeat = true } = opts;
+  const {
+    mailbox,
+    agentId,
+    sessionId,
+    notifyNewMail = true,
+    heartbeat = true,
+    unreadCheckIntervalMs = UNREAD_CHECK_MIN_INTERVAL_MS,
+  } = opts;
 
   let lastUnreadCount = -1;
+  let lastCheckedAt = Number.NEGATIVE_INFINITY;
 
   return {
     /**
      * Call before each tool execution. Checks mailbox and emits events.
+     *
+     * The dedupe below suppresses redundant *events*; `unreadCheckIntervalMs`
+     * suppresses redundant *reads*. Both are needed — a turn issuing dozens of
+     * tool calls otherwise stats (and, whenever a peer session appended,
+     * re-reads) the shared message file once per call.
+     *
      * @param events — EventBus-like object with emit method.
      */
     async beforeTool(events: { emit: (type: string, payload: unknown) => void }): Promise<void> {
+      const now = Date.now();
+      // `<` not `<=`: with the default interval a same-millisecond burst still
+      // collapses, while an interval of 0 always reads.
+      if (now - lastCheckedAt < unreadCheckIntervalMs) return;
+      lastCheckedAt = now;
       try {
         const count = await mailbox.unreadCount(agentId, sessionId);
 
@@ -82,9 +107,14 @@ export function createMailboxHooks(opts: MailboxHooksOptions) {
       }
     },
 
-    /** Reset the cached unread count (e.g., after the agent checks manually). */
+    /**
+     * Reset the cached unread count (e.g., after the agent checks manually).
+     * Also clears the read throttle, so the next `beforeTool` re-reads
+     * immediately instead of waiting out the interval.
+     */
     reset() {
       lastUnreadCount = -1;
+      lastCheckedAt = Number.NEGATIVE_INFINITY;
     },
   };
 }

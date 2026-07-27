@@ -2,6 +2,7 @@ import { useWebSocket } from '@/hooks/useWebSocket';
 import { cn } from '@/lib/utils';
 import { getWSClient } from '@/lib/ws-client';
 import { useAppTranslation } from '@/i18n';
+import { toast } from '@/components/Toaster';
 import { useConfigStore, useUIStore } from '@/stores';
 import type { WSServerMessage } from '@/types';
 import { ArrowRight, Cpu, Search } from 'lucide-react';
@@ -36,7 +37,13 @@ export function QuickModelSwitcher() {
   const [selected, setSelected] = useState(0);
   const [saved, setSaved] = useState<SavedProvider[]>([]);
   const [modelsByProvider, setModelsByProvider] = useState<Record<string, CatalogModel[]>>({});
+  const [switchingTarget, setSwitchingTarget] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  const openRef = useRef(open);
+  useEffect(() => {
+    openRef.current = open;
+  }, [open]);
 
   const wsUrl = useConfigStore((s) => s.wsUrl);
   const currentProvider = useConfigStore((s) => s.provider);
@@ -113,14 +120,7 @@ export function QuickModelSwitcher() {
    *  the search filter. The active row floats to the top so the user can
    *  see what they're currently on. */
   const candidates = useMemo(
-    () =>
-      buildModelCandidates(
-        saved,
-        modelsByProvider,
-        query,
-        currentProvider,
-        currentModel,
-      ),
+    () => buildModelCandidates(saved, modelsByProvider, query, currentProvider, currentModel),
     [saved, modelsByProvider, query, currentProvider, currentModel],
   );
 
@@ -128,15 +128,45 @@ export function QuickModelSwitcher() {
     if (selected >= candidates.length) setSelected(0);
   }, [candidates.length, selected]);
 
-  const commit = (idx: number) => {
+  const commit = async (idx: number) => {
     const pick = candidates[idx];
-    if (!pick) return;
-    switchModel(pick.provider, pick.model);
-    setOpen(false);
+    if (!pick || switchingTarget) return;
+    if (pick.isCurrent) {
+      setOpen(false);
+      return;
+    }
+    const target = `${pick.provider} / ${pick.model}`;
+    setSwitchingTarget(target);
+    const result = await switchModel(pick.provider, pick.model);
+    // Suppress toast notifications if the dialog was closed while switching
+    if (openRef.current) {
+      if (result.success) {
+        toast.success(
+          t(
+            result.runActive
+              ? 'settings:toast.modelSwitchedRunActive'
+              : 'settings:toast.modelSwitchedNextRequest',
+            { from: `${currentProvider} / ${currentModel}`, to: target },
+          ),
+        );
+        setOpen(false);
+      } else {
+        toast.error(result.message);
+      }
+    }
+    setSwitchingTarget(null);
   };
 
   return (
-    <Dialog open={open} onOpenChange={(v) => { if (!v) setOpen(false); }}>
+    <Dialog
+      open={open}
+      onOpenChange={(v) => {
+        if (!v) {
+          setSwitchingTarget(null);
+          setOpen(false);
+        }
+      }}
+    >
       <DialogContent
         className="max-w-xl gap-0 p-0 overflow-hidden pt-[15dvh]"
         showCloseButton={false}
@@ -144,9 +174,12 @@ export function QuickModelSwitcher() {
           e.preventDefault();
           inputRef.current?.focus();
         }}
+        aria-busy={switchingTarget !== null}
       >
         <DialogTitle className="sr-only">{t('activity:modelSwitcher.heading')}</DialogTitle>
-        <DialogDescription className="sr-only">{t('activity:modelSwitcher.filterPlaceholder')}</DialogDescription>
+        <DialogDescription className="sr-only">
+          {t('activity:modelSwitcher.filterPlaceholder')}
+        </DialogDescription>
         <div className="flex items-center gap-2 border-b px-3 py-2">
           <Search className="h-4 w-4 text-muted-foreground" />
           <input
@@ -165,14 +198,18 @@ export function QuickModelSwitcher() {
                 setSelected((i) => Math.max(0, i - 1));
               } else if (e.key === 'Enter') {
                 e.preventDefault();
-                commit(selected);
+                void commit(selected);
               }
             }}
             placeholder={t('activity:modelSwitcher.filterPlaceholder')}
             aria-label={t('activity:modelSwitcher.filterPlaceholder')}
             className="flex-1 bg-transparent outline-none text-sm placeholder:text-muted-foreground"
           />
-          <span className="text-[10px] text-muted-foreground font-mono">↑↓ · Enter · Esc</span>
+          <span className="text-[10px] text-muted-foreground font-mono">
+            {switchingTarget
+              ? t('settings:toast.switchingToTarget', { target: switchingTarget })
+              : '↑↓ · Enter · Esc'}
+          </span>
         </div>
         <div className="max-h-[50dvh] overflow-y-auto py-1">
           {candidates.length === 0 ? (
@@ -186,7 +223,8 @@ export function QuickModelSwitcher() {
               <button
                 type="button"
                 key={`${c.provider}:${c.model}`}
-                onClick={() => commit(idx)}
+                onClick={() => void commit(idx)}
+                disabled={switchingTarget !== null}
                 onMouseEnter={() => setSelected(idx)}
                 className={cn(
                   'w-full flex items-center gap-3 px-3 py-2 text-left text-sm transition-colors',

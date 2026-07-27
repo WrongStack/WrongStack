@@ -18,9 +18,7 @@ import {
 } from './mailbox-message-cache.js';
 import { statMailboxMessageFile } from './mailbox-message-file-stat.js';
 import type { MailboxEventEmitter } from './mailbox-events.js';
-import {
-  parseMailboxFile,
-} from './mailbox-receipt-folding.js';
+import { parseMailboxFile } from './mailbox-parse-state.js';
 import { isMessageCompletedForActor } from './global-mailbox-completion.js';
 import { assertMailboxNotFenced } from './mailbox-version-fence.js';
 import { normalizeMailboxMessageType, serializeAckRecord } from './mailbox-message-codec.js';
@@ -809,8 +807,7 @@ export class GlobalMailbox implements Mailbox {
   }
 
   /**
-   * Read messages, consulting the mtime-bounded in-memory cache first,
-   * serialized so concurrent callers don't both mutate the cache.
+   * Read messages, consulting the mtime-bounded in-memory cache first.
    *
    * The mailbox file is shared across processes; every `send`/`ack`/
    * `clearAll`/`purgeStale` takes the file lock, so writes are serialized
@@ -819,21 +816,17 @@ export class GlobalMailbox implements Mailbox {
    * file read and no JSON.parse — collapsing the per-iteration query
    * cost on the mailbox-loop hot path.
    *
-   * When the file only grew (new messages appended by another process),
-   * we read and parse just the tail bytes instead of the entire file.
-   * This avoids re-parsing the full 10K-message history on every check.
-   *
-   * SERIALIZATION: the actual work is chained onto `_readChain` so two
-   * overlapping calls can't both pass the `st.size > _messageCacheSize`
-   * incremental check against the same stale tracker and each push the
-   * same tail bytes onto the cache (duplicating every appended message).
-   * Readers don't conflict on file content — only on the cache mutation
-   * that follows the read — so we run them one at a time in issue order.
-   * Errors in the chain are swallowed so a failed read never poisons
-   * subsequent reads; each caller observes and re-throws its own error.
+   * When the file only grew (new messages appended by another process), the
+   * cache reads and folds just the appended bytes instead of re-parsing the
+   * entire history. The read path — including the raw file access — lives in
+   * {@link MailboxMessageCache} because the incremental fold needs the base
+   * messages and receipt lists that `parseMailboxFile()` discards; see
+   * `mailbox-parse-state.ts`. Serialization and staleness handling are
+   * documented there. Writers that need the post-lock truth still go through
+   * {@link _readMessages}/{@link _readMessagesFresh}.
    */
   private _readMessagesCached(): Promise<MailboxMessage[]> {
-    return this._messageCache.readCached(this.messagePath, () => this._readMessages());
+    return this._messageCache.readCached(this.messagePath);
   }
   private async _ensureRegistry(): Promise<void> {
     await fsp.mkdir(path.dirname(this.registryPath), { recursive: true });

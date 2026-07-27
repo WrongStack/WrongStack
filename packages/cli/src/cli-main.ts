@@ -418,29 +418,30 @@ export async function main(argv: string[]): Promise<number> {
     teardownHandlers,
   });
 
-  const { buildProviderForId, switchProviderAndModel } = setupProviderRuntime({
-    config,
-    onConfigUpdate: (newConfig) => {
-      config = newConfig;
-    },
-    configStore,
-    fallbackProfileManager,
-    providerRegistry,
-    modelsRegistry,
-    agent,
-    memoryStore,
-    refreshMaxContext,
-    refreshActiveReasoningConfig,
-    wpaths,
-    vault,
-    logger,
-    teardownHandlers,
-    context,
-    events,
-    resolveProviderCfgRuntime,
-    buildProviderForIdRuntime,
-    statusTracker,
-  });
+  const { buildProviderForId, buildProviderForModel, switchProviderAndModel } =
+    setupProviderRuntime({
+      config,
+      onConfigUpdate: (newConfig) => {
+        config = newConfig;
+      },
+      configStore,
+      fallbackProfileManager,
+      providerRegistry,
+      modelsRegistry,
+      agent,
+      memoryStore,
+      refreshMaxContext,
+      refreshActiveReasoningConfig,
+      wpaths,
+      vault,
+      logger,
+      teardownHandlers,
+      context,
+      events,
+      resolveProviderCfgRuntime,
+      buildProviderForIdRuntime,
+      statusTracker,
+    });
 
   // ── Boot resume: adopt the resumed session's own model/provider ──────────
   // Parity with the in-session resume picker (tui-session-resume.ts): a fresh
@@ -913,8 +914,24 @@ export async function main(argv: string[]): Promise<number> {
       controllers: createRuntimeControllerDeps({
         interruptController,
         enhanceController,
-        getEnhancerReasoning: () => gatedEnhancerReasoning(activeReasoningConfig),
-        buildProviderForId,
+        getEnhancerReasoning: async (providerId = context.provider.id, modelId = context.model) => {
+          if (providerId === context.provider.id && modelId === context.model) {
+            return gatedEnhancerReasoning(activeReasoningConfig);
+          }
+          try {
+            const direct = await modelsRegistry.getModel(providerId, modelId);
+            if (direct) return gatedEnhancerReasoning(direct.capabilities.reasoningConfig);
+            const providerType = configRef.current.providers?.[providerId]?.type;
+            if (providerType && providerType !== providerId) {
+              const typed = await modelsRegistry.getModel(providerType, modelId);
+              return gatedEnhancerReasoning(typed?.capabilities.reasoningConfig);
+            }
+          } catch {
+            // Unknown/custom model: omit the optional reasoning field.
+          }
+          return undefined;
+        },
+        buildProviderForModel,
         context,
         getConfig: () => configRef.current,
         setConfig: (nextConfig) => {

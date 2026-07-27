@@ -16,6 +16,7 @@ import {
 } from '@wrongstack/webui-server/protocol';
 import type {
   WSClientMessage,
+  WSModelSwitchResult,
   WSServerMessage,
   WSUserMessageImage,
 } from '../types';
@@ -25,10 +26,7 @@ import {
   buildProviderUpdateMessage,
   buildUndoClearMessage,
 } from './ws-client-helpers';
-import {
-  installWsClientActionMethods,
-  type WsClientActionMethods,
-} from './ws-client-actions';
+import { installWsClientActionMethods, type WsClientActionMethods } from './ws-client-actions';
 import {
   defaultWsUrl,
   type EventHandler,
@@ -547,15 +545,15 @@ export class WrongStackWebSocketClient {
         WrongStackWebSocketClient.MAX_QUEUED_MESSAGES,
       );
       if (queued.dropped) {
-          console.warn(
-            JSON.stringify({
-              level: 'warn',
-              event: 'ws_client.message_queue_full',
-              cap: WrongStackWebSocketClient.MAX_QUEUED_MESSAGES,
-              droppedType: queued.dropped.type,
-              timestamp: new Date().toISOString(),
-            }),
-          );
+        console.warn(
+          JSON.stringify({
+            level: 'warn',
+            event: 'ws_client.message_queue_full',
+            cap: WrongStackWebSocketClient.MAX_QUEUED_MESSAGES,
+            droppedType: queued.dropped.type,
+            timestamp: new Date().toISOString(),
+          }),
+        );
       }
       this.messageQueue = queued.queue;
     }
@@ -658,10 +656,40 @@ export class WrongStackWebSocketClient {
     });
   }
 
-  switchModel(provider: string, model: string) {
-    this.send({
-      type: 'model.switch',
-      payload: { provider, model },
+  switchModel(
+    provider: string,
+    model: string,
+    timeoutMs = 8_000,
+  ): Promise<WSModelSwitchResult['payload']> {
+    const requestId = safeId();
+    return new Promise((resolve) => {
+      let settled = false;
+      const finish = (result: WSModelSwitchResult['payload']) => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(timer);
+        off();
+        resolve(result);
+      };
+      const off = this.on('model.switch_result', (msg) => {
+        const payload = (msg as WSModelSwitchResult).payload;
+        if (payload.requestId !== requestId) return;
+        finish(payload);
+      });
+      const timer = setTimeout(() => {
+        finish({
+          requestId,
+          success: false,
+          message: 'Model switch timed out. Please try again.',
+          provider,
+          model,
+          runActive: false,
+        });
+      }, timeoutMs);
+      this.send({
+        type: 'model.switch',
+        payload: { provider, model, requestId },
+      });
     });
   }
 

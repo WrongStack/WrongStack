@@ -13,14 +13,7 @@
  * @module mailbox-receipt-folding
  */
 
-import { LINE_SEPARATOR } from './mailbox-constants.js';
-import {
-  applyAckToMessage,
-  isAckRecord,
-  parseMailboxMessage,
-} from './mailbox-message-codec.js';
 import type {
-  AckRecord,
   MailboxMessage,
   MailboxMessageProjection,
   MailboxRecipientState,
@@ -85,17 +78,32 @@ export function materializeMessages(
     else receiptsByMessage.set(receipt.messageId, [receipt]);
   }
 
-  return messages.map((msg) => {
-    const msgReceipts = receiptsByMessage.get(msg.id) ?? [];
-    const recipientState = foldRecipientState(msg, msgReceipts);
-    const legacyGlobalCompletion = classifyLegacyCompletion(msg, msgReceipts);
+  return messages.map((msg) => materializeMessage(msg, receiptsByMessage.get(msg.id) ?? []));
+}
 
-    return {
-      ...msg,
-      recipientState,
-      ...(legacyGlobalCompletion ? { legacyGlobalCompletion: true } : {}),
-    };
-  });
+/**
+ * Materialize a single message against the receipts that target it.
+ *
+ * Split out of {@link materializeMessages} so the incremental read path
+ * (see `mailbox-parse-state.ts`) can re-fold exactly the messages an appended
+ * chunk touched instead of re-projecting the entire file. Callers MUST pass
+ * the message's COMPLETE receipt list, not just the newly appended ones —
+ * `foldRecipientState` sorts by timestamp and `classifyLegacyCompletion`
+ * scans for any `completed: true`, so a partial list would diverge from a
+ * full parse.
+ */
+export function materializeMessage(
+  msg: MailboxMessage,
+  msgReceipts: readonly MailboxReceiptRecordV2[],
+): MailboxMessageProjection {
+  const recipientState = foldRecipientState(msg, msgReceipts);
+  const legacyGlobalCompletion = classifyLegacyCompletion(msg, msgReceipts);
+
+  return {
+    ...msg,
+    recipientState,
+    ...(legacyGlobalCompletion ? { legacyGlobalCompletion: true } : {}),
+  };
 }
 
 /**
@@ -209,47 +217,6 @@ export function extractV2Receipts(parsed: readonly unknown[]): MailboxReceiptRec
     }
   }
   return receipts;
-}
-
-/**
- * Parse the raw JSONL content of a mailbox file into MailboxMessageProjection[].
- *
- * This is the canonical read-path entry point: it parses each line once,
- * classifies v1 messages, v1 ack records, and v2 receipt records, then folds
- * them into a unified MailboxMessageProjection carrying per-actor state.
- *
- * Malformed lines are silently skipped (same tolerance as parseMailboxLines).
- */
-export function parseMailboxFile(raw: string): MailboxMessageProjection[] {
-  const messages: MailboxMessage[] = [];
-  const ackRecords: AckRecord[] = [];
-  const v2Receipts: MailboxReceiptRecordV2[] = [];
-
-  for (const line of raw.split(LINE_SEPARATOR)) {
-    if (line.trim().length === 0) continue;
-    try {
-      const parsed: unknown = JSON.parse(line);
-      if (isMailboxReceiptRecordV2(parsed)) {
-        v2Receipts.push(parsed);
-      } else if (isAckRecord(parsed)) {
-        ackRecords.push(parsed);
-      } else {
-        messages.push(parseMailboxMessage(parsed));
-      }
-    } catch {
-      // skip malformed lines
-    }
-  }
-
-  // Fold v1 ack records into their target messages.
-  const messagesById = new Map(messages.map((message) => [message.id, message]));
-  for (const ack of ackRecords) {
-    const target = messagesById.get(ack.messageId);
-    if (target) applyAckToMessage(target, ack);
-  }
-
-  // Fold v1 + v2 into projections
-  return materializeMessages(messages, v2Receipts);
 }
 
 /**

@@ -15,6 +15,8 @@ export interface ProviderModelDescriptor {
   contextWindow?: number | undefined;
   inputCost?: number | undefined;
   outputCost?: number | undefined;
+  /** Declared output modalities, used by agent-model pickers to exclude image/video-only models. */
+  outputModalities?: string[] | undefined;
   capabilities: string[];
 }
 
@@ -28,6 +30,7 @@ export function describeCatalogModel(m: ModelsDevModel): ProviderModelDescriptor
     contextWindow: m.limit?.context,
     inputCost: m.cost?.input,
     outputCost: m.cost?.output,
+    ...(m.modalities?.output !== undefined ? { outputModalities: m.modalities.output } : {}),
     capabilities: [
       ...(m.tool_call ? ['tools'] : []),
       ...(m.reasoning ? ['reasoning'] : []),

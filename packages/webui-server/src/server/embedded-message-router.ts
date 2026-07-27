@@ -283,7 +283,9 @@ export function createEmbeddedMessageRouter(
     },
     applyModelSwitch: (providerId, modelId) =>
       applyEmbeddedModelSwitch(deps.agentConfigCtx, providerId, modelId),
+    isRunActive: () => deps.conversationCtx.abortControllers.size > 0,
     send: deps.agentConfigCtx.send,
+    broadcast: deps.providerCtx.broadcast,
     log: deps.agentConfigCtx.log,
   });
   const provider: ProviderRouteHandlers = {
@@ -394,7 +396,9 @@ export function createEmbeddedMessageRouter(
   const goalSnapshot: GoalSnapshotRouteHandlers = {
     getSnapshot: async () => broadcastEmbeddedGoalSnapshot(deps.sessionCtx),
   };
-  const goal: GoalRouteHandlers = { handleMessage: (ws, msg) => deps.goalHandler.handleMessage(ws, msg) };
+  const goal: GoalRouteHandlers = {
+    handleMessage: (ws, msg) => deps.goalHandler.handleMessage(ws, msg),
+  };
   const specs: SpecsRouteHandlers = {
     handleMessage: (msg) => deps.specsHandler.handleMessage(msg),
   };

@@ -118,6 +118,7 @@ import type {
   WSDiagGet,
   WSFilesList,
   WSKeyOperationResult,
+  WSModelSwitchResult,
   WSProviderCatalog,
   WSProviderModels,
   WSProviderProbe,
@@ -224,6 +225,7 @@ export type WSServerMessage =
   | WSSavedProviders
   | WSProviderProbe
   | WSKeyOperationResult
+  | WSModelSwitchResult
   | WSAuthOAuthStatus
   | WSFilesList
   | { type: 'files.tree'; payload: { root: string; tree: unknown[]; error?: string | undefined } }

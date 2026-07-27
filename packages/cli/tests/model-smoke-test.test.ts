@@ -12,13 +12,24 @@ import {
   runModelSmokeTests,
 } from '../src/subcommands/handlers/model-smoke-test.js';
 
-function provider(id: string, models: string[]): ResolvedProvider {
+function provider(
+  id: string,
+  models: Array<string | { id: string; output: string[] }>,
+): ResolvedProvider {
   return {
     id,
     name: id,
     family: 'openai-compatible',
     envVars: [],
-    models: models.map((model) => ({ id: model, name: model })),
+    models: models.map((model) =>
+      typeof model === 'string'
+        ? { id: model, name: model }
+        : {
+            id: model.id,
+            name: model.id,
+            modalities: { input: ['text'], output: model.output },
+          },
+    ),
   };
 }
 
@@ -47,7 +58,7 @@ function config(): Config {
         customModels: { custom: {} },
       },
     },
-  } as Config;
+  } as unknown as Config;
 }
 
 describe('model smoke test options', () => {
@@ -108,6 +119,32 @@ describe('model smoke targets', () => {
       { providerId: 'alias', modelId: 'base-b' },
     ]);
   });
+
+  it('excludes catalog models that explicitly cannot emit text', async () => {
+    const targets = await buildModelSmokeTargets(
+      {
+        provider: 'media',
+        model: 'chat',
+        providers: {
+          media: {
+            type: 'media',
+            family: 'openai-compatible',
+            models: ['chat', 'image-only'],
+          },
+        },
+      } as unknown as Config,
+      registry([
+        provider('media', [
+          { id: 'chat', output: ['text'] },
+          { id: 'image-only', output: ['image'] },
+          { id: 'video-only', output: ['video'] },
+        ]),
+      ]),
+      { allModels: true },
+    );
+
+    expect(targets).toEqual([{ providerId: 'media', modelId: 'chat' }]);
+  });
 });
 
 describe('model smoke runner', () => {
@@ -160,4 +197,3 @@ describe('model smoke runner', () => {
     );
   });
 });
-

@@ -122,7 +122,13 @@ export interface AppProps {
    * field, exactly as before.
    */
   getEnhancerReasoning?:
-    | (() => import('@wrongstack/core/types').ReasoningRequest | undefined)
+    | ((
+        providerId?: string,
+        modelId?: string,
+      ) =>
+        | import('@wrongstack/core/types').ReasoningRequest
+        | undefined
+        | Promise<import('@wrongstack/core/types').ReasoningRequest | undefined>)
     | undefined;
   /**
    * Build a Provider for a (providerId, modelId) pair WITHOUT switching the

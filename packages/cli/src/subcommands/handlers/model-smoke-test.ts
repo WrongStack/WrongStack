@@ -1,5 +1,6 @@
 import type {
   Config,
+  ModelsDevModel,
   ModelsRegistry,
   Provider,
   ProviderConfig,
@@ -124,14 +125,19 @@ async function catalogModelsFor(
   providerId: string,
   providerConfig: ProviderConfig | undefined,
   registry: ModelsRegistry,
-): Promise<string[]> {
+): Promise<ModelsDevModel[]> {
   const direct = await registry.getProvider(providerId).catch(() => undefined);
   const inherited =
     direct ??
     (providerConfig?.type && providerConfig.type !== providerId
       ? await registry.getProvider(providerConfig.type).catch(() => undefined)
       : undefined);
-  return (inherited?.models ?? []).map((model) => model.id);
+  return inherited?.models ?? [];
+}
+
+function supportsTextCompletion(model: ModelsDevModel | undefined): boolean {
+  const outputs = model?.modalities?.output;
+  return !outputs?.length || outputs.includes('text');
 }
 
 /**
@@ -157,12 +163,17 @@ export async function buildModelSmokeTargets(
     if (providerFilter && !providerFilter.has(providerId.toLowerCase())) continue;
     const saved = config.providers?.[providerId];
     const catalogModels = await catalogModelsFor(providerId, saved, registry);
+    const catalogById = new Map(catalogModels.map((model) => [model.id, model]));
+    const textCatalogModels = catalogModels.filter(supportsTextCompletion);
     const candidates: string[] = [];
 
     if (options.allModels) {
       pushUnique(candidates, saved?.models ?? []);
       pushUnique(candidates, Object.keys(saved?.customModels ?? {}));
-      pushUnique(candidates, catalogModels);
+      pushUnique(
+        candidates,
+        textCatalogModels.map((model) => model.id),
+      );
       if (providerId === config.provider) pushUnique(candidates, [config.model]);
       pushUnique(candidates, [saved?.model]);
     } else {
@@ -172,12 +183,13 @@ export async function buildModelSmokeTargets(
         saved?.models?.find(Boolean) ??
         Object.keys(saved?.customModels ?? {})[0] ??
         (await registry.suggestModel(providerId).catch(() => undefined)) ??
-        catalogModels[0];
+        textCatalogModels[0]?.id;
       pushUnique(candidates, [representative]);
     }
 
     for (const modelId of candidates) {
       if (modelFilter && !modelFilter.has(modelId)) continue;
+      if (!supportsTextCompletion(catalogById.get(modelId))) continue;
       targets.push({ providerId, modelId });
     }
   }

@@ -74,6 +74,52 @@ describe('Context', () => {
     expect(u.input).toBe(7);
     expect(u.output).toBe(3);
   });
+
+  it('holds request creation until an in-flight model transition commits', async () => {
+    const ctx = mkContext();
+    let release!: () => void;
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const transition = ctx.runModelTransition(async () => {
+      await gate;
+      ctx.model = 'new-model';
+    });
+    let requestReady = false;
+    const waiter = ctx.waitForModelTransition().then(() => {
+      requestReady = true;
+    });
+
+    await Promise.resolve();
+    expect(requestReady).toBe(false);
+    release();
+    await Promise.all([transition, waiter]);
+    expect(requestReady).toBe(true);
+    expect(ctx.model).toBe('new-model');
+  });
+
+  it('serializes overlapping model transitions in request order', async () => {
+    const ctx = mkContext();
+    let releaseFirst!: () => void;
+    const gate = new Promise<void>((resolve) => {
+      releaseFirst = resolve;
+    });
+    const order: string[] = [];
+    const first = ctx.runModelTransition(async () => {
+      order.push('first:start');
+      await gate;
+      order.push('first:end');
+    });
+    const second = ctx.runModelTransition(() => {
+      order.push('second');
+    });
+
+    await Promise.resolve();
+    expect(order).toEqual(['first:start']);
+    releaseFirst();
+    await Promise.all([first, second]);
+    expect(order).toEqual(['first:start', 'first:end', 'second']);
+  });
 });
 
 describe('Context.workingDir', () => {

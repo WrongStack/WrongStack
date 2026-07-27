@@ -64,7 +64,7 @@ describe('CLI wiring controllers', () => {
     expect(read('src/cli-main.ts')).toMatch(/agentTranscripts:\s*agentMonitor/);
     const execution = read('src/execution.ts');
     expect(execution).toMatch(/agentsMonitorController,\s*agentTranscripts,/s);
-    expect(execution).toMatch(/\n\s+agentTranscripts,\n/);
+    expect(execution).toMatch(/\r?\n\s+agentTranscripts,\r?\n/);
     const runTui = readFileSync(
       path.join(__dirname, '..', '..', 'tui', 'src', 'run-tui.ts'),
       'utf8',

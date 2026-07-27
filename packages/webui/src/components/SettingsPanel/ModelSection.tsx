@@ -29,6 +29,7 @@ export interface ModelSectionProps {
   currentCatalogProvider: CatalogProvider | undefined;
   /** Loading flag. */
   isLoadingModels: boolean;
+  isSwitching: boolean;
   setIsLoadingModels: (v: boolean) => void;
   /** Called when a model is selected. */
   onModelSelect: (modelId: string) => void;
@@ -41,6 +42,7 @@ export function ModelSection({
   catalogModels,
   currentCatalogProvider,
   isLoadingModels,
+  isSwitching,
   setIsLoadingModels,
   onModelSelect,
   refreshModels,
@@ -54,9 +56,7 @@ export function ModelSection({
         <>
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium">
-                {currentCatalogProvider?.name || provider}
-              </p>
+              <p className="text-sm font-medium">{currentCatalogProvider?.name || provider}</p>
               <p className="text-xs text-muted-foreground">{provider}</p>
             </div>
             <Button
@@ -77,23 +77,29 @@ export function ModelSection({
               <span className="ml-2 text-muted-foreground">{t('settings:model.loading')}</span>
             </div>
           ) : (
-            <PickerCardList
-              options={(catalogModels[provider] || []).map((m) => ({
-                id: m.id,
-                label: m.name || m.id,
-                badges: m.capabilities,
-                detail: [
-                  m.contextWindow ? `${Math.round(m.contextWindow / 1000)}k` : '',
-                  m.inputCost != null ? `${m.inputCost}/${m.outputCost}` : '',
-                ]
-                  .filter(Boolean)
-                  .join(' · '),
-                detailHighlight: true,
-              }))}
-              selectedId={model}
-              onSelect={onModelSelect}
-              emptyMessage={t('settings:model.notFound')}
-            />
+            <>
+              <PickerCardList
+                options={(catalogModels[provider] || []).map((m) => ({
+                  id: m.id,
+                  label: m.name || m.id,
+                  badges: m.capabilities,
+                  detail: [
+                    m.contextWindow ? `${Math.round(m.contextWindow / 1000)}k` : '',
+                    m.inputCost != null ? `${m.inputCost}/${m.outputCost}` : '',
+                  ]
+                    .filter(Boolean)
+                    .join(' · '),
+                  detailHighlight: true,
+                }))}
+                selectedId={model}
+                onSelect={onModelSelect}
+                disabled={isSwitching}
+                emptyMessage={t('settings:model.notFound')}
+              />
+              {isSwitching ? (
+                <p className="text-xs text-muted-foreground">{t('settings:toast.switching')}</p>
+              ) : null}
+            </>
           )}
         </>
       ) : (

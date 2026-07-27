@@ -118,6 +118,12 @@ export type SessionEvent =
       ts: string;
       version: 1;
       messages: Message[];
+      /**
+       * Set by the loader when `messages` was dropped to bound memory — see
+       * {@link SessionData} and `load-session-data.ts`. Carries the length the
+       * payload had on disk. Absent on freshly emitted events.
+       */
+      messagesOmitted?: number;
     }
   | {
       /**
@@ -129,6 +135,8 @@ export type SessionEvent =
       ts: string;
       reason: 'compaction';
       messages: Message[];
+      /** See `messagesOmitted` on `messages_replaced`. */
+      messagesOmitted?: number;
     }
   | {
       type: 'compaction';

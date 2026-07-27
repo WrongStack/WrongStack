@@ -110,6 +110,39 @@ describe('Agent', () => {
     expect(provider.calls).toBe(1);
   });
 
+  it('starts an automatic follow-up on the model transition that was already requested', async () => {
+    const previousProvider = new MockProvider([
+      { content: [{ type: 'text', text: 'old' }], stopReason: 'end_turn' },
+    ]);
+    const nextProvider = new MockProvider([
+      { content: [{ type: 'text', text: 'new' }], stopReason: 'end_turn' },
+    ]);
+    const { agent, ctx, tmp } = await buildAgent(previousProvider);
+    cleanupDirs.push(tmp);
+    let releaseSwitch!: () => void;
+    const gate = new Promise<void>((resolve) => {
+      releaseSwitch = resolve;
+    });
+    const switching = ctx.runModelTransition(async () => {
+      await gate;
+      ctx.provider = nextProvider;
+      ctx.model = 'new-model';
+    });
+
+    const running = agent.run('automatic follow-up');
+    await Promise.resolve();
+    expect(previousProvider.calls).toBe(0);
+    expect(nextProvider.calls).toBe(0);
+
+    releaseSwitch();
+    await switching;
+    const result = await running;
+
+    expect(result.finalText).toBe('new');
+    expect(previousProvider.calls).toBe(0);
+    expect(nextProvider.calls).toBe(1);
+  });
+
   it('flushes reconstruct and lifecycle boundaries before run resolves', async () => {
     const provider = new MockProvider([
       { content: [{ type: 'text', text: 'durable reply' }], stopReason: 'end_turn' },

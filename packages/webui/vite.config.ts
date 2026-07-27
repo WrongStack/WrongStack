@@ -11,6 +11,10 @@ export default defineConfig({
   resolve: {
     alias: [
       {
+        find: /^@wrongstack\/webui-server\/protocol$/,
+        replacement: path.resolve(__dirname, '../webui-server/src/protocol/index.ts'),
+      },
+      {
         find: /^@wrongstack\/core\/agent-catalog$/,
         replacement: path.resolve(__dirname, '../core/src/coordination/agents/index.ts'),
       },

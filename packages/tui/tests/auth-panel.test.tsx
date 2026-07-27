@@ -1,8 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import React from 'react';
 import { render } from 'ink-testing-library';
-import { AuthPanel, isAuthFlowUrlLine } from '../src/components/auth-panel.js';
+import {
+  AuthPanel,
+  isAuthFlowUrlLine,
+  latestAuthFlowUrl,
+} from '../src/components/auth-panel.js';
 import { AUTH_PANEL_INITIAL, type AuthPanelState } from '../src/components/auth-panel-model.js';
+import { renderRealTty, settle } from './helpers/real-tty.js';
 
 function panel(overrides: Partial<AuthPanelState> = {}): AuthPanelState {
   return { ...AUTH_PANEL_INITIAL, open: true, ...overrides };
@@ -82,4 +87,51 @@ describe('AuthPanel flow URL rendering helpers', () => {
     expect(isAuthFlowUrlLine('Open this URL in your browser to sign in:')).toBe(false);
     expect(isAuthFlowUrlLine('Listening on http://localhost:1455/auth/callback')).toBe(false);
   });
+
+  it('keeps the newest authorize URL available after later status lines arrive', () => {
+    const url = 'https://auth.openai.com/oauth/authorize?response_type=code&state=newest';
+    expect(
+      latestAuthFlowUrl([
+        'https://auth.openai.com/oauth/authorize?state=older',
+        'A browser window should open. Waiting for you to finish signing in...',
+        url,
+        '(Listening on http://localhost:1455/auth/callback — press Ctrl+C to cancel.)',
+      ]),
+    ).toBe(url);
+  });
+
+  it(
+    'keeps a long clickable login URL visible in a short, narrow terminal',
+    { timeout: 5_000 },
+    async () => {
+      const url =
+        'https://auth.openai.com/oauth/authorize?response_type=code&client_id=app&redirect_uri=http%3A%2F%2Flocalhost%3A1455%2Fauth%2Fcallback&scope=openid&state=long-state';
+      const view = renderRealTty(
+        React.createElement(AuthPanel, {
+          panel: panel({
+            view: 'flow',
+            flowTitle: 'Sign in with ChatGPT',
+            busy: true,
+            log: [
+              'Uses your ChatGPT Plus/Pro/Team subscription (not an API key).',
+              'Using a subscription outside the official Codex client may violate OpenAI Terms.',
+              'Open this URL in your browser to sign in:',
+              `\x1b]8;;${url}\x1b\\${url}\x1b]8;;\x1b\\`,
+              'A browser window should open. Waiting for you to finish signing in...',
+              '(Listening on http://localhost:1455/auth/callback — press Ctrl+C to cancel.)',
+            ],
+          }),
+        }),
+        { columns: 42, rows: 10 },
+      );
+
+      await settle();
+      const frame = view.lastFrame();
+      const rawFrame = view.stdout.frames.at(-1) ?? '';
+      expect(frame).toContain('Open: https://auth.openai.com/');
+      expect(rawFrame).toContain(`\x1b]8;;${url}\x1b\\`);
+      expect(view.lines().length).toBeLessThanOrEqual(10);
+      view.unmount();
+    },
+  );
 });

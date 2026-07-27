@@ -160,6 +160,21 @@ export interface WSKeyOperationResult {
   };
 }
 
+export interface WSModelSwitchResult {
+  type: 'model.switch_result';
+  payload: {
+    requestId?: string | undefined;
+    success: boolean;
+    message: string;
+    provider?: string | undefined;
+    model?: string | undefined;
+    previousProvider?: string | undefined;
+    previousModel?: string | undefined;
+    /** A leader run was active when the atomic switch committed. */
+    runActive: boolean;
+  };
+}
+
 /** Which subscription OAuth login a flow is running. */
 export type OAuthKind = 'chatgpt' | 'claude' | 'copilot';
 

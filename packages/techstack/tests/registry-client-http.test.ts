@@ -340,4 +340,195 @@ describe('lookupRegistryBatch', () => {
     expect(results.get('pkg-a')).toBeDefined();
     expect(results.get('pkg-b')).toBeDefined();
   });
+
+  it('handles errors in batch gracefully', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    mockedHttpsGet.mockImplementation(mockGet(404, 'not found'));
+
+    const { lookupRegistryBatch } = await import('../src/registry/client.js');
+    const results = await lookupRegistryBatch('npm', ['missing-a', 'missing-b']);
+    expect(results.size).toBe(2);
+    expect(results.get('missing-a')).toBeUndefined();
+    expect(results.get('missing-b')).toBeUndefined();
+  });
+});
+
+// ── Per-ecosystem parsers ──────────────────────────────────────────────
+
+describe('lookupRegistry — per-ecosystem parsers', () => {
+  it('parses PyPI JSON for python ecosystem', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    mockedHttpsGet.mockImplementation(
+      mockGet(200, JSON.stringify({
+        info: { name: 'django', version: '5.2.1', license: 'BSD' },
+      })),
+    );
+
+    const entry = await lookupRegistry('python', 'django');
+    expect(entry).toBeDefined();
+    expect(entry!.latestStable).toBe('5.2.1');
+    expect(entry!.license).toBe('BSD');
+    expect(entry!.source).toContain('pypi.org');
+  });
+
+  it('parses crates.io JSON for cargo ecosystem', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    mockedHttpsGet.mockImplementation(
+      mockGet(200, JSON.stringify({
+        crate: { max_stable_version: '1.2.3', license: 'MIT', name: 'serde' },
+      })),
+    );
+
+    const entry = await lookupRegistry('cargo', 'serde');
+    expect(entry).toBeDefined();
+    expect(entry!.latestStable).toBe('1.2.3');
+    expect(entry!.license).toBe('MIT');
+  });
+
+  it('parses Go proxy JSON for golang ecosystem', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    mockedHttpsGet.mockImplementation(
+      mockGet(200, JSON.stringify({ Version: '1.21.0' })),
+    );
+
+    const entry = await lookupRegistry('golang', 'github.com/gorilla/mux');
+    expect(entry).toBeDefined();
+    expect(entry!.latestStable).toBe('1.21.0');
+    expect(entry!.license).toBeUndefined();
+  });
+
+  it('parses NuGet V3 JSON for nuget ecosystem', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    mockedHttpsGet.mockImplementation(
+      mockGet(200, JSON.stringify({
+        items: [{
+          items: [{
+            catalogEntry: { version: '6.0.0' },
+          }],
+        }],
+      })),
+    );
+
+    const entry = await lookupRegistry('nuget', 'Newtonsoft.Json');
+    expect(entry).toBeDefined();
+    expect(entry!.latestStable).toBe('6.0.0');
+  });
+
+  it('prefers non-prerelease versions in NuGet parser', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    mockedHttpsGet.mockImplementation(
+      mockGet(200, JSON.stringify({
+        items: [{
+          items: [
+            { catalogEntry: { version: '7.0.0-preview.1' } },
+            { catalogEntry: { version: '6.0.0' } },
+          ],
+        }],
+      })),
+    );
+
+    const entry = await lookupRegistry('nuget', 'Some.Package');
+    expect(entry).toBeDefined();
+    expect(entry!.latestStable).toBe('6.0.0');
+  });
+
+  it('parses Packagist JSON for composer ecosystem', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    mockedHttpsGet.mockImplementation(
+      mockGet(200, JSON.stringify({
+        packages: {
+          'monolog/monolog': [
+            { version: '3.0.0', license: 'MIT' },
+            { version: '2.9.0' },
+          ],
+        },
+      })),
+    );
+
+    const entry = await lookupRegistry('composer', 'monolog/monolog');
+    expect(entry).toBeDefined();
+    expect(entry!.latestStable).toBe('3.0.0');
+    expect(entry!.license).toBe('MIT');
+  });
+
+  it('parses pub.dev JSON for pub ecosystem', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    mockedHttpsGet.mockImplementation(
+      mockGet(200, JSON.stringify({
+        name: 'flutter',
+        latestVersion: '3.22.0',
+        latest: { license: 'BSD-3-Clause' },
+        isDiscontinued: false,
+        isRetracted: false,
+      })),
+    );
+
+    const entry = await lookupRegistry('pub', 'flutter');
+    expect(entry).toBeDefined();
+    expect(entry!.latestStable).toBe('3.22.0');
+    expect(entry!.license).toBe('BSD-3-Clause');
+    expect(entry!.deprecated).toBe(false);
+    expect(entry!.yanked).toBe(false);
+  });
+});
+
+// ── strictErrors ───────────────────────────────────────────────────────
+
+describe('lookupRegistry — strictErrors', () => {
+  it('throws RegistryNotFoundError for 404 when strictErrors is true', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    mockedHttpsGet.mockImplementation(mockGet(404, 'not found'));
+
+    await expect(
+      lookupRegistry('npm', 'missing', { strictErrors: true }),
+    ).rejects.toThrow('Registry package not found or inaccessible');
+  });
+
+  it('throws RegistryAuthError for 403 when strictErrors is true', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    mockedHttpsGet.mockImplementation(mockGet(403, 'forbidden'));
+
+    await expect(
+      lookupRegistry('npm', 'private', { strictErrors: true }),
+    ).rejects.toThrow('Registry authorization failed');
+  });
+
+  it('throws RegistryNotFoundError for 401 when strictErrors is true', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    mockedHttpsGet.mockImplementation(mockGet(401, 'unauthorized'));
+
+    await expect(
+      lookupRegistry('npm', 'unauth', { strictErrors: true }),
+    ).rejects.toThrow('Registry package not found or inaccessible');
+  });
+});
+
+// ── 5xx errors ─────────────────────────────────────────────────────────
+
+describe('lookupRegistry — 5xx after retries exhausted', () => {
+  it('throws RegistryNetworkError on persistent 503', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    mockedHttpsGet.mockImplementation(mockGet(503, 'service unavailable'));
+
+    const promise = lookupRegistry('npm', 'always-503').catch((e: Error) => e);
+    await vi.advanceTimersByTimeAsync(60000);
+    const result = await promise;
+    expect(result).toBeInstanceOf(Error);
+    expect((result as Error).message).toContain('503');
+  });
+});
+
+// ── Unexpected status code ─────────────────────────────────────────────
+
+describe('lookupRegistry — unexpected status code', () => {
+  it('throws on unexpected 3xx status code', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    mockedHttpsGet.mockImplementation(mockGet(302, 'redirected'));
+
+    const promise = lookupRegistry('npm', 'redirected').catch((e: Error) => e);
+    await vi.advanceTimersByTimeAsync(60000);
+    const result = await promise;
+    expect(result).toBeInstanceOf(Error);
+    expect((result as Error).message).toContain('302');
+  });
 });

@@ -4,8 +4,8 @@
   "rootImportFiles": 0,
   "bySpecifier": {
     "@wrongstack/core/agent": {
-      "files": 213,
-      "typeOnly": 175,
+      "files": 214,
+      "typeOnly": 176,
       "runtimeOrMixed": 54
     },
     "@wrongstack/core/agent-catalog": {
@@ -139,9 +139,9 @@
       "runtimeOrMixed": 3
     },
     "@wrongstack/core/types": {
-      "files": 781,
-      "typeOnly": 754,
-      "runtimeOrMixed": 194
+      "files": 788,
+      "typeOnly": 760,
+      "runtimeOrMixed": 199
     },
     "@wrongstack/core/types/multi-agent.js": {
       "files": 2,
@@ -159,8 +159,8 @@
       "runtimeOrMixed": 1
     },
     "@wrongstack/core/utils": {
-      "files": 435,
-      "typeOnly": 39,
+      "files": 436,
+      "typeOnly": 40,
       "runtimeOrMixed": 461
     },
     "@wrongstack/core/utils/error": {
@@ -625,6 +625,12 @@
     },
     {
       "specifier": "@wrongstack/core/agent",
+      "file": "packages/cli/tests/runtime-controller-deps.test.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/agent",
       "file": "packages/cli/tests/security-collision.test.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
@@ -878,12 +884,6 @@
     {
       "specifier": "@wrongstack/core/agent",
       "file": "packages/techstack/src/research/search.ts",
-      "typeOnly": 1,
-      "runtimeOrMixed": 0
-    },
-    {
-      "specifier": "@wrongstack/core/agent",
-      "file": "packages/techstack/tests/research/search.test.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
     },
@@ -1442,6 +1442,12 @@
     {
       "specifier": "@wrongstack/core/agent",
       "file": "packages/webui-server/src/server/types.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/agent",
+      "file": "packages/webui-server/tests/model-operations.test.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
     },
@@ -7233,7 +7239,7 @@
       "specifier": "@wrongstack/core/types",
       "file": "packages/cli/src/execute-deps.ts",
       "typeOnly": 1,
-      "runtimeOrMixed": 4
+      "runtimeOrMixed": 5
     },
     {
       "specifier": "@wrongstack/core/types",
@@ -8587,6 +8593,12 @@
     },
     {
       "specifier": "@wrongstack/core/types",
+      "file": "packages/cli/tests/runtime-controller-deps.test.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/types",
       "file": "packages/cli/tests/simpleui-full-auto.test.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
@@ -9529,6 +9541,12 @@
     },
     {
       "specifier": "@wrongstack/core/types",
+      "file": "packages/providers/src/openai-responses.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/types",
       "file": "packages/providers/src/openai-shared.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
@@ -9542,6 +9560,12 @@
     {
       "specifier": "@wrongstack/core/types",
       "file": "packages/providers/src/opencode-go.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/types",
+      "file": "packages/providers/src/opencode.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
     },
@@ -9727,7 +9751,19 @@
     },
     {
       "specifier": "@wrongstack/core/types",
+      "file": "packages/providers/tests/openai-responses-coverage.test.ts",
+      "typeOnly": 0,
+      "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/types",
       "file": "packages/providers/tests/opencode-go.test.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/types",
+      "file": "packages/providers/tests/opencode.test.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
     },
@@ -10160,6 +10196,12 @@
     {
       "specifier": "@wrongstack/core/types",
       "file": "packages/techstack/src/research/llm.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/types",
+      "file": "packages/techstack/tests/research/llm.test.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
     },
@@ -10743,7 +10785,7 @@
       "specifier": "@wrongstack/core/types",
       "file": "packages/tui/src/app-props.ts",
       "typeOnly": 1,
-      "runtimeOrMixed": 5
+      "runtimeOrMixed": 6
     },
     {
       "specifier": "@wrongstack/core/types",
@@ -10959,7 +11001,7 @@
       "specifier": "@wrongstack/core/types",
       "file": "packages/tui/src/run-tui-options.ts",
       "typeOnly": 1,
-      "runtimeOrMixed": 6
+      "runtimeOrMixed": 7
     },
     {
       "specifier": "@wrongstack/core/types",
@@ -11090,6 +11132,12 @@
     {
       "specifier": "@wrongstack/core/types",
       "file": "packages/tui/tests/slash-command-search.test.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
+    },
+    {
+      "specifier": "@wrongstack/core/types",
+      "file": "packages/tui/tests/submit-prompt-refinement.test.ts",
       "typeOnly": 1,
       "runtimeOrMixed": 0
     },
@@ -13912,6 +13960,12 @@
       "file": "packages/tools/tests/git.test.ts",
       "typeOnly": 0,
       "runtimeOrMixed": 1
+    },
+    {
+      "specifier": "@wrongstack/core/utils",
+      "file": "packages/tools/tests/process-registry-persistent.test.ts",
+      "typeOnly": 1,
+      "runtimeOrMixed": 0
     },
     {
       "specifier": "@wrongstack/core/utils",

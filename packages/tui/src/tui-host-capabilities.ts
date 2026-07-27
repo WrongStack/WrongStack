@@ -13,7 +13,12 @@ export interface PickableProviderCapability {
 export interface PromptRefinementCapabilities {
   agent: Agent;
   memoryStore?: MemoryPort | undefined;
-  getEnhancerReasoning?: (() => ReasoningRequest | undefined) | undefined;
+  getEnhancerReasoning?:
+    | ((
+        providerId?: string,
+        modelId?: string,
+      ) => ReasoningRequest | undefined | Promise<ReasoningRequest | undefined>)
+    | undefined;
   buildEnhancerProvider?:
     | ((providerId: string, modelId: string) => Promise<Provider | undefined>)
     | undefined;

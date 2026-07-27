@@ -15,11 +15,11 @@
       "relativeImports": 17
     },
     "packages/cli/src/cli-main.ts": {
-      "lines": 999,
+      "lines": 1016,
       "relativeImports": 43
     },
     "packages/cli/src/execution.ts": {
-      "lines": 992,
+      "lines": 996,
       "relativeImports": 36
     },
     "packages/cli/src/fleet/host.ts": {
@@ -63,7 +63,7 @@
       "relativeImports": 4
     },
     "packages/cli/src/subcommands/handlers/modeldiag.ts": {
-      "lines": 1064,
+      "lines": 1087,
       "relativeImports": 6
     },
     "packages/cli/src/webui-server.ts": {
@@ -95,7 +95,7 @@
       "relativeImports": 13
     },
     "packages/core/src/coordination/global-mailbox.ts": {
-      "lines": 987,
+      "lines": 980,
       "relativeImports": 26
     },
     "packages/core/src/coordination/mailbox-http-router.ts": {
@@ -103,7 +103,7 @@
       "relativeImports": 9
     },
     "packages/core/src/coordination/mailbox-types.ts": {
-      "lines": 953,
+      "lines": 960,
       "relativeImports": 3
     },
     "packages/core/src/coordination/multi-agent-coordinator.ts": {
@@ -115,8 +115,8 @@
       "relativeImports": 2
     },
     "packages/core/src/core/agent-loop.ts": {
-      "lines": 915,
-      "relativeImports": 22
+      "lines": 922,
+      "relativeImports": 24
     },
     "packages/core/src/core/system-prompt-builder.ts": {
       "lines": 981,
@@ -155,7 +155,7 @@
       "relativeImports": 12
     },
     "packages/core/src/hq/persistence.ts": {
-      "lines": 933,
+      "lines": 991,
       "relativeImports": 5
     },
     "packages/core/src/hq/protocol/core.ts": {
@@ -175,12 +175,12 @@
       "relativeImports": 12
     },
     "packages/core/src/storage/file-session-writer.ts": {
-      "lines": 974,
+      "lines": 1078,
       "relativeImports": 9
     },
     "packages/core/src/storage/session-store.ts": {
-      "lines": 954,
-      "relativeImports": 34
+      "lines": 1022,
+      "relativeImports": 36
     },
     "packages/core/src/tools/fallback-manage-tools.ts": {
       "lines": 898,
@@ -271,7 +271,7 @@
       "relativeImports": 5
     },
     "packages/tui/src/components/history/entry.tsx": {
-      "lines": 899,
+      "lines": 917,
       "relativeImports": 10
     },
     "packages/tui/src/components/history/utils.tsx": {
@@ -291,7 +291,7 @@
       "relativeImports": 16
     },
     "packages/tui/src/hooks/use-picker-keys.ts": {
-      "lines": 965,
+      "lines": 984,
       "relativeImports": 6
     },
     "packages/tui/src/input-validation.ts": {
@@ -363,7 +363,7 @@
       "relativeImports": 6
     },
     "packages/webui/src/components/SettingsPanel/index.tsx": {
-      "lines": 933,
+      "lines": 971,
       "relativeImports": 17
     },
     "packages/webui/src/components/SettingsPanel/MCPSection.tsx": {
@@ -375,7 +375,7 @@
       "relativeImports": 6
     },
     "packages/webui/src/components/SidePanel/SessionList.tsx": {
-      "lines": 847,
+      "lines": 862,
       "relativeImports": 0
     },
     "packages/webui/src/components/SkillDetailView.tsx": {
@@ -387,7 +387,7 @@
       "relativeImports": 5
     },
     "packages/webui/src/hooks/ws-handlers/session-handlers.ts": {
-      "lines": 993,
+      "lines": 1027,
       "relativeImports": 0
     },
     "packages/webui/src/hooks/ws-handlers.ts": {
@@ -395,7 +395,7 @@
       "relativeImports": 7
     },
     "packages/webui/src/lib/ws-client.ts": {
-      "lines": 898,
+      "lines": 926,
       "relativeImports": 5
     },
     "packages/webui/src/stores/viz-store.ts": {
@@ -403,7 +403,7 @@
       "relativeImports": 0
     },
     "packages/webui/src/types/server-message.ts": {
-      "lines": 800,
+      "lines": 802,
       "relativeImports": 9
     },
     "packages/webui-server/src/server/collaboration-ws-handler.ts": {
@@ -427,7 +427,7 @@
       "relativeImports": 12
     },
     "packages/webui-server/src/server/start-webui.ts": {
-      "lines": 895,
+      "lines": 893,
       "relativeImports": 17
     },
     "apps/desktop/src/main/runtime-manager.ts": {

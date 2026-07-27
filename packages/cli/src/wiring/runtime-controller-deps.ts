@@ -13,7 +13,7 @@ export interface RuntimeControllerDepsInput {
   interruptController: ControllerDeps['interruptController'];
   enhanceController: ControllerDeps['enhanceController'];
   getEnhancerReasoning: ControllerDeps['getEnhancerReasoning'];
-  buildProviderForId: (providerId: string) => Provider;
+  buildProviderForModel: (providerId: string, modelId: string) => Promise<Provider>;
   context: Context;
   getConfig: () => Config;
   setConfig: (config: Config) => void;
@@ -41,11 +41,15 @@ export function createRuntimeControllerDeps(input: RuntimeControllerDepsInput): 
     interruptController: input.interruptController,
     enhanceController: input.enhanceController,
     getEnhancerReasoning: input.getEnhancerReasoning,
-    buildEnhancerProvider: async (providerId) => {
+    buildEnhancerProvider: async (providerId, modelId) => {
       try {
-        return input.buildProviderForId(providerId);
+        return await input.buildProviderForModel(providerId, modelId);
       } catch {
-        return input.context.provider;
+        // Returning the live provider here while preserving the requested
+        // model id creates an invalid cross-provider pair (for example,
+        // openai-codex/deepseek-v4-flash). Let the refinement recovery UI
+        // report an unavailable target instead.
+        return undefined;
       }
     },
     getEnhanceFallbackRef: () =>

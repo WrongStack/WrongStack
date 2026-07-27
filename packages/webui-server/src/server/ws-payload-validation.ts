@@ -9,6 +9,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 interface ModelSwitchPayload {
   provider: string;
   model: string;
+  requestId?: string | undefined;
 }
 
 export function validateModelSwitchPayload(
@@ -22,13 +23,24 @@ export function validateModelSwitchPayload(
   }
   const provider = payload['provider'];
   const model = payload['model'];
+  const requestId = payload['requestId'];
   if (typeof provider !== 'string' || provider.trim().length === 0) {
     return { ok: false, message: 'model.switch payload.provider must be a non-empty string' };
   }
   if (typeof model !== 'string' || model.trim().length === 0) {
     return { ok: false, message: 'model.switch payload.model must be a non-empty string' };
   }
-  return { ok: true, value: { provider, model } };
+  if (requestId !== undefined && (typeof requestId !== 'string' || requestId.trim().length === 0)) {
+    return { ok: false, message: 'model.switch payload.requestId must be a non-empty string' };
+  }
+  return {
+    ok: true,
+    value: {
+      provider: provider.trim(),
+      model: model.trim(),
+      ...(typeof requestId === 'string' ? { requestId: requestId.trim() } : {}),
+    },
+  };
 }
 
 const AUTONOMY_VALUES = new Set(['off', 'suggest', 'auto', 'eternal', 'eternal-parallel']);

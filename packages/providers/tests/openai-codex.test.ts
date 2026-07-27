@@ -486,21 +486,19 @@ describe('OpenAICodexProvider token refresh', () => {
 });
 
 describe('Codex output cap', () => {
-  it('ignores an absent or non-positive cap', () => {
-    expect(codexOutputCap(undefined)).toBeUndefined();
-    expect(codexOutputCap(0)).toBeUndefined();
-    expect(codexOutputCap(-1)).toBeUndefined();
-    expect(codexOutputCap(Number.NaN)).toBeUndefined();
-    expect(codexOutputCap(Number.POSITIVE_INFINITY)).toBeUndefined();
-  });
-
-  it('forwards any positive cap verbatim, floored to an integer', () => {
-    // No threshold: there is no catalog data to derive one from, so the
-    // caller's number is used as given rather than second-guessed.
-    for (const n of [80, 1024, 4096, 16_384, 128_000]) {
-      expect(codexOutputCap(n), String(n)).toBe(n);
+  it('omits every cap because the ChatGPT Codex backend rejects the field', () => {
+    for (const n of [
+      undefined,
+      0,
+      -1,
+      Number.NaN,
+      Number.POSITIVE_INFINITY,
+      80,
+      1024,
+      16_384,
+    ]) {
+      expect(codexOutputCap(n), String(n)).toBeUndefined();
     }
-    expect(codexOutputCap(8_192.7)).toBe(8_192);
   });
 
   it('omits max_output_tokens entirely when the caller sets no cap', async () => {
@@ -516,13 +514,13 @@ describe('Codex output cap', () => {
     expect(body).not.toHaveProperty('max_output_tokens');
   });
 
-  it("puts the caller's explicit cap on the wire", async () => {
+  it("omits max_output_tokens even when the caller sets a cap", async () => {
     const captured: Captured = {};
     const p = new OpenAICodexProvider({
       credentials: { accessToken: fakeJwt('acc_1'), expiresAt: Date.now() + 3_600_000 },
       fetchImpl: capturingFetch(COMPLETED_SSE, captured),
     });
     await p.complete({ ...baseReq, maxTokens: 16_384 }, { signal: new AbortController().signal });
-    expect(JSON.parse(captured.init?.body ?? '{}').max_output_tokens).toBe(16_384);
+    expect(JSON.parse(captured.init?.body ?? '{}')).not.toHaveProperty('max_output_tokens');
   });
 });

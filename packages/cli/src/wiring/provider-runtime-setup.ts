@@ -183,19 +183,29 @@ export function setupProviderRuntime(deps: ProviderRuntimeDeps): ProviderRuntime
   const switchProviderAndModel = async (
     providerId: string,
     modelId: string,
-  ): Promise<string | null> => {
-    try {
-      context.provider = await buildProviderForModel(providerId, modelId);
-      context.model = modelId;
-      sync(patchConfig(cfg, { provider: providerId, model: modelId }));
-      configStore.update({ provider: providerId, model: modelId });
-      await refreshMaxContextFor(providerId, modelId);
-      await refreshActiveReasoningConfig(providerId, modelId);
-      return null;
-    } catch (err) {
-      return err instanceof Error ? err.message : String(err);
-    }
-  };
+  ): Promise<string | null> =>
+    context.runModelTransition(async () => {
+      try {
+        const nextProvider = await buildProviderForModel(providerId, modelId);
+        configStore.update({ provider: providerId, model: modelId });
+        sync(patchConfig(cfg, { provider: providerId, model: modelId }));
+        context.provider = nextProvider;
+        context.model = modelId;
+        await Promise.all([
+          refreshMaxContextFor(providerId, modelId),
+          refreshActiveReasoningConfig(providerId, modelId),
+        ]).catch((err) => {
+          logger.warn(
+            `Provider/model switched, but runtime capability refresh failed: ${
+              err instanceof Error ? err.message : String(err)
+            }`,
+          );
+        });
+        return null;
+      } catch (err) {
+        return err instanceof Error ? err.message : String(err);
+      }
+    });
 
   // ── Multi-layer credential + routing hot-reload watcher ──────────────
   // Previously watched only `wpaths.globalConfig` and applied its raw values

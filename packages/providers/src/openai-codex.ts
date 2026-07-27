@@ -121,29 +121,15 @@ export interface CodexCredentials {
 /**
  * Decide what happens to a caller's `req.maxTokens` on the Codex wire.
  *
- * Forwarded verbatim when set, omitted entirely when not. There is no
- * threshold and no substituted default, because there is no data to build one
- * from: models.dev publishes `reasoning_options: [{type:'effort', ...}]` for
- * every Codex model and no `budget_tokens.min`, so nothing in the catalog says
- * how much of the budget reasoning will take. A number chosen here would be a
- * guess, and guesses are what this whole subsystem exists to remove.
+ * ChatGPT's subscription-backed `/backend-api/codex/responses` surface rejects
+ * `max_output_tokens` with HTTP 400, even though the public Responses API
+ * accepts it. Always omit the field and let the backend apply the selected
+ * model's own output policy.
  *
- * Two consequences worth knowing:
- *  - Omitted (the common case): the backend applies the model's own ceiling,
- *    which is the right number sourced from the provider itself.
- *  - Forwarded and small: the Responses API counts reasoning tokens against
- *    `max_output_tokens`, so a tight cap can be spent before any visible text
- *    and the response comes back `incomplete` — surfaced honestly as
- *    `stopReason: 'max_tokens'` by `mapResponsesStatus`. That is the caller's
- *    own number doing what the caller asked, not a value we invented.
- *
- * Exported for tests.
+ * Kept as an exported compatibility helper for existing callers.
  */
-export function codexOutputCap(maxTokens: number | undefined): number | undefined {
-  if (typeof maxTokens !== 'number' || !Number.isFinite(maxTokens) || maxTokens <= 0) {
-    return undefined;
-  }
-  return Math.floor(maxTokens);
+export function codexOutputCap(_maxTokens: number | undefined): undefined {
+  return undefined;
 }
 
 export interface OpenAICodexProviderOptions {
@@ -311,12 +297,8 @@ export class OpenAICodexProvider extends WireAdapter {
       body['tools'] = toolsToResponses(req.tools);
       body['tool_choice'] = mapToolChoice(req.toolChoice);
     }
-    // Output cap: the caller's explicit value or nothing at all. Unlike the
-    // other adapters this one does not consult the catalog when the caller is
-    // silent — omitting the field lets the backend apply the model's own
-    // maximum, the same number without the risk of sending a stale one.
-    const cap = codexOutputCap(req.maxTokens);
-    if (cap !== undefined) body['max_output_tokens'] = cap;
+    // The ChatGPT Codex backend rejects max_output_tokens. This differs from
+    // API-key Responses transports, which can forward the caller's cap.
     if (req.temperature !== undefined) body['temperature'] = req.temperature;
     if (req.topP !== undefined) body['top_p'] = req.topP;
     const reasoningEffort = req.reasoning?.effort ?? this.reasoningEffort;
@@ -334,7 +316,7 @@ export class OpenAICodexProvider extends WireAdapter {
     body: ReadableStream<Uint8Array> | NodeJS.ReadableStream | null,
     fallbackModel: string,
   ): AsyncIterable<StreamEvent> {
-    return parseCodexResponsesStream(body, fallbackModel);
+    return parseOpenAIResponsesStream(body, fallbackModel, this.id);
   }
 
   protected override translateError(
@@ -410,9 +392,10 @@ function extractOutputText(content: unknown): string {
   return out;
 }
 
-async function* parseCodexResponsesStream(
+export async function* parseOpenAIResponsesStream(
   body: ReadableStream<Uint8Array> | NodeJS.ReadableStream | null,
   fallbackModel: string,
+  providerId = 'openai-codex',
 ): AsyncIterable<StreamEvent> {
   let model = fallbackModel;
   let started = false;
@@ -612,8 +595,8 @@ async function* parseCodexResponsesStream(
         const message =
           (evt['message'] as string | undefined) ??
           (evt['response'] as { error?: { message?: string } } | undefined)?.error?.message ??
-          'Codex response failed';
-        throw new ProviderError(message, 502, true, 'openai-codex', {
+          'OpenAI Responses request failed';
+        throw new ProviderError(message, 502, true, providerId, {
           body: { message },
         });
       }
@@ -627,10 +610,10 @@ async function* parseCodexResponsesStream(
     // Output arrived, then the stream closed with no `response.completed` and
     // no `[DONE]` — cut mid-stream. Retryable rather than a synthetic end_turn.
     throw new ProviderError(
-      'Codex stream ended without a terminal envelope (response.completed/[DONE]) — response truncated mid-stream',
+      'OpenAI Responses stream ended without a terminal envelope (response.completed/[DONE]) — response truncated mid-stream',
       599,
       true,
-      'openai-codex',
+      providerId,
       { body: { message: 'stream truncated before completion' } },
     );
   }

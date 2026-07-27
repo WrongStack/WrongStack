@@ -16,9 +16,9 @@ import {
   buildReceiptRecordV2,
   extractV2Receipts,
   materializeMessages,
-  parseMailboxFile,
   serializeReceiptRecordV2,
 } from '../../src/coordination/mailbox-receipt-folding.js';
+import { parseMailboxFile } from '../../src/coordination/mailbox-parse-state.js';
 import {
   MAILBOX_VERSION_CURRENT,
   MAILBOX_VERSION_SENTINEL,

@@ -3,6 +3,7 @@ import { atomicWrite, withFileLock } from '../utils/atomic-write.js';
 import {
   AUTO_COMPACT_DEFAULT_TTL_MS,
   AUTO_COMPACT_READ_MAX_AGE_MS,
+  AUTO_COMPACT_TYPE_TTL_MS,
   LINE_SEPARATOR,
 } from './mailbox-constants.js';
 import {
@@ -38,6 +39,7 @@ export async function runGlobalMailboxAutoCompact(
 ): Promise<AutoCompactResult> {
   const readMaxAgeMs = opts?.readMaxAgeMs ?? AUTO_COMPACT_READ_MAX_AGE_MS;
   const defaultTtlMs = opts?.defaultTtlMs ?? AUTO_COMPACT_DEFAULT_TTL_MS;
+  const typeTtlMs = opts?.typeTtlMs ?? AUTO_COMPACT_TYPE_TTL_MS;
   const completedMaxAgeMs = opts?.completedMaxAgeMs ?? 86_400_000; // 1 day
   const incompleteMaxAgeMs = opts?.incompleteMaxAgeMs ?? 604_800_000; // 7 days
 
@@ -60,7 +62,6 @@ export async function runGlobalMailboxAutoCompact(
     const cutoffReadAge = now - readMaxAgeMs;
     const cutoffCompleted = now - completedMaxAgeMs;
     const cutoffIncomplete = now - incompleteMaxAgeMs;
-    const cutoffDefaultTtl = now - defaultTtlMs;
     const kept: MailboxMessage[] = [];
 
     for (const msg of all) {
@@ -70,7 +71,9 @@ export async function runGlobalMailboxAutoCompact(
           expiredPurged++;
           continue;
         }
-      } else if (msgTime < cutoffDefaultTtl) {
+        // An explicit expiry is the sender's decision and outranks any
+        // type-scoped default, so the TTL branch below is skipped entirely.
+      } else if (msgTime < now - (typeTtlMs[msg.type] ?? defaultTtlMs)) {
         expiredPurged++;
         continue;
       }

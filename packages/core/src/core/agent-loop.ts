@@ -1,4 +1,3 @@
-
 import type { RunController } from '../kernel/run-controller.js';
 import { TOKENS } from '../kernel/tokens.js';
 import { attachFleetPulse, attachMailboxChecker } from '../mailbox-attach.js';
@@ -28,6 +27,7 @@ import { requestLimitExtension } from './iteration-limit.js';
 import { injectPendingMailboxMessages, removeInjectedMailboxBlocks } from './mailbox-loop.js';
 import { runProviderWithRetry } from './provider-runner.js';
 import { buildQueuedMessagesBlock, consumeQueuedMessagesUpdate } from './queued-messages.js';
+import { providerBoundToRequest } from './request-provider-binding.js';
 
 function toError(err: unknown): Error {
   return err instanceof Error ? err : new Error(String(err));
@@ -184,17 +184,20 @@ export function createAgentLoopHandler(
 
   async function buildRequestWithPreflightCompaction(opts: RunOptions): Promise<{
     req: Request;
+    provider: import('../types/provider.js').Provider;
     preFlight: RequestTokenBreakdown;
   }> {
-    let req = await handlers.response.buildAndRunRequestPipeline(opts);
+    let prepared = await handlers.response.buildAndRunRequestPipeline(opts);
+    let req = prepared.request;
     let preFlight = stashRequestTokens(req);
 
     if (await compactContextIfNeeded()) {
-      req = await handlers.response.buildAndRunRequestPipeline(opts);
+      prepared = await handlers.response.buildAndRunRequestPipeline(opts);
+      req = prepared.request;
       preFlight = stashRequestTokens(req);
     }
 
-    return { req, preFlight };
+    return { req, provider: prepared.provider, preFlight };
   }
 
   function emitContextPct(): void {
@@ -454,11 +457,10 @@ export function createAgentLoopHandler(
     const diRunner = a.container.has(TOKENS.ProviderRunner)
       ? a.container.resolve(TOKENS.ProviderRunner)
       : null;
-
     const baseRunner = diRunner
       ? (ctx: typeof a.ctx, req: Request) =>
           diRunner.run({
-            provider: ctx.provider,
+            provider: providerBoundToRequest(req) ?? ctx.provider,
             request: req,
             signal: controller.signal,
             ctx,
@@ -469,7 +471,7 @@ export function createAgentLoopHandler(
           })
       : async (ctx: typeof a.ctx, req: Request) =>
           runProviderWithRetry({
-            provider: ctx.provider,
+            provider: providerBoundToRequest(req) ?? ctx.provider,
             request: req,
             signal: controller.signal,
             ctx,
@@ -532,8 +534,7 @@ export function createAgentLoopHandler(
           try {
             const pulse = await getFleetPulse();
             if (pulse) foldBlockIntoConversation(pulse);
-          } catch {
-          }
+          } catch {}
         }
 
         const mailboxResult = await injectPendingMailboxMessages(
@@ -557,8 +558,11 @@ export function createAgentLoopHandler(
           return { status: 'aborted', iterations, abortReason: reason, finalText };
         }
 
-        const { req, preFlight } = await buildRequestWithPreflightCompaction(opts);
-
+        const {
+          req,
+          provider: requestProvider,
+          preFlight,
+        } = await buildRequestWithPreflightCompaction(opts);
         await a.ctx.session
           .append({
             type: 'llm_request',
@@ -568,8 +572,7 @@ export function createAgentLoopHandler(
             estimatedInputTokens: preFlight.total,
             toolCount: (req.tools ?? []).length,
           })
-          .catch(() => {
-          });
+          .catch(() => {});
 
         let res: Response;
         try {
@@ -686,7 +689,11 @@ export function createAgentLoopHandler(
 
         clearEvaluatedMailboxBlocks();
 
-        const responseResult = await handlers.response.processResponse(res, req);
+        const responseResult = await handlers.response.processResponse(
+          res,
+          req,
+          providerBoundToRequest(req) ?? requestProvider,
+        );
         if (responseResult.aborted) {
           return {
             status: 'aborted',

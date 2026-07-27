@@ -491,6 +491,11 @@
   },
   "toast": {
     "switchingTo": "Wechseln zu {{provider}} / {{model}}…",
+    "switching": "Modell wird gewechselt…",
+    "switchingToTarget": "Wechsel zu {{target}}…",
+    "previousModel": "vorheriges Modell",
+    "modelSwitchedNextRequest": "Modell gewechselt: {{from}} → {{to}}. Aktiv für die nächste LLM-Anfrage.",
+    "modelSwitchedRunActive": "Modell gewechselt: {{from}} → {{to}}. Aktiv für die nächste LLM-Anfrage; der aktuelle Lauf wird fortgesetzt und nicht neu gestartet.",
     "fallbackExists": "Fallback-Profil \"{{name}}\" existiert bereits",
     "selectProviderModelFirst": "Wählen Sie zuerst einen Anbieter und ein Modell",
     "defaultProfileCreated": "Standard-Fallback-Profil erstellt",

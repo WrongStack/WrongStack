@@ -1,4 +1,5 @@
 import { toast } from '@/components/Toaster';
+import { i18n } from '@/i18n';
 import { isDesktopShell } from '@/lib/desktop-shell';
 import { setFaviconStatus } from '@/lib/favicon';
 import { streamCoalescer } from '@/lib/stream-coalescer';
@@ -435,6 +436,38 @@ export function handleKeyOperationResult(msg: WSServerMessage) {
   else toast.error(p.message);
   const client = getWSClient(useConfigStore.getState().wsUrl);
   client.listSavedProviders();
+}
+
+export function handleModelSwitchResult(msg: WSServerMessage) {
+  const p = msg.payload as {
+    success: boolean;
+    provider?: string | undefined;
+    model?: string | undefined;
+    previousProvider?: string | undefined;
+    previousModel?: string | undefined;
+    runActive: boolean;
+  };
+  if (!p.success || !p.provider || !p.model) return;
+
+  // session.start normally arrives immediately before this result. Apply the
+  // target again defensively so a dropped/reordered session.start cannot leave
+  // the header showing the previous model.
+  useConfigStore.getState().setProvider(p.provider);
+  useConfigStore.getState().setModel(p.model);
+  const from =
+    p.previousProvider && p.previousModel
+      ? `${p.previousProvider} / ${p.previousModel}`
+      : i18n.t('settings:toast.previousModel');
+  const to = `${p.provider} / ${p.model}`;
+  useChatStore.getState().addMessage({
+    role: 'system',
+    content: i18n.t(
+      p.runActive
+        ? 'settings:toast.modelSwitchedRunActive'
+        : 'settings:toast.modelSwitchedNextRequest',
+      { from, to },
+    ),
+  });
 }
 
 export function handleContextCompacted(msg: WSServerMessage) {
@@ -958,6 +991,7 @@ export function handleError(msg: WSServerMessage) {
 export const sessionHandlerMap: Partial<Record<string, (msg: WSServerMessage) => void>> = {
   'context.debug': handleContextDebug,
   'key.operation_result': handleKeyOperationResult,
+  'model.switch_result': handleModelSwitchResult,
   'context.compacted': handleContextCompacted,
   'compaction.failed': handleCompactionFailed,
   'provider.response': handleProviderResponse,

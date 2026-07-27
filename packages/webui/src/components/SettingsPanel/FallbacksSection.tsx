@@ -8,6 +8,7 @@ import { ModelSelectDialog } from '@/components/ModelSelectDialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { PreferenceToggle } from './PreferenceToggle';
+import type { WSModelSwitchResult } from '@/types';
 
 interface FallbacksSectionProps {
   /** Push a pref change locally + to the server. */
@@ -23,7 +24,9 @@ interface FallbacksSectionProps {
   /** Update the active session model. */
   setModel: (model: string) => void;
   /** Switch the running session's provider/model on the server. */
-  switchModel?: ((provider: string, model: string) => void) | undefined;
+  switchModel?:
+    | ((provider: string, model: string) => Promise<WSModelSwitchResult['payload']>)
+    | undefined;
 }
 
 export function FallbacksSection({
@@ -120,7 +123,7 @@ export function FallbacksSection({
   );
 
   const setLeaderFromFallbackProfile = useCallback(
-    (name: string) => {
+    async (name: string) => {
       const chain = localPrefs.fallbackProfiles[name] ?? [];
       const first = chain[0];
       if (!first) {
@@ -138,9 +141,25 @@ export function FallbacksSection({
       }
       setProvider(targetProvider);
       setModel(targetModel);
-      switchModel?.(targetProvider, targetModel);
+      const result = await switchModel?.(targetProvider, targetModel);
+      if (!result?.success) {
+        if (activeProvider) setProvider(activeProvider);
+        setModel(activeModel ?? '');
+        toast.error(result?.message ?? i18n.t('settings:toast.modelSwitchTimeout'));
+        return;
+      }
       syncPref('fallbackModels', chain.slice(1));
-      toast.success(i18n.t('settings:toast.leaderSetFrom', { name }));
+      toast.success(
+        i18n.t(
+          result.runActive
+            ? 'settings:toast.modelSwitchedRunActive'
+            : 'settings:toast.modelSwitchedNextRequest',
+          {
+            from: `${activeProvider} / ${activeModel}`,
+            to: `${targetProvider} / ${targetModel}`,
+          },
+        ),
+      );
     },
     [activeProvider, localPrefs.fallbackProfiles, setModel, setProvider, switchModel, syncPref],
   );
@@ -228,9 +247,7 @@ export function FallbacksSection({
         <div className="mt-4 space-y-3">
           {Object.keys(localPrefs.fallbackProfiles).length === 0 ? (
             <div className="rounded-md border border-dashed border-border p-4">
-              <p className="text-xs text-muted-foreground">
-                {t('settings:fallbacks.noProfiles')}
-              </p>
+              <p className="text-xs text-muted-foreground">{t('settings:fallbacks.noProfiles')}</p>
               <Button
                 type="button"
                 variant="outline"

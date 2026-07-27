@@ -619,6 +619,14 @@ export const modeldiagCmd: SubcommandHandler = async (args, deps) => {
         providerFilter = rawFilter.map((s) => s.trim()).filter(Boolean);
         benchArgs.splice(providersEqIdx, 1);
       }
+    } else {
+      const rawFilter = deps.flags?.['providers'] ?? deps.flags?.['provider'];
+      if (typeof rawFilter === 'string') {
+        providerFilter = rawFilter
+          .split(',')
+          .map((s) => s.trim())
+          .filter(Boolean);
+      }
     }
 
     const benchRole = benchArgs[0];
@@ -735,18 +743,30 @@ export const modeldiagCmd: SubcommandHandler = async (args, deps) => {
     const evalArgs = args.slice(1);
 
     const providersEq = evalArgs.find((a) => a.startsWith('--providers='));
-    const providerFilter = providersEq
-      ? providersEq
-          .replace('--providers=', '')
+    const providersValue =
+      providersEq?.replace('--providers=', '') ??
+      (typeof deps.flags?.['providers'] === 'string'
+        ? deps.flags['providers']
+        : typeof deps.flags?.['provider'] === 'string'
+          ? deps.flags['provider']
+          : undefined);
+    const providerFilter = providersValue
+      ? providersValue
           .split(',')
           .map((s) => s.trim())
           .filter(Boolean)
       : undefined;
 
     const maxEq = evalArgs.find((a) => a.startsWith('--max='));
-    const maxModels = maxEq ? Math.max(1, parseInt(maxEq.replace('--max=', ''), 10) || 2) : 2;
+    const maxValue =
+      maxEq?.replace('--max=', '') ??
+      (typeof deps.flags?.['max'] === 'string' ? deps.flags['max'] : undefined);
+    const maxModels = maxValue ? Math.max(1, parseInt(maxValue, 10) || 2) : 2;
 
-    const quick = evalArgs.includes('--quick');
+    const quick =
+      evalArgs.includes('--quick') ||
+      deps.flags?.['quick'] === true ||
+      deps.flags?.['quick'] === 'true';
     const modelsPerCat = quick ? 1 : maxModels;
 
     const roleFilter = evalArgs.find((a) => !a.startsWith('--'));
@@ -855,8 +875,11 @@ export const modeldiagCmd: SubcommandHandler = async (args, deps) => {
         const task = EVAL_TASKS[cat];
         if (!task) continue;
 
-        const candidates = rankModels(providers, hasKey, cat, modelsPerCat).filter(
-          (c) => c.provider === pid,
+        const candidates = rankModels(
+          providers,
+          (providerId) => providerId === pid && hasKey(providerId),
+          cat,
+          modelsPerCat,
         );
         if (candidates.length === 0) continue;
 

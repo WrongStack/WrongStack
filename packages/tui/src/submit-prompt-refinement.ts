@@ -159,7 +159,10 @@ export async function refineSubmittedPrompt(
 
   let initialProvider = agent.ctx.provider;
   let initialModel = agent.ctx.model;
-  let initialReasoning = capabilities.getEnhancerReasoning?.();
+  let initialReasoning = await capabilities.getEnhancerReasoning?.(
+    initialProvider.id,
+    initialModel,
+  );
   const configuredRef = capabilities.getConfiguredRefinerRef?.();
   if (configuredRef && capabilities.buildEnhancerProvider) {
     const ref = parseModelRef(configuredRef);
@@ -174,7 +177,7 @@ export async function refineSubmittedPrompt(
       if (built) {
         initialProvider = built;
         initialModel = ref.model;
-        initialReasoning = undefined;
+        initialReasoning = await capabilities.getEnhancerReasoning?.(providerId, ref.model);
       }
     }
   }
@@ -240,7 +243,7 @@ export async function refineSubmittedPrompt(
           agent.ctx.provider,
           agent.ctx.model,
           retryTimeout,
-          capabilities.getEnhancerReasoning?.(),
+          await capabilities.getEnhancerReasoning?.(agent.ctx.provider.id, agent.ctx.model),
         );
         continue;
       }
@@ -268,7 +271,12 @@ export async function refineSubmittedPrompt(
         };
         continue;
       }
-      outcome = await runAttempt(built, model, retryTimeout, undefined);
+      outcome = await runAttempt(
+        built,
+        model,
+        retryTimeout,
+        await capabilities.getEnhancerReasoning?.(providerId, model),
+      );
     }
 
     host.setStartedAt(null);
@@ -309,7 +317,7 @@ export async function refineSubmittedPrompt(
           agent.ctx.provider,
           agent.ctx.model,
           nextEnhanceTimeout(baseTimeoutMs, undefined),
-          capabilities.getEnhancerReasoning?.(),
+          await capabilities.getEnhancerReasoning?.(agent.ctx.provider.id, agent.ctx.model),
           { previousRefinement: result, retryFeedback: DEFAULT_REFINER_RETRY_FEEDBACK },
         );
         continue;

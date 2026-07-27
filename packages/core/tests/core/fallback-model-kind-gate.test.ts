@@ -9,6 +9,10 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { Context } from '../../src/core/context.js';
 import { createFallbackModelExtension } from '../../src/core/fallback-model.js';
+import {
+  bindRequestProvider,
+  providerBoundToRequest,
+} from '../../src/core/request-provider-binding.js';
 import { EventBus } from '../../src/kernel/events.js';
 import type { Config } from '../../src/types/config.js';
 import type { Provider, Request, Response } from '../../src/types/provider.js';
@@ -65,6 +69,64 @@ describe('fallback-model kind gating', () => {
     expect(res).toBe(okResponse);
     expect(buildProvider).toHaveBeenCalledWith('other', 'model-b');
     expect(ctx.model).toBe('model-b');
+  });
+
+  it('rebinds the same request to the fallback provider before retrying it', async () => {
+    const { ext, ctx, request } = makeHarness();
+    bindRequestProvider(request, ctx.provider);
+    const calls: string[] = [];
+    const inner = vi.fn(async (_ctx: Context, req: Request) => {
+      const provider = providerBoundToRequest(req);
+      calls.push(provider?.id ?? 'missing');
+      if (calls.length === 1) {
+        throw new ProviderError('rate limited', 429, true, 'primary');
+      }
+      return okResponse;
+    });
+
+    await ext.wrapProviderRunner?.(ctx, request, inner);
+
+    expect(calls).toEqual(['primary', 'other']);
+    expect(providerBoundToRequest(request)?.id).toBe('other');
+  });
+
+  it('keeps the working fallback for an automatic follow-up during primary cooldown', async () => {
+    const { ext, ctx, request, buildProvider } = makeHarness();
+    const inner = vi
+      .fn()
+      .mockRejectedValueOnce(new ProviderError('rate limited', 429, true, 'primary'))
+      .mockResolvedValueOnce(okResponse);
+
+    await ext.wrapProviderRunner?.(ctx, request, inner);
+    await ext.beforeRun?.(ctx, {} as never);
+
+    expect(ctx.provider.id).toBe('other');
+    expect(ctx.model).toBe('model-b');
+    expect(buildProvider).toHaveBeenCalledTimes(1);
+  });
+
+  it('honors a manual primary change after fallback instead of restoring the previous model', async () => {
+    const config = makeConfig();
+    const { ext, ctx, request, buildProvider } = makeHarness(config);
+    const inner = vi
+      .fn()
+      .mockRejectedValueOnce(new ProviderError('rate limited', 429, true, 'primary'))
+      .mockResolvedValueOnce(okResponse);
+    await ext.wrapProviderRunner?.(ctx, request, inner);
+
+    config.provider = 'manual';
+    config.model = 'model-c';
+    config.providers = {
+      ...config.providers,
+      manual: { type: 'openai', apiKey: 'k3' },
+    };
+    ctx.provider = makeProvider('manual');
+    ctx.model = 'model-c';
+    await ext.beforeRun?.(ctx, {} as never);
+
+    expect(ctx.provider.id).toBe('manual');
+    expect(ctx.model).toBe('model-c');
+    expect(buildProvider).toHaveBeenLastCalledWith('manual', 'model-c');
   });
 
   it('skips a calendar-blocked primary without calling it', async () => {

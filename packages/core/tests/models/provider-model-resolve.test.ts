@@ -24,7 +24,7 @@ describe('describeCatalogModel', () => {
         cost: { input: 1, output: 2 },
         tool_call: true,
         reasoning: true,
-        modalities: { input: ['text', 'image'] },
+        modalities: { input: ['text', 'image'], output: ['text'] },
         open_weights: true,
       }),
     );
@@ -35,6 +35,7 @@ describe('describeCatalogModel', () => {
       contextWindow: 200000,
       inputCost: 1,
       outputCost: 2,
+      outputModalities: ['text'],
       capabilities: ['tools', 'reasoning', 'vision', 'open_weights'],
     });
   });

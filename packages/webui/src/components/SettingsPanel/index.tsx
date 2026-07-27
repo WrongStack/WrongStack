@@ -34,10 +34,7 @@ import { ModelSelectDialog } from '../ModelSelectDialog';
 import { Button } from '../ui/button';
 import { ScrollArea } from '../ui/scroll-area';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../ui/tabs';
-import {
-  AppearanceSettingsTab,
-  ConnectionSettingsTab,
-} from './BasicSettingsTabs';
+import { AppearanceSettingsTab, ConnectionSettingsTab } from './BasicSettingsTabs';
 import { ChimeraSettingsPanel } from './ChimeraSettingsPanel';
 import { FallbacksSection } from './FallbacksSection';
 import { FleetSection } from './FleetSection';
@@ -65,13 +62,25 @@ interface TabDef {
 const TABS: TabDef[] = [
   { id: 'general', icon: <Palette className="h-3.5 w-3.5" />, labelKey: 'settings:tabs.general' },
   { id: 'provider', icon: <Network className="h-3.5 w-3.5" />, labelKey: 'settings:tabs.provider' },
-  { id: 'connection', icon: <Globe className="h-3.5 w-3.5" />, labelKey: 'settings:tabs.connection' },
+  {
+    id: 'connection',
+    icon: <Globe className="h-3.5 w-3.5" />,
+    labelKey: 'settings:tabs.connection',
+  },
   { id: 'agent', icon: <Bot className="h-3.5 w-3.5" />, labelKey: 'settings:tabs.agent' },
   { id: 'execution', icon: <Zap className="h-3.5 w-3.5" />, labelKey: 'settings:tabs.execution' },
-  { id: 'fallbacks', icon: <Layers className="h-3.5 w-3.5" />, labelKey: 'settings:tabs.fallbacks' },
+  {
+    id: 'fallbacks',
+    icon: <Layers className="h-3.5 w-3.5" />,
+    labelKey: 'settings:tabs.fallbacks',
+  },
   { id: 'routing', icon: <ListPlus className="h-3.5 w-3.5" />, labelKey: 'settings:tabs.routing' },
   { id: 'fleet', icon: <Radio className="h-3.5 w-3.5" />, labelKey: 'settings:tabs.fleet' },
-  { id: 'integrations', icon: <Puzzle className="h-3.5 w-3.5" />, labelKey: 'settings:tabs.integrations' },
+  {
+    id: 'integrations',
+    icon: <Puzzle className="h-3.5 w-3.5" />,
+    labelKey: 'settings:tabs.integrations',
+  },
   { id: 'chimera', icon: <Brain className="h-3.5 w-3.5" />, labelKey: 'settings:tabs.chimera' },
   { id: 'context', icon: <FileText className="h-3.5 w-3.5" />, labelKey: 'settings:tabs.context' },
   { id: 'logs', icon: <Bug className="h-3.5 w-3.5" />, labelKey: 'settings:tabs.logs' },
@@ -99,19 +108,8 @@ export function SettingsPanel() {
     })),
   );
   const scrollAreaRef = useScrollPosition<HTMLDivElement>('settings');
-  const modelSelectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  // Unsubscribe for the in-flight 'key.operation_result' listener, so rapid
-  // re-calls to handleModelSelect can tear down the previous one first.
-  const modelSelectOffRef = useRef<(() => void) | null>(null);
-
-  // Clean up the model-select timeout and listener on unmount.
-  useEffect(() => {
-    return () => {
-      if (modelSelectTimerRef.current) clearTimeout(modelSelectTimerRef.current);
-      modelSelectOffRef.current?.();
-      modelSelectOffRef.current = null;
-    };
-  }, []);
+  const modelSwitchingRef = useRef(false);
+  const [modelSwitching, setModelSwitching] = useState(false);
 
   const {
     provider,
@@ -216,45 +214,38 @@ export function SettingsPanel() {
 
   // Model selection
   const handleModelSelect = useCallback(
-    (modelId: string) => {
+    async (modelId: string) => {
+      if (modelSwitchingRef.current) return;
       const prevModel = useConfigStore.getState().model;
-      setModel(modelId);
       const currentProvider = useConfigStore.getState().provider;
-      if (wsClient) {
-        // Clear any stale timer and listener from a previous model-select so a
-        // rapid re-call can't leave two listeners racing on the next result.
-        if (modelSelectTimerRef.current) clearTimeout(modelSelectTimerRef.current);
-        modelSelectOffRef.current?.();
-        const off = wsClient.on('key.operation_result', (msg: WSServerMessage) => {
-          if (modelSelectTimerRef.current) {
-            clearTimeout(modelSelectTimerRef.current);
-            modelSelectTimerRef.current = null;
-          }
-          off();
-          modelSelectOffRef.current = null;
-          const p = (msg as { payload: { success: boolean; message: string } }).payload;
-          if (p.success) {
-            toast.success(
-              i18n.t('settings:toast.switchingTo', { provider: currentProvider, model: modelId }),
-            );
-          } else {
-            // Roll back the optimistic set so the UI reflects the real model
-            setModel(prevModel);
-            toast.error(p.message);
-          }
-        });
-        modelSelectOffRef.current = off;
-        modelSelectTimerRef.current = setTimeout(() => {
-          off();
-          modelSelectOffRef.current = null;
-          // Roll back the optimistic set on timeout too
+      if (!currentProvider || modelId === prevModel) return;
+      modelSwitchingRef.current = true;
+      setModelSwitching(true);
+      setModel(modelId);
+      try {
+        toast.info(
+          i18n.t('settings:toast.switchingTo', { provider: currentProvider, model: modelId }),
+        );
+        const result = await ws.switchModel?.(currentProvider, modelId);
+        if (!result?.success) {
           setModel(prevModel);
-          toast.error(i18n.t('settings:toast.modelSwitchTimeout'));
-        }, 8000);
+          toast.error(result?.message ?? i18n.t('settings:toast.modelSwitchTimeout'));
+        } else {
+          toast.success(
+            i18n.t(
+              result.runActive
+                ? 'settings:toast.modelSwitchedRunActive'
+                : 'settings:toast.modelSwitchedNextRequest',
+              { from: `${currentProvider} / ${prevModel}`, to: `${currentProvider} / ${modelId}` },
+            ),
+          );
+        }
+      } finally {
+        modelSwitchingRef.current = false;
+        setModelSwitching(false);
       }
-      ws.switchModel?.(currentProvider, modelId);
     },
-    [setModel, ws, wsClient],
+    [setModel, ws],
   );
 
   // Key management callbacks
@@ -316,9 +307,7 @@ export function SettingsPanel() {
               {t('settings:title')}
             </h1>
             <p className="mt-0.5 text-[11px] text-muted-foreground">
-              {provider && activeModel
-                ? `${provider} / ${activeModel}`
-                : t('settings:subtitle')}
+              {provider && activeModel ? `${provider} / ${activeModel}` : t('settings:subtitle')}
             </p>
           </div>
         </div>
@@ -392,6 +381,7 @@ export function SettingsPanel() {
                     isLoadingModels={isLoadingModels}
                     setIsLoadingModels={setIsLoadingModels}
                     onModelSelect={handleModelSelect}
+                    isSwitching={modelSwitching}
                     refreshModels={(pid) => ws.listProviderModels?.(pid)}
                   />
                 </div>
@@ -411,7 +401,9 @@ export function SettingsPanel() {
                       <Activity className="h-5 w-5" />
                     </span>
                     <div>
-                      <h3 className="text-sm font-semibold">{t('settings:agent.autonomyHeading')}</h3>
+                      <h3 className="text-sm font-semibold">
+                        {t('settings:agent.autonomyHeading')}
+                      </h3>
                     </div>
                   </div>
                   <PreferenceSelect
@@ -509,11 +501,14 @@ export function SettingsPanel() {
                               {localPrefs.refinerFallbackProfile}
                             </span>
                             <span className="text-xs text-muted-foreground">
-                              {(localPrefs.fallbackProfiles[localPrefs.refinerFallbackProfile] ?? [])
+                              {(
+                                localPrefs.fallbackProfiles[localPrefs.refinerFallbackProfile] ?? []
+                              )
                                 .slice(0, 2)
                                 .join(' → ')}
-                              {(localPrefs.fallbackProfiles[localPrefs.refinerFallbackProfile] ?? [])
-                                .length > 2
+                              {(
+                                localPrefs.fallbackProfiles[localPrefs.refinerFallbackProfile] ?? []
+                              ).length > 2
                                 ? ' …'
                                 : ''}
                             </span>
@@ -573,7 +568,9 @@ export function SettingsPanel() {
                       <Cpu className="h-5 w-5" />
                     </span>
                     <div>
-                      <h3 className="text-sm font-semibold">{t('settings:agent.reasoningHeading')}</h3>
+                      <h3 className="text-sm font-semibold">
+                        {t('settings:agent.reasoningHeading')}
+                      </h3>
                     </div>
                   </div>
                   <PreferenceSelect
@@ -593,9 +590,15 @@ export function SettingsPanel() {
                     value={localPrefs.reasoningEffort}
                     options={[
                       { value: 'none' as const, label: t('settings:agent.reasoningEffortNone') },
-                      { value: 'minimal' as const, label: t('settings:agent.reasoningEffortMinimal') },
+                      {
+                        value: 'minimal' as const,
+                        label: t('settings:agent.reasoningEffortMinimal'),
+                      },
                       { value: 'low' as const, label: t('settings:agent.reasoningEffortLow') },
-                      { value: 'medium' as const, label: t('settings:agent.reasoningEffortMedium') },
+                      {
+                        value: 'medium' as const,
+                        label: t('settings:agent.reasoningEffortMedium'),
+                      },
                       { value: 'high' as const, label: t('settings:agent.reasoningEffortHigh') },
                       { value: 'xhigh' as const, label: t('settings:agent.reasoningEffortXhigh') },
                       { value: 'max' as const, label: t('settings:agent.reasoningEffortMax') },
@@ -674,7 +677,9 @@ export function SettingsPanel() {
                       <Shield className="h-5 w-5" />
                     </span>
                     <div>
-                      <h3 className="text-sm font-semibold">{t('settings:execution.breakerLabel')}</h3>
+                      <h3 className="text-sm font-semibold">
+                        {t('settings:execution.breakerLabel')}
+                      </h3>
                       <p className="text-xs text-muted-foreground mt-0.5">
                         {t('settings:execution.breakerHint')}
                       </p>
@@ -704,7 +709,9 @@ export function SettingsPanel() {
                       <CalendarClock className="h-5 w-5" />
                     </span>
                     <div>
-                      <h3 className="text-sm font-semibold">{t('settings:execution.availabilityHeading')}</h3>
+                      <h3 className="text-sm font-semibold">
+                        {t('settings:execution.availabilityHeading')}
+                      </h3>
                       <p className="text-xs text-muted-foreground mt-0.5">
                         {t('settings:execution.availabilityHint')}
                       </p>
@@ -766,7 +773,9 @@ export function SettingsPanel() {
                       <FileText className="h-5 w-5" />
                     </span>
                     <div>
-                      <h3 className="text-sm font-semibold">{t('settings:context.flagsHeading')}</h3>
+                      <h3 className="text-sm font-semibold">
+                        {t('settings:context.flagsHeading')}
+                      </h3>
                     </div>
                   </div>
                   <div className="grid gap-1 sm:grid-cols-2">
@@ -798,7 +807,9 @@ export function SettingsPanel() {
                       label={t('settings:context.modelsRegistryLabel')}
                       hint={t('settings:context.modelsRegistryHint')}
                       value={localPrefs.featureModelsRegistry}
-                      onChange={() => syncPref('featureModelsRegistry', !localPrefs.featureModelsRegistry)}
+                      onChange={() =>
+                        syncPref('featureModelsRegistry', !localPrefs.featureModelsRegistry)
+                      }
                     />
                     <PreferenceToggle
                       label={t('settings:context.indexOnStartLabel')}
@@ -816,7 +827,9 @@ export function SettingsPanel() {
                       <FileText className="h-5 w-5" />
                     </span>
                     <div>
-                      <h3 className="text-sm font-semibold">{t('settings:context.compactorStrategyLabel')}</h3>
+                      <h3 className="text-sm font-semibold">
+                        {t('settings:context.compactorStrategyLabel')}
+                      </h3>
                     </div>
                   </div>
                   <PreferenceToggle
@@ -830,9 +843,18 @@ export function SettingsPanel() {
                     hint={t('settings:context.compactorStrategyHint')}
                     value={localPrefs.contextStrategy}
                     options={[
-                      { value: 'hybrid' as const, label: t('settings:context.compactorStrategyHybrid') },
-                      { value: 'intelligent' as const, label: t('settings:context.compactorStrategyIntelligent') },
-                      { value: 'selective' as const, label: t('settings:context.compactorStrategySelective') },
+                      {
+                        value: 'hybrid' as const,
+                        label: t('settings:context.compactorStrategyHybrid'),
+                      },
+                      {
+                        value: 'intelligent' as const,
+                        label: t('settings:context.compactorStrategyIntelligent'),
+                      },
+                      {
+                        value: 'selective' as const,
+                        label: t('settings:context.compactorStrategySelective'),
+                      },
                     ]}
                     onChange={(v) => syncPref('contextStrategy', v)}
                   />
@@ -841,10 +863,16 @@ export function SettingsPanel() {
                     hint={t('settings:context.contextModeHint')}
                     value={localPrefs.contextMode}
                     options={[
-                      { value: 'balanced' as const, label: t('settings:context.contextModeBalanced') },
+                      {
+                        value: 'balanced' as const,
+                        label: t('settings:context.contextModeBalanced'),
+                      },
                       { value: 'frugal' as const, label: t('settings:context.contextModeFrugal') },
                       { value: 'deep' as const, label: t('settings:context.contextModeDeep') },
-                      { value: 'archival' as const, label: t('settings:context.contextModeArchival') },
+                      {
+                        value: 'archival' as const,
+                        label: t('settings:context.contextModeArchival'),
+                      },
                     ]}
                     onChange={(v) => syncPref('contextMode', v)}
                   />
@@ -854,10 +882,16 @@ export function SettingsPanel() {
                     value={localPrefs.tokenSavingTier}
                     options={[
                       { value: 'off' as const, label: t('settings:context.tokenSavingOff') },
-                      { value: 'minimal' as const, label: t('settings:context.tokenSavingMinimal') },
+                      {
+                        value: 'minimal' as const,
+                        label: t('settings:context.tokenSavingMinimal'),
+                      },
                       { value: 'light' as const, label: t('settings:context.tokenSavingLight') },
                       { value: 'medium' as const, label: t('settings:context.tokenSavingMedium') },
-                      { value: 'aggressive' as const, label: t('settings:context.tokenSavingAggressive') },
+                      {
+                        value: 'aggressive' as const,
+                        label: t('settings:context.tokenSavingAggressive'),
+                      },
                     ]}
                     onChange={(v) => syncPref('tokenSavingTier', v)}
                   />
@@ -906,7 +940,10 @@ export function SettingsPanel() {
                     hint={t('settings:logs.fsAccessHint')}
                     value={localPrefs.fsAccess}
                     options={[
-                      { value: 'unrestricted' as const, label: t('settings:logs.fsAccessUnrestricted') },
+                      {
+                        value: 'unrestricted' as const,
+                        label: t('settings:logs.fsAccessUnrestricted'),
+                      },
                       { value: 'project' as const, label: t('settings:logs.fsAccessProject') },
                     ]}
                     onChange={(v) => syncPref('fsAccess', v)}

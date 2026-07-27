@@ -151,6 +151,8 @@ export interface WebuiMutableState {
    * route layer just calls a single hook.
    */
   abortRunLock: () => void;
+  /** True while the leader agent owns the shared run lock. */
+  isRunActive: () => boolean;
   /** Read-only reference to the live WS clients map. */
   getClients(): Map<WebSocket, ConnectedClient>;
 }
@@ -301,37 +303,44 @@ export function buildRoutes(
   // fresh session.start. Shared by the `model.switch` handler and the
   // adopt-on-first-add path. Throws on provider-construction failure.
   async function applyModelSwitchCore(newProvider: string, newModel: string): Promise<void> {
-    const cur = state.getConfig();
-    state.setConfig(patchConfig(cur, { provider: newProvider, model: newModel }));
-    deps.configStore.update({ provider: newProvider, model: newModel });
-    deps.context.model = newModel;
+    await deps.context.runModelTransition(async () => {
+      const cur = state.getConfig();
+      const newCfg = patchConfig(cur, { provider: newProvider, model: newModel });
+      const providerCfg: ProviderConfig = newCfg.providers?.[newProvider] ?? { type: newProvider };
+      const built = deps.providerRegistry.has(newProvider)
+        ? deps.providerRegistry.create({ ...providerCfg, type: newProvider } as never)
+        : makeProviderFromConfig(newProvider, providerCfg);
+      // Overlay the target model's catalog facts. A freshly constructed provider
+      // only has the wire-family baseline, so without this the session keeps the
+      // previous model's context window and loses `maxOutput` entirely.
+      const newProv = deps.modelsRegistry
+        ? await withCatalogCapabilities(deps.modelsRegistry, newProvider, built, {
+            ...providerCfg,
+            type: newProvider,
+            model: newModel,
+          })
+        : built;
+      // Persist only after the target provider has been constructed. A failed
+      // build must leave both the live session and durable selection untouched.
+      await cb.updateGlobalConfig((config) => {
+        config.provider = newProvider;
+        config.model = newModel;
+      }, 'model.switch');
 
-    const newCfg = state.getConfig();
-    const providerCfg: ProviderConfig = newCfg.providers?.[newProvider] ?? { type: newProvider };
-    const built = deps.providerRegistry.has(newProvider)
-      ? deps.providerRegistry.create({ ...providerCfg, type: newProvider } as never)
-      : makeProviderFromConfig(newProvider, providerCfg);
-    // Overlay the target model's catalog facts. A freshly constructed provider
-    // only has the wire-family baseline, so without this the session keeps the
-    // previous model's context window and loses `maxOutput` entirely.
-    const newProv = deps.modelsRegistry
-      ? await withCatalogCapabilities(deps.modelsRegistry, newProvider, built, {
-          ...providerCfg,
-          type: newProvider,
-          model: newModel,
-        })
-      : built;
-    deps.context.provider = newProv;
+      state.setConfig(newCfg);
+      deps.configStore.update({ provider: newProvider, model: newModel });
+      deps.context.model = newModel;
+      deps.context.provider = newProv;
+      // Capability refresh is best-effort after the atomic live swap. A catalog
+      // outage must not report the switch as failed after it already committed.
+      await cb.updateAutoCompactionMaxContext(newProv, newProvider, providerCfg).catch((error) => {
+        deps.logger.warn(`model.switch capability refresh failed: ${String(error)}`);
+      });
 
-    await cb.updateAutoCompactionMaxContext(newProv, newProvider, providerCfg);
-    await cb.updateGlobalConfig((config) => {
-      config.provider = newProvider;
-      config.model = newModel;
-    }, 'model.switch');
-
-    broadcast(state.getClients(), {
-      type: 'session.start',
-      payload: await cb.sessionStartPayload(),
+      broadcast(state.getClients(), {
+        type: 'session.start',
+        payload: await cb.sessionStartPayload(),
+      });
     });
   }
 
@@ -346,7 +355,9 @@ export function buildRoutes(
         ? deps.providerRegistry.create({ ...providerConfig, type: providerId } as never)
         : makeProviderFromConfig(providerId, providerConfig),
     applyModelSwitch: applyModelSwitchCore,
+    isRunActive: state.isRunActive,
     send,
+    broadcast: (message) => broadcast(state.getClients(), message),
     log: (message) => console.warn(message),
   });
 
@@ -520,13 +531,11 @@ export function buildRoutes(
       }
       // Normalize the wire-format target ('file'|'terminal') to the
       // handler contract ('terminal'|'file-manager').
-      const normalizedTarget: ShellOpenTarget =
-        normalizeShellOpenTarget(parsed.value.target);
+      const normalizedTarget: ShellOpenTarget = normalizeShellOpenTarget(parsed.value.target);
       const authorization = await authorizeWebUIAction(
         deps.trustBoundary,
         {
-          capability:
-            normalizedTarget === 'terminal' ? 'process.spawn' : 'filesystem.open-native',
+          capability: normalizedTarget === 'terminal' ? 'process.spawn' : 'filesystem.open-native',
           subject: {
             kind: 'path',
             id: parsed.value.path,

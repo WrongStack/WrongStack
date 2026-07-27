@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { createAgentResponseHandler } from '../../src/core/agent-response.js';
 import type { AgentInternals } from '../../src/core/agent-internals.js';
 import type { Message } from '../../src/types/messages.js';
-import type { Request, Response } from '../../src/types/provider.js';
+import type { Provider, Request, Response } from '../../src/types/provider.js';
 
 /**
  * Issue #271 — a stream interrupted before the first meaningful delta must
@@ -68,6 +68,28 @@ function res(content: Response['content']): Response {
 }
 
 describe('processResponse — empty assistant turns (#271)', () => {
+  it('accounts an in-flight response under its request provider after a live switch', async () => {
+    const { a } = makeInternals();
+    const handler = createAgentResponseHandler(a);
+    const requestProvider = {
+      id: 'old-provider',
+      capabilities: { streaming: true },
+    } as Provider;
+    a.ctx.provider = {
+      id: 'new-provider',
+      capabilities: { streaming: false },
+    } as Provider;
+    const response = res([{ type: 'text', text: 'completed on old provider' }]);
+
+    await handler.processResponse(response, req, requestProvider);
+
+    expect(a.ctx.tokenCounter.account).toHaveBeenCalledWith(
+      response.usage,
+      'test-model',
+      'old-provider',
+    );
+  });
+
   it('does not append or persist an aborted stream with zero output', async () => {
     const { a, messages, appendedEvents, flushJournal, sessionFlush } = makeInternals({
       aborted: true,

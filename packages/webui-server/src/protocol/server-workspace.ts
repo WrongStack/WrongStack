@@ -31,6 +31,7 @@ export const SERVER_CONFIGURATION_MESSAGE_TYPES = [
   'auth.oauth.status',
   'diag.get',
   'key.operation_result',
+  'model.switch_result',
   'prefs.updated',
   'provider.catalog',
   'provider.models',

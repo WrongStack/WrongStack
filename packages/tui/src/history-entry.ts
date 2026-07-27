@@ -27,7 +27,13 @@ export interface MemoryActivationItem {
 }
 
 export type HistoryEntry =
-  | { id: number; kind: 'user'; text: string; queued?: boolean | undefined; pasteContent?: string | undefined }
+  | {
+      id: number;
+      kind: 'user';
+      text: string;
+      queued?: boolean | undefined;
+      pasteContent?: string | undefined;
+    }
   | { id: number; kind: 'assistant'; text: string }
   | { id: number; kind: 'thinking'; text: string }
   | {
@@ -79,6 +85,8 @@ export type HistoryEntry =
       toContext?: number | undefined;
       /** Tokens in the pending request — drives the shrink-warning line. */
       requestTokens?: number | undefined;
+      /** The leader run was active when the switch was requested. */
+      runActive?: boolean | undefined;
     }
   | {
       id: number;
@@ -90,13 +98,26 @@ export type HistoryEntry =
       injectedChars: number;
       activated: MemoryActivationItem[];
       injectedIds: string[];
-      rejected: Record<'duplicate' | 'belowScore' | 'alreadyVisible' | 'cooldown' | 'budget', number>;
+      rejected: Record<
+        'duplicate' | 'belowScore' | 'alreadyVisible' | 'cooldown' | 'budget',
+        number
+      >;
       error?: string | undefined;
     }
   | {
       id: number;
       kind: 'memory-lifecycle';
-      action: 'entered' | 'updated' | 'merged' | 'recovered' | 'exited' | 'related' | 'superseded' | 'archived' | 'staled' | 'contradicted';
+      action:
+        | 'entered'
+        | 'updated'
+        | 'merged'
+        | 'recovered'
+        | 'exited'
+        | 'related'
+        | 'superseded'
+        | 'archived'
+        | 'staled'
+        | 'contradicted';
       label: string;
       detail?: string | undefined;
     }
@@ -156,4 +177,3 @@ export type HistoryEntry =
       text: string;
       detail?: string | undefined;
     };
-

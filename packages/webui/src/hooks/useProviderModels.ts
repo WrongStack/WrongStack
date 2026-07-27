@@ -10,6 +10,7 @@ export interface ModelCandidate {
   label: string;
   description?: string | undefined;
   contextWindow?: number | undefined;
+  outputModalities?: string[] | undefined;
 }
 
 /**
@@ -23,7 +24,16 @@ export function useProviderModels(active: boolean): ModelCandidate[] {
   const { listSavedProviders, listProviderModels } = useWebSocket();
   const [saved, setSaved] = useState<string[]>([]);
   const [byProvider, setByProvider] = useState<
-    Record<string, Array<{ id: string; name?: string; description?: string; contextWindow?: number }>>
+    Record<
+      string,
+      Array<{
+        id: string;
+        name?: string;
+        description?: string;
+        contextWindow?: number;
+        outputModalities?: string[];
+      }>
+    >
   >({});
 
   useEffect(() => {
@@ -35,7 +45,13 @@ export function useProviderModels(active: boolean): ModelCandidate[] {
     const offModels = client.on('provider.models', (msg: WSServerMessage) => {
       const p = msg.payload as {
         provider: string;
-        models?: Array<{ id: string; name?: string; description?: string; contextWindow?: number }>;
+        models?: Array<{
+          id: string;
+          name?: string;
+          description?: string;
+          contextWindow?: number;
+          outputModalities?: string[];
+        }>;
       };
       setByProvider((prev) => ({ ...prev, [p.provider]: p.models ?? [] }));
     });
@@ -58,12 +74,17 @@ export function useProviderModels(active: boolean): ModelCandidate[] {
     const out: ModelCandidate[] = [];
     for (const provider of saved) {
       for (const m of byProvider[provider] ?? []) {
+        // Unknown modalities remain eligible for custom/local providers. A
+        // catalog model that explicitly cannot emit text cannot drive an
+        // agent or prompt-refiner completion.
+        if (m.outputModalities?.length && !m.outputModalities.includes('text')) continue;
         out.push({
           provider,
           model: m.id,
           label: m.name ?? m.id,
           description: m.description,
           contextWindow: m.contextWindow,
+          outputModalities: m.outputModalities,
         });
       }
     }

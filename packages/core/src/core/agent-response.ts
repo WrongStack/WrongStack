@@ -5,7 +5,7 @@
  */
 
 import { isTextBlock, type TextBlock } from '../types/blocks.js';
-import type { Request, Response } from '../types/provider.js';
+import type { Provider, Request, Response } from '../types/provider.js';
 import { deriveCachePrefixKey } from '../utils/cache-key.js';
 import {
   buildCompletedWorkLedgerBlock,
@@ -16,6 +16,7 @@ import { hasMeaningfulContent, repairToolUseAdjacency } from '../utils/message-i
 import type { AgentInternals } from './agent-internals.js';
 import type { Context, RunOptions } from './context.js';
 import { type ContinueDirective, parseContinueDirective } from './continue-to-next-iteration.js';
+import { bindRequestProvider } from './request-provider-binding.js';
 
 interface ProcessResponseResult {
   finalText: string;
@@ -25,8 +26,12 @@ interface ProcessResponseResult {
 }
 
 export interface AgentResponseHandler {
-  buildAndRunRequestPipeline(opts: RunOptions): Promise<Request>;
-  processResponse(raw: Response, req: Request): Promise<ProcessResponseResult>;
+  buildAndRunRequestPipeline(opts: RunOptions): Promise<{ request: Request; provider: Provider }>;
+  processResponse(
+    raw: Response,
+    req: Request,
+    requestProvider?: Provider,
+  ): Promise<ProcessResponseResult>;
 }
 
 const MAX_TODO_SNAPSHOT_ITEMS = 10;
@@ -108,7 +113,9 @@ export function createAgentResponseHandler(a: AgentInternals): AgentResponseHand
     stabilizedPromptEpochs.add(prompt);
   }
 
-  async function buildAndRunRequestPipeline(opts: RunOptions): Promise<Request> {
+  async function buildAndRunRequestPipeline(
+    opts: RunOptions,
+  ): Promise<{ request: Request; provider: Provider }> {
     // Only scan for tool-use adjacency issues when tool content has been
     // added since the last scan. Pure text responses and iterations without
     // tool calls don't introduce new adjacency problems — skipping the O(n)
@@ -138,6 +145,16 @@ export function createAgentResponseHandler(a: AgentInternals): AgentResponseHand
     );
     const system =
       volatileBlocks.length > 0 ? [...a.ctx.systemPrompt, ...volatileBlocks] : a.ctx.systemPrompt;
+    // A picker/WebUI switch can still be building a provider while
+    // auto-continue prepares the next iteration. Wait immediately before
+    // capturing the request identity so that iteration cannot retain the old
+    // model by racing the switch.
+    await a.ctx.waitForModelTransition();
+    // Capture provider and model as one request identity. A live /model switch
+    // may replace ctx.provider while the async request pipeline or provider
+    // call is pending; this request must still finish under the identity it
+    // started with.
+    const provider = a.ctx.provider;
     const baseReq: Request = {
       model: opts.model ?? a.ctx.model,
       system,
@@ -158,10 +175,16 @@ export function createAgentResponseHandler(a: AgentInternals): AgentResponseHand
       // the config `ttl` is merged over this by the ModelRuntime middleware.
       cache: { key: deriveCachePrefixKey(a.ctx.systemPrompt) },
     };
-    return a.pipelines.request.run(baseReq);
+    const request = await a.pipelines.request.run(baseReq);
+    bindRequestProvider(request, provider);
+    return { request, provider };
   }
 
-  async function processResponse(raw: Response, req: Request): Promise<ProcessResponseResult> {
+  async function processResponse(
+    raw: Response,
+    req: Request,
+    requestProvider: Provider = a.ctx.provider,
+  ): Promise<ProcessResponseResult> {
     let res = raw;
     res = await a.pipelines.response.run(res);
     a.events.emit('provider.response', {
@@ -172,7 +195,7 @@ export function createAgentResponseHandler(a: AgentInternals): AgentResponseHand
       usage: res.usage,
       stopReason: res.stopReason,
     });
-    a.ctx.tokenCounter.account(res.usage, req.model, a.ctx.provider.id);
+    a.ctx.tokenCounter.account(res.usage, req.model, requestProvider.id);
 
     // Issue #271: never append or persist a semantically empty assistant
     // response (e.g. a stream interrupted before the first meaningful delta,
@@ -236,7 +259,7 @@ export function createAgentResponseHandler(a: AgentInternals): AgentResponseHand
     }
 
     const parts: string[] = [];
-    const streamed = a.ctx.provider.capabilities.streaming;
+    const streamed = requestProvider.capabilities.streaming;
     for (const block of res.content) {
       if (isTextBlock(block)) {
         const rendered = await a.pipelines.assistantOutput.run(block);

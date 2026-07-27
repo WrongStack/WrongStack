@@ -11,9 +11,7 @@
 import { randomUUID } from 'node:crypto';
 import * as http from 'node:http';
 import * as path from 'node:path';
-import {
-  createDefaultPipelines,
-} from '@wrongstack/core/agent';
+import { createDefaultPipelines } from '@wrongstack/core/agent';
 import {
   createSessionEventBridge,
   resolveSessionLoggingConfig,
@@ -497,10 +495,13 @@ export async function startWebUI(
   // swallow EADDRINUSE along with EAFNOSUPPORT / EADDRNOTAVAIL (no IPv6
   // stack, IPv6 disabled, or companion already covered by dual-stack).
   const companion =
-    wsHost === '127.0.0.1' ? '::1' :
-    wsHost === '0.0.0.0' || wsHost === undefined ? '::' :
-    wsHost === '::' || wsHost === '[::]' ? '0.0.0.0' :
-    null;
+    wsHost === '127.0.0.1'
+      ? '::1'
+      : wsHost === '0.0.0.0' || wsHost === undefined
+        ? '::'
+        : wsHost === '::' || wsHost === '[::]'
+          ? '0.0.0.0'
+          : null;
   let companionServer: http.Server | null = null;
   if (companion) {
     const companionLabel = companion.includes(':') ? `[${companion}]` : companion;
@@ -614,6 +615,7 @@ export async function startWebUI(
         runLockControl.set(null);
       }
     },
+    isRunActive: () => runLockControl.get() !== null,
     getClients: () => clients,
   };
 
@@ -852,18 +854,14 @@ export async function startWebUI(
         eternalSubscription = null;
       }
       codebaseIndexing.dispose();
-      if (
-        config.Sage?.enabled !== false &&
-        config.Sage?.hygiene?.autoAfterSession !== false
-      ) {
+      if (config.Sage?.enabled !== false && config.Sage?.hygiene?.autoAfterSession !== false) {
         const candidate = memoryStore as unknown as {
           hygiene?: (options?: object) => Promise<unknown>;
         };
         await candidate
           .hygiene?.({
             retentionDays: config.Sage?.hygiene?.retentionDays,
-            archiveLowConfidenceAfterDays:
-              config.Sage?.hygiene?.archiveLowConfidenceAfterDays,
+            archiveLowConfidenceAfterDays: config.Sage?.hygiene?.archiveLowConfidenceAfterDays,
           })
           .catch((err: unknown) =>
             logger.warn(`sage session hygiene failed: ${toErrorMessage(err)}`),

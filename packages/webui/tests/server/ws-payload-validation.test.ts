@@ -49,6 +49,12 @@ describe('WebUI WebSocket payload validation', () => {
       expect(result.ok).toBe(false);
       if (!result.ok) expect(result.message).toContain('model.switch');
     });
+
+    it('rejects an empty model.switch request id', () => {
+      expect(
+        validateModelSwitchPayload({ provider: 'openai', model: 'gpt-5', requestId: '  ' }),
+      ).toMatchObject({ ok: false });
+    });
   });
 
   describe('validateMailboxMessagesPayload', () => {
@@ -86,33 +92,45 @@ describe('WebUI WebSocket payload validation', () => {
   describe('validateMailboxAgentsPayload', () => {
     it('accepts undefined or valid mailbox agents options', () => {
       expect(validateMailboxAgentsPayload(undefined)).toEqual({ ok: true, value: undefined });
-      expect(validateMailboxAgentsPayload({ onlineOnly: false })).toEqual({ ok: true, value: { onlineOnly: false } });
+      expect(validateMailboxAgentsPayload({ onlineOnly: false })).toEqual({
+        ok: true,
+        value: { onlineOnly: false },
+      });
     });
 
-    it.each([null, [], 'x', { onlineOnly: 'yes' }])('rejects invalid mailbox.agents payload %#', (payload) => {
-      const result = validateMailboxAgentsPayload(payload);
-      expect(result.ok).toBe(false);
-      if (!result.ok) expect(result.message).toContain('mailbox.agents');
-    });
+    it.each([null, [], 'x', { onlineOnly: 'yes' }])(
+      'rejects invalid mailbox.agents payload %#',
+      (payload) => {
+        const result = validateMailboxAgentsPayload(payload);
+        expect(result.ok).toBe(false);
+        if (!result.ok) expect(result.message).toContain('mailbox.agents');
+      },
+    );
   });
 
   describe('validateMailboxPurgePayload', () => {
     it('accepts undefined or valid purge ages', () => {
       expect(validateMailboxPurgePayload(undefined)).toEqual({ ok: true, value: undefined });
-      expect(validateMailboxPurgePayload({ completedMaxAgeMs: 0, incompleteMaxAgeMs: 1000 })).toEqual({
+      expect(
+        validateMailboxPurgePayload({ completedMaxAgeMs: 0, incompleteMaxAgeMs: 1000 }),
+      ).toEqual({
         ok: true,
         value: { completedMaxAgeMs: 0, incompleteMaxAgeMs: 1000 },
       });
     });
 
-    it.each([null, [], 'x', { completedMaxAgeMs: -1 }, { completedMaxAgeMs: '1' }, { incompleteMaxAgeMs: Number.NaN }])(
-      'rejects invalid mailbox.purge payload %#',
-      (payload) => {
-        const result = validateMailboxPurgePayload(payload);
-        expect(result.ok).toBe(false);
-        if (!result.ok) expect(result.message).toContain('mailbox.purge');
-      },
-    );
+    it.each([
+      null,
+      [],
+      'x',
+      { completedMaxAgeMs: -1 },
+      { completedMaxAgeMs: '1' },
+      { incompleteMaxAgeMs: Number.NaN },
+    ])('rejects invalid mailbox.purge payload %#', (payload) => {
+      const result = validateMailboxPurgePayload(payload);
+      expect(result.ok).toBe(false);
+      if (!result.ok) expect(result.message).toContain('mailbox.purge');
+    });
   });
 
   describe('validateBrainRiskPayload', () => {
@@ -132,7 +150,10 @@ describe('WebUI WebSocket payload validation', () => {
 
   describe('validateBrainAskPayload', () => {
     it('accepts and trims a question', () => {
-      expect(validateBrainAskPayload({ question: '  What next?  ' })).toEqual({ ok: true, value: { question: 'What next?' } });
+      expect(validateBrainAskPayload({ question: '  What next?  ' })).toEqual({
+        ok: true,
+        value: { question: 'What next?' },
+      });
     });
 
     it.each([undefined, null, [], {}, { question: '' }, { question: '   ' }, { question: 123 }])(
@@ -147,7 +168,10 @@ describe('WebUI WebSocket payload validation', () => {
 
   describe('validateModeSwitchPayload', () => {
     it('accepts a non-empty mode id', () => {
-      expect(validateModeSwitchPayload({ id: 'default' })).toEqual({ ok: true, value: { id: 'default' } });
+      expect(validateModeSwitchPayload({ id: 'default' })).toEqual({
+        ok: true,
+        value: { id: 'default' },
+      });
     });
 
     it.each([undefined, null, [], {}, { id: '' }, { id: '   ' }, { id: 123 }])(
@@ -161,9 +185,12 @@ describe('WebUI WebSocket payload validation', () => {
   });
 
   describe('validateAutonomySwitchPayload', () => {
-    it.each(['off', 'suggest', 'auto', 'eternal', 'eternal-parallel'])('accepts autonomy mode %s', (mode) => {
-      expect(validateAutonomySwitchPayload({ mode })).toEqual({ ok: true, value: { mode } });
-    });
+    it.each(['off', 'suggest', 'auto', 'eternal', 'eternal-parallel'])(
+      'accepts autonomy mode %s',
+      (mode) => {
+        expect(validateAutonomySwitchPayload({ mode })).toEqual({ ok: true, value: { mode } });
+      },
+    );
 
     it.each([undefined, null, [], {}, { mode: '' }, { mode: 'manual' }, { mode: 123 }])(
       'rejects invalid autonomy.switch payload %#',
@@ -177,7 +204,10 @@ describe('WebUI WebSocket payload validation', () => {
 
   describe('validatePlanTemplateUsePayload', () => {
     it('accepts a non-empty template string', () => {
-      expect(validatePlanTemplateUsePayload({ template: 'bug-fix' })).toEqual({ ok: true, value: { template: 'bug-fix' } });
+      expect(validatePlanTemplateUsePayload({ template: 'bug-fix' })).toEqual({
+        ok: true,
+        value: { template: 'bug-fix' },
+      });
     });
 
     it.each([undefined, null, [], {}, { template: '' }, { template: '   ' }, { template: 123 }])(
@@ -251,11 +281,14 @@ describe('WebUI WebSocket payload validation', () => {
       });
     });
 
-    it.each([undefined, null, [], 'prefs', 123, true])('rejects non-object prefs.update payload %#', (payload) => {
-      const result = validatePrefsUpdatePayload(payload);
-      expect(result.ok).toBe(false);
-      if (!result.ok) expect(result.message).toContain('prefs.update');
-    });
+    it.each([undefined, null, [], 'prefs', 123, true])(
+      'rejects non-object prefs.update payload %#',
+      (payload) => {
+        const result = validatePrefsUpdatePayload(payload);
+        expect(result.ok).toBe(false);
+        if (!result.ok) expect(result.message).toContain('prefs.update');
+      },
+    );
 
     it.each([
       { typoPreference: true },
@@ -292,7 +325,13 @@ describe('WebUI WebSocket payload validation', () => {
 
   describe('validateSkillsCreatePayload', () => {
     it('accepts kebab-case name, description, and project/global scope', () => {
-      expect(validateSkillsCreatePayload({ name: 'my-skill', description: 'Use this skill when X.', scope: 'project' })).toEqual({
+      expect(
+        validateSkillsCreatePayload({
+          name: 'my-skill',
+          description: 'Use this skill when X.',
+          scope: 'project',
+        }),
+      ).toEqual({
         ok: true,
         value: { name: 'my-skill', description: 'Use this skill when X.', scope: 'project' },
       });
@@ -360,22 +399,20 @@ describe('WebUI WebSocket payload validation', () => {
 
   describe('validateWorkingDirSetPayload', () => {
     it('accepts a non-empty string path', () => {
-      expect(validateWorkingDirSetPayload({ path: 'src' })).toEqual({ ok: true, value: { path: 'src' } });
+      expect(validateWorkingDirSetPayload({ path: 'src' })).toEqual({
+        ok: true,
+        value: { path: 'src' },
+      });
     });
 
-    it.each([
-      undefined,
-      null,
-      [],
-      {},
-      { path: '' },
-      { path: '   ' },
-      { path: 123 },
-    ])('rejects invalid working_dir.set payload %#', (payload) => {
-      const result = validateWorkingDirSetPayload(payload);
-      expect(result.ok).toBe(false);
-      if (!result.ok) expect(result.message).toContain('path');
-    });
+    it.each([undefined, null, [], {}, { path: '' }, { path: '   ' }, { path: 123 }])(
+      'rejects invalid working_dir.set payload %#',
+      (payload) => {
+        const result = validateWorkingDirSetPayload(payload);
+        expect(result.ok).toBe(false);
+        if (!result.ok) expect(result.message).toContain('path');
+      },
+    );
   });
 
   describe('validateProjectsAddPayload', () => {
@@ -384,25 +421,22 @@ describe('WebUI WebSocket payload validation', () => {
         ok: true,
         value: { root: '/home/user/project', name: undefined },
       });
-      expect(validateProjectsAddPayload({ root: '/home/user/project', name: 'My Project' })).toEqual({
+      expect(
+        validateProjectsAddPayload({ root: '/home/user/project', name: 'My Project' }),
+      ).toEqual({
         ok: true,
         value: { root: '/home/user/project', name: 'My Project' },
       });
     });
 
-    it.each([
-      undefined,
-      null,
-      [],
-      {},
-      { root: '' },
-      { root: 123 },
-      { root: '/path', name: 123 },
-    ])('rejects invalid projects.add payload %#', (payload) => {
-      const result = validateProjectsAddPayload(payload);
-      expect(result.ok).toBe(false);
-      if (!result.ok) expect(result.message).toContain('projects.add');
-    });
+    it.each([undefined, null, [], {}, { root: '' }, { root: 123 }, { root: '/path', name: 123 }])(
+      'rejects invalid projects.add payload %#',
+      (payload) => {
+        const result = validateProjectsAddPayload(payload);
+        expect(result.ok).toBe(false);
+        if (!result.ok) expect(result.message).toContain('projects.add');
+      },
+    );
   });
 
   describe('validateProjectsSelectPayload', () => {
@@ -413,19 +447,14 @@ describe('WebUI WebSocket payload validation', () => {
       });
     });
 
-    it.each([
-      undefined,
-      null,
-      [],
-      {},
-      { root: '' },
-      { root: 123 },
-      { root: '/path', name: true },
-    ])('rejects invalid projects.select payload %#', (payload) => {
-      const result = validateProjectsSelectPayload(payload);
-      expect(result.ok).toBe(false);
-      if (!result.ok) expect(result.message).toContain('projects.select');
-    });
+    it.each([undefined, null, [], {}, { root: '' }, { root: 123 }, { root: '/path', name: true }])(
+      'rejects invalid projects.select payload %#',
+      (payload) => {
+        const result = validateProjectsSelectPayload(payload);
+        expect(result.ok).toBe(false);
+        if (!result.ok) expect(result.message).toContain('projects.select');
+      },
+    );
   });
 
   describe('validateShellOpenPayload', () => {
@@ -467,22 +496,22 @@ describe('WebUI WebSocket payload validation', () => {
       expect(validateGitDiffPayload({})).toEqual({ ok: true, value: { path: '' } });
     });
 
-    it.each([
-      undefined,
-      null,
-      [],
-      { path: 123 },
-      { path: true },
-    ])('rejects invalid git.diff payload %#', (payload) => {
-      const result = validateGitDiffPayload(payload);
-      expect(result.ok).toBe(false);
-      if (!result.ok) expect(result.message).toContain('git.diff');
-    });
+    it.each([undefined, null, [], { path: 123 }, { path: true }])(
+      'rejects invalid git.diff payload %#',
+      (payload) => {
+        const result = validateGitDiffPayload(payload);
+        expect(result.ok).toBe(false);
+        if (!result.ok) expect(result.message).toContain('git.diff');
+      },
+    );
   });
 
   describe('validateContextModeSwitchPayload', () => {
     it('accepts a non-empty mode id', () => {
-      expect(validateContextModeSwitchPayload({ id: 'balanced' })).toEqual({ ok: true, value: { id: 'balanced' } });
+      expect(validateContextModeSwitchPayload({ id: 'balanced' })).toEqual({
+        ok: true,
+        value: { id: 'balanced' },
+      });
     });
 
     it.each([undefined, null, [], {}, { id: '' }, { id: '   ' }, { id: 123 }])(
@@ -497,7 +526,10 @@ describe('WebUI WebSocket payload validation', () => {
 
   describe('validateContextModeDeletePayload', () => {
     it('accepts a non-empty mode id', () => {
-      expect(validateContextModeDeletePayload({ id: 'my-mode' })).toEqual({ ok: true, value: { id: 'my-mode' } });
+      expect(validateContextModeDeletePayload({ id: 'my-mode' })).toEqual({
+        ok: true,
+        value: { id: 'my-mode' },
+      });
     });
 
     it.each([undefined, null, [], {}, { id: '' }, { id: '   ' }, { id: 123 }])(
@@ -521,7 +553,10 @@ describe('WebUI WebSocket payload validation', () => {
     };
 
     it('accepts a fully valid payload', () => {
-      expect(validateContextModeCreatePayload(validPayload)).toEqual({ ok: true, value: validPayload });
+      expect(validateContextModeCreatePayload(validPayload)).toEqual({
+        ok: true,
+        value: validPayload,
+      });
     });
 
     it.each([
@@ -547,12 +582,23 @@ describe('WebUI WebSocket payload validation', () => {
     it('accepts a payload with only id', () => {
       expect(validateContextModeUpdatePayload({ id: 'my-mode' })).toEqual({
         ok: true,
-        value: { id: 'my-mode', name: undefined, description: undefined, thresholds: undefined, preserveK: undefined, eliseThreshold: undefined },
+        value: {
+          id: 'my-mode',
+          name: undefined,
+          description: undefined,
+          thresholds: undefined,
+          preserveK: undefined,
+          eliseThreshold: undefined,
+        },
       });
     });
 
     it('accepts a payload with partial fields', () => {
-      const result = validateContextModeUpdatePayload({ id: 'my-mode', name: 'New Name', preserveK: 20 });
+      const result = validateContextModeUpdatePayload({
+        id: 'my-mode',
+        name: 'New Name',
+        preserveK: 20,
+      });
       expect(result.ok).toBe(true);
     });
 

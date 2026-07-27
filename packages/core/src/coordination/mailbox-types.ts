@@ -627,6 +627,13 @@ export interface AutoCompactOptions {
    */
   defaultTtlMs?: number | undefined;
   /**
+   * Per-message-type TTL overrides, consulted before `defaultTtlMs` for
+   * messages with no explicit `expiresAt`. Keyed by `MailboxMessageType`.
+   * Default: {@link AUTO_COMPACT_TYPE_TTL_MS} (transient `status` chatter
+   * expires in 30 minutes instead of 24 hours).
+   */
+  typeTtlMs?: Readonly<Record<string, number>> | undefined;
+  /**
    * Also run `purgeStale` logic in the same pass — purge completed
    * messages older than this many ms. Default: 1 day.
    */

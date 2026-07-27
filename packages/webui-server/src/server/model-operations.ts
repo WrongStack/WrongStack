@@ -40,33 +40,104 @@ export interface ModelOperationsContext {
   getLiveProviderId: () => string;
   buildProvider: (providerId: string, config: ProviderConfig) => Provider | Promise<Provider>;
   applyModelSwitch: (providerId: string, modelId: string) => Promise<void>;
+  isRunActive?: (() => boolean) | undefined;
   send: (ws: WebSocket, message: WSServerMessage) => void;
+  broadcast?: ((message: WSServerMessage) => void) | undefined;
   log?: ((message: string) => void) | undefined;
 }
 
 function sendResult(
   context: ModelOperationsContext,
   ws: WebSocket,
-  success: boolean,
-  message: string,
+  payload: {
+    requestId?: string | undefined;
+    success: boolean;
+    message: string;
+    provider?: string | undefined;
+    model?: string | undefined;
+    previousProvider?: string | undefined;
+    previousModel?: string | undefined;
+    runActive: boolean;
+  },
+  legacyResult = false,
 ): void {
-  context.send(ws, { type: 'key.operation_result', payload: { success, message } });
+  const message = { type: 'model.switch_result', payload };
+  if (payload.success && context.broadcast) context.broadcast(message);
+  else context.send(ws, message);
+  // SimpleUI and older clients do not attach requestId yet. Keep their status
+  // notice alive without reintroducing the ambiguous generic result for modern
+  // WebUI requests.
+  if (legacyResult) {
+    context.send(ws, {
+      type: 'key.operation_result',
+      payload: { success: payload.success, message: payload.message },
+    });
+  }
 }
 
 export function createModelOperations(context: ModelOperationsContext) {
+  // A model switch rebuilds and persists shared live session state. Serialize
+  // requests from multiple tabs so a slower provider build cannot overwrite a
+  // newer selection after it completes.
+  let switchQueue: Promise<void> = Promise.resolve();
+
   async function switchModel(ws: WebSocket, input: unknown): Promise<void> {
     const parsed = validateModelSwitchPayload(input);
     if (!parsed.ok) {
-      sendResult(context, ws, false, parsed.message);
+      sendResult(
+        context,
+        ws,
+        {
+          success: false,
+          message: parsed.message,
+          runActive: context.isRunActive?.() ?? false,
+        },
+        true,
+      );
       return;
     }
-    const { provider, model } = parsed.value;
-    try {
-      await context.applyModelSwitch(provider, model);
-      sendResult(context, ws, true, `Switched to ${provider} / ${model}`);
-    } catch (error) {
-      sendResult(context, ws, false, `Switch failed: ${toErrorMessage(error)}`);
-    }
+    const { provider, model, requestId } = parsed.value;
+    const queued = switchQueue.then(async () => {
+      const previousProvider = context.getLiveProviderId();
+      const previousModel = context.context.model;
+      const runActive = context.isRunActive?.() ?? false;
+      try {
+        await context.applyModelSwitch(provider, model);
+        sendResult(
+          context,
+          ws,
+          {
+            ...(requestId ? { requestId } : {}),
+            success: true,
+            message: `Switched to ${provider} / ${model}`,
+            provider,
+            model,
+            previousProvider,
+            previousModel,
+            runActive,
+          },
+          requestId === undefined,
+        );
+      } catch (error) {
+        sendResult(
+          context,
+          ws,
+          {
+            ...(requestId ? { requestId } : {}),
+            success: false,
+            message: `Switch failed: ${toErrorMessage(error)}`,
+            provider,
+            model,
+            previousProvider,
+            previousModel,
+            runActive,
+          },
+          requestId === undefined,
+        );
+      }
+    });
+    switchQueue = queued.catch(() => undefined);
+    await queued;
   }
 
   async function buildTargetProvider(

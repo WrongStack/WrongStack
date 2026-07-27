@@ -131,7 +131,12 @@ export function usePickerKeys(
             }
             return true;
           }
-          if (input && input.length === 1 && input.charCodeAt(0) >= 0x20 && input.charCodeAt(0) < 0x7f) {
+          if (
+            input &&
+            input.length === 1 &&
+            input.charCodeAt(0) >= 0x20 &&
+            input.charCodeAt(0) < 0x7f
+          ) {
             dispatch({ type: 'authFilter', filter: ap.filter + input });
             return true;
           }
@@ -226,6 +231,7 @@ export function usePickerKeys(
                   toContext: nextMaxContext > 0 ? nextMaxContext : undefined,
                   requestTokens:
                     host.currentContextTokens > 0 ? host.currentContextTokens : undefined,
+                  runActive: state.status !== 'idle',
                 },
               });
               dispatch({ type: 'modelPickerClose' });
@@ -597,7 +603,12 @@ export function usePickerKeys(
           return true;
         }
         // Printable chars → filter mode (like SettingsPicker slash search)
-        if (input && input.length === 1 && input.charCodeAt(0) >= 0x20 && input.charCodeAt(0) < 0x7f) {
+        if (
+          input &&
+          input.length === 1 &&
+          input.charCodeAt(0) >= 0x20 &&
+          input.charCodeAt(0) < 0x7f
+        ) {
           dispatch({ type: 'toolsPickerFilter', filter: (state.toolsPicker.filter ?? '') + input });
           return true;
         }
@@ -632,7 +643,12 @@ export function usePickerKeys(
           return true;
         }
         // Printable chars → filter mode
-        if (input && input.length === 1 && input.charCodeAt(0) >= 0x20 && input.charCodeAt(0) < 0x7f) {
+        if (
+          input &&
+          input.length === 1 &&
+          input.charCodeAt(0) >= 0x20 &&
+          input.charCodeAt(0) < 0x7f
+        ) {
           dispatch({ type: 'helpFilter', filter: state.helpPanel.filter + input });
           return true;
         }
@@ -688,7 +704,10 @@ export function usePickerKeys(
             host.onBrainEnter?.(row);
             return true;
           }
-          if ((input === 'd' || input === 'D' || key.delete) && (row.kind === 'poolModel' || row.kind === 'voter' || row.kind === 'judge')) {
+          if (
+            (input === 'd' || input === 'D' || key.delete) &&
+            (row.kind === 'poolModel' || row.kind === 'voter' || row.kind === 'judge')
+          ) {
             host.onBrainDelete?.(row);
             return true;
           }

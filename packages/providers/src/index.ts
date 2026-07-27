@@ -18,6 +18,7 @@ import { AnthropicOAuthProvider } from './anthropic-oauth.js';
 import { GitHubCopilotProvider } from './github-copilot.js';
 import { GoogleProvider } from './google.js';
 import { OpenAICodexProvider } from './openai-codex.js';
+import { OpenCodeZenProvider } from './opencode.js';
 import { OpenCodeGoProvider } from './opencode-go.js';
 import {
   type CompatibilityQuirks,
@@ -387,6 +388,15 @@ function makeProvider(p: ResolvedProvider, cfg: ProviderConfig): Provider {
     case 'openai-compatible': {
       // Provider/model discovery remains owned by models.dev. This adapter
       // only selects the gateway's per-model wire protocol.
+      if (p.id === 'opencode') {
+        return new OpenCodeZenProvider({
+          id: p.id,
+          apiKey: expectDefined(apiKey),
+          baseUrl: expectDefined(baseUrl),
+          headers: cfg.headers,
+          models: p.models,
+        });
+      }
       if (p.id === 'opencode-go') {
         return new OpenCodeGoProvider({
           id: p.id,

@@ -1,4 +1,4 @@
-import { type Dirent } from 'node:fs';
+import type { Dirent } from 'node:fs';
 import * as fsp from 'node:fs/promises';
 import * as path from 'node:path';
 import type { EventBus } from '../kernel/events.js';

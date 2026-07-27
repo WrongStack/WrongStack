@@ -389,8 +389,7 @@ export const Entry = React.memo(function Entry({
             // shape carries it as a `created=true` field on the header line.
             const created =
               name === 'write' &&
-              (outObj?.['created'] === true ||
-                /^[^\n]*\bcreated=true\b/.test(outputForFormatting));
+              (outObj?.['created'] === true || /^[^\n]*\bcreated=true\b/.test(outputForFormatting));
             const verb = created ? 'Write' : 'Update';
             const path = stringOf(inputObj?.['path']) ?? stringOf(outObj?.['path']);
             const agg = multiDiffs ? summarizeMultiFileDiffs(multiDiffs) : undefined;
@@ -407,7 +406,16 @@ export const Entry = React.memo(function Entry({
               lang: langFromPath(multiDiffs ? '' : (path ?? '')),
             };
           })();
-          return { argSummary, outLines, sageLines, visualLines, diff, multiDiffs, sizeChip, mutation };
+          return {
+            argSummary,
+            outLines,
+            sageLines,
+            visualLines,
+            diff,
+            multiDiffs,
+            sizeChip,
+            mutation,
+          };
         }, [
           entry.name,
           entry.output,
@@ -437,27 +445,116 @@ export const Entry = React.memo(function Entry({
         const toolContentWidth = Math.max(20, termWidth - 2);
         return (
           <Box flexDirection="column">
+            <ToolCard
+              glyph={glyph}
+              color={color}
+              title={`${mutation.verb}(${shortenPath(mutation.target, targetBudget)})`}
+              meta={`${entry.durationMs}ms`}
+              ok={entry.ok}
+              termWidth={termWidth}
+              hasBody
+            >
+              <Text>
+                <Text dimColor>{'⎿  '}</Text>
+                {mutation.added > 0 ? (
+                  <Text bold color={theme.success}>{`+${mutation.added}`}</Text>
+                ) : null}
+                {mutation.added > 0 && mutation.removed > 0 ? <Text> </Text> : null}
+                {mutation.removed > 0 ? (
+                  <Text bold color={theme.error}>{`-${mutation.removed}`}</Text>
+                ) : null}
+                {hasCounts ? <Text dimColor>{'  '}</Text> : null}
+                <Text dimColor>{statsText}</Text>
+              </Text>
+              {entry.resultRenderMode !== 'simple' && multiDiffs ? (
+                <Box flexDirection="column">
+                  {(() => {
+                    const summaryLine = formatMultiDiffSummary(
+                      summarizeMultiFileDiffs(multiDiffs),
+                      multiDiffSummaryThreshold ?? -1,
+                    );
+                    return summaryLine ? <Text dimColor italic>{`  ${summaryLine}`}</Text> : null;
+                  })()}
+                  {multiDiffs.map((item) => (
+                    <DiffFileBlock
+                      key={item.path}
+                      path={item.path}
+                      preview={item.preview}
+                      useColor={theme.supportsBackground}
+                      contentWidth={toolContentWidth}
+                    />
+                  ))}
+                </Box>
+              ) : entry.resultRenderMode !== 'simple' && diff ? (
+                <DiffBlock
+                  rows={diff.rows}
+                  hidden={diff.hidden}
+                  added={diff.added}
+                  removed={diff.removed}
+                  hiddenAdded={diff.hiddenAdded}
+                  hiddenRemoved={diff.hiddenRemoved}
+                  useColor={theme.supportsBackground}
+                  lang={mutation.lang}
+                  showStats={false}
+                  contentWidth={toolContentWidth}
+                />
+              ) : null}
+            </ToolCard>
+            <SageMemoryBlock sageLines={sageLines} />
+          </Box>
+        );
+      }
+      const toolContentWidth = Math.max(20, termWidth - 2);
+      const hasToolBody = Boolean(
+        (visualLines && visualLines.length > 0) ||
+          (entry.resultRenderMode !== 'simple' && outLines.length > 0) ||
+          (entry.resultRenderMode !== 'simple' && (diff || multiDiffs)),
+      );
+      return (
+        <Box flexDirection="column">
           <ToolCard
             glyph={glyph}
             color={color}
-            title={`${mutation.verb}(${shortenPath(mutation.target, targetBudget)})`}
-            meta={`${entry.durationMs}ms`}
+            title={entry.name}
+            detail={argSummary || undefined}
+            meta={[`${entry.durationMs}ms`, sizeChip].filter(Boolean).join(' · ')}
             ok={entry.ok}
             termWidth={termWidth}
-            hasBody
+            hasBody={hasToolBody}
           >
-            <Text>
-              <Text dimColor>{'⎿  '}</Text>
-              {mutation.added > 0 ? (
-                <Text bold color={theme.success}>{`+${mutation.added}`}</Text>
-              ) : null}
-              {mutation.added > 0 && mutation.removed > 0 ? <Text> </Text> : null}
-              {mutation.removed > 0 ? (
-                <Text bold color={theme.error}>{`-${mutation.removed}`}</Text>
-              ) : null}
-              {hasCounts ? <Text dimColor>{'  '}</Text> : null}
-              <Text dimColor>{statsText}</Text>
-            </Text>
+            {visualLines && entry.resultRenderMode !== 'simple' ? (
+              <ToolOutputLines
+                lines={visualLines}
+                hasFollowingBlock={Boolean(diff || multiDiffs)}
+              />
+            ) : visualLines ? (
+              // `simple` mode: meta line stays visible (path + replacement
+              // count for edit, line count for read, etc.) but the diff
+              // body below is hidden. The user always gets a one-line
+              // summary so the entry never looks empty.
+              <ToolOutputLines lines={visualLines} hasFollowingBlock={false} />
+            ) : entry.resultRenderMode === 'simple' ? null : (
+              outLines.map((line, i) => {
+                const connector =
+                  i === outLines.length - 1 && !diff && !multiDiffs ? '  └─ ' : '  ├─ ';
+                return (
+                  <Text key={i}>
+                    <Text color={color} dimColor>
+                      {connector}
+                    </Text>
+                    <Text
+                      dimColor={entry.ok && !line.startsWith('!')}
+                      {...(!entry.ok || line.startsWith('!') ? { color: 'red' } : {})}
+                    >
+                      {line}
+                    </Text>
+                  </Text>
+                );
+              })
+            )}
+            {/* `simple` mode: hide diff blocks too — only the meta chip
+              stays visible. Diff bodies can re-flow onto the screen on
+              demand via the chip expansion hook (future work). */}
             {entry.resultRenderMode !== 'simple' && multiDiffs ? (
               <Box flexDirection="column">
                 {(() => {
@@ -465,7 +562,11 @@ export const Entry = React.memo(function Entry({
                     summarizeMultiFileDiffs(multiDiffs),
                     multiDiffSummaryThreshold ?? -1,
                   );
-                  return summaryLine ? <Text dimColor italic>{`  ${summaryLine}`}</Text> : null;
+                  return summaryLine ? (
+                    <Text dimColor italic>
+                      {summaryLine}
+                    </Text>
+                  ) : null;
                 })()}
                 {multiDiffs.map((item) => (
                   <DiffFileBlock
@@ -486,101 +587,11 @@ export const Entry = React.memo(function Entry({
                 hiddenAdded={diff.hiddenAdded}
                 hiddenRemoved={diff.hiddenRemoved}
                 useColor={theme.supportsBackground}
-                lang={mutation.lang}
-                showStats={false}
                 contentWidth={toolContentWidth}
               />
             ) : null}
           </ToolCard>
-        <SageMemoryBlock sageLines={sageLines} />
-        </Box>
-        );
-      }
-      const toolContentWidth = Math.max(20, termWidth - 2);
-      const hasToolBody = Boolean(
-        (visualLines && visualLines.length > 0) ||
-          (entry.resultRenderMode !== 'simple' && outLines.length > 0) ||
-          (entry.resultRenderMode !== 'simple' && (diff || multiDiffs)),
-      );
-      return (
-        <Box flexDirection="column">
-        <ToolCard
-          glyph={glyph}
-          color={color}
-          title={entry.name}
-          detail={argSummary || undefined}
-          meta={[`${entry.durationMs}ms`, sizeChip].filter(Boolean).join(' · ')}
-          ok={entry.ok}
-          termWidth={termWidth}
-          hasBody={hasToolBody}
-        >
-          {visualLines && entry.resultRenderMode !== 'simple' ? (
-            <ToolOutputLines lines={visualLines} hasFollowingBlock={Boolean(diff || multiDiffs)} />
-          ) : visualLines ? (
-            // `simple` mode: meta line stays visible (path + replacement
-            // count for edit, line count for read, etc.) but the diff
-            // body below is hidden. The user always gets a one-line
-            // summary so the entry never looks empty.
-            <ToolOutputLines lines={visualLines} hasFollowingBlock={false} />
-          ) : entry.resultRenderMode === 'simple' ? null : (
-            outLines.map((line, i) => {
-              const connector =
-                i === outLines.length - 1 && !diff && !multiDiffs ? '  └─ ' : '  ├─ ';
-              return (
-                <Text key={i}>
-                  <Text color={color} dimColor>
-                    {connector}
-                  </Text>
-                  <Text
-                    dimColor={entry.ok && !line.startsWith('!')}
-                    {...(!entry.ok || line.startsWith('!') ? { color: 'red' } : {})}
-                  >
-                    {line}
-                  </Text>
-                </Text>
-              );
-            })
-          )}
-          {/* `simple` mode: hide diff blocks too — only the meta chip
-              stays visible. Diff bodies can re-flow onto the screen on
-              demand via the chip expansion hook (future work). */}
-          {entry.resultRenderMode !== 'simple' && multiDiffs ? (
-            <Box flexDirection="column">
-              {(() => {
-                const summaryLine = formatMultiDiffSummary(
-                  summarizeMultiFileDiffs(multiDiffs),
-                  multiDiffSummaryThreshold ?? -1,
-                );
-                return summaryLine ? (
-                  <Text dimColor italic>
-                    {summaryLine}
-                  </Text>
-                ) : null;
-              })()}
-              {multiDiffs.map((item) => (
-                <DiffFileBlock
-                  key={item.path}
-                  path={item.path}
-                  preview={item.preview}
-                  useColor={theme.supportsBackground}
-                  contentWidth={toolContentWidth}
-                />
-              ))}
-            </Box>
-          ) : entry.resultRenderMode !== 'simple' && diff ? (
-            <DiffBlock
-              rows={diff.rows}
-              hidden={diff.hidden}
-              added={diff.added}
-              removed={diff.removed}
-              hiddenAdded={diff.hiddenAdded}
-              hiddenRemoved={diff.hiddenRemoved}
-              useColor={theme.supportsBackground}
-              contentWidth={toolContentWidth}
-            />
-          ) : null}
-        </ToolCard>
-        <SageMemoryBlock sageLines={sageLines} />
+          <SageMemoryBlock sageLines={sageLines} />
         </Box>
       );
     }
@@ -734,6 +745,11 @@ export const Entry = React.memo(function Entry({
               <Text color={shrink ? theme.warn : theme.success}>{`   ${toChip}`}</Text>
             ) : null}
           </Text>
+          <Text color={theme.success}>
+            {entry.runActive
+              ? '  ✓ active for next LLM request · current run continues'
+              : '  ✓ active for next LLM request'}
+          </Text>
           {shrink ? (
             <Text color={theme.warn}>
               {`  ⚠ smaller window: ${fmtTok(entry.fromContext as number)} → ${fmtTok(
@@ -886,7 +902,9 @@ function SageMemoryBlock({ sageLines }: { sageLines: string[] }): React.ReactEle
         <Text bold color={theme.accent}>
           {'🧠 SAGE MEMORY INJECTED · SYSTEM CONTEXT  '}
         </Text>
-        <Text dimColor>{`${memoryLines.length} ${memoryLines.length === 1 ? 'memory' : 'memories'}`}</Text>
+        <Text
+          dimColor
+        >{`${memoryLines.length} ${memoryLines.length === 1 ? 'memory' : 'memories'}`}</Text>
       </Box>
       {memoryLines.map((line, i) => (
         <Text key={i} color={theme.accent} dimColor>

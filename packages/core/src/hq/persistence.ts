@@ -25,8 +25,9 @@
  */
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
+import { StringDecoder } from 'node:string_decoder';
 import { atomicWrite, withFileLock } from '../utils/atomic-write.js';
-import { type HqEventEnvelope, type HqSnapshot } from './protocol.js';
+import type { HqEventEnvelope, HqSnapshot } from './protocol.js';
 import { HqKanbanStore } from './kanban-store.js';
 export { HqKanbanStore } from './kanban-store.js';
 import { BestEffortBatchQueue, BestEffortLatestQueue } from './write-queues.js';
@@ -577,14 +578,25 @@ export class HqTimeseriesStore {
     this.dirtyVersions.set(start, ++this.nextDirtyVersion);
     // Prune in-memory buckets beyond retention so a long-lived HQ doesn't
     // accumulate unbounded history. Keep the most-recent maxBuckets.
-    if (this.buckets.size > this.maxBuckets) {
-      const sorted = Array.from(this.buckets.keys()).sort((a, b) => a - b);
-      while (this.buckets.size > this.maxBuckets && sorted.length > 0) {
-        const oldest = sorted.shift();
-        if (oldest === undefined) break;
-        this.buckets.delete(oldest);
-        this.dirtyVersions.delete(oldest);
-      }
+    this.pruneBuckets({ dropDirty: true });
+  }
+
+  /**
+   * Drop the oldest buckets beyond `maxBuckets`.
+   *
+   * `dropDirty` also forgets the pending flush version for an evicted bucket —
+   * correct when the eviction happens on the record path (the bucket is gone,
+   * so there is nothing left to write). The load path leaves `dirtyVersions`
+   * alone because it has not produced any.
+   */
+  private pruneBuckets(opts: { dropDirty?: boolean } = {}): void {
+    if (this.buckets.size <= this.maxBuckets) return;
+    const sorted = Array.from(this.buckets.keys()).sort((a, b) => a - b);
+    while (this.buckets.size > this.maxBuckets && sorted.length > 0) {
+      const oldest = sorted.shift();
+      if (oldest === undefined) break;
+      this.buckets.delete(oldest);
+      if (opts.dropDirty) this.dirtyVersions.delete(oldest);
     }
   }
 
@@ -646,12 +658,7 @@ export class HqTimeseriesStore {
       if (this.dirtyVersions.get(timestamp) === version) this.dirtyVersions.delete(timestamp);
     }
     // Prune in-memory buckets beyond retention.
-    const sorted = Array.from(this.buckets.keys()).sort((a, b) => a - b);
-    while (this.buckets.size > this.maxBuckets) {
-      const oldest = sorted.shift();
-      if (oldest === undefined) break;
-      this.buckets.delete(oldest);
-    }
+    this.pruneBuckets();
   }
 
   /** Read buckets within `[since, now]`, oldest-first. */
@@ -672,36 +679,41 @@ export class HqTimeseriesStore {
   }
 
   private async loadInternal(): Promise<void> {
-    let content: string;
+    // Streamed, not `readFile(…, 'utf8')`. Two reasons, and the second one bit:
+    //  1. The whole file would be resident as one string plus its split parts,
+    //     for a store that only ever keeps `maxBuckets` samples.
+    //  2. Node caps a single string at ~512 MB. This file had grown past that,
+    //     so the read threw ERR_STRING_TOO_LONG — which the catch below turned
+    //     into `diskLineCount = 0`, and compaction only fires once
+    //     `diskLineCount` crosses a threshold. Too big to read meant too big to
+    //     compact, so it grew forever and HQ silently lost all trend history on
+    //     every restart. Streaming removes the ceiling that started it.
+    let lineCount = 0;
     try {
-      content = await fs.readFile(this.filePath, 'utf8');
+      for await (const line of readJsonlLines(this.filePath)) {
+        lineCount++;
+        try {
+          const sample = JSON.parse(line) as HqTimeseriesSample;
+          // Last-write-wins per bucket (file is append-only, so later lines win).
+          this.buckets.set(sample.ts, sample);
+        } catch {
+          /* skip malformed */
+        }
+        // Bound the working set during the scan itself: an oversized file must
+        // not cost more than a healthy one just because it is being read.
+        if (this.buckets.size > this.maxBuckets * 2) this.pruneBuckets();
+      }
     } catch {
-      this.diskLineCount = 0;
+      // Missing/unreadable file. `lineCount` reflects whatever was consumed, so
+      // a partial read still leaves compaction armed rather than disabled.
+      this.diskLineCount = lineCount;
       this.loaded = true;
       return;
-    }
-    let lineCount = 0;
-    for (const line of content.split('\n')) {
-      const trimmed = line.trim();
-      if (!trimmed) continue;
-      lineCount++;
-      try {
-        const sample = JSON.parse(trimmed) as HqTimeseriesSample;
-        // Last-write-wins per bucket (file is append-only, so later lines win).
-        this.buckets.set(sample.ts, sample);
-      } catch {
-        /* skip malformed */
-      }
     }
     this.diskLineCount = lineCount;
     this.loaded = true;
     // Prune to retention.
-    const sorted = Array.from(this.buckets.keys()).sort((a, b) => a - b);
-    while (this.buckets.size > this.maxBuckets) {
-      const oldest = sorted.shift();
-      if (oldest === undefined) break;
-      this.buckets.delete(oldest);
-    }
+    this.pruneBuckets();
   }
 }
 
@@ -723,6 +735,52 @@ function cloneTimeseriesSample(sample: HqTimeseriesSample): HqTimeseriesSample {
         }
       : {}),
   };
+}
+
+/**
+ * Yield non-empty lines of a JSONL file without ever holding the whole file.
+ *
+ * Deliberately not `readline`/`createReadStream`: this module already speaks
+ * `fs/promises` FileHandles (see {@link countNonEmptyLines}) and a chunked read
+ * keeps the peak at one chunk plus the longest single line, with no stream
+ * teardown to get wrong on the error path. Callers get a plain async iterable
+ * they can `break` out of; the handle is closed either way.
+ *
+ * `StringDecoder` — not `buffer.toString('utf8')` — because a chunk boundary
+ * lands mid-character sooner or later, and a bare decode turns that character
+ * into U+FFFD before any carry logic could rescue it. The decoder holds the
+ * incomplete byte sequence until the next chunk completes it.
+ *
+ * Throws only if the file cannot be opened — malformed content is the caller's
+ * problem, one line at a time.
+ */
+async function* readJsonlLines(filePath: string): AsyncGenerator<string> {
+  const handle = await fs.open(filePath, 'r');
+  try {
+    const buffer = Buffer.allocUnsafe(LINE_COUNT_CHUNK_BYTES);
+    const decoder = new StringDecoder('utf8');
+    let position = 0;
+    let carry = '';
+    for (;;) {
+      const { bytesRead } = await handle.read(buffer, 0, buffer.length, position);
+      if (bytesRead === 0) break;
+      position += bytesRead;
+      const text = carry + decoder.write(buffer.subarray(0, bytesRead));
+      let start = 0;
+      for (;;) {
+        const newline = text.indexOf('\n', start);
+        if (newline === -1) break;
+        const line = text.slice(start, newline).trim();
+        start = newline + 1;
+        if (line) yield line;
+      }
+      carry = text.slice(start);
+    }
+    const last = (carry + decoder.end()).trim();
+    if (last) yield last;
+  } finally {
+    await handle.close();
+  }
 }
 
 async function countNonEmptyLines(filePath: string): Promise<number> {

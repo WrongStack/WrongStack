@@ -162,11 +162,11 @@ describe('computeEntryRows', () => {
   });
 
   it('model-switch has fixed layout', () => {
-    expect(computeEntryRows('model-switch', '', 80)).toBe(4);
+    expect(computeEntryRows('model-switch', '', 80)).toBe(5);
   });
 
   it('model-switch with body adds warning row', () => {
-    expect(computeEntryRows('model-switch', '', 80, { hasBody: true })).toBe(5);
+    expect(computeEntryRows('model-switch', '', 80, { hasBody: true })).toBe(6);
   });
 
   it('memory-activation has chrome + body rows', () => {
@@ -212,8 +212,26 @@ describe('computeLayout', () => {
 describe('computeOverflow', () => {
   it('marks partial entry above viewport', () => {
     const layouts = [
-      { id: 1, rows: 10, overflowBefore: 0, overflowAfter: 0, kind: 'measured' as const, version: 1, chars: 10, termWidth: 80 },
-      { id: 2, rows: 10, overflowBefore: 0, overflowAfter: 0, kind: 'measured' as const, version: 1, chars: 10, termWidth: 80 },
+      {
+        id: 1,
+        rows: 10,
+        overflowBefore: 0,
+        overflowAfter: 0,
+        kind: 'measured' as const,
+        version: 1,
+        chars: 10,
+        termWidth: 80,
+      },
+      {
+        id: 2,
+        rows: 10,
+        overflowBefore: 0,
+        overflowAfter: 0,
+        kind: 'measured' as const,
+        version: 1,
+        chars: 10,
+        termWidth: 80,
+      },
     ];
     const result = computeOverflow(layouts, 5, 25);
     // Entry 0 occupies rows 0-9. viewportTop=5: 5 rows before, 5 visible.
@@ -226,8 +244,26 @@ describe('computeOverflow', () => {
 
   it('marks entry partially below viewport', () => {
     const layouts = [
-      { id: 1, rows: 5, overflowBefore: 0, overflowAfter: 0, kind: 'measured' as const, version: 1, chars: 10, termWidth: 80 },
-      { id: 2, rows: 10, overflowBefore: 0, overflowAfter: 0, kind: 'measured' as const, version: 1, chars: 10, termWidth: 80 },
+      {
+        id: 1,
+        rows: 5,
+        overflowBefore: 0,
+        overflowAfter: 0,
+        kind: 'measured' as const,
+        version: 1,
+        chars: 10,
+        termWidth: 80,
+      },
+      {
+        id: 2,
+        rows: 10,
+        overflowBefore: 0,
+        overflowAfter: 0,
+        kind: 'measured' as const,
+        version: 1,
+        chars: 10,
+        termWidth: 80,
+      },
     ];
     const result = computeOverflow(layouts, 0, 12);
     // Entry 0: rows 0-4, fully visible. overflowBefore=0, overflowAfter=0

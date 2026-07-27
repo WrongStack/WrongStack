@@ -91,6 +91,7 @@ export interface WSModelSwitch {
   payload: {
     provider: string;
     model: string;
+    requestId: string;
   };
 }
 

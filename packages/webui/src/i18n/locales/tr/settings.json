@@ -491,6 +491,11 @@
   },
   "toast": {
     "switchingTo": "{{provider}} / {{model}} modeline geçiliyor…",
+    "switching": "Model değiştiriliyor…",
+    "switchingToTarget": "{{target}} modeline geçiliyor…",
+    "previousModel": "önceki model",
+    "modelSwitchedNextRequest": "Model değiştirildi: {{from}} → {{to}}. Sonraki LLM isteğinde aktif olacak.",
+    "modelSwitchedRunActive": "Model değiştirildi: {{from}} → {{to}}. Sonraki LLM isteğinde aktif olacak; mevcut çalışma devam eder ve yeniden başlatılmaz.",
     "fallbackExists": "\"{{name}}\" yedek profili zaten var",
     "selectProviderModelFirst": "Önce bir sağlayıcı ve model seçin",
     "defaultProfileCreated": "Varsayılan yedek profili oluşturuldu",

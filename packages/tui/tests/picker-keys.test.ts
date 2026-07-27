@@ -48,14 +48,39 @@ function baseState(overrides: Partial<State> | Record<string, unknown> = {}): St
     modePicker: { open: false, modes: [], selected: 0 },
     autonomyPicker: { open: false, options: [], selected: 0 },
     designPicker: { open: false, kits: [], selected: 0, stack: 'web' },
-    promptPicker: { open: false, all: [], categories: [], recentSlugs: [], catIndex: 0, selected: 0 },
+    promptPicker: {
+      open: false,
+      all: [],
+      categories: [],
+      recentSlugs: [],
+      catIndex: 0,
+      selected: 0,
+    },
     resumePicker: { open: false, sessions: [], selected: 0, busy: false },
-    settingsPicker: { open: false, field: 0, mode: 'off', delayMs: 0, thinkingWordEditing: false, thinkingWordDraft: '', filter: '' } as never,
+    settingsPicker: {
+      open: false,
+      field: 0,
+      mode: 'off',
+      delayMs: 0,
+      thinkingWordEditing: false,
+      thinkingWordDraft: '',
+      filter: '',
+    } as never,
     pluginPicker: { open: false, items: [], selected: 0, busy: false },
     mcpPicker: { open: false, items: [], selected: 0, busy: false },
     toolsPicker: { open: false, items: [], selected: 0, busy: false, filter: undefined },
     helpPanel: { open: false, entries: [], selected: 0, filter: '' },
-    brainPanel: { open: false, riskLevel: 'off', log: [], selected: 0, row: 0, busy: false, hint: undefined, view: 'log', settings: undefined },
+    brainPanel: {
+      open: false,
+      riskLevel: 'off',
+      log: [],
+      selected: 0,
+      row: 0,
+      busy: false,
+      hint: undefined,
+      view: 'log',
+      settings: undefined,
+    },
     shadowPanel: { open: false } as never,
     fKeyPicker: { open: false, selected: 0 },
     picker: { open: false, query: '', matches: [], selected: 0 },
@@ -79,7 +104,10 @@ function baseState(overrides: Partial<State> | Record<string, unknown> = {}): St
   } as State;
 }
 
-function makeHost(state: State, overrides: Partial<PickerKeysHost> = {}): PickerKeysHost & {
+function makeHost(
+  state: State,
+  overrides: Partial<PickerKeysHost> = {},
+): PickerKeysHost & {
   dispatch: ReturnType<typeof vi.fn>;
   submit: ReturnType<typeof vi.fn>;
   switchProviderAndModel: ReturnType<typeof vi.fn>;
@@ -138,7 +166,12 @@ function makeHost(state: State, overrides: Partial<PickerKeysHost> = {}): Picker
   };
 }
 
-function runPickerKey(host: PickerKeysHost, input: string, event: KeyEvent, isEnter: boolean): void {
+function runPickerKey(
+  host: PickerKeysHost,
+  input: string,
+  event: KeyEvent,
+  isEnter: boolean,
+): void {
   function Probe(): React.ReactElement | null {
     const handler = usePickerKeys(host);
     useEffect(() => {
@@ -166,7 +199,7 @@ describe('usePickerKeys — model and mode flows', () => {
           filteredOptions: [],
           selected: 0,
           searchQuery: '',
-        purpose: 'switch',
+          purpose: 'switch',
         },
       }),
     );
@@ -192,7 +225,7 @@ describe('usePickerKeys — model and mode flows', () => {
           selected: 0,
           searchQuery: 'o',
           pickedProviderId: 'openai',
-        purpose: 'switch',
+          purpose: 'switch',
         },
       }),
     );
@@ -219,6 +252,7 @@ describe('usePickerKeys — model and mode flows', () => {
         toModel: 'gpt-4o',
         toContext: 200_000,
         requestTokens: undefined,
+        runActive: true,
       },
     });
     expect(host.dispatch).toHaveBeenCalledWith({ type: 'modelPickerClose' });
@@ -236,7 +270,7 @@ describe('usePickerKeys — model and mode flows', () => {
           selected: 0,
           searchQuery: '',
           pickedProviderId: 'openai',
-        purpose: 'switch',
+          purpose: 'switch',
         },
       }),
     );
@@ -259,7 +293,7 @@ describe('usePickerKeys — model and mode flows', () => {
           selected: 0,
           searchQuery: '',
           pickedProviderId: 'openai',
-        purpose: 'switch',
+          purpose: 'switch',
         },
       }),
       {
@@ -282,14 +316,27 @@ describe('usePickerKeys — model and mode flows', () => {
         toModel: 'small',
         toContext: 32_000,
         requestTokens: 24_000,
+        runActive: true,
       },
     });
   });
 
   it('closes the mode picker and submits /mode <id> on Enter', () => {
     const modes: ModeOption[] = [
-      { id: 'default', family: 'balanced', name: 'Default', description: 'Balanced', isActive: false },
-      { id: 'review', family: 'deep', name: 'Review', description: 'Review-oriented', isActive: true },
+      {
+        id: 'default',
+        family: 'balanced',
+        name: 'Default',
+        description: 'Balanced',
+        isActive: false,
+      },
+      {
+        id: 'review',
+        family: 'deep',
+        name: 'Review',
+        description: 'Review-oriented',
+        isActive: true,
+      },
     ];
     const host = makeHost(
       baseState({
@@ -331,7 +378,7 @@ describe('usePickerKeys — model and mode flows', () => {
           filteredOptions: [],
           selected: 0,
           searchQuery: '',
-        purpose: 'switch',
+          purpose: 'switch',
         },
       }),
     );
@@ -356,7 +403,7 @@ describe('usePickerKeys — model and mode flows', () => {
           selected: 0,
           searchQuery: '',
           pickedProviderId: 'openai',
-        purpose: 'switch',
+          purpose: 'switch',
         },
       }),
     );
@@ -376,7 +423,7 @@ describe('usePickerKeys — model and mode flows', () => {
           filteredOptions: [],
           selected: 0,
           searchQuery: '',
-        purpose: 'switch',
+          purpose: 'switch',
         },
       }),
     );
@@ -396,7 +443,7 @@ describe('usePickerKeys — model and mode flows', () => {
           selected: 0,
           searchQuery: '',
           pickedProviderId: 'openai',
-        purpose: 'switch',
+          purpose: 'switch',
         },
       }),
     );
@@ -417,7 +464,7 @@ describe('usePickerKeys — model and mode flows', () => {
           selected: 0,
           searchQuery: 'g',
           pickedProviderId: 'openai',
-        purpose: 'switch',
+          purpose: 'switch',
         },
       }),
     );
@@ -438,18 +485,52 @@ describe('usePickerKeys — model and mode flows', () => {
           filteredOptions: [],
           selected: 0,
           searchQuery: '',
-        purpose: 'switch',
+          purpose: 'switch',
         },
       }),
     );
 
     // Wheel < 0 means scroll down → delta 1
-    runPickerKey(host, '', key({ mouse: { kind: 'wheel', button: 'none', x: 1, y: 1, wheel: -1, shift: false, meta: false, ctrl: false, motion: false } }), false);
+    runPickerKey(
+      host,
+      '',
+      key({
+        mouse: {
+          kind: 'wheel',
+          button: 'none',
+          x: 1,
+          y: 1,
+          wheel: -1,
+          shift: false,
+          meta: false,
+          ctrl: false,
+          motion: false,
+        },
+      }),
+      false,
+    );
     expect(host.dispatch).toHaveBeenCalledWith({ type: 'modelPickerMove', delta: 1 });
 
     host.dispatch.mockClear();
     // Wheel > 0 means scroll up → delta -1
-    runPickerKey(host, '', key({ mouse: { kind: 'wheel', button: 'none', x: 1, y: 1, wheel: 1, shift: false, meta: false, ctrl: false, motion: false } }), false);
+    runPickerKey(
+      host,
+      '',
+      key({
+        mouse: {
+          kind: 'wheel',
+          button: 'none',
+          x: 1,
+          y: 1,
+          wheel: 1,
+          shift: false,
+          meta: false,
+          ctrl: false,
+          motion: false,
+        },
+      }),
+      false,
+    );
     expect(host.dispatch).toHaveBeenCalledWith({ type: 'modelPickerMove', delta: -1 });
   });
 
@@ -493,7 +574,7 @@ describe('usePickerKeys — model and mode flows', () => {
           selected: 0,
           searchQuery: '',
           pickedProviderId: 'openai',
-        purpose: 'switch',
+          purpose: 'switch',
         },
       }),
       { switchProviderAndModel },
@@ -517,7 +598,7 @@ describe('usePickerKeys — model and mode flows', () => {
           filteredOptions: [],
           selected: 999,
           searchQuery: '',
-        purpose: 'switch',
+          purpose: 'switch',
         },
       }),
     );
@@ -615,7 +696,13 @@ describe('usePickerKeys — auth panel', () => {
     const onAuthConfirm = vi.fn();
     const host = makeHost(
       baseState({
-        authPanel: { open: true, confirm: { question: 'Delete?', action: { kind: 'delete-key', providerId: 'p', label: 'k' } } },
+        authPanel: {
+          open: true,
+          confirm: {
+            question: 'Delete?',
+            action: { kind: 'delete-key', providerId: 'p', label: 'k' },
+          },
+        },
       }),
       { onAuthConfirm },
     );
@@ -636,7 +723,10 @@ describe('usePickerKeys — auth panel', () => {
     const onAuthConfirm = vi.fn();
     const host = makeHost(
       baseState({
-        authPanel: { open: true, confirm: { question: '?', action: { kind: 'delete-key', providerId: 'p', label: 'k' } } },
+        authPanel: {
+          open: true,
+          confirm: { question: '?', action: { kind: 'delete-key', providerId: 'p', label: 'k' } },
+        },
       }),
       { onAuthConfirm },
     );
@@ -696,12 +786,46 @@ describe('usePickerKeys — auth panel', () => {
 
     // Wheel > 0 (scroll up) → delta -1
     host.dispatch.mockClear();
-    runPickerKey(host, '', key({ mouse: { kind: 'wheel', button: 'none', x: 1, y: 1, wheel: 1, shift: false, meta: false, ctrl: false, motion: false } }), false);
+    runPickerKey(
+      host,
+      '',
+      key({
+        mouse: {
+          kind: 'wheel',
+          button: 'none',
+          x: 1,
+          y: 1,
+          wheel: 1,
+          shift: false,
+          meta: false,
+          ctrl: false,
+          motion: false,
+        },
+      }),
+      false,
+    );
     expect(host.dispatch).toHaveBeenCalledWith({ type: 'authMove', delta: -1 });
 
     // Wheel < 0 (scroll down) → delta 1
     host.dispatch.mockClear();
-    runPickerKey(host, '', key({ mouse: { kind: 'wheel', button: 'none', x: 1, y: 1, wheel: -1, shift: false, meta: false, ctrl: false, motion: false } }), false);
+    runPickerKey(
+      host,
+      '',
+      key({
+        mouse: {
+          kind: 'wheel',
+          button: 'none',
+          x: 1,
+          y: 1,
+          wheel: -1,
+          shift: false,
+          meta: false,
+          ctrl: false,
+          motion: false,
+        },
+      }),
+      false,
+    );
     expect(host.dispatch).toHaveBeenCalledWith({ type: 'authMove', delta: 1 });
   });
 
@@ -779,7 +903,24 @@ describe('usePickerKeys — autonomy picker', () => {
 
     host.dispatch.mockClear();
     // Wheel > 0 → scroll up → delta -1
-    runPickerKey(host, '', key({ mouse: { kind: 'wheel', button: 'none', x: 1, y: 1, wheel: 1, shift: false, meta: false, ctrl: false, motion: false } }), false);
+    runPickerKey(
+      host,
+      '',
+      key({
+        mouse: {
+          kind: 'wheel',
+          button: 'none',
+          x: 1,
+          y: 1,
+          wheel: 1,
+          shift: false,
+          meta: false,
+          ctrl: false,
+          motion: false,
+        },
+      }),
+      false,
+    );
     expect(host.dispatch).toHaveBeenCalledWith({ type: 'autonomyPickerMove', delta: -1 });
 
     host.dispatch.mockClear();
@@ -803,7 +944,10 @@ describe('usePickerKeys — autonomy picker', () => {
     host.lastEnterAtRef.current = 0;
 
     runPickerKey(host, '', key(), true);
-    expect(host.dispatch).toHaveBeenCalledWith({ type: 'autonomyPickerHint', text: 'Error message' });
+    expect(host.dispatch).toHaveBeenCalledWith({
+      type: 'autonomyPickerHint',
+      text: 'Error message',
+    });
   });
 
   it('does nothing on autonomy picker Enter with no option', () => {
@@ -870,7 +1014,14 @@ describe('usePickerKeys — prompt picker', () => {
     const onPromptPickerEnter = vi.fn();
     const host = makeHost(
       baseState({
-        promptPicker: { open: true, all: [], categories: [], recentSlugs: [], catIndex: 0, selected: 0 },
+        promptPicker: {
+          open: true,
+          all: [],
+          categories: [],
+          recentSlugs: [],
+          catIndex: 0,
+          selected: 0,
+        },
       }),
       { onPromptPickerEnter },
     );
@@ -892,7 +1043,12 @@ describe('usePickerKeys — resume picker', () => {
     const onResumePickerEnter = vi.fn().mockResolvedValue(undefined);
     const host = makeHost(
       baseState({
-        resumePicker: { open: true, sessions: [{ id: 's1', title: 'Session 1' }], selected: 0, busy: false },
+        resumePicker: {
+          open: true,
+          sessions: [{ id: 's1', title: 'Session 1' }],
+          selected: 0,
+          busy: false,
+        },
       }),
       { onResumePickerEnter },
     );
@@ -907,7 +1063,24 @@ describe('usePickerKeys — resume picker', () => {
 
     host.dispatch.mockClear();
     // Wheel > 0 → scroll up → delta -1
-    runPickerKey(host, '', key({ mouse: { kind: 'wheel', button: 'none', x: 1, y: 1, wheel: 1, shift: false, meta: false, ctrl: false, motion: false } }), false);
+    runPickerKey(
+      host,
+      '',
+      key({
+        mouse: {
+          kind: 'wheel',
+          button: 'none',
+          x: 1,
+          y: 1,
+          wheel: 1,
+          shift: false,
+          meta: false,
+          ctrl: false,
+          motion: false,
+        },
+      }),
+      false,
+    );
     expect(host.dispatch).toHaveBeenCalledWith({ type: 'resumePickerMove', delta: -1 });
 
     host.dispatch.mockClear();
@@ -920,7 +1093,14 @@ describe('usePickerKeys — settings picker', () => {
   it('handles thinking word editing escape and Enter', () => {
     const host = makeHost(
       baseState({
-        settingsPicker: { open: true, field: 0, mode: 'off', delayMs: 0, thinkingWordEditing: true, thinkingWordDraft: 'custom' },
+        settingsPicker: {
+          open: true,
+          field: 0,
+          mode: 'off',
+          delayMs: 0,
+          thinkingWordEditing: true,
+          thinkingWordDraft: 'custom',
+        },
       }),
     );
 
@@ -935,7 +1115,14 @@ describe('usePickerKeys — settings picker', () => {
   it('handles thinking word editing backspace and typing', () => {
     const host = makeHost(
       baseState({
-        settingsPicker: { open: true, field: 0, mode: 'off', delayMs: 0, thinkingWordEditing: true, thinkingWordDraft: 'abc' },
+        settingsPicker: {
+          open: true,
+          field: 0,
+          mode: 'off',
+          delayMs: 0,
+          thinkingWordEditing: true,
+          thinkingWordDraft: 'abc',
+        },
       }),
     );
 
@@ -944,7 +1131,10 @@ describe('usePickerKeys — settings picker', () => {
 
     host.dispatch.mockClear();
     runPickerKey(host, 'd', key(), false);
-    expect(host.dispatch).toHaveBeenCalledWith({ type: 'settingsThinkingEditChange', draft: 'abcd' });
+    expect(host.dispatch).toHaveBeenCalledWith({
+      type: 'settingsThinkingEditChange',
+      draft: 'abcd',
+    });
   });
 
   it('handles settings picker escape and ctrl+s to close', () => {
@@ -1038,7 +1228,24 @@ describe('usePickerKeys — settings picker', () => {
     runPickerKey(host, '', key({ rightArrow: true }), false);
     expect(host.dispatch).toHaveBeenCalledWith({ type: 'settingsValueChange', delta: 1 });
 
-    runPickerKey(host, '', key({ mouse: { kind: 'wheel', button: 'none', x: 1, y: 1, wheel: 1, shift: false, meta: false, ctrl: false, motion: false } }), false);
+    runPickerKey(
+      host,
+      '',
+      key({
+        mouse: {
+          kind: 'wheel',
+          button: 'none',
+          x: 1,
+          y: 1,
+          wheel: 1,
+          shift: false,
+          meta: false,
+          ctrl: false,
+          motion: false,
+        },
+      }),
+      false,
+    );
     expect(host.dispatch).toHaveBeenCalledWith({ type: 'settingsFieldMove', delta: -1 });
   });
 
@@ -1062,7 +1269,12 @@ describe('usePickerKeys — plugin picker', () => {
     const onPluginPickerToggle = vi.fn();
     const host = makeHost(
       baseState({
-        pluginPicker: { open: true, items: [{ id: 'p1', name: 'Plugin 1', enabled: false }], selected: 0, busy: false },
+        pluginPicker: {
+          open: true,
+          items: [{ id: 'p1', name: 'Plugin 1', enabled: false }],
+          selected: 0,
+          busy: false,
+        },
       }),
       { onPluginPickerToggle },
     );
@@ -1079,7 +1291,12 @@ describe('usePickerKeys — MCP picker', () => {
     const onMcpPickerToggle = vi.fn();
     const host = makeHost(
       baseState({
-        mcpPicker: { open: true, items: [{ id: 'm1', name: 'MCP 1', enabled: true }], selected: 0, busy: false },
+        mcpPicker: {
+          open: true,
+          items: [{ id: 'm1', name: 'MCP 1', enabled: true }],
+          selected: 0,
+          busy: false,
+        },
       }),
       { onMcpPickerRestart, onMcpPickerToggle },
     );
@@ -1101,7 +1318,12 @@ describe('usePickerKeys — tools picker', () => {
     const onToolsPickerToggle = vi.fn();
     const host = makeHost(
       baseState({
-        toolsPicker: { open: true, items: [{ name: 'tool1', enabled: true }], selected: 0, busy: false },
+        toolsPicker: {
+          open: true,
+          items: [{ name: 'tool1', enabled: true }],
+          selected: 0,
+          busy: false,
+        },
       }),
       { onToolsPickerToggle },
     );
@@ -1137,7 +1359,12 @@ describe('usePickerKeys — help panel', () => {
     const onHelpPanelEnter = vi.fn();
     const host = makeHost(
       baseState({
-        helpPanel: { open: true, entries: [{ command: '/help', description: 'Help' }], selected: 0, filter: '' },
+        helpPanel: {
+          open: true,
+          entries: [{ command: '/help', description: 'Help' }],
+          selected: 0,
+          filter: '',
+        },
       }),
       { onHelpPanelEnter },
     );
@@ -1149,7 +1376,24 @@ describe('usePickerKeys — help panel', () => {
     runPickerKey(host, '', key({ downArrow: true }), false);
     expect(host.dispatch).toHaveBeenCalledWith({ type: 'helpMove', delta: 1 });
 
-    runPickerKey(host, '', key({ mouse: { kind: 'wheel', button: 'none', x: 1, y: 1, wheel: 1, shift: false, meta: false, ctrl: false, motion: false } }), false);
+    runPickerKey(
+      host,
+      '',
+      key({
+        mouse: {
+          kind: 'wheel',
+          button: 'none',
+          x: 1,
+          y: 1,
+          wheel: 1,
+          shift: false,
+          meta: false,
+          ctrl: false,
+          motion: false,
+        },
+      }),
+      false,
+    );
     expect(host.dispatch).toHaveBeenCalledWith({ type: 'helpMove', delta: -1 });
 
     // Escape closes
@@ -1165,7 +1409,12 @@ describe('usePickerKeys — help panel', () => {
     host.dispatch.mockClear();
     const hostFiltered = makeHost(
       baseState({
-        helpPanel: { open: true, entries: [{ command: '/help', description: 'Help' }], selected: 0, filter: 'ab' },
+        helpPanel: {
+          open: true,
+          entries: [{ command: '/help', description: 'Help' }],
+          selected: 0,
+          filter: 'ab',
+        },
       }),
     );
     runPickerKey(hostFiltered, '', key({ backspace: true }), false);
@@ -1177,7 +1426,25 @@ describe('usePickerKeys — brain panel', () => {
   it('handles brain panel settings view navigation', () => {
     const host = makeHost(
       baseState({
-        brainPanel: { open: true, view: 'settings', row: 0, settings: { mode: 'interactive', riskLevel: 'medium', strategy: 'fallback', pool: ['gpt-4'], poolResolved: ['gpt-4'], usingSessionModel: false, councilEnabled: false, councilMinRisk: 'medium', voters: [], councilSeats: [], ledgerEnabled: false }, busy: false },
+        brainPanel: {
+          open: true,
+          view: 'settings',
+          row: 0,
+          settings: {
+            mode: 'interactive',
+            riskLevel: 'medium',
+            strategy: 'fallback',
+            pool: ['gpt-4'],
+            poolResolved: ['gpt-4'],
+            usingSessionModel: false,
+            councilEnabled: false,
+            councilMinRisk: 'medium',
+            voters: [],
+            councilSeats: [],
+            ledgerEnabled: false,
+          },
+          busy: false,
+        },
       }),
     );
 
@@ -1198,7 +1465,25 @@ describe('usePickerKeys — brain panel', () => {
     const onBrainAdjust = vi.fn();
     const host = makeHost(
       baseState({
-        brainPanel: { open: true, view: 'settings', row: 0, settings: { mode: 'interactive', riskLevel: 'medium', strategy: 'fallback', pool: ['gpt-4'], poolResolved: ['gpt-4'], usingSessionModel: false, councilEnabled: false, councilMinRisk: 'medium', voters: [], councilSeats: [], ledgerEnabled: false }, busy: false },
+        brainPanel: {
+          open: true,
+          view: 'settings',
+          row: 0,
+          settings: {
+            mode: 'interactive',
+            riskLevel: 'medium',
+            strategy: 'fallback',
+            pool: ['gpt-4'],
+            poolResolved: ['gpt-4'],
+            usingSessionModel: false,
+            councilEnabled: false,
+            councilMinRisk: 'medium',
+            voters: [],
+            councilSeats: [],
+            ledgerEnabled: false,
+          },
+          busy: false,
+        },
       }),
       { onBrainAdjust },
     );
@@ -1214,7 +1499,25 @@ describe('usePickerKeys — brain panel', () => {
     const onBrainEnter = vi.fn();
     const host = makeHost(
       baseState({
-        brainPanel: { open: true, view: 'settings', row: 0, settings: { mode: 'interactive', riskLevel: 'medium', strategy: 'fallback', pool: ['gpt-4'], poolResolved: ['gpt-4'], usingSessionModel: false, councilEnabled: false, councilMinRisk: 'medium', voters: [], councilSeats: [], ledgerEnabled: false }, busy: false },
+        brainPanel: {
+          open: true,
+          view: 'settings',
+          row: 0,
+          settings: {
+            mode: 'interactive',
+            riskLevel: 'medium',
+            strategy: 'fallback',
+            pool: ['gpt-4'],
+            poolResolved: ['gpt-4'],
+            usingSessionModel: false,
+            councilEnabled: false,
+            councilMinRisk: 'medium',
+            voters: [],
+            councilSeats: [],
+            ledgerEnabled: false,
+          },
+          busy: false,
+        },
       }),
       { onBrainEnter },
     );
@@ -1229,7 +1532,25 @@ describe('usePickerKeys — brain panel', () => {
     // Row 2 = poolModel(index=0) — supports delete
     const host = makeHost(
       baseState({
-        brainPanel: { open: true, view: 'settings', row: 2, settings: { mode: 'interactive', riskLevel: 'medium', strategy: 'fallback', pool: ['gpt-4'], poolResolved: ['gpt-4'], usingSessionModel: false, councilEnabled: false, councilMinRisk: 'medium', voters: [], councilSeats: [], ledgerEnabled: false }, busy: false },
+        brainPanel: {
+          open: true,
+          view: 'settings',
+          row: 2,
+          settings: {
+            mode: 'interactive',
+            riskLevel: 'medium',
+            strategy: 'fallback',
+            pool: ['gpt-4'],
+            poolResolved: ['gpt-4'],
+            usingSessionModel: false,
+            councilEnabled: false,
+            councilMinRisk: 'medium',
+            voters: [],
+            councilSeats: [],
+            ledgerEnabled: false,
+          },
+          busy: false,
+        },
       }),
       { onBrainDelete },
     );
@@ -1247,7 +1568,25 @@ describe('usePickerKeys — brain panel', () => {
     // Row 8 = voter(index=0)
     const host = makeHost(
       baseState({
-        brainPanel: { open: true, view: 'settings', row: 8, settings: { mode: 'interactive', riskLevel: 'medium', strategy: 'fallback', pool: [], poolResolved: [], usingSessionModel: false, councilEnabled: true, councilMinRisk: 'medium', voters: [{ label: 'Voter 1' }], councilSeats: ['Voter 1'], ledgerEnabled: false }, busy: false },
+        brainPanel: {
+          open: true,
+          view: 'settings',
+          row: 8,
+          settings: {
+            mode: 'interactive',
+            riskLevel: 'medium',
+            strategy: 'fallback',
+            pool: [],
+            poolResolved: [],
+            usingSessionModel: false,
+            councilEnabled: true,
+            councilMinRisk: 'medium',
+            voters: [{ label: 'Voter 1' }],
+            councilSeats: ['Voter 1'],
+            ledgerEnabled: false,
+          },
+          busy: false,
+        },
       }),
       { onBrainVoterMod },
     );
@@ -1264,7 +1603,14 @@ describe('usePickerKeys — brain panel', () => {
     const onBrainRiskChange = vi.fn();
     const host = makeHost(
       baseState({
-        brainPanel: { open: true, view: 'log', row: 0, settings: undefined, log: [{ kind: 'tool', question: 'Q?', outcome: 'Y', age: '30s' }], selected: 0 },
+        brainPanel: {
+          open: true,
+          view: 'log',
+          row: 0,
+          settings: undefined,
+          log: [{ kind: 'tool', question: 'Q?', outcome: 'Y', age: '30s' }],
+          selected: 0,
+        },
       }),
       { onBrainRiskChange },
     );
@@ -1285,7 +1631,27 @@ describe('usePickerKeys — brain panel', () => {
   it('handles brain panel log view tab back to settings', () => {
     const host = makeHost(
       baseState({
-        brainPanel: { open: true, view: 'log', row: 0, settings: { mode: 'interactive', riskLevel: 'medium', strategy: 'fallback', pool: [], poolResolved: [], usingSessionModel: false, councilEnabled: false, councilMinRisk: 'medium', voters: [], councilSeats: [], ledgerEnabled: false }, log: [], selected: 0, busy: false },
+        brainPanel: {
+          open: true,
+          view: 'log',
+          row: 0,
+          settings: {
+            mode: 'interactive',
+            riskLevel: 'medium',
+            strategy: 'fallback',
+            pool: [],
+            poolResolved: [],
+            usingSessionModel: false,
+            councilEnabled: false,
+            councilMinRisk: 'medium',
+            voters: [],
+            councilSeats: [],
+            ledgerEnabled: false,
+          },
+          log: [],
+          selected: 0,
+          busy: false,
+        },
       }),
     );
 
@@ -1353,7 +1719,13 @@ describe('usePickerKeys — project picker', () => {
     const onProjectPickerEnter = vi.fn().mockResolvedValue(undefined);
     const host = makeHost(
       baseState({
-        projectPicker: { open: true, allItems: [{ path: '/project1' }], items: [{ path: '/project1' }], selected: 0, filter: '' },
+        projectPicker: {
+          open: true,
+          allItems: [{ path: '/project1' }],
+          items: [{ path: '/project1' }],
+          selected: 0,
+          filter: '',
+        },
       }),
       { onProjectPickerEnter },
     );
@@ -1371,11 +1743,20 @@ describe('usePickerKeys — project picker', () => {
     host.dispatch.mockClear();
     const hostWithFilter = makeHost(
       baseState({
-        projectPicker: { open: true, allItems: [{ path: '/p1' }], items: [{ path: '/p1' }], selected: 0, filter: 'xy' },
+        projectPicker: {
+          open: true,
+          allItems: [{ path: '/p1' }],
+          items: [{ path: '/p1' }],
+          selected: 0,
+          filter: 'xy',
+        },
       }),
     );
     runPickerKey(hostWithFilter, '', key({ backspace: true }), false);
-    expect(hostWithFilter.dispatch).toHaveBeenCalledWith({ type: 'projectPickerFilter', filter: 'x' });
+    expect(hostWithFilter.dispatch).toHaveBeenCalledWith({
+      type: 'projectPickerFilter',
+      filter: 'x',
+    });
 
     // Enter
     host.dispatch.mockClear();
@@ -1421,7 +1802,24 @@ describe('usePickerKeys — sessions panel', () => {
     runPickerKey(host, '', key({ downArrow: true }), false);
     expect(host.dispatch).toHaveBeenCalledWith({ type: 'sessionsPanelMove', delta: 1 });
 
-    runPickerKey(host, '', key({ mouse: { kind: 'wheel', button: 'none', x: 1, y: 1, wheel: 1, shift: false, meta: false, ctrl: false, motion: false } }), false);
+    runPickerKey(
+      host,
+      '',
+      key({
+        mouse: {
+          kind: 'wheel',
+          button: 'none',
+          x: 1,
+          y: 1,
+          wheel: 1,
+          shift: false,
+          meta: false,
+          ctrl: false,
+          motion: false,
+        },
+      }),
+      false,
+    );
     expect(host.dispatch).toHaveBeenCalledWith({ type: 'sessionsPanelMove', delta: -1 });
 
     // Enter
@@ -1512,7 +1910,24 @@ describe('usePickerKeys — F-key picker', () => {
     runPickerKey(host, '', key({ downArrow: true }), false);
     expect(host.dispatch).toHaveBeenCalledWith({ type: 'fKeyPickerMove', delta: 1 });
 
-    runPickerKey(host, '', key({ mouse: { kind: 'wheel', button: 'none', x: 1, y: 1, wheel: -1, shift: false, meta: false, ctrl: false, motion: false } }), false);
+    runPickerKey(
+      host,
+      '',
+      key({
+        mouse: {
+          kind: 'wheel',
+          button: 'none',
+          x: 1,
+          y: 1,
+          wheel: -1,
+          shift: false,
+          meta: false,
+          ctrl: false,
+          motion: false,
+        },
+      }),
+      false,
+    );
     expect(host.dispatch).toHaveBeenCalledWith({ type: 'fKeyPickerMove', delta: 1 });
 
     runPickerKey(host, '', key({ escape: true }), false);
@@ -1540,7 +1955,24 @@ describe('usePickerKeys — general picker', () => {
     runPickerKey(host, '', key({ downArrow: true }), false);
     expect(host.dispatch).toHaveBeenCalledWith({ type: 'pickerMove', delta: 1 });
 
-    runPickerKey(host, '', key({ mouse: { kind: 'wheel', button: 'none', x: 1, y: 1, wheel: -1, shift: false, meta: false, ctrl: false, motion: false } }), false);
+    runPickerKey(
+      host,
+      '',
+      key({
+        mouse: {
+          kind: 'wheel',
+          button: 'none',
+          x: 1,
+          y: 1,
+          wheel: -1,
+          shift: false,
+          meta: false,
+          ctrl: false,
+          motion: false,
+        },
+      }),
+      false,
+    );
     expect(host.dispatch).toHaveBeenCalledWith({ type: 'pickerMove', delta: 1 });
 
     runPickerKey(host, '', key({ escape: true }), false);
@@ -1561,9 +1993,7 @@ describe('usePickerKeys — auth panel catalog filter with empty filter backspac
 
     runPickerKey(host, '', key({ backspace: true }), false);
     // Backspace on empty filter length should still return true but not dispatch
-    expect(host.dispatch).not.toHaveBeenCalledWith(
-      expect.objectContaining({ type: 'authFilter' }),
-    );
+    expect(host.dispatch).not.toHaveBeenCalledWith(expect.objectContaining({ type: 'authFilter' }));
   });
 });
 
@@ -1578,9 +2008,7 @@ describe('usePickerKeys — auth panel provider view non-u/d input', () => {
     // Any key other than u/d in provider view should just return true
     runPickerKey(host, 'x', key(), false);
     // No dispatch should occur - just returns true
-    expect(host.dispatch).not.toHaveBeenCalledWith(
-      expect.objectContaining({ type: 'authMove' }),
-    );
+    expect(host.dispatch).not.toHaveBeenCalledWith(expect.objectContaining({ type: 'authMove' }));
   });
 });
 
@@ -1590,7 +2018,25 @@ describe('usePickerKeys — brain panel busy state guards', () => {
     const onBrainEnter = vi.fn();
     const host = makeHost(
       baseState({
-        brainPanel: { open: true, view: 'settings', row: 999, settings: { mode: 'interactive', riskLevel: 'medium', strategy: 'fallback', pool: [], poolResolved: [], usingSessionModel: false, councilEnabled: false, councilMinRisk: 'medium', voters: [], councilSeats: [], ledgerEnabled: false }, busy: false },
+        brainPanel: {
+          open: true,
+          view: 'settings',
+          row: 999,
+          settings: {
+            mode: 'interactive',
+            riskLevel: 'medium',
+            strategy: 'fallback',
+            pool: [],
+            poolResolved: [],
+            usingSessionModel: false,
+            councilEnabled: false,
+            councilMinRisk: 'medium',
+            voters: [],
+            councilSeats: [],
+            ledgerEnabled: false,
+          },
+          busy: false,
+        },
       }),
       { onBrainAdjust, onBrainEnter },
     );
@@ -1605,7 +2051,25 @@ describe('usePickerKeys — brain panel busy state guards', () => {
     const onBrainEnter = vi.fn();
     const host = makeHost(
       baseState({
-        brainPanel: { open: true, view: 'settings', row: 0, settings: { mode: 'interactive', riskLevel: 'medium', strategy: 'fallback', pool: [], poolResolved: [], usingSessionModel: false, councilEnabled: false, councilMinRisk: 'medium', voters: [], councilSeats: [], ledgerEnabled: false }, busy: true },
+        brainPanel: {
+          open: true,
+          view: 'settings',
+          row: 0,
+          settings: {
+            mode: 'interactive',
+            riskLevel: 'medium',
+            strategy: 'fallback',
+            pool: [],
+            poolResolved: [],
+            usingSessionModel: false,
+            councilEnabled: false,
+            councilMinRisk: 'medium',
+            voters: [],
+            councilSeats: [],
+            ledgerEnabled: false,
+          },
+          busy: true,
+        },
       }),
       { onBrainAdjust, onBrainEnter },
     );
@@ -1655,7 +2119,10 @@ describe('usePickerKeys — settings picker filter empty handling', () => {
     // and the '/' case is only when filter === ''
     runPickerKey(host, '/', key(), false);
     // Shouldn't set filter to '/' + 'already'
-    expect(host.dispatch).not.toHaveBeenCalledWith({ type: 'settingsFilterSet', filter: '/already' });
+    expect(host.dispatch).not.toHaveBeenCalledWith({
+      type: 'settingsFilterSet',
+      filter: '/already',
+    });
   });
 });
 
@@ -1673,7 +2140,7 @@ describe('usePickerKeys — model picker async switch with error', () => {
           selected: 0,
           searchQuery: '',
           pickedProviderId: 'openai',
-        purpose: 'switch',
+          purpose: 'switch',
         },
       }),
       { switchProviderAndModel },

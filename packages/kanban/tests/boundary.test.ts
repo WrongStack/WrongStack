@@ -105,6 +105,75 @@ describe('Kanban boundaries', () => {
     );
   });
 
+  it('returns confirm for shell tools when shellAccess is confirm', () => {
+    const layers = resolveKanbanBoundaryLayers({ boundary: boardPolicy });
+    const result = evaluateKanbanBoundaryOpaque(layers, 'bash');
+    expect(result.decision).toBe('confirm');
+    expect(result.source).toBe('board');
+  });
+
+  it('returns allow for shell tools when shellAccess is allow', () => {
+    const layers = resolveKanbanBoundaryLayers({
+      boundary: { ...boardPolicy, shellAccess: 'allow' },
+    });
+    const result = evaluateKanbanBoundaryOpaque(layers, 'bash');
+    expect(result.decision).toBe('allow');
+  });
+
+  it('returns block for shell tools when shellAccess is block', () => {
+    const layers = resolveKanbanBoundaryLayers({
+      boundary: { ...boardPolicy, shellAccess: 'block' },
+    });
+    const result = evaluateKanbanBoundaryOpaque(layers, 'bash');
+    expect(result.decision).toBe('block');
+  });
+
+  it('returns block when task policy blocks opaque tools', () => {
+    const taskPolicy: KanbanBoundaryPolicy = {
+      enabled: true,
+      enforcement: 'block',
+      shellAccess: 'block',
+      allow: [],
+    };
+    const layers = resolveKanbanBoundaryLayers({ boundary: boardPolicy }, { boundary: taskPolicy });
+    const result = evaluateKanbanBoundaryOpaque(layers, 'bash');
+    expect(result.decision).toBe('block');
+  });
+
+  it('honors file access levels (read/write)', () => {
+    const readPolicy: KanbanBoundaryPolicy = {
+      enabled: true,
+      enforcement: 'block',
+      shellAccess: 'block',
+      allow: [{ kind: 'file', path: 'README.md', access: 'read_write' }],
+    };
+    const layers = resolveKanbanBoundaryLayers({ boundary: readPolicy });
+    // read_write permits both reads and writes
+    expect(evaluateKanbanBoundaryPath(layers, 'README.md', 'read').decision).toBe('allow');
+    expect(evaluateKanbanBoundaryPath(layers, 'README.md', 'write').decision).toBe('allow');
+    // Unlisted path gets blocked by enforcement=block
+    expect(evaluateKanbanBoundaryPath(layers, 'other.txt', 'read').decision).toBe('block');
+  });
+
+  it('falls back to board when task has no boundary policy', () => {
+    const layers = resolveKanbanBoundaryLayers({ boundary: boardPolicy }, {});
+    expect(evaluateKanbanBoundaryPath(layers, 'packages/webui/src/App.tsx', 'write').decision).toBe('allow');
+    expect(evaluateKanbanBoundaryPath(layers, 'packages/core/src/index.ts', 'write').decision).toBe('confirm');
+  });
+
+  it('applies deny-first precedence over allow', () => {
+    const policy: KanbanBoundaryPolicy = {
+      enabled: true,
+      enforcement: 'confirm',
+      shellAccess: 'confirm',
+      allow: [{ kind: 'file', path: 'secret.txt', access: 'read' }],
+      deny: [{ kind: 'file', path: 'secret.txt', access: 'read' }],
+    };
+    const layers = resolveKanbanBoundaryLayers({ boundary: policy });
+    // Deny should win over allow → confirm (enforcement=confirm)
+    expect(evaluateKanbanBoundaryPath(layers, 'secret.txt', 'read').decision).toBe('confirm');
+  });
+
   it('preserves ceilings when tasks split and locks incompatible merged scopes', async () => {
     const projectRoot = await mkdtemp(join(tmpdir(), 'wstack-boundary-manager-'));
     roots.push(projectRoot);
