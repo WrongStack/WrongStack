@@ -136,6 +136,7 @@ export function useSubagentEvents(
     const offStarted = events.on('subagent.task_started', (e) => {
       if (!isCurrentSession(e.sessionId)) return;
       if (!gate.isLive(e.subagentId)) return;
+      seen.add(e.subagentId);
       const l = lbl(e.subagentId);
       dispatch({ type: 'fleetStart', id: e.subagentId, taskId: e.taskId });
       if (mode() === 'full') {
@@ -156,6 +157,7 @@ export function useSubagentEvents(
     const offCompleted = events.on('subagent.task_completed', (e) => {
       if (!isCurrentSession(e.sessionId)) return;
       if (!gate.isLive(e.subagentId)) return;
+      seen.add(e.subagentId);
       const l = lbl(e.subagentId);
       const errKind = e.error?.kind;
       dispatch({
@@ -208,6 +210,7 @@ export function useSubagentEvents(
     const offBudgetWarning = events.on('subagent.budget_warning', (e) => {
       if (!isCurrentSession(e.sessionId)) return;
       if (!gate.isLive(e.subagentId)) return;
+      seen.add(e.subagentId);
       const l = lbl(e.subagentId);
       dispatch({
         type: 'fleetBudgetWarning',
@@ -240,6 +243,7 @@ export function useSubagentEvents(
     const offBudgetExtended = events.on('subagent.budget_extended', (e) => {
       if (!isCurrentSession(e.sessionId)) return;
       if (!gate.isLive(e.subagentId)) return;
+      seen.add(e.subagentId);
       const l = lbl(e.subagentId);
       dispatch({
         type: 'fleetBudgetExtended',
@@ -264,6 +268,7 @@ export function useSubagentEvents(
     const offIterationSummary = events.on('subagent.iteration_summary', (e) => {
       if (!isCurrentSession(e.sessionId)) return;
       if (!gate.isLive(e.subagentId)) return;
+      seen.add(e.subagentId);
       if (mode() !== 'full') return;
       const l = lbl(e.subagentId);
       const costStr = e.costUsd > 0 ? ` · ${e.costUsd.toFixed(4)}` : '';
@@ -286,6 +291,7 @@ export function useSubagentEvents(
     const offCtxPct = events.on('subagent.ctx_pct', (e) => {
       if (!isCurrentSession(e.sessionId)) return;
       if (!gate.isLive(e.subagentId)) return;
+      seen.add(e.subagentId);
       const now = Date.now();
       const previous = ctxDispatchRef.current.get(e.subagentId);
       if (previous && now - previous.at < 250) return;
