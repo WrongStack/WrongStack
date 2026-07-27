@@ -464,7 +464,10 @@ describe('SQLite defensive and lifecycle completion coverage', () => {
       unusedMinInjections: 3,
     });
     expect(report.deduplicated).toBeGreaterThan(0);
-    expect(report.reviewCandidatesCreated).toBeGreaterThanOrEqual(4);
+    // session-expired is soft-deleted by session GC (not a review candidate).
+    expect(report.deleted).toBeGreaterThanOrEqual(1);
+    // project-expired, unused, stale-old, low-confidence (existing candidate) → ≥3 new reviews
+    expect(report.reviewCandidatesCreated).toBeGreaterThanOrEqual(3);
     expect(
       (await store.listCandidates()).some(
         (candidate) => candidate.targetMemoryId === 'permanent-old',

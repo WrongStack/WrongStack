@@ -6,10 +6,22 @@ vi.mock('@wrongstack/kanban', () => {
     id: 'board-1',
     title: 'Test Board',
     tasks: [
-      { id: 'task-1', title: 'Test Task', status: 'todo', successCriteria: [] },
+      {
+        id: 'task-1',
+        title: 'Test Task',
+        columnId: 'todo',
+        order: 0,
+        priority: 'medium',
+        status: 'pending',
+        successCriteria: [],
+        createdAt: '2026-01-01T00:00:00.000Z',
+        updatedAt: '2026-01-01T00:00:00.000Z',
+      },
     ],
     columns: [],
-    metadata: {},
+    createdAt: '2026-01-01T00:00:00.000Z',
+    updatedAt: '2026-01-01T00:00:00.000Z',
+    version: 1,
   };
   return {
     assessTaskAtomicity: vi.fn().mockResolvedValue({
@@ -156,8 +168,34 @@ describe('handleKanbanDecompositionAction', () => {
     it('returns pending message when proposal is not applied', async () => {
       const { proposeTaskDecomposition } = await import('@wrongstack/kanban');
       vi.mocked(proposeTaskDecomposition).mockResolvedValueOnce({
-        board: { id: 'b1', tasks: [], columns: [], title: 'B', metadata: {} },
-        proposal: { status: 'pending', appliedChildTaskIds: [] },
+        board: {
+          id: 'b1',
+          tasks: [],
+          columns: [],
+          title: 'B',
+          createdAt: '2026-01-01T00:00:00.000Z',
+          updatedAt: '2026-01-01T00:00:00.000Z',
+          version: 1,
+        },
+        task: {
+          id: 't1',
+          title: 'Test Task',
+          columnId: 'todo',
+          order: 0,
+          priority: 'medium',
+          status: 'pending',
+          createdAt: '2026-01-01T00:00:00.000Z',
+          updatedAt: '2026-01-01T00:00:00.000Z',
+        },
+        proposal: {
+          id: 'proposal-1',
+          taskId: 't1',
+          status: 'proposed',
+          mode: 'approval',
+          proposedSubtasks: [{ title: 'Sub 1' }, { title: 'Sub 2' }],
+          proposedAt: '2026-01-01T00:00:00.000Z',
+          appliedChildTaskIds: [],
+        },
       });
       const result = await handleKanbanDecompositionAction(
         projectRoot,

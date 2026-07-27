@@ -1,6 +1,7 @@
 import { type Dispatch, useEffect, useRef } from 'react';
 import type { AppProps } from '../app-props.js';
-import type { Action, State } from '../app-state.js';
+import type { Action } from '../app-action-type.js';
+import type { State } from '../app-state.js';
 
 /** Persists live SettingsPicker mutations while skipping its initial hydration. */
 export function useSettingsAutoSave(
@@ -127,4 +128,3 @@ export function useSettingsAutoSave(
   ]);
 
 }
-

@@ -2,17 +2,16 @@
  * TUI session resume — extracted from the runTui() options literal.
  *
  * Phase C step 2. The onResumeSession callback swaps the agent's session
- * writer, resets token accounting, re-points the crash-recovery lock,
- * and replays the JSONL events as TUI history entries.
+ * writer, resets token accounting, and replays the JSONL events as TUI
+ * history entries.
  *
- * Reads mutable state from TuiRuntimeState (activeSessionStore,
- * activeRecoveryLock, wpaths).
+ * Reads mutable state from TuiRuntimeState (activeSessionStore, wpaths).
  */
 import * as path from 'node:path';
 import type { Agent } from '@wrongstack/core/agent';
 import type { EventBus } from '@wrongstack/core/kernel';
-import type { TokenCounter } from '@wrongstack/core/types';
 import { attachTodosCheckpoint, loadTodosCheckpoint } from '@wrongstack/core/storage';
+import type { SessionWriter, TokenCounter } from '@wrongstack/core/types';
 import { sessionScopedPath } from '@wrongstack/core/utils';
 import type { TuiRuntimeState } from './tui-runtime-state.js';
 
@@ -46,6 +45,9 @@ export async function resumeSession(
   const { state, agent, tokenCounter, switchProviderAndModel, events } = ctx;
 
   if (!state.activeSessionStore) return null;
+  // Import before claiming/opening the target so a packaging failure leaves
+  // the current writer and registry identity untouched.
+  const { replaySessionMessages } = await import('@wrongstack/tui');
 
   // Refuse to resume a session that a LIVE process owns — two
   // writers on one session JSONL corrupt it. Thrown (not null) so
@@ -74,8 +76,7 @@ export async function resumeSession(
     const { SessionRegistry } = await import('@wrongstack/core/storage');
     const registry = new SessionRegistry(path.dirname(state.wpaths.globalConfig));
     const live = (await registry.list()).find(
-      (s) =>
-        s.sessionId === canonicalSessionId && s.status !== 'stale' && s.pid !== process.pid,
+      (s) => s.sessionId === canonicalSessionId && s.status !== 'stale' && s.pid !== process.pid,
     );
     if (live) {
       throw new Error(
@@ -87,21 +88,58 @@ export async function resumeSession(
     // registry unreadable — fall through to the normal resume path
   }
 
+  const previousSessionId = agent.ctx.session?.id;
+  let identityClaimed = false;
+  let writerSwapped = false;
+  let openedWriter: SessionWriter | undefined;
   try {
+    if (state.activateSessionIdentity) {
+      await state.activateSessionIdentity(canonicalSessionId);
+      identityClaimed = true;
+    }
     const resumed = await state.activeSessionStore.resume(canonicalSessionId);
+    openedWriter = resumed.writer;
     const meta = resumed.data.metadata;
+    const entries = replaySessionMessages(
+      resumed.data.messages,
+      resumed.data.events,
+      /* startId */ 1,
+    );
+    const sessionsDir = state.wpaths.projectSessions;
+    const resumedTodosPath = sessionScopedPath(sessionsDir, resumed.writer.id, '.todos.json');
+    const restoredTodos = await loadTodosCheckpoint(
+      resumedTodosPath,
+      events,
+      agent.ctx.traceId,
+    ).catch(() => null);
 
     // Capture and swap writers BEFORE hydrating. replaceMessages emits the
     // exact recovery snapshot through Context's conversation journal; it must
     // land in the resumed session, never the session we are leaving.
     const oldWriter = agent.ctx.session;
+    const oldMessages = [...agent.ctx.messages];
     agent.ctx.session = resumed.writer;
-
-    // Rebuild the agent's conversation context from the resumed messages.
-    // Go through the observable state wrapper so subscribers fire and
-    // tool-use adjacency is re-checked on the next request.
-    agent.ctx.state.replaceMessages(resumed.data.messages);
-    await agent.ctx.flushConversationJournal();
+    try {
+      // Rebuild the agent's conversation context from the resumed messages.
+      // Go through the observable state wrapper so subscribers fire and
+      // tool-use adjacency is re-checked on the next request.
+      agent.ctx.state.replaceMessages(resumed.data.messages);
+    } catch (err) {
+      agent.ctx.session = oldWriter;
+      agent.ctx.state.replaceMessages(oldMessages);
+      throw err;
+    }
+    writerSwapped = true;
+    await agent.ctx.flushConversationJournal().catch((err) => {
+      console.error(
+        JSON.stringify({
+          level: 'error',
+          event: 'execution.resume_journal_flush_failed',
+          message: err instanceof Error ? err.message : String(err),
+          timestamp: new Date().toISOString(),
+        }),
+      );
+    });
 
     // ── Re-point session-scoped sidecars (todos/plan/task) to the resumed
     // session and restore its todo board. Without this the picker resume keeps
@@ -109,9 +147,7 @@ export async function resumeSession(
     // empty board — the boot `--resume` path already restores todos, so this
     // closes that asymmetry. Detach the old checkpoint BEFORE mutating todos so
     // the restore can't leak into the session we are leaving.
-    const sessionsDir = state.wpaths.projectSessions;
-    const resumedTodosPath = sessionScopedPath(sessionsDir, resumed.writer.id, '.todos.json');
-    await state.detachActiveTodosCheckpoint?.();
+    await Promise.resolve(state.detachActiveTodosCheckpoint?.()).catch(() => undefined);
     agent.ctx.state.setMeta(
       'plan.path',
       sessionScopedPath(sessionsDir, resumed.writer.id, '.plan.json'),
@@ -120,20 +156,19 @@ export async function resumeSession(
       'task.path',
       sessionScopedPath(sessionsDir, resumed.writer.id, '.tasks.json'),
     );
-    try {
-      const restoredTodos = await loadTodosCheckpoint(resumedTodosPath, events, agent.ctx.traceId);
-      agent.ctx.state.replaceTodos(restoredTodos ?? []);
-    } catch {
-      /* best-effort: a missing/corrupt todos sidecar must not block resume */
-    }
+    agent.ctx.state.replaceTodos(restoredTodos ?? []);
     // Re-attach so subsequent todo edits persist to the RESUMED session file.
-    state.detachActiveTodosCheckpoint = attachTodosCheckpoint(
-      agent.ctx.state,
-      resumedTodosPath,
-      resumed.writer.id,
-      events,
-      agent.ctx.traceId,
-    );
+    try {
+      state.detachActiveTodosCheckpoint = attachTodosCheckpoint(
+        agent.ctx.state,
+        resumedTodosPath,
+        resumed.writer.id,
+        events,
+        agent.ctx.traceId,
+      );
+    } catch {
+      state.detachActiveTodosCheckpoint = undefined;
+    }
 
     // Sync the agent's provider/model to what was used in the resumed session.
     // Route all changes through the live switch callback when available so the
@@ -151,7 +186,20 @@ export async function resumeSession(
       targetProviderId &&
       (targetProviderId !== currentProviderId || targetModel !== agent.ctx.model)
     ) {
-      await switchProviderAndModel(targetProviderId, targetModel);
+      await Promise.resolve(switchProviderAndModel(targetProviderId, targetModel)).catch(
+        (err: unknown) => {
+          console.error(
+            JSON.stringify({
+              level: 'error',
+              event: 'execution.resume_model_restore_failed',
+              provider: targetProviderId,
+              model: targetModel,
+              message: err instanceof Error ? err.message : String(err),
+              timestamp: new Date().toISOString(),
+            }),
+          );
+        },
+      );
     } else if (targetModel !== agent.ctx.model) {
       agent.ctx.model = targetModel;
     }
@@ -209,45 +257,7 @@ export async function resumeSession(
     // Token accounting is per-session: without a reset the resumed
     // session's summary/cost chips inherit the old session's totals.
     tokenCounter.reset();
-
-    // Re-point crash recovery (active.json) at the resumed session —
-    // otherwise a crash after this resume would offer recovery for
-    // the OLD (cleanly finalized) session and miss the live one.
-    // Fire-and-forget: do not block resume on recovery lock errors.
-    void (async () => {
-      try {
-        await state.activeRecoveryLock.clear();
-      } catch (err) {
-        console.error(
-          JSON.stringify({
-            level: 'warn',
-            event: 'execution.recovery_lock_clear_failed',
-            message: err instanceof Error ? err.message : String(err),
-            timestamp: new Date().toISOString(),
-          }),
-        );
-      }
-      try {
-        await state.activeRecoveryLock.write(resumed.writer.id);
-      } catch (err) {
-        console.error(
-          JSON.stringify({
-            level: 'error',
-            event: 'execution.recovery_lock_update_failed',
-            message: err instanceof Error ? err.message : String(err),
-            timestamp: new Date().toISOString(),
-          }),
-        );
-      }
-    })();
-
-    // Replay the JSONL events as TUI history entries.
-    const { replaySessionMessages } = await import('@wrongstack/tui');
-    const entries = replaySessionMessages(
-      resumed.data.messages,
-      resumed.data.events,
-      /* startId */ 1,
-    );
+    tokenCounter.account(resumed.data.usage, targetModel, targetProviderId);
 
     return {
       entries,
@@ -255,6 +265,22 @@ export async function resumeSession(
       sessionId: resumed.writer.id,
     };
   } catch (err) {
+    if (identityClaimed && !writerSwapped && previousSessionId) {
+      await state.activateSessionIdentity?.(previousSessionId).catch((rollbackErr) => {
+        console.error(
+          JSON.stringify({
+            level: 'error',
+            event: 'execution.resume_identity_rollback_failed',
+            sessionId: previousSessionId,
+            message: rollbackErr instanceof Error ? rollbackErr.message : String(rollbackErr),
+            timestamp: new Date().toISOString(),
+          }),
+        );
+      });
+    }
+    if (!writerSwapped) {
+      await openedWriter?.close().catch(() => undefined);
+    }
     console.error(
       JSON.stringify({
         level: 'error',

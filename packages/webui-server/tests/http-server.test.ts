@@ -202,6 +202,7 @@ describe('createHttpServer', () => {
       memoryUsage: { rss: number; heapUsed: number };
       heapLimit: number;
       uptime: number;
+      codebaseIndexServer: { status: string; connected: boolean };
       timestamp: number;
     };
     expect(body.pid).toBe(process.pid);
@@ -209,6 +210,8 @@ describe('createHttpServer', () => {
     expect(body.memoryUsage.heapUsed).toBeGreaterThan(0);
     expect(body.heapLimit).toBeGreaterThan(body.memoryUsage.heapUsed);
     expect(body.uptime).toBeGreaterThanOrEqual(0);
+    expect(body.codebaseIndexServer.status).toBeTypeOf('string');
+    expect(body.codebaseIndexServer.connected).toBeTypeOf('boolean');
     expect(body.timestamp).toBeGreaterThan(0);
   });
 

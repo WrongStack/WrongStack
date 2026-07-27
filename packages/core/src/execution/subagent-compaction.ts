@@ -61,6 +61,7 @@ export function installSubagentAutoCompaction(
           ? (p as {
               thresholds: { warn: number; soft: number; hard: number };
               aggressiveOn: 'hard' | 'soft' | 'warn';
+              targetLoad: number;
             })
           : null;
       },

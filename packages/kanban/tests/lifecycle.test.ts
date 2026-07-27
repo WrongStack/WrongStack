@@ -475,7 +475,7 @@ describe('end-to-end managed lifecycle validation paths', () => {
         actor: 'reviewer-1',
         comment: 'Ship it.',
         action: 'approved',
-        attachment: { url: '', type: 'review' },
+        attachment: { url: '', type: 'url' },
       }),
     ).rejects.toThrow('Done requires reviewer action text and a persisted review attachment');
   });

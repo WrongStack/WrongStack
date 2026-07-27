@@ -94,6 +94,28 @@ export interface WSProviderCatalog {
   };
 }
 
+export interface ProviderCatalogModelMatch {
+  providerId: string;
+  providerName: string;
+  modelId: string;
+  name: string;
+  description?: string | undefined;
+  releaseDate?: string | undefined;
+  contextWindow?: number | undefined;
+  maxOutput?: number | undefined;
+  inputCost?: number | undefined;
+  outputCost?: number | undefined;
+  capabilities: string[];
+}
+
+export interface WSCatalogModelSearchResult {
+  type: 'provider.models.search_result';
+  payload: {
+    query: string;
+    matches: ProviderCatalogModelMatch[];
+  };
+}
+
 export interface WSProviderModels {
   type: 'provider.models';
   payload: {
@@ -120,6 +142,8 @@ export interface WSSavedProviders {
       baseUrl?: string | undefined;
       /** Saved model allowlist, in the order the user pinned them. */
       models?: string[] | undefined;
+      /** Per-model metadata (display name, output limits, capability overrides). Mirrors CustomModelDefinition. */
+      customModels?: Record<string, { name?: string | undefined; maxOutput?: number | undefined; capabilities?: Partial<{ tools: boolean; parallelTools: boolean; vision: boolean; streaming: boolean; promptCache: boolean; systemPrompt: boolean; jsonMode: boolean; reasoning: boolean; maxContext: number; maxOutput: number; cacheControl: string }> | undefined } | undefined> | undefined;
       /** First entry of `models`, surfaced for the panel's "Using" line. */
       pickedModelId?: string | undefined;
       apiKeys: Array<{

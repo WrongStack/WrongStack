@@ -1,5 +1,6 @@
 import {
   ArrowDown,
+  Command,
   FolderCode,
   Moon,
   Settings,
@@ -12,6 +13,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AgentChatPane } from './agent-chat-pane.js';
 import { BrainPanel } from './brain-panel.js';
 import { ChatMessageList } from './chat-message-list.js';
+import { CommandPalette } from './command-palette.js';
 import { Composer } from './composer.js';
 import { ErrorBoundary } from './error-boundary.js';
 import { FileChangesButton } from './file-changes-button.js';
@@ -33,6 +35,7 @@ import { resetAgentNameCache } from './lib/agent-model.js';
 import { playChime } from './lib/chime.js';
 import { copyText } from './lib/clipboard.js';
 import { clearComposerDraft, readComposerDraft, writeComposerDraft } from './lib/composer-draft.js';
+import type { CommandPaletteAction } from './lib/command-palette-model.js';
 import { removeFileMention } from './lib/file-mention.js';
 import type { MessageHandlerDeps } from './lib/message-handler.js';
 import { createMessageHandler } from './lib/message-handler.js';
@@ -97,6 +100,7 @@ export function SimpleUiSession() {
   const [activeModeId, setActiveModeId] = useState('default');
   const [prefs, setPrefs] = useState<SimplePrefs>(DEFAULT_PREFS);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [commandPaletteOpen, setCommandPaletteOpen] = useState(false);
   const [queue, setQueue] = useState<QueuedItem[]>([]);
   const [refineState, setRefineState] = useState<RefineState | null>(null);
   const [pendingConfirm, setPendingConfirm] = useState<PendingConfirm | null>(null);
@@ -355,6 +359,13 @@ export function SimpleUiSession() {
           requestAnimationFrame(() => textareaRef.current?.focus());
           return;
         }
+        return;
+      }
+
+      // ── Ctrl/Cmd+K: open command palette ──
+      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'k') {
+        event.preventDefault();
+        setCommandPaletteOpen(true);
         return;
       }
 
@@ -707,6 +718,66 @@ export function SimpleUiSession() {
     );
   }, []);
 
+  const openWorkspacePanel = useCallback((view: 'tools' | WorklistView) => {
+    window.dispatchEvent(new CustomEvent('simpleui:open-workspace-panel', { detail: { view } }));
+  }, []);
+
+  const runCommandPaletteAction = useCallback(
+    (action: CommandPaletteAction) => {
+      switch (action) {
+        case 'new-session':
+          createSession();
+          return;
+        case 'focus-composer':
+          textareaRef.current?.focus();
+          return;
+        case 'toggle-theme':
+          toggleTheme();
+          return;
+        case 'open-settings':
+          setSettingsOpen(true);
+          return;
+        case 'open-tools':
+          openWorkspacePanel('tools');
+          return;
+        case 'open-todos':
+          openWorkspacePanel('todos');
+          return;
+        case 'open-tasks':
+          openWorkspacePanel('tasks');
+          return;
+        case 'open-plan':
+          openWorkspacePanel('plan');
+          return;
+        case 'open-memory':
+          window.dispatchEvent(new Event('simpleui:open-memory-drawer'));
+          return;
+        case 'open-files':
+          window.dispatchEvent(new Event('simpleui:open-file-explorer'));
+          return;
+        case 'open-prompts':
+          window.dispatchEvent(new Event('simpleui:open-prompt-library'));
+          return;
+        case 'open-brain':
+          window.dispatchEvent(new Event('simpleui:open-brain-panel'));
+          return;
+        case 'open-health':
+          window.dispatchEvent(new Event('simpleui:open-session-health'));
+          return;
+        case 'compact-context':
+          if (sessionIdRef.current && !runningRef.current) {
+            socketRef.current?.send('context.compact', {
+              sessionId: sessionIdRef.current,
+              aggressive: false,
+            });
+            setActivity('Compacting context');
+          }
+          return;
+      }
+    },
+    [createSession, openWorkspacePanel, toggleTheme],
+  );
+
   const updateTodoStatus = useCallback((id: string, status: TodoStatus) => {
     const sessionId = sessionIdRef.current;
     if (sessionId) socketRef.current?.send('todo.update', { sessionId, id, status });
@@ -798,6 +869,16 @@ export function SimpleUiSession() {
               {compactTokens(context.tokens)} / {compactTokens(context.maxContext)}
             </small>
             <span className="context-compact-hint">COMPACT</span>
+          </button>
+          <button
+            type="button"
+            className="theme-toggle"
+            onClick={() => setCommandPaletteOpen(true)}
+            aria-label="Open command palette"
+            aria-expanded={commandPaletteOpen}
+            title="Command palette (Ctrl+K)"
+          >
+            <Command size={15} />
           </button>
           <button
             type="button"
@@ -901,6 +982,18 @@ export function SimpleUiSession() {
         totalRemoved={fileEditSummary.totalRemoved}
         files={fileEditSummary.files}
         onOpenDiff={(files) => setDiffFiles(files)}
+      />
+
+      <CommandPalette
+        open={commandPaletteOpen}
+        context={{
+          hasSession: Boolean(session),
+          running,
+          canCompose: leaderSelected,
+          canCompact: Boolean(session) && !running,
+        }}
+        onClose={() => setCommandPaletteOpen(false)}
+        onRun={runCommandPaletteAction}
       />
 
       <MemoryDrawer socketRef={socketRef} />

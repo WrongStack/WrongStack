@@ -145,6 +145,49 @@ describe('cross-process session discovery', () => {
     expect(await reg.listByProject('alpha')).toHaveLength(0);
   });
 
+  it('rejects a second process claiming the same live session', async () => {
+    const root = await freshRoot();
+    const owner = new SessionRegistry(root);
+    await owner.register({
+      sessionId: 'sess-shared',
+      projectSlug: 'alpha',
+      projectRoot: '/home/alpha',
+      projectName: 'Alpha',
+      workingDir: '/home/alpha',
+      pid: process.pid,
+      startedAt: new Date().toISOString(),
+    });
+
+    const contender = new SessionRegistry(root);
+    // Simulate both processes completing their unlocked pre-check before
+    // either sees the other. The claim must still fail inside atomicUpdate.
+    (contender as unknown as { readAndPrune(): Promise<Record<string, never>> }).readAndPrune =
+      async () => ({});
+    await expect(
+      contender.register({
+        sessionId: 'sess-shared',
+        projectSlug: 'alpha',
+        projectRoot: '/home/alpha',
+        projectName: 'Alpha',
+        workingDir: '/home/alpha',
+        pid: process.pid + 1,
+        startedAt: new Date().toISOString(),
+      }),
+    ).rejects.toThrow(
+      `Session sess-shared is already open in another running wstack (pid ${process.pid}).`,
+    );
+
+    const contenderState = contender as unknown as {
+      currentSessionId: string | null;
+      lastEntry: unknown | null;
+    };
+    expect(contenderState.currentSessionId).toBeNull();
+    expect(contenderState.lastEntry).toBeNull();
+
+    await forceHeartbeat(contender);
+    expect((await owner.get('sess-shared'))?.pid).toBe(process.pid);
+  });
+
   it('two processes can discover each other', async () => {
     const root = await freshRoot();
     // Simulate process 1
@@ -193,19 +236,34 @@ describe('cross-process session discovery', () => {
 
     // Three processes
     await reg.register({
-      sessionId: 'sess-a', projectSlug: 'ws', projectRoot: '/ws',
-      projectName: 'WrongStack', workingDir: '/ws', gitBranch: 'main',
-      pid: 3001, startedAt,
+      sessionId: 'sess-a',
+      projectSlug: 'ws',
+      projectRoot: '/ws',
+      projectName: 'WrongStack',
+      workingDir: '/ws',
+      gitBranch: 'main',
+      pid: 3001,
+      startedAt,
     });
     await reg.register({
-      sessionId: 'sess-b', projectSlug: 'app', projectRoot: '/app',
-      projectName: 'MyApp', workingDir: '/app/src', gitBranch: 'dev',
-      pid: 3002, startedAt,
+      sessionId: 'sess-b',
+      projectSlug: 'app',
+      projectRoot: '/app',
+      projectName: 'MyApp',
+      workingDir: '/app/src',
+      gitBranch: 'dev',
+      pid: 3002,
+      startedAt,
     });
     await reg.register({
-      sessionId: 'sess-c', projectSlug: 'lib', projectRoot: '/lib',
-      projectName: 'SharedLib', workingDir: '/lib', gitBranch: undefined,
-      pid: 3003, startedAt,
+      sessionId: 'sess-c',
+      projectSlug: 'lib',
+      projectRoot: '/lib',
+      projectName: 'SharedLib',
+      workingDir: '/lib',
+      gitBranch: undefined,
+      pid: 3003,
+      startedAt,
     });
 
     const list = await reg.list();
@@ -229,13 +287,21 @@ describe('cross-process session discovery', () => {
     const root = await freshRoot();
     const reg = new SessionRegistry(root);
     await reg.register({
-      sessionId: 'sess-x', projectSlug: 'ws', projectRoot: '/ws',
-      projectName: 'WS', workingDir: '/ws', pid: 4001,
+      sessionId: 'sess-x',
+      projectSlug: 'ws',
+      projectRoot: '/ws',
+      projectName: 'WS',
+      workingDir: '/ws',
+      pid: 4001,
       startedAt: new Date().toISOString(),
     });
     await reg.register({
-      sessionId: 'sess-y', projectSlug: 'other', projectRoot: '/other',
-      projectName: 'Other', workingDir: '/other', pid: 4002,
+      sessionId: 'sess-y',
+      projectSlug: 'other',
+      projectRoot: '/other',
+      projectName: 'Other',
+      workingDir: '/other',
+      pid: 4002,
       startedAt: new Date().toISOString(),
     });
 
@@ -326,8 +392,21 @@ describe('cross-process session discovery', () => {
 
     // Update agent status
     await reg.updateAgents([
-      makeAgent({ id: 'leader', name: 'leader', status: 'running', currentTool: 'bash', iterations: 5, toolCalls: 12 }),
-      makeAgent({ id: 'sub-1', name: 'bug-hunter', status: 'running', iterations: 3, toolCalls: 8 }),
+      makeAgent({
+        id: 'leader',
+        name: 'leader',
+        status: 'running',
+        currentTool: 'bash',
+        iterations: 5,
+        toolCalls: 12,
+      }),
+      makeAgent({
+        id: 'sub-1',
+        name: 'bug-hunter',
+        status: 'running',
+        iterations: 3,
+        toolCalls: 8,
+      }),
       makeAgent({ id: 'sub-2', name: 'critic', status: 'idle', iterations: 0, toolCalls: 0 }),
     ]);
 
@@ -402,36 +481,64 @@ describe('lock resilience', () => {
     expect(temps).toHaveLength(20);
   });
 
-  it('self-heals an entry whose initial register write was dropped', async () => {
+  it('fails closed when an ownership claim cannot acquire the registry lock', async () => {
+    const root = await freshRoot();
+    const lockPath = path.join(root, 'session-registry.json.lock');
+    const reg = new SessionRegistry(root, { ownershipLockWaitMs: 100 });
+
+    // A lock stamped with our live PID is not stale and cannot be broken.
+    await fs.writeFile(lockPath, String(process.pid));
+    await expect(
+      reg.register({
+        sessionId: 'sess-unclaimed',
+        projectSlug: 'ws',
+        projectRoot: '/ws',
+        projectName: 'WS',
+        workingDir: '/ws',
+        clientType: 'tui',
+        pid: 6002,
+        startedAt: new Date().toISOString(),
+      }),
+    ).rejects.toThrow(/ownership update failed/i);
+
+    // A failed claim must not publish local ownership that a later heartbeat
+    // could silently turn into a successful claim.
+    await fs.unlink(lockPath);
+    await forceHeartbeat(reg);
+    expect(await reg.list()).toHaveLength(0);
+  });
+
+  it('waits through ordinary live lock contention before claiming ownership', async () => {
     const root = await freshRoot();
     const lockPath = path.join(root, 'session-registry.json.lock');
     const reg = new SessionRegistry(root);
 
-    // Simulate a *fresh* (non-stale) lock held by another live process so
-    // register() cannot acquire it and the write is dropped.
-    await fs.writeFile(lockPath, String(process.pid + 1));
-    await reg.register({
-      sessionId: 'sess-heal',
-      projectSlug: 'ws',
-      projectRoot: '/ws',
-      projectName: 'WS',
-      workingDir: '/ws',
+    await fs.writeFile(lockPath, String(process.pid));
+    const release = setTimeout(() => {
+      void fs.unlink(lockPath);
+    }, 1_000);
+
+    try {
+      await reg.register({
+        sessionId: 'sess-contended',
+        projectSlug: 'ws',
+        projectRoot: '/ws',
+        projectName: 'WS',
+        workingDir: '/ws',
+        clientType: 'tui',
+        pid: process.pid,
+        startedAt: new Date().toISOString(),
+      });
+    } finally {
+      clearTimeout(release);
+      await fs.unlink(lockPath).catch(() => undefined);
+    }
+
+    expect(await reg.get('sess-contended')).toMatchObject({
+      pid: process.pid,
       clientType: 'tui',
-      pid: 6002,
-      startedAt: new Date().toISOString(),
     });
-    expect(await reg.list()).toHaveLength(0); // write was dropped
-
-    // Release the contended lock; the next agent update should re-create us.
-    await fs.unlink(lockPath);
-    await reg.updateAgents([
-      makeAgent({ id: 'leader', status: 'running', toolCalls: 7 }),
-    ]);
-
-    const healed = (await reg.list()).find((s) => s.sessionId === 'sess-heal');
-    expect(healed).toBeDefined();
-    expect(healed!.clientType).toBe('tui');
-    expect(healed!.agents[0]?.toolCalls).toBe(7);
+    await reg.unregister();
   });
 
   it('recovers from a crash-zeroed (all-NUL) registry file instead of wedging writes', async () => {
@@ -557,12 +664,98 @@ describe('SessionRegistry lifecycle edges', () => {
     const root = await freshRoot();
     const reg = new SessionRegistry(root);
     await reg.register({
-      sessionId: 'sess-u', projectSlug: 'ws', projectRoot: '/ws', projectName: 'WS',
-      workingDir: '/ws', pid: 7001, startedAt: new Date().toISOString(),
+      sessionId: 'sess-u',
+      projectSlug: 'ws',
+      projectRoot: '/ws',
+      projectName: 'WS',
+      workingDir: '/ws',
+      pid: 7001,
+      startedAt: new Date().toISOString(),
     });
     expect(await reg.list()).toHaveLength(1);
     await reg.unregister();
     expect(await reg.list()).toHaveLength(0);
+  });
+
+  it('an old owner cannot heartbeat, close, or unregister a replacement owner', async () => {
+    const root = await freshRoot();
+    const registryPath = path.join(root, 'session-registry.json');
+    const reg = new SessionRegistry(root);
+    await reg.register({
+      sessionId: 'sess-reowned',
+      projectSlug: 'ws',
+      projectRoot: '/ws',
+      projectName: 'WS',
+      workingDir: '/ws',
+      pid: 7101,
+      startedAt: new Date().toISOString(),
+    });
+
+    const replacement = {
+      sessionId: 'sess-reowned',
+      projectSlug: 'ws',
+      projectRoot: '/ws',
+      projectName: 'WS',
+      workingDir: '/ws',
+      pid: 7102,
+      startedAt: new Date().toISOString(),
+      lastHeartbeatAt: new Date().toISOString(),
+      status: 'active' as const,
+      agentCount: 0,
+      agents: [],
+    };
+    await fs.writeFile(
+      registryPath,
+      JSON.stringify({ [replacement.sessionId]: replacement }, null, 2),
+    );
+
+    await forceHeartbeat(reg);
+    await reg.updateAgents([makeAgent({ id: 'old-owner-agent', status: 'running' })]);
+    await reg.markClosing();
+    await reg.unregister();
+
+    const current = JSON.parse(await fs.readFile(registryPath, 'utf8')) as Record<
+      string,
+      typeof replacement
+    >;
+    expect(current['sess-reowned']).toMatchObject({
+      pid: replacement.pid,
+      status: 'active',
+      agentCount: 0,
+    });
+  });
+
+  it('uses startedAt to distinguish ownership generations sharing one PID', async () => {
+    const root = await freshRoot();
+    const oldOwner = new SessionRegistry(root);
+    const newOwner = new SessionRegistry(root);
+    await oldOwner.register({
+      sessionId: 'sess-same-pid',
+      projectSlug: 'ws',
+      projectRoot: '/ws',
+      projectName: 'WS',
+      workingDir: '/ws',
+      pid: process.pid,
+      startedAt: '2026-07-27T00:00:00.000Z',
+    });
+    await newOwner.register({
+      sessionId: 'sess-same-pid',
+      projectSlug: 'ws',
+      projectRoot: '/ws',
+      projectName: 'WS',
+      workingDir: '/ws',
+      pid: process.pid,
+      startedAt: '2026-07-27T00:00:01.000Z',
+    });
+
+    await forceHeartbeat(oldOwner);
+    await oldOwner.unregister();
+
+    expect(await newOwner.get('sess-same-pid')).toMatchObject({
+      pid: process.pid,
+      startedAt: '2026-07-27T00:00:01.000Z',
+    });
+    await newOwner.unregister();
   });
 
   it('unregister / markClosing / updateAgents before register are no-ops', async () => {
@@ -577,8 +770,13 @@ describe('SessionRegistry lifecycle edges', () => {
     const root = await freshRoot();
     const reg = new SessionRegistry(root);
     await reg.register({
-      sessionId: 'sess-c', projectSlug: 'ws', projectRoot: '/ws', projectName: 'WS',
-      workingDir: '/ws', pid: 7002, startedAt: new Date().toISOString(),
+      sessionId: 'sess-c',
+      projectSlug: 'ws',
+      projectRoot: '/ws',
+      projectName: 'WS',
+      workingDir: '/ws',
+      pid: 7002,
+      startedAt: new Date().toISOString(),
     });
     await reg.markClosing();
     expect((await reg.get('sess-c'))?.status).toBe('closing');
@@ -588,8 +786,13 @@ describe('SessionRegistry lifecycle edges', () => {
     const root = await freshRoot();
     const reg = new SessionRegistry(root);
     await reg.register({
-      sessionId: 'sess-c2', projectSlug: 'ws', projectRoot: '/ws', projectName: 'WS',
-      workingDir: '/ws', pid: 7003, startedAt: new Date().toISOString(),
+      sessionId: 'sess-c2',
+      projectSlug: 'ws',
+      projectRoot: '/ws',
+      projectName: 'WS',
+      workingDir: '/ws',
+      pid: 7003,
+      startedAt: new Date().toISOString(),
     });
     // Wipe the on-disk entry so markClosing's atomicUpdate sees no entry.
     await fs.writeFile(path.join(root, 'session-registry.json'), '{}');
@@ -606,8 +809,13 @@ describe('SessionRegistry lifecycle edges', () => {
     const root = await freshRoot();
     const reg = new SessionRegistry(root);
     await reg.register({
-      sessionId: 'sess-hb-idle', projectSlug: 'ws', projectRoot: '/ws', projectName: 'WS',
-      workingDir: '/ws', pid: 7004, startedAt: new Date().toISOString(),
+      sessionId: 'sess-hb-idle',
+      projectSlug: 'ws',
+      projectRoot: '/ws',
+      projectName: 'WS',
+      workingDir: '/ws',
+      pid: 7004,
+      startedAt: new Date().toISOString(),
       agents: [makeAgent({ id: 'leader', status: 'idle' })],
     });
     await forceHeartbeat(reg);
@@ -618,8 +826,13 @@ describe('SessionRegistry lifecycle edges', () => {
     const root = await freshRoot();
     const reg = new SessionRegistry(root);
     await reg.register({
-      sessionId: 'sess-hb-active', projectSlug: 'ws', projectRoot: '/ws', projectName: 'WS',
-      workingDir: '/ws', pid: 7005, startedAt: new Date().toISOString(),
+      sessionId: 'sess-hb-active',
+      projectSlug: 'ws',
+      projectRoot: '/ws',
+      projectName: 'WS',
+      workingDir: '/ws',
+      pid: 7005,
+      startedAt: new Date().toISOString(),
       agents: [makeAgent({ id: 'leader', status: 'running' })],
     });
     await forceHeartbeat(reg);
@@ -630,8 +843,13 @@ describe('SessionRegistry lifecycle edges', () => {
     const root = await freshRoot();
     const reg = new SessionRegistry(root);
     await reg.register({
-      sessionId: 'sess-hb-close', projectSlug: 'ws', projectRoot: '/ws', projectName: 'WS',
-      workingDir: '/ws', pid: 7006, startedAt: new Date().toISOString(),
+      sessionId: 'sess-hb-close',
+      projectSlug: 'ws',
+      projectRoot: '/ws',
+      projectName: 'WS',
+      workingDir: '/ws',
+      pid: 7006,
+      startedAt: new Date().toISOString(),
       agents: [makeAgent({ id: 'leader', status: 'running' })],
     });
     await reg.markClosing();
@@ -639,19 +857,31 @@ describe('SessionRegistry lifecycle edges', () => {
     expect((await reg.get('sess-hb-close'))?.status).toBe('closing');
   });
 
-  it('prunes a closing entry past its grace window', async () => {
+  it('prunes a closing entry past its grace window after its PID exits', async () => {
     const root = await freshRoot();
     const registryPath = path.join(root, 'session-registry.json');
     const old = new Date(Date.now() - 60_000).toISOString();
     await fs.writeFile(
       registryPath,
-      JSON.stringify({
-        'sess-old': {
-          sessionId: 'sess-old', projectSlug: 'ws', projectRoot: '/ws', projectName: 'WS',
-          workingDir: '/ws', pid: process.pid, status: 'closing', startedAt: old,
-          lastHeartbeatAt: old, agentCount: 0, agents: [],
+      JSON.stringify(
+        {
+          'sess-old': {
+            sessionId: 'sess-old',
+            projectSlug: 'ws',
+            projectRoot: '/ws',
+            projectName: 'WS',
+            workingDir: '/ws',
+            pid: await deadPid(),
+            status: 'closing',
+            startedAt: old,
+            lastHeartbeatAt: old,
+            agentCount: 0,
+            agents: [],
+          },
         },
-      }, null, 2),
+        null,
+        2,
+      ),
     );
     const reg = new SessionRegistry(root);
     const list = await reg.list();
@@ -665,18 +895,77 @@ describe('SessionRegistry lifecycle edges', () => {
     const heartbeatOld = new Date(Date.now() - 120_000).toISOString();
     await fs.writeFile(
       registryPath,
-      JSON.stringify({
-        'sess-stale': {
-          sessionId: 'sess-stale', projectSlug: 'ws', projectRoot: '/ws', projectName: 'WS',
-          workingDir: '/ws', pid: await deadPid(), status: 'active', startedAt: startedRecently,
-          lastHeartbeatAt: heartbeatOld, agentCount: 0, agents: [],
+      JSON.stringify(
+        {
+          'sess-stale': {
+            sessionId: 'sess-stale',
+            projectSlug: 'ws',
+            projectRoot: '/ws',
+            projectName: 'WS',
+            workingDir: '/ws',
+            pid: await deadPid(),
+            status: 'active',
+            startedAt: startedRecently,
+            lastHeartbeatAt: heartbeatOld,
+            agentCount: 0,
+            agents: [],
+          },
         },
-      }, null, 2),
+        null,
+        2,
+      ),
     );
 
     const reg = new SessionRegistry(root);
     expect(await reg.get('sess-stale')).toBeUndefined();
     expect(JSON.parse(await fs.readFile(registryPath, 'utf8'))).toEqual({});
+  });
+
+  it('retains a lost session while its PID is alive and refuses takeover', async () => {
+    const root = await freshRoot();
+    const registryPath = path.join(root, 'session-registry.json');
+    const heartbeatOld = new Date(Date.now() - 5 * 60_000).toISOString();
+    await fs.writeFile(
+      registryPath,
+      JSON.stringify(
+        {
+          'sess-lost-live': {
+            sessionId: 'sess-lost-live',
+            projectSlug: 'ws',
+            projectRoot: '/ws',
+            projectName: 'WS',
+            workingDir: '/ws',
+            pid: process.pid,
+            status: 'active',
+            startedAt: heartbeatOld,
+            lastHeartbeatAt: heartbeatOld,
+            agentCount: 0,
+            agents: [],
+          },
+        },
+        null,
+        2,
+      ),
+    );
+
+    const reader = new SessionRegistry(root);
+    expect(await reader.get('sess-lost-live')).toMatchObject({
+      pid: process.pid,
+      status: 'lost',
+    });
+
+    const contender = new SessionRegistry(root);
+    await expect(
+      contender.register({
+        sessionId: 'sess-lost-live',
+        projectSlug: 'ws',
+        projectRoot: '/ws',
+        projectName: 'WS',
+        workingDir: '/ws',
+        pid: process.pid + 100_000,
+        startedAt: new Date().toISOString(),
+      }),
+    ).rejects.toThrow(/already open.*pid/i);
   });
 
   it('removes malformed heartbeat entries and stale subagents from live sessions', async () => {
@@ -686,22 +975,41 @@ describe('SessionRegistry lifecycle edges', () => {
     const staleActivity = new Date(Date.now() - 10 * 60_000).toISOString();
     await fs.writeFile(
       registryPath,
-      JSON.stringify({
-        malformed: {
-          sessionId: 'malformed', projectSlug: 'ws', projectRoot: '/ws', projectName: 'WS',
-          workingDir: '/ws', pid: process.pid, status: 'active', startedAt: now,
-          lastHeartbeatAt: 'invalid', agentCount: 0, agents: [],
+      JSON.stringify(
+        {
+          malformed: {
+            sessionId: 'malformed',
+            projectSlug: 'ws',
+            projectRoot: '/ws',
+            projectName: 'WS',
+            workingDir: '/ws',
+            pid: process.pid,
+            status: 'active',
+            startedAt: now,
+            lastHeartbeatAt: 'invalid',
+            agentCount: 0,
+            agents: [],
+          },
+          live: {
+            sessionId: 'live',
+            projectSlug: 'ws',
+            projectRoot: '/ws',
+            projectName: 'WS',
+            workingDir: '/ws',
+            pid: process.pid,
+            status: 'active',
+            startedAt: now,
+            lastHeartbeatAt: now,
+            agentCount: 2,
+            agents: [
+              makeAgent({ id: 'leader', lastActivityAt: staleActivity }),
+              makeAgent({ id: 'shadow-old', lastActivityAt: staleActivity, status: 'running' }),
+            ],
+          },
         },
-        live: {
-          sessionId: 'live', projectSlug: 'ws', projectRoot: '/ws', projectName: 'WS',
-          workingDir: '/ws', pid: process.pid, status: 'active', startedAt: now,
-          lastHeartbeatAt: now, agentCount: 2,
-          agents: [
-            makeAgent({ id: 'leader', lastActivityAt: staleActivity }),
-            makeAgent({ id: 'shadow-old', lastActivityAt: staleActivity, status: 'running' }),
-          ],
-        },
-      }, null, 2),
+        null,
+        2,
+      ),
     );
 
     const reg = new SessionRegistry(root);
@@ -717,17 +1025,30 @@ describe('SessionRegistry lifecycle edges', () => {
     const reg = new SessionRegistry(root);
     const dead = await deadPid();
     await reg.register({
-      sessionId: 'sess-a', projectSlug: 'ws', projectRoot: '/ws', projectName: 'WS',
-      workingDir: '/ws', pid: dead, startedAt: new Date().toISOString(),
+      sessionId: 'sess-a',
+      projectSlug: 'ws',
+      projectRoot: '/ws',
+      projectName: 'WS',
+      workingDir: '/ws',
+      pid: dead,
+      startedAt: new Date().toISOString(),
     });
     // Age sess-a's heartbeat past the stale timeout.
-    const data = JSON.parse(await fs.readFile(registryPath, 'utf8')) as Record<string, { lastHeartbeatAt: string }>;
+    const data = JSON.parse(await fs.readFile(registryPath, 'utf8')) as Record<
+      string,
+      { lastHeartbeatAt: string }
+    >;
     data['sess-a']!.lastHeartbeatAt = new Date(Date.now() - 120_000).toISOString();
     await fs.writeFile(registryPath, JSON.stringify(data, null, 2));
     // Registering a different session prunes the dead+stale sess-a.
     await reg.register({
-      sessionId: 'sess-b', projectSlug: 'ws', projectRoot: '/ws', projectName: 'WS',
-      workingDir: '/ws', pid: process.pid, startedAt: new Date().toISOString(),
+      sessionId: 'sess-b',
+      projectSlug: 'ws',
+      projectRoot: '/ws',
+      projectName: 'WS',
+      workingDir: '/ws',
+      pid: process.pid,
+      startedAt: new Date().toISOString(),
     });
     expect(await reg.get('sess-a')).toBeUndefined();
   });
@@ -745,8 +1066,13 @@ describe('updateAgents write coalescing', () => {
     const root = await freshRoot();
     const reg = new SessionRegistry(root);
     await reg.register({
-      sessionId: 'sess-throttle', projectSlug: 'ws', projectRoot: '/ws', projectName: 'WS',
-      workingDir: '/ws', pid: process.pid, startedAt: new Date().toISOString(),
+      sessionId: 'sess-throttle',
+      projectSlug: 'ws',
+      projectRoot: '/ws',
+      projectName: 'WS',
+      workingDir: '/ws',
+      pid: process.pid,
+      startedAt: new Date().toISOString(),
     });
     return { reg, root };
   }
@@ -788,6 +1114,31 @@ describe('updateAgents write coalescing', () => {
     await pending; // resolves via cancellation, not a write
     await new Promise((resolve) => setTimeout(resolve, 400));
     expect(await reg.get('sess-throttle')).toBeUndefined();
+  });
+
+  it('switching sessions cancels a pending agent write from the previous session', async () => {
+    const { reg } = await registeredRegistry();
+    await reg.updateAgents([makeAgent({ id: 'leader', toolCalls: 1 })]);
+    const pending = reg.updateAgents([makeAgent({ id: 'old-session-agent', toolCalls: 2 })]);
+
+    await reg.register({
+      sessionId: 'sess-next',
+      projectSlug: 'ws',
+      projectRoot: '/ws',
+      projectName: 'WS',
+      workingDir: '/ws',
+      pid: process.pid,
+      startedAt: new Date().toISOString(),
+      agents: [makeAgent({ id: 'new-session-agent', toolCalls: 3 })],
+    });
+
+    await pending;
+    await new Promise((resolve) => setTimeout(resolve, 400));
+    expect(await reg.get('sess-throttle')).toBeUndefined();
+    expect((await reg.get('sess-next'))?.agents.map((agent) => agent.id)).toEqual([
+      'new-session-agent',
+    ]);
+    await reg.unregister();
   });
 
   it('markClosing folds the pending snapshot into its final write', async () => {

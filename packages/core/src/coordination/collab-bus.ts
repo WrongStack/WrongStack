@@ -137,8 +137,18 @@ export class CollaborationBus {
   // is "I want the agent to think the read returned THIS content" or
   // "skip the bash call, just give it the answer I typed". The
   // injection is matched by tool_use_id, consumed once, and discarded.
+  //
+  // Bounds: unconsumed injections previously stayed forever (typo'd
+  // tool_use_id, aborted turns, abandoned controller sessions). Cap the
+  // map and expire stale entries so the queue cannot grow without limit.
 
-  private readonly injectionQueue = new Map<string, InjectedToolResult>();
+  private static readonly MAX_PENDING_INJECTIONS = 32;
+  private static readonly INJECTION_TTL_MS = 10 * 60_000;
+
+  private readonly injectionQueue = new Map<
+    string,
+    { result: InjectedToolResult; queuedAt: number }
+  >();
   private onConsumed?: ((info: ConsumedInjectionInfo) => void) | undefined;
 
   /**
@@ -168,8 +178,14 @@ export class CollaborationBus {
    * same id is already queued (idempotent — first write wins).
    */
   injectToolResult(input: InjectedToolResult): boolean {
+    this.pruneStaleInjections();
     if (this.injectionQueue.has(input.toolUseId)) return false;
-    this.injectionQueue.set(input.toolUseId, input);
+    while (this.injectionQueue.size >= CollaborationBus.MAX_PENDING_INJECTIONS) {
+      const oldest = this.injectionQueue.keys().next().value;
+      if (oldest === undefined) break;
+      this.injectionQueue.delete(oldest);
+    }
+    this.injectionQueue.set(input.toolUseId, { result: input, queuedAt: Date.now() });
     return true;
   }
 
@@ -179,15 +195,25 @@ export class CollaborationBus {
    * Called by the middleware on every tool call.
    */
   takeInjection(toolUseId: string): InjectedToolResult | null {
+    this.pruneStaleInjections();
     const v = this.injectionQueue.get(toolUseId);
     if (!v) return null;
     this.injectionQueue.delete(toolUseId);
-    return v;
+    return v.result;
   }
 
   /** Inspect the queue size (for observability / tests). */
   pendingInjectionCount(): number {
+    this.pruneStaleInjections();
     return this.injectionQueue.size;
+  }
+
+  /** Drop expired entries (TTL) so abandoned tool_use_ids cannot linger. */
+  private pruneStaleInjections(now = Date.now()): void {
+    const cutoff = now - CollaborationBus.INJECTION_TTL_MS;
+    for (const [id, entry] of this.injectionQueue) {
+      if (entry.queuedAt < cutoff) this.injectionQueue.delete(id);
+    }
   }
 }
 

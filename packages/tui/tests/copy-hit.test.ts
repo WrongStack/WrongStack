@@ -1,10 +1,64 @@
 import { describe, expect, it } from 'vitest';
-import { type CopyHit, findCopyHit } from '../src/components/scrollable-history.js';
+import {
+  type CopyHit,
+  copyRegistryVisibleClip,
+  findCopyHit,
+} from '../src/components/scrollable-history.js';
 
 /** Build a copy hit at a given row range with the icon at `iconCol`. */
 function hit(entryId: number, startRow: number, endRow: number, iconCol: number): CopyHit {
   return { entryId, text: `text-${entryId}`, startRow, endRow, iconCol };
 }
+
+describe('copyRegistryVisibleClip', () => {
+  it('uses the anchor clip for scrolled frames', () => {
+    expect(
+      copyRegistryVisibleClip({
+        scrolled: true,
+        clip: 2,
+        mountedRows: 12,
+        tailRows: 3,
+        viewportRows: 5,
+      }),
+    ).toBe(2);
+  });
+
+  it('accounts for top overflow hidden by pinned flex-end clipping', () => {
+    expect(
+      copyRegistryVisibleClip({
+        scrolled: false,
+        clip: 0,
+        mountedRows: 12,
+        tailRows: 0,
+        viewportRows: 5,
+      }),
+    ).toBe(7);
+  });
+
+  it('includes the live tool tail when pinned', () => {
+    expect(
+      copyRegistryVisibleClip({
+        scrolled: false,
+        clip: 0,
+        mountedRows: 12,
+        tailRows: 3,
+        viewportRows: 5,
+      }),
+    ).toBe(10);
+  });
+
+  it('does not return a negative clip for underfilled pinned frames', () => {
+    expect(
+      copyRegistryVisibleClip({
+        scrolled: false,
+        clip: 0,
+        mountedRows: 3,
+        tailRows: 0,
+        viewportRows: 5,
+      }),
+    ).toBe(0);
+  });
+});
 
 describe('findCopyHit', () => {
   it('returns null for an empty registry', () => {

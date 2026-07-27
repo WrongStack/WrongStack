@@ -500,7 +500,7 @@ export const Entry = React.memo(function Entry({
                 />
               ) : null}
             </ToolCard>
-            <SageMemoryBlock sageLines={sageLines} />
+            <SageMemoryBlock sageLines={sageLines} toolName={entry.name} />
           </Box>
         );
       }
@@ -591,7 +591,7 @@ export const Entry = React.memo(function Entry({
               />
             ) : null}
           </ToolCard>
-          <SageMemoryBlock sageLines={sageLines} />
+          <SageMemoryBlock sageLines={sageLines} toolName={entry.name} />
         </Box>
       );
     }
@@ -886,7 +886,13 @@ export const Entry = React.memo(function Entry({
  * Compact magenta-bordered panel rendering SAGE memory-injection lines
  * appended to a tool result. Renders nothing when `sageLines` is empty.
  */
-function SageMemoryBlock({ sageLines }: { sageLines: string[] }): React.ReactElement | null {
+function SageMemoryBlock({
+  sageLines,
+  toolName,
+}: {
+  sageLines: string[];
+  toolName: string;
+}): React.ReactElement | null {
   const memoryLines = sageLines.slice(1);
   if (memoryLines.length === 0) return null;
   return (
@@ -900,7 +906,7 @@ function SageMemoryBlock({ sageLines }: { sageLines: string[] }): React.ReactEle
     >
       <Box flexDirection="row">
         <Text bold color={theme.accent}>
-          {'🧠 SAGE MEMORY INJECTED · SYSTEM CONTEXT  '}
+          {`🧠 SAGE MEMORY INJECTED · ${toolName}  `}
         </Text>
         <Text
           dimColor

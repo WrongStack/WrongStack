@@ -160,6 +160,42 @@ export interface SessionEventMap {
     /** True when the request fits the window after trimming (expected: always). */
     withinBudget: boolean;
   };
+  /**
+   * Fired when compaction trims further toward the active mode's targetLoad.
+   * Unlike emergency_trim, this is policy-driven and may run below the hard
+   * overflow threshold.
+   */
+  'compaction.target_trim': {
+    sessionId?: string | undefined;
+    level: 'warn' | 'soft' | 'hard';
+    /** Target load that the mode requested after compaction. */
+    targetLoad: number;
+    /** Estimated message tokens reclaimed by the trim. */
+    saved: number;
+    /** Content blocks elided or head/tail truncated. */
+    trimmedBlocks: number;
+    /** Whole messages dropped as the final pass. */
+    droppedMessages: number;
+    /** Full-request token estimate after the trim. */
+    tokens: number;
+    /** Fraction of the window occupied after the trim. */
+    load: number;
+    maxContext: number;
+    budget?:
+      | {
+          maxContext: number;
+          inputTokens: number;
+          availableInputTokens: number;
+          remainingInputTokens: number;
+          reservedOutputTokens: number;
+          reservedSafetyTokens: number;
+          load: number;
+          overflowTokens: number;
+        }
+      | undefined;
+    /** True when the request fits the target budget after trimming. */
+    withinBudget: boolean;
+  };
   /** Fired by SessionWriter.writeCheckpoint() after the checkpoint event is appended to JSONL. */
   'checkpoint.written': {
     sessionId?: string | undefined;
@@ -200,6 +236,34 @@ export interface SessionEventMap {
    * derive behavior from it (the REPL owns the actual timer).
    */
   'countdown.tick': { sessionId?: string | undefined; remaining: number };
+  /**
+   * Periodic self-observation sample from `startChronicleHealthMonitor`
+   * (~every 30s per process). Windowed into a `metrics.rollup` event by
+   * rollup-adapter.ts rather than persisted raw — this bus event only
+   * exists so the rollup adapter (and any other in-process listener, e.g.
+   * a live diagnostics panel) can observe it without depending on Chronicle.
+   */
+  'runtime.health.sampled': {
+    sessionId?: string | undefined;
+    uptimeSeconds: number;
+    eventLoop: {
+      utilization: number;
+      activeMs: number;
+      idleMs: number;
+      delayMeanMs: number;
+      delayP95Ms: number;
+      delayMaxMs: number;
+    };
+    cpu: { userMicros: number; systemMicros: number };
+    memory: {
+      rssBytes: number;
+      heapTotalBytes: number;
+      heapUsedBytes: number;
+      externalBytes: number;
+      arrayBuffersBytes: number;
+    };
+    chronicle: unknown;
+  };
   /**
    * Real-time client status event. Emitted by TUI/CLI/WebUI to report current
    * session stats (tool calls, tokens, model, mode, cost). Broadcast immediately

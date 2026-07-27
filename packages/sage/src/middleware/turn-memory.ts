@@ -102,7 +102,25 @@ export function createSageTurnMiddleware(opts: SageTurnMiddlewareOptions): Middl
             const metadataScore =
               (memory.importance * 3 + memory.confidence * 2 + memory.freshness) / 6;
             const relevance = memoryQueryRelevance(memory, query).strength;
-            const score = metadataScore * (metadataWeight + relevance * (1 - metadataWeight));
+            // Proven usefulness and anchors should win turn-context budget the
+            // same way tool-result injection does — otherwise never-used noise
+            // with default scores can crowd out anchored, previously-used facts.
+            const uses = memory.useCount ?? 0;
+            const useBoost = uses > 0 ? Math.min(0.1, 0.04 + uses * 0.015) : 0;
+            const anchorBoost = memory.anchors.length > 0 ? 0.03 : -0.04;
+            const injections = memory.injectionCount ?? 0;
+            const unusedPenalty =
+              injections >= 3 && uses === 0 ? Math.min(0.12, 0.03 + injections * 0.01) : 0;
+            const score = Math.min(
+              1,
+              Math.max(
+                0,
+                metadataScore * (metadataWeight + relevance * (1 - metadataWeight)) +
+                  useBoost +
+                  anchorBoost -
+                  unusedPenalty,
+              ),
+            );
             const accepted = relevance >= 0.62 && score >= minScore;
             if (accepted) seenText.add(textKey);
             return accepted;

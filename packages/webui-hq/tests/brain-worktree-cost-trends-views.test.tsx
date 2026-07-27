@@ -97,7 +97,7 @@ describe('WorktreeView', () => {
 
 describe('CostView', () => {
   beforeEach(() => {
-    useHqStore.setState({ tokenStats: null });
+    useHqStore.setState({ snapshot: null });
   });
 
   it('renders the empty state when no cost data is available', () => {

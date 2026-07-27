@@ -38,3 +38,4 @@ export {
 export { createPromptsPlugin } from '../plugins/prompts-plugin.js';
 export { createSkillsPlugin } from '../plugins/skills-plugin.js';
 export { createSyncPlugin } from '../plugins/sync-plugin.js';
+export { emitReviewIfChanged } from '../plugins/review-claim-registry.js';

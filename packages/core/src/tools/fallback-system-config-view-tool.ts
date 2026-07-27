@@ -1,7 +1,7 @@
 import { AGENT_CATALOG } from '../coordination/agents/index.js';
 import { phaseForRole, resolveSubagentModelTarget } from '../coordination/model-matrix.js';
 import type { JSONSchema, Tool } from '../types/tool.js';
-import type { FallbackManageToolOptions } from './fallback-manage-tools.js';
+import type { FallbackManageToolOptions } from './fallback-manage-tool-options.js';
 import { parseRefInternal } from './fallback-model-ref-parse.js';
 // ── 8. SYSTEM_CONFIG_VIEW ───────────────────────────────────────────────────
 

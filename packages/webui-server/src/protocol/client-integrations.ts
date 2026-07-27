@@ -9,6 +9,7 @@ export const CLIENT_KNOWLEDGE_MESSAGE_TYPES = [
   'chronicle.graph',
   'chronicle.metrics',
   'chronicle.query',
+  'chronicle.status',
   'config.doctor',
   'design.list',
   'design.materialize',

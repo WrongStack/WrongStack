@@ -107,7 +107,7 @@ export function estimateRenderGroupRows(group: RenderGroup, contentWidth: number
       memoryLines.length > 0
         ? 2 +
           estimateTextRows(
-            `🧠 SAGE MEMORY INJECTED · SYSTEM CONTEXT  ${memoryLines.length} ${memoryLines.length === 1 ? 'memory' : 'memories'}`,
+            `🧠 SAGE MEMORY INJECTED · ${entry.name}  ${memoryLines.length} ${memoryLines.length === 1 ? 'memory' : 'memories'}`,
             panelContentWidth,
             MAX_TEXT_ESTIMATE_ROWS,
           ) +

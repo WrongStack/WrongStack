@@ -5,7 +5,9 @@ import { anchorsChanged } from './sqlite-store-anchor-diff.js';
 import { sqliteRowToMemory } from './sqlite-store-codec.js';
 import { importanceFromPriority } from './sqlite-store-legacy.js';
 import {
+  assessRememberQuality,
   clamp01,
+  isNearDuplicateMemory,
   normalizeAnchors,
   normalizeAudience,
   normalizeSources,
@@ -44,12 +46,33 @@ export async function rememberSqliteSage(ctx: RememberSqliteSageContext): Promis
   const anchors = normalizeAnchors(ctx.projectRoot, input.anchors ?? []);
   const audience = normalizeAudience(input.audience);
   const sources = normalizeSources(input.sources ?? [{ type: 'user' }]);
+  const quality = assessRememberQuality({
+    text: normalizedText,
+    kind,
+    anchors,
+    tags,
+    scope,
+  });
+  const requestedImportance = clamp01(input.importance ?? importanceFromPriority(input.priority));
+  const requestedConfidence = clamp01(input.confidence ?? 0.8);
+  // Explicit caller scores (including legacy priority labels) are authoritative.
+  // Soft quality caps only demote *defaulted* scores so unanchored auto-writes
+  // do not outrank anchored knowledge, without fighting intentional critical/high.
+  const importance =
+    input.importance !== undefined || input.priority !== undefined
+      ? requestedImportance
+      : Math.min(requestedImportance, quality.importanceCap);
+  const confidence =
+    input.confidence !== undefined
+      ? requestedConfidence
+      : Math.min(requestedConfidence, quality.confidenceCap);
+  const freshness = clamp01(input.freshness ?? 1);
   const nowIso = ctx.nowIso();
 
   return ctx.runMutation(() => {
     const canonical = normalizeTextKey(normalizedText);
     const audienceKey = audience ? JSON.stringify(audience) : null;
-    const row = ctx
+    const exactRow = ctx
       .stmt(
         `SELECT data FROM memories
            WHERE status IN ('active','stale') AND scope = ? AND canonical_text = ?
@@ -58,10 +81,26 @@ export async function rememberSqliteSage(ctx: RememberSqliteSageContext): Promis
       )
       .get(scope, canonical, audienceKey) as { data: string } | undefined;
 
-    if (row) {
-      const existing = sqliteRowToMemory(row);
+    const existing =
+      (exactRow ? sqliteRowToMemory(exactRow) : undefined) ??
+      findNearDuplicate(ctx, {
+        scope,
+        audienceKey,
+        kind,
+        text: normalizedText,
+        anchors,
+      });
+
+    if (existing) {
+      // Prefer the richer wording when near-dup merge finds a paraphrase, but
+      // keep the exact canonical text when the match was identity-level.
+      const preferIncomingText =
+        !exactRow &&
+        tokenizeCount(normalizedText) > tokenizeCount(existing.text) &&
+        normalizedText.length > existing.text.length;
       const merged: Sage = {
         ...existing,
+        text: preferIncomingText ? normalizedText : existing.text,
         legacyScope: existing.legacyScope,
         tags: [...new Set([...existing.tags, ...tags])],
         anchors: [
@@ -80,23 +119,26 @@ export async function rememberSqliteSage(ctx: RememberSqliteSageContext): Promis
         contradicts: [
           ...new Set([...(existing.contradicts ?? []), ...(input.contradicts ?? [])]),
         ],
-        importance: Math.max(
-          existing.importance,
-          clamp01(input.importance ?? importanceFromPriority(input.priority)),
-        ),
-        confidence: Math.max(existing.confidence, input.confidence ?? 0.8),
-        freshness: Math.max(existing.freshness, input.freshness ?? 1),
+        importance: Math.max(existing.importance, importance),
+        confidence: Math.max(existing.confidence, confidence),
+        freshness: Math.max(existing.freshness, freshness),
         updatedAt: nowIso,
         revision: existing.revision + 1,
       };
       ctx.upsertMemory(merged);
       if (
         anchorsChanged(merged.anchors, existing.anchors) ||
-        merged.confidence !== existing.confidence
+        merged.confidence !== existing.confidence ||
+        merged.text !== existing.text
       ) {
         ctx.syncAnchorEdges(merged);
       }
-      ctx.emit('memory.merged', { memoryId: merged.id, mergedIds: [] });
+      ctx.emit('memory.merged', {
+        memoryId: merged.id,
+        mergedIds: [],
+        nearDuplicate: !exactRow,
+        qualityReasons: quality.reasons,
+      });
       return merged;
     }
 
@@ -112,9 +154,9 @@ export async function rememberSqliteSage(ctx: RememberSqliteSageContext): Promis
       anchors,
       sources,
       audience,
-      importance: clamp01(input.importance ?? importanceFromPriority(input.priority)),
-      confidence: clamp01(input.confidence ?? 0.8),
-      freshness: clamp01(input.freshness ?? 1),
+      importance,
+      confidence,
+      freshness,
       persistence: input.persistence,
       supersedes: input.supersedes,
       contradicts: input.contradicts,
@@ -130,7 +172,56 @@ export async function rememberSqliteSage(ctx: RememberSqliteSageContext): Promis
       persistence: memory.persistence ?? DEFAULT_PERSISTENCE,
       confidence: memory.confidence,
       freshness: memory.freshness,
+      qualityReasons: quality.reasons,
     });
     return memory;
   });
+}
+
+function findNearDuplicate(
+  ctx: Pick<RememberSqliteSageContext, 'stmt'>,
+  opts: {
+    scope: string;
+    audienceKey: string | null;
+    kind: Sage['kind'];
+    text: string;
+    anchors: MemoryAnchor[];
+  },
+): Sage | undefined {
+  // Bound the scan: near-dup is a quality feature, not a full-corpus join.
+  // Order by importance so high-value keepers are preferred when several match.
+  const rows = ctx
+    .stmt(
+      `SELECT data FROM memories
+         WHERE status IN ('active','stale') AND scope = ? AND audience IS ?
+         ORDER BY importance DESC, updated_at DESC
+         LIMIT 64`,
+    )
+    .all(opts.scope, opts.audienceKey) as Array<{ data: string }>;
+
+  let best: { memory: Sage; score: number } | undefined;
+  for (const row of rows) {
+    const candidate = sqliteRowToMemory(row);
+    if (
+      !isNearDuplicateMemory(
+        { text: opts.text, kind: opts.kind, anchors: opts.anchors },
+        { text: candidate.text, kind: candidate.kind, anchors: candidate.anchors },
+      )
+    ) {
+      continue;
+    }
+    // Prefer same-kind already enforced; score by importance then recency.
+    const score = candidate.importance * 2 + candidate.confidence + candidate.freshness;
+    if (!best || score > best.score) best = { memory: candidate, score };
+  }
+  return best?.memory;
+}
+
+function tokenizeCount(text: string): number {
+  // Local count avoids importing tokenize solely for length — keep merge hot path light.
+  return text
+    .normalize('NFKC')
+    .toLowerCase()
+    .split(/[^\p{L}\p{N}_.-]+/u)
+    .filter((term) => term.length >= 3).length;
 }

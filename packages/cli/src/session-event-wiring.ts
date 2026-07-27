@@ -8,14 +8,31 @@
  * and enable focused testing.
  */
 
-import { ChronicleJournal, createChronicleContext, resolveChronicleRuntimeLocation, startChronicleFileObserver, startChronicleHealthMonitor, wireProviderAttemptsToChronicle, wireProcessesToChronicle, wireDecisionsToChronicle, wireDomainEventsToChronicle, wireProviderStreamsToChronicle, wireRollupsToChronicle, wireToolsToChronicle } from '@wrongstack/core/chronicle';
-import { DefaultSecretScrubber } from '@wrongstack/core/security';
-import { createSessionEventBridge, resolveSessionLoggingConfig } from '@wrongstack/core/storage';
+import * as path from 'node:path';
+import type {
+  ChronicleEventJournalHandle,
+  ChronicleEventSink,
+  ChronicleFileObserver,
+} from '@wrongstack/core/chronicle';
+import {
+  createChronicleContext,
+  createChronicleEventJournal,
+  startChronicleFileObserver,
+  startChronicleHealthMonitor,
+  wireDecisionsToChronicle,
+  wireDomainEventsToChronicle,
+  wireProcessesToChronicle,
+  wireProviderAttemptsToChronicle,
+  wireProviderStreamsToChronicle,
+  wireRollupsToChronicle,
+  wireToolsToChronicle,
+} from '@wrongstack/core/chronicle';
 import { recordFileAction } from '@wrongstack/core/coordination';
-import { startNetworkTelemetryMonitor } from '@wrongstack/core/observability';
-import type { ChronicleFileObserver } from '@wrongstack/core/chronicle';
 import type { EventBus } from '@wrongstack/core/kernel';
+import { startNetworkTelemetryMonitor } from '@wrongstack/core/observability';
+import { DefaultSecretScrubber } from '@wrongstack/core/security';
 import type { SessionEventBridge } from '@wrongstack/core/storage';
+import { createSessionEventBridge, resolveSessionLoggingConfig } from '@wrongstack/core/storage';
 
 // ── Types ─────────────────────────────────────────────────────────────────
 
@@ -53,13 +70,13 @@ export interface WireSessionEventsResult {
     sessionId: string | undefined,
     event: Parameters<SessionEventBridge['append']>[0],
   ) => void;
-  chronicleJournal?: ChronicleJournal | undefined;
+  chronicleJournal?: ChronicleEventSink | undefined;
   disposeChronicle: () => Promise<void>;
 }
 
 // ── Chronicle retention ───────────────────────────────────────────────────
 
-const DEFAULT_CHRONICLE_RETENTION_DAYS = 30;
+const DEFAULT_CHRONICLE_RETENTION_DAYS = 7;
 const MIN_CHRONICLE_RETENTION_DAYS = 7;
 
 /** `0` disables auto-purge; positive values are floored at 7 days so a
@@ -83,8 +100,11 @@ export function wireSessionEvents(deps: WireSessionEventsDeps): WireSessionEvent
   const sessionConfig = resolveSessionLoggingConfig(
     config as never as Parameters<typeof resolveSessionLoggingConfig>[0],
   );
-  const sessionWriter: () => import('@wrongstack/core/types').SessionWriter | null | undefined = () =>
-    (context as Record<string, unknown>).session as import('@wrongstack/core/types').SessionWriter | undefined ?? session as unknown as import('@wrongstack/core/types').SessionWriter;
+  const sessionWriter: () => import('@wrongstack/core/types').SessionWriter | null | undefined =
+    () =>
+      ((context as Record<string, unknown>).session as
+        | import('@wrongstack/core/types').SessionWriter
+        | undefined) ?? (session as unknown as import('@wrongstack/core/types').SessionWriter);
   const sessionBridge: SessionEventBridge = createSessionEventBridge(
     sessionWriter,
     sessionConfig.auditLevel,
@@ -110,28 +130,36 @@ export function wireSessionEvents(deps: WireSessionEventsDeps): WireSessionEvent
   const errorRing: ErrorEntry[] = [];
 
   // ── Chronicle durable provider-attempt journal ─────────────────────────
-  let chronicleJournal: ChronicleJournal | undefined;
+  let chronicleJournal: ChronicleEventSink | undefined;
+  let chronicleHandle: ChronicleEventJournalHandle | undefined;
   let unsubscribeChronicle: (() => void) | undefined;
   let chronicleFileObserver: Promise<ChronicleFileObserver> | undefined;
   let stopChronicleHealth: (() => void) | undefined;
   let stopNetworkTelemetry: (() => void) | undefined;
   if (deps.events && wpaths.projectDir) {
-    const location = resolveChronicleRuntimeLocation({
-      globalRoot: wpaths.globalRoot,
-      projectId: wpaths.projectHash ?? wpaths.projectSlug,
-      projectDir: wpaths.projectDir,
+    const retentionDays = resolveChronicleRetentionDays(config);
+    chronicleHandle = createChronicleEventJournal({
+      projectRoot,
+      retentionDays,
+      projectPaths: {
+        globalRoot: wpaths.globalRoot,
+        projectId: wpaths.projectHash ?? wpaths.projectSlug,
+        projectDir: wpaths.projectDir,
+        workspaceId: wpaths.projectSlug,
+      },
     });
-    chronicleJournal = new ChronicleJournal({
-      filePath: location.journalPath,
-      retentionDays: resolveChronicleRetentionDays(config),
-    });
-    const chronicleContext = createChronicleContext({
-      installationId: location.installationId,
-      machineId: location.machineId,
-      projectId: location.projectId,
-      workspaceId: wpaths.projectSlug,
-      sessionId: currentSessionId(),
-    }, (context as { traceId?: string | undefined }).traceId);
+    chronicleJournal = chronicleHandle.journal;
+    const location = chronicleHandle.identity;
+    const chronicleContext = createChronicleContext(
+      {
+        installationId: location.installationId,
+        machineId: location.machineId,
+        projectId: location.projectId,
+        workspaceId: wpaths.projectSlug,
+        sessionId: currentSessionId(),
+      },
+      (context as { traceId?: string | undefined }).traceId,
+    );
     const onChroniclePersistError = (error: unknown): void => {
       const message = error instanceof Error ? error.message : String(error);
       errorRing.push({
@@ -154,7 +182,10 @@ export function wireSessionEvents(deps: WireSessionEventsDeps): WireSessionEvent
     const unsubscribeStreamChronicle = wireProviderStreamsToChronicle({
       events: deps.events,
       journal: chronicleJournal,
-      context: () => ({ ...chronicleContext, scope: { ...chronicleContext.scope, sessionId: currentSessionId() } }),
+      context: () => ({
+        ...chronicleContext,
+        scope: { ...chronicleContext.scope, sessionId: currentSessionId() },
+      }),
       onPersistError: onChroniclePersistError,
     });
     const unsubscribeToolChronicle = wireToolsToChronicle({
@@ -180,18 +211,30 @@ export function wireSessionEvents(deps: WireSessionEventsDeps): WireSessionEvent
     const unsubscribeDecisionChronicle = wireDecisionsToChronicle({
       events: deps.events,
       journal: chronicleJournal,
-      context: () => ({ ...chronicleContext, scope: { ...chronicleContext.scope, sessionId: currentSessionId() } }),
+      context: () => ({
+        ...chronicleContext,
+        scope: { ...chronicleContext.scope, sessionId: currentSessionId() },
+      }),
       onPersistError: onChroniclePersistError,
     });
     const unsubscribeDomainChronicle = wireDomainEventsToChronicle({
       events: deps.events,
       journal: chronicleJournal,
-      context: () => ({ ...chronicleContext, scope: { ...chronicleContext.scope, sessionId: currentSessionId() } }),
+      context: () => ({
+        ...chronicleContext,
+        scope: { ...chronicleContext.scope, sessionId: currentSessionId() },
+      }),
       onPersistError: onChroniclePersistError,
     });
-    const unsubscribeRollups = wireRollupsToChronicle({ events: deps.events, journal: chronicleJournal,
-      context: () => ({ ...chronicleContext, scope: { ...chronicleContext.scope, sessionId: currentSessionId() } }),
-      onPersistError: onChroniclePersistError });
+    const unsubscribeRollups = wireRollupsToChronicle({
+      events: deps.events,
+      journal: chronicleJournal,
+      context: () => ({
+        ...chronicleContext,
+        scope: { ...chronicleContext.scope, sessionId: currentSessionId() },
+      }),
+      onPersistError: onChroniclePersistError,
+    });
     unsubscribeChronicle = () => {
       unsubscribeProviderChronicle();
       unsubscribeStreamChronicle();
@@ -201,31 +244,34 @@ export function wireSessionEvents(deps: WireSessionEventsDeps): WireSessionEvent
       unsubscribeDomainChronicle();
       unsubscribeRollups();
     };
-    chronicleFileObserver = startChronicleFileObserver({
-      projectRoot,
-      journal: chronicleJournal,
+    if (!chronicleHandle.serverBacked) {
+      chronicleFileObserver = startChronicleFileObserver({
+        projectRoot,
+        journal: chronicleJournal,
+        events: deps.events,
+        excludedPaths: [path.dirname(location.journalPath)],
+        context: () => ({
+          ...chronicleContext,
+          scope: { ...chronicleContext.scope, sessionId: currentSessionId() },
+        }),
+        onError: onChroniclePersistError,
+      });
+      // The observer is optional on filesystems where recursive fs.watch is not
+      // available. The error is already surfaced through the Chronicle ring.
+      void chronicleFileObserver.catch(() => {});
+    }
+    stopChronicleHealth = startChronicleHealthMonitor({
       events: deps.events,
+      journal: chronicleJournal,
       context: () => ({
         ...chronicleContext,
         scope: { ...chronicleContext.scope, sessionId: currentSessionId() },
       }),
-      onError: onChroniclePersistError,
-    });
-    // The observer is optional on filesystems where recursive fs.watch is not
-    // available. The error is already surfaced through the Chronicle ring.
-    void chronicleFileObserver.catch(() => {});
-    stopChronicleHealth = startChronicleHealthMonitor({
-      journal: chronicleJournal,
-      context: () => ({ ...chronicleContext, scope: { ...chronicleContext.scope, sessionId: currentSessionId() } }),
       onPersistError: onChroniclePersistError,
     });
     stopNetworkTelemetry = startNetworkTelemetryMonitor();
   }
-  evOn('error', (e: {
-    sessionId?: string | undefined;
-    phase: string;
-    err: unknown;
-  }) => {
+  evOn('error', (e: { sessionId?: string | undefined; phase: string; err: unknown }) => {
     const err = e.err as unknown;
     const code =
       err &&
@@ -242,65 +288,68 @@ export function wireSessionEvents(deps: WireSessionEventsDeps): WireSessionEvent
   });
 
   // ── Tool lifecycle ──────────────────────────────────────────────────────
-  evOn('tool.started', (e: {
-    sessionId?: string | undefined;
-    name: string;
-    id: string;
-    input: string;
-  }) => {
-    appendSessionEvent(e.sessionId, {
-      type: 'tool_call_start',
-      ts: new Date().toISOString(),
-      name: e.name,
-      id: e.id,
-      input: e.input,
-    });
-  });
+  evOn(
+    'tool.started',
+    (e: { sessionId?: string | undefined; name: string; id: string; input: string }) => {
+      appendSessionEvent(e.sessionId, {
+        type: 'tool_call_start',
+        ts: new Date().toISOString(),
+        name: e.name,
+        id: e.id,
+        input: e.input,
+      });
+    },
+  );
 
-  evOn('tool.executed', (e: {
-    sessionId?: string | undefined;
-    name: string;
-    id?: string | undefined;
-    durationMs?: number | undefined;
-    outputBytes?: number | undefined;
-    outputTokens?: number | undefined;
-    outputLines?: number | undefined;
-    ok?: boolean | undefined;
-    input?: Record<string, unknown>;
-  }) => {
-    appendSessionEvent(e.sessionId, {
-      type: 'tool_call_end',
-      ts: new Date().toISOString(),
-      name: e.name,
-      id: e.id ?? '',
-      durationMs: e.durationMs ?? 0,
-      outputSize: e.outputBytes ?? 0,
-      ok: e.ok,
-      outputBytes: e.outputBytes ?? 0,
-      outputTokens: e.outputTokens,
-      outputLines: e.outputLines,
-    });
+  evOn(
+    'tool.executed',
+    (e: {
+      sessionId?: string | undefined;
+      name: string;
+      id?: string | undefined;
+      durationMs?: number | undefined;
+      outputBytes?: number | undefined;
+      outputTokens?: number | undefined;
+      outputLines?: number | undefined;
+      ok?: boolean | undefined;
+      input?: Record<string, unknown>;
+    }) => {
+      appendSessionEvent(e.sessionId, {
+        type: 'tool_call_end',
+        ts: new Date().toISOString(),
+        name: e.name,
+        id: e.id ?? '',
+        durationMs: e.durationMs ?? 0,
+        outputSize: e.outputBytes ?? 0,
+        ok: e.ok,
+        outputBytes: e.outputBytes ?? 0,
+        outputTokens: e.outputTokens,
+        outputLines: e.outputLines,
+      });
 
-    // ── File-author tracking ──────────────────────────────────────────────
-    if (
-      e.ok &&
-      (e.name === 'write' || e.name === 'edit' || e.name === 'replace' || e.name === 'patch')
-    ) {
-      const filePath = (e.input as Record<string, unknown>)?.path as string | undefined;
-      if (filePath) {
-        void recordFileAction(
-          { storageDir: `${wpaths.globalRoot}/projects/${wpaths.projectSlug}`, projectRoot },
-          {
-            filePath,
-            action: e.name === 'write' ? 'create' : 'edit',
-            agentId: 'leader',
-            agentName: 'Leader',
-            sessionId: currentSessionId(),
-          },
-        ).catch(() => { /* best-effort */ });
+      // ── File-author tracking ──────────────────────────────────────────────
+      if (
+        e.ok &&
+        (e.name === 'write' || e.name === 'edit' || e.name === 'replace' || e.name === 'patch')
+      ) {
+        const filePath = (e.input as Record<string, unknown>)?.path as string | undefined;
+        if (filePath) {
+          void recordFileAction(
+            { storageDir: `${wpaths.globalRoot}/projects/${wpaths.projectSlug}`, projectRoot },
+            {
+              filePath,
+              action: e.name === 'write' ? 'create' : 'edit',
+              agentId: 'leader',
+              agentName: 'Leader',
+              sessionId: currentSessionId(),
+            },
+          ).catch(() => {
+            /* best-effort */
+          });
+        }
       }
-    }
-  });
+    },
+  );
 
   // ── Delegate lifecycle (non-TUI only) ────────────────────────────────────
   if (!deps.tuiOwnsScreen && deps.renderer?.writeInfo) {
@@ -315,57 +364,70 @@ export function wireSessionEvents(deps: WireSessionEventsDeps): WireSessionEvent
   }
 
   // ── Tool progress forwarding ─────────────────────────────────────────────
-  evOn('tool.progress', (e: {
-    sessionId?: string | undefined;
-    name: string;
-    id: string;
-    event: Record<string, unknown>;
-  }) => {
-    appendSessionEvent(e.sessionId, {
-      type: 'tool_progress',
-      ts: new Date().toISOString(),
-      name: e.name,
-      id: e.id,
-      event: { type: String(e.event.type ?? ''), text: String(e.event.text ?? ''), ...(e.event.data ? { data: e.event.data } : {}) } as never,
-    });
-  });
+  evOn(
+    'tool.progress',
+    (e: {
+      sessionId?: string | undefined;
+      name: string;
+      id: string;
+      event: Record<string, unknown>;
+    }) => {
+      appendSessionEvent(e.sessionId, {
+        type: 'tool_progress',
+        ts: new Date().toISOString(),
+        name: e.name,
+        id: e.id,
+        event: {
+          type: String(e.event.type ?? ''),
+          text: String(e.event.text ?? ''),
+          ...(e.event.data ? { data: e.event.data } : {}),
+        } as never,
+      });
+    },
+  );
 
   // ── Provider events ─────────────────────────────────────────────────────
-  evOn('provider.retry', (e: {
-    sessionId?: string | undefined;
-    providerId: string;
-    attempt: number;
-    delayMs: number;
-    status: number;
-    description: string;
-  }) => {
-    appendSessionEvent(e.sessionId, {
-      type: 'provider_retry',
-      ts: new Date().toISOString(),
-      providerId: e.providerId,
-      attempt: e.attempt,
-      delayMs: e.delayMs,
-      status: e.status,
-      description: e.description,
-    });
-  });
+  evOn(
+    'provider.retry',
+    (e: {
+      sessionId?: string | undefined;
+      providerId: string;
+      attempt: number;
+      delayMs: number;
+      status: number;
+      description: string;
+    }) => {
+      appendSessionEvent(e.sessionId, {
+        type: 'provider_retry',
+        ts: new Date().toISOString(),
+        providerId: e.providerId,
+        attempt: e.attempt,
+        delayMs: e.delayMs,
+        status: e.status,
+        description: e.description,
+      });
+    },
+  );
 
-  evOn('provider.error', (e: {
-    sessionId?: string | undefined;
-    providerId: string;
-    status: number;
-    description: string;
-    retryable?: boolean;
-  }) => {
-    appendSessionEvent(e.sessionId, {
-      type: 'provider_error',
-      ts: new Date().toISOString(),
-      providerId: e.providerId,
-      status: e.status,
-      description: e.description,
-      retryable: e.retryable ?? false,
-    });
-  });
+  evOn(
+    'provider.error',
+    (e: {
+      sessionId?: string | undefined;
+      providerId: string;
+      status: number;
+      description: string;
+      retryable?: boolean;
+    }) => {
+      appendSessionEvent(e.sessionId, {
+        type: 'provider_error',
+        ts: new Date().toISOString(),
+        providerId: e.providerId,
+        status: e.status,
+        description: e.description,
+        retryable: e.retryable ?? false,
+      });
+    },
+  );
 
   const disposeChronicle = async (): Promise<void> => {
     stopChronicleHealth?.();
@@ -378,7 +440,7 @@ export function wireSessionEvents(deps: WireSessionEventsDeps): WireSessionEvent
         // Start failures were already recorded by onChroniclePersistError.
       }
     }
-    await chronicleJournal?.flush();
+    await chronicleHandle?.dispose();
   };
 
   return { errorRing, sessionBridge, appendSessionEvent, chronicleJournal, disposeChronicle };

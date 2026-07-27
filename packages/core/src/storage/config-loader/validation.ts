@@ -1,7 +1,8 @@
 import {
   DEFAULT_CONTEXT_WINDOW_MODE_ID,
-  isContextWindowModeId,
+  isContextWindowModeSelectionId,
   listContextWindowModes,
+  normalizeContextWindowModeId,
 } from '../../types/context-window.js';
 import { ConfigError, ERROR_CODES } from '../../types/errors.js';
 import type { PartialConfig } from './env-overrides.js';
@@ -49,7 +50,7 @@ export function validateConfigBehavior(cfg: PartialConfig, logWarn: LogWarn): vo
       context: { warn: c.warnThreshold, soft: c.softThreshold, hard: c.hardThreshold },
     });
   }
-  if (c.mode !== undefined && !isContextWindowModeId(c.mode)) {
+  if (c.mode !== undefined && !isContextWindowModeSelectionId(c.mode)) {
     const known = listContextWindowModes()
       .map((m) => m.id)
       .join(', ');
@@ -58,6 +59,8 @@ export function validateConfigBehavior(cfg: PartialConfig, logWarn: LogWarn): vo
       { event: 'config.unknown_context_mode', mode: c.mode, known },
     );
     c.mode = DEFAULT_CONTEXT_WINDOW_MODE_ID;
+  } else if (c.mode !== undefined) {
+    c.mode = normalizeContextWindowModeId(c.mode) ?? DEFAULT_CONTEXT_WINDOW_MODE_ID;
   }
 }
 

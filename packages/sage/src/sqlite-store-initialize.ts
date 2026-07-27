@@ -3,7 +3,7 @@ import * as path from 'node:path';
 import type { DatabaseSync } from 'node:sqlite';
 import { ensureDir, withFileLock } from '@wrongstack/core/utils';
 
-import { resolveSagePaths } from './paths.js';
+import type { resolveSagePaths } from './paths.js';
 import { sqliteRowToCandidate, sqliteRowToMemory } from './sqlite-store-codec.js';
 import { loadDatabaseSync } from './sqlite-store-loader.js';
 import { initSchema, SQLITE_SCHEMA_VERSION } from './sqlite-store-schema.js';

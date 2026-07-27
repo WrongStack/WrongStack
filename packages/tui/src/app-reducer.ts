@@ -1,4 +1,5 @@
-import type { Action, State } from './app-state.js';
+import type { Action } from './app-action-type.js';
+import type { State } from './app-state.js';
 // Reducer — pure state transformation. Types are in app-state.ts.
 // This file has NO React or Ink dependencies.
 import { reduceFleetState } from './reducers/fleet.js';
@@ -16,7 +17,6 @@ import {
 
 // Re-export types from app-state.ts for backward compatibility.
 export type {
-  Action,
   DraftEntry,
   FleetEntry,
   GoalSummary,
@@ -26,6 +26,7 @@ export type {
   SlashCommandMatch,
   State,
 } from './app-state.js';
+export type { Action } from './app-action-type.js';
 // Re-export extracted functions for backward compatibility.
 // Tests may import directly from app-reducer.js rather than reducers/helpers.js.
 export { firstSelectable, pruneToolInput, skipDivider } from './reducers/helpers.js';

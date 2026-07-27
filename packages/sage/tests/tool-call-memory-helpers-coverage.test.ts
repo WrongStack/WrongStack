@@ -34,7 +34,10 @@ describe('tool-call memory parsing helpers', () => {
     expect(coverage.extractTrigger('read', { path: ' src/a.ts ' })).toMatchObject({
       trigger: 'read',
       paths: ['src/a.ts'],
+      queryText: expect.stringContaining('a.ts'),
     });
+    expect(coverage.enrichPathQuery(['packages/auth/session.ts'])).toContain('session');
+    expect(coverage.enrichPathQuery(['packages/auth/session.ts'])).toContain('auth');
     expect(coverage.extractTrigger('tree', {})).toMatchObject({ paths: ['.'] });
     expect(coverage.extractTrigger('grep', { pattern: 'needle', glob: '*.ts' })).toMatchObject({
       trigger: 'grep',
@@ -48,12 +51,11 @@ describe('tool-call memory parsing helpers', () => {
       trigger: 'codebase_search',
       queryText: 'symbol',
     });
-    expect(coverage.extractTrigger('bash', { command: 'pnpm test' })).toMatchObject({
-      trigger: 'bash',
-    });
-    expect(coverage.extractTrigger('exec', { cmd: 'pnpm lint' })).toMatchObject({
-      trigger: 'bash',
-    });
+    // bash is intentionally excluded from injection triggers — memory should
+    // not be shown for command-execution tools.
+    expect(coverage.extractTrigger('bash', { command: 'pnpm test' })).toBeUndefined();
+    // exec is also excluded — pure command output doesn't need memory context.
+    expect(coverage.extractTrigger('exec', { cmd: 'pnpm lint' })).toBeUndefined();
     expect(coverage.extractTrigger('write', { path: 'a.ts' })).toMatchObject({
       trigger: 'write',
     });
@@ -211,7 +213,15 @@ describe('tool-call memory selection and scoring helpers', () => {
     ).toBe(0);
     expect(
       coverage.contextualInjectionScore(sage('used', { injectionCount: 3, useCount: 1 }), 0.8),
-    ).toBeGreaterThan(0);
+    ).toBeGreaterThan(
+      coverage.contextualInjectionScore(sage('unused-default', { injectionCount: 3 }), 0.8),
+    );
+    expect(
+      coverage.contextualInjectionScore(
+        sage('anchored', { anchors: [{ type: 'file', path: 'a.ts' }] }),
+        0.8,
+      ),
+    ).toBeGreaterThan(coverage.contextualInjectionScore(sage('unanchored'), 0.8));
     expect(
       coverage.contextualInjectionScore(sage('unused-default', { injectionCount: 3 }), 0.8),
     ).toBeGreaterThan(0);

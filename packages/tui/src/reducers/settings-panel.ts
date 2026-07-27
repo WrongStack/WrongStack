@@ -1,4 +1,5 @@
-import type { Action, State } from '../app-state.js';
+import type { Action } from '../app-action-type.js';
+import type { State } from '../app-state.js';
 import { SETTINGS_FIELD_COUNT } from '../components/settings-picker.js';
 import { closePanels } from './helpers.js';
 
@@ -144,4 +145,3 @@ export function reduceSettingsPanel(state: State, action: SettingsPanelAction): 
       return state;
   }
 }
-

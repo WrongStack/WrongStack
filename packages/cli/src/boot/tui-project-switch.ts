@@ -3,19 +3,22 @@
  *
  * Phase B step 2. Re-roots the live TUI process to a new project: new
  * paths, session store, writer, rebuilt system prompt, old session
- * close, recovery lock re-point, project.switched event emission.
+ * close and project.switched event emission.
  *
  * All mutable state mutations go through `state.*` (TuiRuntimeState).
  * The caller syncs locals back after the TUI branch ends.
  */
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
-import type { SkillLoader } from '@wrongstack/core/types';
-import { type Agent, type Context, DefaultSystemPromptBuilder } from '@wrongstack/core/agent';
-import type { Config, MemoryPort, ModeStore } from '@wrongstack/core/types';
-import { setQueuedMessagesSnapshot } from '@wrongstack/core/agent';
-import { DefaultSessionStore, RecoveryLock } from '@wrongstack/core/storage';
+import {
+  type Agent,
+  type Context,
+  DefaultSystemPromptBuilder,
+  setQueuedMessagesSnapshot,
+} from '@wrongstack/core/agent';
 import type { EventBus } from '@wrongstack/core/kernel';
+import { DefaultSessionStore } from '@wrongstack/core/storage';
+import type { Config, MemoryPort, ModeStore, SkillLoader } from '@wrongstack/core/types';
 import { resolveWstackPaths, sessionScopedPath } from '@wrongstack/core/utils';
 import type { TuiRuntimeState } from './tui-runtime-state.js';
 
@@ -45,7 +48,7 @@ export interface ProjectSwitchContext {
  *
  * Returns `null` on success, or an error message string on failure.
  * Mutates `state.*` (projectRoot, wpaths, activeSessionStore,
- * activeRecoveryLock, detachActiveTodosCheckpoint).
+ * detachActiveTodosCheckpoint).
  */
 export async function switchProjectInPlace(
   ctx: ProjectSwitchContext,
@@ -72,7 +75,6 @@ export async function switchProjectInPlace(
 
   const oldWriter = context.session;
   const oldUsage = tokenCounter.total();
-  const oldRecoveryLock = state.activeRecoveryLock;
   const oldProjectRoot = state.projectRoot;
   const nextWpaths = resolveWstackPaths({
     projectRoot: resolved,
@@ -89,16 +91,38 @@ export async function switchProjectInPlace(
     model: context.model,
     provider: (context.provider as { id?: string }).id ?? config.provider,
   });
+  const previousCwd = process.cwd();
+  try {
+    process.chdir(resolved);
+    process.chdir(previousCwd);
+  } catch (err) {
+    await nextWriter.close().catch(() => undefined);
+    await nextSessionStore.delete(nextWriter.id).catch(() => undefined);
+    return `Cannot switch: ${err instanceof Error ? err.message : String(err)}`;
+  }
+  if (!state.activateSessionIdentity) {
+    await nextWriter.close().catch(() => undefined);
+    await nextSessionStore.delete(nextWriter.id).catch(() => undefined);
+    return 'Cannot switch: session ownership registry is unavailable.';
+  }
+  try {
+    await state.activateSessionIdentity(nextWriter.id, {
+      projectSlug: nextWpaths.projectSlug,
+      projectRoot: resolved,
+      projectName: displayName || path.basename(resolved),
+      workingDir: resolved,
+    });
+  } catch (err) {
+    await nextWriter.close().catch(() => undefined);
+    await nextSessionStore.delete(nextWriter.id).catch(() => undefined);
+    return `Cannot switch: ${err instanceof Error ? err.message : String(err)}`;
+  }
 
-  state.detachActiveTodosCheckpoint?.();
+  await Promise.resolve(state.detachActiveTodosCheckpoint?.()).catch(() => undefined);
   process.chdir(resolved);
   state.projectRoot = resolved;
   state.wpaths = nextWpaths;
   state.activeSessionStore = nextSessionStore;
-  state.activeRecoveryLock = new RecoveryLock({
-    dir: nextWpaths.projectSessions,
-    sessionStore: nextSessionStore,
-  });
 
   context.cwd = resolved;
   context.projectRoot = resolved;
@@ -117,13 +141,17 @@ export async function switchProjectInPlace(
     'task.path',
     sessionScopedPath(nextWpaths.projectSessions, nextWriter.id, '.tasks.json'),
   );
-  state.detachActiveTodosCheckpoint = attachTodosCheckpoint(
-    context.state,
-    sessionScopedPath(nextWpaths.projectSessions, nextWriter.id, '.todos.json'),
-    nextWriter.id,
-    events,
-    context.traceId,
-  );
+  try {
+    state.detachActiveTodosCheckpoint = attachTodosCheckpoint(
+      context.state,
+      sessionScopedPath(nextWpaths.projectSessions, nextWriter.id, '.todos.json'),
+      nextWriter.id,
+      events,
+      context.traceId,
+    );
+  } catch {
+    state.detachActiveTodosCheckpoint = undefined;
+  }
   setQueuedMessagesSnapshot(context, []);
 
   try {
@@ -174,21 +202,6 @@ export async function switchProjectInPlace(
       }),
     );
   }
-  await oldRecoveryLock.clear().catch(() => undefined);
-
-  try {
-    await state.activeRecoveryLock.write(nextWriter.id);
-  } catch (err) {
-    console.error(
-      JSON.stringify({
-        level: 'error',
-        event: 'execution.project_switch_recovery_lock_failed',
-        message: err instanceof Error ? err.message : String(err),
-        timestamp: new Date().toISOString(),
-      }),
-    );
-  }
-
   const emitUntyped = events.emit as never as (event: string, payload: unknown) => void;
   emitUntyped('project.switched', { from: oldProjectRoot, to: resolved, name: displayName });
   return null;

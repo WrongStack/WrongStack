@@ -38,3 +38,19 @@ export function isoFromTimestamp(value: number | undefined, fallback: string): s
 export function nowIso(): string {
   return new Date().toISOString();
 }
+
+export function uniqueIdFromSet(usedIds: Set<string>, requested: string): string {
+  const base = requested || 'item';
+  let candidate = base;
+  let suffix = 2;
+  while (usedIds.has(candidate)) {
+    candidate = `${base}-${suffix}`;
+    suffix += 1;
+  }
+  usedIds.add(candidate);
+  return candidate;
+}
+
+export function uniqueStrings(values: readonly string[]): string[] {
+  return [...new Set(values.filter(Boolean))];
+}

@@ -110,9 +110,11 @@ export function setupSage(deps: SageWiringDeps): () => Promise<void> {
     }
     await memoryStore.hygiene?.({
       retentionDays: cfg?.hygiene?.retentionDays,
+      sessionRetentionDays: cfg?.hygiene?.sessionRetentionDays,
       archiveLowConfidenceAfterDays: cfg?.hygiene?.archiveLowConfidenceAfterDays,
       archiveUnusedAfterDays: cfg?.hygiene?.archiveUnusedAfterDays,
       unusedMinInjections: cfg?.hygiene?.unusedMinInjections,
+      purgeDeletedAfterDays: cfg?.hygiene?.purgeDeletedAfterDays,
     });
     lastAutoHygieneAt = now;
   };

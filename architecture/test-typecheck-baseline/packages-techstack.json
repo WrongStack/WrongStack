@@ -2,10 +2,5 @@
   "schemaVersion": 1,
   "project": "packages/techstack",
   "hashAlgorithm": "sha256-64bit",
-  "diagnostics": {
-    "b52d4915b3c8b288": 1,
-    "2edb53842a20e17d": 1,
-    "2772b516c931f8d0": 5,
-    "8d8cedd6d1662ffa": 7
-  }
+  "diagnostics": {}
 }

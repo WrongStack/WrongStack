@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 // vi.mock is hoisted, so factories must use inline definitions (no top-level variable refs)
 vi.mock('@wrongstack/kanban', () => {
@@ -95,7 +95,7 @@ describe('handleKanbanDetailAction', () => {
         boardId: 'b1',
         taskId: 't1',
         metricName: 'Speed',
-        metricStatus: 'on_track',
+        metricStatus: 'pending',
         metricTarget: '100',
         metricCurrent: '50',
         metricUnit: '%',
@@ -122,7 +122,7 @@ describe('handleKanbanDetailAction', () => {
         taskId: 't1',
         metricId: 'm1',
         metricName: 'Quality',
-        metricStatus: 'at_risk',
+        metricStatus: 'missed',
         metricTarget: '95',
         metricCurrent: '80',
         metricUnit: '%',

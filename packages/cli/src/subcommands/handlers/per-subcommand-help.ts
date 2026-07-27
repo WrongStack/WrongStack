@@ -185,6 +185,9 @@
 import { color } from '@wrongstack/core/utils';
 import type { TerminalRenderer } from '../../renderer.js';
 import { deepHelpTable, helpTable } from './per-subcommand-help-data.js';
+import type { PerSubcommandHelp } from './per-subcommand-help-types.js';
+
+export type { PerSubcommandHelp } from './per-subcommand-help-types.js';
 
 /**
  * One entry per subcommand the user can ask `--help` for. Each
@@ -199,63 +202,6 @@ import { deepHelpTable, helpTable } from './per-subcommand-help-data.js';
  * `wstack <subcommand> <sub-sub> --help` for the focused help of
  * any deeper level.
  */
-export interface PerSubcommandHelp {
-  /** The subcommand name as it appears in argv (e.g. 'init', 'mcp'). */
-  name: string;
-  /** Display title for the help block (e.g. 'wstack init — …'). */
-  title: string;
-  /** One-line description of what the command does. */
-  description: string;
-  /** Usage line — `wstack <subcommand> [args]`. */
-  usage: string;
-  /** Optional subcommand table. Empty for subcommands that take no subargs. */
-  subcommands?: ReadonlyArray<{ name: string; description: string }>;
-  /**
-   * Optional "see also" pointer — the most common adjacent
-   * subcommand the user will want to read about. Renders as
-   * a single dim line at the bottom of the help block.
-   */
-  seeAlso?: string;
-  /**
-   * Optional custom body renderer. When set, the standard
-   * title / description / usage / subcommands / seeAlso layout
-   * is **replaced** by whatever this function returns. The
-   * caller is responsible for the full layout — including
-   * the title line, the usage line, and any closing "see
-   * also" pointer.
-   *
-   * **See the top-of-file JSDoc for the full "delegation pattern"
-   * documentation** (when to use, when NOT to use, a worked
-   * example for adding a new delegated entry, and the
-   * single-source-of-truth contract). The worked example walks
-   * through creating a hypothetical `plugin-official-help.ts`
-   * module and wiring it into the `deepHelpTable` via
-   * `customBody`.
-   *
-   * **For the on-ramp guide, see `docs/help-modules.md`**. It
-   * walks through the full pattern (when to write a help
-   * module, the canonical data shape, wiring the dispatcher,
-   * testing, and a worked example) — the canonical reference
-   * for new contributors adding their first help module.
-   *
-   * Use case: a deep-help entry whose help text is already
-   * maintained by a dedicated module (e.g. `auth-local-help.ts`
-   * owns the `wstack auth local` flag list). The deep entry
-   * delegates to that module's renderer so the flag list
-   * stays single-source-of-truth. Setting `customBody` to a
-   * thunk that calls the module's string renderer gives
-   * `/auth local help`, `/help auth local`, and
-   * `wstack auth local --help` the same exact block.
-   *
-   * Note: when `customBody` is set, the `title`, `description`,
-   * `usage`, `subcommands`, and `seeAlso` fields are still
-   * required by the type but are **not rendered** — the
-   * `customBody` function owns the full block. The required
-   * fields exist so the test infrastructure can still iterate
-   * the entry shape uniformly.
-   */
-  customBody?: () => string;
-}
 const COLUMN_WIDTH = 28;
 
 /**

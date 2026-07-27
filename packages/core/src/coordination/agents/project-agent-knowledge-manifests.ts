@@ -1,4 +1,4 @@
-import type { RoleKnowledgeManifest } from './project-agent-identity.js';
+import type { RoleKnowledgeManifest } from './project-agent-identity-types.js';
 
 export const BUILT_IN_KNOWLEDGE_MANIFESTS: Record<string, RoleKnowledgeManifest> = {
   android: {

@@ -190,3 +190,40 @@ export type ChronicleMetricsResultPayload =
   | { view: 'providers'; refreshed: ChronicleMetricsRefresh; data: ChronicleProviderDailyRow[] }
   | { view: 'tasks'; refreshed: ChronicleMetricsRefresh; data: ChronicleTaskOutcomeRow[] }
   | { view: 'files'; refreshed: ChronicleMetricsRefresh; data: ChronicleFileLineageRow[] };
+
+export interface ChronicleStatus {
+  mode: 'server' | 'inline';
+  protocolVersion: number;
+  pid: number;
+  projectRoot: string;
+  projectDir: string;
+  chronicleDirectory: string;
+  endpoint: string;
+  startedAt: string;
+  checkedAt: number;
+  uptimeMs: number;
+  clients: number;
+  activeRequests: number;
+  journal: {
+    pendingEvents: number;
+    rejectedEvents: number;
+    largestBatch: number;
+  };
+  watcher: {
+    active: boolean;
+    watchedFiles: number;
+    lastError?: string | undefined;
+  };
+  memory: {
+    rss: number;
+    heapUsed: number;
+    heapTotal: number;
+    external: number;
+  };
+  pipeline: {
+    collection: 'session-event-adapters';
+    processing: 'project-chronicle-server' | 'inline-chronicle-fallback';
+    storage: string;
+    serving: 'webui-server';
+  };
+}

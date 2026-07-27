@@ -1,4 +1,4 @@
-import type { ToolVisualLine } from './utils.js';
+import type { ToolVisualLine } from './tool-visual-types.js';
 
 export function recordToStringFields(obj: Record<string, unknown>): Record<string, string> {
   const out: Record<string, string> = {};

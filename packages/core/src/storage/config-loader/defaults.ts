@@ -19,9 +19,10 @@ export const CONFIG_BEHAVIOR_DEFAULTS: Omit<Config, 'provider' | 'model'> = {
   version: 1,
   context: {
     mode: DEFAULT_CONTEXT_WINDOW_MODE_ID,
-    warnThreshold: 0.6,
-    softThreshold: 0.75,
-    hardThreshold: 0.9,
+    warnThreshold: DEFAULT_CONTEXT_CONFIG.warnThreshold,
+    softThreshold: DEFAULT_CONTEXT_CONFIG.softThreshold,
+    hardThreshold: DEFAULT_CONTEXT_CONFIG.hardThreshold,
+    targetLoad: DEFAULT_CONTEXT_CONFIG.targetLoad,
     autoCompact: true,
     preserveK: DEFAULT_CONTEXT_CONFIG.preserveK,
     eliseThreshold: DEFAULT_CONTEXT_CONFIG.eliseThreshold,

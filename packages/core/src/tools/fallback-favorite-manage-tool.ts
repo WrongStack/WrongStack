@@ -1,6 +1,6 @@
 import { normalizeModelRef } from '../core/fallback-model.js';
 import type { JSONSchema, Tool } from '../types/tool.js';
-import type { FallbackManageToolOptions } from './fallback-manage-tools.js';
+import type { FallbackManageToolOptions } from './fallback-manage-tool-options.js';
 import { modelList, normalizeRef } from './fallback-manage-helpers.js';
 
 export const FAVORITE_MANAGE_TOOL_NAME = 'favorite_manage';

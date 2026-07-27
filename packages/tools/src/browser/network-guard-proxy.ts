@@ -31,6 +31,14 @@ export class BrowserNetworkGuardProxy {
     this.server.on('connection', (socket) => {
       this.sockets.add(socket);
       socket.once('close', () => this.sockets.delete(socket));
+      // Browsers routinely abort speculative/idle connections. On Windows
+      // that can surface as an asynchronous ECONNABORTED from a pipe write.
+      // A Server's `clientError` event only covers HTTP parser failures; once
+      // a socket becomes a CONNECT/WebSocket tunnel, an unhandled socket
+      // `error` would otherwise terminate the entire host process.
+      socket.on('error', () => {
+        socket.destroy();
+      });
     });
     this.server.on('clientError', (_error, socket) => {
       socket.end('HTTP/1.1 400 Bad Request\r\nConnection: close\r\n\r\n');
@@ -122,14 +130,15 @@ export class BrowserNetworkGuardProxy {
         port: Number(target.url.port || 443),
       });
       upstream.setTimeout(this.options.connectTimeoutMs ?? 30_000, () => upstream.destroy());
+      const onConnectError = () => {
+        client.end('HTTP/1.1 502 Bad Gateway\r\nConnection: close\r\n\r\n');
+      };
+      upstream.once('error', onConnectError);
       upstream.once('connect', () => {
+        upstream.off('error', onConnectError);
         client.write('HTTP/1.1 200 Connection Established\r\n\r\n');
         if (head.length > 0) upstream.write(head);
-        upstream.pipe(client);
-        client.pipe(upstream);
-      });
-      upstream.once('error', () => {
-        client.end('HTTP/1.1 502 Bad Gateway\r\nConnection: close\r\n\r\n');
+        pipeDuplexPair(upstream, client);
       });
       client.once('close', () => upstream.destroy());
     } catch {
@@ -166,12 +175,12 @@ export class BrowserNetworkGuardProxy {
         writeRawResponseHead(client, response);
         if (head.length > 0) upstreamSocket.write(head);
         if (upstreamHead.length > 0) client.write(upstreamHead);
-        upstreamSocket.pipe(client);
-        client.pipe(upstreamSocket);
+        pipeDuplexPair(upstreamSocket, client);
         client.once('close', () => upstreamSocket.destroy());
       });
       upstream.once('response', (response) => {
         writeRawResponseHead(client, response);
+        response.once('error', () => client.destroy());
         response.pipe(client);
       });
       upstream.once('error', () => {
@@ -192,6 +201,19 @@ export class BrowserNetworkGuardProxy {
       lookup: this.options.lookup,
     });
   }
+}
+
+/**
+ * Couple both directions of a raw tunnel. `pipe()` deliberately does not
+ * forward stream errors, so each destination needs its own listener before
+ * either side can write. Destroying the peer also stops the opposite pipe and
+ * prevents a disconnected browser socket from accumulating more writes.
+ */
+function pipeDuplexPair(left: Duplex, right: Duplex): void {
+  left.on('error', () => right.destroy());
+  right.on('error', () => left.destroy());
+  left.pipe(right);
+  right.pipe(left);
 }
 
 function sanitizeHeaders(

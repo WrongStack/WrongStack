@@ -1,8 +1,13 @@
-import { mkdtemp, mkdir, open, rm, writeFile } from 'node:fs/promises';
+import { mkdtemp, mkdir, open, rm, stat, writeFile } from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
-import { ChronicleJournal, ChronicleQueryEngine, createChronicleContext } from '../../src/chronicle/index.js';
+import {
+  ChronicleJournal,
+  ChroniclePartitionRangeCache,
+  ChronicleQueryEngine,
+  createChronicleContext,
+} from '../../src/chronicle/index.js';
 
 const tempDirs: string[] = [];
 afterEach(async () => Promise.all(tempDirs.splice(0).map((dir) => rm(dir, { recursive: true, force: true }))));
@@ -388,5 +393,151 @@ describe('ChronicleQueryEngine', () => {
       expect.objectContaining({ kind: 'tool_call', confidence: 'explicit' }),
       expect.objectContaining({ kind: 'resource_lineage', confidence: 'inferred' }),
     ]));
+  });
+
+  it('derives resource_lineage edges from a windowed tool.resource.observed rollup', async () => {
+    const dir = await mkdtemp(path.join(os.tmpdir(), 'chronicle-graph-rollup-'));
+    tempDirs.push(dir);
+    const journal = new ChronicleJournal({ filePath: path.join(dir, '2026-07-18.events.jsonl') });
+    const context = createChronicleContext({ installationId: 'i', machineId: 'm' }, 'trace-b');
+    // A mutation event for a.ts (as file.mutation.observed would record it)...
+    await journal.append({ eventType: 'file.edited', scope: context.scope,
+      correlation: { ...context.correlation, toolCallId: 'tool-2' }, resource: { kind: 'file', id: 'file_shared', path: 'a.ts' },
+      occurredAt: '2026-07-18T11:00:00.000Z' });
+    // ...and a windowed observation rollup (as rollup-adapter.ts now emits
+    // instead of one raw tool.resource.observed event per file) that
+    // references the SAME resource id plus a second, unrelated resource.
+    await journal.append({ eventType: 'metrics.rollup', scope: context.scope,
+      correlation: { ...context.correlation, toolCallId: 'tool-3' },
+      attributes: { signal: 'tool.resource.observed', resources: [
+        { id: 'file_shared', kind: 'file', path: 'a.ts' },
+        { id: 'file_other', kind: 'file', path: 'b.ts' },
+      ] },
+      occurredAt: '2026-07-18T11:00:01.000Z' });
+    const engine = await ChronicleQueryEngine.fromDirectory(dir);
+    const graph = await engine.graph({ eventTypes: ['file.edited'] }, 1);
+    expect(graph.nodes.map((node) => node.eventType).sort()).toEqual(['file.edited', 'metrics.rollup']);
+    expect(graph.edges).toEqual(expect.arrayContaining([
+      expect.objectContaining({ kind: 'resource_lineage', confidence: 'inferred' }),
+    ]));
+  });
+
+  describe('partition range pruning', () => {
+    const rawEvent = (eventId: string, occurredAt: string, sequence: number) => ({
+      schemaVersion: 1,
+      eventId,
+      eventType: 'custom.event',
+      scope: { installationId: 'i', machineId: 'm' },
+      correlation: { traceId: 'trace', spanId: `span-${sequence}` },
+      occurredAt,
+      observedAt: occurredAt,
+      persistedAt: occurredAt,
+      sequence,
+      previousHash: '',
+      hash: `h${sequence}`,
+    });
+
+    it('prunes closed partitions by their real observed occurredAt range, not by filename', async () => {
+      const dir = await mkdtemp(path.join(os.tmpdir(), 'chronicle-range-prune-'));
+      tempDirs.push(dir);
+      // Closed file named for an old day but containing an event backdated
+      // into the future — proves pruning can't rely on the filename's date.
+      await writeFile(path.join(dir, '2020-01-01.events.jsonl'), [
+        rawEvent('old-outside-window', '2020-01-01T00:00:00.000Z', 1),
+        rawEvent('future-in-old-file', '2099-06-01T00:00:00.000Z', 2),
+      ].map((entry) => JSON.stringify(entry)).join('\n') + '\n');
+      // A second closed file whose real content is entirely outside the window.
+      await writeFile(path.join(dir, '2015-01-01.events.jsonl'),
+        `${JSON.stringify(rawEvent('unrelated', '2015-01-01T00:00:00.000Z', 1))}\n`);
+      // Active (last-sorted) file — always scanned; empty so it contributes nothing.
+      await writeFile(path.join(dir, '2099-06-02.events.jsonl'), '');
+
+      const engine = await ChronicleQueryEngine.fromDirectory(dir);
+      const result = await engine.query({
+        from: '2099-05-01T00:00:00.000Z',
+        to: '2099-07-01T00:00:00.000Z',
+      });
+
+      expect(result.events.map((event) => event.eventId)).toEqual(['future-in-old-file']);
+      expect(result.total).toBe(1);
+    });
+
+    it('never trusts a cached range for the active (still-open) partition', async () => {
+      const dir = await mkdtemp(path.join(os.tmpdir(), 'chronicle-range-active-'));
+      tempDirs.push(dir);
+      const timestamp = '2050-03-01T00:00:00.000Z';
+      await writeFile(path.join(dir, '2010-01-01.events.jsonl'), ''); // closed, empty, irrelevant
+      const activeFilePath = path.join(dir, '2099-01-01.events.jsonl'); // sorts last -> active
+      const activeContent = `${JSON.stringify(rawEvent('active-event', timestamp, 1))}\n`;
+      await writeFile(activeFilePath, activeContent, 'utf8');
+
+      const cache = new ChroniclePartitionRangeCache(dir);
+      // Fabricate a range for the active file claiming it can't overlap the
+      // query window below. If it were ever trusted, the real event would
+      // be silently dropped.
+      cache.set(activeFilePath, {
+        size: Buffer.byteLength(activeContent, 'utf8'),
+        minOccurredAt: '1999-01-01T00:00:00.000Z',
+        maxOccurredAt: '1999-01-02T00:00:00.000Z',
+      });
+
+      const engine = await ChronicleQueryEngine.fromDirectory(dir, { rangeCache: cache });
+      const result = await engine.query({
+        from: '2050-01-01T00:00:00.000Z',
+        to: '2050-12-31T00:00:00.000Z',
+      });
+
+      expect(result.events.map((event) => event.eventId)).toEqual(['active-event']);
+    });
+
+    it('trusts a closed partition\'s cached range instead of re-reading its contents', async () => {
+      const dir = await mkdtemp(path.join(os.tmpdir(), 'chronicle-range-trust-'));
+      tempDirs.push(dir);
+      const timestamp = '2035-05-01T00:00:00.000Z';
+      const closedFilePath = path.join(dir, '2020-04-01.events.jsonl');
+      await writeFile(closedFilePath, `${JSON.stringify(rawEvent('real-match', timestamp, 1))}\n`, 'utf8');
+      await writeFile(path.join(dir, '2099-04-02.events.jsonl'), ''); // active, empty
+
+      const closedSize = (await stat(closedFilePath)).size;
+      const cache = new ChroniclePartitionRangeCache(dir);
+      // Fabricate a non-overlapping range even though the file's real content
+      // (unread by this point) does contain a match for the query below.
+      cache.set(closedFilePath, {
+        size: closedSize,
+        minOccurredAt: '1999-01-01T00:00:00.000Z',
+        maxOccurredAt: '1999-01-02T00:00:00.000Z',
+      });
+      const query = { from: '2035-01-01T00:00:00.000Z', to: '2035-12-31T00:00:00.000Z' };
+
+      const first = await ChronicleQueryEngine.fromDirectory(dir, { rangeCache: cache });
+      expect((await first.query(query)).total).toBe(0);
+
+      // A fresh engine sharing the same in-memory cache instance (mirrors
+      // project-server.ts rebuilding ChronicleQueryEngine on every append)
+      // must still trust the fabricated range without re-reading the file.
+      const second = await ChronicleQueryEngine.fromDirectory(dir, { rangeCache: cache });
+      expect((await second.query(query)).total).toBe(0);
+
+      // A brand-new cache instance (simulating a process restart) reading
+      // the persisted sidecar from disk must also still trust it.
+      const thirdCache = new ChroniclePartitionRangeCache(dir);
+      const third = await ChronicleQueryEngine.fromDirectory(dir, { rangeCache: thirdCache });
+      expect((await third.query(query)).total).toBe(0);
+    });
+
+    it('leaves fromFiles-constructed engines fully unpruned', async () => {
+      const dir = await mkdtemp(path.join(os.tmpdir(), 'chronicle-range-fromfiles-'));
+      tempDirs.push(dir);
+      const inWindow = path.join(dir, 'in-window.events.jsonl');
+      const outOfWindow = path.join(dir, 'out-of-window.events.jsonl');
+      await writeFile(inWindow, `${JSON.stringify(rawEvent('in-window', '2040-01-01T00:00:00.000Z', 1))}\n`);
+      await writeFile(outOfWindow, `${JSON.stringify(rawEvent('out-of-window', '2010-01-01T00:00:00.000Z', 1))}\n`);
+
+      const engine = await ChronicleQueryEngine.fromFiles([inWindow, outOfWindow]);
+      const result = await engine.query({ from: '2039-01-01T00:00:00.000Z', to: '2041-01-01T00:00:00.000Z' });
+
+      expect(result.events.map((event) => event.eventId)).toEqual(['in-window']);
+      await expect(stat(path.join(dir, 'range-cache.json'))).rejects.toThrow();
+    });
   });
 });

@@ -10,6 +10,7 @@ import { LOCAL_PRESET_FAMILY, LOCAL_SERVER_PRESETS } from '../SettingsPanel/loca
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { waitForKeyOperationResult } from './key-operation';
+import { ModelEditor, type ModelEntry } from './ModelEditor';
 
 export function CustomProviderSection({ onKeySaved }: { onKeySaved: (providerId: string) => void }) {
   const { t } = useAppTranslation();
@@ -19,6 +20,7 @@ export function CustomProviderSection({ onKeySaved }: { onKeySaved: (providerId:
   const [baseUrl, setBaseUrl] = useState('');
   const [key, setKey] = useState('');
   const [isSaving, setIsSaving] = useState(false);
+  const [models, setModels] = useState<ModelEntry[]>([]);
   const { setFieldRef, handleKeyDown } = useFieldKeyboardNav();
 
   const handleSave = async () => {
@@ -34,20 +36,36 @@ export function CustomProviderSection({ onKeySaved }: { onKeySaved: (providerId:
           family,
           baseUrl: baseUrl.trim() || undefined,
           apiKey: key.trim() || undefined,
+          models: models.length > 0 ? models.map((m) => m.id) : undefined,
+          customModels:
+            models.length > 0
+              ? Object.fromEntries(
+                  models
+                    .filter((m) => m.name || m.maxOutput || m.capabilities)
+                    .map((m) => [
+                      m.id,
+                      {
+                        ...(m.name && m.name !== m.id ? { name: m.name } : {}),
+                        ...(m.maxOutput ? { maxOutput: m.maxOutput } : {}),
+                        ...(m.capabilities && Object.values(m.capabilities).some(Boolean)
+                          ? { capabilities: m.capabilities }
+                          : {}),
+                      },
+                    ]),
+                )
+              : undefined,
         },
       });
       const result = await ack;
       if (!result.success) throw new Error(result.message);
       toast.success(t('setup:screen.toasts.providerAdded', { id: providerId.trim() }));
       onKeySaved(providerId.trim());
-      // Re-fetch saved providers so the UI picks up preset-hydrated
-      // fields (baseUrl, models, quirks) from the server.
       ws.listSavedProviders();
-      // Auto-probe the endpoint to validate connectivity.
       ws.probeProvider(providerId.trim());
       setProviderId('');
       setBaseUrl('');
       setKey('');
+      setModels([]);
       setExpanded(false);
     } catch (err) {
       const detail =
@@ -84,8 +102,7 @@ export function CustomProviderSection({ onKeySaved }: { onKeySaved: (providerId:
 
       {expanded && (
         <div className="px-4 pb-4 space-y-3 border-t border-border/40">
-          {/* Local-server quick-pick - mirrors the CLI's `wstack auth local`.
-              Click a preset to pre-fill id / family / baseUrl. */}
+          {/* Local-server quick-pick - mirrors the CLI's `wstack auth local`. */}
           <div className="space-y-1.5 pt-3">
             <span className="text-[11px] font-medium text-muted-foreground block">
               {t('setup:screen.custom.localServers')}
@@ -102,6 +119,7 @@ export function CustomProviderSection({ onKeySaved }: { onKeySaved: (providerId:
                     setFamily(LOCAL_PRESET_FAMILY);
                     setBaseUrl(preset.defaultBaseUrl);
                     if (preset.noAuth) setKey('');
+                    setModels([]);
                   }}
                   title={preset.hint}
                 >
@@ -171,6 +189,10 @@ export function CustomProviderSection({ onKeySaved }: { onKeySaved: (providerId:
               onKeyDown={(e) => handleKeyDown(e, 3)}
             />
           </div>
+
+          {/* Model editor */}
+          <ModelEditor models={models} onChange={setModels} />
+
           <Button
             onClick={handleSave}
             disabled={!providerId.trim() || isSaving}

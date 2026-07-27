@@ -1,0 +1,498 @@
+import * as net from 'node:net';
+import * as os from 'node:os';
+import * as path from 'node:path';
+import { afterEach, describe, expect, it } from 'vitest';
+import { getIndexState } from '../src/codebase-index/background-indexer.js';
+import {
+  callProjectIndexServer,
+  checkProjectIndexServerHealth,
+  closeProjectIndexServerClients,
+  getProjectIndexServerConnectionState,
+  onProjectIndexServerConnectionStateChange,
+  projectIndexServerExpectedBuildId,
+} from '../src/codebase-index/project-server-client.js';
+import {
+  ensureProjectIndexSocketDirectory,
+  PROJECT_INDEX_SERVER_PROTOCOL_VERSION,
+  projectIndexServerEndpoint,
+} from '../src/codebase-index/project-server-endpoint.js';
+import type { ProjectServerClientMessage } from '../src/codebase-index/project-server-protocol.js';
+import { encodeProjectServerMessage } from '../src/codebase-index/project-server-protocol.js';
+
+const servers = new Set<net.Server>();
+const expectedBuildId = projectIndexServerExpectedBuildId() ?? 'source-test-build';
+
+async function closeServer(server: net.Server): Promise<void> {
+  await new Promise<void>((resolve) => server.close(() => resolve()));
+  servers.delete(server);
+}
+
+afterEach(async () => {
+  closeProjectIndexServerClients();
+  await Promise.all([...servers].map(closeServer));
+});
+
+describe('project index server client cancellation', () => {
+  it('rejects a stale build and asks the old server to stop', async () => {
+    const projectRoot = path.join(os.tmpdir(), `wstack-project-server-stale-${process.pid}`);
+    const indexDir = path.join(projectRoot, '.index');
+    const endpoint = projectIndexServerEndpoint(projectRoot, indexDir);
+    ensureProjectIndexSocketDirectory(endpoint);
+    const previousBuildId = process.env['WRONGSTACK_INDEX_SERVER_BUILD_ID'];
+    process.env['WRONGSTACK_INDEX_SERVER_BUILD_ID'] = 'current-build';
+    let shutdownReason: string | undefined;
+
+    const server = net.createServer((socket) => {
+      let buffer = '';
+      socket.setEncoding('utf8');
+      socket.write(
+        encodeProjectServerMessage({
+          type: 'hello',
+          protocolVersion: PROJECT_INDEX_SERVER_PROTOCOL_VERSION,
+          buildId: 'old-build',
+          pid: process.pid,
+          projectRoot,
+          indexDir,
+          endpoint,
+          startedAt: new Date(0).toISOString(),
+        }),
+      );
+      socket.on('data', (chunk: string) => {
+        buffer += chunk;
+        const newline = buffer.indexOf('\n');
+        if (newline < 0) return;
+        const message = JSON.parse(buffer.slice(0, newline)) as ProjectServerClientMessage;
+        if (message.type === 'shutdown') shutdownReason = message.reason;
+      });
+    });
+    servers.add(server);
+    await new Promise<void>((resolve, reject) => {
+      server.once('error', reject);
+      server.listen(endpoint, resolve);
+    });
+
+    try {
+      await expect(
+        checkProjectIndexServerHealth(projectRoot, indexDir, { timeoutMs: 1_000 }),
+      ).rejects.toThrow(/build mismatch/);
+      await new Promise((resolve) => setTimeout(resolve, 30));
+      expect(shutdownReason).toBe('stale-build-replacement');
+    } finally {
+      if (previousBuildId === undefined) delete process.env['WRONGSTACK_INDEX_SERVER_BUILD_ID'];
+      else process.env['WRONGSTACK_INDEX_SERVER_BUILD_ID'] = previousBuildId;
+    }
+  });
+
+  it('tracks health metrics, missed heartbeats, unresponsive state, and recovery', async () => {
+    const projectRoot = path.join(os.tmpdir(), `wstack-project-server-health-${process.pid}`);
+    const indexDir = path.join(projectRoot, '.index');
+    const endpoint = projectIndexServerEndpoint(projectRoot, indexDir);
+    ensureProjectIndexSocketDirectory(endpoint);
+
+    let pingMode: 'none' | 'legacy' | 'health' = 'none';
+    const server = net.createServer((socket) => {
+      let buffer = '';
+      socket.setEncoding('utf8');
+      socket.write(
+        encodeProjectServerMessage({
+          type: 'hello',
+          protocolVersion: PROJECT_INDEX_SERVER_PROTOCOL_VERSION,
+          buildId: expectedBuildId,
+          pid: process.pid,
+          projectRoot,
+          indexDir,
+          endpoint,
+          startedAt: new Date(0).toISOString(),
+        }),
+      );
+      socket.on('data', (chunk: string) => {
+        buffer += chunk;
+        for (;;) {
+          const newline = buffer.indexOf('\n');
+          if (newline < 0) break;
+          const message = JSON.parse(buffer.slice(0, newline)) as ProjectServerClientMessage;
+          buffer = buffer.slice(newline + 1);
+          if (message.type === 'request') {
+            socket.write(
+              encodeProjectServerMessage({
+                type: 'response',
+                id: message.id,
+                ok: true,
+                result: { totalSymbols: 1 },
+              }),
+            );
+          } else if (message.type === 'ping' && pingMode !== 'none') {
+            socket.write(
+              encodeProjectServerMessage({
+                type: 'response',
+                id: message.id,
+                ok: true,
+                result:
+                  pingMode === 'legacy'
+                    ? { pid: process.pid, projectRoot }
+                    : {
+                        checkedAt: Date.now(),
+                        uptimeMs: 12_000,
+                        memory: { rss: 100, heapUsed: 50, heapTotal: 75, external: 5 },
+                        clients: 2,
+                        activeRequests: 1,
+                        activeWrites: 0,
+                        queuedWrites: 3,
+                        pendingExternalFiles: 4,
+                        watchingExternal: true,
+                        activity: {
+                          indexing: false,
+                          currentFile: 0,
+                          totalFiles: 0,
+                          generation: 2,
+                          updatedAt: Date.now(),
+                          lastError: null,
+                        },
+                      },
+              }),
+            );
+          }
+        }
+      });
+    });
+    servers.add(server);
+    await new Promise<void>((resolve, reject) => {
+      server.once('error', reject);
+      server.listen(endpoint, resolve);
+    });
+
+    await callProjectIndexServer('stats', { projectRoot, indexDir }, { timeoutMs: 1_000 });
+    for (let expected = 1; expected <= 3; expected++) {
+      const health = await checkProjectIndexServerHealth(projectRoot, indexDir, { timeoutMs: 20 });
+      expect(health.missedHeartbeats).toBe(expected);
+      expect(health.status).toBe(expected === 3 ? 'unresponsive' : 'degraded');
+    }
+    expect(getProjectIndexServerConnectionState(projectRoot, indexDir)).toMatchObject({
+      status: 'unresponsive',
+      connected: true,
+    });
+
+    pingMode = 'legacy';
+    const legacyRecovered = await checkProjectIndexServerHealth(projectRoot, indexDir, {
+      timeoutMs: 1_000,
+    });
+    expect(legacyRecovered).toMatchObject({
+      status: 'healthy',
+      missedHeartbeats: 0,
+    });
+    expect(legacyRecovered.server).toBeUndefined();
+
+    pingMode = 'health';
+    const recovered = await checkProjectIndexServerHealth(projectRoot, indexDir, {
+      timeoutMs: 1_000,
+    });
+    expect(recovered).toMatchObject({
+      status: 'healthy',
+      missedHeartbeats: 0,
+      server: {
+        uptimeMs: 12_000,
+        clients: 2,
+        queuedWrites: 3,
+        watchingExternal: true,
+      },
+    });
+    expect(getProjectIndexServerConnectionState(projectRoot, indexDir)).toMatchObject({
+      status: 'connected',
+      connected: true,
+    });
+  });
+
+  it('keeps the shared server connection alive when one request times out', async () => {
+    const projectRoot = path.join(os.tmpdir(), `wstack-project-server-timeout-${process.pid}`);
+    const indexDir = path.join(projectRoot, '.index');
+    const endpoint = projectIndexServerEndpoint(projectRoot, indexDir);
+    ensureProjectIndexSocketDirectory(endpoint);
+
+    let connectionCount = 0;
+    let requestCount = 0;
+    let cancelCount = 0;
+    const server = net.createServer((socket) => {
+      connectionCount++;
+      let buffer = '';
+      socket.setEncoding('utf8');
+      socket.write(
+        encodeProjectServerMessage({
+          type: 'hello',
+          protocolVersion: PROJECT_INDEX_SERVER_PROTOCOL_VERSION,
+          buildId: expectedBuildId,
+          pid: process.pid,
+          projectRoot,
+          indexDir,
+          endpoint,
+          startedAt: new Date(0).toISOString(),
+        }),
+      );
+      socket.on('data', (chunk: string) => {
+        buffer += chunk;
+        for (;;) {
+          const newline = buffer.indexOf('\n');
+          if (newline < 0) break;
+          const line = buffer.slice(0, newline);
+          buffer = buffer.slice(newline + 1);
+          if (!line) continue;
+          const message = JSON.parse(line) as ProjectServerClientMessage;
+          if (message.type === 'cancel') {
+            cancelCount++;
+          } else if (message.type === 'request') {
+            requestCount++;
+            if (requestCount === 2) {
+              socket.write(
+                encodeProjectServerMessage({
+                  type: 'response',
+                  id: message.id,
+                  ok: true,
+                  result: { totalSymbols: 7 },
+                }),
+              );
+            }
+          }
+        }
+      });
+    });
+    servers.add(server);
+    await new Promise<void>((resolve, reject) => {
+      server.once('error', reject);
+      server.listen(endpoint, resolve);
+    });
+
+    await expect(
+      callProjectIndexServer(
+        'stats',
+        { projectRoot, indexDir },
+        { timeoutMs: 20 },
+      ),
+    ).rejects.toMatchObject({ name: 'IndexTimeoutError' });
+    const second = await callProjectIndexServer(
+      'stats',
+      { projectRoot, indexDir },
+      { timeoutMs: 1_000 },
+    );
+
+    expect(second).toMatchObject({ totalSymbols: 7 });
+    expect(cancelCount).toBe(1);
+    expect(connectionCount).toBe(1);
+  });
+
+  it('publishes server-wide index activity received over the shared connection', async () => {
+    const projectRoot = path.join(os.tmpdir(), `wstack-project-server-state-${process.pid}`);
+    const indexDir = path.join(projectRoot, '.index');
+    const endpoint = projectIndexServerEndpoint(projectRoot, indexDir);
+    ensureProjectIndexSocketDirectory(endpoint);
+
+    const observed: Array<{
+      indexing: boolean | undefined;
+      currentFile: number | undefined;
+    }> = [];
+    const off = onProjectIndexServerConnectionStateChange((state) => {
+      observed.push({
+        indexing: state.activity?.indexing,
+        currentFile: state.activity?.currentFile,
+      });
+    });
+    const server = net.createServer((socket) => {
+      let buffer = '';
+      socket.setEncoding('utf8');
+      socket.write(
+        encodeProjectServerMessage({
+          type: 'hello',
+          protocolVersion: PROJECT_INDEX_SERVER_PROTOCOL_VERSION,
+          buildId: expectedBuildId,
+          pid: process.pid,
+          projectRoot,
+          indexDir,
+          endpoint,
+          startedAt: new Date(0).toISOString(),
+        }) +
+          encodeProjectServerMessage({
+            type: 'index-state',
+            state: {
+              indexing: true,
+              currentFile: 4,
+              totalFiles: 10,
+              generation: 2,
+              updatedAt: null,
+              lastError: null,
+            },
+          }),
+      );
+      socket.on('data', (chunk: string) => {
+        buffer += chunk;
+        const newline = buffer.indexOf('\n');
+        if (newline < 0) return;
+        const message = JSON.parse(buffer.slice(0, newline)) as ProjectServerClientMessage;
+        if (message.type === 'request') {
+          socket.write(
+            encodeProjectServerMessage({
+              type: 'response',
+              id: message.id,
+              ok: true,
+              result: { totalSymbols: 7 },
+            }),
+          );
+        }
+      });
+    });
+    servers.add(server);
+    await new Promise<void>((resolve, reject) => {
+      server.once('error', reject);
+      server.listen(endpoint, resolve);
+    });
+
+    try {
+      await callProjectIndexServer(
+        'stats',
+        { projectRoot, indexDir },
+        { timeoutMs: 1_000 },
+      );
+      expect(getProjectIndexServerConnectionState(projectRoot, indexDir).activity).toMatchObject({
+        indexing: true,
+        currentFile: 4,
+        totalFiles: 10,
+        generation: 2,
+      });
+      expect(getIndexState()).toMatchObject({
+        ready: true,
+        indexing: true,
+        currentFile: 4,
+        totalFiles: 10,
+      });
+      expect(observed).toContainEqual({ indexing: true, currentFile: 4 });
+    } finally {
+      off();
+    }
+  });
+
+  it(
+    'rejects an aborted request immediately and sends cancel without waiting for a response',
+    { timeout: 5_000 },
+    async () => {
+      const projectRoot = path.join(os.tmpdir(), `wstack-project-server-client-${process.pid}`);
+      const indexDir = path.join(projectRoot, '.index');
+      const endpoint = projectIndexServerEndpoint(projectRoot, indexDir);
+      ensureProjectIndexSocketDirectory(endpoint);
+
+      let resolveRequest: (() => void) | undefined;
+      const requestReceived = new Promise<void>((resolve) => {
+        resolveRequest = resolve;
+      });
+      let resolveCancel: (() => void) | undefined;
+      const cancelReceived = new Promise<void>((resolve) => {
+        resolveCancel = resolve;
+      });
+      let buffer = '';
+      const server = net.createServer((socket) => {
+        socket.setEncoding('utf8');
+        socket.write(
+          encodeProjectServerMessage({
+            type: 'hello',
+            protocolVersion: PROJECT_INDEX_SERVER_PROTOCOL_VERSION,
+            buildId: expectedBuildId,
+            pid: process.pid,
+            projectRoot,
+            indexDir,
+            endpoint,
+            startedAt: new Date(0).toISOString(),
+          }),
+        );
+        socket.on('data', (chunk: string) => {
+          buffer += chunk;
+          for (;;) {
+            const newline = buffer.indexOf('\n');
+            if (newline < 0) break;
+            const line = buffer.slice(0, newline);
+            buffer = buffer.slice(newline + 1);
+            if (!line) continue;
+            const message = JSON.parse(line) as ProjectServerClientMessage;
+            if (message.type === 'request') resolveRequest?.();
+            if (message.type === 'cancel') resolveCancel?.();
+          }
+        });
+      });
+      servers.add(server);
+      await new Promise<void>((resolve, reject) => {
+        server.once('error', reject);
+        server.listen(endpoint, resolve);
+      });
+
+      const controller = new AbortController();
+      const cancelled = new Error('session teardown');
+      const request = callProjectIndexServer(
+        'search',
+        { projectRoot, indexDir, query: 'sentinel', limit: 10 },
+        { timeoutMs: 60_000, signal: controller.signal },
+      );
+      await requestReceived;
+      controller.abort(cancelled);
+
+      await expect(request).rejects.toBe(cancelled);
+      await cancelReceived;
+      closeProjectIndexServerClients();
+      await closeServer(server);
+    },
+  );
+
+  it(
+    'does not enqueue a request when cancellation occurs during the server handshake',
+    { timeout: 5_000 },
+    async () => {
+      const projectRoot = path.join(
+        os.tmpdir(),
+        `wstack-project-server-handshake-${process.pid}`,
+      );
+      const indexDir = path.join(projectRoot, '.index');
+      const endpoint = projectIndexServerEndpoint(projectRoot, indexDir);
+      ensureProjectIndexSocketDirectory(endpoint);
+
+      let receivedRequest = false;
+      let resolveSocket: ((socket: net.Socket) => void) | undefined;
+      const connectedSocket = new Promise<net.Socket>((resolve) => {
+        resolveSocket = resolve;
+      });
+      const server = net.createServer((socket) => {
+        socket.setEncoding('utf8');
+        socket.on('data', () => {
+          receivedRequest = true;
+        });
+        resolveSocket?.(socket);
+      });
+      servers.add(server);
+      await new Promise<void>((resolve, reject) => {
+        server.once('error', reject);
+        server.listen(endpoint, resolve);
+      });
+
+      const controller = new AbortController();
+      const cancelled = new Error('cancelled during handshake');
+      const request = callProjectIndexServer(
+        'search',
+        { projectRoot, indexDir, query: 'sentinel', limit: 10 },
+        { timeoutMs: 60_000, signal: controller.signal },
+      );
+      const socket = await connectedSocket;
+      controller.abort(cancelled);
+      socket.write(
+        encodeProjectServerMessage({
+          type: 'hello',
+          protocolVersion: PROJECT_INDEX_SERVER_PROTOCOL_VERSION,
+          buildId: expectedBuildId,
+          pid: process.pid,
+          projectRoot,
+          indexDir,
+          endpoint,
+          startedAt: new Date(0).toISOString(),
+        }),
+      );
+
+      await expect(request).rejects.toBe(cancelled);
+      await new Promise((resolve) => setImmediate(resolve));
+      expect(receivedRequest).toBe(false);
+      closeProjectIndexServerClients();
+      await closeServer(server);
+    },
+  );
+});

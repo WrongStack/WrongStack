@@ -5,6 +5,7 @@ import type {
   ChimeraCascadeNeededPayload,
   ChimeraReviewNeededPayload,
 } from '@wrongstack/core/plugin';
+import { emitReviewIfChanged } from '@wrongstack/core/plugin';
 import type { StopReason, SubagentConfig } from '@wrongstack/core/types';
 import { buildChimeraCascadeTaskDescription } from './chimera-review-task.js';
 import type { ExecuteDeps } from './execute-deps.js';
@@ -62,33 +63,37 @@ export function installChimeraCascadeHandler({
             timeoutMs: 600_000,
           };
           const subagentId = await dir.spawn(cfg);
-          const taskId = randomUUID();
-          await dir.assign({ id: taskId, description: taskDesc, subagentId });
-          const results = await dir.awaitTasks([taskId]);
-          const result = results[0];
+          try {
+            const taskId = randomUUID();
+            await dir.assign({ id: taskId, description: taskDesc, subagentId });
+            const results = await dir.awaitTasks([taskId]);
+            const result = results[0];
 
-          if (result?.status === 'success') {
-            const resultText =
-              typeof result.result === 'string' ? result.result : JSON.stringify(result.result);
-            await session.append({
-              type: 'llm_response',
-              ts: new Date().toISOString(),
-              content: [
-                {
-                  type: 'text',
-                  text: `🦂 Chimera cascade (${agentKind}) — ${resultText}`,
-                },
-              ],
-              stopReason: 'end_turn' as StopReason,
-              usage: { input: 0, output: 0 },
-            });
-          } else {
-            await session.append({
-              type: 'error',
-              ts: new Date().toISOString(),
-              message: `🦂 Chimera cascade (${agentKind}) ${result?.status ?? 'unknown'}: ${result?.error?.message ?? 'no result'}`,
-              phase: 'agent',
-            });
+            if (result?.status === 'success') {
+              const resultText =
+                typeof result.result === 'string' ? result.result : JSON.stringify(result.result);
+              await session.append({
+                type: 'llm_response',
+                ts: new Date().toISOString(),
+                content: [
+                  {
+                    type: 'text',
+                    text: `🦂 Chimera cascade (${agentKind}) — ${resultText}`,
+                  },
+                ],
+                stopReason: 'end_turn' as StopReason,
+                usage: { input: 0, output: 0 },
+              });
+            } else {
+              await session.append({
+                type: 'error',
+                ts: new Date().toISOString(),
+                message: `🦂 Chimera cascade (${agentKind}) ${result?.status ?? 'unknown'}: ${result?.error?.message ?? 'no result'}`,
+                phase: 'agent',
+              });
+            }
+          } finally {
+            try { await dir.terminate(subagentId); } catch { /* best-effort */ }
           }
         } catch (err) {
           await session.append({
@@ -154,7 +159,27 @@ async function maybeReReviewCascade({
           usage: { input: 0, output: 0 },
         });
 
-        events.emitCustom('chimera.review_needed', reReviewBundle);
+        // Use emitReviewIfChanged so content-fingerprint dedup protects
+        // against re-reviewing files the fix agent didn't actually change.
+        // emitCustom() is the safe passthrough the function needs.
+        const emitted = emitReviewIfChanged(
+          { events, emitCustom: events.emitCustom.bind(events) },
+          reReviewBundle,
+        );
+        if (!emitted) {
+          await session.append({
+            type: 'llm_response',
+            ts: new Date().toISOString(),
+            content: [
+              {
+                type: 'text',
+                text: `🦂 Chimera cascade re-review skipped — content unchanged since previous review (depth ${currentDepth + 1}/${maxDepth})`,
+              },
+            ],
+            stopReason: 'end_turn' as StopReason,
+            usage: { input: 0, output: 0 },
+          });
+        }
       }
     } catch (err) {
       await session.append({

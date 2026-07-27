@@ -1,5 +1,5 @@
 import { stringOf, tryParseJson } from './basic-format.js';
-import type { ToolVisualLine } from './utils.js';
+import type { ToolVisualLine } from './tool-visual-types.js';
 
 export function visualWorkingDir(text: string, ok: boolean): ToolVisualLine[] | undefined {
   const json = tryParseJson(text);

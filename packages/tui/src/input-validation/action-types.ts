@@ -1,4 +1,4 @@
-import type { Action } from '../app-state.js';
+import type { Action } from '../app-action-type.js';
 
 /**
  * Define the runtime action allow-list while making TypeScript prove that it

@@ -615,6 +615,7 @@ export async function createAgentServices(input: AgentServicesInput): Promise<Ag
         projectTaskGraphs: wpaths.projectTaskGraphs,
         projectSddBoards: wpaths.projectSddBoards,
         projectDir: wpaths.projectDir,
+        projectSddSession: wpaths.projectSddSession,
       },
     }),
   );

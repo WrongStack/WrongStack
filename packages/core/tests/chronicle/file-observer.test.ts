@@ -1,4 +1,4 @@
-import { mkdtemp, mkdir, rename, rm, unlink, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, rename, rm, unlink, writeFile } from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
@@ -32,14 +32,28 @@ describe('startChronicleFileObserver', () => {
     await mkdir(path.join(root, 'src'));
     const file = path.join(root, 'src', 'value.ts');
     await writeFile(file, 'export const value = 1;\n');
-    const journal = new ChronicleJournal({ filePath: path.join(root, '.wrongstack', 'chronicle.jsonl') });
-    const context = createChronicleContext({ installationId: 'i', machineId: 'm', projectId: 'p' }, 'trace');
-    const observer = await startChronicleFileObserver({ projectRoot: root, journal, context, debounceMs: 25 });
+    const journal = new ChronicleJournal({
+      filePath: path.join(root, '.wrongstack', 'chronicle.jsonl'),
+    });
+    const context = createChronicleContext(
+      { installationId: 'i', machineId: 'm', projectId: 'p' },
+      'trace',
+    );
+    const observer = await startChronicleFileObserver({
+      projectRoot: root,
+      journal,
+      context,
+      debounceMs: 25,
+    });
 
     await writeFile(file, 'export const value = 2;\n');
     const modified = await waitForEvent(journal, (type) => type === 'file.external.modified');
     expect(modified.resource).toMatchObject({ kind: 'file', path: 'src/value.ts' });
-    expect(modified.attributes).toMatchObject({ actor: 'external', operation: 'edit', source: 'external' });
+    expect(modified.attributes).toMatchObject({
+      actor: 'external',
+      operation: 'edit',
+      source: 'external',
+    });
     expect(modified.attributes?.['previousHash']).toMatch(/^[a-f0-9]{64}$/);
 
     await unlink(file);
@@ -54,10 +68,21 @@ describe('startChronicleFileObserver', () => {
     const original = path.join(root, 'old.ts');
     const renamed = path.join(root, 'new.ts');
     await writeFile(original, 'same content\n');
-    const journal = new ChronicleJournal({ filePath: path.join(root, '.wrongstack', 'chronicle.jsonl') });
+    const journal = new ChronicleJournal({
+      filePath: path.join(root, '.wrongstack', 'chronicle.jsonl'),
+    });
     const events = new EventBus();
-    const context = createChronicleContext({ installationId: 'i', machineId: 'm', projectId: 'p' }, 'trace');
-    const observer = await startChronicleFileObserver({ projectRoot: root, journal, context, events, debounceMs: 40 });
+    const context = createChronicleContext(
+      { installationId: 'i', machineId: 'm', projectId: 'p' },
+      'trace',
+    );
+    const observer = await startChronicleFileObserver({
+      projectRoot: root,
+      journal,
+      context,
+      events,
+      debounceMs: 40,
+    });
 
     events.emit('tool.progress', {
       sessionId: 'session',
@@ -69,13 +94,50 @@ describe('startChronicleFileObserver', () => {
     await writeFile(original, 'changed by tool\n');
     const toolMutation = await waitForEvent(journal, (type) => type === 'file.tool.modified');
     expect(toolMutation.correlation.toolCallId).toBe('tool-42');
-    expect(toolMutation.attributes).toMatchObject({ actor: 'agent', source: 'tool', toolName: 'edit' });
+    expect(toolMutation.scope).toMatchObject({ sessionId: 'session', agentId: 'leader' });
+    expect(toolMutation.attributes).toMatchObject({
+      actor: 'agent',
+      source: 'tool',
+      toolName: 'edit',
+    });
 
     await rename(original, renamed);
     const renameEvent = await waitForEvent(journal, (type) => type === 'file.external.renamed');
     expect(renameEvent.resource?.path).toBe('new.ts');
     expect(renameEvent.attributes).toMatchObject({ previousPath: 'old.ts', operation: 'rename' });
     expect(renameEvent.attributes?.['previousResourceId']).toMatch(/^file_[a-f0-9]{24}$/);
+    await observer.close();
+  });
+
+  it('never feeds Chronicle runtime storage changes back into its own journal', async () => {
+    const root = await mkdtemp(path.join(os.tmpdir(), 'chronicle-files-runtime-'));
+    tempDirs.push(root);
+    const chronicleDirectory = path.join(root, 'project-state', 'chronicle');
+    await mkdir(chronicleDirectory, { recursive: true });
+    const journal = new ChronicleJournal({
+      filePath: path.join(chronicleDirectory, 'events.jsonl'),
+    });
+    const context = createChronicleContext(
+      { installationId: 'i', machineId: 'm', projectId: 'p' },
+      'trace',
+    );
+    const observer = await startChronicleFileObserver({
+      projectRoot: root,
+      journal,
+      context,
+      excludedPaths: [chronicleDirectory],
+      debounceMs: 25,
+    });
+
+    await writeFile(path.join(chronicleDirectory, 'server.json'), '{}');
+    await writeFile(path.join(root, 'source.ts'), 'export const source = true;\n');
+    await waitForEvent(journal, (type) => type === 'file.external.created');
+    const events = await journal.readAll();
+
+    expect(events.some((event) => event.resource?.path === 'source.ts')).toBe(true);
+    expect(
+      events.some((event) => event.resource?.path?.startsWith('project-state/chronicle')),
+    ).toBe(false);
     await observer.close();
   });
 });

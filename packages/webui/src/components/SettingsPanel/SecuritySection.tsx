@@ -4,11 +4,7 @@ import { BrainSection } from './BrainSection';
 import { ShadowSection } from './ShadowSection';
 import { ToolsSection } from './ToolsSection';
 
-interface SecuritySectionProps {
-  /** Nothing special needed — brain/shadow/tools each own their data. */
-}
-
-export function SecuritySection(_props: SecuritySectionProps) {
+export function SecuritySection() {
   const { t } = useAppTranslation();
 
   return (

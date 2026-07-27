@@ -4,7 +4,12 @@ import { DefaultLogger } from '@wrongstack/core/infrastructure';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 // Spy on the background indexer entry points the wiring drives.
-const { runStartupIndexMock, enqueueReindexMock, cancelPendingReindexesMock } = vi.hoisted(() => ({
+const {
+  runStartupIndexMock,
+  enqueueReindexMock,
+  ensureCodebaseIndexServerMock,
+  cancelPendingReindexesMock,
+} = vi.hoisted(() => ({
   runStartupIndexMock: vi.fn(async () => ({
     filesIndexed: 3,
     symbolsIndexed: 42,
@@ -13,11 +18,13 @@ const { runStartupIndexMock, enqueueReindexMock, cancelPendingReindexesMock } = 
     errors: [],
   })),
   enqueueReindexMock: vi.fn(),
+  ensureCodebaseIndexServerMock: vi.fn(async () => {}),
   cancelPendingReindexesMock: vi.fn(),
 }));
 vi.mock('@wrongstack/tools', () => ({
   runStartupIndex: runStartupIndexMock,
   enqueueReindex: enqueueReindexMock,
+  ensureCodebaseIndexServer: ensureCodebaseIndexServerMock,
   cancelPendingReindexes: cancelPendingReindexesMock,
   shutdownCodebaseIndexHost: vi.fn(),
   isIndexableFile: (p: string) => /\.(ts|tsx|js|jsx|go|py|rs)$/.test(p),
@@ -61,6 +68,7 @@ function toolCallPayload(
 beforeEach(() => {
   runStartupIndexMock.mockClear();
   enqueueReindexMock.mockClear();
+  ensureCodebaseIndexServerMock.mockClear();
   cancelPendingReindexesMock.mockClear();
 });
 
@@ -71,6 +79,11 @@ describe('setupCodebaseIndexing — startup', () => {
       deps({ onSessionStart: true, onEdit: false, watchExternal: false, debounceMs: 400 }, p),
     );
     expect(runStartupIndexMock).toHaveBeenCalledTimes(1);
+    expect(ensureCodebaseIndexServerMock).toHaveBeenCalledWith({
+      projectRoot: PROJECT,
+      watchExternal: false,
+      debounceMs: 400,
+    });
     expect(runStartupIndexMock).toHaveBeenCalledWith({ projectRoot: PROJECT });
   });
 

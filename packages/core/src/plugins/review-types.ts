@@ -136,3 +136,30 @@ export interface ReviewContextBundle {
       }>
     | undefined;
 }
+
+/** Legacy alias for the bundle emitted when a Chimera review is requested. */
+export type ChimeraReviewNeededPayload = ReviewContextBundle;
+
+export interface ChimeraReviewCompletePayload {
+  bundle: ReviewContextBundle;
+  reviewText: string;
+  status: string;
+  cwd: string;
+  /**
+   * Active session ID at review-complete time. Set by execution.ts when
+   * emitting the event. Consumed by finding/report integration to stamp
+   * findings with the correct session identifier instead of the working
+   * directory path (which was the previous broken behaviour).
+   */
+  sessionId?: string | undefined;
+}
+
+export type CascadeAgentKind = 'security-scanner' | 'bug-hunter';
+
+export interface ChimeraCascadeNeededPayload {
+  bundle: ReviewContextBundle;
+  reviewText: string;
+  severities: { critical: number; high: number; medium: number };
+  threshold: 'high' | 'critical';
+  agents: CascadeAgentKind[];
+}

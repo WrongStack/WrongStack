@@ -1,4 +1,4 @@
-import type { PerSubcommandHelp } from './per-subcommand-help.js';
+import type { PerSubcommandHelp } from './per-subcommand-help-types.js';
 
 export const helpTable: Record<string, PerSubcommandHelp> = {
   init: {

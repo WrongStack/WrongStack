@@ -1,9 +1,8 @@
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
-import type { Message } from '@wrongstack/core/types';
+import type { Message, SessionStore, SessionWriter } from '@wrongstack/core/types';
 import type { WstackPaths } from '@wrongstack/core/utils';
-import type { SessionStore, SessionWriter } from '@wrongstack/core/types';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { setupSession } from '../src/wiring/session.js';
 
@@ -65,11 +64,13 @@ const fakeTokenCounter = {
   count: vi.fn().mockResolvedValue({ total: 0 }),
 } as never;
 
-const onRecovery = vi.fn().mockResolvedValue('skip');
-
 describe('setupSession', () => {
-  it('creates a fresh session when no recovery and no resume', async () => {
+  it('always creates a fresh session by default, even with a legacy active.json', async () => {
     const sessionStore = makeSessionStore();
+    await fs.writeFile(
+      path.join(tmp, 'active.json'),
+      JSON.stringify({ v: 1, sessionId: 'old-session', pid: 4242 }),
+    );
     const result = await setupSession({
       config: { model: 'm', provider: 'p' },
       wpaths: makeWpaths(),
@@ -80,17 +81,17 @@ describe('setupSession', () => {
       provider: fakeProvider,
       tokenCounter: fakeTokenCounter,
       renderer: makeRenderer(),
-      flags: { 'no-recovery': true },
-      onRecovery,
+      flags: {},
     });
     expect(sessionStore.create).toHaveBeenCalled();
+    expect(sessionStore.resume).not.toHaveBeenCalled();
+    expect(sessionStore.delete).not.toHaveBeenCalled();
     expect(result.session.id).toBe('sess-new');
     expect(result.sessionRef.current?.id).toBe('sess-new');
     expect(result.restoredMessages).toEqual([]);
     expect(result.context).toBeDefined();
     expect(result.attachments).toBeDefined();
     expect(result.queueStore).toBeDefined();
-    expect(result.recoveryLock).toBeDefined();
     const { listBoards } = await import('@wrongstack/kanban');
     const boards = await listBoards(tmp);
     expect(boards).toHaveLength(1);
@@ -114,6 +115,7 @@ describe('setupSession', () => {
       }),
     });
     const renderer = makeRenderer();
+    const claimSession = vi.fn(async () => async () => undefined);
     const result = await setupSession({
       config: { model: 'm', provider: 'p' },
       wpaths: makeWpaths(),
@@ -125,13 +127,40 @@ describe('setupSession', () => {
       tokenCounter: fakeTokenCounter,
       renderer,
       flags: { resume: 'resumed-1' },
-      onRecovery,
+      claimSession,
     });
+    expect(claimSession).toHaveBeenCalledWith('resumed-1');
     expect(sessionStore.resume).toHaveBeenCalledWith('resumed-1');
     expect(result.session.id).toBe('resumed-1');
     expect(result.restoredMessages).toEqual([restoredMsg]);
     expect(renderer.writeInfo).toHaveBeenCalledWith(
       expect.stringContaining('Resumed session resumed-1'),
+    );
+  });
+
+  it('does not open an explicitly resumed session when another process owns it', async () => {
+    const sessionStore = makeSessionStore();
+    const renderer = makeRenderer();
+    await expect(
+      setupSession({
+        config: { model: 'm', provider: 'p' },
+        wpaths: makeWpaths(),
+        projectRoot: tmp,
+        cwd: tmp,
+        sessionStore,
+        systemPrompt: [],
+        provider: fakeProvider,
+        tokenCounter: fakeTokenCounter,
+        renderer,
+        flags: { resume: 'owned-session' },
+        claimSession: async () => {
+          throw new Error('Session owned-session is already open in another running wstack.');
+        },
+      }),
+    ).rejects.toMatchObject({ message: 'RESUME_FAILED', exitCode: 2 });
+    expect(sessionStore.resume).not.toHaveBeenCalled();
+    expect(renderer.writeError).toHaveBeenCalledWith(
+      expect.stringContaining('already open in another running wstack'),
     );
   });
 
@@ -157,7 +186,6 @@ describe('setupSession', () => {
       tokenCounter: fakeTokenCounter,
       renderer: makeRenderer(),
       flags: { resume: 'resumed-mp' },
-      onRecovery,
     });
     expect(result.resumedModel).toBe('session-model');
     expect(result.resumedProvider).toBe('session-provider');
@@ -175,7 +203,6 @@ describe('setupSession', () => {
       tokenCounter: fakeTokenCounter,
       renderer: makeRenderer(),
       flags: {},
-      onRecovery,
     });
     expect(result.resumedModel).toBeUndefined();
     expect(result.resumedProvider).toBeUndefined();
@@ -198,7 +225,6 @@ describe('setupSession', () => {
         tokenCounter: fakeTokenCounter,
         renderer,
         flags: { resume: 'bad-id' },
-        onRecovery,
       }),
     ).rejects.toMatchObject({ message: 'RESUME_FAILED', exitCode: 2 });
     expect(renderer.writeError).toHaveBeenCalledWith(expect.stringContaining('not found'));
@@ -243,7 +269,6 @@ describe('setupSession', () => {
       tokenCounter: fakeTokenCounter,
       renderer,
       flags: { resume: 'resumed-2' },
-      onRecovery,
     });
     expect(renderer.writeInfo).toHaveBeenCalledWith(expect.stringContaining('Restored 2 todos'));
     expect(result.context.state.todos.length).toBe(2);
@@ -272,7 +297,6 @@ describe('setupSession', () => {
       tokenCounter: fakeTokenCounter,
       renderer,
       flags: { resume: 'resumed-3' },
-      onRecovery,
     });
     // No "Restored X todos" message — but the function should have completed.
     expect(renderer.writeError).not.toHaveBeenCalled();
@@ -316,7 +340,6 @@ describe('setupSession', () => {
       tokenCounter: fakeTokenCounter,
       renderer,
       flags: { resume: 'resumed-4' },
-      onRecovery,
     });
     expect(result.priorFleetState).toBeDefined();
     expect(renderer.writeInfo).toHaveBeenCalledWith(expect.stringContaining('Prior fleet state'));
@@ -360,7 +383,6 @@ describe('setupSession', () => {
       tokenCounter: fakeTokenCounter,
       renderer,
       flags: { resume: 'resumed-5' },
-      onRecovery,
     });
     expect(renderer.writeInfo).toHaveBeenCalledWith(
       expect.stringMatching(/Plan: 3 items \(2 open, 1 done\)/),

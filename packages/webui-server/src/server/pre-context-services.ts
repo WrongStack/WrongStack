@@ -225,6 +225,7 @@ export async function createPreContextServices(
   // ── Tool registry (+ memory + mailbox tools) ──
   const toolRegistry = opts.services?.toolRegistry ?? new ToolRegistry();
   const memoryStore = container.resolve(TOKENS.MemoryStore);
+  await memoryStore.initialize();
   if (!opts.services?.toolRegistry) {
     registerCanonicalHostTools({
       registry: toolRegistry,
@@ -279,9 +280,7 @@ export async function createPreContextServices(
       dir: wpaths.projectSessions,
       projectRoot: wpaths.projectRoot,
       // Cross-process guard for delete(): refuses to remove a session that a
-      // live terminal/TUI/WebUI in this project is using. The store also
-      // checks active.json directly; this widens it to every concurrent
-      // surface via the SessionRegistry.
+      // live terminal/TUI/WebUI in this project is using.
       isSessionInUse: async (sessionId) => {
         try {
           const registry = getSessionRegistry(wpaths.globalRoot);
@@ -291,7 +290,7 @@ export async function createPreContextServices(
             return `active in ${hit.projectName} (PID ${hit.pid})`;
           }
         } catch {
-          // registry unavailable — fall back to the active.json check only
+          // registry unavailable — keep the store usable
         }
         return null;
       },
@@ -329,12 +328,9 @@ export async function createPreContextServices(
       globalRoot: wpaths.globalRoot,
       projectRoot,
       projectSlug: wpaths.projectSlug,
-      projectSessions: wpaths.projectSessions,
     },
     workingDir,
     initialSessionId: session.id,
-    sessionStore,
-    manageRecoveryLock: !opts.services?.session,
   });
   const statusTracker = sessionIdentity.statusTracker;
 

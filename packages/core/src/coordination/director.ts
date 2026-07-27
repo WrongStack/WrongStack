@@ -46,7 +46,7 @@ import type { ICoordinator } from './icoordinator.js';
 import { InMemoryBridgeTransport } from './in-memory-transport.js';
 import { LargeAnswerStore } from './large-answer-store.js';
 import { resolveDirectorSpawnModel } from './director-spawn-model.js';
-import { type ModelMatrixSource } from './model-matrix.js';
+import type { ModelMatrixSource } from './model-matrix.js';
 import { DefaultMultiAgentCoordinator } from './multi-agent-coordinator.js';
 import type { ProviderModelStatusTracker } from './provider-status-tracker.js';
 import { resolveMaxSpawnDepth } from './spawn-budget.js';

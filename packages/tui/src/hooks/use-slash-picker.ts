@@ -1,6 +1,7 @@
 import { type Dispatch, useCallback, useEffect } from 'react';
 import type { AppProps } from '../app-props.js';
-import type { Action, State } from '../app-state.js';
+import type { Action } from '../app-action-type.js';
+import type { State } from '../app-state.js';
 import { buildSlashCommandMatches } from '../slash-command-search.js';
 
 interface SlashPickerOptions {

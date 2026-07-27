@@ -263,6 +263,55 @@ describe('provider-keys', () => {
       expect(saved.envVars).toBeUndefined();
       expect(saved.quirks).toBeUndefined();
     });
+
+    it('persists models and customModels for a generic custom provider', () => {
+      const providers: ProvidersRecord = {};
+      addProvider(
+        providers,
+        {
+          id: 'my-gateway',
+          family: 'openai-compatible',
+          models: ['m1', 'm2'],
+          customModels: {
+            m1: { name: 'Model One', maxOutput: 32_768, capabilities: { tools: true, maxContext: 128_000 } },
+            m2: { name: 'Model Two', capabilities: { vision: true, reasoning: true } },
+          },
+        },
+        '2024-01-01',
+      );
+      const saved = providers['my-gateway']!;
+      expect(saved.models).toEqual(['m1', 'm2']);
+      expect(saved.customModels?.m1?.name).toBe('Model One');
+      expect(saved.customModels?.m1?.maxOutput).toBe(32_768);
+      expect(saved.customModels?.m1?.capabilities?.tools).toBe(true);
+      expect(saved.customModels?.m1?.capabilities?.maxContext).toBe(128_000);
+      expect(saved.customModels?.m2?.name).toBe('Model Two');
+      expect(saved.customModels?.m2?.capabilities?.vision).toBe(true);
+      expect(saved.customModels?.m2?.capabilities?.reasoning).toBe(true);
+    });
+
+    it('preset hydration overwrites any supplied models/customModels', () => {
+      // Trusted presets are product-locked — a provider.add must not override
+      // them with user-supplied model metadata from the custom-provider form.
+      const providers: ProvidersRecord = {};
+      addProvider(
+        providers,
+        {
+          id: 'kimi-for-coding',
+          family: 'openai-compatible',
+          apiKey: 'sk-test',
+          models: ['user-model'],
+          customModels: { 'user-model': { name: 'User Model' } },
+        },
+        '2024-01-01',
+      );
+      const saved = providers['kimi-for-coding']!;
+      // Preset models win, NOT the user-supplied ones. If the preset has
+      // customModels they also win; if not (kimi-for-coding lacks them),
+      // the field is cleared so stale user metadata isn't kept.
+      expect(saved.models).toEqual(['kimi-for-coding', 'kimi-for-coding-highspeed']);
+      expect(saved.customModels).toBeUndefined();
+    });
   });
 
   describe('removeProvider', () => {

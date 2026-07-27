@@ -920,7 +920,7 @@ export class DefaultSessionStore implements SessionStore {
   }
 
   async delete(id: string): Promise<void> {
-    await assertSessionCanBeDeleted(this.dir, id, this.isSessionInUse);
+    await assertSessionCanBeDeleted(id, this.isSessionInUse);
     await this.deleteSession(id);
   }
 

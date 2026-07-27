@@ -139,6 +139,62 @@ describe('BrowserNetworkGuardProxy', () => {
     expect(result).toContain('echo:ping');
   });
 
+  it('survives a browser abort while an HTTPS CONNECT tunnel is writing', async () => {
+    const targetSockets = new Set<net.Socket>();
+    const target = net.createServer((socket) => {
+      targetSockets.add(socket);
+      socket.on('error', () => undefined);
+      socket.once('close', () => targetSockets.delete(socket));
+      socket.on('data', () => {
+        const burst = Buffer.alloc(256 * 1024, 0x61);
+        for (let index = 0; index < 8; index += 1) socket.write(burst);
+      });
+    });
+    await new Promise<void>((resolve) => target.listen(0, '127.0.0.1', resolve));
+    closers.push(async () => {
+      for (const socket of targetSockets) socket.destroy();
+      await new Promise<void>((resolve) => target.close(() => resolve()));
+    });
+    const targetAddress = target.address();
+    if (!targetAddress || typeof targetAddress === 'string')
+      throw new Error('target failed to bind');
+
+    const authority = `abort.test:${targetAddress.port}`;
+    const proxy = new BrowserNetworkGuardProxy({
+      allowedPrivateOrigins: [`https://${authority}`],
+      lookup: async () => [{ address: '127.0.0.1', family: 4 }],
+    });
+    const proxyAddress = new URL(await proxy.start());
+    closers.push(() => proxy.close());
+
+    await new Promise<void>((resolve, reject) => {
+      const client = net.connect(Number(proxyAddress.port), proxyAddress.hostname);
+      let received = '';
+      client.once('connect', () => {
+        client.write(`CONNECT ${authority} HTTP/1.1\r\nHost: ${authority}\r\n\r\n`);
+      });
+      client.on('data', (chunk) => {
+        received += chunk.toString('utf8');
+        if (!received.includes('200 Connection Established')) return;
+        client.write('start');
+        client.resetAndDestroy();
+        resolve();
+      });
+      client.on('error', (error) => {
+        if (received.includes('200 Connection Established')) {
+          resolve();
+          return;
+        }
+        reject(error);
+      });
+    });
+
+    // Let the target's queued burst race the reset socket. The proxy must
+    // absorb the asynchronous ECONNRESET/ECONNABORTED instead of crashing.
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    await expect(proxy.start()).resolves.toBe(proxyAddress.toString().replace(/\/$/, ''));
+  });
+
   it('forwards guarded plain WebSocket upgrades', async () => {
     const target = http.createServer();
     const targetSockets = new Set<net.Socket>();

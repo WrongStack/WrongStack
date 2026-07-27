@@ -182,6 +182,49 @@ describe('IndexStore refs', () => {
     expect(store.findRefsFrom(callerId)).toEqual([]);
   });
 
+  it('re-resolves inbound refs when a target file is replaced', () => {
+    store.insertRefs(callerId, [{ fromId: callerId, toName: 'callee', callType: 'call', line: 3 }]);
+    store.resolveRefs();
+    const previousTarget = store.findRefsFrom(callerId)[0]?.toId;
+
+    const replacement = store.commitBatch(
+      [
+        {
+          file: '/p/b.ts',
+          lang: 'ts',
+          symbols: [sym({ name: 'callee', file: '/p/b.ts', line: 10 })],
+          refs: [],
+          mtimeMs: 2,
+          symbolCount: 1,
+        },
+      ],
+      { deleteForFiles: ['/p/b.ts'] },
+    );
+
+    expect(replacement[0]?.id).not.toBe(previousTarget);
+    expect(store.findRefsFrom(callerId)[0]?.toId).toBe(replacement[0]?.id);
+  });
+
+  it('resolves existing unresolved refs when a matching symbol arrives', () => {
+    store.insertRefs(callerId, [
+      { fromId: callerId, toName: 'futureTarget', callType: 'call', line: 4 },
+    ]);
+    expect(store.findRefsFrom(callerId)[0]?.toId).toBeUndefined();
+
+    const inserted = store.commitBatch([
+      {
+        file: '/p/future.ts',
+        lang: 'ts',
+        symbols: [sym({ name: 'futureTarget', file: '/p/future.ts' })],
+        refs: [],
+        mtimeMs: 1,
+        symbolCount: 1,
+      },
+    ]);
+
+    expect(store.findRefsFrom(callerId)[0]?.toId).toBe(inserted[0]?.id);
+  });
+
   it('deleteRefsForFile removes refs originating in that file', () => {
     store.insertRefs(callerId, [{ fromId: callerId, toName: 'callee', callType: 'call', line: 1 }]);
     store.deleteRefsForFile('/p/a.ts');
@@ -275,6 +318,18 @@ describe('IndexStore CodeMap graphs', () => {
 });
 
 describe('IndexStore file ops + ranked fallback', () => {
+  it('compacts only when the configured size and free-page thresholds allow it', () => {
+    store.insertSymbols(
+      Array.from({ length: 100 }, (_, index) =>
+        sym({ name: `Temporary${index}`, file: `/p/temp-${index % 5}.ts` }),
+      ),
+    );
+    store.clearAll();
+
+    expect(store.compactIfNeeded({ minBytes: Number.MAX_SAFE_INTEGER })).toBe(false);
+    expect(store.compactIfNeeded({ minBytes: 0, minFreeRatio: 0 })).toBe(true);
+  });
+
   it('deleteFile removes symbols, refs, and the file row', () => {
     const inserted = store.insertSymbols([sym({ name: 'gone', file: '/p/gone.ts' })]);
     const id = inserted[0].id;

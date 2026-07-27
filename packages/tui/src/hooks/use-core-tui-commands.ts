@@ -11,7 +11,8 @@ import {
   useMemo,
 } from 'react';
 import type { AppProps } from '../app-props.js';
-import type { Action, State } from '../app-state.js';
+import type { Action } from '../app-action-type.js';
+import type { State } from '../app-state.js';
 import { createContextSlashCommand } from '../context-slash.js';
 import { createCronJobsGetter, createCronSlashCommand } from '../cron-slash.js';
 import { createKanbanSlashCommand } from '../kanban-slash.js';

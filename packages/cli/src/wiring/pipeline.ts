@@ -90,13 +90,14 @@ export async function setupCompaction(params: {
     model?: string | undefined;
     providers?: import('@wrongstack/core/types').Config['providers'] | undefined;
     context: {
-      mode?: import('@wrongstack/core/types').ContextWindowModeId | undefined;
+      mode?: import('@wrongstack/core/types').ContextWindowModeSelectionId | undefined;
       autoCompact?: boolean | undefined;
       warnThreshold: number;
       softThreshold: number;
       hardThreshold: number;
       preserveK?: number | undefined;
       eliseThreshold?: number | undefined;
+      targetLoad?: number | undefined;
       effectiveMaxContext?: number | undefined;
     };
     /** Slice that may contain session.auditLevel (for future richer logging). */
@@ -183,6 +184,7 @@ export async function setupCompaction(params: {
             ? (policy as {
                 thresholds: { warn: number; soft: number; hard: number };
                 aggressiveOn: 'hard' | 'soft' | 'warn';
+                targetLoad: number;
               })
             : null;
         },

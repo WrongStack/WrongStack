@@ -20,14 +20,18 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 const t = vi.hoisted(() => {
   const execFileMock = vi.fn();
   const installMock = vi.fn();
-  const createGracefulShutdownMock = vi.fn(() => ({ install: installMock }));
+  const createGracefulShutdownMock = vi.fn((_options: { run: () => Promise<void> }) => ({
+    install: installMock,
+  }));
   const registerMock = vi.fn();
   const markClosingMock = vi.fn();
+  const unregisterMock = vi.fn();
   // biome-ignore lint/complexity/useArrowFunction: vi.fn constructor mocks must be function() so `new` works
   const getSessionRegistryMock = vi.fn(function () {
     return {
       register: registerMock,
       markClosing: markClosingMock,
+      unregister: unregisterMock,
     };
   });
   const startMock = vi.fn();
@@ -38,9 +42,10 @@ const t = vi.hoisted(() => {
   });
   const notifyMock = vi.fn();
   const disposeMock = vi.fn();
+  const setProjectRootMock = vi.fn();
   // biome-ignore lint/complexity/useArrowFunction: vi.fn constructor mocks must be function() so `new` works
   const FleetNotifierMock = vi.fn(function () {
-    return { notify: notifyMock, dispose: disposeMock };
+    return { notify: notifyMock, dispose: disposeMock, setProjectRoot: setProjectRootMock };
   });
   return {
     execFileMock,
@@ -48,12 +53,14 @@ const t = vi.hoisted(() => {
     createGracefulShutdownMock,
     registerMock,
     markClosingMock,
+    unregisterMock,
     getSessionRegistryMock,
     startMock,
     stopMock,
     AgentStatusTrackerMock,
     notifyMock,
     disposeMock,
+    setProjectRootMock,
     FleetNotifierMock,
   };
 });
@@ -99,7 +106,11 @@ beforeEach(() => {
   // mockImplementation(() => { throw ... }) would pollute subsequent tests).
   // biome-ignore lint/complexity/useArrowFunction: vi.fn constructor mocks must be function() so `new` works
   t.getSessionRegistryMock.mockImplementation(function () {
-    return { register: t.registerMock, markClosing: t.markClosingMock };
+    return {
+      register: t.registerMock,
+      markClosing: t.markClosingMock,
+      unregister: t.unregisterMock,
+    };
   });
   // biome-ignore lint/complexity/useArrowFunction: vi.fn constructor mocks must be function() so `new` works
   t.AgentStatusTrackerMock.mockImplementation(function () {
@@ -107,12 +118,21 @@ beforeEach(() => {
   });
   // biome-ignore lint/complexity/useArrowFunction: vi.fn constructor mocks must be function() so `new` works
   t.FleetNotifierMock.mockImplementation(function () {
-    return { notify: t.notifyMock, dispose: t.disposeMock };
+    return {
+      notify: t.notifyMock,
+      dispose: t.disposeMock,
+      setProjectRoot: t.setProjectRootMock,
+    };
   });
 
   // Default git success
   t.execFileMock.mockImplementation(
-    (_cmd: string, _args: string[], _opts: object, cb: (err: Error | null, stdout: string) => void) => {
+    (
+      _cmd: string,
+      _args: string[],
+      _opts: object,
+      cb: (err: Error | null, stdout: string) => void,
+    ) => {
       cb(null, 'main\n');
     },
   );
@@ -120,6 +140,7 @@ beforeEach(() => {
   // Default async resolves
   t.registerMock.mockResolvedValue(undefined);
   t.markClosingMock.mockResolvedValue(undefined);
+  t.unregisterMock.mockResolvedValue(undefined);
   t.stopMock.mockResolvedValue(undefined);
 });
 
@@ -167,7 +188,7 @@ describe('setupSessionRegistry', () => {
     expect(t.installMock).toHaveBeenCalledTimes(1);
   });
 
-  it('wires the shutdown handler to dispose notifier, mark closing, and stop tracker', async () => {
+  it('wires shutdown to mark closing, stop tracking, and remove the exact owner', async () => {
     await setupSessionRegistry(makeDeps());
 
     const shutdownArg = t.createGracefulShutdownMock.mock.calls[0]![0] as unknown as {
@@ -178,10 +199,15 @@ describe('setupSessionRegistry', () => {
     expect(t.disposeMock).toHaveBeenCalled();
     expect(t.markClosingMock).toHaveBeenCalled();
     expect(t.stopMock).toHaveBeenCalled();
+    expect(t.unregisterMock).toHaveBeenCalled();
   });
 
   it('shutdown handler does not throw when cleanup operations fail', async () => {
     t.markClosingMock.mockRejectedValue(new Error('disk full'));
+    t.stopMock.mockImplementation(() => {
+      throw new Error('tracker failed');
+    });
+    t.unregisterMock.mockRejectedValue(new Error('registry busy'));
 
     await setupSessionRegistry(makeDeps());
 
@@ -189,11 +215,17 @@ describe('setupSessionRegistry', () => {
       run: () => Promise<void>;
     };
     await expect(shutdownArg.run()).resolves.toBeUndefined();
+    expect(t.unregisterMock).toHaveBeenCalled();
   });
 
   it('handles git failure gracefully', async () => {
     t.execFileMock.mockImplementation(
-      (_cmd: string, _args: string[], _opts: object, cb: (err: Error | null, _stdout: string) => void) => {
+      (
+        _cmd: string,
+        _args: string[],
+        _opts: object,
+        cb: (err: Error | null, _stdout: string) => void,
+      ) => {
         cb(new Error('not a git repository'), '');
       },
     );
@@ -201,72 +233,68 @@ describe('setupSessionRegistry', () => {
     const result = await setupSessionRegistry(makeDeps());
 
     expect(result.tracker).toBeDefined();
-    expect(t.registerMock).toHaveBeenCalledWith(
-      expect.objectContaining({ gitBranch: undefined }),
-    );
+    expect(t.registerMock).toHaveBeenCalledWith(expect.objectContaining({ gitBranch: undefined }));
   });
 
   it('maps detached HEAD to undefined gitBranch', async () => {
     t.execFileMock.mockImplementation(
-      (_cmd: string, _args: string[], _opts: object, cb: (err: Error | null, stdout: string) => void) => {
+      (
+        _cmd: string,
+        _args: string[],
+        _opts: object,
+        cb: (err: Error | null, stdout: string) => void,
+      ) => {
         cb(null, 'HEAD\n');
       },
     );
 
     await setupSessionRegistry(makeDeps());
 
-    expect(t.registerMock).toHaveBeenCalledWith(
-      expect.objectContaining({ gitBranch: undefined }),
-    );
+    expect(t.registerMock).toHaveBeenCalledWith(expect.objectContaining({ gitBranch: undefined }));
   });
 
   it('maps empty stdout to undefined gitBranch', async () => {
     t.execFileMock.mockImplementation(
-      (_cmd: string, _args: string[], _opts: object, cb: (err: Error | null, stdout: string) => void) => {
+      (
+        _cmd: string,
+        _args: string[],
+        _opts: object,
+        cb: (err: Error | null, stdout: string) => void,
+      ) => {
         cb(null, '');
       },
     );
 
     await setupSessionRegistry(makeDeps());
 
-    expect(t.registerMock).toHaveBeenCalledWith(
-      expect.objectContaining({ gitBranch: undefined }),
-    );
+    expect(t.registerMock).toHaveBeenCalledWith(expect.objectContaining({ gitBranch: undefined }));
   });
 
   it('passes clientType "tui" when tuiOwnsScreen is true', async () => {
     await setupSessionRegistry(makeDeps({ tuiOwnsScreen: true }));
 
-    expect(t.registerMock).toHaveBeenCalledWith(
-      expect.objectContaining({ clientType: 'tui' }),
-    );
+    expect(t.registerMock).toHaveBeenCalledWith(expect.objectContaining({ clientType: 'tui' }));
   });
 
   it('passes clientType "cli" when tuiOwnsScreen is false', async () => {
     await setupSessionRegistry(makeDeps({ tuiOwnsScreen: false }));
 
-    expect(t.registerMock).toHaveBeenCalledWith(
-      expect.objectContaining({ clientType: 'cli' }),
-    );
+    expect(t.registerMock).toHaveBeenCalledWith(expect.objectContaining({ clientType: 'cli' }));
   });
 
-  it('returns tracker undefined when registry.register rejects', async () => {
+  it('fails startup when registry ownership cannot be established', async () => {
     t.registerMock.mockRejectedValue(new Error('registry unavailable'));
 
-    const result = await setupSessionRegistry(makeDeps());
-
-    expect(result.tracker).toBeUndefined();
+    await expect(setupSessionRegistry(makeDeps())).rejects.toThrow('registry unavailable');
     expect(t.createGracefulShutdownMock).not.toHaveBeenCalled();
   });
 
-  it('returns tracker undefined when getSessionRegistry throws', async () => {
+  it('fails startup when the ownership registry is unavailable', async () => {
     t.getSessionRegistryMock.mockImplementation(() => {
       throw new Error('singleton not initialized');
     });
 
-    const result = await setupSessionRegistry(makeDeps());
-
-    expect(result.tracker).toBeUndefined();
+    await expect(setupSessionRegistry(makeDeps())).rejects.toThrow('singleton not initialized');
     expect(t.registerMock).not.toHaveBeenCalled();
   });
 
@@ -278,13 +306,66 @@ describe('setupSessionRegistry', () => {
     const result = await setupSessionRegistry(makeDeps());
 
     expect(result.tracker).toBeUndefined();
-    expect(t.createGracefulShutdownMock).not.toHaveBeenCalled();
+    expect(t.createGracefulShutdownMock).toHaveBeenCalledOnce();
+  });
+
+  it('keeps session activation available when optional tracker setup fails', async () => {
+    t.AgentStatusTrackerMock.mockImplementation(() => {
+      throw new Error('invalid events bus');
+    });
+
+    const result = await setupSessionRegistry(makeDeps());
+    await result.activateSession('sess_next');
+
+    expect(t.registerMock).toHaveBeenLastCalledWith(
+      expect.objectContaining({ sessionId: 'sess_next', pid: process.pid }),
+    );
+  });
+
+  it('keeps activation and cleanup available when optional notifier setup fails', async () => {
+    t.FleetNotifierMock.mockImplementation(() => {
+      throw new Error('notifier unavailable');
+    });
+
+    const result = await setupSessionRegistry(makeDeps());
+    await result.activateSession('sess_next');
+
+    expect(result.tracker).toBeUndefined();
+    expect(t.registerMock).toHaveBeenLastCalledWith(
+      expect.objectContaining({ sessionId: 'sess_next', pid: process.pid }),
+    );
+
+    const shutdownArg = t.createGracefulShutdownMock.mock.calls[0]![0] as unknown as {
+      run: () => Promise<void>;
+    };
+    await expect(shutdownArg.run()).resolves.toBeUndefined();
+    expect(t.unregisterMock).toHaveBeenCalled();
+  });
+
+  it('updates project identity and notifier scope on an in-process project switch', async () => {
+    const result = await setupSessionRegistry(makeDeps());
+
+    await result.activateSession('sess_project_2', {
+      projectSlug: 'project-2',
+      projectRoot: '/home/user/projects/project-2',
+      projectName: 'project-2',
+      workingDir: '/home/user/projects/project-2',
+      gitBranch: 'feature',
+    });
+
+    expect(t.registerMock).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        sessionId: 'sess_project_2',
+        projectSlug: 'project-2',
+        projectRoot: '/home/user/projects/project-2',
+        workingDir: '/home/user/projects/project-2',
+      }),
+    );
+    expect(t.setProjectRootMock).toHaveBeenCalledWith('/home/user/projects/project-2');
   });
 
   it('passes resolved projectName as basename of projectRoot', async () => {
-    await setupSessionRegistry(
-      makeDeps({ projectRoot: '/some/deep/path/to/awesome-project' }),
-    );
+    await setupSessionRegistry(makeDeps({ projectRoot: '/some/deep/path/to/awesome-project' }));
 
     expect(t.registerMock).toHaveBeenCalledWith(
       expect.objectContaining({ projectName: 'awesome-project' }),

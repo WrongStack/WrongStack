@@ -141,6 +141,69 @@ describe('buildTaskGraphFromGoalPhase', () => {
   });
 });
 
+describe('KanbanRunMirror SDD → one board per topo wave', () => {
+  it('creates a separate board per dependency column when columns > 1', async () => {
+    const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'wstack-mirror-sdd-waves-'));
+    function fakeEvents() {
+      const handlers = new Map<string, Array<(p: unknown) => void>>();
+      return {
+        on(name: string, fn: (p: unknown) => void) {
+          const list = handlers.get(name) ?? [];
+          list.push(fn);
+          handlers.set(name, list);
+          return () => {};
+        },
+        emit(name: string, payload: unknown) {
+          for (const fn of handlers.get(name) ?? []) fn(payload);
+        },
+      };
+    }
+    const events = fakeEvents();
+    const mirror = createKanbanRunMirror({
+      projectRoot: dir,
+      events: events as never,
+      broadcast: () => {},
+      log: () => {},
+    });
+    try {
+      events.emit('sdd.board.snapshot', {
+        runId: 'sdd-wave',
+        snapshot: {
+          runId: 'sdd-wave',
+          graphId: 'g-wave',
+          title: 'Multi-wave',
+          status: 'running',
+          startedAt: 0,
+          updatedAt: 1,
+          progress: {},
+          wave: 0,
+          tasks: [
+            sddTask({ id: 'n1', shortId: 't01', title: 'Root A' }),
+            sddTask({ id: 'n2', shortId: 't02', title: 'Root B' }),
+            sddTask({ id: 'n3', shortId: 't03', title: 'Child', deps: ['t01'] }),
+          ],
+          columns: [
+            { label: 'Wave 1', taskIds: ['t01', 't02'] },
+            { label: 'Wave 2', taskIds: ['t03'] },
+          ],
+        },
+      });
+      await settle();
+      const boards = (await listBoards(dir)).filter((b) => b.tags?.includes('sdd'));
+      expect(boards.length).toBe(2);
+      expect(boards.every((b) => b.tags?.includes('run:sdd-wave'))).toBe(true);
+      expect(boards.map((b) => b.tags?.find((t) => t.startsWith('phase:'))).sort()).toEqual([
+        'phase:wave-0',
+        'phase:wave-1',
+      ]);
+      expect(boards.every((b) => b.title.startsWith('Multi-wave — '))).toBe(true);
+    } finally {
+      mirror.dispose();
+      await fs.rm(dir, { recursive: true, force: true });
+    }
+  });
+});
+
 describe('KanbanRunMirror Goal → one board per phase', () => {
   it('creates a separate board per phase, grouped by run tag', async () => {
     const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'wstack-mirror-ap-'));

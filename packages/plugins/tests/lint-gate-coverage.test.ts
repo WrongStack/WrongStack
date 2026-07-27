@@ -6,7 +6,7 @@
  * health with lastResult set, runCommand error path.
  */
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import lintGatePlugin from '../src/lint-gate';
+import lintGatePlugin from '../src/lint-gate/index.js';
 
 interface MockApi {
   tools: { register: ReturnType<typeof vi.fn> };

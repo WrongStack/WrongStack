@@ -1,46 +1,32 @@
 import { createHash } from 'node:crypto';
 import type { EventBus } from '../kernel/events.js';
 import type { ChronicleContext } from './context.js';
-import type { ChronicleJournal } from './journal.js';
+import type { ChronicleEventSink } from './sink.js';
 import type { ChronicleEventInput, ChronicleOutcome, ChronicleResourceRef } from './types.js';
 
 export interface ChronicleDomainAdapterOptions {
-  events: EventBus; journal: ChronicleJournal; context: ChronicleContext | (() => ChronicleContext);
+  events: EventBus; journal: ChronicleEventSink; context: ChronicleContext | (() => ChronicleContext);
   onPersistError?: ((error: unknown, event: ChronicleEventInput) => void) | undefined;
 }
 
-const SPECIALIZED = [
-  /^provider\.attempt\./, /^tool\./, /^process\./, /^brain\.decision_/,
-  /^brain\.human_answered$/, /^brain\.outcome$/, /^file\.activity$/,
-  /^provider\.(?:text_delta|thinking_delta)$/,
-  /^(?:ctx\.pct|subagent\.ctx_pct|countdown\.tick|coordinator\.stats)$/,
-  // Full-fleet UI snapshots and per-request network chatter are windowed by
-  // the rollup adapter — persisting every raw occurrence dominated journal
-  // bytes (~75%) without adding evidence the aggregates don't carry.
-  // network.request.failed stays raw: failures are individually meaningful.
-  /^session\.agents_updated$/,
-  /^network\.request\.(?:started|completed)$/,
-];
+// Events owned by specialized adapters or windowed by the rollup adapter.
+// One regex test replaces 15 individual pattern tests per EventBus emission.
+// Alternatives ending with a literal dollar sign anchor are exact matches;
+// others are prefix matches (same semantics as the original array).
+// prettier-ignore
+const SPECIALIZED_RE = /^(?:provider\.attempt\.|tool\.|process\.|brain\.decision_|brain\.human_answered$|brain\.outcome$|file\.activity$|provider\.(?:text_delta|thinking_delta)$|ctx\.pct$|subagent\.ctx_pct$|countdown\.tick$|coordinator\.stats$|session\.agents_updated$|network\.request\.(?:started|completed)$|runtime\.health\.sampled$|provider\.tool_use_(?:start|stop)$)/;
 /**
  * Only domains that can improve coding decisions, provenance, reliability or
  * resource/cost control belong in Chronicle. UI presence, navigation and other
  * product-engagement events are intentionally not captured by this bridge.
  */
-const CODING_SIGNAL = [
-  /^(?:agent|subagent|delegate|fleet)\./,
-  /^(?:session|iteration|context|compaction|checkpoint|in_flight)\./,
-  /^(?:memory|storage|trust)\./,
-  /^(?:sdd|worktree|kanban)\./,
-  /^(?:brain|token|budget|concurrency)\./,
-  /^(?:provider|mcp|network)\./,
-  /^file\.event$/,
-  /^error$/,
-];
+// prettier-ignore
+const CODING_SIGNAL_RE = /^(?:(?:agent|subagent|delegate|fleet|session|iteration|context|compaction|checkpoint|in_flight|memory|storage|trust|sdd|worktree|kanban|brain|token|budget|concurrency|provider|mcp|network)\.|file\.event$|error$)/;
 const SENSITIVE_KEY = /(content|text|prompt|question|rationale|reason|detail|summary|description|context|input|output|error|message|secret|token|password|key)$/i;
 const PRESERVE_STRING_KEY = /(^|_)(id|status|state|kind|type|source|model|provider|phase|risk|fallback|path|name|role|sha|branch|mode)$/i;
 /** Known metadata arrays that carry unbounded accumulated state (mail, tool
  *  history, commands). Chronicle only needs the most recent entries. */
-const TRUNCATED_ARRAYS = new Set(['recentMail', 'recentTools', 'recentCommands']);
+const TRUNCATED_ARRAYS = new Set(['recentMail', 'recentTools', 'recentCommands', 'activated', 'injected']);
 const TRUNCATED_ARRAY_MAX = 5;
 /** General array cap — enough for agent lists, file lists etc. without
  *  allowing unbounded growth through any array-shaped event field. */
@@ -49,9 +35,11 @@ const DEFAULT_ARRAY_MAX = 20;
 /** Allowlisted coding-signal bridge for domains not owned by a richer adapter. */
 export function wireDomainEventsToChronicle(options: ChronicleDomainAdapterOptions): () => void {
   return options.events.onAny((eventName, payload) => {
-    if (SPECIALIZED.some((pattern) => pattern.test(eventName))) return;
-    if (!CODING_SIGNAL.some((pattern) => pattern.test(eventName))) return;
-    const record = objectPayload(payload);
+    if (SPECIALIZED_RE.test(eventName)) return;
+    if (!CODING_SIGNAL_RE.test(eventName)) return;
+    const record = eventName === 'memory.injector_run'
+      ? dedupInjectorTrace(objectPayload(payload))
+      : objectPayload(payload);
     // file.event reads are already evidenced by tool.resource.observed edges;
     // only mutations need the durable session/task/board lineage record.
     if (eventName === 'file.event' && record.operation === 'read') return;
@@ -92,6 +80,28 @@ export function wireDomainEventsToChronicle(options: ChronicleDomainAdapterOptio
 
 function objectPayload(value: unknown): Record<string, unknown> {
   return value && typeof value === 'object' ? value as Record<string, unknown> : { value };
+}
+/** Persisted-copy-only dedup: an `injected` memory already present in
+ *  `activated` is replaced with an id reference instead of its full
+ *  (byte-identical) metadata. Never mutates `record`/its arrays — the same
+ *  payload reference is also handed to other live EventBus subscribers
+ *  (packages/tui/src/memory-context-monitor.ts, the WebUI memory injector
+ *  store) that read full fields off `injected` and must see them intact. */
+function dedupInjectorTrace(record: Record<string, unknown>): Record<string, unknown> {
+  const activated = Array.isArray(record.activated) ? record.activated : [];
+  const injected = Array.isArray(record.injected) ? record.injected : [];
+  const activatedIds = new Set(
+    activated
+      .map((item) => (item && typeof item === 'object' ? (item as { id?: unknown }).id : undefined))
+      .filter((id): id is string => typeof id === 'string'),
+  );
+  return {
+    ...record,
+    injected: injected.map((item) => {
+      const id = item && typeof item === 'object' ? (item as { id?: unknown }).id : undefined;
+      return typeof id === 'string' && activatedIds.has(id) ? { id, ref: 'activated' } : item;
+    }),
+  };
 }
 function stringField(value: Record<string, unknown>, key: string): string | undefined {
   return typeof value[key] === 'string' ? value[key] as string : undefined;

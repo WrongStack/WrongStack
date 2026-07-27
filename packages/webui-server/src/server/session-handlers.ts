@@ -10,21 +10,24 @@
  * bodies are a verbatim lift — only dependency references changed.
  */
 
-import type {
-  createStrategyCompactor,
-} from '@wrongstack/core/execution';
 import type { Context, TodoItem } from '@wrongstack/core/agent';
-import type { SessionStore, TokenCounter } from '@wrongstack/core/types';
+import type { createStrategyCompactor } from '@wrongstack/core/execution';
 import type { ToolRegistry } from '@wrongstack/core/registry';
 import { loadTodosCheckpoint } from '@wrongstack/core/storage';
+import type { SessionStore, TokenCounter } from '@wrongstack/core/types';
 import { DEFAULT_CONTEXT_WINDOW_MODE_ID, resolveContextWindowPolicy } from '@wrongstack/core/types';
-import { repairToolUseAdjacency } from '@wrongstack/core/utils';
-import { sessionScopedPath } from '@wrongstack/core/utils';
+import { repairToolUseAdjacency, sessionScopedPath } from '@wrongstack/core/utils';
 import type { WebSocket } from 'ws';
 import { buildReplayPayload } from '../protocol/index.js';
+import {
+  applyContextEditorProposal,
+  buildContextEditorSnapshot,
+  validateContextEditorProposal,
+} from './context-editor.js';
 import type { CustomModeStore } from './custom-context-modes.js';
 import { toSessionHistoryEntries } from './session-history.js';
 import type { SessionRouteHandlers } from './session-routes.js';
+import type { SessionIdentityTarget } from './standalone-session-identity.js';
 import { estimateContextBreakdown } from './token-estimator.js';
 import type { ConnectedClient } from './types.js';
 import {
@@ -38,6 +41,10 @@ import { broadcast, errMessage, send } from './ws-utils.js';
 type Session = Awaited<ReturnType<SessionStore['create']>>;
 type WSMessageLike = { type: string; payload?: unknown | undefined };
 type OutboundMessage = { type: string; payload: unknown };
+
+function isRecordPayload(value: unknown): value is Record<string, unknown> {
+  return value !== null && typeof value === 'object' && !Array.isArray(value);
+}
 type SessionStartPayload = {
   sessionId: string;
   model: string;
@@ -79,7 +86,16 @@ export interface SessionHandlersContext {
   /** Mutations of the startWebUI bindings. */
   setSession: (s: Session) => void;
   setSessionStartedAt?: (t: number) => void;
-  onSessionSwapped?: (sessionId: string) => void | Promise<void>;
+  /** Atomically reserve an explicitly selected session before opening its writer. */
+  claimSession?: ((sessionId: string) => Promise<() => Promise<void>>) | undefined;
+  onSessionSwapped?: (sessionId: string, target?: SessionIdentityTarget) => void | Promise<void>;
+  /**
+   * Abort the in-flight agent run (if any) before the active session is
+   * swapped. Without this, a run started in the previous session keeps
+   * streaming/tool-calling in the background after session.new/resume.
+   */
+  abortActiveRun?: (() => void) | undefined;
+  isRunActive?: (() => boolean) | undefined;
   sessionStartPayload: (overrides?: Record<string, unknown>) => Promise<SessionStartPayload>;
 }
 
@@ -104,10 +120,8 @@ export function createSessionHandlers(ctx: SessionHandlersContext): SessionRoute
     return store;
   };
   const currentSessionId = (): string => ctx.getSession().id;
-  const sessionPayload = <T extends Record<string, unknown>>(
-    payload: T,
-  ): T & { sessionId: string } => {
-    const provided = payload['sessionId'];
+  const sessionPayload = <T extends object>(payload: T): T & { sessionId: string } => {
+    const provided = (payload as { sessionId?: unknown }).sessionId;
     const sessionId =
       typeof provided === 'string' && provided.length > 0 ? provided : currentSessionId();
     return { ...payload, sessionId };
@@ -134,6 +148,15 @@ export function createSessionHandlers(ctx: SessionHandlersContext): SessionRoute
     });
     return false;
   };
+  let sessionTransitionTail = Promise.resolve();
+  const serializeSessionTransition = async <T>(operation: () => Promise<T>): Promise<T> => {
+    const current = sessionTransitionTail.then(operation, operation);
+    sessionTransitionTail = current.then(
+      () => undefined,
+      () => undefined,
+    );
+    return current;
+  };
   const finalizeSession = async (writer: Session): Promise<void> => {
     await writer
       .append({
@@ -157,7 +180,18 @@ export function createSessionHandlers(ctx: SessionHandlersContext): SessionRoute
     todos: TodoItem[] = [],
   ): Promise<void> => {
     const current = ctx.getSession();
-    if (current !== next) await finalizeSession(current);
+    if (current !== next) {
+      // Stop the previous session's in-flight run before swapping — a slow
+      // provider stream would otherwise keep running (and emitting events)
+      // in the background after session.new/resume.
+      try {
+        ctx.abortActiveRun?.();
+      } catch {
+        // Aborting is best-effort; ownership/session finalization must still
+        // advance so a faulty host callback cannot strand a claimed session.
+      }
+      await finalizeSession(current);
+    }
     ctx.setSession(next);
     ctx.context.session = next;
     ctx.context.state.replaceMessages(messages);
@@ -183,31 +217,49 @@ export function createSessionHandlers(ctx: SessionHandlersContext): SessionRoute
   };
 
   return {
-    newSession: async (ws, msg) => {
-      if (!ensureCurrentSession(ws, msg, 'session.new')) return;
-      const clearedSessionId = currentSessionId();
-      if (ctx.canSwapSessions?.() !== false) {
-        const config = currentConfig();
-        const next = await ctx.getSessionStore().create({
-          id: '',
-          title: '',
-          model: config.model,
-          provider: config.provider,
+    newSession: (ws, msg) =>
+      serializeSessionTransition(async () => {
+        if (!ensureCurrentSession(ws, msg, 'session.new')) return;
+        const clearedSessionId = currentSessionId();
+        if (ctx.canSwapSessions?.() !== false) {
+          const store = ctx.getSessionStore();
+          const config = currentConfig();
+          const next = await store.create({
+            id: '',
+            title: '',
+            model: config.model,
+            provider: config.provider,
+          });
+          let rollbackClaim: (() => Promise<void>) | undefined;
+          let activated = false;
+          try {
+            rollbackClaim = await ctx.claimSession?.(next.id);
+            // activateSession cannot fail before replacing the runtime writer:
+            // finalizeSession is best-effort and setSession is synchronous.
+            activated = true;
+            await activateSession(next, []);
+          } catch (err) {
+            if (!activated) {
+              await rollbackClaim?.().catch(() => undefined);
+              await next.close().catch(() => undefined);
+              await store.delete(next.id).catch(() => undefined);
+            }
+            result(ws, false, errMessage(err));
+            return;
+          }
+        } else {
+          ctx.context.state.replaceMessages([]);
+          ctx.context.state.replaceTodos([]);
+          resetContextAccounting();
+          ctx.context.readFiles.clear();
+          ctx.context.fileMtimes.clear();
+          ctx.tokenCounter.reset?.();
+        }
+        broadcastToAll({
+          type: 'session.start',
+          payload: await ctx.sessionStartPayload({ reset: true, clearedSessionId }),
         });
-        await activateSession(next, []);
-      } else {
-        ctx.context.state.replaceMessages([]);
-        ctx.context.state.replaceTodos([]);
-        resetContextAccounting();
-        ctx.context.readFiles.clear();
-        ctx.context.fileMtimes.clear();
-        ctx.tokenCounter.reset?.();
-      }
-      broadcastToAll({
-        type: 'session.start',
-        payload: await ctx.sessionStartPayload({ reset: true, clearedSessionId }),
-      });
-    },
+      }),
     clearContext: async (ws, msg) => {
       if (!ensureCurrentSession(ws, msg, 'context.clear')) return;
       ctx.context.state.replaceMessages([]);
@@ -302,6 +354,61 @@ export function createSessionHandlers(ctx: SessionHandlersContext): SessionRoute
         removed > 0
           ? `Context repaired: removed ${removed} orphan protocol item(s)`
           : 'Context repair found no orphan protocol blocks',
+      );
+    },
+    openContextEditor: async (ws, msg) => {
+      if (!ensureCurrentSession(ws, msg, 'context.editor.open')) return;
+      const snapshot = buildContextEditorSnapshot(
+        ctx.context,
+        ctx.listTools?.() ?? ctx.toolRegistry?.list(),
+      );
+      sendTo(ws, {
+        type: 'context.editor.snapshot',
+        payload: sessionPayload(snapshot),
+      });
+    },
+    validateContextEditor: async (ws, msg) => {
+      if (!ensureCurrentSession(ws, msg, 'context.editor.validate')) return;
+      const payload = isRecordPayload(msg.payload) ? msg.payload : {};
+      const validation = validateContextEditorProposal({
+        ctx: ctx.context,
+        tools: ctx.listTools?.() ?? ctx.toolRegistry?.list(),
+        baseRevision: typeof payload['baseRevision'] === 'string' ? payload['baseRevision'] : '',
+        messages: payload['messages'],
+        allowRepair: payload['allowRepair'] === true,
+        runActive: ctx.isRunActive?.() === true,
+      });
+      sendTo(ws, {
+        type: 'context.editor.validation',
+        payload: sessionPayload(validation),
+      });
+    },
+    applyContextEditor: async (ws, msg) => {
+      if (!ensureCurrentSession(ws, msg, 'context.editor.apply')) return;
+      const payload = isRecordPayload(msg.payload) ? msg.payload : {};
+      const applied = await applyContextEditorProposal({
+        ctx: ctx.context,
+        tools: ctx.listTools?.() ?? ctx.toolRegistry?.list(),
+        baseRevision: typeof payload['baseRevision'] === 'string' ? payload['baseRevision'] : '',
+        messages: payload['messages'],
+        allowRepair: payload['allowRepair'] === true,
+        runActive: ctx.isRunActive?.() === true,
+      });
+      if ('ok' in applied) {
+        sendTo(ws, {
+          type: 'context.editor.validation',
+          payload: sessionPayload(applied),
+        });
+        return;
+      }
+      broadcastToAll({
+        type: 'context.editor.applied',
+        payload: sessionPayload(applied),
+      });
+      result(
+        ws,
+        true,
+        `Context editor applied: ${applied.before.messages} → ${applied.after.messages} messages`,
       );
     },
     listContextModes: async (ws, msg) => {
@@ -489,57 +596,63 @@ export function createSessionHandlers(ctx: SessionHandlersContext): SessionRoute
         result(ws, false, errMessage(err));
       }
     },
-    resumeSession: async (ws, msg) => {
-      const { id } = (msg as { payload: { id: string } }).payload;
-      if (ctx.canSwapSessions?.() === false) {
-        result(ws, false, 'Session store not available');
-        return;
-      }
-      try {
-        const current = ctx.getSession();
-        const store = ctx.getSessionStore();
-        const canonicalId = store.resolveId ? await store.resolveId(id) : id;
-        if (canonicalId === current.id) {
-          result(ws, false, 'Session is already active');
+    resumeSession: (ws, msg) =>
+      serializeSessionTransition(async () => {
+        const { id } = (msg as { payload: { id: string } }).payload;
+        if (ctx.canSwapSessions?.() === false) {
+          result(ws, false, 'Session store not available');
           return;
         }
-        const resumed = await store.resume(canonicalId);
-        // Restore the resumed session's todo board from its sidecar so the
-        // panel isn't wiped on resume (parity with the boot `--resume` path).
-        const restoredTodos =
-          (await loadTodosCheckpoint(
-            sessionScopedPath(sessionsDirectory(), resumed.writer.id, '.todos.json'),
-          ).catch(() => null)) ?? [];
-        await activateSession(
-          resumed.writer,
-          resumed.data.messages,
-          resumed.data.usage,
-          restoredTodos,
-        );
-        broadcastToAll({
-          type: 'session.start',
-          payload: await ctx.sessionStartPayload({
-            reset: true,
-            // Same builder the connect path uses, so a resume and a reconnect
-            // hand the client an identical transcript (markers included).
-            ...buildReplayPayload({
-              messages: resumed.data.messages,
-              events: resumed.data.events,
-              usage: resumed.data.usage,
+        let rollbackClaim: (() => Promise<void>) | undefined;
+        let activated = false;
+        try {
+          const current = ctx.getSession();
+          const store = ctx.getSessionStore();
+          const canonicalId = store.resolveId ? await store.resolveId(id) : id;
+          if (canonicalId === current.id) {
+            result(ws, false, 'Session is already active');
+            return;
+          }
+          rollbackClaim = await ctx.claimSession?.(canonicalId);
+          const resumed = await store.resume(canonicalId);
+          // Restore the resumed session's todo board from its sidecar so the
+          // panel isn't wiped on resume (parity with the boot `--resume` path).
+          const restoredTodos =
+            (await loadTodosCheckpoint(
+              sessionScopedPath(sessionsDirectory(), resumed.writer.id, '.todos.json'),
+            ).catch(() => null)) ?? [];
+          activated = true;
+          await activateSession(
+            resumed.writer,
+            resumed.data.messages,
+            resumed.data.usage,
+            restoredTodos,
+          );
+          broadcastToAll({
+            type: 'session.start',
+            payload: await ctx.sessionStartPayload({
+              reset: true,
+              // Same builder the connect path uses, so a resume and a reconnect
+              // hand the client an identical transcript (markers included).
+              ...buildReplayPayload({
+                messages: resumed.data.messages,
+                events: resumed.data.events,
+                usage: resumed.data.usage,
+              }),
             }),
-          }),
-        });
-        // The client resets todos to [] on session.start(reset); push the
-        // restored board AFTER so the panel repopulates.
-        broadcastToAll({
-          type: 'todos.updated',
-          payload: { sessionId: resumed.writer.id, todos: restoredTodos },
-        });
-        result(ws, true, `Resumed session ${id}`);
-      } catch (err) {
-        result(ws, false, errMessage(err));
-      }
-    },
+          });
+          // The client resets todos to [] on session.start(reset); push the
+          // restored board AFTER so the panel repopulates.
+          broadcastToAll({
+            type: 'todos.updated',
+            payload: { sessionId: resumed.writer.id, todos: restoredTodos },
+          });
+          result(ws, true, `Resumed session ${id}`);
+        } catch (err) {
+          if (!activated) await rollbackClaim?.().catch(() => undefined);
+          result(ws, false, errMessage(err));
+        }
+      }),
     saveSession: async (ws, msg) => {
       if (!ensureCurrentSession(ws, msg, 'session.save')) return;
       result(ws, true, `Session ${ctx.getSession().id} is auto-saved`);

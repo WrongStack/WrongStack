@@ -395,4 +395,58 @@ describe('validateRememberInput', () => {
       validateRememberInput({ ...minimal, kind: 'invalid' as never }),
     ).toThrow('Invalid SAGE kind');
   });
+
+  it('rejects structural kinds without anchors', () => {
+    expect(() =>
+      validateRememberInput({ ...minimal, kind: 'symbol_note', text: 'symbol contract detail' }),
+    ).toThrow(/requires at least one anchor/i);
+  });
+
+  it('rejects ephemeral project-scope progress text', () => {
+    expect(() =>
+      validateRememberInput({ ...minimal, text: 'WIP still working on migration' }),
+    ).toThrow(/ephemeral progress/i);
+  });
+});
+
+describe('assessRememberQuality / near-dup helpers', () => {
+  it('caps unanchored project memories', async () => {
+    const { assessRememberQuality } = await import('../src/store-helpers.js');
+    const q = assessRememberQuality({
+      text: 'Short note',
+      kind: 'fact',
+      scope: 'project',
+    });
+    expect(q.importanceCap).toBeLessThanOrEqual(0.7);
+    expect(q.reasons).toContain('unanchored');
+  });
+
+  it('detects near-duplicate paraphrases with shared anchors', async () => {
+    const { isNearDuplicateMemory } = await import('../src/store-helpers.js');
+    const anchors = [{ type: 'file' as const, path: 'src/auth.ts' }];
+    expect(
+      isNearDuplicateMemory(
+        {
+          text: 'Auth tokens must be validated against clock skew of five minutes in production.',
+          kind: 'fact',
+          anchors,
+        },
+        {
+          text: 'Auth tokens must be validated against clock skew of five minutes in production environments.',
+          kind: 'fact',
+          anchors,
+        },
+      ),
+    ).toBe(true);
+  });
+
+  it('does not merge short unrelated notes', async () => {
+    const { isNearDuplicateMemory } = await import('../src/store-helpers.js');
+    expect(
+      isNearDuplicateMemory(
+        { text: 'Use pnpm here', kind: 'preference', anchors: [] },
+        { text: 'Use yarn there', kind: 'preference', anchors: [] },
+      ),
+    ).toBe(false);
+  });
 });

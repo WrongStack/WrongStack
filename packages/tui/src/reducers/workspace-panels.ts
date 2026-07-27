@@ -1,4 +1,5 @@
-import type { Action, State } from '../app-state.js';
+import type { Action } from '../app-action-type.js';
+import type { State } from '../app-state.js';
 import { retainCheckpoints } from '../checkpoint-retention.js';
 import type { WorktreeRow } from '../ui-contracts.js';
 import { closePanels } from './helpers.js';

@@ -2,7 +2,7 @@ import type {
   WSClientMessage,
   WSCompletionRequest,
 } from '../types';
-import type { WSSendOptions, WrongStackWebSocketClient } from './ws-client';
+import type { WSSendOptions } from './ws-client-contracts';
 
 export interface WsClientActionHost {
   send(message: WSClientMessage, options?: WSSendOptions): void;
@@ -463,7 +463,7 @@ const actionMethods = {
 } satisfies WsClientActionMethods;
 
 export function installWsClientActionMethods(
-  ctor: typeof WrongStackWebSocketClient,
+  ctor: { prototype: WsClientActionHost },
 ): void {
   Object.assign(ctor.prototype, actionMethods);
 }

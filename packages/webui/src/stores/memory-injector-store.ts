@@ -81,6 +81,46 @@ interface MemoryInjectorTraceState {
 
 const MAX_TRACES = 50;
 
+/**
+ * Cap on retained `exited` memories. Active/injected entries stay (live
+ * provider context); exited ones are historical and prune oldest-first.
+ * Without this, every distinct memory id ever injected accumulates forever
+ * in long WebUI sessions — the same leak TUI fixed with MAX_EXITED_MEMORIES.
+ */
+const MAX_EXITED_MEMORIES = 200;
+
+/** UI preview budget; full text lives in SAGE SQLite, not the browser store. */
+export const MAX_MEMORY_DETAIL_TEXT_CHARS = 300;
+
+function capMemoryDetailText(text: string): string {
+  if (text.length <= MAX_MEMORY_DETAIL_TEXT_CHARS) return text;
+  return `${text.slice(0, MAX_MEMORY_DETAIL_TEXT_CHARS - 1)}…`;
+}
+
+function capTraceMemory(memory: MemoryInjectorTraceMemory): MemoryInjectorTraceMemory {
+  return { ...memory, text: capMemoryDetailText(memory.text) };
+}
+
+/**
+ * Evict the oldest exited memories once past the cap. Returns the same
+ * record when nothing needs pruning (no allocation on the hot path).
+ */
+function pruneExitedMemories(
+  memories: Record<string, ContextMemoryRecord>,
+): Record<string, ContextMemoryRecord> {
+  const exited: ContextMemoryRecord[] = [];
+  for (const memory of Object.values(memories)) {
+    if (memory.state === 'exited') exited.push(memory);
+  }
+  if (exited.length <= MAX_EXITED_MEMORIES) return memories;
+  exited.sort((a, b) => (b.exitedAt ?? b.lastSeenAt).localeCompare(a.exitedAt ?? a.lastSeenAt));
+  const pruned = { ...memories };
+  for (const memory of exited.slice(MAX_EXITED_MEMORIES)) {
+    delete pruned[memory.id];
+  }
+  return pruned;
+}
+
 export const useMemoryInjectorTraceStore = create<MemoryInjectorTraceState>()((set) => ({
   traces: [],
   contextMemories: {},
@@ -89,7 +129,9 @@ export const useMemoryInjectorTraceStore = create<MemoryInjectorTraceState>()((s
     set((state) => {
       const contextMemories = { ...state.contextMemories };
       const transitions = [...state.transitions];
-      for (const memory of trace.injected) {
+      const cappedInjected = trace.injected.map(capTraceMemory);
+      const cappedActivated = trace.activated.map(capTraceMemory);
+      for (const memory of cappedInjected) {
         const previous = contextMemories[memory.id];
         contextMemories[memory.id] = {
           ...memory,
@@ -109,12 +151,17 @@ export const useMemoryInjectorTraceStore = create<MemoryInjectorTraceState>()((s
           });
         }
       }
+      const cappedTrace: MemoryInjectorTrace = {
+        ...trace,
+        activated: cappedActivated,
+        injected: cappedInjected,
+      };
       return {
-        traces: [trace, ...state.traces.filter((item) => item.runId !== trace.runId)].slice(
+        traces: [cappedTrace, ...state.traces.filter((item) => item.runId !== trace.runId)].slice(
           0,
           MAX_TRACES,
         ),
-        contextMemories,
+        contextMemories: pruneExitedMemories(contextMemories),
         transitions: transitions.slice(0, 100),
       };
     }),
@@ -178,7 +225,10 @@ export const useMemoryInjectorTraceStore = create<MemoryInjectorTraceState>()((s
           }
         }
       }
-      return { contextMemories, transitions: transitions.slice(0, 100) };
+      return {
+        contextMemories: pruneExitedMemories(contextMemories),
+        transitions: transitions.slice(0, 100),
+      };
     }),
   resetContext: () => set({ contextMemories: {}, transitions: [] }),
   clear: () => set({ traces: [], contextMemories: {}, transitions: [] }),

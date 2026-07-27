@@ -28,7 +28,7 @@ import { i18n, useAppTranslation } from '@/i18n';
 import { showPanel } from '@/lib/view-navigation';
 import { useConfigStore, useUIStore } from '@/stores';
 import { useLocalPrefs } from '@/stores/local-prefs';
-import type { WSServerMessage } from '@/types';
+import type { ProviderCustomModelWire, WSServerMessage } from '@/types';
 import { AvailabilityCalendarEditor } from '../AvailabilityCalendarEditor';
 import { ModelSelectDialog } from '../ModelSelectDialog';
 import { Button } from '../ui/button';
@@ -271,8 +271,15 @@ export function SettingsPanel() {
   );
 
   const handleAddProvider = useCallback(
-    (id: string, family: string, baseUrl?: string | undefined, apiKey?: string) => {
-      ws.addProvider?.(id, family, baseUrl, apiKey);
+    (
+      id: string,
+      family: string,
+      baseUrl?: string | undefined,
+      apiKey?: string,
+      models?: string[] | undefined,
+      customModels?: Record<string, ProviderCustomModelWire> | undefined,
+    ) => {
+      ws.addProvider?.(id, family, baseUrl, apiKey, models, customModels);
     },
     [ws],
   );
@@ -869,10 +876,6 @@ export function SettingsPanel() {
                       },
                       { value: 'frugal' as const, label: t('settings:context.contextModeFrugal') },
                       { value: 'deep' as const, label: t('settings:context.contextModeDeep') },
-                      {
-                        value: 'archival' as const,
-                        label: t('settings:context.contextModeArchival'),
-                      },
                     ]}
                     onChange={(v) => syncPref('contextMode', v)}
                   />

@@ -72,4 +72,43 @@ describe('createConversationOperations', () => {
       payload: { phase: 'abort', sessionId: 'session-live' },
     });
   });
+
+  it('stamps run.result with the origin session id when the session swaps mid-run', async () => {
+    // Regression: a run started in session A used to be stamped with the
+    // live session id at completion time, so after session.new the previous
+    // request's finalText leaked into the freshly-opened session's chat.
+    let liveSessionId = 'session-old';
+    const sent: Array<{ type: string; payload: unknown }> = [];
+    const controller = new AbortController();
+    const run = vi.fn(async () => {
+      liveSessionId = 'session-new'; // host swaps the session while the run is in flight
+      return { status: 'completed', iterations: 1, finalText: 'late answer' };
+    });
+    const routes = createConversationOperations({
+      getAgent: () =>
+        ({
+          run,
+          ctx: {
+            provider: { id: 'provider', capabilities: { vision: true } },
+            model: 'model',
+          },
+          tools: { list: () => [] },
+        }) as never,
+      getSessionId: () => liveSessionId,
+      runControl: { begin: () => controller, end: vi.fn(), abort: vi.fn() },
+      pendingConfirms: new Map(),
+      send: (_ws, message) => sent.push(message),
+      notifyAbort: vi.fn(),
+    });
+
+    await routes.userMessage(ws, {
+      type: 'user_message',
+      payload: { content: 'hello', sessionId: 'session-old' },
+    });
+
+    expect(sent.at(-1)).toMatchObject({
+      type: 'run.result',
+      payload: { sessionId: 'session-old', finalText: 'late answer' },
+    });
+  });
 });

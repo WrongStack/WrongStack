@@ -6,7 +6,7 @@ import { mapWithConcurrency } from '../storage/storage-concurrency.js';
 import { type ProjectWatchSubscription, watchProjectTree } from '../utils/project-watch.js';
 import { DEFAULT_WALK_IGNORE_DIRS } from '../utils/walk-ignore.js';
 import type { ChronicleContext } from './context.js';
-import type { ChronicleJournal } from './journal.js';
+import type { ChronicleEventSink } from './sink.js';
 import type { ChronicleEventInput } from './types.js';
 
 interface FileFingerprint {
@@ -20,16 +20,28 @@ interface RecentToolMutation {
   toolUseId: string;
   toolName: string;
   agentId?: string | undefined;
+  sessionId?: string | undefined;
+}
+
+export interface ChronicleToolMutationHint {
+  path: string;
+  toolUseId: string;
+  toolName: string;
+  agentId?: string | undefined;
+  sessionId?: string | undefined;
+  at?: number | undefined;
 }
 
 export interface ChronicleFileObserverOptions {
   projectRoot: string;
-  journal: ChronicleJournal;
+  journal: ChronicleEventSink;
   context: ChronicleContext | (() => ChronicleContext);
   events?: EventBus | undefined;
   debounceMs?: number | undefined;
   maxHashBytes?: number | undefined;
   excludedDirectories?: readonly string[] | undefined;
+  /** Absolute or project-relative path prefixes that must never be observed. */
+  excludedPaths?: readonly string[] | undefined;
   /** Min gap between full-project rescans triggered by null-filename events. */
   minFullRescanIntervalMs?: number | undefined;
   onError?: ((error: unknown) => void) | undefined;
@@ -38,6 +50,7 @@ export interface ChronicleFileObserverOptions {
 export interface ChronicleFileObserver {
   close(): Promise<void>;
   readonly watchedFiles: number;
+  noteToolMutation(hint: ChronicleToolMutationHint): void;
 }
 
 const DEFAULT_EXCLUDED = [...DEFAULT_WALK_IGNORE_DIRS, '.wrongstack', '.temp_files'];
@@ -54,22 +67,34 @@ export async function startChronicleFileObserver(
 ): Promise<ChronicleFileObserver> {
   const root = path.resolve(options.projectRoot);
   const excluded = new Set(options.excludedDirectories ?? DEFAULT_EXCLUDED);
+  const excludedPaths = normalizeExcludedPaths(root, options.excludedPaths ?? []);
   const debounceMs = options.debounceMs ?? 120;
   const maxHashBytes = options.maxHashBytes ?? 8 * 1024 * 1024;
-  const known = (await scanProject(root, excluded, maxHashBytes, options.onError)).files;
+  const known = (await scanProject(root, excluded, excludedPaths, maxHashBytes, options.onError))
+    .files;
   const recentToolMutations = new Map<string, RecentToolMutation>();
+  const noteToolMutation = (hint: ChronicleToolMutationHint): void => {
+    const absolute = path.isAbsolute(hint.path)
+      ? path.normalize(hint.path)
+      : path.resolve(root, hint.path);
+    const relative = normalizeRelative(path.relative(root, absolute));
+    if (relative.startsWith('../') || isExcluded(relative, excluded, excludedPaths)) return;
+    recentToolMutations.set(relative, {
+      at: hint.at ?? Date.now(),
+      toolUseId: hint.toolUseId,
+      toolName: hint.toolName,
+      agentId: hint.agentId,
+      sessionId: hint.sessionId,
+    });
+  };
   const offToolProgress = options.events?.on('tool.progress', (event) => {
     if (event.event.type !== 'file_changed' || !event.event.path) return;
-    const absolute = path.isAbsolute(event.event.path)
-      ? path.normalize(event.event.path)
-      : path.resolve(root, event.event.path);
-    const relative = normalizeRelative(path.relative(root, absolute));
-    if (relative.startsWith('../') || isExcluded(relative, excluded)) return;
-    recentToolMutations.set(relative, {
-      at: Date.now(),
+    noteToolMutation({
+      path: event.event.path,
       toolUseId: event.id,
       toolName: event.name,
       agentId: event.agentId,
+      sessionId: event.sessionId,
     });
   });
   const pending = new Set<string>();
@@ -120,7 +145,7 @@ export async function startChronicleFileObserver(
       return;
     }
     const relative = normalizeRelative(String(filename));
-    if (!relative || isExcluded(relative, excluded)) return;
+    if (!relative || isExcluded(relative, excluded, excludedPaths)) return;
     pending.add(relative);
     bumpDebounce();
   };
@@ -129,7 +154,7 @@ export async function startChronicleFileObserver(
     const wantsFullScan = changedPaths.includes('*');
     if (wantsFullScan) lastFullScanAt = Date.now();
     const fullScan = wantsFullScan
-      ? await scanProject(root, excluded, maxHashBytes, options.onError, known)
+      ? await scanProject(root, excluded, excludedPaths, maxHashBytes, options.onError, known)
       : undefined;
     const candidates = fullScan ? unionKeys(known, fullScan.files) : changedPaths;
     const changes: Array<{
@@ -277,6 +302,7 @@ export async function startChronicleFileObserver(
     get watchedFiles() {
       return known.size;
     },
+    noteToolMutation,
     async close() {
       if (closed) return;
       closed = true;
@@ -319,7 +345,11 @@ async function recordMutation(
   });
   const input: ChronicleEventInput = {
     eventType: attribution ? eventType.replace('.external.', '.tool.') : eventType,
-    scope: context.scope,
+    scope: {
+      ...context.scope,
+      ...(attribution?.sessionId ? { sessionId: attribution.sessionId } : {}),
+      ...(attribution?.agentId ? { agentId: attribution.agentId } : {}),
+    },
     correlation: {
       ...context.correlation,
       ...(attribution ? { toolCallId: attribution.toolUseId } : {}),
@@ -357,6 +387,7 @@ function mutationAttribution(
 async function scanProject(
   root: string,
   excluded: ReadonlySet<string>,
+  excludedPaths: ReadonlySet<string>,
   maxHashBytes: number,
   onError?: ((error: unknown) => void) | undefined,
   previous?: ReadonlyMap<string, FileFingerprint> | undefined,
@@ -371,8 +402,9 @@ async function scanProject(
       const filePaths: string[] = [];
       for (const entry of entries) {
         const relative = normalizeRelative(path.join(relativeDir, entry.name));
+        if (isExcluded(relative, excluded, excludedPaths)) continue;
         if (entry.isDirectory()) {
-          if (!excluded.has(entry.name)) dirs.push(relative);
+          dirs.push(relative);
         } else if (entry.isFile()) {
           filePaths.push(relative);
         }
@@ -417,7 +449,11 @@ async function fingerprint(
     const base: FileFingerprint = { size: stat.size, mtimeMs: stat.mtimeMs };
     // Unchanged size+mtime → reuse the known content hash instead of
     // re-reading the file. Full rescans over a quiet tree become stat-only.
-    if (previous?.hash !== undefined && previous.size === stat.size && previous.mtimeMs === stat.mtimeMs) {
+    if (
+      previous?.hash !== undefined &&
+      previous.size === stat.size &&
+      previous.mtimeMs === stat.mtimeMs
+    ) {
       base.hash = previous.hash;
       return base;
     }
@@ -440,10 +476,28 @@ function sameFingerprint(a: FileFingerprint | undefined, b: FileFingerprint | un
   return a.size === b.size && a.mtimeMs === b.mtimeMs;
 }
 
-function isExcluded(relative: string, excluded: ReadonlySet<string>): boolean {
-  return normalizeRelative(relative)
-    .split('/')
-    .some((segment) => excluded.has(segment));
+function isExcluded(
+  relative: string,
+  excluded: ReadonlySet<string>,
+  excludedPaths: ReadonlySet<string>,
+): boolean {
+  const normalized = normalizeRelative(relative);
+  if (normalized.split('/').some((segment) => excluded.has(segment))) return true;
+  for (const prefix of excludedPaths) {
+    if (normalized === prefix || normalized.startsWith(`${prefix}/`)) return true;
+  }
+  return false;
+}
+
+function normalizeExcludedPaths(root: string, values: readonly string[]): Set<string> {
+  const result = new Set<string>();
+  for (const value of values) {
+    const relative = path.isAbsolute(value) ? path.relative(root, path.resolve(value)) : value;
+    const normalized = normalizeRelative(relative).replace(/\/+$/u, '');
+    if (!normalized || normalized === '.' || normalized.startsWith('../')) continue;
+    result.add(normalized);
+  }
+  return result;
 }
 
 function normalizeRelative(value: string): string {

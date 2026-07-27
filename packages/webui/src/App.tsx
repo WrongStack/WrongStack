@@ -126,6 +126,36 @@ interface ServerProcessMetrics {
     heapTotal: number;
   };
   heapLimit: number;
+  codebaseIndexServer?: {
+    status:
+      | 'unavailable'
+      | 'offline'
+      | 'connecting'
+      | 'connected'
+      | 'degraded'
+      | 'unresponsive'
+      | 'error'
+      | 'stopping';
+    connected: boolean;
+    pid?: number | undefined;
+    health?: {
+      status: 'healthy' | 'degraded' | 'unresponsive';
+      latencyMs: number | null;
+      missedHeartbeats: number;
+      server?: {
+        uptimeMs: number;
+        memory: { rss: number; heapUsed: number; heapTotal: number };
+        clients: number;
+        activeRequests: number;
+        queuedWrites: number;
+        pendingExternalFiles: number;
+        watchingExternal: boolean;
+        watchingClients?: number | undefined;
+        clientLeaseTimeoutMs?: number | undefined;
+        oldestClientIdleMs?: number | undefined;
+      } | undefined;
+    } | undefined;
+  } | undefined;
 }
 
 function formatCompactBytes(bytes: number): string {
@@ -198,6 +228,9 @@ function WorkbenchTopbar({
   }, [effectiveTheme, setTheme]);
   const serverProcess = useServerProcessMetrics();
   const heapLoad = serverProcess ? serverProcess.memoryUsage.heapUsed / serverProcess.heapLimit : 0;
+  const indexServer = serverProcess?.codebaseIndexServer;
+  const indexHealth = indexServer?.health;
+  const indexMetrics = indexHealth?.server;
   return (
     <div className="hidden shrink-0 border-b border-border/70 bg-card/85 px-3 py-2 shadow-sm backdrop-blur-xl md:block">
       <div className="flex min-w-0 items-center gap-3">
@@ -240,6 +273,35 @@ function WorkbenchTopbar({
                   title={`WebUI server PID ${serverProcess.pid} · heap ${formatCompactBytes(serverProcess.memoryUsage.heapUsed)} / ${formatCompactBytes(serverProcess.heapLimit)}`}
                 >
                   RAM {formatCompactBytes(serverProcess.memoryUsage.rss)}
+                </span>
+              ) : null}
+              {indexServer ? (
+                <span
+                  className={cn(
+                    'rounded-md border border-border/70 bg-muted/50 px-1.5 py-0.5 text-[11px] font-medium tabular-nums',
+                    indexServer.status === 'connected'
+                      ? 'text-success'
+                      : indexServer.status === 'unresponsive' || indexServer.status === 'error'
+                        ? 'text-destructive'
+                        : indexServer.status === 'degraded' ||
+                            indexServer.status === 'connecting' ||
+                            indexServer.status === 'stopping'
+                          ? 'text-warning'
+                          : 'text-muted-foreground',
+                  )}
+                  title={[
+                    `Codebase index: ${indexHealth?.status ?? indexServer.status}`,
+                    indexServer.pid ? `PID ${indexServer.pid}` : null,
+                    indexHealth?.latencyMs != null ? `RTT ${indexHealth.latencyMs}ms` : null,
+                    indexMetrics ? `RAM ${formatCompactBytes(indexMetrics.memory.rss)}` : null,
+                    indexHealth?.missedHeartbeats
+                      ? `missed ${indexHealth.missedHeartbeats}`
+                      : null,
+                  ]
+                    .filter(Boolean)
+                    .join(' · ')}
+                >
+                  Index {indexHealth?.status ?? indexServer.status}
                 </span>
               ) : null}
             </div>

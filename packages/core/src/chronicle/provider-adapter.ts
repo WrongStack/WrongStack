@@ -1,11 +1,11 @@
 import type { EventBus, EventMap } from '../kernel/events.js';
 import type { ChronicleContext } from './context.js';
-import type { ChronicleJournal } from './journal.js';
+import type { ChronicleEventSink } from './sink.js';
 import type { ChronicleEventInput } from './types.js';
 
 export interface ChronicleProviderAdapterOptions {
   events: EventBus;
-  journal: ChronicleJournal;
+  journal: ChronicleEventSink;
   context: ChronicleContext | (() => ChronicleContext);
   onPersistError?: ((error: unknown, event: ChronicleEventInput) => void) | undefined;
 }

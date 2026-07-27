@@ -15,11 +15,13 @@ import {
   type SurfaceConnectionState,
 } from '@wrongstack/webui-server/protocol';
 import type {
+  ProviderCustomModelWire,
   WSClientMessage,
   WSModelSwitchResult,
   WSServerMessage,
   WSUserMessageImage,
 } from '../types';
+import type { ContextEditorMessage } from '../types/runtime';
 import { streamCoalescer } from './stream-coalescer';
 import {
   buildClearModelsMessage,
@@ -27,6 +29,7 @@ import {
   buildUndoClearMessage,
 } from './ws-client-helpers';
 import { installWsClientActionMethods, type WsClientActionMethods } from './ws-client-actions';
+import type { WSSendOptions } from './ws-client-contracts';
 import {
   defaultWsUrl,
   type EventHandler,
@@ -42,14 +45,7 @@ import {
 // Re-export types for backward compat
 export type { WsStatus };
 
-export interface WSSendOptions {
-  /**
-   * Inspect-style responses normally render a summary in chat. UI surfaces
-   * that consume the same response themselves disable that echo so opening or
-   * refreshing a panel does not pollute the conversation history.
-   */
-  echoToChat?: boolean | undefined;
-}
+export type { WSSendOptions } from './ws-client-contracts';
 
 const CHAT_ECHO_RESPONSE_BY_REQUEST: Partial<
   Record<WSClientMessage['type'], WSServerMessage['type']>
@@ -87,7 +83,7 @@ function wsUrlCanUseAuthCookie(wsUrl: string): boolean {
     return true;
   }
 }
-export class WrongStackWebSocketClient {
+class WrongStackWebSocketClientBase {
   private ws: WebSocket | null = null;
   private url: string;
   private handlers: Map<string, Set<EventHandler>> = new Map();
@@ -386,7 +382,7 @@ export class WrongStackWebSocketClient {
     const reconnect = planConnectionReconnect(this.connectionState, {
       ...DEFAULT_SURFACE_CONNECTION_CONFIG,
       maxReconnectAttempts: this.maxReconnectAttempts,
-      queueLimit: WrongStackWebSocketClient.MAX_QUEUED_MESSAGES,
+      queueLimit: WrongStackWebSocketClientBase.MAX_QUEUED_MESSAGES,
     });
     this.connectionState = reconnect.state;
     if (!reconnect.plan) {
@@ -504,7 +500,7 @@ export class WrongStackWebSocketClient {
     }
   }
 
-  send(message: WSClientMessage, options: WSSendOptions = {}) {
+  send(message: WSClientMessage, options: WSSendOptions = {}): boolean {
     const decoded = decodeProtocolMessage(message, 'client');
     if (!decoded.ok) {
       console.error(
@@ -516,7 +512,7 @@ export class WrongStackWebSocketClient {
           timestamp: new Date().toISOString(),
         }),
       );
-      return;
+      return false;
     }
     if (options.echoToChat === false) {
       const responseType = CHAT_ECHO_RESPONSE_BY_REQUEST[message.type];
@@ -535,27 +531,30 @@ export class WrongStackWebSocketClient {
     }
     if (this.ws?.readyState === WebSocket.OPEN) {
       this.ws.send(JSON.stringify(decoded.message));
+      return true;
     } else {
+      if (options.queueIfDisconnected === false) return false;
       // FIFO-drop oldest when full. Keeps the queue bounded under
       // long disconnects and ensures the most recent user intent is
       // preserved (vs. a flood of stale earlier messages on reconnect).
       const queued = enqueueBounded(
         this.messageQueue,
         message,
-        WrongStackWebSocketClient.MAX_QUEUED_MESSAGES,
+        WrongStackWebSocketClientBase.MAX_QUEUED_MESSAGES,
       );
       if (queued.dropped) {
         console.warn(
           JSON.stringify({
             level: 'warn',
             event: 'ws_client.message_queue_full',
-            cap: WrongStackWebSocketClient.MAX_QUEUED_MESSAGES,
+            cap: WrongStackWebSocketClientBase.MAX_QUEUED_MESSAGES,
             droppedType: queued.dropped.type,
             timestamp: new Date().toISOString(),
           }),
         );
       }
       this.messageQueue = queued.queue;
+      return true;
     }
   }
 
@@ -711,6 +710,50 @@ export class WrongStackWebSocketClient {
     this.send({ type: 'session.new', payload: this.withSession({}) });
   }
 
+  shutdownCodebaseIndexServer(
+    timeoutMs = 8_000,
+  ): Promise<
+    Extract<WSServerMessage, { type: 'codebase.index.server.shutdown_result' }>['payload']
+  > {
+    type ShutdownResult = Extract<
+      WSServerMessage,
+      { type: 'codebase.index.server.shutdown_result' }
+    >['payload'];
+    const requestId = safeId();
+    return new Promise((resolve) => {
+      let settled = false;
+      const finish = (result: ShutdownResult) => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(timer);
+        off();
+        resolve(result);
+      };
+      const off = this.on('codebase.index.server.shutdown_result', (message) => {
+        if (message.payload.requestId && message.payload.requestId !== requestId) return;
+        finish(message.payload);
+      });
+      const timer = setTimeout(() => {
+        finish({
+          requestId,
+          stopped: false,
+          reason: 'Codebase index server shutdown timed out.',
+        });
+      }, timeoutMs);
+      const sent = this.send(
+        { type: 'codebase.index.server.shutdown', payload: { requestId } },
+        { queueIfDisconnected: false },
+      );
+      if (!sent) {
+        finish({
+          requestId,
+          stopped: false,
+          reason: 'WebSocket is not connected.',
+        });
+      }
+    });
+  }
+
   // ---- Provider/Model/Key management (mirrors TUI/CLI auth-menu) ----
 
   listProviders() {
@@ -723,6 +766,10 @@ export class WrongStackWebSocketClient {
 
   listSavedProviders() {
     this.send({ type: 'providers.saved' });
+  }
+
+  searchProviderModels(query: string, limit?: number) {
+    this.send({ type: 'provider.models.search', payload: { query, ...(limit !== undefined ? { limit } : {}) } });
   }
 
   addKey(providerId: string, label: string, apiKey: string) {
@@ -741,8 +788,15 @@ export class WrongStackWebSocketClient {
     this.send({ type: 'key.set_active', payload: { providerId, label } });
   }
 
-  addProvider(id: string, family: string, baseUrl?: string | undefined, apiKey?: string) {
-    this.send({ type: 'provider.add', payload: { id, family, baseUrl, apiKey } });
+  addProvider(
+    id: string,
+    family: string,
+    baseUrl?: string | undefined,
+    apiKey?: string,
+    models?: string[] | undefined,
+    customModels?: Record<string, ProviderCustomModelWire> | undefined,
+  ) {
+    this.send({ type: 'provider.add', payload: { id, family, baseUrl, apiKey, ...(models ? { models } : {}), ...(customModels ? { customModels } : {}) } });
   }
 
   removeProvider(providerId: string) {
@@ -787,13 +841,14 @@ export class WrongStackWebSocketClient {
     this.send(buildUndoClearMessage(providerId, previousModels));
   }
 
-  /** Update a saved provider's wire config (family / baseUrl / envVars / models). */
+  /** Update a saved provider's wire config (family / baseUrl / envVars / models / customModels). */
   updateProvider(payload: {
     id: string;
     family?: string | undefined;
     baseUrl?: string | undefined;
     envVars?: string[] | undefined;
     models?: string[] | undefined;
+    customModels?: Record<string, ProviderCustomModelWire> | undefined;
   }) {
     this.send(buildProviderUpdateMessage(payload));
   }
@@ -808,6 +863,32 @@ export class WrongStackWebSocketClient {
 
   repairContext() {
     this.send({ type: 'context.repair', payload: this.withSession({}) });
+  }
+
+  openContextEditor() {
+    this.send({ type: 'context.editor.open', payload: this.withSession({}) });
+  }
+
+  validateContextEditor(
+    baseRevision: string,
+    messages: ContextEditorMessage[],
+    allowRepair: boolean,
+  ) {
+    this.send({
+      type: 'context.editor.validate',
+      payload: this.withSession({ baseRevision, messages, allowRepair }),
+    });
+  }
+
+  applyContextEditor(
+    baseRevision: string,
+    messages: ContextEditorMessage[],
+    allowRepair: boolean,
+  ) {
+    this.send({
+      type: 'context.editor.apply',
+      payload: this.withSession({ baseRevision, messages, allowRepair }),
+    });
   }
 
   debugContext(options?: WSSendOptions) {
@@ -894,8 +975,19 @@ export class WrongStackWebSocketClient {
   }
 }
 
-export interface WrongStackWebSocketClient extends WsClientActionMethods {}
-installWsClientActionMethods(WrongStackWebSocketClient);
+installWsClientActionMethods(WrongStackWebSocketClientBase);
+
+export type WrongStackWebSocketClient =
+  & WrongStackWebSocketClientBase
+  & WsClientActionMethods;
+
+interface WrongStackWebSocketClientConstructor {
+  new (url?: string): WrongStackWebSocketClient;
+  readonly prototype: WrongStackWebSocketClient;
+}
+
+export const WrongStackWebSocketClient =
+  WrongStackWebSocketClientBase as unknown as WrongStackWebSocketClientConstructor;
 
 let client: WrongStackWebSocketClient | null = null;
 

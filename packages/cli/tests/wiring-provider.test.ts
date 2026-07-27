@@ -1,5 +1,5 @@
-import { describe, expect, it, vi, beforeEach } from 'vitest';
 import type { Config, Logger, ModelsRegistry, ResolvedProvider } from '@wrongstack/core/types';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { setupProvider } from '../src/wiring/provider.js';
 import { expectConfigError } from './helpers/config-error.js';
 
@@ -353,6 +353,52 @@ describe('setupProvider', () => {
 
     expect((provider as { capabilities: { maxOutput?: number } }).capabilities.maxOutput).toBe(
       64_000,
+    );
+  });
+
+  it('applies normalized custom model limits when the catalog has no model entry', async () => {
+    buildProviderFactoriesFromRegistry.mockResolvedValue([]);
+    makeProviderFromConfig.mockReturnValue(providerWith({ maxContext: 8_192 }) as never);
+    const modelsRegistry = fakeModelsRegistry({
+      getModel: vi.fn().mockResolvedValue(undefined),
+    });
+
+    const { provider } = await setupProvider({
+      config: fakeConfig({
+        provider: 'acme',
+        model: 'acme-large',
+        providers: {
+          acme: {
+            type: 'acme',
+            family: 'openai-compatible',
+            models: ['acme-large'],
+            customModels: {
+              'acme-large': {
+                name: 'Acme Large',
+                maxOutput: 32_768,
+                capabilities: {
+                  maxContext: 262_144,
+                  tools: true,
+                  vision: true,
+                  reasoning: true,
+                },
+              },
+            },
+          },
+        },
+      }),
+      modelsRegistry,
+      logger: fakeLogger(),
+    });
+
+    expect(provider.capabilities).toEqual(
+      expect.objectContaining({
+        maxContext: 262_144,
+        maxOutput: 32_768,
+        tools: true,
+        vision: true,
+        reasoning: true,
+      }),
     );
   });
 

@@ -29,27 +29,33 @@ vi.mock('@wrongstack/core/utils', () => ({
 
 // ── Factory: mock statement ──────────────────────────────────────────────
 
-function mockStatement() {
+interface MockStatement {
+  run: ReturnType<typeof vi.fn<(...params: unknown[]) => { changes: number }>>;
+  get: ReturnType<typeof vi.fn<(...params: unknown[]) => Record<string, unknown> | undefined>>;
+  all: ReturnType<typeof vi.fn<(...params: unknown[]) => Record<string, unknown>[]>>;
+}
+
+function mockStatement(): MockStatement {
   return {
-    run: vi.fn(() => ({ changes: 1 })),
-    get: vi.fn(() => undefined),
-    all: vi.fn(() => []),
+    run: vi.fn<(...params: unknown[]) => { changes: number }>(() => ({ changes: 1 })),
+    get: vi.fn<(...params: unknown[]) => Record<string, unknown> | undefined>(() => undefined),
+    all: vi.fn<(...params: unknown[]) => Record<string, unknown>[]>(() => []),
   };
 }
 
 // ── Mock node:sqlite ─────────────────────────────────────────────────────
 
 interface MockDb {
-  exec: ReturnType<typeof vi.fn>;
-  prepare: ReturnType<typeof vi.fn>;
-  close: ReturnType<typeof vi.fn>;
+  exec: ReturnType<typeof vi.fn<(sql: string) => void>>;
+  prepare: ReturnType<typeof vi.fn<(sql: string) => MockStatement>>;
+  close: ReturnType<typeof vi.fn<() => void>>;
 }
 
 function createMockDb(): MockDb {
   return {
-    exec: vi.fn(),
-    prepare: vi.fn(() => mockStatement()),
-    close: vi.fn(),
+    exec: vi.fn<(sql: string) => void>(),
+    prepare: vi.fn<(sql: string) => MockStatement>(() => mockStatement()),
+    close: vi.fn<() => void>(),
   };
 }
 
@@ -92,6 +98,7 @@ function makeSnapshot(overrides: Partial<Snapshot> = {}): Snapshot {
     dependencies: [],
     findings: [],
     workspaces: [],
+    coverage: 'full',
     ...overrides,
   };
 }
@@ -108,16 +115,6 @@ function makeJob(overrides: Partial<TechStackJob> = {}): TechStackJob {
     createdAt: FAKE_NOW,
     ...overrides,
   };
-}
-
-/** Helper: get the last prepared statement (the one created by the most recent prepare call). */
-function lastStatement(): ReturnType<typeof mockStatement> {
-  const store = lastStore!;
-  const db = (store as unknown as { db: MockDb }).db;
-  const mock = vi.mocked(db.prepare);
-  const lastCall = mock.mock.results[mock.mock.results.length - 1];
-  if (!lastCall || lastCall.type !== 'return') throw new Error('No prepared statement found');
-  return lastCall.value as ReturnType<typeof mockStatement>;
 }
 
 /** Helper: get a prepared statement that matches a partial SQL pattern. */
@@ -414,13 +411,17 @@ describe('TechStackStore', () => {
   });
 
   it('includes progress when provided', () => {
-    lastStore!.updateJobStatus('job-1', 'inventorying', { phase: 'inventorying', done: 3, total: 7 });
+    lastStore!.updateJobStatus('job-1', 'inventorying', {
+      phase: 'inventorying',
+      completed: 3,
+      total: 7,
+    });
 
     const stmt = findStatement('UPDATE jobs');
     expect(stmt).toBeDefined();
     expect(stmt!.run).toHaveBeenCalledWith(
       'inventorying',
-      JSON.stringify({ phase: 'inventorying', done: 3, total: 7 }),
+      JSON.stringify({ phase: 'inventorying', completed: 3, total: 7 }),
       null,
       'job-1',
     );

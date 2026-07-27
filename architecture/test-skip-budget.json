@@ -34,7 +34,7 @@
     {
       "file": "packages/core/tests/chronicle/metrics-store.test.ts",
       "kind": "skipIf",
-      "fingerprint": "b250a9cbe61c62c8"
+      "fingerprint": "2dcf51c9176eed57"
     },
     {
       "file": "packages/core/tests/coordination/package-author-tracker.test.ts",
@@ -129,7 +129,7 @@
     {
       "file": "packages/tools/tests/codebase-index-worker.test.ts",
       "kind": "skipIf",
-      "fingerprint": "5ca532d70768276c"
+      "fingerprint": "73f47856be4c7a02"
     },
     {
       "file": "packages/tools/tests/design.test.ts",
@@ -139,7 +139,12 @@
     {
       "file": "packages/tools/tests/exec-kill-guard.test.ts",
       "kind": "runIf",
-      "fingerprint": "5973b5e905b1679e"
+      "fingerprint": "0ccc935af90c2f71"
+    },
+    {
+      "file": "packages/tools/tests/exec-kill-guard.test.ts",
+      "kind": "runIf",
+      "fingerprint": "38788e7d77adc623"
     },
     {
       "file": "packages/tools/tests/exec-spawn.test.ts",
@@ -160,6 +165,11 @@
       "file": "packages/tools/tests/exec-spawn.test.ts",
       "kind": "skip",
       "fingerprint": "e9dd96a56b23b9cb"
+    },
+    {
+      "file": "packages/tools/tests/project-server-idle.test.ts",
+      "kind": "skipIf",
+      "fingerprint": "d6d5511c7bbb4262"
     },
     {
       "file": "packages/tools/tests/win32-resolve.test.ts",

@@ -76,8 +76,33 @@ describe('domain lifecycle bridge', () => {
     events.emit('network.request.started', { sessionId: 's', requestId: 'r1', initiator: 'provider', operationName: 'op', method: 'POST', scheme: 'https', serverAddress: 'api.example.com', pathHash: 'h', queryKeys: [], startedAt: new Date().toISOString() });
     events.emit('network.request.completed', { sessionId: 's', requestId: 'r1', initiator: 'provider', operationName: 'op', method: 'POST', scheme: 'https', serverAddress: 'api.example.com', pathHash: 'h', statusCode: 200, durationMs: 12, completedAt: new Date().toISOString() });
     events.emit('network.request.failed', { sessionId: 's', requestId: 'r2', initiator: 'tool', operationName: 'op', method: 'GET', scheme: 'https', serverAddress: 'api.example.com', pathHash: 'h', durationMs: 5, errorName: 'ECONNRESET', failedAt: new Date().toISOString() });
+    events.emit('runtime.health.sampled' as never, { sessionId: 's', eventLoop: { utilization: 0.1 } } as never);
+    events.emit('provider.tool_use_start' as never, { id: 'call-1', name: 'read' } as never);
+    events.emit('provider.tool_use_stop' as never, { id: 'call-1', name: 'read' } as never);
     const recorded = await journal.readAll(); off();
     expect(recorded.map((event) => event.eventType)).toEqual(['network.request.failed']);
+  });
+
+  it('dedupes memory.injector_run entries that are both activated and injected', async () => {
+    const dir = await mkdtemp(path.join(os.tmpdir(), 'chronicle-memdedup-')); dirs.push(dir);
+    const journal = new ChronicleJournal({ filePath: path.join(dir, 'events.jsonl') });
+    const events = new EventBus();
+    const context = createChronicleContext({ installationId: 'i', machineId: 'm' }, 'trace');
+    const off = wireDomainEventsToChronicle({ events, journal, context });
+    const shared = { id: 'mem-1', kind: 'fact', score: 0.9 };
+    const onlyInjected = { id: 'mem-2', kind: 'fact', score: 0.5 };
+    events.emit('memory.injector_run' as never, {
+      sessionId: 's',
+      activated: [shared, { id: 'mem-3', kind: 'fact', score: 0.7 }],
+      injected: [shared, onlyInjected],
+    } as never);
+    const recorded = await journal.readAll(); off();
+    const attrs = recorded[0]!.attributes as Record<string, unknown>;
+    const injected = attrs['injected'] as Array<Record<string, unknown>>;
+    expect(injected).toEqual([{ id: 'mem-1', ref: 'activated' }, { id: 'mem-2', kind: 'fact', score: 0.5 }]);
+    const activated = attrs['activated'] as Array<Record<string, unknown>>;
+    expect(activated).toHaveLength(2);
+    expect(activated[0]).toMatchObject({ id: 'mem-1', kind: 'fact', score: 0.9 });
   });
 
   it('persists file.event mutations with task/board scope and skips reads', async () => {

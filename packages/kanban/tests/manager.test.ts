@@ -282,7 +282,7 @@ describe('createBoardFromText', () => {
     });
     expect(result.title).toBe('Kanban: My board description');
     expect(result.columns).toHaveLength(4);
-    expect(result.columns[0]!.id).toBe('backlog');
+    expect(result.columns?.at(0)?.id).toBe('backlog');
     expect(result.tasks).toEqual([]);
   });
 
@@ -322,8 +322,8 @@ describe('createBoardFromText', () => {
       columns: ['Alpha', 'Beta'],
     });
     expect(result.columns).toHaveLength(2);
-    expect(result.columns[0]!.title).toBe('Alpha');
-    expect(result.columns[1]!.title).toBe('Beta');
+    expect(result.columns?.at(0)?.title).toBe('Alpha');
+    expect(result.columns?.at(1)?.title).toBe('Beta');
   });
 });
 
@@ -846,7 +846,7 @@ describe('setTaskChain', () => {
       tasks: [{ title: 'Step 1' }, { title: 'Step 2' }],
     });
     const ids = board.tasks.map((t) => t.id);
-    const _result = await setTaskChain(tmpDir, board.id, {
+    await setTaskChain(tmpDir, board.id, {
       taskIds: ids,
       chainId: 'chain-1',
     });
@@ -917,7 +917,7 @@ describe('exportBoardToTaskGraph', () => {
 describe('getKanbanQueueHealth', () => {
   it('returns health data for a project', async () => {
     await makeBoard();
-    const health = await getKanbanQueueHealth(tmpDir, { maxStaleMinutes: 30 });
+    const health = await getKanbanQueueHealth(tmpDir);
     expect(health).toBeDefined();
     expect(Array.isArray(health.boardIds)).toBe(true);
     expect(health.counts).toBeDefined();

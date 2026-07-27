@@ -27,6 +27,7 @@ import * as fs from 'node:fs/promises';
 import * as http from 'node:http';
 import * as path from 'node:path';
 import * as v8 from 'node:v8';
+import { getIndexState } from '@wrongstack/tools';
 import {
   handleCodemapFiles,
   handleCodemapPackages,
@@ -573,7 +574,7 @@ export function createHttpServer(opts: CreateHttpServerOptions): http.Server {
           res.end(JSON.stringify({ error: 'Project root not configured' }));
           return;
         }
-        handleCodemapPackages(res, {
+        await handleCodemapPackages(res, {
           projectRoot: opts.projectRoot,
           ...(opts.indexDir ? { indexDir: opts.indexDir } : {}),
         });
@@ -592,7 +593,7 @@ export function createHttpServer(opts: CreateHttpServerOptions): http.Server {
           return;
         }
         const pkg = url.searchParams.get('package') ?? '';
-        handleCodemapFiles(
+        await handleCodemapFiles(
           res,
           {
             projectRoot: opts.projectRoot,
@@ -615,7 +616,7 @@ export function createHttpServer(opts: CreateHttpServerOptions): http.Server {
           return;
         }
         const file = url.searchParams.get('file') ?? '';
-        handleCodemapSymbols(
+        await handleCodemapSymbols(
           res,
           {
             projectRoot: opts.projectRoot,
@@ -763,6 +764,7 @@ export function createHttpServer(opts: CreateHttpServerOptions): http.Server {
             heapLimit: v8.getHeapStatistics().heap_size_limit,
             uptime: process.uptime(),
             cpuUsage: process.cpuUsage(),
+            codebaseIndexServer: getIndexState().server,
             timestamp: Date.now(),
           }),
         );

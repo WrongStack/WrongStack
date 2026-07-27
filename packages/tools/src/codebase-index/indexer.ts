@@ -10,23 +10,29 @@ import { expectDefined } from '@wrongstack/core/utils';
  * 5. Return index statistics
  */
 
-import * as fs from 'node:fs/promises';
-import * as path from 'node:path';
-import { availableParallelism } from 'node:os';
+import { execFile } from 'node:child_process';
 import type { Dirent, Stats } from 'node:fs';
+import * as fs from 'node:fs/promises';
+import { availableParallelism } from 'node:os';
+import * as path from 'node:path';
 import type { Context } from '@wrongstack/core/agent';
-import { DEFAULT_WALK_IGNORE_DIRS, indexParallelBatchSize, isFrugalPerf } from '@wrongstack/core/utils';
-import type { FileMeta, IndexResult, Ref, Symbol as IndexSymbol, SymbolLang } from './schema.js';
-import { IndexStore } from './writer.js';
-import { parseSymbols as parseTs } from './ts-parser.js';
-import { detectLang, INDEXABLE_EXTENSIONS } from './languages.js';
+import {
+  DEFAULT_WALK_IGNORE_DIRS,
+  indexParallelBatchSize,
+  isFrugalPerf,
+} from '@wrongstack/core/utils';
+import { parseSymbols as parseGeneric } from './generic-parser.js';
+import { type IgnoreMatcher, loadGitignoreMatcher } from './gitignore.js';
 import { parseSymbols as parseGo } from './go-parser.js';
+import { parseSymbols as parseJson } from './json-parser.js';
+import { detectLang, INDEXABLE_EXTENSIONS } from './languages.js';
 import { parseSymbols as parsePy } from './py-parser.js';
 import { parseSymbols as parseRs } from './rs-parser.js';
-import { parseSymbols as parseJson } from './json-parser.js';
+import type { FileMeta, IndexResult, Symbol as IndexSymbol, Ref, SymbolLang } from './schema.js';
+import { parseSymbols as parseTs } from './ts-parser.js';
+import { IndexStore } from './writer.js';
 import { parseSymbols as parseYaml } from './yaml-parser.js';
-import { parseSymbols as parseGeneric } from './generic-parser.js';
-import { loadGitignoreMatcher, type IgnoreMatcher } from './gitignore.js';
+
 /** Yield the event loop every N files so the main thread stays responsive. */
 const YIELD_EVERY_N = 50;
 
@@ -65,7 +71,9 @@ function isAbortError(err: unknown): boolean {
 
 const DEFAULT_IGNORE = DEFAULT_WALK_IGNORE_DIRS;
 const DEFAULT_IGNORE_FILES = new Set(['package-lock.json', 'pnpm-lock.yaml', 'pnpm-lock.yml']);
+const INDEXABLE_EXTENSION_SET = new Set(INDEXABLE_EXTENSIONS);
 const MAX_INDEX_FILE_BYTES = 5 * 1024 * 1024;
+const MAX_GIT_FILE_LIST_BYTES = 64 * 1024 * 1024;
 
 function isWithinProject(projectRoot: string, file: string): boolean {
   const rel = path.relative(projectRoot, file);
@@ -75,6 +83,98 @@ function isWithinProject(projectRoot: string, file: string): boolean {
 function isMissingPathError(err: unknown): boolean {
   const code = (err as { code?: unknown } | null)?.code;
   return code === 'ENOENT' || code === 'ENOTDIR';
+}
+
+function normalizeComparablePath(value: string): string {
+  const resolved = path.resolve(value);
+  return process.platform === 'win32' ? resolved.toLowerCase() : resolved;
+}
+
+function gitOutput(projectRoot: string, args: string[]): Promise<Buffer> {
+  return new Promise((resolve, reject) => {
+    execFile(
+      'git',
+      ['-C', projectRoot, ...args],
+      {
+        encoding: 'buffer',
+        maxBuffer: MAX_GIT_FILE_LIST_BYTES,
+        windowsHide: true,
+      },
+      (error, stdout) => {
+        if (error) reject(error);
+        else resolve(Buffer.isBuffer(stdout) ? stdout : Buffer.from(stdout));
+      },
+    );
+  });
+}
+
+/**
+ * Git already maintains the canonical tracked/untracked directory index. On a
+ * repository root this avoids hundreds of serial `readdir` calls; non-Git
+ * projects and nested roots fall back to the filesystem walker below.
+ */
+async function findGitSourceFiles(
+  projectRoot: string,
+  ignore: string[],
+  signal?: AbortSignal | undefined,
+): Promise<{ files: string[]; trustedUnchanged: Set<string> } | null> {
+  try {
+    throwIfAborted(signal);
+    const topLevel = (await gitOutput(projectRoot, ['rev-parse', '--show-toplevel']))
+      .toString('utf8')
+      .trim();
+    if (normalizeComparablePath(topLevel) !== normalizeComparablePath(projectRoot)) return null;
+
+    throwIfAborted(signal);
+    const ignoreSet = new Set([...DEFAULT_IGNORE, ...ignore]);
+    const [output, statusOutput] = await Promise.all([
+      gitOutput(projectRoot, ['ls-files', '--cached', '--others', '--exclude-standard', '-z']),
+      gitOutput(projectRoot, [
+        'status',
+        '--porcelain=v1',
+        '-z',
+        '--untracked-files=all',
+        '--ignored=no',
+      ]),
+    ]);
+    throwIfAborted(signal);
+    const dirty = new Set<string>();
+    const deleted = new Set<string>();
+    const statusRecords = statusOutput.toString('utf8').split('\0');
+    for (let i = 0; i < statusRecords.length; i++) {
+      const record = statusRecords[i];
+      if (!record) continue;
+      const status = record.slice(0, 2);
+      const changedPath = path.resolve(projectRoot, record.slice(3));
+      dirty.add(changedPath);
+      if (status.includes('D')) deleted.add(changedPath);
+      if (status.includes('R') || status.includes('C')) {
+        const source = statusRecords[++i];
+        if (source) dirty.add(path.resolve(projectRoot, source));
+      }
+    }
+    const files: string[] = [];
+    for (const relative of output.toString('utf8').split('\0')) {
+      if (!relative) continue;
+      const portable = relative.replace(/\\/g, '/');
+      if (
+        portable.split('/').some((segment) => ignoreSet.has(segment)) ||
+        DEFAULT_IGNORE_FILES.has(path.posix.basename(portable))
+      ) {
+        continue;
+      }
+      const full = path.resolve(projectRoot, relative);
+      if (deleted.has(full)) continue;
+      const ext = path.extname(relative).toLowerCase();
+      if (INDEXABLE_EXTENSION_SET.has(ext) || detectLang(full) !== null) files.push(full);
+    }
+    return {
+      files,
+      trustedUnchanged: new Set(files.filter((file) => !dirty.has(file))),
+    };
+  } catch {
+    return null;
+  }
 }
 
 interface IndexerOptions {
@@ -105,7 +205,22 @@ async function findSourceFiles(
   ignore: string[],
   isGitIgnored: IgnoreMatcher,
   signal?: AbortSignal | undefined,
-): Promise<{ files: string[]; complete: boolean; errors: string[] }> {
+): Promise<{
+  files: string[];
+  complete: boolean;
+  errors: string[];
+  trustedUnchanged?: Set<string>;
+}> {
+  const gitFiles = await findGitSourceFiles(projectRoot, ignore, signal);
+  if (gitFiles) {
+    return {
+      files: gitFiles.files,
+      complete: true,
+      errors: [],
+      trustedUnchanged: gitFiles.trustedUnchanged,
+    };
+  }
+
   const results: string[] = [];
   const errors: string[] = [];
   let complete = true;
@@ -237,14 +352,20 @@ export async function runIndexer(_ctx: Context, opts: IndexerOptions): Promise<I
   }
 }
 
-async function runIndexerWithStore(store: IndexStore, opts: IndexerOptions): Promise<IndexResult> {
+export async function runIndexerWithStore(
+  store: IndexStore,
+  opts: IndexerOptions,
+): Promise<IndexResult> {
   const { projectRoot, langs, ignore = [], signal } = opts;
   // Graph semantics changed without a structural SQLite schema change. Keep a
   // separate data-version marker so older running processes do not downgrade
   // and wipe the same shared DB while a new WebUI is being rolled out.
   const relationGraphVersion = '2';
+  const refResolutionVersion = '2';
   const force =
     (opts.force ?? false) || store.getMetadata('relation_graph_version') !== relationGraphVersion;
+  const needsFullRefResolution =
+    force || store.getMetadata('ref_resolution_version') !== refResolutionVersion;
   const startMs = Date.now();
   const errors: string[] = [];
   const langStats: Record<string, number> = {};
@@ -261,6 +382,7 @@ async function runIndexerWithStore(store: IndexStore, opts: IndexerOptions): Pro
    *  previously-indexed file. Null when an explicit file list was given. */
   let discoveredFiles: Set<string> | null = null;
   let discoveryComplete = true;
+  let trustedUnchanged: Set<string> | undefined;
   if (opts.files && opts.files.length > 0) {
     // Explicit file list (per-edit / watcher path): keep paths inside the
     // project only and apply both always-on and .gitignore exclusions.
@@ -281,6 +403,7 @@ async function runIndexerWithStore(store: IndexStore, opts: IndexerOptions): Pro
     errors.push(...discovery.errors);
     discoveryComplete = discovery.complete;
     discoveredFiles = new Set(files);
+    trustedUnchanged = discovery.trustedUnchanged;
   }
 
   if (langs && langs.length > 0) {
@@ -299,6 +422,25 @@ async function runIndexerWithStore(store: IndexStore, opts: IndexerOptions): Pro
     for (const meta of store.getAllFileMetas()) existingMeta.set(meta.file, meta);
   }
 
+  // Git has already checked clean tracked files while producing status. Fold
+  // their stored counts into the result once, before the async batch loop,
+  // instead of creating thousands of promises and scheduler yields merely to
+  // rediscover that their mtimes did not change.
+  const totalFilesForProgress = files.length;
+  let filesPreSkipped = 0;
+  if (!force && trustedUnchanged) {
+    files = files.filter((file) => {
+      const meta = existingMeta.get(file);
+      if (!meta || !trustedUnchanged.has(file)) return true;
+      langStats[meta.lang] = (langStats[meta.lang] ?? 0) + meta.symbolCount;
+      symbolsIndexed += meta.symbolCount;
+      filesIndexed++;
+      filesPreSkipped++;
+      return false;
+    });
+    if (filesPreSkipped > 0) opts.onProgress?.(filesPreSkipped, totalFilesForProgress);
+  }
+
   // Process files in batches for parallel I/O and parsing.
   // SQLite writes remain sequential (they're synchronous and CPU-bound).
   // Batch width follows WRONGSTACK_PERF_PROFILE (frugal ≤4, balanced cores×4).
@@ -309,7 +451,7 @@ async function runIndexerWithStore(store: IndexStore, opts: IndexerOptions): Pro
     const batchFiles = files.slice(batchStart, batchEnd);
 
     // Report progress to the caller so UIs can show indexing status.
-    opts.onProgress?.(batchEnd, files.length);
+    opts.onProgress?.(filesPreSkipped + batchEnd, totalFilesForProgress);
 
     // Yield the event loop periodically so the main thread stays responsive
     // (TUI rendering, input handling, etc.) during large index builds.
@@ -525,6 +667,10 @@ async function runIndexerWithStore(store: IndexStore, opts: IndexerOptions): Pro
               const fallbackBatch = assignRefsToSymbols(entry.refs, symbolsWithIds);
               if (fallbackBatch.length > 0) store.insertRefsBatch(fallbackBatch);
             }
+            store.resolveRefsForNames([
+              ...entry.symbols.map((symbol) => symbol.name),
+              ...entry.refs.map((ref) => ref.toName),
+            ]);
             store.upsertFile({
               file: entry.file,
               lang: entry.lang,
@@ -555,15 +701,18 @@ async function runIndexerWithStore(store: IndexStore, opts: IndexerOptions): Pro
     }
   }
 
-  // Resolution must run even when every file was an incremental-cache hit:
-  // older indexes can contain unresolved refs from a previous interrupted run.
-  store.resolveRefs();
+  // Batch commits resolve only names touched by that batch. Existing databases
+  // get one global repair pass when this contract version changes; subsequent
+  // single-file watcher runs avoid rebuilding the full symbol-name map.
+  if (needsFullRefResolution) store.resolveRefs();
+  store.setMetadata('ref_resolution_version', refResolutionVersion);
   store.setMetadata('relation_graph_version', relationGraphVersion);
-  // Refresh query planner stats after bulk writes (best-effort, free on small DBs).
-  store.optimize();
+  // Planner refresh belongs to full/bulk runs, not the edit watcher hot path.
+  if (!opts.files || filesIndexed >= 50) store.optimize();
 
-  const durationMs = Date.now() - startMs;
   store.setLastIndexed(Date.now());
+  if (!opts.files) store.compactIfNeeded();
+  const durationMs = Date.now() - startMs;
 
   return {
     filesIndexed,

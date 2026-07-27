@@ -129,7 +129,16 @@
       "baseUrl": "Temel URL (isteğe bağlı)",
       "apiKey": "API Anahtarı (isteğe bağlı — bazı yerel sağlayıcılar bunu gerektirmez)",
       "apiKeyPlaceholder": "API anahtarı (gerekliyse)",
-      "add": "Sağlayıcı Ekle"
+      "add": "Sağlayıcı Ekle",
+      "models": "Modeller",
+      "addModel": "Model ekle",
+      "modelSearchPlaceholder": "Katalog modellerinde ara…",
+      "noCatalogMatch": "Katalogda eşleşen model yok.",
+      "useCustomId": "Özel kimlik gir",
+      "customModelIdPlaceholder": "Özel model kimliği",
+      "cancel": "İptal",
+      "modelSingular": "model",
+      "modelPlural": "modeller"
     },
     "time": {
       "justNow": "az önce",

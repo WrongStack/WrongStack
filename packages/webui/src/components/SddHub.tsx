@@ -1,7 +1,8 @@
-import { type KeyboardEvent, useCallback, useState } from 'react';
+import { type KeyboardEvent, useCallback, useEffect, useState } from 'react';
 import { useAppTranslation } from '@/i18n';
 import { showPanel } from '@/lib/view-navigation';
 import { cn } from '@/lib/utils';
+import { useSddWizardStore } from '@/stores';
 import { SddBoardView } from './SddBoardView';
 import { SddWizard } from './SddWizard';
 import { SpecsView } from './SpecsView';
@@ -18,13 +19,26 @@ const TABS: { id: SddTab; labelKey: string }[] = [
  * SddHub — unified tabbed container that replaces three separate menu items
  * ("New SDD Project", "Live SDD Board", "Specifications") with one screen
  * and three top tabs. Each tab renders its respective existing component.
+ *
+ * Listens for `sdd.run.started` (via the wizard store) so a run kicked off
+ * from Specs, Kanban, or the Project tab always flips to the Live Board.
  */
 export function SddHub(): React.ReactElement {
   const { t } = useAppTranslation();
   const [activeTab, setActiveTab] = useState<SddTab>('project');
+  const startedRunId = useSddWizardStore((s) => s.startedRunId);
+  const setStartedRunId = useSddWizardStore((s) => s.setStartedRunId);
 
   const onClose = () => showPanel('chat');
   const showBoard = useCallback(() => setActiveTab('board'), []);
+
+  // Any surface that starts an SDD run sets startedRunId — flip to Board once.
+  useEffect(() => {
+    if (!startedRunId) return;
+    setActiveTab('board');
+    setStartedRunId(null);
+  }, [startedRunId, setStartedRunId]);
+
   const handleTabKeyDown = (event: KeyboardEvent<HTMLButtonElement>, index: number) => {
     let nextIndex: number | undefined;
     if (event.key === 'ArrowLeft') nextIndex = (index - 1 + TABS.length) % TABS.length;
@@ -104,7 +118,7 @@ export function SddHub(): React.ReactElement {
           hidden={activeTab !== 'specs'}
           className="h-full overflow-y-auto overscroll-contain"
         >
-          <SpecsView onClose={onClose} />
+          <SpecsView onClose={onClose} onRunStarted={showBoard} />
         </div>
       </div>
     </div>

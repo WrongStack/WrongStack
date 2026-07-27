@@ -6,7 +6,7 @@
  */
 
 import React from 'react';
-import type { Action } from '../app-state.js';
+import type { Action } from '../app-action-type.js';
 import type { BrainRiskLevel } from '../brain-contracts.js';
 import {
   AUTO_DENY_PRESETS,

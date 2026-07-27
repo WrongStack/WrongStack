@@ -19,7 +19,6 @@ export type { BrainRouteHandlers } from './brain-routes.js';
 export { handleBrainRoute } from './brain-routes.js';
 export {
   type ChronicleRouteContext,
-  type ChronicleRouteEngine,
   handleChronicleRoute,
 } from './chronicle-routes.js';
 export {
@@ -58,9 +57,34 @@ export {
   type ConversationRunControl,
 } from './conversation-operations.js';
 export {
+  applyContextEditorProposal,
+  buildContextEditorSnapshot,
+  contextEditorRevision,
+  validateContextEditorMessages,
+  validateContextEditorProposal,
+  type ContextEditorAppliedResult,
+  type ContextEditorBlock,
+  type ContextEditorConflict,
+  type ContextEditorDiagnostics,
+  type ContextEditorMessage,
+  type ContextEditorMetrics,
+  type ContextEditorRepairPreview,
+  type ContextEditorSnapshot,
+  type ContextEditorValidationError,
+  type ContextEditorValidationResult,
+  type ContextEditorWarning,
+} from './context-editor.js';
+export {
   createConnectionLifecycle,
   type ConnectionLifecycleOptions,
 } from './connection-lifecycle.js';
+export {
+  collectConnectionsHealth,
+  type ConnectionHealthService,
+  type ConnectionsHealthContext,
+  type ConnectionsHealthReport,
+  handleConnectionsHealthRoute,
+} from './connections-health-route.js';
 export {
   type CustomContextMode,
   type CustomModeStore,

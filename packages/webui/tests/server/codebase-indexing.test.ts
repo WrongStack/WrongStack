@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 const {
   cancelPendingReindexes,
   enqueueReindex,
+  ensureCodebaseIndexServer,
   isIndexableFile,
   onIndexStateChange,
   runStartupIndex,
@@ -11,6 +12,7 @@ const {
 } = vi.hoisted(() => ({
   cancelPendingReindexes: vi.fn(),
   enqueueReindex: vi.fn(),
+  ensureCodebaseIndexServer: vi.fn(async () => {}),
   isIndexableFile: vi.fn((filePath: string) => filePath.endsWith('.ts')),
   onIndexStateChange: vi.fn(() => vi.fn()),
   runStartupIndex: vi.fn(async () => ({
@@ -24,6 +26,7 @@ const {
 vi.mock('@wrongstack/tools', () => ({
   cancelPendingReindexes,
   enqueueReindex,
+  ensureCodebaseIndexServer,
   isIndexableFile,
   onIndexStateChange,
   runStartupIndex,

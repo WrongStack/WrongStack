@@ -1,8 +1,8 @@
 import type { ACPMessage } from '../types/acp-messages.js';
 import type { ToolCallId, ToolCallUpdateNotification } from '../types/acp-v1.js';
-import { FileServer, FsError } from './file-server.js';
+import { type FileServer, FsError } from './file-server.js';
 import type { PermissionPolicy } from './permission.js';
-import { TerminalServer } from './terminal-server.js';
+import type { TerminalServer } from './terminal-server.js';
 
 export interface ACPResponseSender {
   sendResult(id: string | number, result: unknown): Promise<void>;

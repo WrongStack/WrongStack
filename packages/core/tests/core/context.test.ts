@@ -1,6 +1,6 @@
 import * as path from 'node:path';
-import { describe, expect, it } from 'vitest';
-import { Context } from '../../src/core/context.js';
+import { describe, expect, it, vi } from 'vitest';
+import { Context, resolveEventSessionId } from '../../src/core/context.js';
 import { DefaultTokenCounter } from '../../src/infrastructure/token-counter.js';
 import type { Provider, SessionWriter, TextBlock } from '../../src/index.js';
 
@@ -34,6 +34,69 @@ describe('Context', () => {
     expect(ctx.todos).toEqual([]);
     expect(ctx.readFiles.size).toBe(0);
     expect(ctx.meta).toEqual({});
+  });
+
+  describe('run-pinned event session id', () => {
+    it('falls back to the live session id outside a run', () => {
+      const ctx = mkContext();
+      expect(ctx.activeRunSessionId).toBeUndefined();
+      expect(ctx.eventSessionId()).toBe('t');
+      expect(resolveEventSessionId(ctx)).toBe('t');
+    });
+
+    it('prefers the pinned id while a run is active, then falls back after it clears', () => {
+      // Regression: after a host-side session swap (WebUI session.new), late
+      // events from the previous run must keep the old session id instead of
+      // leaking into the new session's chat.
+      const ctx = mkContext();
+      ctx.activeRunSessionId = 'run-session-old';
+      ctx.session = { ...fakeSession, id: 'session-new' };
+      expect(ctx.eventSessionId()).toBe('run-session-old');
+      expect(resolveEventSessionId(ctx)).toBe('run-session-old');
+
+      ctx.activeRunSessionId = undefined;
+      expect(ctx.eventSessionId()).toBe('session-new');
+    });
+
+    it('tolerates stub contexts without a session', () => {
+      const stub = { activeRunSessionId: undefined, session: undefined } as unknown as Context;
+      expect(resolveEventSessionId(stub)).toBe('');
+    });
+
+    it('persists late file events through the run-pinned writer after a session swap', () => {
+      const oldAppend = vi.fn(async () => undefined);
+      const newAppend = vi.fn(async () => undefined);
+      const oldWriter: SessionWriter = { ...fakeSession, id: 'old', append: oldAppend };
+      const newWriter: SessionWriter = { ...fakeSession, id: 'new', append: newAppend };
+      const ctx = new Context({
+        systemPrompt: [{ type: 'text', text: 'hi' } as TextBlock],
+        provider: { id: 'test-provider' } as Provider,
+        session: oldWriter,
+        signal: new AbortController().signal,
+        tokenCounter: new DefaultTokenCounter(),
+        cwd: '/tmp',
+        projectRoot: '/tmp',
+        model: 'm',
+      });
+      ctx.activeRunSessionId = oldWriter.id;
+      ctx.activeRunSessionWriter = oldWriter;
+      ctx.session = newWriter;
+
+      ctx.recordFileEvent({
+        operation: 'update',
+        filePath: 'src/file.ts',
+        absPath: '/tmp/src/file.ts',
+        toolName: 'edit',
+        toolUseId: 'tool-1',
+      });
+
+      expect(oldAppend).toHaveBeenCalledWith(expect.objectContaining({
+        type: 'file_event',
+        sessionId: 'old',
+      }));
+      expect(newAppend).not.toHaveBeenCalled();
+      expect(ctx.fileEvents.at(-1)?.sessionId).toBe('old');
+    });
   });
 
   it('recordRead tracks files + mtimes', () => {

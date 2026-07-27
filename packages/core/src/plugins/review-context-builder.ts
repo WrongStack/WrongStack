@@ -1,7 +1,11 @@
 import { spawn } from 'node:child_process';
-import * as path from 'node:path';
 import type { KanbanTask } from '@wrongstack/kanban';
-import type { ReviewContextBundle, ReviewFileEntry, ResolvedChimeraConfig } from './review-types.js';
+import { createChronicleProjectAccess } from '../chronicle/project-access.js';
+import type {
+  ResolvedChimeraConfig,
+  ReviewContextBundle,
+  ReviewFileEntry,
+} from './review-types.js';
 
 // ---------------------------------------------------------------------------
 // Git helpers (shared with chimera-plugin.ts, intentionally duplicated
@@ -62,9 +66,7 @@ async function getFileDiff(cwd: string, filePath: string): Promise<string | unde
  * C-style quoted/escaped names. Rename and copy entries contain an additional
  * source-path record; the first record is the destination path we review.
  */
-export function parsePorcelainStatusZ(
-  stdout: string,
-): Array<{ path: string; status: string }> {
+export function parsePorcelainStatusZ(stdout: string): Array<{ path: string; status: string }> {
   const records = stdout.split('\0');
   const out: Array<{ path: string; status: string }> = [];
   for (let index = 0; index < records.length; index++) {
@@ -78,9 +80,7 @@ export function parsePorcelainStatusZ(
   return out;
 }
 
-async function getAllChangedFiles(
-  cwd: string,
-): Promise<Array<{ path: string; status: string }>> {
+async function getAllChangedFiles(cwd: string): Promise<Array<{ path: string; status: string }>> {
   const r = await runGit(['status', '--porcelain', '-z'], cwd);
   return r.code === 0 ? parsePorcelainStatusZ(r.stdout) : [];
 }
@@ -89,10 +89,7 @@ async function getAllChangedFiles(
  * Get recent commit messages (oneline), newest first.
  */
 async function getRecentCommits(cwd: string): Promise<string[]> {
-  const r = await runGit(
-    ['log', `-${MAX_RECENT_COMMITS}`, '--oneline', '--format=%s'],
-    cwd,
-  );
+  const r = await runGit(['log', `-${MAX_RECENT_COMMITS}`, '--oneline', '--format=%s'], cwd);
   if (r.code !== 0) return [];
   return r.stdout.split('\n').filter(Boolean);
 }
@@ -287,9 +284,8 @@ async function findActiveKanbanCard(
  * changed file path. Returns agent/session/task attribution so the
  * reviewer knows WHO made the change and in what task context.
  *
- * Uses dynamic import so the builder doesn't hard-depend on the chronicle
- * subsystem being initialized. Best-effort: returns [] if chronicle isn't
- * available or the journal is empty.
+ * Uses the canonical per-project Chronicle gateway. Best-effort: returns []
+ * if Chronicle isn't available or the journal is empty.
  */
 async function findFileProvenance(
   projectRoot: string,
@@ -297,46 +293,30 @@ async function findFileProvenance(
 ): Promise<NonNullable<ReviewContextBundle['fileProvenance']>> {
   if (filePaths.length === 0) return [];
 
-  // Use a variable specifier so the static import guard doesn't flag a
-  // dependency on chronicle files that may be untracked (peer work).
-  const chronicleSpec = '../chronicle/query.js';
-  type ChronicleQueryEngineConstructor = typeof import('../chronicle/query.js').ChronicleQueryEngine;
-  let ChronicleQueryEngine: ChronicleQueryEngineConstructor;
-  try {
-    const mod = (await import(chronicleSpec)) as {
-      ChronicleQueryEngine: ChronicleQueryEngineConstructor;
-    };
-    ChronicleQueryEngine = mod.ChronicleQueryEngine;
-  } catch {
-    return []; // chronicle module not available
-  }
-
-  // Chronicle journal lives under .wrongstack/chronicle by convention
-  const journalDir = path.join(projectRoot, '.wrongstack', 'chronicle');
-  let engine: Awaited<ReturnType<ChronicleQueryEngineConstructor['fromDirectory']>>;
-  try {
-    engine = await ChronicleQueryEngine.fromDirectory(journalDir);
-  } catch {
-    return []; // journal not initialized or unreadable
-  }
-
+  const access = createChronicleProjectAccess({ projectRoot });
   const provenance: NonNullable<ReviewContextBundle['fileProvenance']> = [];
-  for (const filePath of filePaths) {
-    try {
-      const result = await engine.query({ path: filePath, limit: 1, order: 'desc' });
-      const evt = result.events[0];
-      if (!evt) continue;
-      const scope = evt.scope ?? {};
-      provenance.push({
-        path: filePath,
-        agentId: scope.agentId as string | undefined,
-        taskId: scope.taskId as string | undefined,
-        eventType: evt.eventType as string | undefined,
-        observedAt: evt.observedAt as string | undefined,
-      });
-    } catch {
-      // skip individual file on query error
+  try {
+    for (const filePath of filePaths) {
+      try {
+        const result = await access.call('query', {
+          query: { path: filePath, limit: 1, order: 'desc' },
+        });
+        const evt = result.events[0];
+        if (!evt) continue;
+        const scope = evt.scope ?? {};
+        provenance.push({
+          path: filePath,
+          agentId: scope.agentId,
+          taskId: scope.taskId,
+          eventType: evt.eventType,
+          observedAt: evt.observedAt,
+        });
+      } catch {
+        // Skip an individual file on query error.
+      }
     }
+  } finally {
+    await access.close();
   }
   return provenance;
 }

@@ -1,4 +1,5 @@
-import type { Action, State } from '../app-state.js';
+import type { Action } from '../app-action-type.js';
+import type { State } from '../app-state.js';
 import { brainPanelRows } from '../brain-panel-model.js';
 import { type ChipMeta, STATUSLINE_FIELD_COUNT } from '../components/statusline-picker.js';
 import { closePanels } from './helpers.js';

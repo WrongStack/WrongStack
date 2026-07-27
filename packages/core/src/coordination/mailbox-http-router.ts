@@ -41,7 +41,7 @@ import {
   isMailboxMessageVisibleTo,
   sessionRecipient,
 } from './mailbox-types.js';
-import { MailboxHttpRateLimiter } from './mailbox-http-rate-limit.js';
+import type { MailboxHttpRateLimiter } from './mailbox-http-rate-limit.js';
 export {
   MAILBOX_HTTP_RATE_LIMIT_PER_MINUTE,
   MAILBOX_HTTP_RATE_LIMIT_WINDOW_MS,

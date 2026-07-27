@@ -19,6 +19,9 @@ export const BOOLEAN_FLAGS = new Set([
   'no-features',
   'tui',
   'no-tui',
+  // Legacy no-ops: every surface now starts fresh unless an explicit
+  // `--resume <id>` is supplied. Keep parsing these as booleans so old
+  // launch scripts do not accidentally consume the next positional token.
   'no-recovery',
   'recover',
   'output-json',

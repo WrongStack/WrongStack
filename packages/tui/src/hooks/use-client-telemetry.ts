@@ -1,7 +1,7 @@
 import { projectSlug } from '@wrongstack/core/utils';
 import { type Dispatch, useEffect } from 'react';
 import type { AppProps } from '../app-props.js';
-import type { Action } from '../app-state.js';
+import type { Action } from '../app-action-type.js';
 
 interface ClientTelemetryOptions {
   events: AppProps['events'];

@@ -6,7 +6,7 @@ import {
   parseNamedSections,
   recordToStringFields,
 } from './tool-visual-format.js';
-import type { ToolVisualLine } from './utils.js';
+import type { ToolVisualLine } from './tool-visual-types.js';
 
 const VISUAL_MAX_LINES = 7;
 const TODO_VISUAL_MAX_LINES = 10;

@@ -12,7 +12,7 @@ interface PrefsUpdatePayload {
 
 const AUTONOMY_VALUES = new Set(['off', 'suggest', 'auto', 'eternal', 'eternal-parallel']);
 const CONTEXT_STRATEGY_VALUES = new Set(['hybrid', 'intelligent', 'selective']);
-const CONTEXT_MODE_VALUES = new Set(['balanced', 'frugal', 'deep', 'archival']);
+const CONTEXT_MODE_VALUES = new Set(['balanced', 'frugal', 'deep']);
 const TOKEN_SAVING_TIER_VALUES = new Set(['off', 'minimal', 'light', 'medium', 'aggressive']);
 const ENHANCE_LANGUAGE_VALUES = new Set(['original', 'english']);
 const LOG_LEVEL_VALUES = new Set(['debug', 'info', 'warn', 'error']);

@@ -7,7 +7,7 @@
  * the watchdog terminate, cancel propagation, and shutdown.
  */
 
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type {
   HostToWorker,
   SearchOpArgs,
@@ -61,6 +61,11 @@ vi.mock('../src/codebase-index/index-service.js', () => ({
   statsService: vi.fn(async () => ({ totalSymbols: 0 })),
 }));
 
+// This suite intentionally exercises the legacy worker fallback. The mocked
+// existsSync() also makes the new built project-server entry appear present,
+// so opt out of the server transport before importing the host.
+process.env['WRONGSTACK_INDEX_SERVER'] = '0';
+
 const {
   runStartupIndex,
   searchCodebaseIndex,
@@ -96,6 +101,10 @@ beforeEach(async () => {
 afterEach(async () => {
   await shutdownCodebaseIndexHost();
   vi.useRealTimers();
+});
+
+afterAll(() => {
+  delete process.env['WRONGSTACK_INDEX_SERVER'];
 });
 
 describe('worker RPC round-trip', () => {

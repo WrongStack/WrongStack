@@ -5,7 +5,8 @@ import type {
   SetStateAction,
 } from 'react';
 import type { AppProps } from './app-props.js';
-import type { Action, State } from './app-state.js';
+import type { Action } from './app-action-type.js';
+import type { State } from './app-state.js';
 import { AUTONOMY_OPTIONS } from './components/autonomy-picker.js';
 import { DEFAULT_INPUT_PROMPT, type KeyEvent } from './components/input.js';
 import {

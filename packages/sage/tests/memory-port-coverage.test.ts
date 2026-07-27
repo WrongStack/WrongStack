@@ -177,13 +177,13 @@ describe('SqliteMemoryPort coverage', () => {
     });
   });
 
-  it('exposes the complete service capability when optional methods are supplied', () => {
+  it('exposes the complete service capability through its typed adapter', () => {
     const port = new SqliteMemoryPort({ projectRoot: 'complete-service' });
-    Object.assign(port, {
-      recoverSage: vi.fn(),
-      backfillRecoverable: vi.fn(),
-      findMemoriesForFile: vi.fn(),
-    });
-    expect(getSageService(port)).toBe(port);
+    const service = getSageService(port);
+    expect(service).toBeDefined();
+    expect(service).not.toBe(port);
+    expect(service?.recoverSage).toEqual(expect.any(Function));
+    expect(service?.backfillRecoverable).toEqual(expect.any(Function));
+    expect(service?.findMemoriesForFile).toEqual(expect.any(Function));
   });
 });

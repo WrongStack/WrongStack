@@ -1,16 +1,6 @@
 import * as fsp from 'node:fs/promises';
 import * as path from 'node:path';
 
-export async function readActiveSessionId(storeDir: string): Promise<string | null> {
-  try {
-    const raw = await fsp.readFile(path.join(storeDir, 'active.json'), 'utf8');
-    const active = JSON.parse(raw) as { sessionId?: string | undefined };
-    return active.sessionId ?? null;
-  } catch {
-    return null;
-  }
-}
-
 export function isPrunableSessionJsonl(name: string): boolean {
   return (
     name.endsWith('.jsonl') &&
@@ -29,8 +19,6 @@ export async function pruneSessionFiles(
   const cutoff = Date.now() - maxAgeDays * 86_400_000;
   let deleted = 0;
 
-  const activeSessionId = await readActiveSessionId(storeDir);
-
   const pruneFile = async (dir: string, name: string, prefix: string): Promise<void> => {
     const jsonlPath = path.join(dir, name);
     try {
@@ -43,7 +31,6 @@ export async function pruneSessionFiles(
     /* v8 ignore stop */
     const base = name.replace(/\.jsonl$/, '');
     const id = prefix ? `${prefix}/${base}` : base;
-    if (activeSessionId && id === activeSessionId) return;
     await deleteSession(id);
     deleted++;
   };

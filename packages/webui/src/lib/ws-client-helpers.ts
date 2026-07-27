@@ -14,6 +14,7 @@
  * consume the same function, so an accidental shape drift is
  * caught at type-check + unit-test time.
  */
+import type { ProviderCustomModelWire } from '../types/client-message.js';
 import type { WSClientMessage } from '../types';
 
 /**
@@ -55,6 +56,7 @@ export function buildProviderUpdateMessage(payload: {
   baseUrl?: string | undefined;
   envVars?: string[] | undefined;
   models?: string[] | undefined;
+  customModels?: Record<string, ProviderCustomModelWire> | undefined;
 }): WSClientMessage {
   return { type: 'provider.update', payload };
 }

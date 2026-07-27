@@ -2,25 +2,5 @@
   "schemaVersion": 1,
   "project": "packages/security-scanner",
   "hashAlgorithm": "sha256-64bit",
-  "diagnostics": {
-    "dce70063309fef21": 1,
-    "a9d7176167820d3f": 1,
-    "37aeec5d7b139000": 1,
-    "1617b2d77dd2ff89": 1,
-    "15dc52f8f38c7024": 18,
-    "c88a7b682ef0017e": 1,
-    "b7967f2800676632": 2,
-    "806aa0214cfec0d6": 2,
-    "f41e9d4f38e9c219": 1,
-    "29c338be9d951c33": 2,
-    "a06250a524409587": 1,
-    "b3bb6e10da73a107": 1,
-    "30c70b0b1474714b": 1,
-    "f4470dd066d40195": 1,
-    "95536f06c33fc19b": 1,
-    "c7218e37fc18fd1b": 1,
-    "b1947bf2f1042666": 1,
-    "e7ba3e35fe2b8534": 1
-  }
+  "diagnostics": {}
 }
-

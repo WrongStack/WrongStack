@@ -2,18 +2,25 @@ import { createHash } from 'node:crypto';
 import type { EventBus, EventMap } from '../kernel/events.js';
 import type { SecretScrubber } from '../types/secret-scrubber.js';
 import type { ChronicleContext } from './context.js';
-import type { ChronicleJournal } from './journal.js';
+import type { ChronicleEventSink } from './sink.js';
 import type { ChronicleEventInput, ChronicleResourceRef } from './types.js';
 
 export interface ChronicleToolAdapterOptions {
   events: EventBus;
-  journal: ChronicleJournal;
+  journal: ChronicleEventSink;
   context: ChronicleContext | (() => ChronicleContext);
   scrubber: SecretScrubber;
   onPersistError?: ((error: unknown, event: ChronicleEventInput) => void) | undefined;
 }
 
-/** Persist the complete tool lifecycle plus resource edges discovered in results. */
+/** Maximum bytes of tool input/output text persisted as a preview. The hash
+ *  and byte/token counts already capture identity; the full payload is
+ *  redundant for analytics and dominated journal bytes for read-heavy tools. */
+const PREVIEW_MAX_BYTES = 2048;
+
+/** Persist the complete tool lifecycle. Resource edges discovered in results
+ *  (files/symbols/commands touched) are windowed by rollup-adapter.ts instead
+ *  of persisted raw here. */
 export function wireToolsToChronicle(options: ChronicleToolAdapterOptions): () => void {
   const unsubs = [
     options.events.on('tool.started', (event) => {
@@ -23,8 +30,9 @@ export function wireToolsToChronicle(options: ChronicleToolAdapterOptions): () =
         outcome: 'started',
         attributes: {
           toolName: event.name,
-          input,
+          input: capPreview(input),
           inputHash: hashText(input),
+          inputBytes: Buffer.byteLength(input),
         },
       });
     }),
@@ -58,7 +66,7 @@ export function wireToolsToChronicle(options: ChronicleToolAdapterOptions): () =
         attributes: {
           toolName: event.name,
           ok: event.ok,
-          outputPreview: output,
+          outputPreview: capPreview(output),
           outputHash: hashText(output),
           outputBytes: event.outputBytes,
           outputTokens: event.outputTokens,
@@ -66,7 +74,6 @@ export function wireToolsToChronicle(options: ChronicleToolAdapterOptions): () =
           metadata: event.metadata,
         },
       });
-      persistEvidenceEdges(options, event);
     }),
     options.events.on('tool.failed', (event) => persist(options, event, {
       eventType: 'tool.failed',
@@ -92,8 +99,8 @@ export function wireToolsToChronicle(options: ChronicleToolAdapterOptions): () =
         attributes: {
           toolName: event.name,
           progressType: event.event.type,
-          text: options.scrubber.scrub(event.event.text ?? ''),
-          data: scrubValue(options.scrubber, event.event.data),
+          text: capPreview(options.scrubber.scrub(event.event.text ?? '')),
+          data: capPreview(scrubValue(options.scrubber, event.event.data)),
           operation: event.event.operation,
         },
       });
@@ -133,38 +140,6 @@ function persist(
   void options.journal.append(input).catch((error) => options.onPersistError?.(error, input));
 }
 
-function persistEvidenceEdges(
-  options: ChronicleToolAdapterOptions,
-  event: EventMap['tool.executed'],
-): void {
-  const metadata = event.metadata;
-  if (!metadata) return;
-  for (const file of metadata.files) {
-    persist(options, event, {
-      eventType: 'tool.resource.observed',
-      outcome: event.ok ? 'success' : 'failure',
-      resource: { kind: 'file', id: resourceId('file', file), path: file },
-      attributes: { relation: 'observed', toolName: event.name, evidenceStatus: metadata.status },
-    });
-  }
-  for (const symbol of metadata.symbols) {
-    persist(options, event, {
-      eventType: 'tool.resource.observed',
-      outcome: event.ok ? 'success' : 'failure',
-      resource: { kind: 'symbol', id: resourceId('symbol', symbol) },
-      attributes: { relation: 'observed', toolName: event.name, symbol },
-    });
-  }
-  for (const command of metadata.commands) {
-    persist(options, event, {
-      eventType: 'tool.resource.observed',
-      outcome: event.ok ? 'success' : 'failure',
-      resource: { kind: 'process', id: resourceId('command', command) },
-      attributes: { relation: 'invoked', toolName: event.name, command: options.scrubber.scrub(command) },
-    });
-  }
-}
-
 function progressResource(event: EventMap['tool.progress']): ChronicleResourceRef | undefined {
   if (event.event.type !== 'file_changed' || !event.event.path) return undefined;
   return {
@@ -191,6 +166,23 @@ function resourceId(kind: string, value: string): string {
 
 function hashText(value: string): string {
   return createHash('sha256').update(value).digest('hex');
+}
+
+/** Return the string as-is when within the byte budget; otherwise return a
+ *  `{ preview, truncated, totalBytes }` summary. The hash (always computed on
+ *  the full value) preserves identity for large payloads. */
+function capPreview(value: string): string | { preview: string; truncated: true; totalBytes: number } {
+  // Fast path: short strings need only a cheap byteLength check for multibyte safety.
+  if (value.length <= PREVIEW_MAX_BYTES) {
+    if (Buffer.byteLength(value, 'utf8') <= PREVIEW_MAX_BYTES) return value;
+  }
+  // Over (or possibly over) budget: encode once — buf.length is the authoritative byte count.
+  const buf = Buffer.from(value, 'utf8');
+  if (buf.length <= PREVIEW_MAX_BYTES) return value;
+  // Walk back to the nearest valid UTF-8 character boundary.
+  let end = PREVIEW_MAX_BYTES;
+  while (end > 0 && (buf[end]! & 0xC0) === 0x80) end--;
+  return { preview: buf.subarray(0, end).toString('utf8'), truncated: true, totalBytes: buf.length };
 }
 
 function millisecondsToNanoseconds(durationMs: number): string {

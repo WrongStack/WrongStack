@@ -261,6 +261,46 @@ export class IndexStore {
     return start;
   }
 
+  /**
+   * Disconnect inbound refs before their target symbols are replaced and
+   * return the affected names for scoped re-resolution.
+   *
+   * This also repairs a long-standing dangling-id edge case: `refs.to_id` has
+   * no physical FK, so deleting a symbol previously left callers pointing at a
+   * non-existent row.
+   */
+  private invalidateIncomingRefsForFiles(files: string[]): string[] {
+    if (files.length === 0) return [];
+    const placeholders = files.map(() => '?').join(',');
+    const names = (
+      this.stmt(`SELECT DISTINCT name FROM symbols WHERE file IN (${placeholders})`).all(
+        ...files,
+      ) as Array<{ name: string }>
+    ).map((row) => row.name);
+    this.stmt(
+      `UPDATE refs SET to_id = NULL
+       WHERE to_id IN (SELECT id FROM symbols WHERE file IN (${placeholders}))`,
+    ).run(...files);
+    return names;
+  }
+
+  /** Resolve only refs whose target names may have changed. */
+  private resolveRefsForNamesUnsafe(names: Iterable<string>): number {
+    const unique = [...new Set(names)].filter(Boolean);
+    let changes = 0;
+    for (let start = 0; start < unique.length; start += IndexStore.MAX_SQL_VARS) {
+      const chunk = unique.slice(start, start + IndexStore.MAX_SQL_VARS);
+      const placeholders = chunk.map(() => '?').join(',');
+      const result = this.stmt(
+        `UPDATE refs
+         SET to_id = (SELECT MIN(id) FROM symbols WHERE name = refs.to_name)
+         WHERE to_name IN (${placeholders})`,
+      ).run(...chunk) as { changes?: number };
+      changes += result.changes ?? 0;
+    }
+    return changes;
+  }
+
   // ─── Symbol CRUD ─────────────────────────────────────────────────────────────
 
   /**
@@ -322,12 +362,21 @@ export class IndexStore {
   deleteSymbolsForFile(file: string): void {
     this.invalidateBm25();
     this.runWithRetry(() => {
-      if (this.ftsAvailable) {
-        this.stmt(
-          'DELETE FROM symbols_fts WHERE rowid IN (SELECT id FROM symbols WHERE file_fk = ?)',
-        ).run(file);
+      this.db.exec('BEGIN IMMEDIATE');
+      try {
+        const affectedNames = this.invalidateIncomingRefsForFiles([file]);
+        if (this.ftsAvailable) {
+          this.stmt(
+            'DELETE FROM symbols_fts WHERE rowid IN (SELECT id FROM symbols WHERE file_fk = ?)',
+          ).run(file);
+        }
+        this.stmt('DELETE FROM symbols WHERE file_fk = ?').run(file);
+        this.resolveRefsForNamesUnsafe(affectedNames);
+        this.db.exec('COMMIT');
+      } catch (error) {
+        this.db.exec('ROLLBACK');
+        throw error;
       }
-      this.stmt('DELETE FROM symbols WHERE file_fk = ?').run(file);
     });
   }
 
@@ -341,6 +390,7 @@ export class IndexStore {
     this.runWithRetry(() => {
       this.db.exec('BEGIN IMMEDIATE');
       try {
+        const affectedNames = this.invalidateIncomingRefsForFiles([file]);
         if (this.ftsAvailable) {
           this.stmt(
             'DELETE FROM symbols_fts WHERE rowid IN (SELECT id FROM symbols WHERE file_fk = ?)',
@@ -351,6 +401,7 @@ export class IndexStore {
         ).run(file);
         this.stmt('DELETE FROM symbols WHERE file_fk = ?').run(file);
         this.stmt('DELETE FROM files WHERE file = ?').run(file);
+        this.resolveRefsForNamesUnsafe(affectedNames);
         this.db.exec('COMMIT');
       } catch (err) {
         this.db.exec('ROLLBACK');
@@ -744,9 +795,17 @@ export class IndexStore {
     return this.runWithRetry(() => {
       this.db.exec('BEGIN IMMEDIATE');
       try {
+        const affectedNames = new Set<string>();
+        for (const entry of entries) {
+          for (const symbol of entry.symbols) affectedNames.add(symbol.name);
+          for (const ref of entry.refs) affectedNames.add(ref.toName);
+        }
         // 1) Clear stale refs+symbols for any files being re-indexed.
         if (options.deleteForFiles && options.deleteForFiles.length > 0) {
           const placeholders = options.deleteForFiles.map(() => '?').join(',');
+          for (const name of this.invalidateIncomingRefsForFiles(options.deleteForFiles)) {
+            affectedNames.add(name);
+          }
           if (this.ftsAvailable) {
             this.stmt(
                 `DELETE FROM symbols_fts WHERE rowid IN (SELECT id FROM symbols WHERE file IN (${placeholders}))`,
@@ -831,6 +890,7 @@ export class IndexStore {
           upsertStmt.run(entry.file, entry.lang, entry.mtimeMs, entry.symbolCount, now);
         }
 
+        this.resolveRefsForNamesUnsafe(affectedNames);
         this.db.exec('COMMIT');
         return allInserted;
       } catch (err) {
@@ -889,6 +949,10 @@ export class IndexStore {
     });
   }
 
+  resolveRefsForNames(names: Iterable<string>): number {
+    return this.runWithRetry(() => this.resolveRefsForNamesUnsafe(names));
+  }
+
   /**
    * Clear symbols/refs for a file and mark it as indexed with zero symbols.
    * Used by the indexer for empty-parse results so three writes share one txn.
@@ -898,6 +962,7 @@ export class IndexStore {
     this.runWithRetry(() => {
       this.db.exec('BEGIN IMMEDIATE');
       try {
+        const affectedNames = this.invalidateIncomingRefsForFiles([meta.file]);
         if (this.ftsAvailable) {
           this.stmt(
             'DELETE FROM symbols_fts WHERE rowid IN (SELECT id FROM symbols WHERE file_fk = ?)',
@@ -916,6 +981,7 @@ export class IndexStore {
              symbol_count = excluded.symbol_count,
              last_indexed = excluded.last_indexed`,
         ).run(meta.file, meta.lang, meta.mtimeMs, meta.symbolCount, meta.lastIndexed);
+        this.resolveRefsForNamesUnsafe(affectedNames);
         this.db.exec('COMMIT');
       } catch (err) {
         this.db.exec('ROLLBACK');
@@ -930,6 +996,50 @@ export class IndexStore {
       this.db.exec('PRAGMA optimize');
     } catch {
       /* optional */
+    }
+  }
+
+  /**
+   * Reclaim page churn left by repeated force rebuilds.
+   *
+   * SQLite's DROP/CREATE path makes rebuilds fast but leaves pages on the
+   * freelist. Compact only large, materially sparse databases and only when the
+   * caller is already on a full-index maintenance path.
+   */
+  compactIfNeeded(
+    options: { minBytes?: number; minFreeRatio?: number } = {},
+  ): boolean {
+    const minBytes = options.minBytes ?? 256 * 1024 * 1024;
+    const minFreeRatio = options.minFreeRatio ?? 0.35;
+    try {
+      const pageCount = Number(
+        (this.stmt('PRAGMA page_count').get() as { page_count?: number } | undefined)?.page_count ??
+          0,
+      );
+      const pageSize = Number(
+        (this.stmt('PRAGMA page_size').get() as { page_size?: number } | undefined)?.page_size ?? 0,
+      );
+      const freePages = Number(
+        (this.stmt('PRAGMA freelist_count').get() as { freelist_count?: number } | undefined)
+          ?.freelist_count ?? 0,
+      );
+      if (
+        pageCount <= 0 ||
+        pageSize <= 0 ||
+        pageCount * pageSize < minBytes ||
+        freePages / pageCount < minFreeRatio
+      ) {
+        return false;
+      }
+      this.runWithRetry(() => {
+        this.db.exec('PRAGMA wal_checkpoint(TRUNCATE)');
+        this.db.exec('VACUUM');
+        this.db.exec('PRAGMA wal_checkpoint(TRUNCATE)');
+      });
+      return true;
+    } catch {
+      // Compaction is maintenance, never a reason to fail a valid index run.
+      return false;
     }
   }
 

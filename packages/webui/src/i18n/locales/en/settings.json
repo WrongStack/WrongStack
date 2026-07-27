@@ -4,7 +4,7 @@
   "tabs": {
     "general": "General",
     "provider": "Provider",
-    "connection": "Connection",
+    "connection": "Connections",
     "agent": "Agent",
     "execution": "Execution",
     "fallbacks": "Fallbacks",
@@ -70,7 +70,28 @@
     "wsUrlPlaceholder": "ws://localhost:3456",
     "wsUrlHint": "URL of the agent WebSocket server. The server runs alongside the CLI.",
     "startingHeading": "Starting the WebSocket Server",
-    "startingBody": "For development, run ./dev.ps1 from the repo root (optionally set WS_HOST/WS_PORT first). Otherwise launch the WebUI with the CLI: wstack --webui."
+    "startingBody": "For development, run ./dev.ps1 from the repo root (optionally set WS_HOST/WS_PORT first). Otherwise launch the WebUI with the CLI: wstack --webui.",
+    "healthHeading": "Connection health",
+    "healthHint": "Live ownership, storage, queue, watcher, and latency report for project services.",
+    "healthRefresh": "Refresh",
+    "healthLoading": "Checking services…",
+    "healthUnknown": "Health unknown",
+    "healthDisconnected": "The WebUI WebSocket is disconnected.",
+    "healthRestartRequired": "Restart the backend once to activate connection health reporting.",
+    "healthOptional": "On demand",
+    "healthCounts": "{{healthy}} healthy · {{attention}} attention · {{sleeping}} sleeping",
+    "healthOverall": {
+      "healthy": "Required services healthy",
+      "degraded": "Required service degraded",
+      "error": "Required service unavailable"
+    },
+    "healthStatus": {
+      "healthy": "Healthy",
+      "degraded": "Degraded",
+      "offline": "Sleeping",
+      "unavailable": "Unavailable",
+      "error": "Error"
+    }
   },
   "provider": {
     "subscriptionHeading": "Subscription login",
@@ -430,7 +451,6 @@
     "contextModeBalanced": "Balanced — normal context usage",
     "contextModeFrugal": "Frugal — conservative token use",
     "contextModeDeep": "Deep — larger context for complex tasks",
-    "contextModeArchival": "Archival — maximize context retention",
     "tokenSavingLabel": "Token-saving mode",
     "tokenSavingHint": "How aggressively to reduce token usage.",
     "tokenSavingOff": "Off — no token saving",

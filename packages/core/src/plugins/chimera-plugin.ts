@@ -27,7 +27,15 @@ import { persistReviewReport } from './review-report-integration.js';
 // Re-export the shared review types so existing importers keep resolving them
 // from './chimera-plugin.js' (and the package barrel). Their definitions live
 // in the leaf './review-types.js' module to keep the helper imports one-way.
-export type { ResolvedChimeraConfig, ReviewContextBundle, ReviewFileEntry } from './review-types.js';
+export type {
+  CascadeAgentKind,
+  ChimeraCascadeNeededPayload,
+  ChimeraReviewCompletePayload,
+  ChimeraReviewNeededPayload,
+  ResolvedChimeraConfig,
+  ReviewContextBundle,
+  ReviewFileEntry,
+} from './review-types.js';
 
 // ---------------------------------------------------------------------------
 // Chimera configuration — read from config.extensions['wstack-chimera']
@@ -89,51 +97,6 @@ export function resolveChimeraConfig(
 // ---------------------------------------------------------------------------
 // Event payload emitted on session.ended when chimera is enabled
 // ---------------------------------------------------------------------------
-
-/** Legacy alias — the payload type is the bundle type. */
-export type ChimeraReviewNeededPayload = ReviewContextBundle;
-
-/**
- * Payload emitted as `chimera.review_complete` after the review subagent
- * finishes (success or failure). Consumed by the auto-review plugin's
- * cascade listener to parse severity and decide whether to emit
- * `chimera.cascade_needed`.
- */
-export interface ChimeraReviewCompletePayload {
-  /** The original review context bundle that triggered this review. */
-  bundle: ReviewContextBundle;
-  /** The review report text the subagent produced (empty on failure). */
-  reviewText: string;
-  /** Whether the subagent succeeded (`'success'`) or failed otherwise. */
-  status: string;
-  /** Project root. */
-  cwd: string;
-}
-
-/**
- * Payload emitted as `chimera.cascade_needed` when a review report
- * contains findings at or above the configured `cascadeOn` threshold.
- * Consumed by execution.ts to spawn follow-up investigation agents.
- */
-export interface ChimeraCascadeNeededPayload {
-  /** The original review context bundle (carries cwd + files). */
-  bundle: ReviewContextBundle;
-  /** The review report text that triggered the cascade. */
-  reviewText: string;
-  /** The parsed severity counts that crossed the threshold. */
-  severities: { critical: number; high: number; medium: number };
-  /** The threshold that was crossed (`'high'` or `'critical'`). */
-  threshold: 'high' | 'critical';
-  /** Follow-up agent roles to spawn, derived from the finding types. */
-  agents: CascadeAgentKind[];
-}
-
-/**
- * Follow-up cascade agent kinds. Each maps to a roster role and a
- * tailored task description. Multiple may be spawned in parallel when
- * a review surfaces both security and correctness concerns.
- */
-export type CascadeAgentKind = 'security-scanner' | 'bug-hunter';
 
 // ---------------------------------------------------------------------------
 // System prompt for the subagent (matches packages/core/skills/chimera/SKILL.md)

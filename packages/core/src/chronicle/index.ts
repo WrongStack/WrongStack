@@ -8,7 +8,40 @@ export {
   startChronicleFileObserver,
   type ChronicleFileObserver,
   type ChronicleFileObserverOptions,
+  type ChronicleToolMutationHint,
 } from './file-observer.js';
+export type { ChronicleEventSink } from './sink.js';
+export {
+  createChronicleEventJournal,
+  createChronicleProjectAccess,
+  resolveChronicleProjectServerOptions,
+  type ChronicleEventJournalHandle,
+  type ChronicleProjectAccess,
+  type ChronicleProjectAccessOptions,
+} from './project-access.js';
+export {
+  ChronicleProjectServerClient,
+  ChronicleRemoteJournal,
+  isChronicleProjectServerAvailable,
+  type ChronicleProjectServerCallOptions,
+  type ChronicleProjectServerClientOptions,
+} from './project-server-client.js';
+export {
+  chronicleProjectServerEndpoint,
+  chronicleProjectServerKey,
+  chronicleProjectServerMetadataPath,
+} from './project-server-endpoint.js';
+export {
+  CHRONICLE_PROJECT_SERVER_MAX_FRAME_CHARS,
+  CHRONICLE_PROJECT_SERVER_PROTOCOL_VERSION,
+  type ChronicleMetricsRequest,
+  type ChronicleMetricsResponse,
+  type ChronicleMetricsView,
+  type ChronicleProjectServerHealth,
+  type ChronicleProjectServerInfo,
+  type ChronicleServerOperationName,
+  type ChronicleServerOperations,
+} from './project-server-protocol.js';
 export { ChronicleJournal, GENESIS_HASH, type ChronicleJournalOptions, type ChronicleJournalStats, type ChroniclePurgeOptions, type ChroniclePurgeResult } from './journal.js';
 export {
   wireProviderAttemptsToChronicle,
@@ -38,6 +71,7 @@ export {
   CHRONICLE_FACET_FIELDS,
   findChroniclePartitions,
   ChronicleQueryEngine,
+  type ChronicleQueryEngineOptions,
   type ChronicleSummary,
   type ChronicleSignalFamily,
   type ChronicleFacet,
@@ -48,6 +82,10 @@ export {
   type ChronicleGraphResult,
   type ChronicleRelationKind,
 } from './query.js';
+export {
+  ChroniclePartitionRangeCache,
+  type ChroniclePartitionRange,
+} from './partition-range-cache.js';
 export {
   CHRONICLE_SCHEMA_VERSION,
   type ChronicleCorrelation,

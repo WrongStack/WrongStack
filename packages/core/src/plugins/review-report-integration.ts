@@ -14,7 +14,7 @@
  * @module review-report-integration
  */
 
-import type { ChimeraReviewCompletePayload } from './chimera-plugin.js';
+import type { ChimeraReviewCompletePayload } from './review-types.js';
 import { parseChimeraReviewReport } from './review-finding-parser.js';
 import { JsonlFindingStore } from './review-finding-store.js';
 import type { FindingSource } from './review-finding-types.js';
@@ -56,7 +56,7 @@ export async function persistReviewReport(
   const source = classifySource(payload);
   const agentId = payload.bundle.fileProvenance?.find((entry) => entry.agentId)?.agentId
     ?? 'chimera-review';
-  const sessionId = payload.cwd;
+  const sessionId = payload.sessionId ?? payload.cwd;
   const model = payload.bundle.config.model;
   const cascadeDepth = payload.bundle.cascadeDepth;
 

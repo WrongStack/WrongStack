@@ -5,6 +5,7 @@ import type {
   ChronicleGraphResult,
   ChronicleMetricsResultPayload,
   ChronicleQueryResult,
+  ChronicleStatus,
 } from './chronicle.js';
 import type {
   WSCollabAnnotationAdded,
@@ -17,6 +18,7 @@ import type {
   WSCollabPauseReleased,
   WSCollabState,
 } from './collab.js';
+import type { ConnectionsHealthReport } from './connections.js';
 import type {
   WSAgentStatusChanged,
   WSAgentTimelineMessage,
@@ -37,6 +39,7 @@ import type {
   WSWorktreeState,
 } from './goal-kanban-worktree.js';
 import type {
+  SessionScopedPayload,
   WSCodeMapToolExecuted,
   WSCodeMapToolStarted,
   WSIterationCompleted,
@@ -58,13 +61,14 @@ import type {
   WSToolExecuted,
   WSToolProgress,
   WSToolUseStart,
-  SessionScopedPayload,
 } from './protocol-core.js';
 import type {
-  WSError,
   WSCompactionFailed,
   WSContextCompacted,
   WSContextDebug,
+  WSContextEditorApplied,
+  WSContextEditorSnapshot,
+  WSContextEditorValidation,
   WSContextMaxContext,
   WSContextModeChanged,
   WSContextModesList,
@@ -72,6 +76,7 @@ import type {
   WSContextRepaired,
   WSDelegateCompleted,
   WSDelegateStarted,
+  WSError,
   WSMemoryList,
   WSSessionStats,
   WSTokenCostEstimateUnavailable,
@@ -114,6 +119,7 @@ import type {
 } from './skills-design.js';
 import type {
   WSAuthOAuthStatus,
+  WSCatalogModelSearchResult,
   WSCompletionResult,
   WSDiagGet,
   WSFilesList,
@@ -163,6 +169,9 @@ export type WSServerMessage =
   | WSContextCompacted
   | WSCompactionFailed
   | WSContextRepaired
+  | WSContextEditorSnapshot
+  | WSContextEditorValidation
+  | WSContextEditorApplied
   | WSContextPct
   | WSContextMaxContext
   | WSTokenThreshold
@@ -200,6 +209,9 @@ export type WSServerMessage =
   | WSSkillsExported
   | WSDiagGet
   | WSStatsGet
+  | { type: 'connections.health_result'; payload: ConnectionsHealthReport }
+  | { type: 'connections.health_error'; payload: { message: string } }
+  | { type: 'chronicle.status_result'; payload: ChronicleStatus }
   | { type: 'chronicle.query_result'; payload: ChronicleQueryResult }
   | {
       type: 'chronicle.facet_result';
@@ -221,8 +233,18 @@ export type WSServerMessage =
   | { type: 'chronicle.error'; payload: { message: string } }
   | WSSessionsList
   | WSProviderCatalog
+  | WSCatalogModelSearchResult
   | WSProviderModels
   | WSSavedProviders
+  | {
+      type: 'codebase.index.server.shutdown_result';
+      payload: {
+        requestId?: string | undefined;
+        stopped: boolean;
+        pid?: number | undefined;
+        reason?: string | undefined;
+      };
+    }
   | WSProviderProbe
   | WSKeyOperationResult
   | WSModelSwitchResult
@@ -266,7 +288,10 @@ export type WSServerMessage =
   | { type: 'sdd.spec.snapshot'; payload: Record<string, unknown> }
   | { type: 'sdd.spec.agent_text'; payload: { text: string } }
   | { type: 'sdd.spec.error'; payload: { message: string } }
-  | { type: 'sdd.run.started'; payload: { runId: string } }
+  | {
+      type: 'sdd.run.started';
+      payload: { runId: string; graphId?: string; specId?: string };
+    }
   | WSEternalIteration
   | WSAgentTimelineMessage
   | WSAgentStatusChanged

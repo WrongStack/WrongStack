@@ -1,11 +1,12 @@
-import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { resolveWstackPaths } from '@wrongstack/core/utils';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 // Mock the core's rewinder/store classes — exercised in their own tests.
 // Use vi.hoisted so the mock factory can refer to the shared instances.
 const mocks = vi.hoisted(() => ({
   rewindConstructor: vi.fn(),
   storeConstructor: vi.fn(),
+  registryConstructor: vi.fn(),
   rewindInstance: {
     listCheckpoints: vi.fn(),
     rewindToStart: vi.fn(),
@@ -15,8 +16,12 @@ const mocks = vi.hoisted(() => ({
   storeInstance: {
     resume: vi.fn(),
   },
+  registryInstance: {
+    register: vi.fn(),
+    unregister: vi.fn(),
+  },
 }));
-const { rewindInstance, storeInstance } = mocks;
+const { rewindInstance, storeInstance, registryInstance } = mocks;
 
 vi.mock('@wrongstack/core/storage', async (orig) => {
   const actual = (await orig()) as Record<string, unknown>;
@@ -35,10 +40,18 @@ vi.mock('@wrongstack/core/storage', async (orig) => {
     }
     resume = mocks.storeInstance.resume;
   }
+  class FakeRegistry {
+    constructor(...args: unknown[]) {
+      mocks.registryConstructor(...args);
+    }
+    register = mocks.registryInstance.register;
+    unregister = mocks.registryInstance.unregister;
+  }
   return {
     ...actual,
     DefaultSessionRewinder: FakeRewinder,
     DefaultSessionStore: FakeStore,
+    SessionRegistry: FakeRegistry,
   };
 });
 
@@ -69,11 +82,14 @@ function fakeDeps(overrides: Partial<SubcommandDeps> = {}): SubcommandDeps {
 beforeEach(() => {
   mocks.rewindConstructor.mockReset();
   mocks.storeConstructor.mockReset();
+  mocks.registryConstructor.mockReset();
   rewindInstance.listCheckpoints.mockReset();
   rewindInstance.rewindToStart.mockReset();
   rewindInstance.rewindLastN.mockReset();
   rewindInstance.rewindToCheckpoint.mockReset();
   storeInstance.resume.mockReset();
+  registryInstance.register.mockReset().mockResolvedValue(undefined);
+  registryInstance.unregister.mockReset().mockResolvedValue(undefined);
 });
 
 describe('rewindCmd', () => {
@@ -246,8 +262,16 @@ describe('rewindCmd', () => {
     });
     const deps = fakeDeps();
     await rewindCmd(['--last', '1', '--resume'], deps);
+    expect(registryInstance.register).toHaveBeenCalledWith(
+      expect.objectContaining({
+        sessionId: 'auto-session-1',
+        clientType: 'cli',
+        pid: process.pid,
+      }),
+    );
     expect(truncate).toHaveBeenCalledWith(5);
     expect(close).toHaveBeenCalled();
+    expect(registryInstance.unregister).toHaveBeenCalledOnce();
   });
 
   it('--resume with no reverted files still truncates', async () => {
@@ -265,6 +289,23 @@ describe('rewindCmd', () => {
     const code = await rewindCmd(['--all', '--resume'], deps);
     expect(code).toBe(0);
     expect(truncate).toHaveBeenCalledWith(0);
+  });
+
+  it('--resume refuses to mutate a session owned by another live PID', async () => {
+    registryInstance.register.mockRejectedValue(
+      new Error('Session auto-session-1 is already open in another running wstack (pid 4242).'),
+    );
+    const deps = fakeDeps();
+
+    const code = await rewindCmd(['--all', '--resume'], deps);
+
+    expect(code).toBe(1);
+    expect(rewindInstance.rewindToStart).not.toHaveBeenCalled();
+    expect(storeInstance.resume).not.toHaveBeenCalled();
+    expect(deps.renderer.writeError).toHaveBeenCalledWith(
+      'Session auto-session-1 is already open in another running wstack (pid 4242).',
+    );
+    expect(registryInstance.unregister).not.toHaveBeenCalled();
   });
 
   it('returns 1 when rewind produces errors', async () => {

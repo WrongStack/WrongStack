@@ -176,16 +176,20 @@ const PID_CHECK_AFTER_MS = HEARTBEAT_INTERVAL_MS * 2;
 // A session that announced `closing` (heartbeat stopped) is dropped this long
 // after its last heartbeat, so the fleet view doesn't keep a dead client around.
 const CLOSING_GRACE_MS = 15_000;
-// A live PID can outlast its terminal (for example, an orphaned WebSocket or
-// plugin handle keeps Node alive). Give a missed heartbeat one additional
-// timeout window, then remove it: the presence registry must reflect a live
-// surface, not merely an extant process id.
-const LOST_GRACE_MS = 30_000;
+// A live PID with a missed heartbeat is marked lost but retained. Removing it
+// would let another process open the same journal while the original process
+// can still write. Operators must terminate the live owner before takeover.
 /** Subagents without any activity this long are not live, even if the owning session still heartbeats. */
 const AGENT_STALE_MS = 5 * 60_000;
 // A held lock is released within milliseconds; anything older is a crashed
 // owner's leftover and is safe to break so writes never wedge permanently.
 const STALE_LOCK_MS = 10_000;
+// Ownership claims are rare and must survive ordinary Windows fsync/antivirus
+// latency plus a burst of simultaneous heartbeats from several clients.
+// Telemetry writes remain cheap/best-effort and keep the shorter budget.
+const OWNERSHIP_LOCK_WAIT_MS = 8_000;
+const OPTIONAL_LOCK_WAIT_MS = 750;
+const LOCK_RETRY_MAX_MS = 100;
 const STALE_TMP_MS = 60_000;
 const MAX_STALE_TMP_FILES = 20;
 // Agent snapshots arrive on every tool boundary — a busy agent can cross
@@ -193,6 +197,10 @@ const MAX_STALE_TMP_FILES = 20;
 // under the advisory lock. Coalesce to at most one write per window; the
 // first call in a quiet window still writes immediately so status stays live.
 const AGENTS_WRITE_THROTTLE_MS = 300;
+
+/** Conflict errors are the one registry-write failure callers must observe. */
+class SessionOwnershipConflictError extends Error {}
+class SessionRegistryWriteError extends Error {}
 // Directory enumeration and per-file stats are substantially more expensive
 // than the tiny registry write itself on networked/antivirus-scanned homes.
 // Temp files cannot become stale faster than STALE_TMP_MS, so scanning once in
@@ -207,6 +215,13 @@ const TEMP_PRUNE_INTERVAL_MS = STALE_TMP_MS;
  * but non-signalable process (EPERM) as dead and pruned its session.
  */
 const pidAlive = isPidAlive;
+
+function sameOwner(
+  entry: Pick<SessionRegistryEntry, 'pid' | 'startedAt'>,
+  owner: Pick<SessionRegistryEntry, 'pid' | 'startedAt'>,
+): boolean {
+  return entry.pid === owner.pid && entry.startedAt === owner.startedAt;
+}
 
 /**
  * Parse registry file contents, tolerating corruption. A system crash can
@@ -253,13 +268,15 @@ export class SessionRegistry {
   private lastAgentsWriteAt = 0;
   /**
    * Last full entry this process registered. Kept so the heartbeat can
-   * re-create our entry if it ever goes missing — e.g. our initial register()
-   * write was dropped (a wedged lock), the file was reset, or we were pruned.
+   * re-create our entry if it ever goes missing because the file was reset or
+   * a reader pruned a stale snapshot.
    */
   private lastEntry: SessionRegistryEntry | null = null;
+  private readonly ownershipLockWaitMs: number;
 
-  constructor(globalRoot: string) {
+  constructor(globalRoot: string, options: { ownershipLockWaitMs?: number } = {}) {
     this.filePath = path.join(globalRoot, REGISTRY_FILE);
+    this.ownershipLockWaitMs = Math.max(0, options.ownershipLockWaitMs ?? OWNERSHIP_LOCK_WAIT_MS);
   }
 
   // ── Public API ──────────────────────────────────────────────────────────
@@ -279,11 +296,6 @@ export class SessionRegistry {
     // A process owns exactly one entry, so the same-pid dedup below drops our
     // own previous entry — the registry never carries a phantom session still
     // pointing at the old project's root/workingDir.
-    if (this.heartbeatTimer) {
-      clearInterval(this.heartbeatTimer);
-      this.heartbeatTimer = null;
-    }
-    this.currentSessionId = entry.sessionId;
     const full: SessionRegistryEntry = {
       ...entry,
       status: 'active',
@@ -291,7 +303,16 @@ export class SessionRegistry {
       agentCount: entry.agents?.length ?? 0,
       agents: entry.agents ?? [],
     };
-    this.lastEntry = full;
+    // Fast pre-check for the common conflict path. The same check is repeated
+    // under atomicUpdate's cross-process lock below to close the resume race.
+    const existingRegistry = await this.readAndPrune();
+    const currentOwner = existingRegistry[entry.sessionId];
+    if (currentOwner && currentOwner.pid !== entry.pid && pidAlive(currentOwner.pid)) {
+      throw new SessionOwnershipConflictError(
+        `Session ${entry.sessionId} is already open in another running wstack (pid ${currentOwner.pid}).`,
+      );
+    }
+
     await this.atomicUpdate((registry) => {
       // Prune dead entries that haven't heartbeated recently.
       // A just-created entry has no heartbeat yet — don't prune it.
@@ -310,8 +331,25 @@ export class SessionRegistry {
           delete registry[id];
         }
       }
+      const lockedOwner = registry[entry.sessionId];
+      if (lockedOwner && lockedOwner.pid !== entry.pid && pidAlive(lockedOwner.pid)) {
+        throw new SessionOwnershipConflictError(
+          `Session ${entry.sessionId} is already open in another running wstack (pid ${lockedOwner.pid}).`,
+        );
+      }
       registry[entry.sessionId] = full;
-    });
+    }, true);
+    // Only publish local ownership after the cross-process claim succeeds.
+    // A failed duplicate-session claim must not make heartbeats overwrite the
+    // real owner's registry entry.
+    this.cancelPendingAgentsFlush();
+    if (this.heartbeatTimer) {
+      clearInterval(this.heartbeatTimer);
+      this.heartbeatTimer = null;
+    }
+    this.lastAgentsWriteAt = 0;
+    this.currentSessionId = entry.sessionId;
+    this.lastEntry = full;
 
     // Start heartbeat
     /* v8 ignore start -- 5s heartbeat timer fires only in a live process, not under test */
@@ -371,19 +409,20 @@ export class SessionRegistry {
   private async writeAgentsSnapshot(): Promise<void> {
     const agents = this.pendingAgents;
     const sessionId = this.currentSessionId;
-    if (!agents || !sessionId) return;
+    const owner = this.lastEntry;
+    if (!agents || !sessionId || !owner || owner.sessionId !== sessionId) return;
     this.pendingAgents = null;
     this.lastAgentsWriteAt = Date.now();
     const status = deriveSessionStatus(agents);
     const nowIso = new Date().toISOString();
 
     await this.atomicUpdate((registry) => {
+      if (this.currentSessionId !== sessionId || this.lastEntry !== owner) return;
       let entry = registry[sessionId];
+      if (entry && !sameOwner(entry, owner)) return;
       if (!entry) {
         // Our entry vanished (dropped write / reset / pruned) — re-create it.
-        /* v8 ignore next -- unreachable: register() sets lastEntry before any updateAgents */
-        if (!this.lastEntry) return;
-        entry = { ...this.lastEntry };
+        entry = { ...owner };
         registry[sessionId] = entry;
       }
       entry.agents = agents;
@@ -421,12 +460,15 @@ export class SessionRegistry {
       this.heartbeatTimer = null;
     }
     if (!this.currentSessionId) return;
+    const sessionId = this.currentSessionId;
+    const owner = this.lastEntry;
+    if (!owner) return;
     // Fold any coalesced-but-unwritten agent snapshot into this final write so
     // the trailing timer can't fire later and flip us back to active.
     const pendingAgents = this.cancelPendingAgentsFlush();
     await this.atomicUpdate((registry) => {
-      const entry = registry[this.currentSessionId!];
-      if (!entry) return;
+      const entry = registry[sessionId];
+      if (!entry || !sameOwner(entry, owner)) return;
       if (pendingAgents) {
         entry.agents = pendingAgents;
         entry.agentCount = pendingAgents.length;
@@ -449,9 +491,14 @@ export class SessionRegistry {
     // late trailing write would resurrect it from lastEntry.
     this.cancelPendingAgentsFlush();
     const sid = this.currentSessionId;
+    const owner = this.lastEntry;
     this.currentSessionId = null;
+    this.lastEntry = null;
     await this.atomicUpdate((registry) => {
-      delete registry[sid];
+      const entry = registry[sid];
+      if (owner && entry && sameOwner(entry, owner)) {
+        delete registry[sid];
+      }
     });
   }
 
@@ -492,10 +539,14 @@ export class SessionRegistry {
     if (!this.currentSessionId) return;
     try {
       const sessionId = this.currentSessionId;
+      const owner = this.lastEntry;
+      if (!owner || owner.sessionId !== sessionId) return;
       const nowIso = new Date().toISOString();
       await this.atomicUpdate((registry) => {
+        if (this.currentSessionId !== sessionId || this.lastEntry !== owner) return;
         const entry = registry[sessionId];
         if (entry) {
+          if (!sameOwner(entry, owner)) return;
           entry.lastHeartbeatAt = nowIso;
           // Status bound: if closing, don't revert
           if (entry.status !== 'closing') {
@@ -506,12 +557,10 @@ export class SessionRegistry {
           }
           return;
         }
-        if (this.lastEntry) {
-          // Our entry is gone (initial register() dropped on a wedged lock, file
-          // reset, or pruned). Re-create it through the locked path so a process
-          // that booted into a broken registry still shows up once it heals.
-          registry[sessionId] = { ...this.lastEntry, lastHeartbeatAt: nowIso };
-        }
+        // Our entry was externally removed/reset. Re-create it only while this
+        // exact ownership generation is still current; a heartbeat queued
+        // before a session switch must never resurrect the previous session.
+        registry[sessionId] = { ...owner, lastHeartbeatAt: nowIso };
       });
     } catch {
       // Best-effort heartbeat — never throw
@@ -522,6 +571,12 @@ export class SessionRegistry {
     try {
       const raw = await fs.readFile(this.filePath, 'utf8');
       const registry = parseRegistry(raw);
+      const observed = new Map(
+        Object.entries(registry).map(([id, entry]) => [
+          id,
+          { pid: entry.pid, lastHeartbeatAt: entry.lastHeartbeatAt },
+        ]),
+      );
       const now = Date.now();
       let pruned = false;
 
@@ -549,10 +604,13 @@ export class SessionRegistry {
           pruned = true;
         }
 
-        // Cleanly-closed session: drop after a short grace so no dead client lingers.
+        // A cleanly-closing session is removable after the grace only when its
+        // process is actually gone. A hung cleanup can still hold the writer.
         if (entry.status === 'closing' && heartbeatAge > CLOSING_GRACE_MS) {
-          delete registry[id];
-          pruned = true;
+          if (!pidAlive(entry.pid)) {
+            delete registry[id];
+            pruned = true;
+          }
           continue;
         }
         // A dead PID is definitive, and this probe used to sit behind the full
@@ -570,13 +628,8 @@ export class SessionRegistry {
         }
         if (heartbeatAge <= STALE_TIMEOUT_MS) continue;
 
-        // Live PID but no heartbeat: can be an orphaned Node host, so it gets
-        // a short lost grace before expiry.
-        if (heartbeatAge > STALE_TIMEOUT_MS + LOST_GRACE_MS) {
-          delete registry[id];
-          pruned = true;
-          continue;
-        }
+        // A live PID remains the owner even when its heartbeat is lost. It may
+        // be wedged, but it can still hold and write the session journal.
         if (entry.status !== 'lost') {
           entry.status = 'lost';
           pruned = true;
@@ -584,8 +637,24 @@ export class SessionRegistry {
       }
 
       if (pruned) {
-        /* v8 ignore start -- best-effort prune write; the .catch only fires on a write failure */
-        await this.writeAtomic(registry).catch(() => undefined);
+        // Merge the pruned snapshot under the same cross-process lock used by
+        // registrations. Never rename an old full-file snapshot over a session
+        // that another process registered after our read.
+        await this.atomicUpdate((current) => {
+          for (const [id, version] of observed) {
+            const latest = current[id];
+            if (
+              !latest ||
+              latest.pid !== version.pid ||
+              latest.lastHeartbeatAt !== version.lastHeartbeatAt
+            ) {
+              continue;
+            }
+            const next = registry[id];
+            if (next) current[id] = next;
+            else delete current[id];
+          }
+        });
         /* v8 ignore stop */
       }
 
@@ -597,16 +666,30 @@ export class SessionRegistry {
 
   private async atomicUpdate(
     fn: (registry: Record<string, SessionRegistryEntry>) => void,
+    required = false,
   ): Promise<void> {
     const lockPath = `${this.filePath}.lock`;
-    const maxRetries = 8;
-    const retryDelayMs = 20;
+    const waitBudgetMs = required ? this.ownershipLockWaitMs : OPTIONAL_LOCK_WAIT_MS;
+    const deadline = Date.now() + waitBudgetMs;
+    let attempt = 0;
 
-    for (let attempt = 0; attempt < maxRetries; attempt++) {
+    try {
+      await fs.mkdir(path.dirname(this.filePath), { recursive: true });
+      // Directory scans are independent cleanup work and can be slow on
+      // Windows/antivirus-scanned homes. Never hold the registry mutex while
+      // pruning old temp files.
+      await this.maybePruneStaleTempFiles();
+    } catch (err) {
+      if (required) {
+        throw new SessionRegistryWriteError(
+          `Session registry ownership update failed: ${err instanceof Error ? err.message : String(err)}`,
+        );
+      }
+      return;
+    }
+
+    while (true) {
       try {
-        // Ensure directory exists
-        await fs.mkdir(path.dirname(this.filePath), { recursive: true });
-
         // Acquire exclusive lock via O_CREAT | O_EXCL
         let lockHandle = await fs.open(lockPath, 'wx').catch(() => null);
         if (!lockHandle) {
@@ -621,7 +704,13 @@ export class SessionRegistry {
             /* v8 ignore stop */
           }
           if (!lockHandle) {
-            await new Promise((r) => setTimeout(r, retryDelayMs * (attempt + 1)));
+            const remainingMs = deadline - Date.now();
+            if (remainingMs <= 0) break;
+            const retryDelayMs = Math.min(LOCK_RETRY_MAX_MS, 20 * (attempt + 1));
+            await new Promise((resolve) =>
+              setTimeout(resolve, Math.min(retryDelayMs, remainingMs)),
+            );
+            attempt += 1;
             continue;
           }
         }
@@ -644,13 +733,23 @@ export class SessionRegistry {
           await fs.unlink(lockPath).catch(() => undefined);
           /* v8 ignore stop */
         }
-      } catch {
-        // Best-effort — never throw from registry writes
-        /* v8 ignore next -- defensive: a registry write failure must never propagate */
+      } catch (err) {
+        if (err instanceof SessionOwnershipConflictError) throw err;
+        if (required) {
+          throw new SessionRegistryWriteError(
+            `Session registry ownership update failed: ${err instanceof Error ? err.message : String(err)}`,
+          );
+        }
+        // Telemetry/cleanup writes remain best-effort.
         return;
       }
     }
-    // All retries exhausted — registry update dropped (non-critical)
+    if (required) {
+      throw new SessionRegistryWriteError(
+        `Session registry ownership update failed: lock remained busy for ${waitBudgetMs}ms at ${lockPath}`,
+      );
+    }
+    // All retries exhausted — non-ownership telemetry update dropped.
   }
 
   /**
@@ -690,13 +789,6 @@ export class SessionRegistry {
   }
 
   private async writeAtomicLocked(registry: Record<string, SessionRegistryEntry>): Promise<void> {
-    await this.maybePruneStaleTempFiles();
-    await this.writeAtomicFile(registry);
-  }
-
-  /** Legacy write without lock — used by heartbeat for performance. */
-  private async writeAtomic(registry: Record<string, SessionRegistryEntry>): Promise<void> {
-    await this.maybePruneStaleTempFiles();
     await this.writeAtomicFile(registry);
   }
 

@@ -295,7 +295,7 @@ describe('<Entry /> — comprehensive coverage', () => {
         ].join('\n'),
       });
       expect(frame).toContain('actual tool result');
-      expect(frame).toContain('SAGE MEMORY INJECTED · SYSTEM CONTEXT');
+      expect(frame).toContain('SAGE MEMORY INJECTED · extension_tool');
       expect(frame).toContain('remembered fact');
       expect(frame).not.toContain('--- SAGE:');
     });
@@ -321,7 +321,7 @@ describe('<Entry /> — comprehensive coverage', () => {
       expect(frame).toContain('Write(new.ts)');
       expect(frame).toContain('Added 1 line');
       expect(frame).not.toContain('removed');
-      expect(frame).toContain('SAGE MEMORY INJECTED · SYSTEM CONTEXT');
+      expect(frame).toContain('SAGE MEMORY INJECTED · write');
       expect(frame).toContain('remembered fact');
       expect(frame).not.toContain('--- SAGE:');
       expect(frame).not.toContain('Update(new.ts)');

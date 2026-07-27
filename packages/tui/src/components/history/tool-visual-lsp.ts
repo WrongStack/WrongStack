@@ -1,5 +1,5 @@
 import { stringOf, tryParseJson } from './basic-format.js';
-import type { ToolVisualLine } from './utils.js';
+import type { ToolVisualLine } from './tool-visual-types.js';
 
 const VISUAL_MAX_LINES = 7;
 

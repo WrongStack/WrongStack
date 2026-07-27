@@ -15,6 +15,19 @@ export interface MemorySlashDeps {
   memoryStore: MemoryPort;
 }
 
+/**
+ * Default number of entries to show when the user runs `/memory` with no
+ * explicit limit. Prevents the TUI from dumping the entire memory list (which
+ * can run into thousands of memories) onto the screen at once.
+ */
+const DEFAULT_MEMORY_LIMIT = 50;
+
+/**
+ * Hard cap on `--limit`. The SAGE `listSagePage` API clamps to 500 as well;
+ * this constant matches that ceiling so the legacy path stays consistent.
+ */
+const MAX_MEMORY_LIMIT = 500;
+
 // ── Sage duck-type interface ──────────────────────────────────────────
 
 interface SageLike {
@@ -437,12 +450,14 @@ interface ParsedArgs {
   tag?: string;
   path?: string;
   compact: boolean;
+  /** Page size for entries (clamped to [1, MAX_MEMORY_LIMIT]). */
+  limit: number;
   positional: string;
 }
 
 function parseArgs(raw: string): ParsedArgs {
   const trimmed = raw.trim();
-  const result: ParsedArgs = { compact: false, positional: '' };
+  const result: ParsedArgs = { compact: false, limit: DEFAULT_MEMORY_LIMIT, positional: '' };
 
   // Extract --tag <value>
   const tagMatch = trimmed.match(/--tag\s+(\S+)/);
@@ -452,6 +467,15 @@ function parseArgs(raw: string): ParsedArgs {
   const pathMatch = trimmed.match(/--path\s+(\S+)/);
   if (pathMatch) result.path = pathMatch[1] ?? '';
 
+  // Extract --limit <N>
+  const limitMatch = trimmed.match(/--limit\s+(\d+)/);
+  if (limitMatch) {
+    const parsed = Number.parseInt(limitMatch[1] ?? '', 10);
+    if (Number.isFinite(parsed) && parsed > 0) {
+      result.limit = Math.max(1, Math.min(MAX_MEMORY_LIMIT, Math.floor(parsed)));
+    }
+  }
+
   // Extract --compact
   result.compact = trimmed.includes('--compact');
 
@@ -459,6 +483,7 @@ function parseArgs(raw: string): ParsedArgs {
   const positional = trimmed
     .replace(/--tag\s+\S+/g, '')
     .replace(/--path\s+\S+/g, '')
+    .replace(/--limit\s+\d+/g, '')
     .replace(/--compact\s*/g, '')
     .trim();
   result.positional = positional;
@@ -753,11 +778,12 @@ export function createMemorySlashCommand(deps: MemorySlashDeps) {
   return {
     name: 'memory',
     description: 'Display memory stats with filtering by tag and path (supports SAGE).',
-    argsHint: '[--tag <tag>] [--path <path>] [--compact] [scope]',
+    argsHint: '[--tag <tag>] [--path <path>] [--limit N] [--compact] [scope]',
     category: 'Inspect' as const,
     help:
       'Usage:\n' +
-      '  /memory                     — show all memory with stats\n' +
+      `  /memory                     — show memory stats + first ${DEFAULT_MEMORY_LIMIT} entries\n` +
+      `  /memory --limit <N>         — show up to N entries (default ${DEFAULT_MEMORY_LIMIT}, max ${MAX_MEMORY_LIMIT})\n` +
       '  /memory --tag <tag>         — filter entries by tag\n' +
       '  /memory --path <path>       — filter entries by file path\n' +
       '  /memory --compact           — compact table format\n' +
@@ -806,17 +832,37 @@ export function createMemorySlashCommand(deps: MemorySlashDeps) {
         // ── Sage path ──────────────────────────────────────────────
         const Sage = getSageSurface(store);
         if (Sage) {
-          // Fetch stats and full list
-          const [stats, allMemories] = await Promise.all([
-            Sage.stats(),
-            Sage.listSage(),
-          ]);
+          // Fetch stats. Fetch the memory list via `listSagePage` when available
+          // so we never load thousands of entries at once; otherwise fall back
+          // to `listSage()` and slice to the configured limit.
+          const stats = await Sage.stats();
 
-          if (allMemories.length === 0) {
-            return { message: '🧠 SAGE is empty.' };
+          let allMemories: SageLike[];
+          let sageTotal: number | undefined;
+
+          if (Sage.listSagePage) {
+            const page = await Sage.listSagePage({ limit: parsed.limit });
+            allMemories = page.memories as unknown as SageLike[];
+            sageTotal = page.total;
+          } else {
+            const full = (await Sage.listSage()) as unknown as SageLike[];
+            sageTotal = full.length;
+            allMemories = full.slice(0, parsed.limit);
           }
 
-          // Apply filters
+          if (sageTotal === 0 || allMemories.length === 0) {
+            // Distinguish "store is empty" from "page filtered to nothing":
+            // only show the empty-state copy when the underlying store has 0
+            // memories; otherwise the user expects a filter-no-match message.
+            if (sageTotal === 0) return { message: '🧠 SAGE is empty.' };
+            // fall through with empty filteredMemories to render the filter
+            // no-match message below.
+          }
+
+          // Apply filters on the (already bounded) page. We filter after
+          // paging so the limit budget is used for the slice the user sees;
+          // for very narrow filters the page can come back smaller than
+          // `parsed.limit`, which is expected.
           let filteredMemories = allMemories;
 
           // Tag filter
@@ -827,11 +873,12 @@ export function createMemorySlashCommand(deps: MemorySlashDeps) {
             );
           }
 
-          // Path filter — use retrieveForPath for path-based queries
+          // Path filter — use retrieveForPath for path-based queries. We still
+          // bound the resulting intersection by `parsed.limit`.
           if (parsed.path) {
             const pathMemories = await Sage.retrieveForPath({
               path: parsed.path,
-              limit: 200,
+              limit: parsed.limit,
               includeAncestors: true,
             });
             const pathIds = new Set(pathMemories.map((m) => m.id));
@@ -857,8 +904,16 @@ export function createMemorySlashCommand(deps: MemorySlashDeps) {
           if (parsed.path) filterDesc.push(`path="${parsed.path}"`);
           const filterSuffix =
             filterDesc.length > 0 ? ` (filtered by ${filterDesc.join(', ')})` : '';
+          const total = sageTotal ?? allMemories.length;
+          const moreAvailable = total > filteredMemories.length;
+          const moreHint = moreAvailable
+            ? ` · showing ${parsed.limit} per page, use \`/memory --limit ${Math.min(
+                MAX_MEMORY_LIMIT,
+                parsed.limit * 2,
+              )}\` (or \`/memory graph <query>\`) to see more`
+            : '';
           parts.push(
-            `*${filteredMemories.length} of ${allMemories.length} SAGE entr${filteredMemories.length === 1 ? 'y' : 'ies'}${filterSuffix}*`,
+            `*${filteredMemories.length} of ${total} SAGE entr${filteredMemories.length === 1 ? 'y' : 'ies'}${filterSuffix}${moreHint}*`,
           );
 
           return { message: parts.join('\n') };
@@ -903,7 +958,9 @@ export function createMemorySlashCommand(deps: MemorySlashDeps) {
           );
         }
 
-        // ── Legacy stats ──
+        // ── Legacy stats (computed from the full filtered set so the bar
+        // chart accurately reflects the filter, even if entries are capped
+        // for display below).
         const globalStats = computeStats(filteredEntries);
         parts.push(...renderLegacySummary(globalStats));
 
@@ -916,6 +973,29 @@ export function createMemorySlashCommand(deps: MemorySlashDeps) {
         );
         parts.push('');
 
+        // ── Cap displayed entries per-scope. The legacy `MemoryStore.list`
+        // API does not support pagination, so we split the per-scope budget
+        // evenly across the scopes the user is viewing. This still prevents
+        // a single huge scope (e.g. 1000-entry project-memory) from flooding
+        // the TUI.
+        const scopeBudgets = new Map<MemoryScope, number>();
+        // Only allocate budget to scopes that actually have entries; empty
+        // scopes should not eat into the per-scope budget.
+        const activeScopes = results.filter((r) => r.entries.length > 0).map((r) => r.scope);
+        const activeCount = Math.max(1, activeScopes.length);
+        const perScopeBudget = Math.max(1, Math.floor(parsed.limit / activeCount));
+        let remainingBudget = parsed.limit;
+        for (let i = 0; i < activeScopes.length; i++) {
+          const scope = activeScopes[i]!;
+          const budget = i === activeScopes.length - 1 ? remainingBudget : perScopeBudget;
+          scopeBudgets.set(scope, budget);
+          remainingBudget = Math.max(0, remainingBudget - budget);
+        }
+        // Scopes with no entries get zero budget explicitly.
+        for (const scope of scopes) {
+          if (!scopeBudgets.has(scope)) scopeBudgets.set(scope, 0);
+        }
+
         if (useCompact) {
           for (const { scope, entries } of results) {
             if (entries.length === 0) continue;
@@ -925,11 +1005,14 @@ export function createMemorySlashCommand(deps: MemorySlashDeps) {
                 )
               : entries;
             if (scopeFiltered.length === 0) continue;
+            const budget = scopeBudgets.get(scope) ?? scopeFiltered.length;
+            const capped = scopeFiltered.slice(0, budget);
+            if (capped.length === 0) continue;
             parts.push('');
             parts.push(`---`);
             parts.push('');
-            parts.push(`## ${SCOPE_LABEL[scope]} (${scopeFiltered.length})`);
-            parts.push(...renderLegacyCompactList(scopeFiltered));
+            parts.push(`## ${SCOPE_LABEL[scope]} (${capped.length} of ${scopeFiltered.length})`);
+            parts.push(...renderLegacyCompactList(capped));
           }
         } else {
           for (const { scope, entries } of results) {
@@ -940,15 +1023,37 @@ export function createMemorySlashCommand(deps: MemorySlashDeps) {
                 )
               : entries;
             if (scopeFiltered.length === 0) continue;
-            parts.push(...renderLegacyScopeSection(scope, scopeFiltered));
+            const budget = scopeBudgets.get(scope) ?? scopeFiltered.length;
+            const capped = scopeFiltered.slice(0, budget);
+            if (capped.length === 0) continue;
+            parts.push(...renderLegacyScopeSection(scope, capped));
           }
         }
 
         const scopeSuffix =
           scopes.length === 1 ? `in **${SCOPE_LABEL[scopes[0]!]}**` : 'across all scopes';
         const filterSuffix = parsed.tag ? ` (filtered by tag="${parsed.tag}")` : '';
+        // Re-derive the displayed count from the capped slice so the footer
+        // matches what the user actually sees.
+        let displayed = 0;
+        for (const { scope, entries } of results) {
+          const budget = scopeBudgets.get(scope) ?? entries.length;
+          const scopeFiltered = parsed.tag
+            ? entries.filter((e) =>
+                (e.tags ?? []).some((t) => t.toLowerCase() === (parsed.tag ?? '').toLowerCase()),
+              )
+            : entries;
+          displayed += Math.min(scopeFiltered.length, budget);
+        }
+        const moreAvailable = filteredEntries.length > displayed;
+        const moreHint = moreAvailable
+          ? ` · showing up to ${parsed.limit}, use \`/memory --limit ${Math.min(
+              MAX_MEMORY_LIMIT,
+              parsed.limit * 2,
+            )}\` to see more`
+          : '';
         parts.push(
-          `*${filteredEntries.length} entr${filteredEntries.length === 1 ? 'y' : 'ies'} ${scopeSuffix}${filterSuffix}*`,
+          `*${displayed} of ${filteredEntries.length} entr${filteredEntries.length === 1 ? 'y' : 'ies'} ${scopeSuffix}${filterSuffix}${moreHint}*`,
         );
 
         return { message: parts.join('\n') };

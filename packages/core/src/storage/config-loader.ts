@@ -1,31 +1,30 @@
 import * as fs from 'node:fs/promises';
+import type { EventBus } from '../kernel/events.js';
 import { decryptConfigSecrets } from '../security/config-secrets.js';
-import { type Config, type ConfigLoader, type SyncConfig } from '../types/config.js';
+import type { Config, ConfigLoader, SyncConfig } from '../types/config.js';
 import {
   DEFAULT_CONTEXT_WINDOW_MODE_ID,
-  isContextWindowModeId,
+  isContextWindowModeSelectionId,
   listContextWindowModes,
+  normalizeContextWindowModeId,
 } from '../types/context-window.js';
 import { ConfigError, ERROR_CODES } from '../types/errors.js';
+import type { Logger } from '../types/logger.js';
+import type { SecretVault } from '../types/secret-vault.js';
 import { atomicWrite, withFileLock } from '../utils/atomic-write.js';
 import { backupConfigFile } from '../utils/config-backup.js';
 import { type DeepMergeOptions, deepMerge as deepMergeCore } from '../utils/deep-merge.js';
 import { toErrorMessage } from '../utils/error.js';
 import { safeParse } from '../utils/safe-json.js';
+import type { WstackPaths } from '../utils/wstack-paths.js';
 import { safeProfileName } from '../utils/wstack-paths.js';
 import { isBootstrapOnly } from './config-loader/bootstrap.js';
-import {
-  fillMissingDefaults,
-  isPlainRecord,
-} from './config-loader/default-repair.js';
+import { fillMissingDefaults, isPlainRecord } from './config-loader/default-repair.js';
 import { CONFIG_BEHAVIOR_DEFAULTS } from './config-loader/defaults.js';
 import { storageErrorString } from './config-loader/diagnostics.js';
-import {
-  ENV_MAP,
-  envBoolOptional,
-  type PartialConfig,
-} from './config-loader/env-overrides.js';
+import { ENV_MAP, envBoolOptional, type PartialConfig } from './config-loader/env-overrides.js';
 import { stripUnsafeInProjectFields } from './config-loader/in-project-policy.js';
+import { normalizeInlineProviderModels } from './config-loader/inline-provider-models.js';
 import {
   migrateLegacySuperMemoryKey,
   removeLegacySageEngine,
@@ -36,16 +35,12 @@ import type {
   ConfigSource,
   MemoizedConfigSource,
 } from './config-loader/types.js';
-import type { EventBus } from '../kernel/events.js';
-import type { Logger } from '../types/logger.js';
-import type { SecretVault } from '../types/secret-vault.js';
-import type { WstackPaths } from '../utils/wstack-paths.js';
 
 export {
-  fillMissingDefaults,
-  repairConfigDefaults,
   type ConfigDefaultRepair,
   type ConfigDefaultRepairReport,
+  fillMissingDefaults,
+  repairConfigDefaults,
 } from './config-loader/default-repair.js';
 export { CONFIG_BEHAVIOR_DEFAULTS } from './config-loader/defaults.js';
 export {
@@ -235,6 +230,13 @@ export class DefaultConfigLoader implements ConfigLoader {
     if (opts.cliFlags) {
       cfg = deepMerge(cfg, opts.cliFlags);
     }
+
+    // Normalize model.dev-style inline provider model objects only after all
+    // config layers and CLI flags have merged. Downstream routing keeps its
+    // canonical `models: string[]` contract; metadata lands in `customModels`.
+    normalizeInlineProviderModels(cfg as Record<string, unknown>, (message, context) =>
+      this.logWarn(message, context),
+    );
 
     // Decrypt apiKey-like fields if a vault is configured.
     if (this.vault) {
@@ -732,7 +734,7 @@ export class DefaultConfigLoader implements ConfigLoader {
         context: { warn: c.warnThreshold, soft: c.softThreshold, hard: c.hardThreshold },
       });
     }
-    if (c.mode !== undefined && !isContextWindowModeId(c.mode)) {
+    if (c.mode !== undefined && !isContextWindowModeSelectionId(c.mode)) {
       // An unknown mode (typo or value from an older/renamed scheme) should not
       // brick the CLI — unlike the numeric thresholds above there is a safe
       // default. Warn and fall back rather than throwing.
@@ -744,6 +746,8 @@ export class DefaultConfigLoader implements ConfigLoader {
         { event: 'config.unknown_context_mode', mode: c.mode, known },
       );
       c.mode = DEFAULT_CONTEXT_WINDOW_MODE_ID;
+    } else if (c.mode !== undefined) {
+      c.mode = normalizeContextWindowModeId(c.mode) ?? DEFAULT_CONTEXT_WINDOW_MODE_ID;
     }
   }
 

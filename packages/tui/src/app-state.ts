@@ -781,5 +781,3 @@ export type State = {
     remainingSeconds: number;
   } | null;
 };
-
-export type { Action } from './app-action-type.js';

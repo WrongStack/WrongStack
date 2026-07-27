@@ -26,10 +26,12 @@ vi.mock('../../src/skills/skill-installer.js', () => ({
 import {
   buildSkillCommand,
   buildSkillGeneratorCommand,
+  buildSkillImportCommand,
   buildSkillInstallCommand,
   buildSkillSearchCommand,
   buildSkillUninstallCommand,
   buildSkillUpdateCommand,
+  createSkillsPlugin,
   resolveImportSourceDir,
 } from '../../src/plugins/skills-plugin.js';
 import { githubDirectAdapter } from '../../src/skills/registry/github-direct-adapter.js';
@@ -502,5 +504,101 @@ describe('resolveImportSourceDir (--from <tool>)', () => {
 
   it('returns undefined for an unknown tool', () => {
     expect(resolveImportSourceDir('nope', { global: false, projectRoot: '/p' })).toBeUndefined();
+  });
+});
+
+// ── Plugin lifecycle ─────────────────────────────────────────────────────────
+
+describe('createSkillsPlugin', () => {
+  it('returns a plugin with correct metadata', () => {
+    const plugin = createSkillsPlugin();
+    expect(plugin.name).toBe('wstack-skills');
+    expect(plugin.capabilities?.slashCommands).toBe(true);
+  });
+
+  it('health returns ok', async () => {
+    const plugin = createSkillsPlugin();
+    const result = await plugin.health!();
+    expect(result.ok).toBe(true);
+  });
+
+  it('setup registers 7 slash commands', () => {
+    const plugin = createSkillsPlugin({ skillLoader: fakeLoader() });
+    const registered: string[] = [];
+    const api = {
+      config: {},
+      slashCommands: {
+        register: vi.fn((cmd: { name: string }) => registered.push(cmd.name)),
+        unregister: vi.fn(),
+      },
+      log: { info: vi.fn(), warn: vi.fn(), error: vi.fn() },
+    };
+    plugin.setup!(api as never);
+    expect(registered).toHaveLength(7);
+    expect(registered).toContain('skill');
+    expect(registered).toContain('skill-gen');
+    expect(registered).toContain('skill-search');
+    expect(registered).toContain('skill-install');
+    expect(registered).toContain('skill-import');
+    expect(registered).toContain('skill-update');
+    expect(registered).toContain('skill-uninstall');
+  });
+
+  it('teardown unregisters all 7 commands', () => {
+    const plugin = createSkillsPlugin();
+    const unregistered: string[] = [];
+    const api = {
+      slashCommands: {
+        register: vi.fn(),
+        unregister: vi.fn((name: string) => unregistered.push(name)),
+      },
+      log: { info: vi.fn() },
+    };
+    plugin.teardown!(api as never);
+    expect(unregistered).toHaveLength(7);
+  });
+});
+
+// ── /skill-import ────────────────────────────────────────────────────────────
+
+describe('buildSkillImportCommand', () => {
+  it('shows usage when no source given', async () => {
+    const res = await buildSkillImportCommand(undefined).run('', fakeCtx());
+    expect(res?.message).toContain('Usage');
+  });
+
+  it('rejects unknown --from tool', async () => {
+    const res = await buildSkillImportCommand(undefined).run('--from unknown-tool', fakeCtx());
+    expect(res?.message).toContain('Unknown tool');
+  });
+
+  it('reports no skills when importFromDir returns empty', async () => {
+    installerMocks.importFromDir.mockResolvedValue([]);
+    const res = await buildSkillImportCommand(undefined).run('/some/dir', fakeCtx());
+    expect(res?.message).toContain('No valid skills');
+  });
+
+  it('imports skills from a directory', async () => {
+    installerMocks.importFromDir.mockResolvedValue([
+      { name: 'imported-skill', path: '/skills/imported-skill' },
+    ]);
+    const res = await buildSkillImportCommand(undefined).run('/some/dir', fakeCtx());
+    expect(res?.message).toContain('Imported 1 skill');
+    expect(res?.message).toContain('imported-skill');
+  });
+
+  it('--link flag is passed through', async () => {
+    installerMocks.importFromDir.mockResolvedValue([]);
+    await buildSkillImportCommand(undefined).run('/some/dir --link', fakeCtx());
+    expect(installerMocks.importFromDir).toHaveBeenCalledWith(
+      expect.any(String),
+      expect.objectContaining({ link: true }),
+    );
+  });
+
+  it('surfaces import errors', async () => {
+    installerMocks.importFromDir.mockRejectedValue(new Error('EACCES'));
+    const res = await buildSkillImportCommand(undefined).run('/some/dir', fakeCtx());
+    expect(res?.message).toContain('Import failed');
   });
 });

@@ -61,7 +61,7 @@ export interface FleetNotifierOptions {
 
 export class FleetNotifier {
   private readonly baseDir: string;
-  private readonly projectRoot: string;
+  private projectRoot: string;
   private readonly selfPid: number;
   private readonly doPost: (url: string) => Promise<void>;
 
@@ -102,6 +102,12 @@ export class FleetNotifier {
       clearTimeout(this.timer);
       this.timer = null;
     }
+  }
+
+  /** Re-scope notifications after an in-process project switch. */
+  setProjectRoot(projectRoot: string): void {
+    this.projectRoot = normRoot(projectRoot);
+    this.cache = null;
   }
 
   private async flush(): Promise<void> {

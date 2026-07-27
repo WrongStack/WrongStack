@@ -23,6 +23,7 @@ import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { useFieldKeyboardNav } from '@/hooks/useFieldKeyboardNav';
 import { LOCAL_PRESET_FAMILY, LOCAL_SERVER_PRESETS } from './local-presets';
+import { ModelEditor, type ModelEntry } from '../SetupScreen/ModelEditor';
 import { OAuthLoginSection } from './OAuthLoginSection';
 import { ProviderModelsPanel } from './ProviderModelsPanel';
 
@@ -44,6 +45,19 @@ export interface SavedProvider {
   baseUrl?: string | undefined;
   /** Saved model allowlist, in the order the user pinned them. */
   models?: string[] | undefined;
+  /** Per-model metadata (display name, output limits, capability overrides). */
+  customModels?: Record<string, {
+    name?: string | undefined;
+    maxOutput?: number | undefined;
+    capabilities?: {
+      maxContext?: number | undefined;
+      tools?: boolean | undefined;
+      vision?: boolean | undefined;
+      reasoning?: boolean | undefined;
+      streaming?: boolean | undefined;
+      jsonMode?: boolean | undefined;
+    } | undefined;
+  }> | undefined;
   /** First entry of `models`, surfaced for the panel's "Using" line. */
   pickedModelId?: string | undefined;
   apiKeys: Array<{
@@ -88,6 +102,8 @@ export interface ProviderSectionProps {
     family: string,
     baseUrl?: string | undefined,
     apiKey?: string,
+    models?: string[] | undefined,
+    customModels?: Record<string, { name?: string | undefined; maxOutput?: number | undefined; capabilities?: Record<string, unknown> | undefined }> | undefined,
   ) => void;
   /** Called to remove a saved provider. */
   onRemoveProvider: (providerId: string) => void;
@@ -134,6 +150,7 @@ export function ProviderSection({
   const [newProviderFamily, setNewProviderFamily] = useState('openai-compatible');
   const [newProviderBaseUrl, setNewProviderBaseUrl] = useState('');
   const [newProviderApiKey, setNewProviderApiKey] = useState('');
+  const [newProviderModels, setNewProviderModels] = useState<ModelEntry[]>([]);
 
   const addProviderNav = useFieldKeyboardNav();
   const addKeyNav = useFieldKeyboardNav();
@@ -156,13 +173,31 @@ export function ProviderSection({
       newProviderFamily,
       newProviderBaseUrl || undefined,
       newProviderApiKey || undefined,
+      newProviderModels.length > 0 ? newProviderModels.map((m) => m.id) : undefined,
+      newProviderModels.length > 0
+        ? Object.fromEntries(
+            newProviderModels
+              .filter((m) => m.name || m.maxOutput || (m.capabilities && Object.keys(m.capabilities).length > 0))
+              .map((m) => [
+                m.id,
+                {
+                  ...(m.name && m.name !== m.id ? { name: m.name } : {}),
+                  ...(m.maxOutput ? { maxOutput: m.maxOutput } : {}),
+                  ...(m.capabilities && Object.keys(m.capabilities).length > 0
+                    ? { capabilities: m.capabilities }
+                    : {}),
+                },
+              ]),
+          )
+        : undefined,
     );
     setNewProviderId('');
     setNewProviderFamily('openai-compatible');
     setNewProviderBaseUrl('');
     setNewProviderApiKey('');
+    setNewProviderModels([]);
     setShowAddProviderForm(false);
-  }, [onAddProvider, newProviderId, newProviderFamily, newProviderBaseUrl, newProviderApiKey]);
+  }, [onAddProvider, newProviderId, newProviderFamily, newProviderBaseUrl, newProviderApiKey, newProviderModels]);
 
   /**
    * Pre-fill the Add Provider form from a local-server preset (OmniRoute /
@@ -176,6 +211,7 @@ export function ProviderSection({
       setNewProviderFamily(LOCAL_PRESET_FAMILY);
       setNewProviderBaseUrl(preset.defaultBaseUrl);
       if (preset.noAuth) setNewProviderApiKey('');
+      setNewProviderModels([]);
     },
     [],
   );
@@ -574,6 +610,10 @@ export function ProviderSection({
                 ref={addProviderNav.setFieldRef(3)}
                 onKeyDown={(e) => addProviderNav.handleKeyDown(e, 3)}
               />
+
+              {/* Model editor — search catalog, confirm matches, add custom IDs */}
+              <ModelEditor models={newProviderModels} onChange={setNewProviderModels} />
+
               <div className="flex gap-2">
                 <Button
                   size="sm"
@@ -667,6 +707,7 @@ export function ProviderSection({
                     providerId={sp.id}
                     savedPickedModelId={sp.pickedModelId}
                     savedModels={sp.models}
+                    savedCustomModels={sp.customModels}
                     ws={ws}
                     onPickModel={onPickProviderModel}
                   />

@@ -1,4 +1,4 @@
-import { TaskTracker } from '../tasking/index.js';
+import type { TaskTracker } from '../tasking/index.js';
 import type { TaskNode } from '../types/task-graph.js';
 import type { PhaseGraph, PhaseNode, PhaseStatus } from './types.js';
 

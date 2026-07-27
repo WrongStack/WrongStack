@@ -1,3 +1,4 @@
+import type { Director } from '@wrongstack/core/coordination';
 import type { ExecuteDeps } from './execute-deps.js';
 import type { FleetStatusLine } from './fleet-statusline.js';
 
@@ -13,9 +14,10 @@ export interface ExecutionCleanupInput {
   session: ExecuteDeps['session']['session'];
   tokenCounter: ExecuteDeps['core']['tokenCounter'];
   events: ExecuteDeps['core']['events'];
-/** Getter for chimera's in-flight work promise — avoids stale captures. */
+  /** Getter for chimera's in-flight work promise — avoids stale captures. */
   getPendingChimeraWork?: () => Promise<void> | undefined;
-  recoveryLock: ExecuteDeps['core']['recoveryLock'];
+  /** Optional director reference for fleet cleanup at session end. */
+  director?: Director | null | undefined;
   reader: ExecuteDeps['ui']['reader'];
 }
 
@@ -33,7 +35,7 @@ export async function finalizeExecutionCleanup(input: ExecutionCleanupInput): Pr
     tokenCounter,
     events,
     getPendingChimeraWork,
-    recoveryLock,
+    director,
     reader,
   } = input;
 
@@ -111,6 +113,24 @@ export async function finalizeExecutionCleanup(input: ExecutionCleanupInput): Pr
       });
     }
   }
+  // Safety net: terminate any remaining fleet subagents after chimera work
+  // completes. Individual per-agent termination (reviewer, fix, cascade) runs
+  // inside each handler, but this catches stragglers if an error path or
+  // unexpected state left a subagent alive.
+  if (director) {
+    try {
+      await director.terminateAll();
+    } catch (termErr) {
+      console.warn(
+        JSON.stringify({
+          level: 'warn',
+          event: 'shutdown.director_terminate_all_failed',
+          message: termErr instanceof Error ? termErr.message : String(termErr),
+          timestamp: new Date().toISOString(),
+        }),
+      );
+    }
+  }
   await activeSession.close().catch((err) => {
     console.warn(
       JSON.stringify({
@@ -121,9 +141,6 @@ export async function finalizeExecutionCleanup(input: ExecutionCleanupInput): Pr
       }),
     );
   });
-  await recoveryLock
-    .clear()
-    .catch(() => undefined); /* best-effort: stale lock will be recovered on next startup */
   await reader.close().catch((err) => {
     console.warn(
       JSON.stringify({

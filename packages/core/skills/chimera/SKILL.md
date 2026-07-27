@@ -193,6 +193,8 @@ Write your report as a single message appended to the chat. Use this structure:
 - Findings: C critical, H high, M medium
 - Clean files: N
 
+Duration: 31s
+
 <nextsteps>
 1. Fix null deref in path/file.ts:42
 2. Fix plaintext API key in path/config.ts:8

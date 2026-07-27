@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { taskInput, taskPatch, assignmentInput, mergedDependsOn } from '../src/kanban-task-inputs.js';
+import {
+  taskInput,
+  taskPatch,
+  assignmentInput,
+  mergedDependsOn,
+} from '../src/kanban-task-inputs.js';
 
 describe('taskInput', () => {
   it('returns default for empty input', () => {
@@ -14,13 +19,13 @@ describe('taskInput', () => {
       title: 'My Task',
       columnId: 'col-1',
       description: 'Do the thing',
-      status: 'todo',
+      status: 'pending',
       priority: 'high',
     });
     expect(result.title).toBe('My Task');
     expect(result.columnId).toBe('col-1');
     expect(result.description).toBe('Do the thing');
-    expect(result.status).toBe('todo');
+    expect(result.status).toBe('pending');
     expect(result.priority).toBe('high');
   });
 
@@ -67,10 +72,10 @@ describe('taskInput', () => {
   it('handles taskType', () => {
     const result = taskInput({
       action: 'add_task',
-      taskType: 'bug',
+      taskType: 'bugfix',
       title: 'Bug fix',
     });
-    expect(result.type).toBe('bug');
+    expect(result.type).toBe('bugfix');
   });
 
   it('handles estimatedHours and actualHours', () => {
@@ -132,7 +137,7 @@ describe('taskInput', () => {
       action: 'add_task',
       title: 'Metric',
       metricName: 'Coverage',
-      metricStatus: 'on_track',
+      metricStatus: 'pending',
       metricTarget: '90%',
       metricCurrent: '75%',
       metricUnit: '%',
@@ -265,7 +270,7 @@ describe('assignmentInput', () => {
       attempt: 1,
       maxAttempts: 3,
       costCeilingUsd: 5.0,
-      retryPolicy: 'linear',
+      retryPolicy: 'incremental',
       lastFailureKind: 'timeout',
     });
     expect(result.agentId).toBe('agent-1');
@@ -285,7 +290,7 @@ describe('assignmentInput', () => {
     expect(result.attempt).toBe(1);
     expect(result.maxAttempts).toBe(3);
     expect(result.costCeilingUsd).toBe(5.0);
-    expect(result.retryPolicy).toBe('linear');
+    expect(result.retryPolicy).toBe('incremental');
     expect(result.lastFailureKind).toBe('timeout');
   });
 });

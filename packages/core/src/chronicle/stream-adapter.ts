@@ -1,11 +1,11 @@
 import { createHash, type Hash } from 'node:crypto';
 import type { EventBus } from '../kernel/events.js';
 import type { ChronicleContext } from './context.js';
-import type { ChronicleJournal } from './journal.js';
+import type { ChronicleEventSink } from './sink.js';
 import type { ChronicleEventInput } from './types.js';
 
 export interface ChronicleStreamAdapterOptions {
-  events: EventBus; journal: ChronicleJournal; context: ChronicleContext | (() => ChronicleContext);
+  events: EventBus; journal: ChronicleEventSink; context: ChronicleContext | (() => ChronicleContext);
   onPersistError?: ((error: unknown, event: ChronicleEventInput) => void) | undefined;
 }
 interface StreamState {

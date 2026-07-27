@@ -1,12 +1,12 @@
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { EventBus } from '../../src/kernel/events.js';
 import {
   DefaultConfigLoader,
   repairConfigDefaults,
 } from '../../src/storage/config-loader.js';
 import { resolveWstackPaths } from '../../src/utils/wstack-paths.js';
-import { EventBus } from '../../src/kernel/events.js';
 
 // vi.mock is hoisted above imports — the factory uses vi.importActual to lazily
 // get the real module, avoiding TDZ issues with importing at module scope.
@@ -64,8 +64,8 @@ describe('DefaultConfigLoader', () => {
     const cfg = await l.load();
     expect(cfg.provider).toBeUndefined();
     expect(cfg.model).toBeUndefined();
-    expect(cfg.context.mode).toBe('frugal');
-    expect(cfg.context.softThreshold).toBe(0.75);
+    expect(cfg.context.mode).toBe('balanced');
+    expect(cfg.context.softThreshold).toBe(0.7);
     expect(cfg.tools.maxIterations).toBe(100);
     expect(cfg.features.mcp).toBe(true);
     expect(cfg.mcpServers).toEqual({});
@@ -82,7 +82,7 @@ describe('DefaultConfigLoader', () => {
     expect(written.version).toBe(1);
     expect(written.configScope).toBe('global');
     expect(written.maxConcurrent).toBe(4);
-    expect(written.context.mode).toBe('frugal');
+    expect(written.context.mode).toBe('balanced');
     expect(written.context.strategy).toBe('hybrid');
     expect(written.autonomy.defaultMode).toBe('auto');
     expect(written.autonomy.autoProceedDelayMs).toBe(45_000);
@@ -221,6 +221,74 @@ describe('DefaultConfigLoader', () => {
     const cfg = await l.load();
     expect(cfg.provider).toBe('anthropic');
     expect(cfg.model).toBe('anthropic-test-model');
+  });
+
+  it('normalizes inline provider model metadata into models and customModels', async () => {
+    const { loader: l, profileCfgPath } = loader();
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    try {
+      await fs.mkdir(path.dirname(profileCfgPath), { recursive: true });
+      await fs.writeFile(
+        profileCfgPath,
+        JSON.stringify({
+          provider: 'acme',
+          model: 'acme-large',
+          providers: {
+            acme: {
+              type: 'acme',
+              family: 'openai-compatible',
+              models: [
+                'legacy-model',
+                {
+                  id: 'acme-large',
+                  name: 'Inline Acme Large',
+                  limit: { context: 262_144, output: 32_768 },
+                  tool_call: true,
+                  reasoning: true,
+                  modalities: { input: ['text', 'image'], output: ['text'] },
+                  capabilities: { streaming: true },
+                },
+                'acme-large',
+                null,
+                { name: 'missing id' },
+              ],
+              customModels: {
+                'acme-large': {
+                  name: 'Explicit Acme Large',
+                  maxOutput: 4_096,
+                  capabilities: { maxContext: 131_072, tools: false, jsonMode: true },
+                },
+              },
+            },
+          },
+        }),
+      );
+
+      const cfg = await l.load();
+      const provider = cfg.providers?.['acme'];
+      expect(provider?.models).toEqual(['legacy-model', 'acme-large']);
+      expect(provider?.customModels?.['acme-large']).toEqual({
+        name: 'Explicit Acme Large',
+        maxOutput: 4_096,
+        capabilities: {
+          maxContext: 131_072,
+          tools: false,
+          reasoning: true,
+          vision: true,
+          streaming: true,
+          jsonMode: true,
+        },
+      });
+      const firstWarning = warn.mock.calls.at(0)?.[0];
+      expect(firstWarning).toEqual(
+        expect.stringContaining('"event":"config.invalid_inline_provider_model"'),
+      );
+      expect(firstWarning).toEqual(
+        expect.stringContaining('"message":"Ignoring invalid inline provider model entry"'),
+      );
+    } finally {
+      warn.mockRestore();
+    }
   });
 
   it('never loads settings from the root bootstrap once a profile exists', async () => {
@@ -408,7 +476,7 @@ describe('DefaultConfigLoader', () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
     try {
       const cfg = await l.load();
-      expect(cfg.context.mode).toBe('frugal');
+      expect(cfg.context.mode).toBe('balanced');
     } finally {
       warn.mockRestore();
     }
@@ -420,7 +488,7 @@ describe('DefaultConfigLoader', () => {
     await fs.writeFile(paths.globalConfig, '{not json');
     // should not throw — just use defaults
     const cfg = await l.load();
-    expect(cfg.context.softThreshold).toBe(0.75);
+    expect(cfg.context.softThreshold).toBe(0.7);
   });
 
   it('merges primitive arrays by concatenation with deduplication', async () => {
@@ -621,7 +689,7 @@ describe('DefaultConfigLoader', () => {
     try {
       const cfg = await l.load();
       // Unknown mode must not brick the CLI — it is replaced by the default.
-      expect(cfg.context.mode).toBe('frugal');
+      expect(cfg.context.mode).toBe('balanced');
       expect(warn).toHaveBeenCalledWith(expect.stringContaining('lightning-fast'));
     } finally {
       warn.mockRestore();

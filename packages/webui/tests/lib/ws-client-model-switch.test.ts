@@ -4,7 +4,7 @@ import { WrongStackWebSocketClient } from '../../src/lib/ws-client';
 describe('WrongStackWebSocketClient model switch', () => {
   it('waits for the result matching its request id', async () => {
     const client = new WrongStackWebSocketClient('ws://127.0.0.1:3457');
-    const send = vi.spyOn(client, 'send').mockImplementation(() => {});
+    const send = vi.spyOn(client, 'send').mockImplementation(() => true);
 
     const pending = client.switchModel('openai', 'gpt-5');
     const request = send.mock.calls[0]?.[0] as {

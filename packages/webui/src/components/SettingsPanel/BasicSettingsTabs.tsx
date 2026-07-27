@@ -8,6 +8,7 @@ import { useLocalPrefs } from '@/stores/local-prefs';
 import { useTheme } from '../ThemeProvider';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
+import { ConnectionsHealthSection } from './ConnectionsHealthSection';
 import { PreferenceSelect } from './PreferenceControls';
 import { PreferenceToggle } from './PreferenceToggle';
 
@@ -19,26 +20,28 @@ export function ConnectionSettingsTab() {
 
   return (
     <div className="mt-0 space-y-4">
-      <div className="space-y-3">
-        <label htmlFor="websocket-url" className="text-sm font-medium flex items-center gap-2">
-          <Globe className="h-4 w-4 text-muted-foreground" />
-          {t('settings:connection.wsUrlLabel')}
-        </label>
-        <Input
-          id="websocket-url"
-          value={wsUrl}
-          onChange={(event) => setConfig({ wsUrl: event.target.value })}
-          placeholder={t('settings:connection.wsUrlPlaceholder')}
-          className="font-mono text-sm"
-        />
-        <p className="text-xs text-muted-foreground">{t('settings:connection.wsUrlHint')}</p>
-      </div>
+      <ConnectionsHealthSection />
 
-      <div className="p-4 rounded-lg border bg-muted/50">
-        <h4 className="text-sm font-medium mb-2">{t('settings:connection.startingHeading')}</h4>
-        <p className="text-xs text-muted-foreground mb-3">
-          {t('settings:connection.startingBody')}
-        </p>
+      <div className="rounded-xl border border-border/70 bg-card/80 p-5 shadow-sm">
+        <div className="space-y-3">
+          <label htmlFor="websocket-url" className="flex items-center gap-2 text-sm font-medium">
+            <Globe className="h-4 w-4 text-muted-foreground" />
+            {t('settings:connection.wsUrlLabel')}
+          </label>
+          <Input
+            id="websocket-url"
+            value={wsUrl}
+            onChange={(event) => setConfig({ wsUrl: event.target.value })}
+            placeholder={t('settings:connection.wsUrlPlaceholder')}
+            className="font-mono text-sm"
+          />
+          <p className="text-xs text-muted-foreground">{t('settings:connection.wsUrlHint')}</p>
+        </div>
+
+        <div className="mt-4 rounded-lg border bg-muted/50 p-4">
+          <h4 className="mb-2 text-sm font-medium">{t('settings:connection.startingHeading')}</h4>
+          <p className="text-xs text-muted-foreground">{t('settings:connection.startingBody')}</p>
+        </div>
       </div>
     </div>
   );
@@ -101,9 +104,7 @@ export function AppearanceSettingsTab() {
       </div>
 
       <div className="pt-2 border-t">
-        <h3 className="text-sm font-semibold mb-3 mt-3">
-          {t('settings:general.languageHeading')}
-        </h3>
+        <h3 className="text-sm font-semibold mb-3 mt-3">{t('settings:general.languageHeading')}</h3>
         <PreferenceSelect
           label={t('settings:general.languageLabel')}
           hint={t('settings:general.languageHint')}

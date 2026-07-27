@@ -21,7 +21,7 @@ import type { AgentResponseHandler } from './agent-response.js';
 import type { AgentToolHandler } from './agent-tools.js';
 import type { RunResult, UserInputPayload } from './agent-types.js';
 import { buildBtwBlock, consumeBtwNotes } from './btw.js';
-import type { RunOptions } from './context.js';
+import { resolveEventSessionId, type RunOptions } from './context.js';
 import { consumeAutonomousContinue } from './continue-to-next-iteration.js';
 import { requestLimitExtension } from './iteration-limit.js';
 import { injectPendingMailboxMessages, removeInjectedMailboxBlocks } from './mailbox-loop.js';
@@ -262,7 +262,7 @@ export function createAgentLoopHandler(
     const rawLoad = maxContext > 0 ? total / maxContext : 0;
     const load = Math.max(0, Math.min(1, rawLoad));
     a.events.emit('ctx.pct', {
-      sessionId: a.ctx.session.id,
+      sessionId: resolveEventSessionId(a.ctx),
       load,
       rawLoad,
       tokens: total,
@@ -375,7 +375,7 @@ export function createAgentLoopHandler(
     if (hasHardLimit && iterationIndex >= limit) {
       const extendBy = await requestLimitExtension({
         events: a.events,
-        sessionId: a.ctx.session.id,
+        sessionId: resolveEventSessionId(a.ctx),
         currentIterations,
         currentLimit: limit,
         autoExtend: a.autoExtendLimit,
@@ -520,7 +520,7 @@ export function createAgentLoopHandler(
         }
 
         await a.extensions.runBeforeIteration(a.ctx, i);
-        a.events.emit('iteration.started', { sessionId: a.ctx.session.id, ctx: a.ctx, index: i });
+        a.events.emit('iteration.started', { sessionId: resolveEventSessionId(a.ctx), ctx: a.ctx, index: i });
 
         injectPendingBtwNotes((block) => pendingMailboxBlocks.push(block));
         injectQueueAwareness();
@@ -603,7 +603,7 @@ export function createAgentLoopHandler(
         } catch (err) {
           if (controller.signal.aborted) {
             a.events.emit('error', {
-              sessionId: a.ctx.session.id,
+              sessionId: resolveEventSessionId(a.ctx),
               err: toError(err),
               phase: 'provider',
             });
@@ -619,7 +619,7 @@ export function createAgentLoopHandler(
           if (extDecision) {
             if (extDecision.action === 'fail') {
               a.events.emit('error', {
-                sessionId: a.ctx.session.id,
+                sessionId: resolveEventSessionId(a.ctx),
                 err: toError(err),
                 phase: 'provider',
               });
@@ -638,7 +638,7 @@ export function createAgentLoopHandler(
               recoveryRetries++;
               if (recoveryRetries > 2) {
                 a.events.emit('error', {
-                  sessionId: a.ctx.session.id,
+                  sessionId: resolveEventSessionId(a.ctx),
                   err: toError(err),
                   phase: 'provider',
                 });
@@ -658,7 +658,7 @@ export function createAgentLoopHandler(
           const recovered = await a.errorHandler.recover(err, a.ctx);
           if (!recovered || recovered.action === 'fail') {
             a.events.emit('error', {
-              sessionId: a.ctx.session.id,
+              sessionId: resolveEventSessionId(a.ctx),
               err: toError(err),
               phase: 'provider',
             });
@@ -673,7 +673,7 @@ export function createAgentLoopHandler(
             recoveryRetries++;
             if (recoveryRetries > 2) {
               a.events.emit('error', {
-                sessionId: a.ctx.session.id,
+                sessionId: resolveEventSessionId(a.ctx),
                 err: toError(err),
                 phase: 'provider',
               });
@@ -755,7 +755,7 @@ export function createAgentLoopHandler(
             if (toolLoopCount >= cutAt) {
               a.logger.warn(`Loop detected: ${detail} — stopping to prevent infinite loop.`);
               a.events.emit('tool.loop_detected', {
-                sessionId: a.ctx.session.id,
+                sessionId: resolveEventSessionId(a.ctx),
                 ctx: a.ctx,
                 tools: names,
                 repeatCount: toolLoopCount,
@@ -784,7 +784,7 @@ export function createAgentLoopHandler(
               iterationSteerDone = true;
               a.logger.warn(`Loop detected: ${detail} — steering the model to change approach.`);
               a.events.emit('tool.loop_detected', {
-                sessionId: a.ctx.session.id,
+                sessionId: resolveEventSessionId(a.ctx),
                 ctx: a.ctx,
                 tools: names,
                 repeatCount: toolLoopCount,
@@ -827,7 +827,7 @@ export function createAgentLoopHandler(
                 `Loop detected: "${u.name}" called with identical arguments ${count}× within the last ${loopCfg.windowSize} tool calls — steering the model to change approach.`,
               );
               a.events.emit('tool.loop_detected', {
-                sessionId: a.ctx.session.id,
+                sessionId: resolveEventSessionId(a.ctx),
                 ctx: a.ctx,
                 tools: u.name,
                 repeatCount: count,
@@ -849,7 +849,7 @@ export function createAgentLoopHandler(
           await compactContextIfNeeded();
           emitContextPct();
           a.events.emit('iteration.completed', {
-            sessionId: a.ctx.session.id,
+            sessionId: resolveEventSessionId(a.ctx),
             ctx: a.ctx,
             index: i,
           });
@@ -882,7 +882,7 @@ export function createAgentLoopHandler(
           await compactContextIfNeeded();
           emitContextPct();
           a.events.emit('iteration.completed', {
-            sessionId: a.ctx.session.id,
+            sessionId: resolveEventSessionId(a.ctx),
             ctx: a.ctx,
             index: i,
           });
@@ -892,7 +892,7 @@ export function createAgentLoopHandler(
 
         await compactContextIfNeeded();
         emitContextPct();
-        a.events.emit('iteration.completed', { sessionId: a.ctx.session.id, ctx: a.ctx, index: i });
+        a.events.emit('iteration.completed', { sessionId: resolveEventSessionId(a.ctx), ctx: a.ctx, index: i });
         await a.extensions.runAfterIteration(a.ctx, i);
 
         if (autonomousContinue && responseResult.directive === 'continue') {

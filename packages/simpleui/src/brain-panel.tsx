@@ -1,5 +1,5 @@
 import { AlertTriangle, Brain, Shield, X } from 'lucide-react';
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import type { SimpleSocket } from './lib/ws.js';
 
 interface BrainLogEntry {
@@ -63,7 +63,7 @@ export function BrainPanel({ socketRef }: BrainPanelProps) {
     return unsub;
   }, [open, socketRef]);
 
-  const loadStatus = () => {
+  const loadStatus = useCallback(() => {
     const socket = socketRef.current;
     if (!socket) return;
     pendingStatusRef.current?.();
@@ -91,7 +91,16 @@ export function BrainPanel({ socketRef }: BrainPanelProps) {
     pendingStatusRef.current = finish;
     socket.send('brain.status');
     timer = setTimeout(() => finish(), 3000);
-  };
+  }, [socketRef]);
+
+  useEffect(() => {
+    const onOpen = () => {
+      setOpen(true);
+      loadStatus();
+    };
+    window.addEventListener('simpleui:open-brain-panel', onOpen);
+    return () => window.removeEventListener('simpleui:open-brain-panel', onOpen);
+  }, [loadStatus]);
 
   const askBrain = () => {
     if (!question.trim()) return;

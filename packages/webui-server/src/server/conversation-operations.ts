@@ -94,6 +94,13 @@ export function createConversationOperations(
         return;
       }
 
+      // Pin the session this run was started in. The host can swap the
+      // active session (session.new/resume) while a slow provider stream
+      // is still in flight; stamping run.result with the live session id
+      // at completion time would leak the previous request's final text
+      // into the freshly-opened session's chat. Declared before the try so
+      // the catch branches can stamp it too.
+      const originSessionId = ctx.getSessionId();
       try {
         const agent = ctx.getAgent();
         const content = typeof payload.content === 'string' ? payload.content : '';
@@ -118,6 +125,7 @@ export function createConversationOperations(
         ctx.send(ws, {
           type: 'run.result',
           payload: sessionPayload({
+            sessionId: originSessionId,
             status: runResult.status,
             iterations: runResult.iterations,
             finalText: runResult.finalText,
@@ -139,6 +147,7 @@ export function createConversationOperations(
           ctx.send(ws, {
             type: 'error',
             payload: sessionPayload({
+              sessionId: originSessionId,
               phase: 'user_message',
               ...(error instanceof ImageInputUnsupportedError
                 ? { code: 'vision_unsupported' }
@@ -149,7 +158,11 @@ export function createConversationOperations(
         } else {
           ctx.send(ws, {
             type: 'error',
-            payload: sessionPayload({ phase: 'agent.run', message: errMessage(error) }),
+            payload: sessionPayload({
+              sessionId: originSessionId,
+              phase: 'agent.run',
+              message: errMessage(error),
+            }),
           });
         }
       } finally {

@@ -1,7 +1,7 @@
 import { renderAuthLocalHelpToString } from './auth-local-help.js';
 import { renderBenchRunHelpToString } from './bench-run-help.js';
 import { renderModelsAddHelpToString } from './models-add-help.js';
-import type { PerSubcommandHelp } from './per-subcommand-help.js';
+import type { PerSubcommandHelp } from './per-subcommand-help-types.js';
 
 export const deepHelpTable: Record<string, PerSubcommandHelp> = {
   // -- mcp -----------------------------------------------------------------

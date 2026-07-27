@@ -4,7 +4,7 @@
   "tabs": {
     "general": "Général",
     "provider": "Fournisseur",
-    "connection": "Connexion",
+    "connection": "Connexions",
     "agent": "Agent",
     "execution": "Exécution",
     "fallbacks": "Fallbacks",
@@ -28,7 +28,28 @@
     "wsUrlPlaceholder": "ws://localhost:3456",
     "wsUrlHint": "URL du serveur WebSocket de l'agent. Le serveur fonctionne en parallèle du CLI.",
     "startingHeading": "Démarrage du serveur WebSocket",
-    "startingBody": "Pour le développement, lancez ./dev.ps1 depuis la racine du repo (définissez éventuellement WS_HOST/WS_PORT avant). Sinon, lancez la WebUI avec la CLI : wstack --webui."
+    "startingBody": "Pour le développement, lancez ./dev.ps1 depuis la racine du repo (définissez éventuellement WS_HOST/WS_PORT avant). Sinon, lancez la WebUI avec la CLI : wstack --webui.",
+    "healthHeading": "État des connexions",
+    "healthHint": "Rapport en direct sur le propriétaire, le stockage, la file, la surveillance et la latence.",
+    "healthRefresh": "Actualiser",
+    "healthLoading": "Vérification des services…",
+    "healthUnknown": "État inconnu",
+    "healthDisconnected": "Le WebSocket de la WebUI est déconnecté.",
+    "healthRestartRequired": "Redémarrez le backend une fois pour activer le rapport de connexion.",
+    "healthOptional": "À la demande",
+    "healthCounts": "{{healthy}} sains · {{attention}} attention · {{sleeping}} en veille",
+    "healthOverall": {
+      "healthy": "Services requis sains",
+      "degraded": "Service requis dégradé",
+      "error": "Service requis indisponible"
+    },
+    "healthStatus": {
+      "healthy": "Sain",
+      "degraded": "Dégradé",
+      "offline": "En veille",
+      "unavailable": "Indisponible",
+      "error": "Erreur"
+    }
   },
   "provider": {
     "savedProviderCount_one": "{{count}} fournisseur",
@@ -449,7 +470,6 @@
     "contextModeBalanced": "Équilibré — usage normal du contexte",
     "contextModeFrugal": "Frugal — usage conservateur de tokens",
     "contextModeDeep": "Profond — contexte plus large pour tâches complexes",
-    "contextModeArchival": "Archival — maximiser la rétention de contexte",
     "tokenSavingLabel": "Mode d'économie de tokens",
     "tokenSavingHint": "Quelle agressivité pour réduire l'usage des tokens.",
     "tokenSavingOff": "Désactivé — aucune économie",

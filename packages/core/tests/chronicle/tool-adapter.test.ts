@@ -11,14 +11,17 @@ import {
 import { EventBus } from '../../src/kernel/events.js';
 
 const tempDirs: string[] = [];
-const scrubber = { scrub: (value: string) => value.replaceAll('SECRET', '[REDACTED]') };
+const scrubber = {
+  scrub: (value: string) => value.replaceAll('SECRET', '[REDACTED]'),
+  scrubObject: <T>(obj: T): T => obj,
+};
 
 afterEach(async () => {
   await Promise.all(tempDirs.splice(0).map((dir) => rm(dir, { recursive: true, force: true })));
 });
 
 describe('wireToolsToChronicle', () => {
-  it('records scrubbed lifecycle data and file/symbol/process resource edges', async () => {
+  it('records scrubbed lifecycle data (resource edges are windowed by rollup-adapter.ts, not persisted raw here)', async () => {
     const dir = await mkdtemp(path.join(os.tmpdir(), 'chronicle-tool-'));
     tempDirs.push(dir);
     const journal = new ChronicleJournal({ filePath: path.join(dir, 'events.jsonl') });
@@ -81,9 +84,6 @@ describe('wireToolsToChronicle', () => {
       'tool.started',
       'file.mutation.observed',
       'tool.executed',
-      'tool.resource.observed',
-      'tool.resource.observed',
-      'tool.resource.observed',
     ]);
     expect(recorded[0]?.attributes?.['input']).toContain('[REDACTED]');
     expect(recorded[2]?.attributes?.['outputPreview']).toBe('result [REDACTED]');
@@ -93,9 +93,15 @@ describe('wireToolsToChronicle', () => {
       lineStart: 72,
       lineEnd: 91,
     });
-    expect(recorded.slice(3).map((event) => event.resource?.kind)).toEqual(['file', 'symbol', 'process']);
+    // tool.executed still carries the raw metadata so rollup-adapter.ts can
+    // window it into a bounded tool.resource.observed rollup.
+    expect(recorded[2]?.attributes?.['metadata']).toMatchObject({
+      files: ['src/auth.ts'],
+      symbols: ['AuthService.login'],
+      commands: ['rg SECRET src'],
+    });
     expect(recorded.every((event) => event.correlation.toolCallId === 'tool-1')).toBe(true);
-    await expect(journal.verify()).resolves.toMatchObject({ ok: true, entries: 6 });
+    await expect(journal.verify()).resolves.toMatchObject({ ok: true, entries: 3 });
   });
 
   it('records executor failures separately from model-facing tool results', async () => {
@@ -178,5 +184,75 @@ describe('wireToolsToChronicle', () => {
     });
     expect(JSON.stringify(recorded[0])).not.toContain('SECRET');
     expect(summary.families.decision).toBe(1);
+  });
+
+  it('truncates output previews exceeding 2048 bytes', async () => {
+    const dir = await mkdtemp(path.join(os.tmpdir(), 'chronicle-tool-trunc-'));
+    tempDirs.push(dir);
+    const journal = new ChronicleJournal({ filePath: path.join(dir, 'events.jsonl') });
+    const events = new EventBus();
+    const context = createChronicleContext({ installationId: 'i', machineId: 'm' }, 'trace');
+    const unsubscribe = wireToolsToChronicle({ events, journal, context, scrubber });
+
+    // Generate output exceeding the 2048-byte preview cap
+    const largeOutput = 'x'.repeat(3000);
+
+    events.emit('tool.executed', {
+      sessionId: 'session',
+      traceId: 'trace',
+      agentId: 'leader',
+      id: 'tool-trunc',
+      name: 'read',
+      durationMs: 5,
+      ok: true,
+      output: largeOutput,
+      outputBytes: 3000,
+      outputTokens: 750,
+      outputLines: 1,
+      metadata: { toolUseId: 'tool-trunc', toolName: 'read', ok: true, summary: 'large read', files: [], symbols: [], commands: [], errors: [], status: 'seen', referenceCount: 0, seenAt: 1 },
+    });
+
+    const recorded = await journal.readAll();
+    unsubscribe();
+
+    expect(recorded).toHaveLength(1);
+    const preview = recorded[0]?.attributes?.['outputPreview'];
+    // Should be a truncation object, not the full string
+    expect(typeof preview).toBe('object');
+    const truncObj = preview as { preview: string; truncated: true; totalBytes: number };
+    expect(truncObj.truncated).toBe(true);
+    expect(truncObj.totalBytes).toBe(3000);
+    expect(Buffer.byteLength(truncObj.preview, 'utf8')).toBeLessThanOrEqual(2048);
+  });
+
+  it('preserves short output as-is (no truncation)', async () => {
+    const dir = await mkdtemp(path.join(os.tmpdir(), 'chronicle-tool-short-'));
+    tempDirs.push(dir);
+    const journal = new ChronicleJournal({ filePath: path.join(dir, 'events.jsonl') });
+    const events = new EventBus();
+    const context = createChronicleContext({ installationId: 'i', machineId: 'm' }, 'trace');
+    const unsubscribe = wireToolsToChronicle({ events, journal, context, scrubber });
+
+    events.emit('tool.executed', {
+      sessionId: 'session',
+      traceId: 'trace',
+      agentId: 'leader',
+      id: 'tool-short',
+      name: 'read',
+      durationMs: 1,
+      ok: true,
+      output: 'short output',
+      outputBytes: 12,
+      outputTokens: 2,
+      outputLines: 1,
+      metadata: { toolUseId: 'tool-short', toolName: 'read', ok: true, summary: 'small read', files: [], symbols: [], commands: [], errors: [], status: 'seen', referenceCount: 0, seenAt: 1 },
+    });
+
+    const recorded = await journal.readAll();
+    unsubscribe();
+
+    expect(recorded).toHaveLength(1);
+    // Short output should be preserved as a plain string
+    expect(recorded[0]?.attributes?.['outputPreview']).toBe('short output');
   });
 });

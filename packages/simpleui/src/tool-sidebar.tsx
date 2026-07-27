@@ -10,7 +10,16 @@ import {
   Wrench,
   X,
 } from 'lucide-react';
-import { lazy, Suspense, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
+import {
+  lazy,
+  Suspense,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from 'react';
 import type {
   PlanStatus,
   TaskStatus,
@@ -105,6 +114,28 @@ export function ToolSidebar({
       requestWorklist?.(next);
     }
   };
+
+  const openView = useCallback(
+    (next: SidebarView) => {
+      setView(next);
+      if (next !== 'tools' && !requested.current.has(next)) {
+        requested.current.add(next);
+        requestWorklist?.(next);
+      }
+    },
+    [requestWorklist],
+  );
+
+  useEffect(() => {
+    const onOpen = (event: Event) => {
+      const view = (event as CustomEvent<{ view?: SidebarView }>).detail?.view;
+      if (view === 'tools' || view === 'todos' || view === 'tasks' || view === 'plan') {
+        openView(view);
+      }
+    };
+    window.addEventListener('simpleui:open-workspace-panel', onOpen);
+    return () => window.removeEventListener('simpleui:open-workspace-panel', onOpen);
+  }, [openView]);
 
   useEffect(() => {
     requested.current.clear();

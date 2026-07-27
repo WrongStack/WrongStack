@@ -326,7 +326,52 @@ export function StatusBar({
     ) : null;
   const SageStatusChip = null;
 
-  // ── Memory context detail line (4th row) ──────────────────────────────
+  const indexStatusChip =
+    indexState && showChip('index')
+      ? (() => {
+          const server = indexState.server;
+          const serverLabel =
+            server?.status === 'connected'
+              ? `${server.health?.status === 'healthy' ? 'healthy' : 'connected'}${server.pid ? ` #${server.pid}` : ''}${server.health?.latencyMs != null ? ` · ${server.health.latencyMs}ms` : ''}`
+              : server?.status === 'degraded'
+                ? `degraded${server.health?.missedHeartbeats ? ` · missed ${server.health.missedHeartbeats}` : ''}`
+                : server?.status === 'unresponsive'
+                  ? `unresponsive${server.health?.missedHeartbeats ? ` · missed ${server.health.missedHeartbeats}` : ''}`
+                  : server?.status === 'offline'
+                    ? 'disconnected'
+                    : server?.status === 'unavailable'
+                      ? 'server unavailable'
+                      : server?.status;
+          const label = indexState.indexing
+            ? `indexing ${indexState.currentFile}/${indexState.totalFiles}${serverLabel ? ` · ${serverLabel}` : ''}`
+            : indexState.circuit?.state === 'open'
+              ? `index paused${serverLabel ? ` · ${serverLabel}` : ''}`
+              : serverLabel
+                ? `index ${serverLabel}`
+                : null;
+          if (!label) return null;
+          const color =
+            server?.status === 'error' ||
+            server?.status === 'unresponsive' ||
+            indexState.circuit?.state === 'open'
+              ? theme.error
+              : indexState.indexing ||
+                  server?.status === 'connecting' ||
+                  server?.status === 'stopping' ||
+                  server?.status === 'degraded'
+                ? theme.warn
+                : server?.status === 'connected'
+                  ? theme.success
+                  : theme.textMuted;
+          return (
+            <Text color={isNoColor ? undefined : color}>
+              {glyphs.index} {label}
+            </Text>
+          );
+        })()
+      : null;
+
+  // ── Background-service detail line (4th row) ──────────────────────────
   const memoryMonitor = memoryContextMonitor;
   const memorySummary = memoryMonitor?.latest;
   const hasMemoryDetail =
@@ -462,13 +507,6 @@ export function StatusBar({
       </Text>
     ) : null,
     hint && showChip('hint') ? <Text dimColor={!isNoColor}>{hint}</Text> : null,
-    indexState?.indexing && showChip('index') ? (
-      <Text color={isNoColor ? undefined : theme.warn}>
-        {glyphs.index} indexing {indexState.currentFile}/{indexState.totalFiles}
-      </Text>
-    ) : indexState?.circuit?.state === 'open' && showChip('index') ? (
-      <Text color={isNoColor ? undefined : theme.error}>{glyphs.index} index paused</Text>
-    ) : null,
     breakerCountdown && showChip('breaker')
       ? (() => {
           const secs = Math.ceil(breakerCountdown.remainingMs / 1000);
@@ -686,7 +724,7 @@ export function StatusBar({
   return (
     <Box key={`sb-${stalenessGuard.renderNonce}`} flexDirection="column" paddingX={0}>
       {/* Line 1 — Runtime + mode chips: YOLO, autonomy, project/workdir,
-          provider/model, context, tokens, cost, queue, processes, hint, index,
+          provider/model, context, tokens, cost, queue, processes, hint,
           breaker, state, elapsed */}
       <PowerlineRail
         segments={isCompact ? modeChips.slice(0, 5) : modeChips}
@@ -969,13 +1007,14 @@ export function StatusBar({
         />
       ) : null}
 
-      {/* Line 4 — Memory context detail: matched, injected, filtered, active,
-          pending, left, trigger, ctx pressure, injected chars.
-          Rendered as a single background-colored row when memory data exists,
-          replacing the old 4-line bordered MemoryContextWidget. */}
-      {hasMemoryDetail ? (
+      {/* Line 4 — Background-service detail: memory context lifecycle and
+          codebase-index server/indexing health. Keeping this operational
+          telemetry off line 1 preserves the primary runtime context. */}
+      {hasMemoryDetail || indexStatusChip ? (
         <PowerlineRail
-          segments={memoryDetailChips}
+          segments={[...memoryDetailChips, indexStatusChip].filter(
+            (chip): chip is React.ReactElement => chip !== null,
+          )}
           budget={Math.max(12, termWidth)}
           monochrome={isNoColor}
           fillBg={LINE_BG_COLORS[3]}

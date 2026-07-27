@@ -5,7 +5,7 @@
  * contains ~1,200 lines of closures that read and write mutable local
  * variables declared at the top of `execute()`:
  *
- *   `projectRoot`, `wpaths`, `activeSessionStore`, `activeRecoveryLock`,
+ *   `projectRoot`, `wpaths`, `activeSessionStore`,
  *   `detachActiveTodosCheckpoint` (in the outer scope)
  *   `pendingProjectSwitch`, `autonomousCoordinator`, `coordinatorRun`,
  *   `coordinatorEvents` (in the TUI branch scope)
@@ -29,7 +29,6 @@
  *     projectRoot,
  *     wpaths,
  *     activeSessionStore,
- *     activeRecoveryLock,
  *     detachActiveTodosCheckpoint,
  *     pendingProjectSwitch: null,
  *     autonomousCoordinator: null,
@@ -52,9 +51,9 @@
  *   pattern (`.field = x`) is cleaner than `.field.current = x`.
  */
 import type { AutonomousCoordinator, CoordinatorEvent } from '@wrongstack/core/coordination';
-import type { RecoveryLock } from '@wrongstack/core/storage';
-import type { WstackPaths } from '@wrongstack/core/utils';
 import type { SessionStore } from '@wrongstack/core/types';
+import type { WstackPaths } from '@wrongstack/core/utils';
+import type { SessionIdentityTarget } from '../wiring/session-registry.js';
 import type { PendingProjectSwitch } from './tui-project-spawn.js';
 
 /**
@@ -73,8 +72,10 @@ export interface TuiRuntimeState {
   wpaths: WstackPaths;
   /** Active session store. Mutated by switchProjectInPlace. */
   activeSessionStore: SessionStore | undefined;
-  /** Active crash-recovery lock. Mutated by switchProjectInPlace and onResumeSession. */
-  activeRecoveryLock: RecoveryLock;
+  /** Move this process's cross-process ownership after an explicit resume. */
+  activateSessionIdentity?:
+    | ((sessionId: string, target?: SessionIdentityTarget) => Promise<void>)
+    | undefined;
   /** Todos checkpoint detach function. Mutated by switchProjectInPlace. */
   detachActiveTodosCheckpoint: (() => void | Promise<void>) | undefined;
 

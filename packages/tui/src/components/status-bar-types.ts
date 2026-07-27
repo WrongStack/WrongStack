@@ -238,12 +238,52 @@ export interface StatusBarProps {
    * Rendered as a chip on line 2 when non-null.
    */
   autoProceedCountdown?: number | null | undefined;
-  /** Codebase indexing state — rendered as a chip on line 1 when indexing. */
+  /** Codebase indexing and detached project-server state, rendered on the final service-detail line. */
   indexState?: {
     ready: boolean;
     indexing: boolean;
     currentFile: number;
     totalFiles: number;
+    lastError?: string | null | undefined;
+    server?: {
+      status:
+        | 'unavailable'
+        | 'offline'
+        | 'connecting'
+        | 'connected'
+        | 'degraded'
+        | 'unresponsive'
+        | 'error'
+        | 'stopping';
+      connected: boolean;
+      pid?: number | undefined;
+      lastError?: string | undefined;
+      health?: {
+        status: 'healthy' | 'degraded' | 'unresponsive';
+        checkedAt: number;
+        lastHealthyAt: number | null;
+        latencyMs: number | null;
+        missedHeartbeats: number;
+        server?: {
+          uptimeMs: number;
+          memory: {
+            rss: number;
+            heapUsed: number;
+            heapTotal: number;
+            external: number;
+          };
+          clients: number;
+          activeRequests: number;
+          activeWrites: number;
+          queuedWrites: number;
+          pendingExternalFiles: number;
+          watchingExternal: boolean;
+          watchingClients?: number | undefined;
+          clientLeaseTimeoutMs?: number | undefined;
+          oldestClientIdleMs?: number | undefined;
+        } | undefined;
+      } | undefined;
+    };
     /** Circuit-breaker snapshot — 'open' means indexing is paused after repeated failures. */
     circuit?: { state: 'closed' | 'open' | 'half-open'; cooldownRemainingMs: number };
   };

@@ -8,8 +8,50 @@ const beginOAuthLogin = vi.hoisted(() => vi.fn());
 
 vi.mock('@wrongstack/providers/oauth', () => ({ beginOAuthLogin }));
 
-describe('canonical provider OAuth operations', () => {
+describe('canonical provider operations', () => {
   beforeEach(() => vi.clearAllMocks());
+
+  it('returns catalog model search results to the requesting socket', async () => {
+    const messages: WSServerMessage[] = [];
+    const operations = createProviderOperations({
+      providerStore: {
+        load: async () => ({}),
+        save: async () => undefined,
+      },
+      modelsRegistry: {
+        listProviders: vi.fn(async () => [
+          {
+            id: 'anthropic',
+            name: 'Anthropic',
+            models: [{ id: 'claude-sonnet-4', name: 'Claude Sonnet 4' }],
+          },
+        ]),
+      } as never,
+      send: (_ws, message) => messages.push(message),
+      broadcast: vi.fn(),
+    });
+    const socket = {} as WebSocket;
+
+    await operations.handleProviderModelsSearch(socket, 'claude', 1);
+
+    expect(messages).toEqual([
+      {
+        type: 'provider.models.search_result',
+        payload: {
+          query: 'claude',
+          matches: [
+            {
+              providerId: 'anthropic',
+              providerName: 'Anthropic',
+              modelId: 'claude-sonnet-4',
+              name: 'Claude Sonnet 4',
+              capabilities: [],
+            },
+          ],
+        },
+      },
+    ]);
+  });
 
   it('persists and reports a requested provider alias', async () => {
     const close = vi.fn();

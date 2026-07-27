@@ -2,9 +2,16 @@ import type { Agent } from '@wrongstack/core/agent';
 import type { BrainArbiter } from '@wrongstack/core/coordination';
 import type { BrainAutoRisk } from '@wrongstack/core/execution';
 import type { EventBus } from '@wrongstack/core/kernel';
-import type { MemoryPort, ModelsRegistry, ModeStore, PromptLoader, SkillLoader } from '@wrongstack/core/types';
-import type { SessionStore, SessionWriter } from '@wrongstack/core/types';
 import type { TrustBoundary } from '@wrongstack/core/security';
+import type {
+  MemoryPort,
+  ModelsRegistry,
+  ModeStore,
+  PromptLoader,
+  SessionStore,
+  SessionWriter,
+  SkillLoader,
+} from '@wrongstack/core/types';
 import type { MCPRegistry } from '@wrongstack/mcp';
 
 /**
@@ -128,12 +135,33 @@ export interface CliWebUIOptions {
    * absent, falls back to the legacy <projectRoot>/.wrongstack/sessions path.
    */
   sessionsDir?: string | undefined;
+  /** Atomically reserve an explicitly selected session before opening it. */
+  claimSession?:
+    | ((
+        sessionId: string,
+        target?: {
+          projectSlug: string;
+          projectRoot: string;
+          projectName: string;
+          workingDir: string;
+        },
+      ) => Promise<() => Promise<void>>)
+    | undefined;
   /**
    * Called after session.resume swaps the active writer, with the new session
-   * id. The host uses this to re-point crash-recovery state (active.json) at
-   * the session that is now actually being written.
+   * id. Hosts use this to refresh session-scoped integrations.
    */
-  onSessionSwapped?: ((newSessionId: string) => void) | undefined;
+  onSessionSwapped?:
+    | ((
+        newSessionId: string,
+        target?: {
+          projectSlug: string;
+          projectRoot: string;
+          projectName: string;
+          workingDir: string;
+        },
+      ) => void | Promise<void>)
+    | undefined;
   /** Memory store — enables the Memory panel + chat `/memory` (memory.list) and the structured memory.sage.* operations. */
   memoryStore?: MemoryPort | undefined;
   /** Skill loader — enables the SkillsPanel (skills.list). */

@@ -212,13 +212,22 @@ export class Agent {
     const controller = new RunController({ parentSignal: opts.signal });
     const signal = controller.signal;
     this.ctx.signal = signal;
+    // Pin this run's writer and id BEFORE any async hook runs. Hosts (WebUI)
+    // can swap ctx.session on session.new/resume while this run is still in
+    // flight; every event and persistence call from here on — including from
+    // beforeRun extensions and late provider streams — must stay on the
+    // session that started the run.
+    const sessionWriter = this.ctx.session;
+    const sessionId = sessionWriter.id;
+    this.ctx.activeRunSessionWriter = sessionWriter;
+    this.ctx.activeRunSessionId = sessionId;
     controller.onAbort(() => this.ctx.drainAbortHooks());
     // Abort durability: drain the buffered session writer the moment the run
     // is cancelled. The loop's `finally` clears the in-flight marker, but the
     // buffered JSONL events would otherwise sit in memory until the next
     // periodic flush — a hard exit right after Ctrl+C would lose them.
     controller.onAbort(async () => {
-      await this.ctx.session.flush().catch(() => {
+      await sessionWriter.flush().catch(() => {
         /* best-effort — close()/checkpoint flush remains the backstop */
       });
     });
@@ -243,7 +252,6 @@ export class Agent {
     await this.extensions.runBeforeRun(this.ctx, inputPayload);
     const runStartedAt = Date.now();
     const runStartedIso = new Date(runStartedAt).toISOString();
-    const sessionId = this.ctx.session.id;
 
     try {
       this.events.emit('agent.run.started', {
@@ -309,9 +317,17 @@ export class Agent {
       });
       return result;
     } finally {
-      this._runInProgress = false;
       span?.end();
-      await controller.dispose();
+      // Keep the run guard and pinned session pair intact through controller
+      // disposal so teardown events cannot be attributed or persisted to a
+      // newly-selected session, and no next run can overwrite the pins early.
+      try {
+        await controller.dispose();
+      } finally {
+        this.ctx.activeRunSessionId = undefined;
+        this.ctx.activeRunSessionWriter = undefined;
+        this._runInProgress = false;
+      }
     }
   }
 

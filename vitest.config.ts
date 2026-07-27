@@ -147,11 +147,15 @@ export default defineConfig({
       ],
       // Aggregate ratchet: keep the expanded TS/TSX inventory covered without
       // pretending the existing workspace is already at 100% per file.
+      // Bumped 2026-07-27 after adding 258+ tests across 10 packages covering
+      // sage, runtime, kanban, techstack, providers, tools, and core modules.
+      // Actual full-suite coverage: 76.81% lines, 66.7% branches, 75.84%
+      // functions, 75.25% statements (26,842 tests, 304s).
       thresholds: {
-        lines: 75,
-        functions: 74,
-        branches: 65,
-        statements: 74,
+        lines: 76,
+        functions: 75,
+        branches: 66,
+        statements: 75,
         perFile: false,
       },
     },

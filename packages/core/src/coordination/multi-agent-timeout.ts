@@ -6,7 +6,7 @@ import type {
 import {
   BudgetExceededError,
   DECISION_TIMEOUT_MS,
-  SubagentBudget,
+  type SubagentBudget,
   TIMEOUT_PREEMPT_FRACTION,
 } from './subagent-budget.js';
 

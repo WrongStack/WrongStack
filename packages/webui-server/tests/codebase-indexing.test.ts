@@ -15,6 +15,7 @@ type IndexState = {
 const {
   cancelPendingReindexes,
   enqueueReindex,
+  ensureCodebaseIndexServer,
   isIndexableFile,
   onIndexStateChange,
   runStartupIndex,
@@ -25,6 +26,7 @@ const {
   return {
     cancelPendingReindexes: vi.fn(),
     enqueueReindex: vi.fn(),
+    ensureCodebaseIndexServer: vi.fn(async () => {}),
     isIndexableFile: vi.fn((filePath: string) => filePath.endsWith('.ts')),
     indexStateListeners: listeners,
     onIndexStateChange: vi.fn((listener: (state: IndexState) => void) => {
@@ -45,6 +47,7 @@ const {
 vi.mock('@wrongstack/tools', () => ({
   cancelPendingReindexes,
   enqueueReindex,
+  ensureCodebaseIndexServer,
   isIndexableFile,
   onIndexStateChange,
   indexStateListeners,

@@ -27,6 +27,7 @@ import type {
   BrainAutoRisk,
   BrainRuntime,
 } from '@wrongstack/core/execution';
+import type { DefaultTokenCounter } from '@wrongstack/core/infrastructure';
 import type { Container, EventBus } from '@wrongstack/core/kernel';
 import type { DefaultModeStore } from '@wrongstack/core/models';
 import type { ProviderRegistry, ToolRegistry } from '@wrongstack/core/registry';
@@ -44,7 +45,6 @@ import type {
   SessionStore,
   SkillLoader,
 } from '@wrongstack/core/types';
-import type { DefaultTokenCounter } from '@wrongstack/core/infrastructure';
 import type { WebSocket, WebSocketServer } from 'ws';
 
 type Session = Awaited<ReturnType<SessionStore['create']>>;
@@ -113,6 +113,7 @@ import {
 } from './shell-open.js';
 import type { SpecsRouteHandlers } from './specs-routes.js';
 import type { SpecsWebSocketHandler } from './specs-ws-handler.js';
+import type { SessionIdentityTarget } from './standalone-session-identity.js';
 import type { TerminalWebSocketHandler } from './terminal-ws-handler.js';
 import type { ConnectedClient } from './types.js';
 import type { WorktreeWebSocketHandler } from './worktree-ws-handler.js';
@@ -236,8 +237,10 @@ export interface WebuiCallbacks {
     mode: string;
     contextMode: string;
   }>;
-  /** Re-point registry, recovery, and HQ identity after a writer swap. */
-  onSessionSwapped: (sessionId: string) => Promise<void>;
+  /** Reserve an explicitly selected session before its writer is opened. */
+  claimSession: (sessionId: string, target?: SessionIdentityTarget) => Promise<() => Promise<void>>;
+  /** Re-point registry and HQ identity after a writer swap. */
+  onSessionSwapped: (sessionId: string, target?: SessionIdentityTarget) => Promise<void>;
   /** Re-build the AutoCompaction middleware denominator on model switch. */
   updateAutoCompactionMaxContext: (
     newProvider: Provider,
@@ -370,6 +373,8 @@ export function buildRoutes(
         ws,
         (msg as { payload: { providerId: string } }).payload.providerId,
       ),
+    searchProviderModels: (ws, query, limit) =>
+      providerHandlers.handleProviderModelsSearch(ws, query, limit),
     switchModel: (ws, msg) => modelOperations.switchModel(ws, msg.payload),
     adoptDefaultProviderIfUnset: providerHandlers.adoptDefaultProviderIfUnset,
     refineModel: (ws, msg) =>
@@ -393,7 +398,10 @@ export function buildRoutes(
     sessionsDir: deps.wpaths.projectSessions,
     setSession: state.setSession,
     setSessionStartedAt: state.setSessionStartedAt,
+    claimSession: cb.claimSession,
     onSessionSwapped: cb.onSessionSwapped,
+    abortActiveRun: state.abortRunLock,
+    isRunActive: state.isRunActive,
     sessionStartPayload: cb.sessionStartPayload,
   });
 

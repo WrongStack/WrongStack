@@ -31,6 +31,12 @@ export function SessionHealthPanel({ context, messages, sessionStart }: SessionH
     return () => { document.removeEventListener('keydown', onKey); clearInterval(timer); };
   }, [open]);
 
+  useEffect(() => {
+    const onOpen = () => setOpen(true);
+    window.addEventListener('simpleui:open-session-health', onOpen);
+    return () => window.removeEventListener('simpleui:open-session-health', onOpen);
+  }, []);
+
   const ctxPct = context.maxContext > 0 ? Math.round((context.tokens / context.maxContext) * 100) : 0;
 
   if (!open) {

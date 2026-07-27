@@ -19,8 +19,17 @@ vi.mock('../src/registry/client.js', () => ({
   clearRegistryCache: vi.fn(),
 }));
 
+const EMPTY_OSV_RESULT = {
+  advisories: new Map(),
+  evidence: {
+    kind: 'osv' as const,
+    source: 'https://api.osv.dev/v1/querybatch',
+    retrievedAt: '2026-01-01T00:00:00Z',
+  },
+};
+
 vi.mock('../src/advisory/osv.js', () => ({
-  queryOsvBatch: vi.fn(async () => ({ advisories: new Map() })),
+  queryOsvBatch: vi.fn(async () => EMPTY_OSV_RESULT),
 }));
 
 import { lookupRegistry } from '../src/registry/client.js';
@@ -53,7 +62,7 @@ function createMockStore(): { store: MockStore; engine: TechStackEngine } {
       storeData.jobs.set(job.id, { ...job });
     },
     updateJobStatus(id: string, status: TechStackJobStatus, progress?: TechStackJobProgress) {
-      storeData.statusUpdates.push({ id, status, progress });
+      storeData.statusUpdates.push({ id, status, ...(progress ? { progress } : {}) });
       const existing = storeData.jobs.get(id);
       if (existing) storeData.jobs.set(id, { ...existing, status, progress });
     },
@@ -74,7 +83,7 @@ beforeEach(() => {
     retrievedAt: '2026-01-01T00:00:00Z',
     source: 'mock-registry',
   });
-  mockedQueryOsv.mockResolvedValue({ advisories: new Map() });
+  mockedQueryOsv.mockResolvedValue(EMPTY_OSV_RESULT);
   tmpProject = mkdtempSync(join(tmpdir(), 'ts-engine-'));
 });
 

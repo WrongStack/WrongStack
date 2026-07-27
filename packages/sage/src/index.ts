@@ -4,6 +4,7 @@ export {
   type HashingEmbeddingProviderOptions,
 } from './embeddings/hashing.js';
 export {
+  createProjectSageMemoryPort,
   createSqliteMemoryPort,
   getSageRetrieval,
   getSageService,
@@ -14,7 +15,19 @@ export {
   SAGE_SERVICE_CAPABILITY,
   SAGE_SURFACE_CAPABILITY,
   type SageRetrievalCapability,
+  ProjectSageMemoryPort,
+  type ProjectSageMemoryPortOptions,
 } from './memory-port.js';
+export {
+  isSageProjectServerAvailable,
+  SageProjectServerConnection,
+  type SageProjectServerConnectionState,
+} from './project-server-client.js';
+export {
+  resolveProjectSageStorageRoot,
+  sageProjectServerEndpoint,
+  sageProjectServerKey,
+} from './project-server-endpoint.js';
 export {
   createSageContextMonitorMiddleware,
   type SageContextMonitorOptions,

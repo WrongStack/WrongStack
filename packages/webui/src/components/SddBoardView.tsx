@@ -244,22 +244,25 @@ export function SddBoardView({ onClose }: { onClose: () => void }): React.ReactE
             )}
           </div>
           <div className="flex items-center gap-2">
-            {/* Deep link: open this run's mirrored kanban board. */}
+            {/* Deep link: open this run's mirrored kanban board(s) — one per topo wave. */}
             {snapshot && (
               <button
                 type="button"
-                title="Open the mirrored kanban board for this run"
+                title="Open the mirrored kanban board(s) for this run (one per dependency wave)"
                 onClick={() => {
                   const runTag = `run:${snapshot.runId}`;
-                  const mirrored = useKanbanStore
+                  const boards = useKanbanStore
                     .getState()
-                    .boards.find((summary) => summary.tags?.includes(runTag));
-                  if (mirrored) useKanbanStore.getState().setActiveBoardId(mirrored.id);
+                    .boards.filter((summary) => summary.tags?.includes(runTag));
+                  // Prefer the first wave board when multi-board; fall back to any match.
+                  const preferred =
+                    boards.find((b) => b.tags?.includes('phase:wave-0')) ?? boards[0];
+                  if (preferred) useKanbanStore.getState().setActiveBoardId(preferred.id);
                   useUIStore.getState().setCurrentView('kanban');
                 }}
                 className="inline-flex items-center gap-1 rounded-md border border-border px-2.5 py-1 text-xs font-medium text-muted-foreground hover:bg-muted"
               >
-                <Activity className="h-3.5 w-3.5" /> Kanban board
+                <Activity className="h-3.5 w-3.5" /> Kanban
               </button>
             )}
             {/* Graph ↔ Kanban view toggle */}

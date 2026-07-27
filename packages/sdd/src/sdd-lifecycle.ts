@@ -10,8 +10,10 @@
 // the run already settled, or `/sdd destroy` to wipe the project).
 
 import * as fsp from 'node:fs/promises';
+import * as path from 'node:path';
 import { toErrorMessage } from '@wrongstack/core/utils';
 import { WorktreeManager } from '@wrongstack/core/worktree';
+import { listBoards, removeBoard } from '@wrongstack/kanban';
 import { SddBoardStore } from './sdd-board-store.js';
 
 /** Force-remove every git worktree + branch a previous run left behind. */
@@ -219,9 +221,27 @@ export async function destroySddProject(
   };
 
   await rmFile(opts.paths.projectSddSession, 'session');
+  // Legacy WebUI wizard path (pre-unification) — keep destroy thorough.
+  await rmFile(
+    path.join(path.dirname(opts.paths.projectSddSession), 'sdd-wizard-session.json'),
+    'wizard-session',
+  );
   await rmDir(opts.paths.projectSpecs, 'specs');
   await rmDir(opts.paths.projectTaskGraphs, 'task-graphs');
   await rmDir(opts.paths.projectSddBoards, 'boards');
+
+  // 4. Drop KanbanRunMirror boards tagged `sdd` so the Kanban view does not
+  // keep stale run cards after the project is wiped.
+  try {
+    const mirrors = (await listBoards(opts.projectRoot)).filter((b) => b.tags?.includes('sdd'));
+    let mirrorsRemoved = 0;
+    for (const b of mirrors) {
+      if (await removeBoard(opts.projectRoot, b.id)) mirrorsRemoved++;
+    }
+    if (mirrorsRemoved > 0) deleted.push(`kanban-mirrors(${mirrorsRemoved})`);
+  } catch {
+    // Kanban store missing / unreadable — destroy still succeeded on SDD artifacts.
+  }
 
   return { worktreesRemoved: removed, deleted, reverted, revertOk, revertReason };
 }

@@ -12,10 +12,17 @@ export interface InjectionTrackerOptions {
    */
   minTokens?: number | undefined;
   /**
-   * Overlap coefficient (memory tokens ∩ assistant tokens / memory tokens)
+   * Overlap coefficient (memory tokens ∩ assistant tokens / smaller set)
    * required to count a reference as a use. Default: 0.5.
    */
   matchThreshold?: number | undefined;
+  /**
+   * Absolute minimum shared tokens for a ratio-based match. Without this,
+   * a 4-token memory only needs 2 coincidental overlaps at the default
+   * threshold and falsely credits `recordUse`. Id citations and long
+   * phrase containment bypass this floor. Default: 3.
+   */
+  minMatchTokens?: number | undefined;
 }
 
 interface TrackedInjection {
@@ -55,6 +62,7 @@ export class InjectionTracker {
   private readonly maxEntries: number;
   private readonly minTokens: number;
   private readonly matchThreshold: number;
+  private readonly minMatchTokens: number;
   private readonly entries = new Map<string, TrackedInjection>();
   private readonly contextEntries = new Map<string, ContextInjection>();
   private readonly activeContextBySession = new Map<
@@ -71,6 +79,7 @@ export class InjectionTracker {
     this.maxEntries = opts.maxEntries ?? 500;
     this.minTokens = opts.minTokens ?? 4;
     this.matchThreshold = opts.matchThreshold ?? 0.5;
+    this.minMatchTokens = opts.minMatchTokens ?? 3;
   }
 
   /** Register an injected memory as matchable. Text is normalized once here. */
@@ -160,16 +169,40 @@ export class InjectionTracker {
     if (!textKey) return [];
     this.prune(now);
     const assistantTokens = new Set(tokenize(textKey));
-    if (assistantTokens.size === 0) return [];
+    // Empty assistant text after tokenization still allows id citation matches
+    // (e.g. the model only wrote a memory id reference).
     const matched: string[] = [];
     for (const [memoryId, entry] of this.entries) {
+      // Explicit id citation is the strongest usefulness signal — models often
+      // reference `<memory id="…">` without restating the full body.
+      if (textKey.includes(normalizeTextKey(memoryId)) || assistantText.includes(memoryId)) {
+        matched.push(memoryId);
+        this.entries.delete(memoryId);
+        continue;
+      }
+      if (assistantTokens.size === 0) continue;
+      // Also accept high containment of the memory's own normalized text when
+      // the assistant paraphrases lightly but keeps a long distinctive phrase.
+      const phraseHit =
+        entry.textKey.length >= 24 && textKey.includes(entry.textKey.slice(0, 80));
+      if (phraseHit) {
+        matched.push(memoryId);
+        this.entries.delete(memoryId);
+        continue;
+      }
       // Overlap coefficient (Szymkiewicz–Simpson) using the cached token set.
+      // Absolute floor (`minMatchTokens`) kills short-memory false positives
+      // where 2 coincidental tokens already clear a 0.5 ratio on a 4-token set.
       let intersection = 0;
       for (const token of entry.tokenSet) {
         if (assistantTokens.has(token)) intersection++;
       }
       const smaller = Math.min(entry.tokenSet.size, assistantTokens.size);
-      if (smaller > 0 && intersection / smaller >= this.matchThreshold) {
+      if (
+        intersection >= this.minMatchTokens &&
+        smaller > 0 &&
+        intersection / smaller >= this.matchThreshold
+      ) {
         matched.push(memoryId);
         this.entries.delete(memoryId);
       }

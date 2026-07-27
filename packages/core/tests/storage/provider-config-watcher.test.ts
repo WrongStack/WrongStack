@@ -6,6 +6,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { DefaultSecretVault } from '../../src/security/secret-vault.js';
 import {
   type ProviderConfigSnapshot,
+  readProviderSnapshot,
   watchProviderConfig,
 } from '../../src/storage/provider-config-watcher.js';
 import { atomicWrite } from '../../src/utils/atomic-write.js';
@@ -27,6 +28,35 @@ afterEach(() => {
 });
 
 describe('watchProviderConfig', () => {
+  it('normalizes inline provider models in a hot-reload snapshot', async () => {
+    const { configPath, vault } = await makeFixture();
+    await writeConfig(configPath, {
+      version: 1,
+      providers: {
+        acme: {
+          type: 'acme',
+          family: 'openai-compatible',
+          models: [
+            {
+              id: 'acme-large',
+              name: 'Acme Large',
+              limit: { context: 262_144, output: 32_768 },
+              tool_call: true,
+            },
+          ],
+        },
+      },
+    });
+
+    const snapshot = await readProviderSnapshot(configPath, vault);
+    expect(snapshot?.providers.acme?.models).toEqual(['acme-large']);
+    expect(snapshot?.providers.acme?.customModels?.['acme-large']).toEqual({
+      name: 'Acme Large',
+      maxOutput: 32_768,
+      capabilities: { maxContext: 262_144, tools: true },
+    });
+  });
+
   it('fires onChange with the decrypted providers map after a change', async () => {
     const { configPath, vault } = await makeFixture();
     await writeConfig(configPath, { version: 1, providers: {} });

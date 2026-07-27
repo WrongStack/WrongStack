@@ -1,3 +1,4 @@
+import type { BrainConfigPatchWire } from './brain.js';
 import type { ChronicleFacet, ChronicleMetricsView, ChronicleQuery } from './chronicle.js';
 import type {
   WSCollabAnnotate,
@@ -9,11 +10,27 @@ import type {
   WSCollabResolve,
   WSCollabResume,
 } from './collab.js';
-import type { BrainConfigPatchWire } from './brain.js';
 import type { SessionScopedPayload, WSUserMessage } from './protocol-core.js';
-import type { WSModelSwitch, WSToolConfirmResult } from './runtime.js';
+import type { ContextEditorMessage, WSModelSwitch, WSToolConfirmResult } from './runtime.js';
 import type { SageAnchor, SageScope, SageStatus, WSMemorySageForFileRequest } from './sage.js';
 import type { OAuthKind, WSCompletionRequest } from './system.js';
+
+/** Metadata persisted by the custom-provider model editor in provider add/update messages. */
+export interface ProviderCustomModelWire {
+  name?: string | undefined;
+  maxOutput?: number | undefined;
+  capabilities?:
+    | {
+        maxContext?: number | undefined;
+        maxOutput?: number | undefined;
+        tools?: boolean | undefined;
+        vision?: boolean | undefined;
+        reasoning?: boolean | undefined;
+        streaming?: boolean | undefined;
+        jsonMode?: boolean | undefined;
+      }
+    | undefined;
+}
 
 export type WSClientMessageCore =
   | WSUserMessage
@@ -130,10 +147,12 @@ export type WSClientMessageCore =
   | { type: 'worktree.remove'; payload: { dir?: string | undefined; branch?: string | undefined } }
   | { type: 'worktree.merge'; payload: { branch: string } }
   | { type: 'worktree.diff'; payload: { dir: string; baseBranch?: string | undefined } }
-  | { type: 'sdd.spec.start'; payload: { goal: string } }
+  | { type: 'sdd.spec.start'; payload: { goal: string; force?: boolean | undefined } }
   | { type: 'sdd.spec.message'; payload: { text: string } }
   | { type: 'sdd.spec.approve'; payload?: Record<string, never> }
   | { type: 'sdd.spec.get'; payload?: Record<string, never> }
+  /** Abandon the in-progress interview (clears on-disk session) so a new one can start. */
+  | { type: 'sdd.spec.discard'; payload?: Record<string, never> }
   | {
       type: 'sdd.run.start';
       payload?: {
@@ -144,6 +163,32 @@ export type WSClientMessageCore =
         /** Per-run override of git-worktree isolation. Omitted → env default
          *  (WRONGSTACK_SDD_WORKTREES). false → run on the current branch. */
         worktrees?: boolean | undefined;
+        /** Split non-atomic tasks before dispatch (planning-time decompose). */
+        planDecompose?: boolean | undefined;
+      };
+    }
+  | {
+      type: 'sdd.run.from_graph';
+      payload: {
+        graphId: string;
+        parallelSlots?: number | undefined;
+        model?: string | undefined;
+        provider?: string | undefined;
+        fallbackModels?: string[] | undefined;
+        worktrees?: boolean | undefined;
+        planDecompose?: boolean | undefined;
+      };
+    }
+  | {
+      type: 'sdd.run.from_spec';
+      payload: {
+        specId: string;
+        parallelSlots?: number | undefined;
+        model?: string | undefined;
+        provider?: string | undefined;
+        fallbackModels?: string[] | undefined;
+        worktrees?: boolean | undefined;
+        planDecompose?: boolean | undefined;
       };
     }
   | { type: 'abort'; payload: SessionScopedPayload }
@@ -155,6 +200,23 @@ export type WSClientMessageCore =
   | { type: 'context.compact'; payload: { aggressive: boolean } & SessionScopedPayload }
   | { type: 'context.repair'; payload?: SessionScopedPayload }
   | { type: 'context.debug'; payload?: SessionScopedPayload }
+  | { type: 'context.editor.open'; payload?: SessionScopedPayload }
+  | {
+      type: 'context.editor.validate';
+      payload: SessionScopedPayload & {
+        baseRevision: string;
+        messages: ContextEditorMessage[];
+        allowRepair: boolean;
+      };
+    }
+  | {
+      type: 'context.editor.apply';
+      payload: SessionScopedPayload & {
+        baseRevision: string;
+        messages: ContextEditorMessage[];
+        allowRepair: boolean;
+      };
+    }
   | { type: 'context.modes.list'; payload?: SessionScopedPayload }
   | { type: 'context.mode.switch'; payload: { id: string } & SessionScopedPayload }
   | {
@@ -183,8 +245,10 @@ export type WSClientMessageCore =
     }
   | { type: 'context.mode.delete'; payload: { id: string } & SessionScopedPayload }
   | WSModelSwitch
+  | { type: 'codebase.index.server.shutdown'; payload: { requestId: string } }
   | { type: 'providers.list' }
   | { type: 'provider.models'; payload: { providerId: string } }
+  | { type: 'provider.models.search'; payload: { query: string; limit?: number | undefined } }
   | { type: 'providers.saved' }
   | { type: 'key.add'; payload: { providerId: string; label: string; apiKey: string } }
   | { type: 'key.update'; payload: { providerId: string; label: string; apiKey: string } }
@@ -197,6 +261,8 @@ export type WSClientMessageCore =
         family: string;
         baseUrl?: string | undefined;
         apiKey?: string | undefined;
+        models?: string[] | undefined;
+        customModels?: Record<string, ProviderCustomModelWire> | undefined;
       };
     }
   | { type: 'provider.remove'; payload: { providerId: string } }
@@ -210,6 +276,7 @@ export type WSClientMessageCore =
         baseUrl?: string | undefined;
         envVars?: string[] | undefined;
         models?: string[] | undefined;
+        customModels?: Record<string, ProviderCustomModelWire> | undefined;
       };
     }
   | { type: 'provider.probe'; payload: { providerId: string; timeoutMs?: number | undefined } }
@@ -219,7 +286,6 @@ export type WSClientMessageCore =
   | { type: 'provider.status.get' }
   | { type: 'provider.status.retry'; payload: { providerId: string; model: string } }
   | { type: 'provider.status.clear'; payload: { providerId: string; model: string } }
-  | { type: 'tools.list' }
   | { type: 'memory.list' }
   | { type: `agent-roster.${string}`; payload?: Record<string, unknown> | undefined }
   // ── Sage send types ──
@@ -299,8 +365,6 @@ export type WSClientMessageCore =
         contradicts?: string[] | undefined;
       };
     }
-  | { type: 'skills.list' }
-  | { type: 'skills.content'; payload: { name: string; source: string } }
   | { type: 'prompts.list' }
   | {
       type: 'prompts.search';
@@ -331,6 +395,8 @@ export type WSClientMessageCore =
     }
   | { type: 'diag.get'; payload?: SessionScopedPayload }
   | { type: 'stats.get'; payload?: SessionScopedPayload }
+  | { type: 'connections.health' }
+  | { type: 'chronicle.status' }
   | { type: 'chronicle.query'; payload: { query?: ChronicleQuery | undefined } }
   | {
       type: 'chronicle.facet';

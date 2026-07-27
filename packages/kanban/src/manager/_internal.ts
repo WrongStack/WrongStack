@@ -35,6 +35,8 @@ import {
   requireNonBlank,
   slugify,
   statusForColumn,
+  uniqueIdFromSet,
+  uniqueStrings,
 } from './basic-helpers.js';
 import {
   applyCompletedAtForStatus,
@@ -51,6 +53,8 @@ export {
   requireNonBlank,
   slugify,
   statusForColumn,
+  uniqueIdFromSet,
+  uniqueStrings,
 } from './basic-helpers.js';
 export {
   isAssignmentHeartbeatDue,
@@ -766,18 +770,6 @@ export function uniqueColumnId(board: KanbanBoard, requested: string): string {
   return candidate;
 }
 
-export function uniqueIdFromSet(usedIds: Set<string>, requested: string): string {
-  const base = requested || 'item';
-  let candidate = base;
-  let suffix = 2;
-  while (usedIds.has(candidate)) {
-    candidate = `${base}-${suffix}`;
-    suffix += 1;
-  }
-  usedIds.add(candidate);
-  return candidate;
-}
-
 export function normalizeDependencyIds(
   board: KanbanBoard,
   taskId: string,
@@ -805,10 +797,6 @@ export function cloneChecks(checks: readonly KanbanCheck[]): KanbanCheck[] {
 export function cloneGoalMetrics(metrics: readonly KanbanGoalMetric[]): KanbanGoalMetric[] {
   const now = nowIso();
   return metrics.map((metric) => ({ ...metric, id: randomUUID(), updatedAt: now }));
-}
-
-export function uniqueStrings(values: readonly string[]): string[] {
-  return [...new Set(values.filter(Boolean))];
 }
 
 export function optionalArray<K extends string, T>(

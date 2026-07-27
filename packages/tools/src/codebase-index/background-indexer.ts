@@ -33,14 +33,34 @@ import {
   CircuitOpenError,
   type CircuitSnapshot,
   IndexTimeoutError,
-  LockError,
   indexCircuitBreaker,
+  LockError,
 } from './circuit-breaker.js';
-import { indexService, searchService, statsService } from './index-service.js';
-import type { IndexResult, IndexStats } from './schema.js';
+import {
+  fileGraphService as fileGraphServiceInline,
+  indexService,
+  packageGraphService as packageGraphServiceInline,
+  searchService,
+  statsService,
+  symbolGraphService as symbolGraphServiceInline,
+} from './index-service.js';
 import { isIndexablePath } from './languages.js';
-import { indexStorePool } from './writer.js';
+import {
+  callProjectIndexServer,
+  checkProjectIndexServerHealth,
+  closeProjectIndexServerClients,
+  ensureProjectIndexServer,
+  getProjectIndexServerConnectionState,
+  isProjectIndexServerAvailable,
+  onProjectIndexServerConnectionStateChange,
+  type ProjectIndexServerClientHealth,
+  type ProjectIndexServerConnectionState,
+  type ProjectIndexServerShutdownResult,
+  shutdownProjectIndexServer,
+} from './project-server-client.js';
+import type { CodeMapGraph, IndexResult, IndexStats } from './schema.js';
 import type {
+  FileGraphOpArgs,
   HostToWorker,
   IndexOpArgs,
   OpName,
@@ -48,8 +68,10 @@ import type {
   SearchOpArgs,
   SearchOpResult,
   StatsOpArgs,
+  SymbolGraphOpArgs,
   WorkerToHost,
 } from './worker-protocol.js';
+import { indexStorePool } from './writer.js';
 
 // ─── Watchdog timeouts ───────────────────────────────────────────────────────
 
@@ -108,15 +130,21 @@ export function getIndexState(): {
   currentFile: number;
   totalFiles: number;
   lastError: string | null;
+  /** Detached per-project server connection owned by this client process. */
+  server: ProjectIndexServerConnectionState;
   /** Circuit-breaker state — `open` means indexing is paused after repeated failures. */
   circuit: CircuitSnapshot;
 } {
+  const server = getProjectIndexServerConnectionState();
+  const remoteActivity = server.activity;
+  const remoteIndexing = remoteActivity?.indexing ?? false;
   return {
-    ready: _ready,
-    indexing: _indexing,
-    currentFile: _currentFile,
-    totalFiles: _totalFiles,
-    lastError: _lastError,
+    ready: _ready || (remoteActivity?.generation ?? 0) > 0,
+    indexing: _indexing || remoteIndexing,
+    currentFile: remoteIndexing ? (remoteActivity?.currentFile ?? 0) : _currentFile,
+    totalFiles: remoteIndexing ? (remoteActivity?.totalFiles ?? 0) : _totalFiles,
+    lastError: remoteActivity?.lastError ?? _lastError,
+    server,
     circuit: indexCircuitBreaker.snapshot(),
   };
 }
@@ -140,6 +168,10 @@ function emitState() {
   const state = getIndexState();
   for (const l of _listeners) l(state);
 }
+
+// Server lifecycle changes are part of index state even while no indexing job
+// is active, so the TUI can keep a truthful connected/offline/error indicator.
+onProjectIndexServerConnectionStateChange(() => emitState());
 
 function setIndexProgress(current: number, total: number) {
   _currentFile = current;
@@ -207,7 +239,8 @@ function ensureWorker(): Worker | null {
       pending.delete(msg.id);
       if (msg.ok) entry.resolve(msg.result);
       else {
-        const error = msg.errorName === 'LockError' ? new LockError(msg.error) : new Error(msg.error);
+        const error =
+          msg.errorName === 'LockError' ? new LockError(msg.error) : new Error(msg.error);
         if (msg.errorName && msg.errorName !== 'Error') {
           (error as { name: string }).name = msg.errorName;
         }
@@ -250,6 +283,7 @@ function terminateWorker(reason: unknown): void {
  */
 export async function shutdownCodebaseIndexHost(): Promise<void> {
   cancelPendingReindexes();
+  closeProjectIndexServerClients();
   indexStorePool.closeAll();
   const w = worker;
   worker = null;
@@ -284,6 +318,13 @@ function callIndexOp<O extends OpName>(
   args: OpShapes[O]['args'],
   opts: CallOpts,
 ): Promise<OpShapes[O]['result']> {
+  // Production builds route every operation through one detached server per
+  // project. Source-tree tests and exotic runtimes without the built server
+  // retain the worker/inline fallback below.
+  if (isProjectIndexServerAvailable()) {
+    return callProjectIndexServer(op, args, opts);
+  }
+
   const w = ensureWorker();
   if (!w) return callInline(op, args, opts);
 
@@ -369,6 +410,12 @@ async function callInline<O extends OpName>(
         return searchService(args as SearchOpArgs) as OpShapes[O]['result'];
       case 'stats':
         return statsService(args as StatsOpArgs) as OpShapes[O]['result'];
+      case 'packageGraph':
+        return packageGraphServiceInline(args as StatsOpArgs) as OpShapes[O]['result'];
+      case 'fileGraph':
+        return fileGraphServiceInline(args as FileGraphOpArgs) as OpShapes[O]['result'];
+      case 'symbolGraph':
+        return symbolGraphServiceInline(args as SymbolGraphOpArgs) as OpShapes[O]['result'];
       default:
         throw new Error(`unknown index op: ${String(op)}`);
     }
@@ -664,6 +711,59 @@ export async function codebaseIndexStats(
   });
 }
 
+/** Package dependency graph, served by the same per-project index process. */
+export async function packageGraphService(args: StatsOpArgs): Promise<CodeMapGraph> {
+  return callIndexOp('packageGraph', args, { timeoutMs: DEFAULT_QUERY_TIMEOUT_MS });
+}
+
+/** File dependency graph, served by the same per-project index process. */
+export async function fileGraphService(args: FileGraphOpArgs): Promise<CodeMapGraph> {
+  return callIndexOp('fileGraph', args, { timeoutMs: DEFAULT_QUERY_TIMEOUT_MS });
+}
+
+/** Symbol dependency graph, served by the same per-project index process. */
+export async function symbolGraphService(args: SymbolGraphOpArgs): Promise<CodeMapGraph> {
+  return callIndexOp('symbolGraph', args, { timeoutMs: DEFAULT_QUERY_TIMEOUT_MS });
+}
+
+/**
+ * Stop this project's detached index server. Unlike
+ * shutdownCodebaseIndexHost(), this intentionally affects every connected
+ * TUI/CLI/WebUI client for the project.
+ */
+export function shutdownCodebaseIndexServer(
+  projectRoot: string,
+  indexDir?: string,
+  reason?: string,
+): Promise<ProjectIndexServerShutdownResult> {
+  return shutdownProjectIndexServer(projectRoot, indexDir, reason);
+}
+
+/** Probe the connected project server without starting a missing server. */
+export function checkCodebaseIndexServerHealth(
+  projectRoot: string,
+  indexDir?: string,
+  options: { timeoutMs?: number | undefined } = {},
+): Promise<ProjectIndexServerClientHealth> {
+  return checkProjectIndexServerHealth(projectRoot, indexDir, options);
+}
+
+/** Ensure the detached project server exists and owns external watching. */
+export function ensureCodebaseIndexServer(options: {
+  projectRoot: string;
+  indexDir?: string | undefined;
+  watchExternal?: boolean | undefined;
+  debounceMs?: number | undefined;
+}): Promise<void> {
+  if (!isProjectIndexServerAvailable()) return Promise.resolve();
+  return ensureProjectIndexServer({
+    projectRoot: options.projectRoot,
+    indexDir: options.indexDir,
+    watchExternal: options.watchExternal ?? false,
+    debounceMs: options.debounceMs ?? DEFAULT_DEBOUNCE_MS,
+  });
+}
+
 // ─── Test-only reset ───────────────────────────────────────────────────────────
 
 /**
@@ -683,6 +783,7 @@ export function resetIndexStateForTesting(): void {
   chain = Promise.resolve();
   indexCircuitBreaker.reset();
   cancelPendingReindexes();
+  closeProjectIndexServerClients();
   // Don't terminate the worker — it's expensive to respawn and tests that
   // need it will call ensureWorker() lazily. Just clear the RPC state.
   for (const [, p] of pending) p.reject(new Error('test reset'));

@@ -22,6 +22,7 @@ export {
   toolStreamBoxHeight,
 } from './stream-box.js';
 export { ToolOutputLines } from './visual-lines.js';
+export type { ToolVisualLine, ToolVisualLineKind } from './tool-visual-types.js';
 
 import {
   countLines,
@@ -69,6 +70,7 @@ import {
 import { visualMode, visualWorkingDir } from './tool-visual-mode-workdir.js';
 import { visualLogs, visualMemory } from './visual-memory-logs.js';
 import { formatToolOutputSageWith } from './sage-output-format.js';
+import type { ToolVisualLine, ToolVisualLineKind } from './tool-visual-types.js';
 
 export { formatToolArgs } from './tool-arg-format.js';
 export { extractSageBlock, type SageSplit } from './sage-output-format.js';
@@ -566,25 +568,6 @@ export function formatToolOutput(
 // ============================================
 // Semantic tool output preview
 // ============================================
-
-export type ToolVisualLineKind =
-  | 'ok'
-  | 'warn'
-  | 'error'
-  | 'meta'
-  | 'path'
-  | 'match'
-  | 'code'
-  | 'stdout'
-  | 'stderr';
-
-export interface ToolVisualLine {
-  kind: ToolVisualLineKind;
-  text: string;
-  marker?: string | undefined;
-  lineNo?: string | undefined;
-  path?: string | undefined;
-}
 
 const VISUAL_MAX_LINES = 7;
 

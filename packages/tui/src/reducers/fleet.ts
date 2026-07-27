@@ -12,7 +12,8 @@
  * null when the action should fall through to the main reducer.
  */
 
-import type { Action, FleetEntry, State } from '../app-state.js';
+import type { Action } from '../app-action-type.js';
+import type { FleetEntry, State } from '../app-state.js';
 import { clampContextLoad } from './helpers.js';
 
 function isPlaceholderName(name: string, id: string): boolean {

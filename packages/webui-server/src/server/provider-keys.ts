@@ -94,10 +94,12 @@ function hydratePresetConfig(providerId: string, dest: ProviderConfig): string |
   if (!dest.family) dest.family = preset.family;
   if (dest.baseUrl === undefined) dest.baseUrl = template.baseUrl;
   if (!dest.envVars || dest.envVars.length === 0) dest.envVars = template.envVars;
-  if (!dest.models || dest.models.length === 0) dest.models = template.models;
-  if (template.customModels && (!dest.customModels || Object.keys(dest.customModels).length === 0)) {
-    dest.customModels = template.customModels;
-  }
+  // Model availability/capability facts are product-locked for trusted
+  // presets. A generic provider.add client must not replace them with metadata
+  // selected for an unrelated custom endpoint.
+  dest.models = template.models;
+  if (template.customModels) dest.customModels = template.customModels;
+  else delete dest.customModels;
   if (template.quirks && dest.quirks === undefined) dest.quirks = template.quirks;
   return preset.id;
 }
@@ -179,7 +181,14 @@ export function setActiveKey(
 /** Register a brand-new provider (optionally with an initial `default` key). */
 export function addProvider(
   providers: ProvidersRecord,
-  payload: { id: string; family: string; baseUrl?: string | undefined; apiKey?: string | undefined },
+  payload: {
+    id: string;
+    family: string;
+    baseUrl?: string | undefined;
+    apiKey?: string | undefined;
+    models?: string[] | undefined;
+    customModels?: ProviderConfig['customModels'] | undefined;
+  },
   nowIso: string,
 ): KeyOpResult {
   if (providers[payload.id]) {
@@ -198,6 +207,10 @@ export function addProvider(
     type: payload.id,
     family: payload.family as ProviderConfig['family'],
     baseUrl: payload.baseUrl,
+    ...(payload.models !== undefined ? { models: [...payload.models] } : {}),
+    ...(payload.customModels !== undefined
+      ? { customModels: structuredClone(payload.customModels) }
+      : {}),
   };
   const presetId = hydratePresetConfig(payload.id, newProv);
   if (presetId) newProv.type = presetId;

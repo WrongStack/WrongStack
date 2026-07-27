@@ -71,7 +71,7 @@ export interface LocalPrefs {
   /** Compactor strategy — matches core's config.context.strategy. */
   contextStrategy: 'hybrid' | 'intelligent' | 'selective';
   /** Context window mode — matches core's config.context.mode. */
-  contextMode: 'balanced' | 'frugal' | 'deep' | 'archival';
+  contextMode: 'balanced' | 'frugal' | 'deep';
   /** Token-saving mode — matches core's config.features.tokenSavingMode. */
   tokenSavingTier: 'off' | 'minimal' | 'light' | 'medium' | 'aggressive';
   /** Max concurrent subagents */

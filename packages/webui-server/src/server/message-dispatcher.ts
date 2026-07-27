@@ -21,8 +21,10 @@ import path from 'node:path';
 import type { WebSocket } from 'ws';
 import { AgentRosterWSHandler } from './agent-roster-handlers.js';
 import type { ClientTransportRouteHandlers } from './client-transport-routes.js';
+import { handleCodebaseIndexServerControl } from './codebase-index-server-control.js';
 import { createToolLspCompletionSource, handleCompletionRequest } from './completion-handlers.js';
 import type { CompletionRouteHandlers } from './completion-routes.js';
+import { handleConnectionsHealthRoute } from './connections-health-route.js';
 import { createConversationOperations } from './conversation-operations.js';
 import { handleGoalGet } from './goal-handlers.js';
 import type { GoalSnapshotRouteHandlers } from './goal-snapshot-routes.js';
@@ -344,5 +346,37 @@ export function createMessageDispatcher(
     },
   });
 
-  return async (ws, _client, msg) => dispatch(ws, msg);
+  return async (ws, _client, msg) => {
+    if (
+      await handleConnectionsHealthRoute(
+        {
+          getProjectRoot: state.getProjectRoot,
+          getIndexDir: () =>
+            typeof deps.context.meta['codebaseIndexDir'] === 'string'
+              ? deps.context.meta['codebaseIndexDir']
+              : undefined,
+          send,
+          backend: 'standalone',
+        },
+        ws,
+        msg,
+      )
+    )
+      return;
+    if (
+      await handleCodebaseIndexServerControl(ws, msg, {
+        trustBoundary: deps.trustBoundary,
+        logger: deps.logger,
+        getProjectRoot: state.getProjectRoot,
+        getIndexDir: () =>
+          typeof deps.context.meta['codebaseIndexDir'] === 'string'
+            ? deps.context.meta['codebaseIndexDir']
+            : undefined,
+        send,
+        backend: 'standalone',
+      })
+    )
+      return;
+    await dispatch(ws, msg);
+  };
 }

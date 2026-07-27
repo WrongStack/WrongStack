@@ -58,4 +58,72 @@ describe('Chronicle rollups', () => {
       categories: { '2xx': 2, '5xx': 1 },
     } });
   });
+
+  it('windows periodic health samples into one aggregate per session', async () => {
+    const dir = await mkdtemp(path.join(os.tmpdir(), 'chronicle-rollup-health-')); dirs.push(dir);
+    const journal = new ChronicleJournal({ filePath: path.join(dir, 'events.jsonl') });
+    const events = new EventBus(); const context = createChronicleContext({ installationId: 'i', machineId: 'm' }, 'trace');
+    const off = wireRollupsToChronicle({ events, journal, context, windowMs: 60_000 });
+    const sample = (utilization: number, heapUsedBytes: number) => ({
+      sessionId: 's',
+      uptimeSeconds: 10,
+      eventLoop: { utilization, activeMs: 1, idleMs: 1, delayMeanMs: 1, delayP95Ms: 2, delayMaxMs: 3 },
+      cpu: { userMicros: 100, systemMicros: 10 },
+      memory: { rssBytes: 1, heapTotalBytes: 2, heapUsedBytes, externalBytes: 0, arrayBuffersBytes: 0 },
+      chronicle: { pendingEvents: 5, rejectedEvents: 1 },
+    });
+    events.emit('runtime.health.sampled' as never, sample(0.2, 1_000) as never);
+    events.emit('runtime.health.sampled' as never, sample(0.6, 2_000) as never);
+    off();
+    const recorded = await journal.readAll();
+    expect(recorded).toHaveLength(1);
+    expect(recorded[0]).toMatchObject({
+      eventType: 'metrics.rollup',
+      attributes: {
+        signal: 'runtime.health',
+        samples: 2,
+        stats: {
+          'eventLoop.utilization': { min: 0.2, max: 0.6, last: 0.6, avg: 0.4 },
+          'memory.heapUsedBytes': { min: 1_000, max: 2_000, last: 2_000 },
+          'chronicle.pendingEvents': { last: 5 },
+          'chronicle.rejectedEvents': { last: 1 },
+        },
+      },
+    });
+  });
+
+  it('windows per-call resource observations into one bounded rollup, keyed consistently with file.mutation.observed', async () => {
+    const dir = await mkdtemp(path.join(os.tmpdir(), 'chronicle-rollup-resource-')); dirs.push(dir);
+    const journal = new ChronicleJournal({ filePath: path.join(dir, 'events.jsonl') });
+    const events = new EventBus(); const context = createChronicleContext({ installationId: 'i', machineId: 'm' }, 'trace');
+    const off = wireRollupsToChronicle({ events, journal, context, windowMs: 60_000 });
+    events.emit('tool.executed', {
+      sessionId: 's', agentId: 'leader', id: 'tc-1', name: 'grep', durationMs: 5, ok: true,
+      metadata: {
+        toolUseId: 'tc-1', toolName: 'grep', ok: true, summary: 's', errors: [], status: 'seen',
+        referenceCount: 0, seenAt: 1,
+        files: ['src/a.ts', 'src/b.ts'], symbols: ['Foo.bar'], commands: [],
+      },
+    } as never);
+    // A tool call with no evidence at all must not produce an empty rollup.
+    events.emit('tool.executed', { sessionId: 's', id: 'tc-2', name: 'noop', durationMs: 1, ok: true } as never);
+    off();
+    const recorded = await journal.readAll();
+    const rollup = recorded.find((event) => (event.attributes as { signal?: string })?.signal === 'tool.resource.observed');
+    expect(rollup).toBeDefined();
+    expect(rollup).toMatchObject({
+      eventType: 'metrics.rollup',
+      correlation: { toolCallId: 'tc-1' },
+      attributes: {
+        samples: 3,
+        categories: { file: 2, symbol: 1 },
+        resourceCount: 3,
+        dimensions: { toolName: 'grep' },
+      },
+    });
+    const resources = (rollup!.attributes as { resources: Array<{ id: string; kind: string; path?: string }> }).resources;
+    expect(resources).toHaveLength(3);
+    expect(resources.filter((r) => r.kind === 'file').map((r) => r.path).sort()).toEqual(['src/a.ts', 'src/b.ts']);
+    expect(recorded.filter((event) => event.eventType === 'tool.resource.observed')).toHaveLength(0);
+  });
 });

@@ -91,7 +91,7 @@ describe('tool timeout under kanban lock contention', () => {
       {
         action: 'replace',
         tasks: [
-          { id: 't1', title: 'contended', type: 'feature', priority: 'medium', status: 'pending' },
+          { id: 't1', title: 'contended', type: 'feature', priority: 'medium', status: 'pending', createdAt: '2026-07-27T00:00:00Z', updatedAt: '2026-07-27T00:00:00Z' },
         ],
       },
       sb.ctx,

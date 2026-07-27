@@ -4,7 +4,7 @@ import type {
   Request,
   StreamEvent,
 } from '@wrongstack/core/types';
-import { ProviderError } from '@wrongstack/core/types';
+import type { ProviderError } from '@wrongstack/core/types';
 import { capabilitiesForFamily } from './family-capabilities.js';
 import { type HeadersLike, parseProviderHttpError } from './error-parse.js';
 import { parseOpenAIResponsesStream } from './openai-codex.js';

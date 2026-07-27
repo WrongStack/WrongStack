@@ -222,14 +222,20 @@ describe('CloudSync', () => {
           vi.fn(),
         );
         vi.spyOn(sync, 'githubFetch' as keyof CloudSync).mockImplementation(
-          async (_t, _o, _r, method, segment) => {
+          (async (
+            _t: string,
+            _o: string,
+            _r: string,
+            method: string,
+            segment: string,
+          ) => {
             if (method === 'GET' && segment.includes('/git/refs/heads/main')) {
               throw new Error('GitHub API GET failed (404): missing');
             }
             if (method === 'POST' && segment === '/git/trees') return { sha: 'tree' };
             if (method === 'POST' && segment === '/git/commits') return { sha: 'commit' };
             return {};
-          },
+          }) as never,
         );
 
         await sync.push('token');
@@ -285,14 +291,20 @@ describe('CloudSync', () => {
 
         // Mock GitHub API calls via spy on private githubFetch
         vi.spyOn(sync, 'githubFetch' as keyof CloudSync).mockImplementation(
-          async (_t, _o, _r, method, seg) => {
+          (async (
+            _t: string,
+            _o: string,
+            _r: string,
+            method: string,
+            seg: string,
+          ) => {
             if (method === 'GET' && seg === '/git/refs/heads/main') return { object: { sha: 'remote-commit' } };
             if (method === 'GET' && seg === '/git/commits/remote-commit') return { tree: { sha: 'remote-tree' }, message: 'm' };
             if (method === 'POST' && seg === '/git/trees') return { sha: 'tree-sha-abc' };
             if (method === 'POST' && seg === '/git/commits') return { sha: 'commit-sha-abc' };
             if (method === 'PATCH' && seg === '/git/refs/heads/main') return {};
             return {};
-          },
+          }) as never,
         );
 
         const result = await sync.push('fake-token');
@@ -335,7 +347,13 @@ describe('CloudSync', () => {
         }), vi.fn());
 
         vi.spyOn(sync, 'githubFetch' as keyof CloudSync).mockImplementation(
-          async (_t, _o, _r, method, seg) => {
+          (async (
+            _t: string,
+            _o: string,
+            _r: string,
+            method: string,
+            seg: string,
+          ) => {
             if (method === 'GET' && seg.startsWith('/git/refs/heads/')) {
               return { object: { sha: 'remote-commit-sha' } };
             }
@@ -344,7 +362,7 @@ describe('CloudSync', () => {
             }
             if (method === 'GET' && seg.startsWith('/git/trees/')) return [];
             return {};
-          },
+          }) as never,
         );
 
         const result = await sync.pull('fake-token');
@@ -405,7 +423,13 @@ describe('CloudSync', () => {
         const sync = new CloudSync(paths, getConfig, vi.fn());
 
         vi.spyOn(sync, 'githubFetch' as keyof CloudSync).mockImplementation(
-          async (_t, _o, _r, method, segment) => {
+          (async (
+            _t: string,
+            _o: string,
+            _r: string,
+            method: string,
+            segment: string,
+          ) => {
             if (method === 'GET' && segment === '/git/refs/heads/main') {
               return { object: { sha: 'remote-commit' } };
             }
@@ -413,7 +437,7 @@ describe('CloudSync', () => {
               return { tree: { sha: 'remote-tree' }, message: 'm' };
             }
             return { sha: 'c' };
-          },
+          }) as never,
         );
 
         await sync.push('tok');

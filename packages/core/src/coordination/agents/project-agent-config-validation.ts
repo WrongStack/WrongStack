@@ -1,5 +1,5 @@
 import * as path from 'node:path';
-import type { ProjectAgentConfig } from './project-agent-identity.js';
+import type { ProjectAgentConfig } from './project-agent-identity-types.js';
 
 const PROJECT_AGENT_CONFIG_KEYS = new Set([
   'tools',

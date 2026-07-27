@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "package": "@wrongstack/core",
-  "packageVersion": "0.296.0",
+  "packageVersion": "0.296.2",
   "policy": "Root is compatibility-only; new imports use owned domain subpaths.",
   "subpaths": [
     {
@@ -51,7 +51,7 @@
         "export { BrainCircuitBreaker, type BrainCircuitOptions, type BrainCircuitSnapshot, type BrainCircuitState, } from './execution/brain-circuit.js';",
         "export { BrainDecisionLedger, type BrainDecisionLedgerOptions, type BrainLedgerEntry, brainDecisionKey, createLedgerGuardBrainArbiter, type LedgerGuardBrainArbiterOptions, } from './coordination/brain-ledger.js';",
         "export { CHIMERA_REVIEW_PROMPT, createChimeraPlugin, resolveChimeraConfig, } from './plugins/chimera-plugin.js';",
-        "export { CONTEXT_WINDOW_MODES, type ContextWindowAggressiveOn, type ContextWindowConfigLike, type ContextWindowMode, type ContextWindowModeId, type ContextWindowPolicy, type ContextWindowThresholds, DEFAULT_CONTEXT_WINDOW_MODE_ID, formatContextWindowModeList, getContextWindowMode, isContextWindowModeId, listContextWindowModes, resolveContextWindowPolicy, } from './types/context-window.js';",
+        "export { CONTEXT_WINDOW_MODES, type ContextWindowAggressiveOn, type ContextWindowConfigLike, type ContextWindowMode, type ContextWindowModeId, type ContextWindowModeSelectionId, type ContextWindowPolicy, type ContextWindowThresholds, DEFAULT_CONTEXT_WINDOW_MODE_ID, DEPRECATED_CONTEXT_WINDOW_MODE_ALIASES, type DeprecatedContextWindowModeId, formatContextWindowModeList, getContextWindowMode, isContextWindowModeId, isContextWindowModeSelectionId, isDeprecatedContextWindowModeId, listContextWindowModes, normalizeContextWindowModeId, resolveContextWindowPolicy, } from './types/context-window.js';",
         "export { COUNCIL_REFUSAL_OPTION_ID, CouncilOrchestrator, type CouncilOrchestratorOptions, DEFAULT_COUNCIL_MAX_CONCURRENCY, MAX_COUNCIL_CONCURRENCY, } from './execution/council-orchestrator.js';",
         "export { COUNCIL_REFUSE_OPTION_ID, type CouncilBrainOptions, type CouncilVoter, createCouncilBrainArbiter, } from './execution/council-brain.js';",
         "export { COUNCIL_TOOL_NAME, type CouncilToolInput, type CreateCouncilToolOptions, createCouncilTool, MAX_COUNCIL_CONTEXT_CHARS, MAX_COUNCIL_QUESTION_CHARS, MAX_COUNCIL_TOOL_OPTIONS, } from './tools/council-tool.js';",
@@ -101,7 +101,7 @@
         "export { buildMailboxBlock, buildMailboxBtwAwarenessBlock, createMailboxChecker, injectPendingMailboxMessages, type MailboxDeliveryMode, type MailboxLoopOptions, } from './core/mailbox-loop.js';",
         "export { buildQueuedMessagesBlock, consumeQueuedMessagesUpdate, peekQueuedMessages, setQueuedMessagesSnapshot, } from './core/queued-messages.js';",
         "export { buildRefinerContextSections, type ConversationTurn, DEFAULT_REFINER_RETRY_FEEDBACK, ENHANCER_SYSTEM_PROMPT, type EnhanceFailureKind, type EnhanceResult, type EnhanceUserPromptOptions, enhanceUserPrompt, gatedEnhancerReasoning, normalizedEqual, type RefinerContextSection, type RefinerSessionContextLike, recentTextTurns, shouldEnhance, } from './execution/prompt-enhancer.js';",
-        "export { buildReviewerModelPool, createAutoReviewPlugin, DEFAULT_REVIEW_FALLBACK_MODELS, type ReviewerModelAssignment, selectRoundRobinReviewerAssignment, } from './plugins/auto-review-plugin.js';",
+        "export { buildReviewerModelPool, createAutoReviewPlugin, parseReviewSeverity, type ReviewerModelAssignment, selectRoundRobinReviewerAssignment, } from './plugins/auto-review-plugin.js';",
         "export { compactLog, type FileAuthorEntry, type FileAuthorLog, type FileAuthorTrackerOptions, getFileHistory, getFilesByAgent, getFullLog, getLastAuthor, recordFileAction, } from './coordination/file-author-tracker.js';",
         "export { countShellHooks, HookRegistry, type HookRunEnv, HookRunner, type HookRunnerOptions, hookMatcherMatches, type PreToolUseResult, type PromptResult, runShellHook, type ShellHookSpec, shellHooksEqual, } from './hooks/index.js';",
         "export { createFallbackModelExtension, effectiveFallbackChain, type FallbackModelDeps, fallbackProfileChain, formatModelRef, normalizeModelRef, parseModelRef, smartDefaultFallbackChain, } from './core/fallback-model.js';",
@@ -246,7 +246,7 @@
         "export type { CompletedWorkEvidence, CompletedWorkSource, ContextEvidenceState, ContextFileEvidence, ContextIntentEvidence, ContextRepeatedReadEvidence, ToolEvidenceStatus, ToolOutputMetadata } from './context-evidence.js';",
         "export type { ConfirmAwaiter, GovernedToolExecutionResult, GovernedToolExecutor, ToolBatchResult, ToolConfirmPendingResult, ToolExecution, ToolExecutionOutput, ToolExecutorInit, ToolExecutorLike, ToolExecutorOptions, ToolExecutorStrategy } from './tool-executor.js';",
         "export type { ContentBlock, ImageBlock, TextBlock, ThinkingBlock, ToolResultBlock, ToolUseBlock } from './blocks.js';",
-        "export type { ContextWindowAggressiveOn, ContextWindowConfigLike, ContextWindowMode, ContextWindowModeId, ContextWindowPolicy, ContextWindowThresholds } from './context-window.js';",
+        "export type { ContextWindowAggressiveOn, ContextWindowConfigLike, ContextWindowMode, ContextWindowModeId, ContextWindowModeSelectionId, ContextWindowPolicy, ContextWindowThresholds, DeprecatedContextWindowModeId } from './context-window.js';",
         "export type { CouncilDistinctness, CouncilLLMCaller, CouncilModelTarget, CouncilOption, CouncilPersona, CouncilProfileConfig, CouncilQuestion, CouncilResolutionMethod, CouncilResult, CouncilSeatConfig, CouncilUsage, CouncilVoteResult, CouncilVoteStatus, ResolvedCouncilProfile, ResolvedCouncilSeat } from './council.js';",
         "export type { CriticalPathResult, SerializableTaskGraph, SerializableTaskGraphNodes, SerializedTaskGraph, TaskAssignment, TaskDependency, TaskEdge, TaskFilter, TaskGraph, TaskNode, TaskPriority, TaskProgress, TaskSort, TaskStatus, TaskType } from './task-graph.js';",
         "export type { DefaultSessionReaderOptions, SessionEventType, SessionExportOptions, SessionQuery, SessionReader, SessionSearchHit, SessionSearchQuery, SessionSummaryLite } from './session-reader.js';",
@@ -278,7 +278,7 @@
         "export { AgentError, ConfigError, ERROR_CODES, FetchError, FsError, ParseError, PluginError, SddError, SessionError, ToolError, ToolValidationError, WrongStackError, isAgentError, isConfigError, isFetchError, isFsError, isParseError, isPluginError, isSddError, isSessionError, isToolError, isToolValidationError, isWrongStackError, toWrongStackError } from './errors.js';",
         "export { BUILTIN_PROMPT_CATEGORIES, PROMPT_CATEGORY_LABELS, isBuiltinCategory } from './prompt.js';",
         "export { CHAT_MARKER_SOURCES, projectSessionMarkers, SESSION_MARKER_EVENT_TYPES, sessionEventToMarker } from './session-markers.js';",
-        "export { CONTEXT_WINDOW_MODES, DEFAULT_CONTEXT_WINDOW_MODE_ID, formatContextWindowModeList, getContextWindowMode, isContextWindowModeId, listContextWindowModes, resolveContextWindowPolicy } from './context-window.js';",
+        "export { CONTEXT_WINDOW_MODES, DEFAULT_CONTEXT_WINDOW_MODE_ID, DEPRECATED_CONTEXT_WINDOW_MODE_ALIASES, formatContextWindowModeList, getContextWindowMode, isContextWindowModeId, isContextWindowModeSelectionId, isDeprecatedContextWindowModeId, listContextWindowModes, normalizeContextWindowModeId, resolveContextWindowPolicy } from './context-window.js';",
         "export { DEFAULT_AUTONOMY_CONFIG, DEFAULT_CIRCUIT_BREAKER_CONFIG, DEFAULT_CONTEXT_CONFIG, DEFAULT_SESSION_LOGGING_CONFIG, DEFAULT_SESSION_PRUNE_DAYS, DEFAULT_TOOLS_CONFIG } from './default-config.js';",
         "export { DEFAULT_MODES } from './mode.js';",
         "export { DEFAULT_SPEC_TEMPLATE } from './spec.js';",
@@ -645,11 +645,12 @@
         "export type { PluginAPI } from '../types/plugin.js';",
         "export { DefaultPluginAPI, definePlugin, type PluginAPIInit } from './api.js';",
         "export { KERNEL_API_VERSION, loadPlugins, type LoadPluginsOptions, type PluginHostHandle, type PluginLoadFailure, unloadPlugins, } from './loader.js';",
-        "export { buildReviewerModelPool, createAutoReviewPlugin, DEFAULT_REVIEW_FALLBACK_MODELS, type ReviewerModelAssignment, selectRoundRobinReviewerAssignment, } from '../plugins/auto-review-plugin.js';",
+        "export { buildReviewerModelPool, createAutoReviewPlugin, parseReviewSeverity, type ReviewerModelAssignment, selectRoundRobinReviewerAssignment, } from '../plugins/auto-review-plugin.js';",
         "export { createPromptsPlugin } from '../plugins/prompts-plugin.js';",
         "export { createSkillsPlugin } from '../plugins/skills-plugin.js';",
         "export { createSyncPlugin } from '../plugins/sync-plugin.js';",
         "export { diffPluginConfig, type PluginConfigChange, type PluginConfigSource, type ResolvePluginConfigInput, type ResolvedPluginConfig, redactPluginConfig, resolvePluginConfig, resolvePluginManifestConfig, validatePluginConfigMetadata, } from './config.js';",
+        "export { emitReviewIfChanged } from '../plugins/review-claim-registry.js';",
         "export { type CascadeAgentKind, CHIMERA_REVIEW_PROMPT, createChimeraPlugin, type ChimeraCascadeNeededPayload, type ChimeraReviewCompletePayload, type ChimeraReviewNeededPayload, type ReviewContextBundle, } from '../plugins/chimera-plugin.js';"
       ]
     },
@@ -909,14 +910,20 @@
       },
       "source": "packages/core/src/chronicle/index.ts",
       "declarations": [
-        "export { CHRONICLE_FACET_FIELDS, findChroniclePartitions, ChronicleQueryEngine, type ChronicleSummary, type ChronicleSignalFamily, type ChronicleFacet, type ChronicleFacetValue, type ChronicleQuery, type ChronicleQueryResult, type ChronicleGraphEdge, type ChronicleGraphResult, type ChronicleRelationKind, } from './query.js';",
+        "export type { ChronicleEventSink } from './sink.js';",
+        "export { CHRONICLE_FACET_FIELDS, findChroniclePartitions, ChronicleQueryEngine, type ChronicleQueryEngineOptions, type ChronicleSummary, type ChronicleSignalFamily, type ChronicleFacet, type ChronicleFacetValue, type ChronicleQuery, type ChronicleQueryResult, type ChronicleGraphEdge, type ChronicleGraphResult, type ChronicleRelationKind, } from './query.js';",
+        "export { CHRONICLE_PROJECT_SERVER_MAX_FRAME_CHARS, CHRONICLE_PROJECT_SERVER_PROTOCOL_VERSION, type ChronicleMetricsRequest, type ChronicleMetricsResponse, type ChronicleMetricsView, type ChronicleProjectServerHealth, type ChronicleProjectServerInfo, type ChronicleServerOperationName, type ChronicleServerOperations, } from './project-server-protocol.js';",
         "export { CHRONICLE_SCHEMA_VERSION, type ChronicleCorrelation, type ChronicleEvent, type ChronicleEventInput, type ChronicleOutcome, type ChronicleResourceRef, type ChronicleRuntimeIdentity, type ChronicleScope, type ChronicleVerifyResult, } from './types.js';",
         "export { ChronicleJournal, GENESIS_HASH, type ChronicleJournalOptions, type ChronicleJournalStats, type ChroniclePurgeOptions, type ChroniclePurgeResult } from './journal.js';",
         "export { ChronicleMetricsStore, isChronicleMetricsAvailable, type ChronicleMetricsRefreshResult, type ChronicleMetricsSummary, type ChronicleProviderDailyRow, type ChronicleTaskOutcomeRow, type ChronicleFileLineageRow, } from './metrics-store.js';",
+        "export { ChroniclePartitionRangeCache, type ChroniclePartitionRange, } from './partition-range-cache.js';",
+        "export { ChronicleProjectServerClient, ChronicleRemoteJournal, isChronicleProjectServerAvailable, type ChronicleProjectServerCallOptions, type ChronicleProjectServerClientOptions, } from './project-server-client.js';",
         "export { childChronicleContext, createChronicleContext, type ChronicleContext } from './context.js';",
+        "export { chronicleProjectServerEndpoint, chronicleProjectServerKey, chronicleProjectServerMetadataPath, } from './project-server-endpoint.js';",
+        "export { createChronicleEventJournal, createChronicleProjectAccess, resolveChronicleProjectServerOptions, type ChronicleEventJournalHandle, type ChronicleProjectAccess, type ChronicleProjectAccessOptions, } from './project-access.js';",
         "export { createChroniclePromptManifest, type ChroniclePromptManifest } from './prompt-manifest.js';",
         "export { resolveChronicleRuntimeLocation, type ChronicleRuntimeIdentityInput, type ChronicleRuntimeLocation, } from './identity.js';",
-        "export { startChronicleFileObserver, type ChronicleFileObserver, type ChronicleFileObserverOptions, } from './file-observer.js';",
+        "export { startChronicleFileObserver, type ChronicleFileObserver, type ChronicleFileObserverOptions, type ChronicleToolMutationHint, } from './file-observer.js';",
         "export { startChronicleHealthMonitor, type ChronicleHealthMonitorOptions } from './health-monitor.js';",
         "export { wireDecisionsToChronicle, type ChronicleDecisionAdapterOptions } from './decision-adapter.js';",
         "export { wireDomainEventsToChronicle, type ChronicleDomainAdapterOptions } from './domain-adapter.js';",
@@ -995,22 +1002,22 @@
       "directory": "chronicle",
       "classification": "storage/repository implementation",
       "intendedOwner": "focused repository or runtime subsystem",
-      "sourceFiles": 17,
-      "sourceLines": 3727
+      "sourceFiles": 25,
+      "sourceLines": 5755
     },
     {
       "directory": "coordination",
       "classification": "coordination implementation",
       "intendedOwner": "Core subpath until physical extraction is justified",
       "sourceFiles": 149,
-      "sourceLines": 41457
+      "sourceLines": 41503
     },
     {
       "directory": "core",
       "classification": "agent-domain contract",
       "intendedOwner": "Core",
       "sourceFiles": 35,
-      "sourceLines": 8042
+      "sourceLines": 8128
     },
     {
       "directory": "defaults",
@@ -1031,7 +1038,7 @@
       "classification": "concrete runtime default",
       "intendedOwner": "Runtime pilot candidate after R2/R3",
       "sourceFiles": 50,
-      "sourceLines": 16380
+      "sourceLines": 16445
     },
     {
       "directory": "extension",
@@ -1073,7 +1080,7 @@
       "classification": "kernel primitive",
       "intendedOwner": "Core",
       "sourceFiles": 18,
-      "sourceLines": 3184
+      "sourceLines": 3248
     },
     {
       "directory": "middleware",
@@ -1108,14 +1115,14 @@
       "classification": "agent-domain contract",
       "intendedOwner": "Core plugin API",
       "sourceFiles": 4,
-      "sourceLines": 1515
+      "sourceLines": 1516
     },
     {
       "directory": "plugins",
       "classification": "product feature",
       "intendedOwner": "@wrongstack/plugins",
       "sourceFiles": 16,
-      "sourceLines": 6062
+      "sourceLines": 6005
     },
     {
       "directory": "prompts",
@@ -1156,8 +1163,8 @@
       "directory": "storage",
       "classification": "storage/repository implementation",
       "intendedOwner": "repositories over dependency-free persistence",
-      "sourceFiles": 73,
-      "sourceLines": 15764
+      "sourceFiles": 74,
+      "sourceLines": 15947
     },
     {
       "directory": "tasking",
@@ -1170,15 +1177,15 @@
       "directory": "tools",
       "classification": "host/application concern",
       "intendedOwner": "@wrongstack/tools or product plugin",
-      "sourceFiles": 13,
-      "sourceLines": 2926
+      "sourceFiles": 14,
+      "sourceLines": 2919
     },
     {
       "directory": "types",
       "classification": "agent-domain contract",
       "intendedOwner": "Core type-only subpaths",
       "sourceFiles": 64,
-      "sourceLines": 9212
+      "sourceLines": 9262
     },
     {
       "directory": "utils",

@@ -10,7 +10,7 @@
  */
 
 import React from 'react';
-import type { Action } from '../app-state.js';
+import type { Action } from '../app-action-type.js';
 
 export type ModelPickSelection = { providerId: string; model: string } | null;
 

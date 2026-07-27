@@ -114,6 +114,23 @@ export function findCopyHit(hits: readonly CopyHit[], row: number, col: number):
   return null;
 }
 
+/**
+ * Rows clipped from the top of the mounted history stack before it appears in
+ * the viewport. Scrolled frames clip by the anchor's row offset; pinned frames
+ * rely on Ink flex-end clipping, which hides top overflow from mounted groups
+ * plus the live tool tail.
+ */
+export function copyRegistryVisibleClip(opts: {
+  scrolled: boolean;
+  clip: number;
+  mountedRows: number;
+  tailRows: number;
+  viewportRows: number;
+}): number {
+  if (opts.scrolled) return opts.clip;
+  return Math.max(0, opts.mountedRows + opts.tailRows - opts.viewportRows);
+}
+
 export interface ScrollableHistoryProps extends HistoryProps {
   /** Height of the viewport in rows, computed by App from the bottom region. */
   viewportRows: number;
@@ -647,13 +664,25 @@ export const ScrollableHistory = memo(function ScrollableHistory({
     }
 
     // Rebuild the copy-icon click registry from the measured heights. Groups
-    // render top-to-bottom starting `clip` rows above the viewport top (the
-    // negative marginTop), so a group's viewport start row is its cumulative
-    // content offset minus the clip. Only single-entry copyable cards get a
-    // target; grouped tool calls never do. The icon sits on the card's first
-    // visible row at the right edge of the content column.
+    // render top-to-bottom, then the viewport hides either the scrolled anchor
+    // clip or the top overflow from pinned flex-end clipping. A group's viewport
+    // start row is its cumulative content offset minus that visible clip. Only
+    // single-entry copyable cards get a target; grouped tool calls never do. The
+    // icon sits on the card's first visible row at the right edge of the content
+    // column.
     {
       const hits: CopyHit[] = [];
+      const mountedGroupRows = renderGroups.reduce(
+        (rows, group) => rows + (heightCache.getHeight(renderGroupId(group)) ?? 0),
+        0,
+      );
+      const visibleClip = copyRegistryVisibleClip({
+        scrolled,
+        clip,
+        mountedRows: mountedGroupRows,
+        tailRows: plan.mountTail ? toolTailHeight : 0,
+        viewportRows: vp,
+      });
       let offset = 0; // content-space rows consumed by earlier mounted groups
       // The icon renders at the right edge of the content column. `termWidth`
       // is the content width (viewportWidth minus the SCROLLBAR_HIT_WIDTH
@@ -675,7 +704,7 @@ export const ScrollableHistory = memo(function ScrollableHistory({
         const groupHeight = heightCache.getHeight(gid) ?? 0;
         // Content-space start row of this group; advance the cumulative offset
         // for the next group before any early-continue below.
-        const startRow = offset - clip;
+        const startRow = offset - visibleClip;
         offset += groupHeight;
         if (!iconFits) continue;
         if (group.type === 'tool-group') continue;

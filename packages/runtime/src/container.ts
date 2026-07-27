@@ -28,7 +28,7 @@ import type { WstackPaths } from '@wrongstack/core/utils';
 import { buildRecoveryStrategies } from '@wrongstack/core/execution';
 import { DefaultTokenCounter } from '@wrongstack/core/infrastructure';
 import { getSessionRegistry } from '@wrongstack/core/storage';
-import { createSqliteMemoryPort, isSqliteAvailable } from '@wrongstack/sage';
+import { createProjectSageMemoryPort, isSqliteAvailable } from '@wrongstack/sage';
 
 export interface CreateContainerOptions {
   config: Config;
@@ -112,9 +112,6 @@ export function createDefaultContainer(opts: CreateContainerOptions): Container 
         secretScrubber: container.resolve(TOKENS.SecretScrubber),
         // Cross-process guard consulted by delete(): refuses to remove a
         // session that a LIVE terminal/TUI/WebUI in this project is using.
-        // The store also checks active.json directly; this widens the check
-        // to every concurrently-running surface (active.json only tracks the
-        // latest active session per project).
         isSessionInUse: async (sessionId) => {
           try {
             const registry = getSessionRegistry(wpaths.globalRoot);
@@ -124,7 +121,7 @@ export function createDefaultContainer(opts: CreateContainerOptions): Container 
               return `active in ${hit.projectName} (PID ${hit.pid})`;
             }
           } catch {
-            // registry unavailable — fall back to the active.json check only
+            // Registry failures must not make the session store unavailable.
           }
           return null;
         },
@@ -136,19 +133,20 @@ export function createDefaultContainer(opts: CreateContainerOptions): Container 
   // session-end hygiene (see wiring/sage.ts). This guarantees "one memory
   // system, no other" across TUI, slash commands, agent tools, and WebUI.
   //
-  // SQLite is the sole production backend. Legacy JSONL data is imported by
-  // SqliteSageStore on first open, but JSONL can no longer be selected
-  // as a writable runtime backend.
+  // The project SAGE server is the sole production owner of SQLite. Legacy
+  // JSONL data is imported by that owner on first open; hosts only hold IPC
+  // ports and cannot silently open a competing writable backend.
   if (!isSqliteAvailable()) {
     throw new Error(
       'SAGE requires Node built-in SQLite (node:sqlite; Node >= 22.5). ' +
         'The JSONL compatibility fallback has been removed.',
     );
   }
-  const memoryStore = createSqliteMemoryPort({
+  const memoryStore = createProjectSageMemoryPort({
     projectRoot: wpaths.projectRoot,
     directory: config.Sage?.storage?.directory,
     events: opts.events,
+    workspaceRoot: wpaths.projectRoot,
   });
   container.bind(TOKENS.MemoryStore, () => memoryStore);
   container.bind(TOKENS.MemoryPort, () => memoryStore);

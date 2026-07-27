@@ -11,15 +11,15 @@ import {
   isoFromTimestamp,
   parseIsoTimestamp,
   requireNonBlank,
+  uniqueIdFromSet,
+  uniqueStrings,
 } from './basic-helpers.js';
 import {
   applyCompletedAtForStatus,
   existingColumnId,
   normalizeColumnTaskOrders,
   placeTaskInColumn,
-  uniqueIdFromSet,
-  uniqueStrings,
-} from './_internal.js';
+} from './task-column-helpers.js';
 import type { CreateKanbanBoardFromTaskGraphOptions } from './task-graph-contracts.js';
 
 export function taskGraphStatusToKanbanStatus(status: TaskStatus): KanbanTaskStatus {

@@ -1,109 +1,39 @@
-import * as os from 'node:os';
-import * as path from 'node:path';
 import {
   CHRONICLE_FACET_FIELDS,
   type ChronicleFacet,
-  ChronicleMetricsStore,
+  type ChronicleProjectAccess,
   type ChronicleQuery,
-  ChronicleQueryEngine,
+  createChronicleProjectAccess,
 } from '@wrongstack/core/chronicle';
-import { resolveWstackPaths } from '@wrongstack/core/utils';
 import type { WebSocket } from 'ws';
 import type { WSClientMessage, WSServerMessage } from './types.js';
-
-export type ChronicleRouteEngine = Pick<
-  ChronicleQueryEngine,
-  'query' | 'facet' | 'facets' | 'graph' | 'diagnostics'
->;
-
-export type ChronicleRouteMetrics = Pick<
-  ChronicleMetricsStore,
-  'refresh' | 'summary' | 'providerDaily' | 'taskOutcomes' | 'fileLineage'
->;
 
 export interface ChronicleRouteContext {
   getProjectRoot: () => string;
   send: (ws: WebSocket, message: WSServerMessage) => void;
-  getEngine?: (() => Promise<ChronicleRouteEngine>) | undefined;
-  getMetrics?: (() => Promise<ChronicleRouteMetrics>) | undefined;
+  getChronicleAccess?: (() => Pick<ChronicleProjectAccess, 'mode' | 'call'>) | undefined;
 }
 
-const engineCache = new Map<string, { loadedAt: number; engine: Promise<ChronicleQueryEngine> }>();
-const ENGINE_CACHE_MAX_PROJECTS = 8;
+const accessCache = new Map<string, ChronicleProjectAccess>();
+const ACCESS_CACHE_MAX_PROJECTS = 8;
 
-function defaultEngine(projectRoot: string): Promise<ChronicleQueryEngine> {
-  const now = Date.now();
-  const cached = engineCache.get(projectRoot);
-  if (cached && now - cached.loadedAt < 60_000) {
-    engineCache.delete(projectRoot);
-    engineCache.set(projectRoot, cached);
-    return cached.engine;
+function defaultChronicleAccess(projectRoot: string): ChronicleProjectAccess {
+  let access = accessCache.get(projectRoot);
+  if (access) {
+    accessCache.delete(projectRoot);
+    accessCache.set(projectRoot, access);
+    return access;
   }
-  const paths = resolveWstackPaths({ projectRoot, userHome: os.homedir() });
-  const engine = ChronicleQueryEngine.fromDirectory(path.join(paths.projectDir, 'chronicle'));
-  engineCache.delete(projectRoot);
-  while (engineCache.size >= ENGINE_CACHE_MAX_PROJECTS) {
-    const oldest = engineCache.keys().next().value;
-    if (oldest === undefined) break;
-    engineCache.delete(oldest);
+  access = createChronicleProjectAccess({ projectRoot });
+  while (accessCache.size >= ACCESS_CACHE_MAX_PROJECTS) {
+    const oldestKey = accessCache.keys().next().value;
+    if (oldestKey === undefined) break;
+    const oldest = accessCache.get(oldestKey);
+    accessCache.delete(oldestKey);
+    void oldest?.close();
   }
-  engineCache.set(projectRoot, { loadedAt: now, engine });
-  return engine;
-}
-
-interface MetricsCacheEntry {
-  store: ChronicleMetricsStore;
-  lastRefreshAt: number;
-  refreshing: Promise<void> | null;
-}
-const metricsCache = new Map<string, MetricsCacheEntry>();
-const METRICS_CACHE_MAX_PROJECTS = 8;
-/** metrics.db ingest is incremental (per-partition byte offsets); this only
- *  bounds how often a burst of dashboard messages re-stats the partitions. */
-const METRICS_REFRESH_INTERVAL_MS = 10_000;
-
-function defaultMetrics(projectRoot: string): ChronicleRouteMetrics {
-  let entry = metricsCache.get(projectRoot);
-  if (!entry) {
-    const paths = resolveWstackPaths({ projectRoot, userHome: os.homedir() });
-    const store = ChronicleMetricsStore.open(path.join(paths.projectDir, 'chronicle'));
-    entry = { store, lastRefreshAt: 0, refreshing: null };
-    while (metricsCache.size >= METRICS_CACHE_MAX_PROJECTS) {
-      const oldestKey = metricsCache.keys().next().value;
-      if (oldestKey === undefined) break;
-      metricsCache.get(oldestKey)?.store.close();
-      metricsCache.delete(oldestKey);
-    }
-    metricsCache.set(projectRoot, entry);
-  }
-  const cached = entry;
-  return {
-    async refresh() {
-      const now = Date.now();
-      if (cached.refreshing) {
-        await cached.refreshing;
-        return { ingestedEvents: 0, ingestedBytes: 0, sourceFiles: 0, invalidLines: 0 };
-      }
-      if (now - cached.lastRefreshAt < METRICS_REFRESH_INTERVAL_MS) {
-        return { ingestedEvents: 0, ingestedBytes: 0, sourceFiles: 0, invalidLines: 0 };
-      }
-      const run = cached.store.refresh();
-      cached.refreshing = run.then(
-        () => undefined,
-        () => undefined,
-      );
-      try {
-        return await run;
-      } finally {
-        cached.lastRefreshAt = Date.now();
-        cached.refreshing = null;
-      }
-    },
-    summary: () => cached.store.summary(),
-    providerDaily: (options) => cached.store.providerDaily(options),
-    taskOutcomes: (options) => cached.store.taskOutcomes(options),
-    fileLineage: (options) => cached.store.fileLineage(options),
-  };
+  accessCache.set(projectRoot, access);
+  return access;
 }
 
 /** Canonical Chronicle query/facet/graph handler shared by every WebUI host. */
@@ -113,39 +43,83 @@ export async function handleChronicleRoute(
   message: WSClientMessage,
 ): Promise<boolean> {
   if (!message.type.startsWith('chronicle.')) return false;
+  if (message.type === 'chronicle.status') {
+    try {
+      const access = ctx.getChronicleAccess?.() ?? defaultChronicleAccess(ctx.getProjectRoot());
+      const health = await access.call('ping', {});
+      ctx.send(ws, {
+        type: 'chronicle.status_result',
+        payload: {
+          mode: access.mode,
+          ...health,
+          pipeline: {
+            collection: 'session-event-adapters',
+            processing:
+              access.mode === 'server' ? 'project-chronicle-server' : 'inline-chronicle-fallback',
+            storage: health.chronicleDirectory,
+            serving: 'webui-server',
+          },
+        },
+      });
+    } catch (error) {
+      ctx.send(ws, {
+        type: 'chronicle.error',
+        payload: { message: error instanceof Error ? error.message : String(error) },
+      });
+    }
+    return true;
+  }
   if (message.type === 'chronicle.metrics') {
     const payload = (message.payload ?? {}) as {
       view?: 'summary' | 'providers' | 'tasks' | 'files';
-      from?: string; to?: string; path?: string; taskId?: string;
-      boardId?: string; sessionId?: string; status?: string; limit?: number;
+      from?: string;
+      to?: string;
+      path?: string;
+      taskId?: string;
+      boardId?: string;
+      sessionId?: string;
+      status?: string;
+      limit?: number;
     };
     const view = payload.view ?? 'summary';
     try {
-      const metrics = await (ctx.getMetrics?.() ?? defaultMetrics(ctx.getProjectRoot()));
-      const refreshed = await metrics.refresh();
-      const data =
-        view === 'providers'
-          ? metrics.providerDaily({
-              ...(payload.from ? { from: payload.from } : {}),
-              ...(payload.to ? { to: payload.to } : {}),
-            })
-          : view === 'tasks'
-            ? metrics.taskOutcomes({
+      const access = ctx.getChronicleAccess?.() ?? defaultChronicleAccess(ctx.getProjectRoot());
+      const result = await access.call('metrics', {
+        view,
+        ...(view === 'providers'
+          ? {
+              providers: {
+                ...(payload.from ? { from: payload.from } : {}),
+                ...(payload.to ? { to: payload.to } : {}),
+              },
+            }
+          : {}),
+        ...(view === 'tasks'
+          ? {
+              tasks: {
                 ...(payload.boardId ? { boardId: payload.boardId } : {}),
                 ...(payload.sessionId ? { sessionId: payload.sessionId } : {}),
                 ...(payload.status ? { status: payload.status } : {}),
                 ...(payload.limit !== undefined ? { limit: payload.limit } : {}),
-              })
-            : view === 'files'
-              ? metrics.fileLineage({
-                  ...(payload.path ? { path: payload.path } : {}),
-                  ...(payload.taskId ? { taskId: payload.taskId } : {}),
-                  ...(payload.boardId ? { boardId: payload.boardId } : {}),
-                  ...(payload.sessionId ? { sessionId: payload.sessionId } : {}),
-                  ...(payload.limit !== undefined ? { limit: payload.limit } : {}),
-                })
-              : metrics.summary();
-      ctx.send(ws, { type: 'chronicle.metrics_result', payload: { view, refreshed, data } });
+              },
+            }
+          : {}),
+        ...(view === 'files'
+          ? {
+              files: {
+                ...(payload.path ? { path: payload.path } : {}),
+                ...(payload.taskId ? { taskId: payload.taskId } : {}),
+                ...(payload.boardId ? { boardId: payload.boardId } : {}),
+                ...(payload.sessionId ? { sessionId: payload.sessionId } : {}),
+                ...(payload.limit !== undefined ? { limit: payload.limit } : {}),
+              },
+            }
+          : {}),
+      });
+      ctx.send(ws, {
+        type: 'chronicle.metrics_result',
+        payload: { view, refreshed: result.refreshed, data: result.data },
+      });
     } catch (error) {
       // node:sqlite unavailable or a corrupt metrics.db — surface, don't crash.
       ctx.send(ws, {
@@ -155,13 +129,13 @@ export async function handleChronicleRoute(
     }
     return true;
   }
-  const engine = await (ctx.getEngine?.() ?? defaultEngine(ctx.getProjectRoot()));
+  const access = ctx.getChronicleAccess?.() ?? defaultChronicleAccess(ctx.getProjectRoot());
   switch (message.type) {
     case 'chronicle.query': {
       const payload = (message.payload ?? {}) as { query?: ChronicleQuery };
       ctx.send(ws, {
         type: 'chronicle.query_result',
-        payload: await engine.query(payload.query ?? {}),
+        payload: await access.call('query', { query: payload.query ?? {} }),
       });
       return true;
     }
@@ -182,8 +156,11 @@ export async function handleChronicleRoute(
         type: 'chronicle.facet_result',
         payload: {
           field: payload.field,
-          values: await engine.facet(payload.field, payload.query ?? {}, payload.limit),
-          diagnostics: engine.diagnostics,
+          ...(await access.call('facet', {
+            field: payload.field,
+            query: payload.query ?? {},
+            ...(payload.limit !== undefined ? { limit: payload.limit } : {}),
+          })),
         },
       });
       return true;
@@ -207,10 +184,11 @@ export async function handleChronicleRoute(
       }
       ctx.send(ws, {
         type: 'chronicle.facets_result',
-        payload: {
-          values: await engine.facets(payload.fields, payload.query ?? {}, payload.limit),
-          diagnostics: engine.diagnostics,
-        },
+        payload: await access.call('facets', {
+          fields: payload.fields,
+          query: payload.query ?? {},
+          ...(payload.limit !== undefined ? { limit: payload.limit } : {}),
+        }),
       });
       return true;
     }
@@ -222,7 +200,11 @@ export async function handleChronicleRoute(
       };
       ctx.send(ws, {
         type: 'chronicle.graph_result',
-        payload: await engine.graph(payload.seed ?? {}, payload.hops, payload.maxNodes),
+        payload: await access.call('graph', {
+          seed: payload.seed ?? {},
+          ...(payload.hops !== undefined ? { hops: payload.hops } : {}),
+          ...(payload.maxNodes !== undefined ? { maxNodes: payload.maxNodes } : {}),
+        }),
       });
       return true;
     }

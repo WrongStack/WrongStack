@@ -30,15 +30,6 @@ const TYPESCRIPT_RUNTIME: LanguageRuntime = {
   defaultCommand: 'pnpm exec tsc --noEmit',
 };
 
-const NO_LAUNCHER_RUNTIME: LanguageRuntime = {
-  id: 'generic',
-  packageManager: 'none',
-  executable: 'node',
-  allowedFlags: null,
-  subcommands: [],
-  defaultCommand: 'node --version',
-};
-
 // ---------------------------------------------------------------------------
 // Temp directory helpers for file-collection tests
 // ---------------------------------------------------------------------------
@@ -269,16 +260,16 @@ describe('resolveRunnerCommand — absolute path (Path 4)', () => {
     } else {
       // If nodePath isn't inside the project root, test via a different approach
       // Create a runtime with a known project-root-relative launcher
-      const name = 'node';
+      const name = 'npm';
       const runtime2: LanguageRuntime = {
         id: 'generic',
         packageManager: name,
         executable: 'node',
         allowedFlags: new Set(['--version']),
         subcommands: [],
-        defaultCommand: 'node --version',
+        defaultCommand: 'npm node --version',
       };
-      // node executable with launcher = 'node', second is 'node' → Path 2
+      // node executable with launcher = 'npm', second is 'node' → Path 2
       const r = resolveRunnerCommand(runtime2, `${name} node --version`, { projectRoot });
       expect(r).not.toBeNull();
       if (r) {

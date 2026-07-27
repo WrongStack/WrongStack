@@ -127,9 +127,13 @@ export interface MemoryStore {
    */
   hygiene?(opts?: {
     retentionDays?: number | undefined;
+    sessionRetentionDays?: number | undefined;
     archiveLowConfidenceAfterDays?: number | undefined;
     archiveUnusedAfterDays?: number | undefined;
     unusedMinInjections?: number | undefined;
+    purgeDeletedAfterDays?: number | undefined;
+    nearDedup?: boolean | undefined;
+    verify?: boolean | undefined;
   }): Promise<unknown>;
   /**
    * Attach a trace ID to this store so that all subsequent `storage.*`

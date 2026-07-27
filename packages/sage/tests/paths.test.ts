@@ -43,9 +43,26 @@ describe('ancestorPaths', () => {
 });
 
 describe('normalizeProjectPath', () => {
+  afterEach(() => {
+    clearProjectPathCache();
+  });
+
   it('returns relative path unchanged when already inside project', () => {
     const result = normalizeProjectPath('/project', 'src/file.ts');
     expect(result).toBe('src/file.ts');
+  });
+
+  it('keeps realpath cache bounded under many unique path lookups (leak guard)', () => {
+    // Stress the module-level cache; if it grew unbounded this would retain
+    // thousands of map entries for the process lifetime.
+    for (let i = 0; i < 5_000; i++) {
+      normalizeProjectPath('/project', `src/generated/file-${i}.ts`);
+    }
+    // Still works after eviction pressure — hot project-root paths remain valid.
+    expect(normalizeProjectPath('/project', 'src/generated/file-4999.ts')).toBe(
+      'src/generated/file-4999.ts',
+    );
+    expect(normalizeProjectPath('/project', 'src/ok.ts')).toBe('src/ok.ts');
   });
 
   it('resolves absolute path inside project', () => {

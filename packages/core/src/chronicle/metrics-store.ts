@@ -17,6 +17,12 @@
  * - `token_cost`      — latest cumulative token.accounted cost snapshot per
  *                       scope (same latest-wins semantics as the query
  *                       engine's summary).
+ * - `daily_counters`, `family_daily`, `agent_daily`, `logical_request_daily`,
+ *   `file_seen_daily` — per-day scalar counters and dedup sets backing
+ *   `defaultSummary()`, a `ChronicleSummary` for the common unfiltered/
+ *   time-bounded dashboard view. Any genuinely ad hoc filter (free text,
+ *   path, session, provider, model) falls back to the raw-scan summary in
+ *   query.ts — fixed-dimension aggregation fundamentally can't answer those.
  *
  * The schema is a cache: on version mismatch it is dropped and re-ingested
  * from whatever journal partitions still exist.
@@ -27,11 +33,15 @@ import { createRequire } from 'node:module';
 import * as path from 'node:path';
 import type { DatabaseSync } from 'node:sqlite';
 import { withFileLock } from '../utils/atomic-write.js';
-import { findChroniclePartitions } from './query.js';
+import { findChroniclePartitions, isTerminalFailure, signalFamily } from './query.js';
 import type { ChronicleEvent } from './types.js';
+import type { ChronicleSignalFamily, ChronicleSummary } from './query.js';
 
-const SCHEMA_VERSION = 2;
+const SCHEMA_VERSION = 3;
 const READ_CHUNK_BYTES = 1024 * 1024;
+const EMPTY_FAMILIES: Record<ChronicleSignalFamily, number> = {
+  llm: 0, agent: 0, tool: 0, file: 0, memory: 0, task: 0, decision: 0, runtime: 0,
+};
 
 export interface ChronicleMetricsRefreshResult {
   ingestedEvents: number;
@@ -348,6 +358,120 @@ export class ChronicleMetricsStore {
     };
   }
 
+  /**
+   * A `ChronicleSummary` for the default/unfiltered dashboard view — only
+   * `from`/`to` (day-precision) narrow it. Any other ad hoc filter (text,
+   * path, provider, model, session) can't be answered from these
+   * fixed-dimension aggregates; callers must fall back to query.ts's
+   * raw-scan summary for those.
+   */
+  defaultSummary(options: { from?: string; to?: string } = {}): ChronicleSummary {
+    const fromDay = options.from?.slice(0, 10);
+    const toDay = options.to?.slice(0, 10);
+    const dayFilter = (column: string): { where: string; params: string[] } => {
+      const clauses: string[] = [];
+      const params: string[] = [];
+      if (fromDay) { clauses.push(`${column} >= ?`); params.push(fromDay); }
+      if (toDay) { clauses.push(`${column} <= ?`); params.push(toDay); }
+      return { where: clauses.length > 0 ? ` WHERE ${clauses.join(' AND ')}` : '', params };
+    };
+
+    const providerRange = dayFilter('day');
+    const provider = this.db
+      .prepare(
+        `SELECT COALESCE(SUM(attempts),0) attempts, COALESCE(SUM(completed),0) completed, COALESCE(SUM(failed),0) failed,
+        COALESCE(SUM(retries),0) retries, COALESCE(SUM(fallbacks),0) fallbacks,
+        COUNT(DISTINCT provider_id) providers, COUNT(DISTINCT model_id) models,
+        COALESCE(SUM(input_tokens),0) inputTokens, COALESCE(SUM(output_tokens),0) outputTokens,
+        COALESCE(SUM(cache_read_tokens),0) cacheReadTokens, COALESCE(SUM(cache_write_tokens),0) cacheWriteTokens,
+        COALESCE(SUM(duration_ms_total),0) durationTotal, COALESCE(MAX(duration_ms_max),0) durationMax,
+        COALESCE(SUM(duration_count),0) durationCount
+       FROM provider_daily${providerRange.where}`,
+      )
+      .get(...providerRange.params) as Record<string, number>;
+
+    const counterRange = dayFilter('day');
+    const counters = this.db
+      .prepare(
+        `SELECT COALESCE(SUM(tool_calls),0) toolCalls, COALESCE(SUM(completed_tools),0) completedTools,
+        COALESCE(SUM(failed_tools),0) failedTools, COALESCE(SUM(tool_duration_ms_total),0) toolDurationTotal,
+        COALESCE(SUM(tool_duration_count),0) toolDurationCount, COALESCE(SUM(processes),0) processes,
+        COALESCE(SUM(failed_processes),0) failedProcesses, COALESCE(SUM(file_events_all),0) fileEvents,
+        COALESCE(SUM(decisions),0) decisions, COALESCE(SUM(escalations),0) escalations,
+        COALESCE(SUM(agent_events),0) agentEvents, COALESCE(SUM(failures),0) failures,
+        COALESCE(SUM(cancellations),0) cancellations
+       FROM daily_counters${counterRange.where}`,
+      )
+      .get(...counterRange.params) as Record<string, number>;
+
+    const familyRange = dayFilter('day');
+    const familyRows = this.db
+      .prepare(`SELECT family, count, failure_count FROM family_daily${familyRange.where}`)
+      .all(...familyRange.params) as Array<{ family: string; count: number; failure_count: number }>;
+    const families = { ...EMPTY_FAMILIES };
+    const failuresByFamily = { ...EMPTY_FAMILIES };
+    for (const row of familyRows) {
+      const family = row.family as ChronicleSignalFamily;
+      families[family] = Number(row.count);
+      failuresByFamily[family] = Number(row.failure_count);
+    }
+
+    const agentRange = dayFilter('day');
+    const uniqueAgents = (
+      this.db.prepare(`SELECT COUNT(DISTINCT agent_id) n FROM agent_daily${agentRange.where}`).get(...agentRange.params) as { n: number }
+    ).n;
+    const requestRange = dayFilter('day');
+    const logicalRequests = (
+      this.db.prepare(`SELECT COUNT(DISTINCT logical_request_id) n FROM logical_request_daily${requestRange.where}`).get(...requestRange.params) as { n: number }
+    ).n;
+    const fileRange = dayFilter('day');
+    const uniqueFiles = (
+      this.db.prepare(`SELECT COUNT(DISTINCT path_key) n FROM file_seen_daily${fileRange.where}`).get(...fileRange.params) as { n: number }
+    ).n;
+    const costRange = dayFilter('day');
+    const cost = (
+      this.db.prepare(`SELECT COALESCE(SUM(cost),0) c FROM token_cost${costRange.where}`).get(...costRange.params) as { c: number }
+    ).c;
+
+    return {
+      logicalRequests: Number(logicalRequests),
+      modelAttempts: Number(provider.attempts),
+      completedAttempts: Number(provider.completed),
+      failedAttempts: Number(provider.failed),
+      scheduledRetries: Number(provider.retries),
+      fallbacks: Number(provider.fallbacks),
+      providers: Number(provider.providers),
+      models: Number(provider.models),
+      inputTokens: Number(provider.inputTokens),
+      outputTokens: Number(provider.outputTokens),
+      cacheReadTokens: Number(provider.cacheReadTokens),
+      cacheWriteTokens: Number(provider.cacheWriteTokens),
+      estimatedCostUsd: Number(cost),
+      providerAvgDurationMs: Number(provider.durationCount) > 0 ? Number(provider.durationTotal) / Number(provider.durationCount) : 0,
+      // True p95 needs a retained distribution; this per-day aggregate only
+      // keeps sum/max/count, so approximate with the observed max rather
+      // than adding a per-attempt histogram write (would add the same kind
+      // of per-event overhead this whole effort is trying to remove).
+      providerP95DurationMs: Number(provider.durationMax),
+      toolCalls: Number(counters.toolCalls),
+      completedTools: Number(counters.completedTools),
+      failedTools: Number(counters.failedTools),
+      toolAvgDurationMs: Number(counters.toolDurationCount) > 0 ? Number(counters.toolDurationTotal) / Number(counters.toolDurationCount) : 0,
+      processes: Number(counters.processes),
+      failedProcesses: Number(counters.failedProcesses),
+      fileEvents: Number(counters.fileEvents),
+      uniqueFiles: Number(uniqueFiles),
+      agentEvents: Number(counters.agentEvents),
+      uniqueAgents: Number(uniqueAgents),
+      decisions: Number(counters.decisions),
+      escalations: Number(counters.escalations),
+      failures: Number(counters.failures),
+      cancellations: Number(counters.cancellations),
+      families,
+      failuresByFamily,
+    };
+  }
+
   // ─── Ingest internals ─────────────────────────────────────────────────────
 
   private ensureSchema(): void {
@@ -358,7 +482,9 @@ export class ChronicleMetricsStore {
       this.db.exec(
         'DROP TABLE IF EXISTS ingest_state; DROP TABLE IF EXISTS provider_daily;' +
           'DROP TABLE IF EXISTS task_outcomes; DROP TABLE IF EXISTS file_lineage;' +
-          'DROP TABLE IF EXISTS token_cost;',
+          'DROP TABLE IF EXISTS token_cost; DROP TABLE IF EXISTS daily_counters;' +
+          'DROP TABLE IF EXISTS family_daily; DROP TABLE IF EXISTS agent_daily;' +
+          'DROP TABLE IF EXISTS logical_request_daily; DROP TABLE IF EXISTS file_seen_daily;',
       );
     }
     this.db.exec(`
@@ -424,6 +550,36 @@ export class ChronicleMetricsStore {
         sequence INTEGER NOT NULL,
         cost REAL NOT NULL
       );
+      -- Backing store for defaultSummary(): per-day scalar counters plus
+      -- dedup sets, populated for every ingested event (not just the
+      -- provider/task/file families above).
+      CREATE TABLE IF NOT EXISTS daily_counters (
+        day TEXT PRIMARY KEY,
+        tool_calls INTEGER NOT NULL DEFAULT 0,
+        completed_tools INTEGER NOT NULL DEFAULT 0,
+        failed_tools INTEGER NOT NULL DEFAULT 0,
+        tool_duration_ms_total REAL NOT NULL DEFAULT 0,
+        tool_duration_ms_max REAL NOT NULL DEFAULT 0,
+        tool_duration_count INTEGER NOT NULL DEFAULT 0,
+        processes INTEGER NOT NULL DEFAULT 0,
+        failed_processes INTEGER NOT NULL DEFAULT 0,
+        file_events_all INTEGER NOT NULL DEFAULT 0,
+        decisions INTEGER NOT NULL DEFAULT 0,
+        escalations INTEGER NOT NULL DEFAULT 0,
+        agent_events INTEGER NOT NULL DEFAULT 0,
+        failures INTEGER NOT NULL DEFAULT 0,
+        cancellations INTEGER NOT NULL DEFAULT 0
+      );
+      CREATE TABLE IF NOT EXISTS family_daily (
+        day TEXT NOT NULL,
+        family TEXT NOT NULL,
+        count INTEGER NOT NULL DEFAULT 0,
+        failure_count INTEGER NOT NULL DEFAULT 0,
+        PRIMARY KEY (day, family)
+      );
+      CREATE TABLE IF NOT EXISTS agent_daily (day TEXT NOT NULL, agent_id TEXT NOT NULL, PRIMARY KEY (day, agent_id));
+      CREATE TABLE IF NOT EXISTS logical_request_daily (day TEXT NOT NULL, logical_request_id TEXT NOT NULL, PRIMARY KEY (day, logical_request_id));
+      CREATE TABLE IF NOT EXISTS file_seen_daily (day TEXT NOT NULL, path_key TEXT NOT NULL, PRIMARY KEY (day, path_key));
       PRAGMA user_version = ${SCHEMA_VERSION};
     `);
   }
@@ -523,6 +679,7 @@ export class ChronicleMetricsStore {
 
   private ingestEvent(event: ChronicleEvent): void {
     if (typeof event?.eventType !== 'string' || !event.scope) return;
+    this.ingestDailyCounters(event);
     const type = event.eventType;
     if (type.startsWith('provider.attempt.') || type === 'provider.fallback') {
       this.ingestProvider(event);
@@ -532,6 +689,61 @@ export class ChronicleMetricsStore {
       this.ingestTask(event);
     } else if (type === 'file.event' || /^file\.(?:tool|external)\./.test(type)) {
       this.ingestFileEvent(event);
+    }
+  }
+
+  /** Runs for every ingested event (not just the type-specific branches
+   *  below) — mirrors query.ts's updateSummary() closely enough that
+   *  defaultSummary() matches what a raw scan of the same window would say. */
+  private ingestDailyCounters(event: ChronicleEvent): void {
+    const day = eventDay(event);
+    this.db.prepare('INSERT OR IGNORE INTO daily_counters (day) VALUES (?)').run(day);
+    const bump = (sql: string, ...params: Array<string | number>) =>
+      this.db.prepare(`UPDATE daily_counters SET ${sql} WHERE day = ?`).run(...params, day);
+
+    const family = signalFamily(event);
+    const failed = isTerminalFailure(event) ? 1 : 0;
+    this.db
+      .prepare(
+        `INSERT INTO family_daily (day, family, count, failure_count) VALUES (?, ?, 1, ?)
+       ON CONFLICT(day, family) DO UPDATE SET count = count + 1, failure_count = failure_count + excluded.failure_count`,
+      )
+      .run(day, family, failed);
+    if (failed) bump('failures = failures + 1');
+    if (event.outcome === 'cancelled' || event.outcome === 'abandoned') bump('cancellations = cancellations + 1');
+    if (family === 'agent') bump('agent_events = agent_events + 1');
+
+    if (event.correlation.logicalRequestId) {
+      this.db
+        .prepare('INSERT OR IGNORE INTO logical_request_daily (day, logical_request_id) VALUES (?, ?)')
+        .run(day, event.correlation.logicalRequestId);
+    }
+    if (event.scope.agentId) {
+      this.db.prepare('INSERT OR IGNORE INTO agent_daily (day, agent_id) VALUES (?, ?)').run(day, event.scope.agentId);
+    }
+
+    const type = event.eventType;
+    if (type === 'decision.requested') bump('decisions = decisions + 1');
+    else if (type === 'decision.escalated') bump('escalations = escalations + 1');
+    else if (type === 'tool.started') bump('tool_calls = tool_calls + 1');
+    else if (type === 'tool.executed' || type === 'tool.failed') {
+      const dur = durationMs(event);
+      const durationCount = dur > 0 ? 1 : 0;
+      bump(
+        `${type === 'tool.executed' ? 'completed_tools' : 'failed_tools'} = ${type === 'tool.executed' ? 'completed_tools' : 'failed_tools'} + 1,
+         tool_duration_ms_total = tool_duration_ms_total + ?, tool_duration_ms_max = MAX(tool_duration_ms_max, ?), tool_duration_count = tool_duration_count + ?`,
+        dur, dur, durationCount,
+      );
+    } else if (type === 'process.started') bump('processes = processes + 1');
+    else if (type === 'process.completed' && event.outcome === 'failure') bump('failed_processes = failed_processes + 1');
+
+    if (event.resource?.kind === 'file' || type.startsWith('file.')) {
+      bump('file_events_all = file_events_all + 1');
+      if (event.resource?.path) {
+        this.db
+          .prepare('INSERT OR IGNORE INTO file_seen_daily (day, path_key) VALUES (?, ?)')
+          .run(day, normalizePathKey(event.resource.path));
+      }
     }
   }
 

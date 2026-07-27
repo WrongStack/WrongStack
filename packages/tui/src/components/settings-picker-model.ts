@@ -17,14 +17,13 @@ export const COMPACTOR_STRATEGIES = ['hybrid', 'intelligent', 'selective'] as co
 export type CompactorStrategy = (typeof COMPACTOR_STRATEGIES)[number];
 
 /** Context window mode options — cyclable via ←/→. */
-export const CONTEXT_MODES = ['balanced', 'frugal', 'deep', 'archival'] as const;
+export const CONTEXT_MODES = ['balanced', 'frugal', 'deep'] as const;
 export type ContextMode = (typeof CONTEXT_MODES)[number];
 
 export const CONTEXT_MODE_DESCS: Record<ContextMode, string> = {
   balanced: 'Normal context usage (default)',
   frugal: 'Conservative token use',
   deep: 'Larger context for complex tasks',
-  archival: 'Maximize context retention',
 };
 
 export const STATUSLINE_MODES = ['minimum', 'detailed', 'no-color'] as const;

@@ -1,4 +1,14 @@
-import type { MailboxMessageType } from './mailbox-types.js';
+export type MailboxMessageType =
+  | 'note'
+  | 'ask'
+  | 'assign'
+  | 'steer'
+  | 'btw'
+  | 'broadcast'
+  | 'status'
+  | 'result'
+  | 'review'
+  | 'control';
 
 /**
  * Semantic category a mail type belongs to - determines its handling

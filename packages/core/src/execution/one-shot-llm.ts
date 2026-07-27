@@ -15,6 +15,7 @@ import {
   type Request,
   type Response,
 } from '../types/provider.js';
+import { estimateRequestTokens } from '../utils/token-estimate.js';
 
 /**
  * Default timeout for one-shot LLM calls when the caller doesn't specify one.
@@ -145,6 +146,11 @@ export class OneShotOrchestrator {
     }
 
     // ── 4b. Fallback chain ──────────────────────────────────────────
+    // Estimate request tokens lazily — only reached when the primary call
+    // failed or was blocked. Used to pre-filter fallback entries whose context
+    // window is provably too small, avoiding a guaranteed context_overflow.
+    const estimatedTokens = estimateRequestTokens(request.messages, request.system, []).total;
+
     // Filter blocked entries from the chain
     const usableChain = tracker
       ? chain.filter((e) => tracker.isAvailable(e.providerId, e.model))
@@ -169,6 +175,23 @@ export class OneShotOrchestrator {
         fbProvider = await this.opts.buildProvider(entry.providerId, entry.model);
       } catch (err) {
         lastError = err;
+        continue;
+      }
+
+      // Pre-filter: skip entries whose context window is provably too small
+      // for the current request. A guaranteed context_overflow is not
+      // fallback-worthy and would surface as an error, wasting the call.
+      const fbMaxContext = fbProvider.capabilities.maxContext;
+      if (
+        typeof fbMaxContext === 'number' &&
+        Number.isFinite(fbMaxContext) &&
+        fbMaxContext > 0 &&
+        estimatedTokens > fbMaxContext
+      ) {
+        this.opts.logger?.debug(
+          `one-shot: skipping "${entry.providerId}/${entry.model}" — context window ` +
+            `(${fbMaxContext}) is smaller than request tokens (${estimatedTokens})`,
+        );
         continue;
       }
 

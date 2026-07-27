@@ -15,6 +15,7 @@ import { WorktreeManager } from '@wrongstack/core/worktree';
 import {
   cleanupStaleSddWorktrees,
   decomposeNonAtomicTasks,
+  gatherProjectContext,
   makeAcceptanceCriteriaVerifier,
   makeCommandVerifier,
   makeCompositeVerifier,
@@ -29,7 +30,7 @@ import {
   startSddRun,
   TaskGraphStore,
 } from '@wrongstack/sdd';
-import type { SddWizardDeps } from './sdd-wizard-ws-handler.js';
+import type { SddRunStartOpts, SddWizardDeps } from './sdd-wizard-ws-handler.js';
 import { isGitWorkTree } from './git-process.js';
 
 /** Config knobs shared by the wizard start and the launch-from-board start. */
@@ -196,15 +197,14 @@ export interface SddWizardWiringOptions {
     projectTaskGraphs: string;
     projectSddBoards: string;
     projectDir: string;
+    /**
+     * Canonical interview session file (same as wpaths.projectSddSession).
+     * Destroy + resume share this path so a wipe actually clears the wizard.
+     */
+    projectSddSession?: string | undefined;
   };
 }
 
-/**
- * Build the {@link SddWizardDeps} shared by both webui servers from a single
- * per-task `subagentFactory`. The factory drives BOTH the interview agent (an
- * isolated turn off the main chat bus) and the real multi-agent run, so each
- * server only has to supply the right factory for its process.
- */
 /**
  * Prepended to every isolated interview/splitter turn. Keeps the spec interview
  * a pure planning conversation — no file writes, no shell — regardless of how
@@ -218,25 +218,33 @@ const PLANNING_ONLY_GUARD =
   'plan / task JSON. All code is written later, automatically, once the plan is ' +
   'approved and the multi-agent run starts.\n\n---\n\n';
 
+/**
+ * Build the {@link SddWizardDeps} shared by both webui servers from a single
+ * per-task `subagentFactory`. Gathers project context asynchronously (exposed
+ * via `ensureReady`) so the first interview turn always sees package/src layout.
+ */
 export function buildSddWizardDeps(opts: SddWizardWiringOptions): SddWizardDeps {
   const registry = new SddRunRegistry();
   let isolatedSeq = 0;
+  let projectContext = '';
+  const contextReady = gatherProjectContext(opts.projectRoot)
+    .then((ctx) => {
+      projectContext = ctx;
+    })
+    .catch(() => {
+      projectContext = '';
+    });
+
+  // Prefer the shared projectSddSession path so /sdd destroy + WebUI destroy
+  // clear the same interview file the wizard resumes from.
+  const sessionPath =
+    opts.paths.projectSddSession ?? path.join(opts.paths.projectDir, 'sdd-session.json');
+  const specStore = new SpecStore({ baseDir: opts.paths.projectSpecs });
+  const graphStore = new TaskGraphStore({ baseDir: opts.paths.projectTaskGraphs });
 
   /**
    * Run one self-contained, read-only LLM turn on a fresh isolated agent (off the
-   * main chat bus). Shared by the interview and the supervisor's subtask splitter:
-   * both feed a self-embedding prompt, want no shared context, and must NOT edit
-   * the repo (restricted to the read-only capability floor; the execute phase is
-   * where writes happen). The factory's per-turn cleanup is invoked here because
-   * we drive it directly, not via makeAgentSubagentRunner.
-   *
-   * The interview is PLANNING-ONLY: it must never write code. The read-only
-   * capability floor already denies fs.write/shell, but a capable model will
-   * still *attempt* a write/bash call when the implementation-planning prompt
-   * mentions "implement" — the call then fails and derails the turn. So we belt-
-   * and-suspenders it: (1) disable the mutating tools by name, and (2) prepend an
-   * explicit text guard so the agent never even tries. Code is written later, by
-   * the real run, after the plan is approved.
+   * main chat bus). Shared by the interview and the supervisor's subtask splitter.
    */
   const runIsolatedTurn = async (prompt: string, name: string): Promise<string> => {
     const result = await opts.subagentFactory({
@@ -254,20 +262,52 @@ export function buildSddWizardDeps(opts: SddWizardWiringOptions): SddWizardDeps 
     }
   };
 
+  const makeDriver = (): SddInterviewDriver =>
+    new SddInterviewDriver({
+      specStore,
+      graphStore,
+      sessionPath,
+      projectContext,
+    });
+
+  const launchFromGraph = async (
+    graph: TaskGraph,
+    config: SddRunStartOpts,
+    tracker?: TaskTracker,
+  ): Promise<{ runId: string }> => {
+    const handle = await startSddRunFromGraph(
+      graph,
+      {
+        agent: opts.agent,
+        events: opts.events,
+        projectRoot: opts.projectRoot,
+        subagentFactory: opts.subagentFactory,
+        projectSddBoards: opts.paths.projectSddBoards,
+        registry,
+        runIsolatedTurn,
+        ...(opts.brain ? { brain: opts.brain } : {}),
+      },
+      {
+        ...(config.parallelSlots !== undefined ? { parallelSlots: config.parallelSlots } : {}),
+        ...(config.defaultModel !== undefined ? { defaultModel: config.defaultModel } : {}),
+        ...(config.defaultProvider !== undefined ? { defaultProvider: config.defaultProvider } : {}),
+        ...(config.fallbackModels !== undefined ? { fallbackModels: config.fallbackModels } : {}),
+        ...(config.worktrees !== undefined ? { worktrees: config.worktrees } : {}),
+        ...(config.planDecompose !== undefined ? { planDecompose: config.planDecompose } : {}),
+      },
+      tracker,
+    );
+    void handle.completion.catch(() => {});
+    return { runId: handle.runId };
+  };
+
   return {
-    makeDriver: () =>
-      new SddInterviewDriver({
-        specStore: new SpecStore({ baseDir: opts.paths.projectSpecs }),
-        graphStore: new TaskGraphStore({ baseDir: opts.paths.projectTaskGraphs }),
-        sessionPath: path.join(opts.paths.projectDir, 'sdd-wizard-session.json'),
-      }),
+    makeDriver,
+    ensureReady: () => contextReady,
 
     runInterviewTurn: (prompt: string): Promise<string> => runIsolatedTurn(prompt, 'Spec Architect'),
 
-    startRun: async (
-      driver,
-      { parallelSlots, defaultModel, defaultProvider, fallbackModels, worktrees: useWorktrees },
-    ) => {
+    startRun: async (driver, config) => {
       const graph = driver.getGraph();
       const tracker = driver.getTracker();
       if (!graph || !tracker) {
@@ -276,34 +316,23 @@ export function buildSddWizardDeps(opts: SddWizardWiringOptions): SddWizardDeps 
           field: 'taskGraph',
         });
       }
+      return launchFromGraph(graph, config, tracker);
+    },
 
-      // Shared with launch-from-board: builds worktrees + verifier + supervisor
-      // and defers to startSddRun (parity with the CLI /sdd parallel path).
-      const handle = await startSddRunFromGraph(
-        graph,
-        {
-          agent: opts.agent,
-          events: opts.events,
-          projectRoot: opts.projectRoot,
-          subagentFactory: opts.subagentFactory,
-          projectSddBoards: opts.paths.projectSddBoards,
-          registry,
-          runIsolatedTurn,
-          ...(opts.brain ? { brain: opts.brain } : {}),
-        },
-        {
-          ...(parallelSlots !== undefined ? { parallelSlots } : {}),
-          ...(defaultModel !== undefined ? { defaultModel } : {}),
-          ...(defaultProvider !== undefined ? { defaultProvider } : {}),
-          ...(fallbackModels !== undefined ? { fallbackModels } : {}),
-          ...(useWorktrees !== undefined ? { worktrees: useWorktrees } : {}),
-        },
-        tracker,
-      );
-      // The board surfaces progress (events + disk); we don't block the wizard
-      // on completion. Swallow rejections so a failed run can't crash the server.
-      void handle.completion.catch(() => {});
-      return { runId: handle.runId };
+    startRunFromGraphId: async (graphId, config) => {
+      const graph = await graphStore.load(graphId);
+      if (!graph) {
+        throw new ToolValidationError({
+          message: `Task graph not found: ${graphId}`,
+          field: 'graphId',
+        });
+      }
+      return launchFromGraph(graph, config);
+    },
+
+    resolveGraphIdForSpec: async (specId) => {
+      const entry = (await graphStore.list()).find((g) => g.specId === specId);
+      return entry?.id ?? null;
     },
   };
 }

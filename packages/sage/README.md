@@ -6,7 +6,13 @@ concrete store.
 
 ## Supported composition
 
-- `createSqliteMemoryPort(...)` is the production default.
+- `createProjectSageMemoryPort(...)` is the production default. It connects
+  every CLI, TUI, ACP, and WebUI host for a canonical project to one detached
+  project server. That server is the only process that owns the SQLite
+  connection, mutation queue, counters, and automatic hygiene throttle.
+  Linked Git worktrees resolve to the main checkout identity and share it.
+- `createSqliteMemoryPort(...)` is reserved for tests and explicit offline
+  recovery (`WRONGSTACK_SAGE_INLINE=1`).
 - `LegacyMemoryPortAdapter` wraps third-party or historical `MemoryStore`
   implementations.
 - Optional retrieval and administration features are obtained with
@@ -16,6 +22,9 @@ concrete store.
 ## Internal boundaries
 
 - `memory-port.ts`: host-facing lifecycle, adapters, and typed capabilities
+- `project-server.ts`: single per-project SQLite owner and request dispatcher
+- `project-server-client.ts` / `remote-memory-port.ts`: reconnecting IPC client
+  and transparent `MemoryPort`/SAGE capability proxies
 - `sqlite-store.ts`: persistence and migration implementation
 - `store-helpers.ts`: canonical validation, normalization, and index helpers
 - `retrieval/`: ranking and rendering helpers

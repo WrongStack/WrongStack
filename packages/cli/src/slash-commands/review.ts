@@ -121,7 +121,6 @@ export function buildReviewCommand(opts: SlashCommandContext): SlashCommand {
           provider: ctx.provider.id,
           model: ctx.model,
           maxFiles: limit,
-          maxTokens: 4096,
         },
         cwd,
         files: filesWithContent,

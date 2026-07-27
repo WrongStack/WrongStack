@@ -19,7 +19,8 @@ import {
   useEffect,
 } from 'react';
 import type { AppProps } from '../app-props.js';
-import type { Action, Settings, State } from '../app-state.js';
+import type { Action } from '../app-action-type.js';
+import type { Settings, State } from '../app-state.js';
 import { AUTONOMY_OPTIONS } from '../components/autonomy-picker.js';
 import {
   formatAllSettingsSummary,

@@ -37,11 +37,21 @@ export function resolveSagePaths(projectRoot: string, directory = DEFAULT_SAGE_D
  * cache keeps the cost bounded by the number of unique paths instead
  * of the number of calls. Process-local: cross-process correctness is
  * not affected (every process resolves its own tree at startup).
+ *
+ * Hard cap: a long-lived project server that sees many ephemeral paths
+ * (temp files, generated fixtures) must not grow this map unbounded.
+ * Map insertion order gives cheap FIFO eviction of the oldest entry.
  */
+const REALPATH_CACHE_MAX = 4_096;
 const realpathCache = new Map<string, string>();
 function cachedRealpath(p: string): string {
   const cached = realpathCache.get(p);
-  if (cached !== undefined) return cached;
+  if (cached !== undefined) {
+    // Refresh LRU order so hot roots stay resident under eviction pressure.
+    realpathCache.delete(p);
+    realpathCache.set(p, cached);
+    return cached;
+  }
   // The nlink check distinguishes real files/dirs from the rest of the
   // filesystem, but for our purposes a single fs.realpathSync (which
   // throws on broken links) is sufficient — callers pass already-
@@ -55,6 +65,11 @@ function cachedRealpath(p: string): string {
     resolved = fs.realpathSync(p);
   } catch {
     resolved = path.resolve(p);
+  }
+  while (realpathCache.size >= REALPATH_CACHE_MAX) {
+    const oldest = realpathCache.keys().next().value;
+    if (oldest === undefined) break;
+    realpathCache.delete(oldest);
   }
   realpathCache.set(p, resolved);
   return resolved;

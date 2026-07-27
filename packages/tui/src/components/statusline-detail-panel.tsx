@@ -9,7 +9,13 @@ import {
   truncatePanelText,
   useMonitorSize,
 } from './monitor-shell.js';
-import { fmtElapsed, renderMeter, truncateChip, type StatusBarProps } from './status-bar.js';
+import {
+  fmtElapsed,
+  fmtMemory,
+  renderMeter,
+  truncateChip,
+  type StatusBarProps,
+} from './status-bar.js';
 import { normalizeTuiThinkingWord } from '../thinking-word.js';
 import { STATUSLINE_ITEMS } from './statusline-picker.js';
 
@@ -118,8 +124,64 @@ export function StatuslineDetailPanel(
           ? chipRow('Breaker', `${Math.ceil(breakerCountdown.remainingMs / 1000)}s`)
           : null}
         {hint ? chipRow('Hint', hint, theme.warn) : null}
-        {indexState?.indexing
-          ? chipRow('Index', `indexing ${indexState.currentFile}/${indexState.totalFiles}`)
+        {indexState
+          ? chipRow(
+              'Index',
+              indexState.indexing
+                ? `indexing ${indexState.currentFile}/${indexState.totalFiles}`
+                : indexState.circuit?.state === 'open'
+                  ? 'paused'
+                  : indexState.ready
+                    ? 'ready'
+                    : 'idle',
+            )
+          : null}
+        {indexState?.server
+          ? chipRow(
+              'Index server',
+              indexState.server.status === 'connected'
+                ? `${indexState.server.health?.status === 'healthy' ? 'healthy' : 'connected'}${indexState.server.pid ? ` · PID ${indexState.server.pid}` : ''}`
+                : indexState.server.status === 'offline'
+                  ? 'disconnected'
+                  : indexState.server.status === 'error' && indexState.server.lastError
+                    ? `error · ${indexState.server.lastError}`
+                    : indexState.server.status,
+              indexState.server.status === 'connected'
+                ? theme.success
+                : indexState.server.status === 'error' ||
+                    indexState.server.status === 'unresponsive'
+                  ? theme.error
+                  : theme.warn,
+            )
+          : null}
+        {indexState?.server?.health
+          ? chipRow(
+              'Server health',
+              `${indexState.server.health.status}${indexState.server.health.latencyMs != null ? ` · RTT ${indexState.server.health.latencyMs}ms` : ''} · missed ${indexState.server.health.missedHeartbeats}`,
+              indexState.server.health.status === 'healthy'
+                ? theme.success
+                : indexState.server.health.status === 'unresponsive'
+                  ? theme.error
+                  : theme.warn,
+            )
+          : null}
+        {indexState?.server?.health?.server
+          ? chipRow(
+              'Server process',
+              `RAM ${fmtMemory(indexState.server.health.server.memory.rss)} · heap ${fmtMemory(indexState.server.health.server.memory.heapUsed)}/${fmtMemory(indexState.server.health.server.memory.heapTotal)} · up ${fmtElapsed(indexState.server.health.server.uptimeMs)}`,
+            )
+          : null}
+        {indexState?.server?.health?.server
+          ? chipRow(
+              'Server load',
+              `${indexState.server.health.server.clients} clients · ${indexState.server.health.server.activeRequests} req · writes ${indexState.server.health.server.activeWrites}/${indexState.server.health.server.queuedWrites}q · ${indexState.server.health.server.pendingExternalFiles} pending · watcher ${indexState.server.health.server.watchingExternal ? `${indexState.server.health.server.watchingClients ?? '?'} owners` : 'off'}`,
+            )
+          : null}
+        {indexState?.server?.health?.server?.clientLeaseTimeoutMs != null
+          ? chipRow(
+              'Client lease',
+              `${fmtElapsed(indexState.server.health.server.oldestClientIdleMs ?? 0)} idle / ${fmtElapsed(indexState.server.health.server.clientLeaseTimeoutMs)} timeout`,
+            )
           : null}
 
         {/* ── Session ── */}

@@ -14,12 +14,21 @@
  */
 
 import { parentPort } from 'node:worker_threads';
-import { indexService, searchService, statsService } from './index-service.js';
+import {
+  fileGraphService,
+  indexService,
+  packageGraphService,
+  searchService,
+  statsService,
+  symbolGraphService,
+} from './index-service.js';
 import type {
+  FileGraphOpArgs,
   HostToWorker,
   IndexOpArgs,
   SearchOpArgs,
   StatsOpArgs,
+  SymbolGraphOpArgs,
   WorkerToHost,
 } from './worker-protocol.js';
 
@@ -51,6 +60,12 @@ async function dispatch(msg: Extract<HostToWorker, { type: 'request' }>): Promis
       return searchService(msg.args as SearchOpArgs);
     case 'stats':
       return statsService(msg.args as StatsOpArgs);
+    case 'packageGraph':
+      return packageGraphService(msg.args as StatsOpArgs);
+    case 'fileGraph':
+      return fileGraphService(msg.args as FileGraphOpArgs);
+    case 'symbolGraph':
+      return symbolGraphService(msg.args as SymbolGraphOpArgs);
     default:
       throw new Error(`unknown index op: ${(msg as { op: string }).op}`);
   }

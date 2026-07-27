@@ -1,12 +1,15 @@
+import { execFile } from 'node:child_process';
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
+import { promisify } from 'node:util';
 import type { Context } from '@wrongstack/core/agent';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { runIndexer } from '../src/codebase-index/indexer.js';
 import { IndexStore } from '../src/codebase-index/writer.js';
 
 const ctx = {} as Context; // runIndexer ignores ctx (prefixed _ctx)
+const execFileAsync = promisify(execFile);
 let dir: string;
 const indexDir = () => path.join(dir, '.codebase-index');
 
@@ -65,6 +68,70 @@ describe('runIndexer', () => {
     await fs.writeFile(path.join(dir, 'keep.ts'), 'export const y = 2;');
     const res = await runIndexer(ctx, { projectRoot: dir, indexDir: indexDir() });
     expect(res.filesIndexed).toBe(1); // node_modules pruned
+  });
+
+  it('uses the Git file index while retaining tracked, untracked, and ignore semantics', async () => {
+    await execFileAsync('git', ['init', '--quiet'], { cwd: dir, windowsHide: true });
+    await fs.writeFile(path.join(dir, '.gitignore'), 'ignored.ts\nignored-dir/\n');
+    await fs.writeFile(path.join(dir, 'tracked.ts'), 'export const tracked = 1;');
+    await fs.writeFile(path.join(dir, 'untracked.ts'), 'export const untracked = 2;');
+    await fs.writeFile(path.join(dir, 'ignored.ts'), 'export const ignored = 3;');
+    await fs.mkdir(path.join(dir, 'ignored-dir'));
+    await fs.writeFile(
+      path.join(dir, 'ignored-dir', 'nested.ts'),
+      'export const ignoredNested = 4;',
+    );
+    await execFileAsync('git', ['add', '.gitignore', 'tracked.ts'], {
+      cwd: dir,
+      windowsHide: true,
+    });
+    await execFileAsync(
+      'git',
+      [
+        '-c',
+        'user.name=WrongStack Test',
+        '-c',
+        'user.email=test@wrongstack.dev',
+        'commit',
+        '--quiet',
+        '-m',
+        'fixture',
+      ],
+      { cwd: dir, windowsHide: true },
+    );
+
+    const res = await runIndexer(ctx, { projectRoot: dir, indexDir: indexDir() });
+
+    expect(res.filesIndexed).toBe(2);
+    const store = new IndexStore(dir, { indexDir: indexDir() });
+    try {
+      expect(store.searchRanked('tracked', {}, 10).results).toHaveLength(1);
+      expect(store.searchRanked('untracked', {}, 10).results).toHaveLength(1);
+      expect(store.searchRanked('ignored', {}, 10).results).toHaveLength(0);
+    } finally {
+      store.close();
+    }
+
+    await fs.writeFile(path.join(dir, 'tracked.ts'), 'export const trackedUpdated = 5;');
+    const updated = await runIndexer(ctx, { projectRoot: dir, indexDir: indexDir() });
+    expect(updated.errors).toEqual([]);
+    const updatedStore = new IndexStore(dir, { indexDir: indexDir() });
+    try {
+      expect(updatedStore.searchRanked('trackedUpdated', {}, 10).results).toHaveLength(1);
+    } finally {
+      updatedStore.close();
+    }
+
+    await fs.rm(path.join(dir, 'tracked.ts'));
+    const deleted = await runIndexer(ctx, { projectRoot: dir, indexDir: indexDir() });
+    expect(deleted.errors).toEqual([]);
+    expect(deleted.filesIndexed).toBe(1);
+    const deletedStore = new IndexStore(dir, { indexDir: indexDir() });
+    try {
+      expect(deletedStore.searchRanked('trackedUpdated', {}, 10).results).toHaveLength(0);
+    } finally {
+      deletedStore.close();
+    }
   });
 
   it('walks deep trees, reports progress, and yields the event loop', async () => {

@@ -35,7 +35,7 @@ describe('MemoryInjectorAgent', () => {
     const ctx = makeCtx({ lastRequestTokens: 90_000 });
     const plan = agent.plan({
       ctx,
-      trigger: 'bash',
+      trigger: 'read',
       toolQuery: 'pnpm test',
       baseMaxHints: 8,
       baseMaxChars: 2800,

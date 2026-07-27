@@ -255,6 +255,12 @@ export interface SageConfig {
         autoOnFileChange?: boolean | undefined;
         /** Archive stale/low-value memories after this many days. Default: 90. */
         retentionDays?: number | undefined;
+        /**
+         * Soft-delete session-scoped memories without `expiresAt` after this
+         * many days. Default: 7. Session scope is ephemeral and is deleted
+         * by hygiene immediately (no review candidate).
+         */
+        sessionRetentionDays?: number | undefined;
         /** Archive low-confidence memories after this many days. Default: 30. */
         archiveLowConfidenceAfterDays?: number | undefined;
         /**
@@ -265,6 +271,11 @@ export interface SageConfig {
         archiveUnusedAfterDays?: number | undefined;
         /** Minimum injection count before a never-used memory is archived. Default: 10. */
         unusedMinInjections?: number | undefined;
+        /**
+         * OPT-IN: physically remove soft-deleted tombstones older than this
+         * many days. Undefined/0 disables purge (default).
+         */
+        purgeDeletedAfterDays?: number | undefined;
       }
     | undefined;
   embeddings?:

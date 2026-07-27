@@ -4,6 +4,7 @@ import * as path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { Agent, createDefaultPipelines } from '../../src/core/agent.js';
 import { Context } from '../../src/core/context.js';
+import { ExtensionRegistry } from '../../src/extension/registry.js';
 import { DefaultErrorHandler } from '../../src/execution/error-handler.js';
 import { DefaultRetryPolicy } from '../../src/execution/retry-policy.js';
 import { ToolExecutor } from '../../src/execution/tool-executor.js';
@@ -29,7 +30,11 @@ import type {
 import type { Tool } from '../../src/types/tool.js';
 import { MockProvider, StreamingMockProvider } from '../helpers/mock-provider.js';
 
-async function buildAgent(provider: MockProvider, extraTools: Tool[] = []) {
+async function buildAgent(
+  provider: MockProvider,
+  extraTools: Tool[] = [],
+  extensions?: ExtensionRegistry,
+) {
   const tmp = await fs.mkdtemp(path.join(os.tmpdir(), 'wstack-ag-'));
   const trustFile = path.join(tmp, 'trust.json');
   const sessionDir = path.join(tmp, 'sessions');
@@ -85,6 +90,7 @@ async function buildAgent(provider: MockProvider, extraTools: Tool[] = []) {
     context: ctx,
     maxIterations: 10,
     toolExecutor,
+    extensions,
   });
   return { agent, ctx, tools, tmp, sessionStore };
 }
@@ -108,6 +114,63 @@ describe('Agent', () => {
     expect(result.status).toBe('done');
     expect(result.finalText).toBe('hi');
     expect(provider.calls).toBe(1);
+  });
+
+  it('pins the starting session before asynchronous beforeRun hooks', async () => {
+    const provider = new MockProvider([
+      { content: [{ type: 'text', text: 'ok' }], stopReason: 'end_turn' },
+    ]);
+    const extensions = new ExtensionRegistry();
+    let observedSessionId: string | undefined;
+    extensions.register({
+      name: 'observe-pinned-session',
+      beforeRun: async (ctx) => {
+        await Promise.resolve();
+        observedSessionId = ctx.eventSessionId();
+      },
+    });
+    const { agent, ctx, tmp } = await buildAgent(provider, [], extensions);
+    cleanupDirs.push(tmp);
+    const startingSessionId = ctx.session.id;
+
+    await agent.run('observe pin');
+
+    expect(observedSessionId).toBe(startingSessionId);
+    expect(ctx.activeRunSessionId).toBeUndefined();
+    expect(ctx.activeRunSessionWriter).toBeUndefined();
+  });
+
+  it('keeps the run guard and session pins through asynchronous cleanup', async () => {
+    const provider = new MockProvider([
+      { content: [{ type: 'text', text: 'ok' }], stopReason: 'end_turn' },
+    ]);
+    const { agent, ctx, tmp } = await buildAgent(provider);
+    cleanupDirs.push(tmp);
+    let releaseCleanup!: () => void;
+    const cleanupGate = new Promise<void>((resolve) => {
+      releaseCleanup = resolve;
+    });
+    let cleanupStarted!: () => void;
+    const cleanupStartedGate = new Promise<void>((resolve) => {
+      cleanupStarted = resolve;
+    });
+    const pinnedWriter = ctx.session;
+    ctx.registerAbortHook(async () => {
+      cleanupStarted();
+      await cleanupGate;
+    });
+
+    const running = agent.run('cleanup pin');
+    await cleanupStartedGate;
+
+    expect(ctx.activeRunSessionId).toBe(pinnedWriter.id);
+    expect(ctx.activeRunSessionWriter).toBe(pinnedWriter);
+    await expect(agent.run('must stay guarded')).rejects.toThrow(/already in progress/);
+
+    releaseCleanup();
+    await running;
+    expect(ctx.activeRunSessionId).toBeUndefined();
+    expect(ctx.activeRunSessionWriter).toBeUndefined();
   });
 
   it('starts an automatic follow-up on the model transition that was already requested', async () => {

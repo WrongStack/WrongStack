@@ -23,6 +23,17 @@ function deriveTitle(goal: string): string {
   return sentence.length <= 64 ? sentence : `${sentence.slice(0, 63).trimEnd()}…`;
 }
 
+export interface SddRunStartOpts {
+  parallelSlots?: number | undefined;
+  defaultModel?: string | undefined;
+  defaultProvider?: string | undefined;
+  fallbackModels?: string[] | undefined;
+  /** Per-run worktree-isolation override; undefined → env default. */
+  worktrees?: boolean | undefined;
+  /** Planning-time non-atomic task split before dispatch. */
+  planDecompose?: boolean | undefined;
+}
+
 /**
  * Dependencies each webui server supplies. The handler is deliberately
  * agent-agnostic: every surface decides how to build a driver, how to run an
@@ -34,6 +45,11 @@ export interface SddWizardDeps {
   /** Build a fresh interview driver (disk spec/graph stores + session path). */
   makeDriver: () => SddInterviewDriver;
   /**
+   * Await before the first message / client snapshot so project context and any
+   * disk resume finish loading. Optional for unit tests that inject a ready driver.
+   */
+  ensureReady?: (() => Promise<void>) | undefined;
+  /**
    * Run one interview turn: feed the AI prompt to an isolated agent and return
    * its final text. MUST NOT run on the main chat agent's bus — the wizard owns
    * this conversation, separate from the user's chat.
@@ -43,17 +59,19 @@ export interface SddWizardDeps {
    * Start the real multi-agent SDD run for the driver's task graph. Returns the
    * runId; the live board flows through the existing board handler.
    */
-  startRun: (
-    driver: SddInterviewDriver,
-    opts: {
-      parallelSlots?: number | undefined;
-      defaultModel?: string | undefined;
-      defaultProvider?: string | undefined;
-      fallbackModels?: string[] | undefined;
-      /** Per-run worktree-isolation override; undefined → env default. */
-      worktrees?: boolean | undefined;
-    },
-  ) => Promise<{ runId: string }>;
+  startRun: (driver: SddInterviewDriver, opts: SddRunStartOpts) => Promise<{ runId: string }>;
+  /**
+   * Start a multi-agent SDD run from an already-persisted task graph (Specs
+   * "Run as SDD"). Omit → `sdd.run.from_graph` / `sdd.run.from_spec` error.
+   */
+  startRunFromGraphId?:
+    | ((graphId: string, opts: SddRunStartOpts) => Promise<{ runId: string }>)
+    | undefined;
+  /**
+   * Resolve the latest task-graph id for a persisted spec. Used by
+   * `sdd.run.from_spec`. Omit → that message type is unavailable.
+   */
+  resolveGraphIdForSpec?: ((specId: string) => Promise<string | null>) | undefined;
 }
 
 /**
@@ -61,6 +79,10 @@ export interface SddWizardDeps {
  * (goal → Q&A → spec → task graph → start run) over WebSocket. Shared by both
  * webui servers; server-specific construction (agent, factory) is injected via
  * {@link SddWizardDeps}.
+ *
+ * Continuity: on construction (and before the first client message) the handler
+ * rehydrates any on-disk interview session so a browser refresh or process
+ * restart resumes mid-Q&A / mid-review without re-running the model.
  */
 export class SddWizardWebSocketHandler {
   private readonly clients = new Set<WSClient>();
@@ -69,23 +91,62 @@ export class SddWizardWebSocketHandler {
   private lastAgentText = '';
   /** Guards against overlapping interview turns (one in flight at a time). */
   private busy = false;
+  /** Resolves once project-context gather + disk resume finish. */
+  private readonly ready: Promise<void>;
 
-  constructor(private readonly deps: SddWizardDeps) {}
+  constructor(private readonly deps: SddWizardDeps) {
+    this.ready = this.bootstrap();
+  }
+
+  private async bootstrap(): Promise<void> {
+    try {
+      await this.deps.ensureReady?.();
+    } catch {
+      // Context gather is best-effort.
+    }
+    await this.tryResume();
+  }
+
+  /** Rehydrate a persisted interview if one exists on disk. */
+  private async tryResume(): Promise<void> {
+    if (this.driver) return;
+    try {
+      const driver = this.deps.makeDriver();
+      if (await driver.loadExisting()) {
+        this.driver = driver;
+        this.lastAgentText = driver.getLastAgentText() ?? '';
+      }
+    } catch {
+      // Corrupt session file → start fresh on next user action.
+      this.driver = null;
+      this.lastAgentText = '';
+    }
+  }
 
   addClient(ws: WebSocket): void {
     const client: WSClient = { ws, id: crypto.randomUUID() };
     this.clients.add(client);
     ws.on('close', () => this.clients.delete(client));
     ws.on('error', () => this.clients.delete(client));
-    // Send the current interview state (if any) so a reconnecting client catches up.
-    if (this.driver) this.send(client, this.snapshotMsg());
+    // Catch up reconnecting clients after resume completes.
+    void this.ready.then(() => {
+      if (this.driver) {
+        this.send(client, this.snapshotMsg());
+        if (this.lastAgentText) {
+          this.send(client, { type: 'sdd.spec.agent_text', payload: { text: this.lastAgentText } });
+        }
+      }
+    });
   }
 
   async handleMessage(msg: WizardMessage): Promise<void> {
     try {
+      await this.ready;
       switch (msg.type) {
         case 'sdd.spec.start':
-          await this.onStart(String(msg.payload?.goal ?? '').trim());
+          await this.onStart(String(msg.payload?.goal ?? '').trim(), {
+            force: msg.payload?.force === true,
+          });
           break;
         case 'sdd.spec.message':
           await this.onMessage(String(msg.payload?.text ?? ''));
@@ -94,18 +155,30 @@ export class SddWizardWebSocketHandler {
           await this.onApprove();
           break;
         case 'sdd.spec.get':
-          if (this.driver) this.broadcast(this.snapshotMsg());
+          if (this.driver) {
+            this.broadcast(this.snapshotMsg());
+            if (this.lastAgentText) {
+              this.broadcast({ type: 'sdd.spec.agent_text', payload: { text: this.lastAgentText } });
+            }
+          }
+          break;
+        case 'sdd.spec.discard':
+          await this.onDiscard();
           break;
         case 'sdd.run.start':
-          await this.onRunStart({
-            parallelSlots: msg.payload?.parallelSlots as number | undefined,
-            defaultModel: msg.payload?.model as string | undefined,
-            defaultProvider: msg.payload?.provider as string | undefined,
-            fallbackModels: Array.isArray(msg.payload?.fallbackModels)
-              ? (msg.payload?.fallbackModels as string[])
-              : undefined,
-            worktrees: typeof msg.payload?.worktrees === 'boolean' ? msg.payload.worktrees : undefined,
-          });
+          await this.onRunStart(this.parseRunOpts(msg.payload));
+          break;
+        case 'sdd.run.from_graph':
+          await this.onRunFromGraph(
+            String(msg.payload?.graphId ?? '').trim(),
+            this.parseRunOpts(msg.payload),
+          );
+          break;
+        case 'sdd.run.from_spec':
+          await this.onRunFromSpec(
+            String(msg.payload?.specId ?? '').trim(),
+            this.parseRunOpts(msg.payload),
+          );
           break;
       }
     } catch (err) {
@@ -119,18 +192,88 @@ export class SddWizardWebSocketHandler {
 
   // ── message handlers ──────────────────────────────────────────────────────
 
-  private async onStart(goal: string): Promise<void> {
+  private parseRunOpts(payload?: Record<string, unknown>): SddRunStartOpts {
+    return {
+      parallelSlots: payload?.parallelSlots as number | undefined,
+      defaultModel: (payload?.model as string | undefined) ?? (payload?.defaultModel as string | undefined),
+      defaultProvider:
+        (payload?.provider as string | undefined) ?? (payload?.defaultProvider as string | undefined),
+      fallbackModels: Array.isArray(payload?.fallbackModels)
+        ? (payload?.fallbackModels as string[])
+        : undefined,
+      worktrees: typeof payload?.worktrees === 'boolean' ? payload.worktrees : undefined,
+      planDecompose:
+        typeof payload?.planDecompose === 'boolean' ? payload.planDecompose : undefined,
+    };
+  }
+
+  private async onStart(goal: string, opts: { force?: boolean }): Promise<void> {
     if (!goal) {
       this.broadcast({ type: 'sdd.spec.error', payload: { message: 'A goal is required.' } });
       return;
     }
     if (this.busy) return;
+
+    // Resume-friendly: an in-progress interview is kept unless the operator
+    // explicitly forces a new start (discard-then-start, or force: true).
+    if (this.driver && !opts.force) {
+      const phase = this.driver.phase();
+      const midInterview =
+        phase === 'questioning' ||
+        phase === 'spec_review' ||
+        phase === 'implementation' ||
+        phase === 'task_review';
+      if (midInterview) {
+        // Still mid-flow — surface the existing session instead of clobbering.
+        this.broadcast(this.snapshotMsg());
+        if (this.lastAgentText) {
+          this.broadcast({ type: 'sdd.spec.agent_text', payload: { text: this.lastAgentText } });
+        }
+        this.broadcast({
+          type: 'sdd.spec.error',
+          payload: {
+            message:
+              'An interview is already in progress. Continue it, or discard and start a new one.',
+          },
+        });
+        return;
+      }
+    }
+
+    // Force / post-completion restart: drop any leftover on-disk session first so
+    // a crash mid-start cannot rehydrate the previous interview.
+    if (opts.force || this.driver) {
+      try {
+        if (this.driver) await this.driver.discard();
+        else await this.deps.makeDriver().discard();
+      } catch {
+        /* best-effort */
+      }
+    }
     this.driver = this.deps.makeDriver();
+    this.lastAgentText = '';
     // Keep the operator's full prompt as the interview's intent/goal, but give
     // the session a short readable title — pasting the whole prompt as the title
     // made the wizard header unreadable.
     const prompt = this.driver.start(deriveTitle(goal), goal);
     await this.runTurn(prompt);
+  }
+
+  private async onDiscard(): Promise<void> {
+    if (this.busy) return;
+    if (this.driver) {
+      await this.driver.discard();
+    } else {
+      // Still clear any on-disk session even if we never loaded a driver.
+      const d = this.deps.makeDriver();
+      await d.discard();
+    }
+    this.driver = null;
+    this.lastAgentText = '';
+    this.broadcast({
+      type: 'sdd.spec.snapshot',
+      payload: { phase: 'idle', busy: false, discarded: true },
+    });
   }
 
   private async onMessage(text: string): Promise<void> {
@@ -156,13 +299,7 @@ export class SddWizardWebSocketHandler {
     await this.runTurn(prompt);
   }
 
-  private async onRunStart(opts: {
-    parallelSlots?: number | undefined;
-    defaultModel?: string | undefined;
-    defaultProvider?: string | undefined;
-    fallbackModels?: string[] | undefined;
-    worktrees?: boolean | undefined;
-  }): Promise<void> {
+  private async onRunStart(opts: SddRunStartOpts): Promise<void> {
     if (!this.driver) {
       this.broadcast({ type: 'sdd.spec.error', payload: { message: 'No active spec session.' } });
       return;
@@ -178,7 +315,59 @@ export class SddWizardWebSocketHandler {
       return;
     }
     const { runId } = await this.deps.startRun(this.driver, opts);
+    this.driver.setLastRunId(runId);
+    // Persist "executing" so a restart can deep-link to the live board.
+    if (this.driver.phase() !== 'executing' && this.driver.phase() !== 'done') {
+      try {
+        // Approve into executing if still on task_review.
+        if (this.driver.phase() === 'task_review') await this.driver.approve();
+      } catch {
+        /* phase already advanced */
+      }
+    }
+    await this.driver.builder.saveSession();
     this.broadcast({ type: 'sdd.run.started', payload: { runId } });
+    this.broadcast(this.snapshotMsg());
+  }
+
+  private async onRunFromGraph(graphId: string, opts: SddRunStartOpts): Promise<void> {
+    if (!graphId) {
+      this.broadcast({ type: 'sdd.spec.error', payload: { message: 'graphId is required.' } });
+      return;
+    }
+    if (!this.deps.startRunFromGraphId) {
+      this.broadcast({
+        type: 'sdd.spec.error',
+        payload: { message: 'SDD run-from-graph is not available on this host.' },
+      });
+      return;
+    }
+    const { runId } = await this.deps.startRunFromGraphId(graphId, opts);
+    this.broadcast({ type: 'sdd.run.started', payload: { runId, graphId } });
+  }
+
+  private async onRunFromSpec(specId: string, opts: SddRunStartOpts): Promise<void> {
+    if (!specId) {
+      this.broadcast({ type: 'sdd.spec.error', payload: { message: 'specId is required.' } });
+      return;
+    }
+    if (!this.deps.resolveGraphIdForSpec || !this.deps.startRunFromGraphId) {
+      this.broadcast({
+        type: 'sdd.spec.error',
+        payload: { message: 'SDD run-from-spec is not available on this host.' },
+      });
+      return;
+    }
+    const graphId = await this.deps.resolveGraphIdForSpec(specId);
+    if (!graphId) {
+      this.broadcast({
+        type: 'sdd.spec.error',
+        payload: { message: 'No task graph found for this specification.' },
+      });
+      return;
+    }
+    const { runId } = await this.deps.startRunFromGraphId(graphId, opts);
+    this.broadcast({ type: 'sdd.run.started', payload: { runId, graphId, specId } });
   }
 
   // ── internals ───────────────────────────────────────────────────────────
@@ -190,7 +379,10 @@ export class SddWizardWebSocketHandler {
     try {
       const text = await this.deps.runInterviewTurn(prompt);
       this.lastAgentText = text;
-      if (this.driver) await this.driver.ingestAgentOutput(text);
+      if (this.driver) {
+        await this.driver.ingestAgentOutput(text);
+        this.driver.setLastAgentText(text);
+      }
       this.broadcast({ type: 'sdd.spec.agent_text', payload: { text } });
     } finally {
       this.busy = false;

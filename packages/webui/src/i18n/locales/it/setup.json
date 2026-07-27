@@ -129,7 +129,16 @@
       "baseUrl": "URL di base (facoltativo)",
       "apiKey": "Chiave API (facoltativa — alcuni provider locali non la richiedono)",
       "apiKeyPlaceholder": "Chiave API (se richiesta)",
-      "add": "Aggiungi provider"
+      "add": "Aggiungi provider",
+      "models": "Modelli",
+      "addModel": "Aggiungi modello",
+      "modelSearchPlaceholder": "Cerca modelli nel catalogo…",
+      "noCatalogMatch": "Nessuna corrispondenza nel catalogo.",
+      "useCustomId": "Inserisci ID personalizzato",
+      "customModelIdPlaceholder": "ID modello personalizzato",
+      "cancel": "Annulla",
+      "modelSingular": "modello",
+      "modelPlural": "modelli"
     },
     "time": {
       "justNow": "adesso",

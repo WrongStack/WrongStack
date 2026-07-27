@@ -4,19 +4,66 @@ vi.mock('@wrongstack/kanban', () => ({
   getBoard: vi.fn().mockResolvedValue({
     id: 'board-1',
     title: 'Test Board',
-    tasks: [{ id: 'task-1', title: 'Parent Task' }],
+    tasks: [
+      {
+        id: 'task-1',
+        title: 'Parent Task',
+        columnId: 'todo',
+        order: 0,
+        priority: 'medium',
+        status: 'pending',
+        createdAt: '2026-01-01T00:00:00.000Z',
+        updatedAt: '2026-01-01T00:00:00.000Z',
+      },
+    ],
     columns: [],
-    metadata: {},
+    createdAt: '2026-01-01T00:00:00.000Z',
+    updatedAt: '2026-01-01T00:00:00.000Z',
+    version: 1,
   }),
   splitTask: vi.fn().mockResolvedValue({
     board: {
       id: 'board-1',
       title: 'Test Board',
-      tasks: [{ id: 'task-1', title: 'Parent Task' }],
+      tasks: [
+        {
+          id: 'task-1',
+          title: 'Parent Task',
+          columnId: 'todo',
+          order: 0,
+          priority: 'medium',
+          status: 'pending',
+          createdAt: '2026-01-01T00:00:00.000Z',
+          updatedAt: '2026-01-01T00:00:00.000Z',
+        },
+      ],
       columns: [],
-      metadata: {},
+      createdAt: '2026-01-01T00:00:00.000Z',
+      updatedAt: '2026-01-01T00:00:00.000Z',
+      version: 1,
     },
-    children: [{ id: 'child-1', title: 'Child 1' }],
+    parent: {
+      id: 'task-1',
+      title: 'Parent Task',
+      columnId: 'todo',
+      order: 0,
+      priority: 'medium',
+      status: 'pending',
+      createdAt: '2026-01-01T00:00:00.000Z',
+      updatedAt: '2026-01-01T00:00:00.000Z',
+    },
+    children: [
+      {
+        id: 'child-1',
+        title: 'Child 1',
+        columnId: 'todo',
+        order: 1,
+        priority: 'medium',
+        status: 'pending',
+        createdAt: '2026-01-01T00:00:00.000Z',
+        updatedAt: '2026-01-01T00:00:00.000Z',
+      },
+    ],
   }),
 }));
 
@@ -26,7 +73,9 @@ describe('handleSplitTask', () => {
   it('fails when required params missing', async () => {
     const result = await handleSplitTask('/project', { action: 'split_task' }, {});
     expect(result.ok).toBe(false);
-    expect(result.message).toContain('split requires boardId, taskId, and at least one childTitles');
+    expect(result.message).toContain(
+      'split requires boardId, taskId, and at least one childTitles',
+    );
   });
 
   it('splits task with child titles', async () => {
@@ -35,11 +84,45 @@ describe('handleSplitTask', () => {
       board: {
         id: 'board-1',
         title: 'Test Board',
-        tasks: [{ id: 't1', title: 'Parent Task' }],
+        tasks: [
+          {
+            id: 't1',
+            title: 'Parent Task',
+            columnId: 'todo',
+            order: 0,
+            priority: 'medium',
+            status: 'pending',
+            createdAt: '2026-01-01T00:00:00.000Z',
+            updatedAt: '2026-01-01T00:00:00.000Z',
+          },
+        ],
         columns: [],
-        metadata: {},
+        createdAt: '2026-01-01T00:00:00.000Z',
+        updatedAt: '2026-01-01T00:00:00.000Z',
+        version: 1,
       },
-      children: [{ id: 'child-1', title: 'Child 1' }],
+      parent: {
+        id: 't1',
+        title: 'Parent Task',
+        columnId: 'todo',
+        order: 0,
+        priority: 'medium',
+        status: 'pending',
+        createdAt: '2026-01-01T00:00:00.000Z',
+        updatedAt: '2026-01-01T00:00:00.000Z',
+      },
+      children: [
+        {
+          id: 'child-1',
+          title: 'Child 1',
+          columnId: 'todo',
+          order: 1,
+          priority: 'medium',
+          status: 'pending',
+          createdAt: '2026-01-01T00:00:00.000Z',
+          updatedAt: '2026-01-01T00:00:00.000Z',
+        },
+      ],
     });
     const result = await handleSplitTask(
       '/project',
@@ -58,9 +141,32 @@ describe('handleSplitTask', () => {
         title: 'Empty Board',
         tasks: [], // No parent task
         columns: [],
-        metadata: {},
+        createdAt: '2026-01-01T00:00:00.000Z',
+        updatedAt: '2026-01-01T00:00:00.000Z',
+        version: 1,
       },
-      children: [{ id: 'child-1', title: 'Child 1' }],
+      parent: {
+        id: 't1',
+        title: 'Parent Task',
+        columnId: 'todo',
+        order: 0,
+        priority: 'medium',
+        status: 'pending',
+        createdAt: '2026-01-01T00:00:00.000Z',
+        updatedAt: '2026-01-01T00:00:00.000Z',
+      },
+      children: [
+        {
+          id: 'child-1',
+          title: 'Child 1',
+          columnId: 'todo',
+          order: 1,
+          priority: 'medium',
+          status: 'pending',
+          createdAt: '2026-01-01T00:00:00.000Z',
+          updatedAt: '2026-01-01T00:00:00.000Z',
+        },
+      ],
     });
     const result = await handleSplitTask(
       '/project',
@@ -89,11 +195,45 @@ describe('handleSplitTask', () => {
       board: {
         id: 'board-1',
         title: 'Test Board',
-        tasks: [{ id: 't1', title: 'Parent Task' }],
+        tasks: [
+          {
+            id: 't1',
+            title: 'Parent Task',
+            columnId: 'todo',
+            order: 0,
+            priority: 'medium',
+            status: 'pending',
+            createdAt: '2026-01-01T00:00:00.000Z',
+            updatedAt: '2026-01-01T00:00:00.000Z',
+          },
+        ],
         columns: [],
-        metadata: {},
+        createdAt: '2026-01-01T00:00:00.000Z',
+        updatedAt: '2026-01-01T00:00:00.000Z',
+        version: 1,
       },
-      children: [{ id: 'child-1', title: 'Child 1' }],
+      parent: {
+        id: 't1',
+        title: 'Parent Task',
+        columnId: 'todo',
+        order: 0,
+        priority: 'medium',
+        status: 'pending',
+        createdAt: '2026-01-01T00:00:00.000Z',
+        updatedAt: '2026-01-01T00:00:00.000Z',
+      },
+      children: [
+        {
+          id: 'child-1',
+          title: 'Child 1',
+          columnId: 'todo',
+          order: 1,
+          priority: 'medium',
+          status: 'pending',
+          createdAt: '2026-01-01T00:00:00.000Z',
+          updatedAt: '2026-01-01T00:00:00.000Z',
+        },
+      ],
     });
     const result = await handleSplitTask(
       '/project',
@@ -109,11 +249,45 @@ describe('handleSplitTask', () => {
       board: {
         id: 'board-1',
         title: 'Test Board',
-        tasks: [{ id: 't1', title: 'Parent Task' }],
+        tasks: [
+          {
+            id: 't1',
+            title: 'Parent Task',
+            columnId: 'todo',
+            order: 0,
+            priority: 'medium',
+            status: 'pending',
+            createdAt: '2026-01-01T00:00:00.000Z',
+            updatedAt: '2026-01-01T00:00:00.000Z',
+          },
+        ],
         columns: [],
-        metadata: {},
+        createdAt: '2026-01-01T00:00:00.000Z',
+        updatedAt: '2026-01-01T00:00:00.000Z',
+        version: 1,
       },
-      children: [{ id: 'child-1', title: 'Child 1' }],
+      parent: {
+        id: 't1',
+        title: 'Parent Task',
+        columnId: 'todo',
+        order: 0,
+        priority: 'medium',
+        status: 'pending',
+        createdAt: '2026-01-01T00:00:00.000Z',
+        updatedAt: '2026-01-01T00:00:00.000Z',
+      },
+      children: [
+        {
+          id: 'child-1',
+          title: 'Child 1',
+          columnId: 'todo',
+          order: 1,
+          priority: 'medium',
+          status: 'pending',
+          createdAt: '2026-01-01T00:00:00.000Z',
+          updatedAt: '2026-01-01T00:00:00.000Z',
+        },
+      ],
     });
     const result = await handleSplitTask(
       '/project',

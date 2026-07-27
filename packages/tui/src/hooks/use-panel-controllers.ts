@@ -7,7 +7,8 @@ import React, {
   useEffect,
 } from 'react';
 import type { AppProps } from '../app-props.js';
-import type { Action, State } from '../app-state.js';
+import type { Action } from '../app-action-type.js';
+import type { State } from '../app-state.js';
 import type { ContextMode } from '../components/settings-picker.js';
 import { createPanelOpenDispatcher } from '../on-panel-open.js';
 

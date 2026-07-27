@@ -105,7 +105,7 @@ export async function execute(deps: ExecuteDeps): Promise<number> {
       positional,
       slashRegistry,
       tokenCounter,
-      recoveryLock: initialRecoveryLock,
+      activateSessionIdentity,
       updateInfo: initialUpdateInfo,
     },
     session: {
@@ -216,8 +216,6 @@ export async function execute(deps: ExecuteDeps): Promise<number> {
   const wpaths = initialWpaths;
   const projectRoot = initialProjectRoot;
   const activeSessionStore = sessionStore;
-  const activeRecoveryLock = initialRecoveryLock;
-  let currentRecoveryLock = activeRecoveryLock;
   const detachActiveTodosCheckpoint: (() => void | Promise<void>) | undefined =
     detachTodosCheckpoint;
   const profileName = config.activeProfile ?? 'default';
@@ -635,7 +633,7 @@ export async function execute(deps: ExecuteDeps): Promise<number> {
         projectRoot,
         wpaths,
         activeSessionStore,
-        activeRecoveryLock,
+        activateSessionIdentity,
         detachActiveTodosCheckpoint,
         pendingProjectSwitch: null,
         autonomousCoordinator: null,
@@ -694,11 +692,7 @@ export async function execute(deps: ExecuteDeps): Promise<number> {
         attachTodosCheckpoint,
       };
       const switchProjectInPlace = async (targetRoot: string, displayName: string) => {
-        const result = await switchProjectInPlaceExtracted(switchCtx, targetRoot, displayName);
-        if (result === null) {
-          currentRecoveryLock = state.activeRecoveryLock;
-        }
-        return result;
+        return switchProjectInPlaceExtracted(switchCtx, targetRoot, displayName);
       };
 
       const pickerCtx: ProjectPickerContext = {
@@ -951,7 +945,7 @@ export async function execute(deps: ExecuteDeps): Promise<number> {
         renderer,
         onAutonomy,
         applyLiveSettings,
-        activeRecoveryLock,
+        activateSessionIdentity,
         agentTranscripts,
         onModelContextResolved,
         sddSubagentFactory,
@@ -1024,7 +1018,6 @@ export async function execute(deps: ExecuteDeps): Promise<number> {
       events,
       getPendingChimeraWork: () => pendingChimeraWork,
       director,
-      recoveryLock: currentRecoveryLock,
       reader,
     });
   }

@@ -37,6 +37,7 @@ function routes(): ProviderRouteHandlers {
     listProviders: vi.fn(async () => undefined),
     listSavedProviders: vi.fn(async () => undefined),
     listProviderModels: vi.fn(async () => undefined),
+    searchProviderModels: vi.fn(async () => undefined),
     switchModel: vi.fn(async () => undefined),
     refineModel: vi.fn(async () => undefined),
     adoptDefaultProviderIfUnset: vi.fn(async () => undefined),
@@ -78,6 +79,8 @@ describe('handleProviderRoute malformed payload characterization', () => {
     ['provider.add', { id: 'custom' }],
     ['provider.remove', { providerId: 123 }],
     ['provider.clear_models', null],
+    ['provider.models.search', { query: '', limit: 8 }],
+    ['provider.models.search', { query: 'claude', limit: 0 }],
     ['provider.undo_clear', { providerId: 'custom', previousModels: [123] }],
     ['provider.update', { id: 'custom', models: 'claude' }],
     ['provider.probe', { providerId: 'custom', timeoutMs: Number.NaN }],
@@ -117,6 +120,53 @@ describe('handleProviderRoute malformed payload characterization', () => {
     ).resolves.toBe(true);
 
     expect(deps.providerHandlers.handleProviderRemove).toHaveBeenCalledWith(ws, 'custom');
+    expect(ws.send).not.toHaveBeenCalled();
+  });
+
+  it('copies validated custom model capabilities before dispatching provider.add', async () => {
+    const ws = mockWs();
+    const deps = routes();
+    const capabilities = { tools: true, maxContext: 131_072 };
+
+    await expect(
+      handleProviderRoute(
+        ws,
+        {
+          type: 'provider.add',
+          payload: {
+            id: 'custom',
+            family: 'openai-compatible',
+            customModels: {
+              'custom/model': { name: 'Custom Model', capabilities },
+            },
+          },
+        },
+        deps,
+      ),
+    ).resolves.toBe(true);
+
+    const dispatched = vi.mocked(deps.providerHandlers.handleProviderAdd).mock.calls.at(0)?.[1];
+    const copiedCapabilities = dispatched?.customModels?.['custom/model']?.capabilities;
+    expect(copiedCapabilities).toEqual(capabilities);
+    expect(copiedCapabilities).not.toBe(capabilities);
+
+    capabilities.tools = false;
+    expect(copiedCapabilities?.tools).toBe(true);
+  });
+
+  it('dispatches valid provider model searches with the optional result limit', async () => {
+    const ws = mockWs();
+    const deps = routes();
+
+    await expect(
+      handleProviderRoute(
+        ws,
+        { type: 'provider.models.search', payload: { query: 'claude', limit: 5 } },
+        deps,
+      ),
+    ).resolves.toBe(true);
+
+    expect(deps.searchProviderModels).toHaveBeenCalledWith(ws, 'claude', 5);
     expect(ws.send).not.toHaveBeenCalled();
   });
 

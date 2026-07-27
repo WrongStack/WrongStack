@@ -165,9 +165,9 @@ describe('fetchAcpRegistry', () => {
   });
 
   it('aborts immediately when the caller signal is already aborted', async () => {
-    let capturedSignal: AbortSignal | null = null;
+    const capturedSignal: { current?: AbortSignal } = {};
     globalThis.fetch = vi.fn(async (_url: string, opts: { signal: AbortSignal }) => {
-      capturedSignal = opts.signal;
+      capturedSignal.current = opts.signal;
       // The signal that was passed by fetchAcpRegistry should already be aborted
       throw new DOMException('The operation was aborted', 'AbortError');
     }) as never;
@@ -178,7 +178,7 @@ describe('fetchAcpRegistry', () => {
       fetchAcpRegistry({ signal: ac.signal }),
     ).rejects.toThrow();
     // Verify the internal abort signal was triggered because the parent signal was already aborted
-    expect(capturedSignal?.aborted).toBe(true);
+    expect(capturedSignal.current?.aborted).toBe(true);
   });
 
   it('listens for parent abort signal and stops the fetch', async () => {

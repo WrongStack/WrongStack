@@ -19,6 +19,14 @@ export interface SddWizardSnapshot {
   minQuestions: number;
   maxQuestions: number;
   answers: Array<{ question: string; answer: string }>;
+  /** Last agent utterance — rehydrated on resume so the open question reappears. */
+  lastAgentText?: string;
+  /** Most recent run id started from this interview (deep-link to live board). */
+  lastRunId?: string;
+  /** True when the server rehydrated this interview from disk. */
+  resumed?: boolean;
+  /** Server sent a discard ack (phase idle + discarded). */
+  discarded?: boolean;
   spec?: {
     id: string;
     title: string;
@@ -74,7 +82,19 @@ export const useSddWizardStore = create<SddWizardState>()((set) => ({
   agentText: '',
   error: null,
   startedRunId: null,
-  setSnapshot: (snapshot) => set({ snapshot, error: null }),
+  setSnapshot: (snapshot) => {
+    // A discard ack clears local state so the goal form returns.
+    if (snapshot.discarded || (snapshot.phase === 'idle' && !snapshot.sessionId)) {
+      set({ snapshot: null, agentText: '', error: null });
+      return;
+    }
+    set({
+      snapshot,
+      error: null,
+      // Prefer live agent_text events; fall back to persisted lastAgentText on resume.
+      ...(snapshot.lastAgentText ? { agentText: snapshot.lastAgentText } : {}),
+    });
+  },
   setAgentText: (agentText) => set({ agentText }),
   setError: (error) => set({ error }),
   setStartedRunId: (startedRunId) => set({ startedRunId }),

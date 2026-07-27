@@ -7,8 +7,8 @@
  * constructs a `runWebUI` options object from already-available deps,
  * wires SIGINT handling, and returns an exit code. Extracting it
  * first lets `execute()` shrink by ~100 lines and isolates the
- * WebUI-specific wiring (port resolution, browser banner, recovery
- * lock re-pointing, autonomy forwarding) in a single named module.
+ * WebUI-specific wiring (port resolution, browser banner and autonomy
+ * forwarding) in a single named module.
  *
  * The TUI branch (~1,388 lines) and the single-shot branch are left
  * inline — they are too deeply coupled to local mutable state for a
@@ -16,10 +16,17 @@
  */
 import type { Agent } from '@wrongstack/core/agent';
 import type { BrainArbiter } from '@wrongstack/core/coordination';
-import type { Config, MemoryPort, ModelsRegistry, ModeStore, SkillLoader } from '@wrongstack/core/types';
 import type { JournalEntry } from '@wrongstack/core/goal';
 import type { EventBus } from '@wrongstack/core/kernel';
-import type { SessionStore, SessionWriter } from '@wrongstack/core/types';
+import type {
+  Config,
+  MemoryPort,
+  ModelsRegistry,
+  ModeStore,
+  SessionStore,
+  SessionWriter,
+  SkillLoader,
+} from '@wrongstack/core/types';
 import { color } from '@wrongstack/core/utils';
 import type { MCPRegistry } from '@wrongstack/mcp';
 import type { TerminalRenderer } from '../renderer.js';
@@ -67,10 +74,12 @@ export interface WebUIDispatchContext {
   onModelContextResolved?:
     | ((providerId: string, modelId: string, maxContext: number) => void)
     | undefined;
-  activeRecoveryLock: {
-    clear: () => Promise<void>;
-    write: (sessionId: string) => Promise<void>;
-  };
+  activateSessionIdentity?:
+    | ((
+        sessionId: string,
+        target?: import('../wiring/session-registry.js').SessionIdentityTarget,
+      ) => Promise<void>)
+    | undefined;
   /** Read-only worker transcript snapshot used for browser refresh replay. */
   agentTranscripts?:
     | {
@@ -140,7 +149,7 @@ export async function runWebUIDispatch(ctx: WebUIDispatchContext): Promise<numbe
     onAutonomy,
     applyLiveSettings,
     onModelContextResolved,
-    activeRecoveryLock,
+    activateSessionIdentity,
     agentTranscripts,
     sddSubagentFactory,
     onKanbanDispatch,
@@ -262,18 +271,21 @@ export async function runWebUIDispatch(ctx: WebUIDispatchContext): Promise<numbe
     subscribeEternalIteration,
     sessionStore,
     sessionsDir: projectSessionsDir,
+    claimSession: activateSessionIdentity
+      ? async (sessionId: string) => {
+          const previousSessionId = agent.ctx.session?.id ?? session.id;
+          await activateSessionIdentity(sessionId);
+          return async () => activateSessionIdentity(previousSessionId);
+        }
+      : undefined,
     brain,
     brainSettings,
     brainRuntime,
     getBrainLog,
-    onSessionSwapped: (newSessionId: string) => {
-      // Re-point crash recovery (active.json) at the resumed session —
-      // otherwise a crash after an in-app resume would offer recovery
-      // for the OLD (cleanly finalized) session and miss the live one.
-      void activeRecoveryLock
-        .clear()
-        .then(() => activeRecoveryLock.write(newSessionId))
-        .catch(() => undefined);
+    onSessionSwapped: async (sessionId, target) => {
+      if (target && activateSessionIdentity) {
+        await activateSessionIdentity(sessionId, target);
+      }
       void import('@wrongstack/tools/session-kanban').then(({ hydrateSessionKanban }) =>
         hydrateSessionKanban(agent.ctx),
       );

@@ -37,10 +37,9 @@ describe('registerCanonicalHostTools with real SqliteMemoryPort', () => {
       memory: { enabled: true, store },
     });
 
-    // The SQLite store now satisfies the full MemoryStore contract via the
-    // compatibility adapter, so the safe legacy guard should register the
-    // legacy `remember` tool (no SageServiceLike claim).
-    expect(result.memoryBackend).toBe('legacy');
+    // The SQLite store satisfies the Sage service contract directly, so the
+    // canonical Sage `remember` tool should be registered.
+    expect(result.memoryBackend).toBe('sage');
     const rememberTool = registry.get('remember');
     expect(rememberTool).toBeDefined();
     expect(rememberTool?.inputSchema.properties).toHaveProperty('type');
@@ -49,22 +48,26 @@ describe('registerCanonicalHostTools with real SqliteMemoryPort', () => {
       {
         text: 'Always verify migration reversibility.',
         type: 'convention',
-        scope: 'project-memory',
+        scope: 'project',
         priority: 'high',
       } as never,
       {} as never,
       { signal: new AbortController().signal } as never,
     );
 
-    expect(executed).toEqual({ ok: true, scope: 'project-memory' });
+    expect(executed).toMatchObject({
+      text: 'Always verify migration reversibility.',
+      scope: 'project',
+      kind: 'convention',
+    });
 
-    // Round-trip through the legacy MemoryStore surface to prove the
-    // adapter wrote the row that `remember()` would have written.
+    // Round-trip through the MemoryStore surface to prove the Sage tool wrote
+    // the expected row.
     const list = await store.list('project-memory');
     expect(list.map((entry) => entry.text)).toContain('Always verify migration reversibility.');
     expect(list.find((entry) => entry.text.startsWith('Always verify'))?.type).toBe('convention');
 
-    // The original failure mode (TypeError) cannot recur because the
-    // contract adapter routes the call into rememberSage.
+    // The original failure mode (TypeError) cannot recur because registration
+    // now recognizes the full Sage contract.
   });
 });

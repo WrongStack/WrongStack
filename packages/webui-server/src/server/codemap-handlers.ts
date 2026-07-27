@@ -12,7 +12,7 @@
  */
 import type * as http from 'node:http';
 import type { CodeMapGraph } from '@wrongstack/tools';
-import { packageGraphService, fileGraphService, symbolGraphService } from '@wrongstack/tools';
+import { fileGraphService, packageGraphService, symbolGraphService } from '@wrongstack/tools';
 import {
   codemapCacheKey,
   getCachedCodemapBody,
@@ -48,12 +48,12 @@ function sendJson(
   sendJsonBody(res, status, JSON.stringify(data), cacheStatus);
 }
 
-function serveCachedGraph(
+async function serveCachedGraph(
   res: http.ServerResponse,
   deps: CodemapHandlerDeps,
   scope: string,
-  compute: () => CodeMapGraph,
-): void {
+  compute: () => Promise<CodeMapGraph>,
+): Promise<void> {
   try {
     const version = indexDbVersion(deps.projectRoot, deps.indexDir);
     const key = codemapCacheKey(deps.projectRoot, deps.indexDir, scope);
@@ -62,7 +62,7 @@ function serveCachedGraph(
       sendJsonBody(res, 200, hit, 'HIT');
       return;
     }
-    const graph = compute();
+    const graph = await compute();
     const body = JSON.stringify(graph);
     if (version !== 'missing') {
       setCachedCodemapBody(key, version, body);
@@ -76,11 +76,11 @@ function serveCachedGraph(
 }
 
 /** GET /api/codemap/packages — workspace-level package dependency graph. */
-export function handleCodemapPackages(
+export async function handleCodemapPackages(
   res: http.ServerResponse,
   deps: CodemapHandlerDeps,
-): void {
-  serveCachedGraph(res, deps, 'packages', () =>
+): Promise<void> {
+  await serveCachedGraph(res, deps, 'packages', () =>
     packageGraphService({
       projectRoot: deps.projectRoot,
       ...(deps.indexDir ? { indexDir: deps.indexDir } : {}),
@@ -89,16 +89,16 @@ export function handleCodemapPackages(
 }
 
 /** GET /api/codemap/files?package=<name> — file-level graph within a package. */
-export function handleCodemapFiles(
+export async function handleCodemapFiles(
   res: http.ServerResponse,
   deps: CodemapHandlerDeps,
   pkg: string,
-): void {
+): Promise<void> {
   if (!pkg) {
     sendJson(res, 400, { error: 'Missing "package" query parameter' });
     return;
   }
-  serveCachedGraph(res, deps, `files:${pkg}`, () =>
+  await serveCachedGraph(res, deps, `files:${pkg}`, () =>
     fileGraphService({
       projectRoot: deps.projectRoot,
       packageFilter: pkg,
@@ -108,16 +108,16 @@ export function handleCodemapFiles(
 }
 
 /** GET /api/codemap/symbols?file=<path> — symbol-level graph within a file. */
-export function handleCodemapSymbols(
+export async function handleCodemapSymbols(
   res: http.ServerResponse,
   deps: CodemapHandlerDeps,
   file: string,
-): void {
+): Promise<void> {
   if (!file) {
     sendJson(res, 400, { error: 'Missing "file" query parameter' });
     return;
   }
-  serveCachedGraph(res, deps, `symbols:${file}`, () =>
+  await serveCachedGraph(res, deps, `symbols:${file}`, () =>
     symbolGraphService({
       projectRoot: deps.projectRoot,
       fileFilter: file,

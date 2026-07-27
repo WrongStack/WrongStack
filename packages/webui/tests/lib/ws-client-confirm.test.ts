@@ -37,7 +37,7 @@ describe('WrongStackWebSocketClient permission confirmations', () => {
 
   it('always sends confirm_result when resolving a prompt', () => {
     const client = new WrongStackWebSocketClient('ws://127.0.0.1:3457');
-    const send = vi.spyOn(client, 'send').mockImplementation(() => {});
+    const send = vi.spyOn(client, 'send').mockImplementation(() => true);
     (
       client as unknown as {
         pendingConfirms: Map<string, unknown>;

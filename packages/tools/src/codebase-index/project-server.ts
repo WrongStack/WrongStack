@@ -1,0 +1,715 @@
+#!/usr/bin/env node
+/**
+ * One detached codebase-index server per local project index.
+ *
+ * Every TUI/CLI/WebUI process connects to the deterministic local IPC endpoint
+ * for the project's index directory. The OS-level listen operation is the
+ * election primitive: when several clients race to spawn a server, exactly one
+ * process binds and the other candidates exit on EADDRINUSE.
+ */
+
+import * as fs from 'node:fs';
+import * as net from 'node:net';
+import * as path from 'node:path';
+import {
+  DEFAULT_WALK_IGNORE_SET,
+  type ProjectWatchSubscription,
+  watchProjectTree,
+} from '@wrongstack/core/utils';
+import {
+  fileGraphService,
+  indexService,
+  packageGraphService,
+  searchService,
+  statsService,
+  symbolGraphService,
+} from './index-service.js';
+import { isIndexablePath } from './languages.js';
+import { GenerationLruCache } from './project-server-cache.js';
+import {
+  ensureProjectIndexSocketDirectory,
+  PROJECT_INDEX_SERVER_PROTOCOL_VERSION,
+  projectIndexServerBuildId,
+  projectIndexServerEndpoint,
+  projectIndexServerMetadataPath,
+} from './project-server-endpoint.js';
+import {
+  encodeProjectServerMessage,
+  PROJECT_INDEX_SERVER_MAX_FRAME_CHARS,
+  type ProjectIndexServerActivity,
+  type ProjectIndexServerHealth,
+  type ProjectIndexServerInfo,
+  type ProjectServerClientMessage,
+  type ProjectServerMessage,
+} from './project-server-protocol.js';
+import type { CodeMapGraph, IndexStats, SearchResult } from './schema.js';
+import type {
+  FileGraphOpArgs,
+  IndexOpArgs,
+  OpShapes,
+  SearchOpArgs,
+  StatsOpArgs,
+  SymbolGraphOpArgs,
+} from './worker-protocol.js';
+import { indexStorePool, resolveIndexDir } from './writer.js';
+
+const DEFAULT_IDLE_MS = 5 * 60_000;
+const DEFAULT_CLIENT_LEASE_MS = 45_000;
+
+interface ClientState {
+  socket: net.Socket;
+  buffer: string;
+  cancelled: Set<number>;
+  cancel: Map<number, () => void>;
+  watchExternal: boolean;
+  debounceMs: number;
+  lastSeenAt: number;
+}
+
+interface FullIndexSubscriber {
+  state: ClientState;
+  id: number;
+}
+
+interface ActiveFullIndex {
+  promise: Promise<OpShapes['index']['result']>;
+  controller: AbortController;
+  subscribers: Set<FullIndexSubscriber>;
+}
+
+function parseArgs(argv: string[]): { projectRoot: string; indexDir?: string | undefined } {
+  let projectRoot: string | undefined;
+  let indexDir: string | undefined;
+  for (let i = 0; i < argv.length; i++) {
+    const arg = argv[i];
+    if (arg === '--project-root') projectRoot = argv[++i];
+    else if (arg === '--index-dir') indexDir = argv[++i];
+  }
+  if (!projectRoot) throw new Error('codebase-index project server requires --project-root');
+  return {
+    projectRoot: path.resolve(projectRoot),
+    ...(indexDir ? { indexDir: path.resolve(indexDir) } : {}),
+  };
+}
+
+const parsed = parseArgs(process.argv.slice(2));
+const projectRoot = parsed.projectRoot;
+const indexDir = resolveIndexDir(projectRoot, parsed.indexDir);
+const endpoint = projectIndexServerEndpoint(projectRoot, indexDir);
+const metadataPath = projectIndexServerMetadataPath(projectRoot, indexDir);
+const idleMsRaw = Number(process.env['WRONGSTACK_INDEX_SERVER_IDLE_MS']);
+const idleMs = Number.isFinite(idleMsRaw) && idleMsRaw >= 100 ? idleMsRaw : DEFAULT_IDLE_MS;
+const clientLeaseMsRaw = Number(process.env['WRONGSTACK_INDEX_SERVER_CLIENT_LEASE_MS']);
+const clientLeaseMs =
+  Number.isFinite(clientLeaseMsRaw) && clientLeaseMsRaw >= 100
+    ? clientLeaseMsRaw
+    : DEFAULT_CLIENT_LEASE_MS;
+const clientLeaseSweepMs = Math.min(10_000, Math.max(100, Math.floor(clientLeaseMs / 3)));
+const startedAt = new Date().toISOString();
+const serverInfo: ProjectIndexServerInfo = {
+  protocolVersion: PROJECT_INDEX_SERVER_PROTOCOL_VERSION,
+  buildId: projectIndexServerBuildId(import.meta.url),
+  pid: process.pid,
+  projectRoot,
+  indexDir,
+  endpoint,
+  startedAt,
+};
+
+process.title = `wrongstack-codebase-index:${path.basename(projectRoot)}`;
+
+const clients = new Set<ClientState>();
+let idleTimer: ReturnType<typeof setTimeout> | undefined;
+let stopping = false;
+let writeChain: Promise<unknown> = Promise.resolve();
+let activeRequests = 0;
+let activeWrites = 0;
+let queuedWrites = 0;
+let activeFullIndex: ActiveFullIndex | null = null;
+const searchCache = new GenerationLruCache<{ results: SearchResult[]; total: number }>(128);
+const statsCache = new GenerationLruCache<IndexStats>(1);
+const packageGraphCache = new GenerationLruCache<CodeMapGraph>(1);
+const fileGraphCache = new GenerationLruCache<CodeMapGraph>(32);
+const symbolGraphCache = new GenerationLruCache<CodeMapGraph>(64);
+let indexActivity: ProjectIndexServerActivity = {
+  indexing: false,
+  currentFile: 0,
+  totalFiles: 0,
+  generation: 0,
+  updatedAt: null,
+  lastError: null,
+};
+let lastProgressBroadcastAt = 0;
+let externalWatcher: ProjectWatchSubscription | undefined;
+const DEFAULT_EXTERNAL_DEBOUNCE_MS = 400;
+let externalDebounceMs = DEFAULT_EXTERNAL_DEBOUNCE_MS;
+const externalDebounceTimers = new Map<string, ReturnType<typeof setTimeout>>();
+const externalReadyFiles = new Set<string>();
+let externalReadyFlush: ReturnType<typeof setImmediate> | undefined;
+
+function clearQueryCaches(): void {
+  searchCache.clear();
+  statsCache.clear();
+  packageGraphCache.clear();
+  fileGraphCache.clear();
+  symbolGraphCache.clear();
+}
+
+function cachedRead<T>(cache: GenerationLruCache<T>, key: string, load: () => T): T {
+  const generation = indexActivity.generation;
+  const cached = cache.get(key, generation);
+  if (cached !== undefined) return cached;
+  const value = load();
+  // An indexing run may yield between batches. Do not retain a read assembled
+  // from a partially-updated generation.
+  return indexActivity.indexing ? value : cache.set(key, generation, value);
+}
+
+function send(state: ClientState, message: ProjectServerMessage): void {
+  if (!state.socket.destroyed) state.socket.write(encodeProjectServerMessage(message));
+}
+
+function withWriteMutex<T>(job: () => Promise<T>): Promise<T> {
+  queuedWrites++;
+  const guarded = async () => {
+    queuedWrites--;
+    activeWrites++;
+    try {
+      return await job();
+    } finally {
+      activeWrites--;
+    }
+  };
+  const run = writeChain.then(guarded, guarded);
+  writeChain = run.then(
+    () => undefined,
+    () => undefined,
+  );
+  return run;
+}
+
+function serverHealth(): ProjectIndexServerHealth {
+  const memory = process.memoryUsage();
+  const now = Date.now();
+  return {
+    checkedAt: now,
+    uptimeMs: Math.round(process.uptime() * 1000),
+    memory: {
+      rss: memory.rss,
+      heapUsed: memory.heapUsed,
+      heapTotal: memory.heapTotal,
+      external: memory.external,
+    },
+    clients: clients.size,
+    activeRequests,
+    activeWrites,
+    queuedWrites,
+    pendingExternalFiles: externalDebounceTimers.size + externalReadyFiles.size,
+    watchingExternal: externalWatcher !== undefined,
+    watchingClients: [...clients].filter((client) => client.watchExternal).length,
+    clientLeaseTimeoutMs: clientLeaseMs,
+    oldestClientIdleMs:
+      clients.size > 0
+        ? Math.max(...[...clients].map((client) => Math.max(0, now - client.lastSeenAt)))
+        : 0,
+    activity: indexActivity,
+  };
+}
+
+function broadcastIndexActivity(): void {
+  for (const client of clients) {
+    send(client, { type: 'index-state', state: indexActivity });
+  }
+}
+
+function reportIndexProgress(currentFile: number, totalFiles: number): void {
+  indexActivity = { ...indexActivity, currentFile, totalFiles };
+  const now = Date.now();
+  if (currentFile >= totalFiles || now - lastProgressBroadcastAt >= 100) {
+    lastProgressBroadcastAt = now;
+    broadcastIndexActivity();
+  }
+}
+
+function withIndexWrite<T>(
+  job: (onProgress: (currentFile: number, totalFiles: number) => void) => Promise<T>,
+): Promise<T> {
+  return withWriteMutex(async () => {
+    indexActivity = {
+      ...indexActivity,
+      indexing: true,
+      currentFile: 0,
+      totalFiles: 0,
+      lastError: null,
+    };
+    lastProgressBroadcastAt = 0;
+    broadcastIndexActivity();
+    try {
+      const result = await job(reportIndexProgress);
+      indexActivity = {
+        ...indexActivity,
+        indexing: false,
+        generation: indexActivity.generation + 1,
+        updatedAt: Date.now(),
+        lastError: null,
+      };
+      clearQueryCaches();
+      broadcastIndexActivity();
+      return result;
+    } catch (error) {
+      indexActivity = {
+        ...indexActivity,
+        indexing: false,
+        generation: indexActivity.generation + 1,
+        updatedAt: Date.now(),
+        lastError: error instanceof Error ? error.message : String(error),
+      };
+      broadcastIndexActivity();
+      throw error;
+    }
+  });
+}
+
+function fixedArgs<T extends { projectRoot: string; indexDir?: string | undefined }>(args: T): T {
+  return { ...args, projectRoot, indexDir };
+}
+
+function isShareableFullIndex(args: IndexOpArgs): boolean {
+  return (
+    !args.force &&
+    (!args.files || args.files.length === 0) &&
+    (!args.langs || args.langs.length === 0) &&
+    (!args.ignore || args.ignore.length === 0)
+  );
+}
+
+async function runFullIndex(
+  state: ClientState,
+  id: number,
+  args: IndexOpArgs,
+): Promise<OpShapes['index']['result']> {
+  const subscriber: FullIndexSubscriber = { state, id };
+  let active = activeFullIndex;
+  if (!active) {
+    const controller = new AbortController();
+    const subscribers = new Set<FullIndexSubscriber>([subscriber]);
+    const promise = withIndexWrite((reportProgress) =>
+      indexService(fixedArgs(args), {
+        signal: controller.signal,
+        onProgress: (current, total) => {
+          reportProgress(current, total);
+          for (const item of subscribers) {
+            if (!item.state.cancelled.has(item.id)) {
+              send(item.state, { type: 'progress', id: item.id, current, total });
+            }
+          }
+        },
+      }),
+    );
+    active = { promise, controller, subscribers };
+    activeFullIndex = active;
+    void promise
+      .finally(() => {
+        if (activeFullIndex === active) activeFullIndex = null;
+      })
+      .catch(() => {});
+  } else {
+    active.subscribers.add(subscriber);
+  }
+
+  const selected = active;
+  state.cancel.set(id, () => {
+    state.cancelled.add(id);
+    selected.subscribers.delete(subscriber);
+    if (selected.subscribers.size === 0) {
+      selected.controller.abort(new Error('Indexing cancelled'));
+    }
+  });
+  try {
+    return await selected.promise;
+  } finally {
+    selected.subscribers.delete(subscriber);
+  }
+}
+
+async function dispatchOperation(
+  state: ClientState,
+  message: Extract<ProjectServerClientMessage, { type: 'request' }>,
+): Promise<unknown> {
+  const { id, op } = message;
+  switch (op) {
+    case 'index': {
+      const args = message.args as IndexOpArgs;
+      if (isShareableFullIndex(args)) return runFullIndex(state, id, args);
+      const controller = new AbortController();
+      state.cancel.set(id, () => {
+        state.cancelled.add(id);
+        controller.abort(new Error('Indexing cancelled'));
+      });
+      return withIndexWrite((reportProgress) =>
+        indexService(fixedArgs(args), {
+          signal: controller.signal,
+          onProgress: (current, total) => {
+            reportProgress(current, total);
+            if (!state.cancelled.has(id)) send(state, { type: 'progress', id, current, total });
+          },
+        }),
+      );
+    }
+    case 'search':
+      return cachedRead(
+        searchCache,
+        JSON.stringify(message.args),
+        () => searchService(fixedArgs(message.args as SearchOpArgs)),
+      );
+    case 'stats':
+      return cachedRead(statsCache, 'stats', () =>
+        statsService(fixedArgs(message.args as StatsOpArgs)),
+      );
+    case 'packageGraph':
+      return cachedRead(packageGraphCache, 'package', () =>
+        packageGraphService(fixedArgs(message.args as StatsOpArgs)),
+      );
+    case 'fileGraph':
+      return cachedRead(
+        fileGraphCache,
+        (message.args as FileGraphOpArgs).packageFilter,
+        () => fileGraphService(fixedArgs(message.args as FileGraphOpArgs)),
+      );
+    case 'symbolGraph':
+      return cachedRead(
+        symbolGraphCache,
+        (message.args as SymbolGraphOpArgs).fileFilter,
+        () => symbolGraphService(fixedArgs(message.args as SymbolGraphOpArgs)),
+      );
+    default:
+      throw new Error(`unknown index operation: ${String(op satisfies never)}`);
+  }
+}
+
+async function handleMessage(
+  state: ClientState,
+  message: ProjectServerClientMessage,
+): Promise<void> {
+  if (message.type === 'cancel') {
+    state.cancel.get(message.id)?.();
+    return;
+  }
+  if (message.type === 'ping') {
+    send(state, { type: 'response', id: message.id, ok: true, result: serverHealth() });
+    return;
+  }
+  if (message.type === 'configure') {
+    const previousWatchExternal = state.watchExternal;
+    const previousDebounceMs = state.debounceMs;
+    try {
+      state.watchExternal = message.watchExternal;
+      state.debounceMs = Math.max(0, message.debounceMs);
+      reconcileExternalWatcher();
+      send(state, {
+        type: 'response',
+        id: message.id,
+        ok: true,
+        result: {
+          watching: externalWatcher !== undefined,
+          health: serverHealth(),
+        },
+      });
+    } catch (error) {
+      state.watchExternal = previousWatchExternal;
+      state.debounceMs = previousDebounceMs;
+      try {
+        reconcileExternalWatcher();
+      } catch {
+        /* preserve the original configuration error */
+      }
+      send(state, {
+        type: 'response',
+        id: message.id,
+        ok: false,
+        error: error instanceof Error ? error.message : String(error),
+        errorName: error instanceof Error ? error.name : undefined,
+      });
+    }
+    return;
+  }
+  if (message.type === 'shutdown') {
+    send(state, {
+      type: 'response',
+      id: message.id,
+      ok: true,
+      result: { stopping: true, pid: process.pid },
+    });
+    setImmediate(() => void stop(message.reason ?? 'remote-request'));
+    return;
+  }
+
+  activeRequests++;
+  try {
+    const result = await dispatchOperation(state, message);
+    if (!state.cancelled.has(message.id)) {
+      send(state, { type: 'response', id: message.id, ok: true, result });
+    }
+  } catch (error) {
+    if (!state.cancelled.has(message.id)) {
+      send(state, {
+        type: 'response',
+        id: message.id,
+        ok: false,
+        error: error instanceof Error ? error.message : String(error),
+        errorName: error instanceof Error ? error.name : undefined,
+      });
+    }
+  } finally {
+    activeRequests--;
+    state.cancel.delete(message.id);
+    state.cancelled.delete(message.id);
+  }
+}
+
+function isIgnoredRelativePath(relativePath: string): boolean {
+  return relativePath.split(/[/\\]/u).some((segment) => DEFAULT_WALK_IGNORE_SET.has(segment));
+}
+
+function enqueueExternalFile(file: string): void {
+  const previous = externalDebounceTimers.get(file);
+  if (previous) clearTimeout(previous);
+  const timer = setTimeout(() => {
+    externalDebounceTimers.delete(file);
+    externalReadyFiles.add(file);
+    if (!externalReadyFlush) {
+      externalReadyFlush = setImmediate(() => {
+        externalReadyFlush = undefined;
+        const files = [...externalReadyFiles].sort();
+        externalReadyFiles.clear();
+        void withIndexWrite((onProgress) =>
+          indexService(
+            {
+              projectRoot,
+              indexDir,
+              files,
+            },
+            { onProgress },
+          ),
+        ).catch(() => {
+          // External indexing is best effort. A subsequent explicit request
+          // surfaces errors through the normal RPC/circuit-breaker path.
+        });
+      });
+      externalReadyFlush.unref?.();
+    }
+  }, externalDebounceMs);
+  timer.unref?.();
+  externalDebounceTimers.set(file, timer);
+}
+
+function ensureExternalWatcher(): void {
+  if (externalWatcher) return;
+  externalWatcher = watchProjectTree(
+    projectRoot,
+    ({ filename }) => {
+      if (!filename || isIgnoredRelativePath(filename)) return;
+      const absolute = path.resolve(projectRoot, filename);
+      const relative = path.relative(projectRoot, absolute);
+      if (
+        relative === '..' ||
+        relative.startsWith(`..${path.sep}`) ||
+        path.isAbsolute(relative) ||
+        !isIndexablePath(absolute)
+      ) {
+        return;
+      }
+      enqueueExternalFile(absolute);
+    },
+    {
+      onError: () => {
+        // Watch errors are non-fatal; explicit edit/startup requests remain
+        // available through the same server.
+      },
+    },
+  );
+}
+
+function stopExternalWatcher(): void {
+  try {
+    externalWatcher?.close();
+  } catch {
+    /* already closed */
+  }
+  externalWatcher = undefined;
+  for (const timer of externalDebounceTimers.values()) clearTimeout(timer);
+  externalDebounceTimers.clear();
+  if (externalReadyFlush) clearImmediate(externalReadyFlush);
+  externalReadyFlush = undefined;
+  externalReadyFiles.clear();
+}
+
+function reconcileExternalWatcher(): void {
+  const owners = [...clients].filter((client) => client.watchExternal);
+  if (owners.length === 0) {
+    externalDebounceMs = DEFAULT_EXTERNAL_DEBOUNCE_MS;
+    stopExternalWatcher();
+    return;
+  }
+  externalDebounceMs = Math.min(...owners.map((client) => client.debounceMs));
+  ensureExternalWatcher();
+}
+
+function consume(state: ClientState, chunk: string): void {
+  state.buffer += chunk;
+  while (true) {
+    const newline = state.buffer.indexOf('\n');
+    if (newline < 0) {
+      if (state.buffer.length > PROJECT_INDEX_SERVER_MAX_FRAME_CHARS) {
+        state.socket.destroy(new Error('codebase-index client message exceeds the IPC limit'));
+      }
+      return;
+    }
+    if (newline > PROJECT_INDEX_SERVER_MAX_FRAME_CHARS) {
+      state.socket.destroy(new Error('codebase-index client message exceeds the IPC limit'));
+      return;
+    }
+    const line = state.buffer.slice(0, newline);
+    state.buffer = state.buffer.slice(newline + 1);
+    if (!line) continue;
+    let message: ProjectServerClientMessage;
+    try {
+      message = JSON.parse(line) as ProjectServerClientMessage;
+    } catch {
+      state.socket.destroy(new Error('invalid codebase-index client message'));
+      return;
+    }
+    state.lastSeenAt = Date.now();
+    void handleMessage(state, message);
+  }
+}
+
+function scheduleIdleStop(): void {
+  if (stopping || clients.size > 0) return;
+  if (idleTimer) clearTimeout(idleTimer);
+  idleTimer = setTimeout(() => void stop('idle-timeout'), idleMs);
+  idleTimer.unref?.();
+}
+
+function removeMetadataIfOwned(): void {
+  try {
+    const current = JSON.parse(fs.readFileSync(metadataPath, 'utf8')) as { pid?: number };
+    if (current.pid === process.pid) fs.rmSync(metadataPath, { force: true });
+  } catch {
+    /* absent or owned by a successor */
+  }
+}
+
+function writeMetadata(): void {
+  fs.mkdirSync(path.dirname(metadataPath), { recursive: true });
+  const temporary = `${metadataPath}.${process.pid}.tmp`;
+  fs.writeFileSync(temporary, `${JSON.stringify(serverInfo, null, 2)}\n`, { mode: 0o600 });
+  try {
+    fs.renameSync(temporary, metadataPath);
+  } catch {
+    // Windows cannot atomically replace an existing file with renameSync.
+    // The listening socket has already elected this process as the sole
+    // owner, so replacing stale discovery metadata is safe here.
+    fs.rmSync(metadataPath, { force: true });
+    fs.renameSync(temporary, metadataPath);
+  }
+}
+
+const server = net.createServer((socket) => {
+  if (idleTimer) clearTimeout(idleTimer);
+  idleTimer = undefined;
+  socket.setEncoding('utf8');
+  socket.setKeepAlive(true, 30_000);
+  const state: ClientState = {
+    socket,
+    buffer: '',
+    cancelled: new Set(),
+    cancel: new Map(),
+    watchExternal: false,
+    debounceMs: DEFAULT_EXTERNAL_DEBOUNCE_MS,
+    lastSeenAt: Date.now(),
+  };
+  clients.add(state);
+  send(state, { type: 'hello', ...serverInfo });
+  send(state, { type: 'index-state', state: indexActivity });
+  socket.on('data', (chunk: string) => consume(state, chunk));
+  socket.on('close', () => {
+    for (const cancel of state.cancel.values()) cancel();
+    state.cancel.clear();
+    clients.delete(state);
+    try {
+      reconcileExternalWatcher();
+    } catch {
+      /* remaining clients can retry configuration */
+    }
+    scheduleIdleStop();
+  });
+  socket.on('error', () => {
+    // close owns cleanup
+  });
+});
+
+const clientLeaseTimer = setInterval(() => {
+  const staleBefore = Date.now() - clientLeaseMs;
+  for (const client of clients) {
+    if (client.lastSeenAt < staleBefore) {
+      client.socket.destroy(new Error('codebase-index client heartbeat lease expired'));
+    }
+  }
+}, clientLeaseSweepMs);
+clientLeaseTimer.unref?.();
+
+async function stop(_reason: string): Promise<void> {
+  if (stopping) return;
+  stopping = true;
+  if (idleTimer) clearTimeout(idleTimer);
+  idleTimer = undefined;
+  clearInterval(clientLeaseTimer);
+  for (const state of clients) {
+    for (const cancel of state.cancel.values()) cancel();
+    state.socket.end();
+  }
+  activeFullIndex?.controller.abort(new Error('codebase-index server stopping'));
+  stopExternalWatcher();
+  indexStorePool.closeAll();
+  removeMetadataIfOwned();
+  await new Promise<void>((resolve) => {
+    server.close(() => resolve());
+    const timer = setTimeout(() => {
+      for (const state of clients) state.socket.destroy();
+      resolve();
+    }, 500);
+    timer.unref?.();
+  });
+  if (process.platform !== 'win32') {
+    try {
+      fs.rmSync(endpoint, { force: true });
+    } catch {
+      /* already removed */
+    }
+  }
+}
+
+ensureProjectIndexSocketDirectory(endpoint);
+server.once('error', (error: NodeJS.ErrnoException) => {
+  if (error.code === 'EADDRINUSE') {
+    process.exitCode = 0;
+    return;
+  }
+  process.stderr.write(`codebase-index server failed: ${error.message}\n`);
+  process.exitCode = 1;
+});
+server.listen(endpoint, () => {
+  if (process.platform !== 'win32') {
+    try {
+      fs.chmodSync(endpoint, 0o600);
+    } catch {
+      /* best effort */
+    }
+  }
+  writeMetadata();
+  scheduleIdleStop();
+});
+
+process.once('SIGINT', () => void stop('SIGINT'));
+process.once('SIGTERM', () => void stop('SIGTERM'));

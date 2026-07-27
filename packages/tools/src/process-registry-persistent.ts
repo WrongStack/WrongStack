@@ -233,7 +233,11 @@ export class PersistentProcessRegistry {
   private cleanupRunning = false;
   private isShuttingDown = false;
   private readonly onProcessExit = (): void => {
-    void this.syncToPersistent();
+    this.runInBackground(
+      this.syncToPersistent(),
+      'process_registry.exit_sync_failed',
+      'PersistentProcessRegistry: exit sync failed',
+    );
   };
 
   constructor(baseRegistry?: ProcessRegistryImpl) {
@@ -256,6 +260,12 @@ export class PersistentProcessRegistry {
     } catch (err) {
       if (!isNodeError(err) || err.code !== 'EEXIST') throw err;
     }
+  }
+
+  private runInBackground(operation: Promise<void>, event: string, message: string): void {
+    void operation.catch((err) => {
+      emitStructuredLog('warn', event, message, err);
+    });
   }
 
   /**
@@ -301,7 +311,11 @@ export class PersistentProcessRegistry {
       this.cleanupInterval = null;
     }
     process.off('exit', this.onProcessExit);
-    void this.syncToPersistent();
+    this.runInBackground(
+      this.syncToPersistent(),
+      'process_registry.stop_sync_failed',
+      'PersistentProcessRegistry: stop sync failed',
+    );
   }
 
   /**
@@ -310,19 +324,23 @@ export class PersistentProcessRegistry {
   registerMainProcess(): void {
     const mainPid = process.pid;
 
-    this.updatePersistentEntry({
-      pid: mainPid,
-      name: 'wrongstack-main',
-      command: process.argv.slice(0, 3).join(' '),
-      startedAt: Date.now(),
-      lastHeartbeat: Date.now(),
-      instanceId: this.instanceId,
-      hostname: os.hostname(),
-      protected: true,
-      spawnMode: 'main',
-      parentPid: process.ppid,
-      platform: process.platform,
-    });
+    this.runInBackground(
+      this.updatePersistentEntry({
+        pid: mainPid,
+        name: 'wrongstack-main',
+        command: process.argv.slice(0, 3).join(' '),
+        startedAt: Date.now(),
+        lastHeartbeat: Date.now(),
+        instanceId: this.instanceId,
+        hostname: os.hostname(),
+        protected: true,
+        spawnMode: 'main',
+        parentPid: process.ppid,
+        platform: process.platform,
+      }),
+      'process_registry.main_register_failed',
+      'PersistentProcessRegistry: failed to register main process',
+    );
   }
 
   /**
@@ -345,7 +363,11 @@ export class PersistentProcessRegistry {
     if (sessionId) {
       entry.sessionId = sessionId;
     }
-    this.updatePersistentEntry(entry);
+    this.runInBackground(
+      this.updatePersistentEntry(entry),
+      'process_registry.child_register_failed',
+      'PersistentProcessRegistry: failed to register child process',
+    );
   }
 
   /**
@@ -398,18 +420,36 @@ export class PersistentProcessRegistry {
     if (this.isShuttingDown || this.heartbeatRunning) return;
 
     this.heartbeatRunning = true;
-    void this.syncToPersistent().finally(() => {
-      this.heartbeatRunning = false;
-    });
+    void this.syncToPersistent()
+      .catch((err) => {
+        emitStructuredLog(
+          'warn',
+          'process_registry.heartbeat_failed',
+          'PersistentProcessRegistry: heartbeat failed',
+          err,
+        );
+      })
+      .finally(() => {
+        this.heartbeatRunning = false;
+      });
   }
 
   private cleanup(): void {
     if (this.isShuttingDown || this.cleanupRunning) return;
 
     this.cleanupRunning = true;
-    void this.cleanupStaleEntries().finally(() => {
-      this.cleanupRunning = false;
-    });
+    void this.cleanupStaleEntries()
+      .catch((err) => {
+        emitStructuredLog(
+          'warn',
+          'process_registry.periodic_cleanup_failed',
+          'PersistentProcessRegistry: periodic cleanup failed',
+          err,
+        );
+      })
+      .finally(() => {
+        this.cleanupRunning = false;
+      });
   }
 
   /**

@@ -24,6 +24,7 @@ import {
   ProviderError,
   type Response,
 } from '../types/provider.js';
+import { resolveEventSessionId } from './context.js';
 import type { FallbackChain, FallbackChainEntry } from './fallback-profile-manager.js';
 import { FallbackProfileManager } from './fallback-profile-manager.js';
 import { evaluateModelCalendar, logicalCalendarTarget } from './model-availability-calendar.js';
@@ -375,7 +376,7 @@ export function createFallbackModelExtension(deps: FallbackModelDeps): AgentExte
             (calendar.rule ? 'Blocked by model availability calendar' : undefined) ??
             status?.lastErrorMessage ??
             'Rate limit or repeated failures',
-          sessionId: ctx.session?.id,
+          sessionId: resolveEventSessionId(ctx),
           timestamp: Date.now(),
         });
         // Skipping the blocked primary — simulate a fallback-worthy error
@@ -397,7 +398,7 @@ export function createFallbackModelExtension(deps: FallbackModelDeps): AgentExte
         );
         // Record success in the tracker
         tracker?.recordSuccess(ctx.provider.id, ctx.model, {
-          sessionId: ctx.session?.id,
+          sessionId: resolveEventSessionId(ctx),
           agentId: ctx.agentId,
         });
         const cfg = deps.getConfig();
@@ -432,7 +433,7 @@ export function createFallbackModelExtension(deps: FallbackModelDeps): AgentExte
             (firstErr_ as ProviderError).status,
             (firstErr_ as ProviderError).describe(),
             {
-              sessionId: ctx_.session?.id,
+              sessionId: resolveEventSessionId(ctx_),
               agentId: ctx_.agentId,
               retryAfterMs: firstErr_.body?.retryAfterMs,
             },
@@ -528,6 +529,27 @@ export function createFallbackModelExtension(deps: FallbackModelDeps): AgentExte
             continue;
           }
 
+          // Pre-filter: if we know the current request's token count and this
+          // fallback model's context window is provably too small, skip it
+          // instead of dispatching a call that will fail with context_overflow
+          // (which is NOT fallback-worthy and would surface as an error to the
+          // user). The check is conservative: only skips when the INPUT alone
+          // exceeds the window — if input fits, the call may still succeed.
+          const entryMaxContext = maxContextOf(nextProvider);
+          const currentTokens = ctx_.lastRequestTokens;
+          if (
+            entryMaxContext > 0 &&
+            typeof currentTokens === 'number' &&
+            currentTokens > 0 &&
+            currentTokens > entryMaxContext
+          ) {
+            deps.logger?.warn(
+              `fallback-model: skipping "${targetProviderId}/${targetModel}" — context window ` +
+                `(${entryMaxContext}) is smaller than current request tokens (${currentTokens})`,
+            );
+            continue;
+          }
+
           const providerSwitched = nextProvider.id !== from.providerId;
           const warning = contextWindowWarning(ctx_.provider, nextProvider, ctx_.lastRequestTokens);
           ctx_.provider = nextProvider;
@@ -538,7 +560,7 @@ export function createFallbackModelExtension(deps: FallbackModelDeps): AgentExte
           await deps.onModelSwitch?.(targetProviderId, targetModel);
 
           deps.events.emit('provider.fallback', {
-            sessionId: ctx_.session?.id,
+            sessionId: resolveEventSessionId(ctx_),
             from: logicalFrom,
             to: tracker?.logicalIdentity(nextProvider.id, targetModel) ?? {
               providerId: nextProvider.id,
@@ -556,7 +578,7 @@ export function createFallbackModelExtension(deps: FallbackModelDeps): AgentExte
               ctx_.model,
             );
             tracker?.recordSuccess(nextProvider.id, targetModel, {
-              sessionId: ctx_.session?.id,
+              sessionId: resolveEventSessionId(ctx_),
               agentId: ctx_.agentId,
             });
             return response;
@@ -570,7 +592,7 @@ export function createFallbackModelExtension(deps: FallbackModelDeps): AgentExte
                 (err as ProviderError).status,
                 (err as ProviderError).describe(),
                 {
-                  sessionId: ctx_.session?.id,
+                  sessionId: resolveEventSessionId(ctx_),
                   agentId: ctx_.agentId,
                   retryAfterMs: err.body?.retryAfterMs,
                 },

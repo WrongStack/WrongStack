@@ -6,6 +6,7 @@ import { ulid } from '@wrongstack/core/utils';
 import { memoryNodeId } from './sqlite-store-graph-helpers.js';
 import { sqliteRowToMemory } from './sqlite-store-codec.js';
 import {
+  isNearDuplicateMemory,
   normalizeAudience,
   normalizeTextKey,
 } from './store-helpers.js';
@@ -18,6 +19,9 @@ import type {
 } from './types.js';
 import { DEFAULT_PERSISTENCE } from './types.js';
 
+/** Cap pairwise near-dup work inside a single scope/kind/audience bucket. */
+const HYGIENE_NEAR_DUP_BUCKET_CAP = 80;
+
 export interface SqliteHygieneContext {
   projectRoot: string;
   stmt: (sql: string) => ReturnType<DatabaseSync['prepare']>;
@@ -29,9 +33,18 @@ export interface SqliteHygieneContext {
   runMutation: <T>(work: () => T) => Promise<T>;
   upsertMemory: (memory: Sage) => void;
   syncAnchorEdges: (memory: Sage) => void;
+  /** Soft-delete edge cascade for auto session GC. */
+  cascadeDeleteEdges: (nodeId: string) => void;
   audit: (event: string, data?: Record<string, unknown>) => void;
   pruneAuditLog: () => void;
 }
+
+/**
+ * Default age after which session-scoped memories without an explicit
+ * `expiresAt` are soft-deleted by hygiene. Session scope is ephemeral by
+ * contract; waiting for review candidates only pollutes the corpus.
+ */
+const DEFAULT_SESSION_RETENTION_DAYS = 7;
 
 export async function runSqliteSageHygiene(
   ctx: SqliteHygieneContext,
@@ -184,8 +197,144 @@ export async function runSqliteSageHygiene(
     ctx.audit('memory.hygiene_dedup', { details: { deduplicated, superseded } });
   });
 
+  // Near-duplicate pass: catch paraphrases that the exact-text key missed.
+  // Remember-time merge already does this for new writes; hygiene heals
+  // historical corpus that predated near-dup or arrived via import.
+  // Opt-out via `nearDedup: false` for recall-tuning sessions.
+  let transitiveMerges = 0;
+  if (opts?.nearDedup !== false) {
+    const nearActive = await ctx.listMemories({ status: 'active', limit: 0 });
+    const nearBuckets = new Map<string, Sage[]>();
+    for (const m of nearActive) {
+      const audienceKey = JSON.stringify(normalizeAudience(m.audience) ?? null);
+      const key = `${m.scope}\0${m.kind}\0${audienceKey}`;
+      const bucket = nearBuckets.get(key);
+      if (bucket) bucket.push(m);
+      else nearBuckets.set(key, [m]);
+    }
+    await ctx.runMutation(() => {
+      let nearPassDeduped = 0;
+      for (const bucket of nearBuckets.values()) {
+        if (bucket.length < 2) continue;
+        const capped = [...bucket]
+          .sort(
+            (a, b) =>
+              b.importance - a.importance ||
+              b.confidence - a.confidence ||
+              a.createdAt.localeCompare(b.createdAt),
+          )
+          .slice(0, HYGIENE_NEAR_DUP_BUCKET_CAP);
+        const parent = new Map<string, string>();
+        const find = (id: string): string => {
+          let cur = id;
+          while (parent.get(cur) !== undefined && parent.get(cur) !== cur) {
+            const next = parent.get(cur)!;
+            parent.set(cur, parent.get(next) ?? next);
+            cur = next;
+          }
+          if (!parent.has(cur)) parent.set(cur, cur);
+          return cur;
+        };
+        const union = (a: string, b: string): void => {
+          const ra = find(a);
+          const rb = find(b);
+          if (ra !== rb) parent.set(rb, ra);
+        };
+        for (let i = 0; i < capped.length; i++) {
+          const left = capped[i]!;
+          for (let j = i + 1; j < capped.length; j++) {
+            const right = capped[j]!;
+            if (isNearDuplicateMemory(left, right)) union(left.id, right.id);
+          }
+        }
+        const mergedGroups = new Map<string, Sage[]>();
+        for (const m of capped) {
+          const root = find(m.id);
+          const group = mergedGroups.get(root);
+          if (group) group.push(m);
+          else mergedGroups.set(root, [m]);
+        }
+        for (const group of mergedGroups.values()) {
+          if (group.length < 2) continue;
+          // Track raw union-find collapses (size > 2) before pair validation.
+          if (group.length > 2) transitiveMerges++;
+          const sorted = [...group].sort(
+            (a, b) =>
+              b.importance - a.importance ||
+              b.confidence - a.confidence ||
+              a.createdAt.localeCompare(b.createdAt),
+          );
+          const keeper = sorted[0]!;
+          // Pair validation: only supersede members that are near-dup with the
+          // keeper itself. Transitively connected-but-unrelated facts stay.
+          const duplicates = sorted
+            .slice(1)
+            .filter((dup) => isNearDuplicateMemory(keeper, dup));
+          if (duplicates.length === 0) continue;
+          const mergeSet = [keeper, ...duplicates];
+          const richest = mergeSet.reduce((best, cur) =>
+            cur.text.length > best.text.length ? cur : best,
+          );
+          const updatedKeeper: Sage = {
+            ...keeper,
+            text: richest.text.length > keeper.text.length ? richest.text : keeper.text,
+            tags: [...new Set(mergeSet.flatMap((m) => m.tags))],
+            anchors: [
+              ...new Map(
+                [...mergeSet.flatMap((m) => m.anchors)].map((a) => [
+                  JSON.stringify(a, Object.keys(a).sort()),
+                  a,
+                ]),
+              ).values(),
+            ] as MemoryAnchor[],
+            sources: [
+              ...new Set(mergeSet.flatMap((m) => m.sources.map((s) => JSON.stringify(s)))),
+            ].map((s) => JSON.parse(s)),
+            supersedes: [
+              ...new Set([...(keeper.supersedes ?? []), ...duplicates.map((m) => m.id)]),
+            ],
+            updatedAt: ctx.nowIso(),
+          };
+          ctx.upsertMemory(updatedKeeper);
+          ctx.syncAnchorEdges(updatedKeeper);
+          for (const dup of duplicates) {
+            const supersededDup: Sage = {
+              ...dup,
+              status: 'superseded',
+              supersededBy: keeper.id,
+              updatedAt: ctx.nowIso(),
+            };
+            ctx.upsertMemory(supersededDup);
+            ctx.syncAnchorEdges(supersededDup);
+            try {
+              ctx
+                .stmt(
+                  `INSERT INTO edges (from_node, to_node, relation, weight, created_at)
+                   VALUES (?, ?, ?, ?, ?)
+                   ON CONFLICT(from_node, to_node, relation) DO UPDATE SET weight = excluded.weight`,
+                )
+                .run(memoryNodeId(keeper.id), memoryNodeId(dup.id), 'supersedes', 1, ctx.nowIso());
+            } catch {
+              /* transient edge race — non-critical */
+            }
+            deduplicated++;
+            superseded++;
+            nearPassDeduped++;
+          }
+        }
+      }
+      if (nearPassDeduped > 0 || transitiveMerges > 0) {
+        ctx.audit('memory.hygiene_near_dedup', {
+          details: { nearPassDeduped, transitiveMerges, deduplicated, superseded },
+        });
+      }
+    });
+  }
+
   const nowMs = ctx.now().getTime();
   const retentionMs = (opts?.retentionDays ?? 90) * 86_400_000;
+  const sessionRetentionMs =
+    (opts?.sessionRetentionDays ?? DEFAULT_SESSION_RETENTION_DAYS) * 86_400_000;
   const lowConfidenceMs = (opts?.archiveLowConfidenceAfterDays ?? 30) * 86_400_000;
   const unusedMs = (opts?.archiveUnusedAfterDays ?? 30) * 86_400_000;
   const unusedMinInjections = Math.max(1, Math.floor(opts?.unusedMinInjections ?? 10));
@@ -196,6 +345,9 @@ export async function runSqliteSageHygiene(
   );
 
   let reviewCandidatesCreated = 0;
+  let deleted = 0;
+  let purgedDeleted = 0;
+  const sessionGcTargets: Sage[] = [];
   const candidates = await ctx.listMemories({ status: 'all', limit: 0 });
   for (const m of candidates) {
     if (m.status === 'deleted' || m.status === 'superseded' || m.status === 'contradicted')
@@ -203,13 +355,24 @@ export async function runSqliteSageHygiene(
 
     const age = nowMs - Date.parse(m.lastAccessedAt ?? m.updatedAt);
     const persistence = m.persistence ?? DEFAULT_PERSISTENCE;
+    if (persistence === 'permanent') continue;
+
+    // Session GC: soft-delete expired / aged-out session memories immediately.
+    // These are ephemeral by contract; a review candidate only re-pollutes the
+    // queue. Project-scope expiry still goes through the candidate path.
+    const sessionExpired =
+      m.scope === 'session' &&
+      ((m.expiresAt !== undefined && Date.parse(m.expiresAt) <= nowMs) ||
+        (m.expiresAt === undefined && nowMs - Date.parse(m.updatedAt) >= sessionRetentionMs));
+    if (sessionExpired) {
+      sessionGcTargets.push(m);
+      continue;
+    }
+
     let reason: string | undefined;
     let suggestedAction: 'delete' | 'archive' | 'investigate' = 'investigate';
 
-    if (m.scope === 'session' && m.expiresAt && Date.parse(m.expiresAt) <= nowMs) {
-      reason = 'expires_at_passed';
-      suggestedAction = 'delete';
-    } else if (m.expiresAt && Date.parse(m.expiresAt) <= nowMs) {
+    if (m.expiresAt && Date.parse(m.expiresAt) <= nowMs) {
       reason = 'expires_at_passed';
       suggestedAction = 'delete';
     } else if (
@@ -229,7 +392,7 @@ export async function runSqliteSageHygiene(
       suggestedAction = 'investigate';
     }
 
-    if (reason && persistence !== 'permanent' && !existingPendingKeys.has(m.id)) {
+    if (reason && !existingPendingKeys.has(m.id)) {
       const ageDays = Math.floor((nowMs - Date.parse(m.updatedAt)) / 86_400_000);
       await ctx.addCandidate({
         id: ulid(),
@@ -267,6 +430,59 @@ export async function runSqliteSageHygiene(
     }
   }
 
+  if (sessionGcTargets.length > 0) {
+    await ctx.runMutation(() => {
+      for (const m of sessionGcTargets) {
+        const tombstone: Sage = {
+          ...m,
+          status: 'deleted',
+          revision: m.revision + 1,
+          updatedAt: ctx.nowIso(),
+          contextPolicy: 'never',
+        };
+        ctx.upsertMemory(tombstone);
+        ctx.cascadeDeleteEdges(memoryNodeId(m.id));
+        ctx.audit('memory.session_gc', {
+          memoryId: m.id,
+          reason: m.expiresAt ? 'expires_at_passed' : 'session_retention',
+          details: {
+            expiresAt: m.expiresAt,
+            updatedAt: m.updatedAt,
+            sessionRetentionDays: opts?.sessionRetentionDays ?? DEFAULT_SESSION_RETENTION_DAYS,
+          },
+        });
+        deleted++;
+      }
+    });
+  }
+
+  // Opt-in physical purge of old tombstones (including session GC).
+  const purgeAfterDays = opts?.purgeDeletedAfterDays;
+  if (typeof purgeAfterDays === 'number' && purgeAfterDays > 0) {
+    const purgeCutoff = nowMs - purgeAfterDays * 86_400_000;
+    const tombstones = await ctx.listMemories({ status: 'deleted', limit: 0 });
+    const purgeIds = tombstones
+      .filter((m) => {
+        if ((m.persistence ?? DEFAULT_PERSISTENCE) === 'permanent') return false;
+        const deletedAt = Date.parse(m.updatedAt);
+        return Number.isFinite(deletedAt) && deletedAt <= purgeCutoff;
+      })
+      .map((m) => m.id);
+    if (purgeIds.length > 0) {
+      await ctx.runMutation(() => {
+        const del = ctx.stmt('DELETE FROM memories WHERE id = ?');
+        for (const id of purgeIds) {
+          ctx.cascadeDeleteEdges(memoryNodeId(id));
+          del.run(id);
+          purgedDeleted++;
+        }
+        ctx.audit('memory.purge_deleted', {
+          details: { purgedDeleted, purgeDeletedAfterDays: purgeAfterDays },
+        });
+      });
+    }
+  }
+
   const report: SageHygieneReport = {
     startedAt,
     completedAt: ctx.nowIso(),
@@ -278,10 +494,10 @@ export async function runSqliteSageHygiene(
     reviewCandidatesCreated,
     archived: 0,
     archivedUnused: 0,
-    deleted: 0,
-    purgedDeleted: 0,
+    deleted,
+    purgedDeleted,
     verified: verified.length,
-    transitiveMerges: 0,
+    transitiveMerges,
   };
   ctx.audit('memory.hygiene_completed', {
     details: report,

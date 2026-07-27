@@ -129,7 +129,16 @@
       "baseUrl": "Base URL (optional)",
       "apiKey": "API Key (optional — some local providers don't need one)",
       "apiKeyPlaceholder": "API key (if required)",
-      "add": "Add Provider"
+      "add": "Add Provider",
+      "models": "Models",
+      "addModel": "Add model",
+      "modelSearchPlaceholder": "Search catalog models…",
+      "noCatalogMatch": "No catalog match.",
+      "useCustomId": "Enter custom ID",
+      "customModelIdPlaceholder": "Custom model id",
+      "cancel": "Cancel",
+      "modelSingular": "model",
+      "modelPlural": "models"
     },
     "time": {
       "justNow": "just now",

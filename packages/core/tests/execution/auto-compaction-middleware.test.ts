@@ -31,7 +31,7 @@ function mockCompactor(): Compactor & { compactCalls: { ctx: Context; aggressive
     compactCalls: [],
     async compact(ctx, opts = {}) {
       this.compactCalls.push({ ctx, aggressive: opts.aggressive ?? false });
-      return { before: 1000, after: 800, reductions: [] };
+      return { before: 1000, after: 800, fullRequestTokensBefore: 1000, fullRequestTokensAfter: 800, reductions: [] };
     },
   };
 }
@@ -390,6 +390,76 @@ describe('AutoCompactionMiddleware', () => {
     expect(trims[0]?.load).toBeLessThan(0.9); // now under the hard line
   });
 
+  it('target-trims toward policy targetLoad even below hard threshold', async () => {
+    const bigMsg = { role: 'user', content: [{ type: 'text', text: 'x'.repeat(120_000) }] };
+    const messages: any[] = [bigMsg];
+    const noopCompactor: Compactor = {
+      async compact() {
+        return {
+          before: 34_000,
+          after: 34_000,
+          fullRequestTokensBefore: 34_000,
+          fullRequestTokensAfter: 34_000,
+          reductions: [],
+        };
+      },
+    };
+    const events = new EventBus();
+    const targetTrims: Array<{ targetLoad: number; load: number; withinBudget: boolean }> = [];
+    const emergencyTrims: unknown[] = [];
+    events.on('compaction.target_trim', (p) =>
+      targetTrims.push({ targetLoad: p.targetLoad, load: p.load, withinBudget: p.withinBudget }),
+    );
+    events.on('compaction.emergency_trim', (p) => emergencyTrims.push(p));
+
+    const ctx = {
+      messages,
+      todos: [],
+      readFiles: new Set(),
+      fileMtimes: new Map(),
+      systemPrompt: [],
+      provider: { id: 'test', capabilities: { maxContext: 100_000 } } as any,
+      session: { id: 's1' } as any,
+      signal: new AbortController().signal,
+      tokenCounter: {} as any,
+      cwd: '/tmp',
+      projectRoot: '/tmp',
+      model: 'test',
+      tools: [],
+      meta: {},
+      clearFileTracking: () => {},
+      state: {
+        replaceMessages(next: any[]) {
+          messages.length = 0;
+          messages.push(...next);
+        },
+      },
+    } as never as Context;
+
+    const mw = new AutoCompactionMiddleware(
+      noopCompactor,
+      100_000,
+      undefined,
+      { warn: 0.3, soft: 0.6, hard: 0.9 },
+      {
+        events,
+        policyProvider: () => ({
+          thresholds: { warn: 0.3, soft: 0.6, hard: 0.9 },
+          aggressiveOn: 'soft',
+          targetLoad: 0.35,
+        }),
+      },
+    );
+
+    await mw.handler()(ctx, async (c) => c);
+
+    expect(targetTrims).toHaveLength(1);
+    expect(targetTrims[0]?.targetLoad).toBe(0.35);
+    expect(targetTrims[0]?.withinBudget).toBe(true);
+    expect(targetTrims[0]?.load).toBeLessThan(0.9);
+    expect(emergencyTrims).toHaveLength(0);
+  });
+
   it('can continue when hard compaction remains above the hard threshold if configured', async () => {
     const stuckCompactor: Compactor = {
       async compact() {
@@ -457,6 +527,7 @@ describe('AutoCompactionMiddleware', () => {
         policyProvider: () => ({
           thresholds: { warn: 0.45, soft: 0.6, hard: 0.75 },
           aggressiveOn: 'warn',
+          targetLoad: 0.5,
         }),
       },
     );

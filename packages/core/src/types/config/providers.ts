@@ -68,7 +68,12 @@ export interface ProviderConfig {
   family?: WireFamily | undefined;
   /** Custom env var names to probe when `apiKey` is missing. */
   envVars?: string[] | undefined;
-  /** Optional list of models the user wants visible for this provider. */
+  /**
+   * Optional list of models the user wants visible for this provider.
+   * Raw JSON config may also contain model.dev-style objects here; the config
+   * loader normalizes those objects into this string list plus `customModels`
+   * before exposing a typed `Config` to runtime consumers.
+   */
   models?: string[] | undefined;
   /**
    * Fetch this provider's model list + per-model capabilities from its

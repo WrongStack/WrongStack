@@ -35,6 +35,7 @@ import * as path from 'node:path';
 import { decryptConfigSecrets } from '../security/config-secrets.js';
 import type { ProviderConfig } from '../types/config.js';
 import type { SecretVault } from '../types/secret-vault.js';
+import { normalizeInlineProviderModels } from './config-loader/inline-provider-models.js';
 
 /**
  * A decrypted snapshot of the credential-bearing slice of `config.json`.
@@ -104,6 +105,10 @@ export async function readProviderSnapshot(
     warn?.(`Config at ${configPath} is not valid JSON: ${(err as Error).message}`);
     return undefined;
   }
+  normalizeInlineProviderModels(parsed, (message, context) => {
+    const suffix = context ? ` (${JSON.stringify(context)})` : '';
+    warn?.(`${message}${suffix}`);
+  });
   const decrypted = decryptConfigSecrets(parsed, vault, warn ? { warn } : {}) as {
     providers?: Record<string, ProviderConfig>;
     apiKey?: string;

@@ -5,9 +5,13 @@ import {
   type MemoryPort,
   type MemoryStore,
 } from '@wrongstack/core/types';
+import * as fs from 'node:fs/promises';
 import type { SageRetrieverLike } from './middleware/tool-call-memory.js';
 import type { SageServiceLike, SageSurface } from './service-contract.js';
-import { isSageService } from './service-guard.js';
+import {
+  ProjectSageMemoryPort,
+  type ProjectSageMemoryPortOptions,
+} from './remote-memory-port.js';
 import { SqliteSageStore } from './sqlite-store.js';
 import type { SageStoreOptions } from './types.js';
 
@@ -91,8 +95,68 @@ export class SqliteMemoryPort extends SqliteSageStore implements MemoryPort {
     listCandidates: (includeResolved) => super.listCandidates(includeResolved),
     graphFor: (query, maxDepth, limit) => super.graphFor(query, maxDepth, limit),
     verify: (memoryId, signal) => super.verify(memoryId, signal),
+    recoverSage: (id, reason) => super.recoverSage(id, reason),
+    backfillRecoverable: (options) => super.backfillRecoverable(options),
+    findMemoriesForFile: (filePath, options) =>
+      super.findMemoriesForFile(filePath, options),
     readAudit: (limit) => super.readAudit(limit),
+    importLegacy: (files) => this.importLegacyFiles(files),
   };
+  private readonly serviceCapability: SageServiceLike = {
+    readAll: () => super.readAll(),
+    read: (scope) => super.read(scope),
+    remember: (text, scope, metadata) => super.remember(text, scope, metadata),
+    forget: (query, scope) => super.forget(query, scope),
+    consolidate: (scope) => super.consolidate(scope),
+    clear: (scope) => super.clear(scope),
+    list: (scope, limit) => super.list(scope, limit),
+    search: (query, scope, limit) => super.search(query, scope, limit),
+    findRelated: (text, scope, limit) =>
+      super.search(text, scope, limit),
+    scoreRelevant: async (context, scope, limit) =>
+      (await super.search(context.currentTask, scope, limit)).map((entry, index) => ({
+        ...entry,
+        score: Math.max(0.1, 1 - index * 0.05),
+        matchReason: 'SAGE lexical search',
+      })),
+    hygiene: (options) => super.hygiene(options),
+    withTraceId: (traceId) => {
+      this.withTraceId(traceId);
+      return this.serviceCapability;
+    },
+    retrieveForPath: (options) =>
+      super.retrieveForPath([options.path], { ...options, path: options.path }),
+    searchSage: (query, options) => super.searchSage(query, options),
+    retrieveForAudience: (context, limit) =>
+      super.retrieveForAudience(context, limit === undefined ? undefined : { limit }),
+    graphFor: (query, maxDepth, limit) => super.graphFor(query, maxDepth, limit),
+    verify: (memoryId, signal) => super.verify(memoryId, signal),
+    listCandidates: (includeResolved) => super.listCandidates(includeResolved),
+    createCandidate: (input) => super.createCandidate(input),
+    resolveCandidate: (candidateId, decision, reason) =>
+      super.resolveCandidate(candidateId, decision, reason),
+    acceptCandidate: (candidateId) => super.acceptCandidate(candidateId),
+    rejectCandidate: (candidateId, reason) => super.rejectCandidate(candidateId, reason),
+    rememberSage: (input) => super.rememberSage(input),
+    updateSage: (id, patch) => super.updateSage(id, patch),
+    deleteSage: (id, reason, options) => super.deleteSage(id, reason, options),
+    recoverSage: (id, reason) => super.recoverSage(id, reason),
+    backfillRecoverable: (options) => super.backfillRecoverable(options),
+    findMemoriesForFile: (filePath, options) =>
+      super.findMemoriesForFile(filePath, options),
+    getSage: (id) => super.getSage(id),
+  };
+
+  private async importLegacyFiles(files: string[]) {
+    const result = { imported: 0, skipped: 0, files: 0 };
+    for (const file of files) {
+      const imported = await super.importLegacy(await fs.readFile(file, 'utf8'));
+      result.imported += imported.imported;
+      result.skipped += imported.skipped;
+      result.files++;
+    }
+    return result;
+  }
 
   override withTraceId(traceId: string): this {
     super.withTraceId(traceId);
@@ -106,8 +170,8 @@ export class SqliteMemoryPort extends SqliteSageStore implements MemoryPort {
     if (capability.id === SAGE_SURFACE_CAPABILITY.id) {
       return this.surfaceCapability as unknown as T;
     }
-    if (capability.id === SAGE_SERVICE_CAPABILITY.id && isSageService(this)) {
-      return this as unknown as T;
+    if (capability.id === SAGE_SERVICE_CAPABILITY.id) {
+      return this.serviceCapability as unknown as T;
     }
     return undefined;
   }
@@ -217,3 +281,23 @@ export class LegacyMemoryPortAdapter implements MemoryPort {
 export function createSqliteMemoryPort(options: SageStoreOptions): MemoryPort {
   return new SqliteMemoryPort(options);
 }
+
+/**
+ * Production project memory port.
+ *
+ * Normal hosts connect to the detached per-project SAGE server so SQLite,
+ * hygiene, counters, and mutation ordering have exactly one owner. Tests and
+ * explicit offline recovery may opt into the direct store; production never
+ * silently falls back because that would recreate split-brain memory.
+ */
+export function createProjectSageMemoryPort(options: ProjectSageMemoryPortOptions): MemoryPort {
+  const explicitInline = process.env['WRONGSTACK_SAGE_INLINE'] === '1';
+  const testInline =
+    process.env['VITEST'] === 'true' ||
+    process.env['VITEST_WORKER_ID'] !== undefined ||
+    process.env['NODE_ENV'] === 'test';
+  if (explicitInline || testInline) return new SqliteMemoryPort(options);
+  return new ProjectSageMemoryPort(options);
+}
+
+export { ProjectSageMemoryPort, type ProjectSageMemoryPortOptions };

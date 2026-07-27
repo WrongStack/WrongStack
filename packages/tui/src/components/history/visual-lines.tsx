@@ -1,7 +1,7 @@
 import type React from 'react';
 import { Text } from '../../ink.js';
 import { shortenPath, truncMid } from './basic-format.js';
-import type { ToolVisualLine, ToolVisualLineKind } from './utils.js';
+import type { ToolVisualLine, ToolVisualLineKind } from './tool-visual-types.js';
 
 const VISUAL_TEXT_BUDGET = 92;
 

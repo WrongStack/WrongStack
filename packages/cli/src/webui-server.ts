@@ -216,9 +216,22 @@ export async function runWebUI(opts: CliWebUIOptions): Promise<void> {
 
   // SDD live board handler — same process as the run, so it streams instantly
   // off the shared EventBus (no disk polling) and steers via the control file.
+  // Lifecycle deps enable Clean / Rollback / Destroy from the WebUI (same as
+  // standalone server) — without them those buttons only report "unavailable".
   const sddBoardHandler = new SddBoardWebSocketHandler(
     specsPaths?.projectSddBoards ?? path.join(os.tmpdir(), '.wrongstack', 'sdd-boards'),
     opts.events,
+    specsPaths && opts.projectRoot
+      ? {
+          projectRoot: opts.projectRoot,
+          paths: {
+            projectSpecs: specsPaths.projectSpecs,
+            projectTaskGraphs: specsPaths.projectTaskGraphs,
+            projectSddSession: specsPaths.projectSddSession,
+            projectSddBoards: specsPaths.projectSddBoards,
+          },
+        }
+      : undefined,
   );
 
   // SDD wizard — interactive "New SDD Project" flow. Available only when the
@@ -232,11 +245,15 @@ export async function runWebUI(opts: CliWebUIOptions): Promise<void> {
             events: opts.events,
             projectRoot: opts.projectRoot ?? process.cwd(),
             subagentFactory: opts.sddSubagentFactory,
+            // Failure supervisor parity with /sdd execute — omit only when
+            // the host never bound a BrainArbiter.
+            ...(opts.brain ? { brain: opts.brain } : {}),
             paths: {
               projectSpecs: specsPaths.projectSpecs,
               projectTaskGraphs: specsPaths.projectTaskGraphs,
               projectSddBoards: specsPaths.projectSddBoards,
               projectDir: specsPaths.projectDir,
+              projectSddSession: specsPaths.projectSddSession,
             },
           }),
         )
@@ -798,8 +815,10 @@ export async function runWebUI(opts: CliWebUIOptions): Promise<void> {
   const kanbanHostRoutes = createCliKanbanHostRoutes({
     opts,
     send,
+    broadcast,
     goalHandler,
     ...(kanbanSupervisor ? { kanbanSupervisor } : {}),
+    ...(kanbanRunMirror ? { kanbanRunMirror } : {}),
   });
   const handleMessage = createEmbeddedMessageRouter({
     trustBoundary,

@@ -1,4 +1,5 @@
-import type { Action, State } from '../app-state.js';
+import type { Action } from '../app-action-type.js';
+import type { State } from '../app-state.js';
 import type { HistoryEntry } from '../history-entry.js';
 import { retainTuiHistory } from '../history-retention.js';
 import {

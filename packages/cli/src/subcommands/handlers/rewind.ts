@@ -1,6 +1,10 @@
-import { toErrorMessage } from '@wrongstack/core/utils';
-import { color, expectDefined, resolveWstackPaths } from '@wrongstack/core/utils';
-import { DefaultSessionRewinder, DefaultSessionStore } from '@wrongstack/core/storage';
+import * as path from 'node:path';
+import {
+  DefaultSessionRewinder,
+  DefaultSessionStore,
+  SessionRegistry,
+} from '@wrongstack/core/storage';
+import { color, expectDefined, resolveWstackPaths, toErrorMessage } from '@wrongstack/core/utils';
 import type { SubcommandHandler } from '../index.js';
 
 interface RewindFlags {
@@ -87,10 +91,28 @@ export const rewindCmd: SubcommandHandler = async (args, deps) => {
     return 0;
   }
 
+  let claimedRegistry: SessionRegistry | undefined;
+  const claimForHistoryMutation = async (): Promise<void> => {
+    if (!flags.resume) return;
+    const registry = new SessionRegistry(wpaths.globalRoot);
+    await registry.register({
+      sessionId: targetSessionId,
+      projectSlug: wpaths.projectSlug,
+      projectRoot: deps.projectRoot,
+      projectName: path.basename(deps.projectRoot),
+      workingDir: deps.cwd,
+      clientType: 'cli',
+      pid: process.pid,
+      startedAt: new Date().toISOString(),
+    });
+    claimedRegistry = registry;
+  };
+
   // Perform rewind
   try {
     let result;
     if (flags.all) {
+      await claimForHistoryMutation();
       deps.renderer.write('Rewinding to session start...\n');
       result = await rewind.rewindToStart(targetSessionId);
     } else if (flags.last) {
@@ -99,6 +121,7 @@ export const rewindCmd: SubcommandHandler = async (args, deps) => {
         deps.renderer.writeError('--last requires a positive number');
         return 1;
       }
+      await claimForHistoryMutation();
       deps.renderer.write(`Rewinding last ${n} prompt(s)...\n`);
       result = await rewind.rewindLastN(targetSessionId, n);
     } else if (flags.to) {
@@ -107,6 +130,7 @@ export const rewindCmd: SubcommandHandler = async (args, deps) => {
         deps.renderer.writeError('--to requires a non-negative number');
         return 1;
       }
+      await claimForHistoryMutation();
       deps.renderer.write(`Rewinding to checkpoint ${idx}...\n`);
       result = await rewind.rewindToCheckpoint(targetSessionId, idx);
     } else {
@@ -168,5 +192,7 @@ export const rewindCmd: SubcommandHandler = async (args, deps) => {
   } catch (err) {
     deps.renderer.writeError(toErrorMessage(err));
     return 1;
+  } finally {
+    await claimedRegistry?.unregister().catch(() => undefined);
   }
 };

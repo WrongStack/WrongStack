@@ -14,7 +14,7 @@ import {
 import { toErrorMessage } from '../utils/error.js';
 import { hasMeaningfulContent, repairToolUseAdjacency } from '../utils/message-invariants.js';
 import type { AgentInternals } from './agent-internals.js';
-import type { Context, RunOptions } from './context.js';
+import { type Context, resolveEventSessionId, type RunOptions } from './context.js';
 import { type ContinueDirective, parseContinueDirective } from './continue-to-next-iteration.js';
 import { bindRequestProvider } from './request-provider-binding.js';
 
@@ -126,7 +126,7 @@ export function createAgentResponseHandler(a: AgentInternals): AgentResponseHand
       if (repaired.report.changed) {
         a.ctx.state.replaceMessages(repaired.messages);
         a.events.emit('context.repaired', {
-          sessionId: a.ctx.session.id,
+          sessionId: resolveEventSessionId(a.ctx),
           ctx: a.ctx,
           ...repaired.report,
         });
@@ -188,7 +188,7 @@ export function createAgentResponseHandler(a: AgentInternals): AgentResponseHand
     let res = raw;
     res = await a.pipelines.response.run(res);
     a.events.emit('provider.response', {
-      sessionId: a.ctx.session.id,
+      sessionId: resolveEventSessionId(a.ctx),
       ctx: a.ctx,
       model: req.model,
       content: res.content,

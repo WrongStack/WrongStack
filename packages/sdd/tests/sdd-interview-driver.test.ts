@@ -219,6 +219,9 @@ describe('SddInterviewDriver', () => {
     a.driver.start('OAuth login');
     await a.driver.ingestAgentOutput(SPEC_OUTPUT);
     await a.driver.ingestAgentOutput(TASKS_OUTPUT);
+    a.driver.setLastAgentText('Which providers?');
+    a.driver.setLastRunId('run-99');
+    await a.driver.builder.saveSession();
     const graphId = a.driver.getGraph()?.id;
 
     // Fresh driver over the same session + graph store → resumes.
@@ -231,6 +234,26 @@ describe('SddInterviewDriver', () => {
     expect(loaded).toBe(true);
     expect(b.phase()).toBe('spec_review');
     expect(b.getGraph()?.id).toBe(graphId);
+    expect(b.getLastAgentText()).toBe('Which providers?');
+    expect(b.getLastRunId()).toBe('run-99');
+    expect(b.wasResumed()).toBe(true);
+    expect(b.snapshot().resumed).toBe(true);
+    expect(b.snapshot().lastAgentText).toBe('Which providers?');
+  });
+
+  it('discard clears the session file and in-memory state', async () => {
+    const sessionPath = path.join(h.dir, 'session-discard.json');
+    const a = makeDriver({ sessionPath });
+    a.driver.start('OAuth login');
+    await a.driver.ingestAgentOutput(SPEC_OUTPUT);
+    await a.driver.builder.saveSession();
+    await a.driver.discard();
+    const b = new SddInterviewDriver({
+      specStore: a.specStore,
+      graphStore: a.graphStore,
+      sessionPath,
+    });
+    expect(await b.loadExisting()).toBe(false);
   });
 
   it('resumes sessions without a graph and tolerates a missing persisted graph', async () => {

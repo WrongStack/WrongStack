@@ -1,4 +1,10 @@
-import type { MemoryCapability, MemoryEntry, MemoryPort, MemoryScope, MemoryStore } from '@wrongstack/core/types';
+import type {
+  MemoryCapability,
+  MemoryEntry,
+  MemoryPort,
+  MemoryScope,
+  MemoryStore,
+} from '@wrongstack/core/types';
 import {
   LegacyMemoryPortAdapter,
   SAGE_SURFACE_CAPABILITY,
@@ -482,10 +488,8 @@ describe('/memory slash command', () => {
         sources: [],
       }));
       const deleteSage = vi.fn(async () => {});
-      (store as unknown as { updateSage: typeof updateSage }).updateSage =
-        updateSage;
-      (store as unknown as { deleteSage: typeof deleteSage }).deleteSage =
-        deleteSage;
+      (store as unknown as { updateSage: typeof updateSage }).updateSage = updateSage;
+      (store as unknown as { deleteSage: typeof deleteSage }).deleteSage = deleteSage;
       const cmd = createMemorySlashCommand({ memoryStore: store });
 
       await run(cmd, 'update mem_123 --status archived');
@@ -534,6 +538,145 @@ describe('/memory slash command', () => {
       const cmd = createMemorySlashCommand(deps);
       const out = await run(cmd);
       expect(out).toContain('Failed to read memory store');
+    });
+
+    // ── Bounded display (regression: /memory must not dump every entry) ──
+
+    it('caps displayed SAGE entries to the default limit and reports total', async () => {
+      // Seed 200 memories but only expect to see the first 50 by default.
+      const many: SageTestEntry[] = [];
+      for (let i = 0; i < 200; i++) {
+        many.push({
+          id: `mem_${String(i).padStart(3, '0')}`,
+          kind: 'fact',
+          status: 'active',
+          text: `Bulk memory ${i}`,
+          tags: ['bulk'],
+          createdAt: new Date(2026, 0, 1, 0, 0, i).toISOString(),
+        });
+      }
+      const store = fakeSageStore(many);
+      // listSage returns the full set (mimicking the real backend); the
+      // implementation must slice to the default limit, not trust the stub.
+      const listSage = vi.fn(async () => many.map(sageEntry));
+      (store as unknown as { listSage: typeof listSage }).listSage = listSage;
+
+      const cmd = createMemorySlashCommand({ memoryStore: store });
+      const out = await run(cmd);
+
+      // Footer must show "50 of 200" — proves we did not dump all 200.
+      expect(out).toContain('50 of 200');
+      // Must include the "use /memory --limit" hint because more is available.
+      expect(out).toContain('/memory --limit');
+      // First entry must be in the output, last must not.
+      expect(out).toContain('Bulk memory 0');
+      expect(out).not.toContain('Bulk memory 199');
+      expect(out).not.toContain('Bulk memory 50');
+      // Falls back to listSage when listSagePage is unavailable.
+      expect(listSage).toHaveBeenCalled();
+    });
+
+    it('uses listSagePage when available and honors --limit', async () => {
+      const many: SageTestEntry[] = [];
+      for (let i = 0; i < 200; i++) {
+        many.push({
+          id: `mem_${String(i).padStart(3, '0')}`,
+          kind: 'fact',
+          status: 'active',
+          text: `Paged memory ${i}`,
+          tags: ['paged'],
+          createdAt: new Date(2026, 0, 1, 0, 0, i).toISOString(),
+        });
+      }
+      const store = fakeSageStore(many);
+      const listSagePage = vi.fn(async ({ limit }: { limit: number }) => ({
+        memories: many.slice(0, limit).map(sageEntry),
+        nextCursor: limit < 200 ? 'cursor-next' : null,
+        total: 200,
+        statusCounts: { active: 200 },
+      }));
+      (store as unknown as { listSagePage: typeof listSagePage }).listSagePage = listSagePage;
+
+      const cmd = createMemorySlashCommand({ memoryStore: store });
+      const out = await run(cmd, '--limit 100');
+
+      // listSagePage called exactly once with the requested limit.
+      expect(listSagePage).toHaveBeenCalledTimes(1);
+      expect(listSagePage).toHaveBeenCalledWith({ limit: 100 });
+      // Footer shows "100 of 200" — proves paging took effect.
+      expect(out).toContain('100 of 200');
+      expect(out).toContain('Paged memory 0');
+      expect(out).not.toContain('Paged memory 199');
+      expect(out).not.toContain('Paged memory 100');
+    });
+
+    it('clamps an absurd --limit to the maximum', async () => {
+      const store = fakeSageStore(fixtMemories);
+      const listSagePage = vi.fn(async () => ({
+        memories: fixtMemories.map(sageEntry),
+        nextCursor: null,
+        total: fixtMemories.length,
+        statusCounts: { active: 2, stale: 1 },
+      }));
+      (store as unknown as { listSagePage: typeof listSagePage }).listSagePage = listSagePage;
+
+      const cmd = createMemorySlashCommand({ memoryStore: store });
+      await run(cmd, '--limit 99999');
+
+      // 99999 must be clamped — the implementation cap is 500.
+      expect(listSagePage).toHaveBeenCalledWith({ limit: 500 });
+    });
+
+    it('falls back to listSage when listSagePage is absent', async () => {
+      const store = fakeSageStore(fixtMemories);
+      // Intentionally do not stub listSagePage — the fake fixture does not
+      // provide it, so the implementation should call listSage().
+      const listSage = vi.fn(async () => fixtMemories.map(sageEntry));
+      (store as unknown as { listSage: typeof listSage }).listSage = listSage;
+
+      const cmd = createMemorySlashCommand({ memoryStore: store });
+      const out = await run(cmd);
+
+      expect(listSage).toHaveBeenCalled();
+      expect(out).toContain('Use pnpm workspaces');
+    });
+  });
+
+  describe('legacy bounded display', () => {
+    it('caps displayed legacy entries across scopes and hints to use --limit', async () => {
+      // Seed 60 project-memory entries — well above the per-scope default
+      // budget of floor(50 / 3) = 16.
+      const lots = Array.from({ length: 60 }, (_, i) => entry(`legacy-${i}`, { tags: ['legacy'] }));
+      const deps: MemorySlashDeps = {
+        memoryStore: fakeMemoryStore({
+          'project-memory': lots,
+        }),
+      };
+      const cmd = createMemorySlashCommand(deps);
+      const out = await run(cmd);
+
+      // Footer should announce a subset shown.
+      expect(out).toContain('of 60');
+      expect(out).toContain('/memory --limit');
+      // First entry should be in the output...
+      expect(out).toContain('legacy-0');
+      // ...and late entries (beyond the per-scope budget) should be hidden.
+      expect(out).not.toContain('legacy-59');
+    });
+
+    it('honors --limit for legacy entries', async () => {
+      const lots = Array.from({ length: 30 }, (_, i) => entry(`item-${i}`, { tags: ['x'] }));
+      const deps: MemorySlashDeps = {
+        memoryStore: fakeMemoryStore({
+          'project-memory': lots,
+        }),
+      };
+      const cmd = createMemorySlashCommand(deps);
+      const out = await run(cmd, '--limit 5');
+      expect(out).toContain('item-0');
+      expect(out).toContain('item-4');
+      expect(out).not.toContain('item-5');
+      expect(out).not.toContain('item-29');
     });
   });
 });

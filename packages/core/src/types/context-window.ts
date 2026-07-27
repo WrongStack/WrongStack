@@ -1,5 +1,8 @@
 import { expectDefined } from '../utils/expect-defined.js';
-export type ContextWindowModeId = 'balanced' | 'frugal' | 'deep' | 'archival';
+
+export type ContextWindowModeId = 'balanced' | 'frugal' | 'deep';
+export type DeprecatedContextWindowModeId = 'archival';
+export type ContextWindowModeSelectionId = ContextWindowModeId | DeprecatedContextWindowModeId;
 
 export type ContextWindowAggressiveOn = 'hard' | 'soft' | 'warn';
 
@@ -23,36 +26,43 @@ export interface ContextWindowMode {
 export interface ContextWindowPolicy extends ContextWindowMode {}
 
 export interface ContextWindowConfigLike {
-  mode?: ContextWindowModeId | string | undefined;
+  mode?: ContextWindowModeSelectionId | string | undefined;
   warnThreshold?: number | undefined;
   softThreshold?: number | undefined;
   hardThreshold?: number | undefined;
   preserveK?: number | undefined;
   eliseThreshold?: number | undefined;
+  targetLoad?: number | undefined;
 }
 
-export const DEFAULT_CONTEXT_WINDOW_MODE_ID: ContextWindowModeId = 'frugal';
+export const DEFAULT_CONTEXT_WINDOW_MODE_ID: ContextWindowModeId = 'balanced';
+
+export const DEPRECATED_CONTEXT_WINDOW_MODE_ALIASES: Readonly<
+  Record<DeprecatedContextWindowModeId, ContextWindowModeId>
+> = Object.freeze({
+  archival: 'balanced',
+});
 
 export const CONTEXT_WINDOW_MODES: readonly ContextWindowMode[] = Object.freeze([
   {
     id: 'balanced',
     name: 'Balanced',
     description: 'Default rolling compaction: recent work stays verbatim, old tool output is trimmed.',
-    thresholds: { warn: 0.5, soft: 0.65, hard: 0.8 },
+    thresholds: { warn: 0.55, soft: 0.7, hard: 0.85 },
     aggressiveOn: 'soft',
     preserveK: 8,
-    eliseThreshold: 1000,
-    targetLoad: 0.55,
+    eliseThreshold: 1200,
+    targetLoad: 0.65,
   },
   {
     id: 'frugal',
     name: 'Frugal',
-    description: 'Token-saver mode: compacts early and keeps a tighter verbatim tail.',
-    thresholds: { warn: 0.45, soft: 0.6, hard: 0.75 },
+    description: 'Token-saver mode: compacts early and keeps a tight verbatim tail.',
+    thresholds: { warn: 0.4, soft: 0.55, hard: 0.7 },
     aggressiveOn: 'warn',
-    preserveK: 6,
-    eliseThreshold: 700,
-    targetLoad: 0.5,
+    preserveK: 4,
+    eliseThreshold: 500,
+    targetLoad: 0.45,
   },
   {
     id: 'deep',
@@ -62,17 +72,7 @@ export const CONTEXT_WINDOW_MODES: readonly ContextWindowMode[] = Object.freeze(
     aggressiveOn: 'hard',
     preserveK: 18,
     eliseThreshold: 5000,
-    targetLoad: 0.78,
-  },
-  {
-    id: 'archival',
-    name: 'Archival',
-    description: 'Decision-preserving mode: compacts steadily while keeping summaries prominent.',
-    thresholds: { warn: 0.55, soft: 0.7, hard: 0.84 },
-    aggressiveOn: 'soft',
-    preserveK: 8,
-    eliseThreshold: 1200,
-    targetLoad: 0.58,
+    targetLoad: 0.82,
   },
 ]);
 
@@ -80,9 +80,30 @@ export function listContextWindowModes(): ContextWindowMode[] {
   return CONTEXT_WINDOW_MODES.map((m) => ({ ...m, thresholds: { ...m.thresholds } }));
 }
 
-export function getContextWindowMode(id: string | null | undefined): ContextWindowMode | null {
+export function normalizeContextWindowModeId(
+  id: string | null | undefined,
+): ContextWindowModeId | null {
   if (!id) return null;
-  const mode = CONTEXT_WINDOW_MODES.find((m) => m.id === id);
+  if (isContextWindowModeId(id)) return id;
+  return DEPRECATED_CONTEXT_WINDOW_MODE_ALIASES[id as DeprecatedContextWindowModeId] ?? null;
+}
+
+export function isDeprecatedContextWindowModeId(
+  id: string,
+): id is DeprecatedContextWindowModeId {
+  return Object.hasOwn(DEPRECATED_CONTEXT_WINDOW_MODE_ALIASES, id);
+}
+
+export function isContextWindowModeSelectionId(
+  id: string,
+): id is ContextWindowModeSelectionId {
+  return isContextWindowModeId(id) || isDeprecatedContextWindowModeId(id);
+}
+
+export function getContextWindowMode(id: string | null | undefined): ContextWindowMode | null {
+  const normalized = normalizeContextWindowModeId(id);
+  if (!normalized) return null;
+  const mode = CONTEXT_WINDOW_MODES.find((m) => m.id === normalized);
   return mode ? { ...mode, thresholds: { ...mode.thresholds } } : null;
 }
 
@@ -106,12 +127,14 @@ export function resolveContextWindowPolicy(
     },
     preserveK: config.preserveK ?? mode.preserveK,
     eliseThreshold: config.eliseThreshold ?? mode.eliseThreshold,
+    targetLoad: config.targetLoad ?? mode.targetLoad,
   };
 }
 
 export function formatContextWindowModeList(activeId?: string | null): string {
+  const active = normalizeContextWindowModeId(activeId);
   return CONTEXT_WINDOW_MODES.map((m) => {
-    const marker = m.id === activeId ? '*' : ' ';
+    const marker = m.id === active ? '*' : ' ';
     return `${marker} ${m.id.padEnd(9)} ${m.name} - ${m.description}`;
   }).join('\n');
 }

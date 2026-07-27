@@ -190,6 +190,12 @@ export interface MemoryVerificationResult {
 
 export interface SageHygieneOptions {
   retentionDays?: number | undefined;
+  /**
+   * Soft-delete session-scoped memories older than this many days when they
+   * have no explicit `expiresAt`. Default: 7. Session scope is ephemeral;
+   * hygiene deletes these immediately instead of creating review candidates.
+   */
+  sessionRetentionDays?: number | undefined;
   archiveLowConfidenceAfterDays?: number | undefined;
   /**
    * Archive active memories that were injected at least `unusedMinInjections`
@@ -222,17 +228,15 @@ export interface SageHygieneOptions {
   nearDedup?: boolean | undefined;
   /**
    * OPT-IN, destructive: physically remove records that are ALREADY
-   * `status: 'deleted'` and whose deletion is older than this many days,
-   * compacting them out of the JSONL log entirely.
+   * `status: 'deleted'` and whose deletion is older than this many days.
    *
-   * This is the ONLY hygiene step that physically drops records. It never
-   * changes any live memory's status (it does not create deletions), and it
-   * never touches `permanent` records. It exists to stop the soft-delete audit
-   * trail from growing unbounded once the tombstones are no longer needed.
+   * This is the ONLY hygiene step that physically drops rows from SQLite
+   * (or compacting JSONL). It never changes any live memory's status and
+   * never touches `permanent` records. It exists to stop the soft-delete
+   * audit trail (including session-GC tombstones) from growing unbounded.
    *
    * Undefined/omitted or <= 0 → the purge is disabled (default). `0` is treated
    * as "disabled" rather than "purge everything" to prevent accidental data loss.
-   * Only supported by the JSONL-backed store; SQLite ignores it.
    */
   purgeDeletedAfterDays?: number | undefined;
 }
@@ -254,13 +258,15 @@ export interface SageHygieneReport {
   archived: number;
   /** Subset of historical semantics: ALWAYS 0 in the current pipeline. */
   archivedUnused: number;
-  /** Subset of historical semantics: ALWAYS 0 in the current pipeline. */
+  /**
+   * Soft-deleted memories this run. Currently only session-scope GC
+   * (expired / aged-out session memories) increments this; project memories
+   * still go through review candidates.
+   */
   deleted: number;
   /**
-   * Number of already-`deleted` records physically compacted out of the JSONL
-   * log by the opt-in `purgeDeletedAfterDays` step. 0 unless that option was
-   * passed. Retained for compatibility with legacy JSONL migration tooling;
-   * the SQLite runtime does not physically purge tombstones during hygiene.
+   * Number of already-`deleted` records physically removed by the opt-in
+   * `purgeDeletedAfterDays` step. 0 unless that option was passed.
    */
   purgedDeleted: number;
   verified: number;
@@ -481,6 +487,10 @@ export interface SageStoreOptions {
   traceId?: string | undefined;
   events?: EventBus | undefined;
   now?: (() => Date) | undefined;
+  /** Request-scoped server correlation; avoids cross-client mutable trace state. */
+  operationContext?:
+    | (() => { traceId?: string | undefined; sessionId?: string | undefined } | undefined)
+    | undefined;
   /**
    * Minimum interval between persisted feedback-counter flushes
    * (injection/use counters). Must be finite and non-negative; `0` flushes

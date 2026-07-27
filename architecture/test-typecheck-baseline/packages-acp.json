@@ -2,13 +2,5 @@
   "schemaVersion": 1,
   "project": "packages/acp",
   "hashAlgorithm": "sha256-64bit",
-  "diagnostics": {
-    "2780c4d3e13c84bb": 3,
-    "13229a5df3ab6eb8": 1,
-    "b5869d1b79209ff5": 7,
-    "c09d02da7c8fc5de": 2,
-    "5846773bbb0b69a7": 4,
-    "692c9bf67446756b": 1,
-    "45ded064081bab0f": 1
-  }
+  "diagnostics": {}
 }

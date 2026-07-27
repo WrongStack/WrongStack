@@ -1,4 +1,4 @@
-import type { Context } from '../core/context.js';
+import { type Context, resolveEventSessionId } from '../core/context.js';
 import type { EventBus } from '../kernel/events.js';
 import type { MiddlewareHandler } from '../kernel/pipeline.js';
 import type { SessionEventBridge } from '../storage/session-event-bridge.js';
@@ -45,7 +45,7 @@ interface AutoCompactionOptions {
   failureMode?: CompactionFailureMode | undefined;
   policyProvider?: (
     ctx: Context,
-  ) => Pick<ContextWindowPolicy, 'thresholds' | 'aggressiveOn'> | null | undefined;
+  ) => Pick<ContextWindowPolicy, 'thresholds' | 'aggressiveOn' | 'targetLoad'> | null | undefined;
   /** Optional bridge for writing compaction events into the persistent session log. */
   sessionBridge?: SessionEventBridge | undefined;
   /**
@@ -285,6 +285,7 @@ export class AutoCompactionMiddleware {
         repeatedReadCount: repetition,
       });
       const aggressiveOn = policy?.aggressiveOn ?? this.aggressiveOn;
+      const targetLoad = normalizeTargetLoad(policy?.targetLoad, adaptiveThresholds);
 
       // ── Never-undercount send guard ──────────────────────────────────────
       // The calibrated estimate can under-count dense content (CJK, base64,
@@ -338,6 +339,7 @@ export class AutoCompactionMiddleware {
         tokens,
         load,
         hardThreshold: adaptiveThresholds.hard,
+        targetLoad,
         budget,
         signals: { repeatedReadCount: repetition },
       });
@@ -411,6 +413,7 @@ export class AutoCompactionMiddleware {
       tokens: number;
       load: number;
       hardThreshold: number;
+      targetLoad: number;
       budget: ContextWindowBudgetSnapshot;
       signals: { repeatedReadCount: number };
     },
@@ -422,7 +425,7 @@ export class AutoCompactionMiddleware {
       this.recordAttempt(pressure.level, pressure.tokens, report);
       this.onCompact?.(report);
       this.events?.emit('compaction.fired', {
-        sessionId: ctx.session.id,
+        sessionId: resolveEventSessionId(ctx),
         level: pressure.level,
         tokens: pressure.tokens,
         load: pressure.load,
@@ -488,8 +491,36 @@ export class AutoCompactionMiddleware {
           stillHard = afterLoad >= pressure.hardThreshold;
           ctx.clearFileTracking();
           this.events?.emit('compaction.emergency_trim', {
-            sessionId: ctx.session.id,
+            sessionId: resolveEventSessionId(ctx),
             level: pressure.level,
+            saved: trim.saved,
+            trimmedBlocks: trim.trimmedBlocks,
+            droppedMessages: trim.droppedMessages,
+            tokens: retryTokens,
+            load: afterLoad,
+            maxContext: runtimeMaxContext,
+            budget: afterBudget,
+            withinBudget: trim.withinBudget,
+          });
+        }
+      }
+
+      if (!stillHard && afterLoad > pressure.targetLoad) {
+        const trim = this.emergencyTrim(ctx, afterBudget, pressure.targetLoad);
+        if (trim) {
+          const retryTokens = estimateRequestTokens(
+            ctx.messages,
+            ctx.systemPrompt,
+            ctx.tools ?? [],
+          ).total;
+          afterBudget = computeContextWindowBudget(ctx, retryTokens, runtimeMaxContext);
+          afterLoad = afterBudget.load;
+          stillHard = afterLoad >= pressure.hardThreshold;
+          ctx.clearFileTracking();
+          this.events?.emit('compaction.target_trim', {
+            sessionId: resolveEventSessionId(ctx),
+            level: pressure.level,
+            targetLoad: pressure.targetLoad,
             saved: trim.saved,
             trimmedBlocks: trim.trimmedBlocks,
             droppedMessages: trim.droppedMessages,
@@ -514,7 +545,7 @@ export class AutoCompactionMiddleware {
           `Auto-compaction left context above the hard threshold after ${pressure.level} compaction`,
         );
         this.events?.emit('compaction.failed', {
-          sessionId: ctx.session.id,
+          sessionId: resolveEventSessionId(ctx),
           err: error,
           aggressive,
           level: pressure.level,
@@ -544,7 +575,7 @@ export class AutoCompactionMiddleware {
         this.failureMode === 'throw' ||
         (this.failureMode === 'throw_on_hard' && pressure.level === 'hard');
       this.events?.emit('compaction.failed', {
-        sessionId: ctx.session.id,
+        sessionId: resolveEventSessionId(ctx),
         err: error,
         aggressive,
         level: pressure.level,
@@ -716,4 +747,14 @@ function adaptThresholdsForSignals(
     soft: Math.max(0.35, thresholds.soft - 0.04),
     hard: thresholds.hard,
   };
+}
+
+function normalizeTargetLoad(
+  targetLoad: number | null | undefined,
+  thresholds: { warn: number; soft: number; hard: number },
+): number {
+  if (typeof targetLoad === 'number' && Number.isFinite(targetLoad) && targetLoad > 0) {
+    return Math.min(Math.max(0.05, targetLoad), Math.max(0.05, thresholds.hard - 0.01));
+  }
+  return Math.max(0.05, thresholds.warn);
 }

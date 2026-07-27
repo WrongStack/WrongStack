@@ -5,7 +5,7 @@ import {
   notFavoriteError,
   normalizeRef,
 } from './fallback-manage-helpers.js';
-import type { FallbackManageToolOptions } from './fallback-manage-tools.js';
+import type { FallbackManageToolOptions } from './fallback-manage-tool-options.js';
 
 export const FALLBACK_CHAIN_MANAGE_TOOL_NAME = 'fallback_chain_manage';
 

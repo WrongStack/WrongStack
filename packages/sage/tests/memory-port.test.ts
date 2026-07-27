@@ -87,15 +87,12 @@ describe('MemoryPort conformance', () => {
     expect(getSageSurface(legacy)).toBeUndefined();
     expect(getSageRetrieval(legacy)).toBeUndefined();
 
-    // The SQLite port deliberately does NOT claim the full SageServiceLike
-    // contract (it presents as a legacy-compatible MemoryStore, so the host
-    // registers the safe legacy memory tools — see runtime sqlite-remember
-    // integration). It still exposes the surface and retrieval capabilities as
-    // dedicated objects; the retrieval capability adapts the store's array-form
-    // retrieveForPath to the host-facing `{ path }` form.
+    // The SQLite owner implements the complete service contract. Production
+    // hosts normally reach this same contract through ProjectSageMemoryPort,
+    // while tests/offline maintenance can still use the inline owner directly.
     const sqlite = ports.find((port) => port instanceof SqliteMemoryPort);
     if (sqlite) {
-      expect(getSageService(sqlite)).toBeUndefined();
+      expect(getSageService(sqlite)).toBeDefined();
       expect(getSageSurface(sqlite)).toBeDefined();
       expect(getSageRetrieval(sqlite)).toBeDefined();
     }

@@ -114,7 +114,7 @@ describe('SddWizardWebSocketHandler (end-to-end message flow)', () => {
     expect(lastOfType(ws, 'sdd.run.started').payload.runId).toBe('run-xyz');
   });
 
-  it('forwards the run-config knobs (parallelSlots + worktrees) to startRun', async () => {
+  it('forwards the run-config knobs (parallelSlots + worktrees + planDecompose) to startRun', async () => {
     const { handler, startRunCalls } = makeHandler();
     const ws = fakeWs();
     handler.addClient(ws);
@@ -123,15 +123,97 @@ describe('SddWizardWebSocketHandler (end-to-end message flow)', () => {
     await handler.handleMessage({ type: 'sdd.spec.message', payload: { text: 'Google and GitHub' } });
     await handler.handleMessage({ type: 'sdd.spec.approve', payload: {} });
 
-    // Start with explicit parallel slots + worktrees disabled.
+    // Start with explicit parallel slots + worktrees disabled + plan decompose on.
     await handler.handleMessage({
       type: 'sdd.run.start',
-      payload: { parallelSlots: 8, worktrees: false },
+      payload: { parallelSlots: 8, worktrees: false, planDecompose: true },
     });
 
     expect(startRunCalls).toHaveLength(1);
     expect(startRunCalls[0]?.opts.parallelSlots).toBe(8);
     expect(startRunCalls[0]?.opts.worktrees).toBe(false);
+    expect(startRunCalls[0]?.opts.planDecompose).toBe(true);
+  });
+
+  it('blocks a second start while an interview is mid-flow (continuity)', async () => {
+    const { handler } = makeHandler();
+    const ws = fakeWs();
+    handler.addClient(ws);
+    await handler.handleMessage({ type: 'sdd.spec.start', payload: { goal: 'OAuth login' } });
+    await handler.handleMessage({ type: 'sdd.spec.start', payload: { goal: 'Something else' } });
+    expect(lastOfType(ws, 'sdd.spec.error').payload.message).toMatch(/already in progress/i);
+  });
+
+  it('discards an interview so a fresh goal can start', async () => {
+    const { handler, turnPrompts } = makeHandler();
+    const ws = fakeWs();
+    handler.addClient(ws);
+    await handler.handleMessage({ type: 'sdd.spec.start', payload: { goal: 'OAuth login' } });
+    const turnsBefore = turnPrompts.length;
+    await handler.handleMessage({ type: 'sdd.spec.discard', payload: {} });
+    const discarded = lastOfType(ws, 'sdd.spec.snapshot').payload as { discarded?: boolean };
+    expect(discarded.discarded).toBe(true);
+    await handler.handleMessage({ type: 'sdd.spec.start', payload: { goal: 'New feature' } });
+    expect(turnPrompts.length).toBeGreaterThan(turnsBefore);
+    expect((lastOfType(ws, 'sdd.spec.snapshot').payload as { title: string }).title).toMatch(/New feature/);
+  });
+
+  it('starts a run from a graph id when startRunFromGraphId is wired', async () => {
+    const fromGraph: string[] = [];
+    const handler = new SddWizardWebSocketHandler({
+      makeDriver: () =>
+        new SddInterviewDriver({
+          specStore: new SpecStore({ baseDir: path.join(tmp(), 'specs') }),
+          graphStore: new TaskGraphStore({ baseDir: path.join(tmp(), 'graphs') }),
+        }),
+      runInterviewTurn: async () => '',
+      startRun: async () => ({ runId: 'unused' }),
+      startRunFromGraphId: async (graphId) => {
+        fromGraph.push(graphId);
+        return { runId: 'from-g' };
+      },
+    });
+    const ws = fakeWs();
+    handler.addClient(ws);
+    await handler.handleMessage({
+      type: 'sdd.run.from_graph',
+      payload: { graphId: 'graph-abc', worktrees: true },
+    });
+    expect(fromGraph).toEqual(['graph-abc']);
+    expect(lastOfType(ws, 'sdd.run.started').payload).toMatchObject({
+      runId: 'from-g',
+      graphId: 'graph-abc',
+    });
+  });
+
+  it('starts a run from a spec id via resolveGraphIdForSpec', async () => {
+    const fromGraph: string[] = [];
+    const handler = new SddWizardWebSocketHandler({
+      makeDriver: () =>
+        new SddInterviewDriver({
+          specStore: new SpecStore({ baseDir: path.join(tmp(), 'specs') }),
+          graphStore: new TaskGraphStore({ baseDir: path.join(tmp(), 'graphs') }),
+        }),
+      runInterviewTurn: async () => '',
+      startRun: async () => ({ runId: 'unused' }),
+      startRunFromGraphId: async (graphId) => {
+        fromGraph.push(graphId);
+        return { runId: 'from-spec-run' };
+      },
+      resolveGraphIdForSpec: async (specId) => (specId === 'spec-1' ? 'graph-from-spec' : null),
+    });
+    const ws = fakeWs();
+    handler.addClient(ws);
+    await handler.handleMessage({
+      type: 'sdd.run.from_spec',
+      payload: { specId: 'spec-1', worktrees: true },
+    });
+    expect(fromGraph).toEqual(['graph-from-spec']);
+    expect(lastOfType(ws, 'sdd.run.started').payload).toMatchObject({
+      runId: 'from-spec-run',
+      graphId: 'graph-from-spec',
+      specId: 'spec-1',
+    });
   });
 
   it('surfaces an error when starting a run with no spec', async () => {

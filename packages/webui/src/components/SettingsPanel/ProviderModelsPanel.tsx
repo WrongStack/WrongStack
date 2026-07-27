@@ -45,6 +45,19 @@ export interface ProviderModelsPanelProps {
    * The full saved allowlist (the same data the model picker uses).
    */
   savedModels?: string[] | undefined;
+  /** Per-model metadata from customModels (display name, context, output, capabilities). */
+  savedCustomModels?: Record<string, {
+    name?: string | undefined;
+    maxOutput?: number | undefined;
+    capabilities?: {
+      maxContext?: number | undefined;
+      tools?: boolean | undefined;
+      vision?: boolean | undefined;
+      reasoning?: boolean | undefined;
+      streaming?: boolean | undefined;
+      jsonMode?: boolean | undefined;
+    } | undefined;
+  }> | undefined;
   /** WebSocket client used to send `provider.probe` and listen for the reply. */
   ws: WrongStackWebSocketClient;
   /**
@@ -85,6 +98,7 @@ export function ProviderModelsPanel({
   providerId,
   savedPickedModelId,
   savedModels,
+  savedCustomModels,
   ws,
   onPickModel,
   onClearModels,
@@ -300,6 +314,15 @@ export function ProviderModelsPanel({
           >
             {modelPage.pageItems.map((id) => {
               const selected = id === pickedId;
+              const meta = savedCustomModels?.[id];
+              const displayName = meta?.name && meta.name !== id ? meta.name : id;
+              const caps = meta?.capabilities;
+              const metaParts: string[] = [];
+              if (caps?.maxContext) metaParts.push(`${(caps.maxContext / 1000).toFixed(0)}K ctx`);
+              if (meta?.maxOutput) metaParts.push(`${meta.maxOutput.toLocaleString()} out`);
+              if (caps?.tools) metaParts.push('tools');
+              if (caps?.vision) metaParts.push('vision');
+              if (caps?.reasoning) metaParts.push('reasoning');
               return (
                 <li key={id} className="max-w-full">
                   <button
@@ -316,10 +339,16 @@ export function ProviderModelsPanel({
                     aria-label={selected
                       ? undefined
                       : t('activity:providerModels.useModelAria', { model: id, provider: providerId })}
+                    title={metaParts.length > 0 ? `${displayName}\n${metaParts.join(' · ')}` : undefined}
                   >
                     {selected && <Check className="h-3.5 w-3.5 shrink-0" />}
-                    <span className="min-w-0 truncate">{id}</span>
-                    {!selected && (
+                    <span className="min-w-0 truncate">{displayName}</span>
+                    {metaParts.length > 0 && (
+                      <span className="shrink-0 border-l border-border/70 pl-1.5 font-sans text-[10px] text-muted-foreground">
+                        {metaParts.join(' · ')}
+                      </span>
+                    )}
+                    {!selected && metaParts.length === 0 && (
                       <span className="shrink-0 border-l border-border/70 pl-1.5 font-sans text-[10px] font-semibold uppercase tracking-wide text-primary">
                         {t('activity:providerModels.use')}
                       </span>

@@ -1,6 +1,8 @@
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 import type { Agent } from '@wrongstack/core/agent';
+import { TOKENS } from '@wrongstack/core/kernel';
+import { DefaultSessionStore } from '@wrongstack/core/storage';
 import type {
   Config,
   MemoryPort,
@@ -10,10 +12,7 @@ import type {
   SessionStore,
   SessionWriter,
 } from '@wrongstack/core/types';
-import { TOKENS } from '@wrongstack/core/kernel';
-import { wstackGlobalRoot } from '@wrongstack/core/utils';
-import { DefaultSessionStore } from '@wrongstack/core/storage';
-import { toErrorMessage } from '@wrongstack/core/utils';
+import { toErrorMessage, wstackGlobalRoot } from '@wrongstack/core/utils';
 import { makeProviderFromConfig } from '@wrongstack/providers';
 import type { WebSocket } from 'ws';
 import { createConversationOperations } from './conversation-operations.js';
@@ -25,6 +24,7 @@ import type { ProjectRouteHandlers } from './project-routes.js';
 import { createProviderOperations } from './provider-handlers.js';
 import { createSessionHandlers } from './session-handlers.js';
 import type { SessionRouteHandlers } from './session-routes.js';
+import type { SessionIdentityTarget } from './standalone-session-identity.js';
 import type { WSServerMessage } from './types.js';
 
 export interface EmbeddedHostTransport {
@@ -154,13 +154,22 @@ export interface EmbeddedSessionOptions {
   session: SessionWriter;
   sessionStore?: SessionStore | undefined;
   sessionsDir?: string | undefined;
-  onSessionSwapped?: ((sessionId: string) => void) | undefined;
+  claimSession?:
+    | ((sessionId: string, target?: SessionIdentityTarget) => Promise<() => Promise<void>>)
+    | undefined;
+  onSessionSwapped?:
+    | ((sessionId: string, target?: SessionIdentityTarget) => void | Promise<void>)
+    | undefined;
 }
 
 export interface EmbeddedSessionContext extends EmbeddedHostTransport {
   opts: EmbeddedSessionOptions;
   buildSessionStart: (overrides?: Record<string, unknown>) => Promise<unknown>;
   getCustomModeStore: () => Promise<CustomModeStore>;
+  /** Abort the in-flight agent run before session.new/resume swaps the session. */
+  abortActiveRun?: (() => void) | undefined;
+  /** True while an embedded agent run is active. */
+  isRunActive?: (() => boolean) | undefined;
 }
 
 function sessionStoreFor(opts: EmbeddedSessionOptions): SessionStore {
@@ -192,7 +201,10 @@ export function createEmbeddedSessionRoutes(ctx: EmbeddedSessionContext): Sessio
     setSession: (next) => {
       actx.session = next;
     },
-    onSessionSwapped: async (sessionId) => opts.onSessionSwapped?.(sessionId),
+    claimSession: opts.claimSession,
+    onSessionSwapped: async (sessionId, target) => opts.onSessionSwapped?.(sessionId, target),
+    abortActiveRun: ctx.abortActiveRun,
+    isRunActive: ctx.isRunActive,
     sessionStartPayload: async (overrides) => (await ctx.buildSessionStart(overrides)) as never,
     sendMessage: ctx.send,
     broadcastMessage: ctx.broadcast,
@@ -247,7 +259,7 @@ export function createEmbeddedProjectRoutes(ctx: EmbeddedProjectContext): Projec
       for (const controller of ctx.abortControllers.values()) controller.abort();
       ctx.abortControllers.clear();
     },
-    onSessionSwapped: async (sessionId) => opts.onSessionSwapped?.(sessionId),
+    onSessionSwapped: async (sessionId, target) => opts.onSessionSwapped?.(sessionId, target),
     allowProjectMutations: true,
     sessionStartPayload: ctx.buildSessionStart,
     sendMessage: ctx.send,

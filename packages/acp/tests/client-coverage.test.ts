@@ -8,10 +8,16 @@
  *   - acp-session-updates.ts   (97.6% → 100%)
  *   - acp-session.ts           (77.0% → 100%)
  */
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import * as fsp from 'node:fs/promises';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import * as os from 'node:os';
 import * as path from 'node:path';
+import type { ACPResponseSender } from '../src/client/acp-session-callbacks.js';
+import type { PermissionPolicy } from '../src/client/permission.js';
+
+type MockResponseSender = {
+  sendResult: ReturnType<typeof vi.fn<ACPResponseSender['sendResult']>>;
+  sendErrorResponse: ReturnType<typeof vi.fn<ACPResponseSender['sendErrorResponse']>>;
+};
 
 // ── acp-message-routing.ts ──────────────────────────────────────────
 
@@ -294,12 +300,12 @@ describe('acp-session-updates', () => {
 // ── acp-session-callbacks.ts ────────────────────────────────────────
 
 describe('acp-session-callbacks', () => {
-  let sender: { sendResult: ReturnType<typeof vi.fn>; sendErrorResponse: ReturnType<typeof vi.fn> };
+  let sender: MockResponseSender;
 
   beforeEach(() => {
     sender = {
-      sendResult: vi.fn(),
-      sendErrorResponse: vi.fn(),
+      sendResult: vi.fn<ACPResponseSender['sendResult']>(),
+      sendErrorResponse: vi.fn<ACPResponseSender['sendErrorResponse']>(),
     };
   });
 
@@ -404,13 +410,16 @@ describe('acp-session-callbacks', () => {
 });
 
 describe('acp-session-callbacks — fs & terminal handlers', () => {
-  let sender: { sendResult: ReturnType<typeof vi.fn>; sendErrorResponse: ReturnType<typeof vi.fn> };
+  let sender: MockResponseSender;
   let fileServer: { readTextFile: ReturnType<typeof vi.fn>; writeTextFile: ReturnType<typeof vi.fn> };
   let terminalServer: { create: ReturnType<typeof vi.fn>; output: ReturnType<typeof vi.fn>; waitForExit: ReturnType<typeof vi.fn>; kill: ReturnType<typeof vi.fn>; release: ReturnType<typeof vi.fn> };
-  let permissionPolicy: ReturnType<typeof vi.fn>;
+  let permissionPolicy: ReturnType<typeof vi.fn<PermissionPolicy>>;
 
   beforeEach(() => {
-    sender = { sendResult: vi.fn(), sendErrorResponse: vi.fn() };
+    sender = {
+      sendResult: vi.fn<ACPResponseSender['sendResult']>(),
+      sendErrorResponse: vi.fn<ACPResponseSender['sendErrorResponse']>(),
+    };
     fileServer = { readTextFile: vi.fn(), writeTextFile: vi.fn() };
     terminalServer = {
       create: vi.fn().mockReturnValue({ terminalId: 't1' }),
@@ -419,7 +428,7 @@ describe('acp-session-callbacks — fs & terminal handlers', () => {
       kill: vi.fn(),
       release: vi.fn(),
     };
-    permissionPolicy = vi.fn().mockResolvedValue({ outcome: 'selected', optionId: 'allow' });
+    permissionPolicy = vi.fn<PermissionPolicy>().mockResolvedValue({ outcome: 'selected', optionId: 'allow' });
   });
 
   describe('handleAcpFsRequest', () => {
@@ -498,7 +507,7 @@ describe('acp-session-callbacks — fs & terminal handlers', () => {
     it('handles fs error on read', async () => {
       const { handleAcpFsRequest } = await import('../src/client/acp-session-callbacks.js');
       const actualFsError = (await import('../src/client/file-server.js')).FsError;
-      fileServer.readTextFile.mockRejectedValue(new actualFsError('NOT_FOUND', '/missing.txt', 'file not found'));
+      fileServer.readTextFile.mockRejectedValue(new actualFsError('ENOENT', '/missing.txt', 'file not found'));
       await handleAcpFsRequest(
         {
           jsonrpc: '2.0', method: 'fs/read_text_file', id: 5,
@@ -731,9 +740,14 @@ describe('ACPSession message routing (handleMessage)', () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
     transport.emit({ jsonrpc: '2.0', method: 'unknown/method', params: {} } as never);
     expect(warn).toHaveBeenCalled();
-    const callArg = JSON.parse(warn.mock.calls[0][0]);
-    expect(callArg.method).toBe('unknown/method');
-    expect(callArg.event).toBe('acp_session.unhandled_method');
+    const warning = warn.mock.calls.at(0)?.at(0);
+    expect(warning).toBeDefined();
+    const callArg: unknown = JSON.parse(warning ?? 'null');
+    expect(callArg).toBeTypeOf('object');
+    expect(callArg).not.toBeNull();
+    const logged = callArg as Record<string, unknown>;
+    expect(logged.method).toBe('unknown/method');
+    expect(logged.event).toBe('acp_session.unhandled_method');
     warn.mockRestore();
   });
 

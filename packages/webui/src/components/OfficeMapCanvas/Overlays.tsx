@@ -1,5 +1,5 @@
 import { Send } from 'lucide-react';
-import { type KeyboardEvent } from 'react';
+import type { KeyboardEvent } from 'react';
 import { useAppTranslation } from '@/i18n';
 
 export function OfficeMapLegends() {

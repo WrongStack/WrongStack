@@ -3,32 +3,36 @@ import * as os from 'node:os';
 import * as path from 'node:path';
 import { EventBus } from '@wrongstack/core/kernel';
 import { SessionRegistry } from '@wrongstack/core/storage';
+import type { Logger } from '@wrongstack/core/types';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { createStandaloneSessionIdentityLifecycle } from '../src/server/standalone-session-identity.js';
 
-const logger = {
+const logger: Logger = {
+  level: 'error',
   debug() {},
   info() {},
   warn() {},
   error() {},
+  trace() {},
+  child() {
+    return logger;
+  },
 };
 
 describe('standalone session identity lifecycle', () => {
   let root: string;
   let globalRoot: string;
-  let sessionsDir: string;
 
   beforeEach(async () => {
     root = await fs.mkdtemp(path.join(os.tmpdir(), 'wstack-webui-identity-'));
     globalRoot = path.join(root, 'global');
-    sessionsDir = path.join(root, 'project-data', 'sessions');
   });
 
   afterEach(async () => {
     await fs.rm(root, { recursive: true, force: true });
   });
 
-  it('re-points registry and recovery ownership on session swap, then cleans both', async () => {
+  it('re-points registry ownership on session swap, then cleans it', async () => {
     const lifecycle = await createStandaloneSessionIdentityLifecycle({
       config: {} as never,
       events: new EventBus(),
@@ -37,7 +41,6 @@ describe('standalone session identity lifecycle', () => {
         globalRoot,
         projectRoot: root,
         projectSlug: 'project-under-test',
-        projectSessions: sessionsDir,
       },
       workingDir: root,
       initialSessionId: '2026-07-12/sess_initial',
@@ -45,18 +48,26 @@ describe('standalone session identity lifecycle', () => {
       enableHqTelemetry: false,
     });
 
-    await expect(activeSessionId(sessionsDir)).resolves.toBe('2026-07-12/sess_initial');
     await expect(registrySessionIds(globalRoot)).resolves.toEqual(['2026-07-12/sess_initial']);
 
-    await lifecycle.activate('2026-07-12/sess_resumed');
+    await lifecycle.activate('2026-07-12/sess_resumed', {
+      projectSlug: 'second-project',
+      projectRoot: path.join(root, 'second-project'),
+      projectName: 'Second Project',
+      workingDir: path.join(root, 'second-project', 'src'),
+    });
 
-    await expect(activeSessionId(sessionsDir)).resolves.toBe('2026-07-12/sess_resumed');
     await expect(registrySessionIds(globalRoot)).resolves.toEqual(['2026-07-12/sess_resumed']);
+    const registry = JSON.parse(
+      await fs.readFile(path.join(globalRoot, 'session-registry.json'), 'utf8'),
+    ) as Record<string, Record<string, unknown>>;
+    expect(registry['2026-07-12/sess_resumed']).toMatchObject({
+      projectSlug: 'second-project',
+      projectName: 'Second Project',
+      workingDir: path.join(root, 'second-project', 'src'),
+    });
 
     await lifecycle.stop();
-    await expect(fs.stat(path.join(sessionsDir, 'active.json'))).rejects.toMatchObject({
-      code: 'ENOENT',
-    });
     await expect(registrySessionIds(globalRoot)).resolves.toEqual([]);
   });
 
@@ -69,7 +80,6 @@ describe('standalone session identity lifecycle', () => {
         globalRoot,
         projectRoot: root,
         projectSlug: 'project-under-test',
-        projectSessions: sessionsDir,
       },
       workingDir: root,
       initialSessionId: '2026-07-12/sess_initial',
@@ -82,18 +92,83 @@ describe('standalone session identity lifecycle', () => {
       lifecycle.activate('2026-07-12/sess_final'),
     ]);
 
-    await expect(activeSessionId(sessionsDir)).resolves.toBe('2026-07-12/sess_final');
     await expect(registrySessionIds(globalRoot)).resolves.toEqual(['2026-07-12/sess_final']);
     await lifecycle.stop();
   });
-});
 
-async function activeSessionId(sessionsDir: string): Promise<string> {
-  const value = JSON.parse(await fs.readFile(path.join(sessionsDir, 'active.json'), 'utf8')) as {
-    sessionId: string;
-  };
-  return value.sessionId;
-}
+  it('commits and rolls back explicit session claims without exposing two owners', async () => {
+    const lifecycle = await createStandaloneSessionIdentityLifecycle({
+      config: {} as never,
+      events: new EventBus(),
+      logger,
+      paths: {
+        globalRoot,
+        projectRoot: root,
+        projectSlug: 'project-under-test',
+      },
+      workingDir: root,
+      initialSessionId: '2026-07-12/sess_initial',
+      sessionRegistry: new SessionRegistry(globalRoot),
+      enableHqTelemetry: false,
+    });
+
+    const rollback = await lifecycle.claim('2026-07-12/sess_candidate');
+    await expect(registrySessionIds(globalRoot)).resolves.toEqual(['2026-07-12/sess_candidate']);
+    await rollback();
+    await expect(registrySessionIds(globalRoot)).resolves.toEqual(['2026-07-12/sess_initial']);
+
+    await lifecycle.claim('2026-07-12/sess_committed');
+    await lifecycle.activate('2026-07-12/sess_committed');
+    await expect(registrySessionIds(globalRoot)).resolves.toEqual(['2026-07-12/sess_committed']);
+    await lifecycle.stop();
+  });
+
+  it('rejects overlapping ownership claims', async () => {
+    const lifecycle = await createStandaloneSessionIdentityLifecycle({
+      config: {} as never,
+      events: new EventBus(),
+      logger,
+      paths: {
+        globalRoot,
+        projectRoot: root,
+        projectSlug: 'project-under-test',
+      },
+      workingDir: root,
+      initialSessionId: '2026-07-12/sess_initial',
+      sessionRegistry: new SessionRegistry(globalRoot),
+      enableHqTelemetry: false,
+    });
+
+    const rollback = await lifecycle.claim('2026-07-12/sess_candidate');
+    await expect(lifecycle.claim('2026-07-12/sess_other')).rejects.toThrow(
+      /transition .* already in progress/i,
+    );
+    await rollback();
+    await lifecycle.stop();
+  });
+
+  it('fails startup when initial ownership cannot be persisted', async () => {
+    await fs.mkdir(globalRoot, { recursive: true });
+    await fs.writeFile(path.join(globalRoot, 'session-registry.json.lock'), String(process.pid));
+
+    await expect(
+      createStandaloneSessionIdentityLifecycle({
+        config: {} as never,
+        events: new EventBus(),
+        logger,
+        paths: {
+          globalRoot,
+          projectRoot: root,
+          projectSlug: 'project-under-test',
+        },
+        workingDir: root,
+        initialSessionId: '2026-07-12/sess_initial',
+        sessionRegistry: new SessionRegistry(globalRoot),
+        enableHqTelemetry: false,
+      }),
+    ).rejects.toThrow(/ownership update failed/i);
+  });
+});
 
 async function registrySessionIds(globalRoot: string): Promise<string[]> {
   const raw = await fs.readFile(path.join(globalRoot, 'session-registry.json'), 'utf8');

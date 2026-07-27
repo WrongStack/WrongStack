@@ -287,6 +287,7 @@ export function buildAcpServerAgentFactory(
     cwd: string,
     api?: RunTurnApi,
   ): Promise<Agent> {
+    await container.resolve(TOKENS.MemoryStore).initialize();
     const { provider, providerRegistry } = await bootProvider();
 
     // Per-session event bus — keeps each ACP session's tool/iteration events

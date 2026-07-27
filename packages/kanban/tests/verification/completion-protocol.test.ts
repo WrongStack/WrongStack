@@ -15,7 +15,6 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 import { verifyTaskCompletion } from '../../src/verification/completion-protocol.js';
-import { createDefaultRegistry } from '../../src/verification/plugins/index.js';
 import { VerifierRegistry } from '../../src/verification/verifier-registry.js';
 import type {
   KanbanCheck,
@@ -34,11 +33,8 @@ afterEach(async () => {
 
 async function createMinimalBoard(
   root: string,
-  boardId: string,
   taskOverrides?: Record<string, unknown>,
 ) {
-  const now = '2026-07-26T00:00:00.000Z';
-  const taskId = 'task-1';
   // Re-use the createBoard from manager to get proper storage
   const { createBoard, addTask, addCheckToTask } = await import('../../src/manager.js');
   const board = await createBoard(root, { title: 'Test Board' });
@@ -104,7 +100,7 @@ describe('verifyTaskCompletion', () => {
   it('returns a complete result for a task with passing criteria', async () => {
     const root = await mkdtemp(join(tmpdir(), 'kanban-verify-'));
     roots.push(root);
-    const { boardId, taskId } = await createMinimalBoard(root, 'b1', {
+    const { boardId, taskId } = await createMinimalBoard(root, {
       successCriteria: [
         { id: 'c1', description: 'Criterion 1', type: 'fake_pass', status: 'pending' },
       ],
@@ -125,7 +121,7 @@ describe('verifyTaskCompletion', () => {
   it('returns a failed result when a criterion fails', async () => {
     const root = await mkdtemp(join(tmpdir(), 'kanban-verify-fail-'));
     roots.push(root);
-    const { boardId, taskId } = await createMinimalBoard(root, 'b1', {
+    const { boardId, taskId } = await createMinimalBoard(root, {
       successCriteria: [
         { id: 'c1', description: 'Will fail', type: 'fake_fail', status: 'pending' },
       ],
@@ -142,7 +138,7 @@ describe('verifyTaskCompletion', () => {
   it('handles tasks with no success criteria gracefully', async () => {
     const root = await mkdtemp(join(tmpdir(), 'kanban-verify-empty-'));
     roots.push(root);
-    const { boardId, taskId } = await createMinimalBoard(root, 'b1');
+    const { boardId, taskId } = await createMinimalBoard(root);
 
     const result = await verifyTaskCompletion(root, boardId, taskId);
 
@@ -174,7 +170,7 @@ describe('verifyTaskCompletion', () => {
   it('uses the default registry when none is provided', async () => {
     const root = await mkdtemp(join(tmpdir(), 'kanban-verify-default-'));
     roots.push(root);
-    const { boardId, taskId } = await createMinimalBoard(root, 'b1', {
+    const { boardId, taskId } = await createMinimalBoard(root, {
       successCriteria: [
         { id: 'c1', description: 'Manual check', type: 'manual', status: 'passed' },
       ],
@@ -258,7 +254,7 @@ describe('verifyTaskCompletion', () => {
   it('handles mix of passed and failed criteria', async () => {
     const root = await mkdtemp(join(tmpdir(), 'kanban-verify-mixed-'));
     roots.push(root);
-    const { boardId, taskId } = await createMinimalBoard(root, 'b1', {
+    const { boardId, taskId } = await createMinimalBoard(root, {
       successCriteria: [
         { id: 'c1', description: 'Pass', type: 'fake_pass', status: 'pending' },
         { id: 'c2', description: 'Fail', type: 'fake_fail', status: 'pending' },
@@ -282,7 +278,7 @@ describe('verifyTaskCompletion', () => {
   it('updates task success criteria status in the result', async () => {
     const root = await mkdtemp(join(tmpdir(), 'kanban-verify-update-'));
     roots.push(root);
-    const { boardId, taskId } = await createMinimalBoard(root, 'b1', {
+    const { boardId, taskId } = await createMinimalBoard(root, {
       successCriteria: [
         { id: 'c1', description: 'Will pass', type: 'fake_pass', status: 'pending' },
       ],

@@ -6,28 +6,16 @@
  * thread / terminal UI there) and the inline fallback inside the host (tests,
  * `WRONGSTACK_INDEX_INLINE=1`, or runtimes where the worker file is missing).
  *
- * Every operation opens its own short-lived IndexStore, exactly like the old
- * per-call code paths did — there is no connection state to share, which keeps
- * multi-project usage trivially correct and crash recovery simple.
+ * Operations share one warm IndexStore per resolved project/index directory.
+ * The detached server owns write serialization, while worker/inline fallbacks
+ * run on one event loop, so a pooled connection is both safe and substantially
+ * cheaper than re-running schema/FTS drift checks for every edited file.
  */
 
-import type { Context } from '@wrongstack/core/agent';
-import { runIndexer } from './indexer.js';
+import { runIndexerWithStore } from './indexer.js';
 import type { CodeMapGraph, IndexResult, IndexStats, SymbolKind, SymbolLang } from './schema.js';
 import type { IndexOpArgs, SearchOpArgs, SearchOpResult, StatsOpArgs } from './worker-protocol.js';
 import { indexStorePool } from './writer.js';
-
-/** A run with no live agent Context — `runIndexer` only reads `opts`. */
-function stubCtx(projectRoot: string): Context {
-  return {
-    projectRoot,
-    cwd: projectRoot,
-    messages: [],
-    todos: [],
-    readFiles: new Set<string>(),
-    fileMtimes: new Map<string, number>(),
-  } as never as Context;
-}
 
 export interface ServiceHooks {
   signal?: AbortSignal | undefined;
@@ -39,16 +27,21 @@ export async function indexService(
   args: IndexOpArgs,
   hooks: ServiceHooks = {},
 ): Promise<IndexResult> {
-  return runIndexer(stubCtx(args.projectRoot), {
-    projectRoot: args.projectRoot,
-    indexDir: args.indexDir,
-    files: args.files,
-    force: args.force,
-    langs: args.langs,
-    ignore: args.ignore,
-    signal: hooks.signal,
-    onProgress: hooks.onProgress,
-  });
+  const store = indexStorePool.acquire(args.projectRoot, { indexDir: args.indexDir });
+  try {
+    return await runIndexerWithStore(store, {
+      projectRoot: args.projectRoot,
+      indexDir: args.indexDir,
+      files: args.files,
+      force: args.force,
+      langs: args.langs,
+      ignore: args.ignore,
+      signal: hooks.signal,
+      onProgress: hooks.onProgress,
+    });
+  } finally {
+    indexStorePool.release(store);
+  }
 }
 
 /** Ranked symbol search (FTS5 inside SQLite; BM25 fallback without FTS5). */

@@ -80,8 +80,8 @@ export type { ModelsDevModel, ModelsDevPayload, ModelsDevProvider, ModelsDevReas
 export { DEFAULT_MODES } from './mode.js';
 export type { Mode, ModeConfig, ModeManifest, ModeStore } from './mode.js';
 // ── context-window (13 symbols) ──
-export { CONTEXT_WINDOW_MODES, DEFAULT_CONTEXT_WINDOW_MODE_ID, formatContextWindowModeList, getContextWindowMode, isContextWindowModeId, listContextWindowModes, resolveContextWindowPolicy } from './context-window.js';
-export type { ContextWindowAggressiveOn, ContextWindowConfigLike, ContextWindowMode, ContextWindowModeId, ContextWindowPolicy, ContextWindowThresholds } from './context-window.js';
+export { CONTEXT_WINDOW_MODES, DEFAULT_CONTEXT_WINDOW_MODE_ID, DEPRECATED_CONTEXT_WINDOW_MODE_ALIASES, formatContextWindowModeList, getContextWindowMode, isContextWindowModeId, isContextWindowModeSelectionId, isDeprecatedContextWindowModeId, listContextWindowModes, normalizeContextWindowModeId, resolveContextWindowPolicy } from './context-window.js';
+export type { ContextWindowAggressiveOn, ContextWindowConfigLike, ContextWindowMode, ContextWindowModeId, ContextWindowModeSelectionId, ContextWindowPolicy, ContextWindowThresholds, DeprecatedContextWindowModeId } from './context-window.js';
 // ── context-evidence (8 symbols) ──
 export type { CompletedWorkEvidence, CompletedWorkSource, ContextEvidenceState, ContextFileEvidence, ContextIntentEvidence, ContextRepeatedReadEvidence, ToolEvidenceStatus, ToolOutputMetadata } from './context-evidence.js';
 // ── council (15 symbols) ──

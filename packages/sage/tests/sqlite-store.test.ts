@@ -118,6 +118,60 @@ describe('SqliteSageStore', () => {
 
     });
 
+    it('merges near-duplicate paraphrases of the same durable fact', async () => {
+      const store = trackStore(new SqliteSageStore({ projectRoot: tempDir }));
+      await store.initialize();
+      const first = await store.rememberSage({
+        text: 'Session tokens in packages/auth must be compared in milliseconds after normalizing exp claims from the JWT payload.',
+        kind: 'fact',
+        tags: ['auth'],
+        anchors: [{ type: 'file', path: 'packages/auth/session.ts' }],
+      });
+      const second = await store.rememberSage({
+        text: 'Session tokens in packages/auth must be compared in milliseconds after normalizing exp claims from the JWT payload before Date.now checks.',
+        kind: 'fact',
+        tags: ['jwt'],
+        anchors: [{ type: 'symbol', path: 'packages/auth/session.ts', symbol: 'verifySession' }],
+      });
+      expect(second.id).toBe(first.id);
+      expect(second.tags).toEqual(expect.arrayContaining(['auth', 'jwt']));
+      expect(second.anchors.some((a) => a.symbol === 'verifySession')).toBe(true);
+    });
+
+    it('rejects ephemeral progress chatter for project scope', async () => {
+      const store = trackStore(new SqliteSageStore({ projectRoot: tempDir }));
+      await expect(
+        store.rememberSage({ text: 'still working on the auth bug', kind: 'fact' }),
+      ).rejects.toThrow(/ephemeral progress/i);
+    });
+
+    it('rejects structural kinds without anchors', async () => {
+      const store = trackStore(new SqliteSageStore({ projectRoot: tempDir }));
+      await expect(
+        store.rememberSage({ text: 'Note about the auth session helper path', kind: 'file_note' }),
+      ).rejects.toThrow(/requires at least one anchor/i);
+    });
+
+    it('demotes unanchored short memories when scores are defaulted', async () => {
+      const store = trackStore(new SqliteSageStore({ projectRoot: tempDir }));
+      await store.initialize();
+      const demoted = await store.rememberSage({
+        text: 'Use pnpm always',
+        kind: 'preference',
+      });
+      expect(demoted.importance).toBeLessThanOrEqual(0.7);
+      expect(demoted.confidence).toBeLessThanOrEqual(0.75);
+
+      const explicit = await store.rememberSage({
+        text: 'Always prefer exact package manager versions in CI scripts',
+        kind: 'preference',
+        importance: 0.95,
+        confidence: 0.95,
+      });
+      expect(explicit.importance).toBeCloseTo(0.95);
+      expect(explicit.confidence).toBeCloseTo(0.95);
+    });
+
     it('rejects credential-shaped input before persistence', async () => {
       const store = trackStore(new SqliteSageStore({ projectRoot: tempDir }));
       const credential = `api_key=${'a'.repeat(24)}`;
@@ -531,6 +585,99 @@ describe('SqliteSageStore', () => {
       const active = await store.listMemories({ status: 'active', limit: 100 });
       const pnpmMems = active.filter((m) => m.text.includes('pnpm workspaces'));
       expect(pnpmMems.length).toBe(1);
+    });
+
+    it('soft-deletes expired session memories instead of creating review candidates', async () => {
+      const store = trackStore(new SqliteSageStore({ projectRoot: tempDir }));
+      await store.initialize();
+      const sessionMem = await store.rememberSage({
+        text: 'Temporary session scratch note about the current task',
+        scope: 'session',
+        kind: 'fact',
+        importance: 0.4,
+      });
+      // Force expiresAt into the past via upsert.
+      (
+        store as unknown as {
+          upsertMemory(memory: {
+            id: string;
+            status: string;
+            scope: string;
+            expiresAt: string;
+            [key: string]: unknown;
+          }): void;
+        }
+      ).upsertMemory({
+        ...(await store.getSage(sessionMem.id))!,
+        expiresAt: '2020-01-01T00:00:00.000Z',
+      });
+
+      const report = await store.hygiene({ verify: false });
+      expect(report.deleted).toBeGreaterThanOrEqual(1);
+      const active = await store.listMemories({ status: 'active', limit: 100 });
+      expect(active.some((m) => m.id === sessionMem.id)).toBe(false);
+      const deleted = await store.listMemories({ status: 'deleted', limit: 100 });
+      expect(deleted.some((m) => m.id === sessionMem.id)).toBe(true);
+      // No review candidate for the session GC target.
+      const candidates = await store.listCandidates();
+      expect(candidates.every((c) => c.targetMemoryId !== sessionMem.id)).toBe(true);
+    });
+
+    it('physically purges old deleted tombstones when purgeDeletedAfterDays is set', async () => {
+      const store = trackStore(new SqliteSageStore({ projectRoot: tempDir }));
+      await store.initialize();
+      const mem = await store.rememberSage({
+        text: 'Old deleted memory awaiting physical purge from sqlite',
+        kind: 'fact',
+      });
+      await store.deleteSage(mem.id, 'test purge', { force: true });
+      (
+        store as unknown as {
+          upsertMemory(memory: { id: string; updatedAt: string; [key: string]: unknown }): void;
+        }
+      ).upsertMemory({
+        ...(await store.getSage(mem.id))!,
+        updatedAt: '2020-01-01T00:00:00.000Z',
+      });
+
+      const report = await store.hygiene({ verify: false, purgeDeletedAfterDays: 30 });
+      expect(report.purgedDeleted).toBeGreaterThanOrEqual(1);
+      expect(await store.getSage(mem.id)).toBeFalsy();
+    });
+
+    it('near-duplicate hygiene merges paraphrases that exact-text dedup missed', async () => {
+      const store = trackStore(new SqliteSageStore({ projectRoot: tempDir }));
+      await store.initialize();
+      // Bypass rememberSage near-dup merge by upserting two paraphrases directly.
+      const base = await store.rememberSage({
+        text: 'Always use pnpm workspaces for monorepo package installs',
+        kind: 'convention',
+        importance: 0.9,
+        anchors: [{ type: 'file', path: 'package.json' }],
+      });
+      const paraphrase = {
+        ...base,
+        id: `${base.id}_paraphrase`,
+        text: 'Always use pnpm workspaces for monorepo package installation',
+        importance: 0.5,
+        createdAt: '2020-01-01T00:00:00.000Z',
+        updatedAt: '2020-01-01T00:00:00.000Z',
+      };
+      (
+        store as unknown as {
+          upsertMemory(memory: typeof paraphrase): void;
+        }
+      ).upsertMemory(paraphrase);
+
+      const report = await store.hygiene({ verify: false });
+      expect(report.deduplicated).toBeGreaterThanOrEqual(1);
+      expect(report.superseded).toBeGreaterThanOrEqual(1);
+      const active = await store.listMemories({ status: 'active', limit: 100 });
+      const survivors = active.filter(
+        (m) =>
+          m.text.includes('pnpm workspaces') && m.text.includes('monorepo package'),
+      );
+      expect(survivors).toHaveLength(1);
     });
 
     it('deduplicates inside one mutation transaction and records the committed audit', async () => {

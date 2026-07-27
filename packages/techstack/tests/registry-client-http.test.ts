@@ -1,5 +1,21 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import type { IncomingMessage, ClientRequest } from 'node:http';
+import { ClientRequest, IncomingMessage } from 'node:http';
+import { Socket } from 'node:net';
+
+type HttpGetImplementation = (...args: unknown[]) => ClientRequest;
+
+function getResponseCallback(args: readonly unknown[]): (response: IncomingMessage) => void {
+  const callback = args.find((arg): arg is (response: IncomingMessage) => void => typeof arg === 'function');
+  if (!callback) throw new Error('HTTP response callback was not provided');
+  return callback;
+}
+
+function createMockRequest(): ClientRequest {
+  const request = Object.create(ClientRequest.prototype) as ClientRequest;
+  request.end = vi.fn();
+  request.destroy = vi.fn(() => request);
+  return request;
+}
 
 // ── Mock infrastructure ────────────────────────────────────────────────
 //
@@ -10,55 +26,41 @@ import type { IncomingMessage, ClientRequest } from 'node:http';
 
 function createMockResponse(
   statusCode: number,
-  _body: string,
   headers: Record<string, string> = {},
 ): IncomingMessage {
-  const listeners: Record<string, Array<(arg?: unknown) => void>> = {};
-  return {
-    statusCode,
-    headers,
-    on(event: string, cb: (arg?: unknown) => void) {
-      const eventListeners = listeners[event] ?? [];
-      eventListeners.push(cb);
-      listeners[event] = eventListeners;
-      return this as IncomingMessage;
-    },
-    // Allow the mock to emit events synchronously
-    _emit(event: string, arg?: unknown) {
-      for (const cb of listeners[event] ?? []) cb(arg);
-    },
-  } as unknown as IncomingMessage;
+  const response = new IncomingMessage(new Socket());
+  response.statusCode = statusCode;
+  Object.assign(response.headers, headers);
+  return response;
+}
+
+function emitResponse(response: IncomingMessage, body: string): void {
+  setTimeout(() => {
+    response.emit('data', body);
+    response.emit('end');
+  }, 0);
 }
 
 function mockGet(
   status: number,
   body: string,
   headers: Record<string, string> = {},
-): ReturnType<typeof vi.fn> {
-  return vi.fn((_options: unknown, callback: (res: IncomingMessage) => void) => {
-    const res = createMockResponse(status, body, headers);
-    // Call the callback synchronously with the response object
-    callback(res);
-    // Then emit data + end on next tick
-    setTimeout(() => {
-      (res as unknown as { _emit: (e: string, a?: unknown) => void })._emit('data', body);
-      (res as unknown as { _emit: (e: string, a?: unknown) => void })._emit('end');
-    }, 0);
-
-    const fakeReq: Partial<ClientRequest> = {
-      on: vi.fn(() => fakeReq as ClientRequest),
-      end: vi.fn(),
-      destroy: vi.fn(),
-    };
-    return fakeReq as ClientRequest;
+): ReturnType<typeof vi.fn<HttpGetImplementation>> {
+  return vi.fn<HttpGetImplementation>((...args: unknown[]) => {
+    const response = createMockResponse(status, headers);
+    getResponseCallback(args)(response);
+    emitResponse(response, body);
+    return createMockRequest();
   });
 }
 
-vi.mock('node:https', () => ({
+vi.mock('node:https', async (importOriginal) => ({
+  ...await importOriginal<typeof import('node:https')>(),
   get: vi.fn(),
 }));
 
-vi.mock('node:http', () => ({
+vi.mock('node:http', async (importOriginal) => ({
+  ...await importOriginal<typeof import('node:http')>(),
   get: vi.fn(),
 }));
 
@@ -150,17 +152,15 @@ describe('lookupRegistry — 429/5xx retry', () => {
   it('retries on 429 and succeeds on the next attempt', async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true });
     let callCount = 0;
-    mockedHttpsGet.mockImplementation((_opts: unknown, cb: (res: IncomingMessage) => void) => {
+    mockedHttpsGet.mockImplementation((...args: unknown[]) => {
+      const cb = getResponseCallback(args);
       callCount++;
       const status = callCount === 1 ? 429 : 200;
       const body = callCount === 1 ? '' : JSON.stringify({ 'dist-tags': { latest: '1.0.0' } });
-      const res = createMockResponse(status, body);
+      const res = createMockResponse(status);
       cb(res);
-      setTimeout(() => {
-        (res as unknown as { _emit: (e: string, a?: unknown) => void })._emit('data', body);
-        (res as unknown as { _emit: (e: string, a?: unknown) => void })._emit('end');
-      }, 0);
-      return { on: vi.fn(() => ({ end: vi.fn(), destroy: vi.fn() } as unknown as ClientRequest)), end: vi.fn(), destroy: vi.fn() } as unknown as ClientRequest;
+      emitResponse(res, body);
+      return createMockRequest();
     });
 
     const promise = lookupRegistry('npm', 'retry-pkg');
@@ -175,17 +175,15 @@ describe('lookupRegistry — 429/5xx retry', () => {
   it('retries on 5xx and succeeds on the next attempt', async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true });
     let callCount = 0;
-    mockedHttpsGet.mockImplementation((_opts: unknown, cb: (res: IncomingMessage) => void) => {
+    mockedHttpsGet.mockImplementation((...args: unknown[]) => {
+      const cb = getResponseCallback(args);
       callCount++;
       const status = callCount === 1 ? 503 : 200;
       const body = callCount === 1 ? '' : JSON.stringify({ 'dist-tags': { latest: '2.0.0' } });
-      const res = createMockResponse(status, body);
+      const res = createMockResponse(status);
       cb(res);
-      setTimeout(() => {
-        (res as unknown as { _emit: (e: string, a?: unknown) => void })._emit('data', body);
-        (res as unknown as { _emit: (e: string, a?: unknown) => void })._emit('end');
-      }, 0);
-      return { on: vi.fn(() => ({ end: vi.fn(), destroy: vi.fn() } as unknown as ClientRequest)), end: vi.fn(), destroy: vi.fn() } as unknown as ClientRequest;
+      emitResponse(res, body);
+      return createMockRequest();
     });
 
     const promise = lookupRegistry('npm', 'retry-503');
@@ -215,15 +213,9 @@ describe('lookupRegistry — network error', () => {
   it('throws on network error after retries', async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true });
     mockedHttpsGet.mockImplementation(() => {
-      const fakeReq: Partial<ClientRequest> = {
-        on: vi.fn((event: string, cb: (e: Error) => void) => {
-          if (event === 'error') setTimeout(() => cb(new Error('ECONNREFUSED')), 0);
-          return fakeReq as ClientRequest;
-        }),
-        end: vi.fn(),
-        destroy: vi.fn(),
-      };
-      return fakeReq as ClientRequest;
+      const request = createMockRequest();
+      setTimeout(() => request.emit('error', new Error('ECONNREFUSED')), 0);
+      return request;
     });
 
     // Attach the rejection handler immediately to prevent unhandled rejection
@@ -241,15 +233,13 @@ describe('lookupRegistry — cache force refresh', () => {
   it('re-fetches when force: true is passed', async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true });
     let latestVersion = '1.0.0';
-    mockedHttpsGet.mockImplementation((_opts: unknown, cb: (res: IncomingMessage) => void) => {
+    mockedHttpsGet.mockImplementation((...args: unknown[]) => {
+      const cb = getResponseCallback(args);
       const body = JSON.stringify({ 'dist-tags': { latest: latestVersion } });
-      const res = createMockResponse(200, body);
+      const res = createMockResponse(200);
       cb(res);
-      setTimeout(() => {
-        (res as unknown as { _emit: (e: string, a?: unknown) => void })._emit('data', body);
-        (res as unknown as { _emit: (e: string, a?: unknown) => void })._emit('end');
-      }, 0);
-      return { on: vi.fn(() => ({ end: vi.fn(), destroy: vi.fn() } as unknown as ClientRequest)), end: vi.fn(), destroy: vi.fn() } as unknown as ClientRequest;
+      emitResponse(res, body);
+      return createMockRequest();
     });
 
     const first = await lookupRegistry('npm', 'force-pkg');
@@ -267,18 +257,16 @@ describe('lookupRegistry — 304 Not Modified', () => {
   it('returns cached data on 304', async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true });
     let callCount = 0;
-    mockedHttpsGet.mockImplementation((_opts: unknown, cb: (res: IncomingMessage) => void) => {
+    mockedHttpsGet.mockImplementation((...args: unknown[]) => {
+      const cb = getResponseCallback(args);
       callCount++;
       const status = callCount === 1 ? 200 : 304;
       const body = callCount === 1 ? JSON.stringify({ 'dist-tags': { latest: '1.5.0' } }) : '';
       const headers = callCount === 1 ? { etag: '"v1"' } : {};
-      const res = createMockResponse(status, body, headers);
+      const res = createMockResponse(status, headers);
       cb(res);
-      setTimeout(() => {
-        (res as unknown as { _emit: (e: string, a?: unknown) => void })._emit('data', body);
-        (res as unknown as { _emit: (e: string, a?: unknown) => void })._emit('end');
-      }, 0);
-      return { on: vi.fn(() => ({ end: vi.fn(), destroy: vi.fn() } as unknown as ClientRequest)), end: vi.fn(), destroy: vi.fn() } as unknown as ClientRequest;
+      emitResponse(res, body);
+      return createMockRequest();
     });
 
     // First call: 200 → cache entry with etag
@@ -323,15 +311,13 @@ describe('lookupRegistry — unsupported ecosystem', () => {
 describe('lookupRegistryBatch', () => {
   it('returns a map of results for multiple packages', async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true });
-    mockedHttpsGet.mockImplementation((_opts: unknown, cb: (res: IncomingMessage) => void) => {
+    mockedHttpsGet.mockImplementation((...args: unknown[]) => {
+      const cb = getResponseCallback(args);
       const body = JSON.stringify({ 'dist-tags': { latest: '1.0.0' } });
-      const res = createMockResponse(200, body);
+      const res = createMockResponse(200);
       cb(res);
-      setTimeout(() => {
-        (res as unknown as { _emit: (e: string, a?: unknown) => void })._emit('data', body);
-        (res as unknown as { _emit: (e: string, a?: unknown) => void })._emit('end');
-      }, 0);
-      return { on: vi.fn(() => ({ end: vi.fn(), destroy: vi.fn() } as unknown as ClientRequest)), end: vi.fn(), destroy: vi.fn() } as unknown as ClientRequest;
+      emitResponse(res, body);
+      return createMockRequest();
     });
 
     const { lookupRegistryBatch } = await import('../src/registry/client.js');

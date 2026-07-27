@@ -82,6 +82,16 @@ describe('STATUSLINE_ITEMS navigation order matches visual layout', () => {
     expect(line1Items).not.toContain('memory');
   });
 
+  it('groups codebase index server status with the final service-detail chips', () => {
+    expect(ITEM_LINE.index).toBe(3);
+
+    const line3Items = STATUSLINE_ITEMS.filter((item) => ITEM_LINE[item] === 3);
+    expect(line3Items).toContain('index');
+
+    const line1Items = STATUSLINE_ITEMS.filter((item) => ITEM_LINE[item] === 1);
+    expect(line1Items).not.toContain('index');
+  });
+
   it('has no duplicate items', () => {
     const unique = new Set(STATUSLINE_ITEMS);
     expect(unique.size).toBe(STATUSLINE_ITEMS.length);

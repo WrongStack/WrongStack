@@ -159,12 +159,12 @@ Declare `capabilities: { tools, providers, slashCommands, mcp, pipelines, llm }`
 
 Sessions: `~/.wrongstack/projects/<sha256(absProjectRoot).slice(0,12)>/sessions/<id>.jsonl`, one `SessionEvent` per line (`core/src/types/session.ts`; two-tier audit via `session.auditLevel`). Always-written Core Reconstruct Set: `user_input`, `llm_response`, `tool_result`, `checkpoint`, `in_flight_start`/`end`, `session_*`. `DefaultSessionStore.list()` reads sidecar `<id>.summary.json`; `DefaultSessionReader` provides query/replay/search/export. Path source of truth: `resolveWstackPaths()` (`core/src/utils/wstack-paths.ts`).
 
-**Session names:** `SessionSummary.name?` is an optional user label, distinct from auto-derived `title`; set via `SessionStore.rename(id, name)` (`/sessions rename`, `session.rename` WS); listings prefer `name`; rename is NOT guarded by the in-use check. **Delete in-use guard:** `DefaultSessionStore.delete()` refuses to remove a session any live process is using — checks `active.json` (RecoveryLock) then the optional `isSessionInUse` callback (wired to `SessionRegistry.listByProject(slug)` so other surfaces are protected); the guard throws.
+**Session names:** `SessionSummary.name?` is an optional user label, distinct from auto-derived `title`; set via `SessionStore.rename(id, name)` (`/sessions rename`, `session.rename` WS); listings prefer `name`; rename is NOT guarded by the in-use check. **Delete in-use guard:** `DefaultSessionStore.delete()` refuses to remove a session any live process is using through the optional `isSessionInUse` callback, wired to `SessionRegistry.listByProject(slug)`; the guard throws.
 
 ### Recording invariants (do not regress)
 
 1. **`agent.ctx.session` is the single live writer** — persisters resolve it at append time (pass a getter `() => context.session` to `createSessionEventBridge`, never a captured instance).
-2. **Every path that swaps `ctx.session`** (TUI resume, WebUI resume/new/projects.select, exit) finalizes the old writer: append `session_end` with usage, then `close()`; resume re-points `active.json`.
+2. **Every path that swaps `ctx.session`** (TUI resume, WebUI resume/new/projects.select, exit) finalizes the old writer: append `session_end` with usage, then `close()`; explicit resume atomically moves SessionRegistry ownership to the selected session id.
 3. **`FileSessionWriter` serializes all writes** through a FIFO `writeChain`; idempotent awaitable `close()`; no second write path.
 4. **No mid-stream `session_end`** — `/save` flushes, never ends; recovery treats only a *trailing* `session_end` as clean exit.
 5. **Session ids are date-sharded** (`2026-06-11/<base>`); sidecar paths go through `sessionScopedPath()`; directory scans must descend one shard level.

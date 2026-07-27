@@ -200,21 +200,25 @@ describe('PersistentProcessRegistry — lock and error paths', () => {
 
   it('recovers from EEXIST lock contention (stale lock by age)', () => {
     let attempt = 0;
-    vi.mocked(fs.writeFile).mockImplementation(async (filePath: string) => {
-      attempt++;
-      if (attempt <= 1 && typeof filePath === 'string' && filePath.endsWith('.lock')) {
-        const err: NodeJS.ErrnoException = new Error('EEXIST');
-        err.code = 'EEXIST';
-        throw err;
-      }
-    });
+    vi.mocked(fs.writeFile).mockImplementation(
+      async (filePath: Parameters<typeof fs.writeFile>[0]) => {
+        attempt++;
+        if (attempt <= 1 && typeof filePath === 'string' && filePath.endsWith('.lock')) {
+          const err: NodeJS.ErrnoException = new Error('EEXIST');
+          err.code = 'EEXIST';
+          throw err;
+        }
+      },
+    );
     // Make the lock content stale (old timestamp)
-    vi.mocked(fs.readFile).mockImplementation(async (filePath: string) => {
-      if (filePath.endsWith('.lock')) {
-        return `${process.pid}:${os.hostname()}:${Date.now() - 60000}`;
-      }
-      throw Object.assign(new Error('ENOENT'), { code: 'ENOENT' });
-    });
+    vi.mocked(fs.readFile).mockImplementation(
+      async (filePath: Parameters<typeof fs.readFile>[0]) => {
+        if (typeof filePath === 'string' && filePath.endsWith('.lock')) {
+          return `${process.pid}:${os.hostname()}:${Date.now() - 60000}`;
+        }
+        throw Object.assign(new Error('ENOENT'), { code: 'ENOENT' });
+      },
+    );
 
     const r = new PersistentProcessRegistry();
     r.registerChildProcess(111, 'test', 'cmd');
@@ -225,26 +229,30 @@ describe('PersistentProcessRegistry — lock and error paths', () => {
     // First write to lock fails with EEXIST; then the catch path calls unlink,
     // and the retry write should succeed.
     let lockAttempts = 0;
-    vi.mocked(fs.writeFile).mockImplementation(async (filePath: string) => {
-      if (typeof filePath === 'string' && filePath.endsWith('.lock')) {
-        lockAttempts++;
-        if (lockAttempts <= 1) {
-          const err: NodeJS.ErrnoException = new Error('EEXIST');
-          err.code = 'EEXIST';
-          throw err;
+    vi.mocked(fs.writeFile).mockImplementation(
+      async (filePath: Parameters<typeof fs.writeFile>[0]) => {
+        if (typeof filePath === 'string' && filePath.endsWith('.lock')) {
+          lockAttempts++;
+          if (lockAttempts <= 1) {
+            const err: NodeJS.ErrnoException = new Error('EEXIST');
+            err.code = 'EEXIST';
+            throw err;
+          }
+          // Second attempt succeeds (after stale lock was unlinked)
         }
-        // Second attempt succeeds (after stale lock was unlinked)
-      }
-    });
+      },
+    );
     // readFile fails for the lock file (triggering stale catch)
     // but returns ENOENT for the registry file (empty state = no pids)
-    vi.mocked(fs.readFile).mockImplementation(async (filePath: string) => {
-      if (filePath.endsWith('.lock')) {
-        throw new Error('EACCES');
-      }
-      // Registry file not found → triggers freshRegistryData (empty)
-      throw Object.assign(new Error('ENOENT'), { code: 'ENOENT' });
-    });
+    vi.mocked(fs.readFile).mockImplementation(
+      async (filePath: Parameters<typeof fs.readFile>[0]) => {
+        if (typeof filePath === 'string' && filePath.endsWith('.lock')) {
+          throw new Error('EACCES');
+        }
+        // Registry file not found → triggers freshRegistryData (empty)
+        throw Object.assign(new Error('ENOENT'), { code: 'ENOENT' });
+      },
+    );
 
     const r = new PersistentProcessRegistry();
     await expect(r.getAllProtectedPids()).resolves.toEqual([]);
@@ -252,18 +260,22 @@ describe('PersistentProcessRegistry — lock and error paths', () => {
 
   it('propagates genuine IO errors on registry file', async () => {
     // Succeed on lock write
-    vi.mocked(fs.writeFile).mockImplementation(async (filePath: string) => {
-      if (typeof filePath === 'string' && filePath.endsWith('.lock')) {
-        return; // success
-      }
-    });
+    vi.mocked(fs.writeFile).mockImplementation(
+      async (filePath: Parameters<typeof fs.writeFile>[0]) => {
+        if (typeof filePath === 'string' && filePath.endsWith('.lock')) {
+          return; // success
+        }
+      },
+    );
     // Throw EACCES on registry file read
-    vi.mocked(fs.readFile).mockImplementation(async (filePath: string) => {
-      if (filePath.endsWith('.lock')) {
-        return `${process.pid}:${os.hostname()}:${Date.now() - 100}`;
-      }
-      throw Object.assign(new Error('EACCES'), { code: 'EACCES' });
-    });
+    vi.mocked(fs.readFile).mockImplementation(
+      async (filePath: Parameters<typeof fs.readFile>[0]) => {
+        if (typeof filePath === 'string' && filePath.endsWith('.lock')) {
+          return `${process.pid}:${os.hostname()}:${Date.now() - 100}`;
+        }
+        throw Object.assign(new Error('EACCES'), { code: 'EACCES' });
+      },
+    );
 
     const r = new PersistentProcessRegistry();
     await expect(r.getAllProtectedPids()).rejects.toThrow();

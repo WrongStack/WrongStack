@@ -4,7 +4,7 @@
   "tabs": {
     "general": "Generale",
     "provider": "Provider",
-    "connection": "Connessione",
+    "connection": "Connessioni",
     "agent": "Agente",
     "execution": "Esecuzione",
     "fallbacks": "Fallback",
@@ -28,7 +28,28 @@
     "wsUrlPlaceholder": "ws://localhost:3456",
     "wsUrlHint": "URL del server WebSocket dell'agente. Il server viene eseguito insieme alla CLI.",
     "startingHeading": "Avviare il server WebSocket",
-    "startingBody": "Per lo sviluppo, esegui ./dev.ps1 dalla root del repo (facoltativamente imposta prima WS_HOST/WS_PORT). Altrimenti avvia la WebUI con la CLI: wstack --webui."
+    "startingBody": "Per lo sviluppo, esegui ./dev.ps1 dalla root del repo (facoltativamente imposta prima WS_HOST/WS_PORT). Altrimenti avvia la WebUI con la CLI: wstack --webui.",
+    "healthHeading": "Stato connessioni",
+    "healthHint": "Rapporto live su proprietario, storage, coda, watcher e latenza dei servizi.",
+    "healthRefresh": "Aggiorna",
+    "healthLoading": "Controllo dei servizi…",
+    "healthUnknown": "Stato sconosciuto",
+    "healthDisconnected": "Il WebSocket della WebUI è disconnesso.",
+    "healthRestartRequired": "Riavvia il backend una volta per attivare il rapporto connessioni.",
+    "healthOptional": "Su richiesta",
+    "healthCounts": "{{healthy}} sani · {{attention}} attenzione · {{sleeping}} inattivi",
+    "healthOverall": {
+      "healthy": "Servizi richiesti sani",
+      "degraded": "Servizio richiesto degradato",
+      "error": "Servizio richiesto non disponibile"
+    },
+    "healthStatus": {
+      "healthy": "Sano",
+      "degraded": "Degradato",
+      "offline": "Inattivo",
+      "unavailable": "Non disponibile",
+      "error": "Errore"
+    }
   },
   "provider": {
     "savedProviderCount_one": "{{count}} provider",
@@ -449,7 +470,6 @@
     "contextModeBalanced": "Bilanciato — uso normale del contesto",
     "contextModeFrugal": "Frugale — uso conservativo di token",
     "contextModeDeep": "Profondo — contesto più ampio per attività complesse",
-    "contextModeArchival": "Archivio — massimizza la retention del contesto",
     "tokenSavingLabel": "Modalità risparmio token",
     "tokenSavingHint": "Quanto aggressivamente ridurre l'uso di token.",
     "tokenSavingOff": "Off — nessun risparmio",

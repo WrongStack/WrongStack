@@ -14,71 +14,76 @@
  * Ranking: Okapi BM25 / FTS5 (k1=1.5, b=0.75)
  */
 
-export { codebaseIndexTool } from './codebase-index-tool.js';
-export { codebaseSearchTool } from './codebase-search-tool.js';
-export { codebaseStatsTool } from './codebase-stats-tool.js';
-
-// Indexer entry point + background coordinator (used by CLI auto-index wiring
-// and the file-watcher plugin's autoIndex path).
-export { runIndexer } from './indexer.js';
 export {
-  runStartupIndex,
-  enqueueReindex,
-  isIndexableFile,
   cancelPendingReindexes,
-  isIndexReady,
-  isIndexing,
-  getIndexState,
-  onIndexStateChange,
-  searchCodebaseIndex,
+  checkCodebaseIndexServerHealth,
   codebaseIndexStats,
+  enqueueReindex,
+  ensureCodebaseIndexServer,
+  fileGraphService,
+  getIndexState,
+  isIndexableFile,
+  isIndexing,
+  isIndexReady,
+  onIndexStateChange,
+  packageGraphService,
+  runStartupIndex,
+  searchCodebaseIndex,
   shutdownCodebaseIndexHost,
+  shutdownCodebaseIndexServer,
+  symbolGraphService,
 } from './background-indexer.js';
-
+export {
+  buildBm25Index,
+  buildIndexableText,
+  tokenise,
+} from './bm25.js';
+export type { CircuitSnapshot, CircuitState } from './circuit-breaker.js';
 // Circuit breaker guarding every index run (startup, incremental, manual).
 // `resetIndexCircuitBreaker` is the manual-recovery hook for /codebase-reindex.
 export {
+  CircuitOpenError,
   IndexCircuitBreaker,
+  IndexTimeoutError,
   indexCircuitBreaker,
   resetIndexCircuitBreaker,
-  CircuitOpenError,
-  IndexTimeoutError,
 } from './circuit-breaker.js';
-export type { CircuitState, CircuitSnapshot } from './circuit-breaker.js';
-
-// Re-export shared internal helpers so external consumers (e.g. plug-lsp)
-// can use them without importing from implementation detail files.
-export { IndexStore, resolveIndexDir, codebaseIndexDirOverride } from './writer.js';
-export {
-  tokenise,
-  buildIndexableText,
-  buildBm25Index,
-} from './bm25.js';
+export { codebaseIndexTool } from './codebase-index-tool.js';
+export { codebaseSearchTool } from './codebase-search-tool.js';
+export { codebaseStatsTool } from './codebase-stats-tool.js';
+// Indexer entry point + background coordinator (used by CLI auto-index wiring
+// and the file-watcher plugin's autoIndex path).
+export { runIndexer } from './indexer.js';
+export { detectLang, INDEXABLE_EXTENSIONS, isIndexablePath } from './languages.js';
 export {
   internalKindToLspKind,
   lspKindToInternalKind,
 } from './lsp-kind.js';
-
-// Codemap graph services — package/file/symbol dependency visualization.
-export {
-  packageGraphService,
-  fileGraphService,
-  symbolGraphService,
-} from './index-service.js';
+export type {
+  ProjectIndexServerClientHealth,
+  ProjectIndexServerConnectionState,
+  ProjectIndexServerConnectionStatus,
+} from './project-server-client.js';
+export type {
+  ProjectIndexServerActivity,
+  ProjectIndexServerHealth,
+} from './project-server-protocol.js';
 
 // Re-export shared types
 export type {
+  CodeMapGraph,
+  FileMeta,
+  FileSymbols,
+  GraphEdge,
+  GraphNode,
+  IndexResult,
+  IndexStats,
+  SearchResult,
   Symbol,
   SymbolKind,
   SymbolLang,
-  FileSymbols,
-  FileMeta,
-  IndexStats,
-  IndexResult,
-  SearchResult,
-  GraphNode,
-  GraphEdge,
-  CodeMapGraph,
 } from './schema.js';
 export { SCHEMA_VERSION } from './schema.js';
-export { detectLang, isIndexablePath, INDEXABLE_EXTENSIONS } from './languages.js';
+// Re-export shared internal helpers so external consumers (e.g. plug-lsp)
+// can use them without importing from implementation detail files.
+export { codebaseIndexDirOverride, IndexStore, resolveIndexDir } from './writer.js';

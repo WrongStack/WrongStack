@@ -9,6 +9,12 @@ export const SURFACE_PROTOCOL_CAPABILITIES = [
   'chronicle.facets',
   'chronicle.graph',
   'chronicle.metrics',
+  'chronicle.status',
+  'connections.health',
+  /** Interview resume/discard + lastAgentText/lastRunId continuity. */
+  'sdd.interview.continuity',
+  /** Launch multi-agent runs from a graph id or resolved spec id. */
+  'sdd.run.from_graph',
 ] as const;
 
 export type SurfaceProtocolCapability = (typeof SURFACE_PROTOCOL_CAPABILITIES)[number];

@@ -40,6 +40,15 @@ describe('InjectionTracker', () => {
     expect(tracker.consumeMatches('I will use pnpm for installing dependencies now.')).toEqual([]);
   });
 
+  it('matches an explicit memory id citation without restating the body', () => {
+    const tracker = new InjectionTracker();
+    tracker.record('01HMEMORYIDEXPLICIT01', TEXT);
+
+    expect(
+      tracker.consumeMatches('Following memory 01HMEMORYIDEXPLICIT01 for the install path.'),
+    ).toEqual(['01HMEMORYIDEXPLICIT01']);
+  });
+
   it('does not match unrelated assistant text', () => {
     const tracker = new InjectionTracker();
     tracker.record('mem_a', TEXT);
@@ -54,6 +63,17 @@ describe('InjectionTracker', () => {
     tracker.record('mem_short', 'Use pnpm');
 
     expect(tracker.consumeMatches('I will use pnpm now.')).toEqual([]);
+  });
+
+  it('rejects ratio-only matches below the absolute token floor (false-positive guard)', () => {
+    // 4-token memory + 2 shared tokens hits the default 0.5 ratio, but is too
+    // weak a signal for recordUse without an explicit id citation.
+    const tracker = new InjectionTracker({ minTokens: 4, minMatchTokens: 3 });
+    tracker.record('mem_weak', 'use pnpm for installs');
+
+    expect(tracker.consumeMatches('I will use pnpm tomorrow.')).toEqual([]);
+    // Three shared tokens with high ratio is accepted.
+    expect(tracker.consumeMatches('Please use pnpm for installs today.')).toEqual(['mem_weak']);
   });
 
   it('expires tracked injections after the TTL', () => {
@@ -97,6 +117,17 @@ describe('InjectionTracker', () => {
       enteredMemoryIds: ['mem_truncated'],
       exitedMemoryIds: [],
     });
+  });
+
+  it('keeps provider-context tracking after use attribution is consumed', () => {
+    // Use attribution (entries) and provider-context presence (contextEntries)
+    // are independent maps — consumeMatches must not erase context presence.
+    const tracker = new InjectionTracker();
+    tracker.record('mem_a', TEXT, 1_000, 'sess');
+    expect(tracker.consumeMatches('I will use pnpm for installing dependencies now.', 1_200)).toEqual(
+      ['mem_a'],
+    );
+    expect(tracker.snapshotContext(TEXT, 'sess', 1_300).activeMemoryIds).toEqual(['mem_a']);
   });
 });
 

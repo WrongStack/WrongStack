@@ -17,7 +17,7 @@ import type { Config, ConfigStore, FleetChatVerbosity } from '@wrongstack/core/t
 import { normalizeTokenSavingTier, resolveFleetChatVerbosity } from '@wrongstack/core/types';
 import { atomicWrite, type WstackPaths } from '@wrongstack/core/utils';
 import { getProcessRegistry } from '@wrongstack/tools';
-import type { LiveSettingsInput } from '../execution.js';
+import type { LiveSettingsInput } from '../live-settings-input.js';
 import {
   deriveFsAccessPair,
   filterSafeForProject,
@@ -79,9 +79,7 @@ export function createSettingsAdapter(ctx: SettingsAdapterContext): SettingsAdap
     ).modelRuntime;
     const contextModeRaw = cfg.context?.mode;
     const contextMode =
-      contextModeRaw === 'frugal' || contextModeRaw === 'deep' || contextModeRaw === 'archival'
-        ? contextModeRaw
-        : 'balanced';
+      contextModeRaw === 'frugal' || contextModeRaw === 'deep' ? contextModeRaw : 'balanced';
     const reasoningEffortRaw = modelRuntime?.reasoning?.effort;
     const reasoningEffort =
       reasoningEffortRaw === 'none' ||

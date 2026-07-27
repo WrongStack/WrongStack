@@ -68,7 +68,6 @@ describe('AlertsView', () => {
         message: 'Cost spike detected',
         firstFiredAt: 1_700_000_000_000,
         lastFiredAt: 1_700_000_001_000,
-        count: 1,
       },
     ];
     const history: HqAlert[] = [
@@ -79,7 +78,6 @@ describe('AlertsView', () => {
         message: 'Session went stale',
         firstFiredAt: 1_700_000_002_000,
         lastFiredAt: 1_700_000_003_000,
-        count: 2,
       },
     ];
 
@@ -87,14 +85,10 @@ describe('AlertsView', () => {
     useHqStore.setState({
       alerts: [
         {
-          id: 'live-1',
-          ruleId: 'fleet.failure',
+          type: 'hq.alert',
           severity: 'error',
           message: 'Live fleet failure',
-          firstFiredAt: 1_700_000_004_000,
-          lastFiredAt: 1_700_000_005_000,
-          timestamp: 1_700_000_005_000,
-          count: 1,
+          timestamp: new Date(1_700_000_005_000).toISOString(),
         },
       ],
     });

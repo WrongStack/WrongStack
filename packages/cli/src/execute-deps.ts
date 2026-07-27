@@ -20,7 +20,7 @@ import type { BrainAutoRisk } from '@wrongstack/core/execution';
 import type { JournalEntry } from '@wrongstack/core/goal';
 import type { EventBus } from '@wrongstack/core/kernel';
 import type { SlashCommandRegistry } from '@wrongstack/core/registry';
-import type { QueueStore, RecoveryLock } from '@wrongstack/core/storage';
+import type { QueueStore } from '@wrongstack/core/storage';
 import type {
   AttachmentStore,
   AutonomyStage,
@@ -42,8 +42,8 @@ import type {
 import type { WstackPaths } from '@wrongstack/core/utils';
 import type { MCPRegistry } from '@wrongstack/mcp';
 import type { SddLifecycleResult, SddRunControl } from '@wrongstack/sdd';
-import type { LiveSettingsInput } from './execution.js';
 import type { ReadlineInputReader } from './input-reader.js';
+import type { LiveSettingsInput } from './live-settings-input.js';
 import type { TerminalRenderer } from './renderer.js';
 import type { AutonomyMode } from './services/autonomy-mode.js';
 import type { StatuslineConfigKey } from './services/statusline-config.js';
@@ -117,7 +117,13 @@ export interface CoreDeps {
   positional: string[];
   slashRegistry: SlashCommandRegistry;
   tokenCounter: TokenCounter;
-  recoveryLock: RecoveryLock;
+  /** Atomically move this process's SessionRegistry ownership after explicit resume. */
+  activateSessionIdentity?:
+    | ((
+        sessionId: string,
+        target?: import('./wiring/session-registry.js').SessionIdentityTarget,
+      ) => Promise<void>)
+    | undefined;
   /**
    * Resolved preflight update-check info (current/latest/outdated/checkFailed).
    * Optional — when omitted, the TUI banner simply omits the "(update

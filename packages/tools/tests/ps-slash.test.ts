@@ -4,21 +4,6 @@ import { createGlobalPsSlashCommand } from '../src/ps-slash.js';
 // Mock the persistent process registry with richer data for format tests
 const mockGetGlobalStatus = vi.fn();
 vi.mock('../src/process-registry-persistent.js', () => {
-  const ProcessEntry = (overrides: Record<string, unknown> = {}) => ({
-    pid: 12345,
-    name: 'node',
-    command: 'node wrongstack',
-    startedAt: Date.now() - 300000,
-    lastHeartbeat: Date.now() - 1000,
-    instanceId: 'host1:12345:abc123',
-    hostname: 'host1',
-    protected: true,
-    spawnMode: 'main',
-    platform: process.platform,
-    sessionId: 'sess-1',
-    ...overrides,
-  });
-
   return {
     getPersistentProcessRegistry: () => ({
       getInstanceId: () => 'host1:12345:abc123',

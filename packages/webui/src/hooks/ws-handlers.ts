@@ -569,6 +569,10 @@ export const WS_HANDLERS: Partial<Record<WSServerMessage['type'], (msg: WSServer
       const store = useSddBoardStore.getState();
       store.setLifecycleResult({ ...p, at: Date.now() });
       store.setDestroying(false);
+      // Destroy wipes interview + specs + mirrors — clear the wizard UI too.
+      if (p.op === 'destroy' && p.ok) {
+        useSddWizardStore.getState().reset();
+      }
     },
     'sdd.spec.snapshot': (msg: WSServerMessage) => {
       useSddWizardStore

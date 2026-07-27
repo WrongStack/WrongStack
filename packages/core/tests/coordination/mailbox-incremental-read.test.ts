@@ -11,8 +11,13 @@ import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { isMailboxMessageProjection } from '../../src/coordination/global-mailbox-completion.js';
 import { MailboxMessageCache } from '../../src/coordination/mailbox-message-cache.js';
 import { parseMailboxFile } from '../../src/coordination/mailbox-parse-state.js';
+import type {
+  MailboxMessage,
+  MailboxMessageProjection,
+} from '../../src/coordination/mailbox-types.js';
 
 let dir: string;
 let file: string;
@@ -67,6 +72,14 @@ async function expectMatchesFullParse(actual: unknown): Promise<void> {
   expect(actual).toEqual(parseMailboxFile(await fs.readFile(file, 'utf8')));
 }
 
+function expectProjection(message: MailboxMessage | undefined): MailboxMessageProjection {
+  expect(message).toBeDefined();
+  if (message === undefined || !isMailboxMessageProjection(message)) {
+    throw new TypeError('expected a folded mailbox message projection');
+  }
+  return message;
+}
+
 describe('MailboxMessageCache incremental tail read', () => {
   it('serves an unchanged file from memory', async () => {
     await fs.writeFile(file, messageLine('m1') + messageLine('m2'));
@@ -100,15 +113,17 @@ describe('MailboxMessageCache incremental tail read', () => {
     await fs.writeFile(file, messageLine('m1') + messageLine('m2'));
     const cache = new MailboxMessageCache();
     const first = await cache.readCached(file);
-    expect(first[0]?.recipientState['agent@sess-1']).toBeUndefined();
+    expect(expectProjection(first[0]).recipientState['agent@sess-1']).toBeUndefined();
 
     await fs.appendFile(file, receiptLine('m1', 'agent@sess-1', { read: true, completed: true }));
     const second = await cache.readCached(file);
 
     expect(second).toBe(first);
-    expect(second[0]?.recipientState['agent@sess-1']?.completedAt).toBe('2026-01-02T00:00:00.000Z');
+    expect(expectProjection(second[0]).recipientState['agent@sess-1']?.completedAt).toBe(
+      '2026-01-02T00:00:00.000Z',
+    );
     // The untouched sibling must not be disturbed by a neighbour's re-fold.
-    expect(second[1]?.recipientState).toEqual({});
+    expect(expectProjection(second[1]).recipientState).toEqual({});
     await expectMatchesFullParse(second);
   });
 

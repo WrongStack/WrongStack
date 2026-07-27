@@ -3,6 +3,8 @@ import { createReadStream } from 'node:fs';
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 import { createInterface } from 'node:readline';
+import { comparePartitionPaths, PARTITION_FILE_PATTERN } from './partition-filename.js';
+import { type ChroniclePartitionRange, ChroniclePartitionRangeCache } from './partition-range-cache.js';
 import type { ChronicleEvent, ChronicleOutcome, ChronicleResourceRef } from './types.js';
 
 export interface ChronicleQuery {
@@ -106,27 +108,100 @@ function streamLines(filePath: string, maxBytes?: number): AsyncIterableIterator
   return rl[Symbol.asyncIterator]() as AsyncIterableIterator<string>;
 }
 
+/** One dedicated full pass over a closed file to learn its true occurredAt bounds. */
+async function computeOccurredAtRange(
+  file: string,
+  size: number,
+): Promise<{ min: string; max: string } | undefined> {
+  let min: string | undefined;
+  let max: string | undefined;
+  for await (const line of streamLines(file, size)) {
+    if (!line.trim()) continue;
+    let event: ChronicleEvent;
+    try {
+      event = JSON.parse(line) as ChronicleEvent;
+      if (!isChronicleEvent(event)) continue;
+    } catch { continue; }
+    const occurredAt = event.occurredAt ?? event.observedAt;
+    if (min === undefined || occurredAt < min) min = occurredAt;
+    if (max === undefined || occurredAt > max) max = occurredAt;
+  }
+  return min === undefined ? undefined : { min, max: max! };
+}
+
+function rangeOverlaps(range: ChroniclePartitionRange, query: ChronicleQuery): boolean {
+  if (range.empty) return false;
+  if (query.from && range.maxOccurredAt! < query.from) return false;
+  if (query.to && range.minOccurredAt! > query.to) return false;
+  return true;
+}
+
 // ── Streaming query engine (no pre-loaded events) ──────────────────────────
 
 /** Queryable projection over immutable Chronicle JSONL partitions.
  *  Events are streamed on demand — no full-file load into memory. */
+export interface ChronicleQueryEngineOptions {
+  /** Shared, longer-lived cache of closed partitions' observed occurredAt ranges. */
+  rangeCache?: ChroniclePartitionRangeCache;
+}
+
 export class ChronicleQueryEngine {
   private readonly partitionFiles: string[];
+  private readonly rangeCache: ChroniclePartitionRangeCache | undefined;
+  /** The one file (if any) that could still be actively appended to — never cache-checked or skipped. */
+  private readonly activeFile: string | undefined;
 
   private constructor(
     files: string[],
     readonly diagnostics: { sourceFiles: number; invalidLines: number },
+    rangeCache?: ChroniclePartitionRangeCache,
+    activeFile?: string,
   ) {
     this.partitionFiles = files;
+    this.rangeCache = rangeCache;
+    this.activeFile = activeFile;
   }
 
-  static async fromDirectory(directory: string): Promise<ChronicleQueryEngine> {
-    const files = await findPartitions(path.resolve(directory));
-    return new ChronicleQueryEngine(files, { sourceFiles: files.length, invalidLines: 0 });
+  static async fromDirectory(
+    directory: string,
+    options?: ChronicleQueryEngineOptions,
+  ): Promise<ChronicleQueryEngine> {
+    const resolved = path.resolve(directory);
+    const files = await findPartitions(resolved);
+    const rangeCache = options?.rangeCache ?? new ChroniclePartitionRangeCache(resolved);
+    return new ChronicleQueryEngine(
+      files,
+      { sourceFiles: files.length, invalidLines: 0 },
+      rangeCache,
+      files.at(-1),
+    );
   }
 
   static async fromFiles(files: string[]): Promise<ChronicleQueryEngine> {
     return new ChronicleQueryEngine(files, { sourceFiles: files.length, invalidLines: 0 });
+  }
+
+  /**
+   * Returns the file's observed (min, max) `occurredAt` range, computing and
+   * caching it on first use. Only ever called for closed/immutable files
+   * (never `this.activeFile`) — see the skip-check call sites.
+   */
+  private async getOrComputeRange(file: string, size: number): Promise<ChroniclePartitionRange> {
+    const cached = await this.rangeCache!.get(file, size);
+    if (cached) return cached;
+    const computed = await computeOccurredAtRange(file, size);
+    const range: ChroniclePartitionRange = computed
+      ? { size, minOccurredAt: computed.min, maxOccurredAt: computed.max }
+      : { size, empty: true };
+    this.rangeCache!.set(file, range);
+    return range;
+  }
+
+  /** True when a closed file's cached range provably cannot contain a match for `query`. */
+  private async canSkip(file: string, size: number, query: ChronicleQuery): Promise<boolean> {
+    if (!this.rangeCache || (!query.from && !query.to) || file === this.activeFile) return false;
+    const range = await this.getOrComputeRange(file, size);
+    return !rangeOverlaps(range, query);
   }
 
   /** Stream all partitions, filter, and return the requested page + summary. */
@@ -151,6 +226,11 @@ export class ChronicleQueryEngine {
     for (const snapshotFile of files) {
       try {
         if (snapshotFile.size === 0) continue;
+        // A closed file whose observed occurredAt range can't overlap [from, to]
+        // is skipped with zero I/O. scannedEvents/invalidLines below reflect
+        // only lines actually read this call, so a skip legitimately lowers
+        // them — that's the optimization working, not a regression.
+        if (await this.canSkip(snapshotFile.file, snapshotFile.size, query)) continue;
         const lines = order === 'asc'
           ? streamLines(snapshotFile.file, snapshotFile.size)
           : reverseLines(snapshotFile.file, snapshotFile.size);
@@ -189,6 +269,11 @@ export class ChronicleQueryEngine {
     const pageEvents = orderedCandidates;
     const lastEvent = pageEvents.at(-1);
 
+    if (this.rangeCache) {
+      this.rangeCache.prune(this.partitionFiles);
+      await this.rangeCache.flush();
+    }
+
     return {
       events: pageEvents,
       total: totalCount,
@@ -221,6 +306,7 @@ export class ChronicleQueryEngine {
     for (const snapshotFile of snapshotFiles) {
       try {
         if (snapshotFile.size === 0) continue;
+        if (await this.canSkip(snapshotFile.file, snapshotFile.size, query)) continue;
         for await (const line of streamLines(snapshotFile.file, snapshotFile.size)) {
           if (!line.trim()) continue;
           let event: ChronicleEvent;
@@ -238,6 +324,10 @@ export class ChronicleQueryEngine {
       } catch { /* skip unreadable */ }
     }
     this.diagnostics.invalidLines = invalidLines;
+    if (this.rangeCache) {
+      this.rangeCache.prune(this.partitionFiles);
+      await this.rangeCache.flush();
+    }
     const result: ChronicleFacetResults = {};
     for (const field of uniqueFields) {
       result[field] = [...counts.get(field)!]
@@ -518,26 +608,17 @@ export async function findChroniclePartitions(root: string): Promise<string[]> {
 
 async function findPartitions(root: string): Promise<string[]> {
   const result: string[] = [];
-  const partitionName = /^(.*\.events)(?:\.(\d{5}))?\.jsonl$/;
   const visit = async (directory: string): Promise<void> => {
     let entries: import('node:fs').Dirent[];
     try { entries = await fs.readdir(directory, { withFileTypes: true }); } catch { return; }
     for (const entry of entries) {
       const full = path.join(directory, entry.name);
       if (entry.isDirectory()) await visit(full);
-      else if (entry.isFile() && partitionName.test(entry.name)) result.push(full);
+      else if (entry.isFile() && PARTITION_FILE_PATTERN.test(entry.name)) result.push(full);
     }
   };
   await visit(root);
-  return result.sort((left, right) => {
-    const leftMatch = partitionName.exec(path.basename(left));
-    const rightMatch = partitionName.exec(path.basename(right));
-    const leftGroup = path.join(path.dirname(left), leftMatch?.[1] ?? left);
-    const rightGroup = path.join(path.dirname(right), rightMatch?.[1] ?? right);
-    const groupOrder = leftGroup.localeCompare(rightGroup);
-    if (groupOrder !== 0) return groupOrder;
-    return Number(leftMatch?.[2] ?? 0) - Number(rightMatch?.[2] ?? 0);
-  });
+  return result.sort(comparePartitionPaths);
 }
 
 // ── Helper functions ───────────────────────────────────────────────────────
@@ -564,7 +645,9 @@ function scopeKey(event: ChronicleEvent): string {
   return `${event.scope.projectId ?? ''}\0${event.scope.sessionId ?? ''}\0${event.scope.agentId ?? ''}`;
 }
 
-function signalFamily(event: ChronicleEvent): ChronicleSignalFamily {
+/** Shared with ChronicleMetricsStore so its default-view summary classifies
+ *  events identically to the raw-scan summary it stands in for. */
+export function signalFamily(event: ChronicleEvent): ChronicleSignalFamily {
   if (/^(?:decision|brain|permission)\./.test(event.eventType)) return 'decision';
   if (event.resource?.kind === 'file' || event.resource?.kind === 'symbol' || /^(?:file|worktree)\./.test(event.eventType)) return 'file';
   if (/^(?:provider|token|context|ctx|compaction)\./.test(event.eventType)) return 'llm';
@@ -575,7 +658,8 @@ function signalFamily(event: ChronicleEvent): ChronicleSignalFamily {
   return 'runtime';
 }
 
-function isTerminalFailure(event: ChronicleEvent): boolean {
+/** Shared with ChronicleMetricsStore — see signalFamily(). */
+export function isTerminalFailure(event: ChronicleEvent): boolean {
   if (event.eventType === 'provider.attempt.failed') return event.attributes?.retryScheduled !== true;
   return event.eventType === 'tool.failed' ||
     (event.eventType === 'process.completed' && event.outcome === 'failure') ||
@@ -595,6 +679,17 @@ function relationKeys(event: ChronicleEvent): Array<{ key: string; kind: Chronic
   add('network_request', event.attributes?.requestId, 'explicit');
   add('prompt_manifest', (event.attributes?.promptManifest as Record<string, unknown> | undefined)?.manifestId, 'explicit');
   add('resource_lineage', event.resource?.id, 'inferred');
+  // tool.resource.observed is windowed into one metrics.rollup event per
+  // tool call (rollup-adapter.ts) carrying a bounded `resources` list rather
+  // than a single top-level `resource` — surface each as its own edge so a
+  // rolled-up "observed" touch still participates in the same resource
+  // lineage group as a mutation event for the same resource id.
+  if (event.eventType === 'metrics.rollup' && event.attributes?.signal === 'tool.resource.observed') {
+    const resources = event.attributes.resources as Array<{ id?: unknown }> | undefined;
+    for (const resource of resources ?? []) {
+      if (typeof resource?.id === 'string') add('resource_lineage', resource.id, 'inferred');
+    }
+  }
   if (event.correlation.parentSpanId) add('parent_span', event.correlation.parentSpanId, 'explicit');
   add('parent_span', event.correlation.spanId, 'explicit');
   return result;

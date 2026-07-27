@@ -21,9 +21,9 @@ vi.mock('node:child_process', () => ({
 }));
 
 const { execFile } = await import('node:child_process');
-const { existsSync, readFileSync } = await import('node:fs');
+const { existsSync } = await import('node:fs');
 const { readFile } = await import('node:fs/promises');
-const plugin = (await import('../src/api-compatibility-gate')).default;
+const plugin = (await import('../src/api-compatibility-gate/index.js')).default;
 
 interface MockApi {
   tools: { register: ReturnType<typeof vi.fn> };

@@ -1,6 +1,6 @@
-import type { WebSocket } from 'ws';
-import { describe, expect, it, vi } from 'vitest';
 import { handleSessionRoute, type SessionRouteHandlers } from '@wrongstack/webui-server';
+import { describe, expect, it, vi } from 'vitest';
+import type { WebSocket } from 'ws';
 
 function mockWs() {
   return {
@@ -16,12 +16,16 @@ function handlers(): SessionRouteHandlers {
     debugContext: vi.fn(async () => undefined),
     compactContext: vi.fn(async () => undefined),
     repairContext: vi.fn(async () => undefined),
+    openContextEditor: vi.fn(async () => undefined),
+    validateContextEditor: vi.fn(async () => undefined),
+    applyContextEditor: vi.fn(async () => undefined),
     listContextModes: vi.fn(async () => undefined),
     switchContextMode: vi.fn(async () => undefined),
     createContextMode: vi.fn(async () => undefined),
     updateContextMode: vi.fn(async () => undefined),
     deleteContextMode: vi.fn(async () => undefined),
     listSessions: vi.fn(async () => undefined),
+    renameSession: vi.fn(async () => undefined),
     deleteSession: vi.fn(async () => undefined),
     resumeSession: vi.fn(async () => undefined),
     saveSession: vi.fn(async () => undefined),
@@ -35,9 +39,9 @@ describe('handleSessionRoute dispatcher characterization', () => {
     const ws = mockWs();
     const h = handlers();
 
-    await expect(
-      handleSessionRoute(ws, { type: 'projects.list', payload: {} }, h),
-    ).resolves.toBe(false);
+    await expect(handleSessionRoute(ws, { type: 'projects.list', payload: {} }, h)).resolves.toBe(
+      false,
+    );
 
     expect(ws.send).not.toHaveBeenCalled();
   });
@@ -48,12 +52,16 @@ describe('handleSessionRoute dispatcher characterization', () => {
     'context.debug',
     'context.compact',
     'context.repair',
+    'context.editor.open',
+    'context.editor.validate',
+    'context.editor.apply',
     'context.modes.list',
     'context.mode.switch',
     'context.mode.create',
     'context.mode.update',
     'context.mode.delete',
     'sessions.list',
+    'session.rename',
     'session.delete',
     'session.resume',
     'session.save',
@@ -68,12 +76,16 @@ describe('handleSessionRoute dispatcher characterization', () => {
       'context.debug': h.debugContext as ReturnType<typeof vi.fn>,
       'context.compact': h.compactContext as ReturnType<typeof vi.fn>,
       'context.repair': h.repairContext as ReturnType<typeof vi.fn>,
+      'context.editor.open': h.openContextEditor as ReturnType<typeof vi.fn>,
+      'context.editor.validate': h.validateContextEditor as ReturnType<typeof vi.fn>,
+      'context.editor.apply': h.applyContextEditor as ReturnType<typeof vi.fn>,
       'context.modes.list': h.listContextModes as ReturnType<typeof vi.fn>,
       'context.mode.switch': h.switchContextMode as ReturnType<typeof vi.fn>,
       'context.mode.create': h.createContextMode as ReturnType<typeof vi.fn>,
       'context.mode.update': h.updateContextMode as ReturnType<typeof vi.fn>,
       'context.mode.delete': h.deleteContextMode as ReturnType<typeof vi.fn>,
       'sessions.list': h.listSessions as ReturnType<typeof vi.fn>,
+      'session.rename': h.renameSession as ReturnType<typeof vi.fn>,
       'session.delete': h.deleteSession as ReturnType<typeof vi.fn>,
       'session.resume': h.resumeSession as ReturnType<typeof vi.fn>,
       'session.save': h.saveSession as ReturnType<typeof vi.fn>,

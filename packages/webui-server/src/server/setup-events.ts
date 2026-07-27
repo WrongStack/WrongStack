@@ -19,7 +19,7 @@ import {
   registerSetupEventsClientStatusWriter,
   registerSetupEventsCoreWatchers,
 } from './setup-events-core-watchers.js';
-import { type FileWatcherMetrics } from './setup-events-watcher.js';
+import type { FileWatcherMetrics } from './setup-events-watcher.js';
 import type { ConnectedClient, WSServerMessage } from './types.js';
 export type { FileWatcherMetrics } from './setup-events-watcher.js';
 

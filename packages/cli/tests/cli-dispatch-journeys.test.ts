@@ -137,7 +137,6 @@ describe.sequential('CLI production dispatch journeys', () => {
       modelsRegistry: {},
       mcpRegistry: {},
       renderer,
-      activeRecoveryLock: { clear: vi.fn(), write: vi.fn() },
     } as never;
 
     await expect(within(runWebUIDispatch(ctx), 5_000)).resolves.toBe(0);

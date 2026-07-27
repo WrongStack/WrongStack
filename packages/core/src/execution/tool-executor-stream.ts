@@ -1,4 +1,4 @@
-import type { Context } from '../core/context.js';
+import { type Context, resolveEventSessionId } from '../core/context.js';
 import { ToolError } from '../types/errors.js';
 import type { Tool, ToolProgressEvent } from '../types/tool.js';
 import type { ToolExecutorOptions } from '../types/tool-executor.js';
@@ -44,7 +44,7 @@ export async function executeStreamedTool({
   let lastProgressEmitAt = 0;
   const emitProgress = (ev: ToolProgressEvent) => {
     events?.emit('tool.progress', {
-      sessionId: ctx.session.id,
+      sessionId: resolveEventSessionId(ctx),
       ...(ctx.traceId ? { traceId: ctx.traceId } : {}),
       agentId: ctx.agentId,
       agentName: ctx.agentName,

@@ -5,7 +5,7 @@ import type { Provider, Request, Response } from '../types/provider.js';
 import { ProviderError } from '../types/provider.js';
 import { toWrongStackError } from '../types/errors.js';
 import type { RetryPolicy } from '../types/retry-policy.js';
-import type { Context } from './context.js';
+import { type Context, resolveEventSessionId } from './context.js';
 import { streamProviderToResponse } from './streaming-response-builder.js';
 import { createChroniclePromptManifest } from '../chronicle/prompt-manifest.js';
 import { runWithNetworkTelemetry } from '../observability/network-telemetry.js';
@@ -48,7 +48,7 @@ export async function runProviderWithRetry(opts: RunProviderOptions): Promise<Re
     const startedAt = new Date().toISOString();
     const startedNs = process.hrtime.bigint();
     const correlation = {
-      sessionId: ctx.session.id,
+      sessionId: resolveEventSessionId(ctx),
       ...(ctx.traceId ? { traceId: ctx.traceId } : {}),
       ...(ctx.agentId ? { agentId: ctx.agentId } : {}),
       logicalRequestId,
@@ -73,7 +73,7 @@ export async function runProviderWithRetry(opts: RunProviderOptions): Promise<Re
     });
     logger.debug(`Provider attempt ${attempt + 1} starting`, providerLogCtx(provider, request));
     try {
-      const res = await runWithNetworkTelemetry({ events, sessionId: ctx.session.id,
+      const res = await runWithNetworkTelemetry({ events, sessionId: resolveEventSessionId(ctx),
         ...(ctx.traceId ? { traceId: ctx.traceId } : {}), ...(ctx.agentId ? { agentId: ctx.agentId } : {}),
         attemptId, initiator: 'provider', operationName: `${provider.id}.complete` }, () =>
         provider.capabilities.streaming
@@ -127,7 +127,7 @@ export async function runProviderWithRetry(opts: RunProviderOptions): Promise<Re
       });
       if (!canRetry) {
         events.emit('provider.error', {
-          sessionId: ctx.session.id,
+          sessionId: resolveEventSessionId(ctx),
           providerId: isProviderErr ? err.providerId : provider.id,
           status: isProviderErr ? err.status : 0,
           description,
@@ -158,7 +158,7 @@ export async function runProviderWithRetry(opts: RunProviderOptions): Promise<Re
         status: isProviderErr ? (err as ProviderError).status : undefined,
       });
       events.emit('provider.retry', {
-        sessionId: ctx.session.id,
+        sessionId: resolveEventSessionId(ctx),
         providerId: isProviderErr ? err.providerId : provider.id,
         attempt: attemptNum,
         delayMs: delay!,

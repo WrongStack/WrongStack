@@ -57,7 +57,6 @@ export function SddWizard({
   const agentText = useSddWizardStore((s) => s.agentText);
   const error = useSddWizardStore((s) => s.error);
   const startedRunId = useSddWizardStore((s) => s.startedRunId);
-  const setStartedRunId = useSddWizardStore((s) => s.setStartedRunId);
 
   const [goal, setGoal] = useState('');
   const [reply, setReply] = useState('');
@@ -73,9 +72,10 @@ export function SddWizard({
   const [runModel, setRunModel] = useState<string | undefined>(undefined);
   const [runProvider, setRunProvider] = useState<string | undefined>(undefined);
   const [runFallbacks, setRunFallbacks] = useState<string[]>([]);
-  // Parallel worker slots (how many tasks run at once) + worktree isolation.
+  // Parallel worker slots (how many tasks run at once) + worktree isolation + plan decompose.
   const [runSlots, setRunSlots] = useState(4);
   const [runWorktrees, setRunWorktrees] = useState(true);
+  const [runPlanDecompose, setRunPlanDecompose] = useState(false);
   const modelCandidates = useProviderModels(runCfgOpen);
   const send = useCallback(
     (msg: Parameters<NonNullable<typeof client>['send']>[0]) => client?.send?.(msg),
@@ -94,18 +94,17 @@ export function SddWizard({
     bottomRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
   }, [answerCount, agentText]);
 
-  // When the run starts, hand control to the hub so it can reveal the live board
-  // without toggling the already-open main view back to chat.
+  // Notify parent (e.g. SddHub) when a run id lands. Hub owns clearing the flag
+  // so Specs/Kanban-started runs also flip to the Live Board tab.
   useEffect(() => {
-    if (startedRunId) {
-      onRunStarted?.();
-      setStartedRunId(null);
-    }
-  }, [onRunStarted, setStartedRunId, startedRunId]);
+    if (startedRunId) onRunStarted?.();
+  }, [onRunStarted, startedRunId]);
 
   const busy = snapshot?.busy ?? false;
   const phase = snapshot?.phase ?? 'idle';
-  const started = Boolean(snapshot);
+  const started = Boolean(snapshot?.sessionId);
+  const resumed = Boolean(snapshot?.resumed);
+  const priorRunId = snapshot?.lastRunId;
 
   // Clear the submit spinner once the interview session actually exists.
   useEffect(() => {
@@ -138,11 +137,16 @@ export function SddWizard({
       payload: {
         parallelSlots: runSlots,
         worktrees: runWorktrees,
+        planDecompose: runPlanDecompose,
         ...(runModel ? { model: runModel, provider: runProvider } : {}),
         ...(runFallbacks.length ? { fallbackModels: runFallbacks } : {}),
       },
     });
     setRunCfgOpen(false);
+  };
+  const discardInterview = () => {
+    if (busy) return;
+    send({ type: 'sdd.spec.discard', payload: {} });
   };
 
   const flowTasks = useMemo<FlowTask[]>(
@@ -181,6 +185,26 @@ export function SddWizard({
           {busy && <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />}
         </div>
         <div className="flex items-center gap-2">
+          {priorRunId && (
+            <button
+              type="button"
+              onClick={() => onRunStarted?.()}
+              className="inline-flex items-center gap-1 rounded-md border border-border px-2 py-1 text-xs font-medium text-muted-foreground hover:bg-muted"
+            >
+              <Rocket className="h-3.5 w-3.5" /> {t('activity:sddWizard.openLiveBoard')}
+            </button>
+          )}
+          {started && (
+            <button
+              type="button"
+              onClick={discardInterview}
+              disabled={busy}
+              title={t('activity:sddWizard.discardTitle')}
+              className="inline-flex items-center gap-1 rounded-md border border-border px-2 py-1 text-xs font-medium text-muted-foreground hover:bg-destructive/10 hover:text-destructive disabled:opacity-50"
+            >
+              {t('activity:sddWizard.discardInterview')}
+            </button>
+          )}
           {canRun && (
             <div className="relative flex items-center gap-1.5">
               <button
@@ -189,7 +213,7 @@ export function SddWizard({
                 title={t('activity:sddWizard.runCfgTitle')}
                 className={cn(
                   'inline-flex items-center gap-1 rounded-md border px-2 py-1 text-xs font-medium',
-                  runModel || runFallbacks.length
+                  runModel || runFallbacks.length || runPlanDecompose
                     ? 'border-primary/40 bg-primary/10 text-primary'
                     : 'border-border bg-muted text-muted-foreground hover:text-foreground',
                 )}
@@ -275,6 +299,22 @@ export function SddWizard({
                       ? t('activity:sddWizard.worktreeOn')
                       : t('activity:sddWizard.worktreeOff')}
                   </p>
+                  <label className="mt-2 flex cursor-pointer items-center justify-between gap-2">
+                    <span className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                      {t('activity:sddWizard.planDecompose')}
+                    </span>
+                    <input
+                      type="checkbox"
+                      checked={runPlanDecompose}
+                      onChange={(e) => setRunPlanDecompose(e.target.checked)}
+                      className="h-3.5 w-3.5 accent-primary"
+                    />
+                  </label>
+                  <p className="mt-1 text-[10px] text-muted-foreground">
+                    {runPlanDecompose
+                      ? t('activity:sddWizard.planDecomposeOn')
+                      : t('activity:sddWizard.planDecomposeOff')}
+                  </p>
                 </div>
               )}
             </div>
@@ -317,6 +357,12 @@ export function SddWizard({
         {error && (
           <div className="mb-3 rounded-md border border-destructive/40 bg-destructive/5 p-2 text-xs text-destructive">
             {error}
+          </div>
+        )}
+
+        {resumed && started && (
+          <div className="mb-3 rounded-md border border-primary/30 bg-primary/5 px-3 py-2 text-xs text-primary">
+            {t('activity:sddWizard.resumeBanner')}
           </div>
         )}
 

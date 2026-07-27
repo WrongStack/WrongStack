@@ -1,19 +1,26 @@
 /**
  * Tests for the background indexing coordinator (debounce + mutex).
  *
- * `runIndexer` itself is mocked here — its real behavior is covered by
- * codebase-index.test.ts. These tests only assert background-indexer's own
- * responsibilities: coalescing rapid edits, dropping non-indexable files, and
- * serializing concurrent runs onto a single mutex.
+ * `indexService` (from index-service.js) is mocked here — its real behavior is
+ * covered by codebase-index.test.ts. These tests only assert
+ * background-indexer's own responsibilities: coalescing rapid edits, dropping
+ * non-indexable files, and serializing concurrent runs onto a single mutex.
  */
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-// Mock the indexer module BEFORE importing the unit under test. The mock is
-// declared via vi.hoisted so it's initialized before the hoisted vi.mock factory.
-const { runIndexerMock } = vi.hoisted(() => ({ runIndexerMock: vi.fn() }));
-vi.mock('../src/codebase-index/indexer.js', () => ({
-  runIndexer: runIndexerMock,
+// Mock the index-service module BEFORE importing the unit under test. The mock
+// is declared via vi.hoisted so it's initialized before the hoisted vi.mock
+// factory. background-indexer.ts calls indexService(args, hooks) from
+// index-service.js — NOT runIndexer from indexer.js directly.
+const { indexServiceMock } = vi.hoisted(() => ({ indexServiceMock: vi.fn() }));
+vi.mock('../src/codebase-index/index-service.js', () => ({
+  indexService: indexServiceMock,
+  searchService: vi.fn(),
+  statsService: vi.fn(),
+  packageGraphService: vi.fn(),
+  fileGraphService: vi.fn(),
+  symbolGraphService: vi.fn(),
 }));
 
 const OK_RESULT = { filesIndexed: 1, symbolsIndexed: 0, langStats: {}, durationMs: 0, errors: [] };
@@ -33,8 +40,8 @@ import {
 } from '../src/codebase-index/circuit-breaker.js';
 
 beforeEach(() => {
-  runIndexerMock.mockReset();
-  runIndexerMock.mockResolvedValue(OK_RESULT);
+  indexServiceMock.mockReset();
+  indexServiceMock.mockResolvedValue(OK_RESULT);
   // The breaker is process-wide module state — start every test closed.
   resetIndexCircuitBreaker();
 });
@@ -77,8 +84,8 @@ describe('enqueueReindex (debounce)', () => {
       enqueueReindex({ projectRoot: '/proj', files: ['/proj/a.ts'], debounceMs: 20 });
     }
     await vi.advanceTimersByTimeAsync(30);
-    expect(runIndexerMock).toHaveBeenCalledTimes(1);
-    expect(runIndexerMock.mock.calls[0]?.[1]).toMatchObject({ files: ['/proj/a.ts'] });
+    expect(indexServiceMock).toHaveBeenCalledTimes(1);
+    expect(indexServiceMock.mock.calls[0]?.[0]).toMatchObject({ files: ['/proj/a.ts'] });
   });
 
   it('batches distinct files whose debounce expires in the same turn', async () => {
@@ -86,8 +93,8 @@ describe('enqueueReindex (debounce)', () => {
     enqueueReindex({ projectRoot: '/proj', files: ['/proj/a.ts'], debounceMs: 20 });
     enqueueReindex({ projectRoot: '/proj', files: ['/proj/b.ts'], debounceMs: 20 });
     await vi.advanceTimersByTimeAsync(30);
-    expect(runIndexerMock).toHaveBeenCalledTimes(1);
-    expect(runIndexerMock.mock.calls[0]?.[1]).toMatchObject({
+    expect(indexServiceMock).toHaveBeenCalledTimes(1);
+    expect(indexServiceMock.mock.calls[0]?.[0]).toMatchObject({
       files: ['/proj/a.ts', '/proj/b.ts'],
     });
   });
@@ -97,7 +104,7 @@ describe('enqueueReindex (debounce)', () => {
     enqueueReindex({ projectRoot: '/proj-a', files: ['/proj-a/a.ts'], debounceMs: 20 });
     enqueueReindex({ projectRoot: '/proj-b', files: ['/proj-b/b.ts'], debounceMs: 20 });
     await vi.advanceTimersByTimeAsync(30);
-    expect(runIndexerMock).toHaveBeenCalledTimes(2);
+    expect(indexServiceMock).toHaveBeenCalledTimes(2);
   });
 
   it('drops non-indexable files before scheduling', async () => {
@@ -105,20 +112,20 @@ describe('enqueueReindex (debounce)', () => {
     // plain assets are still filtered; markdown/source-like files are indexable
     enqueueReindex({ projectRoot: '/proj', files: ['/proj/photo.png', '/proj/notes.txt'], debounceMs: 20 });
     await vi.advanceTimersByTimeAsync(30);
-    expect(runIndexerMock).not.toHaveBeenCalled();
+    expect(indexServiceMock).not.toHaveBeenCalled();
   });
 
   it('schedules extended languages such as markdown', async () => {
     vi.useFakeTimers();
     enqueueReindex({ projectRoot: '/proj', files: ['/proj/README.md'], debounceMs: 20 });
     await vi.advanceTimersByTimeAsync(30);
-    expect(runIndexerMock).toHaveBeenCalledTimes(1);
-    expect(runIndexerMock.mock.calls[0]?.[1]).toMatchObject({ files: ['/proj/README.md'] });
+    expect(indexServiceMock).toHaveBeenCalledTimes(1);
+    expect(indexServiceMock.mock.calls[0]?.[0]).toMatchObject({ files: ['/proj/README.md'] });
   });
 
   it('routes reindex failures to onError, never throwing', async () => {
     vi.useFakeTimers();
-    runIndexerMock.mockRejectedValueOnce(new Error('boom'));
+    indexServiceMock.mockRejectedValueOnce(new Error('boom'));
     const onError = vi.fn();
     enqueueReindex({ projectRoot: '/proj', files: ['/proj/a.ts'], debounceMs: 10, onError });
     await vi.advanceTimersByTimeAsync(20);
@@ -130,7 +137,7 @@ describe('mutex serialization', () => {
   it('never runs two indexer passes concurrently', async () => {
     let active = 0;
     let maxActive = 0;
-    runIndexerMock.mockImplementation(async () => {
+    indexServiceMock.mockImplementation(async () => {
       active++;
       maxActive = Math.max(maxActive, active);
       await new Promise((r) => setTimeout(r, 10));
@@ -144,12 +151,12 @@ describe('mutex serialization', () => {
       runStartupIndex({ projectRoot: '/proj' }),
     ]);
 
-    expect(runIndexerMock).toHaveBeenCalledTimes(3);
+    expect(indexServiceMock).toHaveBeenCalledTimes(3);
     expect(maxActive).toBe(1);
   });
 
   it('a failing job does not wedge the mutex chain', async () => {
-    runIndexerMock.mockRejectedValueOnce(new Error('first fails'));
+    indexServiceMock.mockRejectedValueOnce(new Error('first fails'));
     await expect(runStartupIndex({ projectRoot: '/proj' })).rejects.toThrow('first fails');
     // The next run still proceeds.
     await expect(runStartupIndex({ projectRoot: '/proj' })).resolves.toMatchObject({
@@ -161,7 +168,7 @@ describe('mutex serialization', () => {
 describe('watchdog timeout', () => {
   it('a hung index run times out and does not wedge the mutex chain', async () => {
     // Never settles — simulates a wedged FS / cross-process SQLite lock.
-    runIndexerMock.mockImplementationOnce(() => new Promise(() => {}));
+    indexServiceMock.mockImplementationOnce(() => new Promise(() => {}));
     await expect(runStartupIndex({ projectRoot: '/proj', timeoutMs: 30 })).rejects.toThrow(
       IndexTimeoutError,
     );
@@ -174,8 +181,8 @@ describe('watchdog timeout', () => {
 
   it('aborts the run signal when the watchdog fires', async () => {
     let seenSignal: AbortSignal | undefined;
-    runIndexerMock.mockImplementationOnce((_ctx: unknown, opts: { signal?: AbortSignal }) => {
-      seenSignal = opts.signal;
+    indexServiceMock.mockImplementationOnce((_args: unknown, hooks: { signal?: AbortSignal }) => {
+      seenSignal = hooks?.signal;
       return new Promise(() => {});
     });
     await expect(runStartupIndex({ projectRoot: '/proj', timeoutMs: 30 })).rejects.toThrow(
@@ -187,13 +194,13 @@ describe('watchdog timeout', () => {
 
 describe('circuit breaker integration', () => {
   it('opens after repeated failures and then fails fast without running the indexer', async () => {
-    runIndexerMock.mockRejectedValue(new Error('boom'));
+    indexServiceMock.mockRejectedValue(new Error('boom'));
     for (let i = 0; i < 3; i++) {
       await expect(runStartupIndex({ projectRoot: '/proj' })).rejects.toThrow('boom');
     }
-    runIndexerMock.mockClear();
+    indexServiceMock.mockClear();
     await expect(runStartupIndex({ projectRoot: '/proj' })).rejects.toThrow(CircuitOpenError);
-    expect(runIndexerMock).not.toHaveBeenCalled();
+    expect(indexServiceMock).not.toHaveBeenCalled();
   });
 
   it('drops debounced reindexes while the circuit is open', async () => {
@@ -202,17 +209,17 @@ describe('circuit breaker integration', () => {
     const onError = vi.fn();
     enqueueReindex({ projectRoot: '/proj', files: ['/proj/a.ts'], debounceMs: 10, onError });
     await vi.advanceTimersByTimeAsync(20);
-    expect(runIndexerMock).not.toHaveBeenCalled();
+    expect(indexServiceMock).not.toHaveBeenCalled();
     expect(onError).toHaveBeenCalledTimes(1);
     expect(onError.mock.calls[0]?.[0]).toBeInstanceOf(CircuitOpenError);
   });
 
   it('caller-initiated aborts do not count toward the breaker', async () => {
     const ac = new AbortController();
-    runIndexerMock.mockImplementationOnce(
-      (_ctx: unknown, opts: { signal?: AbortSignal }) =>
+    indexServiceMock.mockImplementationOnce(
+      (_args: unknown, hooks: { signal?: AbortSignal }) =>
         new Promise((_resolve, reject) => {
-          const s = opts.signal;
+          const s = hooks?.signal;
           // The abort may land before the mutex even starts this job — honor
           // an already-aborted signal, like the real runIndexer's yield points.
           if (s?.aborted) {
@@ -229,7 +236,7 @@ describe('circuit breaker integration', () => {
   });
 
   it('a successful run closes a tripped (cooled-down) circuit again', async () => {
-    runIndexerMock.mockRejectedValueOnce(new Error('one-off'));
+    indexServiceMock.mockRejectedValueOnce(new Error('one-off'));
     await expect(runStartupIndex({ projectRoot: '/proj' })).rejects.toThrow('one-off');
     await expect(runStartupIndex({ projectRoot: '/proj' })).resolves.toMatchObject({
       filesIndexed: 1,
@@ -244,46 +251,46 @@ describe('circuit breaker integration', () => {
 describe('UNIQUE constraint auto-recovery', () => {
   it('retries with force=true on UNIQUE constraint failure', async () => {
     // First call throws a UNIQUE constraint error (simulating corrupted DB)
-    runIndexerMock.mockRejectedValueOnce(new Error('UNIQUE constraint failed: symbols.id'));
+    indexServiceMock.mockRejectedValueOnce(new Error('UNIQUE constraint failed: symbols.id'));
     // Second call (with force=true) succeeds
-    runIndexerMock.mockResolvedValueOnce(OK_RESULT);
+    indexServiceMock.mockResolvedValueOnce(OK_RESULT);
 
     const result = await runStartupIndex({ projectRoot: '/proj' });
 
     expect(result).toMatchObject({ filesIndexed: 1 });
     // Verify force=true was passed on retry
-    expect(runIndexerMock).toHaveBeenCalledTimes(2);
-    const secondCallArgs = runIndexerMock.mock.calls[1]?.[1];
+    expect(indexServiceMock).toHaveBeenCalledTimes(2);
+    const secondCallArgs = indexServiceMock.mock.calls[1]?.[0];
     expect(secondCallArgs).toMatchObject({ force: true });
   });
 
   it('retries with force=true on generic SQLite constraint failure', async () => {
     // better-sqlite3 can surface some constraint failures without the table
     // name detail. Treat this like the UNIQUE form: wipe/rebuild the index DB.
-    runIndexerMock.mockRejectedValueOnce(new Error('constraint failed'));
-    runIndexerMock.mockResolvedValueOnce(OK_RESULT);
+    indexServiceMock.mockRejectedValueOnce(new Error('constraint failed'));
+    indexServiceMock.mockResolvedValueOnce(OK_RESULT);
 
     const result = await runStartupIndex({ projectRoot: '/proj' });
 
     expect(result).toMatchObject({ filesIndexed: 1 });
-    expect(runIndexerMock).toHaveBeenCalledTimes(2);
-    expect(runIndexerMock.mock.calls[1]?.[1]).toMatchObject({ force: true });
+    expect(indexServiceMock).toHaveBeenCalledTimes(2);
+    expect(indexServiceMock.mock.calls[1]?.[0]).toMatchObject({ force: true });
   });
 
   it('does not retry if force=true already (prevents infinite recursion)', async () => {
     // Even with force=true, if it fails, it should not retry again
-    runIndexerMock.mockRejectedValueOnce(new Error('UNIQUE constraint failed: symbols.id'));
+    indexServiceMock.mockRejectedValueOnce(new Error('UNIQUE constraint failed: symbols.id'));
 
     await expect(runStartupIndex({ projectRoot: '/proj', force: true })).rejects.toThrow(
       'UNIQUE constraint failed: symbols.id',
     );
-    expect(runIndexerMock).toHaveBeenCalledTimes(1);
+    expect(indexServiceMock).toHaveBeenCalledTimes(1);
   });
 
   it('does not retry on non-constraint errors', async () => {
-    runIndexerMock.mockRejectedValueOnce(new Error('some other error'));
+    indexServiceMock.mockRejectedValueOnce(new Error('some other error'));
 
     await expect(runStartupIndex({ projectRoot: '/proj' })).rejects.toThrow('some other error');
-    expect(runIndexerMock).toHaveBeenCalledTimes(1);
+    expect(indexServiceMock).toHaveBeenCalledTimes(1);
   });
 });

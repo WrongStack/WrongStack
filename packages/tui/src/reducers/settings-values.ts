@@ -1,5 +1,6 @@
 import { expectDefined } from '@wrongstack/core/utils';
-import type { Action, State } from '../app-state.js';
+import type { Action } from '../app-action-type.js';
+import type { State } from '../app-state.js';
 import {
   type AnimationStyleChoice,
   ANIMATION_STYLE_CHOICES,

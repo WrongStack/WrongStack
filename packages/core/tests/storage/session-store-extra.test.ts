@@ -1133,10 +1133,11 @@ describe('DefaultSessionStore.rename', () => {
 });
 
 describe('DefaultSessionStore.delete — in-use protection', () => {
-  it('refuses to delete a session marked active in active.json', async () => {
+  it('ignores legacy project-wide active.json files', async () => {
     const w = await store.create({ id: '2026-07-04/act1', model: 'm', provider: 'p' });
     await w.close();
-    // Simulate another process holding this session active.
+    // Legacy versions wrote one project-wide lock. It is no longer an
+    // ownership authority because concurrent surfaces each own a session.
     await fs.writeFile(
       path.join(tmp, 'active.json'),
       JSON.stringify({
@@ -1147,9 +1148,8 @@ describe('DefaultSessionStore.delete — in-use protection', () => {
         startedAt: now(),
       }),
     );
-    await expect(store.delete('2026-07-04/act1')).rejects.toThrow(/currently active/);
-    // The session is still on disk.
-    await expect(fs.access(path.join(tmp, '2026-07-04', 'act1.jsonl'))).resolves.toBeUndefined();
+    await store.delete('2026-07-04/act1');
+    await expect(fs.access(path.join(tmp, '2026-07-04', 'act1.jsonl'))).rejects.toThrow();
   });
 
   it('deletes a session that is not active and not in the registry', async () => {

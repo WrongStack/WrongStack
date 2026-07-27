@@ -10,6 +10,7 @@ import { recordToolOutputEvidence } from '../utils/context-evidence.js';
 import { toErrorMessage } from '../utils/error.js';
 import { sizeSignals, truncateForEvent } from '../utils/tool-output-serializer.js';
 import type { AgentInternals } from './agent-internals.js';
+import { resolveEventSessionId } from './context.js';
 
 /**
  * Tools whose serialized output is a unified diff that UIs render as a
@@ -119,7 +120,7 @@ export function createAgentToolHandler(a: AgentInternals): AgentToolHandler {
       }
       signal.addEventListener('abort', onAbort, { once: true });
       a.events.emit('tool.confirm_needed', {
-        sessionId: a.ctx.session.id,
+        sessionId: resolveEventSessionId(a.ctx),
         tool: info.tool,
         input: info.input,
         toolUseId: info.toolUseId,
@@ -155,7 +156,7 @@ export function createAgentToolHandler(a: AgentInternals): AgentToolHandler {
       outputLines: sig.outputLines,
     });
     a.events.emit('tool.executed', {
-      sessionId: a.ctx.session.id,
+      sessionId: resolveEventSessionId(a.ctx),
       ...(a.ctx.traceId ? { traceId: a.ctx.traceId } : {}),
       agentId: a.ctx.agentId,
       agentName: a.ctx.agentName,
@@ -205,7 +206,7 @@ export function createAgentToolHandler(a: AgentInternals): AgentToolHandler {
           try {
             await a.permission.trust({ tool: tool.name, pattern: result.suggestedPattern });
             a.events.emit('trust.persisted', {
-              sessionId: a.ctx.session.id,
+              sessionId: resolveEventSessionId(a.ctx),
               tool: tool.name,
               pattern: result.suggestedPattern,
               decision,
@@ -217,7 +218,7 @@ export function createAgentToolHandler(a: AgentInternals): AgentToolHandler {
           try {
             await a.permission.deny({ tool: tool.name, pattern: result.suggestedPattern });
             a.events.emit('trust.persisted', {
-              sessionId: a.ctx.session.id,
+              sessionId: resolveEventSessionId(a.ctx),
               tool: tool.name,
               pattern: result.suggestedPattern,
               decision,

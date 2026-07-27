@@ -35,8 +35,6 @@
  * system_config_view({ section: "all" })
  * ```
  */
-import type { Config } from '../types/config.js';
-import type { Logger } from '../types/logger.js';
 import type { JSONSchema, Tool } from '../types/tool.js';
 import { isValidMatrixKey } from '../coordination/model-matrix.js';
 import {
@@ -47,6 +45,7 @@ import {
 import { createFallbackChainManageTool } from './fallback-chain-manage-tool.js';
 import { createFavoriteManageTool } from './fallback-favorite-manage-tool.js';
 import { parseRefInternal } from './fallback-model-ref-parse.js';
+import type { FallbackManageToolOptions } from './fallback-manage-tool-options.js';
 import { storeProviderKey } from './fallback-provider-key-store.js';
 import { createSystemConfigViewTool } from './fallback-system-config-view-tool.js';
 
@@ -57,30 +56,7 @@ export const FALLBACK_PROFILE_MANAGE_TOOL_NAME = 'fallback_profile_manage';
 export const AGENT_MODEL_ASSIGN_TOOL_NAME = 'agent_model_assign';
 export { FAVORITE_MANAGE_TOOL_NAME } from './fallback-favorite-manage-tool.js';
 export * from './fallback-system-config-view-tool.js';
-
-export interface FallbackManageToolOptions {
-  /** Returns the live config (re-read each call so changes are honored). */
-  getConfig: () => Config;
-  /**
-   * Persist config mutations. Receives a mutator that receives the config
-   * as a mutable JSON object — the tool sets the relevant fields and the
-   * host writes back atomically + mirrors into the in-memory store.
-   */
-  updateConfig: (mutate: (cfg: Record<string, unknown>) => void) => Promise<void>;
-  /**
-   * Optional callback for requesting secure interactive input from the user.
-   * When provided, tools like `provider_key_set` can use it to prompt the
-   * user for secret values (API keys, tokens) without the value passing
-   * through the LLM's context. The prompt string is shown to the user and
-   * the returned string is the value they entered.
-   *
-   * When absent, `provider_key_set` returns a `needs_key` status and the
-   * host is expected to handle it through other means (env var, CLI command).
-   */
-  requestInput?: ((prompt: string) => Promise<string>) | undefined;
-  /** Optional logger for internal warnings. */
-  logger?: Logger | undefined;
-}
+export type { FallbackManageToolOptions } from './fallback-manage-tool-options.js';
 
 // ── 3. FALLBACK_PROFILE_MANAGE ──────────────────────────────────────────────
 

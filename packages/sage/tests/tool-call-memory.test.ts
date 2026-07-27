@@ -89,7 +89,7 @@ describe('SageToolCallMiddleware — disabled and no-trigger scenarios', () => {
     expect(payload.result.content).toBe('file content');
   });
 
-  it('skips error results from non-bash tools', async () => {
+  it('skips error results', async () => {
     const store = makeStore();
     const mw = createSageToolCallMiddleware({ memory: store });
     const payload = makePayload({
@@ -105,7 +105,7 @@ describe('SageToolCallMiddleware — disabled and no-trigger scenarios', () => {
     expect(payload.result.content).toBe('Error');
   });
 
-  it('includes bash error results', async () => {
+  it('skips bash error results (bash is no longer a trigger)', async () => {
     const store = await storeWithFileMemory('src/file.ts');
     const mw = createSageToolCallMiddleware({ memory: store, repeatCooldownMs: 0 });
     const payload = makePayload({
@@ -124,7 +124,7 @@ describe('SageToolCallMiddleware — disabled and no-trigger scenarios', () => {
       },
     });
     await mw.handler(payload, async (p) => p);
-    expect(payload.result.content).toContain('Memory for src/file.ts');
+    expect(payload.result.content).toBe('Error output');
   });
 
   it('skips unknown tool names', async () => {
@@ -298,15 +298,22 @@ describe('SageToolCallMiddleware — tool name variants', () => {
     expect(payload.result.content).toContain('finds this memory');
   });
 
-  it('handles exec tool as bash trigger', async () => {
+  it('does NOT trigger injection for exec tool', async () => {
     const store = makeStore();
+    await store.rememberSage({
+      text: 'Memory that should not be injected via exec.',
+      kind: 'fact',
+      tags: ['test'],
+      anchors: [{ type: 'command', command: 'npm test' }],
+      persistence: 'long_lived',
+    });
     const mw = createSageToolCallMiddleware({ memory: store, repeatCooldownMs: 0 });
     const payload = makePayload({
       toolUse: { type: 'tool_use', id: 'tu_exec', name: 'exec', input: { command: 'npm test' } },
       result: { type: 'tool_result', tool_use_id: 'tu_exec', name: 'exec', content: 'test output' },
     });
     await mw.handler(payload as never, async (p) => p);
-    expect(payload.result.content).toBe('test output'); // no file paths so no memories
+    expect(payload.result.content).toBe('test output');
   });
 
   it('uses the live task as a retrieval signal for an otherwise unrelated command', async () => {
@@ -320,8 +327,8 @@ describe('SageToolCallMiddleware — tool name variants', () => {
     });
     const mw = createSageToolCallMiddleware({ memory: store, repeatCooldownMs: 0 });
     const payload = makePayload({
-      toolUse: { type: 'tool_use', id: 'tu_task', name: 'exec', input: { command: 'node -v' } },
-      result: { type: 'tool_result', tool_use_id: 'tu_task', name: 'exec', content: 'v24' },
+      toolUse: { type: 'tool_use', id: 'tu_task', name: 'read', input: { path: 'node-version.txt' } },
+      result: { type: 'tool_result', tool_use_id: 'tu_task', name: 'read', content: 'v24' },
       ctx: {
         projectRoot: tmpDir,
         cwd: tmpDir,

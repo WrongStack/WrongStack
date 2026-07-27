@@ -223,10 +223,174 @@ function commandFamily(command: string): string {
   return command.split(/\s+/).slice(0, 2).join(' ');
 }
 
+/** Kinds that are meaningless without a concrete structural binding. */
+export const STRUCTURAL_KINDS: ReadonlySet<SageKind> = new Set([
+  'file_note',
+  'symbol_note',
+  'command_note',
+]);
+
+/**
+ * Soft quality assessment for remember writes. Hard rejects go through
+ * `validateRememberInput`; this caps confidence/importance so low-signal
+ * memories rank below anchored, durable ones during injection.
+ */
+export interface RememberQualityAdjustment {
+  /** Cap applied to confidence after caller defaults. */
+  confidenceCap: number;
+  /** Cap applied to importance after caller defaults. */
+  importanceCap: number;
+  /** Human-readable reasons for diagnostics / audit. */
+  reasons: string[];
+}
+
+/**
+ * Token-set overlap coefficient (Szymkiewicz–Simpson) for near-duplicate
+ * detection. Shared by remember merge and hygiene so thresholds agree.
+ */
+export function textTokenOverlap(a: string, b: string): number {
+  const left = new Set(tokenize(a));
+  const right = new Set(tokenize(b));
+  if (left.size === 0 || right.size === 0) return 0;
+  let intersection = 0;
+  for (const token of left) {
+    if (right.has(token)) intersection++;
+  }
+  return intersection / Math.min(left.size, right.size);
+}
+
+/**
+ * Near-duplicate threshold for remember-time merge. High enough that
+ * "PostgreSQL pool settings" vs "PostgreSQL index optimization" stay
+ * distinct (overlap on one term), while paraphrases of the same fact merge.
+ */
+export const NEAR_DUP_OVERLAP_THRESHOLD = 0.88;
+/** Require enough tokens so short unrelated notes do not collide. */
+export const NEAR_DUP_MIN_TOKENS = 5;
+
+/** True when two memories should merge as near-duplicates. */
+export function isNearDuplicateMemory(
+  left: { text: string; kind: SageKind; anchors: MemoryAnchor[] },
+  right: { text: string; kind: SageKind; anchors: MemoryAnchor[] },
+): boolean {
+  if (left.kind !== right.kind) return false;
+  const leftTokens = tokenize(left.text);
+  const rightTokens = tokenize(right.text);
+  if (leftTokens.length < NEAR_DUP_MIN_TOKENS || rightTokens.length < NEAR_DUP_MIN_TOKENS) {
+    return false;
+  }
+  const overlap = textTokenOverlap(left.text, right.text);
+  if (overlap >= NEAR_DUP_OVERLAP_THRESHOLD) return true;
+  // Shared structural anchor + strong partial overlap is enough: the same
+  // file/symbol note written twice with slightly different wording.
+  if (overlap >= 0.72 && shareStructuralAnchor(left.anchors, right.anchors)) return true;
+  return false;
+}
+
+function shareStructuralAnchor(a: MemoryAnchor[], b: MemoryAnchor[]): boolean {
+  if (a.length === 0 || b.length === 0) return false;
+  const keys = new Set(
+    a
+      .map((anchor) => structuralAnchorKey(anchor))
+      .filter((key): key is string => key !== undefined),
+  );
+  return b.some((anchor) => {
+    const key = structuralAnchorKey(anchor);
+    return key !== undefined && keys.has(key);
+  });
+}
+
+function structuralAnchorKey(anchor: MemoryAnchor): string | undefined {
+  if (anchor.type === 'command' && anchor.command) {
+    return `command:${anchor.command.normalize('NFKC').trim().toLowerCase()}`;
+  }
+  if (anchor.type === 'agent' && anchor.role) {
+    return `agent:${anchor.role.toLowerCase()}`;
+  }
+  if (anchor.path) {
+    const path = normalizeSlashes(anchor.path).toLowerCase();
+    if (anchor.symbol) return `symbol:${path}#${anchor.symbol.toLowerCase()}`;
+    return `${anchor.type}:${path}`;
+  }
+  return undefined;
+}
+
+/**
+ * Ephemeral progress / session chatter that must not enter long-term store.
+ * Intentionally narrow — "we decided to use X" is durable and must pass.
+ */
+const EPHEMERAL_REMEMBER_PATTERNS: readonly RegExp[] = [
+  /^(wip|todo|fixme|hack)\b/i,
+  /\b(still working on|looking into|need to (?:fix|check|investigate)|will (?:fix|look|check) (?:this|that|it) later)\b/i,
+  /^(debugging|investigating|checking|reading) (the )?(file|code|issue|bug)\b/i,
+  /^(fixed|updated|changed) (the )?(bug|issue|test|file)\.?$/i,
+];
+
+/**
+ * Score a remember payload for injection quality. Returns caps rather than
+ * rejecting so tests and short user preferences still persist; structural
+ * kinds without anchors are hard-rejected in `validateRememberInput`.
+ */
+export function assessRememberQuality(input: {
+  text: string;
+  kind?: SageKind | undefined;
+  anchors?: MemoryAnchor[] | undefined;
+  tags?: string[] | undefined;
+  scope?: SageScope | undefined;
+}): RememberQualityAdjustment {
+  const text = normalizeText(input.text);
+  const tokens = tokenize(text);
+  const anchors = input.anchors ?? [];
+  const tags = input.tags ?? [];
+  const reasons: string[] = [];
+  let confidenceCap = 1;
+  let importanceCap = 1;
+
+  if (text.length < 12) {
+    confidenceCap = Math.min(confidenceCap, 0.55);
+    importanceCap = Math.min(importanceCap, 0.55);
+    reasons.push('short_text');
+  }
+  if (tokens.length < 3) {
+    confidenceCap = Math.min(confidenceCap, 0.6);
+    importanceCap = Math.min(importanceCap, 0.6);
+    reasons.push('few_tokens');
+  }
+  if (anchors.length === 0) {
+    confidenceCap = Math.min(confidenceCap, 0.75);
+    reasons.push('unanchored');
+    // Durable project facts without anchors are hard to re-surface via path
+    // inject — demote importance so anchored knowledge wins budget slots.
+    if (input.scope !== 'session' && input.scope !== 'user') {
+      importanceCap = Math.min(importanceCap, 0.7);
+    }
+  }
+  if (tags.length === 0) {
+    reasons.push('untagged');
+  }
+  if (input.kind === 'bug_root_cause' && anchors.length === 0) {
+    confidenceCap = Math.min(confidenceCap, 0.65);
+    importanceCap = Math.min(importanceCap, 0.75);
+    reasons.push('root_cause_unanchored');
+  }
+  if (EPHEMERAL_REMEMBER_PATTERNS.some((pattern) => pattern.test(text))) {
+    confidenceCap = Math.min(confidenceCap, 0.35);
+    importanceCap = Math.min(importanceCap, 0.35);
+    reasons.push('ephemeral_pattern');
+  }
+
+  return { confidenceCap, importanceCap, reasons };
+}
+
 export function validateRememberInput(input: RememberSageInput): void {
   if (typeof input.text !== 'string') throw new Error('SAGE text must be a string.');
   if (input.text.length > MAX_MEMORY_TEXT_CHARS) {
     throw new Error(`SAGE text exceeds ${MAX_MEMORY_TEXT_CHARS} characters.`);
+  }
+  const normalizedText = normalizeText(input.text);
+  if (!normalizedText) throw new Error('SAGE text must not be empty.');
+  if (normalizedText.length < 4) {
+    throw new Error('SAGE text is too short to be useful long-term memory.');
   }
   for (const [name, values] of [
     ['tags', input.tags],
@@ -244,6 +408,21 @@ export function validateRememberInput(input: RememberSageInput): void {
   }
   if (input.scope && !VALID_SCOPES.has(input.scope)) throw new Error('Invalid SAGE scope.');
   if (input.kind && !VALID_KINDS.has(input.kind)) throw new Error('Invalid SAGE kind.');
+  if (input.kind && STRUCTURAL_KINDS.has(input.kind) && !(input.anchors && input.anchors.length > 0)) {
+    throw new Error(
+      `SAGE kind "${input.kind}" requires at least one anchor (file/symbol/command binding).`,
+    );
+  }
+  // Hard-reject pure progress chatter for non-session scopes. Session scope
+  // is allowed to hold short-lived notes that expire.
+  if (
+    (input.scope ?? 'project') !== 'session' &&
+    EPHEMERAL_REMEMBER_PATTERNS.some((pattern) => pattern.test(normalizedText))
+  ) {
+    throw new Error(
+      'SAGE rejected ephemeral progress text. Store durable facts, decisions, conventions, or root causes — not WIP/todo chatter. Use todos for task state.',
+    );
+  }
   normalizeAudience(input.audience);
   for (const anchor of input.anchors ?? []) {
     if (!anchor || !VALID_ANCHOR_TYPES.has(anchor.type))

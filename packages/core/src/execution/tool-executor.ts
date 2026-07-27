@@ -4,7 +4,7 @@ import { runWithNetworkTelemetry } from '../observability/network-telemetry.js';
 import { isDeepStrictEqual } from 'node:util';
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
-import type { Context } from '../core/context.js';
+import { type Context, resolveEventSessionId } from '../core/context.js';
 import {
   getDangerousCapabilities,
   hasDangerousCapabilityForSubagents,
@@ -348,7 +348,7 @@ export class ToolExecutor {
       }
 
       this.opts.events?.emit('permission.evaluated', {
-        sessionId: ctx.session.id,
+        sessionId: resolveEventSessionId(ctx),
         ...(ctx.traceId ? { traceId: ctx.traceId } : {}),
         ...(ctx.agentId ? { agentId: ctx.agentId } : {}),
         name: tool.name,
@@ -558,7 +558,7 @@ export class ToolExecutor {
             operation,
             filePath: inputPath,
             absPath,
-            sessionId: ctx.session.id,
+            sessionId: resolveEventSessionId(ctx),
             agentId: ctx.agentId,
             agentName: ctx.agentName,
             provider:
@@ -768,7 +768,7 @@ export class ToolExecutor {
     budgetHint: number,
   ): Promise<string> {
     this.opts.events?.emit('tool.started', {
-      sessionId: ctx.session.id,
+      sessionId: resolveEventSessionId(ctx),
       ...(ctx.traceId ? { traceId: ctx.traceId } : {}),
       agentId: ctx.agentId,
       agentName: ctx.agentName,
@@ -859,13 +859,13 @@ export class ToolExecutor {
     const telemetryToolCallId = toolUseId ?? `nested-${randomUUID()}`;
     const toolPromise: Promise<unknown> = this.opts.events
       ? runWithNetworkTelemetry({
-          events: this.opts.events!, sessionId: ctx.session.id,
+          events: this.opts.events!, sessionId: resolveEventSessionId(ctx),
           ...(ctx.traceId ? { traceId: ctx.traceId } : {}), ...(ctx.agentId ? { agentId: ctx.agentId } : {}),
           toolCallId: telemetryToolCallId, initiator: 'tool', operationName: tool.name,
         }, () => runWithProcessTelemetry(
           {
             events: this.opts.events!,
-            sessionId: ctx.session.id,
+            sessionId: resolveEventSessionId(ctx),
             ...(ctx.traceId ? { traceId: ctx.traceId } : {}),
             ...(ctx.agentId ? { agentId: ctx.agentId } : {}),
             toolCallId: telemetryToolCallId,

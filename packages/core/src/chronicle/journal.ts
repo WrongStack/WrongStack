@@ -4,6 +4,7 @@ import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 import { createInterface } from 'node:readline';
 import { atomicWrite, withFileLock } from '../utils/atomic-write.js';
+import { comparePartitionPaths } from './partition-filename.js';
 import {
   CHRONICLE_SCHEMA_VERSION,
   type ChronicleEvent,
@@ -302,8 +303,7 @@ export class ChronicleJournal {
         let prev: { sequence: number; hash: string } | undefined = this.lastSequence > 0 ? { sequence: this.lastSequence, hash: this.lastHash } : undefined;
         recorded = batch.map(({ input }) => {
           const instant = this.now().toISOString();
-          const ni = removeUndefined(input) as unknown as ChronicleEventInput;
-          const uh = { ...ni, occurredAt: input.occurredAt ?? instant, monotonicNs: input.monotonicNs ?? this.monotonicNow().toString(), schemaVersion: CHRONICLE_SCHEMA_VERSION, eventId: this.idFactory(), observedAt: instant, persistedAt: instant, sequence: (prev?.sequence ?? 0) + 1, previousHash: prev?.hash ?? GENESIS_HASH };
+          const uh = { ...input, occurredAt: input.occurredAt ?? instant, monotonicNs: input.monotonicNs ?? this.monotonicNow().toString(), schemaVersion: CHRONICLE_SCHEMA_VERSION, eventId: this.idFactory(), observedAt: instant, persistedAt: instant, sequence: (prev?.sequence ?? 0) + 1, previousHash: prev?.hash ?? GENESIS_HASH };
           const event: ChronicleEvent = { ...uh, hash: hashValue(uh) };
           prev = event;
           return event;
@@ -360,7 +360,7 @@ async function collectJournalPartitions(basePath: string): Promise<string[]> {
       if (entry.isFile() && isJournalPartition(file, directory, basePath)) result.push(file);
     }
   } catch { /* ok */ }
-  return result.sort(compareJournalPartitions);
+  return result.sort(comparePartitionPaths);
 }
 
 function isJournalPartition(filePath: string, directory: string, basePath?: string): boolean {
@@ -371,14 +371,6 @@ function isJournalPartition(filePath: string, directory: string, basePath?: stri
   const dailyFamily = /^\d{4}-\d{2}-\d{2}\.events(?:\.\d{5})?\.jsonl$/;
   if (/^\d{4}-\d{2}-\d{2}\.events\.jsonl$/.test(baseName)) return dailyFamily.test(fileName);
   return partitionFamilyBase(path.resolve(filePath)) === partitionFamilyBase(path.resolve(basePath));
-}
-
-function compareJournalPartitions(left: string, right: string): number {
-  const pattern = /^(.*\.events)(?:\.(\d{5}))?\.jsonl$/;
-  const leftMatch = pattern.exec(path.basename(left));
-  const rightMatch = pattern.exec(path.basename(right));
-  const familyOrder = (leftMatch?.[1] ?? left).localeCompare(rightMatch?.[1] ?? right);
-  return familyOrder || Number(leftMatch?.[2] ?? 0) - Number(rightMatch?.[2] ?? 0);
 }
 
 function groupPartitionsByFamily(files: string[]): Map<string, string[]> {
@@ -570,16 +562,9 @@ async function readEntriesStrict(filePath: string): Promise<ChronicleEvent[]> {
 function hashValue(value: unknown): string { return createHash('sha256').update(stableStringify(value), 'utf8').digest('hex'); }
 function stableStringify(value: unknown): string {
   if (value === null || typeof value !== 'object') return JSON.stringify(value);
-  if (Array.isArray(value)) return `[${value.map(stableStringify).join(',')}]`;
+  if (Array.isArray(value)) return `[${value.map((item) => item === undefined ? 'null' : stableStringify(item)).join(',')}]`;
   const obj = value as Record<string, unknown>;
-  return `{${Object.keys(obj).sort().map((k) => `${JSON.stringify(k)}:${stableStringify(obj[k])}`).join(',')}}`;
-}
-function removeUndefined(value: unknown): unknown {
-  if (Array.isArray(value)) return value.map((item) => item === undefined ? null : removeUndefined(item));
-  if (value === null || typeof value !== 'object') return value;
-  const result: Record<string, unknown> = {};
-  for (const [key, item] of Object.entries(value as Record<string, unknown>)) if (item !== undefined) result[key] = removeUndefined(item);
-  return result;
+  return `{${Object.keys(obj).sort().filter((k) => obj[k] !== undefined).map((k) => `${JSON.stringify(k)}:${stableStringify(obj[k])}`).join(',')}}`;
 }
 function isNotFound(error: unknown): boolean { return typeof error === 'object' && error !== null && 'code' in error && error.code === 'ENOENT'; }
 function errorMessage(error: unknown): string { return error instanceof Error ? error.message : String(error); }

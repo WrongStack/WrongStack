@@ -38,6 +38,6 @@ describe('buildWin32CmdShimInvocation', () => {
   it('does not throw for normal shell-safe args', () => {
     expect(() => buildWin32CmdShimInvocation('node', ['--version'])).not.toThrow();
     expect(() => buildWin32CmdShimInvocation('git', ['log', '--oneline'])).not.toThrow();
-    expect(() => buildWin32CmdShimInvocation('claude', ['--acp'], ['--version'])).not.toThrow();
+    expect(() => buildWin32CmdShimInvocation('claude', ['--acp', '--version'])).not.toThrow();
   });
 });

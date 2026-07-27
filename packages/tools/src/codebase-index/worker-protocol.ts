@@ -5,7 +5,7 @@
  * Errors cross the boundary as strings and are re-wrapped by the host.
  */
 
-import type { IndexResult, IndexStats, SearchResult } from './schema.js';
+import type { CodeMapGraph, IndexResult, IndexStats, SearchResult } from './schema.js';
 
 // ─── Operation arguments ─────────────────────────────────────────────────────
 
@@ -34,6 +34,14 @@ export interface StatsOpArgs {
   indexDir?: string | undefined;
 }
 
+export interface FileGraphOpArgs extends StatsOpArgs {
+  packageFilter: string;
+}
+
+export interface SymbolGraphOpArgs extends StatsOpArgs {
+  fileFilter: string;
+}
+
 export interface SearchOpResult {
   results: SearchResult[];
   total: number;
@@ -44,6 +52,9 @@ export interface OpShapes {
   index: { args: IndexOpArgs; result: IndexResult };
   search: { args: SearchOpArgs; result: SearchOpResult };
   stats: { args: StatsOpArgs; result: IndexStats };
+  packageGraph: { args: StatsOpArgs; result: CodeMapGraph };
+  fileGraph: { args: FileGraphOpArgs; result: CodeMapGraph };
+  symbolGraph: { args: SymbolGraphOpArgs; result: CodeMapGraph };
 }
 
 export type OpName = keyof OpShapes;

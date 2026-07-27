@@ -4,7 +4,7 @@
   "tabs": {
     "general": "Genel",
     "provider": "Sağlayıcı",
-    "connection": "Bağlan",
+    "connection": "Bağlantılar",
     "agent": "Vekil",
     "execution": "Yürütme",
     "fallbacks": "Yedekler",
@@ -28,7 +28,28 @@
     "wsUrlPlaceholder": "ws://localhost:3456",
     "wsUrlHint": "Vekil WebSocket sunucusunun URL'si. Sunucu CLI ile birlikte çalışır.",
     "startingHeading": "WebSocket Sunucusunu Başlatma",
-    "startingBody": "Geliştirme için repo kökünden ./dev.ps1 çalıştırın (isteğe bağlı olarak önce WS_HOST/WS_PORT ayarlayın). Aksi hâlde WebUI'yi CLI ile başlatın: wstack --webui."
+    "startingBody": "Geliştirme için repo kökünden ./dev.ps1 çalıştırın (isteğe bağlı olarak önce WS_HOST/WS_PORT ayarlayın). Aksi hâlde WebUI'yi CLI ile başlatın: wstack --webui.",
+    "healthHeading": "Bağlantı sağlığı",
+    "healthHint": "Proje servislerinin sahiplik, depolama, kuyruk, izleyici ve gecikme raporu.",
+    "healthRefresh": "Yenile",
+    "healthLoading": "Servisler denetleniyor…",
+    "healthUnknown": "Sağlık bilinmiyor",
+    "healthDisconnected": "WebUI WebSocket bağlantısı kesik.",
+    "healthRestartRequired": "Bağlantı sağlık raporunu etkinleştirmek için backend'i bir kez yeniden başlatın.",
+    "healthOptional": "İsteğe bağlı",
+    "healthCounts": "{{healthy}} sağlıklı · {{attention}} dikkat · {{sleeping}} uykuda",
+    "healthOverall": {
+      "healthy": "Zorunlu servisler sağlıklı",
+      "degraded": "Zorunlu servis zayıflamış",
+      "error": "Zorunlu servis kullanılamıyor"
+    },
+    "healthStatus": {
+      "healthy": "Sağlıklı",
+      "degraded": "Zayıflamış",
+      "offline": "Uykuda",
+      "unavailable": "Kullanılamıyor",
+      "error": "Hata"
+    }
   },
   "provider": {
     "subscriptionHeading": "Abonelik girişi",
@@ -449,7 +470,6 @@
     "contextModeBalanced": "Dengeli — normal bağlam kullanımı",
     "contextModeFrugal": "Tasarruflu — muhafazakar token kullanımı",
     "contextModeDeep": "Derin — karmaşık görevler için daha büyük bağlam",
-    "contextModeArchival": "Arşiv — bağlam tutmayı maksimize et",
     "tokenSavingLabel": "Token tasarrufu modu",
     "tokenSavingHint": "Token kullanımını ne kadar agresif azaltacağı.",
     "tokenSavingOff": "Kapalı — token tasarrufu yok",

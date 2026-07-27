@@ -3,8 +3,8 @@ import * as os from 'node:os';
 import * as path from 'node:path';
 import type { SessionStore } from '../types/session.js';
 import { ensureDir } from '../utils/atomic-write.js';
-import { sessionContentPreview, userInputTitle } from './session-helpers.js';
 import { isPidAlive } from '../utils/pid.js';
+import { sessionContentPreview, userInputTitle } from './session-helpers.js';
 
 /**
  * Per-project lockfile used for crash detection. The CLI writes one of
@@ -34,7 +34,7 @@ export interface RecoveryLockOptions {
    * succeeds (or throws EPERM) when the PID is alive, throws ESRCH when
    * it is gone. Tests inject a deterministic stub.
    */
-  isPidAlive?: (((pid: number) => boolean)) | undefined;
+  isPidAlive?: ((pid: number) => boolean) | undefined;
 }
 
 export interface AbandonedSession {
@@ -62,6 +62,11 @@ interface LockFile {
 const LOCK_FILE = 'active.json';
 const DEFAULT_MAX_AGE_MS = 24 * 60 * 60 * 1000;
 
+/**
+ * @deprecated Production TUI/WebUI/SimpleUI hosts use per-session
+ * {@link SessionRegistry} ownership. Retained only for API compatibility with
+ * older embedders; it must not be used as a project-wide runtime lock.
+ */
 export class RecoveryLock {
   private readonly file: string;
   private readonly pid: number;

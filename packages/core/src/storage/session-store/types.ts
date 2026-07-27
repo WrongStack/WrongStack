@@ -20,11 +20,10 @@ export interface SessionStoreOptions {
   secretScrubber?: SecretScrubber | undefined;
   /**
    * Optional guard consulted by {@link DefaultSessionStore.delete} before
-   * removing a session. Returns `true` if the session is currently in use by
+   * removing a session. Reports whether the session is currently in use by
    * any live process (e.g. it is the active session of another terminal, TUI,
-   * or WebUI in this project). The store ALWAYS also checks `active.json`
-   * directly; this callback widens the check to cross-process live sessions
-   * via the SessionRegistry. When omitted, only the `active.json` check runs.
+   * or WebUI in this project). Production hosts wire this to the cross-process
+   * SessionRegistry; there is deliberately no project-wide active-session lock.
    * Resolves to a human-readable reason when in use, or `null` when safe.
    */
   isSessionInUse?: ((sessionId: string) => Promise<string | null>) | undefined;

@@ -18,17 +18,29 @@ export function sqliteRowsToMemories(rows: readonly SqliteMemoryDataRow[]): Sage
     .filter((memory): memory is Sage => memory !== null);
 }
 
+/**
+ * Tokenize a free-text query into FTS5 prefix terms.
+ *
+ * Strips non-alphanumeric characters so FTS operators (`AND`, `OR`, `NOT`,
+ * `"`, `*`, column filters) cannot rewrite the MATCH expression when terms
+ * are later joined. Each surviving token is emitted as `token*` (prefix).
+ * FTS5 reserved words that slip through as plain tokens are harmless —
+ * they match the literal word, not the operator — because the MATCH string
+ * never concatenates unescaped user punctuation.
+ */
 export function ftsPrefixTerms(query: string): string[] {
-  return query
-    .split(/\s+/)
-    .filter(Boolean)
-    .flatMap((term) =>
-      term
-        .split(/[^\p{L}\p{N}_]+/u)
-        .filter(Boolean)
-        .map((token) => `${token}*`),
-    )
-    .filter((term): term is string => term !== null);
+  const terms: string[] = [];
+  for (const term of query.split(/\s+/)) {
+    if (!term) continue;
+    for (const token of term.split(/[^\p{L}\p{N}_]+/u)) {
+      if (!token) continue;
+      // Drop pure-numeric noise and single-character tokens that explode
+      // the prefix index without improving recall.
+      if (token.length < 2) continue;
+      terms.push(`${token}*`);
+    }
+  }
+  return terms;
 }
 
 export function countRowsByField(rows: readonly SqliteCountRow[], field: 'status' | 'kind'): Record<string, number> {

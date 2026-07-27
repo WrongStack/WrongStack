@@ -4,7 +4,7 @@
   "tabs": {
     "general": "Allgemein",
     "provider": "Anbieter",
-    "connection": "Verbinden",
+    "connection": "Verbindungen",
     "agent": "Agent",
     "execution": "Ausführung",
     "fallbacks": "Fallbacks",
@@ -28,7 +28,28 @@
     "wsUrlPlaceholder": "ws://localhost:3456",
     "wsUrlHint": "URL des Agent-WebSocket-Servers. Der Server läuft neben dem CLI.",
     "startingHeading": "Den WebSocket-Server starten",
-    "startingBody": "Für die Entwicklung ./dev.ps1 vom Repo-Root ausführen (optional zuvor WS_HOST/WS_PORT setzen). Andernfalls die WebUI über die CLI starten: wstack --webui."
+    "startingBody": "Für die Entwicklung ./dev.ps1 vom Repo-Root ausführen (optional zuvor WS_HOST/WS_PORT setzen). Andernfalls die WebUI über die CLI starten: wstack --webui.",
+    "healthHeading": "Verbindungszustand",
+    "healthHint": "Live-Bericht zu Besitz, Speicher, Warteschlange, Watcher und Latenz der Projektdienste.",
+    "healthRefresh": "Aktualisieren",
+    "healthLoading": "Dienste werden geprüft…",
+    "healthUnknown": "Zustand unbekannt",
+    "healthDisconnected": "Die WebUI-WebSocket-Verbindung ist getrennt.",
+    "healthRestartRequired": "Backend einmal neu starten, um den Verbindungsbericht zu aktivieren.",
+    "healthOptional": "Bei Bedarf",
+    "healthCounts": "{{healthy}} gesund · {{attention}} beachten · {{sleeping}} inaktiv",
+    "healthOverall": {
+      "healthy": "Erforderliche Dienste gesund",
+      "degraded": "Erforderlicher Dienst eingeschränkt",
+      "error": "Erforderlicher Dienst nicht verfügbar"
+    },
+    "healthStatus": {
+      "healthy": "Gesund",
+      "degraded": "Eingeschränkt",
+      "offline": "Inaktiv",
+      "unavailable": "Nicht verfügbar",
+      "error": "Fehler"
+    }
   },
   "provider": {
     "savedProviderCount_one": "{{count}} Anbieter",
@@ -449,7 +470,6 @@
     "contextModeBalanced": "Ausgewogen — normale Kontextnutzung",
     "contextModeFrugal": "Sparsam — konservative Token-Nutzung",
     "contextModeDeep": "Tief — größerer Kontext für komplexe Aufgaben",
-    "contextModeArchival": "Archiv — Kontextbindung maximieren",
     "tokenSavingLabel": "Token-Sparmodus",
     "tokenSavingHint": "Wie aggressiv die Token-Nutzung reduziert wird.",
     "tokenSavingOff": "Aus — kein Token-Sparen",

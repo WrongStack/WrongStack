@@ -44,6 +44,12 @@ async function withCommand(): Promise<{ cmd: SlashCommand; unregister: ReturnTyp
   return { cmd: registered[0]!, unregister, plugin };
 }
 
+/** SlashCommand.run returns void | result; tests always expect the result branch. */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function runCmd(cmd: SlashCommand, args: string, c: Context): Promise<any> {
+  return cmd.run!(args, c);
+}
+
 describe('createPromptsPlugin lifecycle', () => {
   it('registers /prompts on setup and unregisters on teardown; health is ok', async () => {
     const { api, registered, unregister } = makeApi();
@@ -78,57 +84,57 @@ describe('createPromptsPlugin lifecycle', () => {
 describe('/prompts command verbs', () => {
   it('list: empty then populated', async () => {
     const { cmd } = await withCommand();
-    expect((await cmd.run!('list', ctx())).message).toContain('empty');
+    expect((await runCmd(cmd, 'list', ctx())).message).toContain('empty');
     const entry = store.createNew('My Title', 'body');
     await store.save(entry);
-    const out = await cmd.run!('', ctx());
+    const out = await runCmd(cmd, '', ctx());
     expect(out.message).toContain('My Title');
     expect(out.message).toContain('Prompt library (1)');
   });
 
   it('view: usage, no-match, and a match', async () => {
     const { cmd } = await withCommand();
-    expect((await cmd.run!('view', ctx())).message).toContain('Usage');
-    expect((await cmd.run!('view nope', ctx())).message).toContain('No prompt matching');
+    expect((await runCmd(cmd, 'view', ctx())).message).toContain('Usage');
+    expect((await runCmd(cmd, 'view nope', ctx())).message).toContain('No prompt matching');
     await store.save(store.createNew('Hello', 'world'));
-    expect((await cmd.run!('view Hello', ctx())).message).toContain('world');
+    expect((await runCmd(cmd, 'view Hello', ctx())).message).toContain('world');
   });
 
   it('add: usage and success with quoted title/content', async () => {
     const { cmd } = await withCommand();
-    expect((await cmd.run!('add', ctx())).message).toContain('Usage');
-    const out = await cmd.run!('add "Greeting" "say hi"', ctx());
+    expect((await runCmd(cmd, 'add', ctx())).message).toContain('Usage');
+    const out = await runCmd(cmd, 'add "Greeting" "say hi"', ctx());
     expect(out.message).toContain('Added prompt "Greeting"');
     expect((await store.list()).map((e) => e.title)).toContain('Greeting');
   });
 
   it('delete: usage, no-match, and success', async () => {
     const { cmd } = await withCommand();
-    expect((await cmd.run!('delete', ctx())).message).toContain('Usage');
-    expect((await cmd.run!('rm ghost', ctx())).message).toContain('No prompt matching');
+    expect((await runCmd(cmd, 'delete', ctx())).message).toContain('Usage');
+    expect((await runCmd(cmd, 'rm ghost', ctx())).message).toContain('No prompt matching');
     await store.save(store.createNew('Trash', 'x'));
-    expect((await cmd.run!('delete Trash', ctx())).message).toContain('Deleted');
+    expect((await runCmd(cmd, 'delete Trash', ctx())).message).toContain('Deleted');
   });
 
   it('edit: usage, no-match, and success', async () => {
     const { cmd } = await withCommand();
-    expect((await cmd.run!('edit', ctx())).message).toContain('Usage');
-    expect((await cmd.run!('edit "ghost" "x"', ctx())).message).toContain('No prompt matching');
+    expect((await runCmd(cmd, 'edit', ctx())).message).toContain('Usage');
+    expect((await runCmd(cmd, 'edit "ghost" "x"', ctx())).message).toContain('No prompt matching');
     await store.save(store.createNew('Doc', 'old'));
-    expect((await cmd.run!('update "Doc" "new content"', ctx())).message).toContain('Updated');
+    expect((await runCmd(cmd, 'update "Doc" "new content"', ctx())).message).toContain('Updated');
     expect((await store.find('Doc'))[0]?.content).toBe('new content');
   });
 
   it('extend: usage, missing provider, and LLM enhancement', async () => {
     const { cmd } = await withCommand();
-    expect((await cmd.run!('extend', ctx())).message).toContain('Usage');
-    expect((await cmd.run!("extend 'Ghost' make it better", ctx())).message).toContain('No prompt matching');
+    expect((await runCmd(cmd, 'extend', ctx())).message).toContain('Usage');
+    expect((await runCmd(cmd, "extend 'Ghost' make it better", ctx())).message).toContain('No prompt matching');
     await store.save(store.createNew('Letter', 'Dear team'));
     // no provider.complete ('title' single-quote form → parseTitleContent strips quotes)
-    expect((await cmd.run!("extend 'Letter' be formal", ctx({ provider: {} }))).message).toContain('LLM not available');
+    expect((await runCmd(cmd, "extend 'Letter' be formal", ctx({ provider: {} }))).message).toContain('LLM not available');
     // with provider
     const provider = { complete: vi.fn(async () => '  Dear esteemed team  ') };
-    const out = await cmd.run!("extend 'Letter' be formal", ctx({ provider }));
+    const out = await runCmd(cmd, "extend 'Letter' be formal", ctx({ provider }));
     expect(out.message).toContain('Extended "Letter"');
     expect(provider.complete).toHaveBeenCalled();
     expect((await store.find('Letter'))[0]?.content).toBe('Dear esteemed team');
@@ -136,14 +142,14 @@ describe('/prompts command verbs', () => {
 
   it('unknown subcommand reports the available verbs', async () => {
     const { cmd } = await withCommand();
-    expect((await cmd.run!('frobnicate', ctx())).message).toContain('Unknown subcommand');
+    expect((await runCmd(cmd, 'frobnicate', ctx())).message).toContain('Unknown subcommand');
   });
 });
 
 describe('/prompts add structured flags', () => {
   it('parses --category, --description, --tags and --var', async () => {
     const { cmd } = await withCommand();
-    const out = await cmd.run!(
+    const out = await runCmd(cmd, 
       'add --category coding --description "does a thing" --tags a,b --var name:who "Greet" "Hello {{name}}"',
       ctx(),
     );
@@ -157,7 +163,7 @@ describe('/prompts add structured flags', () => {
 
   it('parses --var ::multiline and ::enum= richness suffixes', async () => {
     const { cmd } = await withCommand();
-    await cmd.run!(
+    await runCmd(cmd, 
       'add --var "code:Paste it::multiline,flavor:Regex flavor::enum=PCRE|JS|Python" "Rich" "Use {{flavor}} on {{code}}"',
       ctx(),
     );
@@ -171,7 +177,7 @@ describe('/prompts add structured flags', () => {
   it('favorite verb sets favorite via the store fallback', async () => {
     const { cmd } = await withCommand();
     await store.save(store.createNew('Star Me', 'x'));
-    const out = await cmd.run!('favorite Star Me', ctx());
+    const out = await runCmd(cmd, 'favorite Star Me', ctx());
     expect(out.message).toContain('Favorited');
     expect((await store.find('Star Me'))[0]?.favorite).toBe(true);
   });
@@ -285,10 +291,10 @@ describe('/prompt and /prompt-gen', () => {
 describe('parseTitleContent (via add)', () => {
   it('handles single-quotes, single-quote+rest, bare word, and space split', async () => {
     const { cmd } = await withCommand();
-    await cmd.run!("add 'Quoted' 'single content'", ctx());
-    await cmd.run!("add 'Mixed' the rest is content", ctx());
-    await cmd.run!('add BareWord', ctx()); // no space → title only, empty content
-    await cmd.run!('add Spaced rest of the content', ctx()); // first space splits
+    await runCmd(cmd, "add 'Quoted' 'single content'", ctx());
+    await runCmd(cmd, "add 'Mixed' the rest is content", ctx());
+    await runCmd(cmd, 'add BareWord', ctx()); // no space → title only, empty content
+    await runCmd(cmd, 'add Spaced rest of the content', ctx()); // first space splits
     const titles = (await store.list()).map((e) => e.title).sort();
     expect(titles).toEqual(['BareWord', 'Mixed', 'Quoted', 'Spaced']);
   });

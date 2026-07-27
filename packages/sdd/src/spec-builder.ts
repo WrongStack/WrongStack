@@ -30,6 +30,14 @@ export interface AISpecSession {
   spec?: Specification | undefined;
   implementation?: string | undefined;
   taskGraphId?: string | undefined;
+  /**
+   * Last agent message shown to the operator (open question or plan prose).
+   * Persisted so a reconnect/restart can re-pair the next user answer and
+   * re-render the transcript without re-running the model.
+   */
+  lastAgentText?: string | undefined;
+  /** Most recent SDD run id started from this interview (continuity deep-link). */
+  lastRunId?: string | undefined;
   approved: boolean;
   createdAt: number;
   updatedAt: number;
@@ -500,6 +508,48 @@ export class AISpecBuilder {
    */
   getTaskGraphId(): string | undefined {
     return this.session.taskGraphId;
+  }
+
+  /** Persist the last agent utterance so resume can rehydrate the UI + Q/A pairing. */
+  setLastAgentText(text: string): void {
+    this.session.lastAgentText = text;
+    this.session.updatedAt = Date.now();
+    this.autoSave();
+  }
+
+  getLastAgentText(): string | undefined {
+    return this.session.lastAgentText;
+  }
+
+  /** Record a run kicked off from this interview (board deep-link after restart). */
+  setLastRunId(runId: string): void {
+    this.session.lastRunId = runId;
+    this.session.updatedAt = Date.now();
+    this.autoSave();
+  }
+
+  getLastRunId(): string | undefined {
+    return this.session.lastRunId;
+  }
+
+  /**
+   * Hard-reset in-memory session fields while keeping the same session id /
+   * store binding. Used when the operator abandons a resumed interview and
+   * starts a brand-new goal (the next save overwrites the session file).
+   */
+  resetForNewInterview(): void {
+    this.session.phase = 'questioning';
+    this.session.title = '';
+    this.session.userIntent = '';
+    this.session.answers = [];
+    this.session.questionCount = 0;
+    this.session.spec = undefined;
+    this.session.implementation = undefined;
+    this.session.taskGraphId = undefined;
+    this.session.lastAgentText = undefined;
+    this.session.lastRunId = undefined;
+    this.session.approved = false;
+    this.session.updatedAt = Date.now();
   }
 
   // ── Spec Persistence ──────────────────────────────────────────────────────

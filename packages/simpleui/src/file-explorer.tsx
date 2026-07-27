@@ -362,6 +362,21 @@ export function FileExplorer({ socketRef }: FileExplorerProps) {
     loadTree();
   }, [loadTree]);
 
+  const openExplorer = useCallback(() => {
+    setOpen(true);
+    setFileListOpen(false);
+    if (!tree) loadTree();
+    if (selectedPath && fileContent === null && !contentLoading) {
+      loadFileContent(selectedPath);
+    }
+  }, [tree, selectedPath, fileContent, contentLoading, loadTree, loadFileContent]);
+
+  useEffect(() => {
+    const onOpen = () => openExplorer();
+    window.addEventListener('simpleui:open-file-explorer', onOpen);
+    return () => window.removeEventListener('simpleui:open-file-explorer', onOpen);
+  }, [openExplorer]);
+
   // Open the panel — load tree on first open
   if (!open) {
     return (
@@ -370,14 +385,7 @@ export function FileExplorer({ socketRef }: FileExplorerProps) {
         className="file-explorer-trigger"
         aria-label="Open file manager"
         title="Project file manager"
-        onClick={() => {
-          setOpen(true);
-          setFileListOpen(false);
-          if (!tree) loadTree();
-          if (selectedPath && fileContent === null && !contentLoading) {
-            loadFileContent(selectedPath);
-          }
-        }}
+        onClick={openExplorer}
       >
         <Folder size={13} aria-hidden="true" />
       </button>

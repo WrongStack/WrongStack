@@ -59,6 +59,7 @@ const coreEntries = entryMap([
   'src/extension/index.ts',
   'src/plugin/index.ts',
   'src/chronicle/index.ts',
+  'src/chronicle/project-server.ts',
   'src/storage/index.ts',
   'src/security/index.ts',
   'src/models/index.ts',
@@ -132,6 +133,7 @@ const toolEntries = entryMap([
   'src/e2e.ts',
   'src/codebase-index/index.ts',
   'src/codebase-index/worker.ts',
+  'src/codebase-index/project-server.ts',
 ]);
 
 function pluginEntries() {
@@ -197,7 +199,13 @@ const profiles = {
     },
     external: ['@wrongstack/core', '@wrongstack/sage', '@wrongstack/tools'],
   },
-  '@wrongstack/sage': standard(['@wrongstack/core', '@wrongstack/core/utils']),
+  '@wrongstack/sage': {
+    entries: {
+      index: 'src/index.ts',
+      'project-server': 'src/project-server.ts',
+    },
+    external: ['@wrongstack/core', '@wrongstack/core/utils'],
+  },
   '@wrongstack/sdd': standard(['@wrongstack/core']),
   '@wrongstack/security-scanner': standard(['@wrongstack/core']),
   '@wrongstack/techstack': standard(['@wrongstack/core', '@wrongstack/tools']),

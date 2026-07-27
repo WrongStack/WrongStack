@@ -1,12 +1,26 @@
 import { randomBytes } from 'node:crypto';
 import * as path from 'node:path';
-import type { AbandonedSession } from '@wrongstack/core/storage';
-import { attachTodosCheckpoint, DefaultAttachmentStore, loadDirectorState, loadPlan, loadTodosCheckpoint, QueueStore, RecoveryLock } from '@wrongstack/core/storage';
-import { DEFAULT_SESSION_PRUNE_DAYS, type SessionStore, type SessionWriter } from '@wrongstack/core/types';
 import { Context } from '@wrongstack/core/agent';
-import { expectDefined, type WstackPaths } from '@wrongstack/core/utils';
 import { ProviderCacheLedger } from '@wrongstack/core/infrastructure';
-import { sessionScopedPath, toErrorMessage } from '@wrongstack/core/utils';
+import {
+  attachTodosCheckpoint,
+  DefaultAttachmentStore,
+  loadDirectorState,
+  loadPlan,
+  loadTodosCheckpoint,
+  QueueStore,
+} from '@wrongstack/core/storage';
+import {
+  DEFAULT_SESSION_PRUNE_DAYS,
+  type SessionStore,
+  type SessionWriter,
+} from '@wrongstack/core/types';
+import {
+  expectDefined,
+  sessionScopedPath,
+  toErrorMessage,
+  type WstackPaths,
+} from '@wrongstack/core/utils';
 import { attachSessionKanbanMirror, hydrateSessionKanban } from '@wrongstack/tools/session-kanban';
 export interface SessionResult {
   session: SessionWriter;
@@ -16,7 +30,6 @@ export interface SessionResult {
   context: Context;
   restoredMessages: import('@wrongstack/core/types').Message[];
   attachments: DefaultAttachmentStore;
-  recoveryLock: RecoveryLock;
   queueStore: QueueStore;
   planPath: string;
   detachTodosCheckpoint: () => void;
@@ -67,10 +80,11 @@ export async function setupSession(params: {
   tokenCounter: import('@wrongstack/core/types').TokenCounter;
   renderer: { writeInfo(msg: string): void; writeError(msg: string): void };
   flags: Record<string, unknown>;
-  onRecovery: (
-    abandoned: AbandonedSession,
-    autoRecover: boolean,
-  ) => Promise<'resume' | 'delete' | 'skip'>;
+  /**
+   * Atomically reserve an explicitly resumed session in the cross-process
+   * SessionRegistry. Returns a rollback used when loading the session fails.
+   */
+  claimSession?: ((sessionId: string) => Promise<() => Promise<void>>) | undefined;
   /** Optional EventBus for emitting storage.* events from todo/queue/task stores. */
   events?: import('@wrongstack/core/kernel').EventBus;
   /** Logger for structured storage warnings. */
@@ -87,7 +101,7 @@ export async function setupSession(params: {
     tokenCounter,
     renderer,
     flags,
-    onRecovery,
+    claimSession,
     // Optional EventBus for storage observability
     events: eventsBus,
     logger: loggerParam,
@@ -104,26 +118,6 @@ export async function setupSession(params: {
 
   let resumeId = typeof flags['resume'] === 'string' ? (flags['resume'] as string) : undefined;
 
-  const recoveryLock = new RecoveryLock({ dir: wpaths.projectSessions, sessionStore });
-  if (!resumeId && !flags['no-recovery']) {
-    const abandoned = await recoveryLock.checkAbandoned();
-    if (abandoned && abandoned.messageCount > 0) {
-      const choice = await onRecovery(abandoned, !!flags['recover']);
-      if (choice === 'resume') resumeId = abandoned.sessionId;
-      else if (choice === 'delete') {
-        await sessionStore
-          .delete(abandoned.sessionId)
-          .catch(() => undefined); /* best-effort: orphaned session will be cleaned by pruning */
-        await recoveryLock.clear();
-      } else await recoveryLock.clear();
-    } else if (abandoned) {
-      await sessionStore
-        .delete(abandoned.sessionId)
-        .catch(() => undefined); /* best-effort: orphaned session will be cleaned by pruning */
-      await recoveryLock.clear();
-    }
-  }
-
   let session: SessionWriter | undefined;
   let restoredMessages: import('@wrongstack/core/types').Message[] = [];
   let restoredToolCalls: SessionResult['restoredToolCalls'] = [];
@@ -131,7 +125,10 @@ export async function setupSession(params: {
   let resumedModel: string | undefined;
   let resumedProvider: string | undefined;
   if (resumeId) {
+    let releaseClaim: (() => Promise<void>) | undefined;
     try {
+      if (sessionStore.resolveId) resumeId = await sessionStore.resolveId(resumeId);
+      releaseClaim = await claimSession?.(resumeId);
       const resumed = await sessionStore.resume(resumeId);
       session = resumed.writer;
       restoredMessages = resumed.data.messages;
@@ -148,6 +145,7 @@ export async function setupSession(params: {
         `Resumed session ${resumed.data.metadata.id} — ${restoredMessages.length} messages, ${restoredToolCalls.length} tool executions, ${resumed.data.usage.input + resumed.data.usage.output} tokens used previously.`,
       );
     } catch (err) {
+      await releaseClaim?.().catch(() => undefined);
       renderer.writeError(`Resume failed: ${toErrorMessage(err)}`);
       throw Object.assign(new Error('RESUME_FAILED'), { exitCode: 2 });
     }
@@ -163,16 +161,6 @@ export async function setupSession(params: {
   const sessionRef: { current?: SessionWriter | undefined } = { current: session };
   const sessionId = expectDefined(session?.id, 'active session id');
   const sessionDir = sessionScopedPath(wpaths.projectSessions, sessionId, '');
-  await recoveryLock.write(sessionId).catch((err) => {
-    console.error(
-      JSON.stringify({
-        level: 'error',
-        event: 'recovery_lock_write_failed',
-        error: String(err),
-        sessionId,
-      }),
-    );
-  });
 
   const attachments = new DefaultAttachmentStore({
     spoolDir: path.join(sessionDir, 'attachments'),
@@ -309,7 +297,6 @@ export async function setupSession(params: {
     context,
     restoredMessages,
     attachments,
-    recoveryLock,
     queueStore,
     planPath,
     detachTodosCheckpoint,

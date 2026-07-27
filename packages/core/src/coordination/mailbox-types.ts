@@ -26,8 +26,15 @@
  * @module mailbox-types
  */
 
-import { MAILBOX_TYPE_PROPERTIES } from './mailbox-type-properties.js';
-export { MAILBOX_TYPE_PROPERTIES, type MailboxTypeCategory } from './mailbox-type-properties.js';
+import {
+  MAILBOX_TYPE_PROPERTIES,
+  type MailboxMessageType,
+} from './mailbox-type-properties.js';
+export {
+  MAILBOX_TYPE_PROPERTIES,
+  type MailboxMessageType,
+  type MailboxTypeCategory,
+} from './mailbox-type-properties.js';
 
 // ── Message type discriminator ───────────────────────────────────────────
 
@@ -123,18 +130,6 @@ export { MAILBOX_TYPE_PROPERTIES, type MailboxTypeCategory } from './mailbox-typ
  * - Route inline (not background)
  * - No special instruction added
  */
-
-export type MailboxMessageType =
-  | 'note' // General informational message (untyped default for directed sends)
-  | 'ask' // Blocking question — sender is waiting for an answer
-  | 'assign' // Task delegation — act on it when current op allows
-  | 'steer' // Mid-course direction change — render first, pause current approach
-  | 'btw' // Low-priority "by the way" — absorb info, stay on task
-  | 'broadcast' // Multi-recipient envelope — auto-selected for `*` / `@session`
-  | 'status' // Agent/system status update — never treated as a task
-  | 'result' // Task completion notice — evidence for next decision
-  | 'review' // Passive review request — inspect when convenient
-  | 'control'; // Out-of-band signal — never folded into conversation content
 
 /**
  * Which class of agent may consume a mailbox message.

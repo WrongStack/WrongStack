@@ -57,21 +57,6 @@
       "canonicalTask": "C3"
     },
     {
-      "id": "ARCH-CYCLE-TYPE-04",
-      "kind": "type-module-cycle",
-      "members": [
-        "packages/cli/src/boot/tui-settings-adapter.ts",
-        "packages/cli/src/execute-deps.ts",
-        "packages/cli/src/execution.ts"
-      ],
-      "owner": "architecture-refactor",
-      "reason": "Pre-existing type-level module SCC captured by the 2026-07-21 G1 baseline; no new members are allowed.",
-      "introduced": "2026-07-21",
-      "reviewBy": "2026-09-15",
-      "removeWhen": "CLI phase and subcommand contracts are leaf modules with one-way dependencies.",
-      "canonicalTask": "C3"
-    },
-    {
       "id": "ARCH-CYCLE-TYPE-05",
       "kind": "type-module-cycle",
       "members": ["packages/cli/src/fleet/host.ts", "packages/cli/src/fleet/routing.ts"],
@@ -262,6 +247,20 @@
       "reviewBy": "2026-09-15",
       "removeWhen": "SddSubtaskSpec is moved to a shared types module so both files import from a common contract.",
       "canonicalTask": "S1"
+    },
+    {
+      "id": "ARCH-CYCLE-TYPE-26",
+      "kind": "type-module-cycle",
+      "members": [
+        "packages/kanban/src/types-operations.ts",
+        "packages/kanban/src/types.ts"
+      ],
+      "owner": "kanban-refactor",
+      "reason": "Type-only compatibility facade: types.ts re-exports operation contracts while those contracts reference the persisted Kanban domain model. Runtime dependencies remain one-way and no additional members are allowed.",
+      "introduced": "2026-07-27",
+      "reviewBy": "2026-09-15",
+      "removeWhen": "Persisted Kanban domain contracts move to a dependency-leaf module consumed by both facade files.",
+      "canonicalTask": "K1"
     }
   ]
 }

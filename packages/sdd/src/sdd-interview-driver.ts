@@ -46,6 +46,12 @@ export interface SddInterviewSnapshot {
   minQuestions: number;
   maxQuestions: number;
   answers: Array<{ question: string; answer: string }>;
+  /** Last agent utterance (open question / plan prose) — used for resume UI. */
+  lastAgentText?: string | undefined;
+  /** Most recent run id started from this interview, if any. */
+  lastRunId?: string | undefined;
+  /** True when this snapshot was rehydrated from disk (not a fresh start). */
+  resumed?: boolean | undefined;
   spec?:
     | {
         id: string;
@@ -80,6 +86,8 @@ export class SddInterviewDriver {
   private readonly maxQuestions: number;
   private tracker: TaskTracker | null = null;
   private graph: TaskGraph | null = null;
+  /** Set when {@link loadExisting} successfully rehydrated a session from disk. */
+  private resumedFromDisk = false;
 
   constructor(opts: SddInterviewDriverOptions) {
     this.o = opts;
@@ -96,9 +104,11 @@ export class SddInterviewDriver {
 
   /** Begin a fresh interview. Returns the first AI prompt (a question kickoff). */
   start(title: string, intent?: string): string {
+    this.builder.resetForNewInterview();
     this.builder.startSession(title, intent);
     this.tracker = null;
     this.graph = null;
+    this.resumedFromDisk = false;
     return this.builder.getAIPrompt();
   }
 
@@ -119,7 +129,37 @@ export class SddInterviewDriver {
         this.tracker = tracker;
       }
     }
+    this.resumedFromDisk = true;
     return true;
+  }
+
+  /** Drop the on-disk session (if any) and clear in-memory interview state. */
+  async discard(): Promise<void> {
+    await this.builder.deleteSession();
+    this.builder.resetForNewInterview();
+    this.tracker = null;
+    this.graph = null;
+    this.resumedFromDisk = false;
+  }
+
+  setLastAgentText(text: string): void {
+    this.builder.setLastAgentText(text);
+  }
+
+  getLastAgentText(): string | undefined {
+    return this.builder.getLastAgentText();
+  }
+
+  setLastRunId(runId: string): void {
+    this.builder.setLastRunId(runId);
+  }
+
+  getLastRunId(): string | undefined {
+    return this.builder.getLastRunId();
+  }
+
+  wasResumed(): boolean {
+    return this.resumedFromDisk;
   }
 
   phase(): AISpecPhase {
@@ -240,6 +280,9 @@ export class SddInterviewDriver {
       minQuestions: this.minQuestions,
       maxQuestions: this.maxQuestions,
       answers: s.answers.map((a) => ({ question: a.question, answer: a.answer })),
+      lastAgentText: s.lastAgentText,
+      lastRunId: s.lastRunId,
+      resumed: this.resumedFromDisk || undefined,
       spec: spec
         ? {
             id: spec.id,

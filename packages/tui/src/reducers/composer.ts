@@ -1,5 +1,6 @@
 import { type PersistedQueueItem, retainPersistedQueueItems } from '@wrongstack/core/storage';
-import type { Action, QueueItem, State } from '../app-state.js';
+import type { Action } from '../app-action-type.js';
+import type { QueueItem, State } from '../app-state.js';
 import { filterPromptPicker } from '../components/prompt-picker.js';
 import { retainTuiHistory } from '../history-retention.js';
 import {

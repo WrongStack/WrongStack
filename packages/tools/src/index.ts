@@ -25,15 +25,22 @@ export type {
   CodeMapGraph,
   GraphEdge,
   GraphNode,
+  ProjectIndexServerActivity,
+  ProjectIndexServerClientHealth,
+  ProjectIndexServerConnectionState,
+  ProjectIndexServerConnectionStatus,
+  ProjectIndexServerHealth,
 } from './codebase-index/index.js';
 export {
   CircuitOpenError,
   cancelPendingReindexes,
+  checkCodebaseIndexServerHealth,
   codebaseIndexStats,
   codebaseIndexTool,
   codebaseSearchTool,
   codebaseStatsTool,
   enqueueReindex,
+  ensureCodebaseIndexServer,
   fileGraphService,
   getIndexState,
   IndexCircuitBreaker,
@@ -48,6 +55,7 @@ export {
   runStartupIndex,
   searchCodebaseIndex,
   shutdownCodebaseIndexHost,
+  shutdownCodebaseIndexServer,
   symbolGraphService,
 } from './codebase-index/index.js';
 export { designTool } from './design.js';

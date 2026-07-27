@@ -2,13 +2,5 @@
   "schemaVersion": 1,
   "project": "packages/kanban",
   "hashAlgorithm": "sha256-64bit",
-  "diagnostics": {
-    "bf551af5d77e238a": 1,
-    "066b4c69bfec8a02": 3,
-    "26d7eb6fbef0b529": 1,
-    "763b2d3e03261834": 1,
-    "2dba27b1e9c0bfea": 3,
-    "eae82cbe8b235fc9": 1,
-    "bde145f05da861bf": 1
-  }
+  "diagnostics": {}
 }

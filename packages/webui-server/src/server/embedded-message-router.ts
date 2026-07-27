@@ -1,5 +1,5 @@
-import type { ProviderModelStatusTracker } from '@wrongstack/core/coordination';
 import type { Agent } from '@wrongstack/core/agent';
+import type { ProviderModelStatusTracker } from '@wrongstack/core/coordination';
 import type { TrustBoundary } from '@wrongstack/core/security';
 import type { Logger, MemoryPort } from '@wrongstack/core/types';
 import type { MCPRegistry } from '@wrongstack/mcp';
@@ -17,8 +17,10 @@ import {
 } from './brain-handlers.js';
 import type { BrainRouteHandlers } from './brain-routes.js';
 import type { ClientTransportRouteHandlers } from './client-transport-routes.js';
+import { handleCodebaseIndexServerControl } from './codebase-index-server-control.js';
 import { createToolLspCompletionSource, handleCompletionRequest } from './completion-handlers.js';
 import type { CompletionRouteHandlers } from './completion-routes.js';
+import { handleConnectionsHealthRoute } from './connections-health-route.js';
 import type { DesignContext } from './design-handlers.js';
 import {
   applyEmbeddedModelSwitch,
@@ -163,6 +165,9 @@ export function createEmbeddedMessageRouter(
     'context.compact',
     'context.repair',
     'context.debug',
+    'context.editor.open',
+    'context.editor.validate',
+    'context.editor.apply',
     'context.modes.list',
     'context.mode.switch',
     'context.mode.create',
@@ -296,6 +301,8 @@ export function createEmbeddedMessageRouter(
         ws,
         (msg.payload as { providerId: string }).providerId,
       ),
+    searchProviderModels: (ws, query, limit) =>
+      providerOperations.handleProviderModelsSearch(ws, query, limit),
     switchModel: (ws, msg) => modelOperations.switchModel(ws, msg.payload),
     refineModel: (ws, msg) => modelOperations.refineModel(ws, msg.payload as never),
     adoptDefaultProviderIfUnset: providerOperations.adoptDefaultProviderIfUnset,
@@ -303,7 +310,19 @@ export function createEmbeddedMessageRouter(
     statusTracker: deps.statusTracker,
   };
 
-  const session = createEmbeddedSessionRoutes(deps.sessionCtx);
+  const session = createEmbeddedSessionRoutes({
+    ...deps.sessionCtx,
+    // Abort every in-flight run before a session swap — a slow provider
+    // stream from the previous session would otherwise keep running in the
+    // background after session.new/resume. The run's own end() cleanup
+    // removes controllers from the map when it unwinds.
+    abortActiveRun: () => {
+      for (const controller of deps.conversationCtx.abortControllers.values()) {
+        controller.abort();
+      }
+    },
+    isRunActive: () => deps.conversationCtx.abortControllers.size > 0,
+  });
   const project = createEmbeddedProjectRoutes(deps.projectCtx);
   const mode = createModeRouteHandlers({
     modeStore: deps.agentConfigCtx.modeStore,
@@ -468,5 +487,37 @@ export function createEmbeddedMessageRouter(
         console.debug(`[WebUI] Unhandled message type: ${msg.type}`);
     },
   });
-  return async (ws, _client, message) => dispatch(ws, message);
+  return async (ws, _client, message) => {
+    if (
+      await handleConnectionsHealthRoute(
+        {
+          getProjectRoot: projectRoot,
+          getIndexDir: () =>
+            typeof opts.agent.ctx.meta['codebaseIndexDir'] === 'string'
+              ? opts.agent.ctx.meta['codebaseIndexDir']
+              : undefined,
+          send,
+          backend: 'cli-embedded',
+        },
+        ws,
+        message,
+      )
+    )
+      return;
+    if (
+      await handleCodebaseIndexServerControl(ws, message, {
+        trustBoundary: deps.trustBoundary,
+        logger: deps.logger,
+        getProjectRoot: projectRoot,
+        getIndexDir: () =>
+          typeof opts.agent.ctx.meta['codebaseIndexDir'] === 'string'
+            ? opts.agent.ctx.meta['codebaseIndexDir']
+            : undefined,
+        send,
+        backend: 'cli-embedded',
+      })
+    )
+      return;
+    await dispatch(ws, message);
+  };
 }

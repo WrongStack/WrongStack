@@ -44,6 +44,12 @@ export function PromptLibrary({ onRecall }: PromptLibraryProps) {
     return () => document.removeEventListener('keydown', onKey);
   }, [open]);
 
+  useEffect(() => {
+    const onOpen = () => setOpen(true);
+    window.addEventListener('simpleui:open-prompt-library', onOpen);
+    return () => window.removeEventListener('simpleui:open-prompt-library', onOpen);
+  }, []);
+
   const add = () => {
     if (!newText.trim()) return;
     const p: SavedPrompt = {

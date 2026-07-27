@@ -206,16 +206,67 @@ export function createKanbanRunMirror(deps: KanbanRunMirrorDeps): KanbanRunMirro
   }
 
   // ── SDD ────────────────────────────────────────────────────────────────
+  // Topological dependency columns (waves) map to ONE kanban board PER column
+  // when there is more than one — same multi-board pattern as Goal phases.
+  // A single-column / flat graph keeps one board (backward compatible).
+  // All boards share `run:<runId>` so the UI groups them; control is run-level.
   async function projectSdd(runId: string, snapshot: SddBoardSnapshot): Promise<void> {
     const k = mapKey('sdd', runId);
     const stamp = sddStamp(snapshot);
     if (stamps.get(k) === stamp) return;
     stamps.set(k, stamp);
 
+    const runTitle = snapshot.title || `SDD ${runId}`;
+    const columns = snapshot.columns ?? [];
+
+    if (columns.length > 1) {
+      const shortToTask = new Map(snapshot.tasks.map((t) => [t.shortId, t]));
+      for (let i = 0; i < columns.length; i++) {
+        const col = columns[i];
+        if (!col) continue;
+        const phaseId = `wave-${i}`;
+        const colTasks = col.taskIds
+          .map((sid) => shortToTask.get(sid))
+          .filter((t): t is SddBoardTask => Boolean(t));
+        if (colTasks.length === 0) continue;
+        const tags = [
+          'sdd',
+          `run:${runId}`,
+          `graph:${snapshot.graphId}`,
+          `phase:${phaseId}`,
+          `wave:${i}`,
+        ];
+        const title = `${runTitle} — ${col.label || `Wave ${i + 1}`}`;
+        const boardId = await resolveBoardId('sdd', `${runId}:${phaseId}`, title, tags, [
+          `run:${runId}`,
+          `phase:${phaseId}`,
+        ]);
+        const slice: SddBoardSnapshot = {
+          ...snapshot,
+          title,
+          tasks: colTasks,
+          // Keep a single column so buildTaskGraphFromSddSnapshot stays faithful
+          // without inventing cross-wave edges that live on other boards.
+          columns: [col],
+        };
+        await projectSddSlice(boardId, runId, slice, tags);
+      }
+      return;
+    }
+
+    // Flat / single-wave: one board for the whole run.
     const tags = ['sdd', `run:${runId}`, `graph:${snapshot.graphId}`];
-    const boardId = await resolveBoardId('sdd', runId, snapshot.title || `SDD ${runId}`, tags, [
-      `run:${runId}`,
-    ]);
+    const boardId = await resolveBoardId('sdd', runId, runTitle, tags, [`run:${runId}`]);
+    await projectSddSlice(boardId, runId, snapshot, tags);
+  }
+
+  /** Sync structure + live assignment + verification for one SDD board slice. */
+  async function projectSddSlice(
+    boardId: string,
+    runId: string,
+    snapshot: SddBoardSnapshot,
+    tags: string[],
+  ): Promise<void> {
     const graph = buildTaskGraphFromSddSnapshot(snapshot);
     const board = await syncGraph(boardId, graph, 'sdd', tags);
 
@@ -262,7 +313,7 @@ export function createKanbanRunMirror(deps: KanbanRunMirrorDeps): KanbanRunMirro
                 status: verdict,
                 evidence: {
                   source: 'sdd-run',
-                  runId: snapshot.runId,
+                  runId,
                   ...(t.verificationDetail ? { detail: t.verificationDetail } : {}),
                 },
                 ...(verdict === 'failed' && t.verificationDetail

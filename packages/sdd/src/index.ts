@@ -95,6 +95,9 @@ export {
   type CollectedAnswer,
 } from './spec-builder.js';
 
+// Project footprint for interview prompts (CLI + WebUI wizard share this)
+export { gatherProjectContext } from './project-context.js';
+
 // Templates
 export {
   SPEC_TEMPLATES,

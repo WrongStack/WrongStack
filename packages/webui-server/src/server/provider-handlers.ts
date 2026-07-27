@@ -1,6 +1,6 @@
-import type { ModelsRegistry, ProviderConfig } from '@wrongstack/core/types';
 import { resolveProviderModelList } from '@wrongstack/core/models';
 import { DefaultSecretScrubber } from '@wrongstack/core/security';
+import type { ModelsRegistry, ProviderConfig } from '@wrongstack/core/types';
 import { toErrorMessage } from '@wrongstack/core/utils';
 import {
   beginOAuthLogin,
@@ -15,6 +15,7 @@ import {
   resolveProviderModelMetadata,
   SIBLING_CATALOG,
 } from './model-catalog.js';
+import { searchCatalogModels } from './model-catalog-search.js';
 import { loadSavedProviders, saveProviders } from './provider-config-io.js';
 import {
   addProvider as addProviderRecord,
@@ -41,6 +42,8 @@ export interface SavedProviderView {
   baseUrl?: string | undefined;
   /** Saved model allowlist, verbatim (undefined / [] both possible). */
   models?: string[] | undefined;
+  /** Per-model metadata (display name, output limits, capability overrides). */
+  customModels?: ProviderConfig['customModels'] | undefined;
   /** First entry of `models`, or undefined when the list is empty/unset. */
   pickedModelId?: string | undefined;
   apiKeys: Array<{
@@ -70,6 +73,7 @@ export function projectSavedProviders(
       family: cfg.family ?? id,
       baseUrl: cfg.baseUrl,
       models,
+      customModels: cfg.customModels,
       apiKeys: keys.map((k) => ({
         label: k.label,
         maskedKey: maskedKey(k.apiKey),
@@ -198,6 +202,26 @@ export function createProviderOperations(deps: ProviderOperationsDeps) {
       sendMessage(ws, {
         type: 'providers.saved',
         payload: { providers: projectSavedProviders(await loadConfigProviders()) },
+      });
+    } catch (error) {
+      sendOperationResult(ws, false, errMessage(error));
+    }
+  }
+
+  async function handleProviderModelsSearch(
+    ws: WebSocket,
+    query: string,
+    limit?: number | undefined,
+  ): Promise<void> {
+    if (!deps.modelsRegistry) {
+      sendOperationResult(ws, false, 'Models registry not available');
+      return;
+    }
+    try {
+      const matches = await searchCatalogModels(deps.modelsRegistry, query, limit);
+      sendMessage(ws, {
+        type: 'provider.models.search_result',
+        payload: { query, matches },
       });
     } catch (error) {
       sendOperationResult(ws, false, errMessage(error));
@@ -346,6 +370,8 @@ export function createProviderOperations(deps: ProviderOperationsDeps) {
       family: string;
       baseUrl?: string | undefined;
       apiKey?: string | undefined;
+      models?: string[] | undefined;
+      customModels?: ProviderConfig['customModels'] | undefined;
     },
   ): Promise<void> {
     try {
@@ -426,7 +452,7 @@ export function createProviderOperations(deps: ProviderOperationsDeps) {
     }
   }
 
-  /** Update a saved provider's wire config (family / baseUrl / envVars / models). */
+  /** Update a saved provider's wire config (family / baseUrl / envVars / models / customModels). */
   async function handleProviderUpdate(
     ws: WebSocket,
     payload: {
@@ -435,6 +461,7 @@ export function createProviderOperations(deps: ProviderOperationsDeps) {
       baseUrl?: string | undefined;
       envVars?: string[] | undefined;
       models?: string[] | undefined;
+      customModels?: ProviderConfig['customModels'] | undefined;
     },
   ): Promise<void> {
     try {
@@ -448,6 +475,7 @@ export function createProviderOperations(deps: ProviderOperationsDeps) {
       if (payload.baseUrl !== undefined) cfg.baseUrl = payload.baseUrl;
       if (payload.envVars !== undefined) cfg.envVars = payload.envVars;
       if (payload.models !== undefined) cfg.models = payload.models;
+      if (payload.customModels !== undefined) cfg.customModels = payload.customModels;
       await saveConfigProviders(providers);
       sendOperationResult(ws, true, `Updated ${payload.id}`);
       broadcastSaved(providers);
@@ -648,6 +676,7 @@ export function createProviderOperations(deps: ProviderOperationsDeps) {
     handleProvidersList,
     handleProvidersSaved,
     handleProviderModels,
+    handleProviderModelsSearch,
     adoptDefaultProviderIfUnset,
     broadcastSaved,
     handleKeyUpsert,

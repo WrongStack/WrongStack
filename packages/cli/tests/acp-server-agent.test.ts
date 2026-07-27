@@ -32,6 +32,7 @@ vi.mock('../src/wiring/provider.js', () => ({
 vi.mock('@wrongstack/runtime', () => ({
   createDefaultContainer: () => ({
     resolve: () => ({
+      initialize: async () => {},
       child: () => ({ info() {}, warn() {}, error() {}, debug() {} }),
       scrub: (s: string) => s,
     }),

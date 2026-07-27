@@ -6,7 +6,7 @@ import {
   useRef,
 } from 'react';
 import type { AppProps } from '../app-props.js';
-import type { Action } from '../app-state.js';
+import type { Action } from '../app-action-type.js';
 import type { AutonomyStage } from './use-statusline-state.js';
 
 interface AutonomyDriversOptions {

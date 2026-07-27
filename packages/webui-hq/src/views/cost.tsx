@@ -34,60 +34,84 @@ export function CostView(): React.ReactElement {
   }, [sessions]);
 
   if (projects.length === 0) {
-    return <div className="hq-empty">No cost data yet — connect some clients.</div>;
+    return <div className="hq-empty hq-empty-ornate">No cost data yet — connect some clients.</div>;
   }
 
   const sorted = [...projects].sort((a, b) => b.totalCostUsd - a.totalCostUsd);
+  const leader = sorted[0];
+  const leaderPct = leader && total > 0 ? (leader.totalCostUsd / total) * 100 : 0;
+  const totalTokens = sessionRows.reduce((sum, row) => sum + row.tokens, 0);
 
   return (
-    <div>
-      <div className="hq-kpi-row">
-        <div className="hq-kpi hero">
-          <span className="hq-kpi-value accent-cost">${total.toFixed(4)}</span>
-          <span className="hq-kpi-label">total fleet cost</span>
+    <div className="hq-screen hq-cost-screen">
+      <section className="hq-screen-hero hq-cost-hero" aria-label="Cost command summary">
+        <div>
+          <span className="hq-section-kicker">Economics</span>
+          <h2>${total.toFixed(4)}</h2>
+          <p>
+            Fleet spend is ranked by project first, then drilled down into costed sessions and model
+            fingerprints.
+          </p>
         </div>
-        <div className="hq-kpi">
-          <span className="hq-kpi-value">{projects.length}</span>
-          <span className="hq-kpi-label">projects</span>
+        <div className="hq-hero-metrics">
+          <Metric label="projects" value={projects.length} />
+          <Metric label="costed sessions" value={sessionRows.length} />
+          <Metric label="tokens" value={fmtTokens(totalTokens)} />
+          <Metric label="top share" value={`${leaderPct.toFixed(0)}%`} tone={leaderPct > 60 ? 'warn' : undefined} />
         </div>
-        <div className="hq-kpi">
-          <span className="hq-kpi-value">{sessionRows.length}</span>
-          <span className="hq-kpi-label">costed sessions</span>
-        </div>
-      </div>
+      </section>
 
-      <div className="hq-card-title">By Project</div>
-      {sorted.map((p) => {
-        const pct = total > 0 ? (p.totalCostUsd / total) * 100 : 0;
-        return (
-          <div key={p.projectId} className="hq-card">
-            <div className="hq-row">
-              <span className="hq-text-bright">{p.projectName}</span>
-              <span className="hq-mono hq-row-subtle">{p.projectId}</span>
-              <span className="hq-cost-amount">${p.totalCostUsd.toFixed(4)}</span>
-              <span className="hq-mono hq-row-subtle">{pct.toFixed(1)}%</span>
-            </div>
-            <div className="hq-share-track">
-              <div className="hq-share-fill" style={{ width: `${pct}%` }} />
-            </div>
-            <div className="hq-row hq-row-detail">
-              <span className="hq-pill info">{p.activeSessions} sessions</span>
-              <span className="hq-pill active">{p.activeSubagents} subagents</span>
-              <span className="hq-pill idle">{p.activeClients} clients</span>
-            </div>
+      <section className="hq-priority-section" aria-label="Project cost ranking">
+        <div className="hq-section-head">
+          <div>
+            <span className="hq-section-kicker">Spend distribution</span>
+            <h3>By Project</h3>
           </div>
-        );
-      })}
+          {leader ? <span className="hq-pill info">leader: {leader.projectName}</span> : null}
+        </div>
+        <div className="hq-cost-rank-list">
+          {sorted.map((p, index) => {
+            const pct = total > 0 ? (p.totalCostUsd / total) * 100 : 0;
+            return (
+              <article key={p.projectId} className="hq-card hq-cost-project-card">
+                <div className="hq-cost-rank">#{index + 1}</div>
+                <div className="hq-cost-project-main">
+                  <div className="hq-row">
+                    <span className="hq-text-bright">{p.projectName}</span>
+                    <span className="hq-mono hq-row-subtle">{p.projectId}</span>
+                    <span className="hq-cost-amount">${p.totalCostUsd.toFixed(4)}</span>
+                    <span className="hq-mono hq-row-subtle">{pct.toFixed(1)}%</span>
+                  </div>
+                  <div className="hq-share-track">
+                    <div className="hq-share-fill" style={{ width: `${pct}%` }} />
+                  </div>
+                  <div className="hq-row hq-row-detail">
+                    <span className="hq-pill info">{p.activeSessions} sessions</span>
+                    <span className="hq-pill active">{p.activeSubagents} subagents</span>
+                    <span className="hq-pill idle">{p.activeClients} clients</span>
+                  </div>
+                </div>
+              </article>
+            );
+          })}
+        </div>
+      </section>
 
       {sessionRows.length > 0 && (
-        <>
-          <div className="hq-card-title">By Session</div>
-          <div className="hq-card">
+        <section>
+          <div className="hq-section-head compact">
+            <div>
+              <span className="hq-section-kicker">Drilldown</span>
+              <h3>By Session</h3>
+            </div>
+            <span className="hq-mono hq-row-subtle">{sessionRows.length} costed</span>
+          </div>
+          <div className="hq-card hq-cost-session-card">
             {sessionRows.map(({ s, cost, tokens, models }) => (
               <button
                 key={s.sessionId}
                 type="button"
-                className="hq-row hq-row-click"
+                className="hq-row hq-row-click hq-cost-session-row"
                 onClick={() => {
                   useHqStore.getState().selectSession(s.sessionId);
                   useHqStore.getState().setActiveView('console');
@@ -106,8 +130,25 @@ export function CostView(): React.ReactElement {
               </button>
             ))}
           </div>
-        </>
+        </section>
       )}
+    </div>
+  );
+}
+
+function Metric({
+  label,
+  value,
+  tone,
+}: {
+  label: string;
+  value: string | number;
+  tone?: 'ok' | 'warn' | 'error';
+}): React.ReactElement {
+  return (
+    <div className="hq-hero-metric" data-tone={tone}>
+      <strong>{value}</strong>
+      <span>{label}</span>
     </div>
   );
 }

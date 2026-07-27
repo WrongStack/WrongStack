@@ -29,7 +29,7 @@ import {
 } from '@wrongstack/core/execution';
 import { DefaultTokenCounter } from '@wrongstack/core/infrastructure';
 import { EventBus } from '@wrongstack/core/kernel';
-import { ToolRegistry } from '@wrongstack/core/registry';
+import type { ToolRegistry } from '@wrongstack/core/registry';
 import { AutoApprovePermissionPolicy } from '@wrongstack/core/security';
 import type { TextBlock } from '@wrongstack/core/types';
 import type {

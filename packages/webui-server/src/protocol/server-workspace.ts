@@ -29,12 +29,16 @@ export const SERVER_WORKSPACE_MESSAGE_TYPES = [
 
 export const SERVER_CONFIGURATION_MESSAGE_TYPES = [
   'auth.oauth.status',
+  'codebase.index.server.shutdown_result',
+  'connections.health_error',
+  'connections.health_result',
   'diag.get',
   'key.operation_result',
   'model.switch_result',
   'prefs.updated',
   'provider.catalog',
   'provider.models',
+  'provider.models.search_result',
   'provider.probe',
   'provider.status.snapshot',
   'providers.saved',

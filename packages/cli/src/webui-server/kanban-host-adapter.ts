@@ -9,6 +9,7 @@ import { exportBoardToTaskGraph } from '@wrongstack/kanban';
 import {
   type GoalWebSocketHandler,
   type KanbanHostRouteHandlers,
+  type KanbanRunMirror,
   startSddRunFromGraph,
   type WSServerMessage,
 } from '@wrongstack/webui-server';
@@ -28,12 +29,37 @@ interface CliKanbanHostAdapterDeps {
     brain?: BrainArbiter | undefined;
   };
   send: (ws: WebSocket, msg: WSServerMessage) => void;
+  /** Optional broadcast so every client sees sdd.run.started / kanban updates. */
+  broadcast?: ((msg: WSServerMessage) => void) | undefined;
   goalHandler: GoalWebSocketHandler;
   kanbanSupervisor?: KanbanSupervisorPort | undefined;
+  /** Bind launch-from-board SDD runs onto the existing kanban board. */
+  kanbanRunMirror?: KanbanRunMirror | undefined;
 }
 
 export function createCliKanbanHostRoutes(deps: CliKanbanHostAdapterDeps): KanbanHostRouteHandlers {
   const { opts, send, goalHandler } = deps;
+  let isolatedSeq = 0;
+
+  /** Isolated read-only turn for acceptance verifier / supervisor splitter. */
+  const runIsolatedTurn = opts.sddSubagentFactory
+    ? async (prompt: string, name: string): Promise<string> => {
+        const result = await opts.sddSubagentFactory!({
+          id: `sdd-kanban-${name.toLowerCase().replace(/\s+/g, '-')}-${isolatedSeq++}`,
+          role: 'executor',
+          name,
+          disabledTools: ['delegate', 'write', 'edit', 'patch', 'bash', 'exec'],
+          allowedCapabilities: ['fs.read', 'net.outbound'],
+        });
+        try {
+          const res = await result.agent.run([{ type: 'text', text: prompt }]);
+          return res.finalText ?? '';
+        } finally {
+          await result.dispose?.();
+        }
+      }
+    : undefined;
+
   return {
     meta: async (ws) => {
       const tools = (opts.agent.ctx.tools ?? []).map((tool) => ({
@@ -114,6 +140,8 @@ export function createCliKanbanHostRoutes(deps: CliKanbanHostAdapterDeps): Kanba
         if (!exported) return failRun(`Board not found: ${boardId}`);
         if (exported.graph.nodes.size === 0) return failRun('Board has no tasks to run');
         if (engine === 'goal') {
+          // Launch-from-board: next Goal projection reuses THIS board for phase 0.
+          deps.kanbanRunMirror?.bindGoalNext(boardId);
           const graph = await PhaseGraphBuilder.fromTaskGraph(exported.graph, {
             title: exported.board.title,
             description: exported.board.description ?? exported.board.title,
@@ -151,6 +179,8 @@ export function createCliKanbanHostRoutes(deps: CliKanbanHostAdapterDeps): Kanba
           return failRun('SDD runs need the multi-agent host, which is not available here.');
         }
         const paths = resolveWstackPaths({ projectRoot });
+        // Bind BEFORE start so the first snapshot lands on this board, not a new one.
+        // runId is only known after startSddRunFromGraph — bind once we have it.
         const handle = await startSddRunFromGraph(
           exported.graph,
           {
@@ -160,10 +190,19 @@ export function createCliKanbanHostRoutes(deps: CliKanbanHostAdapterDeps): Kanba
             subagentFactory: opts.sddSubagentFactory,
             projectSddBoards: paths.projectSddBoards,
             ...(opts.brain ? { brain: opts.brain } : {}),
+            ...(runIsolatedTurn ? { runIsolatedTurn } : {}),
           },
           { worktrees: true },
         );
+        deps.kanbanRunMirror?.bind('sdd', handle.runId, boardId);
         void handle.completion.catch(() => {});
+        const started = {
+          type: 'sdd.run.started' as const,
+          payload: { runId: handle.runId, graphId: exported.graph.id },
+        };
+        // Notify the requesting client AND every peer (SDD Hub tab switch).
+        send(ws, started);
+        deps.broadcast?.(started);
         send(ws, {
           type: 'kanban.run.start',
           payload: { success: true, data: { engine: 'sdd', boardId, runId: handle.runId } },

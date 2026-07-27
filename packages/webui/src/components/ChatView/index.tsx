@@ -11,6 +11,7 @@ import {
   Pencil,
   Terminal,
   Zap,
+  Wand2,
 } from 'lucide-react';
 import { lazy, memo, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { VList, type VListHandle } from 'virtua';
@@ -31,6 +32,7 @@ import { ChatInput } from '../ChatInput';
 import { CheckpointTimeline } from '../CheckpointTimeline';
 import { ContextFillBar } from '../ContextBar';
 import { ContextBreakdownModal } from '../ContextBreakdownModal';
+import { ContextWindowEditor } from '../context-editor/ContextWindowEditor';
 import { MemoryInjectorTrace } from '@/components/MemoryManager/MemoryInjectorTrace';
 import { ContextModePicker } from '../ContextModePicker';
 import { CostChip } from '../CostChip';
@@ -277,12 +279,21 @@ export function ChatView() {
 
   // Context breakdown modal
   const [breakdownOpen, setBreakdownOpen] = useState(false);
+  // Context window editor
+  const [editorOpen, setEditorOpen] = useState(false);
 
   // Listen for the custom event fired by ContextModePicker's ops menu → "Debug Context"
   useEffect(() => {
     const handler = () => setBreakdownOpen(true);
     document.addEventListener('open:context-breakdown', handler);
     return () => document.removeEventListener('open:context-breakdown', handler);
+  }, []);
+
+  // Listen for the custom event fired by ContextModePicker's ops menu → "Edit Context"
+  useEffect(() => {
+    const handler = () => setEditorOpen(true);
+    document.addEventListener('open:context-editor', handler);
+    return () => document.removeEventListener('open:context-editor', handler);
   }, []);
 
   // Listen for session-end event → expand collapsed input so next-steps
@@ -674,6 +685,15 @@ export function ChatView() {
                   onClick={() => setBreakdownOpen(true)}
                 />
               )}
+              <button
+                type="button"
+                onClick={() => setEditorOpen(true)}
+                className="flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[11px] text-muted-foreground/70 hover:text-foreground hover:bg-accent transition-colors shrink-0"
+                title="Edit context window"
+              >
+                <Wand2 className="h-3 w-3" />
+                <span>Edit</span>
+              </button>
               <MemoryInjectorTrace />
               {totalTokens.input > 0 && (
                 <>
@@ -947,6 +967,7 @@ export function ChatView() {
       </Suspense>
       <CheckpointTimeline open={checkpointOpen} onClose={() => setCheckpointOpen(false)} />
       <ContextBreakdownModal open={breakdownOpen} onClose={() => setBreakdownOpen(false)} />
+      <ContextWindowEditor open={editorOpen} onClose={() => setEditorOpen(false)} />
     </div>
   );
 }

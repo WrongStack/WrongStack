@@ -17,7 +17,6 @@ import * as path from 'node:path';
 import type { DatabaseSync } from 'node:sqlite';
 import type { MemoryEntry, MemoryScope, MemoryStore } from '@wrongstack/core/types';
 import { ulid } from '@wrongstack/core/utils';
-
 import { resolveSagePaths } from './paths.js';
 import { consolidateSqliteSession } from './sqlite-store-session-consolidation.js';
 import {
@@ -63,15 +62,24 @@ import { listSqliteMemories } from './sqlite-store-list-memories.js';
 import { listSqliteSagePage } from './sqlite-store-list-page.js';
 import { SqliteMutationQueue } from './sqlite-store-mutation-queue.js';
 import { rememberSqliteSage } from './sqlite-store-remember.js';
-import { closeSqliteStore, drainSqliteStoreMutations } from './sqlite-store-lifecycle.js';
 import { migrateSqliteLegacyJsonl } from './sqlite-store-jsonl-migration.js';
 import { SqliteStatementCache } from './sqlite-store-statement-cache.js';
+import {
+  backfillAdminSage,
+  closeSqliteStore,
+  drainSqliteStoreMutations,
+  findAdminMemoriesForFile,
+  recoverAdminSage,
+  type SqliteAdminHost,
+} from './sqlite-store-operations.js';
 import {
   normalizeTextKey,
 } from './store-helpers.js';
 import type {
   CandidateDecision,
   CreateCandidateInput,
+  FindMemoriesForFileOptions,
+  FindMemoriesForFileResponse,
   LegacyImportResult,
   ListSagePageOptions,
   ListSagePageResult,
@@ -84,6 +92,8 @@ import type {
   RememberSageInput,
   Sage,
   SageAuditRecord,
+  SageBackfillOptions,
+  SageBackfillReport,
   SageForPathOptions,
   SageHygieneOptions,
   SageHygieneReport,
@@ -122,6 +132,7 @@ export class SqliteSageStore implements MemoryStore {
   private readonly projectRoot: string;
   private readonly now: () => Date;
   private readonly events: SageStoreOptions['events'];
+  private readonly operationContext: SageStoreOptions['operationContext'];
   private traceId?: string | undefined;
   private db!: DatabaseSync;
   private initialized = false;
@@ -146,6 +157,7 @@ export class SqliteSageStore implements MemoryStore {
     this.traceId = opts.traceId;
     this.now = opts.now ?? (() => new Date());
     this.events = opts.events;
+    this.operationContext = opts.operationContext;
   }
 
   withTraceId(traceId: string): this {
@@ -208,7 +220,7 @@ export class SqliteSageStore implements MemoryStore {
       db: this.db,
       stmt: (sql) => this.stmt(sql),
       nowIso: () => this.nowIso(),
-      traceId: this.traceId,
+      traceId: this.currentTraceId(),
       upsertMemory: (memory) => this.upsertMemory(memory),
       syncAnchorEdges: (memory) => this.syncAnchorEdges(memory),
     });
@@ -218,6 +230,10 @@ export class SqliteSageStore implements MemoryStore {
 
   private nowIso(): string {
     return this.now().toISOString();
+  }
+
+  private currentTraceId(): string | undefined {
+    return this.operationContext?.()?.traceId ?? this.traceId;
   }
 
   /**
@@ -742,7 +758,7 @@ export class SqliteSageStore implements MemoryStore {
       {
         stmt: (sql) => this.stmt(sql),
         nowIso: () => this.nowIso(),
-        getTraceId: () => this.traceId,
+        getTraceId: () => this.currentTraceId(),
         getWritesSincePrune: () => this.auditWritesSincePrune,
         setWritesSincePrune: (value) => {
           this.auditWritesSincePrune = value;
@@ -768,8 +784,16 @@ export class SqliteSageStore implements MemoryStore {
     return readSqliteAudit({ stmt: (sql) => this.stmt(sql) }, limit);
   }
 
-  private eventPayload<T extends object>(payload: T): T & { traceId?: string | undefined } {
-    return this.traceId ? { ...payload, traceId: this.traceId } : payload;
+  private eventPayload<T extends object>(
+    payload: T,
+  ): T & { traceId?: string | undefined; sessionId?: string | undefined } {
+    const context = this.operationContext?.();
+    const traceId = context?.traceId ?? this.traceId;
+    return {
+      ...payload,
+      ...(traceId ? { traceId } : {}),
+      ...(context?.sessionId ? { sessionId: context.sessionId } : {}),
+    };
   }
 
   private candidateOps() {
@@ -804,6 +828,7 @@ export class SqliteSageStore implements MemoryStore {
         runMutation: (work) => this.runMutation(work),
         upsertMemory: (memory) => this.upsertMemory(memory),
         syncAnchorEdges: (memory) => this.syncAnchorEdges(memory),
+        cascadeDeleteEdges: (nodeId) => this.cascadeDeleteEdges(nodeId),
         audit: (event, data) => this.audit(event, data),
         pruneAuditLog: () => this.pruneAuditLog(),
       },
@@ -894,6 +919,37 @@ export class SqliteSageStore implements MemoryStore {
       },
       id,
     );
+  }
+
+  async recoverSage(id: string, reason?: string): Promise<Sage> {
+    await this.initialize();
+    return recoverAdminSage(this.adminHost(), id, reason);
+  }
+  async backfillRecoverable(options?: SageBackfillOptions): Promise<SageBackfillReport> {
+    await this.initialize();
+    return backfillAdminSage(this.adminHost(), options);
+  }
+  async findMemoriesForFile(
+    filePath: string,
+    options?: FindMemoriesForFileOptions,
+  ): Promise<FindMemoriesForFileResponse> {
+    await this.initialize();
+    return findAdminMemoriesForFile(this.adminHost(), filePath, options);
+  }
+  private adminHost(): SqliteAdminHost {
+    return {
+      projectRoot: this.projectRoot,
+      now: () => this.now(),
+      nowIso: () => this.nowIso(),
+      stmt: (sql) => this.stmt(sql),
+      runMutation: (work) => this.runMutation(work),
+      upsertMemory: (memory) => this.upsertMemory(memory),
+      syncAnchorEdges: (memory) => this.syncAnchorEdges(memory),
+      audit: (event, data) => this.audit(event, data),
+      emit: (event, payload) =>
+        this.events?.emit(event as never, this.eventPayload(payload) as never),
+      listCandidates: () => this.listCandidates(),
+    };
   }
 
   async search(

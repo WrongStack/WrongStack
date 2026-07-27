@@ -12,20 +12,41 @@ import {
   createProviderLlm,
   parseResearchJson,
 } from '../../src/research/llm.js';
-import type { Provider } from '@wrongstack/core/types';
-import type { ResearchLlmRequest } from '../../src/research/types.js';
+import type { Provider, Response } from '@wrongstack/core/types';
 
 // ── Helpers ───────────────────────────────────────────────────────────────
 
+function makeResponse(content: Response['content']): Response {
+  return {
+    content,
+    stopReason: 'end_turn',
+    usage: { input: 0, output: 0 },
+    model: 'test-model',
+  };
+}
+
 function makeProvider(caps: Partial<Provider['capabilities']> = {}): Provider {
   return {
-    complete: vi.fn().mockResolvedValue({ content: [{ type: 'text', text: '{}' }] }),
+    id: 'test-provider',
+    complete: vi.fn<Provider['complete']>().mockResolvedValue(
+      makeResponse([{ type: 'text', text: '{}' }]),
+    ),
+    async *stream() {},
     capabilities: {
-      structuredOutput: false,
+      tools: false,
+      parallelTools: false,
+      vision: false,
+      streaming: false,
+      promptCache: false,
+      systemPrompt: true,
       jsonMode: false,
+      reasoning: false,
+      maxContext: 8_192,
+      cacheControl: 'none',
+      structuredOutput: false,
       ...caps,
     },
-  } as unknown as Provider;
+  };
 }
 
 // ── createProviderLlm ──────────────────────────────────────────────────────
@@ -131,7 +152,7 @@ describe('createProviderLlm', () => {
     const provider = makeProvider();
     // Make the provider hang but reject with the signal's reason on abort
     vi.mocked(provider.complete).mockImplementation(
-      (_req, opts) => new Promise<void>((_resolve, reject) => {
+      (_req, opts) => new Promise<Response>((_resolve, reject) => {
         if (opts?.signal?.aborted) {
           reject(opts.signal!.reason instanceof Error ? opts.signal!.reason : new Error(String(opts.signal!.reason)));
           return;
@@ -153,15 +174,16 @@ describe('createProviderLlm', () => {
       maxTokens: 100,
     });
 
+    const rejection = expect(promise).rejects.toThrow('LLM timeout');
     await vi.advanceTimersByTimeAsync(200);
 
-    await expect(promise).rejects.toThrow('LLM timeout');
+    await rejection;
   });
 
   it('supports cancellation via AbortSignal', async () => {
     const provider = makeProvider();
     vi.mocked(provider.complete).mockImplementation(
-      (_req, opts) => new Promise<void>((_resolve, reject) => {
+      (_req, opts) => new Promise<Response>((_resolve, reject) => {
         if (opts?.signal?.aborted) {
           reject(new Error('cancelled'));
           return;
@@ -190,9 +212,9 @@ describe('createProviderLlm', () => {
 
   it('cleans up abort listener after completion', async () => {
     const provider = makeProvider();
-    vi.mocked(provider.complete).mockResolvedValue({
-      content: [{ type: 'text', text: '{"ok": true}' }],
-    });
+    vi.mocked(provider.complete).mockResolvedValue(
+      makeResponse([{ type: 'text', text: '{"ok": true}' }]),
+    );
     const accessor = () => ({ provider, model: 'gpt-4' });
     const llm = createProviderLlm(accessor);
     if (!llm) { expect.fail('llm should be defined'); return; }
@@ -216,9 +238,9 @@ describe('createProviderLlm', () => {
 
   it('uses default timeout of 45s when not specified', async () => {
     const provider = makeProvider();
-    vi.mocked(provider.complete).mockResolvedValue({
-      content: [{ type: 'text', text: '{"ok": true}' }],
-    });
+    vi.mocked(provider.complete).mockResolvedValue(
+      makeResponse([{ type: 'text', text: '{"ok": true}' }]),
+    );
     const accessor = () => ({ provider, model: 'gpt-4' });
     const llm = createProviderLlm(accessor); // No timeout option
 
@@ -296,13 +318,11 @@ describe('parseResearchJson', () => {
 describe('createProviderLlm — content concatenation', () => {
   it('joins multiple text blocks with newlines', async () => {
     const provider = makeProvider();
-    vi.mocked(provider.complete).mockResolvedValue({
-      content: [
-        { type: 'text', text: '{"findings": [' },
-        { type: 'text', text: '{"pkg": "react"}' },
-        { type: 'text', text: ']}' },
-      ],
-    });
+    vi.mocked(provider.complete).mockResolvedValue(makeResponse([
+      { type: 'text', text: '{"findings": [' },
+      { type: 'text', text: '{"pkg": "react"}' },
+      { type: 'text', text: ']}' },
+    ]));
     const accessor = () => ({ provider, model: 'gpt-4' });
     const llm = createProviderLlm(accessor);
     if (!llm) { expect.fail('llm should be defined'); return; }
@@ -321,12 +341,10 @@ describe('createProviderLlm — content concatenation', () => {
 
   it('filters out non-text blocks', async () => {
     const provider = makeProvider();
-    vi.mocked(provider.complete).mockResolvedValue({
-      content: [
-        { type: 'text', text: '{"a":1}' },
-        { type: 'tool_use', id: 'x', name: 'x', input: {} },
-      ],
-    });
+    vi.mocked(provider.complete).mockResolvedValue(makeResponse([
+      { type: 'text', text: '{"a":1}' },
+      { type: 'tool_use', id: 'x', name: 'x', input: {} },
+    ]));
     const accessor = () => ({ provider, model: 'gpt-4' });
     const llm = createProviderLlm(accessor);
     if (!llm) { expect.fail('llm should be defined'); return; }

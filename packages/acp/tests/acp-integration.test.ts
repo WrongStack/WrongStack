@@ -57,8 +57,8 @@ describe('ACP v1 End-to-End Integration', () => {
     expect({ jsonrpc: '2.0', id: 2, method: 'session/new', params: { cwd: '/test', mcpServers: [] } }.method).toBe('session/new');
     // session/prompt with text + resource
     const pr = { jsonrpc: '2.0', id: 3, method: 'session/prompt', params: { sessionId: 'sess_x', prompt: [{ type: 'text', text: 'hi' }, { type: 'resource', resource: { uri: 'file:///f', mimeType: 'text/plain', text: 'data' } }] } };
-    expect(pr.params.prompt[0].type).toBe('text');
-    expect(pr.params.prompt[1].type).toBe('resource');
+    expect(pr.params.prompt.at(0)?.type).toBe('text');
+    expect(pr.params.prompt.at(1)?.type).toBe('resource');
     // session/update: agent_message_chunk
     const up = { jsonrpc: '2.0', method: 'session/update', params: { sessionId: 'sess_x', update: { sessionUpdate: 'agent_message_chunk', content: { type: 'text', text: 'response' } } } };
     expect(up.params.update.sessionUpdate).toBe('agent_message_chunk');
@@ -93,7 +93,7 @@ describe('ACP v1 End-to-End Integration', () => {
     expect({ jsonrpc: '2.0', id: 1, method: 'terminal/create', params: { sessionId: 's_x', command: 'echo', args: ['hi'] } }.params.command).toBe('echo');
     expect({ jsonrpc: '2.0', id: 1, method: 'terminal/output', params: { sessionId: 's_x', terminalId: 't1' } }.method).toBe('terminal/output');
     expect({ jsonrpc: '2.0', id: 1, method: 'terminal/kill', params: { sessionId: 's_x', terminalId: 't1' } }.method).toBe('terminal/kill');
-    expect({ jsonrpc: '2.0', id: 1, method: 'session/request_permission', params: { sessionId: 's_x', toolCall: { toolCallId: 'c1', title: 't', status: 'pending' }, options: [{ optionId: 'allow', name: 'Allow', kind: 'allow_once' }] } }.params.options[0].kind).toBe('allow_once');
+    expect({ jsonrpc: '2.0', id: 1, method: 'session/request_permission', params: { sessionId: 's_x', toolCall: { toolCallId: 'c1', title: 't', status: 'pending' }, options: [{ optionId: 'allow', name: 'Allow', kind: 'allow_once' }] } }.params.options.at(0)?.kind).toBe('allow_once');
     expect({ jsonrpc: '2.0', id: 1, method: 'mcp/connect', params: {} }.method).toBe('mcp/connect');
     expect({ jsonrpc: '2.0', id: 1, method: 'elicitation/create', params: { sessionId: 's_x', schema: {} } }.method).toBe('elicitation/create');
     expect({ jsonrpc: '2.0', method: '$/cancel_request', params: {} }.method).toBe('$/cancel_request');

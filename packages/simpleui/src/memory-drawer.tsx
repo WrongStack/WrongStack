@@ -34,6 +34,12 @@ export function MemoryDrawer({ socketRef }: MemoryDrawerProps) {
     return () => document.removeEventListener('keydown', onKey);
   }, [open]);
 
+  useEffect(() => {
+    const onOpen = () => setOpen(true);
+    window.addEventListener('simpleui:open-memory-drawer', onOpen);
+    return () => window.removeEventListener('simpleui:open-memory-drawer', onOpen);
+  }, []);
+
   // Cleanup pending search on unmount (prevents setState on unmounted component)
   useEffect(() => {
     return () => {

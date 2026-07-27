@@ -97,10 +97,12 @@ export function TrendsView(): React.ReactElement {
       return { shown, totalCost, totalTokens, totalTools, byModel, byProvider, totalCacheRead, totalCacheWrite };
     }, [samples, rangeMs]);
 
-  if (error !== null) return <div className="hq-empty">Error loading trends: {error}</div>;
+  if (error !== null) return <div className="hq-empty hq-empty-ornate">Error loading trends: {error}</div>;
   if (samples.length === 0) {
     return (
-      <div className="hq-empty">No trend data yet. Trends accumulate as cost signals arrive.</div>
+      <div className="hq-empty hq-empty-ornate">
+        No trend data yet. Trends accumulate as cost signals arrive.
+      </div>
     );
   }
 
@@ -109,10 +111,28 @@ export function TrendsView(): React.ReactElement {
     totalCacheRead + totalCacheWrite > 0
       ? (totalCacheRead / (totalCacheRead + totalCacheWrite)) * 100
       : null;
+  const activeRange = RANGES.find((range) => range.ms === rangeMs)?.label ?? 'custom';
 
   return (
-    <div>
-      <div className="hq-filter-row">
+    <div className="hq-screen hq-trends-screen">
+      <section className="hq-screen-hero hq-trends-hero" aria-label="Telemetry trend summary">
+        <div>
+          <span className="hq-section-kicker">Telemetry runway</span>
+          <h2>{activeRange} signal window</h2>
+          <p>
+            Cost, tokens and tool activity are split into single-purpose charts so spikes stay
+            attributable without dual-axis ambiguity.
+          </p>
+        </div>
+        <div className="hq-hero-metrics">
+          <Metric label="cost" value={`$${totalCost.toFixed(4)}`} />
+          <Metric label="tokens" value={fmtTokens(totalTokens)} tone="warn" />
+          <Metric label="tool calls" value={totalTools.toLocaleString()} tone="ok" />
+          {cacheHitPct !== null ? <Metric label="cache hit" value={`${cacheHitPct.toFixed(0)}%`} /> : null}
+        </div>
+      </section>
+
+      <div className="hq-filter-row hq-trends-filter-row">
         {RANGES.map((r) => (
           <button
             key={r.label}
@@ -128,84 +148,89 @@ export function TrendsView(): React.ReactElement {
         </span>
       </div>
 
-      <div className="hq-stat-row">
-        <div className="hq-stat-block">
-          <span className="hq-stat-block-value accent-cost">${totalCost.toFixed(4)}</span>
-          <span className="hq-stat-block-label">cost</span>
-        </div>
-        <div className="hq-stat-block">
-          <span className="hq-stat-block-value accent-tokens">{fmtTokens(totalTokens)}</span>
-          <span className="hq-stat-block-label">tokens</span>
-        </div>
-        <div className="hq-stat-block">
-          <span className="hq-stat-block-value accent-tools">{totalTools.toLocaleString()}</span>
-          <span className="hq-stat-block-label">tool calls</span>
-        </div>
-        {cacheHitPct !== null && (
-          <div className="hq-stat-block">
-            <span className="hq-stat-block-value">{cacheHitPct.toFixed(0)}%</span>
-            <span className="hq-stat-block-label">cache hit</span>
-            <span className="hq-stat-block-sub">
-              {fmtTokens(totalCacheRead)} read · {fmtTokens(totalCacheWrite)} write
-            </span>
+      <section className="hq-chart-gallery" aria-label="Trend charts">
+        <div className="hq-card hq-chart-card primary">
+          <div className="hq-section-head compact">
+            <div>
+              <span className="hq-section-kicker">Spend</span>
+              <h3>Cost (USD)</h3>
+            </div>
           </div>
-        )}
-      </div>
-
-      <div className="hq-card">
-        <div className="hq-card-title">Cost (USD)</div>
-        <TimeseriesChart
-          points={shown.map((s) => ({ ts: s.ts, value: s.costUsd }))}
-          color="var(--chart-1)"
-          format={(v) => `$${v >= 1 ? v.toFixed(2) : v.toFixed(4)}`}
-        />
-      </div>
-      <div className="hq-card">
-        <div className="hq-card-title">Tokens (in + out)</div>
-        <TimeseriesChart
-          points={shown.map((s) => ({ ts: s.ts, value: s.inputTokens + s.outputTokens }))}
-          color="var(--chart-2)"
-          format={fmtTokens}
-        />
-      </div>
-      <div className="hq-card">
-        <div className="hq-card-title">Tool calls</div>
-        <TimeseriesChart
-          points={shown.map((s) => ({ ts: s.ts, value: s.toolCalls }))}
-          color="var(--chart-3)"
-          format={(v) => String(Math.round(v))}
-        />
-      </div>
+          <TimeseriesChart
+            points={shown.map((s) => ({ ts: s.ts, value: s.costUsd }))}
+            color="var(--chart-1)"
+            format={(v) => `$${v >= 1 ? v.toFixed(2) : v.toFixed(4)}`}
+          />
+        </div>
+        <div className="hq-card hq-chart-card">
+          <div className="hq-section-head compact">
+            <div>
+              <span className="hq-section-kicker">Volume</span>
+              <h3>Tokens (in + out)</h3>
+            </div>
+          </div>
+          <TimeseriesChart
+            points={shown.map((s) => ({ ts: s.ts, value: s.inputTokens + s.outputTokens }))}
+            color="var(--chart-2)"
+            format={fmtTokens}
+          />
+        </div>
+        <div className="hq-card hq-chart-card">
+          <div className="hq-section-head compact">
+            <div>
+              <span className="hq-section-kicker">Activity</span>
+              <h3>Tool calls</h3>
+            </div>
+          </div>
+          <TimeseriesChart
+            points={shown.map((s) => ({ ts: s.ts, value: s.toolCalls }))}
+            color="var(--chart-3)"
+            format={(v) => String(Math.round(v))}
+          />
+        </div>
+      </section>
 
       {hasModelBreakdown && (
-        <>
-          <div className="hq-card-title">By Model</div>
-          <div className="hq-card">
-            {byModel.map(({ key, entry }) => {
-              const pct = totalCost > 0 ? (entry.costUsd / totalCost) * 100 : 0;
-              return (
-                <div key={key} className="hq-row">
-                  <span className="hq-text-bright">{key}</span>
-                  <span className="hq-mono hq-row-subtle">
-                    {fmtTokens(entry.inputTokens)}→{fmtTokens(entry.outputTokens)}
-                    {entry.cacheRead !== undefined || entry.cacheWrite !== undefined
-                      ? ` · cache ${fmtTokens((entry.cacheRead ?? 0) + (entry.cacheWrite ?? 0))}`
-                      : ''}
-                  </span>
-                  <span className="hq-cost-amount hq-ml-auto">${entry.costUsd.toFixed(4)}</span>
-                  <span className="hq-mono hq-row-subtle">{pct.toFixed(1)}%</span>
-                </div>
-              );
-            })}
+        <section className="hq-two-column hq-trends-breakdowns">
+          <div>
+            <div className="hq-section-head compact">
+              <div>
+                <span className="hq-section-kicker">Model economics</span>
+                <h3>By Model</h3>
+              </div>
+            </div>
+            <div className="hq-card hq-breakdown-card">
+              {byModel.map(({ key, entry }) => {
+                const pct = totalCost > 0 ? (entry.costUsd / totalCost) * 100 : 0;
+                return (
+                  <div key={key} className="hq-row hq-breakdown-row">
+                    <span className="hq-text-bright">{key}</span>
+                    <span className="hq-mono hq-row-subtle">
+                      {fmtTokens(entry.inputTokens)}→{fmtTokens(entry.outputTokens)}
+                      {entry.cacheRead !== undefined || entry.cacheWrite !== undefined
+                        ? ` · cache ${fmtTokens((entry.cacheRead ?? 0) + (entry.cacheWrite ?? 0))}`
+                        : ''}
+                    </span>
+                    <span className="hq-cost-amount hq-ml-auto">${entry.costUsd.toFixed(4)}</span>
+                    <span className="hq-mono hq-row-subtle">{pct.toFixed(1)}%</span>
+                  </div>
+                );
+              })}
+            </div>
           </div>
           {byProvider.length > 1 && (
-            <>
-              <div className="hq-card-title">By Provider</div>
-              <div className="hq-card">
+            <div>
+              <div className="hq-section-head compact">
+                <div>
+                  <span className="hq-section-kicker">Provider split</span>
+                  <h3>By Provider</h3>
+                </div>
+              </div>
+              <div className="hq-card hq-breakdown-card">
                 {byProvider.map(({ key, entry }) => {
                   const pct = totalCost > 0 ? (entry.costUsd / totalCost) * 100 : 0;
                   return (
-                    <div key={key} className="hq-row">
+                    <div key={key} className="hq-row hq-breakdown-row">
                       <span className="hq-text-bright">{key}</span>
                       <span className="hq-cost-amount hq-ml-auto">${entry.costUsd.toFixed(4)}</span>
                       <span className="hq-mono hq-row-subtle">{pct.toFixed(1)}%</span>
@@ -213,10 +238,27 @@ export function TrendsView(): React.ReactElement {
                   );
                 })}
               </div>
-            </>
+            </div>
           )}
-        </>
+        </section>
       )}
+    </div>
+  );
+}
+
+function Metric({
+  label,
+  value,
+  tone,
+}: {
+  label: string;
+  value: string | number;
+  tone?: 'ok' | 'warn' | 'error';
+}): React.ReactElement {
+  return (
+    <div className="hq-hero-metric" data-tone={tone}>
+      <strong>{value}</strong>
+      <span>{label}</span>
     </div>
   );
 }

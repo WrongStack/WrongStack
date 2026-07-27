@@ -110,7 +110,7 @@ function printHelp() {
 }
 
 // ── Resolve the built SAGE store ───────────────────────────────────────────
-async function loadStoreCtor() {
+async function loadSageModule() {
   // Repo root is one level up from scripts/. The package builds to dist/index.js.
   const repoRoot = path.resolve(__dirname, '..');
   const distPath = path.join(repoRoot, 'packages', 'sage', 'dist', 'index.js');
@@ -124,7 +124,7 @@ async function loadStoreCtor() {
   for (const load of candidates) {
     try {
       const mod = await load();
-      if (mod?.SqliteSageStore) return mod.SqliteSageStore;
+      if (mod?.SqliteSageStore) return mod;
       lastErr = new Error('SqliteSageStore export missing');
     } catch (err) {
       lastErr = err;
@@ -243,7 +243,20 @@ async function main() {
     process.exit(1);
   }
 
-  const SageStore = await loadStoreCtor();
+  const sageModule = await loadSageModule();
+  if (sageModule.SageProjectServerConnection) {
+    const server = new sageModule.SageProjectServerConnection(projectRoot);
+    const running = await server.status();
+    server.close();
+    if (running) {
+      console.error(
+        `SAGE project server is running (pid ${running.pid}).\n` +
+          'Stop every WrongStack host for this project before using the offline maintenance tool.',
+      );
+      process.exit(1);
+    }
+  }
+  const SageStore = sageModule.SqliteSageStore;
   const store = new SageStore({ projectRoot });
 
   const mode = opts.apply ? 'APPLY (writes enabled)' : 'DRY-RUN (no writes)';

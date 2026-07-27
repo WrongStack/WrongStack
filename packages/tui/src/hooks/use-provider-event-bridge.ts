@@ -7,7 +7,7 @@ import {
 } from 'react';
 import type { ContentBlock } from '@wrongstack/core/types';
 import type { AppProps } from '../app-props.js';
-import type { Action } from '../app-state.js';
+import type { Action } from '../app-action-type.js';
 import {
   applyMemoryContextSnapshot,
   applyMemoryInjectorRun,

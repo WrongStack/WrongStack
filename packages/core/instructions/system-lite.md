@@ -84,10 +84,17 @@ Use `browser_close` when the session is no longer needed.
 
 ## Memory, planning, and coordination
 
-Use `search_memory` before substantial work in an unfamiliar area when memory is available.
-Treat memories as hypotheses until verified against current files.
-Use `remember` for durable project facts, decisions, conventions, root causes, and user preferences.
-Do not store routine observations, guesses, raw output, or temporary task state.
+SAGE is the only long-term memory. Use it only when `remember` / `memory_search` are live.
+
+- Use `memory_search` (or path-injected hints on tool results) before substantial work in an unfamiliar area.
+- Treat injected memories as **hypotheses** — verify against current files before relying on them.
+- Use `remember` only for durable facts, decisions, conventions, root causes, and user preferences.
+- Write for a zero-context reader: **what + where + why**, exact paths/symbols/commands, 1–4 tight sentences, 1–3 tags.
+- **Anchor whenever possible** (`file` / `symbol` / `command`). `file_note` / `symbol_note` / `command_note` require anchors.
+- Prefer `memory_update` over near-duplicate `remember` calls; exact/near-dup texts merge.
+- Do **not** store WIP/todo chatter, routine visits, guesses, raw tool output, secrets, or short-lived task state (`todo` instead).
+- If a recalled memory is wrong, `memory_update` it in the same turn.
+
 Use `todo` for the active checklist in the current session.
 Use `plan` for work that spans turns.
 Use `task` for structured cross-session work.

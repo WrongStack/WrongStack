@@ -8,6 +8,7 @@ import type {
 } from '@wrongstack/core/types';
 import { createFallbackModelExtension, type FallbackProfileManager } from '@wrongstack/core/agent';
 import { withCatalogCapabilities } from '@wrongstack/providers';
+import { getSageService } from '@wrongstack/sage';
 import type { EventBus } from '@wrongstack/core/kernel';
 import { type ProviderConfigSnapshot, readProviderSnapshot, SessionMemoryConsolidator, watchProviderConfig } from '@wrongstack/core/storage';
 import type { ProviderModelStatusTracker } from '@wrongstack/core/coordination';
@@ -167,10 +168,9 @@ export function setupProviderRuntime(deps: ProviderRuntimeDeps): ProviderRuntime
 
   // ── Session-end memory consolidation ───────────────────────────────────
   if (cfg.features.memory && cfg.features.memoryConsolidation !== false) {
-    const consSage = typeof memoryStore === 'object' && memoryStore !== null
-      && typeof (memoryStore as Record<string, unknown>).rememberSage === 'function'
-      ? (memoryStore as import('@wrongstack/core/storage').ConsolidatorSage)
-      : undefined;
+    const consSage = getSageService(memoryStore) as
+      | import('@wrongstack/core/storage').ConsolidatorSage
+      | undefined;
     agent.extensions.register(
       new SessionMemoryConsolidator({
         memoryStore,

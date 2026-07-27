@@ -12,15 +12,14 @@ import { randomUUID } from 'node:crypto';
 import * as http from 'node:http';
 import * as path from 'node:path';
 import { createDefaultPipelines } from '@wrongstack/core/agent';
+import { createCompatibilityTrustBoundary } from '@wrongstack/core/security';
 import {
   createSessionEventBridge,
   resolveSessionLoggingConfig,
   watchProviderConfig,
 } from '@wrongstack/core/storage';
 import { DEFAULT_CONTEXT_WINDOW_MODE_ID, type ProviderConfig } from '@wrongstack/core/types';
-import { expectDefined } from '@wrongstack/core/utils';
-import { createCompatibilityTrustBoundary } from '@wrongstack/core/security';
-import { toErrorMessage } from '@wrongstack/core/utils';
+import { expectDefined, toErrorMessage } from '@wrongstack/core/utils';
 import { makeProviderFromConfig } from '@wrongstack/providers';
 import { type PackageOperation, toLanguagePackageInput } from '@wrongstack/techstack';
 import { ensureSessionShell } from '@wrongstack/tools';
@@ -30,6 +29,7 @@ import { createConnectionHandler } from './connection-handler.js';
 import { createEternalSubscription } from './eternal-iteration-broadcast.js';
 import { unregisterInstance } from './instance-registry.js';
 import { createMessageDispatcher } from './message-dispatcher.js';
+import { formatExternalAccessUrls } from './network-info.js';
 import type { PendingConfirm } from './pending-confirms.js';
 import { createPreContextServices } from './pre-context-services.js';
 import {
@@ -63,7 +63,6 @@ import {
 import type { FileWatcherMetrics } from './setup-events.js';
 import type { WebUIOptions } from './types.js';
 import { broadcast, resolveAuthToken } from './ws-utils.js';
-import { formatExternalAccessUrls } from './network-info.js';
 
 export async function startWebUI(
   opts: WebUIOptions & {
@@ -670,8 +669,9 @@ export async function startWebUI(
 
   const cb: WebuiCallbacks = {
     sessionStartPayload,
-    onSessionSwapped: async (sessionId) => {
-      await sessionIdentity.activate(sessionId);
+    claimSession: (sessionId, target) => sessionIdentity.claim(sessionId, target),
+    onSessionSwapped: async (sessionId, target) => {
+      await sessionIdentity.activate(sessionId, target);
       const { hydrateSessionKanban } = await import('@wrongstack/tools/session-kanban');
       await hydrateSessionKanban(deps.context);
     },
@@ -867,6 +867,11 @@ export async function startWebUI(
             logger.warn(`sage session hygiene failed: ${toErrorMessage(err)}`),
           );
       }
+      await memoryStore
+        .dispose()
+        .catch((err: unknown) =>
+          logger.warn(`sage connection disposal failed: ${toErrorMessage(err)}`),
+        );
       await unregisterInstance(process.pid, path.dirname(globalConfigPath));
     },
   });

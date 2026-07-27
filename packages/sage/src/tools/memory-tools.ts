@@ -83,6 +83,13 @@ function memoryRememberTool(memory: SageServiceLike): Tool<RememberToolInput, Sa
       'Persist structured project knowledge into long-term SAGE. Bind it to files, symbols, or commands with `anchors` so it can be verified and auto-surfaced later.',
     usageHint:
       'Persist facts, conventions, decisions, and preferences into long-term memory.\n\n' +
+      'EFFECTIVENESS RULES (follow strictly):\n' +
+      '1. One durable fact per call — self-contained for a reader with zero session context.\n' +
+      '2. Always prefer anchors (file/symbol/command/package). Unanchored memories rarely inject.\n' +
+      '3. Use exact paths/symbols/commands in the text so path+FTS retrieval can match them.\n' +
+      '4. Add 1-3 stable tags (package name, domain: auth, build, testing).\n' +
+      '5. Write WHAT + WHERE + WHY/consequence in 1-4 tight sentences.\n' +
+      '6. Update with `memory_update` instead of near-duplicate `remember` calls.\n\n' +
       'WHEN TO USE:\n' +
       '- Project conventions discovered during a task (build tool, lint rules, code style)\n' +
       '- Architecture decisions made (chose X over Y, decided to use pattern Z)\n' +
@@ -96,13 +103,12 @@ function memoryRememberTool(memory: SageServiceLike): Tool<RememberToolInput, Sa
       '- Stable facts, decisions, conventions, workflows, and known root causes\n' +
       '- Use multiple anchors when one fact connects a package, file, symbol, or command\n\n' +
       'WHEN NOT TO USE:\n' +
-      '- Temporary task state or progress → use `todo`\n' +
-      '- One-off debugging notes\n' +
-      '- Information already obvious from the codebase\n\n' +
-      'Pick the most specific `kind`. Add 1-3 stable topic tags. Anchor to a file/directory,\n' +
-      'package, symbol, command, test, or git reference whenever applicable. Default persistence\n' +
-      'is `long_lived`; use `permanent` only for explicit project/user invariants.\n' +
-      'Concrete anchors keep memory verifiable and let related knowledge travel together.\n\n' +
+      '- Temporary task state or progress → use `todo` (WIP/todo chatter is rejected)\n' +
+      '- One-off debugging notes and "fixed the bug" summaries\n' +
+      '- Information already obvious from the codebase\n' +
+      '- `file_note` / `symbol_note` / `command_note` without anchors (hard reject)\n\n' +
+      'Pick the most specific `kind`. Default persistence is `long_lived`; use `permanent`\n' +
+      'only for explicit project/user invariants.\n\n' +
       'AUDIENCE SCOPING:\n' +
       '- Pass `audience: { roles: [...] }` to target a memory to specific agent types.\n' +
       '- Scoped memories are injected into matching subagent system prompts automatically.\n' +

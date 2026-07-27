@@ -33,7 +33,14 @@ function detailToPhases(detail: SpecDetail): unknown[] {
  * progress bars; expanding one fetches and shows its task graph as a List or a
  * topological Dependency Graph (phase columns + dependency refs).
  */
-export function SpecsView({ onClose }: { onClose: () => void }): React.ReactElement {
+export function SpecsView({
+  onClose,
+  onRunStarted,
+}: {
+  onClose: () => void;
+  /** Called when an SDD run is kicked off from Specs (Hub flips to Live Board). */
+  onRunStarted?: () => void;
+}): React.ReactElement {
   const { client } = useWebSocket();
   const { t } = useAppTranslation();
   const specs = useSpecsStore((s) => s.specs);
@@ -44,7 +51,7 @@ export function SpecsView({ onClose }: { onClose: () => void }): React.ReactElem
 
   // Launch the spec's tasks as a live Goal run (phases = topological
   // columns), then jump to the Phases board to watch the agents work.
-  const runSpec = useCallback(
+  const runSpecAsGoal = useCallback(
     (spec: SpecListItem) => {
       if (!detail || detail.specId !== spec.id) return;
       client?.send?.({
@@ -54,6 +61,28 @@ export function SpecsView({ onClose }: { onClose: () => void }): React.ReactElem
       openMainView('goal');
     },
     [detail, client],
+  );
+
+  // Launch via the SDD parallel engine (worktrees, completion gate, live board).
+  const runSpecAsSdd = useCallback(
+    (spec: SpecListItem) => {
+      // Prefer graph id from the list row; fall back to expanded detail / server resolve.
+      const graphId = spec.graphId ?? (detail?.specId === spec.id ? detail.graphId : undefined);
+      if (graphId) {
+        client?.send?.({
+          type: 'sdd.run.from_graph',
+          payload: { graphId, worktrees: true },
+        });
+      } else {
+        client?.send?.({
+          type: 'sdd.run.from_spec',
+          payload: { specId: spec.id, worktrees: true },
+        });
+      }
+      onRunStarted?.();
+      openMainView('sddhub');
+    },
+    [detail, client, onRunStarted],
   );
 
   // Pull the spec list on mount.
@@ -158,12 +187,20 @@ export function SpecsView({ onClose }: { onClose: () => void }): React.ReactElem
                         <div className="flex items-center gap-2">
                         <button
                           type="button"
+                          onClick={() => runSpecAsSdd(spec)}
+                          title={t('activity:specs.runAsSddTitle')}
+                          className="inline-flex items-center gap-1 rounded-md bg-success/15 px-2.5 py-1 text-xs font-medium text-success transition-colors hover:bg-success/25"
+                        >
+                          <Play className="h-3.5 w-3.5" /> {t('activity:specs.runAsSdd')}
+                        </button>
+                        <button
+                          type="button"
                           disabled={!detail || detail.specId !== spec.id}
-                          onClick={() => runSpec(spec)}
-                          title={t('activity:specs.runTitle')}
+                          onClick={() => runSpecAsGoal(spec)}
+                          title={t('activity:specs.runAsGoalTitle')}
                           className="inline-flex items-center gap-1 rounded-md bg-warning/15 px-2.5 py-1 text-xs font-medium text-warning transition-colors hover:bg-warning/25 disabled:opacity-40"
                         >
-                          <Play className="h-3.5 w-3.5" /> {t('activity:specs.run')}
+                          <Play className="h-3.5 w-3.5" /> {t('activity:specs.runAsGoal')}
                         </button>
                         <div className="flex items-center gap-1 rounded-md border border-border p-0.5">
                           <button

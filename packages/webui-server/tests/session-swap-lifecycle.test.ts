@@ -3,6 +3,7 @@ import * as os from 'node:os';
 import * as path from 'node:path';
 import { sessionScopedPath } from '@wrongstack/core/utils';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import type WebSocket from 'ws';
 import { createSessionHandlers } from '../src/server/session-handlers.js';
 
 describe('standalone WebUI session swap lifecycle', () => {
@@ -38,6 +39,7 @@ describe('standalone WebUI session swap lifecycle', () => {
     expect(harness.context.lastRealInputTokens).toBeUndefined();
     expect(harness.context.state.deleteMeta).toHaveBeenCalledWith('lastRequestTokensAt');
     expect(harness.context.state.deleteMeta).toHaveBeenCalledWith('realAnchorMsgCount');
+    expect(harness.claimSession).toHaveBeenCalledWith(next.id);
     expect(harness.onSessionSwapped).toHaveBeenCalledWith(next.id);
     expect(harness.meta.get('plan.path')).toBe(
       sessionScopedPath(sessionsDir, next.id, '.plan.json'),
@@ -45,6 +47,57 @@ describe('standalone WebUI session swap lifecycle', () => {
     expect(harness.meta.get('task.path')).toBe(
       sessionScopedPath(sessionsDir, next.id, '.tasks.json'),
     );
+  });
+
+  it('aborts the in-flight run before finalizing the old writer on session.new', async () => {
+    // Regression: session.new used to swap the session while a slow provider
+    // stream from the previous request was still in flight, so the old run
+    // kept streaming/tool-calling in the background of the new session.
+    const old = writer('2026-07-12/sess_old');
+    const next = writer('2026-07-12/sess_new');
+    const abortActiveRun = vi.fn();
+    const harness = makeHarness({ root, sessionsDir, current: old, created: next, abortActiveRun });
+
+    await harness.routes.newSession(harness.ws, {
+      type: 'session.new',
+      payload: { sessionId: old.id },
+    });
+
+    expect(abortActiveRun).toHaveBeenCalledOnce();
+    // The abort must fire before the old writer is finalized so the run
+    // cannot append more events to the old session after session_end.
+    const abortOrder = abortActiveRun.mock.invocationCallOrder[0] ?? 0;
+    const closeOrder = old.close.mock.invocationCallOrder[0] ?? 0;
+    expect(abortOrder).toBeLessThan(closeOrder);
+  });
+
+  it('discards a fresh writer when its ownership claim fails', async () => {
+    const old = writer('2026-07-12/sess_old');
+    const next = writer('2026-07-12/sess_new');
+    const claimSession = vi.fn(async () => {
+      throw new Error('Session registry ownership update failed: lock remained busy');
+    });
+    const harness = makeHarness({
+      root,
+      sessionsDir,
+      current: old,
+      created: next,
+      claimSession,
+    });
+
+    await harness.routes.newSession(harness.ws, {
+      type: 'session.new',
+      payload: { sessionId: old.id },
+    });
+
+    expect(harness.current()).toBe(old);
+    expect(old.close).not.toHaveBeenCalled();
+    expect(next.close).toHaveBeenCalledOnce();
+    expect(harness.store.delete).toHaveBeenCalledWith(next.id);
+    expect(harness.ws.sent.at(-1)).toMatchObject({
+      type: 'key.operation_result',
+      payload: { success: false, message: expect.stringContaining('ownership update failed') },
+    });
   });
 
   it('hydrates a resumed writer only after finalizing the previous writer', async () => {
@@ -72,11 +125,75 @@ describe('standalone WebUI session swap lifecycle', () => {
     expect(harness.context.state.replaceMessages).toHaveBeenLastCalledWith(messages);
     expect(harness.context.state.replaceTodos).toHaveBeenLastCalledWith([]);
     expect(harness.tokenCounter.account).toHaveBeenCalledWith(usage, 'test-model', 'test-provider');
+    expect(harness.claimSession).toHaveBeenCalledWith(resumed.id);
     expect(harness.onSessionSwapped).toHaveBeenCalledWith(resumed.id);
     expect(harness.ws.sent.at(-1)).toMatchObject({
       type: 'key.operation_result',
       payload: { success: true },
     });
+  });
+
+  it('refuses to resume a session owned by another live surface', async () => {
+    const old = writer('2026-07-12/sess_old');
+    const resumed = writer('2026-07-11/sess_resumed');
+    const claimSession = vi.fn(async () => {
+      throw new Error('Session is already open in another running wstack (pid 4242).');
+    });
+    const harness = makeHarness({ root, sessionsDir, current: old, resumed, claimSession });
+
+    await harness.routes.resumeSession(harness.ws, {
+      type: 'session.resume',
+      payload: { id: resumed.id },
+    });
+
+    expect(harness.store.resume).not.toHaveBeenCalled();
+    expect(harness.current()).toBe(old);
+    expect(harness.ws.sent.at(-1)).toMatchObject({
+      type: 'key.operation_result',
+      payload: {
+        success: false,
+        message: expect.stringContaining('another running wstack'),
+      },
+    });
+  });
+
+  it('serializes concurrent resume requests before either claim can overlap', async () => {
+    const old = writer('2026-07-12/sess_old');
+    const first = writer('2026-07-11/sess_first');
+    const second = writer('2026-07-11/sess_second');
+    let releaseFirst!: () => void;
+    const firstClaimGate = new Promise<void>((resolve) => {
+      releaseFirst = resolve;
+    });
+    const claimSession = vi.fn(async (sessionId: string) => {
+      if (sessionId === first.id) await firstClaimGate;
+      return async () => undefined;
+    });
+    const harness = makeHarness({ root, sessionsDir, current: old, resumed: first, claimSession });
+    harness.store.resume.mockImplementation(async (sessionId: string) => ({
+      writer: sessionId === first.id ? first : second,
+      data: {
+        messages: [],
+        usage: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
+      },
+    }));
+
+    const firstResume = harness.routes.resumeSession(harness.ws, {
+      type: 'session.resume',
+      payload: { id: first.id },
+    });
+    const secondResume = harness.routes.resumeSession(harness.ws, {
+      type: 'session.resume',
+      payload: { id: second.id },
+    });
+
+    await vi.waitFor(() => expect(claimSession).toHaveBeenCalledTimes(1));
+    expect(claimSession).toHaveBeenLastCalledWith(first.id);
+    releaseFirst();
+    await Promise.all([firstResume, secondResume]);
+
+    expect(claimSession.mock.calls.map(([sessionId]) => sessionId)).toEqual([first.id, second.id]);
+    expect(harness.current()).toBe(second);
   });
 
   it('reads checkpoints from canonical date-sharded projectSessions', async () => {
@@ -132,6 +249,8 @@ function makeHarness(input: {
   resumed?: ReturnType<typeof writer> | undefined;
   resumedMessages?: unknown[] | undefined;
   resumedUsage?: Record<string, number> | undefined;
+  abortActiveRun?: (() => void) | undefined;
+  claimSession?: ((sessionId: string) => Promise<() => Promise<void>>) | undefined;
 }) {
   let current = input.current;
   const meta = new Map<string, unknown>();
@@ -156,6 +275,7 @@ function makeHarness(input: {
     account: vi.fn(),
   };
   const onSessionSwapped = vi.fn(async () => undefined);
+  const claimSession = input.claimSession ?? vi.fn(async () => async () => undefined);
   const ws = {
     readyState: 1,
     sent: [] as Array<{ type: string; payload: unknown }>,
@@ -164,8 +284,9 @@ function makeHarness(input: {
     },
   };
   const store = {
-    create: vi.fn(async () => input.created),
-    resume: vi.fn(async () => ({
+    create: vi.fn(async (_options: unknown) => input.created),
+    delete: vi.fn(async (_sessionId: string) => undefined),
+    resume: vi.fn(async (_sessionId: string) => ({
       writer: input.resumed,
       data: {
         messages: input.resumedMessages ?? [],
@@ -189,7 +310,9 @@ function makeHarness(input: {
       current = next as typeof current;
     },
     setSessionStartedAt: vi.fn(),
+    claimSession,
     onSessionSwapped,
+    abortActiveRun: input.abortActiveRun,
     sessionStartPayload: async () => ({
       sessionId: current.id,
       model: 'test-model',
@@ -208,9 +331,11 @@ function makeHarness(input: {
 
   return {
     routes,
-    ws: ws as never as typeof ws,
+    ws: ws as unknown as WebSocket & typeof ws,
     context,
     tokenCounter,
+    store,
+    claimSession,
     onSessionSwapped,
     meta,
     current: () => current,

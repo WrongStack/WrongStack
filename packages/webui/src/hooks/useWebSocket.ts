@@ -1,5 +1,6 @@
 import { useCallback, useEffect } from 'react';
 import { installFaviconVisibilityReset } from '@/lib/favicon';
+import type { ProviderCustomModelWire } from '@/types';
 import type { WrongStackWebSocketClient, WSSendOptions } from '@/lib/ws-client';
 import { getWSClient } from '@/lib/ws-client';
 import { useConfigStore, useHistoryStore, useUIStore } from '@/stores';
@@ -149,8 +150,14 @@ export function useWebSocket() {
     [client],
   );
   const addProvider = useCallback(
-    (id: string, family: string, baseUrl?: string | undefined, apiKey?: string) =>
-      client.addProvider(id, family, baseUrl, apiKey),
+    (
+      id: string,
+      family: string,
+      baseUrl?: string | undefined,
+      apiKey?: string,
+      models?: string[] | undefined,
+      customModels?: Record<string, ProviderCustomModelWire> | undefined,
+    ) => client.addProvider(id, family, baseUrl, apiKey, models, customModels),
     [client],
   );
   const removeProvider = useCallback(

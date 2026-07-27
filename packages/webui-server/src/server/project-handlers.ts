@@ -1,15 +1,14 @@
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
-import {
-  DefaultSessionStore,
-} from '@wrongstack/core/storage';
 import type { Context } from '@wrongstack/core/agent';
+import { DefaultSessionStore } from '@wrongstack/core/storage';
 import type { SessionStore, TokenCounter } from '@wrongstack/core/types';
 import { resolveWstackPaths } from '@wrongstack/core/utils';
 import type { WebSocket } from 'ws';
 import { resolveWorkingDirInsideProject } from './path-containment.js';
 import type { ProjectRouteHandlers } from './project-routes.js';
 import { loadManifest, touchProjectInManifest } from './projects-manifest.js';
+import type { SessionIdentityTarget } from './standalone-session-identity.js';
 import type { ConnectedClient } from './types.js';
 import {
   validateProjectsAddPayload,
@@ -40,7 +39,7 @@ export interface ProjectHandlersContext {
   setSessionStartedAt?: (startedAt: number) => void;
   abortRunLock: () => void;
   abortAllRuns?: () => void;
-  onSessionSwapped?: (sessionId: string) => void | Promise<void>;
+  onSessionSwapped?: (sessionId: string, target?: SessionIdentityTarget) => void | Promise<void>;
   allowProjectMutations?: boolean;
   sessionStartPayload: (overrides?: Record<string, unknown>) => Promise<unknown>;
 }
@@ -186,12 +185,29 @@ export function createProjectHandlers(ctx: ProjectHandlersContext): ProjectRoute
           provider: config.provider,
         });
 
-        ctx.abortRunLock();
-        ctx.abortAllRuns?.();
+        try {
+          ctx.abortRunLock();
+          ctx.abortAllRuns?.();
+        } catch {
+          // Best-effort cancellation must not strand the fresh writer.
+        }
         await touchProjectInManifest(
           { projectRoot: resolved, workingDir: resolved, name },
           ctx.globalConfigPath,
         );
+        const identityTarget: SessionIdentityTarget = {
+          projectSlug: paths.projectSlug,
+          projectRoot: resolved,
+          projectName: name,
+          workingDir: resolved,
+        };
+        try {
+          await ctx.onSessionSwapped?.(next.id, identityTarget);
+        } catch (err) {
+          await next.close().catch(() => undefined);
+          await store.delete(next.id).catch(() => undefined);
+          throw err;
+        }
         ctx.setProjectRoot(resolved);
         ctx.setWorkingDir(resolved);
         ctx.setSessionStore(store);
@@ -213,7 +229,6 @@ export function createProjectHandlers(ctx: ProjectHandlersContext): ProjectRoute
           await previous.close().catch(() => undefined);
         }
         ctx.setSessionStartedAt?.(Date.now());
-        await ctx.onSessionSwapped?.(next.id);
         sendTo(ws, {
           type: 'projects.selected',
           payload: { root: resolved, name, message: `Switched to ${name}` },

@@ -68,7 +68,6 @@ export type MemoryToolTrigger =
   | 'grep'
   | 'glob'
   | 'codebase_search'
-  | 'bash'
   | 'write'
   | 'edit'
   | 'patch';
@@ -107,7 +106,7 @@ export function createSageToolCallMiddleware(
       let attemptedTrigger: ExtractedTriggerContext | undefined;
       let attemptedPlan: ReturnType<MemoryInjectorAgent['plan']> | undefined;
       try {
-        if (nextPayload.result.is_error && nextPayload.toolUse.name !== 'bash') return nextPayload;
+        if (nextPayload.result.is_error) return nextPayload;
 
         const trigger = extractTrigger(nextPayload.toolUse.name, nextPayload.toolUse.input);
         if (!trigger) return nextPayload;
@@ -125,10 +124,6 @@ export function createSageToolCallMiddleware(
           didMutate(nextPayload.toolUse.name, nextPayload.toolUse.input)
         ) {
           await opts.memory.verifyForPaths?.(trigger.paths, nextPayload.ctx.signal);
-        }
-
-        if (trigger.trigger === 'bash' && nextPayload.result.content) {
-          trigger.queryText = `${trigger.queryText} ${nextPayload.result.content.slice(-2_000)}`;
         }
 
         const plan = injector.plan({
@@ -612,17 +607,26 @@ function contextualInjectionScore(memory: Sage, relationStrength: number): numbe
   const persistenceBoost =
     persistence === 'permanent' ? 0.08 : persistence === 'long_lived' ? 0.04 : -0.08;
   const durableKindBoost = durableMemoryKind(memory.kind) ? 0.04 : 0;
+  // Proven usefulness: memories the assistant actually referenced should win
+  // budget slots over never-used noise that only has high importance defaults.
+  const uses = memory.useCount ?? 0;
+  const useBoost = uses > 0 ? Math.min(0.14, 0.05 + uses * 0.02) : 0;
+  // Anchored knowledge is the inject path's primary retrieval key — unanchored
+  // facts rely on weak lexical overlap and should not crowd path-matched slots.
+  const anchorBoost = memory.anchors.length > 0 ? 0.04 : -0.05;
   const injections = memory.injectionCount ?? 0;
   const unusedPenalty =
-    injections >= 3 && (memory.useCount ?? 0) === 0 ? Math.min(0.16, 0.04 + injections * 0.01) : 0;
+    injections >= 3 && uses === 0 ? Math.min(0.18, 0.05 + injections * 0.012) : 0;
   return Math.max(
     0,
     Math.min(
       1,
-      metadata * 0.52 +
+      metadata * 0.48 +
         relationStrength * 0.48 +
         persistenceBoost +
-        durableKindBoost -
+        durableKindBoost +
+        useBoost +
+        anchorBoost -
         unusedPenalty,
     ),
   );
@@ -662,71 +666,114 @@ function extractTrigger(
       return {
         trigger: 'read',
         paths: stringValues(input.path),
-        queryText: stringValues(input.path).join(' '),
+        queryText: enrichPathQuery(stringValues(input.path)),
       };
     case 'tree':
       return {
         trigger: 'tree',
         paths: stringValues(input.path ?? '.'),
-        queryText: stringValues(input.path ?? '.').join(' '),
+        queryText: enrichPathQuery(stringValues(input.path ?? '.')),
       };
     case 'grep':
       return {
         trigger: 'grep',
         paths: stringValues(input.path ?? '.'),
-        queryText: [input.pattern, input.glob, input.path].filter(isString).join(' '),
+        queryText: joinQueryParts(
+          input.pattern,
+          input.glob,
+          enrichPathQuery(stringValues(input.path ?? '.')),
+        ),
       };
     case 'glob':
       return {
         trigger: 'glob',
         paths: stringValues(input.path ?? '.'),
-        queryText: [input.pattern, input.glob, input.path].filter(isString).join(' '),
+        queryText: joinQueryParts(
+          input.pattern,
+          input.glob,
+          enrichPathQuery(stringValues(input.path ?? '.')),
+        ),
       };
     case 'codebase_search':
     case 'codebase-search':
       return {
         trigger: 'codebase_search',
         paths: stringValues(input.path),
-        queryText: [input.query, input.q, input.path].filter(isString).join(' '),
-      };
-    case 'bash':
-    case 'exec':
-      return {
-        trigger: 'bash',
-        paths: [],
-        queryText: stringValues(input.command ?? input.cmd).join(' '),
+        queryText: joinQueryParts(
+          input.query,
+          input.q,
+          enrichPathQuery(stringValues(input.path)),
+        ),
       };
     case 'write':
       return {
         trigger: 'write',
         paths: stringValues(input.path),
-        queryText: stringValues(input.path).join(' '),
+        queryText: enrichPathQuery(stringValues(input.path)),
       };
     case 'edit':
       return {
         trigger: 'edit',
         paths: stringValues(input.path),
-        queryText: stringValues(input.path).join(' '),
+        queryText: enrichPathQuery(stringValues(input.path)),
       };
     case 'replace': {
       const files = stringValues(input.files).flatMap(splitFileList);
       return {
         trigger: 'edit',
         paths: files,
-        queryText: [...files, ...stringValues(input.pattern), ...stringValues(input.glob)].join(
-          ' ',
+        queryText: joinQueryParts(
+          enrichPathQuery(files),
+          ...stringValues(input.pattern),
+          ...stringValues(input.glob),
         ),
       };
     }
-    case 'patch':
+    case 'patch': {
+      const patchPaths = extractPatchPaths(input);
       return {
         trigger: 'patch',
-        paths: extractPatchPaths(input),
-        queryText: [input.directory, ...extractPatchPaths(input)].filter(isString).join(' '),
+        paths: patchPaths,
+        queryText: joinQueryParts(input.directory, enrichPathQuery(patchPaths)),
       };
+    }
     default:
       return undefined;
   }
+}
+
+function joinQueryParts(...parts: unknown[]): string {
+  return parts
+    .flatMap((part) => (typeof part === 'string' ? [part.trim()] : []))
+    .filter((part) => part.length > 0)
+    .join(' ');
+}
+
+/**
+ * Expand raw tool paths into FTS-friendly lexical seeds: full path, basename
+ * without extension, and immediate parent directory. Path-only triggers used
+ * to search as one long slash-separated string that rarely matched memory text
+ * containing just the symbol or file stem.
+ */
+function enrichPathQuery(paths: string[]): string {
+  const terms: string[] = [];
+  for (const raw of paths) {
+    const normalized = raw.replace(/\\/g, '/').replace(/^\.\//, '').trim();
+    if (!normalized || normalized === '.') continue;
+    terms.push(normalized);
+    const segments = normalized.split('/').filter(Boolean);
+    const base = segments[segments.length - 1];
+    if (base) {
+      terms.push(base);
+      const stem = base.replace(/\.[a-z0-9]{1,8}$/i, '');
+      if (stem && stem !== base) terms.push(stem);
+    }
+    if (segments.length >= 2) {
+      const parent = segments[segments.length - 2]!;
+      if (parent.length >= 3) terms.push(parent);
+    }
+  }
+  return [...new Set(terms)].join(' ');
 }
 
 function stringValues(value: unknown): string[] {
@@ -942,6 +989,7 @@ export const toolCallMemoryCoverage = {
   isMutationTrigger,
   didMutate,
   extractTrigger,
+  enrichPathQuery,
   stringValues,
   isString,
   splitFileList,

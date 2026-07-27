@@ -41,7 +41,7 @@ export function buildSettingsCommand(opts: SlashCommandContext): SlashCommand {
     '  /settings semver-part patch|minor|major|auto   Default part for /semver and the semver_bump tool',
     '  /settings breaker on|off   Enable/disable the process circuit breaker (gates bash/exec)',
     '  /settings breaker-timeout <seconds>   Auto kill/reset delay when the breaker trips (0 = manual)',
-    '  /settings context-mode balanced|frugal|deep|archival   Context window policy',
+    '  /settings context-mode balanced|frugal|deep   Context window policy',
     '  /settings context-strategy hybrid|intelligent|selective   Compactor strategy',
     '  /settings context-auto-compact on|off   Auto-compact context when thresholds crossed',
     '  /settings token-saving off|minimal|light|medium|aggressive   Token-saving mode',
@@ -153,7 +153,7 @@ export function buildSettingsCommand(opts: SlashCommandContext): SlashCommand {
       `  refiner-fallback-profile:   ${color.cyan(au?.refinerFallbackProfile as string ?? color.dim('(unset)'))}   ${color.dim('change: /settings refiner-fallback-profile <name>')}`,
       `  semver default part:        ${color.cyan(semverPart)}   ${color.dim('change: /settings semver-part patch|minor|major|auto')}`,
       `  circuit breaker:            ${breakerEnabled ? color.cyan('on') : color.dim('off')} (${breakerTimeout > 0 ? formatDelay(breakerTimeout) : color.dim('manual')})   ${color.dim('change: /settings breaker on|off')}`,
-      `  context mode:               ${color.cyan(contextMode)}   ${color.dim('change: /settings context-mode balanced|frugal|deep|archival')}`,
+      `  context mode:               ${color.cyan(contextMode)}   ${color.dim('change: /settings context-mode balanced|frugal|deep')}`,
       `  context strategy:           ${color.cyan(contextStrategy)}   ${color.dim('change: /settings context-strategy hybrid|intelligent|selective')}`,
       `  context auto-compact:       ${contextAutoCompact ? color.cyan('on') : color.dim('off')}   ${color.dim('change: /settings context-auto-compact on|off')}`,
       `  token-saving:               ${color.cyan(tokenSavingTier)}   ${color.dim('change: /settings token-saving off|minimal|light|medium|aggressive')}`,
@@ -590,9 +590,9 @@ export function buildSettingsCommand(opts: SlashCommandContext): SlashCommand {
 
         if (sub === 'context-mode') {
           const raw = (rest[0] ?? '').toLowerCase();
-          const modes = ['balanced', 'frugal', 'deep', 'archival'];
+          const modes = ['balanced', 'frugal', 'deep'];
           if (!modes.includes(raw)) {
-            return { message: `${color.amber('Usage:')} /settings context-mode balanced|frugal|deep|archival` };
+            return { message: `${color.amber('Usage:')} /settings context-mode balanced|frugal|deep` };
           }
           await persistConfigSetting(persistDeps, (cfg) => {
             const ctx = (cfg.context as Record<string, unknown>) ?? {};

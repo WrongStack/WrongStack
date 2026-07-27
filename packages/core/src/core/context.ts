@@ -176,6 +176,32 @@ export class Context implements RunEnv {
    */
   traceId: string | undefined;
 
+  /**
+   * Session id pinned to the currently-executing run. Set by `Agent.run()`
+   * at run start and cleared when the run ends. Event-emission sites must
+   * prefer this over `session.id` (via {@link eventSessionId}) because the
+   * WebUI can swap `ctx.session` (session.new / resume) while a slow
+   * provider stream from the previous session is still in flight — a live
+   * `session.id` read would stamp the old run's late events with the NEW
+   * session id and leak them into the new session's chat.
+   */
+  activeRunSessionId: string | undefined = undefined;
+  /**
+   * Writer pinned alongside `activeRunSessionId`. Persistence sites that stamp
+   * a run-pinned session id must append through this writer; otherwise a
+   * host-side `ctx.session` swap can put an old-session event in the new
+   * session's JSONL.
+   */
+  activeRunSessionWriter: SessionWriter | undefined = undefined;
+
+  /**
+   * Session id that events of the in-flight run must be stamped with: the
+   * run-pinned id when a run is active, otherwise the live session id.
+   */
+  eventSessionId(): string {
+    return resolveEventSessionId(this);
+  }
+
   /** Callbacks fired when `setWorkingDir()` changes the working directory. */
   private _onWorkingDirChanged: Array<(newDir: string, oldDir: string) => void> = [];
   /**
@@ -534,7 +560,11 @@ export class Context implements RunEnv {
    */
   recordSideEffect(sideEffect: import('../types/side-effect.js').SideEffect): void {
     this.sideEffects.push(sideEffect);
-    this.session
+    // Persist through the writer pinned to this run (if active) so a
+    // host-side session swap cannot route side effects into the new
+    // session's JSONL — same invariant as recordFileEvent.
+    const sessionWriter = this.activeRunSessionWriter ?? this.session;
+    sessionWriter
       .append({
         type: 'side_effect',
         ts: sideEffect.ts,
@@ -592,7 +622,7 @@ export class Context implements RunEnv {
       operation: input.operation,
       filePath: input.filePath,
       absPath: input.absPath,
-      sessionId: this.session.id,
+      sessionId: this.eventSessionId(),
       agentId: this.agentId,
       agentName: this.agentName,
       provider:
@@ -614,15 +644,19 @@ export class Context implements RunEnv {
 
     this.fileEvents.push(record);
 
-    // Persist to session JSONL (fire-and-forget)
-    this.session
+    // Persist through the writer pinned to this run. The WebUI may replace
+    // `this.session` while a late tool operation is completing; pairing the
+    // writer with the already-pinned id keeps both JSONL routing and metadata
+    // on the session that started the run.
+    const sessionWriter = this.activeRunSessionWriter ?? this.session;
+    sessionWriter
       .append({
         type: 'file_event',
         ts,
         operation: input.operation,
         filePath: input.filePath,
         absPath: input.absPath,
-        sessionId: this.session.id,
+        sessionId: record.sessionId,
         agentId: this.agentId,
         agentName: this.agentName,
         provider: record.provider,
@@ -715,4 +749,17 @@ export class Context implements RunEnv {
   usage(): Usage {
     return this.tokenCounter.total();
   }
+}
+
+/**
+ * Session id that events of the in-flight run must be stamped with: the
+ * run-pinned id (`Context.activeRunSessionId`) when a run is active,
+ * otherwise the live session id. Reads properties defensively because
+ * tests and lightweight embedders stub Context with partial objects whose
+ * `session` may be missing despite the non-optional type.
+ */
+export function resolveEventSessionId(ctx: Context): string {
+  if (ctx.activeRunSessionId) return ctx.activeRunSessionId;
+  const session: SessionWriter | undefined = ctx.session;
+  return session?.id ?? '';
 }

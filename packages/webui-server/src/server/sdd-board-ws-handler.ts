@@ -1,4 +1,5 @@
 import type { EventBus } from '@wrongstack/core/kernel';
+import { listBoards } from '@wrongstack/kanban';
 import {
   applySddLifecycle,
   type SddBoardSnapshot,
@@ -193,6 +194,19 @@ export class SddBoardWebSocketHandler {
     if (op === 'destroy' && result.ok) {
       this.latest = null;
       this.broadcast({ type: 'sdd.board.snapshot', payload: null });
+      // Refresh the Kanban list so mirror boards removed by destroySddProject
+      // disappear from the UI without a manual reload.
+      if (this.lifecycle) {
+        try {
+          const boards = await listBoards(this.lifecycle.projectRoot);
+          this.broadcast({
+            type: 'kanban.list',
+            payload: { success: true, data: boards },
+          });
+        } catch {
+          // best-effort
+        }
+      }
     }
   }
 

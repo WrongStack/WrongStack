@@ -8,7 +8,10 @@ const SAGE_BLOCK = [
 ].join('\n');
 
 describe('SAGE stripping for exec output (empirical verification)', () => {
-  it('extractSageBlock strips SAGE from exec-style output', () => {
+  it('extractSageBlock strips SAGE from exec-style output if present', () => {
+    // Even though exec no longer triggers injection, the TUI renderer must
+    // still correctly strip SAGE blocks from any tool output that contains
+    // them (e.g. from legacy sessions or manual tests).
     const execOutput = `exit 0 · 2 out · 0 err
 "some stdout preview"\n\n${SAGE_BLOCK}`;
 

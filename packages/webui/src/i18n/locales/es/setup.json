@@ -129,7 +129,16 @@
       "baseUrl": "URL base (opcional)",
       "apiKey": "Clave de API (opcional — algunos proveedores locales no la necesitan)",
       "apiKeyPlaceholder": "Clave de API (si se requiere)",
-      "add": "Añadir proveedor"
+      "add": "Añadir proveedor",
+      "models": "Modelos",
+      "addModel": "Añadir modelo",
+      "modelSearchPlaceholder": "Buscar modelos del catálogo…",
+      "noCatalogMatch": "No hay coincidencias en el catálogo.",
+      "useCustomId": "Introducir ID personalizado",
+      "customModelIdPlaceholder": "ID de modelo personalizado",
+      "cancel": "Cancelar",
+      "modelSingular": "modelo",
+      "modelPlural": "modelos"
     },
     "time": {
       "justNow": "justo ahora",

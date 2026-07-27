@@ -6,6 +6,7 @@ import { FLEET_ROSTER } from '@wrongstack/core/coordination';
 import { gatedEnhancerReasoning } from '@wrongstack/core/execution';
 import { TOKENS } from '@wrongstack/core/kernel';
 import { ToolRegistry } from '@wrongstack/core/registry';
+import { getSessionRegistry } from '@wrongstack/core/storage';
 import { writeErr } from '@wrongstack/core/utils';
 import { createAuthPanelHost } from './auth-menu/panel-service.js';
 import { wireEventWiring } from './boot/event-wiring.js';
@@ -21,7 +22,6 @@ import {
   getSddRuntimeStateForCli,
   loadOnlineAgentsForPrompt,
 } from './cli-main-helpers.js';
-import { promptRecovery } from './cli-recovery-prompt.js';
 import { execute } from './execution.js';
 import { activeProfileConfigPath } from './profile-config-path.js';
 import { wireSessionEvents } from './session-event-wiring.js';
@@ -115,6 +115,7 @@ export async function main(argv: string[]): Promise<number> {
   };
 
   const memoryStore = container.resolve(TOKENS.MemoryStore);
+  await memoryStore.initialize();
   const skillLoader = container.resolve(TOKENS.SkillLoader);
   const promptLoader = container.resolve(TOKENS.PromptLoader);
   const sessionRef: { current: import('@wrongstack/core/types').SessionWriter | undefined } = {
@@ -243,6 +244,7 @@ export async function main(argv: string[]): Promise<number> {
   const sessionStore = container.resolve(TOKENS.SessionStore);
   const tokenCounter = container.resolve(TOKENS.TokenCounter);
   tokenCounter.setSessionId?.(() => sessionRef.current?.id);
+  const sessionRegistry = getSessionRegistry(wpaths.globalRoot);
   const sessResult = await setupSession({
     config: { model: config.model, provider: config.provider },
     wpaths,
@@ -256,15 +258,25 @@ export async function main(argv: string[]): Promise<number> {
     flags,
     events,
     logger,
-    onRecovery: (abandoned, autoRecover) =>
-      promptRecovery(reader, renderer, abandoned, autoRecover),
+    claimSession: async (sessionId) => {
+      await sessionRegistry.register({
+        sessionId,
+        projectSlug: wpaths.projectSlug,
+        projectRoot,
+        projectName: path.basename(projectRoot),
+        workingDir: cwd,
+        clientType: flags.webui || flags.simpleui ? 'webui' : tuiOwnsScreen ? 'tui' : 'cli',
+        pid: process.pid,
+        startedAt: new Date().toISOString(),
+      });
+      return async () => sessionRegistry.unregister();
+    },
   });
   const session = sessResult.session;
   sessionRef.current = session;
   const context = sessResult.context;
   configureSimpleUiRuntimeContext(context.meta, flags);
   const attachments = sessResult.attachments;
-  const recoveryLock = sessResult.recoveryLock;
   const queueStore = sessResult.queueStore;
   const planPath = sessResult.planPath;
   const detachTodosCheckpoint = sessResult.detachTodosCheckpoint;
@@ -284,7 +296,7 @@ export async function main(argv: string[]): Promise<number> {
   // listens to EventBus events and pushes live status to the registry.
   // Failures degrade gracefully — tracker stays undefined and downstream
   // code treats an absent tracker as a no-op.
-  const { tracker } = await setupSessionRegistry({
+  const { tracker, activateSession } = await setupSessionRegistry({
     wpaths,
     projectRoot,
     session,
@@ -841,9 +853,9 @@ export async function main(argv: string[]): Promise<number> {
         events,
         slashRegistry,
         tokenCounter,
+        activateSessionIdentity: activateSession,
         config,
         configStore,
-        recoveryLock,
         wpaths,
         projectRoot,
         flags,
@@ -1008,7 +1020,7 @@ export async function main(argv: string[]): Promise<number> {
         logger,
       }),
     }),
-  );
+  ).finally(() => memoryStore.dispose());
 }
 
 // `index.ts` owns is-main detection and bounded process exit. Recovery

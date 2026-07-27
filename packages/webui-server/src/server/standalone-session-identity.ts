@@ -1,20 +1,18 @@
 import * as path from 'node:path';
 import type { EventBus } from '@wrongstack/core/kernel';
-import type { Config, Logger, SessionStore } from '@wrongstack/core/types';
 import {
   AgentStatusTracker,
   FleetNotifier,
   getSessionRegistry,
-  RecoveryLock,
   type SessionRegistry,
 } from '@wrongstack/core/storage';
+import type { Config, Logger } from '@wrongstack/core/types';
 import { WebSocket } from 'ws';
 
 export interface StandaloneSessionIdentityPaths {
   globalRoot: string;
   projectRoot: string;
   projectSlug: string;
-  projectSessions: string;
 }
 
 export interface StandaloneSessionIdentityOptions {
@@ -24,17 +22,23 @@ export interface StandaloneSessionIdentityOptions {
   paths: StandaloneSessionIdentityPaths;
   workingDir: string;
   initialSessionId: string;
-  sessionStore?: SessionStore | undefined;
   sessionRegistry?: SessionRegistry | undefined;
-  /** Embedded hosts can keep ownership of their existing recovery lock. */
-  manageRecoveryLock?: boolean | undefined;
   /** Test/embedding escape hatch; production defaults to enabled. */
   enableHqTelemetry?: boolean | undefined;
 }
 
+export interface SessionIdentityTarget {
+  projectSlug: string;
+  projectRoot: string;
+  projectName: string;
+  workingDir: string;
+}
+
 export interface StandaloneSessionIdentityLifecycle {
   readonly statusTracker: AgentStatusTracker | undefined;
-  activate(sessionId: string): Promise<void>;
+  /** Reserve a selected session before its writer is opened. */
+  claim(sessionId: string, target?: SessionIdentityTarget): Promise<() => Promise<void>>;
+  activate(sessionId: string, target?: SessionIdentityTarget): Promise<void>;
   stop(): Promise<void>;
 }
 
@@ -55,6 +59,13 @@ export async function createStandaloneSessionIdentityLifecycle(
     selfPid: process.pid,
   });
   let activeSessionId = opts.initialSessionId;
+  let activeTarget: SessionIdentityTarget = {
+    projectSlug: paths.projectSlug,
+    projectRoot: paths.projectRoot,
+    projectName: path.basename(paths.projectRoot),
+    workingDir: opts.workingDir,
+  };
+  let pendingClaim: { sessionId: string; previousSessionId: string; token: symbol } | undefined;
   let stopped = false;
   let transition = Promise.resolve();
 
@@ -65,14 +76,15 @@ export async function createStandaloneSessionIdentityLifecycle(
     onUpdate: () => fleetNotifier.notify(),
   });
 
-  const register = async (sessionId: string): Promise<void> => {
+  const register = async (
+    sessionId: string,
+    strict = false,
+    target: SessionIdentityTarget = activeTarget,
+  ): Promise<void> => {
     try {
       await registry.register({
         sessionId,
-        projectSlug: paths.projectSlug,
-        projectRoot: paths.projectRoot,
-        projectName: path.basename(paths.projectRoot),
-        workingDir: opts.workingDir,
+        ...target,
         clientType: 'webui',
         pid: process.pid,
         startedAt: new Date().toISOString(),
@@ -81,26 +93,19 @@ export async function createStandaloneSessionIdentityLifecycle(
       fleetNotifier.notify();
     } catch (err) {
       logger.debug?.(`WebUI session registry update failed: ${errorMessage(err)}`);
+      if (strict) throw err;
     }
   };
 
-  await register(activeSessionId);
-  statusTracker.start();
-
-  const recoveryLock =
-    opts.manageRecoveryLock === false
-      ? undefined
-      : new RecoveryLock({ dir: paths.projectSessions, sessionStore: opts.sessionStore });
-  let ownsRecoveryLock = false;
-  if (recoveryLock) {
-    try {
-      await recoveryLock.write(activeSessionId);
-      ownsRecoveryLock = true;
-    } catch {
-      // Another live surface or an abandoned-session candidate owns active.json.
-      // Never replace it blindly; registry tracking remains authoritative.
-    }
+  // Ownership is mandatory even for a newly-created session. Continuing with
+  // an unregistered writer would let another process resume it concurrently.
+  try {
+    await register(activeSessionId, true);
+  } catch (err) {
+    fleetNotifier.dispose();
+    throw err;
   }
+  statusTracker.start();
 
   let stopHqBridges = (): void => {};
   let closeHqPublisher = (): void => {};
@@ -108,95 +113,135 @@ export async function createStandaloneSessionIdentityLifecycle(
   if (opts.enableHqTelemetry !== false) {
     try {
       const core = await import('@wrongstack/core/hq');
-      const publisher = core.createHqPublisherFromEnv({
-        clientKind: 'webui',
-        projectRoot: paths.projectRoot,
-        projectName: path.basename(paths.projectRoot),
-        appConfig: opts.config as never as Parameters<
-          typeof core.createHqPublisherFromEnv
-        >[0]['appConfig'],
-        socketFactory: (url: string) =>
-          new WebSocket(url) as unknown as import('@wrongstack/core/hq').HqSocketLike,
-      });
-      if (publisher) {
-        publisher.connect();
-        closeHqPublisher = () => publisher.close();
-        restartHqBridges = (sessionId: string) => {
-          stopHqBridges();
-          const stops: Array<() => void> = [];
-          const add = (start: () => () => void): void => {
-            try {
-              stops.push(start());
-            } catch {
-              /* optional bridge */
-            }
-          };
-          add(() =>
-            core.startSessionTelemetryBridge({
-              publisher,
-              events,
-              sessionId,
-              projectRoot: paths.projectRoot,
-              projectName: path.basename(paths.projectRoot),
-              globalRoot: paths.globalRoot,
-              initialAgents: statusTracker.getAgents(),
-              startedAt: new Date().toISOString(),
-            }),
-          );
-          add(() =>
-            core.startFleetTelemetryBridge({
-              events,
-              publisher,
-              runId: sessionId,
-              sessionId,
-            }),
-          );
-          add(() => core.startBrainTelemetryBridge({ events, publisher, sessionId }));
-          add(() => core.startWorktreeTelemetryBridge({ events, publisher, sessionId }));
-          add(() =>
-            core.startToolTelemetryBridge({
-              events,
-              publisher,
-              projectRoot: paths.projectRoot,
-              sessionId,
-            }),
-          );
-          add(() => core.startCostTelemetryBridge({ events, publisher, sessionId }));
-          stopHqBridges = () => {
-            for (const stop of stops.splice(0)) {
-              try {
-                stop();
-              } catch {
-                /* best effort */
-              }
-            }
-          };
+      type HqPublisher = NonNullable<ReturnType<typeof core.createHqPublisherFromEnv>>;
+      let publisher: HqPublisher | undefined;
+
+      const createPublisher = (target: SessionIdentityTarget): HqPublisher | undefined => {
+        const next = core.createHqPublisherFromEnv({
+          clientKind: 'webui',
+          projectRoot: target.projectRoot,
+          projectName: target.projectName,
+          appConfig: opts.config as never as Parameters<
+            typeof core.createHqPublisherFromEnv
+          >[0]['appConfig'],
+          socketFactory: (url: string) =>
+            new WebSocket(url) as unknown as import('@wrongstack/core/hq').HqSocketLike,
+        });
+        next?.connect();
+        return next;
+      };
+
+      closeHqPublisher = () => {
+        publisher?.close();
+        publisher = undefined;
+      };
+      restartHqBridges = (sessionId: string) => {
+        stopHqBridges();
+        if (publisher?.project.projectRoot !== activeTarget.projectRoot) {
+          closeHqPublisher();
+          publisher = createPublisher(activeTarget);
+        }
+        const activePublisher = publisher;
+        if (!activePublisher) return;
+
+        const stops: Array<() => void> = [];
+        const add = (start: () => () => void): void => {
+          try {
+            stops.push(start());
+          } catch {
+            /* optional bridge */
+          }
         };
-        restartHqBridges(activeSessionId);
-      }
+        add(() =>
+          core.startSessionTelemetryBridge({
+            publisher: activePublisher,
+            events,
+            sessionId,
+            projectRoot: activeTarget.projectRoot,
+            projectName: activeTarget.projectName,
+            globalRoot: paths.globalRoot,
+            initialAgents: statusTracker.getAgents(),
+            startedAt: new Date().toISOString(),
+          }),
+        );
+        add(() =>
+          core.startFleetTelemetryBridge({
+            events,
+            publisher: activePublisher,
+            runId: sessionId,
+            sessionId,
+          }),
+        );
+        add(() =>
+          core.startBrainTelemetryBridge({
+            events,
+            publisher: activePublisher,
+            sessionId,
+          }),
+        );
+        add(() =>
+          core.startWorktreeTelemetryBridge({
+            events,
+            publisher: activePublisher,
+            sessionId,
+          }),
+        );
+        add(() =>
+          core.startToolTelemetryBridge({
+            events,
+            publisher: activePublisher,
+            projectRoot: activeTarget.projectRoot,
+            sessionId,
+          }),
+        );
+        add(() =>
+          core.startCostTelemetryBridge({
+            events,
+            publisher: activePublisher,
+            sessionId,
+          }),
+        );
+        stopHqBridges = () => {
+          for (const stop of stops.splice(0)) {
+            try {
+              stop();
+            } catch {
+              /* best effort */
+            }
+          }
+        };
+      };
+
+      publisher = createPublisher(activeTarget);
+      restartHqBridges(activeSessionId);
     } catch (err) {
       logger.debug?.(`WebUI HQ telemetry unavailable: ${errorMessage(err)}`);
     }
   }
 
-  const repointRecovery = async (sessionId: string): Promise<void> => {
-    if (!recoveryLock) return;
-    try {
-      if (ownsRecoveryLock) await recoveryLock.clear();
-      await recoveryLock.write(sessionId);
-      ownsRecoveryLock = true;
-    } catch {
-      ownsRecoveryLock = false;
+  const activate = async (
+    sessionId: string,
+    target: SessionIdentityTarget = activeTarget,
+  ): Promise<void> => {
+    if (
+      stopped ||
+      (sessionId === activeSessionId &&
+        target.projectSlug === activeTarget.projectSlug &&
+        target.projectRoot === activeTarget.projectRoot &&
+        target.workingDir === activeTarget.workingDir)
+    ) {
+      return;
     }
-  };
-
-  const activate = async (sessionId: string): Promise<void> => {
-    if (stopped || sessionId === activeSessionId) return;
     transition = transition.then(async () => {
-      if (stopped || sessionId === activeSessionId) return;
+      if (stopped) return;
+      if (pendingClaim?.sessionId === sessionId) {
+        pendingClaim = undefined;
+      } else {
+        await register(sessionId, true, target);
+      }
       activeSessionId = sessionId;
-      await register(sessionId);
-      await repointRecovery(sessionId);
+      activeTarget = target;
+      fleetNotifier.setProjectRoot(target.projectRoot);
       try {
         restartHqBridges(sessionId);
       } catch (err) {
@@ -204,6 +249,27 @@ export async function createStandaloneSessionIdentityLifecycle(
       }
     });
     await transition;
+  };
+
+  const claim = async (
+    sessionId: string,
+    target: SessionIdentityTarget = activeTarget,
+  ): Promise<() => Promise<void>> => {
+    if (stopped) return async () => {};
+    if (pendingClaim) {
+      throw new Error(`Session transition to ${pendingClaim.sessionId} is already in progress.`);
+    }
+    if (sessionId === activeSessionId) return async () => {};
+    const previousSessionId = activeSessionId;
+    const previousTarget = activeTarget;
+    const token = Symbol(sessionId);
+    await register(sessionId, true, target);
+    pendingClaim = { sessionId, previousSessionId, token };
+    return async () => {
+      if (pendingClaim?.token !== token) return;
+      await register(previousSessionId, true, previousTarget);
+      pendingClaim = undefined;
+    };
   };
 
   const stop = async (): Promise<void> => {
@@ -220,13 +286,9 @@ export async function createStandaloneSessionIdentityLifecycle(
     } catch {
       /* best effort */
     }
-    if (recoveryLock && ownsRecoveryLock) {
-      await recoveryLock.clear().catch(() => undefined);
-      ownsRecoveryLock = false;
-    }
   };
 
-  return { statusTracker, activate, stop };
+  return { statusTracker, claim, activate, stop };
 }
 
 function errorMessage(err: unknown): string {

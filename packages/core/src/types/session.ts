@@ -502,7 +502,8 @@ export interface SessionStore {
    * Delete sessions whose JSONL file mtime is older than maxAgeDays.
    * Also removes associated summary files, plan/todos sidecars, and
    * session directories. Returns the count of deleted sessions.
-   * Sessions referenced by active.json are never pruned.
+   * Live sessions are protected by the host's SessionRegistry-backed
+   * `isSessionInUse` guard.
    */
   prune(maxAgeDays?: number): Promise<number>;
   /**

@@ -6,8 +6,6 @@
  * through tools, but core CRUD stays deterministic and file-based.
  */
 
-import type { KanbanDecompositionProposal } from './types-operations.js';
-
 export type KanbanTaskPriority = 'critical' | 'high' | 'medium' | 'low';
 
 /** Kind of work a task represents (mirrors core's TaskType). Optional/persisted;
@@ -23,6 +21,35 @@ export type KanbanTaskStatus =
   | 'completed'
   | 'failed'
   | 'archived';
+
+export interface KanbanDecompositionSubtask {
+  title: string;
+  description?: string | undefined;
+  /** Free-text success criteria; mapped to KanbanCheck[] on apply. */
+  successCriteria?: string[] | undefined;
+  expectedFileChanges?: KanbanExpectedFileChange[] | undefined;
+  /** Intra-proposal DAG edges: indexes of proposal subtasks this one depends on. */
+  dependsOnIndex?: number[] | undefined;
+}
+
+/**
+ * Latest decomposition proposal for a task, persisted ON the task so every
+ * `{board}` broadcast carries the full approval state for the WebUI.
+ */
+export interface KanbanDecompositionProposal {
+  id: string;
+  taskId: string;
+  status: 'proposed' | 'approved' | 'rejected' | 'applied';
+  mode: 'auto' | 'approval';
+  proposedSubtasks: KanbanDecompositionSubtask[];
+  rationale?: string | undefined;
+  proposedAt: string;
+  proposedBy?: string | undefined;
+  resolvedAt?: string | undefined;
+  resolvedBy?: string | undefined;
+  resolutionReason?: string | undefined;
+  appliedChildTaskIds?: string[] | undefined;
+}
 
 /** How a Kanban scope violation is handled at execution time. */
 export type KanbanBoundaryEnforcement = 'confirm' | 'block';

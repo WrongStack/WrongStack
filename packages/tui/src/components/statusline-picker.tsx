@@ -98,7 +98,7 @@ const ITEM_DESCRIPTIONS: Record<StatuslineItem, string> = {
   queue: 'Queued prompt count',
   processes: 'Tracked shell/process count',
   hint: 'Transient status hint text',
-  index: 'Codebase indexing status',
+  index: 'Codebase index server and indexing status',
   memory: 'Current CLI process RAM and V8 heap usage',
   sage: 'Total SAGE records and exact provider-context active count',
   breaker: 'Process breaker countdown',
@@ -138,7 +138,7 @@ const ITEM_DESCRIPTIONS: Record<StatuslineItem, string> = {
  * `status-bar.tsx`: line 1 = workspace + runtime chips (mode/project/workdir
  * state + cheap provider/model/context telemetry), line 2 = session context
  * (memory pressure, git, mode label, goals, countdowns, tools), line 3 =
- * active work + connectivity. Exported so the navigation-order test guards
+ * active work + connectivity and background services. Exported so the navigation-order test guards
  * against drift instead of duplicating it.
  */
 export const ITEM_LINE: Record<StatuslineItem, number> = {
@@ -151,7 +151,6 @@ export const ITEM_LINE: Record<StatuslineItem, number> = {
   cost: 1,
   elapsed: 1,
   hint: 1,
-  index: 1,
   model: 1,
   processes: 1,
   queue: 1,
@@ -181,6 +180,7 @@ export const ITEM_LINE: Record<StatuslineItem, number> = {
   enhance: 3,
   fleet: 3,
   fleet_agents: 3,
+  index: 3,
   mailbox: 3,
   memory_context: 3,
   next_steps: 3,
@@ -213,7 +213,6 @@ export const STATUSLINE_ITEMS: StatuslineItem[] = [
   'cost',
   'elapsed',
   'hint',
-  'index',
   'model',
   'processes',
   'queue',
@@ -242,6 +241,7 @@ export const STATUSLINE_ITEMS: StatuslineItem[] = [
   'enhance',
   'fleet',
   'fleet_agents',
+  'index',
   'mailbox',
   'memory_context',
   'next_steps',

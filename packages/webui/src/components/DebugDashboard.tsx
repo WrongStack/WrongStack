@@ -21,6 +21,29 @@ interface SystemMetrics {
   heapLimit: number;
   uptime: number;
   cpuUsage: NodeJS.CpuUsage;
+  codebaseIndexServer?: {
+    status: string;
+    connected: boolean;
+    pid?: number | undefined;
+    health?: {
+      status: string;
+      latencyMs: number | null;
+      missedHeartbeats: number;
+      server?: {
+        uptimeMs: number;
+        memory: { rss: number; heapUsed: number; heapTotal: number };
+        clients: number;
+        activeRequests: number;
+        activeWrites: number;
+        queuedWrites: number;
+        pendingExternalFiles: number;
+        watchingExternal: boolean;
+        watchingClients?: number | undefined;
+        clientLeaseTimeoutMs?: number | undefined;
+        oldestClientIdleMs?: number | undefined;
+      } | undefined;
+    } | undefined;
+  } | undefined;
   timestamp: number;
 }
 
@@ -313,6 +336,69 @@ export function DebugDashboard() {
           </div>
         </section>
 
+        {/* Detached codebase-index process section */}
+        <section>
+          <h2 className="mb-3 flex items-center gap-2 text-sm font-semibold text-muted-foreground">
+            <Server className="h-4 w-4 text-primary" />
+            Codebase Index Server
+          </h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            <MetricCard
+              title="Connection"
+              value={
+                data.system?.codebaseIndexServer?.health?.status ??
+                data.system?.codebaseIndexServer?.status ??
+                'unknown'
+              }
+              subtitle={
+                data.system?.codebaseIndexServer?.pid
+                  ? `PID ${data.system.codebaseIndexServer.pid} · RTT ${data.system.codebaseIndexServer.health?.latencyMs ?? '—'}ms`
+                  : 'No connected project server'
+              }
+              icon={Activity}
+              color={
+                data.system?.codebaseIndexServer?.health?.status === 'healthy'
+                  ? 'text-success'
+                  : data.system?.codebaseIndexServer?.status === 'unresponsive' ||
+                      data.system?.codebaseIndexServer?.status === 'error'
+                    ? 'text-destructive'
+                    : 'text-warning'
+              }
+            />
+            <MetricCard
+              title="Index RAM (RSS)"
+              value={formatBytes(
+                data.system?.codebaseIndexServer?.health?.server?.memory.rss ?? 0,
+              )}
+              subtitle={`Heap ${formatBytes(data.system?.codebaseIndexServer?.health?.server?.memory.heapUsed ?? 0)} / ${formatBytes(data.system?.codebaseIndexServer?.health?.server?.memory.heapTotal ?? 0)}`}
+              icon={BarChart3}
+              color="text-primary"
+            />
+            <MetricCard
+              title="Index Workload"
+              value={`${data.system?.codebaseIndexServer?.health?.server?.activeRequests ?? 0} requests`}
+              subtitle={`${data.system?.codebaseIndexServer?.health?.server?.activeWrites ?? 0} writes · ${data.system?.codebaseIndexServer?.health?.server?.queuedWrites ?? 0} queued`}
+              icon={Gauge}
+              color="text-primary"
+            />
+            <MetricCard
+              title="Index Watcher"
+              value={
+                data.system?.codebaseIndexServer?.health?.server?.watchingExternal
+                  ? 'Active'
+                  : 'Off'
+              }
+              subtitle={`${data.system?.codebaseIndexServer?.health?.server?.watchingClients ?? 0} owners · ${data.system?.codebaseIndexServer?.health?.server?.pendingExternalFiles ?? 0} pending`}
+              icon={Eye}
+              color={
+                data.system?.codebaseIndexServer?.health?.server?.watchingExternal
+                  ? 'text-success'
+                  : 'text-muted-foreground'
+              }
+            />
+          </div>
+        </section>
+
         {/* Raw JSON Section */}
         <section>
           <h2 className="mb-3 flex items-center gap-2 text-sm font-semibold text-muted-foreground">
@@ -328,6 +414,7 @@ export function DebugDashboard() {
                   serverMemory: data.system?.memoryUsage,
                   serverHeapLimit: data.system?.heapLimit,
                   serverUptime: data.system?.uptime,
+                  codebaseIndexServer: data.system?.codebaseIndexServer,
                 },
                 null,
                 2,

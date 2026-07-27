@@ -45,12 +45,14 @@ Deletes any saved session — not just empty ones. Removes the `.jsonl` transcri
 /sessions delete 2026-07-04/sess_01JX... --force   # skip confirmation
 ```
 
-**In-use guard.** A session that is currently being used by any live process in this project cannot be deleted. Two checks run, in order:
+**In-use guard.** A session that is currently being used by any live process in this project cannot be deleted. Ownership follows two rules:
 
-1. **`active.json`** — the per-project RecoveryLock; every CLI/TUI/WebUI writes it on session start.
-2. **`SessionRegistry`** — the cross-process live-session list, which catches a session held open by a *different* surface than the one you're deleting from (multiple terminals/TUIs/WebUIs can each run their own active session in the same project).
+1. **`SessionRegistry`** records each live TUI/WebUI/CLI session independently.
+2. An explicit resume atomically claims the selected session id and is rejected when another live PID already owns it.
 
-If either flags the target, the delete throws instead of dropping a session another process is still writing to. Resume or start another session first. Without `--force`/`-y`, a confirmation prompt is shown (skipped automatically in non-TTY/scripted contexts).
+There is no project-wide `active.json` lock. Multiple surfaces in one project start separate fresh sessions by default. A session is loaded only through an explicit resume action. Without `--force`/`-y`, a delete confirmation prompt is shown (skipped automatically in non-TTY/scripted contexts).
+
+The device-wide registry lives at `~/.wrongstack/session-registry.json`. Each entry includes the session id, owner PID and start generation, client type, project/working-directory identity, heartbeat status, and live agents, so TUI, WebUI, SimpleUI, and HQ consumers share the same ownership view. A missing heartbeat does not release a session while its PID is still alive: the entry becomes `lost` and remains protected until that process exits. Dead-PID entries are pruned automatically.
 
 ## /exit (aliases: `/quit`, `/q`)
 

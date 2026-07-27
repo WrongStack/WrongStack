@@ -1,4 +1,5 @@
 import type { ProviderModelStatusTracker } from '@wrongstack/core/coordination';
+import type { ProviderConfig } from '@wrongstack/core/types';
 import type { WebSocket } from 'ws';
 import type { WSClientMessage } from './types.js';
 import { send, sendResult } from './ws-utils.js';
@@ -21,6 +22,8 @@ export interface ProviderMutationHandlers {
       family: string;
       baseUrl?: string | undefined;
       apiKey?: string | undefined;
+      models?: string[] | undefined;
+      customModels?: ProviderConfig['customModels'] | undefined;
     },
   ) => Promise<void>;
   handleProviderRemove: (ws: WebSocket, providerId: string) => Promise<void>;
@@ -38,6 +41,7 @@ export interface ProviderMutationHandlers {
       baseUrl?: string | undefined;
       envVars?: string[] | undefined;
       models?: string[] | undefined;
+      customModels?: ProviderConfig['customModels'] | undefined;
     },
   ) => Promise<void>;
   handleProviderProbe: (
@@ -58,6 +62,7 @@ export interface ProviderRouteHandlers {
   listProviders: (ws: WebSocket, msg: WSClientMessage) => Promise<void>;
   listSavedProviders: (ws: WebSocket, msg: WSClientMessage) => Promise<void>;
   listProviderModels: (ws: WebSocket, msg: WSClientMessage) => Promise<void>;
+  searchProviderModels: (ws: WebSocket, query: string, limit?: number | undefined) => Promise<void>;
   switchModel: (ws: WebSocket, msg: WSClientMessage) => Promise<void>;
   refineModel: (ws: WebSocket, msg: WSClientMessage) => Promise<void>;
   /** Adopt a just-added provider as the live default when no model is active. */
@@ -95,6 +100,89 @@ function optionalStringArray(
   return Array.isArray(value) && value.every((item) => typeof item === 'string') ? value : null;
 }
 
+const SAFE_CONFIG_KEY = /^(?!__proto__$|prototype$|constructor$)[^\u0000-\u001f]{1,256}$/;
+const CUSTOM_MODEL_BOOLEAN_CAPS = new Set([
+  'tools',
+  'vision',
+  'reasoning',
+  'streaming',
+  'jsonMode',
+]);
+const INLINE_DEFINITION_KEYS = new Set(['name', 'maxOutput', 'capabilities', 'provider']);
+
+function optionalCustomModels(
+  payload: Record<string, unknown>,
+): ProviderConfig['customModels'] | undefined | null {
+  const value = payload['customModels'];
+  if (value === undefined) return undefined;
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) return null;
+  const out: NonNullable<ProviderConfig['customModels']> = Object.create(null) as NonNullable<
+    ProviderConfig['customModels']
+  >;
+  for (const [modelId, rawDefinition] of Object.entries(value)) {
+    if (!SAFE_CONFIG_KEY.test(modelId)) return null;
+    if (
+      typeof rawDefinition !== 'object' ||
+      rawDefinition === null ||
+      Array.isArray(rawDefinition)
+    ) {
+      return null;
+    }
+    const definition = rawDefinition as Record<string, unknown>;
+    if (Object.keys(definition).some((key) => !INLINE_DEFINITION_KEYS.has(key))) return null;
+    if (definition['name'] !== undefined && typeof definition['name'] !== 'string') return null;
+    if (definition['provider'] !== undefined && typeof definition['provider'] !== 'string')
+      return null;
+    if (
+      definition['maxOutput'] !== undefined &&
+      (typeof definition['maxOutput'] !== 'number' ||
+        !Number.isFinite(definition['maxOutput']) ||
+        definition['maxOutput'] <= 0)
+    ) {
+      return null;
+    }
+    const rawCaps = definition['capabilities'];
+    let capabilities:
+      | NonNullable<ProviderConfig['customModels']>[string]['capabilities']
+      | undefined;
+    if (rawCaps !== undefined) {
+      if (typeof rawCaps !== 'object' || rawCaps === null || Array.isArray(rawCaps)) return null;
+      const entry = rawCaps as Record<string, unknown>;
+      const allowedCaps = new Set([...CUSTOM_MODEL_BOOLEAN_CAPS, 'maxContext', 'maxOutput']);
+      if (Object.keys(entry).some((key) => !allowedCaps.has(key))) return null;
+      const built: Partial<{
+        maxContext: number;
+        maxOutput: number;
+        tools: boolean;
+        vision: boolean;
+        reasoning: boolean;
+        streaming: boolean;
+        jsonMode: boolean;
+      }> = {};
+      for (const [key, capValue] of Object.entries(entry)) {
+        if (CUSTOM_MODEL_BOOLEAN_CAPS.has(key)) {
+          if (typeof capValue !== 'boolean') return null;
+          (built as Record<string, unknown>)[key] = capValue;
+        } else if (typeof capValue !== 'number' || !Number.isFinite(capValue) || capValue <= 0) {
+          return null;
+        } else {
+          (built as Record<string, unknown>)[key] = capValue;
+        }
+      }
+      capabilities = built;
+    }
+    out[modelId] = {
+      ...(typeof definition['name'] === 'string' ? { name: definition['name'] } : {}),
+      ...(typeof definition['provider'] === 'string' ? { provider: definition['provider'] } : {}),
+      ...(typeof definition['maxOutput'] === 'number'
+        ? { maxOutput: definition['maxOutput'] }
+        : {}),
+      ...(capabilities ? { capabilities } : {}),
+    };
+  }
+  return out;
+}
+
 function invalidPayload(ws: WebSocket, type: string): true {
   sendResult(ws, false, `${type} payload is invalid`);
   return true;
@@ -125,6 +213,20 @@ export async function handleProviderRoute(
     case 'provider.models':
       await routes.listProviderModels(ws, msg);
       return true;
+    case 'provider.models.search': {
+      const payload = asPayloadRecord(msg);
+      const query = payload ? requiredString(payload, 'query') : null;
+      const limit = payload ? optionalNumber(payload, 'limit') : null;
+      if (
+        !query ||
+        limit === null ||
+        (limit !== undefined && (limit <= 0 || !Number.isInteger(limit)))
+      ) {
+        return invalidPayload(ws, msg.type);
+      }
+      await routes.searchProviderModels(ws, query, limit);
+      return true;
+    }
     case 'model.switch':
       await routes.switchModel(ws, msg);
       return true;
@@ -167,14 +269,19 @@ export async function handleProviderRoute(
       const family = payload ? requiredString(payload, 'family') : null;
       const baseUrl = payload?.['baseUrl'];
       const apiKey = payload?.['apiKey'];
+      const models = payload ? optionalStringArray(payload, 'models') : null;
+      const customModels = payload ? optionalCustomModels(payload) : null;
       if (!id || !family) return invalidPayload(ws, msg.type);
       if (baseUrl !== undefined && typeof baseUrl !== 'string') return invalidPayload(ws, msg.type);
       if (apiKey !== undefined && typeof apiKey !== 'string') return invalidPayload(ws, msg.type);
+      if (models === null || customModels === null) return invalidPayload(ws, msg.type);
       await routes.providerHandlers.handleProviderAdd(ws, {
         id,
         family,
         baseUrl: baseUrl as string | undefined,
         apiKey: apiKey as string | undefined,
+        models,
+        customModels,
       });
       // Adopt the just-added provider as the live default when nothing is
       // active yet — parity with the boot auto-select (immediately usable).
@@ -212,7 +319,8 @@ export async function handleProviderRoute(
       const id = payload ? requiredString(payload, 'id') : null;
       const envVars = payload ? optionalStringArray(payload, 'envVars') : null;
       const models = payload ? optionalStringArray(payload, 'models') : null;
-      if (!payload || !id || envVars === null || models === null)
+      const customModels = payload ? optionalCustomModels(payload) : null;
+      if (!payload || !id || envVars === null || models === null || customModels === null)
         return invalidPayload(ws, msg.type);
       for (const key of ['family', 'baseUrl'] as const) {
         if (payload[key] !== undefined && typeof payload[key] !== 'string')
@@ -224,6 +332,7 @@ export async function handleProviderRoute(
         baseUrl: payload['baseUrl'] as string | undefined,
         envVars,
         models,
+        customModels,
       });
       return true;
     }

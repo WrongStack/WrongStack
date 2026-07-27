@@ -11,6 +11,7 @@ import {
 import {
   cancelPendingReindexes,
   enqueueReindex,
+  ensureCodebaseIndexServer,
   isIndexableFile,
   onIndexStateChange,
   runStartupIndex,
@@ -48,6 +49,15 @@ export function setupWebUICodebaseIndexing(deps: WebUICodebaseIndexingDeps): Web
     );
   };
 
+  if (idx) {
+    void ensureCodebaseIndexServer({
+      projectRoot: deps.projectRoot,
+      indexDir,
+      watchExternal: idx.watchExternal ?? false,
+      debounceMs,
+    }).catch(onError);
+  }
+
   if (idx?.onSessionStart) {
     void runStartupIndex({
       projectRoot: deps.projectRoot,
@@ -69,7 +79,7 @@ export function setupWebUICodebaseIndexing(deps: WebUICodebaseIndexingDeps): Web
 
   let watcher: ProjectWatchSubscription | undefined;
   const lastWatcherEvent = new Map<string, number>();
-  if (idx?.watchExternal || deps.events) {
+  if (deps.events) {
     try {
       // Shares the process-wide recursive watcher with any other subscriber
       // on the same root instead of opening a second OS-level tree watch.
@@ -125,13 +135,8 @@ export function setupWebUICodebaseIndexing(deps: WebUICodebaseIndexingDeps): Web
               deps.logger.debug(`webui codebase index watcher error: ${err}`),
             );
           }
-          // Only reindex on external filesystem changes when the user opted into
-          // it. The watcher itself always runs (codemap telemetry above needs the
-          // `file.activity` stream), but with `watchExternal:false` a user who
-          // asked to index only their own edits must not have build tools, git
-          // checkouts, or other agents trigger continuous reindex churn. The
-          // editor-write path below stays gated on `onEdit` separately.
-          if (idx?.watchExternal) enqueueFile(abs);
+          // External reindexing is owned by the detached project server. This
+          // local shared watcher exists only to publish file.activity telemetry.
         },
         { onError: (err) => deps.logger.debug(`webui codebase index watcher error: ${err}`) },
       );
@@ -170,9 +175,7 @@ export function setupWebUICodebaseIndexing(deps: WebUICodebaseIndexingDeps): Web
         ready: state.ready,
         reason: 'index_complete',
       });
-      deps.logger.debug(
-        `webui codemap cache invalidated after index run (ready=${state.ready})`,
-      );
+      deps.logger.debug(`webui codemap cache invalidated after index run (ready=${state.ready})`);
     }
     wasIndexing = state.indexing;
   });

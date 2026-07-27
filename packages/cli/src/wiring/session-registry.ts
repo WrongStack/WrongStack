@@ -30,6 +30,19 @@ export interface SetupSessionRegistryDeps {
 export interface SetupSessionRegistryResult {
   /** AgentStatusTracker when the dynamic import and setup succeeded, else undefined. */
   tracker: InstanceType<typeof import('@wrongstack/core/storage').AgentStatusTracker> | undefined;
+  /**
+   * Atomically move this process's registry ownership to another session.
+   * Used by explicit resume; unrelated sessions in other processes are untouched.
+   */
+  activateSession: (sessionId: string, target?: SessionIdentityTarget) => Promise<void>;
+}
+
+export interface SessionIdentityTarget {
+  projectSlug: string;
+  projectRoot: string;
+  projectName: string;
+  workingDir: string;
+  gitBranch?: string | undefined;
 }
 
 export async function setupSessionRegistry(
@@ -39,6 +52,11 @@ export async function setupSessionRegistry(
 
   // biome-ignore lint/suspicious/noExplicitAny: AgentStatusTracker type from dynamic import
   let tracker: any | undefined;
+  let activateSession = async (
+    _sessionId: string,
+    _target?: SessionIdentityTarget,
+  ): Promise<void> => {};
+  let ownershipEstablished = false;
 
   try {
     const { getSessionRegistry, AgentStatusTracker, FleetNotifier } = await import(
@@ -78,21 +96,32 @@ export async function setupSessionRegistry(
       pid: process.pid,
       startedAt: new Date().toISOString(),
     });
-
-    // Push-on-write: nudge same-project WebUIs the instant our agents advance,
-    // so the Fleet HQ map reflects this TUI/REPL in ~ms (not watch/poll lag).
-    const fleetNotifier = new FleetNotifier({
-      baseDir: wpaths.globalRoot,
+    ownershipEstablished = true;
+    let currentIdentity: SessionIdentityTarget = {
+      projectSlug,
       projectRoot,
-      selfPid: process.pid,
-    });
-    tracker = new AgentStatusTracker({
-      events,
-      registry,
-      sessionId: () => context.session.id,
-      onUpdate: () => fleetNotifier.notify(),
-    });
-    tracker.start();
+      projectName,
+      workingDir: context.workingDir,
+      gitBranch,
+    };
+    // Ownership cleanup is correctness-critical and must not depend on
+    // optional tracker/notifier construction succeeding.
+    // biome-ignore lint/suspicious/noExplicitAny: FleetNotifier type from dynamic import
+    let fleetNotifier: any | undefined;
+    activateSession = async (sessionId: string, target?: SessionIdentityTarget): Promise<void> => {
+      const nextIdentity = target ?? currentIdentity;
+      await registry.register({
+        sessionId,
+        ...nextIdentity,
+        clientType: tuiOwnsScreen ? 'tui' : 'cli',
+        pid: process.pid,
+        startedAt: new Date().toISOString(),
+        agents: tracker?.getAgents?.() ?? [],
+      });
+      currentIdentity = nextIdentity;
+      fleetNotifier?.setProjectRoot(nextIdentity.projectRoot);
+      fleetNotifier?.notify();
+    };
 
     // Graceful shutdown. `registry.markClosing()` is an awaited atomic disk
     // write; calling `process.exit(0)` immediately after `void cleanup()` cut
@@ -104,17 +133,49 @@ export async function setupSessionRegistry(
     createGracefulShutdown({
       run: async () => {
         try {
-          fleetNotifier.dispose();
-          await registry.markClosing();
+          fleetNotifier?.dispose();
+        } catch {
+          /* best effort */
+        }
+        await registry.markClosing().catch(() => undefined);
+        try {
           tracker?.stop();
         } catch {
-          /* ignore — a stuck cleanup cannot wedge the exit path */
+          /* best effort */
         }
+        // Clean exits should disappear immediately. Generation-aware
+        // unregister protects a replacement owner if shutdown raced with a
+        // session transition; dead/crashed processes remain covered by prune.
+        await registry.unregister().catch(() => undefined);
       },
     }).install();
-  } catch {
-    // Non-critical — session tracking degrades gracefully
+
+    // Push-on-write: nudge same-project WebUIs the instant our agents advance,
+    // so the Fleet HQ map reflects this TUI/REPL in ~ms (not watch/poll lag).
+    try {
+      fleetNotifier = new FleetNotifier({
+        baseDir: wpaths.globalRoot,
+        projectRoot,
+        selfPid: process.pid,
+      });
+      tracker = new AgentStatusTracker({
+        events,
+        registry,
+        sessionId: () => context.session.id,
+        onUpdate: () => fleetNotifier?.notify(),
+      });
+      tracker.start();
+    } catch {
+      // Optional live-agent telemetry must not disable session ownership,
+      // activation, or its clean-shutdown unregister path.
+      tracker = undefined;
+    }
+  } catch (err) {
+    // Ownership is a correctness boundary: a host that could not publish its
+    // claim must not continue and let another process open the same session.
+    if (!ownershipEstablished) throw err;
+    // Agent telemetry remains optional after ownership has been established.
   }
 
-  return { tracker };
+  return { tracker, activateSession };
 }

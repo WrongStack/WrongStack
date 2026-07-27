@@ -87,13 +87,23 @@ describe('destroySddProject', () => {
     await fs.mkdir(paths.projectTaskGraphs, { recursive: true });
     await fs.mkdir(paths.projectSddBoards, { recursive: true });
     await fs.writeFile(paths.projectSddSession, '{}');
+    // Legacy wizard session (pre-unification path) must also be wiped.
+    const legacyWizard = path.join(tmp, 'sdd-wizard-session.json');
+    await fs.writeFile(legacyWizard, '{}');
 
     const res = await destroySddProject({ projectRoot: tmp, paths });
 
-    expect(res.deleted.sort()).toEqual(['boards', 'session', 'specs', 'task-graphs']);
+    expect(res.deleted.sort()).toEqual([
+      'boards',
+      'session',
+      'specs',
+      'task-graphs',
+      'wizard-session',
+    ]);
     await expect(fs.access(paths.projectSpecs)).rejects.toBeDefined();
     await expect(fs.access(paths.projectSddSession)).rejects.toBeDefined();
     await expect(fs.access(paths.projectSddBoards)).rejects.toBeDefined();
+    await expect(fs.access(legacyWizard)).rejects.toBeDefined();
     // Not a git repo → cleanup removes nothing but never throws.
     expect(res.worktreesRemoved).toBe(0);
   });

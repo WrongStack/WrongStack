@@ -103,16 +103,16 @@ describe('normalizeColumns', () => {
 
   it('uses fallback ID when slug is empty', () => {
     const result = normalizeColumns([
-      { title: '!!!', order: 0 },
+      { id: '', title: '!!!', order: 0 },
     ]);
     expect(result[0]!.id).toContain('column');
   });
 
   it('sorts by order and reassigns sequential order', () => {
     const result = normalizeColumns([
-      { title: 'Z', order: 5 },
-      { title: 'A', order: 1 },
-      { title: 'B', order: 3 },
+      { id: 'z', title: 'Z', order: 5 },
+      { id: 'a', title: 'A', order: 1 },
+      { id: 'b', title: 'B', order: 3 },
     ]);
     expect(result[0]!.title).toBe('A');
     expect(result[0]!.order).toBe(0);
@@ -124,7 +124,7 @@ describe('normalizeColumns', () => {
 
   it('throws error when column title is blank', () => {
     expect(() => normalizeColumns([
-      { title: '   ', order: 0 },
+      { id: '', title: '   ', order: 0 },
     ])).toThrow('cannot be empty');
   });
 });

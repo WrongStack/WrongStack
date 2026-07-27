@@ -36,7 +36,7 @@ describe('WsBridgeTransport', () => {
   it('sendRaw() does nothing for WS transport', () => {
     const sink: ACPMessage[] = [];
     const t = new WsBridgeTransport((m) => sink.push(m));
-    t.sendRaw('some bytes');
+    t.sendRaw();
     expect(sink).toHaveLength(0);
   });
 

@@ -1,7 +1,7 @@
 /**
  * Tests for runtime/handles.ts — releaseHandle, releaseHandles, Unregister.
  */
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { releaseHandle, releaseHandles } from '../src/runtime/handles.js';
 
 describe('releaseHandle', () => {

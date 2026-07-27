@@ -40,7 +40,7 @@ function storePath(wrongstackDir: string): string {
   return path.join(wrongstackDir, STORE_FILENAME);
 }
 
-const BUILTIN_IDS = new Set(['balanced', 'frugal', 'deep', 'archival']);
+const BUILTIN_IDS = new Set(['balanced', 'frugal', 'deep', 'archival']); // archival is reserved as a deprecated built-in alias.
 
 export function createCustomModeStore(wrongstackDir: string): CustomModeStore {
   const modes = new Map<string, CustomContextMode>();

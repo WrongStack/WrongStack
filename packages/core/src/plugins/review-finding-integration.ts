@@ -7,7 +7,7 @@
  * @module review-finding-integration
  */
 
-import { type ChimeraReviewCompletePayload } from './chimera-plugin.js';
+import type { ChimeraReviewCompletePayload } from './review-types.js';
 import { parseChimeraReviewReport } from './review-finding-parser.js';
 import { JsonlFindingStore } from './review-finding-store.js';
 
@@ -53,7 +53,7 @@ export async function integrateFindings(
       : 'chimera';
   const agentId = payload.bundle.fileProvenance?.find((entry) => entry.agentId)?.agentId
     ?? 'chimera-review';
-  const sessionId = payload.cwd;
+  const sessionId = payload.sessionId ?? payload.cwd;
   const model = payload.bundle.config.model;
 
   const parsed = parseChimeraReviewReport(payload.reviewText, {

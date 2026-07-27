@@ -232,6 +232,44 @@ describe('CollaborationBus.injectToolResult', () => {
     expect(bus.takeInjection('b')!.content).toBe(2);
     expect(bus.pendingInjectionCount()).toBe(2);
   });
+
+  it('bounds the queue when unconsumed injections pile up (leak guard)', () => {
+    const bus = new CollaborationBus();
+    for (let i = 0; i < 64; i++) {
+      bus.injectToolResult({
+        toolUseId: `tu-${i}`,
+        content: i,
+        isError: false,
+        reason: 'stress',
+        authorId: 'p',
+      });
+    }
+    // Cap is 32 — oldest FIFO-evicted, newest retained.
+    expect(bus.pendingInjectionCount()).toBe(32);
+    expect(bus.takeInjection('tu-0')).toBeNull();
+    expect(bus.takeInjection('tu-63')!.content).toBe(63);
+  });
+
+  it('expires stale unconsumed injections by TTL', () => {
+    vi.useFakeTimers();
+    try {
+      const bus = new CollaborationBus();
+      bus.injectToolResult({
+        toolUseId: 'stale',
+        content: 'old',
+        isError: false,
+        reason: 'r',
+        authorId: 'p',
+      });
+      expect(bus.pendingInjectionCount()).toBe(1);
+      // Advance past INJECTION_TTL_MS (10 minutes).
+      vi.advanceTimersByTime(11 * 60_000);
+      expect(bus.pendingInjectionCount()).toBe(0);
+      expect(bus.takeInjection('stale')).toBeNull();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
 });
 
 // ── collabInjectMiddleware (Phase 4) ─────────────────────────────────────────

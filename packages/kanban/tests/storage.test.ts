@@ -166,8 +166,8 @@ describe('readKanbanEvents', () => {
     await fs.writeFile(eventsPath, events.map((e) => JSON.stringify(e)).join('\n') + '\n', 'utf8');
     const parsed = await readKanbanEvents(tmpDir, board.id);
     expect(parsed).toHaveLength(2);
-    expect(parsed[0].type).toBe('task.created');
-    expect(parsed[1].type).toBe('task.completed');
+    expect(parsed.at(0)?.type).toBe('task.created');
+    expect(parsed.at(1)?.type).toBe('task.completed');
   });
 
   it('re-throws non-ENOENT errors during readKanbanEvents', async () => {
@@ -390,12 +390,7 @@ describe('resolveBoardRef', () => {
   });
 
   it('throws on ambiguous prefix', async () => {
-    // Create two boards with a shared prefix
-    const _b1 = await createBoard(tmpDir, { title: 'Board AA' });
-    const _b2 = await createBoard(tmpDir, { title: 'Board AB' });
-    // Both have unique ids but we can test ambiguity by using a prefix
-    // that matches both. Since UUIDs are random, we need a different approach:
-    // directly create board files with predictable ids
+    // Directly create board files with predictable ids so both share a prefix.
     const sharedPrefix = 'ambig-';
     const now = new Date().toISOString();
     await fs.mkdir(path.join(tmpDir, '.wrongstack', 'kanbans'), { recursive: true });
@@ -482,7 +477,7 @@ describe('appendKanbanEvent', () => {
     await appendKanbanEvent(tmpDir, board.id, event);
     const events = await readKanbanEvents(tmpDir, board.id);
     expect(events).toHaveLength(1);
-    expect(events[0].type).toBe('task.moved');
+    expect(events.at(0)?.type).toBe('task.moved');
   });
 
   it('skips the event-file read on successive appends when size matches the cache', async () => {

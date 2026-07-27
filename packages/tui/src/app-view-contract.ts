@@ -1,7 +1,8 @@
 import type { AgentTimelineEntry, Director } from '@wrongstack/core/coordination';
 import type { Dispatch, MutableRefObject, SetStateAction } from 'react';
 import type { AppProps } from './app-props.js';
-import type { Action, State } from './app-state.js';
+import type { Action } from './app-action-type.js';
+import type { State } from './app-state.js';
 import type { deriveAppViewState } from './app-view-state.js';
 import type { KeyEvent } from './components/input.js';
 import type { CronListResult } from './cron-slash.js';

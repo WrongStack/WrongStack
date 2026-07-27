@@ -1,11 +1,13 @@
-import type { ContextWindowModeId } from '../context-window.js';
+import type { ContextWindowModeSelectionId } from '../context-window.js';
 
 export interface ContextConfig {
   /** Context-window policy mode. Controls compaction thresholds and preservation depth. */
-  mode?: ContextWindowModeId | undefined;
+  mode?: ContextWindowModeSelectionId | undefined;
   warnThreshold: number;
   softThreshold: number;
   hardThreshold: number;
+  /** Target context-window load after compaction. */
+  targetLoad?: number | undefined;
   /** Enable automatic compaction when thresholds are crossed (default: true). */
   autoCompact?: boolean | undefined;
   /**

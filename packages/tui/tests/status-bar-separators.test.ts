@@ -29,6 +29,117 @@ function frameOf(props: Partial<StatusBarProps>): string {
  * combinations. These tests pin the corrected behavior.
  */
 describe('StatusBar chip separators', () => {
+  it('shows the detached codebase-index server connection and PID while idle', () => {
+    const frame = frameOf({
+      indexState: {
+        ready: true,
+        indexing: false,
+        currentFile: 0,
+        totalFiles: 0,
+        server: { status: 'connected', connected: true, pid: 4242 },
+      },
+    });
+
+    expect(frame).toContain('index connected #4242');
+  });
+
+  it('shows heartbeat health and latency for the index server', () => {
+    const frame = frameOf({
+      indexState: {
+        ready: true,
+        indexing: false,
+        currentFile: 0,
+        totalFiles: 0,
+        server: {
+          status: 'connected',
+          connected: true,
+          pid: 4242,
+          health: {
+            status: 'healthy',
+            checkedAt: 1,
+            lastHealthyAt: 1,
+            latencyMs: 7,
+            missedHeartbeats: 0,
+          },
+        },
+      },
+    });
+
+    expect(frame).toContain('index healthy #4242 · 7ms');
+  });
+
+  it('surfaces an unresponsive index server and missed heartbeat count', () => {
+    const frame = frameOf({
+      indexState: {
+        ready: true,
+        indexing: false,
+        currentFile: 0,
+        totalFiles: 0,
+        server: {
+          status: 'unresponsive',
+          connected: true,
+          pid: 4242,
+          health: {
+            status: 'unresponsive',
+            checkedAt: 1,
+            lastHealthyAt: 1,
+            latencyMs: null,
+            missedHeartbeats: 3,
+          },
+        },
+      },
+    });
+
+    expect(frame).toContain('index unresponsive · missed 3');
+  });
+
+  it('distinguishes a disconnected index client from a connected server', () => {
+    const frame = frameOf({
+      indexState: {
+        ready: true,
+        indexing: false,
+        currentFile: 0,
+        totalFiles: 0,
+        server: { status: 'offline', connected: false },
+      },
+    });
+
+    expect(frame).toContain('index disconnected');
+    expect(frame).not.toContain('index connected');
+  });
+
+  it('keeps the server connection visible while indexing', () => {
+    const frame = frameOf({
+      indexState: {
+        ready: false,
+        indexing: true,
+        currentFile: 12,
+        totalFiles: 40,
+        server: { status: 'connected', connected: true, pid: 4242 },
+      },
+    });
+
+    expect(frame).toContain('indexing 12/40 · connected #4242');
+  });
+
+  it('places index-server status on the final memory/service line instead of line 1', () => {
+    const frame = frameOf({
+      Sage: { total: 6261, activeInContext: 3 },
+      indexState: {
+        ready: true,
+        indexing: false,
+        currentFile: 0,
+        totalFiles: 0,
+        server: { status: 'connected', connected: true, pid: 4242 },
+      },
+    });
+    const lines = frame.split('\n');
+
+    expect(lines[0]).not.toContain('index connected');
+    expect(lines.at(-1)).toContain('6261 total');
+    expect(lines.at(-1)).toContain('index connected #4242');
+  });
+
   it('renders the current process RSS and V8 heap usage', () => {
     const frame = frameOf({
       processMemory: {
