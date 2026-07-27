@@ -239,9 +239,20 @@ export function useDirectorFleetBridge({
       // their seen / labelsRef / spawn-generation entries leak permanently.
       if (event.type === 'subagent.removed') {
         const live = gate.isLive(event.subagentId);
+        // Commit any buffered assistant text / tool summary BEFORE cleanup.
+        // For force-terminated subagents (idle-timeout, /kill, director
+        // shutdown), subagent.task_completed never fires — the abort skips
+        // it — so this is the only commit boundary. Must run while labelsRef
+        // and gate still hold the entry so finalizeTurn can resolve the label
+        // and pass the generation gate.
+        finalizeTurn(event.subagentId);
         seen.delete(event.subagentId);
         labelsRef.current.delete(event.subagentId);
         gate.forget(event.subagentId);
+        // Defensive: finalizeTurn already deletes historyBuf/toolAgg entries,
+        // but streamBuf/pending are not touched by finalizeTurn.
+        streamBuf.delete(event.subagentId);
+        pending.delete(event.subagentId);
         if (live) enqueue({ type: 'fleetRemove', id: event.subagentId });
         return;
       }
@@ -520,6 +531,12 @@ export function useDirectorFleetBridge({
       for (const id of new Set([...historyBuf.keys(), ...toolAgg.keys()])) finalizeTurn(id);
       if (batchTimer) clearTimeout(batchTimer);
       flushBatch();
+      // Clear label entries for subagents tracked in this effect. labelsRef
+      // is a component-level ref that outlives this effect; without this, a
+      // director change leaks all labels from the previous director into the
+      // next one. Subagents already removed had their labels deleted in the
+      // subagent.removed handler, so `seen` only holds un-removed ids.
+      for (const id of seen) labelsRef.current.delete(id);
     };
   }, [director, dispatch, stateRef, gate]);
 }

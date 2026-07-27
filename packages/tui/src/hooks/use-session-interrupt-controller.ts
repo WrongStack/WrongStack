@@ -45,6 +45,9 @@ interface UseSessionInterruptControllerOptions {
   flushTimerRef: MutableRef<ReturnType<typeof setTimeout> | null>;
   eternalLoopRunningRef: MutableRef<boolean>;
   parallelLoopRunningRef: MutableRef<boolean>;
+  /** Attachment preview cache — cleared on /clear so stale previews from
+   *  the previous conversation don't survive into the next one. */
+  tokenPreviewsRef: MutableRef<{ clear(): void }>;
   clearPendingConfirms: () => void;
   getEternalEngine: (() => EternalAutonomyEngine | null) | undefined;
   getParallelEngine: (() => ParallelEternalEngine | null) | undefined;
@@ -69,6 +72,7 @@ export function useSessionInterruptController({
   flushTimerRef,
   eternalLoopRunningRef,
   parallelLoopRunningRef,
+  tokenPreviewsRef,
   clearPendingConfirms,
   getEternalEngine,
   getParallelEngine,
@@ -165,6 +169,18 @@ export function useSessionInterruptController({
       if (stateRef.current.status !== 'idle') {
         activeCtrlRef.current?.abort('user interrupt (/interrupt)');
         clearPendingConfirms();
+        // Clear streaming refs immediately. The abort prevents
+        // provider.response from firing (the response never completes), so
+        // the normal turn-boundary cleanup in use-provider-event-bridge
+        // won't run. Without this, partial segments and unflushed delta text
+        // linger in the refs until the next successful run or /clear.
+        streamingTextRef.current = '';
+        streamSegmentsRef.current = [];
+        pendingDeltaRef.current = '';
+        if (flushTimerRef.current) {
+          clearTimeout(flushTimerRef.current);
+          flushTimerRef.current = null;
+        }
         dispatch({ type: 'status', status: 'aborting' });
         interrupted = true;
       }
@@ -177,6 +193,7 @@ export function useSessionInterruptController({
       streamSegmentsRef.current = [];
       pendingDeltaRef.current = '';
       assistantCommittedThisRunRef.current = false;
+      tokenPreviewsRef.current.clear();
       if (flushTimerRef.current) {
         clearTimeout(flushTimerRef.current);
         flushTimerRef.current = null;

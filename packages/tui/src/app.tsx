@@ -683,6 +683,7 @@ export function App(props: AppProps): React.ReactElement {
     flushTimerRef,
     eternalLoopRunningRef,
     parallelLoopRunningRef,
+    tokenPreviewsRef,
     clearPendingConfirms,
     getEternalEngine,
     getParallelEngine,

@@ -90,6 +90,11 @@ export function useSubagentEvents(
   );
 
   useEffect(() => {
+    // Track every subagent id this effect lifetime touches so teardown can
+    // clear the component-level refs (labelsRef, ctxDispatchRef) for them.
+    // Without this, an effect re-run (dep change) leaks entries from
+    // subagents that were spawned but never removed in the old lifetime.
+    const seen = new Set<string>();
     const isCurrentSession = (sessionId?: string | undefined): boolean => {
       const current = getSessionId?.();
       return !sessionId || !current || sessionId === current;
@@ -102,6 +107,7 @@ export function useSubagentEvents(
       // Record the session generation at spawn time so post-/clear events
       // from this agent can be detected and discarded.
       if (sessionGenerationRef) gate.track(e.subagentId);
+      seen.add(e.subagentId);
       const l = lbl(e.subagentId, e.name);
       dispatch({
         type: 'fleetSpawn',
@@ -192,6 +198,7 @@ export function useSubagentEvents(
 
     const offRemoved = events.on('subagent.removed', (e) => {
       if (!isCurrentSession(e.sessionId)) return;
+      seen.delete(e.subagentId);
       labelsRef.current.delete(e.subagentId);
       ctxDispatchRef.current.delete(e.subagentId);
       gate.forget(e.subagentId);
@@ -369,6 +376,16 @@ export function useSubagentEvents(
       offLeaderMaxContext();
       offCompactionFired();
       offTool();
+      // Clear component-level ref entries for subagents tracked in this effect.
+      // labelsRef and ctxDispatchRef are useRefs that outlive this effect;
+      // without this, an effect re-run (dep change) leaks entries from
+      // subagents that were spawned but never removed in the old lifetime.
+      // Removed subagents already had their entries deleted in the
+      // subagent.removed handler, so `seen` only holds un-removed ids.
+      for (const id of seen) {
+        labelsRef.current.delete(id);
+        ctxDispatchRef.current.delete(id);
+      }
     };
   }, [events, dispatch, setActiveMaxContext, getSessionId, getChatMode, lbl, gate]);
 }
