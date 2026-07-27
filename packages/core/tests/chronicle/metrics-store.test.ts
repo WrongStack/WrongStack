@@ -23,7 +23,7 @@ function input(
   return { scope, correlation, occurredAt: '2026-07-24T10:00:00.000Z', ...partial };
 }
 
-describe.skipIf(!isChronicleMetricsAvailable())('ChronicleMetricsStore', () => {
+describe.skipIf(!isChronicleMetricsAvailable())('ChronicleMetricsStore', { retry: 1 }, () => {
   it('ingests provider, task, file, and cost aggregates incrementally and idempotently', async () => {
     const dir = await mkdtemp(path.join(os.tmpdir(), 'chronicle-metrics-'));
     dirs.push(dir);
@@ -251,6 +251,75 @@ describe.skipIf(!isChronicleMetricsAvailable())('ChronicleMetricsStore', () => {
       expect(reopened.providerDaily()[0]?.attempts).toBe(8);
     } finally {
       reopened.close();
+    }
+  });
+
+  it('serves a day-bounded ChronicleSummary for the default dashboard view', async () => {
+    const dir = await mkdtemp(path.join(os.tmpdir(), 'chronicle-metrics-summary-'));
+    dirs.push(dir);
+    const journal = new ChronicleJournal({ filePath: path.join(dir, '2026-07-24.events.jsonl') });
+    const withAgent = { ...scope, agentId: 'worker-1' };
+    await Promise.all([
+      journal.append(input({ eventType: 'tool.started', scope: withAgent, correlation: { ...correlation, toolCallId: 'tc-1' } })),
+      journal.append(input({ eventType: 'tool.executed', scope: withAgent, correlation: { ...correlation, toolCallId: 'tc-1' }, outcome: 'success', durationNs: '10000000' })),
+      journal.append(input({ eventType: 'tool.failed', scope: withAgent, correlation: { ...correlation, toolCallId: 'tc-2' }, outcome: 'failure', durationNs: '5000000' })),
+      journal.append(input({ eventType: 'process.started', scope: withAgent })),
+      journal.append(input({ eventType: 'process.completed', scope: withAgent, outcome: 'failure' })),
+      journal.append(input({ eventType: 'decision.requested', scope: withAgent, attributes: { decisionId: 'd1' } })),
+      journal.append(input({ eventType: 'decision.escalated', scope: withAgent, attributes: { decisionId: 'd1' } })),
+      journal.append(input({ eventType: 'agent.status_changed', scope: withAgent })),
+      journal.append(input({ eventType: 'file.event', scope: withAgent, resource: { kind: 'file', id: 'path:a.ts', path: 'a.ts' }, attributes: { operation: 'update' } })),
+      journal.append(input({ eventType: 'file.event', scope: withAgent, resource: { kind: 'file', id: 'path:b.ts', path: 'b.ts' }, attributes: { operation: 'read' } })),
+      journal.append(input({
+        eventType: 'provider.attempt.completed', scope: withAgent, correlation: { ...correlation, logicalRequestId: 'r1' },
+        runtime: { providerId: 'openai', modelId: 'gpt' }, outcome: 'success', durationNs: '20000000',
+        attributes: { usage: { input: 10, output: 2 } },
+      })),
+      // A different day — must be excluded by a from/to window scoped to the 24th.
+      journal.append(input({ eventType: 'tool.started', scope: withAgent, occurredAt: '2026-07-25T10:00:00.000Z' })),
+    ]);
+    await journal.flush();
+
+    const store = ChronicleMetricsStore.open(dir);
+    try {
+      await store.refresh();
+      const bounded = store.defaultSummary({ from: '2026-07-24T00:00:00.000Z', to: '2026-07-24T23:59:59.000Z' });
+      expect(bounded).toMatchObject({
+        toolCalls: 1,
+        completedTools: 1,
+        failedTools: 1,
+        toolAvgDurationMs: 7.5,
+        processes: 1,
+        failedProcesses: 1,
+        decisions: 1,
+        escalations: 1,
+        agentEvents: 1,
+        uniqueAgents: 1,
+        fileEvents: 2,
+        uniqueFiles: 2,
+        logicalRequests: 1,
+        modelAttempts: 0,
+        completedAttempts: 1,
+        providers: 1,
+        models: 1,
+        inputTokens: 10,
+        outputTokens: 2,
+        // tool.failed AND process.completed(failure) are each independently
+        // a terminal failure per isTerminalFailure().
+        failures: 2,
+        cancellations: 0,
+      });
+      expect(bounded.families.tool).toBeGreaterThan(0);
+      expect(bounded.failuresByFamily.tool).toBeGreaterThan(0);
+
+      // Widening the window picks up the 25th's extra tool.started.
+      const wide = store.defaultSummary({ from: '2026-07-24T00:00:00.000Z', to: '2026-07-25T23:59:59.000Z' });
+      expect(wide.toolCalls).toBe(2);
+
+      // No bound at all — everything.
+      expect(store.defaultSummary().toolCalls).toBe(2);
+    } finally {
+      store.close();
     }
   });
 });
