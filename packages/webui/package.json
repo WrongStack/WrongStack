@@ -76,7 +76,7 @@
     "clsx": "^2.1.1",
     "i18next": "^26.3.6",
     "i18next-resources-to-backend": "^1.2.1",
-    "lucide-react": "^1.26.0",
+    "lucide-react": "^1.27.0",
     "monaco-editor": "^0.56.0",
     "qrcode": "^1.5.4",
     "react": "^19.2.8",
@@ -86,7 +86,7 @@
     "rehype-highlight": "^7.0.2",
     "remark-gfm": "^4.0.1",
     "tailwind-merge": "^3.6.0",
-    "virtua": "^0.49.3",
+    "virtua": "^0.50.0",
     "zustand": "^5.0.14"
   },
   "optionalDependencies": {
@@ -97,7 +97,7 @@
     "@tailwindcss/vite": "^4.3.3",
     "@testing-library/dom": "^10.4.1",
     "@testing-library/react": "^16.3.2",
-    "@types/node": "^26.1.1",
+    "@types/node": "^26.1.2",
     "@types/qrcode": "^1.5.6",
     "@types/react": "^19.2.17",
     "@types/react-dom": "^19.2.3",
