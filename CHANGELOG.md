@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Fixed
+
+- **Core: parseHqFrame test retry under full-suite worker contention.** Added `retry: 1` to the `parseHqFrame` describe block — the 5 intermittent failures only appear under full-suite load (1,829 files, 25% maxWorkers) and pass in isolation; the retry lets transient contention self-heal without masking real regressions. (`479e13d2c`)
+
 ## [0.296.1] — 2026-07-27
 
 ### Added
