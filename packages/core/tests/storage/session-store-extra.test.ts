@@ -211,6 +211,30 @@ describe('DefaultSessionStore — resume file validation', () => {
     );
     await resumed.writer.close();
   });
+
+  it('rebuilds stale sidecar counters from the JSONL before resume', { timeout: 5000 }, async () => {
+    const id = 'stale-summary';
+    const writer = await store.create({ id, model: 'm', provider: 'p' });
+    await writer.append({ type: 'user_input', ts: now(), content: 'persisted prompt' });
+    await writer.close();
+    const manifestPath = path.join(tmp, `${id}.summary.json`);
+    const stale = JSON.parse(await fs.readFile(manifestPath, 'utf8')) as Record<string, unknown>;
+    await fs.writeFile(
+      manifestPath,
+      JSON.stringify({ ...stale, messageCount: 0, lastUserMessage: 'stale preview' }),
+      'utf8',
+    );
+
+    const resumed = await store.resume(id);
+    await resumed.writer.close();
+
+    const rebuilt = JSON.parse(await fs.readFile(manifestPath, 'utf8')) as {
+      messageCount?: number;
+      lastUserMessage?: string;
+    };
+    expect(rebuilt.messageCount).toBe(1);
+    expect(rebuilt.lastUserMessage).toBe('persisted prompt');
+  });
 });
 
 describe('DefaultSessionStore — non-destructive journal fork', () => {
@@ -427,8 +451,29 @@ describe('DefaultSessionStore — error paths', () => {
     await expect(store.load('does-not-exist')).rejects.toBeDefined();
   });
 
-  it('resume() rejects for a missing session', async () => {
+  it('resume() rejects for missing or empty session references', async () => {
     await expect(store.resume('also-missing')).rejects.toBeDefined();
+    await expect(store.resolveId('   ')).rejects.toThrow('Session not found: (empty query)');
+  });
+
+  it('rejects ambiguous leaf references instead of choosing a session', async () => {
+    for (const id of ['2026-07-04/shared-leaf', '2026-07-05/shared-leaf']) {
+      const writer = await store.create({ id, model: 'm', provider: 'p' });
+      await writer.close();
+    }
+    await expect(store.resolveId('shared-leaf')).rejects.toThrow(/Ambiguous session id/);
+    await expect(store.resume('shared-leaf')).rejects.toThrow(/Ambiguous session id/);
+  });
+
+  it('prefers an exact leaf over another session that only shares its prefix', async () => {
+    for (const id of ['2026-07-04/sess_exact', '2026-07-05/sess_exact_extra']) {
+      const writer = await store.create({ id, model: 'm', provider: 'p' });
+      await writer.close();
+    }
+    await expect(store.resolveId('sess_exact')).resolves.toBe('2026-07-04/sess_exact');
+    await expect(store.resolveId('2026-07-05/sess_exact_extra')).resolves.toBe(
+      '2026-07-05/sess_exact_extra',
+    );
   });
 });
 
@@ -1023,6 +1068,67 @@ describe('DefaultSessionStore.rename', () => {
     expect(second.name).toBe('second');
     const listed = await store.list();
     expect(listed.find((s) => s.id === '2026-07-04/rn3')?.name).toBe('second');
+  });
+
+  it('preserves a renamed session name after resume and close', { timeout: 5000 }, async () => {
+    const id = '2026-07-04/rn4';
+    const w = await store.create({ id, model: 'm', provider: 'p' });
+    await w.close();
+    await store.rename(id, 'Persist across resume');
+
+    const resumed = await store.resume(id);
+    await resumed.writer.close();
+
+    const raw = await fs.readFile(path.join(tmp, '2026-07-04', 'rn4.summary.json'), 'utf8');
+    expect(JSON.parse(raw).name).toBe('Persist across resume');
+    const listed = await store.list();
+    expect(listed.find((summary) => summary.id === id)?.name).toBe('Persist across resume');
+  });
+
+  it('keeps an active rename authoritative when the open writer closes', async () => {
+    const id = '2026-07-04/rn-active';
+    const writer = await store.create({ id, model: 'm', provider: 'p' });
+    await writer.append({ type: 'user_input', ts: now(), content: 'active work' });
+    await writer.flush();
+
+    await store.rename(id, 'Live rename');
+    await writer.close();
+
+    const sidecar = JSON.parse(
+      await fs.readFile(path.join(tmp, '2026-07-04', 'rn-active.summary.json'), 'utf8'),
+    ) as { name?: string; lastUserMessage?: string };
+    expect(sidecar).toMatchObject({ name: 'Live rename', lastUserMessage: 'active work' });
+    expect((await store.list()).find((summary) => summary.id === id)?.name).toBe('Live rename');
+  });
+
+  it('deletes a persisted shard manifest so a cold list sees the renamed value', async () => {
+    const id = '2026-07-04/rn-manifest';
+    const writer = await store.create({ id, model: 'm', provider: 'p' });
+    await writer.close();
+    await fs.rm(path.join(tmp, '_index.jsonl'), { force: true });
+    await new DefaultSessionStore({ dir: tmp }).list();
+    const shardManifest = path.join(tmp, '2026-07-04', '_manifest.json');
+    await expect(fs.access(shardManifest)).resolves.toBeUndefined();
+
+    await store.rename(id, 'Fresh manifest name');
+    await expect(fs.access(shardManifest)).rejects.toThrow();
+    await fs.rm(path.join(tmp, '_index.jsonl'), { force: true });
+    const listed = await new DefaultSessionStore({ dir: tmp }).list();
+    expect(listed.find((summary) => summary.id === id)?.name).toBe('Fresh manifest name');
+  });
+
+  it('rejects and rolls back the sidecar when the rename index update fails', { timeout: 5000 }, async () => {
+    const id = '2026-07-04/rn-index-failure';
+    const writer = await store.create({ id, model: 'm', provider: 'p' });
+    await writer.close();
+    const sidecarPath = path.join(tmp, '2026-07-04', 'rn-index-failure.summary.json');
+    const before = JSON.parse(await fs.readFile(sidecarPath, 'utf8')) as { name?: string };
+    (store as never as { appendToIndexStrict(): Promise<void> }).appendToIndexStrict = () =>
+      Promise.reject(new Error('index unavailable'));
+
+    await expect(store.rename(id, 'Must be indexed')).rejects.toThrow('index unavailable');
+    const after = JSON.parse(await fs.readFile(sidecarPath, 'utf8')) as { name?: string };
+    expect(after.name).toBe(before.name);
   });
 });
 

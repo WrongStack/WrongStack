@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { sanitizeModel, generateSessionId } from '../../src/storage/session-id.js';
-import { userInputTitle } from '../../src/storage/session-helpers.js';
+import { sessionContentText, userInputTitle } from '../../src/storage/session-helpers.js';
 import { mapWithConcurrency } from '../../src/storage/storage-concurrency.js';
 import {
   compareSessionSummaries,
@@ -73,6 +73,11 @@ describe('userInputTitle', () => {
   });
   it('caps at 60 chars', () => {
     expect(userInputTitle('a'.repeat(100)).length).toBe(60);
+  });
+  it('removes terminal control sequences and normalizes whitespace', () => {
+    const unsafe = '\u001b]0;forged title\u0007  safe\n\u001b[31mred\u001b[0m\u009b2J';
+    expect(sessionContentText(unsafe)).toBe('safe red');
+    expect(userInputTitle(unsafe)).toBe('safe red');
   });
 });
 

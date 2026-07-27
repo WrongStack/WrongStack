@@ -497,11 +497,13 @@ export function createSessionHandlers(ctx: SessionHandlersContext): SessionRoute
       }
       try {
         const current = ctx.getSession();
-        if (id === current.id) {
+        const store = ctx.getSessionStore();
+        const canonicalId = store.resolveId ? await store.resolveId(id) : id;
+        if (canonicalId === current.id) {
           result(ws, false, 'Session is already active');
           return;
         }
-        const resumed = await ctx.getSessionStore().resume(id);
+        const resumed = await store.resume(canonicalId);
         // Restore the resumed session's todo board from its sidecar so the
         // panel isn't wiped on resume (parity with the boot `--resume` path).
         const restoredTodos =

@@ -162,14 +162,32 @@ describe('filterAndSortSessions', () => {
     }),
   ];
 
-  it('searches names, titles, providers, models, IDs and tool names', () => {
-    const result = filterAndSortSessions(entries, {
-      query: 'read_file',
+  it('searches names, titles, latest requests, providers, models, IDs and tool names', () => {
+    const searchable = entries.map((entry) =>
+      entry.id === 'failed' ? { ...entry, lastUserMessage: 'Investigate stale session recovery' } : entry,
+    );
+    const result = filterAndSortSessions(searchable, {
+      query: 'stale session recovery',
       filter: 'all',
       sort: 'recent',
       favoriteIds: [],
     });
     expect(result.map((entry) => entry.id)).toEqual(['failed']);
+  });
+
+  it('uses latest activity rather than creation time for recent ordering', () => {
+    const result = filterAndSortSessions(
+      [
+        makeHistoryEntry({ id: 'newer-created', startedAt: '2026-01-15T11:00:00.000Z' }),
+        makeHistoryEntry({
+          id: 'resumed',
+          startedAt: '2026-01-10T11:00:00.000Z',
+          lastActivityAt: '2026-01-15T11:30:00.000Z',
+        }),
+      ],
+      { query: '', filter: 'all', sort: 'recent', favoriteIds: [] },
+    );
+    expect(result.map((entry) => entry.id)).toEqual(['resumed', 'newer-created']);
   });
 
   it('filters favorites and issues independently', () => {

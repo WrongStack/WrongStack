@@ -10,6 +10,7 @@ export type SessionStoreReadOperation =
 export type SessionStoreWriteOperation =
   | 'create'
   | 'resume'
+  | 'rename'
   | 'append'
   | 'flush'
   | 'close'

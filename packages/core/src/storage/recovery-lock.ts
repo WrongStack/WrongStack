@@ -3,6 +3,7 @@ import * as os from 'node:os';
 import * as path from 'node:path';
 import type { SessionStore } from '../types/session.js';
 import { ensureDir } from '../utils/atomic-write.js';
+import { sessionContentPreview, userInputTitle } from './session-helpers.js';
 import { isPidAlive } from '../utils/pid.js';
 
 /**
@@ -44,6 +45,10 @@ export interface AbandonedSession {
   ageMs: number;
   /** Number of messages already on disk for this session. */
   messageCount: number;
+  /** Auto-derived session title from the first persisted user request. */
+  title?: string | undefined;
+  /** Latest persisted user request, compacted for the recovery prompt. */
+  lastUserMessage?: string | undefined;
 }
 
 interface LockFile {
@@ -114,6 +119,8 @@ export class RecoveryLock {
     }
 
     let messageCount = 0;
+    let title: string | undefined;
+    let lastUserMessage: string | undefined;
     if (this.sessionStore) {
       try {
         const data = await this.sessionStore.load(lock.sessionId);
@@ -134,6 +141,11 @@ export class RecoveryLock {
             );
         if (closed) return null;
         messageCount = data.messages.length;
+        for (const event of data.events) {
+          if (event.type !== 'user_input') continue;
+          if (title === undefined) title = userInputTitle(event.content);
+          lastUserMessage = sessionContentPreview(event.content);
+        }
       } catch {
         // Lock points to a session that doesn't exist on disk (deleted
         // out from under us). Nothing to recover.
@@ -147,6 +159,8 @@ export class RecoveryLock {
       startedAt: lock.startedAt,
       ageMs,
       messageCount,
+      ...(title !== undefined ? { title } : {}),
+      ...(lastUserMessage !== undefined ? { lastUserMessage } : {}),
     };
   }
 

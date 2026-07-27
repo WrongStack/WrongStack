@@ -101,10 +101,21 @@ export function SessionSwitcher(props: SessionSwitcherProps): React.JSX.Element 
                       )}
                       <span className="session-menu-copy">
                         <b>{sessionDisplayName(item)}</b>
-                        <small>{[item.provider, item.model].filter(Boolean).join(' · ')}</small>
+                        {item.lastUserMessage ? <small title={item.lastUserMessage}>{item.lastUserMessage}</small> : null}
+                        <small>
+                          {[
+                            item.provider,
+                            item.model,
+                            (item.messageCount ?? 0) > 0 ? `${item.messageCount} msg` : '',
+                          ]
+                            .filter(Boolean)
+                            .join(' · ')}
+                        </small>
                       </span>
                     </span>
-                    <time dateTime={item.startedAt}>{relativeSessionTime(item.startedAt)}</time>
+                    <time dateTime={item.lastActivityAt ?? item.startedAt}>
+                      {relativeSessionTime(item.lastActivityAt ?? item.startedAt)}
+                    </time>
                   </button>
                 );
               })

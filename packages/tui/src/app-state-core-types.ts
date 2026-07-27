@@ -23,6 +23,10 @@ export interface SlashCommandMatch {
 export interface ResumeSessionEntry {
   id: string;
   title: string;
+  name?: string | undefined;
+  lastUserMessage?: string | undefined;
+  messageCount?: number | undefined;
+  lastActivityAt?: string | undefined;
   startedAt: string;
   endedAt?: string | undefined;
   tokenTotal: number;

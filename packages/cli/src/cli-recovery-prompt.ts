@@ -32,9 +32,13 @@ export async function promptRecovery(
       : minutes < 60
         ? `${minutes} min ago`
         : `${Math.round(minutes / 60)}h ago`;
-  const summary = `Previous session was killed mid-run: ${abandoned.sessionId} (${abandoned.messageCount} messages, ${ageLabel}).`;
+  const displayName = abandoned.title?.trim() || abandoned.sessionId;
+  const summary = `Previous session was killed mid-run: ${displayName} [${abandoned.sessionId}] (${abandoned.messageCount} messages, ${ageLabel}).`;
+  const content = abandoned.lastUserMessage
+    ? ` Latest request: ${abandoned.lastUserMessage}`
+    : '';
   if (autoRecover) {
-    renderer.writeInfo(`${summary} Auto-resuming (--recover).`);
+    renderer.writeInfo(`${summary}${content} Auto-resuming (--recover).`);
     return 'resume';
   }
   if (!isStdinTTY()) {

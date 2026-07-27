@@ -848,6 +848,10 @@ export async function execute(deps: ExecuteDeps): Promise<number> {
             return summaries.map((s) => ({
               id: s.id,
               title: s.title ?? '',
+              name: s.name,
+              lastUserMessage: s.lastUserMessage,
+              messageCount: s.messageCount,
+              lastActivityAt: s.lastActivityAt,
               startedAt: s.startedAt ?? '',
               endedAt: s.endedAt,
               tokenTotal: s.tokenTotal ?? 0,

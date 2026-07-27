@@ -51,11 +51,31 @@ export async function resumeSession(
   // writers on one session JSONL corrupt it. Thrown (not null) so
   // the resume picker surfaces the reason instead of a generic
   // failure. Best-effort: a broken registry must not block resume.
+  let canonicalSessionId = sessionId;
+  try {
+    if (state.activeSessionStore.resolveId) {
+      canonicalSessionId = await state.activeSessionStore.resolveId(sessionId);
+    }
+  } catch (err) {
+    // Fail closed: without a canonical id the live-session registry cannot
+    // prove that another process is not already writing the same journal.
+    console.error(
+      JSON.stringify({
+        level: 'error',
+        event: 'execution.resume_id_resolve_failed',
+        sessionId,
+        message: err instanceof Error ? err.message : String(err),
+        timestamp: new Date().toISOString(),
+      }),
+    );
+    return null;
+  }
   try {
     const { SessionRegistry } = await import('@wrongstack/core/storage');
     const registry = new SessionRegistry(path.dirname(state.wpaths.globalConfig));
     const live = (await registry.list()).find(
-      (s) => s.sessionId === sessionId && s.status !== 'stale' && s.pid !== process.pid,
+      (s) =>
+        s.sessionId === canonicalSessionId && s.status !== 'stale' && s.pid !== process.pid,
     );
     if (live) {
       throw new Error(
@@ -68,7 +88,7 @@ export async function resumeSession(
   }
 
   try {
-    const resumed = await state.activeSessionStore.resume(sessionId);
+    const resumed = await state.activeSessionStore.resume(canonicalSessionId);
     const meta = resumed.data.metadata;
 
     // Capture and swap writers BEFORE hydrating. replaceMessages emits the

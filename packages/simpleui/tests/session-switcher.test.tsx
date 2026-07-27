@@ -41,6 +41,9 @@ const sessions: SimpleSessionSummary[] = [
   {
     id: 'sess-1',
     title: 'First session',
+    lastUserMessage: 'Improve session recovery',
+    messageCount: 7,
+    lastActivityAt: '2026-07-19T12:00:00.000Z',
     startedAt: '2026-07-19T10:00:00.000Z',
     model: 'gpt-4o',
     provider: 'openai',
@@ -175,6 +178,11 @@ describe('SessionSwitcher — actions', () => {
 
     const activeBtn = items[0] as HTMLButtonElement;
     expect(activeBtn.getAttribute('aria-current')).toBe('page');
+    expect(activeBtn.textContent).toContain('Improve session recovery');
+    expect(activeBtn.textContent).toContain('7 msg');
+    expect(activeBtn.querySelector('time')?.getAttribute('datetime')).toBe(
+      '2026-07-19T12:00:00.000Z',
+    );
     expect(activeBtn.disabled).toBe(true);
 
     const otherBtn = items[1] as HTMLButtonElement;

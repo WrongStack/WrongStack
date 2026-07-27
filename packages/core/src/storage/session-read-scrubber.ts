@@ -1,5 +1,6 @@
 import type { SecretScrubber } from '../types/secret-scrubber.js';
 import type { SessionData, SessionEvent, SessionSummary } from '../types/session.js';
+import { sessionContentText } from './session-helpers.js';
 
 /**
  * Read-side migration boundary for transcripts written before write-time
@@ -24,5 +25,16 @@ export function scrubPersistedSessionSummary(
   summary: SessionSummary,
   scrubber: SecretScrubber,
 ): SessionSummary {
-  return scrubber.scrubObject(summary);
+  const scrubbed = scrubber.scrubObject(summary);
+  const { name: _name, lastUserMessage: _lastUserMessage, ...rest } = scrubbed;
+  const title = sessionContentText(scrubbed.title) || '(empty session)';
+  const name = scrubbed.name === undefined ? '' : sessionContentText(scrubbed.name);
+  const lastUserMessage =
+    scrubbed.lastUserMessage === undefined ? '' : sessionContentText(scrubbed.lastUserMessage);
+  return {
+    ...rest,
+    title,
+    ...(name ? { name } : {}),
+    ...(lastUserMessage ? { lastUserMessage } : {}),
+  };
 }

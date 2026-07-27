@@ -93,6 +93,9 @@ export const formatRelative = (iso: string): string => {
   return new Date(ts).toLocaleDateString();
 };
 
+const sessionActivityAt = (entry: SessionHistoryEntry): string =>
+  entry.lastActivityAt ?? entry.endedAt ?? entry.startedAt;
+
 export function formatSessionDuration(entry: SessionHistoryEntry): string {
   const start = timestamp(entry.startedAt);
   if (!start) return '';
@@ -133,6 +136,7 @@ export function filterAndSortSessions(
       [
         entry.name,
         entry.title,
+        entry.lastUserMessage,
         entry.model,
         entry.provider,
         entry.id,
@@ -170,7 +174,7 @@ export function filterAndSortSessions(
       const difference = activityScore(b) - activityScore(a);
       if (difference !== 0) return difference;
     }
-    return timestamp(b.startedAt) - timestamp(a.startedAt);
+    return timestamp(sessionActivityAt(b)) - timestamp(sessionActivityAt(a));
   });
 }
 
@@ -195,10 +199,10 @@ export function groupSessionHistory(
 
   for (const entry of entries) {
     if (favorites.has(entry.id)) continue;
-    const startedAt = timestamp(entry.startedAt);
-    if (startedAt >= todayStart) buckets.today.push(entry);
-    else if (startedAt >= yesterdayStart) buckets.yesterday.push(entry);
-    else if (startedAt >= weekStart) buckets.thisWeek.push(entry);
+    const activityAt = timestamp(sessionActivityAt(entry));
+    if (activityAt >= todayStart) buckets.today.push(entry);
+    else if (activityAt >= yesterdayStart) buckets.yesterday.push(entry);
+    else if (activityAt >= weekStart) buckets.thisWeek.push(entry);
     else buckets.earlier.push(entry);
   }
 
@@ -719,6 +723,14 @@ export function SessionList({
                                   <div className="mt-0.5 truncate font-mono text-[10px] text-muted-foreground">
                                     {entry.provider}/{entry.model}
                                   </div>
+                                  {entry.lastUserMessage ? (
+                                    <div
+                                      className="mt-1 truncate text-xs text-muted-foreground"
+                                      title={entry.lastUserMessage}
+                                    >
+                                      {entry.lastUserMessage}
+                                    </div>
+                                  ) : null}
                                   <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 font-mono text-[10px] text-muted-foreground">
                                     {isResuming ? (
                                       <span className="inline-flex items-center gap-1 font-sans font-semibold text-primary">
@@ -726,14 +738,17 @@ export function SessionList({
                                         {t('activity:sessions.resuming')}
                                       </span>
                                     ) : (
-                                      <span title={new Date(entry.startedAt).toLocaleString()}>
-                                        {formatRelative(entry.startedAt)}
+                                      <span title={new Date(sessionActivityAt(entry)).toLocaleString()}>
+                                        {formatRelative(sessionActivityAt(entry))}
                                       </span>
                                     )}
                                     <span aria-hidden="true">·</span>
                                     <span>{formatSessionDuration(entry)}</span>
                                     {entry.tokenTotal > 0 ? (
                                       <span>{formatCompactNumber(entry.tokenTotal)} tok</span>
+                                    ) : null}
+                                    {(entry.messageCount ?? 0) > 0 ? (
+                                      <span>{formatCompactNumber(entry.messageCount ?? 0)} msg</span>
                                     ) : null}
                                     {(entry.toolCallCount ?? 0) > 0 ? (
                                       <span className="inline-flex items-center gap-1">

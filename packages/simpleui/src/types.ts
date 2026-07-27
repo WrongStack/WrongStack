@@ -25,6 +25,9 @@ export interface SimpleSessionSummary {
   id: string;
   title: string;
   name?: string | undefined;
+  lastUserMessage?: string | undefined;
+  messageCount?: number | undefined;
+  lastActivityAt?: string | undefined;
   startedAt: string;
   model: string;
   provider: string;

@@ -113,6 +113,8 @@ describe('RecoveryLock', () => {
       expect(out?.sessionId).toBe(session.id);
       expect(out?.pid).toBe(31337);
       expect(out?.messageCount).toBe(1);
+      expect(out?.title).toBe('hi');
+      expect(out?.lastUserMessage).toBe('hi');
       expect(out?.ageMs).toBeGreaterThanOrEqual(0);
     });
 
@@ -179,6 +181,8 @@ describe('RecoveryLock', () => {
       const out = await checker.checkAbandoned();
       expect(out).not.toBeNull();
       expect(out?.sessionId).toBe(session.id);
+      expect(out?.title).toBe('q1');
+      expect(out?.lastUserMessage).toBe('q2 (crash after this)');
     });
 
     it('returns null when the lockfile is older than maxAgeMs', async () => {

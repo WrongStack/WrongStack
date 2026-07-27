@@ -105,8 +105,10 @@ describe('session lifecycle end-to-end (JSONL chain)', () => {
     const list1 = await store.list();
     expect(list1.filter((s) => s.id === id)).toHaveLength(1);
 
-    // ── Run 2: resume the same session ──
-    const { writer: writer2, data } = await store.resume(id);
+    // ── Run 2: resume the same session through a unique leaf prefix ──
+    const leafPrefix = base.slice(0, -4);
+    const { writer: writer2, data } = await store.resume(leafPrefix);
+    expect(writer2.id).toBe(id);
     expect(data.messages).toHaveLength(4); // user, assistant(tool_use), user(tool_result), assistant
     expect(data.usage).toMatchObject({ input: 30, output: 13 });
     expect(data.metadata.endedAt).toBe(ts(5));
@@ -130,13 +132,22 @@ describe('session lifecycle end-to-end (JSONL chain)', () => {
     expect(lines2.slice(0, lines1.length).map((l) => l['type'])).toEqual(
       lines1.map((l) => l['type']),
     );
-    expect(lines2.some((l) => l['type'] === 'session_resumed')).toBe(true);
+    const resumeEvent = lines2.find((l) => l['type'] === 'session_resumed');
+    expect(resumeEvent?.['id']).toBe(id);
     expect(lines2.at(-1)!['type']).toBe('session_end');
 
     // Sidecar refreshed IN THE SHARD DIR (not orphaned at the root).
     const sidecar2 = JSON.parse(await fs.readFile(sidecarPath, 'utf8'));
-    expect(sidecar2.outcome).toBe('completed');
+    expect(sidecar2).toMatchObject({
+      id,
+      outcome: 'completed',
+      tokenTotal: 92,
+      messageCount: 5,
+      lastUserMessage: 'second question',
+    });
+    expect(sidecar2.lastActivityAt).toBe(sidecar2.endedAt);
     await expect(fs.access(path.join(tmp, `${base}.summary.json`))).rejects.toThrow();
+    await expect(fs.access(path.join(shardDir, `${leafPrefix}.summary.json`))).rejects.toThrow();
 
     // ── Full reload: both runs replay as one conversation ──
     const reloaded = await store.load(id);

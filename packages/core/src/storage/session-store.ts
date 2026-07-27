@@ -22,8 +22,10 @@ import type {
 import { atomicWrite, ensureDir, withFileLock } from '../utils/atomic-write.js';
 import { toErrorMessage } from '../utils/index.js';
 import { FileSessionWriter } from './file-session-writer.js';
+import { sessionContentText } from './session-helpers.js';
 import { SessionCheckpointCas } from './session-checkpoint-cas.js';
 import { generateSessionId } from './session-id.js';
+import { resolveSessionId, sessionIdResolutionError } from './session-id-resolver.js';
 import { scrubPersistedSessionSummary } from './session-read-scrubber.js';
 import {
   formatInterruptedToolNotice,
@@ -60,7 +62,10 @@ import {
   shardKeyForSessionId,
   shardManifestPath,
 } from './session-store/paths.js';
-import { summarizeSessionFile } from './session-store/summary-builder.js';
+import {
+  summarizeSessionEvents,
+  summarizeSessionFile,
+} from './session-store/summary-builder.js';
 import { readSessionSummaryHeader } from './session-store/summary-header.js';
 import { readOrBuildShardManifestEntry } from './session-store/shard-manifest.js';
 import { searchSessionEvents } from './session-store/search-events.js';
@@ -153,8 +158,17 @@ export class DefaultSessionStore implements SessionStore {
     return shardKeyForSessionId(id);
   }
 
-  private invalidateShardManifestBySessionId(id: string): void {
-    this.shardManifestCache.delete(this.shardKeyForSessionId(id));
+  private async invalidateShardManifestBySessionId(id: string): Promise<void> {
+    const shardKey = this.shardKeyForSessionId(id);
+    const manifestPath = this.shardManifestPath(shardKey);
+    await withFileLock(manifestPath, async () => {
+      this.shardManifestCache.delete(shardKey);
+      try {
+        await fsp.unlink(manifestPath);
+      } catch (err) {
+        if ((err as NodeJS.ErrnoException).code !== 'ENOENT') throw err;
+      }
+    });
   }
 
   /**
@@ -185,6 +199,13 @@ export class DefaultSessionStore implements SessionStore {
         filePath: file,
         secretScrubber: this.secretScrubber,
         checkpointCas: this.checkpointCas,
+        resolveName: async () => {
+          const current = await this.readSummaryManifest(id);
+          if (!current) return null;
+          return current.name === undefined
+            ? {}
+            : { name: sessionContentText(this.secretScrubber.scrub(current.name)) };
+        },
         onClose: (s) => this.appendToIndex(s),
       });
       emitSessionStoreWrite(this.events, id, file, 'create', 'success', Date.now() - t0);
@@ -219,10 +240,39 @@ export class DefaultSessionStore implements SessionStore {
     return this.checkpointCas.materialize(checkpoint, targetRoot);
   }
 
+  async resolveId(query: string): Promise<string> {
+    const normalized = query.trim();
+    if (!normalized) throw new Error('Session not found: (empty query)');
+    if (normalized) {
+      try {
+        const stat = await fsp.stat(this.sessionPath(normalized, '.jsonl'));
+        if (stat.isFile()) return normalized;
+      } catch {
+        // Fall through to exact-leaf / unique-prefix resolution.
+      }
+    }
+    const ids = await this.collectSessionIds(this.dir);
+    const resolution = resolveSessionId(normalized, ids);
+    if (resolution.status === 'resolved') return resolution.id;
+    throw sessionIdResolutionError(resolution);
+  }
+
   async resume(id: string): Promise<ResumedSession> {
-    const file = this.sessionPath(id, '.jsonl');
+    const canonicalId = await this.resolveId(id);
+    const file = this.sessionPath(canonicalId, '.jsonl');
     const t0 = Date.now();
-    const data = await this.load(id);
+    const data = await this.load(canonicalId);
+    const persistedSummary = await this.readSummaryManifest(canonicalId);
+    const fileStat = await fsp.stat(file);
+    const derivedSummary = await summarizeSessionEvents({
+      id: canonicalId,
+      events: data.events,
+      mtime: fileStat.mtime.toISOString(),
+    });
+    const initialSummary: SessionSummary = {
+      ...derivedSummary,
+      ...(persistedSummary?.name !== undefined ? { name: persistedSummary.name } : {}),
+    };
     // Ephemeral system notices injected into the first resumed turn. Both are
     // informational only — neither re-executes any prior work.
     const noticeMessages: Message[] = [];
@@ -244,7 +294,7 @@ export class DefaultSessionStore implements SessionStore {
         // continue with the replay if an unexpected filesystem error occurs.
         emitSessionStoreError(
           this.events,
-          id,
+          canonicalId,
           file,
           'resume_validation',
           toErrorMessage(err),
@@ -272,25 +322,26 @@ export class DefaultSessionStore implements SessionStore {
       handle = await fsp.open(file, 'a', 0o600);
       /* v8 ignore start -- defensive: load() above already validated the file is readable */
     } catch (err) {
-      emitSessionStoreError(this.events, id, file, 'resume', toErrorMessage(err), false);
-      throw new Error(`Failed to open session "${id}" for append: ${toErrorMessage(err)}`, {
+      emitSessionStoreError(this.events, canonicalId, file, 'resume', toErrorMessage(err), false);
+      throw new Error(`Failed to open session "${canonicalId}" for append: ${toErrorMessage(err)}`, {
         cause: err,
       });
     }
     /* v8 ignore stop */
     try {
       const writer = new FileSessionWriter(
-        id,
+        canonicalId,
         handle,
         new Date().toISOString(),
         {
-          id,
+          id: canonicalId,
           model: data.metadata.model,
           provider: data.metadata.provider,
         },
         this.events,
         {
           resumed: true,
+          initialSummary,
           // Shard directory (sessions/<date>/) â€” must match create() so the
           // .summary.json sidecar lands next to the JSONL instead of the
           // sessions root (where summaryFor() would never find it).
@@ -298,10 +349,17 @@ export class DefaultSessionStore implements SessionStore {
           filePath: file,
           secretScrubber: this.secretScrubber,
           checkpointCas: this.checkpointCas,
+          resolveName: async () => {
+            const current = await this.readSummaryManifest(canonicalId);
+            if (!current) return null;
+            return current.name === undefined
+              ? {}
+              : { name: sessionContentText(this.secretScrubber.scrub(current.name)) };
+          },
           onClose: (s) => this.appendToIndex(s),
         },
       );
-      emitSessionStoreWrite(this.events, id, file, 'resume', 'success', Date.now() - t0);
+      emitSessionStoreWrite(this.events, canonicalId, file, 'resume', 'success', Date.now() - t0);
       return { writer, data: resumedData };
       /* v8 ignore start -- defensive: FileSessionWriter ctor does not throw in practice */
     } catch (err) {
@@ -311,7 +369,7 @@ export class DefaultSessionStore implements SessionStore {
           message: e instanceof Error ? e.message : String(e),
         }),
       );
-      emitSessionStoreError(this.events, id, file, 'resume', toErrorMessage(err), true);
+      emitSessionStoreError(this.events, canonicalId, file, 'resume', toErrorMessage(err), true);
       throw err;
     }
     /* v8 ignore stop */
@@ -504,39 +562,44 @@ export class DefaultSessionStore implements SessionStore {
   private indexAppendCount = 0;
   private static readonly COMPACT_EVERY = 30;
 
-  /** Append a session summary to the index. */
+  /** Append a session summary to the index, propagating persistence failures. */
+  private async appendToIndexStrict(summary: SessionSummary): Promise<void> {
+    await ensureDir(this.dir);
+    // Serialize the append (and any compaction it triggers) under the index
+    // file lock. The lock is per-FILE, so it also guards against a SECOND
+    // wstack process in the same project appending/compacting concurrently —
+    // without it, a compact() rewrite racing an append() silently drops the
+    // appended line (the source-of-truth .jsonl survives, but the listing
+    // cache loses the entry until rebuildIndex()).
+    let shouldCompact = false;
+    await withFileLock(this.indexFile, async () => {
+      // Invalidate before appending so an invalidation failure cannot leave a
+      // successfully-updated index paired with a stale persisted shard view.
+      await this.invalidateShardManifestBySessionId(summary.id);
+      const line = JSON.stringify(summary) + '\n';
+      await fsp.appendFile(this.indexFile, line, 'utf8');
+      this._indexCache = null;
+      this.indexAppendCount++;
+      // Auto-compact periodically to remove tombstones and duplicates.
+      // compactIndexInner() is called WHILE the lock is held — it must not
+      // re-acquire it (withFileLock is not reentrant) or it would deadlock.
+      if (this.indexAppendCount >= DefaultSessionStore.COMPACT_EVERY) {
+        shouldCompact = true;
+        this.indexAppendCount = 0;
+      }
+    });
+    if (shouldCompact) {
+      await withFileLock(this.indexFile, () => this.compactIndexInner());
+    }
+  }
+
+  /** Best-effort index append used by writer close. */
   private async appendToIndex(summary: SessionSummary): Promise<void> {
     // Note: storage.write for this operation is emitted by FileSessionWriter.doClose()
     // so it can include the traceId. Do NOT emit here to avoid duplicates.
-    try {
-      await ensureDir(this.dir);
-      // Serialize the append (and any compaction it triggers) under the index
-      // file lock. The lock is per-FILE, so it also guards against a SECOND
-      // wstack process in the same project appending/compacting concurrently —
-      // without it, a compact() rewrite racing an append() silently drops the
-      // appended line (the source-of-truth .jsonl survives, but the listing
-      // cache loses the entry until rebuildIndex()).
-      let shouldCompact = false;
-      await withFileLock(this.indexFile, async () => {
-        const line = JSON.stringify(summary) + '\n';
-        await fsp.appendFile(this.indexFile, line, 'utf8');
-        this._indexCache = null;
-        this.invalidateShardManifestBySessionId(summary.id);
-        this.indexAppendCount++;
-        // Auto-compact periodically to remove tombstones and duplicates.
-        // compactIndexInner() is called WHILE the lock is held — it must not
-        // re-acquire it (withFileLock is not reentrant) or it would deadlock.
-        if (this.indexAppendCount >= DefaultSessionStore.COMPACT_EVERY) {
-          shouldCompact = true;
-          this.indexAppendCount = 0;
-        }
-      });
-      if (shouldCompact) {
-        await withFileLock(this.indexFile, () => this.compactIndexInner());
-      }
-    } catch {
-      // best-effort â€” error surfaced via the storage.write event in doClose()
-    }
+    await this.appendToIndexStrict(summary).catch(() => {
+      // best-effort — error surfaced via the storage.write event in doClose()
+    });
   }
 
   /** Append a tombstone entry for a deleted session. */
@@ -547,7 +610,7 @@ export class DefaultSessionStore implements SessionStore {
         const line = JSON.stringify({ action: 'delete', id }) + '\n';
         await fsp.appendFile(this.indexFile, line, 'utf8');
         this._indexCache = null;
-        this.invalidateShardManifestBySessionId(id);
+        await this.invalidateShardManifestBySessionId(id);
         this.indexAppendCount++;
       });
     } catch {
@@ -733,17 +796,21 @@ export class DefaultSessionStore implements SessionStore {
     if (cached) return cached;
 
     const manifestPath = this.shardManifestPath(shardKey);
-    const entry = await readOrBuildShardManifestEntry({
-      shardKey,
-      manifestPath,
-      concurrency: DefaultSessionStore.LIST_SCAN_CONCURRENCY,
-      collectSessionFilesInShard: (key) => this.collectSessionFilesInShard(key),
-      readSummaryManifest: (id) => this.readSummaryManifest(id),
-      summaryHeaderFor: (ref) => this.summaryHeaderFor(ref),
-      summaryFor: (id) => this.summaryFor(id),
+    return withFileLock(manifestPath, async () => {
+      const lockedCached = this.shardManifestCache.get(shardKey);
+      if (lockedCached) return lockedCached;
+      const entry = await readOrBuildShardManifestEntry({
+        shardKey,
+        manifestPath,
+        concurrency: DefaultSessionStore.LIST_SCAN_CONCURRENCY,
+        collectSessionFilesInShard: (key) => this.collectSessionFilesInShard(key),
+        readSummaryManifest: (id) => this.readSummaryManifest(id),
+        summaryHeaderFor: (ref) => this.summaryHeaderFor(ref),
+        summaryFor: (id) => this.summaryFor(id),
+      });
+      this.shardManifestCache.set(shardKey, entry);
+      return entry;
     });
-    this.shardManifestCache.set(shardKey, entry);
-    return entry;
   }
 
   private async collectSessionFilesInShard(shardKey: string): Promise<SessionFileRef[]> {
@@ -858,7 +925,7 @@ export class DefaultSessionStore implements SessionStore {
   }
 
   async rename(id: string, name: string): Promise<SessionSummary> {
-    const trimmed = name.trim();
+    const trimmed = sessionContentText(this.secretScrubber.scrub(name));
     const manifest = this.sessionPath(id, '.summary.json');
     const jsonlPath = this.sessionPath(id, '.jsonl');
     // Refuse to name a session that has no JSONL on disk. `summaryFor`
@@ -875,20 +942,25 @@ export class DefaultSessionStore implements SessionStore {
       throw err;
     }
 
-    // Load the current summary (sidecar first, rebuild on miss) and apply
-    // the name mutation. summaryFor() already emits read/failure events.
-    // Build the updated summary with explicit name handling so we stay
-    // compatible with exactOptionalPropertyTypes: a cleared name is omitted
-    // from the object entirely (not set to undefined).
-    const summary = await this.summaryFor(id);
-    const { name: _drop, ...rest } = summary;
-    const updated: SessionSummary = trimmed ? { ...rest, name: trimmed } : rest;
-
     const t0 = Date.now();
     let outcome: 'success' | 'failure' = 'success';
     let errorMsg: string | undefined;
+    let updated: SessionSummary;
     try {
-      await atomicWrite(manifest, JSON.stringify(updated), { mode: 0o600 });
+      updated = await withFileLock(manifest, async () => {
+        const summary = (await this.readSummaryManifest(id)) ?? (await this.summaryFor(id));
+        const { name: _drop, ...rest } = summary;
+        const next: SessionSummary = trimmed ? { ...rest, name: trimmed } : rest;
+        await atomicWrite(manifest, JSON.stringify(next), { mode: 0o600 });
+        try {
+          await this.appendToIndexStrict(next);
+        } catch (err) {
+          // Keep the sidecar and index in agreement when the index append fails.
+          await atomicWrite(manifest, JSON.stringify(summary), { mode: 0o600 });
+          throw err;
+        }
+        return next;
+      });
     } catch (err) {
       outcome = 'failure';
       errorMsg = toErrorMessage(err);
@@ -899,7 +971,7 @@ export class DefaultSessionStore implements SessionStore {
         this.events,
         id,
         manifest,
-        'close',
+        'rename',
         outcome,
         Date.now() - t0,
         undefined,
@@ -907,12 +979,8 @@ export class DefaultSessionStore implements SessionStore {
       );
     }
 
-    // Mirror the change into the index so list() reflects it immediately.
-    // appendToIndex dedupes by id ("latest wins"), so the stale entry is
-    // shadowed without a full compact.
-    await this.appendToIndex(updated);
-    this.invalidateShardManifestBySessionId(id);
-    this._indexCache = null;
+    // appendToIndexStrict() already invalidated the index and both shard
+    // manifest caches while persisting the same updated summary.
     this.clearLoadCache(id);
     return updated;
   }

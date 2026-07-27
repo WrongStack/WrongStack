@@ -12,10 +12,10 @@ import type {
   SessionWriter,
   WorkspaceCheckpointRef,
 } from '../types/session.js';
-import { atomicWrite } from '../utils/atomic-write.js';
+import { atomicWrite, withFileLock } from '../utils/atomic-write.js';
 import { toErrorMessage } from '../utils/index.js';
 import type { SessionCheckpointCas } from './session-checkpoint-cas.js';
-import { userInputTitle } from './session-helpers.js';
+import { sessionContentPreview, userInputTitle } from './session-helpers.js';
 import {
   findSessionCheckpointTruncatePlan,
   rewriteSessionToCheckpoint,
@@ -37,6 +37,7 @@ export class FileSessionWriter implements SessionWriter {
   private summary: SessionSummary;
   private tokenIn = 0;
   private tokenOut = 0;
+  private baseTokenTotal = 0;
   private readonly filePath: string;
   get transcriptPath(): string | undefined {
     return this.filePath || undefined;
@@ -58,6 +59,9 @@ export class FileSessionWriter implements SessionWriter {
   private readonly secretScrubber?: SecretScrubber | undefined;
   private readonly checkpointCas?: SessionCheckpointCas | undefined;
   private readonly onCloseCb?: ((summary: SessionSummary) => void | Promise<void>) | undefined;
+  private readonly resolveNameCb?:
+    | (() => Promise<Pick<SessionSummary, 'name'> | null>)
+    | undefined;
   /** Implements SessionWriter.traceId — propagated from ContextInit.traceId. */
   traceId: string | undefined;
 
@@ -160,6 +164,9 @@ export class FileSessionWriter implements SessionWriter {
   private toolBreakdown: Record<string, number> = {};
   private fileChangeCount = 0;
   private compactionCount = 0;
+  private messageCount = 0;
+  private lastUserMessage: string | undefined;
+  private lastActivityAt: string;
   private outcome: SessionSummary['outcome'] = undefined;
 
   private pendingFileSnapshots: Array<{
@@ -300,8 +307,12 @@ export class FileSessionWriter implements SessionWriter {
       filePath?: string | undefined;
       secretScrubber?: SecretScrubber | undefined;
       checkpointCas?: SessionCheckpointCas | undefined;
+      /** Existing cumulative summary when reopening a persisted session. */
+      initialSummary?: SessionSummary | undefined;
       /** Called on close() with the finalized summary for index/sidecar writes. */
       onClose?: ((summary: SessionSummary) => void | Promise<void>) | undefined;
+      /** Reconcile an explicit name changed while this writer remained open. */
+      resolveName?: (() => Promise<Pick<SessionSummary, 'name'> | null>) | undefined;
     } = {},
     traceId?: string | undefined,
   ) {
@@ -314,14 +325,28 @@ export class FileSessionWriter implements SessionWriter {
     this.secretScrubber = opts.secretScrubber;
     this.checkpointCas = opts.checkpointCas;
     this.onCloseCb = opts.onClose;
-    this.summary = {
-      id,
-      title: '(empty session)',
-      startedAt,
-      model: meta.model ?? 'unknown',
-      provider: meta.provider ?? 'unknown',
-      tokenTotal: 0,
-    };
+    this.resolveNameCb = opts.resolveName;
+    this.summary = opts.initialSummary
+      ? { ...opts.initialSummary, id }
+      : {
+          id,
+          title: '(empty session)',
+          startedAt,
+          model: meta.model ?? 'unknown',
+          provider: meta.provider ?? 'unknown',
+          tokenTotal: 0,
+        };
+    this.baseTokenTotal = this.summary.tokenTotal;
+    this.iterationCount = this.summary.iterationCount ?? 0;
+    this.toolCallCount = this.summary.toolCallCount ?? 0;
+    this.toolErrorCount = this.summary.toolErrorCount ?? 0;
+    this.toolBreakdown = { ...(this.summary.toolBreakdown ?? {}) };
+    this.fileChangeCount = this.summary.fileChangeCount ?? 0;
+    this.compactionCount = this.summary.compactionCount ?? 0;
+    this.messageCount = this.summary.messageCount ?? 0;
+    this.lastUserMessage = this.summary.lastUserMessage;
+    this.lastActivityAt = this.summary.lastActivityAt ?? this.summary.endedAt ?? startedAt;
+    this.outcome = this.resumed ? undefined : this.summary.outcome;
     // Propagated from ContextInit.traceId via SessionWriter.traceId so that
     // storage events carry the run-level trace ID without needing a Context
     // handle in every storage operation.
@@ -577,11 +602,22 @@ export class FileSessionWriter implements SessionWriter {
     this.toolBreakdown = {};
     this.fileChangeCount = 0;
     this.compactionCount = 0;
+    this.messageCount = 0;
+    this.lastUserMessage = undefined;
+    this.lastActivityAt = this.startedAt;
     this.outcome = undefined;
     this.openToolUses = new Set<string>();
     this.tokenIn = 0;
     this.tokenOut = 0;
-    this.summary = { ...this.summary, title: '(empty session)', tokenTotal: 0 };
+    this.baseTokenTotal = 0;
+    const { lastUserMessage: _lastUserMessage, ...summaryWithoutPreview } = this.summary;
+    this.summary = {
+      ...summaryWithoutPreview,
+      title: '(empty session)',
+      tokenTotal: 0,
+      messageCount: 0,
+      lastActivityAt: this.startedAt,
+    };
 
     const input = createReadStream(this.filePath, { encoding: 'utf8' });
     const lines = createInterface({ input, crlfDelay: Number.POSITIVE_INFINITY });
@@ -603,6 +639,14 @@ export class FileSessionWriter implements SessionWriter {
   }
 
   private observeForSummary(event: SessionEvent): void {
+    const eventActivityMs = Date.parse(event.ts);
+    const lastActivityMs = Date.parse(this.lastActivityAt);
+    if (
+      Number.isFinite(eventActivityMs) &&
+      (!Number.isFinite(lastActivityMs) || eventActivityMs > lastActivityMs)
+    ) {
+      this.lastActivityAt = event.ts;
+    }
     // Track open tool uses so we can serialize them on close for resume.
     // The authoritative source is the llm_response content (a core event,
     // always written at every audit level); the legacy 'tool_use' event is
@@ -632,15 +676,28 @@ export class FileSessionWriter implements SessionWriter {
     if (event.type === 'error' || event.type === 'provider_error') {
       this.outcome = 'error';
     }
-    if (event.type === 'user_input' && this.summary.title === '(empty session)') {
-      this.summary = { ...this.summary, title: userInputTitle(event.content) };
+    if (event.type === 'user_input') {
+      if (this.summary.title === '(empty session)') {
+        this.summary = { ...this.summary, title: userInputTitle(event.content) };
+      }
+      this.lastUserMessage = sessionContentPreview(event.content);
+      this.messageCount++;
     } else if (event.type === 'llm_response') {
+      this.messageCount++;
       this.tokenIn += event.usage.input;
       this.tokenOut += event.usage.output;
-      this.summary = { ...this.summary, tokenTotal: this.tokenIn + this.tokenOut };
+      this.summary = {
+        ...this.summary,
+        tokenTotal: this.baseTokenTotal + this.tokenIn + this.tokenOut,
+      };
     } else if (event.type === 'session_end') {
       const total = event.usage.input + event.usage.output;
-      if (total > 0) this.summary = { ...this.summary, tokenTotal: total };
+      if (total > 0) {
+        this.summary = {
+          ...this.summary,
+          tokenTotal: Math.max(this.summary.tokenTotal, total),
+        };
+      }
     } else if (event.type === 'in_flight_start') {
       this.iterationCount++;
     }
@@ -690,9 +747,22 @@ export class FileSessionWriter implements SessionWriter {
       if (nodeErr?.code !== 'EBADF') throw err;
     }
     // Finalize the summary before writing.
+    const endedAt = new Date().toISOString();
+    const observedActivityMs = Date.parse(this.lastActivityAt);
+    const endedAtMs = Date.parse(endedAt);
+    const finalActivityAt =
+      Number.isFinite(observedActivityMs) && observedActivityMs > endedAtMs
+        ? this.lastActivityAt
+        : endedAt;
+    const previousName = this.summary.name;
+    const { lastUserMessage: _lastUserMessage, name: _name, ...summaryWithoutDisplay } = this.summary;
     this.summary = {
-      ...this.summary,
-      endedAt: new Date().toISOString(),
+      ...summaryWithoutDisplay,
+      ...(previousName !== undefined ? { name: previousName } : {}),
+      endedAt,
+      lastActivityAt: finalActivityAt,
+      messageCount: this.messageCount,
+      ...(this.lastUserMessage !== undefined ? { lastUserMessage: this.lastUserMessage } : {}),
       iterationCount: this.iterationCount,
       toolCallCount: this.toolCallCount,
       toolErrorCount: this.toolErrorCount,
@@ -701,59 +771,66 @@ export class FileSessionWriter implements SessionWriter {
       toolBreakdown: { ...this.toolBreakdown },
       outcome: this.outcome ?? 'completed',
     };
-    // Emit storage.write for the manifest sidecar.
-    if (this.manifestFile) {
-      const t0 = Date.now();
-      let outcome: 'success' | 'failure' = 'success';
-      let errorMsg: string | undefined;
-      try {
-        await atomicWrite(this.manifestFile, JSON.stringify(this.summary), { mode: 0o600 });
-      } catch (err) {
-        outcome = 'failure';
-        errorMsg = toErrorMessage(err);
-        // manifest write is best-effort
-      } finally {
-        this.events?.emit('storage.write', {
-          sessionId: this.id,
-          store: 'session',
-          filePath: this.manifestFile,
-          operation: 'close',
-          outcome,
-          durationMs: Date.now() - t0,
-          ...(errorMsg !== undefined ? { error: errorMsg } : {}),
-          ...(this.traceId !== undefined ? { traceId: this.traceId } : {}),
-        });
-      }
-    }
-    // Notify the store so it can update the session index. Await so the
-    // index write completes before close() resolves — otherwise the
-    // fire-and-forget _index.jsonl append races callers that tear down the
-    // session directory right after close() (e.g. ENOTEMPTY on Windows).
-    // Emit storage.write here so it carries this.traceId; the actual I/O
-    // is delegated to onCloseCb (appendToIndex) which no longer emits.
+
+    const manifestT0 = Date.now();
+    let manifestOutcome: 'success' | 'failure' = 'success';
+    let manifestError: string | undefined;
     const idxT0 = Date.now();
     let idxOutcome: 'success' | 'failure' = 'success';
     let idxError: string | undefined;
-    try {
-      await this.onCloseCb?.(this.summary);
-      /* v8 ignore start -- best-effort: appendToIndex swallows its own errors */
-    } catch (err) {
-      idxOutcome = 'failure';
-      idxError = toErrorMessage(err);
-      // best-effort
-    } finally {
-      /* v8 ignore stop */
+    const persistSummary = async (): Promise<void> => {
+      const resolvedName = this.resolveNameCb
+        ? await this.resolveNameCb().catch(() => null)
+        : null;
+      if (resolvedName !== null) {
+        const { name: _drop, ...summaryWithoutName } = this.summary;
+        this.summary = {
+          ...summaryWithoutName,
+          ...(resolvedName.name !== undefined ? { name: resolvedName.name } : {}),
+        };
+      }
+      if (this.manifestFile) {
+        try {
+          await atomicWrite(this.manifestFile, JSON.stringify(this.summary), { mode: 0o600 });
+        } catch (err) {
+          manifestOutcome = 'failure';
+          manifestError = toErrorMessage(err);
+        }
+      }
+      try {
+        await this.onCloseCb?.(this.summary);
+        /* v8 ignore start -- best-effort: appendToIndex swallows its own errors */
+      } catch (err) {
+        idxOutcome = 'failure';
+        idxError = toErrorMessage(err);
+        /* v8 ignore stop */
+      }
+    };
+    if (this.manifestFile) await withFileLock(this.manifestFile, persistSummary);
+    else await persistSummary();
+
+    if (this.manifestFile) {
       this.events?.emit('storage.write', {
-        sessionId: this.summary.id,
+        sessionId: this.id,
         store: 'session',
-        filePath: this.filePath,
-        operation: 'index_append',
-        outcome: idxOutcome,
-        durationMs: Date.now() - idxT0,
-        ...(idxError !== undefined ? { error: idxError } : {}),
+        filePath: this.manifestFile,
+        operation: 'close',
+        outcome: manifestOutcome,
+        durationMs: Date.now() - manifestT0,
+        ...(manifestError !== undefined ? { error: manifestError } : {}),
         ...(this.traceId !== undefined ? { traceId: this.traceId } : {}),
       });
     }
+    this.events?.emit('storage.write', {
+      sessionId: this.summary.id,
+      store: 'session',
+      filePath: this.filePath,
+      operation: 'index_append',
+      outcome: idxOutcome,
+      durationMs: Date.now() - idxT0,
+      ...(idxError !== undefined ? { error: idxError } : {}),
+      ...(this.traceId !== undefined ? { traceId: this.traceId } : {}),
+    });
     try {
       await this.handle.close();
     } catch {
@@ -904,9 +981,10 @@ export class FileSessionWriter implements SessionWriter {
     // Let any in-flight append land first — otherwise it would re-append
     // stale events AFTER the reset record below.
     await this.writeChain;
+    const resetAt = new Date().toISOString();
     const record = `${JSON.stringify({
       type: 'session_start',
-      ts: new Date().toISOString(),
+      ts: resetAt,
       id: this.id,
       model: this.meta.model ?? 'unknown',
       provider: this.meta.provider ?? 'unknown',
@@ -919,6 +997,32 @@ export class FileSessionWriter implements SessionWriter {
     // lazily reopened in enqueueWrite on the next append.
     await this.handle.close();
     await fsp.writeFile(this.filePath, record, 'utf8');
+    const explicitName = this.summary.name;
+    this.baseTokenTotal = 0;
+    this.tokenIn = 0;
+    this.tokenOut = 0;
+    this.iterationCount = 0;
+    this.toolCallCount = 0;
+    this.toolErrorCount = 0;
+    this.toolBreakdown = {};
+    this.fileChangeCount = 0;
+    this.compactionCount = 0;
+    this.messageCount = 0;
+    this.lastUserMessage = undefined;
+    this.lastActivityAt = resetAt;
+    this.outcome = undefined;
+    this.openToolUses = new Set<string>();
+    this.summary = {
+      id: this.id,
+      title: '(empty session)',
+      ...(explicitName !== undefined ? { name: explicitName } : {}),
+      startedAt: resetAt,
+      model: this.meta.model ?? 'unknown',
+      provider: this.meta.provider ?? 'unknown',
+      tokenTotal: 0,
+      lastActivityAt: resetAt,
+      messageCount: 0,
+    };
     this.activePromptIndex = null;
     this.pendingFileSnapshots = [];
     this.pendingFileSnapshotBytes = 0;

@@ -37,7 +37,9 @@ export function ResumePicker({
         sessions.map((s, i) => {
           const isCurrent = s.isCurrent;
           const isSelected = i === selected;
-          const date = s.startedAt.slice(0, 16).replace('T', ' ');
+          const date = (s.lastActivityAt ?? s.startedAt).slice(0, 16).replace('T', ' ');
+          const displayName = s.name?.trim() || s.title || s.id;
+          const contentPreview = s.lastUserMessage?.trim();
           const outcomeBadge =
             s.outcome === 'completed'
               ? '✓ '
@@ -65,14 +67,15 @@ export function ResumePicker({
                 {...(isSelected ? { color: isCurrent ? 'gray' : 'cyan' } : {})}
               >
                 {isSelected ? '› ' : '  '}
-                <Text bold dimColor={isCurrent ?? false}>{s.id}</Text>
+                <Text bold dimColor={isCurrent ?? false}>{displayName}</Text>
                 {isCurrent ? <Text dimColor> (current)</Text> : null}
-                <Text dimColor> {date}</Text>
+                <Text dimColor> · {s.id} · {date}</Text>
               </Text>
               <Text dimColor>
                 {isSelected ? '   ' : '   '}
                 {outcomeBadge}
                 {s.tokenTotal.toLocaleString()} tok
+                {(s.messageCount ?? 0) > 0 ? ` · ${s.messageCount} msg` : ''}
                 {toolStr ? ` · ${toolStr}` : ''}
                 {iterStr ? ` · ${iterStr}` : ''}
                 {s.toolErrorCount > 0 ? (
@@ -81,7 +84,9 @@ export function ResumePicker({
               </Text>
               <Text dimColor>
                 {isSelected ? '   ' : '   '}
-                {s.title.length > 72 ? `${s.title.slice(0, 71)}…` : s.title}
+                {(contentPreview ?? s.title).length > 72
+                  ? `${(contentPreview ?? s.title).slice(0, 71)}…`
+                  : (contentPreview ?? s.title)}
               </Text>
             </Box>
           );

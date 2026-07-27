@@ -10,6 +10,10 @@ export interface SessionFilterCriteria {
 }
 
 export function compareSessionSummaries(a: SessionSummary, b: SessionSummary): number {
+  const aActivity = a.lastActivityAt ?? a.endedAt ?? a.startedAt;
+  const bActivity = b.lastActivityAt ?? b.endedAt ?? b.startedAt;
+  if (aActivity < bActivity) return 1;
+  if (aActivity > bActivity) return -1;
   if (a.startedAt < b.startedAt) return 1;
   if (a.startedAt > b.startedAt) return -1;
   return a.id.localeCompare(b.id);

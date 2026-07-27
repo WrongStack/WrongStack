@@ -16,6 +16,9 @@ export interface SessionHistoryWireEntry {
   model: string;
   provider: string;
   tokenTotal: number;
+  lastActivityAt?: string | undefined;
+  messageCount?: number | undefined;
+  lastUserMessage?: string | undefined;
   iterationCount?: number | undefined;
   toolCallCount?: number | undefined;
   toolErrorCount?: number | undefined;
@@ -39,6 +42,9 @@ export function toSessionHistoryEntry(
     model: summary.model,
     provider: summary.provider,
     tokenTotal: summary.tokenTotal,
+    ...(summary.lastActivityAt !== undefined ? { lastActivityAt: summary.lastActivityAt } : {}),
+    ...(summary.messageCount !== undefined ? { messageCount: summary.messageCount } : {}),
+    ...(summary.lastUserMessage !== undefined ? { lastUserMessage: summary.lastUserMessage } : {}),
     ...(summary.iterationCount !== undefined ? { iterationCount: summary.iterationCount } : {}),
     ...(summary.toolCallCount !== undefined ? { toolCallCount: summary.toolCallCount } : {}),
     ...(summary.toolErrorCount !== undefined ? { toolErrorCount: summary.toolErrorCount } : {}),

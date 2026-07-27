@@ -373,6 +373,12 @@ export interface SessionSummary {
   model: string;
   provider: string;
   tokenTotal: number;
+  /** Latest meaningful activity timestamp. Used to order resumed sessions by recency. */
+  lastActivityAt?: string | undefined;
+  /** Number of persisted user + assistant conversation messages. */
+  messageCount?: number | undefined;
+  /** Compact preview of the latest user request, for session pickers and recovery prompts. */
+  lastUserMessage?: string | undefined;
   /** Number of LLM iterations (turn cycles). */
   iterationCount?: number | undefined;
   /** Number of tool calls executed. */
@@ -464,6 +470,11 @@ export interface SessionStore {
     targetRoot: string,
   ): Promise<WorkspaceMaterializationResult>;
   list(limit?: number): Promise<SessionSummary[]>;
+  /**
+   * Resolve an exact, leaf-only, or unique-prefix reference to a canonical
+   * persisted id. Implementations that omit this method require exact ids.
+   */
+  resolveId?(query: string): Promise<string>;
   /**
    * Set or clear a user-supplied name on a session. An empty/whitespace
    * `name` clears the field (the summary's auto-derived `title` remains).

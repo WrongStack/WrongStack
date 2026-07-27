@@ -130,6 +130,9 @@ export interface SessionHistoryEntry {
   model: string;
   provider: string;
   tokenTotal: number;
+  lastActivityAt?: string | undefined;
+  messageCount?: number | undefined;
+  lastUserMessage?: string | undefined;
   iterationCount?: number | undefined;
   toolCallCount?: number | undefined;
   toolErrorCount?: number | undefined;

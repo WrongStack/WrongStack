@@ -10,6 +10,11 @@ export {
 } from './session-checkpoint-cas.js';
 export { generateSessionId, sanitizeModel } from './session-id.js';
 export {
+  resolveSessionId,
+  sessionIdResolutionError,
+  type SessionIdResolution,
+} from './session-id-resolver.js';
+export {
   QUEUE_MAX_BYTES,
   QUEUE_MAX_ITEM_BYTES,
   QUEUE_MAX_ITEMS,

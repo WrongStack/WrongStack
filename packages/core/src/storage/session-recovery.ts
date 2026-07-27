@@ -4,6 +4,8 @@ import * as path from 'node:path';
 import { createInterface } from 'node:readline';
 import type { SessionEvent } from '../types/session.js';
 import { sessionScopedPath } from '../utils/session-scoped-path.js';
+import { resolveSessionId, sessionIdResolutionError } from './session-id-resolver.js';
+import { collectSessionIds } from './session-store/directory-session-files.js';
 /**
  * Idea #1 from IDEAS.md — Stateful Session Recovery.
  *
@@ -77,7 +79,19 @@ export class SessionRecovery {
    * first chunk; stale logs continue counting lines so `eventCount` remains
    * the documented total rather than a tail-only approximation.
    */
+  async resolveId(query: string): Promise<string> {
+    const resolution = resolveSessionId(query, await collectSessionIds(this.dir));
+    if (resolution.status === 'resolved') return resolution.id;
+    if (resolution.status === 'missing') return resolution.query;
+    throw sessionIdResolutionError(resolution);
+  }
+
   async detectStale(sessionId: string): Promise<StaleSession | null> {
+    const canonicalId = await this.resolveId(sessionId);
+    return this.detectStaleExact(canonicalId);
+  }
+
+  private async detectStaleExact(sessionId: string): Promise<StaleSession | null> {
     const fp = this.filePath(sessionId);
     let stat;
     try {
@@ -117,7 +131,8 @@ export class SessionRecovery {
    * least one event). Pure read; no mutation.
    */
   async recover(sessionId: string): Promise<RecoveryPlan | null> {
-    const fp = this.filePath(sessionId);
+    const canonicalId = await this.resolveId(sessionId);
+    const fp = this.filePath(canonicalId);
     const pendingEvents: SessionEvent[] = [];
     const pendingSizes: number[] = [];
     let pendingBytes = 0;
@@ -174,7 +189,7 @@ export class SessionRecovery {
     const context =
       inFlightStart && inFlightStart.type === 'in_flight_start' ? inFlightStart.context : null;
     return {
-      sessionId,
+      sessionId: canonicalId,
       stale: inFlightStart !== null,
       lastCheckpoint,
       pendingEvents,
@@ -218,7 +233,7 @@ export class SessionRecovery {
         if (base.includes('.replay') || base.includes('.annotations') || base.includes('.audit'))
           continue;
         const sessionId = prefix ? `${prefix}/${base}` : base;
-        const stale = await this.detectStale(sessionId);
+        const stale = await this.detectStaleExact(sessionId);
         if (stale) out.push(stale);
       }
     };
