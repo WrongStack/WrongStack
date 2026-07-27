@@ -1,7 +1,7 @@
 import type { TodoItem } from '@wrongstack/core/agent';
 import type { Tool } from '@wrongstack/core/types';
 import { loadPlan, loadTasks, savePlan, saveTasks, setPlanItemStatus } from '@wrongstack/core/storage';
-import { projectSessionTodosToKanban } from './session-kanban.js';
+import { mirrorSessionTodosToKanban } from './session-kanban.js';
 
 interface TodoInput {
   todos: TodoItem[];
@@ -87,7 +87,10 @@ export const todoTool: Tool<TodoInput, TodoOutput> = {
     // Kanban is the session work surface. Mirror the requested list (rather
     // than ctx.todos) so the final all-completed snapshot reaches Done even
     // though ConversationState auto-clears an all-done tactical todo list.
-    await projectSessionTodosToKanban(ctx.projectRoot, items, ctx.session?.id ?? 'session');
+    // Fire-and-forget: the mirror is observational and must not block the tool
+    // response (or consume the tool's timeout budget) waiting on kanban file
+    // locks that may be held by other agents.
+    mirrorSessionTodosToKanban(ctx.projectRoot, items, ctx.session?.id ?? 'session');
 
     // Auto-complete parent plan items / tasks when all their promoted
     // todos are done. Runs after state mutation so the UI sees the new

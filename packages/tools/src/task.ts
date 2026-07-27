@@ -13,7 +13,7 @@ import {
 } from '@wrongstack/core/storage';
 import { randomUUID } from 'node:crypto';
 import type { Tool } from '@wrongstack/core/types';
-import { projectSessionTasksToKanban } from './session-kanban.js';
+import { mirrorSessionTasksToKanban } from './session-kanban.js';
 
 // ---------------------------------------------------------------------------
 // Task tool — structured work items with dependencies, types, and priorities.
@@ -110,7 +110,7 @@ export const taskTool: Tool<TaskInput, TaskOutput> = {
   mutating: true,
   capabilities: ['fs.write'],
   icon: 'task',
-  timeoutMs: 2_000,
+  timeoutMs: 5_000,
   inputSchema: {
     type: 'object',
     properties: {
@@ -443,9 +443,10 @@ export const taskTool: Tool<TaskInput, TaskOutput> = {
     // on error the state is rolled back cleanly.
     if (todosToReplace) ctx.state.replaceTodos(todosToReplace);
 
-    // A successful task mutation includes its Kanban projection. Awaiting this
-    // keeps the session board authoritative at tool-return time.
-    await projectSessionTasksToKanban(ctx.projectRoot, file.tasks, sessionId);
+    // Fire-and-forget kanban projection. The mirror is observational and must
+    // not block the tool response (or consume the 2 s timeout budget) waiting
+    // on kanban file locks that may be held by other agents.
+    mirrorSessionTasksToKanban(ctx.projectRoot, file.tasks, sessionId);
 
     // If the callback set an early-return result, use it
     if (early) return early;
