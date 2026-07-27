@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Chronicle: per-project telemetry server.** CLI/TUI producers now batch scrubbed Chronicle event envelopes over local IPC to one project owner, which serializes the hash chain, rotation and retention while owning a single file watcher, query cache, and metrics projection. Coding Intelligence queries use the same server, with the in-process journal retained as an explicit source/dev fallback.
+- **WebUI Connections health.** Settings now reports WebUI, Chronicle, Codebase Index, and SAGE project-service ownership, mode, PID, storage, watcher, queue, client, request, and latency health from one refreshable screen, while distinguishing required services from on-demand sleeping services.
+- **WebUI Context Window Editor.** Zustand store, React component, and server-side handler for interactive context-window message removal with validation, repair preview, and conflict detection. (_Note: shipped in `f08d71c32` alongside the TUI interrupt-controller test due to a staging overlap — the context-editor files were previously staged by another session and picked up by the commit guard._)
+- **TUI: dedicated `useSessionInterruptController` test suite.** 8 tests covering `abortLeader` streaming-ref cleanup, `resetSession` full reset (including `tokenPreviewsRef`), and teardown neutering. (`4f04ff663`)
+
+### Fixed
+
+- **TUI: Map/ref leaks in fleet bridges, abort handler, and `/clear`.** Four related fixes for long-running sessions with heavy subagent fan-out: (1) `use-director-fleet-bridge` now calls `finalizeTurn()` on `subagent.removed` before cleanup so force-terminated agents still commit their final chat message, and clears `labelsRef` on effect teardown via a `seen`-Set; (2) `use-subagent-events` tracks all ref-touching subagent IDs in a `seen` Set and clears `labelsRef`/`ctxDispatchRef` on effect teardown; (3) `abortLeader()` clears `streamingTextRef`, `streamSegmentsRef`, `pendingDeltaRef`, and `flushTimerRef` immediately after abort since the normal `provider.response` cleanup never fires on a mid-stream abort; (4) `resetSession()` clears `tokenPreviewsRef` on `/clear` so stale attachment previews don't survive across conversations. Verified by heap-soak benchmark (plateau slope ≈ 0 at 2,000 entries) and full TUI suite (244 files, 3,784 tests). (`7f1db9d1d`, `c82089abd`)
+
 ## [0.296.0] — 2026-07-25
 
 ### Added
