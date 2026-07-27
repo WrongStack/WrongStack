@@ -303,6 +303,68 @@ jobs:
           rm -f "$STDOUT_FILE" "$STDERR_FILE"
 
   # -----------------------------------------------------------------
+  # TUI heap-soak regression gate — runs the quick profile (120 entries,
+  # 2 plateau samples per width) and asserts the plateau slope stays
+  # near zero and the mounted heap stays under a ceiling. Catches
+  # renderer memory leaks before they reach production.
+  # -----------------------------------------------------------------
+  tui-heap-soak:
+    name: TUI Heap Soak
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Run heap-soak benchmark (quick profile)
+        run: pnpm bench:tui-heap --quick
+
+      - name: Assert plateau slope and heap ceiling
+        run: |
+          node -e "
+            const fs = require('node:fs');
+            const report = JSON.parse(fs.readFileSync('.reports/tui-heap-soak/report.json', 'utf8'));
+            const MAX_SLOPE = 512 * 1024;   // 512 KiB/sample — real leaks show several MiB
+            const MAX_HEAP  = 50 * 1024 * 1024; // 50 MiB — quick-profile baseline is ~15 MiB
+            let failed = false;
+            for (const s of report.scenarios) {
+              const slope = s.run.memory.plateauSlopeBytesPerSample;
+              const heap  = s.run.memory.mounted.heapUsed;
+              const w     = s.run.scenario.width;
+              console.log('width ' + w + ': slope=' + (slope/1024).toFixed(1) + ' KiB/sample, mounted=' + (heap/1024/1024).toFixed(2) + ' MiB');
+              if (Math.abs(slope) > MAX_SLOPE) {
+                console.error('FAIL: width ' + w + ' plateau slope ' + (slope/1024).toFixed(1) + ' KiB/sample exceeds ±' + (MAX_SLOPE/1024) + ' KiB threshold');
+                failed = true;
+              }
+              if (heap > MAX_HEAP) {
+                console.error('FAIL: width ' + w + ' mounted heap ' + (heap/1024/1024).toFixed(2) + ' MiB exceeds ' + (MAX_HEAP/1024/1024) + ' MiB ceiling');
+                failed = true;
+              }
+            }
+            if (failed) process.exit(1);
+            console.log('PASS: all scenarios within slope and heap thresholds');
+          "
+
+      - name: Upload heap-soak report
+        uses: actions/upload-artifact@b4b15b8c7c6ac21ea08fcf65892d2ee8f75cf882 # v4
+        if: ${{ !cancelled() }}
+        with:
+          name: tui-heap-soak-report
+          path: |
+            .reports/tui-heap-soak/report.json
+            .reports/tui-heap-soak/report.md
+          retention-days: 14
+
+  # -----------------------------------------------------------------
   # Security audit (pnpm audit)
   # Fails on moderate-or-higher advisories in production deps.
   # -----------------------------------------------------------------
@@ -330,7 +392,7 @@ jobs:
   # status check rather than listing every job individually.
   gate:
     name: CI Gate
-    needs: [lint, typecheck, build, test, e2e, tui-smoke, audit]
+    needs: [lint, typecheck, build, test, e2e, tui-smoke, tui-heap-soak, audit]
     runs-on: ubuntu-latest
     timeout-minutes: 1
     if: always()
@@ -339,12 +401,14 @@ jobs:
         if: contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled')
         run: |
           echo "One or more required jobs failed or were cancelled."
-          echo "  lint:      ${{ needs.lint.result }}"
-          echo "  typecheck: ${{ needs.typecheck.result }}"
-          echo "  build:     ${{ needs.build.result }}"
-          echo "  test:      ${{ needs.test.result }}"
-          echo "  e2e:       ${{ needs.e2e.result }}"
-          echo "  audit:     ${{ needs.audit.result }}"
+          echo "  lint:          ${{ needs.lint.result }}"
+          echo "  typecheck:     ${{ needs.typecheck.result }}"
+          echo "  build:         ${{ needs.build.result }}"
+          echo "  test:          ${{ needs.test.result }}"
+          echo "  e2e:           ${{ needs.e2e.result }}"
+          echo "  tui-smoke:     ${{ needs.tui-smoke.result }}"
+          echo "  tui-heap-soak: ${{ needs.tui-heap-soak.result }}"
+          echo "  audit:         ${{ needs.audit.result }}"
           exit 1
       - name: Gate passed
         if: "!(contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled'))"
