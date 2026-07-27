@@ -11,12 +11,41 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Chronicle: per-project telemetry server.** CLI/TUI producers now batch scrubbed Chronicle event envelopes over local IPC to one project owner, which serializes the hash chain, rotation and retention while owning a single file watcher, query cache, and metrics projection. Coding Intelligence queries use the same server, with the in-process journal retained as an explicit source/dev fallback.
 - **WebUI Connections health.** Settings now reports WebUI, Chronicle, Codebase Index, and SAGE project-service ownership, mode, PID, storage, watcher, queue, client, request, and latency health from one refreshable screen, while distinguishing required services from on-demand sleeping services.
-- **WebUI Context Window Editor.** Zustand store, React component, and server-side handler for interactive context-window message removal with validation, repair preview, and conflict detection. (_Note: shipped in `f08d71c32` alongside the TUI interrupt-controller test due to a staging overlap — the context-editor files were previously staged by another session and picked up by the commit guard._)
+- **WebUI Context Window Editor.** Zustand store, React component, and server-side handler for interactive context-window message removal with validation, repair preview, and conflict detection. (_Note: shipped in `f08d71c32` alongside the TUI interrupt-controller test due to a staging overlap._)
+- **Mailbox: Global Mailbox P0 contract repairs.** Foundation-layer rewrite with v2 read projection, version-fence enforcement, compaction preservation, security gate, multiprocess concurrency, and rollback compatibility. (`92215fa2a`, `263e15cfc`, `754410b6e`)
+- **Provider status: 429 quarantine and waiting-room panel.** Immediate 429 quarantine with prose reset-hint parsing, sibling-model quarantine on account-level quota exhaustion, and a WebUI waiting-room panel. (`eee3e61a9`, `e68ed3f41`)
+- **Storage: session ID and name resolution.** Dedicated session ID resolution module wired into session store and agent loop, plus session name resolution, content preview, and enhanced recovery metadata. (`c8e14c60a`, `f55cfc1f3`)
+- **Chimera: review report tracking.** Lifecycle and finding commands for review report tracking. (`404b3a333`)
+- **Prompts: lite and pro system variants.** New lite system prompt variant and system-pro prompt selection via `systemPrompt.variant` config. (`57739604d`, `cd17dde7a`)
+- **SimpleUI: art-deco design overhaul.** Full interface overhaul with art-deco design system aligned to the corporate brand palette. (`e0d8025bb`, `0b61ee317`)
+- **CLI: ECONNRESET handling.** `ECONNRESET` is now handled as a broken pipe on Windows instead of crashing. (`012518ce0`)
 - **TUI: dedicated `useSessionInterruptController` test suite.** 8 tests covering `abortLeader` streaming-ref cleanup, `resetSession` full reset (including `tokenPreviewsRef`), and teardown neutering. (`4f04ff663`)
+
+### Changed
+
+- **Monorepo: large-scale module decomposition.** Extracted focused modules across 10 packages — desktop (runtime groups, project picker, path resolution), CLI (REPL rendering, memory commands, subcommand help), core (fallback tools, session store, config loader, agent identity), TUI (input validation, status bar formatting, settings picker), WebUI (kanban board, code map, agent office, agent roster), tools (kanban contracts, codebase index writer), and SAGE (SQLite store helpers). No behavioral changes; all existing tests pass. (`e6cc6cc7b`…`2f9fd40aa`, 19 commits)
+- **Dependencies: workspace refresh.** All workspace dependencies refreshed to latest compatible versions. (`14f7b72b2`)
 
 ### Fixed
 
 - **TUI: Map/ref leaks in fleet bridges, abort handler, and `/clear`.** Four related fixes for long-running sessions with heavy subagent fan-out: (1) `use-director-fleet-bridge` now calls `finalizeTurn()` on `subagent.removed` before cleanup so force-terminated agents still commit their final chat message, and clears `labelsRef` on effect teardown via a `seen`-Set; (2) `use-subagent-events` tracks all ref-touching subagent IDs in a `seen` Set and clears `labelsRef`/`ctxDispatchRef` on effect teardown; (3) `abortLeader()` clears `streamingTextRef`, `streamSegmentsRef`, `pendingDeltaRef`, and `flushTimerRef` immediately after abort since the normal `provider.response` cleanup never fires on a mid-stream abort; (4) `resetSession()` clears `tokenPreviewsRef` on `/clear` so stale attachment previews don't survive across conversations. Verified by heap-soak benchmark (plateau slope ≈ 0 at 2,000 entries) and full TUI suite (244 files, 3,784 tests). (`7f1db9d1d`, `c82089abd`)
+- **Coordination: lifecycle leaks and concurrency isolation.** Closed partial-spawn orphan-agent and controller-entry leaks, three lifecycle leaks in budget policy and collab controllers, and isolated concurrent collab sessions with ownership guards on all event filters. Fixed `removeNode` dependent-readiness ordering so dependents transition to ready. (`023fdf38d`, `77c4ee7f1`, `50fbf65a7`, `f54d3f585`)
+- **TUI: harden `extractSageBlock` trailing-whitespace tolerance.** Trailing blank/whitespace lines after the SAGE block no longer cause the strict `every()` check to reject the entire block, leaking SAGE content into tool output. (`d248d7305`)
+- **CLI: flush conversation journal before clearing session state.** Prevents data loss when `/clear` races with the journal writer. (`9443c1df3`)
+- **Mailbox: `isFanOutRecipient` base-alias matching.** Now catches base aliases, not only exact agent IDs. (`76c5816f0`)
+- **CLI/Core: ignore aborted output consumers.** Prevents unhandled rejection noise when a run is interrupted mid-stream. (`bf3b8f08b`, `4f466d026`)
+- **Plugins: pass vault to built-in plugins.** Built-in plugins now receive the vault reference. (`f449cef48`)
+- **Sync: harden cloud synchronization.** Improved error handling and retry logic. (`1b6246140`)
+- **SimpleUI: consume rendered next steps.** Next-steps blocks are now properly consumed instead of rendered as raw text. (`2388bea47`)
+- **Autonomy: advance past stalled todos.** The autonomy engine no longer gets stuck on a stalled todo item. (`211bf84a2`)
+- **Skills: invalidate SkillLoader cache after create/edit.** The skill loader cache is now invalidated after `skills.create` and `skills.edit`, and the build-once guard in the system prompt builder was removed. (`b2b6d2ec9`)
+- **Core: harden agent config and manifest data contracts.** Stricter validation of agent configuration and knowledge manifests. (`225510c41`)
+- **Chimera: remove hard-coded review fallbacks and unused symbols.** Cleaned up review fallback logic and removed unused symbols causing `check:test-types` failure. (`083e09d48`, `e4f0020f6`)
+
+### Tooling
+
+- **CI: TUI heap-soak regression gate.** New `tui-heap-soak` job runs the quick profile (120 entries, 2 plateau samples at 72/160 columns) and asserts plateau slope stays within ±512 KiB/sample and mounted heap stays under 50 MiB. Wired into the composite CI Gate. (`07da8dc74`)
+- **Architecture: regenerated snapshots.** Core API, hotspot, and test-typecheck baseline snapshots regenerated from committed state. (`fff22edd9`)
 
 ## [0.296.0] — 2026-07-25
 
