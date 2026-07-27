@@ -10,6 +10,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - **Core: parseHqFrame test retry under full-suite worker contention.** Added `retry: 1` to the `parseHqFrame` describe block — the 5 intermittent failures only appear under full-suite load (1,829 files, 25% maxWorkers) and pass in isolation; the retry lets transient contention self-heal without masking real regressions. (`479e13d2c`)
+- **Core: ChronicleRemoteJournal test retry under full-suite worker contention.** Added `retry: 1` to the `ChronicleRemoteJournal` describe block — the 4 intermittent `this.client.call is not a function` failures only appear under full-suite fork-worker load with `vi.useFakeTimers()` and pass in isolation. (`ef77a61b1`)
+- **Core: ChronicleMetricsStore test retry for Windows SQLite EBUSY races.** Added `retry: 1` to the `ChronicleMetricsStore` describe block — the 5 intermittent failures are Windows SQLite WAL file-locking races (`EBUSY` on `metrics.db-shm` unlink) under parallel test workers; all 4 tests pass in isolation. (`ef77a61b1`)
 
 ## [0.296.1] — 2026-07-27
 
