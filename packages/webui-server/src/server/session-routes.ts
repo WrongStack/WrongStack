@@ -7,6 +7,9 @@ export interface SessionRouteHandlers {
   debugContext: (ws: WebSocket, msg: WSClientMessage) => Promise<void>;
   compactContext: (ws: WebSocket, msg: WSClientMessage) => Promise<void>;
   repairContext: (ws: WebSocket, msg: WSClientMessage) => Promise<void>;
+  openContextEditor: (ws: WebSocket, msg: WSClientMessage) => Promise<void>;
+  validateContextEditor: (ws: WebSocket, msg: WSClientMessage) => Promise<void>;
+  applyContextEditor: (ws: WebSocket, msg: WSClientMessage) => Promise<void>;
   listContextModes: (ws: WebSocket, msg: WSClientMessage) => Promise<void>;
   switchContextMode: (ws: WebSocket, msg: WSClientMessage) => Promise<void>;
   createContextMode: (ws: WebSocket, msg: WSClientMessage) => Promise<void>;
@@ -41,6 +44,15 @@ export async function handleSessionRoute(
       return true;
     case 'context.repair':
       await handlers.repairContext(ws, msg);
+      return true;
+    case 'context.editor.open':
+      await handlers.openContextEditor(ws, msg);
+      return true;
+    case 'context.editor.validate':
+      await handlers.validateContextEditor(ws, msg);
+      return true;
+    case 'context.editor.apply':
+      await handlers.applyContextEditor(ws, msg);
       return true;
     case 'context.modes.list':
       await handlers.listContextModes(ws, msg);

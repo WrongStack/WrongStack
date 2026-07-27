@@ -97,6 +97,134 @@ export interface WSModelSwitch {
 
 export type MemoryScope = 'project-agents' | 'project-memory' | 'user-memory';
 
+// ── Context Window Editor types ─────────────────────────────────────────────
+
+export interface ContextEditorContentBlock {
+  type: 'text' | 'tool_use' | 'tool_result' | 'image' | 'thinking';
+  text?: string | undefined;
+  id?: string | undefined;
+  name?: string | undefined;
+  input?: Record<string, unknown> | undefined;
+  tool_use_id?: string | undefined;
+  content?: string | undefined;
+  is_error?: boolean | undefined;
+  cache_control?: { type: 'ephemeral' } | undefined;
+  providerMeta?: Record<string, unknown> | undefined;
+  signature?: string | undefined;
+  thinking?: string | undefined;
+  source?: {
+    type: 'base64' | 'url';
+    media_type?: string | undefined;
+    data?: string | undefined;
+    url?: string | undefined;
+  } | undefined;
+}
+
+export interface ContextEditorMessage {
+  role: 'user' | 'assistant' | 'system';
+  content: string | ContextEditorContentBlock[];
+  ts?: string | undefined;
+}
+
+export interface ContextEditorMetrics {
+  messages: number;
+  blocks: number;
+  /** Token estimate for the conversation messages portion only (excludes system prompt + tool schemas). */
+  messageTokens: number;
+  fullRequestTokens: number;
+}
+
+export interface ContextEditorWarning {
+  path?: string | undefined;
+  code: string;
+  severity: 'info' | 'warning' | 'danger';
+  message: string;
+}
+
+export interface ContextEditorDiagnostics {
+  hasToolAdjacencyIssues: boolean;
+  orphanToolUses: string[];
+  orphanToolResults: string[];
+  emptyMessages: number;
+  thinkingBlocks: number;
+  signedThinkingBlocks: number;
+}
+
+export interface ContextEditorRepairPreview {
+  changed: boolean;
+  removedToolUses: string[];
+  removedToolResults: string[];
+  removedMessages: number;
+}
+
+export interface ContextEditorValidationError {
+  path: string;
+  code: string;
+  message: string;
+}
+
+export interface ContextEditorConflict {
+  code: 'CONTEXT_REVISION_CONFLICT' | 'RUN_ACTIVE';
+  message: string;
+}
+
+export interface WSContextEditorSnapshot {
+  type: 'context.editor.snapshot';
+  payload: SessionScopedPayload & {
+    revision: string;
+    messages: ContextEditorMessage[];
+    readonlyContext: {
+      systemPromptTokens: number;
+      toolSchemaTokens: number;
+      toolCount: number;
+      totalTokens: number;
+      messageTokens: number;
+    };
+    messageBreakdown: Array<{
+      index: number;
+      role: 'user' | 'assistant' | 'system';
+      tokens: number;
+      preview: string;
+      blockCount: number | null;
+      warnings: ContextEditorWarning[];
+    }>;
+    diagnostics: ContextEditorDiagnostics;
+  };
+}
+
+export interface WSContextEditorValidation {
+  type: 'context.editor.validation';
+  payload: SessionScopedPayload & {
+    ok: boolean;
+    baseRevision: string;
+    currentRevision: string;
+    before: ContextEditorMetrics;
+    after?: ContextEditorMetrics | undefined;
+    validationErrors: ContextEditorValidationError[];
+    warnings: ContextEditorWarning[];
+    repair: ContextEditorRepairPreview;
+    conflict?: ContextEditorConflict | undefined;
+  };
+}
+
+export interface WSContextEditorApplied {
+  type: 'context.editor.applied';
+  payload: SessionScopedPayload & {
+    previousRevision: string;
+    revision: string;
+    before: ContextEditorMetrics;
+    after: ContextEditorMetrics;
+    removed: {
+      messages: number;
+      blocks: number;
+      toolUses: string[];
+      toolResults: string[];
+      emptyMessages: number;
+    };
+    warnings: ContextEditorWarning[];
+  };
+}
+
 export interface WSContextDebug {
   type: 'context.debug';
   payload: SessionScopedPayload & {
