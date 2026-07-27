@@ -8,8 +8,6 @@ import { EventBus } from '../../src/kernel/events.js';
 import {
   buildReviewerModelPool,
   createAutoReviewPlugin,
-  type AutoReviewConfig,
-  DEFAULT_REVIEW_FALLBACK_MODELS,
   resolveAutoReviewConfig,
   selectRoundRobinReviewerAssignment,
 } from '../../src/plugins/auto-review-plugin.js';
@@ -234,24 +232,13 @@ describe('resolveAutoReviewConfig — empty/unknown fallbackProfile', () => {
     expect(resolved.model).toBe('session-model');
   });
 
-  it('injects the default rotation chain (never empty) for an unknown profile', () => {
-    // Root-cause guard for chimera-review `provider_auth` (1 iter / 0 tools)
-    // failures: the resolver now injects DEFAULT_REVIEW_FALLBACK_MODELS when the
-    // profile resolves empty, so the reviewer is never spawned against the bare
-    // session model with nothing to fall back to. The safety net lives at the
-    // resolver level so no downstream spawn path can bypass it.
+  it('does not synthesize fallback models when an unknown profile has no chain', () => {
     const resolved = resolveAutoReviewConfig(
       { enabled: true, fallbackProfile: 'does-not-exist' },
       sessionConfig(),
     );
 
-    expect(resolved.fallbackModels.length).toBeGreaterThan(0);
-    // The shared defaults rotate first, followed by the known-working session
-    // model as the absolute last resort.
-    expect(resolved.fallbackModels).toEqual([
-      ...DEFAULT_REVIEW_FALLBACK_MODELS,
-      'session-provider/session-model',
-    ]);
+    expect(resolved.fallbackModels).toEqual([]);
   });
 
   it('never emits a blank model string that a provider would 401 as "Model is not supported"', () => {
@@ -285,7 +272,7 @@ describe('resolveAutoReviewConfig — empty/unknown fallbackProfile', () => {
   });
 });
 
-describe('resolveAutoReviewConfig — session last-resort fallback', () => {
+describe('resolveAutoReviewConfig — fallback chain source', () => {
   function sessionConfig(overrides: Partial<Config> = {}): Config {
     return {
       provider: 'session-provider',
@@ -294,36 +281,29 @@ describe('resolveAutoReviewConfig — session last-resort fallback', () => {
     } as Config;
   }
 
-  it('appends the session provider/model as the last fallback when profile is empty', () => {
-    // When no fallbackProfile is set and resolveEffective returns [], the
-    // DEFAULT_REVIEW_FALLBACK_MODELS safety net kicks in. The session's own
-    // provider/model must be the FINAL entry so the reviewer always has a
-    // known-working target as absolute last resort.
+  it('does not synthesize fallback models when the effective profile is empty', () => {
     const resolved = resolveAutoReviewConfig(
       { enabled: true },
       sessionConfig(),
     );
 
-    const fallbacks = resolved.fallbackModels;
-    expect(fallbacks.length).toBeGreaterThan(0);
-    expect(fallbacks[fallbacks.length - 1]).toBe('session-provider/session-model');
+    expect(resolved.provider).toBe('session-provider');
+    expect(resolved.model).toBe('session-model');
+    expect(resolved.fallbackModels).toEqual([]);
   });
 
-  it('appends the session provider/model as the last fallback when profile is unknown', () => {
-    // Same as above but triggered by an unknown profile name.
+  it('does not synthesize fallback models when a named profile is unknown', () => {
     const resolved = resolveAutoReviewConfig(
       { enabled: true, fallbackProfile: 'does-not-exist' },
       sessionConfig(),
     );
 
-    const fallbacks = resolved.fallbackModels;
-    expect(fallbacks.length).toBeGreaterThan(0);
-    expect(fallbacks[fallbacks.length - 1]).toBe('session-provider/session-model');
+    expect(resolved.provider).toBe('session-provider');
+    expect(resolved.model).toBe('session-model');
+    expect(resolved.fallbackModels).toEqual([]);
   });
 
-  it('does not duplicate the session ref when it is already in the fallback chain', () => {
-    // When a valid profile resolves a chain that already includes the session's
-    // provider/model, the dedup check must prevent appending it again.
+  it('uses configured profile entries as fallbacks and avoids duplicating the session ref', () => {
     const cfg: Config = {
       provider: 'profile-p1',
       model: 'profile-m1',
@@ -344,13 +324,15 @@ describe('resolveAutoReviewConfig — session last-resort fallback', () => {
       cfg,
     );
 
-    const fallbacks = resolved.fallbackModels;
-    expect(fallbacks.filter((ref) => ref === 'session-provider/session-model')).toHaveLength(1);
+    expect(resolved.provider).toBe('alt-provider');
+    expect(resolved.model).toBe('alt-model');
+    expect(resolved.fallbackModels).toEqual([
+      'session-provider/session-model',
+      'profile-p1/profile-m1',
+    ]);
   });
 
   it('appends the session ref when the profile chain has entries but none match the session', () => {
-    // Profile resolves to models that don't include the session's own
-    // provider/model → the session ref must be appended as last entry.
     const cfg: Config = {
       provider: 'session-provider',
       model: 'session-model',
@@ -367,64 +349,18 @@ describe('resolveAutoReviewConfig — session last-resort fallback', () => {
       cfg,
     );
 
-    const fallbacks = resolved.fallbackModels;
-    expect(fallbacks[fallbacks.length - 1]).toBe('session-provider/session-model');
+    expect(resolved.provider).toBe('alt-provider');
+    expect(resolved.model).toBe('alt-model');
+    expect(resolved.fallbackModels).toEqual(['session-provider/session-model']);
   });
 
-  it('never allows an empty fallbackModels array', () => {
-    // Every code path must guarantee at least one fallback entry, ensuring
-    // the reviewer always has a rotation target.
-    const emptyConfig: Config = { provider: 'p', model: 'm' } as Config;
-    const resolved = resolveAutoReviewConfig({ enabled: true }, emptyConfig);
-    expect(resolved.fallbackModels.length).toBeGreaterThan(0);
-
-    const unknownProfile = resolveAutoReviewConfig(
-      { enabled: true, fallbackProfile: '' },
-      emptyConfig,
+  it('keeps the fallback chain empty when the only candidate equals the selected primary', () => {
+    const resolved = resolveAutoReviewConfig(
+      { enabled: true, provider: 'explicit-p', model: 'explicit-m' },
+      { provider: 'explicit-p', model: 'explicit-m' } as Config,
     );
-    expect(unknownProfile.fallbackModels.length).toBeGreaterThan(0);
 
-    const withProfile = resolveAutoReviewConfig(
-      { enabled: true, fallbackProfile: 'nonexistent' },
-      emptyConfig,
-    );
-    expect(withProfile.fallbackModels.length).toBeGreaterThan(0);
-  });
-
-  it('fallback chain always ends with the session provider/model regardless of config', () => {
-    // Comprehensive: test multiple config combinations and verify the session
-    // ref is always the last entry in fallbackModels.
-    const configs: Array<{ cfg: AutoReviewConfig; session: Config; label: string }> = [
-      {
-        cfg: { enabled: true },
-        session: { provider: 'p1', model: 'm1' } as Config,
-        label: 'bare session',
-      },
-      {
-        cfg: { enabled: true, provider: 'explicit-p', model: 'explicit-m' },
-        session: { provider: 'p2', model: 'm2' } as Config,
-        label: 'explicit provider/model',
-      },
-      {
-        cfg: { enabled: true, fallbackProfile: 'unknown' },
-        session: { provider: 'p3', model: 'm3' } as Config,
-        label: 'unknown profile',
-      },
-      {
-        cfg: { enabled: true, provider: 'ep', model: 'em', fallbackProfile: 'u' },
-        session: { provider: 'p4', model: 'm4' } as Config,
-        label: 'explicit + unknown profile',
-      },
-    ];
-
-    for (const { cfg, session, label } of configs) {
-      const resolved = resolveAutoReviewConfig(cfg, session);
-      const fallbacks = resolved.fallbackModels;
-      expect(
-        fallbacks[fallbacks.length - 1],
-        `[${label}] last fallback should be the session provider/model`,
-      ).toBe(`${session.provider}/${session.model}`);
-    }
+    expect(resolved.fallbackModels).toEqual([]);
   });
 });
 
@@ -496,7 +432,8 @@ describe('reviewer model round-robin', () => {
   it('spreads successive assignments so concurrent reviewers do not share a primary', () => {
     // Simulates N concurrent chimera spawns advancing a shared cursor.
     const pool = buildReviewerModelPool('session-p', 'session-m', [
-      ...DEFAULT_REVIEW_FALLBACK_MODELS,
+      'fallback-p1/fallback-m1',
+      'fallback-p2/fallback-m2',
     ]);
     expect(pool.length).toBeGreaterThan(1);
 

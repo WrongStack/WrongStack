@@ -1,4 +1,3 @@
-
 import { randomUUID } from 'node:crypto';
 import * as path from 'node:path';
 import { setQueuedMessagesSnapshot } from '@wrongstack/core/agent';
@@ -9,7 +8,11 @@ import {
   type ChimeraReviewNeededPayload,
 } from '@wrongstack/core/plugin';
 import { attachTodosCheckpoint } from '@wrongstack/core/storage';
-import { normalizeTokenSavingTier, type StopReason, type SubagentConfig } from '@wrongstack/core/types';
+import {
+  normalizeTokenSavingTier,
+  type StopReason,
+  type SubagentConfig,
+} from '@wrongstack/core/types';
 import { mergeCustomModelDefs } from '@wrongstack/core/utils';
 import { capabilitiesFor } from '@wrongstack/providers';
 import { createToolVisionAdapters } from '@wrongstack/runtime/vision';
@@ -17,24 +20,35 @@ import { runSingleShotDispatch } from './boot/dispatch-singleshot.js';
 import { runTuiDispatch } from './boot/dispatch-tui.js';
 import { runWebUIDispatch } from './boot/dispatch-webui.js';
 import { resolveExecutionMode } from './boot/execution-mode.js';
-import { setupAutonomousCoordinator } from './boot/tui-coordinator-setup.js';
 import { createTuiCoordinatorCallbacks } from './boot/tui-coordinator-callbacks.js';
-import { registerDebugStreamCallback, restoreDebugStreamCallback } from './boot/tui-debug-stream.js';
+import { setupAutonomousCoordinator } from './boot/tui-coordinator-setup.js';
+import {
+  registerDebugStreamCallback,
+  restoreDebugStreamCallback,
+} from './boot/tui-debug-stream.js';
 import { wireGoal } from './boot/tui-goal-wiring.js';
 import { getLiveSessions, onSwitchToSession } from './boot/tui-live-sessions.js';
-import { getProjectPickerItems, onProjectSelect, type ProjectPickerContext } from './boot/tui-project-picker-callback.js';
+import {
+  getProjectPickerItems,
+  onProjectSelect,
+  type ProjectPickerContext,
+} from './boot/tui-project-picker-callback.js';
 import { handleProjectSwitchSpawn } from './boot/tui-project-spawn.js';
 import {
   type ProjectSwitchContext,
   switchProjectInPlace as switchProjectInPlaceExtracted,
 } from './boot/tui-project-switch.js';
 import type { TuiRuntimeState } from './boot/tui-runtime-state.js';
-import { getSDDContext as getSDDContextExtracted, onSDDOutput as onSDDOutputExtracted } from './boot/tui-sdd-callback.js';
+import {
+  getSDDContext as getSDDContextExtracted,
+  onSDDOutput as onSDDOutputExtracted,
+} from './boot/tui-sdd-callback.js';
 import { resumeSession } from './boot/tui-session-resume.js';
 import { createSettingsAdapter } from './boot/tui-settings-adapter.js';
 import { createBrainPanelHost } from './brain-menu/panel-service.js';
 import {
   buildChimeraReviewTaskDescription,
+  isChimeraAllClearReview,
   truncateAtCodePointBoundary,
 } from './chimera-review-task.js';
 import {
@@ -43,19 +57,19 @@ import {
   resolveReviewerFallbackModels,
 } from './chimera-reviewer-policy.js';
 import type { ExecuteDeps } from './execute-deps.js';
-import { createKanbanDispatchHandler } from './execution-kanban-dispatch.js';
 import { finalizeExecutionCleanup } from './execution-cleanup.js';
+import { createKanbanDispatchHandler } from './execution-kanban-dispatch.js';
 import { createReplFleetCallbacks } from './execution-repl-fleet-callbacks.js';
 import { FleetStatusLine } from './fleet-statusline.js';
 
 export type { LiveSettingsInput } from './live-settings-input.js';
 
+import { waitForChimeraAskApproval } from './execution-chimera-ask.js';
+import { installChimeraCascadeHandler } from './execution-chimera-cascade.js';
+import { installStorageObservability } from './execution-storage-observability.js';
+import { createTuiNextStepCallbacks } from './execution-tui-next-step-callbacks.js';
 import { resolveActiveApiKey } from './provider-config-utils.js';
 import { runRepl } from './repl.js';
-import { installStorageObservability } from './execution-storage-observability.js';
-import { installChimeraCascadeHandler } from './execution-chimera-cascade.js';
-import { waitForChimeraAskApproval } from './execution-chimera-ask.js';
-import { createTuiNextStepCallbacks } from './execution-tui-next-step-callbacks.js';
 import type { UpdateInfo } from './update-check.js';
 import { CLI_VERSION } from './version.js';
 import { createKanbanRunMirror } from './webui-server/kanban-run-mirror.js';
@@ -222,6 +236,7 @@ export async function execute(deps: ExecuteDeps): Promise<number> {
     if (p.files.length === 0) return;
 
     pendingChimeraWork = (async () => {
+      let subagentId: string | undefined;
       try {
         const taskDesc = buildChimeraReviewTaskDescription(p);
 
@@ -249,7 +264,7 @@ export async function execute(deps: ExecuteDeps): Promise<number> {
           fallbackModels: assigned.fallbackModels,
         });
 
-        const subagentId = await dir.spawn(cfg);
+        subagentId = await dir.spawn(cfg);
         const taskId = randomUUID();
         await dir.assign({
           id: taskId,
@@ -282,6 +297,7 @@ export async function execute(deps: ExecuteDeps): Promise<number> {
             reviewText: '',
             status: result?.status ?? 'unknown',
             cwd: p.cwd,
+            sessionId: session.id,
           } satisfies ChimeraReviewCompletePayload);
           return;
         }
@@ -294,6 +310,7 @@ export async function execute(deps: ExecuteDeps): Promise<number> {
           reviewText,
           status: 'success',
           cwd: p.cwd,
+          sessionId: session.id,
         } satisfies ChimeraReviewCompletePayload);
 
         if (reviewText) {
@@ -307,7 +324,8 @@ export async function execute(deps: ExecuteDeps): Promise<number> {
 
           const autoFix =
             (agent.ctx.meta['chimeraAutoFix'] as string | undefined) ?? p.config.autoFix ?? 'off';
-          const isAskMode = autoFix === 'ask';
+          const reviewHasFindings = !isChimeraAllClearReview(reviewText);
+          const isAskMode = autoFix === 'ask' && reviewHasFindings;
           const mailboxType = isAskMode ? 'ask' : 'result';
           const subject = isAskMode
             ? `🦂 Chimera review — ${p.files.length} file(s) changed. Shall I fix the findings?`
@@ -350,12 +368,13 @@ export async function execute(deps: ExecuteDeps): Promise<number> {
               );
             }
           } else {
+            leaderOnline = true;
             console.debug(
               JSON.stringify({
                 level: 'debug',
                 event: 'execution.chimera_auto_no_presence_check',
                 message:
-                  'Auto mode: leader presence not checked — mailbox message delivered regardless',
+                  'Result mode: leader presence not checked — mailbox message delivered regardless',
                 fileCount: p.files.length,
                 autoFix,
                 timestamp: new Date().toISOString(),
@@ -371,7 +390,9 @@ export async function execute(deps: ExecuteDeps): Promise<number> {
               : 30_000;
             const directive = isAskMode
               ? `LEADER ACTION REQUIRED: The Chimera review below found issues. Reply with "yes" to auto-fix, or "no" to skip (${ASK_TIMEOUT_MS / 1000}s timeout).`
-              : 'LEADER ACTION REQUIRED: The Chimera review below found issues. Read the report and fix any Critical or High findings automatically using the edit tool. Verify with typecheck and linter.';
+              : reviewHasFindings
+                ? 'LEADER ACTION REQUIRED: The Chimera review below found issues. Read the report and fix any Critical or High findings automatically using the edit tool. Verify with typecheck and linter.'
+                : 'Chimera review completed with no findings. Read the report summary below; no fix action is requested.';
             const reviewBody =
               reviewText.length > 7500
                 ? truncateAtCodePointBoundary(reviewText, 7500) +
@@ -450,6 +471,7 @@ export async function execute(deps: ExecuteDeps): Promise<number> {
 
           const shouldSpawnFix =
             !spawnedFix &&
+            reviewHasFindings &&
             (autoFix === 'auto' || (isAskMode && leaderApproved)) &&
             reviewText.length > 0;
 
@@ -480,31 +502,39 @@ export async function execute(deps: ExecuteDeps): Promise<number> {
                 timeoutMs: 1_200_000,
               };
               const fixSubagentId = await dir.spawn(fixCfg);
-              const fixTaskId = randomUUID();
-              await dir.assign({
-                id: fixTaskId,
-                description: fixTaskDesc,
-                subagentId: fixSubagentId,
-              });
-              const fixResults = await dir.awaitTasks([fixTaskId]);
-              const fixResult = fixResults[0];
-              if (fixResult?.status === 'success') {
-                await session.append({
-                  type: 'llm_response',
-                  ts: new Date().toISOString(),
-                  content: [
-                    { type: 'text', text: `Chimera fix subagent completed: ${fixResult.result}` },
-                  ],
-                  stopReason: 'end_turn' as StopReason,
-                  usage: { input: 0, output: 0 },
+              try {
+                const fixTaskId = randomUUID();
+                await dir.assign({
+                  id: fixTaskId,
+                  description: fixTaskDesc,
+                  subagentId: fixSubagentId,
                 });
-              } else {
-                await session.append({
-                  type: 'error',
-                  ts: new Date().toISOString(),
-                  message: `Chimera fix subagent ${fixResult?.status ?? 'unknown'}: ${fixResult?.error?.message ?? 'no result'}`,
-                  phase: 'agent',
-                });
+                const fixResults = await dir.awaitTasks([fixTaskId]);
+                const fixResult = fixResults[0];
+                if (fixResult?.status === 'success') {
+                  await session.append({
+                    type: 'llm_response',
+                    ts: new Date().toISOString(),
+                    content: [
+                      { type: 'text', text: `Chimera fix subagent completed: ${fixResult.result}` },
+                    ],
+                    stopReason: 'end_turn' as StopReason,
+                    usage: { input: 0, output: 0 },
+                  });
+                } else {
+                  await session.append({
+                    type: 'error',
+                    ts: new Date().toISOString(),
+                    message: `Chimera fix subagent ${fixResult?.status ?? 'unknown'}: ${fixResult?.error?.message ?? 'no result'}`,
+                    phase: 'agent',
+                  });
+                }
+              } finally {
+                try {
+                  await dir.terminate(fixSubagentId);
+                } catch {
+                  /* best-effort */
+                }
               }
             } catch (fixErr) {
               await session.append({
@@ -533,6 +563,14 @@ export async function execute(deps: ExecuteDeps): Promise<number> {
               timestamp: new Date().toISOString(),
             }),
           );
+        }
+      } finally {
+        if (subagentId) {
+          try {
+            await dir.terminate(subagentId);
+          } catch {
+            /* best-effort — subagent may already be gone */
+          }
         }
       }
     })();
@@ -830,8 +868,7 @@ export async function execute(deps: ExecuteDeps): Promise<number> {
                 if (agent.ctx.session && from !== id) {
                   void agent.ctx.session
                     .append({ type: 'mode_changed', ts: new Date().toISOString(), from, to: id })
-                    .catch(() => {
-                    });
+                    .catch(() => {});
                 }
                 return active?.name ?? null;
               }
@@ -986,10 +1023,10 @@ export async function execute(deps: ExecuteDeps): Promise<number> {
       tokenCounter,
       events,
       getPendingChimeraWork: () => pendingChimeraWork,
+      director,
       recoveryLock: currentRecoveryLock,
       reader,
     });
   }
   return code;
 }
-

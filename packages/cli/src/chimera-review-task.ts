@@ -3,6 +3,7 @@ import type {
   ChimeraCascadeNeededPayload,
   ChimeraReviewNeededPayload,
 } from '@wrongstack/core/plugin';
+import { parseReviewSeverity } from '@wrongstack/core/plugin';
 
 // Plain .slice() operates on UTF-16 code units and can split a surrogate pair.
 export function truncateAtCodePointBoundary(text: string, maxCodeUnits: number): string {
@@ -13,6 +14,19 @@ export function truncateAtCodePointBoundary(text: string, maxCodeUnits: number):
     result += ch;
   }
   return result;
+}
+
+export function isChimeraAllClearReview(text: string): boolean {
+  const severities = parseReviewSeverity(text);
+  if (severities.critical > 0 || severities.high > 0 || severities.medium > 0) {
+    return false;
+  }
+
+  const normalized = text.trim().toLowerCase();
+  return (
+    normalized.startsWith('## 🦂 chimera review — all clear') ||
+    normalized.includes('chimera review: all clear')
+  );
 }
 
 export function buildChimeraReviewTaskDescription(p: ChimeraReviewNeededPayload): string {

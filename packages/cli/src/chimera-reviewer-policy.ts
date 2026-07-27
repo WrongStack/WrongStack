@@ -1,6 +1,5 @@
 import {
   buildReviewerModelPool,
-  DEFAULT_REVIEW_FALLBACK_MODELS,
   selectRoundRobinReviewerAssignment,
 } from '@wrongstack/core/plugin';
 import type { SubagentConfig } from '@wrongstack/core/types';
@@ -9,25 +8,19 @@ import type { SubagentConfig } from '@wrongstack/core/types';
  * Resolve the fallback-model chain used when spawning the chimera-review
  * reviewer subagent.
  *
- * - When the auto-review bundle already resolved a chain (`reviewFallbackModels`
- *   present), that chain is used verbatim.
- * - Otherwise (manual/ordinary Chimera), fall back to the shared
- *   DEFAULT_REVIEW_FALLBACK_MODELS default from `@wrongstack/core`.
- *
- * Exported so the drift-guard test can assert the exact value the production
- * spawn uses, rather than string-matching source. Shared single constant means
- * the two spawn seams can never diverge and reopen the chimera-review
- * `provider_auth` (1 iter / 0 tools) failure. See fix(auto-review) 623bd441a.
+ * Auto-review bundles pass the chain already resolved from the active fallback
+ * profile/config. Manual and ordinary Chimera reviews do not inject their own
+ * hard-coded model list; they rely on the selected session provider/model unless
+ * the caller supplies a resolved fallback chain.
  */
 export function resolveReviewerFallbackModels(
   reviewFallbackModels?: readonly string[] | undefined,
   /** Append session ref as a final fallback chain entry. */
   sessionRef?: string,
 ): string[] {
-  const base =
-    reviewFallbackModels && reviewFallbackModels.length > 0
-      ? [...reviewFallbackModels]
-      : [...DEFAULT_REVIEW_FALLBACK_MODELS];
+  const base = reviewFallbackModels && reviewFallbackModels.length > 0
+    ? [...reviewFallbackModels]
+    : [];
   if (sessionRef && !base.includes(sessionRef)) {
     base.push(sessionRef);
   }

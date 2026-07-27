@@ -72,23 +72,6 @@ const DEFAULT_MAX_CONCURRENT_REVIEWS = 2;
 const DEFAULT_MAX_CASCADE_DEPTH = 2;
 
 /**
- * Default reviewer rotation chain, used when the configured fallbackProfile is
- * absent, unknown, or resolves to an empty chain. Without this, the reviewer
- * would spawn against the bare session model with no fallback; if that model
- * returns an empty response the subagent dies at 1 iter / 0 tools (surfaced as
- * provider_auth). Kept in sync with the CLI-side default in
- * packages/cli/src/execution.ts so both spawn seams share one safety net.
- * Parsed downstream as `provider/model` refs.
- */
-export const DEFAULT_REVIEW_FALLBACK_MODELS: readonly string[] = [
-  'opencode/deepseek-chat',
-  'opencode-go/deepseek-v4-pro',
-  'deepseek/deepseek-chat',
-  'anthropic-oauth/claude-opus-4-8',
-  'openai-codex/gpt-5.3-codex-spark',
-];
-
-/**
  * Primary + fallback assignment for a single Chimera reviewer spawn.
  * Produced by {@link selectRoundRobinReviewerAssignment} so concurrent
  * reviewers start on different models and only share a provider after
@@ -198,25 +181,14 @@ export function resolveAutoReviewConfig(
     )
     .map((entry) => `${entry.providerId}/${entry.model}`);
 
-  // When a named/effective profile is empty, retain the shared reviewer
-  // rotation defaults. The session's provider/model is appended as the final
-  // known-working target. Filter both the resolved primary and session target
-  // before appending so the chain stays ordered and duplicate-free.
+  // Use only configured/effective fallback-profile entries plus the session's
+  // own provider/model as a final known-working target. Chimera must not inject
+  // a hard-coded provider/model rotation of its own.
   const sessionRef = `${sessionConfig.provider}/${sessionConfig.model}`;
-  const baseFallbackModels: string[] =
-    profileFallbackModels.length > 0
-      ? profileFallbackModels
-      : DEFAULT_REVIEW_FALLBACK_MODELS.filter(
-          (ref) => ref !== `${resolvedProvider}/${resolvedModel}`,
-        );
-
-  // Unconditional last resort: the session's own known-working provider/model.
-  // Even if the profile has no fallbacks at all, the subagent always has this
-  // as its final rotation target.
   const fallbackModels = [
-    ...baseFallbackModels.filter((ref) => ref !== sessionRef),
+    ...profileFallbackModels.filter((ref) => ref !== sessionRef),
     sessionRef,
-  ];
+  ].filter((ref) => ref !== `${resolvedProvider}/${resolvedModel}`);
 
   return {
     enabled: cfg.enabled === true,

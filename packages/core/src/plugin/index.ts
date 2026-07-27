@@ -22,7 +22,7 @@ export type { PluginAPI } from '../types/plugin.js';
 export {
   buildReviewerModelPool,
   createAutoReviewPlugin,
-  DEFAULT_REVIEW_FALLBACK_MODELS,
+  parseReviewSeverity,
   type ReviewerModelAssignment,
   selectRoundRobinReviewerAssignment,
 } from '../plugins/auto-review-plugin.js';
