@@ -11,7 +11,15 @@ import type { ChronicleEventInput } from '../../src/chronicle/types.js';
 
 const dirs: string[] = [];
 afterEach(async () =>
-  Promise.all(dirs.splice(0).map((dir) => rm(dir, { recursive: true, force: true }))),
+  Promise.all(
+    dirs.splice(0).map((dir) =>
+      // maxRetries + retryDelay: Windows holds SQLite WAL sidecar file
+      // handles (-shm, -wal) briefly after close(), causing EBUSY on
+      // immediate unlink. Linear backoff (200ms × 5 retries) lets the
+      // OS release the handles without masking real cleanup failures.
+      rm(dir, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 }),
+    ),
+  ),
 );
 
 const scope = { installationId: 'i', machineId: 'm', projectId: 'p', sessionId: 'sess-1' };
