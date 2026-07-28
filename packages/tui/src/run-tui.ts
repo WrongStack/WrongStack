@@ -121,6 +121,7 @@ export async function runTui(opts: RunTuiOptions): Promise<number> {
     if (cleaned) return;
     cleaned = true;
     tuiClientRegistration.unregister();
+    void opts.agent.ctx.session.close().catch(() => undefined);
     try {
       stopTitle();
     } catch {
@@ -510,7 +511,10 @@ export async function runTui(opts: RunTuiOptions): Promise<number> {
       writeErr(
         `wstack: TUI failed to start: ${err instanceof Error ? err.message : String(err)}\n`,
       );
-      settle(1);
+      void opts.agent.ctx.session
+        .close()
+        .catch(() => undefined)
+        .finally(() => settle(1));
       return;
     }
     // Terminal reflows visible text on resize BEFORE Ink can react, which can
