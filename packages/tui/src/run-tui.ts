@@ -110,6 +110,8 @@ export async function runTui(opts: RunTuiOptions): Promise<number> {
     appConfig: opts.appConfig,
     hqTelemetryOwnedExternally: opts.hqTelemetryOwnedExternally,
     getSessionId: opts.getSessionId,
+    getAgentId: () =>
+      (opts.agent.ctx.meta['globalAgentId'] as string | undefined) ?? opts.agent.ctx.agentId,
     isCleaned: () => cleaned,
   });
 
