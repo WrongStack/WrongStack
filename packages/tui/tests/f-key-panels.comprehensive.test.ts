@@ -14,13 +14,15 @@ const entry = (key: number): FKeyPanelEntry => {
 };
 
 describe('F_KEY_PANEL_ENTRIES structural integrity', () => {
-  it('defines exactly 12 entries (F1–F12)', () => {
-    expect(F_KEY_PANEL_ENTRIES.length).toBe(12);
+  it('defines 13 entries (F1–F12 + picker-only connections panel)', () => {
+    expect(F_KEY_PANEL_ENTRIES.length).toBe(13);
   });
 
-  it('has sequential keys 1–12 with no gaps or duplicates', () => {
-    const keys = F_KEY_PANEL_ENTRIES.map((e) => e.key);
-    expect(keys).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]);
+  it('has 12 sequential F-keys 1–12 plus a picker-only entry (key 0)', () => {
+    const fKeys = F_KEY_PANEL_ENTRIES.filter((e) => e.key > 0).map((e) => e.key);
+    expect(fKeys).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]);
+    const pickerOnly = F_KEY_PANEL_ENTRIES.filter((e) => e.key === 0);
+    expect(pickerOnly).toHaveLength(1);
   });
 
   it('every entry has a non-empty label, helpKeys, and helpDescription', () => {
@@ -45,6 +47,7 @@ describe('F_KEY_PANEL_ENTRIES structural integrity', () => {
       'toggleGoalPanel',
       'toggleSessionsPanel',
       'toggleCoordinatorMonitor',
+      'toggleConnectionsPanel',
       'statuslineOpen',
     ];
     for (const entry of F_KEY_PANEL_ENTRIES) {

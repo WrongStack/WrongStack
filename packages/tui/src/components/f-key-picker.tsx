@@ -47,18 +47,24 @@ export function FKeyPicker({ selected }: FKeyPickerProps): React.ReactElement {
     >
       {window.above > 0 ? <Text color={theme.textMuted}> ↑ {window.above} panels</Text> : null}
       <Box flexDirection="column" marginTop={1}>
-        {visible.map((entry) => {
-          const idx = entry.key - 1;
+        {visible.map((entry, i) => {
+          const idx = window.start + i;
           const isSelected = idx === safeSelected;
 
           return (
-            <Box key={entry.key}>
+            <Box key={entry.key || `entry-${idx}`}>
               <Text color={isSelected ? theme.accent : theme.textMuted}>
                 {isSelected ? '› ' : '  '}
               </Text>
-              <Text color={isSelected ? theme.accent : theme.textMuted} bold>
-                F{String(entry.key).padEnd(2)}
-              </Text>
+              {entry.key > 0 ? (
+                <Text color={isSelected ? theme.accent : theme.textMuted} bold>
+                  F{String(entry.key).padEnd(2)}
+                </Text>
+              ) : (
+                <Text color={isSelected ? theme.accent : theme.textMuted} bold>
+                  {'   '}
+                </Text>
+              )}
               <Text color={isSelected ? theme.textPrimary : theme.textSecondary} bold={isSelected}>
                 {'  '}
                 {truncatePanelText(

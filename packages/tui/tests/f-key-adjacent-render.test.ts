@@ -13,7 +13,7 @@ describe('adjacent F-key surfaces', () => {
     expect(frame).toContain('FUNCTION KEYS');
     expect(frame).toContain('F12');
     expect(frame).toContain('Kanban board panel');
-    expect(frame).toContain('12 surfaces');
+    expect(frame).toContain('13 surfaces');
     view.unmount();
   });
 

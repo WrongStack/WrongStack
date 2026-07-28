@@ -505,6 +505,7 @@ export type Action =
   | { type: 'toggleGoalPanel' }
   | { type: 'toggleGoalKanbanPanel' }
   | { type: 'toggleContextPanel' }
+  | { type: 'toggleConnectionsPanel' }
   | { type: 'toggleSessionsPanel' }
   | {
       type: 'sessionsPanelSet';

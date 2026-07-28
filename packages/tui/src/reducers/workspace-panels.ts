@@ -18,6 +18,7 @@ const workspacePanelActionTypes = [
   'toggleGoalPanel',
   'toggleGoalKanbanPanel',
   'toggleContextPanel',
+  'toggleConnectionsPanel',
   'checkpointReceived',
   'rewindOverlayOpen',
   'rewindOverlayClose',
@@ -128,6 +129,12 @@ export function reduceWorkspacePanels(state: State, action: WorkspacePanelAction
       return opening
         ? { ...state, ...closePanels(state), contextPanelOpen: true }
         : { ...state, contextPanelOpen: false };
+    }
+    case 'toggleConnectionsPanel': {
+      const opening = !state.connectionsPanelOpen;
+      return opening
+        ? { ...state, ...closePanels(state), connectionsPanelOpen: true }
+        : { ...state, connectionsPanelOpen: false };
     }
     case 'checkpointReceived': {
       const existing = state.checkpoints.find((c) => c.promptIndex === action.cp.promptIndex);

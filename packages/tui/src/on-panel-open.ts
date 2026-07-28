@@ -41,6 +41,7 @@ export type PanelAction =
   | 'toggleProcessList'
   | 'toggleCronMonitor'
   | 'toggleContextPanel'
+  | 'toggleConnectionsPanel'
   | 'toggleGoalPanel'
   | 'toggleGoalKanbanPanel'
   | 'toggleSessionsPanel'
@@ -170,6 +171,7 @@ export function createPanelOpenDispatcher(deps: PanelOpenDeps): (action: string)
       case 'toggleProcessList':
       case 'toggleCronMonitor':
       case 'toggleContextPanel':
+      case 'toggleConnectionsPanel':
       case 'toggleGoalPanel':
       case 'toggleGoalKanbanPanel':
       case 'toggleSessionsPanel':

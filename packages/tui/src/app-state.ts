@@ -632,6 +632,8 @@ export type State = {
   goalKanbanPanelOpen: boolean;
   /** When true, the interactive context monitor is shown (`/context`). */
   contextPanelOpen: boolean;
+  /** When true, the interactive service connections health panel is shown (`/connections`). */
+  connectionsPanelOpen: boolean;
   /** When true, the sessions panel is shown (F10). */
   sessionsPanelOpen: boolean;
   /** Live session data for the sessions panel (F10). */

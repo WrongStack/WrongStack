@@ -35,7 +35,8 @@ describe('helpSections', () => {
   it('lists every F-key panel entry advertised by the F-key picker', () => {
     const keys = flat();
     for (const entry of F_KEY_ENTRIES) {
-      const keyLabel = `F${entry.key}`;
+      // Picker-only entries (key 0) use helpKeys (e.g. '/connections') instead of Fn.
+      const keyLabel = entry.key > 0 ? `F${entry.key}` : entry.helpKeys;
       expect(keys.some((key) => key.includes(keyLabel))).toBe(true);
     }
   });

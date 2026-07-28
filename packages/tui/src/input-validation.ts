@@ -793,6 +793,7 @@ export function validateAction(action: {
     case 'toggleGoalPanel':
     case 'toggleGoalKanbanPanel':
     case 'toggleContextPanel':
+    case 'toggleConnectionsPanel':
     case 'toggleSessionsPanel':
     case 'toggleSddBoardMonitor':
     case 'toggleWorktreeMonitor':

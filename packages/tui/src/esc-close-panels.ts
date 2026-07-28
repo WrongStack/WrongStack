@@ -44,6 +44,7 @@ export const ESC_CLOSE_PANELS: readonly EscCloseEntry[] = [
   { name: 'processList', isOpen: (s) => s.processListOpen, close: { type: 'toggleProcessList' } },
   { name: 'goalPanel', isOpen: (s) => s.goalPanelOpen, close: { type: 'toggleGoalPanel' } },
   { name: 'contextPanel', isOpen: (s) => s.contextPanelOpen, close: { type: 'toggleContextPanel' } },
+  { name: 'connectionsPanel', isOpen: (s) => s.connectionsPanelOpen, close: { type: 'toggleConnectionsPanel' } },
   { name: 'auditPanel', isOpen: (s) => s.auditPanelOpen, close: { type: 'toggleAuditPanel' } },
   { name: 'planPanel', isOpen: (s) => s.planPanelOpen, close: { type: 'togglePlanPanel' } },
   { name: 'cronMonitor', isOpen: (s) => s.cronMonitorOpen, close: { type: 'toggleCronMonitor' } },

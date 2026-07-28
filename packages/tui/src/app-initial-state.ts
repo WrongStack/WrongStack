@@ -334,6 +334,7 @@ export function createInitialState(options: CreateInitialStateOptions): State {
     goalPanelOpen: false,
     goalKanbanPanelOpen: false,
     contextPanelOpen: false,
+    connectionsPanelOpen: false,
     sessionsPanelOpen: false,
     sessionsPanel: { sessions: [], busy: false, selected: -1 },
     sessionResumeConfirm: null,

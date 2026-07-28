@@ -15,6 +15,7 @@ export type FKeyPanelAction =
   | 'toggleSessionsPanel'
   | 'toggleCoordinatorMonitor'
   | 'toggleCronMonitor'
+  | 'toggleConnectionsPanel'
   | 'statuslineOpen';
 
 /** Host-side action keys that require work beyond a reducer dispatch. */
@@ -36,7 +37,7 @@ export interface FKeyPanelEntry {
   hostAction?: FKeyHostAction | undefined;
 }
 
-/** All 12 F-key panels in order. */
+/** F-key panels and slash-command panels in display order. */
 export const F_KEY_PANEL_ENTRIES: readonly FKeyPanelEntry[] = [
   {
     key: 1,
@@ -127,6 +128,14 @@ export const F_KEY_PANEL_ENTRIES: readonly FKeyPanelEntry[] = [
     helpKeys: 'F12 or Ctrl+J',
     helpDescription: 'kanban board panel (also /kanban)',
   },
+  {
+    key: 0,
+    label: 'Service connections',
+    action: 'toggleConnectionsPanel',
+    helpKeys: 'Ctrl+N or /connections',
+    helpDescription: 'service connection health panel (Ctrl+N)',
+    ctrlAlias: 'n',
+  },
 ];
 
 type FKeyDispatchAction = Extract<
@@ -142,6 +151,7 @@ type FKeyDispatchAction = Extract<
   | { type: 'toggleGoalPanel' }
   | { type: 'toggleSessionsPanel' }
   | { type: 'toggleCoordinatorMonitor' }
+  | { type: 'toggleConnectionsPanel' }
   | { type: 'statuslineOpen' }
 >;
 
@@ -158,6 +168,7 @@ const PAYLOAD_FREE_ACTIONS = new Set<FKeyPanelAction>([
   'toggleSessionsPanel',
   'toggleCoordinatorMonitor',
   'toggleCronMonitor',
+  'toggleConnectionsPanel',
 ]);
 
 /**

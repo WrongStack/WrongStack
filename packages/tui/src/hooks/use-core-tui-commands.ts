@@ -14,6 +14,7 @@ import type { AppProps } from '../app-props.js';
 import type { Action } from '../app-action-type.js';
 import type { State } from '../app-state.js';
 import { createContextSlashCommand } from '../context-slash.js';
+import { createConnectionsSlashCommand } from '../connections-slash.js';
 import { createCronJobsGetter, createCronSlashCommand } from '../cron-slash.js';
 import { createKanbanSlashCommand } from '../kanban-slash.js';
 import { createKillSlashCommand } from '../kill-slash.js';
@@ -118,6 +119,10 @@ export function useCoreTuiCommands({
         slashRegistry.register(contextPanelCmd);
       }
     }
+    // `/connections` — open the interactive service health panel.
+    slashRegistry.register(
+      createConnectionsSlashCommand({ onPanelOpen }),
+    );
     // `/kanban` — open the project kanban panel, create a board, add a task,
     // or list boards. Mirrors the WebUI `kanban` text surface so users get
     // the same operations in either client. The panel-open bridge is shared

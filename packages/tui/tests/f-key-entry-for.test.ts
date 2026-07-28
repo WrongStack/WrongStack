@@ -121,14 +121,17 @@ describe('actionForFKeyPanel (integration with fKeyEntryFor)', () => {
 });
 
 describe('F_KEY_PANEL_ENTRIES table integrity', () => {
-  it('has exactly 12 entries', () => {
-    expect(F_KEY_PANEL_ENTRIES).toHaveLength(12);
+  it('has 13 entries (12 F-keys + 1 picker-only)', () => {
+    expect(F_KEY_PANEL_ENTRIES).toHaveLength(13);
   });
 
-  it('keys are 1 through 12 in order', () => {
-    F_KEY_PANEL_ENTRIES.forEach((entry, i) => {
+  it('keys are 1 through 12 for F-key entries, plus key 0 for picker-only', () => {
+    const fKeyEntries = F_KEY_PANEL_ENTRIES.filter((e) => e.key > 0);
+    fKeyEntries.forEach((entry, i) => {
       expect(entry.key).toBe(i + 1);
     });
+    const pickerOnly = F_KEY_PANEL_ENTRIES.filter((e) => e.key === 0);
+    expect(pickerOnly).toHaveLength(1);
   });
 
   it('every entry has a unique action', () => {

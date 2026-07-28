@@ -210,6 +210,7 @@ export function createTestState(overrides: DeepPartial<State> & Record<string, u
     goalPanelOpen: false,
     goalKanbanPanelOpen: false,
     contextPanelOpen: false,
+    connectionsPanelOpen: false,
     sessionsPanelOpen: false,
     sessionsPanel: { sessions: [], busy: false, selected: -1 },
     sessionResumeConfirm: null,

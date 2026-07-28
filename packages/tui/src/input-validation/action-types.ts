@@ -246,6 +246,7 @@ export const ALLOWED_ACTION_TYPES = defineActionTypes([
   'toggleAgentsMonitor',
   'toggleAuditPanel',
   'toggleContextPanel',
+  'toggleConnectionsPanel',
   'toggleCoordinatorMonitor',
   'toggleCronMonitor',
   'toggleGoalKanbanPanel',

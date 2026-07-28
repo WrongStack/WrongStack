@@ -4,6 +4,7 @@ import type { AppViewProps } from './app-view-contract.js';
 import { AppStatusRegion } from './app-status-region.js';
 import { AuditPanel } from './components/audit-panel.js';
 import { AuthPanel } from './components/auth-panel.js';
+import { ConnectionsPanel } from './components/connections-panel.js';
 import { AutonomyPicker } from './components/autonomy-picker.js';
 import { BrainDecisionPrompt } from './components/brain-decision-prompt.js';
 import { BrainPanel } from './components/brain-panel.js';
@@ -375,6 +376,12 @@ export function AppView({ host, runtime }: AppViewProps): React.ReactElement {
             <AuditPanel
               sideEffects={agent.ctx.sideEffects ?? []}
               onClose={() => dispatch({ type: 'toggleAuditPanel' })}
+            />
+          ) : null}
+          {state.connectionsPanelOpen ? (
+            <ConnectionsPanel
+              projectRoot={agent.ctx.projectRoot}
+              onClose={() => dispatch({ type: 'toggleConnectionsPanel' })}
             />
           ) : null}
           {state.rewindOverlay
