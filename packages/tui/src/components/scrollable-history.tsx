@@ -732,7 +732,8 @@ export const ScrollableHistory = memo(function ScrollableHistory({
         const groupEntryIds =
           group.type === 'tool-group'
             ? group.data.entries.map((entry) => entry.id)
-            : isCopyableEntry(group.entry)
+            : isCopyableEntry(group.entry) &&
+                !(group.entry.kind === 'thinking' && showModelReasoning === false)
               ? [group.entry.id]
               : [];
         const entryId = groupEntryIds[0];
@@ -877,7 +878,10 @@ export const ScrollableHistory = memo(function ScrollableHistory({
             // the icon width so total height stays unchanged and the icon lands
             // on the exact column recorded by the copy hit registry. Only show
             // it when the content column still has at least one cell.
-            const copyable = isCopyableEntry(entry) && termWidth > COPY_ICON_WIDTH;
+            const copyable =
+              isCopyableEntry(entry) &&
+              !(entry.kind === 'thinking' && showModelReasoning === false) &&
+              termWidth > COPY_ICON_WIDTH;
             const entryWidth = copyable ? termWidth - COPY_ICON_WIDTH : termWidth;
             const entryEl = (
               <EntryErrorBoundary
