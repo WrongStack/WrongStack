@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Fixed
+
+- **CLI: subagent teardown leak (host-subagent-factory).** `dispose()` now calls `agent.teardown()` so the per-subagent Context's `drainAgentHooks()` runs and clears the mailbox heartbeat `setInterval`, awareness-polling `setInterval`, HQ publisher connection, and `mbox.startAutoCompactTimer()` timer registered at subagent construction. Without this, every retired subagent retained 4 live timers and 1 HQ socket for the rest of the leader process's lifetime — a long-running kanban-dispatch loop with N subagents accumulated 4N timers and N HQ sockets. Two focused regression tests in `multi-agent.test.ts` pin `agentHooks.size === 0` after `dispose()` and after three sequential subagent retirements.
+- **Core: Director.remove now drops its own `subagentMeta` and `priceLookups` entries.** When the Director runs without a `FleetManager` (the non-fleet fallback path used by tests and lightweight consumers), the per-subagent metadata and price-lookup Maps live on the Director itself. `remove()` previously cleared `subagentBridges`, `manifestEntries`, `usedNicknames`, `taskWorktrees`, `budgetPolicy`, and `fleetManager` — but NOT its own `subagentMeta` and `priceLookups`. The price-lookup key is derived from `subagentMeta` (provider/model), so `remove()` now resolves it before deleting the meta entry. Two focused tests in `director.test.ts` pin the per-retirement cleanup and the 50-retirement idempotence invariant.
+- **Core: FleetManager.removeSubagent now drops `priceLookups` correctly.** The previous `priceLookups.delete(subagentId)` was a no-op because the Map is keyed by `${provider}/${model}` (shared across subagents using the same model), not by subagentId. `removeSubagent` now resolves the price-lookup key from `subagentMeta` (provider/model) BEFORE deleting the meta entry — order matters because `Map.delete` is a no-op on a missing key. Two focused tests in `fleet-manager-extra.test.ts` pin the per-retirement cleanup and the 50-retirement idempotence invariant.
+- **TUI: useTuiActivity caches `os.cpus()` and merges the enhance animation into the timing tick.** The per-tick `useMemo` keyed on `nowTick` (10s clock) used to call `os.cpus()` to read the core count — each call allocates a fresh array. Hoisted to a module-level `CPU_CORES` constant so the per-10s tick path does zero `os` work. The loading-dot animation (`setEnhanceBusy`) used to own a SECOND independent 1s `useAnimation` interval that kept ticking even when nothing else was active, doubling the Ink render cadence during enhance. Both now share one tick (`isActive: timingActive || enhanceActive`) and `enhanceDots` is derived as `enhanceBusy ? timingFrame % 36 : 0`. Two regression tests in `use-tui-activity.test.ts` pin the shared-tick invariants.
+
 ## [0.296.2] — 2026-07-28
 
 ### Fixed
