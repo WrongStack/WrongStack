@@ -618,9 +618,20 @@ export class FleetManager implements IFleetManager {
     }
     // Drop the per-subagent metadata maps — the removal is the point at which
     // this subagent's manifest/meta/price-lookup are no longer needed.
+    //
+    // priceLookups is keyed by `${provider}/${model}` (shared across subagents
+    // using the same model), NOT by subagentId. Read provider/model from
+    // subagentMeta FIRST, then delete the price-lookup entry, then drop the
+    // meta entry — order is critical because Map.delete is a no-op on a
+    // missing key. Previously this deleted `subagentId` from priceLookups,
+    // which never matched any real key, so every retired subagent leaked its
+    // price-lookup entry for the lifetime of the leader process.
     this.manifestEntries.delete(subagentId);
+    const meta = this.subagentMeta.get(subagentId);
+    if (meta?.provider && meta.model) {
+      this.priceLookups.delete(`${meta.provider}/${meta.model}`);
+    }
     this.subagentMeta.delete(subagentId);
-    this.priceLookups.delete(subagentId);
   }
 
   /** Release all resources: clear the manifest debounce timer and dispose the usage aggregator. */

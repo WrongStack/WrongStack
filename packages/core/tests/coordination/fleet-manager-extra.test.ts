@@ -77,6 +77,49 @@ describe('FleetManager.removeSubagent', () => {
     expect(fm.usedNicknames.size).toBe(0); // freed
     expect(fm.getFleetStatus().pending.map((p) => p.taskId)).toEqual(['t2']); // sub-1's pending dropped
   });
+
+  it('drops subagentMeta and priceLookups entries for the retired subagent', () => {
+    // Regression: FleetManager.removeSubagent used to call
+    // `priceLookups.delete(subagentId)`, but priceLookups is keyed by
+    // `${provider}/${model}` (set at recordSpawn time). The wrong-key
+    // delete was a Map no-op, so every retired subagent leaked its price
+    // lookup for the lifetime of the leader process — same bug as the
+    // Director non-fleet fallback path. Fix resolves the price-lookup key
+    // from subagentMeta BEFORE deleting the meta entry.
+    const fm = new FleetManager();
+    fm.recordSpawn('sub-a', cfg({ provider: 'anthropic', model: 'm' }), { input: 3 } as never);
+    fm.recordSpawn('sub-b', cfg({ provider: 'openai', model: 'gpt' }), { input: 5 } as never);
+    expect(fm.subagentMeta.size).toBe(2);
+    expect(fm.priceLookups.size).toBe(2);
+
+    fm.removeSubagent('sub-a');
+
+    // The retired subagent's entries must be gone from both Maps. The other
+    // subagent's entries must remain untouched.
+    expect(fm.subagentMeta.has('sub-a')).toBe(false);
+    expect(fm.priceLookups.has('anthropic/m')).toBe(false);
+    expect(fm.subagentMeta.has('sub-b')).toBe(true);
+    expect(fm.priceLookups.has('openai/gpt')).toBe(true);
+  });
+
+  it('remains idempotent across many retirements (no leak over a long fleet run)', () => {
+    // Long-running fleet sessions retire dozens of subagents; each remove
+    // must fully release its per-subagent Map entries so a 1000-subagent
+    // run does not balloon priceLookups to 1000 entries. With two unique
+    // provider/model pairs, priceLookups should converge to 0 after all
+    // subagents retire (each key is deleted once, subsequent deletes are
+    // no-ops on the missing key).
+    const fm = new FleetManager();
+    for (let i = 0; i < 50; i++) {
+      const id = `sub-${i}`;
+      const provider = i % 2 === 0 ? 'anthropic' : 'openai';
+      const model = i % 2 === 0 ? 'm' : 'gpt';
+      fm.recordSpawn(id, cfg({ provider, model }), { input: 1 } as never);
+      fm.removeSubagent(id);
+    }
+    expect(fm.subagentMeta.size).toBe(0);
+    expect(fm.priceLookups.size).toBe(0);
+  });
 });
 
 describe('FleetManager manifest scheduling + dispose', () => {
