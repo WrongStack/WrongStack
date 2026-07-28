@@ -82,7 +82,7 @@ export const kanbanTool: Tool<KanbanToolInput, KanbanToolOutput> = {
   mutating: true,
   capabilities: ['fs.write'],
   icon: 'task',
-  timeoutMs: 5_000,
+  timeoutMs: 30_000,
   inputSchema: KANBAN_INPUT_SCHEMA,
   async execute(input, ctx) {
     const projectRoot = ctx.projectRoot;
