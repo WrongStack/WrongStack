@@ -20,6 +20,8 @@ export interface RunTuiClientRegistrationOptions {
   appConfig?: Config | undefined;
   hqTelemetryOwnedExternally?: boolean | undefined;
   getSessionId?: (() => string | undefined) | undefined;
+  /** Current project mailbox identity used for actor-specific receipts/unread. */
+  getAgentId?: (() => string | undefined) | undefined;
   isCleaned: () => boolean;
 }
 
