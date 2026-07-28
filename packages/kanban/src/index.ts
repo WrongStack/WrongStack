@@ -20,3 +20,8 @@ export type {
   KanbanProjectServerStatus,
 } from './server/protocol.js';
 export { kanbanProjectServerEndpoint } from './server/project-server.js';
+export {
+  bridgeKanbanSupervisor,
+  type KanbanSupervisorEvent,
+  type BridgeOptions,
+} from './server/kanban-supervisor-bridge.js';
