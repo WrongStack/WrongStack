@@ -1,6 +1,6 @@
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
-import { atomicWrite } from '@wrongstack/core/utils';
+import { atomicWrite, deepMerge } from '@wrongstack/core/utils';
 import { ConfigError, ERROR_CODES, FsError, type SecretVault } from '@wrongstack/core/types';
 import type { ConfigStore } from '@wrongstack/core/types';
 import { decryptConfigSecrets, encryptConfigSecrets } from '@wrongstack/core/security';
@@ -81,6 +81,50 @@ async function ensureProjectDir(filePath: string): Promise<void> {
   } catch {
     // Directory already exists or is inaccessible — the write will surface the real error.
   }
+}
+
+/**
+ * When configScope changed mid-save, the write target differs from the file
+ * that was read.  Read the *destination* file, decrypt it, and deep-merge the
+ * mutated `source` on top (prefer-patch so the user's explicit changes win).
+ * This prevents a sparse source (e.g. project config without credentials)
+ * from clobbering credential-bearing fields in the destination (e.g. profile
+ * config with apiKey / providers / mcpServers).
+ *
+ * Returns `source` unchanged when destination does not exist yet.
+ */
+async function mergeWithDestinationIfExists(
+  destPath: string,
+  source: Record<string, unknown>,
+  vault: SecretVault,
+): Promise<Record<string, unknown>> {
+  let destRaw: string;
+  try {
+    destRaw = await fs.readFile(destPath, 'utf8');
+  } catch (err) {
+    // Only swallow ENOENT (destination doesn't exist yet).
+    // All other errors (EACCES, EIO, etc.) propagate as-is.
+    if ((err as NodeJS.ErrnoException).code === 'ENOENT') {
+      return source;
+    }
+    throw err;
+  }
+  let destParsed: Record<string, unknown>;
+  try {
+    destParsed = JSON.parse(destRaw) as Record<string, unknown>;
+  } catch (err) {
+    // Corrupt destination — don't merge, just write our content.
+    process.stderr.write(JSON.stringify({
+      level: 'warn',
+      event: 'settings_menu_merge_skipped',
+      message: `Skipping merge into corrupt destination file: ${destPath}`,
+      timestamp: new Date().toISOString(),
+    }) + '\n');
+    void err;
+    return source;
+  }
+  const destDecrypted = decryptConfigSecrets(destParsed, vault) as Record<string, unknown>;
+  return deepMerge(destDecrypted, source) as Record<string, unknown>;
 }
 
 /**
@@ -206,10 +250,17 @@ export async function persistAutonomySetting(
     await ensureProjectDir(actualTarget);
   }
 
+  // When configScope changed mid-save, merge into the destination file's
+  // existing content so credential-bearing fields are preserved.
+  const effectiveConfig =
+    actualTarget !== targetPath
+      ? await mergeWithDestinationIfExists(actualTarget, decrypted, deps.vault)
+      : decrypted;
+
   // When writing to the project-local config, strip credentials so
   // apiKey / providers / sync never leak into a per-project file.
   const toWrite =
-    isProfileOrGlobalTarget(actualTarget, deps) ? decrypted : filterSafeForProject(decrypted);
+    isProfileOrGlobalTarget(actualTarget, deps) ? effectiveConfig : filterSafeForProject(effectiveConfig);
 
   const encrypted = encryptConfigSecrets(toWrite, deps.vault);
   await atomicWrite(actualTarget, JSON.stringify(encrypted, null, 2), { mode: 0o600 });
@@ -277,10 +328,17 @@ export async function persistConfigSetting(
     await ensureProjectDir(actualTarget);
   }
 
+  // When configScope changed mid-save, merge into the destination file's
+  // existing content so credential-bearing fields are preserved.
+  const effectiveConfig =
+    actualTarget !== targetPath
+      ? await mergeWithDestinationIfExists(actualTarget, decrypted, deps.vault)
+      : decrypted;
+
   // When writing to the project-local config, strip credentials so
   // apiKey / providers / sync never leak into a per-project file.
   const toWrite =
-    isProfileOrGlobalTarget(actualTarget, deps) ? decrypted : filterSafeForProject(decrypted);
+    isProfileOrGlobalTarget(actualTarget, deps) ? effectiveConfig : filterSafeForProject(effectiveConfig);
 
   const encrypted = encryptConfigSecrets(toWrite, deps.vault);
   await atomicWrite(actualTarget, JSON.stringify(encrypted, null, 2), { mode: 0o600 });
