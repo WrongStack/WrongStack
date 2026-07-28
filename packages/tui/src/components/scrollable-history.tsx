@@ -1004,7 +1004,7 @@ export const ScrollableHistory = memo(function ScrollableHistory({
                   termWidth={Math.max(1, termWidth - COPY_ICON_WIDTH)}
                 />
               </Box>
-              <Box width={COPY_ICON_WIDTH} flexShrink={0}>
+              <Box width={COPY_ICON_WIDTH} flexShrink={0} marginTop={1}>
                 <Text
                   color={
                     copiedEntryId === LIVE_TOOL_STREAM_COPY_ID ? theme.success : theme.textMuted
