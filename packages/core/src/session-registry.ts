@@ -725,7 +725,14 @@ export class SessionRegistry {
           // the write — starting from {} rewrites a healthy registry.
           const registry = parseRegistry(raw);
           fn(registry);
-          await this.writeAtomicLocked(registry);
+          // Windows writeAtomicFile can fail with EPERM/EBUSY/EACCES when the
+          // destination file is momentarily held by an antivirus scan, a
+          // coexisting watcher, or a peer that just opened the file for read.
+          // The lock we hold here proves WE have exclusive write intent; the
+          // brief contention on the data file is best handled by a tiny
+          // bounded retry, NOT by escalating into a SessionRegistryWriteError
+          // that aborts every ownership claim in the process.
+          await this.writeAtomicWithRetry(registry);
           return; // success
         } finally {
           await lockHandle.close();
@@ -792,6 +799,44 @@ export class SessionRegistry {
     await this.writeAtomicFile(registry);
   }
 
+  /**
+   * Windows-safe wrapper around {@link writeAtomicLocked}. Retries on the small
+   * set of transient OS errors that occur when an antivirus scan, an indexing
+   * service, or a peer process opens the destination file for read at the
+   * same instant rename/copy tries to land. Retries are short and bounded so
+   * the heartbeat never wedges; the per-call cap is well below the 5 s
+   * heartbeat interval.
+   *
+   * Errors that look persistent (ENOENT, JSON.parse-style, anything other than
+   * the well-known transient codes) are rethrown immediately so the original
+   * failure isn't masked.
+   */
+  private async writeAtomicWithRetry(
+    registry: Record<string, SessionRegistryEntry>,
+  ): Promise<void> {
+    const transientCodes = new Set(['EPERM', 'EBUSY', 'EACCES', 'ETXTBSY', 'ENOTEMPTY']);
+    const maxAttempts = 5;
+    let lastErr: unknown;
+    for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+      try {
+        await this.writeAtomicLocked(registry);
+        return;
+      } catch (err) {
+        lastErr = err;
+        const code = (err as NodeJS.ErrnoException | undefined)?.code;
+        if (!transientCodes.has(String(code ?? '')) || attempt === maxAttempts) {
+          throw err;
+        }
+        // Tiny backoff with a 5 ms floor and 80 ms ceiling; combined with
+        // maxAttempts=5 the worst-case wait is ~250 ms — acceptable for a
+        // 5 s heartbeat and well under the cross-process lock budget.
+        const delayMs = Math.min(80, 5 * attempt);
+        await new Promise((resolve) => setTimeout(resolve, delayMs));
+      }
+    }
+    throw lastErr instanceof Error ? lastErr : new Error(String(lastErr));
+  }
+
   private async maybePruneStaleTempFiles(): Promise<void> {
     if (this.tempPrunePromise) {
       await this.tempPrunePromise;
@@ -814,6 +859,7 @@ export class SessionRegistry {
       path.dirname(this.filePath),
       `.${path.basename(this.filePath)}.${randomUUID().slice(0, 8)}.tmp`,
     );
+    let tmpPersisted = false;
     try {
       // Write + fsync BEFORE the rename: without the fsync, a system crash
       // can journal the rename metadata while the data blocks were never
@@ -825,10 +871,54 @@ export class SessionRegistry {
       } finally {
         await handle.close();
       }
-      await fs.rename(tmp, this.filePath);
+      tmpPersisted = true;
+      // Cross-platform atomic publish:
+      //   1. POSIX: rename(2) is atomic; if the destination exists it is
+      //      replaced in one step.
+      //   2. Windows (Node 22): fs.rename uses MoveFile, which fails with
+      //      EPERM/EBUSY when the destination is briefly held by an antivirus
+      //      scan, a peer process reading the file, or an indexer.
+      //      fs.copyFile uses CopyFileEx/CopyFile2 with REPLACE_EXISTING,
+      //      which DOES overwrite an existing destination and tolerates short
+      //      sharing-violation windows better than MoveFile. Doing copyFile
+      //      first, then fs.unlink(tmp), gives us "best of both worlds":
+      //      the published bytes are the freshly written + fsynced ones,
+      //      and the destination is replaced even when MoveFile refuses.
+      //      The publish is no longer strictly atomic across the OS boundary,
+      //      but the only readers (cross-process observers) re-read after a
+      //      brief settle, and we still hold the cross-process advisory lock
+      //      so no concurrent writer can interleave.
+      try {
+        await fs.rename(tmp, this.filePath);
+        tmpPersisted = false;
+      } catch (renameErr) {
+        const code = (renameErr as NodeJS.ErrnoException | undefined)?.code;
+        if (code === 'EPERM' || code === 'EBUSY' || code === 'EACCES') {
+          // Copy bytes to destination (REPLACE_EXISTING is the default for
+          // fs.copyFile when COPYFILE_FAIL_IF_EXISTS is not set), fsync the
+          // destination so readers don't see zero-filled data on a crash,
+          // then drop the temp file.
+          await fs.copyFile(tmp, this.filePath);
+          try {
+            const destHandle = await fs.open(this.filePath, 'r+');
+            try {
+              await destHandle.sync().catch(() => undefined);
+            } finally {
+              await destHandle.close();
+            }
+          } catch {
+            // Best-effort fsync of the destination; failure is non-fatal
+            // because we already wrote the bytes and the OS will flush.
+          }
+          await fs.unlink(tmp).catch(() => undefined);
+          tmpPersisted = false;
+        } else {
+          throw renameErr;
+        }
+      }
     } catch (err) {
       /* v8 ignore start -- rename-failure cleanup: best-effort tmp unlink + rethrow (atomicUpdate swallows it) */
-      await fs.unlink(tmp).catch(() => undefined);
+      if (tmpPersisted) await fs.unlink(tmp).catch(() => undefined);
       throw err;
       /* v8 ignore stop */
     }
